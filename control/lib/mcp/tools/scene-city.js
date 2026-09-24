@@ -35,7 +35,7 @@ function normalizeLandmarkInput(landmark) {
   return isLandmarkShape(landmark) ? landmark : null;
 }
 
-export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, edifices, blocks, fidelity, anchorSeat, ref, folderRef } = {}) {
+export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, edifices, blocks, fidelity, anchorSeat, ref, folderRef } = {}) {
   const manifest = {
     kind: 'fractal-city',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
@@ -82,6 +82,9 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
     // ⇒ not stored ⇒ no fog. The fractal-city fogBoxes extractor clips it against the
     // planned blocks; renders on the live /world path only (the /scene still ignores it).
     ...(fog === true || (fog && typeof fog === 'object' && !Array.isArray(fog)) ? { fog } : {}),
+    // opt-in cloud deck (fog's sibling, effects-clouds.js) — `true` for the cheap undershot plane
+    // or a tuning object ({ mode: 'full' } for the volumetric march); same fogBoxes gate, /world only.
+    ...(clouds === true || (clouds && typeof clouds === 'object' && !Array.isArray(clouds)) ? { clouds } : {}),
     // opt-in audio channel (beats.plan.md) — soundtrack / wind / sfx cues; /world only.
     ...(audio && typeof audio === 'object' && !Array.isArray(audio) ? { audio } : {}),
     // minted EDIFICE sketches placed in the fabric (worlds/city-insets.js): [{ ref, at?: [x, y] }] in
@@ -127,6 +130,6 @@ export async function createFractalCityHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_fractal_city requires a recipe object');
   }
-  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, anchorSeat, ref, folder_ref: folderRef } = input;
-  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, audio, blocks, fidelity, anchorSeat, ref, folderRef });
+  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, ref, folder_ref: folderRef } = input;
+  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, ref, folderRef });
 }

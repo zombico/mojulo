@@ -12,6 +12,76 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Clouds
+
+- **A cloud deck over any world that has fog boxes.** The 2026-09-17 smoke-and-cloud spike found that
+  a lit, Worley-eroded deck composited through the existing `effects[]` overlay reads as cumulus with
+  lit tops and shaded troughs, and recommended it as a `clouds` setting; nothing had been wired since.
+  Now `clouds: true` (or a tuning object) on a kind whose registry descriptor declares `fogBoxes`
+  (`fractal-city`, edifices, `subway-station`, `controllable`) adds a deck layer to the live `/world`
+  page. Two modes, chosen by the operator because the frame budget is theirs. `undershot` (the default)
+  is one plane intersection per pixel, no march: coverage and erosion sampled where the view ray meets
+  the deck's base (camera below) or top (camera above), slab depth turned into alpha, lit by the sun
+  transmitted through the slab plus a normalised phase lobe and a ground-to-sky ambient, faded toward
+  the horizon. `{ mode: 'full' }` is the spike's round-3 composite: a volumetric march over the band
+  with a sun light-march, dual-lobe Henyey-Greenstein, powder and ambient, and when `base` is set low
+  enough that a solid crosses the band, clipped behind it by the same box occluder the fog uses.
+  Tuning: `base`, `top` (default: the band starts above the tallest occluder box, so nothing solid
+  crosses it), `coverage` 0..1, `sun` (defaults to the
+  world's `light.toLight`), `color`, `density`, `scale`, `drift`, `maxDist`, `fade`, `steps`. The layer
+  publishes its band as `meta.base` / `meta.top` so cameras and walk eyes can stay out of it. A bad
+  tuning object throws by name, so `compose_world`'s render check refuses the mint instead of storing
+  a page that fails. Absent ⇒ zero bytes; stills and engine exports ignore it, like fog.
+  `lib/graph/effects/effects-clouds.js` (`composeCloudDeck`) is fog's sibling; the shared GLSL the
+  spike wrote inline (trilinear value noise, fbm, Worley, Henyey-Greenstein, the light march, the
+  energy rules) is now `lib/graph/effects/volume-lib.js` for the next effect to reuse. `compose_world`
+  with base `city` stores `clouds` beside `fog`; the city card documents it.
+- **Painted landscapes take the deck too.** A registry descriptor can now say `clouds: true` instead of
+  declaring `fogBoxes`: the kind has no solids to clip, and the band clears the mesh's tallest vertex
+  instead (the deck composer's new `floor`, which every deck also honours beside its boxes). The
+  `painted-landscape` kind declares it, `create_painted_landscape` and `compose_world` with base
+  `painted-landscape` store `clouds`, and the landscape card documents it. The `?render=raymarch`
+  backend returns before the channel layer and carries no deck, like every other channel.
+
+### Library
+
+- **The Library is a folder list, not a gallery.** `/library` no longer renders anything: the
+  split-view preview pane, the per-shelf rooms (board, wall, cast, masonry, rows) and the turntable
+  tiles of the full folder view are gone from the page. A left rail lists All sketches, Unfiled and
+  every folder, then the shelves with their whole-store counts; the body is one table (name with its
+  plan/research tags, kind, minted date, ref) with open / move / delete on hover; a strip under the
+  table shows the focused row's facts and actions (rename in place, open the detail page in a new
+  tab, SVG/PNG download where the kind has a still form, move, delete) and turns into the bulk bar
+  when rows are checked. The Name, Kind and Minted headers sort: newest first by default, a column's
+  first click sorts the way it reads (names A to Z, kinds grouped, dates newest first), a second
+  flips it, ties break newest first, and the choice is remembered per browser. Seeing a sketch is what `/sketches/<ref>` is for. The shelf model,
+  the sketch APIs and the beats gallery are untouched; `components/LibraryBrowser.jsx` is the new
+  body and `SketchGallery` now exports its folder modals, download links and icons so the two share
+  them. New `library.*` strings in every locale.
+- **The dashboard stops serving stale rows.** Two causes, both fixed. Recency was mint time only:
+  `sketches` had no edit timestamp, so a recipe iterated in place with `update_sketch` or
+  `edit_solid` never rose on the bench or in a strip. A `sketches.updated_at` column (idempotent
+  migration, backfilled from `created_at`) is stamped on mint, retitle and recipe edit, never on a
+  folder move or bucket pin; `SketchRepository.recent()` and `newestByBucket()` order by last touched,
+  so `/api/home`'s head and `/api/home/floor`'s strips and "picked up recently" follow what was
+  actually just touched. Rows carry `updatedAt` beside `createdAt`. And the floor's two SWR reads had
+  focus revalidation switched off, so a tab left open while the agent worked never refreshed: they now
+  re-read on focus and every thirty seconds while visible, keeping the previous rows until the new
+  ones land. The floor's cards, hero and swatches are unchanged. The library keeps its mint-time
+  order; its Minted column is honest about what it sorts.
+- **The floor's 3D zone names the workshop's real contexts, and the bench is gone.** Two shelves
+  join the shelf model. `turntables` is the illustration bucket's `css3d-turntable` and
+  `subway-station` kinds: live scenes the viewport orbits, and by far the commonest thing in that
+  bucket, which the Images shelf had been hiding on the 2D side of the floor. `views` is the object
+  bucket minus the solids (`workbench`, `scad`, `assembler`, the polygomer's `manji-tree`): the
+  scientific and educational studies, orbited and read, never printed. Models is now the solids alone,
+  Images is what is left after characters and turntables, and Scenes is labelled Worlds. The 3D zone
+  reads worlds · turntables · models · views · characters · materials; the 2D zone is unchanged; the
+  front door's zone counts follow. The floor's bench (the live hero frame and "picked up recently")
+  is removed: the head is still what `?ref=` and the empty-workshop check read, but nothing on the
+  floor mounts a live frame any more. The six per-room "open the … board" links collapse to one
+  "Open in the library" string. Shelf and zone tests re-pinned; every locale re-minted.
+
 ### Docs
 
 - **README and npm README name every box that has run mojulo.** The agent-box tier now lists the

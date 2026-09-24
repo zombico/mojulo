@@ -1184,6 +1184,16 @@ function migrateSketchColumns(db) {
   if (!have.has('bucket')) {
     db.exec('ALTER TABLE sketches ADD COLUMN bucket TEXT');
   }
+  // When the recipe was last TOUCHED (minted, retitled, or edited in place by
+  // update_sketch / edit_solid). created_at is when it was minted and never
+  // moves; the dashboard's bench and strips order by this one, so an artifact
+  // iterated in place surfaces as recent instead of sinking under its mint
+  // date. Backfilled from created_at; the repository stamps it from then on.
+  if (!have.has('updated_at')) {
+    db.exec('ALTER TABLE sketches ADD COLUMN updated_at INTEGER');
+  }
+  db.exec('UPDATE sketches SET updated_at = created_at WHERE updated_at IS NULL');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_updated_at ON sketches(updated_at DESC)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_folder_ref ON sketches(folder_ref)');
   migrateSketchDerivedColumns(db, have);
 }

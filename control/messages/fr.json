@@ -1725,8 +1725,10 @@
     "subtitle": "Chaque artefact que l'agent a frappé — scènes, modèles, personnages, matériaux, images, diagrammes. Une étagère par façon de regarder ; le même dépôt de recettes en dessous.",
     "shelves": {
       "recent": "Récents",
-      "scenes": "Scènes",
+      "scenes": "Mondes",
+      "turntables": "Tourne-disques",
       "models": "Modèles",
+      "views": "Vues",
       "characters": "Personnages",
       "images": "Images",
       "diagrams": "Diagrammes",
@@ -1737,7 +1739,31 @@
       "applyHint": "Les matériaux s'appliquent en le demandant à l'agent — définis material sur une face de monde-maillage, ou passe un nom de preset."
     },
     "recentNote": "Les artefacts les plus récents de tout l'atelier. Choisis une étagère pour voir tout un type.",
-    "roomToggle": "Salle"
+    "roomToggle": "Salle",
+    "columns": {
+      "name": "Nom",
+      "kind": "Type",
+      "minted": "Frappé",
+      "ref": "Réf"
+    },
+    "kinds": {
+      "scene": "Monde",
+      "turntable": "Tourne-disque",
+      "model": "Modèle",
+      "view": "Vue",
+      "character": "Personnage",
+      "image": "Image",
+      "diagram": "Diagramme"
+    },
+    "rail": {
+      "shelves": "Étagères",
+      "unfiled": "Non classé"
+    },
+    "inspector": {
+      "empty": "Sélectionne une ligne pour voir ses détails.",
+      "inFolder": "dans {name}",
+      "unfiled": "non classé"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "tableau de bord",
-    "bench": "Sur l'établi",
-    "recentPicks": "Repris récemment",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefacts — parcourus, orbités, imprimés",
+      "d3": "{n} artefacts — mondes, tourne-disques, solides, vues, personnages",
       "d2": "{n} artefacts — images et cartes"
-    },
-    "open": {
-      "scenes": "Ouvrir le tableau des lieux →",
-      "models": "Ouvrir le mur des plateaux tournants →",
-      "characters": "Ouvrir le tableau du casting →",
-      "images": "Ouvrir le mur d'impressions →",
-      "diagrams": "Ouvrir la salle de lecture →",
-      "materials": "Ouvrir l'étagère des matériaux →"
     },
     "stack": "×{n}",
     "presets": "{n} presets",
@@ -2318,12 +2334,11 @@
       "painted": "peint"
     },
     "capNote": "les bandes montrent les plus récents — les en-têtes ouvrent tout",
-    "warming": "préchauffage de la vue en direct…",
-    "liveFailed": "la vue en direct ne s'est pas chargée — affichage de l'image fixe",
     "loadFailed": "Impossible de charger cette étagère.",
     "retry": "Réessayer",
     "emptyStrip": "Rien de frappé ici pour l'instant.",
-    "materialsHint": "S'applique en le demandant à l'agent — définis un material sur une face de monde-maillage, ou passe un nom de preset."
+    "materialsHint": "S'applique en le demandant à l'agent — définis un material sur une face de monde-maillage, ou passe un nom de preset.",
+    "openShelf": "Ouvrir dans la bibliothèque →"
   },
   "viewCube": {
     "label": "Presets de vue",

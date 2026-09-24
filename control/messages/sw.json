@@ -1725,8 +1725,10 @@
     "subtitle": "Kila kazi ambayo wakala ameunda — mandhari, modeli, wahusika, nyenzo, picha, michoro. Rafu moja kwa kila namna ya kuangalia; hifadhi ile ile ya resipi chini yake.",
     "shelves": {
       "recent": "Za hivi karibuni",
-      "scenes": "Mandhari",
+      "scenes": "Ulimwengu",
+      "turntables": "Meza za kuzunguka",
       "models": "Modeli",
+      "views": "Mionekano",
       "characters": "Wahusika",
       "images": "Picha",
       "diagrams": "Michoro",
@@ -1737,7 +1739,31 @@
       "applyHint": "Nyenzo hupakwa kwa kumuomba wakala — weka material kwenye uso wa ulimwengu wa meshi, au pitisha jina la mpangilio."
     },
     "recentNote": "Kazi za hivi karibuni zaidi katika warsha nzima. Chagua rafu kuona zote za aina moja.",
-    "roomToggle": "Chumba"
+    "roomToggle": "Chumba",
+    "columns": {
+      "name": "Jina",
+      "kind": "Aina",
+      "minted": "Imetengenezwa",
+      "ref": "Kumbuka"
+    },
+    "kinds": {
+      "scene": "Dunia",
+      "turntable": "Meza ya kuzunguka",
+      "model": "Mfano",
+      "view": "Mwonekano",
+      "character": "Mhusika",
+      "image": "Picha",
+      "diagram": "Mchoro"
+    },
+    "rail": {
+      "shelves": "Rafu",
+      "unfiled": "Bila folda"
+    },
+    "inspector": {
+      "empty": "Chagua safu mlalo ili kuona maelezo yake.",
+      "inFolder": "katika {name}",
+      "unfiled": "bila folda"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashibodi",
-    "bench": "Kwenye meza ya kazi",
-    "recentPicks": "Zilizoshikwa hivi karibuni",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "kazi {n} — za kutembea, kuzunguka, kuchapisha",
+      "d3": "Vitu {n} — dunia, meza za kuzunguka, vitu vigumu, mionekano, wahusika",
       "d2": "kazi {n} — picha na ramani"
-    },
-    "open": {
-      "scenes": "Fungua ubao wa maeneo →",
-      "models": "Fungua ukuta wa meza-zunguko →",
-      "characters": "Fungua ubao wa wahusika →",
-      "images": "Fungua ukuta wa machapisho →",
-      "diagrams": "Fungua chumba cha kusoma →",
-      "materials": "Fungua rafu ya nyenzo →"
     },
     "stack": "×{n}",
     "presets": "mipangilio {n}",
@@ -2318,12 +2334,11 @@
       "painted": "imepakwa rangi"
     },
     "capNote": "vipande huonyesha vipya zaidi — vichwa hufungua kila kitu",
-    "warming": "inapasha mwonekano hai…",
-    "liveFailed": "mwonekano hai haukupakia — inaonyesha picha tuli",
     "loadFailed": "Haikuweza kupakia rafu hii.",
     "retry": "Jaribu tena",
     "emptyStrip": "Hakuna kilichoundwa hapa bado.",
-    "materialsHint": "Hupakwa kwa kumuomba wakala — weka material kwenye uso wa ulimwengu wa meshi, au pitisha jina la mpangilio."
+    "materialsHint": "Hupakwa kwa kumuomba wakala — weka material kwenye uso wa ulimwengu wa meshi, au pitisha jina la mpangilio.",
+    "openShelf": "Fungua kwenye maktaba →"
   },
   "viewCube": {
     "label": "Mipangilio ya mwonekano",

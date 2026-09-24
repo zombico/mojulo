@@ -172,7 +172,7 @@ function ShelfChips({ shelf, counts, onChange }) {
   );
 }
 
-function SketchDownloads({ sketch, t }) {
+export function SketchDownloads({ sketch, t }) {
   const ref = encodeURIComponent(sketch.ref);
   const mode = renderModeOf(sketch);
   const hasSvg = mode === 'svg' || mode === 'diagram';
@@ -1660,7 +1660,7 @@ function SketchPreviewModal({ sketch, t, onClose, refSet }) {
   );
 }
 
-function NewFolderModal({ tFolder, busy, onCancel, onCreate }) {
+export function NewFolderModal({ tFolder, busy, onCancel, onCreate }) {
   const [name, setName] = useState('');
   return (
     <div
@@ -1716,7 +1716,7 @@ function NewFolderModal({ tFolder, busy, onCancel, onCreate }) {
   );
 }
 
-function MoveToFolderModal({
+export function MoveToFolderModal({
   tFolder,
   tSelect,
   folders,
@@ -1800,7 +1800,7 @@ function MoveToFolderModal({
   );
 }
 
-function FileIcon({ className = 'h-3.5 w-3.5' }) {
+export function FileIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1819,7 +1819,7 @@ function FileIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function FolderIcon({ className = 'h-3.5 w-3.5' }) {
+export function FolderIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1837,7 +1837,7 @@ function FolderIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function FolderPlusIcon({ className = 'h-3.5 w-3.5' }) {
+export function FolderPlusIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1857,7 +1857,7 @@ function FolderPlusIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function CloseIcon({ className = 'h-3.5 w-3.5' }) {
+export function CloseIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1914,7 +1914,7 @@ function DownloadIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function ExternalLinkIcon({ className = 'h-3.5 w-3.5' }) {
+export function ExternalLinkIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1934,7 +1934,7 @@ function ExternalLinkIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function PencilIcon({ className = 'h-3.5 w-3.5' }) {
+export function PencilIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1953,7 +1953,7 @@ function PencilIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function TrashIcon({ className = 'h-3.5 w-3.5' }) {
+export function TrashIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -1973,7 +1973,7 @@ function TrashIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function DiskIcon({ className = 'h-3.5 w-3.5' }) {
+export function DiskIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -2014,7 +2014,7 @@ function ZoomInIcon({ className = 'h-3.5 w-3.5' }) {
   );
 }
 
-function PlusIcon({ className = 'h-3.5 w-3.5' }) {
+export function PlusIcon({ className = 'h-3.5 w-3.5' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

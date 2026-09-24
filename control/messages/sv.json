@@ -1725,8 +1725,10 @@
     "subtitle": "Varje artefakt agenten har myntat — scener, modeller, karaktärer, material, bilder, diagram. En hylla per sätt att se; samma receptlager under.",
     "shelves": {
       "recent": "Senaste",
-      "scenes": "Scener",
+      "scenes": "Världar",
+      "turntables": "Vridbord",
       "models": "Modeller",
+      "views": "Vyer",
       "characters": "Karaktärer",
       "images": "Bilder",
       "diagrams": "Diagram",
@@ -1737,7 +1739,31 @@
       "applyHint": "Material appliceras genom att fråga agenten — sätt material på en yta i en mesh-värld, eller skicka ett förinställningsnamn."
     },
     "recentNote": "De senaste artefakterna i hela verkstaden. Välj en hylla för att se allt av en sort.",
-    "roomToggle": "Rum"
+    "roomToggle": "Rum",
+    "columns": {
+      "name": "Namn",
+      "kind": "Typ",
+      "minted": "Präglad",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Värld",
+      "turntable": "Vridbord",
+      "model": "Modell",
+      "view": "Vy",
+      "character": "Karaktär",
+      "image": "Bild",
+      "diagram": "Diagram"
+    },
+    "rail": {
+      "shelves": "Hyllor",
+      "unfiled": "Osorterat"
+    },
+    "inspector": {
+      "empty": "Välj en rad för att se detaljer.",
+      "inFolder": "i {name}",
+      "unfiled": "osorterat"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "instrumentpanel",
-    "bench": "På bänken",
-    "recentPicks": "Nyligen upplockat",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefakter — vandrade, kretsade, utskrivna",
+      "d3": "{n} artefakter — världar, vridbord, solider, vyer, karaktärer",
       "d2": "{n} artefakter — bilder och kartor"
-    },
-    "open": {
-      "scenes": "Öppna platstavlan →",
-      "models": "Öppna vridskivsväggen →",
-      "characters": "Öppna rolltavlan →",
-      "images": "Öppna utskriftsväggen →",
-      "diagrams": "Öppna läsrummet →",
-      "materials": "Öppna materialhyllan →"
     },
     "stack": "×{n}",
     "presets": "{n} förinställningar",
@@ -2318,12 +2334,11 @@
       "painted": "målad"
     },
     "capNote": "remsorna visar det färskaste — rubrikerna öppnar allt",
-    "warming": "värmer upp livevyn…",
-    "liveFailed": "livevyn laddades inte — visar stillbilden",
     "loadFailed": "Kunde inte ladda den här hyllan.",
     "retry": "Försök igen",
     "emptyStrip": "Inget myntat här ännu.",
-    "materialsHint": "Appliceras genom att fråga agenten — sätt ett material på en yta i en mesh-värld, eller skicka ett förinställningsnamn."
+    "materialsHint": "Appliceras genom att fråga agenten — sätt ett material på en yta i en mesh-värld, eller skicka ett förinställningsnamn.",
+    "openShelf": "Öppna i biblioteket →"
   },
   "viewCube": {
     "label": "Vyförinställningar",

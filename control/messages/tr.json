@@ -1725,8 +1725,10 @@
     "subtitle": "Ajanın bastığı her yapıt — sahneler, modeller, karakterler, materyaller, görseller, diyagramlar. Her bakış biçimi için bir raf; altta hep aynı tarif deposu.",
     "shelves": {
       "recent": "Son eklenenler",
-      "scenes": "Sahneler",
+      "scenes": "Dünyalar",
+      "turntables": "Döner tablalar",
       "models": "Modeller",
+      "views": "Görünümler",
       "characters": "Karakterler",
       "images": "Görseller",
       "diagrams": "Diyagramlar",
@@ -1737,7 +1739,31 @@
       "applyHint": "Materyaller ajandan istenerek uygulanır — bir mesh-dünya yüzeyinde material ayarla ya da bir hazır ayar adı geç."
     },
     "recentNote": "Atölyedeki en yeni yapıtlar. Bir türün tamamını görmek için bir raf seç.",
-    "roomToggle": "Oda"
+    "roomToggle": "Oda",
+    "columns": {
+      "name": "[UNTRANSLATED] Name",
+      "kind": "Türü",
+      "minted": "Basıldı",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Dünya",
+      "turntable": "Döner tabla",
+      "model": "Model",
+      "view": "Görünüm",
+      "character": "Karakter",
+      "image": "Resim",
+      "diagram": "Diyagram"
+    },
+    "rail": {
+      "shelves": "Raflar",
+      "unfiled": "Klasörsüz"
+    },
+    "inspector": {
+      "empty": "Ayrıntıları görmek için bir satır seç.",
+      "inFolder": "{name} içinde",
+      "unfiled": "klasörsüz"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "panel",
-    "bench": "Tezgâhta",
-    "recentPicks": "Son elden geçenler",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} yapıt — gezilir, çevresinde dönülür, basılır",
+      "d3": "{n} eser — dünyalar, döner tablalar, katılar, görünümler, karakterler",
       "d2": "{n} yapıt — resimler ve haritalar"
-    },
-    "open": {
-      "scenes": "Mekân panosunu aç →",
-      "models": "Döner tabla duvarını aç →",
-      "characters": "Kadro panosunu aç →",
-      "images": "Baskı duvarını aç →",
-      "diagrams": "Okuma odasını aç →",
-      "materials": "Materyal rafını aç →"
     },
     "stack": "×{n}",
     "presets": "{n} hazır ayar",
@@ -2318,12 +2334,11 @@
       "painted": "boyanmış"
     },
     "capNote": "şeritler en tazeleri gösterir — başlıklar hepsini açar",
-    "warming": "canlı görünüm ısınıyor…",
-    "liveFailed": "canlı görünüm yüklenmedi — sabit görsel gösteriliyor",
     "loadFailed": "Bu raf yüklenemedi.",
     "retry": "Yeniden dene",
     "emptyStrip": "Burada henüz bir şey basılmadı.",
-    "materialsHint": "Ajandan istenerek uygulanır — bir mesh-dünya yüzeyinde bir materyal ayarla ya da bir hazır ayar adı geç."
+    "materialsHint": "Ajandan istenerek uygulanır — bir mesh-dünya yüzeyinde bir materyal ayarla ya da bir hazır ayar adı geç.",
+    "openShelf": "Kütüphanede aç →"
   },
   "viewCube": {
     "label": "Görünüm hazır ayarları",

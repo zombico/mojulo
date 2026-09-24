@@ -1725,8 +1725,10 @@
     "subtitle": "Elk artefact dat de agent heeft gemint — scènes, modellen, personages, materialen, afbeeldingen, diagrammen. Eén plank per manier van kijken; dezelfde receptenopslag eronder.",
     "shelves": {
       "recent": "Recent",
-      "scenes": "Scènes",
+      "scenes": "Werelden",
+      "turntables": "Draaitafels",
       "models": "Modellen",
+      "views": "Weergaven",
       "characters": "Personages",
       "images": "Afbeeldingen",
       "diagrams": "Diagrammen",
@@ -1737,7 +1739,31 @@
       "applyHint": "Materialen pas je toe door het aan de agent te vragen — zet material op een vlak van een mesh-wereld, of geef een presetnaam mee."
     },
     "recentNote": "De nieuwste artefacten uit de hele werkplaats. Kies een plank om alles van één soort te zien.",
-    "roomToggle": "Kamer"
+    "roomToggle": "Kamer",
+    "columns": {
+      "name": "Naam",
+      "kind": "Soort",
+      "minted": "Gemunt",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Wereld",
+      "turntable": "Draaitafel",
+      "model": "Model",
+      "view": "Weergave",
+      "character": "Personage",
+      "image": "Afbeelding",
+      "diagram": "Diagram"
+    },
+    "rail": {
+      "shelves": "Planken",
+      "unfiled": "Niet in map"
+    },
+    "inspector": {
+      "empty": "Selecteer een rij voor de details.",
+      "inFolder": "in {name}",
+      "unfiled": "niet in map"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashboard",
-    "bench": "Op de werkbank",
-    "recentPicks": "Recent opgepakt",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefacten — belopen, rondgedraaid, geprint",
+      "d3": "{n} artefacten — werelden, draaitafels, solids, weergaven, personages",
       "d2": "{n} artefacten — beelden en kaarten"
-    },
-    "open": {
-      "scenes": "Open het locatiebord →",
-      "models": "Open de draaitafelwand →",
-      "characters": "Open het castbord →",
-      "images": "Open de printwand →",
-      "diagrams": "Open de leeszaal →",
-      "materials": "Open de materialenplank →"
     },
     "stack": "×{n}",
     "presets": "{n} presets",
@@ -2318,12 +2334,11 @@
       "painted": "geschilderd"
     },
     "capNote": "strips tonen het nieuwste — koppen openen alles",
-    "warming": "live weergave opwarmen…",
-    "liveFailed": "live weergave niet geladen — stilstaand beeld getoond",
     "loadFailed": "Kon deze plank niet laden.",
     "retry": "Opnieuw proberen",
     "emptyStrip": "Hier nog niets gemint.",
-    "materialsHint": "Toe te passen door het aan de agent te vragen — zet een material op een vlak van een mesh-wereld, of geef een presetnaam mee."
+    "materialsHint": "Toe te passen door het aan de agent te vragen — zet een material op een vlak van een mesh-wereld, of geef een presetnaam mee.",
+    "openShelf": "Openen in de bibliotheek →"
   },
   "viewCube": {
     "label": "Weergavepresets",

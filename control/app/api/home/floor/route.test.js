@@ -58,8 +58,23 @@ describe('GET /api/home/floor', () => {
     // Characters fold by name into a cast entry with a kit.
     expect(body.strips.characters).toHaveLength(1);
     expect(body.strips.characters[0].kit).toEqual({ figure: 1, 'character-sheet': 1 });
-    expect(body.counts).toEqual({ scenes: 2, models: 2, characters: 2, images: 1, diagrams: 1 });
+    // The still is a css3d-turntable: a 3D turntable, not an image.
+    expect(body.strips.turntables.map((f) => f.ref)).toEqual(['sk_still']);
+    expect(body.strips.images).toEqual([]);
+    expect(body.counts).toEqual({ scenes: 2, turntables: 1, models: 2, views: 0, characters: 2, images: 0, diagrams: 1 });
     expect(body.recent).toHaveLength(3);
     for (const face of body.recent) expect(face).not.toHaveProperty('manifest');
+  });
+
+  it('the bench and the strips follow what was last TOUCHED, not only what was last minted', async () => {
+    seed();
+    // Back-date every mint, then edit the oldest model in place: it must lead
+    // the bench and its strip, as the dashboard promises "picked up recently".
+    getDb().prepare('UPDATE sketches SET created_at = created_at - 3600, updated_at = created_at - 3600').run();
+    SketchRepository.update({ ref: 'sk_bench', manifest: { kind: 'workbench', audio: { bed: 'hum' }, seed: 2 } });
+    const body = await (await GET()).json();
+    expect(body.recent[0].ref).toBe('sk_bench');
+    expect(body.recent[0].updatedAt).toBeGreaterThan(body.recent[0].createdAt);
+    expect(body.strips.models[0].ref).toBe('sk_bench');
   });
 });

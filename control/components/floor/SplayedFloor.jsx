@@ -5,16 +5,16 @@
  *
  * One level up from the viewport home: instead of navigating into /library, the
  * workshop's creative output splays across the landing surface, sorted into the
- * two zones the substrate already distinguishes — 3D (walked, orbited, printed)
- * over 2D (pictures and maps). Each shelf is a strip wearing its own card
- * treatment; a strip header opens the shelf's room in /library. The bench hero
- * keeps the viewport home's one live frame; the outliner/inspector reading of a
- * single artifact stays with `ViewportHome`, which still answers `/?ref=`.
+ * two zones the substrate already distinguishes — 3D (walked, orbited, printed:
+ * worlds, turntables, solids, views, characters, materials) over 2D (pictures
+ * and maps). Each shelf is a strip wearing its own card treatment; a strip's
+ * band opens the shelf in /library. There is no bench: the floor never mounts
+ * a live frame, and the outliner/inspector reading of a single artifact stays
+ * with `ViewportHome`, which still answers `?ref=`.
  *
  * Loading posture, per the plan: the floor's data is ONE light request (no
- * manifests on the wire); the only live context is the bench hero, mounted
- * after idle behind its poster still; every card image lazy-loads; strips
- * below the fold render skeletons until they approach the viewport.
+ * manifests on the wire); every card image lazy-loads; strips below the fold
+ * render skeletons until they approach the viewport.
  *
  * Rules carried over from the viewport home: the dashboard renders state and
  * never mutates; an empty workshop falls through to the launcher.
@@ -34,7 +34,6 @@ import TurntableThumb, { useTurntableMode } from '@/components/TurntableCard';
 import { Swatch } from '@/components/MaterialShelf';
 import { MATERIAL_PRESETS } from '@/lib/graph/materials/procedural-material';
 import { LIBRARY_ZONES, STRIP_LIMITS } from '@/lib/graph/sketch/library-zones';
-import { isViewportKind } from '@/lib/graph/sketch/outliner';
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -58,33 +57,6 @@ function useNearViewport(margin = '400px') {
     return () => io.disconnect();
   }, [near, margin]);
   return [ref, near];
-}
-
-/** True after the browser has had an idle moment — the bench hero's gate. */
-function useAfterIdle() {
-  const [idle, setIdle] = useState(false);
-  useEffect(() => {
-    const go = () => setIdle(true);
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(go, { timeout: 1200 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const id = setTimeout(go, 350);
-    return () => clearTimeout(id);
-  }, []);
-  return idle;
-}
-
-function Spinner({ label }) {
-  return (
-    <span className="inline-flex items-center gap-2 font-mono text-[10px] text-[color:var(--ink-muted)]">
-      <span
-        aria-hidden
-        className="inline-block h-3 w-3 animate-spin rounded-full border border-[color:var(--ink-muted)] border-t-transparent motion-reduce:animate-none"
-      />
-      {label}
-    </span>
-  );
 }
 
 function SkeletonCard({ shape = 'card' }) {
@@ -252,7 +224,9 @@ function DiagramRow({ face }) {
 
 const STRIP_GRID = {
   scenes: 'grid-cols-2 lg:grid-cols-4',
+  turntables: 'grid-cols-3 lg:grid-cols-6',
   models: 'grid-cols-3 lg:grid-cols-6',
+  views: 'grid-cols-3 lg:grid-cols-6',
   characters: 'grid-cols-2 lg:grid-cols-4',
   images: 'grid-cols-3 lg:grid-cols-6',
   diagrams: 'grid-cols-1 md:grid-cols-2',
@@ -322,129 +296,6 @@ function MaterialsRail() {
         </p>
       </div>
     </div>
-  );
-}
-
-/* ── the bench ────────────────────────────────────────────────────────────── */
-
-/**
- * The one live frame on the floor. The poster still (baked at mint time) paints
- * immediately; the iframe mounts only after the browser has gone idle, so the
- * strips and text never wait on a WebGL context. A head that is read rather
- * than walked (a diagram day) just keeps its still.
- */
-function BenchHero({ head }) {
-  const t = useTranslations('home3d');
-  const tf = useTranslations('floor');
-  const idle = useAfterIdle();
-  const [liveLoaded, setLiveLoaded] = useState(false);
-  const [liveFailed, setLiveFailed] = useState(false);
-  const live = isViewportKind(head.renderMode);
-  const src = live ? `/api/sketches/${encodeURIComponent(head.ref)}/${head.renderMode}` : null;
-  const still = live
-    ? `/api/sketches/${encodeURIComponent(head.ref)}/png?inline=1&scale=1`
-    : `/api/sketches/${encodeURIComponent(head.ref)}/svg?inline=1`;
-
-  return (
-    <div className="flex min-h-[38vh] flex-1 flex-col overflow-hidden rounded-[var(--radius-bay)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)]">
-      <div className="relative min-h-0 flex-1 bg-[color:var(--bay-void)]">
-        <img
-          src={still}
-          alt={head.title || head.ref}
-          className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
-            liveLoaded ? 'opacity-0' : 'opacity-100'
-          }`}
-        />
-        {live && idle && !liveFailed && (
-          <iframe
-            src={src}
-            title={head.title || head.ref}
-            onLoad={() => setLiveLoaded(true)}
-            onError={() => setLiveFailed(true)}
-            className="absolute inset-0 h-full w-full border-0"
-          />
-        )}
-        {live && !liveLoaded && !liveFailed && (
-          <span className="absolute bottom-2 right-3 z-10">
-            <Spinner label={tf('warming')} />
-          </span>
-        )}
-        {live && liveFailed && (
-          <span className="absolute bottom-2 right-3 z-10 rounded-[3px] bg-[color:var(--bay-void)]/80 px-2 py-1 font-mono text-[10px] text-[color:var(--ink-muted)]">
-            {tf('liveFailed')}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--bay-rail)] px-4 py-2 font-mono text-[10px] text-[color:var(--ink-muted)]">
-        <Link
-          href={`/sketches/${encodeURIComponent(head.ref)}`}
-          className="text-[color:var(--ink-secondary)] hover:text-[color:var(--live)]"
-        >
-          {head.hud?.ref || head.ref}
-        </Link>
-        <span>{head.hud?.kind}</span>
-        {head.hud?.seed != null && <span>{t('viewport.seed', { seed: String(head.hud.seed) })}</span>}
-        {head.hud?.bake && <span className="text-[color:var(--live)]">{t('viewport.baked', { preset: head.hud.bake.preset || '—' })}</span>}
-        <Link
-          href={`/sketches/${encodeURIComponent(head.ref)}`}
-          className="ml-auto text-[color:var(--live)] hover:underline"
-        >
-          {t('openArtifact')}
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function RecentPicks({ faces, loading, failed, onRetry }) {
-  const t = useTranslations('floor');
-  return (
-    <aside className="flex w-full flex-col gap-2 lg:w-[300px] lg:shrink-0">
-      <h3 className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
-        {t('recentPicks')}
-      </h3>
-      {failed ? (
-        <p className="flex flex-wrap items-center gap-2 text-[12px] text-[color:var(--fault)]">
-          {t('loadFailed')}
-          <button type="button" onClick={onRetry} className="font-mono text-[11px] text-[color:var(--live)] hover:underline">
-            {t('retry')}
-          </button>
-        </p>
-      ) : loading
-        ? Array.from({ length: 3 }, (_, i) => (
-            <div key={i} aria-hidden className="h-[72px] animate-pulse rounded-[var(--radius-card)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-bench)] motion-reduce:animate-none" />
-          ))
-        : faces.map((face) => <RecentPick key={face.ref} face={face} />)}
-    </aside>
-  );
-}
-
-function RecentPick({ face }) {
-  const { turntable, strip, turning, promote, handlers } = useTurntableMode(face);
-  return (
-    <Link
-      href={`/sketches/${encodeURIComponent(face.ref)}`}
-      {...handlers}
-      className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-bench)] p-2 transition-colors duration-100 hover:border-[color:var(--bay-rail-lit)]"
-    >
-      <div className="w-20 shrink-0 overflow-hidden rounded-[3px]">
-        <TurntableThumb
-          turntable={turntable}
-          strip={strip}
-          turning={turning}
-          promote={promote}
-          alt={face.title}
-          fallback={<FallbackIcon />}
-        />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] text-[color:var(--ink-primary)]" title={face.title}>{face.title}</p>
-        <p className="mt-0.5 flex items-center gap-2 font-mono text-[9px] text-[color:var(--ink-muted)]">
-          <span className="truncate">{face.kind}</span>
-          <Badges face={face} />
-        </p>
-      </div>
-    </Link>
   );
 }
 
@@ -519,7 +370,7 @@ function ZoneSection({ zone, zoneTotal, counts, strips, loading, failed, onRetry
           href={`/library?shelf=${active}`}
           className="ml-auto pb-2.5 font-mono text-[11px] text-[color:var(--live)] hover:underline"
         >
-          {t(`open.${active}`)}
+          {t('openShelf')}
         </Link>
       </div>
 
@@ -540,12 +391,14 @@ function ZoneSection({ zone, zoneTotal, counts, strips, loading, failed, onRetry
 
 export default function SplayedFloor({ authEnabled = false }) {
   const t = useTranslations('floor');
-  const { data: home, error, isLoading } = useSWR('/api/home', fetcher, { revalidateOnFocus: false });
-  const { data: floor, error: floorFetchError, mutate: retryFloor } = useSWR(
-    '/api/home/floor',
-    fetcher,
-    { revalidateOnFocus: false },
-  );
+  // The floor is left open while the agent works elsewhere, so it re-reads
+  // when the tab regains focus (SWR's default, throttled) and every half
+  // minute while it is visible. Both payloads are light, and SWR only
+  // re-renders when the bytes actually change, so a quiet workshop costs
+  // nothing and a mint or an in-place edit shows up without a reload.
+  const FRESH = { revalidateOnFocus: true, refreshInterval: 30_000, keepPreviousData: true };
+  const { data: home, error, isLoading } = useSWR('/api/home', fetcher, FRESH);
+  const { data: floor, error: floorFetchError, mutate: retryFloor } = useSWR('/api/home/floor', fetcher, FRESH);
 
   if (isLoading) return <main className="min-h-screen" aria-hidden />;
   // An empty workshop is an invitation, not an empty floor — same fall-through
@@ -579,17 +432,6 @@ export default function SplayedFloor({ authEnabled = false }) {
       total={home.library?.total}
       crumb={t('crumb')}
     >
-        <div className="moj-part-b px-4 py-3">
-        {/* the bench — the one live frame, and what was just touched */}
-        <h2 className="font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
-          {t('bench')}
-        </h2>
-        <div className="mt-2 flex flex-col gap-4 lg:flex-row">
-          <BenchHero head={home.head} />
-          <RecentPicks faces={floor?.recent || []} loading={floorLoading} failed={floorFailed} onRetry={retryFloor} />
-        </div>
-        </div>
-
         {/* the zones — both stand as sections, each tabbing its OWN shelves;
             every tab opens a strip, the band's room link opens everything. A
             shelf's inactive strips unmount: they were lazy skeletons anyway,

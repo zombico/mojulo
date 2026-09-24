@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { resolveWorldScene } from './world-scene.js';
+import { WORLD_KINDS } from './world-kinds.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { buildCradles } from './games/newton-cradles.js';
 
@@ -164,6 +165,83 @@ describe('world-scene — generic opt-in volumetric fog (P3.5)', () => {
   it('ignores `fog` on a kind with no registered occluder boxes', async () => {
     const { payload } = await resolveWorldScene(sketch({ kind: 'orbit-view', scenario: 'circular', fog: true }));
     expect(payload.fog).toBeUndefined();
+  });
+});
+
+describe('world-scene — generic opt-in cloud deck (`clouds`, fog\'s sibling)', () => {
+  const city = (extra) => sketch({ kind: 'fractal-city', region: { x: 0, y: 0, w: 40, d: 28 }, depth: 2, seed: 1, ...extra });
+
+  it('leaves the payload untouched when the manifest carries no `clouds`', async () => {
+    const { payload } = await resolveWorldScene(city());
+    expect(payload.effects).toBeUndefined();
+  });
+
+  it('attaches an undershot deck layer above the tallest fog box when `clouds:true`', async () => {
+    const { payload } = await resolveWorldScene(city({ clouds: true }));
+    expect(Array.isArray(payload.effects)).toBe(true);
+    expect(payload.effects.length).toBe(1);
+    const deck = payload.effects[0];
+    expect(deck.meta.mode).toBe('undershot');
+    expect(deck.meta.top).toBeGreaterThan(deck.meta.base);
+    expect(deck.frag).toContain('svDeckShape');
+    expect(deck.frag).not.toContain('const int STEPS');
+    expect(deck.frag).toContain('float hCam = ro.z, dU = rd.z;');           // the World mesh is z-up
+    const tallest = Math.max(...WORLD_KINDS['fractal-city'].fogBoxes(city({ clouds: true }).manifest).map((b) => b.cz + b.hz));
+    expect(deck.meta.base).toBeGreaterThan(tallest);                           // nothing solid crosses the band
+  });
+
+  it('`mode: "full"` marches the band; a band lowered into the blocks clips against the fog boxes', async () => {
+    const { payload: high } = await resolveWorldScene(city({ clouds: { mode: 'full' } }));
+    expect(high.effects[0].meta.mode).toBe('full');
+    expect(high.effects[0].frag).toContain('const int STEPS = 160;');
+    expect(high.effects[0].frag).not.toContain('sdfScene');                 // above every block: nothing to clip
+    const { payload: low } = await resolveWorldScene(city({ clouds: { mode: 'full', base: 4, top: 20 }, fog: true }));
+    const deck = low.effects[0];
+    expect(deck.frag).toContain('sdfScene');
+    expect(deck.customUniforms.uBoxCount).toBeGreaterThan(0);
+    expect(deck.customUniforms.uBoxCount).toBeLessThanOrEqual(low.fog.customUniforms.uBoxCount);
+  });
+
+  it('passes the tuning object through and leaves fog byte-identical beside it', async () => {
+    const alone = await resolveWorldScene(city({ fog: true }));
+    const both = await resolveWorldScene(city({ fog: true, clouds: { base: 90, top: 110, coverage: 0.6 } }));
+    expect(both.payload.effects[0].meta).toEqual({ mode: 'undershot', base: 90, top: 110 });
+    expect(both.payload.fog.frag).toBe(alone.payload.fog.frag);
+  });
+
+  it('ignores `clouds` on a kind with no registered occluder boxes', async () => {
+    const { payload } = await resolveWorldScene(sketch({ kind: 'orbit-view', scenario: 'circular', clouds: true }));
+    expect(payload.effects).toBeUndefined();
+  });
+
+  it('refuses a bad tuning object by name (compose_world unmints on throw)', async () => {
+    await expect(resolveWorldScene(city({ clouds: { mode: 'baked' } }))).rejects.toThrow(/mode must be one of/);
+  });
+
+  describe('painted-landscape (a `clouds: true` kind: no solids, the band clears the terrain)', () => {
+    const land = (extra) => sketch({ kind: 'painted-landscape', heartbeat: 'chop', splatch: 'verdure-trio', ...extra });
+
+    it('carries no deck by default and one when asked', async () => {
+      const { payload: plain } = await resolveWorldScene(land());
+      expect(plain.effects).toBeUndefined();
+      const { payload } = await resolveWorldScene(land({ clouds: true }));
+      expect(payload.effects.length).toBe(1);
+      const deck = payload.effects[0];
+      expect(deck.meta.mode).toBe('undershot');
+      let peak = 0;
+      for (const f of payload.faces) for (const c of f.corners) peak = Math.max(peak, c[2]);
+      expect(deck.meta.base).toBeGreaterThan(peak);                          // above the terrain's tallest vertex
+      expect(deck.frag).not.toContain('sdfScene');                           // nothing to clip against
+    });
+
+    it('`mode: "full"` has no occluder on a landscape (no boxes), and the raymarch backend carries no deck', async () => {
+      const { payload } = await resolveWorldScene(land({ clouds: { mode: 'full' } }));
+      expect(payload.effects[0].frag).toContain('const int STEPS = 160;');
+      expect(payload.effects[0].frag).not.toContain('sdfScene');
+      const { payload: rm } = await resolveWorldScene(land({ clouds: true }), { render: 'raymarch' });
+      expect(rm.raymarch).toBeTruthy();
+      expect(rm.effects).toBeUndefined();
+    });
   });
 });
 

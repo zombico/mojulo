@@ -23,6 +23,7 @@ import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
 import { resolveSceneLighting } from '@/lib/graph/scene/scene-css3d';
 import { composeVolumeFog } from '@/lib/graph/effects/effects-fog';
+import { composeCloudDeck } from '@/lib/graph/effects/effects-clouds';
 import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
 import { composeLandscapeRaymarch } from '@/lib/graph/landscape/painted-landscape-raymarch';
 import { renderFigureWorldFrames } from '@/lib/graph/polygonizer/figure-render';
@@ -715,6 +716,30 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const opts = (sketch.manifest.fog && typeof sketch.manifest.fog === 'object') ? sketch.manifest.fog : {};
       payload.fog = composeVolumeFog(boxes, { up: 'z', ...opts });
     }
+  }
+
+  // generic, opt-in CLOUD DECK (fog's sibling, salvaged from the smoke-and-cloud spike): an outdoor
+  // world may set `clouds: true` (or a tuning object: { mode: 'undershot' | 'full', base, top,
+  // coverage, sun, color, density, ... }) to composite a lit cloud deck over the rasterized mesh
+  // through the effects[] overlay seam (see composeCloudDeck + docs/raymarch-effects-layer.md). The
+  // gate is fog's, widened: kinds whose registry descriptor declares `fogBoxes` (the band defaults to
+  // above their tallest box, and `full` mode clips behind the boxes that cross it) or `clouds: true`
+  // (no solids: painted-landscape). Either way the band also clears the mesh's tallest vertex. The sun
+  // follows the world's baked light when it has one above the horizon. Renders ONLY on the live /world
+  // path; the layer publishes its band as `meta.base` / `meta.top`. Additive; absent ⇒ no layer,
+  // byte-identical.
+  if (payload && sketch.manifest.clouds && (typeof desc.fogBoxes === 'function' || desc.clouds === true)) {
+    const boxes = typeof desc.fogBoxes === 'function' ? (desc.fogBoxes(sketch.manifest) || []) : [];
+    const c = sketch.manifest.clouds;
+    const opts = (c && typeof c === 'object' && !Array.isArray(c)) ? c : {};
+    const toLight = payload.light && Array.isArray(payload.light.toLight) && payload.light.toLight.length === 3 && payload.light.toLight[2] > 0.05
+      ? payload.light.toLight : null;
+    let floor = 0;
+    for (const face of (Array.isArray(payload.faces) ? payload.faces : [])) {
+      for (const corner of (face && Array.isArray(face.corners) ? face.corners : [])) if (Number.isFinite(corner[2]) && corner[2] > floor) floor = corner[2];
+    }
+    const deck = composeCloudDeck(boxes, { up: 'z', floor, ...(toLight ? { sun: toLight } : {}), ...opts });
+    payload.effects = [...(Array.isArray(payload.effects) ? payload.effects : []), deck];
   }
 
   // SFX channel (game-ui-language.plan.md §V — geometry sfx backend, 2026-07-08). A manifest

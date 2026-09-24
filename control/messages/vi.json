@@ -1725,8 +1725,10 @@
     "subtitle": "Mọi tạo tác agent đã tạo — cảnh, mô hình, nhân vật, vật liệu, hình ảnh, sơ đồ. Mỗi kệ là một cách nhìn; bên dưới vẫn là cùng một kho công thức.",
     "shelves": {
       "recent": "Gần đây",
-      "scenes": "Cảnh",
+      "scenes": "Thế giới",
+      "turntables": "Bàn xoay",
       "models": "Mô hình",
+      "views": "Góc nhìn",
       "characters": "Nhân vật",
       "images": "Hình ảnh",
       "diagrams": "Sơ đồ",
@@ -1737,7 +1739,31 @@
       "applyHint": "Vật liệu được áp dụng bằng cách nhờ agent — đặt material cho một mặt của mesh-world, hoặc truyền tên preset."
     },
     "recentNote": "Các tạo tác mới nhất trong toàn xưởng. Chọn một kệ để xem tất cả cùng loại.",
-    "roomToggle": "Phòng"
+    "roomToggle": "Phòng",
+    "columns": {
+      "name": "Tên",
+      "kind": "Loại",
+      "minted": "Đã tạo",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Thế giới",
+      "turntable": "Bàn xoay",
+      "model": "Mô hình",
+      "view": "Góc nhìn",
+      "character": "Nhân vật",
+      "image": "Image",
+      "diagram": "Sơ đồ"
+    },
+    "rail": {
+      "shelves": "Kệ",
+      "unfiled": "Chưa xếp thư mục"
+    },
+    "inspector": {
+      "empty": "Chọn một hàng để xem chi tiết.",
+      "inFolder": "trong {name}",
+      "unfiled": "chưa xếp thư mục"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "bảng điều khiển",
-    "bench": "Trên bàn làm việc",
-    "recentPicks": "Vừa dùng gần đây",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} tạo tác — đi bộ, xoay quanh, in ra",
+      "d3": "{n} tạo tác — thế giới, bàn xoay, khối đặc, góc nhìn, nhân vật",
       "d2": "{n} tạo tác — tranh ảnh và bản đồ"
-    },
-    "open": {
-      "scenes": "Mở bảng địa điểm →",
-      "models": "Mở tường bàn xoay →",
-      "characters": "Mở bảng nhân vật →",
-      "images": "Mở tường in →",
-      "diagrams": "Mở phòng đọc →",
-      "materials": "Mở kệ vật liệu →"
     },
     "stack": "×{n}",
     "presets": "{n} preset",
@@ -2318,12 +2334,11 @@
       "painted": "đã tô vẽ"
     },
     "capNote": "dải hiển thị cái mới nhất — tiêu đề mở tất cả",
-    "warming": "đang khởi động khung xem trực tiếp…",
-    "liveFailed": "khung xem trực tiếp không tải được — hiển thị ảnh tĩnh",
     "loadFailed": "Không tải được kệ này.",
     "retry": "Thử lại",
     "emptyStrip": "Chưa tạo gì ở đây.",
-    "materialsHint": "Áp dụng bằng cách nhờ agent — đặt một vật liệu cho một mặt của mesh-world, hoặc truyền tên preset."
+    "materialsHint": "Áp dụng bằng cách nhờ agent — đặt một vật liệu cho một mặt của mesh-world, hoặc truyền tên preset.",
+    "openShelf": "Mở trong thư viện →"
   },
   "viewCube": {
     "label": "Góc nhìn dựng sẵn",

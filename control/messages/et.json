@@ -1725,8 +1725,10 @@
     "subtitle": "Iga artefakt, mille agent on verminud — stseenid, mudelid, tegelased, materjalid, pildid, diagrammid. Üks riiul iga vaatamisviisi kohta; all sama retseptihoidla.",
     "shelves": {
       "recent": "Hiljutised",
-      "scenes": "Stseenid",
+      "scenes": "Maailmad",
+      "turntables": "Pöördlauad",
       "models": "Mudelid",
+      "views": "Vaated",
       "characters": "Tegelased",
       "images": "Pildid",
       "diagrams": "Diagrammid",
@@ -1737,7 +1739,31 @@
       "applyHint": "Materjale rakendatakse agendi kaudu — määra material võrkmaailma tahule või anna eelseade nimi."
     },
     "recentNote": "Kõige värskemad artefaktid üle kogu töökoja. Vali riiul, et näha kõiki ühe liigi omi.",
-    "roomToggle": "Ruum"
+    "roomToggle": "Ruum",
+    "columns": {
+      "name": "Nimi",
+      "kind": "Liik",
+      "minted": "Vermitud",
+      "ref": "[UNTRANSLATED:Ref]"
+    },
+    "kinds": {
+      "scene": "Maailm",
+      "turntable": "Pöördlaud",
+      "model": "Model",
+      "view": "Vaade",
+      "character": "Tegelane",
+      "image": "[UNTRANSLATED:Image]",
+      "diagram": "Diagramm"
+    },
+    "rail": {
+      "shelves": "Riiulid",
+      "unfiled": "Kaustata"
+    },
+    "inspector": {
+      "empty": "Vali rida, et näha selle üksikasju.",
+      "inFolder": "kaustas {name}",
+      "unfiled": "kaustata"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "juhtpaneel",
-    "bench": "Tööpingil",
-    "recentPicks": "Hiljuti kätte võetud",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefakti — kõnnitavad, orbiteeritavad, prinditavad",
+      "d3": "{n} artefakti — maailmad, pöördlauad, kehad, vaated, tegelased",
       "d2": "{n} artefakti — pildid ja kaardid"
-    },
-    "open": {
-      "scenes": "Ava asukohatahvel →",
-      "models": "Ava pöördlaua sein →",
-      "characters": "Ava tegelaste tahvel →",
-      "images": "Ava prindisein →",
-      "diagrams": "Ava lugemistuba →",
-      "materials": "Ava materjaliriiul →"
     },
     "stack": "×{n}",
     "presets": "{n} eelseadet",
@@ -2318,12 +2334,11 @@
       "painted": "maalitud"
     },
     "capNote": "ribad näitavad värskeimaid — päised avavad kõik",
-    "warming": "soojendan otsevaadet…",
-    "liveFailed": "otsevaade ei laadinud — näitan stoppkaadrit",
     "loadFailed": "Seda riiulit ei õnnestunud laadida.",
     "retry": "Proovi uuesti",
     "emptyStrip": "Siia pole veel midagi vermitud.",
-    "materialsHint": "Rakendatakse agendi kaudu — määra materjal võrkmaailma tahule või anna eelseade nimi."
+    "materialsHint": "Rakendatakse agendi kaudu — määra materjal võrkmaailma tahule või anna eelseade nimi.",
+    "openShelf": "Ava raamatukogus →"
   },
   "viewCube": {
     "label": "Vaate eelseaded",

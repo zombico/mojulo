@@ -56,6 +56,7 @@ function rowToSketch(row) {
     title: row.title,
     manifest,
     createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at,
     folderRef: row.folder_ref || null,
     bucket: bucketOverride || classifyBucket(manifest),
     bucketOverride,
@@ -143,7 +144,11 @@ const EFFECTIVE_BUCKET = "COALESCE(bucket, bucket_derived, 'diagram')";
 // render mode (svg still vs turnable polygomer World) is the one branch of
 // sketchRenderMode that reads past the kind.
 
-const LIGHT_COLS = 'id, ref, title, created_at, folder_ref, bucket, bucket_derived, kind';
+const LIGHT_COLS = 'id, ref, title, created_at, updated_at, folder_ref, bucket, bucket_derived, kind';
+
+// Last-touched order: the recipe's edit time when it has one, its mint time
+// otherwise (rows older than the column read as touched when minted).
+const TOUCHED_ORDER = 'COALESCE(updated_at, created_at) DESC, created_at DESC, id DESC';
 const IN_CHUNK = 400;   // well under SQLite's bound-variable limit
 
 function lightRow(row) {
@@ -157,6 +162,7 @@ function lightRow(row) {
     bucket: row.bucket || row.bucket_derived || 'diagram',
     bucketOverride: row.bucket || null,
     createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at,
     folderRef: row.folder_ref || null,
   };
 }
@@ -226,8 +232,8 @@ export const SketchRepository = {
     const derived = deriveSketchColumns(manifest);
     try {
       handle.prepare(
-        `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, kind, bucket_derived, workshop_space_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch())`,
+        `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, kind, bucket_derived, workshop_space_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())`,
       ).run(
         finalRef, title, JSON.stringify(manifest), folderRef || null, bucket || null,
         derived.kind, derived.bucketDerived, currentSpaceId(),
@@ -274,9 +280,14 @@ export const SketchRepository = {
       bucket === undefined ? existing.bucketOverride : bucket || null;
     const derived = deriveSketchColumns(nextManifest);
     const scope = spaceFilter();
+    // A retitle or a recipe edit touches the artifact (it rises on the
+    // dashboard); a folder move or a bucket pin is filing, and does not.
+    const touched = title !== undefined || manifest !== undefined;
     handle.prepare(
       `UPDATE sketches
-          SET title = ?, manifest_json = ?, folder_ref = ?, bucket = ?, kind = ?, bucket_derived = ?
+          SET title = ?, manifest_json = ?, folder_ref = ?, bucket = ?, kind = ?, bucket_derived = ?${
+            touched ? ', updated_at = unixepoch()' : ''
+          }
         WHERE ref = ?${scope.sql}`,
     ).run(
       nextTitle, JSON.stringify(nextManifest), nextFolderRef, nextBucket,
@@ -449,7 +460,7 @@ export const SketchRepository = {
     const cap = Math.max(1, Math.min(500, Number(limit) || 40));
     const where = scope.sql ? `WHERE 1=1${scope.sql}` : '';
     return handle
-      .prepare(`SELECT * FROM sketches ${where} ORDER BY created_at DESC, rowid DESC LIMIT ?`)
+      .prepare(`SELECT * FROM sketches ${where} ORDER BY ${TOUCHED_ORDER} LIMIT ?`)
       .all(...scope.params, cap)
       .map(rowToSketch)
       .filter(Boolean);
@@ -497,7 +508,7 @@ export const SketchRepository = {
     const scope = spaceFilter();
     const where = scope.sql ? `WHERE 1=1${scope.sql}` : '';
     const rows = handle
-      .prepare(`SELECT ${LIGHT_COLS} FROM sketches ${where} ORDER BY created_at DESC, id DESC`)
+      .prepare(`SELECT ${LIGHT_COLS} FROM sketches ${where} ORDER BY ${TOUCHED_ORDER}`)
       .all(...scope.params);
     const byBucket = {};
     const buckets = {};

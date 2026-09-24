@@ -1725,8 +1725,10 @@
     "subtitle": "agent 铸造的所有作品 — 场景、模型、角色、材质、图像、图表。每种观看方式一个货架；底下是同一个配方库。",
     "shelves": {
       "recent": "最近",
-      "scenes": "场景",
+      "scenes": "世界",
+      "turntables": "转台",
       "models": "模型",
+      "views": "视图",
       "characters": "角色",
       "images": "图像",
       "diagrams": "图表",
@@ -1737,7 +1739,31 @@
       "applyHint": "材质通过让 agent 应用 — 在网格世界的面上设置 material，或传入一个预设名。"
     },
     "recentNote": "整个工坊最新的作品。选一个货架查看同一类型的全部。",
-    "roomToggle": "房间"
+    "roomToggle": "房间",
+    "columns": {
+      "name": "名称",
+      "kind": "类型",
+      "minted": "铸造时间",
+      "ref": "参考"
+    },
+    "kinds": {
+      "scene": "世界",
+      "turntable": "转台",
+      "model": "模型",
+      "view": "视图",
+      "character": "角色",
+      "image": "图像",
+      "diagram": "图表"
+    },
+    "rail": {
+      "shelves": "书架",
+      "unfiled": "未归档"
+    },
+    "inspector": {
+      "empty": "选择一行查看详情。",
+      "inFolder": "在 {name} 中",
+      "unfiled": "未归档"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "仪表盘",
-    "bench": "在工作台上",
-    "recentPicks": "最近取用",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} 件作品 — 可行走、可环视、可打印",
+      "d3": "{n} 个作品 — 世界、转台、实体、视图、角色",
       "d2": "{n} 件作品 — 图片与地图"
-    },
-    "open": {
-      "scenes": "打开场景板 →",
-      "models": "打开转台墙 →",
-      "characters": "打开角色板 →",
-      "images": "打开印品墙 →",
-      "diagrams": "打开阅览室 →",
-      "materials": "打开材质架 →"
     },
     "stack": "×{n}",
     "presets": "{n} 个预设",
@@ -2318,12 +2334,11 @@
       "painted": "已绘制"
     },
     "capNote": "条带显示最新的 — 点标题查看全部",
-    "warming": "正在预热实时视图…",
-    "liveFailed": "实时视图未能加载 — 显示静态图",
     "loadFailed": "无法加载此货架。",
     "retry": "重试",
     "emptyStrip": "这里还没有铸造任何东西。",
-    "materialsHint": "通过让 agent 应用 — 在网格世界的面上设置材质，或传入一个预设名。"
+    "materialsHint": "通过让 agent 应用 — 在网格世界的面上设置材质，或传入一个预设名。",
+    "openShelf": "在库中打开 →"
   },
   "viewCube": {
     "label": "视图预设",
