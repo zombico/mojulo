@@ -27,6 +27,10 @@ loops and the recipe format are unchanged.
 - Include a reproducible detailed raccoon-head wire example: persistent source points, visible-edge clipping, contour/feature/plane line hierarchy, source and camera metadata, fixed views and optional turntable. This is a standalone reference implementation, not a registered native primitive or SVG importer.
 - Let `resolvePose` accept a custom rest skeleton and use it when compiling unit poses and posed unit anchors, so friendly limb aims follow the authored anatomy. Default figure posing and raw angle channels retain their existing behavior.
 
+### Planar detail
+
+- **Head detail, articulation and expression in the layered grammar.** `docs/examples/head-detail/` scales the layered head down to detail. Its species-free core adds surface addresses `(part, s, t)`, named slot refinement and `volumize`, surface strips that ride the skin, spine sweeps with curl, projection onto a carrier, and bone versus skin carriers. The regions built from these are an eye (named sclera/limbus/iris/pupil bands, `iris` or `solid` no-iris modes, round/slit/no pupil, gaze, catchlight), one surround ring tucked under the brow, nostrils, a driven fold, a dual-pinned cheek web whose front edge is the mouth corner, and a tongue resting on the jaw floor. Sided controls in [-1, 1] each declare a named skin map. Two heads share the core with only data differing: the dragon, with a volumized jaw floor, and a bear authored from its own 12-slot station table. One species-neutral expression table (`neutral`, `pant`, `flick`, `surprise`, `snarl`) drives both. The tests check closure, determinism, a core with no species words, bone parts unmoved by skin controls, and one-sided isolation. It registers no kind or tool.
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation
