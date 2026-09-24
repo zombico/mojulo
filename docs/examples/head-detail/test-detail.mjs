@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt } from './compile.mjs';
+import { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor } from './compile.mjs';
 import { surfaceLocalOffset } from '../../../control/lib/graph/polygonizer/surface-pin.js';
 
 const partsOf = (head, x) => build(head, x).parts;
@@ -42,11 +42,14 @@ test('bone carriers do not move under skin controls', () => {
   }
 });
 
-test('a one-sided expression leaves the other side untouched', () => {
+test('a one-sided expression never moves the other side; the shared midline bounds anything pinned across it', () => {
+  const moved = (A, B) => Math.max(0, ...Object.entries(A).map(([id, p]) => Math.hypot(...p.map((v, i) => v - B[id][i]))));
   for (const head of Object.values(HEADS)) {
     const a = build(head, {}), b = build(head, { sneer: { L: 1 }, browFurrow: { L: 1 }, cheekBunch: { L: 1 } });
     for (const [id, p] of Object.entries(a.skin.cranium.points)) if (id.endsWith('R')) assert.ok(same(p, b.skin.cranium.points[id]), `${id} moved`);
-    for (const k of ['browR', 'foldR', 'surroundR', 'nostrilR']) assert.ok(same(a.parts[k].points, b.parts[k].points), `${k} moved`);
+    const mid = (pts) => Object.fromEntries(Object.entries(pts).filter(([id]) => !/[RL]$/.test(id)));
+    const midline = moved(mid(a.skin.cranium.points), mid(b.skin.cranium.points));
+    for (const k of ['browR', 'foldR', 'surroundR', 'nostrilR']) assert.ok(moved(a.parts[k].points, b.parts[k].points) <= midline + 1e-12, `${k} moved more than the shared midline`);
   }
 });
 
@@ -64,5 +67,34 @@ test('the upper surround tucks under the brow and the tongue rests on the jaw fl
     const tongueLow = Math.min(...Object.values(p['tongue.0'].points).map((q) => q[2]));
     const floor = Math.min(...Object.entries(build(head, {}).skin.jaw.points).filter(([id]) => /\.gum$/.test(id)).map(([, q]) => q[2]));
     assert.ok(tongueLow > floor - 0.01, 'tongue sits below the jaw floor');
+  }
+});
+
+test('refinement keeps addresses: (s, t) names the same bilinear patch point, and refining converges on it', () => {
+  // an address means the point on the cell's bilinear patch; the coarse two-triangle split sits off that patch
+  // by the cell's non-planarity, and linear refinement moves every address onto it
+  const plain = clone(loadRecipe()), fine = clone(loadRecipe());
+  for (const [a, b] of [['st1', 'st2'], ['st2', 'st3'], ['st3', 'st4'], ['st4', 'st5']]) refineStation(fine, 'cranium', a, b);
+  refineSlot(fine, 'cranium', 'brow', 'sideR', 'temple'); refineSlot(fine, 'cranium', 'side', 'lipR', 'cheek');
+  const [A, B] = [plain, fine].map((r) => compile(r, {}, { details: false, creases: false }).parts);
+  assert.ok(B.cranium.stations.length === A.cranium.stations.length + 4 && B.cranium.slots.length === A.cranium.slots.length + 4);
+  const S = A.cranium.slots, P = (j, k) => A.cranium.points[`cranium/st${j}.${S[k]}`]; const L = (a, b, w) => a.map((x, n) => x + (b[n] - x) * w);
+  const dist = (p, q) => Math.hypot(...p.map((x, n) => x - q[n]));
+  for (const q of [[2.45, 1.55], [1.55, 0.55], [4.55, 0.6], [1.7, 2.97], [3.6, 2.4]]) {
+    const i = Math.floor(q[0]), k = Math.floor(q[1]), u = q[0] - i, v = q[1] - k; const bilinear = L(L(P(i, k), P(i + 1, k), u), L(P(i, k + 1), P(i + 1, k + 1), u), v);
+    const coarse = dist(frameAt(A, 'cranium', q, 'R').origin, bilinear), refined = dist(frameAt(B, 'cranium', q, 'R').origin, bilinear);
+    assert.ok(refined < 0.001 && refined <= coarse + 1e-9, `address ${q}: refined ${(refined * 1000).toFixed(2)} mm, coarse ${(coarse * 1000).toFixed(2)} mm off the patch`);
+  }
+});
+
+test('the tongue never goes below the jaw, in any expression or at the controls\' extremes', () => {
+  // in the jaw's own frame (it rides the hinge): every tongue vertex stays above the jaw's underside at its x
+  // (held at the chin past the tip), and above the jaw's lowest point outright
+  const extremes = [{ jawOpen: 30, tongueOut: 1, tongueCurl: -1 }, { jawOpen: 30, tongueOut: 1, tongueCurl: -1, tongueSway: 1 }, { jawOpen: 0, tongueOut: 1, tongueCurl: -1 }, { jawOpen: 12, tongueOut: 0.5, tongueCurl: 1 }];
+  for (const [h, head] of Object.entries(HEADS)) for (const x of [...Object.values(EXPRESSIONS), ...extremes]) {
+    const { bone } = carriers(head.recipe, head, x); const base = frameAt(bone, 'jaw', head.regions.tongue.at, 'R'); const floor = jawFloor(bone, base);
+    const jawLow = Math.min(...Object.values(bone.jaw.points).map((q) => surfaceLocalOffset(base, q)[2]));
+    const parts = build(head, x).parts; const tongue = Object.keys(parts).filter((k) => k.startsWith('tongue.')).flatMap((k) => Object.values(parts[k].points)).map((q) => surfaceLocalOffset(base, q));
+    for (const q of tongue) { assert.ok(q[2] >= floor(q[0]) - 1e-6, `${h} ${JSON.stringify(x)}: tongue ${(q[2] - floor(q[0])) * 1000} mm under the jaw's underside`); assert.ok(q[2] >= jawLow - 1e-6, `${h}: tongue below the jaw's lowest point`); }
   }
 });

@@ -23,13 +23,16 @@ grammar would gain; it registers nothing.
 
 | Operation | What it does |
 | --- | --- |
-| Surface address `(part, s, t)` | Continuous station and slot parameters → face, barycentric weights, tangent edge; the left side mirrors by name |
-| `refineSlot`, `volumize` | Insert a named slot pair between two slots on every station, then push named slots out of their station ring |
+| Surface address `(part, s, t)` | Continuous station (`u`) and slot (`t`) parameters → face, barycentric weights, tangent edge; the left side mirrors by name |
+| `refineStation`, `refineSlot` | Insert named stations (`st2_st3_50`) or slot pairs linearly. Parameters freeze before the first insert, so nothing renumbers and every address keeps its meaning |
+| `volumize` | Push named slots out of their station ring (runs before refinement, so inserts interpolate the volume) |
+| `pinToAddress`, `symmetricFrameAt` | Migrate an authored face pin to a parameter address (so it survives refinement); a midline frame from an address and its mirror |
+| Tiles | Detail grown from a carrier. Each cell of an (s,t) window gets a `sides`-gon footprint of addresses on the skin (`coverage` > 1 shingles). The top is inset, raised and leaned; `edgeFade`, `wobble` and `jitter` are seeded per tile id |
 | Surface strip | A loft whose stations are addresses, each with its own surface frame, so it rides the skin (brows, folds) |
 | `sweep` with `curl` | A spine loft in a pin frame; `curl` spreads a rotation over the stations (horns, ears) |
 | `projectOnto` | Places a point on a carrier along a direction (the eye surround's outer edge) |
 | `ringLoft` | A closed loop of closed sections, a torus (the eye surround) |
-| Sided controls | Values in [-1, 1] per side; each control declares a named skin map with an amplitude |
+| Sided controls | Values in [-1, 1] per side. Each control's skin map is a list of addresses with falloff radii (authored by landmark name, `st2.brow`), touching that side and the shared midline only |
 
 ## Regions
 
@@ -45,9 +48,22 @@ grammar would gain; it registers nothing.
 - **Fold.** A strip from nostril to mouth whose height is driven by `sneer` and `cheekBunch`.
 - **Cheek web.** A sheet held between the cranium lip line (skin) and the jaw lip line (bone) over a
   run of stations. It stretches with the jaw, and its front edge is the mouth corner.
+- **Density and tiles (head data).** Each head declares where refinement goes. The dragon halves its
+  face stations and splits the temple and cheek bands; the bear halves its muzzle stations and splits
+  flank and flew. Tile windows use the same op for different results: shingled hex scales on the
+  dragon's cheek and jaw side, plates on its snout, and pointed back-leaning fur tufts on the bear's
+  cheek ruff and crown.
 - **Tongue.** A chain resting on the jaw floor. Its rest spine is the floor's midline sampled by
   address. `tongueOut`, `tongueCurl` and `tongueSway` re-bend it, weighted toward the tip. The tip is
   `round`, `point` or `fork`.
+  - **Clearance rule: the tongue never goes below the jaw.** In the jaw's own frame (it rides the
+    hinge), the floor is the jaw's underside, its midline `bottom` profile, held at the chin past
+    either end.
+  - A segment whose drawn ring would dip under it is turned up just enough, by bisection on the ring's
+    actual vertices, and later segments inherit the turn. Lengths are kept.
+  - The rings are built in exactly the frames that were checked.
+  - A fork is one structure: its prongs are never thicker than the body where they leave it, and
+    both take the larger of their required lifts.
 
 ## Artifacts
 
@@ -68,16 +84,23 @@ Machine, in `test-detail.mjs`:
 - The core names no species.
 - A control without a region is a no-op.
 - Bone-carried parts do not move under skin controls.
-- A one-sided expression leaves the other side untouched.
 - In the eye's frame, the upper surround sits `tuck` below the brow's lower edge.
 - The tongue sits on the jaw floor.
+- A one-sided expression never moves the other side's points. The shared midline may move, and it
+  bounds anything pinned across it.
+- The tongue never goes below the jaw, for every expression and at the controls' extremes (jaw 30°
+  open, tongue fully out and curled down, with and without sway), for both heads.
+- Refinement keeps addresses: an address names the point on its cell's bilinear patch. The coarse
+  two-triangle surface sits up to 6 mm off that patch on the dragon's non-planar cells; refined, every
+  tested address is within 1 mm.
 
 Not certified:
-- **Self-intersection and clearance.** A strong `tongueCurl` with a half-open jaw can pass through
-  the palate; lids and teeth have the same exposure.
+- **Other clearance.** The tongue's floor rule is enforced, but nothing yet stops a strong
+  `tongueCurl` passing up through the palate, a lid through the eyeball, or a tooth through the
+  opposite jaw. General self-intersection is not checked.
 - **Printability, rigging and weights.** None are covered.
-- **Skin maps keyed by station and slot**, rather than by address plus falloff, do not survive
-  refinement.
+- **Tile patches do not avoid each other or other regions.** Their windows are placed by hand, and
+  the dragon's cheek patch still shows a border.
 
 Eyes: the agent looked at the sheets. Human acceptance is separate.
 
