@@ -1,0 +1,35 @@
+{
+  "rest": {},
+  "brute": {
+    "bulk": 1.25,
+    "gut": 0.08,
+    "stance": 1.2,
+    "skullWidth": 1.2,
+    "browDrop": 0.04,
+    "clawLength": 1.4
+  },
+  "lean": {
+    "lean": 20,
+    "jawOpen": 25,
+    "toothLength": 1.2
+  },
+  "lithe": {
+    "bulk": 0.88,
+    "stance": 0.85,
+    "snoutLength": 1.3,
+    "clawLength": 1.6,
+    "crestHeight": 1.4
+  },
+  "pose": {
+    "lean": 12,
+    "jawOpen": 20,
+    "tailCurl": 12,
+    "tailSway": 8,
+    "grip": 35
+  },
+  "lash": {
+    "tailCurl": -15,
+    "tailSway": 15,
+    "bulk": 1.1
+  }
+}

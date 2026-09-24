@@ -38,6 +38,7 @@ const recipe = {
   creases: { ridge: { parent: 'body', edge: ['body/st0.top', 'body/st1.top'] } },
 };
 const at = (m) => Object.fromEntries(m.pointIds.map((id, i) => [id, m.vertices[i]]));
+const DRAGON = path.resolve(process.cwd(), '../docs/examples/dragon-layered/recipe.json');
 
 describe('station-loft — the grammar', () => {
   it('compiles a closed body and a pinned detail; every part passes the audit', () => {
@@ -76,6 +77,28 @@ describe('station-loft — the grammar', () => {
     const hinge = structuredClone(recipe); hinge.dials.tilt.pivot = 'body/nowhere'; expect(() => compileLayered(hinge, { tilt: 5 })).toThrow(/pivot/);
     const odd = structuredClone(recipe); odd.parts.body.slots = ['top', 'sideR', 'bottom']; expect(() => compileLayered(odd)).toThrow(/even/);
   });
+  it('a hinge with `parts` turns the chain rigidly about one pivot (the pivot read once, the spike rides along)', () => {
+    const two = structuredClone(recipe); two.parts.arm = { ...structuredClone(body), stations: body.stations.map((s) => ({ id: s.id, points: Object.fromEntries(Object.entries(s.points).map(([k, p]) => [k, [p[0], p[1] + 2, p[2]]])) })), caps: { back: [0, 1.5, 0.5], tip: [0, 3.5, 0.5] } };
+    two.dials.tilt = { ...two.dials.tilt, parts: ['body', 'arm'] }; delete two.dials.tilt.part;
+    const P0 = at(compileLayered(two)); const T = at(compileLayered(two, { tilt: 30 })); const d = (a, b) => Math.hypot(...a.map((x, i) => x - b[i]));
+    expect(T['body/st0.bottom']).toEqual(P0['body/st0.bottom']);
+    for (const id of ['arm/st1.top', 'arm/tip', 'body/tip', 'spike/apex']) expect(d(T[id], T['body/st0.bottom'])).toBeCloseTo(d(P0[id], P0['body/st0.bottom']), 12);
+    expect(d(T['arm/tip'], T['body/tip'])).toBeCloseTo(d(P0['arm/tip'], P0['body/tip']), 12);
+    expect(T['arm/tip'][2]).toBeLessThan(P0['arm/tip'][2]);
+  });
+  it('a chain dial runs its links in order, each pivot riding the links before it (a two-link tail curls twice as far at the tip)', () => {
+    const two = structuredClone(recipe); const shifted = (dy) => ({ ...structuredClone(body), stations: body.stations.map((s) => ({ id: s.id, points: Object.fromEntries(Object.entries(s.points).map(([k, p]) => [k, [p[0], p[1] + dy, p[2]]])) })), caps: { back: [0, -0.5 + dy, 0.5], tip: [0, 1.5 + dy, 0.5] } });
+    two.parts.seg1 = shifted(2); two.parts.seg2 = shifted(4);
+    two.dials.curl = { min: -45, max: 45, rest: 0, op: 'chain', axis: 'x', sign: 1, links: [{ pivot: 'seg1/back', parts: ['seg1', 'seg2'] }, { pivot: 'seg2/back', parts: ['seg2'] }] };
+    const P0 = at(compileLayered(two)); const P = at(compileLayered(two, { curl: 20 })); const d = (a, b) => Math.hypot(...a.map((x, i) => x - b[i]));
+    expect(P['seg1/back']).toEqual(P0['seg1/back']); expect(P['body/tip']).toEqual(P0['body/tip']);
+    expect(d(P['seg1/tip'], P['seg1/back'])).toBeCloseTo(d(P0['seg1/tip'], P0['seg1/back']), 12); expect(d(P['seg2/tip'], P['seg2/back'])).toBeCloseTo(d(P0['seg2/tip'], P0['seg2/back']), 12);
+    const ang = (a, b) => Math.atan2(a[2] - b[2], a[1] - b[1]) * 180 / Math.PI;
+    expect(ang(P['seg1/tip'], P['seg1/back']) - ang(P0['seg1/tip'], P0['seg1/back'])).toBeCloseTo(20, 9);
+    expect(ang(P['seg2/tip'], P['seg2/back']) - ang(P0['seg2/tip'], P0['seg2/back'])).toBeCloseTo(40, 9);
+    expect(d(P['seg2/back'], P['seg1/tip'])).toBeCloseTo(d(P0['seg2/back'], P0['seg1/tip']), 12);   // the joint stays joined
+    const bad = structuredClone(two); bad.dials.curl.links[1].pivot = 'seg2/nowhere'; expect(() => compileLayered(bad, { curl: 5 })).toThrow(/pivot/);
+  });
   it('is deterministic', () => { expect(compileLayered(recipe, { width: 1.3, tilt: 12 })).toEqual(compileLayered(recipe, { width: 1.3, tilt: 12 })); });
 });
 
@@ -89,13 +112,19 @@ describe('station-loft-workbench — the lowering', () => {
       expect(Math.abs(minZ)).toBeLessThan(1e-6); const lowest = Math.min(...m.vertices.map((v) => v[2])); expect(seatedFrom ?? 0).toBeCloseTo(lowest, 12);   // null when it already sat on the grid
     }
   });
+  it('every lowered loft bakes with positive signed volume whichever way its ring runs (profiles oriented CCW for loft-faces)', () => {
+    const tet = (a, b, c) => (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6;
+    const signedVolume = (faces) => faces.reduce((s, f) => { const c = f.corners; let v = 0; for (let i = 1; i + 1 < c.length; i++) v += tet(c[0], c[i], c[i + 1]); return s + v; }, 0);   // fan every polygon (quads, closed fans)
+    const flipped = structuredClone(recipe); flipped.parts.body.slots = ['top', 'sideL', 'bottom', 'sideR']; delete flipped.parts.spike; flipped.dials.spikeLen.parts = [];   // the same ring, walked the other way round
+    for (const r of [recipe, flipped]) { const { spec } = lowerLayeredToWorkbench(compileLayered(r)); for (const loft of spec.lofts) expect(signedVolume(loftToFaces(loft, {})), loft.id).toBeGreaterThan(0); }
+    if (existsSync(DRAGON)) { const { spec } = lowerLayeredToWorkbench(compileLayered(JSON.parse(readFileSync(DRAGON, 'utf8')))); for (const loft of spec.lofts) expect(signedVolume(loftToFaces(loft, {})), loft.id).toBeGreaterThan(0); }
+  });
   it('a stored manifest lowers to a workbench manifest, dials and all', () => {
     const wb = lowerLayeredManifest({ kind: 'layered', title: 'x', recipe, dials: { width: 1.5 }, units: 'cm' }, compileLayered);
     expect(wb.kind).toBe('workbench'); expect(wb.units).toBe('cm'); expect(wb.lofts).toHaveLength(2); expect(wb.meta.dials.width).toBe(1.5);
   });
 });
 
-const DRAGON = path.resolve(process.cwd(), '../docs/examples/dragon-layered/recipe.json');
 describe.skipIf(!existsSync(DRAGON))('station-loft — the dragon recipe (docs/examples/dragon-layered)', () => {
   const dragon = JSON.parse(readFileSync(DRAGON, 'utf8'));
   const extremes = [{}, Object.fromEntries(Object.entries(dragon.dials).map(([k, s]) => [k, s.min])), Object.fromEntries(Object.entries(dragon.dials).map(([k, s]) => [k, s.max]))];

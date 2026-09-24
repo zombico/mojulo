@@ -176,4 +176,6 @@ slot before it has a coordinate, details pin to named faces, and seven dials reg
 the whole head with a cast sweep. It is the reference recipe for the native `layered`
 solid kind (`mint_solid { kind: 'layered' }`, manual `get_solid_vocab({ id: 'layered' })`): the recipe
 is the stored manifest, a dial is an `update_sketch` patch, and the solid lowers to the workbench
-studio on every read.
+studio on every read. The [dragon body](examples/dragon-body/README.md) is the same grammar with more
+parts: a hulking humanoid whose digitigrade legs are the explicit hip → knee → hock → toe base → toe
+tip chain above, and whose head is the dragon recipe merged onto its neck.

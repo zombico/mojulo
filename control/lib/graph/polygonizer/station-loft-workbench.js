@@ -29,6 +29,11 @@ function straightLoft(name, axisFrom, axisTo, rings, { backPinch = null, tipPinc
   for (const ring of rings) stations.push(station(ring));
   if (tipPinch) { const r = sub(tipPinch, axisTo); stations.push({ t: 1, profile: Array.from({ length: n }, () => [r6(dot(r, u)), r6(dot(r, v))]) }); maxErr = Math.max(maxErr, Math.abs(dot(r, d))); }
   for (let i = 1; i < stations.length; i++) if (!(stations[i].t > stations[i - 1].t)) throw new Error(`station-loft-workbench: ${name} stations not increasing at ${i}`);
+  // loft-faces winds its walls and caps from the profile order and expects CCW in (u, v); a ring authored by
+  // slot name runs whichever way its axis makes it, so orient every profile by the first ring with area.
+  const area = (pr) => pr.reduce((a, p, i) => { const q = pr[(i + 1) % pr.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0) / 2;
+  const first = stations.find((s) => Math.abs(area(s.profile)) > 1e-12);
+  if (first && area(first.profile) < 0) for (const s of stations) s.profile.reverse();
   return { loft: { id: name, group: name, path: [axisFrom.map(r6), axisTo.map(r6)], stations, caps: true, tint: tint || '#8a8f96' }, loweringError: maxErr };
 }
 

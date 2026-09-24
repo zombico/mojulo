@@ -22,7 +22,8 @@ A solid whose recipe is a **station/slot construction**, not a coordinate list.
   `loft` so the workbench lowering can express them; open patches declare their boundary and stay out
   of the solid.
 - **Dials.** `scale` (an axis, a pivot, per-station blends), `offset` (an axis, named slots, blends),
-  `hinge` (a rigid rotation of a part about a named point), `stretch` (a detail's own axis). Ranges are
+  `hinge` (a rigid rotation of a part, or of a `parts` chain, about a named point), `chain` (sequential
+  hinges off one dial, each link's pivot riding the links before it: a tail, a finger, a spine), `stretch` (a detail's own axis). Ranges are
   declared; out-of-range and unknown dials refuse.
 
 Spec: `{ title?, recipe, dials?, channels?, units? ('m'), facing? ('+y'), seat? (true: lowest point on

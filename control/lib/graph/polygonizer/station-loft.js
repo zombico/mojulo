@@ -18,7 +18,9 @@
  * Dials (`recipe.dials`): `{ name: { min, max, rest, doc, op, … } }`, applied in recipe order:
  *     scale   { axis, pivot?, parts, blend: { <station|back|tip>: w } }  v' = pivot + (v − pivot)(1 + (d − 1)w)
  *     offset  { axis, slots, parts, blend }                               v' = v + d·w  (for the named slots)
- *     hinge   { part, pivot: <pointId>, axis, sign? }                     rigid rotation of the whole part
+ *     hinge   { part | parts, pivot: <pointId>, axis, sign? }             rigid rotation of a part, or of a chain of parts together
+ *     chain   { links: [{ pivot, parts, weight? }], axis, sign? }         sequential hinges off one dial: link k rotates its parts
+ *                                                                         about its pivot (read after links < k moved it) by d·weight
  *     stretch { parts }                                                   each part's own `stretch` axis
  * Creases (`recipe.creases`): `{ id: { parent, edge: [pointId, pointId] } }` → feature edges.
  * Channels: `details` (L2/L3 geometry) and `creases`; off ⇒ zero bytes from that channel.
@@ -115,12 +117,16 @@ function applyDial(op, name, d, built, recipe) {
       if (slots && !slots.has(slotOf(id))) continue;
       const q = [...p]; q[ax] = op.op === 'scale' ? pivot + (q[ax] - pivot) * (1 + (d - 1) * w) : q[ax] + d * w; part.points[id] = q;
     }
-  } else if (op.op === 'hinge') {
-    if (d === 0) return; const part = built[op.part]; if (!part) throw new Error(`station-loft: hinge '${name}' names unknown part '${op.part}'`);
-    const h = part.points[op.pivot] ?? built[op.pivot?.split('/')[0]]?.points?.[op.pivot]; if (!h) throw new Error(`station-loft: hinge '${name}' pivot '${op.pivot}' is not a point`);
-    const ax = AXIS[op.axis]; if (ax === undefined) throw new Error(`station-loft: hinge '${name}' axis must be x|y|z`);
-    const a = (op.sign ?? 1) * d * Math.PI / 180; const c = Math.cos(a), s = Math.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3];
-    for (const [id, p] of Object.entries(part.points)) { const u = p[i] - h[i], v = p[j] - h[j]; const q = [...p]; q[i] = h[i] + u * c - v * s; q[j] = h[j] + u * s + v * c; part.points[id] = q; }
+  } else if (op.op === 'hinge' || op.op === 'chain') {
+    if (d === 0) return; const ax = AXIS[op.axis]; if (ax === undefined) throw new Error(`station-loft: ${op.op} '${name}' axis must be x|y|z`);
+    const links = op.op === 'chain' ? op.links : [{ pivot: op.pivot, parts: op.parts || [op.part] }];
+    if (!Array.isArray(links) || !links.length) throw new Error(`station-loft: chain '${name}' needs links`);
+    for (const link of links) {
+      const chain = (link.parts || []).map((n) => { const part = built[n]; if (!part) throw new Error(`station-loft: ${op.op} '${name}' names unknown part '${n}'`); return part; });
+      const h = built[link.pivot?.split('/')[0]]?.points?.[link.pivot]; if (!h) throw new Error(`station-loft: ${op.op} '${name}' pivot '${link.pivot}' is not a point`);
+      const a = (op.sign ?? 1) * d * (link.weight ?? 1) * Math.PI / 180; const c = Math.cos(a), s = Math.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3]; const hp = [...h];   // the pivot is read once per link: a link may contain its own pivot's part
+      for (const part of chain) for (const [id, p] of Object.entries(part.points)) { const u = p[i] - hp[i], v = p[j] - hp[j]; const q = [...p]; q[i] = hp[i] + u * c - v * s; q[j] = hp[j] + u * s + v * c; part.points[id] = q; }
+    }
   } else if (op.op !== 'stretch') throw new Error(`station-loft: dial '${name}' has unknown op '${op.op}'`);
 }
 
