@@ -1,12 +1,48 @@
-# Planar drawing: skeleton-first low-poly characters
+# Planar drawing: from a resolved SVG to a rigged character
 
 Status: capability proposal with a first posing correction. This is not yet a new
 MCP tool, recipe kind, live IK system, or complete native character exporter.
 
+## Separate the concerns
+
+The source drawing deserves its own authoring process. Skeleton-first means
+**before constructing deformable geometry**, not before deciding what the character
+looks like. An SVG should succeed as a drawing before it is asked to constrain a
+volume. See [the SVG authoring guide](planar-drawing-svg.md) for that first stage.
+
+| Concern | Owns | Produces | Does not decide |
+| --- | --- | --- | --- |
+| Visual design | Silhouette, proportions, expression, color regions, graphic planes | Layered SVG and a visual specification | Hidden depth, topology, skin weights |
+| Projection and correspondence | View frame, persistent point identity, visible observations and uncertainty | Registered views and landmark records | Whether the design is appealing; invented hidden measurements |
+| Volume design | Depth, cross-sections, back surfaces, anatomical rest frame | Explicit construction recipe and rest landmarks | Final triangle layout or movement controls |
+| Surface compilation | Winding, connectivity, caps, triangulation, normals, material boundaries | Mesh with stable region provenance | Character proportions or joint semantics |
+| Binding | Bone hierarchy, inverse bind transforms, rigid/weighted region attachment | Validated rest skin | Pose timing, gait or contact policy |
+| Motion | Joint limits, pose intent, IK targets, support/contact, animation | Posed geometry and clips | Redesigning the rest mesh to hide a pose failure |
+| Export | Coordinate/unit conversion and serialization | Portable static or animated assets | Repairing upstream design or rig errors |
+
+These are logical boundaries, not a demand for seven new tools. A recipe can store
+several records together while keeping their ownership and validation separate.
+Existing loft, figure and export modules should be reused behind those boundaries.
+The current branch implements only the custom-rest posing correction; the proposed
+SVG metadata and intermediate records below are not existing Mojulo schemas.
+
+A suggested handoff is `design.svg` + `design.json` → registered observations →
+`construction.json` → mesh/region map → bindings → motion → exported asset. Give
+each record a version and source hash. Downstream stages consume declared IDs and
+coordinates, not the appearance of labels or an SVG element's order in the file.
+An artist's 2D layer order is occlusion in one view, not a universal 3D depth order.
+
+Review each boundary independently. If the silhouette is wrong, revise the design.
+If a correct outline produces a shallow muzzle, revise volume/camera assumptions.
+If it deforms badly, investigate joints and weights before changing the artwork.
+A color edit should invalidate materials, not anatomical measurements; a landmark
+edit should invalidate dependent construction and binding evidence. Preserve prior
+approved artifacts instead of silently changing the source to match a later mesh.
+
 ## Construction contract
 
 A character is a deterministic recipe of anatomy, surfaces, bindings and poses.
-Declare anatomy before drawing the mesh. Use Mojulo's body frame: +z up, +y forward,
+Once the visual design is resolved, declare anatomy before constructing the mesh. Use Mojulo's body frame: +z up, +y forward,
 +x right. Store named rest joints in that frame; camera placement never changes them.
 Fit segment lengths and joint locations to the character, rather than uniformly
 scaling Vajra and assuming its proportions will fit every species.
@@ -80,7 +116,9 @@ not demonstrated. The meshes contain overlapping segmented parts.
 
 1. **Custom-rest posing (this branch).** Correct unit pose intent compilation and
    test directional accuracy, determinism and canonical compatibility.
-2. **Authoring surface.** Demonstrate a recipe-book character builder using existing
+2. **SVG design and handoff.** First demonstrate a layered source drawing with
+   stable region IDs, an explicit view frame, visible landmarks and a recorded
+   visual review using the SVG guide. Then demonstrate a recipe-book character builder using existing
    loft faces, caps and explicit face lists. Expose only the reusable operations it
    needs through an append-only toolkit extension; characters stay book recipes,
    not a growing core species roster. Specify stable anatomy/region IDs, local

@@ -14,6 +14,8 @@ loops and the recipe format are unchanged.
 
 ### Planar drawing
 
+- Separate SVG visual design, projection, volume construction, topology, binding, and motion contracts; add a silhouette-first SVG authoring and review guide in `docs/planar-drawing-svg.md`.
+
 - Document skeleton-first faceted character construction, explicit detail bindings, extended leg chains, and validation gates in `docs/planar-drawing.md`.
 - Let `resolvePose` accept a custom rest skeleton and use it when compiling unit poses, so friendly limb aims follow the authored anatomy. Default figure posing and raw angle channels retain their existing behavior.
 
