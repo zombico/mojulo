@@ -1,7 +1,7 @@
 # Planar drawing: spatial SVG construction and rigging
 
 Status: capability proposal, a custom-rest posing correction, and a standalone
-wire-SVG reference implementation. No new MCP tool or native primitive is registered.
+wire-SVG reference implementation, and a named-surface attachment experiment. No new MCP tool or native primitive is registered.
 
 ## The artifact standard
 
@@ -159,3 +159,19 @@ back; check eyes, muzzle and clothing at rest and extreme poses; inspect knees,
 hocks, feet and tail for inversions and intersections. Automated numerical passes
 cannot claim human visual acceptance. OBJ is a static geometry deliverable; GLB
 or a native rig file is needed to carry animation.
+
+## Layered detail proof
+
+See the [named attachment experiment](examples/raccoon-layered/README.md) for the
+next implemented step: primary form edits regenerate secondary details through
+explicit surface frames. A native internal query evaluates the named face and
+tangent; the reference compiler keeps geometry, groups and wire policy separate.
+The primary shell and muzzle are imported closed parts, not a new station grammar.
+The comparison artifacts and tests establish this limited boundary without claiming
+that all proposed layered authoring capabilities are now implemented.
+
+The [dragon head](examples/dragon-layered/README.md) is the same loop started from a
+station/slot loft instead of a frozen mesh: every primary point is named by station and
+slot before it has a coordinate, details pin to named faces, and seven dials regenerate
+the whole head with a cast sweep. It is the reference for the grammar a native
+station-loft card would carry; it registers nothing.

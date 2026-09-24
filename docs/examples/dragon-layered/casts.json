@@ -1,0 +1,8 @@
+{
+  "baseline": {},
+  "brute": { "skullWidth": 1.3, "browDrop": 0.05, "toothLength": 1.3, "snoutLength": 0.9 },
+  "longsnout": { "snoutLength": 1.4, "skullWidth": 0.9 },
+  "crested": { "crestHeight": 1.6, "hornSweep": 1.4 },
+  "roar": { "jawOpen": 30, "toothLength": 1.2 },
+  "juvenile": { "skullWidth": 1.15, "snoutLength": 0.75, "crestHeight": 0.4, "hornSweep": 0.6, "toothLength": 0.6 }
+}

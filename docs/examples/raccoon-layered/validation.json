@@ -1,0 +1,281 @@
+{
+  "nativeControlTests": {
+    "passed": 8609,
+    "skipped": 11
+  },
+  "secondaryTests": 80,
+  "layeredTests": 6,
+  "wireTests": 6,
+  "previousSVGsByteIdentical": 5,
+  "baseline": {
+    "muzzle": {
+      "layer": 1,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "skull": {
+      "layer": 1,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear.L": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear.R": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "eye.L": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "eye.R": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "nose": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear-inset.L": {
+      "layer": 3,
+      "closure": "open",
+      "boundaryEdges": 3,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear-inset.R": {
+      "layer": 3,
+      "closure": "open",
+      "boundaryEdges": 3,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    }
+  },
+  "deformed": {
+    "muzzle": {
+      "layer": 1,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "skull": {
+      "layer": 1,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear.L": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear.R": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "eye.L": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "eye.R": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "nose": {
+      "layer": 2,
+      "closure": "closed",
+      "boundaryEdges": 0,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear-inset.L": {
+      "layer": 3,
+      "closure": "open",
+      "boundaryEdges": 3,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    },
+    "ear-inset.R": {
+      "layer": 3,
+      "closure": "open",
+      "boundaryEdges": 3,
+      "boundaryValid": true,
+      "nonManifold": 0,
+      "windingErrors": 0,
+      "degenerate": 0,
+      "pass": true
+    }
+  },
+  "pinChanges": {
+    "ear.L/surface-pin": {
+      "before": [
+        -0.10993333333333334,
+        0.061200000000000004,
+        1.680733333333333
+      ],
+      "after": [
+        -0.12972133333333333,
+        0.061200000000000004,
+        1.680733333333333
+      ]
+    },
+    "ear.R/surface-pin": {
+      "before": [
+        0.10993333333333334,
+        0.061200000000000004,
+        1.680733333333333
+      ],
+      "after": [
+        0.12972133333333333,
+        0.061200000000000004,
+        1.680733333333333
+      ]
+    },
+    "eye.L/surface-pin": {
+      "before": [
+        -0.068,
+        0.1496,
+        1.5231999999999999
+      ],
+      "after": [
+        -0.08023999999999999,
+        0.1496,
+        1.5231999999999999
+      ]
+    },
+    "eye.R/surface-pin": {
+      "before": [
+        0.068,
+        0.1496,
+        1.5231999999999999
+      ],
+      "after": [
+        0.08023999999999999,
+        0.1496,
+        1.5231999999999999
+      ]
+    },
+    "nose/surface-pin": {
+      "before": [
+        0,
+        0.2232666666666667,
+        1.4965666666666666
+      ],
+      "after": [
+        0,
+        0.25046666666666667,
+        1.4965666666666666
+      ]
+    },
+    "ear-inset.L/surface-pin": {
+      "before": [
+        -0.15583333333333338,
+        0.020399999999999995,
+        1.7050999999999996
+      ],
+      "after": [
+        -0.17421844739514664,
+        0.0221852276455944,
+        1.7101108557398994
+      ]
+    },
+    "ear-inset.R/surface-pin": {
+      "before": [
+        0.15583333333333338,
+        0.020399999999999995,
+        1.7050999999999996
+      ],
+      "after": [
+        0.17421844739514664,
+        0.022185227645594396,
+        1.7101108557398994
+      ]
+    }
+  },
+  "scope": "Per-part topology and named attachments; no self-intersection or inter-part clearance certification; native station-loft/tool integration not implemented."
+}

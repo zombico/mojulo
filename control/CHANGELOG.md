@@ -14,9 +14,12 @@ loops and the recipe format are unchanged.
 
 ### Planar drawing
 
+- Add a dragon head born layered in `docs/examples/dragon-layered/`: L1 is a station/slot loft (cranium and jaw as closed shells whose every point is `<part>/<station>.<slot>`), L2/L3 details are pinned to named faces through `surface-pin.js`, and seven dials regenerate the whole head with a cast sweep rendered through the shared wire renderer. The renderer gains `set_framing`; raccoon output is byte-identical. Still a reference, not a registered kind or a manji-tree card.
+- Add a named triangular-surface pin query and a layered raccoon-head attachment experiment: closed primary parts, surface-attached secondary details and shared-edge brow creases, with baseline/deformed SVG comparisons. This reference compiler is not a new registered character tool or station-loft grammar.
+
 - Define spatial SVG output around Mojulo's mandala scaffold, wave form and projected views; replace the independent illustration-first proposal with a wire-output fidelity contract.
 - Include a reproducible detailed raccoon-head wire example: persistent source points, visible-edge clipping, contour/feature/plane line hierarchy, source and camera metadata, fixed views and optional turntable. This is a standalone reference implementation, not a registered native primitive or SVG importer.
-- Let `resolvePose` accept a custom rest skeleton and use it when compiling unit poses, so friendly limb aims follow the authored anatomy. Default figure posing and raw angle channels retain their existing behavior.
+- Let `resolvePose` accept a custom rest skeleton and use it when compiling unit poses and posed unit anchors, so friendly limb aims follow the authored anatomy. Default figure posing and raw angle channels retain their existing behavior.
 
 ## [2.1.0] - 2026-09-23
 

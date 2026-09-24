@@ -151,3 +151,17 @@ describe('freezeUnitAnchors — anchors as frozen manifest data', () => {
     expect(Object.keys(re).sort()).toEqual(Object.keys(frozen.anchors).sort());
   });
 });
+
+describe('anchorWorld — friendly poses resolve against the unit\'s own rest', () => {
+  it('keeps a custom-rest arm (and its muzzle) still when aimed along its own axis', () => {
+    const armed = armedMini();
+    const rig = deriveBipedRig(armed);
+    const s = rig.joints.shoulderR;
+    rig.joints.elbowR = { x: s.x + 1, y: s.y + 0.4, z: s.z - 0.7 };     // an A-pose arm, not Vajra's rest
+    const rest = anchorWorld(armed, {}, 'muzzle', { rig }).pos;
+    const alongOwnAxis = anchorWorld(armed, { armR: { x: 1, y: 0.4, z: -0.7 } }, 'muzzle', { rig }).pos;
+    expect(close(alongOwnAxis, rest, 1e-6)).toBe(true);                   // a no-op aim is a no-op
+    const forward = anchorWorld(armed, { armR: 'forward' }, 'muzzle', { rig }).pos;
+    expect(close(forward, rest, 1e-2)).toBe(false);                       // and a real aim still moves it
+  });
+});

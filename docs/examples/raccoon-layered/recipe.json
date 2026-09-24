@@ -1,0 +1,2129 @@
+{
+  "schema": "layered-surface-pin-study-v1",
+  "frame": {
+    "up": "+z",
+    "front": "+y",
+    "scale": "same as wire-head reference"
+  },
+  "identity": "Explicit imported point/face keys; reordering allowed, deletions fail pins. No implicit nearest rebinding.",
+  "symmetry": {
+    "plane": "x=0",
+    "paired": [
+      "eye",
+      "ear",
+      "ear-inset"
+    ],
+    "policy": "symmetric reference fixture and symmetric shape controls; arbitrary asymmetry overrides not implemented"
+  },
+  "parts": {
+    "skull": {
+      "points": {
+        "skull/point-000": [
+          -0.0782,
+          0.12240000000000001,
+          1.649
+        ],
+        "skull/point-001": [
+          -0.0918,
+          0.027200000000000002,
+          1.734
+        ],
+        "skull/point-002": [
+          0.0,
+          0.034,
+          1.7476
+        ],
+        "skull/point-003": [
+          0.0,
+          0.10880000000000001,
+          1.6456
+        ],
+        "skull/point-004": [
+          0.0,
+          0.1462,
+          1.5504
+        ],
+        "skull/point-005": [
+          -0.1598,
+          0.034,
+          1.6592
+        ],
+        "skull/point-006": [
+          -0.22100000000000003,
+          0.085,
+          1.5096
+        ],
+        "skull/point-007": [
+          -0.22780000000000003,
+          0.027200000000000002,
+          1.5844
+        ],
+        "skull/point-008": [
+          -0.3196,
+          0.0068000000000000005,
+          1.5164
+        ],
+        "skull/point-009": [
+          -0.1462,
+          0.11220000000000001,
+          1.4688
+        ],
+        "skull/point-010": [
+          -0.2516,
+          0.027200000000000002,
+          1.4416
+        ],
+        "skull/point-011": [
+          -0.13260000000000002,
+          0.054400000000000004,
+          1.3838
+        ],
+        "skull/point-012": [
+          -0.054400000000000004,
+          0.15300000000000002,
+          1.4824
+        ],
+        "skull/point-013": [
+          0.0,
+          0.068,
+          1.3702
+        ],
+        "skull/point-014": [
+          -0.0408,
+          0.1496,
+          1.5368
+        ],
+        "skull/point-015": [
+          -0.10880000000000001,
+          0.1462,
+          1.5504
+        ],
+        "skull/point-033": [
+          0.0918,
+          0.027200000000000002,
+          1.734
+        ],
+        "skull/point-034": [
+          0.0782,
+          0.12240000000000001,
+          1.649
+        ],
+        "skull/point-035": [
+          0.1598,
+          0.034,
+          1.6592
+        ],
+        "skull/point-036": [
+          0.22780000000000003,
+          0.027200000000000002,
+          1.5844
+        ],
+        "skull/point-037": [
+          0.22100000000000003,
+          0.085,
+          1.5096
+        ],
+        "skull/point-038": [
+          0.3196,
+          0.0068000000000000005,
+          1.5164
+        ],
+        "skull/point-039": [
+          0.2516,
+          0.027200000000000002,
+          1.4416
+        ],
+        "skull/point-040": [
+          0.1462,
+          0.11220000000000001,
+          1.4688
+        ],
+        "skull/point-041": [
+          0.13260000000000002,
+          0.054400000000000004,
+          1.3838
+        ],
+        "skull/point-042": [
+          0.054400000000000004,
+          0.15300000000000002,
+          1.4824
+        ],
+        "skull/point-043": [
+          0.0408,
+          0.1496,
+          1.5368
+        ],
+        "skull/point-044": [
+          0.10880000000000001,
+          0.1462,
+          1.5504
+        ],
+        "skull/point-062": [
+          0.08629200000000002,
+          -0.061200000000000004,
+          1.723494
+        ],
+        "skull/point-063": [
+          0.0,
+          -0.061200000000000004,
+          1.736278
+        ],
+        "skull/point-064": [
+          0.150212,
+          -0.061200000000000004,
+          1.6531820000000002
+        ],
+        "skull/point-065": [
+          0.21413200000000002,
+          -0.061200000000000004,
+          1.58287
+        ],
+        "skull/point-066": [
+          0.300424,
+          -0.061200000000000004,
+          1.51895
+        ],
+        "skull/point-067": [
+          0.23650400000000002,
+          -0.061200000000000004,
+          1.448638
+        ],
+        "skull/point-068": [
+          0.124644,
+          -0.061200000000000004,
+          1.394306
+        ],
+        "skull/point-069": [
+          0.0,
+          -0.061200000000000004,
+          1.381522
+        ],
+        "skull/point-070": [
+          -0.124644,
+          -0.061200000000000004,
+          1.394306
+        ],
+        "skull/point-071": [
+          -0.23650400000000002,
+          -0.061200000000000004,
+          1.448638
+        ],
+        "skull/point-072": [
+          -0.300424,
+          -0.061200000000000004,
+          1.51895
+        ],
+        "skull/point-073": [
+          -0.21413200000000002,
+          -0.061200000000000004,
+          1.58287
+        ],
+        "skull/point-074": [
+          -0.150212,
+          -0.061200000000000004,
+          1.6531820000000002
+        ],
+        "skull/point-075": [
+          -0.08629200000000002,
+          -0.061200000000000004,
+          1.723494
+        ],
+        "skull/point-076": [
+          0.069768,
+          -0.13260000000000002,
+          1.691976
+        ],
+        "skull/point-077": [
+          0.0,
+          -0.13260000000000002,
+          1.702312
+        ],
+        "skull/point-078": [
+          0.12144800000000001,
+          -0.13260000000000002,
+          1.635128
+        ],
+        "skull/point-079": [
+          0.173128,
+          -0.13260000000000002,
+          1.5782800000000001
+        ],
+        "skull/point-080": [
+          0.24289600000000003,
+          -0.13260000000000002,
+          1.5266
+        ],
+        "skull/point-081": [
+          0.19121600000000002,
+          -0.13260000000000002,
+          1.469752
+        ],
+        "skull/point-082": [
+          0.100776,
+          -0.13260000000000002,
+          1.425824
+        ],
+        "skull/point-083": [
+          0.0,
+          -0.13260000000000002,
+          1.415488
+        ],
+        "skull/point-084": [
+          -0.100776,
+          -0.13260000000000002,
+          1.425824
+        ],
+        "skull/point-085": [
+          -0.19121600000000002,
+          -0.13260000000000002,
+          1.469752
+        ],
+        "skull/point-086": [
+          -0.24289600000000003,
+          -0.13260000000000002,
+          1.5266
+        ],
+        "skull/point-087": [
+          -0.173128,
+          -0.13260000000000002,
+          1.5782800000000001
+        ],
+        "skull/point-088": [
+          -0.12144800000000001,
+          -0.13260000000000002,
+          1.635128
+        ],
+        "skull/point-089": [
+          -0.069768,
+          -0.13260000000000002,
+          1.691976
+        ],
+        "skull/point-090": [
+          0.040392000000000004,
+          -0.18700000000000003,
+          1.635944
+        ],
+        "skull/point-091": [
+          0.0,
+          -0.18700000000000003,
+          1.641928
+        ],
+        "skull/point-092": [
+          0.07031200000000001,
+          -0.18700000000000003,
+          1.603032
+        ],
+        "skull/point-093": [
+          0.10023200000000002,
+          -0.18700000000000003,
+          1.57012
+        ],
+        "skull/point-094": [
+          0.14062400000000003,
+          -0.18700000000000003,
+          1.5402
+        ],
+        "skull/point-095": [
+          0.11070400000000001,
+          -0.18700000000000003,
+          1.507288
+        ],
+        "skull/point-096": [
+          0.05834400000000001,
+          -0.18700000000000003,
+          1.481856
+        ],
+        "skull/point-097": [
+          0.0,
+          -0.18700000000000003,
+          1.475872
+        ],
+        "skull/point-098": [
+          -0.05834400000000001,
+          -0.18700000000000003,
+          1.481856
+        ],
+        "skull/point-099": [
+          -0.11070400000000001,
+          -0.18700000000000003,
+          1.507288
+        ],
+        "skull/point-100": [
+          -0.14062400000000003,
+          -0.18700000000000003,
+          1.5402
+        ],
+        "skull/point-101": [
+          -0.10023200000000002,
+          -0.18700000000000003,
+          1.57012
+        ],
+        "skull/point-102": [
+          -0.07031200000000001,
+          -0.18700000000000003,
+          1.603032
+        ],
+        "skull/point-103": [
+          -0.040392000000000004,
+          -0.18700000000000003,
+          1.635944
+        ],
+        "skull/point-104": [
+          0.0,
+          -0.21420000000000003,
+          1.5589
+        ]
+      },
+      "faces": {
+        "skull/face-000": [
+          "skull/point-000",
+          "skull/point-001",
+          "skull/point-002"
+        ],
+        "skull/face-001": [
+          "skull/point-003",
+          "skull/point-000",
+          "skull/point-002"
+        ],
+        "skull/face-002": [
+          "skull/point-004",
+          "skull/point-000",
+          "skull/point-003"
+        ],
+        "skull/face-003": [
+          "skull/point-000",
+          "skull/point-005",
+          "skull/point-001"
+        ],
+        "skull/face-004": [
+          "skull/point-000",
+          "skull/point-006",
+          "skull/point-007"
+        ],
+        "skull/face-005": [
+          "skull/point-000",
+          "skull/point-007",
+          "skull/point-005"
+        ],
+        "skull/face-006": [
+          "skull/point-006",
+          "skull/point-008",
+          "skull/point-007"
+        ],
+        "skull/face-007": [
+          "skull/point-006",
+          "skull/point-009",
+          "skull/point-010"
+        ],
+        "skull/face-008": [
+          "skull/point-006",
+          "skull/point-010",
+          "skull/point-008"
+        ],
+        "skull/face-009": [
+          "skull/point-009",
+          "skull/point-011",
+          "skull/point-010"
+        ],
+        "skull/face-010": [
+          "skull/point-009",
+          "skull/point-012",
+          "skull/point-013"
+        ],
+        "skull/face-011": [
+          "skull/point-009",
+          "skull/point-013",
+          "skull/point-011"
+        ],
+        "skull/face-012": [
+          "skull/point-012",
+          "skull/point-004",
+          "skull/point-013"
+        ],
+        "skull/face-013": [
+          "skull/point-012",
+          "skull/point-014",
+          "skull/point-004"
+        ],
+        "skull/face-014": [
+          "skull/point-004",
+          "skull/point-014",
+          "skull/point-000"
+        ],
+        "skull/face-015": [
+          "skull/point-015",
+          "skull/point-006",
+          "skull/point-000"
+        ],
+        "skull/face-016": [
+          "skull/point-015",
+          "skull/point-009",
+          "skull/point-006"
+        ],
+        "skull/face-017": [
+          "skull/point-015",
+          "skull/point-012",
+          "skull/point-009"
+        ],
+        "skull/face-018": [
+          "skull/point-015",
+          "skull/point-014",
+          "skull/point-012"
+        ],
+        "skull/face-019": [
+          "skull/point-015",
+          "skull/point-000",
+          "skull/point-014"
+        ],
+        "skull/face-041": [
+          "skull/point-002",
+          "skull/point-033",
+          "skull/point-034"
+        ],
+        "skull/face-042": [
+          "skull/point-002",
+          "skull/point-034",
+          "skull/point-003"
+        ],
+        "skull/face-043": [
+          "skull/point-003",
+          "skull/point-034",
+          "skull/point-004"
+        ],
+        "skull/face-044": [
+          "skull/point-033",
+          "skull/point-035",
+          "skull/point-034"
+        ],
+        "skull/face-045": [
+          "skull/point-035",
+          "skull/point-036",
+          "skull/point-037"
+        ],
+        "skull/face-046": [
+          "skull/point-035",
+          "skull/point-037",
+          "skull/point-034"
+        ],
+        "skull/face-047": [
+          "skull/point-036",
+          "skull/point-038",
+          "skull/point-037"
+        ],
+        "skull/face-048": [
+          "skull/point-038",
+          "skull/point-039",
+          "skull/point-040"
+        ],
+        "skull/face-049": [
+          "skull/point-038",
+          "skull/point-040",
+          "skull/point-037"
+        ],
+        "skull/face-050": [
+          "skull/point-039",
+          "skull/point-041",
+          "skull/point-040"
+        ],
+        "skull/face-051": [
+          "skull/point-041",
+          "skull/point-013",
+          "skull/point-042"
+        ],
+        "skull/face-052": [
+          "skull/point-041",
+          "skull/point-042",
+          "skull/point-040"
+        ],
+        "skull/face-053": [
+          "skull/point-013",
+          "skull/point-004",
+          "skull/point-042"
+        ],
+        "skull/face-054": [
+          "skull/point-004",
+          "skull/point-043",
+          "skull/point-042"
+        ],
+        "skull/face-055": [
+          "skull/point-034",
+          "skull/point-043",
+          "skull/point-004"
+        ],
+        "skull/face-056": [
+          "skull/point-034",
+          "skull/point-037",
+          "skull/point-044"
+        ],
+        "skull/face-057": [
+          "skull/point-037",
+          "skull/point-040",
+          "skull/point-044"
+        ],
+        "skull/face-058": [
+          "skull/point-040",
+          "skull/point-042",
+          "skull/point-044"
+        ],
+        "skull/face-059": [
+          "skull/point-042",
+          "skull/point-043",
+          "skull/point-044"
+        ],
+        "skull/face-060": [
+          "skull/point-043",
+          "skull/point-034",
+          "skull/point-044"
+        ],
+        "skull/face-082": [
+          "skull/point-062",
+          "skull/point-033",
+          "skull/point-002"
+        ],
+        "skull/face-083": [
+          "skull/point-063",
+          "skull/point-062",
+          "skull/point-002"
+        ],
+        "skull/face-084": [
+          "skull/point-064",
+          "skull/point-035",
+          "skull/point-033"
+        ],
+        "skull/face-085": [
+          "skull/point-062",
+          "skull/point-064",
+          "skull/point-033"
+        ],
+        "skull/face-086": [
+          "skull/point-065",
+          "skull/point-036",
+          "skull/point-035"
+        ],
+        "skull/face-087": [
+          "skull/point-064",
+          "skull/point-065",
+          "skull/point-035"
+        ],
+        "skull/face-088": [
+          "skull/point-066",
+          "skull/point-038",
+          "skull/point-036"
+        ],
+        "skull/face-089": [
+          "skull/point-065",
+          "skull/point-066",
+          "skull/point-036"
+        ],
+        "skull/face-090": [
+          "skull/point-067",
+          "skull/point-039",
+          "skull/point-038"
+        ],
+        "skull/face-091": [
+          "skull/point-066",
+          "skull/point-067",
+          "skull/point-038"
+        ],
+        "skull/face-092": [
+          "skull/point-068",
+          "skull/point-041",
+          "skull/point-039"
+        ],
+        "skull/face-093": [
+          "skull/point-067",
+          "skull/point-068",
+          "skull/point-039"
+        ],
+        "skull/face-094": [
+          "skull/point-069",
+          "skull/point-013",
+          "skull/point-041"
+        ],
+        "skull/face-095": [
+          "skull/point-068",
+          "skull/point-069",
+          "skull/point-041"
+        ],
+        "skull/face-096": [
+          "skull/point-070",
+          "skull/point-011",
+          "skull/point-013"
+        ],
+        "skull/face-097": [
+          "skull/point-069",
+          "skull/point-070",
+          "skull/point-013"
+        ],
+        "skull/face-098": [
+          "skull/point-071",
+          "skull/point-010",
+          "skull/point-011"
+        ],
+        "skull/face-099": [
+          "skull/point-070",
+          "skull/point-071",
+          "skull/point-011"
+        ],
+        "skull/face-100": [
+          "skull/point-072",
+          "skull/point-008",
+          "skull/point-010"
+        ],
+        "skull/face-101": [
+          "skull/point-071",
+          "skull/point-072",
+          "skull/point-010"
+        ],
+        "skull/face-102": [
+          "skull/point-073",
+          "skull/point-007",
+          "skull/point-008"
+        ],
+        "skull/face-103": [
+          "skull/point-072",
+          "skull/point-073",
+          "skull/point-008"
+        ],
+        "skull/face-104": [
+          "skull/point-074",
+          "skull/point-005",
+          "skull/point-007"
+        ],
+        "skull/face-105": [
+          "skull/point-073",
+          "skull/point-074",
+          "skull/point-007"
+        ],
+        "skull/face-106": [
+          "skull/point-075",
+          "skull/point-001",
+          "skull/point-005"
+        ],
+        "skull/face-107": [
+          "skull/point-074",
+          "skull/point-075",
+          "skull/point-005"
+        ],
+        "skull/face-108": [
+          "skull/point-063",
+          "skull/point-002",
+          "skull/point-001"
+        ],
+        "skull/face-109": [
+          "skull/point-075",
+          "skull/point-063",
+          "skull/point-001"
+        ],
+        "skull/face-110": [
+          "skull/point-076",
+          "skull/point-062",
+          "skull/point-063"
+        ],
+        "skull/face-111": [
+          "skull/point-077",
+          "skull/point-076",
+          "skull/point-063"
+        ],
+        "skull/face-112": [
+          "skull/point-078",
+          "skull/point-064",
+          "skull/point-062"
+        ],
+        "skull/face-113": [
+          "skull/point-076",
+          "skull/point-078",
+          "skull/point-062"
+        ],
+        "skull/face-114": [
+          "skull/point-079",
+          "skull/point-065",
+          "skull/point-064"
+        ],
+        "skull/face-115": [
+          "skull/point-078",
+          "skull/point-079",
+          "skull/point-064"
+        ],
+        "skull/face-116": [
+          "skull/point-080",
+          "skull/point-066",
+          "skull/point-065"
+        ],
+        "skull/face-117": [
+          "skull/point-079",
+          "skull/point-080",
+          "skull/point-065"
+        ],
+        "skull/face-118": [
+          "skull/point-081",
+          "skull/point-067",
+          "skull/point-066"
+        ],
+        "skull/face-119": [
+          "skull/point-080",
+          "skull/point-081",
+          "skull/point-066"
+        ],
+        "skull/face-120": [
+          "skull/point-082",
+          "skull/point-068",
+          "skull/point-067"
+        ],
+        "skull/face-121": [
+          "skull/point-081",
+          "skull/point-082",
+          "skull/point-067"
+        ],
+        "skull/face-122": [
+          "skull/point-083",
+          "skull/point-069",
+          "skull/point-068"
+        ],
+        "skull/face-123": [
+          "skull/point-082",
+          "skull/point-083",
+          "skull/point-068"
+        ],
+        "skull/face-124": [
+          "skull/point-084",
+          "skull/point-070",
+          "skull/point-069"
+        ],
+        "skull/face-125": [
+          "skull/point-083",
+          "skull/point-084",
+          "skull/point-069"
+        ],
+        "skull/face-126": [
+          "skull/point-085",
+          "skull/point-071",
+          "skull/point-070"
+        ],
+        "skull/face-127": [
+          "skull/point-084",
+          "skull/point-085",
+          "skull/point-070"
+        ],
+        "skull/face-128": [
+          "skull/point-086",
+          "skull/point-072",
+          "skull/point-071"
+        ],
+        "skull/face-129": [
+          "skull/point-085",
+          "skull/point-086",
+          "skull/point-071"
+        ],
+        "skull/face-130": [
+          "skull/point-087",
+          "skull/point-073",
+          "skull/point-072"
+        ],
+        "skull/face-131": [
+          "skull/point-086",
+          "skull/point-087",
+          "skull/point-072"
+        ],
+        "skull/face-132": [
+          "skull/point-088",
+          "skull/point-074",
+          "skull/point-073"
+        ],
+        "skull/face-133": [
+          "skull/point-087",
+          "skull/point-088",
+          "skull/point-073"
+        ],
+        "skull/face-134": [
+          "skull/point-089",
+          "skull/point-075",
+          "skull/point-074"
+        ],
+        "skull/face-135": [
+          "skull/point-088",
+          "skull/point-089",
+          "skull/point-074"
+        ],
+        "skull/face-136": [
+          "skull/point-077",
+          "skull/point-063",
+          "skull/point-075"
+        ],
+        "skull/face-137": [
+          "skull/point-089",
+          "skull/point-077",
+          "skull/point-075"
+        ],
+        "skull/face-138": [
+          "skull/point-090",
+          "skull/point-076",
+          "skull/point-077"
+        ],
+        "skull/face-139": [
+          "skull/point-091",
+          "skull/point-090",
+          "skull/point-077"
+        ],
+        "skull/face-140": [
+          "skull/point-092",
+          "skull/point-078",
+          "skull/point-076"
+        ],
+        "skull/face-141": [
+          "skull/point-090",
+          "skull/point-092",
+          "skull/point-076"
+        ],
+        "skull/face-142": [
+          "skull/point-093",
+          "skull/point-079",
+          "skull/point-078"
+        ],
+        "skull/face-143": [
+          "skull/point-092",
+          "skull/point-093",
+          "skull/point-078"
+        ],
+        "skull/face-144": [
+          "skull/point-094",
+          "skull/point-080",
+          "skull/point-079"
+        ],
+        "skull/face-145": [
+          "skull/point-093",
+          "skull/point-094",
+          "skull/point-079"
+        ],
+        "skull/face-146": [
+          "skull/point-095",
+          "skull/point-081",
+          "skull/point-080"
+        ],
+        "skull/face-147": [
+          "skull/point-094",
+          "skull/point-095",
+          "skull/point-080"
+        ],
+        "skull/face-148": [
+          "skull/point-096",
+          "skull/point-082",
+          "skull/point-081"
+        ],
+        "skull/face-149": [
+          "skull/point-095",
+          "skull/point-096",
+          "skull/point-081"
+        ],
+        "skull/face-150": [
+          "skull/point-097",
+          "skull/point-083",
+          "skull/point-082"
+        ],
+        "skull/face-151": [
+          "skull/point-096",
+          "skull/point-097",
+          "skull/point-082"
+        ],
+        "skull/face-152": [
+          "skull/point-098",
+          "skull/point-084",
+          "skull/point-083"
+        ],
+        "skull/face-153": [
+          "skull/point-097",
+          "skull/point-098",
+          "skull/point-083"
+        ],
+        "skull/face-154": [
+          "skull/point-099",
+          "skull/point-085",
+          "skull/point-084"
+        ],
+        "skull/face-155": [
+          "skull/point-098",
+          "skull/point-099",
+          "skull/point-084"
+        ],
+        "skull/face-156": [
+          "skull/point-100",
+          "skull/point-086",
+          "skull/point-085"
+        ],
+        "skull/face-157": [
+          "skull/point-099",
+          "skull/point-100",
+          "skull/point-085"
+        ],
+        "skull/face-158": [
+          "skull/point-101",
+          "skull/point-087",
+          "skull/point-086"
+        ],
+        "skull/face-159": [
+          "skull/point-100",
+          "skull/point-101",
+          "skull/point-086"
+        ],
+        "skull/face-160": [
+          "skull/point-102",
+          "skull/point-088",
+          "skull/point-087"
+        ],
+        "skull/face-161": [
+          "skull/point-101",
+          "skull/point-102",
+          "skull/point-087"
+        ],
+        "skull/face-162": [
+          "skull/point-103",
+          "skull/point-089",
+          "skull/point-088"
+        ],
+        "skull/face-163": [
+          "skull/point-102",
+          "skull/point-103",
+          "skull/point-088"
+        ],
+        "skull/face-164": [
+          "skull/point-091",
+          "skull/point-077",
+          "skull/point-089"
+        ],
+        "skull/face-165": [
+          "skull/point-103",
+          "skull/point-091",
+          "skull/point-089"
+        ],
+        "skull/face-166": [
+          "skull/point-104",
+          "skull/point-090",
+          "skull/point-091"
+        ],
+        "skull/face-167": [
+          "skull/point-104",
+          "skull/point-092",
+          "skull/point-090"
+        ],
+        "skull/face-168": [
+          "skull/point-104",
+          "skull/point-093",
+          "skull/point-092"
+        ],
+        "skull/face-169": [
+          "skull/point-104",
+          "skull/point-094",
+          "skull/point-093"
+        ],
+        "skull/face-170": [
+          "skull/point-104",
+          "skull/point-095",
+          "skull/point-094"
+        ],
+        "skull/face-171": [
+          "skull/point-104",
+          "skull/point-096",
+          "skull/point-095"
+        ],
+        "skull/face-172": [
+          "skull/point-104",
+          "skull/point-097",
+          "skull/point-096"
+        ],
+        "skull/face-173": [
+          "skull/point-104",
+          "skull/point-098",
+          "skull/point-097"
+        ],
+        "skull/face-174": [
+          "skull/point-104",
+          "skull/point-099",
+          "skull/point-098"
+        ],
+        "skull/face-175": [
+          "skull/point-104",
+          "skull/point-100",
+          "skull/point-099"
+        ],
+        "skull/face-176": [
+          "skull/point-104",
+          "skull/point-101",
+          "skull/point-100"
+        ],
+        "skull/face-177": [
+          "skull/point-104",
+          "skull/point-102",
+          "skull/point-101"
+        ],
+        "skull/face-178": [
+          "skull/point-104",
+          "skull/point-103",
+          "skull/point-102"
+        ],
+        "skull/face-179": [
+          "skull/point-104",
+          "skull/point-091",
+          "skull/point-103"
+        ]
+      },
+      "groups": {
+        "skull/face-000": "Face planes",
+        "skull/face-001": "Face planes",
+        "skull/face-002": "Face planes",
+        "skull/face-003": "Face planes",
+        "skull/face-004": "Face planes",
+        "skull/face-005": "Face planes",
+        "skull/face-006": "Face planes",
+        "skull/face-007": "Face planes",
+        "skull/face-008": "Face planes",
+        "skull/face-009": "Face planes",
+        "skull/face-010": "Face planes",
+        "skull/face-011": "Face planes",
+        "skull/face-012": "Face planes",
+        "skull/face-013": "Face planes",
+        "skull/face-014": "Face planes",
+        "skull/face-015": "Eye mask",
+        "skull/face-016": "Eye mask",
+        "skull/face-017": "Eye mask",
+        "skull/face-018": "Eye mask",
+        "skull/face-019": "Eye mask",
+        "skull/face-041": "Face planes",
+        "skull/face-042": "Face planes",
+        "skull/face-043": "Face planes",
+        "skull/face-044": "Face planes",
+        "skull/face-045": "Face planes",
+        "skull/face-046": "Face planes",
+        "skull/face-047": "Face planes",
+        "skull/face-048": "Face planes",
+        "skull/face-049": "Face planes",
+        "skull/face-050": "Face planes",
+        "skull/face-051": "Face planes",
+        "skull/face-052": "Face planes",
+        "skull/face-053": "Face planes",
+        "skull/face-054": "Face planes",
+        "skull/face-055": "Face planes",
+        "skull/face-056": "Eye mask",
+        "skull/face-057": "Eye mask",
+        "skull/face-058": "Eye mask",
+        "skull/face-059": "Eye mask",
+        "skull/face-060": "Eye mask",
+        "skull/face-082": "Skull",
+        "skull/face-083": "Skull",
+        "skull/face-084": "Skull",
+        "skull/face-085": "Skull",
+        "skull/face-086": "Skull",
+        "skull/face-087": "Skull",
+        "skull/face-088": "Skull",
+        "skull/face-089": "Skull",
+        "skull/face-090": "Skull",
+        "skull/face-091": "Skull",
+        "skull/face-092": "Skull",
+        "skull/face-093": "Skull",
+        "skull/face-094": "Skull",
+        "skull/face-095": "Skull",
+        "skull/face-096": "Skull",
+        "skull/face-097": "Skull",
+        "skull/face-098": "Skull",
+        "skull/face-099": "Skull",
+        "skull/face-100": "Skull",
+        "skull/face-101": "Skull",
+        "skull/face-102": "Skull",
+        "skull/face-103": "Skull",
+        "skull/face-104": "Skull",
+        "skull/face-105": "Skull",
+        "skull/face-106": "Skull",
+        "skull/face-107": "Skull",
+        "skull/face-108": "Skull",
+        "skull/face-109": "Skull",
+        "skull/face-110": "Skull",
+        "skull/face-111": "Skull",
+        "skull/face-112": "Skull",
+        "skull/face-113": "Skull",
+        "skull/face-114": "Skull",
+        "skull/face-115": "Skull",
+        "skull/face-116": "Skull",
+        "skull/face-117": "Skull",
+        "skull/face-118": "Skull",
+        "skull/face-119": "Skull",
+        "skull/face-120": "Skull",
+        "skull/face-121": "Skull",
+        "skull/face-122": "Skull",
+        "skull/face-123": "Skull",
+        "skull/face-124": "Skull",
+        "skull/face-125": "Skull",
+        "skull/face-126": "Skull",
+        "skull/face-127": "Skull",
+        "skull/face-128": "Skull",
+        "skull/face-129": "Skull",
+        "skull/face-130": "Skull",
+        "skull/face-131": "Skull",
+        "skull/face-132": "Skull",
+        "skull/face-133": "Skull",
+        "skull/face-134": "Skull",
+        "skull/face-135": "Skull",
+        "skull/face-136": "Skull",
+        "skull/face-137": "Skull",
+        "skull/face-138": "Skull",
+        "skull/face-139": "Skull",
+        "skull/face-140": "Skull",
+        "skull/face-141": "Skull",
+        "skull/face-142": "Skull",
+        "skull/face-143": "Skull",
+        "skull/face-144": "Skull",
+        "skull/face-145": "Skull",
+        "skull/face-146": "Skull",
+        "skull/face-147": "Skull",
+        "skull/face-148": "Skull",
+        "skull/face-149": "Skull",
+        "skull/face-150": "Skull",
+        "skull/face-151": "Skull",
+        "skull/face-152": "Skull",
+        "skull/face-153": "Skull",
+        "skull/face-154": "Skull",
+        "skull/face-155": "Skull",
+        "skull/face-156": "Skull",
+        "skull/face-157": "Skull",
+        "skull/face-158": "Skull",
+        "skull/face-159": "Skull",
+        "skull/face-160": "Skull",
+        "skull/face-161": "Skull",
+        "skull/face-162": "Skull",
+        "skull/face-163": "Skull",
+        "skull/face-164": "Skull",
+        "skull/face-165": "Skull",
+        "skull/face-166": "Skull",
+        "skull/face-167": "Skull",
+        "skull/face-168": "Skull",
+        "skull/face-169": "Skull",
+        "skull/face-170": "Skull",
+        "skull/face-171": "Skull",
+        "skull/face-172": "Skull",
+        "skull/face-173": "Skull",
+        "skull/face-174": "Skull",
+        "skull/face-175": "Skull",
+        "skull/face-176": "Skull",
+        "skull/face-177": "Skull",
+        "skull/face-178": "Skull",
+        "skull/face-179": "Skull"
+      },
+      "closure": "closed",
+      "layer": 1
+    },
+    "ear.L": {
+      "faces": {
+        "ear.L/face-020": [
+          "ear.L/point-016",
+          "ear.L/point-017",
+          "ear.L/point-018"
+        ],
+        "ear.L/face-021": [
+          "ear.L/point-018",
+          "ear.L/point-017",
+          "ear.L/point-019"
+        ],
+        "ear.L/face-022": [
+          "ear.L/point-017",
+          "ear.L/point-016",
+          "ear.L/point-020"
+        ],
+        "ear.L/face-023": [
+          "ear.L/point-020",
+          "ear.L/point-019",
+          "ear.L/point-017"
+        ],
+        "ear.L/face-024": [
+          "ear.L/point-021",
+          "ear.L/point-016",
+          "ear.L/point-018"
+        ],
+        "ear.L/face-025": [
+          "ear.L/point-018",
+          "ear.L/point-019",
+          "ear.L/point-021"
+        ],
+        "ear.L/face-026": [
+          "ear.L/point-021",
+          "ear.L/point-020",
+          "ear.L/point-016"
+        ],
+        "ear.L/face-027": [
+          "ear.L/point-019",
+          "ear.L/point-020",
+          "ear.L/point-021"
+        ]
+      },
+      "groups": {
+        "ear.L/face-020": "Ears",
+        "ear.L/face-021": "Ears",
+        "ear.L/face-022": "Ears",
+        "ear.L/face-023": "Ears",
+        "ear.L/face-024": "Ears",
+        "ear.L/face-025": "Ears",
+        "ear.L/face-026": "Ears",
+        "ear.L/face-027": "Ears"
+      },
+      "closure": "closed",
+      "layer": 2,
+      "pin": {
+        "id": "ear.L/surface-pin",
+        "parent": "skull",
+        "face": "skull/face-003",
+        "weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "tangentEdge": [
+          "skull/point-001",
+          "skull/point-005"
+        ],
+        "handedness": -1
+      },
+      "offsets": {
+        "ear.L/point-016": [
+          0.07001723686677772,
+          -0.05790973320652882,
+          0.007505435611103598
+        ],
+        "ear.L/point-017": [
+          -0.004373700293144737,
+          -0.051876884448568764,
+          -0.06699498857783677
+        ],
+        "ear.L/point-018": [
+          0.08074231062909791,
+          -0.10291421580423558,
+          -0.018796072689857075
+        ],
+        "ear.L/point-019": [
+          -0.056629910752108506,
+          -0.16128101777888174,
+          0.06461513291253923
+        ],
+        "ear.L/point-020": [
+          0.0005324504704698838,
+          -0.02217185133910457,
+          -0.03605002626326416
+        ],
+        "ear.L/point-021": [
+          -0.04031410704985572,
+          -0.10989646715317561,
+          0.07630241260217574
+        ]
+      }
+    },
+    "ear-inset.L": {
+      "faces": {
+        "ear-inset.L/face-028": [
+          "ear-inset.L/point-024",
+          "ear-inset.L/point-023",
+          "ear-inset.L/point-022"
+        ]
+      },
+      "groups": {
+        "ear-inset.L/face-028": "Ear inset"
+      },
+      "closure": "open",
+      "layer": 3,
+      "pin": {
+        "id": "ear-inset.L/surface-pin",
+        "parent": "ear.L",
+        "face": "ear.L/face-026",
+        "weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "tangentEdge": [
+          "ear.L/point-020",
+          "ear.L/point-021"
+        ],
+        "handedness": -1
+      },
+      "offsets": {
+        "ear-inset.L/point-024": [
+          -0.017959461021745803,
+          0.03948884217928767,
+          0.005080375405302595
+        ],
+        "ear-inset.L/point-023": [
+          0.06661969942895093,
+          -0.01623195367877856,
+          0.0037137275358722485
+        ],
+        "ear-inset.L/point-022": [
+          -0.04890191542572904,
+          -0.01694747127031684,
+          0.004566332921253709
+        ]
+      },
+      "boundary": [
+        [
+          "ear-inset.L/point-023",
+          "ear-inset.L/point-024"
+        ],
+        [
+          "ear-inset.L/point-022",
+          "ear-inset.L/point-023"
+        ],
+        [
+          "ear-inset.L/point-022",
+          "ear-inset.L/point-024"
+        ]
+      ]
+    },
+    "eye.L": {
+      "faces": {
+        "eye.L/face-029": [
+          "eye.L/point-025",
+          "eye.L/point-026",
+          "eye.L/point-027"
+        ],
+        "eye.L/face-030": [
+          "eye.L/point-027",
+          "eye.L/point-026",
+          "eye.L/point-028"
+        ],
+        "eye.L/face-031": [
+          "eye.L/point-029",
+          "eye.L/point-026",
+          "eye.L/point-030"
+        ],
+        "eye.L/face-032": [
+          "eye.L/point-026",
+          "eye.L/point-025",
+          "eye.L/point-030"
+        ],
+        "eye.L/face-033": [
+          "eye.L/point-031",
+          "eye.L/point-026",
+          "eye.L/point-029"
+        ],
+        "eye.L/face-034": [
+          "eye.L/point-031",
+          "eye.L/point-028",
+          "eye.L/point-026"
+        ],
+        "eye.L/face-035": [
+          "eye.L/point-032",
+          "eye.L/point-025",
+          "eye.L/point-027"
+        ],
+        "eye.L/face-036": [
+          "eye.L/point-029",
+          "eye.L/point-030",
+          "eye.L/point-032"
+        ],
+        "eye.L/face-037": [
+          "eye.L/point-027",
+          "eye.L/point-028",
+          "eye.L/point-032"
+        ],
+        "eye.L/face-038": [
+          "eye.L/point-032",
+          "eye.L/point-030",
+          "eye.L/point-025"
+        ],
+        "eye.L/face-039": [
+          "eye.L/point-028",
+          "eye.L/point-031",
+          "eye.L/point-032"
+        ],
+        "eye.L/face-040": [
+          "eye.L/point-032",
+          "eye.L/point-031",
+          "eye.L/point-029"
+        ]
+      },
+      "groups": {
+        "eye.L/face-029": "Eyes",
+        "eye.L/face-030": "Eyes",
+        "eye.L/face-031": "Eyes",
+        "eye.L/face-032": "Eyes",
+        "eye.L/face-033": "Eyes",
+        "eye.L/face-034": "Eyes",
+        "eye.L/face-035": "Eyes",
+        "eye.L/face-036": "Eyes",
+        "eye.L/face-037": "Eyes",
+        "eye.L/face-038": "Eyes",
+        "eye.L/face-039": "Eyes",
+        "eye.L/face-040": "Eyes"
+      },
+      "closure": "closed",
+      "layer": 2,
+      "pin": {
+        "id": "eye.L/surface-pin",
+        "parent": "skull",
+        "face": "skull/face-018",
+        "weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "tangentEdge": [
+          "skull/point-012",
+          "skull/point-014"
+        ],
+        "handedness": -1
+      },
+      "offsets": {
+        "eye.L/point-025": [
+          -0.008041772687201448,
+          0.020038411865900156,
+          0.00600858519360256
+        ],
+        "eye.L/point-026": [
+          0.010659267305362917,
+          0.035107024854725805,
+          0.023615529347496854
+        ],
+        "eye.L/point-027": [
+          0.016791432666363227,
+          0.015146964773930778,
+          0.007262592315990829
+        ],
+        "eye.L/point-028": [
+          0.03643904852002138,
+          0.031024353595142724,
+          0.009279171631558124
+        ],
+        "eye.L/point-029": [
+          0.006420253666550628,
+          0.05668463660029349,
+          0.008787736702348907
+        ],
+        "eye.L/point-030": [
+          -0.013227362187107745,
+          0.040807247779081506,
+          0.006771157386781598
+        ],
+        "eye.L/point-031": [
+          0.03125345902011509,
+          0.051793189508324074,
+          0.010041743824737163
+        ],
+        "eye.L/point-032": [
+          0.012140864305336153,
+          0.03637293485324353,
+          -0.0007867808342323476
+        ]
+      }
+    },
+    "ear.R": {
+      "faces": {
+        "ear.R/face-061": [
+          "ear.R/point-045",
+          "ear.R/point-046",
+          "ear.R/point-047"
+        ],
+        "ear.R/face-062": [
+          "ear.R/point-047",
+          "ear.R/point-046",
+          "ear.R/point-048"
+        ],
+        "ear.R/face-063": [
+          "ear.R/point-046",
+          "ear.R/point-045",
+          "ear.R/point-049"
+        ],
+        "ear.R/face-064": [
+          "ear.R/point-049",
+          "ear.R/point-048",
+          "ear.R/point-046"
+        ],
+        "ear.R/face-065": [
+          "ear.R/point-047",
+          "ear.R/point-048",
+          "ear.R/point-050"
+        ],
+        "ear.R/face-066": [
+          "ear.R/point-048",
+          "ear.R/point-049",
+          "ear.R/point-050"
+        ],
+        "ear.R/face-067": [
+          "ear.R/point-050",
+          "ear.R/point-045",
+          "ear.R/point-047"
+        ],
+        "ear.R/face-068": [
+          "ear.R/point-050",
+          "ear.R/point-049",
+          "ear.R/point-045"
+        ]
+      },
+      "groups": {
+        "ear.R/face-061": "Ears",
+        "ear.R/face-062": "Ears",
+        "ear.R/face-063": "Ears",
+        "ear.R/face-064": "Ears",
+        "ear.R/face-065": "Ears",
+        "ear.R/face-066": "Ears",
+        "ear.R/face-067": "Ears",
+        "ear.R/face-068": "Ears"
+      },
+      "closure": "closed",
+      "layer": 2,
+      "pin": {
+        "id": "ear.R/surface-pin",
+        "parent": "skull",
+        "face": "skull/face-044",
+        "weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "tangentEdge": [
+          "skull/point-033",
+          "skull/point-035"
+        ],
+        "handedness": 1
+      },
+      "offsets": {
+        "ear.R/point-045": [
+          0.07001723686677772,
+          -0.05790973320652882,
+          0.007505435611103598
+        ],
+        "ear.R/point-046": [
+          0.08074231062909791,
+          -0.10291421580423558,
+          -0.018796072689857075
+        ],
+        "ear.R/point-047": [
+          -0.004373700293144737,
+          -0.051876884448568764,
+          -0.06699498857783677
+        ],
+        "ear.R/point-048": [
+          -0.056629910752108506,
+          -0.16128101777888174,
+          0.06461513291253923
+        ],
+        "ear.R/point-049": [
+          -0.04031410704985572,
+          -0.10989646715317561,
+          0.07630241260217574
+        ],
+        "ear.R/point-050": [
+          0.0005324504704698838,
+          -0.02217185133910457,
+          -0.03605002626326416
+        ]
+      }
+    },
+    "ear-inset.R": {
+      "faces": {
+        "ear-inset.R/face-069": [
+          "ear-inset.R/point-051",
+          "ear-inset.R/point-052",
+          "ear-inset.R/point-053"
+        ]
+      },
+      "groups": {
+        "ear-inset.R/face-069": "Ear inset"
+      },
+      "closure": "open",
+      "layer": 3,
+      "pin": {
+        "id": "ear-inset.R/surface-pin",
+        "parent": "ear.R",
+        "face": "ear.R/face-068",
+        "weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "tangentEdge": [
+          "ear.R/point-050",
+          "ear.R/point-049"
+        ],
+        "handedness": 1
+      },
+      "offsets": {
+        "ear-inset.R/point-051": [
+          -0.04890191542572904,
+          -0.01694747127031684,
+          0.004566332921253708
+        ],
+        "ear-inset.R/point-052": [
+          0.06661969942895093,
+          -0.01623195367877856,
+          0.0037137275358722485
+        ],
+        "ear-inset.R/point-053": [
+          -0.017959461021745803,
+          0.03948884217928767,
+          0.005080375405302596
+        ]
+      },
+      "boundary": [
+        [
+          "ear-inset.R/point-051",
+          "ear-inset.R/point-052"
+        ],
+        [
+          "ear-inset.R/point-052",
+          "ear-inset.R/point-053"
+        ],
+        [
+          "ear-inset.R/point-051",
+          "ear-inset.R/point-053"
+        ]
+      ]
+    },
+    "eye.R": {
+      "faces": {
+        "eye.R/face-070": [
+          "eye.R/point-054",
+          "eye.R/point-055",
+          "eye.R/point-056"
+        ],
+        "eye.R/face-071": [
+          "eye.R/point-056",
+          "eye.R/point-055",
+          "eye.R/point-057"
+        ],
+        "eye.R/face-072": [
+          "eye.R/point-058",
+          "eye.R/point-055",
+          "eye.R/point-059"
+        ],
+        "eye.R/face-073": [
+          "eye.R/point-055",
+          "eye.R/point-054",
+          "eye.R/point-059"
+        ],
+        "eye.R/face-074": [
+          "eye.R/point-060",
+          "eye.R/point-055",
+          "eye.R/point-058"
+        ],
+        "eye.R/face-075": [
+          "eye.R/point-060",
+          "eye.R/point-057",
+          "eye.R/point-055"
+        ],
+        "eye.R/face-076": [
+          "eye.R/point-061",
+          "eye.R/point-054",
+          "eye.R/point-056"
+        ],
+        "eye.R/face-077": [
+          "eye.R/point-058",
+          "eye.R/point-059",
+          "eye.R/point-061"
+        ],
+        "eye.R/face-078": [
+          "eye.R/point-056",
+          "eye.R/point-057",
+          "eye.R/point-061"
+        ],
+        "eye.R/face-079": [
+          "eye.R/point-061",
+          "eye.R/point-059",
+          "eye.R/point-054"
+        ],
+        "eye.R/face-080": [
+          "eye.R/point-057",
+          "eye.R/point-060",
+          "eye.R/point-061"
+        ],
+        "eye.R/face-081": [
+          "eye.R/point-061",
+          "eye.R/point-060",
+          "eye.R/point-058"
+        ]
+      },
+      "groups": {
+        "eye.R/face-070": "Eyes",
+        "eye.R/face-071": "Eyes",
+        "eye.R/face-072": "Eyes",
+        "eye.R/face-073": "Eyes",
+        "eye.R/face-074": "Eyes",
+        "eye.R/face-075": "Eyes",
+        "eye.R/face-076": "Eyes",
+        "eye.R/face-077": "Eyes",
+        "eye.R/face-078": "Eyes",
+        "eye.R/face-079": "Eyes",
+        "eye.R/face-080": "Eyes",
+        "eye.R/face-081": "Eyes"
+      },
+      "closure": "closed",
+      "layer": 2,
+      "pin": {
+        "id": "eye.R/surface-pin",
+        "parent": "skull",
+        "face": "skull/face-059",
+        "weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "tangentEdge": [
+          "skull/point-042",
+          "skull/point-043"
+        ],
+        "handedness": 1
+      },
+      "offsets": {
+        "eye.R/point-054": [
+          -0.01322736218710753,
+          0.040807247779081554,
+          0.0067711573867816136
+        ],
+        "eye.R/point-055": [
+          0.010659267305363132,
+          0.03510702485472586,
+          0.02361552934749687
+        ],
+        "eye.R/point-056": [
+          0.006420253666550843,
+          0.05668463660029354,
+          0.008787736702348923
+        ],
+        "eye.R/point-057": [
+          0.0312534590201153,
+          0.05179318950832412,
+          0.01004174382473718
+        ],
+        "eye.R/point-058": [
+          0.016791432666363442,
+          0.015146964773930831,
+          0.007262592315990846
+        ],
+        "eye.R/point-059": [
+          -0.008041772687201233,
+          0.02003841186590021,
+          0.006008585193602575
+        ],
+        "eye.R/point-060": [
+          0.0364390485200216,
+          0.03102435359514278,
+          0.009279171631558142
+        ],
+        "eye.R/point-061": [
+          0.012140864305336369,
+          0.03637293485324358,
+          -0.0007867808342323307
+        ]
+      }
+    },
+    "muzzle": {
+      "points": {
+        "muzzle/point-105": [
+          -0.09860000000000001,
+          0.13260000000000002,
+          1.4688
+        ],
+        "muzzle/point-106": [
+          0.09860000000000001,
+          0.13260000000000002,
+          1.4688
+        ],
+        "muzzle/point-107": [
+          0.0,
+          0.1564,
+          1.5385
+        ],
+        "muzzle/point-108": [
+          -0.04760000000000001,
+          0.22440000000000002,
+          1.4892
+        ],
+        "muzzle/point-109": [
+          -0.085,
+          0.1428,
+          1.4212
+        ],
+        "muzzle/point-110": [
+          0.085,
+          0.1428,
+          1.4212
+        ],
+        "muzzle/point-111": [
+          0.0,
+          0.15300000000000002,
+          1.4008
+        ],
+        "muzzle/point-112": [
+          0.04760000000000001,
+          0.22440000000000002,
+          1.4892
+        ],
+        "muzzle/point-113": [
+          0.0408,
+          0.22100000000000003,
+          1.4484
+        ],
+        "muzzle/point-114": [
+          -0.0408,
+          0.22100000000000003,
+          1.4484
+        ],
+        "muzzle/point-115": [
+          0.0,
+          0.22100000000000003,
+          1.5113
+        ],
+        "muzzle/point-116": [
+          0.0,
+          0.21760000000000002,
+          1.4314
+        ]
+      },
+      "faces": {
+        "muzzle/face-180": [
+          "muzzle/point-105",
+          "muzzle/point-106",
+          "muzzle/point-107"
+        ],
+        "muzzle/face-181": [
+          "muzzle/point-107",
+          "muzzle/point-108",
+          "muzzle/point-105"
+        ],
+        "muzzle/face-182": [
+          "muzzle/point-105",
+          "muzzle/point-108",
+          "muzzle/point-109"
+        ],
+        "muzzle/face-183": [
+          "muzzle/point-110",
+          "muzzle/point-109",
+          "muzzle/point-111"
+        ],
+        "muzzle/face-184": [
+          "muzzle/point-112",
+          "muzzle/point-107",
+          "muzzle/point-106"
+        ],
+        "muzzle/face-185": [
+          "muzzle/point-106",
+          "muzzle/point-110",
+          "muzzle/point-112"
+        ],
+        "muzzle/face-186": [
+          "muzzle/point-112",
+          "muzzle/point-110",
+          "muzzle/point-113"
+        ],
+        "muzzle/face-187": [
+          "muzzle/point-114",
+          "muzzle/point-109",
+          "muzzle/point-108"
+        ],
+        "muzzle/face-188": [
+          "muzzle/point-115",
+          "muzzle/point-112",
+          "muzzle/point-108"
+        ],
+        "muzzle/face-189": [
+          "muzzle/point-108",
+          "muzzle/point-107",
+          "muzzle/point-115"
+        ],
+        "muzzle/face-190": [
+          "muzzle/point-107",
+          "muzzle/point-112",
+          "muzzle/point-115"
+        ],
+        "muzzle/face-191": [
+          "muzzle/point-116",
+          "muzzle/point-114",
+          "muzzle/point-113"
+        ],
+        "muzzle/face-192": [
+          "muzzle/point-116",
+          "muzzle/point-110",
+          "muzzle/point-111"
+        ],
+        "muzzle/face-193": [
+          "muzzle/point-113",
+          "muzzle/point-110",
+          "muzzle/point-116"
+        ],
+        "muzzle/face-194": [
+          "muzzle/point-111",
+          "muzzle/point-109",
+          "muzzle/point-116"
+        ],
+        "muzzle/face-195": [
+          "muzzle/point-109",
+          "muzzle/point-114",
+          "muzzle/point-116"
+        ],
+        "muzzle/face-196": [
+          "muzzle/point-105",
+          "muzzle/point-109",
+          "muzzle/point-110"
+        ],
+        "muzzle/face-197": [
+          "muzzle/point-110",
+          "muzzle/point-106",
+          "muzzle/point-105"
+        ],
+        "muzzle/face-198": [
+          "muzzle/point-114",
+          "muzzle/point-112",
+          "muzzle/point-113"
+        ],
+        "muzzle/face-199": [
+          "muzzle/point-108",
+          "muzzle/point-112",
+          "muzzle/point-114"
+        ]
+      },
+      "groups": {
+        "muzzle/face-180": "Muzzle",
+        "muzzle/face-181": "Muzzle",
+        "muzzle/face-182": "Muzzle",
+        "muzzle/face-183": "Muzzle",
+        "muzzle/face-184": "Muzzle",
+        "muzzle/face-185": "Muzzle",
+        "muzzle/face-186": "Muzzle",
+        "muzzle/face-187": "Muzzle",
+        "muzzle/face-188": "Muzzle",
+        "muzzle/face-189": "Muzzle",
+        "muzzle/face-190": "Muzzle",
+        "muzzle/face-191": "Muzzle",
+        "muzzle/face-192": "Muzzle",
+        "muzzle/face-193": "Muzzle",
+        "muzzle/face-194": "Muzzle",
+        "muzzle/face-195": "Muzzle",
+        "muzzle/face-196": "Muzzle",
+        "muzzle/face-197": "Muzzle",
+        "muzzle/face-198": "Muzzle",
+        "muzzle/face-199": "Muzzle"
+      },
+      "closure": "closed",
+      "layer": 1
+    },
+    "nose": {
+      "faces": {
+        "nose/face-200": [
+          "nose/point-117",
+          "nose/point-118",
+          "nose/point-119"
+        ],
+        "nose/face-201": [
+          "nose/point-120",
+          "nose/point-117",
+          "nose/point-119"
+        ],
+        "nose/face-202": [
+          "nose/point-121",
+          "nose/point-117",
+          "nose/point-120"
+        ],
+        "nose/face-203": [
+          "nose/point-121",
+          "nose/point-120",
+          "nose/point-122"
+        ],
+        "nose/face-204": [
+          "nose/point-118",
+          "nose/point-117",
+          "nose/point-122"
+        ],
+        "nose/face-205": [
+          "nose/point-122",
+          "nose/point-117",
+          "nose/point-121"
+        ],
+        "nose/face-206": [
+          "nose/point-122",
+          "nose/point-120",
+          "nose/point-119"
+        ],
+        "nose/face-207": [
+          "nose/point-119",
+          "nose/point-118",
+          "nose/point-122"
+        ]
+      },
+      "groups": {
+        "nose/face-200": "Nose",
+        "nose/face-201": "Nose",
+        "nose/face-202": "Nose",
+        "nose/face-203": "Nose",
+        "nose/face-204": "Nose",
+        "nose/face-205": "Nose",
+        "nose/face-206": "Nose",
+        "nose/face-207": "Nose"
+      },
+      "closure": "closed",
+      "layer": 2,
+      "pin": {
+        "id": "nose/surface-pin",
+        "parent": "muzzle",
+        "face": "muzzle/face-188",
+        "weights": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "tangentEdge": [
+          "muzzle/point-115",
+          "muzzle/point-112"
+        ],
+        "handedness": 1
+      },
+      "offsets": {
+        "nose/point-117": [
+          0.02405118195231048,
+          0.051200170079065514,
+          0.006203933117560803
+        ],
+        "nose/point-118": [
+          0.0371520237895477,
+          -0.004876299518954491,
+          0.0031795157227499354
+        ],
+        "nose/point-119": [
+          -0.027472934266622496,
+          0.025481150904924078,
+          0.0031795157227499354
+        ],
+        "nose/point-120": [
+          -0.02084557887412748,
+          0.015599311964302368,
+          0.019258042385761634
+        ],
+        "nose/point-121": [
+          0.010038117067681705,
+          0.02136914943132351,
+          0.02675446156948097
+        ],
+        "nose/point-122": [
+          0.025315105451708373,
+          -0.006084581195610898,
+          0.019258042385761634
+        ]
+      }
+    }
+  },
+  "creases": {
+    "brow.L": {
+      "parent": "skull",
+      "edge": [
+        "skull/point-000",
+        "skull/point-006"
+      ],
+      "closure": "open-line"
+    },
+    "brow.R": {
+      "parent": "skull",
+      "edge": [
+        "skull/point-034",
+        "skull/point-037"
+      ],
+      "closure": "open-line"
+    }
+  },
+  "source": {
+    "path": "../raccoon-head-wire/head-source.json",
+    "sha256": "f73e748e33a1fac49b61ad897ac8a8623f89985b8af2acdec37a6b226787998e",
+    "method": "Imported once; named pins and local offsets authored against frozen topology; compiler performs no nearest search."
+  }
+}

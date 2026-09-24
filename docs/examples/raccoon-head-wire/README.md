@@ -1,10 +1,12 @@
 # Raccoon head: spatial wire SVG study
 
 A head-only output study, preserving the existing detailed head geometry.
-The primary deliverable is `head-three-quarter.svg`; front, profile and back
-views are also supplied. `head-construction.svg` includes faint dashed hidden
-edges, whereas the clean drawings show only visible edge runs. The GIF previews
-48 views of the same spatial source, rendered with the same line rules.
+The primary deliverable is `head-three-quarter.svg`, the one render kept here.
+The generator also writes front, profile and back views, `head-construction.svg`
+(faint dashed hidden edges; the clean drawings show only visible runs) and, with
+`--turntable`, a GIF of 48 views of the same source, all into the gitignored
+`lite-template/integration/0924/spike-output/``raccoon-head-wire/` (override with `MOJULO_SPIKE_OUT`).
+Docs keep the code, the source and the canonical SVG; renders are regenerated, not stored.
 
 ## Output rules
 
@@ -27,8 +29,8 @@ analytic segment intersections, so subpixel gaps and small features have that
 precision limit. Thresholds and stroke choices are explicit in `build-wire.py`.
 
 Rebuild with Python 3, NumPy and Pillow: `python3 build-wire.py`.
-Validation parses the five SVGs, checks unique path IDs and preservation of the
-source metadata. Agent inspected the preview; human visual acceptance is pending.
+Validation regenerates the five SVGs in memory, checks unique path IDs and
+preservation of the source metadata. Agent inspected the preview; human visual acceptance is pending.
 
 ## Reproduce and test
 

@@ -170,7 +170,7 @@ export function anchorWorld(manifest = {}, pose = {}, name, { rig: rigOverride, 
 
   const A = rotZdeg(-facingYaw(manifest.facing));   // suit → rig
   const At = transpose(A);                          // rig → suit
-  const { bones: T } = articulateTransforms(resolvePose(pose || {}), rig.joints);
+  const { bones: T } = articulateTransforms(resolvePose(pose || {}, rig.joints), rig.joints);
   const bt = (a.on && T[a.on]) ? T[a.on] : IDENT;
 
   // rest suit → rig → posed rig (= m·p + t) → back to suit

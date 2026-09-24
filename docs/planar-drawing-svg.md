@@ -9,8 +9,9 @@ this contract, however readable it is.
 ## Reference implementation and scope
 
 [The example](examples/raccoon-head-wire/README.md) includes a portable generator,
-source data, four clean SVG views, a construction view, a turntable preview and
-numerical tests. It imports the existing authored head and preserves its geometry.
+source data, the canonical three-quarter SVG and numerical tests; the generator
+regenerates the other views, a construction view and a turntable preview into the
+gitignored spike output tree rather than storing renders in docs. It imports the existing authored head and preserves its geometry.
 It demonstrates a rendering/mapping boundary; it does not implement a new native
 Mojulo primitive, automatic image reconstruction, an SVG importer, or rigging.
 
@@ -159,3 +160,14 @@ geometry and a line-style edit changes no coordinates. Only then expose the reus
 operation through the appropriate existing capability surface. Binding and animation
 remain separate consumers of the same spatial construction, not prerequisites for
 high-fidelity wire SVG output.
+
+## Named attachment experiment
+
+The [layered head example](examples/raccoon-layered/README.md) exercises the next
+boundary: a native pure named-surface-frame query drives a standalone compiler.
+Baseline and widened-skull/lengthened-muzzle views use the same attachment recipe.
+Eyes, ears and nose retain local offsets; brow creases reuse L1 edges. Explicit
+point and face keys survive property reordering, and unresolved pins fail. The
+example preserves the previous head rather than introducing a station-loft schema.
+Native recipe-book exposure, generalized topology-edit migration and rigging remain
+separate follow-up work.
