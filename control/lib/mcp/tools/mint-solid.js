@@ -35,6 +35,7 @@ import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
 import { createWorkbenchHandler, createCodeSolidHandler } from '@/lib/mcp/tools/workbench';
 import { createScadHandler } from '@/lib/mcp/tools/scad';
+import { createLayeredHandler } from '@/lib/mcp/tools/layered';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
 import { createCarvedSolidHandler } from '@/lib/mcp/tools/carved-solid';
 import { createSolidTurntableHandler } from '@/lib/mcp/tools/solid-turntable-tool';
@@ -82,6 +83,9 @@ export const SOLID_KINDS = {
   // The OpenSCAD front door: `spec.source` is an OpenSCAD program and IS the recipe, meshed
   // in-process by OpenSCAD (WASM) and served on the workbench studio. Stores kind:'scad'.
   'scad': { family: 'object', handler: createScadHandler },
+  // A solid born layered (stations × slots, pinned details, dials): the recipe is stored and lowers to
+  // the workbench studio on every read, so a dial patch reshapes it in place. Stores kind:'layered'.
+  'layered': { family: 'object', handler: createLayeredHandler },
   'assembler': { family: 'object', handler: createAssemblerHandler },
   'carved-solid': { family: 'object', handler: createCarvedSolidHandler },
   'solid-turntable': { family: 'object', handler: createSolidTurntableHandler },

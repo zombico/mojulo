@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`wire-svg — pinned against the Python reference generator (docs/examples/raccoon-head-wire) > emits byte-identically (hash pin) for the clean and construction drawings 1`] = `"995552123fbe837d625cea9b03db52990f22642d326eb56d3c7b14f81a8732fa"`;
+
+exports[`wire-svg — pinned against the Python reference generator (docs/examples/raccoon-head-wire) > emits byte-identically (hash pin) for the clean and construction drawings 2`] = `"0d380e2733131e4df13d25edb9d5694b877b6558ef97d3b6b6d25ce5d61dcf2c"`;

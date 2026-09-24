@@ -699,5 +699,112 @@
   }
  },
  "raccoonRendererBytes": "unchanged (set_framing defaults to the raccoon framing)",
- "visualReview": "agent inspected casts.png and roar-front.png; human acceptance separate"
+ "visualReview": "agent inspected casts.png and roar-front.png; human acceptance separate",
+ "workbench": {
+  "lowering": "lower-workbench.mjs: one straight loft per part; L1, eyes, teeth, crest exact; horns mid ring \u2264 0.26 mm; nostrils and brow creases omitted; seated on the grid",
+  "loweringTests": 5,
+  "minted": {
+   "baseline": "sk_dragon_head_baseline",
+   "brute": "sk_dragon_head_brute",
+   "longsnout": "sk_dragon_head_longsnout",
+   "crested": "sk_dragon_head_crested",
+   "roar": "sk_dragon_head_roar",
+   "juvenile": "sk_dragon_head_juvenile"
+  },
+  "casts": {
+   "baseline": {
+    "lofts": 19,
+    "omitted": [
+     "nostrilL",
+     "nostrilR"
+    ],
+    "seatedFrom_m": 1.874
+   },
+   "brute": {
+    "lofts": 19,
+    "omitted": [
+     "nostrilL",
+     "nostrilR"
+    ],
+    "seatedFrom_m": 1.862874
+   },
+   "longsnout": {
+    "lofts": 19,
+    "omitted": [
+     "nostrilL",
+     "nostrilR"
+    ],
+    "seatedFrom_m": 1.874
+   },
+   "crested": {
+    "lofts": 19,
+    "omitted": [
+     "nostrilL",
+     "nostrilR"
+    ],
+    "seatedFrom_m": 1.874
+   },
+   "roar": {
+    "lofts": 19,
+    "omitted": [
+     "nostrilL",
+     "nostrilR"
+    ],
+    "seatedFrom_m": 1.639856
+   },
+   "juvenile": {
+    "lofts": 19,
+    "omitted": [
+     "nostrilL",
+     "nostrilR"
+    ],
+    "seatedFrom_m": 1.874
+   }
+  },
+  "measure_solid": {
+   "baseline": {
+    "size_mm": [
+     416,
+     912,
+     448
+    ],
+    "closure": "closed, 0 boundary edges",
+    "manifoldUnion": "19 shells \u2192 1, volume 35.2e6 mm\u00b3, genus -1"
+   }
+  },
+  "export_model": {
+   "baseline": {
+    "glb": "724 vertices, 25 nodes",
+    "stl_union": "1 shell, closed, 35.2e6 mm\u00b3"
+   },
+   "roar": {
+    "stl_union": "1 shell, closed, genus -8; measure_solid warns of a grazing jaw/cranium junction when open"
+   },
+   "juvenile": {
+    "stl_union": "1 shell, closed, 386\u00d7667\u00d7409 mm"
+   }
+  },
+  "wireViews": "scripts/export-wire-svg.mjs --ref on baseline and roar; agent inspected az150/az090",
+  "note": "dials are compile-time: a cast is a mint; a layered kind with live dials is the follow-up"
+ },
+ "layeredKind": {
+  "minted": "sk_dragon_layered (mint_solid kind layered, the recipe as stored manifest)",
+  "patched": {
+   "/dials/jawOpen": 30,
+   "/dials/skullWidth": 1.2
+  },
+  "measure_after_patch": {
+   "size_mm": [
+    430.2,
+    911.7,
+    691.4
+   ],
+   "closure": "closed",
+   "manifoldUnion": "19 shells \u2192 1, 40.7e6 mm\u00b3"
+  },
+  "export_glb": "724 vertices, 25 nodes",
+  "wireViews": "agent inspected az150/az180 of the patched sketch: jaw open, skull wider",
+  "coreTests": "station-loft.test.js 11 (synthetic recipe + the dragon recipe at dial extremes); example tests 14",
+  "controlSuite": "8816 passed"
+ }
 }

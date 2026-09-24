@@ -21,6 +21,16 @@ the band and slot: `cranium/st1-st2.k0.a`. The right half is generated; the left
 mirror by name with reversed winding. A midline detail (a crest spike) uses a **symmetric pin**, the
 average of a face frame and its mirror, so it stays on `x = 0` under every dial.
 
+## Where the code lives
+
+The grammar and the lowering are core capability: `control/lib/graph/polygonizer/station-loft.js`
+and `station-loft-workbench.js`. `compile.mjs` and `lower-workbench.mjs` here are thin shims bound to
+this recipe. Everything dragon-specific (the cranium/jaw slot rules, the horn/eye/tooth/crest
+geometry, which stations each dial reaches) is in `seed-recipe.mjs`, and the recipe it writes is
+declarative: explicit rings per station, pins with local offsets, dial ops with blends, loft
+declarations. The same recipe mints natively as `mint_solid { kind: 'layered', spec: { recipe } }`,
+where a dial is then an `update_sketch` patch on `/dials/<name>`.
+
 ## Dials
 
 `skullWidth`, `snoutLength`, `browDrop` reshape the station table, so L1 regenerates and every pin
@@ -41,6 +51,26 @@ compiler, the tests and `validation.json`. Everything rendered lands in the giti
   and camera; every path carries its point IDs and spatial interval.
 - `casts.png`, `casts.svg`: the sweep in `casts.json`, quarter and profile, one framing.
 - `validation.json`: counts, per-cast audit, pin origins per cast.
+
+## Mint it as a solid
+
+`lower-workbench.mjs` lowers a compiled cast to a `mint_solid` kind `workbench` spec: every
+part is one straight loft whose stations are its named rings. The cranium and jaw lower
+exactly (their rings are perpendicular to their axes; the caps are pinched end stations, and an
+opened jaw lowers on its rotated axis). Eyes, teeth and crest spikes lower exactly too; the
+horns' mid ring is projected on its station plane, so `loweringError` reports a fraction of a
+millimetre for them. Nostrils and brow creases have no workbench channel and are omitted.
+
+```sh
+node docs/examples/dragon-layered/lower-workbench.mjs '{"jawOpen":30}' roar <outdir>   # roar.workbench.json
+cd control && node scripts/mcp-stdio.mjs call mint_solid --json @<outdir>/roar.mint.json
+```
+
+The minted sketch is an ordinary workbench solid: the World turntable, `measure_solid`,
+`update_sketch` patches by part id, `export_model` to GLB or STL (`union: true` fuses the
+overlapping parts through Manifold), and `scripts/export-wire-svg.mjs --ref` for wire views.
+Dials are compile-time here: a cast is a mint. A `layered` kind whose manifest carries the
+recipe and dials, lowering on every read, is the follow-up that makes dials live.
 
 ## Checks
 

@@ -17,7 +17,7 @@ test('every L1 point is addressed by station and slot; every L2/L3 point by its 
 });
 test('details keep their local offsets under every dial (stretch dials excepted, along their own axis only)', () => {
   for (const dials of EXTREMES) { const m = compile(recipe, dials); const D = resolveDials(dials);
-    for (const [name, part] of Object.entries(recipe.parts)) for (const [id, o] of Object.entries(part.offsets)) {
+    for (const [name, part] of Object.entries(recipe.parts)) for (const [id, o] of Object.entries(part.offsets || {})) {
       const local = surfaceLocalOffset(m.pins[name], m.parts[name].points[id]);
       if (!part.stretch) { close(local, o); continue; }
       const { origin, axis } = part.stretch; const rel = o.map((x, i) => x - origin[i]); const along = rel.reduce((s, x, i) => s + x * axis[i], 0); const k = D[part.stretch.dial];
@@ -32,7 +32,7 @@ test('the head is exactly mirror-symmetric by name at baseline and under every d
       // a midline part (crest spike, cap point, top/palate/gum slot): its mirror is some point of the same part
       const part = id.split('/')[0]; assert.ok(Object.entries(at).some(([q, u]) => q.startsWith(part + '/') && Math.hypot(u[0] + v[0], u[1] - v[1], u[2] - v[2]) < 1e-9), `no mirror in ${part} for ${id}`);
     }
-    for (const c of ['crest1', 'crest2', 'crest3']) for (const p of Object.values(m.parts[c].points)) assert.ok(Math.abs(p[0]) < 0.03 * recipe.frame.scale + 1e-9); }
+    for (const c of ['crest1', 'crest2', 'crest3']) for (const p of Object.values(m.parts[c].points)) assert.ok(Math.abs(p[0]) < 0.03 * 0.8 + 1e-9, `crest point off the midline: ${p}`); }
 });
 test('the jaw is rigid under jawOpen and hinges at its rear gum slot; lower teeth ride it, upper teeth do not', () => {
   const open = compile(recipe, { jawOpen: 30 }); const d = (a, b) => Math.hypot(...a.map((x, i) => x - b[i]));
@@ -51,5 +51,6 @@ test('channels: details off emits only L1; creases off changes no geometry; dial
 test('a deleted pin face fails loudly; a part cannot address its own or a higher layer', () => {
   const broken = structuredClone(recipe); broken.parts.eyeR.pin.face = 'cranium/st9-st9.k0.a'; assert.throws(() => compile(broken), /face/);
   const up = structuredClone(recipe); up.parts.eyeR.pin.parent = 'hornR'; assert.throws(() => compile(up), /lower layer|missing parent/);
+  const noDial = structuredClone(recipe); noDial.parts.hornR.stretch.dial = 'wings'; assert.throws(() => compile(noDial), /unknown dial/);
 });
 test('determinism: compiling twice is deep-equal', () => { assert.deepEqual(compile(recipe, { skullWidth: 1.2, jawOpen: 10 }), compile(recipe, { skullWidth: 1.2, jawOpen: 10 })); });

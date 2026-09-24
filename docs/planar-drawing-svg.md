@@ -67,6 +67,17 @@ from the same spatial source. These are rendering passes, not separately drawn a
 
 ## 3. Project through an explicit camera
 
+**Basis decision (2026-09-24).** The standard is the *physical* basis: right = forward ×
+world-up, up = right × forward. That is the picture three.js renders on the World page, the
+frame the GLB root rotation preserves, and what every engine leg imports, so a wire SVG in
+this basis matches the model. Mojulo's `resolveCameraBasis` (the CSS3D and scaffold-SVG
+renderers) takes right = world-up × forward, which is the horizontal mirror of the same
+`worldFraming`; those renderers keep their pinned bytes and are documented as mirrored
+legacy. New emitters use the physical basis. The native emitter is
+`control/lib/graph/scene/wire-svg.js`, pinned against the Python reference generator, with
+`control/scripts/export-wire-svg.mjs` as the CLI (`--ref <sketch>` or `--source <json>`).
+
+
 Record camera azimuth/elevation or a complete basis/position, target, distance,
 focal length, principal point and viewport. State the basis convention and SVG's
 downward y direction. Reject points behind the camera unless a near-plane clipping

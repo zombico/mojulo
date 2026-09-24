@@ -173,5 +173,7 @@ that all proposed layered authoring capabilities are now implemented.
 The [dragon head](examples/dragon-layered/README.md) is the same loop started from a
 station/slot loft instead of a frozen mesh: every primary point is named by station and
 slot before it has a coordinate, details pin to named faces, and seven dials regenerate
-the whole head with a cast sweep. It is the reference for the grammar a native
-station-loft card would carry; it registers nothing.
+the whole head with a cast sweep. It is the reference recipe for the native `layered`
+solid kind (`mint_solid { kind: 'layered' }`, manual `get_solid_vocab({ id: 'layered' })`): the recipe
+is the stored manifest, a dial is an `update_sketch` patch, and the solid lowers to the workbench
+studio on every read.

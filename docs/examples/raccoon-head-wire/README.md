@@ -28,7 +28,9 @@ Visibility transitions are sampled at half-pixel spacing, not computed as exact
 analytic segment intersections, so subpixel gaps and small features have that
 precision limit. Thresholds and stroke choices are explicit in `build-wire.py`.
 
-Rebuild with Python 3, NumPy and Pillow: `python3 build-wire.py`.
+Rebuild with Python 3, NumPy and Pillow: `python3 build-wire.py`. The native emitter
+`control/lib/graph/scene/wire-svg.js` is pinned against this generator's committed
+`head-three-quarter.svg` run for run (same edges, roles, visibility intervals and pixels).
 Validation regenerates the five SVGs in memory, checks unique path IDs and
 preservation of the source metadata. Agent inspected the preview; human visual acceptance is pending.
 

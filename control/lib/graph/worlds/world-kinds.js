@@ -28,6 +28,8 @@ import { assembleTransportationHubScene } from '@/lib/graph/architecture/transpo
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
+import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
+import { lowerLayeredManifest } from '@/lib/graph/polygonizer/station-loft-workbench';
 import { assembleScadScene } from '@/lib/graph/worlds/scad';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
@@ -466,6 +468,13 @@ export const WORLD_KINDS = {
     resolve: async (m, ctx) => assembleWorkbenchScene({
       ...m, title: ctx.title, textures: await resolveWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
     }),
+  },
+  // A layered station/slot solid (mint_solid kind 'layered'): the stored recipe + dial values lower
+  // to a workbench spec on EVERY read (station-loft-workbench.js), so a dial patch reshapes the solid
+  // in place and the studio, measure and export legs see the re-lowered monomers.
+  layered: {
+    title: 'mojulo layered solid',
+    resolve: async (m, ctx) => assembleWorkbenchScene({ ...lowerLayeredManifest(m, compileLayered), title: ctx.title, light: ctx.light, toon: ctx.toon }),
   },
   // The OpenSCAD front door (scad kind): the source is the recipe, OpenSCAD-in-WASM meshes it,
   // and it rides the workbench studio (light, grid, facing, movers) through the same seam.

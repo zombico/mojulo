@@ -17,6 +17,8 @@ import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { planWorkbench } from '@/lib/graph/worlds/workbench';
+import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
+import { lowerLayeredManifest } from '@/lib/graph/polygonizer/station-loft-workbench';
 import { facesToStl, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
@@ -58,8 +60,9 @@ export async function measureSolidHandler(input) {
   let parts = null;
   let warnings;
   let cuts;
-  if (sketch.manifest.kind === 'workbench') {
-    const { stats } = planWorkbench(sketch.manifest);
+  if (sketch.manifest.kind === 'workbench' || sketch.manifest.kind === 'layered') {
+    // a layered solid measures as the workbench spec it lowers to (one loft per part)
+    const { stats } = planWorkbench(sketch.manifest.kind === 'layered' ? lowerLayeredManifest(sketch.manifest, compileLayered) : sketch.manifest);
     parts = stats.parts;
     warnings = stats.warnings;
     cuts = stats.cuts;   // parts-booleans B2: what each cut consumed and what the grid rounded its edges to
