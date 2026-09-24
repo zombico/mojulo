@@ -14,9 +14,8 @@ loops and the recipe format are unchanged.
 
 ### Planar drawing
 
-- Separate SVG visual design, projection, volume construction, topology, binding, and motion contracts; add a silhouette-first SVG authoring and review guide in `docs/planar-drawing-svg.md`.
-
-- Document skeleton-first faceted character construction, explicit detail bindings, extended leg chains, and validation gates in `docs/planar-drawing.md`.
+- Define spatial SVG output around Mojulo's mandala scaffold, wave form and projected views; replace the independent illustration-first proposal with a wire-output fidelity contract.
+- Include a reproducible detailed raccoon-head wire example: persistent source points, visible-edge clipping, contour/feature/plane line hierarchy, source and camera metadata, fixed views and optional turntable. This is a standalone reference implementation, not a registered native primitive or SVG importer.
 - Let `resolvePose` accept a custom rest skeleton and use it when compiling unit poses, so friendly limb aims follow the authored anatomy. Default figure posing and raw angle channels retain their existing behavior.
 
 ## [2.1.0] - 2026-09-23

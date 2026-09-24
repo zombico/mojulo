@@ -1,0 +1,37 @@
+{
+  "numericalTests": 6,
+  "result": "passed",
+  "svgFiles": {
+    "head-back.svg": {
+      "paths": 93,
+      "azimuth": 0,
+      "spatialSourcePreserved": true,
+      "edgeMappingPresent": true
+    },
+    "head-three-quarter.svg": {
+      "paths": 139,
+      "azimuth": 150,
+      "spatialSourcePreserved": true,
+      "edgeMappingPresent": true
+    },
+    "head-construction.svg": {
+      "paths": 277,
+      "azimuth": 150,
+      "spatialSourcePreserved": true,
+      "edgeMappingPresent": true
+    },
+    "head-front.svg": {
+      "paths": 134,
+      "azimuth": 180,
+      "spatialSourcePreserved": true,
+      "edgeMappingPresent": true
+    },
+    "head-profile.svg": {
+      "paths": 118,
+      "azimuth": 90,
+      "spatialSourcePreserved": true,
+      "edgeMappingPresent": true
+    }
+  },
+  "visualReview": "agent inspected reference; human acceptance separate"
+}

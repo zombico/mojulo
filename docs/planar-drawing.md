@@ -1,48 +1,52 @@
-# Planar drawing: from a resolved SVG to a rigged character
+# Planar drawing: spatial SVG construction and rigging
 
-Status: capability proposal with a first posing correction. This is not yet a new
-MCP tool, recipe kind, live IK system, or complete native character exporter.
+Status: capability proposal, a custom-rest posing correction, and a standalone
+wire-SVG reference implementation. No new MCP tool or native primitive is registered.
+
+## The artifact standard
+
+The primary artifact is a **3D-mappable SVG**, not an independently composed 2D
+illustration. Its paths are views of persistent spatial points, edges and surfaces.
+The detailed [raccoon head wire example](examples/raccoon-head-wire/README.md) sets
+the output fidelity target. See [the SVG contract](planar-drawing-svg.md) for the
+construction, projection, visibility and review requirements.
+
+This follows Mojulo's [three representation spaces](POLYGONIZER-SYNTHESIS.md#the-three-representation-spaces):
+mandala-space supplies the cardinal scaffold and addressable points; wave-space
+supplies geometric form; rendering projects that form. SVG is a primary inspectable
+delivery of this construction, while embedded spatial data preserves its meaning
+across views. A single attractive silhouette is insufficient evidence of this contract.
 
 ## Separate the concerns
 
-The source drawing deserves its own authoring process. Skeleton-first means
-**before constructing deformable geometry**, not before deciding what the character
-looks like. An SVG should succeed as a drawing before it is asked to constrain a
-volume. See [the SVG authoring guide](planar-drawing-svg.md) for that first stage.
-
 | Concern | Owns | Produces | Does not decide |
 | --- | --- | --- | --- |
-| Visual design | Silhouette, proportions, expression, color regions, graphic planes | Layered SVG and a visual specification | Hidden depth, topology, skin weights |
-| Projection and correspondence | View frame, persistent point identity, visible observations and uncertainty | Registered views and landmark records | Whether the design is appealing; invented hidden measurements |
-| Volume design | Depth, cross-sections, back surfaces, anatomical rest frame | Explicit construction recipe and rest landmarks | Final triangle layout or movement controls |
-| Surface compilation | Winding, connectivity, caps, triangulation, normals, material boundaries | Mesh with stable region provenance | Character proportions or joint semantics |
-| Binding | Bone hierarchy, inverse bind transforms, rigid/weighted region attachment | Validated rest skin | Pose timing, gait or contact policy |
-| Motion | Joint limits, pose intent, IK targets, support/contact, animation | Posed geometry and clips | Redesigning the rest mesh to hide a pose failure |
-| Export | Coordinate/unit conversion and serialization | Portable static or animated assets | Repairing upstream design or rig errors |
+| Spatial scaffold | Named anchors, identity, axes, scale and relationships | Addressable points and local frames | Camera-specific path coordinates |
+| Form | Profiles, rings, facial planes, depth and closure | Shared spatial surfaces and edge roles | Line weights or camera composition |
+| Projection | Camera position, basis, focal length and viewport | Projected points with positive depth | New geometry for each view |
+| Wire visibility and style | Occlusion, contour/feature/plane hierarchy | Clean wire and diagnostic construction SVGs | Hidden depth or anatomical joints |
+| Binding | Bone hierarchy, inverse bind transforms and weights | Validated rest skin | Artistic proportions or pose timing |
+| Motion | Limits, pose intent, support/contact and clips | Articulated spatial construction | Independent screen-space deformation |
+| Export | Units, metadata, stable IDs and serialization | SVG, mesh or animation delivery | Repairing upstream inconsistencies |
 
-These are logical boundaries, not a demand for seven new tools. A recipe can store
-several records together while keeping their ownership and validation separate.
-Existing loft, figure and export modules should be reused behind those boundaries.
-The current branch implements only the custom-rest posing correction; the proposed
-SVG metadata and intermediate records below are not existing Mojulo schemas.
+The logical flow is scaffold → form → projection/visibility → SVG. Binding and
+motion consume the same spatial identities; a posed construction then projects
+through the same renderer. SVG metadata includes the source and camera. Standalone
+JSON is a convenient equivalent source, not a replacement for the SVG handoff.
+Changing a camera never changes source coordinates. Editing geometry invalidates
+its projected views and binding evidence; editing strokes does not alter geometry.
 
-A suggested handoff is `design.svg` + `design.json` → registered observations →
-`construction.json` → mesh/region map → bindings → motion → exported asset. Give
-each record a version and source hash. Downstream stages consume declared IDs and
-coordinates, not the appearance of labels or an SVG element's order in the file.
-An artist's 2D layer order is occlusion in one view, not a universal 3D depth order.
-
-Review each boundary independently. If the silhouette is wrong, revise the design.
-If a correct outline produces a shallow muzzle, revise volume/camera assumptions.
-If it deforms badly, investigate joints and weights before changing the artwork.
-A color edit should invalidate materials, not anatomical measurements; a landmark
-edit should invalidate dependent construction and binding evidence. Preserve prior
-approved artifacts instead of silently changing the source to match a later mesh.
+The example imports the already authored detailed head. It demonstrates spatial
+mapping and output fidelity, not a character generated natively from manji/vajra
+constraints. Its region names and source data are study conventions. A native
+adapter must explicitly map them to validated Mojulo anchors and forms; proximity
+alone must not be treated as identity or attachment. No reusable agent skill has
+been installed by this branch.
 
 ## Construction contract
 
 A character is a deterministic recipe of anatomy, surfaces, bindings and poses.
-Once the visual design is resolved, declare anatomy before constructing the mesh. Use Mojulo's body frame: +z up, +y forward,
+Declare spatial anatomy and form together before binding the mesh. Use Mojulo's body frame: +z up, +y forward,
 +x right. Store named rest joints in that frame; camera placement never changes them.
 Fit segment lengths and joint locations to the character, rather than uniformly
 scaling Vajra and assuming its proportions will fit every species.
@@ -116,14 +120,14 @@ not demonstrated. The meshes contain overlapping segmented parts.
 
 1. **Custom-rest posing (this branch).** Correct unit pose intent compilation and
    test directional accuracy, determinism and canonical compatibility.
-2. **SVG design and handoff.** First demonstrate a layered source drawing with
-   stable region IDs, an explicit view frame, visible landmarks and a recorded
-   visual review using the SVG guide. Then demonstrate a recipe-book character builder using existing
-   loft faces, caps and explicit face lists. Expose only the reusable operations it
-   needs through an append-only toolkit extension; characters stay book recipes,
-   not a growing core species roster. Specify stable anatomy/region IDs, local
-   frames, material groups and explicit bindings. Fail invalid recipes with useful
-   region/joint paths instead of silently repairing them.
+2. **Spatial SVG authoring and handoff.** The included head example establishes
+   persistent points, per-view camera metadata, semantic edge roles, clipped edge
+   provenance and visible-only line output. Next adapt native manji/vajra or loft
+   construction to this boundary, retaining IDs through tessellation. Expose only
+   the reusable operations a demonstrated recipe-book builder needs; character
+   designs remain recipes rather than new core species. Validate editable spatial
+   controls by regenerating all views from one source. Do not substitute separate
+   flat SVG illustrations for this test.
 3. **Bound surface compilation.** Carry influence data alongside vertices through
    triangulation and packing. Preserve weights when vertices split for flat normals
    or materials. Reuse the existing rig and glTF export path after proving it can
