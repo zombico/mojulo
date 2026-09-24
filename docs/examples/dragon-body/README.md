@@ -63,7 +63,8 @@ A pose is words for the core plus channels: `crouch` drops the pelvis with the t
 metatarsus places the hock from the toe and `heelL/R`, femur and tibia solve two-link to it with the
 knee pole; unreachable refuses with the numbers), `jaw`, `grip`, `tail`, `tailSway`. `clips` holds
 `idle`, `crouch` and `roar` as keyposes. `export_model({ format: 'glb', clips: '_all', skinned: true })`
-writes one skinned mesh with the authored weights and the clips; the World page shows the rest solid.
+writes one skinned mesh with the authored weights and the clips. The World page plays them in place
+(`/api/sketches/<ref>/world?clip=crouch`, or the selector in the corner; "rest" shows the solid).
 
 ```sh
 cd control && node scripts/export-wire-svg.mjs --ref <ref> --clip crouch --phase 0.5 --out <dir>   # a posed frame

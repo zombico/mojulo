@@ -43,7 +43,8 @@ path: '/dials/jawOpen', value: 30 }] }`.
   an unreachable pose refuses with the numbers (`reach: 'clamp'` to accept a reported error). The mint
   pays the rig gates (valid weights, rest identity, planted drift). `export_model({ format: 'glb', clips:
   '_all', skinned: true })` writes the skinned GLB with authored weights; `scripts/export-wire-svg.mjs --ref
-  <ref> --clip crouch --phase 0.5` draws a posed frame. The World page shows the rest solid.
+  <ref> --clip crouch --phase 0.5` draws a posed frame. The World page plays the clips in place (`?clip=<name>`,
+  or the selector in the corner; "rest" shows the solid).
 
 Worked recipe: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
 horns, eyes, teeth and crest spikes pinned; seven dials; six casts). Its `seed-recipe.mjs` is the

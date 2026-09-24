@@ -486,7 +486,7 @@ export const WORLD_KINDS = {
       if (m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length) {
         const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {}); const R = validateRig(m.recipe.rig); const skin = bindLayered(mesh, m.recipe, R);
         const dz = m.seat === false ? 0 : -(lowered.meta?.seatedFrom ?? 0);
-        scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz }), embodies: 'body' } };
+        scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz }), embodies: 'body', preview: { clips: Object.keys(m.recipe.clips), hide: 'body', period: 3 } } };
         scene.faces = scene.faces.map((f) => (f.studio ? f : { ...f, group: 'body' }));
       }
       return scene;

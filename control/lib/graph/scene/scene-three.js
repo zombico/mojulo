@@ -50,6 +50,7 @@ import {
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
+  rigPreviewChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
@@ -592,6 +593,13 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(Array.isArray(castShadows.noCastGroups) && castShadows.noCastGroups.length ? { noCast: castShadows.noCastGroups } : {}),
   }) : '';
   const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: !!castShadows }) : '';
+  // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place
+  // on this page (the eyes gate for a rigged layered solid). The bank carries the figure once, without
+  // its preview key. Absent ⇒ zero bytes.
+  const previewList = Object.entries(packedFigures).filter(([, f]) => f && f.rig === true && f.preview && typeof f.preview === 'object').map(([name, f]) => ({ figure: name, ...f.preview }));
+  const previewBank = {};
+  for (const pv of previewList) { const { preview, ...fig } = packedFigures[pv.figure]; previewBank[pv.figure] = fig; }
+  const rigPreviewBlock = previewList.length ? rigPreviewChannelScript(previewList, previewBank) : '';
   // cars channel (the driver-ants sibling of walkers): each car names a baked mesh in `carMeshes` and
   // carries a lane path; only the meshes actually driven are embedded. Absent/empty ⇒ '' ⇒ a car-free
   // world is byte-identical (same discipline as walkers).
@@ -1025,12 +1033,12 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${carsBlock}${xrBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${carsBlock}${xrBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };
