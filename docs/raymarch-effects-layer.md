@@ -48,9 +48,12 @@ Build new effects by composing/extending these — do not start from scratch.
 | `SDF_GLSL` | [sdf-glsl.js](../control/lib/graph/effects/sdf-glsl.js) | GLSL SDF primitives: `sdfSphere/sdfBox/sdfEllipsoid` + set ops `opU/sdfSmin/sdfSmax`. Concatenate BEFORE any consumer GLSL. |
 | `bakeBoxField` / `boxFieldGLSL` / `boxFromFootprint` | [effects-occluder.js](../control/lib/graph/effects/effects-occluder.js) | The grid-culled **scene-SDF occluder**: bake a box set + a coarse uniform grid (cell→box-index table) into Float32 data textures, and the matching GLSL that decodes them so the SDF tests only the boxes in each ray-point's cell. `up:'y'|'z'` selects the vertical axis. `boxFromFootprint` adapts fractal-city's z-up footprint boxes. |
 | `composeVolumeFog(boxes, opts)` | [effects-fog.js](../control/lib/graph/effects/effects-fog.js) | The productized fog effect: bakes the box field, composes occluder + fog transfer fn + overlay shader, returns `{ frag, customUniforms, dataTextures }` ready for `emitThreeWorld`'s `fog`. |
+| `VOLUME_NOISE_GLSL` / `VOLUME_PHASE_GLSL` / `volumeSunGLSL` / `volumeLightGLSL` | [volume-lib.js](../control/lib/graph/effects/volume-lib.js) | Shared GLSL for **lit** volumes: trilinear value noise + fbm (not effects-fog's cell cubes), Worley (27-tap and an 8-tap twin), Henyey–Greenstein with a normalised, capped dual-lobe phase, the sun light-march (`svShadow`) and `svLight` (sun × shadow × phase × powder + ground→sky ambient). The energy rules are in its doc comment. Concatenate noise → phase → sun → light before your transfer fn. |
+| `composeCloudDeck(boxes, opts)` | [effects-clouds.js](../control/lib/graph/effects/effects-clouds.js) | Fog's sibling: a cloud deck as an `effects[]` layer. `mode:'undershot'` (default) is one plane intersection per pixel, no march, no occluder, band above the tallest box; `mode:'full'` is the volumetric band on `buildVolumeFrag` clipped by the box occluder. Publishes the band as `meta.base` / `meta.top`. |
 | `emitThreeWorld({ …, fog })` | [scene-three.js](../control/lib/graph/scene/scene-three.js) | The mesh-world host. The `fog` param adds the effect as the transparent fullscreen quad (premultiplied blend, depthTest off, `onBeforeRender` camera feed). `dataTextures` builds Float32 `DataTexture`s in-page. |
 | `emitRaymarchWorld({ …, dataTextures })` | [scene-three.js](../control/lib/graph/scene/scene-three.js) | The standalone raymarch host (no mesh) — for opaque, full-frame raymarch worlds and for isolating an effect's SDF/transfer fn before composing it over a mesh. |
 | `resolveWorldScene` `fog` setting | [world-scene.js](../control/lib/graph/worlds/world-scene.js) | The opt-in wiring: a manifest `fog: true \| {tuning}` on a kind whose registry descriptor ([world-kinds.js](../control/lib/graph/worlds/world-kinds.js)) declares a `fogBoxes` extractor attaches `payload.fog = composeVolumeFog(...)`. Renders only on the live `/world` path. |
+| `resolveWorldScene` `clouds` setting | [world-scene.js](../control/lib/graph/worlds/world-scene.js) | Fog's gate, widened: `clouds: true \| {tuning}` on a kind that declares `fogBoxes` **or** `clouds: true` in its descriptor (painted-landscape: no solids) appends `composeCloudDeck(...)` to `payload.effects`. The band clears the mesh's tallest vertex (`floor`) as well as the boxes; the sun defaults to the world's `light.toLight`. |
 
 ## Recipe — add a new raymarch effect layer
 
@@ -75,6 +78,10 @@ Say you want light-shafts, rain, heat-shimmer, or a force-field over a world:
 
 - **Volumetric fog** over the city — the first vertical; `composeVolumeFog` + `emitThreeWorld({ fog })`,
   wired as a `resolveWorldScene` setting.
+- **Cloud deck** over the city — the first `effects[]` consumer from a world setting; `composeCloudDeck`
+  + `emitThreeWorld({ effects })`. Its two modes are the budget lesson made concrete: the default is a
+  plane, not a march, and the operator opts into the march. Its lighting is the first consumer of
+  `volume-lib.js`, which is where the next lit effect (billowy fog, burst smoke) starts.
 - **River + waterfall** (`control/scripts/render-river.mjs`) — terrain + water as SDF surfaces (the
   occluder's `groundFn`) + volumetric spray as `volSample`. New transfer function, same spine.
 - **Painted-landscape port** (`control/scripts/render-landscape.mjs`) — a real substrate generator

@@ -58,6 +58,7 @@ export function mintPaintedLandscape({
   walk,
   extent,
   builds,
+  clouds,
   ref,
   folderRef,
 } = {}) {
@@ -98,6 +99,10 @@ export function mintPaintedLandscape({
     ...(walk !== undefined && walk !== null ? { walk } : {}),
     ...(extent !== undefined && extent !== null ? { extent } : {}),
     ...(builds !== undefined && builds !== null ? { builds } : {}),
+    // opt-in cloud deck (effects-clouds.js): `true` for the cheap undershot plane over the terrain,
+    // or a tuning object ({ mode: 'full' } for the volumetric march). Live /world only; the
+    // ?render=raymarch backend and the stills ignore it. A bad value fails at the first render.
+    ...(clouds === true || (clouds && typeof clouds === 'object' && !Array.isArray(clouds)) ? { clouds } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -143,12 +148,13 @@ export async function createPaintedLandscapeHandler(input) {
     walk,
     extent,
     builds,
+    clouds,
     ref,
     folder_ref: folderRef,
   } = input;
   return mintPaintedLandscape({
     title, heartbeat, splatch, structures, scene, seed, light,
-    paletteOverrides, heartbeatOverrides, renderStyle, camera, sky, forest, ground, elevation, walk, extent, builds, ref, folderRef,
+    paletteOverrides, heartbeatOverrides, renderStyle, camera, sky, forest, ground, elevation, walk, extent, builds, clouds, ref, folderRef,
   });
 }
 

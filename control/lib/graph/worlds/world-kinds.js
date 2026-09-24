@@ -8,7 +8,9 @@
  * renderer-convergence steps hang here). A kind's facts are readable in one screen; adding
  * a kind is one table row.
  *
- * Descriptor shape: { title, resolve(manifest, ctx) → payload | Promise<payload>, walk?, fogBoxes? }
+ * Descriptor shape: { title, resolve(manifest, ctx) → payload | Promise<payload>, walk?, fogBoxes?, clouds? }
+ *   `fogBoxes(manifest)` → the solid boxes the fog clips against; it also admits the `clouds` deck.
+ *   `clouds: true` admits the deck on a kind with no solids to clip (the band clears the mesh's height).
  * ctx = { title, time, sky, groundShadows, view, render } — `ctx.title` is already resolved
  * as sketch.title || manifest.title || descriptor.title.
  */
@@ -506,7 +508,9 @@ export const WORLD_KINDS = {
     title: 'mojulo solid',
     resolve: (m, ctx) => assembleSolidTurntableScene(m, { title: ctx.title }),
   },
-  'painted-landscape': { walk: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
+  // clouds: the deck rides over the terrain (no boxes to clip; the band clears the mesh's tallest
+  // vertex). The ?render=raymarch backend returns before the channel layer, so it carries no deck.
+  'painted-landscape': { walk: true, clouds: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host
   // entities, so an entities-only manifest renders without piggybacking on another kind.
   // fogBoxes: the manifest's own AABB collision hull doubles as the fog occluder — the same

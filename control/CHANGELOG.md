@@ -12,6 +12,37 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Clouds
+
+- **A cloud deck over any world that has fog boxes.** The 2026-09-17 smoke-and-cloud spike found that
+  a lit, Worley-eroded deck composited through the existing `effects[]` overlay reads as cumulus with
+  lit tops and shaded troughs, and recommended it as a `clouds` setting; nothing had been wired since.
+  Now `clouds: true` (or a tuning object) on a kind whose registry descriptor declares `fogBoxes`
+  (`fractal-city`, edifices, `subway-station`, `controllable`) adds a deck layer to the live `/world`
+  page. Two modes, chosen by the operator because the frame budget is theirs. `undershot` (the default)
+  is one plane intersection per pixel, no march: coverage and erosion sampled where the view ray meets
+  the deck's base (camera below) or top (camera above), slab depth turned into alpha, lit by the sun
+  transmitted through the slab plus a normalised phase lobe and a ground-to-sky ambient, faded toward
+  the horizon. `{ mode: 'full' }` is the spike's round-3 composite: a volumetric march over the band
+  with a sun light-march, dual-lobe Henyey-Greenstein, powder and ambient, and when `base` is set low
+  enough that a solid crosses the band, clipped behind it by the same box occluder the fog uses.
+  Tuning: `base`, `top` (default: the band starts above the tallest occluder box, so nothing solid
+  crosses it), `coverage` 0..1, `sun` (defaults to the
+  world's `light.toLight`), `color`, `density`, `scale`, `drift`, `maxDist`, `fade`, `steps`. The layer
+  publishes its band as `meta.base` / `meta.top` so cameras and walk eyes can stay out of it. A bad
+  tuning object throws by name, so `compose_world`'s render check refuses the mint instead of storing
+  a page that fails. Absent ⇒ zero bytes; stills and engine exports ignore it, like fog.
+  `lib/graph/effects/effects-clouds.js` (`composeCloudDeck`) is fog's sibling; the shared GLSL the
+  spike wrote inline (trilinear value noise, fbm, Worley, Henyey-Greenstein, the light march, the
+  energy rules) is now `lib/graph/effects/volume-lib.js` for the next effect to reuse. `compose_world`
+  with base `city` stores `clouds` beside `fog`; the city card documents it.
+- **Painted landscapes take the deck too.** A registry descriptor can now say `clouds: true` instead of
+  declaring `fogBoxes`: the kind has no solids to clip, and the band clears the mesh's tallest vertex
+  instead (the deck composer's new `floor`, which every deck also honours beside its boxes). The
+  `painted-landscape` kind declares it, `create_painted_landscape` and `compose_world` with base
+  `painted-landscape` store `clouds`, and the landscape card documents it. The `?render=raymarch`
+  backend returns before the channel layer and carries no deck, like every other channel.
+
 ### Library
 
 - **The Library is a folder list, not a gallery.** `/library` no longer renders anything: the
