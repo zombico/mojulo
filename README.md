@@ -74,7 +74,7 @@ where a recipe from a box comes home to.
 Who has run it where. <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> persistent (your machine; `~/.mojulo/` stays) · <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> ephemeral (the web
 agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not "does not work".
 
-| agent | macOS | Windows | Web Agent Linux Box |
+| agent | macOS | Windows | Web Agent Linux Box (Headless) |
 |---|:-:|:-:|:-:|
 | Claude Code | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | |
 | Claude app (macOS, Windows, web, iOS) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |

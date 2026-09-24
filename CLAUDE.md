@@ -22,7 +22,7 @@ here. [lite-template/](lite-template/) is the runtime for the opt-in chatbot pac
 
 - Current state of the branch: the Unreleased section of [control/CHANGELOG.md](control/CHANGELOG.md).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
-- Version: `package.json` says 2.0.9 (released 2026-09-23; the exported World page loads three.js from the pinned CDN by default since 2.0.9 — `cdn: false` for the self-contained build; 2.0.5 is broken on fresh installs, see the changelog; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot pack is opt-in since 2.0.0).
+- Version: `package.json` says 2.1.0 (released 2026-09-23; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page loads three.js from the pinned CDN by default since 2.0.9 — `cdn: false` for the self-contained build; 2.0.5 is broken on fresh installs, see the changelog; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot pack is opt-in since 2.0.0).
   Unreleased is empty at the tag; new work goes under it as `###` themes.
 - Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),

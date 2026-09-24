@@ -1,7 +1,7 @@
 {
   "name": "mojulo",
   "mcpName": "io.github.zombico/mojulo",
-  "version": "2.0.9",
+  "version": "2.1.0",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Mojulo — a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself (the Claude app or web, ChatGPT work mode with Codex, Grok chat, Meta Muse), where you build worlds, objects, and games by talking to the agent you already run (Claude Code, Codex, or any MCP host). Each one is stored as a small deterministic recipe — the source, compiled back byte-for-byte and emitted as a game (Godot) or a printed object (STL), and small enough to carry home from a box and re-mint identically. An OpenSCAD program is a recipe too, meshed in-process, and booleans are exact inside the recipe. A compiler, not a generator; the recipe stays yours.",

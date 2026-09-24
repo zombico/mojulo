@@ -12,6 +12,8 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-23
+
 ### CLI orientation
 
 - **`mojulo orient` — the shell's `initialize`.** An MCP client is handed the server instructions at
