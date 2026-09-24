@@ -179,3 +179,9 @@ is the stored manifest, a dial is an `update_sketch` patch, and the solid lowers
 studio on every read. The [dragon body](examples/dragon-body/README.md) is the same grammar with more
 parts: a hulking humanoid whose digitigrade legs are the explicit hip → knee → hock → toe base → toe
 tip chain above, and whose head is the dragon recipe merged onto its neck.
+
+The [head detail example](examples/head-detail/README.md) takes the same grammar down to detail and
+expression. It adds surface addresses, skin strips, bone versus skin carriers, an eye with named
+sclera, iris and pupil bands under a brow-tucked surround, a cheek web and a tongue, all driven by
+species-neutral expressions. The dragon and a bear authored from its own station table share one
+species-free core.
