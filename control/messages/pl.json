@@ -1725,8 +1725,10 @@
     "subtitle": "Każdy artefakt wymintowany przez agenta — sceny, modele, postacie, materiały, obrazy, diagramy. Jedna półka na każdy sposób patrzenia; pod spodem ten sam magazyn przepisów.",
     "shelves": {
       "recent": "Ostatnie",
-      "scenes": "Sceny",
+      "scenes": "Światy",
+      "turntables": "Obrotnice",
       "models": "Modele",
+      "views": "Widoki",
       "characters": "Postacie",
       "images": "Obrazy",
       "diagrams": "Diagramy",
@@ -1737,7 +1739,31 @@
       "applyHint": "Materiały nakłada się przez agenta — ustaw material na ściance świata siatkowego albo podaj nazwę presetu."
     },
     "recentNote": "Najnowsze artefakty z całego warsztatu. Wybierz półkę, by zobaczyć wszystkie jednego rodzaju.",
-    "roomToggle": "Pokój"
+    "roomToggle": "Pokój",
+    "columns": {
+      "name": "Nazwa",
+      "kind": "Rodzaj",
+      "minted": "Wybito",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Świat",
+      "turntable": "Obrotnica",
+      "model": "Model",
+      "view": "Widok",
+      "character": "Postać",
+      "image": "Obraz",
+      "diagram": "Diagram"
+    },
+    "rail": {
+      "shelves": "Półki",
+      "unfiled": "Bez folderu"
+    },
+    "inspector": {
+      "empty": "Wybierz wiersz, aby zobaczyć szczegóły.",
+      "inFolder": "w {name}",
+      "unfiled": "bez folderu"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "pulpit",
-    "bench": "Na warsztacie",
-    "recentPicks": "Ostatnio brane do ręki",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefaktów — przechodzone, obracane, drukowane",
+      "d3": "{n} artefaktów — światy, obrotnice, bryły, widoki, postacie",
       "d2": "{n} artefaktów — obrazy i mapy"
-    },
-    "open": {
-      "scenes": "Otwórz tablicę lokacji →",
-      "models": "Otwórz ścianę obrotów →",
-      "characters": "Otwórz tablicę obsady →",
-      "images": "Otwórz ścianę druku →",
-      "diagrams": "Otwórz czytelnię →",
-      "materials": "Otwórz półkę materiałów →"
     },
     "stack": "×{n}",
     "presets": "{n} presetów",
@@ -2318,12 +2334,11 @@
       "painted": "malowane"
     },
     "capNote": "paski pokazują najświeższe — nagłówki otwierają wszystko",
-    "warming": "rozgrzewanie widoku na żywo…",
-    "liveFailed": "widok na żywo się nie załadował — pokazuję stopklatkę",
     "loadFailed": "Nie udało się załadować tej półki.",
     "retry": "Ponów",
     "emptyStrip": "Nic tu jeszcze nie wymintowano.",
-    "materialsHint": "Nakładane przez agenta — ustaw materiał na ściance świata siatkowego albo podaj nazwę presetu."
+    "materialsHint": "Nakładane przez agenta — ustaw materiał na ściance świata siatkowego albo podaj nazwę presetu.",
+    "openShelf": "Otwórz w bibliotece →"
   },
   "viewCube": {
     "label": "Predefiniowane widoki",

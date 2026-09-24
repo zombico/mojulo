@@ -1725,8 +1725,10 @@
     "subtitle": "Every artifact the agent has minted — scenes, models, characters, materials, images, diagrams. One shelf per way of looking; the same recipe store underneath.",
     "shelves": {
       "recent": "Recent",
-      "scenes": "Scenes",
+      "scenes": "Worlds",
+      "turntables": "Turntables",
       "models": "Models",
+      "views": "Views",
       "characters": "Characters",
       "images": "Images",
       "diagrams": "Diagrams",
@@ -1737,7 +1739,31 @@
       "applyHint": "Materials are applied by asking the agent — set material on a mesh-world face, or pass a preset name."
     },
     "recentNote": "The most recent artifacts across the workshop. Pick a shelf to see all of one kind.",
-    "roomToggle": "Room"
+    "roomToggle": "Room",
+    "columns": {
+      "name": "Name",
+      "kind": "Kind",
+      "minted": "Minted",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "World",
+      "turntable": "Turntable",
+      "model": "Model",
+      "view": "View",
+      "character": "Character",
+      "image": "Image",
+      "diagram": "Diagram"
+    },
+    "rail": {
+      "shelves": "Shelves",
+      "unfiled": "Unfiled"
+    },
+    "inspector": {
+      "empty": "Select a row for its details.",
+      "inFolder": "in {name}",
+      "unfiled": "unfiled"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashboard",
-    "bench": "On the bench",
-    "recentPicks": "Picked up recently",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artifacts — walked, orbited, printed",
+      "d3": "{n} artifacts — worlds, turntables, solids, views, characters",
       "d2": "{n} artifacts — pictures and maps"
-    },
-    "open": {
-      "scenes": "Open the location board →",
-      "models": "Open the turntable wall →",
-      "characters": "Open the cast board →",
-      "images": "Open the print wall →",
-      "diagrams": "Open the reading room →",
-      "materials": "Open the materials shelf →"
     },
     "stack": "×{n}",
     "presets": "{n} presets",
@@ -2318,12 +2334,11 @@
       "painted": "painted"
     },
     "capNote": "strips show the freshest — headers open everything",
-    "warming": "warming the live view…",
-    "liveFailed": "live view didn’t load — showing the still",
     "loadFailed": "Couldn’t load this shelf.",
     "retry": "Retry",
     "emptyStrip": "Nothing minted here yet.",
-    "materialsHint": "Applied by asking the agent — set a material on a mesh-world face, or pass a preset name."
+    "materialsHint": "Applied by asking the agent — set a material on a mesh-world face, or pass a preset name.",
+    "openShelf": "Open in the library →"
   },
   "viewCube": {
     "label": "View presets",

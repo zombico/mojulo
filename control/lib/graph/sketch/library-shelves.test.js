@@ -9,6 +9,8 @@ import {
   onShelf,
   filterToShelf,
   shelfCountsFromTallies,
+  SOLID_KINDS,
+  VIEW_KINDS,
   LEGACY_ROUTE_SHELVES,
 } from '@/lib/graph/sketch/library-shelves';
 
@@ -18,7 +20,9 @@ const CORPUS = [
   s('world', 'fractal-city'),
   s('world', 'dungeon'),
   s('object', 'workbench'),
+  s('object', 'atom-view'),
   s('illustration', 'painted-landscape'),
+  s('illustration', 'css3d-turntable'),
   s('illustration', 'figure'),
   s('illustration', 'character-sheet'),
   s('diagram', undefined),
@@ -39,8 +43,18 @@ describe('library shelves', () => {
 
   it('maps each colloquial shelf onto the bucket it actually means', () => {
     expect(filterToShelf(CORPUS, 'scenes').map((x) => x.bucket)).toEqual(['world', 'world']);
-    expect(filterToShelf(CORPUS, 'models').map((x) => x.bucket)).toEqual(['object']);
+    expect(filterToShelf(CORPUS, 'models').map((x) => x.manifest.kind)).toEqual(['workbench']);
+    expect(filterToShelf(CORPUS, 'views').map((x) => x.manifest.kind)).toEqual(['atom-view']);
+    expect(filterToShelf(CORPUS, 'turntables').map((x) => x.manifest.kind)).toEqual(['css3d-turntable']);
     expect(filterToShelf(CORPUS, 'diagrams').map((x) => x.bucket)).toEqual(['diagram']);
+  });
+
+  it('solids and views partition the object bucket; turntables leave images', () => {
+    const object = CORPUS.filter((x) => x.bucket === 'object').length;
+    expect(filterToShelf(CORPUS, 'models').length + filterToShelf(CORPUS, 'views').length).toBe(object);
+    for (const k of SOLID_KINDS) expect(VIEW_KINDS).not.toContain(k);
+    expect(VIEW_KINDS).toContain('atom-view');
+    expect(filterToShelf(CORPUS, 'images').map((x) => x.manifest.kind)).not.toContain('css3d-turntable');
   });
 
   it('splits characters out of images so the two do not double-count', () => {
@@ -62,24 +76,32 @@ describe('library shelves', () => {
       expect(shelfFetchBucket(shelf.key), shelf.key).toBeTruthy();
     }
     expect(shelfFetchBucket('characters')).toBe('illustration');
+    expect(shelfFetchBucket('turntables')).toBe('illustration');
     expect(shelfFetchBucket('images')).toBe('illustration');
+    expect(shelfFetchBucket('views')).toBe('object');
     expect(shelfFetchBucket('recent')).toBeNull();
   });
 
   it('`recent` holds the library-eligible page it was given, minus the other homes', () => {
-    expect(filterToShelf(CORPUS, 'recent')).toHaveLength(7);
+    expect(filterToShelf(CORPUS, 'recent')).toHaveLength(9);
   });
 
   it('derives true shelf totals from whole-table tallies', () => {
     const counts = shelfCountsFromTallies({
       buckets: { world: 335, object: 1143, illustration: 413, diagram: 121, beats: 9 },
-      kinds: { figure: 4, 'character-sheet': 2, 'sprite-sheet': 1, 'painted-landscape': 50 },
+      kinds: {
+        figure: 4, 'character-sheet': 2, 'sprite-sheet': 1, 'painted-landscape': 50,
+        'css3d-turntable': 300, 'subway-station': 2, 'atom-view': 30, 'mechanics-view': 10,
+        // the polygomer's 2D form: an illustration kind that must not be summed as a solid
+        'manji-tree': 6,
+      },
     });
     expect(counts).toEqual({
-      scenes: 335, models: 1143, characters: 7, images: 406, diagrams: 121,
+      scenes: 335, turntables: 302, models: 1103, views: 40, characters: 7, images: 104, diagrams: 121,
     });
-    // images + characters must reconstruct the illustration bucket exactly
-    expect(counts.images + counts.characters).toBe(413);
+    // the two splits must reconstruct their buckets exactly
+    expect(counts.images + counts.characters + counts.turntables).toBe(413);
+    expect(counts.models + counts.views).toBe(1143);
   });
 
   it('gives no count to `recent` or `materials` — a cap and a registry are not populations', () => {

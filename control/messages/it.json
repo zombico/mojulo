@@ -1725,8 +1725,10 @@
     "subtitle": "Ogni artefatto che l'agente ha creato — scene, modelli, personaggi, materiali, immagini, diagrammi. Uno scaffale per ogni modo di guardare; sotto, lo stesso archivio di ricette.",
     "shelves": {
       "recent": "Recenti",
-      "scenes": "Scene",
+      "scenes": "Mondi",
+      "turntables": "Giradischi",
       "models": "Modelli",
+      "views": "Viste",
       "characters": "Personaggi",
       "images": "Immagini",
       "diagrams": "Diagrammi",
@@ -1737,7 +1739,31 @@
       "applyHint": "I materiali si applicano chiedendo all'agente — imposta material su una faccia di un mondo mesh, oppure passa il nome di un preset."
     },
     "recentNote": "Gli artefatti più recenti di tutto il workshop. Scegli uno scaffale per vederli tutti di un tipo.",
-    "roomToggle": "Stanza"
+    "roomToggle": "Stanza",
+    "columns": {
+      "name": "Nome",
+      "kind": "Genere",
+      "minted": "Coniato",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Mondo",
+      "turntable": "Giradischi",
+      "model": "Modello",
+      "view": "Vista",
+      "character": "Personaggio",
+      "image": "Immagine",
+      "diagram": "Diagramma"
+    },
+    "rail": {
+      "shelves": "Scaffali",
+      "unfiled": "Senza cartella"
+    },
+    "inspector": {
+      "empty": "Seleziona una riga per vederne i dettagli.",
+      "inFolder": "in {name}",
+      "unfiled": "senza cartella"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashboard",
-    "bench": "Sul banco",
-    "recentPicks": "Ripresi di recente",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefatti — percorsi, orbitati, stampati",
+      "d3": "{n} artefatti — mondi, giradischi, solidi, viste, personaggi",
       "d2": "{n} artefatti — immagini e mappe"
-    },
-    "open": {
-      "scenes": "Apri la bacheca dei luoghi →",
-      "models": "Apri la parete dei turntable →",
-      "characters": "Apri la bacheca del cast →",
-      "images": "Apri la parete delle stampe →",
-      "diagrams": "Apri la sala lettura →",
-      "materials": "Apri lo scaffale dei materiali →"
     },
     "stack": "×{n}",
     "presets": "{n} preset",
@@ -2318,12 +2334,11 @@
       "painted": "dipinto"
     },
     "capNote": "le strisce mostrano i più recenti — le intestazioni aprono tutto",
-    "warming": "avvio della vista live…",
-    "liveFailed": "la vista live non si è caricata — mostro l'immagine fissa",
     "loadFailed": "Impossibile caricare questo scaffale.",
     "retry": "Riprova",
     "emptyStrip": "Niente creato qui per ora.",
-    "materialsHint": "Si applica chiedendo all'agente — imposta un material su una faccia di un mondo mesh, oppure passa il nome di un preset."
+    "materialsHint": "Si applica chiedendo all'agente — imposta un material su una faccia di un mondo mesh, oppure passa il nome di un preset.",
+    "openShelf": "Apri nella libreria →"
   },
   "viewCube": {
     "label": "Viste predefinite",

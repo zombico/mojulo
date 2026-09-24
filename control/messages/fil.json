@@ -1725,8 +1725,10 @@
     "subtitle": "Bawat artifact na na-mint ng agent — mga scene, model, karakter, material, larawan, diagram. Isang shelf bawat paraan ng pagtingin; iisang recipe store sa ilalim.",
     "shelves": {
       "recent": "Kamakailan",
-      "scenes": "Mga Scene",
+      "scenes": "Mga mundo",
+      "turntables": "Mga turntable",
       "models": "Mga Model",
+      "views": "Mga view",
       "characters": "Mga Karakter",
       "images": "Mga Larawan",
       "diagrams": "Mga Diagram",
@@ -1737,7 +1739,31 @@
       "applyHint": "Inilalapat ang materials sa pamamagitan ng paghiling sa agent — mag-set ng material sa isang mesh-world face, o magpasa ng preset name."
     },
     "recentNote": "Ang pinakabagong artifacts sa buong workshop. Pumili ng shelf para makita ang lahat ng isang kind.",
-    "roomToggle": "Silid"
+    "roomToggle": "Silid",
+    "columns": {
+      "name": "Name",
+      "kind": "Uri",
+      "minted": "Na-mint",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Mundo",
+      "turntable": "Turntable",
+      "model": "Model",
+      "view": "View",
+      "character": "Karakter",
+      "image": "Image",
+      "diagram": "Diagram"
+    },
+    "rail": {
+      "shelves": "Mga istante",
+      "unfiled": "Walang folder"
+    },
+    "inspector": {
+      "empty": "Pumili ng row para makita ang mga detalye nito.",
+      "inFolder": "sa {name}",
+      "unfiled": "walang folder"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashboard",
-    "bench": "Nasa bench",
-    "recentPicks": "Kamakailang hinawakan",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} na artifacts — nalalakaran, naoorbit, naipi-print",
+      "d3": "{n} artifact — mga mundo, turntable, solid, view, karakter",
       "d2": "{n} na artifacts — mga larawan at mapa"
-    },
-    "open": {
-      "scenes": "Buksan ang location board →",
-      "models": "Buksan ang turntable wall →",
-      "characters": "Buksan ang cast board →",
-      "images": "Buksan ang print wall →",
-      "diagrams": "Buksan ang silid-basahan →",
-      "materials": "Buksan ang materials shelf →"
     },
     "stack": "×{n}",
     "presets": "{n} na preset",
@@ -2318,12 +2334,11 @@
       "painted": "painted"
     },
     "capNote": "ipinapakita ng mga strip ang pinakabago — binubuksan ng mga header ang lahat",
-    "warming": "pinapainit ang live view…",
-    "liveFailed": "hindi na-load ang live view — ipinapakita ang still",
     "loadFailed": "Hindi ma-load ang shelf na ito.",
     "retry": "Subukan muli",
     "emptyStrip": "Wala pang na-mint dito.",
-    "materialsHint": "Inilalapat sa pamamagitan ng paghiling sa agent — mag-set ng material sa isang mesh-world face, o magpasa ng preset name."
+    "materialsHint": "Inilalapat sa pamamagitan ng paghiling sa agent — mag-set ng material sa isang mesh-world face, o magpasa ng preset name.",
+    "openShelf": "Buksan sa library →"
   },
   "viewCube": {
     "label": "Mga view preset",

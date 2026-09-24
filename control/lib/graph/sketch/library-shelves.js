@@ -27,6 +27,8 @@
  * Design: components/3d-factory-ui.plan.md §2.
  */
 
+import { OBJECT_RENDER_KINDS, SCENE_RENDER_KINDS } from '@/lib/graph/sketch/sketch-manifest';
+
 /**
  * Kinds that depict a CHARACTER. All three live in the illustration bucket, so
  * this shelf shares that fetch and splits on kind — and `images` subtracts them,
@@ -34,6 +36,24 @@
  * don't add up.
  */
 export const CHARACTER_KINDS = ['figure', 'character-sheet', 'sprite-sheet'];
+
+/**
+ * The object bucket splits two ways. SOLIDS are made to be printed or assembled
+ * (the workbench, OpenSCAD, the assembler, the polygomer's 3D manji-tree); every
+ * other object kind is a VIEW — a scientific or educational study that is
+ * orbited and read, never printed. `views` is the object bucket minus the
+ * solids, so the two shelves partition it exactly.
+ */
+export const SOLID_KINDS = ['workbench', 'scad', 'assembler', 'manji-tree'];
+export const VIEW_KINDS = OBJECT_RENDER_KINDS.filter((k) => !SOLID_KINDS.includes(k));
+
+/**
+ * TURNTABLES live in the illustration bucket but are 3D: a css3d-turntable is a
+ * live scene the viewport orbits, and it is by far the commonest thing in that
+ * bucket. Shelving it under Images hid the workshop's largest 3D context on the
+ * 2D side of the floor; this shelf puts it back where it is looked at.
+ */
+export const TURNTABLE_KINDS = SCENE_RENDER_KINDS;
 
 /** Buckets with a home of their own; never shelved here. */
 export const NON_LIBRARY_BUCKETS = ['beats', 'voice', 'game'];
@@ -54,9 +74,11 @@ export const NON_LIBRARY_BUCKETS = ['beats', 'voice', 'game'];
 export const LIBRARY_SHELVES = [
   { key: 'recent', capped: true },
   { key: 'scenes', bucket: 'world', view: 'board' },
-  { key: 'models', bucket: 'object', view: 'wall' },
+  { key: 'turntables', bucket: 'illustration', kinds: TURNTABLE_KINDS, view: 'wall' },
+  { key: 'models', bucket: 'object', excludeKinds: VIEW_KINDS, view: 'wall' },
+  { key: 'views', bucket: 'object', kinds: VIEW_KINDS, view: 'wall' },
   { key: 'characters', bucket: 'illustration', kinds: CHARACTER_KINDS, view: 'cast' },
-  { key: 'images', bucket: 'illustration', excludeKinds: CHARACTER_KINDS, view: 'masonry' },
+  { key: 'images', bucket: 'illustration', excludeKinds: [...CHARACTER_KINDS, ...TURNTABLE_KINDS], view: 'masonry' },
   { key: 'diagrams', bucket: 'diagram', view: 'rows' },
   { key: 'materials', registry: true },
 ];
@@ -114,12 +136,19 @@ export function filterToShelf(sketches = [], shelfKey) {
  * with a number that means something else is not.
  */
 export function shelfCountsFromTallies({ buckets = {}, kinds = {} } = {}) {
-  const characters = CHARACTER_KINDS.reduce((n, k) => n + (kinds[k] || 0), 0);
+  const sum = (list) => list.reduce((n, k) => n + (kinds[k] || 0), 0);
+  const characters = sum(CHARACTER_KINDS);
+  const turntables = sum(TURNTABLE_KINDS);
+  // View kinds are object-only, so the subtraction is exact; the polygomer's
+  // manji-tree is NOT summed for models because its 2D form is an illustration.
+  const views = sum(VIEW_KINDS);
   return {
     scenes: buckets.world || 0,
-    models: buckets.object || 0,
+    turntables,
+    models: Math.max(0, (buckets.object || 0) - views),
+    views,
     characters,
-    images: Math.max(0, (buckets.illustration || 0) - characters),
+    images: Math.max(0, (buckets.illustration || 0) - characters - turntables),
     diagrams: buckets.diagram || 0,
   };
 }

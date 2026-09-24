@@ -1725,8 +1725,10 @@
     "subtitle": "Todos os artefatos que o agente cunhou — cenas, modelos, personagens, materiais, imagens, diagramas. Uma prateleira por forma de olhar; o mesmo repositório de receitas por baixo.",
     "shelves": {
       "recent": "Recentes",
-      "scenes": "Cenas",
+      "scenes": "Mundos",
+      "turntables": "Giradiscos",
       "models": "Modelos",
+      "views": "Vistas",
       "characters": "Personagens",
       "images": "Imagens",
       "diagrams": "Diagramas",
@@ -1737,7 +1739,31 @@
       "applyHint": "Os materiais são aplicados pedindo ao agente — defina material numa face de mundo-malha, ou passe o nome de uma predefinição."
     },
     "recentNote": "Os artefatos mais recentes de toda a oficina. Escolha uma prateleira para ver todos de um tipo.",
-    "roomToggle": "Sala"
+    "roomToggle": "Sala",
+    "columns": {
+      "name": "Nome",
+      "kind": "Tipo",
+      "minted": "Cunhado",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Mundo",
+      "turntable": "Giradisco",
+      "model": "Modelo",
+      "view": "Vista",
+      "character": "Personagem",
+      "image": "Image",
+      "diagram": "Diagrama"
+    },
+    "rail": {
+      "shelves": "Prateleiras",
+      "unfiled": "Sem pasta"
+    },
+    "inspector": {
+      "empty": "Seleciona uma linha para ver os detalhes.",
+      "inFolder": "em {name}",
+      "unfiled": "sem pasta"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "painel",
-    "bench": "Na bancada",
-    "recentPicks": "Retomados recentemente",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefatos — percorridos, orbitados, impressos",
+      "d3": "{n} artefactos — mundos, giradiscos, sólidos, vistas, personagens",
       "d2": "{n} artefatos — imagens e mapas"
-    },
-    "open": {
-      "scenes": "Abrir o quadro de locais →",
-      "models": "Abrir a parede giratória →",
-      "characters": "Abrir o quadro do elenco →",
-      "images": "Abrir a parede de impressões →",
-      "diagrams": "Abrir a sala de leitura →",
-      "materials": "Abrir a prateleira de materiais →"
     },
     "stack": "×{n}",
     "presets": "{n} predefinições",
@@ -2318,12 +2334,11 @@
       "painted": "pintado"
     },
     "capNote": "as faixas mostram o mais recente — os cabeçalhos abrem tudo",
-    "warming": "aquecendo a visualização ao vivo…",
-    "liveFailed": "a visualização ao vivo não carregou — mostrando a imagem fixa",
     "loadFailed": "Não foi possível carregar esta prateleira.",
     "retry": "Tentar novamente",
     "emptyStrip": "Nada cunhado aqui ainda.",
-    "materialsHint": "Aplicado pedindo ao agente — defina um material numa face de mundo-malha, ou passe o nome de uma predefinição."
+    "materialsHint": "Aplicado pedindo ao agente — defina um material numa face de mundo-malha, ou passe o nome de uma predefinição.",
+    "openShelf": "Abrir na biblioteca →"
   },
   "viewCube": {
     "label": "Vistas predefinidas",

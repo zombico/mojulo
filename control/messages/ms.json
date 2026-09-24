@@ -1725,8 +1725,10 @@
     "subtitle": "Setiap artefak yang telah dihasilkan ejen — adegan, model, watak, bahan, imej, rajah. Satu rak bagi setiap cara melihat; stor resipi yang sama di bawahnya.",
     "shelves": {
       "recent": "Terkini",
-      "scenes": "Adegan",
+      "scenes": "Dunia",
+      "turntables": "Meja putar",
       "models": "Model",
+      "views": "Paparan",
       "characters": "Watak",
       "images": "Imej",
       "diagrams": "Rajah",
@@ -1737,7 +1739,31 @@
       "applyHint": "Bahan digunakan dengan meminta ejen — tetapkan material pada muka dunia-mesh, atau hantar nama pratetap."
     },
     "recentNote": "Artefak terbaharu di seluruh bengkel. Pilih satu rak untuk melihat semua satu jenis.",
-    "roomToggle": "Bilik"
+    "roomToggle": "Bilik",
+    "columns": {
+      "name": "Nama",
+      "kind": "Kind",
+      "minted": "Ditempa",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Dunia",
+      "turntable": "Meja putar",
+      "model": "Model",
+      "view": "Paparan",
+      "character": "Watak",
+      "image": "Image",
+      "diagram": "Rajah"
+    },
+    "rail": {
+      "shelves": "Rak",
+      "unfiled": "Tiada folder"
+    },
+    "inspector": {
+      "empty": "Pilih satu baris untuk melihat butirannya.",
+      "inFolder": "dalam {name}",
+      "unfiled": "tiada folder"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "papan pemuka",
-    "bench": "Di atas meja kerja",
-    "recentPicks": "Baru-baru ini diambil",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefak — dijelajah, diorbit, dicetak",
+      "d3": "{n} artifak — dunia, meja putar, pepejal, paparan, watak",
       "d2": "{n} artefak — gambar dan peta"
-    },
-    "open": {
-      "scenes": "Buka papan lokasi →",
-      "models": "Buka dinding meja putar →",
-      "characters": "Buka papan pelakon →",
-      "images": "Buka dinding cetakan →",
-      "diagrams": "Buka bilik bacaan →",
-      "materials": "Buka rak bahan →"
     },
     "stack": "×{n}",
     "presets": "{n} pratetap",
@@ -2318,12 +2334,11 @@
       "painted": "dicat"
     },
     "capNote": "jalur menunjukkan yang terbaharu — pengepala membuka semuanya",
-    "warming": "memanaskan paparan langsung…",
-    "liveFailed": "paparan langsung tidak dimuatkan — memaparkan imej pegun",
     "loadFailed": "Gagal memuatkan rak ini.",
     "retry": "Cuba semula",
     "emptyStrip": "Belum ada apa-apa dihasilkan di sini.",
-    "materialsHint": "Digunakan dengan meminta ejen — tetapkan bahan pada muka dunia-mesh, atau hantar nama pratetap."
+    "materialsHint": "Digunakan dengan meminta ejen — tetapkan bahan pada muka dunia-mesh, atau hantar nama pratetap.",
+    "openShelf": "Buka dalam pustaka →"
   },
   "viewCube": {
     "label": "Pratetap pandangan",

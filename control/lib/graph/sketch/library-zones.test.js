@@ -38,13 +38,13 @@ describe('library zones — the floor agrees with the shelf model', () => {
   });
 
   it('strip shelves are the zone shelves that carry a limit, in zone order', () => {
-    expect(STRIP_SHELVES).toEqual(['scenes', 'models', 'characters', 'images', 'diagrams']);
+    expect(STRIP_SHELVES).toEqual(['scenes', 'turntables', 'models', 'views', 'characters', 'images', 'diagrams']);
     for (const key of STRIP_SHELVES) expect(STRIP_LIMITS[key]).toBeGreaterThan(0);
   });
 
   it('zone counts are sums of shelf counts; materials contributes nothing', () => {
-    const counts = { scenes: 335, models: 1143, characters: 71, images: 364, diagrams: 121 };
-    expect(zoneCounts(counts)).toEqual({ d3: 1549, d2: 485 });
+    const counts = { scenes: 335, turntables: 300, models: 1103, views: 40, characters: 71, images: 64, diagrams: 121 };
+    expect(zoneCounts(counts)).toEqual({ d3: 1849, d2: 185 });
     expect(zoneCounts({})).toEqual({ d3: 0, d2: 0 });
   });
 });

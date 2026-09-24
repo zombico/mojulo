@@ -1725,8 +1725,10 @@
     "subtitle": "Alle artefakter agenten har møntet — scener, modeller, karakterer, materialer, billeder, diagrammer. Én hylde per måde at se på; det samme opskriftslager nedenunder.",
     "shelves": {
       "recent": "Seneste",
-      "scenes": "Scener",
+      "scenes": "Verdener",
+      "turntables": "Drejeskiver",
       "models": "Modeller",
+      "views": "Visninger",
       "characters": "Karakterer",
       "images": "Billeder",
       "diagrams": "Diagrammer",
@@ -1737,7 +1739,31 @@
       "applyHint": "Materialer påføres ved at bede agenten — sæt material på en flade i en mesh-verden, eller angiv et preset-navn."
     },
     "recentNote": "De nyeste artefakter på tværs af værkstedet. Vælg en hylde for at se alle af én slags.",
-    "roomToggle": "Rum"
+    "roomToggle": "Rum",
+    "columns": {
+      "name": "Navn",
+      "kind": "Art",
+      "minted": "Præget",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Verden",
+      "turntable": "Drejeskive",
+      "model": "Model",
+      "view": "Visning",
+      "character": "Karakter",
+      "image": "Billede",
+      "diagram": "Diagram"
+    },
+    "rail": {
+      "shelves": "Hylder",
+      "unfiled": "Uarkiveret"
+    },
+    "inspector": {
+      "empty": "Vælg en række for at se detaljer.",
+      "inFolder": "i {name}",
+      "unfiled": "uarkiveret"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashboard",
-    "bench": "På bænken",
-    "recentPicks": "Taget op for nylig",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefakter — vandret, orbiteret, printet",
+      "d3": "{n} artefakter — verdener, drejeskiver, solider, visninger, karakterer",
       "d2": "{n} artefakter — billeder og kort"
-    },
-    "open": {
-      "scenes": "Åbn lokationstavlen →",
-      "models": "Åbn drejeskivevæggen →",
-      "characters": "Åbn rolletavlen →",
-      "images": "Åbn printvæggen →",
-      "diagrams": "Åbn læsesalen →",
-      "materials": "Åbn materialehylden →"
     },
     "stack": "×{n}",
     "presets": "{n} presets",
@@ -2318,12 +2334,11 @@
       "painted": "malet"
     },
     "capNote": "striber viser de nyeste — overskrifter åbner alt",
-    "warming": "varmer den direkte visning op…",
-    "liveFailed": "direkte visning blev ikke indlæst — viser stillbilledet",
     "loadFailed": "Kunne ikke indlæse denne hylde.",
     "retry": "Prøv igen",
     "emptyStrip": "Intet møntet her endnu.",
-    "materialsHint": "Påføres ved at bede agenten — sæt et materiale på en flade i en mesh-verden, eller angiv et preset-navn."
+    "materialsHint": "Påføres ved at bede agenten — sæt et materiale på en flade i en mesh-verden, eller angiv et preset-navn.",
+    "openShelf": "Åbn i biblioteket →"
   },
   "viewCube": {
     "label": "Visningspresets",

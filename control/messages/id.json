@@ -1725,8 +1725,10 @@
     "subtitle": "Setiap artefak yang telah dicetak agen — adegan, model, karakter, material, gambar, diagram. Satu rak per cara memandang; penyimpanan resep yang sama di baliknya.",
     "shelves": {
       "recent": "Terbaru",
-      "scenes": "Adegan",
+      "scenes": "Dunia",
+      "turntables": "Meja putar",
       "models": "Model",
+      "views": "Tampilan",
       "characters": "Karakter",
       "images": "Gambar",
       "diagrams": "Diagram",
@@ -1737,7 +1739,31 @@
       "applyHint": "Material diterapkan dengan meminta agen — setel material pada face mesh-world, atau berikan nama preset."
     },
     "recentNote": "Artefak terbaru di seluruh workshop. Pilih satu rak untuk melihat semua dari satu jenis.",
-    "roomToggle": "Ruang"
+    "roomToggle": "Ruang",
+    "columns": {
+      "name": "Nama",
+      "kind": "Jenis",
+      "minted": "Dicetak",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Dunia",
+      "turntable": "Meja putar",
+      "model": "Model",
+      "view": "Tampilan",
+      "character": "Karakter",
+      "image": "Gambar",
+      "diagram": "Diagram"
+    },
+    "rail": {
+      "shelves": "Rak",
+      "unfiled": "Tanpa folder"
+    },
+    "inspector": {
+      "empty": "Pilih satu baris untuk melihat detailnya.",
+      "inFolder": "di {name}",
+      "unfiled": "tanpa folder"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashboard",
-    "bench": "Di meja kerja",
-    "recentPicks": "Baru saja diambil",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefak — dijelajahi, diorbit, dicetak",
+      "d3": "{n} artefak — dunia, meja putar, benda padat, tampilan, karakter",
       "d2": "{n} artefak — gambar dan peta"
-    },
-    "open": {
-      "scenes": "Buka papan lokasi →",
-      "models": "Buka dinding turntable →",
-      "characters": "Buka papan pemeran →",
-      "images": "Buka dinding cetak →",
-      "diagrams": "Buka ruang baca →",
-      "materials": "Buka rak material →"
     },
     "stack": "×{n}",
     "presets": "{n} preset",
@@ -2318,12 +2334,11 @@
       "painted": "dilukis"
     },
     "capNote": "strip menampilkan yang paling baru — header membuka semuanya",
-    "warming": "memanaskan tampilan langsung…",
-    "liveFailed": "tampilan langsung gagal dimuat — menampilkan gambar diam",
     "loadFailed": "Gagal memuat rak ini.",
     "retry": "Coba lagi",
     "emptyStrip": "Belum ada yang dicetak di sini.",
-    "materialsHint": "Diterapkan dengan meminta agen — setel material pada face mesh-world, atau berikan nama preset."
+    "materialsHint": "Diterapkan dengan meminta agen — setel material pada face mesh-world, atau berikan nama preset.",
+    "openShelf": "Buka di pustaka →"
   },
   "viewCube": {
     "label": "Preset tampilan",

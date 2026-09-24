@@ -259,3 +259,45 @@ describe('listSummary — the manifest stays home', () => {
     expect(SketchRepository.hydrateSummaries([])).toEqual([]);
   });
 });
+
+describe('last-touched recency (sketches.updated_at)', () => {
+  // unixepoch() is whole seconds, so a same-second edit ties with the mint;
+  // back-date every row's timestamps so the edit stands out.
+  function backdate() {
+    getDb().prepare('UPDATE sketches SET created_at = created_at - 3600, updated_at = created_at - 3600').run();
+  }
+
+  it('a mint reads as touched when minted, and rows carry updatedAt beside createdAt', () => {
+    seed();
+    const row = SketchRepository.getByRef('sk_bench');
+    expect(row.updatedAt).toBe(row.createdAt);
+    const [light] = SketchRepository.newestByBucket({ perBucket: 100 }).byBucket.object;
+    expect(light.updatedAt).toBe(light.createdAt);
+  });
+
+  it('a recipe edit or retitle touches the row and lifts it to the front of recent()', () => {
+    seed();
+    backdate();
+    const before = SketchRepository.recent({ limit: 5 }).map((s) => s.ref);
+    expect(before[0]).not.toBe('sk_bench');
+    SketchRepository.update({ ref: 'sk_bench', manifest: { kind: 'workbench', units: 'mm', seed: 1 } });
+    const bench = SketchRepository.getByRef('sk_bench');
+    expect(bench.updatedAt).toBeGreaterThan(bench.createdAt);
+    expect(SketchRepository.recent({ limit: 5 })[0].ref).toBe('sk_bench');
+    expect(SketchRepository.newestByBucket({ perBucket: 100 }).byBucket.object[0].ref).toBe('sk_bench');
+
+    SketchRepository.update({ ref: 'sk_flow', title: 'Flow, renamed' });
+    expect(SketchRepository.recent({ limit: 5 })[0].ref).toBe('sk_flow');
+  });
+
+  it('filing (a folder move or a bucket pin) is not a touch', () => {
+    seed();
+    backdate();
+    const first = SketchRepository.recent({ limit: 1 })[0].ref;
+    SketchRepository.update({ ref: 'sk_bench', folderRef: null, bucket: 'object' });
+    SketchRepository.moveMany({ refs: ['sk_bench'], folderRef: null });
+    const bench = SketchRepository.getByRef('sk_bench');
+    expect(bench.updatedAt).toBe(bench.createdAt);
+    expect(SketchRepository.recent({ limit: 1 })[0].ref).toBe(first);
+  });
+});

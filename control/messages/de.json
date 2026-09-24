@@ -1725,8 +1725,10 @@
     "subtitle": "Jedes Artefakt, das der Agent geprägt hat — Szenen, Modelle, Charaktere, Materialien, Bilder, Diagramme. Ein Regal pro Blickweise; darunter derselbe Rezeptspeicher.",
     "shelves": {
       "recent": "Zuletzt",
-      "scenes": "Szenen",
+      "scenes": "Welten",
+      "turntables": "Drehteller",
       "models": "Modelle",
+      "views": "Ansichten",
       "characters": "Charaktere",
       "images": "Bilder",
       "diagrams": "Diagramme",
@@ -1737,7 +1739,31 @@
       "applyHint": "Materialien werden über den Agenten angewendet — setze material auf einer Mesh-Welt-Fläche oder übergib einen Preset-Namen."
     },
     "recentNote": "Die neuesten Artefakte aus der ganzen Werkstatt. Wähle ein Regal, um alle einer Art zu sehen.",
-    "roomToggle": "Raum"
+    "roomToggle": "Raum",
+    "columns": {
+      "name": "Name",
+      "kind": "Art",
+      "minted": "Geprägt",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Welt",
+      "turntable": "Drehteller",
+      "model": "Modell",
+      "view": "Ansicht",
+      "character": "Figur",
+      "image": "Bild",
+      "diagram": "Diagramm"
+    },
+    "rail": {
+      "shelves": "Regale",
+      "unfiled": "Unsortiert"
+    },
+    "inspector": {
+      "empty": "Wähle eine Zeile für ihre Details.",
+      "inFolder": "in {name}",
+      "unfiled": "unsortiert"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "dashboard",
-    "bench": "Auf der Werkbank",
-    "recentPicks": "Zuletzt in die Hand genommen",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} Artefakte — begangen, umkreist, gedruckt",
+      "d3": "{n} Artefakte — Welten, Drehteller, Körper, Ansichten, Figuren",
       "d2": "{n} Artefakte — Bilder und Karten"
-    },
-    "open": {
-      "scenes": "Die Schauplatz-Tafel öffnen →",
-      "models": "Die Drehteller-Wand öffnen →",
-      "characters": "Die Besetzungstafel öffnen →",
-      "images": "Die Druckwand öffnen →",
-      "diagrams": "Den Lesesaal öffnen →",
-      "materials": "Das Materialregal öffnen →"
     },
     "stack": "×{n}",
     "presets": "{n} Presets",
@@ -2318,12 +2334,11 @@
       "painted": "gemalt"
     },
     "capNote": "Streifen zeigen das Neueste — Überschriften öffnen alles",
-    "warming": "Live-Ansicht wird aufgewärmt…",
-    "liveFailed": "Live-Ansicht wurde nicht geladen — zeige das Standbild",
     "loadFailed": "Dieses Regal konnte nicht geladen werden.",
     "retry": "Erneut versuchen",
     "emptyStrip": "Hier wurde noch nichts geprägt.",
-    "materialsHint": "Wird über den Agenten angewendet — setze ein Material auf einer Mesh-Welt-Fläche oder übergib einen Preset-Namen."
+    "materialsHint": "Wird über den Agenten angewendet — setze ein Material auf einer Mesh-Welt-Fläche oder übergib einen Preset-Namen.",
+    "openShelf": "In der Bibliothek öffnen →"
   },
   "viewCube": {
     "label": "Ansichts-Presets",

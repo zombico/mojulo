@@ -21,7 +21,7 @@
  * is the registry rail (no count, no strip rows — it lists presets, not rows).
  */
 export const LIBRARY_ZONES = [
-  { key: 'd3', shelves: ['scenes', 'models', 'characters', 'materials'] },
+  { key: 'd3', shelves: ['scenes', 'turntables', 'models', 'views', 'characters', 'materials'] },
   { key: 'd2', shelves: ['images', 'diagrams'] },
 ];
 
@@ -32,7 +32,9 @@ export const LIBRARY_ZONES = [
  */
 export const STRIP_LIMITS = {
   scenes: 4,
+  turntables: 6,
   models: 6,
+  views: 6,
   characters: 4,
   images: 6,
   diagrams: 4,

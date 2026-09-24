@@ -1725,8 +1725,10 @@
     "subtitle": "Cada artefacto que el agente ha acuñado — escenas, modelos, personajes, materiales, imágenes, diagramas. Un estante por cada forma de mirar; el mismo depósito de recetas debajo.",
     "shelves": {
       "recent": "Recientes",
-      "scenes": "Escenas",
+      "scenes": "Mundos",
+      "turntables": "Tornamesas",
       "models": "Modelos",
+      "views": "Vistas",
       "characters": "Personajes",
       "images": "Imágenes",
       "diagrams": "Diagramas",
@@ -1737,7 +1739,31 @@
       "applyHint": "Los materiales se aplican pidiéndoselo al agente — asigna material a una cara de mundo de malla, o pasa el nombre de un preajuste."
     },
     "recentNote": "Los artefactos más recientes de todo el taller. Elige un estante para ver todos los de un tipo.",
-    "roomToggle": "Sala"
+    "roomToggle": "Sala",
+    "columns": {
+      "name": "Nombre",
+      "kind": "Tipo",
+      "minted": "Acuñado",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "Mundo",
+      "turntable": "Tornamesa",
+      "model": "Modelo",
+      "view": "Vista",
+      "character": "Personaje",
+      "image": "Imagen",
+      "diagram": "Diagrama"
+    },
+    "rail": {
+      "shelves": "Estantes",
+      "unfiled": "Sin carpeta"
+    },
+    "inspector": {
+      "empty": "Selecciona una fila para ver sus detalles.",
+      "inFolder": "en {name}",
+      "unfiled": "sin carpeta"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "panel",
-    "bench": "En el banco",
-    "recentPicks": "Tomados recientemente",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "{n} artefactos — recorridos, orbitados, impresos",
+      "d3": "{n} artefactos — mundos, tornamesas, sólidos, vistas, personajes",
       "d2": "{n} artefactos — imágenes y mapas"
-    },
-    "open": {
-      "scenes": "Abrir el tablero de localizaciones →",
-      "models": "Abrir el muro giratorio →",
-      "characters": "Abrir el tablero de reparto →",
-      "images": "Abrir el muro de impresión →",
-      "diagrams": "Abrir la sala de lectura →",
-      "materials": "Abrir el estante de materiales →"
     },
     "stack": "×{n}",
     "presets": "{n} preajustes",
@@ -2318,12 +2334,11 @@
       "painted": "pintado"
     },
     "capNote": "las tiras muestran lo más reciente — las cabeceras lo abren todo",
-    "warming": "calentando la vista en vivo…",
-    "liveFailed": "la vista en vivo no se cargó — mostrando la imagen fija",
     "loadFailed": "No se pudo cargar este estante.",
     "retry": "Reintentar",
     "emptyStrip": "Aún no se ha acuñado nada aquí.",
-    "materialsHint": "Se aplica pidiéndoselo al agente — asigna un material a una cara de mundo de malla, o pasa el nombre de un preajuste."
+    "materialsHint": "Se aplica pidiéndoselo al agente — asigna un material a una cara de mundo de malla, o pasa el nombre de un preajuste.",
+    "openShelf": "Abrir en la biblioteca →"
   },
   "viewCube": {
     "label": "Preajustes de vista",

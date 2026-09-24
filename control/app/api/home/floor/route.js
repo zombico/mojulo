@@ -65,6 +65,7 @@ function lightFace(row) {
     kind: row.kind || null,
     renderMode: row.renderMode,
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt ?? row.createdAt,
     stack: row.stack || 1,
     ...(row.kit ? { kit: row.kit } : {}),
     badges: {
@@ -87,7 +88,9 @@ function faces(rows) {
 function shelfWindow(byBucket, shelfKey) {
   const buckets = {
     scenes: 'world',
+    turntables: 'illustration',
     models: 'object',
+    views: 'object',
     characters: 'illustration',
     images: 'illustration',
     diagrams: 'diagram',
@@ -110,13 +113,15 @@ export async function GET() {
       strips[shelfKey] = faces(folded);
     }
 
-    // The bench's "picked up recently" — newest few library artifacts across
-    // every shelf, each wearing its own kind on the floor.
+    // The bench's "picked up recently" — the last-TOUCHED few library artifacts
+    // across every shelf (a recipe edited in place counts, not just a mint),
+    // each wearing its own kind on the floor.
+    const touchedAt = (r) => r.updatedAt ?? r.createdAt ?? 0;
     const recent = faces(
       Object.values(byBucket)
         .flat()
         .filter(inLibrary)
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        .sort((a, b) => touchedAt(b) - touchedAt(a) || (b.createdAt || 0) - (a.createdAt || 0))
         .slice(0, RECENT_PICKS),
     );
 

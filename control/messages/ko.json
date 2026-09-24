@@ -1725,8 +1725,10 @@
     "subtitle": "에이전트가 만든 모든 아티팩트 — 씬, 모델, 캐릭터, 머티리얼, 이미지, 다이어그램. 보는 방식마다 선반 하나씩이고, 그 아래 레시피 저장소는 하나예요.",
     "shelves": {
       "recent": "최근",
-      "scenes": "씬",
+      "scenes": "세계",
+      "turntables": "턴테이블",
       "models": "모델",
+      "views": "뷰",
       "characters": "캐릭터",
       "images": "이미지",
       "diagrams": "다이어그램",
@@ -1737,7 +1739,31 @@
       "applyHint": "머티리얼은 에이전트에게 요청해 적용해요 — 메시 월드의 면에 material을 설정하거나 프리셋 이름을 넘기세요."
     },
     "recentNote": "워크숍 전체에서 가장 최근 아티팩트예요. 선반을 골라 한 종류를 전부 보세요.",
-    "roomToggle": "룸"
+    "roomToggle": "룸",
+    "columns": {
+      "name": "이름",
+      "kind": "Kind",
+      "minted": "민팅",
+      "ref": "Ref"
+    },
+    "kinds": {
+      "scene": "월드",
+      "turntable": "턴테이블",
+      "model": "[MISSING: Model]",
+      "view": "뷰",
+      "character": "캐릭터",
+      "image": "Image",
+      "diagram": "다이어그램"
+    },
+    "rail": {
+      "shelves": "선반",
+      "unfiled": "미분류"
+    },
+    "inspector": {
+      "empty": "행을 선택하면 세부 정보가 표시돼요.",
+      "inFolder": "{name} 안",
+      "unfiled": "미분류"
+    }
   },
   "maker": {
     "hub": {
@@ -2286,23 +2312,13 @@
   },
   "floor": {
     "crumb": "대시보드",
-    "bench": "작업대 위",
-    "recentPicks": "최근에 집어든 것",
     "zones": {
       "d3": "3D",
       "d2": "2D"
     },
     "zoneSub": {
-      "d3": "아티팩트 {n}개 — 걷고, 돌려보고, 출력해요",
+      "d3": "{n}개 — 월드, 턴테이블, 솔리드, 뷰, 캐릭터",
       "d2": "아티팩트 {n}개 — 그림과 맵"
-    },
-    "open": {
-      "scenes": "로케이션 보드 열기 →",
-      "models": "턴테이블 월 열기 →",
-      "characters": "캐스트 보드 열기 →",
-      "images": "프린트 월 열기 →",
-      "diagrams": "열람실 열기 →",
-      "materials": "머티리얼 선반 열기 →"
     },
     "stack": "×{n}",
     "presets": "프리셋 {n}개",
@@ -2318,12 +2334,11 @@
       "painted": "페인팅"
     },
     "capNote": "스트립은 가장 최신만 보여줘요 — 헤더를 누르면 전부 열려요",
-    "warming": "라이브 뷰 준비 중…",
-    "liveFailed": "라이브 뷰가 로드되지 않았어요 — 스틸을 보여줄게요",
     "loadFailed": "이 선반을 로드하지 못했어요.",
     "retry": "다시 시도",
     "emptyStrip": "아직 여기 만들어진 게 없어요.",
-    "materialsHint": "에이전트에게 요청해 적용해요 — 메시 월드의 면에 머티리얼을 설정하거나 프리셋 이름을 넘기세요."
+    "materialsHint": "에이전트에게 요청해 적용해요 — 메시 월드의 면에 머티리얼을 설정하거나 프리셋 이름을 넘기세요.",
+    "openShelf": "라이브러리에서 열기 →"
   },
   "viewCube": {
     "label": "뷰 프리셋",
