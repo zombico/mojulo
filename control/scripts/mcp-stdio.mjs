@@ -106,14 +106,15 @@ process.chdir(CONTROL_DIR);
 console.log = console.error;
 console.info = console.error;
 
-// `npx mojulo tools|packs|help <name>|call|pack_* …` — the CLI front door (P1+P2 of
+// `npx mojulo orient|tools|packs|help <name>|call|pack_* …` — the CLI front door (P1+P2 of
 // [mojulo-cli.plan.md]). Branches AFTER the loader/paths/chdir/console pin
 // (the CLI reuses the same `@/` resolution and data layout, and wants stray
 // tool logs on stderr — its own output writes to process.stdout directly)
 // but BEFORE the embedder preload: a spot-check command must not kick off a
 // 113MB model fetch. Explicit allowlist plus the pack_ prefix — any other
 // argv falls through to stdio-server mode exactly as before; these names
-// (and the pack_ prefix) are now reserved words on the bin.
+// (and the pack_ prefix) are now reserved words on the bin. `orient` is the
+// shell's stand-in for `initialize` (see cliInstructionsAddendum in server.js).
 // `mojulo script <name> [args…]` — run one of the shipped worker scripts from the package
 // root, so the floor-plan card's `node scripts/bake-world-gi.mjs …` has a door on an install
 // where scripts/ sits inside the npx cache (house-compose-language). Allowlisted to the
@@ -134,7 +135,7 @@ if (process.argv[2] === 'script') {
   process.exit(code ?? 1);
 }
 
-const CLI_COMMANDS = new Set(['tools', 'packs', 'help', 'call']);
+const CLI_COMMANDS = new Set(['orient', 'tools', 'packs', 'help', 'call']);
 if (CLI_COMMANDS.has(process.argv[2]) || process.argv[2]?.startsWith('pack_')) {
   const { runCli } = await import('./mcp-cli.mjs');
   process.exit(await runCli(process.argv.slice(2)));

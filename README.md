@@ -61,7 +61,9 @@ the same recipes and the same exports, as files: the export result names this ho
 artifact page, a PR or a file card. The box has no dashboard you can reach, a scene-to-PNG bake needs a
 browser it may not be allowed to fetch, and it is gone when the session ends, so ask for the bundle
 (one zip: `world.html`, mesh, print STL for literal-scale objects, `recipe.json`, README) and keep
-the recipe. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
+the recipe. A box with no MCP client never sends `initialize`, so tell the agent to run
+`npx mojulo orient` first: it prints what an MCP client is handed at connect, translated to the
+shell, and points at the routing index. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
 Grok chat's sandbox minted a city from the shell. Blender installs in those boxes too.
 
 **On your machine: macOS, Windows, Linux.** `npx mojulo init` wires mojulo into the agents it finds,

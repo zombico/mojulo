@@ -74,6 +74,23 @@ export const PACKS_INSTRUCTIONS_ADDENDUM = `
 
 **Tool packs are ON for this session.** tools/list carries a small spine plus one tool per PACK (\`pack_*\`) — a result-shaped bundle whose description says what it makes. Match the ask to a pack and call it with NO arguments to open it: you get its orientation plus a member manual (names, descriptions, input schemas). Then run members THROUGH the pack: \`pack_audio({ tool: 'create_beats', args: { … } })\`. Any tool named anywhere (the entries above, forward_context rows, drawers, catalysts) is called the same way via its home pack; spine tools are called directly. Packs are additive — open what the session needs, no more.`;
 
+// Appended for `mojulo orient` — the CLI's stand-in for `initialize`. A shell
+// caller (`npx mojulo call …` in an agent's box) never sends `initialize`, so
+// nothing hands it SERVER_INSTRUCTIONS and every body it reads is written in
+// MCP call grammar. This block translates that grammar to the bin and names
+// the two env vars that replace clientInfo. Host ids come from the registry
+// so the list never drifts from lib/mcp/hosts/.
+export function cliInstructionsAddendum({ hostIds } = {}) {
+  const ids = (hostIds || []).join(' / ');
+  return `
+
+**You are on the CLI, not an MCP session.** Every body mojulo returns — this one, \`forward_context\`, a pack unveil, a vocab card — is written in MCP call grammar. Read it as shell:
+  \`tool({ a: 1 })\`                          → \`mojulo call tool --json '{"a":1}'\`   (or \`--a 1\` for a top-level property)
+  \`pack_x({ tool: 'name', args: { … } })\`  → \`mojulo pack_x name --json '{…}'\`
+  \`pack_x()\` (open a pack)                 → \`mojulo pack_x\`
+\`mojulo help <tool>\` prints any tool's full description and input schema. Start with \`mojulo call forward_context\` — the routing index — unless the ask already names its tool. There is no \`initialize\` here, so mojulo cannot see which host you are: set \`MOJULO_HOST=<profile>\` (${ids}) so export results name this host's door, and \`MOJULO_SURFACE=box\` when you are in a throwaway box rather than on the operator's machine. Each \`mojulo\` invocation is a fresh process; long-poll tools need \`--timeout <ms>\`.`;
+}
+
 const registeredTools = new Map();
 
 export function registerTool(tool) {

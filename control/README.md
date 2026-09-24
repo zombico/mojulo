@@ -64,6 +64,8 @@ npx mojulo init
 #      npx -y mojulo init --yes --no-ui
 #    A box with no MCP client (Grok chat, ChatGPT work mode, the Claude app,
 #    Meta Muse) skips init and drives the same registry from the shell:
+#      npx mojulo orient                    # read first: the connect preamble, as shell
+#      npx mojulo call forward_context      # the routing index
 #      npx mojulo call <tool> --json '{…}'
 #    Ask for format 'bundle' on the way out: one zip, recipe included, that
 #    re-mints byte for byte on your own machine.
@@ -96,6 +98,7 @@ engine and data — no agent, no dashboard, no API key required. Useful for
 spot checks, cron jobs, and CI:
 
 ```bash
+npx mojulo orient                     # what an MCP client gets at initialize, plus the shell grammar
 npx mojulo tools                      # the connect surface: spine + packs
 npx mojulo tools pack_object          # one pack's members
 npx mojulo packs                      # pack ids with their recognizers
@@ -131,7 +134,9 @@ the same recipes and the same exports, as files: the export result names this ho
 artifact page, a PR or a file card. The box has no dashboard you can reach, a scene-to-PNG bake needs a
 browser it may not be allowed to fetch, and it is gone when the session ends, so ask for the bundle
 (one zip: `world.html`, mesh, print STL for literal-scale objects, `recipe.json`, README) and keep
-the recipe. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
+the recipe. A box with no MCP client never sends `initialize`, so tell the agent to run
+`npx mojulo orient` first: it prints what an MCP client is handed at connect, translated to the
+shell, and points at the routing index. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
 Grok chat's sandbox minted a city from the shell. Blender installs in those boxes too.
 
 **On your machine: macOS, Windows, Linux.** `npx mojulo init` wires mojulo into the agents it finds,

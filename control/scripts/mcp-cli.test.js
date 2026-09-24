@@ -19,6 +19,11 @@ import { PACKS, SPINE } from '@/lib/mcp/packs';
 // ---------------------------------------------------------------------------
 
 describe('parseArgv', () => {
+  it('parses orient; rejects arguments to it', () => {
+    expect(parseArgv(['orient'])).toEqual({ command: 'orient' });
+    expect(parseArgv(['orient', 'x']).error).toMatch(/orient takes no arguments/);
+  });
+
   it('parses each command shape', () => {
     expect(parseArgv(['tools'])).toEqual({ command: 'tools', pack: null });
     expect(parseArgv(['tools', 'pack_fleet'])).toEqual({ command: 'tools', pack: 'pack_fleet' });
@@ -218,12 +223,34 @@ describe('runCli', () => {
     });
   });
 
-  it('tools lists the connect surface: spine then packs', async () => {
+  it('tools lists the connect surface: spine then packs, then the orient footer', async () => {
     const { lines, io } = capture();
     expect(await runCli(['tools'], io)).toBe(0);
-    expect(lines.out.length).toBe(SPINE.length + PACKS.length);
-    expect(lines.out[0].startsWith(`${SPINE[0]}\t`)).toBe(true);
-    expect(lines.out.at(-1).startsWith(`${PACKS.at(-1).id}\t`)).toBe(true);
+    // Listing rows are the tab-separated ones (piped mode); the footer is prose.
+    const rows = lines.out.filter((l) => l.includes('\t'));
+    expect(rows.length).toBe(SPINE.length + PACKS.length);
+    expect(rows[0].startsWith(`${SPINE[0]}\t`)).toBe(true);
+    expect(rows.at(-1).startsWith(`${PACKS.at(-1).id}\t`)).toBe(true);
+    expect(lines.out.at(-1)).toMatch(/`mojulo orient` first, then `mojulo call forward_context`/);
+  });
+
+  it('orient prints the initialize preamble, the packs mechanic, and the shell translation', async () => {
+    const server = await import('@/lib/mcp/server');
+    const { listHostProfiles } = await import('@/lib/mcp/hosts/registry');
+    const { lines, io } = capture();
+    expect(await runCli(['orient'], io)).toBe(0);
+    const text = lines.out.join('\n');
+    // Byte-for-byte the same preamble an MCP client receives at initialize.
+    expect(text.startsWith(server.SERVER_INSTRUCTIONS)).toBe(true);
+    expect(text).toContain(server.PACKS_INSTRUCTIONS_ADDENDUM.trim());
+    // The CLI translation names the bin forms and the two env vars that stand in for clientInfo.
+    expect(text).toMatch(/mojulo call tool --json/);
+    expect(text).toMatch(/mojulo pack_x name --json/);
+    expect(text).toMatch(/MOJULO_HOST=<profile>/);
+    expect(text).toMatch(/MOJULO_SURFACE=box/);
+    // Host ids come from the registry, never a hand-typed list.
+    for (const p of listHostProfiles()) expect(text).toContain(p.id);
+    expect(lines.err).toEqual([]);
   });
 
   it('pads columns on a TTY, tabs when piped', async () => {

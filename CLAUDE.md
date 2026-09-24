@@ -77,7 +77,7 @@ cp .env.example .env         # first time
 npm install
 npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
 npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
-node scripts/mcp-stdio.mjs tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry
+node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
 ```

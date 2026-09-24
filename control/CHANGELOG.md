@@ -12,6 +12,29 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### CLI orientation
+
+- **`mojulo orient` — the shell's `initialize`.** An MCP client is handed the server instructions at
+  connect (what mojulo is, the five paradigms, "call `forward_context` when unsure"), and the host
+  injects them into the agent's context for free. A shell caller (`npx mojulo call …` in an agent's
+  box with no MCP client) never sends `initialize`, so nothing told it to orient, and every body it
+  read — `forward_context`, a pack unveil, a vocab card — was written in MCP call grammar with no
+  translation to the bin. The local tool ledger showed the gap: sessions driven through `mojulo call`
+  called `forward_context` once in a month and never first, while the Grok shell run that piped
+  JSON-RPC frames into the same bin oriented before minting. `mojulo orient` prints the same preamble
+  byte for byte, the packs mechanic (the CLI listing is the packs shape), and a CLI addendum that
+  translates the grammar (`tool({…})` → `mojulo call tool --json`, `pack_x({tool,args})` →
+  `mojulo pack_x tool`), points at `mojulo call forward_context`, and names `MOJULO_HOST` (the ids
+  come from the host registry) and `MOJULO_SURFACE=box`, the two env vars that stand in for
+  `clientInfo`. All three blocks live in `server.js`; the CLI still authors no orientation prose of
+  its own beyond a one-line footer on `mojulo tools` and the usage line. `orient` is one more
+  reserved word on the bin. Both READMEs, AGENTS.md and CLAUDE.md name it; the box paragraph now
+  tells the operator to have the agent run it first.
+- **Recorded stopping point.** Surface-aware grammar lines inside `forward_context` and the pack
+  unveils (a `surface` field on the CLI context rather than branching on the `cli` session id) were
+  considered and left out: the pointer alone may be enough, and that change opens the orientation
+  bodies' own pins.
+
 ### Clouds
 
 - **A cloud deck over any world that has fog boxes.** The 2026-09-17 smoke-and-cloud spike found that

@@ -26,6 +26,8 @@
  */
 
 export const USAGE = `Usage:
+  mojulo orient                read this first: what mojulo is, and how to read its
+                               tool bodies from a shell (the CLI's initialize)
   mojulo tools                 list the connect surface (spine + packs)
   mojulo tools <pack_id>       list one pack's members
   mojulo packs                 list pack ids with their recognizers
@@ -94,6 +96,10 @@ export function parseCallFlags(tokens) {
 export function parseArgv(argv) {
   const [command, ...rest] = argv;
   switch (command) {
+    case 'orient': {
+      if (rest.length > 0) return { error: `orient takes no arguments, got: ${rest.join(' ')}` };
+      return { command: 'orient' };
+    }
     case 'tools': {
       if (rest.length > 1) return { error: `tools takes at most one pack id, got: ${rest.join(' ')}` };
       return { command: 'tools', pack: rest[0] ?? null };
@@ -219,6 +225,13 @@ let rpcId = 0;
  * (not module top) so the pure parsers above stay importable without the
  * `@/` loader or a database.
  */
+// The one line the CLI authors about orientation. `mojulo tools` is the
+// natural first command on a shell, and an MCP client would already have been
+// told to call forward_context by the initialize preamble; this footer is that
+// pointer for a caller that never sent initialize. stdout, like the
+// uninstalled note: an agent reading the listing must see it.
+const ORIENT_FOOTER = ['', 'new here? `mojulo orient` first, then `mojulo call forward_context` (the routing index)'];
+
 // Capability that EXISTS but is not installed here. The iron wall is about
 // execution, not information hiding — the operator should know the bot factory
 // is one command away, without it cluttering the surface as if it were live.
@@ -322,6 +335,19 @@ export async function runCli(argv, io = {}) {
   };
 
   switch (parsed.command) {
+    case 'orient': {
+      // The CLI's stand-in for `initialize`: the same preamble an MCP client
+      // gets at connect, the packs mechanic (the CLI listing is the packs
+      // shape), and the shell translation of the call grammar. No prose of
+      // the CLI's own — all three blocks live in server.js.
+      const { listHostProfiles } = await import('@/lib/mcp/hosts/registry');
+      out(
+        server.SERVER_INSTRUCTIONS +
+          server.PACKS_INSTRUCTIONS_ADDENDUM +
+          server.cliInstructionsAddendum({ hostIds: listHostProfiles().map((p) => p.id) })
+      );
+      return 0;
+    }
     case 'tools': {
       if (parsed.pack) {
         const pack = packs.PACKS.find((p) => p.id === parsed.pack);
@@ -347,6 +373,7 @@ export async function runCli(argv, io = {}) {
       ];
       for (const line of listRow(rows)) out(line);
       for (const line of uninstalledNote(packs)) out(line);
+      for (const line of ORIENT_FOOTER) out(line);
       return 0;
     }
 
