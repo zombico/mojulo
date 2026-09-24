@@ -601,7 +601,8 @@
     ]
    },
    "group": "Pelvis",
-   "tint": "#66755a"
+   "tint": "#66755a",
+   "bind": "pelvis"
   },
   "torso": {
    "layer": 1,
@@ -856,7 +857,29 @@
     ]
    },
    "group": "Torso",
-   "tint": "#66755a"
+   "tint": "#66755a",
+   "bind": {
+    "bone": "torso",
+    "blend": {
+     "back": {
+      "pelvis": 1
+     },
+     "st0": {
+      "pelvis": 1
+     },
+     "st1": {
+      "pelvis": 0.5,
+      "torso": 0.5
+     },
+     "st4": {
+      "torso": 0.6,
+      "neck": 0.4
+     },
+     "tip": {
+      "neck": 1
+     }
+    }
+   }
   },
   "neck": {
    "layer": 1,
@@ -1021,7 +1044,26 @@
     ]
    },
    "group": "Neck",
-   "tint": "#66755a"
+   "tint": "#66755a",
+   "bind": {
+    "bone": "neck",
+    "blend": {
+     "back": {
+      "torso": 1
+     },
+     "st0": {
+      "torso": 0.5,
+      "neck": 0.5
+     },
+     "st2": {
+      "neck": 0.5,
+      "head": 0.5
+     },
+     "tip": {
+      "head": 1
+     }
+    }
+   }
   },
   "tail0": {
    "layer": 1,
@@ -1154,7 +1196,26 @@
     ]
    },
    "group": "Tail",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "tail0",
+    "blend": {
+     "back": {
+      "pelvis": 1
+     },
+     "st0": {
+      "pelvis": 0.5,
+      "tail0": 0.5
+     },
+     "st2": {
+      "tail0": 0.5,
+      "tail1": 0.5
+     },
+     "tip": {
+      "tail1": 1
+     }
+    }
+   }
   },
   "tail1": {
    "layer": 1,
@@ -1287,7 +1348,26 @@
     ]
    },
    "group": "Tail",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "tail1",
+    "blend": {
+     "back": {
+      "tail0": 1
+     },
+     "st0": {
+      "tail0": 0.5,
+      "tail1": 0.5
+     },
+     "st2": {
+      "tail1": 0.5,
+      "tail2": 0.5
+     },
+     "tip": {
+      "tail2": 1
+     }
+    }
+   }
   },
   "tail2": {
    "layer": 1,
@@ -1420,7 +1500,26 @@
     ]
    },
    "group": "Tail",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "tail2",
+    "blend": {
+     "back": {
+      "tail1": 1
+     },
+     "st0": {
+      "tail1": 0.5,
+      "tail2": 0.5
+     },
+     "st2": {
+      "tail2": 0.5,
+      "tail3": 0.5
+     },
+     "tip": {
+      "tail3": 1
+     }
+    }
+   }
   },
   "tail3": {
    "layer": 1,
@@ -1553,7 +1652,26 @@
     ]
    },
    "group": "Tail",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "tail3",
+    "blend": {
+     "back": {
+      "tail2": 1
+     },
+     "st0": {
+      "tail2": 0.5,
+      "tail3": 0.5
+     },
+     "st2": {
+      "tail3": 0.5,
+      "tail4": 0.5
+     },
+     "tip": {
+      "tail4": 1
+     }
+    }
+   }
   },
   "tail4": {
    "layer": 1,
@@ -1686,7 +1804,19 @@
     ]
    },
    "group": "Tail",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "tail4",
+    "blend": {
+     "back": {
+      "tail3": 1
+     },
+     "st0": {
+      "tail3": 0.5,
+      "tail4": 0.5
+     }
+    }
+   }
   },
   "thighR": {
    "layer": 1,
@@ -1819,7 +1949,26 @@
     ]
    },
    "group": "Legs",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "thighR",
+    "blend": {
+     "back": {
+      "pelvis": 1
+     },
+     "st0": {
+      "pelvis": 0.5,
+      "thighR": 0.5
+     },
+     "st2": {
+      "thighR": 0.5,
+      "shinR": 0.5
+     },
+     "tip": {
+      "shinR": 1
+     }
+    }
+   }
   },
   "thighL": {
    "layer": 1,
@@ -1952,7 +2101,26 @@
     ]
    },
    "group": "Legs",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "thighL",
+    "blend": {
+     "back": {
+      "pelvis": 1
+     },
+     "st0": {
+      "pelvis": 0.5,
+      "thighL": 0.5
+     },
+     "st2": {
+      "thighL": 0.5,
+      "shinL": 0.5
+     },
+     "tip": {
+      "shinL": 1
+     }
+    }
+   }
   },
   "shinR": {
    "layer": 1,
@@ -2085,7 +2253,26 @@
     ]
    },
    "group": "Legs",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "shinR",
+    "blend": {
+     "back": {
+      "thighR": 1
+     },
+     "st0": {
+      "thighR": 0.5,
+      "shinR": 0.5
+     },
+     "st2": {
+      "shinR": 0.5,
+      "metaR": 0.5
+     },
+     "tip": {
+      "metaR": 1
+     }
+    }
+   }
   },
   "shinL": {
    "layer": 1,
@@ -2218,7 +2405,26 @@
     ]
    },
    "group": "Legs",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "shinL",
+    "blend": {
+     "back": {
+      "thighL": 1
+     },
+     "st0": {
+      "thighL": 0.5,
+      "shinL": 0.5
+     },
+     "st2": {
+      "shinL": 0.5,
+      "metaL": 0.5
+     },
+     "tip": {
+      "metaL": 1
+     }
+    }
+   }
   },
   "metaR": {
    "layer": 1,
@@ -2351,7 +2557,26 @@
     ]
    },
    "group": "Legs",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "metaR",
+    "blend": {
+     "back": {
+      "shinR": 1
+     },
+     "st0": {
+      "shinR": 0.5,
+      "metaR": 0.5
+     },
+     "st2": {
+      "metaR": 0.5,
+      "toesR": 0.5
+     },
+     "tip": {
+      "toesR": 1
+     }
+    }
+   }
   },
   "metaL": {
    "layer": 1,
@@ -2484,7 +2709,26 @@
     ]
    },
    "group": "Legs",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "metaL",
+    "blend": {
+     "back": {
+      "shinL": 1
+     },
+     "st0": {
+      "shinL": 0.5,
+      "metaL": 0.5
+     },
+     "st2": {
+      "metaL": 0.5,
+      "toesL": 0.5
+     },
+     "tip": {
+      "toesL": 1
+     }
+    }
+   }
   },
   "toesR": {
    "layer": 1,
@@ -2617,7 +2861,19 @@
     ]
    },
    "group": "Feet",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "toesR",
+    "blend": {
+     "back": {
+      "metaR": 1
+     },
+     "st0": {
+      "metaR": 0.5,
+      "toesR": 0.5
+     }
+    }
+   }
   },
   "toesL": {
    "layer": 1,
@@ -2750,7 +3006,19 @@
     ]
    },
    "group": "Feet",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "toesL",
+    "blend": {
+     "back": {
+      "metaL": 1
+     },
+     "st0": {
+      "metaL": 0.5,
+      "toesL": 0.5
+     }
+    }
+   }
   },
   "upperArmR": {
    "layer": 1,
@@ -2883,7 +3151,26 @@
     ]
    },
    "group": "Arms",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "upperArmR",
+    "blend": {
+     "back": {
+      "torso": 1
+     },
+     "st0": {
+      "torso": 0.5,
+      "upperArmR": 0.5
+     },
+     "st2": {
+      "upperArmR": 0.5,
+      "foreArmR": 0.5
+     },
+     "tip": {
+      "foreArmR": 1
+     }
+    }
+   }
   },
   "upperArmL": {
    "layer": 1,
@@ -3016,7 +3303,26 @@
     ]
    },
    "group": "Arms",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "upperArmL",
+    "blend": {
+     "back": {
+      "torso": 1
+     },
+     "st0": {
+      "torso": 0.5,
+      "upperArmL": 0.5
+     },
+     "st2": {
+      "upperArmL": 0.5,
+      "foreArmL": 0.5
+     },
+     "tip": {
+      "foreArmL": 1
+     }
+    }
+   }
   },
   "foreArmR": {
    "layer": 1,
@@ -3149,7 +3455,26 @@
     ]
    },
    "group": "Arms",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "foreArmR",
+    "blend": {
+     "back": {
+      "upperArmR": 1
+     },
+     "st0": {
+      "upperArmR": 0.5,
+      "foreArmR": 0.5
+     },
+     "st2": {
+      "foreArmR": 0.5,
+      "handR": 0.5
+     },
+     "tip": {
+      "handR": 1
+     }
+    }
+   }
   },
   "foreArmL": {
    "layer": 1,
@@ -3282,7 +3607,26 @@
     ]
    },
    "group": "Arms",
-   "tint": "#5a6a4f"
+   "tint": "#5a6a4f",
+   "bind": {
+    "bone": "foreArmL",
+    "blend": {
+     "back": {
+      "upperArmL": 1
+     },
+     "st0": {
+      "upperArmL": 0.5,
+      "foreArmL": 0.5
+     },
+     "st2": {
+      "foreArmL": 0.5,
+      "handL": 0.5
+     },
+     "tip": {
+      "handL": 1
+     }
+    }
+   }
   },
   "handR": {
    "layer": 1,
@@ -3415,7 +3759,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "handR",
+    "blend": {
+     "back": {
+      "foreArmR": 1
+     },
+     "st0": {
+      "foreArmR": 0.5,
+      "handR": 0.5
+     }
+    }
+   }
   },
   "handL": {
    "layer": 1,
@@ -3548,7 +3904,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "handL",
+    "blend": {
+     "back": {
+      "foreArmL": 1
+     },
+     "st0": {
+      "foreArmL": 0.5,
+      "handL": 0.5
+     }
+    }
+   }
   },
   "fingerA1R": {
    "layer": 1,
@@ -3681,7 +4049,26 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerA1R",
+    "blend": {
+     "back": {
+      "handR": 1
+     },
+     "st0": {
+      "handR": 0.5,
+      "fingerA1R": 0.5
+     },
+     "st2": {
+      "fingerA1R": 0.5,
+      "fingerA2R": 0.5
+     },
+     "tip": {
+      "fingerA2R": 1
+     }
+    }
+   }
   },
   "fingerA1L": {
    "layer": 1,
@@ -3814,7 +4201,26 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerA1L",
+    "blend": {
+     "back": {
+      "handL": 1
+     },
+     "st0": {
+      "handL": 0.5,
+      "fingerA1L": 0.5
+     },
+     "st2": {
+      "fingerA1L": 0.5,
+      "fingerA2L": 0.5
+     },
+     "tip": {
+      "fingerA2L": 1
+     }
+    }
+   }
   },
   "fingerA2R": {
    "layer": 1,
@@ -3947,7 +4353,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerA2R",
+    "blend": {
+     "back": {
+      "fingerA1R": 1
+     },
+     "st0": {
+      "fingerA1R": 0.5,
+      "fingerA2R": 0.5
+     }
+    }
+   }
   },
   "fingerA2L": {
    "layer": 1,
@@ -4080,7 +4498,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerA2L",
+    "blend": {
+     "back": {
+      "fingerA1L": 1
+     },
+     "st0": {
+      "fingerA1L": 0.5,
+      "fingerA2L": 0.5
+     }
+    }
+   }
   },
   "fingerB1R": {
    "layer": 1,
@@ -4213,7 +4643,26 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerB1R",
+    "blend": {
+     "back": {
+      "handR": 1
+     },
+     "st0": {
+      "handR": 0.5,
+      "fingerB1R": 0.5
+     },
+     "st2": {
+      "fingerB1R": 0.5,
+      "fingerB2R": 0.5
+     },
+     "tip": {
+      "fingerB2R": 1
+     }
+    }
+   }
   },
   "fingerB1L": {
    "layer": 1,
@@ -4346,7 +4795,26 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerB1L",
+    "blend": {
+     "back": {
+      "handL": 1
+     },
+     "st0": {
+      "handL": 0.5,
+      "fingerB1L": 0.5
+     },
+     "st2": {
+      "fingerB1L": 0.5,
+      "fingerB2L": 0.5
+     },
+     "tip": {
+      "fingerB2L": 1
+     }
+    }
+   }
   },
   "fingerB2R": {
    "layer": 1,
@@ -4479,7 +4947,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerB2R",
+    "blend": {
+     "back": {
+      "fingerB1R": 1
+     },
+     "st0": {
+      "fingerB1R": 0.5,
+      "fingerB2R": 0.5
+     }
+    }
+   }
   },
   "fingerB2L": {
    "layer": 1,
@@ -4612,7 +5092,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerB2L",
+    "blend": {
+     "back": {
+      "fingerB1L": 1
+     },
+     "st0": {
+      "fingerB1L": 0.5,
+      "fingerB2L": 0.5
+     }
+    }
+   }
   },
   "fingerC1R": {
    "layer": 1,
@@ -4745,7 +5237,26 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerC1R",
+    "blend": {
+     "back": {
+      "handR": 1
+     },
+     "st0": {
+      "handR": 0.5,
+      "fingerC1R": 0.5
+     },
+     "st2": {
+      "fingerC1R": 0.5,
+      "fingerC2R": 0.5
+     },
+     "tip": {
+      "fingerC2R": 1
+     }
+    }
+   }
   },
   "fingerC1L": {
    "layer": 1,
@@ -4878,7 +5389,26 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerC1L",
+    "blend": {
+     "back": {
+      "handL": 1
+     },
+     "st0": {
+      "handL": 0.5,
+      "fingerC1L": 0.5
+     },
+     "st2": {
+      "fingerC1L": 0.5,
+      "fingerC2L": 0.5
+     },
+     "tip": {
+      "fingerC2L": 1
+     }
+    }
+   }
   },
   "fingerC2R": {
    "layer": 1,
@@ -5011,7 +5541,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerC2R",
+    "blend": {
+     "back": {
+      "fingerC1R": 1
+     },
+     "st0": {
+      "fingerC1R": 0.5,
+      "fingerC2R": 0.5
+     }
+    }
+   }
   },
   "fingerC2L": {
    "layer": 1,
@@ -5144,7 +5686,19 @@
     ]
    },
    "group": "Hands",
-   "tint": "#55634b"
+   "tint": "#55634b",
+   "bind": {
+    "bone": "fingerC2L",
+    "blend": {
+     "back": {
+      "fingerC1L": 1
+     },
+     "st0": {
+      "fingerC1L": 0.5,
+      "fingerC2L": 0.5
+     }
+    }
+   }
   },
   "cranium": {
    "layer": 1,
@@ -5479,7 +6033,8 @@
     "back": "Skull",
     "tip": "Snout"
    },
-   "tint": "#6f7d5a"
+   "tint": "#6f7d5a",
+   "bind": "head"
   },
   "jaw": {
    "layer": 1,
@@ -5717,7 +6272,8 @@
     ]
    },
    "group": "Jaw",
-   "tint": "#5f6b4c"
+   "tint": "#5f6b4c",
+   "bind": "jaw"
   },
   "hornR": {
    "layer": 2,
@@ -9224,5 +9780,930 @@
    ],
    "role": "crease"
   }
+ },
+ "rig": {
+  "joints": {
+   "pelvisHub": {
+    "at": [
+     0,
+     0,
+     1
+    ]
+   },
+   "navel": {
+    "at": [
+     0,
+     0.02,
+     1.35
+    ]
+   },
+   "neckHub": {
+    "at": [
+     0,
+     0,
+     1.85
+    ]
+   },
+   "headBase": {
+    "at": [
+     0,
+     -0.12,
+     2.2
+    ]
+   },
+   "headTop": {
+    "at": [
+     0,
+     0.532,
+     2.226
+    ]
+   },
+   "jawHinge": {
+    "at": [
+     0,
+     -0.188,
+     2.146
+    ],
+    "rides": "head"
+   },
+   "jawTip": {
+    "at": [
+     0,
+     0.5,
+     2.194
+    ],
+    "rides": "head"
+   },
+   "hipR": {
+    "at": [
+     0.26,
+     0,
+     1
+    ]
+   },
+   "hipL": {
+    "at": [
+     -0.26,
+     0,
+     1
+    ]
+   },
+   "kneeR": {
+    "at": [
+     0.3,
+     0.2,
+     0.58
+    ]
+   },
+   "kneeL": {
+    "at": [
+     -0.3,
+     0.2,
+     0.58
+    ]
+   },
+   "ankleR": {
+    "at": [
+     0.31,
+     -0.12,
+     0.3
+    ]
+   },
+   "ankleL": {
+    "at": [
+     -0.31,
+     -0.12,
+     0.3
+    ]
+   },
+   "shoulderR": {
+    "at": [
+     0.5,
+     0,
+     1.76
+    ]
+   },
+   "shoulderL": {
+    "at": [
+     -0.5,
+     0,
+     1.76
+    ]
+   },
+   "elbowR": {
+    "at": [
+     0.7,
+     -0.02,
+     1.26
+    ]
+   },
+   "elbowL": {
+    "at": [
+     -0.7,
+     -0.02,
+     1.26
+    ]
+   },
+   "wristR": {
+    "at": [
+     0.66,
+     0.2,
+     0.8
+    ]
+   },
+   "wristL": {
+    "at": [
+     -0.66,
+     0.2,
+     0.8
+    ]
+   },
+   "knucklesR": {
+    "at": [
+     0.65,
+     0.33,
+     0.67
+    ],
+    "rides": "foreArmR"
+   },
+   "knucklesL": {
+    "at": [
+     -0.65,
+     0.33,
+     0.67
+    ],
+    "rides": "foreArmL"
+   },
+   "toeBaseR": {
+    "at": [
+     0.32,
+     0.14,
+     0.07
+    ]
+   },
+   "toeBaseL": {
+    "at": [
+     -0.32,
+     0.14,
+     0.07
+    ]
+   },
+   "toeTipR": {
+    "at": [
+     0.32,
+     0.46,
+     0.035
+    ]
+   },
+   "toeTipL": {
+    "at": [
+     -0.32,
+     0.46,
+     0.035
+    ]
+   },
+   "fingerAkR": {
+    "at": [
+     0.5750000000000001,
+     0.33,
+     0.67
+    ],
+    "rides": "handR"
+   },
+   "fingerAmR": {
+    "at": [
+     0.5750000000000001,
+     0.41351822626018264,
+     0.5984129489198435
+    ],
+    "rides": "handR"
+   },
+   "fingerAeR": {
+    "at": [
+     0.5750000000000001,
+     0.4645058203200185,
+     0.5242491757419004
+    ],
+    "rides": "handR"
+   },
+   "fingerBkR": {
+    "at": [
+     0.65,
+     0.33,
+     0.67
+    ],
+    "rides": "handR"
+   },
+   "fingerBmR": {
+    "at": [
+     0.65,
+     0.41351822626018264,
+     0.5984129489198435
+    ],
+    "rides": "handR"
+   },
+   "fingerBeR": {
+    "at": [
+     0.65,
+     0.4645058203200185,
+     0.5242491757419004
+    ],
+    "rides": "handR"
+   },
+   "fingerCkR": {
+    "at": [
+     0.725,
+     0.33,
+     0.67
+    ],
+    "rides": "handR"
+   },
+   "fingerCmR": {
+    "at": [
+     0.725,
+     0.41351822626018264,
+     0.5984129489198435
+    ],
+    "rides": "handR"
+   },
+   "fingerCeR": {
+    "at": [
+     0.725,
+     0.4645058203200185,
+     0.5242491757419004
+    ],
+    "rides": "handR"
+   },
+   "fingerAkL": {
+    "at": [
+     -0.5750000000000001,
+     0.33,
+     0.67
+    ],
+    "rides": "handL"
+   },
+   "fingerAmL": {
+    "at": [
+     -0.5750000000000001,
+     0.41351822626018264,
+     0.5984129489198435
+    ],
+    "rides": "handL"
+   },
+   "fingerAeL": {
+    "at": [
+     -0.5750000000000001,
+     0.4645058203200185,
+     0.5242491757419004
+    ],
+    "rides": "handL"
+   },
+   "fingerBkL": {
+    "at": [
+     -0.65,
+     0.33,
+     0.67
+    ],
+    "rides": "handL"
+   },
+   "fingerBmL": {
+    "at": [
+     -0.65,
+     0.41351822626018264,
+     0.5984129489198435
+    ],
+    "rides": "handL"
+   },
+   "fingerBeL": {
+    "at": [
+     -0.65,
+     0.4645058203200185,
+     0.5242491757419004
+    ],
+    "rides": "handL"
+   },
+   "fingerCkL": {
+    "at": [
+     -0.725,
+     0.33,
+     0.67
+    ],
+    "rides": "handL"
+   },
+   "fingerCmL": {
+    "at": [
+     -0.725,
+     0.41351822626018264,
+     0.5984129489198435
+    ],
+    "rides": "handL"
+   },
+   "fingerCeL": {
+    "at": [
+     -0.725,
+     0.4645058203200185,
+     0.5242491757419004
+    ],
+    "rides": "handL"
+   },
+   "tail0": {
+    "at": [
+     0,
+     -0.2,
+     1.02
+    ],
+    "rides": "pelvis"
+   },
+   "tail1": {
+    "at": [
+     0,
+     -0.55,
+     0.86
+    ],
+    "rides": "pelvis"
+   },
+   "tail2": {
+    "at": [
+     0,
+     -0.9,
+     0.66
+    ],
+    "rides": "pelvis"
+   },
+   "tail3": {
+    "at": [
+     0,
+     -1.22,
+     0.52
+    ],
+    "rides": "pelvis"
+   },
+   "tail4": {
+    "at": [
+     0,
+     -1.52,
+     0.46
+    ],
+    "rides": "pelvis"
+   },
+   "tail5": {
+    "at": [
+     0,
+     -1.8,
+     0.5
+    ],
+    "rides": "pelvis"
+   }
+  },
+  "bones": [
+   {
+    "id": "pelvis",
+    "head": "pelvisHub",
+    "tail": "navel",
+    "aux": [
+     "hipL",
+     "hipR"
+    ]
+   },
+   {
+    "id": "torso",
+    "head": "navel",
+    "tail": "neckHub",
+    "aux": [
+     "shoulderL",
+     "shoulderR"
+    ]
+   },
+   {
+    "id": "neck",
+    "head": "neckHub",
+    "tail": "headBase"
+   },
+   {
+    "id": "head",
+    "head": "headBase",
+    "tail": "headTop"
+   },
+   {
+    "id": "jaw",
+    "head": "jawHinge",
+    "tail": "jawTip"
+   },
+   {
+    "id": "upperArmR",
+    "head": "shoulderR",
+    "tail": "elbowR"
+   },
+   {
+    "id": "foreArmR",
+    "head": "elbowR",
+    "tail": "wristR"
+   },
+   {
+    "id": "handR",
+    "head": "wristR",
+    "tail": "knucklesR"
+   },
+   {
+    "id": "fingerA1R",
+    "head": "fingerAkR",
+    "tail": "fingerAmR"
+   },
+   {
+    "id": "fingerA2R",
+    "head": "fingerAmR",
+    "tail": "fingerAeR"
+   },
+   {
+    "id": "fingerB1R",
+    "head": "fingerBkR",
+    "tail": "fingerBmR"
+   },
+   {
+    "id": "fingerB2R",
+    "head": "fingerBmR",
+    "tail": "fingerBeR"
+   },
+   {
+    "id": "fingerC1R",
+    "head": "fingerCkR",
+    "tail": "fingerCmR"
+   },
+   {
+    "id": "fingerC2R",
+    "head": "fingerCmR",
+    "tail": "fingerCeR"
+   },
+   {
+    "id": "thighR",
+    "head": "hipR",
+    "tail": "kneeR"
+   },
+   {
+    "id": "shinR",
+    "head": "kneeR",
+    "tail": "ankleR"
+   },
+   {
+    "id": "metaR",
+    "head": "ankleR",
+    "tail": "toeBaseR"
+   },
+   {
+    "id": "toesR",
+    "head": "toeBaseR",
+    "tail": "toeTipR"
+   },
+   {
+    "id": "upperArmL",
+    "head": "shoulderL",
+    "tail": "elbowL"
+   },
+   {
+    "id": "foreArmL",
+    "head": "elbowL",
+    "tail": "wristL"
+   },
+   {
+    "id": "handL",
+    "head": "wristL",
+    "tail": "knucklesL"
+   },
+   {
+    "id": "fingerA1L",
+    "head": "fingerAkL",
+    "tail": "fingerAmL"
+   },
+   {
+    "id": "fingerA2L",
+    "head": "fingerAmL",
+    "tail": "fingerAeL"
+   },
+   {
+    "id": "fingerB1L",
+    "head": "fingerBkL",
+    "tail": "fingerBmL"
+   },
+   {
+    "id": "fingerB2L",
+    "head": "fingerBmL",
+    "tail": "fingerBeL"
+   },
+   {
+    "id": "fingerC1L",
+    "head": "fingerCkL",
+    "tail": "fingerCmL"
+   },
+   {
+    "id": "fingerC2L",
+    "head": "fingerCmL",
+    "tail": "fingerCeL"
+   },
+   {
+    "id": "thighL",
+    "head": "hipL",
+    "tail": "kneeL"
+   },
+   {
+    "id": "shinL",
+    "head": "kneeL",
+    "tail": "ankleL"
+   },
+   {
+    "id": "metaL",
+    "head": "ankleL",
+    "tail": "toeBaseL"
+   },
+   {
+    "id": "toesL",
+    "head": "toeBaseL",
+    "tail": "toeTipL"
+   },
+   {
+    "id": "tail0",
+    "head": "tail0",
+    "tail": "tail1"
+   },
+   {
+    "id": "tail1",
+    "head": "tail1",
+    "tail": "tail2"
+   },
+   {
+    "id": "tail2",
+    "head": "tail2",
+    "tail": "tail3"
+   },
+   {
+    "id": "tail3",
+    "head": "tail3",
+    "tail": "tail4"
+   },
+   {
+    "id": "tail4",
+    "head": "tail4",
+    "tail": "tail5"
+   }
+  ],
+  "chains": {
+   "tail": {
+    "axis": "x",
+    "sign": -1,
+    "links": [
+     {
+      "pivot": "tail1",
+      "joints": [
+       "tail2",
+       "tail3",
+       "tail4",
+       "tail5"
+      ]
+     },
+     {
+      "pivot": "tail2",
+      "joints": [
+       "tail3",
+       "tail4",
+       "tail5"
+      ]
+     },
+     {
+      "pivot": "tail3",
+      "joints": [
+       "tail4",
+       "tail5"
+      ]
+     },
+     {
+      "pivot": "tail4",
+      "joints": [
+       "tail5"
+      ]
+     }
+    ]
+   },
+   "tailSway": {
+    "axis": "z",
+    "sign": 1,
+    "links": [
+     {
+      "pivot": "tail1",
+      "joints": [
+       "tail2",
+       "tail3",
+       "tail4",
+       "tail5"
+      ]
+     },
+     {
+      "pivot": "tail2",
+      "joints": [
+       "tail3",
+       "tail4",
+       "tail5"
+      ]
+     },
+     {
+      "pivot": "tail3",
+      "joints": [
+       "tail4",
+       "tail5"
+      ]
+     },
+     {
+      "pivot": "tail4",
+      "joints": [
+       "tail5"
+      ]
+     }
+    ]
+   },
+   "grip": {
+    "axis": "x",
+    "sign": -1,
+    "links": [
+     {
+      "pivot": "fingerAkR",
+      "joints": [
+       "fingerAmR",
+       "fingerAeR"
+      ]
+     },
+     {
+      "pivot": "fingerAmR",
+      "joints": [
+       "fingerAeR"
+      ]
+     },
+     {
+      "pivot": "fingerBkR",
+      "joints": [
+       "fingerBmR",
+       "fingerBeR"
+      ]
+     },
+     {
+      "pivot": "fingerBmR",
+      "joints": [
+       "fingerBeR"
+      ]
+     },
+     {
+      "pivot": "fingerCkR",
+      "joints": [
+       "fingerCmR",
+       "fingerCeR"
+      ]
+     },
+     {
+      "pivot": "fingerCmR",
+      "joints": [
+       "fingerCeR"
+      ]
+     },
+     {
+      "pivot": "fingerAkL",
+      "joints": [
+       "fingerAmL",
+       "fingerAeL"
+      ]
+     },
+     {
+      "pivot": "fingerAmL",
+      "joints": [
+       "fingerAeL"
+      ]
+     },
+     {
+      "pivot": "fingerBkL",
+      "joints": [
+       "fingerBmL",
+       "fingerBeL"
+      ]
+     },
+     {
+      "pivot": "fingerBmL",
+      "joints": [
+       "fingerBeL"
+      ]
+     },
+     {
+      "pivot": "fingerCkL",
+      "joints": [
+       "fingerCmL",
+       "fingerCeL"
+      ]
+     },
+     {
+      "pivot": "fingerCmL",
+      "joints": [
+       "fingerCeL"
+      ]
+     }
+    ]
+   },
+   "jaw": {
+    "axis": "x",
+    "sign": -1,
+    "links": [
+     {
+      "pivot": "jawHinge",
+      "joints": [
+       "jawTip"
+      ]
+     }
+    ]
+   }
+  },
+  "legs": {
+   "R": {
+    "hip": "hipR",
+    "knee": "kneeR",
+    "hock": "ankleR",
+    "toeBase": "toeBaseR",
+    "toeTip": "toeTipR",
+    "pole": [
+     0,
+     1,
+     0
+    ]
+   },
+   "L": {
+    "hip": "hipL",
+    "knee": "kneeL",
+    "hock": "ankleL",
+    "toeBase": "toeBaseL",
+    "toeTip": "toeTipL",
+    "pole": [
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  "reach": "reject"
+ },
+ "clips": {
+  "idle": [
+   {
+    "armL": {
+     "x": -0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "armR": {
+     "x": 0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "grip": 10,
+    "tail": 0,
+    "jaw": 0
+   },
+   {
+    "armL": {
+     "x": -0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "armR": {
+     "x": 0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "grip": 10,
+    "tail": 0,
+    "jaw": 4,
+    "tailSway": 8
+   },
+   {
+    "armL": {
+     "x": -0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "armR": {
+     "x": 0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "grip": 10,
+    "tail": 0,
+    "jaw": 0
+   },
+   {
+    "armL": {
+     "x": -0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "armR": {
+     "x": 0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "grip": 10,
+    "tail": 0,
+    "jaw": 4,
+    "tailSway": -8
+   }
+  ],
+  "crouch": [
+   {
+    "armL": {
+     "x": -0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "armR": {
+     "x": 0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "grip": 10,
+    "tail": 0,
+    "jaw": 0
+   },
+   {
+    "armL": {
+     "x": -0.4,
+     "y": 0.75,
+     "z": -0.5
+    },
+    "armR": {
+     "x": 0.4,
+     "y": 0.75,
+     "z": -0.5
+    },
+    "elbowL": "half",
+    "elbowR": "half",
+    "grip": 30,
+    "tail": 12,
+    "jaw": 0,
+    "crouch": 0.6,
+    "heelL": 12,
+    "heelR": 12,
+    "head": {
+     "x": 0,
+     "y": 0.95,
+     "z": 0.3
+    }
+   }
+  ],
+  "roar": [
+   {
+    "armL": {
+     "x": -0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "armR": {
+     "x": 0.3,
+     "y": 0.55,
+     "z": -0.75
+    },
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "grip": 10,
+    "tail": 0,
+    "jaw": 0
+   },
+   {
+    "armL": {
+     "x": -0.6,
+     "y": 0.4,
+     "z": 0.6
+    },
+    "armR": {
+     "x": 0.6,
+     "y": 0.4,
+     "z": 0.6
+    },
+    "elbowL": "half",
+    "elbowR": "half",
+    "grip": 40,
+    "tail": 10,
+    "jaw": 28,
+    "crouch": 0.15,
+    "head": {
+     "x": 0,
+     "y": 0.5,
+     "z": 0.85
+    },
+    "spine": {
+     "arch": 0.4
+    }
+   }
+  ]
  }
 }

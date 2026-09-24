@@ -604,11 +604,19 @@ class GlbBuilder {
       if (!part) return;
       const d = decodeRigPart(part, bone.head);
       const base = pos.length / 3;
+      // AUTHORED weights (station-loft-rig.js): a part carrying `jnt` (u8 ×4 per vertex, bone indices) and
+      // `wgt` (f32 ×4 per vertex) binds by declaration; the capsule heuristic below is only for parts without.
+      const authored = typeof part.jnt === 'string' && typeof part.wgt === 'string' ? { jnt: b64ToBytes(part.jnt), wgt: b64ToF32(part.wgt) } : null;
+      if (authored && (authored.jnt.length !== d.vertexCount * 4 || authored.wgt.length !== d.vertexCount * 4)) throw new Error(`skinned export: rig '${name}' part ${bone.id} authored weights do not match its vertices`);
       for (let i = 0; i < d.positions.length; i += 3) {
         // decodeRigPart is bone-local (pos − restHead); rest world re-adds it
         const p = [d.positions[i] + bone.head[0], d.positions[i + 1] + bone.head[1], d.positions[i + 2] + bone.head[2]];
         pos.push(p[0], p[1], p[2]);
-        if (hasTails) {
+        if (authored) {
+          const o = (i / 3) * 4;
+          jnt.push(authored.jnt[o], authored.jnt[o + 1], authored.jnt[o + 2], authored.jnt[o + 3]);
+          wgt.push(authored.wgt[o], authored.wgt[o + 1], authored.wgt[o + 2], authored.wgt[o + 3]);
+        } else if (hasTails) {
           const cand = [bi, ...adjacent[bi]];
           const scored = cand.map((ci) => ({ ci, d: segDist(p, ci) })).sort((a, b) => a.d - b.d).slice(0, 2);
           const inv = scored.map((s) => 1 / (s.d * s.d + 1e-6));
@@ -676,7 +684,7 @@ class GlbBuilder {
       this.addRigClip(name, fig, jointNodes, clipName, clip);
       animations++;
     }
-    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb };
+    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string') };
   }
 
   // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once? }) → one glTF

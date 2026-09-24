@@ -76,7 +76,8 @@ function arcQuat(u, v) {
 
 // two-vector frame alignment: the rotation mapping (dir0, aux0) onto (dir1, aux1) — dir is
 // exact, aux fixes the twist about it. Frames are built Gram-Schmidt: z' = dir, x' = aux ⊥ dir.
-function frameQuat(dir0, aux0, dir1, aux1) {
+// (exported for station-loft-rig.js — a layered solid's bone frames use the same packing math)
+export function frameQuat(dir0, aux0, dir1, aux1) {
   if (!aux0 || !aux1) return arcQuat(vnorm(dir0), vnorm(dir1));
   const basis = (dir, aux) => {
     const z = vnorm(dir);

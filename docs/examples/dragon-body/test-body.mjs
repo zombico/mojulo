@@ -7,6 +7,8 @@ import { compileLayered, auditLayered, mirrorPid } from '../../../control/lib/gr
 import { lowerLayeredToWorkbench } from '../../../control/lib/graph/polygonizer/station-loft-workbench.js';
 import { loftToFaces } from '../../../control/lib/graph/polygonizer/loft-faces.js';
 import { auditClosure } from '../../../control/lib/graph/polygonizer/face-closure.js';
+import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, auditRig, packLayeredRig, layeredClip } from '../../../control/lib/graph/polygonizer/station-loft-rig.js';
+import { facesToGlb } from '../../../control/lib/graph/scene/scene-gltf.js';
 import { recipePath, headPath, HEAD_SHIFT, mirrorId, mirrorPartName } from './seed-recipe.mjs';
 
 const recipe = JSON.parse(readFileSync(recipePath, 'utf8')); const head = JSON.parse(readFileSync(headPath, 'utf8'));
@@ -61,6 +63,40 @@ test('tail chains: each joint stays joined and each segment rigid; curl lifts th
   assert.ok(Sp['tail4/tip'][0] > 0.4); for (let k = 0; k < 3; k++) assert.ok(Math.abs(Sp['tail4/tip'][k] - (k === 0 ? -1 : 1) * Sn['tail4/tip'][k]) < 1e-9, `sway antisymmetric [${k}]`);
   for (const S of ['R', 'L']) for (const X of ['A', 'B', 'C']) { const tip = `finger${X}2${S}/tip`, kn = `finger${X}1${S}/back`; assert.deepEqual(G[kn], P0[kn], kn); assert.ok(G[tip][1] < P0[tip][1] - 0.05 && G[tip][2] < P0[tip][2] - 0.02, `${tip} curled: ${G[tip]} from ${P0[tip]}`); assert.ok(Math.abs(dist(G[tip], G[kn]) - dist(P0[tip], P0[kn])) > 0.02, `${tip} folded`); }
   for (const id of ['clawH1R/apex', 'clawH1L/apex']) assert.ok(dist(G[id], P0[id]) > 0.05, `${id} rides its finger`);
+});
+test('rig: every L1 part binds by declaration, details inherit, rest skinning is identity, every clip keypose keeps toes planted and bone lengths', () => {
+  const mesh = compileLayered(recipe); const R = validateRig(recipe.rig); const skin = bindLayered(mesh, recipe, R);
+  const poses = Object.values(recipe.clips).flat(); const a = auditRig(mesh, skin, R, poses);
+  assert.equal(a.badWeights, 0); assert.ok(a.restIdentity < 1e-12, `rest identity ${a.restIdentity}`); assert.ok(a.maxLengthError < 1e-9); assert.ok(a.maxOrthoError < 1e-9); assert.equal(a.maxPlantedDrift, 0); assert.ok(a.blended > 200, `blended ${a.blended}`);
+  for (const p of a.poses) for (const S of ['L', 'R']) assert.equal(p.legs[S].reach, 'ok', JSON.stringify(p.pose));
+  const bi = (part) => skin.joints[mesh.provenance.findIndex((p) => p.part === part)][0];
+  assert.equal(R.bones[bi('toothL1R')].id, 'jaw'); assert.equal(R.bones[bi('hornR')].id, 'head'); assert.equal(R.bones[bi('clawF1L')].id, 'toesL'); assert.equal(R.bones[bi('clawH0R')].id, 'fingerA2R');
+});
+test('rig: the crouch drops the pelvis with the toes planted and the knees forward; the roar opens the jaw and lifts the head; mirrored legs mirror', () => {
+  const R = validateRig(recipe.rig); const rest = R.joints; const c = rigNodesAt(R, recipe.clips.crouch[1]).nodes; const r = rigNodesAt(R, recipe.clips.roar[1]).nodes;
+  assert.ok(c.pelvisHub[2] < rest.pelvisHub[2] - 0.15); assert.deepEqual(c.toeBaseR, rest.toeBaseR); assert.deepEqual(c.toeTipL, rest.toeTipL); assert.ok(c.kneeR[1] > rest.kneeR[1]);
+  for (const k of ['knee', 'ankle', 'toeBase', 'toeTip']) assert.deepEqual(c[`${k}L`].map((x) => +x.toFixed(9)), [-c[`${k}R`][0] + 0, c[`${k}R`][1], c[`${k}R`][2]].map((x) => +x.toFixed(9)), k);
+  assert.ok(dist(r.jawTip, r.jawHinge) - dist(rest.jawTip, rest.jawHinge) < 1e-9); assert.ok(r.jawTip[2] < rigNodesAt(R, { ...recipe.clips.roar[1], jaw: 0 }).nodes.jawTip[2] - 0.05, 'jaw opened');
+  assert.ok(r.headTop[2] > rest.headTop[2] + 0.1, 'head lifted'); assert.ok(r.tail5[2] > 0, 'the roar tail stays above the floor');
+  assert.throws(() => rigNodesAt(R, { heelR: 180 }), /cannot reach/);
+});
+test('rig: the packed figure exports as a skinned GLB whose engine-side skin matches the JS skin at three keys of every clip', () => {
+  const mesh = compileLayered(recipe); const R = validateRig(recipe.rig); const skin = bindLayered(mesh, recipe, R); const KEYS = 6;
+  const fig = packLayeredRig(mesh, skin, R, { clips: recipe.clips, keys: KEYS }); assert.deepEqual(packLayeredRig(mesh, skin, R, { clips: recipe.clips, keys: KEYS }), fig);
+  const glb = facesToGlb({ faces: [], figures: { dragon: fig } }, { generator: 'test', clips: '_all', skinned: true }).bytes;
+  const jsonLen = glb.readUInt32LE(12); const j = JSON.parse(glb.subarray(20, 20 + jsonLen).toString()); const bin = glb.subarray(20 + jsonLen + 8);
+  const acc = (i) => { const a = j.accessors[i]; const bv = j.bufferViews[a.bufferView]; const off = (bv.byteOffset || 0) + (a.byteOffset || 0); const n = { 5126: 4, 5123: 2, 5121: 1 }[a.componentType]; const comps = { SCALAR: 1, VEC3: 3, VEC4: 4, MAT4: 16 }[a.type]; const rows = []; for (let k = 0; k < a.count; k++) { const r = []; for (let c = 0; c < comps; c++) { const p = off + (k * comps + c) * n; r.push(a.componentType === 5126 ? bin.readFloatLE(p) : a.componentType === 5123 ? bin.readUInt16LE(p) : bin.readUInt8(p)); } rows.push(r); } return rows; };
+  const skinJ = j.skins[0]; const prim = j.meshes.find((m) => m.name === 'dragon:skinned').primitives[0]; assert.equal(skinJ.joints.length, R.bones.length);
+  const POS = acc(prim.attributes.POSITION), JNT = acc(prim.attributes.JOINTS_0), WGT = acc(prim.attributes.WEIGHTS_0), IBM = acc(skinJ.inverseBindMatrices);
+  assert.ok(WGT.every((w) => Math.abs(w.reduce((a, b) => a + b, 0) - 1) < 1e-5 && w.every((x) => x >= 0))); assert.ok(JNT.every((r) => r.every((x) => x < skinJ.joints.length)));
+  const qrot = (q, v) => { const [qx, qy, qz, qw] = q; const [vx, vy, vz] = v; const tx = 2 * (qy * vz - qz * vy), ty = 2 * (qz * vx - qx * vz), tz = 2 * (qx * vy - qy * vx); return [vx + qw * tx + (qy * tz - qz * ty), vy + qw * ty + (qz * tx - qx * tz), vz + qw * tz + (qx * ty - qy * tx)]; };
+  const restIdx = POS.map((p) => { let best = 0, bd = Infinity; mesh.vertices.forEach((v, i) => { const d = dist(p, v); if (d < bd) { bd = d; best = i; } }); return best; });
+  let worst = 0;
+  for (const anim of j.animations) { const rot = new Map(), tr = new Map(); for (const ch of anim.channels) { const s = anim.samplers[ch.sampler]; (ch.target.path === 'rotation' ? rot : tr).set(ch.target.node, acc(s.output)); }
+    const clipFn = layeredClip(recipe.clips[anim.name.replace(/^dragon:/, '')], R);
+    for (const k of [0, 2, 4]) { const engine = POS.map((v, i) => { const out = [0, 0, 0]; for (let c = 0; c < 4; c++) { const w = WGT[i][c]; if (w <= 0) continue; const bi = JNT[i][c]; const ni = skinJ.joints[bi]; const q = rot.get(ni)[k], t = tr.get(ni)[k]; const local = [v[0] + IBM[bi][12], v[1] + IBM[bi][13], v[2] + IBM[bi][14]]; const p = qrot(q, local); for (let c2 = 0; c2 < 3; c2++) out[c2] += w * (p[c2] + t[c2]); } return out; });
+      const js = skinLayered(mesh, skin, boneFrames(R, R.joints, rigNodesAt(R, clipFn(k / KEYS)).nodes)); engine.forEach((p, i) => { worst = Math.max(worst, dist(p, js[restIdx[i]])); } ); } }
+  assert.ok(worst < 2e-3, `engine vs JS skin ${worst} m`);   // the packed clips round q and head to 1e-4
 });
 test('the seed reproduces recipe.json byte for byte', () => {
   const before = readFileSync(recipePath); execFileSync(process.execPath, [new URL('./seed-recipe.mjs', import.meta.url).pathname]); assert.ok(before.equals(readFileSync(recipePath)));

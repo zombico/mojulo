@@ -32,6 +32,19 @@ and `export_model` see the lowered workbench spec (one straight loft per part, c
 exact, cap points as pinched end stations). Patch a dial: `update_sketch { ref, patch: [{ op: 'set',
 path: '/dials/jawOpen', value: 30 }] }`.
 
+- **Rig (optional).** `rig: { joints: { name: { at, rides? } }, bones: [{ id, head, tail, aux? }], chains:
+  { channel: { axis, sign?, links: [{ pivot, joints }] } }, legs: { L|R: { hip, knee, hock, toeBase, toeTip,
+  pole } }, reach? }` — rest joints must include the vajra core names (pelvisHub, navel, neckHub, headBase,
+  headTop, shoulder/elbow/wrist/hip/knee/ankle L+R). Every L1 part then declares `bind: 'bone' | { bone,
+  blend: { station: { bone: w } } }` (the overshoot ring at a joint shared with the neighbour); a pinned
+  detail inherits its face. `clips: { name: [keyposes] }` are `resolvePose` words for the core (`armL:
+  'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
+  `heelL/R` (metatarsus degrees), `lift`, `support`, and every chain channel. Legs solve to PLANTED toes;
+  an unreachable pose refuses with the numbers (`reach: 'clamp'` to accept a reported error). The mint
+  pays the rig gates (valid weights, rest identity, planted drift). `export_model({ format: 'glb', clips:
+  '_all', skinned: true })` writes the skinned GLB with authored weights; `scripts/export-wire-svg.mjs --ref
+  <ref> --clip crouch --phase 0.5` draws a posed frame. The World page shows the rest solid.
+
 Worked recipe: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
 horns, eyes, teeth and crest spikes pinned; seven dials; six casts). Its `seed-recipe.mjs` is the
 authoring record: the species rules live there, not in core. `scripts/export-wire-svg.mjs --ref`

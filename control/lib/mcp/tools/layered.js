@@ -15,6 +15,7 @@ import { resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, auditLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
 import { lowerLayeredManifest } from '@/lib/graph/polygonizer/station-loft-workbench';
+import { validateRig, bindLayered, auditRig, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
 export function planLayered(manifest) {
@@ -25,7 +26,18 @@ export function planLayered(manifest) {
   const failing = Object.entries(audit).filter(([, r]) => !r.pass).map(([n, r]) => `${n} (${r.closure}: boundary ${r.boundaryEdges}, non-manifold ${r.nonManifold}, winding ${r.windingErrors}, degenerate ${r.degenerate})`);
   const lowered = lowerLayeredManifest(manifest, compileLayered);
   const { stats } = planWorkbench(lowered);
-  return { mesh, audit, lowered, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, omitted: lowered.meta?.omitted || [], auditFailures: failing } } };
+  // a rigged recipe pays its gates at mint: bindings by declaration, rest skinning identity, every clip's keyposes solvable
+  let rig = null;
+  if (manifest.recipe.rig) {
+    try {
+      const R = validateRig(manifest.recipe.rig); const skin = bindLayered(mesh, manifest.recipe, R);
+      const clips = manifest.recipe.clips || {}; for (const [name, keys] of Object.entries(clips)) layeredClip(keys, R);
+      const a = auditRig(mesh, skin, R, Object.values(clips).flat());
+      if (a.badWeights || a.restIdentity > 1e-9 || a.maxPlantedDrift > 1e-9) throw new Error(`bad weights ${a.badWeights}, rest identity ${a.restIdentity}, planted drift ${a.maxPlantedDrift}`);
+      rig = { bones: R.bones.length, blendedVertices: a.blended, clips: Object.keys(clips), maxLengthError: a.maxLengthError, legs: a.poses.map((p) => p.legs) };
+    } catch (err) { throw new Error(`layered rig: ${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
+  }
+  return { mesh, audit, lowered, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, omitted: lowered.meta?.omitted || [], auditFailures: failing, ...(rig ? { rig } : {}) } } };
 }
 
 export async function createLayeredHandler(input) {

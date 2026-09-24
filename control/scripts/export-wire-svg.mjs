@@ -7,6 +7,7 @@
  *
  * Usage (from control/; repo-dev sets MOJULO_DATA_DIR/MOJULO_OUTCOMES_DIR for --ref):
  *   node scripts/export-wire-svg.mjs --ref <sketch> --out <dir>
+ *   node scripts/export-wire-svg.mjs --ref <layered sketch with a rig> --pose '{"crouch":0.5}' | --clip crouch --phase 0.5 --out <dir>   # posed frames
  *   node scripts/export-wire-svg.mjs --source <head-wire-study.json> --out <dir> --features "Eyes,Nose"
  *   options: --views 150,180,90,0 (azimuths; default) --el 10 --size 900 --f 1400
  *            --dist-mul K (override: camera distance = K × bounding radius; default keeps the whole orbit in frame for the lens)
@@ -21,7 +22,7 @@ import { register } from 'node:module';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 const { values: args } = parseArgs({ options: {
-  ref: { type: 'string' }, source: { type: 'string' }, out: { type: 'string' },
+  ref: { type: 'string' }, source: { type: 'string' }, out: { type: 'string' }, pose: { type: 'string' }, clip: { type: 'string' }, phase: { type: 'string' },
   views: { type: 'string', default: '150,180,90,0' }, el: { type: 'string', default: '10' },
   'dist-mul': { type: 'string' }, size: { type: 'string', default: '900' }, f: { type: 'string', default: '1400' },
   features: { type: 'string', default: '' }, turntable: { type: 'string' }, 'no-construction': { type: 'boolean', default: false }, 'with-studio': { type: 'boolean', default: false },
@@ -41,7 +42,18 @@ if (args.source) {
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
   const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
   const sketch = SketchRepository.getByRef(args.ref); if (!sketch) fail(`sketch '${args.ref}' not found`);
-  const { payload, kind } = await resolveWorldScene(sketch);
+  let payload, kind;
+  if (args.pose || args.clip) {
+    // a POSED layered solid: compile → bind → pose → skin, drawn straight from the skinned mesh (no lowering)
+    if (sketch.manifest?.kind !== 'layered' || !sketch.manifest.recipe?.rig) fail(`--pose/--clip needs a layered sketch with a rig (${args.ref} is kind '${sketch.manifest?.kind}')`);
+    const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft');
+    const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, layeredClip } = await import('@/lib/graph/polygonizer/station-loft-rig');
+    const recipe = sketch.manifest.recipe; const mesh = compileLayered(recipe, sketch.manifest.dials || {}, sketch.manifest.channels || {}); const R = validateRig(recipe.rig); const skin = bindLayered(mesh, recipe, R);
+    let pose; if (args.clip) { const keys = recipe.clips?.[args.clip]; if (!keys) fail(`clip '${args.clip}' is not in the recipe (have ${Object.keys(recipe.clips || {}).join(', ') || 'none'})`); pose = layeredClip(keys, R)(Number(args.phase ?? 0)); } else pose = JSON.parse(args.pose);
+    const { nodes, report } = rigNodesAt(R, pose); const posed = skinLayered(mesh, skin, boneFrames(R, R.joints, nodes));
+    payload = { faces: mesh.faces.map((tri, i) => ({ corners: tri.map((vi) => posed[vi]), group: mesh.groups[i] })) }; kind = `layered · posed ${args.clip ? `${args.clip}@${args.phase ?? 0}` : 'pose'}`;
+    process.stderr.write(`${JSON.stringify({ pose, legs: report.legs })}\n`);
+  } else ({ payload, kind } = await resolveWorldScene(sketch));
   if (!payload || !Array.isArray(payload.faces) || !payload.faces.length) fail(`sketch '${args.ref}' (kind '${kind}') has no face geometry`);
   const faces = args['with-studio'] ? payload.faces : payload.faces.filter((f) => !f.studio);   // workbench floor + grid are studio furniture
   if (!faces.length) fail(`sketch '${args.ref}' has only studio furniture`);

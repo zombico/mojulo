@@ -153,6 +153,62 @@ claw('clawF2R', [FT[0] + 0.075, FT[1] - 0.02, 0.03], footDir, 0.10, 0.02, { pare
 for (const [i, X] of ['A', 'B', 'C'].entries()) { const { e } = fingerJoints(i); const B = add(e, mul(unit(FINGER.distDir), 0.01)); const parent = `finger${X}2R`;
   claw(`clawH${i}R`, B, FINGER.clawDir, 0.07, 0.015, { parent, face: `${parent}/st1-st2.k0.b`, weights: THIRDS, tangentEdge: [`${parent}/st1.front`, `${parent}/st2.front`], handedness: 1 }, `clawH${i}L`); }
 
+
+// ── the rig: rest joints (the vajra core derived from the joint table), bones per segment, chains, digitigrade legs ──
+const M = (p) => mirrorX(p); const shifted = (p) => add(p, HEAD_SHIFT).map(r6);
+const jointsR = { hip: J.hip, knee: J.knee, ankle: J.hock, shoulder: J.shoulder, elbow: J.elbow, wrist: J.wrist, knuckles: J.knuckles, toeBase: J.toeBase, toeTip: J.toeTip };
+const joints = {
+  pelvisHub: { at: [0, 0, J.hip[2]] }, navel: { at: [0, 0.02, 1.35] }, neckHub: { at: J.neckBase }, headBase: { at: J.neckTop }, headTop: { at: shifted([0, 0.432, 2.026]) },   // headTop: the cranium tip cap, so `head` aims the snout
+  jawHinge: { at: shifted([0, -0.288, 1.946]), rides: 'head' }, jawTip: { at: shifted([0, 0.4, 1.994]), rides: 'head' },                                                       // the jaw dial's pivot and the jaw tip cap
+};
+for (const [k, p] of Object.entries(jointsR)) { joints[`${k}R`] = { at: p }; joints[`${k}L`] = { at: M(p) }; }
+for (const S of ['R', 'L']) { joints[`knuckles${S}`].rides = `foreArm${S}`; for (const [i, X] of ['A', 'B', 'C'].entries()) { const { k, m, e } = fingerJoints(i); const f = (p) => (S === 'R' ? p : M(p)); joints[`finger${X}k${S}`] = { at: f(k), rides: `hand${S}` }; joints[`finger${X}m${S}`] = { at: f(m), rides: `hand${S}` }; joints[`finger${X}e${S}`] = { at: f(e), rides: `hand${S}` }; } }
+J.tail.forEach((p, i) => { joints[`tail${i}`] = { at: p, rides: 'pelvis' }; });
+const bones = [
+  { id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }, { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
+  { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, { id: 'jaw', head: 'jawHinge', tail: 'jawTip' },
+  ...['R', 'L'].flatMap((S) => [
+    { id: `upperArm${S}`, head: `shoulder${S}`, tail: `elbow${S}` }, { id: `foreArm${S}`, head: `elbow${S}`, tail: `wrist${S}` }, { id: `hand${S}`, head: `wrist${S}`, tail: `knuckles${S}` },
+    ...['A', 'B', 'C'].flatMap((X) => [{ id: `finger${X}1${S}`, head: `finger${X}k${S}`, tail: `finger${X}m${S}` }, { id: `finger${X}2${S}`, head: `finger${X}m${S}`, tail: `finger${X}e${S}` }]),
+    { id: `thigh${S}`, head: `hip${S}`, tail: `knee${S}` }, { id: `shin${S}`, head: `knee${S}`, tail: `ankle${S}` }, { id: `meta${S}`, head: `ankle${S}`, tail: `toeBase${S}` }, { id: `toes${S}`, head: `toeBase${S}`, tail: `toeTip${S}` },
+  ]),
+  ...[0, 1, 2, 3, 4].map((k) => ({ id: `tail${k}`, head: `tail${k}`, tail: `tail${k + 1}` })),
+];
+const downstreamTail = (k) => [1, 2, 3, 4, 5].filter((j) => j > k).map((j) => `tail${j}`);
+const rig = {
+  joints, bones,
+  chains: {
+    tail:     { axis: 'x', sign: -1, links: [1, 2, 3, 4].map((k) => ({ pivot: `tail${k}`, joints: downstreamTail(k) })) },
+    tailSway: { axis: 'z', sign: 1, links: [1, 2, 3, 4].map((k) => ({ pivot: `tail${k}`, joints: downstreamTail(k) })) },
+    grip:     { axis: 'x', sign: -1, links: ['R', 'L'].flatMap((S) => ['A', 'B', 'C'].flatMap((X) => [{ pivot: `finger${X}k${S}`, joints: [`finger${X}m${S}`, `finger${X}e${S}`] }, { pivot: `finger${X}m${S}`, joints: [`finger${X}e${S}`] }])) },
+    jaw:      { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] },
+  },
+  legs: Object.fromEntries(['R', 'L'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
+  reach: 'reject',
+};
+recipe.rig = rig;
+// ── bindings by declaration: a segment belongs to its bone; the overshoot ring at each joint is shared half and half
+// with the neighbour, and the cap beyond it belongs to the neighbour outright ──
+const segBind = (prev, self, next) => ({ bone: self, blend: { ...(prev ? { back: { [prev]: 1 }, st0: { [prev]: 0.5, [self]: 0.5 } } : {}), ...(next ? { st2: { [self]: 0.5, [next]: 0.5 }, tip: { [next]: 1 } } : {}) } });
+const B = recipe.parts;
+B.pelvis.bind = 'pelvis';
+B.torso.bind = { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, torso: 0.5 }, st4: { torso: 0.6, neck: 0.4 }, tip: { neck: 1 } } };
+B.neck.bind = { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } };
+B.cranium.bind = 'head'; B.jaw.bind = 'jaw';
+for (const S of ['R', 'L']) {
+  B[`thigh${S}`].bind = segBind('pelvis', `thigh${S}`, `shin${S}`); B[`shin${S}`].bind = segBind(`thigh${S}`, `shin${S}`, `meta${S}`); B[`meta${S}`].bind = segBind(`shin${S}`, `meta${S}`, `toes${S}`); B[`toes${S}`].bind = segBind(`meta${S}`, `toes${S}`, null);
+  B[`upperArm${S}`].bind = segBind('torso', `upperArm${S}`, `foreArm${S}`); B[`foreArm${S}`].bind = segBind(`upperArm${S}`, `foreArm${S}`, `hand${S}`); B[`hand${S}`].bind = segBind(`foreArm${S}`, `hand${S}`, null);
+  for (const X of ['A', 'B', 'C']) { B[`finger${X}1${S}`].bind = segBind(`hand${S}`, `finger${X}1${S}`, `finger${X}2${S}`); B[`finger${X}2${S}`].bind = segBind(`finger${X}1${S}`, `finger${X}2${S}`, null); }
+}
+for (let k = 0; k < 5; k++) B[`tail${k}`].bind = segBind(k ? `tail${k - 1}` : 'pelvis', `tail${k}`, k < 4 ? `tail${k + 1}` : null);
+// ── clips: keyposes in words for the core, channels for the chains; smoothstep between keys, looped ──
+const READY = { armL: { x: -0.3, y: 0.55, z: -0.75 }, armR: { x: 0.3, y: 0.55, z: -0.75 }, elbowL: 'slight', elbowR: 'slight', grip: 10, tail: 0, jaw: 0 };
+recipe.clips = {
+  idle: [READY, { ...READY, tailSway: 8, jaw: 4 }, READY, { ...READY, tailSway: -8, jaw: 4 }],
+  crouch: [READY, { ...READY, crouch: 0.6, heelL: 12, heelR: 12, elbowL: 'half', elbowR: 'half', armL: { x: -0.4, y: 0.75, z: -0.5 }, armR: { x: 0.4, y: 0.75, z: -0.5 }, head: { x: 0, y: 0.95, z: 0.3 }, tail: 12, grip: 30 }],
+  roar: [READY, { ...READY, crouch: 0.15, jaw: 28, head: { x: 0, y: 0.5, z: 0.85 }, spine: { arch: 0.4 }, armL: { x: -0.6, y: 0.4, z: 0.6 }, armR: { x: 0.6, y: 0.4, z: 0.6 }, elbowL: 'half', elbowR: 'half', tail: 10, grip: 40 }],
+};
+
 export { recipe, J };
 if (process.argv[1] && new URL(`file://${process.argv[1]}`).pathname === new URL(import.meta.url).pathname) {
   writeFileSync(recipePath, JSON.stringify(recipe, null, 1) + '\n');

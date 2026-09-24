@@ -49,6 +49,26 @@ node docs/examples/dragon-body/seed-recipe.mjs                       # recipe.js
 cd control && node scripts/export-wire-svg.mjs --ref <ref> --views 150,180,90,0 --out <dir>
 ```
 
+## Rig
+
+The recipe declares its skeleton: rest joints (the vajra core derived from the joint table, so the
+figure poses through mojulo's own joint-limited solver and friendly words; extension joints for the
+jaw, knuckles, fingers and tail that ride their carrier bones), a bone per segment, chains for the
+tail, the fingers and the jaw, and the digitigrade legs. Every L1 part binds by declaration: a segment
+belongs to its bone, the overshoot ring at each joint is shared half and half with the neighbour, and
+the cap beyond it belongs to the neighbour. Pinned details inherit their face, so a claw belongs to
+its toe and a tooth to its jaw without a nearest-bone guess.
+
+A pose is words for the core plus channels: `crouch` drops the pelvis with the toes planted (the
+metatarsus places the hock from the toe and `heelL/R`, femur and tibia solve two-link to it with the
+knee pole; unreachable refuses with the numbers), `jaw`, `grip`, `tail`, `tailSway`. `clips` holds
+`idle`, `crouch` and `roar` as keyposes. `export_model({ format: 'glb', clips: '_all', skinned: true })`
+writes one skinned mesh with the authored weights and the clips; the World page shows the rest solid.
+
+```sh
+cd control && node scripts/export-wire-svg.mjs --ref <ref> --clip crouch --phase 0.5 --out <dir>   # a posed frame
+```
+
 ## Checks
 
 Machine, in `test-body.mjs`: every part passes the closure audit at rest and at every dial extreme;
@@ -57,7 +77,11 @@ closed loft that bakes with positive signed volume, L1 and claws exact to the mi
 pose sits on the grid; the head equals the dragon recipe translated; `lean` is rigid about the pelvis
 tip and leaves the legs alone; `stance`, `bulk` and `clawLength` do what they say; the tail chains keep
 every joint joined and every segment rigid, curl lifts the tip, sway is antisymmetric; `grip` curls every
-finger of both hands and the claws ride along; the seed is byte-reproducible.
+finger of both hands and the claws ride along; the seed is byte-reproducible. Rig: every vertex
+bound with valid weights, rest skinning identity, bone lengths and orthonormal frames at every clip
+keypose, planted toes at zero drift, mirrored legs mirror, an unreachable toe refuses; the exported
+skinned GLB re-read like an engine (joint indices, weight sums, rest identity) and its per-vertex skin
+at three keys of every clip matches the JS skin within the packed rounding.
 
 Measured on the minted sketch through `measure_solid { union: true }`: closed, no non-manifold edges;
 the union has handles where overlapping segments meet (a valid manifold, not certified for print).

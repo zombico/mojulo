@@ -30,6 +30,7 @@ import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-bui
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { lowerLayeredManifest } from '@/lib/graph/polygonizer/station-loft-workbench';
+import { validateRig, bindLayered, packLayeredRig } from '@/lib/graph/polygonizer/station-loft-rig';
 import { assembleScadScene } from '@/lib/graph/worlds/scad';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
@@ -474,7 +475,22 @@ export const WORLD_KINDS = {
   // in place and the studio, measure and export legs see the re-lowered monomers.
   layered: {
     title: 'mojulo layered solid',
-    resolve: async (m, ctx) => assembleWorkbenchScene({ ...lowerLayeredManifest(m, compileLayered), title: ctx.title, light: ctx.light, toon: ctx.toon }),
+    resolve: async (m, ctx) => {
+      const lowered = lowerLayeredManifest(m, compileLayered);
+      const scene = assembleWorkbenchScene({ ...lowered, title: ctx.title, light: ctx.light, toon: ctx.toon });
+      // A rigged recipe with clips also carries its packed rig figure (station-loft-rig.js): the skinned
+      // glTF export (`export_model { clips, skinned }`) reads it, and `embodies: 'body'` drops the static
+      // solid from that export so the animated figure does not ship with a frozen ghost of itself. The
+      // World page keeps the rest solid (a bare figures entry is a bank; nothing here plays it). No rig
+      // or no clips ⇒ the scene is exactly the workbench scene.
+      if (m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length) {
+        const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {}); const R = validateRig(m.recipe.rig); const skin = bindLayered(mesh, m.recipe, R);
+        const dz = m.seat === false ? 0 : -(lowered.meta?.seatedFrom ?? 0);
+        scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz }), embodies: 'body' } };
+        scene.faces = scene.faces.map((f) => (f.studio ? f : { ...f, group: 'body' }));
+      }
+      return scene;
+    },
   },
   // The OpenSCAD front door (scad kind): the source is the recipe, OpenSCAD-in-WASM meshes it,
   // and it rides the workbench studio (light, grid, facing, movers) through the same seam.

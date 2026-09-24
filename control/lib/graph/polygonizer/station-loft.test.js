@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import { compileLayered, auditLayered, resolveLayeredDials, mirrorPid, mirrorFaceId, surfaceLocalOffset } from './station-loft.js';
 import { lowerLayeredToWorkbench, lowerLayeredManifest } from './station-loft-workbench.js';
+import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, packLayeredRig, auditRig, layeredClip, solveTwoBone } from './station-loft-rig.js';
+import { facesToGlb } from '../scene/scene-gltf.js';
 import { loftToFaces } from './loft-faces.js';
 import { auditClosure } from './face-closure.js';
 
@@ -133,5 +135,82 @@ describe.skipIf(!existsSync(DRAGON))('station-loft — the dragon recipe (docs/e
   });
   it('lowers to closed lofts at rest and at both extremes (zero-height details omitted, open patches omitted)', () => {
     for (const dials of extremes) { const { spec, omitted } = lowerLayeredToWorkbench(compileLayered(dragon, dials)); expect(omitted).toEqual(expect.arrayContaining(['nostrilL', 'nostrilR'])); for (const loft of spec.lofts) { const a = auditClosure(loftToFaces(loft, {})); expect(a.closed && a.boundaryEdgeCount === 0, loft.id).toBe(true); } }
+  });
+});
+
+// ── the rig: a stick figure over the vajra core with digitigrade legs, a tail chain and a pinned spike ──
+const box = (id, c, r) => ({ id, points: { top: [c[0], c[1], c[2] + r], sideR: [c[0] + r, c[1], c[2]], bottom: [c[0], c[1], c[2] - r], sideL: [c[0] - r, c[1], c[2]] } });
+const seg = (A, B, r, bind) => ({ layer: 1, closure: 'closed', slots: ['top', 'sideR', 'bottom', 'sideL'], stations: [box('st0', A, r), box('st1', [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2], r), box('st2', B, r)], caps: { back: [A[0], A[1] - 0.01, A[2]], tip: [B[0], B[1] + 0.01, B[2]] }, bind });
+const J = { pelvisHub: [0, 0, 1], navel: [0, 0, 1.3], neckHub: [0, 0, 1.6], headBase: [0, 0, 1.7], headTop: [0, 0.2, 1.9], shoulderL: [-0.3, 0, 1.55], shoulderR: [0.3, 0, 1.55], elbowL: [-0.35, 0, 1.2], elbowR: [0.35, 0, 1.2], wristL: [-0.35, 0.05, 0.9], wristR: [0.35, 0.05, 0.9], hipL: [-0.2, 0, 1], hipR: [0.2, 0, 1], kneeL: [-0.2, 0.2, 0.6], kneeR: [0.2, 0.2, 0.6], ankleL: [-0.2, -0.1, 0.3], ankleR: [0.2, -0.1, 0.3], toeBaseL: [-0.2, 0.15, 0.05], toeBaseR: [0.2, 0.15, 0.05], toeTipL: [-0.2, 0.45, 0.03], toeTipR: [0.2, 0.45, 0.03], tail1: [0, -0.5, 0.9], tail2: [0, -0.9, 0.8] };
+const stickRig = {
+  joints: Object.fromEntries(Object.entries(J).map(([k, v]) => [k, { at: v, ...(k.startsWith('tail') ? { rides: 'pelvis' } : {}) }])),
+  bones: [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }, { id: 'torso', head: 'navel', tail: 'neckHub' }, { id: 'head', head: 'headBase', tail: 'headTop' },
+    ...['R', 'L'].flatMap((S) => [{ id: `thigh${S}`, head: `hip${S}`, tail: `knee${S}` }, { id: `shin${S}`, head: `knee${S}`, tail: `ankle${S}` }, { id: `meta${S}`, head: `ankle${S}`, tail: `toeBase${S}` }, { id: `toes${S}`, head: `toeBase${S}`, tail: `toeTip${S}` }]),
+    { id: 'tail0', head: 'pelvisHub', tail: 'tail1' }, { id: 'tail1', head: 'tail1', tail: 'tail2' }],
+  chains: { tail: { axis: 'x', sign: -1, links: [{ pivot: 'tail1', joints: ['tail2'] }] } },
+  legs: Object.fromEntries(['L', 'R'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
+};
+const stick = { frame: {}, rig: stickRig, dials: {}, parts: {
+  torso: seg([0, 0, 1], [0, 0, 1.6], 0.15, { bone: 'torso', blend: { st0: { pelvis: 1 }, back: { pelvis: 1 } } }),
+  thighR: seg(J.hipR, J.kneeR, 0.08, { bone: 'thighR', blend: { st2: { thighR: 0.5, shinR: 0.5 }, tip: { shinR: 1 } } }), shinR: seg(J.kneeR, J.ankleR, 0.06, 'shinR'), metaR: seg(J.ankleR, J.toeBaseR, 0.05, 'metaR'), toesR: seg(J.toeBaseR, J.toeTipR, 0.05, 'toesR'),
+  thighL: seg(J.hipL, J.kneeL, 0.08, 'thighL'), shinL: seg(J.kneeL, J.ankleL, 0.06, 'shinL'), metaL: seg(J.ankleL, J.toeBaseL, 0.05, 'metaL'), toesL: seg(J.toeBaseL, J.toeTipL, 0.05, 'toesL'),
+  tail0: seg(J.pelvisHub, J.tail1, 0.06, 'tail0'), tail1: seg(J.tail1, J.tail2, 0.04, 'tail1'),
+  spike: { layer: 2, closure: 'closed', pin: { parent: 'toesR', face: 'toesR/st1-st2.k0.a', weights: [1 / 3, 1 / 3, 1 / 3], tangentEdge: ['toesR/st1.top', 'toesR/st1.sideR'], handedness: 1 }, offsets: { b0: [0.02, 0, 0], b1: [0, 0.02, 0], b2: [-0.02, 0, 0], apex: [0, 0, 0.1] }, faces: { base: ['b0', 'b2', 'b1'], s0: ['b0', 'b1', 'apex'], s1: ['b1', 'b2', 'apex'], s2: ['b2', 'b0', 'apex'] } },
+} };
+const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+describe('station-loft-rig — bindings, posing, skinning, packing', () => {
+  const mesh = compileLayered(stick); const R = validateRig(stickRig); const skin = bindLayered(stick && mesh, stick, R);
+  it('binds by declaration: rigid parts, blended overshoot rings, a pinned detail inherits its face; rest skinning is identity', () => {
+    const at = (part, st) => { const i = mesh.provenance.findIndex((p) => p.part === part && (st ? p.station === st : true)); return [skin.joints[i], skin.weights[i]]; };
+    expect(at('shinR')[0][0]).toBe(R.boneIndex.shinR); expect(at('shinR')[1]).toEqual([1, 0, 0, 0]);
+    const [j, w] = at('thighR', 'st2'); expect(new Set([j[0], j[1]])).toEqual(new Set([R.boneIndex.thighR, R.boneIndex.shinR])); expect(w[0]).toBeCloseTo(0.5, 12); expect(w[1]).toBeCloseTo(0.5, 12);
+    expect(at('spike')[0][0]).toBe(R.boneIndex.toesR); expect(at('spike')[1][0]).toBeCloseTo(1, 12);
+    const a = auditRig(mesh, skin, R); expect(a.badWeights).toBe(0); expect(a.restIdentity).toBeLessThan(1e-12); expect(a.blended).toBeGreaterThan(0);
+  });
+  it('refuses: a missing bind, an unknown bone, weights that do not sum to one, a bind on a pinned part, a core joint that rides, cyclic rides', () => {
+    const noBind = structuredClone(stick); delete noBind.parts.shinL.bind; expect(() => bindLayered(compileLayered(noBind), noBind, R)).toThrow(/no bind/);
+    const unknown = structuredClone(stick); unknown.parts.shinL.bind = 'femurL'; expect(() => bindLayered(compileLayered(unknown), unknown, R)).toThrow(/unknown bone/);
+    const bad = structuredClone(stick); bad.parts.thighR.bind.blend.st2 = { thighR: 0.7, shinR: 0.7 }; expect(() => bindLayered(compileLayered(bad), bad, R)).toThrow(/summing to 1/);
+    const pinned = structuredClone(stick); pinned.parts.spike.bind = 'toesR'; expect(() => bindLayered(compileLayered(pinned), pinned, R)).toThrow(/inherits its pin face/);
+    const coreRides = structuredClone(stickRig); coreRides.joints.hipL.rides = 'pelvis'; expect(() => validateRig(coreRides)).toThrow(/cannot ride/);
+    const cyc = structuredClone(stickRig); cyc.joints.tail1.rides = 'tail1'; expect(() => validateRig(cyc)).toThrow(/cyclic|dangling/);
+  });
+  it('poses: planted toes stay put through a crouch and a heel change, bone lengths hold, frames are orthonormal, the tail chain rides the pelvis and curls', () => {
+    const rest = R.joints; const poses = [{}, { crouch: 0.5 }, { crouch: 0.3, heelR: 20, heelL: -10 }, { armL: 'forward', spine: { curl: 0.5 }, tail: 30 }];
+    const a = auditRig(mesh, skin, R, poses); expect(a.maxPlantedDrift).toBe(0); expect(a.maxLengthError).toBeLessThan(1e-9); expect(a.maxOrthoError).toBeLessThan(1e-9);
+    const c = rigNodesAt(R, { crouch: 0.5 }).nodes; expect(c.pelvisHub[2]).toBeLessThan(rest.pelvisHub[2] - 0.1); expect(c.toeBaseR).toEqual(rest.toeBaseR); expect(dist3(c.kneeR, c.hipR)).toBeCloseTo(dist3(rest.kneeR, rest.hipR), 12); expect(dist3(c.ankleR, c.kneeR)).toBeCloseTo(dist3(rest.ankleR, rest.kneeR), 12); expect(dist3(c.toeBaseR, c.ankleR)).toBeCloseTo(dist3(rest.toeBaseR, rest.ankleR), 12);
+    expect(c.kneeR[1]).toBeGreaterThan(rest.kneeR[1]);   // the knee bends forward (the pole)
+    const t = rigNodesAt(R, { tail: 30 }).nodes; expect(t.tail1).toEqual(rest.tail1); expect(t.tail2[2]).toBeGreaterThan(rest.tail2[2]); expect(dist3(t.tail2, t.tail1)).toBeCloseTo(dist3(rest.tail2, rest.tail1), 12);
+    const s = rigNodesAt(R, { spine: { curl: 0.6 } }).nodes; expect(dist3(s.tail1, s.pelvisHub)).toBeCloseTo(dist3(rest.tail1, rest.pelvisHub), 9);   // the tail rides the pelvis bone, whatever the spine does
+  });
+  it('an unreachable planted toe is rejected with the numbers; reach: clamp reports the metatarsal error; airborne releases the contact', () => {
+    expect(() => rigNodesAt(R, { heelR: 180 })).toThrow(/cannot reach.*excess/);
+    const clamp = validateRig({ ...stickRig, reach: 'clamp' }); const { nodes, report } = rigNodesAt(clamp, { heelR: 180 }); expect(report.legs.R.reach).toBe('clamped'); expect(report.legs.R.metaError).toBeGreaterThan(0.1); expect(nodes.toeBaseR).toEqual(R.joints.toeBaseR);
+    const air = rigNodesAt(R, { support: 'none', lift: 0.3, legR: 'forward' }); expect(air.report.legs.R.planted).toBe(false); expect(air.nodes.toeBaseR[2]).toBeGreaterThan(R.joints.toeBaseR[2] + 0.1);
+    expect(solveTwoBone([0, 0, 0], [0, 0, 3], 1, 1, [0, 1, 0]).ok).toBe(false);
+  });
+  it('a clip blends keyposes (words resolved, channels blended, strings held) and packs to a rig figure with authored weights that the skinned GLB carries', () => {
+    const clip = layeredClip([{ tail: 0 }, { crouch: 0.6, tail: 20, support: 'both' }], R); expect(clip(0).tail).toBe(0); expect(clip(0.25).tail).toBeCloseTo(10, 9); expect(clip(0.25).crouch).toBeCloseTo(0.3, 9); expect(clip(0.5).tail).toBeCloseTo(20, 9);
+    const fig = packLayeredRig(mesh, skin, R, { clips: { bob: [{}, { crouch: 0.5, tail: 15 }] }, keys: 6 }); expect(fig.rig).toBe(true); expect(fig.bones).toHaveLength(R.bones.length); expect(fig.clips.bob.k).toBe(6); expect(fig.clips.bob.b).toHaveLength(6 * R.bones.length * 7);
+    expect(fig.parts.filter(Boolean).every((p) => typeof p.jnt === 'string' && typeof p.wgt === 'string')).toBe(true);
+    expect(packLayeredRig(mesh, skin, R, { clips: { bob: [{}, { crouch: 0.5, tail: 15 }] }, keys: 6 })).toEqual(fig);   // deterministic
+    const glb = facesToGlb({ faces: [], figures: { stick: fig } }, { generator: 't', clips: '_all', skinned: true }).bytes;
+    const jsonLen = glb.readUInt32LE(12); const j = JSON.parse(glb.subarray(20, 20 + jsonLen).toString()); const bin = glb.subarray(20 + jsonLen + 8);
+    const acc = (i) => { const a = j.accessors[i]; const bv = j.bufferViews[a.bufferView]; const off = (bv.byteOffset || 0) + (a.byteOffset || 0); const n = { 5126: 4, 5123: 2, 5121: 1 }[a.componentType]; const comps = { SCALAR: 1, VEC3: 3, VEC4: 4, MAT4: 16 }[a.type]; const rows = []; for (let k = 0; k < a.count; k++) { const r = []; for (let c = 0; c < comps; c++) { const p = off + (k * comps + c) * n; r.push(a.componentType === 5126 ? bin.readFloatLE(p) : a.componentType === 5123 ? bin.readUInt16LE(p) : bin.readUInt8(p)); } rows.push(r); } return rows; };
+    const skinJ = j.skins[0]; const prim = j.meshes.find((m) => m.name === 'stick:skinned').primitives[0];
+    const POS = acc(prim.attributes.POSITION), JNT = acc(prim.attributes.JOINTS_0), WGT = acc(prim.attributes.WEIGHTS_0), IBM = acc(skinJ.inverseBindMatrices);
+    expect(WGT.every((w) => Math.abs(w.reduce((a, b) => a + b, 0) - 1) < 1e-5 && w.every((x) => x >= 0))).toBe(true); expect(JNT.every((r) => r.every((x) => x < skinJ.joints.length))).toBe(true);
+    // authored, not derived: a blended overshoot vertex carries exactly the declared half-and-half
+    expect(WGT.some((w) => Math.abs(w[0] - 0.5) < 1e-6 && Math.abs(w[1] - 0.5) < 1e-6)).toBe(true);
+    skinJ.joints.forEach((ni, bi) => { const t = j.nodes[ni].translation; for (let c = 0; c < 3; c++) expect(Math.abs(t[c] + IBM[bi][12 + c])).toBeLessThan(1e-6); });   // rest skinning identity
+    // the engine's skin at key 3 equals the JS skin at that phase
+    const anim = j.animations[0]; const rot = new Map(), tr = new Map(); for (const ch of anim.channels) { const s = anim.samplers[ch.sampler]; (ch.target.path === 'rotation' ? rot : tr).set(ch.target.node, acc(s.output)); }
+    const qrot = (q, v) => { const [qx, qy, qz, qw] = q; const [vx, vy, vz] = v; const tx = 2 * (qy * vz - qz * vy), ty = 2 * (qz * vx - qx * vz), tz = 2 * (qx * vy - qy * vx); return [vx + qw * tx + (qy * tz - qz * ty), vy + qw * ty + (qz * tx - qx * tz), vz + qw * tz + (qx * ty - qy * tx)]; };
+    const k = 3; const engine = POS.map((v, i) => { const out = [0, 0, 0]; for (let c = 0; c < 4; c++) { const w = WGT[i][c]; if (w <= 0) continue; const bi = JNT[i][c]; const ni = skinJ.joints[bi]; const q = rot.get(ni)[k], t = tr.get(ni)[k]; const local = [v[0] + IBM[bi][12], v[1] + IBM[bi][13], v[2] + IBM[bi][14]]; const p = qrot(q, local); for (let c2 = 0; c2 < 3; c2++) out[c2] += w * (p[c2] + t[c2]); } return out; });
+    const phase = k / 6; const pose = layeredClip([{}, { crouch: 0.5, tail: 15 }], R)(phase); const js = skinLayered(mesh, skin, boneFrames(R, R.joints, rigNodesAt(R, pose).nodes));
+    // the GLB's vertices are a per-corner soup grouped per bone; match each engine vertex to the nearest JS rest vertex, then compare the posed positions
+    const restIdx = POS.map((p) => { let best = 0, bd = Infinity; mesh.vertices.forEach((v, i) => { const d = dist3(p, v); if (d < bd) { bd = d; best = i; } }); return best; });
+    let maxErr = 0; engine.forEach((p, i) => { maxErr = Math.max(maxErr, dist3(p, js[restIdx[i]])); }); expect(maxErr).toBeLessThan(2e-3);   // the packed clip rounds q/head to 1e-4
   });
 });
