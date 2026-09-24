@@ -145,3 +145,26 @@ describe('figure-posing — performance layers', () => {
     expect(Math.min(...series)).toBeLessThan(0);   // a counter-dip appears before the curl
   });
 });
+
+describe('figure-posing — authored rest anatomy', () => {
+  it('aims a custom A-pose arm from its actual rest direction without mutating the skeleton', () => {
+    const base = basePositions();
+    base.elbowL = { x: base.shoulderL.x - 0.35, y: base.shoulderL.y + 0.12, z: base.shoulderL.z - 0.18 };
+    const before = JSON.stringify(base);
+    const spec = { armL: 'forward' };
+    const posed = articulate(resolvePose(spec, base), base);
+    expect(angleDeg(sub(posed.elbowL, posed.shoulderL), resolveDir('forward'))).toBeLessThan(1e-5);
+    const wrong = articulate(resolvePose(spec), base);
+    expect(angleDeg(sub(wrong.elbowL, wrong.shoulderL), resolveDir('forward'))).toBeGreaterThan(5);
+    expect(JSON.stringify(base)).toBe(before);
+    expect(resolvePose(spec, base)).toEqual(resolvePose(spec, base));
+  });
+
+  it('preserves canonical results and raw channel overrides', () => {
+    const spec = { armL: 'forward', legR: 'down', neck: 'up', head: 'forward', elbowL: 'half' };
+    expect(resolvePose(spec, basePositions())).toEqual(resolvePose(spec));
+    expect(resolvePose(spec, null)).toEqual(resolvePose(spec));
+    const raw = { shL: { yaw: 12, pitch: 23 }, kneeR: 17 };
+    expect(resolvePose(raw, basePositions())).toEqual(raw);
+  });
+});

@@ -57,13 +57,16 @@ export function resolveDir(d, side = 0) {
 
 // Rest-pose bone unit vectors (pivot → child) from the base armature. These are
 // what each swivel joint rotates; aiming = the rotation that points them at a goal.
+function restDirections(base) {
+  return {
+    shL: norm(sub(base.elbowL, base.shoulderL)), shR: norm(sub(base.elbowR, base.shoulderR)),
+    hipL: norm(sub(base.kneeL, base.hipL)), hipR: norm(sub(base.kneeR, base.hipR)),
+    neck: norm(sub(base.headBase, base.neckHub)), // neck column
+    head: norm(sub(base.headTop, base.headBase)), // skull on the atlas
+  };
+}
 const B = basePositions();
-const REST = {
-  shL: norm(sub(B.elbowL, B.shoulderL)), shR: norm(sub(B.elbowR, B.shoulderR)),
-  hipL: norm(sub(B.kneeL, B.hipL)), hipR: norm(sub(B.kneeR, B.hipR)),
-  neck: norm(sub(B.headBase, B.neckHub)),   // neck column (flex/tilt the whole head)
-  head: norm(sub(B.headTop, B.headBase)),   // skull on the atlas (nod/ear-tilt)
-};
+const REST = restDirections(B);
 
 /**
  * Analytic 2-DOF swivel solve. `articulate`'s swivelSub applies yaw (about world-y)
@@ -137,16 +140,18 @@ const isAngles = (o) => o != null && typeof o === 'object' && ('yaw' in o || 'pi
  *   head : a direction to aim the head (nod forward/back, tilt left/right; no turn)
  *   spine : { curl, arch, lean:[dir,amt], sideBend:[dir,amt], twist:[dir,amt] }
  *           (or raw { sagittal, lateral, axial })
+ * @param {object|null} base complete rest joint map, in the same body frame as articulate
  * @returns {object} dof — pass straight to articulate()/buildPosedFigure/renderFigure
  */
-export function resolvePose(spec = {}) {
+export function resolvePose(spec = {}, base = null) {
+  const rest = base == null ? REST : restDirections(base);
   const dof = {};
   for (const [limb, [dofKey, side]] of Object.entries(LIMB_TO_DOF)) {
-    if (spec[limb] != null) dof[dofKey] = aimSwivel(REST[dofKey], resolveDir(spec[limb], side));
+    if (spec[limb] != null) dof[dofKey] = aimSwivel(rest[dofKey], resolveDir(spec[limb], side));
   }
   // neck/head: a direction to AIM (friendly), or raw { yaw, pitch } angles passed through.
-  if (spec.neck != null) dof.neck = isAngles(spec.neck) ? { ...spec.neck } : aimSwivel(REST.neck, resolveDir(spec.neck, 0));
-  if (spec.head != null) dof.head = isAngles(spec.head) ? { ...spec.head } : aimSwivel(REST.head, resolveDir(spec.head, 0));
+  if (spec.neck != null) dof.neck = isAngles(spec.neck) ? { ...spec.neck } : aimSwivel(rest.neck, resolveDir(spec.neck, 0));
+  if (spec.head != null) dof.head = isAngles(spec.head) ? { ...spec.head } : aimSwivel(rest.head, resolveDir(spec.head, 0));
   // raw shoulder/hip swivels ({ yaw, pitch, roll }) flow straight through.
   for (const k of RAW_SWIVELS) if (isAngles(spec[k])) dof[k] = { ...spec[k] };
   for (const h of HINGES) if (spec[h] != null) dof[h] = bendAmount(spec[h]);

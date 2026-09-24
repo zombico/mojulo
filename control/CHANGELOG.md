@@ -12,6 +12,11 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Planar drawing
+
+- Document skeleton-first faceted character construction, explicit detail bindings, extended leg chains, and validation gates in `docs/planar-drawing.md`.
+- Let `resolvePose` accept a custom rest skeleton and use it when compiling unit poses, so friendly limb aims follow the authored anatomy. Default figure posing and raw angle channels retain their existing behavior.
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation

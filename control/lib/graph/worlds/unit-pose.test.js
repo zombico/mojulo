@@ -192,3 +192,15 @@ describe('compileUnitPose', () => {
     }
   });
 });
+
+describe('custom-rest pose compilation', () => {
+  it('keeps a declared custom arm at rest when aimed along its own axis', () => {
+    const manifest = miniBiped();
+    const rig = deriveBipedRig(manifest);
+    const shoulder = rig.joints.shoulderL;
+    rig.joints.elbowL = { x: shoulder.x - 1, y: shoulder.y + 0.4, z: shoulder.z - 0.7 };
+    const pose = { armL: { x: -1, y: 0.4, z: -0.7 } };
+    const compiled = compileUnitPose(manifest, pose, { rig });
+    expect(Math.hypot(compiled.dof.shL.yaw, compiled.dof.shL.pitch)).toBeLessThan(1e-6);
+  });
+});

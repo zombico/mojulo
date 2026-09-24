@@ -293,7 +293,7 @@ export const SUIT_WAIST_SWIVEL = 80;
 
 export function compileUnitPose(manifest = {}, pose = {}, { rig: rigOverride } = {}) {
   const rig = rigOverride || deriveBipedRig(manifest);
-  const dof = resolvePose(pose);
+  const dof = resolvePose(pose, rig.joints);
   // rigidUpperBody: this is a rigid SUIT, so the chest plate turns as one piece
   // with its shoulder sockets (figure-vajra flag) — the arms root at the torso's
   // sides, never at its front corner or the back. shouldersLimit: a suit's waist
