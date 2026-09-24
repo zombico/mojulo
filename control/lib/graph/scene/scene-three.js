@@ -52,6 +52,7 @@ import {
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
+import { streamChannelScript } from './channels/stream.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 
 
@@ -170,7 +171,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -473,6 +474,21 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     snap: (Number.isFinite(xk.snap) ? xk.snap : 30) * Math.PI / 180,
   } : null;
   const xrBlock = xrCfg ? xrModeScript(xrCfg) : '';
+  // World streaming (opt-in, the fractal city's large-city page — city-tiles.js cityStreamPayload):
+  // the inlined faces are only the horizon (base + per-tile `massing:i,j` groups); this block fetches
+  // full-detail tiles near the camera from `stream.url`. Absent ⇒ '' ⇒ every World byte-identical.
+  const streamCfg = stream && typeof stream.url === 'string' && stream.grid && Array.isArray(stream.tiles) && stream.tiles.length ? (() => {
+    const g = stream.grid;
+    const near = Number.isFinite(stream.near) && stream.near > 0 ? stream.near : 40;
+    const cache = Math.max(near, Number.isFinite(stream.cache) && stream.cache > 0 ? stream.cache : near * 2);
+    const ring = (cache + g.tile * 0.7072) / g.tile;
+    return {
+      url: stream.url, grid: { x0: g.x0, y0: g.y0, tile: g.tile, cols: g.cols, rows: g.rows }, tiles: stream.tiles, near, cache,
+      max: Number.isFinite(stream.max) && stream.max > 0 ? stream.max : Math.ceil(Math.PI * ring * ring),
+      conc: Number.isFinite(stream.conc) && stream.conc > 0 ? stream.conc : 4,
+    };
+  })() : null;
+  const streamBlock = streamCfg ? streamChannelScript(streamCfg) : '';
   // Suppressed entirely on GAME LEVELS (payload carries `game`): a level teaches its controls
   // through the shell's pause menu, and the corner hint reads as dev chrome on a play screen.
   const hintText = (walkCfg
@@ -1025,7 +1041,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${carsBlock}${xrBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${carsBlock}${xrBlock}${streamBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

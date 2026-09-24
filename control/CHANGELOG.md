@@ -12,6 +12,45 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### World streaming
+
+- **A large fractal city no longer has to fit in one page.** `/world?stream=1` on a `fractal-city`
+  inlines only a horizon — the base layer (grounds and roads) plus the whole city at
+  `fidelity:'massing'`, each ground tile's massing in its own render group — and the page fetches
+  FULL-detail tiles near the camera from the new `GET /api/sketches/[ref]/world/tile?t=i,j&lod=full|massing|base`.
+  Nearest tiles first, four in flight, kept out to a cache radius (an LRU capped by count), GPU
+  buffers disposed beyond it; a landed tile hides its massing group and an evicted one shows it
+  again. Tile meshes join the pick/wireframe set and the walk colliders. Measured on a 480×288
+  city (seed 7, frontage, depth 6; 1.03 million faces whole): the whole-city page is 262 MB and
+  takes 82 s to emit; the streamed page is 10.4 MB, and with the 13 tiles a headless browser
+  fetched around the opening camera the first load is 16.3 MB. A full tile is 0.35 MB median and
+  1.1 MB at most.
+- **The cut is exact.** `lib/graph/city/city-tiles.js` partitions the plan's boxes by footprint
+  centre (a building is never cut) and its extra faces by corner centroid, and assembles each tile
+  through the same `assembleBoxCityScene`; the base is assembled once and its faces partitioned by
+  centroid. In plain lighting the union of the tiles is the whole-city face multiset, with nothing
+  missing and nothing extra (`city-tiles.test.js`). The horizon is the planner's own fidelity prune,
+  so it is the same city as its full tiles. Plans are memoized per recipe in a small LRU.
+- **Tile wire format.** `u32 'MJT1' · u32 header length · JSON header · Float32 data`: the header
+  lists the untextured mesh and one part per texture key, with offsets, and carries only the
+  texture data URLs the page does not already hold. Cards expand and faces de-collide per tile.
+  The route answers with an ETag over (manifest, tile, lod, code version) and a 304 on
+  `If-None-Match`, under the same session/bearer middleware as its siblings; 404 for any other
+  kind, 400 for a malformed or off-grid tile.
+- **Streaming stands down instead of guessing.** Night or day lighting, moonlight, lamp sources,
+  diffusion, ground shadows, crease seams, AO and toon each read the whole face set, so the split
+  is no longer exact; figures, physics, a game, signage and the other channels the streamed page
+  does not carry stand down too, and so does `?download=1` (tiles need the live server). The
+  route then serves the normal whole-city page and names the reason in an
+  `X-Mojulo-World-Stream` response header. Walkers, traffic, fog and `instancing` are left out of
+  a streamed page in v1 and listed in the same header.
+- `stream` is an opt-in `emitThreeWorld` channel (`channels/stream.js`): absent, it contributes
+  zero bytes and every emit pin holds. `stream` joins the `/world` cache flags, so a streamed and
+  a whole page never share a cache entry.
+- **Eyes gate not run.** Still to look at: seams or z-fighting where tiles meet (de-collision now
+  runs per tile), the pop from massing to full detail, whether the horizon reads as the same city,
+  and massing edges that stay visible in wireframe mode after their full tile lands.
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation
