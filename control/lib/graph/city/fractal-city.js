@@ -3534,7 +3534,7 @@ function lampSources(boxes) {
   return sources;
 }
 
-const FRACTAL_CAMERAS = [
+export const FRACTAL_CAMERAS = [
   { name: 'street', worldFraming: { cameraPosition: [-7, 31, 9], lookAt: [16, 8, 5], horizontalFov: 82, pictureCenter: [560, 390] } },
   { name: 'aerial', worldFraming: { cameraPosition: [16, -9, 27], lookAt: [16, 11, 1], horizontalFov: 60, pictureCenter: [560, 390] } },
 ];
