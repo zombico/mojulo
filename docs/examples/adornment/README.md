@@ -38,7 +38,9 @@ away from the adornment's support.
    medallion, a plume, a bell): the element that justifies its existence. A signature is its ELEMENT plus whatever
    carries it (chain links), named apart. The exposure ledger (`station-loft-exposure.js`) must find it reading
    (exposed ≥ 0.25) and a real share of its adornment's picture (≥ 0.08). Otherwise the adornment is flagged
-   unjustified: advisory, never a refusal.
+   unjustified: advisory, never a refusal. The ledger says an adornment is SEEN; it does not say it is wanted: an
+   accessory can read and still compete with the face (several similar gold accents did). One signature per body
+   region, and asymmetry (one defended shoulder) tells more than a matched pair.
 
 The rule earns its place: it caught a medallion buried in the chest (its chain had been cleared against scattered
 vertices, so it slipped between them; clearance is now against the surface) and a pauldron spike too small to read

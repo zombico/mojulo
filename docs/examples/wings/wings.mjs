@@ -162,10 +162,10 @@ function toSource({ mesh, parts, palette }) { const V = [...mesh.vertices], F = 
     const E = new Map(); for (const f of d.faces) for (let i = 0; i < 3; i++) { const a = f[i], b = f[(i + 1) % 3]; const key = a < b ? `${a}|${b}` : `${b}|${a}`; const e = E.get(key) || [0, 0]; e[0]++; e[1] += a < b ? 1 : -1; E.set(key, e); }
     for (const [c, bal] of E.values()) { if (c !== 2) open++; else if (bal) wind++; } }
   return { vertices: V, faces: F, colors: C, audit: { parts: Object.keys(parts).length, open, wind } }; }
-const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const LIGHT = unit([0.35, -0.55, 0.75]); const BG = [247, 245, 239];
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const LIGHT = unit([0.35, -0.55, 0.75]), FILL = unit([-0.7, 0.35, 0.15]); const BG = [247, 245, 239];   // a key and a weaker fill from the far side: a face turned from the key goes dark, it is not lit twice
 function raster(src, cam, size, ss = 2) { const P = projectVertices(src.vertices, cam); const N = size * ss; const img = new Uint8Array(N * N * 3); const zb = new Float64Array(N * N).fill(Infinity);
   for (let i = 0; i < N * N; i++) img.set(BG, 3 * i);
-  src.faces.forEach((f, fi) => { const [a, b, c] = f.map((k) => src.vertices[k]); const nn = cross(sub(b, a), sub(c, a)); if (Math.hypot(...nn) < 1e-14) return; const k = 0.45 + 0.6 * Math.abs(dot(unit(nn), LIGHT)); const col = hex(src.colors[fi]).map((x) => Math.min(255, Math.round(x * k)));
+  src.faces.forEach((f, fi) => { const [a, b, c] = f.map((k) => src.vertices[k]); const nn = cross(sub(b, a), sub(c, a)); if (Math.hypot(...nn) < 1e-14) return; const n = unit(nn); const k = 0.3 + 0.62 * Math.max(0, dot(n, LIGHT)) + 0.16 * Math.max(0, dot(n, FILL)); const col = hex(src.colors[fi]).map((x) => Math.min(255, Math.round(x * k)));
     const [[ax, ay, az], [bx, by, bz], [cx, cy, cz]] = f.map((v) => [P[v][0] * ss, P[v][1] * ss, P[v][2]]); const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy); if (Math.abs(den) < 1e-12) return;
     const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), x1 = Math.min(N - 1, Math.ceil(Math.max(ax, bx, cx))), y0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), y1 = Math.min(N - 1, Math.ceil(Math.max(ay, by, cy)));
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const px = x + 0.5, py = y + 0.5; const w0 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, w1 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den, w2 = 1 - w0 - w1;

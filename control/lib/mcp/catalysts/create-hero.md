@@ -129,6 +129,21 @@ Adornments are a separate row that always reads "next loop" here.
 
 Paste `hero.plan.json` after it. The worker's answer is the plan; mint it with `plan_audit`.
 
+## Art direction — the read the numbers serve
+
+1. **Primary masses first.** Three head/body ratios and shoulder widths in silhouette, front / profile /
+   three-quarter, before a face dial moves. Long intentional planes come from the register and `e`, not from
+   fewer vertices. The shoulder → neck → collarbone transition is the junction the eye checks first.
+2. **A hierarchy.** About 60 % quiet form, 30 % structure, 10 % focal accents, as a composition exercise.
+   Contrast lives at the eyes, the mouth and (later, in the adornment loop) one equipment signature.
+3. **The face is a designed system.** Brow → lid → cheek clear; the pupil/iris aperture set at the real viewing
+   distance; one readable mouth corner. Check neutral, smile and surprised at small size.
+4. **Hair is a mass before it is tufts.** The cap's window is the hairline; its lean is the direction; only
+   then does the tile break-up matter. A fringe or tail is one clear shape at 128 px.
+5. **Lighting is a separate comparison** (same mesh, same camera); never fix unclear form with surface noise.
+6. **Protect the read at 128, 256 and 512 px and in motion.** Play `walk` and `wave` before calling the hero
+   done; movement exposes the construction.
+
 ## What you DON'T do
 
 - You don't move a face dial before the silhouette reads at 64 px.
@@ -136,5 +151,6 @@ Paste `hero.plan.json` after it. The worker's answer is the plan; mint it with `
 - You don't hand-place a joint, a face, or a hair mesh — a cast word, head data, grown hair.
 - You don't add adornments here — name them "next loop" in the ledger and stop.
 - You don't ship an eye the exposure ledger calls `faint` or `buried`.
+- You don't add contrast everywhere: the eyes, the mouth, one accent.
 - You don't force a creature, a real animal, or an SVG figure study through this loop.
 - You don't sign a `plan_audit` for a worker that did not run.

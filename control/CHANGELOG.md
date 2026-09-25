@@ -12,6 +12,19 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Art direction
+
+- **The passes serve a read.** The creature and hero catalysts carry an "Art direction" section: primary
+  masses first (three head/body ratios in silhouette before any detail pass), a hierarchy of detail (about
+  60 / 30 / 10 as a composition exercise), patterns that follow anatomy (scutes broaden over the ribs and
+  overlap downward, feathers in groups), the face as a designed system, materials that differ through shape,
+  asymmetry that tells a story, lighting judged separately, the read protected at 128 / 256 / 512 px and in
+  motion before the ornament library grows. The adornment example's signature rule says the exposure ledger
+  proves an accessory is seen, not that it is wanted.
+- **Key and fill.** The adornment and wings example rasterizers light with a key and a weaker fill from the
+  far side instead of an absolute normal · light term, so a face turned from the key goes dark instead of
+  being lit twice. Diagnostic renders only; no recipe changes.
+
 ### Create hero
 
 - **The hero form.** `docs/examples/ring-plans/hero.plan.mjs`: a human ring plan on the vajra rest skeleton.

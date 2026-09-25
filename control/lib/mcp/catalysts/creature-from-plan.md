@@ -163,6 +163,39 @@ reads them (head, then hands and feet, then the torso's masses, then the limbs' 
 tail), and at each segment run passes 2 → 8 as far as the thesis wants. A creature "done" with a
 detailed head on a blank body is a head study, and the ledger should say so.
 
+## Art direction — what the passes are FOR
+
+Density is not the goal; a readable character is. Hold these while working the passes (they came from an
+outside art review of the dragon and the vulture, and they held):
+
+1. **Primary masses first.** Iterate three head/body ratios and shoulder widths in silhouette, front /
+   profile / three-quarter, before any pass 2+. A head that reads small against the torso and wings is a
+   proportion problem no scale pass fixes; a shoulder/neck junction that reads as assembled segments is a
+   ring-radius problem. Use the style register and `e` to make long intentional planes, not merely fewer vertices.
+2. **A hierarchy of detail.** As a composition exercise, not a metric: about 60 % quiet form, 30 % structural
+   detail, 10 % focal accents. Concentrate contrast at the eyes, the mouth and ONE equipment signature; keep
+   wing panels and the abdomen quiet. Several similar gold accents compete with the face.
+3. **Patterns follow anatomy.** Chest scutes broaden over the rib cage, narrow at the waist, overlap downward,
+   and vary their spacing on purpose; a perfectly regular ladder reads as a grille. Feathers organise into
+   large overlapping groups before individual vanes. Seeded variation inside a designed rhythm, never noise everywhere.
+4. **The face is a designed system.** Clarify brow → lid → cheek; set the pupil/iris aperture and the lid shadow
+   at the real viewing distance; prefer one readable mouth corner and a few decisive teeth over a glittering
+   uniform row. Check neutral, snarl and surprise at small size.
+5. **Materials differ through SHAPE.** Bone: tapered sections, sparse ridges. Metal: broad stable planes,
+   deliberate bevels. Leather: thickness, an attachment seam, controlled looseness. Membrane: root tension,
+   restrained ribs. Do not give every material the same small triangular break-up.
+6. **Asymmetry tells a story.** One defended shoulder, one bare arm, a repeated emblem, a limited accent palette.
+   An adornment can pass the exposure ledger (it reads) and still be visually unnecessary; the ledger says it is
+   seen, you decide whether it is wanted.
+7. **Lighting is a separate comparison.** Judge form under a key and a fill with the SAME mesh and camera; never
+   compensate for unclear form with surface noise.
+8. **Protect the read in motion and at distance.** Look at ~128, 256 and 512 px character height and remove what
+   only shimmers. The motion proof (turn the head, raise the armed arm, crouch, half-fold the wings) comes
+   BEFORE the ornament library grows: movement exposes the construction.
+
+The deliverable that proves the loop is one finished character, three views, three expressions and one short
+motion test, with a deliberately limited vocabulary — not a denser static build.
+
 ## The request template (the fast path)
 
 Send the worker exactly this, with the chosen form pasted in:
@@ -243,5 +276,6 @@ the number into the form, discard the picture. The whole-body dream is for the c
 - You don't ship a `buried` detail without moving it, or a `faint` one without deciding it is meant.
 - You don't force a person, a real animal or a machine through this loop.
 - You don't sign a `plan_audit` for a worker that did not run.
+- You don't add a pass because the operator lacks it: each pass answers a read (see Art direction).
 - You don't stop at the blob. A segment with only pass 1 is a blockout; say so in the ledger, or keep
   working it.
