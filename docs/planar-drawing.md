@@ -185,3 +185,9 @@ expression. It adds surface addresses, skin strips, bone versus skin carriers, a
 sclera, iris and pupil bands under a brow-tucked surround, a cheek web and a tongue, all driven by
 species-neutral expressions. The dragon and a bear authored from its own station table share one
 species-free core.
+
+Three examples build the figure up past the head, each a separate layer over the one before:
+[body detail](examples/body-detail/README.md) (creases, pads, spurs and rigid-zone scales on the body's
+segments), [wings](examples/wings/README.md) (one wing op from a dragon's membrane to a vulture's feathers,
+and a vulture as a second ring-plan creature) and [adornment](examples/adornment/README.md) (armor and
+accessories standing off everything beneath them, each justified by one recognizable visual element).
