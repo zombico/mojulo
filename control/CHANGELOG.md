@@ -14,11 +14,45 @@ loops and the recipe format are unchanged.
 
 ### Ring plan
 
-- (planned, nothing built) The dream loop's read step lands in the layered vocabulary: a compact ring
-  plan (`mint_solid { kind: 'layered', via: 'plan' }`) expands deterministically into a layered recipe,
-  the head-detail operators move into core with species as data, the creature route is welded into the
-  routing surface, and the kind gains the old loop's machine gates (an exposure ledger per pinned
-  detail, a matched-azimuth silhouette compare). References stay scaffolding; the recipe is the artifact.
+- **The creature route.** The `layered` kind is on the routing surface: the mint_solid index row lists
+  it, a `creature` routing card (a dragon, a monster, an invented body to rig) routes to it, the `animal`
+  card sends an invented creature there instead of `manji-tree`, and the reconstruct / character dream
+  catalysts name it as the creature's loop instead of pointing at each other. The manual's `when` line
+  says a rigged, animated character IS this kind.
+- **The ring plan.** `mint_solid({ kind: 'layered', via: 'plan', spec: { plan } })`: the compact, species-free
+  authoring form the seeds wrote by hand (a joint table, segments with ring radii, chains, claws by address,
+  a baked head worn at a shift, dials / rig / clips as data with `$S` side templates) expands
+  deterministically into a layered recipe (`station-loft-plan.js`). The recipe stays the compatibility
+  promise and is stored beside the plan; `update_sketch` re-expands it on a `/plan` patch and now pays the
+  layered gates (compile, closure, rig) on every edit with the ledger re-stamped. The dragon body seed is a
+  plan; its recipe regenerates unchanged (the rig's finger joints now rounded to the micrometre like every
+  other coordinate).
+- **The detail operators are core.** The species-free half of the head-detail example moves to
+  `station-loft-detail.js`: surface addresses, `refineStation` / `refineSlot` / `volumize`, closed lofts,
+  spine sweeps with curl, surface strips, pinned placement, projection onto a carrier, tiles grown from a
+  carrier (seeded per tile id), ring lofts, bone / skin carriers with sided controls, the eye / cheek-web /
+  tongue regions, `build`, `toSource` and `bakeLayered`. `docs/examples/head-detail/compile.mjs` is head
+  DATA only (its gate still enforces that the core names no species); the dragon body recipe regenerates
+  byte for byte.
+- **The dream loop's machine gates, for the layered kind.** A small z-buffer over the wire camera
+  (`scene/depth-raster.js`, named views frontal / three-quarter / three-quarter-left / lateral / left / back)
+  carries two gates the saturation and block-architecture spikes had by hand. The EXPOSURE ledger
+  (`station-loft-exposure.js`, in `measure_solid`'s layered readout, `exposure: false` to skip) says how much
+  of every pinned detail a viewer sees and flags `reads` / `faint` / `buried`; it found the dragon body's
+  middle foot claws entirely inside their toes (the seed now starts every foot claw past the toe joint). The
+  matched-azimuth COMPARE (`scene/wire-compare.js`; `export-wire-svg.mjs --compare view=picture.png`)
+  scores the solid's silhouette against a reference at the same named azimuth: IoU, aspect and centroid
+  offset, shape only, with a reference | silhouette | overlap sheet; the picture is never persisted.
+- **The creature loop.** Catalyst `creature-from-plan`: the creature register of the dream loop landing
+  in the layered grammar — a thesis, a species-free SPEC FORM (biped / quadruped, joint and slot names
+  fixed, numbers blank) with the request template a text worker fills (or the image path: one clay
+  segment per picture, rings read at the issued stations), `mint_solid via: 'plan'`, the exposure
+  ledger and the matched-azimuth compare as the gates, one number per fix, lock. The plan door takes an
+  optional `plan_audit` (`source: 'agent' | 'text:<model>' | 'image:<worker>'`, a prompt and a handle
+  when a worker printed it; malformed refuses) stored as the row's `provenance`. Worked plans:
+  `docs/examples/ring-plans/` (a bare quadruped with its gate) beside the rigged dragon body. The
+  `creature` routing card and both dream catalysts point at it. References stay scaffolding; the plan and
+  its recipe are the artifact.
 
 ### Planar drawing
 

@@ -56,6 +56,8 @@ import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
+import { planLayered, expandLayeredManifest } from '@/lib/mcp/tools/layered';
+import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
   classifyPromptForCards,
@@ -598,6 +600,7 @@ export async function updateSketchHandler(input) {
   let nextManifest;
   let gameNote;
   let workbenchStats = null;
+  let layeredStats = null;
   let prevWorkbenchStats = null;
   let scadStats = null;
   let prevScadStats = null;
@@ -707,6 +710,19 @@ export async function updateSketchHandler(input) {
         prevScadStats = await previousStats(ref, existingSketch.manifest);
       }
     }
+    // The layered kind pays planLayered's gates on an edit as at mint (compile, per-part closure, the rig
+    // gates) and re-stamps its ledger. A row minted through the PLAN door carries `plan` beside `recipe`:
+    // a whole-manifest replacement or a patch under `/plan` re-expands the recipe from the plan (the plan
+    // is the authoring record); a patch under `/dials` or `/recipe` leaves the plan alone.
+    if (manifest.kind === 'layered') {
+      const planTouched = patch === undefined || [...touched].some((t) => String(t) === '/plan' || String(t).startsWith('/plan/'));
+      try {
+        if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest);
+        layeredStats = planLayered(manifest).stats;
+      } catch (err) {
+        throw new Error(`Invalid world manifest (kind 'layered'): ${err.message}`);
+      }
+    }
     try {
       await resolveWorldScene({ ref, title: title ?? existingSketch?.title ?? 'world', manifest });
     } catch (err) {
@@ -715,7 +731,8 @@ export async function updateSketchHandler(input) {
     // G6: the ledger travels — re-stamped on every edit from THIS plan, never copied forward.
     nextManifest = workbenchStats ? { ...manifest, ledger: persistedLedger(workbenchStats.ledger) }
       : scadStats ? { ...manifest, ledger: persistedScadLedger(scadStats.ledger) }
-        : manifest;
+        : layeredStats ? { ...manifest, ledger: persistedLayeredLedger(layeredStats.ledger) }
+          : manifest;
   } else if (manifest !== undefined) {
     let expanded;
     try {
@@ -774,6 +791,7 @@ export async function updateSketchHandler(input) {
     ...(gameNote ? { note: gameNote } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),
+    ...(layeredStats ? { stats: { ...layeredStats, ...(revision ? { archived_rev: revision.archived_rev } : {}) } } : {}),
     ...(revision ? { revision } : {}),
   };
 }

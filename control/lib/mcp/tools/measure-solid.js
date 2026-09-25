@@ -19,6 +19,7 @@ import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { layeredStats } from '@/lib/graph/polygonizer/station-loft-faces';
+import { layeredExposure } from '@/lib/graph/polygonizer/station-loft-exposure';
 import { facesToStl, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
@@ -30,7 +31,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export async function measureSolidHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('measure_solid requires { ref }');
-  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true } = input;
+  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) throw new Error('`scale` must be a positive number if provided');
   if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) throw new Error('`target_mm` must be a positive number if provided');
@@ -60,6 +61,7 @@ export async function measureSolidHandler(input) {
   let parts = null;
   let warnings;
   let cuts;
+  let exposure;
   if (sketch.manifest.kind === 'workbench') {
     const { stats } = planWorkbench(sketch.manifest);
     parts = stats.parts;
@@ -67,9 +69,16 @@ export async function measureSolidHandler(input) {
     cuts = stats.cuts;   // parts-booleans B2: what each cut consumed and what the grid rounded its edges to
   } else if (sketch.manifest.kind === 'layered') {
     // a layered solid measures its compiled parts (every closed part, whatever its shape)
-    const m = sketch.manifest; const stats = layeredStats(compileLayered(m.recipe, m.dials || {}, m.channels || {}), m.recipe, { units: m.units || 'm', seat: m.seat !== false });
+    const m = sketch.manifest; const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {}); const stats = layeredStats(mesh, m.recipe, { units: m.units || 'm', seat: m.seat !== false });
     parts = stats.parts;
     warnings = stats.auditFailures.length ? stats.auditFailures.map((f) => `part not closed: ${f}`) : undefined;
+    // the exposure ledger (station-loft-exposure.js): how much of each pinned detail a viewer sees from the named
+    // azimuths; a buried detail is named here (advisory), and every pinned part carries its best view + flag
+    if (exposureInput) {
+      const e = layeredExposure(mesh); exposure = { views: e.views, flags: e.flags, buried: e.buried };
+      for (const p of parts) { const L = e.parts[p.id]; if (L) p.exposure = { exposed: L.exposed, proud: L.proud, flag: L.flag }; }
+      if (e.buried.length) warnings = [...(warnings || []), `buried detail (unseen from every view): ${e.buried.join(', ')}`];
+    }
   }
 
   const closure = profile === 'study'
@@ -103,6 +112,7 @@ export async function measureSolidHandler(input) {
     kind: resolvedKind,
     print_profile: profile,
     units,
+    ...(exposure ? { exposure } : {}),
     scale,
     scale_note: scaleNote,
     bounds: { min: probe.bounds.min.map(r3), max: probe.bounds.max.map(r3), size: probe.bounds.size.map(r3) },
@@ -139,6 +149,7 @@ export function registerMeasureSolidTool() {
         target_mm: { type: 'number', description: 'Fit longest dimension to mm.' },
         printer: { type: 'object', description: '{ process?: fdm|sla|sls|mjf, nozzle_mm?, min_wall_mm?, bed_mm? }.' },
         volume: { type: 'boolean', description: 'Manifold volume/genus (default true).' },
+        exposure: { type: 'boolean', description: 'layered: per-detail exposure ledger (default true).' },
       },
       required: ['ref'],
     },

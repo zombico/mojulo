@@ -35,7 +35,7 @@ import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
 import { createWorkbenchHandler, createCodeSolidHandler } from '@/lib/mcp/tools/workbench';
 import { createScadHandler } from '@/lib/mcp/tools/scad';
-import { createLayeredHandler } from '@/lib/mcp/tools/layered';
+import { createLayeredHandler, createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
 import { createCarvedSolidHandler } from '@/lib/mcp/tools/carved-solid';
 import { createSolidTurntableHandler } from '@/lib/mcp/tools/solid-turntable-tool';
@@ -85,7 +85,13 @@ export const SOLID_KINDS = {
   'scad': { family: 'object', handler: createScadHandler },
   // A solid born layered (stations × slots, pinned details, dials): the recipe is stored and lowers to
   // the workbench studio on every read, so a dial patch reshapes it in place. Stores kind:'layered'.
-  'layered': { family: 'object', handler: createLayeredHandler },
+  'layered': {
+    family: 'object',
+    handler: createLayeredHandler,
+    // the plan door: a ring plan (joints, segments, details, dials, rig, clips as data) expanded into
+    // the recipe at mint and stored beside it, so a `/plan` patch re-expands the solid.
+    via: { recipe: createLayeredHandler, plan: createLayeredPlanHandler },
+  },
   'assembler': { family: 'object', handler: createAssemblerHandler },
   'carved-solid': { family: 'object', handler: createCarvedSolidHandler },
   'solid-turntable': { family: 'object', handler: createSolidTurntableHandler },
@@ -222,8 +228,8 @@ export function registerMintSolidTools() {
       + "room is NOT a solid: mint it with create_sketch, `manifest: { kind: 'floorplan', … }` (walkable, `storeys: N`). "
       + 'Served as an SVG still + orbitable World + `.glb`; a tiny deterministic '
       + 'recipe, regenerated on render. Pick `kind` from the enum; per-kind params go '
-      + 'in `spec`; `via` picks an authoring door for the manji-tree kind (ir / parts / prompt / '
-      + "packet). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }) and read its "
+      + 'in `spec`; `via` picks an authoring door (manji-tree: ir/parts/prompt/packet; layered: '
+      + "plan). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }) and read its "
       + "manual via get_solid_vocab({ id: '<kind>' }) before passing spec. Iterate the stored "
       + 'recipe in place via `update_sketch`.',
     inputSchema: {
@@ -231,7 +237,7 @@ export function registerMintSolidTools() {
       properties: {
         kind: { type: 'string', enum: KIND_LIST, description: 'Which solid. Parameter manual: get_solid_vocab({ id: kind }).' },
         spec: { type: 'object', description: `The kind's own knobs (see its solid-vocab card). Validated by the kind's mint; a failed mint returns the card pointer.` },
-        via: { type: 'string', description: `Authoring door for kind 'manji-tree' only: 'ir' (default, full manifest) | 'parts' (parts-list) | 'prompt' (NL, keyed) | 'packet' (NL, key-free two-call handshake).` },
+        via: { type: 'string', description: `Authoring door. manji-tree: 'ir' (default, full manifest) | 'parts' | 'prompt' (NL, keyed) | 'packet' (NL, key-free two-call handshake). layered: 'plan' (a ring plan in spec.plan).` },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },

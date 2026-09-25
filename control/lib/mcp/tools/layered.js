@@ -1,18 +1,24 @@
 /**
  * mint_solid kind 'layered' — a solid born layered (stations × slots, pinned details, dials).
  *
- * The stored manifest is `{ kind:'layered', title, recipe, dials, channels?, units, facing, seat?, toon?,
- * ledger }`: the RECIPE is the source; on every read the world registry lowers it through
+ * The stored manifest is `{ kind:'layered', title, recipe, plan?, dials, channels?, units, facing, seat?,
+ * toon?, ledger }`: the RECIPE is the source; on every read the world registry lowers it through
  * station-loft-faces.js to studio faces (the compiled mesh itself), so a dial patch (`update_sketch { patch:[{ op:'set',
  * path:'/dials/jawOpen', value: 30 }] }`) reshapes the solid in place and the studio, `measure_solid`
  * and every export leg see the recompiled mesh. The mint pays the layered audit (per-part closure) and,
  * for a rigged recipe, the rig gates.
- * Manual: lib/graph/solid-vocab/layered.md. Reference recipe: docs/examples/dragon-layered.
+ * The PLAN door (`mint_solid { kind:'layered', via:'plan', plan }`): a ring plan (station-loft-plan.js — a joint
+ * table, segments with ring radii, details by address, dials / rig / clips as data) is expanded into the recipe
+ * at mint and stored beside it; an `update_sketch` patch under `/plan` re-expands the recipe, a patch under
+ * `/dials` or `/recipe` edits as before. The recipe stays the compatibility promise; the plan is the authoring record.
+ * Manual: lib/graph/solid-vocab/layered.md. Reference recipe: docs/examples/dragon-layered; reference plan:
+ * docs/examples/dragon-body/seed-recipe.mjs.
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
+import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
 
@@ -36,15 +42,61 @@ export function planLayered(manifest) {
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };
 }
 
+/** A manifest carrying a `plan` regenerates its recipe from it; dial values for dials the new recipe lacks are dropped. */
+export function expandLayeredManifest(manifest) {
+  if (!manifest?.plan) return manifest;
+  const recipe = expandPlan(manifest.plan);
+  const known = new Set(Object.keys(recipe.dials || {}));
+  const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
+  return { ...manifest, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
+}
+
+/** The plan audit — WHO printed the numbers. Mojulo is loopback and cannot watch a worker, so this is form + presence
+ * (the dream-audit posture): `source` 'agent' (the agent wrote the numbers itself), 'text:<model>' or 'image:<worker>'
+ * (a worker did; then `prompt` and one of job_id | token | seed | image_sha256 are required). Malformed refuses. */
+export const PLAN_SOURCE_RE = /^(agent|text:[\w.@:/-]+|image:[\w.@:/-]+)$/;
+export const PLAN_PROVENANCE_KIND = 'plan-reconstruction';
+export function validatePlanAudit(audit, label = 'plan_audit') {
+  if (!audit || typeof audit !== 'object' || Array.isArray(audit)) return [`${label}: must be an object — { source: 'agent' | 'text:<model>' | 'image:<worker>', prompt?, job_id | token | seed | image_sha256? }`];
+  const errors = [];
+  if (typeof audit.source !== 'string' || !PLAN_SOURCE_RE.test(audit.source)) errors.push(`${label}.source: required — 'agent', 'text:<model>' (e.g. 'text:codex') or 'image:<worker>' (e.g. 'image:comfyui@127.0.0.1:8188')`);
+  if (audit.source !== 'agent') {
+    if (typeof audit.prompt !== 'string' || audit.prompt.trim().length < 8) errors.push(`${label}.prompt: required when a worker printed the plan — the request it was given (≥ 8 chars)`);
+    const gen = audit.job_id ?? audit.token ?? audit.seed ?? audit.image_sha256;
+    if (gen === undefined || gen === null || String(gen).trim() === '') errors.push(`${label}: required one of job_id | token | seed | image_sha256 — a handle on the worker's answer`);
+  }
+  return errors;
+}
+
+/** The plan door: expand the ring plan into the recipe, then mint as usual with the plan (and its audit) stored beside it. */
+export async function createLayeredPlanHandler(input) {
+  if (!input || typeof input !== 'object' || !input.plan || typeof input.plan !== 'object') {
+    throw new Error("The plan door needs `plan` — { schema: 'layered-plan-v1', frame, joints, segments, details?, include?, dials?, rig?, clips? }. Read get_solid_vocab({ id: 'layered' }) (the Plan section); the worked plans are docs/examples/dragon-body/seed-recipe.mjs and docs/examples/ring-plans/.");
+  }
+  let provenance;
+  if (input.plan_audit !== undefined) {
+    const errors = validatePlanAudit(input.plan_audit);
+    if (errors.length) throw new Error(`plan_audit refused:\n - ${errors.join('\n - ')}`);
+    const { source, prompt, job_id, token, seed, image_sha256 } = input.plan_audit;
+    provenance = { kind: PLAN_PROVENANCE_KIND, plan_audit: { source, ...(prompt ? { prompt } : {}), ...(job_id != null ? { job_id } : {}), ...(token != null ? { token } : {}), ...(seed != null ? { seed } : {}), ...(image_sha256 != null ? { image_sha256 } : {}) } };
+  }
+  let recipe;
+  try { recipe = expandPlan(input.plan); }
+  catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
+  return createLayeredHandler({ ...input, recipe, ...(provenance ? { provenance } : {}) });
+}
+
 export async function createLayeredHandler(input) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, dials, channels, units, facing, seat, toon, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, provenance, dials, channels, units, facing, seat, toon, ref, folder_ref: folderRef } = input;
   const manifest = {
     kind: 'layered',
     ...(title ? { title } : {}),
     recipe,
+    ...(plan && typeof plan === 'object' ? { plan } : {}),   // the authoring record, when the solid was minted through the plan door
+    ...(provenance && typeof provenance === 'object' ? { provenance } : {}),   // who printed the plan (validated by the plan door)
     dials: resolveLayeredDials(recipe.dials || {}, dials || {}),   // every dial stored at its value, so a patch by path finds it
     ...(channels && typeof channels === 'object' ? { channels } : {}),
     units: typeof units === 'string' ? units : 'm',   // stored, not defaulted at read: measure_solid and the STL scale read the manifest's units

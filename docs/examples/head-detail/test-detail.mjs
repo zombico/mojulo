@@ -20,10 +20,12 @@ test('deterministic: the same head and expression build byte-identical sources',
 });
 
 test('the core names no species: every species word lives in HEAD DATA', () => {
-  const src = readFileSync(new URL('./compile.mjs', import.meta.url), 'utf8');
-  const core = src.slice(src.indexOf('═ CORE'), src.indexOf('═ HEAD DATA'));
+  // the core is a control module now (station-loft-detail.js); the whole file is checked, not a section
+  const core = readFileSync(new URL('../../../control/lib/graph/polygonizer/station-loft-detail.js', import.meta.url), 'utf8');
   assert.ok(core.length > 1000);
   for (const word of ['dragon', 'bear', 'Horn', 'horn', 'crest', 'Crest', 'ear', 'fang']) assert.ok(!new RegExp(`\\b${word}\\b`).test(core), `core mentions ${word}`);
+  const example = readFileSync(new URL('./compile.mjs', import.meta.url), 'utf8');
+  assert.ok(example.indexOf('═ HEAD DATA') > 0 && !/^function (address|strip|tiles|eyeRegion|tongueRegion|build|bakeLayered)\b/m.test(example), 'the example defines no core operator');
 });
 
 test('the same expressions drive both heads, and a control a head lacks is a no-op', () => {
