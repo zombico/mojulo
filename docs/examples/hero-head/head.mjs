@@ -29,20 +29,23 @@ const addressMaps = (slots, skinSpec, r) => Object.fromEntries(Object.entries(sk
 // sections converge fast so their normals face forward. Slots: top, forehead, eye, cheek, jaw, lip, palate. ──
 const CRANIUM_SLOTS = ['top', 'foreheadR', 'eyeR', 'cheekR', 'jawR', 'lipR', 'palate', 'lipL', 'jawL', 'cheekL', 'eyeL', 'foreheadL'];
 const CRANIUM_ROWS = [ // [station, y, { top z, forehead [x, z], eye, cheek, jaw, lip, palate z }] metres from the atlas
-  ['st0', -0.095, { top: 0.105, forehead: [0.038, 0.095], eye: [0.060, 0.058], cheek: [0.064, 0.012], jaw: [0.050, -0.018], lip: [0.026, -0.034], palate: -0.038 }],
-  ['st1', -0.055, { top: 0.165, forehead: [0.055, 0.152], eye: [0.083, 0.085], cheek: [0.088, 0.020], jaw: [0.072, -0.024], lip: [0.036, -0.044], palate: -0.048 }],
-  ['st2',  0.000, { top: 0.190, forehead: [0.060, 0.176], eye: [0.090, 0.098], cheek: [0.094, 0.028], jaw: [0.080, -0.026], lip: [0.042, -0.050], palate: -0.055 }],
-  ['st3',  0.048, { top: 0.185, forehead: [0.058, 0.172], eye: [0.088, 0.096], cheek: [0.090, 0.028], jaw: [0.076, -0.024], lip: [0.042, -0.052], palate: -0.056 }],
-  ['st4',  0.076, { top: 0.165, forehead: [0.054, 0.152], eye: [0.076, 0.078], cheek: [0.078, 0.020], jaw: [0.064, -0.026], lip: [0.038, -0.052], palate: -0.056 }],
+  // the cranium carries the CHEEKS: the `jaw` slot runs along the jawline (the mandible's lower edge), so the band from
+  // the cheekbone down to it is one cheek plane and the band from it up to the lip is the cheek's underside; the
+  // hinged jaw part sits inside that U and shows only its chin and underside
+  ['st0', -0.095, { top: 0.105, forehead: [0.038, 0.095], eye: [0.060, 0.058], cheek: [0.064, 0.012], jaw: [0.050, -0.030], lip: [0.026, -0.034], palate: -0.038 }],
+  ['st1', -0.055, { top: 0.165, forehead: [0.055, 0.152], eye: [0.083, 0.085], cheek: [0.088, 0.020], jaw: [0.078, -0.070], lip: [0.036, -0.044], palate: -0.048 }],
+  ['st2',  0.000, { top: 0.190, forehead: [0.060, 0.176], eye: [0.090, 0.098], cheek: [0.094, 0.028], jaw: [0.082, -0.085], lip: [0.042, -0.050], palate: -0.055 }],
+  ['st3',  0.048, { top: 0.185, forehead: [0.058, 0.172], eye: [0.088, 0.096], cheek: [0.090, 0.028], jaw: [0.078, -0.082], lip: [0.042, -0.052], palate: -0.056 }],
+  ['st4',  0.076, { top: 0.165, forehead: [0.054, 0.152], eye: [0.076, 0.078], cheek: [0.078, 0.020], jaw: [0.066, -0.078], lip: [0.038, -0.052], palate: -0.056 }],
   // the face: from here the sections keep their height and lose their width, so the last bands stand nearly vertical
-  ['st5',  0.090, { top: 0.140, forehead: [0.042, 0.128], eye: [0.040, 0.062], cheek: [0.044, 0.015], jaw: [0.038, -0.028], lip: [0.028, -0.052], palate: -0.056 }],
-  ['st6',  0.098, { top: 0.120, forehead: [0.026, 0.110], eye: [0.012, 0.058], cheek: [0.014, 0.012], jaw: [0.014, -0.030], lip: [0.012, -0.052], palate: -0.055 }],
+  ['st5',  0.090, { top: 0.140, forehead: [0.042, 0.128], eye: [0.040, 0.062], cheek: [0.044, 0.015], jaw: [0.040, -0.074], lip: [0.028, -0.040], palate: -0.056 }],
+  ['st6',  0.098, { top: 0.120, forehead: [0.026, 0.110], eye: [0.012, 0.058], cheek: [0.014, 0.012], jaw: [0.014, -0.070], lip: [0.012, -0.040], palate: -0.056 }],
 ];
-const JAW_ROWS = [ // [station, y, { gum z, gumR [x, z], jawR [x, z], bottom z }]: the mandible from its angle to the chin
-  ['st0',  0.000, { gum: -0.058, gumR: [0.062, -0.058], jawR: [0.070, -0.072], bottom: -0.080 }],
-  ['st1',  0.040, { gum: -0.060, gumR: [0.056, -0.060], jawR: [0.064, -0.092], bottom: -0.102 }],
-  ['st2',  0.072, { gum: -0.060, gumR: [0.042, -0.060], jawR: [0.050, -0.098], bottom: -0.108 }],
-  ['st3',  0.090, { gum: -0.058, gumR: [0.026, -0.058], jawR: [0.032, -0.095], bottom: -0.104 }],
+const JAW_ROWS = [ // [station, y, { gum z, gumR [x, z], jawR [x, z], bottom z }]: the mandible, narrower than the cheeks above it
+  ['st0',  0.000, { gum: -0.058, gumR: [0.050, -0.058], jawR: [0.062, -0.080], bottom: -0.088 }],
+  ['st1',  0.040, { gum: -0.060, gumR: [0.048, -0.060], jawR: [0.060, -0.092], bottom: -0.100 }],
+  ['st2',  0.072, { gum: -0.060, gumR: [0.040, -0.060], jawR: [0.048, -0.096], bottom: -0.104 }],
+  ['st3',  0.090, { gum: -0.058, gumR: [0.026, -0.058], jawR: [0.032, -0.094], bottom: -0.102 }],
 ];
 const JAW_HINGE = { min: 0, max: 30, rest: 0, doc: 'degrees the jaw part rotates about its hinge slot (the chin goes down)', op: 'hinge', part: 'jaw', pivot: 'jaw/st0.gum', axis: 'x', sign: -1 };
 
@@ -72,7 +75,7 @@ export function heroHead({ hair = ['cap'], eye = {}, palette = {} } = {}) {
   const styles = hair.map((h) => { if (!HAIR[h]) throw new Error(`hero-head: unknown hair style '${h}' (have ${Object.keys(HAIR).join(', ')})`); return HAIR[h]; });
   const recipe = (() => {
     const r = stationRecipe({
-      cranium: { slots: CRANIUM_SLOTS, rows: CRANIUM_ROWS, caps: { back: [0, -0.103, 0.04], tip: [0, 0.101, 0.03] }, group: 'Skull', bands: (i) => (i >= 5 ? ['Skull', 'Skull', 'Skull', 'Skull', 'Lip', 'Lip'] : ['Skull', 'Skull', 'Skull', 'Skull', 'Skull', 'Skull']) },
+      cranium: { slots: CRANIUM_SLOTS, rows: CRANIUM_ROWS, caps: { back: [0, -0.103, 0.04], tip: [0, 0.101, 0.03] }, group: 'Skull', bands: () => ['Skull', 'Skull', 'Skull', 'Skull', 'Skull', 'Skull'] },
       jaw: { slots: ['gum', 'gumR', 'jawR', 'bottom', 'jawL', 'gumL'], rows: JAW_ROWS, caps: { back: [0, -0.02, -0.075], tip: [0, 0.098, -0.082] }, group: 'Jaw', bands: (i) => (i >= 1 ? ['Lip', 'Jaw', 'Jaw'] : ['Jaw', 'Jaw', 'Jaw']) },
       dials: { jawOpen: JAW_HINGE } });
     // the chin: a slot pair between the jaw side and the bottom, then volume fullest at the chin
@@ -80,6 +83,11 @@ export function heroHead({ hair = ['cap'], eye = {}, palette = {} } = {}) {
     // density where the face moves: halve the face bands and split the eye and cheek columns
     for (const [a, b] of [['st3', 'st4'], ['st4', 'st5'], ['st5', 'st6']]) refineStation(r, 'cranium', a, b);
     refineSlot(r, 'cranium', 'forehead', 'eyeR', 'browline'); refineSlot(r, 'cranium', 'eye', 'cheekR', 'orbit');
+    // the MOUTH at rest: the lip slot sits a little above the palate, so on the face stations the band between them
+    // stands on the front; split it into an upper lip and a parting line (band groups by name, not by index)
+    refineSlot(r, 'cranium', 'lip', 'palate', 'mouth', 0.6);
+    const C = r.parts.cranium; const kLip = C.slots.indexOf('mouthR') - 1;   // band k = between slot k and k + 1 on the right half
+    for (const [key, arr] of Object.entries(C.bandGroups)) { const [a] = key.split('-'); const y = C.stations.find((st) => st.id === a).points.top[1]; if (y >= 0.084) { arr[kLip] = 'Lip'; arr[kLip + 1] = 'Mouth'; } }
     return r; })();
   return {
     recipe,

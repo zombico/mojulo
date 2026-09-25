@@ -20,7 +20,9 @@ skull. It is the head the `create-hero` loop puts on the [hero form](../ring-pla
   gitignored spike tree. Never here.
 
 Where the face lives in this grammar: the cranium is a loft along `+y`, so the face is its front bands,
-not a separate plane. The eye sits at address `[4.9, 2.0]` (the band between the cheekbone station and the
+not a separate plane. The cranium carries the CHEEKS: its `jaw` slot runs along the jawline, so the band from the
+cheekbone down to it is one cheek plane and the hinged jaw part is the mandible inside that U, showing its chin
+and underside; the mouth at rest is a lip band and a parting line on the face front (band groups by name). The eye sits at address `[4.9, 2.0]` (the band between the cheekbone station and the
 face station, on the `eye` slot), the brow strip runs along the stations above it, the nose is a midline
 sweep at a `symmetricFrameAt`, the mouth is the seam between the cranium's lip band and the jaw's gum band
 with the cheek web closing its corners. Appeal is in the numbers: eye size (`regions.eye.R`) and spacing

@@ -12,6 +12,43 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Planar humanoid
+
+- **The humanoid starter.** `docs/examples/humanoid/`: the hero form with a `male` / `female` preset, the
+  body controls and a planar LANDMARK HEAD, hair / palette / expression / register independent of the
+  proportions. Begun as an outside spike on the hero form and reconciled into it: its streamlined body
+  (thighs from the hip crest, swells, tight overshoots) became the hero form's own, its proportion controls
+  became the form's `body` (waist, chest, chestDepth, hip, thigh, arm, neck, each cast with defaults), and
+  `humanoid.plan.mjs` is a thin wrapper over `heroPlan`.
+- **The female cast is not the male re-coloured.** A cast carries a uniform `scale` over the finished figure
+  (joints, rings and the worn head alike; `heroPlan({ scale })` overrides it): the female stands at 85 % of
+  the male's height, her shoulder yoke 15 % and her hips 20 % narrower than her first cut, measured at the
+  torso's shoulder station and the thighs' hip ring. A `bust` body control (a radius, 0 for none): two mounds
+  lofted off the chest station, right one authored and the left mirrored by name, that meet the mirror plane
+  only inside the torso, so the cleft is the gap between two round rings and the underside reads as a W; they
+  ride the torso bone and follow the `bulk` and `lean` dials.
+- **The hips taper into the body; the nose stands forward.** The thigh loft's crest, hip and upper-thigh rings
+  are centred inside the hip joint, so the pair is never wider than the waist it hangs from instead of
+  shelving out under the hem; `calf` joins the body controls (knee, calf swell and ankle radii). The female
+  has a narrower neck, head (`HEAD_WIDTH` per pole on the landmark head, the jaw with it) and calves. On both,
+  the landmark head's nose is a narrow wedge: the ala slot at a tenth of the head width, the tip a third
+  further forward.
+- **One pelvis, a cheekbone.** The thigh rings cross the mirror plane instead of touching it, so the two thighs
+  overlap through the middle and there is no groove up the front of the pelvis; the crest ring is as wide as the
+  waist less a hair and the male waist is narrower, so the torso hem and the hips meet. The landmark head's rows
+  carry an ORBIT and a CHEEK column: the outer slot stands furthest forward at the eye row (the zygomatic) and
+  recedes row by row to the mouth, the eye row's inner slot sinks under the brow. In profile the face is a
+  diagonal from cheekbone to chin, not a vertical wall meeting the jaw in an L.
+- **The landmark head.** `humanoidHead()`: the head as one designed surface. Horizontal landmark rows read
+  off the figure's own skull landmarks (`figure-head.js`) under the dimorph male / female pole and the
+  figure's head knobs, so forehead, eye plane, nose wedge, cheeks and chin are one surface; the skull / jaw
+  boundary follows the mandibular angle to the condyles, so the jaw hinges by the ear and the chin drops
+  under the cheeks instead of a horizontal puppet cut. Eyes, lids, brows, ears, nostrils and the mouth are
+  closed lofts pinned by address; hair is one continuous mass following the skull (`crop`, `swept`, `bob`);
+  expressions displace the connected flesh and are baked per cast, `jawOpen` stays live; four registers.
+  The hero form lifts a worn head whose chin would sit below the collar. A test file and the review renderer
+  (six views, expressions, 64 px silhouettes) come with it; the eyes gate is the operator's.
+
 ### Art direction
 
 - **The passes serve a read.** The creature and hero catalysts carry an "Art direction" section: primary
@@ -27,6 +64,20 @@ loops and the recipe format are unchanged.
 
 ### Create hero
 
+- **The loft segment.** A ring plan segment may be `kind: 'loft'`: explicit stations along a polyline
+  (`{ at, r, e? }`), each ring perpendicular to its local direction, caps pinched beyond the end rings unless
+  given, mirrored by name or in the plane like any segment. It is how a limb starts inside the trunk it hangs
+  from: a thigh from the hip crest at the waist down past the hip to the knee.
+- **The hero form, streamlined.** Picked up from an outside spike on the hero (its generator was lost, its plan
+  JSONs and renders remained): the two thighs are lofts from the hip crest and carry the pelvis between them, so
+  there is no pelvis part and the hips read as one line; the torso has a V and a narrow top the neck rises
+  from; the forearm and calf carry a mid swell; overshoots are small where the trunk covers the joint. `male` and
+  `female` cast words (shoulder span, an 8° shoulder drop, hip span, a girth) beside the figure-cast presets. The
+  hips are one mass: the thigh lofts' crest and hip rings reach the mirror plane and the hip spans are narrow
+  enough that the thighs meet at the crotch and the legs stand together (read off a reference through the
+  low-poly facet analyzer, where the whole trousers are one facet); the neck is thicker. The blank-head plan,
+  the register tests and the headed gate hold on the new form.
+
 - **The hero form.** `docs/examples/ring-plans/hero.plan.mjs`: a human ring plan on the vajra rest skeleton.
   Its joints come from `figure-cast.js` (a cast word or dial map, into metres), so the layered rig's core is
   the figure's own rest pose and the figure's pose words, gaits and emotes resolve on it unchanged; the mesh
@@ -40,7 +91,10 @@ loops and the recipe format are unchanged.
   `ring10` and `ring12` join `ring8` and `limb6`. A segment or station that names its own family or `e`
   keeps it; the defaults spelled out change nothing (a test). The hero's registers are its style block.
 - **The hero head.** `docs/examples/hero-head/`: a human head as HEAD DATA on the detail core, no new
-  operators: a cranium whose front bands stand nearly vertical (the face), a hinged jaw, skin maps by
+  operators: a cranium whose front bands stand nearly vertical (the face) and whose `jaw` slot runs along the
+  jawline so it carries the cheeks (read off a reference through the facet analyzer: one cheek plane from the
+  cheekbone to the jawline), a hinged jaw that is the mandible inside it (chin and underside, dropping under the
+  cheeks when the mouth opens), a lip band and a parting line on the face front, skin maps by
   landmark, the eye / brow / nostril / fold / cheek-web regions, ears and a midline nose, lips as band
   groups, and hair grown from the skull as data (`cap`, `bangs`, `tail`). Four expressions in the same
   words the dragon and the bear take. `bakeHero()` is the include a ring plan wears; the hero form takes it

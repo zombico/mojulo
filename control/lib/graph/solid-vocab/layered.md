@@ -50,7 +50,8 @@ and `export_model` see the compiled mesh itself (every closed part exact, whatev
   is what the seeds write by hand: `{ schema: 'layered-plan-v1', frame, joints: { name: [x, y, z] } (the right
   side), segments: [ { name, kind: 'trunk', stations: [{ z, r, yc?, e? }], caps, mirror: 'plane' } | { name, kind:
   'segment', from, to, rA, rB, e?, over?, mirror: 'plane' | 'name', bind: { bone, prev?, next? } } | { name, kind:
-  'chain', joints, r, over?, bind: { root } } ], details: [{ name, kind: 'claw', base, dir, length, radius, pin,
+  'chain', joints, r, over?, bind: { root } } | { name, kind: 'loft', stations: [{ at, r, e? }], caps?, mirror, bind } (explicit stations
+  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest) ], details: [{ name, kind: 'claw', base, dir, length, radius, pin,
   stretch?, mirror? }], heads: [{ name, plan, expression?, on: <joint> | shift, bind? }] (a detailed head as DATA, schema
   `layered-head-v1`: station tables, refine ops, skin maps by landmark, eye and regions, ornaments `sweep` /
   `teeth` / `disc`, midline pins; expanded at a preset expression (neutral, pant, flick, surprise, snarl) or

@@ -32,8 +32,9 @@ poses, animates, measures and exports.
 
 Grammar: `get_solid_vocab({ id: 'layered' })` (the Plan section, `style`, Exposure, Compare). The
 hero FORM is `docs/examples/ring-plans/hero.plan.json`, written by `hero.plan.mjs` (`heroPlan({ cast,
-register, girth, headScale, palette, head })`); the head is `docs/examples/hero-head/` (`heroHead({
-hair, eye, palette })`, `bakeHero()` → `baked.json`, the include a plan wears at its `headBase`).
+register, girth, headScale, palette, head, body })`; `male` / `female` casts, the body controls); the STARTER
+that puts it together is `docs/examples/humanoid/` (`humanoidPlan({ preset, body, face, register, hair,
+expression })` with the landmark head); the detail head is `docs/examples/hero-head/` (`bakeHero()`).
 
 ## The invariants — read first
 
@@ -83,14 +84,17 @@ hair, eye, palette })`, `bakeHero()` → `baked.json`, the include a plan wears 
             with the palette). The groups must separate; a Top and Bottom that merge are one
             colour too close. Change the palette, not the geometry.
 
-4. FACE     Wear the head: `head: bakeHero({ hair, eye, palette })` in the plan (or paste
-            docs/examples/hero-head/baked.json as the `include`). Pick the expression to bake
-            (neutral / smile / determined / surprised). Appeal is three numbers: eye size
-            (`regions.eye.R`), eye spacing (the `eye` slot's x at the face stations), the brow's
-            height. Change one, re-bake, look at the face view.
+4. FACE     Wear a head. The LANDMARK head (docs/examples/humanoid `humanoidHead({ preset, shape,
+            register, hair, expression })`): one designed surface on the figure's own skull landmarks,
+            the jaw hinged by the ear so the chin drops under the cheeks, the face knobs (`browRidge`,
+            `jawWidth`, `chinPoint`, `noseSize`, `cheekbone`, `eyeSize`) the appeal dials; or the
+            DETAIL head (docs/examples/hero-head `bakeHero({ hair, eye, palette })`, live expression
+            controls on the detail core). Pick the expression to bake (neutral / smile / determined /
+            surprised). Change one knob, re-bake, look at the face view.
 
-5. HAIR     Pick a style list (`cap`, `bangs`, `tail`) and size it against the skull: the cap's
-            (s, t) window is the hairline; `lean` sets the direction. Hair colour is the palette.
+5. HAIR     A style word (landmark head: `crop`, `swept`, `bob`, `none`, one continuous mass whose
+            perimeter follows the skull; detail head: a list of `cap`, `bangs`, `tail`, grown tiles).
+            Hair is a mass before it is tufts. Hair colour is the palette.
 
 6. LOOK     measure_solid({ ref }) → closure per part, size, the EXPOSURE ledger: both eyes must
             `reads` from the frontal and a three-quarter view, the hair from the back; anything

@@ -3,9 +3,11 @@
  * `heroPlan({ cast, register, girth, headScale, palette })` returns a `layered-plan-v1` plan whose JOINTS are the
  * figure's vajra rest landmarks (figure-vajra.js STAND, scaled by a figure-cast preset or dial map, then into
  * metres), so the rig's core is the figure's own rest pose and every pose word, gait and emote resolves the same
- * way it does on the SVG figure. The MESH is not the vajra field: it is rings along those joints — a pelvis and a
- * torso trunk, a neck, a head trunk (chin → crown), and one straight loft per limb bone (upper arm, forearm, a
- * mitten hand, thigh, shank, a foot whose overshoot behind the ankle is the heel, toes). Proportion is data: start
+ * way it does on the SVG figure. The MESH is not the vajra field: it is rings along those joints — a torso trunk, a
+ * neck, a head trunk (chin → crown), a THIGH LOFT from the hip crest to the knee (the two thighs carry the pelvis
+ * between them, so there is no pelvis part: the streamlined read), and one straight loft per remaining limb bone
+ * (upper arm, forearm with a swell, a mitten hand, shank with a calf, a foot whose overshoot behind the ankle is the
+ * heel, toes). Proportion is data: start
  * from a cast word, then edit the radii, station heights and `e` for THIS human. `register` sets the art style
  * (slot family and superellipse exponent) for every ring at once. Colour is the palette by group. Face, hair and
  * adornments are not here: the head is a blank trunk until the hero head is worn as an include. The neck names the
@@ -25,82 +27,123 @@ export const REGISTERS = {
   chamfer: { slots: 'ring8', limbSlots: 'ring8', e: 6 },
   box: { slots: 'ring8', limbSlots: 'ring8', e: 12 },
 };
-export const PALETTE = { Skin: '#e6b48c', Top: '#3d6fa8', Bottom: '#2c3a55', Shoes: '#4a3526' };
+export const PALETTE = { Skin: '#d9a77e', Top: '#3d6fa8', Bottom: '#2c3a55', Shoes: '#4a3526' };
+/** the hero's own cast words, on top of figure-cast's presets: a cast is dials on the vajra rest plus a girth */
+export const HERO_CASTS = {
+  // hip spans narrow enough that the thighs meet at the crotch and stay close to the knee (a reference read: the
+  // legs stand together, the hips are one mass); the shoulders sit a little inside the canonical span
+  male: { dials: { shoulderSpan: 0.96, shoulderDrop: 8, hipSpan: 0.62 }, girth: 1, scale: 1, body: { waist: 0.165, chest: 0.22, chestDepth: 0.115, hip: 0.1, thigh: 0.086, calf: 0.067, arm: 0.061, neck: 0.066 } },
+  // the female is not the male re-coloured: 85 % of his height, the shoulder yoke 15 % and the hips 20 % narrower than her
+  // first cut (measured at the torso's shoulder station and the thighs' hip ring), and a bust: two mounds on the chest
+  female: { dials: { shoulderSpan: 0.71, shoulderDrop: 8, hipSpan: 0.56 }, girth: 0.9, scale: 0.85, body: { waist: 0.15, chest: 0.17, chestDepth: 0.118, hip: 0.082, thigh: 0.082, calf: 0.058, arm: 0.053, neck: 0.052, bust: 0.07 } },
+};
+/** the BODY controls (metres, before girth): the radii the eye reads a build off. A cast carries its own defaults.
+ * `bust` is the radius of each of two mounds on the chest, 0 for none: they protrude from the chest station, meet the
+ * mirror plane only inside the torso (the cleft between them) and read as a circular W from below. */
+export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, thigh: 0.086, calf: 0.067, arm: 0.061, neck: 0.066, bust: 0 };
 
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
 const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
 
 /**
  * @param {object} opts
- *   cast       a figure-cast preset name or dial map (default 'canonical')
+ *   cast       a HERO_CASTS word (male / female), a figure-cast preset name or a dial map (default 'canonical')
  *   register   a REGISTERS key or { slots, limbSlots, e } (default 'round')
  *   girth      multiplies every ring radius (default 1)
  *   headScale  multiplies the head trunk's radii and its spread about the atlas (default 1; a chibi wants ≥ 1.3)
+ *   scale      one uniform scale over the finished figure, joints, rings and worn head alike (default the cast's, 1)
  *   palette    { group: '#hex' } (default PALETTE)
- *   head       a baked hero head (docs/examples/hero-head `bakeHero()` / baked.json) worn at the atlas instead of
- *              the blank head trunk: its cranium rides the head bone, its jaw a jaw bone with a `jaw` chain
+ *   body       overrides on BODY_DEFAULTS (waist, chest, chestDepth, hip, thigh, calf, arm, neck, bust: radii in metres)
+ *   head       a head include (docs/examples/hero-head `bakeHero()` / baked.json, or docs/examples/humanoid `humanoidHead()`)
+ *              worn at the atlas instead of the blank head trunk: its cranium rides the head bone, its jaw a jaw bone
+ *              with a `jaw` chain; a head whose chin would sit below the collar is lifted with its jaw anchors
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale = 1, palette = PALETTE, head = null } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale = 1, palette = PALETTE, head = null, body = {}, scale } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!reg) throw new Error(`hero.plan: unknown register '${register}' (have ${Object.keys(REGISTERS).join(', ')})`);
-  const m = castArmature(cast);
+  const preset = typeof cast === 'string' ? HERO_CASTS[cast] : null;
+  const m = castArmature(preset ? preset.dials : cast);
+  const g0 = girth * (preset?.girth ?? 1);
+  for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);
+  const b = { ...BODY_DEFAULTS, ...(preset?.body || {}), ...body };
+  const S = scale ?? preset?.scale ?? 1;
+  if (!(Number.isFinite(S) && S > 0)) throw new Error(`hero.plan: scale must be a positive number, got ${scale}`);
   const P = (k) => [m[k].x, m[k].y, m[k].z].map((v) => r6(v * SCALE));
-  const g = (v) => (Array.isArray(v) ? v.map((x) => r6(x * girth)) : r6(v * girth));
+  const g = (v, f = g0) => (Array.isArray(v) ? v.map((x) => r6(x * f)) : r6(v * f));
 
   // ── the joint table (metres): midline hubs and the right side; hands and feet extend the core ──
   const J = { pelvisHub: P('pelvisHub'), navel: P('navel'), neckHub: P('neckHub'), headBase: P('headBase'), headTop: P('headTop'),
     hip: P('hipR'), knee: P('kneeR'), ankle: P('ankleR'), shoulder: P('shoulderR'), elbow: P('elbowR'), wrist: P('wristR') };
-  J.toeBase = R(add(J.ankle, [0, 0.11, J.ankle[2] > 0.02 ? 0.02 - J.ankle[2] : 0]));
-  J.toeTip = R(add(J.toeBase, [0, 0.11, -0.005]));
+  J.toeBase = R(add(J.ankle, [0, 0.085, J.ankle[2] > 0.02 ? 0.02 - J.ankle[2] : 0]));
+  J.toeTip = R(add(J.toeBase, [0, 0.08, -0.005]));
   J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09)));
   const joints = Object.fromEntries(Object.entries(J).filter(([k]) => !['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop'].includes(k)));
   Object.assign(joints, { neckHub: J.neckHub, headBase: J.headBase });
 
-  // ── the trunks: stations by fraction of the bone they sit on, radii [side, front] ──
+  // ── the trunk: the torso alone. There is no pelvis part: the thighs start at the hip crest and carry the pelvis
+  // between them (the streamlined read), the `pelvis` BONE still exists for the rig ──
   const zp = J.pelvisHub[2], zn = J.navel[2], zs = J.neckHub[2], hb = J.headBase[2], ht = J.headTop[2];
   const L = zn - zp, T = zs - zn, H = (ht - hb) * headScale;
   const st = (z, r, extra = {}) => ({ z: r6(z), r: g(r), ...extra });
-  const hipHalf = J.hip[0], shoulderHalf = J.shoulder[0];
-  // the pelvis envelopes the thigh tops: its hip station reaches past the hip joints by most of a thigh radius
-  const pelvis = { name: 'pelvis', kind: 'trunk', stations: [
-    st(zp - 0.3 * L, [hipHalf / girth + 0.03, 0.13], { yc: 0.02 }), st(zp, [hipHalf / girth + 0.07, 0.15], { yc: 0.02 }), st(zp + 0.7 * L, [0.155, 0.105]),
-  ], caps: { back: R([0, 0, zp - 0.5 * L]), tip: R([0, 0, zp + 0.95 * L]) }, group: 'Bottom', mirror: 'plane', bind: 'pelvis' };
+  const shoulderHalf = J.shoulder[0], zWaist = zp + 0.63 * L;
   const torso = { name: 'torso', kind: 'trunk', stations: [
-    st(zp + 0.7 * L, [0.155, 0.105]), st(zn, [0.175, 0.115], { yc: 0.005 }), st(zn + 0.55 * T, [0.215, 0.13], { yc: 0.01 }),
-    st(zs - 0.01, [shoulderHalf / girth + 0.04, 0.12]), st(zs + 0.045, [0.15, 0.10]),
-  ], caps: { back: R([0, 0, zp + 0.5 * L]), tip: R([0, 0, zs + 0.085]) }, group: 'Top', mirror: 'plane',
+    st(zWaist, [b.waist, 0.098], { yc: 0.01 }), st(zn, [b.waist * 1.05, 0.102]), st(zn + 0.55 * T, [b.chest, b.chestDepth], { yc: 0.006 }),
+    st(J.shoulder[2] + 0.021, [shoulderHalf / g0 + b.arm * 0.72, 0.104]), st(zs + 0.025, [b.neck * 1.1, b.neck * 0.86]),
+  ], caps: { back: R([0, 0, zp + 0.54 * L]), tip: R([0, 0, zs + 0.04]) }, group: 'Top', mirror: 'plane',
     bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, torso: 0.5 }, st4: { torso: 0.6, neck: 0.4 }, tip: { neck: 1 } } } };
-  const neck = { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([0.062, 0.058]), rB: g([0.056, 0.054]), slots: reg.slots, over: [0.3, 0.4], group: 'Skin', mirror: 'plane',
+  const neck = { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [0.15, 0.2], group: 'Skin', mirror: 'plane',
     bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } };
   const hs = (k, r, yc) => ({ z: r6(hb + k * H), r: r.map((x) => r6(x * H)), ...(yc ? { yc: r6(yc * H) } : {}) });
-
-  // ── the limbs: right side authored, left by name; each a straight loft whose ends overshoot the joint ──
-  // a limb takes the style's family and exponent; hands and feet name their own e so they never go rounder than a slab
-  const limb = (name, from, to, rA, rB, over, group, prev, next, e) => ({ name, kind: 'segment', from, to, rA: g(rA), rB: g(rB), ...(e != null ? { e } : {}), over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const blankHead = { name: 'head', kind: 'trunk', stations: [
     hs(-0.25, [0.48, 0.5], 0.04), hs(0.35, [0.70, 0.74], 0.06), hs(0.9, [0.74, 0.78], 0.04), hs(1.35, [0.66, 0.70]), hs(1.65, [0.42, 0.46]),
   ], caps: { back: R([0, 0, hb - 0.45 * H]), tip: R([0, 0, hb + 1.8 * H]) }, group: 'Skin', mirror: 'plane', bind: 'head' };
-  const segments = [pelvis, torso, neck, ...(head ? [] : [blankHead]),
-    limb('upperArmR', 'shoulder', 'elbow', 0.062, 0.046, [0.15, 0.6], 'Top', 'torso', 'foreArmR'),
-    limb('foreArmR', 'elbow', 'wrist', 0.046, 0.036, [0.6, 0.6], 'Top', 'upperArmR', 'handR'),
-    limb('handR', 'wrist', 'knuckles', [0.044, 0.028], [0.046, 0.02], [0.4, 0.35], 'Skin', 'foreArmR', null, Math.max(reg.e, 3)),
-    limb('thighR', 'hip', 'knee', [0.085, 0.095], 0.066, [0.15, 0.6], 'Bottom', 'pelvis', 'shankR'),
-    limb('shankR', 'knee', 'ankle', 0.064, 0.04, [0.6, 0.6], 'Bottom', 'thighR', 'footR'),
-    limb('footR', 'ankle', 'toeBase', [0.046, 0.038], [0.056, 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', Math.max(reg.e, 3)),
-    limb('toesR', 'toeBase', 'toeTip', [0.056, 0.028], [0.05, 0.02], [0.2, 0.35], 'Shoes', 'footR', null, Math.max(reg.e, 3)),
+
+  // ── the limbs: right side authored, left by name. The thigh is a LOFT from the hip crest (half the pelvis width, at
+  // the waist) down past the hip to the knee, so the two thighs together read as the hips; arms and shanks carry a
+  // mid-station swell; overshoots are small where the trunk already covers the joint ──
+  const hip = J.hip, knee = J.knee; const dz = zp - knee[2];
+  const thigh = { name: 'thighR', kind: 'loft', stations: [
+    // the crest, hip and upper-thigh rings CROSS the mirror plane (side radius well past the centre's x), so the two
+    // thighs overlap through the middle: one pelvis with no groove up its front and back. Their centres sit inside the
+    // hip joint (0.45 / 0.62 / 0.72 of its x): the crest is as wide as the waist less a hair, so the torso hem meets
+    // the hips instead of shelving over them; the hip ring is `hip` wide (the pair a little past the waist)
+    { at: R([0.45 * hip[0], 0.01, zWaist]), r: [r6(g(b.waist) - 0.005 - 0.45 * hip[0]), 0.1] }, { at: R([0.62 * hip[0], hip[1] / 2, zp]), r: [r6(Math.max(b.hip, 0.62 * hip[0] + 0.004)), r6(b.hip + 0.013)] }, { at: R([0.72 * hip[0], hip[1], zp - 0.215 * dz]), r: [r6(Math.max(0.72 * hip[0] + 0.004, b.thigh)), r6(b.thigh + 0.016)] },
+    { at: R([hip[0] + 0.5 * (knee[0] - hip[0]), hip[1], zp - 0.5 * dz]), r: [r6((b.thigh + b.calf - 0.003) / 2 + 0.007), r6((b.thigh + b.calf - 0.003) / 2 + 0.011)] }, { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(b.calf - 0.003), r6(b.calf - 0.001)] },
+  ], caps: { back: R([0.3 * hip[0], 0.01, zWaist + 0.003]), tip: R([knee[0], knee[1], knee[2] - 0.025]) }, group: 'Bottom', mirror: 'name',
+    bind: { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.8, thighR: 0.2 }, st2: { pelvis: 0.2, thighR: 0.8 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } } };
+  // the bust: two mounds, right one authored, from inside the chest forward and a little down. Their base rings overlap
+  // the mirror plane inside the torso; where they leave the chest they are apart, so the cleft is the gap between two
+  // round rings and the underside reads as a W. Rings in the torso's family; the torso bone carries them.
+  const zc = zn + 0.55 * T, yFront = 0.006 + g(b.chestDepth), xb = 0.42 * g(b.chest), rb = g(b.bust);
+  const bust = rb > 0 ? [{ name: 'bustR', kind: 'loft', slots: reg.slots, stations: [
+    { at: R([xb, yFront - 0.06, zc + 0.01]), r: r6(rb * 1.02) }, { at: R([xb * 1.05, yFront - 0.02, zc]), r: r6(rb) },
+    { at: R([xb * 1.1, yFront + 0.02, zc - 0.012]), r: r6(rb * 0.94) }, { at: R([xb * 1.14, yFront + 0.045, zc - 0.024]), r: r6(rb * 0.74) },
+  ], caps: { back: R([xb, yFront - 0.075, zc + 0.012]), tip: R([xb * 1.15, yFront + 0.062, zc - 0.032]) }, group: 'Top', mirror: 'name', bind: 'torso' }] : [];
+  const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
+  const segments = [torso, ...bust, neck, ...(head ? [] : [blankHead]),
+    limb('upperArmR', 'shoulder', 'elbow', g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), [0.03, 0.36], 'Top', 'torso', 'foreArmR'),
+    limb('foreArmR', 'elbow', 'wrist', g([b.arm * 0.76, b.arm * 0.86]), g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.arm * 0.77, b.arm * 0.82]) }),
+    limb('handR', 'wrist', 'knuckles', g([0.035, 0.025]), g([0.037, 0.023]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) }),
+    thigh,
+    limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)] }),
+    limb('footR', 'ankle', 'toeBase', [0.046, 0.038], [0.056, 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),
+    limb('toesR', 'toeBase', 'toeTip', [0.056, 0.028], [0.05, 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) }),
   ];
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
-  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S'], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S'];
-  const HEAD_SHIFT = [0, 0, hb];
+  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S'], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S'], trunkParts = ['torso', ...(rb > 0 ? ['bust$S'] : [])];
+  // a worn head sits at the atlas; if its chin would hang below the collar (a big or chibi head), lift it, jaw anchors too
+  const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : 0;
+  const rise = head ? Math.max(0, zs + 0.07 - (hb + chin)) : 0;
+  const HEAD_SHIFT = [0, 0, r6(hb + rise)];
   const shifted = (p) => R(add(p, HEAD_SHIFT));
   const include = head ? [{ name: 'head', parts: head.parts, dials: head.dials, creases: head.creases, palette: head.palette, shift: HEAD_SHIFT, bind: head.bind }] : [];
   const dials = {
     ...(head ? { head: { op: 'include', name: 'head' } } : {}),
-    bulk: { min: 0.8, max: 1.4, rest: 1, doc: 'x scale of the torso and arms about the mirror plane (broader chest and shoulders)', op: 'scale', axis: 'x', pivot: 0, parts: ['torso', ...armParts], blend: all(1) },
-    stance: { min: 0.8, max: 1.35, rest: 1, doc: 'x scale of the pelvis and legs about the mirror plane (wider stance, thicker legs)', op: 'scale', axis: 'x', pivot: 0, parts: ['pelvis', ...legParts], blend: all(1) },
-    lean: { min: -10, max: 25, rest: 0, doc: 'degrees the torso, arms, neck and head hinge forward about the pelvis tip; the legs stay planted', op: 'hinge', parts: ['torso', 'neck', ...(head ? ['cranium', 'jaw'] : ['head']), ...armParts], pivot: 'pelvis/tip', axis: 'x', sign: -1 },
+    bulk: { min: 0.8, max: 1.4, rest: 1, doc: 'x scale of the torso and arms about the mirror plane (broader chest and shoulders)', op: 'scale', axis: 'x', pivot: 0, parts: [...trunkParts, ...armParts], blend: all(1) },
+    stance: { min: 0.8, max: 1.35, rest: 1, doc: 'x scale of the legs about the mirror plane (wider hips and stance, thicker legs)', op: 'scale', axis: 'x', pivot: 0, parts: legParts, blend: all(1) },
+    lean: { min: -10, max: 25, rest: 0, doc: 'degrees the torso, arms, neck and head hinge forward about the waist; the legs stay planted', op: 'hinge', parts: [...trunkParts, 'neck', ...(head ? ['cranium', 'jaw'] : ['head']), ...armParts], pivot: 'torso/back', axis: 'x', sign: -1 },
   };
 
   // ── the rig: the vajra core IS the joint table; hands and feet ride or plant ──
@@ -132,13 +175,35 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     wave: [READY, { ...READY, armR: { x: 0.35, y: 0.25, z: 0.9 }, elbowR: 'half', head: { x: 0.1, y: 0.95, z: 0.3 } }, { ...READY, armR: { x: 0.6, y: 0.2, z: 0.75 }, elbowR: 'slight' }, { ...READY, armR: { x: 0.35, y: 0.25, z: 0.9 }, elbowR: 'half' }],
   };
 
-  return {
+  return scalePlan({
     schema: PLAN_SCHEMA,
-    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}), soles on z = 0, facing +y` },
+    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${S !== 1 ? `, ×${S}` : ''}), soles on z = 0, facing +y` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot' },
     style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e },
     joints, segments, include, dials, palette, rig, clips,
-  };
+  }, S);
+}
+
+/** One uniform scale over a finished hero plan: every joint, ring, cap, include point and rig anchor, so the figure keeps
+ * its proportions at another height (overshoots are fractions and dials are angles or ratios, so they stay). */
+export function scalePlan(plan, s) {
+  if (s === 1) return plan;
+  const v = (p) => R(mul(p, s)), rad = (r) => (Array.isArray(r) ? r.map((x) => r6(x * s)) : r6(r * s));
+  const joints = Object.fromEntries(Object.entries(plan.joints).map(([k, p]) => [k, v(p)]));
+  const segments = plan.segments.map((seg) => {
+    const out = { ...seg };
+    if (seg.kind === 'trunk') out.stations = seg.stations.map((st) => ({ ...st, z: r6(st.z * s), r: rad(st.r), ...(st.yc != null ? { yc: r6(st.yc * s) } : {}) }));
+    if (seg.kind === 'loft') out.stations = seg.stations.map((st) => ({ ...st, at: v(st.at), r: rad(st.r) }));
+    if (seg.kind === 'segment') { out.rA = rad(seg.rA); out.rB = rad(seg.rB); if (seg.rMid != null) out.rMid = rad(seg.rMid); }
+    if (seg.kind === 'chain') out.r = rad(seg.r);
+    if (seg.caps) out.caps = { back: v(seg.caps.back), tip: v(seg.caps.tip) };
+    return out;
+  });
+  const include = (plan.include || []).map((inc) => ({ ...inc, shift: v(inc.shift), parts: Object.fromEntries(Object.entries(inc.parts).map(([name, part]) => [name, part.stations
+    ? { ...part, stations: part.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([k, p]) => [k, v(p)])) })), caps: Object.fromEntries(Object.entries(part.caps).map(([k, p]) => [k, v(p)])) }
+    : { ...part, offsets: Object.fromEntries(Object.entries(part.offsets).map(([k, p]) => [k, v(p)])) }])) }));
+  const rigJoints = Object.fromEntries(Object.entries(plan.rig.joints).map(([k, j]) => [k, { ...j, at: v(j.at) }]));
+  return { ...plan, joints, segments, include, rig: { ...plan.rig, joints: rigJoints } };
 }
 
 export const plan = heroPlan();
