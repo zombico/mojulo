@@ -1115,3 +1115,66 @@ for later since the recipe-level noise-forward path fully covers armory.
   demolition-themed pass if asked.
 - **Spatial/distance modeling (a shot echoing down a canyon)** — the world's
   atmosphere model owns space; cues stay dry (B10 call, unchanged).
+
+---
+
+## B12 — orchestra and era synthesis: the doctrine amended (2026-09-25)
+
+Orchestral writing and the circuit-and-math era (analog and virtual-analog
+synths, FM, drum machines, BBD chorus and tape, rave, acid, trance, DnB,
+French house) both need things B5/B6 put out: a patch LFO, a trance gate, a
+sidechain pump, hairpins, a stutter. The operator adopted this amendment.
+
+### Doctrine (amended)
+
+- **In: deterministic, recipe-derived scheduling of known params at known
+  times.** Each item below is still a pure function of (recipe, seed, time):
+  - a bounded patch LFO (two slots, fixed targets: pitch, filter, pw, amp, pan)
+  - the trance gate and the sidechain duck (per-note gain lanes derived from
+    the recipe's own onsets)
+  - hairpins
+  - stutter
+- **Still out:**
+  - audio-rate modulation matrices
+  - free-form automation lanes
+  - anything that reads the audio back to decide the schedule
+- **Native WebAudio only.** No AudioWorklet in this round. So there is no hard
+  sync, no true zero-delay ladder (two cascaded biquads stand in) and no
+  sample-rate crush. A worklet lands only if a spike proves export parity byte
+  for byte.
+- **Synthesized, never sampled (unchanged).** The era's sampled idioms (the Amen
+  break, ROMpler multisamples, vocal chops, vinyl) are modeled from
+  synthesized hits or left out.
+- **Descriptive ids.** Instrument and patch ids name the sound (`acid-bass`,
+  `drum-machine-88`, `supersaw-lead`). The machines they recall (303, 808, 909,
+  JP-8000, TX81Z, Juno) appear only in card prose.
+- **The kernel budget is per page.** B5 capped kernel growth at ~2× its B0
+  size. Since the audio-fidelity round the kernel is emitted in feature slices,
+  so a page pays only for what its recipe uses and a no-opt-in page is the 2.1
+  kernel byte for byte. The cap now reads per slice: each era slice has to
+  earn its bytes, and the living source may be larger than any page that
+  embeds it.
+
+### What it built on
+
+- The score substrate: meter, a tempo map, phrases + form, object events,
+  dynamics.
+- Articulations.
+- The orchestral shelf.
+- The percussion kits (circuits, hands, orchestra, the arena).
+- The virtual-analog + 4-op FM core.
+- The era rack.
+
+Each lands as its own kernel slice, detected from the recipe. Schedule-side
+work (form expansion, articulations, choke, the drummer's feel, step
+accent/slide/ratchet/prob, gate, duck, stutter) is pure and seeded, and it
+lowers to per-note patch overrides and gain lanes. The transport and the WAV
+export read the same events.
+
+### Found on the way
+
+- node-web-audio-api's oscillator FM (a modulator into `frequency`) is about
+  8 dB off ideal FM. A modulated DelayNode (phase modulation) matches ideal, so
+  the 4-op FM voice is built that way.
+- The master bus compressor delays every render by its ~6 ms look-ahead.
+  Timing measurements read from the audible onset.

@@ -25,8 +25,8 @@
  * exporter (a score is not audio); this emitter only links them by ref.
  */
 
-import { buildBeatsKernel } from './beats-kernel.js';
-import { PATCHES } from './audio-patches.js';
+import { emitBeatsKernel, BEATS_KERNEL_FEATURES } from './beats-kernel.js';
+import { beatsFeatures, pagePatches } from './beats-features.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -72,6 +72,150 @@ function variantPanel(v, isBase) {
   </section>`;
 }
 
+// The in-browser WAV realizer, mirroring renderBeatsOffline's pattern path in
+// two forms: the pre-fidelity one (so an opt-in-free page is unchanged) and
+// the fidelity one (patchParams, kits, glide, pan/room/master, cue variants).
+const REALIZER = [
+  "const clamp01 = (v) => Math.max(0, Math.min(1, v));",
+  "function planPattern(manifest, loops) {",
+  "  const pat = KERNEL.patternEvents(manifest);",
+  "  const tracks = manifest.tracks || [];",
+  "  const entries = [];",
+  "  for (let cursor = 0; cursor < loops; cursor++) {",
+  "    const b = cursor * pat.duration;",
+  "    pat.events.forEach((ev, ei) => {",
+  "      const tr = tracks.find((c) => c.name === ev.channel);",
+  "      if (tr && (tr.cue || tr.gesture)) { entries.push({ type: 'cue', t: b + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel }); return; }",
+  "      const feel = tr && tr.feel;",
+  "      ev.notes.forEach((n, ni) => {",
+  "        const fl = KERNEL.noteFeel(feel, manifest.seed, cursor * 1000 + ei, ni, ev.notes.length);",
+  "        entries.push({ type: 'note', t: b + ev.t + fl.timeOffset, channel: ev.channel, patch: (tr && tr.patch) || 'sinePluck', pluck: fl.pluck, note: n, dur: ev.dur, vel: ev.vel * fl.velScale });",
+  "      });",
+  "    });",
+  "  }",
+  "  return { entries, duration: loops * pat.duration };",
+  "}",
+  "function encodeWav(buf) {",
+  "  const nCh = buf.numberOfChannels, sr = buf.sampleRate, len = buf.length, blockAlign = nCh * 2;",
+  "  const dataBytes = len * blockAlign, ab = new ArrayBuffer(44 + dataBytes), dv = new DataView(ab);",
+  "  const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };",
+  "  wr(0, 'RIFF'); dv.setUint32(4, 36 + dataBytes, true); wr(8, 'WAVE'); wr(12, 'fmt ');",
+  "  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, nCh, true);",
+  "  dv.setUint32(24, sr, true); dv.setUint32(28, sr * blockAlign, true); dv.setUint16(32, blockAlign, true);",
+  "  dv.setUint16(34, 16, true); wr(36, 'data'); dv.setUint32(40, dataBytes, true);",
+  "  const chans = []; for (let c = 0; c < nCh; c++) chans.push(buf.getChannelData(c));",
+  "  let off = 44;",
+  "  for (let i = 0; i < len; i++) for (let c = 0; c < nCh; c++) {",
+  "    const s = Math.max(-1, Math.min(1, chans[c][i]));",
+  "    dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;",
+  "  }",
+  "  return new Blob([ab], { type: 'audio/wav' });",
+  "}",
+  "async function renderWav(manifest) {",
+  "  const sr = 44100, tail = 2, loops = 2;",
+  "  const plan = planPattern(manifest, loops);",
+  "  const total = plan.duration + tail;",
+  "  const octx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * sr)), sr);",
+  "  const eng = KERNEL.createEngine(octx);",
+  "  const chains = {}, transposeFor = {};",
+  "  for (const ch of (manifest.tracks || [])) {",
+  "    const built = eng.buildChain(ch.chain, manifest.seed, manifest.bpm);",
+  "    built.output.connect(eng.channelGain(ch.name));",
+  "    let dest = built.input;",
+  "    if (ch.tone !== undefined) { const tn = octx.createBiquadFilter(); tn.type = 'lowpass'; tn.Q.value = 0.5; tn.frequency.value = KERNEL.toneFreq(ch.tone); tn.connect(built.input); dest = tn; }",
+  "    chains[ch.name] = dest;",
+  "    if (ch.transpose) transposeFor[ch.name] = Math.pow(2, ch.transpose / 12);",
+  "  }",
+  "  for (const e of plan.entries) {",
+  "    const t = Math.max(0, e.t);",
+  "    if (e.type === 'cue') eng.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel);",
+  "    else { const patch = PATCHES[e.patch] || {}; const p = e.pluck ? { ...patch, pick: clamp01((patch.pick || 0) + e.pluck) } : patch; eng.playVoice(p, KERNEL.noteHz(e.note) * (transposeFor[e.channel] || 1), t, e.dur, e.vel, chains[e.channel]); }",
+  "  }",
+  "  return encodeWav(await octx.startRendering());",
+  "}",
+  '',
+].join('\n');
+const REALIZER_FIDELITY = [
+  "const clamp01 = (v) => Math.max(0, Math.min(1, v));",
+  "function planPattern(manifest, loops) {",
+  "  const pat = KERNEL.patternEvents(manifest);",
+  "  const tracks = manifest.tracks || [];",
+  "  const entries = [];",
+  "  const glides = [KERNEL.glideNotes(pat.events), KERNEL.glideNotes(pat.events, true)];",
+  "  for (let cursor = 0; cursor < loops; cursor++) {",
+  "    const b = cursor * pat.duration;",
+  "    pat.events.forEach((ev, ei) => {",
+  "      const tr = tracks.find((c) => c.name === ev.channel);",
+  "      if (tr && (tr.cue || tr.gesture)) { entries.push({ type: 'cue', t: b + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel, variant: tr.vary ? cursor * 1000 + ei + 1 : 0 }); return; }",
+  "      const feel = tr && tr.feel;",
+  "      ev.notes.forEach((n, ni) => {",
+  "        const fl = KERNEL.noteFeel(feel, manifest.seed, cursor * 1000 + ei, ni, ev.notes.length);",
+  "        entries.push({ type: 'note', t: b + ev.t + fl.timeOffset, channel: ev.channel, patch: (tr && tr.patch) || 'sinePluck', pluck: fl.pluck, note: n, dur: ev.dur, vel: ev.vel * fl.velScale, glideFrom: tr && tr.glide ? glides[cursor ? 1 : 0][ei] : null });",
+  "      });",
+  "    });",
+  "  }",
+  "  return { entries, duration: loops * pat.duration };",
+  "}",
+  "function encodeWav(buf) {",
+  "  const nCh = buf.numberOfChannels, sr = buf.sampleRate, len = buf.length, blockAlign = nCh * 2;",
+  "  const dataBytes = len * blockAlign, ab = new ArrayBuffer(44 + dataBytes), dv = new DataView(ab);",
+  "  const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };",
+  "  wr(0, 'RIFF'); dv.setUint32(4, 36 + dataBytes, true); wr(8, 'WAVE'); wr(12, 'fmt ');",
+  "  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, nCh, true);",
+  "  dv.setUint32(24, sr, true); dv.setUint32(28, sr * blockAlign, true); dv.setUint16(32, blockAlign, true);",
+  "  dv.setUint16(34, 16, true); wr(36, 'data'); dv.setUint32(40, dataBytes, true);",
+  "  const chans = []; for (let c = 0; c < nCh; c++) chans.push(buf.getChannelData(c));",
+  "  let off = 44;",
+  "  for (let i = 0; i < len; i++) for (let c = 0; c < nCh; c++) {",
+  "    const s = Math.max(-1, Math.min(1, chans[c][i]));",
+  "    dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;",
+  "  }",
+  "  return new Blob([ab], { type: 'audio/wav' });",
+  "}",
+  "async function renderWav(manifest) {",
+  "  const sr = 44100, tail = 2, loops = 2;",
+  "  const plan = planPattern(manifest, loops);",
+  "  const total = plan.duration + tail;",
+  "  const octx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * sr)), sr);",
+  "  const eng = KERNEL.createEngine(octx);",
+  "  eng.setMaster(manifest.master);",
+  "  const chains = {}, transposeFor = {}, rowFor = {};",
+  "  for (const ch of (manifest.tracks || [])) {",
+  "    const input = eng.routeChannel(ch, manifest);",
+  "    let dest = input;",
+  "    if (ch.tone !== undefined) { const tn = octx.createBiquadFilter(); tn.type = 'lowpass'; tn.Q.value = 0.5; tn.frequency.value = KERNEL.toneFreq(ch.tone); tn.connect(input); dest = tn; }",
+  "    chains[ch.name] = dest;",
+  "    rowFor[ch.name] = ch;",
+  "    if (ch.transpose) transposeFor[ch.name] = Math.pow(2, ch.transpose / 12);",
+  "  }",
+  "  for (const e of plan.entries) {",
+  "    const t = Math.max(0, e.t);",
+  "    if (e.type === 'cue') { eng.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel, e.variant); continue; }",
+  "    const row = rowFor[e.channel], tr = transposeFor[e.channel] || 1;",
+  "    const patch = KERNEL.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);",
+  "    if (!patch) continue;",
+  "    let p = e.pluck ? { ...patch, pick: clamp01((patch.pick || 0) + e.pluck) } : patch;",
+  "    if (e.glideFrom != null) p = { ...p, glide: row.glide, glideFrom: KERNEL.noteHz(e.glideFrom) * tr };",
+  "    const hz = KERNEL.noteHz(e.note) * tr;",
+  "    eng.playVoice(p, hz, t, e.dur, e.vel, chains[e.channel], KERNEL.noteKey(manifest.seed, e.channel, e.t, hz));",
+  "  }",
+  "  return encodeWav(await octx.startRendering());",
+  "}",
+  '',
+].join('\n');
+
+// the era realizer (orchestra and era): the fidelity one plus per-event
+// overrides (pp) and step probability — only when a variant uses an era slice,
+// so a fidelity exhibit keeps its bytes.
+const REALIZER_ERA = REALIZER_FIDELITY
+  .replace("    pat.events.forEach((ev, ei) => {\n      const tr = tracks.find((c) => c.name === ev.channel);\n      if (tr && (tr.cue || tr.gesture)) { entries.push({ type: 'cue', t: b + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel, variant: tr.vary ? cursor * 1000 + ei + 1 : 0 }); return; }",
+    "    pat.events.forEach((ev, ei) => {\n      if (ev.prob != null && !KERNEL.stepKeep(manifest.seed, cursor, ei, ev.prob)) return;\n      const tr = tracks.find((c) => c.name === ev.channel);\n      if (tr && (tr.cue || tr.gesture)) { entries.push({ type: 'cue', t: b + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel, variant: tr.vary ? cursor * 1000 + ei + 1 : 0 }); return; }")
+  .replace("glideFrom: tr && tr.glide ? glides[cursor ? 1 : 0][ei] : null });", "glideFrom: tr && tr.glide ? glides[cursor ? 1 : 0][ei] : null, pp: ev.pp });")
+  .replace("    const patch = KERNEL.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);\n    if (!patch) continue;",
+    "    const got = KERNEL.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);\n    if (!got) continue;\n    const patch = e.pp ? { ...got, ...e.pp } : got;");
+const ERA = new Set(['ev', 'score', 'orch', 'perc', 'va', 'fx']);
+const FIDELITY = ['x', 'voice', 'strings', 'mix', 'sfx'];
+
 export function emitBeatsDiff(variants, opts = {}) {
   const base = variants[0];
   for (const v of variants) v.baseRef = base.ref;
@@ -80,6 +224,9 @@ export function emitBeatsDiff(variants, opts = {}) {
   const bpm = base.manifest.bpm;
   const facts = `${bpm} BPM${base.manifest.swing ? ` · swing ${Math.round(base.manifest.swing * 100)}%` : ''} · ${base.manifest.steps} steps · synthesized live`;
   const MANIFESTS = Object.fromEntries(variants.map((v) => [v.ref, v.manifest]));
+  // a variant using any fidelity opt-in gets the full kernel and the matching
+  // in-browser WAV realizer; otherwise the page is the pre-fidelity page.
+  const feats = [...new Set(variants.flatMap((v) => beatsFeatures(v.manifest)))];
 
   return `<!doctype html>
 <html lang="en">
@@ -165,8 +312,8 @@ export function emitBeatsDiff(variants, opts = {}) {
 </div>
 <script>
 const MANIFESTS = ${JSON.stringify(MANIFESTS)};
-const PATCHES = ${JSON.stringify(PATCHES)};
-const KERNEL = (${buildBeatsKernel.toString()})();
+const PATCHES = ${JSON.stringify(pagePatches(...variants.map((v) => v.manifest)))};
+const KERNEL = (${emitBeatsKernel(feats.some((f) => ERA.has(f)) ? BEATS_KERNEL_FEATURES : feats.length ? FIDELITY : [])})();
 let ctx = null, engine = null, analyser = null, playing = false;
 let activeRef = ${JSON.stringify(base.ref)};
 
@@ -216,64 +363,7 @@ document.querySelectorAll('.tab').forEach((tab) => {
 // Mirrors renderBeatsOffline's pattern realize path exactly (loops=2, tail=2),
 // reusing the inlined kernel — so the download matches what plays, and no audio
 // bytes were ever shipped.
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
-function planPattern(manifest, loops) {
-  const pat = KERNEL.patternEvents(manifest);
-  const tracks = manifest.tracks || [];
-  const entries = [];
-  for (let cursor = 0; cursor < loops; cursor++) {
-    const b = cursor * pat.duration;
-    pat.events.forEach((ev, ei) => {
-      const tr = tracks.find((c) => c.name === ev.channel);
-      if (tr && (tr.cue || tr.gesture)) { entries.push({ type: 'cue', t: b + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel }); return; }
-      const feel = tr && tr.feel;
-      ev.notes.forEach((n, ni) => {
-        const fl = KERNEL.noteFeel(feel, manifest.seed, cursor * 1000 + ei, ni, ev.notes.length);
-        entries.push({ type: 'note', t: b + ev.t + fl.timeOffset, channel: ev.channel, patch: (tr && tr.patch) || 'sinePluck', pluck: fl.pluck, note: n, dur: ev.dur, vel: ev.vel * fl.velScale });
-      });
-    });
-  }
-  return { entries, duration: loops * pat.duration };
-}
-function encodeWav(buf) {
-  const nCh = buf.numberOfChannels, sr = buf.sampleRate, len = buf.length, blockAlign = nCh * 2;
-  const dataBytes = len * blockAlign, ab = new ArrayBuffer(44 + dataBytes), dv = new DataView(ab);
-  const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
-  wr(0, 'RIFF'); dv.setUint32(4, 36 + dataBytes, true); wr(8, 'WAVE'); wr(12, 'fmt ');
-  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, nCh, true);
-  dv.setUint32(24, sr, true); dv.setUint32(28, sr * blockAlign, true); dv.setUint16(32, blockAlign, true);
-  dv.setUint16(34, 16, true); wr(36, 'data'); dv.setUint32(40, dataBytes, true);
-  const chans = []; for (let c = 0; c < nCh; c++) chans.push(buf.getChannelData(c));
-  let off = 44;
-  for (let i = 0; i < len; i++) for (let c = 0; c < nCh; c++) {
-    const s = Math.max(-1, Math.min(1, chans[c][i]));
-    dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;
-  }
-  return new Blob([ab], { type: 'audio/wav' });
-}
-async function renderWav(manifest) {
-  const sr = 44100, tail = 2, loops = 2;
-  const plan = planPattern(manifest, loops);
-  const total = plan.duration + tail;
-  const octx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * sr)), sr);
-  const eng = KERNEL.createEngine(octx);
-  const chains = {}, transposeFor = {};
-  for (const ch of (manifest.tracks || [])) {
-    const built = eng.buildChain(ch.chain, manifest.seed, manifest.bpm);
-    built.output.connect(eng.channelGain(ch.name));
-    let dest = built.input;
-    if (ch.tone !== undefined) { const tn = octx.createBiquadFilter(); tn.type = 'lowpass'; tn.Q.value = 0.5; tn.frequency.value = KERNEL.toneFreq(ch.tone); tn.connect(built.input); dest = tn; }
-    chains[ch.name] = dest;
-    if (ch.transpose) transposeFor[ch.name] = Math.pow(2, ch.transpose / 12);
-  }
-  for (const e of plan.entries) {
-    const t = Math.max(0, e.t);
-    if (e.type === 'cue') eng.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel);
-    else { const patch = PATCHES[e.patch] || {}; const p = e.pluck ? { ...patch, pick: clamp01((patch.pick || 0) + e.pluck) } : patch; eng.playVoice(p, KERNEL.noteHz(e.note) * (transposeFor[e.channel] || 1), t, e.dur, e.vel, chains[e.channel]); }
-  }
-  return encodeWav(await octx.startRendering());
-}
-document.querySelectorAll('.dl.wav').forEach((btn) => {
+${feats.some((f) => ERA.has(f)) ? REALIZER_ERA : feats.length ? REALIZER_FIDELITY : REALIZER}document.querySelectorAll('.dl.wav').forEach((btn) => {
   btn.addEventListener('click', async () => {
     const ref = btn.dataset.ref;
     const label = btn.innerHTML;

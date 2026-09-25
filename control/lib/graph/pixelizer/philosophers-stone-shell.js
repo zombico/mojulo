@@ -23,8 +23,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { buildBeatsKernel } from '../beats/beats-kernel.js';
-import { PATCHES } from '../beats/audio-patches.js';
+import { emitBeatsKernel } from '../beats/beats-kernel.js';
+import { beatsFeatures, pagePatches } from '../beats/beats-features.js';
 import { PS_THEME, PS_SFX } from './philosophers-stone-beats.js';
 import { moduleDir } from '../../module-dir.js';
 
@@ -38,8 +38,8 @@ export const inlineSource = (file) =>
 
 /** The beats bundle: kernel serialized + recipes as JSON. Emitted only in music mode. */
 export const beatsBundle = () => `
-const KERNEL = (${buildBeatsKernel.toString()})();
-const PATCHES = ${JSON.stringify(PATCHES)};
+const KERNEL = (${emitBeatsKernel([...beatsFeatures(PS_THEME), ...beatsFeatures(PS_SFX)])})();
+const PATCHES = ${JSON.stringify(pagePatches(PS_THEME))};
 const PS_THEME = ${JSON.stringify(PS_THEME)};
 const PS_SFX = ${JSON.stringify(PS_SFX)};
 `;

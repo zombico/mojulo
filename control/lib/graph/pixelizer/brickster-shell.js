@@ -24,8 +24,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { buildBeatsKernel } from '../beats/beats-kernel.js';
-import { PATCHES } from '../beats/audio-patches.js';
+import { emitBeatsKernel } from '../beats/beats-kernel.js';
+import { beatsFeatures, pagePatches } from '../beats/beats-features.js';
 import { GROOVE, POLKA, SFX } from './brickster-audio.recipe.js';
 import { moduleDir } from '../../module-dir.js';
 
@@ -308,8 +308,8 @@ export const HUD_CSS = `
 
 /** The beats bundle: kernel serialized + recipes as JSON. Emitted only in music mode. */
 export const beatsBundle = () => `
-const KERNEL = (${buildBeatsKernel.toString()})();
-const PATCHES = ${JSON.stringify(PATCHES)};
+const KERNEL = (${emitBeatsKernel([POLKA, GROOVE, SFX].flatMap(beatsFeatures))})();
+const PATCHES = ${JSON.stringify(pagePatches(POLKA, GROOVE))};
 const POLKA = ${JSON.stringify(POLKA)};
 const GROOVE = ${JSON.stringify(GROOVE)};
 const SFX = ${JSON.stringify(SFX)};

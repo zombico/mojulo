@@ -7,7 +7,7 @@
  *                               revision; open annotations render as markers
  *                               and the annotate-here affordance POSTs back.
  *   /api/beats/<ref>.wav      — deterministic WAV render (`?rev=`, plus the
- *                               beats-render options bars/loops/cue/tail).
+ *                               beats-render options bars/loops/cue/variant/tail).
  *   /api/beats/<ref>.mid      — the score as a Standard MIDI File (`?rev=`,
  *                               bars/loops) — the musician handoff.
  *
@@ -68,6 +68,7 @@ async function serveWav(ref, searchParams) {
       bars: intParam(searchParams, 'bars'),
       loops: intParam(searchParams, 'loops'),
       cue: searchParams.get('cue') || undefined,
+      variant: intParam(searchParams, 'variant'),
       tail: tailRaw === null ? undefined : Number(tailRaw),
     });
   } catch (err) {

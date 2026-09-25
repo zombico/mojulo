@@ -52,8 +52,11 @@
   instrument — `piano`, `rhodes`, `acoustic-guitar`, `violin`/`cello`,
   `trumpet`, … — and gets its whole patch + color chain + feel stack; explicit
   channel fields override. This is how the orchestra joins a world soundtrack:
-  e.g. `{ "name": "keys", "role": "harmony", "instrument": "piano" }` plays the
-  progression as softly rolled piano chords. See the beats-instruments card.
+  e.g. `{ "name": "keys", "role": "harmony", "instrument": "grand-piano" }` plays the
+  progression as softly rolled piano chords. For new work, lead with the
+  fidelity names (`grand-piano`, `violin-2`, `cello-2`, `trumpet-2`, …) plus
+  `pan` and a shared `room`. The bare names (`piano`, `violin`, …) and the
+  base patches are kept for existing recipes. See the beats-instruments card.
 - **chain** effects per channel: `filter` { mode, freq, q } · `delay` /
   `pingpong` { time, feedback, mix } · `chorus` { rate, depth, mix } ·
   `reverb` { decay, wet — impulse is computed from the seed, never sampled }.
@@ -64,6 +67,14 @@ Slow attack pads + a probability-gated pentatonic melody + sparse drums is the
 proven ambient shape. Keep bpm 70–95 for presence beds. For darker moods drop
 the progression into minor roots and lower `gate` toward 0.4. A world can carry
 one of these inline or by ref: `manifest.audio = { soundtrack: { beatsRef } }`.
+
+## Mix and export (opt-in)
+
+Rows take `pan` (−1..1). The manifest takes `room` (one shared reverb) with
+row `send` (0..1), a `master` limiter, and an `export` block (bit depth,
+dither, loudness normalize). See the composition card. Voice-level opt-ins
+(`patchParams`, `glide`, the drum kit, `grand-piano`, the `-2` sections) are on
+the instruments card.
 
 ## Performance macros + revising
 

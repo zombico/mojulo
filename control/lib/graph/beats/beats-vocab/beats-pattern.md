@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-pattern", "name": "Pattern (step-sequencer groove)", "summary": "A groove loop authored as a step grid: tracks × sixteenth-step velocity masks with optional per-step note contours. Deterministic, no dice — the drum-machine / groovebox kind. A track's instrument is a synth patch OR a foley gesture (the gesture vocabulary doubles as the drum kit).", "when": "make a beat, a drum pattern, a groove, a house/garage/techno/hip-hop loop, program a drum machine, a bassline with a step sequencer feel, four-to-the-floor, a 2-step or breakbeat pattern" }
+{ "id": "beats-pattern", "name": "Pattern (step-sequencer groove)", "summary": "A groove loop authored as a step grid: tracks × sixteenth-step velocity masks with optional per-step note contours. Deterministic, no dice — the drum-machine / groovebox kind. A track's instrument is a synth patch OR a foley gesture; for drums, lead with the drum-kit instrument (GM notes) or gesture tracks with per-hit vary.", "when": "make a beat, a drum pattern, a groove, a house/garage/techno/hip-hop loop, program a drum machine, a bassline with a step sequencer feel, four-to-the-floor, a 2-step or breakbeat pattern" }
 ---
 
 ## Shape
@@ -46,6 +46,14 @@
   every active step). Only the steps the mask activates sound, but every step
   carries a note, so editing the mask never lands on a note-less cell. Falls
   back to single `note`, then `'C3'`.
+- **New work:**
+  - Drums: a `drum-kit` track whose `notes` are GM drum notes (`C2` kick,
+    `D2` snare, `F#2` hat; chords hit several pieces). Or keep gesture tracks
+    and add `vary: true` so repeated hits aren't identical.
+  - Melodic tracks: the fidelity instruments (`grand-piano`, `-2` sections).
+  - Place tracks with `pan`.
+  - `patch: 'hat'`/`'kick'`/`burstSoft` and plain `thump`/`burst` kits are
+    legacy, kept for existing recipes.
 - **Instrument — exactly one of `patch | instrument | gesture | cue`:**
   - `patch` — a shelf patch name (`sawStab` is the detuned-saw garage/house
     stab with a swept filter); the base patch shelf is listed in the
@@ -79,6 +87,25 @@
 - Use a `"3/16"` delay on stabs/plucks at 0.15–0.2 mix for the dub tail.
 - A pattern makes a world soundtrack: `audio: { soundtrack: { beatsRef } }`
   loops it by construction.
+
+## Step fields and the rack (opt-in)
+
+- Beside `mask`, a track takes `accent`, `slide`, `ratchet` and `prob`, all
+  wrapping like the mask. That's the acid line: see `beats-synth`.
+- A track's `gate` (trance gate) and `duck: { by: '<track>' }` (sidechain
+  pump) are in `beats-effects`.
+- Kits with chokes and the rock-drummer feel are in `beats-percussion`.
+
+## Mix and export (opt-in)
+
+Rows take `pan` (−1..1). The manifest takes `room` (one shared reverb) with
+row `send` (0..1), a `master` limiter, and an `export` block (bit depth,
+dither, loudness normalize). See the composition card. Voice-level opt-ins
+(`patchParams`, `glide`, the drum kit, `grand-piano`, the `-2` sections) are on
+the instruments card.
+Gesture/cue tracks take `vary: true`, so each hit is a seeded variant with
+its own noise, ±15 cents and ±10 % decay. Use it on drum and foley tracks
+retriggered every step.
 
 ## Performance macros + revising
 

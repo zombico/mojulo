@@ -36,8 +36,8 @@
 
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind } from './beats-manifest.js';
-import { buildBeatsKernel } from './beats-kernel.js';
-import { PATCHES } from './audio-patches.js';
+import { emitBeatsKernel } from './beats-kernel.js';
+import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
@@ -155,6 +155,8 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       }
       out.on = sfx.on;
     }
+    // vary (opt-in): the audio channel passes a hit counter as playCue's variant.
+    if (sfx.vary === true) out.vary = true;
   }
 
   if (audioSpec.footsteps) {
@@ -173,6 +175,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       level: w.level == null ? (night ? -34 : -30) : w.level,
       freq: w.freq == null ? (night ? 260 : 320) : w.freq,
     };
+    if (w.vary === true) out.wind.vary = true; // the long noise bed (opt-in)
   }
 
   // thruster ROAR: a sustained rocket-engine voice the audio channel swells with a controllable
@@ -250,8 +253,8 @@ export function emitSceneSoundtrackScript(resolvedAudio) {
   return `<script>
 // ---- beats soundtrack channel (CSS3D scene, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
-const __BEATS_PATCHES = ${safeJson(PATCHES)};
-const __BEATS = (${buildBeatsKernel.toString()})();
+const __BEATS_PATCHES = ${safeJson(pagePatches(audio.soundtrack))};
+const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
 let __beatsCtx = null, __beatsEng = null, __beatsMuted = false;
 function __beatsUnlock() {
   if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume(); return; }

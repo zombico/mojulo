@@ -24,8 +24,8 @@
  * update_beats (beats.plan.md B9 → "Deliberately out").
  */
 
-import { buildBeatsKernel } from './beats-kernel.js';
-import { PATCHES } from './audio-patches.js';
+import { emitBeatsKernel } from './beats-kernel.js';
+import { beatsFeatures, pagePatches } from './beats-features.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -182,8 +182,8 @@ export function emitBeatsPlayer(manifest, opts = {}) {
 <script>
 const MANIFEST = ${JSON.stringify(manifest)};
 const META = ${JSON.stringify({ ref: opts.ref || null, rev: opts.rev || null })};
-const PATCHES = ${JSON.stringify(PATCHES)};
-const KERNEL = (${buildBeatsKernel.toString()})();
+const PATCHES = ${JSON.stringify(pagePatches(manifest))};
+const KERNEL = (${emitBeatsKernel(beatsFeatures(manifest))})();
 let ctx = null, engine = null, analyser = null, playing = false, playT0 = null;
 
 function ensureEngine() {
