@@ -9,8 +9,9 @@ grammar would gain; it registers nothing.
 
 ## Rules it holds itself to
 
-1. **Core is capability; the head is data.** `compile.mjs` has a CORE section that names no species
-   (a test enforces it) and a HEAD DATA section with everything anatomical: station tables, region
+1. **Core is capability; the head is data.** The operators live in control as
+   `lib/graph/polygonizer/station-loft-detail.js`, which names no species (a test enforces it);
+   `compile.mjs` here is the HEAD DATA section with everything anatomical: station tables, region
    addresses, skin maps, amplitudes, ornaments and palette.
 2. **Named by construction.** Face groups, refined slots, skin maps and surface addresses are names.
    Nothing is selected by proximity or index.
@@ -67,7 +68,7 @@ grammar would gain; it registers nothing.
 
 ## Artifacts
 
-Kept here: `compile.mjs` (core, heads, expressions), `render.mjs`, `test-detail.mjs`. Renders land in
+Kept here: `compile.mjs` (heads, expressions), `render.mjs`, `test-detail.mjs`; the operators are `control/lib/graph/polygonizer/station-loft-detail.js`. Renders land in
 the gitignored `lite-template/integration/0924/spike-output/head-detail/`, or in `MOJULO_SPIKE_OUT`:
 
 - `expressions.png`. Rows: dragon face, eye, mouth, profile; bear face, eye, mouth, profile. Columns:

@@ -63,8 +63,10 @@ the segment-first method (proven on four build lines) is
 - **Convergence is domain-bounded.** This fits CONSTRUCTED, part-decomposable
   objects — furniture, vessels, lamps, tools, props, vehicles, architecture —
   because those genuinely are assemblies of surfaces-of-revolution + prisms +
-  tubes. Organic single-mass forms (a running animal, a face) are the figure
-  family's job. If the target isn't an assembly, say so and stop.
+  tubes. Organic forms are other loops' job: a person is `character-from-dream`
+  (the figure family), a real animal is `mint_solid` kind `animal`, and a
+  creature / invented body / detailed head is `mint_solid` kind `layered`
+  (routing card `creature`, catalyst `creature-from-plan`). If the target isn't an assembly, say so and stop.
 
 ## Capability ladder — resolve ONCE
 
@@ -214,7 +216,7 @@ ALONE — one single-subject image per part, never an exploded collage.
 - You don't fake an unbuildable part — name the vocabulary gap instead.
 - You don't hand-compute coordinates — declare relations (`on`/`gap`) and use
   gravity seating; absolute z only for bridging superposition.
-- You don't force an organic single-mass target through this loop — that's the
-  figure family.
+- You don't force an organic target through this loop — a person is the figure
+  family, a creature is the `layered` kind (card `creature`).
 - You don't skip the compare step — a mint you didn't set beside the dream is
   not a reconstruction.

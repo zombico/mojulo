@@ -13,7 +13,7 @@
   "parameters": [
     {
       "name": "intent",
-      "description": "The character to reconstruct, in words (e.g. 'a stocky mature female harbor mechanic in a baggy jacket', 'a lanky teenage courier with an oversized hood', 'a round action-figure repair-bot'). Humanoid / figure targets only — a creature, relic, or object goes through reconstruct-from-dream / the polygomer path instead. Omit to ask the operator."
+      "description": "The character to reconstruct, in words (e.g. 'a stocky mature female harbor mechanic in a baggy jacket', 'a lanky teenage courier with an oversized hood', 'a round action-figure repair-bot'). Humanoid / figure targets only — a relic or object goes through reconstruct-from-dream; a creature or invented body goes to mint_solid kind 'layered' (routing card 'creature'). Omit to ask the operator."
     }
   ],
   "mcpTools": { "mojulo": ["draft_figure_spec", "get_figure_spec", "resolve_figure_spec", "build_figure_spec", "create_figure", "create_sketch", "semantic_search", "get_sketch_vocab", "get_image_render_packet", "get_skin_packet", "skin_polygomer"] }
@@ -59,10 +59,11 @@ Substrate: figure body `figure-proto.js` / `figure-rig.js`, wardrobe
   Every dial already exists and is clamped. If the dream needs a shape no dial
   reaches, that is a **vocabulary gap to name, not geometry to invent.**
 - **Humanoid targets only.** This loop tunes a FIGURE body (a person, a
-  humanoid mascot, an action-figure robot). A creature, vessel, relic, or prop
-  is the OBJECT register — send it through `reconstruct-from-dream` /
-  `create_workbench` / `create_manji_tree` instead. If the target isn't a
-  figure, say so and stop.
+  humanoid mascot, an action-figure robot). A vessel, relic, or prop is the
+  OBJECT register — send it through `reconstruct-from-dream` /
+  `create_workbench` instead. A creature or invented body is the `layered`
+  kind (`mint_solid`, routing card `creature`, catalyst `creature-from-plan`). If the target isn't a figure,
+  say so and stop.
 - **Attribute silhouette bulk to the WARDROBE first, the body second.** A baggy
   outfit's volume is the garment's mugen score (`clearance`), not a wider body.
   Chasing sleeve volume with the bicep dial is the classic first-pass error.
@@ -196,8 +197,8 @@ which variants you tried and which you locked.
 - You don't bind, wrap, or persist the dream reference — discarded on lock.
 - You don't invent a body shape or garment the dials don't reach — name the
   vocabulary gap instead.
-- You don't force a creature / relic / object through this loop — that's the
-  object register (`reconstruct-from-dream`).
+- You don't force a relic / object through this loop (that's the object
+  register, `reconstruct-from-dream`) or a creature (the `layered` kind).
 - You don't chase garment volume with body dials — looseness is the mugen score.
 - You don't skip the compare step — a tune you didn't set beside the dream is
   not a reconstruction.

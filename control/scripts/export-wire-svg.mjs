@@ -13,6 +13,9 @@
  *            --dist-mul K (override: camera distance = K × bounding radius; default keeps the whole orbit in frame for the lens)
  *            --turntable 48 (also write az000..az352 frames) --no-construction
  *            --with-studio (keep the workbench floor + grid; dropped by default so the OBJECT sets the framing)
+ *            --compare frontal=ref.png,lateral=side.png (the matched-azimuth silhouette compare: numbers to compare.json,
+ *                      a sheet per view — reference | silhouette | overlap; views are frontal / three-quarter /
+ *                      three-quarter-left / lateral / left / back or an azimuth) --compare-res 256
  * Azimuth convention: az 0 = camera south of the target looking north (+y); image-right = (cos az, sin az).
  */
 import { parseArgs } from 'node:util';
@@ -26,6 +29,7 @@ const { values: args } = parseArgs({ options: {
   views: { type: 'string', default: '150,180,90,0' }, el: { type: 'string', default: '10' },
   'dist-mul': { type: 'string' }, size: { type: 'string', default: '900' }, f: { type: 'string', default: '1400' },
   features: { type: 'string', default: '' }, turntable: { type: 'string' }, 'no-construction': { type: 'boolean', default: false }, 'with-studio': { type: 'boolean', default: false },
+  compare: { type: 'string' }, 'compare-res': { type: 'string', default: '256' },
 } });
 const fail = (msg) => { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); };
 if (!args.out || (!args.ref && !args.source)) fail('need --out <dir> and one of --ref <sketch> | --source <json>');
@@ -69,4 +73,20 @@ const views = args.views.split(',').map(Number).filter(Number.isFinite);
 for (const az of views) await write(`az${String(az).padStart(3, '0')}.svg`, wireSvg(source, cam(az), { features, title: `${title} — wire az ${az}` }));
 if (!args['no-construction']) await write(`az${String(views[0]).padStart(3, '0')}-construction.svg`, wireSvg(source, cam(views[0]), { features, hidden: true, title: `${title} — construction az ${views[0]}` }));
 if (args.turntable) { const n = Number(args.turntable); for (let i = 0; i < n; i++) { const az = (views[0] + i * 360 / n) % 360; await write(`turn-${String(i).padStart(3, '0')}.svg`, wireSvg(source, cam(az), { features, title: `${title} — turn ${i}`, embedSource: i === 0 })); } }
-process.stdout.write(`${JSON.stringify({ ok: true, out: args.out, files: written.length, vertices: source.vertices.length, faces: source.faces.length, target, distance, distanceMultiplier, basis: 'physical' })}\n`);
+let compare;
+if (args.compare) {
+  // the matched-azimuth compare (lib/graph/scene/wire-compare.js): the source's silhouette at a NAMED view against a
+  // reference picture read at the same azimuth; shape only (both normalised to their boxes); the picture is never kept
+  const { sourceSilhouette, compareSilhouette, referenceMask, writeCompareSheet } = await import('@/lib/graph/scene/wire-compare.js');
+  const res = Number(args['compare-res']); compare = {};
+  for (const pair of args.compare.split(',').map((s) => s.trim()).filter(Boolean)) {
+    const eq = pair.indexOf('='); if (eq < 0) fail(`--compare wants view=path pairs (got '${pair}')`);
+    const viewName = pair.slice(0, eq).trim(); const refPath = pair.slice(eq + 1).trim(); const view = Number.isFinite(Number(viewName)) ? Number(viewName) : viewName;
+    const sil = sourceSilhouette(source, view, { res, elevationDegrees: Number(args.el) }); const ref = await referenceMask(refPath);
+    const { fitted, ...numbers } = compareSilhouette(sil, ref.mask, ref.res);
+    const sheet = `compare-${String(viewName).replace(/[^a-z0-9-]/gi, '_')}.png`; await writeCompareSheet(path.join(args.out, sheet), sil, ref.mask, ref.res, fitted); written.push(sheet);
+    compare[viewName] = { ...numbers, azimuth: sil.azimuth, reference: path.basename(refPath), sheet };
+  }
+  await write('compare.json', `${JSON.stringify({ ref: args.ref || null, res, views: compare }, null, 1)}\n`);
+}
+process.stdout.write(`${JSON.stringify({ ok: true, out: args.out, files: written.length, vertices: source.vertices.length, faces: source.faces.length, target, distance, distanceMultiplier, basis: 'physical', ...(compare ? { compare } : {}) })}\n`);

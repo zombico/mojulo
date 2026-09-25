@@ -1,0 +1,30 @@
+{
+  "schema": "layered-plan-v1",
+  "frame": { "up": "+z", "front": "+y", "note": "1 unit = 1 m; a lean hound-sized quadruped, pads on z = 0, facing +y" },
+  "joints": {
+    "rump": [0, -0.42, 0.66], "withers": [0, 0.38, 0.72], "neckTop": [0, 0.66, 0.92], "snout": [0, 0.96, 0.86],
+    "hip": [0.11, -0.36, 0.62], "stifle": [0.13, -0.22, 0.38], "hock": [0.13, -0.40, 0.2], "hindToe": [0.13, -0.28, 0.03],
+    "shoulder": [0.12, 0.30, 0.62], "elbow": [0.13, 0.34, 0.38], "carpus": [0.13, 0.36, 0.18], "foreToe": [0.13, 0.44, 0.03],
+    "tail0": [0, -0.48, 0.66], "tail1": [0, -0.72, 0.58], "tail2": [0, -0.92, 0.44]
+  },
+  "segments": [
+    { "name": "spine", "kind": "segment", "from": "rump", "to": "withers", "rA": [0.15, 0.17], "rB": [0.16, 0.19], "slots": "ring8", "e": 2.3, "over": [0.5, 0.5], "group": "Body", "tint": "#6d6350", "mirror": "plane" },
+    { "name": "neck", "kind": "segment", "from": "withers", "to": "neckTop", "rA": [0.11, 0.13], "rB": [0.08, 0.09], "slots": "ring8", "over": [0.5, 0.4], "group": "Neck", "tint": "#6d6350", "mirror": "plane" },
+    { "name": "head", "kind": "segment", "from": "neckTop", "to": "snout", "rA": [0.09, 0.1], "rB": [0.045, 0.04], "slots": "ring8", "e": 2.4, "over": [0.5, 0.25], "group": "Head", "tint": "#7a6f5a", "mirror": "plane" },
+    { "name": "tail", "kind": "chain", "joints": ["tail0", "tail1", "tail2"], "r": [0.05, 0.035, 0.015], "over": { "first": 0.6, "last": 0.3, "inner": 0.6 }, "group": "Tail", "tint": "#5e5544", "mirror": "plane" },
+    { "name": "thighR", "kind": "segment", "from": "hip", "to": "stifle", "rA": [0.09, 0.12], "rB": 0.055, "e": 2.2, "over": [0.6, 0.6], "group": "Legs", "tint": "#5e5544", "mirror": "name" },
+    { "name": "shinR", "kind": "segment", "from": "stifle", "to": "hock", "rA": 0.055, "rB": 0.035, "over": [0.6, 0.6], "group": "Legs", "tint": "#5e5544", "mirror": "name" },
+    { "name": "hindFootR", "kind": "segment", "from": "hock", "to": "hindToe", "rA": 0.035, "rB": [0.045, 0.025], "over": [0.6, 0.3], "group": "Feet", "tint": "#4f4739", "mirror": "name" },
+    { "name": "upperArmR", "kind": "segment", "from": "shoulder", "to": "elbow", "rA": [0.08, 0.1], "rB": 0.05, "over": [0.6, 0.6], "group": "Legs", "tint": "#5e5544", "mirror": "name" },
+    { "name": "foreArmR", "kind": "segment", "from": "elbow", "to": "carpus", "rA": 0.05, "rB": 0.035, "over": [0.6, 0.6], "group": "Legs", "tint": "#5e5544", "mirror": "name" },
+    { "name": "foreFootR", "kind": "segment", "from": "carpus", "to": "foreToe", "rA": 0.035, "rB": [0.045, 0.025], "over": [0.6, 0.3], "group": "Feet", "tint": "#4f4739", "mirror": "name" }
+  ],
+  "details": [
+    { "name": "earR", "kind": "claw", "base": [0.05, 0.7, 0.98], "dir": [0.3, -0.2, 1], "length": 0.09, "radius": 0.025, "pin": { "parent": "head", "face": "head/st0-st1.k0.a", "weights": [0.3333, 0.3333, 0.3334], "tangentEdge": ["head/st0.frontR", "head/st1.frontR"], "handedness": 1 }, "group": "Ears", "tint": "#4f4739", "mirror": "earL" }
+  ],
+  "dials": {
+    "girth": { "min": 0.85, "max": 1.3, "rest": 1, "doc": "x scale of the body about the mirror plane", "op": "scale", "axis": "x", "pivot": 0, "parts": ["spine"], "blend": { "st0": 1, "st1": 1, "st2": 1, "back": 1, "tip": 1 } },
+    "headTilt": { "min": -20, "max": 25, "rest": 0, "doc": "degrees the head hinges about the neck top (+ lifts the snout)", "op": "hinge", "part": "head", "pivot": "head/st0.front", "axis": "x", "sign": 1 },
+    "tailCurl": { "min": -25, "max": 25, "rest": 0, "doc": "degrees per tail joint about x, from the base", "op": "chain", "axis": "x", "sign": -1, "links": [{ "pivot": "tail1/back", "parts": ["tail1"] }] }
+  }
+}

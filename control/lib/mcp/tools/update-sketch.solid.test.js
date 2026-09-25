@@ -350,3 +350,59 @@ describe('update_sketch { readout } — what an edit hands back (Phase 3)', () =
     expect(r2.stats.warnings[0]).toMatch(/cut 'dialglyphs'/);
   });
 });
+
+// ring-plan: the layered kind's PLAN door stores the plan beside the recipe; an edit under /plan
+// re-expands the recipe, an edit under /dials leaves the plan alone; every edit pays the layered gates.
+import { mintSolidHandler } from './mint-solid.js';
+
+const RING_PLAN = {
+  schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' },
+  joints: { hip: [0.2, 0, 1], knee: [0.22, 0.1, 0.5], toe: [0.22, 0.3, 0.05] },
+  segments: [
+    { name: 'torso', kind: 'trunk', stations: [{ z: 0.9, r: [0.3, 0.22] }, { z: 1.3, r: [0.32, 0.24] }, { z: 1.7, r: [0.2, 0.16] }], caps: { back: [0, 0, 0.8], tip: [0, 0, 1.8] }, group: 'Torso', tint: '#667', mirror: 'plane' },
+    { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: 0.14, rB: 0.1, group: 'Legs', tint: '#565', mirror: 'name' },
+    { name: 'shinR', kind: 'segment', from: 'knee', to: 'toe', rA: 0.1, rB: [0.08, 0.04], over: [0.6, 0.3], group: 'Legs', tint: '#565', mirror: 'name' },
+  ],
+  dials: { bulk: { min: 0.8, max: 1.3, rest: 1, doc: 'x scale of the trunk', op: 'scale', axis: 'x', pivot: 0, parts: ['torso'], blend: { st0: 1, st1: 1, st2: 1, back: 1, tip: 1 } } },
+};
+
+describe('update_sketch on a layered solid minted through the plan door', () => {
+  it('stores plan + recipe; a /plan patch re-expands the recipe; a /dials patch keeps the plan; a bad plan edit refuses with a pointer', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'plan', ref: 'ring-plan-biped', spec: { plan: RING_PLAN, title: 'biped' } });
+    expect(minted.ok).toBe(true);
+    const stored = SketchRepository.getByRef('ring-plan-biped');
+    expect(stored.manifest.kind).toBe('layered'); expect(stored.manifest.plan.schema).toBe('layered-plan-v1');
+    expect(Object.keys(stored.manifest.recipe.parts)).toEqual(['torso', 'thighR', 'thighL', 'shinR', 'shinL']);
+    expect(stored.manifest.ledger.closed).toBe(true);
+    // a plan edit: a wider knee → the recipe's shin ring moves; the dial value survives
+    await updateSketchHandler({ ref: 'ring-plan-biped', patch: [{ op: 'set', path: '/dials/bulk', value: 1.2 }] });
+    const r = await updateSketchHandler({ ref: 'ring-plan-biped', patch: [{ op: 'set', path: '/plan/joints/knee', value: [0.3, 0.1, 0.5] }] });
+    expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true);
+    const after = SketchRepository.getByRef('ring-plan-biped');
+    expect(after.manifest.plan.joints.knee).toEqual([0.3, 0.1, 0.5]); expect(after.manifest.dials.bulk).toBe(1.2);
+    expect(after.manifest.recipe.parts.thighR.stations[2].points.front[0]).toBeGreaterThan(stored.manifest.recipe.parts.thighR.stations[2].points.front[0]);
+    expect(after.manifest.recipe.parts.thighL.stations[2].points.front[0]).toBeCloseTo(-after.manifest.recipe.parts.thighR.stations[2].points.front[0], 12);
+    // a dial-only edit leaves the plan untouched and still pays the gates (an unknown dial refuses)
+    await expect(updateSketchHandler({ ref: 'ring-plan-biped', patch: [{ op: 'set', path: '/dials/nope', value: 1 }] })).rejects.toThrow(/unknown dial 'nope'/);
+    // a plan edit that breaks the plan refuses with the plan field named
+    await expect(updateSketchHandler({ ref: 'ring-plan-biped', patch: [{ op: 'set', path: '/plan/segments/1/from', value: 'knuckle' }] })).rejects.toThrow(/names joint 'knuckle'/);
+    expect(SketchRepository.getByRef('ring-plan-biped').manifest.plan.joints.knee).toEqual([0.3, 0.1, 0.5]);
+  });
+  it('the plan door refuses a missing plan with a pointer to the manual', async () => {
+    await expect(mintSolidHandler({ kind: 'layered', via: 'plan', spec: {} })).rejects.toThrow(/needs `plan`/);
+  });
+});
+
+describe('the plan door records who printed the plan', () => {
+  it('a text-worker audit is stored as provenance; an agent audit needs no prompt; a malformed audit refuses', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'plan', ref: 'ring-plan-audited', spec: { plan: RING_PLAN, plan_audit: { source: 'text:codex', prompt: 'fill the biped ring plan for a lean courier lizard', token: 'resp_01' } } });
+    expect(minted.ok).toBe(true);
+    const stored = SketchRepository.getByRef('ring-plan-audited');
+    expect(stored.manifest.provenance).toEqual({ kind: 'plan-reconstruction', plan_audit: { source: 'text:codex', prompt: 'fill the biped ring plan for a lean courier lizard', token: 'resp_01' } });
+    const own = await mintSolidHandler({ kind: 'layered', via: 'plan', ref: 'ring-plan-own', spec: { plan: RING_PLAN, plan_audit: { source: 'agent' } } });
+    expect(SketchRepository.getByRef(own.ref).manifest.provenance.plan_audit).toEqual({ source: 'agent' });
+    await expect(mintSolidHandler({ kind: 'layered', via: 'plan', spec: { plan: RING_PLAN, plan_audit: { source: 'text:codex' } } })).rejects.toThrow(/plan_audit.prompt: required|job_id \| token/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'plan', spec: { plan: RING_PLAN, plan_audit: { source: 'dreamt' } } })).rejects.toThrow(/plan_audit.source/);
+    expect(SketchRepository.getByRef('ring-plan-biped') ?? null).toBeNull();   // nothing minted for the refused calls under a fresh db
+  });
+});

@@ -55,6 +55,9 @@ export const FIXTURE = [
   // drifting to the painted-picture or part-graph neighbours.
   ['a wolf I can 3D print', 'mint_solid'],
   ['a deer with antlers standing in profile', 'mint_solid'],
+  // creature (layered): an invented body with a rig, kept editable by dials
+  ['a hulking dragon with a detailed head that I can rig and animate', 'mint_solid'],
+  ['invent a swamp monster whose jaw and tail I can keep tweaking', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary
