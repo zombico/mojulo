@@ -13,6 +13,7 @@
  *   bars=N   — beats-ambient: bars to render (default: one progression cycle)
  *   loops=N  — beats-pattern: pattern repetitions (default 2)
  *   cue=id   — beats-sfx: which cue (default: the only one)
+ *   variant=N — beats-sfx: a per-hit variation of the cue (0/absent = the cue itself)
  *   tail=S   — seconds of ring-out appended (default 2)
  */
 
@@ -52,6 +53,7 @@ export async function GET(request, { params }) {
         bars: intParam(searchParams, 'bars'),
         loops: intParam(searchParams, 'loops'),
         cue: searchParams.get('cue') || undefined,
+        variant: intParam(searchParams, 'variant'),
         tail: tailRaw === null ? undefined : Number(tailRaw),
       });
     } catch (err) {

@@ -1,69 +1,15 @@
 /**
- * beats-kernel — the dependency-free synthesized-audio kernel (beats.plan.md).
+ * beats-kernel-2.1 — the 2.1 kernel, FROZEN. Do not edit.
  *
- * SINGLE SOURCE OF TRUTH, same discipline as physics-sim.js / event-bus.js: the whole
- * kernel lives inside `buildBeatsKernel()`, a self-contained closure referencing nothing
- * outside itself, so the browser (the /beats player page and the /world audio channel)
- * runs the SAME code by emitting `buildBeatsKernel.toString()` into the page. Node
- * imports the live instance for tests (beats-kernel.test.js).
- *
- * Two layers inside, deliberately split:
- *   PURE SCHEDULING — note/time math, the seeded PRNG, per-bar ambient event derivation,
- *     composition flattening (swing-aware: on-grid offbeat sixteenths land late, B5.0),
- *     fx-time resolution (seconds or note fractions like '3/16'), gesture planning.
- *     Pure functions of (recipe, seed, bar):
- *     no Date.now, no Math.random, no audio objects. This is the testable half and the
- *     determinism contract: same recipe + same seed → the same performance, and any bar
- *     is reproducible WITHOUT playing the bars before it (the PRNG is re-seeded per bar
- *     from hash(seed, barIndex), never threaded across bars).
- *   WEBAUDIO REALIZER — voices (osc/noise/membrane/fm + ADSR), effects chains
- *     (filter/delay/pingpong/chorus/reverb — the reverb impulse is COMPUTED from the
- *     seeded PRNG, never sampled), a lookahead transport, gestures, and wind. Only
- *     touches AudioContext APIs at call time, so importing the kernel in Node is safe.
- *
- * Doctrine (beats.plan.md): synthesized, never sampled — no media bytes, no network.
- * Audio is presentation, not simulation: nothing here feeds state back into a world.
+ * A page whose recipe uses no audio-fidelity opt-in (beats-features.js) embeds
+ * exactly this function's text, so its bytes and its sound are what they were
+ * at 2.1 — the world-page characterization pins hold, and a stored row renders
+ * live exactly as it did. The living kernel is beats-kernel.js; it keeps every
+ * 2.1 line (inside feature regions) and adds the opt-ins. This copy exists
+ * because a bundler may rewrite code it emits (vitest's transform appends
+ * `;` after blocks), so the 2.1 text can't be reconstructed from comments —
+ * it has to be real code that goes through the same transform main's did.
  */
-
-import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
-
-// ── feature-sliced emission (audio fidelity) ──────────────────────────────────
-// Pages pay only for what their recipe uses. Every post-2.1 change inside the
-// closure below sits in a region tagged with the feature it belongs to:
-//   /*@<feature>{*/ …new lines… /*| …the 2.1 lines… @*/
-// Node runs the closure as written: the markers are comments, so every feature
-// is live and the 2.1 lines sit inert inside a comment. A page embeds
-// emitBeatsKernel(features): each region keeps its new lines when its feature
-// is on and its 2.1 lines when it is off. Features:
-//   x       shared helpers (long noise buffer, panner); implied by the rest
-//   voice   patchParams, per-note keys, vary/width/curve, keyTrack, breath,
-//           drift, vibrato spread, glide, fixed pitch, modal wave/filter, kits
-//   strings the tuned Karplus-Strong loop (tune / ringT60 / stiffness)
-//   mix     pan, the shared room + sends, master limiter, reverb room2
-//   sfx     gesture additions (tone, materials, excite, filterEnv, mass/size,
-//           burst band) and per-hit cue variants
-// beats-features.js decides which a recipe needs. With none, the page gets the
-// frozen 2.1 function (beats-kernel-2.1.js), not a slice of this one: a bundler
-// may transform the code it serializes, and only real code goes through the
-// same transform a 2.1 page's did. A slice is syntax-checked once; if a
-// transform disturbed the markers (a minifier drops comments), the page gets
-// this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx'];
-const REGION = /\/\*@(\w+)\{\*\/\n([\s\S]*?)\/\*\|\n([\s\S]*?)@\*\/\n/g;
-const emitted = new Map();
-export function emitBeatsKernel(features) {
-  const on = new Set((features || []).filter((f) => BEATS_KERNEL_FEATURES.includes(f)));
-  if (!on.size) return buildBeatsKernel21.toString();
-  on.add('x');
-  const key = BEATS_KERNEL_FEATURES.filter((f) => on.has(f)).join(',');
-  if (!emitted.has(key)) {
-    const whole = buildBeatsKernel.toString();
-    let text = whole.replace(REGION, (m, f, nu, old) => (on.has(f) ? nu : old));
-    try { new Function('return (' + text + ')'); } catch (e) { text = whole; }
-    emitted.set(key, text);
-  }
-  return emitted.get(key);
-}
 
 export function buildBeatsKernel() {
   // ── seeded PRNG — the only randomness in the substrate's audio ─────────────
@@ -224,43 +170,6 @@ export function buildBeatsKernel() {
     const pluck = (f.jitterTimbre || 0) * (rng() * 2 - 1);
     return { timeOffset: strum + jitterT, velScale, pluck };
   }
-/*@voice{*/
-  // per-note key: a seed for the opt-in per-hit variation (noise offset, drift,
-  // vibrato spread), folded from (seed, channel, relative onset, pitch) so the
-  // live transport and the offline export derive the same key for the same note.
-  function noteKey(seed, channel, rel, hz) {
-    let h = hashSeed(hashSeed(seed || 1, Math.round(rel * 1e4)), Math.round(hz * 16));
-    const s = String(channel == null ? '' : channel);
-    for (let i = 0; i < s.length; i++) h = hashSeed(h, s.charCodeAt(i));
-    return h;
-  }
-  // glide: each event's previous note on its own row, in schedule order — pure,
-  // so the transport and the export slide from the same pitch. wrap seeds every
-  // row with its last note (a looping pattern's second pass onward).
-  function glideNotes(events, wrap) {
-    const last = {};
-    if (wrap) for (const ev of events) last[ev.channel] = ev.notes[ev.notes.length - 1];
-    return events.map(function (ev) {
-      const p = last[ev.channel];
-      last[ev.channel] = ev.notes[ev.notes.length - 1];
-      return p == null ? null : p;
-    });
-  }
-  // a note's patch: the row's named shelf entry — or, for a kit patch
-  // ({ kit: { <midi>: patchName } }, the drum kit), the piece its note selects
-  // (null = unmapped, the note is skipped) — with the row's `patchParams`
-  // merged over it (a copy — the shelf is never mutated). Absent params and
-  // no kit → the shelf object itself, the pre-fidelity path.
-  function resolvePatch(patches, row, note) {
-    let p = patches[(row && row.patch) || 'sinePluck'] || {};
-    if (p.kit) {
-      p = patches[p.kit[Math.round(12 * Math.log2(noteHz(note) / 440)) + 69]];
-      if (!p) return null;
-    }
-    return row && row.patchParams ? Object.assign({}, p, row.patchParams) : p;
-  }
-/*|
-@*/
 
   // ── pattern: tracks × sixteenth masks → one loop of events (B5.1) ───────────
   // The groove-instrument kind (Night Bus spike). Pure in (recipe): no dice.
@@ -358,31 +267,10 @@ export function buildBeatsKernel() {
       return ops;
     }
     if (g.type === 'burst') {
-/*@sfx{*/
-      const op = { at: g.at || 0, kind: 'noise', decay: g.decay == null ? 0.15 : g.decay, vol: g.vol == null ? 0.6 : g.vol, highpass: g.highpass || 0, lowpass: g.lowpass || 0 };
-      if (g.bandpass) { op.bandpass = g.bandpass; op.q = g.q || 1; } // opt-in band (a snare's wires)
-      // filterEnv (opt-in): a lowpass sweeping from→to — the explosion darkening as it decays.
-      if (g.filterEnv) op.sweep = { from: g.filterEnv.from == null ? 8000 : g.filterEnv.from, to: g.filterEnv.to == null ? 300 : g.filterEnv.to, decay: g.filterEnv.decay == null ? op.decay : g.filterEnv.decay };
-      return [op];
-/*|
       return [{ at: g.at || 0, kind: 'noise', decay: g.decay == null ? 0.15 : g.decay, vol: g.vol == null ? 0.6 : g.vol, highpass: g.highpass || 0, lowpass: g.lowpass || 0 }];
-@*/
     }
     if (g.type === 'thump') {
-/*@sfx{*/
-      // mass (kg, opt-in) sets whatever from/to/decay leave out: heavier is
-      // lower and longer (pitch ∝ mass^−1/3, the size of a same-density body).
-      const base = g.mass ? 110 * Math.pow(1 / g.mass, 1 / 3) : 0;
-      return [{ at: g.at || 0, kind: 'thump', from: g.from == null && base ? base * 2 : noteHz(g.from == null ? 'G2' : g.from), to: g.to == null && base ? Math.max(30, base * 0.55) : noteHz(g.to == null ? 'G1' : g.to), decay: g.decay == null ? (base ? Math.max(0.05, Math.min(1.2, 0.1 * Math.cbrt(g.mass))) : 0.25) : g.decay, vol: g.vol == null ? 0.9 : g.vol }];
-    }
-    if (g.type === 'tone') {
-      // a held voice (audio fidelity): beams, hums, engines, machinery — a
-      // sustained osc with an optional slow bend (`to`), tremolo and vibrato.
-      const from = g.hz != null ? g.hz : noteHz(g.note == null ? 'A3' : g.note);
-      return [{ at: g.at || 0, kind: 'hum', wave: g.wave || 'sawtooth', from: from, to: g.to == null ? from : noteHz(g.to), dur: g.dur == null ? 1 : g.dur, attack: g.attack == null ? 0.05 : g.attack, release: g.release == null ? 0.2 : g.release, vol: g.vol == null ? 0.5 : g.vol, tremolo: g.tremolo || null, vibrato: g.vibrato || null, lowpass: g.lowpass || 0 }];
-/*|
       return [{ at: g.at || 0, kind: 'thump', from: noteHz(g.from == null ? 'G2' : g.from), to: noteHz(g.to == null ? 'G1' : g.to), decay: g.decay == null ? 0.25 : g.decay, vol: g.vol == null ? 0.9 : g.vol }];
-@*/
     }
     if (g.type === 'grain') {
       // A cluster of tiny band-shaped noise grains scattered over `over` seconds —
@@ -413,93 +301,25 @@ export function buildBeatsKernel() {
       // Modal strike: a stack of flat decaying sine partials (thump with
       // from == to) — inharmonic ratios per material, brights dying first,
       // the fundamental singing on. Computed cousin of the modal voice.
-/*@sfx{*/
-      const P = (r, gn, d) => r.map(function (x, i) { return { ratio: x, gain: gn[i], decay: d[i] }; });
-/*|
-@*/
       const RING_MATERIALS = {
         glass: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 2.32, gain: 0.55, decay: 0.55 }, { ratio: 4.25, gain: 0.35, decay: 0.3 }, { ratio: 6.63, gain: 0.2, decay: 0.15 }, { ratio: 9.38, gain: 0.1, decay: 0.08 }],
         metal: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 2.76, gain: 0.6, decay: 0.8 }, { ratio: 5.4, gain: 0.4, decay: 0.55 }, { ratio: 8.93, gain: 0.25, decay: 0.35 }],
         wood: [{ ratio: 1, gain: 1, decay: 1 }, { ratio: 2.8, gain: 0.5, decay: 0.5 }, { ratio: 5.2, gain: 0.25, decay: 0.25 }],
-/*@sfx{*/
-        // dense sets (audio fidelity): { partials, note, decay, wave?, highpass? }.
-        // cymbal = the 808's six squares at inharmonic ratios, highpassed;
-        // plate = free square-plate modes; bell = hum/prime/tierce/quint/nominal.
-        cymbal: { note: 'C6', decay: 1.2, wave: 'square', highpass: 2500, partials: P([1, 1.4827, 1.8003, 2.546, 2.6303, 3.8967], [0.5, 0.45, 0.45, 0.4, 0.4, 0.35], [1, 0.9, 0.85, 0.8, 0.75, 0.7]) },
-        plate: { note: 'A4', decay: 1.5, partials: P([1, 1.47, 1.81, 2.61, 3.13, 3.87, 4.73, 5.9], [1, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2], [1, 0.85, 0.8, 0.6, 0.5, 0.4, 0.3, 0.2]) },
-        bell: { note: 'C5', decay: 3, partials: P([0.5, 1, 1.2, 1.5, 2, 2.5, 2.67, 3, 4], [0.5, 0.8, 0.6, 0.3, 0.7, 0.25, 0.2, 0.25, 0.15], [1, 0.75, 0.6, 0.4, 0.5, 0.3, 0.25, 0.2, 0.15]) },
-/*|
-@*/
       };
-/*@sfx{*/
-      const M = RING_MATERIALS[g.material || 'glass'] || RING_MATERIALS.glass;
-      const mat = Array.isArray(M) ? {} : M;
-      const partials = Array.isArray(g.partials) && g.partials.length ? g.partials : mat.partials || M;
-      // size (metres, opt-in): pitch from the material's constant, hz = K / size.
-      const K = { glass: 63, metal: 105, wood: 80, cymbal: 420, plate: 132, bell: 157 };
-      const hz = g.hz != null ? g.hz : g.note == null && g.size ? (K[g.material || 'glass'] || 63) / g.size : noteHz(g.note == null ? mat.note || 'C7' : g.note);
-      const decay = g.decay == null ? (g.material === 'wood' ? 0.12 : mat.decay || 0.8) : g.decay;
-/*|
       const partials = Array.isArray(g.partials) && g.partials.length ? g.partials : RING_MATERIALS[g.material || 'glass'] || RING_MATERIALS.glass;
       const hz = g.hz != null ? g.hz : noteHz(g.note == null ? 'C7' : g.note);
       const decay = g.decay == null ? (g.material === 'wood' ? 0.12 : 0.8) : g.decay;
-@*/
       const vol = g.vol == null ? 0.5 : g.vol;
-/*@sfx{*/
-      const wave = g.wave || mat.wave, hp = g.highpass == null ? mat.highpass : g.highpass;
-/*|
-@*/
       return partials.map(function (p) {
         const f = hz * (p.ratio == null ? 1 : p.ratio);
-/*@sfx{*/
-        const d = decay * (p.decay == null ? 1 : p.decay), v = vol * (p.gain == null ? 1 : p.gain);
-        // excite:'noise' — a resonator bank struck by noise: each mode is band
-        // noise at its frequency (level-matched to a sine mode of the same vol).
-        if (g.excite === 'noise') {
-          const q = g.q || 30;
-          return { at: g.at || 0, kind: 'noise', decay: d, vol: v * 2.45 * Math.sqrt(q * 22050 / f), highpass: 0, lowpass: 0, bandpass: f, q: q };
-        }
-        const op = { at: g.at || 0, kind: 'thump', from: f, to: f, decay: d, vol: v };
-        if (wave) op.wave = wave;
-        if (hp) op.highpass = hp;
-        return op;
-/*|
         return { at: g.at || 0, kind: 'thump', from: f, to: f, decay: decay * (p.decay == null ? 1 : p.decay), vol: vol * (p.gain == null ? 1 : p.gain) };
-@*/
       });
     }
-/*@sfx{*/
-    throw new Error('beats: unknown gesture type "' + g.type + '" (sweep | flutter | burst | thump | grain | ring | tone)');
-/*|
     throw new Error('beats: unknown gesture type "' + g.type + '" (sweep | flutter | burst | thump | grain | ring)');
-@*/
   }
-/*@sfx{*/
-  // variant (opt-in, a positive integer — a hit counter): folds into every
-  // gesture's seed and nudges each gesture by a seeded ±15 cents / ±10 %
-  // decay, and noise ops enter the long buffer at a per-hit offset. Variant 0
-  // or absent is the plain path, op for op.
-  function cuePlan(gestures, variant) {
-/*|
   function cuePlan(gestures) {
-@*/
     const ops = [];
-/*@sfx{*/
-    (gestures || []).forEach(function (g, gi) {
-      if (!variant) { for (const op of gesturePlan(g)) ops.push(op); return; }
-      const rng = mulberry32(hashSeed(variant >>> 0, 0x5EED + gi));
-      const pf = Math.pow(2, (rng() * 2 - 1) * 15 / 1200), df = 1 + (rng() * 2 - 1) * 0.1;
-      for (const o of gesturePlan(Object.assign({}, g, { seed: hashSeed(g.seed == null ? 0x64A17 : g.seed, variant >>> 0) }))) {
-        const op = Object.assign({}, o);
-        for (const k of ['hz', 'from', 'to', 'bandpass']) if (op[k]) op[k] *= pf;
-        for (const k of ['decay', 'dur']) if (op[k]) op[k] *= df;
-        if (op.kind === 'noise') op.offset = rng();
-        ops.push(op);
-      }
-    });
-/*|
     for (const g of gestures || []) for (const op of gesturePlan(g)) ops.push(op);
-@*/
     ops.sort((a, b) => a.at - b.at);
     return ops;
   }
@@ -528,30 +348,6 @@ export function buildBeatsKernel() {
       for (let i = 0; i < d.length; i++) d[i] = rng() * 2 - 1;
       return noiseBuf;
     }
-/*@x{*/
-    // the opt-in variation buffer: 4.37 s (no short period under a long bed),
-    // entered at a per-hit offset so no two noise hits share a waveform. The
-    // 1 s buffer above stays for every recipe that doesn't ask for this.
-    let noiseBuf2 = null;
-    function longNoise() {
-      if (noiseBuf2) return noiseBuf2;
-      const rng = mulberry32(0xBEA76);
-      noiseBuf2 = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 4.37), ctx.sampleRate);
-      const d = noiseBuf2.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = rng() * 2 - 1;
-      return noiseBuf2;
-    }
-    // start a looping noise source: the shared 1 s buffer at offset 0, or (u in
-    // [0,1) given) the long buffer entered at u of its length.
-    function noiseSrc(t, u) {
-      const src = ctx.createBufferSource(); src.loop = true;
-      if (u == null) { src.buffer = noiseBuffer(); src.start(t); }
-      else { src.buffer = longNoise(); src.start(t, u * src.buffer.duration); }
-      return src;
-    }
-    function unit(k) { return mulberry32(k)(); }
-/*|
-@*/
     // Karplus-Strong plucked string — computed, never sampled (the guitar voice).
     // A seeded noise burst fills a delay line one period long; recirculating it
     // through a one-pole averaging (lowpass) loop filter turns the broadband pluck
@@ -564,10 +360,6 @@ export function buildBeatsKernel() {
     // plucks identically every time — which also makes the buffer safely cacheable.
     const stringCache = new Map();
     function stringBuffer(hz, patch) {
-/*@strings{*/
-      if (patch.tune === 'exact' || patch.ringT60 != null || patch.stiffness) return tunedString(hz, patch);
-/*|
-@*/
       const sr = ctx.sampleRate;
       const N = Math.max(2, Math.round(sr / hz));
       const loss = patch.pluckDecay == null ? 0.997 : Math.min(0.9999, patch.pluckDecay);
@@ -602,75 +394,6 @@ export function buildBeatsKernel() {
       return buf;
     }
 
-/*@strings{*/
-    // the tuned string (opt-in: tune:'exact' | ringT60 | stiffness). The loop
-    // above rounds the period to whole samples and its averaging filter shortens
-    // it further, so upper notes run sharp (+10..+42 cents). Here the loop is
-    // line(L) → lowpass → [stiffness allpasses] → fractional-delay allpass, with
-    // L and the allpass coefficient solved so the loop's phase delay at the
-    // fundamental is exactly sr/hz (Jaffe-Smith). ringT60 = seconds to −60 dB
-    // (a number, or [at C2, at C7] log-interpolated by pitch) replaces the
-    // per-period pluckDecay; maxRing defaults to 1.1 × T60 (≤ 8 s) and the
-    // buffer end fades over 30 ms so a cap never cuts a live string. stiffness
-    // (0..1) adds dispersion: upper partials run sharp, the piano's stretch.
-    function tunedString(hz, patch) {
-      const sr = ctx.sampleRate, D = sr / hz, w = 2 * Math.PI * hz / sr;
-      const damp = patch.pluckDamping == null ? 0.5 : patch.pluckDamping;
-      const pick = patch.pick == null ? 0 : patch.pick;
-      const a = 1 - damp / 2, b = damp / 2;
-      const apDelay = (c) => (Math.atan2(Math.sin(w), c + Math.cos(w)) - Math.atan2(c * Math.sin(w), 1 + c * Math.cos(w))) / w;
-      const dLp = Math.atan2(b * Math.sin(w), a + b * Math.cos(w)) / w;
-      // stiffness → up to 8 negative-coefficient allpasses, stronger in the
-      // bass (a first-order allpass disperses little at low digital freqs).
-      const cs = -Math.max(0, Math.min(1, patch.stiffness || 0)) * (0.5 + 0.4 * Math.max(0, Math.min(1, Math.log2(880 / hz) / 3)));
-      let K = cs ? 8 : 0;
-      while (K && D - dLp - K * apDelay(cs) < 3) K--;
-      const rest = D - dLp - K * (K ? apDelay(cs) : 0);
-      const L = Math.max(2, Math.floor(rest - 0.1));
-      const fr = rest - L;
-      const C = Math.sin(w * (1 - fr) / 2) / Math.sin(w * (1 + fr) / 2);
-      const rt = patch.ringT60;
-      const T = Array.isArray(rt) ? rt[0] * Math.pow(rt[1] / rt[0], Math.max(0, Math.min(1, Math.log2(hz / 65.41) / 5))) : rt;
-      const loss = T ? Math.min(0.99999, Math.pow(10, -3 / (hz * T)) / Math.sqrt(a * a + b * b + 2 * a * b * Math.cos(w)))
-        : (patch.pluckDecay == null ? 0.997 : Math.min(0.9999, patch.pluckDecay));
-      const maxRing = Math.min(8, patch.maxRing != null ? patch.maxRing : T ? T * 1.1 : 3.5);
-      const key = 'x' + hz + '|' + damp + '|' + pick + '|' + loss + '|' + maxRing + '|' + cs;
-      const hit = stringCache.get(key);
-      if (hit) return hit;
-      const line = new Float32Array(L);
-      const rng = mulberry32(hashSeed(0x6511A4, L));
-      for (let i = 0; i < L; i++) line[i] = rng() * 2 - 1;
-      for (let p = 0, passes = Math.round(pick * 6); p < passes; p++) {
-        let prev = line[L - 1];
-        for (let i = 0; i < L; i++) { const cur = line[i]; line[i] = 0.5 * (cur + prev); prev = cur; }
-      }
-      // no DC in the burst: the loop filter passes DC at unity, so a DC offset
-      // would outlive the tuned ring.
-      let mean = 0;
-      for (let i = 0; i < L; i++) mean += line[i] / L;
-      for (let i = 0; i < L; i++) line[i] -= mean;
-      const len = Math.floor(sr * maxRing);
-      const buf = ctx.createBuffer(1, len, sr);
-      const y = buf.getChannelData(0);
-      const sx = new Float64Array(K), sy = new Float64Array(K);
-      let idx = 0, prev = 0, fx = 0, fy = 0;
-      for (let i = 0; i < len; i++) {
-        const u = line[idx];
-        y[i] = u;
-        let v = a * u + b * prev; prev = u;
-        for (let k = 0; k < K; k++) { const o = cs * v + sx[k] - cs * sy[k]; sx[k] = v; sy[k] = o; v = o; }
-        const f = C * v + fx - C * fy; fx = v; fy = f;
-        line[idx] = f * loss;
-        idx = idx + 1 === L ? 0 : idx + 1;
-      }
-      const nf = Math.min(len, Math.round(sr * 0.03));
-      for (let j = 0; j < nf; j++) y[len - nf + j] *= 1 - (j + 1) / nf;
-      stringCache.set(key, buf);
-      return buf;
-    }
-
-/*|
-@*/
     // computed impulse response: seeded noise under an exponential decay.
     function reverbImpulse(decay, seed) {
       const rng = mulberry32(hashSeed(seed || 7, 1));
@@ -679,37 +402,6 @@ export function buildBeatsKernel() {
       for (let c = 0; c < 2; c++) {
         const d = buf.getChannelData(c);
         for (let i = 0; i < len; i++) d[i] = (rng() * 2 - 1) * Math.pow(1 - i / len, 2.5);
-/*@mix{*/
-      }
-      return buf;
-    }
-
-    // room2 impulse (opt-in: reverb model 'room2', or the shared `room`):
-    // pre-delay, seeded early-reflection taps, then noise under a −60 dB-at-
-    // `decay` envelope through a one-pole lowpass whose cutoff falls over the
-    // tail (damp 0..1: how fast the highs die first). L/R from independent
-    // seeds. The convolver normalizes IR power, as for the classic impulse.
-    function roomImpulse(r, seed) {
-      const sr = ctx.sampleRate, T = Math.min(r.decay == null ? 2 : r.decay, 10);
-      const pre = Math.round(sr * (r.predelay == null ? 0.015 : r.predelay));
-      const fLo = 9000 * Math.pow(10, -2 * (r.damp == null ? 0.5 : r.damp));
-      const len = pre + Math.max(1, Math.floor(sr * T));
-      const buf = ctx.createBuffer(2, len, sr);
-      for (let c = 0; c < 2; c++) {
-        const rng = mulberry32(hashSeed(seed || 7, 11 + c));
-        const d = buf.getChannelData(c);
-        for (let k = 0; k < 8; k++) {
-          const at = pre + Math.floor(sr * (0.002 + rng() * 0.045));
-          if (at < len) d[at] += (0.7 - k * 0.06) * (rng() < 0.5 ? -1 : 1);
-        }
-        let lp = 0, lp2 = 0;
-        for (let i = 0; i < len - pre; i++) {
-          const u = i / sr / T, k = 1 - Math.exp(-2 * Math.PI * 9000 * Math.pow(fLo / 9000, Math.sqrt(u)) / sr);
-          lp += k * ((rng() * 2 - 1) - lp); lp2 += k * (lp - lp2); // two poles: 12 dB/oct
-          d[pre + i] += lp2 * Math.exp(-6.9078 * u) * 0.5;
-        }
-/*|
-@*/
       }
       return buf;
     }
@@ -795,11 +487,7 @@ export function buildBeatsKernel() {
           const mix = ctx.createGain();
           const dry = ctx.createGain(); dry.gain.value = 1 - (f.wet == null ? 0.4 : f.wet) * 0.5;
           head.connect(dry); dry.connect(mix);
-/*@mix{*/
-          const cv = ctx.createConvolver(); cv.buffer = f.model === 'room2' ? roomImpulse(Object.assign({ decay: 4 }, f), seed) : reverbImpulse(f.decay == null ? 4 : f.decay, seed);
-/*|
           const cv = ctx.createConvolver(); cv.buffer = reverbImpulse(f.decay == null ? 4 : f.decay, seed);
-@*/
           const wet = ctx.createGain(); wet.gain.value = f.wet == null ? 0.4 : f.wet;
           head.connect(cv); cv.connect(wet); wet.connect(mix);
           head = mix;
@@ -876,16 +564,6 @@ export function buildBeatsKernel() {
       return { input, output: head };
     }
 
-/*@x{*/
-    // a StereoPanner at `pan` feeding `dest`; returns its input.
-    function panned(dest, pan) {
-      const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan));
-      p.connect(dest);
-      return p;
-    }
-
-/*|
-@*/
     // ── voices: osc | noise | membrane | fm — one shot, ADSR-shaped ──────────
     function envGain(t, dur, patch, vel) {
       const g = ctx.createGain();
@@ -896,42 +574,14 @@ export function buildBeatsKernel() {
       const peak = dbGain(patch.volume) * (vel == null ? 0.8 : vel);
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(peak, t + a);
-/*@voice{*/
-      if (patch.curve === 'exp') {
-        // exponential (straight-in-dB) decay and release: a −60 dB release
-        // instead of a linear ramp that drops off a cliff at the end. Ramps,
-        // not setTargetAtTime (node-web-audio-api's diverges once converged).
-        const lv = Math.max(peak * s, peak * 1e-4, 1e-6);
-        g.gain.exponentialRampToValueAtTime(lv, t + a + d);
-        g.gain.setValueAtTime(lv, Math.max(t + a + d, t + dur));
-        g.gain.exponentialRampToValueAtTime(lv * 1e-3, Math.max(t + a + d, t + dur) + r);
-      } else {
-        g.gain.linearRampToValueAtTime(peak * s, t + a + d);
-        g.gain.setValueAtTime(peak * s, Math.max(t + a + d, t + dur));
-        g.gain.linearRampToValueAtTime(0.0001, Math.max(t + a + d, t + dur) + r);
-      }
-/*|
       g.gain.linearRampToValueAtTime(peak * s, t + a + d);
       g.gain.setValueAtTime(peak * s, Math.max(t + a + d, t + dur));
       g.gain.linearRampToValueAtTime(0.0001, Math.max(t + a + d, t + dur) + r);
-@*/
       return { node: g, end: Math.max(t + a + d, t + dur) + r + 0.05 };
     }
-/*@voice{*/
-    // key (optional): the noteKey seed behind the opt-in per-hit variation.
-    function playVoice(patch, hz, t, dur, vel, dest, key) {
-      if (patch.pitch) hz = patch.pitch; // a fixed-pitch piece (a drum) ignores the note
-/*|
     function playVoice(patch, hz, t, dur, vel, dest) {
-@*/
       const out = dest || master;
       const voice = patch.voice || 'osc';
-/*@voice{*/
-      const nk = key == null ? hashSeed(Math.round(hz * 16), Math.round(t * 1e4)) : key;
-      // vary (opt-in): noise layers enter the long buffer at a per-hit offset.
-      const vu = patch.vary ? unit(hashSeed(nk, 0x4015E)) : null;
-/*|
-@*/
       const { node: env, end } = envGain(t, dur, patch, vel);
       let post = env;
       // per-voice filter; filterEnv sweeps its cutoff from→to over decay (B5.0) —
@@ -941,32 +591,11 @@ export function buildBeatsKernel() {
         const bq = ctx.createBiquadFilter();
         bq.type = fl.mode || 'lowpass';
         bq.Q.value = fl.q == null ? 1 : fl.q;
-/*@voice{*/
-        // keyTrack (opt-in, 0..1): cutoff × (hz / C4)^k, so brightness follows
-        // register instead of a fixed Hz that starves the treble.
-        const cf = (f) => Math.min(ctx.sampleRate * 0.45, Math.max(40, f * (patch.keyTrack ? Math.pow(hz / 261.6, patch.keyTrack) : 1)));
-/*|
-@*/
         if (patch.filterEnv) {
           const fe = patch.filterEnv;
-/*@voice{*/
-          let from = fe.from == null ? (fl.freq == null ? 2200 : fl.freq) : fe.from;
-          let to = fe.to == null ? 420 : fe.to;
-          // velToFilter reaches the sweep's target too (opt-in: no shelf patch
-          // pairs it with a filterEnv) — blown harder, brass opens brighter.
-          if (patch.keyTrack || patch.velToFilter != null) {
-            from = cf(from);
-            to = cf(to * (patch.velToFilter != null ? Math.pow((vel == null ? 0.8 : vel) / 0.8, patch.velToFilter) : 1));
-          }
-/*|
           const from = fe.from == null ? (fl.freq == null ? 2200 : fl.freq) : fe.from;
-@*/
           bq.frequency.setValueAtTime(Math.max(1, from), t);
-/*@voice{*/
-          bq.frequency.exponentialRampToValueAtTime(Math.max(1, to), t + (fe.decay == null ? 0.2 : fe.decay));
-/*|
           bq.frequency.exponentialRampToValueAtTime(Math.max(1, fe.to == null ? 420 : fe.to), t + (fe.decay == null ? 0.2 : fe.decay));
-@*/
         } else {
           // velToFilter (B6.2b): velocity → brightness, the piano/keys expressive
           // axis — harder hits open the cutoff, soft hits darken (a pow curve
@@ -976,28 +605,11 @@ export function buildBeatsKernel() {
           if (patch.velToFilter != null) {
             fq = Math.min(ctx.sampleRate * 0.45, Math.max(40, fq * Math.pow((vel == null ? 0.8 : vel) / 0.8, patch.velToFilter)));
           }
-/*@voice{*/
-          bq.frequency.value = patch.keyTrack ? cf(fq) : fq;
-/*|
           bq.frequency.value = fq;
-@*/
         }
         env.connect(bq); post = bq;
       }
       post.connect(out);
-/*@voice{*/
-      // breath (opt-in): filtered noise UNDER the envelope for the note's whole
-      // life — bow hair, breath, air; the sustained cousin of attackNoise.
-      if (patch.breath) {
-        const br = patch.breath;
-        const nz = noiseSrc(t, unit(hashSeed(nk, 0xB4EA7)));
-        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
-        bp.frequency.value = br.tone == null ? 1800 : br.tone; bp.Q.value = br.q == null ? 0.7 : br.q;
-        const bg = ctx.createGain(); bg.gain.value = dbGain(br.level == null ? -24 : br.level);
-        nz.connect(bp); bp.connect(bg); bg.connect(env); nz.stop(end);
-      }
-/*|
-@*/
       // attack-transient layer (B7): a short filtered-noise burst at onset — the
       // PICK / bachi contact click for plucked strings (also bow scratch, breath
       // chiff). Runs PARALLEL to the voice with its own fast envelope, so it's an
@@ -1005,11 +617,7 @@ export function buildBeatsKernel() {
       // body/reverb catch it too (the bachi striking the skin excites the box).
       if (patch.attackNoise) {
         const an = patch.attackNoise;
-/*@voice{*/
-        const nz = noiseSrc(t, vu);
-/*|
         const nz = ctx.createBufferSource(); nz.buffer = noiseBuffer(); nz.loop = true;
-@*/
         const bp = ctx.createBiquadFilter();
         bp.type = an.mode || 'bandpass';
         bp.frequency.value = an.tone == null ? 2400 : an.tone;
@@ -1020,20 +628,11 @@ export function buildBeatsKernel() {
         ng.gain.setValueAtTime(Math.max(0.0001, apk), t);
         ng.gain.exponentialRampToValueAtTime(0.0001, t + adec);
         nz.connect(bp); bp.connect(ng); ng.connect(out);
-/*@voice{*/
-        nz.stop(t + adec + 0.02);
-/*|
         nz.start(t); nz.stop(t + adec + 0.02);
-@*/
       }
       if (voice === 'noise') {
-/*@voice{*/
-        const src = noiseSrc(t, vu);
-        src.connect(env); src.stop(end);
-/*|
         const src = ctx.createBufferSource(); src.buffer = noiseBuffer(); src.loop = true;
         src.connect(env); src.start(t); src.stop(end);
-@*/
       } else if (voice === 'string') {
         // plucked string: play the KS-synthesized buffer once. Its own harmonic
         // decay carries the ring; the ADSR gates onset/note-off (hold sustain ≈ 1,
@@ -1078,54 +677,22 @@ export function buildBeatsKernel() {
         // (struck notes ring out; they don't sustain-then-release). Goes to `out` so
         // the part's chain (reverb) and the attackNoise mallet tick sit with it.
         const partials = Array.isArray(patch.partials) && patch.partials.length ? patch.partials : [{ ratio: 1, gain: 1, decay: 1 }];
-/*@voice{*/
-        // a modal patch with a filter plays its partials through it (opt-in:
-        // no shelf modal had one) — the 808 hat's square cluster → highpass.
-        const mout = post === env ? out : post;
-/*|
-@*/
         const base = dbGain(patch.volume) * (vel == null ? 0.8 : vel);
         const atk = patch.attack == null ? 0.002 : patch.attack;
         const nyq = ctx.sampleRate * 0.5;
-/*@voice{*/
-        partials.forEach(function (p, i) {
-/*|
         for (const p of partials) {
-@*/
           const f = hz * (p.ratio == null ? 1 : p.ratio);
-/*@voice{*/
-          if (f <= 0 || f >= nyq) return; // skip DC / above Nyquist
-          // decayTrack (opt-in): higher notes ring shorter, × (C4 / hz)^k.
-          const dec = (p.decay == null ? 1 : p.decay) * (patch.decayTrack ? Math.pow(261.6 / hz, patch.decayTrack) : 1);
-/*|
           if (f <= 0 || f >= nyq) continue; // skip DC / above Nyquist
           const dec = p.decay == null ? 1 : p.decay;
-@*/
           const pk = Math.max(0.0001, base * (p.gain == null ? 1 : p.gain));
-/*@voice{*/
-          const o = ctx.createOscillator(); o.type = p.wave || 'sine'; o.frequency.value = f;
-/*|
           const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
-@*/
           const g = ctx.createGain();
           g.gain.setValueAtTime(0.0001, t);
           g.gain.exponentialRampToValueAtTime(pk, t + atk);       // fast strike (no click)
           g.gain.exponentialRampToValueAtTime(0.0001, t + dec);   // per-mode ring-down
-/*@voice{*/
-          o.connect(g);
-          // width (opt-in): the fundamental stays centred, upper modes fan
-          // out alternately left/right.
-          if (patch.width) g.connect(panned(mout, i ? patch.width * (i % 2 ? -1 : 1) * Math.min(1, 0.4 + i / partials.length) : 0));
-          else g.connect(mout);
-/*|
           o.connect(g); g.connect(out);
-@*/
           o.start(t); o.stop(t + dec + 0.02);
-/*@voice{*/
-        });
-/*|
         }
-@*/
       } else {
         // osc voice; detune/unison (B5.0) spreads N copies across ±detune cents —
         // the supersaw stab. Loudness is normalized by 1/√N so patches keep their
@@ -1138,23 +705,6 @@ export function buildBeatsKernel() {
         // that makes a sustained saw read as BOWED (violin/cello). depth ramps in
         // over `delay` so the bow onset is steady before the vibrato blooms.
         let vib = null;
-/*@voice{*/
-        const V = patch.vibrato || null;
-        const vr = V && V.rate != null ? V.rate : 5.5, vd = V && V.depth != null ? V.depth : 14, vdel = V && V.delay != null ? V.delay : 0.25;
-        // one LFO → gain (depth, ramping in over `delay`) → detune.
-        const vibLfo = (rate, ph) => {
-          const lfo = ctx.createOscillator();
-          if (ph == null) lfo.type = 'sine';
-          else lfo.setPeriodicWave(ctx.createPeriodicWave(new Float32Array([0, Math.sin(ph)]), new Float32Array([0, Math.cos(ph)])));
-          lfo.frequency.value = rate;
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0, t);
-          g.gain.linearRampToValueAtTime(vd, t + vdel);
-          lfo.connect(g); lfo.start(t); lfo.stop(end);
-          return g;
-        };
-        if (V && !V.spread) vib = vibLfo(vr);
-/*|
         if (patch.vibrato) {
           const vr = patch.vibrato.rate == null ? 5.5 : patch.vibrato.rate;
           const vd = patch.vibrato.depth == null ? 14 : patch.vibrato.depth;
@@ -1165,42 +715,12 @@ export function buildBeatsKernel() {
           vib.gain.linearRampToValueAtTime(vd, t + vdel);
           lfo.connect(vib); lfo.start(t); lfo.stop(end);
         }
-@*/
         for (let u = 0; u < n; u++) {
           const osc = ctx.createOscillator(); osc.type = patch.wave || 'sine';
           const spread = n === 1 ? 0 : (u / (n - 1)) * 2 - 1;
-/*@voice{*/
-          const f = hz * Math.pow(2, (cents * spread) / 1200);
-          // glide (opt-in, set per note by the scheduler): slide in from the
-          // row's previous pitch instead of starting on this one.
-          if (patch.glideFrom) {
-            osc.frequency.setValueAtTime(f * patch.glideFrom / hz, t);
-            osc.frequency.exponentialRampToValueAtTime(f, t + (patch.glide || 0.08));
-          } else osc.frequency.value = f;
-/*|
           osc.frequency.value = hz * Math.pow(2, (cents * spread) / 1200);
-@*/
           if (vib) vib.connect(osc.detune);
-/*@voice{*/
-          const rng = V && V.spread || patch.drift ? mulberry32(hashSeed(nk, 0x71B + u)) : null;
-          // vibrato.spread (0..1): one LFO per unison voice, seeded rate ±8% and
-          // phase — a section that doesn't wobble in lockstep.
-          if (V && V.spread) vibLfo(vr * (1 + (rng() * 2 - 1) * 0.08 * V.spread), rng() * 2 * Math.PI * V.spread).connect(osc.detune);
-          // drift (cents): a slow seeded random walk on this voice's detune.
-          if (patch.drift) {
-            let dv = 0;
-            osc.detune.setValueAtTime(0, t);
-            for (let k = 1; k * 0.2 < end - t; k++) {
-              dv = Math.max(-patch.drift, Math.min(patch.drift, dv + (rng() * 2 - 1) * patch.drift * 0.5));
-              osc.detune.linearRampToValueAtTime(dv, t + k * 0.2);
-            }
-          }
-          // width (opt-in): unison voices spread across the stereo field.
-          osc.connect(patch.width && n > 1 ? panned(mix, spread * patch.width) : mix);
-          osc.start(t); osc.stop(end);
-/*|
           osc.connect(mix); osc.start(t); osc.stop(end);
-@*/
         }
       }
     }
@@ -1223,71 +743,22 @@ export function buildBeatsKernel() {
           g.gain.linearRampToValueAtTime(0.0001, t + op.dur + 0.05);
           osc.connect(g); g.connect(out); osc.start(t); osc.stop(t + op.dur + 0.1);
         } else if (op.kind === 'noise') {
-/*@sfx{*/
-          const src = noiseSrc(t, op.offset);
-/*|
           const src = ctx.createBufferSource(); src.buffer = noiseBuffer(); src.loop = true;
-@*/
           const g = ctx.createGain();
           g.gain.setValueAtTime(dbGain(-12) * op.vol * vs, t);
           g.gain.exponentialRampToValueAtTime(0.0001, t + op.decay);
           let node = g;
           if (op.highpass) { const bq = ctx.createBiquadFilter(); bq.type = 'highpass'; bq.frequency.value = op.highpass; node.connect(bq); node = bq; }
           if (op.lowpass) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = op.lowpass; node.connect(lp); node = lp; }
-/*@sfx{*/
-          if (op.bandpass) { const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = op.bandpass; bp.Q.value = op.q || 1; node.connect(bp); node = bp; }
-          if (op.sweep) {
-            const sw = ctx.createBiquadFilter(); sw.type = 'lowpass';
-            sw.frequency.setValueAtTime(op.sweep.from, t); sw.frequency.exponentialRampToValueAtTime(Math.max(20, op.sweep.to), t + op.sweep.decay);
-            node.connect(sw); node = sw;
-          }
-          src.connect(g); node.connect(out); src.stop(t + op.decay + 0.05);
-        } else if (op.kind === 'hum') {
-          const osc = ctx.createOscillator(); osc.type = op.wave;
-          osc.frequency.setValueAtTime(op.from, t);
-          if (op.to !== op.from) osc.frequency.exponentialRampToValueAtTime(op.to, t + op.dur);
-          const end = t + op.dur + op.release, pk = dbGain(-10) * op.vol * vs;
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0, t);
-          g.gain.linearRampToValueAtTime(pk, t + op.attack);
-          g.gain.setValueAtTime(pk, Math.max(t + op.attack, t + op.dur));
-          g.gain.linearRampToValueAtTime(0.0001, end);
-          osc.connect(g);
-          let node = g;
-          const lfo = (spec, param, amt) => {
-            const o = ctx.createOscillator(); o.frequency.value = spec.rate == null ? 6 : spec.rate;
-            const d = ctx.createGain(); d.gain.value = amt;
-            o.connect(d); d.connect(param); o.start(t); o.stop(end + 0.05);
-          };
-          if (op.vibrato) lfo(op.vibrato, osc.detune, op.vibrato.depth == null ? 15 : op.vibrato.depth);
-          if (op.tremolo) {
-            const depth = Math.max(0, Math.min(1, op.tremolo.depth == null ? 0.5 : op.tremolo.depth));
-            const am = ctx.createGain(); am.gain.value = 1 - depth / 2;
-            lfo(op.tremolo, am.gain, depth / 2);
-            node.connect(am); node = am;
-          }
-          if (op.lowpass) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = op.lowpass; node.connect(lp); node = lp; }
-          node.connect(out); osc.start(t); osc.stop(end + 0.05);
-/*|
           src.connect(g); node.connect(out); src.start(t); src.stop(t + op.decay + 0.05);
-@*/
         } else if (op.kind === 'thump') {
-/*@sfx{*/
-          const osc = ctx.createOscillator(); osc.type = op.wave || 'sine';
-/*|
           const osc = ctx.createOscillator(); osc.type = 'sine';
-@*/
           osc.frequency.setValueAtTime(op.from, t);
           osc.frequency.exponentialRampToValueAtTime(Math.max(1, op.to), t + op.decay * 0.6);
           const g = ctx.createGain();
           g.gain.setValueAtTime(dbGain(-6) * op.vol * vs, t);
           g.gain.exponentialRampToValueAtTime(0.0001, t + op.decay);
-/*@sfx{*/
-          if (op.highpass) { const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = op.highpass; g.connect(hp); hp.connect(out); } else g.connect(out);
-          osc.connect(g); osc.start(t); osc.stop(t + op.decay + 0.05);
-/*|
           osc.connect(g); g.connect(out); osc.start(t); osc.stop(t + op.decay + 0.05);
-@*/
         }
       }
     }
@@ -1297,51 +768,6 @@ export function buildBeatsKernel() {
     function channelGain(name) {
       if (!channels[name]) { channels[name] = ctx.createGain(); channels[name].connect(master); }
       return channels[name];
-/*@mix{*/
-    }
-    // one row's route, shared by the live transport and the offline export:
-    // chain → [pan] → channel gain → master. `pan` (−1..1) is opt-in; absent,
-    // no panner node exists. With a recipe `room`, `send` (0..1) taps the
-    // channel post-fader into ONE shared room convolver (mono in, stereo out)
-    // — one space for the mix instead of a reverb per row. Returns the chain input.
-    let roomBus = null;
-    const sends = {};
-    function routeChannel(ch, recipe) {
-      const built = buildChain(ch.chain, recipe.seed, recipe.bpm);
-      const gain = channelGain(ch.name);
-      built.output.connect(ch.pan != null ? panned(gain, ch.pan) : gain);
-      if (recipe.room && ch.send) {
-        if (!roomBus) {
-          const r = recipe.room;
-          const cv = ctx.createConvolver();
-          cv.buffer = r.model === 'noise' ? reverbImpulse(r.decay == null ? 2 : r.decay, recipe.seed) : roomImpulse(r, recipe.seed);
-          const ret = ctx.createGain(); ret.gain.value = dbGain(r.level);
-          roomBus = ctx.createGain(); roomBus.channelCount = 1; roomBus.channelCountMode = 'explicit';
-          roomBus.connect(cv); cv.connect(ret); ret.connect(master);
-        }
-        if (!sends[ch.name]) { sends[ch.name] = ctx.createGain(); gain.connect(sends[ch.name]); sends[ch.name].connect(roomBus); }
-        sends[ch.name].gain.value = ch.send;
-      }
-      return built.input;
-    }
-    // recipe `master` (opt-in): glue-compressor overrides and a limiter stage
-    // (a fast, hard-ratio compressor at `limit` dBFS) after it. Absent: the stock bus.
-    let limiter = null;
-    function setMaster(m) {
-      if (!m) return;
-      const gl = m.glue || {};
-      for (const k of ['threshold', 'ratio', 'knee', 'attack', 'release']) if (gl[k] != null) comp[k].value = gl[k];
-      if (m.limit != null && !limiter) {
-        limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = m.limit; limiter.ratio.value = 20; limiter.knee.value = 0;
-        limiter.attack.value = 0.001; limiter.release.value = 0.08;
-        // undo the compressor's automatic makeup gain, (1 / full-range gain)^0.6,
-        // so the stage only ever turns peaks down.
-        const trim = ctx.createGain(); trim.gain.value = dbGain(0.6 * m.limit * 0.95);
-        comp.disconnect(); comp.connect(limiter); limiter.connect(trim); trim.connect((opts && opts.analyser) || ctx.destination);
-      }
-/*|
-@*/
     }
 
     // ── performance macros (B5.2): transpose + tone per channel ──────────────
@@ -1376,15 +802,6 @@ export function buildBeatsKernel() {
       const semis = macro(name).transpose || 0;
       return noteHz(note) * (semis ? Math.pow(2, semis / 12) : 1);
     }
-/*@voice{*/
-    // the per-note patch: pluck jitter nudges the excitation brightness
-    // (pluck-position drift); a gliding row slides in from its previous note.
-    function notePatch(patch, pluck, row, prev) {
-      const p = pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + pluck)) }) : patch;
-      return row && row.glide && prev != null ? Object.assign({}, p, { glide: row.glide, glideFrom: chHz(row.name, prev) }) : p;
-    }
-/*|
-@*/
 
     // ── transport: lookahead scheduler over pure event derivation ────────────
     // Every 25ms, schedule everything inside the next 120ms window. Ambient
@@ -1393,18 +810,10 @@ export function buildBeatsKernel() {
     function stopTransport() { if (timer) { clearInterval(timer); timer = null; } }
     function startTransport(recipe, patches, mode) {
       stopTransport();
-/*@mix{*/
-      setMaster(recipe.master);
-/*|
-@*/
       const chains = {};
       for (const ch of recipe.channels || recipe.parts || recipe.tracks || []) {
-/*@mix{*/
-        const input = routeChannel(ch, recipe);
-/*|
         const built = buildChain(ch.chain, recipe.seed, recipe.bpm);
         built.output.connect(channelGain(ch.name));
-@*/
         // macro seed: the recipe's own transpose/tone set the initial position,
         // but only on FIRST play — a live macro survives stop/start.
         if (!macroState[ch.name]) {
@@ -1418,20 +827,12 @@ export function buildBeatsKernel() {
         const tn = ctx.createBiquadFilter();
         tn.type = 'lowpass'; tn.Q.value = 0.5;
         tn.frequency.value = toneFreq(m.tone);
-/*@mix{*/
-        tn.connect(input);
-/*|
         tn.connect(built.input);
-@*/
         m.toneNode = tn;
         chains[ch.name] = tn;
       }
       const flat = mode === 'composition' ? compositionEvents(recipe) : null;
       const pat = mode === 'pattern' ? patternEvents(recipe) : null;
-/*@voice{*/
-      const glide = flat ? glideNotes(flat.events) : pat ? [glideNotes(pat.events), glideNotes(pat.events, true)] : null;
-/*|
-@*/
       const bar = barSeconds(recipe.bpm);
       const t0 = ctx.currentTime + 0.08;
       let cursor = 0;    // ambient: next bar index; composition: next event index; pattern: next loop index
@@ -1445,32 +846,16 @@ export function buildBeatsKernel() {
               const tr = (recipe.tracks || []).find((c) => c.name === ev.channel);
               const when = t0 + cursor * pat.duration + ev.t;
               if (tr && (tr.cue || tr.gesture)) {
-/*@sfx{*/
-                // vary (opt-in): each hit is a variant, (loop, event) → a counter.
-                playOps(cuePlan(tr.cue || [tr.gesture], tr.vary ? cursor * 1000 + ei + 1 : 0), when, chains[ev.channel], ev.vel);
-/*|
                 playOps(cuePlan(tr.cue || [tr.gesture]), when, chains[ev.channel], ev.vel);
-@*/
               } else {
-/*@voice{*/
-/*|
                 const patch = patches[(tr && tr.patch) || 'sinePluck'] || {};
-@*/
                 const feel = tr && tr.feel;
                 // per-loop evolving feel: the loop index folds into the seed so the
                 // groove humanizes without repeating identically each bar (B6.1).
                 ev.notes.forEach((n, ni) => {
                   const fl = noteFeel(feel, recipe.seed, cursor * 1000 + ei, ni, ev.notes.length);
-/*@voice{*/
-                  const patch = resolvePatch(patches, tr, n);
-                  if (!patch) return;
-                  const p = notePatch(patch, fl.pluck, tr, glide[cursor ? 1 : 0][ei]);
-                  const hz = chHz(ev.channel, n);
-                  playVoice(p, hz, when + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel], noteKey(recipe.seed, ev.channel, cursor * pat.duration + ev.t + fl.timeOffset, hz));
-/*|
                   const p = fl.pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + fl.pluck)) }) : patch;
                   playVoice(p, chHz(ev.channel, n), when + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
-@*/
                 });
               }
             });
@@ -1483,24 +868,13 @@ export function buildBeatsKernel() {
             const evIndex = cursor;
             const ev = flat.events[cursor++];
             const part = (recipe.parts || []).find((p) => p.name === ev.channel);
-/*@voice{*/
-/*|
             const patch = patches[(part && part.patch) || 'sinePluck'] || {};
-@*/
             const feel = (part && part.feel) || recipe.feel;
             ev.notes.forEach((n, ni) => {
               const fl = noteFeel(feel, recipe.seed, evIndex, ni, ev.notes.length);
-/*@voice{*/
-              const patch = resolvePatch(patches, part, n);
-              if (!patch) return;
-              const p = notePatch(patch, fl.pluck, part, glide[evIndex]);
-              const hz = chHz(ev.channel, n);
-              playVoice(p, hz, t0 + ev.t + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel], noteKey(recipe.seed, ev.channel, ev.t + fl.timeOffset, hz));
-/*|
               // pluck jitter nudges the excitation brightness per note (pluck-position drift)
               const p = fl.pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + fl.pluck)) }) : patch;
               playVoice(p, chHz(ev.channel, n), t0 + ev.t + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
-@*/
             });
           }
           if (cursor >= flat.events.length && !recipe.loop) stopTransport();
@@ -1508,16 +882,9 @@ export function buildBeatsKernel() {
         }
         while (cursor * bar <= horizon) {
           const events = ambientBarEvents(recipe, cursor);
-/*@voice{*/
-          const gl = glideNotes(events); // within the bar: bars stay independent
-/*|
-@*/
           events.forEach((ev, ei) => {
             const ch = (recipe.channels || []).find((c) => c.name === ev.channel);
-/*@voice{*/
-/*|
             const patch = patches[(ch && ch.patch) || 'sinePluck'] || {};
-@*/
             // B6: channels carry feel too (an `instrument` channel expands to one at
             // normalize time) — the bar index folds into the seed like pattern mode,
             // so the humanization evolves per bar yet replays identically. A channel
@@ -1525,16 +892,8 @@ export function buildBeatsKernel() {
             const feel = ch && ch.feel;
             ev.notes.forEach((n, ni) => {
               const fl = noteFeel(feel, recipe.seed, cursor * 1000 + ei, ni, ev.notes.length);
-/*@voice{*/
-              const patch = resolvePatch(patches, ch, n);
-              if (!patch) return;
-              const p = notePatch(patch, fl.pluck, ch, gl[ei]);
-              const hz = chHz(ev.channel, n);
-              playVoice(p, hz, t0 + cursor * bar + ev.t + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel], noteKey(recipe.seed, ev.channel, cursor * bar + ev.t + fl.timeOffset, hz));
-/*|
               const p = fl.pluck ? Object.assign({}, patch, { pick: Math.max(0, Math.min(1, (patch.pick || 0) + fl.pluck)) }) : patch;
               playVoice(p, chHz(ev.channel, n), t0 + cursor * bar + ev.t + fl.timeOffset, ev.dur, ev.vel * fl.velScale, chains[ev.channel]);
-@*/
             });
           });
           cursor += 1;
@@ -1545,12 +904,7 @@ export function buildBeatsKernel() {
     // ── wind/ambience: filtered seeded noise, two incommensurate LFO drifts ──
     function wind(params) {
       const p = params || {};
-/*@x{*/
-      // vary: the 4.37 s buffer, so the bed has no audible 1 s period.
-      const src = ctx.createBufferSource(); src.buffer = p.vary ? longNoise() : noiseBuffer(); src.loop = true;
-/*|
       const src = ctx.createBufferSource(); src.buffer = noiseBuffer(); src.loop = true;
-@*/
       const bq = ctx.createBiquadFilter(); bq.type = 'bandpass';
       bq.frequency.value = p.freq == null ? 320 : p.freq; bq.Q.value = 0.6;
       const g = ctx.createGain(); g.gain.value = dbGain(p.level == null ? -30 : p.level);
@@ -1569,25 +923,8 @@ export function buildBeatsKernel() {
       master,
       channelGain,
       buildChain,
-/*@mix{*/
-      routeChannel,
-      setMaster,
-/*|
-@*/
       playVoice,
-/*@strings{*/
-      stringBuffer,
-/*|
-@*/
-/*@mix{*/
-      impulse(r, seed) { return r && r.model === 'room2' ? roomImpulse(r, seed) : reverbImpulse(r && r.decay, seed); },
-/*|
-@*/
-/*@sfx{*/
-      playCue(gestures, when, dest, velScale, variant) { playOps(cuePlan(gestures, variant), when == null ? ctx.currentTime : when, dest, velScale); },
-/*|
       playCue(gestures, when, dest, velScale) { playOps(cuePlan(gestures), when == null ? ctx.currentTime : when, dest, velScale); },
-@*/
       startAmbient(recipe, patches) { startTransport(recipe, patches, 'ambient'); },
       startComposition(recipe, patches) { startTransport(recipe, patches, 'composition'); },
       startPattern(recipe, patches) { startTransport(recipe, patches, 'pattern'); },
@@ -1613,12 +950,6 @@ export function buildBeatsKernel() {
     ambientBarEvents,
     compositionEvents,
     noteFeel,
-/*@voice{*/
-    noteKey,
-    glideNotes,
-    resolvePatch,
-/*|
-@*/
     chordVoiceNotes,
     patternEvents,
     gesturePlan,

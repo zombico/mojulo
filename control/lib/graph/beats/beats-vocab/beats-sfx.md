@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-sfx", "name": "Sound effects (foley cues)", "summary": "Named foley cues built from six gestures — sweep, flutter, burst, thump (the chiptune four) plus grain (seeded stochastic noise-grain trains) and ring (modal material strikes). Pitch-and-volume choreography fired by an event, not a loop. The world-SFX primitive (pickup dings, lasers, impacts, charge-ups, footsteps, creaks, crackles).", "when": "a sound effect, foley, a pickup ding / laser zap / explosion / jump sound / charge-up, UI feedback sounds, game event stingers, 'make it go pew', footsteps on gravel/wood/grass/leaves, a door creak or slam, glass clink, metal tink, fire crackle, cloth rustle, rain, whoosh, forest ambience — birdsong, wind in the trees, twig snap, an owl at night, weapon sounds — gunfire / a gunshot / shotgun blast / silenced shot, lock and load — rack the slide / bolt / reload / mag in-out / a shell casing, dry fire, a safety click, sci-fi / fantasy weapons — a blaster pew / plasma bolt / charge shot / laser / an overheat vent" }
+{ "id": "beats-sfx", "name": "Sound effects (foley cues)", "summary": "Named foley cues built from seven gestures — sweep, flutter, burst, thump (the chiptune four) plus grain (seeded stochastic noise-grain trains), ring (modal material strikes: glass, metal, wood, cymbal, plate, bell) and tone (a held hum/beam). Pitch-and-volume choreography fired by an event, not a loop. The world-SFX primitive (pickup dings, lasers, impacts, charge-ups, footsteps, creaks, crackles).", "when": "a sound effect, foley, a pickup ding / laser zap / explosion / jump sound / charge-up, UI feedback sounds, game event stingers, 'make it go pew', footsteps on gravel/wood/grass/leaves, a door creak or slam, glass clink, metal tink, fire crackle, cloth rustle, rain, whoosh, forest ambience — birdsong, wind in the trees, twig snap, an owl at night, weapon sounds — gunfire / a gunshot / shotgun blast / silenced shot, lock and load — rack the slide / bolt / reload / mag in-out / a shell casing, dry fire, a safety click, sci-fi / fantasy weapons — a blaster pew / plasma bolt / charge shot / laser / an overheat vent, a held beam / engine hum / machine drone, a cymbal or bell strike, an explosion that darkens as it fades, per-hit variation so repeated sounds aren't identical" }
 ---
 
 ## Shape
@@ -24,7 +24,7 @@
 }
 ```
 
-## The six gestures
+## The seven gestures
 
 The chiptune four (8-bit choreography):
 
@@ -50,11 +50,56 @@ The naturalistic two (the foley spike):
   `over` seconds — gravel crunch, fire crackle, cloth rustle, rain, debris.
   Same seed = the same grit every play; change `seed` for a sibling texture.
   Layer two grains (a bright sparse one over a low dense one) for depth.
-- **ring** — a modal material strike: `{ note?|hz?, material?:
-  glass|metal|wood, partials?: [{ ratio, gain?, decay? }], decay?, vol?,
-  at? }`. A stack of flat decaying sine partials at inharmonic ratios —
-  brights die first, the fundamental sings on. Glass clink, metal tink,
-  wood knock, a struck bottle; pass `partials` to voice a custom material.
+- **ring** — a modal material strike: `{ note?|hz?|size?, material?:
+  glass|metal|wood|cymbal|plate|bell, partials?: [{ ratio, gain?, decay? }],
+  decay?, vol?, wave?, highpass?, excite?, q?, at? }`. A stack of flat
+  decaying partials at inharmonic ratios. The bright ones die first and the
+  fundamental sings on: glass clink, metal tink, wood knock, a struck bottle.
+  Pass `partials` to voice a custom material.
+  - `cymbal` is the 808's six square partials, highpassed (attack centroid
+    ≈ 6 kHz, not the ≈ 1 kHz of a sine `metal`).
+  - `plate` is eight plate modes. `bell` is hum, prime, tierce, quint and
+    nominal.
+  - `wave` sets the partial waveform.
+  - `excite: 'noise'` (with `q`) strikes a resonator bank with noise. Each
+    mode becomes band noise at its frequency, for rougher, "real" metal.
+  - `size` (metres) replaces `note`. Pitch comes from the material (a 0.3 m
+    plate ≈ A4, 0.6 m ≈ A3), so a pack stays physically consistent.
+
+A held voice:
+
+- **tone** — a sustained oscillator: `{ note?|hz?, to?, dur?, wave?,
+  attack?, release?, tremolo?: { rate, depth 0..1 }, vibrato?: { rate,
+  depth (cents) }, lowpass?, vol?, at? }`. `to` bends slowly across `dur`.
+  Use it for beams, engine hums, machinery drones and charge whines that
+  hold, which a `sweep` (a one-shot ramp) can't.
+
+Physical and dynamic dials:
+
+- **thump** `mass` (kg) fills whichever of from/to/decay you leave out.
+  Heavier is lower and longer (a 0.2 kg cup ≈ 376 → 103 Hz, 80 kg ≈ 51 →
+  30 Hz).
+- **burst** `filterEnv: { from, to, decay? }` sweeps a lowpass over the burst,
+  so an explosion or whoosh darkens as it fades. `bandpass` + `q` band the
+  noise (a snare's wires).
+
+**Per-hit variation.** `playCue(gestures, when, dest, vel, variant)` takes a
+hit counter. Variant 0 (or none) is the cue itself. Variant n folds into every
+gesture's seed, detunes each gesture by a seeded ±15 cents, scales its decay
+by ±10 %, and gives it fresh noise. For a world, set `audio.sfx.vary: true`
+and each fired cue is the next variant. A pattern gesture/cue track takes
+`vary: true`. A WAV of one variant is `?variant=N`.
+
+**New work, in short:**
+- Hold with `tone`, not a retriggered `flutter`.
+- Strike metal with `ring` `cymbal`/`plate`/`bell` (or `excite: 'noise'`),
+  and size it with `size`.
+- Weight impacts with `thump` `mass`.
+- Darken explosions and whooshes with burst `filterEnv`.
+- Fire every repeated cue as a new `variant` (world `audio.sfx.vary`, pattern
+  track `vary`).
+
+The packs below predate these and stay valid as written.
 
 A cue is a gesture LIST — layer them with `at` offsets (an impact = burst +
 thump at the same instant; a charge = flutter, then a release sweep + burst at
@@ -116,9 +161,11 @@ from the existing six gestures (no new gesture earned its place): `burst`+`thump
 is the report + body, a **highpassed `burst` carries every metal clack**, `grain`
 is the action grit, `sweep`/`flutter` are the energy shots.
 
-**Metal is noise, not `ring`.** A `ring material:'metal'` is a stack of pure
-sines — measured attack centroid ~509Hz at E4, which reads as a *bongo*, not a
-slide. Sines can't be metallic (even at A6 a pure stack is only ~1900Hz). The
+**Metal is noise, not a sine `ring`.** (The armory predates the `cymbal` and
+`plate` materials and `excite: 'noise'`, which now give `ring` a metallic
+spectrum. The recipe below still stands.) A `ring material:'metal'` is a stack
+of pure sines — measured attack centroid ~509Hz at E4, which reads as a
+*bongo*, not a slide. Sines can't be metallic (even at A6 a pure stack is only ~1900Hz). The
 metallic clack is carried by a short **highpassed `burst`** (≈3.5–4.5kHz hp, ~10ms
 decay — centroid ~7.5kHz on its own); `ring` is demoted to a quiet HIGH shimmer
 (note ≥ A6, `vol` ~0.15) for the faintest ting, and any body `thump` is quiet and
@@ -144,13 +191,12 @@ a hair late so the bright contact leads. That recipe lands the mechanical cues a
 | `overheat-vent` | heat vent after sustained fire | cooldown event |
 
 Weapon doctrine: one cue = one shot — full-auto fire is the caller
-retriggering `gunshot` on a cadence timer with a varied grain `seed` (the same
-call the forest pack makes for birdsong), never an "auto" cue. A full reload is
-a cue *sequence*: `mag-eject` → `mag-insert` → `rack-slide`. And a **continuous
-held beam/hum is deliberately out of reach** — `sweep` is a one-shot ramp and
-`flutter` is retriggered grains, so a sustained beam belongs to a looped
-`beats-ambient` bed, not a cue (`overheat-vent` is the closest one-shot the
-gestures reach).
+retriggering `gunshot` on a cadence timer with a varied grain `seed`, or a
+rising `variant` (the same call the forest pack makes for birdsong). It is
+never an "auto" cue. A full reload is a cue *sequence*: `mag-eject` →
+`mag-insert` → `rack-slide`. A **continuous held beam/hum** is the `tone`
+gesture: `dur`, a slow `to` bend, and tremolo for the beam's pulse. The pack
+predates `tone`, so its `overheat-vent` is still the one-shot approximation.
 
 Copy cues out of any pack into the world/game's own `beats-sfx` mint (the
 recipe is small); don't bind the pack refs. Vary `seed` on grain/jitter

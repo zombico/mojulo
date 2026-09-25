@@ -151,6 +151,63 @@ export const PATCHES = {
   },
 };
 
+// The pre-fidelity shelf, in shelf order: what a page embeds when its recipe
+// references none of the names added below (so such a page is byte-identical).
+export const LEGACY_PATCH_NAMES = Object.freeze(Object.keys(PATCHES));
+
+// grand piano (audio fidelity) — piano on the tuned string: exact
+// fractional-delay tuning (the old loop runs up to +38 cents sharp in the
+// treble), ring time in seconds by register (long bass, short treble — not
+// the per-period 1/f law), stiffness = the stretched upper partials that
+// separate a piano from a harp, exponential release. New name, not a piano
+// edit: rows that say `piano` re-synthesize byte-identical.
+Object.assign(PATCHES, {
+  pianoGrand: { voice: 'string', pluckDamping: 0.55, pick: 0.3, pluckDetune: 2.5, tune: 'exact', ringT60: [9, 1.4], stiffness: 0.5, curve: 'exp', attack: 0.004, decay: 0.05, sustain: 1, release: 0.3, volume: -12, filter: { mode: 'lowpass', freq: 3400, q: 0.7 }, velToFilter: 1.6, attackNoise: { level: -20, decay: 0.014, tone: 320, q: 0.7 } },
+});
+
+// ── drum kit (audio fidelity) — layered pieces at fixed pitch (`pitch`, Hz:
+// the piece ignores the note), exponential envelopes, per-hit noise (`vary`).
+// kick2 = swept sine body + a 3 ms click; snare2 = a ~185 Hz membrane body +
+// band-noise wires; toms = pitched membranes; the hats, ride and crash are the
+// 808's six square partials at inharmonic ratios through a highpass (modal
+// voice + `filter`) with noise sizzle. `drumKit` maps GM drum notes to pieces.
+const SQ808 = [1, 1.4827, 1.8003, 2.546, 2.6303, 3.8967];
+const cluster = (gain, decay) => SQ808.map((ratio, i) => ({ ratio, gain, decay: decay * (1 - i * 0.05), wave: 'square' }));
+Object.assign(PATCHES, {
+  kick2: { voice: 'membrane', pitch: 48, octaves: 3.4, pitchDecay: 0.055, attack: 0.001, decay: 0.42, sustain: 0, release: 0.06, curve: 'exp', volume: -7, vary: true, attackNoise: { mode: 'highpass', tone: 1800, q: 0.7, level: -14, decay: 0.003 } },
+  snare2: { voice: 'membrane', pitch: 185, octaves: 1, pitchDecay: 0.03, attack: 0.001, decay: 0.12, sustain: 0, release: 0.05, curve: 'exp', volume: -13, vary: true, attackNoise: { mode: 'bandpass', tone: 3400, q: 0.45, level: -15, decay: 0.19 } },
+  tomLo: { voice: 'membrane', pitch: 98, octaves: 1.2, pitchDecay: 0.09, attack: 0.001, decay: 0.5, sustain: 0, release: 0.08, curve: 'exp', volume: -10, vary: true, attackNoise: { tone: 1800, q: 0.7, level: -28, decay: 0.006 } },
+  tomMid: { voice: 'membrane', pitch: 138, octaves: 1.2, pitchDecay: 0.08, attack: 0.001, decay: 0.42, sustain: 0, release: 0.07, curve: 'exp', volume: -10, vary: true, attackNoise: { tone: 2200, q: 0.7, level: -28, decay: 0.006 } },
+  tomHi: { voice: 'membrane', pitch: 196, octaves: 1.2, pitchDecay: 0.07, attack: 0.001, decay: 0.36, sustain: 0, release: 0.06, curve: 'exp', volume: -10, vary: true, attackNoise: { tone: 2600, q: 0.7, level: -28, decay: 0.006 } },
+  hat808: { voice: 'modal', pitch: 205.3, attack: 0.001, volume: -13, partials: cluster(0.6, 0.07), filter: { mode: 'highpass', freq: 7000, q: 0.7 }, vary: true, attackNoise: { mode: 'highpass', tone: 9000, q: 0.7, level: -24, decay: 0.03 } },
+  hatOpen: { voice: 'modal', pitch: 205.3, attack: 0.001, volume: -19, partials: cluster(0.6, 0.42), filter: { mode: 'highpass', freq: 6500, q: 0.7 }, vary: true, attackNoise: { mode: 'highpass', tone: 8000, q: 0.7, level: -30, decay: 0.3 } },
+  ride: { voice: 'modal', pitch: 410, attack: 0.001, volume: -21, partials: [...cluster(0.35, 1.5), { ratio: 5.3, gain: 0.5, decay: 0.9 }], filter: { mode: 'highpass', freq: 3200, q: 0.7 }, vary: true, attackNoise: { mode: 'highpass', tone: 7000, q: 0.7, level: -34, decay: 0.05 } },
+  crash: { voice: 'modal', pitch: 330, attack: 0.001, volume: -27, partials: cluster(0.45, 2.2), filter: { mode: 'highpass', freq: 3000, q: 0.7 }, vary: true, attackNoise: { mode: 'highpass', tone: 5000, q: 0.5, level: -18, decay: 1.6 } },
+  // GM drum map (MIDI note → piece): 35/36 kick, 37/38/40 snare, 42/44 closed
+  // hat, 46 open hat, 41/43 low tom, 45/47 mid tom, 48/50 high tom, 49/57
+  // crash, 51/53/59 ride. In this kernel's naming (C4 = 60): C2 kick, D2 snare,
+  // F#2 closed hat, A#2 open hat, F2/A2/C3 toms, C#3 crash, D#3 ride.
+  drumKit: { kit: { 35: 'kick2', 36: 'kick2', 37: 'snare2', 38: 'snare2', 40: 'snare2', 42: 'hat808', 44: 'hat808', 46: 'hatOpen', 41: 'tomLo', 43: 'tomLo', 45: 'tomMid', 47: 'tomMid', 48: 'tomHi', 50: 'tomHi', 49: 'crash', 57: 'crash', 51: 'ride', 53: 'ride', 59: 'ride' } },
+});
+
+// Section v2 (audio fidelity): the bowed and brass patches with the expression
+// opt-ins on — per-voice de-locked vibrato (spread), a slow pitch drift, bow or
+// breath air under the note, brightness that follows register (keyTrack) and,
+// for brass, velocity (velToFilter now reaches the filterEnv sweep), and an
+// exponential release. New names; the originals re-synthesize byte-identical.
+const BOWED_V2 = { drift: 4, keyTrack: 0.4, curve: 'exp', width: 0.5 };
+const BRASS_V2 = { drift: 3, keyTrack: 0.5, velToFilter: 1.3, curve: 'exp' };
+for (const [name, base, extra] of [
+  ['violin2', 'violin', { ...BOWED_V2, breath: { level: -30, tone: 2800, q: 0.8 } }],
+  ['viola2', 'viola', { ...BOWED_V2, breath: { level: -30, tone: 2300, q: 0.8 } }],
+  ['cello2', 'cello', { ...BOWED_V2, breath: { level: -31, tone: 1700, q: 0.8 } }],
+  ['contrabass2', 'contrabass', { ...BOWED_V2, breath: { level: -32, tone: 1100, q: 0.8 } }],
+  ['trumpet2', 'trumpet', { ...BRASS_V2, breath: { level: -34, tone: 1600, q: 0.7 } }],
+  ['frenchHorn2', 'frenchHorn', { ...BRASS_V2, breath: { level: -36, tone: 900, q: 0.7 } }],
+  ['trombone2', 'trombone', { ...BRASS_V2, breath: { level: -35, tone: 1100, q: 0.7 } }],
+  ['tuba2', 'tuba', { ...BRASS_V2, breath: { level: -36, tone: 600, q: 0.7 } }],
+]) PATCHES[name] = { ...PATCHES[base], ...extra, vibrato: { ...PATCHES[base].vibrato, spread: 1 } };
+
 export function getPatch(name, overrides) {
   const base = PATCHES[name];
   if (!base) {

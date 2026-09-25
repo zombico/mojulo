@@ -62,15 +62,23 @@ const GM_PROGRAM = {
   shamisen: 106, erhu: 110,
   rhodes: 4, harpsichord: 6, clav: 7, piano: 0,
   celesta: 8, musicBox: 10, organ: 16, steelpan: 114,
+  pianoGrand: 0, violin2: 40, viola2: 41, cello2: 42, contrabass2: 43,
+  trumpet2: 56, frenchHorn2: 60, trombone2: 57, tuba2: 58,
 };
 
 // drum-shaped patches → GM percussion notes (channel 10).
-const GM_DRUM_NOTE = { kick: 36, hat: 42, burstSoft: 38 };
+const GM_DRUM_NOTE = {
+  kick: 36, hat: 42, burstSoft: 38,
+  kick2: 36, snare2: 38, tomLo: 41, tomMid: 45, tomHi: 48, hat808: 42, hatOpen: 46, ride: 51, crash: 49,
+};
+// a kit row's notes already ARE GM drum notes (drumKit): channel 10, own pitch.
+const KIT = 'kit';
 
 function drumNoteForPatch(patchName) {
   if (GM_DRUM_NOTE[patchName] !== undefined) return GM_DRUM_NOTE[patchName];
   const p = PATCHES[patchName];
   if (!p) return null;
+  if (p.kit) return KIT;
   if (p.voice === 'membrane') return 36;
   if (p.voice === 'noise') {
     const hp = p.filter && p.filter.mode === 'highpass' ? p.filter.freq : 0;
@@ -177,7 +185,7 @@ export function renderBeatsMidi(manifest, opts = {}) {
         noteCount += 1;
         continue;
       }
-      const pitch = Math.max(0, Math.min(127, (channel === 9 && drumNote !== null ? drumNote : midiNote(e.note) + transpose)));
+      const pitch = Math.max(0, Math.min(127, (channel === 9 && drumNote !== null && drumNote !== KIT ? drumNote : midiNote(e.note) + (drumNote === KIT ? 0 : transpose))));
       const on = tickOf(e.t);
       const off = Math.max(on + 1, tickOf(e.t + e.dur));
       events.push({ tick: on, data: [0x90 | channel, pitch, vel] });

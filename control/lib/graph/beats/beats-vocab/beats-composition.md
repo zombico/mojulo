@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-composition", "name": "Composition (explicit score)", "summary": "A literal note-event score: parts with [time, notes, dur, vel] events against one transport. Deterministic by construction — no dice. The MIDI-shaped middle layer between vibe recipe and sound design.", "when": "compose a melody/theme/jingle, write a specific tune, transcribe a musical idea note by note, a fanfare or sting with exact notes, a piece with a beginning and an end" }
+{ "id": "beats-composition", "name": "Composition (explicit score)", "summary": "A literal note-event score: parts with [time, notes, dur, vel] events against one transport. Deterministic by construction — no dice. The MIDI-shaped middle layer between vibe recipe and sound design.", "when": "compose a melody/theme/jingle, write a specific tune, transcribe a musical idea note by note, a fanfare or sting with exact notes, a piece with a beginning and an end, a stereo mix with panning and one shared reverb room, a master limiter, a loudness-normalized / -14 LUFS / 24-bit export" }
 ---
 
 ## Shape
@@ -45,12 +45,18 @@ well an octave-plus above the bass. `fmBell` and `chipLead` carry melody;
 `pad` chords underneath want long durations, not restrikes.
 
 For anything meant to sound *played*, prefer a named `instrument` on the part
-over a raw patch (see the beats-instruments card): `piano` is the workhorse —
-melody, accompaniment, and bass from one instrument, with velocity as the
-expressive axis (harder = brighter). Sections compose: piano + `violin`/
-`viola`/`cello`/`contrabass` + brass make an orchestra; give each part its own
-register and let the `ensemble`/`keys` feels de-quantize the attacks. Since a
-KS piano can't tie across bars, re-strike long melody notes softer.
+over a raw patch (see the beats-instruments card). For new work, lead with the
+fidelity names:
+- `grand-piano` is the workhorse: melody, accompaniment and bass from one
+  instrument, in tune at every register, with velocity as the expressive axis
+  (harder = brighter).
+- Sections compose: `grand-piano` + `violin-2`/`viola-2`/`cello-2`/
+  `contrabass-2` + `trumpet-2`/`trombone-2` make an orchestra, and
+  `drum-kit` gives it a kit.
+- Give each part its own register and a `pan`, put the band in one `room` with
+  per-part `send`, and let the `ensemble`/`keys` feels de-quantize the attacks.
+- `piano`, `violin`, `trumpet` … are legacy names kept for existing recipes.
+- A string piano can't tie across bars, so re-strike long melody notes softer.
 
 ## Multi-section arrangements
 
@@ -71,14 +77,32 @@ across bars 0–9 with `loop: true` to cycle the section. Four patterns carry it
 - **Build and turn with fills.** A pre-chorus snare crescendo (four rising
   sixteenths on beat 4) pushes into the chorus; a turnaround fill closes the
   loop.
-- **No tom on the shelf? Pitch the membrane.** The `kick` patch is a tunable
-  drum — higher note names (`"A2"`, `"F2"`, `"D2"`) read as descending toms, so
-  a tom fill is a few pitched `kick` events, no new instrument.
+- **Toms.** The `drum-kit` instrument has real toms (`F2`/`A2`/`C3`). Older
+  scores pitch the `kick` membrane instead: higher note names (`"A2"`, `"F2"`,
+  `"D2"`) read as descending toms.
 
 At this scale (hundreds of events across 6–8 voices) author the score with a
 small generator, not by hand — restating every bar's groove literally is what
 the pattern kind exists to avoid, so reserve composition for when the section
 structure or the lead line genuinely needs explicit control.
+
+## Mix and export (opt-in, every musical kind)
+
+- **`pan`** on a part/track/channel (−1..1) places it in the stereo field.
+- **`room: { decay, model?, predelay?, damp?, level? }`** at the manifest level
+  is ONE shared reverb for the mix. A row joins it with **`send`** (0..1,
+  post-fader). `model: 'room2'` (the default here) adds pre-delay, early
+  reflections, and highs that die before lows. `'noise'` is the classic tail.
+  Per-row `reverb` chain effects still work, and can take `model: 'room2'` too.
+- **`master: { limit?, glue? }`**: `limit` (dBFS) adds a fast limiter after the
+  mix compressor. `glue` overrides that compressor's `threshold`, `ratio`,
+  `knee`, `attack` and `release`.
+- **`export: { bitDepth?, dither?, normalize? }`** shapes the WAV only; the live
+  page never uses it. `bitDepth` is 16, 24 or 32 (float). `dither: true` adds
+  seeded TPDF dither. `normalize: { peak: -1 }` sets the true peak in dBTP;
+  `{ lufs: -14 }` sets integrated loudness and also keeps −1 dBTP. The render
+  meta reports the gain, the result, and `ceilingLimited` when the peak ceiling
+  stopped the loudness target.
 
 ## Performance macros + revising
 

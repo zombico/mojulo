@@ -12,6 +12,130 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Audio fidelity
+
+Beats is built from formulas and never ships a sample, so its fidelity is only
+as good as the formulas. This theme raises that ceiling. Every addition is
+opt-in: a new param, a new patch or instrument name, or a new model value.
+Stored rows re-synthesize byte-identical. `beats-render.baseline.test.js` pins
+the WAV sha256 of a band composition, a gesture/harmony-bus pattern, a
+grain + ring cue and an instrument ambient (per platform-arch). The gate
+measurements live in `lib/graph/beats/audio-measure.js`. No one has listened
+to any of this yet: the ears gate has not run.
+
+- **Stereo and per-hit variation.**
+  - Rows (parts, tracks, channels) take `pan` (−1..1). The kernel's new
+    `routeChannel` gives the live transport and the offline export one route.
+  - Rows also take `patchParams`, merged over the named patch. This turns on
+    any voice-level opt-in without editing the shelf.
+  - Patch `width` spreads unison voices and modal partials across stereo.
+  - `vary: true` sends noise voices and attack noise into a second, 4.37 s
+    buffer at a per-note offset. The offset comes from the new pure
+    `noteKey(seed, channel, onset, hz)`.
+  - `curve: 'exp'` gives exponential decay and release. World `wind.vary`
+    uses the long buffer.
+  - L/R correlation on the gate mix (piano −0.7, hat +0.8, violin width 1)
+    drops from 0.998 to 0.54. Two identical hat hits now differ by 1.39 (they
+    were identical).
+- **Tuned strings.** `tune: 'exact'`, `ringT60` or `stiffness` switch the
+  Karplus-Strong voice to a tuned loop: a fractional-delay allpass solved from
+  the loop's phase delay at the fundamental. The old loop is untouched.
+  - The worst error from E2 to C7 drops from +42 cents to 0.1 (guitarClean)
+    and from +38 to 0.0 (piano).
+  - `ringT60` sets the fundamental's decay in seconds (or `[at C2, at C7]`).
+    At a 2 s target, A2, A4 and A5 measure 2.00, 2.00 and 1.99 s.
+  - `maxRing` follows T60, and a 30 ms end fade replaces the live cut at the
+    buffer cap.
+  - `stiffness` adds dispersion allpasses, which stretch the upper partials.
+  - New `pianoGrand` patch / `grand-piano` instrument.
+- **Expression.**
+  - `keyTrack` makes filter brightness follow pitch. The bassMono
+    centroid/f0 spread from C2 to C5 drops from 3.15 to 1.40.
+  - `velToFilter` now also drives a `filterEnv` target. No shelf patch
+    combined the two, so existing brass is unchanged.
+  - New modal `decayTrack`. `vibrato.spread` gives each unison voice its own
+    LFO with a seeded rate and phase.
+  - `drift` (cents) is a slow seeded pitch walk. `breath` lays filtered air
+    under the note.
+  - Row-level `glide` slides from the row's previous note. The pure
+    `glideNotes` derives that note at schedule time.
+  - The v2 section shelf: `violin2` … `tuba2` patches and `violin-2` …
+    `tuba-2` instruments. Trumpet centroid across velocity was flat at
+    2.86 kHz; trumpet2 rises 1.20 → 2.21 → 3.29 kHz.
+- **Drum kit and metal.**
+  - Modal partials take a `wave`, and a modal patch with a `filter` plays its
+    partials through it. Patches take `pitch` (a fixed Hz that ignores the
+    note).
+  - New pieces: `kick2` (body + click), `snare2` (membrane body + band-noise
+    wires), `tomLo`/`tomMid`/`tomHi`, `hat808`/`hatOpen`/`ride`/`crash` (the
+    808's six square partials).
+  - The `drumKit` patch / `drum-kit` instrument maps GM drum notes (C4 = 60:
+    C2 kick, D2 snare, F#2 hat) to pieces. MIDI export sends it to channel 10.
+  - Ring materials `cymbal`, `plate` and `bell`, plus ring `wave`,
+    `highpass` and `excite: 'noise'` (+ `q`). Burst takes `bandpass`/`q`.
+    Ring attack centroid: `metal` at E4 is 1.2 kHz; `cymbal` is 6.3 kHz.
+- **Room, bus, export.**
+  - Reverb `model: 'room2'` adds pre-delay, seeded early reflections, a
+    lowpass that falls over the tail, and independent L/R. At decay 2 s,
+    250 Hz / 8 kHz T60 measures 1.98 / 1.26 s; the noise IR was flat at
+    3.04 / 2.54 s.
+  - A manifest `room` is one shared convolver, joined by row `send`.
+  - `master` holds `glue` compressor overrides and a `limit` stage (makeup
+    gain trimmed out).
+  - The render/export takes `bitDepth` 16 | 24 | 32 (float), seeded TPDF
+    `dither`, and `normalize { peak, lufs }` (BS.1770-4 loudness, 4× true
+    peak). These default from a manifest `export` block, so no tool schema
+    changed.
+- **SFX.**
+  - `playCue` takes a `variant` hit counter: seeds fold, each gesture moves by
+    ±15 cents / ±10 % decay, and noise is fresh. Variant 0 is byte-identical
+    to the plain cue.
+  - Pattern gesture tracks take `vary`. World `audio.sfx.vary` passes a
+    counter. The WAV routes take `?variant=`.
+  - New `tone` gesture: a held oscillator with a bend, tremolo and vibrato.
+  - Ring `size` (m) and thump `mass` (kg) are physical dials. Burst
+    `filterEnv` is a lowpass sweep.
+- **Fixed on the way.** node-web-audio-api's `setTargetAtTime` diverges
+  (values reached 1e28) once it converges on its target. The new
+  exponential envelopes and glide use exponential ramps instead.
+- **Feature-sliced pages.** A page pays only for what its recipe uses, and a
+  recipe with no opt-in emits the same page bytes as 2.1. That keeps the
+  `emit-channels.char.test.js` world pins green without a re-pin.
+  - Every post-2.1 kernel change sits in a region tagged `x`, `voice`,
+    `strings`, `mix` or `sfx`, with the 2.1 lines kept beside it in a comment.
+    Node runs the kernel whole. `emitBeatsKernel(features)` keeps each
+    region's new or 2.1 lines.
+  - A no-feature page embeds a frozen copy of the 2.1 kernel
+    (`beats-kernel-2.1.js`). A bundler can transform serialized code (vitest
+    appends `;` after blocks), so the 2.1 text has to be real code that goes
+    through the same transform.
+  - The pure `beatsFeatures(manifest)` / `audioFeatures(worldAudio)` decide
+    the slices. `pagePatches()` embeds the 2.1 shelf plus only the newer names
+    a recipe references.
+  - The player, the world audio channel, the CSS3D soundtrack, the diff
+    exhibit and the pixelizer shells all compose this way. The world's
+    variant counter and the exhibit's fidelity realizer appear only when
+    used.
+  - `renderWithKernel` proves each slice renders byte-identical to the full
+    kernel. It also proves the frozen kernel renders the baseline fixtures
+    identically.
+  - Kernel cost over 2.1's 53.9 KB: `x` +1.4 KB, `voice` +8.4 KB, `strings`
+    +5.4 KB, `mix` +5.5 KB, `sfx` +7.9 KB (x included in each); all of them
+    +23.0 KB.
+- **Routing to the new sounds.** The beats vocab cards, the `audio-beats`
+  routing card, the audio drawer and the `create_beats` description now lead
+  new work with:
+  - `grand-piano`, the `-2` sections and `drum-kit`
+  - `pan` + a shared `room`, and `patchParams` tune/vary
+  - `tone` and cue `variant`
+
+  The unsuffixed names are documented as legacy, kept for existing recipes.
+  No pin moved; the description got shorter.
+- **Recorded stopping point.** Ambient export still drops `feel` (the live
+  player applies it). Matching them changes export bytes for ambient rows that
+  carry feel, so it is left for a decision. The voice realism dials
+  (singer's formant, jitter/shimmer, aspiration) did not start.
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation

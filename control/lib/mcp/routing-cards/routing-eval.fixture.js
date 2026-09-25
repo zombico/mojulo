@@ -26,6 +26,7 @@ export const FIXTURE = [
   ['build me a little town I can wander around in', 'compose_world'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
+  ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['give me a spinning view of that molecule', 'forge_motion'],
   ['present these three charts one after another with build-in steps', 'forge_motion'],
   ['record the hero clearing the chasm and show me the clip', 'forge_motion'],

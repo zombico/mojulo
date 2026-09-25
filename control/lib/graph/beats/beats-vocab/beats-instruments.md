@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-instruments", "name": "Instruments, guitars, keyboards & feel (B6)", "summary": "The layered instrument model: named instruments (electric-guitar, acoustic-guitar, rock-guitar, rock-lead, piano, rhodes, organ, …) that expand to patch + color chain + performance feel; the Karplus-Strong string voice and its guitar/keyboard patches; the body, drive, and amp chain effects; and feel presets (strum, palm-mute, fingerpick, keys) that humanize a part so it stops sounding like MIDI.", "when": "add a guitar (acoustic / electric / distorted / nylon / lead), metal or hard rock, a heavy riff, a rhythm guitar with a lead over it, high-gain amp distortion, add a piano or keyboard (piano / rhodes / e-piano / harpsichord / clavinet / celesta / music box / organ), pick an instrument by name, make a part sound played rather than quantized, strum chords, palm-muted or fingerpicked feel, dial in overdrive/distortion, warm a plucked tone with body resonance, velocity-sensitive brightness, humanize a beats-composition or beats-pattern" }
+{ "id": "beats-instruments", "name": "Instruments, guitars, keyboards & feel (B6)", "summary": "The layered instrument model: named instruments (electric-guitar, acoustic-guitar, rock-guitar, rock-lead, piano, rhodes, organ, …) that expand to patch + color chain + performance feel; the Karplus-Strong string voice and its guitar/keyboard patches; the body, drive, and amp chain effects; and feel presets (strum, palm-mute, fingerpick, keys) that humanize a part so it stops sounding like MIDI.", "when": "add a guitar (acoustic / electric / distorted / nylon / lead), metal or hard rock, a heavy riff, a rhythm guitar with a lead over it, high-gain amp distortion, a drum kit / acoustic drums / toms / ride / crash / 808 hats, a grand piano in tune, a string section that doesn't wobble in lockstep, brass that gets brighter when played harder, portamento / glide / slides, stereo width and panning, add a piano or keyboard (piano / rhodes / e-piano / harpsichord / clavinet / celesta / music box / organ), pick an instrument by name, make a part sound played rather than quantized, strum chords, palm-muted or fingerpicked feel, dial in overdrive/distortion, warm a plucked tone with body resonance, velocity-sensitive brightness, humanize a beats-composition or beats-pattern" }
 ---
 
 ## The model — four layers
@@ -24,6 +24,21 @@ default (feel shallow-merges, so you can tweak one param). Ambient channels are
 the world-soundtrack door: `{ "role": "harmony", "instrument": "piano" }` seats
 the piano in a world's orchestra alongside string and brass channels.
 
+**Pick these first for new work.** They're the fidelity shelf: tuned,
+de-locked and dynamic, per "Fidelity opt-ins" below.
+- Keys: `grand-piano`.
+- Strings: `violin-2`, `viola-2`, `cello-2`, `contrabass-2`.
+- Brass: `trumpet-2`, `french-horn-2`, `trombone-2`, `tuba-2`.
+- Drums: `drum-kit`.
+- Plucked strings: an existing guitar with `patchParams: { "tune": "exact" }`
+  (in tune at every register).
+- Placement: give each part a `pan`. The mix shares one `room` via row `send`
+  (composition card).
+
+The unsuffixed names below are **legacy, kept for existing recipes**. They
+still render exactly as before; pick one only when no fidelity name exists
+(e.g. guitars, rhodes, organ) or when matching an older piece.
+
 ```json
 {
   "kind": "beats-composition",
@@ -38,7 +53,7 @@ the piano in a world's orchestra alongside string and brass channels.
 }
 ```
 
-Shelf — guitars: `acoustic-guitar`, `nylon-guitar`, `electric-guitar`,
+Legacy / 2.1 shelf — guitars: `acoustic-guitar`, `nylon-guitar`, `electric-guitar`,
 `electric-clean`, `distorted-guitar`, `lead-guitar`, `muted-guitar`,
 `rock-guitar`, `rock-lead` (the metal/hard-rock pair — see the `amp` effect
 below; rhythm wall + a lead voiced 12dB cooler with delay so it sings on top;
@@ -47,7 +62,10 @@ guitar with a lead over it"). Strings:
 `violin`, `viola`, `cello`, `contrabass`, `erhu`. Brass: `trumpet`,
 `french-horn`, `trombone`, `tuba`. World/mallet: `shamisen`, `steel-drum`.
 Keyboards (B6.2b): `piano`, `rhodes`, `harpsichord`, `clavinet`, `celesta`,
-`music-box`, `organ`.
+`music-box`, `organ`. Fidelity shelf (new names; the originals are
+unchanged): `grand-piano`, `violin-2`, `viola-2`, `cello-2`, `contrabass-2`,
+`trumpet-2`, `french-horn-2`, `trombone-2`, `tuba-2`, `drum-kit` — see
+"Fidelity opt-ins" below.
 
 ## Keyboards — no new voice, three existing ones
 
@@ -136,3 +154,51 @@ acoustic ≈ `{ "strum":0.022, "strumAlternate":true }`.
 Applies in `beats-composition`, `beats-pattern`, and `beats-ambient` (per-bar
 evolving, seeded). A `null`/absent feel is exactly quantized playback (zero
 change from before B6).
+
+## Fidelity opt-ins (the default for new work)
+
+Every one of these is opt-in: a part that doesn't ask renders exactly as before.
+
+**New names.** `grand-piano` (patch `pianoGrand`) is the piano on the tuned
+string: exact pitch at every register, ring time in seconds, stretched upper
+partials. `violin-2` … `tuba-2` are the section patches with de-locked
+per-voice vibrato, a slow pitch drift, bow/breath air under the note,
+brightness that follows register, and (brass) velocity that opens the filter
+sweep. `drum-kit` (patch `drumKit`) plays GM drum notes, C4 = 60: `C2` kick,
+`D2` snare, `F#2` closed hat, `A#2` open hat, `F2`/`A2`/`C3` toms, `C#3`
+crash, `D#3` ride. Each piece is also a patch (`kick2`, `snare2`, `tomLo`,
+`tomMid`, `tomHi`, `hat808`, `hatOpen`, `ride`, `crash`). On a pattern track,
+use `notes` (chords hit several pieces: `["C2","F#2"]`).
+
+**Row fields** (part / track / channel):
+- `pan` −1..1 places the row in the stereo field.
+- `glide` (seconds, osc voices) slides each note in from the row's previous
+  note. For erhu, trombone, violin slides and mono leads.
+- `patchParams: {…}` merges over the named patch, so you can turn on any
+  voice-level opt-in without a new patch name:
+  - `curve: 'exp'` for exponential decay/release instead of linear.
+  - `vary: true` makes noise layers differ per hit (no machine-gun hats).
+  - `width` 0..1 spreads unison voices or modal partials across stereo.
+  - `tune: 'exact'` tunes the string voice to within 2 cents at every register
+    (the default loop runs up to +40 cents sharp in the treble).
+  - `ringT60` (seconds, or `[at C2, at C7]`) sets how long a string rings.
+    `maxRing` then defaults to 1.1 × T60, and the tail fades out instead of
+    being cut off.
+  - `stiffness` 0..1 stretches a string's upper partials (~0.5 = grand piano).
+  - `keyTrack` 0..2 scales the filter cutoff by (pitch / C4)^k. At 1, the
+    brightness follows the note.
+  - `velToFilter` now also drives a `filterEnv` target.
+  - `decayTrack` makes high modal notes ring shorter.
+  - `drift` (cents) is a slow seeded pitch walk.
+  - `breath: { level, tone, q }` lays filtered air under the note.
+  - `vibrato: { rate, depth, delay, spread }`: `spread` 0..1 gives each unison
+    voice its own seeded rate and phase.
+
+```json
+{ "name": "gtr", "instrument": "acoustic-guitar", "pan": -0.3,
+  "patchParams": { "tune": "exact", "ringT60": [5, 1.2] }, "events": [...] }
+```
+
+Mix and export blocks (`room` + `send`, `master`, `export`) are on the
+composition card.
+

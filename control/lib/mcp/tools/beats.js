@@ -443,13 +443,13 @@ export function registerBeatsTools() {
       + 'world-soundtrack primitive), `beats-composition` (an explicit note-event score — a specific '
       + 'melody/jingle/fanfare, no dice), `beats-pattern` (a step-sequencer groove loop — tracks × '
       + 'sixteenth velocity masks with note contours; drum machine / house / garage / techno beats), '
-      + '`beats-sfx` (named foley cues built from four chiptune gestures: '
-      + 'sweep/flutter/burst/thump — pickups, lasers, impacts, charge-ups; the world-SFX primitive). Pick '
+      + '`beats-sfx` (named foley cues: sweep/flutter/burst/thump/grain/ring/tone — pickups, lasers, '
+      + 'impacts, beams). New work: grand-piano, -2 sections, drum-kit, pan + room. Pick '
       + '`kind`; the kind\'s own recipe goes in `params` — find a kind by intent via '
       + "semantic_search({ kinds: ['beats_vocab'] }) and read its parameter manual via "
       + 'get_beats_vocab({ id: \'<kind>\' }) before passing params. Wire into a world via the world '
       + 'manifest\'s `audio` channel ({ soundtrack: { beatsRef } }, sfx cues on bus events). Reach for '
-      + '"give this world music / a soundtrack", "compose a tune", "make a pickup/laser/charge sound".',
+      + '"give this world music", "compose a tune", "make a pickup/laser/charge sound".',
     inputSchema: {
       type: 'object',
       properties: {

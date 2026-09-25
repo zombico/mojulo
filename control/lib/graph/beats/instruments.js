@@ -73,6 +73,21 @@ export const INSTRUMENTS = {
   'french-horn': { patch: 'frenchHorn', chain: [{ type: 'reverb', wet: 0.32, decay: 3.2 }], feel: { strum: 0.016, jitterTime: 0.01, jitterVel: 0.12 } },
   trombone: { patch: 'trombone', chain: [{ type: 'reverb', wet: 0.24, decay: 2.4 }], feel: { strum: 0.012, jitterTime: 0.008, jitterVel: 0.13 } },
   tuba: { patch: 'tuba', chain: [{ type: 'reverb', wet: 0.2, decay: 2.2 }], feel: 'robotic' },
+  // Section v2 (audio fidelity): same colors and feels over the v2 patches
+  // (de-locked vibrato, drift, bow/breath air, register- and velocity-tracked
+  // brightness). New names: the originals are unchanged.
+  'violin-2': { patch: 'violin2', chain: [{ type: 'body', mix: 0.22 }, { type: 'reverb', wet: 0.32, decay: 3.5 }], feel: 'ensemble' },
+  'viola-2': { patch: 'viola2', chain: [{ type: 'body', mix: 0.26 }, { type: 'reverb', wet: 0.3, decay: 3.5 }], feel: 'ensemble' },
+  'cello-2': { patch: 'cello2', chain: [{ type: 'body', mix: 0.3 }, { type: 'reverb', wet: 0.3, decay: 3.5 }], feel: 'ensemble' },
+  'contrabass-2': { patch: 'contrabass2', chain: [{ type: 'reverb', wet: 0.22, decay: 3 }], feel: 'robotic' },
+  'trumpet-2': { patch: 'trumpet2', chain: [{ type: 'reverb', wet: 0.22, decay: 2.2 }], feel: { strum: 0.01, jitterTime: 0.007, jitterVel: 0.14 } },
+  'french-horn-2': { patch: 'frenchHorn2', chain: [{ type: 'reverb', wet: 0.32, decay: 3.2 }], feel: { strum: 0.016, jitterTime: 0.01, jitterVel: 0.12 } },
+  'trombone-2': { patch: 'trombone2', chain: [{ type: 'reverb', wet: 0.24, decay: 2.4 }], feel: { strum: 0.012, jitterTime: 0.008, jitterVel: 0.13 } },
+  'tuba-2': { patch: 'tuba2', chain: [{ type: 'reverb', wet: 0.2, decay: 2.2 }], feel: 'robotic' },
+  // the drum kit (audio fidelity): one part/track, GM drum notes pick the piece
+  // (C2 kick, D2 snare, F#2 hat, A#2 open hat, F2/A2/C3 toms, C#3 crash, D#3
+  // ride — GM numbers, C4 = 60). A small room; a whisper of timing/velocity looseness.
+  'drum-kit': { patch: 'drumKit', chain: [{ type: 'reverb', wet: 0.1, decay: 1.2 }], feel: { jitterTime: 0.003, jitterVel: 0.1 } },
   // World strings — same two voices, new patches: shamisen is plucked (guitar
   // family), erhu is bowed (violin family).
   // A shamisen dō: a small skin-covered box — brighter, more percussive, higher
@@ -88,6 +103,8 @@ export const INSTRUMENTS = {
   // `body` trick as the guitar dreadnought, an octave down and wider. Room, not
   // hall, reverb: a piano sits IN the room.
   piano: { patch: 'piano', chain: [{ type: 'body', mix: 0.3, resonances: [{ freq: 90, q: 7, gain: 0.9 }, { freq: 180, q: 6, gain: 0.7 }, { freq: 280, q: 5, gain: 0.5 }, { freq: 450, q: 4, gain: 0.35 }] }, { type: 'reverb', wet: 0.16, decay: 1.8 }], feel: 'keys' },
+  // the tuned grand (audio fidelity): same soundboard and room as `piano`.
+  'grand-piano': { patch: 'pianoGrand', chain: [{ type: 'body', mix: 0.3, resonances: [{ freq: 90, q: 7, gain: 0.9 }, { freq: 180, q: 6, gain: 0.7 }, { freq: 280, q: 5, gain: 0.5 }, { freq: 450, q: 4, gain: 0.35 }] }, { type: 'reverb', wet: 0.16, decay: 1.8 }], feel: 'keys' },
   // suitcase rhodes: the chorus is the stereo vibrato of the amp — it's half the sound.
   rhodes: { patch: 'rhodes', chain: [{ type: 'chorus', rate: 0.8, depth: 0.006, mix: 0.4 }, { type: 'reverb', wet: 0.18, decay: 1.8 }], feel: 'keys' },
   // harpsichord: NO velocity jitter — the quill gives every note the same weight
@@ -151,6 +168,9 @@ export function auditInstruments() {
   for (const [name, inst] of Object.entries(INSTRUMENTS)) {
     if (!PATCHES[inst.patch]) problems.push(`instrument '${name}' → unknown patch '${inst.patch}'`);
     if (typeof inst.feel === 'string' && !FEEL_PRESETS[inst.feel]) problems.push(`instrument '${name}' → unknown feel preset '${inst.feel}'`);
+  }
+  for (const [name, patch] of Object.entries(PATCHES)) {
+    for (const [midi, piece] of Object.entries(patch.kit || {})) if (!PATCHES[piece]) problems.push(`kit '${name}' note ${midi} → unknown patch '${piece}'`);
   }
   return problems;
 }

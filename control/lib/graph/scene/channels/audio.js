@@ -1,6 +1,6 @@
-import { buildBeatsKernel } from '../../beats/beats-kernel.js';
+import { emitBeatsKernel } from '../../beats/beats-kernel.js';
+import { audioFeatures, pagePatches } from '../../beats/beats-features.js';
 import { MSG_AUDIO as GAME_MSG_AUDIO } from '../../game/level-contract.js';
-import { PATCHES as BEATS_PATCHES } from '../../beats/audio-patches.js';
 import { safeJson } from '../emit-util.js';
 
 // audio channel (beats.plan.md): synthesized WebAudio presence over the live World — an ambient
@@ -15,8 +15,8 @@ export function audioChannelScript(audio) {
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
-const __BEATS_PATCHES = ${safeJson(BEATS_PATCHES)};
-const __BEATS = (${buildBeatsKernel.toString()})();
+const __BEATS_PATCHES = ${safeJson(pagePatches(audio.soundtrack))};
+const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
 let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
 // CPU quiet while muted. resume() only sticks post-gesture — the pointerdown unlock owns that.
@@ -83,7 +83,9 @@ function __proxGain(srcPos) {
   if (d >= 900) return 0;         // FAR: across the arena -> silent (skip the synth)
   return (900 - d) / 650;         // rolloff between
 }
-function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }
+${audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
+let __beatsVar = 0;
+function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 // bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
 // events and never touches state, so bus determinism (hash → replay) is untouched.
 if (__AUDIO.on && typeof __BUS !== 'undefined') {
