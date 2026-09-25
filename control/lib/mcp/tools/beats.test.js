@@ -101,6 +101,25 @@ describe('B9.0 — read + edit', () => {
   });
 });
 
+describe('anthem styles — compact storage, expand on read', () => {
+  it('stores the chart compact; get_beats({ expand: true }) returns the literal events (no schema change)', async () => {
+    mintBeats({ kind: 'beats-composition', title: 'Chart', ref: 'chart', params: {
+      bpm: 150, key: 'E', progression: [{ chords: 'IV V iii vi' }],
+      parts: [{ name: 'gtr', instrument: 'rock-guitar', chordVoice: 'power', rhythm: 'quarter' }],
+    } });
+    const compact = await getBeatsHandler({ ref: 'chart' });
+    expect(compact.manifest.progression).toEqual([{ chords: 'IV V iii vi' }]);
+    expect(compact.manifest.parts[0].events).toBeUndefined();
+    expect(compact.expanded).toBeUndefined();
+    const lit = await getBeatsHandler({ ref: 'chart', expand: true });
+    expect(lit.expanded).toBe(true);
+    expect(lit.manifest.progression).toBeUndefined();
+    expect(lit.manifest.parts[0].events).toHaveLength(16);
+    expect(lit.manifest.parts[0].events[0][1]).toEqual(['A2', 'E3', 'A3']);
+    await expect(getBeatsHandler({ ref: 'chart', expand: 'yes' })).rejects.toThrow(/expand` must be true \| false/);
+  });
+});
+
 describe('B9.1 — annotations', () => {
   it('add / list / resolve round-trips; update_beats resolves atomically with the fix', async () => {
     mintPattern();

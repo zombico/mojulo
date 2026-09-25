@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-composition", "name": "Composition (explicit score)", "summary": "A literal note-event score: parts with [time, notes, dur, vel] events against one transport. Deterministic by construction — no dice. The MIDI-shaped middle layer between vibe recipe and sound design.", "when": "compose a melody/theme/jingle, write a specific tune, transcribe a musical idea note by note, a fanfare or sting with exact notes, a piece with a beginning and an end, a stereo mix with panning and one shared reverb room, a master limiter, a loudness-normalized / -14 LUFS / 24-bit export" }
+{ "id": "beats-composition", "name": "Composition (explicit score)", "summary": "A literal note-event score: parts with [time, notes, dur, vel] events against one transport. Deterministic by construction — no dice. The MIDI-shaped middle layer between vibe recipe and sound design.", "when": "compose a melody/theme/jingle, write a specific tune, transcribe a musical idea note by note, a fanfare or sting with exact notes, a piece with a beginning and an end, a stereo mix with panning and one shared reverb room, a master limiter, a loudness-normalized / -14 LUFS / 24-bit export, a whole song in a few lines, a chord chart with a groove, an anime opening theme, energetic J-pop, J-rock, shonen rock, eurobeat, trance pop, nu-metal electronic, a power ballad bridge, classic country, honky-tonk, bluegrass, a blues shuffle, a 12-bar blues, a slow blues, a guitar instrumental, classical guitar, flamenco, gypsy jazz" }
 ---
 
 ## Shape
@@ -85,6 +85,75 @@ At this scale (hundreds of events across 6–8 voices) author the score with a
 small generator, not by hand — restating every bar's groove literally is what
 the pattern kind exists to avoid, so reserve composition for when the section
 structure or the lead line genuinely needs explicit control.
+
+## Songs in a few lines (anthem styles)
+
+A whole arrangement is compact when it is written the way bands write:
+- a chord chart (`key` + `progression`) that parts voice on a rhythm (card
+  `beats-harmony`)
+- a `groove` per drum part with seeded fills (card `beats-grooves`)
+- motifs as `phrases` placed by `form`
+- cue parts for the transitions (`cue: [{ type: 'riser', bars: 4 }]`, card
+  `beats-sfx`)
+- `sweeps` for filter builds, `modulate` for the last chorus, and a `band`
+  template for the mix (card `beats-effects`)
+
+The recipe stays compact when stored. `get_beats({ ref, expand: true })` shows
+the literal events.
+
+- **`band`** (`anime-rock`, `trance-pop`, `country`, `blues`, `soloist`,
+  `nylon`) fills pan, send and `trim` per role
+  (drums, bass, rhythm, lead, keys, brass, strings, synth, pad, vocal, hit,
+  fx) where a part sets none.
+  - It adds a room (a plate or a room2) if there is none.
+  - It double-tracks the rhythm guitars: a `~double` twin, mirrored and 12 ms
+    late. `double: false` opts a part out, and `double: { offset, pan }` works
+    on any pitched part.
+
+A recipe book attached to the install may carry whole songs in these styles:
+`semantic_search({ kinds: ['beats_vocab'], query })` finds them, and the card's
+`recipe` is `{ kind, params }` to pass to `create_beats` and then revise.
+
+Style recipes by trait:
+- **Energy trance-pop** (2000s): 140–160 bpm, four-floor / `trance-drive`.
+  - The minor epic chart (`i bVI bIII bVII`).
+  - Offbeat octave bass (`chordVoice: 'octaves'`, rhythm `[0, 0, 0.95, 0.7]`).
+  - Supersaw chords gated in 16ths (`gate`) and ducking to a kick-only part
+    (`groove.only: ['kick']`).
+  - 16th arps, a portamento lead answering a sung hook, power-chord guitars
+    trimmed under the synths.
+  - An orchestra hit and an impact on each section, a riser and reverse cymbal
+    into choruses, a filter-swept breakdown, the final chorus up a step.
+- **The heavier variant**: a darker minor key.
+  - A drop-tuned palm-muted 16th riff (`drop-guitar`, `power: true`, `art:
+    'pm'`).
+  - Scratch accents, a half-time breakdown with a whammy dive.
+- **Anime rock opening** (90s/00s): 150–175 bpm, royal-road choruses
+  (`IV V iii vi`).
+  - A bell or celesta sparkle intro with a string run and a timpani roll.
+  - `rock-drive` / `eight-beat` verses, a `double-time-chorus` with a crash on
+    every section.
+  - Brass stabs on a `push` rhythm, strings doubling the melody an octave up.
+  - A solo with bends and pinch harmonics, the last chorus up a half step, an
+    ending hit on a held chord.
+- **The ballad bridge**: half-time.
+  - Piano arpeggios, a clean guitar arpeggio through a bbd chorus, a string
+    hairpin, a lead guitar singing with vibrato.
+  - A snare roll + riser into the last chorus (`IV V/V V V`: the push).
+- **Classic country:** 100–130 bpm, `train` or `two-beat` on `brush-kit`,
+  `root-fifth` bass with `walkup`, acoustic strum and a backbeat piano, the
+  `twang-guitar` and `pedal-steel` trading (`solo` arcs `call` / `response`),
+  a `fiddle` break. `band: 'country'`.
+- **Bluegrass:** fast, no drums: a `banjo` on `roll`, the guitar chop on
+  `backbeat`, fiddle and guitar breaks.
+- **Blues shuffle:** `shuffle: 1`, a twelve-bar chart, `blues-kit` on
+  `shuffle`, `walk` bass, `crunch-guitar` on `boogie`, `organ-rotary`, a
+  harmonica and a guitar trading. **Slow blues:** `meter: '12/8'`, piano
+  triplets, a sparse crying `solo`.
+- **The soloist spectrum:** `solo` styles `virtuoso-rock` (a guitar
+  instrumental), `classical` (over `pima`), `flamenco` (over `rasgueado` and
+  `palmas` on a 12/8 compás), `gypsy-jazz` (over `pompe`, `shuffle: 0.6`).
+  Card `beats-soloist`.
 
 ## Orchestral scoring (opt-in)
 

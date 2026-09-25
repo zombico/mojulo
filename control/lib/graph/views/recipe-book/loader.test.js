@@ -123,6 +123,16 @@ describe('view-vocab catalog merge', () => {
   });
 });
 
+describe('Door-1 recipe.json rides the card', () => {
+  it('a recipe entry carries its recipe.json into the vocab catalog; a bad one keeps the card without it', () => {
+    process.env.MOJULO_RECIPE_BOOK = BOOK;
+    const beats = getBeatsVocabCatalog();
+    expect(beats.get('fixture-loop')?.recipe).toEqual({ entry: 'create_beats', kind: 'beats-ambient', title: 'Fixture loop', params: { bpm: 90, seed: 7 } });
+    expect(beats.get('fixture-preset')).toBeTruthy();
+    expect(beats.get('fixture-preset').recipe).toBeUndefined();
+  });
+});
+
 describe('multi-family card routing (Phase 4)', () => {
   it('beats / solid / motion book cards route to their own catalogs by `entry`', () => {
     process.env.MOJULO_RECIPE_BOOK = BOOK;

@@ -463,6 +463,77 @@ has listened to any of this: the ears gate has not run.
   - Gate and duck shape a row before its chain, so its own reverb tail
     doesn't pump.
 
+### Anthem styles
+
+Two song styles as traits, not names: the 2000s energy trance-pop and the
+90s/00s anime rock opening. A compact authoring layer (chord symbols and
+numerals, grooves with seeded fills, a key change, cue parts) plus the
+guitar, production and mastering pieces those styles lean on. Everything is
+opt-in; stored rows re-synthesize byte-identical.
+
+- Compositions take cue parts (risers, impacts, reverse cymbals, scratches,
+  orchestra hits fired as events), chord symbols and Roman numerals on a
+  chord chart that parts voice on a rhythm, and `modulate` for the key change.
+- Drum parts take a `groove` with seeded fills and section crashes; 32 bars
+  store in under a tenth of the expanded events.
+- Guitar and lead articulations: bend, release, pre-bend, slide, dive,
+  vibrato, palm mute, pinch harmonic, slap pop, `power: true`.
+- `sweeps` ramp tone, low cut, level, send or pan over bars; plate reverb;
+  `master.style` 'loud-00s' / 'bright-90s' masters the export to its
+  loudness; `band` templates set a mix per role; rows get a post-chain `trim`.
+- Storage stays compact; `get_beats({ ref, expand: true })` shows the literal
+  recipe.
+- Machine gate: `beats-anthem.test.js`. Ears gate: the operator listened to
+  the A/B probes and approved them.
+
+### Roots styles
+
+Country, blues and the guitar soloist as traits, the capability for songs in
+those styles (the songs themselves live in the recipe book): a triplet shuffle, shuffle / train / two-beat / 12/8 grooves,
+walking and boom-chick bass, a seeded solo generator over a chord chart, and
+the instruments these styles need. The soloist spans virtuoso instrumental
+rock to classical, flamenco and gypsy jazz.
+
+- **Recipe-book songs can be minted.** A book entry's `recipe.json` now rides
+  its card as `recipe`, so `get_beats_vocab` hands back `{ kind, params }`
+  for `create_beats`. Before this, book songs were findable but not mintable
+  over MCP. A malformed `recipe.json` keeps the card without its recipe.
+- **The shuffle.** A composition's `shuffle` (0..1) moves the offbeat eighth
+  toward the triplet (1 = the full shuffle); a part's `shuffle: false` plays
+  straight. New grooves `shuffle`, `shuffle-boogie`, `train`, `two-beat` and
+  `slow-twelve-eight` (12/8), and a `triplet` fill. Straight grooves keep
+  their seeded fill picks. Pure expansion: no kernel bytes.
+- **Bass lines and comping.** New `chordVoice` modes: `root-fifth` (the
+  boom-chick, with `walkup`), `walk` (a seeded walking bass that lands each
+  root and approaches the next), `boogie` and `boogie-walk` (the blues figure
+  for guitar and bass), `roll` (a banjo forward roll), `pompe` (gypsy-jazz
+  rhythm guitar), `rasgueado` (the flamenco fan) and `pima` (classical
+  arpeggio). The harmony card gains the blues, country, gypsy-minor and
+  Andalusian chart forms.
+- **The soloist.** A pitched part's `solo: { style, bars }` plays a seeded
+  solo over the chord chart: `blues`, `country`, `virtuoso-rock`,
+  `classical`, `flamenco` or `gypsy-jazz`, each with its own scales, licks and
+  articulations. It lands chord tones on strong beats, breathes, repeats an
+  idea with a variation, builds, and ends home. A fiddle or organ plays the
+  same solo with the articulations it can play. Card `beats-soloist`.
+- **New articulations:** `hammer` / `pull` (legato with no new pick), `tap`,
+  `nat` (natural harmonics), `rake` and `rest` (the rest stroke).
+- **Instruments for these styles:** `twang-guitar` (with slapback),
+  `crunch-guitar`, `pedal-steel`, `banjo`, `harmonica`, `upright-bass`,
+  `fiddle`, `organ-rotary`, `classical-guitar`, `flamenco-guitar`,
+  `gypsy-jazz-guitar`; kits `brush-kit`, `blues-kit` and `palmas` (hand claps
+  and the golpe).
+- **Effects:** `wah` (the playing opens it, or an LFO, or a parked pedal) and
+  `rotary` (a rotary speaker, slow or fast).
+- **Band templates** `country`, `blues`, `soloist` and `nylon`. The part
+  taking a `solo` leads in any band.
+- **Routing:** country, bluegrass, blues, harmonica, guitar-solo, classical,
+  flamenco and gypsy-jazz asks route to `create_beats`; `beats-composition`
+  describes each style by its traits.
+- Machine gate: `beats-roots.test.js`. Ears gate: the operator listened to the
+  eight songs and approved them (the country song after a drier, guitar-banjo-
+  tambourine-cowbell rework).
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation

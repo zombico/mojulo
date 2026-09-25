@@ -91,6 +91,30 @@ const FIXTURES = {
     { name: 'lead', patch: 'chipLead', chain: [{ type: 'phaser', rate: 0.7 }, { type: 'flanger' }, { type: 'tape' }, { type: 'autopan', sync: '1/4' }], events: [['0:0:0', 'E5', '0:0:2'], ['0:1:0', 'G5', '0:0:2']] },
     { name: 'dirt', patch: 'bassMono', stutter: [{ at: '0:2:0', len: '0:0:1', repeats: 4 }], chain: [{ type: 'crush', bits: 5 }, { type: 'ringmod', hz: 80, mix: 0.3 }, { type: 'drive', model: 'fold', amount: 0.4 }, { type: 'delay', model: 'dub', time: '3/16' }, { type: 'reverb', model: 'gated', gate: 0.2 }], events: [['0:0:0', 'A1', '0:0:2'], ['0:2:0', 'C2', '0:0:1'], ['0:3:0', 'E2', '0:0:2']] },
   ], { room: { decay: 1.5, model: 'reverse' } }), ['voice', 'mix', 'ev', 'va', 'fx']],
+  // anthem styles: a composition cue part (per-hit variants) beside a pitched part.
+  cueParts: [comp([
+    { name: 'hit', cue: [{ type: 'thump', from: 'C2', to: 'C1', decay: 0.3 }, { type: 'burst', decay: 0.15 }], events: ['0:0:0', { at: '0:2:0', v: 0.6 }] },
+    { name: 'p', patch: 'organ', events: [['0:1:0', 'C4', '0:1:0']] },
+  ]), ['voice', 'mix', 'sfx', 'ev', 'anthem']],
+  // anthem styles: guitar and lead articulations (pitch lanes, vib, pm, the pinch harmonic).
+  guitarArts: [comp([
+    { name: 'lead', instrument: 'rock-lead', events: [{ at: 0, n: 'E4', d: 1, art: { type: 'bend', to: 2, vib: 30, release: true } }, { at: 1, n: 'G4', d: 0.5, art: { type: 'harm', k: 3 } }, { at: 1.5, n: 'A4', d: 0.5, art: { type: 'slide', in: -2 } }] },
+    { name: 'chug', instrument: 'rock-guitar', events: [{ at: 0, n: 'E2', d: 0.25, art: 'pm' }, { at: 0.5, n: 'E2', d: 0.25, art: 'pm' }, { at: 1, n: 'G2', d: 1, art: { type: 'dive', to: -5 } }] },
+    { name: 'saw', instrument: 'supersaw-lead', events: [{ at: 0, n: 'B4', d: 2, art: { type: 'bend', to: 1 } }] },
+  ]), ['voice', 'strings', 'mix', 'ev', 'score', 'orch', 'va', 'anthem']],
+  // anthem styles: section sweeps (row + master), the production gestures, the orchestra hit.
+  production: [comp([
+    { name: 'fx', cue: [{ type: 'riser', dur: 0.8, tone: 'A3' }, { type: 'reverse-cymbal', dur: 0.8 }], events: ['0:0:0'] },
+    { name: 'hit', cue: [{ type: 'impact' }, { type: 'scratch', dur: 0.4 }, { type: 'downlifter', dur: 0.5 }], events: ['0:2:0'] },
+    { name: 'oh', instrument: 'orchestra-hit', events: [['0:2:0', ['C4', 'G4', 'C5'], '0:1:0']] },
+    { name: 'pad', patch: 'pad', send: 0.3, events: [['0:0:0', ['A3', 'E4'], '1:0:0']] },
+  ], { room: { decay: 1.5 }, sweeps: [{ row: 'pad', param: 'tone', from: 1, to: 0.3, at: 0, over: 2 }, { row: 'pad', param: 'send', from: 0, to: 0.6, at: 1, over: 2 }, { row: 'pad', param: 'pan', from: -0.5, to: 0.5, at: 0, over: 4 }, { row: 'master', param: 'lowcut', from: 20, to: 400, at: 2, over: 2 }] }), ['voice', 'mix', 'sfx', 'ev', 'orch', 'va', 'anthem']],
+  // anthem styles: a band template (plate room, trims, a double), a master style, post-chain sweeps.
+  eraProduction: [comp([
+    { name: 'dr', instrument: 'drum-kit-90s-rock', events: [['0:0:0', ['C2', 'C#3']], ['0:1:0', 'D2'], ['0:2:0', 'C2'], ['0:3:0', 'D2']] },
+    { name: 'gtr', instrument: 'rock-guitar', events: [['0:0:0', ['E2', 'B2', 'E3'], '0:2:0', 0.8]] },
+    { name: 'keys', patch: 'organ', chain: [{ type: 'reverb', model: 'plate', decay: 1.2, wet: 0.3 }], events: [['0:0:0', ['E4', 'G#4'], '1:0:0']] },
+  ], { band: 'anime-rock', master: { style: 'loud-00s' }, sweeps: [{ row: 'keys', param: 'level', from: -30, to: 0, at: 0, over: 2 }, { row: 'keys', param: 'pan', from: -1, to: 1, at: 0, over: 4 }] }), ['voice', 'mix', 'ev', 'perc', 'anthem']],
   everything: [comp([
     { name: 'p', instrument: 'grand-piano', pan: 0.3, send: 0.4, events: [['0:0:0', ['C3', 'G4'], '1:0:0']] },
     { name: 'kit', instrument: 'drum-kit', events: [['0:0:0', 'C2'], ['0:2:0', 'D2']] },

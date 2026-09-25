@@ -28,7 +28,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import path, { join } from 'node:path';
+import path, { dirname, join } from 'node:path';
 
 // entry tool → target vocab catalog. Cards whose `entry` has no row here are
 // skipped with a warning — a book written for a newer mojulo (families this
@@ -124,6 +124,19 @@ export function readBookManifest(dir) {
 // books; `entries` filters the returned slice (omit it for everything — the
 // registry snapshot's use).
 let _cardsCache = null;
+
+function readRecipeJson(recipePath) {
+  if (!existsSync(recipePath)) return null;
+  try {
+    const recipe = JSON.parse(readFileSync(recipePath, 'utf8'));
+    if (recipe && typeof recipe === 'object' && !Array.isArray(recipe)) return recipe;
+    console.warn(`recipe-book: ${recipePath} is not a JSON object — card kept without its recipe`);
+  } catch (err) {
+    console.warn(`recipe-book: unreadable ${recipePath} — ${err.message}; card kept without its recipe`);
+  }
+  return null;
+}
+
 export function readBookCards({ entries, dirs } = {}) {
   if (!_cardsCache) {
     const cards = [];
@@ -147,7 +160,11 @@ export function readBookCards({ entries, dirs } = {}) {
             continue;
           }
           seen.add(key);
-          cards.push({ ...card, source, chapter: entry.chapter, entryType: entry.type });
+          // A Door-1 recipe's params sit in recipe.json beside the card; attach
+          // them so a vocab read hands the agent something it can mint. A bad
+          // recipe.json loses the recipe, never the card.
+          const recipe = entry.type === 'recipe' ? readRecipeJson(join(dirname(cardPath), 'recipe.json')) : null;
+          cards.push({ ...card, ...(recipe ? { recipe } : {}), source, chapter: entry.chapter, entryType: entry.type });
         } catch (err) {
           console.warn(`recipe-book: skipping card ${cardPath} — ${err.message}`);
         }

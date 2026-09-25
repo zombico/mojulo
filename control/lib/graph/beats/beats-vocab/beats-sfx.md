@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-sfx", "name": "Sound effects (foley cues)", "summary": "Named foley cues built from seven gestures — sweep, flutter, burst, thump (the chiptune four) plus grain (seeded stochastic noise-grain trains), ring (modal material strikes: glass, metal, wood, cymbal, plate, bell) and tone (a held hum/beam). Pitch-and-volume choreography fired by an event, not a loop. The world-SFX primitive (pickup dings, lasers, impacts, charge-ups, footsteps, creaks, crackles).", "when": "a sound effect, foley, a pickup ding / laser zap / explosion / jump sound / charge-up, UI feedback sounds, game event stingers, 'make it go pew', footsteps on gravel/wood/grass/leaves, a door creak or slam, glass clink, metal tink, fire crackle, cloth rustle, rain, whoosh, forest ambience — birdsong, wind in the trees, twig snap, an owl at night, weapon sounds — gunfire / a gunshot / shotgun blast / silenced shot, lock and load — rack the slide / bolt / reload / mag in-out / a shell casing, dry fire, a safety click, sci-fi / fantasy weapons — a blaster pew / plasma bolt / charge shot / laser / an overheat vent, a held beam / engine hum / machine drone, a cymbal or bell strike, an explosion that darkens as it fades, per-hit variation so repeated sounds aren't identical" }
+{ "id": "beats-sfx", "name": "Sound effects (foley cues)", "summary": "Named foley cues built from seven gestures — sweep, flutter, burst, thump (the chiptune four) plus grain (seeded stochastic noise-grain trains), ring (modal material strikes: glass, metal, wood, cymbal, plate, bell) and tone (a held hum/beam). Pitch-and-volume choreography fired by an event, not a loop. The world-SFX primitive (pickup dings, lasers, impacts, charge-ups, footsteps, creaks, crackles).", "when": "a sound effect, foley, a pickup ding / laser zap / explosion / jump sound / charge-up, UI feedback sounds, game event stingers, 'make it go pew', footsteps on gravel/wood/grass/leaves, a door creak or slam, glass clink, metal tink, fire crackle, cloth rustle, rain, whoosh, forest ambience — birdsong, wind in the trees, twig snap, an owl at night, weapon sounds — gunfire / a gunshot / shotgun blast / silenced shot, lock and load — rack the slide / bolt / reload / mag in-out / a shell casing, dry fire, a safety click, sci-fi / fantasy weapons — a blaster pew / plasma bolt / charge shot / laser / an overheat vent, a held beam / engine hum / machine drone, a cymbal or bell strike, an explosion that darkens as it fades, per-hit variation so repeated sounds aren't identical, a riser / uplifter / noise sweep into a chorus, a downlifter, an impact / boom / hit on the downbeat, a reverse cymbal, a turntable scratch, song transitions" }
 ---
 
 ## Shape
@@ -216,3 +216,23 @@ Revise with the domain tools, never re-mint: `get_beats` reads the cues +
 revision index; `update_beats` validates like create and snapshots a revision;
 `annotate_beats` marks a cue (`{ scope: 'cue', cue }`); `diff_beats` reports
 added/removed/changed cues. The studio at `/beats/<ref>` fires cues live.
+
+## Production gestures (anthem styles)
+
+These are song transitions, as gestures. Time them with `dur` (seconds), or
+with `bars` / `beats` in a composition or pattern (the recipe's tempo; a
+beats-sfx cue has none).
+
+| gesture | params |
+|---|---|
+| `riser` | Noise through a bandpass sweeping `from` → `to` Hz (350 → 9000) under a rising level. `tone: 'F#3'` adds a tone layer rising an octave. `q`, `vol`. |
+| `downlifter` | The reverse: the filter falls (7000 → 250) as the level falls. |
+| `reverse-cymbal` | A highpassed noise swell that peaks at its end. Place it one bar before the downbeat it lands on. |
+| `impact` | A deep thump (`note`, default A1), a punch and a darkening noise burst. The downbeat boom. |
+| `scratch` | Seeded back-and-forth strokes: a pitch swing on a buzzy tone plus band noise, at `rate` strokes per second (default 8), around `note`. |
+
+In a composition, a part fires a cue at its events: `{ name: 'fx', cue:
+[{ type: 'riser', bars: 4 }], events: ['20:0:0', '44:0:0'] }`. Events are a
+time, `{ at, v }`, or `[at, _, dur, vel]`. Each hit is a variant (`vary:
+false` for the plain cue). A riser placed at bar 20 for 4 bars lands on bar 24.
+A variant never stretches a riser off the beat.

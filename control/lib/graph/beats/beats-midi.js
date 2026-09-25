@@ -26,6 +26,7 @@
 
 import { PATCHES } from './audio-patches.js';
 import { renderBeatsPlan } from './beats-render.js';
+import { expandBeatsManifest } from './beats-authoring.js';
 
 export const TICKS_PER_QUARTER = 480;
 
@@ -69,6 +70,9 @@ const GM_PROGRAM = {
   harp: 46, glockenspiel: 9, xylophone: 13, marimba: 12, vibraphone: 11, tubularBells: 14, timpani: 47, crotales: 9,
   acidBass: 38, acidSquare: 38, reeseBass: 39, hoover: 81, polyStrings: 50, stringMachine: 50, trancePluck: 81,
   supersawLead: 81, raveStab: 16, wobbleBass: 38, fmBass: 38, fmKeys: 5, fmBrass: 62, fmOrgan: 17, fmBell4: 14,
+  // anthem styles
+  guitarDropChug: 30, bassPick: 34, bassSlap: 36, orchHit: 55,
+  guitarTwang: 27, pedalSteel: 26, banjo: 105, bassUpright: 32, guitarClassical: 24, guitarFlamenco: 24, guitarGypsy: 25, harmonica: 22,
 };
 
 // drum-shaped patches → GM percussion notes (channel 10).
@@ -145,6 +149,7 @@ export function renderBeatsMidi(manifest, opts = {}) {
     throw new Error('beats-midi: beats-sfx cues are foley choreography, not a score — export the .wav instead');
   }
 
+  manifest = expandBeatsManifest(manifest); // the rows the plan plays
   const plan = renderBeatsPlan(manifest, opts);
   const bpm = manifest.bpm;
   const tickOf = (seconds) => Math.max(0, Math.round(seconds * (bpm / 60) * TICKS_PER_QUARTER));

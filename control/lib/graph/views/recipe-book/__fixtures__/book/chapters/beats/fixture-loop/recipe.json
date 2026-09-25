@@ -1,0 +1,6 @@
+{
+  "entry": "create_beats",
+  "kind": "beats-ambient",
+  "title": "Fixture loop",
+  "params": { "bpm": 90, "seed": 7 }
+}

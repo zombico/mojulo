@@ -393,7 +393,7 @@ describe('phase 5 — room, bus, export', () => {
   });
 
   it('validation teaches room, send, master and export', () => {
-    const bad = validateBeatsManifest(comp([{ name: 'a', patch: 'hat', send: 0.5, chain: [{ type: 'reverb', model: 'plate' }], events: [['0:0:0', 'C1']] }], {
+    const bad = validateBeatsManifest(comp([{ name: 'a', patch: 'hat', send: 0.5, chain: [{ type: 'reverb', model: 'spring' }], events: [['0:0:0', 'C1']] }], {
       master: { limit: 3, glue: { ratio: 50 } }, export: { bitDepth: 20, normalize: {} },
     }));
     const msg = bad.errors.join('\n');

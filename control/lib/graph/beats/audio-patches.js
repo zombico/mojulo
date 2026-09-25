@@ -373,6 +373,62 @@ Object.assign(PATCHES, {
   fmBell4: { voice: 'fm4', algorithm: 5, attack: 0.001, decay: 0.05, sustain: 1, release: 2, volume: -16, ops: [{ ratio: 1, level: 1, decay: 3.5, sustain: 0.05, release: 2 }, { ratio: 3.5, level: 3, decay: 1.5, sustain: 0.05 }, { ratio: 2.02, level: 0.6, decay: 2.5, sustain: 0.05, release: 2 }, { ratio: 5.19, level: 2, decay: 0.8, sustain: 0.02 }] },
 });
 
+// ── anthem styles: the band's guitars and basses ─────────────────────────────
+// A drop-tuned chug (dual pluck, tight lows: the highpass keeps the palm-muted
+// 16ths from blooming), a picked bass (a bright pick on a long string) and a
+// slap bass (brighter still; the `pop` articulation adds its harmonic snap).
+Object.assign(PATCHES, {
+  guitarDropChug: { voice: 'string', pluckDamping: 0.5, pluckDecay: 0.9978, pick: 0.08, pluckDetune: 7, attack: 0.002, decay: 0.05, sustain: 1, release: 0.12, volume: -13, filter: { mode: 'highpass', freq: 75, q: 0.7 } },
+  bassPick: { voice: 'string', pluckDamping: 0.3, pluckDecay: 0.9993, pick: 0.04, attack: 0.002, decay: 0.08, sustain: 1, release: 0.12, volume: -8, maxRing: 5, attackNoise: { mode: 'bandpass', level: -18, tone: 2400, q: 0.8, decay: 0.012 } },
+  // the orchestra hit, synthesized: a detuned saw stack (brass + strings) with a
+  // fast filter fall, a sub and a noise bloom (the timpani and the room), a
+  // slight pitch drop, 250 ms — play it as a stacked chord; the instrument adds a hall.
+  orchHit: { voice: 'osc', wave: 'sawtooth', unison: 5, detune: 16, width: 0.7, attack: 0.003, decay: 0.26, sustain: 0, release: 0.2, curve: 'exp', volume: -12, filter: { mode: 'lowpass', q: 1.2 }, filterEnv: { from: 7000, to: 900, decay: 0.3 }, bend: [1, 0.97, 0.04, 0.35], sub: { level: -8, octave: 1 }, noise: { level: -20 }, attackNoise: { mode: 'bandpass', level: -4, tone: 700, q: 0.6, decay: 0.14 } },
+  bassSlap: { voice: 'string', pluckDamping: 0.18, pluckDecay: 0.9991, pick: 0, attack: 0.001, decay: 0.08, sustain: 1, release: 0.1, volume: -9, maxRing: 5, attackNoise: { mode: 'bandpass', level: -12, tone: 3000, q: 0.8, decay: 0.015 } },
+});
+
+// the 90s rock kit (anthem styles): tighter and brighter than the arena kit —
+// the acoustic kick and hats, the arena's cracking snare and bent toms. The
+// instrument puts the whole kit on a short plate (less room, more sheen).
+Object.assign(PATCHES, {
+  rockKit90s: { kit: { 35: 'kickAcoustic', 36: 'kickAcoustic', 37: 'snareArenaRim', 38: 'snareArena', 40: 'snareArenaRim', 41: 'tomArenaFloor', 43: 'tomArenaLo', 45: 'tomArenaLo', 47: 'tomArenaMid', 48: 'tomArenaMid', 50: 'tomArenaHi', 42: 'hatAcoustic', 44: 'hatAcoustic', 46: 'hatAcousticOpen', 49: 'crashArena', 57: 'crashArena', 55: 'crashArena', 52: 'chinaArena', 51: 'rideAcoustic', 53: 'rideBellArena', 59: 'rideAcoustic' }, chokes: HATS },
+});
+
+// ── roots styles: country, blues and the nylon and steel guitars ─────────────
+// Plucked strings: a bright single-coil twang, the pedal steel (a slow swell
+// hides the pluck: the bar and the volume pedal), a banjo (short, bright; its
+// instrument adds the drum-head body), an upright bass (a dark, short string
+// with a round thump), the classical nylon (warm, long), the flamenco nylon
+// (brighter, drier, quicker) and the gypsy-jazz steel (bright, dry, little
+// sustain). The harmonica is a reed: a bright harmonic series, breath, a quick
+// swell.
+Object.assign(PATCHES, {
+  guitarTwang: { voice: 'string', pluckDamping: 0.3, pluckDecay: 0.9975, pick: 0.22, attack: 0.002, decay: 0.05, sustain: 1, release: 0.1, volume: -12, filter: { mode: 'lowpass', freq: 5400, q: 0.8 } },
+  pedalSteel: { voice: 'string', pluckDamping: 0.32, pluckDecay: 0.9995, pick: 0.02, attack: 0.18, decay: 0.2, sustain: 1, release: 0.45, volume: -13, maxRing: 6, filter: { mode: 'lowpass', freq: 4200, q: 0.7 } },
+  banjo: { voice: 'string', pluckDamping: 0.16, pluckDecay: 0.991, pick: 0.06, attack: 0.001, decay: 0.03, sustain: 1, release: 0.06, volume: -12, filter: { mode: 'highpass', freq: 160, q: 0.7 } },
+  bassUpright: { voice: 'string', pluckDamping: 0.84, pluckDecay: 0.9975, pick: 0.5, attack: 0.004, decay: 0.08, sustain: 1, release: 0.12, volume: -8, maxRing: 2, attackNoise: { mode: 'lowpass', level: -16, tone: 420, q: 0.7, decay: 0.035 } },
+  guitarClassical: { voice: 'string', pluckDamping: 0.88, pluckDecay: 0.997, pick: 0.62, attack: 0.008, decay: 0.05, sustain: 1, release: 0.22, volume: -12, filter: { mode: 'lowpass', freq: 3600, q: 0.6 } },
+  guitarFlamenco: { voice: 'string', pluckDamping: 0.66, pluckDecay: 0.9935, pick: 0.45, attack: 0.003, decay: 0.04, sustain: 1, release: 0.1, volume: -11, filter: { mode: 'lowpass', freq: 5200, q: 0.7 } },
+  guitarGypsy: { voice: 'string', pluckDamping: 0.24, pluckDecay: 0.994, pick: 0.3, attack: 0.002, decay: 0.04, sustain: 1, release: 0.08, volume: -12, filter: { mode: 'lowpass', freq: 6200, q: 0.8 } },
+  harmonica: { voice: 'osc', harmonics: [1, 0.75, 0.6, 0.5, 0.36, 0.3, 0.2, 0.15, 0.1, 0.07], attack: 0.035, decay: 0.12, sustain: 0.85, release: 0.08, volume: -16, curve: 'exp', filter: { mode: 'lowpass', freq: 3400, q: 1.1 }, breath: { level: -27, tone: 2400, q: 0.7 } },
+});
+// brushes and palmas: a brush snare is a swish (filtered noise with a soft
+// onset), the brush kick is soft, the cross-stick a rim click; palmas are the
+// flamenco hand claps (sharp and muffled) and the golpe is a knock on the top.
+Object.assign(PATCHES, {
+  brushSnare: { voice: 'noise', attack: 0.012, decay: 0.18, sustain: 0, release: 0.06, curve: 'exp', volume: -15, vary: true, filter: { mode: 'bandpass', freq: 2600, q: 0.6 } },
+  kickBrush: { ...PATCHES.kick2, volume: -10, decay: 0.3, attackNoise: { mode: 'highpass', tone: 1500, q: 0.7, level: -24, decay: 0.003 } },
+  palmaSharp: { voice: 'noise', claps: 2, clapGap: 0.004, attack: 0.001, decay: 0.09, sustain: 0, release: 0.04, curve: 'exp', volume: -10, vary: true, filter: { mode: 'bandpass', freq: 2300, q: 0.9 } },
+  palmaMuted: { voice: 'noise', claps: 2, clapGap: 0.005, attack: 0.001, decay: 0.06, sustain: 0, release: 0.03, curve: 'exp', volume: -13, vary: true, filter: { mode: 'bandpass', freq: 900, q: 0.8 } },
+  // an acoustic cowbell: a short, clanky, inharmonic stick hit (not the 808's two squares).
+  cowbellAcoustic: { voice: 'modal', pitch: 760, attack: 0.001, volume: -13, vary: true, partials: [{ ratio: 1, gain: 1, decay: 0.14 }, { ratio: 1.52, gain: 0.7, decay: 0.11 }, { ratio: 2.31, gain: 0.45, decay: 0.08 }, { ratio: 3.17, gain: 0.25, decay: 0.05 }], attackNoise: { mode: 'bandpass', tone: 2600, q: 0.9, level: -14, decay: 0.008 } },
+  golpe: { voice: 'modal', pitch: 170, attack: 0.001, volume: -11, partials: [{ ratio: 1, gain: 1, decay: 0.06 }, { ratio: 2.4, gain: 0.5, decay: 0.035 }, { ratio: 4.1, gain: 0.25, decay: 0.02 }], attackNoise: { mode: 'bandpass', tone: 1800, q: 0.8, level: -16, decay: 0.006 } },
+});
+Object.assign(PATCHES, {
+  brushKit: { kit: { 35: 'kickBrush', 36: 'kickBrush', 37: 'rimAnalog', 38: 'brushSnare', 40: 'brushSnare', 42: 'hatAcoustic', 44: 'hatAcoustic', 46: 'hatAcousticOpen', 41: 'tomAcousticLo', 43: 'tomAcousticLo', 45: 'tomAcousticMid', 47: 'tomAcousticMid', 48: 'tomAcousticHi', 50: 'tomAcousticHi', 49: 'crashAcoustic', 57: 'crashAcoustic', 51: 'rideAcoustic', 53: 'rideAcoustic', 59: 'rideAcoustic', 54: 'tambourine', 56: 'cowbellAcoustic' }, chokes: PATCHES.acousticKit.chokes },
+  palmas: { kit: { 39: 'palmaSharp', 40: 'palmaMuted', 37: 'golpe' } },
+});
+
 export function getPatch(name, overrides) {
   const base = PATCHES[name];
   if (!base) {

@@ -26,6 +26,7 @@
 
 import { emitBeatsKernel } from './beats-kernel.js';
 import { beatsFeatures, pagePatches } from './beats-features.js';
+import { expandBeatsManifest } from './beats-authoring.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -100,6 +101,8 @@ function gridRows(manifest, annotations) {
 }
 
 export function emitBeatsPlayer(manifest, opts = {}) {
+  // the page plays the literal recipe (a compact one is expanded here, server side).
+  manifest = expandBeatsManifest(manifest);
   const isSfx = manifest.kind === 'beats-sfx';
   const facts = (isSfx
     ? `${Object.keys(manifest.cues).length} cue${Object.keys(manifest.cues).length === 1 ? '' : 's'} · synthesized foley`

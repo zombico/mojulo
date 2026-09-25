@@ -24,6 +24,7 @@ import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { BeatsRevisionRepository, BeatsAnnotationRepository } from '@/lib/db/repositories/beats';
 import { BEATS_KINDS, isBeatsKind, validateBeatsManifest, normalizeBeatsManifest } from '@/lib/graph/beats/beats-manifest';
 import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
+import { expandBeatsManifest } from '@/lib/graph/beats/beats-authoring';
 import { renderBeatsMidi } from '@/lib/graph/beats/beats-midi';
 import { diffBeatsManifests } from '@/lib/graph/beats/beats-diff';
 import { getBeatsVocabCatalog } from '@/lib/graph/beats/beats-vocab/loader';
@@ -265,7 +266,8 @@ function headRev(ref) {
 }
 
 export async function getBeatsHandler(input) {
-  const { ref, rev } = input && typeof input === 'object' ? input : {};
+  const { ref, rev, expand } = input && typeof input === 'object' ? input : {};
+  if (expand !== undefined && typeof expand !== 'boolean') throw new Error('`expand` must be true | false (true returns the recipe with its compact fields — chords, a chart, grooves, modulate — expanded to literal events)');
   const sketch = requireBeatsSketch(ref);
   let manifest = sketch.manifest;
   let atRev = headRev(ref) || null;
@@ -279,13 +281,17 @@ export async function getBeatsHandler(input) {
     manifest = revision.manifest;
     atRev = rev;
   }
+  // expand (anthem styles; read-only): the literal recipe the player plays —
+  // for editing one bar of a groove or chart. The stored recipe stays compact.
+  const shown = expand === true ? expandBeatsManifest(manifest) : manifest;
   return {
     ok: true,
     ref,
     kind: manifest.kind,
     title: sketch.title,
     rev: atRev,
-    manifest,
+    manifest: shown,
+    ...(expand === true ? { expanded: shown !== manifest } : {}),
     revisions: BeatsRevisionRepository.list(ref),
     annotations: BeatsAnnotationRepository.list(ref),
     url: `/beats/${encodeURIComponent(ref)}`,

@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-percussion", "name": "Percussion: drum machines, hands, orchestra, the arena kit", "summary": "Kits modeled from their circuits and hands: two drum machines plus a bright-hat variant, the acoustic kit with velocity-to-timbre, latin hand percussion, orchestral percussion (rolls, suspended cymbal, tam-tam bloom), and the stadium arena kit with its big shared room, parallel compression and a gated power-ballad variant. GM note maps, choke groups, a rock-drummer feel.", "when": "808-style / 909-style drum machine, a boom kick, handclap, cowbell, a drum machine groove, an acoustic drum kit that gets brighter when hit harder, congas / bongos / shaker / tambourine / guiro / cabasa, latin percussion, a snare roll, timpani and orchestral percussion, a gong / tam-tam, suspended cymbal swell, triangle, stadium rock drums, big arena drums, gated reverb drums, an 80s power ballad snare, open hat choked by the closed hat, a drum fill, a drummer who plays behind the beat" }
+{ "id": "beats-percussion", "name": "Percussion: drum machines, hands, orchestra, the arena kit", "summary": "Kits modeled from their circuits and hands: two drum machines plus a bright-hat variant, the acoustic kit with velocity-to-timbre, latin hand percussion, orchestral percussion (rolls, suspended cymbal, tam-tam bloom), and the stadium arena kit with its big shared room, parallel compression and a gated power-ballad variant. GM note maps, choke groups, a rock-drummer feel.", "when": "808-style / 909-style drum machine, a boom kick, handclap, cowbell, a drum machine groove, an acoustic drum kit that gets brighter when hit harder, congas / bongos / shaker / tambourine / guiro / cabasa, latin percussion, a snare roll, timpani and orchestral percussion, a gong / tam-tam, suspended cymbal swell, triangle, stadium rock drums, big arena drums, gated reverb drums, an 80s power ballad snare, open hat choked by the closed hat, a drum fill, a drummer who plays behind the beat, a tight bright 90s rock kit, a snare on a plate reverb, a whole drum part with fills in one line" }
 ---
 
 Name a kit instrument on a part or track and play GM drum notes (C4 = 60
@@ -69,3 +69,24 @@ the same kit into a gated room (the 80s power ballad).
   - a half-time chorus on `stadium-kit-gated`, crashes on the downbeats
   - `rock-guitar` and `rock-lead` on top
   - The ears question: arena, or just loud and reverby?
+
+## The 90s rock kit and grooves (anthem styles)
+
+`drum-kit-90s-rock` is tighter and brighter than the arena kit: the acoustic
+kick and hats, the arena's cracking snare and bent toms, parallel compression,
+the whole kit on a short plate, and the `rock-drummer` feel.
+
+A kit part can take a `groove` instead of events: a named style over bars,
+with seeded fills and section crashes (card `beats-grooves`).
+
+## Brushes, the blues kit and palmas (roots styles)
+
+- `brush-kit`: brushes on the snare (a swish with a soft onset), a soft kick,
+  a rim click on the cross-stick (C#2), the ride and hats, a tambourine
+  (F#3) and an acoustic cowbell (G#3). The `train` and `two-beat` grooves;
+  write the tambourine and cowbell as a one-bar phrase placed by `form`.
+- `blues-kit`: the acoustic kit, lightly compressed, in a small warm room. The
+  `shuffle` and `shuffle-boogie` grooves.
+- `palmas`: flamenco hand claps. D#2 is the sharp clap, E2 the muffled one
+  (palmas sordas), C#2 the golpe (a knock on the guitar top). Write them as
+  events on the 12-beat compás (accents on 3, 6, 8, 10 and 12).

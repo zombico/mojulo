@@ -168,6 +168,33 @@ Object.assign(INSTRUMENTS, {
   'fm-bell': { patch: 'fmBell4', chain: [{ type: 'reverb', wet: 0.3, decay: 3 }], feel: 'robotic' },
 });
 
+// anthem styles: the band. The drop-tuned rhythm wall runs hotter than
+// rock-guitar and cuts lower; the basses carry their own drive.
+Object.assign(INSTRUMENTS, {
+  'drop-guitar': { patch: 'guitarDropChug', chain: [{ type: 'amp', gain: 46, bias: 0.2, presence: 5, cut: 4800 }, { type: 'reverb', wet: 0.05, decay: 0.9 }], feel: 'palm-mute' },
+  'picked-bass': { patch: 'bassPick', chain: [{ type: 'drive', amount: 0.22, tone: 3200 }], feel: { jitterTime: 0.004, jitterVel: 0.1 } },
+  'slap-bass': { patch: 'bassSlap', chain: [{ type: 'drive', amount: 0.12, tone: 5200 }], feel: { jitterTime: 0.004, jitterVel: 0.14 } },
+  // the 90s rock kit: parallel compression, then a short bright plate.
+  'drum-kit-90s-rock': { patch: 'rockKit90s', chain: [{ type: 'compress', parallel: 0.45, threshold: -30, ratio: 8, attack: 0.002, release: 0.08 }, { type: 'reverb', model: 'plate', decay: 1.3, predelay: 0.006, wet: 0.24 }], feel: 'rock-drummer' },
+  // the orchestra hit into a hall (a section change's exclamation mark).
+  'orchestra-hit': { patch: 'orchHit', chain: [{ type: 'reverb', model: 'room2', decay: 2.8, predelay: 0.02, wet: 0.35 }], feel: { strum: 0.004 } },
+  // roots styles (country, blues, the soloist)
+  'twang-guitar': { patch: 'guitarTwang', chain: [{ type: 'compress', threshold: -24, ratio: 4, attack: 0.003, release: 0.12 }, { type: 'delay', time: 0.11, feedback: 0, mix: 0.3 }, { type: 'reverb', model: 'room2', decay: 1.2, wet: 0.1 }], feel: 'alt-pick' },
+  'crunch-guitar': { patch: 'guitarElectric', chain: [{ type: 'drive', model: 'tube', amount: 0.38, tone: 3000 }, { type: 'reverb', model: 'room2', decay: 1.4, wet: 0.12 }], feel: 'alt-pick' },
+  'pedal-steel': { patch: 'pedalSteel', chain: [{ type: 'delay', time: '3/16', feedback: 0.2, mix: 0.14 }, { type: 'reverb', wet: 0.24, decay: 2.4 }], feel: { jitterTime: 0.006, jitterVel: 0.06 } },
+  banjo: { patch: 'banjo', chain: [{ type: 'body', mix: 0.45, resonances: [{ freq: 360, q: 6, gain: 1 }, { freq: 720, q: 5, gain: 0.6 }, { freq: 1500, q: 4, gain: 0.35 }] }, { type: 'reverb', model: 'room2', decay: 1, wet: 0.08 }], feel: 'fingerpick' },
+  harmonica: { patch: 'harmonica', chain: [{ type: 'drive', amount: 0.18, tone: 2800 }, { type: 'reverb', model: 'room2', decay: 1.3, wet: 0.14 }], feel: { jitterTime: 0.008, jitterVel: 0.08 } },
+  'upright-bass': { patch: 'bassUpright', chain: [{ type: 'body', mix: 0.3, resonances: [{ freq: 90, q: 6, gain: 1 }, { freq: 190, q: 5, gain: 0.5 }] }], feel: { jitterTime: 0.005, jitterVel: 0.1 } },
+  fiddle: { patch: 'violin2', chain: [{ type: 'body', mix: 0.28 }, { type: 'reverb', model: 'room2', decay: 1.4, wet: 0.14 }], feel: { jitterTime: 0.006, jitterVel: 0.08 } },
+  'organ-rotary': { patch: 'organ', chain: [{ type: 'rotary', speed: 'fast' }, { type: 'drive', amount: 0.15, tone: 3600 }, { type: 'reverb', model: 'room2', decay: 1.6, wet: 0.14 }], feel: 'robotic' },
+  'classical-guitar': { patch: 'guitarClassical', chain: [{ type: 'body', mix: 0.42, resonances: [{ freq: 95, q: 9, gain: 1 }, { freq: 185, q: 7, gain: 0.75 }, { freq: 280, q: 6, gain: 0.5 }] }, { type: 'reverb', wet: 0.24, decay: 2.4 }], feel: 'fingerpick' },
+  'flamenco-guitar': { patch: 'guitarFlamenco', chain: [{ type: 'body', mix: 0.38, resonances: [{ freq: 110, q: 8, gain: 0.8 }, { freq: 230, q: 7, gain: 0.8 }, { freq: 3200, q: 2, gain: 0.35 }] }, { type: 'reverb', model: 'room2', decay: 1.3, wet: 0.12 }], feel: 'fingerpick' },
+  'gypsy-jazz-guitar': { patch: 'guitarGypsy', chain: [{ type: 'body', mix: 0.36, resonances: [{ freq: 220, q: 6, gain: 1 }, { freq: 480, q: 5, gain: 0.6 }, { freq: 2600, q: 2, gain: 0.3 }] }, { type: 'reverb', model: 'room2', decay: 1.1, wet: 0.1 }], feel: 'alt-pick' },
+  'brush-kit': { patch: 'brushKit', chain: [{ type: 'reverb', model: 'room2', decay: 1.1, wet: 0.14 }], feel: { jitterTime: 0.005, jitterVel: 0.12 } },
+  'blues-kit': { patch: 'acousticKit', chain: [{ type: 'compress', threshold: -22, ratio: 3, attack: 0.004, release: 0.1 }, { type: 'reverb', model: 'room2', decay: 1.4, wet: 0.16 }], feel: { jitterTime: 0.006, jitterVel: 0.12 } },
+  palmas: { patch: 'palmas', chain: [{ type: 'reverb', model: 'room2', decay: 1.2, wet: 0.2 }], feel: { jitterTime: 0.007, jitterVel: 0.15 } },
+});
+
 // ── playable ranges (orchestra and era) — sounding pitch, lowest–highest.
 // Advice only: validation warns on a note outside, the note still plays. A
 // range is shelf data beside the instrument; it never reaches a manifest.
@@ -179,6 +206,10 @@ const RANGE = {
   flute: ['C4', 'C7'], clarinet: ['D3', 'Bb6'], oboe: ['Bb3', 'A6'], bassoon: ['Bb1', 'E5'], harp: ['B0', 'G#7'],
   glockenspiel: ['G5', 'C8'], xylophone: ['F4', 'C8'], marimba: ['C2', 'C7'], vibraphone: ['F3', 'F6'],
   'tubular-bells': ['C4', 'F5'], timpani: ['D2', 'C4'], crotales: ['C6', 'C8'],
+  'drop-guitar': ['B1', 'E6'], 'picked-bass': ['B0', 'G4'], 'slap-bass': ['B0', 'G4'],
+  'twang-guitar': ['E2', 'E6'], 'crunch-guitar': ['E2', 'E6'], 'pedal-steel': ['E2', 'E6'], banjo: ['C3', 'D6'],
+  harmonica: ['C4', 'C7'], 'upright-bass': ['E1', 'G4'], fiddle: ['G3', 'E7'], 'classical-guitar': ['E2', 'B5'],
+  'flamenco-guitar': ['E2', 'B5'], 'gypsy-jazz-guitar': ['E2', 'C6'],
 };
 for (const [name, r] of Object.entries(RANGE)) {
   for (const n of [name, name + '-2']) if (INSTRUMENTS[n]) INSTRUMENTS[n].range = r;
