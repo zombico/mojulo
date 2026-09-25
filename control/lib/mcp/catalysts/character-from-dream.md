@@ -62,8 +62,10 @@ Substrate: figure body `figure-proto.js` / `figure-rig.js`, wardrobe
   humanoid mascot, an action-figure robot). A vessel, relic, or prop is the
   OBJECT register — send it through `reconstruct-from-dream` /
   `create_workbench` instead. A creature or invented body is the `layered`
-  kind (`mint_solid`, routing card `creature`, catalyst `creature-from-plan`). If the target isn't a figure,
-  say so and stop.
+  kind (`mint_solid`, routing card `creature`, catalyst `creature-from-plan`); a human character as a
+  rigged MESH in an art-style register (low-poly, boxy) is the `layered` kind too (card `hero`, catalyst
+  `create-hero`). This loop is the SVG figure: turnarounds, pose work, garments. If the target isn't a
+  figure, say so and stop.
 - **Attribute silhouette bulk to the WARDROBE first, the body second.** A baggy
   outfit's volume is the garment's mugen score (`clearance`), not a wider body.
   Chasing sleeve volume with the bicep dial is the classic first-pass error.
@@ -198,7 +200,8 @@ which variants you tried and which you locked.
 - You don't invent a body shape or garment the dials don't reach — name the
   vocabulary gap instead.
 - You don't force a relic / object through this loop (that's the object
-  register, `reconstruct-from-dream`) or a creature (the `layered` kind).
+  register, `reconstruct-from-dream`), a creature (the `layered` kind), or a
+  mesh hero (`create-hero`).
 - You don't chase garment volume with body dials — looseness is the mugen score.
 - You don't skip the compare step — a tune you didn't set beside the dream is
   not a reconstruction.

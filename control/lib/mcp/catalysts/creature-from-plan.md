@@ -46,10 +46,15 @@ quadruped in `docs/examples/ring-plans/`.
   a camera. Draw the wire at the reference's NAMED view (frontal / three-quarter /
   three-quarter-left / lateral / left / back) and read `--compare`'s numbers; a picture read at a
   guessed angle is not a comparison.
+- **A body is not done at its silhouette.** The form gives you a blob that reads from a distance.
+  Detail is added in PASSES per segment, each pass a layer that rides the one below by address (see
+  "Detail passes"). Stop after the form only if the operator asked for a blockout; otherwise keep
+  working the segments and report which passes each one has had.
 - **Every fix is a number.** A shoulder too narrow is a ring radius; a snout too long is a station's
   `t`; an arm too low is a joint. Patch `/plan/...` and re-read. Never re-mint for a change.
 - **Not a person, not a real species, not a machine.** Those loops exist; use them. This loop is for
-  invented organic bodies and detailed heads.
+  invented organic bodies and detailed heads. A HUMAN character on this same grammar is `create-hero`
+  (the hero form on the vajra rest skeleton, a style register, a face and hair as head data).
 - **Provenance is signed, not proven.** Mojulo is loopback and cannot watch a worker. When a worker
   printed the plan, pass `plan_audit { source: 'text:<model>' | 'image:<worker>', prompt, id }` on
   the mint; `source: 'agent'` says you wrote the numbers yourself. A malformed audit refuses; a false
@@ -104,9 +109,59 @@ quadruped in `docs/examples/ring-plans/`.
             rig gates (valid weights, rest identity, planted toes). export_model({ ref, format:
             'glb', skinned: true, clips: '_all' }) ships it.
 
-8. LOCK     Report the ref, the thesis, what the worker printed vs what you changed, the compare
-            numbers at the views you had, and the exposure flags. Discard the reference.
+8. DETAIL   Per segment, the passes below, in order; a pass is a plan or recipe edit, never a
+            re-mint. After each pass: closure (measure_solid), exposure (nothing new `buried`), the
+            wire at the segment's best view. Keep a SEGMENT LEDGER: segment × pass → done / pending /
+            not wanted, and say why a pass is not wanted (a smooth-skinned beast has no scales).
+
+9. LOCK     Report the ref, the thesis, what the worker printed vs what you changed, the compare
+            numbers at the views you had, the exposure flags, and the segment ledger. Discard the
+            reference.
 ```
+
+## Detail passes — how a segment is worked after the form reads
+
+The head-detail line (`docs/examples/head-detail`, grown on the `planar-detail` branch) is the
+worked method for going from a ring loft to a detailed part. Its order is the order to follow on
+ANY segment, and each pass is a named operator or a data entry, not sculpting:
+
+| Pass | What it adds | How it is expressed | Rule it obeys |
+| --- | --- | --- | --- |
+| 1 Form | the ring loft itself | a plan segment: joints, `rA` / `rB`, `e`, stations | mirrored by name; overshoot fuses joints |
+| 2 Density | more stations / slots where detail will sit | `refineStation` / `refineSlot` (addresses frozen first) | nothing renumbers; every address keeps its meaning |
+| 3 Masses | a jowl, a chest swell, a haunch pushed out of its ring | `volumize` (slots × stations × amount), a `scale` / `offset` dial | before refinement, so inserts interpolate it |
+| 4 Regions | the articulating parts: eye + surround + brow, nostril, fold, cheek web, tongue, mouth corner | regions placed by address, `bone` vs `skin` carrier declared | clearance (a lid never inside the eyeball, a tongue never below the jaw); each region claims a KEEP-OUT |
+| 5 Ornaments | horns, teeth rows, crest spikes, ears, a nose pad, claws | `sweep` with `curl`, teeth rows by address, `claw` details, a `dish` (an ear bowl), a `collar` on a sweep's ring (horn ridges, knuckles) | built from the host's own points, so they ride a curl or a hinge |
+| 6 Grown patches | scales, plates, tufts, fur | `tiles` over an (s, t) window: `sides`, `coverage` (shingles), `inset`, `height`, `lean`, `brick` | seeded per tile id; decided on the REST carrier; yield to keep-outs; `edgeFade` + `thin` so a patch has no hard border |
+| 7 Correctives | wrinkles: nose-bridge ridges, a glabella line, crow's feet | driven strips: `h × (rest + Σ drive · control)` | always present at rest height, so the part set never depends on the expression |
+| 8 Hair | barbels, vibrissae, a mane's guard hairs | `whiskers`: tapering sweeps rooted at addresses, drooping under world gravity read through the RIGHT frame | the left set mirrors by name |
+| 9 Colour | groups → palette | `palette` by face group (Sclera / Iris / LidRim / Scales / …) | a material over a name, never geometry |
+
+What the plan grammar carries TODAY: passes 1, 3 (dials), 5 (`claw`), 9, and the whole head as an
+`include` baked from the head-detail operators (`station-loft-detail.js`). Passes 2, 4, 6, 7, 8 are
+authored through those operators (a head's data table names them) and bake into pinned parts; they
+enter the plan form as `details` kinds as the planar-detail line lands. Do not fake a pass the grammar
+lacks with hand-placed coordinates — name it pending in the ledger.
+
+Rules that hold across every pass, whatever the segment:
+
+- **By address, never by index.** A detail names the (s, t) it sits at; refinement, dials and
+  expressions move the carrier under it and it rides.
+- **Regions before growth.** Place what articulates first; grown detail (tiles, hair) yields to it.
+- **Decide on the rest carrier.** Which tiles exist, which keep-outs hold, is read at rest, so an
+  expression changes shapes, never the part set (ids stay dial-invariant; the rig binds once).
+- **No hard borders.** A patch fades and thins at its window edge; a ridge tapers to the skin.
+- **Two carriers.** Skin maps move the skin copy only; teeth, horns, eyes and the tongue ride the
+  bone, so a lip can lift over a tooth.
+- **Ornament on ornament is allowed** (a ridge on a horn, a bowl in an ear) when it is built from the
+  host's points, so it follows the host.
+- **A second body proves a pass.** A pass that only works on the dragon is data pretending to be an
+  operator; the bear is the head-detail line's second head for that reason.
+
+Working a body: after the form compares well at its views, take the segments in the order the eye
+reads them (head, then hands and feet, then the torso's masses, then the limbs' patches, then the
+tail), and at each segment run passes 2 → 8 as far as the thesis wants. A creature "done" with a
+detailed head on a blank body is a head study, and the ledger should say so.
 
 ## The request template (the fast path)
 
@@ -188,3 +243,5 @@ the number into the form, discard the picture. The whole-body dream is for the c
 - You don't ship a `buried` detail without moving it, or a `faint` one without deciding it is meant.
 - You don't force a person, a real animal or a machine through this loop.
 - You don't sign a `plan_audit` for a worker that did not run.
+- You don't stop at the blob. A segment with only pass 1 is a blockout; say so in the ledger, or keep
+  working it.

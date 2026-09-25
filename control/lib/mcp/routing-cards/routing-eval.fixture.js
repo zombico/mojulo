@@ -58,6 +58,9 @@ export const FIXTURE = [
   // creature (layered): an invented body with a rig, kept editable by dials
   ['a hulking dragon with a detailed head that I can rig and animate', 'mint_solid'],
   ['invent a swamp monster whose jaw and tail I can keep tweaking', 'mint_solid'],
+  // hero (layered): a human character as a rigged mesh in one art-style register
+  ['a low-poly hero for my game with a face and a ponytail I can rig', 'mint_solid'],
+  ['a boxy pixel knight that walks and exports skinned', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

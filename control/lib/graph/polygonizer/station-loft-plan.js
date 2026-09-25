@@ -10,7 +10,10 @@
  * plan = {
  *   schema: 'layered-plan-v1',
  *   frame: { up: '+z', front: '+y', note? },  symmetry?: { plane, policy },
- *   slotFamilies?: { <name>: [slots] },                       // over the built-ins: ring8, limb6
+ *   slotFamilies?: { <name>: [slots] },                       // over the built-ins: ring6, ring8, ring10, ring12, limb6
+ *   style?: { slots?, limbSlots?, e? },                        // the ART STYLE: the ring family of every trunk (`slots`),
+ *                                                              //   of every segment and chain (`limbSlots`), and the superellipse
+ *                                                              //   exponent of every ring that names none (2 round … 12 box)
  *   joints: { <name>: [x, y, z] },                             // authored on the RIGHT (or the midline)
  *   segments: [                                                // L1 parts, in recipe order
  *     { name, kind: 'trunk',   slots?, stations: [{ z, r, yc?, e? }], caps: { back, tip }, group, tint, mirror: 'plane' },
@@ -46,9 +49,13 @@ const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFini
 const fail = (msg) => { throw new Error(`layered plan: ${msg}`); };
 
 export const SLOT_FAMILIES = {
+  ring6: ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'],
   ring8: ['front', 'frontR', 'sideR', 'backR', 'back', 'backL', 'sideL', 'frontL'],
+  ring10: ['front', 'frontR', 'sideFrontR', 'sideBackR', 'backR', 'back', 'backL', 'sideBackL', 'sideFrontL', 'frontL'],
+  ring12: ['front', 'frontR', 'frontSideR', 'sideR', 'backSideR', 'backR', 'back', 'backL', 'backSideL', 'sideL', 'frontSideL', 'frontL'],
   limb6: ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'],
 };
+const STYLE_KEYS = ['slots', 'limbSlots', 'e'];
 export const PLAN_SCHEMA = 'layered-plan-v1';
 const SEGMENT_KINDS = ['trunk', 'segment', 'chain'];
 const DETAIL_KINDS = ['claw'];
@@ -75,8 +82,8 @@ export function segmentPart(A, B, rA, rB, { slots = SLOT_FAMILIES.limb6, e = 2, 
   return { slots, stations: st.map(([t, r], i) => ({ id: `st${i}`, points: ringPoints(at(t), d, r, slots, e) })), caps: { back: at(st[0][0] - 0.45 * rad(rA)), tip: at(st[2][0] + 0.45 * rad(rB)) } };
 }
 /** Explicit stations for a midline trunk: [{ z, r: [rx, ry], yc, e }] along +z. */
-export function trunkPart(stations, caps, slots = SLOT_FAMILIES.ring8) {
-  return { slots, stations: stations.map((s, i) => ({ id: `st${i}`, points: ringPoints([0, s.yc ?? 0, s.z], [0, 0, 1], s.r, slots, s.e ?? 2) })), caps };
+export function trunkPart(stations, caps, slots = SLOT_FAMILIES.ring8, e = 2) {
+  return { slots, stations: stations.map((s, i) => ({ id: `st${i}`, points: ringPoints([0, s.yc ?? 0, s.z], [0, 0, 1], s.r, slots, s.e ?? e) })), caps };
 }
 /** Finish an L1 part: round every coordinate; a midline part (`mirrorPlane: 'x'`) takes its left half from the
  * rounded right half by name, so the figure's mirror symmetry is exact after rounding. */
@@ -114,6 +121,12 @@ export function validatePlan(plan) {
   if (!plan.frame || typeof plan.frame !== 'object') fail('frame is required: { up: "+z", front: "+y" }');
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
   for (const [k, s] of Object.entries(families)) if (!Array.isArray(s) || s.length < 4 || s.length % 2) fail(`slot family '${k}' needs an even list of at least 4 slot names`);
+  if (plan.style != null) {
+    if (typeof plan.style !== 'object' || Array.isArray(plan.style)) fail('style must be an object { slots?, limbSlots?, e? }');
+    for (const k of Object.keys(plan.style)) if (!STYLE_KEYS.includes(k)) fail(`style.${k} is not a style key (have ${STYLE_KEYS.join(', ')})`);
+    for (const k of ['slots', 'limbSlots']) if (plan.style[k] != null && !families[plan.style[k]]) fail(`style.${k} names slot family '${plan.style[k]}', which is not defined (have ${Object.keys(families).join(', ')})`);
+    if (plan.style.e != null && !(Number.isFinite(plan.style.e) && plan.style.e >= 1)) fail('style.e must be a number ≥ 1 (2 is round, 12 reads as a box)');
+  }
   const joints = plan.joints || {};
   for (const [k, v] of Object.entries(joints)) if (!isVec(v)) fail(`joint '${k}' must be [x, y, z]`);
   if (!Array.isArray(plan.segments) || !plan.segments.length) fail('segments must be a non-empty list');
@@ -145,23 +158,25 @@ export function validatePlan(plan) {
 export function expandPlan(plan) {
   validatePlan(plan);
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
-  const slotsOf = (seg, dflt) => (seg.slots == null ? families[dflt] : typeof seg.slots === 'string' ? families[seg.slots] : seg.slots);
+  const style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
+  const slotsOf = (seg, which) => (seg.slots == null ? families[style[which]] : typeof seg.slots === 'string' ? families[seg.slots] : seg.slots);
+  const eOf = (seg) => seg.e ?? style.e;
   const J = plan.joints || {};
   const parts = {};
   const place = (name, part, seg, bind) => { parts[name] = part; const b = resolveBind(bind, name); if (b !== undefined) parts[name].bind = b; };
   for (const seg of plan.segments) {
-    const style = { group: seg.group, tint: seg.tint, mirrorPlane: seg.mirror === 'plane' ? 'x' : undefined };
-    if (seg.kind === 'trunk') place(seg.name, finish(trunkPart(seg.stations, seg.caps, slotsOf(seg, 'ring8')), style), seg, seg.bind);
+    const look = { group: seg.group, tint: seg.tint, mirrorPlane: seg.mirror === 'plane' ? 'x' : undefined };
+    if (seg.kind === 'trunk') place(seg.name, finish(trunkPart(seg.stations, seg.caps, slotsOf(seg, 'slots'), eOf(seg)), look), seg, seg.bind);
     else if (seg.kind === 'segment') {
-      const raw = segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots: slotsOf(seg, 'limb6'), e: seg.e, over: seg.over, mid: seg.mid, rMid: seg.rMid });
-      const right = finish(raw, style); place(seg.name, right, seg, seg.bind);
+      const raw = segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots: slotsOf(seg, 'limbSlots'), e: eOf(seg), over: seg.over, mid: seg.mid, rMid: seg.rMid });
+      const right = finish(raw, look); place(seg.name, right, seg, seg.bind);
       if (seg.mirror === 'name') { const left = mirrorPart(right); parts[mirrorPartName(seg.name)] = left; const b = resolveBind(seg.bind, seg.name); if (b !== undefined) left.bind = mirrorBind(b); }
     } else if (seg.kind === 'chain') {
       const n = seg.joints.length - 1; const ov = { first: 0.4, last: 0.3, inner: 0.6, ...(seg.over || {}) };
       for (let i = 0; i < n; i++) {
-        const name = `${seg.name}${i}`; const raw = segmentPart(J[seg.joints[i]], J[seg.joints[i + 1]], seg.r[i], seg.r[i + 1], { slots: slotsOf(seg, 'limb6'), e: seg.e, over: [i === 0 ? ov.first : ov.inner, i === n - 1 ? ov.last : ov.inner] });
+        const name = `${seg.name}${i}`; const raw = segmentPart(J[seg.joints[i]], J[seg.joints[i + 1]], seg.r[i], seg.r[i + 1], { slots: slotsOf(seg, 'limbSlots'), e: eOf(seg), over: [i === 0 ? ov.first : ov.inner, i === n - 1 ? ov.last : ov.inner] });
         const bind = seg.bind ? segmentBind(i ? `${seg.name}${i - 1}` : seg.bind.root || null, `${seg.name}${i}`, i < n - 1 ? `${seg.name}${i + 1}` : null) : undefined;
-        place(name, finish(raw, style), seg, bind);
+        place(name, finish(raw, look), seg, bind);
       }
     }
   }

@@ -12,6 +12,39 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Create hero
+
+- **The hero form.** `docs/examples/ring-plans/hero.plan.mjs`: a human ring plan on the vajra rest skeleton.
+  Its joints come from `figure-cast.js` (a cast word or dial map, into metres), so the layered rig's core is
+  the figure's own rest pose and the figure's pose words, gaits and emotes resolve on it unchanged; the mesh
+  is rings along those joints (trunks, a neck, a blank head, one loft per limb bone, a heel from the foot's
+  overshoot), never the vajra field. A `register` sets slot family and `e` for every ring at once. Three
+  dials, a rig, `idle` / `walk` / `wave` clips, a palette by group. Tests pin the JSON, the joints against
+  the cast, the register never moving a joint, every cast closing and standing, every clip posing planted.
+- **The style block.** A ring plan may carry `style: { slots, limbSlots, e }`: the ring family of every trunk,
+  of every segment and chain, and the superellipse exponent of every ring that names none, so one edit
+  changes a whole figure's register (2 is round, 6 chamfered, 12 reads as a box). Slot families `ring6`,
+  `ring10` and `ring12` join `ring8` and `limb6`. A segment or station that names its own family or `e`
+  keeps it; the defaults spelled out change nothing (a test). The hero's registers are its style block.
+- **The hero head.** `docs/examples/hero-head/`: a human head as HEAD DATA on the detail core, no new
+  operators: a cranium whose front bands stand nearly vertical (the face), a hinged jaw, skin maps by
+  landmark, the eye / brow / nostril / fold / cheek-web regions, ears and a midline nose, lips as band
+  groups, and hair grown from the skull as data (`cap`, `bangs`, `tail`). Four expressions in the same
+  words the dragon and the bear take. `bakeHero()` is the include a ring plan wears; the hero form takes it
+  (`head`), binds the cranium to the head bone and the jaw to a jaw bone with a `jaw` chain, and splices
+  `jawOpen` in. The head-detail render script now draws any head module. Tests: closure in every expression
+  and style, the one-sided rule, the baked pin, the headed hero closing at every dial extreme, the jaw chain
+  opening the jaw, both eyes `reads` from the front and the cap from the back in the exposure ledger.
+- **The create-hero loop.** Catalyst `create-hero`: thesis → cast and register → silhouette in the six
+  views → colour at 64 px → face (eye size, spacing, brow; the baked expression) → hair (a style list
+  sized to the skull) → look (the exposure ledger must say both eyes `reads` from the front and the hair
+  from the back) → compare → rig (free) → lock with a HERO LEDGER (segment × silhouette / colour, head ×
+  face / hair; adornments always "next loop"). One `style` register for the whole figure; every fix a
+  number; no hand-placed joints, faces or hair meshes. Routing card `hero` (a human character as a rigged
+  mesh in an art-style register) with eval rows; the `human-figure` card, the dream catalysts and the
+  creature catalyst say where the hero loop begins and the SVG figure keeps turnarounds, pose work and
+  garments. The layered manual points at the hero form and head.
+
 ### Ring plan
 
 - **The creature route.** The `layered` kind is on the routing surface: the mint_solid index row lists
@@ -52,7 +85,10 @@ loops and the recipe format are unchanged.
   when a worker printed it; malformed refuses) stored as the row's `provenance`. Worked plans:
   `docs/examples/ring-plans/` (a bare quadruped with its gate) beside the rigged dragon body. The
   `creature` routing card and both dream catalysts point at it. References stay scaffolding; the plan and
-  its recipe are the artifact.
+  its recipe are the artifact. The catalyst also carries the head-detail line's DETAIL PASSES (form →
+  density → masses → regions → ornaments → grown patches → correctives → hair → colour, each by
+  address, decided on the rest carrier, mirrored by name, no hard borders) and a segment ledger the
+  agent reports at lock, so a creature is not declared done at its silhouette.
 
 ### Planar drawing
 

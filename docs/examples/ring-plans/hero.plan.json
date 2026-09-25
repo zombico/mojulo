@@ -1,0 +1,844 @@
+{
+ "schema": "layered-plan-v1",
+ "frame": {
+  "up": "+z",
+  "front": "+y",
+  "note": "1 unit = 1 m; a human on the vajra rest skeleton (cast canonical), soles on z = 0, facing +y"
+ },
+ "symmetry": {
+  "plane": "x=0",
+  "policy": "midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot"
+ },
+ "style": {
+  "slots": "ring8",
+  "limbSlots": "limb6",
+  "e": 2
+ },
+ "joints": {
+  "hip": [
+   0.18,
+   0.081,
+   0.846
+  ],
+  "knee": [
+   0.18,
+   0.081,
+   0.45
+  ],
+  "ankle": [
+   0.18,
+   0,
+   0.036
+  ],
+  "shoulder": [
+   0.234,
+   0,
+   1.404
+  ],
+  "elbow": [
+   0.279,
+   0,
+   1.08
+  ],
+  "wrist": [
+   0.351,
+   0,
+   0.81
+  ],
+  "toeBase": [
+   0.18,
+   0.11,
+   0.02
+  ],
+  "toeTip": [
+   0.18,
+   0.22,
+   0.015
+  ],
+  "knuckles": [
+   0.37419,
+   0,
+   0.723039
+  ],
+  "neckHub": [
+   0,
+   0,
+   1.404
+  ],
+  "headBase": [
+   0,
+   0,
+   1.539
+  ]
+ },
+ "segments": [
+  {
+   "name": "pelvis",
+   "kind": "trunk",
+   "stations": [
+    {
+     "z": 0.7623,
+     "r": [
+      0.21,
+      0.13
+     ],
+     "yc": 0.02
+    },
+    {
+     "z": 0.846,
+     "r": [
+      0.25,
+      0.15
+     ],
+     "yc": 0.02
+    },
+    {
+     "z": 1.0413,
+     "r": [
+      0.155,
+      0.105
+     ]
+    }
+   ],
+   "caps": {
+    "back": [
+     0,
+     0,
+     0.7065
+    ],
+    "tip": [
+     0,
+     0,
+     1.11105
+    ]
+   },
+   "group": "Bottom",
+   "mirror": "plane",
+   "bind": "pelvis"
+  },
+  {
+   "name": "torso",
+   "kind": "trunk",
+   "stations": [
+    {
+     "z": 1.0413,
+     "r": [
+      0.155,
+      0.105
+     ]
+    },
+    {
+     "z": 1.125,
+     "r": [
+      0.175,
+      0.115
+     ],
+     "yc": 0.005
+    },
+    {
+     "z": 1.27845,
+     "r": [
+      0.215,
+      0.13
+     ],
+     "yc": 0.01
+    },
+    {
+     "z": 1.394,
+     "r": [
+      0.274,
+      0.12
+     ]
+    },
+    {
+     "z": 1.449,
+     "r": [
+      0.15,
+      0.1
+     ]
+    }
+   ],
+   "caps": {
+    "back": [
+     0,
+     0,
+     0.9855
+    ],
+    "tip": [
+     0,
+     0,
+     1.489
+    ]
+   },
+   "group": "Top",
+   "mirror": "plane",
+   "bind": {
+    "bone": "torso",
+    "blend": {
+     "back": {
+      "pelvis": 1
+     },
+     "st0": {
+      "pelvis": 1
+     },
+     "st1": {
+      "pelvis": 0.5,
+      "torso": 0.5
+     },
+     "st4": {
+      "torso": 0.6,
+      "neck": 0.4
+     },
+     "tip": {
+      "neck": 1
+     }
+    }
+   }
+  },
+  {
+   "name": "neck",
+   "kind": "segment",
+   "from": "neckHub",
+   "to": "headBase",
+   "rA": [
+    0.062,
+    0.058
+   ],
+   "rB": [
+    0.056,
+    0.054
+   ],
+   "slots": "ring8",
+   "over": [
+    0.3,
+    0.4
+   ],
+   "group": "Skin",
+   "mirror": "plane",
+   "bind": {
+    "bone": "neck",
+    "blend": {
+     "back": {
+      "torso": 1
+     },
+     "st0": {
+      "torso": 0.5,
+      "neck": 0.5
+     },
+     "st2": {
+      "neck": 0.5,
+      "head": 0.5
+     },
+     "tip": {
+      "head": 1
+     }
+    }
+   }
+  },
+  {
+   "name": "head",
+   "kind": "trunk",
+   "stations": [
+    {
+     "z": 1.50525,
+     "r": [
+      0.0648,
+      0.0675
+     ],
+     "yc": 0.0054
+    },
+    {
+     "z": 1.58625,
+     "r": [
+      0.0945,
+      0.0999
+     ],
+     "yc": 0.0081
+    },
+    {
+     "z": 1.6605,
+     "r": [
+      0.0999,
+      0.1053
+     ],
+     "yc": 0.0054
+    },
+    {
+     "z": 1.72125,
+     "r": [
+      0.0891,
+      0.0945
+     ]
+    },
+    {
+     "z": 1.76175,
+     "r": [
+      0.0567,
+      0.0621
+     ]
+    }
+   ],
+   "caps": {
+    "back": [
+     0,
+     0,
+     1.47825
+    ],
+    "tip": [
+     0,
+     0,
+     1.782
+    ]
+   },
+   "group": "Skin",
+   "mirror": "plane",
+   "bind": "head"
+  },
+  {
+   "name": "upperArmR",
+   "kind": "segment",
+   "from": "shoulder",
+   "to": "elbow",
+   "rA": 0.062,
+   "rB": 0.046,
+   "over": [
+    0.15,
+    0.6
+   ],
+   "group": "Top",
+   "mirror": "name",
+   "bind": {
+    "bone": "upperArmR",
+    "prev": "torso",
+    "next": "foreArmR"
+   }
+  },
+  {
+   "name": "foreArmR",
+   "kind": "segment",
+   "from": "elbow",
+   "to": "wrist",
+   "rA": 0.046,
+   "rB": 0.036,
+   "over": [
+    0.6,
+    0.6
+   ],
+   "group": "Top",
+   "mirror": "name",
+   "bind": {
+    "bone": "foreArmR",
+    "prev": "upperArmR",
+    "next": "handR"
+   }
+  },
+  {
+   "name": "handR",
+   "kind": "segment",
+   "from": "wrist",
+   "to": "knuckles",
+   "rA": [
+    0.044,
+    0.028
+   ],
+   "rB": [
+    0.046,
+    0.02
+   ],
+   "e": 3,
+   "over": [
+    0.4,
+    0.35
+   ],
+   "group": "Skin",
+   "mirror": "name",
+   "bind": {
+    "bone": "handR",
+    "prev": "foreArmR",
+    "next": null
+   }
+  },
+  {
+   "name": "thighR",
+   "kind": "segment",
+   "from": "hip",
+   "to": "knee",
+   "rA": [
+    0.085,
+    0.095
+   ],
+   "rB": 0.066,
+   "over": [
+    0.15,
+    0.6
+   ],
+   "group": "Bottom",
+   "mirror": "name",
+   "bind": {
+    "bone": "thighR",
+    "prev": "pelvis",
+    "next": "shankR"
+   }
+  },
+  {
+   "name": "shankR",
+   "kind": "segment",
+   "from": "knee",
+   "to": "ankle",
+   "rA": 0.064,
+   "rB": 0.04,
+   "over": [
+    0.6,
+    0.6
+   ],
+   "group": "Bottom",
+   "mirror": "name",
+   "bind": {
+    "bone": "shankR",
+    "prev": "thighR",
+    "next": "footR"
+   }
+  },
+  {
+   "name": "footR",
+   "kind": "segment",
+   "from": "ankle",
+   "to": "toeBase",
+   "rA": [
+    0.046,
+    0.038
+   ],
+   "rB": [
+    0.056,
+    0.028
+   ],
+   "e": 3,
+   "over": [
+    1.1,
+    0.2
+   ],
+   "group": "Shoes",
+   "mirror": "name",
+   "bind": {
+    "bone": "footR",
+    "prev": "shankR",
+    "next": "toesR"
+   }
+  },
+  {
+   "name": "toesR",
+   "kind": "segment",
+   "from": "toeBase",
+   "to": "toeTip",
+   "rA": [
+    0.056,
+    0.028
+   ],
+   "rB": [
+    0.05,
+    0.02
+   ],
+   "e": 3,
+   "over": [
+    0.2,
+    0.35
+   ],
+   "group": "Shoes",
+   "mirror": "name",
+   "bind": {
+    "bone": "toesR",
+    "prev": "footR",
+    "next": null
+   }
+  }
+ ],
+ "include": [],
+ "dials": {
+  "bulk": {
+   "min": 0.8,
+   "max": 1.4,
+   "rest": 1,
+   "doc": "x scale of the torso and arms about the mirror plane (broader chest and shoulders)",
+   "op": "scale",
+   "axis": "x",
+   "pivot": 0,
+   "parts": [
+    "torso",
+    "upperArm$S",
+    "foreArm$S",
+    "hand$S"
+   ],
+   "blend": {
+    "st0": 1,
+    "st1": 1,
+    "st2": 1,
+    "st3": 1,
+    "st4": 1,
+    "back": 1,
+    "tip": 1
+   }
+  },
+  "stance": {
+   "min": 0.8,
+   "max": 1.35,
+   "rest": 1,
+   "doc": "x scale of the pelvis and legs about the mirror plane (wider stance, thicker legs)",
+   "op": "scale",
+   "axis": "x",
+   "pivot": 0,
+   "parts": [
+    "pelvis",
+    "thigh$S",
+    "shank$S",
+    "foot$S",
+    "toes$S"
+   ],
+   "blend": {
+    "st0": 1,
+    "st1": 1,
+    "st2": 1,
+    "st3": 1,
+    "st4": 1,
+    "back": 1,
+    "tip": 1
+   }
+  },
+  "lean": {
+   "min": -10,
+   "max": 25,
+   "rest": 0,
+   "doc": "degrees the torso, arms, neck and head hinge forward about the pelvis tip; the legs stay planted",
+   "op": "hinge",
+   "parts": [
+    "torso",
+    "neck",
+    "head",
+    "upperArm$S",
+    "foreArm$S",
+    "hand$S"
+   ],
+   "pivot": "pelvis/tip",
+   "axis": "x",
+   "sign": -1
+  }
+ },
+ "palette": {
+  "Skin": "#e6b48c",
+  "Top": "#3d6fa8",
+  "Bottom": "#2c3a55",
+  "Shoes": "#4a3526"
+ },
+ "rig": {
+  "joints": {
+   "pelvisHub": {
+    "at": [
+     0,
+     0,
+     0.846
+    ]
+   },
+   "navel": {
+    "at": [
+     0,
+     0,
+     1.125
+    ]
+   },
+   "neckHub": {
+    "at": [
+     0,
+     0,
+     1.404
+    ]
+   },
+   "headBase": {
+    "at": [
+     0,
+     0,
+     1.539
+    ]
+   },
+   "headTop": {
+    "at": [
+     0,
+     0,
+     1.674
+    ]
+   },
+   "hip$S": {
+    "at": [
+     0.18,
+     0.081,
+     0.846
+    ]
+   },
+   "knee$S": {
+    "at": [
+     0.18,
+     0.081,
+     0.45
+    ]
+   },
+   "ankle$S": {
+    "at": [
+     0.18,
+     0,
+     0.036
+    ]
+   },
+   "toeBase$S": {
+    "at": [
+     0.18,
+     0.11,
+     0.02
+    ]
+   },
+   "toeTip$S": {
+    "at": [
+     0.18,
+     0.22,
+     0.015
+    ]
+   },
+   "shoulder$S": {
+    "at": [
+     0.234,
+     0,
+     1.404
+    ]
+   },
+   "elbow$S": {
+    "at": [
+     0.279,
+     0,
+     1.08
+    ]
+   },
+   "wrist$S": {
+    "at": [
+     0.351,
+     0,
+     0.81
+    ]
+   },
+   "knuckles$S": {
+    "at": [
+     0.37419,
+     0,
+     0.723039
+    ],
+    "rides": "foreArm$S"
+   }
+  },
+  "bones": [
+   {
+    "id": "pelvis",
+    "head": "pelvisHub",
+    "tail": "navel",
+    "aux": [
+     "hipL",
+     "hipR"
+    ]
+   },
+   {
+    "id": "torso",
+    "head": "navel",
+    "tail": "neckHub",
+    "aux": [
+     "shoulderL",
+     "shoulderR"
+    ]
+   },
+   {
+    "id": "neck",
+    "head": "neckHub",
+    "tail": "headBase"
+   },
+   {
+    "id": "head",
+    "head": "headBase",
+    "tail": "headTop"
+   },
+   {
+    "perSide": [
+     {
+      "id": "upperArm$S",
+      "head": "shoulder$S",
+      "tail": "elbow$S"
+     },
+     {
+      "id": "foreArm$S",
+      "head": "elbow$S",
+      "tail": "wrist$S"
+     },
+     {
+      "id": "hand$S",
+      "head": "wrist$S",
+      "tail": "knuckles$S"
+     },
+     {
+      "id": "thigh$S",
+      "head": "hip$S",
+      "tail": "knee$S"
+     },
+     {
+      "id": "shank$S",
+      "head": "knee$S",
+      "tail": "ankle$S"
+     },
+     {
+      "id": "foot$S",
+      "head": "ankle$S",
+      "tail": "toeBase$S"
+     },
+     {
+      "id": "toes$S",
+      "head": "toeBase$S",
+      "tail": "toeTip$S"
+     }
+    ]
+   }
+  ],
+  "legs": {
+   "R": {
+    "hip": "hipR",
+    "knee": "kneeR",
+    "hock": "ankleR",
+    "toeBase": "toeBaseR",
+    "toeTip": "toeTipR",
+    "pole": [
+     0,
+     1,
+     0
+    ]
+   },
+   "L": {
+    "hip": "hipL",
+    "knee": "kneeL",
+    "hock": "ankleL",
+    "toeBase": "toeBaseL",
+    "toeTip": "toeTipL",
+    "pole": [
+     0,
+     1,
+     0
+    ]
+   }
+  },
+  "reach": "reject"
+ },
+ "clips": {
+  "idle": [
+   {
+    "elbowL": "slight",
+    "elbowR": "slight"
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "spine": {
+     "arch": 0.06
+    }
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "slight"
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "crouch": 0.03
+   }
+  ],
+  "walk": [
+   {
+    "elbowL": "half",
+    "elbowR": "slight",
+    "support": "L",
+    "legR": {
+     "x": 0.08,
+     "y": 0.45,
+     "z": -0.89
+    },
+    "kneeR": "slight",
+    "armL": {
+     "x": -0.2,
+     "y": 0.42,
+     "z": -0.88
+    },
+    "armR": {
+     "x": 0.2,
+     "y": -0.4,
+     "z": -0.9
+    }
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "slight"
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "half",
+    "support": "R",
+    "legL": {
+     "x": -0.08,
+     "y": 0.45,
+     "z": -0.89
+    },
+    "kneeL": "slight",
+    "armR": {
+     "x": 0.2,
+     "y": 0.42,
+     "z": -0.88
+    },
+    "armL": {
+     "x": -0.2,
+     "y": -0.4,
+     "z": -0.9
+    }
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "slight"
+   }
+  ],
+  "wave": [
+   {
+    "elbowL": "slight",
+    "elbowR": "slight"
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "half",
+    "armR": {
+     "x": 0.35,
+     "y": 0.25,
+     "z": 0.9
+    },
+    "head": {
+     "x": 0.1,
+     "y": 0.95,
+     "z": 0.3
+    }
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "slight",
+    "armR": {
+     "x": 0.6,
+     "y": 0.2,
+     "z": 0.75
+    }
+   },
+   {
+    "elbowL": "slight",
+    "elbowR": "half",
+    "armR": {
+     "x": 0.35,
+     "y": 0.25,
+     "z": 0.9
+    }
+   }
+  ]
+ }
+}

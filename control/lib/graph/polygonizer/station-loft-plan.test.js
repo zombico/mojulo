@@ -40,6 +40,22 @@ const plan = () => ({
 });
 
 describe('station-loft-plan — the ring plan expands into a layered recipe', () => {
+  it('a style block sets every ring family and exponent at once; a segment or station that names its own wins; unknown families refuse', () => {
+    const p = plan(); p.style = { slots: 'ring12', limbSlots: 'ring6', e: 8 };
+    const recipe = expandPlan(p);
+    expect(recipe.parts.torso.slots).toEqual(SLOT_FAMILIES.ring12); expect(recipe.parts.tail0.slots).toEqual(SLOT_FAMILIES.ring6); expect(recipe.parts.shinR.slots).toEqual(SLOT_FAMILIES.ring6);
+    // e: the trunk station that names 2.4 keeps it, the others take 8; the thigh names 2.2, the shin takes 8
+    const corner = (part, st, slot) => Math.hypot(...part.stations.find((s) => s.id === st).points[slot].slice(0, 2));
+    const plain = expandPlan(plan());
+    expect(corner(recipe.parts.shinR, 'st0', 'frontR')).toBeGreaterThan(corner(plain.parts.shinR, 'st0', 'frontR'));   // a boxier ring reaches further at the diagonal
+    expect(recipe.parts.thighR.stations.find((s) => s.id === 'st0').points.frontR).toEqual(plain.parts.thighR.stations.find((s) => s.id === 'st0').points.frontR);
+    expect(recipe.parts.torso.stations.find((s) => s.id === 'st1').points.sideR).toEqual(recipe.parts.torso.stations.find((s) => s.id === 'st1').points.sideR);
+    for (const dials of [{}, { bulk: 1.3, stance: 0.8 }]) expect(Object.values(auditLayered(compileLayered(recipe, dials))).every((r) => r.pass)).toBe(true);
+    expect(() => validatePlan({ ...plan(), style: { slots: 'ring7' } })).toThrow(/style\.slots names slot family 'ring7'/);
+    expect(() => validatePlan({ ...plan(), style: { e: 0.5 } })).toThrow(/style\.e/);
+    expect(() => validatePlan({ ...plan(), style: { tint: '#fff' } })).toThrow(/style\.tint is not a style key/);
+    expect(JSON.stringify(expandPlan({ ...plan(), style: { slots: 'ring8', limbSlots: 'limb6', e: 2 } }))).toBe(JSON.stringify(plain));   // the defaults, spelled out, change nothing
+  });
   it('expands segments, a chain, a mirrored limb, a claw and the rig; every part closes; ids mirror by name', () => {
     const recipe = expandPlan(plan());
     expect(Object.keys(recipe.parts)).toEqual(['torso', 'tail0', 'tail1', 'thighR', 'thighL', 'shinR', 'shinL', 'clawR', 'clawL']);
