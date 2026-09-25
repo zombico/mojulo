@@ -169,6 +169,13 @@ describe('station-loft-rig — bindings, posing, skinning, packing', () => {
     expect(at('spike')[0][0]).toBe(R.boneIndex.toesR); expect(at('spike')[1][0]).toBeCloseTo(1, 12);
     const a = auditRig(mesh, skin, R); expect(a.badWeights).toBe(0); expect(a.restIdentity).toBeLessThan(1e-12); expect(a.blended).toBeGreaterThan(0);
   });
+  it('a detail pinned on a detail (L3 on L2) inherits the host detail\'s weights', () => {
+    const r = JSON.parse(JSON.stringify(stick)); const host = r.parts.spike; const face = Object.keys(host.faces)[0]; const tri = host.faces[face];
+    r.parts.barb = { layer: 3, closure: 'closed', group: 'Barb', pin: { parent: 'spike', face, weights: [1 / 3, 1 / 3, 1 / 3], tangentEdge: [tri[0], tri[1]], handedness: 1 },
+      offsets: { a: [0.004, 0, 0.002], b: [-0.002, 0.003, 0.002], c: [-0.002, -0.003, 0.002], d: [0, 0, 0.008] }, faces: { f0: ['a', 'c', 'b'], f1: ['a', 'b', 'd'], f2: ['b', 'c', 'd'], f3: ['c', 'a', 'd'] }, groups: { f0: 'Barb', f1: 'Barb', f2: 'Barb', f3: 'Barb' } };
+    const m = compileLayered(r); const sk = bindLayered(m, r, validateRig(stickRig)); const i = m.provenance.findIndex((p) => p.part === 'barb');
+    expect(sk.joints[i][0]).toBe(R.boneIndex.toesR); expect(sk.weights[i][0]).toBeCloseTo(1, 12);
+  });
   it('refuses: a missing bind, an unknown bone, weights that do not sum to one, a bind on a pinned part, a core joint that rides, cyclic rides', () => {
     const noBind = structuredClone(stick); delete noBind.parts.shinL.bind; expect(() => bindLayered(compileLayered(noBind), noBind, R)).toThrow(/no bind/);
     const unknown = structuredClone(stick); unknown.parts.shinL.bind = 'femurL'; expect(() => bindLayered(compileLayered(unknown), unknown, R)).toThrow(/unknown bone/);

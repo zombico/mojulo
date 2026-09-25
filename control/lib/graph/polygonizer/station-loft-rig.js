@@ -174,7 +174,8 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
   const order = Object.entries(mesh.parts).filter(([, p]) => p.layer !== 1).sort(([a, x], [b, y]) => x.layer - y.layer || (a < b ? -1 : 1));
   for (const [name, part] of order) {
     const parent = mesh.parts[part.pin.parent]; const tri = parent.faces[part.pin.face]; if (!tri) throw new Error(`station-loft-rig: ${name} pin face ${part.pin.face} is gone`);
-    const acc = {}; tri.forEach((pid, k) => { const w = part.pin.weights[k]; const src = per[idx[pid]]; if (!src) throw new Error(`station-loft-rig: ${name} inherits from unbound ${pid}`); for (const [bi, ww] of src) acc[bi] = (acc[bi] || 0) + w * ww; });
+    const gid = (pid) => ((parent.layer ?? 1) === 1 ? pid : `${part.pin.parent}/${pid}`);   // an L2+ parent's faces carry its LOCAL point ids
+    const acc = {}; tri.forEach((pid, k) => { const w = part.pin.weights[k]; const src = per[idx[gid(pid)]]; if (!src) throw new Error(`station-loft-rig: ${name} inherits from unbound ${pid}`); for (const [bi, ww] of src) acc[bi] = (acc[bi] || 0) + w * ww; });
     const inherited = topFour(acc);
     for (let i = 0; i < n; i++) if (mesh.provenance[i].part === name) per[i] = inherited;
   }

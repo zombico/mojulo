@@ -51,10 +51,12 @@ and `export_model` see the compiled mesh itself (every closed part exact, whatev
   side), segments: [ { name, kind: 'trunk', stations: [{ z, r, yc?, e? }], caps, mirror: 'plane' } | { name, kind:
   'segment', from, to, rA, rB, e?, over?, mirror: 'plane' | 'name', bind: { bone, prev?, next? } } | { name, kind:
   'chain', joints, r, over?, bind: { root } } ], details: [{ name, kind: 'claw', base, dir, length, radius, pin,
-  stretch?, mirror? }], heads: [{ name, plan, expression?, shift, bind? }] (a detailed head as DATA, schema
+  stretch?, mirror? }], heads: [{ name, plan, expression?, on: <joint> | shift, bind? }] (a detailed head as DATA, schema
   `layered-head-v1`: station tables, refine ops, skin maps by landmark, eye and regions, ornaments `sweep` /
   `teeth` / `disc`, midline pins; expanded at a preset expression (neutral, pant, flick, surprise, snarl) or
-  control values), include: [{ name, parts, dials?, creases?, palette?, shift, bind? }] (a baked fragment worn at a
+  control values; worn BY NAME: its `nape` landmark sits on the `on` joint, the segment ending there is fitted so it
+  stays buried in the head at every head dial extreme, and rig joints may be `at: '<head>.<anchor>'`, the anchors read
+  from the head: `cranium.tip`, `jaw.tip`, `<part>.back`, `jawOpen.pivot`, its landmarks), include: [{ name, parts, dials?, creases?, palette?, shift, bind? }] (a baked fragment worn at a
   shift), dials (an entry `{ op: 'include', name }` splices a head's or include's dials there), rig, clips }`. Slot
   families `ring8` and `limb6`; `$S` in a name stands for its R and L twins (dial parts, rig joints, a `perSide`
   bone block). `expandPlan` makes superellipse rings perpendicular to each segment's axis, overshoots the joints so

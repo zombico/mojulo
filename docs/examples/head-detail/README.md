@@ -105,8 +105,19 @@ Both heads are JSON: [`heads/dragon.head.json`](heads/dragon.head.json) (12 KB) 
   stalked disc with an attitude swivel and an optional bowl).
 - **Midline pins,** migrated by address from the unrefined base.
 
-`compile.mjs` only loads them. A ring plan wears a head with `heads: [{ name, plan, expression, shift, bind }]`;
-the dragon body does, and its recipe is byte-identical to the baked include it replaced.
+`compile.mjs` only loads them.
+
+A ring plan wears a head BY NAME: `heads: [{ name, plan, expression, on: 'neckTop', bind }]`.
+
+- **Landmarks:** the head declares them in its own units. Its `nape` is the point that sits on the joint, so the
+  placement is derived, not typed.
+- **Anchors:** the head exposes anchors read from its geometry: each part's `back` and `tip` caps, each hinge dial's
+  `pivot`, and every landmark. Rig joints name them (`at: 'head.jawOpen.pivot'`), so the rig follows the head.
+- **The seam is a rule.** The ring of the segment that ends on the head's joint is shrunk about its centre, just enough
+  that it stays buried in the skull, with 5 % slack, at rest and at every head dial's min and max. `headSeam` measures
+  it on any compiled mesh.
+
+The dragon body wears its head this way.
 
 ## Onto a body
 

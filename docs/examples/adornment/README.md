@@ -50,8 +50,8 @@ vertices, so it slipped between them; clearance is now against the surface) and 
 every adornment on both creatures is justified.
 
 Not certified: the harness path and the pauldron window are hand-placed addresses (supports are named by part, not
-landmark); no MOUNT; not bound to the rig. Binding an adornment pinned to a detail part (layer 3 on layer 2) also
-needs `bindLayered` to resolve an L2 parent's local point ids, which it does not yet do.
+landmark); no MOUNT; not bound to the rig. (Binding a part pinned to a detail part, layer 3 on layer 2, works:
+`bindLayered` resolves an L2 parent's local point ids.)
 
 ## Reproduce
 

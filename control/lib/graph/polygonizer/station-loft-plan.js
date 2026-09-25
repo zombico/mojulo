@@ -18,7 +18,9 @@
  *     { name, kind: 'chain',   joints: [names], r: [radii], over: { first, last, inner }, group, tint, mirror: 'plane', bind? },
  *   ],
  *   include?: [ { name, parts, dials?, creases?, palette?, shift: [x, y, z] } ],   // a baked layered fragment worn at a shift
- *   heads?: [ { name, plan, expression?, shift: [x, y, z], bind? } ],   // a head as PLAN DATA (station-loft-head.js), expanded to an include
+ *   heads?: [ { name, plan, expression?, on: <joint> (its `nape` landmark sits there) | shift: [x, y, z], at?: <landmark>, bind? } ],
+ *     // a head as PLAN DATA (station-loft-head.js), expanded to an include; it exposes ANCHORS read from its own geometry
+ *     // (`<part>.back|tip` caps, `<hinge dial>.pivot`, its landmarks) that rig joints name as `at: '<head>.<anchor>'`
  *   details?: [ { name, kind: 'claw', base, dir, length, radius, pin, group, tint, stretch?, mirror? } ],
  *   dials: { <name>: <dial spec> | { op: 'include', name } },  // `parts` entries may carry `$S` (→ R then L)
  *   creases?, palette?, rig?, clips?,                          // rig joints / bones may carry `$S` and `perSide` blocks
@@ -34,7 +36,7 @@
  * Pure, deterministic, no dice. Refusals name the plan field and the fix.
  */
 import { compileLayered, pinFrame, surfaceLocalOffset, mirrorPid, mirrorFaceId } from './station-loft.js';
-import { headFromPlan, resolveExpression } from './station-loft-head.js';
+import { headFromPlan, resolveExpression, insidePart } from './station-loft-head.js';
 import { bakeLayered } from './station-loft-detail.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
@@ -112,15 +114,27 @@ const expandDial = (d) => {
 
 // ── heads: a head plan (JSON) interpreted and baked at its expression, then worn exactly as an include ──
 const headCache = new WeakMap();
-function headInclude(h) {
+function headInclude(h, plan) {
   if (headCache.has(h)) return headCache.get(h);
-  if (!h || typeof h.name !== 'string' || !h.name) fail('every head needs { name, plan, shift }');
-  if (!isVec(h.shift)) fail(`head '${h.name}' needs shift [x, y, z]`);
-  let baked; try { baked = bakeLayered(headFromPlan(h.plan), resolveExpression(h.expression)); } catch (err) { fail(`head '${h.name}': ${err.message}`); }
-  const inc = { name: h.name, parts: baked.parts, dials: baked.dials, creases: baked.creases, palette: baked.palette, shift: h.shift, ...(h.bind ? { bind: h.bind } : {}) };
+  if (!h || typeof h.name !== 'string' || !h.name) fail('every head needs { name, plan, on | shift }');
+  let head, baked; try { head = headFromPlan(h.plan); baked = bakeLayered(head, resolveExpression(h.expression)); } catch (err) { fail(`head '${h.name}': ${err.message}`); }
+  // ATTACH BY NAME: the head's landmark (default `nape`) sits on the named joint; an explicit shift is the fallback
+  let shift;
+  if (h.on != null) { if (h.shift != null) fail(`head '${h.name}' gives both on and shift; give one`); const J = (plan.joints || {})[h.on]; if (!isVec(J)) fail(`head '${h.name}' attaches on joint '${h.on}', which the joint table lacks`);
+    const lm = h.at || 'nape'; const p = head.landmarks[lm]; if (!p) fail(`head '${h.name}' attaches by its '${lm}' landmark, which its plan does not declare (have ${Object.keys(head.landmarks).join(', ') || 'none'})`); shift = sub(J, p).map(r6); }
+  else if (isVec(h.shift)) shift = h.shift; else fail(`head '${h.name}' needs on: <joint> or shift: [x, y, z]`);
+  // ANCHORS, read from the head's own geometry after placement: caps, hinge pivots, landmarks
+  const at = (p) => add(p, shift).map(r6); const anchors = {};
+  for (const [n, P] of Object.entries(baked.parts)) if (P.layer === 1) { anchors[`${n}.back`] = at(P.caps.back); anchors[`${n}.tip`] = at(P.caps.tip); }
+  for (const [k, d] of Object.entries(baked.dials)) if (d.op === 'hinge' && typeof d.pivot === 'string') { const [pn, rest] = d.pivot.split('/'); const [st, sl] = rest.split('.'); const pt = baked.parts[pn]?.stations.find((x) => x.id === st)?.points[sl]; if (pt) anchors[`${k}.pivot`] = at(pt); }
+  for (const [k, p] of Object.entries(head.landmarks)) anchors[k] = at(p);
+  const inc = { name: h.name, parts: baked.parts, dials: baked.dials, creases: baked.creases, palette: baked.palette, shift, ...(h.bind ? { bind: h.bind } : {}), anchors };
   headCache.set(h, inc); return inc;
 }
-const includesOf = (plan) => [...(plan.include || []), ...(plan.heads || []).map(headInclude)];
+const includesOf = (plan) => [...(plan.include || []), ...(plan.heads || []).map((h) => headInclude(h, plan))];
+/** a rig joint's `at`: a point, or `'<head>.<anchor>'` read from a worn head */
+function anchorAt(plan, ref, joint) { if (Array.isArray(ref)) return ref; const i = ref.indexOf('.'); const inc = includesOf(plan).find((x) => x.name === ref.slice(0, i));
+  const p = inc?.anchors?.[ref.slice(i + 1)]; if (!p) fail(`rig joint '${joint}' is at '${ref}', which names no head anchor (have ${includesOf(plan).flatMap((x) => Object.keys(x.anchors || {}).map((a) => `${x.name}.${a}`)).join(', ') || 'none'})`); return p; }
 
 // ── validation ──
 export function validatePlan(plan) {
@@ -196,6 +210,21 @@ export function expandPlan(plan) {
   // dials, in plan order; an `include` entry splices that include's dials in place
   const dials = {};
   for (const [k, d] of Object.entries(plan.dials || {})) { if (d.op === 'include') Object.assign(dials, includeDials[d.name]); else dials[k] = expandDial(d); }
+  // THE SEAM: a head worn `on` a joint seals the segment that ends there. That segment's last ring is shrunk about its
+  // centre by the largest scale (bisection) that keeps every ring point, 5 % beyond, and its tip inside the head's L1 parts, at rest
+  // and at each head dial's min and max, so no gap shows whatever the head's shape dials do. Rings that already fit
+  // are untouched.
+  for (const h of plan.heads || []) { if (h.on == null) continue; const inc = headInclude(h, plan); const hp = Object.keys(inc.parts).filter((n) => parts[n]?.layer === 1);
+    const hd = Object.fromEntries(Object.entries(includeDials[inc.name] || {}).filter(([, d]) => (d.parts || [d.part]).some((n) => hp.includes(n))));
+    const sets = [{}, ...Object.entries(hd).flatMap(([k, d]) => (Number.isFinite(d.min) && Number.isFinite(d.max) ? [{ [k]: d.min }, { [k]: d.max }] : []))];
+    const heads = sets.map((d) => compileLayered({ schema: 'layered-v1', frame: plan.frame, dials: hd, parts: Object.fromEntries(hp.map((n) => [n, parts[n]])) }, d, { details: false, creases: false }).parts);
+    const inside = (q) => heads.every((H) => hp.some((n) => insidePart(H[n], q)));
+    for (const seg of plan.segments.filter((x) => x.kind === 'segment' && x.to === h.on)) { const P = parts[seg.name]; const st = P.stations[P.stations.length - 1];
+      const c = mean(P.slots.map((sl) => st.points[sl])); const ring = (k) => P.slots.map((sl) => add(c, mul(sub(st.points[sl], c), k)));
+      const SLACK = 1.05; const fits = (k) => [...ring(k * SLACK), P.caps.tip].every(inside); if (fits(1)) continue;   // sealed with slack: a ring 5 % larger would still be buried
+      let lo = 0.2, hi = 1; if (!fits(lo)) continue;   // cannot seal by shrinking: left as authored (the seam gate reports it)
+      for (let it = 0; it < 24; it++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+      const R = ring(lo); P.slots.forEach((sl, i) => { st.points[sl] = R[i].map(r6); }); } }
   const recipe = { schema: 'layered-v1', frame: plan.frame, symmetry: plan.symmetry || { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; side parts: right authored, left mirrored in x with R ↔ L renamed on the part and the slot' }, dials, parts, creases };
   if (palette) recipe.palette = palette;
   // details: authored in world space on the L1 form at rest; stored as local offsets in their pin frames
@@ -229,8 +258,9 @@ export function expandPlan(plan) {
   if (plan.rig) {
     const R = plan.rig; const joints = {};
     for (const [k, v] of Object.entries(R.joints || {})) {
-      if (hasS(k)) { for (const S of ['R', 'L']) { const at = S === 'R' ? v.at : mirrorX(v.at); joints[side(k, S)] = { ...sideDeep(v, S), at: at.map(r6) }; } }
-      else joints[k] = { ...v, at: v.at.map(r6) };
+      const p = anchorAt(plan, v.at, k);
+      if (hasS(k)) { for (const S of ['R', 'L']) { const at = S === 'R' ? p : mirrorX(p); joints[side(k, S)] = { ...sideDeep(v, S), at: at.map(r6) }; } }
+      else joints[k] = { ...v, at: p.map(r6) };
     }
     const bones = (R.bones || []).flatMap((b) => (b.perSide ? ['R', 'L'].flatMap((S) => b.perSide.map((x) => sideDeep(x, S))) : [b]));
     const chains = Object.fromEntries(Object.entries(R.chains || {}).map(([k, c]) => [k, { ...c, links: (c.links || []).flatMap((l) => (l.perSide ? ['R', 'L'].flatMap((S) => sideDeep(l.perSide, S)) : [l])) }]));

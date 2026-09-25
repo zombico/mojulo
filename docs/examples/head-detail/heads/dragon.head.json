@@ -1093,6 +1093,13 @@
    "droop": 0.9
   }
  },
+ "landmarks": {
+  "nape": [
+   0,
+   -0.22,
+   2.0
+  ]
+ },
  "ornaments": [
   {
    "kind": "sweep",

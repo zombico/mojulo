@@ -15,6 +15,7 @@
  *   refine?: [ { op: 'slot', part, a, b, name, f? } | { op: 'station', part, a, b, fs? } | { op: 'volumize', part, slots, stations, amount } ],
  *   skin: { slots, radius, controls: { <control>: { amp, map: [['st2.brow', w, [dx, dy, dz]]] } } },   // landmarks against the ORIGINAL slots
  *   eye, regions, palette,
+ *   landmarks?: { nape: [x, y, z], … },                        // named points in the plan's units; `nape` is where it sits on a neck
  *   ornaments?: [ …per side, in order: { kind: 'sweep' | 'teeth' | 'disc', … } ],
  *   midline?: [ { kind: 'pinned', group, parts: { <name>: { pin, offsets, faces } } } ],   // pins on the UNREFINED base, migrated by address
  * }
@@ -58,6 +59,7 @@ export function validateHead(plan) {
   for (const o of plan.ornaments || []) if (!['sweep', 'teeth', 'disc'].includes(o.kind)) fail(`ornament kind '${o.kind}' is not one of sweep / teeth / disc`);
   for (const r of plan.refine || []) if (!['slot', 'station', 'volumize'].includes(r.op)) fail(`refine op '${r.op}' is not one of slot / station / volumize`);
   for (const m of plan.midline || []) if (m.kind !== 'pinned') fail(`midline kind '${m.kind}' is not 'pinned'`);
+  for (const [k, v] of Object.entries(plan.landmarks || {})) if (!isVec(v)) fail(`landmark '${k}' must be [x, y, z]`);
   return true;
 }
 
@@ -122,7 +124,20 @@ export function headFromPlan(plan) {
     if (r.op === 'slot') refineSlot(recipe, r.part, r.a, r.b, r.name, r.f ?? 0.5);
     else if (r.op === 'station') refineStation(recipe, r.part, r.a, r.b, r.fs ?? [0.5]);
     else volumize(recipe, r.part, r.slots, r.stations, r.amount); }
-  const head = { recipe, skin: addressMaps(plan.skin), eye: clone(plan.eye || {}), regions: clone(plan.regions), ornaments: ornamentsOf(plan, W), palette: clone(plan.palette || {}) };
+  const head = { recipe, skin: addressMaps(plan.skin), eye: clone(plan.eye || {}), regions: clone(plan.regions), ornaments: ornamentsOf(plan, W), palette: clone(plan.palette || {}),
+    landmarks: Object.fromEntries(Object.entries(plan.landmarks || {}).map(([k, v]) => [k, W(v)])) };
   const midline = midlineOf(plan, L1u); if (midline) head.midline = midline;
   return head;
 }
+
+/** point in a closed part: ray parity along a skewed direction (no axis-aligned degeneracies) */
+export function insidePart(P, q) { const d = [0.8726, 0.3313, 0.3589]; let c = 0;
+  for (const f of Object.values(P.faces)) { const [A, B, C] = f.map((k) => P.points[k]); const e1 = sub(B, A), e2 = sub(C, A); const p = cross(d, e2); const det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2]; if (Math.abs(det) < 1e-14) continue;
+    const tv = sub(q, A); const u = (tv[0] * p[0] + tv[1] * p[1] + tv[2] * p[2]) / det; if (u < 0 || u > 1) continue; const qq = cross(tv, e1); const v = (d[0] * qq[0] + d[1] * qq[1] + d[2] * qq[2]) / det; if (v < 0 || u + v > 1) continue;
+    if ((e2[0] * qq[0] + e2[1] * qq[1] + e2[2] * qq[2]) / det > 0) c++; }
+  return c % 2 === 1; }
+/** the SEAM between a neck and the head worn on it: every point of the neck's last ring and its tip cap must be buried
+ * inside the head's L1 parts, so no gap can show at any angle. Measured on the compiled mesh (any dials). */
+export function headSeam(mesh, { neck, head = ['cranium', 'jaw'] }) { const N = mesh.parts[neck]; if (!N) fail(`seam: no part '${neck}'`);
+  const last = N.stations[N.stations.length - 1].id; const ring = [...N.slots.map((sl) => N.points[`${neck}/${last}.${sl}`]), N.points[`${neck}/tip`]].filter(Boolean);
+  const inside = ring.filter((q) => head.some((h) => mesh.parts[h] && insidePart(mesh.parts[h], q))).length; return { points: ring.length, inside, sealed: inside === ring.length }; }

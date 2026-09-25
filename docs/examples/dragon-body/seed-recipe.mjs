@@ -1,13 +1,13 @@
 /** seed-recipe.mjs — authors recipe.json ONCE, as a RING PLAN (control/lib/graph/polygonizer/station-loft-plan.js)
  * expanded into the core `layered` grammar (station-loft.js): a hulking humanoid with digitigrade lizard legs,
- * wearing the detailed dragon head from ../head-detail (baked at one expression, worn at HEAD_SHIFT above the
+ * wearing the detailed dragon head from ../head-detail (baked at one expression, worn with its nape on the neck's top
  * neck). Everything body-specific lives HERE as plan DATA: the joint table, the segments and their ring radii,
  * the claws, the dial semantics, the rig and the clips. `expandPlan` owns the ring rules (superellipse rings
  * perpendicular to each segment's axis, overshoot at the joints, mirror by name, the claw geometry, segment
  * bindings). The emitted recipe is declarative; re-running reproduces recipe.json byte for byte. It is the
  * authoring record, not the render path. */
 import { writeFileSync } from 'node:fs';
-import { expandPlan, PLAN_SCHEMA, mirrorPartName, mirrorId } from '../../../control/lib/graph/polygonizer/station-loft-plan.js';
+import { expandPlan, PLAN_SCHEMA, mirrorPartName, mirrorId, r6 } from '../../../control/lib/graph/polygonizer/station-loft-plan.js';
 import { HEAD_PLANS } from '../head-detail/compile.mjs';
 export const recipePath = new URL('./recipe.json', import.meta.url);
 export const headPath = new URL('../dragon-layered/recipe.json', import.meta.url);   // the plain head the detailed one refines
@@ -16,8 +16,8 @@ export { mirrorPartName, mirrorId };
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
 
 // ── L0: the frame. Metres, +z up, +y front, x = 0 the mirror plane, soles on z = 0 ──
-const frame = { up: '+z', front: '+y', note: '1 unit = 1 m; a hulking humanoid, soles on z = 0, the dragon head merged at HEAD_SHIFT above the neck' };
-export const HEAD_SHIFT = [0, 0.10, 0.20];   // the head recipe is authored centred at z = 2.05; here it rides 0.2 m higher and 0.1 m forward
+const frame = { up: '+z', front: '+y', note: '1 unit = 1 m; a hulking humanoid, soles on z = 0, the dragon head worn with its nape on the neck top' };
+// HEAD_SHIFT is derived, not typed: the head's `nape` landmark sits on the neckTop joint (the plan's `heads[].on`)
 
 // ── the joint table (right side, metres) ──
 const J = {
@@ -62,9 +62,11 @@ const segments = [
 ];
 
 // ── the head: the DETAILED dragon head as PLAN DATA (docs/examples/head-detail/heads/dragon.head.json), which the plan
-// expands at one expression and wears at HEAD_SHIFT: the refined cranium and jaw as L1, every region, ornament and tile
+// expands at one expression and wears with its nape on neckTop: the refined cranium and jaw as L1, every region, ornament and tile
 // as a pinned L2 part, its dials spliced in where `dials.head` says ──
-const heads = [{ name: 'head', plan: HEAD_PLANS.dragon, expression: HEAD_EXPRESSION, shift: HEAD_SHIFT, bind: { cranium: 'head', jaw: 'jaw' } }];
+const heads = [{ name: 'head', plan: HEAD_PLANS.dragon, expression: HEAD_EXPRESSION, on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
+/** where the head lands, as the plan computes it: its nape landmark on the neckTop joint (for tests and readers; the plan does not use it) */
+export const HEAD_SHIFT = J.neckTop.map((v, i) => r6(v - HEAD_PLANS.dragon.landmarks.nape[i]));
 
 // ── the claws: three at each toe tip on the top band of the last toe station, one on each distal finger tip. A claw's
 // base ring sits INSIDE its host (so the union fuses) and its apex clears the host's tip cap: the toe loft runs 0.3 × r
@@ -98,10 +100,9 @@ const dials = {
 };
 
 // ── the rig: rest joints (the vajra core from the joint table; `$S` names their R and L twins), bones per segment, chains, digitigrade legs ──
-const shifted = (p) => add(p, HEAD_SHIFT);
 const rigJoints = {
-  pelvisHub: { at: [0, 0, J.hip[2]] }, navel: { at: [0, 0.02, 1.35] }, neckHub: { at: J.neckBase }, headBase: { at: J.neckTop }, headTop: { at: shifted([0, 0.432, 2.026]) },   // headTop: the cranium tip cap, so `head` aims the snout
-  jawHinge: { at: shifted([0, -0.288, 1.946]), rides: 'head' }, jawTip: { at: shifted([0, 0.4, 1.994]), rides: 'head' },                                                       // the jaw dial's pivot and the jaw tip cap
+  pelvisHub: { at: [0, 0, J.hip[2]] }, navel: { at: [0, 0.02, 1.35] }, neckHub: { at: J.neckBase }, headBase: { at: J.neckTop }, headTop: { at: 'head.cranium.tip' },   // headTop: the cranium tip cap, so `head` aims the snout
+  jawHinge: { at: 'head.jawOpen.pivot', rides: 'head' }, jawTip: { at: 'head.jaw.tip', rides: 'head' },   // read from the head: the jaw dial's pivot and the jaw tip cap
   hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.hock }, shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
 };
 for (const S of ['R', 'L']) for (const [i, X] of FINGERS.entries()) { const { k, m, e } = fingerJoints(i); const f = (p) => (S === 'R' ? p : [-p[0] + 0, p[1], p[2]]); rigJoints[`finger${X}k${S}`] = { at: f(k), rides: `hand${S}` }; rigJoints[`finger${X}m${S}`] = { at: f(m), rides: `hand${S}` }; rigJoints[`finger${X}e${S}`] = { at: f(e), rides: `hand${S}` }; }

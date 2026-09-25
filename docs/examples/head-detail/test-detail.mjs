@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { HEADS, HEAD_PLANS, headFromPlan, bakeLayered, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor, keepOut } from './compile.mjs';
 import { surfaceLocalOffset } from '../../../control/lib/graph/polygonizer/surface-pin.js';
 import { expandPlan, PLAN_SCHEMA } from '../../../control/lib/graph/polygonizer/station-loft-plan.js';
+import { headSeam } from '../../../control/lib/graph/polygonizer/station-loft-head.js';
 import { compileLayered, auditLayered } from '../../../control/lib/graph/polygonizer/station-loft.js';
 
 const partsOf = (head, x) => build(head, x).parts;
@@ -158,10 +159,19 @@ test('a bad head plan is refused by name', () => {
 test('a ring plan wears a head plan: expanded at its expression, closed, and a bad head refused by name', () => {
   const plan = (head) => ({ schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y' }, joints: { a: [0, -0.3, 1.6], b: [0, -0.1, 1.95] },
     segments: [{ name: 'neck', kind: 'segment', from: 'a', to: 'b', rA: 0.12, rB: 0.09, group: 'Neck', tint: '#7a5a3c', mirror: 'plane' }],
-    heads: [{ name: 'head', plan: head, expression: 'snarl', shift: [0, 0, 0] }], dials: { head: { op: 'include', name: 'head' } } });
+    heads: [{ name: 'head', plan: head, expression: 'snarl', on: 'b' }], dials: { head: { op: 'include', name: 'head' } },
+    rig: { joints: { jawHinge: { at: 'head.jawOpen.pivot' }, snout: { at: 'head.cranium.tip' } }, bones: [] } });
   const recipe = expandPlan(plan(HEAD_PLANS.bear)); const mesh = compileLayered(recipe, {});
   assert.ok(recipe.parts.cranium && recipe.parts.jaw && recipe.parts.earR && recipe.parts.noseR && recipe.dials.jawOpen);
   for (const [n, r] of Object.entries(auditLayered(mesh))) assert.ok(r.pass, `${n} ${r.closure}`);
+  // worn by name: the nape landmark lands on joint b; the rig's joints are read from the head's own geometry
+  const nape = HEAD_PLANS.bear.landmarks.nape.map((v, i) => v * HEAD_PLANS.bear.units.scale + HEAD_PLANS.bear.units.offset[i]);
+  const shift = [0, -0.1, 1.95].map((v, i) => Math.round((v - nape[i]) * 1e6) / 1e6 + 0);
+  assert.deepEqual(recipe.rig.joints.snout.at, recipe.parts.cranium.caps.tip); assert.deepEqual(recipe.rig.joints.jawHinge.at, recipe.parts.jaw.stations[0].points.gum);
+  assert.ok(Math.abs(recipe.parts.cranium.caps.tip[1] - (HEAD_PLANS.bear.parts.cranium.caps.tip[1] * 0.8 + shift[1])) < 1e-6);
+  assert.ok(headSeam(mesh, { neck: 'neck' }).sealed, 'the neck is not buried in the bear head');
+  assert.throws(() => expandPlan({ ...plan(HEAD_PLANS.bear), rig: { joints: { x: { at: 'head.antler.tip' } }, bones: [] } }), /names no head anchor/);
+  assert.throws(() => expandPlan({ ...plan(HEAD_PLANS.bear), heads: [{ name: 'head', plan: HEAD_PLANS.bear, on: 'shoulder' }] }), /attaches on joint 'shoulder', which the joint table lacks/);
   assert.throws(() => expandPlan(plan({ ...HEAD_PLANS.bear, schema: 'nope' })), /layered plan: head 'head': layered head: schema/);
   assert.throws(() => expandPlan({ ...plan(HEAD_PLANS.bear), heads: [{ name: 'head', plan: HEAD_PLANS.bear, expression: 'grin', shift: [0, 0, 0] }] }), /expression 'grin' is not a preset/);
 });

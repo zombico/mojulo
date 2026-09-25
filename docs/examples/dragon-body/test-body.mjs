@@ -11,6 +11,7 @@ import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, auditRig
 import { facesToGlb } from '../../../control/lib/graph/scene/scene-gltf.js';
 import { recipePath, HEAD_SHIFT, HEAD_EXPRESSION, mirrorId, mirrorPartName } from './seed-recipe.mjs';
 import { HEADS, EXPRESSIONS, bakeLayered } from '../head-detail/compile.mjs';
+import { headSeam } from '../../../control/lib/graph/polygonizer/station-loft-head.js';
 
 const recipe = JSON.parse(readFileSync(recipePath, 'utf8')); const head = bakeLayered(HEADS.dragon, EXPRESSIONS[HEAD_EXPRESSION]);
 const D = recipe.dials;
@@ -102,4 +103,22 @@ test('rig: the packed figure exports as a skinned GLB whose engine-side skin mat
 });
 test('the seed reproduces recipe.json byte for byte', () => {
   const before = readFileSync(recipePath); execFileSync(process.execPath, [new URL('./seed-recipe.mjs', import.meta.url).pathname]); assert.ok(before.equals(readFileSync(recipePath)));
+});
+
+test('the head is worn by name and sealed: nape on neckTop, rig joints read from the head, and the neck buried in the skull at every dial extreme', () => {
+  const plan = JSON.parse(readFileSync(new URL('../head-detail/heads/dragon.head.json', import.meta.url), 'utf8'));
+  const cap = recipe.parts.cranium.caps.tip; assert.deepEqual(recipe.rig.joints.headTop.at, cap);
+  const J = recipe.parts.jaw.stations.find((s) => s.id === 'st0').points.gum; assert.deepEqual(recipe.rig.joints.jawHinge.at, J);
+  assert.deepEqual(recipe.rig.joints.jawTip.at, recipe.parts.jaw.caps.tip);
+  assert.deepEqual(HEAD_SHIFT, plan.landmarks.nape.map((v, i) => Math.round((recipe.rig.joints.headBase.at[i] - v) * 1e6) / 1e6 + 0));
+  const sets = [{}, ...Object.entries(recipe.dials).flatMap(([k, d]) => (Number.isFinite(d.min) && Number.isFinite(d.max) ? [{ [k]: d.min }, { [k]: d.max }] : [])), { jawOpen: 35, lean: 25, skullWidth: 0.8 }];
+  for (const d of sets) { const s = headSeam(compileLayered(recipe, d), { neck: 'neck' }); assert.ok(s.sealed, `${JSON.stringify(d)}: ${s.inside}/${s.points} of the neck's top ring inside the head`); }
+});
+
+test('a detail pinned on a head detail (L3 on L2) rides its host\'s bone', () => {
+  const r = JSON.parse(JSON.stringify(recipe)); const host = r.parts.hornR; const face = Object.keys(host.faces)[0]; const tri = host.faces[face];
+  r.parts.hornBand = { layer: 3, closure: 'closed', group: 'Band', pin: { parent: 'hornR', face, weights: [1 / 3, 1 / 3, 1 / 3], tangentEdge: [tri[0], tri[1]], handedness: 1 },
+    offsets: { a: [0.01, 0, 0.005], b: [-0.005, 0.009, 0.005], c: [-0.005, -0.009, 0.005], d: [0, 0, 0.02] }, faces: { f0: ['a', 'c', 'b'], f1: ['a', 'b', 'd'], f2: ['b', 'c', 'd'], f3: ['c', 'a', 'd'] }, groups: { f0: 'Band', f1: 'Band', f2: 'Band', f3: 'Band' } };
+  const m = compileLayered(r, {}); const R = validateRig(r.rig); const sk = bindLayered(m, r, R); const i = m.provenance.findIndex((p) => p.part === 'hornBand');
+  assert.equal(sk.joints[i][0], R.boneIndex.head); assert.ok(Math.abs(sk.weights[i][0] - 1) < 1e-12);
 });

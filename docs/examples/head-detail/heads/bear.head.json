@@ -1007,6 +1007,13 @@
    "droop": 1.3
   }
  },
+ "landmarks": {
+  "nape": [
+   0,
+   -0.26,
+   -0.12
+  ]
+ },
  "ornaments": [
   {
    "kind": "disc",
