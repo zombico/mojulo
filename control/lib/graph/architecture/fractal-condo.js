@@ -48,6 +48,8 @@ export const CLEAR_GLASS_ALPHA = 0.45;                 // translucent pane opaci
 // samples a tier PER BUILDING from its own labelled stream; a number pins every building.
 export const FLOOR_TIERS = [12, 20, 30];
 export const UPPER_FLOOR_H = 9.6;                  // upper storeys are shorter than the 12ft lobby
+// the first-person walker, in feet: a person's half-width (0.27 m) and a brisk walk (4.9 m/s)
+export const CONDO_WALK = { radius: 0.9, speed: 16 };
 
 // ── labelled seed sub-streams ────────────────────────────────────────────────────────────────
 function fnv1a(str) {
@@ -190,7 +192,9 @@ export function planFractalCondoComplex(spec = {}) {
     w: Math.round(lerp(rLobby(), 44, 62)), d: Math.round(lerp(rLobby(), 34, 46)),
     elevators: 3, ...(spec.central || {}),
   };
-  const hall = { length: Math.round(lerp(rHall(), 32, 52)), width: Math.round(lerp(rHall(), 10, 14)), ...(spec.hall || {}) };
+  // hall length range raised +6 ft (was 32-52) so the frontage-capped units (unitSlots'
+  // MIN_UNIT_PITCH) still line a hall two or three deep; width stays 10-14 ft (3.0-4.3 m)
+  const hall = { length: Math.round(lerp(rHall(), 38, 58)), width: Math.round(lerp(rHall(), 10, 14)), ...(spec.hall || {}) };
   const units = {
     perSide: 1 + Math.floor(rUnits() * 3), depth: Math.round(lerp(rUnits(), 10, 13)),
     backDepth: Math.round(lerp(rUnits(), 10, 14)), ...(spec.units || {}),
@@ -778,7 +782,11 @@ export function assembleFractalCondoScene(spec = {}, opts = {}) {
     title: opts.title || 'mojulo condo complex',
     bg: opts.bg || '#0f1218',
     inline: opts.inline ?? false,
-    walk: opts.walk === false ? false : { eye: plan.baseZ + 5.4, spawn: plan.spawn },
+    // a HUMAN walker: without an explicit radius the World derives the collision half-width off
+    // the mesh bound (1.2%), which on a ~280 ft complex made a 3.3 ft half-width — a 6.7 ft
+    // wide body that could not pass a unit door and floated its eye at 8.3 ft (minEye scales
+    // with it). Speed likewise derived to ~110 ft/s; interiors want a brisk walk.
+    walk: opts.walk === false ? false : { eye: plan.baseZ + 5.4, spawn: plan.spawn, radius: CONDO_WALK.radius, speed: CONDO_WALK.speed },
     condo: plan,
     flow: assessComplexFlow(plan),
     livability: assessComplexLivability(plan),

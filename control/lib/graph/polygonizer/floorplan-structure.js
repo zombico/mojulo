@@ -72,7 +72,7 @@ export const FLOORPLAN_DEFAULTS = {
   floorboardTint: '#9a7b52', // wood plank floor
   marbleTint: '#e2ded5',   // marble / stone tile floor
   doorWidth: 3,            // 36 in leaf — generous/accessible, reads right under 9 ft ceilings
-  doorClearance: 2.5,      // approach depth kept furniture-free each side of a doorway (open-plan walkability)
+  doorClearance: 3,        // approach depth kept furniture-free each side of a doorway (open-plan walkability) — 0.91 m (was 2.5: 0.76 m)
   doorHeight: 6.83,        // 6 ft 10 in — the shared head line
   headHeight: 6.83,        // door + window tops align here
   windowWidth: 3,          // 36 in
@@ -303,6 +303,22 @@ export function placeOpenings(graph, doors = [], opts = {}) {
     // circulation thresholds so they don't read as a door into nowhere), 'sliding' (a panel
     // slid along the wall — the terrace/patio default). Carried from the plan's door spec.
     if (op) op.kind = d.kind || (leadsTo === 'terrace' ? 'sliding' : 'hinged');
+    // SWING: an interior leaf opens INTO a room, never out across a hall (it stood open in the
+    // corridor, a door-sized wall in the walker's path); between two rooms it opens into the
+    // smaller, more private one. Every leaf used to swing toward +axis whatever lay there.
+    // An authored global `doorSwing` still wins.
+    if (op && !exterior && op.kind === 'hinged' && o.doorSwing == null) {
+      const pos = vertical ? d.y : d.x;
+      const cellAt = (s) => {
+        const px = vertical ? run.at + s * 0.6 : pos, py = vertical ? pos : run.at + s * 0.6;
+        return (graph.cells || []).find((c) => px > c.x && px < c.x + c.w && py > c.y && py < c.y + c.h);
+      };
+      const P = cellAt(1), M = cellAt(-1);
+      const circ = (c) => !c || c.kind === 'hall' || c.glyph === 'H';
+      if (circ(P) && !circ(M)) op.doorSwing = '-';
+      else if (circ(M) && !circ(P)) op.doorSwing = '+';
+      else if (P && M) op.doorSwing = P.w * P.h <= M.w * M.h ? '+' : '-';
+    }
     if (op && exterior) {
       op.exterior = true;
       op.leadsTo = leadsTo;
@@ -621,11 +637,15 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
   if (x1 - x0 < 3 || y1 - y0 < 3) return [];
   const seed = (Math.round(rect.x * 131.1 + rect.y * 17.7 + baseZ * 7.3) >>> 0) || 1;
   const W = x1 - x0, H = y1 - y0;
-  let elements = furnishElements(glyph, seed, { w: W, h: H, wall, scale: o.furnishScale })
+  // a quarter-turned room (door on E/W) is ARRANGED at its swapped dims, so the canonical
+  // layout's depth runs the room's real width after the turn (see orientElementsToDoor)
+  const quarter = doorEdge === 'E' || doorEdge === 'W';
+  const [cw, ch] = quarter ? [H, W] : [W, H];
+  let elements = furnishElements(glyph, seed, { w: cw, h: ch, wall, scale: o.furnishScale })
     .filter((e) => e.type !== 'window' && e.type !== 'door');
   // command position (movement-flow kernel #2): rotate the canonical layout so the anchor
   // piece backs a solid wall and faces the room's ACTUAL door, not the assumed front 'S'.
-  if (doorEdge) elements = orientElementsToDoor(elements, doorEdge, W, H, { assetFacing: o.furnishScale === 'share' });
+  if (doorEdge) elements = orientElementsToDoor(elements, doorEdge, W, H, { assetFacing: o.furnishScale === 'share', canonical: [cw, ch] });
   // keep furniture OUT of circulation: drop any piece whose footprint overlaps a stair
   // exclusion rect (the flight rising through this room). Hall cells are already skipped.
   const exclude = o.furnishExclude || [];
@@ -635,7 +655,10 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
       const ew = (e.w || 0.12) * W, eh = (e.h || 0.12) * H;
       const cx = x0 + u * W, cy = y0 + v * H;
       const r = { x0: cx - ew / 2, x1: cx + ew / 2, y0: cy - eh / 2, y1: cy + eh / 2 };
-      return !exclude.some((h) => Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
+      // a floor skin (rug / runner) is walked over, not around: a door approach never strips
+      // it (a stair still does — the flight stands on that floor)
+      const skin = e.type === 'rug' || e.type === 'runner';
+      return !exclude.some((h) => !(skin && h.door) && Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
     });
   }
   // Wall-hung decor (picture / sconce / tv) mounts on the room's BACK wall (the
@@ -688,13 +711,29 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
 function doorClearanceRects(doors, o) {
   // shared primitive (graph/movement-flow.js); `half` fixes the jamb width to the doorway
   // (ignoring per-door width) to preserve this path's long-standing behavior.
-  return doorApproaches(doors, { clr: o.doorClearance ?? 2.5, half: (o.doorWidth ?? 3) / 2 + 0.3 });
+  return doorApproaches(doors, { clr: o.doorClearance ?? FLOORPLAN_DEFAULTS.doorClearance, half: (o.doorWidth ?? 3) / 2 + 0.3 })
+    .map((r) => ({ ...r, door: true }));
+}
+
+// Which wall of `room` ({x,y,w,h}) a door point sits on — 'N' (y0) | 'S' (y1) | 'W' (x0) |
+// 'E' (x1) — or null when the door is on none of them. `tol` absorbs wall thickness.
+export function doorWallOf(room, door, tol = 1) {
+  if (!room || !door || door.x == null || door.y == null) return null;
+  const inX = door.x >= room.x - tol && door.x <= room.x + room.w + tol;
+  const inY = door.y >= room.y - tol && door.y <= room.y + room.h + tol;
+  const cand = [
+    ['N', inX ? Math.abs(door.y - room.y) : Infinity],
+    ['S', inX ? Math.abs(door.y - (room.y + room.h)) : Infinity],
+    ['W', inY ? Math.abs(door.x - room.x) : Infinity],
+    ['E', inY ? Math.abs(door.x - (room.x + room.w)) : Infinity],
+  ].sort((a, b) => a[1] - b[1]);
+  return cand[0][1] <= tol ? cand[0][0] : null;
 }
 
 // One room → its furniture. The OPEN CORE (open + multi-zone) is split along its long
 // axis into living/kitchen/dining sub-rects (weighted by furniture budget) and each is
 // furnished as itself — open plan, distinct zones.
-function furnishRoom(room, baseZ, o, doorEdge = null) {
+function furnishRoom(room, baseZ, o, doorEdge = null, doorWalls = null) {
   if (room.open && Array.isArray(room.zones) && room.zones.length > 1) {
     // the open core keeps its canonical zone layout (open plan — command position is the
     // private rooms' concern, not the great room's), so doorEdge is not threaded here.
@@ -714,6 +753,15 @@ function furnishRoom(room, baseZ, o, doorEdge = null) {
       c += len;
     });
     return faces;
+  }
+  // a KITCHEN is not turned to face its door: its counter run takes the longest wall that
+  // carries NO door, so a pass-through kitchen never runs its counters across a doorway
+  // (the door approach would strip the run down to a stray fridge). No door-free wall ⇒ the
+  // command-position turn as before.
+  if (room.glyph === 'K' && doorWalls) {
+    const len = { N: room.w, S: room.w, E: room.h, W: room.h };
+    const free = ['N', 'S', 'W', 'E'].filter((e) => !doorWalls.has(e)).sort((a, b) => len[b] - len[a]);
+    if (free.length) return furnishCell(room, 'K', baseZ, o, free[0], null);
   }
   return furnishCell(room, room.glyph, baseZ, o, null, doorEdge);
 }
@@ -1328,18 +1376,30 @@ export function structurizeFloorplan(input = {}, opts = {}) {
       wallOpenings,
     };
     // the edge a room is entered from (its interior access door) → command-position orient.
+    // The edge is read off the GEOMETRY (which of the room's four walls the door point sits
+    // on), not the door's `edge` tag: the planners tag a door from the side of the room that
+    // generated it ('N' for every spine door, 'E' for every vertical BSP cut), so a front-row
+    // room doored on its S wall, or the far room of a BSP pair, used to be turned to face a
+    // wall it has no door in — bed under the doorway, sofa's back to the way in. A room with
+    // no door tagged to it (the far side of a BSP pair) finds its door the same way.
+    const interiorDoors = (plan.doors || []).filter((dr) => !dr.exterior && !dr.entry);
     const doorEdgeFor = (i) => {
-      const d = (plan.doors || []).find((dr) => dr.room === i && !dr.exterior && !dr.entry);
-      if (d) return d.edge;
+      const room = plan.rooms[i];
+      const d = interiorDoors.find((dr) => dr.room === i) || interiorDoors.find((dr) => doorWallOf(room, dr));
+      if (d) return doorWallOf(room, d) || d.edge;
       // a one-cell room is entered from its own front door — that IS its access door, so
       // the layout takes command position against it (authored, or the auto-cut entry).
       if (oneCell) {
         const e = (plan.doors || []).find((dr) => dr.room === i && dr.entry) || wallGraph.entryDoor;
-        return e ? e.edge : null;
+        return e ? (doorWallOf(room, e) || e.edge) : null;
       }
       return null;
     };
-    plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i))));
+    // every wall of a room that carries a door (interior, entry, terrace): the kitchen seats
+    // its counter run on a wall that has none
+    const allDoors = [...(plan.doors || []), ...(wallGraph.entryDoor ? [wallGraph.entryDoor] : [])];
+    const doorWallsFor = (i) => new Set(allDoors.map((d) => doorWallOf(plan.rooms[i], d)).filter(Boolean));
+    plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i), doorWallsFor(i))));
   }
   // built site structures adjacent to the house: porch/stoop off the entry, deck off the
   // terrace slider, balcony off an upper bedroom. Each keys off a door, so the relevant floor
@@ -1468,6 +1528,11 @@ export function renderFloorToThreeWorld(input = {}, opts = {}) {
  * derived defaults; an object overrides them (e.g. `{ speed }`). Falsy → orbit-only.
  */
 const FLOORPLAN_EYE_FT = 5.3;
+// The walker's collision half-width, in feet: a person's shoulders, ~0.24 m. Left to the World
+// it derives off the mesh bound (1.2% of the radius), which is a sliver in a cottage and grows
+// with the house — a villa's walker got wider while its doors did not. A fixed human half-width
+// clears a 3 ft door (casings and all) and a 4.5 ft hall with room to spare.
+const FLOORPLAN_WALK_RADIUS_FT = 0.8;
 
 // The walker's eye above a storey's floor, in feet: an adult's, kept two feet under a low ceiling.
 function floorplanEyeZ(baseZ, height) {
@@ -1479,7 +1544,7 @@ function floorplanWalk(walk, footprint, eyeZ) {
   const base = walk === true ? {} : walk;
   const cx = (footprint.x0 + footprint.x1) / 2;
   const cy = (footprint.y0 + footprint.y1) / 2;
-  return { eye: eyeZ, spawn: [cx, cy], ...base };
+  return { eye: eyeZ, spawn: [cx, cy], radius: FLOORPLAN_WALK_RADIUS_FT, ...base };
 }
 
 // ── SPLIT-MIRROR DUPLEX ──────────────────────────────────────────────────────
@@ -1778,7 +1843,7 @@ export function groundDatumFaces(footprint, meru, opts = {}) {
 // ── THE STAIRS PRIMITIVE — a straight flight climbing between two meru levels ──
 const DIRS = { '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] };
 export const STAIR_DEFAULTS = {
-  width: 3, going: 0.85, riser: 0.6, margin: 1.5, direction: '+x',   // ~10 in tread, ~7 in riser, 3 ft wide
+  width: 3.5, going: 0.85, riser: 0.6, margin: 1.5, direction: '+x', // ~10 in tread, ~7 in riser, 3.5 ft (1.07 m) wide — was 3 ft, the code minimum, a squeeze for a walk camera
   treadTint: '#9a8f78', riserTint: '#6f6657', stringerTint: '#5b5346',
   railTint: '#7a6e5c', postTint: '#675c4c', railHeight: 2.9, wellGap: 0.5,
 };

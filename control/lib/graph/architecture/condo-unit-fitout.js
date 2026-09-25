@@ -116,6 +116,10 @@ const RUGS = ['#7c5b52', '#4f6360', '#6b6480', '#8a7a56', '#566079'];
 // rng, base z, and the shared opts; returns baked faces. Anchors back the deep wall and face
 // the hall glass so the fit-out reads through the storefront. ─────────────────────────────
 function centre(rect) { return { al: rect.x + rect.w / 2, dep: rect.y + rect.d / 2 }; }
+// A seat's backrest goes on the side AWAY from what it serves (the desk it works at, the table
+// it gathers round): derived from the pair's depths, never authored per case, so a seat can
+// not end up with its back to its own table whichever side of it the zone put the table.
+const backAwayFrom = (F, seatDep, hostDep) => (hostDep > seatDep ? F.faceHall : F.faceBack);
 
 function furnishBedsit(rect, F, rng, z, o) {
   // studio: a bed in the deep corner + a small sofa toward the hall, a rug + plant
@@ -123,10 +127,11 @@ function furnishBedsit(rect, F, rng, z, o) {
   const c = centre(rect);
   const bedC = F.toWorld(rect.x + Math.min(3.6, rect.w * 0.4), rect.y + rect.d - 3.2);
   add(buildBed({ ...bedC, z, len: 6.4, wide: 4.6, along: F.crossAxis, head: F.backSign }));
-  const sofaC = F.toWorld(c.al, Math.max(2.4, rect.y + rect.d * 0.32));
+  const sofaDep = Math.max(2.4, rect.y + rect.d * 0.32), tableDep = rect.y + 1.6;
+  const sofaC = F.toWorld(c.al, sofaDep);
   faces.push(...rugFaces(F, c.al, rect.y + rect.d * 0.34, Math.min(rect.w * 0.7, 8), Math.min(rect.d * 0.4, 6), z, RUGS[Math.floor(rng() * RUGS.length)], light));
-  add(buildLobbySofa({ ...sofaC, z, w: Math.min(rect.w * 0.66, 6.5), d: 2.8, h: 2.5, along: F.alongAxis, back: F.faceBack }));
-  add(buildFeatureTable({ ...F.toWorld(c.al, rect.y + 1.6), z, r: 1.5, h: 1.5 }));
+  add(buildLobbySofa({ ...sofaC, z, w: Math.min(rect.w * 0.66, 6.5), d: 2.8, h: 2.5, along: F.alongAxis, back: backAwayFrom(F, sofaDep, tableDep) }));
+  add(buildFeatureTable({ ...F.toWorld(c.al, tableDep), z, r: 1.5, h: 1.5 }));
   return faces;
 }
 
@@ -134,8 +139,9 @@ function furnishLiving(rect, F, rng, z, o) {
   const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
   const c = centre(rect);
   faces.push(...rugFaces(F, c.al, c.dep, Math.min(rect.w * 0.72, 9), Math.min(rect.d * 0.6, 7), z, RUGS[Math.floor(rng() * RUGS.length)], light));
-  add(buildLobbySofa({ ...F.toWorld(c.al, rect.y + rect.d - 2.2), z, w: Math.min(rect.w * 0.7, 7.5), d: 3, h: 2.6, along: F.alongAxis, back: F.faceBack }));
-  add(buildFeatureTable({ ...F.toWorld(c.al, c.dep - 0.4), z, r: 1.7, h: 1.5 }));
+  const sofaDep = rect.y + rect.d - 2.2, tableDep = c.dep - 0.4;
+  add(buildLobbySofa({ ...F.toWorld(c.al, sofaDep), z, w: Math.min(rect.w * 0.7, 7.5), d: 3, h: 2.6, along: F.alongAxis, back: backAwayFrom(F, sofaDep, tableDep) }));
+  add(buildFeatureTable({ ...F.toWorld(c.al, tableDep), z, r: 1.7, h: 1.5 }));
   if (rng() < 0.7) add(buildHousePlant({ ...F.toWorld(rect.x + 1.6, rect.y + rect.d - 1.6), z, h: 5.4, spread: 2.1 }));
   add(buildWallArt({ ...F.toWorld(c.al, rect.y + rect.d - 0.1), z: z + 5.2, w: Math.min(rect.w * 0.5, 3.2), h: 1.9, along: F.alongAxis, face: F.faceHall }));
   return faces;
@@ -163,8 +169,11 @@ function furnishSleep(rect, F, rng, z, o) {
 function furnishWork(rect, F, rng, z, o) {
   const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
   const c = centre(rect);
-  add(buildOfficeDesk({ ...F.toWorld(c.al, rect.y + rect.d - 1.8), z, w: Math.min(rect.w * 0.7, 4.6), d: 2.2, h: 2.4, screenFace: F.faceHall }));
-  add(buildOfficeChair({ ...F.toWorld(c.al, rect.y + rect.d - 3.6), z, back: F.faceBack }));
+  // desk against the deep wall, its screen toward the worker; the chair sits on the hall side
+  // of the desk, so its back is to the hall (it used to back onto the desk, facing away)
+  const deskDep = rect.y + rect.d - 1.8, chairDep = rect.y + rect.d - 3.6;
+  add(buildOfficeDesk({ ...F.toWorld(c.al, deskDep), z, w: Math.min(rect.w * 0.7, 4.6), d: 2.2, h: 2.4, screenFace: F.faceHall }));
+  add(buildOfficeChair({ ...F.toWorld(c.al, chairDep), z, back: backAwayFrom(F, chairDep, deskDep) }));
   if (rng() < 0.6) add(buildHousePlant({ ...F.toWorld(rect.x + 1.4, rect.y + 1.5), z, h: 4.8, spread: 1.9 }));
   return faces;
 }
@@ -185,7 +194,7 @@ function furnishKitchen(rect, F, rng, z, o) {
 
 // a full-height partition on the zone's hall-facing (low-depth) edge, with a centred door gap
 function partitionWall(rect, F, z, o) {
-  const t = 0.35, gap = 2.6, dep = rect.y;             // the interior edge nearest the hall
+  const t = 0.35, gap = 3, dep = rect.y;               // the interior edge nearest the hall; 3 ft (0.91 m) door (was 2.6)
   if (dep < 1.2) return [];                             // that edge IS the storefront setback — no wall
   const segs = [[rect.x, rect.x + rect.w / 2 - gap / 2], [rect.x + rect.w / 2 + gap / 2, rect.x + rect.w]];
   const faces = [];
@@ -222,16 +231,37 @@ export function furnishUnit(u, opts = {}) {
   const wcAlLo = Math.min(u.a0, u.wcSide), wcAlHi = Math.max(u.a0, u.wcSide);
   const wcDepLo = Math.abs(u.wcFront - u.cInner), wcDepHi = F.D;
   const wcBox = { x: wcAlLo, y: Math.min(wcDepLo, wcDepHi), w: wcAlHi - wcAlLo, d: Math.abs(wcDepHi - wcDepLo) };
+  // the ENTRY approach (the storefront doorway, see condo-entrance unitEntry): a clear strip
+  // from the door into the unit, a foot wider than the door each side and the setback + 4 ft
+  // deep, so no counter or sofa lands in the way in.
+  const entryBox = u.entry ? { x: Math.min(u.entry.a0, u.entry.a1) - 1, y: 0, w: Math.abs(u.entry.a1 - u.entry.a0) + 2, d: setback + 4 } : null;
 
   const zones = arch.zones;
   const leaves = fractalLeaves(interior, zones.length, rng).sort((a, b) => area(b) - area(a));
   const order = [...zones].sort((a, b) => (ZONE_PREF[b] || 0) - (ZONE_PREF[a] || 0));   // biggest-wanting zone → biggest leaf
+  // SLEEP AT THE BACK: a bed backs the deep edge of its leaf, which is a real wall only when
+  // the leaf reaches the unit's back (window) wall — a front leaf's deep edge is an open seam,
+  // and the bed used to float mid-unit with its headboard against nothing, facing the hall.
+  // Sleeping zones take the biggest leaf that touches the back wall (also the right privacy
+  // gradient: the entry is in the storefront); everything else keeps biggest-first.
+  const backLine = interior.y + interior.d - 0.5;
+  const SLEEPS = new Set(['bedsit', 'bedroom', 'sleep']);
+  const used = new Set();
+  const leafFor = new Array(order.length);
+  const take = (i, pred) => {
+    const j = leaves.findIndex((l, k) => !used.has(k) && pred(l));
+    if (j < 0) return;
+    used.add(j); leafFor[i] = leaves[j];
+  };
+  order.forEach((tag, i) => { if (SLEEPS.has(tag)) take(i, (l) => l.y + l.d >= backLine); });   // beds claim the back first
+  order.forEach((tag, i) => { if (!leafFor[i]) take(i, () => true); });
+  for (let i = 0; i < order.length; i += 1) if (!leafFor[i]) leafFor[i] = leaves[leaves.length - 1];
   const faces = [];
   faces.push(...rugFaces(F, (alo + ahi) / 2, F.D / 2, interior.w + 0.3, interior.d + 0.3, u.baseZ + 0.005, arch.floor, o.light));   // archetype floor finish
   order.forEach((tag, i) => {
-    const leaf = leaves[Math.min(i, leaves.length - 1)];
+    const leaf = leafFor[i];
     if (!leaf) return;
-    const free = subtractBox(leaf, wcBox);
+    const free = subtractBox(subtractBox(leaf, wcBox), entryBox);
     if (area(free) < 6) return;
     const fn = FURNISH[tag];
     if (!fn) return;

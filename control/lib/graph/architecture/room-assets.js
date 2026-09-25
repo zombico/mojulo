@@ -1005,20 +1005,15 @@ function footprintDims(el) {
   };
 }
 
+// The dining chair is built in its LOCAL frame (centred, back at −y, sitter facing +y) and
+// mapped onto the footprint like the couch below, so its `facing` turns it. It used to build
+// at the base plane's centroid in world space, which ignored the corner order: every chair
+// around a table faced the same way, so half of them sat with their backs to it.
 function rectangularChairManifest(el) {
   const base = el.heightManji.basePlane.corners;
   const w = Math.hypot(base[1][0] - base[0][0], base[1][1] - base[0][1], base[1][2] - base[0][2]);
   const d = Math.hypot(base[3][0] - base[0][0], base[3][1] - base[0][1], base[3][2] - base[0][2]);
-  const cx = base.reduce((sum, p) => sum + p[0], 0) / base.length;
-  const cy = base.reduce((sum, p) => sum + p[1], 0) / base.length;
-  return buildDiningChairWorkbenchManifest({
-    x: cx,
-    y: cy,
-    z: base[0][2],
-    w,
-    d,
-    h: el.heightManji.heightWorld,
-  });
+  return buildDiningChairWorkbenchManifest({ x: 0, y: 0, z: 0, w, d, h: el.heightManji.heightWorld });
 }
 
 // The couch is built in its LOCAL frame (centred, front +y) and mapped onto the footprint
@@ -1037,6 +1032,7 @@ export const ROOM_FURNITURE_ASSETS = {
   chair: {
     id: 'chair',
     class: 'room-furniture',
+    local: true,
     aliases: ['dining-chair', 'side-chair', 'chair.dining', 'wood-chair'],
     tags: {
       rooms: ['dining', 'kitchen', 'office', 'living-room', 'bedroom'],

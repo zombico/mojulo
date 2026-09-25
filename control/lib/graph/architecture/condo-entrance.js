@@ -127,10 +127,16 @@ export function curtainWallFaces({ axis, al0, al1, cAt, z0, z1, o, bay = 5.5, si
 // opts a side out for single-loaded corridors, e.g. a courtyard ring keeping its inner
 // face open). ONE source for both the renderer (hallwayFaces) and the livability
 // assessor. Exported as part of the condo vocabulary seam (fractal-condo.plan.md). ─────────
+export const MIN_UNIT_PITCH = 18;   // ft along the hall per unit (5.5 m): a unit >= ~16 ft (4.9 m) wide
 export function unitSlots({ axis, along0, along1, crossMid, hallHalf, unitDepth, backDepth, unitsPerSide, sides }) {
-  const m = 3, span = along1 - along0 - 2 * m, pitch = span / unitsPerSide;
+  // LIVABILITY: the requested units per side are capped so each unit keeps >= MIN_UNIT_PITCH of
+  // hall frontage. Uncapped, three units on a short hall came out 12-13 ft (3.8 m) wide — a
+  // studio you cross in four steps — and past ~12 ft of pitch the unit shells overlapped.
+  const m = 3, span = along1 - along0 - 2 * m;
+  const n = Math.max(1, Math.min(unitsPerSide, Math.floor(span / MIN_UNIT_PITCH)));
+  const pitch = span / n;
   const sfW = Math.min(pitch * 0.66, unitDepth + 4);
-  const centers = Array.from({ length: unitsPerSide }, (_, i) => along0 + m + (i + 0.5) * pitch);
+  const centers = Array.from({ length: n }, (_, i) => along0 + m + (i + 0.5) * pitch);
   const total = unitDepth + (backDepth ?? unitDepth);
   const c0 = crossMid - hallHalf, c1 = crossMid + hallHalf;
   const plus = sides?.plus !== false, minus = sides?.minus !== false;
@@ -237,12 +243,26 @@ export function chamberFaces({ rect, baseZ, height, elevators, coreWall, opening
   if (central) {
     add(buildFloorMedallion({ x: cx, y: cy - 1, z, r: 7 }));
     add(buildFeatureTable({ x: cx, y: cy - 1, z, r: 2.4, h: 2.7 }));
-    for (const sx of [-1, 1]) add(buildLobbySofa({ x: cx + sx * 9, y: cy + 7, z, w: 7, d: 3, h: 2.7, along: 'x', back: '+y' }));
+    // a conversation group: the two sofas FLANK the feature table and face each other across
+    // it (backs out, seats in), leaving the entry→lift axis open. They used to sit side by
+    // side behind the table, both staring at the street doors.
+    for (const sx of [-1, 1]) add(buildLobbySofa({ x: cx + sx * 6.5, y: cy - 1, z, w: 7, d: 3, h: 2.7, along: 'y', back: sx < 0 ? '-x' : '+x' }));
   } else {
     add(buildLobbyBench({ x: cx, y: cy, z, w: 5, d: 1.8, h: 1.5, along: 'x' }));
   }
   if (entrance) add(buildGlassEntrance({ x: cx, y: rect.y0, z: baseZ, w: 10.5, h: 11 }));
   return faces;
+}
+
+// ── UNIT ENTRY — the doorway cut into a unit's storefront: a clear opening at the storefront's
+// a1 end (the washroom sits in the a0 back corner, so the way in never opens onto it). ONE
+// source for the storefront cut and the fit-out's keep-clear approach. null when the
+// storefront is too narrow to spare a door beside a useful run of glass. ─────────────────────
+export const UNIT_DOOR_W = 3;           // ft clear (0.91 m)
+function unitEntry({ alongCenter, sfW, baseZ, height }, o) {
+  if (sfW < UNIT_DOOR_W + 3) return null;
+  const a1 = alongCenter + sfW / 2 - 0.2, a0 = a1 - UNIT_DOOR_W;
+  return { a0, a1, headZ: baseZ + Math.min(o.doorHead ?? 9, height - 2) };
 }
 
 // ── BACHELOR UNIT — a glass-front studio off the hall: one open main room plus an enclosed
@@ -269,7 +289,7 @@ function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height }, o)
   const wcW = Math.min(5.5, uw * 0.42), wcD = 6;
   const wcFront = cOuter - dir * wcD;             // partition line parallel to the back wall
   const wcSide = a0 + wcW;                        // partition line perpendicular (the room edge of the WC)
-  const head = z0 + (height - 2.2), dGap = 2.4, dC = a0 + wcW * 0.58;
+  const head = z0 + (height - 2.2), dGap = 3, dC = a0 + wcW * 0.58;   // 3 ft (0.91 m) clear WC door (was 2.4: 0.73 m)
   faces.push(...box(a0, dC - dGap / 2, wcFront - t / 2, wcFront + t / 2, z0, z1, o.unitWall));               // front wall (door side)
   faces.push(...box(dC + dGap / 2, wcSide, wcFront - t / 2, wcFront + t / 2, z0, z1, o.unitWall));
   faces.push(...box(dC - dGap / 2, dC + dGap / 2, wcFront - t / 2, wcFront + t / 2, head, z1, o.unitWall));  // door lintel
@@ -281,17 +301,30 @@ function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height }, o)
   for (const f of assetFaces(buildToilet({ x: wx, y: wy, z: z0 + 0.02, wall: tankWall }), { light })) faces.push(f);
 
   // glass storefront onto the hall (at cInner), with a frame surround; translucent when the
-  // scene opts into clear glazing (o.glassAlpha), so the unit fit-out reads from the hall
+  // scene opts into clear glazing (o.glassAlpha), so the unit fit-out reads from the hall.
+  // The storefront carries the unit's ENTRY: an open doorway at the end away from the
+  // washroom (a1 side), with a glass transom over it. Without it the glass sealed the whole
+  // hall front and no unit could be walked into.
   const gz1 = z0 + (z1 - z0) * 0.9;
-  const store = box(alongCenter - sfW / 2, alongCenter + sfW / 2, cInner - 0.06, cInner + 0.06, z0 + 0.1, gz1, o.glassTint);
-  if (o.glassAlpha != null) for (const f of store) { f.group = 'glass'; f.alpha = o.glassAlpha; }
-  faces.push(...store);
+  const entry = unitEntry({ alongCenter, sfW, baseZ, height }, o);
+  const glassTo = entry ? entry.a0 - 0.2 : alongCenter + sfW / 2;
+  const glazeBox = (al0, al1, za, zb) => {
+    const g = box(al0, al1, cInner - 0.06, cInner + 0.06, za, zb, o.glassTint);
+    if (o.glassAlpha != null) for (const f of g) { f.group = 'glass'; f.alpha = o.glassAlpha; }
+    faces.push(...g);
+  };
+  glazeBox(alongCenter - sfW / 2, glassTo, z0 + 0.1, gz1);
   faces.push(...box(alongCenter - sfW / 2, alongCenter - sfW / 2 + 0.2, cInner - 0.12, cInner + 0.12, z0, z1, o.frameTint));
   faces.push(...box(alongCenter + sfW / 2 - 0.2, alongCenter + sfW / 2, cInner - 0.12, cInner + 0.12, z0, z1, o.frameTint));
   faces.push(...box(alongCenter - sfW / 2, alongCenter + sfW / 2, cInner - 0.12, cInner + 0.12, gz1, gz1 + 0.2, o.frameTint));   // head
+  if (entry) {
+    faces.push(...box(entry.a0 - 0.2, entry.a0, cInner - 0.12, cInner + 0.12, z0, z1, o.frameTint));                 // door jamb post
+    faces.push(...box(entry.a0, entry.a1, cInner - 0.12, cInner + 0.12, entry.headZ, entry.headZ + 0.2, o.frameTint));   // door head
+    glazeBox(entry.a0, entry.a1, entry.headZ + 0.2, gz1);                                                                 // transom
+  }
 
   // FRACTAL FIT-OUT: seed the interior from this unit's position → a furnished apartment.
-  const fit = furnishUnit({ axis, alongCenter, a0, a1, cInner, cOuter, wcSide, wcFront, baseZ, height, seed: o.unitSeed ?? 1 }, { light, unitWall: o.unitWall, height });
+  const fit = furnishUnit({ axis, alongCenter, a0, a1, cInner, cOuter, wcSide, wcFront, baseZ, height, seed: o.unitSeed ?? 1, entry }, { light, unitWall: o.unitWall, height });
   faces.push(...fit.faces);
   return faces;
 }
@@ -545,7 +578,7 @@ function floorPlateFaces(plan, o, cores = []) {
  */
 export function planCondoEntrance(spec = {}) {
   const central = { ...{ w: 52, d: 40, elevators: 3 }, ...(spec.central || {}) };
-  const hall = { ...{ length: 40, width: 12 }, ...(spec.hall || {}) };
+  const hall = { ...{ length: 44, width: 12 }, ...(spec.hall || {}) };   // 44 ft (was 40) keeps two units a side at MIN_UNIT_PITCH
   const sat = { ...{ w: 32, d: 40, elevators: 2 }, ...(spec.sat || {}) };
   const dirs = spec.wings || ['W', 'E'];
   const baseZ = spec.baseZ ?? 0;

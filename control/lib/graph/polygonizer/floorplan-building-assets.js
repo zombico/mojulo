@@ -390,7 +390,9 @@ export function buildLobbySofa({ x = 0, y = 0, z = 0, w = 7, d = 3, h = 2.7, alo
     ext.push(buildSlab({ x: backX, y, z0: z + seatH * 0.62, z1: z + h, w: bt, d: D - 2 * armW, r: 0.12, tint: cushion }));
     const seatX = back === '+x' ? x - bt / 2 : x + bt / 2;
     ext.push(buildSlab({ x: seatX, y, z0: z + seatH * 0.62, z1: z + seatH + 0.22, w: W - bt, d: D - 2 * armW, r: 0.14, tint: cushion }));
-    for (const s of [-1, 1]) ext.push(buildSlab({ x, y: y + s * (D / 2 - armW / 2), z0: z + seatH * 0.62, z1: z + seatH + 0.5, w: D, d: armW, r: 0.1, tint: arm }));
+    // arms span the sofa's DEPTH (its x-extent W here) — they were sized by its run (D), so a
+    // side-backed sofa grew arms as long as the sofa itself, clipping walls and neighbours
+    for (const s of [-1, 1]) ext.push(buildSlab({ x, y: y + s * (D / 2 - armW / 2), z0: z + seatH * 0.62, z1: z + seatH + 0.5, w: W, d: armW, r: 0.1, tint: arm }));
   }
   return { extrudes: ext };
 }

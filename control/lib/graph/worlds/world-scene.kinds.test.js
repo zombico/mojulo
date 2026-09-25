@@ -17,6 +17,13 @@ import { assessWorldTier } from './world-contract.js';
  * Kept after the refactor: it becomes the standing guard that a new kind's registry row
  * actually renders, and that shared-assembler edits change payloads consciously
  * (snapshot update = explicit acknowledgment).
+ *
+ * Re-pin log:
+ *   - room livability defaults (2026-09-25, CHANGELOG "Room livability"): condo-complex
+ *     (wider hall runs, frontage-capped units with an entry doorway, a person-sized walker)
+ *     and floorplan (base + dollhouse: bigger default footprint, 10 ft rooms, 4.5 ft halls,
+ *     the corrected furnish orientation, a person-sized walker) re-based on purpose. Every
+ *     other arm unchanged.
  */
 
 // kind → minimal manifest. Bare { kind } wherever the assembler has full defaults; the
