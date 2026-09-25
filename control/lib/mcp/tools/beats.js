@@ -62,7 +62,7 @@ export function mintBeats({ kind, title, params, ref, folderRef } = {}) {
     }
   }
   const manifest = { ...(params && typeof params === 'object' ? params : {}), kind, title };
-  const { ok, errors } = validateBeatsManifest(manifest);
+  const { ok, errors, warnings } = validateBeatsManifest(manifest);
   if (!ok) {
     throw new Error(`Invalid ${kind} recipe:\n - ${errors.join('\n - ')}`);
   }
@@ -77,6 +77,8 @@ export function mintBeats({ kind, title, params, ref, folderRef } = {}) {
     ref: sketch.ref,
     url: `/beats/${encodeURIComponent(sketch.ref)}`,
     playerUrl: `/api/beats/${encodeURIComponent(sketch.ref)}`,
+    // advice (e.g. a note outside an instrument's range): minted anyway.
+    ...(warnings && warnings.length ? { warnings } : {}),
   };
 }
 
@@ -315,12 +317,14 @@ export async function updateBeatsHandler(input) {
   }
 
   let finalized;
+  let warnings = [];
   if (manifest !== undefined) {
     // full-manifest replace, through the same gate as create (no patch-op
     // language: read with get_beats, edit the JSON, write — grids are legible).
     const next = { ...manifest, title: title ?? manifest.title ?? sketch.title };
     if (next.kind === undefined) next.kind = sketch.manifest.kind;
-    const { ok, errors } = validateBeatsManifest(next);
+    const { ok, errors, warnings: advice } = validateBeatsManifest(next);
+    warnings = advice;
     if (!ok) {
       throw new Error(`Invalid ${next.kind} recipe:\n - ${errors.join('\n - ')} — parameter manual: get_beats_vocab({ id: '${next.kind}' }).`);
     }
@@ -357,6 +361,7 @@ export async function updateBeatsHandler(input) {
     resolvedAnnotations: resolved,
     url: `/beats/${encodeURIComponent(ref)}`,
     playerUrl: `/api/beats/${encodeURIComponent(ref)}`,
+    ...(warnings && warnings.length ? { warnings } : {}),
   };
 }
 

@@ -204,6 +204,18 @@ const REALIZER_FIDELITY = [
   '',
 ].join('\n');
 
+// the era realizer (orchestra and era): the fidelity one plus per-event
+// overrides (pp) and step probability — only when a variant uses an era slice,
+// so a fidelity exhibit keeps its bytes.
+const REALIZER_ERA = REALIZER_FIDELITY
+  .replace("    pat.events.forEach((ev, ei) => {\n      const tr = tracks.find((c) => c.name === ev.channel);\n      if (tr && (tr.cue || tr.gesture)) { entries.push({ type: 'cue', t: b + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel, variant: tr.vary ? cursor * 1000 + ei + 1 : 0 }); return; }",
+    "    pat.events.forEach((ev, ei) => {\n      if (ev.prob != null && !KERNEL.stepKeep(manifest.seed, cursor, ei, ev.prob)) return;\n      const tr = tracks.find((c) => c.name === ev.channel);\n      if (tr && (tr.cue || tr.gesture)) { entries.push({ type: 'cue', t: b + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel, variant: tr.vary ? cursor * 1000 + ei + 1 : 0 }); return; }")
+  .replace("glideFrom: tr && tr.glide ? glides[cursor ? 1 : 0][ei] : null });", "glideFrom: tr && tr.glide ? glides[cursor ? 1 : 0][ei] : null, pp: ev.pp });")
+  .replace("    const patch = KERNEL.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);\n    if (!patch) continue;",
+    "    const got = KERNEL.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);\n    if (!got) continue;\n    const patch = e.pp ? { ...got, ...e.pp } : got;");
+const ERA = new Set(['ev', 'score', 'orch', 'perc', 'va', 'fx']);
+const FIDELITY = ['x', 'voice', 'strings', 'mix', 'sfx'];
+
 export function emitBeatsDiff(variants, opts = {}) {
   const base = variants[0];
   for (const v of variants) v.baseRef = base.ref;
@@ -301,7 +313,7 @@ export function emitBeatsDiff(variants, opts = {}) {
 <script>
 const MANIFESTS = ${JSON.stringify(MANIFESTS)};
 const PATCHES = ${JSON.stringify(pagePatches(...variants.map((v) => v.manifest)))};
-const KERNEL = (${emitBeatsKernel(feats.length ? BEATS_KERNEL_FEATURES : [])})();
+const KERNEL = (${emitBeatsKernel(feats.some((f) => ERA.has(f)) ? BEATS_KERNEL_FEATURES : feats.length ? FIDELITY : [])})();
 let ctx = null, engine = null, analyser = null, playing = false;
 let activeRef = ${JSON.stringify(base.ref)};
 
@@ -351,7 +363,7 @@ document.querySelectorAll('.tab').forEach((tab) => {
 // Mirrors renderBeatsOffline's pattern realize path exactly (loops=2, tail=2),
 // reusing the inlined kernel — so the download matches what plays, and no audio
 // bytes were ever shipped.
-${feats.length ? REALIZER_FIDELITY : REALIZER}document.querySelectorAll('.dl.wav').forEach((btn) => {
+${feats.some((f) => ERA.has(f)) ? REALIZER_ERA : feats.length ? REALIZER_FIDELITY : REALIZER}document.querySelectorAll('.dl.wav').forEach((btn) => {
   btn.addEventListener('click', async () => {
     const ref = btn.dataset.ref;
     const label = btn.innerHTML;

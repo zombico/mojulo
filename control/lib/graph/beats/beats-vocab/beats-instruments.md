@@ -2,6 +2,10 @@
 { "id": "beats-instruments", "name": "Instruments, guitars, keyboards & feel (B6)", "summary": "The layered instrument model: named instruments (electric-guitar, acoustic-guitar, rock-guitar, rock-lead, piano, rhodes, organ, …) that expand to patch + color chain + performance feel; the Karplus-Strong string voice and its guitar/keyboard patches; the body, drive, and amp chain effects; and feel presets (strum, palm-mute, fingerpick, keys) that humanize a part so it stops sounding like MIDI.", "when": "add a guitar (acoustic / electric / distorted / nylon / lead), metal or hard rock, a heavy riff, a rhythm guitar with a lead over it, high-gain amp distortion, a drum kit / acoustic drums / toms / ride / crash / 808 hats, a grand piano in tune, a string section that doesn't wobble in lockstep, brass that gets brighter when played harder, portamento / glide / slides, stereo width and panning, add a piano or keyboard (piano / rhodes / e-piano / harpsichord / clavinet / celesta / music box / organ), pick an instrument by name, make a part sound played rather than quantized, strum chords, palm-muted or fingerpicked feel, dial in overdrive/distortion, warm a plucked tone with body resonance, velocity-sensitive brightness, humanize a beats-composition or beats-pattern" }
 ---
 
+More families live in their own manuals: `beats-orchestra` (woodwinds, harp,
+mallets, timpani), `beats-percussion` (drum machines, latin, orchestral
+percussion, the arena kit), `beats-synth` (acid, reese, hoover, supersaw, FM).
+
 ## The model — four layers
 
 An instrument is a composition of four independent layers. You never need all

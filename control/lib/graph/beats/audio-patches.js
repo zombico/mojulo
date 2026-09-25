@@ -208,6 +208,171 @@ for (const [name, base, extra] of [
   ['tuba2', 'tuba', { ...BRASS_V2, breath: { level: -36, tone: 600, q: 0.7 } }],
 ]) PATCHES[name] = { ...PATCHES[base], ...extra, vibrato: { ...PATCHES[base].vibrato, spread: 1 } };
 
+// ── the orchestra shelf (orchestra and era) ────────────────────────────────
+// Woodwinds are osc voices over computed `harmonics` (sine amplitudes 1..N):
+// the flute a near-sine with breath and chiff, the clarinet an odd series
+// whose brightness follows register (keyTrack), the oboe and bassoon narrow
+// pulses (|sin(πkd)|/k) voiced by a formant `body` in their instruments.
+// Mallets and timpani are modal (published mode ratios); the harp is the
+// tuned string. `-2` woodwinds are small ensembles (players, de-locked
+// vibrato, drift). All new names: nothing existing moves.
+const round3 = (x) => Math.round(x * 1000) / 1000;
+const pulse = (d, n) => Array.from({ length: n }, (_, i) => round3(Math.abs(Math.sin(Math.PI * (i + 1) * d)) / (i + 1) / Math.sin(Math.PI * d)));
+const REED = { drift: 2, curve: 'exp', keyTrack: 0.4 };
+Object.assign(PATCHES, {
+  flute: { voice: 'osc', harmonics: [1, 0.12, 0.05, 0.02, 0.01], attack: 0.06, decay: 0.12, sustain: 0.88, release: 0.22, volume: -15, curve: 'exp', vibrato: { rate: 5.2, depth: 11, delay: 0.35 }, breath: { level: -26, tone: 2600, q: 0.9 }, attackNoise: { level: -22, decay: 0.03, tone: 3200, q: 0.8 }, filter: { mode: 'lowpass', freq: 5200, q: 0.5 }, keyTrack: 0.3 },
+  clarinet: { voice: 'osc', harmonics: [1, 0.03, 0.62, 0.03, 0.38, 0.02, 0.24, 0.02, 0.14, 0.01, 0.08, 0.01, 0.05], attack: 0.035, decay: 0.1, sustain: 0.9, release: 0.16, volume: -15, ...REED, keyTrack: 0.6, breath: { level: -34, tone: 1800, q: 0.8 }, filter: { mode: 'lowpass', freq: 2600, q: 0.6 } },
+  oboe: { voice: 'osc', harmonics: pulse(0.14, 16), attack: 0.03, decay: 0.08, sustain: 0.9, release: 0.14, volume: -19, ...REED, vibrato: { rate: 5.4, depth: 9, delay: 0.3 }, breath: { level: -36, tone: 2200, q: 0.8 }, filter: { mode: 'lowpass', freq: 4600, q: 0.7 } },
+  bassoon: { voice: 'osc', harmonics: pulse(0.2, 14), attack: 0.04, decay: 0.1, sustain: 0.88, release: 0.18, volume: -15, ...REED, vibrato: { rate: 4.8, depth: 7, delay: 0.4 }, breath: { level: -36, tone: 900, q: 0.8 }, filter: { mode: 'lowpass', freq: 1900, q: 0.8 } },
+  // concert harp: a tuned string, soft finger (pick), long bass ring, rings on after the note.
+  harp: { voice: 'string', tune: 'exact', ringT60: [7, 1.3], pluckDamping: 0.62, pick: 0.55, attack: 0.003, decay: 0.05, sustain: 1, release: 1.4, curve: 'exp', volume: -12, filter: { mode: 'lowpass', freq: 3600, q: 0.6 }, velToFilter: 1 },
+  // free bar 1 : 2.76 : 5.40 : 8.93 (the glockenspiel's steel).
+  glockenspiel: { voice: 'modal', attack: 0.001, volume: -15, decayTrack: 0.4, partials: [{ ratio: 1, gain: 1, decay: 2.4 }, { ratio: 2.76, gain: 0.34, decay: 0.8 }, { ratio: 5.4, gain: 0.16, decay: 0.32 }, { ratio: 8.93, gain: 0.07, decay: 0.12 }], attackNoise: { level: -26, decay: 0.004, tone: 6000, q: 0.6 } },
+  // rosewood bars tuned 1 : 3 (xylophone) and 1 : 4 (marimba); the resonator
+  // tube is the long, strong fundamental.
+  xylophone: { voice: 'modal', attack: 0.001, volume: -12, decayTrack: 0.5, partials: [{ ratio: 1, gain: 1, decay: 0.5 }, { ratio: 3, gain: 0.42, decay: 0.2 }, { ratio: 6.1, gain: 0.14, decay: 0.08 }, { ratio: 9.8, gain: 0.06, decay: 0.04 }], attackNoise: { level: -18, decay: 0.006, tone: 3000, q: 0.6 } },
+  marimba: { voice: 'modal', attack: 0.002, volume: -10, decayTrack: 0.5, partials: [{ ratio: 1, gain: 1, decay: 1.3 }, { ratio: 3.93, gain: 0.26, decay: 0.3 }, { ratio: 9.2, gain: 0.06, decay: 0.09 }], attackNoise: { level: -28, decay: 0.008, tone: 1400, q: 0.6 } },
+  // aluminium bars 1 : 4 : 10 and the motor's amplitude tremolo.
+  vibraphone: { voice: 'modal', attack: 0.002, volume: -13, decayTrack: 0.3, partials: [{ ratio: 1, gain: 1, decay: 3.6 }, { ratio: 4, gain: 0.24, decay: 1 }, { ratio: 10, gain: 0.05, decay: 0.3 }], tremolo: { rate: 5.5, depth: 0.4 }, attackNoise: { level: -30, decay: 0.006, tone: 2600, q: 0.6 } },
+  // tubular bells: free-bar modes ∝ (2n+1)², placed so modes 4–6 sit at 2 : 3 : 4
+  // over the written note — the elevated strike note the ear hears.
+  tubularBells: { voice: 'modal', attack: 0.001, volume: -16, partials: [{ ratio: 0.224, gain: 0.2, decay: 2.5 }, { ratio: 0.617, gain: 0.35, decay: 3.2 }, { ratio: 1.21, gain: 0.5, decay: 4 }, { ratio: 2, gain: 1, decay: 5 }, { ratio: 2.99, gain: 0.8, decay: 4 }, { ratio: 4.17, gain: 0.55, decay: 3 }, { ratio: 5.5, gain: 0.3, decay: 1.6 }], attackNoise: { level: -24, decay: 0.01, tone: 2400, q: 0.6 } },
+  // timpani: the air-loaded membrane (1 : 1.5 : 1.99 : 2.44 : 2.98 over the
+  // principal mode), a felt mallet, and `pedal` — a gliding row bends every mode.
+  timpani: { voice: 'modal', attack: 0.003, volume: -9, pedal: true, partials: [{ ratio: 0.6, gain: 0.35, decay: 0.35 }, { ratio: 1, gain: 1, decay: 2.4 }, { ratio: 1.5, gain: 0.5, decay: 1.5 }, { ratio: 1.99, gain: 0.34, decay: 1.1 }, { ratio: 2.44, gain: 0.2, decay: 0.75 }, { ratio: 2.98, gain: 0.12, decay: 0.5 }], attackNoise: { level: -20, decay: 0.025, tone: 380, q: 0.7 } },
+});
+const WIND_V2 = { unison: 2, detune: 7, drift: 4, width: 0.4 };
+for (const name of ['flute', 'clarinet', 'oboe', 'bassoon']) {
+  const base = PATCHES[name];
+  PATCHES[name + '2'] = { ...base, ...WIND_V2, vibrato: { rate: 5, depth: 9, delay: 0.3, ...base.vibrato, spread: 1 } };
+}
+
+// ── percussion: circuits and hands (orchestra and era) ─────────────────────
+// Descriptive ids (the machines they recall are named only in card prose).
+// Every piece is a formula: drum-machine voices modeled from their circuits,
+// hand drums as bent membranes, orchestral percussion as modal and
+// noise-excited mode banks (`excite: 'noise'`; `rise` per mode = the tam-tam's
+// bloom), claps as seeded burst trains (`claps`), `velMap` for timbre that
+// follows the hit. Kits map GM drum notes (C4 = 60 naming: C2 kick, D2 snare,
+// F#2 closed hat) and carry `chokes` (GM note → group; normalize copies them to
+// the row as `choke`, so an open hat is cut by the next closed hat).
+const DENSE = [1, 1.4827, 1.8003, 2.546, 2.6303, 3.8967, 4.61, 5.53, 6.92, 8.21];
+const bank = (ratios, gain0, decay0, rise) => ratios.map((ratio, i) => ({ ratio, gain: round3(gain0 * Math.pow(0.86, i)), decay: round3(decay0 * (1 - i * 0.06)), ...(rise ? { rise } : {}) }));
+const tom = (pitch, extra) => ({ voice: 'membrane', pitch, octaves: 1.1, pitchDecay: 0.2, attack: 0.001, decay: 0.7, sustain: 0, release: 0.08, curve: 'exp', volume: -9, ...extra });
+Object.assign(PATCHES, {
+  // the analog machine: a bridged-T boom, two-mode snare + snappy, a burst-train clap.
+  kickBoom: { voice: 'membrane', pitch: 49, octaves: 3.2, pitchDecay: 0.04, attack: 0.001, decay: 1.1, sustain: 0, release: 0.1, curve: 'exp', volume: -6 },
+  snareAnalog: { voice: 'modal', pitch: 238, attack: 0.001, volume: -12, vary: true, partials: [{ ratio: 1, gain: 1, decay: 0.14 }, { ratio: 2, gain: 0.55, decay: 0.09 }], attackNoise: { mode: 'highpass', tone: 4500, q: 0.7, level: -11, decay: 0.16 } },
+  clapAnalog: { voice: 'noise', claps: 4, clapGap: 0.0105, attack: 0.001, decay: 0.2, sustain: 0, release: 0.05, curve: 'exp', volume: -9, vary: true, filter: { mode: 'bandpass', freq: 1150, q: 1.1 } },
+  cowbellAnalog: { voice: 'modal', pitch: 540, attack: 0.001, volume: -12, partials: [{ ratio: 1, gain: 1, decay: 0.32, wave: 'square' }, { ratio: 1.4815, gain: 0.8, decay: 0.28, wave: 'square' }], filter: { mode: 'bandpass', freq: 1000, q: 0.8 } },
+  rimAnalog: { voice: 'modal', pitch: 455, attack: 0.001, volume: -12, partials: [{ ratio: 1, gain: 1, decay: 0.03 }, { ratio: 3.66, gain: 0.7, decay: 0.022 }], attackNoise: { mode: 'highpass', tone: 3000, q: 0.7, level: -18, decay: 0.004 } },
+  clavesAnalog: { voice: 'modal', pitch: 2500, attack: 0.001, volume: -14, partials: [{ ratio: 1, gain: 1, decay: 0.07 }, { ratio: 1.6, gain: 0.15, decay: 0.03 }] },
+  tomBoomLo: tom(88), tomBoomMid: tom(120), tomBoomHi: tom(165),
+  hatBright: { voice: 'modal', pitch: 262, attack: 0.001, volume: -14, partials: cluster(0.6, 0.05), filter: { mode: 'highpass', freq: 8200, q: 0.7 }, vary: true, attackNoise: { mode: 'highpass', tone: 10000, q: 0.7, level: -22, decay: 0.025 } },
+  hatBrightOpen: { voice: 'modal', pitch: 262, attack: 0.001, volume: -19, partials: cluster(0.6, 0.36), filter: { mode: 'highpass', freq: 7800, q: 0.7 }, vary: true, attackNoise: { mode: 'highpass', tone: 9000, q: 0.7, level: -28, decay: 0.26 } },
+  // the punch machine: sine + click through its own drive, a brighter snare, noise hats.
+  kickPunch: { voice: 'membrane', pitch: 54, octaves: 3.2, pitchDecay: 0.028, attack: 0.001, decay: 0.5, sustain: 0, release: 0.06, curve: 'exp', volume: -7, drive: 0.35, vary: true, attackNoise: { mode: 'highpass', tone: 2800, q: 0.7, level: -12, decay: 0.004 } },
+  snarePunch: { voice: 'membrane', pitch: 195, octaves: 1.3, pitchDecay: 0.02, attack: 0.001, decay: 0.1, sustain: 0, release: 0.05, curve: 'exp', volume: -13, vary: true, attackNoise: { mode: 'bandpass', tone: 5200, q: 0.45, level: -10, decay: 0.2 } },
+  clapPunch: { voice: 'noise', claps: 3, clapGap: 0.009, attack: 0.001, decay: 0.26, sustain: 0, release: 0.05, curve: 'exp', volume: -9, vary: true, filter: { mode: 'bandpass', freq: 1500, q: 0.9 } },
+  hatPunch: { voice: 'noise', attack: 0.001, decay: 0.05, sustain: 0, release: 0.02, curve: 'exp', volume: -19, vary: true, filter: { mode: 'highpass', freq: 9000, q: 0.7 }, attackNoise: { mode: 'bandpass', tone: 12000, q: 1, level: -24, decay: 0.03 } },
+  hatPunchOpen: { voice: 'noise', attack: 0.001, decay: 0.42, sustain: 0, release: 0.05, curve: 'exp', volume: -22, vary: true, filter: { mode: 'highpass', freq: 8500, q: 0.7 }, attackNoise: { mode: 'bandpass', tone: 12000, q: 1, level: -26, decay: 0.05 } },
+  tomPunchLo: tom(95, { octaves: 1.4, pitchDecay: 0.09, decay: 0.45, vary: true, attackNoise: { tone: 1500, q: 0.7, level: -24, decay: 0.05 } }),
+  tomPunchMid: tom(130, { octaves: 1.4, pitchDecay: 0.09, decay: 0.42, vary: true, attackNoise: { tone: 1800, q: 0.7, level: -24, decay: 0.05 } }),
+  tomPunchHi: tom(180, { octaves: 1.4, pitchDecay: 0.08, decay: 0.38, vary: true, attackNoise: { tone: 2200, q: 0.7, level: -24, decay: 0.05 } }),
+  // the acoustic kit: the fidelity pieces with velocity → timbre.
+  kickAcoustic: { ...PATCHES.kick2, velMap: { 'attackNoise.level': [-26, -9], pitchDecay: [0.07, 0.045], decay: [0.32, 0.46] } },
+  snareAcoustic: { ...PATCHES.snare2, velMap: { 'attackNoise.level': [-24, -11], 'attackNoise.tone': [2400, 4600], decay: [0.09, 0.14] } },
+  hatAcoustic: { ...PATCHES.hat808, velMap: { 'attackNoise.level': [-32, -20], 'filter.freq': [8200, 6200] } },
+  hatAcousticOpen: { ...PATCHES.hatOpen, velMap: { 'attackNoise.level': [-36, -26] } },
+  tomAcousticLo: { ...PATCHES.tomLo, velMap: { pitchDecay: [0.12, 0.07], 'attackNoise.level': [-36, -22] } },
+  tomAcousticMid: { ...PATCHES.tomMid, velMap: { pitchDecay: [0.11, 0.065], 'attackNoise.level': [-36, -22] } },
+  tomAcousticHi: { ...PATCHES.tomHi, velMap: { pitchDecay: [0.1, 0.06], 'attackNoise.level': [-36, -22] } },
+  crashAcoustic: { ...PATCHES.crash, velMap: { 'attackNoise.level': [-26, -15], 'filter.freq': [4000, 2600] } },
+  rideAcoustic: { ...PATCHES.ride, velMap: { 'attackNoise.level': [-40, -30] } },
+  // hands: bent membranes (open / muted / slap strokes as GM notes), noise
+  // shakers, a jingle bank, burst-train scrapes.
+  congaOpen: { voice: 'membrane', pitch: 330, octaves: 0.5, pitchDecay: 0.03, attack: 0.001, decay: 0.38, sustain: 0, release: 0.06, curve: 'exp', volume: -10, vary: true, attackNoise: { tone: 1800, q: 0.7, level: -26, decay: 0.008 } },
+  congaMute: { voice: 'membrane', pitch: 330, octaves: 0.5, pitchDecay: 0.03, attack: 0.001, decay: 0.08, sustain: 0, release: 0.04, curve: 'exp', volume: -10, vary: true, filter: { mode: 'lowpass', freq: 1100, q: 0.7 }, attackNoise: { tone: 1500, q: 0.7, level: -24, decay: 0.006 } },
+  congaSlap: { voice: 'membrane', pitch: 360, octaves: 0.5, pitchDecay: 0.02, attack: 0.001, decay: 0.12, sustain: 0, release: 0.04, curve: 'exp', volume: -11, vary: true, attackNoise: { mode: 'highpass', tone: 2500, q: 0.7, level: -8, decay: 0.03 } },
+  congaLow: { voice: 'membrane', pitch: 220, octaves: 0.5, pitchDecay: 0.035, attack: 0.001, decay: 0.45, sustain: 0, release: 0.06, curve: 'exp', volume: -9, vary: true, attackNoise: { tone: 1500, q: 0.7, level: -26, decay: 0.008 } },
+  bongoHi: { voice: 'membrane', pitch: 480, octaves: 0.6, pitchDecay: 0.02, attack: 0.001, decay: 0.18, sustain: 0, release: 0.04, curve: 'exp', volume: -12, vary: true, attackNoise: { tone: 2600, q: 0.7, level: -24, decay: 0.006 } },
+  bongoLo: { voice: 'membrane', pitch: 360, octaves: 0.6, pitchDecay: 0.025, attack: 0.001, decay: 0.22, sustain: 0, release: 0.04, curve: 'exp', volume: -12, vary: true, attackNoise: { tone: 2200, q: 0.7, level: -24, decay: 0.006 } },
+  shaker: { voice: 'noise', attack: 0.018, decay: 0.06, sustain: 0, release: 0.03, volume: -20, vary: true, filter: { mode: 'bandpass', freq: 6200, q: 1.3 } },
+  tambourine: { voice: 'modal', excite: 'noise', q: 14, pitch: 5200, attack: 0.001, volume: -24, vary: true, partials: [{ ratio: 1, gain: 1, decay: 0.25 }, { ratio: 1.31, gain: 0.8, decay: 0.22 }, { ratio: 1.62, gain: 0.6, decay: 0.18 }, { ratio: 2.05, gain: 0.4, decay: 0.14 }], attackNoise: { mode: 'highpass', tone: 7000, q: 0.7, level: -20, decay: 0.02 } },
+  cabasa: { voice: 'noise', claps: 6, clapGap: 0.006, attack: 0.002, decay: 0.08, sustain: 0, release: 0.03, volume: -20, vary: true, filter: { mode: 'highpass', freq: 5000, q: 0.7 } },
+  guiroShort: { voice: 'noise', claps: 8, clapGap: 0.014, attack: 0.002, decay: 0.15, sustain: 0, release: 0.03, volume: -16, vary: true, filter: { mode: 'bandpass', freq: 2600, q: 1.5 } },
+  guiroLong: { voice: 'noise', claps: 16, clapGap: 0.018, attack: 0.002, decay: 0.32, sustain: 0, release: 0.04, volume: -16, vary: true, filter: { mode: 'bandpass', freq: 2600, q: 1.5 } },
+  // the orchestral section: a concert bass drum, a wire snare (roll it with
+  // art 'roll'), noise-excited suspended cymbal and a tam-tam that blooms.
+  bassDrumConcert: { voice: 'membrane', pitch: 42, octaves: 0.5, pitchDecay: 0.08, attack: 0.004, decay: 2.6, sustain: 0, release: 0.3, curve: 'exp', volume: -6, attackNoise: { mode: 'lowpass', tone: 300, q: 0.7, level: -20, decay: 0.06 } },
+  snareConcert: { voice: 'membrane', pitch: 210, octaves: 0.8, pitchDecay: 0.02, attack: 0.001, decay: 0.09, sustain: 0, release: 0.05, curve: 'exp', volume: -14, vary: true, attackNoise: { mode: 'bandpass', tone: 4200, q: 0.5, level: -12, decay: 0.24 }, velMap: { 'attackNoise.level': [-22, -10] } },
+  susCymbal: { voice: 'modal', excite: 'noise', q: 12, pitch: 420, attack: 0.003, volume: -22, vary: true, partials: bank(DENSE, 1, 3.6), filter: { mode: 'highpass', freq: 1800, q: 0.7 } },
+  tamTam: { voice: 'modal', excite: 'noise', q: 25, pitch: 70, attack: 0.01, volume: -10, vary: true, partials: [[1, 1, 6, 0.05], [1.52, 0.7, 5.5, 0.3], [2.3, 0.6, 5, 0.6], [3.1, 0.55, 4.5, 0.9], [4.4, 0.5, 4, 1.2], [5.9, 0.45, 3.6, 1.4], [7.7, 0.4, 3, 1.6], [10.3, 0.3, 2.5, 1.5], [13.6, 0.2, 2, 1.2]].map(([ratio, gain, decay, rise]) => ({ ratio, gain, decay, rise })), attackNoise: { tone: 200, q: 0.7, level: -18, decay: 0.05 } },
+  triangle: { voice: 'modal', pitch: 1480, attack: 0.001, volume: -20, partials: [{ ratio: 1, gain: 1, decay: 3 }, { ratio: 2.72, gain: 0.6, decay: 2 }, { ratio: 5.08, gain: 0.4, decay: 1.4 }, { ratio: 8.3, gain: 0.25, decay: 1 }] },
+  // crotales: small tuned discs — pitched (a melodic row), a long pure ring.
+  crotales: { voice: 'modal', attack: 0.001, volume: -16, decayTrack: 0.3, partials: [{ ratio: 1, gain: 1, decay: 5 }, { ratio: 2.76, gain: 0.3, decay: 2 }, { ratio: 5.4, gain: 0.12, decay: 0.8 }], attackNoise: { level: -28, decay: 0.004, tone: 7000, q: 0.6 } },
+  // the arena kit: close pieces for a big shared room (the instrument's chain).
+  kickArena: { voice: 'membrane', pitch: 58, octaves: 1.8, pitchDecay: 0.035, attack: 0.001, decay: 0.55, sustain: 0, release: 0.08, curve: 'exp', volume: -6, vary: true, attackNoise: { mode: 'bandpass', tone: 4000, q: 1, level: -16, decay: 0.006 }, velMap: { 'attackNoise.level': [-26, -9], 'attackNoise.tone': [3000, 5000] } },
+  snareArena: { voice: 'modal', pitch: 200, attack: 0.001, volume: -9, vary: true, partials: [{ ratio: 1, gain: 1, decay: 0.2 }, { ratio: 1.6, gain: 0.55, decay: 0.14 }, { ratio: 2.3, gain: 0.35, decay: 0.09 }], attackNoise: { mode: 'bandpass', tone: 3800, q: 0.5, level: -8, decay: 0.3 }, velMap: { 'attackNoise.level': [-18, -6], 'attackNoise.tone': [2800, 4800] } },
+  snareArenaRim: { voice: 'modal', pitch: 200, attack: 0.001, volume: -10, vary: true, partials: [{ ratio: 1, gain: 1, decay: 0.2 }, { ratio: 1.6, gain: 0.55, decay: 0.14 }, { ratio: 2.3, gain: 0.35, decay: 0.09 }, { ratio: 3.9, gain: 0.8, decay: 0.05 }, { ratio: 6.1, gain: 0.5, decay: 0.03 }], attackNoise: { mode: 'bandpass', tone: 4200, q: 0.5, level: -7, decay: 0.3 }, velMap: { 'attackNoise.level': [-16, -5] } },
+  tomArenaFloor: tom(82.4, { octaves: 0.62, pitchDecay: 0.14, decay: 1, volume: -8, vary: true, attackNoise: { tone: 2400, q: 0.7, level: -24, decay: 0.01 } }),
+  tomArenaLo: tom(110, { octaves: 0.62, pitchDecay: 0.14, decay: 0.95, volume: -8, vary: true, attackNoise: { tone: 2400, q: 0.7, level: -24, decay: 0.01 } }),
+  tomArenaMid: tom(146.8, { octaves: 0.62, pitchDecay: 0.13, decay: 0.9, volume: -8, vary: true, attackNoise: { tone: 2600, q: 0.7, level: -24, decay: 0.01 } }),
+  tomArenaHi: tom(196, { octaves: 0.62, pitchDecay: 0.12, decay: 0.85, volume: -8, vary: true, attackNoise: { tone: 2800, q: 0.7, level: -24, decay: 0.01 } }),
+  crashArena: { voice: 'modal', excite: 'noise', q: 10, pitch: 380, attack: 0.002, volume: -20, vary: true, partials: bank(DENSE, 1, 3, 0.02), filter: { mode: 'highpass', freq: 2200, q: 0.7 }, attackNoise: { mode: 'highpass', tone: 5000, q: 0.5, level: -16, decay: 0.8 } },
+  chinaArena: { voice: 'modal', excite: 'noise', q: 8, pitch: 520, attack: 0.002, volume: -20, vary: true, partials: bank([1, 1.31, 1.73, 2.19, 2.77, 3.42, 4.1, 5.2], 1, 2), filter: { mode: 'highpass', freq: 1500, q: 0.7 }, attackNoise: { mode: 'highpass', tone: 4000, q: 0.5, level: -14, decay: 0.5 } },
+  rideBellArena: { voice: 'modal', pitch: 820, attack: 0.001, volume: -20, vary: true, partials: [{ ratio: 1, gain: 1, decay: 2 }, { ratio: 2.1, gain: 0.6, decay: 1.4 }, { ratio: 3.3, gain: 0.4, decay: 0.9 }, { ratio: 4.6, gain: 0.25, decay: 0.6 }], attackNoise: { mode: 'highpass', tone: 6000, q: 0.7, level: -30, decay: 0.03 } },
+});
+const HATS = { 42: 'hat', 44: 'hat', 46: 'hat' };
+Object.assign(PATCHES, {
+  drumMachine88: { kit: { 35: 'kickBoom', 36: 'kickBoom', 37: 'rimAnalog', 38: 'snareAnalog', 40: 'snareAnalog', 39: 'clapAnalog', 42: 'hat808', 44: 'hat808', 46: 'hatOpen', 41: 'tomBoomLo', 43: 'tomBoomLo', 45: 'tomBoomMid', 47: 'tomBoomMid', 48: 'tomBoomHi', 50: 'tomBoomHi', 49: 'crash', 56: 'cowbellAnalog', 75: 'clavesAnalog', 70: 'shaker' }, chokes: HATS },
+  drumMachine909: { kit: { 35: 'kickPunch', 36: 'kickPunch', 37: 'rimAnalog', 38: 'snarePunch', 40: 'snarePunch', 39: 'clapPunch', 42: 'hatPunch', 44: 'hatPunch', 46: 'hatPunchOpen', 41: 'tomPunchLo', 43: 'tomPunchLo', 45: 'tomPunchMid', 47: 'tomPunchMid', 48: 'tomPunchHi', 50: 'tomPunchHi', 49: 'crash', 51: 'ride', 56: 'cowbellAnalog' }, chokes: HATS },
+  drumMachineBright: { kit: { 35: 'kickBoom', 36: 'kickBoom', 38: 'snareAnalog', 39: 'clapAnalog', 42: 'hatBright', 44: 'hatBright', 46: 'hatBrightOpen', 41: 'tomBoomLo', 45: 'tomBoomMid', 48: 'tomBoomHi', 49: 'crash' }, chokes: HATS },
+  acousticKit: { kit: { 35: 'kickAcoustic', 36: 'kickAcoustic', 37: 'snareAcoustic', 38: 'snareAcoustic', 40: 'snareAcoustic', 42: 'hatAcoustic', 44: 'hatAcoustic', 46: 'hatAcousticOpen', 41: 'tomAcousticLo', 43: 'tomAcousticLo', 45: 'tomAcousticMid', 47: 'tomAcousticMid', 48: 'tomAcousticHi', 50: 'tomAcousticHi', 49: 'crashAcoustic', 57: 'crashAcoustic', 51: 'rideAcoustic', 53: 'rideAcoustic', 59: 'rideAcoustic' }, chokes: HATS },
+  latinPerc: { kit: { 60: 'bongoHi', 61: 'bongoLo', 62: 'congaMute', 63: 'congaOpen', 64: 'congaLow', 65: 'congaSlap', 54: 'tambourine', 56: 'cowbellAnalog', 69: 'cabasa', 70: 'shaker', 82: 'shaker', 73: 'guiroShort', 74: 'guiroLong', 75: 'clavesAnalog' } },
+  orchestralPerc: { kit: { 35: 'bassDrumConcert', 36: 'bassDrumConcert', 38: 'snareConcert', 40: 'snareConcert', 49: 'susCymbal', 55: 'susCymbal', 52: 'tamTam', 81: 'triangle', 80: 'triangle' } },
+  stadiumKit: { kit: { 35: 'kickArena', 36: 'kickArena', 37: 'rimAnalog', 38: 'snareArena', 40: 'snareArenaRim', 41: 'tomArenaFloor', 43: 'tomArenaLo', 45: 'tomArenaLo', 47: 'tomArenaMid', 48: 'tomArenaMid', 50: 'tomArenaHi', 42: 'hat808', 44: 'hat808', 46: 'hatOpen', 49: 'crashArena', 57: 'crashArena', 55: 'crashArena', 52: 'chinaArena', 51: 'ride', 59: 'ride', 53: 'rideBellArena' }, chokes: HATS },
+});
+
+// ── the era synths (orchestra and era): virtual analog and 4-op FM ─────────
+// Named harmonic tables (a patchParams `table` name lowers to `harmonics` at
+// normalize): the rave organ stab's drawbars, a full drawbar organ, two
+// digital wavetable frames. Patches reach for `pulse` + PWM, the `supersaw`,
+// the 24 dB `slope` (the ladder), `sub`, patch `lfo` slots (a `sync` fraction
+// resolves to Hz against the recipe's bpm at normalize), `fm4`.
+export const TABLES = {
+  organStab: [1, 0.85, 0.9, 0.55, 0, 0.3, 0, 0.42, 0, 0.12],
+  organFull: [1, 1, 0.9, 0.9, 0, 0.8, 0, 0.8],
+  digitalA: [0.5, 0.3, 0.42, 0.62, 0.9, 1, 0.8, 0.52, 0.3, 0.18, 0.1, 0.05],
+  digitalB: [1, 0, 0.6, 0, 0.22, 0, 0.5, 0, 0.4, 0, 0.12],
+};
+const LADDER = (freq, q, drive) => ({ mode: 'lowpass', slope: 24, freq, q, drive });
+Object.assign(PATCHES, {
+  // the acid line: a saw into the resonant ladder, a fast sweep; accent and slide ride the pattern.
+  acidBass: { voice: 'osc', wave: 'sawtooth', attack: 0.002, decay: 0.25, sustain: 0.35, release: 0.05, volume: -12, filter: LADDER(300, 16, 0.35), filterEnv: { from: 2400, to: 220, decay: 0.2, velAmount: 0.6 }, keyTrack: 0.3 },
+  acidSquare: { voice: 'osc', wave: 'square', attack: 0.002, decay: 0.25, sustain: 0.35, release: 0.05, volume: -14, filter: LADDER(300, 16, 0.35), filterEnv: { from: 2400, to: 220, decay: 0.2, velAmount: 0.6 }, keyTrack: 0.3 },
+  // the reese: two detuned saws drifting against each other through the ladder, a slow cutoff sway, a sub.
+  reeseBass: { voice: 'osc', wave: 'sawtooth', unison: 2, detune: 22, drift: 8, attack: 0.01, decay: 0.2, sustain: 0.9, release: 0.25, volume: -12, width: 0.6, filter: LADDER(900, 4, 0.4), lfo: [{ rate: 0.23, target: 'filter', depth: 500 }], sub: { level: -9, octave: 1 } },
+  // the hoover: a PWM pulse stack that dives in from above (its famous attack bend).
+  hoover: { voice: 'osc', wave: 'pulse', pw: 0.3, unison: 5, detune: 28, attack: 0.02, decay: 0.3, sustain: 0.8, release: 0.4, volume: -15, width: 0.8, bend: [1.26, 1, 0, 0.14], lfo: [{ rate: 0.8, target: 'pw', depth: 0.18 }], filter: { mode: 'lowpass', freq: 4200, q: 0.7 } },
+  // poly strings: a slow pulse ensemble with PWM (the chorus lives in the instrument).
+  polyStrings: { voice: 'osc', wave: 'pulse', pw: 0.5, unison: 2, detune: 5, attack: 0.35, decay: 0.3, sustain: 0.85, release: 1.1, volume: -17, width: 0.5, lfo: [{ rate: 0.6, target: 'pw', depth: 0.22 }], filter: { mode: 'lowpass', freq: 3200, q: 0.5 } },
+  stringMachine: { voice: 'osc', wave: 'sawtooth', unison: 3, detune: 7, attack: 0.25, decay: 0.3, sustain: 0.9, release: 0.9, volume: -18, width: 0.7, filter: { mode: 'lowpass', freq: 2600, q: 0.5 }, lfo: [{ rate: 5.2, target: 'pitch', depth: 6, delay: 0.3 }] },
+  // the supersaw: seven saws on the classic detune curve.
+  trancePluck: { voice: 'osc', wave: 'supersaw', supersaw: { detune: 0.35, mix: 0.6 }, attack: 0.001, decay: 0.22, sustain: 0.05, release: 0.2, volume: -16, width: 0.8, filter: { mode: 'lowpass', q: 2 }, filterEnv: { from: 6000, to: 600, decay: 0.18, velAmount: 0.4 } },
+  supersawLead: { voice: 'osc', wave: 'supersaw', supersaw: { detune: 0.5, mix: 0.75 }, attack: 0.01, decay: 0.3, sustain: 0.85, release: 0.35, volume: -18, width: 0.9, filter: { mode: 'lowpass', freq: 7000, q: 0.7 }, lfo: [{ rate: 5.5, target: 'pitch', depth: 8, delay: 0.4 }] },
+  // the rave stab: the organ table through a swept filter.
+  raveStab: { voice: 'osc', harmonics: TABLES.organStab, unison: 2, detune: 8, attack: 0.002, decay: 0.28, sustain: 0.2, release: 0.12, volume: -15, filter: { mode: 'lowpass', q: 1.5 }, filterEnv: { from: 5200, to: 900, decay: 0.25 } },
+  // the wobble: a saw into the ladder, an lfo on the cutoff synced to the beat.
+  wobbleBass: { voice: 'osc', wave: 'sawtooth', unison: 2, detune: 12, attack: 0.005, decay: 0.2, sustain: 0.95, release: 0.12, volume: -17, filter: LADDER(500, 10, 0.4), lfo: [{ sync: '1/8', rate: 4, target: 'filter', depth: 2400 }], sub: { level: -6, octave: 1 } },
+  // 4-op FM: the punchy bass (two stacks, op 4 fed back), tine keys, brass, drawbar organ, bell.
+  fmBass: { voice: 'fm4', algorithm: 5, feedback: 0.5, attack: 0.001, decay: 0.05, sustain: 1, release: 0.08, volume: -11, ops: [{ ratio: 1, level: 1, decay: 0.6, sustain: 0.3, release: 0.1 }, { ratio: 1, level: 2.2, decay: 0.18, sustain: 0.15, velSens: 0.8 }, { ratio: 0.5, level: 0.6, decay: 0.9, sustain: 0.5, release: 0.1 }, { ratio: 1, level: 1.4, decay: 0.12, sustain: 0.1 }] },
+  fmKeys: { voice: 'fm4', algorithm: 5, feedback: 0.2, attack: 0.001, decay: 0.05, sustain: 1, release: 0.5, volume: -14, ops: [{ ratio: 1, level: 1, decay: 1.6, sustain: 0.25, release: 0.5 }, { ratio: 14, level: 1.1, decay: 0.35, sustain: 0.02, velSens: 1 }, { ratio: 1, level: 0.7, decay: 2.2, sustain: 0.3, release: 0.5 }, { ratio: 1, level: 0.8, decay: 1.2, sustain: 0.2, velSens: 0.6 }] },
+  fmBrass: { voice: 'fm4', algorithm: 2, feedback: 0.45, attack: 0.02, decay: 0.05, sustain: 1, release: 0.25, volume: -15, ops: [{ ratio: 1, level: 1, attack: 0.04, decay: 0.3, sustain: 0.85, release: 0.25 }, { ratio: 1, level: 2.4, attack: 0.08, decay: 0.4, sustain: 0.7, velSens: 0.9 }, { ratio: 1, level: 1.1, attack: 0.1, decay: 0.5, sustain: 0.6 }, { ratio: 1, level: 0.9, attack: 0.06, decay: 0.3, sustain: 0.5 }] },
+  fmOrgan: { voice: 'fm4', algorithm: 8, attack: 0.005, decay: 0.02, sustain: 1, release: 0.06, volume: -16, ops: [{ ratio: 0.5, level: 0.6, attack: 0.005, sustain: 1 }, { ratio: 1, level: 1, attack: 0.005, sustain: 1 }, { ratio: 2, level: 0.6, attack: 0.005, sustain: 1 }, { ratio: 3, level: 0.4, attack: 0.005, sustain: 1 }] },
+  fmBell4: { voice: 'fm4', algorithm: 5, attack: 0.001, decay: 0.05, sustain: 1, release: 2, volume: -16, ops: [{ ratio: 1, level: 1, decay: 3.5, sustain: 0.05, release: 2 }, { ratio: 3.5, level: 3, decay: 1.5, sustain: 0.05 }, { ratio: 2.02, level: 0.6, decay: 2.5, sustain: 0.05, release: 2 }, { ratio: 5.19, level: 2, decay: 0.8, sustain: 0.02 }] },
+});
+
 export function getPatch(name, overrides) {
   const base = PATCHES[name];
   if (!base) {

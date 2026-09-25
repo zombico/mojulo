@@ -86,6 +86,20 @@ small generator, not by hand — restating every bar's groove literally is what
 the pattern kind exists to avoid, so reserve composition for when the section
 structure or the lead line genuinely needs explicit control.
 
+## Orchestral scoring (opt-in)
+
+A composition can also carry:
+
+- `meter` / `meters` and a `tempo` map (rit. and accel.)
+- `phrases` placed by a part's `form` (transposed, inverted, reversed)
+- object events `{ at, n, d, v, art, dyn }` and a 5th tuple slot `art`
+- a part's `dynamics` (marks and hairpins)
+- `players`, `desk`, `seating` and `a4`
+
+The manuals are `beats-orchestra` and `beats-articulations`. Percussion kits
+are in `beats-percussion`, the era synths in `beats-synth`, and the rack plus
+`gate` / `duck` / `stutter` in `beats-effects`.
+
 ## Mix and export (opt-in, every musical kind)
 
 - **`pan`** on a part/track/channel (−1..1) places it in the stereo field.

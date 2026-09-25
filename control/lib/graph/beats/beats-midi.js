@@ -64,6 +64,11 @@ const GM_PROGRAM = {
   celesta: 8, musicBox: 10, organ: 16, steelpan: 114,
   pianoGrand: 0, violin2: 40, viola2: 41, cello2: 42, contrabass2: 43,
   trumpet2: 56, frenchHorn2: 60, trombone2: 57, tuba2: 58,
+  // orchestra and era
+  flute: 73, flute2: 73, clarinet: 71, clarinet2: 71, oboe: 68, oboe2: 68, bassoon: 70, bassoon2: 70,
+  harp: 46, glockenspiel: 9, xylophone: 13, marimba: 12, vibraphone: 11, tubularBells: 14, timpani: 47, crotales: 9,
+  acidBass: 38, acidSquare: 38, reeseBass: 39, hoover: 81, polyStrings: 50, stringMachine: 50, trancePluck: 81,
+  supersawLead: 81, raveStab: 16, wobbleBass: 38, fmBass: 38, fmKeys: 5, fmBrass: 62, fmOrgan: 17, fmBell4: 14,
 };
 
 // drum-shaped patches → GM percussion notes (channel 10).

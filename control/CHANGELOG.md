@@ -136,6 +136,112 @@ to any of this yet: the ears gate has not run.
   carry feel, so it is left for a decision. The voice realism dials
   (singer's formant, jitter/shimmer, aspiration) did not start.
 
+### Orchestra and era synthesis
+
+Orchestral scoring, real percussion, and the synths and effects of the era
+that circuits and math can actually reach: analog and virtual-analog, FM, drum
+machines, BBD chorus and tape, rave, acid, trance, DnB and French house.
+Everything is synthesized and opt-in. Stored rows re-synthesize
+byte-identical: the baseline WAV hashes and the world-page pins stayed green
+without a re-pin. The gate measurements live in `beats-era.test.js`. No one
+has listened to any of this: the ears gate has not run.
+
+- **Doctrine amended** (recorded in `beats.plan.md`, B12).
+  - In: deterministic, recipe-derived scheduling of known params at known
+    times — a bounded two-slot patch LFO, gate, duck, hairpins and stutter.
+  - Out: audio-rate modulation matrices, free-form automation lanes, and
+    AudioWorklet (native WebAudio only).
+  - Ids describe the sound. The machines they recall are named only in card
+    prose.
+- **Score substrate** (`beats-composition`).
+  - `meter` / `meters` set a bar's length; the beat is a quarter note.
+  - A `tempo` map with linear or exponential ramps, integrated analytically.
+    A rit.'s onsets land within 1e-8 ms of a numeric integral.
+  - `phrases` placed by a part's `form` (transpose, invert, retro, vel). A
+    form-encoded score renders byte-identical to its literal expansion from a
+    manifest 60 % smaller.
+  - Object events `{ at, n, d, v, art, dyn }` and a 5th tuple slot `art`;
+    `dyn` marks. A part's `dynamics` lane holds marks and hairpins, and a note
+    held through a hairpin swells.
+  - Instrument `range`s: a note outside one mints with a warning
+    (`create_beats` / `update_beats` return `warnings`), never an error.
+- **Orchestra.**
+  - Woodwinds (`flute`, `clarinet`, `oboe`, `bassoon` and `-2` ensembles) on a
+    computed `harmonics` wave.
+  - `harp`, `glockenspiel`, `xylophone`, `marimba`, `vibraphone` (motor
+    `tremolo`), `tubular-bells`, `crotales`, and `timpani` with a pedal glide.
+  - Every new instrument holds pitch within 3 cents across its range (worst
+    2.47).
+  - `players` (section size with de-locked onsets): the 10→90 % rise goes
+    132 → 220 ms.
+  - `desk` front/back: the back desk is darker (centroid 3.6 → 2.8 kHz) and
+    wetter.
+  - `seating` presets (american, european, film) and `a4`.
+- **Articulations** (`art`): legato (one note, a pitch path, no retrigger:
+  boundary envelope 0.97 vs 0.48 detached), staccato, staccatissimo, tenuto,
+  marcato / accent / sfz / fp / swell shapes, pizz (T60 0.33 s), col legno,
+  trem, roll with `cresc`, trill (`rate`, `interval`), port, gliss (a
+  plucked/struck row runs the scale), mute (con sordino) and flutter-tongue.
+- **Percussion.** Kits `drum-machine-88`, `drum-machine-909`,
+  `drum-machine-bright`, `acoustic-kit`, `latin-perc`, `orchestral-perc`,
+  `stadium-kit` and `stadium-kit-gated`, on GM note maps, all `vary`-on.
+  - The boom kick drops 2.17× in pitch by 60 ms.
+  - Claps are 3–4 seeded bursts 9–12 ms apart.
+  - `velMap` makes timbre follow velocity (the snare centroid rises
+    monotonically).
+  - Choke groups: an open hat's last sample lands 4 ms after the closed hat.
+  - Noise-excited modal pieces, and a tam-tam that blooms.
+  - The `rock-drummer` feel (`laid`, `accent`, `flam`).
+  - The arena kit's room and bus are its chain (parallel `compress`, a room2
+    with a driven return). `roomMix` tracks the room-to-close ratio
+    (0.017 → 0.195).
+- **Synths.**
+  - `wave: 'pulse'` + `pw` with PWM (h2/h1 follows pw, none at 50 %).
+  - `wave: 'supersaw'` on the classic detune curve.
+  - Named harmonic `table`s, `sub`, `noise`.
+  - Patch `lfo` slots, with `sync` resolved at normalize.
+  - Filter `slope: 24`, the ladder (+14.1 dB resonance, 49.8 dB two octaves
+    down).
+  - filterEnv `amount` / `velAmount`.
+  - Pattern `accent` (attack centroid 1.0 → 2.1 kHz), `slide` (a continuous
+    f0 track), `ratchet` and `prob` (one seeded coin, live and exported).
+  - `voice: 'fm4'`: the eight classic 4-op algorithms, op-4 feedback as a
+    computed wave. Sidebands land where the analysis says; off-grid bins sit
+    below −100 dB.
+  - Instruments `acid-bass`, `reese-bass`, `hoover`, `poly-strings`,
+    `string-machine`, `trance-pluck`, `supersaw-lead`, `rave-stab`,
+    `wobble-bass`, and `fm-bass` / `-keys` / `-brass` / `-organ` / `-bell`.
+- **The rack.**
+  - New chain types: `phaser` (the notch moves 151 Hz – 2.4 kHz), `flanger`,
+    `tape`, `autopan`, `crush` (`bits`), `ringmod` and `vocoder` (output
+    tracks the modulator, r = 0.76).
+  - New models: chorus `'bbd'`, drive `'tube'` / `'fuzz'` / `'fold'`, delay
+    `'dub'`, and reverb / room `'gated'` (the tail is cut at `gate`) and
+    `'reverse'`.
+  - Row `gate` (on/off −∞ dB) and `duck` (the gain bottoms 1.3–1.8 ms after
+    each `by` onset) become per-note gain lanes. `stutter` repeats a slice.
+- **Slices.** The kernel adds regions `ev`, `score`, `orch`, `perc`, `va` and
+  `fx`. Regions now nest, so a newer feature's hook can sit inside an older
+  feature's new lines. `beatsFeatures` detects each one.
+  - Kernel cost over the host each implies: ev +0.7 KB, score +9.0 KB,
+    orch +3.7 KB, perc +6.6 KB, va +15.0 KB, fx +14.3 KB.
+  - A no-opt-in page is still the 2.1 kernel byte for byte.
+- **Fixed on the way.** node-web-audio-api's oscillator FM (a modulator into
+  `frequency`) is 8 dB off ideal FM; a modulated DelayNode matches it, so
+  `fm4` is phase modulation. The legacy 2-op `fm` voice is unchanged.
+- **Routing.** New vocab cards: `beats-orchestra`, `beats-articulations`,
+  `beats-percussion`, `beats-synth` and `beats-effects`. Pointers from the
+  composition, pattern and instrument cards, recognizer phrases on the
+  `audio-beats` routing card (body 1,064 of 1,100), and routing-eval rows. No
+  tool schema or tools/list pin moved.
+- **Recorded stopping point.**
+  - Reverse reverb swells after the hit; a pre-scheduled lead-in isn't built.
+  - `shimmer` is cut.
+  - Crush sample-rate reduction, hard sync and a true ladder wait on a
+    worklet.
+  - Gate and duck shape a row before its chain, so its own reverb tail
+    doesn't pump.
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation

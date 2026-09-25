@@ -88,6 +88,14 @@
 - A pattern makes a world soundtrack: `audio: { soundtrack: { beatsRef } }`
   loops it by construction.
 
+## Step fields and the rack (opt-in)
+
+- Beside `mask`, a track takes `accent`, `slide`, `ratchet` and `prob`, all
+  wrapping like the mask. That's the acid line: see `beats-synth`.
+- A track's `gate` (trance gate) and `duck: { by: '<track>' }` (sidechain
+  pump) are in `beats-effects`.
+- Kits with chokes and the rock-drummer feel are in `beats-percussion`.
+
 ## Mix and export (opt-in)
 
 Rows take `pan` (−1..1). The manifest takes `room` (one shared reverb) with

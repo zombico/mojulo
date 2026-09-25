@@ -66,10 +66,10 @@ function noteEntries(events, { seed, feelFor, seedIndexFor, glideFor }) {
     const glideFrom = glideFor ? glideFor(ev, ei) : null;
     ev.notes.forEach((n, ni) => {
       const fl = kernel.noteFeel(feel, seed, seedIndexFor(ei), ni, ev.notes.length);
-      entries.push(withGlide({
+      entries.push(withOverrides(withGlide({
         type: 'note', t: ev.t + fl.timeOffset, channel: ev.channel,
         patch: ev.patch, pluck: fl.pluck, note: n, dur: ev.dur, vel: ev.vel * fl.velScale,
-      }, glideFrom));
+      }, glideFrom), ev));
     });
   });
   return entries;
@@ -79,6 +79,12 @@ function noteEntries(events, { seed, feelFor, seedIndexFor, glideFor }) {
 // glideNotes); rows without `glide` get no field, so their plans are unchanged.
 function withGlide(entry, glideFrom) {
   if (glideFrom != null) entry.glideFrom = glideFrom;
+  return entry;
+}
+// Per-event patch overrides from the score layer (articulations, hairpin
+// gain lanes, choke): an event without them adds no field.
+function withOverrides(entry, ev) {
+  if (ev.pp) entry.pp = ev.pp;
   return entry;
 }
 function glideLookup(rows, events, wrap) {
@@ -96,6 +102,8 @@ function voiceEntriesInto(entries, voiceParts, manifest) {
   const swing = manifest.swing || 0;
   const sixteenth = 60 / bpm / 4;
   const beat = 60 / bpm;
+  // a score with a meter or tempo map: sung syllables follow the same clock.
+  const clock = kernel.scored(manifest) && (manifest.meter || manifest.meters || manifest.tempo) ? kernel.scoreClock(manifest) : null;
   const warnings = [];
   let end = 0;
   for (const part of voiceParts) {
@@ -106,13 +114,13 @@ function voiceEntriesInto(entries, voiceParts, manifest) {
     }
     events.forEach((ev, i) => {
       const [at, notes, dur, vel] = ev;
-      let t = kernel.timeToSeconds(at, bpm);
+      let t = clock ? clock.sec(clock.q(at)) : kernel.timeToSeconds(at, bpm);
       if (swing) {
         const pos = t / sixteenth;
         const idx = Math.round(pos);
         if (Math.abs(pos - idx) < 1e-6 && idx % 2 === 1) t += swing * sixteenth * (2 / 3);
       }
-      const durSec = dur == null ? beat : kernel.timeToSeconds(dur, bpm);
+      const durSec = clock ? clock.sec(clock.q(at) + (dur == null ? 1 : clock.len(dur, clock.q(at)))) - clock.sec(clock.q(at)) : dur == null ? beat : kernel.timeToSeconds(dur, bpm);
       // A voice sings one pitch: take the melody (first) note of a chord event.
       const note = Array.isArray(notes) ? notes[0] : notes;
       const syllable = lyrics[i] != null ? lyrics[i] : 'la';
@@ -235,6 +243,8 @@ export function renderBeatsPlan(manifest, opts = {}) {
       const base = cursor * pat.duration;
       const glideFor = glides[cursor ? 1 : 0];
       pat.events.forEach((ev, ei) => {
+        // a step with prob: the same seeded coin per (loop, event) as the live transport.
+        if (ev.prob != null && !kernel.stepKeep(manifest.seed, cursor, ei, ev.prob)) return;
         const tr = tracks.find((c) => c.name === ev.channel);
         if (tr && (tr.cue || tr.gesture)) {
           const cue = { type: 'cue', t: base + ev.t, channel: ev.channel, gestures: tr.cue || [tr.gesture], vel: ev.vel };
@@ -247,10 +257,10 @@ export function renderBeatsPlan(manifest, opts = {}) {
         ev.notes.forEach((n, ni) => {
           // same per-loop evolving seed fold as the live transport (B6.1).
           const fl = kernel.noteFeel(feel, manifest.seed, cursor * 1000 + ei, ni, ev.notes.length);
-          entries.push(withGlide({
+          entries.push(withOverrides(withGlide({
             type: 'note', t: base + ev.t + fl.timeOffset, channel: ev.channel,
             patch: (tr && tr.patch) || 'sinePluck', pluck: fl.pluck, note: n, dur: ev.dur, vel: ev.vel * fl.velScale,
-          }, glideFrom));
+          }, glideFrom), ev));
         });
       });
     }
@@ -475,6 +485,8 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     if (ch.transpose) transposeFor[ch.name] = Math.pow(2, ch.transpose / 12);
   }
 
+  // a4 (orchestral 442): the reference pitch, as the live transport applies it.
+  const a4r = manifest.a4 ? manifest.a4 / 440 : 1;
   for (const e of plan.entries) {
     // Feel jitter can push a time-zero event a few ms negative; the browser's
     // AudioContext clamps that to "now", but OfflineAudioContext throws.
@@ -498,11 +510,12 @@ export async function renderWithKernel(K, manifest, opts = {}) {
       src.start(t);
     } else {
       const row = rowFor[e.channel];
-      const patch = kernel.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);
-      if (!patch) continue; // a kit note with no piece
+      const resolved = kernel.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);
+      if (!resolved) continue; // a kit note with no piece
+      const patch = e.pp ? { ...resolved, ...e.pp } : resolved;
       let p = e.pluck ? { ...patch, pick: clamp01((patch.pick || 0) + e.pluck) } : patch;
-      if (e.glideFrom != null) p = { ...p, glide: row.glide, glideFrom: kernel.noteHz(e.glideFrom) * (transposeFor[e.channel] || 1) };
-      const hz = kernel.noteHz(e.note) * (transposeFor[e.channel] || 1);
+      if (e.glideFrom != null) p = { ...p, glide: row.glide, glideFrom: kernel.noteHz(e.glideFrom) * a4r * (transposeFor[e.channel] || 1) };
+      const hz = kernel.noteHz(e.note) * a4r * (transposeFor[e.channel] || 1);
       engine.playVoice(p, hz, t, e.dur, e.vel, chains[e.channel], kernel.noteKey(manifest.seed, e.channel, e.t, hz));
     }
   }

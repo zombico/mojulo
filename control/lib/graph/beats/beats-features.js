@@ -14,6 +14,7 @@
 
 import { PATCHES, LEGACY_PATCH_NAMES } from './audio-patches.js';
 import { INSTRUMENTS } from './instruments.js';
+import { IMPLIES } from './beats-kernel.js';
 
 const LEGACY = new Set(LEGACY_PATCH_NAMES);
 const AMBIENT_DEFAULT = { harmony: 'pad', roots: 'bassMono', melody: 'sinePluck', pulse: 'kick' };
@@ -62,12 +63,45 @@ function addGestures(set, list) {
   if (Array.isArray(list) && list.some(gestureNeedsSfx)) set.add('sfx');
 }
 
+// the kernel's `scored` test, mirrored: a composition that uses the score
+// substrate (meter, tempo map, phrases/form, object or 5-slot events, dynamics).
+function scored(m) {
+  return !!(m.meter || m.meters || m.tempo || m.phrases || (m.parts || []).some((p) => p && (p.form || p.dynamics || (p.events || []).some((e) => !Array.isArray(e) || e.length > 4))));
+}
+
+// every articulation type a composition names (events, phrases).
+function artsOf(m) {
+  const out = [];
+  const read = (ev) => { const a = Array.isArray(ev) ? ev[4] : ev && ev.art; if (a) out.push(typeof a === 'string' ? a : a.type); };
+  for (const p of m.parts || []) for (const ev of (p && p.events) || []) read(ev);
+  for (const list of Object.values(m.phrases || {})) for (const ev of list || []) read(ev);
+  return out;
+}
+
 function collect(m, set) {
   if (!m || typeof m !== 'object') return;
   if (m.room || m.master) set.add('mix');
+  if (scored(m)) set.add('score');
+  const arts = artsOf(m);
+  if (arts.length) set.add('orch');
+  if (arts.includes('pizz')) set.add('strings');
+  if (m.a4) set.add('orch');
+  if (m.stutter || (m.room && (m.room.model === 'gated' || m.room.model === 'reverse'))) set.add('fx');
   for (const row of rowsOf(m)) {
     if (!row || typeof row !== 'object') continue;
     if (row.pan != null || row.send) set.add('mix');
+    if (row.desk) { set.add('mix'); set.add('orch'); }
+    if (row.players) set.add('orch');
+    if (row.choke) set.add('perc');
+    if (row.accent || row.ratchet || row.prob != null) set.add('va');
+    if (row.slide) { set.add('va'); set.add('orch'); }
+    const fl = row.feel && typeof row.feel === 'object' ? row.feel : null;
+    if (fl && (fl.laid || fl.accent || fl.flam)) set.add('perc');
+    if (row.feel === 'rock-drummer') set.add('perc');
+    if ((row.chain || []).some((f) => f && (f.type === 'compress' || (f.type === 'reverb' && f.drive)))) set.add('perc');
+    const RACK = new Set(['phaser', 'flanger', 'tape', 'autopan', 'crush', 'ringmod', 'vocoder']);
+    if ((row.chain || []).some((f) => f && (RACK.has(f.type) || f.model === 'bbd' || f.model === 'dub' || f.model === 'gated' || f.model === 'reverse' || (f.type === 'drive' && f.model)))) set.add('fx');
+    if (row.gate || row.duck || row.stutter) set.add('fx');
     if ((row.chain || []).some((f) => f && f.type === 'reverb' && f.model === 'room2')) set.add('mix');
     if (row.patchParams || row.glide) set.add('voice');
     if (row.vary && (row.cue || row.gesture)) set.add('sfx');
@@ -75,14 +109,21 @@ function collect(m, set) {
     for (const name of patchNamesOf(row)) {
       const p = row.patchParams ? { ...PATCHES[name], ...row.patchParams } : PATCHES[name];
       if (!LEGACY.has(name) || voiceNeeds(p)) set.add('voice');
+      if (p && (p.harmonics || p.tremolo || p.pedal || p.players)) set.add('orch');
+      if (p && (p.velMap || p.claps || p.drive || p.excite === 'noise' || p.chokes || (p.partials || []).some((q) => q && q.rise))) set.add('perc');
+      if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
+      if (p && p.bend) set.add('orch');
       if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
     }
   }
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx'];
-const sorted = (set) => ORDER.filter((f) => set.has(f));
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx'];
+const sorted = (set) => {
+  for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
+  return ORDER.filter((f) => set.has(f));
+};
 
 /** Kernel features a beats manifest needs (normalized or not). [] = the 2.1 kernel. */
 export function beatsFeatures(manifest) {

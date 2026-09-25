@@ -13,7 +13,10 @@ describe('shelf integrity', () => {
 
   it('every instrument chain uses only known effect types (cross-checks the FX whitelist via validate)', () => {
     for (const [name, inst] of Object.entries(INSTRUMENTS)) {
-      const m = { kind: 'beats-composition', title: name, bpm: 120, parts: [{ name: 'p', patch: inst.patch, chain: inst.chain, events: [['0:0:0', 'C3']] }] };
+      // a kit plays GM drum notes: use one it maps (C3 = 48 isn't in every kit).
+      const kit = PATCHES[inst.patch] && PATCHES[inst.patch].kit;
+      const note = kit ? ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][Object.keys(kit)[0] % 12] + (Math.floor(Object.keys(kit)[0] / 12) - 1) : 'C3';
+      const m = { kind: 'beats-composition', title: name, bpm: 120, parts: [{ name: 'p', patch: inst.patch, chain: inst.chain, events: [['0:0:0', note]] }] };
       expect(validateBeatsManifest(m).ok, `${name}: ${validateBeatsManifest(m).errors.join(', ')}`).toBe(true);
     }
   });
