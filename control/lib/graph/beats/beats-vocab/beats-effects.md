@@ -17,6 +17,11 @@
 | `delay` + `model: 'dub'` | `filter` (Hz), `drive`. Each repeat is darker and dirtier. |
 | `reverb` + `model` | `'gated'` + `gate` (s): the room is cut there. `'reverse'`: the impulse is played backwards (a swell after the hit). The shared `room` takes these models too. |
 | `vocoder` | `modulator` (another row), `bands` (4–24), `hide`, `gain`, `smooth` |
+| `wah` | A resonant bandpass swept from `lo` (350 Hz) to `hi` (2200 Hz). By default the playing moves it (an auto-wah; `sens` sets how far, default 10). `rate` (Hz) sweeps it with an LFO instead; `at` (0..1) parks it like a half-cocked pedal. `q` (default 4), `level`. |
+| `rotary` | A rotary speaker: the horn (above 800 Hz) and the drum spin at their own speeds, each a doppler, a level swing and a pan swing. `speed: 'fast'` (horn 6.7 Hz, drum 5.9 Hz) or `'slow'` (0.83 / 0.67 Hz), or `rate` (Hz) for the horn. |
+
+A slapback is a `delay` with `time: 0.11, feedback: 0, mix: 0.3` (one
+repeat). `twang-guitar` carries one.
 
 About the vocoder:
 
@@ -84,7 +89,16 @@ hairpins and articulation shapes.
   - `'loud-00s'` pushes harder, and the export masters it to about −8 LUFS /
     −0.3 dBTP: the 2000s loudness. It is exciting on a chorus and fatiguing
     over a whole album. It is the authentic-era choice for the energy styles;
-    the shipped templates use `bright-90s`.
+    the recipe-book songs use `bright-90s`.
   - An explicit `export.normalize` still wins.
-- **`band: 'anime-rock' | 'trance-pop'`.** A mix template (see
-  `beats-composition`).
+- **`band: 'anime-rock' | 'trance-pop' | 'country' | 'blues' | 'soloist' | 'nylon'`.**
+  A mix template (see `beats-composition`).
+  - `country`: dry and close (a small room, low sends); rhythm guitars
+    doubled wide, the lead and the fiddle off-centre.
+  - `blues`: a warmer room; one rhythm guitar (not doubled), organ and piano
+    to the sides.
+  - `soloist`: a plate; the lead centred and up front, the rhythm guitars
+    doubled wide and low.
+  - `nylon`: a hall-like room; nothing doubled (a guitar duo, palmas, a violin).
+  - The part with a `solo` takes the lead role in any band, whatever its
+    patch.

@@ -78,3 +78,15 @@ the whole kit on a short plate, and the `rock-drummer` feel.
 
 A kit part can take a `groove` instead of events: a named style over bars,
 with seeded fills and section crashes (card `beats-grooves`).
+
+## Brushes, the blues kit and palmas (roots styles)
+
+- `brush-kit`: brushes on the snare (a swish with a soft onset), a soft kick,
+  a rim click on the cross-stick (C#2), the ride and hats, a tambourine
+  (F#3) and an acoustic cowbell (G#3). The `train` and `two-beat` grooves;
+  write the tambourine and cowbell as a one-bar phrase placed by `form`.
+- `blues-kit`: the acoustic kit, lightly compressed, in a small warm room. The
+  `shuffle` and `shuffle-boogie` grooves.
+- `palmas`: flamenco hand claps. D#2 is the sharp clap, E2 the muffled one
+  (palmas sordas), C#2 the golpe (a knock on the guitar top). Write them as
+  events on the 12-beat compás (accents on 3, 6, 8, 10 and 12).

@@ -22,7 +22,7 @@ const AMBIENT_DEFAULT = { harmony: 'pad', roots: 'bassMono', melody: 'sinePluck'
 const VOICE_KEYS = ['vary', 'width', 'curve', 'keyTrack', 'decayTrack', 'drift', 'breath', 'pitch', 'kit'];
 const STRING_KEYS = ['tune', 'ringT60', 'stiffness'];
 const NEW_MATERIALS = new Set(['cymbal', 'plate', 'bell']);
-const GUITAR_ARTS = new Set(['bend', 'slide', 'dive', 'vib', 'pm', 'harm', 'pop']);
+const GUITAR_ARTS = new Set(['bend', 'slide', 'dive', 'vib', 'pm', 'harm', 'pop', 'hammer', 'pull', 'tap', 'nat']);
 
 function rowsOf(m) {
   return (m && (m.channels || m.parts || m.tracks)) || [];
@@ -102,6 +102,7 @@ function collect(m, set) {
     if (row.pan != null || row.send) set.add('mix');
     if (row.trim) set.add('anthem');
     if ((row.chain || []).some((f) => f && f.type === 'reverb' && f.model === 'plate')) { set.add('anthem'); set.add('mix'); }
+    if ((row.chain || []).some((f) => f && (f.type === 'wah' || f.type === 'rotary'))) set.add('anthem');
     if (row.desk) { set.add('mix'); set.add('orch'); }
     if (row.players) set.add('orch');
     if (row.choke) set.add('perc');

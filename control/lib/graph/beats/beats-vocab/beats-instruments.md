@@ -218,3 +218,22 @@ composition card.
 
 Guitar articulations (bends, slides, dives, vibrato, palm mute, pinch
 harmonics) are in `beats-articulations`.
+
+## Roots: country, blues and the guitars of the soloist
+
+| instrument | what it is |
+|---|---|
+| `twang-guitar` | A bright single-coil clean, compressed, with a one-repeat 110 ms slapback. Country leads and chicken pickin' (`art: 'pm'` snaps). |
+| `crunch-guitar` | A tube amp at low gain: the blues rhythm guitar. Put the `boogie` chart mode under a `shuffle`. |
+| `pedal-steel` | A sustained steel string whose slow swell hides the pluck (the bar and the volume pedal). Slides and bends between chord tones. |
+| `banjo` | A short, bright pluck on a drum head. The `roll` chart mode is its forward roll. |
+| `harmonica` | A reed: a bright harmonic series, breath and a quick swell through a small amp. Bends and vibrato; the soloist gives it glides instead of hammer-ons. |
+| `upright-bass` | A dark, short string with a round thump. The `root-fifth` and `walk` chart modes. |
+| `fiddle` | The `violin-2` voice with a drier, closer room: breaks, double stops and slides. |
+| `organ-rotary` | The organ through a rotary speaker (fast). A `rotary` chain effect with `speed: 'slow'` is the chorale. |
+| `classical-guitar` | Warm nylon with a long sustain and a hall: `pima`, the tremolo, the classical soloist. |
+| `flamenco-guitar` | Brighter, drier, quicker nylon: `rasgueado`, picado runs. |
+| `gypsy-jazz-guitar` | A bright, dry oval-hole steel guitar with little sustain: `pompe` and the gypsy-jazz soloist. |
+
+Kits for these styles are in `beats-percussion` (`brush-kit`, `blues-kit`,
+`palmas`).

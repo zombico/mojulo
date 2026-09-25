@@ -378,7 +378,7 @@ export function buildBeatsKernel() {
   // the note ([[s, cents], …] → pp.pitchLane), per-note vibrato (pp.vib), palm
   // mute (a short dark string), the pinch harmonic and the slap pop. Any of
   // them may carry `vib` (depth in cents, or { depth, rate, delay }).
-  const GUITAR = { bend: 1, slide: 1, dive: 1, vib: 1, pm: 1, harm: 1, pop: 1 };
+  const GUITAR = { bend: 1, slide: 1, dive: 1, vib: 1, pm: 1, harm: 1, pop: 1, tap: 1, nat: 1 };
   function guitarArt(e, a, ty, rng) {
     const d = e.dur, pp = {};
     const cl = (x) => Math.max(0, Math.min(d, x));
@@ -400,6 +400,10 @@ export function buildBeatsKernel() {
     } else if (ty === 'pm') Object.assign(pp, { ringT60: a.t60 || 0.14, pluckDamping: 0.9, pick: 0.35, release: 0.04 });
     else if (ty === 'harm') pp.harm = { k: a.k || 3 + Math.floor(rng() * 3), gain: a.gain == null ? 12 : a.gain };
     else if (ty === 'pop') Object.assign(pp, { pick: 0, pluckDamping: 0.12, attackNoise: { mode: 'bandpass', level: -4, tone: 3600, q: 0.9, decay: 0.03 } });
+    // a tapped note: struck by a fingertip, not a pick (bright, no pick click).
+    else if (ty === 'tap') Object.assign(pp, { pick: 0.1, pluckDamping: 0.28 });
+    // a natural harmonic: the k-th partial alone, bell-like (12th fret k 2, 7th k 3, 5th k 4).
+    else if (ty === 'nat') Object.assign(pp, { harm: { k: a.k || 2, gain: 24 }, pluckDamping: 0.62, pick: 0.2 });
     const v = ty === 'vib' ? a : a.vib;
     if (v != null) pp.vib = typeof v === 'number' ? { depth: v } : { depth: v.depth, rate: v.rate, delay: v.delay };
     e.pp = Object.assign({}, e.pp, pp);
@@ -479,6 +483,18 @@ export function buildBeatsKernel() {
         } else if (next && next.t > e.t) e.dur = Math.max(e.dur, next.t - e.t + 0.03);
       }
 /*@anthem{*/
+      else if (ty === 'hammer' || ty === 'pull') {
+        // hammer-on / pull-off: no new pick. The run's first note sounds on and
+        // steps in pitch (12 ms) at each hammered note: its pitch lane grows.
+        const h = prev && (prev.__head || prev);
+        if (h && h.notes.length === 1 && e.notes.length === 1 && out.includes(h) && e.t > h.t) {
+          const s = e.t - h.t, lane = (h.pp && h.pp.pitchLane) || [[0, 0]], c0 = lane[lane.length - 1][1];
+          h.pp = Object.assign({}, h.pp, { pitchLane: lane.concat([[s, c0], [s + 0.012, 1200 * Math.log2(noteHz(e.notes[0]) / noteHz(h.notes[0]))]]) });
+          h.dur = Math.max(h.dur, s + e.dur);
+          e.__head = h;
+          return;
+        }
+      }
       else if (GUITAR[ty]) guitarArt(e, a, ty, rng);
 /*|
 @*/
@@ -1428,6 +1444,48 @@ export function buildBeatsKernel() {
             wet.connect(mix);
           }
           head = mix;
+/*@anthem{*/
+        } else if (t === 'wah') {
+          // a wah: a resonant bandpass swept between lo and hi — by the playing (an
+          // envelope follower: |x| → a 12 Hz lowpass → the centre), by an LFO
+          // (`rate`), or parked like a half-cocked pedal (`at`, 0..1).
+          const lo = f.lo || 350, hi = f.hi || 2200;
+          const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = f.q || 4;
+          bp.frequency.value = f.at != null ? lo * Math.pow(hi / lo, f.at) : f.rate ? (lo + hi) / 2 : lo;
+          if (f.at == null) {
+            const amt = ctx.createGain();
+            if (f.rate) { const lfo = ctx.createOscillator(); lfo.frequency.value = f.rate; lfo.start(); amt.gain.value = (hi - lo) / 2; lfo.connect(amt); }
+            else {
+              const rect = ctx.createWaveShaper(), curve = new Float32Array(1025);
+              for (let i = 0; i < 1025; i++) curve[i] = Math.abs(i / 512 - 1);
+              rect.curve = curve;
+              const sm = ctx.createBiquadFilter(); sm.type = 'lowpass'; sm.frequency.value = 12;
+              amt.gain.value = (hi - lo) * (f.sens || 10);
+              head.connect(rect); rect.connect(sm); sm.connect(amt);
+            }
+            amt.connect(bp.frequency);
+          }
+          const out = ctx.createGain(); out.gain.value = f.level == null ? 1.8 : f.level;
+          head.connect(bp); bp.connect(out); head = out;
+        } else if (t === 'rotary') {
+          // a rotary speaker: the horn (above 800 Hz) and the drum spin at their own
+          // speeds; each is a doppler (a swinging delay), a level swing and a pan
+          // swing. 'fast' is the tremolo, 'slow' the chorale.
+          const fast = f.speed !== 'slow', mix = ctx.createGain();
+          for (const [ty, rate, dep, am, pw] of [['highpass', fast ? 6.7 : 0.83, 0.00035, 0.35, 0.6], ['lowpass', fast ? 5.9 : 0.67, 0.0002, 0.2, 0.3]]) {
+            const xo = ctx.createBiquadFilter(); xo.type = ty; xo.frequency.value = 800; xo.Q.value = 0.5; head.connect(xo);
+            const dl = ctx.createDelay(0.01); dl.delayTime.value = 0.002;
+            const lfo = ctx.createOscillator(); lfo.frequency.value = f.rate ? f.rate * (ty === 'lowpass' ? 0.88 : 1) : rate; lfo.start();
+            const dg = ctx.createGain(); dg.gain.value = dep; lfo.connect(dg); dg.connect(dl.delayTime);
+            const g = ctx.createGain(); g.gain.value = 1 - am / 2;
+            const ag = ctx.createGain(); ag.gain.value = am / 2; lfo.connect(ag); ag.connect(g.gain);
+            xo.connect(dl); dl.connect(g);
+            const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+            if (pn) { const pg = ctx.createGain(); pg.gain.value = pw; lfo.connect(pg); pg.connect(pn.pan); g.connect(pn); pn.connect(mix); } else g.connect(mix);
+          }
+          head = mix;
+/*|
+@*/
 /*@fx{*/
         } else if (t === 'chorus' && f.model === 'bbd') {
           // the bucket-brigade ensemble: a triangle LFO (mode I 0.513 Hz, II

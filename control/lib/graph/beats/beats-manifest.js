@@ -28,7 +28,7 @@ const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring',
 const PRODUCTION_GESTURES = new Set(['riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch']);
 const RING_MATERIALS = new Set(['glass', 'metal', 'wood', 'cymbal', 'plate', 'bell']);
 const WAVES = new Set(['sine', 'square', 'triangle', 'sawtooth']);
-const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive', 'amp', 'compress', 'phaser', 'flanger', 'tape', 'autopan', 'crush', 'ringmod', 'vocoder']);
+const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive', 'amp', 'compress', 'phaser', 'flanger', 'tape', 'autopan', 'crush', 'ringmod', 'vocoder', 'wah', 'rotary']);
 // B7 harmony bus: a chordVoice track derives its notes from the shared
 // progression instead of a note contour. Modes = how it reads the chord.
 const CHORD_VOICE_MODES = new Set(['chord', 'strum', 'block', 'arp', 'root', 'upper']);
@@ -67,6 +67,8 @@ function checkChain(chain, where, errors) {
     if (f.type === 'flanger') { lim('rate', 0.01, 20, 'Hz'); lim('delay', 3, 20, 'ms'); lim('depth', 0, 5, 'ms'); lim('feedback', 0, 0.95); lim('mix', 0, 1); }
     if (f.type === 'tape') { lim('wow', 0, 1); lim('flutter', 0, 1); lim('drive', 0, 0.99); lim('bump', -12, 12, 'dB at 90 Hz'); lim('tone', 1000, 20000); }
     if (f.type === 'autopan') { lim('rate', 0.01, 20, 'Hz'); lim('depth', 0, 1); if (f.sync !== undefined && !/^\d+\/\d+[t.]?$/.test(f.sync)) errors.push(`${fw}.sync must be a note fraction like '1/4' ('1/8t', '1/8.')`); }
+    if (f.type === 'wah') { lim('lo', 100, 2000, 'Hz: the heel-down centre'); lim('hi', 400, 6000, 'Hz: the toe-down centre'); lim('q', 0.5, 20); lim('sens', 0, 40, 'how far the playing opens it'); lim('rate', 0.05, 20, 'Hz: an LFO instead of the playing'); lim('at', 0, 1, 'a parked pedal: 0 heel, 1 toe'); lim('level', 0, 4); }
+    if (f.type === 'rotary') { if (f.speed !== undefined && !['slow', 'fast'].includes(f.speed)) errors.push(`${fw}.speed must be 'slow' (chorale) or 'fast' (tremolo)`); lim('rate', 0.1, 12, 'Hz: the horn, overriding the speed'); }
     if (f.type === 'crush') { lim('bits', 1, 16, 'the quantizer; rate reduction is not built'); lim('mix', 0, 1); }
     if (f.type === 'ringmod') { lim('hz', 0.1, 10000, 'the carrier sine'); lim('mix', 0, 1); }
     if (f.type === 'vocoder') {
@@ -524,7 +526,7 @@ function checkEvent(ev, where, errors) {
 }
 export const ARTICULATIONS = ['legato', 'staccato', 'staccatissimo', 'tenuto', 'marcato', 'accent', 'sfz', 'fp', 'swell', 'pizz', 'col-legno', 'trem', 'roll', 'trill', 'gliss', 'port', 'mute', 'flutter-tongue'];
 // guitar and lead articulations (anthem styles).
-export const GUITAR_ARTICULATIONS = ['bend', 'slide', 'dive', 'vib', 'pm', 'harm', 'pop'];
+export const GUITAR_ARTICULATIONS = ['bend', 'slide', 'dive', 'vib', 'pm', 'harm', 'pop', 'hammer', 'pull', 'tap', 'nat', 'rake', 'rest'];
 const ART_SET = new Set([...ARTICULATIONS, ...GUITAR_ARTICULATIONS]);
 const GUITAR_SET = new Set(GUITAR_ARTICULATIONS);
 function checkGuitarArt(art, ty, where, errors) {
@@ -536,6 +538,8 @@ function checkGuitarArt(art, ty, where, errors) {
   if (art.pre !== undefined && typeof art.pre !== 'boolean') errors.push(`${w}.pre must be true | false (a pre-bend: the note starts bent, then releases)`);
   if (ty === 'harm') { if (art.k !== undefined && !(Number.isInteger(art.k) && art.k >= 2 && art.k <= 8)) errors.push(`${w}.k must be the partial that squeals, an integer in [2, 8] (default a seeded 3–5)`); lim('gain', 0, 30, 'dB of the squeal at the attack'); }
   if (ty === 'pm') lim('t60', 0.03, 0.5, 'seconds the muted string rings');
+  if (ty === 'nat' && art.k !== undefined && !(Number.isInteger(art.k) && art.k >= 2 && art.k <= 6)) errors.push(`${w}.k must be the harmonic, an integer in [2, 6] (2 = the 12th fret, 3 = the 7th, 4 = the 5th)`);
+  if (ty === 'rake' && art.n !== undefined && !(Number.isInteger(art.n) && art.n >= 1 && art.n <= 4)) errors.push(`${w}.n must be 1–4 muted grace notes raked into the note`);
   const v = ty === 'vib' ? art : art.vib;
   if (v !== undefined && !(Number.isFinite(v) || isObj(v))) errors.push(`${w}.vib must be a depth in cents or { depth?, rate?, delay? }`);
   else if (isObj(v)) { if (v.depth !== undefined && !inRange(v.depth, 0, 400)) errors.push(`${w}${ty === 'vib' ? '' : '.vib'}.depth must be cents in [0, 400]`); if (v.rate !== undefined && !inRange(v.rate, 0.5, 20)) errors.push(`${w}${ty === 'vib' ? '' : '.vib'}.rate must be Hz in [0.5, 20]`); if (v.delay !== undefined && !inRange(v.delay, 0, 10)) errors.push(`${w}${ty === 'vib' ? '' : '.vib'}.delay must be seconds in [0, 10]`); }

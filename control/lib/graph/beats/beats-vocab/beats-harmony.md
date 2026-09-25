@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-harmony", "name": "Harmony: chord symbols, numerals, a chord chart, key changes", "summary": "Write harmony the way pop and rock are written: chord symbols ('Am7', 'F/G', 'E5'), Roman numerals in a key ('IV', 'bVII', 'V/V'), voicings (close, open, spread, power, guitar) with nearest voice leading, a composition-level chord chart that parts voice on a rhythm (chords, power chords, root bass, octave bass, arpeggios), and `modulate` for the final-chorus key change. Stored compact, expanded at render.", "when": "a chord progression, a chord chart, play these chords, Am F C G, I V vi IV, the royal road progression, IV V iii vi, a minor-key i bVI bVII, a ii V i, voice leading, power chords, a strummed rhythm guitar part, a bass that follows the chords, octave bass, an arpeggio over the changes, a key change for the last chorus, modulate up a half step, transpose everything but the drums" }
+{ "id": "beats-harmony", "name": "Harmony: chord symbols, numerals, a chord chart, key changes", "summary": "Write harmony the way pop and rock are written: chord symbols ('Am7', 'F/G', 'E5'), Roman numerals in a key ('IV', 'bVII', 'V/V'), voicings (close, open, spread, power, guitar) with nearest voice leading, a composition-level chord chart that parts voice on a rhythm (chords, power chords, root bass, octave bass, arpeggios, a boom-chick or walking bass, the blues boogie, a banjo roll, the gypsy-jazz pompe, flamenco rasgueado, classical p-i-m-a), and `modulate` for the final-chorus key change. Stored compact, expanded at render.", "when": "a 12-bar blues, a walking bass, a boom-chick country bass, a walk-up, a boogie rhythm guitar, a banjo roll, the gypsy jazz pompe rhythm, flamenco rasgueado strums, a classical guitar arpeggio, a chord progression, a chord chart, play these chords, Am F C G, I V vi IV, the royal road progression, IV V iii vi, a minor-key i bVI bVII, a ii V i, voice leading, power chords, a strummed rhythm guitar part, a bass that follows the chords, octave bass, an arpeggio over the changes, a key change for the last chorus, modulate up a half step, transpose everything but the drums" }
 ---
 
 Harmony in a `beats-composition` is written as chords, not note lists. Every
@@ -74,10 +74,30 @@ A part with `chordVoice` plays the chart:
   - `octaves`: the root alternating with its octave. This is the driving
     picked bass.
   - `arp`: one voicing note per hit (`arp: 'up' | 'down' | 'updown'`).
+- **Roots modes** (each has its own default rhythm):
+  - `root-fifth`: the country boom-chick bass, root then fifth (half notes).
+    `walkup: true` turns the last hit before a new root into two quarters
+    stepping into it through the key's scale (G, A, B into C).
+  - `walk`: a walking bass in quarters. The root on each chord's first beat,
+    a step or half step into the next root on its last, chord tones and scale
+    steps between. Seeded per part: the same seed walks the same line. It
+    stays between E1 and G3.
+  - `boogie`: the blues rhythm-guitar dyads in 8ths: root with fifth, sixth,
+    flat seventh, sixth. Put it under a `shuffle`.
+  - `boogie-walk`: the boogie bass line in 8ths: root, third, fifth, sixth,
+    flat seventh, sixth, fifth, third.
+  - `roll`: a banjo forward roll in 8ths over the root, third, fifth and octave
+    (`octave` moves it, default 3).
+  - `pompe`: gypsy jazz rhythm guitar in quarters. A short low stroke on 1 and
+    3 and a choked full chord on 2 and 4 (the accent). Guitar voicing.
+  - `rasgueado`: the flamenco fan. Each hit is 3–5 fast strokes (`strokes`,
+    default 4) with the last one held. Guitar voicing.
+  - `pima`: classical arpeggio in 8ths. The thumb on the bass, then the
+    fingers up the chord and back (p-i-m-a-m-i).
 - **Other fields:**
   - `rhythm`: a name, or velocities per sixteenth that wrap. The names are
-    `whole`, `half`, `quarter`, `8ths`, `16ths`, `offbeat`, `gallop` and
-    `push`.
+    `whole`, `half`, `quarter`, `8ths`, `16ths`, `offbeat`, `gallop`,
+    `push` and `backbeat` (2 and 4: the country chick, the bluegrass chop).
   - `hold`: how much of the gap to the next hit a hit holds (default 0.92).
     A row `gate` is still the trance gate, and `duck` still pumps.
   - `art`: an articulation on every hit (`'pm'` chugs, `'staccato'` stabs).
@@ -122,6 +142,13 @@ from `at` on. Entries add up.
 | the Dorian vamp | i–IV | a hypnotic two-chord groove |
 | the pre-chorus climb | IV–V–IV–V or ii–iii–IV–V | builds; lands on the chorus |
 | the push | IV–V/V–V | a secondary dominant that shoves into the chorus |
+| the twelve-bar blues | I7 I7 I7 I7 · IV7 IV7 I7 I7 · V7 IV7 I7 V7 | the blues form; bars 11–12 are the turnaround |
+| the quick-change twelve-bar | I7 IV7 I7 I7 · IV7 IV7 I7 I7 · V7 IV7 I7 V7 | the same, with a lift in bar 2 |
+| the eight-bar blues | I7 V7 IV7 IV7 · I7 V7 I7 V7 | shorter, gospel-leaning |
+| the minor blues | i7 i7 i7 i7 · iv7 iv7 i7 i7 · bVI7 V7 i7 V7 | dark and slow |
+| the country three-chord | I I IV IV · V V I I (or I IV I V) | honky-tonk and bluegrass; the V7 turnaround home |
+| the gypsy minor swing | i6 i6 iv6 iv6 · V7 V7 i6 i6 | minor 6ths and a dominant: the hot-club vamp |
+| the Andalusian cadence | iv–bIII–bII–I (in a Phrygian key: Am G F E) | flamenco; the major I is the home chord |
 
 Pair a chart with a groove (card `beats-grooves`) and the whole backing track
 is a few lines. See `beats-composition` for style recipes by trait.

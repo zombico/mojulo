@@ -72,6 +72,7 @@ const GM_PROGRAM = {
   supersawLead: 81, raveStab: 16, wobbleBass: 38, fmBass: 38, fmKeys: 5, fmBrass: 62, fmOrgan: 17, fmBell4: 14,
   // anthem styles
   guitarDropChug: 30, bassPick: 34, bassSlap: 36, orchHit: 55,
+  guitarTwang: 27, pedalSteel: 26, banjo: 105, bassUpright: 32, guitarClassical: 24, guitarFlamenco: 24, guitarGypsy: 25, harmonica: 22,
 };
 
 // drum-shaped patches → GM percussion notes (channel 10).
