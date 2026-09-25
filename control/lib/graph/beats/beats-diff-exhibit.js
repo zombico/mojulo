@@ -27,6 +27,7 @@
 
 import { emitBeatsKernel, BEATS_KERNEL_FEATURES } from './beats-kernel.js';
 import { beatsFeatures, pagePatches } from './beats-features.js';
+import { expandBeatsManifest } from './beats-authoring.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -213,10 +214,11 @@ const REALIZER_ERA = REALIZER_FIDELITY
   .replace("glideFrom: tr && tr.glide ? glides[cursor ? 1 : 0][ei] : null });", "glideFrom: tr && tr.glide ? glides[cursor ? 1 : 0][ei] : null, pp: ev.pp });")
   .replace("    const patch = KERNEL.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);\n    if (!patch) continue;",
     "    const got = KERNEL.resolvePatch(PATCHES, { patch: e.patch, patchParams: row && row.patchParams }, e.note);\n    if (!got) continue;\n    const patch = e.pp ? { ...got, ...e.pp } : got;");
-const ERA = new Set(['ev', 'score', 'orch', 'perc', 'va', 'fx']);
+const ERA = new Set(['ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem']);
 const FIDELITY = ['x', 'voice', 'strings', 'mix', 'sfx'];
 
 export function emitBeatsDiff(variants, opts = {}) {
+  variants = variants.map((v) => { const m = expandBeatsManifest(v.manifest); return m === v.manifest ? v : Object.assign(v, { manifest: m }); });
   const base = variants[0];
   for (const v of variants) v.baseRef = base.ref;
   const title = opts.title || 'The hearable diff';
@@ -313,7 +315,7 @@ export function emitBeatsDiff(variants, opts = {}) {
 <script>
 const MANIFESTS = ${JSON.stringify(MANIFESTS)};
 const PATCHES = ${JSON.stringify(pagePatches(...variants.map((v) => v.manifest)))};
-const KERNEL = (${emitBeatsKernel(feats.some((f) => ERA.has(f)) ? BEATS_KERNEL_FEATURES : feats.length ? FIDELITY : [])})();
+const KERNEL = (${emitBeatsKernel(feats.some((f) => ERA.has(f)) ? BEATS_KERNEL_FEATURES.filter((f) => f !== 'anthem' || feats.includes(f)) : feats.length ? FIDELITY : [])})();
 let ctx = null, engine = null, analyser = null, playing = false;
 let activeRef = ${JSON.stringify(base.ref)};
 

@@ -15,12 +15,14 @@
 import { PATCHES, LEGACY_PATCH_NAMES } from './audio-patches.js';
 import { INSTRUMENTS } from './instruments.js';
 import { IMPLIES } from './beats-kernel.js';
+import { expandBeatsManifest } from './beats-authoring.js';
 
 const LEGACY = new Set(LEGACY_PATCH_NAMES);
 const AMBIENT_DEFAULT = { harmony: 'pad', roots: 'bassMono', melody: 'sinePluck', pulse: 'kick' };
 const VOICE_KEYS = ['vary', 'width', 'curve', 'keyTrack', 'decayTrack', 'drift', 'breath', 'pitch', 'kit'];
 const STRING_KEYS = ['tune', 'ringT60', 'stiffness'];
 const NEW_MATERIALS = new Set(['cymbal', 'plate', 'bell']);
+const GUITAR_ARTS = new Set(['bend', 'slide', 'dive', 'vib', 'pm', 'harm', 'pop']);
 
 function rowsOf(m) {
   return (m && (m.channels || m.parts || m.tracks)) || [];
@@ -48,8 +50,10 @@ function voiceNeeds(p) {
   return !!(p.filterEnv && p.velToFilter != null);
 }
 
+const PRODUCTION = new Set(['riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch']);
 function gestureNeedsSfx(g) {
   if (!g || typeof g !== 'object') return false;
+  if (PRODUCTION.has(g.type)) return true;
   if (g.type === 'tone') return true;
   if (g.type === 'thump') return g.mass !== undefined;
   if (g.type === 'burst') return g.bandpass !== undefined || g.filterEnv !== undefined;
@@ -61,6 +65,7 @@ function gestureNeedsSfx(g) {
 
 function addGestures(set, list) {
   if (Array.isArray(list) && list.some(gestureNeedsSfx)) set.add('sfx');
+  if (Array.isArray(list) && list.some((g) => g && PRODUCTION.has(g.type))) set.add('anthem');
 }
 
 // the kernel's `scored` test, mirrored: a composition that uses the score
@@ -81,15 +86,22 @@ function artsOf(m) {
 function collect(m, set) {
   if (!m || typeof m !== 'object') return;
   if (m.room || m.master) set.add('mix');
+  if ((m.room && m.room.model === 'plate') || (m.master && m.master.style)) set.add('anthem');
   if (scored(m)) set.add('score');
+  if (m.kind === 'beats-composition' && Array.isArray(m.sweeps) && m.sweeps.length) set.add('anthem');
   const arts = artsOf(m);
   if (arts.length) set.add('orch');
-  if (arts.includes('pizz')) set.add('strings');
+  if (arts.includes('pizz') || arts.includes('pm')) set.add('strings');
+  if (arts.some((a) => GUITAR_ARTS.has(a))) set.add('anthem');
   if (m.a4) set.add('orch');
   if (m.stutter || (m.room && (m.room.model === 'gated' || m.room.model === 'reverse'))) set.add('fx');
   for (const row of rowsOf(m)) {
     if (!row || typeof row !== 'object') continue;
+    // a composition cue part: the transport fires its gestures (each hit a variant).
+    if (m.kind === 'beats-composition' && (row.cue || row.gesture)) { set.add('anthem'); if (row.vary !== false) set.add('sfx'); }
     if (row.pan != null || row.send) set.add('mix');
+    if (row.trim) set.add('anthem');
+    if ((row.chain || []).some((f) => f && f.type === 'reverb' && f.model === 'plate')) { set.add('anthem'); set.add('mix'); }
     if (row.desk) { set.add('mix'); set.add('orch'); }
     if (row.players) set.add('orch');
     if (row.choke) set.add('perc');
@@ -119,7 +131,7 @@ function collect(m, set) {
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));
@@ -128,7 +140,7 @@ const sorted = (set) => {
 /** Kernel features a beats manifest needs (normalized or not). [] = the 2.1 kernel. */
 export function beatsFeatures(manifest) {
   const set = new Set();
-  collect(manifest, set);
+  collect(expandBeatsManifest(manifest), set);
   return sorted(set);
 }
 
@@ -136,7 +148,7 @@ export function beatsFeatures(manifest) {
 export function audioFeatures(audio) {
   const set = new Set();
   if (!audio || typeof audio !== 'object') return [];
-  collect(audio.soundtrack, set);
+  collect(expandBeatsManifest(audio.soundtrack), set);
   for (const list of Object.values(audio.cues || {})) addGestures(set, list);
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);
   addGestures(set, audio.jump && audio.jump.land);
@@ -154,6 +166,6 @@ export function audioFeatures(audio) {
  */
 export function pagePatches(...manifests) {
   const want = new Set(LEGACY_PATCH_NAMES);
-  for (const m of manifests) for (const row of rowsOf(m)) if (row) for (const n of patchNamesOf(row)) want.add(n);
+  for (const m of manifests) for (const row of rowsOf(expandBeatsManifest(m))) if (row) for (const n of patchNamesOf(row)) want.add(n);
   return Object.fromEntries(Object.entries(PATCHES).filter(([k]) => want.has(k)));
 }

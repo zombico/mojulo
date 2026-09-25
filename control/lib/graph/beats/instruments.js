@@ -168,6 +168,18 @@ Object.assign(INSTRUMENTS, {
   'fm-bell': { patch: 'fmBell4', chain: [{ type: 'reverb', wet: 0.3, decay: 3 }], feel: 'robotic' },
 });
 
+// anthem styles: the band. The drop-tuned rhythm wall runs hotter than
+// rock-guitar and cuts lower; the basses carry their own drive.
+Object.assign(INSTRUMENTS, {
+  'drop-guitar': { patch: 'guitarDropChug', chain: [{ type: 'amp', gain: 46, bias: 0.2, presence: 5, cut: 4800 }, { type: 'reverb', wet: 0.05, decay: 0.9 }], feel: 'palm-mute' },
+  'picked-bass': { patch: 'bassPick', chain: [{ type: 'drive', amount: 0.22, tone: 3200 }], feel: { jitterTime: 0.004, jitterVel: 0.1 } },
+  'slap-bass': { patch: 'bassSlap', chain: [{ type: 'drive', amount: 0.12, tone: 5200 }], feel: { jitterTime: 0.004, jitterVel: 0.14 } },
+  // the 90s rock kit: parallel compression, then a short bright plate.
+  'drum-kit-90s-rock': { patch: 'rockKit90s', chain: [{ type: 'compress', parallel: 0.45, threshold: -30, ratio: 8, attack: 0.002, release: 0.08 }, { type: 'reverb', model: 'plate', decay: 1.3, predelay: 0.006, wet: 0.24 }], feel: 'rock-drummer' },
+  // the orchestra hit into a hall (a section change's exclamation mark).
+  'orchestra-hit': { patch: 'orchHit', chain: [{ type: 'reverb', model: 'room2', decay: 2.8, predelay: 0.02, wet: 0.35 }], feel: { strum: 0.004 } },
+});
+
 // ── playable ranges (orchestra and era) — sounding pitch, lowest–highest.
 // Advice only: validation warns on a note outside, the note still plays. A
 // range is shelf data beside the instrument; it never reaches a manifest.
@@ -179,6 +191,7 @@ const RANGE = {
   flute: ['C4', 'C7'], clarinet: ['D3', 'Bb6'], oboe: ['Bb3', 'A6'], bassoon: ['Bb1', 'E5'], harp: ['B0', 'G#7'],
   glockenspiel: ['G5', 'C8'], xylophone: ['F4', 'C8'], marimba: ['C2', 'C7'], vibraphone: ['F3', 'F6'],
   'tubular-bells': ['C4', 'F5'], timpani: ['D2', 'C4'], crotales: ['C6', 'C8'],
+  'drop-guitar': ['B1', 'E6'], 'picked-bass': ['B0', 'G4'], 'slap-bass': ['B0', 'G4'],
 };
 for (const [name, r] of Object.entries(RANGE)) {
   for (const n of [name, name + '-2']) if (INSTRUMENTS[n]) INSTRUMENTS[n].range = r;

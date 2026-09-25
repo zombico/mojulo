@@ -373,6 +373,27 @@ Object.assign(PATCHES, {
   fmBell4: { voice: 'fm4', algorithm: 5, attack: 0.001, decay: 0.05, sustain: 1, release: 2, volume: -16, ops: [{ ratio: 1, level: 1, decay: 3.5, sustain: 0.05, release: 2 }, { ratio: 3.5, level: 3, decay: 1.5, sustain: 0.05 }, { ratio: 2.02, level: 0.6, decay: 2.5, sustain: 0.05, release: 2 }, { ratio: 5.19, level: 2, decay: 0.8, sustain: 0.02 }] },
 });
 
+// ── anthem styles: the band's guitars and basses ─────────────────────────────
+// A drop-tuned chug (dual pluck, tight lows: the highpass keeps the palm-muted
+// 16ths from blooming), a picked bass (a bright pick on a long string) and a
+// slap bass (brighter still; the `pop` articulation adds its harmonic snap).
+Object.assign(PATCHES, {
+  guitarDropChug: { voice: 'string', pluckDamping: 0.5, pluckDecay: 0.9978, pick: 0.08, pluckDetune: 7, attack: 0.002, decay: 0.05, sustain: 1, release: 0.12, volume: -13, filter: { mode: 'highpass', freq: 75, q: 0.7 } },
+  bassPick: { voice: 'string', pluckDamping: 0.3, pluckDecay: 0.9993, pick: 0.04, attack: 0.002, decay: 0.08, sustain: 1, release: 0.12, volume: -8, maxRing: 5, attackNoise: { mode: 'bandpass', level: -18, tone: 2400, q: 0.8, decay: 0.012 } },
+  // the orchestra hit, synthesized: a detuned saw stack (brass + strings) with a
+  // fast filter fall, a sub and a noise bloom (the timpani and the room), a
+  // slight pitch drop, 250 ms — play it as a stacked chord; the instrument adds a hall.
+  orchHit: { voice: 'osc', wave: 'sawtooth', unison: 5, detune: 16, width: 0.7, attack: 0.003, decay: 0.26, sustain: 0, release: 0.2, curve: 'exp', volume: -12, filter: { mode: 'lowpass', q: 1.2 }, filterEnv: { from: 7000, to: 900, decay: 0.3 }, bend: [1, 0.97, 0.04, 0.35], sub: { level: -8, octave: 1 }, noise: { level: -20 }, attackNoise: { mode: 'bandpass', level: -4, tone: 700, q: 0.6, decay: 0.14 } },
+  bassSlap: { voice: 'string', pluckDamping: 0.18, pluckDecay: 0.9991, pick: 0, attack: 0.001, decay: 0.08, sustain: 1, release: 0.1, volume: -9, maxRing: 5, attackNoise: { mode: 'bandpass', level: -12, tone: 3000, q: 0.8, decay: 0.015 } },
+});
+
+// the 90s rock kit (anthem styles): tighter and brighter than the arena kit —
+// the acoustic kick and hats, the arena's cracking snare and bent toms. The
+// instrument puts the whole kit on a short plate (less room, more sheen).
+Object.assign(PATCHES, {
+  rockKit90s: { kit: { 35: 'kickAcoustic', 36: 'kickAcoustic', 37: 'snareArenaRim', 38: 'snareArena', 40: 'snareArenaRim', 41: 'tomArenaFloor', 43: 'tomArenaLo', 45: 'tomArenaLo', 47: 'tomArenaMid', 48: 'tomArenaMid', 50: 'tomArenaHi', 42: 'hatAcoustic', 44: 'hatAcoustic', 46: 'hatAcousticOpen', 49: 'crashArena', 57: 'crashArena', 55: 'crashArena', 52: 'chinaArena', 51: 'rideAcoustic', 53: 'rideBellArena', 59: 'rideAcoustic' }, chokes: HATS },
+});
+
 export function getPatch(name, overrides) {
   const base = PATCHES[name];
   if (!base) {

@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-instruments", "name": "Instruments, guitars, keyboards & feel (B6)", "summary": "The layered instrument model: named instruments (electric-guitar, acoustic-guitar, rock-guitar, rock-lead, piano, rhodes, organ, …) that expand to patch + color chain + performance feel; the Karplus-Strong string voice and its guitar/keyboard patches; the body, drive, and amp chain effects; and feel presets (strum, palm-mute, fingerpick, keys) that humanize a part so it stops sounding like MIDI.", "when": "add a guitar (acoustic / electric / distorted / nylon / lead), metal or hard rock, a heavy riff, a rhythm guitar with a lead over it, high-gain amp distortion, a drum kit / acoustic drums / toms / ride / crash / 808 hats, a grand piano in tune, a string section that doesn't wobble in lockstep, brass that gets brighter when played harder, portamento / glide / slides, stereo width and panning, add a piano or keyboard (piano / rhodes / e-piano / harpsichord / clavinet / celesta / music box / organ), pick an instrument by name, make a part sound played rather than quantized, strum chords, palm-muted or fingerpicked feel, dial in overdrive/distortion, warm a plucked tone with body resonance, velocity-sensitive brightness, humanize a beats-composition or beats-pattern" }
+{ "id": "beats-instruments", "name": "Instruments, guitars, keyboards & feel (B6)", "summary": "The layered instrument model: named instruments (electric-guitar, acoustic-guitar, rock-guitar, rock-lead, piano, rhodes, organ, …) that expand to patch + color chain + performance feel; the Karplus-Strong string voice and its guitar/keyboard patches; the body, drive, and amp chain effects; and feel presets (strum, palm-mute, fingerpick, keys) that humanize a part so it stops sounding like MIDI.", "when": "add a guitar (acoustic / electric / distorted / nylon / lead), metal or hard rock, a heavy riff, a rhythm guitar with a lead over it, high-gain amp distortion, a drum kit / acoustic drums / toms / ride / crash / 808 hats, a grand piano in tune, a string section that doesn't wobble in lockstep, brass that gets brighter when played harder, portamento / glide / slides, stereo width and panning, add a piano or keyboard (piano / rhodes / e-piano / harpsichord / clavinet / celesta / music box / organ), pick an instrument by name, make a part sound played rather than quantized, strum chords, palm-muted or fingerpicked feel, dial in overdrive/distortion, warm a plucked tone with body resonance, velocity-sensitive brightness, humanize a beats-composition or beats-pattern, drop-tuned chugging guitar, nu-metal riff, picked bass, slap bass, an orchestra hit / orch stab" }
 ---
 
 More families live in their own manuals: `beats-orchestra` (woodwinds, harp,
@@ -206,3 +206,15 @@ use `notes` (chords hit several pieces: `["C2","F#2"]`).
 Mix and export blocks (`room` + `send`, `master`, `export`) are on the
 composition card.
 
+## The band (anthem styles)
+
+| instrument | what it is |
+|---|---|
+| `drop-guitar` | A drop-tuned chug: dual pluck, tight lows, an amp hotter than `rock-guitar`. Pair it with `art: 'pm'` and `power: true`. |
+| `picked-bass` | A bright pick on a long string with a little drive. The driving 8ths and octave fills (chart mode `octaves`). |
+| `slap-bass` | Brighter still; `art: 'pop'` snaps. |
+| `orchestra-hit` | The classic orchestra hit, synthesized: a detuned saw stack with a fast filter fall, a sub, a noise bloom and a slight pitch drop, 250 ms, into a hall. Play it as a stacked chord (`{ at, chord: 'i', voicing: 'spread' }`) on section changes. |
+| `drum-kit-90s-rock` | The tight, bright 90s kit on a plate (card `beats-percussion`). |
+
+Guitar articulations (bends, slides, dives, vibrato, palm mute, pinch
+harmonics) are in `beats-articulations`.

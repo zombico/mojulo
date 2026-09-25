@@ -33,6 +33,7 @@
  */
 
 import { buildBeatsKernel } from './beats-kernel.js';
+import { expandBeatsManifest } from './beats-authoring.js';
 import { PATCHES } from './audio-patches.js';
 import { authorSyllable } from './beats-song-lyrics.js';
 import { renderParametricNote } from './beats-song-voice-parametric.js';
@@ -172,7 +173,7 @@ function renderSingMono(e, sampleRate) {
 // Conservative end time for one gesture-op list (cuePlan output).
 function opsEnd(ops) {
   let end = 0;
-  for (const op of ops) end = Math.max(end, op.at + (op.dur || op.decay || 0.05) + (op.release || 0) + 0.15);
+  for (const op of ops) end = Math.max(end, op.at + (op.dur || op.decay || op.len || 0.05) + (op.release || 0) + 0.15);
   return end;
 }
 
@@ -183,6 +184,9 @@ function opsEnd(ops) {
  */
 export function renderBeatsPlan(manifest, opts = {}) {
   if (!manifest || typeof manifest !== 'object') throw new Error('beats-render: manifest must be an object');
+  // the compact authoring layer (anthem styles) lowers to the literal recipe; a
+  // recipe without it is this same object.
+  manifest = expandBeatsManifest(manifest);
   const kind = manifest.kind;
 
   if (kind === 'beats-ambient') {
@@ -213,9 +217,20 @@ export function renderBeatsPlan(manifest, opts = {}) {
 
     // Instrument parts go through the kernel's own event derivation, unchanged.
     const flat = kernel.compositionEvents({ ...manifest, parts: instrParts });
-    const withPatch = flat.events.map((ev) => {
+    // cue parts (anthem styles) fire their gestures, numbered like the transport's hits.
+    const cueAt = instrParts.some((p) => p.cue || p.gesture) ? kernel.cueHits(flat.events, instrParts) : null;
+    const cueEntries = [];
+    const withPatch = [];
+    flat.events.forEach((ev, ei) => {
       const part = instrParts.find((p) => p.name === ev.channel);
-      return { ...ev, patch: (part && part.patch) || 'sinePluck', part };
+      if (cueAt && part && (part.cue || part.gesture)) {
+        const cue = { type: 'cue', t: ev.t, channel: ev.channel, gestures: part.cue || [part.gesture], vel: ev.vel };
+        if (cueAt[ei]) cue.variant = cueAt[ei];
+        cueEntries.push(cue);
+        withPatch.push({ ...ev, notes: [], part }); // keeps every event's index (feel seeds, glide)
+        return;
+      }
+      withPatch.push({ ...ev, patch: (part && part.patch) || 'sinePluck', part });
     });
     const entries = noteEntries(withPatch, {
       seed: manifest.seed,
@@ -223,6 +238,7 @@ export function renderBeatsPlan(manifest, opts = {}) {
       seedIndexFor: (ei) => ei,
       glideFor: glideLookup(instrParts, flat.events),
     });
+    if (cueEntries.length) entries.push(...cueEntries);
 
     // Voice parts: each event is a sung syllable. Lyrics align 1:1 with the part's
     // events (in declared order — NOT the cross-part sort), padded/truncated so a
@@ -388,6 +404,60 @@ export function integratedLufs(channels, sr) {
   return lk(gated.reduce((a, b) => a + b, 0) / gated.length);
 }
 
+// ── master styles at export (anthem styles) ───────────────────────────────────
+// A recipe `master.style` plays the era's bus live (the kernel's glue → clip →
+// limiter → air); the WAV export then masters to the style's loudness, the way
+// the era's records were: a gain into a look-ahead brickwall limiter, searched
+// until the integrated loudness hits the target with the true peak under the
+// ceiling. Export-only, like normalize, and deterministic (no dice at all).
+export const STYLE_TARGETS = { 'loud-00s': { lufs: -8, peak: -0.3 }, 'bright-90s': { lufs: -11, peak: -1 } };
+function limitTo(channels, gainDb, ceiling, sr) {
+  const g0 = Math.pow(10, gainDb / 20), n = channels[0].length, L = Math.max(1, Math.round(sr * 0.0015));
+  const need = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let a = 0; for (const y of channels) a = Math.max(a, Math.abs(y[i] * g0)); need[i] = a > ceiling ? ceiling / a : 1; }
+  // min over [i − L, i + L] (a monotonic deque), then a moving average over L + 1: at a peak
+  // every averaged value is ≤ what it needs, so the peak lands at or under the ceiling.
+  const mn = new Float32Array(n), dq = new Int32Array(n + 2 * L + 2);
+  let h = 0, t = 0;
+  for (let j = 0; j < n + L; j++) {
+    if (j < n) { while (t > h && need[dq[t - 1]] >= need[j]) t--; dq[t++] = j; }
+    const i = j - L;
+    if (i >= 0) { while (dq[h] < i - L) h++; mn[i] = need[dq[h]]; }
+  }
+  const out = channels.map(() => new Float32Array(n));
+  const half = L >> 1, rel = 1 - Math.exp(-1 / (sr * 0.06));
+  let sum = 0, g = 1;
+  for (let i = -half; i < n + half; i++) {
+    if (i + half < n) sum += mn[i + half];
+    if (i - half - 1 >= 0) sum -= mn[i - half - 1];
+    if (i < 0 || i >= n) continue;
+    const cnt = Math.min(n - 1, i + half) - Math.max(0, i - half) + 1;
+    const want = sum / cnt;
+    g = want < g ? want : g + (want - g) * rel;
+    for (let c = 0; c < channels.length; c++) out[c][i] = channels[c][i] * g0 * g;
+  }
+  return out;
+}
+export function masterLoudness(channels, sr, { lufs, peak }) {
+  let ceilingDb = peak - 0.6, best = null;
+  for (let pass = 0; pass < 4; pass++) {
+    const ceiling = Math.pow(10, ceilingDb / 20);
+    let lo = -30, hi = 30, y = null, got = null;
+    for (let it = 0; it < 18; it++) {
+      const mid = (lo + hi) / 2;
+      y = limitTo(channels, mid, ceiling, sr);
+      got = integratedLufs(y, sr);
+      if (Math.abs(got - lufs) < 0.05) break;
+      if (got < lufs) lo = mid; else hi = mid;
+    }
+    const tp = truePeakDb(y);
+    best = { data: y, lufs: got, truePeakDb: tp, gainDb: (lo + hi) / 2 };
+    if (tp <= peak) break;
+    ceilingDb -= tp - peak + 0.05;
+  }
+  return best;
+}
+
 // Encode at a chosen depth: 16/24-bit PCM (optionally TPDF-dithered from a
 // seeded mulberry32) or 32-bit IEEE float (with the fact chunk non-PCM wants).
 export function encodeWav(audioBuffer, { bitDepth = 16, dither = false, seed = 1 } = {}) {
@@ -439,6 +509,7 @@ export async function renderBeatsOffline(manifest, opts = {}) {
  * the 2.1 route (chain → channel gain) stands in, which is what they build.
  */
 export async function renderWithKernel(K, manifest, opts = {}) {
+  manifest = expandBeatsManifest(manifest);
   const sampleRate = opts.sampleRate === undefined ? 44100 : opts.sampleRate;
   if (sampleRate !== 44100 && sampleRate !== 48000) {
     throw new Error('beats-render: `sampleRate` must be 44100 or 48000');
@@ -472,6 +543,8 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     let input;
     if (engine.routeChannel) input = engine.routeChannel(ch, manifest);
     else { const built = engine.buildChain(ch.chain, manifest.seed, manifest.bpm); built.output.connect(engine.channelGain(ch.name)); input = built.input; }
+    // section sweeps (anthem styles): the row's swept nodes sit at its chain head.
+    if (engine.sweepNodes) input = engine.sweepNodes(ch, manifest, input);
     let dest = input;
     if (ch.tone !== undefined) {
       const tn = ctx.createBiquadFilter();
@@ -485,6 +558,7 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     if (ch.transpose) transposeFor[ch.name] = Math.pow(2, ch.transpose / 12);
   }
 
+  if (engine.startSweeps) engine.startSweeps(manifest, 0);
   // a4 (orchestral 442): the reference pitch, as the live transport applies it.
   const a4r = manifest.a4 ? manifest.a4 / 440 : 1;
   for (const e of plan.entries) {
@@ -524,6 +598,15 @@ export async function renderWithKernel(K, manifest, opts = {}) {
   const ex = { ...(manifest.export || {}) };
   for (const k of ['bitDepth', 'dither', 'normalize']) if (opts[k] !== undefined) ex[k] = opts[k];
   let meta = plan.meta;
+  const style = manifest.master && STYLE_TARGETS[manifest.master.style];
+  let out = null;
+  if (style && ex.normalize === undefined) {
+    const data = [];
+    for (let c = 0; c < rendered.numberOfChannels; c++) data.push(rendered.getChannelData(c));
+    const m = masterLoudness(data, sampleRate, style);
+    out = { numberOfChannels: data.length, sampleRate, length: data[0].length, getChannelData: (c) => m.data[c] };
+    meta = { ...meta, export: { style: manifest.master.style, gainDb: +m.gainDb.toFixed(2), lufs: +m.lufs.toFixed(2), truePeakDb: +m.truePeakDb.toFixed(2) } };
+  }
   if (ex.normalize) {
     const data = [];
     for (let c = 0; c < rendered.numberOfChannels; c++) data.push(rendered.getChannelData(c));
@@ -539,7 +622,7 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     meta = { ...meta, export: { gainDb: +gainDb.toFixed(2), truePeakDb: +(tp + gainDb).toFixed(2), ...(lufs != null ? { lufs: +(lufs + gainDb).toFixed(2) } : {}), ...(want != null && gainDb < want - 0.01 ? { ceilingLimited: true } : {}) } };
   }
   return {
-    wav: encodeWav(rendered, { bitDepth: ex.bitDepth || 16, dither: !!ex.dither, seed: manifest.seed || 1 }),
+    wav: encodeWav(out || rendered, { bitDepth: ex.bitDepth || 16, dither: !!ex.dither, seed: manifest.seed || 1 }),
     durationSeconds: total,
     sampleRate,
     channels: rendered.numberOfChannels,

@@ -37,6 +37,7 @@
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind } from './beats-manifest.js';
 import { emitBeatsKernel } from './beats-kernel.js';
+import { expandBeatsManifest } from './beats-authoring.js';
 import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 
@@ -126,7 +127,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     // a world soundtrack should loop even when authored as a one-shot score
     // (ambient and pattern kinds loop by construction).
     if (recipe.kind === 'beats-composition') recipe = { ...recipe, loop: true };
-    out.soundtrack = recipe;
+    out.soundtrack = expandBeatsManifest(recipe);
   }
 
   if (audioSpec.bindings) {

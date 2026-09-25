@@ -18,11 +18,14 @@
 
 import { PATCHES, TABLES } from './audio-patches.js';
 import { INSTRUMENTS, FEEL_PRESETS, resolveInstrument, resolveFeel, rangeOfPatch } from './instruments.js';
+import { expandBeatsManifest, checkAuthoring } from './beats-authoring.js';
 
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
-const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone']);
+const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch']);
+// production gestures (anthem styles): the song's transitions.
+const PRODUCTION_GESTURES = new Set(['riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch']);
 const RING_MATERIALS = new Set(['glass', 'metal', 'wood', 'cymbal', 'plate', 'bell']);
 const WAVES = new Set(['sine', 'square', 'triangle', 'sawtooth']);
 const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive', 'amp', 'compress', 'phaser', 'flanger', 'tape', 'autopan', 'crush', 'ringmod', 'vocoder']);
@@ -87,11 +90,12 @@ function checkChain(chain, where, errors) {
 // Audio fidelity bus + export blocks (all opt-in; absent = today's bus/WAV).
 const inRange = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
 function checkRoomShape(r, where, errors) {
-  if (r.model !== undefined && !['room2', 'noise', 'gated', 'reverse'].includes(r.model)) errors.push(`${where}.model must be 'room2' (pre-delay, early reflections, highs die first), 'noise' (the classic tail), 'gated' (a room cut at \`gate\` s) or 'reverse' (the impulse backwards)`);
+  if (r.model !== undefined && !['room2', 'noise', 'gated', 'reverse', 'plate'].includes(r.model)) errors.push(`${where}.model must be 'room2' (pre-delay, early reflections, highs die first), 'noise' (the classic tail), 'gated' (a room cut at \`gate\` s), 'reverse' (the impulse backwards) or 'plate' (dense and bright from the first millisecond: the 90s snare and vocal)`);
   if (r.gate !== undefined && !inRange(r.gate, 0.03, 2)) errors.push(`${where}.gate must be seconds in [0.03, 2] (where the gated room is cut)`);
   if (r.predelay !== undefined && !inRange(r.predelay, 0, 0.2)) errors.push(`${where}.predelay must be seconds in [0, 0.2]`);
   if (r.damp !== undefined && !inRange(r.damp, 0, 1)) errors.push(`${where}.damp must be in [0, 1] (how fast the highs die)`);
 }
+export const MASTER_STYLES = ['loud-00s', 'bright-90s'];
 function checkBus(m, rows, errors) {
   if (m.room !== undefined) {
     if (!isObj(m.room)) errors.push('room must be an object { decay?, model?, predelay?, damp?, level? } (one shared reverb; rows join it with `send`)');
@@ -108,8 +112,9 @@ function checkBus(m, rows, errors) {
   });
   if (m.master !== undefined) {
     const ms = m.master;
-    if (!isObj(ms)) errors.push('master must be an object { limit?, glue? }');
+    if (!isObj(ms)) errors.push('master must be an object { limit?, glue?, style? }');
     else {
+      if (ms.style !== undefined && !MASTER_STYLES.includes(ms.style)) errors.push(`master.style must be one of: ${MASTER_STYLES.join(', ')} (the era's bus: 'loud-00s' masters the export to about −8 LUFS, 'bright-90s' to about −11)`);
       if (ms.limit !== undefined && !inRange(ms.limit, -24, 0)) errors.push('master.limit must be dBFS in [-24, 0] (the limiter threshold)');
       if (ms.glue !== undefined) {
         const g = ms.glue, lim = { threshold: [-60, 0], ratio: [1, 20], knee: [0, 40], attack: [0, 1], release: [0, 1] };
@@ -343,6 +348,7 @@ function checkMix(node, where, errors) {
   if (node.roomMix !== undefined && !inRange(node.roomMix, 0, 1)) {
     errors.push(`${where}.roomMix must be in [0, 1] (how big the room is: the wet of the row's last reverb)`);
   }
+  if (node.trim !== undefined && !inRange(node.trim, -40, 12)) errors.push(`${where}.trim must be dB in [-40, 12] (a gain at the row's chain head)`);
   if (node.desk !== undefined && node.desk !== 'front' && node.desk !== 'back') {
     errors.push(`${where}.desk must be 'front' or 'back' (depth: back is darker, later and wetter)`);
   }
@@ -409,6 +415,17 @@ function checkGestures(list, where, errors) {
       return;
     }
     if (g.type === 'sweep') { if (g.from != null) checkNote(g.from, `${where}[${i}].from`, errors); if (g.to != null) checkNote(g.to, `${where}[${i}].to`, errors); }
+    if (PRODUCTION_GESTURES.has(g.type)) {
+      const w = `${where}[${i}]`, lim = (k, lo, hi, why) => { if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
+      lim('dur', 0.05, 60, 'seconds'); lim('bars', 0.25, 64, 'bars at the recipe\'s tempo'); lim('beats', 0.25, 256); lim('vol', 0, 2); lim('at', 0, 60, 'seconds after the hit');
+      if (g.dur !== undefined && (g.bars !== undefined || g.beats !== undefined)) errors.push(`${w}: give dur (seconds) OR bars / beats, not both`);
+      if (g.type === 'riser' || g.type === 'downlifter' || g.type === 'reverse-cymbal') { lim('from', 20, 20000, 'Hz where the filter starts'); lim('to', 20, 20000, 'Hz where it ends'); lim('q', 0.1, 30); }
+      if (g.tone != null) { if (g.type !== 'riser' && g.type !== 'downlifter') errors.push(`${w}.tone is for a riser or downlifter (a tone layer moving an octave)`); else checkNote(g.tone, `${w}.tone`, errors); }
+      if (g.note != null) { if (g.type !== 'impact' && g.type !== 'scratch') errors.push(`${w}.note is for an impact (its body) or a scratch (its pitch)`); else checkNote(g.note, `${w}.note`, errors); }
+      if (g.type === 'scratch') lim('rate', 1, 30, 'strokes per second (a baby scratch ~8)');
+      if (g.type === 'impact') lim('decay', 0.1, 10, 'seconds of the boom');
+      if (g.seed !== undefined && !(Number.isInteger(g.seed) && g.seed >= 0)) errors.push(`${w}.seed must be a non-negative integer`);
+    }
     if (g.type === 'thump') {
       if (g.from != null) checkNote(g.from, `${where}[${i}].from`, errors);
       if (g.to != null) checkNote(g.to, `${where}[${i}].to`, errors);
@@ -506,11 +523,28 @@ function checkEvent(ev, where, errors) {
   return Array.isArray(notes) ? notes : [notes];
 }
 export const ARTICULATIONS = ['legato', 'staccato', 'staccatissimo', 'tenuto', 'marcato', 'accent', 'sfz', 'fp', 'swell', 'pizz', 'col-legno', 'trem', 'roll', 'trill', 'gliss', 'port', 'mute', 'flutter-tongue'];
-const ART_SET = new Set(ARTICULATIONS);
+// guitar and lead articulations (anthem styles).
+export const GUITAR_ARTICULATIONS = ['bend', 'slide', 'dive', 'vib', 'pm', 'harm', 'pop'];
+const ART_SET = new Set([...ARTICULATIONS, ...GUITAR_ARTICULATIONS]);
+const GUITAR_SET = new Set(GUITAR_ARTICULATIONS);
+function checkGuitarArt(art, ty, where, errors) {
+  const w = `${where}.art`, lim = (k, lo, hi, why) => { if (art[k] !== undefined && !inRange(art[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
+  if (ty === 'bend' || ty === 'dive') lim('to', -48, 24, 'semitones: a bend of 2 is a whole step; a dive goes down');
+  lim('at', 0, 30, 'seconds after the onset'); lim('over', 0.005, 30, 'seconds the move takes');
+  if (ty === 'slide') { lim('in', -24, 24, 'semitones the note slides in from'); lim('out', -48, 24, 'semitones it slides away to at the end'); if (art.in === undefined && art.out === undefined) errors.push(`${w} (slide) needs in (semitones, e.g. -3) and/or out (e.g. -12)`); }
+  if (art.release !== undefined && art.release !== true && !(isObj(art.release) && ['at', 'over'].every((k) => art.release[k] === undefined || inRange(art.release[k], 0, 30)))) errors.push(`${w}.release must be true or { at?, over? } (seconds: the bend comes back down)`);
+  if (art.pre !== undefined && typeof art.pre !== 'boolean') errors.push(`${w}.pre must be true | false (a pre-bend: the note starts bent, then releases)`);
+  if (ty === 'harm') { if (art.k !== undefined && !(Number.isInteger(art.k) && art.k >= 2 && art.k <= 8)) errors.push(`${w}.k must be the partial that squeals, an integer in [2, 8] (default a seeded 3–5)`); lim('gain', 0, 30, 'dB of the squeal at the attack'); }
+  if (ty === 'pm') lim('t60', 0.03, 0.5, 'seconds the muted string rings');
+  const v = ty === 'vib' ? art : art.vib;
+  if (v !== undefined && !(Number.isFinite(v) || isObj(v))) errors.push(`${w}.vib must be a depth in cents or { depth?, rate?, delay? }`);
+  else if (isObj(v)) { if (v.depth !== undefined && !inRange(v.depth, 0, 400)) errors.push(`${w}${ty === 'vib' ? '' : '.vib'}.depth must be cents in [0, 400]`); if (v.rate !== undefined && !inRange(v.rate, 0.5, 20)) errors.push(`${w}${ty === 'vib' ? '' : '.vib'}.rate must be Hz in [0.5, 20]`); if (v.delay !== undefined && !inRange(v.delay, 0, 10)) errors.push(`${w}${ty === 'vib' ? '' : '.vib'}.delay must be seconds in [0, 10]`); }
+}
 function checkArt(art, where, errors) {
   const type = typeof art === 'string' ? art : isObj(art) ? art.type : undefined;
-  if (typeof type !== 'string' || !ART_SET.has(type)) { errors.push(`${where}.art must be one of: ${ARTICULATIONS.join(', ')} (or { type, rate?, interval?, to?, mode?, scale? })`); return; }
+  if (typeof type !== 'string' || !ART_SET.has(type)) { errors.push(`${where}.art must be one of: ${ARTICULATIONS.join(', ')} (or { type, rate?, interval?, to?, mode?, scale? }); guitar and lead: ${GUITAR_ARTICULATIONS.join(', ')}`); return; }
   if (!isObj(art)) return;
+  if (GUITAR_SET.has(type)) { checkGuitarArt(art, type, where, errors); return; }
   if (art.rate !== undefined && !inRange(art.rate, 1, 40)) errors.push(`${where}.art.rate must be Hz in [1, 40] (trill notes / tremolo strokes per second)`);
   if (art.interval !== undefined && !(Number.isInteger(art.interval) && art.interval >= -12 && art.interval <= 12 && art.interval)) errors.push(`${where}.art.interval must be semitones in [-12, 12], not 0 (the trill's neighbour; default 2)`);
   if (art.to !== undefined) checkNote(art.to, `${where}.art.to`, errors);
@@ -594,6 +628,13 @@ export function validateBeatsManifest(manifest) {
     return { ok: false, errors: [`manifest.kind must be one of: ${BEATS_KINDS.join(', ')}`] };
   }
   if (!manifest.title || typeof manifest.title !== 'string') errors.push('manifest.title is required (string)');
+  // anthem styles: the compact authoring fields (chord symbols, a chart,
+  // grooves, modulate, cue parts …) are taught first, then the recipe they
+  // expand to is validated like any literal one.
+  const nBefore = errors.length;
+  checkAuthoring(manifest, errors);
+  if (errors.length > nBefore) return { ok: false, errors };
+  manifest = expandBeatsManifest(manifest);
 
   if (kind === 'beats-ambient') {
     if (!Number.isFinite(manifest.bpm) || manifest.bpm < 20 || manifest.bpm > 300) errors.push('bpm must be a number in [20, 300]');
@@ -655,6 +696,21 @@ export function validateBeatsManifest(manifest) {
       manifest.parts.forEach((p, i) => {
         const where = `parts[${i}]`;
         if (!p || typeof p.name !== 'string' || !p.name) errors.push(`${where}.name is required (string)`);
+        // a cue part (anthem styles): fires a gesture list at each event.
+        if (p && (p.cue !== undefined || p.gesture !== undefined)) {
+          const voices = ['patch', 'instrument', 'gesture', 'cue'].filter((k) => p[k] !== undefined);
+          if (voices.length !== 1) errors.push(`${where} needs exactly ONE voice: patch | instrument (a pitched part) or cue | gesture (a cue part firing gestures at its events) — got ${voices.join(' + ')}`);
+          if (p.cue !== undefined) checkGestures(p.cue, `${where}.cue`, errors);
+          else if (p.gesture !== undefined) checkGestures([p.gesture], `${where}.gesture`, errors);
+          if (p.vary !== undefined && typeof p.vary !== 'boolean') errors.push(`${where}.vary must be true | false (default true: each hit is a variant)`);
+          for (const k of ['form', 'dynamics', 'chordVoice', 'groove', 'glide', 'players']) if (p[k] !== undefined) errors.push(`${where}.${k} is not for a cue part (it fires gestures; give it events: times, { at, v }, or [at, _, dur, vel])`);
+          if (!Array.isArray(p.events) || !p.events.length) errors.push(`${where}.events must be a non-empty array of hit times — '4:0:0', { at: '8:0:0', v: 0.7 }, or [at, _, dur, vel]`);
+          else p.events.forEach((ev, j) => checkEvent(ev, `${where}.events[${j}]`, errors));
+          checkChain(p.chain, where, errors);
+          checkMacros(p, where, errors);
+          checkMix(p, where, errors);
+          return;
+        }
         checkInstrument(p && p.instrument, where, errors);
         if (p && p.patch === VOICE_PATCH) checkVoicePart(p, where, errors);
         else checkPatch(p && p.patch, where, errors);
@@ -751,7 +807,10 @@ export function validateBeatsManifest(manifest) {
     if (!cues || typeof cues !== 'object' || !Object.keys(cues).length) {
       errors.push('cues is required: { <cueId>: [gesture, ...] } with gesture.type ∈ sweep|flutter|burst|thump|grain|ring|tone');
     } else {
-      for (const [id, list] of Object.entries(cues)) checkGestures(list, `cues.${id}`, errors);
+      for (const [id, list] of Object.entries(cues)) {
+        checkGestures(list, `cues.${id}`, errors);
+        if (Array.isArray(list) && list.some((g) => g && (g.bars !== undefined || g.beats !== undefined))) errors.push(`cues.${id}: bars / beats need a tempo — a beats-sfx cue times its gestures in dur (seconds)`);
+      }
     }
   }
 
@@ -886,6 +945,7 @@ export function normalizeBeatsManifest(manifest) {
     m.parts = m.parts.map((p) => {
       const e = expandNode(p, { allowInstrument: true });
       const out = { level: 0, ...e };
+      if (out.cue !== undefined || out.gesture !== undefined) return out; // a cue part has no patch
       if (!out.patch) out.patch = 'sinePluck';
       return lowerPlayers(out);
     });

@@ -57,6 +57,14 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //   fx      the era rack: phaser, flanger, bbd chorus, tape, autopan, crush,
 //           ringmod, drive models, dub delay, gated/reverse reverb, vocoder,
 //           and the scheduled gate/duck/stutter transforms
+// Anthem styles added one more:
+//   anthem  composition cue parts (a part fires gestures), section sweeps,
+//           the riser / downlifter / impact / reverse-cymbal / scratch
+//           gestures, per-note pitch lanes and vibrato (bend, slide, dive,
+//           vib), the pinch harmonic, the plate reverb and the master
+//           styles. Chord symbols, numerals, grooves, modulate, power
+//           chords and band templates are pure expansions in
+//           beats-authoring.js and cost no kernel bytes.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -66,8 +74,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -365,6 +373,39 @@ export function buildBeatsKernel() {
   const PIZZ = { voice: 'string', tune: 'exact', ringT60: [0.55, 0.22], pluckDamping: 0.5, pick: 0.35, attack: 0.002, decay: 0.05, sustain: 1, release: 0.1, curve: 'exp', breath: null, attackNoise: { level: -26, decay: 0.006, tone: 1800, q: 0.7 } };
   const LEGNO = { voice: 'modal', attack: 0.001, breath: null, filterEnv: null, partials: [{ ratio: 1, gain: 1, decay: 0.1 }, { ratio: 2.32, gain: 0.5, decay: 0.05 }, { ratio: 4.1, gain: 0.3, decay: 0.025 }], attackNoise: { level: -12, decay: 0.01, tone: 2800, q: 0.7 } };
   const artOf = (a) => (typeof a === 'string' ? { type: a } : a);
+/*@anthem{*/
+  // guitar and lead articulations (anthem styles): pitch lanes in cents over
+  // the note ([[s, cents], …] → pp.pitchLane), per-note vibrato (pp.vib), palm
+  // mute (a short dark string), the pinch harmonic and the slap pop. Any of
+  // them may carry `vib` (depth in cents, or { depth, rate, delay }).
+  const GUITAR = { bend: 1, slide: 1, dive: 1, vib: 1, pm: 1, harm: 1, pop: 1 };
+  function guitarArt(e, a, ty, rng) {
+    const d = e.dur, pp = {};
+    const cl = (x) => Math.max(0, Math.min(d, x));
+    if (ty === 'bend') {
+      const to = (a.to == null ? 2 : a.to) * 100, at = cl(a.at == null ? 0.06 : a.at), over = a.over == null ? 0.12 : a.over;
+      const rel = a.release === true ? {} : a.release;
+      if (a.pre) { const ra = cl(rel && rel.at != null ? rel.at : d * 0.45); pp.pitchLane = [[0, to], [ra, to], [cl(ra + (rel && rel.over != null ? rel.over : over)), 0]]; }
+      else {
+        pp.pitchLane = [[0, 0], [at, 0], [cl(at + over), to]];
+        if (rel) { const ra = cl(Math.max(at + over + 0.05, rel.at != null ? rel.at : d * 0.65)); pp.pitchLane.push([ra, to], [cl(ra + (rel.over != null ? rel.over : over)), 0]); }
+      }
+    } else if (ty === 'slide') {
+      const over = a.over == null ? 0.07 : a.over;
+      pp.pitchLane = [[0, (a.in || 0) * 100], [cl(over), 0]];
+      if (a.out) pp.pitchLane.push([cl(d - over), 0], [d, a.out * 100]);
+    } else if (ty === 'dive') {
+      const at = cl(a.at == null ? d * 0.3 : a.at);
+      pp.pitchLane = [[0, 0], [at, 0], [cl(at + (a.over == null ? d - at : a.over)), (a.to == null ? -24 : a.to) * 100]];
+    } else if (ty === 'pm') Object.assign(pp, { ringT60: a.t60 || 0.14, pluckDamping: 0.9, pick: 0.35, release: 0.04 });
+    else if (ty === 'harm') pp.harm = { k: a.k || 3 + Math.floor(rng() * 3), gain: a.gain == null ? 12 : a.gain };
+    else if (ty === 'pop') Object.assign(pp, { pick: 0, pluckDamping: 0.12, attackNoise: { mode: 'bandpass', level: -4, tone: 3600, q: 0.9, decay: 0.03 } });
+    const v = ty === 'vib' ? a : a.vib;
+    if (v != null) pp.vib = typeof v === 'number' ? { depth: v } : { depth: v.depth, rate: v.rate, delay: v.delay };
+    e.pp = Object.assign({}, e.pp, pp);
+  }
+/*|
+@*/
   function articulate(evs, part, recipe) {
     if (!evs.some((e) => e.art)) return evs;
     const pn = String(part.patch || '');
@@ -437,6 +478,10 @@ export function buildBeatsKernel() {
           for (const x of run.slice(1)) x.art = '__merged';
         } else if (next && next.t > e.t) e.dur = Math.max(e.dur, next.t - e.t + 0.03);
       }
+/*@anthem{*/
+      else if (GUITAR[ty]) guitarArt(e, a, ty, rng);
+/*|
+@*/
       else if (ty === '__merged') return;
       out.push(e);
     });
@@ -646,6 +691,24 @@ export function buildBeatsKernel() {
   }
 /*|
 @*/
+/*@anthem{*/
+  // ── composition cue parts (anthem styles): a part with `cue` / `gesture`
+  // fires its gestures at each event's time, the event's velocity scaling
+  // them. Each hit is a variant (1, 2, 3 … per part, in schedule order) so
+  // repeated impacts differ; `vary: false` plays the plain cue every time.
+  // Pure: the transport and the export number the hits identically.
+  function cueHits(events, parts) {
+    const n = {}, out = [];
+    for (const ev of events) {
+      const p = (parts || []).find((x) => x && x.name === ev.channel);
+      if (!p || !(p.cue || p.gesture)) { out.push(0); continue; }
+      n[ev.channel] = (n[ev.channel] || 0) + 1;
+      out.push(p.vary === false ? 0 : n[ev.channel]);
+    }
+    return out;
+  }
+/*|
+@*/
   // ── performance feel: the anti-MIDI layer ───────────────────────────────────
   // Per-note micro-variation derived deterministically from (seed, eventIndex,
   // noteIndex) — so a chord is a strum (notes fanned across `strum` seconds, not
@@ -768,6 +831,47 @@ export function buildBeatsKernel() {
 @*/
   }
 
+/*@anthem{*/
+  // ── production gestures (anthem styles): the transitions a song is stitched
+  // with. riser / downlifter / reverse-cymbal are a noise `swell` (a filter
+  // sweeping over `dur` seconds under a rising or falling level; `hold` keeps a
+  // per-hit variant from stretching them off the beat); a riser may add a tone
+  // layer rising an octave. impact = a deep thump + a punch + a darkening noise
+  // burst. scratch = seeded back-and-forth strokes (a pitch swing on a buzzy
+  // tone with band noise) at `rate` strokes per second.
+  const ANTHEM_G = { riser: 1, downlifter: 1, impact: 1, 'reverse-cymbal': 1, scratch: 1 };
+  function anthemGesture(g) {
+    const at = g.at || 0, vol = g.vol == null ? 0.7 : g.vol, dur = g.dur == null ? 2 : g.dur;
+    if (g.type === 'riser' || g.type === 'downlifter') {
+      const up = g.type === 'riser';
+      const ops = [{ at: at, kind: 'swell', len: dur, hold: 1, from: g.from == null ? (up ? 350 : 7000) : g.from, to: g.to == null ? (up ? 9000 : 250) : g.to, q: g.q == null ? 1.4 : g.q, mode: 'bandpass', dir: up ? 'up' : 'down', vol: vol }];
+      if (g.tone != null) { const f = noteHz(g.tone); ops.push({ at: at, kind: 'hum', hold: 1, wave: 'sawtooth', from: up ? f : f * 2, to: up ? f * 2 : f, dur: dur, attack: up ? dur * 0.95 : 0.01, release: up ? 0.03 : dur * 0.3, vol: vol * 0.5, tremolo: null, vibrato: null, lowpass: 4000 }); }
+      return ops;
+    }
+    if (g.type === 'reverse-cymbal') return [{ at: at, kind: 'swell', len: dur, hold: 1, from: g.from == null ? 5000 : g.from, to: g.to == null ? 9000 : g.to, q: 0.7, mode: 'highpass', dir: 'up', vol: vol * 1.2 }];
+    if (g.type === 'impact') {
+      const f = g.note == null ? 55 : noteHz(g.note);
+      return [
+        { at: at, kind: 'thump', from: f * 1.6, to: f * 0.6, decay: g.decay == null ? 1.6 : g.decay, vol: vol * 1.3 },
+        { at: at, kind: 'thump', from: f * 4, to: f * 1.2, decay: 0.22, vol: vol },
+        { at: at, kind: 'noise', decay: 0.9, vol: vol * 0.8, highpass: 0, lowpass: 0, sweep: { from: 7000, to: 160, decay: 0.8 } },
+      ];
+    }
+    if (g.type === 'scratch') {
+      const rate = g.rate == null ? 8 : g.rate, n = Math.max(1, Math.round(dur * rate)), f = noteHz(g.note == null ? 'A3' : g.note);
+      const rng = mulberry32(hashSeed(g.seed == null ? 0x5C2A7C : g.seed, n));
+      const ops = [];
+      for (let i = 0; i < n; i++) {
+        const t = at + (i + (rng() * 2 - 1) * 0.08) / rate, len = (0.7 + rng() * 0.25) / rate, fwd = i % 2 === 0, sw = 1.5 + rng() * 0.9;
+        ops.push({ at: Math.max(at, t), kind: 'hum', wave: 'sawtooth', from: fwd ? f / sw : f * sw, to: fwd ? f * sw : f / sw, dur: len, attack: 0.004, release: 0.012, vol: vol * (0.55 + rng() * 0.45), tremolo: null, vibrato: null, lowpass: 3200 });
+        ops.push({ at: Math.max(at, t), kind: 'noise', decay: len * 0.8, vol: vol * 0.35, highpass: 0, lowpass: 0, bandpass: 1400 + rng() * 900, q: 1.5 });
+      }
+      return ops;
+    }
+    return [];
+  }
+/*|
+@*/
   // ── gestures: the chiptune foley vocabulary (beats.plan.md) ─────────────────
   // A cue is a list of gestures; gesturePlan lowers one gesture to primitive ops
   // [{ at, kind, ... }] — pure, so the foley choreography is unit-testable.
@@ -786,6 +890,10 @@ export function buildBeatsKernel() {
   //             vol? } — lowers to flat thump ops (from == to), one per partial.
   function gesturePlan(gesture) {
     const g = gesture || {};
+/*@anthem{*/
+    if (ANTHEM_G[g.type]) return anthemGesture(g);
+/*|
+@*/
     if (g.type === 'sweep') {
       return [{ at: g.at || 0, kind: 'sweep', wave: g.wave || 'square', from: noteHz(g.from == null ? 'A5' : g.from), to: noteHz(g.to == null ? 'A4' : g.to), dur: g.dur == null ? 0.09 : g.dur, vol: g.vol == null ? 0.7 : g.vol }];
     }
@@ -946,7 +1054,11 @@ export function buildBeatsKernel() {
       for (const o of gesturePlan(Object.assign({}, g, { seed: hashSeed(g.seed == null ? 0x64A17 : g.seed, variant >>> 0) }))) {
         const op = Object.assign({}, o);
         for (const k of ['hz', 'from', 'to', 'bandpass']) if (op[k]) op[k] *= pf;
+/*@anthem{*/
+        for (const k of ['decay', 'dur']) if (op[k] && !op.hold) op[k] *= df;
+/*|
         for (const k of ['decay', 'dur']) if (op[k]) op[k] *= df;
+@*/
         if (op.kind === 'noise') op.offset = rng();
         ops.push(op);
       }
@@ -1144,6 +1256,10 @@ export function buildBeatsKernel() {
     // tail (damp 0..1: how fast the highs die first). L/R from independent
     // seeds. The convolver normalizes IR power, as for the classic impulse.
     function roomImpulse(r, seed) {
+/*@anthem{*/
+      if (r.model === 'plate') return plateImpulse(r, seed);
+/*|
+@*/
       const sr = ctx.sampleRate, T = Math.min(r.decay == null ? 2 : r.decay, 10);
       const pre = Math.round(sr * (r.predelay == null ? 0.015 : r.predelay));
       const fLo = 9000 * Math.pow(10, -2 * (r.damp == null ? 0.5 : r.damp));
@@ -1168,6 +1284,41 @@ export function buildBeatsKernel() {
       return buf;
     }
 
+/*@anthem{*/
+    // plate (anthem styles): a steel plate's reverb — dense from the first
+    // millisecond (no discrete early reflections: the plate's modes are
+    // already a smear), bright (the highs die slowly), a short pre-delay, a
+    // fast build. The 90s snare and vocal space. decay 1.2–2.5 s is the idiom.
+    function plateImpulse(r, seed) {
+      const sr = ctx.sampleRate, T = Math.min(r.decay == null ? 1.8 : r.decay, 10);
+      const pre = Math.round(sr * (r.predelay == null ? 0.004 : r.predelay));
+      const fLo = 12000 * Math.pow(10, -1.2 * (r.damp == null ? 0.25 : r.damp));
+      const len = pre + Math.max(1, Math.floor(sr * T));
+      const buf = ctx.createBuffer(2, len, sr);
+      for (let c = 0; c < 2; c++) {
+        const rng = mulberry32(hashSeed(seed || 7, 0x91A7E + c));
+        const d = buf.getChannelData(c);
+        let lp = 0;
+        for (let i = 0; i < len - pre; i++) {
+          const u = i / sr / T, k = 1 - Math.exp(-2 * Math.PI * 12000 * Math.pow(fLo / 12000, Math.sqrt(u)) / sr);
+          lp += k * ((rng() * 2 - 1) - lp);
+          d[pre + i] = lp * Math.exp(-6.9078 * u) * (1 - Math.exp(-i / (sr * 0.0015))) * 0.5;
+        }
+      }
+      return buf;
+    }
+    function plateVerb(head, f, seed) {
+      const mix = ctx.createGain();
+      const dry = ctx.createGain(); dry.gain.value = 1 - (f.wet == null ? 0.4 : f.wet) * 0.5;
+      head.connect(dry); dry.connect(mix);
+      const cv = ctx.createConvolver(); cv.buffer = plateImpulse(f, seed);
+      const wet = ctx.createGain(); wet.gain.value = f.wet == null ? 0.4 : f.wet;
+      if (f.drive) { const ws = ctx.createWaveShaper(); ws.curve = driveCurve(f.drive); head.connect(cv); cv.connect(ws); ws.connect(wet); } else { head.connect(cv); cv.connect(wet); }
+      wet.connect(mix);
+      return mix;
+    }
+/*|
+@*/
     // soft-clip transfer curve for the `drive` effect (electric overdrive) —
     // computed, never sampled: the classic k-shaped waveshaper. amount 0→1 goes
     // from clean to fuzzy; k is the drive coefficient fed to a WaveShaperNode.
@@ -1307,6 +1458,10 @@ export function buildBeatsKernel() {
           head.connect(dl); dl.connect(wet); wet.connect(mix);
           head = mix;
         } else if (t === 'reverb') {
+/*@anthem{*/
+          if (f.model === 'plate') { head = plateVerb(head, f, seed); continue; }
+/*|
+@*/
           const mix = ctx.createGain();
           const dry = ctx.createGain(); dry.gain.value = 1 - (f.wet == null ? 0.4 : f.wet) * 0.5;
           head.connect(dry); dry.connect(mix);
@@ -1563,7 +1718,11 @@ export function buildBeatsKernel() {
     // branch: glide / bend / path / pitch lfo / width follow; unison, players
     // and drift don't apply.
     const SS_OFF = [-0.11002313, -0.06288439, -0.01952356, 0, 0.01991221, 0.06216538, 0.10745242];
+/*@anthem{*/
+    function supersaw(patch, hz, t, end, env, lfoTo, pmod) {
+/*|
     function supersaw(patch, hz, t, end, env, lfoTo) {
+@*/
       const S = patch.supersaw || {}, d = S.detune == null ? 0.5 : S.detune, m = S.mix == null ? 0.7 : S.mix;
       const curve = ((((((((((10028.7312891634 * d - 50818.8652045924) * d + 111363.4808729368) * d - 138150.6761080548) * d + 106649.6679158292) * d - 53046.9642751875) * d + 17019.9518580080) * d - 3425.0836591318) * d + 404.2703938388) * d - 24.1878824391) * d + 0.6717417634) * d + 0.0030115596;
       const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = hz; hp.Q.value = 0.5;
@@ -1576,6 +1735,10 @@ export function buildBeatsKernel() {
         if (patch.bend) { const b = patch.bend; o.frequency.setValueAtTime(f * b[0], t + b[2]); o.frequency.exponentialRampToValueAtTime(f * b[1], t + Math.max(b[2] + 0.005, b[3])); }
         if (patch.path) { let r = 1; for (const [dt, q] of patch.path) { if (!dt) continue; const g = Math.min(patch.pathGlide || 0.06, dt * 0.5); o.frequency.setValueAtTime(f * r, t + dt - g); o.frequency.exponentialRampToValueAtTime(f * q, t + dt); r = q; } }
         if (lfoTo) lfoTo(o.detune, 'pitch');
+/*@anthem{*/
+        if (pmod) pmod.connect(o.detune);
+/*|
+@*/
         const g = ctx.createGain(); g.gain.value = u === 3 ? -0.55366 * m + 0.99785 : -0.73764 * m * m + 1.2841 * m + 0.044372;
         o.connect(g);
         g.connect(patch.width ? panned(bus, patch.width * (u / 3 - 1)) : bus);
@@ -1644,6 +1807,42 @@ export function buildBeatsKernel() {
         const k = ctx.createGain(); k.gain.value = -1 / (2 * Math.PI * O[c].f);
         O[m].g.connect(k); k.connect(O[c].dl.delayTime);
       }
+    }
+/*|
+@*/
+/*@anthem{*/
+    // a per-note pitch lane ([[s, cents], …]: bend, slide, dive) and vibrato
+    // (vib { depth cents, rate, delay }) summed on one node the voice wires
+    // into each oscillator's / string's detune — a linear ramp in cents is an
+    // exponential glide in pitch.
+    function pitchMod(patch, t, end) {
+      const sum = ctx.createGain();
+      if (patch.pitchLane) {
+        const L = patch.pitchLane, cs = ctx.createConstantSource();
+        cs.offset.setValueAtTime(L[0][1], t);
+        for (let i = 1; i < L.length; i++) cs.offset.linearRampToValueAtTime(L[i][1], t + Math.max(L[i][0], L[i - 1][0] + 0.001));
+        cs.connect(sum); cs.start(t); cs.stop(end);
+      }
+      if (patch.vib) {
+        const v = patch.vib, dl = v.delay == null ? 0.12 : v.delay;
+        const o = ctx.createOscillator(); o.frequency.value = v.rate || 5.5;
+        const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.setValueAtTime(0, t + dl); g.gain.linearRampToValueAtTime(v.depth == null ? 35 : v.depth, t + dl + 0.15);
+        o.connect(g); g.connect(sum); o.start(t); o.stop(end);
+      }
+      return sum;
+    }
+    // harm (a pinch harmonic): the thumb leaves only the modes with a node at
+    // the touch point — the string sounds as its k-th partial (a string at
+    // k × f), a whisper of the full note under it, and a resonant peak on
+    // the partial that settles (the squeal the amp then screams).
+    function harmNode(h, hz, t, dest) {
+      const fk = Math.min(hz * (h.k || 4), ctx.sampleRate * 0.45), inp = ctx.createGain();
+      const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = fk; pk.Q.value = 4;
+      const g = h.gain == null ? 12 : h.gain;
+      pk.gain.setValueAtTime(g, t); pk.gain.linearRampToValueAtTime(g * 0.5, t + 0.6);
+      const mk = ctx.createGain(); mk.gain.value = dbGain(-g / 2);
+      inp.connect(pk); pk.connect(mk); mk.connect(dest);
+      return inp;
     }
 /*|
 @*/
@@ -1760,6 +1959,10 @@ export function buildBeatsKernel() {
 /*|
 @*/
       const { node: env, end } = envGain(t, dur, patch, vel);
+/*@anthem{*/
+      const pmod = patch.pitchLane || patch.vib ? pitchMod(patch, t, end) : null;
+/*|
+@*/
 /*@va{*/
       // lfo (≤ 2 slots) { rate, shape, target: pitch | filter | pw | amp | pan, depth, delay }:
       // lfoTo(param, target) wires each slot aimed at that target. amp/pan sit at the head.
@@ -1924,20 +2127,46 @@ export function buildBeatsKernel() {
         // plucked string: play the KS-synthesized buffer once. Its own harmonic
         // decay carries the ring; the ADSR gates onset/note-off (hold sustain ≈ 1,
         // short release) so the string is damped when the note ends — like a hand.
+/*@anthem{*/
+        const hk = patch.harm ? patch.harm.k || 4 : 1;
+        const src = ctx.createBufferSource(); src.buffer = stringBuffer(hz * hk, patch);
+        if (pmod) pmod.connect(src.detune);
+        const sdst = patch.harm ? harmNode(patch.harm, hz, t, env) : env;
+        if (patch.harm) {
+          const base = ctx.createBufferSource(); base.buffer = stringBuffer(hz, patch);
+          const bg = ctx.createGain(); bg.gain.value = dbGain(-20);
+          if (pmod) pmod.connect(base.detune);
+          base.connect(bg); bg.connect(env); base.start(t); base.stop(end);
+        }
+/*|
         const src = ctx.createBufferSource(); src.buffer = stringBuffer(hz, patch);
+@*/
         if (patch.pluckDetune) {
           // dual pluck (amp-voice spike): two strings a few cents apart. Alone the
           // beating is subtle; through a clip stage the difference tones become the
           // growl — a lone harmonic string gives intermodulation nothing to chew.
           const cents = patch.pluckDetune;
           const g1 = ctx.createGain(); g1.gain.value = 0.6;
+/*@anthem{*/
+          const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * hk * Math.pow(2, -cents / 2400), patch);
+/*|
           const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * Math.pow(2, -cents / 2400), patch);
+@*/
           src2.playbackRate.value = Math.pow(2, cents / 1200);
           const g2 = ctx.createGain(); g2.gain.value = 0.6;
+/*@anthem{*/
+          if (pmod) pmod.connect(src2.detune);
+          src.connect(g1); g1.connect(sdst); src2.connect(g2); g2.connect(sdst);
+/*|
           src.connect(g1); g1.connect(env); src2.connect(g2); g2.connect(env);
+@*/
           src2.start(t); src2.stop(end);
         } else {
+/*@anthem{*/
+          src.connect(sdst);
+/*|
           src.connect(env);
+@*/
         }
         src.start(t); src.stop(end);
       } else if (voice === 'membrane') {
@@ -1958,7 +2187,11 @@ export function buildBeatsKernel() {
       } else if (voice === 'fm4') {
         fm4(patch, hz, t, dur, vel, env, end);
       } else if (voice === 'osc' && patch.wave === 'supersaw') {
+/*@anthem{*/
+        supersaw(patch, hz, t, end, env, lfoTo, pmod);
+/*|
         supersaw(patch, hz, t, end, env, lfoTo);
+@*/
 /*|
 @*/
       } else if (voice === 'modal') {
@@ -2132,6 +2365,10 @@ export function buildBeatsKernel() {
           osc.frequency.value = hz * Math.pow(2, (cents * spread) / 1200);
 @*/
           if (vib) vib.connect(osc.detune);
+/*@anthem{*/
+          if (pmod) pmod.connect(osc.detune);
+/*|
+@*/
 /*@voice{*/
           const rng = V && V.spread || patch.drift ? mulberry32(hashSeed(nk, 0x71B + u)) : null;
           // vibrato.spread (0..1): one LFO per unison voice, seeded rate ±8% and
@@ -2270,6 +2507,20 @@ export function buildBeatsKernel() {
           osc.connect(g); g.connect(out); osc.start(t); osc.stop(t + op.decay + 0.05);
 @*/
         }
+/*@anthem{*/
+        else if (op.kind === 'swell') {
+          // noise through a sweeping filter under an exponential level ramp:
+          // rising to its peak at the end (riser, reverse cymbal) or falling from it.
+          const src = noiseSrc(t, op.offset == null ? 0 : op.offset);
+          const f = ctx.createBiquadFilter(); f.type = op.mode || 'bandpass'; f.Q.value = op.q || 1;
+          f.frequency.setValueAtTime(op.from, t); f.frequency.exponentialRampToValueAtTime(Math.max(20, op.to), t + op.len);
+          const g = ctx.createGain(), pk = dbGain(-8) * op.vol * vs;
+          if (op.dir === 'down') { g.gain.setValueAtTime(pk, t); g.gain.exponentialRampToValueAtTime(pk * 1e-3, t + op.len); }
+          else { g.gain.setValueAtTime(pk * 1e-3, t); g.gain.exponentialRampToValueAtTime(pk, t + op.len); g.gain.linearRampToValueAtTime(0, t + op.len + 0.03); }
+          src.connect(f); f.connect(g); g.connect(out); src.stop(t + op.len + 0.08);
+        }
+/*|
+@*/
       }
     }
 
@@ -2289,6 +2540,11 @@ export function buildBeatsKernel() {
     const sends = {};
     function routeChannel(ch, recipe) {
       const built = buildChain(ch.chain, recipe.seed, recipe.bpm);
+/*@anthem{*/
+      const post = rowPost(ch, recipe);
+      if (post) { built.output.connect(post.input); built.output = post.output; }
+/*|
+@*/
 /*@fx{*/
       // a row some vocoder names as its modulator is tapped before its fader.
       if ((recipe.channels || recipe.parts || recipe.tracks || []).some((r) => r && (r.chain || []).some((x) => x && x.type === 'vocoder' && x.modulator === ch.name))) built.output.connect(tapOf(ch.name));
@@ -2337,6 +2593,10 @@ export function buildBeatsKernel() {
     let limiter = null;
     function setMaster(m) {
       if (!m) return;
+/*@anthem{*/
+      if (m.style && !limiter) { masterStyle(m); return; }
+/*|
+@*/
       const gl = m.glue || {};
       for (const k of ['threshold', 'ratio', 'knee', 'attack', 'release']) if (gl[k] != null) comp[k].value = gl[k];
       if (m.limit != null && !limiter) {
@@ -2352,6 +2612,94 @@ export function buildBeatsKernel() {
 @*/
     }
 
+/*@anthem{*/
+    // ── section sweeps (anthem styles): recipe `sweeps` [{ row | 'master',
+    // param: tone | lowcut | level | send | pan, from, to, t0, t1 (seconds,
+    // resolved from at / over at expansion), curve }] are ramps on known
+    // params at known times. A swept row gets its own nodes at its chain head
+    // (tone = a lowpass, lowcut = a highpass, level = a gain, pan = a panner);
+    // `send` rides the row's room send; 'master' sweeps sit between the master
+    // gain and the bus compressor. Absent: no node exists.
+    // master styles (anthem styles): the era's bus. 'loud-00s' = glue
+    // compressor → drive into a soft clipper → brickwall limiter → an air
+    // shelf; 'bright-90s' the same, gentler. The page plays this bus; the WAV
+    // export then masters to the style's loudness (beats-render).
+    const STYLES = { 'loud-00s': { thr: -20, ratio: 4, drive: -4.5, lim: -1, air: 3.5 }, 'bright-90s': { thr: -16, ratio: 2.5, drive: -6.3, lim: -2, air: 2 } };
+    function masterStyle(m) {
+      const S = STYLES[m.style];
+      if (!S) return;
+      const gl = m.glue || {};
+      comp.threshold.value = gl.threshold != null ? gl.threshold : S.thr; comp.ratio.value = gl.ratio != null ? gl.ratio : S.ratio;
+      comp.knee.value = gl.knee != null ? gl.knee : 6; comp.attack.value = gl.attack != null ? gl.attack : 0.01; comp.release.value = gl.release != null ? gl.release : 0.2;
+      // `drive` (dB, after the glue's own makeup gain) sets how hard the clipper is hit:
+      // calibrated so a typical band mix plays near the style's loudness live.
+      const pre = ctx.createGain(); pre.gain.value = dbGain(S.drive);
+      const clip = ctx.createWaveShaper(); clip.oversample = '4x';
+      const n = 2048, cv = new Float32Array(n);
+      for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; cv[i] = Math.tanh(1.5 * x) / Math.tanh(1.5); }
+      clip.curve = cv;
+      const lim = m.limit != null ? m.limit : S.lim;
+      limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = lim; limiter.ratio.value = 20; limiter.knee.value = 0; limiter.attack.value = 0.001; limiter.release.value = 0.06;
+      const trim = ctx.createGain(); trim.gain.value = dbGain(0.6 * lim * 0.95);
+      const air = ctx.createBiquadFilter(); air.type = 'highshelf'; air.frequency.value = 9000; air.gain.value = S.air;
+      comp.disconnect(); comp.connect(pre); pre.connect(clip); clip.connect(limiter); limiter.connect(trim); trim.connect(air);
+      air.connect((opts && opts.analyser) || ctx.destination);
+    }
+    const sweepParams = [];
+    function sweepList(recipe, row) { return (recipe.sweeps || []).filter((w) => w && w.row === row && w.t0 != null); }
+    function sweepChain(list, input) {
+      let head = input;
+      const nodes = {};
+      const has = (p) => list.some((w) => w.param === p);
+      if (has('pan')) { const pn = ctx.createStereoPanner(); pn.connect(head); head = pn; nodes.pan = pn.pan; }
+      if (has('level')) { const g = ctx.createGain(); g.connect(head); head = g; nodes.level = g.gain; }
+      // Q is in dB for a WebAudio lowpass/highpass: −3.01 dB is Butterworth (−3 dB at the cutoff).
+      if (has('lowcut')) { const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.Q.value = -3.0103; f.frequency.value = 20; f.connect(head); head = f; nodes.lowcut = f.frequency; }
+      if (has('tone')) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = -3.0103; f.frequency.value = 18000; f.connect(head); head = f; nodes.tone = f.frequency; }
+      return { head: head, nodes: nodes };
+    }
+    // the chain head takes tone / lowcut (a filter-swept breakdown darkens what
+    // the chain then colors); level and pan sweeps and a row `trim` (dB, what a
+    // band template sets) sit after the chain, before the fader.
+    const HEAD = { tone: 1, lowcut: 1 }, POST = { level: 1, pan: 1 };
+    function sweepNodes(ch, recipe, input) {
+      const list = sweepList(recipe, ch.name).filter((w) => HEAD[w.param] || w.param === 'send');
+      if (!list.length) return input;
+      const c = sweepChain(list, input);
+      for (const w of list) sweepParams.push([w.param === 'send' ? sends[ch.name] && sends[ch.name].gain : c.nodes[w.param], w]);
+      return c.head;
+    }
+    function rowPost(ch, recipe) {
+      const list = sweepList(recipe, ch.name).filter((w) => POST[w.param]);
+      if (!list.length && !ch.trim) return null;
+      const out = ctx.createGain();
+      if (ch.trim) out.gain.value = dbGain(ch.trim);
+      const c = sweepChain(list, out);
+      for (const w of list) sweepParams.push([c.nodes[w.param], w]);
+      return { input: c.head, output: out };
+    }
+    function startSweeps(recipe, t0) {
+      const ml = sweepList(recipe, 'master');
+      if (ml.length) {
+        const c = sweepChain(ml, comp);
+        master.disconnect(); master.connect(c.head);
+        for (const w of ml) sweepParams.push([c.nodes[w.param], w]);
+      }
+      const seen = new Set();
+      for (const [param, w] of sweepParams.slice().sort((a, b) => a[1].t0 - b[1].t0)) {
+        if (!param) continue;
+        const v = (x) => (w.param === 'tone' ? toneFreq(x) : w.param === 'level' ? dbGain(x) : x);
+        const expo = w.curve !== 'linear' && w.param !== 'pan' && w.param !== 'send';
+        if (!seen.has(param)) { param.setValueAtTime(v(w.from), t0); seen.add(param); }
+        param.setValueAtTime(v(w.from), t0 + w.t0);
+        if (expo) param.exponentialRampToValueAtTime(Math.max(1e-4, v(w.to)), t0 + Math.max(w.t1, w.t0 + 0.001));
+        else param.linearRampToValueAtTime(v(w.to), t0 + Math.max(w.t1, w.t0 + 0.001));
+      }
+      sweepParams.length = 0;
+    }
+/*|
+@*/
     // ── performance macros (B5.2): transpose + tone per channel ──────────────
     // The two knobs that turn playback into performance (Night Bus finding):
     // transpose (semitones) is applied at SCHEDULE time so it can move mid-
@@ -2440,7 +2788,11 @@ export function buildBeatsKernel() {
         tn.type = 'lowpass'; tn.Q.value = 0.5;
         tn.frequency.value = toneFreq(m.tone);
 /*@mix{*/
+/*@anthem{*/
+        tn.connect(sweepNodes(ch, recipe, input));
+/*|
         tn.connect(input);
+@*/
 /*|
         tn.connect(built.input);
 @*/
@@ -2453,8 +2805,16 @@ export function buildBeatsKernel() {
       const glide = flat ? glideNotes(flat.events) : pat ? [glideNotes(pat.events), glideNotes(pat.events, true)] : null;
 /*|
 @*/
+/*@anthem{*/
+      const cueHit = flat ? cueHits(flat.events, recipe.parts) : null;
+/*|
+@*/
       const bar = barSeconds(recipe.bpm);
       const t0 = ctx.currentTime + 0.08;
+/*@anthem{*/
+      startSweeps(recipe, t0);
+/*|
+@*/
       let cursor = 0;    // ambient: next bar index; composition: next event index; pattern: next loop index
       timer = setInterval(() => {
         const horizon = ctx.currentTime + 0.12 - t0;
@@ -2512,6 +2872,10 @@ export function buildBeatsKernel() {
             const evIndex = cursor;
             const ev = flat.events[cursor++];
             const part = (recipe.parts || []).find((p) => p.name === ev.channel);
+/*@anthem{*/
+            if (part && (part.cue || part.gesture)) { playOps(cuePlan(part.cue || [part.gesture], cueHit[evIndex]), t0 + ev.t, chains[ev.channel], ev.vel); continue; }
+/*|
+@*/
 /*@voice{*/
 /*|
             const patch = patches[(part && part.patch) || 'sinePluck'] || {};
@@ -2608,6 +2972,11 @@ export function buildBeatsKernel() {
       setMaster,
 /*|
 @*/
+/*@anthem{*/
+      sweepNodes,
+      startSweeps,
+/*|
+@*/
       playVoice,
 /*@strings{*/
       stringBuffer,
@@ -2655,6 +3024,10 @@ export function buildBeatsKernel() {
     scored,
     scoreClock,
     scoreEvents,
+/*|
+@*/
+/*@anthem{*/
+    cueHits,
 /*|
 @*/
 /*@voice{*/

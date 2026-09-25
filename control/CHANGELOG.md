@@ -242,6 +242,29 @@ has listened to any of this: the ears gate has not run.
   - Gate and duck shape a row before its chain, so its own reverb tail
     doesn't pump.
 
+### Anthem styles
+
+Two song styles as traits, not names: the 2000s energy trance-pop and the
+90s/00s anime rock opening. A compact authoring layer (chord symbols and
+numerals, grooves with seeded fills, a key change, cue parts) plus the
+guitar, production and mastering pieces those styles lean on. Everything is
+opt-in; stored rows re-synthesize byte-identical.
+
+- Compositions take cue parts (risers, impacts, reverse cymbals, scratches,
+  orchestra hits fired as events), chord symbols and Roman numerals on a
+  chord chart that parts voice on a rhythm, and `modulate` for the key change.
+- Drum parts take a `groove` with seeded fills and section crashes; 32 bars
+  store in under a tenth of the expanded events.
+- Guitar and lead articulations: bend, release, pre-bend, slide, dive,
+  vibrato, palm mute, pinch harmonic, slap pop, `power: true`.
+- `sweeps` ramp tone, low cut, level, send or pan over bars; plate reverb;
+  `master.style` 'loud-00s' / 'bright-90s' masters the export to its
+  loudness; `band` templates set a mix per role; rows get a post-chain `trim`.
+- Storage stays compact; `get_beats({ ref, expand: true })` shows the literal
+  recipe.
+- Machine gate: `beats-anthem.test.js`. Ears gate: the operator listened to
+  the A/B probes and approved them.
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation
