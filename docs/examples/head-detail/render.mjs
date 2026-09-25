@@ -1,7 +1,8 @@
 /** head-detail/render.mjs — draw both heads in every expression. Wire SVGs through the native emitter
  * (lib/graph/scene/wire-svg.js) and flat-shaded colour PNGs through a small z-buffer rasterizer, so group
  * colours (sclera, iris, lids, tongue …) can be seen; wire-svg is line-only. Output lands in the gitignored
- * spike tree (override with MOJULO_SPIKE_OUT). Node only: PNGs are encoded with node:zlib.
+ * spike tree under the head module's example name (override with MOJULO_SPIKE_OUT). Node only: PNGs are
+ * encoded with node:zlib. Draws this example's heads, or another module's: `node render.mjs ../hero-head/head.mjs`.
  *   expressions.png — rows: dragon face, eye, mouth, profile; bear face, eye, mouth, profile.
  *                     columns: the EXPRESSIONS in declaration order.
  *   <head>-<expression>-<view>.png|svg, stats.json (face counts and the per-part closure audit). */
@@ -9,11 +10,17 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, vec } from './compile.mjs';
 import { orbitCamera, wireSvg, projectVertices } from '../../../control/lib/graph/scene/wire-svg.js';
+import { compileLayered } from '../../../control/lib/graph/polygonizer/station-loft.js';
 
+// the heads to draw: this example's by default, or any module that exports HEADS, EXPRESSIONS, build, toSource,
+// carriers, frameAt and vec the same way (`node render.mjs ../hero-head/head.mjs`)
+const headModule = process.argv[2] ? new URL(process.argv[2], `file://${process.cwd()}/`) : new URL('./compile.mjs', import.meta.url);
+const { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, vec } = await import(headModule);
+const compile = (recipe, dials, opts) => compileLayered(recipe, dials, opts);
 const { sub, add, mul, dot, cross, unit } = vec;
-const OUT = resolve(process.env.MOJULO_SPIKE_OUT || fileURLToPath(new URL('../../../lite-template/integration/0924/spike-output/head-detail/', import.meta.url)));
+const exampleName = headModule.pathname.split('/').slice(-2, -1)[0];
+const OUT = resolve(process.env.MOJULO_SPIKE_OUT || fileURLToPath(new URL(`../../../lite-template/integration/0924/spike-output/${exampleName}/`, import.meta.url)));
 mkdirSync(OUT, { recursive: true });
 const SIZE = 900, SS = 2, BG = [247, 245, 239];
 const LIGHT = unit([0.35, -0.55, 0.75]);

@@ -66,7 +66,8 @@ the segment-first method (proven on four build lines) is
   tubes. Organic forms are other loops' job: a person is `character-from-dream`
   (the figure family), a real animal is `mint_solid` kind `animal`, and a
   creature / invented body / detailed head is `mint_solid` kind `layered`
-  (routing card `creature`, catalyst `creature-from-plan`). If the target isn't an assembly, say so and stop.
+  (routing card `creature`, catalyst `creature-from-plan`), and a human character as a rigged mesh is
+  `create-hero` (card `hero`). If the target isn't an assembly, say so and stop.
 
 ## Capability ladder — resolve ONCE
 

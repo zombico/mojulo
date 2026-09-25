@@ -56,10 +56,13 @@ and `export_model` see the compiled mesh itself (every closed part exact, whatev
   `teeth` / `disc`, midline pins; expanded at a preset expression (neutral, pant, flick, surprise, snarl) or
   control values; worn BY NAME: its `nape` landmark sits on the `on` joint, the segment ending there is fitted so it
   stays buried in the head at every head dial extreme, and rig joints may be `at: '<head>.<anchor>'`, the anchors read
-  from the head: `cranium.tip`, `jaw.tip`, `<part>.back`, `jawOpen.pivot`, its landmarks), include: [{ name, parts, dials?, creases?, palette?, shift, bind? }] (a baked fragment worn at a
-  shift), dials (an entry `{ op: 'include', name }` splices a head's or include's dials there), rig, clips }`. Slot
-  families `ring8` and `limb6`; `$S` in a name stands for its R and L twins (dial parts, rig joints, a `perSide`
-  bone block). `expandPlan` makes superellipse rings perpendicular to each segment's axis, overshoots the joints so
+  from the head: `cranium.tip`, `jaw.tip`, `<part>.back`, `jawOpen.pivot`, its landmarks), include: [{ name, parts,
+  dials?, creases?, palette?, shift, bind? }] (a baked fragment worn at a shift), dials (an entry `{ op: 'include',
+  name }` splices a head's or include's dials there), rig, clips, style? }`. Slot families `ring6` / `ring8` /
+  `ring10` / `ring12` / `limb6`; `style: { slots, limbSlots, e }` is the ART STYLE, the ring family of every trunk and
+  of every limb and the superellipse exponent of every ring that names none (2 round, 6 chamfered, 12 a box), so one
+  edit changes the whole figure's register; `$S` in a name stands for its R and L twins (dial parts, rig joints, a
+  `perSide` bone block). `expandPlan` makes superellipse rings perpendicular to each segment's axis, overshoots the joints so
   neighbours fuse, mirrors by name, places claws as local offsets on their faces, and builds segment bindings
   (shared overshoot rings). The recipe is stored beside the plan; a patch under `/plan` re-expands it, a patch
   under `/dials` or `/recipe` edits as before. Refusals name the plan field.
@@ -73,9 +76,10 @@ and `export_model` see the compiled mesh itself (every closed part exact, whatev
   offset per view (shape only, both normalised to their boxes), plus a sheet (reference | silhouette | overlap).
   The reference picture is never persisted; the numbers are the record.
 
-Worked plans: `docs/examples/ring-plans/` (a bare quadruped) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
-`creature-from-plan` catalyst carries the spec forms a worker fills. Worked recipes: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
+Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
+`creature-from-plan` catalyst carries the spec forms a worker fills; the `create-hero` catalyst is the human loop on the hero form
+(`docs/examples/ring-plans/hero.plan.mjs`, a cast word → the vajra rest joints, a `style` register, the `docs/examples/hero-head/` head worn as an include). Worked recipes: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
 horns, eyes, teeth and crest spikes pinned; seven dials; six casts), `docs/examples/dragon-body/` (the
-rigged body wearing the detailed head from `docs/examples/head-detail/`, baked through `bakeLayered`). Its `seed-recipe.mjs` is the
+rigged body wearing the dragon head plan from `docs/examples/head-detail/` by name, through `heads`). Its `seed-recipe.mjs` is the
 authoring record: the species rules live there, not in core. `scripts/export-wire-svg.mjs --ref`
 draws any cast as a hidden-line wire SVG.
