@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor } from './compile.mjs';
+import { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor, keepOut } from './compile.mjs';
 import { surfaceLocalOffset } from '../../../control/lib/graph/polygonizer/surface-pin.js';
 
 const partsOf = (head, x) => build(head, x).parts;
@@ -97,4 +97,40 @@ test('the tongue never goes below the jaw, in any expression or at the controls\
     const parts = build(head, x).parts; const tongue = Object.keys(parts).filter((k) => k.startsWith('tongue.')).flatMap((k) => Object.values(parts[k].points)).map((q) => surfaceLocalOffset(base, q));
     for (const q of tongue) { assert.ok(q[2] >= floor(q[0]) - 1e-6, `${h} ${JSON.stringify(x)}: tongue ${(q[2] - floor(q[0])) * 1000} mm under the jaw's underside`); assert.ok(q[2] >= jawLow - 1e-6, `${h}: tongue below the jaw's lowest point`); }
   }
+});
+
+test('no lid or pad vertex is ever inside the eyeball, in any expression or at the controls\' extremes', () => {
+  // in the eye's own frame: the ball's extent is its drawn vertices' furthest reach from its centre (gaze never moves it)
+  const extremes = [{ lidClose: 1 }, { lidClose: 1, browFurrow: 1, cheekBunch: 1 }, { lidClose: -1, browRaise: 1, browArch: 1 }, { browFurrow: 1, eyeGaze: [30, 20] }];
+  for (const [h, head] of Object.entries(HEADS)) for (const x of [...Object.values(EXPRESSIONS), ...extremes]) {
+    const p = build(head, x).parts; const f = frameAt(carriers(head.recipe, head, x).bone, 'cranium', head.regions.eye.at, 'R');
+    const r = (q) => { const l = surfaceLocalOffset(f, q); return Math.hypot(l[0], l[1], l[2] - 0.002); };
+    const ball = Math.max(...Object.values(p.eyeR.points).map(r)); const lid = Math.min(...Object.values(p.surroundR.points).map(r));
+    assert.ok(lid >= ball - 1e-9, `${h} ${JSON.stringify(x)}: surround ${((ball - lid) * 1000).toFixed(2)} mm inside the eyeball`);
+  }
+});
+
+test('tiles yield to regions, and which tiles exist never depends on the expression', () => {
+  for (const [h, head] of Object.entries(HEADS)) {
+    const rest = carriers(head.recipe, head, {}).skin; const at = build(head, {}).parts;
+    for (const side of ['R', 'L']) { const zones = keepOut(rest, head.regions, side); assert.ok(zones.length > 10);
+      // a tile's `back` point sits 3 mm under its centre along the normal
+      for (const [k, t] of Object.entries(at).filter(([k]) => k.startsWith(`tile`) && k.includes(side))) for (const z of zones) assert.ok(Math.hypot(...t.points.back.map((v, i) => v - z.p[i])) >= z.r - 0.003 - 1e-9, `${h} ${k} grows inside a region`); }
+    const ids = (x) => Object.keys(build(head, x).parts).filter((k) => k.startsWith('tile')).join();
+    for (const x of Object.values(EXPRESSIONS)) assert.equal(ids(x), ids({}), `${h}: the tile set changed with the expression`);
+  }
+});
+
+test('driven strips rise with their controls and are always present', () => {
+  const lift = (head, x, k) => { const { parts, skin } = build(head, x); const D = head.regions.wrinkles[Number(k.slice(7, -1))]; const mid = D.strip[Math.floor(D.strip.length / 2)];
+    const f = frameAt(skin, D.part || 'cranium', mid, 'R'); return Math.max(...Object.values(parts[k].points).map((q) => surfaceLocalOffset(f, q)[2])); };
+  for (const [h, head] of Object.entries(HEADS)) head.regions.wrinkles.forEach((D, i) => { const k = `wrinkle${i}R`; const drive = Object.fromEntries(Object.keys(D.drive).map((c) => [c, 1]));
+    assert.ok(k in build(head, {}).parts, `${h} ${k} missing at rest`);
+    assert.ok(lift(head, drive, k) > lift(head, {}, k) + 0.002, `${h} ${k} did not rise under ${Object.keys(D.drive)}`); });
+});
+
+test('details built from a loft ride it: horn ridges stay centred on their horn rings under curl', () => {
+  for (const hornCurl of [0, 0.35, 1]) { const p = build(HEADS.dragon, { hornCurl }).parts;
+    const ctr = (pts, j) => { const q = Object.entries(pts).filter(([id]) => id.startsWith(`st${j}.`)).map(([, v]) => v); return q[0].map((_, i) => q.reduce((s, v) => s + v[i], 0) / q.length); };
+    for (const j of [1, 2, 3, 4, 5]) { const a = ctr(p.hornR.points, j), b = ctr(p[`hornRidge${j}R`].points, 1); assert.ok(Math.hypot(...a.map((v, i) => v - b[i])) < 1e-9, `ridge ${j} left its ring at hornCurl ${hornCurl}`); } }
 });

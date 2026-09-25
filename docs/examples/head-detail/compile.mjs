@@ -163,17 +163,22 @@ function projectOnto(part, origin, dir) {
  * surface normal and leaned along +s (negative leans back). `edgeFade` tapers height toward the window border,
  * `wobble` and `jitter` move centres and heights — all seeded per tile id, never by order. Tiles are rebuilt
  * from the carrier every time, so they ride it. */
-function tiles(L1, name, side, T, idBase) {
+function tiles(L1, name, side, T, idBase, { keep = [], rest = L1 } = {}) {
   const out = {}; const [s0, s1] = T.s, [t0, t1] = T.t, [ns, nt] = T.grid; const ds = (s1 - s0) / ns, dt = (t1 - t0) / nt;
   const sides = T.sides ?? 4, cover = T.coverage ?? 0.9, fade = T.edgeFade ?? 0; const clampS = (v) => Math.min(s1, Math.max(s0, v)), clampT = (v) => Math.min(t1, Math.max(t0, v));
   const hash = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
   for (let j = 0; j < nt; j++) { const off = T.brick && j % 2 ? 0.5 : 0;
-    for (let i = 0; i < ns; i++) { if (s0 + (i + off + 1) * ds > s1 + 1e-9) continue; const id = `${idBase}.${i}.${j}`; const rng = mulberry32(hash(id)); const [r1, r2, r3] = [rng(), rng(), rng()];
+    for (let i = 0; i < ns; i++) { if (s0 + (i + off + 1) * ds > s1 + 1e-9) continue; const id = `${idBase}.${i}.${j}`; const rng = mulberry32(hash(id)); const [r1, r2, r3, r4] = [rng(), rng(), rng(), rng()];
       const sc = s0 + (i + off + 0.5 + (T.wobble ?? 0) * (r1 - 0.5)) * ds, tc = t0 + (j + 0.5 + (T.wobble ?? 0) * (r2 - 0.5)) * dt;
       const ring = Array.from({ length: sides }, (_, k) => { const a = 2 * Math.PI * k / sides + Math.PI / sides; return [clampS(sc + Math.cos(a) * ds / 2 * cover), clampT(tc + Math.sin(a) * dt / 2 * cover)]; });
       const O = ring.map((a) => frameAt(L1, name, a, side).origin); const F0 = frameAt(L1, name, [sc, tc], side); const n = F0.normal, c = F0.origin;
       const along = unit(sub(frameAt(L1, name, [clampS(sc + ds / 4), tc], side).origin, frameAt(L1, name, [clampS(sc - ds / 4), tc], side).origin));
-      const edge = fade > 0 ? Math.min(1, Math.min(sc - s0, s1 - sc) / (fade * (s1 - s0)), Math.min(tc - t0, t1 - tc) / (fade * (t1 - t0))) : 1;
+      let edge = fade > 0 ? Math.min(1, Math.min(sc - s0, s1 - sc) / (fade * (s1 - s0)), Math.min(tc - t0, t1 - tc) / (fade * (t1 - t0))) : 1;
+      // regions win over tiles: a tile centred inside a keep-out is not grown, one near it fades. `thin` drops
+      // tiles toward the window border by seeded chance, so a patch has no hard edge. Both are decided on the
+      // REST carrier, so the tile set and heights never depend on the expression.
+      const cR = frameAt(rest, name, [sc, tc], side).origin; const room = Math.min(Infinity, ...keep.map((z) => Math.hypot(...sub(cR, z.p)) - z.r));
+      if (room <= 0 || r4 < (T.thin ?? 0) * (1 - Math.min(1, Math.max(0, edge)))) continue; edge = Math.min(edge, room / (T.clear ?? 0.012));
       const h = T.height * (1 + (T.jitter ?? 0) * (2 * r3 - 1)) * (0.2 + 0.8 * Math.max(0, edge)); const lean = (T.lean ?? 0) * h;
       const base = O.map((o) => sub(o, mul(n, 0.0015))); const top = O.map((o) => add(add(add(c, mul(sub(o, c), 1 - T.inset)), mul(n, h)), mul(along, lean)));
       const mesh = loftParts([base, top], sub(c, mul(n, 0.003)), add(mean(top), mul(n, h * 0.2)));
@@ -187,6 +192,56 @@ function ringLoft(sections) {
   for (let j = 0; j < N; j++) for (let k = 0; k < m; k++) faces.push([id(j, k), id(j, k + 1), id(j + 1, k + 1)], [id(j, k), id(j + 1, k + 1), id(j + 1, k)]);
   const c = mean(Object.values(pts)); const vol = faces.reduce((s, f) => s + dot(sub(pts[f[0]], c), cross(sub(pts[f[1]], c), sub(pts[f[2]], c))), 0);
   return { points: pts, faces: vol < 0 ? faces.map((f) => [...f].reverse()) : faces, N, m };
+}
+/** COLLAR: a raised band round ring j of a loft (growth ridges, knuckles): a short closed loft of three rings
+ * about that ring's centre (flush, proud by `height` × its radius, flush) spanning ±`width` of the neighbouring
+ * segments. Built from the loft's own points, so it rides whatever bent the loft (a curl, a hinge). */
+function collar(mesh, j, height, width = 0.3) {
+  const ring = (i) => mesh.rings[i].map((id) => mesh.points[id]); const R = ring(j), c = mean(R);
+  const prev = mean(ring(Math.max(0, j - 1))), next = mean(ring(Math.min(mesh.rings.length - 1, j + 1)));
+  const ax = unit(sub(next, prev)), half = width * Math.hypot(...sub(next, prev)) / 2;
+  const at = (d, s) => R.map((p) => add(add(c, mul(sub(p, c), s)), mul(ax, d)));
+  return loftParts([at(-half, 0.97), at(0, 1 + height), at(half, 0.97)], add(c, mul(ax, -half * 1.3)), add(c, mul(ax, half * 1.3)));
+}
+/** DISH: a shallow bowl standing on a face (an inner bowl, a socket rim): a raised rim ring falling to a floor below it,
+ * built along local +z and mapped through `place` into the host's frame. Groups: rim outside, inner inside. */
+function dish({ r, rim, floor, m = 10, squash = [1, 1] }, place = (p) => p, [outer, inner] = ['Rim', 'Inner']) {
+  const ring = (rr, z) => ringAt([0, 0, z], [0, 0, 1], rr, m, 0, squash).map(place);
+  const mesh = loftParts([ring(r * 1.08, 0), ring(r, rim), ring(r * 0.62, floor)], place([0, 0, -0.002]), place([0, 0, floor * 0.8]));
+  return { ...mesh, faceGroups: loftLabels(mesh, (j) => (j === 0 ? outer : inner), [outer, inner]) };
+}
+/** DRIVEN STRIP: a surface strip whose height is a declared linear combination of controls (a corrective):
+ * h × (rest + Σ drive[k] · max(0, control k)). Always emitted, at its rest height when undriven, so the part
+ * set never depends on the expression. */
+function drivenStrip(L1, side, D, x) {
+  const name = D.part || 'cranium'; const k = (D.rest ?? 0.15) + Object.entries(D.drive).reduce((s, [key, w]) => s + w * Math.max(0, ctl(x, key, side)), 0); const m = D.strip.length;
+  const mesh = strip(L1, name, D.strip, side, (j) => { const tp = Math.sin(Math.PI * (j + 0.5) / m); const w = D.w * tp, h = Math.max(0.0005, D.h * k * tp); return [[-w, -0.002], [0, h], [w, -0.002], [0, -0.004]]; });
+  const mid = D.strip[Math.floor(m / 2)]; return { ...mesh, group: D.group || 'Wrinkles', creases: [], pin: address(L1, name, mid[0], mid[1], side) };
+}
+/** WHISKERS: thin tapering sweeps rooted on the skin (barbels, vibrissae). Each root is an address with an
+ * optional `dir` and `len`; the spine runs out along `dir` (pin-local) and droops under world gravity read
+ * through the RIGHT pin frame, so the left set mirrors the right by name. `curl` bends it along its length. */
+function whiskers(L1, side, W) {
+  const name = W.part || 'cranium'; const out = {};
+  W.roots.forEach((root, i) => { const fR = frameAt(L1, name, root.at, 'R'); const down = [fR.tangent, fR.bitangent, fR.normal].map((a) => -a[2]);
+    const d = unit(root.dir || W.dir), len = root.len ?? W.len, n = 6;
+    const spine = Array.from({ length: n + 1 }, (_, j) => { const w = j / n; return add(add([0, 0, -W.r], mul(d, len * w)), mul(down, (W.droop ?? 0) * len * w * w)); });
+    const mesh = sweep(spine, Array.from({ length: n }, (_, j) => W.r * (1 - 0.8 * j / n)), 4, { curl: W.curl ?? 0, curlAxis: unit(cross(d, down)) });
+    out[`whisker${i}`] = pinned(L1, name, root.at, side, mesh, W.group || 'Whiskers'); });
+  return out;
+}
+/** KEEP-OUT: every region placed on a carrier claims the skin around it, as world points with radii, so grown
+ * detail (tiles) yields to it. Read from the REST carrier, so what is kept out never depends on the expression. */
+function keepOut(L1, Rg, side) {
+  const z = []; const at = (part, a, r) => z.push({ p: frameAt(L1, part, a, side).origin, r });
+  if (Rg.eye) at('cranium', Rg.eye.at, Rg.eye.R + Math.max(...(Rg.orbit?.reach ?? [0])));
+  if (Rg.nostril) at('cranium', Rg.nostril.at, 1.6 * Rg.nostril.r * Math.max(...(Rg.nostril.squash ?? [1])));
+  for (const a of Rg.brow?.strip ?? []) at('cranium', a, Rg.brow.w);
+  for (const a of Rg.fold?.strip ?? []) at('cranium', a, 0.008);
+  for (const D of Rg.wrinkles ?? []) for (const a of D.strip) at(D.part || 'cranium', a, D.w);
+  for (const r of Rg.whiskers?.roots ?? []) at(Rg.whiskers.part || 'cranium', r.at, 3 * Rg.whiskers.r);
+  if (Rg.web) for (let i = 0; i <= 3; i++) { const u = i / 3, { cranium: C, jaw: J } = Rg.web; at('cranium', [C[0] + (C[1] - C[0]) * u, C[2]], 0.01); at('jaw', [J[0] + (J[1] - J[0]) * u, J[2]], 0.01); }
+  return z;
 }
 
 // ── the EYE region: ball (named bands) + ONE surround ring (lids above, pad below), tucked under the brow ──
@@ -217,6 +272,14 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   // held just UNDER the brow's lower edge, so the brow overhangs the lid. Upper half = lid, lower = pad.
   const hu = R * Math.max(0.05, orbit.open[0] - 0.55 * lidClose + 8 * lift), hl = R * Math.max(0.05, orbit.open[1] - 0.3 * lidClose - 0.28 * Math.max(0, bunch));
   const N = 20, TH = orbit.thickness; const sections = [];
+  // CLEARANCE RULE: no lid or pad vertex inside the eyeball. The ball's extent is measured on its drawn vertices
+  // (iris disc included) about its centre, which gaze never moves. A lining vertex inside that radius plus
+  // `clear` is lifted along the eye's axis onto it, a skin vertex onto it plus `minThick`: the lid drapes over
+  // the front of the ball. Lifting along the axis keeps x and y, so the aperture and the brow tuck are
+  // untouched and the two rules hold together. Points already clear are never moved.
+  const ballR = Math.max(...Object.values(ball.points).map((p) => Math.hypot(...sub(p, c)))), Rc = ballR + (orbit.clear ?? 0.0008);
+  const hold = (p, r) => { const d = sub(p, c); return Math.hypot(...d) >= r ? p : [p[0], p[1], c[2] + Math.sqrt(r * r - d[0] * d[0] - d[1] * d[1])]; };
+  const clearOfBall = (sec) => { const H = sec.length / 2; return [...sec.slice(0, H).map((p) => hold(p, Rc + (orbit.minThick ?? 0.001))), ...sec.slice(H).map((p) => hold(p, Rc))]; };
   for (let j = 0; j < N; j++) { const phi = 2 * Math.PI * j / N, cs = Math.cos(phi), sn = Math.sin(phi), up = sn >= 0;
     const ax = 0.97 * R * cs, ay = (up ? hu : hl) * sn, rl = R + 0.005; const lash = add(c, [ax, ay, Math.sqrt(Math.max(1e-6, rl * rl - ax * ax - ay * ay))]);
     const ox = (R + orbit.reach[0]) * cs; let oy = sn * (R + (up ? orbit.reach[1] : orbit.reach[2]));
@@ -226,7 +289,7 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
     const bulk = up ? orbit.bulk[0] : orbit.bulk[1] * (1 + 0.6 * Math.max(0, bunch));
     const mids = [0.35, 0.7].map((w) => { let p = add(lerp(rim, outer, w), [0, 0, bulk * Math.sin(Math.PI * w)]); const d = sub(p, c); if (Math.hypot(...d) < R + 0.007) p = add(c, mul(unit(d), R + 0.007)); return p; });
     const inner = [add(c, mul(unit(sub(lash, c)), Math.hypot(...sub(lash, c)) - TH)), ...[rim, ...mids, outer].map((p) => sub(p, [0, 0, TH]))];
-    sections.push([lash, rim, ...mids, outer, ...inner.reverse()]); }
+    sections.push(clearOfBall([lash, rim, ...mids, outer, ...inner.reverse()])); }
   const ring = ringLoft(sections); const lab = [];
   for (let j = 0; j < N; j++) { const upper = Math.sin(2 * Math.PI * (j + 0.5) / N) >= 0; for (let k = 0; k < ring.m; k++) { const g = k === 0 || k === ring.m - 1 ? 'LidRim' : upper ? 'Lids' : 'Pad'; lab.push(g, g); } }
   out.surround = { ...pinned(bone, 'cranium', at, side, ring, 'Lids'), faceGroups: lab };
@@ -331,7 +394,10 @@ function build(head, x) {
       parts[`fold${side}`] = { group: 'Folds', creases: [], ...strip(skin, 'cranium', Rg.fold.strip, side, (j) => { const tp = Math.sin(Math.PI * (j + 0.5) / m); const w = 0.007 * tp, h = (0.002 + 0.009 * drive) * tp; return [[-w, -0.002], [0, h], [w, -0.002], [0, -0.004]]; }) }; }
     parts[`web${side}`] = cheekWeb({ skin, bone, cran: Rg.web.cranium, jaw: Rg.web.jaw, side, retract: ctl(x, 'cornerRetract', side), bunch });
     for (const [k, v] of Object.entries(head.ornaments({ bone, skin, rest: rest.bone, side, x, ctl: (key) => ctl(x, key, side) }))) parts[`${k}${side}`] = v;
-    (Rg.tiles || []).forEach((T, ti) => Object.assign(parts, tiles(skin, T.part, side, T, `tile${ti}${side}`)));
+    (Rg.wrinkles || []).forEach((D, i) => { parts[`wrinkle${i}${side}`] = drivenStrip(skin, side, D, x); });
+    if (Rg.whiskers) for (const [k, v] of Object.entries(whiskers(skin, side, Rg.whiskers))) parts[`${k}${side}`] = v;
+    const keep = keepOut(rest.skin, Rg, side);
+    (Rg.tiles || []).forEach((T, ti) => Object.assign(parts, tiles(skin, T.part, side, T, `tile${ti}${side}`, { keep, rest: rest.skin })));
   }
   if (Rg.tongue) { const T = Rg.tongue; const base = frameAt(bone, 'jaw', T.at, 'R');
     const rest = Array.from({ length: 10 }, (_, j) => { const f = frameAt(bone, 'jaw', [T.at[0] + (T.to - T.at[0]) * j / 9, T.at[1]], 'R'); return surfaceLocalOffset(base, add(f.origin, mul(f.normal, T.lift))); });
@@ -407,10 +473,21 @@ const HEADS = {
       web: { cranium: [0.35, 1.9, 2.97], jaw: [0.35, 1.9, 0.97] },
       tiles: [
         // shingled hex scales, leaning back so each overlaps the one behind it; they fade out at the patch edge
-        { part: 'cranium', s: [1.15, 3.1], t: [2.0, 2.8], grid: [8, 3], brick: true, sides: 6, coverage: 1.25, inset: 0.35, height: 0.007, lean: -0.9, edgeFade: 0.3, wobble: 0.2, jitter: 0.3, group: ['Scales', 'ScalesAlt'] },   // cheek
-        { part: 'jaw', s: [0.6, 4.4], t: [1.15, 2.35], grid: [13, 2], brick: true, sides: 6, coverage: 1.25, inset: 0.35, height: 0.008, lean: -0.9, edgeFade: 0.2, wobble: 0.2, jitter: 0.3, group: ['Scales', 'ScalesAlt'] },   // jaw side
-        { part: 'cranium', s: [3.2, 4.3], t: [0.05, 0.95], grid: [4, 2], brick: true, sides: 6, coverage: 1.1, inset: 0.25, height: 0.006, lean: -0.5, edgeFade: 0.25, wobble: 0.15, group: ['Plates'] },   // snout plates
+        { part: 'cranium', s: [1.15, 3.1], t: [2.0, 2.8], grid: [8, 3], brick: true, sides: 6, coverage: 1.25, inset: 0.35, height: 0.007, lean: -0.9, edgeFade: 0.3, thin: 0.6, wobble: 0.2, jitter: 0.3, group: ['Scales', 'ScalesAlt'] },   // cheek
+        { part: 'jaw', s: [0.6, 4.4], t: [1.15, 2.35], grid: [13, 2], brick: true, sides: 6, coverage: 1.25, inset: 0.35, height: 0.008, lean: -0.9, edgeFade: 0.2, thin: 0.5, wobble: 0.2, jitter: 0.3, group: ['Scales', 'ScalesAlt'] },   // jaw side
+        { part: 'cranium', s: [3.1, 3.9], t: [0.05, 0.95], grid: [3, 2], brick: true, sides: 6, coverage: 1.1, inset: 0.25, height: 0.006, lean: -0.5, edgeFade: 0.25, thin: 0.4, wobble: 0.15, group: ['Plates'] },   // snout plates
       ],
+      // driven strips (correctives): nose-bridge ridges with the sneer, a glabella line with the furrow, crow's feet with the cheek
+      wrinkles: [
+        { strip: [[4.02, 0.12], [4.02, 0.45], [4.02, 0.8]], w: 0.005, h: 0.007, rest: 0.2, drive: { sneer: 1 } },
+        { strip: [[4.25, 0.12], [4.25, 0.4], [4.25, 0.7]], w: 0.005, h: 0.007, rest: 0.2, drive: { sneer: 1 } },
+        { strip: [[2.75, 0.45], [3.0, 0.42], [3.25, 0.4]], w: 0.004, h: 0.008, rest: 0.1, drive: { browFurrow: 1 } },
+        { strip: [[2.02, 1.3], [1.93, 1.24], [1.84, 1.18]], w: 0.003, h: 0.006, rest: 0.1, drive: { cheekBunch: 1 } },
+        { strip: [[2.0, 1.55], [1.9, 1.56], [1.8, 1.57]], w: 0.003, h: 0.006, rest: 0.1, drive: { cheekBunch: 1 } },
+        { strip: [[2.02, 1.8], [1.93, 1.86], [1.84, 1.92]], w: 0.003, h: 0.006, rest: 0.1, drive: { cheekBunch: 1 } },
+      ],
+      // barbels: one long whisker from the snout side, sweeping back and out, riding the skin
+      whiskers: { roots: [{ at: [4.1, 2.15] }], dir: [-0.8, 0, 0.6], len: 0.26, r: 0.011, droop: 0.15, curl: -0.7, group: 'Barbels' },
       tongue: { at: [0.9, 0.02], to: 4.3, slide: 0.08, width: 0.075, thickness: 0.028, lift: 0, seat: 0.003, groove: 0.35, tip: 'fork', forkDepth: 0.24, forkSpread: 0.32, curlMax: 2.2, swayMax: 0.9, droop: 0.9 },
     },
     ornaments: ({ bone, rest, side, x }) => {
@@ -418,13 +495,14 @@ const HEADS = {
       const spine = [[0.11, -0.22, 0.20], [0.15, -0.30, 0.25], [0.19, -0.39, 0.29], [0.22, -0.48, 0.32], [0.245, -0.56, 0.35], [0.26, -0.63, 0.39], [0.265, -0.68, 0.44], [0.26, -0.71, 0.49]].map((p) => surfaceLocalOffset(f, W(p)));
       const horn = sweep(spine, [0.045, 0.043, 0.036, 0.032, 0.024, 0.019, 0.011].map((v, j) => v * (j % 2 ? 0.92 : 1.06)), 6, { curl: x.hornCurl || 0, curlAxis: cross(sub(spine[2], spine[0]), sub(spine[6], spine[2])) });
       return { horn: pinned(bone, 'cranium', at, side, horn, 'Horns', { creases: horn.rings.filter((_, j) => j % 2 === 0 && j > 0).flatMap((rr) => rr.map((a, i) => [a, rr[(i + 1) % rr.length]])) }),
+        ...Object.fromEntries([1, 2, 3, 4, 5].map((j) => [`hornRidge${j}`, pinned(bone, 'cranium', at, side, collar(horn, j, 0.1 - 0.012 * j, 0.28), 'HornRidge')])),
         ...teethRow(bone, 'cranium', 3.05, 4.9, 3.05, 6, (i) => (i === 1 ? 0.07 : 0.042 - i * 0.003), side, [0, 0, -1]),
         ...teethRow(bone, 'jaw', 3.1, 4.85, 0.88, 5, (i) => (i === 1 ? 0.06 : 0.036 - i * 0.002), side, [0, 0, 1]) };
     },
     midline: ({ bone }) => Object.fromEntries(['crest1', 'crest2', 'crest3'].map((c) => { const p = DRAGON.parts[c]; const { at, flip } = pinToAddress(DRAGON_L1.cranium, p.pin); const f = symmetricFrameAt(bone, 'cranium', at);
       const pr = address(bone, 'cranium', at[0], at[1], 'R'); const n = bone.cranium.slots.length; const pin = { ...pr, mirror: { face: mirrorFaceId(pr.face, n), tangentEdge: pr.tangentEdge.map(mirrorPid) } };   // the grammar's symmetric pin
       return [c, { group: 'Crest', creases: [], pin, points: Object.fromEntries(Object.entries(p.offsets).map(([k, o]) => [k, placeSurfaceOffset(f, flip ? [-o[0], -o[1], o[2]] : o)])), faces: Object.values(p.faces) }]; })),
-    palette: { Skull: '#6f8a6a', Snout: '#6f8a6a', Lip: '#67805f', Palate: '#8a5b55', Jaw: '#66805f', Body: '#6f8a6a', Brow: '#566f4f', Pad: '#66805f', Lids: '#5d7a57', LidRim: '#34452f', Horns: '#d8cdb4', Teeth: '#efe8d6', Crest: '#b9ad8f', Scales: '#5f7a59', ScalesAlt: '#6c8865', Plates: '#7b9373', Nostrils: '#34422f', Folds: '#5d7757', Mouth: '#5a2f30', Web: '#67805f', Tongue: '#8e3b4a', Sclera: '#e2d6b0', Iris: '#e0a526', Limbus: '#3a2a14', Pupil: '#121212', Catchlight: '#ffffff' },
+    palette: { Skull: '#6f8a6a', Snout: '#6f8a6a', Lip: '#67805f', Palate: '#8a5b55', Jaw: '#66805f', Body: '#6f8a6a', Brow: '#566f4f', Pad: '#66805f', Lids: '#5d7a57', LidRim: '#34452f', Horns: '#d8cdb4', Teeth: '#efe8d6', Crest: '#b9ad8f', Scales: '#5f7a59', ScalesAlt: '#6c8865', Plates: '#7b9373', Nostrils: '#34422f', Folds: '#5d7757', Wrinkles: '#566f4f', HornRidge: '#c2b594', Barbels: '#a89a74', Mouth: '#5a2f30', Web: '#67805f', Tongue: '#8e3b4a', Sclera: '#e2d6b0', Iris: '#e0a526', Limbus: '#3a2a14', Pupil: '#121212', Catchlight: '#ffffff' },
   },
   // a BEAR authored from its OWN station table: 12 cranium slots (not 8), 7 stations with a stop between
   // brow and muzzle, a short narrow muzzle whose upper lip overhangs a small set-back jaw, a nose pad,
@@ -474,9 +552,19 @@ const HEADS = {
       web: { cranium: [1.6, 3.2, 4.97], jaw: [0.4, 2.1, 0.97] },
       tiles: [
         // pointed tufts: triangular footprints, a steep inset, leaning back; the same op as the scales
-        { part: 'cranium', s: [0.4, 2.1], t: [3.05, 4.6], grid: [6, 3], brick: true, sides: 3, coverage: 1.2, inset: 0.85, height: 0.026, lean: -1.1, edgeFade: 0.25, wobble: 0.3, jitter: 0.35, group: ['Fur', 'FurAlt'] },   // cheek ruff
-        { part: 'cranium', s: [0.2, 1.6], t: [0.15, 1.5], grid: [5, 3], brick: true, sides: 3, coverage: 1.2, inset: 0.85, height: 0.018, lean: -1.2, edgeFade: 0.25, wobble: 0.3, jitter: 0.35, group: ['Fur', 'FurAlt'] },   // crown tufts
+        { part: 'cranium', s: [0.4, 2.1], t: [3.05, 4.6], grid: [6, 3], brick: true, sides: 3, coverage: 1.2, inset: 0.85, height: 0.026, lean: -1.1, edgeFade: 0.25, thin: 0.5, wobble: 0.3, jitter: 0.35, group: ['Fur', 'FurAlt'] },   // cheek ruff
+        { part: 'cranium', s: [0.2, 1.6], t: [0.15, 1.5], grid: [5, 3], brick: true, sides: 3, coverage: 1.2, inset: 0.85, height: 0.018, lean: -1.2, edgeFade: 0.25, thin: 0.5, wobble: 0.3, jitter: 0.35, group: ['Fur', 'FurAlt'] },   // crown tufts
       ],
+      wrinkles: [
+        { strip: [[4.7, 0.1], [4.7, 0.6], [4.7, 1.2]], w: 0.004, h: 0.006, rest: 0.2, drive: { sneer: 1 } },
+        { strip: [[5.0, 0.1], [5.0, 0.55], [5.0, 1.1]], w: 0.004, h: 0.006, rest: 0.2, drive: { sneer: 1 } },
+        { strip: [[2.8, 1.1], [3.05, 1.05], [3.3, 1.0]], w: 0.004, h: 0.007, rest: 0.1, drive: { browFurrow: 1 } },
+        { strip: [[1.95, 2.2], [1.87, 2.12], [1.79, 2.04]], w: 0.003, h: 0.005, rest: 0.1, drive: { cheekBunch: 1 } },
+        { strip: [[1.93, 2.5], [1.85, 2.5], [1.77, 2.5]], w: 0.003, h: 0.005, rest: 0.1, drive: { cheekBunch: 1 } },
+        { strip: [[1.95, 2.8], [1.87, 2.88], [1.79, 2.96]], w: 0.003, h: 0.005, rest: 0.1, drive: { cheekBunch: 1 } },
+      ],
+      // vibrissae: three short fine whiskers on the muzzle side
+      whiskers: { roots: [{ at: [5.3, 4.2] }, { at: [5.5, 4.25], dir: [-0.1, 0.25, 1] }, { at: [5.4, 4.55], dir: [-0.3, -0.3, 1] }], dir: [-0.35, 0, 1], len: 0.05, r: 0.0016, droop: 0.3 },
       tongue: { at: [0.6, 0.02], to: 3.2, slide: 0.05, width: 0.09, thickness: 0.03, lift: 0, seat: 0.003, groove: 0.3, tip: 'round', curlMax: 1.8, swayMax: 0.8, droop: 1.3 },
     },
     ornaments: ({ bone, side, ctl }) => {
@@ -484,12 +572,15 @@ const HEADS = {
       const a = 0.8 * ctl('earAttitude'); const tilt = (p) => rot(rot(p, [0, 0, 1], -0.6), [0, 1, 0], -a);
       const ear = loftParts([[-0.009, 0.042], [0.0, 0.05], [0.008, 0.044]].map(([x0, r]) => ringAt([x0, 0, 0.036], [1, 0, 0], r, 10).map(tilt)), tilt([-0.014, 0, 0.036]), tilt([0.004, 0, 0.036]));
       const nose = sweep([[0, 0, -0.012], [0, 0, 0.012], [0, 0, 0.022]], [0.034, 0.03], 8, { squash: [1.35, 1] });
-      return { ear: { ...pinned(bone, 'cranium', [1.25, 0.9], side, ear, 'Ears'), faceGroups: loftLabels(ear, () => 'Ears', ['Ears', 'EarInner']) },
+      // the inner bowl: a dish on the ear's front face, in the ear's own frame (its axis is local x)
+      const bowl = dish({ r: 0.03, rim: 0.004, floor: 0.0015 }, ([a, b, z]) => tilt([0.006 + z, a, 0.036 + b]), ['Ears', 'EarInner']);
+      return { ear: { ...pinned(bone, 'cranium', [1.25, 0.9], side, ear, 'Ears'), faceGroups: loftLabels(ear, () => 'Ears', ['Ears', 'Ears']) },
+        earBowl: { ...pinned(bone, 'cranium', [1.25, 0.9], side, bowl, 'Ears'), faceGroups: bowl.faceGroups },
         ...(side === 'R' ? { nose: pinned(bone, 'cranium', [5.75, 0.0001], 'R', nose, 'NosePad') } : {}),
         ...teethRow(bone, 'cranium', 5.1, 5.5, 5.2, 2, (i) => (i === 0 ? 0.03 : 0.012), side, [0, 0, -1]),
         ...teethRow(bone, 'jaw', 3.3, 3.7, 0.88, 2, (i) => (i === 0 ? 0.026 : 0.01), side, [0, 0, 1]) };
     },
-    palette: { Skull: '#7a5a3c', Snout: '#b08e68', Jowl: '#9a7853', Palate: '#7d4a44', Jaw: '#9a7853', Body: '#7a5a3c', Brow: '#65482e', Pad: '#86664a', Lids: '#6f5235', LidRim: '#2e2016', Ears: '#6c4f34', EarInner: '#a07c5a', Fur: '#6a4c32', FurAlt: '#7d5b3d', NosePad: '#211813', Teeth: '#efe8d6', Nostrils: '#0e0a08', Folds: '#9a7853', Mouth: '#4a2a28', Web: '#8d6b4a', Tongue: '#c0626a', Sclera: '#efe9dc', Iris: '#5a3a1a', Limbus: '#1e140a', Pupil: '#0e0e0e', Catchlight: '#ffffff' },
+    palette: { Skull: '#7a5a3c', Snout: '#b08e68', Jowl: '#9a7853', Palate: '#7d4a44', Jaw: '#9a7853', Body: '#7a5a3c', Brow: '#65482e', Pad: '#86664a', Lids: '#6f5235', LidRim: '#2e2016', Ears: '#6c4f34', EarInner: '#a07c5a', Fur: '#6a4c32', FurAlt: '#7d5b3d', NosePad: '#211813', Teeth: '#efe8d6', Nostrils: '#0e0a08', Folds: '#9a7853', Wrinkles: '#8c6a47', Whiskers: '#efe6d4', Mouth: '#4a2a28', Web: '#8d6b4a', Tongue: '#c0626a', Sclera: '#efe9dc', Iris: '#5a3a1a', Limbus: '#1e140a', Pupil: '#0e0e0e', Catchlight: '#ffffff' },
   },
 };
 
@@ -538,5 +629,5 @@ function bakeLayered(head, x = {}) {
   return out;
 }
 
-export { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor, bakeLayered, address };
+export { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor, bakeLayered, address, keepOut };
 export const vec = { sub, add, mul, dot, cross, unit, mean };

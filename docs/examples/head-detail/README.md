@@ -27,11 +27,16 @@ grammar would gain; it registers nothing.
 | `refineStation`, `refineSlot` | Insert named stations (`st2_st3_50`) or slot pairs linearly. Parameters freeze before the first insert, so nothing renumbers and every address keeps its meaning |
 | `volumize` | Push named slots out of their station ring (runs before refinement, so inserts interpolate the volume) |
 | `pinToAddress`, `symmetricFrameAt` | Migrate an authored face pin to a parameter address (so it survives refinement); a midline frame from an address and its mirror |
-| Tiles | Detail grown from a carrier. Each cell of an (s,t) window gets a `sides`-gon footprint of addresses on the skin (`coverage` > 1 shingles). The top is inset, raised and leaned; `edgeFade`, `wobble` and `jitter` are seeded per tile id |
+| Tiles | Detail grown from a carrier. Each cell of an (s,t) window gets a `sides`-gon footprint of addresses on the skin (`coverage` > 1 shingles). The top is inset, raised and leaned; `edgeFade`, `wobble` and `jitter` are seeded per tile id. Tiles yield to regions (see keep-out), and `thin` drops them toward the window border by seeded chance, so a patch has no hard edge |
 | Surface strip | A loft whose stations are addresses, each with its own surface frame, so it rides the skin (brows, folds) |
 | `sweep` with `curl` | A spine loft in a pin frame; `curl` spreads a rotation over the stations (horns, ears) |
 | `projectOnto` | Places a point on a carrier along a direction (the eye surround's outer edge) |
 | `ringLoft` | A closed loop of closed sections, a torus (the eye surround) |
+| Driven strip | A surface strip whose height is a declared linear combination of controls, `h × (rest + Σ drive·max(0, control))`. It is always present, at its rest height when undriven (wrinkles) |
+| `collar` | A raised band round one ring of a loft, built from the loft's own points, so it rides whatever bent the loft (horn ridges) |
+| `dish` | A shallow bowl: a raised rim falling to a floor, placed through a map into its host's frame (the bear's inner ear) |
+| Whiskers | Thin tapering sweeps rooted at skin addresses. They droop under world gravity read through the right pin frame, so the left set mirrors by name |
+| Keep-out | Every placed region claims the skin around it (world points with radii), read from the rest carrier. Grown detail yields to it |
 | Sided controls | Values in [-1, 1] per side. Each control's skin map is a list of addresses with falloff radii (authored by landmark name, `st2.brow`), touching that side and the shared midline only |
 
 ## Regions
@@ -44,8 +49,17 @@ grammar would gain; it registers nothing.
   - One **surround** ring (lid above, pad below, `LidRim` along the lash line) whose outer edge is on
     the skin and tucked under the **brow** strip. A brow raise opens the eye, a furrow hoods it, and a
     cheek bunch lifts the lower lid.
+  - **Clearance rule: no lid or pad vertex is ever inside the eyeball.** The ball's extent is measured
+    on its drawn vertices, about a centre that gaze never moves. A vertex inside that radius is lifted
+    along the eye's axis onto it, so the lid drapes over the front of the ball. Lifting keeps x and y,
+    so the aperture and the brow tuck are unchanged and the two rules hold together. Before this rule,
+    a furrowed brow drove the lid up to 11 mm (dragon) and 15 mm (bear) into the ball.
 - **Nostril.** A flared rim; `sneer` slides it, `nostrilFlare` widens it.
 - **Fold.** A strip from nostril to mouth whose height is driven by `sneer` and `cheekBunch`.
+- **Wrinkles (head data over the driven-strip op).** Each head has nose-bridge ridges driven by
+  `sneer`, a glabella line driven by `browFurrow`, and crow's feet driven by `cheekBunch`.
+- **Whiskers (head data).** The dragon has one long barbel per side, sweeping back from the snout; the
+  bear has three short muzzle whiskers. Both ride the skin, so a sneer carries them.
 - **Cheek web.** A sheet held between the cranium lip line (skin) and the jaw lip line (bone) over a
   run of stations. It stretches with the jaw, and its front edge is the mouth corner.
 - **Density and tiles (head data).** Each head declares where refinement goes. The dragon halves its
@@ -95,6 +109,12 @@ Machine, in `test-detail.mjs`:
 - A control without a region is a no-op.
 - Bone-carried parts do not move under skin controls.
 - In the eye's frame, the upper surround sits `tuck` below the brow's lower edge.
+- No lid or pad vertex is inside the eyeball, for every expression and at the extremes (shut, shut and
+  furrowed, wide open, gaze at 30°).
+- Tiles yield to regions: no tile grows inside a keep-out. Which tiles exist never depends on the
+  expression.
+- Driven strips rise with their controls and are present at rest.
+- Horn ridges stay centred on their horn rings under curl.
 - The tongue sits on the jaw floor.
 - A one-sided expression never moves the other side's points. The shared midline may move, and it
   bounds anything pinned across it.
@@ -105,12 +125,12 @@ Machine, in `test-detail.mjs`:
   tested address is within 1 mm.
 
 Not certified:
-- **Other clearance.** The tongue's floor rule is enforced, but nothing yet stops a strong
-  `tongueCurl` passing up through the palate, a lid through the eyeball, or a tooth through the
-  opposite jaw. General self-intersection is not checked.
+- **Other clearance.** The tongue's floor rule and the lids' eyeball rule are enforced. Nothing yet
+  stops a strong `tongueCurl` passing up through the palate, or a tooth through the opposite jaw.
+  Regions may overlap one another. General self-intersection is not checked.
 - **Printability, rigging and weights.** None are covered.
-- **Tile patches do not avoid each other or other regions.** Their windows are placed by hand, and
-  the dragon's cheek patch still shows a border.
+- **Tile patches do not avoid each other.** Tiles yield to regions, but two tile windows may overlap.
+  The windows themselves are still placed by hand.
 
 Eyes: the agent looked at the sheets. Human acceptance is separate.
 
