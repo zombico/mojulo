@@ -17,7 +17,8 @@
  *     { name, kind: 'segment', from, to, rA, rB, slots?, e?, over?, mid?, rMid?, group, tint, mirror: 'plane' | 'name' | null, bind? },
  *     { name, kind: 'chain',   joints: [names], r: [radii], over: { first, last, inner }, group, tint, mirror: 'plane', bind? },
  *   ],
- *   include?: [ { name, parts, dials?, creases?, palette?, shift: [x, y, z] } ],   // a baked layered fragment worn at a shift (a head)
+ *   include?: [ { name, parts, dials?, creases?, palette?, shift: [x, y, z] } ],   // a baked layered fragment worn at a shift
+ *   heads?: [ { name, plan, expression?, shift: [x, y, z], bind? } ],   // a head as PLAN DATA (station-loft-head.js), expanded to an include
  *   details?: [ { name, kind: 'claw', base, dir, length, radius, pin, group, tint, stretch?, mirror? } ],
  *   dials: { <name>: <dial spec> | { op: 'include', name } },  // `parts` entries may carry `$S` (→ R then L)
  *   creases?, palette?, rig?, clips?,                          // rig joints / bones may carry `$S` and `perSide` blocks
@@ -33,6 +34,8 @@
  * Pure, deterministic, no dice. Refusals name the plan field and the fix.
  */
 import { compileLayered, pinFrame, surfaceLocalOffset, mirrorPid, mirrorFaceId } from './station-loft.js';
+import { headFromPlan, resolveExpression } from './station-loft-head.js';
+import { bakeLayered } from './station-loft-detail.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -107,6 +110,18 @@ const expandDial = (d) => {
   return out;
 };
 
+// ── heads: a head plan (JSON) interpreted and baked at its expression, then worn exactly as an include ──
+const headCache = new WeakMap();
+function headInclude(h) {
+  if (headCache.has(h)) return headCache.get(h);
+  if (!h || typeof h.name !== 'string' || !h.name) fail('every head needs { name, plan, shift }');
+  if (!isVec(h.shift)) fail(`head '${h.name}' needs shift [x, y, z]`);
+  let baked; try { baked = bakeLayered(headFromPlan(h.plan), resolveExpression(h.expression)); } catch (err) { fail(`head '${h.name}': ${err.message}`); }
+  const inc = { name: h.name, parts: baked.parts, dials: baked.dials, creases: baked.creases, palette: baked.palette, shift: h.shift, ...(h.bind ? { bind: h.bind } : {}) };
+  headCache.set(h, inc); return inc;
+}
+const includesOf = (plan) => [...(plan.include || []), ...(plan.heads || []).map(headInclude)];
+
 // ── validation ──
 export function validatePlan(plan) {
   if (!plan || typeof plan !== 'object') fail('a plan is an object { schema, frame, joints, segments, … }');
@@ -129,7 +144,7 @@ export function validatePlan(plan) {
     if (seg.kind === 'segment') { claim(seg.name, 'a segment'); joint(seg.from, seg); joint(seg.to, seg); if (seg.rA == null || seg.rB == null) fail(`segment '${seg.name}' needs rA and rB`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`segment '${seg.name}' mirrors by name, so its name must end in R or L`); if (seg.mirror === 'plane') { midline(seg.from, seg); midline(seg.to, seg); } }
     if (seg.kind === 'chain') { if (!Array.isArray(seg.joints) || seg.joints.length < 2) fail(`chain '${seg.name}' needs at least two joints`); seg.joints.forEach((j) => joint(j, seg)); if (!Array.isArray(seg.r) || seg.r.length !== seg.joints.length) fail(`chain '${seg.name}' needs one radius per joint`); for (let i = 0; i + 1 < seg.joints.length; i++) claim(`${seg.name}${i}`, 'a chain link'); if (seg.mirror === 'name') fail(`chain '${seg.name}' is a midline part; mirror 'name' is for a side part`); if (seg.mirror === 'plane') seg.joints.forEach((j) => midline(j, seg)); }
   }
-  for (const inc of plan.include || []) { if (!inc.name || !inc.parts || typeof inc.parts !== 'object') fail('every include needs { name, parts, shift }'); if (!isVec(inc.shift)) fail(`include '${inc.name}' needs shift [x, y, z]`); for (const n of Object.keys(inc.parts)) claim(n, `include '${inc.name}' part`); }
+  for (const inc of includesOf(plan)) { if (!inc.name || !inc.parts || typeof inc.parts !== 'object') fail('every include needs { name, parts, shift }'); if (!isVec(inc.shift)) fail(`include '${inc.name}' needs shift [x, y, z]`); for (const n of Object.keys(inc.parts)) claim(n, `include '${inc.name}' part`); }
   for (const det of plan.details || []) {
     if (!DETAIL_KINDS.includes(det.kind)) fail(`detail '${det.name}' kind must be one of ${DETAIL_KINDS.join(' / ')}`);
     claim(det.name, 'a detail'); if (det.mirror) claim(det.mirror, `the mirror of '${det.name}'`);
@@ -137,7 +152,7 @@ export function validatePlan(plan) {
     if (!det.pin || !names.has(det.pin.parent) || typeof det.pin.face !== 'string' || !Array.isArray(det.pin.weights) || !Array.isArray(det.pin.tangentEdge)) fail(`claw '${det.name}' needs pin { parent (a segment), face, weights, tangentEdge, handedness }`);
     if (det.stretch != null && !(plan.dials && plan.dials[det.stretch]?.op === 'stretch')) fail(`claw '${det.name}' names stretch dial '${det.stretch}', which must be declared with op 'stretch'`);
   }
-  for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !(plan.include || []).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
+  for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !includesOf(plan).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
   return true;
 }
 
@@ -167,7 +182,7 @@ export function expandPlan(plan) {
   }
   // includes: a baked layered fragment worn at a shift (its L1 points translated, L2 offsets rounded and riding their pins)
   const creases = { ...(plan.creases || {}) }; let palette = plan.palette ? { ...plan.palette } : undefined; const includeDials = {};
-  for (const inc of plan.include || []) {
+  for (const inc of includesOf(plan)) {
     const shift = (p) => add(p, inc.shift).map(r6);
     for (const [name, part] of Object.entries(inc.parts)) {
       parts[name] = part.layer === 1

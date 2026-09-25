@@ -91,6 +91,23 @@ the gitignored `lite-template/integration/0924/spike-output/head-detail/`, or in
   `-face.svg` (the native wire emitter).
 - `stats.json`: face counts and the per-part closure audit.
 
+## A head is plan data
+
+Both heads are JSON: [`heads/dragon.head.json`](heads/dragon.head.json) (12 KB) and
+[`heads/bear.head.json`](heads/bear.head.json) (7 KB), schema `layered-head-v1`. The core's `headFromPlan`
+(`station-loft-head.js`) interprets one into the head the operators build:
+
+- **Station tables:** right side authored, left mirrored by name, in head units through `units` or in metres.
+- **Refine ops** in order: `slot`, `station`, `volumize`.
+- **Skin maps** by landmark (`st2.brow`), against the original slots.
+- **Eye and regions:** unchanged data.
+- **Ornaments:** `sweep` (a spine with curl, ring creases and optional ridges), `teeth` (a sized row), `disc` (a
+  stalked disc with an attitude swivel and an optional bowl).
+- **Midline pins,** migrated by address from the unrefined base.
+
+`compile.mjs` only loads them. A ring plan wears a head with `heads: [{ name, plan, expression, shift, bind }]`;
+the dragon body does, and its recipe is byte-identical to the baked include it replaced.
+
 ## Onto a body
 
 `bakeLayered(head, expression)` turns a built head into a layered-recipe fragment: the refined cranium
@@ -98,7 +115,7 @@ and jaw as L1 (the expression's skin; the jaw hinge stays a live dial), every re
 as an L2 part pinned where it was placed, with its geometry as local offsets in that pin's frame; the
 head's scale dials with blends extended to the refined stations; creases re-run along the refined
 chain; the palette. Every placed part records its `pin` for this. The [dragon body](../dragon-body/README.md)
-merges the baked dragon, so the detailed head rides the body's rig (cranium → head bone, jaw → jaw bone,
+wears the dragon's head plan, expanded through this bake, so the detailed head rides the body's rig (cranium → head bone, jaw → jaw bone,
 pinned parts inherit) and every expression is a cast.
 
 ## Checks

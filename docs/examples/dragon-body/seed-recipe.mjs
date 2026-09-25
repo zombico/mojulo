@@ -8,7 +8,7 @@
  * authoring record, not the render path. */
 import { writeFileSync } from 'node:fs';
 import { expandPlan, PLAN_SCHEMA, mirrorPartName, mirrorId } from '../../../control/lib/graph/polygonizer/station-loft-plan.js';
-import { HEADS, EXPRESSIONS, bakeLayered } from '../head-detail/compile.mjs';
+import { HEAD_PLANS } from '../head-detail/compile.mjs';
 export const recipePath = new URL('./recipe.json', import.meta.url);
 export const headPath = new URL('../dragon-layered/recipe.json', import.meta.url);   // the plain head the detailed one refines
 export const HEAD_EXPRESSION = 'neutral';   // the expression cast baked onto the body (a cast is a recipe; expressions are not live dials here)
@@ -61,10 +61,10 @@ const segments = [
   ]),
 ];
 
-// ── the head: the DETAILED dragon head (docs/examples/head-detail), baked at one expression and worn at HEAD_SHIFT —
-// the refined cranium and jaw as L1, every region, ornament and tile as a pinned L2 part, its dials spliced in ──
-const head = bakeLayered(HEADS.dragon, EXPRESSIONS[HEAD_EXPRESSION]);
-const include = [{ name: 'head', parts: head.parts, dials: head.dials, creases: head.creases, palette: head.palette, shift: HEAD_SHIFT, bind: { cranium: 'head', jaw: 'jaw' } }];
+// ── the head: the DETAILED dragon head as PLAN DATA (docs/examples/head-detail/heads/dragon.head.json), which the plan
+// expands at one expression and wears at HEAD_SHIFT: the refined cranium and jaw as L1, every region, ornament and tile
+// as a pinned L2 part, its dials spliced in where `dials.head` says ──
+const heads = [{ name: 'head', plan: HEAD_PLANS.dragon, expression: HEAD_EXPRESSION, shift: HEAD_SHIFT, bind: { cranium: 'head', jaw: 'jaw' } }];
 
 // ── the claws: three at each toe tip on the top band of the last toe station, one on each distal finger tip. A claw's
 // base ring sits INSIDE its host (so the union fuses) and its apex clears the host's tip cap: the toe loft runs 0.3 × r
@@ -139,7 +139,7 @@ const clips = {
 export const plan = {
   schema: PLAN_SCHEMA, frame,
   symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot; midline details use symmetric pins' },
-  joints, segments, include, details, dials, rig, clips,
+  joints, segments, heads, details, dials, rig, clips,
 };
 export const recipe = expandPlan(plan);
 export { J };

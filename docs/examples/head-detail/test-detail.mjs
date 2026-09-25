@@ -2,8 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor, keepOut } from './compile.mjs';
+import { HEADS, HEAD_PLANS, headFromPlan, bakeLayered, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor, keepOut } from './compile.mjs';
 import { surfaceLocalOffset } from '../../../control/lib/graph/polygonizer/surface-pin.js';
+import { expandPlan, PLAN_SCHEMA } from '../../../control/lib/graph/polygonizer/station-loft-plan.js';
+import { compileLayered, auditLayered } from '../../../control/lib/graph/polygonizer/station-loft.js';
 
 const partsOf = (head, x) => build(head, x).parts;
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -20,12 +22,13 @@ test('deterministic: the same head and expression build byte-identical sources',
 });
 
 test('the core names no species: every species word lives in HEAD DATA', () => {
-  // the core is a control module now (station-loft-detail.js); the whole file is checked, not a section
-  const core = readFileSync(new URL('../../../control/lib/graph/polygonizer/station-loft-detail.js', import.meta.url), 'utf8');
-  assert.ok(core.length > 1000);
-  for (const word of ['dragon', 'bear', 'Horn', 'horn', 'crest', 'Crest', 'ear', 'fang']) assert.ok(!new RegExp(`\\b${word}\\b`).test(core), `core mentions ${word}`);
+  // the core is two control modules (the operators, and the head-plan interpreter); both files are checked whole
+  for (const f of ['station-loft-detail.js', 'station-loft-head.js']) { const core = readFileSync(new URL(`../../../control/lib/graph/polygonizer/${f}`, import.meta.url), 'utf8');
+    assert.ok(core.length > 1000);
+    for (const word of ['dragon', 'bear', 'Horn', 'horn', 'crest', 'Crest', 'ear', 'fang']) assert.ok(!new RegExp(`\\b${word}\\b`).test(core), `${f} mentions ${word}`); }
+  // the example is loading only: the heads are JSON, and it defines no function at all
   const example = readFileSync(new URL('./compile.mjs', import.meta.url), 'utf8');
-  assert.ok(example.indexOf('═ HEAD DATA') > 0 && !/^function (address|strip|tiles|eyeRegion|tongueRegion|build|bakeLayered)\b/m.test(example), 'the example defines no core operator');
+  assert.ok(!/\bfunction\b|=>/.test(example.replace(/\/\*\*[\s\S]*?\*\//, '').replace(/\(n\) =>|\(\[n, p\]\) =>/g, '')), 'the example defines no operator');
 });
 
 test('the same expressions drive both heads, and a control a head lacks is a no-op', () => {
@@ -135,4 +138,30 @@ test('details built from a loft ride it: horn ridges stay centred on their horn 
   for (const hornCurl of [0, 0.35, 1]) { const p = build(HEADS.dragon, { hornCurl }).parts;
     const ctr = (pts, j) => { const q = Object.entries(pts).filter(([id]) => id.startsWith(`st${j}.`)).map(([, v]) => v); return q[0].map((_, i) => q.reduce((s, v) => s + v[i], 0) / q.length); };
     for (const j of [1, 2, 3, 4, 5]) { const a = ctr(p.hornR.points, j), b = ctr(p[`hornRidge${j}R`].points, 1); assert.ok(Math.hypot(...a.map((v, i) => v - b[i])) < 1e-9, `ridge ${j} left its ring at hornCurl ${hornCurl}`); } }
+});
+
+test('a head is plan data: each head plan is pure JSON and builds the same head after a JSON round trip', () => {
+  for (const [n, plan] of Object.entries(HEAD_PLANS)) { const again = JSON.parse(JSON.stringify(plan)); assert.deepEqual(again, plan);
+    assert.ok(same(toSource(build(headFromPlan(again), EXPRESSIONS.snarl)), toSource(build(HEADS[n], EXPRESSIONS.snarl))), `${n} changed through JSON`);
+    assert.ok(JSON.stringify(plan).length < JSON.stringify(bakeLayered(HEADS[n], {})).length / 20, `${n} plan is not compact`); }
+});
+
+test('a bad head plan is refused by name', () => {
+  const bad = (edit, re) => { const p = JSON.parse(JSON.stringify(HEAD_PLANS.bear)); edit(p); assert.throws(() => headFromPlan(p), re); };
+  bad((p) => { p.schema = 'x'; }, /schema must be 'layered-head-v1'/);
+  bad((p) => { delete p.parts.jaw; }, /parts\.jaw is required/);
+  bad((p) => { p.ornaments.push({ kind: 'antler' }); }, /ornament kind 'antler'/);
+  bad((p) => { p.skin.controls.sneer.map[0][0] = 'st5.snout'; }, /skin landmark st5\.snout/);
+  bad((p) => { delete p.parts.cranium.rows[0][2].top; }, /row st0 gives no point for slot top/);
+});
+
+test('a ring plan wears a head plan: expanded at its expression, closed, and a bad head refused by name', () => {
+  const plan = (head) => ({ schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y' }, joints: { a: [0, -0.3, 1.6], b: [0, -0.1, 1.95] },
+    segments: [{ name: 'neck', kind: 'segment', from: 'a', to: 'b', rA: 0.12, rB: 0.09, group: 'Neck', tint: '#7a5a3c', mirror: 'plane' }],
+    heads: [{ name: 'head', plan: head, expression: 'snarl', shift: [0, 0, 0] }], dials: { head: { op: 'include', name: 'head' } } });
+  const recipe = expandPlan(plan(HEAD_PLANS.bear)); const mesh = compileLayered(recipe, {});
+  assert.ok(recipe.parts.cranium && recipe.parts.jaw && recipe.parts.earR && recipe.parts.noseR && recipe.dials.jawOpen);
+  for (const [n, r] of Object.entries(auditLayered(mesh))) assert.ok(r.pass, `${n} ${r.closure}`);
+  assert.throws(() => expandPlan(plan({ ...HEAD_PLANS.bear, schema: 'nope' })), /layered plan: head 'head': layered head: schema/);
+  assert.throws(() => expandPlan({ ...plan(HEAD_PLANS.bear), heads: [{ name: 'head', plan: HEAD_PLANS.bear, expression: 'grin', shift: [0, 0, 0] }] }), /expression 'grin' is not a preset/);
 });
