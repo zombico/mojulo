@@ -53,6 +53,7 @@ import {
   validateMotionComicRefs,
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
+import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
@@ -333,6 +334,13 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     finalized = improved;
   } catch {
     finalized = expanded;
+  }
+  // A NEW house is styled: `style: 'auto'` draws a seeded family and variant (siding / brick /
+  // modern / tofu / mission — floorplan-styles.js). Stamped here at mint, never at render, so
+  // every row minted before styles keeps its bytes; `style: null` opts a new house out.
+  if (finalized?.kind === 'floorplan') {
+    if (finalized.style === undefined) finalized = { ...finalized, style: 'auto' };
+    else houseStyleOpts(finalized.style, '', undefined);   // an unknown style refuses, naming the families
   }
 
   const { ok, errors } = validateSketchManifest(finalized);

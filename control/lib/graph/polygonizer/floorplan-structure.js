@@ -34,6 +34,7 @@ import { shadeHex, makeLight, scaleHex } from './vexar.js';
 import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
+import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
 import { doorApproaches } from '../worlds/movement-flow.js';
 import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -693,7 +694,8 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
 function roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o) {
   const height = o.wallHeight;
   const out = extractRoomSceneFaces({
-    elements,
+    // a house style's furnishing palette rides each piece to the mesh makers (room-assets)
+    elements: o.furnishFinish ? elements.map((e) => ({ ...e, finish: o.furnishFinish })) : elements,
     roomBasis: {
       worldExtent: { width: x1 - x0, depth: y1 - y0, height },
       xRange: [x0, x1], yRange: [y0, y1], zRange: [baseZ, baseZ + height],
@@ -1108,7 +1110,7 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
   // `interiorWallStyle` forces one finish on every interior face (e.g. exposed BRICK,
   // the inside face of a brick building); otherwise the finish is chosen by geometry.
   const kind = o.interiorWallStyle || (kindRoll < 0.6 ? 'paint' : kindRoll < 0.8 ? 'wainscot' : 'wallpaper');
-  const paint = palettePick(WALL_PAINTS, key, side, 7.1);
+  const paint = palettePick(o.wallPaints || WALL_PAINTS, key, side, 7.1);   // a house style brings its own paints
   // `swath` marks the painted field: with `wallMaterial` set it carries the procedural material
   // (lit:false — the room's own shade is kept; the World adds the ramp + mottle per vertex)
   const rect = (a0, a1, lo, hi, color, lift, swath = false) => {
@@ -1423,7 +1425,11 @@ export function extrudeWalls(graph, opts = {}) {
  * @returns {{ plan, cells, wallGraph, faces, footprint }}
  */
 export function structurizeFloorplan(input = {}, opts = {}) {
-  const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...opts };
+  // a house style (floorplan-styles.js) supplies defaults under the manifest's own keys; the
+  // stacked house resolves it once and passes `_styled`, so a level never re-draws it
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input.seed != null ? input : { ...input, seed: opts.seed }), opts.view);
+  const given = { ...styled, ...opts };
+  const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...given };
   const plan = Array.isArray(input.rooms)
     ? { rooms: input.rooms, halls: input.halls || [], doors: input.doors || [], width: input.width, height: input.height, seed: input.seed }
     : generatePlan(input.seed ?? 1, { width: input.width, height: input.height, maxDepth: input.maxDepth, corridors: input.corridors ?? false, minRoom: input.minRoom });
@@ -1437,23 +1443,23 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   // plans and multi-cell plans never enter here.
   const oneCell = Array.isArray(input.rooms) && plan.rooms.length === 1 && !(plan.halls || []).length;
   if (oneCell && o.furnish) {
-    if (opts.windows === undefined) o.windows = true;
-    if (opts.floorStyle === undefined) o.floorStyle = 'auto';           // 'plain' opts out
-    if (opts.furnishScale === undefined) o.furnishScale = 'share';       // size pieces to THIS room (phase 1)
-    if (opts.contactShadows === undefined) o.contactShadows = true;      // ground the furniture (phase 3)
+    if (given.windows === undefined) o.windows = true;
+    if (given.floorStyle === undefined) o.floorStyle = 'auto';           // 'plain' opts out
+    if (given.furnishScale === undefined) o.furnishScale = 'share';       // size pieces to THIS room (phase 1)
+    if (given.contactShadows === undefined) o.contactShadows = true;      // ground the furniture (phase 3)
     // surfaces (phase 4): baseboard + painted walls (the geometry-hashed finish mix stays
     // for houses; a lone room reads calmer as plain paint), plaster mottle in the World,
     // and a ceiling — in the WALK tier only (the cutaway still looks down into the room).
-    if (opts.wallDecor === undefined) o.wallDecor = true;
-    if (opts.interiorWallStyle === undefined) o.interiorWallStyle = 'paint';
-    if (opts.wallMaterial === undefined) o.wallMaterial = 'plaster';
-    if (opts.floorTexture === undefined) o.floorTexture = 'auto';         // oak grain on the boards (lit-handoff step 3)
-    if (o._worldTier && opts.ceilings === undefined) o.ceilings = true;
+    if (given.wallDecor === undefined) o.wallDecor = true;
+    if (given.interiorWallStyle === undefined) o.interiorWallStyle = 'paint';
+    if (given.wallMaterial === undefined) o.wallMaterial = 'plaster';
+    if (given.floorTexture === undefined) o.floorTexture = 'auto';         // oak grain on the boards (lit-handoff step 3)
+    if (o._worldTier && given.ceilings === undefined) o.ceilings = true;
     const promotable = (d) => !d.leadsTo && d.entry == null;             // authored, unqualified
     if (plan.doors.some(promotable)) {
       // the authored door is the room's front door: cut it as the entrance (never mutate the input)
       plan.doors = plan.doors.map((d) => (promotable(d) ? { ...d, entry: true, exterior: true, leadsTo: 'entrance' } : d));
-    } else if (!plan.doors.length && opts.entryDoor === undefined) {
+    } else if (!plan.doors.length && given.entryDoor === undefined) {
       o.entryDoor = true;                                                // no door authored → auto-cut one
     }
   }
@@ -2206,7 +2212,8 @@ function chooseStairCore(plan, fp, { width, runLength, margin, t }) {
  * @returns {{ meru, levels:[{ index, role, baseZ, structure }], faces, footprint }}
  */
 export function structurizeHouse(input = {}, opts = {}) {
-  const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...opts };
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input), opts.view);
+  const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...styled, ...opts, _styled: true };
   // tofu is a HIGH-CEILING modern read — raise the storey heights for that style (the meru
   // stacks the taller floors, stairs scale their rise to match) unless the caller set heights.
   if (o.facadeStyle === 'tofu' && opts.wallHeight == null) { o.wallHeight = 12.5; o.upperHeight = 11; }

@@ -336,6 +336,7 @@ function assetFields(source) {
   if (source.asset != null) out.asset = source.asset;
   if (source.assetRef != null) out.assetRef = source.assetRef;
   if (source.instance != null) out.instance = source.instance;
+  if (source.finish != null) out.finish = source.finish;     // a house style's furnishing palette (room-assets recolorManifest)
   return out;
 }
 

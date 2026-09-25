@@ -187,6 +187,8 @@ const BOUNDARY = {
 
 // Seeded generator — proves the dice stay reproducible across the split, and is
 // the only case that also exercises improveFloorplanManifest's grading.
+// Re-pinned 2026-09-25 (CHANGELOG "House styles"): a new house is stamped
+// `style: 'auto'` at mint, so the stored manifest gains that one key on purpose.
 const FLOORPLAN = {
   kind: 'floorplan',
   title: 'house',

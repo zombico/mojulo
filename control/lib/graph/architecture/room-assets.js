@@ -1334,10 +1334,49 @@ function localToFootprint(corners) {
   return place;
 }
 
+// ── FINISHES — a house style's furnishing palette (floorplan-styles.js) ────────────────────
+// The makers author their tints as literals. A finish recolors them by FAMILY: every known
+// literal names its family and the family's reference tint, and becomes the style's family
+// colour scaled by the literal's brightness relative to that reference, so a piece keeps its
+// light and dark parts in the new material. Metals, screens, bedding whites, and anything not
+// listed keep their colour. No finish ⇒ the maker's manifest, untouched.
+const FINISH_SOURCES = {
+  // wood (the makers' WOOD, the dining chair, the couch legs)
+  '#9a6a3d': ['wood', '#9a6a3d'], '#8a5a32': ['wood', '#9a6a3d'], '#6e4524': ['wood', '#9a6a3d'],
+  '#a37445': ['wood', '#9a6a3d'], '#5e3d26': ['wood', '#9a6a3d'], '#5a3a22': ['wood', '#9a6a3d'],
+  '#9c6a3c': ['wood', '#9a6a3d'], '#a4733f': ['wood', '#9a6a3d'], '#5a2f1c': ['wood', '#9a6a3d'], '#3b2116': ['wood', '#9a6a3d'],
+  // upholstery (the club armchair's fabric, the couch's leather)
+  '#6b7f8e': ['upholstery', '#6b7f8e'], '#55677a': ['upholstery', '#6b7f8e'], '#7d91a0': ['upholstery', '#6b7f8e'],
+  '#a85f2f': ['upholstery', '#b66b38'], '#b66b38': ['upholstery', '#b66b38'], '#c57a43': ['upholstery', '#b66b38'],
+  '#c87d45': ['upholstery', '#b66b38'], '#87451f': ['upholstery', '#b66b38'], '#78401f': ['upholstery', '#b66b38'],
+  // bedding (the duvet), the rug, the kitchen's cabinet fronts
+  '#8a9bb0': ['bedding', '#8a9bb0'], '#a3b2c4': ['bedding', '#8a9bb0'],
+  '#5e3128': ['rug', '#8a4a3c'], '#8a4a3c': ['rug', '#8a4a3c'], '#b8836a': ['rug', '#8a4a3c'],
+  '#dcd6c8': ['cabinet', '#dcd6c8'], '#d2ccbd': ['cabinet', '#dcd6c8'],
+};
+const hexLum = (h) => { const n = parseInt(h.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
+const scaleTint = (h, k) => {
+  const n = parseInt(h.slice(1), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * k))));
+  return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+};
+export function recolorManifest(node, finish) {
+  if (Array.isArray(node)) return node.map((v) => recolorManifest(v, finish));
+  if (!node || typeof node !== 'object') return node;
+  const out = {};
+  for (const [k, v] of Object.entries(node)) {
+    const src = k === 'tint' && typeof v === 'string' ? FINISH_SOURCES[v.toLowerCase()] : null;
+    const to = src && finish[src[0]];
+    out[k] = to ? scaleTint(to, hexLum(v) / hexLum(src[1])) : recolorManifest(v, finish);
+  }
+  return out;
+}
+
 export function roomFurnitureAssetFaces(element, { light } = {}) {
   const asset = getRoomFurnitureAsset(element.asset || element.assetRef || element.type);
   if (!asset) return null;
-  let faces = workbenchAssetFaces(asset.buildManifest(element), { light });
+  const built = asset.buildManifest(element);
+  let faces = workbenchAssetFaces(element.finish ? recolorManifest(built, element.finish) : built, { light });
   if (asset.local) {
     const place = localToFootprint(element.heightManji.basePlane.corners);
     faces = faces.map((face) => ({

@@ -190,3 +190,22 @@ window (1). `wall` / `facing` take `back`, `front`, `washroom`, `entry` (the sid
 for what stands at them), or a compass letter. A piece with no `wall` or `facing` faces the hall.
 The washroom fills the back corner on its side and the entry is the front corner on the other,
 so keep items out of both yourself.
+
+## House styles
+
+A new house is minted with `style: 'auto'`: the seed picks a family and, within it, the
+variant, so two houses do not come up the same. Name one to choose it, or `style: null` for the
+plain undressed house:
+
+| style | outside | inside |
+| --- | --- | --- |
+| `cottage` | clapboard siding (sage, blue, cream, rose, olive), white trim; bungalow, colonial or farmhouse roof; double-hung or colonial windows | paint, wainscot and wallpaper mix; warm floorboards; warm wood, soft fabrics |
+| `brick` | running-bond brick (red, brown, buff); manor, colonial or bungalow roof | greige paint mix; dark floorboards; walnut, oxblood or forest fabrics |
+| `modern` | charcoal or grey siding; shed or butterfly roof; picture or casement windows | white and grey paint; pale oak; ash or ink furniture |
+| `tofu` | pale block, crisp reveals, high ceilings; flat deck or stacked-room roof | white paint; pale boards; oat and sand furniture |
+| `mission` | warm stucco; clay mission or pavilion roof; casement or french windows | warm paint; terracotta tile in wet rooms; dark wood, rust or indigo fabric |
+
+A style only sets defaults: any knob on the manifest wins (`style: 'brick', brickBodyTint: '#…'`).
+It turns on `facadeDecor`, `wallDecor`, `floorStyle: 'auto'` and `furnishScale: 'share'` (the
+mesh furniture, which wears the style's palette). Its roof shows in the `exterior` view only; the
+cutaway stays open. An unknown style refuses and names the families.

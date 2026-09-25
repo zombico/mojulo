@@ -130,6 +130,27 @@ loops and the recipe format are unchanged.
 - **Tongue clearance rule.** The tongue in `docs/examples/head-detail/` never goes below the jaw. The floor is the jaw's underside profile in the jaw's own frame, held at the chin past the tip. A segment whose drawn ring would dip under it is turned up just enough, with lengths kept and the turn inherited down the chain. Fork prongs are capped at the body's thickness and lift together. A test enforces the rule for every expression and at the control extremes on both heads.
 - **Refinement that keeps addresses; detail grown from the skin.** Stations and slots in `docs/examples/head-detail/` carry continuous parameters that freeze before the first insert. `refineStation` and `refineSlot` add named density (the face, not the skull back) without renumbering, and addresses keep naming the same bilinear-patch point. Legacy face pins migrate through `pinToAddress`. Skin maps become addresses with falloff radii. A seeded tile pass grows detail from the skin: the dragon gets shingled hex scales and snout plates, the bear pointed fur tufts, from one op with different data.
 - **Head detail, articulation and expression in the layered grammar.** `docs/examples/head-detail/` scales the layered head down to detail. Its species-free core adds surface addresses `(part, s, t)`, named slot refinement and `volumize`, surface strips that ride the skin, spine sweeps with curl, projection onto a carrier, and bone versus skin carriers. The regions built from these are an eye (named sclera/limbus/iris/pupil bands, `iris` or `solid` no-iris modes, round/slit/no pupil, gaze, catchlight), one surround ring tucked under the brow, nostrils, a driven fold, a dual-pinned cheek web whose front edge is the mouth corner, and a tongue resting on the jaw floor. Sided controls in [-1, 1] each declare a named skin map. Two heads share the core with only data differing: the dragon, with a volumized jaw floor, and a bear authored from its own 12-slot station table. One species-neutral expression table (`neutral`, `pant`, `flick`, `surprise`, `snarl`) drives both. The tests check closure, determinism, a core with no species words, bone parts unmoved by skin controls, and one-sided isolation. It registers no kind or tool.
+### House styles
+
+- **A new house comes up in a style.** The `floorplan` kind takes `style`: `cottage` (clapboard
+  siding), `brick`, `modern` (dark siding, shed or butterfly roof), `tofu` (pale block, flat or
+  stacked-room roof) or `mission` (stucco, clay roof, terracotta wet rooms). `'auto'` lets the
+  seed pick the family, and every family draws its variant from the seed too: siding or brick
+  colour, roof, window pattern, entry door, interior paints, floor tone and a furnishing palette.
+  A style is a bundle of existing knobs (`floorplan-styles.js`); any knob on the manifest wins
+  over it. It turns on the facade and wall dressing, the floor finish and the mesh furniture, and
+  roofs the exterior view only. An unknown style refuses, naming the families.
+- **Stamped at mint, never at render.** `create_sketch` stamps `style: 'auto'` on a new house
+  (`style: null` opts out). A row minted before styles has no `style` and renders the same bytes.
+  The `floorplan-seeded` mint golden re-pinned for the new key, logged in the file.
+- **Furniture finishes.** The room furniture meshes take a palette by family (wood, upholstery,
+  bedding, rug, kitchen cabinet): each maker's literal tint becomes the family colour at the
+  literal's relative brightness, so a piece keeps its light and dark parts
+  (`room-assets.js` `recolorManifest`). No palette, no change.
+- Machine gate: `floorplan-styles.test.js` covers the unstyled bytes, the seeded spread and its
+  determinism, keys winning over the style, the exterior-only roof, the stacked house, the
+  furniture palette and the mint stamp. The eyes gate is the operator's.
+
 ### Room livability
 
 - **The residential planners got comfortable defaults.** The house (`floorplan`) and the condo
