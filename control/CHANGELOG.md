@@ -190,6 +190,23 @@ loops and the recipe format are unchanged.
   eye floated to 8.3 ft) and a speed of ~110 ft/s. The condo walk now carries a 0.9 ft (0.27 m)
   half-width at 16 ft/s (4.9 m/s); the house walk a fixed 0.8 ft (0.24 m) half-width instead of
   one that grew with the house.
+- **Your own pieces in a room.** An explicit floorplan room (top level or a level's) takes
+  `items: [{ type | ref, at?, wall?, size?, height?, facing?, turn?, name? }]`, placed relative
+  to the room: `at` is a fraction of the interior, `wall` backs a piece onto that wall facing
+  in, `size` / `height` are feet, `facing` uses the walls' letters. A `type` is a room piece (an
+  arranger type or a room-asset id, e.g. `bookcase`; an unknown name renders as a plain box)
+  and bakes with the house. A `ref` is any stored sketch (a `mint_solid` object, a workbench
+  piece, a bound mesh), which the World resolves and fits uniformly into the footprint,
+  standing on the floor with its +y side as its front. An unknown ref, or one that places
+  itself, refuses. Generated furniture yields an item's footprint (rugs stay under it). Items
+  are never dropped, door approaches included: the placement is the operator's. A room with no
+  `items` renders the same bytes. The `condo-complex` takes the same items per unit,
+  `unitItems: { '<unit id>': [...] }` (ids `<hall id>:u<n>`; an unknown id refuses and lists
+  the real ones), in the unit's own words: `at` runs washroom side → entry side and hall glass →
+  back window, and `wall` / `facing` take `back` / `front` / `washroom` / `entry`, because a
+  unit's compass turns with its side of the hall. The unit's generated fit-out skips a piece
+  whose footprint overlaps an item (rugs and partitions stay). A unit with no items renders the
+  same bytes. Upper-floor tower apartments take no items yet. Machine gate: `room-items.test.js`.
 - Machine gate: `room-livability.test.js` measures seat facing against the table across door
   edges, room and hall minimums, dining pull-out clearance, condo frontage and entry doorways, and
   the walker size. The floorplan furnish pins and the `condo-complex` / `floorplan` kind snapshots

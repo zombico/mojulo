@@ -268,7 +268,7 @@ function unitEntry({ alongCenter, sfW, baseZ, height }, o) {
 // ── BACHELOR UNIT — a glass-front studio off the hall: one open main room plus an enclosed
 // WASHROOM carved into the back corner (an L of partition walls + a door + a WC). Unfinished:
 // concrete floor, no other fit-out. `cInner` = hall side, `cOuter` = back wall. ──────────────
-function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height }, o) {
+function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height, id, items }, o) {
   const light = o.light, faces = [];
   const z0 = baseZ, z1 = baseZ + height, t = 0.4;
   const uw = sfW + 4;
@@ -324,15 +324,17 @@ function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height }, o)
   }
 
   // FRACTAL FIT-OUT: seed the interior from this unit's position → a furnished apartment.
-  const fit = furnishUnit({ axis, alongCenter, a0, a1, cInner, cOuter, wcSide, wcFront, baseZ, height, seed: o.unitSeed ?? 1, entry }, { light, unitWall: o.unitWall, height });
+  const fit = furnishUnit({ axis, alongCenter, a0, a1, cInner, cOuter, wcSide, wcFront, baseZ, height, seed: o.unitSeed ?? 1, entry, ...(items ? { id, items } : {}) }, { light, unitWall: o.unitWall, height });
   faces.push(...fit.faces);
+  // placed `ref` items ride out to the World (world-scene.js resolves them) via the caller's sink
+  if (fit.itemRefs && Array.isArray(o.itemRefsOut)) o.itemRefsOut.push(...fit.itemRefs);
   return faces;
 }
 
 // ── HALLWAY — a marble corridor with side walls and empty units lining both sides (or one
 // side, when `sides` opts a side out for a single-loaded corridor). Exported as part of the
 // condo vocabulary seam (fractal-condo.plan.md). ─────────────────────────────────────────────
-export function hallwayFaces({ axis, along0, along1, crossMid, hallHalf, baseZ, height, unitsPerSide, unitDepth, backDepth, sides }, o) {
+export function hallwayFaces({ axis, along0, along1, crossMid, hallHalf, baseZ, height, unitsPerSide, unitDepth, backDepth, sides, id, unitItems }, o) {
   const light = o.light, faces = [];
   const z0 = baseZ, z1 = baseZ + height, t = o.wallT;
   const c0 = crossMid - hallHalf, c1 = crossMid + hallHalf;
@@ -350,7 +352,11 @@ export function hallwayFaces({ axis, along0, along1, crossMid, hallHalf, baseZ, 
   };
   sideWall(c1, sides?.plus !== false ? gaps : []); sideWall(c0, sides?.minus !== false ? gaps : []);
   // the apartments, on both sides (fractally furnished; each backs an exterior glass facade)
-  for (const s of slots) faces.push(...unitFaces({ ...s, baseZ, height }, o));
+  // unit ids are `<hall id>:u<slot index>` (fractal-condo's plan names them from the same slots)
+  slots.forEach((s, i) => {
+    const items = unitItems?.[`${id}:u${i}`];
+    faces.push(...unitFaces({ ...s, baseZ, height, ...(items ? { id: `${id}:u${i}`, items } : {}) }, o));
+  });
   return faces;
 }
 

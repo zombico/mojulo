@@ -244,6 +244,18 @@ export function planFractalCondoComplex(spec = {}) {
     return { ...c, units: slots.map((s, i) => ({ id: `${c.id}:u${i}`, side: s.side, alongCenter: s.alongCenter })) };
   });
 
+  // placed items per unit (`unitItems: { '<unit id>': [items] }`, the house's item grammar in the
+  // unit's words — condo-unit-fitout). An id the plan does not have fails loudly, naming the ids.
+  const unitItems = spec.unitItems ?? null;
+  if (unitItems != null) {
+    if (typeof unitItems !== 'object' || Array.isArray(unitItems)) throw new Error('condo-complex unitItems must be an object keyed by unit id');
+    const ids = new Set(concourses.flatMap((c) => c.units.map((u) => u.id)));
+    for (const [id, list] of Object.entries(unitItems)) {
+      if (!ids.has(id)) throw new Error(`condo-complex unitItems: no unit '${id}' — this plan's units: ${[...ids].join(', ')}`);
+      if (!Array.isArray(list)) throw new Error(`condo-complex unitItems['${id}'] must be an array of items`);
+    }
+  }
+
   // bounds: every chamber, hall, and unit back wall (units project past the hall envelope)
   let b = null;
   const grow = (r) => { b = b ? { x0: Math.min(b.x0, r.x0), x1: Math.max(b.x1, r.x1), y0: Math.min(b.y0, r.y0), y1: Math.max(b.y1, r.y1) } : { ...r }; };
@@ -268,6 +280,7 @@ export function planFractalCondoComplex(spec = {}) {
     buildings: base.buildings, concourses,
     central, hall, units, sat, upperFloorH: UPPER_FLOOR_H,
     bounds, baseZ, height, spawn: base.spawn, entranceId: base.entranceId,
+    ...(unitItems ? { unitItems } : {}),
   };
 }
 
@@ -634,6 +647,7 @@ export function buildFractalCondoFaces(spec = {}, opts = {}) {
   // accumulates one repeats entry per balcony wall side into repeatsOut.
   o.instancing = opts.instancing ?? spec.instancing ?? false;
   o.repeatsOut = [];
+  o.itemRefsOut = [];
   const faces = [];
   for (const bd of plan.buildings) {
     faces.push(...chamberFaces({
@@ -647,6 +661,7 @@ export function buildFractalCondoFaces(spec = {}, opts = {}) {
     faces.push(...hallwayFaces({
       ...c.hall, baseZ: plan.baseZ, height: plan.height, sides: c.sides,
       unitsPerSide: plan.units.perSide, unitDepth: plan.units.depth, backDepth: plan.units.backDepth,
+      ...(plan.unitItems ? { id: c.id, unitItems: plan.unitItems } : {}),
     }, o));
   }
   // tower stacking: the repeated upper-floor grammar above every multi-floor building —
@@ -664,7 +679,7 @@ export function buildFractalCondoFaces(spec = {}, opts = {}) {
   }
   // BIM completion skin: roof plates, parapets, lift bulkheads, HVAC, washroom vents.
   if (plan.structure !== false) faces.push(...roofSkinFaces(plan, envs, o));
-  return { faces, plan, repeats: o.repeatsOut };
+  return { faces, plan, repeats: o.repeatsOut, ...(o.itemRefsOut.length ? { itemRefs: o.itemRefsOut } : {}) };
 }
 
 // ── assessments — all read the SAME plan the renderer bakes ─────────────────────────────────
@@ -771,7 +786,7 @@ function complexCameras(plan) {
 
 /** Assemble a condo complex into the shared World payload (faces + cameras + walk + checks). */
 export function assembleFractalCondoScene(spec = {}, opts = {}) {
-  const { faces, plan, repeats } = buildFractalCondoFaces(spec, opts);
+  const { faces, plan, repeats, itemRefs } = buildFractalCondoFaces(spec, opts);
   const viewBox = opts.viewBox || { width: 1280, height: 820 };
   const cameras = (opts.cameras || complexCameras(plan)).map((c) => ({
     ...c, worldFraming: { pictureCenter: [viewBox.width / 2, viewBox.height / 2], ...c.worldFraming },
@@ -779,6 +794,8 @@ export function assembleFractalCondoScene(spec = {}, opts = {}) {
   return {
     faces, cameras, viewBox,
     ...(repeats && repeats.length ? { repeats, repeatsInfo: { instanced: repeats.map((r) => ({ group: r.group, copies: r.transforms.length })) } } : {}),
+    // placed `ref` items, resolved and fitted by world-scene.js (which drops this key)
+    ...(itemRefs ? { itemRefs } : {}),
     title: opts.title || 'mojulo condo complex',
     bg: opts.bg || '#0f1218',
     inline: opts.inline ?? false,

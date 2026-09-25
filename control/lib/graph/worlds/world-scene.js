@@ -167,6 +167,40 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // placed room items by ref (floorplan `rooms[i].items[].ref`): the house plans the footprint
+  // and emits a placement record; the ref resolves HERE, where the store is — its bound mesh
+  // when it has one, else its own World faces (a solid, a workbench piece, another sketch) —
+  // and placeItemFaces fits it into the footprint. A ref that places itself (directly or
+  // through a chain) refuses, like an unknown one. No itemRefs ⇒ untouched.
+  if (payload && Array.isArray(payload.itemRefs)) {
+    const recs = payload.itemRefs;
+    delete payload.itemRefs;
+    const chain = [...(viewOpts._itemChain || []), sketch.ref].filter(Boolean);
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { latestBoundMesh } = await import('@/lib/graph/scene/mesh-store.js');
+    const { placeItemFaces } = await import('@/lib/graph/polygonizer/floorplan-structure');
+    for (const rec of recs) {
+      const src = SketchRepository.getByRef(rec.ref);
+      if (!src) throw new Error(`item '${rec.name}': ref '${rec.ref}' is not a stored sketch`);
+      if (chain.includes(src.ref)) throw new Error(`item '${rec.name}': ref '${rec.ref}' places itself (${[...chain, src.ref].join(' → ')})`);
+      const bound = latestBoundMesh(src.ref);
+      let faces, textures = {};
+      if (bound) {
+        const { readBoundMeshScene } = await import('@/lib/graph/scene/scene-gltf-read.js');
+        ({ faces, textures } = readBoundMeshScene(bound.path, {}));
+      } else {
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded });
+        faces = inner.payload?.faces || [];
+        textures = inner.payload?.textures || {};
+      }
+      const placed = placeItemFaces(faces, rec);
+      for (const [k, url] of Object.entries(textures || {})) {
+        if (!payload.textures?.[k]) (payload.textures ??= {})[k] = url;
+      }
+      payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...placed];
+    }
+  }
+
   // meshRef (interchange.plan.md I3 — the bind-back door): a figures-map entry may reference a
   // sketch carrying a BOUND external mesh (bind_mesh_render — e.g. an export_model .glb refined
   // in Blender and bound back). The GLB is lowered HERE, server-side, to the standard face-list

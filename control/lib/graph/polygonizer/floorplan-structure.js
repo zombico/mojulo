@@ -31,7 +31,9 @@
  */
 
 import { shadeHex, makeLight, scaleHex } from './vexar.js';
-import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES } from './floorplan-glyphs.js';
+import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS } from './floorplan-glyphs.js';
+import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
+import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
 import { doorApproaches } from '../worlds/movement-flow.js';
 import { emitPreserve3dScene, extractRoomSceneFaces } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -658,7 +660,7 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
       // a floor skin (rug / runner) is walked over, not around: a door approach never strips
       // it (a stair still does — the flight stands on that floor)
       const skin = e.type === 'rug' || e.type === 'runner';
-      return !exclude.some((h) => !(skin && h.door) && Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
+      return !exclude.some((h) => !(skin && (h.door || h.item)) && Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
     });
   }
   // Wall-hung decor (picture / sconce / tv) mounts on the room's BACK wall (the
@@ -683,6 +685,12 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
     }
   }
   if (!elements.length) return [];
+  return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
+}
+
+// Room elements (anchor / w / h as fractions of the interior {x0,x1,y0,y1}) → baked faces,
+// through the room-spike renderer: the generated furniture and the operator's placed items.
+function roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o) {
   const height = o.wallHeight;
   const out = extractRoomSceneFaces({
     elements,
@@ -701,6 +709,139 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
     includeShell: false, deferDiffusion: false,
   });
   return out.faces || [];
+}
+
+// ── PLACED ITEMS: the operator's own pieces in a room ────────────────────────
+// `rooms[i].items: [{ type | ref, at?, wall?, size?, height?, facing?, turn?, name? }]`, room-
+// relative so the recipe survives a re-plan. `at: [u, v]` is a fraction of the room's interior
+// (inside the walls; [0, 0] the N-W corner, default the centre). `wall: 'N'|'S'|'E'|'W'` backs
+// the piece onto that wall and faces it into the room; `at` may then be one number, the
+// fraction along the wall. `facing` is the compass way the piece's front points, in the walls'
+// letters (N = −y, the y0 wall). `size: [w, d]` is feet (width across the front, depth), and
+// `height` feet. `type` names a room piece (a box-net preset or a room-asset id / alias) and
+// bakes here; `ref` names any stored sketch, which the World resolves (world-scene.js: its
+// bound mesh, else its own faces), fitted uniformly into size × height, its front its own +y.
+// Generated furniture yields an item's footprint (rugs stay under it); an item is never
+// dropped, not even from a door approach: the placement is the operator's.
+const OPPOSITE = { N: 'S', S: 'N', E: 'W', W: 'E' };
+// the room renderer's facing letters are mirrored in v (see orientElementsToDoor)
+const RENDER_FACING = { N: 'S', S: 'N', E: 'E', W: 'W' };
+// the angle that turns a ref's own +y front onto a compass facing (z-up, N = −y)
+const FACING_ANGLE = { S: 0, N: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 };
+// a share-mode asset id back to the arranger type whose preset (height, box-net) it wears
+const ASSET_TYPE = Object.fromEntries(Object.entries(SHARE_ASSETS).map(([t, a]) => [a, t]));
+const ITEM_HEIGHT_FT = 3;   // a type with no preset height (an unknown name renders as a plain box)
+const isEdge = (v) => v === 'N' || v === 'S' || v === 'E' || v === 'W';
+const posFt = (v, d) => (Number.isFinite(v) && v > 0 ? v : d);
+const frac = (v, d = 0.5) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d);
+
+/** A room's `items` → placements: the plan rect each claims and how it renders. */
+export function roomItemPlacements(room, baseZ = 0, o = FLOORPLAN_DEFAULTS) {
+  const list = Array.isArray(room?.items) ? room.items : [];
+  if (!list.length) return [];
+  const pad = Math.max(o.wallThickness ?? FLOORPLAN_DEFAULTS.wallThickness, 0.4);
+  const x0 = room.x + pad, x1 = room.x + room.w - pad, y0 = room.y + pad, y1 = room.y + room.h - pad;
+  const IW = x1 - x0, IH = y1 - y0;
+  if (IW <= 0 || IH <= 0) return [];
+  const sizer = makeSizer({ w: IW, h: IH, scale: 'share' });
+  const out = [];
+  list.forEach((item, i) => {
+    if (!item || typeof item !== 'object') return;
+    const ref = typeof item.ref === 'string' && item.ref ? item.ref : null;
+    const named = !ref && typeof item.type === 'string' && item.type ? item.type : null;
+    const type = named ? (ASSET_TYPE[named] || named) : null;
+    if (!ref && !type) return;
+    const wall = isEdge(item.wall) ? item.wall : null;
+    const facing = isEdge(item.facing) ? item.facing : (wall ? OPPOSITE[wall] : 'S');
+    const [w0, d0] = Array.isArray(item.size) ? item.size : [];
+    const [dw, dd] = type ? sizer(type, 3, 2) : [3, 3];
+    const w = Math.min(posFt(w0, dw), wall === 'E' || wall === 'W' ? IH : IW);
+    const d = posFt(d0, dd);
+    const side = facing === 'N' || facing === 'S';
+    const ex = Math.min(side ? w : d, IW), ey = Math.min(side ? d : w, IH);   // plan extent
+    const at = item.at;
+    const along = typeof at === 'number' ? frac(at) : null;
+    let u = Array.isArray(at) ? frac(at[0]) : 0.5, v = Array.isArray(at) ? frac(at[1]) : 0.5;
+    if (along != null) { if (wall === 'E' || wall === 'W') v = along; else u = along; }
+    let cx = x0 + u * IW, cy = y0 + v * IH;
+    if (wall === 'N') cy = y0 + ey / 2;
+    if (wall === 'S') cy = y1 - ey / 2;
+    if (wall === 'W') cx = x0 + ex / 2;
+    if (wall === 'E') cx = x1 - ex / 2;
+    cx = Math.min(x1 - ex / 2, Math.max(x0 + ex / 2, cx));   // inside the walls
+    cy = Math.min(y1 - ey / 2, Math.max(y0 + ey / 2, cy));
+    const name = typeof item.name === 'string' && item.name ? item.name : `${room.glyph || 'room'}-${Math.round(room.x)}-${Math.round(room.y)}-${i}`;
+    const height = Number.isFinite(item.height) && item.height > 0 ? item.height : null;
+    const rect = { x0: cx - ex / 2, x1: cx + ex / 2, y0: cy - ey / 2, y1: cy + ey / 2 };
+    const base = { name, rect, facing };
+    if (ref) {
+      out.push({ ...base, ref: { ref, name, center: [cx, cy], z: baseZ, size: [w, d], ...(height ? { height } : {}), facing, ...(Number.isFinite(item.turn) ? { turn: item.turn } : {}) } });
+      return;
+    }
+    const asset = ASSET_TYPE[named] ? named : (SHARE_ASSETS[type] || (getRoomFurnitureAsset(type) ? type : null));
+    // preset heights are metres; the house is feet, like every arranger's heightWorld
+    const presetH = ROOM_SCENE_ELEMENT_PRESETS[type]?.height;
+    const heightWorld = height ?? (presetH ? presetH / FLOORPLAN_METERS_PER_UNIT : ITEM_HEIGHT_FT);
+    out.push({
+      ...base,
+      interior: { x0, x1, y0, y1 },
+      element: {
+        type, anchor: [(cx - x0) / IW, (cy - y0) / IH], w: ex / IW, h: ey / IH,
+        facing: RENDER_FACING[facing], instance: name,
+        heightWorld, ...(asset ? { asset } : {}),
+      },
+    });
+  });
+  return out;
+}
+
+/** Placements' `type` items → baked faces (a `ref` placement contributes none here). A mesh
+ *  asset keeps its `asset:<id>:<name>` group; a box-net piece takes `item:<name>`. `o` needs
+ *  `wallHeight` and `light` (the condo fit-out calls this with its own). */
+export function roomItemFaces(placed, baseZ, o) {
+  const faces = [];
+  for (const p of placed) {
+    if (!p.element) continue;
+    for (const f of roomElementFaces([p.element], p.interior, baseZ, o)) faces.push(f.group ? f : { ...f, group: `item:${p.name}` });
+  }
+  return faces;
+}
+
+/** A resolved sketch's faces → a placed item: centred on its footprint, standing on the
+ *  floor, scaled uniformly to fit size × height, its +y front turned to `facing` (after an
+ *  extra `turn`, degrees). Pure — world-scene.js calls it once the ref is resolved. */
+export function placeItemFaces(faces, rec) {
+  const src = (faces || []).filter((f) => f && Array.isArray(f.corners) && f.corners.length && !f.helper);
+  if (!src.length) return [];
+  const turn = ((rec.turn || 0) * Math.PI) / 180;
+  const ct = Math.cos(turn), st = Math.sin(turn);
+  let bx0 = Infinity, bx1 = -Infinity, by0 = Infinity, by1 = -Infinity, bz0 = Infinity, bz1 = -Infinity;
+  for (const f of src) {
+    for (const c of f.corners) {
+      const x = c[0] * ct - c[1] * st, y = c[0] * st + c[1] * ct;
+      if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y;
+      if (c[2] < bz0) bz0 = c[2]; if (c[2] > bz1) bz1 = c[2];
+    }
+  }
+  const [w, d] = rec.size;
+  const k = Math.min(w / Math.max(bx1 - bx0, eps), d / Math.max(by1 - by0, eps), rec.height ? rec.height / Math.max(bz1 - bz0, eps) : Infinity);
+  const mx = (bx0 + bx1) / 2, my = (by0 + by1) / 2;
+  const a = FACING_ANGLE[rec.facing] ?? 0;                // the turn is already in x, y above
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const [cx, cy] = rec.center;
+  const cn = Math.cos(turn + a), sn = Math.sin(turn + a);
+  const spin = (n) => (Array.isArray(n) ? [n[0] * cn - n[1] * sn, n[0] * sn + n[1] * cn, n[2]] : n);
+  const group = `item:${rec.name}`;
+  return src.map((f) => ({
+    ...f,
+    corners: f.corners.map((c) => {
+      const x = (c[0] * ct - c[1] * st - mx) * k, y = (c[0] * st + c[1] * ct - my) * k;
+      return [cx + x * ca - y * sa, cy + x * sa + y * ca, rec.z + (c[2] - bz0) * k];
+    }),
+    ...(f.normal ? { normal: spin(f.normal) } : {}),
+    ...(f.outNormal ? { outNormal: spin(f.outNormal) } : {}),
+    group,
+  }));
 }
 
 // Clearance rects around every doorway — a doorway-width × approach-depth box straddling
@@ -1355,6 +1496,8 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     for (const room of plan.rooms) faces.push(...floorFinishFaces(room, styleFor(room.glyph), baseZ, o, slabHoles));
     for (const h of (plan.halls || [])) faces.push(...floorFinishFaces({ x: h.x, y: h.y, w: h.w, h: h.h }, styleFor('H'), baseZ, o, slabHoles));
   }
+  // the operator's placed items (rooms[i].items) claim their footprints first
+  const placed = plan.rooms.flatMap((room) => roomItemPlacements(room, baseZ, o));
   // populate each registered room with its archetype furniture (the open core is
   // split into its program zones so living/kitchen/dining each read as themselves).
   if (o.furnish) {
@@ -1370,9 +1513,10 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     // decor checks against these where it actually mounts (see furnishCell).
     const wallOpenings = wallGraph.runs.flatMap((run) =>
       run.openings.map((op) => ({ orientation: run.orientation, at: run.at, a: op.a, b: op.b })));
+    const itemClear = placed.map((p) => ({ ...p.rect, item: true }));
     const fo = {
       ...o,
-      ...(doorClear.length ? { furnishExclude: [...(o.furnishExclude || []), ...doorClear] } : {}),
+      ...(doorClear.length || itemClear.length ? { furnishExclude: [...(o.furnishExclude || []), ...doorClear, ...itemClear] } : {}),
       wallOpenings,
     };
     // the edge a room is entered from (its interior access door) → command-position orient.
@@ -1401,6 +1545,10 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     const doorWallsFor = (i) => new Set(allDoors.map((d) => doorWallOf(plan.rooms[i], d)).filter(Boolean));
     plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i), doorWallsFor(i))));
   }
+  // placed items render whether or not the room is furnished: a `type` bakes here, a `ref`
+  // rides out as a placement record for the World to resolve (world-scene.js)
+  faces.push(...roomItemFaces(placed, baseZ, o));
+  const itemRefs = placed.filter((p) => p.ref).map((p) => p.ref);
   // built site structures adjacent to the house: porch/stoop off the entry, deck off the
   // terrace slider, balcony off an upper bedroom. Each keys off a door, so the relevant floor
   // builds its own (upper balcony on the upper level, ground porch/deck on the ground).
@@ -1433,7 +1581,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   if (pots.length) faces.splice(0, faces.length, ...applyPotLightPools(faces, pots, potCfg));
   // The T0 declarations ride the structure itself (world-contract-tiers W2): the unit the
   // family is authored in and its metre factor, so every assembler forwards ONE answer.
-  return { plan, cells, wallGraph, faces, footprint: fp, baseZ, slabHoles, roofTextureKeys, lot, units: FLOORPLAN_UNITS, metersPerUnit: FLOORPLAN_METERS_PER_UNIT, ...(pots.length ? { lights: potLightDefs(pots, potCfg) } : {}) };
+  return { plan, cells, wallGraph, faces, footprint: fp, baseZ, slabHoles, roofTextureKeys, lot, units: FLOORPLAN_UNITS, metersPerUnit: FLOORPLAN_METERS_PER_UNIT, ...(pots.length ? { lights: potLightDefs(pots, potCfg) } : {}), ...(itemRefs.length ? { itemRefs } : {}) };
 }
 
 /** Slight-overhead cameras that read the exterior skin and the open-roof interior. */
@@ -1506,6 +1654,8 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
     ...(Object.keys(textures).length ? { textures } : {}),
     // pot lights (KHR_lights_punctual in the GLB; the engine score carries them too)
     ...(s.lights ? { lights: s.lights } : {}),
+    // placed `ref` items, resolved and fitted by world-scene.js (which drops this key)
+    ...(s.itemRefs ? { itemRefs: s.itemRefs } : {}),
     // The floorplan is authored in FEET. The World runtime is unit-free, but the GLB root
     // and the engine score scale by this so every importer receives metres (the engine-leg
     // finding: the lounge landed in Unreal at 3.28× with a 10 m ceiling).
@@ -2309,12 +2459,15 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
   const textures = {};
   for (const k of house.roofTextureKeys || []) { const u = surfaceTexture(k); if (u) textures[k] = u; }
   collectFaceTextures(house.faces, textures);
+  // placed `ref` items per storey, riding the level's explode offset like its faces
+  const itemRefs = house.levels.flatMap((lvl) => (lvl.structure.itemRefs || []).map((r) => (gap ? { ...r, z: r.z + lvl.index * gap } : r)));
   return {
     faces, cameras, viewBox,
     title: opts.title || 'mojulo house',
     bg: opts.bg || '#10131a', inline: opts.inline ?? false, light: opts.light,
     walk: exterior ? false : floorplanWalk(opts.walk, house.footprint, eyeZ),
     ...(Object.keys(textures).length ? { textures } : {}),
+    ...(itemRefs.length ? { itemRefs } : {}),
     // authored in FEET like the single floor; the GLB root and engine score scale by this.
     metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
   };

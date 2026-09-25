@@ -152,3 +152,41 @@ unshaded payload — Blender, Godot, Unity and three.js light it on import) / `-
 engine packs. Explicit `windows` / `floorStyle` / `entryDoor` / `furnishScale` /
 door `entry: false` still win; multi-cell and generated plans keep the opt-in posture. New room
 archetypes are added as fill recipes (data), not new mark kinds.
+
+## Placing your own items
+
+Any explicit room (top-level `rooms`, or a level's) takes `items`, placed relative to the room
+so they survive a re-plan:
+
+```
+"rooms": [{ "x": 0, "y": 0, "w": 18, "h": 16, "glyph": "L", "items": [
+  { "type": "bookcase", "wall": "N", "at": 0.2 },
+  { "type": "piano", "at": [0.6, 0.6], "size": [5, 2.5], "height": 4, "facing": "E" },
+  { "ref": "<sketch ref>", "wall": "E", "size": [2, 2], "height": 6, "name": "statue" } ] }]
+```
+
+- `at: [u, v]` is a fraction of the room inside its walls (`[0, 0]` the N-W corner; default the
+  centre). `wall: 'N'|'S'|'E'|'W'` backs the piece onto that wall and faces it into the room; `at`
+  may then be one number, the fraction along the wall. N is the y0 wall.
+- `facing` is the compass way the front points (same letters). `size: [w, d]` is width across the
+  front and depth, in feet; `height` is feet. Items stay inside the walls.
+- `type` is a room piece: an arranger type (`sofa`, `bookshelf`, `dining-table`, `armchair`, …) or a
+  room-asset id (`bookcase`, `platform-bed`, `club-armchair`, …). An unknown name renders as a
+  plain box, so size it yourself.
+- `ref` is any stored sketch: a `mint_solid` object, a workbench piece, a sketch with a bound
+  mesh (the bound mesh wins). It is fitted uniformly into `size` × `height`, standing on the floor,
+  and its own +y side is its front (`turn: <degrees>` corrects one that isn't). An unknown ref, or
+  one that places itself, refuses.
+- Items render whether or not the room is furnished. Generated furniture yields an item's
+  footprint (rugs stay under it). An item is never dropped, not even from a door approach, so
+  keep doorways clear yourself. An item's faces are grouped `item:<name>` (a mesh asset keeps
+  `asset:<id>:<name>`).
+
+A `condo-complex` takes the same items per unit: `unitItems: { "<unit id>": [items] }`. Unit ids
+are `<hall id>:u<n>` (`hall-s:u0`, …); an unknown id refuses and lists the plan's real ids. A
+unit's compass turns with its side of the hall, so a unit speaks its own words: `at: [u, v]` runs
+u from the washroom side (0) to the entry side (1) and v from the hall glass (0) to the back
+window (1). `wall` / `facing` take `back`, `front`, `washroom`, `entry` (the side walls, named
+for what stands at them), or a compass letter. A piece with no `wall` or `facing` faces the hall.
+The washroom fills the back corner on its side and the entry is the front corner on the other,
+so keep items out of both yourself.

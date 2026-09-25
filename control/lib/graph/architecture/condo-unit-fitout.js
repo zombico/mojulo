@@ -19,6 +19,7 @@ import {
   assetFaces, buildBed, buildLobbySofa, buildFeatureTable, buildWallArt, buildHousePlant,
   buildBarCounter, buildBarStool, buildOfficeDesk, buildOfficeChair, buildToilet, buildVanity,
 } from '../polygonizer/floorplan-building-assets.js';
+import { roomItemPlacements, roomItemFaces } from '../polygonizer/floorplan-structure.js';
 
 // ── deterministic PRNG (mulberry32) — a unit's whole fit-out is a pure function of its
 // position seed. No Math.random (would break determinism). Same recipe as fractal-city. ──
@@ -110,6 +111,23 @@ function rugFaces(frame, alC, depC, alW, depW, z, tint, light) {
   return boxFaces(Math.min(p0.x, p1.x), Math.max(p0.x, p1.x), Math.min(p0.y, p1.y), Math.max(p0.y, p1.y), z, z + 0.06, tint, light, true);
 }
 
+// A furnisher's piece adder. A piece whose plan footprint overlaps a placed item's (o.keepOut,
+// world rects) is skipped whole: the generated fit-out yields the operator's items. Rugs and
+// partitions are pushed directly, so they stay. No keepOut ⇒ every piece, byte-identical.
+function adder(faces, o) {
+  const light = o.light, keepOut = o.keepOut;
+  return (frag) => {
+    const fs = assetFaces(frag, { light });
+    if (keepOut && keepOut.length) {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const f of fs) for (const [x, y] of f.corners) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      const e = 0.05;
+      if (keepOut.some((r) => Math.min(x1, r.x1) > Math.max(x0, r.x0) + e && Math.min(y1, r.y1) > Math.max(y0, r.y0) + e)) return;
+    }
+    for (const f of fs) faces.push(f);
+  };
+}
+
 const RUGS = ['#7c5b52', '#4f6360', '#6b6480', '#8a7a56', '#566079'];
 
 // ── zone furnishers — each gets the FREE rect (leaf minus WC) in (al,depth), the frame, the
@@ -123,7 +141,7 @@ const backAwayFrom = (F, seatDep, hostDep) => (hostDep > seatDep ? F.faceHall : 
 
 function furnishBedsit(rect, F, rng, z, o) {
   // studio: a bed in the deep corner + a small sofa toward the hall, a rug + plant
-  const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
+  const faces = [], light = o.light, add = adder(faces, o);
   const c = centre(rect);
   const bedC = F.toWorld(rect.x + Math.min(3.6, rect.w * 0.4), rect.y + rect.d - 3.2);
   add(buildBed({ ...bedC, z, len: 6.4, wide: 4.6, along: F.crossAxis, head: F.backSign }));
@@ -136,7 +154,7 @@ function furnishBedsit(rect, F, rng, z, o) {
 }
 
 function furnishLiving(rect, F, rng, z, o) {
-  const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
+  const faces = [], light = o.light, add = adder(faces, o);
   const c = centre(rect);
   faces.push(...rugFaces(F, c.al, c.dep, Math.min(rect.w * 0.72, 9), Math.min(rect.d * 0.6, 7), z, RUGS[Math.floor(rng() * RUGS.length)], light));
   const sofaDep = rect.y + rect.d - 2.2, tableDep = c.dep - 0.4;
@@ -148,7 +166,7 @@ function furnishLiving(rect, F, rng, z, o) {
 }
 
 function furnishBedroom(rect, F, rng, z, o, partition = false) {
-  const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
+  const faces = [], light = o.light, add = adder(faces, o);
   const c = centre(rect);
   if (partition) faces.push(...partitionWall(rect, F, z, o));
   add(buildBed({ ...F.toWorld(c.al, rect.y + rect.d - 3.1), z, len: 6.6, wide: 5, along: F.crossAxis, head: F.backSign }));
@@ -159,7 +177,7 @@ function furnishBedroom(rect, F, rng, z, o, partition = false) {
 }
 
 function furnishSleep(rect, F, rng, z, o) {
-  const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
+  const faces = [], light = o.light, add = adder(faces, o);
   const c = centre(rect);
   add(buildBed({ ...F.toWorld(c.al, rect.y + rect.d - 3), z, len: 6.6, wide: 4.9, along: F.crossAxis, head: F.backSign }));
   if (rng() < 0.5) add(buildHousePlant({ ...F.toWorld(rect.x + 1.4, rect.y + 1.6), z, h: 4.6, spread: 1.8 }));
@@ -167,7 +185,7 @@ function furnishSleep(rect, F, rng, z, o) {
 }
 
 function furnishWork(rect, F, rng, z, o) {
-  const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
+  const faces = [], light = o.light, add = adder(faces, o);
   const c = centre(rect);
   // desk against the deep wall, its screen toward the worker; the chair sits on the hall side
   // of the desk, so its back is to the hall (it used to back onto the desk, facing away)
@@ -179,7 +197,7 @@ function furnishWork(rect, F, rng, z, o) {
 }
 
 function furnishKitchen(rect, F, rng, z, o) {
-  const faces = [], light = o.light, add = (frag) => { for (const f of assetFaces(frag, { light })) faces.push(f); };
+  const faces = [], light = o.light, add = adder(faces, o);
   const c = centre(rect);
   // counter run against the deep wall, stools facing the hall
   const runLen = Math.min(rect.w * 0.82, 10);
@@ -236,6 +254,10 @@ export function furnishUnit(u, opts = {}) {
   // deep, so no counter or sofa lands in the way in.
   const entryBox = u.entry ? { x: Math.min(u.entry.a0, u.entry.a1) - 1, y: 0, w: Math.abs(u.entry.a1 - u.entry.a0) + 2, d: setback + 4 } : null;
 
+  // the operator's placed items (condo-complex `unitItems[<unit id>]`) claim their footprints first
+  const placed = unitItemPlacements(u, F, interior, o);
+  if (placed.length) o.keepOut = placed.map((p) => p.rect);
+
   const zones = arch.zones;
   const leaves = fractalLeaves(interior, zones.length, rng).sort((a, b) => area(b) - area(a));
   const order = [...zones].sort((a, b) => (ZONE_PREF[b] || 0) - (ZONE_PREF[a] || 0));   // biggest-wanting zone → biggest leaf
@@ -268,7 +290,49 @@ export function furnishUnit(u, opts = {}) {
     const partition = tag === 'bedroom' && arch.name === 'one-bed';
     faces.push(...fn(free, F, rng, z, o, partition));
   });
-  return { faces, archetype: arch.name };
+  if (!placed.length) return { faces, archetype: arch.name };
+  faces.push(...roomItemFaces(placed, u.baseZ, { wallHeight: u.height, light: o.light }));
+  const itemRefs = placed.filter((p) => p.ref).map((p) => p.ref);
+  return { faces, archetype: arch.name, ...(itemRefs.length ? { itemRefs } : {}) };
+}
+
+// ── PLACED ITEMS in a unit — the house's item grammar (floorplan-structure roomItemPlacements),
+// spoken in the unit's own words, because a unit's compass turns with its side of the hall:
+// `at: [u, v]` runs u from the washroom side (0) to the entry side (1) and v from the hall
+// glass (0) to the back window (1); `wall` / `facing` take 'back' | 'front' | 'washroom' |
+// 'entry' (the side walls by what stands at them), or a compass letter. The unit's interior is
+// the house room's interior: the placements, fits and refs are the house's own.
+const COMPASS_OF = { '+x': 'E', '-x': 'W', '+y': 'S', '-y': 'N' };
+function unitItemPlacements(u, F, interior, o) {
+  const items = Array.isArray(u.items) ? u.items : [];
+  if (!items.length) return [];
+  const words = {
+    back: COMPASS_OF[F.faceBack], front: COMPASS_OF[F.faceHall],
+    washroom: COMPASS_OF[`-${F.alongAxis}`], entry: COMPASS_OF[`+${F.alongAxis}`],
+  };
+  const word = (v) => words[v] || (['N', 'S', 'E', 'W'].includes(v) ? v : undefined);
+  const p0 = F.toWorld(interior.x, interior.y), p1 = F.toWorld(interior.x + interior.w, interior.y + interior.d);
+  const x0 = Math.min(p0.x, p1.x), x1 = Math.max(p0.x, p1.x), y0 = Math.min(p0.y, p1.y), y1 = Math.max(p0.y, p1.y);
+  const toFrac = (uu, vv) => {
+    const p = F.toWorld(interior.x + uu * interior.w, interior.y + vv * interior.d);
+    return [(p.x - x0) / (x1 - x0), (p.y - y0) / (y1 - y0)];
+  };
+  const clampF = (v) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.5);
+  const side = (w) => w === 'washroom' || w === 'entry';
+  const mapped = items.filter((it) => it && typeof it === 'object').map((it, i) => {
+    const wall = word(it.wall);
+    let at;
+    if (Array.isArray(it.at)) at = toFrac(clampF(it.at[0]), clampF(it.at[1]));
+    else if (typeof it.at === 'number') at = side(it.wall) ? toFrac(0.5, clampF(it.at)) : toFrac(clampF(it.at), 0.5);
+    else at = toFrac(0.5, 0.5);
+    return {
+      ...it, at, name: it.name || `${u.id || 'unit'}-${i}`,
+      wall, facing: word(it.facing) ?? (wall ? undefined : words.front),
+    };
+  });
+  // the pad is the house's rule (≥ 0.4 ft), so the pseudo-room is the interior grown by it
+  const pad = 0.4;
+  return roomItemPlacements({ x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad, items: mapped }, u.baseZ, { wallThickness: pad });
 }
 
 // ── FLOOR-2 APARTMENT — a real 1BR / 2BR laid off a corridor. Unlike the ground-floor shells
