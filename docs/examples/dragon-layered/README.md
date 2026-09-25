@@ -69,8 +69,9 @@ cd control && node scripts/mcp-stdio.mjs call mint_solid --json @<outdir>/roar.m
 The minted sketch is an ordinary workbench solid: the World turntable, `measure_solid`,
 `update_sketch` patches by part id, `export_model` to GLB or STL (`union: true` fuses the
 overlapping parts through Manifold), and `scripts/export-wire-svg.mjs --ref` for wire views.
-Dials are compile-time here: a cast is a mint. A `layered` kind whose manifest carries the
-recipe and dials, lowering on every read, is the follow-up that makes dials live.
+Dials are compile-time here: a cast is a mint. The `layered` kind carries the recipe and dials live;
+it renders the compiled mesh directly (so parts of any shape count), and keeps this loft lowering as
+a library form for a print workflow that wants monomers.
 
 ## Checks
 

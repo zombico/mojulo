@@ -9,9 +9,10 @@ import { loftToFaces } from '../../../control/lib/graph/polygonizer/loft-faces.j
 import { auditClosure } from '../../../control/lib/graph/polygonizer/face-closure.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, auditRig, packLayeredRig, layeredClip } from '../../../control/lib/graph/polygonizer/station-loft-rig.js';
 import { facesToGlb } from '../../../control/lib/graph/scene/scene-gltf.js';
-import { recipePath, headPath, HEAD_SHIFT, mirrorId, mirrorPartName } from './seed-recipe.mjs';
+import { recipePath, HEAD_SHIFT, HEAD_EXPRESSION, mirrorId, mirrorPartName } from './seed-recipe.mjs';
+import { HEADS, EXPRESSIONS, bakeLayered } from '../head-detail/compile.mjs';
 
-const recipe = JSON.parse(readFileSync(recipePath, 'utf8')); const head = JSON.parse(readFileSync(headPath, 'utf8'));
+const recipe = JSON.parse(readFileSync(recipePath, 'utf8')); const head = bakeLayered(HEADS.dragon, EXPRESSIONS[HEAD_EXPRESSION]);
 const D = recipe.dials;
 const EXTREMES = [{}, Object.fromEntries(Object.entries(D).map(([k, s]) => [k, s.min])), Object.fromEntries(Object.entries(D).map(([k, s]) => [k, s.max])), { lean: 20, jawOpen: 30, bulk: 1.2, stance: 1.2, clawLength: 1.5 }];
 const at = (m) => Object.fromEntries(m.pointIds.map((id, i) => [id, m.vertices[i]]));
@@ -32,22 +33,23 @@ test('the whole figure mirrors by name: part suffix and slot suffix R ↔ L, x n
       assert.ok(P[mid], `${id} has no mirror ${mid}`); assert.deepEqual(P[mid].map((x) => +x.toFixed(9)), [-v[0] + 0, v[1], v[2]].map((x) => +x.toFixed(9)), `${id} ↔ ${mid} at ${JSON.stringify(dials)}`); checked++; }
     assert.ok(checked > 400, `checked ${checked}`); }
 });
-test('every part lowers to one closed loft; L1 and claws exact to the micrometre; seated with the soles on the grid at rest', () => {
+test('the loft library form: every loft-shaped part lowers closed and exact; the detail parts are omitted; seated with the soles on the grid at rest', () => {
   for (const dials of EXTREMES) { const m = compileLayered(recipe, dials); const { spec, loweringError, omitted, seatedFrom } = lowerLayeredToWorkbench(m);
-    for (const n of ['nostrilL', 'nostrilR']) assert.ok(omitted.includes(n), n); for (const n of omitted) assert.ok(/^(nostril|crest)/.test(n), `${n} omitted at ${JSON.stringify(dials)}`);   // crest spikes vanish at crestHeight 0
-    for (const [name, err] of Object.entries(loweringError)) assert.ok(err < (name.startsWith('horn') ? 0.005 : 2e-6), `${name} lowering error ${err} m at ${JSON.stringify(dials)}`);   // recipe coordinates are rounded to the micrometre
+    for (const [name, err] of Object.entries(loweringError)) if (!recipe.parts[name].pin || recipe.parts[name].loft) assert.ok(err < (name.startsWith('horn') ? 0.005 : 2e-6), `${name} lowering error ${err} m at ${JSON.stringify(dials)}`);   // recipe coordinates are rounded to the micrometre
     for (const loft of spec.lofts) { const faces = loftToFaces(loft, {}); const a = auditClosure(faces); assert.ok(a.closed && a.boundaryEdgeCount === 0, `${loft.id} ${JSON.stringify(a)}`); assert.ok(signedVolume(faces) > 0, `${loft.id} bakes inside out`); }
+    assert.ok(omitted.length > 100, `the loft form omits the detail parts it cannot express (${omitted.length})`);   // the kind renders the mesh; the loft lowering is a library form
     if (!Object.keys(dials).length) assert.ok(Math.abs(seatedFrom ?? 0) < 0.02, `rest sole at ${seatedFrom}`); }
 });
-test('the head rides along: every head L1 point is the dragon recipe translated by HEAD_SHIFT; head dials unchanged but for the shifted pivot', () => {
-  const body = at(compileLayered(recipe)); const dragon = at(compileLayered(head));
-  for (const [id, v] of Object.entries(dragon)) { assert.ok(body[id], id); for (let k = 0; k < 3; k++) assert.ok(Math.abs(body[id][k] - (v[k] + HEAD_SHIFT[k])) < 2e-6, `${id}[${k}]`); }
+test('the detailed head rides along: every baked head point is the bake translated by HEAD_SHIFT; head dials unchanged but for the shifted pivot', () => {
+  const body = at(compileLayered(recipe)); const baked = at(compileLayered({ frame: {}, parts: head.parts, dials: head.dials, creases: head.creases }));
+  let n = 0; for (const [id, v] of Object.entries(baked)) { assert.ok(body[id], id); for (let k = 0; k < 3; k++) assert.ok(Math.abs(body[id][k] - (v[k] + HEAD_SHIFT[k])) < 5e-6, `${id}[${k}]`); n++; }
+  assert.ok(n > 3000, `head points ${n}`); for (const p of ['eyeR', 'surroundL', 'browR', 'tongue.0', 'webL', 'nostrilR']) assert.ok(recipe.parts[p], p);
   for (const [k, d] of Object.entries(head.dials)) { const b = recipe.dials[k]; assert.ok(b, k); if (d.op === 'scale') assert.ok(Math.abs(b.pivot - (d.pivot + HEAD_SHIFT[['x', 'y', 'z'].indexOf(d.axis)])) < 1e-9, k); else assert.deepEqual(b, d); }
 });
 test('lean hinges the torso, arms, neck and head forward about the pelvis tip; the legs stay planted', () => {
   const P0 = at(compileLayered(recipe)); const P = at(compileLayered(recipe, { lean: 20 }));
   assert.deepEqual(P['pelvis/tip'], P0['pelvis/tip']); assert.ok(P['torso/tip'][1] > P0['torso/tip'][1] + 0.1); assert.ok(P['cranium/tip'][1] > P0['cranium/tip'][1] + 0.25);
-  for (const id of ['torso/st4.front', 'neck/tip', 'cranium/st5.top', 'hornR/tip', 'toothL1R/apex', 'upperArmR/st0.front', 'handL/tip', 'clawH1R/apex']) assert.ok(Math.abs(dist(P[id], P['pelvis/tip']) - dist(P0[id], P0['pelvis/tip'])) < 1e-9, id);
+  for (const id of ['torso/st4.front', 'neck/tip', 'cranium/st5.top', 'hornR/tip', 'tongue.0/st3.s2', 'eyeR/tip', 'upperArmR/st0.front', 'handL/tip', 'clawH1R/apex']) assert.ok(Math.abs(dist(P[id], P['pelvis/tip']) - dist(P0[id], P0['pelvis/tip'])) < 1e-9, id);
   for (const id of Object.keys(P0)) if (/^(thigh|shin|meta|toes|clawF|pelvis)/.test(id)) assert.deepEqual(P[id], P0[id], id);
 });
 test('stance widens both legs symmetrically; bulk carries the arms outward with the chest; a claw stretches along its own axis only', () => {
@@ -70,7 +72,7 @@ test('rig: every L1 part binds by declaration, details inherit, rest skinning is
   assert.equal(a.badWeights, 0); assert.ok(a.restIdentity < 1e-12, `rest identity ${a.restIdentity}`); assert.ok(a.maxLengthError < 1e-9); assert.ok(a.maxOrthoError < 1e-9); assert.equal(a.maxPlantedDrift, 0); assert.ok(a.blended > 200, `blended ${a.blended}`);
   for (const p of a.poses) for (const S of ['L', 'R']) assert.equal(p.legs[S].reach, 'ok', JSON.stringify(p.pose));
   const bi = (part) => skin.joints[mesh.provenance.findIndex((p) => p.part === part)][0];
-  assert.equal(R.bones[bi('toothL1R')].id, 'jaw'); assert.equal(R.bones[bi('hornR')].id, 'head'); assert.equal(R.bones[bi('clawF1L')].id, 'toesL'); assert.equal(R.bones[bi('clawH0R')].id, 'fingerA2R');
+  assert.equal(R.bones[bi('toothL.0R')].id, 'jaw'); assert.equal(R.bones[bi('tongue.0')].id, 'jaw'); assert.equal(R.bones[bi('eyeR')].id, 'head'); assert.equal(R.bones[bi('surroundL')].id, 'head'); assert.equal(R.bones[bi('hornR')].id, 'head'); assert.equal(R.bones[bi('clawF1L')].id, 'toesL'); assert.equal(R.bones[bi('clawH0R')].id, 'fingerA2R');
 });
 test('rig: the crouch drops the pelvis with the toes planted and the knees forward; the roar opens the jaw and lifts the head; mirrored legs mirror', () => {
   const R = validateRig(recipe.rig); const rest = R.joints; const c = rigNodesAt(R, recipe.clips.crouch[1]).nodes; const r = rigNodesAt(R, recipe.clips.roar[1]).nodes;

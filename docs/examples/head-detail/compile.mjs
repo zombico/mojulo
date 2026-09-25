@@ -115,8 +115,8 @@ function sweep(spine, radii, m, { curl = 0, curlAxis = [1, 0, 0], squash } = {})
 }
 /** place a pin-local mesh on a carrier; the mirrored side reverses winding */
 function pinned(L1, name, at, side, local, group, extra = {}) {
-  const f = frameAt(L1, name, at, side);
-  return { group, creases: [], ...extra, points: Object.fromEntries(Object.entries(local.points).map(([k, o]) => [k, placeSurfaceOffset(f, o)])), faces: side === 'L' ? local.faces.map((q) => [...q].reverse()) : local.faces };
+  const pin = address(L1, name, at[0], at[1], side); const f = pinFrame(L1[name], pin);
+  return { group, creases: [], pin, ...extra, points: Object.fromEntries(Object.entries(local.points).map(([k, o]) => [k, placeSurfaceOffset(f, o)])), faces: side === 'L' ? local.faces.map((q) => [...q].reverse()) : local.faces };
 }
 /** SURFACE STRIP: stations are (s,t) addresses; cross-sections live in each station's own surface frame.
  * Convention: profile point 0 is the edge FACING the region the strip bounds (brow: down; pad: up). */
@@ -126,7 +126,9 @@ function strip(L1, name, addrs, side, profile, handle = () => [0, 0, 0]) {
     const e = mul(cross(n, d), side === 'L' ? -1 : 1); const [hd, he, hn] = handle(j); const o = add(f.origin, add(add(mul(d, hd), mul(e, he)), mul(n, hn)));
     return profile(j).map(([a, h]) => add(o, add(mul(e, a), mul(n, h)))); });
   const end = (j, sgn) => { const c = mean(rings[j]); const other = mean(rings[j + (sgn < 0 ? 1 : -1)]); return add(c, mul(unit(sub(c, other)), 0.005)); };
-  const mesh = loftParts(rings, end(0, -1), end(rings.length - 1, 1)); mesh.edge0 = rings.map((r) => r[0]); mesh.normal = F[Math.floor(F.length / 2)].normal; return mesh;
+  const mesh = loftParts(rings, end(0, -1), end(rings.length - 1, 1)); mesh.edge0 = rings.map((r) => r[0]); mesh.normal = F[Math.floor(F.length / 2)].normal;
+  const mid = addrs[Math.floor(addrs.length / 2)]; mesh.pin = address(L1, name, mid[0], mid[1], side);   // the strip's carrier address, for a bake
+  return mesh;
 }
 /** a strip's profile from region data: w, h, a per-station taper, and which way its facing edge points */
 const stripProfile = ({ w, h, taper, facing }, bulk = () => 0) => (j) => { const tp = taper[j]; const W = w * tp, H = (h + bulk(j)) * tp; const s = facing === 'up' ? 1 : -1;
@@ -175,7 +177,7 @@ function tiles(L1, name, side, T, idBase) {
       const h = T.height * (1 + (T.jitter ?? 0) * (2 * r3 - 1)) * (0.2 + 0.8 * Math.max(0, edge)); const lean = (T.lean ?? 0) * h;
       const base = O.map((o) => sub(o, mul(n, 0.0015))); const top = O.map((o) => add(add(add(c, mul(sub(o, c), 1 - T.inset)), mul(n, h)), mul(along, lean)));
       const mesh = loftParts([base, top], sub(c, mul(n, 0.003)), add(mean(top), mul(n, h * 0.2)));
-      out[id] = { ...mesh, group: T.group[(i + j) % T.group.length], creases: [] }; } }
+      out[id] = { ...mesh, group: T.group[(i + j) % T.group.length], creases: [], pin: address(L1, name, sc, tc, side) }; } }
   return out;
 }
 /** a closed loop of closed cross-sections (a torus): no caps */
@@ -243,7 +245,7 @@ function cheekWeb({ skin, bone, cran, jaw, side, retract, bunch }) {
     rings.push([...line, ...[...line].reverse().map((p) => sub(p, mul(n, 0.006)))]); }
   const cap = (j, d) => add(mean(rings[j]), mul(unit(sub(mean(rings[j]), mean(rings[j + d]))), 0.003));
   const mesh = loftParts(rings, cap(0, 1), cap(M - 1, -1));
-  return { ...mesh, group: 'Web', creases: [], faceGroups: loftLabels(mesh, (jj, k) => (k >= 4 && k <= 6 ? 'Mouth' : 'Web'), ['Web', 'Web']) };
+  return { ...mesh, group: 'Web', creases: [], faceGroups: loftLabels(mesh, (jj, k) => (k >= 4 && k <= 6 ? 'Mouth' : 'Web'), ['Web', 'Web']), pin: address(skin, 'cranium', (cran[0] + cran[1]) / 2, cran[2], side) };
 }
 
 /** TONGUE: a spine loft on the jaw floor, carried by the jaw BONE (so it rides the hinge). Shape is data —
@@ -316,9 +318,14 @@ function build(head, x) {
       brow: brow.edge0, browRest: restBrow.edge0, orbit: Rg.orbit });
     for (const [k, v] of Object.entries(eye)) parts[`${k}${side}`] = v;
     // nostril: sneer slides it back and up, flare widens it
-    { const sn = ctl(x, 'sneer', side), fl = ctl(x, 'nostrilFlare', side); const f = frameAt(skin, 'cranium', Rg.nostril.at, side); const r0 = Rg.nostril.r;
-      const o = add(f.origin, add(mul(f.tangent, -0.014 * sn * (Rg.nostril.slide ?? 1)), mul(f.bitangent, 0.006 * sn))); const rr = (r) => ringAt(o, f.normal, r * (1 + 0.55 * fl), 6, 0, Rg.nostril.squash);
-      parts[`nostril${side}`] = { group: 'Nostrils', creases: [], ...loftParts([rr(r0 * 0.8).map((p) => sub(p, mul(f.normal, 0.007))), rr(r0).map((p) => add(p, mul(f.normal, 0.004 + 0.003 * fl))), rr(r0 * 0.65).map((p) => add(p, mul(f.normal, 0.006 + 0.003 * fl)))], sub(o, mul(f.normal, 0.012)), sub(o, mul(f.normal, -0.001))) }; }
+    { const sn = ctl(x, 'sneer', side), fl = ctl(x, 'nostrilFlare', side); const r0 = Rg.nostril.r;
+      // built ONCE in the right pin frame's local coordinates (x tangent, y bitangent, z normal; the rim's long axis is
+      // world-horizontal, read through that frame), then pinned per side, so the left nostril mirrors the right by name
+      const fR = frameAt(skin, 'cranium', Rg.nostril.at, 'R'); const zl = [dot(fR.tangent, [0, 0, 1]), dot(fR.bitangent, [0, 0, 1]), dot(fR.normal, [0, 0, 1])];
+      const o = [-0.014 * sn * (Rg.nostril.slide ?? 1), 0.006 * sn, 0]; const rr = (r) => { let u = cross([0, 0, 1], zl); if (Math.hypot(...u) < 1e-6) u = [1, 0, 0]; u = unit(u); const v = cross([0, 0, 1], u); const R = r * (1 + 0.55 * fl);
+        return Array.from({ length: 6 }, (_, i) => { const t = 2 * Math.PI * i / 6; return add(o, add(mul(u, Math.cos(t) * R * Rg.nostril.squash[0]), mul(v, Math.sin(t) * R * Rg.nostril.squash[1]))); }); };
+      const local = loftParts([rr(r0 * 0.8).map((p) => sub(p, [0, 0, 0.007])), rr(r0).map((p) => add(p, [0, 0, 0.004 + 0.003 * fl])), rr(r0 * 0.65).map((p) => add(p, [0, 0, 0.006 + 0.003 * fl]))], sub(o, [0, 0, 0.012]), add(o, [0, 0, 0.001]));
+      parts[`nostril${side}`] = pinned(skin, 'cranium', Rg.nostril.at, side, local, 'Nostrils'); }
     // fold: a strip whose height is DRIVEN by sneer + cheekBunch
     { const drive = Math.max(0, ctl(x, 'sneer', side)) + 0.7 * Math.max(0, bunch); const m = Rg.fold.strip.length;
       parts[`fold${side}`] = { group: 'Folds', creases: [], ...strip(skin, 'cranium', Rg.fold.strip, side, (j) => { const tp = Math.sin(Math.PI * (j + 0.5) / m); const w = 0.007 * tp, h = (0.002 + 0.009 * drive) * tp; return [[-w, -0.002], [0, h], [w, -0.002], [0, -0.004]]; }) }; }
@@ -415,7 +422,8 @@ const HEADS = {
         ...teethRow(bone, 'jaw', 3.1, 4.85, 0.88, 5, (i) => (i === 1 ? 0.06 : 0.036 - i * 0.002), side, [0, 0, 1]) };
     },
     midline: ({ bone }) => Object.fromEntries(['crest1', 'crest2', 'crest3'].map((c) => { const p = DRAGON.parts[c]; const { at, flip } = pinToAddress(DRAGON_L1.cranium, p.pin); const f = symmetricFrameAt(bone, 'cranium', at);
-      return [c, { group: 'Crest', creases: [], points: Object.fromEntries(Object.entries(p.offsets).map(([k, o]) => [k, placeSurfaceOffset(f, flip ? [-o[0], -o[1], o[2]] : o)])), faces: Object.values(p.faces) }]; })),
+      const pr = address(bone, 'cranium', at[0], at[1], 'R'); const n = bone.cranium.slots.length; const pin = { ...pr, mirror: { face: mirrorFaceId(pr.face, n), tangentEdge: pr.tangentEdge.map(mirrorPid) } };   // the grammar's symmetric pin
+      return [c, { group: 'Crest', creases: [], pin, points: Object.fromEntries(Object.entries(p.offsets).map(([k, o]) => [k, placeSurfaceOffset(f, flip ? [-o[0], -o[1], o[2]] : o)])), faces: Object.values(p.faces) }]; })),
     palette: { Skull: '#6f8a6a', Snout: '#6f8a6a', Lip: '#67805f', Palate: '#8a5b55', Jaw: '#66805f', Body: '#6f8a6a', Brow: '#566f4f', Pad: '#66805f', Lids: '#5d7a57', LidRim: '#34452f', Horns: '#d8cdb4', Teeth: '#efe8d6', Crest: '#b9ad8f', Scales: '#5f7a59', ScalesAlt: '#6c8865', Plates: '#7b9373', Nostrils: '#34422f', Folds: '#5d7757', Mouth: '#5a2f30', Web: '#67805f', Tongue: '#8e3b4a', Sclera: '#e2d6b0', Iris: '#e0a526', Limbus: '#3a2a14', Pupil: '#121212', Catchlight: '#ffffff' },
   },
   // a BEAR authored from its OWN station table: 12 cranium slots (not 8), 7 stations with a stop between
@@ -495,5 +503,40 @@ const EXPRESSIONS = {
   snarl: { tongueCurl: 0.35, jawOpen: 16, browFurrow: 1, sneer: 1, cheekBunch: 0.8, cornerRetract: 0.7, nostrilFlare: 1, lidClose: 0.45, hornCurl: 0.35, earAttitude: -1, eyeGaze: [14, -6] },
 };
 
-export { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor };
+
+// ════════════════════════════ BAKE: the detailed head as a layered-recipe fragment ════════════════════════════
+/** bakeLayered(head, expression) → { parts, dials, creases, palette }: the refined cranium and jaw as L1 (the
+ * expression's skin, so a cast can carry a face; the jaw hinge stays the recipe's live `jawOpen` dial), every
+ * region, ornament and tile as an L2 part pinned where it was placed, with its geometry as local offsets in
+ * that pin's frame. Head dials whose blends name stations are extended to the refined stations by `u`;
+ * the detail-stretch dials (horns, teeth, crest) are dropped: the detail is baked. */
+function bakeLayered(head, x = {}) {
+  const { skin, parts } = build(head, { ...x, jawOpen: 0 });
+  const out = { parts: {}, dials: {}, creases: {}, palette: { ...head.palette } };
+  for (const name of ['cranium', 'jaw']) { const P = clone(head.recipe.parts[name]); const S = skin[name];
+    for (const st of P.stations) for (const slot of P.slots) st.points[slot] = [...S.points[`${name}/${st.id}.${slot}`]];
+    delete P.faces; delete P.points; delete P.groups; out.parts[name] = { ...P, layer: 1, closure: 'closed' }; }
+  for (const [name, part] of Object.entries(parts)) {
+    if (!part.pin) throw new Error(`bakeLayered: ${name} was placed without a pin`);
+    const f = pinFrame(skin[part.pin.parent], part.pin);
+    const offsets = Object.fromEntries(Object.entries(part.points).map(([k, p]) => [k, surfaceLocalOffset(f, p)]));
+    const faces = {}, groups = {}; part.faces.forEach((t, i) => { const id = `f${String(i).padStart(3, '0')}`; faces[id] = t; groups[id] = part.faceGroups ? part.faceGroups[i] : part.group; });
+    out.parts[name] = { layer: 2, closure: 'closed', group: part.group, pin: part.pin, offsets, faces, groups };
+  }
+  // creases were authored between coarse stations; after refinement they run along the refined chain
+  for (const [id, c] of Object.entries(head.recipe.creases || {})) { const P = out.parts[c.parent]; const [a, b] = c.edge.map((e) => e.match(/\/([^.]+)\.([^.]+)$/)); const ids = P.stations.map((st) => st.id);
+    const ia = ids.indexOf(a[1]), ib = ids.indexOf(b[1]); if (ia < 0 || ib < 0 || a[2] !== b[2]) throw new Error(`bakeLayered: crease ${id} is not a station edge`);
+    for (let i = Math.min(ia, ib); i < Math.max(ia, ib); i++) out.creases[`${id}.${i}`] = { ...c, edge: [`${c.parent}/${ids[i]}.${a[2]}`, `${c.parent}/${ids[i + 1]}.${a[2]}`] }; }
+  for (const [k, d] of Object.entries(head.recipe.dials)) {
+    if (d.op === 'stretch') continue;
+    const dial = clone(d);
+    if (dial.blend) for (const pn of dial.parts || []) { const P = out.parts[pn]; if (!P) continue;
+      for (const st of P.stations) { if (dial.blend[st.id] !== undefined || st.u === undefined || Number.isInteger(st.u)) continue;
+        const lo = `st${Math.floor(st.u)}`, hi = `st${Math.ceil(st.u)}`, t = st.u - Math.floor(st.u); dial.blend[st.id] = (dial.blend[lo] ?? 0) * (1 - t) + (dial.blend[hi] ?? 0) * t; } }
+    out.dials[k] = dial;
+  }
+  return out;
+}
+
+export { HEADS, EXPRESSIONS, build, toSource, carriers, frameAt, compile, refineStation, refineSlot, loadRecipe, clone, jawFloor, bakeLayered, address };
 export const vec = { sub, add, mul, dot, cross, unit, mean };

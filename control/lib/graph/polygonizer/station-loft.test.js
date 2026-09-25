@@ -7,6 +7,7 @@ import { compileLayered, auditLayered, resolveLayeredDials, mirrorPid, mirrorFac
 import { lowerLayeredToWorkbench, lowerLayeredManifest } from './station-loft-workbench.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, packLayeredRig, auditRig, layeredClip, solveTwoBone } from './station-loft-rig.js';
 import { facesToGlb } from '../scene/scene-gltf.js';
+import { layeredFaces, layeredStats, persistedLayeredLedger } from './station-loft-faces.js';
 import { loftToFaces } from './loft-faces.js';
 import { auditClosure } from './face-closure.js';
 
@@ -212,5 +213,22 @@ describe('station-loft-rig — bindings, posing, skinning, packing', () => {
     // the GLB's vertices are a per-corner soup grouped per bone; match each engine vertex to the nearest JS rest vertex, then compare the posed positions
     const restIdx = POS.map((p) => { let best = 0, bd = Infinity; mesh.vertices.forEach((v, i) => { const d = dist3(p, v); if (d < bd) { bd = d; best = i; } }); return best; });
     let maxErr = 0; engine.forEach((p, i) => { maxErr = Math.max(maxErr, dist3(p, js[restIdx[i]])); }); expect(maxErr).toBeLessThan(2e-3);   // the packed clip rounds q/head to 1e-4
+  });
+});
+
+describe('station-loft-faces — the compiled mesh as studio faces', () => {
+  it('every non-degenerate face becomes a shaded studio face, seated on the grid, coloured by palette group then part tint, grouped by part or by one name', () => {
+    const m = compileLayered(recipe); const faces = layeredFaces(m, { ...recipe, palette: { Back: '#ff0000' } });
+    expect(faces).toHaveLength(m.faces.length); let minZ = Infinity; for (const f of faces) for (const c of f.corners) minZ = Math.min(minZ, c[2]); expect(Math.abs(minZ)).toBeLessThan(1e-9);
+    expect(new Set(faces.map((f) => f.group))).toEqual(new Set(['body', 'spike']));
+    const back = faces.filter((f, i) => m.groups[i] === 'Back'); expect(back.length).toBeGreaterThan(0); for (const f of back) expect(f.fill.toLowerCase()).toMatch(/^#[0-9a-f]{6}$/);
+    expect(layeredFaces(m, recipe, { group: 'all' }).every((f) => f.group === 'all')).toBe(true);
+    expect(layeredFaces(m, recipe, { seat: false })[0].corners[0][2]).toBeCloseTo(m.vertices[m.faces[0][0]][2], 12);
+    expect(layeredFaces(m, recipe)).toEqual(layeredFaces(m, recipe));
+  });
+  it('stats: per-part sizes, closure, bounds and a persistable ledger', () => {
+    const m = compileLayered(recipe); const s = layeredStats(m, recipe, { units: 'cm' });
+    expect(s.units).toBe('cm'); expect(s.parts.map((p) => p.id).sort()).toEqual(['body', 'spike']); expect(s.closed).toBe(true); expect(s.faces).toBe(m.faces.length); expect(s.size.h).toBeGreaterThan(0);
+    expect(persistedLayeredLedger(s.ledger)).toEqual({ recipe_bytes: expect.any(Number), faces: m.faces.length, closed: true });
   });
 });

@@ -12,8 +12,18 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Ring plan
+
+- (planned, nothing built) The dream loop's read step lands in the layered vocabulary: a compact ring
+  plan (`mint_solid { kind: 'layered', via: 'plan' }`) expands deterministically into a layered recipe,
+  the head-detail operators move into core with species as data, the creature route is welded into the
+  routing surface, and the kind gains the old loop's machine gates (an exposure ledger per pinned
+  detail, a matched-azimuth silhouette compare). References stay scaffolding; the recipe is the artifact.
+
 ### Planar drawing
 
+- **The layered kind renders its compiled mesh.** A `layered` sketch's World page, `measure_solid` and every export now come from the compiled mesh itself (every closed part exact, whatever its shape) through the studio's faces seam, instead of a straight-loft lowering that could only carry loft-shaped parts; a recipe `palette` colours faces by group. The loft lowering stays as a library (`station-loft-workbench.js`) for a print-friendly monomer form.
+- **The detailed head on the dragon body.** `docs/examples/head-detail` gains `bakeLayered(head, expression)`: the refined cranium and jaw as L1 plus every region, ornament and tile as pinned L2 parts, so the dragon body seed merges the detailed dragon head (eyes with iris and lids, brows, nostrils, folds, cheek webs, tongue, scales) and the rig binds it as before.
 - **Rig preview on the World page.** A rigged layered sketch's World page plays its clips in place (`?clip=<name>`, a clip selector in the corner) through a small self-contained channel over the packed figure, hiding the rest solid while it plays; pages without a previewed figure are byte-identical.
 - **Layered rig.** A `layered` recipe can declare a `rig` (rest joints incl. the vajra core, a bone table, extension chains, digitigrade legs) and per-part `bind`ings; pinned details inherit their face's weights. `station-loft-rig.js` binds the compiled mesh (per-vertex joints/weights, refusing invalid bindings), poses it (friendly words for the core through `resolvePose`/`articulate`, chain channels, a planted-toe leg solve that rejects unreachable targets instead of stretching), skins it, and packs it as a rig figure with authored weights; the skinned glTF writer honours authored part weights (absent ⇒ byte-identical). `export_model({ skinned: true, clips })` on a rigged layered sketch writes the skinned GLB (the mint pays the rig gates; `scripts/export-wire-svg.mjs --clip <name> --phase t` draws a posed frame). The dragon body is the first rigged recipe: 36 bones, chains for tail, fingers and jaw, planted digitigrade legs, clips idle / crouch / roar.
 - **Tail and fingers; chain dials.** The dial op `chain` runs sequential hinges off one dial (`links: [{ pivot, parts, weight? }]`, each link's pivot read after the earlier links have moved it), the ordered parented chain the construction doc asks for. The dragon body gains a five-segment tail (`tailCurl`, `tailSway`) and three two-segment clawed fingers per hand (`grip`).

@@ -29,7 +29,9 @@ import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/archi
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
-import { lowerLayeredManifest } from '@/lib/graph/polygonizer/station-loft-workbench';
+import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
+import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
+import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, packLayeredRig } from '@/lib/graph/polygonizer/station-loft-rig';
 import { assembleScadScene } from '@/lib/graph/worlds/scad';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
@@ -476,18 +478,19 @@ export const WORLD_KINDS = {
   layered: {
     title: 'mojulo layered solid',
     resolve: async (m, ctx) => {
-      const lowered = lowerLayeredManifest(m, compileLayered);
-      const scene = assembleWorkbenchScene({ ...lowered, title: ctx.title, light: ctx.light, toon: ctx.toon });
+      // The compiled mesh IS the solid: every closed part exact, whatever its shape (station-loft-faces.js),
+      // on the workbench studio through the same faces seam the scad kind rides.
+      const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
+      const rigged = !!(m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length);
+      const light = withBands(ctx.light || WORKBENCH_LIGHT, resolveToon(ctx.toon)?.bands); const seat = m.seat !== false;
+      const faces = layeredFaces(mesh, m.recipe, { light, seat, group: rigged ? 'body' : null });
+      const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       // A rigged recipe with clips also carries its packed rig figure (station-loft-rig.js): the skinned
-      // glTF export (`export_model { clips, skinned }`) reads it, and `embodies: 'body'` drops the static
-      // solid from that export so the animated figure does not ship with a frozen ghost of itself. The
-      // World page keeps the rest solid (a bare figures entry is a bank; nothing here plays it). No rig
-      // or no clips ⇒ the scene is exactly the workbench scene.
-      if (m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length) {
-        const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {}); const R = validateRig(m.recipe.rig); const skin = bindLayered(mesh, m.recipe, R);
-        const dz = m.seat === false ? 0 : -(lowered.meta?.seatedFrom ?? 0);
+      // glTF export (`export_model { clips, skinned }`) reads it, `embodies: 'body'` drops the static solid
+      // from that export, and `preview` lets the World page play the clips over the hidden solid.
+      if (rigged) {
+        const R = validateRig(m.recipe.rig); const skin = bindLayered(mesh, m.recipe, R); const dz = layeredSeat(mesh, seat);
         scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz }), embodies: 'body', preview: { clips: Object.keys(m.recipe.clips), hide: 'body', period: 3 } } };
-        scene.faces = scene.faces.map((f) => (f.studio ? f : { ...f, group: 'body' }));
       }
       return scene;
     },

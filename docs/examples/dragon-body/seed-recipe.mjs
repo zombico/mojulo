@@ -6,8 +6,10 @@
  * reproduces recipe.json byte for byte. It is the authoring record, not the render path. */
 import { writeFileSync, readFileSync } from 'node:fs';
 import { compileLayered, pinFrame, surfaceLocalOffset, mirrorPid, mirrorFaceId } from '../../../control/lib/graph/polygonizer/station-loft.js';
+import { HEADS, EXPRESSIONS, bakeLayered } from '../head-detail/compile.mjs';
 export const recipePath = new URL('./recipe.json', import.meta.url);
-export const headPath = new URL('../dragon-layered/recipe.json', import.meta.url);
+export const headPath = new URL('../dragon-layered/recipe.json', import.meta.url);   // the plain head the detailed one refines
+export const HEAD_EXPRESSION = 'neutral';   // the expression cast baked onto the body (a cast is a recipe; expressions are not live dials here)
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
 const len = (v) => Math.hypot(...v); const unit = (v) => mul(v, 1 / len(v)); const mean = (ps) => mul(ps.reduce(add, [0, 0, 0]), 1 / ps.length);
@@ -57,7 +59,7 @@ function finish(part, { group, tint, mirrorPlane }) {
 function mirrorPart(p) { return { ...p, stations: p.stations.map((s) => ({ id: s.id, points: Object.fromEntries(Object.entries(s.points).map(([k, v]) => [mirrorPid(k), mirrorX(v)])) })), caps: { back: mirrorX(p.caps.back), tip: mirrorX(p.caps.tip) } }; }
 export const mirrorPartName = (n) => n.replace(/([RL])$/, (m) => (m === 'R' ? 'L' : 'R'));
 export const mirrorId = (id) => { const [part, rest] = id.split('/'); return `${mirrorPartName(part)}/${mirrorPid(rest)}`; };
-export const mirrorFace = (id) => { const [part, rest] = id.split('/'); const n = part.match(/^(pelvis|torso|neck|cranium)$/) ? 8 : part === 'jaw' ? 6 : LIMB_SLOTS.length; return mirrorFaceId(`${mirrorPartName(part)}/${rest}`, n); };
+export const mirrorFace = (id) => { const [part, rest] = id.split('/'); const n = part.match(/^(pelvis|torso|neck)$/) ? 8 : /^(cranium|jaw)$/.test(part) ? parts[part].slots.length : LIMB_SLOTS.length; return mirrorFaceId(`${mirrorPartName(part)}/${rest}`, n); };
 
 // ── the joint table (right side, metres) ──
 const J = {
@@ -92,12 +94,16 @@ for (const [i, X] of ['A', 'B', 'C'].entries()) { const { k, m, e } = fingerJoin
 for (let i = 0; i + 1 < J.tail.length; i++) parts[`tail${i}`] = finish(segment(J.tail[i], J.tail[i + 1], TAIL_R[i], TAIL_R[i + 1], { over: [i === 0 ? 0.4 : 0.6, i === 4 ? 0.3 : 0.6] }), { group: 'Tail', tint: LIMB, mirrorPlane: 'x' });
 for (const [name, [seg, group, tint]] of Object.entries(limbs)) { const right = finish(seg, { group, tint }); parts[name] = right; parts[mirrorPartName(name)] = mirrorPart(right); }
 
-// ── the head: the dragon recipe, L1 points translated by HEAD_SHIFT (L2 offsets are local and ride along) ──
-const head = JSON.parse(readFileSync(headPath, 'utf8'));
+// ── the head: the DETAILED dragon head (docs/examples/head-detail, baked at the neutral expression) — the
+// refined cranium and jaw as L1 with their points translated by HEAD_SHIFT, every region, ornament and tile as
+// a pinned L2 part (local offsets ride along), the head dials with blends extended to the refined stations ──
+const head = bakeLayered(HEADS.dragon, EXPRESSIONS[HEAD_EXPRESSION]);
 const shift = (p) => add(p, HEAD_SHIFT).map(r6);
 for (const [name, part] of Object.entries(head.parts)) {
   if (name in parts) throw new Error(`head part ${name} collides with a body part`);
-  parts[name] = part.layer === 1 ? { ...part, stations: part.stations.map((s) => ({ id: s.id, points: Object.fromEntries(Object.entries(s.points).map(([k, v]) => [k, shift(v)])) })), caps: { back: shift(part.caps.back), tip: shift(part.caps.tip) } } : part;
+  parts[name] = part.layer === 1
+    ? { ...part, stations: part.stations.map((s) => ({ ...s, points: Object.fromEntries(Object.entries(s.points).map(([k, v]) => [k, shift(v)])) })), caps: { back: shift(part.caps.back), tip: shift(part.caps.tip) } }
+    : { ...part, offsets: Object.fromEntries(Object.entries(part.offsets).map(([k, o]) => [k, o.map(r6)])) };
 }
 const headDials = Object.fromEntries(Object.entries(head.dials).map(([k, d]) => [k, d.op === 'scale' && Number.isFinite(d.pivot) ? { ...d, pivot: r6(d.pivot + HEAD_SHIFT[['x', 'y', 'z'].indexOf(d.axis)]) } : d]));
 const legParts = ['thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', 'toesR', 'toesL']; const fingerParts = ['A', 'B', 'C'].flatMap((X) => ['R', 'L'].flatMap((S) => [`finger${X}1${S}`, `finger${X}2${S}`]));
@@ -122,6 +128,7 @@ const recipe = {
   },
   parts,
   creases: { ...head.creases },
+  palette: head.palette,
 };
 const base = compileLayered({ ...recipe, dials: Object.fromEntries(Object.entries(recipe.dials).filter(([k]) => !(k in headDials))) }, {}, { details: false, creases: false });   // body L1 at rest, for the claw pin frames
 

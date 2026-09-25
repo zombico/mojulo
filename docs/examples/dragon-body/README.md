@@ -13,7 +13,7 @@ neck so one sketch carries the figure and every head dial keeps working.
 | L1 limbs | right side authored, left mirrored by name: `thigh`, `shin`, `meta` (metatarsus, hock to toe base), `toes`; `upperArm`, `foreArm`, `hand` (the palm), three fingers of two segments each (`fingerA1`, `fingerA2`, …). Each is one straight 6-slot loft whose end rings overshoot the joint so neighbours fuse across the bend |
 | L1 tail | `tail0` … `tail4`: five midline segments along a curve from the pelvis back, tapering to the tip |
 | L2 | a claw on every toe and finger tip, pinned to the tip band of its segment, stretched by `clawLength` |
-| Head | every part of the dragon recipe, its L1 points translated by `HEAD_SHIFT` (0.1 m forward, 0.2 m up); its pinned details, creases and dials come along unchanged but for the shifted scale pivot |
+| Head | the DETAILED dragon head from [head-detail](../head-detail/README.md), baked through its `bakeLayered(head, expression)` at the `neutral` expression: the refined cranium and jaw as L1 (points translated by `HEAD_SHIFT`, 0.1 m forward, 0.2 m up), and every region, ornament and tile (eyes with iris and lids, brows, nostrils, folds, cheek webs, the forked tongue, horns, teeth, crest, scales and plates) as a pinned L2 part whose local offsets ride along; the head's scale and hinge dials come along with their blends extended to the refined stations |
 
 The leg follows the construction rule in `docs/planar-drawing.md`: hip → knee → ankle/hock → toe base →
 toe tip as explicit segments, the metatarsal segment being what makes the heel read as raised. There
@@ -22,6 +22,12 @@ that would silently re-seat the sole.
 
 Naming: a limb point is `thighR/st1.frontR`; its mirror is `thighL/st1.frontL` (both suffixes flip).
 A midline point mirrors as in the head, `torso/st3.sideR` ↔ `torso/st3.sideL`.
+
+The expression is a cast: `HEAD_EXPRESSION` in the seed picks which of head-detail's expressions is baked
+(a snarling body is another recipe, not a dial). The detail-stretch dials of the plain head (horns,
+teeth, crest) are gone with it; `jawOpen`, `skullWidth`, `snoutLength` and `browDrop` stay live. Faces
+are coloured by the head's palette through the recipe's `palette` (groups such as Sclera, Iris, Lids,
+Tongue, Scales); body parts keep their tints.
 
 ## Dials
 

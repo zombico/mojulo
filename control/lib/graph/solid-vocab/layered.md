@@ -27,10 +27,10 @@ A solid whose recipe is a **station/slot construction**, not a coordinate list.
   declared; out-of-range and unknown dials refuse.
 
 Spec: `{ title?, recipe, dials?, channels?, units? ('m'), facing? ('+y'), seat? (true: lowest point on
-the grid), toon? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
-and `export_model` see the lowered workbench spec (one straight loft per part, cranium-style parts
-exact, cap points as pinched end stations). Patch a dial: `update_sketch { ref, patch: [{ op: 'set',
-path: '/dials/jawOpen', value: 30 }] }`.
+the grid), grid?, toon? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
+and `export_model` see the compiled mesh itself (every closed part exact, whatever its shape; a recipe
+`palette: { <group>: '#hex' }` colours faces by group, else the part's `tint`). Patch a dial:
+`update_sketch { ref, patch: [{ op: 'set', path: '/dials/jawOpen', value: 30 }] }`.
 
 - **Rig (optional).** `rig: { joints: { name: { at, rides? } }, bones: [{ id, head, tail, aux? }], chains:
   { channel: { axis, sign?, links: [{ pivot, joints }] } }, legs: { L|R: { hip, knee, hock, toeBase, toeTip,
@@ -46,7 +46,8 @@ path: '/dials/jawOpen', value: 30 }] }`.
   <ref> --clip crouch --phase 0.5` draws a posed frame. The World page plays the clips in place (`?clip=<name>`,
   or the selector in the corner; "rest" shows the solid).
 
-Worked recipe: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
-horns, eyes, teeth and crest spikes pinned; seven dials; six casts). Its `seed-recipe.mjs` is the
+Worked recipes: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
+horns, eyes, teeth and crest spikes pinned; seven dials; six casts), `docs/examples/dragon-body/` (the
+rigged body wearing the detailed head from `docs/examples/head-detail/`, baked through `bakeLayered`). Its `seed-recipe.mjs` is the
 authoring record: the species rules live there, not in core. `scripts/export-wire-svg.mjs --ref`
 draws any cast as a hidden-line wire SVG.

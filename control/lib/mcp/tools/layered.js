@@ -3,18 +3,17 @@
  *
  * The stored manifest is `{ kind:'layered', title, recipe, dials, channels?, units, facing, seat?, toon?,
  * ledger }`: the RECIPE is the source; on every read the world registry lowers it through
- * station-loft-workbench.js to a workbench spec, so a dial patch (`update_sketch { patch:[{ op:'set',
+ * station-loft-faces.js to studio faces (the compiled mesh itself), so a dial patch (`update_sketch { patch:[{ op:'set',
  * path:'/dials/jawOpen', value: 30 }] }`) reshapes the solid in place and the studio, `measure_solid`
- * and every export leg see the re-lowered monomers. The mint pays the same gate a workbench mint pays
- * (planWorkbench over the lowered spec) plus the layered audit (per-part closure of the compiled mesh).
+ * and every export leg see the recompiled mesh. The mint pays the layered audit (per-part closure) and,
+ * for a rigged recipe, the rig gates.
  * Manual: lib/graph/solid-vocab/layered.md. Reference recipe: docs/examples/dragon-layered.
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
 import { resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
-import { compileLayered, auditLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
-import { lowerLayeredManifest } from '@/lib/graph/polygonizer/station-loft-workbench';
+import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
+import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -22,10 +21,7 @@ export function planLayered(manifest) {
   let mesh;
   try { mesh = compileLayered(manifest.recipe, manifest.dials || {}, manifest.channels || {}); }
   catch (err) { throw new Error(`layered recipe: ${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
-  const audit = auditLayered(mesh);
-  const failing = Object.entries(audit).filter(([, r]) => !r.pass).map(([n, r]) => `${n} (${r.closure}: boundary ${r.boundaryEdges}, non-manifold ${r.nonManifold}, winding ${r.windingErrors}, degenerate ${r.degenerate})`);
-  const lowered = lowerLayeredManifest(manifest, compileLayered);
-  const { stats } = planWorkbench(lowered);
+  const stats = layeredStats(mesh, manifest.recipe, { units: manifest.units || 'm', seat: manifest.seat !== false });
   // a rigged recipe pays its gates at mint: bindings by declaration, rest skinning identity, every clip's keyposes solvable
   let rig = null;
   if (manifest.recipe.rig) {
@@ -37,7 +33,7 @@ export function planLayered(manifest) {
       rig = { bones: R.bones.length, blendedVertices: a.blended, clips: Object.keys(clips), maxLengthError: a.maxLengthError, legs: a.poses.map((p) => p.legs) };
     } catch (err) { throw new Error(`layered rig: ${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
   }
-  return { mesh, audit, lowered, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, omitted: lowered.meta?.omitted || [], auditFailures: failing, ...(rig ? { rig } : {}) } } };
+  return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };
 }
 
 export async function createLayeredHandler(input) {
@@ -57,7 +53,7 @@ export async function createLayeredHandler(input) {
     ...(toon != null ? { toon: resolveToon(toon) ? toon : undefined } : {}),
   };
   const { stats } = planLayered(manifest);
-  manifest.ledger = persistedLedger(stats.ledger);
+  manifest.ledger = persistedLayeredLedger(stats.ledger);
   const sketch = SketchRepository.create({ title: title || `layered · ${stats.monomers} part${stats.monomers === 1 ? '' : 's'}`, manifest, ref, folderRef: folderRef ?? null });
   warmScenePng(sketch);
   return {

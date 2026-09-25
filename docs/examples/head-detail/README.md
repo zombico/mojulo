@@ -76,6 +76,16 @@ the gitignored `lite-template/integration/0924/spike-output/head-detail/`, or in
   `-face.svg` (the native wire emitter).
 - `stats.json`: face counts and the per-part closure audit.
 
+## Onto a body
+
+`bakeLayered(head, expression)` turns a built head into a layered-recipe fragment: the refined cranium
+and jaw as L1 (the expression's skin; the jaw hinge stays a live dial), every region, ornament and tile
+as an L2 part pinned where it was placed, with its geometry as local offsets in that pin's frame; the
+head's scale dials with blends extended to the refined stations; creases re-run along the refined
+chain; the palette. Every placed part records its `pin` for this. The [dragon body](../dragon-body/README.md)
+merges the baked dragon, so the detailed head rides the body's rig (cranium → head bone, jaw → jaw bone,
+pinned parts inherit) and every expression is a cast.
+
 ## Checks
 
 Machine, in `test-detail.mjs`:
