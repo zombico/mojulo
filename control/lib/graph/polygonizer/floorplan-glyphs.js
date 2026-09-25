@@ -154,9 +154,9 @@ export const ARCHETYPES = {
 //                 'circulation' | 'any'.
 export const RELATIONSHIPS = {
   E: { needsWindow: 'no',        canBeInterior: true,  privacyDepth: 0, minDim: 5,    maxAspect: 2.5,  mustTouch: ['exterior', 'L'],     nearTo: [],         mustNotTouch: [],                  reachVia: 'exterior' },
-  H: { needsWindow: 'no',        canBeInterior: true,  privacyDepth: 0, minDim: 3.5,  maxAspect: null, mustTouch: [],                    nearTo: [],         mustNotTouch: [],                  reachVia: 'public' },
-  L: { needsWindow: 'yes',       canBeInterior: false, privacyDepth: 1, minDim: 11,   maxAspect: 1.8,  mustTouch: ['circulation', 'core'], nearTo: [],       mustNotTouch: [],                  reachVia: 'public' },
-  D: { needsWindow: 'preferred', canBeInterior: true,  privacyDepth: 1, minDim: 9,    maxAspect: 2.0,  mustTouch: ['K', 'L'],            nearTo: [],         mustNotTouch: ['W'],               reachVia: 'public' },
+  H: { needsWindow: 'no',        canBeInterior: true,  privacyDepth: 0, minDim: 4.5,  maxAspect: null, mustTouch: [],                    nearTo: [],         mustNotTouch: [],                  reachVia: 'public' },
+  L: { needsWindow: 'yes',       canBeInterior: false, privacyDepth: 1, minDim: 12,   maxAspect: 1.8,  mustTouch: ['circulation', 'core'], nearTo: [],       mustNotTouch: [],                  reachVia: 'public' },
+  D: { needsWindow: 'preferred', canBeInterior: true,  privacyDepth: 1, minDim: 10,   maxAspect: 2.0,  mustTouch: ['K', 'L'],            nearTo: [],         mustNotTouch: ['W'],               reachVia: 'public' },
   K: { needsWindow: 'preferred', canBeInterior: true,  privacyDepth: 2, minDim: 8,    maxAspect: 2.2,  mustTouch: ['D', 'wetWall'],      nearTo: ['L'],      mustNotTouch: ['B'],               reachVia: 'public' },
   B: { needsWindow: 'egress',    canBeInterior: false, privacyDepth: 3, minDim: 10,   maxAspect: 1.8,  mustTouch: ['circulation'],       nearTo: ['W'],      mustNotTouch: ['entrySightline'],  reachVia: 'circulation' },
   O: { needsWindow: 'preferred', canBeInterior: true,  privacyDepth: 2, minDim: 8,    maxAspect: 2.0,  mustTouch: ['circulation'],       nearTo: [],         mustNotTouch: [],                  reachVia: 'circulation' },
@@ -177,10 +177,11 @@ const PRIVATE = ['B', 'O', 'B'];
 const SERVICE = ['K', 'S', 'O'];
 
 // ── fractal BSP generator ───────────────────────────────────────────────────
-// World unit is one FOOT. Defaults are sized to a standard bungalow: a smallest
-// room dimension of ~9 ft (a small bedroom/bath), corridors ~3.5 ft wide.
-const HALL = 3.5;      // corridor thickness (feet) — corridor mode only
-const MIN_ROOM = 9;    // smallest room dimension before a split is refused (feet)
+// World unit is one FOOT. Defaults are sized to a comfortable house, not a minimum-code
+// one: a smallest room dimension of 10 ft (3.05 m, a real bedroom's short side) and
+// corridors 4.5 ft (1.37 m) clear, wide enough that a walk camera never scrapes a wall.
+const HALL = 4.5;      // corridor thickness (feet) — corridor mode only (was 3.5: 1.07 m)
+const MIN_ROOM = 10;   // smallest room dimension before a split is refused (feet) (was 9: 2.74 m)
 
 // `corridors`: insert a HALL gap at every split (a circulation tree of corridors).
 // When false (HOUSE mode), siblings share an exact cut edge — adjacent rooms get a
@@ -200,7 +201,12 @@ function generateRooms(seed, width, height, maxDepth, corridors = false, minRoom
       return;
     }
     const horizontal = canH && (!canV || r.w >= r.h);
-    const f = 0.38 + 0.24 * rng();
+    // the seeded cut fraction, clamped so NEITHER side falls under minRoom — a split is
+    // only allowed at >= 2*minRoom, but an unclamped 0.38 cut of a 20 ft span left a
+    // 7.6 ft sliver. The draw is unchanged (same stream), only the cut line is bounded.
+    const len = horizontal ? r.w : r.h;
+    const fLo = (minRoom + gap / 2) / len, fHi = 1 - fLo;
+    const f = Math.min(fHi, Math.max(fLo, 0.38 + 0.24 * rng()));
     if (horizontal) {
       const cut = r.x + r.w * f;
       if (corridors) halls.push({ x: cut - HALL / 2, y: r.y, w: HALL, h: r.h, axis: 'v' });
@@ -227,6 +233,17 @@ function assignArchetypes(rooms, rng) {
   let entry = rooms[0];
   for (const r of rooms) if ((r.x + r.y) < (entry.x + entry.y)) entry = r;
   entry.glyph = 'E';
+  // LIVABILITY: the lounge takes the best-proportioned public room. Area rank alone handed a
+  // 10 ft-wide corridor of a room the sofa group while a squarer dining room sat beside it;
+  // when a lounge falls under its minDim and a dining room clears it, they trade glyphs.
+  // (No draw — the seeded assignment above is untouched, only relabelled.)
+  const short = (r) => Math.min(r.w, r.h);
+  const lMin = ROOM_MIN_DIM('L');
+  for (const l of rooms) {
+    if (l.glyph !== 'L' || short(l) >= lMin) continue;
+    const d = rooms.filter((r) => r.glyph === 'D' && short(r) >= lMin).sort((a, b) => short(b) - short(a))[0];
+    if (d) { d.glyph = 'L'; l.glyph = 'D'; }
+  }
 }
 
 function overlap(a0, a1, b0, b1) { return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)); }
@@ -294,7 +311,7 @@ function computeRoomDoors(rooms, entryIdx) {
  *   corridors:true → a circulation tree of hallways (the original model).
  * @returns {{ seed, width, height, rooms:[{x,y,w,h,glyph}], halls, doors, corridors }}
  */
-export function generatePlan(seed, { width = 46, height = 34, maxDepth = 3, corridors = false, minRoom = MIN_ROOM } = {}) {
+export function generatePlan(seed, { width = 50, height = 36, maxDepth = 3, corridors = false, minRoom = MIN_ROOM } = {}) {
   const { rooms, halls, rng } = generateRooms(seed, width, height, maxDepth, corridors, minRoom);
   assignArchetypes(rooms, rng);
   const entryIdx = rooms.findIndex((r) => r.glyph === 'E');
@@ -491,6 +508,10 @@ export function arrangeKitchen(rng = Math.random, { w = 12, h = 10, wall = null 
   return els;
 }
 
+// the door approach the living arranger keeps its sofa out of (matches floorplan-structure's
+// FLOORPLAN_DEFAULTS.doorClearance, the keep-clear depth each side of a doorway)
+const LIVING_DOOR_CLEAR = 3;
+
 /** Living room: a seating group facing the focal (back) wall — media unit + bookshelf
  *  on the wall, sofa across from it, coffee table between, armchairs flanking, rug under. */
 export function arrangeLiving(rng = Math.random, { w = 14, h = 14, scale = 'feet' } = {}) {
@@ -503,6 +524,13 @@ export function arrangeLiving(rng = Math.random, { w = 14, h = 14, scale = 'feet
   const [tableW, tableD] = sz('table', Math.min(4, w * 0.3), 2);
   const [chairW, chairD] = sz('armchair', 2.5, 2.5);
   const [lampW, lampD] = sz('floor-lamp', 1.1, 1.1);
+  // The canonical door is on the front (v=1) wall and the sofa backs toward it. Keep the
+  // sofa's back a door-approach (3 ft) off that wall — at the old fixed v=0.72 it sat inside
+  // the doorway's keep-clear zone of any room under ~20 ft deep, and the house dropped it,
+  // leaving two armchairs facing an empty rug. The coffee table and the armchairs then hang
+  // off the sofa (a 1.4 ft knee gap), so the group stays one conversation.
+  const sofaV = Math.min(0.72, 1 - (LIVING_DOOR_CLEAR + sofaD / 2) / h);
+  const tableV = Math.min(0.47, sofaV - (sofaD / 2 + 1.4 + tableD / 2) / h);
   return [
     { type: 'media-unit', anchor: [j(0.5, 0.04), 0.07], w: mediaW / w, h: mediaD / h, heightWorld: 2.2 },
     { type: 'bookshelf', anchor: [0.11, 0.13], w: shelfW / w, h: shelfD / h, heightWorld: 6.0 },
@@ -511,10 +539,10 @@ export function arrangeLiving(rng = Math.random, { w = 14, h = 14, scale = 'feet
     // the sofa faces the media wall. An unfaced asset fronts +v (the door, its back to the
     // television); a placed asset turns by FACING_SPIN[facing] + 2 quarter-turns (see
     // orientElementsToDoor), so 'S' is the half turn that points it at the screen.
-    { type: 'sofa', asset: 'modern-couch', instance: 'main', anchor: [j(0.5, 0.04), 0.72], w: sofaW / w, h: sofaD / h, heightWorld: 2.6, facing: 'S' },
-    { type: 'table', anchor: [0.5, 0.47], w: tableW / w, h: tableD / h, heightWorld: 1.4 },
-    { type: 'armchair', instance: 'west', anchor: [j(0.2, 0.03), 0.46], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'E' },
-    { type: 'armchair', instance: 'east', anchor: [j(0.8, 0.03), 0.46], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'W' },
+    { type: 'sofa', asset: 'modern-couch', instance: 'main', anchor: [j(0.5, 0.04), sofaV], w: sofaW / w, h: sofaD / h, heightWorld: 2.6, facing: 'S' },
+    { type: 'table', anchor: [0.5, tableV], w: tableW / w, h: tableD / h, heightWorld: 1.4 },
+    { type: 'armchair', instance: 'west', anchor: [j(0.2, 0.03), tableV - 0.01], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'E' },
+    { type: 'armchair', instance: 'east', anchor: [j(0.8, 0.03), tableV - 0.01], w: chairW / w, h: chairD / h, heightWorld: 2.6, facing: 'W' },
     { type: 'floor-lamp', instance: 'sofa', anchor: [j(0.18, 0.02), 0.78], w: lampW / w, h: lampD / h, heightWorld: 5.4 },
   ];
 }
@@ -524,13 +552,22 @@ export function arrangeLiving(rng = Math.random, { w = 14, h = 14, scale = 'feet
 export function arrangeDining(rng = Math.random, { w = 12, h = 12, scale = 'feet' } = {}) {
   const els = [];
   const sz = makeSizer({ w, h, scale });
-  const [tWft, tHft] = sz('dining-table', Math.min(6, w * 0.42), Math.min(4, h * 0.42));
-  const tw = tWft / w, th = tHft / h;
-  els.push({ type: 'dining-table', anchor: [0.5, 0.5], w: tw, h: th, heightWorld: 2.4 });
-  const [sbW, sbD] = sz('sideboard', Math.min(6, w * 0.4), 1.4);
-  els.push({ type: 'sideboard', anchor: [0.5, 0.09], w: sbW / w, h: sbD / h, heightWorld: 3.0 });
   const [chWft, chHft] = sz('ladder-chair', 1.6, 1.6);
   const chW = chWft / w, chH = chHft / h;
+  // PULL-OUT CLEARANCE: a seated diner needs ~2.5 ft (0.76 m) behind the chair to push back
+  // and stand, and a walker needs it to pass. The chair's reach past the table edge is its
+  // tuck gap (1.1) + half its depth; what remains to the wall must be >= the clearance.
+  const CHAIR_BACK_CLEAR = 2.5, reach = (d) => 1.1 + d / 2 + CHAIR_BACK_CLEAR;
+  let [tWft, tHft] = sz('dining-table', Math.min(6, w * 0.42), Math.min(4, h * 0.42));
+  const [sbW, sbD] = sz('sideboard', Math.min(6, w * 0.4), 1.4);
+  // the long-side chairs always seat, so give them the clearance by trimming the table's
+  // depth (never under 3 ft — a table narrower than that stops reading as a dining table).
+  // The back-wall side measures to the sideboard's front, not the wall behind it.
+  const sbFront = 0.09 * h + sbD / 2;
+  tHft = Math.min(tHft, Math.max(3, 2 * (h / 2 - sbFront - reach(chHft))));
+  const tw = tWft / w, th = tHft / h;
+  els.push({ type: 'dining-table', anchor: [0.5, 0.5], w: tw, h: th, heightWorld: 2.4 });
+  els.push({ type: 'sideboard', anchor: [0.5, 0.09], w: sbW / w, h: sbD / h, heightWorld: 3.0 });
   const offU = tw / 2 + 1.1 / w, offV = th / 2 + 1.1 / h;     // chair centres just past the table edge
   const chair = (u, v, facing) => els.push({ type: 'ladder-chair', anchor: [u, v], w: chW, h: chH, heightWorld: 2.9, supportRadius: 0.07, facing });
   const nSide = tWft >= 5 ? 2 : 1;                            // a longer table seats two per long side
@@ -539,8 +576,12 @@ export function arrangeDining(rng = Math.random, { w = 12, h = 12, scale = 'feet
     chair(u, 0.5 - offV, 'N');                               // above the table → face +y toward it
     chair(u, 0.5 + offV, 'S');                               // below → face −y
   }
-  chair(0.5 - offU, 0.5, 'E');                               // left → face +x
-  chair(0.5 + offU, 0.5, 'W');                               // right → face −x
+  // the END chairs only where the room leaves pull-out space behind them; a table pushed
+  // tight between two walls seats its long sides and leaves the ends as the walkway
+  if ((w - tWft) / 2 >= reach(chWft)) {
+    chair(0.5 - offU, 0.5, 'E');                             // left → face +x
+    chair(0.5 + offU, 0.5, 'W');                             // right → face −x
+  }
   return els;
 }
 
@@ -617,23 +658,37 @@ const FACING_SPIN = { S: 0, E: 1, N: 2, W: 3 };       // CW quarter-turns from t
 const SPIN_FACING = ['S', 'E', 'N', 'W'];
 const SURFACE_EDGE = { backWall: 'N', rightWall: 'E', frontWall: 'S', leftWall: 'W' };
 const EDGE_SURFACE = { N: 'backWall', E: 'rightWall', S: 'frontWall', W: 'leftWall' };
-export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1, { assetFacing = false } = {}) {
+// `canonical` is the [w, h] the layout was ARRANGED at (default: the room's own W×H). A
+// quarter turn lays the canonical depth along the room's width, so a caller that arranges a
+// 90°-spun room at its swapped dims (canonical = [H, W]) gets true distances — a sofa that
+// keeps its door-approach clearance and a coffee table at knee distance — instead of the
+// canonical layout's fractions squashed into the other axis.
+export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1, { assetFacing = false, canonical = null } = {}) {
+  const [cw, ch] = Array.isArray(canonical) ? canonical : [W, H];
   const k = FACING_SPIN[doorEdge] ?? 0;               // door 'S' ⇒ already canonical
   if (!k) return elements;
   const rotUV = (u, v) => { let x = u, y = v; for (let i = 0; i < k; i += 1) { const nx = y, ny = 1 - x; x = nx; y = ny; } return [x, y]; };
-  const spin = (letter) => SPIN_FACING[(FACING_SPIN[letter] + k) % 4];
+  // Wall EDGES and seat FACINGS use the same letters but not the same frame: an edge letter
+  // names a wall (N = the v≈0 back wall, S = v≈1), while a facing letter names the way a
+  // piece's front points in the renderer (room-scene-elements FACING_SPIN: N = +v, S = −v,
+  // E = +u, W = −u) — mirrored in v. rotUV turns the plan one way per quarter step; a facing
+  // must turn the SAME physical way, which in the mirrored frame is the opposite letter step.
+  // A half turn is its own inverse, so the old (+k) spin was right only for 180°: on an E/W
+  // door every sofa, armchair and dining chair turned its back on the table it was placed for.
+  const spinEdge = (letter) => SPIN_FACING[(FACING_SPIN[letter] + k) % 4];
+  const spin = (letter) => SPIN_FACING[(FACING_SPIN[letter] + 4 - k) % 4];
   const odd = k % 2 === 1;
   return elements.map((e) => {
     const out = { ...e };
     if (Array.isArray(e.anchor)) out.anchor = rotUV(e.anchor[0], e.anchor[1]);
     if (e.facing != null && FACING_SPIN[e.facing] != null) out.facing = spin(e.facing);
-    if (e.surface && SURFACE_EDGE[e.surface]) out.surface = EDGE_SURFACE[spin(SURFACE_EDGE[e.surface])];
-    if (odd && e.w != null && e.h != null) { out.w = (e.h * H) / W; out.h = (e.w * W) / H; }  // 90°: footprint swaps
-    // An unfaced LOCAL asset fronts +v (into the room off the canonical back wall); once the
-    // layout is spun that wall moves, so stamp the facing the spin implies — the planner
-    // turns a faced asset by FACING_SPIN+2, hence the +2 here. Share mode only (assets
-    // ride in via SHARE_ASSETS); a feet-mode plan carries no such pieces and stays as-is.
-    if (assetFacing && e.asset && e.facing == null && e.surface !== 'backWall') out.facing = SPIN_FACING[(k + 2) % 4];
+    if (e.surface && SURFACE_EDGE[e.surface]) out.surface = EDGE_SURFACE[spinEdge(SURFACE_EDGE[e.surface])];
+    if (odd && e.w != null && e.h != null) { out.w = (e.h * ch) / W; out.h = (e.w * cw) / H; }  // 90°: footprint swaps
+    // An unfaced LOCAL asset fronts +v (into the room off the canonical back wall) — facing
+    // letter 'N' in the renderer's frame; once the layout is spun that wall moves, so stamp
+    // the facing the spin implies. Share mode only (assets ride in via SHARE_ASSETS); a
+    // feet-mode plan carries no such pieces and stays as-is.
+    if (assetFacing && e.asset && e.facing == null && e.surface !== 'backWall') out.facing = spin('N');
     return out;
   });
 }
@@ -648,7 +703,7 @@ export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1, { assetFa
 // Plan: floorplan-program.plan.md. Contract matches generatePlan: {rooms,halls,doors}.
 // ════════════════════════════════════════════════════════════════════════════
 
-const PROGRAM_HALL = 3.75;     // landing / corridor width (feet)
+const PROGRAM_HALL = 4.5;      // landing / corridor width (feet) — 1.37 m clear (was 3.75: 1.14 m)
 
 // ── furniture-derived room budgets ──────────────────────────────────────────
 // The layout is budgeted from WHAT EACH ROOM HOLDS, not arbitrary fractions. The
@@ -693,9 +748,9 @@ export function archetypeArea(glyph) {
 //   maxPerRow hard cap on private rooms in one back row → never a dorm corridor
 //   footprint default usable size when the caller doesn't pass width/height
 export const HOUSE_TIERS = {
-  cottage: { beds: 1, study: false, core: ['L', 'K'],      maxPerRow: 2, footprint: { width: 30, height: 26 } },
-  house:   { beds: 3, study: true,  core: ['L', 'K', 'D'], maxPerRow: 3, footprint: { width: 44, height: 32 } },
-  villa:   { beds: 4, study: true,  core: ['L', 'K', 'D'], maxPerRow: 4, footprint: { width: 56, height: 40 } },
+  cottage: { beds: 1, study: false, core: ['L', 'K'],      maxPerRow: 2, footprint: { width: 32, height: 28 } },
+  house:   { beds: 3, study: true,  core: ['L', 'K', 'D'], maxPerRow: 3, footprint: { width: 48, height: 36 } },
+  villa:   { beds: 4, study: true,  core: ['L', 'K', 'D'], maxPerRow: 4, footprint: { width: 60, height: 44 } },
 };
 export const DEFAULT_TIER = 'house';
 
@@ -880,7 +935,7 @@ export function generateProgramPlan(seed, {
   // area ÷ the core width. Private rooms are chosen from a priority wishlist until the
   // back band is budgeted full, and their WIDTHS are proportional to each room's own
   // furniture budget — a bedroom wider than a closet, the whole thing scaling with size.
-  const minBand = 10, minPriv = 8;                                       // bed depth / room width floors
+  const minBand = 11, minPriv = 9;                                       // bed depth / room width floors (3.35 m / 2.74 m; were 10 / 8)
   // open-core zones, ordered so the KITCHEN sits at the FAR END of the core — against a
   // side exterior wall to run its counter along (not floating on an interior zone seam),
   // with dining beside it (K↔D). living/kitchen[/dining] per tier.

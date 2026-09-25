@@ -43,7 +43,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo complex function",
   },
   "condo-complex": {
-    "hash": "ff16697b",
+    "hash": "c20b5674",
     "tier": "T0",
     "title": "mojulo condo complex",
   },
@@ -88,7 +88,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fission",
   },
   "floorplan": {
-    "hash": "0671e5d9",
+    "hash": "ef67dac1",
     "tier": "T0",
     "title": "mojulo house",
   },
@@ -257,7 +257,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
 
 exports[`world-scene kinds — per-arm characterization > viewOpts.view forwards into the floorplan arm (pinned: forwarding must survive the refactor) 1`] = `
 {
-  "base": "0671e5d9",
-  "dollhouse": "0671e5d9",
+  "base": "ef67dac1",
+  "dollhouse": "ef67dac1",
 }
 `;

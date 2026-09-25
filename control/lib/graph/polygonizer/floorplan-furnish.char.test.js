@@ -45,6 +45,19 @@
  *     so the rounded-rect profile, and these pins, are the same bytes on either
  *     architecture (verified arm64 + x64). Same face counts. A and B re-based;
  *     C unchanged.
+ *   - room livability defaults (2026-09-25, the operator's "rooms and corridors feel
+ *     narrow" pass; CHANGELOG "Room livability"): the house planners' defaults rose —
+ *     MIN_ROOM 9→10 ft with the BSP cut clamped so no room falls under it, corridor and
+ *     landing halls 3.5/3.75→4.5 ft, bedroom band 10→11 ft, stair 3→3.5 ft, door
+ *     approach 2.5→3 ft — and the furnish pass changed on purpose: the command-position
+ *     door edge is read off the geometry, a quarter-turned room is arranged at its
+ *     swapped dims with its seat facings turned the right way (E/W doors used to turn
+ *     every sofa and chair away from its table), the kitchen run takes a door-free wall,
+ *     dining end chairs need pull-out room, the lounge sofa clears the door approach,
+ *     rugs survive door approaches, and an interior door leaf swings into a room (never
+ *     out across a hall; between rooms, into the smaller). A: seed 7 now tiles a kitchen (4166→12051 faces,
+ *     the kitchen assets). B: the lounge finds its door and takes command position
+ *     (3134→3164). C: the stacked house's wider hall and stair (same count, new bytes).
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -56,8 +69,8 @@ const sha = (v) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 describe('floorplan furnish characterization (legacy paths byte-identical)', () => {
   it('generated seed plan, furnish:true', () => {
     const s = structurizeFloorplan({ seed: 7, width: 46, height: 34 }, { furnish: true });
-    expect(s.faces.length).toBe(4166);
-    expect(sha(s.faces)).toBe('56197a61038fb915eb5145231646e56edb86b32da476b29fdbdeb26a635ae346');
+    expect(s.faces.length).toBe(12051);
+    expect(sha(s.faces)).toBe('d6d30cf6cbd9c6f7077fae77d82b7ca658c85fdd48b95fd2a860ad8bfaf85bc3');
   });
 
   it('explicit two-cell plan with an interior door, furnish:true', () => {
@@ -66,13 +79,13 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
       rooms: [{ x: 0, y: 0, w: 15, h: 12, glyph: 'L' }, { x: 15, y: 0, w: 15, h: 12, glyph: 'B' }],
       doors: [{ x: 15, y: 6, room: 1, edge: 'W' }],
     }, { furnish: true });
-    expect(s.faces.length).toBe(3134);
-    expect(sha(s.faces)).toBe('82daa902b66ce1c3b17799ea66fbeaaa0d728952b177b66c62c4ee9c02716788');
+    expect(s.faces.length).toBe(3164);
+    expect(sha(s.faces)).toBe('8cff9cc18e739aac79cdc9b01ba161651de6b1c1a918649b1ea9ede9e1b8834a');
   });
 
   it('stacked house, cutaway (furnish defaults on)', () => {
     const s = structurizeHouse({ seed: 7, width: 40, height: 30 }, { view: 'cutaway' });
     expect(s.faces.length).toBe(238);
-    expect(sha(s.faces)).toBe('212698d927e276571dd366a828b138f81a941bde05c9854aa5c9824fc6852030');
+    expect(sha(s.faces)).toBe('4a03a70310fb79ffff2faefb85fd9e3fa9d34cb344e228a82966845a8e322e54');
   });
 });

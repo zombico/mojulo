@@ -12,6 +12,71 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Room livability
+
+- **The residential planners got comfortable defaults.** The house (`floorplan`) and the condo
+  complex (`condo-complex`) read narrow on a walk: 9 ft rooms, 3.5 ft halls, 13 ft condo units, a
+  walker the width of a sofa. Both are authored in feet; metres alongside. **This changes the
+  re-render of every already-minted `floorplan` / `condo-complex` row that relied on these
+  defaults** — the operator's explicit ask. A row that pinned its own `width` / `height` / `hall`
+  / `units` keeps those; the furnish and orientation fixes below still apply to it.
+
+  | Parameter | Before | After |
+  | --- | --- | --- |
+  | House smallest room (`MIN_ROOM`), now a hard floor (the BSP cut is clamped) | 9 ft / 2.74 m, cuts to 7.4 ft | 10 ft / 3.05 m |
+  | House corridor (`HALL`, corridor mode) | 3.5 ft / 1.07 m | 4.5 ft / 1.37 m |
+  | House landing / bedroom hall (`PROGRAM_HALL`) | 3.75 ft / 1.14 m | 4.5 ft / 1.37 m |
+  | House default footprint (seed plan) | 46 × 34 ft | 50 × 36 ft |
+  | Tier footprints cottage / house / villa | 30×26 / 44×32 / 56×40 ft | 32×28 / 48×36 / 60×44 ft |
+  | Bedroom band / private-room width floors | 10 / 8 ft | 11 ft / 3.35 m, 9 ft / 2.74 m |
+  | Lounge / dining `minDim` | 11 / 9 ft | 12 ft / 3.66 m, 10 ft / 3.05 m |
+  | House stair width | 3 ft / 0.91 m | 3.5 ft / 1.07 m |
+  | Door approach kept furniture-free (`doorClearance`) | 2.5 ft / 0.76 m | 3 ft / 0.91 m |
+  | Condo hall length (sampled) | 32–52 ft | 38–58 ft |
+  | Condo unit frontage (`MIN_UNIT_PITCH`, caps units per side) | none; units 12.6–15 ft wide, overlapping below 12 ft pitch | 18 ft / 5.5 m; units 16–20 ft / 4.9–6.1 m |
+  | Condo washroom door / fit-out partition door | 2.4 / 2.6 ft | 3 ft / 0.91 m |
+  | `planCondoEntrance` default hall | 40 ft | 44 ft |
+
+  Door width (3 ft / 0.91 m), ceiling heights (10 ft main / 8 ft upper; 12 ft condo ground) and
+  condo hall width (10–14 ft / 3.0–4.3 m) already met the norms and are unchanged.
+- **Seats face what they serve.** A room whose door is on its E or W wall is turned a quarter to
+  take command position, and the facing letters turned the wrong way (edges and facings are
+  mirrored frames; only the half turn is its own inverse), so every sofa, armchair and dining chair
+  in such a room sat with its back to the table. The spin now turns facings with the plan. The
+  quarter-turned room is also arranged at its swapped dimensions, so distances (sofa to coffee
+  table, chair to wall) survive the turn instead of being squashed into the other axis. The mesh
+  dining chair (share mode) was built at its footprint centroid in world space and ignored its
+  facing entirely — every chair faced +y — and is now a local-frame asset like the couch. The
+  condo studio's desk chair backed onto its desk; condo seats now take their backrest from the
+  seat/table relationship. The condo lobby's two sofas now flank the feature table facing each
+  other instead of sitting side by side facing the street doors, and a side-backed lobby sofa no
+  longer grows arms as long as itself.
+- **The access door is read off the geometry.** The planners tag a door from the side of the room
+  that generated it (`N` on every spine door, `E` on every vertical BSP cut), so a front-row room
+  doored on its S wall, or the far room of a BSP pair, took command position against a wall with
+  no door. The wall a door sits on is now measured (`doorWallOf`).
+- **Other livability.** Condo units get an entry: a 3 ft doorway with a glass transom in the
+  storefront (the glass used to seal the whole hall front), and a clear approach strip the fit-out
+  keeps furniture out of. Condo beds claim the leaf against the back wall (a front leaf's deep edge
+  is an open seam, so beds floated mid-unit). A pass-through kitchen runs its counters on a
+  door-free wall. Dining end chairs are seated only with 2.5 ft (0.76 m) pull-out room behind them,
+  and the table's depth trims to give the long sides the same. The lounge sofa stays a door
+  approach off the wall it backs onto (it used to be dropped by the door clearance in rooms under
+  ~20 ft deep, leaving two armchairs facing an empty rug); rugs are no longer stripped by door
+  approaches. An interior door leaf now swings into a room, never out across a hall (between two
+  rooms, into the smaller); every leaf used to open toward +axis, so half of them stood open in
+  the corridor. The 3 ft door approach now also covers the whole open leaf. The lounge glyph goes to the public room that clears 12 ft when the seeded
+  assignment handed it a narrower one.
+- **A person-sized walker.** The World derives the walk collision half-width from the mesh bound;
+  on a condo complex that was 3.3 ft (a 6.7 ft-wide body that could not pass a unit door, with its
+  eye floated to 8.3 ft) and a speed of ~110 ft/s. The condo walk now carries a 0.9 ft (0.27 m)
+  half-width at 16 ft/s (4.9 m/s); the house walk a fixed 0.8 ft (0.24 m) half-width instead of
+  one that grew with the house.
+- Machine gate: `room-livability.test.js` measures seat facing against the table across door
+  edges, room and hall minimums, dining pull-out clearance, condo frontage and entry doorways, and
+  the walker size. The floorplan furnish pins and the `condo-complex` / `floorplan` kind snapshots
+  re-based on purpose (logged in each file). The eyes gate is the operator's.
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation
