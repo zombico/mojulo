@@ -24,30 +24,37 @@ test('the rig core is the vajra rest skeleton of the cast, in metres', () => {
   }
 });
 
-test('the female cast: 85 % of the male, a narrower yoke and hips, a bust the canonical form does not carry', () => {
-  const male = heroPlan({ cast: 'male' }), female = heroPlan({ cast: 'female' }); const m = castArmature(HERO_CASTS.female.dials), FJ = expandPlan(female).rig.joints;
-  for (const k of VAJRA_CORE) assert.deepEqual(FJ[k].at ?? FJ[k], [m[k].x, m[k].y, m[k].z].map((v) => r6(v * SCALE * 0.85)), k);
+test('the female cast independently balances a relaxed yoke, integrated chest and wider pelvic mass', () => {
+  const male = heroPlan({ cast: 'male' }), female = heroPlan({ cast: 'female' });
+  const scale = HERO_CASTS.female.scale, m = castArmature(HERO_CASTS.female.dials), FJ = expandPlan(female).rig.joints;
+  for (const k of VAJRA_CORE) {
+    const actual = FJ[k].at ?? FJ[k], expected = [m[k].x, m[k].y, m[k].z].map((v) => r6(v * SCALE * scale));
+    assert.ok(actual.every((v, i) => Math.abs(v - expected[i]) < 2e-6), `${k}: ${actual} vs ${expected}`);
+  }
   const height = (plan) => { const zs = compileLayered(expandPlan(plan)).vertices.map((v) => v[2]); return Math.max(...zs) - Math.min(...zs); };
-  assert.ok(Math.abs(height(female) / height(male) - 0.85) < 0.005, `${height(female)} / ${height(male)}`);
+  assert.ok(height(female) / height(male) > 0.94 && height(female) / height(male) < 0.97, `${height(female)} / ${height(male)}`);
   const width = (plan, part, st) => { const pts = Object.values(expandPlan(plan).parts[part].stations.find((s) => s.id === st).points); return Math.max(...pts.map((p) => p[0])); };
-  assert.ok(width(female, 'torso', 'st3') / 0.85 < 0.86 * 0.2335 && width(female, 'thighR', 'st1') / 0.85 < 0.8 * 0.221, 'the yoke 15 % and the hips 20 % under her first cut');
-  // the hips taper into the body: on both casts the crest and hip rings sit inside the waist (below them the thighs'
-  // own girth sets the width), and the female's neck and calves are narrower than the male's beyond her scale
+  assert.ok(width(female, 'torso', 'st3') / scale < 0.86 * width(male, 'torso', 'st3'), 'the relaxed female yoke is narrower beyond uniform scale');
+  assert.ok(width(female, 'thighR', 'st1') / scale > width(male, 'thighR', 'st1'), 'the pelvic mass is independently wider beyond uniform scale');
+  assert.ok(width(female, 'torso', 'st0') < width(female, 'thighR', 'st1') && width(female, 'torso', 'st0') < width(female, 'torso', 'st2'), 'waist separates chest from pelvis');
+  // Both casts fill through the centre at the crest and hip rings. The female carries the width in flesh
+  // around a restrained vajra socket, so her legs do not need a broad stance to make a pelvic silhouette.
   for (const plan of [male, female]) for (const st of ['st0', 'st1']) {
-    assert.ok(width(plan, 'thighR', st) <= width(plan, 'torso', 'st0') + 1e-6, `${st} inside the waist`);
     const xs = Object.values(expandPlan(plan).parts.thighR.stations.find((s) => s.id === st).points).map((p) => p[0]);
     assert.ok(Math.min(...xs) < -0.005, `${st} crosses the mirror plane by ${(-Math.min(...xs)).toFixed(3)}: the pelvis is filled through the middle`);
   }
-  const girth = (plan, part, st) => { const pts = Object.values(expandPlan(plan).parts[part].stations.find((s) => s.id === st).points); return (Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]))) / (plan === female ? 0.85 : 1); };
-  assert.ok(girth(female, 'neck', 'st1') < 0.85 * girth(male, 'neck', 'st1') && girth(female, 'shankR', 'st1') < 0.9 * girth(male, 'shankR', 'st1'), 'a narrower neck and calf');
+  const span = (plan, part, st, axis) => { const pts = Object.values(expandPlan(plan).parts[part].stations.find((s) => s.id === st).points).map((p) => p[axis]); return Math.max(...pts) - Math.min(...pts); };
+  assert.ok(span(female, 'torso', 'st2', 1) > span(female, 'torso', 'st0', 1) * 1.25, 'chest volume is integrated into the torso envelope');
+  assert.ok(span(female, 'neck', 'st1', 0) < span(male, 'neck', 'st1', 0) && span(female, 'shankR', 'st1', 0) < span(male, 'shankR', 'st1', 0), 'neck and calf remain lighter');
   assert.ok(width(heroPlan({ cast: 'male', body: { calf: 0.06 } }), 'shankR', 'st1') < width(male, 'shankR', 'st1'), 'calf is a body control');
-  const recipe = expandPlan(female); assert.ok(recipe.parts.bustR && recipe.parts.bustL && !expandPlan(male).parts.bustR && !expandPlan(heroPlan()).parts.bustR);
-  const ring = (part, i, sx) => Object.values(recipe.parts[part].stations[i].points).map((p) => [r6(sx * p[0]), p[1], p[2]].join(',')).sort();
-  for (const i of [0, 3]) assert.deepEqual(ring('bustL', i, 1), ring('bustR', i, -1), `the left mound is the right one mirrored in x (station ${i})`);
-  assert.ok(recipe.dials.bulk.parts.includes('bustL') && recipe.dials.lean.parts.includes('bustR'));
-  assert.ok(Math.max(...Object.values(recipe.parts.bustR.stations.at(-1).points).map((p) => p[1])) > Math.max(...Object.values(recipe.parts.torso.stations[2].points).map((p) => p[1])) + 0.03, 'the bust stands proud of the chest');
+  const shallow = heroPlan({ cast: 'female', body: { hipDepth: 0.08 } }), deep = heroPlan({ cast: 'female', body: { hipDepth: 0.14 } });
+  assert.ok(span(shallow, 'thighR', 'st1', 1) < span(deep, 'thighR', 'st1', 1) * 0.75, 'hipDepth changes profile without changing pelvic width');
+  assert.ok(Math.abs(width(shallow, 'thighR', 'st1') - width(deep, 'thighR', 'st1')) < 0.001, 'hipDepth leaves frontal width alone');
+  const recipe = expandPlan(female); assert.ok(!recipe.parts.bustR && !recipe.parts.bustL && !expandPlan(male).parts.bustR && !expandPlan(heroPlan()).parts.bustR);
   assert.throws(() => heroPlan({ cast: 'female', body: { bust: -1 } }), /not a body control/); assert.throws(() => heroPlan({ scale: 0 }), /scale/);
-  assert.equal(expandPlan(heroPlan({ cast: 'male', body: { bust: 0.05 } })).parts.bustR.stations.length, 4);
+  const optionalBust = expandPlan(heroPlan({ cast: 'female', body: { bust: 0.05 } }));
+  assert.equal(optionalBust.parts.bustR.stations.length, 4);
+  assert.ok(optionalBust.dials.bulk.parts.includes('bustL') && optionalBust.dials.lean.parts.includes('bustR'));
 });
 
 test('a register changes every ring through the style block and no joint', () => {

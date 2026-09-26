@@ -33,14 +33,17 @@ export const HERO_CASTS = {
   // hip spans narrow enough that the thighs meet at the crotch and stay close to the knee (a reference read: the
   // legs stand together, the hips are one mass); the shoulders sit a little inside the canonical span
   male: { dials: { shoulderSpan: 0.96, shoulderDrop: 8, hipSpan: 0.62 }, girth: 1, scale: 1, body: { waist: 0.165, chest: 0.22, chestDepth: 0.115, hip: 0.1, thigh: 0.086, calf: 0.067, arm: 0.061, neck: 0.066 } },
-  // the female is not the male re-coloured: 85 % of his height, the shoulder yoke 15 % and the hips 20 % narrower than her
-  // first cut (measured at the torso's shoulder station and the thighs' hip ring), and a bust: two mounds on the chest
-  female: { dials: { shoulderSpan: 0.71, shoulderDrop: 8, hipSpan: 0.56 }, girth: 0.9, scale: 0.85, body: { waist: 0.15, chest: 0.17, chestDepth: 0.118, hip: 0.082, thigh: 0.082, calf: 0.058, arm: 0.053, neck: 0.052, bust: 0.07 } },
+  // The female is an independent arrangement of the same vajra girdles, not a uniformly reduced male.
+  // Relaxed shoulders lead into a short waist transition; the wider pelvic girdle continues through the
+  // upper thighs before tapering at the knee. Chest depth belongs to the torso envelope by default. The
+  // optional bust control remains available for a character that specifically calls for separate mounds.
+  female: { silhouette: 'female', headScale: 1.06, dials: { shoulderSpan: 0.80, shoulderDrop: 11, hipSpan: 0.62, lumbar: 0.98, thoracic: 0.98, thigh: 1.02, shank: 1.02 }, girth: 1, scale: 0.94,
+    body: { waist: 0.15, chest: 0.195, chestDepth: 0.13, hip: 0.137, hipDepth: 0.108, thigh: 0.11, calf: 0.056, arm: 0.054, neck: 0.052, bust: 0 } },
 };
 /** the BODY controls (metres, before girth): the radii the eye reads a build off. A cast carries its own defaults.
  * `bust` is the radius of each of two mounds on the chest, 0 for none: they protrude from the chest station, meet the
  * mirror plane only inside the torso (the cleft between them) and read as a circular W from below. */
-export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, thigh: 0.086, calf: 0.067, arm: 0.061, neck: 0.066, bust: 0 };
+export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, hipDepth: null, thigh: 0.086, calf: 0.067, arm: 0.061, neck: 0.066, bust: 0 };
 
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
 const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
@@ -53,12 +56,12 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *   headScale  multiplies the head trunk's radii and its spread about the atlas (default 1; a chibi wants ≥ 1.3)
  *   scale      one uniform scale over the finished figure, joints, rings and worn head alike (default the cast's, 1)
  *   palette    { group: '#hex' } (default PALETTE)
- *   body       overrides on BODY_DEFAULTS (waist, chest, chestDepth, hip, thigh, calf, arm, neck, bust: radii in metres)
+ *   body       overrides on BODY_DEFAULTS (waist, chest, chestDepth, hip, hipDepth, thigh, calf, arm, neck, bust: radii in metres)
  *   head       a head include (docs/examples/hero-head `bakeHero()` / baked.json, or docs/examples/humanoid `humanoidHead()`)
  *              worn at the atlas instead of the blank head trunk: its cranium rides the head bone, its jaw a jaw bone
  *              with a `jaw` chain; a head whose chin would sit below the collar is lifted with its jaw anchors
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale = 1, palette = PALETTE, head = null, body = {}, scale } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!reg) throw new Error(`hero.plan: unknown register '${register}' (have ${Object.keys(REGISTERS).join(', ')})`);
   const preset = typeof cast === 'string' ? HERO_CASTS[cast] : null;
@@ -67,6 +70,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);
   const b = { ...BODY_DEFAULTS, ...(preset?.body || {}), ...body };
   const S = scale ?? preset?.scale ?? 1;
+  const HS = headScale ?? preset?.headScale ?? 1;
   if (!(Number.isFinite(S) && S > 0)) throw new Error(`hero.plan: scale must be a positive number, got ${scale}`);
   const P = (k) => [m[k].x, m[k].y, m[k].z].map((v) => r6(v * SCALE));
   const g = (v, f = g0) => (Array.isArray(v) ? v.map((x) => r6(x * f)) : r6(v * f));
@@ -83,7 +87,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // ── the trunk: the torso alone. There is no pelvis part: the thighs start at the hip crest and carry the pelvis
   // between them (the streamlined read), the `pelvis` BONE still exists for the rig ──
   const zp = J.pelvisHub[2], zn = J.navel[2], zs = J.neckHub[2], hb = J.headBase[2], ht = J.headTop[2];
-  const L = zn - zp, T = zs - zn, H = (ht - hb) * headScale;
+  const L = zn - zp, T = zs - zn, H = (ht - hb) * HS;
   const st = (z, r, extra = {}) => ({ z: r6(z), r: g(r), ...extra });
   const shoulderHalf = J.shoulder[0], zWaist = zp + 0.63 * L;
   const torso = { name: 'torso', kind: 'trunk', stations: [
@@ -101,14 +105,30 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // ── the limbs: right side authored, left by name. The thigh is a LOFT from the hip crest (half the pelvis width, at
   // the waist) down past the hip to the knee, so the two thighs together read as the hips; arms and shanks carry a
   // mid-station swell; overshoots are small where the trunk already covers the joint ──
-  const hip = J.hip, knee = J.knee; const dz = zp - knee[2];
+  const hip = J.hip, knee = J.knee; const dz = zp - knee[2], femaleMass = preset?.silhouette === 'female';
+  const hipCenter = femaleMass ? 0.58 : 0.62, upperCenter = femaleMass ? 0.68 : 0.72;
+  const midCenter = femaleMass ? 0.58 : 0.5;
+  const hipRadius = Math.max(b.hip, hipCenter * hip[0] + 0.004);
+  const upperRadius = Math.max(upperCenter * hip[0] + 0.004, b.thigh);
+  const kneeRadius = b.calf - 0.003, midX = hip[0] + midCenter * (knee[0] - hip[0]);
+  const hipDepth = b.hipDepth ?? b.hip + 0.013;
+  // On the female mass, interpolate the OUTER contour rather than the local radius: the vajra knee
+  // sits farther from the midline than the hip, so a naive radius interpolation makes the thigh widen
+  // as it descends. Solving the radius back from the desired outer edge keeps the pelvis dominant.
+  const midThigh = femaleMass
+    ? hipCenter * hip[0] + hipRadius + midCenter * (knee[0] + kneeRadius - hipCenter * hip[0] - hipRadius) - midX
+    : (b.thigh + b.calf - 0.003) / 2 + 0.007;
+  const crestInset = femaleMass ? -0.011 : 0.005;
   const thigh = { name: 'thighR', kind: 'loft', stations: [
     // the crest, hip and upper-thigh rings CROSS the mirror plane (side radius well past the centre's x), so the two
     // thighs overlap through the middle: one pelvis with no groove up its front and back. Their centres sit inside the
     // hip joint (0.45 / 0.62 / 0.72 of its x): the crest is as wide as the waist less a hair, so the torso hem meets
     // the hips instead of shelving over them; the hip ring is `hip` wide (the pair a little past the waist)
-    { at: R([0.45 * hip[0], 0.01, zWaist]), r: [r6(g(b.waist) - 0.005 - 0.45 * hip[0]), 0.1] }, { at: R([0.62 * hip[0], hip[1] / 2, zp]), r: [r6(Math.max(b.hip, 0.62 * hip[0] + 0.004)), r6(b.hip + 0.013)] }, { at: R([0.72 * hip[0], hip[1], zp - 0.215 * dz]), r: [r6(Math.max(0.72 * hip[0] + 0.004, b.thigh)), r6(b.thigh + 0.016)] },
-    { at: R([hip[0] + 0.5 * (knee[0] - hip[0]), hip[1], zp - 0.5 * dz]), r: [r6((b.thigh + b.calf - 0.003) / 2 + 0.007), r6((b.thigh + b.calf - 0.003) / 2 + 0.011)] }, { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(b.calf - 0.003), r6(b.calf - 0.001)] },
+    { at: R([0.45 * hip[0], 0.01, zWaist]), r: [r6(g(b.waist) - crestInset - 0.45 * hip[0]), 0.1] },
+    { at: R([hipCenter * hip[0], hip[1] * (femaleMass ? 0.42 : 0.5), zp]), r: [r6(hipRadius), r6(hipDepth)] },
+    { at: R([upperCenter * hip[0], hip[1] * (femaleMass ? 0.62 : 1), zp - 0.215 * dz]), r: [r6(upperRadius), r6(b.thigh + (femaleMass ? 0.012 : 0.016))] },
+    { at: R([hip[0] + midCenter * (knee[0] - hip[0]), hip[1] * (femaleMass ? 0.70 : 1), zp - 0.5 * dz]), r: [r6(midThigh), r6(midThigh + 0.004)] },
+    { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(b.calf - 0.003), r6(b.calf - 0.001)] },
   ], caps: { back: R([0.3 * hip[0], 0.01, zWaist + 0.003]), tip: R([knee[0], knee[1], knee[2] - 0.025]) }, group: 'Bottom', mirror: 'name',
     bind: { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.8, thighR: 0.2 }, st2: { pelvis: 0.2, thighR: 0.8 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } } };
   // the bust: two mounds, right one authored, from inside the chest forward and a little down. Their base rings overlap
@@ -177,7 +197,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   return scalePlan({
     schema: PLAN_SCHEMA,
-    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${S !== 1 ? `, ×${S}` : ''}), soles on z = 0, facing +y` },
+    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}), soles on z = 0, facing +y` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot' },
     style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e },
     joints, segments, include, dials, palette, rig, clips,

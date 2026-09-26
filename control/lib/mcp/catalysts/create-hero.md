@@ -85,8 +85,8 @@ expression })` with the landmark head); the detail head is `docs/examples/hero-h
             colour too close. Change the palette, not the geometry.
 
 4. FACE     Wear a head. The LANDMARK head (docs/examples/humanoid `humanoidHead({ preset, shape,
-            register, hair, expression })`): one designed surface on the figure's own skull landmarks,
-            the jaw hinged by the ear so the chin drops under the cheeks, the face knobs (`browRidge`,
+            register, hair, expression })`): one designed surface resampled from a head fitted to
+            reference images (canonical for both presets; the landmark cage stays selectable), the jaw hinged by the ear so the chin drops under the cheeks, the face knobs (`browRidge`,
             `jawWidth`, `chinPoint`, `noseSize`, `cheekbone`, `eyeSize`) the appeal dials; or the
             DETAIL head (docs/examples/hero-head `bakeHero({ hair, eye, palette })`, live expression
             controls on the detail core). Pick the expression to bake (neutral / smile / determined /

@@ -12,7 +12,57 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Fitted heads
+
+- **Both humanoid heads are fitted heads (canonical).** The male and female `humanoidHead` presets are resampled
+  from heads fitted to reference images and frozen as data under `docs/examples/humanoid/{female,male}-head-fit/`,
+  pinned by hash.
+  - The female uses the refined three-view fit (front, three-quarter, side): closed mesh, corrected triangulation,
+    ears joined through root faces, same landmarks and cameras.
+  - The male uses a two-view fit (three-quarter, side). No front reference exists, so his width across the face
+    rests on the template, and his front view is inferred.
+  - The landmark cage stays selectable through `HEAD_SOURCES` and keeps its own construction tests. The jaw
+    hinge, pinned features, hair and expressions are unchanged in kind. Face knobs deform named fitted points
+    before sampling; `earSize`, `eyeSize` and `neckGirth` have no fitted counterpart.
+- **One construction for both heads** (`head-fit.mjs`). Each fit keeps its own registration: the landmark preset's
+  crown-to-chin height, chin height and head-length centre, so collar and neck clearances hold. The sampler reads
+  the fit's own triangulation, skips ears and ear roots, and patches the skull openings the roots plug into. The
+  nose and eye rows own only their face slots; their skull slots interpolate between the structural rows.
+- **The cheek is flat planes around a rounded apex; the chin and jaw front are the fit's.** Under-eye front and
+  side, cheek front and side down to a fullness row, and one lower side down to the jawline replace the horizontal
+  rows that crossed the cheek and read as stripes.
+  - A corner grid defines the planes. Rows: eye, crest (nose wing to ear), fullness. Columns: nose side,
+    front-to-side turn, ear.
+  - The apex under the eye corner leads its neighbours. Each corner is placed by construction, so every plane is
+    flat, and every row crossing them lies on their edges.
+  - Below the fullness row the jaw front follows the fit. The jawline is the fit's (jaw front, the refined female's
+    jaw sweep, jaw angle), and the front/side turn lands on it. The chin gets the fit's own rows: chin bottom, chin
+    front, and the fold under the lower lip (set back on the female, level on the male). Their near-midline points
+    are read off the fitted chin. No pair of flat lower planes could meet the fitted jawline without pulling the
+    turn far behind the face.
+  - The lower back of the cheek is one flat mass from the nose line down to the jawline. It rounds out instead of
+    sinking: the side column bows up to about 7 mm past the straight line from cheekbone to jaw angle, never wider
+    than the cheekbone crest, then runs down the ramus. The jaw corner keeps the fitted jawline's height and
+    moves only across the face onto that plane. Behind it, the ramus's back edge runs parallel, so the band under
+    the ear down to the jaw is one strip.
+  - The female's jaw angle is widened about 7 mm on the fitted surface before sampling. No reference measured
+    that width, and her front-view widths at mouth and jaw height asked for it. The male's three-quarter view sees
+    his jaw angle, so his stays as fitted.
+- **The jaw meets the ear.** Behind the ramus, the rear column below the crest is the ramus's back edge at each
+  row's height, from about 12 mm behind the jaw angle up to where the ear is worn. The landmark cage's hinge lift
+  used to jump those points up to the condyle, leaving a notch behind the jaw angle and a cavity under the lobe.
+  The midline back points keep their lift, so the jaw still hinges by the ear and opens closed.
+- **Measured against the fits, not asserted.** Silhouette IoU against each fitted source through its fitted
+  cameras is 0.95 / 0.90 / 0.94 for the female and 0.92 / 0.95 for the male. Compiled pupils land within 5 px of
+  the hand-marked eye centres. `render-head-fit.mjs` draws each head's reference, landmark cage, raw sampling,
+  built head and overlay.
+
 ### Planar humanoid
+
+- **Female silhouette rebuilt from the Vajra girdles.** The female starting cast now authors its shoulder, waist, pelvic, thigh and calf masses as one independent silhouette. A wider pelvic girdle and upper-thigh transition counterbalance relaxed narrower shoulders; the chest is carried by the torso envelope instead of defaulting to two attached mounds. The Vajra joints, rig behavior and optional `bust` control remain available.
+- **Female target head as an updatable Meru / Mandala polygon map.** A deterministic head-map recipe puts 203 named points in one Meru world ruler and depth register, then uses an axis-mundi and bilateral Mandala bars to author 116 semantic forehead, orbit, nose, cheek, muzzle, jaw, ear, hair and shoulder-yoke planes. Named design controls own cranial height, skull / malar / jaw / neck widths, nose width and depth, eye and mouth proportions, and presentation styling without changing ids. The revised target has a rounded convex hair cap, asymmetric swept fringe, visible eight-point ears, a closed ponytail with front/back depth, a shorter three-stage nasal projection, aligned lip / chin profile, minimal bust framing and restrained beauty-view seams. The nose base remains three times the root half-width while root-to-tip projection is limited to 0.030 m; an embedded audit protects those relationships. Physical front, three-quarter and profile cameras project the same source into SVGs with stable plane / point ids and embedded source / camera metadata. A principles log records parameter ownership and the silhouette-first iteration procedure.
+- **Reference head and torso refinement.** The humanoid starter uses shallower orbital planes; a constructed nose with separately labelled bridge, sidewall, ala, face-join and upper-mouth edges; tapered jaw planes; and a sloped, flatter-fronted shirt yoke. The paired outer joins are closest at the root and spread toward the base, so the whole nose widens downward instead of reading as a forward-pointing keel. The nose also has a narrow dorsal plane, nostrils tucked underneath and a philtrum wedge that narrows toward the lip. The existing `noseWidth` shape control drives the alar base independently of the bridge attachment. Shared hero defaults and core geometry kernels are unchanged.
+- **Face V3 derives the mouth from the nose.** Triangular nostril facets sit on the alar underside. The alar half-width determines the mouth span and the inner cupid peaks, giving the upper lip a shallow M-shaped plane above the mouth slit; changing `noseWidth` carries that relationship instead of leaving an unrelated fixed-width mouth. `FACE_VERSION` exposes the construction revision in the example API and generated frame note.
 
 - **The humanoid starter.** `docs/examples/humanoid/`: the hero form with a `male` / `female` preset, the
   body controls and a planar LANDMARK HEAD, hair / palette / expression / register independent of the
@@ -20,19 +70,17 @@ loops and the recipe format are unchanged.
   (thighs from the hip crest, swells, tight overshoots) became the hero form's own, its proportion controls
   became the form's `body` (waist, chest, chestDepth, hip, thigh, arm, neck, each cast with defaults), and
   `humanoid.plan.mjs` is a thin wrapper over `heroPlan`.
-- **The female cast is not the male re-coloured.** A cast carries a uniform `scale` over the finished figure
-  (joints, rings and the worn head alike; `heroPlan({ scale })` overrides it): the female stands at 85 % of
-  the male's height, her shoulder yoke 15 % and her hips 20 % narrower than her first cut, measured at the
-  torso's shoulder station and the thighs' hip ring. A `bust` body control (a radius, 0 for none): two mounds
-  lofted off the chest station, right one authored and the left mirrored by name, that meet the mirror plane
-  only inside the torso, so the cleft is the gap between two round rings and the underside reads as a W; they
-  ride the torso bone and follow the `bulk` and `lean` dials.
+- **The female cast is its own mass design.** A cast carries a uniform `scale` over the finished figure
+  (joints, rings and the worn head alike; `heroPlan({ scale })` overrides it). The female combines a relaxed
+  narrower shoulder girdle, short waist transition, wider pelvic envelope around restrained hip sockets,
+  tapered upper thighs, lighter calves and a slightly larger head ratio. Chest depth belongs to the torso by default;
+  the optional `bust` control still adds paired mounds when a character calls for them.
 - **The hips taper into the body; the nose stands forward.** The thigh loft's crest, hip and upper-thigh rings
-  are centred inside the hip joint, so the pair is never wider than the waist it hangs from instead of
-  shelving out under the hem; `calf` joins the body controls (knee, calf swell and ankle radii). The female
+  cross the mirror plane and carry the pelvic envelope without forcing the Vajra hip and knee joints into a broad stance.
+  `hipDepth` separates profile depth from frontal `hip` width; `calf` controls the knee, calf swell and ankle radii. The female
   has a narrower neck, head (`HEAD_WIDTH` per pole on the landmark head, the jaw with it) and calves. On both,
-  the landmark head's nose is a narrow wedge: the ala slot at a tenth of the head width, the tip a third
-  further forward.
+  the landmark head's nose has separate bridge and ala slots: the bridge bounds a narrow flat dorsal plane,
+  the wider ala bounds its sidewall and underside, and the tip stands forward of the face.
 - **One pelvis, a cheekbone.** The thigh rings cross the mirror plane instead of touching it, so the two thighs
   overlap through the middle and there is no groove up the front of the pelvis; the crest ring is as wide as the
   waist less a hair and the male waist is narrower, so the torso hem and the hips meet. The landmark head's rows
