@@ -143,6 +143,15 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (lights.length) {
     ledger.lights_carried = { count: lights.length, note: 'recessed pot lights ride the GLB as KHR_lights_punctual spots (candela) and the score carries them too; Blender, Godot and Unity import them from the GLB (Godot converts candela to its lamp energy in the pack kernel), the Unreal importer spawns SpotLights from score.json when Interchange brings none' };
   }
+  // The LOOK declaration (shader-look phase 4): the one runtime term the bake cannot carry — a
+  // figure's rim `[r,g,b,strength,power]` — rides the score so each engine kernel lowers it to
+  // its own idiom (Godot: kernel/rim.gdshader as a next_pass; the World page's rig-preview and
+  // controllable channels are the reference render). Absent rims ⇒ no key, byte-identical.
+  const lookFigures = Object.entries(payload.figures || {})
+    .filter(([, f]) => f && Array.isArray(f.rim) && f.rim.length === 5 && f.rim.every(Number.isFinite));
+  if (lookFigures.length) {
+    ledger.look_declared = { figures: lookFigures.length, note: 'rim rides score.look.figures; the GLB carries no shader — each engine kernel realizes it (Godot: next_pass rim.gdshader)' };
+  }
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
   // lib/ instead of found at the most expensive gate that happens to be open.
@@ -183,6 +192,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // sun, sky and fog to what the recipe said — the mesh never carried the backdrop
     // (sky_approximated). Absent a preset ⇒ no row, byte-identical.
     ...(typeof payload.sky?.preset === 'string' ? { sky: { preset: payload.sky.preset } } : {}),
+    // the figure look (rim) as data — see ledger.look_declared. Absent ⇒ no key.
+    ...(lookFigures.length ? { look: { figures: Object.fromEntries(lookFigures.map(([n, f]) => [n, { rim: f.rim }])) } } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure);
       const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;

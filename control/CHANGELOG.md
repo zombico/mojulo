@@ -41,6 +41,12 @@ loops and the recipe format are unchanged.
   fresnel edge to every part while a clip plays — the mobile-suit spike's rim, adopted for the layered
   kind's World preview. The patch is emitted only when a previewed figure carries `rim`; absent, the
   page is byte-identical.
+- **The rim reaches Godot.** The score carries the figure look as data (`score.look.figures.<name>.rim`,
+  with a `look_declared` ledger row) — the one runtime term the bake cannot carry — and the Godot
+  kernel (0.2.3) realizes it: `kernel/rim.gdshader`, an unshaded additive fresnel applied by level.gd
+  as a `next_pass` on every surface of the named figure, so the base vertex-colour material stays
+  untouched and the five numbers match the World page's patch. Absent rims ⇒ no score key, no-op
+  kernel pass, byte-identical pack.
 
 ### Art direction
 

@@ -90,7 +90,7 @@ export async function createLayeredHandler(input) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, provenance, dials, channels, units, facing, seat, toon, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, provenance, dials, channels, units, facing, seat, toon, hullShade, rim, ref, folder_ref: folderRef } = input;
   const manifest = {
     kind: 'layered',
     ...(title ? { title } : {}),
@@ -103,6 +103,10 @@ export async function createLayeredHandler(input) {
     ...(typeof facing === 'string' || Number.isFinite(facing) ? { facing } : {}),
     ...(seat === false ? { seat: false } : {}),
     ...(toon != null ? { toon: resolveToon(toon) ? toon : undefined } : {}),
+    // the shader-look dials (opt-in, rigged recipes): hull-smooth bake normals and the figure rim —
+    // stored as authored; the layered world resolve validates shapes on read
+    ...(hullShade === true || (hullShade && typeof hullShade === 'object') ? { hullShade } : {}),
+    ...(Array.isArray(rim) && rim.length === 5 && rim.every(Number.isFinite) ? { rim } : {}),
   };
   const { stats } = planLayered(manifest);
   manifest.ledger = persistedLayeredLedger(stats.ledger);
