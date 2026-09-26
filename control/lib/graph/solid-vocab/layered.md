@@ -27,10 +27,19 @@ A solid whose recipe is a **station/slot construction**, not a coordinate list.
   declared; out-of-range and unknown dials refuse.
 
 Spec: `{ title?, recipe, dials?, channels?, units? ('m'), facing? ('+y'), seat? (true: lowest point on
-the grid), grid?, toon? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
+the grid), grid?, toon?, hullShade? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
 and `export_model` see the compiled mesh itself (every closed part exact, whatever its shape; a recipe
 `palette: { <group>: '#hex' }` colours faces by group, else the part's `tint`). Patch a dial:
 `update_sketch { ref, patch: [{ op: 'set', path: '/dials/jawOpen', value: 30 }] }`.
+`hullShade: true | { except: ['<part>', …] }` (rigged recipes) bakes the rig figure's vertex-colour light
+from the smooth L1 hull's normals instead of flat facets, so the light sweeps the underlying form while
+grown detail keeps its silhouette — the toon read. `except` names focal parts (a horn, a ridge) that keep
+their own faceted shading. Absent, the bake is unchanged.
+`rim: [r, g, b, strength, power]` (rigged recipes) adds a cool/warm fresnel edge light to the figure's
+clip preview on the World page (ms-contrast's rim, adopted); pairs with `hullShade` for the full toon
+read. `toon: { ink: true, bake: true }` on the manifest additionally bakes the outline into the GLB
+export as real geometry — the skinned figure's inverted hull rides the rig in-engine. All opt-in;
+absent, every byte is identical.
 
 - **Rig (optional).** `rig: { joints: { name: { at, rides? } }, bones: [{ id, head, tail, aux? }], chains:
   { channel: { axis, sign?, links: [{ pivot, joints }] } }, legs: { L|R: { hip, knee, hock, toeBase, toeTip,

@@ -133,4 +133,43 @@ describe('facesToGlb cross-group de-collide (renderer-emitter.plan.md E4)', () =
     expect(zs).toHaveLength(2);
     expect(zs[0]).not.toBe(zs[1]); // one plane lifted → no coincident depth across nodes
   });
+
+  describe('toon.bake — the ink pair baked as real geometry (shader-look phase 3)', () => {
+    // a closed unit box (6 outward-wound quads), the shape the inverted hull needs
+    const boxFaces = () => {
+      const Q = [
+        [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]],
+        [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]],
+        [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]],
+        [[1, 1, 0], [0, 1, 0], [0, 1, 1], [1, 1, 1]],
+        [[0, 1, 0], [0, 0, 0], [0, 0, 1], [0, 1, 1]],
+        [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]],
+      ];
+      return Q.map((corners) => ({ corners, fill: '#8a8f96' }));
+    };
+    it('ink without bake changes nothing; bake adds <group>:ink (single-sided unlit) + <group>:ink-lines (LINES)', () => {
+      const plain = facesToGlb({ faces: boxFaces() }, { generator: 't' });
+      const inkOnly = facesToGlb({ faces: boxFaces(), toon: { ink: true } }, { generator: 't' });
+      expect(inkOnly.bytes.equals(plain.bytes)).toBe(true);   // the World channel's dial alone never touches the GLB
+      const baked = facesToGlb({ faces: boxFaces(), toon: { ink: true, bake: true } }, { generator: 't' });
+      expect(baked.bytes.equals(plain.bytes)).toBe(false);
+      const { json } = parseGlb(baked.bytes);
+      const names = json.nodes.map((n) => n.name);
+      expect(names).toContain('static:ink');
+      expect(names).toContain('static:ink-lines');
+      const hull = json.meshes.find((m) => m.name === 'static:ink');
+      const lines = json.meshes.find((m) => m.name === 'static:ink-lines');
+      expect(lines.primitives[0].mode).toBe(1);   // glTF LINES
+      const mat = json.materials[hull.primitives[0].material];
+      expect(mat.doubleSided).toBe(false);        // the BackSide equivalence: cull the camera-facing shell
+      expect(mat.extensions.KHR_materials_unlit).toBeDefined();
+      expect(json.materials[lines.primitives[0].material]).toBe(mat);   // one shared ink material
+      // the hull is pushed outward: its bounds strictly contain the box's
+      const hullPos = json.accessors[hull.primitives[0].attributes.POSITION];
+      expect(hullPos.min.every((v, i) => v < [0, 0, 0][i])).toBe(true);
+      expect(hullPos.max[0]).toBeGreaterThan(1);
+      // deterministic
+      expect(facesToGlb({ faces: boxFaces(), toon: { ink: true, bake: true } }, { generator: 't' }).bytes.equals(baked.bytes)).toBe(true);
+    });
+  });
 });

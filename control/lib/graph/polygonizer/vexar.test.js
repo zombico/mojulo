@@ -100,6 +100,9 @@ describe('toon bands (toon-shading)', () => {
     expect(resolveToon({ bands: 4 })).toEqual({ bands: 4 });
     expect(resolveToon({ bands: 2.7, ink: { color: '#000' } })).toEqual({ bands: 2, ink: { color: '#000' } });
     expect(resolveToon({ ink: true })).toEqual({ ink: true });
+    expect(resolveToon({ ink: true, bake: true })).toEqual({ ink: true, bake: true });   // GLB ink bake opt-in
+    expect(resolveToon({ bands: 3, bake: true })).toEqual({ bands: 3 });                 // bake without ink is dropped
+    expect(resolveToon({ ink: true, bake: 'yes' })).toEqual({ ink: true });              // strict true only
     expect(resolveToon({ bands: 1 })).toBeNull();
     expect(resolveToon({})).toBeNull();
     expect(resolveToon('toon')).toBeNull();

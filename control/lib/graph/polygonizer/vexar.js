@@ -144,16 +144,18 @@ export function withBands(light, bands) {
 }
 
 /** The toon dial as authored on a manifest, normalized: `true` → { bands: 3, ink: true };
- *  `{ bands?, ink? }` → the same shape with a finite bands ≥ 2 (or none) and ink `true` or its
- *  tuning object; anything else → null. Shared by the world resolver, the still renderers and
- *  the mint tools so one spelling is accepted everywhere. */
+ *  `{ bands?, ink?, bake? }` → the same shape with a finite bands ≥ 2 (or none), ink `true` or its
+ *  tuning object, and `bake: true` carried through ONLY when ink is on (shader-look phase 3: the GLB
+ *  export bakes the ink pair as real geometry; bake reads the ink tuning, so bake without ink is
+ *  meaningless and dropped). Anything else → null. Shared by the world resolver, the still renderers
+ *  and the mint tools so one spelling is accepted everywhere. */
 export function resolveToon(t) {
   if (t === true) return { bands: 3, ink: true };
   if (!t || typeof t !== 'object') return null;
   const bands = Number.isFinite(t.bands) && t.bands >= 2 ? Math.floor(t.bands) : null;
   const ink = t.ink === true ? true : (t.ink && typeof t.ink === 'object' ? t.ink : null);
   if (bands == null && !ink) return null;
-  return { ...(bands != null ? { bands } : {}), ...(ink ? { ink } : {}) };
+  return { ...(bands != null ? { bands } : {}), ...(ink ? { ink } : {}), ...(ink && t.bake === true ? { bake: true } : {}) };
 }
 
 /** Lambert brightness for an outward normal under a light (+ optional opposite fill). */

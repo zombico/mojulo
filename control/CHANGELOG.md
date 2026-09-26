@@ -12,6 +12,36 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Shader look
+
+- **Shading normals from the hull.** A rigged layered solid takes `hullShade: true | { except: [parts] }`
+  on its manifest: the packed rig figure's vertex-colour light is baked from the smooth L1 hull's welded,
+  area-weighted normal field instead of flat facets — L1 vertices take their own weld, grown detail takes
+  its nearest weld — so the light sweeps the underlying form in clean bands while scales, plates and
+  ridges keep only their silhouette (the ArcSys read: nothing view-dependent, authored normals do the
+  shaping). `except` names focal parts that keep their faceted shading. Geometry, weights and clips are
+  untouched; absent, the bake is byte-identical (`hullShadeNormals` + the `packLayeredRig` dial,
+  station-loft-rig.js; the sheet that decided it is the 0926 shader-look spike).
+- **The outline travels.** `toon: { ink: …, bake: true }` bakes the World ink channel's pair — the
+  inverted-hull silhouette and the crease/boundary lines — into the GLB export as real geometry
+  (`<group>:ink`, a winding-flipped hull under a single-sided unlit ink material, and
+  `<group>:ink-lines`, glTF LINES), so Godot, Unity, Unreal and Blender import the outline with no
+  shader at all. The construction is the channel's, lifted into `scene/ink-geometry.js` (weld →
+  winding fix → crease census); at bake the hull width is fixed and the lines lift off the surface in
+  place of the page's polygon-offset trick. `bake` without `ink` is dropped; absent, the export is
+  byte-identical.
+- **The outline follows the rig.** On a skinned export (`skinned: true`), `toon.bake` also inks the
+  packed rig figures: each part's inverted hull is baked per part (centroid-oriented geo normals, the
+  channel's rig-hook rule) and appended as a second primitive on the same skinned mesh, its
+  joints/weights carried through the reorder — so the figure's outline deforms with its clips in any
+  engine. Crease lines are skipped on the skinned leg (skinned glTF LINES import support is uneven);
+  rigid FK figures stay un-inked.
+- **The rim reaches figures.** A rigged layered solid takes `rim: [r,g,b,strength,power]` on its
+  manifest: the packed figure carries it, and the rig-preview channel applies ms-contrast's additive
+  fresnel edge to every part while a clip plays — the mobile-suit spike's rim, adopted for the layered
+  kind's World preview. The patch is emitted only when a previewed figure carries `rim`; absent, the
+  page is byte-identical.
+
 ### Art direction
 
 - **The passes serve a read.** The creature and hero catalysts carry an "Art direction" section: primary
