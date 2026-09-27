@@ -87,7 +87,7 @@ describe('mojulo-ui shim', () => {
     chmodSync(path.join(bin, 'npm'), 0o755);
     const res = runShim(['--port', '3999', '--no-open'], { PATH: `${bin}${path.delimiter}${process.env.PATH}` });
     expect(res.status, res.stderr).toBe(0);
-    expect(res.stderr).toContain('downloading it from the npm registry');
+    expect(res.stderr).toContain('downloading it from the npm registry into the npm cache');
     expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
       'exec', '--yes', `--package=${SPEC}`, '--', UI_PACKAGE_BIN, '--port', '3999', '--no-open',
     ]);

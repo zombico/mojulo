@@ -76,8 +76,8 @@ function fetchAndRun() {
     process.exit(1);
   }
   const npmArgs = ['exec', '--yes', `--package=${spec}`, '--', UI_PACKAGE_BIN, ...uiArgsToArgv(args)];
-  say('downloading it from the npm registry now (the prebuilt Next.js server, plus any dependency');
-  say('not already in the npm cache; once per version):');
+  say('downloading it from the npm registry into the npm cache now (the prebuilt Next.js server, plus');
+  say('any dependency not already cached; once per version):');
   say(`  npm ${npmArgs.join(' ')}`);
   say(`MOJULO_UI_NO_FETCH=1 skips this download; \`${uiLaunchCommand(version)}\` does the same thing directly.`);
 
