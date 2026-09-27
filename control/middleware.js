@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SESSION_COOKIE, isAuthEnabled, verifySessionToken } from '@/lib/auth/session';
+import { checkDashboardRequest } from '@/lib/auth/request-guard';
 
 export const config = {
   matcher: [
@@ -36,9 +37,26 @@ function presentedBearerMatchesMcpKey(req) {
 }
 
 export async function middleware(req) {
-  if (!isAuthEnabled()) return NextResponse.next();
-
+  // A matching bearer cannot come from a rebinding or cross-site page, so it
+  // skips the loopback guard too.
   if (presentedBearerMatchesMcpKey(req)) return NextResponse.next();
+
+  // Runs whether or not login is on: with it off (the default) this is the
+  // only thing between a web page in the operator's browser and the API.
+  const refusal = checkDashboardRequest({
+    method: req.method,
+    host: req.headers.get('host'),
+    origin: req.headers.get('origin'),
+    secFetchSite: req.headers.get('sec-fetch-site'),
+  });
+  if (refusal) {
+    return new NextResponse(JSON.stringify(refusal), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!isAuthEnabled()) return NextResponse.next();
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const ok = await verifySessionToken(token, process.env.CONTROL_PLANE_PASSWORD);

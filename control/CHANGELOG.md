@@ -1115,6 +1115,15 @@ rock to classical, flamenco and gypsy jazz.
   `MOJULO_HOME`. `API_KEY_ENCRYPTION_KEY` still takes precedence. Keys saved by 2.1.x still decrypt,
   and each process re-encrypts any such `api_keys` row under the new key before its first read.
   Deleting `secret.key` makes the saved keys unreadable (re-save them).
+- **The dashboard refuses DNS-rebinding and cross-site requests.** With login off (the default),
+  `middleware.js` let every request through, so a web page in the operator's browser could reach
+  the dashboard's API, including document upload and deploy, by rebinding its own hostname to
+  127.0.0.1 or by posting cross-site. It now answers 403 to any request whose `Host` is not
+  `localhost`, `127.0.0.1`, `[::1]` or `MOJULO_UI_HOST`, and to any non-GET request whose `Origin`
+  is not the dashboard's own or whose `Sec-Fetch-Site` is `cross-site`
+  ([lib/auth/request-guard.js](lib/auth/request-guard.js)). The check runs with login on too.
+  Callers presenting the `CONTROL_PLANE_MCP_KEY` bearer skip it; `/api/mcp` and `/api/health` stay
+  outside the middleware as before.
 
 ## [2.1.0] - 2026-09-23
 
