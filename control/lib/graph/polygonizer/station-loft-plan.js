@@ -29,6 +29,11 @@
  *     // (`<part>.back|tip` caps, `<hinge dial>.pivot`, its landmarks) that rig joints name as `at: '<head>.<anchor>'`
  *   details?: [ { name, kind: 'claw', base, dir, length, radius, pin, group, tint, stretch?, mirror? } ],
  *   dials: { <name>: <dial spec> | { op: 'include', name } },  // `parts` entries may carry `$S` (→ R then L)
+ *   body?: { refine, volume, creases, tiles, pads, spurs, rows, collars, rigid },   // BODY DETAIL passes (station-loft-body.js):
+ *                                                              //   density, masses, bend creases, rigid tiles, pads, rows, collars,
+ *                                                              //   baked as pinned L2 parts on the refined rest L1
+ *   adorn?: [ { id, mode: 'shell' | 'band' | 'strap', part, …, signature: { kind, … } } ],   // ADORNMENT (station-loft-adorn.js):
+ *                                                              //   worn over the detailed figure, baked as pinned L3 parts
  *   creases?, palette?, rig?, clips?,                          // rig joints / bones may carry `$S` and `perSide` blocks
  * }
  *
@@ -44,6 +49,8 @@
 import { compileLayered, pinFrame, surfaceLocalOffset, mirrorPid, mirrorFaceId } from './station-loft.js';
 import { headFromPlan, resolveExpression, insidePart } from './station-loft-head.js';
 import { bakeLayered } from './station-loft-detail.js';
+import { bakeBody, validateBody } from './station-loft-body.js';
+import { bakeAdorn, validateKit } from './station-loft-adorn.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -192,6 +199,8 @@ export function validatePlan(plan) {
     if (!det.pin || !names.has(det.pin.parent) || typeof det.pin.face !== 'string' || !Array.isArray(det.pin.weights) || !Array.isArray(det.pin.tangentEdge)) fail(`claw '${det.name}' needs pin { parent (a segment), face, weights, tangentEdge, handedness }`);
     if (det.stretch != null && !(plan.dials && plan.dials[det.stretch]?.op === 'stretch')) fail(`claw '${det.name}' names stretch dial '${det.stretch}', which must be declared with op 'stretch'`);
   }
+  if (plan.body != null && (typeof plan.body !== 'object' || Array.isArray(plan.body))) fail('body must be an object of detail passes { refine?, volume?, creases?, tiles?, pads?, spurs?, rows?, collars? } (station-loft-body.js)');
+  if (plan.adorn != null && !Array.isArray(plan.adorn)) fail('adorn must be a list of adornments [{ id, mode, part, …, signature }] (station-loft-adorn.js)');
   for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !includesOf(plan).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
   return true;
 }
@@ -281,6 +290,18 @@ export function expandPlan(plan) {
         if (det.stretch) { const d = dials[det.stretch]; d.parts = [...(d.parts || []), det.name, ...(det.mirror ? [det.mirror] : [])]; }
       }
     }
+  }
+  // body detail, then adornment: the dragon's passes as data, baked as pinned parts on the refined rest carrier (a
+  // pinned part inherits its pin face's weights; refinement extends the bind blends so skinning is unchanged)
+  if (plan.body || plan.adorn) {
+    const errs = [...(plan.body ? validateBody(plan.body, recipe.parts) : []), ...(plan.adorn ? validateKit(plan.adorn, recipe.parts) : [])];
+    if (errs.length) fail(errs.join('; '));
+    const source = JSON.parse(JSON.stringify(recipe)); let fig;
+    try {
+      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts }; }
+      else fig = { mesh: compileLayered(recipe, {}), parts: {} };
+      if (plan.adorn?.length) bakeAdorn(recipe, fig, plan.adorn, { source });
+    } catch (err) { fail(`${plan.body && plan.adorn ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }
   }
   // rig: joints and bones may carry `$S`; a `perSide` bone block expands to its R bones then its L bones
   if (plan.rig) {

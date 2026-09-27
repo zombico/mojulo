@@ -11,9 +11,44 @@ expression and register are independent of the proportions. Begun as an outside 
 reconciled into it: the body lives in the hero form now, the head here.
 
 - `humanoid.plan.mjs`: `humanoidPlan({ preset, body, face, register, girth, headScale, palette, hair,
-  expression })` → a ring plan: `heroPlan({ cast: preset, body, head: humanoidHead(…) })`. The shared proportions live
+  expression, tune })` → a ring plan: `heroPlan({ cast: preset, body, tune, head: humanoidHead(…) })`. `tune` is the
+  hero form's proportion tune (percentages of the preset's baseline; see `../ring-plans/README.md`); its `head` control
+  scales the worn head, which is baked at the tuned scale. The shared proportions live
   in the hero form (`HERO_CASTS`, `BODY_DEFAULTS`); this wrapper adds flatter shirt panels, a raised
   collar for a sloping yoke, and hem depth that overlaps the trouser crest.
+- HAIR is a library (`control/lib/graph/polygonizer/humanoid-hair.js`, the hairstyle lab's styles and controls on closed
+  masses): every style is DATA over four closed constructions whose perimeters follow the skull by address (the CAP, the
+  old `hairMass` generalised: hairline per slot, lifts, fringe, part groove, taper, quiff; the FALL, curtains from just
+  inside the cap's border with a per-slot fall so the mass frames the face; the TAIL family: ponytail sweep, bun bell,
+  winding braid; the LOCKS, one closed tapered sweep per anime lock along a root → control → tip curve, mirrored exactly
+  when the asymmetry is 0). Nineteen styles in a male and a female collection, either head wears any; nineteen controls
+  as ratios about the style's preset (`cap`: volume, fringe, part, fade; `fall`: length, graduation, wave; `tails`: tail,
+  tie, braid; `locks`: lockWidth, taper, bend, asymmetry; `form`: corners, sideBulk, topSlope, lineup, the barber's pass
+  on the male caps; `definition`: each style's signature exaggerated). On the three pinned styles the form and
+  definition are relative (1 changes nothing). A control the style does not use advises, never refuses. `crop`, `swept` and `bob` at every control 1 are the bytes the
+  head grew before the library (pinned in `humanoid-hair.test.js`). `hair` takes a word, `{ style, …controls }` or a
+  list; the include carries the resolved `hair` and `hairMeasures`. `render-hair.mjs` draws both heads × every style at
+  four views through one camera per head, with a measurements table.
+- DRESS: `humanoidPlan({ detail, adorn })` puts the dragon's body-detail and adornment passes on the hero with its own
+  parameters (`control/lib/graph/polygonizer/hero-dress.js`). `detail: 'clothed'`: elbows and knees refined, the jerkin's
+  masses, soft sleeve folds, a quilted jerkin (front panels beside a bare placket with a toggle row, a back panel, grown
+  only where the torso bone dominates), knee patches, cuffs, leg wraps. `adorn: 'ranger'`: belt, baldric, an archer's
+  bracer on the left forearm, ONE pauldron on the right shoulder with a bronze boss (the focal accent), in that stacking
+  order, with a suggested earth palette. Both bake into the recipe as pinned parts (they ride the dials and the rig; the
+  pauldron rides the torso, the arm moves beneath it). `render-dress.mjs` draws the build-up (form → detail → adornment)
+  for both casts at four views, at 128 / 256 / 512 px, mid-walk and mid-wave, and a bust, with the adornment ledger.
+- `head.mjs`, `head-fit.mjs`, `humanoid.plan.mjs` are RE-EXPORTS since face-tune: the modules are core
+  (`control/lib/graph/polygonizer/humanoid-head.js`, `humanoid-head-fit.js`, `humanoid-plan.js`; the frozen fits under
+  `control/lib/graph/polygonizer/head-fit/{female,male}/`, still byte-pinned by `test-humanoid.mjs`), so the `mint_solid`
+  hero door wears this head and regenerates it from its FACE controls. The head's FACE (`FACE` in `humanoid-head.js`) is
+  the face proportion lab's contract: ratios about the fit in groups (`skull`: skullWidth, faceWidth, faceLength; `brow`:
+  browHeight, browRidge, foreheadSlope; `eyes`: eyeSpacing, eyeSize; `cheeks`: cheekbone, cheek; `nose`: noseWidth,
+  noseSize, noseDroop; `mouth`: mouthWidth; `jaw`: jawWidth, chinProjection, chinPoint; `ears`: earSize), moves
+  `broad-jaw` and `large-eyes`, composed by product through the shared `ratio-controls.js`; the seven new words are
+  `KNOB_MOVES` on the fitted points (broad ones blend from the ear root to the cheekbone crest, the lab's face ↔ vault
+  weight). `humanoidPlan({ face, headPreset })` takes a move, an object or a list; a figure cast wears the male head.
+  `render-face.mjs` draws the FACE contact sheet (both heads × as fit / each move / both combined extremes as portraits
+  through one camera per head, with a measurements table) into the gitignored spike tree.
 - `head.mjs`: `humanoidHead(…)`: a head as ONE designed surface. The cranium's rings are horizontal landmark
   rows read off the figure's own skull landmarks (`figure-head.js` `headLandmarks`: stomion, subnasale, nose
   tip and bridge, the eye line, glabella, frontal, crown) under the `DIMORPH` male / female head pole and the
@@ -22,8 +57,8 @@ reconciled into it: the body lives in the hero form now, the head here.
   ala and face-join edges are separate named slots: the face joins sit closest together at the root and spread
   toward the base, forming a narrow dorsal plane, downward-flaring sidewalls, an alar underside and
   a trapezoidal philtrum / upper-mouth plane below the nostrils. That is the landmark cage, still selectable
-  through `HEAD_SOURCES`. The canonical heads are FITTED heads (`head-fit.mjs`, data in `female-head-fit/` and
-  `male-head-fit/`). Each was fitted jointly to hand-placed landmarks on reference images (the female to front,
+  through `HEAD_SOURCES`. The canonical heads are FITTED heads (`head-fit.mjs`, data in core under
+  `head-fit/female/` and `head-fit/male/`). Each was fitted jointly to hand-placed landmarks on reference images (the female to front,
   three-quarter and side; the male to three-quarter and side, so his front is inferred) and then frozen. Both
   presets read the same rows and slots off their fitted surface:
   - each front slot is the surface's front-most point at a named x, each back slot its rear-most;

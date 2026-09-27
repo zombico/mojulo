@@ -7,7 +7,8 @@ import { humanoidPlan, REGISTERS, HAIR_STYLES, EXPRESSIONS, FACE_VERSION } from 
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { humanoidHead, humanoidAnchors, HEAD_SOURCES } from './head.mjs';
-import { fitCameraSource, fitSilhouetteAgreement, cheekReport, fitViews, FIT_CHEEK, FIT_PRESETS } from './head-fit.mjs';
+import { fitCameraSource, fitSilhouetteAgreement, cheekReport, fitViews, FIT_CHEEK, FIT_PRESETS, FIT_DATA_DIR } from './head-fit.mjs';
+import { join } from 'node:path';
 import { expandPlan } from '../../../control/lib/graph/polygonizer/station-loft-plan.js';
 import { compileLayered, auditLayered } from '../../../control/lib/graph/polygonizer/station-loft.js';
 import { validateRig, bindLayered, rigNodesAt } from '../../../control/lib/graph/polygonizer/station-loft-rig.js';
@@ -60,7 +61,11 @@ test('the landmark cage: the outer slot stands furthest forward at the eye row a
 test('hair, expression and face knobs never move a joint; an unknown preset, hair or body control refuses', () => {
   const base = humanoidPlan({ preset: 'female' });
   for (const hair of HAIR_STYLES) for (const expression of Object.keys(EXPRESSIONS)) { const p = humanoidPlan({ preset: 'female', hair, expression, face: { eyeSize: 1.2 } }); assert.deepEqual(p.joints, base.joints); assert.deepEqual(p.rig.joints.hipR, base.rig.joints.hipR); }
-  assert.throws(() => humanoidPlan({ preset: 'child' }), /unknown preset/);
+  assert.throws(() => humanoidPlan({ preset: 'nobody' }), /unknown preset/);
+  // a figure cast wears the male head pole (face-tune): the chibi hero has a face too
+  assert.ok(expandPlan(humanoidPlan({ preset: 'child' })).parts.cranium); assert.equal(humanoidPlan({ preset: 'child', headPreset: 'female' }).include[0].parts.cranium.stations.length, humanoidPlan({ preset: 'female' }).include[0].parts.cranium.stations.length);
+  assert.throws(() => humanoidPlan({ face: { jawline: 1.1 } }), /unknown control/);
+  assert.throws(() => humanoidPlan({ face: 'square-jaw' }), /unknown move/);
   assert.throws(() => humanoidPlan({ hair: 'mohawk' }), /unknown hair/);
   assert.throws(() => humanoidPlan({ body: { tail: 1 } }), /not a body control/);
 });
@@ -144,10 +149,10 @@ test('each head fit is frozen data: pinned bytes, exact bilateral symmetry', () 
   assert.deepEqual(FIT_PRESETS.sort(), Object.keys(FIT_FILES).sort());
   for (const [preset, files] of Object.entries(FIT_FILES)) {
     for (const [file, sha] of Object.entries(files)) {
-      const bytes = readFileSync(new URL(`./${preset}-head-fit/${file}`, import.meta.url));
+      const bytes = readFileSync(join(FIT_DATA_DIR, preset, file));
       assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${preset}/${file} changed; re-pin only with a new fit`);
     }
-    const src = JSON.parse(readFileSync(new URL(`./${preset}-head-fit/head-source.json`, import.meta.url), 'utf8'));
+    const src = JSON.parse(readFileSync(join(FIT_DATA_DIR, preset, 'head-source.json'), 'utf8'));
     const at = Object.fromEntries(src.pointIds.map((k, i) => [k, src.vertices[i]]));
     for (const [k, p] of Object.entries(at)) if (k.endsWith('L')) assert.deepEqual([-p[0], p[1], p[2]], at[k.replace(/L$/, 'R')], `${preset} ${k}`);
   }
@@ -157,7 +162,7 @@ test('each head follows its fit: silhouettes agree through every fitted camera, 
   for (const preset of FIT_PRESETS) {
     const mesh = compileLayered(humanoidHead({ preset, hair: 'none' }));
     for (const [view, iou] of Object.entries(fitSilhouetteAgreement(preset, mesh))) assert.ok(iou > 0.88, `${preset} ${view} silhouette IoU ${iou}`);
-    const marks = JSON.parse(readFileSync(new URL(`./${preset}-head-fit/landmarks.json`, import.meta.url), 'utf8'));
+    const marks = JSON.parse(readFileSync(join(FIT_DATA_DIR, preset, 'landmarks.json'), 'utf8'));
     for (const view of fitViews(preset)) {
       const { source, cam } = fitCameraSource(preset, mesh, view);
       for (const side of ['R', 'L']) {

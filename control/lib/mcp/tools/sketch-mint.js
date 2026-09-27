@@ -56,7 +56,7 @@ import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
-import { planLayered, expandLayeredManifest } from '@/lib/mcp/tools/layered';
+import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout } from '@/lib/mcp/tools/layered';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
@@ -714,11 +714,21 @@ export async function updateSketchHandler(input) {
     // gates) and re-stamps its ledger. A row minted through the PLAN door carries `plan` beside `recipe`:
     // a whole-manifest replacement or a patch under `/plan` re-expands the recipe from the plan (the plan
     // is the authoring record); a patch under `/dials` or `/recipe` leaves the plan alone.
+    // A row minted through the HERO door carries `hero` one level above: a patch under `/hero` (or a whole replacement
+    // carrying `hero`) regenerates the PLAN from it, then the recipe — and says in the readout when that replaced hand
+    // edits made under `/plan` since the last regeneration. A `/plan` patch keeps `hero` as the record of origin.
     if (manifest.kind === 'layered') {
-      const planTouched = patch === undefined || [...touched].some((t) => String(t) === '/plan' || String(t).startsWith('/plan/'));
+      const under = (root) => patch === undefined || [...touched].some((t) => String(t) === root || String(t).startsWith(`${root}/`));
+      const heroTouched = !!manifest.hero && under('/hero'), planTouched = under('/plan');
+      const heroWarnings = [];
       try {
-        if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest);
-        layeredStats = planLayered(manifest).stats;
+        if (heroTouched) {
+          const prev = existingSketch?.manifest;
+          if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
+          manifest = expandLayeredManifest(manifest, { from: 'hero' });
+        } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
+        const planned = planLayered(manifest); layeredStats = planned.stats;
+        if (manifest.hero) layeredStats = { ...layeredStats, hero: heroReadout(manifest.hero, manifest.plan, layeredStats, heroWarnings, { mesh: planned.mesh, recipe: manifest.recipe }) };
       } catch (err) {
         throw new Error(`Invalid world manifest (kind 'layered'): ${err.message}`);
       }

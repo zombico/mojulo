@@ -70,7 +70,10 @@ const DESCRIPTION_ALLOWLIST = {
   // skin-projection seam pointers, the sketch_polygomer parts grammar).
   // Shrink-only from these snapshots.
   create_sketch: 4366,
-  mint_solid: 871,
+  // mint_solid re-pinned 2026-09-26 (871 -> 915, hero-tune): the `via` clause names the hero door
+  // ("hero — a human by cast word + proportion tune"), the one phrase a host needs to find the
+  // tune from tools/list; the tune's vocabulary itself is taught in layered.md, off-payload.
+  mint_solid: 915,
   create_view: 723,
   // custom_catalyst / list_catalysts / mint_catalyst allowlisted 2026-08-06 to
   // bless the local-catalyst shelf (local-catalysts.plan.md): mint_catalyst is
@@ -239,7 +242,10 @@ const DESCRIPTION_ALLOWLIST = {
 // manifest.kind schema list (house-compose-language). Shrink-only from here.
 // Merged 2026-09-22: both growths land together (remote-worker exports + house pointers);
 // pinned 265_500 for their sum. Shrink-only from here.
-const PAYLOAD_CEILING = 265_500;
+// Re-pinned 2026-09-26 (265_500 -> 266_000; measured 265,684) for the hero door (hero-tune): the
+// `via: 'hero'` clause on mint_solid's description and its one-sentence entry in the `via` schema
+// description. The tune keys, moves and ranges live in layered.md, off-payload. Shrink-only from here.
+const PAYLOAD_CEILING = 266_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

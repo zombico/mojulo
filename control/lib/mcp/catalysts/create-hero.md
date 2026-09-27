@@ -1,8 +1,8 @@
 ---
 {
   "id": "create-hero",
-  "name": "Create a hero — a human character on the ring grammar: silhouette, colour, face, hair",
-  "summary": "The human register of the creature loop. A HERO is a ring plan on the vajra rest skeleton: joints from a cast word, rings along them, one style register for every ring, a palette by group, and a head worn as an include whose face and hair are data on the detail core. The loop nails the COLOURED SILHOUETTE in one art style first, then the face and the hair, then locks. Adornments (garment panels, bands, buckles, digits, patches) are a later loop; this one stops at the hero.",
+  "name": "Create a hero — a human character on the ring grammar: silhouette, colour, face, hair, detail, adornment",
+  "summary": "The human register of the creature loop. A HERO is a ring plan on the vajra rest skeleton: joints from a cast word, rings along them, one style register for every ring, a palette by group, and a head worn as an include whose face and hair are data on the detail core. The loop nails the COLOURED SILHOUETTE in one art style first, then the face and the hair, then the body detail and the adornment by word (the dragon's passes with the hero's parameters: a clothed body, a kit whose every signature the ledger must justify), then locks.",
   "valueHook": "Turn a sentence into a rigged, watertight human character that reads at thumbnail size in one consistent art style — low-poly, round, chamfered or boxy — with an expressive face and a hairstyle, that plays its clips on the World page and exports skinned, by editing numbers instead of sculpting.",
   "version": 1,
   "category": "substrate",
@@ -30,11 +30,13 @@ palette by group colours the silhouette, and the head is HEAD DATA on the detail
 nose, mouth, ears, hair grown from the skull). The sovereign output is the plan + recipe row; it
 poses, animates, measures and exports.
 
-Grammar: `get_solid_vocab({ id: 'layered' })` (the Plan section, `style`, Exposure, Compare). The
-hero FORM is `docs/examples/ring-plans/hero.plan.json`, written by `hero.plan.mjs` (`heroPlan({ cast,
-register, girth, headScale, palette, head, body })`; `male` / `female` casts, the body controls); the STARTER
-that puts it together is `docs/examples/humanoid/` (`humanoidPlan({ preset, body, face, register, hair,
-expression })` with the landmark head); the detail head is `docs/examples/hero-head/` (`bakeHero()`).
+Grammar: `get_solid_vocab({ id: 'layered' })` (the Plan section, the HERO DOOR section, `style`, Exposure,
+Compare). The hero FORM is core (`control/lib/graph/polygonizer/hero-form.js`: `heroPlan({ cast, register, girth,
+headScale, scale, palette, head, body, tune })`; `male` / `female` casts, the body controls, the TUNE), minted
+through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune } })`; its canonical JSON is
+`docs/examples/ring-plans/hero.plan.json`. The STARTER that wears the landmark head is `docs/examples/humanoid/`
+(`humanoidPlan({ preset, tune, body, face, register, hair, expression })`); the detail head is
+`docs/examples/hero-head/` (`bakeHero()`).
 
 ## The invariants — read first
 
@@ -51,10 +53,12 @@ expression })` with the landmark head); the detail head is `docs/examples/hero-h
 - **The face is data on the head core, never hand-placed faces.** Eye size and spacing, the brow's
   height and taper, the lip bands, the expression: numbers in the head data. Hair is grown from the
   skull (`cap` tiles, `bangs` tiles, a `tail` sweep), never a floating mesh.
-- **Every fix is a number.** Patch `/plan/...` or `/dials/<name>`, re-read. Never re-mint for a change.
-- **Adornments are NOT this loop.** Garment panels, belts, cuffs, buckles, digits, patches,
-  correctives: name them in the ledger as "next loop" and stop. A hero with a clean silhouette, a face
-  and hair is done here.
+- **Every fix is a number.** Patch `/hero/tune/<control>` (a percentage of the cast), `/hero/face/<control>` (a
+  percentage of the fitted head), `/plan/...` or `/dials/<name>`, re-read. Never re-mint for a change.
+- **Detail and adornment come LAST, by word, and each one earns its place.** They are the dragon's passes
+  with the hero's parameters (`detail: 'clothed'`, `adorn: 'ranger'`, or their data), never hand-placed
+  panels, buckles or patches. None before the silhouette, the face and the hair read; an adornment whose
+  signature the ledger calls `reads, but small` or `unjustified` is made bolder or removed, not shipped.
 - **Human characters only.** A creature is `creature-from-plan`; a real species is kind `animal`; a
   person for a turnaround picture or pose study is the figure kind (`character-from-dream`).
 
@@ -71,12 +75,19 @@ expression })` with the landmark head); the detail head is `docs/examples/hero-h
             palette (four colours, named by group) · hair hook · face read (one adjective).
             Restate it every pass.
 
-1. CAST     Pick the cast word and the register. Start from the form (hero.plan.json is the
-            canonical cast in `round`). Set `style`, `palette`, and the cast's joints.
+1. CAST     Pick the cast word and the register, then TUNE in percentages of that cast: the
+            thirteen controls (stature; torso / neck / legs; shoulders / waist / hips / depth;
+            head; upperArm / forearm / thigh / calf) and the moves (`athletic`, `long-legs`,
+            `full-limbs`), composed in a list. mint_solid({ kind: 'layered', via: 'hero', spec:
+            { cast, register, tune, palette } }). Read the readout's `hero.measures` (metres)
+            and say them back; a range warning is advice, the read is the operator's.
 
-2. SILHOUETTE  mint_solid({ kind: 'layered', via: 'plan', spec: { plan, title, plan_audit? } }).
-            Look at the six views (scripts/export-wire-svg.mjs --ref <ref> --views 180,150,90,0).
-            Fix proportion ONE number at a time: a ring radius, a station z, a segment's `e`.
+2. SILHOUETTE  Look at the six views (scripts/export-wire-svg.mjs --ref <ref> --views 180,150,90,0).
+            Fix proportion ONE word at a time: update_sketch patching `/hero/tune/<control>`
+            ("broader" is shoulders × 1.05 on what is there). A move the tune has no word for
+            is a `/plan/...` patch (a ring radius, a station z, a segment's `e`); the next
+            `/hero` edit regenerates the plan and says it replaced that hand edit. A hand-written
+            plan goes through via: 'plan' with `plan_audit`.
             The thigh tops sit inside the pelvis; the arm caps do not stand up as epaulettes;
             the crown is domed, not pinched.
 
@@ -84,43 +95,72 @@ expression })` with the landmark head); the detail head is `docs/examples/hero-h
             with the palette). The groups must separate; a Top and Bottom that merge are one
             colour too close. Change the palette, not the geometry.
 
-4. FACE     Wear a head. The LANDMARK head (docs/examples/humanoid `humanoidHead({ preset, shape,
-            register, hair, expression })`): one designed surface resampled from a head fitted to
-            reference images (canonical for both presets; the landmark cage stays selectable), the jaw hinged by the ear so the chin drops under the cheeks, the face knobs (`browRidge`,
-            `jawWidth`, `chinPoint`, `noseSize`, `cheekbone`, `eyeSize`) the appeal dials; or the
-            DETAIL head (docs/examples/hero-head `bakeHero({ hair, eye, palette })`, live expression
-            controls on the detail core). Pick the expression to bake (neutral / smile / determined /
-            surprised). Change one knob, re-bake, look at the face view.
+4. FACE     The hero wears the LANDMARK head by default (core `humanoid-head.js`: one designed
+            surface resampled from a head fitted to reference images, the jaw hinged by the ear so
+            the chin drops under the cheeks). Its FACE is the face lab's words as percentages of
+            the fit: `skull` (skullWidth, faceWidth, faceLength), `brow` (browHeight, browRidge,
+            foreheadSlope), `eyes` (eyeSpacing, eyeSize), `cheeks` (cheekbone, cheek), `nose`
+            (noseWidth, noseSize, noseDroop), `mouth` (mouthWidth), `jaw` (jawWidth, chinProjection,
+            chinPoint), `ears`; moves `broad-jaw`, `large-eyes`. Pick the expression to bake
+            (neutral / smile / determined / surprised). Change ONE word: update_sketch patching
+            `/hero/face/<control>`; read `hero.faceMeasures` back; look at the face view. The
+            DETAIL head (docs/examples/hero-head `bakeHero({ hair, eye, palette })`) is worn as a
+            baked include through `head:` when its live expression controls are the point.
 
-5. HAIR     A style word (landmark head: `crop`, `swept`, `bob`, `none`, one continuous mass whose
-            perimeter follows the skull; detail head: a list of `cap`, `bangs`, `tail`, grown tiles).
+5. HAIR     A LIBRARY word on the landmark head (male: animeShort, buzz, crew, taper, undercut, crop,
+            quiff, swept, curtains; female: animeBob, pixie, bob, angled, layers, long, wavy, ponytail,
+            bun, braid; either head wears any; `none`), each a closed mass following the skull by
+            address, with controls as percentages of the style's preset: the cap (volume, fringe,
+            part, fade), the fall (length, graduation, wave), the tails (tail, tie, braid), the anime
+            locks (lockWidth, taper, bend, asymmetry), the barber's form on male caps (corners,
+            sideBulk, topSlope, lineup) and `definition`, which exaggerates the style's signature.
+            One word: `/hero/hair/style`; one number: `/hero/hair/length`; read `hero.hairMeasures`
+            back (top, hem below the chin, reach behind the occiput). A control the style ignores is
+            advice in `warnings`. The detail head grows a list of `cap`, `bangs`, `tail` tiles instead.
             Hair is a mass before it is tufts. Hair colour is the palette.
 
-6. LOOK     measure_solid({ ref }) → closure per part, size, the EXPOSURE ledger: both eyes must
+6. DETAIL   The body's structure, one word: `/hero/detail` → `clothed` (density at the elbows and
+            knees, the jerkin's masses, soft sleeve folds, a quilted jerkin with a bare placket and a
+            toggle row, knee patches, cuffs, leg wraps), or BODY DATA in the plan's `body` block
+            (get_solid_vocab layered: the passes). Read `hero.dress.legibility`: the character height
+            each family reads from; at your viewing size, remove what only shimmers or make it bolder
+            (a fold that reads as stitches is a fold not wanted), and set the eyes for that size.
+
+7. ADORN    The equipment, one word: `/hero/adorn` → `ranger` (belt, baldric, an archer's bracer on
+            one arm, ONE pauldron on the other shoulder — the focal accent), or a KIT in the plan's
+            `adorn` block. Read `hero.dress.adornments`: every signature `justified`, else make it
+            bolder or drop the adornment; and `hero.dress.clearance`: nothing sinks into the body at
+            a dial extreme you will use. One accent colour; asymmetry tells the story.
+
+8. LOOK     measure_solid({ ref }) → closure per part, size, the EXPOSURE ledger: both eyes must
             `reads` from the frontal and a three-quarter view, the hair from the back; anything
             `buried` is moved, not shipped.
 
-7. COMPARE  With a reference at a known view: export-wire-svg.mjs --ref <ref> --compare
+9. COMPARE  With a reference at a known view: export-wire-svg.mjs --ref <ref> --compare
             frontal=ref.png[,lateral=side.png]; read `iou`, `aspect`, `centroid`. The numbers are
             the record; the picture is discarded.
 
-8. RIG      Free: the plan carries the rig and `idle` / `walk` / `wave`. Play `walk` on the World
-            page; the feet stay planted. export_model({ ref, format: 'glb', skinned: true,
+10. RIG     Free: the plan carries the rig and `idle` / `walk` / `wave`. Play `walk` and `wave` on the
+            World page; the feet stay planted, the pauldron stays on the torso while the arm moves
+            beneath it, the bracer rides its forearm. export_model({ ref, format: 'glb', skinned: true,
             clips: '_all' }) ships it.
 
-9. LOCK     Report the ref, the thesis, the register, the palette, the compare numbers at the
-            views you had, the exposure flags for the eyes and hair, and the HERO LEDGER.
+11. LOCK    Report the ref, the thesis, the register, the palette, the compare numbers at the
+            views you had, the exposure flags for the eyes and hair, the adornment ledger, and the
+            HERO LEDGER.
 ```
 
 ## The hero ledger
 
 Report it at LOCK, and whenever you stop early:
 
-| Segment | silhouette | colour | | Head | face | hair |
-| --- | --- | --- | --- | --- | --- | --- |
-| torso, pelvis, arms, legs, hands, feet | done / pending | done / pending | | head | done / pending | done / pending / none |
+| Segment | silhouette | colour | detail | | Head | face | hair |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| torso, pelvis, arms, legs, hands, feet | done / pending | done / pending | done / pending / not wanted (say why) | | head | done / pending | done / pending / none |
 
-Adornments are a separate row that always reads "next loop" here.
+Adornments are their own rows: id × signature × verdict (`justified` / `reads, but small` / `unjustified`)
+× kept / bolder / dropped. A pass not wanted says why (a human has no spurs or spines; knee folds piled
+into the patch).
 
 ## The request template (a text worker)
 
@@ -139,7 +179,7 @@ Paste `hero.plan.json` after it. The worker's answer is the plan; mint it with `
    three-quarter, before a face dial moves. Long intentional planes come from the register and `e`, not from
    fewer vertices. The shoulder → neck → collarbone transition is the junction the eye checks first.
 2. **A hierarchy.** About 60 % quiet form, 30 % structure, 10 % focal accents, as a composition exercise.
-   Contrast lives at the eyes, the mouth and (later, in the adornment loop) one equipment signature.
+   Contrast lives at the eyes, the mouth and ONE equipment signature (the ranger's bronze boss).
 3. **The face is a designed system.** Brow → lid → cheek clear; the pupil/iris aperture set at the real viewing
    distance; one readable mouth corner. Check neutral, smile and surprised at small size.
 4. **Hair is a mass before it is tufts.** The cap's window is the hairline; its lean is the direction; only
@@ -153,7 +193,8 @@ Paste `hero.plan.json` after it. The worker's answer is the plan; mint it with `
 - You don't move a face dial before the silhouette reads at 64 px.
 - You don't mix registers; one `style` for the figure.
 - You don't hand-place a joint, a face, or a hair mesh — a cast word, head data, grown hair.
-- You don't add adornments here — name them "next loop" in the ledger and stop.
+- You don't add detail or adornment before the silhouette, face and hair read, or hand-place either:
+  a word or the passes' data, and every adornment's signature justified.
 - You don't ship an eye the exposure ledger calls `faint` or `buried`.
 - You don't add contrast everywhere: the eyes, the mouth, one accent.
 - You don't force a creature, a real animal, or an SVG figure study through this loop.

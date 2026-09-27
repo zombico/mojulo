@@ -28,6 +28,6 @@ sweep at a `symmetricFrameAt`, the mouth is the seam between the cranium's lip b
 with the cheek web closing its corners. Appeal is in the numbers: eye size (`regions.eye.R`) and spacing
 (the `eye` slot's `x` at the face stations), the brow's height and taper, the lip colour bands.
 
-Worn by a body: `heroPlan({ head: bakeHero() })` in `../ring-plans/hero.plan.mjs` includes the baked parts
+Worn by a body: `heroPlan({ head: bakeHero() })` (the hero form, core `hero-form.js`, re-exported by `../ring-plans/hero.plan.mjs`) includes the baked parts
 at the plan's `headBase`, binds the cranium to the `head` bone and the jaw to a `jaw` bone with a `jaw`
 chain, and splices `jawOpen` into the dials.
