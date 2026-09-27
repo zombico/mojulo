@@ -7,16 +7,19 @@
  * run through structurizeFloorplan — the envelope, partitions, storefront openings and slab come
  * for free, and buildElementModel + the `mall` program (floorplan-principles.js) grade it.
  *
- * Phase 1: one floor + a basic walled render. Surfaces (subway-spike tiling), fixtures (workbench
- * assembler) and the second-level atrium + escalators follow — see floorplan-mall.plan.md.
+ * Every tenant bay, the food court and both anchors are fit out from a concept CARD
+ * (retail/store-cards.js, keyed by the unit's storeType; `cards` overrides any bay): cardPlan swaps
+ * each unit for its card's sub-program before structurize, cardBayFaces adds the storefront + fit-out.
  *
  * Coordinates: x = width, y = depth (the long axis the concourse runs down), z = up.
  */
 
-import { FLOORPLAN_DEFAULTS, structurizeFloorplan } from './floorplan-structure.js';
+import { FLOORPLAN_DEFAULTS, FLOORPLAN_METERS_PER_UNIT, structurizeFloorplan } from './floorplan-structure.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { buildEscalator } from '../architecture/subway-building.js';
 import { makeLight } from './vexar.js';
+import { cardPlan, cardBayFaces } from '../retail/store-mall.js';
+import { resolveCard } from '../retail/store-cards.js';
 
 export const MALL_DEFAULTS = {
   width: 64,            // x extent (ft)
@@ -30,6 +33,14 @@ export const MALL_DEFAULTS = {
 
 // retail mix — a tenant's storeType drives both its sign colour and its interior fit-out.
 export const STORE_TYPES = ['apparel', 'electronics', 'cafe', 'bookstore', 'homewares'];
+// the options every mall build shares: a tall storefront opening (the card storefronts glaze to it)
+export const MALL_OPTS = { ...FLOORPLAN_DEFAULTS, floorStyle: 'marble', windows: false, ceilings: false, doorHeight: 8.2 };
+
+/** cards: false (bare bays) | { [bayIndex | storeType]: card | seeded id } over the seeded card per storeType. */
+export function mallCardFor(cards) {
+  if (cards === false) return () => null;
+  return (r, i) => resolveCard(cards?.[i] ?? cards?.[r.storeType] ?? r.storeType);
+}
 const storeTypeFor = (role, i) => (role === 'foodCourt' ? 'food'
   : role === 'restroom' ? 'restroom'
     : role === 'anchor' ? 'department'
@@ -185,66 +196,10 @@ function skylight(out, cx0, cx1, by0, by1, ceilZ) {
   box(out, cx1 - 0.2, cx1 + 0.2, by0, by1, ceilZ - 0.4, ceilZ + 0.02, FRAME);
 }
 
-// ── STORE LAYOUTS: per-type interior fit-outs, seen through the glass ─────────────────────────
-const STORE = {
-  apparel: { sign: '#9c544b', merch: ['#c9a06a', '#8a6a9c', '#6a9c8a', '#c98aa0', '#b06a5a'] },
-  electronics: { sign: '#3f5a7a', merch: ['#2a3340', '#6a7a8a', '#9aabbc'] },
-  cafe: { sign: '#7a5230', merch: ['#b9863f', '#7a5230'] },
-  bookstore: { sign: '#4f6f4a', merch: ['#a55545', '#52805a', '#5a6f9c', '#9c8a4a'] },
-  homewares: { sign: '#6a5a7a', merch: ['#c9bca0', '#9aabbc', '#bcc9a0'] },
-  food: { sign: '#9c6a3a', merch: ['#c98a4a', '#5a8a4a'] },
-  department: { sign: '#574f6a', merch: ['#a56a6a', '#6a9c7a', '#7a8aac', '#c9a0a0', '#7aac9c', '#aa9c6a'] },
-  restroom: { sign: '#6f7a7a', merch: [] },
-};
-const pick = (arr, k) => (arr.length ? arr[((k % arr.length) + arr.length) % arr.length] : '#999');
+const RESTROOM_SIGN = '#6f7a7a';
 
-/** Map a unit to a (depth-from-front, lateral) → [x,y] frame, so fit-outs orient toward the concourse. */
-function unitFrame(unit, cx0, cx1, by0, by1) {
-  const ix0 = unit.x + 0.7, ix1 = unit.x + unit.w - 0.7, iy0 = unit.y + 0.7, iy1 = unit.y + unit.h - 0.7;
-  let axis, frontHigh;
-  if (Math.abs((unit.x + unit.w) - cx0) < 0.5) { axis = 'x'; frontHigh = true; }
-  else if (Math.abs(unit.x - cx1) < 0.5) { axis = 'x'; frontHigh = false; }
-  else if (Math.abs((unit.y + unit.h) - by0) < 0.5) { axis = 'y'; frontHigh = true; }
-  else { axis = 'y'; frontHigh = false; }
-  const at = (d, l) => (axis === 'x'
-    ? [frontHigh ? ix1 - d * (ix1 - ix0) : ix0 + d * (ix1 - ix0), iy0 + l * (iy1 - iy0)]
-    : [ix0 + l * (ix1 - ix0), frontHigh ? iy1 - d * (iy1 - iy0) : iy0 + d * (iy1 - iy0)]);
-  return { at, w: ix1 - ix0, h: iy1 - iy0 };
-}
-
-/** Append a store's interior fit-out (fixtures + merchandise) keyed by storeType. */
-function fitOutUnit(out, unit, cx0, cx1, by0, by1) {
-  const pal = STORE[unit.storeType];
-  if (!pal || !pal.merch.length) return;     // restroom / unknown → no retail fit-out
-  const { at } = unitFrame(unit, cx0, cx1, by0, by1);
-  let k = 0;
-  const rectAt = (d, lo, hi, pad) => { const a = at(d, lo), b = at(d, hi);
-    return [Math.min(a[0], b[0]) - pad, Math.max(a[0], b[0]) + pad, Math.min(a[1], b[1]) - pad, Math.max(a[1], b[1]) + pad]; };
-  const rack = (d, lo, hi) => { const [x0, x1, y0, y1] = rectAt(d, lo, hi, 0.28); box(out, x0, x1, y0, y1, 1.0, 3.6, pick(pal.merch, k++)); };  // garment run
-  const gondola = (d, lo, hi) => { const [x0, x1, y0, y1] = rectAt(d, lo, hi, 0.4); box(out, x0, x1, y0, y1, 0, 5.2, pick(pal.merch, k++)); };  // shelving island
-  const counter = (d, lo, hi, tint = '#7a6a4e') => { const [x0, x1, y0, y1] = rectAt(d, lo, hi, 0.55); box(out, x0, x1, y0, y1, 0, 3.0, tint); };
-  const podium = (d, l) => { const [x, y] = at(d, l); box(out, x - 1.0, x + 1.0, y - 0.85, y + 0.85, 0, 2.5, '#cdd2d7'); box(out, x - 0.8, x + 0.8, y - 0.65, y + 0.65, 2.5, 2.7, pick(pal.merch, k++)); };
-  const cafeSet = (d, l) => { const [x, y] = at(d, l);
-    box(out, x - 0.75, x + 0.75, y - 0.75, y + 0.75, 0, 2.4, '#b8a888');
-    for (const [dx, dy] of [[-1.35, 0], [1.35, 0], [0, -1.35], [0, 1.35]]) box(out, x + dx - 0.4, x + dx + 0.4, y + dy - 0.4, y + dy + 0.4, 0, 1.55, '#6a5f50'); };
-
-  switch (unit.storeType) {
-    case 'apparel': rack(0.34, 0.18, 0.82); rack(0.54, 0.18, 0.82); rack(0.74, 0.18, 0.82); counter(0.13, 0.55, 0.86); break;
-    case 'electronics': for (const d of [0.32, 0.52, 0.72]) for (const l of [0.32, 0.62]) podium(d, l); counter(0.13, 0.5, 0.86, '#39414e'); break;
-    case 'cafe': counter(0.86, 0.12, 0.88); cafeSet(0.32, 0.32); cafeSet(0.32, 0.66); cafeSet(0.54, 0.49); break;
-    case 'bookstore': for (const d of [0.3, 0.5, 0.7, 0.9]) gondola(d, 0.15, 0.85); counter(0.13, 0.5, 0.82); break;
-    case 'homewares': for (const d of [0.36, 0.62, 0.88]) gondola(d, 0.2, 0.8); podium(0.2, 0.6); break;
-    case 'food': counter(0.88, 0.1, 0.9, '#5a4a3a'); for (const d of [0.28, 0.5, 0.72]) for (const l of [0.25, 0.5, 0.75]) cafeSet(d, l); break;
-    case 'department':
-      for (const d of [0.22, 0.36, 0.5]) rack(d, 0.14, 0.86);
-      for (const d of [0.66, 0.82]) gondola(d, 0.14, 0.86);
-      for (const l of [0.3, 0.7]) podium(0.94, l);
-      break;
-    default: break;
-  }
-}
-
-/** Append the full glass-forward fit-out (storefronts, pilasters, skylight, planters) for one floor. */
+/** Append the glass-forward dressing (storefronts, pilasters, skylight, planters) for one floor.
+ *  Carded rooms (`fromCard`) keep their own storefront — cardBayFaces draws it with a door gap. */
 export function dressMallFaces(plan, o = {}) {
   const ceilZ = o.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight;
   const glassTop = Math.min(o.doorHeight ?? FLOORPLAN_DEFAULTS.doorHeight, ceilZ - 2.4) + 1.4;
@@ -254,13 +209,12 @@ export function dressMallFaces(plan, o = {}) {
   const out = [];
 
   for (const r of plan.rooms) {
-    if (r.role === 'concourse') continue;
-    const t = STORE[r.storeType]?.sign || signTintFor(r);   // sign colour follows the retail brand
+    if (r.role === 'concourse' || r.fromCard) continue;
+    const t = r.role === 'restroom' ? RESTROOM_SIGN : signTintFor(r);
     if (Math.abs((r.x + r.w) - cx0) < 0.5) glazedFront(out, 'x', cx0, r.y + 0.9, r.y + r.h - 0.9, glassTop, ceilZ, t);
     else if (Math.abs(r.x - cx1) < 0.5) glazedFront(out, 'x', cx1, r.y + 0.9, r.y + r.h - 0.9, glassTop, ceilZ, t);
     else if (Math.abs((r.y + r.h) - by0) < 0.5) glazedFront(out, 'y', by0, cx0 + 0.9, cx1 - 0.9, glassTop, ceilZ, t);
     else if (Math.abs(r.y - by1) < 0.5) glazedFront(out, 'y', by1, cx0 + 0.9, cx1 - 0.9, glassTop, ceilZ, t);
-    fitOutUnit(out, r, cx0, cx1, by0, by1);                  // the store's interior, seen through the glass
   }
 
   // pilasters at every bay boundary, both concourse edges
@@ -290,28 +244,44 @@ export function dressMallFaces(plan, o = {}) {
   return out;
 }
 
+/**
+ * One mall floor: the plan, its carded bays (opts.cards), structure, dressing, storefronts + fit-outs.
+ * @returns {{ faces, footprint, plan, structure, bays }}  bays[i].store is each bay's assessor input
+ */
 export function buildMall(input = {}, opts = {}) {
-  const plan = buildMallPlan(input);
-  const o = { ...FLOORPLAN_DEFAULTS, floorStyle: 'marble', windows: false, ceilings: false, ...opts };
+  const o = { ...MALL_OPTS, ...opts };
+  const seed = opts.seed ?? 1;
+  const { plan, bays } = cardPlan(buildMallPlan(input), mallCardFor(opts.cards), { seed });
   const structure = structurizeFloorplan(plan, o);
-  const faces = opts.style === false ? structure.faces : [...structure.faces, ...dressMallFaces(plan, o)];
-  return { faces, footprint: structure.footprint, plan, structure };
+  const faces = opts.style === false ? structure.faces
+    : [...structure.faces, ...dressMallFaces(plan, o), ...cardBayFaces(bays, o, { seed, degrade: opts.degrade ?? true })];
+  return { faces, footprint: structure.footprint, plan, structure, bays, units: structure.units, metersPerUnit: structure.metersPerUnit };
+}
+
+/** The mall as a World scene payload (the `mall` world kind): aerial + a concourse walk. */
+export function assembleMallWorldScene(input = {}, opts = {}) {
+  const levels = (input.levels ?? opts.levels) === 2 ? 2 : 1;
+  const m = levels === 2 ? buildMallTwoLevel(input, { ...input, ...opts }) : buildMall(input, { ...input, ...opts });
+  const fp = m.footprint;
+  const W = fp.x1 - fp.x0, H = fp.y1 - fp.y0, cx = (fp.x0 + fp.x1) / 2, cy = (fp.y0 + fp.y1) / 2;
+  const viewBox = opts.viewBox || { width: 1500, height: 900 };
+  const conc = (m.plan || m.plans.ground).rooms.find((r) => r.role === 'concourse');
+  const cameras = (opts.cameras || [
+    { name: 'aerial', worldFraming: { cameraPosition: [cx - 0.25 * W, fp.y0 - 0.4 * H, 10 * levels + 1.2 * Math.max(W, H)], lookAt: [cx, cy, 0], horizontalFov: 60 } },
+    { name: 'concourse', worldFraming: { cameraPosition: [cx, conc.y + 2, 5.4], lookAt: [cx, conc.y + conc.h, 4.2], horizontalFov: 78 } },
+  ]).map((c) => ({ ...c, worldFraming: { pictureCenter: [viewBox.width / 2, viewBox.height / 2], ...c.worldFraming } }));
+  return {
+    faces: m.faces, cameras, viewBox, title: opts.title || 'mojulo mall', bg: opts.bg || '#0d1016',
+    inline: opts.inline ?? false, light: opts.light,
+    walk: opts.walk === false ? false : { eye: 5.4, spawn: [cx, conc.y + 3] },
+    metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
+    mall: { bays: (m.bays || []).map((b) => ({ index: b.index, card: b.card.id, degraded: b.store?.fitOut.report.degraded || [] })) },
+  };
 }
 
 /** Render a (styled) single-floor mall to a navigable three.js World. */
 export function renderMallToThreeWorld(input = {}, opts = {}) {
-  const { faces, footprint } = buildMall(input, opts);
-  const W = footprint.x1 - footprint.x0, H = footprint.y1 - footprint.y0;
-  const cx = (footprint.x0 + footprint.x1) / 2, cy = (footprint.y0 + footprint.y1) / 2;
-  const cameras = opts.cameras || [{ name: 'aerial', worldFraming: {
-    cameraPosition: [cx - 0.25 * W, footprint.y0 - 0.4 * H, (opts.wallHeight ?? 10) + 1.2 * Math.max(W, H)],
-    lookAt: [cx, cy, 0], horizontalFov: 60,
-  } }];
-  return emitThreeWorld({
-    faces, cameras, viewBox: opts.viewBox || { width: 1500, height: 900 },
-    title: opts.title || 'mojulo mall', bg: opts.bg || '#0d1016',
-    inline: opts.inline ?? true, walk: opts.walk ?? false, light: opts.light,
-  });
+  return emitThreeWorld(assembleMallWorldScene(input, { inline: true, walk: false, ...opts }));
 }
 
 // ── TWO LEVELS: atrium void + escalators + glass balustrade ───────────────────────────────────
@@ -369,11 +339,14 @@ function buildGlassElevator(rect, z0, z1, cabZ) {
  * @returns {{ faces, footprint, plans, voidRect }}
  */
 export function buildMallTwoLevel(input = {}, opts = {}) {
-  const o = { ...FLOORPLAN_DEFAULTS, floorStyle: 'marble', windows: false, ceilings: false, ...opts };
+  const o = { ...MALL_OPTS, ...opts };
   const H = o.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight;
   const light = makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.55, diffuse: 0.5 });
-  const ground = buildMallPlan(input);
-  const upper = buildMallPlan({ ...input, entries: false });
+  const seed = opts.seed ?? 1;
+  const cardFor = mallCardFor(opts.cards);
+  const g0 = cardPlan(buildMallPlan(input), cardFor, { seed });
+  const u0 = cardPlan(buildMallPlan({ ...input, entries: false }), cardFor, { seed: seed + 1 });
+  const ground = g0.plan, upper = u0.plan;
 
   const conc = ground.rooms.find((r) => r.role === 'concourse');
   const cx0 = conc.x, cx1 = conc.x + conc.w, by0 = conc.y, by1 = conc.y + conc.h;
@@ -389,11 +362,13 @@ export function buildMallTwoLevel(input = {}, opts = {}) {
   // GROUND — structure + fit-out; no skylight (the upper slab roofs it)
   const g = structurizeFloorplan(ground, { ...o, baseZ: 0 });
   faces.push(...g.faces, ...dressMallFaces(ground, { ...o, skylight: false }));
+  faces.push(...cardBayFaces(g0.bays, o, { seed, degrade: opts.degrade ?? true }));
 
   // UPPER — slab gets the atrium VOID + the elevator shafts punched out; dressing built 0-based, lifted +H
   const u = structurizeFloorplan(upper, { ...o, baseZ: H, slabHoles: [voidRect, ...elevRects] });
   faces.push(...u.faces);
   faces.push(...liftFaces(dressMallFaces(upper, { ...o, skylight: false, planters: false }), H));
+  faces.push(...cardBayFaces(u0.bays, o, { seed: seed + 1, degrade: opts.degrade ?? true, baseZ: H }));
 
   // SKYLIGHT at the very top, over the whole concourse (spans the void → daylight down the atrium)
   const sky = [];
@@ -414,7 +389,7 @@ export function buildMallTwoLevel(input = {}, opts = {}) {
   faces.push(...buildGlassElevator(elevRects[0], 0, elevTop, H));
   faces.push(...buildGlassElevator(elevRects[1], 0, elevTop, 0));
 
-  return { faces, footprint: g.footprint, plans: { ground, upper }, voidRect };
+  return { faces, footprint: g.footprint, plans: { ground, upper }, bays: [...g0.bays, ...u0.bays], voidRect };
 }
 
 /** Render the two-level mall (atrium + escalators) to a navigable three.js World. */

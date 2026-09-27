@@ -53,6 +53,7 @@ import {
   validateMotionComicRefs,
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
+import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
@@ -344,7 +345,9 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   }
 
   const { ok, errors } = validateSketchManifest(finalized);
-  if (!ok) {
+  // a store's card is graded at the door too (the validator's named errors), not first at /world
+  if (ok && finalized?.kind === 'store') errors.push(...validateStoreManifest(finalized));
+  if (!ok || errors.length) {
     // Error-as-drawer (pointer discipline): a bare validator string leaves the
     // agent guessing which drawer resolves it — name the read explicitly.
     throw new Error(

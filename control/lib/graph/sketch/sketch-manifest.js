@@ -98,6 +98,20 @@ export function validateSketchManifest(manifest) {
     }
     return { ok: errors.length === 0, errors };
   }
+  // Retail world kinds: a shop or a mall fit out from concept cards (retail/store-world.js). Shape
+  // only here — this module reaches the client bundle; the card itself is validated server-side at
+  // mint (sketch-mint.js → validateStoreManifest) and on every update by resolving the kind.
+  if (manifest.kind === 'store' || manifest.kind === 'mall') {
+    const errors = [];
+    if (!manifest.title || typeof manifest.title !== 'string') errors.push('manifest.title is required (string)');
+    if (manifest.kind === 'store' && !(typeof manifest.card === 'string' || (manifest.card && typeof manifest.card === 'object'))) {
+      errors.push("kind 'store' needs a card: a seeded id or an inline card object (get_sketch_vocab({ id: 'store' }))");
+    }
+    if (manifest.kind === 'mall' && manifest.cards !== undefined && manifest.cards !== false && (typeof manifest.cards !== 'object' || Array.isArray(manifest.cards))) {
+      errors.push("kind 'mall' cards must be false or an object keyed by store type or bay index");
+    }
+    return { ok: errors.length === 0, errors };
+  }
   // Everything else is a box-and-arrow / chart diagram — the kernel core.
   return validateDiagramManifest(manifest);
 }
@@ -283,7 +297,7 @@ export const EDUCATION_VIEW_KINDS = [
 // 'controllable' carries no registry walk flag (locomotion is per-entity, from
 // the manifest's rules) but is a LIVE moved-through stage — action worlds and
 // game levels — so it belongs to the world concern.
-export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'controllable'];
+export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'store', 'mall', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'controllable'];
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).

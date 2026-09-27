@@ -107,7 +107,7 @@ const PRINT_PROFILES = {
   maquette: new Set([
     'fractal-city', 'condo-complex', 'school-complex', 'edifice', 'dungeon',
     'transportation-hub', 'subway-station', 'subway-building', 'floorplan',
-    'restaurant', 'painted-landscape', 'planetary', 'controllable',
+    'restaurant', 'store', 'mall', 'painted-landscape', 'planetary', 'controllable',
     'koenigsberg', 'math-structure',
   ]),
 };

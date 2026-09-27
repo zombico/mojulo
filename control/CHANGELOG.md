@@ -12,6 +12,32 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Retail concept cards
+
+- **A store is a card.** `kind: 'store'` builds one walkable shop from a concept card. A card is pure JSON: finishes,
+  a merchandise palette, the door, back-of-house `cells` (fitting rooms, stock room, booths, restroom: real rooms
+  with walls and doors), an exposure gradient of `zones` (window → browse → service → back), `fixtures` placed in
+  the sales floor's (depth, lateral) frame, and optional dressed mannequins in `cast`. Name a seeded card (`apparel`,
+  `electronics`, `cafe`, `bookstore`, `homewares`, `department`, `food`, `wine-bar`) or write one inline. A new
+  store type is a new card, never new code.
+- **The retail assessor** grades every fit-out in the `evaluateBuilding` shape (register `retail`) and never
+  refuses. Invariants: entry decompression, a continuous 3.5 ft aisle from the door to the counter and every
+  customer cell, a staff path behind the counter to the stock room, the cash wrap's sightline to the door, no
+  overlaps, nothing through the glass, and a through-aisle for a unit that is also a passage. Gradients: the power
+  wall on the right, a feature in the window, browse density, seats near the bar.
+- **Degrade, stamped.** A card fit into a smaller unit scales down by the assessor's own findings. It fits grid and
+  row counts to the zone, then acts in declared order: split or trim a run clear of the door, shift a fixture or the
+  counter, step a table down to a 2-top, and only then shed (plant → podium → table → stool → runs → wall runs; never
+  the counter). Every action lands in the scene's report. A card that already fits is byte-identical with or
+  without it (`degrade: false` grades the raw card).
+- **`kind: 'mall'`** is now reachable. Every tenant bay, the food court and both anchors are fit out from cards
+  keyed by store type, with `cards` overriding any bay. The hand-coded `fitOutUnit` switch is gone. Card bays get a
+  storefront with a walkable door gap, and an anchor keeps its street entrance clear as open floor.
+- **Minted like the restaurant.** `create_sketch({ manifest: { kind: 'store' | 'mall', … } })`. At mint, a store's
+  card is refused with the validator's named errors (`unknown-fixture`, `overlapping-zones`, …). Both kinds walk
+  and export in feet. The manual is `get_sketch_vocab({ id: 'store' })`. The seeded cards are byte-pinned
+  (`store.char.test.js`).
+
 ### Read and attach
 
 - **Worn things follow the dials.** A pinned part with `follow: true` moves with the dials as the surface under its pin
