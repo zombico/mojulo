@@ -12,6 +12,39 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### City scale
+
+- **A metro profile for the fractal city.** `profile: 'metro'` (a top-level `compose_world` city
+  override, stored only as `'metro'`) keeps the 3.0 m storey and brings everything the storey
+  should govern into proportion with it.
+  - **Blocks** sit at a 100–115 m pitch (80–110 crossings per km²). Each is cut into 6–15 m lots
+    (the odd office lot is wider), wall to wall around an inner court that is either parking or a
+    yard.
+  - **Streets** have a real right-of-way: about 19 m, with about 29 m avenues on the top two tiers.
+    Side streets run through the avenue's sidewalk to its kerb.
+  - **Heights** come from a log-normal field that peaks at the core (the root tower, a monument
+    plaza, or the centre), in whole 3.1 m / 3.9 m floors, with slender corner towers near the
+    core. The root tower is 175–285 m at ≥ 5 : 1, and there are no quadrant-sized sub-anchor slabs.
+    Heights are p50 about 19 m, max 200–245 m.
+  - **People, cars and the street kit** are real size: about 1.75 m, 4.6 m, and 3.2 m / 5.7 m
+    signs / signals. That covers static people, parked and portal cars, and `/world`'s walkers and
+    car bank. A signalled crossing carries no stop signs, and there are no overhead power lines.
+    Facades draw the plan's own floors.
+  - **Presets** are a 1.7 m street eye on the main avenue, a low aerial, and a skyline stand-off.
+    The stream tiles use the same shots.
+  - A metro recipe with no region gets a 220 × 140 frame (about 0.8 × 0.5 km). Its recursion always
+    reaches block size, and `depth` may go to 6.
+  - Absent, every stored city renders the same bytes.
+- **Metro walks never overlap.** The stock city lays one walk band per street, and the bands
+  overlap at every crossing. The World's coplanar lift (`decollideFaces`) raises an overlapped face
+  in proportion to its size, so at metro lengths a band rose over the asphalt and avenues rendered
+  as sidewalk. Metro walks are tiled from the claim grid instead. The stock city is unchanged.
+- **`cityScaleCensus(plan, region)`.** The city measured in metres: block pitch, crossing density,
+  street share, the height distribution with a core-vs-edge split, tower slenderness, and the
+  street kit's heights. It is the machine gate for the metro bands (`fractal-city-metro.test.js`).
+- **Stream tiles read the planner's frame.** `city-tiles.js` imports `DEFAULT_REGION` and the
+  preset shots from the planner instead of copying them.
+
 ### Furniture audit
 
 - **Every room gets a way in.** An explicit `floorplan` (authored `rooms` / `halls`) used to

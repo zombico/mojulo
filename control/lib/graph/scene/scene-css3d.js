@@ -2420,8 +2420,11 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       faces.push(...plantBoxToFaces(b, { light: L }));
     } else if (['building', 'anchor', 'midtower'].includes(b.kind)) {
       // `b.program` (an operator block's industrial shed) names the facade program; absent it is the hash's own draw, as before
-      const facade = b.facade || makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : b.program });
-      const floors = facadeFloors(facade, b.z1 - b.z0);
+      const facade0 = b.facade || makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : b.program });
+      // a metro mass carries its own floor height + count (whole floors off the city's height field),
+      // so its floor bands read at 3.1 / 3.9 m and a two-storey shop is not drawn as three floors
+      const facade = b.floorH ? { ...facade0, floorH: b.floorH } : facade0;
+      const floors = b.floors || facadeFloors(facade, b.z1 - b.z0);
       const bays = facadeBays(facade, b.w);
       if (b.shape === 'cylinder') faces.push(...cylinderBuilding(b, facade, floors, L, camHint));
       else if (b.shape === 'setback') faces.push(...setbackBuilding(b, facade, L, camHint));

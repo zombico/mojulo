@@ -26,7 +26,7 @@
 
 import crypto from 'node:crypto';
 
-import { planFractalCity, FRACTAL_CAMERAS } from './fractal-city.js';
+import { planFractalCity, fractalCityCameras, DEFAULT_REGION } from './fractal-city.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { faceListToMesh, decollideFaces } from '../figures/face-mesh.js';
@@ -36,7 +36,6 @@ export const STREAM_TILE = 16;            // tile edge, city units (≈ 58 m at 
 export const STREAM_NEAR = 40;            // full-detail radius around the camera focus
 export const STREAM_CACHE = 80;           // tiles further than this are disposed (LRU inside it)
 export const STREAM_LODS = ['full', 'massing', 'base'];
-const DEFAULT_REGION = { x: 2, y: 2, w: 30, d: 18 };
 const TILE_MAGIC = 0x31544a4d;            // 'MJT1' little-endian
 
 // ── stand-down ───────────────────────────────────────────────────────────────────────────────
@@ -144,7 +143,7 @@ export function clearCityTileMemo() { MEMO.clear(); }
 // stand-down above rules out every lit argument, so these are the only ones that shape faces).
 function assembleArgs(recipe) {
   return {
-    cameras: recipe.cameras || FRACTAL_CAMERAS,
+    cameras: recipe.cameras || fractalCityCameras(recipe),   // metro recipes: the human-scale set, the same one the whole-city page uses
     viewBox: recipe.viewBox || { width: 1120, height: 780 },
     unitScale: recipe.unitScale || 22,
     ...(recipe.light ? { light: recipe.light } : {}),
