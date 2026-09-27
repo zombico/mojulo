@@ -79,10 +79,12 @@ can never silently disagree with reality. In [control/lib/mcp/packs.js](../contr
   still list and run; the calls that need a missing helper fail in-band naming it. `sharp` loads on
   first use ([control/lib/sharp-lazy.js](../control/lib/sharp-lazy.js)), so `mojulo call version`, every
   mint and every export run, and only the raster tools (skins, sprite sheets, the PNG bake, the
-  keyframe and scene forges) fail in-band naming `npm install sharp`. Since creative stays installed, a
-  render bake on a host with no Chromium-family browser still fetches Chrome for Testing (the fetch is
-  gated on the creative group in [control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js));
-  a `MOJULO_PACKS` override that leaves creative out, or `$MOJULO_CHROMIUM`, prevents it.
+  keyframe and scene forges) fail in-band naming `npm install sharp`. Since creative stays installed, an
+  explicit render (a world `forge_motion`, `export_game` hangar portraits, `create_game` with
+  `auto_audit`, the dashboard's PNG download) on a host with no Chromium-family browser still fetches
+  Chrome for Testing ([control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js));
+  background bakes never do. A `MOJULO_PACKS` override that leaves creative out, or `$MOJULO_CHROMIUM`,
+  prevents it.
 - **The studio needs no install step.** `mojulo install creative`
   ([control/scripts/mcp-install.mjs](../control/scripts/mcp-install.mjs)) installs nothing: it says so and
   lists any optional helper that does not resolve. `mojulo install` with no arg prints status for all

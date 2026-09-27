@@ -249,17 +249,15 @@ export async function resolveChromium({ allowFetch } = {}) {
   if (!mayFetch) throw chromiumUnavailable();
 
   // Never trigger the ~500 MB Chrome-for-Testing download in an install WITHOUT
-  // the creative pack. Scene-PNG baking is a creative capability; an ops install
-  // (a MOJULO_PACKS override without 'creative') sheds that browser entirely. All the
-  // cheap detection above (override / cached fetch / system browser) still runs —
-  // only the heavy FETCH is gated — so a default full install (creative present)
-  // is byte-identical. See install-capabilities.plan.md P2b "don't download".
+  // the creative pack. Creative ships with every install, so only a MOJULO_PACKS
+  // override that leaves it out lands here; that install sheds the browser entirely.
+  // All the cheap detection above (override / cached fetch / system browser) still
+  // runs — only the heavy FETCH is gated.
   if (!installedGroups().has('creative')) {
     throw new Error(
-      'Scene-PNG rendering is a creative-pack capability and the creative pack is not installed here, '
-        + 'so no Chromium was auto-fetched (that download is ~500 MB). Run `mojulo install creative` '
-        + "(or include 'creative' in MOJULO_PACKS if you manage the install manually), or point "
-        + '$MOJULO_CHROMIUM at an existing Chrome / Chromium / Edge binary.',
+      'Scene-PNG rendering is a creative-pack capability and MOJULO_PACKS gates the creative pack off '
+        + "here, so no Chromium was auto-fetched (that download is ~500 MB). Include 'creative' in "
+        + 'MOJULO_PACKS, or point $MOJULO_CHROMIUM at an existing Chrome / Chromium / Edge binary.',
     );
   }
 
