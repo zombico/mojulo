@@ -352,7 +352,7 @@ The same artifact that runs locally can be pushed to Fly.io's Machines API witho
 
 **GHCR publish flow** (the image side): `.github/workflows/publish-bot-image.yml` builds [lite-template/Dockerfile](../../lite-template/Dockerfile), runs `scripts/fetch-embed-model.mjs` to pull the e5-small ONNX into the image, and pushes both `:X.Y.Z` and `:latest`. The control plane pins an exact tag in [docker.js:20](../../control/lib/deployers/docker.js#L20) — never `:latest`.
 
-**Connect Bot is automatic for cloud deploys.** Once `cloudDeploy()` returns the `*.fly.dev` URL, it's written to `deployments.url` via `finishCloudDeploy`, so the conversations browser works without a manual paste — the artifact's `MOJULO_API_KEY` was already injected as a Fly env var in the same call.
+**Connect Bot is automatic for cloud deploys.** Once `cloudDeploy()` returns the `*.fly.dev` URL, it's written to `deployments.url` via `finishCloudDeploy`, so the conversations browser works without a manual paste — the artifact's `MOJULO_API_KEY` was already set as a Fly app secret in the same call.
 
 ---
 

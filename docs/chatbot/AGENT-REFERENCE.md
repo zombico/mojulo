@@ -22,7 +22,7 @@ The three build entry points — chat builder, modular wizard, and MCP build too
 
 [DockerDeployer.deploy()](../../control/lib/deployers/docker.js) composes `instructions.txt`, copies prebaked `embeddings.json`, writes `config/`, `docker-compose.yml`, `.env`, `.env.example`, and `README.md`, then zips the artifact. Build modes are prebuilt-image by default and offline-build when `MOJULO_OFFLINE_BUILD=1`.
 
-[cloudDeploy()](../../control/lib/deployers/cloud-deploy.js) builds the artifact if stale, harvests config files, decrypts the LLM key, and hands off to [FlyDeployer](../../control/lib/deployers/fly.js). Fly deploy injects per-bot config as base64 files through the Machines API; the image remains bot-agnostic.
+[cloudDeploy()](../../control/lib/deployers/cloud-deploy.js) builds the artifact if stale, harvests config files, decrypts the LLM key, and hands off to [FlyDeployer](../../control/lib/deployers/fly.js). Fly deploy injects per-bot config as base64 files through the Machines API and sets the LLM key and the bot's `MOJULO_API_KEY` as Fly app secrets (never in the machine config); the image remains bot-agnostic.
 
 ## Fleet aggregation
 

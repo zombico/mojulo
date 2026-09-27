@@ -1133,6 +1133,12 @@ rock to classical, flamenco and gypsy jazz.
   the scene-illustration routing card and `get_substrate` fact 5 now say the door calls an external
   LLM API with the user's key, and `translate_modeler_lingo` routes to the key-free `via:'packet'`
   door instead of the keyed alias.
+- **Fly deploys put credentials in Fly secrets.** The operator's decrypted OpenAI/Anthropic key and
+  the bot's `MOJULO_API_KEY` went into the Fly machine config's `env`, readable by anyone who can
+  read the machine. They are now set as Fly app secrets (GraphQL `setSecrets`) before the machine
+  is created or updated, and the machine config carries only non-secret env. The unused
+  `getCloudDeployer`, which read `FLY_API_TOKEN` from the environment, is removed; the Fly token
+  still comes only from the encrypted store.
 
 ## [2.1.0] - 2026-09-23
 
