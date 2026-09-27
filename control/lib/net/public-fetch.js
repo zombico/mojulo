@@ -77,7 +77,12 @@ function guardedLookup(url, blocked) {
   return (hostname, options, callback) => {
     dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
       if (err) return callback(err);
-      const bad = addresses.find((a) => blocked(a.address));
+      let bad;
+      try {
+        bad = addresses.find((a) => blocked(a.address));
+      } catch (checkErr) {
+        return callback(checkErr); // never throw out of a DNS callback
+      }
       if (bad) return callback(new BlockedUrlError(url, bad.address));
       if (options.all) return callback(null, addresses);
       return callback(null, addresses[0].address, addresses[0].family);
