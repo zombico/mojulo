@@ -4,7 +4,7 @@
  * Returns what the *running* control plane thinks it is:
  *   - Control-plane package version, read from control/package.json.
  *   - Pinned bot image, read from process.env.BOT_IMAGE, falling back to the
- *     same default string baked into lib/deployers/docker.js.
+ *     default in lib/deployers/bot-image.js (the one the deployers use).
  *
  * Kept separate from remote.js so the local read is cheap and never fails on
  * registry outage — the tool can still report current state even when the
@@ -14,15 +14,8 @@
 import fs from 'fs';
 import path from 'path';
 import { moduleDir } from '../module-dir.js';
+import { DEFAULT_BOT_IMAGE } from '../deployers/bot-image.js';
 const __dirname = moduleDir(import.meta.url, 'lib/version');
-
-// Mirror of the default in lib/deployers/docker.js — kept here so this module
-// doesn't import docker.js (which pulls in archiver / storage deps). When the
-// pin in docker.js moves, this one should too; the existing `version` tool in
-// lib/mcp/tools/context.js carries the same mirrored constant for the same
-// reason. A stale display here just means the tool reports the older tag —
-// deploys still use the docker.js value.
-const DEFAULT_BOT_IMAGE = 'ghcr.io/zombico/mojulo-bot:0.5.1';
 
 // Memoize the package.json read — it doesn't change during process lifetime.
 let cachedPkg = null;
@@ -55,7 +48,7 @@ export function getBotImagePin() {
 }
 
 /**
- * Split `ghcr.io/zombico/mojulo-bot:0.5.1` into `{ repo, tag }`. Returns
+ * Split `ghcr.io/zombico/mojulo-bot:0.5.2` into `{ repo, tag }`. Returns
  * `{ repo, tag: null }` if no tag is present (treat as `:latest`, which we
  * deliberately never produce on the control-plane side).
  */

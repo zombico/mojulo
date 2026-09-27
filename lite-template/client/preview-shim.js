@@ -7,9 +7,9 @@
  *   1. Receive `botContext` + `previewMeta` from the parent window via
  *      postMessage and stash botContext into window.__INITIAL_CONFIG__ so
  *      the unmodified client picks it up via its existing fallback path.
- *   2. Monkey-patch fetch() to redirect the deployed bot's three endpoints
- *      (/chat, /api/send-webhook, /api/submit-form) at the control plane's
- *      preview-equivalents (or no-op stubs).
+ *   2. Monkey-patch fetch() to redirect the deployed bot's endpoints
+ *      (/chat, /api/submit-form, /api/extract, /context) at the control
+ *      plane's preview-equivalents (or no-op stubs).
  *
  * Side effect: also blocks the client's bootstrap until config arrives, so
  * we never race the iframe's getContext() against the parent's postMessage.
@@ -117,16 +117,6 @@
     }
   }
 
-  async function handleWebhookStub(init) {
-    let body = {};
-    try {
-      body = JSON.parse(init?.body || '{}');
-    } catch { /* ignore */ }
-    console.log('[preview] webhook would POST to:', body.webhookUrl, body.data);
-    notifyParent('webhook', { url: body.webhookUrl, data: body.data });
-    return jsonResponse({ success: true, status: 200, preview: true });
-  }
-
   async function handleSubmitFormStub(init) {
     let body = {};
     try {
@@ -134,6 +124,13 @@
     } catch { /* ignore */ }
     console.log('[preview] submit-form would send to control plane:', body);
     notifyParent('submit-form', body);
+    // A deployed bot posts the form to its configured webhook from inside
+    // /api/submit-form; show that side effect here too.
+    const webhookUrl = window.__INITIAL_CONFIG__?.formCompletionWebhook;
+    if (webhookUrl) {
+      console.log('[preview] webhook would POST to:', webhookUrl, body.formData);
+      notifyParent('webhook', { url: webhookUrl, data: body.formData });
+    }
     return jsonResponse({
       success: true,
       message: 'preview: not actually submitted',
@@ -206,9 +203,6 @@
   window.fetch = async function patchedFetch(input, init) {
     if (isUrl(input, (u) => u.pathname === '/chat')) {
       return handleChat(init);
-    }
-    if (isUrl(input, (u) => u.pathname === '/api/send-webhook')) {
-      return handleWebhookStub(init);
     }
     if (isUrl(input, (u) => u.pathname === '/api/submit-form')) {
       return handleSubmitFormStub(init);

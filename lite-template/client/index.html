@@ -953,21 +953,14 @@
             // Log completion to system logs
             addLog('info', { message: 'Form collection complete - all required fields filled' }, conversationId);
 
-            let sendHomeSuccess = false;
-            let webhookSuccess = false;
-
             // Always POST to /api/submit-form on completion. The server captures
-            // the submission to its local form_submissions table and, when
-            // formSendHome is configured, also relays to the control plane.
-            sendHomeSuccess = await sendFormToControlPlane();
+            // the submission to its local form_submissions table and relays it
+            // to the control plane (formSendHome) and to the configured
+            // formCompletionWebhook itself.
+            const submitted = await sendFormToControlPlane();
 
-            // Send webhook if configured
-            if (botContext?.formCompletionWebhook) {
-                webhookSuccess = await sendFormCompletionWebhook();
-            }
-
-            // If either submission succeeded, show after-submit message and disable inputs
-            if (sendHomeSuccess || webhookSuccess) {
+            // Once the submission is captured, show after-submit message and disable inputs
+            if (submitted) {
                 if (botContext?.afterSubmitChatMessage) {
                     addMessage(botContext.afterSubmitChatMessage, true, false, null, null, null, true, true);
                 }
@@ -998,8 +991,14 @@
                 });
 
                 if (response.ok) {
+                    const result = await response.json().catch(() => ({}));
                     console.log('Form data sent to control plane');
                     addLog('info', { message: 'Form data sent to control plane' }, conversationId);
+                    if (result.completionWebhook === 'sent') {
+                        addLog('info', { message: 'Form data sent to webhook' }, conversationId);
+                    } else if (result.completionWebhook === 'failed') {
+                        addLog('error', { message: 'Webhook failed' }, conversationId);
+                    }
                     return true;
                 } else {
                     const error = await response.json();
@@ -1010,59 +1009,6 @@
             } catch (error) {
                 console.error('Error sending form to control plane:', error);
                 addLog('error', { message: `Error sending to control plane: ${error.message}` }, conversationId);
-                return false;
-            }
-        }
-
-        // Send form data to webhook endpoint via server proxy (avoids CORS)
-        // Returns true on success, false on failure
-        async function sendFormCompletionWebhook() {
-            if (!botContext?.formCompletionWebhook) {
-                console.warn('No webhook URL configured');
-                return false;
-            }
-
-            try {
-                const formData = FormInputRegistry.getAllValues();
-
-                // Payload includes the webhook URL for the server to forward to
-                const payload = {
-                    webhookUrl: botContext.formCompletionWebhook,
-                    data: {
-                        timestamp: new Date().toISOString(),
-                        conversationId: conversationId,
-                        formData: formData,
-                        metadata: {
-                            formTitle: formStructure?.title || 'Form Submission',
-                            completedAt: new Date().toISOString()
-                        }
-                    }
-                };
-
-                console.log('Sending form completion webhook via server proxy');
-
-                // Proxy through server to avoid CORS issues
-                const response = await fetch(`${API_URL}/api/send-webhook`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    console.log('Webhook sent successfully via proxy:', response.status);
-                    addLog('info', { message: `Form data sent to webhook successfully (${response.status})` }, conversationId);
-                    return true;
-                } else {
-                    const error = await response.json();
-                    console.error('Webhook proxy failed:', response.status, error);
-                    addLog('error', { message: `Webhook failed: ${response.status} ${error.error || ''}` }, conversationId);
-                    return false;
-                }
-            } catch (error) {
-                console.error('Error sending webhook via proxy:', error);
-                addLog('error', { message: `Webhook error: ${error.message}` }, conversationId);
                 return false;
             }
         }

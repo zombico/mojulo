@@ -1081,6 +1081,21 @@ rock to classical, flamenco and gypsy jazz.
   runs per tile), the pop from massing to full detail, whether the horizon reads as the same city,
   and massing edges that stay visible in wireframe mode after their full tile lands.
 
+### Security hardening
+
+- **Bot image 0.5.2: the form webhook is no longer an open relay.** `POST /api/send-webhook` on a
+  deployed bot took its target URL from the request body, with no API key and open CORS, so any
+  visitor could make the bot POST to any address and read back the answer. The bot now posts each
+  completed form to the operator's configured `formCompletionWebhook` itself, from
+  `/api/submit-form` (rate-limited), and `/api/send-webhook` needs the bot's `x-mojulo-api-key`,
+  posts only to that configured URL, no longer echoes the target's response, and sends no CORS
+  headers. The webhook and send-home URLs are no longer included in the config the chat page and
+  `/context` expose. The default pin moves to `ghcr.io/zombico/mojulo-bot:0.5.2`
+  ([lib/deployers/bot-image.js](lib/deployers/bot-image.js), now the one constant the docker and
+  Fly deployers and the `version` / `check_for_updates` readers share; Fly used to need `BOT_IMAGE`
+  set). **The `bot-v0.5.2` image must be published before this npm release, and existing bots must
+  be rebuilt and redeployed to pick up the fix.**
+
 ## [2.1.0] - 2026-09-23
 
 ### CLI orientation

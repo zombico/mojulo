@@ -228,14 +228,14 @@ The client's `getContext()` then reads `window.__INITIAL_CONFIG__` and proceeds 
 
 ### 2. fetch monkey-patch
 
-The shim wraps `window.fetch`. Four routes are intercepted:
+The shim wraps `window.fetch`. These routes are intercepted:
 
 | Path                  | What the shim does                                                                                                                  |
 |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | `/context`            | Resolves from `window.__INITIAL_CONFIG__` (waits on `configReady` if config hasn't arrived yet — blocks the bootstrap until ready). |
 | `/chat`               | Forwards to `POST /api/preview/chat` on the control plane with `{ prompt, conversationHistory, turn, ...previewMeta }`. Reshapes the response into the deployed bot's `/chat` shape (`{ response, conversationId: 'preview', trace, hashMsg: 'preview', sources }`) so the unmodified client doesn't notice. |
-| `/api/send-webhook`   | Stub — returns `{ success: true, preview: true }` and posts a `preview-side-effect` message to the parent so the wizard can show "would have called this webhook." |
-| `/api/submit-form`    | Stub — same shape, posts `preview-side-effect` with the form payload.                                                              |
+| `/api/submit-form`    | Stub — returns `{ success: true, preview: true }` and posts a `preview-side-effect` message with the form payload; when the preview config has a `formCompletionWebhook`, a second `webhook` side effect lets the wizard show "would have called this webhook." |
+| `/api/extract`        | Forwards the image to the control plane's `/api/preview/extract` with the wizard config.                                             |
 
 Everything else (CDN loads, asset requests) hits `realFetch` unchanged.
 
@@ -263,7 +263,7 @@ The trade-off is that accessibility (skip links, ARIA roles, keyboard handlers) 
 |------|------|
 | [lite-template/client/index.html](../../lite-template/client/index.html) | The single-page client. ~2000 lines of HTML + embedded JS. Runs in all three surfaces (standalone, widget iframe, preview iframe). |
 | [lite-template/client/style.css](../../lite-template/client/style.css) | All UI styling. No preprocessor. |
-| [lite-template/client/preview-shim.js](../../lite-template/client/preview-shim.js) | Injected by the control plane *only* during wizard preview. Receives config via postMessage, monkey-patches `fetch` for `/context`, `/chat`, `/api/send-webhook`, `/api/submit-form`. |
+| [lite-template/client/preview-shim.js](../../lite-template/client/preview-shim.js) | Injected by the control plane *only* during wizard preview. Receives config via postMessage, monkey-patches `fetch` for `/context`, `/chat`, `/api/submit-form`, `/api/extract`. |
 | [lite-template/helper/widget-generator.js](../../lite-template/helper/widget-generator.js) | `generateWidgetScript(baseUrl, botName, { isCalendar })` — string-template factory for the embeddable IIFE. |
 | [lite-template/server.js](../../lite-template/server.js) `GET /` | Reads index.html, swaps the title, injects `window.__INITIAL_CONFIG__`. |
 | [lite-template/server.js](../../lite-template/server.js) `GET /widget` | Returns the generated IIFE with `Cache-Control: public, max-age=300`. |

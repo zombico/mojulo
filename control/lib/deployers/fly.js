@@ -19,6 +19,7 @@
  */
 
 import crypto from 'crypto';
+import { DEFAULT_BOT_IMAGE } from './bot-image.js';
 
 const FLY_API_BASE = 'https://api.machines.dev/v1';
 
@@ -52,14 +53,16 @@ export class FlyDeployer {
     this.apiToken = apiToken;
     this.orgSlug = orgSlug;
     // Cloud always wants a public registry pin. In the common case BOT_IMAGE
-    // already points at GHCR, so fall back to it. Set MOJULO_CLOUD_IMAGE only
-    // when the cloud tag needs to diverge from the local docker-compose tag
-    // (e.g. BOT_IMAGE is a laptop tag like `mojulo/bot:latest`). The registry
-    // check below catches that case regardless of which env var supplied it.
+    // already points at GHCR, so fall back to it, then to the pinned default
+    // the docker path uses. Set MOJULO_CLOUD_IMAGE only when the cloud tag
+    // needs to diverge from the local docker-compose tag (e.g. BOT_IMAGE is a
+    // laptop tag like `mojulo/bot:latest`). The registry check below catches
+    // that case regardless of which env var supplied it.
     this.image =
       image ||
       process.env.MOJULO_CLOUD_IMAGE ||
-      process.env.BOT_IMAGE;
+      process.env.BOT_IMAGE ||
+      DEFAULT_BOT_IMAGE;
     if (!this.image || !this.image.includes('/')) {
       throw new Error(
         `Cloud image "${this.image}" has no registry prefix; Fly will route it through Docker Hub. ` +

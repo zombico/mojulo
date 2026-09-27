@@ -173,7 +173,7 @@ All form data is held in `FormInputRegistry`, defined in [client/index.html:160-
 
 ### Submission
 
-When the user clicks the submit control, [client/index.html:932-967](../../lite-template/client/index.html#L932-L967) reads `FormInputRegistry.getAllValues()` and posts it to `/api/submit-form` along with the conversation ID and lightweight metadata (form title, completion time, turn number). On success, the client may optionally also POST to a customer-configured webhook via the server-side proxy at `/api/send-webhook` ([client/index.html:969-1020](../../lite-template/client/index.html#L969-L1020)) to avoid CORS exposure.
+When the user clicks the submit control, [client/index.html](../../lite-template/client/index.html) reads `FormInputRegistry.getAllValues()` and posts it to `/api/submit-form` along with the conversation ID and lightweight metadata (form title, completion time, turn number). The server stores it, relays it to the control plane when `formSendHome` is on, and POSTs it to the operator's `formCompletionWebhook` when one is configured ([helper/form-webhook.js](../../lite-template/helper/form-webhook.js)). The webhook URL is read from config only and is not exposed to the page. `/api/send-webhook` re-sends a payload to that same URL; it requires the bot's API key.
 
 The client then sends a normal chat message whose body is the marker string `{<form_name>_filled}` (or `_skipped`). That message — and only that message — appears in the LLM's view of the conversation.
 

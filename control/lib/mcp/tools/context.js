@@ -1314,11 +1314,7 @@ export async function customProtocolHandler(_input, _ctx) {
 }
 
 // Reads at call time so a runtime env change (e.g. user toggles
-// MOJULO_OFFLINE_BUILD) shows up without a process restart. The BOT_IMAGE
-// default mirrors lib/deployers/docker.js — when that pin moves, this one
-// should too, but a stale display here just means the tool reports the
-// older tag; deploys still use the docker.js value.
-const DEFAULT_BOT_IMAGE = 'ghcr.io/zombico/mojulo-bot:0.5.1';
+// MOJULO_OFFLINE_BUILD) shows up without a process restart.
 
 export async function versionHandler(_input, _ctx) {
   const payload = {
@@ -1326,7 +1322,7 @@ export async function versionHandler(_input, _ctx) {
     protocolVersion: PROTOCOL_VERSION,
     node: process.version,
     platform: { os: process.platform, arch: process.arch },
-    botImage: process.env.BOT_IMAGE || DEFAULT_BOT_IMAGE,
+    botImage: getBotImagePin().image,
     offlineBuild: process.env.MOJULO_OFFLINE_BUILD === '1',
     mojuloHome: process.env.MOJULO_HOME || null,
   };
@@ -1502,7 +1498,7 @@ function controlPlaneInstallHint(latest, sourceClone) {
 }
 
 function botImageUpdateHint(repo, latestTag) {
-  return `Bump \`BOT_IMAGE\` in control/.env to \`${repo}:${latestTag}\` (and the matching constant in control/lib/deployers/docker.js), then rebuild affected bots.`;
+  return `Bump \`BOT_IMAGE\` in control/.env to \`${repo}:${latestTag}\` (and the default pin in control/lib/deployers/bot-image.js), then rebuild affected bots.`;
 }
 
 export async function checkForUpdatesHandler(_input, _ctx) {
