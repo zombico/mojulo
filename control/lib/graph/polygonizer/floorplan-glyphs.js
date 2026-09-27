@@ -838,7 +838,7 @@ export function resolveTier(tier) {
 // Split `total` into segments PROPORTIONAL to weights (each room's furniture budget),
 // summing exactly to total, lightly jittered. `minSeg` floors each segment — a single
 // number applied to all, OR a per-segment array (so a bedroom floors wider than a bath).
-function partitionWeighted(total, weights, rng, minSeg) {
+export function partitionWeighted(total, weights, rng, minSeg) {
   const n = weights.length;
   if (n <= 1) return [[0, total]];
   const minOf = (i) => (Array.isArray(minSeg) ? (minSeg[i] ?? 0) : minSeg);

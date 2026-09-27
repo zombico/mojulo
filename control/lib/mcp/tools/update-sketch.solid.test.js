@@ -9,6 +9,9 @@ import { createFigureHandler } from './figure.js';
 import { createEdificeHandler } from './edifice.js';
 import { createWorkbenchHandler, createCodeSolidHandler } from './workbench.js';
 import { updateSketchHandler } from './sketches.js';
+import { measureSolidHandler } from './measure-solid.js';
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 
 // edit-3d-recipes.plan.md Phase 2: solids and edifices were always editable in
 // place through update_sketch's world branch (their kinds live in WORLD_KINDS),
@@ -406,3 +409,151 @@ describe('the plan door records who printed the plan', () => {
     expect(SketchRepository.getByRef('ring-plan-biped') ?? null).toBeNull();   // nothing minted for the refused calls under a fresh db
   });
 });
+
+// hero-tune: the HERO door. A cast word and a tune (percentages of the cast's own baseline) mint the hero form with
+// `hero` stored beside `plan` and `recipe`; a patch under /hero regenerates plan and recipe by word; the readout
+// answers in metres; a hand edit under /plan is kept until the next /hero edit, which says it replaced it.
+describe('update_sketch on a hero minted through the hero door', () => {
+  it('mints from a cast + tune, stores hero + plan + recipe, and a /hero/tune patch regenerates the figure by word', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-tuned', spec: { cast: 'female', register: 'lowpoly', tune: ['athletic', { legs: 1.08 }] } });
+    expect(minted.ok).toBe(true);
+    expect(minted.hero.cast).toBe('female'); expect(minted.hero.from).toBe('athletic');
+    expect(minted.hero.tune.shoulders).toBe(1.18); expect(minted.hero.tune.legs).toBe(1.08); expect(minted.hero.tune.calf).toBe(1);
+    expect(minted.hero.moved).toEqual({ legs: 1.08, shoulders: 1.18, waist: 0.94 });
+    expect(minted.hero.measures.height_m).toBeGreaterThan(1.5); expect(minted.hero.measures.shoulder_m).toBeGreaterThan(0.2); expect(minted.hero.measures.hip_m).toBeGreaterThan(0.2);
+    expect(minted.hero.warnings).toBeUndefined();
+    expect(minted.next.args.patch[0].path).toBe('/hero/tune/<control>');
+    const stored = SketchRepository.getByRef('hero-tuned');
+    expect(stored.manifest.kind).toBe('layered'); expect(stored.manifest.hero.tune.shoulders).toBe(1.18); expect(stored.manifest.plan.schema).toBe('layered-plan-v1');
+    expect(stored.manifest.plan.style.slots).toBe('ring6'); expect(stored.manifest.recipe.parts.torso).toBeTruthy(); expect(stored.manifest.ledger.closed).toBe(true);
+    expect(stored.title).toBe('hero · female · athletic');
+    // "broader still": one word, one number; the plan and the recipe follow
+    const yoke = (m) => m.plan.segments.find((s) => s.name === 'torso').stations[3].r[0];
+    const r = await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.3 }] });
+    expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true);
+    expect(r.stats.hero.tune.shoulders).toBe(1.3); expect(r.stats.hero.measures.shoulder_m).toBeGreaterThan(minted.hero.measures.shoulder_m);
+    expect(r.stats.hero.warnings).toEqual([expect.stringMatching(/tune\.shoulders 1\.3 .*\[0\.8, 1\.25\]/)]);   // advice, not a refusal
+    const after = SketchRepository.getByRef('hero-tuned');
+    expect(yoke(after.manifest)).toBeGreaterThan(yoke(stored.manifest));
+    expect(after.manifest.recipe.parts.torso.stations[3].points).not.toEqual(stored.manifest.recipe.parts.torso.stations[3].points);
+    // a live dial keeps the plan and the hero
+    await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/dials/lean', value: 10 }] });
+    const dialed = SketchRepository.getByRef('hero-tuned'); expect(dialed.manifest.plan).toEqual(after.manifest.plan); expect(dialed.manifest.dials.lean).toBe(10);
+    // a hand edit under /plan is honoured (hero stays as the record) and the next /hero edit says it replaced it
+    await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/plan/segments/0/stations/0/r/0', value: 0.3 }] });
+    expect(SketchRepository.getByRef('hero-tuned').manifest.hero.tune.shoulders).toBe(1.3);
+    const back = await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/hero/tune/waist', value: 1 }] });
+    expect(back.stats.hero.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/hand-edited under \/plan .* replaced/)]));
+    expect(SketchRepository.getByRef('hero-tuned').manifest.plan.segments[0].stations[0].r[0]).not.toBe(0.3);
+    // an unknown control or a bad ratio refuses by name, and the row is untouched
+    await expect(updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/hero/tune/shoulder', value: 1.1 }] })).rejects.toThrow(/unknown control/);
+    await expect(updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/hero/tune/legs', value: 0 }] })).rejects.toThrow(/> 0/);
+    expect(SketchRepository.getByRef('hero-tuned').manifest.hero.tune.waist).toBe(1);
+  });
+  it('the door refuses by name: an unknown cast, a proportion word under body, a bad move; identity mints the cast itself', async () => {
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'nobody' } })).rejects.toThrow(/unknown preset 'nobody'.*hero cast \(male, female\)/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { body: { shoulders: 1.1 } } })).rejects.toThrow(/body\.shoulders: not a body control.*belongs in tune/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { tune: 'lanky' } })).rejects.toThrow(/unknown move 'lanky'/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { register: 'smooth' } })).rejects.toThrow(/register: a register word/);
+    const plain = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-plain', spec: {} });
+    expect(plain.hero.cast).toBe('male'); expect(plain.hero.moved).toEqual({}); expect(plain.hero.from).toBeUndefined();
+    expect(SketchRepository.getByRef('hero-plain').title).toBe('hero · male');
+    // a figure-cast word is a cast too
+    const chibi = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-chibi', spec: { cast: 'chibi', headScale: 1.3, tune: { limbs: 1.2 } } });
+    expect(chibi.hero.moved).toEqual({ upperArm: 1.2, forearm: 1.2, thigh: 1.2, calf: 1.2 }); expect(chibi.stats.closed).toBe(true);
+  });
+});
+
+// face-tune: the hero door wears the fitted landmark head by default; `face` is the face proportion lab's controls as
+// ratios about the fit; a patch under /hero/face regenerates the head, the plan and the recipe by word.
+describe('the hero door wears a face', () => {
+  it('a hero has a face by default; /hero/face/<control> regenerates it; the readout answers in metres', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-faced', spec: { cast: 'female', face: ['large-eyes', { noseWidth: 1.1 }], hair: 'bob', expression: 'smile' } });
+    expect(minted.ok).toBe(true); expect(minted.hero.head).toBe('landmark'); expect(minted.hero.faceFrom).toBe('large-eyes');
+    expect(minted.hero.faceMoved).toEqual({ eyeSpacing: 1.05, eyeSize: 1.15, noseWidth: 1.1 }); expect(minted.hero.hair.style).toBe('bob'); expect(minted.hero.hairMoved).toEqual({}); expect(minted.hero.hairMeasures.top_m).toBeGreaterThan(0); expect(minted.hero.expression).toBe('smile');
+    expect(minted.hero.faceMeasures.head_m).toBeGreaterThan(0.15); expect(minted.hero.faceMeasures.pupils_m).toBeGreaterThan(0.04); expect(minted.hero.faceMeasures.jaw_m).toBeGreaterThan(0.06);
+    expect(minted.next.reason).toMatch(/\/hero\/face\/<control>/);
+    const stored = SketchRepository.getByRef('hero-faced');
+    expect(stored.manifest.hero.face.eyeSize).toBe(1.15); expect(stored.manifest.recipe.parts.cranium).toBeTruthy(); expect(stored.manifest.recipe.parts.hairCap).toBeTruthy();
+    expect(stored.manifest.recipe.dials.jawOpen).toBeTruthy(); expect(stored.title).toBe('hero · female · large-eyes');
+    const jawX = (m) => m.recipe.parts.jaw.stations[0].points.sideR[0];
+    const r = await updateSketchHandler({ ref: 'hero-faced', patch: [{ op: 'set', path: '/hero/face/jawWidth', value: 1.2 }] });
+    expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true); expect(r.stats.hero.face.jawWidth).toBe(1.2);
+    expect(r.stats.hero.faceMeasures.jaw_m).toBeGreaterThan(minted.hero.faceMeasures.jaw_m);
+    const after = SketchRepository.getByRef('hero-faced'); expect(jawX(after.manifest)).toBeGreaterThan(jawX(stored.manifest));
+    expect(after.manifest.joints).toEqual(stored.manifest.joints);   // a face never moves a joint
+    const h = await updateSketchHandler({ ref: 'hero-faced', patch: [{ op: 'set', path: '/hero/hair', value: 'none' }, { op: 'set', path: '/hero/face/faceLength', value: 0.9 }] });
+    expect(SketchRepository.getByRef('hero-faced').manifest.recipe.parts.hairCap).toBeUndefined();
+    expect(h.stats.hero.warnings).toEqual([expect.stringMatching(/face\.faceLength 0\.9 .*\[0\.92, 1\.15\]/)]);
+    await expect(updateSketchHandler({ ref: 'hero-faced', patch: [{ op: 'set', path: '/hero/face/jawline', value: 1.1 }] })).rejects.toThrow(/unknown control/);
+    await expect(updateSketchHandler({ ref: 'hero-faced', patch: [{ op: 'set', path: '/hero/hair', value: 'mohawk' }] })).rejects.toThrow(/hair: unknown style 'mohawk'/);
+  });
+  it("head: 'none' is the blank trunk and takes no face; a figure cast wears the male head; the door refuses by name", async () => {
+    const bare = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-bare', spec: { head: 'none' } });
+    expect(bare.hero.head).toBe('none'); expect(bare.hero.face).toBeUndefined(); expect(SketchRepository.getByRef('hero-bare').manifest.recipe.parts.head).toBeTruthy();
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'none', face: { jawWidth: 1.1 } } })).rejects.toThrow(/face: only the landmark head/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { face: 'square-jaw' } })).rejects.toThrow(/unknown move 'square-jaw'/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { expression: 'angry' } })).rejects.toThrow(/expression: one of/);
+    const chibi = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-chibi-faced', spec: { cast: 'chibi', headScale: 1.3, face: 'broad-jaw' } });
+    expect(chibi.stats.closed).toBe(true); expect(SketchRepository.getByRef('hero-chibi-faced').manifest.recipe.parts.cranium).toBeTruthy();
+  });
+});
+
+// hero-detail: the dragon's BODY DETAIL and ADORNMENT passes worn by the hero through the door. `detail` and `adorn`
+// are words stored in `hero`; a /hero patch regenerates them; the readout's `dress` carries the adornment ledger.
+describe('a hero dressed through the door', () => {
+  it('mints clothed and adorned, every signature justified; /hero/adorn and /hero/detail regenerate by word', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-ranger', spec: { cast: 'male', register: 'round', hair: 'crop', detail: 'clothed', adorn: 'ranger' } });
+    expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave']);
+    expect(minted.hero.dress).toMatchObject({ detail: 'clothed', adorn: 'ranger' });
+    expect(minted.hero.dress.parts.detail).toBeGreaterThan(40); expect(minted.hero.dress.parts.adorn).toBeGreaterThanOrEqual(8);
+    expect(minted.hero.dress.adornments.map((a) => [a.id, a.verdict])).toEqual([['belt', 'justified'], ['baldric', 'justified'], ['bracer', 'justified'], ['pauldron', 'justified']]);
+    // the clearance ledger: the dress FOLLOWS the dials (bulk widens the baldric with the chest), and the one thing it
+    // cannot follow is named: the belt is pinned to the torso and `stance` swings the thighs out under it
+    expect(minted.hero.dress.clearance.sinking).toEqual(['belt']); expect(minted.hero.dress.clearance.worst.baldric.at).toBe('rest');
+    expect(minted.hero.warnings).toEqual([expect.stringMatching(/^adornment belt sinks into thighL, thighR at stance 1\.35/)]);
+    expect(minted.hero.dress.legibility.families.find((f) => f.family === 'adorn.pauldron.sig').readsFrom).toBe(64);   // the focal accent reads at the smallest size
+    expect(minted.hero.evidence.head).toMatchObject({ fit: 'male', inferred: ['front'], face: 'as fitted' });
+    expect(minted.next.reason).toMatch(/\/hero\/adorn \(ranger, none\)/);
+    const stored = SketchRepository.getByRef('hero-ranger');
+    expect(stored.manifest.hero.detail).toBe('clothed'); expect(stored.manifest.hero.adorn).toBe('ranger');
+    expect(stored.manifest.plan.body.tiles.length).toBe(2); expect(stored.manifest.recipe.parts['adorn.pauldron.sig0']).toBeTruthy();
+    expect(stored.manifest.recipe.palette.Top).toBe('#56683f');   // the kit's suggestion
+    // the kit off: the adornment parts go, the detail stays
+    const off = await updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/adorn', value: 'none' }] });
+    expect(off.ok).toBe(true); expect(off.stats.hero.dress.adorn).toBe('none'); expect(off.stats.hero.dress.adornments).toBeUndefined();
+    const bare = SketchRepository.getByRef('hero-ranger').manifest.recipe.parts;
+    expect(Object.keys(bare).some((k) => k.startsWith('adorn.'))).toBe(false); expect(Object.keys(bare).some((k) => k.startsWith('tile.quiltFront.'))).toBe(true);
+    // the detail off too: the undressed hero
+    await updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/detail', value: 'none' }] });
+    expect(Object.keys(SketchRepository.getByRef('hero-ranger').manifest.recipe.parts).some((k) => k.startsWith('tile.'))).toBe(false);
+    // a word the door does not know refuses by name, and the row is untouched
+    await expect(updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/adorn', value: 'knight' }] })).rejects.toThrow(/adorn: 'ranger' \| 'none'/);
+    await expect(updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/palette', value: { Top: 'green' } }] })).rejects.toThrow(/palette\.Top: must be a "#rrggbb" colour/);
+    expect(SketchRepository.getByRef('hero-ranger').manifest.hero).toMatchObject({ detail: 'none', adorn: 'none' }); expect(SketchRepository.getByRef('hero-ranger').manifest.hero.palette).toBeUndefined();
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { detail: 'armoured' } })).rejects.toThrow(/detail: 'clothed' \| 'none'/);
+  });
+  it("the blank-headed form wears the dress too (head: 'none')", async () => {
+    const r = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-bare-ranger', spec: { cast: 'female', register: 'lowpoly', head: 'none', detail: 'clothed', adorn: 'ranger' } });
+    expect(r.stats.closed).toBe(true); expect(r.hero.dress.adornments.every((a) => a.verdict === 'justified')).toBe(true);
+  });
+});
+
+// read-and-attach: the detail and adornment passes are not character-specific. An OBJECT — a wicker-wrapped flask — goes
+// through the plain plan door with `body` (woven tiles, a lip ring) and `adorn` (a band and its buckle), and
+// measure_solid reads it back with the legibility and clearance ledgers and says what kind of assembly it is.
+const FLASK = path.resolve(process.cwd(), '../docs/examples/ring-plans/flask.plan.json');
+describe.skipIf(!existsSync(FLASK))('an object dressed through the plan door', () => {
+  it('a wicker-wrapped flask: tiles, a lip ring, a band with a buckle; measure_solid reads it', async () => {
+    const plan = JSON.parse(readFileSync(FLASK, 'utf8'));
+    const r = await mintSolidHandler({ kind: 'layered', via: 'plan', ref: 'flask', spec: { plan, plan_audit: { source: 'agent' } } });
+    expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true);
+    const parts = SketchRepository.getByRef('flask').manifest.recipe.parts;
+    expect(Object.keys(parts).filter((k) => k.startsWith('tile.wicker.')).length).toBeGreaterThan(80); expect(parts['adorn.band.sig0'].layer).toBe(3); expect(parts['adorn.band'].follow).toBe(true);
+    const m = await measureSolidHandler({ ref: 'flask', volume: false });
+    expect(m.assembly).toMatch(/^overlapping closed parts/);
+    expect(m.legibility.families.find((f) => f.family === 'tile.wicker').readsFrom).toBe(64);
+    expect(m.clearance.sinking).toEqual([]); expect(m.clearance.adornments.band.worst.share).toBe(0);
+  });
+});
+

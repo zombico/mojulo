@@ -4,6 +4,12 @@ We build up the figure: body → segment detail ([body detail](../body-detail/RE
 ([wings](../wings/README.md)) → **adornment**. Adornment is made for the creature, not grown from it. It reads
 everything beneath it and never writes it; removing it leaves the creature unchanged.
 
+The layer is core since the hero became its third wearer: `control/lib/graph/polygonizer/station-loft-adorn.js`
+(modes, stacking, the justification ledger and a SIGNATURE library: `boss`, `spike`, `buckle`, `ring`, `medallion`,
+`plume`, `bell`, `studs`). The dragon and vulture kits here are DATA over it, byte for byte what their code
+signatures built. The hero's `ranger` kit (`hero-dress.js`) is baked into its recipe through the plan's `adorn` block:
+each adornment and its signature share one pin, so a rigid adornment rides one bone under the rig.
+
 ## Mugen on a layered creature
 
 The figure garments' mugen is a standoff measured outward from the surface beneath (the looseness dial). On a layered
@@ -52,7 +58,7 @@ vertices, so it slipped between them; clearance is now against the surface) and 
 every adornment on both creatures is justified.
 
 Not certified: the harness path and the pauldron window are hand-placed addresses (supports are named by part, not
-landmark); no MOUNT; not bound to the rig. (Binding a part pinned to a detail part, layer 3 on layer 2, works:
+landmark); no MOUNT; the dragon's kit is not bound to its rig here (the hero's is, through the bake). (Binding a part pinned to a detail part, layer 3 on layer 2, works:
 `bindLayered` resolves an L2 parent's local point ids.)
 
 ## Reproduce

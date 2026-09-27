@@ -58,6 +58,33 @@ const LEXICON = [
     note: 'Mojulo is strong here — a generated, deterministic, correctly-scaled massing IS a blockout. Model your detail over it.',
   },
   {
+    id: 'proportion-pass',
+    terms: ['proportions', 'proportion pass', 'body proportions', 'heads tall', 'heads-tall', 'body ratios', 'body type', 'stockier', 'lankier', 'broader shoulders', 'longer legs', 'bigger head', 'silhouette pass', 'face proportions', 'facial proportions', 'broader jaw', 'larger eyes', 'eye spacing', 'longer face', 'hairstyle', 'hair style', 'haircut', 'ponytail', 'bob cut', 'undercut', 'hair length', 'anime hair', 'spiky hair', 'bangs', 'fringe'],
+    concept: 'Locking a character\'s primary masses — heads-tall, shoulder and hip span, limb length and girth, then the face\'s skull, jaw, eyes, nose and mouth — before any detail, and revisiting them by percentage rather than re-sculpting.',
+    support: NATIVE,
+    routes: [
+      { tool: 'mint_solid', when: 'a human character: the hero form from a cast word + a TUNE in percentages of that cast', args: { kind: 'layered', via: 'hero', spec: { cast: 'female', register: 'lowpoly', tune: ['athletic', { legs: 1.08 }] } } },
+      { tool: 'update_sketch', when: 'tune an existing hero by word — shoulders, waist, hips, depth, torso, neck, legs, head, stature, upperArm, forearm, thigh, calf', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.1 }] } },
+      { tool: 'update_sketch', when: 'tune the FACE by word — skullWidth, faceWidth, faceLength, jawWidth, chinProjection, cheek, eyeSpacing, eyeSize, browHeight, noseWidth, noseSize, mouthWidth (moves broad-jaw, large-eyes); expression beside it', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/hero/face/jawWidth', value: 1.18 }] } },
+      { tool: 'update_sketch', when: 'the HAIR by word — a library style (animeShort, buzz, crew, taper, undercut, crop, quiff, swept, curtains, animeBob, pixie, bob, angled, layers, long, wavy, ponytail, bun, braid, none) and its controls (volume, fringe, part, fade; length, graduation, wave; tail, tie, braid; lockWidth, taper, bend, asymmetry; corners, sideBulk, topSlope, lineup; definition)', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/hero/hair/style', value: 'ponytail' }, { op: 'set', path: '/hero/hair/length', value: 1.3 }] } },
+      { tool: 'mint_solid', when: 'a proportion CAST on the SVG figure (a picture, not a mesh)', args: { kind: 'figure', spec: { cast: 'heroic' } } },
+    ],
+    then: [EXPORT],
+    note: 'The tune is stored with the recipe and regenerates the plan in place: lengths move joints only and keep the soles on the ground, thicknesses scale rings about their own centres, the head scales uniformly. The readout answers in metres. Ranges advise, never refuse.',
+  },
+  {
+    id: 'costume-pass',
+    terms: ['costume', 'outfit', 'clothing detail', 'garment detail', 'armor', 'armour', 'pauldron', 'shoulder armor', 'bracer', 'baldric', 'accessories', 'equipment', 'gear', 'adornment', 'adornments', 'quilted', 'cloth folds', 'secondary detail', 'detail pass'],
+    concept: 'After the primary masses, the face and the hair read: the character\'s structure (garment folds, quilting, patches, cuffs) and its equipment (belts, straps, bracers, armour), each piece built over what is beneath it and justified by one element the eye picks out.',
+    support: NATIVE,
+    routes: [
+      { tool: 'update_sketch', when: 'dress an existing hero by word: the body detail, then the kit (the dragon\'s detail and adornment passes with the hero\'s parameters)', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/hero/detail', value: 'clothed' }, { op: 'set', path: '/hero/adorn', value: 'ranger' }] } },
+      { tool: 'mint_solid', when: 'a hero dressed from the start, or a creature through the plan door with `body` / `adorn` data (tiles, pads, creases; shells, bands, straps with a signature each)', args: { kind: 'layered', via: 'hero', spec: { cast: 'female', register: 'lowpoly', hair: 'ponytail', detail: 'clothed', adorn: 'ranger' } } },
+    ],
+    then: [EXPORT],
+    note: 'Every adornment names its signature (a buckle, a boss, a ring) and the readout\'s adornment ledger says whether it reads; it is baked as pinned parts that ride the rig. One accent colour, asymmetry for story; cloth simulation and a mounted quiver or sword are not built.',
+  },
+  {
     id: 'set-dressing',
     terms: ['set dressing', 'set-dressing', 'environment art', 'level art', 'scatter', 'kitbash', 'kit bash', 'props', 'crowd', 'background geo', 'filler geo'],
     concept: 'Populating a scene with many supporting pieces — furniture, foliage, vehicles, buildings — rather than a single hero asset.',

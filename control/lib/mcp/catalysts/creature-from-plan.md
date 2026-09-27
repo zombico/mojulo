@@ -137,11 +137,14 @@ ANY segment, and each pass is a named operator or a data entry, not sculpting:
 | 8 Hair | barbels, vibrissae, a mane's guard hairs | `whiskers`: tapering sweeps rooted at addresses, drooping under world gravity read through the RIGHT frame | the left set mirrors by name |
 | 9 Colour | groups → palette | `palette` by face group (Sclera / Iris / LidRim / Scales / …) | a material over a name, never geometry |
 
-What the plan grammar carries TODAY: passes 1, 3 (dials), 5 (`claw`), 9, and the whole head as an
-`include` baked from the head-detail operators (`station-loft-detail.js`). Passes 2, 4, 6, 7, 8 are
-authored through those operators (a head's data table names them) and bake into pinned parts; they
-enter the plan form as `details` kinds as the planar-detail line lands. Do not fake a pass the grammar
-lacks with hand-placed coordinates — name it pending in the ledger.
+What the plan grammar carries TODAY: passes 1, 3 (dials), 5 (`claw`), 9, the whole head as an
+`include` baked from the head-detail operators (`station-loft-detail.js`), and on the BODY the plan's
+`body` block — pass 2 (named density), 3 (`volumize` masses), 6 (tiles grown rigid-on-rigid), 7 (bend
+creases), pads, spurs, midline rows, collars — and the `adorn` block (shell, band and strap
+adornments over everything beneath, each with a signature), baked as pinned parts that follow the dials
+(get_solid_vocab layered). Regions (4) and whiskers (8) on a body are still head-detail operators. Do not
+fake a pass the grammar lacks with hand-placed coordinates — name it pending in the ledger. Read the
+`legibility` and `clearance` ledgers in measure_solid after a detail or adornment pass.
 
 Rules that hold across every pass, whatever the segment:
 

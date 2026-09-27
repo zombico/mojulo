@@ -121,6 +121,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "4fcfc318",
     "title": "mojulo lightning storm",
   },
+  "mall": {
+    "hash": "b82277be",
+    "tier": "T0",
+    "title": "mojulo mall",
+  },
   "mechanics-view": {
     "hash": "d6ec378d",
     "title": "mojulo mechanics",
@@ -200,6 +205,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   "star-birth-view": {
     "hash": "3c64867a",
     "title": "mojulo star birth",
+  },
+  "store": {
+    "hash": "e470672a",
+    "tier": "T0",
+    "title": "mojulo store",
   },
   "subway-building": {
     "hash": "fdd5af97",

@@ -20,6 +20,8 @@ import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { layeredStats } from '@/lib/graph/polygonizer/station-loft-faces';
 import { layeredExposure } from '@/lib/graph/polygonizer/station-loft-exposure';
+import { layeredLegibility } from '@/lib/graph/polygonizer/station-loft-legibility';
+import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
 import { facesToStl, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
@@ -61,7 +63,7 @@ export async function measureSolidHandler(input) {
   let parts = null;
   let warnings;
   let cuts;
-  let exposure;
+  let exposure, legibility, clearance, assembly;
   if (sketch.manifest.kind === 'workbench') {
     const { stats } = planWorkbench(sketch.manifest);
     parts = stats.parts;
@@ -78,7 +80,17 @@ export async function measureSolidHandler(input) {
       const e = layeredExposure(mesh); exposure = { views: e.views, flags: e.flags, buried: e.buried };
       for (const p of parts) { const L = e.parts[p.id]; if (L) p.exposure = { exposed: L.exposed, proud: L.proud, flag: L.flag }; }
       if (e.buried.length) warnings = [...(warnings || []), `buried detail (unseen from every view): ${e.buried.join(', ')}`];
+      // legibility (station-loft-legibility.js): the character height from which each detail family reads, and which
+      // only shimmer at 256 px; clearance (station-loft-clearance.js): worn parts (layer 3) against the body at every
+      // dial extreme. Both advisory, both under the same switch as exposure.
+      const L = layeredLegibility(mesh); legibility = { viewPx: L.viewPx, families: L.families, shimmers: L.shimmers };
+      if (Object.values(m.recipe.parts).some((p) => (p.layer ?? 1) >= 3)) {
+        const C = layeredClearance(m.recipe); clearance = { configs: C.configs, sinking: C.sinking, adornments: C.adornments };
+        for (const id of C.sinking) { const w = C.adornments[id].worst; warnings = [...(warnings || []), `${id} sinks into ${(w.into || []).join(', ')} at ${w.dial ? `${w.dial} ${w.value}` : 'rest'} (${Math.round(w.share * 100)} % of its points)`]; }
+      }
     }
+    // closure is per part: a layered solid is closed parts that overlap where they meet, not one welded solid
+    assembly = 'overlapping closed parts: every part closed, joined by overlap and pins, not one welded solid (the print union is measured below)';
   }
 
   const closure = profile === 'study'
@@ -113,6 +125,9 @@ export async function measureSolidHandler(input) {
     print_profile: profile,
     units,
     ...(exposure ? { exposure } : {}),
+    ...(legibility ? { legibility } : {}),
+    ...(clearance ? { clearance } : {}),
+    ...(assembly ? { assembly } : {}),
     scale,
     scale_note: scaleNote,
     bounds: { min: probe.bounds.min.map(r3), max: probe.bounds.max.map(r3), size: probe.bounds.size.map(r3) },

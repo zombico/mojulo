@@ -70,7 +70,7 @@ export function offsetPath(path, off) {
   });
 }
 
-export function roadRibbons({ path, width = 2.4, lift = 0, deck = 0.4, laneLine = true, edgeLines = false, asphalt = '#333a44', line = '#d9c468', pillars = true, pillarEvery = 5, lanes = 1, bikeLanes = null, surface = 'asphalt' } = {}) {
+export function roadRibbons({ path, width = 2.4, lift = 0, deck = 0.4, laneLine = true, edgeLines = false, asphalt = '#333a44', line = '#d9c468', pillars = true, pillarEvery = 5, lanes = 1, bikeLanes = null, surface = 'asphalt', centreLine = '#c9b85a' } = {}) {
   const z0 = lift > 0 ? lift : 0.03;
   const z1 = lift > 0 ? lift + deck : 0.05;
   // `surface` opts the carriageway into a tiled, multiply-lit texture in the World renderer
@@ -86,7 +86,7 @@ export function roadRibbons({ path, width = 2.4, lift = 0, deck = 0.4, laneLine 
   }
   if (laneLine && lanes >= 2) {                                  // 2-lane road: yellow centre (+ optional white edge lines)
     if (edgeLines) for (const off of [-width * 0.24, width * 0.24]) ribbons.push({ path: offsetPath(path, off), z0: z1 + 0.01, z1: z1 + 0.02, width: Math.max(0.08, width * 0.045), tint: '#d8d2bf' });
-    ribbons.push({ path, z0: z1 + 0.01, z1: z1 + 0.02, width: Math.max(0.08, width * 0.045), tint: '#c9b85a' });
+    ribbons.push({ path, z0: z1 + 0.01, z1: z1 + 0.02, width: Math.max(0.08, width * 0.045), tint: centreLine });
   } else if (laneLine) ribbons.push({ path, z0: z1 + 0.01, z1: z1 + 0.02, width: Math.max(0.12, width * 0.07), tint: line });
   const boxes = [];
   if (lift > 0 && pillars) {
@@ -99,7 +99,7 @@ export function roadRibbons({ path, width = 2.4, lift = 0, deck = 0.4, laneLine 
 }
 
 /** Convenience: a straight ground street (lanes:2 → a 2-lane main with lane markings). */
-export const groundStreet = (a, b, opts = {}) => roadRibbons({ path: straightPath(a, b, opts.n || 4), width: opts.width || 1.6, lift: 0, laneLine: opts.laneLine ?? false, edgeLines: opts.edgeLines ?? false, lanes: opts.lanes || 1, asphalt: opts.asphalt || '#3a414b', bikeLanes: opts.bikeLanes || null, surface: opts.surface });
+export const groundStreet = (a, b, opts = {}) => roadRibbons({ path: straightPath(a, b, opts.n || 4), width: opts.width || 1.6, lift: 0, laneLine: opts.laneLine ?? false, edgeLines: opts.edgeLines ?? false, lanes: opts.lanes || 1, asphalt: opts.asphalt || '#3a414b', bikeLanes: opts.bikeLanes || null, surface: opts.surface, centreLine: opts.centreLine });
 
 /**
  * Airfield pavement — a DEDICATED airport surface primitive, deliberately NOT the urban

@@ -49,7 +49,9 @@ function refineSlot(recipe, part, a, b, name, f = 0.5) {
   const ia = S.indexOf(`${a}R`), ib = S.indexOf(b.endsWith('R') || b.endsWith('L') ? b : b);
   if (ia < 0 || ib < 0 || Math.abs(ia - ib) !== 1) throw new Error(`refineSlot: ${a}R and ${b} must be adjacent in ${part}`);
   const insR = Math.max(ia, ib); S.splice(insR, 0, `${name}R`);
-  const iaL = S.indexOf(`${a}L`), ibL = S.indexOf(b.endsWith('R') ? b.replace(/R$/, 'L') : b); S.splice(Math.max(iaL, ibL), 0, `${name}L`);
+  // the L pair is adjacent in the ring's cyclic order: when it wraps (the midline slot at index 0, its L neighbour last),
+  // the new slot goes after the last slot, not before it (before it the ring would cross itself)
+  const iaL = S.indexOf(`${a}L`), ibL = S.indexOf(b.endsWith('R') ? b.replace(/R$/, 'L') : b); S.splice(Math.abs(iaL - ibL) === S.length - 1 ? S.length : Math.max(iaL, ibL), 0, `${name}L`);
   for (const st of P.stations) { st.points[`${name}R`] = lerp(st.points[`${a}R`], st.points[b], f); st.points[`${name}L`] = lerp(st.points[`${a}L`], st.points[b.endsWith('R') ? b.replace(/R$/, 'L') : b], f); }
   if (P.bandGroups) for (const arr of Object.values(P.bandGroups)) arr.splice(insR - 1, 0, arr[insR - 1]);   // the split band's halves keep its group
   P.slotT[`${name}R`] = slotParam(P, `${a}R`) + (slotParam(P, b) - slotParam(P, `${a}R`)) * f;

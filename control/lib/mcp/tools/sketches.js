@@ -125,7 +125,7 @@ export function registerSketchTools() {
           type: 'object',
           description:
             'Diagram manifest. Required: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. Rendrant resolves construction marks before storage; edges[] and grid are optional. '
-            + "Alternatively `manifest.kind` selects a kind-dispatched manifest with its OWN shape (no stations/marks): `floorplan` (a walkable furnished HOUSE / apartment / one room — `seed` or `rooms[]`, `storeys: N`; card id `floor-plan`), `restaurant`, `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts). Read that kind's sketch_vocab card (`get_sketch_vocab`) for the manifest contract before minting.",
+            + "Alternatively `manifest.kind` selects a kind-dispatched manifest with its OWN shape (no stations/marks): `floorplan` (a walkable furnished HOUSE / apartment / one room — `seed` or `rooms[]`, `storeys: N`; card id `floor-plan`), `restaurant`, `store` / `mall` (a shop or a mall fit out from retail concept cards; card id `store`), `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts). Read that kind's sketch_vocab card (`get_sketch_vocab`) for the manifest contract before minting.",
           properties: {
             title: { type: 'string' },
             viewBox: {

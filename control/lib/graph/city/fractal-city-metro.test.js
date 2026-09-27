@@ -11,6 +11,7 @@ import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { facadeReadHex } from '../architecture/facade-card.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { hexToRgb } from '../polygonizer/vexar.js';
+import { CITY_FLAVORS, normalizeCityFlavor, resolveMintFlavor } from './city-flavors.js';
 
 const FRAME = { x: 2, y: 2, w: 220, d: 140 };
 const metro = (seed, extra = {}) => planFractalCity({ seed, profile: 'metro', anchor: 'tower', region: FRAME, elements: { frontage: true }, ...extra });
@@ -214,3 +215,128 @@ describe('metro profile: materials', () => {
     expect(surfaceTexture('asphalt-aged')).not.toBe(surfaceTexture('asphalt'));
   });
 });
+
+// landmarks: a metro monument stands at its real size (height for a tower; height and ground plan fitted
+// together where the plan is the building), so it can be read against the 3 m storey around it
+const LANDMARK_CANON = ['taj', 'cn-tower', 'skytree', 'rogers-centre', 'colosseum', 'arena', 'great-pyramid', 'louvre-pyramid', 'mexican-pyramid', 'petronas-towers', 'big-ben', 'stonehenge', 'chinatown-gate', 'arc-de-triomphe', 'parthenon', 'griffith-observatory', 'washington-monument', 'parliament-hill', 'mobile-edm-hall', 'eiffel-tower', 'tokyo-tower', 'empire-state-building', 'gateway-arch', 'cloud-gate', 'statue-of-liberty', 'rizal-monument'];
+const withLandmark = (landmark, seed = 7) => metro(seed, { landmark, anchor: null });
+const landmarkBoxes = (p) => p.boxes.filter((b) => b.class === 'landmark');
+describe('metro profile: landmarks at their real size', () => {
+  it('the stock city keeps its demo-frame monument', () => {
+    const [b] = landmarkBoxes(planFractalCity({ seed: 7, landmark: 'eiffel-tower' }));
+    expect(b.w).toBeCloseTo(18 * 0.3, 9);                    // LANDMARK_FOOTPRINT × the default frame's short side
+    expect(planFractalCity({ seed: 7, landmark: 'eiffel-tower' }).stats.landmarkSizes).toBeUndefined();
+  });
+  it('a tower stands at its real height', () => {
+    for (const [shape, m] of [['cn-tower', 553.3], ['eiffel-tower', 330], ['tokyo-tower', 332.9], ['petronas-towers', 451.9], ['washington-monument', 169.3], ['statue-of-liberty', 93]]) {
+      const p = withLandmark(shape), [b] = landmarkBoxes(p);
+      expect(b.z1 * CITY_METERS_PER_UNIT).toBeCloseTo(m, 0);
+      expect(p.stats.landmarkSizes[0]).toMatchObject({ shape, fit: 1 });
+    }
+  });
+  it('a building whose plan is the landmark fits its height and its plan together', () => {
+    for (const [shape, h, long, tol] of [['empire-state-building', 443.2, 129, 0.1], ['great-pyramid', 146.6, 230.3, 0.05], ['colosseum', 48, 189, 0.25]]) {
+      const [b] = landmarkBoxes(withLandmark(shape)), M = CITY_METERS_PER_UNIT;
+      expect(Math.abs(Math.log((b.z1 * M) / h))).toBeLessThan(Math.log(1 + tol));
+      expect(Math.abs(Math.log((Math.max(b.w, b.d) * M) / long))).toBeLessThan(Math.log(1 + tol));
+    }
+  });
+  it('every landmark fits the default metro frame at full size, ringed by a real forecourt', () => {
+    for (const shape of LANDMARK_CANON) {
+      const p = withLandmark(shape), plaza = p.grounds.find((g) => g.kind === 'landmark-plaza'), [b] = landmarkBoxes(p);
+      expect(p.stats.landmarkSizes[0].fit).toBe(1);
+      expect(plaza.w - b.w).toBeLessThanOrEqual(12 + 1e-9);   // ≤ 6 u (22 m) each side, not a quarter of the cluster
+    }
+  });
+  it('the skyline preset holds the tallest landmark from base to tip; the street eye stands on the avenue that flanks it', () => {
+    for (const landmark of ['cn-tower', ['cn-tower', 'rogers-centre'], 'eiffel-tower', 'great-pyramid', 'colosseum', 'empire-state-building']) {
+      const recipe = { seed: 7, profile: 'metro', landmark, region: FRAME }, p = withLandmark(landmark);
+      const [street, , sky] = fractalCityCameras(recipe).map((c) => c.worldFraming);
+      const top = landmarkBoxes(p).reduce((a, b) => (b.z1 > a.z1 ? b : a));
+      const at = [top.x + top.w / 2, top.y + top.d / 2], cam = sky.cameraPosition;
+      const dist = Math.hypot(at[0] - cam[0], at[1] - cam[1]), look = Math.atan2(sky.lookAt[2] - cam[2], Math.hypot(sky.lookAt[0] - cam[0], sky.lookAt[1] - cam[1]));
+      const half = Math.atan(Math.tan((sky.horizontalFov * Math.PI) / 360) / (1120 / 780));
+      expect(Math.atan2(top.z1 - cam[2], dist) - look).toBeLessThan(half);
+      expect(look - Math.atan2(-cam[2], dist)).toBeLessThan(half);
+      const [ex, ey] = street.cameraPosition;
+      const onAvenue = p.ribbons.some((r) => r.width === METRO.street.major && Math.abs(r.path[0][1] - r.path.at(-1)[1]) < 1e-9 && Math.abs(r.path[0][1] - ey) < METRO.street.major / 2 + METRO.walk.major);
+      expect(onAvenue).toBe(true);
+      const inCarriageway = p.ribbons.filter((r) => r.texture).some((r) => {   // a straight street: within its span and its half-width
+        const [[x0, y0], [x1, y1]] = [r.path[0], r.path.at(-1)], h = r.width / 2;
+        return Math.abs(y0 - y1) < 1e-9 ? ex >= Math.min(x0, x1) && ex <= Math.max(x0, x1) && Math.abs(ey - y0) < h : ey >= Math.min(y0, y1) && ey <= Math.max(y0, y1) && Math.abs(ex - x0) < h;
+      });
+      expect(inCarriageway).toBe(false);
+      expect(p.boxes.filter((b) => MASS.has(b.kind) || b.class === 'landmark').some((b) => ex > b.x && ex < b.x + b.w && ey > b.y && ey < b.y + b.d)).toBe(false);
+    }
+  });
+  it('the band a plaza leaves against the frame edge is cut into blocks, not one 550 m block', () => {
+    const p = withLandmark('great-pyramid');
+    const courts = p.grounds.filter((g) => g.kind === 'lot-asphalt' || String(g.kind).startsWith('leftover'));
+    for (const g of courts) expect(Math.max(g.w, g.d)).toBeLessThan(80);
+  });
+});
+
+// flavours: one seed under a regional architecture (city-flavors.js). The dials move, the city's
+// skeleton is the kernel's own, and a recipe without one is today's metro city.
+const flavored = (flavor, seed = 7) => metro(seed, { flavor });
+const masses = (p) => p.boxes.filter((b) => b.metro && ['building', 'anchor', 'midtower'].includes(b.kind));
+const share = (xs, f) => xs.filter(f).length / xs.length;
+describe('metro profile: regional flavours', () => {
+  it('no flavour is north-american is today; the stock city ignores a flavour', () => {
+    const na = flavored('north-american'), sansFlavor = (p) => JSON.stringify({ ...p, stats: { ...p.stats, flavor: undefined } });
+    expect(na.stats.flavor).toBe('north-american');
+    expect(sansFlavor(na)).toBe(JSON.stringify(PLANS[1]));
+    expect(JSON.stringify(flavored('atlantis'))).toBe(JSON.stringify(PLANS[1]));   // unknown ⇒ none
+    expect(JSON.stringify(planFractalCity({ seed: 7, anchor: 'tower', flavor: 'paris' }))).toBe(JSON.stringify(planFractalCity({ seed: 7, anchor: 'tower' })));
+    expect(PLANS[1].stats.flavor).toBeUndefined();
+  });
+  it('Paris: cut stone under zinc mansards at one cornice line, no towers, white lines', () => {
+    const p = flavored('paris'), ms = masses(p).filter((b) => b.kind === 'building');
+    expect(p.stats.flavor).toBe('paris');
+    expect(share(ms, (b) => b.skin.material === 'stone')).toBeGreaterThan(0.85);
+    expect(ms.some((b) => b.tower)).toBe(false);
+    for (const b of ms) expect(b.z1).toBeLessThanOrEqual(CITY_FLAVORS.paris.height.cap + 0.13);
+    expect(share(ms, (b) => b.skin.roofCap && b.skin.roofCap.form === 'mansard')).toBeGreaterThan(0.7);
+    expect(share(ms, (b) => b.skin.balcony && b.skin.balconyType === 'continuous')).toBeGreaterThan(0.6);
+    expect(p.ribbons.some((r) => r.tint === CITY_FLAVORS.paris.street.centreLine)).toBe(true);
+    expect(PLANS[1].ribbons.some((r) => r.tint === CITY_FLAVORS.paris.street.centreLine)).toBe(false);
+  });
+  it('New York: a wooden tank on most roofs over six storeys, fire escapes on the brick', () => {
+    const ms = masses(flavored('new-york')).filter((b) => !b.tower && b.kind === 'building');
+    expect(share(ms.filter((b) => b.floors >= 6), (b) => b.skin.kit && b.skin.kit.includes('wood-tank'))).toBeGreaterThan(0.6);
+    expect(ms.some((b) => b.floors < 6 && b.skin.kit)).toBe(false);
+    expect(share(ms.filter((b) => b.skin.material === 'brick'), (b) => b.skin.fireEscape)).toBeGreaterThan(0.7);
+  });
+  it('Tokyo: narrower lots than the default, no brick, blade signs on the mid-rise', () => {
+    const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+    const front = (p) => median(masses(p).filter((b) => !b.tower && b.kind === 'building').map((b) => Math.min(b.w, b.d)));
+    const tokyo = flavored('tokyo'), ms = masses(tokyo);
+    expect(front(tokyo)).toBeLessThan(front(PLANS[1]));
+    expect(ms.some((b) => b.skin.material === 'brick')).toBe(false);
+    expect(share(ms.filter((b) => b.floors >= 3 && b.floors <= 10 && !b.tower), (b) => b.skin.blades)).toBeGreaterThan(0.4);
+  });
+  it('the Mediterranean: render under terracotta, low and even', () => {
+    const ms = masses(flavored('mediterranean')).filter((b) => b.kind === 'building');
+    expect(share(ms, (b) => b.skin.material === 'stone')).toBeGreaterThan(0.85);
+    expect(share(ms, (b) => b.skin.roofCap && b.skin.roofCap.form === 'hip')).toBeGreaterThan(0.5);
+    expect(share(ms, (b) => b.z1 <= CITY_FLAVORS.mediterranean.height.cap + 0.13 || b.tower)).toBe(1);
+  });
+  it('every flavour plans a whole city, and a roof cap never rides a tower', () => {
+    for (const flavor of Object.keys(CITY_FLAVORS)) {
+      const p = flavored(flavor), ms = masses(p);
+      expect(ms.length).toBeGreaterThan(200);
+      for (const b of ms) if (b.tower || b.kind === 'anchor') expect(b.skin.roofCap).toBeUndefined();
+    }
+  });
+  it('names resolve by city and country, and the mint-time resolver is pure', () => {
+    expect(normalizeCityFlavor('New York')).toBe('new-york');
+    expect(normalizeCityFlavor('Buenos Aires')).toBe('latin-american');
+    expect(normalizeCityFlavor('São Paulo')).toBe('latin-american');
+    expect(normalizeCityFlavor('atlantis')).toBeNull();
+    expect(resolveMintFlavor({ flavor: 'rome' })).toBe('mediterranean');
+    expect(resolveMintFlavor({ landmarks: ['eiffel-tower'] })).toBe('paris');
+    expect(resolveMintFlavor({ region: 'east-asia', seed: 9 })).toBe('tokyo');
+    expect(resolveMintFlavor({ seed: 42 })).toBe(resolveMintFlavor({ seed: 42 }));
+  });
+});
+

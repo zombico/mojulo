@@ -1,0 +1,484 @@
+{
+  "front": {
+    "nasion": [
+      307,
+      246
+    ],
+    "tip": [
+      309,
+      315
+    ],
+    "columella": [
+      308,
+      322
+    ],
+    "lipSeam": [
+      308,
+      346
+    ],
+    "lipLower": [
+      308,
+      352
+    ],
+    "chinBottom": [
+      306,
+      399
+    ],
+    "browInnerL": [
+      285,
+      225
+    ],
+    "browMidL": [
+      246,
+      219
+    ],
+    "browOuterL": [
+      226,
+      230
+    ],
+    "eyeInnerL": [
+      282,
+      256
+    ],
+    "eyeTopL": [
+      260,
+      243
+    ],
+    "eyeOuterL": [
+      234,
+      254
+    ],
+    "eyeBottomL": [
+      260,
+      269
+    ],
+    "eyeCenterL": [
+      260,
+      256
+    ],
+    "cheekboneL": [
+      221,
+      302
+    ],
+    "cheekL": [
+      237,
+      352
+    ],
+    "jawFrontL": [
+      265,
+      390
+    ],
+    "chinSideL": [
+      281,
+      397
+    ],
+    "noseWingL": [
+      292,
+      315
+    ],
+    "nostrilL": [
+      299,
+      320
+    ],
+    "mouthCornerL": [
+      277,
+      344
+    ],
+    "earTopL": [
+      185,
+      245
+    ],
+    "earUpperL": [
+      175,
+      258
+    ],
+    "earOuterL": [
+      179,
+      286
+    ],
+    "earLowerL": [
+      191,
+      312
+    ],
+    "earLobeL": [
+      203,
+      321
+    ],
+    "earRootL": [
+      209,
+      282
+    ],
+    "browInnerR": [
+      332,
+      225
+    ],
+    "browMidR": [
+      370,
+      219
+    ],
+    "browOuterR": [
+      389,
+      230
+    ],
+    "eyeInnerR": [
+      333,
+      256
+    ],
+    "eyeTopR": [
+      358,
+      244
+    ],
+    "eyeOuterR": [
+      382,
+      256
+    ],
+    "eyeBottomR": [
+      358,
+      270
+    ],
+    "eyeCenterR": [
+      357,
+      257
+    ],
+    "cheekboneR": [
+      396,
+      302
+    ],
+    "cheekR": [
+      379,
+      352
+    ],
+    "jawFrontR": [
+      346,
+      390
+    ],
+    "chinSideR": [
+      329,
+      397
+    ],
+    "noseWingR": [
+      324,
+      315
+    ],
+    "nostrilR": [
+      316,
+      320
+    ],
+    "mouthCornerR": [
+      338,
+      344
+    ],
+    "earTopR": [
+      419,
+      246
+    ],
+    "earUpperR": [
+      429,
+      260
+    ],
+    "earOuterR": [
+      423,
+      286
+    ],
+    "earLowerR": [
+      411,
+      312
+    ],
+    "earLobeR": [
+      401,
+      321
+    ],
+    "earRootR": [
+      404,
+      282
+    ],
+    "glabella": [
+      307,
+      229
+    ],
+    "bridge": [
+      307,
+      287
+    ],
+    "chinFront": [
+      307,
+      391
+    ]
+  },
+  "three-quarter": {
+    "nasion": [
+      379,
+      251
+    ],
+    "tip": [
+      406,
+      322
+    ],
+    "columella": [
+      395,
+      330
+    ],
+    "lipSeam": [
+      383,
+      355
+    ],
+    "lipLower": [
+      382,
+      360
+    ],
+    "chinBottom": [
+      377,
+      408
+    ],
+    "browInnerL": [
+      369,
+      234
+    ],
+    "browMidL": [
+      338,
+      224
+    ],
+    "browOuterL": [
+      299,
+      239
+    ],
+    "eyeInnerL": [
+      363,
+      267
+    ],
+    "eyeTopL": [
+      339,
+      250
+    ],
+    "eyeOuterL": [
+      310,
+      264
+    ],
+    "eyeBottomL": [
+      340,
+      277
+    ],
+    "eyeCenterL": [
+      343,
+      264
+    ],
+    "cheekboneL": [
+      266,
+      306
+    ],
+    "cheekL": [
+      282,
+      367
+    ],
+    "jawFrontL": [
+      337,
+      402
+    ],
+    "chinSideL": [
+      355,
+      407
+    ],
+    "noseWingL": [
+      376,
+      322
+    ],
+    "mouthCornerL": [
+      354,
+      352
+    ],
+    "earTopL": [
+      205,
+      251
+    ],
+    "earUpperL": [
+      187,
+      265
+    ],
+    "earOuterL": [
+      185,
+      294
+    ],
+    "earLowerL": [
+      199,
+      320
+    ],
+    "earLobeL": [
+      216,
+      333
+    ],
+    "earRootL": [
+      237,
+      300
+    ],
+    "browInnerR": [
+      402,
+      234
+    ],
+    "browMidR": [
+      420,
+      230
+    ],
+    "browOuterR": [
+      435,
+      236
+    ],
+    "eyeInnerR": [
+      400,
+      267
+    ],
+    "eyeTopR": [
+      418,
+      254
+    ],
+    "eyeOuterR": [
+      432,
+      266
+    ],
+    "eyeBottomR": [
+      417,
+      279
+    ],
+    "eyeCenterR": [
+      417,
+      266
+    ],
+    "mouthCornerR": [
+      405,
+      353
+    ],
+    "chinSideR": [
+      392,
+      406
+    ],
+    "glabella": [
+      381,
+      231
+    ],
+    "bridge": [
+      394,
+      293
+    ],
+    "chinFront": [
+      381,
+      403
+    ]
+  },
+  "profile": {
+    "nasion": [
+      408,
+      253
+    ],
+    "tip": [
+      434,
+      327
+    ],
+    "columella": [
+      415,
+      339
+    ],
+    "lipSeam": [
+      413,
+      362
+    ],
+    "lipLower": [
+      411,
+      369
+    ],
+    "chinFront": [
+      400,
+      405
+    ],
+    "chinBottom": [
+      392,
+      414
+    ],
+    "browInnerL": [
+      410,
+      240
+    ],
+    "browMidL": [
+      391,
+      233
+    ],
+    "browOuterL": [
+      366,
+      244
+    ],
+    "eyeInnerL": [
+      400,
+      274
+    ],
+    "eyeTopL": [
+      389,
+      262
+    ],
+    "eyeOuterL": [
+      372,
+      272
+    ],
+    "eyeBottomL": [
+      390,
+      285
+    ],
+    "eyeCenterL": [
+      393,
+      273
+    ],
+    "cheekboneL": [
+      286,
+      298
+    ],
+    "cheekL": [
+      295,
+      373
+    ],
+    "jawAngleL": [
+      282,
+      372
+    ],
+    "jawFrontL": [
+      355,
+      407
+    ],
+    "chinSideL": [
+      380,
+      414
+    ],
+    "mouthCornerL": [
+      392,
+      360
+    ],
+    "earTopL": [
+      244,
+      247
+    ],
+    "earUpperL": [
+      225,
+      258
+    ],
+    "earOuterL": [
+      220,
+      285
+    ],
+    "earLowerL": [
+      235,
+      316
+    ],
+    "earLobeL": [
+      256,
+      332
+    ],
+    "earRootL": [
+      276,
+      296
+    ],
+    "glabella": [
+      411,
+      235
+    ],
+    "bridge": [
+      420,
+      296
+    ]
+  }
+}

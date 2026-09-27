@@ -784,6 +784,18 @@ describe('fractal-city landmark anchor', () => {
     const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'rizal' });
     expect(scene.faces.length).toBeGreaterThan(400);
   });
+  it('places the Tian Tan Buddha, by name or alias, as a reserved monument', () => {
+    for (const name of ['tian-tan-buddha', 'big-buddha', 'tian-tan']) {
+      const { boxes, grounds, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: name });
+      const lm = boxes.find((b) => b.class === 'landmark');
+      expect(stats.landmarks).toBe(1);
+      expect(lm.shape).toBe(name);
+      expect(Math.abs(lm.w - lm.d)).toBeLessThan(1e-9);   // the round altar on a square plot
+      expect(grounds.some((g) => g.kind === 'landmark-plaza')).toBe(true);
+    }
+    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'tian-tan-buddha' });
+    expect(scene.faces.length).toBeGreaterThan(0);
+  });
 
   it('places and renders the Great Pyramid as a broad low landmark', () => {
     const { boxes, stats } = planFractalCity({ seed: 11, anchor: 'tower', landmark: 'great-pyramid' });

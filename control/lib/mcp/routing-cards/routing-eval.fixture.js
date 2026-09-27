@@ -67,6 +67,17 @@ export const FIXTURE = [
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'mint_solid'],
   ['a boxy pixel knight that walks and exports skinned', 'mint_solid'],
+  // hero tune: proportion by word and percentage on an existing hero (hero-tune)
+  ['make her shoulders broader and her legs a bit longer', 'mint_solid'],
+  ['a stockier version of the same hero, fuller arms and thighs', 'mint_solid'],
+  ['tune my character\'s body proportions by percent, smaller head', 'mint_solid'],
+  // face tune: the face proportion lab's words on the hero's fitted head (face-tune)
+  ['give my hero a broader jaw and larger eyes', 'mint_solid'],
+  ['a longer face with a smaller nose and a bob haircut on the same character', 'mint_solid'],
+  // hair library: a hairstyle by word and its controls (hair-library)
+  ['give my hero an undercut, then try a ponytail with a longer tail', 'mint_solid'],
+  // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
+  ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

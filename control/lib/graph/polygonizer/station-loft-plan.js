@@ -19,6 +19,9 @@
  *     { name, kind: 'trunk',   slots?, stations: [{ z, r, yc?, e? }], caps: { back, tip }, group, tint, mirror: 'plane' },
  *     { name, kind: 'segment', from, to, rA, rB, slots?, e?, over?, mid?, rMid?, group, tint, mirror: 'plane' | 'name' | null, bind? },
  *     { name, kind: 'chain',   joints: [names], r: [radii], over: { first, last, inner }, group, tint, mirror: 'plane', bind? },
+ *     { name, kind: 'loft',    stations: [{ at: [x, y, z], r, e? }], caps?: { back, tip }, slots?, e?, group, tint, mirror: 'plane' | 'name' | null, bind? },
+ *       // explicit stations along a polyline, each ring ⟂ the local direction: a thigh that starts at the hip crest
+ *       // and carries the pelvis with it, a limb that bends; caps default to a pinch beyond the end rings
  *   ],
  *   include?: [ { name, parts, dials?, creases?, palette?, shift: [x, y, z] } ],   // a baked layered fragment worn at a shift
  *   heads?: [ { name, plan, expression?, on: <joint> (its `nape` landmark sits there) | shift: [x, y, z], at?: <landmark>, bind? } ],
@@ -26,6 +29,11 @@
  *     // (`<part>.back|tip` caps, `<hinge dial>.pivot`, its landmarks) that rig joints name as `at: '<head>.<anchor>'`
  *   details?: [ { name, kind: 'claw', base, dir, length, radius, pin, group, tint, stretch?, mirror? } ],
  *   dials: { <name>: <dial spec> | { op: 'include', name } },  // `parts` entries may carry `$S` (→ R then L)
+ *   body?: { refine, volume, creases, tiles, pads, spurs, rows, collars, rigid },   // BODY DETAIL passes (station-loft-body.js):
+ *                                                              //   density, masses, bend creases, rigid tiles, pads, rows, collars,
+ *                                                              //   baked as pinned L2 parts on the refined rest L1
+ *   adorn?: [ { id, mode: 'shell' | 'band' | 'strap', part, …, signature: { kind, … } } ],   // ADORNMENT (station-loft-adorn.js):
+ *                                                              //   worn over the detailed figure, baked as pinned L3 parts
  *   creases?, palette?, rig?, clips?,                          // rig joints / bones may carry `$S` and `perSide` blocks
  * }
  *
@@ -41,6 +49,8 @@
 import { compileLayered, pinFrame, surfaceLocalOffset, mirrorPid, mirrorFaceId } from './station-loft.js';
 import { headFromPlan, resolveExpression, insidePart } from './station-loft-head.js';
 import { bakeLayered } from './station-loft-detail.js';
+import { bakeBody, validateBody } from './station-loft-body.js';
+import { bakeAdorn, validateKit } from './station-loft-adorn.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -62,7 +72,7 @@ export const SLOT_FAMILIES = {
 };
 const STYLE_KEYS = ['slots', 'limbSlots', 'e'];
 export const PLAN_SCHEMA = 'layered-plan-v1';
-const SEGMENT_KINDS = ['trunk', 'segment', 'chain'];
+const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft'];
 const DETAIL_KINDS = ['claw'];
 
 // ── ring geometry (the seeds' rules, verbatim) ──
@@ -89,6 +99,15 @@ export function segmentPart(A, B, rA, rB, { slots = SLOT_FAMILIES.limb6, e = 2, 
 /** Explicit stations for a midline trunk: [{ z, r: [rx, ry], yc, e }] along +z. */
 export function trunkPart(stations, caps, slots = SLOT_FAMILIES.ring8, e = 2) {
   return { slots, stations: stations.map((s, i) => ({ id: `st${i}`, points: ringPoints([0, s.yc ?? 0, s.z], [0, 0, 1], s.r, slots, s.e ?? e) })), caps };
+}
+/** A loft along a polyline of explicit stations: each ring ⟂ the local direction at its centre (the chord between its
+ * neighbours), caps pinched beyond the end rings unless given. */
+export function loftPart(stations, caps, slots = SLOT_FAMILIES.limb6, e = 2) {
+  const C = stations.map((s) => s.at); const n = C.length; const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
+  const dirAt = (i) => unit(sub(C[Math.min(i + 1, n - 1)], C[Math.max(i - 1, 0)]));
+  const sts = stations.map((s, i) => ({ id: `st${i}`, points: ringPoints(s.at, dirAt(i), s.r, slots, s.e ?? e) }));
+  const back = caps?.back ?? add(C[0], mul(dirAt(0), -0.45 * rad(stations[0].r))), tip = caps?.tip ?? add(C[n - 1], mul(dirAt(n - 1), 0.45 * rad(stations[n - 1].r)));
+  return { slots, stations: sts, caps: { back, tip } };
 }
 /** Finish an L1 part: round every coordinate; a midline part (`mirrorPlane: 'x'`) takes its left half from the
  * rounded right half by name, so the figure's mirror symmetry is exact after rounding. */
@@ -169,6 +188,7 @@ export function validatePlan(plan) {
     if (seg.kind === 'trunk') { claim(seg.name, 'a trunk'); if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`trunk '${seg.name}' needs at least two stations`); for (const s of seg.stations) if (!Number.isFinite(s.z) || s.r == null) fail(`trunk '${seg.name}': every station needs z and r`); if (!seg.caps || !isVec(seg.caps.back) || !isVec(seg.caps.tip)) fail(`trunk '${seg.name}' needs caps { back, tip }`); if (seg.mirror === 'name') fail(`trunk '${seg.name}' is a midline part; mirror 'name' is for a side part`); }
     const midline = (n, seg) => { if (Math.abs(joint(n, seg)[0]) > 1e-9) fail(`segment '${seg.name}' mirrors in the plane, so joint '${n}' must sit on x = 0 (a side part mirrors by 'name')`); };
     if (seg.kind === 'segment') { claim(seg.name, 'a segment'); joint(seg.from, seg); joint(seg.to, seg); if (seg.rA == null || seg.rB == null) fail(`segment '${seg.name}' needs rA and rB`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`segment '${seg.name}' mirrors by name, so its name must end in R or L`); if (seg.mirror === 'plane') { midline(seg.from, seg); midline(seg.to, seg); } }
+    if (seg.kind === 'loft') { claim(seg.name, 'a loft'); if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`loft '${seg.name}' needs at least two stations`); for (const s of seg.stations) if (!isVec(s.at) || s.r == null) fail(`loft '${seg.name}': every station needs at [x, y, z] and r`); if (seg.caps && !(isVec(seg.caps.back) && isVec(seg.caps.tip))) fail(`loft '${seg.name}' caps need back and tip`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`loft '${seg.name}' mirrors by name, so its name must end in R or L`); if (seg.mirror === 'plane') for (const s of seg.stations) if (Math.abs(s.at[0]) > 1e-9) fail(`loft '${seg.name}' mirrors in the plane, so every station must sit on x = 0`); }
     if (seg.kind === 'chain') { if (!Array.isArray(seg.joints) || seg.joints.length < 2) fail(`chain '${seg.name}' needs at least two joints`); seg.joints.forEach((j) => joint(j, seg)); if (!Array.isArray(seg.r) || seg.r.length !== seg.joints.length) fail(`chain '${seg.name}' needs one radius per joint`); for (let i = 0; i + 1 < seg.joints.length; i++) claim(`${seg.name}${i}`, 'a chain link'); if (seg.mirror === 'name') fail(`chain '${seg.name}' is a midline part; mirror 'name' is for a side part`); if (seg.mirror === 'plane') seg.joints.forEach((j) => midline(j, seg)); }
   }
   for (const inc of includesOf(plan)) { if (!inc.name || !inc.parts || typeof inc.parts !== 'object') fail('every include needs { name, parts, shift }'); if (!isVec(inc.shift)) fail(`include '${inc.name}' needs shift [x, y, z]`); for (const n of Object.keys(inc.parts)) claim(n, `include '${inc.name}' part`); }
@@ -179,6 +199,8 @@ export function validatePlan(plan) {
     if (!det.pin || !names.has(det.pin.parent) || typeof det.pin.face !== 'string' || !Array.isArray(det.pin.weights) || !Array.isArray(det.pin.tangentEdge)) fail(`claw '${det.name}' needs pin { parent (a segment), face, weights, tangentEdge, handedness }`);
     if (det.stretch != null && !(plan.dials && plan.dials[det.stretch]?.op === 'stretch')) fail(`claw '${det.name}' names stretch dial '${det.stretch}', which must be declared with op 'stretch'`);
   }
+  if (plan.body != null && (typeof plan.body !== 'object' || Array.isArray(plan.body))) fail('body must be an object of detail passes { refine?, volume?, creases?, tiles?, pads?, spurs?, rows?, collars? } (station-loft-body.js)');
+  if (plan.adorn != null && !Array.isArray(plan.adorn)) fail('adorn must be a list of adornments [{ id, mode, part, …, signature }] (station-loft-adorn.js)');
   for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !includesOf(plan).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
   return true;
 }
@@ -196,8 +218,8 @@ export function expandPlan(plan) {
   for (const seg of plan.segments) {
     const look = { group: seg.group, tint: seg.tint, mirrorPlane: seg.mirror === 'plane' ? 'x' : undefined };
     if (seg.kind === 'trunk') place(seg.name, finish(trunkPart(seg.stations, seg.caps, slotsOf(seg, 'slots'), eOf(seg)), look), seg, seg.bind);
-    else if (seg.kind === 'segment') {
-      const raw = segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots: slotsOf(seg, 'limbSlots'), e: eOf(seg), over: seg.over, mid: seg.mid, rMid: seg.rMid });
+    else if (seg.kind === 'segment' || seg.kind === 'loft') {
+      const raw = seg.kind === 'loft' ? loftPart(seg.stations, seg.caps, slotsOf(seg, 'limbSlots'), eOf(seg)) : segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots: slotsOf(seg, 'limbSlots'), e: eOf(seg), over: seg.over, mid: seg.mid, rMid: seg.rMid });
       const right = finish(raw, look); place(seg.name, right, seg, seg.bind);
       if (seg.mirror === 'name') { const left = mirrorPart(right); parts[mirrorPartName(seg.name)] = left; const b = resolveBind(seg.bind, seg.name); if (b !== undefined) left.bind = mirrorBind(b); }
     } else if (seg.kind === 'chain') {
@@ -268,6 +290,18 @@ export function expandPlan(plan) {
         if (det.stretch) { const d = dials[det.stretch]; d.parts = [...(d.parts || []), det.name, ...(det.mirror ? [det.mirror] : [])]; }
       }
     }
+  }
+  // body detail, then adornment: the dragon's passes as data, baked as pinned parts on the refined rest carrier (a
+  // pinned part inherits its pin face's weights; refinement extends the bind blends so skinning is unchanged)
+  if (plan.body || plan.adorn) {
+    const errs = [...(plan.body ? validateBody(plan.body, recipe.parts) : []), ...(plan.adorn ? validateKit(plan.adorn, recipe.parts) : [])];
+    if (errs.length) fail(errs.join('; '));
+    const source = JSON.parse(JSON.stringify(recipe)); let fig;
+    try {
+      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts }; }
+      else fig = { mesh: compileLayered(recipe, {}), parts: {} };
+      if (plan.adorn?.length) bakeAdorn(recipe, fig, plan.adorn, { source });
+    } catch (err) { fail(`${plan.body && plan.adorn ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }
   }
   // rig: joints and bones may carry `$S`; a `perSide` bone block expands to its R bones then its L bones
   if (plan.rig) {

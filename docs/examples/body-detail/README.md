@@ -2,8 +2,15 @@
 
 The [head detail example](../head-detail/README.md) grew detail from the skin and articulated a face. This example
 applies the same principles one scale over, to the [dragon body](../dragon-body/README.md)'s segments. It is a
-post-compile layer over the body recipe, through the core detail operators (`station-loft-detail.js`); it never
-edits the recipe.
+post-compile layer over the body recipe; it never edits the recipe.
+
+The passes are core since the hero became their second body: `control/lib/graph/polygonizer/station-loft-body.js`
+holds them species-free, and `body-detail.mjs` is the dragon's BODY DATA over them (the lift was byte-identical). The
+hero wears the same passes with its own parameters (`hero-dress.js`, `detail: 'clothed'`), baked into its recipe
+through the plan's `body` block, so there they ride the dials and the rig. Two core fixes came with the second body
+and changed this example's render (not a stored recipe): a refined ring's left-side slot next to the front midline
+was inserted before its neighbour instead of after it (a fold on every refined left limb), and a pad's inner faces
+now keep their `PadInner` group.
 
 ## The fact it is built on
 
@@ -36,8 +43,8 @@ blends with the neighbouring bone, its middle belongs to its own bone. Every pas
 `test-body-detail.mjs`: closure at rest and posed; determinism and a pose-independent detail set; the rigid rule;
 the palm pad faces the flex direction; claws clear the hands at full grip.
 
-Not certified: the limb creases are faint at rest (shallow bends); forearm and thigh scale patches are small (the
-rigid zone of a 3-station limb is its middle); no second body uses the passes yet.
+Not certified: the limb creases are faint at rest (shallow bends; a `floor` in the data raises them, the hero's
+sleeve folds use one); forearm and thigh scale patches are small (the rigid zone of a 3-station limb is its middle).
 
 ## Reproduce
 

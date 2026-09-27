@@ -107,15 +107,24 @@ export function pinFrame(parent, pin) {
   return { origin: mean([f.origin, g.origin]), tangent, bitangent, normal, handedness: 1, symmetric: true };
 }
 
-function applyDial(op, name, d, built, recipe) {
+/** FOLLOWERS of a parent part: pinned parts with `follow`, placed on the parent's rest frame, each carrying its
+ * pin face's vertex ids (so a dial reads the surface's own weight under the pin). */
+const followersOf = (follow, parentName) => follow?.[parentName] || [];
+function applyDial(op, name, d, built, recipe, follow) {
   const parts = (op.parts || []).map((p) => { if (!built[p]) throw new Error(`station-loft: dial '${name}' names unknown part '${p}'`); return built[p]; });
   if (op.op === 'scale' || op.op === 'offset') {
     const ax = AXIS[op.axis]; if (ax === undefined) throw new Error(`station-loft: dial '${name}' axis must be x|y|z`);
     const blend = op.blend || {}; const pivot = Number.isFinite(op.pivot) ? op.pivot : 0; const slots = op.slots ? new Set(op.slots) : null;
+    const move = (p, w) => { const q = [...p]; q[ax] = op.op === 'scale' ? pivot + (q[ax] - pivot) * (1 + (d - 1) * w) : q[ax] + d * w; return q; };
     for (const part of parts) for (const [id, p] of Object.entries(part.points)) {
       const w = blend[stationOf(id)] ?? 0; if (!w) continue;
       if (slots && !slots.has(slotOf(id))) continue;
-      const q = [...p]; q[ax] = op.op === 'scale' ? pivot + (q[ax] - pivot) * (1 + (d - 1) * w) : q[ax] + d * w; part.points[id] = q;
+      part.points[id] = move(p, w);
+    }
+    // a follower moves as the surface under its pin: the pin's barycentric blend of its face's vertex weights
+    for (const pn of op.parts || []) for (const F of followersOf(follow, pn)) {
+      const w = F.face.reduce((s, id, k) => s + F.weights[k] * ((slots && !slots.has(slotOf(id))) ? 0 : (blend[stationOf(id)] ?? 0)), 0); if (!w) continue;
+      for (const [id, p] of Object.entries(F.part.points)) F.part.points[id] = move(p, w);
     }
   } else if (op.op === 'hinge' || op.op === 'chain') {
     if (d === 0) return; const ax = AXIS[op.axis]; if (ax === undefined) throw new Error(`station-loft: ${op.op} '${name}' axis must be x|y|z`);
@@ -125,13 +134,17 @@ function applyDial(op, name, d, built, recipe) {
       const chain = (link.parts || []).map((n) => { const part = built[n]; if (!part) throw new Error(`station-loft: ${op.op} '${name}' names unknown part '${n}'`); return part; });
       const h = built[link.pivot?.split('/')[0]]?.points?.[link.pivot]; if (!h) throw new Error(`station-loft: ${op.op} '${name}' pivot '${link.pivot}' is not a point`);
       const a = (op.sign ?? 1) * d * (link.weight ?? 1) * Math.PI / 180; const c = Math.cos(a), s = Math.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3]; const hp = [...h];   // the pivot is read once per link: a link may contain its own pivot's part
-      for (const part of chain) for (const [id, p] of Object.entries(part.points)) { const u = p[i] - hp[i], v = p[j] - hp[j]; const q = [...p]; q[i] = hp[i] + u * c - v * s; q[j] = hp[j] + u * s + v * c; part.points[id] = q; }
+      const riders = (link.parts || []).flatMap((n) => followersOf(follow, n).map((F) => F.part));   // followers turn with their parent
+      for (const part of [...chain, ...riders]) for (const [id, p] of Object.entries(part.points)) { const u = p[i] - hp[i], v = p[j] - hp[j]; const q = [...p]; q[i] = hp[i] + u * c - v * s; q[j] = hp[j] + u * s + v * c; part.points[id] = q; }
     }
   } else if (op.op !== 'stretch') throw new Error(`station-loft: dial '${name}' has unknown op '${op.op}'`);
 }
 
 /**
  * compileLayered(recipe, dials?, channels?) → the compiled mesh.
+ * A pinned part with `follow: true` (on a layer-1 parent) moves with the dials as the surface under its pin moves —
+ * scaled and offset by its pin's own station weight, turned by a hinge or chain that turns its parent — instead of
+ * riding the dialed pin frame rigidly (which translates and turns but never scales). Worn things use it.
  * @param recipe { frame, parts, creases?, dials? }
  * @param dials dial values (missing ⇒ rest); unknown or out-of-range throws
  * @param channels { details = true, creases = true }
@@ -142,14 +155,7 @@ export function compileLayered(recipe, dials = {}, { details = true, creases = t
   const built = {};
   for (const [name, part] of Object.entries(recipe.parts)) if (part.layer === 1) built[name] = { ...part, ...loft(name, part) };
   if (!Object.keys(built).length) throw new Error('station-loft: recipe has no layer-1 part');
-  for (const [name, op] of Object.entries(recipe.dials || {})) if (op.op !== 'stretch') applyDial(op, name, D[name], built, recipe);
-  const pins = {};
-  for (const [name, part] of Object.entries(recipe.parts).sort(([a, x], [b, y]) => x.layer - y.layer || byName([a], [b]))) {
-    if (part.layer === 1) continue;
-    if (!details) continue;
-    if (!part.pin) throw new Error(`station-loft: ${name} (layer ${part.layer}) needs a pin`);
-    const parent = built[part.pin.parent]; if (!parent) throw new Error(`station-loft: ${name}: missing parent ${part.pin.parent}`);
-    if (parent.layer >= part.layer) throw new Error(`station-loft: ${name} must address a lower layer`);
+  const place = (name, part, parent) => {   // a pinned part's points on its parent's frame (stretch in pin-local coords)
     const frame = pinFrame(parent, part.pin); pins[name] = { ...frame, parent: part.pin.parent, face: part.pin.face };
     const k = part.stretch ? D[part.stretch.dial] : 1; if (part.stretch && !(part.stretch.dial in D)) throw new Error(`station-loft: ${name}.stretch names unknown dial ${part.stretch.dial}`);
     const points = {};
@@ -158,7 +164,29 @@ export function compileLayered(recipe, dials = {}, { details = true, creases = t
       if (part.stretch && k !== 1) { const { origin, axis } = part.stretch; const rel = sub(o, origin); const along = dot(rel, axis); local = add(add(origin, sub(rel, mul(axis, along))), mul(axis, along * k)); }
       points[id] = placeSurfaceOffset(frame, local);
     }
-    built[name] = { ...part, points };
+    return { ...part, points };
+  };
+  const pins = {};
+  // FOLLOW: a pinned part with `follow` is placed on its L1 parent's REST frame, then moved by every dial exactly as the
+  // surface under its pin moves (see applyDial), so a worn thing grows and turns with what it is worn over. At rest the
+  // placement is the same; recipes without `follow` compile byte-identically.
+  let follow = null; const followed = {};
+  if (details) for (const [name, part] of Object.entries(recipe.parts)) {
+    if (part.layer === 1 || !part.follow) continue;
+    if (!part.pin) throw new Error(`station-loft: ${name} (layer ${part.layer}) needs a pin`);
+    const parent = built[part.pin.parent]; if (!parent) throw new Error(`station-loft: ${name}.follow needs a layer-1 parent (${part.pin.parent} is not one)`);
+    const face = parent.faces[part.pin.face]; if (!face) throw new Error(`station-loft: ${name}: missing pin face ${part.pin.face}`);
+    followed[name] = place(name, part, parent); (follow ??= {})[part.pin.parent] ??= []; follow[part.pin.parent].push({ part: followed[name], face, weights: part.pin.weights });
+  }
+  for (const [name, op] of Object.entries(recipe.dials || {})) if (op.op !== 'stretch') applyDial(op, name, D[name], built, recipe, follow);
+  for (const [name, part] of Object.entries(recipe.parts).sort(([a, x], [b, y]) => x.layer - y.layer || byName([a], [b]))) {
+    if (part.layer === 1) continue;
+    if (!details) continue;
+    if (followed[name]) { built[name] = followed[name]; continue; }
+    if (!part.pin) throw new Error(`station-loft: ${name} (layer ${part.layer}) needs a pin`);
+    const parent = built[part.pin.parent]; if (!parent) throw new Error(`station-loft: ${name}: missing parent ${part.pin.parent}`);
+    if (parent.layer >= part.layer) throw new Error(`station-loft: ${name} must address a lower layer`);
+    built[name] = place(name, part, parent);
   }
   const vertices = [], pointIds = [], provenance = [], faces = [], faceIds = [], groups = [], index = {};
   for (const [name, part] of Object.entries(built)) {

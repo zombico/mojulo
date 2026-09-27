@@ -44,6 +44,8 @@ import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
+import { assembleStoreWorldScene } from '../retail/store-world.js';
+import { assembleMallWorldScene } from '../polygonizer/floorplan-mall.js';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
 import { assemblePlanetaryScene } from '@/lib/graph/scene/scene-planetary';
 import { assembleMoleculeScene } from '@/lib/graph/views/bio/molecule-view';
@@ -456,6 +458,19 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,
     resolve: (m, ctx) => assembleRestaurantWorldScene(m, { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title }),
+  },
+  // retail concept cards: one shop from a card, or a mall whose bays are fit from cards
+  store: {
+    title: 'mojulo store',
+    walk: true,
+    ao: true,
+    resolve: (m, ctx) => assembleStoreWorldScene(m, { walk: m.walk ?? true, title: ctx.title }),
+  },
+  mall: {
+    title: 'mojulo mall',
+    walk: true,
+    ao: true,
+    resolve: (m, ctx) => assembleMallWorldScene(m, { walk: m.walk ?? true, title: ctx.title }),
   },
   'vehicle-instance': {
     // no default title — assembleInstanceStudio applies its own when the sketch carries none.

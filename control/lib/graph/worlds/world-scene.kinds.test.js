@@ -86,6 +86,8 @@ const FIXTURES = {
   'subway-building': { kind: 'subway-building' },
   floorplan: { kind: 'floorplan' },
   restaurant: { kind: 'restaurant' },
+  store: { kind: 'store', card: 'bookstore' },
+  mall: { kind: 'mall' },
   'vehicle-instance': { kind: 'vehicle-instance', type: 'airliner', decoration: { scheme: 'teal' } },
   workbench: { kind: 'workbench' },
   assembler: { kind: 'assembler' },
@@ -191,9 +193,11 @@ describe('world-scene kinds — per-arm characterization', () => {
 
 describe('world-scene kinds — side tables pinned as literals', () => {
   it('WALK_KINDS survives the derivation change bit-for-bit', () => {
+    // re-pinned 2026-09-27 (retail concept cards): + 'mall', 'store' — two new walkable kinds, added
+    // on purpose (the concourse / the shop floor walk like the restaurant); every prior kind unchanged.
     expect([...WALK_KINDS].sort()).toEqual([
-      'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'koenigsberg', 'math-structure',
-      'painted-landscape', 'restaurant', 'room', 'school-complex',
+      'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'koenigsberg', 'mall', 'math-structure',
+      'painted-landscape', 'restaurant', 'room', 'school-complex', 'store',
       'subway-building', 'subway-station', 'transportation-hub',
     ]);
   });
