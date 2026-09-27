@@ -29,7 +29,10 @@ loops and the recipe format are unchanged.
   pinned CDN. The package was only the creative pack's install marker, so an install without it (for
   example `--omit=optional`) hid every studio pack's tools although they work. Creative is now
   `alwaysInstalled`, gated off only by an explicit `MOJULO_PACKS` override, and `three` (about 37 MB)
-  is gone from `optionalDependencies` and the Next server externals.
+  is gone from `optionalDependencies` and the Next server externals. One consequence: the Chrome for
+  Testing fetch is gated on the creative group, so an `--omit=optional` install no longer suppresses it.
+  A render bake on a host with no Chromium-family browser fetches it there too; a `MOJULO_PACKS`
+  override without creative, or `$MOJULO_CHROMIUM`, still prevents it.
 - **`mojulo install creative` installs nothing.** It says the pack ships with the base install and lists
   any optional helper (manifold-3d, node-web-audio-api, openscad-wasm-prebuilt, opentype.js, sharp) that
   does not resolve. It used to run `npm install --include=optional` inside the package directory, which
@@ -49,6 +52,9 @@ loops and the recipe format are unchanged.
   `lib/graph/mobile-suit/scripts/**` (test snapshots and local scratch output that a publisher's working
   tree could carry into the package). An offline bot build (`MOJULO_OFFLINE_BUILD=1`) from a template
   without `models/` now gets an empty `models/` directory, so the Dockerfile's `COPY models/` still works.
+  Measured on one tree: the tarball drops from 30.2 MB to 25.5 MB, and a cold dependency install from
+  427 MB to 305 MB on disk (278 MB to 191 MB downloaded). `docs/install-capabilities.md` records the boot
+  set, the startup-timeout constraint and these numbers.
 
 ### Canal city
 

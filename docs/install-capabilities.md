@@ -1,6 +1,6 @@
 # Install capabilities — kernel + always-on packs + three install groups (creative / recall / chatbot)
 
-Mojulo is a **kernel** plus **always-present packs** plus **two install-gated groups**. This doc is the
+Mojulo is a **kernel** plus **always-present packs** plus **install groups**, two of them opt-in. This doc is the
 source of truth for that shape: what's always present, what's optional, how mojulo knows which it is, and
 how an operator grows a lean install into the full workshop. The build log, rationale, and audit evidence
 live in install-capabilities.plan.md;
@@ -10,8 +10,9 @@ this is the orientation layer.
 
 There is a small, always-present **kernel** — "what mojulo *is*" — surrounded by packs. A pack declares an
 `installGroup` and is gatable, or declares none and is unconditional like the kernel. Three groups exist:
-**creative** (the render / media / games stack — the flagship default), **recall** (the embedding runtime
-behind vector `semantic_search`; opt-in, no pack of its own) and **chatbot** (the bot factory).
+**creative** (the render / media / games stack — the flagship default, always installed), **recall** (the
+embedding runtime behind vector `semantic_search`; opt-in, no pack of its own) and **chatbot** (the bot
+factory; opt-in).
 Everything else — connected services, catalysts, triggers, apps/daemons, plan, research, stash — declares
 no group and is always present. The kernel alone can already mint a diagram.
 
@@ -40,19 +41,22 @@ LOGICAL gate — but from the operator's side it behaves exactly like the eventu
 package: absent until asked for. Already-DEPLOYED bots are unaffected either way; they run as their own
 processes and were never part of the workshop install.
 
-**Creative group.** The heavy making stack: walkable 3D worlds, synthesized music (beats),
-image/illustration recipes, voice, and games composed from the rest. This is the large, optional part —
-~82 MB of npm libraries (`three`, `node-web-audio-api`, `opentype.js`) plus a ~535 MB headless Chromium
-used only for render bakes.
+**Creative group — always installed.** The making stack: walkable 3D worlds, synthesized music (beats),
+image/illustration recipes, voice, and games composed from the rest. Its code ships in the package and its
+tools list on every install; only an explicit `MOJULO_PACKS` override gates it off. What is heavy about it
+is a set of helpers some of its calls load on first use: the `optionalDependencies` (`node-web-audio-api`,
+`manifold-3d`, `openscad-wasm-prebuilt`, `opentype.js`, `sharp`; about 150 MB installed with what they
+pull in), and a ~535 MB headless Chromium used only for render bakes. A call whose helper is missing says
+so in-band; the rest of the pack works.
 
 ## Install state is PHYSICAL, not a flag
 
-Mojulo derives what it is from **what's actually on disk**, so `npm install --omit=optional` self-
-describes and an env flag can never silently disagree with reality. In
-[control/lib/mcp/packs.js](../control/lib/mcp/packs.js):
+Mojulo derives what it is from **what's actually on disk**, so an install self-describes and an env flag
+can never silently disagree with reality. In [control/lib/mcp/packs.js](../control/lib/mcp/packs.js):
 
-- Each group declares an install signal as data (`INSTALL_GROUPS`): `creative` has a
-  `markerModule: 'three'` — installed iff that dep resolves on disk; `chatbot` has a
+- Each group declares an install signal as data (`INSTALL_GROUPS`): `creative` is `alwaysInstalled` (until
+  2.2 it was keyed on the `three` package resolving, which no Node code imports, so an install without
+  `three` hid the whole studio); `chatbot` has a
   `markerFile: 'packs/chatbot'` — installed iff that file exists under `$MOJULO_HOME`; `recall` has
   both — the runtime's own `package.json` under `$MOJULO_HOME/recall/node_modules/`, or the module
   resolving from the package (repo-dev, installed by hand).
@@ -71,16 +75,18 @@ describes and an env flag can never silently disagree with reality. In
 
 ## Growing an install
 
-- **Lean, no creative:** `npm install --omit=optional` (sheds the ~82 MB creative deps; Chromium is never
-  fetched — the fetch is gated on the creative group in
-  [control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js)). The kernel and the
-  CLI stay up on a lean install even when `sharp`'s optional native binary is missing: `sharp` loads on
+- **Lean:** `npm install --omit=optional` sheds the optional helpers (about 150 MB). The creative tools
+  still list and run; the calls that need a missing helper fail in-band naming it. `sharp` loads on
   first use ([control/lib/sharp-lazy.js](../control/lib/sharp-lazy.js)), so `mojulo call version`, every
   mint and every export run, and only the raster tools (skins, sprite sheets, the PNG bake, the
-  keyframe and scene forges) fail in-band naming `npm install sharp`.
-- **Add the studio:** `mojulo install creative` ([control/scripts/mcp-install.mjs](../control/scripts/mcp-install.mjs))
-  runs `npm install --include=optional` and re-probes. `mojulo install` with no arg prints status for
-  all three groups. `mojulo install chatbot` writes the marker; `--remove` takes it away again.
+  keyframe and scene forges) fail in-band naming `npm install sharp`. Since creative stays installed, a
+  render bake on a host with no Chromium-family browser still fetches Chrome for Testing (the fetch is
+  gated on the creative group in [control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js));
+  a `MOJULO_PACKS` override that leaves creative out, or `$MOJULO_CHROMIUM`, prevents it.
+- **The studio needs no install step.** `mojulo install creative`
+  ([control/scripts/mcp-install.mjs](../control/scripts/mcp-install.mjs)) installs nothing: it says so and
+  lists any optional helper that does not resolve. `mojulo install` with no arg prints status for all
+  three groups. `mojulo install chatbot` writes the marker; `--remove` takes it away again.
 - **Add vector recall:** `mojulo install recall` installs `@huggingface/transformers` (and with it
   `onnxruntime-node`, about 480 MB) into `$MOJULO_HOME/recall/` — its own `package.json` plus an
   `entry.mjs` shim that [control/lib/embedder/local.js](../control/lib/embedder/local.js) imports by file
@@ -94,8 +100,8 @@ describes and an env flag can never silently disagree with reality. In
   every pack outside the chatbot group. The chatbot packs are listed by `mojulo tools` / `mojulo packs` as
   "not installed" with the command that adds them, so the capability stays discoverable without
   advertising tools that would refuse to run.
-- **Full workshop:** a plain `npm install` gets everything (the creative deps are `optionalDependencies`,
-  installed by default — `three`, `opentype.js`, `node-web-audio-api`, `manifold-3d`, the WASM CSG
+- **Full workshop:** a plain `npm install` gets everything (the creative helpers are `optionalDependencies`,
+  installed by default — `opentype.js`, `node-web-audio-api`, `manifold-3d`, the WASM CSG
   kernel behind `export_model({ union: true })`, and `openscad-wasm-prebuilt`, OpenSCAD itself as WASM,
   the mesher behind `mint_solid kind:'scad'`; absent, `union: true` reports and ships the plain shells,
   an `exact: true` field or cut refuses with the install line, and a `scad` mint refuses likewise — a stored
@@ -112,7 +118,8 @@ the creative group like the rest of the optional set; `sharp-lazy.js` keeps the 
 ## The iron wall — execution integrity, not information hiding
 
 The boundary is about EXECUTION, not knowledge. An uninstalled pack's tools neither list nor run; a
-refusal is a group-level, terminal advisory that points at `mojulo install creative` and tells the model
+refusal is a group-level, terminal advisory that points at what enables the group (`mojulo install
+chatbot`, or for creative, which only an override can gate, the `MOJULO_PACKS` flag) and tells the model
 to stop retrying (no spinning). Shared context is fine — the model may know the other group exists and
 recommend installing it. Gated by `installNotice` / `packInstallNotice` in `packs.js` and enforced at
 every tool-execution chokepoint (`handleToolCall`, `invokeRegisteredTool`, the pack dispatcher). The
@@ -125,6 +132,35 @@ engines never import each other, no office tool imports the creative engine, and
 surface imports nothing under `lib/graph`. Checks F–H are the 2.0 carve fence — nothing outside the
 chatbot factory imports the factory engine (F), and two shrink-only ledgers freeze the dashboard routes
 (G) and the retained code still reading bot tables (H) so that coupling can only decrease.
+
+## What `npx mojulo` downloads, and what a boot loads
+
+A host spawns `npx -y mojulo` and waits for MCP `initialize` inside its own startup timeout: Claude Code's
+`MCP_TIMEOUT` defaults to 30 s, a stdio server gets no retry, and a plugin cannot raise the timeout. That
+window covers npm's install on a cold cache as well as the boot, so the install stays small and the boot
+loads almost nothing:
+
+- **The boot set is `better-sqlite3` and `croner`.** Every other package loads on the first call that needs
+  it: puppeteer-core, archiver, pdf2json, officeparser, react and react-dom through
+  [control/lib/lazy-deps.js](../control/lib/lazy-deps.js) (a package that cannot load is an in-band error on
+  that one call), `sharp` through `sharp-lazy.js`, and the other creative helpers inside the modules that
+  use them.
+  [control/scripts/mcp-stdio.boot-guard.test.js](../control/scripts/mcp-stdio.boot-guard.test.js) boots the
+  stdio server with every other declared package unresolvable and asserts the same tool list, so a static
+  import that puts one back on the boot path fails the suite.
+- **No JSX compiler at runtime.** The one `.jsx` the package ships, `components/graph/CreationMap.jsx`, is
+  compiled at prepack into `CreationMap.jsx.mjs` ([control/scripts/precompile-jsx.mjs](../control/scripts/precompile-jsx.mjs));
+  the stdio loader serves it while the source hash on its first line matches, so `@swc/core` is a
+  devDependency.
+- **Dashboard-only packages are devDependencies.** The Next build compiles them into
+  `.next/standalone`, which is what `mojulo-ui` runs; the stdio server never imports them.
+- **The tarball carries only what runs.** `files` leaves out the bot template's tokenizer files, the locale
+  JSON (compiled into the dashboard bundle), test snapshots and scratch output.
+- **Measured once for the 2.2 changes** (macOS arm64, one tree under the 2.1 and then the 2.2
+  `package.json`). The tarball went from 30.2 MB to 25.5 MB (121 MB to 100 MB unpacked). Installing the
+  tarball without its dashboard build into an empty npm cache added 426 packages (427 MB on disk, 278 MB
+  downloaded) before and 264 packages (305 MB on disk, 191 MB downloaded) after; `--omit=optional`
+  brings it to 151 MB on disk. These are single samples; re-measure a release with `npm run smoke:tarball`.
 
 ## Diagram maker in the kernel
 
