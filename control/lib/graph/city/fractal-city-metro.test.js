@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 // ones, measured in metres by cityScaleCensus over three seeds; the stock city must not move at all.
 vi.setConfig({ testTimeout: 120000 });
 
-import { planFractalCity, assembleFractalCityScene, cityScaleCensus, fractalCityCameras, FRACTAL_CAMERAS, METRO, CITY_METERS_PER_UNIT } from './fractal-city.js';
+import { planFractalCity, assembleFractalCityScene, cityScaleCensus, fractalCityCameras, metroAtmosphere, FRACTAL_CAMERAS, METRO, CITY_METERS_PER_UNIT } from './fractal-city.js';
+import { emitThreeWorld } from '../scene/scene-three.js';
 
 const FRAME = { x: 2, y: 2, w: 220, d: 140 };
 const metro = (seed, extra = {}) => planFractalCity({ seed, profile: 'metro', anchor: 'tower', region: FRAME, elements: { frontage: true }, ...extra });
@@ -111,5 +112,30 @@ describe('metro profile: cameras and cues', () => {
   it('a stock-depth metro recipe still reaches block size (depth is not a metro block dial)', () => {
     const shallow = cityScaleCensus(planFractalCity({ seed: 7, profile: 'metro', region: FRAME, depth: 2 }), FRAME);
     expect(shallow.pitch).toBeLessThan(145);
+  });
+});
+
+describe('metro profile: atmosphere and kerb lamps', () => {
+  it('a metro scene carries a gradient sky and a distance haze sized to its frame; the stock scene neither', () => {
+    const scene = assembleFractalCityScene({ seed: 7, profile: 'metro', region: FRAME });
+    expect(Array.isArray(scene.sky.zenith) && Array.isArray(scene.sky.horizon)).toBe(true);
+    expect(scene.haze.density).toBeCloseTo(1.98 / (2 * Math.hypot(FRAME.w, FRAME.d)), 9);
+    const stock = assembleFractalCityScene({ seed: 7 });
+    expect(stock.haze).toBeUndefined();
+    expect(metroAtmosphere({ seed: 7 })).toBeNull();
+    expect(metroAtmosphere({ profile: 'metro', region: FRAME }, 'night').sky.stars).toBe(1);
+  });
+  it('the World page emits the haze only when asked', () => {
+    const faces = [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], fill: '#888888' }];
+    expect(emitThreeWorld({ faces, haze: { color: '#c6cfda', density: 0.004 } })).toContain('new THREE.FogExp2');
+    expect(emitThreeWorld({ faces })).not.toContain('distance haze');
+  });
+  it('lamps stand along the kerbs between crossings, every one on the walk', () => {
+    const p = PLANS[1];
+    const heads = p.boxes.filter((b) => b.kind === 'street-lamp' && b.tint === '#f0d982');
+    expect(heads.length).toBeGreaterThan(4 * p.stats.crossings);          // more than the crossings' own four
+    const poles = p.boxes.filter((b) => b.kind === 'street-lamp' && b.z0 === 0);
+    const masses = p.boxes.filter((b) => MASS.has(b.kind));
+    for (const pole of poles) expect(masses.some((m) => overlap(m, pole))).toBe(false);
   });
 });

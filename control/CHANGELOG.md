@@ -44,6 +44,21 @@ loops and the recipe format are unchanged.
   street kit's heights. It is the machine gate for the metro bands (`fractal-city-metro.test.js`).
 - **Stream tiles read the planner's frame.** `city-tiles.js` imports `DEFAULT_REGION` and the
   preset shots from the planner instead of copying them.
+- **A metro city has a sky and air.**
+  - A metro scene carries a gradient sky, so the World's dome draws it. The stock city's preset sky
+    has no dome, and `/world` showed a void.
+  - It also carries a distance haze sized to its frame (visibility of twice the frame's diagonal), so
+    distance fades toward the horizon colour and the frame's far edge sits in haze.
+  - The haze is a new opt-in on `emitThreeWorld` (`haze: { color, density }`): three's exponential fog
+    over every basic-material mesh, with the sky dome and stars left clear. It rides the sky block's
+    string, so a page without it is byte-identical.
+  - The streamed page carries both.
+- **Metro kerb lamps.** A lamp stands about every 31 m along both kerbs of every metro street, on
+  the walk, its arm over the road. The crossings keep their own four.
+- **Streaming follows the street eye.** A metro city streams in 32-unit tiles, with the
+  full-detail radius at 80 units and the cache at 160 (`streamSizing`). The tile route uses the
+  recipe's own size. A camera standing low (under 4 units) now gathers full-detail tiles around
+  itself rather than its far orbit target, so the street it stands on is the part at full detail.
 
 ### Furniture audit
 

@@ -1948,6 +1948,32 @@ function metroSidewalkTiles(g) {
   }
   return out;
 }
+// METRO kerb lamps: a lamp every METRO_LAMP_STEP along both kerbs of every street, on the walk, its arm
+// reaching over the road; a crossing's own four lamps (intersectionDoodads) own the corner. Deterministic
+// spacing (no rng); the frontage sweep later clears any that land in a curb cut.
+const METRO_LAMP_STEP = 8.5;   // ≈ 31 m
+function kerbLamp(boxes, x, y, dx, dy) {
+  boxes.push({ kind: 'street-lamp', x: x - 0.045, y: y - 0.045, w: 0.09, d: 0.09, z0: 0, z1: 2.35, tint: '#555b62' });
+  boxes.push({ kind: 'street-lamp', ...(dx ? { x: dx > 0 ? x : x - 0.42, w: 0.42, y: y - 0.035, d: 0.07 } : { y: dy > 0 ? y : y - 0.42, d: 0.42, x: x - 0.035, w: 0.07 }), z0: 2.18, z1: 2.26, tint: '#555b62' });
+  const hx = x + dx * 0.46, hy = y + dy * 0.46;
+  boxes.push({ kind: 'street-lamp', x: hx - (dx ? 0.09 : 0.08), y: hy - (dx ? 0.08 : 0.09), w: dx ? 0.18 : 0.16, d: dx ? 0.16 : 0.18, z0: 2.06, z1: 2.22, tint: '#f0d982' });
+}
+function metroKerbLamps(boxes, grid, roads, junctions) {
+  const nearCrossing = (x, y) => junctions.some((j) => Math.abs(j.x - x) < j.streetW / 2 + 3.2 && Math.abs(j.y - y) < j.streetW / 2 + 3.2);
+  for (const r of roads) {
+    if (r.corridor) continue;
+    const vert = Math.abs(r.w - r.streetW) < 1e-9;
+    const lo = vert ? r.y : r.x, hi = vert ? r.y + r.d : r.x + r.w;
+    for (const side of [-1, 1]) {
+      const kerb = vert ? (side < 0 ? r.x - 0.35 : r.x + r.w + 0.35) : (side < 0 ? r.y - 0.35 : r.y + r.d + 0.35);
+      for (let t = lo + METRO_LAMP_STEP / 2 + (side > 0 ? METRO_LAMP_STEP / 2 : 0); t < hi - 1; t += METRO_LAMP_STEP) {
+        const x = vert ? kerb : t, y = vert ? t : kerb;
+        if (cellAt(grid, x, y) !== CLAIM.VERGE || nearCrossing(x, y)) continue;
+        kerbLamp(boxes, x, y, vert ? -side : 0, vert ? 0 : -side);
+      }
+    }
+  }
+}
 // shrink a leaf region off the right-of-way around it: each side steps in while its edge strip is
 // mostly sidewalk or carriageway (a side against the frame edge has none and stays put)
 const WAY_CLAIM = new Set([CLAIM.VERGE, CLAIM.ROAD]);
@@ -3580,6 +3606,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // one band per street, which overlap at every crossing; at metro lengths the renderer's coplanar lift
   // (face-mesh decollideFaces, ∝ face size) would raise an overlapped band over the asphalt.
   if (profile === 'metro' && recipeElements.sidewalks) grounds.push(...metroSidewalkTiles(grid));
+  if (profile === 'metro' && recipeElements.streetLamps) metroKerbLamps(boxes, grid, roadStrips, junctions);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
   // LOT INSETS (city-insets.js, the default): with the roads and blocks laid, each minted
   // building takes over a generated PARCEL — the candidate that evicts the fewest neighbours,
@@ -3820,6 +3847,20 @@ function metroCameras(region) {
     { name: 'skyline', worldFraming: { cameraPosition: [cx - w * 0.25, y - d * 0.1, 12], lookAt: [cx, cy, 16], horizontalFov: 62, pictureCenter: pc } },
   ];
 }
+// METRO atmosphere: a gradient sky (the World's dome; the stock city's preset sky has none, so /world
+// showed a void) and a distance haze sized to the frame — visibility V = 2 × the frame's diagonal, so
+// the far corner sits deep in haze and the city fades instead of ending. FogExp2 reaches 2 % contrast
+// at √3.91 / density, hence density = 1.98 / V. Metro only; null for every other recipe.
+export function metroAtmosphere(recipe = {}, time = null) {
+  if (recipe.profile !== 'metro') return null;
+  const R = recipe.region || DEFAULT_REGION, night = time === 'night';
+  const horizon = night ? [34, 40, 56] : [198, 207, 218], zenith = night ? [8, 11, 22] : [104, 142, 190];
+  const hex = '#' + horizon.map((c) => c.toString(16).padStart(2, '0')).join('');
+  return {
+    sky: { preset: night ? 'night' : 'day', zenith, horizon, day: night ? 0 : 1, stars: night ? 1 : 0, ...(night ? { moon: true } : {}), seed: recipe.seed ?? 7 },
+    haze: { color: hex, density: 1.98 / (2 * Math.hypot(R.w, R.d)) },
+  };
+}
 /** The city's preset shots: metro recipes get the human-scale set, every other recipe the stock one. */
 export function fractalCityCameras(recipe = {}) {
   return recipe.profile === 'metro' ? metroCameras(recipe.region || DEFAULT_REGION) : FRACTAL_CAMERAS;
@@ -3977,7 +4018,9 @@ export function assembleFractalCityScene(opts = {}) {
   if (Array.isArray(opts.insets)) for (const i of opts.insets) if (i && i.textures && Object.keys(i.textures).length) scene.textures = { ...(scene.textures || {}), ...i.textures };
   if (plan.walkerLoops && plan.walkerLoops.length) scene.walkerLoops = plan.walkerLoops;
   if (plan.carLanes && plan.carLanes.length) scene.carLanes = plan.carLanes;
-  if (plan.cues) scene.cityCues = plan.cues;   // metro: the world path sizes its walkers and car bank to the real-size cues (world-kinds)
+  if (plan.cues) scene.cityCues = plan.cues;
+  const atm = metroAtmosphere(opts, skyTime);
+  if (atm) { if (!opts.sky) scene.sky = atm.sky; if (!unshaded) scene.haze = atm.haze; }   // metro: the world path sizes its walkers and car bank to the real-size cues (world-kinds)
   if (plan.signals && plan.signals.length) {   // the crossings' phase programs; the world path rebuilds them with its measured car bank (deriveClearance)
     scene.signals = plan.signals;
     scene.junctions = plan.junctions;

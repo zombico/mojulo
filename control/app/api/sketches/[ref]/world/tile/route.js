@@ -16,7 +16,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { etagFor, renderCacheKey } from '@/lib/graph/sketch/render-etag';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import {
-  STREAM_LODS, STREAM_TILE, cityRegion, cityStreamRecipe, cityTileBytes, parseTileId, streamStandDown, tileGrid,
+  STREAM_LODS, streamSizing, cityRegion, cityStreamRecipe, cityTileBytes, parseTileId, streamStandDown, tileGrid,
 } from '@/lib/graph/city/city-tiles';
 
 // Bump when the tile packing or the tile assembly changes inside a release (browsers drop held tiles).
@@ -38,19 +38,20 @@ export async function GET(request, { params }) {
     if (!STREAM_LODS.includes(lod)) {
       return NextResponse.json({ error: `lod must be one of ${STREAM_LODS.join(', ')}` }, { status: 400 });
     }
-    const grid = tileGrid(cityRegion(sketch.manifest), STREAM_TILE);
+    const { tile } = streamSizing(sketch.manifest);   // a metro city streams in larger tiles
+    const grid = tileGrid(cityRegion(sketch.manifest), tile);
     const id = parseTileId(grid, search.get('t'));
     if (!id) {
       return NextResponse.json({ error: `t must be a tile id "i,j" on the ${grid.cols}×${grid.rows} grid` }, { status: 400 });
     }
 
-    const etag = etagFor('t', renderCacheKey({ ref, manifest: sketch.manifest, flags: { t: id, lod, tile: STREAM_TILE }, version: TILE_CACHE_VERSION }));
+    const etag = etagFor('t', renderCacheKey({ ref, manifest: sketch.manifest, flags: { t: id, lod, tile }, version: TILE_CACHE_VERSION }));
     if (request.headers.get('if-none-match') === etag) {
       return new Response(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'no-cache' } });
     }
 
     const recipe = cityStreamRecipe(sketch.manifest, resolveCityInsets(sketch.manifest));
-    const bytes = cityTileBytes(recipe, id, { lod });
+    const bytes = cityTileBytes(recipe, id, { lod, tile });
     return new Response(bytes, {
       status: 200,
       headers: {

@@ -172,7 +172,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -428,6 +428,20 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       radius: Number.isFinite(sky.radius) ? sky.radius : (mesh.radius || 20) }
     : null;
   const skyBlock = skyDome ? skyDomeScript(skyDome) : '';
+  // DISTANCE HAZE (opt-in `haze: { color, density }`): three's exponential fog over every basic-material
+  // mesh (world groups, textured wraps, instances, streamed tiles) toward the horizon colour — aerial
+  // perspective, not the volumetric ground fog. It rides the sky block's string so a page without it
+  // carries not one extra byte; the sky dome and stars (renderOrder < 0) stay clear of it.
+  const hazeBlock = haze && Number.isFinite(haze.density) && haze.density > 0 && typeof haze.color === 'string'
+    ? `
+// --- distance haze (emitThreeWorld haze option) ---
+{
+  const HZ = ${safeJson({ color: haze.color, density: haze.density })};
+  scene.fog = new THREE.FogExp2(new THREE.Color(HZ.color), HZ.density);
+  scene.background = new THREE.Color(HZ.color);
+  scene.traverse((o) => { if (o.renderOrder < 0 && o.material) o.material.fog = false; });
+}`
+    : '';
 
   // Cameras → traversal bookmarks. Fall back to a 3/4 orbit framing of the
   // geometry's bounding sphere when a world ships no worldFraming camera.
@@ -685,7 +699,7 @@ scene.add(__eQuad${i});
   const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg) : '';
 
   const setupBlocks = {
-    sky: skyBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
+    sky: skyBlock + hazeBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
     splats: splatBlock, toon: toonBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,

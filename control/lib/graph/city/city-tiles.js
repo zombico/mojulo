@@ -26,7 +26,7 @@
 
 import crypto from 'node:crypto';
 
-import { planFractalCity, fractalCityCameras, DEFAULT_REGION } from './fractal-city.js';
+import { planFractalCity, fractalCityCameras, metroAtmosphere, DEFAULT_REGION } from './fractal-city.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { faceListToMesh, decollideFaces } from '../figures/face-mesh.js';
@@ -36,6 +36,11 @@ export const STREAM_TILE = 16;            // tile edge, city units (≈ 58 m at 
 export const STREAM_NEAR = 40;            // full-detail radius around the camera focus
 export const STREAM_CACHE = 80;           // tiles further than this are disposed (LRU inside it)
 export const STREAM_LODS = ['full', 'massing', 'base'];
+// a metro block is ≈ 25–40 units, so a metro city streams in 32-unit tiles with the full-detail and
+// cache radii doubled (≈ 290 m / 585 m); every other recipe keeps the stock sizing
+export function streamSizing(recipe = {}) {
+  return recipe && recipe.profile === 'metro' ? { tile: 32, near: 80, cache: 160 } : { tile: STREAM_TILE, near: STREAM_NEAR, cache: STREAM_CACHE };
+}
 const TILE_MAGIC = 0x31544a4d;            // 'MJT1' little-endian
 
 // ── stand-down ───────────────────────────────────────────────────────────────────────────────
@@ -323,7 +328,10 @@ export function cityTileBytes(recipe, id, { tile = STREAM_TILE, lod = 'full' } =
  * streamed page: streamPageLayers plus `stream`, the page's fetch config. Nothing at full fidelity
  * is inlined.
  */
-export function cityStreamPayload(recipe, { tile = STREAM_TILE, near = STREAM_NEAR, cache = STREAM_CACHE, url, title = 'mojulo city' } = {}) {
+export function cityStreamPayload(recipe, { tile, near, cache, url, title = 'mojulo city' } = {}) {
+  const S = streamSizing(recipe);
+  tile ??= S.tile; near ??= S.near; cache ??= S.cache;
+  const atm = recipe.sky ?? recipe.scene?.sky ? null : metroAtmosphere(recipe);
   const full = tileCity(recipe, { tile, lod: 'full' });
   const page = streamPageLayers(recipe, { tile });
   const args = assembleArgs(recipe);
@@ -338,7 +346,7 @@ export function cityStreamPayload(recipe, { tile = STREAM_TILE, near = STREAM_NE
     title,
     light: page.light,
     textures: page.textures,
-    ...((recipe.sky ?? recipe.scene?.sky) ? { sky: recipe.sky ?? recipe.scene.sky } : {}),
+    ...((recipe.sky ?? recipe.scene?.sky) ? { sky: recipe.sky ?? recipe.scene.sky } : atm ? { sky: atm.sky, haze: atm.haze } : {}),
     stream: { url, grid: full.grid, tiles: ids, near, cache },
   };
 }

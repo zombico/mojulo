@@ -22,8 +22,9 @@ const __stStat = { fetched: 0, bytes: 0, evicted: 0, failed: 0 };
 let __stInflight = 0;
 window.__mojStream = { tiles: __stTiles, stat: __stStat, cfg: STREAM };
 function __stCenter(id){ const k = id.indexOf(','), g = STREAM.grid; return [g.x0 + (+id.slice(0, k) + 0.5) * g.tile, g.y0 + (+id.slice(k + 1) + 0.5) * g.tile]; }
-// the focus the tiles gather around: the eye when walking / flying / in a headset, else the orbit target
-function __stFocus(){ return (walkOn || (typeof __xrOn !== 'undefined' && __xrOn)) ? camera.position : controls.target; }
+// the focus the tiles gather around: the eye when walking / flying / in a headset or standing low (a street-eye
+// orbit looks down an avenue at a far target; the street it stands on is what must be full detail), else the orbit target
+function __stFocus(){ return (walkOn || (typeof __xrOn !== 'undefined' && __xrOn) || camera.position.z < 4) ? camera.position : controls.target; }
 function __stMassing(id, show){ const m = meshes['massing:' + id]; if (m) m.layers.set(show ? 0 : 1); }
 function __stAdd(rec, id, geo, mat, order){
   geo.computeBoundingSphere();
