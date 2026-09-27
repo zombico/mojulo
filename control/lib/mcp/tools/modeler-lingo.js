@@ -16,9 +16,9 @@
  * `create_*` / `export_model` calls.
  *
  * Spirit parity with the regular-user path: where a regular user says "draw me a
- * foggy victorian" and `create_polygonized_sketch` / `sketch_what_possible` translate
+ * foggy victorian" and `mint_solid` / `sketch_what_possible` translate
  * that into manifests, a modeler says "I need a base mesh to retopo" and this tool
- * translates that into "generate with create_polygonized_sketch → export_model →
+ * translates that into "generate with mint_solid (via: packet) → export_model →
  * retopo in your DCC (mojulo emits triangle soup; clean topology is on you)."
  */
 
@@ -51,7 +51,7 @@ const LEXICON = [
     routes: [
       { tool: 'compose_world', when: 'an urban / environment massing', args: { base: 'city', overrides: { depth: 1 } } },
       { tool: 'create_sketch', when: 'architectural massing (recipe: architecturalConstruction)' },
-      { tool: 'create_polygonized_sketch', when: 'a single object or figure blockout', args: { prompt: '<subject>' } },
+      { tool: 'mint_solid', when: 'a single object or figure blockout', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'create_workbench', when: 'an object study on a measured studio grid' },
     ],
     then: [EXPORT],
@@ -104,7 +104,7 @@ const LEXICON = [
     concept: 'A specific, foreground-quality object of a known category.',
     support: PARTIAL,
     routes: [
-      { tool: 'create_polygonized_sketch', when: 'most objects/figures from a natural-language prompt', args: { prompt: '<subject>' } },
+      { tool: 'mint_solid', when: 'most objects/figures from a natural-language prompt', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'create_workbench', when: 'an object study with face-card detailing' },
       { tool: 'preview_vehicle_instance', when: 'a vehicle from the meta-fabricator families' },
       { tool: 'create_figure', when: 'a human figure (posed protoform)' },
@@ -119,7 +119,7 @@ const LEXICON = [
     concept: 'A clean starting form to sculpt or model detail onto.',
     support: PARTIAL,
     routes: [
-      { tool: 'create_polygonized_sketch', when: 'an object/figure base from a prompt', args: { prompt: '<subject>' } },
+      { tool: 'mint_solid', when: 'an object/figure base from a prompt', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'create_figure', when: 'a human base mesh (protoform, poseable)' },
     ],
     then: [EXPORT],
@@ -156,7 +156,7 @@ const LEXICON = [
     concept: 'Lean, game-ready geometry with a controlled triangle budget.',
     support: PARTIAL,
     routes: [
-      { tool: 'create_polygonized_sketch', when: 'an object/figure', args: { prompt: '<subject>' } },
+      { tool: 'mint_solid', when: 'an object/figure', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'compose_world', when: 'an environment (control density/depth to bound count)', args: { base: 'city' } },
     ],
     then: [EXPORT],
@@ -210,7 +210,7 @@ const LEXICON = [
     support: PARTIAL,
     routes: [
       { tool: 'mint_solid', when: "FORM-level sculpting: the workbench `fields` monomer's `stroke` terms (strength > 0 adds a dab — a bump, a haunch, a jowl; < 0 carves one — a dent, a socket) and `displace` (seeded 3D noise for hide / pebble breakup). A list of strokes IS a recipe — deterministic, diffable, editable in place.", args: { kind: 'workbench', spec: { fields: [{ terms: [{ op: 'add', shape: { kind: 'ellipsoid', center: [0, 0, 1], radii: [2, 1.4, 1] } }, { op: 'stroke', at: [1.5, 0.4, 1.4], radius: 0.6, strength: 1 }, { op: 'displace', noise: { amplitude: 0.08, scale: 0.6, seed: 'skin' } }] }] } } },
-      { tool: 'create_polygonized_sketch', when: 'generate the base form first (figures, animals, props)', args: { prompt: '<subject>' } },
+      { tool: 'mint_solid', when: 'generate the base form first (figures, animals, props)', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
     ],
     then: [EXPORT],
     ceiling: 'Form-level only: a stroke is a smooth-blended sphere and displace is low-octave value noise on a 16–128 cell grid (edges round to about one cell). Pores, wrinkles, and brush-stroke micro detail are beyond the grid.',
@@ -310,7 +310,7 @@ const LEXICON = [
     concept: 'Turning a model into a physical object via a slicer and printer.',
     support: PARTIAL,
     routes: [
-      { tool: 'create_polygonized_sketch', when: 'most objects/figures to print', args: { prompt: '<subject>' } },
+      { tool: 'mint_solid', when: 'most objects/figures to print', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'create_carved_solid', when: 'a sculptural solid — naturally print-friendly mass' },
       { tool: 'create_manji_tree', when: 'a turnable polygomer object' },
       { tool: 'create_figure', when: 'a posed human figure' },
@@ -391,12 +391,15 @@ const PIPELINE_NOTE =
   "mojulo's role: generate the depiction deterministically from a recipe, then export_model (.glb, baked-unlit) hands it to your DCC where you finish — retopo, UV, bake, rig, PBR. It is a GENERATOR THAT FEEDS your pipeline, not a modeller. The .glb is faithful to what mojulo depicts (KHR_materials_unlit + vertex colour); treat it as upstream of your real modelling work.";
 
 function publicEntry(entry, subject) {
-  const fillArgs = (args) => {
-    if (!args) return undefined;
-    const out = {};
-    for (const [k, v] of Object.entries(args)) out[k] = v === '<subject>' && subject ? subject : v;
-    return out;
+  // '<subject>' placeholders may sit in nested objects (mint_solid's spec).
+  const fill = (v) => {
+    if (v === '<subject>' && subject) return subject;
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fill(x)]));
+    }
+    return v;
   };
+  const fillArgs = (args) => (args ? fill(args) : undefined);
   return {
     id: entry.id,
     terms: entry.terms,
@@ -442,7 +445,7 @@ export async function translateModelerLingoHandler(input) {
       pipeline: PIPELINE_NOTE,
       unmatched: {
         suggestion:
-          'No curated mapping for that term. For most objects, describe the form and call create_polygonized_sketch, then export_model. Browse known terms with { list: true }.',
+          "No curated mapping for that term. For most objects, describe the form and mint it with mint_solid({ kind: 'manji-tree', via: 'packet', spec: { prompt } }) (key-free: you author the manifest), then export_model. Browse known terms with { list: true }.",
         known_terms: LEXICON.flatMap((e) => e.terms),
       },
     };
@@ -460,7 +463,7 @@ export function registerModelerLingoTools() {
   registerTool({
     name: 'translate_modeler_lingo',
     description:
-      "Translate 3D-modeler vocabulary into mojulo execution — the modeler-facing sibling of `forward_context`. A modeler speaks in pipeline ops (blockout, kitbash, set dressing, base mesh, low-poly, retopo, UV unwrap, high-poly sculpt, normal bake, rig, LOD, lookdev turntable); this maps each to the right `create_*` entry tool + knobs and the `export_model` (.glb) handoff, AND tells the truth about what mojulo does NOT do, handing those steps to the modeler's DCC (Blender/Maya/ZBrush/Houdini). Use it the same way `create_polygonized_sketch`/`sketch_what_possible` serve a regular user's natural-language ask: pass the modeler's phrase as `lingo` (and optionally the `subject` they want, e.g. \"spaceship\"), read the returned routes, then drive the actual create/export calls. Honest by design — for retopo/UV/bake/rig/PBR it returns a `do_in_dcc` note and no false capability, because mojulo is a generator that FEEDS the pipeline, not a modeller. Pass `{ list: true }` to browse the whole lexicon. Read-only; returns `{ lingo, subject, pipeline, matches }` where each match has `support` (native|partial|partial-with-`ceiling`|handoff), `mojulo_routes`, `then`, and `do_in_dcc`.",
+      "Translate 3D-modeler vocabulary into mojulo execution — the modeler-facing sibling of `forward_context`. A modeler speaks in pipeline ops (blockout, kitbash, set dressing, base mesh, low-poly, retopo, UV unwrap, high-poly sculpt, normal bake, rig, LOD, lookdev turntable); this maps each to the right `create_*` entry tool + knobs and the `export_model` (.glb) handoff, AND tells the truth about what mojulo does NOT do, handing those steps to the modeler's DCC (Blender/Maya/ZBrush/Houdini). Use it the same way `mint_solid`/`sketch_what_possible` serve a regular user's natural-language ask: pass the modeler's phrase as `lingo` (and optionally the `subject` they want, e.g. \"spaceship\"), read the returned routes, then drive the actual create/export calls. Honest by design — for retopo/UV/bake/rig/PBR it returns a `do_in_dcc` note and no false capability, because mojulo is a generator that FEEDS the pipeline, not a modeller. Pass `{ list: true }` to browse the whole lexicon. Read-only; returns `{ lingo, subject, pipeline, matches }` where each match has `support` (native|partial|partial-with-`ceiling`|handoff), `mojulo_routes`, `then`, and `do_in_dcc`.",
     inputSchema: {
       type: 'object',
       properties: {

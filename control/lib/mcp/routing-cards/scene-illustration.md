@@ -8,4 +8,4 @@
   "form": "illustration"
 }
 ---
-→ `sketch_what_possible` knob-resolution loop → `create_sketch({recipe:{kind,...}})`. Single-shot natural language → `create_polygonized_sketch`; painted landscape → `compose_world` (base `painted-landscape`; glyphs via `semantic_search({kinds:['painted_landscape']})`, glyph ids in `overrides`); cardinal-grammar structural illustration → `create_manji_tree` (2D or 3D). (Contrast: a diagram/chart → `create_sketch` directly; a posed human body → `create_figure`.) Full family → `get_creative_toolset({ form: 'illustration' })`.
+→ `sketch_what_possible` knob-resolution loop → `create_sketch({recipe:{kind,...}})`. Single-shot natural language → `mint_solid` kind `manji-tree` `via:'packet'` (key-free); painted landscape → `compose_world` (base `painted-landscape`; glyphs via `semantic_search({kinds:['painted_landscape']})`, glyph ids in `overrides`); cardinal-grammar structural illustration → `create_manji_tree` (2D or 3D). (Contrast: a diagram/chart → `create_sketch` directly; a posed human body → `create_figure`.) Full family → `get_creative_toolset({ form: 'illustration' })`.

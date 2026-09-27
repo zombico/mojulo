@@ -73,12 +73,12 @@ Rounded forms only (no boxes yet). Also accepts `physics`, `detail` (dial 1–4;
 
 ### via: 'prompt'
 
-The natural-language door: describe the creature/object in prose and a KEYED provider generates the polygonized manifest for you (defaults to the saved default LLM key, else a local model). Input is a `prompt` string plus a `mode`:
+The natural-language door: describe the creature/object in prose and an external LLM generates the polygonized manifest for you. **This sends the prompt to that provider's API with the user's key**, so `provider` is required (`anthropic` / `openai`, or `ollama` for the user's Ollama host, local by default) and nothing is chosen for you; the key is `apiKey`, the saved key named by `apiKeyId`, or the user's saved key for that provider. Ask before using it. The key-free door is `'packet'` below. Input is a `prompt` string plus a `mode`:
 
 - `mode: 'one-trip'` (default) — a single model call emits the full manifest. Use for FLAT scenes (portraits, charts, single figures).
 - `mode: 'plan-then-skin'` — a two-turn protocol: turn 1 emits a PLANNING manifest (no marks) that is gated through the authorship-preview and solved into a scaffold, then turn 2 emits marks against that solved scaffold. Failures are partitioned — planning errors don't waste mark-generation tokens, and skin errors don't invalidate the plan. Use for scenes with perspective / support / collision concerns (room interiors, architectural construction, multi-figure).
 
-`repair: 'auto' | 'off'` spends at most one repair trip on local-validation failure (budget applies independently per turn in plan-then-skin). `mint` (default true) persists and returns the sketch url; `provider` / `model` / `apiKeyId` / `apiKey` override the credential (plaintext stays server-side — never returned). `preload` seeds prior sketches. The response surfaces `attempts`, `mode`, and for plan-then-skin `turns[]`, `phase`, `authorshipPreview`, and `scaffold`.
+`repair: 'auto' | 'off'` spends at most one repair trip on local-validation failure (budget applies independently per turn in plan-then-skin). `mint` (default true) persists and returns the sketch url; `model` / `apiKeyId` / `apiKey` pick the model and credential (plaintext stays server-side — never returned; the response's `keySource` says which key was used). `preload` seeds prior sketches. The response surfaces `attempts`, `mode`, and for plan-then-skin `turns[]`, `phase`, `authorshipPreview`, and `scaffold`.
 
 ### via: 'packet'
 

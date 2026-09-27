@@ -1319,46 +1319,63 @@ function defaultModelClient({ provider, apiKey, model } = {}) {
     generateStructured(provider, prompt, apiKey, systemInstruction, schema, model);
 }
 
+/**
+ * Model config for the keyed polygonizer door (mint_solid via:'prompt', the
+ * create_polygonized_sketch alias, POST /api/polygonizer). That door sends
+ * the prompt to an LLM API, so nothing here chooses a provider for the
+ * caller: `provider` is required. The key is `apiKey`, the saved key named
+ * by `apiKeyId`, or else the operator's saved key for that same provider;
+ * `keySource` says which. Ollama without a host uses the local default
+ * (OLLAMA_HOST wins). The key-free alternative is via:'packet'.
+ */
 export async function resolvePolygonizerModelConfig({ provider, apiKey, apiKeyId, model } = {}) {
-  let selectedProvider = provider;
-  let selectedApiKey = apiKey;
-  let selectedModel = model;
+  if (!provider) {
+    throw new Error(
+      `\`provider\` is required: this door sends the prompt to an LLM API using your key for that ` +
+        `provider (${Object.keys(LLM_PROVIDERS).join(' | ')}; 'ollama' calls your Ollama host, local by default). ` +
+        `Nothing is chosen for you. For a key-free mint use via:'packet'.`,
+    );
+  }
+  if (!LLM_PROVIDERS[provider]) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  let selectedApiKey = typeof apiKey === 'string' && apiKey ? apiKey : null;
+  let keySource = selectedApiKey ? 'apiKey' : null;
 
   if (apiKeyId) {
     const record = await ApiKeyRepository.findById(apiKeyId);
     if (!record) throw new Error(`Saved API key ${apiKeyId} not found`);
-    if (selectedProvider && record.provider !== selectedProvider) {
-      throw new Error(`Saved API key provider "${record.provider}" does not match selected provider "${selectedProvider}"`);
+    if (record.provider !== provider) {
+      throw new Error(`Saved API key provider "${record.provider}" does not match selected provider "${provider}"`);
     }
-    selectedProvider = record.provider;
     selectedApiKey = decryptApiKey(record.encryptedKey);
+    keySource = 'apiKeyId';
   }
 
-  if (!selectedProvider) {
-    const keys = await ApiKeyRepository.findByUserId('local');
-    const defaultKey = keys.find((key) => key.isDefault && LLM_PROVIDERS[key.provider]) ||
-      keys.find((key) => LLM_PROVIDERS[key.provider]);
-    if (defaultKey) {
-      selectedProvider = defaultKey.provider;
-      selectedApiKey = decryptApiKey(defaultKey.encryptedKey);
+  if (!selectedApiKey) {
+    const saved = await ApiKeyRepository.findByProvider(provider);
+    if (saved) {
+      selectedApiKey = decryptApiKey(saved.encryptedKey);
+      keySource = 'saved';
     }
   }
 
-  if (!selectedProvider) selectedProvider = 'ollama';
-  if (!LLM_PROVIDERS[selectedProvider]) {
-    throw new Error(`Unsupported provider: ${selectedProvider}`);
-  }
-  if (selectedProvider !== 'ollama' && (!selectedApiKey || typeof selectedApiKey !== 'string')) {
-    throw new Error('API key is required. Provide apiKey/apiKeyId or configure a saved default provider key.');
-  }
-  if (!selectedModel) {
-    selectedModel = getDefaultModelForTask(selectedProvider, 'structured');
+  if (!selectedApiKey) {
+    if (provider !== 'ollama') {
+      throw new Error(
+        `No ${provider} key: pass apiKey or apiKeyId, or save a ${provider} key first (\`mojulo config\`).`,
+      );
+    }
+    selectedApiKey = LLM_PROVIDERS.ollama.defaultHost;
+    keySource = 'ollama-default-host';
   }
 
   return {
-    provider: selectedProvider,
-    apiKey: selectedApiKey || '',
-    model: selectedModel,
+    provider,
+    apiKey: selectedApiKey,
+    model: model || getDefaultModelForTask(provider, 'structured'),
+    keySource,
   };
 }
 

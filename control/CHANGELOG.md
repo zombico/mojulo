@@ -1124,6 +1124,15 @@ rock to classical, flamenco and gypsy jazz.
   ([lib/auth/request-guard.js](lib/auth/request-guard.js)). The check runs with login on too.
   Callers presenting the `CONTROL_PLANE_MCP_KEY` bearer skip it; `/api/mcp` and `/api/health` stay
   outside the middleware as before.
+- **`mint_solid` `via:'prompt'` no longer picks an LLM key for the caller.** The keyed polygonizer
+  door (and its hidden alias `create_polygonized_sketch`, and `POST /api/polygonizer`), called with
+  no `provider`, quietly decrypted the operator's saved default OpenAI/Anthropic key, or any saved
+  one, and sent the prompt to that API. `provider` is now required; the key is `apiKey`, the saved
+  key named by `apiKeyId`, or the saved key for that same provider, and the response's `keySource`
+  says which. `ollama` without a host uses the local default. The schema, the `manji-tree` card,
+  the scene-illustration routing card and `get_substrate` fact 5 now say the door calls an external
+  LLM API with the user's key, and `translate_modeler_lingo` routes to the key-free `via:'packet'`
+  door instead of the keyed alias.
 
 ## [2.1.0] - 2026-09-23
 

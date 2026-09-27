@@ -123,7 +123,8 @@ const RETIRED_ALIASES = [
   ['emote_figure', emoteFigureHandler],
   ['create_manji_tree', createManjiTreeHandler],
   ['sketch_polygomer', sketchPolygomerHandler],
-  ['create_polygonized_sketch', createPolygonizedSketchHandler],
+  ['create_polygonized_sketch', createPolygonizedSketchHandler,
+    "Deprecated alias of mint_solid via:'prompt'. Sends the prompt to an external LLM API with the user's key; `provider` is required. Key-free: via:'packet'."],
   ['get_polygonizer_packet', getPolygonizerPacketHandler],
   ['submit_polygonizer_manifest', submitPolygonizerManifestHandler],
   ['create_workbench', createWorkbenchHandler],
@@ -239,7 +240,7 @@ export function registerMintSolidTools() {
       properties: {
         kind: { type: 'string', enum: KIND_LIST, description: 'Which solid. Parameter manual: get_solid_vocab({ id: kind }).' },
         spec: { type: 'object', description: `The kind's own knobs (see its solid-vocab card). Validated by the kind's mint; a failed mint returns the card pointer.` },
-        via: { type: 'string', description: `Authoring door. manji-tree: 'ir' (default, full manifest) | 'parts' | 'prompt' (NL, keyed) | 'packet' (NL, key-free two-call handshake). layered: 'plan' (a ring plan in spec.plan) | 'hero' (a human: spec { cast: 'male' | 'female', register, tune: percentages of the cast — 'athletic', { shoulders: 1.1, legs: 1.08 } }).` },
+        via: { type: 'string', description: `Authoring door. manji-tree: 'ir' (default, full manifest) | 'parts' | 'prompt' (NL: sends spec.prompt to an external LLM API with the user's key; spec.provider required, nothing is picked for you) | 'packet' (NL, key-free two-call handshake). layered: 'plan' (a ring plan in spec.plan) | 'hero' (a human: spec { cast: 'male' | 'female', register, tune: percentages of the cast — 'athletic', { shoulders: 1.1, legs: 1.08 } }).` },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
@@ -291,11 +292,11 @@ export function registerMintSolidTools() {
 
   // Deprecated per-type creators/verbs — resolve in tools/call, hidden from
   // tools/list. Each forwards to its original handler unchanged.
-  for (const [name, handler] of RETIRED_ALIASES) {
+  for (const [name, handler, note] of RETIRED_ALIASES) {
     registerTool({
       name,
       listed: false,
-      description: `Deprecated alias — folded into mint_solid / edit_solid. See get_solid_vocab.`,
+      description: note || `Deprecated alias — folded into mint_solid / edit_solid. See get_solid_vocab.`,
       inputSchema: { type: 'object', properties: {}, required: [] },
       handler,
     });

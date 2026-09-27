@@ -47,8 +47,9 @@ describe('translate_modeler_lingo', () => {
   it('folds subject into suggested create_* args', async () => {
     const out = await translateModelerLingoHandler({ lingo: 'base mesh', subject: 'spaceship' });
     const top = out.matches[0];
-    const poly = top.mojulo_routes.find((r) => r.tool === 'create_polygonized_sketch');
-    expect(poly.args.prompt).toBe('spaceship');
+    // The key-free packet door: the agent authors the manifest, no LLM key is used.
+    const poly = top.mojulo_routes.find((r) => r.tool === 'mint_solid' && r.args?.via === 'packet');
+    expect(poly.args).toEqual({ kind: 'manji-tree', via: 'packet', spec: { prompt: 'spaceship' } });
     expect(out.subject).toBe('spaceship');
   });
 
@@ -63,7 +64,7 @@ describe('translate_modeler_lingo', () => {
   it('returns a graceful fallback for unknown lingo', async () => {
     const out = await translateModelerLingoHandler({ lingo: 'frobnicate the zorptangle' });
     expect(out.matches).toHaveLength(0);
-    expect(out.unmatched.suggestion).toMatch(/create_polygonized_sketch/);
+    expect(out.unmatched.suggestion).toMatch(/mint_solid.*via: 'packet'/);
     expect(Array.isArray(out.unmatched.known_terms)).toBe(true);
   });
 
