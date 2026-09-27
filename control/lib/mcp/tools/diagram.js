@@ -41,13 +41,13 @@ export function mintDiagram({ title, manifest, ref, folderRef } = {}) {
   if (manifest.recipe !== undefined) {
     throw new Error(
       '`manifest.recipe` (illustration recipe lowering) is a creative-pack feature. '
-        + 'Author explicit stations/marks, or use create_sketch (run `mojulo install creative`).',
+        + 'Author explicit stations/marks, or use create_sketch (the creative pack).',
     );
   }
   if (manifest.polygonizer !== undefined) {
     throw new Error(
       '`manifest.polygonizer` (constellation composition) is a creative-pack feature. '
-        + 'Author explicit stations/marks, or use create_sketch (run `mojulo install creative`).',
+        + 'Author explicit stations/marks, or use create_sketch (the creative pack).',
     );
   }
   if (ref !== undefined) {

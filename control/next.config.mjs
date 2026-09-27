@@ -46,9 +46,6 @@ const nextConfig = {
     'opentype.js',
     'puppeteer-core',
     '@puppeteer/browsers',
-    // three is creative-only (lib/graph, lib/motion). External so an ops
-    // install (npm install --omit=optional) can build without it present.
-    'three',
   ],
   turbopack: { root: __dirname },
   webpack: (config, { isServer }) => {
@@ -93,7 +90,7 @@ const nextConfig = {
       // The recall group's runtime (@huggingface/transformers, onnxruntime-node) is
       // not a dependency at all — the bare `import('@huggingface/transformers')` in
       // lib/embedder/local.js is the repo-dev fallback and must never be bundled.
-      const CREATIVE_EXTERNAL = /^(three|sharp|node-web-audio-api|opentype\.js|puppeteer-core|@puppeteer\/browsers|manifold-3d|openscad-wasm-prebuilt|@huggingface\/transformers|onnxruntime-node)(\/|$)/;
+      const CREATIVE_EXTERNAL = /^(sharp|node-web-audio-api|opentype\.js|puppeteer-core|@puppeteer\/browsers|manifold-3d|openscad-wasm-prebuilt|@huggingface\/transformers|onnxruntime-node)(\/|$)/;
       const prior = config.externals;
       const priorList = Array.isArray(prior) ? prior : prior ? [prior] : [];
       config.externals = [

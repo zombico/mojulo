@@ -184,7 +184,7 @@ export async function loadOpenscad() {
   return _modPromise;
 }
 
-export const OPENSCAD_INSTALL_LINE = 'openscad-wasm-prebuilt is not installed — `npm install --include=optional` in control/ (or `mojulo install creative`) adds it';
+export const OPENSCAD_INSTALL_LINE = 'openscad-wasm-prebuilt is not installed — `npm install --include=optional` in control/ adds it';
 
 let _version = null;
 /** The OpenSCAD version the WASM reports (memoised), or null when the package is absent. */

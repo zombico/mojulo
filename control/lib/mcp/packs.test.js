@@ -411,6 +411,9 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
   it('installNotice: null when installed, advisory (not a refusal) when gated', () => {
     expect(installNotice('compose_world', {})).toBeNull();
     expect(installNotice('compose_world', { MOJULO_PACKS: 'chatbot' })).toMatch(/creative capability pack/);
+    // creative ships with every install, so the fix for a gated creative is the override, not an install
+    expect(installNotice('compose_world', { MOJULO_PACKS: 'chatbot' })).toMatch(/include 'creative' in MOJULO_PACKS/);
+    expect(installNotice('compose_world', { MOJULO_PACKS: 'chatbot' })).not.toMatch(/mojulo install creative/);
     expect(installNotice('start_new_bot', { MOJULO_PACKS: 'chatbot' })).toBeNull();
     expect(installNotice('forward_context', { MOJULO_PACKS: 'chatbot' })).toBeNull(); // spine → kernel
     expect(installNotice('list_catalysts', { MOJULO_PACKS: 'chatbot' })).toBeNull(); // ungrouped → kernel-adjacent
@@ -437,8 +440,14 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
 describe('install axis — physical detection is the source of truth (unset MOJULO_PACKS)', () => {
   afterEach(() => _setGroupPresence(null)); // clear the forced probe → back to real disk
 
+  it('creative is always installed: the real probe finds it with no marker package on disk', () => {
+    _setGroupPresence(null); // the real probe; `three` used to be the marker and is no longer a dependency
+    expect(installedGroups({}).has('creative')).toBe(true);
+    expect(isToolInstalled('compose_world', {})).toBe(true);
+  });
+
   it('unset env derives groups from physical presence, not a hardcoded default', () => {
-    _setGroupPresence(['chatbot']); // simulate creative optional deps omitted (--omit=optional)
+    _setGroupPresence(['chatbot']); // a probe that found chatbot only (seam; creative itself is always present)
     expect([...installedGroups({})]).toEqual(['chatbot']);
     expect(isPackInstalled(PACKS.find((p) => p.installGroup === 'creative'), {})).toBe(false);
     expect(isPackInstalled(PACKS.find((p) => p.installGroup === 'chatbot'), {})).toBe(true);

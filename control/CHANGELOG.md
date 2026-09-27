@@ -24,6 +24,17 @@ loops and the recipe format are unchanged.
   the stdio loader serves that file while the source hash on its first line matches the `.jsx`. A dev
   checkout, or a `.jsx` edited after a pack, still compiles through @swc/core, now a devDependency.
   This drops a native addon and its install script from `npx mojulo`.
+- **The creative pack is always installed, and `three` is no longer a dependency.** No Node code
+  imports `three`; the exported pages load it from the vendored copy in `public/vendor` or from the
+  pinned CDN. The package was only the creative pack's install marker, so an install without it (for
+  example `--omit=optional`) hid every studio pack's tools although they work. Creative is now
+  `alwaysInstalled`, gated off only by an explicit `MOJULO_PACKS` override, and `three` (about 37 MB)
+  is gone from `optionalDependencies` and the Next server externals.
+- **`mojulo install creative` installs nothing.** It says the pack ships with the base install and lists
+  any optional helper (manifold-3d, node-web-audio-api, openscad-wasm-prebuilt, opentype.js, sharp) that
+  does not resolve. It used to run `npm install --include=optional` inside the package directory, which
+  under npx is a cache directory and pulled in the whole devDependency tree (about 600 packages). The
+  in-band hints that pointed at it (sharp, OpenSCAD, `mint_diagram`) no longer do.
 
 ### Canal city
 
