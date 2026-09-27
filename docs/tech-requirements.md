@@ -15,9 +15,9 @@ self-description; keep site copy consistent with it), [install-capabilities.md](
 
 ## The shape in one paragraph
 
-Mojulo is an npm package that runs **two local processes** on your machine: an MCP server your
-coding agent spawns over stdio (`npx -y mojulo`), and a dashboard (`mojulo-ui`) that binds to
-`127.0.0.1` on port 3001 or the next free port. Both read and write the same state under
+Mojulo runs **two local processes** on your machine: an MCP server your coding agent spawns over
+stdio (`npx -y mojulo`), and a dashboard (`npx -y mojulo-ui`, its own npm package since 2.2.0) that
+binds to `127.0.0.1` on port 3001 or the next free port. Both read and write the same state under
 `~/.mojulo/`. There is no hosted service, no account, no telemetry, and no LLM key for the studio:
 your agent is the reasoning loop. Game engines, Blender, slicers, and image or voice models are
 **never installed by mojulo** — you install them if you want them, and mojulo detects them.

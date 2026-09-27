@@ -37,7 +37,7 @@ args = ["-y", "mojulo"]
 "mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
 ```
 
-Open the dashboard on its own with `npx -y -p mojulo mojulo-ui`. The same bin is a CLI over the tool registry: `npx mojulo tools`, `npx mojulo help mint_solid`, `npx mojulo call version`.
+Open the dashboard on its own with `npx -y mojulo-ui`. It is its own npm package since 2.2.0, so your agent's `npx mojulo` start never downloads it; `npx -y -p mojulo mojulo-ui` still works and fetches the matching version from npm on first use. The `mojulo` bin is also a CLI over the tool registry: `npx mojulo tools`, `npx mojulo help mint_solid`, `npx mojulo call version`.
 
 </details>
 

@@ -154,15 +154,27 @@ loads almost nothing:
   compiled at prepack into `CreationMap.jsx.mjs` ([control/scripts/precompile-jsx.mjs](../control/scripts/precompile-jsx.mjs));
   the stdio loader serves it while the source hash on its first line matches, so `@swc/core` is a
   devDependency.
-- **Dashboard-only packages are devDependencies.** The Next build compiles them into
-  `.next/standalone`, which is what `mojulo-ui` runs; the stdio server never imports them.
-- **The tarball carries only what runs.** `files` leaves out the bot template's tokenizer files, the locale
-  JSON (compiled into the dashboard bundle), test snapshots and scratch output.
+- **Dashboard-only packages are devDependencies.** The Next build compiles them into its standalone
+  server; the stdio server never imports them.
+- **The dashboard is its own package.** The standalone Next.js server and the bot template ship in
+  `mojulo-ui` ([control/ui-package](../control/ui-package/), staged by
+  [control/scripts/stage-ui-package.mjs](../control/scripts/stage-ui-package.mjs)), published at the same
+  version as `mojulo` and depending on exactly that version, so `npx mojulo` downloads neither. The
+  dashboard resolves native and shared packages (better-sqlite3, sharp, the geometry, archive, document and
+  browser packages) from the install it shares with core, never from copies traced into its build, and
+  declares them with core's ranges. `mojulo-ui` inside core is a shim: it runs the dashboard package
+  installed beside it, or downloads the matching version with `npm exec` after saying so
+  (`MOJULO_UI_NO_FETCH=1` refuses). `npm run smoke:tarball` packs and installs both.
+- **The tarball carries only what runs.** `files` leaves out the dashboard build, the bot template, the
+  locale JSON (compiled into the dashboard bundle), test snapshots and scratch output.
 - **Measured once for the 2.2 changes** (macOS arm64, one tree under the 2.1 and then the 2.2
   `package.json`). The tarball went from 30.2 MB to 25.5 MB (121 MB to 100 MB unpacked). Installing the
   tarball without its dashboard build into an empty npm cache added 426 packages (427 MB on disk, 278 MB
   downloaded) before and 264 packages (305 MB on disk, 191 MB downloaded) after; `--omit=optional`
   brings it to 151 MB on disk. These are single samples; re-measure a release with `npm run smoke:tarball`.
+  With the dashboard split out, core's tarball is 6.0 MB (19.2 MB unpacked, from 25.5 MB and 100 MB) and
+  `mojulo-ui`'s is 13.2 MB (59.9 MB unpacked). A cold `npx mojulo` from an empty cache then added 251
+  packages (303 MB on disk), three samples through a local registry stand-in.
 
 ## Diagram maker in the kernel
 

@@ -46,7 +46,9 @@ import { fileURLToPath } from 'node:url';
 import { register } from 'node:module';
 import { spawnSync, spawn } from 'node:child_process';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
+import { locateDashboard, readPackageJson } from './ui-launch.mjs';
 import { listHostProfiles, getHostProfile, expandPath } from '../lib/mcp/hosts/registry.js';
+import { UI_PACKAGE_NAME, uiLaunchCommand } from '../lib/version/ui-package.js';
 
 // Same setup as mcp-config.mjs so the key step can reach @/lib code.
 register('./mcp-stdio-loader.mjs', import.meta.url);
@@ -517,10 +519,18 @@ function portIsFree(port) {
   });
 }
 
+// The dashboard is its own npm package; the shim (mcp-ui.mjs) runs it from beside this core, or
+// downloads it with npm exec. Say which before asking, since the second fetches from the registry.
+const VERSION = readPackageJson(CONTROL_DIR)?.version;
+const UI_NOTE = locateDashboard({ version: VERSION }).source === 'fetch'
+  ? ` (downloads ${UI_PACKAGE_NAME}@${VERSION} from the npm registry first)`
+  : '';
+
 // Pick the port HERE so the final banner can print the real URL — the docs say
 // 3001, so prefer it and fall back to an OS-assigned free port. Stderr stays
 // attached to the terminal so a failed boot (missing standalone bundle, port
-// race) is visible instead of vanishing with the detached child.
+// race) and the shim's download notice are visible instead of vanishing with
+// the detached child.
 async function launchDashboard() {
   const uiScript = path.join(SCRIPTS_DIR, 'mcp-ui.mjs');
   let port = 3001;
@@ -590,7 +600,7 @@ if (detected.length === 0) {
 
 if (args.needsYes) {
   if (args.ui) {
-    process.stdout.write('  (--print) would launch the dashboard (mojulo-ui) on 127.0.0.1 and open your browser; --no-ui skips it.\n');
+    process.stdout.write(`  (--print) would launch the dashboard (mojulo-ui) on 127.0.0.1 and open your browser${UI_NOTE}; --no-ui skips it.\n`);
   }
   process.stdout.write(
     '\nNothing was changed. To apply the plan above, re-run with --yes (the operator\'s go-ahead),\n'
@@ -601,7 +611,7 @@ if (args.needsYes) {
 
 if (!args.print) await maybeSetKey({ yes: args.yes });
 
-const openUi = args.ui && !args.print && (args.yes || (await confirm('\nOpen the dashboard now?', true)));
+const openUi = args.ui && !args.print && (args.yes || (await confirm(`\nOpen the dashboard now${UI_NOTE}?`, true)));
 if (rl) rl.close();
 const uiPort = openUi ? await launchDashboard() : null;
 
@@ -619,7 +629,7 @@ process.stdout.write(
     '',
     openUi
       ? `    Dashboard: opening at http://localhost:${uiPort}`
-      : '    Dashboard: npx -y -p mojulo mojulo-ui',
+      : `    Dashboard: ${uiLaunchCommand(VERSION)}`,
     '    Dashboard language:        ~two dozen to pick from — Settings → Language',
     '    Add a key later:           mojulo-config set anthropic sk-...',
     '',

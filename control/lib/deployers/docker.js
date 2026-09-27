@@ -278,13 +278,15 @@ export class DockerDeployer {
     //    Prebuilt-image mode (default) writes nothing here — the GHCR image
     //    holds the source and `docker-compose.yml` (written in step 7) pulls
     //    it at `docker compose up`. Offline mode copies the full template so
-    //    `docker compose up --build` works air-gapped, which only makes sense
-    //    in clone-and-run installs (the npm package doesn't ship lite-template).
+    //    `docker compose up --build` works air-gapped. The template ships in a
+    //    repo clone and in the dashboard package (mojulo-ui, whose launcher sets
+    //    LITE_TEMPLATE_PATH); core's npm package does not carry it.
     if (OFFLINE_BUILD) {
       if (!fs.existsSync(LITE_TEMPLATE_PATH)) {
         throw new Error(
           `MOJULO_OFFLINE_BUILD=1 but lite-template not found at ${LITE_TEMPLATE_PATH}. ` +
-            `Offline mode requires a repo clone; set LITE_TEMPLATE_PATH or unset MOJULO_OFFLINE_BUILD.`
+            `Offline mode needs the template from a repo clone or the dashboard (mojulo-ui) package; ` +
+            `set LITE_TEMPLATE_PATH or unset MOJULO_OFFLINE_BUILD.`
         );
       }
       await copyTemplateFiles(LITE_TEMPLATE_PATH, stagingDir, TEMPLATE_EXCLUDES);
