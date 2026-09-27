@@ -1107,6 +1107,14 @@ rock to classical, flamenco and gypsy jazz.
   and refuses loopback, link-local, private, carrier-grade NAT, multicast and reserved ranges
   (IPv4, IPv6, v4-mapped and NAT64) ([lib/net/public-fetch.js](lib/net/public-fetch.js)). Set
   `MOJULO_ALLOW_PRIVATE_URLS=1` to allow them for local development.
+- **Saved provider keys are encrypted under a per-install key.** With `API_KEY_ENCRYPTION_KEY`
+  unset (the default), keys and tokens were encrypted under `sha256('mojulo-lite-local-dev')`, a
+  constant in the source, while a comment called it host-derived. The fallback is now a random
+  32-byte key created on first use at `$MOJULO_HOME/secret.key` (mode 0600, written atomically);
+  the MCP server, the dashboard and `mojulo init` / `config` share it through the same
+  `MOJULO_HOME`. `API_KEY_ENCRYPTION_KEY` still takes precedence. Keys saved by 2.1.x still decrypt,
+  and each process re-encrypts any such `api_keys` row under the new key before its first read.
+  Deleting `secret.key` makes the saved keys unreadable (re-save them).
 
 ## [2.1.0] - 2026-09-23
 

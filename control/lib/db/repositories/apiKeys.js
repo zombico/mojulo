@@ -2,6 +2,7 @@ import { getDb } from '../index.js';
 import { newId } from '../ids.js';
 import { rolesEnabled } from '../../roles/keys.js';
 import { UserRepository } from './users.js';
+import { migrateLegacyCiphertext } from '../../deployment-auth.js';
 
 function rowToApiKey(row) {
   if (!row) return null;
@@ -16,6 +17,33 @@ function rowToApiKey(row) {
   };
 }
 
+// Re-encrypt rows saved under the pre-2.2 built-in key with the per-install
+// key (lib/deployment-auth.js), once per process and database, before the
+// first read. The WHERE on the old value keeps a concurrent process's
+// migration of the same row from being overwritten.
+let migratedDb = null;
+function migrateLegacyRows(db) {
+  if (migratedDb === db) return;
+  migratedDb = db;
+  const rows = db.prepare('SELECT id, encrypted_key FROM api_keys').all();
+  const update = db.prepare('UPDATE api_keys SET encrypted_key = ? WHERE id = ? AND encrypted_key = ?');
+  for (const row of rows) {
+    try {
+      const reencrypted = migrateLegacyCiphertext(row.encrypted_key);
+      if (reencrypted) update.run(reencrypted, row.id, row.encrypted_key);
+    } catch (err) {
+      // Reads still decrypt legacy values; the next process retries.
+      console.warn(`[api_keys] could not re-encrypt key ${row.id}: ${err.message}`);
+    }
+  }
+}
+
+function migratedHandle() {
+  const handle = getDb();
+  migrateLegacyRows(handle);
+  return handle;
+}
+
 export const ApiKeyRepository = {
   /**
    * The key-resolution funnel (roles-pack.plan.md Phase 3 — BYOK per
@@ -28,7 +56,7 @@ export const ApiKeyRepository = {
    * tool-executors) is covered by one funnel.
    */
   async findByUserId(userId) {
-    const db = getDb();
+    const db = migratedHandle();
     const rows = db
       .prepare('SELECT * FROM api_keys ORDER BY is_default DESC, created_at ASC')
       .all()
@@ -43,19 +71,19 @@ export const ApiKeyRepository = {
   },
 
   async findById(id) {
-    const db = getDb();
+    const db = migratedHandle();
     const row = db.prepare('SELECT * FROM api_keys WHERE id = ?').get(id);
     return rowToApiKey(row);
   },
 
   async findDefault() {
-    const db = getDb();
+    const db = migratedHandle();
     const row = db.prepare('SELECT * FROM api_keys WHERE is_default = 1 LIMIT 1').get();
     return rowToApiKey(row);
   },
 
   async findByProvider(provider) {
-    const db = getDb();
+    const db = migratedHandle();
     const row = db
       .prepare('SELECT * FROM api_keys WHERE provider = ? ORDER BY is_default DESC, created_at ASC LIMIT 1')
       .get(provider);
