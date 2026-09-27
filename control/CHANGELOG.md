@@ -12,6 +12,19 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Runtime footprint and consent
+
+- **Everything mojulo writes lazily now lands under `~/.mojulo`.** The Chrome for Testing cache
+  (`chromium/`), the ffmpeg cache (`ffmpeg/`), the baked gallery stills (`data/scene-png/`), the
+  turntable strips (`data/turntable/`) and the draft figure specs (`data/figure-specs/`) used to
+  default to `data/` inside the installed package, which under `npx` is the npx cache: each new
+  version fetched Chrome again and pending figure specs were lost. The bins now seed
+  `MOJULO_CHROMIUM_DIR`, `MOJULO_FFMPEG_DIR`, `MOJULO_SCENE_PNG_DIR`, `MOJULO_TURNTABLE_DIR` and
+  `MOJULO_FIGURE_SPECS_DIR` under `MOJULO_HOME` (an explicit value still wins). On first use the
+  figure-spec store copies an older `<package>/data/figure-specs` across if it has no specs yet; the
+  old folder is left in place. The stdio server's mint-time warm and the dashboard now share one
+  bake cache, so a warmed card is a cache hit in the gallery.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

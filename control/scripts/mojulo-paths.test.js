@@ -11,7 +11,8 @@ import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 const KEYS = [
   'MOJULO_HOME', 'MOJULO_DATA_DIR', 'MOJULO_MODELS_DIR', 'SQLITE_PATH', 'ARTIFACTS_DIR',
-  'STORAGE_ROOT', 'MOJULO_OUTCOMES_DIR', 'MOJULO_EXPORTS_DIR',
+  'STORAGE_ROOT', 'MOJULO_OUTCOMES_DIR', 'MOJULO_EXPORTS_DIR', 'MOJULO_SCENE_PNG_DIR',
+  'MOJULO_TURNTABLE_DIR', 'MOJULO_FIGURE_SPECS_DIR', 'MOJULO_CHROMIUM_DIR', 'MOJULO_FFMPEG_DIR',
 ];
 
 function withCleanEnv(fn) {
@@ -41,6 +42,26 @@ describe('resolveMojuloPaths', () => {
       expect(r.outcomesDir).toBe(process.env.MOJULO_OUTCOMES_DIR);
       expect(r.exportsDir).toBe(process.env.MOJULO_EXPORTS_DIR);
       expect(existsSync(path.join(data, 'artifacts'))).toBe(true);
+    });
+  });
+
+  // The browser/ffmpeg caches, the baked-image caches and the figure specs used to
+  // default to <cwd>/data/*, which under npx is the _npx cache: a new version
+  // re-downloaded Chrome and lost pending specs. Everything now lands under the home.
+  it('seeds every lazily written store under MOJULO_HOME', () => {
+    withCleanEnv(() => {
+      const home = mkdtempSync(path.join(os.tmpdir(), 'mojulo-paths-'));
+      process.env.MOJULO_HOME = home;
+      const r = resolveMojuloPaths();
+      const data = path.join(home, 'data');
+      expect(process.env.MOJULO_SCENE_PNG_DIR).toBe(path.join(data, 'scene-png'));
+      expect(process.env.MOJULO_TURNTABLE_DIR).toBe(path.join(data, 'turntable'));
+      expect(process.env.MOJULO_FIGURE_SPECS_DIR).toBe(path.join(data, 'figure-specs'));
+      expect(process.env.MOJULO_CHROMIUM_DIR).toBe(path.join(home, 'chromium'));
+      expect(process.env.MOJULO_FFMPEG_DIR).toBe(path.join(home, 'ffmpeg'));
+      for (const dir of [r.scenePngDir, r.turntableDir, r.figureSpecsDir, r.chromiumDir, r.ffmpegDir]) {
+        expect(dir.startsWith(home + path.sep)).toBe(true);
+      }
     });
   });
 

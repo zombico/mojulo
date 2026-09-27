@@ -90,10 +90,11 @@ are cached, and are skipped entirely if you already have the tool:
 | Geo data (Natural Earth, Nominatim) | First map-backed landscape | small, disk-cached | — |
 | Embedding model | `mojulo install recall` (never on a default install) | ~130 MB | Already in `~/.mojulo/models/` |
 
-> **Where the browser and ffmpeg caches live.** They default to `data/chromium` and `data/ffmpeg`
-> under the *installed package directory* (the process `chdir`s there), not under `~/.mojulo/`.
-> For an `npx` install that is inside the npx cache. Set `MOJULO_CHROMIUM_DIR` /
-> `MOJULO_FFMPEG_DIR` to move them. This is the one exception to "delete `~/.mojulo` and it's gone."
+> **Where the browser and ffmpeg caches live.** `~/.mojulo/chromium` and `~/.mojulo/ffmpeg`, beside
+> the baked-image caches and figure specs under `~/.mojulo/data/`. Set `MOJULO_CHROMIUM_DIR` /
+> `MOJULO_FFMPEG_DIR` to move them. Before 2.2 they sat inside the installed package (the npx cache
+> for an `npx` install); nothing reads or deletes those old copies now, so remove them by hand if you
+> want the space back.
 
 ---
 
