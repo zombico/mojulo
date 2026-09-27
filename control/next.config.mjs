@@ -7,12 +7,11 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.js');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Emits .next/standalone/server.js + a pruned node_modules tree the
-  // mojulo-ui bin boots from. Built with --webpack (see prepack script):
-  // turbopack's standalone output hashes serverExternalPackages names
-  // (e.g. "@huggingface/transformers-31f28a0eb9b916d1"), which Node's
-  // resolver can't find when standalone runs from an npm-installed path.
-  // See lite-template/integration/UI_PACKAGE_PLAN.md.
+  // Emits .next/standalone/server.js + a pruned node_modules tree, which the
+  // dashboard package (control/ui-package, staged by scripts/stage-ui-package.mjs)
+  // ships and boots from. Built with --webpack: turbopack's standalone output
+  // hashes serverExternalPackages names (e.g. "@huggingface/transformers-31f28a0eb9b916d1"),
+  // which Node's resolver can't find when standalone runs from an npm-installed path.
   output: 'standalone',
   outputFileTracingRoot: __dirname,
   // Motion folded into the Mojulo Maker concern. Sketches stays its own concern
@@ -32,6 +31,9 @@ const nextConfig = {
       { source: '/maker/objects', destination: '/library?shelf=models', permanent: false },
     ];
   },
+  // Each stays a runtime require, and the dashboard package resolves every one from
+  // the install it shares with core: the stager leaves the traced copies out and the
+  // package declares them with core's ranges (scripts/ui-package-manifest.mjs).
   serverExternalPackages: [
     'better-sqlite3',
     'archiver',
