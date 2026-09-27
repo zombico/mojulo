@@ -56,6 +56,41 @@ loops and the recipe format are unchanged.
   427 MB to 305 MB on disk (278 MB to 191 MB downloaded). `docs/install-capabilities.md` records the boot
   set, the startup-timeout constraint and these numbers.
 
+### Dashboard package
+
+- **The dashboard is its own npm package, `mojulo-ui`.** The prebuilt Next.js server
+  (`.next/standalone`) and the bot template were most of what `npx mojulo` downloaded, and the stdio
+  server a host starts loads neither. They now ship as `mojulo-ui`, published at the same version as
+  `mojulo` and depending on exactly that version, because the dashboard runs a compiled copy of
+  mojulo's code against the same database. Core's tarball drops from 25.5 MB to 6.0 MB (100 MB to
+  19.2 MB unpacked); `mojulo-ui` is 13.2 MB. Three cold `npx mojulo` starts through a local registry
+  stand-in answered `tools/list` in a median 7.1 s, against 9.9 s for the same tree with the dashboard
+  inside (interleaved, one macOS arm64 machine).
+- **`npx -y mojulo-ui` starts the dashboard, and `npx -y -p mojulo mojulo-ui` still works.** Core keeps
+  its `mojulo-ui` command as a shim. It runs the dashboard package installed beside it at the same
+  version, or a repo checkout's own `next build`. Otherwise it downloads `mojulo-ui@<its version>` from
+  the npm registry with `npm exec`, after printing that it is about to and the exact command;
+  `MOJULO_UI_NO_FETCH=1` refuses the download. `mojulo init` says in its prompt when opening the
+  dashboard will download it, `get_ui_map` names the exact-version command, and `get_substrate`'s network
+  fact lists the download. The dashboard package's own bin is `mojulo-dashboard`, so the two packages
+  never link the same bin name.
+- **The dashboard resolves shared packages from the install, not from copies in its build.** The Next
+  build traced its own copies of manifold-3d, openscad-wasm-prebuilt, puppeteer-core, archiver,
+  officeparser, pdf2json and others into the standalone bundle, at whatever versions the build machine
+  had, while the stdio server used the installed ones. The dashboard package now leaves out every server
+  external and the dependencies only they pulled in, and declares them with core's ranges, so npm
+  installs one copy for both processes. `lib/motion/glyph-carver.js` also resolves opentype.js from the
+  package root instead of a build-machine path the dashboard build had baked in.
+- **A release packs two tarballs.** `npm pack` in `control/` packs core; its prepack only precompiles
+  `CreationMap.jsx` and no longer runs the Next build. `npm run pack:ui` builds and stages the dashboard
+  package (`scripts/stage-ui-package.mjs`) and packs it. The stager refuses to pack when
+  `ui-package/package.json` disagrees with core's version or dependency ranges, and `npm run ui:sync`
+  rewrites it. `npm run smoke:tarball` packs both and installs them together into an empty directory. It
+  checks that core carries no dashboard build, that both packages share one core and one copy of each
+  shared package, and that the stdio server answers `initialize` and `tools/list`. It also checks that
+  the dashboard, started through the shim, serves a floorplan's World, a streamed city page and one of
+  its tiles, and a stash page. `open` moves from core's dependencies to the dashboard package.
+
 ### Runtime footprint and consent
 
 - **Everything mojulo writes lazily now lands under `~/.mojulo`.** The Chrome for Testing cache

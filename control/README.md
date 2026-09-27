@@ -18,10 +18,10 @@ Mojulo is the **upstream** that feeds the tools you already use. It does not try
 
 **Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own. Optional local workers — Blender, a slicer, a mesh sculptor — are yours to host and never dependencies.
 
-The bins, one install:
+The bins:
 
 - `mojulo` — stdio MCP server (`npx -y mojulo`, wired into Claude Code, Codex, or any other MCP host); also the installer and a CLI front door (below).
-- `mojulo-ui` — local dashboard (`npx -y -p mojulo mojulo-ui`).
+- `mojulo-ui` — local dashboard (`npx -y mojulo-ui`). Its own npm package since 2.2.0, at the same version as `mojulo`; the `mojulo-ui` command inside `mojulo` starts it, and fetches it from npm first when it is not installed.
 - `mojulo-config` — provider key CLI, only needed for directed images or the optional chatbot pack.
 
 `mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint from your agent shows up in the dashboard immediately.
@@ -190,10 +190,12 @@ Also in the box, present by default and never in the way: diagrams and charts, d
 ## Dashboard
 
 ```bash
-npx -y -p mojulo mojulo-ui                # auto-port, opens browser
-npx -y -p mojulo mojulo-ui --port 3999    # pin the port
-npx -y -p mojulo mojulo-ui --no-open      # skip browser launch
+npx -y mojulo-ui                # auto-port, opens browser
+npx -y mojulo-ui --port 3999    # pin the port
+npx -y mojulo-ui --no-open      # skip browser launch
 ```
+
+The dashboard is its own npm package, `mojulo-ui`, published at the same version as `mojulo` and depending on exactly that version (it runs a compiled copy of mojulo's code against the same database), so the stdio server your agent starts never downloads the Next.js build. `npx -y -p mojulo mojulo-ui` still works: it runs the `mojulo-ui` package installed beside it, or first downloads the matching version with `npm exec` and says so on stderr. `MOJULO_UI_NO_FETCH=1` refuses that download.
 
 Same primitives as the MCP, different face: **Studio** leads and opens by default — browse the Library, walk your worlds, play your games in the Arcade, review motion, beats, and voice at a glance — with **Ideate** (research, plans, stashes) beside it and **Operate** tiles appearing only once something actually runs there. It renders state and hands authoring back to your agent — the workshop is driven from the conversation.
 

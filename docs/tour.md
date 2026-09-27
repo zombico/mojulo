@@ -245,7 +245,7 @@ args = ["-y", "mojulo"]
 "mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
 ```
 
-Open the dashboard separately anytime with `npx -y -p mojulo mojulo-ui`.
+Open the dashboard separately anytime with `npx -y mojulo-ui` (its own npm package since 2.2.0; `npx -y -p mojulo mojulo-ui` fetches it on first use).
 
 ### Commands
 
@@ -253,7 +253,7 @@ Open the dashboard separately anytime with `npx -y -p mojulo mojulo-ui`.
 
 - `npx mojulo init` — one-shot installer: detect hosts, wire each, optional key, open the dashboard.
 - `npx -y mojulo` — the stdio MCP server itself (what `init` wires your agent to run).
-- `npx -y -p mojulo mojulo-ui` — open the dashboard (`--port N`, `--no-open`).
+- `npx -y mojulo-ui` — open the dashboard (`--port N`, `--no-open`); `npx -y -p mojulo mojulo-ui` does the same through `mojulo`, downloading the dashboard package first if it is not installed.
 - `npx -y -p mojulo mojulo-config set <provider> <key>` — store a provider key, encrypted (`anthropic` / `openai` / `ollama` / `fly`).
 
 ---
