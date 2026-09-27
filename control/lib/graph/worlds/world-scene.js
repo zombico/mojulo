@@ -98,10 +98,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // opt-in per-building ground shadows (off unless the manifest asks). `true` for the default
   // look, or an object `{ strength, length, maxAlpha, max }` to tune the cast.
   const groundShadows = sketch.manifest.groundShadows ?? scene.groundShadows ?? false;
-  // toon dial (toon-shading): `toon: true | { bands, ink }` on the manifest (or scene.toon).
+  // toon dial (toon-shading): `toon: true | { bands, ink, bake }` on the manifest (or scene.toon).
   // `bands` quantizes the baked Lambert term in every assembler that threads `ctx.toon`; `ink`
-  // is the World's outline channel (emitThreeWorld reads `payload.toon`). Absent → null → every
-  // byte identical. Dropped under the unshaded export: raw albedo has no tones to band.
+  // is the World's outline channel (emitThreeWorld reads `payload.toon`); `bake: true` (with ink)
+  // additionally bakes the ink pair into the GLB export as real geometry (facesToGlb reads the same
+  // `payload.toon` — shader-look phase 3). Absent → null → every byte identical. Dropped under the
+  // unshaded export: raw albedo has no tones to band.
   const toon = resolveToon(sketch.manifest.toon ?? scene.toon);
   const kind = sketch.manifest.kind;
 

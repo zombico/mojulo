@@ -18,12 +18,40 @@ import { safeJson } from '../emit-util.js';
 // the probe seam (figure, clip, phase). Emitted only when a packed figure carries `preview`; a page
 // without one is byte-identical.
 export function rigPreviewChannelScript(previews, bank) {
+  // rim (shader-look phase 4): a bank figure carrying `rim: [r,g,b,strength,power]` gets
+  // ms-contrast's additive fresnel edge on every part material. The patch is DUPLICATED from the
+  // controllable channel's __rimPatch by design — this channel never depends on the controllable
+  // block being emitted. No rim anywhere ⇒ both interpolations are '' ⇒ byte-identical page.
+  const hasRim = Object.values(bank || {}).some((f) => f && Array.isArray(f.rim));
+  const rimBlock = hasRim ? `
+const __rpRim = (m, rim) => {
+  const prev = m.material.onBeforeCompile;
+  m.material.onBeforeCompile = (sh) => {
+    if (prev) prev(sh);
+    sh.uniforms.uRim = { value: new THREE.Vector4(rim[0], rim[1], rim[2], rim[3]) };
+    sh.uniforms.uRimP = { value: rim[4] };
+    sh.vertexShader = 'varying vec3 vRimWp;\\n' + sh.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\\nvRimWp = (modelMatrix * vec4(position, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform vec4 uRim;\\nuniform float uRimP;\\nvarying vec3 vRimWp;\\n' + sh.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      'vec3 rN = normalize(cross(dFdx(vRimWp), dFdy(vRimWp)));\\n' +
+      'vec3 rV = normalize(cameraPosition - vRimWp);\\n' +
+      'if (dot(rN, rV) < 0.0) rN = -rN;\\n' +
+      'float rF = pow(1.0 - max(dot(rN, rV), 0.0), uRimP);\\n' +
+      'gl_FragColor.rgb += uRim.rgb * (uRim.a * rF);\\n' +
+      '#include <dithering_fragment>');
+  };
+  m.material.needsUpdate = true;
+};` : '';
+  const rimHook = hasRim ? `
+    if (Array.isArray(fig.rim)) __rpRim(mesh, fig.rim);` : '';
   return `
 // ---- rig preview channel (a rigged solid playing its clips in place) ----
 let stepRigPreview = () => {};
 {
 const RPREV = ${safeJson(previews)};
-const RBANK = ${safeJson(bank)};
+const RBANK = ${safeJson(bank)};${rimBlock}
 const __rpONE = new THREE.Vector3(1, 1, 1);
 const __rpq = new THREE.Quaternion(), __rph = new THREE.Vector3(), __rpv = new THREE.Vector3();
 const __rpHead = [0, 0, 0];
@@ -36,7 +64,7 @@ function __rpBuild(fig) {
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rimHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;
     group.add(mesh);

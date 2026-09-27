@@ -28,6 +28,9 @@ import { safeJson } from '../emit-util.js';
 // orients each triangle AWAY from the part's centroid, which convex armour plates and limb
 // segments satisfy.
 // One-shot setup block (glow/specular posture): a world without `toon.ink` emits ZERO bytes.
+// BAKE twin: ../ink-geometry.js carries this same construction (weld → winding fix → crease census)
+// as importable code for the GLB export's `toon.bake` (shader-look phase 3) — a semantic change to the
+// builders here must land there too, and its tests pin the shared behaviour.
 export function toonInkScript(cfg) {
   return `
 // --- toon ink (opt-in 'toon.ink'): inverted-hull silhouettes + crease lines ---

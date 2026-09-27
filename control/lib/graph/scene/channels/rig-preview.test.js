@@ -25,4 +25,15 @@ describe('rig preview channel', () => {
     for (const needle of ['__rpBuild(fig)', "get('clip')", 'userData.g === pv.hide', 'mesh.matrix.compose(__rpv, __rpq, __rpONE)', "createElement('select')", 'rest (the solid)']) expect(js).toContain(needle);
     expect(rigPreviewChannelScript([{ figure: 'body', clips: ['bob'], hide: 'body', period: 2 }], { body: fig })).toBe(js);
   });
+  it('rim (shader-look phase 4): a rim-less bank emits zero rim bytes; a rim figure gets the fresnel patch on its parts', () => {
+    const pv = [{ figure: 'body', clips: ['bob'], hide: 'body', period: 2 }];
+    const plain = rigPreviewChannelScript(pv, { body: fig });
+    expect(plain).not.toContain('__rpRim');
+    expect(plain).not.toContain('uRim');
+    const rimmed = rigPreviewChannelScript(pv, { body: { ...fig, rim: [0.4, 0.6, 1, 0.5, 3] } });
+    for (const needle of ['__rpRim = (m, rim)', 'uniforms.uRim', 'uRimP', 'dithering_fragment', '__rpRim(mesh, fig.rim)']) expect(rimmed).toContain(needle);
+    // the world page: a layered figure whose payload carries rim emits the patch; without, byte-identical
+    const withRim = emitThreeWorld({ ...base, figures: { body: { ...fig, rim: [0.4, 0.6, 1, 0.5, 3], preview: { clips: ['bob'], hide: 'body', period: 2 } } } });
+    expect(withRim).toContain('__rpRim');
+  });
 });

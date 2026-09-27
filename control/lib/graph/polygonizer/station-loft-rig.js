@@ -200,19 +200,70 @@ export function layeredClip(keyposes, R, { loop = true } = {}) {
 }
 
 /**
+ * hull-shade (shader-look plan phase 1): per-vertex SHADING normals from the welded, area-weighted L1
+ * hull normal field, so the baked light reads the smooth proxy while the silhouette keeps the grown
+ * detail (the ArcSys move — nothing view-dependent, authored normals do the shaping). An L1 vertex takes
+ * its own weld's normal; a detail vertex (provenance layer ≥ 2) takes the field normal of its NEAREST
+ * weld (spatial-hash shells, one shell past the first hit). Parts named in `except` — focal detail whose
+ * shading break IS the read (a horn, a ridge) — and any vertex the field cannot answer come back null,
+ * and the caller keeps today's flat face shade for them. Pure and deterministic: a function of the mesh
+ * alone. Validated on the head-detail dragon (0926 shader-look spike): facet noise on the hull goes;
+ * same-palette relief flattens, which is what `except` is for.
+ */
+export function hullShadeNormals(mesh, { quantum = 1e-3, cell = 0.03, except = [] } = {}) {
+  const layerOf = (vi) => mesh.provenance?.[vi]?.layer ?? 1;
+  const skip = new Set(except);
+  const wkey = (p) => `${Math.round(p[0] / quantum)},${Math.round(p[1] / quantum)},${Math.round(p[2] / quantum)}`;
+  const bins = new Map();
+  mesh.faces.forEach((tri) => {
+    if (tri.length !== 3 || !tri.every((vi) => layerOf(vi) === 1)) return;
+    const [a, b, c] = tri.map((vi) => mesh.vertices[vi]);
+    const n = cross(sub(b, a), sub(c, a));   // unnormalized ⇒ area-weighted accumulation
+    for (const vi of tri) { const k = wkey(mesh.vertices[vi]); let bin = bins.get(k); if (!bin) bins.set(k, bin = { n: [0, 0, 0], p: mesh.vertices[vi] }); bin.n = add(bin.n, n); }
+  });
+  for (const bin of bins.values()) { const l = len(bin.n); bin.n = l > 1e-12 ? mul(bin.n, 1 / l) : null; }
+  const ckey = (p) => `${Math.floor(p[0] / cell)},${Math.floor(p[1] / cell)},${Math.floor(p[2] / cell)}`;
+  const grid = new Map();
+  for (const bin of bins.values()) if (bin.n) { const k = ckey(bin.p); const cb = grid.get(k) || []; cb.push(bin); grid.set(k, cb); }
+  const nearest = (p) => {
+    const cx = Math.floor(p[0] / cell), cy = Math.floor(p[1] / cell), cz = Math.floor(p[2] / cell);
+    let best = null, bd = Infinity, hit = -1;
+    for (let r = 0; r <= 6; r++) {
+      if (hit >= 0 && r > hit + 1) break;   // scan one shell past the first hit (a boundary neighbour can be closer)
+      for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz2 = -r; dz2 <= r; dz2++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz2)) !== r) continue;
+        const cb = grid.get(`${cx + dx},${cy + dy},${cz + dz2}`);
+        if (cb) for (const bin of cb) { const d = (p[0] - bin.p[0]) ** 2 + (p[1] - bin.p[1]) ** 2 + (p[2] - bin.p[2]) ** 2; if (d < bd) { bd = d; best = bin; } }
+      }
+      if (best && hit < 0) hit = r;
+    }
+    return best;
+  };
+  return mesh.vertices.map((p, vi) => {
+    if (skip.has(mesh.provenance?.[vi]?.part)) return null;
+    if (layerOf(vi) === 1) return bins.get(wkey(p))?.n ?? null;
+    return nearest(p)?.n ?? null;
+  });
+}
+
+/**
  * Pack the packed rig figure: parts per DOMINANT bone with explicit per-vertex joints/weights, bones with rest
  * head/tail, clips as [q, head] per bone per key. `dz` seats the figure (the lowering's seat shift).
+ * `hullShade: true | { quantum?, cell?, except? }` (default null → byte-identical output) bakes the COLOR
+ * shade from `hullShadeNormals` per corner instead of the flat face normal; a null field entry keeps the
+ * flat shade, so an excepted part or an unanswerable vertex shades exactly as today.
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75] } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null } = {}) {
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
+  const vN = hullShade ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
   mesh.faces.forEach((tri, fi) => {
     const votes = {}; for (const vi of tri) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
     const bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
     const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: part.tint || '#8a8f96' });
     const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const shade = 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
     const P = parts[bi]; P.faces++;
-    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(base[0] * shade, base[1] * shade, base[2] * shade); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); });
+    tri.forEach((vi, k) => { const s = vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); });
   });
   const packedClips = {};
   for (const [name, clip] of Object.entries(clips)) {

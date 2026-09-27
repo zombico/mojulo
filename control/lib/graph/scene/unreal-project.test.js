@@ -229,3 +229,43 @@ describe('lit handoff (lit-handoff.plan.md step 1)', () => {
     expect(py).toContain("check(prefix + 'lights_carried'");
   });
 });
+
+describe('shader look (rim + ink, shader-look phase 4)', () => {
+  const py = () => emit().files.find((f) => f.file === 'import_mojulo.py').text;
+
+  it('the importer keeps toon:ink slots off the vertex-colour masters — no COLOR_0 means WHITE there', () => {
+    const text = py();
+    expect(text).toContain('def is_ink_slot');
+    expect(text).toContain('is_emissive_slot(cur) or is_ink_slot(cur)');            // static swap keeps ink
+    expect(text).toContain('is_mojulo_material(cur) or is_ink_slot(cur)');          // skeletal swap keeps ink
+    expect(text).toContain('is_emissive_slot(mi) or is_ink_slot(mi)');              // verify counts kept ink as ok
+  });
+
+  it('the rim master is the fresnel construction over the mode master, params on instances', () => {
+    const text = py();
+    expect(text).toContain('def ensure_rim_master');
+    expect(text).toContain("'M_MojuloRimLit' if LIT else 'M_MojuloRim'");
+    expect(text).toContain('unreal.MaterialExpressionFresnel');
+    expect(text).toContain("connect_material_expressions(rim_power, '', fres, 'ExponentIn')");
+    for (const p of ['RimColor', 'RimPower', 'RimStrength']) expect(text).toContain(`'${p}'`);
+    // strength defaults to 0 — an instance that never sets it draws the plain look
+    expect(text).toContain("rim_strength.set_editor_property('default_value', 0.0)");
+  });
+
+  it('build applies rim AFTER the plain swap and never onto ink; verify carries rim_applied only when look declares it', () => {
+    const text = py();
+    const level = text.slice(text.indexOf('def build_level'));
+    expect(level.indexOf('apply_unlit_materials(glb_path)')).toBeGreaterThan(-1);
+    expect(level.indexOf('apply_unlit_materials(glb_path)')).toBeLessThan(level.indexOf('apply_rim_materials(score)'));
+    expect(text).toContain('def rim_tokens');
+    expect(text).toContain('def apply_rim_materials');
+    expect(text).toContain('def verify_rim');
+    expect(text).toContain("check('rim_applied'");
+    // the gate stays byte-identical without score.look
+    expect(text).toContain('if not tokens:');
+    // the same five numbers the Godot kernel spends, restamped on every export
+    expect(text).toContain("set_material_instance_vector_parameter_value(mic, 'RimColor', unreal.LinearColor(float(rim[0]), float(rim[1]), float(rim[2]), 1.0))");
+    expect(text).toContain("set_material_instance_scalar_parameter_value(mic, 'RimStrength', float(rim[3]))");
+    expect(text).toContain("set_material_instance_scalar_parameter_value(mic, 'RimPower', float(rim[4]))");
+  });
+});

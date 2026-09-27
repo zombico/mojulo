@@ -24,7 +24,8 @@
  * No three.js import — pure typed-array + Buffer assembly, unit-testable in node.
  */
 
-import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals } from '../figures/face-mesh.js';
+import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear } from '../figures/face-mesh.js';
+import { inkBake, inkGeoNormals, inkCentroid } from './ink-geometry.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, zRotationQuat } from './scene-gltf-level.js';
@@ -395,6 +396,35 @@ class GlbBuilder {
     return this.lit ? this.pbrMaterial({ metallic: 0, roughness: this.litRoughness, ...opts }) : this.unlitMaterial(opts);
   }
 
+  // The baked toon-ink material (shader-look phase 3): unlit whatever the handoff (the outline is a
+  // graphic mark, not a surface), flat ink colour in baseColorFactor, and SINGLE-SIDED — the baked
+  // hull's winding is flipped, so back-face culling shows the shell only past the silhouette (the
+  // glTF equivalent of the World channel's BackSide draw). Reused by the ink line nodes.
+  inkMaterial({ name, color = [0.063, 0.063, 0.082] } = {}) {
+    if (!this.unlitDeclared) { this.json.extensionsUsed.push('KHR_materials_unlit'); this.unlitDeclared = true; }
+    const mat = {
+      doubleSided: false,
+      pbrMetallicRoughness: { baseColorFactor: [color[0], color[1], color[2], 1], metallicFactor: 0, roughnessFactor: 1 },
+      extensions: { KHR_materials_unlit: {} },
+    };
+    if (name) mat.name = name;
+    this.json.materials.push(mat);
+    return this.json.materials.length - 1;
+  }
+
+  // A LINES-mode node (glTF primitive mode 1) from a segment-pair position soup — the baked crease
+  // lines. POSITION only; the material carries the ink colour.
+  addLineNode(name, positions, materialIndex) {
+    if (!positions.length) return { vertices: 0, triangles: 0 };
+    const posAcc = this.floatAccessor(positions, 3, bounds3(positions));
+    const primitive = { attributes: { POSITION: posAcc }, mode: 1 };
+    if (materialIndex != null) primitive.material = materialIndex;
+    const meshIdx = this.json.meshes.push({ name, primitives: [primitive] }) - 1;
+    const nodeIdx = this.json.nodes.push({ name, mesh: meshIdx }) - 1;
+    this.children.push(nodeIdx);
+    return { node: nodeIdx, vertices: positions.length / 3, triangles: 0 };
+  }
+
   // Only PNG/JPEG data URLs embed as glTF textures; SVG/other → null so the caller
   // falls back to baked vertex colour (geometry survives, the sticker image doesn't).
   imageFromDataUrl(dataUrl) {
@@ -561,10 +591,16 @@ class GlbBuilder {
    * formula, now evaluated by the engine per-vertex. At rest J·IBM = I: a
    * no-animation import shows the bake's rest pose byte-exactly.
    */
-  addSkinnedRigFigure(name, fig, clipNames, { humanoid = false } = {}) {
+  addSkinnedRigFigure(name, fig, clipNames, { humanoid = false, ink = null } = {}) {
     const material = this.surfaceMaterial({ name: `fig:${name}` });
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
+    // toon.bake, skinned leg (shader-look phase 3): per PART (the channel's rig hook builds per part,
+    // centroid-oriented geo normals), bake the inverted hull and append it as a SECOND primitive on the
+    // same skinned mesh, joints/weights carried through the reorder via hullSrc — the outline follows
+    // the rig in-engine. Crease lines are SKIPPED on the skinned leg (skinned glTF LINES import
+    // support is uneven); the silhouette hull is the read. `ink` absent ⇒ byte-identical.
+    const inkParts = ink ? [] : null;
 
     // humanoid (interchange-seams.plan.md seam 3a): joints take their VRM names, weightless leaf
     // joints stand in for the hands / feet VRM requires, and the first humanoid figure carries the
@@ -631,6 +667,7 @@ class GlbBuilder {
       for (let i = 0; i < d.colors.length; i++) col.push(d.colors[i]);
       if (d.indices) for (let i = 0; i < d.indices.length; i++) idx.push(base + d.indices[i]);
       else for (let i = 0; i < d.vertexCount; i++) idx.push(base + i);
+      if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null });
       vertices += d.vertexCount;
       triangles += d.triangleCount;
     });
@@ -645,7 +682,47 @@ class GlbBuilder {
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(idx)) };
-    const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: [prim] }) - 1;
+    const prims = [prim];
+    if (inkParts) {
+      // figure radius (AABB centre → max distance) sets the width scale, the channel's rule
+      let ctr = [0, 0, 0], r = 0;
+      { let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+        for (let i = 0; i < pos.length; i += 3) for (let c = 0; c < 3; c++) { if (pos[i + c] < lo[c]) lo[c] = pos[i + c]; if (pos[i + c] > hi[c]) hi[c] = pos[i + c]; }
+        ctr = [0, 1, 2].map((c) => (lo[c] + hi[c]) / 2);
+        for (let i = 0; i < pos.length; i += 3) { const d = Math.hypot(pos[i] - ctr[0], pos[i + 1] - ctr[1], pos[i + 2] - ctr[2]); if (d > r) r = d; } }
+      const width = Number.isFinite(ink.widthAbs) ? ink.widthAbs : (Number.isFinite(ink.width) ? ink.width : 0.008) * (r || 1);
+      const q = Math.max((r || 1) * 1.5e-3, 1e-6);
+      const iPos = [], iJnt = [], iWgt = [];
+      for (const P of inkParts) {
+        const ids = P.indices ? Array.from(P.indices) : Array.from({ length: P.count }, (_, i) => i);
+        if (ids.length < 3) continue;
+        const sPos = new Float32Array(ids.length * 3);
+        ids.forEach((li, k) => { const g = (P.base + li) * 3; sPos[k * 3] = pos[g]; sPos[k * 3 + 1] = pos[g + 1]; sPos[k * 3 + 2] = pos[g + 2]; });
+        const nrm = inkGeoNormals(sPos, inkCentroid(sPos));
+        const baked = inkBake(sPos, nrm, { width, crease: Number.isFinite(ink.crease) ? ink.crease : 35, q });
+        for (let i = 0; i < baked.hullSrc.length; i++) {
+          const li = ids[baked.hullSrc[i]]; const g4 = (P.base + li) * 4;
+          iPos.push(baked.hullPos[i * 3], baked.hullPos[i * 3 + 1], baked.hullPos[i * 3 + 2]);
+          iJnt.push(jnt[g4], jnt[g4 + 1], jnt[g4 + 2], jnt[g4 + 3]);
+          iWgt.push(wgt[g4], wgt[g4 + 1], wgt[g4 + 2], wgt[g4 + 3]);
+        }
+      }
+      if (iPos.length) {
+        const ip = Float32Array.from(iPos);
+        prims.push({
+          attributes: {
+            POSITION: this.floatAccessor(ip, 3, bounds3(ip)),
+            JOINTS_0: this.jointAccessor(Uint16Array.from(iJnt)),
+            WEIGHTS_0: this.floatAccessor(Float32Array.from(iWgt), 4),
+          },
+          mode: MODE_TRIANGLES,
+          material: typeof ink.material === 'function' ? ink.material() : ink.material,
+        });
+        vertices += ip.length / 3;
+        triangles += ip.length / 9;
+      }
+    }
+    const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims }) - 1;
 
     // IBM: identity + translation(−restHead), column-major
     const ibm = new Float32Array(bones.length * 16);
@@ -890,7 +967,36 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (!groupMap.has(k)) groupMap.set(k, []);
     groupMap.get(k).push(f);
   }
+  // toon.bake (shader-look phase 3): the manifest's toon dial rides `payload.toon` (world-scene sets
+  // it). `toon: { ink: …, bake: true }` bakes the World ink channel's pair — inverted hull + crease
+  // lines — into the GLB as REAL geometry (ink-geometry.js), so an engine import carries the outline
+  // with no shader. Same tuning defaults as the channel; the hull width is FIXED at bake. Absent
+  // (`bake` missing, or ink off) ⇒ zero extra nodes and a byte-identical export.
+  const toonDial = payload.toon;
+  const inkDial = toonDial && toonDial.bake && toonDial.ink ? (typeof toonDial.ink === 'object' ? toonDial.ink : {}) : null;
+  const inkCfg = inkDial ? {
+    color: typeof inkDial.color === 'string' ? inkDial.color : '#101015',
+    width: Number.isFinite(inkDial.width) ? inkDial.width : 0.008,
+    ...(Number.isFinite(inkDial.widthAbs) ? { widthAbs: inkDial.widthAbs } : {}),
+    crease: Number.isFinite(inkDial.crease) ? inkDial.crease : 35,
+  } : null;
+  const inkSoups = [];
+  // one shared single-sided unlit ink material, created lazily on first use (static or skinned leg)
+  let inkMatIdx = null;
+  const inkMat = () => (inkMatIdx ??= b.inkMaterial({ name: 'toon:ink', color: faceColorLinear({ fill: inkCfg.color }) }));
   for (const [name, fs] of groupMap) {
+    // ink census: the group's opaque, untextured, non-studio faces (the channel's exclusions). The
+    // channel builds from the PRE-decollide list; here the weld quantum (≥ 1.5e-3·r) spans the
+    // global decollide nudge, so cap edges still weld into one hull.
+    if (inkCfg && !name.startsWith('shell:')) {
+      const inkFs = fs.filter((f) => f && !f.decal && !f.water && !f.studio && !f.wireframe && !f.glow && !f.texture && !(typeof f.alpha === 'number' && f.alpha < 1));
+      if (inkFs.length) {
+        const im = faceListToMesh(inkFs, { decollide: false, withNormals: true });
+        // no authored outNormals in the group → the channel's rig-part fallback: winding-derived
+        // flat normals oriented away from the soup's centroid (convex closed groups satisfy it)
+        if (im.positions.length) inkSoups.push({ name, positions: im.positions, normals: im.normals || inkGeoNormals(im.positions, inkCentroid(im.positions)) });
+      }
+    }
     // Faces tagged `pbr: [metallic, roughness]` (a named material from the shelf) split into
     // their own node with a REAL pbrMetallicRoughness material, one node per distinct factor
     // pair; everything else keeps the unlit path. No pbr faces → identical export to today.
@@ -952,6 +1058,28 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
         tr = b.addNode(`${name}:${key}`, grp.positions, grp.colors, 3, mat);
       }
       tally(tr);
+    }
+  }
+
+  // Baked toon ink: one single-sided ink material; per group, the pushed winding-flipped hull as
+  // `<group>:ink` and the crease/boundary segments as `<group>:ink-lines` (glTF LINES). The width
+  // scale rule is the channel's: a fraction of the largest ink soup's bounding radius.
+  if (inkCfg && inkSoups.length) {
+    let r = 0;
+    for (const s of inkSoups) {
+      const p = s.positions; let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+      for (let i = 0; i < p.length; i += 3) for (let c = 0; c < 3; c++) { if (p[i + c] < lo[c]) lo[c] = p[i + c]; if (p[i + c] > hi[c]) hi[c] = p[i + c]; }
+      const ctr = [0, 1, 2].map((c) => (lo[c] + hi[c]) / 2);
+      let rr = 0;
+      for (let i = 0; i < p.length; i += 3) { const d = Math.hypot(p[i] - ctr[0], p[i + 1] - ctr[1], p[i + 2] - ctr[2]); if (d > rr) rr = d; }
+      if (rr > r) r = rr;
+    }
+    const inkWidth = inkCfg.widthAbs != null ? inkCfg.widthAbs : inkCfg.width * (r || 1);
+    const q = Math.max((r || 1) * 1.5e-3, 1e-6);
+    for (const s of inkSoups) {
+      const baked = inkBake(s.positions, s.normals, { width: inkWidth, crease: inkCfg.crease, q });
+      if (baked.hullPos.length) tally(b.addNode(`${s.name}:ink`, baked.hullPos, null, 3, inkMat()));
+      if (baked.linePos.length) tally(b.addLineNode(`${s.name}:ink-lines`, baked.linePos, inkMat()));
     }
   }
 
@@ -1021,7 +1149,9 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // `skinned` (skin-over-mesh.plan.md phase 4): one SkinnedMesh + skins/IBM
     // per figure instead of rigid part nodes — export-only; absent, the rigid
     // path stays byte-identical.
-    const added = skinned ? b.addSkinnedRigFigure(name, fig, clipNames, { humanoid }) : b.addRigFigure(name, fig, clipNames);
+    // toon.bake reaches skinned figures as a second, skin-bound ink primitive (rigid FK figures are
+    // left un-inked: their World outline is the live channel's; a bake for them can follow demand)
+    const added = skinned ? b.addSkinnedRigFigure(name, fig, clipNames, { humanoid, ink: inkCfg ? { ...inkCfg, material: inkMat } : null }) : b.addRigFigure(name, fig, clipNames);
     if (!added.nodes) continue;
     animatedFigures.push(name);
     if (added.skinned) skinnedFigures.push(name);

@@ -31,6 +31,7 @@ describe('unity emitters', () => {
     expect(a.files.map((f) => f.file)).toEqual([
       'Editor/MojuloImport.cs',
       'Runtime/MojuloWalker.cs', 'Runtime/MojuloLevel.cs', 'Runtime/MojuloGame.cs', 'Runtime/MojuloMenu.cs',
+      'Runtime/MojuloRim.shader',
       'IMPORT-GUIDE.md', 'README.md',
     ]);
   });
@@ -152,5 +153,43 @@ describe('unity emitters', () => {
 
   it('guide snapshot', () => {
     expect(emit().files.find((f) => f.file === 'IMPORT-GUIDE.md').text).toMatchSnapshot();
+  });
+});
+
+describe('shader look (rim, shader-look phase 4)', () => {
+  const file = (name) => emit().files.find((f) => f.file === name).text;
+
+  it('the pack ships Mojulo/Rim — unlit additive derivative-normal fresnel, strength defaults to 0', () => {
+    const sh = file('Runtime/MojuloRim.shader');
+    expect(sh).toContain('Shader "Mojulo/Rim"');
+    expect(sh).toContain('Blend One One');
+    expect(sh).toContain('ZWrite Off');
+    expect(sh).toContain('Cull Back');
+    // the GLB ships no NORMAL — the facet normal comes from derivatives
+    expect(sh).toContain('cross(ddy(i.wpos), ddx(i.wpos))');
+    expect(sh).toContain('_RimStrength ("Rim Strength", Range(0, 4)) = 0.0');
+    // no LightMode tag: URP renders the pass as SRPDefaultUnlit
+    expect(sh).not.toContain('LightMode');
+  });
+
+  it('the importer lifts score.look by brace count (JsonUtility cannot read the map) and appends the extra material', () => {
+    const cs = file('Editor/MojuloImport.cs');
+    expect(cs).toContain('static Dictionary<string, float[]> RimFigures(string json)');
+    expect(cs).toContain('static void ApplyRim(GameObject world, string scoreJson)');
+    expect(cs).toContain('ApplyRim(world, File.ReadAllText(resBase + "score.json"));');
+    expect(cs).toContain('Shader.Find("Mojulo/Rim")');
+    // saved as a pack asset — runtime Shader.Find is stripped from player builds
+    expect(cs).toContain('AssetDatabase.CreateAsset(mat, matPath)');
+    // never rim a renderer holding an ink material — the extra material re-draws
+    // its LAST submesh, the flipped-winding shell (the Godot wash)
+    expect(cs).toContain('if (ink || mats.Contains(mat)) continue;');
+    // the five numbers restamped every import
+    for (const p of ['_RimColor', '_RimStrength', '_RimPower']) expect(cs).toContain(`"${p}"`);
+  });
+
+  it('verify carries rim_applied only when the score declares look', () => {
+    const cs = file('Editor/MojuloImport.cs');
+    expect(cs).toContain(':rim_applied"');
+    expect(cs).toContain('if (rims.Count > 0 && world != null)');
   });
 });

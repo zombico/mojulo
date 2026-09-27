@@ -179,3 +179,17 @@ describe('the HUD widget list rides the score as data (hud-widgets.js)', () => {
     expect(bare.ledger.hud_declared).toBeUndefined();
   });
 });
+
+describe('the figure look rides the score as data (shader-look phase 4)', () => {
+  it('a figure rim lands under look.figures with a look_declared ledger row; absent or malformed ⇒ no key, no row', () => {
+    const rim = [0.4, 0.6, 1, 0.5, 3];
+    const score = extractEngineScore(sketch(), { ...payload(), figures: { dragon: { rig: true, rim }, prop: { rig: true } } });
+    expect(score.look).toEqual({ figures: { dragon: { rim } } });
+    expect(score.ledger.look_declared.figures).toBe(1);
+    const bare = extractEngineScore(sketch(), payload());
+    expect(bare.look).toBeUndefined();
+    expect(bare.ledger.look_declared).toBeUndefined();
+    const bad = extractEngineScore(sketch(), { ...payload(), figures: { dragon: { rig: true, rim: [1, 2, 3] } } });
+    expect(bad.look).toBeUndefined();   // five finite numbers or nothing
+  });
+});

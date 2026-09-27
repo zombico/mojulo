@@ -72,6 +72,7 @@ func _ready() -> void:
 	eye = float(score.get("eye", 1.7))
 	eye_scale = maxf(0.5, eye / 1.7)
 	_fix_materials()
+	_apply_rim()
 	if _fix_lights() > 0:
 		_build_environment()
 	_hide_player_double()
@@ -107,6 +108,53 @@ func _fix_materials() -> void:
 			if mat is StandardMaterial3D:
 				mat.vertex_color_use_as_albedo = true
 				mat.vertex_color_is_srgb = false
+
+
+# Look contract (shader-look phase 4, kernel 0.2.3): score.look.figures carries
+# a figure's rim [r, g, b, strength, power] — the one runtime look term the
+# bake cannot carry (hull shading, toon bands and the ink outline arrive baked
+# in the GLB). Realized as a NEXT_PASS rim.gdshader on every surface of the
+# named figure's meshes, so the base vertex-colour material stays untouched.
+# The figure node is the exporter's wrapper (its name is the figures-map key);
+# the skinned body hangs under it as "<name>:body". Absent look ⇒ no-op.
+func _apply_rim() -> void:
+	var figs: Dictionary = score.get("look", {}).get("figures", {})
+	if figs.is_empty():
+		return
+	var shader: Shader = load("res://kernel/rim.gdshader")
+	if shader == null:
+		return
+	for fname in figs.keys():
+		var rim = figs[fname].get("rim", [])
+		if not (rim is Array) or rim.size() < 5:
+			continue
+		# The figure's WRAPPER and the static solid's group mesh can share a name (the layered
+		# kind's `body`): prefer the non-mesh match — the exporter's wrapper node — so the rim
+		# lands on the FIGURE, not doubled onto the overlapping static solid.
+		var matches := find_children(String(fname), "", true, false)
+		if matches.is_empty():
+			continue
+		var fig_root: Node = matches[0]
+		for m in matches:
+			if not (m is MeshInstance3D):
+				fig_root = m
+				break
+		for mi in ([fig_root] + fig_root.find_children("*", "MeshInstance3D", true, false)):
+			if not (mi is MeshInstance3D) or mi.mesh == null:
+				continue
+			for s in range(mi.mesh.get_surface_count()):
+				var mat: Material = mi.get_active_material(s)
+				if mat == null or mat.next_pass != null:
+					continue
+				# never rim the baked ink shell (toon.bake): its winding is flipped, so an
+				# additive pass on it reads as a whole-figure wash, not an edge
+				if String(mat.resource_name).contains("ink"):
+					continue
+				var sm := ShaderMaterial.new()
+				sm.shader = shader
+				sm.set_shader_parameter("rim_color", Color(rim[0], rim[1], rim[2], rim[3]))
+				sm.set_shader_parameter("rim_power", float(rim[4]))
+				mat.next_pass = sm
 
 
 # Light contract (the Godot leg of the lit handoff, kernel 0.2.1): the GLB

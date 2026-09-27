@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { compileLayered, auditLayered, resolveLayeredDials, mirrorPid, mirrorFaceId, surfaceLocalOffset } from './station-loft.js';
 import { lowerLayeredToWorkbench, lowerLayeredManifest } from './station-loft-workbench.js';
-import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, packLayeredRig, auditRig, layeredClip, solveTwoBone } from './station-loft-rig.js';
+import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, packLayeredRig, auditRig, layeredClip, solveTwoBone, hullShadeNormals } from './station-loft-rig.js';
 import { facesToGlb } from '../scene/scene-gltf.js';
 import { layeredFaces, layeredStats, persistedLayeredLedger } from './station-loft-faces.js';
 import { loftToFaces } from './loft-faces.js';
@@ -220,6 +220,26 @@ describe('station-loft-rig — bindings, posing, skinning, packing', () => {
     // the GLB's vertices are a per-corner soup grouped per bone; match each engine vertex to the nearest JS rest vertex, then compare the posed positions
     const restIdx = POS.map((p) => { let best = 0, bd = Infinity; mesh.vertices.forEach((v, i) => { const d = dist3(p, v); if (d < bd) { bd = d; best = i; } }); return best; });
     let maxErr = 0; engine.forEach((p, i) => { maxErr = Math.max(maxErr, dist3(p, js[restIdx[i]])); }); expect(maxErr).toBeLessThan(2e-3);   // the packed clip rounds q/head to 1e-4
+  });
+  it('hull-shade: absent is byte-identical; opted in changes only colours; every part excepted restores the flat bake; the field is unit-length and answers the pinned detail', () => {
+    const opts = { clips: { bob: [{}, { crouch: 0.5, tail: 15 }] }, keys: 6 };
+    const base = packLayeredRig(mesh, skin, R, opts);
+    expect(packLayeredRig(mesh, skin, R, { ...opts, hullShade: null })).toEqual(base);   // the opt-in rule
+    const hull = packLayeredRig(mesh, skin, R, { ...opts, hullShade: true });
+    expect(hull.parts.map((p) => p && p.pos)).toEqual(base.parts.map((p) => p && p.pos));   // geometry untouched
+    expect(hull.parts.map((p) => p && p.jnt)).toEqual(base.parts.map((p) => p && p.jnt));
+    expect(hull.parts.map((p) => p && p.wgt)).toEqual(base.parts.map((p) => p && p.wgt));
+    expect(hull.parts.map((p) => p && p.col)).not.toEqual(base.parts.map((p) => p && p.col));   // only the shade moved
+    expect(packLayeredRig(mesh, skin, R, { ...opts, hullShade: true })).toEqual(hull);   // deterministic
+    const everyPart = Object.keys(stick.parts);
+    expect(packLayeredRig(mesh, skin, R, { ...opts, hullShade: { except: everyPart } })).toEqual(base);   // full opt-out = flat
+    const field = hullShadeNormals(mesh);
+    field.forEach((n) => { if (n) expect(Math.hypot(...n)).toBeCloseTo(1, 9); });
+    const spikeIdx = mesh.provenance.map((p, i) => (p.part === 'spike' ? i : -1)).filter((i) => i >= 0);
+    expect(spikeIdx.length).toBeGreaterThan(0);
+    expect(spikeIdx.every((i) => field[i])).toBe(true);   // the L2 detail found its nearest weld
+    const skipped = hullShadeNormals(mesh, { except: ['spike'] });
+    expect(spikeIdx.every((i) => skipped[i] === null)).toBe(true);   // except answers null → flat shade
   });
 });
 

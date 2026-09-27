@@ -541,6 +541,69 @@ def ensure_ground_material():
     return mat
 
 
+def ensure_rim_master():
+    """The rim's master (shader-look phase 4): the mode master's look plus a
+    fresnel edge light on emissive — RimColor x RimStrength x pow(1 -
+    saturate(dot(N, V)), RimPower), the web patch's construction, the same
+    five numbers the Godot kernel's rim.gdshader spends. A dedicated master:
+    the plain masters never change, so a pack without score.look leaves an
+    existing project byte-identical. UE builds normals at mesh build when the
+    GLB ships none (unlike Godot's runtime import), so the Fresnel node's
+    default pixel normal serves. UNPINNED: Fresnel input pin names."""
+    name = 'M_MojuloRimLit' if LIT else 'M_MojuloRim'
+    path = MAT_ROOT + '/' + name
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        return unreal.EditorAssetLibrary.load_asset(path)
+    unreal.EditorAssetLibrary.make_directory(MAT_ROOT)
+    tools = unreal.AssetToolsHelpers.get_asset_tools()
+    mat = tools.create_asset(name, MAT_ROOT, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_DEFAULT_LIT if LIT else unreal.MaterialShadingModel.MSM_UNLIT)
+    ml = unreal.MaterialEditingLibrary
+    tex = ml.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -700, -200)
+    tex.set_editor_property('parameter_name', 'BaseTex')
+    white = unreal.EditorAssetLibrary.load_asset('/Engine/EngineResources/WhiteSquareTexture')
+    if white is not None:
+        tex.set_editor_property('texture', white)
+    vc = ml.create_material_expression(mat, unreal.MaterialExpressionVertexColor, -700, 100)
+    mul = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -400, -50)
+    ml.connect_material_expressions(tex, 'RGB', mul, 'A')
+    ml.connect_material_expressions(vc, '', mul, 'B')
+    rim_color = ml.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -700, 300)
+    rim_color.set_editor_property('parameter_name', 'RimColor')
+    rim_color.set_editor_property('default_value', unreal.LinearColor(0.35, 0.62, 1.0, 1.0))
+    rim_power = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 450)
+    rim_power.set_editor_property('parameter_name', 'RimPower')
+    rim_power.set_editor_property('default_value', 2.0)
+    rim_strength = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 600)
+    rim_strength.set_editor_property('parameter_name', 'RimStrength')
+    rim_strength.set_editor_property('default_value', 0.0)
+    fres = ml.create_material_expression(mat, unreal.MaterialExpressionFresnel, -550, 420)
+    fres.set_editor_property('base_reflect_fraction', 0.0)
+    ml.connect_material_expressions(rim_power, '', fres, 'ExponentIn')
+    gain = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -400, 450)
+    ml.connect_material_expressions(fres, '', gain, 'A')
+    ml.connect_material_expressions(rim_strength, '', gain, 'B')
+    edge = ml.create_material_expression(mat, unreal.MaterialExpressionMultiply, -250, 380)
+    ml.connect_material_expressions(rim_color, '', edge, 'A')
+    ml.connect_material_expressions(gain, '', edge, 'B')
+    if LIT:
+        ml.connect_material_property(mul, '', unreal.MaterialProperty.MP_BASE_COLOR)
+        rough = ml.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -400, 200)
+        rough.set_editor_property('parameter_name', 'Roughness')
+        rough.set_editor_property('default_value', 0.85)
+        ml.connect_material_property(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+        # a lit material's emissive ADDS over shading — the rim rides there untouched
+        ml.connect_material_property(edge, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    else:
+        add = ml.create_material_expression(mat, unreal.MaterialExpressionAdd, -100, 100)
+        ml.connect_material_expressions(mul, '', add, 'A')
+        ml.connect_material_expressions(edge, '', add, 'B')
+        ml.connect_material_property(add, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    ml.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_asset(path)
+    return mat
+
+
 def ensure_master():
     return ensure_lit_master() if LIT else ensure_unlit_master()
 
@@ -591,6 +654,20 @@ def is_emissive_slot(mat_iface):
     return mat_iface is not None and 'emissive' in mat_iface.get_name().lower()
 
 
+def is_ink_slot(mat_iface):
+    """The GLB material named 'toon:ink' (shader-look: the baked inverted hull +
+    crease lines). Its primitives ship NO COLOR_0, and UE's VertexColor node
+    defaults to WHITE without one — the vertex-colour master would draw the
+    outline as a white halo. Interchange's own import of the black single-sided
+    material is the right look, so the swap keeps it; the rim pass must also
+    never touch it (rimming the flipped-winding shell washes the whole figure
+    blue — the Godot leg's finding)."""
+    if mat_iface is None:
+        return False
+    n = mat_iface.get_name().lower()
+    return 'toon' in n and 'ink' in n
+
+
 def is_sticker_slot(mat_iface, mesh, names):
     """A slot whose Interchange material, or whose one-slot mesh, carries a
     sticker material's name — the mesh name catches a re-run over a project
@@ -624,7 +701,7 @@ def apply_unlit_materials(glb_path=None):
                         asset.set_material(i, unlit_instance(sticker_master, first_texture(cur), sticker_cache, 'MI_MojuloSticker_'))
                         kept += 1
                     continue
-                if is_mojulo_material(cur) or is_emissive_slot(cur):
+                if is_mojulo_material(cur) or is_emissive_slot(cur) or is_ink_slot(cur):
                     continue
                 asset.set_material(i, unlit_instance(master, first_texture(cur), cache))
                 swapped += 1
@@ -634,7 +711,7 @@ def apply_unlit_materials(glb_path=None):
                 changed = False
                 for i, slot in enumerate(slots):
                     cur = slot.get_editor_property('material_interface')
-                    if is_mojulo_material(cur):
+                    if is_mojulo_material(cur) or is_ink_slot(cur):
                         continue
                     slot.set_editor_property('material_interface', unlit_instance(master, first_texture(cur), cache))
                     slots[i] = slot
@@ -648,6 +725,90 @@ def apply_unlit_materials(glb_path=None):
         unreal.log('[mojulo] ' + str(kept) + ' sticker slots kept translucent (unlit + blend in the GLB: ' + ', '.join(stickers) + ')')
     unreal.EditorAssetLibrary.save_directory(CONTENT_ROOT, only_if_is_dirty=True)
     unreal.log('[mojulo] ' + ('lit' if LIT else 'unlit') + ' vertex-colour materials on ' + str(swapped) + ' slots')
+
+
+def rim_tokens(score):
+    """score.look.figures whose rim is the five finite numbers -> {token: rim},
+    the token being the figure name rewritten the way Interchange rewrites GLB
+    names into asset names."""
+    out = {}
+    for name, f in ((((score or {}).get('look') or {}).get('figures')) or {}).items():
+        rim = (f or {}).get('rim')
+        if isinstance(rim, list) and len(rim) == 5:
+            out[re.sub('[^A-Za-z0-9_-]', '_', str(name)).lower()] = rim
+    return out
+
+
+def apply_rim_materials(score):
+    """score.look (shader-look phase 4): the rim's five numbers land as the
+    fresnel term on the named figures' base slots — one MI_MojuloRim_<figure>
+    instance each, parented to the rim master. Ink and emissive slots stay
+    put. Runs AFTER apply_unlit_materials, so a figure's slots move from the
+    plain instance onto the rim instance. No look in the score: nothing runs,
+    an existing project stays byte-identical. UNPINNED: figure meshes matched
+    by name token — Interchange derives asset names from GLB node/mesh names."""
+    rims = rim_tokens(score)
+    if not rims:
+        return
+    master = ensure_rim_master()
+    cache = {}
+
+    def rim_mic(token, rim, tex):
+        key = token + '|' + (tex.get_name() if tex is not None else '__white__')
+        if key in cache:
+            return cache[key]
+        name = 'MI_MojuloRim_' + token
+        path = MAT_ROOT + '/' + name
+        if unreal.EditorAssetLibrary.does_asset_exist(path):
+            mic = unreal.EditorAssetLibrary.load_asset(path)
+        else:
+            tools = unreal.AssetToolsHelpers.get_asset_tools()
+            mic = tools.create_asset(name, MAT_ROOT, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+            unreal.MaterialEditingLibrary.set_material_instance_parent(mic, master)
+        if tex is not None:
+            unreal.MaterialEditingLibrary.set_material_instance_texture_parameter_value(mic, 'BaseTex', tex)
+        # always restamp the five numbers — a re-export may have dialed the rim
+        unreal.MaterialEditingLibrary.set_material_instance_vector_parameter_value(mic, 'RimColor', unreal.LinearColor(float(rim[0]), float(rim[1]), float(rim[2]), 1.0))
+        unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mic, 'RimStrength', float(rim[3]))
+        unreal.MaterialEditingLibrary.set_material_instance_scalar_parameter_value(mic, 'RimPower', float(rim[4]))
+        unreal.EditorAssetLibrary.save_asset(path)
+        cache[key] = mic
+        return mic
+
+    applied = 0
+    for path in unreal.EditorAssetLibrary.list_assets(CONTENT_ROOT, recursive=True, include_folder=False):
+        asset = unreal.EditorAssetLibrary.load_asset(path)
+        if not isinstance(asset, (unreal.StaticMesh, unreal.SkeletalMesh)):
+            continue
+        mesh_name = asset.get_name().lower()
+        hit = next((t for t in sorted(rims) if t and t in mesh_name), None)
+        if hit is None:
+            continue
+        if isinstance(asset, unreal.StaticMesh):
+            for i, slot in enumerate(asset.get_editor_property('static_materials')):
+                cur = slot.get_editor_property('material_interface')
+                if is_ink_slot(cur) or is_emissive_slot(cur) or (cur is not None and cur.get_name() == 'MI_MojuloRim_' + hit):
+                    continue
+                asset.set_material(i, rim_mic(hit, rims[hit], first_texture(cur)))
+                applied += 1
+        else:
+            try:  # SkeletalMesh has no set_material; rebuild the array in place
+                slots = list(asset.get_editor_property('materials'))
+                changed = False
+                for i, slot in enumerate(slots):
+                    cur = slot.get_editor_property('material_interface')
+                    if is_ink_slot(cur) or (cur is not None and cur.get_name() == 'MI_MojuloRim_' + hit):
+                        continue
+                    slot.set_editor_property('material_interface', rim_mic(hit, rims[hit], first_texture(cur)))
+                    slots[i] = slot
+                    changed = True
+                    applied += 1
+                if changed:
+                    asset.set_editor_property('materials', slots)
+            except Exception as e:  # noqa: BLE001 — UNPINNED property shape
+                unreal.log_warning('[mojulo] rim swap failed on ' + path + ': ' + str(e))
+    unreal.EditorAssetLibrary.save_directory(CONTENT_ROOT, only_if_is_dirty=True)
+    unreal.log('[mojulo] rim on ' + str(applied) + ' slots (' + ', '.join(sorted(rims)) + ')')
 
 
 def world_settings_actor():
@@ -739,6 +900,7 @@ def build_level(score, glb_path, content_dir, map_path, game_mode=None, bed_wave
             tags.append(IMPORT_TAG)
             a.set_editor_property('tags', tags)
     apply_unlit_materials(glb_path)
+    apply_rim_materials(score)
     ensure_pot_lights(score)
 
     # Hide the player-seat body: the operator IS the walker. The whole
@@ -922,9 +1084,38 @@ def verify():
                 for slot in a.get_editor_property('static_materials'):
                     unlit_total += 1
                     mi = slot.get_editor_property('material_interface')
-                    if is_mojulo_material(mi) or is_emissive_slot(mi):
+                    if is_mojulo_material(mi) or is_emissive_slot(mi) or is_ink_slot(mi):
                         unlit_ok += 1
         check('materials_unlit', unlit_total > 0 and unlit_ok == unlit_total, str(unlit_ok) + ' of ' + str(unlit_total) + ' static-mesh slots')
+
+    def verify_rim(scores):
+        """shader-look phase 4: every rim figure any score declares must hold at
+        least one slot on its MI_MojuloRim_<figure> instance. No score.look
+        anywhere => no check, byte-identical gate file."""
+        tokens = {}
+        for score in scores:
+            tokens.update(rim_tokens(score))
+        if not tokens:
+            return
+        have = set()
+        slots = 0
+        for p in unreal.EditorAssetLibrary.list_assets(CONTENT_ROOT, recursive=True, include_folder=False):
+            a = unreal.EditorAssetLibrary.load_asset(p)
+            if isinstance(a, unreal.StaticMesh):
+                mats = [s.get_editor_property('material_interface') for s in a.get_editor_property('static_materials')]
+            elif isinstance(a, unreal.SkeletalMesh):
+                try:
+                    mats = [s.get_editor_property('material_interface') for s in a.get_editor_property('materials')]
+                except Exception:  # noqa: BLE001 — UNPINNED property shape
+                    mats = []
+            else:
+                continue
+            for mi in mats:
+                if mi is not None and mi.get_name().startswith('MI_MojuloRim_'):
+                    slots += 1
+                    have.add(mi.get_name()[len('MI_MojuloRim_'):].lower())
+        missing = sorted(set(tokens) - have)
+        check('rim_applied', slots > 0 and not missing, str(slots) + ' rim slots' + ((' — missing: ' + ', '.join(missing)) if missing else ''))
 
     def verify_clips(scored):
         """U2: every locomotion clip the scores name must exist as an
@@ -976,6 +1167,7 @@ def verify():
             if (score.get('entities') or []) and not landmarked:
                 check('frame_landmark', False, 'no entity node found by figure or entity:<id> label')
             verify_materials()
+            verify_rim([score])
             verify_clips([(score, CONTENT_ROOT)])
         else:
             levels = game.get('levels') or []
@@ -995,6 +1187,7 @@ def verify():
                 subsystem(unreal.LevelEditorSubsystem).load_level(MENU_MAP)
                 check('menu:kernel_wired', 'MojuloMenuGameMode' in kernel_class_name(), kernel_class_name() or 'no override')
             verify_materials()
+            verify_rim([s for s, _ in scored])
             verify_clips(scored)
     except Exception as e:  # noqa: BLE001 — the gate must always write its file
         check('verify_ran', False, str(e))

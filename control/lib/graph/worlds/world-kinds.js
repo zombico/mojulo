@@ -490,7 +490,12 @@ export const WORLD_KINDS = {
       // from that export, and `preview` lets the World page play the clips over the hidden solid.
       if (rigged) {
         const R = validateRig(m.recipe.rig); const skin = bindLayered(mesh, m.recipe, R); const dz = layeredSeat(mesh, seat);
-        scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz }), embodies: 'body', preview: { clips: Object.keys(m.recipe.clips), hide: 'body', period: 3 } } };
+        // hullShade (opt-in, manifest-level): bake COLOR_0 from the smooth L1 hull normal field instead of
+        // flat face normals — `hullShade: true | { except: [...] }`; absent ⇒ the pack is byte-identical.
+        // rim (opt-in): ms-contrast's fresnel edge `[r,g,b,strength,power]` carried on the packed figure,
+        // rendered by the rig-preview channel's rim patch; absent ⇒ byte-identical.
+        const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : null;
+        scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null }), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips: Object.keys(m.recipe.clips), hide: 'body', period: 3 } } };
       }
       return scene;
     },

@@ -137,3 +137,32 @@ describe('facesToGlb skinned — the byte-identical guard', () => {
     }
   });
 });
+
+describe('facesToGlb skinned — toon.bake ink rides the skin (shader-look phase 3)', () => {
+  it('absent bake ⇒ byte-identical; baked ⇒ a second skin-bound ink primitive, no lines on the skinned leg', () => {
+    const inkOnly = facesToGlb({ ...payload, toon: { ink: true } }, { clips: '_all', skinned: true });
+    expect(inkOnly.bytes.equals(skinned.bytes)).toBe(true);
+    const baked = facesToGlb({ ...payload, toon: { ink: true, bake: true } }, { clips: '_all', skinned: true });
+    expect(baked.bytes.equals(skinned.bytes)).toBe(false);
+    const json = parseGlb(baked.bytes);
+    const meshNode = json.nodes.find((n) => n.skin != null);
+    const prims = json.meshes[meshNode.mesh].primitives;
+    expect(prims).toHaveLength(2);
+    const [body, inkPrim] = prims;
+    // the ink primitive is skinned like the body: JOINTS_0/WEIGHTS_0 aligned with its POSITION
+    expect(json.accessors[inkPrim.attributes.JOINTS_0].count).toBe(json.accessors[inkPrim.attributes.POSITION].count);
+    expect(json.accessors[inkPrim.attributes.WEIGHTS_0].count).toBe(json.accessors[inkPrim.attributes.POSITION].count);
+    expect(inkPrim.attributes.COLOR_0).toBeUndefined();   // the ink colour is the material's
+    const mat = json.materials[inkPrim.material];
+    expect(mat.doubleSided).toBe(false);
+    expect(mat.extensions.KHR_materials_unlit).toBeDefined();
+    expect(mat).not.toBe(json.materials[body.material]);
+    // the hull is pushed outward of the body: its bounds contain the body's
+    const bp = json.accessors[body.attributes.POSITION], ip = json.accessors[inkPrim.attributes.POSITION];
+    for (let c = 0; c < 3; c++) { expect(ip.min[c]).toBeLessThanOrEqual(bp.min[c]); expect(ip.max[c]).toBeGreaterThanOrEqual(bp.max[c]); }
+    // no LINES primitives anywhere on the skinned leg
+    for (const mesh of json.meshes) for (const p of mesh.primitives) expect(p.mode ?? 4).not.toBe(1);
+    // deterministic
+    expect(facesToGlb({ ...payload, toon: { ink: true, bake: true } }, { clips: '_all', skinned: true }).bytes.equals(baked.bytes)).toBe(true);
+  });
+});

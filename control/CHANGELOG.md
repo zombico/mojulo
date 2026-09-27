@@ -62,6 +62,59 @@ loops and the recipe format are unchanged.
   windowed wall, the parked leaf and its exclusion, the E/S arrangers, tabletop meshes). The
   `floorplan` kind snapshots re-based. Eyes gate: the audit cameras re-rendered on the fix
   branch, for the operator.
+### Shader look
+
+- **Shading normals from the hull.** A rigged layered solid takes `hullShade: true | { except: [parts] }`
+  on its manifest: the packed rig figure's vertex-colour light is baked from the smooth L1 hull's welded,
+  area-weighted normal field instead of flat facets — L1 vertices take their own weld, grown detail takes
+  its nearest weld — so the light sweeps the underlying form in clean bands while scales, plates and
+  ridges keep only their silhouette (the ArcSys read: nothing view-dependent, authored normals do the
+  shaping). `except` names focal parts that keep their faceted shading. Geometry, weights and clips are
+  untouched; absent, the bake is byte-identical (`hullShadeNormals` + the `packLayeredRig` dial,
+  station-loft-rig.js; the sheet that decided it is the 0926 shader-look spike).
+- **The outline travels.** `toon: { ink: …, bake: true }` bakes the World ink channel's pair — the
+  inverted-hull silhouette and the crease/boundary lines — into the GLB export as real geometry
+  (`<group>:ink`, a winding-flipped hull under a single-sided unlit ink material, and
+  `<group>:ink-lines`, glTF LINES), so Godot, Unity, Unreal and Blender import the outline with no
+  shader at all. The construction is the channel's, lifted into `scene/ink-geometry.js` (weld →
+  winding fix → crease census); at bake the hull width is fixed and the lines lift off the surface in
+  place of the page's polygon-offset trick. `bake` without `ink` is dropped; absent, the export is
+  byte-identical.
+- **The outline follows the rig.** On a skinned export (`skinned: true`), `toon.bake` also inks the
+  packed rig figures: each part's inverted hull is baked per part (centroid-oriented geo normals, the
+  channel's rig-hook rule) and appended as a second primitive on the same skinned mesh, its
+  joints/weights carried through the reorder — so the figure's outline deforms with its clips in any
+  engine. Crease lines are skipped on the skinned leg (skinned glTF LINES import support is uneven);
+  rigid FK figures stay un-inked.
+- **The rim reaches figures.** A rigged layered solid takes `rim: [r,g,b,strength,power]` on its
+  manifest: the packed figure carries it, and the rig-preview channel applies ms-contrast's additive
+  fresnel edge to every part while a clip plays — the mobile-suit spike's rim, adopted for the layered
+  kind's World preview. The patch is emitted only when a previewed figure carries `rim`; absent, the
+  page is byte-identical.
+- **The rim reaches Godot.** The score carries the figure look as data (`score.look.figures.<name>.rim`,
+  with a `look_declared` ledger row) — the one runtime term the bake cannot carry — and the Godot
+  kernel (0.2.3) realizes it: `kernel/rim.gdshader`, an unshaded additive fresnel applied by level.gd
+  as a `next_pass` on every surface of the named figure, so the base vertex-colour material stays
+  untouched and the five numbers match the World page's patch. Absent rims ⇒ no score key, no-op
+  kernel pass, byte-identical pack.
+- **The rim reaches Unreal, and the ink stays black there.** The importer keeps `toon:ink` slots on
+  Interchange's own import — the ink primitives ship no COLOR_0, and UE's VertexColor node defaults
+  to white, so the vertex-colour masters would have drawn the outline as a white halo — and lowers
+  `score.look` rims as a dedicated master (`M_MojuloRim`/`M_MojuloRimLit`): the same fresnel
+  construction (RimColor × RimStrength × pow(1 − saturate(N·V), RimPower)) added to emissive, one
+  `MI_MojuloRim_<figure>` instance per figure, restamped on every export, never on an ink slot. The
+  verify pass gains `rim_applied` (only when a score declares look) and counts kept ink slots as
+  correct. No look ⇒ the plain masters, byte-identical project (unreal-project.js).
+- **The rim reaches Unity.** The pack ships a real shader file (`Runtime/MojuloRim.shader`, unity leg
+  0.4.1): unlit, additive, back-culled, the facet normal taken from screen-space derivatives because
+  the packed GLB ships no NORMAL — rim.gdshader's construction in ShaderLab, pipeline-agnostic (no
+  LightMode tag ⇒ SRPDefaultUnlit under URP). The importer lifts `score.look` (brace-count scan;
+  JsonUtility cannot read a name-keyed map) and appends one `MojuloRim_<figure>.mat` pack asset per
+  figure to each renderer under its wrapper — Unity re-renders the last submesh per extra material,
+  the `next_pass` equivalent — restamped every import, saved as an asset so player builds don't strip
+  the shader, and never on a renderer holding an ink material (the extra material re-draws the LAST
+  submesh, the flipped-winding shell). Verify gains `<scene>:rim_applied`; no look ⇒ no materials, no
+  check, byte-identical scenes (unity-project.js).
 
 ### Art direction
 
