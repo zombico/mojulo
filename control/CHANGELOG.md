@@ -55,6 +55,16 @@ loops and the recipe format are unchanged.
   `MI_MojuloRim_<figure>` instance per figure, restamped on every export, never on an ink slot. The
   verify pass gains `rim_applied` (only when a score declares look) and counts kept ink slots as
   correct. No look ⇒ the plain masters, byte-identical project (unreal-project.js).
+- **The rim reaches Unity.** The pack ships a real shader file (`Runtime/MojuloRim.shader`, unity leg
+  0.4.1): unlit, additive, back-culled, the facet normal taken from screen-space derivatives because
+  the packed GLB ships no NORMAL — rim.gdshader's construction in ShaderLab, pipeline-agnostic (no
+  LightMode tag ⇒ SRPDefaultUnlit under URP). The importer lifts `score.look` (brace-count scan;
+  JsonUtility cannot read a name-keyed map) and appends one `MojuloRim_<figure>.mat` pack asset per
+  figure to each renderer under its wrapper — Unity re-renders the last submesh per extra material,
+  the `next_pass` equivalent — restamped every import, saved as an asset so player builds don't strip
+  the shader, and never on a renderer holding an ink material (the extra material re-draws the LAST
+  submesh, the flipped-winding shell). Verify gains `<scene>:rim_applied`; no look ⇒ no materials, no
+  check, byte-identical scenes (unity-project.js).
 
 ### Art direction
 

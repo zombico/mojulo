@@ -25,7 +25,7 @@ import { createHash } from 'node:crypto';
 // Guide helpers are shared with the Unreal + Blender legs (operator-guide.js, the D10 lift).
 import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble } from './operator-guide.js';
 
-export const UNITY_LEG_VERSION = '0.4.0';
+export const UNITY_LEG_VERSION = '0.4.1';
 export const UNITY_EDITOR_TARGET = 'Unity 6 (6000.2.x)';
 
 /** Deterministic 32-hex Unity GUID for a pack file. */
@@ -931,7 +931,9 @@ function importerCs({ packFolder }) {
 /// </summary>
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -1024,6 +1026,10 @@ namespace Mojulo
                 if (seat != null) seat.gameObject.SetActive(false);
             }
 
+            // shader-look phase 4: score.look rims land as one extra material
+            // per figure renderer, saved as pack assets so nothing strips.
+            ApplyRim(world, File.ReadAllText(resBase + "score.json"));
+
             // Implicit ground plane at mojulo z = ground: obstacle colliders
             // are hulls only — without this the player falls forever.
             var bounds = new Bounds(P(score.spawn ?? new float[] { 0f, 0f, 0f }), Vector3.one);
@@ -1101,6 +1107,73 @@ namespace Mojulo
         static Vector3 AabbSize(MojuloLevel.Aabb b)
         {
             return new Vector3(b.max[0] - b.min[0], b.max[2] - b.min[2], b.max[1] - b.min[1]);
+        }
+
+        /// <summary>score.look.figures.&lt;name&gt;.rim = [r,g,b,strength,power]
+        /// (shader-look phase 4). JsonUtility cannot read a name-keyed map, so
+        /// the figures block is cut out by brace count and the rim rows lifted
+        /// with a scan. Empty when the score declares no look.</summary>
+        static Dictionary<string, float[]> RimFigures(string json)
+        {
+            var rims = new Dictionary<string, float[]>();
+            var look = Regex.Match(json, @"""look""\\s*:\\s*\\{\\s*""figures""\\s*:\\s*\\{");
+            if (!look.Success) return rims;
+            int start = look.Index + look.Length, end = start, depth = 1;
+            while (end < json.Length && depth > 0) { var c = json[end]; if (c == '{') depth++; else if (c == '}') depth--; end++; }
+            foreach (Match m in Regex.Matches(json.Substring(start, end - start), @"""([^""]+)""\\s*:\\s*\\{\\s*""rim""\\s*:\\s*\\[([^\\]]+)\\]"))
+            {
+                var parts = m.Groups[2].Value.Split(',');
+                if (parts.Length != 5) continue;
+                var v = new float[5];
+                var ok = true;
+                for (int i = 0; i < 5; i++) ok &= float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out v[i]);
+                if (ok) rims[m.Groups[1].Value] = v;
+            }
+            return rims;
+        }
+
+        /// <summary>The rim as a next_pass equivalent: Unity re-renders the LAST
+        /// submesh once per extra material, so one MojuloRim_&lt;figure&gt;.mat
+        /// (Mojulo/Rim, the pack's own shader file) appended to each renderer
+        /// under the figure's wrapper is the additive edge pass. Saved as a pack
+        /// asset — a runtime Shader.Find would be stripped from player builds.
+        /// A renderer holding an ink material is skipped whole: the extra
+        /// material re-draws its LAST submesh, which is the flipped-winding ink
+        /// shell — rimming it washes the entire figure (the Godot finding).
+        /// The five numbers are restamped on every import.</summary>
+        static void ApplyRim(GameObject world, string scoreJson)
+        {
+            var rims = RimFigures(scoreJson);
+            if (rims.Count == 0) return;
+            var shader = Shader.Find("Mojulo/Rim");
+            if (shader == null) { Debug.LogWarning("[mojulo] Mojulo/Rim shader missing — rim skipped"); return; }
+            Directory.CreateDirectory(PackRoot + "/Materials");
+            foreach (var kv in rims)
+            {
+                var node = FindDeep(world.transform, kv.Key);
+                if (node == null) { Debug.LogWarning("[mojulo] rim figure '" + kv.Key + "' has no node — rim skipped"); continue; }
+                var matPath = PackRoot + "/Materials/MojuloRim_" + Regex.Replace(kv.Key, @"[^A-Za-z0-9_-]", "_") + ".mat";
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+                if (mat == null) { mat = new Material(shader); AssetDatabase.CreateAsset(mat, matPath); }
+                else mat.shader = shader;
+                mat.SetColor("_RimColor", new Color(kv.Value[0], kv.Value[1], kv.Value[2], 1f));
+                mat.SetFloat("_RimStrength", kv.Value[3]);
+                mat.SetFloat("_RimPower", kv.Value[4]);
+                EditorUtility.SetDirty(mat);
+                int touched = 0;
+                foreach (var r in node.GetComponentsInChildren<Renderer>(true))
+                {
+                    var mats = new List<Material>(r.sharedMaterials);
+                    var ink = false;
+                    foreach (var m in mats) if (m != null && m.name.ToLowerInvariant().Contains("ink")) ink = true;
+                    if (ink || mats.Contains(mat)) continue;
+                    mats.Add(mat);
+                    r.sharedMaterials = mats.ToArray();
+                    touched++;
+                }
+                Debug.Log("[mojulo] rim '" + kv.Key + "' on " + touched + " renderer(s)");
+            }
+            AssetDatabase.SaveAssets();
         }
 
         static Transform FindDeep(Transform root, string name)
@@ -1218,6 +1291,28 @@ namespace Mojulo
                     var kernel = GameObject.Find("MojuloKernel");
                     var levelComp = kernel != null ? kernel.GetComponent<MojuloLevel>() : null;
                     Check(sceneName + ":kernel_wired", levelComp != null && levelComp.scoreJson != null, null);
+
+                    // shader-look phase 4: every rim figure the score declares
+                    // must hold at least one MojuloRim_ extra material. No
+                    // look => no check, byte-identical gate file.
+                    var rims = RimFigures(File.ReadAllText(resBase + "score.json"));
+                    if (rims.Count > 0 && world != null)
+                    {
+                        int rimmed = 0; var unrimmed = new List<string>();
+                        foreach (var kv in rims)
+                        {
+                            var figNode = FindDeep(world.transform, kv.Key);
+                            var found = false;
+                            if (figNode != null)
+                                foreach (var r in figNode.GetComponentsInChildren<Renderer>(true))
+                                {
+                                    foreach (var m in r.sharedMaterials)
+                                        if (m != null && m.name.StartsWith("MojuloRim_")) { found = true; rimmed++; break; }
+                                }
+                            if (!found) unrimmed.Add(kv.Key);
+                        }
+                        Check(sceneName + ":rim_applied", unrimmed.Count == 0, rimmed + " rimmed renderer(s)" + (unrimmed.Count > 0 ? " — missing: " + string.Join(", ", unrimmed) : ""));
+                    }
 
                     // Frame-mapping landmark (pinned Y0): an entity node that
                     // survives in the GLB must sit at P(translation).
@@ -1369,6 +1464,71 @@ ${GUIDE_LEDGER(ledger, 101)}
 `;
 }
 
+/** Runtime/MojuloRim.shader — the rim's five numbers as a real shader file
+ * (shader-look phase 4, open question 4 resolved: StandardMaterial parameters
+ * cannot express an additive edge light). The Godot kernel's rim.gdshader
+ * construction, in ShaderLab: unlit, additive, back-culled, depth-read-only,
+ * facet normal from screen-space derivatives — the packed GLB ships no
+ * NORMAL, so the shader never trusts one. A pass with no LightMode tag
+ * renders as SRPDefaultUnlit under URP (the guide's pinned template) and
+ * as-is under built-in, so one file serves both pipelines. */
+function rimShader() {
+  return `// generated by mojulo export-unity — do not hand-edit; re-mint from recipe/
+Shader "Mojulo/Rim"
+{
+    Properties
+    {
+        _RimColor ("Rim Color", Color) = (0.35, 0.62, 1.0, 1.0)
+        _RimStrength ("Rim Strength", Range(0, 4)) = 0.0
+        _RimPower ("Rim Power", Range(0.1, 16)) = 2.0
+    }
+    SubShader
+    {
+        Tags { "Queue" = "Transparent" "RenderType" = "Transparent" "IgnoreProjector" = "True" }
+        Blend One One
+        ZWrite Off
+        Cull Back
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+
+            fixed4 _RimColor;
+            float _RimStrength;
+            float _RimPower;
+
+            struct v2f
+            {
+                float4 pos : SV_POSITION;
+                float3 wpos : TEXCOORD0;
+            };
+
+            v2f vert(float4 vertex : POSITION)
+            {
+                v2f o;
+                o.pos = UnityObjectToClipPos(vertex);
+                o.wpos = mul(unity_ObjectToWorld, vertex).xyz;
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+                // facet normal from derivatives; abs() makes winding moot
+                float3 n = normalize(cross(ddy(i.wpos), ddx(i.wpos)));
+                float3 v = normalize(_WorldSpaceCameraPos - i.wpos);
+                float d = abs(dot(n, v));
+                float f = pow(saturate(1.0 - d), _RimPower);
+                return fixed4(_RimColor.rgb * (_RimStrength * f), 1.0);
+            }
+            ENDCG
+        }
+    }
+}
+`;
+}
+
 /* ------------------------------------------------------------- shared --- */
 
 const kernelFiles = ({ packFolder }) => [
@@ -1377,6 +1537,7 @@ const kernelFiles = ({ packFolder }) => [
   { file: 'Runtime/MojuloLevel.cs', text: levelCs() },
   { file: 'Runtime/MojuloGame.cs', text: gameCs() },
   { file: 'Runtime/MojuloMenu.cs', text: menuCs() },
+  { file: 'Runtime/MojuloRim.shader', text: rimShader() },
 ];
 
 const readmeProvenance = ({ ref, manifestHash, remint }) => `## Provenance
