@@ -245,7 +245,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-09-26 (265_500 -> 266_000; measured 265,684) for the hero door (hero-tune): the
 // `via: 'hero'` clause on mint_solid's description and its one-sentence entry in the `via` schema
 // description. The tune keys, moves and ranges live in layered.md, off-payload. Shrink-only from here.
-const PAYLOAD_CEILING = 266_000;
+// Re-pinned 2026-09-27 (266_000 -> 295_500; measured 295,201) for tool annotations (directory policy
+// 5.E): every entry now carries a top-level `title` and `annotations` { title, readOnlyHint,
+// destructiveHint, idempotentHint, openWorldHint } from lib/mcp/tool-annotations.js, about 165 bytes
+// per tool. No description grew past its budget. Shrink-only from here.
+const PAYLOAD_CEILING = 295_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

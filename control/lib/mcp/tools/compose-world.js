@@ -257,6 +257,7 @@ export function registerComposeWorldTools() {
     registerTool({
       name,
       listed: false,
+      aliasOf: 'compose_world',
       description: `Deprecated alias — use compose_world with base '${base}' (parameter manual: get_view_vocab({ id: '${base}' })).`,
       inputSchema: { type: 'object', properties: {}, required: [] },
       handler,

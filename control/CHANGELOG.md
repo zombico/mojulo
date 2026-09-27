@@ -170,6 +170,30 @@ loops and the recipe format are unchanged.
   `BUILDER_ANTHROPIC_API_KEY` and imported the uninstalled `@anthropic-ai/sdk`, is deleted with its
   re-export.
 
+### MCP tool annotations and protocol negotiation
+
+- **Every tool carries a title and behavior hints.** Each `tools/list` entry now has a top-level
+  `title` and `annotations` with the same `title` plus `readOnlyHint`, `destructiveHint`,
+  `idempotentHint` and `openWorldHint`. This covers the flat surface, the spine, the pack
+  dispatchers and the roles-admin tools, on every host profile. The classification is one table,
+  `lib/mcp/tool-annotations.js`, with its rules at the top. A pack dispatcher takes the union of the
+  tools it can dispatch, and a deprecated alias takes its target's row. A test fails when a
+  registered tool has no row. Each entry grows by about 165 bytes; the flat and packs payload pins
+  are re-pinned for it.
+- **The protocol version is negotiated.** `initialize` answers with the revision the client asks
+  for when it is `2025-06-18`, `2025-03-26` or `2024-11-05`, and with `2025-06-18` otherwise. It
+  was fixed at `2024-11-05`, older than the revisions that define tool annotations (`2025-03-26`)
+  and tool titles (`2025-06-18`). The `version` tool reports the newest revision as
+  `protocolVersion` and the full list as `supportedProtocolVersions`.
+- **Connected-service declarations run when the user asks.** `meta_context_declare_inventory` and
+  `declare_skills` no longer tell the agent to call them at session start. They run when the user
+  asks for connected-service work, since the inventory records the names of the user's other MCP
+  servers. `get_register_kit`, `get_adapter` and `list_adapters` no longer ask for a read on every
+  session; the agent reads them when a task needs them. The deliberation overview, the tool index
+  and the local-storage catalyst say the same.
+- **The HTTP MCP route answers a POST of only notifications with `202 Accepted`** (it was
+  `204`), as Streamable HTTP specifies.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level
