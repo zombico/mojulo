@@ -290,6 +290,18 @@ export class DockerDeployer {
         );
       }
       await copyTemplateFiles(LITE_TEMPLATE_PATH, stagingDir, TEMPLATE_EXCLUDES);
+      // The npm package leaves lite-template/models/ out (17 MB of tokenizer files). The image
+      // build fetches the whole model in its postinstall and then overlays `COPY models/`,
+      // which fails if the directory is absent, so give it one when the template had none.
+      const modelsDir = path.join(stagingDir, 'models');
+      if (!fs.existsSync(modelsDir)) {
+        await ensureDir(modelsDir);
+        await fsp.writeFile(
+          path.join(modelsDir, 'README.txt'),
+          'The embedding model is fetched into this directory by `npm install` (postinstall) during the image build.\n',
+          'utf8'
+        );
+      }
     }
 
     // 2. Create config, data dirs

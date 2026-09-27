@@ -42,6 +42,13 @@ loops and the recipe format are unchanged.
   dotenv. `npm run smoke:tarball` now opens a stash page and uploads an image to it (the routes that use
   these packages), renders a diagram SVG through the stdio loader, and fails if @swc/core or `three` is
   installed or the precompiled CreationMap is missing.
+- **The tarball leaves out files nothing reads at runtime.** `files` now excludes
+  `lite-template/models/**` (the bot's 17 MB tokenizer files; the bot image fetches the model while it
+  builds), `messages/**` (the dashboard's locale strings, which the Next build already compiles into
+  the standalone bundle), and `lib/**/__snapshots__/**`, `lib/**/spike-output/**` and
+  `lib/graph/mobile-suit/scripts/**` (test snapshots and local scratch output that a publisher's working
+  tree could carry into the package). An offline bot build (`MOJULO_OFFLINE_BUILD=1`) from a template
+  without `models/` now gets an empty `models/` directory, so the Dockerfile's `COPY models/` still works.
 
 ### Canal city
 
