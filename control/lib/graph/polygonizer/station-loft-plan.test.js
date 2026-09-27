@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { expandPlan, validatePlan, PLAN_SCHEMA, SLOT_FAMILIES, segmentBind, mirrorPartName } from './station-loft-plan.js';
+import { expandPlan, validatePlan, PLAN_SCHEMA, SLOT_FAMILIES, segmentBind, mirrorPartName, loftPart } from './station-loft-plan.js';
 import { compileLayered, auditLayered, mirrorPid } from './station-loft.js';
 import { validateRig, bindLayered, skinLayered, rigNodesAt, boneFrames } from './station-loft-rig.js';
 
@@ -40,6 +40,21 @@ const plan = () => ({
 });
 
 describe('station-loft-plan — the ring plan expands into a layered recipe', () => {
+  it('a loft: explicit stations along a polyline, rings perpendicular to the local direction, mirrored by name, closed', () => {
+    const p = plan();
+    p.segments.push({ name: 'flankR', kind: 'loft', stations: [{ at: [0.1, 0, 1.0], r: [0.1, 0.11] }, { at: [0.16, 0.05, 0.8], r: 0.09 }, { at: [0.2, 0.1, 0.55], r: [0.07, 0.075] }, { at: [0.22, 0.1, 0.5], r: 0.07 }], group: 'Legs', tint: '#565', mirror: 'name', bind: { bone: 'thighR', blend: { st0: { torso: 1 }, st1: { torso: 0.5, thighR: 0.5 }, st3: { thighR: 1 } } } });
+    const recipe = expandPlan(p); const R = recipe.parts.flankR, L = recipe.parts.flankL;
+    expect(R.stations.map((s) => s.id)).toEqual(['st0', 'st1', 'st2', 'st3']); expect(R.slots).toEqual(SLOT_FAMILIES.limb6);
+    // each ring lies in the plane perpendicular to the chord between its neighbours
+    const C = [[0.1, 0, 1.0], [0.16, 0.05, 0.8], [0.2, 0.1, 0.55], [0.22, 0.1, 0.5]]; const sub = (a, b) => a.map((x, i) => x - b[i]); const dot = (a, b) => a.reduce((t, x, i) => t + x * b[i], 0);
+    R.stations.forEach((st, i) => { const d = sub(C[Math.min(i + 1, 3)], C[Math.max(i - 1, 0)]); for (const q of Object.values(st.points)) expect(Math.abs(dot(sub(q, C[i]), d))).toBeLessThan(1e-6); });
+    for (const st of R.stations) { const left = L.stations.find((s) => s.id === st.id); for (const [slot, q] of Object.entries(st.points)) expect(left.points[mirrorPid(slot)]).toEqual([-q[0] + 0, q[1], q[2]]); }
+    expect(R.caps.back[2]).toBeGreaterThan(1.0); expect(R.caps.tip[2]).toBeLessThan(0.5);   // pinched beyond the end rings
+    expect(Object.values(auditLayered(compileLayered(recipe))).every((r) => r.pass)).toBe(true);
+    expect(() => validatePlan({ ...plan(), segments: [...plan().segments, { name: 'x', kind: 'loft', stations: [{ at: [0.1, 0, 1], r: 0.1 }], mirror: 'name' }] })).toThrow(/at least two stations/);
+    expect(() => validatePlan({ ...plan(), segments: [...plan().segments, { name: 'x', kind: 'loft', stations: [{ at: [0.1, 0, 1], r: 0.1 }, { at: [0.1, 0, 0.5], r: 0.1 }], mirror: 'name' }] })).toThrow(/must end in R or L/);
+    expect(loftPart([{ at: [0, 0, 1], r: 0.1 }, { at: [0, 0, 0] , r: 0.1 }]).caps.back).toEqual([0, 0, 1.045]);
+  });
   it('a style block sets every ring family and exponent at once; a segment or station that names its own wins; unknown families refuse', () => {
     const p = plan(); p.style = { slots: 'ring12', limbSlots: 'ring6', e: 8 };
     const recipe = expandPlan(p);

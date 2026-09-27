@@ -47,12 +47,12 @@
   ],
   "toeBase": [
    0.18,
-   0.11,
+   0.085,
    0.02
   ],
   "toeTip": [
    0.18,
-   0.22,
+   0.165,
    0.015
   ],
   "knuckles": [
@@ -73,88 +73,44 @@
  },
  "segments": [
   {
-   "name": "pelvis",
-   "kind": "trunk",
-   "stations": [
-    {
-     "z": 0.7623,
-     "r": [
-      0.21,
-      0.13
-     ],
-     "yc": 0.02
-    },
-    {
-     "z": 0.846,
-     "r": [
-      0.25,
-      0.15
-     ],
-     "yc": 0.02
-    },
-    {
-     "z": 1.0413,
-     "r": [
-      0.155,
-      0.105
-     ]
-    }
-   ],
-   "caps": {
-    "back": [
-     0,
-     0,
-     0.7065
-    ],
-    "tip": [
-     0,
-     0,
-     1.11105
-    ]
-   },
-   "group": "Bottom",
-   "mirror": "plane",
-   "bind": "pelvis"
-  },
-  {
    "name": "torso",
    "kind": "trunk",
    "stations": [
     {
-     "z": 1.0413,
-     "r": [
-      0.155,
-      0.105
-     ]
-    },
-    {
-     "z": 1.125,
+     "z": 1.02177,
      "r": [
       0.175,
-      0.115
-     ],
-     "yc": 0.005
-    },
-    {
-     "z": 1.27845,
-     "r": [
-      0.215,
-      0.13
+      0.098
      ],
      "yc": 0.01
     },
     {
-     "z": 1.394,
+     "z": 1.125,
      "r": [
-      0.274,
-      0.12
+      0.18375,
+      0.102
      ]
     },
     {
-     "z": 1.449,
+     "z": 1.27845,
      "r": [
-      0.15,
-      0.1
+      0.22,
+      0.115
+     ],
+     "yc": 0.006
+    },
+    {
+     "z": 1.425,
+     "r": [
+      0.27792,
+      0.104
+     ]
+    },
+    {
+     "z": 1.429,
+     "r": [
+      0.0726,
+      0.05676
      ]
     }
    ],
@@ -162,12 +118,12 @@
     "back": [
      0,
      0,
-     0.9855
+     0.99666
     ],
     "tip": [
      0,
      0,
-     1.489
+     1.444
     ]
    },
    "group": "Top",
@@ -201,17 +157,17 @@
    "from": "neckHub",
    "to": "headBase",
    "rA": [
-    0.062,
-    0.058
+    0.066,
+    0.06072
    ],
    "rB": [
-    0.056,
-    0.054
+    0.06072,
+    0.0594
    ],
    "slots": "ring8",
    "over": [
-    0.3,
-    0.4
+    0.15,
+    0.2
    ],
    "group": "Skin",
    "mirror": "plane",
@@ -299,11 +255,17 @@
    "kind": "segment",
    "from": "shoulder",
    "to": "elbow",
-   "rA": 0.062,
-   "rB": 0.046,
+   "rA": [
+    0.061,
+    0.06588
+   ],
+   "rB": [
+    0.04514,
+    0.05002
+   ],
    "over": [
-    0.15,
-    0.6
+    0.03,
+    0.36
    ],
    "group": "Top",
    "mirror": "name",
@@ -318,11 +280,22 @@
    "kind": "segment",
    "from": "elbow",
    "to": "wrist",
-   "rA": 0.046,
-   "rB": 0.036,
+   "rA": [
+    0.04636,
+    0.05246
+   ],
+   "rB": [
+    0.029,
+    0.03
+   ],
+   "mid": 0.3,
+   "rMid": [
+    0.04697,
+    0.05002
+   ],
    "over": [
-    0.6,
-    0.6
+    0.36,
+    0.2
    ],
    "group": "Top",
    "mirror": "name",
@@ -338,17 +311,17 @@
    "from": "wrist",
    "to": "knuckles",
    "rA": [
-    0.044,
-    0.028
+    0.035,
+    0.025
    ],
    "rB": [
-    0.046,
-    0.02
+    0.037,
+    0.023
    ],
    "e": 3,
    "over": [
-    0.4,
-    0.35
+    0.25,
+    0.1
    ],
    "group": "Skin",
    "mirror": "name",
@@ -360,24 +333,103 @@
   },
   {
    "name": "thighR",
-   "kind": "segment",
-   "from": "hip",
-   "to": "knee",
-   "rA": [
-    0.085,
-    0.095
+   "kind": "loft",
+   "stations": [
+    {
+     "at": [
+      0.081,
+      0.01,
+      1.02177
+     ],
+     "r": [
+      0.089,
+      0.1
+     ]
+    },
+    {
+     "at": [
+      0.1116,
+      0.0405,
+      0.846
+     ],
+     "r": [
+      0.1156,
+      0.118
+     ]
+    },
+    {
+     "at": [
+      0.1296,
+      0.081,
+      0.76086
+     ],
+     "r": [
+      0.1336,
+      0.102
+     ]
+    },
+    {
+     "at": [
+      0.18,
+      0.081,
+      0.648
+     ],
+     "r": [
+      0.082,
+      0.086
+     ]
+    },
+    {
+     "at": [
+      0.18,
+      0.081,
+      0.432
+     ],
+     "r": [
+      0.064,
+      0.066
+     ]
+    }
    ],
-   "rB": 0.066,
-   "over": [
-    0.15,
-    0.6
-   ],
+   "caps": {
+    "back": [
+     0.054,
+     0.01,
+     1.02477
+    ],
+    "tip": [
+     0.18,
+     0.081,
+     0.425
+    ]
+   },
    "group": "Bottom",
    "mirror": "name",
    "bind": {
     "bone": "thighR",
-    "prev": "pelvis",
-    "next": "shankR"
+    "blend": {
+     "back": {
+      "pelvis": 1
+     },
+     "st0": {
+      "pelvis": 1
+     },
+     "st1": {
+      "pelvis": 0.8,
+      "thighR": 0.2
+     },
+     "st2": {
+      "pelvis": 0.2,
+      "thighR": 0.8
+     },
+     "st4": {
+      "thighR": 0.5,
+      "shankR": 0.5
+     },
+     "tip": {
+      "shankR": 1
+     }
+    }
    }
   },
   {
@@ -385,11 +437,19 @@
    "kind": "segment",
    "from": "knee",
    "to": "ankle",
-   "rA": 0.064,
-   "rB": 0.04,
+   "rA": [
+    0.063,
+    0.065
+   ],
+   "rB": 0.039,
+   "mid": 0.36,
+   "rMid": [
+    0.067,
+    0.069
+   ],
    "over": [
-    0.6,
-    0.6
+    0.32,
+    0.28
    ],
    "group": "Bottom",
    "mirror": "name",
@@ -482,12 +542,11 @@
    "min": 0.8,
    "max": 1.35,
    "rest": 1,
-   "doc": "x scale of the pelvis and legs about the mirror plane (wider stance, thicker legs)",
+   "doc": "x scale of the legs about the mirror plane (wider hips and stance, thicker legs)",
    "op": "scale",
    "axis": "x",
    "pivot": 0,
    "parts": [
-    "pelvis",
     "thigh$S",
     "shank$S",
     "foot$S",
@@ -507,7 +566,7 @@
    "min": -10,
    "max": 25,
    "rest": 0,
-   "doc": "degrees the torso, arms, neck and head hinge forward about the pelvis tip; the legs stay planted",
+   "doc": "degrees the torso, arms, neck and head hinge forward about the waist; the legs stay planted",
    "op": "hinge",
    "parts": [
     "torso",
@@ -517,13 +576,13 @@
     "foreArm$S",
     "hand$S"
    ],
-   "pivot": "pelvis/tip",
+   "pivot": "torso/back",
    "axis": "x",
    "sign": -1
   }
  },
  "palette": {
-  "Skin": "#e6b48c",
+  "Skin": "#d9a77e",
   "Top": "#3d6fa8",
   "Bottom": "#2c3a55",
   "Shoes": "#4a3526"
@@ -589,14 +648,14 @@
    "toeBase$S": {
     "at": [
      0.18,
-     0.11,
+     0.085,
      0.02
     ]
    },
    "toeTip$S": {
     "at": [
      0.18,
-     0.22,
+     0.165,
      0.015
     ]
    },

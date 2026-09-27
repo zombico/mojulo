@@ -12,6 +12,232 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Read and attach
+
+- **Worn things follow the dials.** A pinned part with `follow: true` moves with the dials as the surface under its pin
+  moves (scaled and offset at the pin's own station weight, turned by a hinge that turns its parent) instead of riding
+  the dialed pin frame rigidly, which translates but never scales. The `body` / `adorn` bake sets it. Before it, the
+  dressed hero at `bulk 1.4` had its baldric 57 % inside the torso, the belt 35 %, the bracer 28 % (every part closed,
+  so nothing noticed); now each stays as clear as at rest. At rest the placement is the same; recipes without `follow`
+  compile byte-identically at every dial (tested).
+- **The clearance ledger** (`station-loft-clearance.js`): every worn (layer-3) part against the body at rest and at
+  each dial's min and max, the worst configuration and the parts it sinks into. In `measure_solid`'s layered readout
+  and the hero's `dress`, named in `warnings`, never refused. What it names today: the ranger's belt, pinned to the
+  torso, meets the thighs at `stance 1.35` (5 %), and on the female the thigh swings through the left forearm there.
+- **The legibility ledger** (`station-loft-legibility.js`): the character height (64 / 128 / 256 / 512 / 1024 px) from
+  which each detail family reads (≥ 4 px² and ≥ 1 px of thickness at its best view, for at least half its parts), and
+  which families only shimmer at 256 px. The art direction's "protect the read" as a number: on the ranger the pauldron,
+  its boss, the belt and the patches read from 64 px, the quilting and the sleeve folds from 128, the toggles from 256;
+  the pupils from 512 and the mouth from 1024 (a portrait), and `eyeSize 1.5` brings the pupil to 256. In `measure_solid`
+  and the hero's `dress`.
+- **Evidence and assembly, said.** The hero's readout carries `evidence`: the worn head's fit, the views it was fitted to
+  (with their yaw) and the ones it infers (the male's front), whether the face was authored off the fit, and that the
+  body is authored from a cast and a tune. `measure_solid` says a layered solid's `assembly`: closed parts joined by
+  overlap and pins, not one welded solid.
+- **An object dressed through the plan door.** `docs/examples/ring-plans/flask.plan.json`: a wicker-wrapped flask (woven
+  tiles, a lip ring, a leather band with a brass buckle) from 1.2 KB of plan, through `via: 'plan'`: the detail and
+  adornment passes are not character-specific. The manual, both catalysts and the ring-plans README say the words.
+
+### Hero detail
+
+- **The dragon's detail and adornment passes are core, and the hero is their second body.** The species-free halves
+  of the body-detail and adornment examples move to `station-loft-body.js` (named density, `volumize` masses, bend
+  creases with a `floor`, rigid-on-rigid tiles, pads, spurs, midline rows, collars) and `station-loft-adorn.js`
+  (shell / band / strap modes over the smoothed hull of everything beneath, stacking, the one-signature justification
+  ledger, and a SIGNATURE library — `boss`, `spike`, `buckle`, `ring`, `medallion`, `plume`, `bell`, `studs` — so a kit
+  is data). The dragon's body data and the dragon and vulture kits are data over them; the lift was byte-identical.
+- **Worn by the recipe, not only drawn.** A plan may carry `body` and `adorn` blocks: `expandPlan` bakes the detail as
+  pinned L2 parts and the adornment as pinned L3 parts on the refined rest carrier, so the World page, `measure_solid`,
+  every export and the rig see them. Refinement extends each part's BIND blends by `u` (a refined joint station is its
+  neighbours' blend), so skinning is unchanged by density; an adornment and its signature share one pin, so a rigid
+  adornment rides one bone (`pin` may name another carrier: shaped over the deltoid, riding the torso). Absent, zero
+  bytes.
+- **A hero dressed by word.** `mint_solid({ kind: 'layered', via: 'hero', spec: { …, detail: 'clothed', adorn: 'ranger' } })`
+  and `/hero/detail`, `/hero/adorn` (`hero-dress.js`, generated per register). `clothed`: elbows and knees refined, the
+  jerkin's masses, soft sleeve folds, a quilted jerkin (front panels beside a bare placket with a toggle row, a back
+  panel, grown only where the torso bone dominates), knee patches, cuffs, leg wraps. `ranger`: a belt and a baldric
+  with iron buckles, an archer's bracer on the left forearm, ONE pauldron on the right shoulder with a bronze boss
+  (the kit's focal accent), stacked in that order, with a suggested earth palette beneath the operator's; the tones the
+  detail needs derive from Top / Bottom / Shoes. The readout's `hero.dress` carries the parts and the adornment ledger,
+  and `warnings` names any signature that does not justify itself. Tested on both casts in all four registers: closed,
+  rig gates held with `idle` / `walk` / `wave`, every signature justified, the part set dial-invariant, adornment never
+  changing what is beneath. The manual, the `create-hero` catalyst (DETAIL and ADORN steps; the ledger gains a detail
+  column and adornment rows), the `hero` card and an eval row, and a `costume-pass` lingo entry say the words;
+  `render-dress.mjs` draws the build-up at four views, 128 / 256 / 512 px and in motion.
+- **Two core fixes the second body found.** `refineSlot` inserted a ring's left-side slot next to the front midline
+  before its neighbour instead of after it, folding that band on every refined left-side limb (heads and pinned recipes
+  never refined that pair; their bytes hold); a pad's per-face groups were dropped through `pinned`, so a pad was one
+  colour. Both change only the dragon body-detail example's render, which is not a stored recipe.
+- **A `/hero` patch passes the door's form check.** `update_sketch` now validates the patched `hero` record as the mint
+  does, so a field the generator never reads closely (a `palette` colour that is not `#rrggbb`) refuses by name instead
+  of storing; a refused patch leaves the row untouched. The frozen fits' byte pins moved from the example's tests into
+  `humanoid-head.test.js`, so the core suite guards the data core reads.
+
+### Hair library
+
+- **The hairstyle lab's library as closed hair on the landmark head.** `humanoid-hair.js`: seventeen styles in a male
+  collection (`buzz`, `crew`, `taper`, `undercut`, `crop`, `quiff`, `swept`, `curtains`) and a female one (`pixie`, `bob`,
+  `angled`, `layers`, `long`, `wavy`, `ponytail`, `bun`, `braid`), either head wearing any, every style DATA over four
+  closed constructions whose perimeters follow the skull by address: the cap (the old `hairMass` generalised: a hairline
+  per slot, lifts, a fringe that never passes the brow, a part groove that slides across the front, a taper, a quiff),
+  the fall (curtains from just inside the cap's border, a per-slot fall so the mass frames the face and closes under one
+  hem cap), the tail family (a ponytail sweep from a tie point on the occiput, a bun, a winding braid). Where the lab's
+  masses were open shells fitted around scalp landmarks with no collision check, these close under the layered audit, ride
+  every face control and stand off the skull by construction. Ten controls as ratios about the style's preset (`cap`
+  volume / fringe / part / fade, `fall` length / graduation / wave, `tails` tail / tie / braid; the lab's ranges); a control
+  the style does not use advises in `warnings`. `crop`, `swept` and `bob` at every control 1 are the bytes the head grew
+  before, pinned. Tested per style × head × defaults / all low / all high: finite, closed, the eyes read, a cap reads from
+  the back, the head unmoved; and what each control means.
+- **The lab's later passes, on the same closed constructions.** The anime LOCKS (`animeShort`, `animeBob`): a reduced
+  cap under separate flattened locks, each one closed tapered sweep along a root → control → tip curve pinned by address
+  (seven bangs whose tips never pass the brow, thirteen side and rear locks to the cheek or the jaw, five crown spikes on
+  the short), built in the right half-space and mirrored, so `asymmetry` 0 is an exact mirror and above it a sine of
+  the lock index offsets each lock (never dice); `lockWidth`, `taper`, `bend`. The barber's FORM pass on the male caps
+  (`corners` keeps the parietal corners, `sideBulk` the lower sides, `topSlope` the front weight, `lineup` squares the
+  hairline at the temples; 0 switches it off). `definition` exaggerates or relaxes every style's signature (the crew's
+  flat top, the undercut's shelf, the quiff's lift, the taper's groove, the female part's lobes and open front, the long
+  falls' separated panels, the gathered styles' crown ridges); every female style takes `part`. On the three pinned
+  styles the form and definition are relative, so their bytes at 1 hold. Nineteen controls, nineteen styles.
+- **Hair by word at the door.** `hair` is a style word, `{ style, length: 1.3 }` or a list; the record stores it resolved,
+  `/hero/hair/style` and `/hero/hair/<control>` regenerate the head; the readout's `hero.hair`, `hairMoved` and
+  `hairMeasures` (top above the crown, hem below the chin, reach behind the occiput, in metres) answer in the operator's
+  terms. The manual, the `hero` card, the `create-hero` HAIR step and the lingo entry say the words; `render-hair.mjs`
+  draws both heads × every style at four views.
+
+### Face tune
+
+- **The landmark head is core.** `humanoid-head.js`, `humanoid-head-fit.js` and `humanoid-plan.js` under
+  `control/lib/graph/polygonizer/`, the frozen fits under `head-fit/{female,male}/` (bytes unchanged, still pinned);
+  `docs/examples/humanoid/head.mjs`, `head-fit.mjs` and `humanoid.plan.mjs` re-export them. The install carries the head.
+- **The face: the face proportion lab's controls as ratios about the fitted head.** Seven new shape knobs on the fitted
+  points (`skullWidth`, `faceWidth`, `faceLength`, `chinProjection`, `eyeSpacing`, `browHeight`, `mouthWidth`; the broad
+  ones blend from the ear root to the cheekbone crest, the lab's face ↔ vault weight) join the figure's knobs as the
+  FACE, grouped (skull, brow, eyes, cheeks, nose, mouth, jaw, ears), with two moves (`broad-jaw`, `large-eyes`) and the
+  lab's comfortable ranges (faceLength's floor is 0.92, where the female's fitted jaw stops folding). `mouthWidth` also
+  scales the V3 mouth span. One resolver for the body tune and the face (`ratio-controls.js`: a word, an object or a
+  list, product composition, group words first, resolved storage, advisory ranges). `humanoidPlan({ face, headPreset })`
+  takes the compositional spec; a figure cast (`chibi`, `heroic` …) wears the male head. Tested as the lab's checker
+  transposed: identity, exact symmetry, closure at every control's limits and both combined extremes on both heads, the
+  eyes still reading, and what each new word means.
+- **A hero has a face by the door.** `mint_solid({ kind: 'layered', via: 'hero' })` wears the landmark head by default
+  (`head: 'landmark'`; `'none'` is the blank trunk; a baked include is worn as given) and takes `face`, `hair`,
+  `expression`, `headPreset`. The row stores them under `hero`; a patch under `/hero/face/<control>`, `/hero/hair` or
+  `/hero/expression` regenerates the head, the plan and the recipe; a face never moves a joint. The readout's
+  `hero.face`, `faceMoved` and `faceMeasures` (crown to chin, across the cheekbones, across the jaw, between the pupils,
+  in metres) answer in the operator's terms. The `hero` card, its eval rows, the `create-hero` FACE and HAIR steps and
+  the lingo entry say the words; `render-face.mjs` draws the portrait sheet.
+
+### Hero tune
+
+- **The hero form is core.** `heroPlan`, its casts, body controls, registers and `scalePlan` live in
+  `control/lib/graph/polygonizer/hero-form.js`; `docs/examples/ring-plans/hero.plan.mjs` re-exports them and still
+  writes the canonical JSON byte for byte, so the install carries the form. A `forearm` body control joins `arm`
+  (default: the arm's, so nothing changes until it is named).
+- **A tune: proportion as percentages of the cast's own baseline.** `heroPlan({ tune })` and the hero door
+  `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune } })`, the body proportion lab's contract
+  carried onto the hero form. Thirteen relative controls in five groups (`stature`; `torso` / `neck` / `legs`;
+  `shoulders` / `waist` / `hips` / `depth`; `head`; `upperArm` / `forearm` / `thigh` / `calf`), the group words as
+  aggregates, three moves (`athletic`, `long-legs`, `full-limbs`), a word, an object or a list resolved left to right
+  with ratios composing by product. A unit ratio changes no bytes. Lengths move joints only and keep the soles on the
+  ground; a thickness scales its rings about their own centres and leaves the joints, the yoke and the wrist ring; `hips`
+  widens the pelvis without deepening it; `head` scales uniformly about the atlas. Ranges advise in `warnings`, never
+  refuse; an unknown control or a ratio that is not a positive number refuses by name. Tested as the lab's checker
+  transposed (`hero-form.test.js`).
+- **The tune is the record.** A hero-born row stores `hero` (cast, register, the resolved tune, the move trail) beside
+  `plan` and `recipe`. A patch under `/hero` regenerates the plan and the recipe in place, and the readout's `hero`
+  answers in metres (height, across the yoke, across the pelvis) with the tune and its advice. A `/plan` hand edit is
+  honoured and kept until the next `/hero` edit, which regenerates and says it replaced it (the archived revision keeps
+  it). `mint_solid`'s description and the `tools/list` payload are re-pinned for the door's one clause; the vocabulary
+  is taught in `layered.md`'s Hero door section, off-payload. The `hero` routing card and eval rows, the `create-hero`
+  catalyst's CAST and SILHOUETTE steps and a `proportion-pass` entry in `translate_modeler_lingo` say the words;
+  `humanoidPlan` passes `tune` through and bakes its head at the tuned scale; `render-tune.mjs` draws both casts × the
+  moves through one camera per cast with a measurements table (diagnostic, gitignored output).
+
+### Fitted heads
+
+- **Both humanoid heads are fitted heads (canonical).** The male and female `humanoidHead` presets are resampled
+  from heads fitted to reference images and frozen as data (under `control/lib/graph/polygonizer/head-fit/{female,male}/`
+  since the face tune moved the head into core), pinned by hash.
+  - The female uses the refined three-view fit (front, three-quarter, side): closed mesh, corrected triangulation,
+    ears joined through root faces, same landmarks and cameras.
+  - The male uses a two-view fit (three-quarter, side). No front reference exists, so his width across the face
+    rests on the template, and his front view is inferred.
+  - The landmark cage stays selectable through `HEAD_SOURCES` and keeps its own construction tests. The jaw
+    hinge, pinned features, hair and expressions are unchanged in kind. Face knobs deform named fitted points
+    before sampling; `earSize`, `eyeSize` and `neckGirth` have no fitted counterpart.
+- **One construction for both heads** (`head-fit.mjs`). Each fit keeps its own registration: the landmark preset's
+  crown-to-chin height, chin height and head-length centre, so collar and neck clearances hold. The sampler reads
+  the fit's own triangulation, skips ears and ear roots, and patches the skull openings the roots plug into. The
+  nose and eye rows own only their face slots; their skull slots interpolate between the structural rows.
+- **The cheek is flat planes around a rounded apex; the chin and jaw front are the fit's.** Under-eye front and
+  side, cheek front and side down to a fullness row, and one lower side down to the jawline replace the horizontal
+  rows that crossed the cheek and read as stripes.
+  - A corner grid defines the planes. Rows: eye, crest (nose wing to ear), fullness. Columns: nose side,
+    front-to-side turn, ear.
+  - The apex under the eye corner leads its neighbours. Each corner is placed by construction, so every plane is
+    flat, and every row crossing them lies on their edges.
+  - Below the fullness row the jaw front follows the fit. The jawline is the fit's (jaw front, the refined female's
+    jaw sweep, jaw angle), and the front/side turn lands on it. The chin gets the fit's own rows: chin bottom, chin
+    front, and the fold under the lower lip (set back on the female, level on the male). Their near-midline points
+    are read off the fitted chin. No pair of flat lower planes could meet the fitted jawline without pulling the
+    turn far behind the face.
+  - The lower back of the cheek is one flat mass from the nose line down to the jawline. It rounds out instead of
+    sinking: the side column bows up to about 7 mm past the straight line from cheekbone to jaw angle, never wider
+    than the cheekbone crest, then runs down the ramus. The jaw corner keeps the fitted jawline's height and
+    moves only across the face onto that plane. Behind it, the ramus's back edge runs parallel, so the band under
+    the ear down to the jaw is one strip.
+  - The female's jaw angle is widened about 7 mm on the fitted surface before sampling. No reference measured
+    that width, and her front-view widths at mouth and jaw height asked for it. The male's three-quarter view sees
+    his jaw angle, so his stays as fitted.
+- **The jaw meets the ear.** Behind the ramus, the rear column below the crest is the ramus's back edge at each
+  row's height, from about 12 mm behind the jaw angle up to where the ear is worn. The landmark cage's hinge lift
+  used to jump those points up to the condyle, leaving a notch behind the jaw angle and a cavity under the lobe.
+  The midline back points keep their lift, so the jaw still hinges by the ear and opens closed.
+- **Measured against the fits, not asserted.** Silhouette IoU against each fitted source through its fitted
+  cameras is 0.95 / 0.90 / 0.94 for the female and 0.92 / 0.95 for the male. Compiled pupils land within 5 px of
+  the hand-marked eye centres. `render-head-fit.mjs` draws each head's reference, landmark cage, raw sampling,
+  built head and overlay.
+
+### Planar humanoid
+
+- **Female silhouette rebuilt from the Vajra girdles.** The female starting cast now authors its shoulder, waist, pelvic, thigh and calf masses as one independent silhouette. A wider pelvic girdle and upper-thigh transition counterbalance relaxed narrower shoulders; the chest is carried by the torso envelope instead of defaulting to two attached mounds. The Vajra joints, rig behavior and optional `bust` control remain available.
+- **Female target head as an updatable Meru / Mandala polygon map.** A deterministic head-map recipe puts 203 named points in one Meru world ruler and depth register, then uses an axis-mundi and bilateral Mandala bars to author 116 semantic forehead, orbit, nose, cheek, muzzle, jaw, ear, hair and shoulder-yoke planes. Named design controls own cranial height, skull / malar / jaw / neck widths, nose width and depth, eye and mouth proportions, and presentation styling without changing ids. The revised target has a rounded convex hair cap, asymmetric swept fringe, visible eight-point ears, a closed ponytail with front/back depth, a shorter three-stage nasal projection, aligned lip / chin profile, minimal bust framing and restrained beauty-view seams. The nose base remains three times the root half-width while root-to-tip projection is limited to 0.030 m; an embedded audit protects those relationships. Physical front, three-quarter and profile cameras project the same source into SVGs with stable plane / point ids and embedded source / camera metadata. A principles log records parameter ownership and the silhouette-first iteration procedure.
+- **Reference head and torso refinement.** The humanoid starter uses shallower orbital planes; a constructed nose with separately labelled bridge, sidewall, ala, face-join and upper-mouth edges; tapered jaw planes; and a sloped, flatter-fronted shirt yoke. The paired outer joins are closest at the root and spread toward the base, so the whole nose widens downward instead of reading as a forward-pointing keel. The nose also has a narrow dorsal plane, nostrils tucked underneath and a philtrum wedge that narrows toward the lip. The existing `noseWidth` shape control drives the alar base independently of the bridge attachment. Shared hero defaults and core geometry kernels are unchanged.
+- **Face V3 derives the mouth from the nose.** Triangular nostril facets sit on the alar underside. The alar half-width determines the mouth span and the inner cupid peaks, giving the upper lip a shallow M-shaped plane above the mouth slit; changing `noseWidth` carries that relationship instead of leaving an unrelated fixed-width mouth. `FACE_VERSION` exposes the construction revision in the example API and generated frame note.
+
+- **The humanoid starter.** `docs/examples/humanoid/`: the hero form with a `male` / `female` preset, the
+  body controls and a planar LANDMARK HEAD, hair / palette / expression / register independent of the
+  proportions. Begun as an outside spike on the hero form and reconciled into it: its streamlined body
+  (thighs from the hip crest, swells, tight overshoots) became the hero form's own, its proportion controls
+  became the form's `body` (waist, chest, chestDepth, hip, thigh, arm, neck, each cast with defaults), and
+  `humanoid.plan.mjs` is a thin wrapper over `heroPlan`.
+- **The female cast is its own mass design.** A cast carries a uniform `scale` over the finished figure
+  (joints, rings and the worn head alike; `heroPlan({ scale })` overrides it). The female combines a relaxed
+  narrower shoulder girdle, short waist transition, wider pelvic envelope around restrained hip sockets,
+  tapered upper thighs, lighter calves and a slightly larger head ratio. Chest depth belongs to the torso by default;
+  the optional `bust` control still adds paired mounds when a character calls for them.
+- **The hips taper into the body; the nose stands forward.** The thigh loft's crest, hip and upper-thigh rings
+  cross the mirror plane and carry the pelvic envelope without forcing the Vajra hip and knee joints into a broad stance.
+  `hipDepth` separates profile depth from frontal `hip` width; `calf` controls the knee, calf swell and ankle radii. The female
+  has a narrower neck, head (`HEAD_WIDTH` per pole on the landmark head, the jaw with it) and calves. On both,
+  the landmark head's nose has separate bridge and ala slots: the bridge bounds a narrow flat dorsal plane,
+  the wider ala bounds its sidewall and underside, and the tip stands forward of the face.
+- **One pelvis, a cheekbone.** The thigh rings cross the mirror plane instead of touching it, so the two thighs
+  overlap through the middle and there is no groove up the front of the pelvis; the crest ring is as wide as the
+  waist less a hair and the male waist is narrower, so the torso hem and the hips meet. The landmark head's rows
+  carry an ORBIT and a CHEEK column: the outer slot stands furthest forward at the eye row (the zygomatic) and
+  recedes row by row to the mouth, the eye row's inner slot sinks under the brow. In profile the face is a
+  diagonal from cheekbone to chin, not a vertical wall meeting the jaw in an L.
+- **The landmark head.** `humanoidHead()`: the head as one designed surface. Horizontal landmark rows read
+  off the figure's own skull landmarks (`figure-head.js`) under the dimorph male / female pole and the
+  figure's head knobs, so forehead, eye plane, nose wedge, cheeks and chin are one surface; the skull / jaw
+  boundary follows the mandibular angle to the condyles, so the jaw hinges by the ear and the chin drops
+  under the cheeks instead of a horizontal puppet cut. Eyes, lids, brows, ears, nostrils and the mouth are
+  closed lofts pinned by address; hair is one continuous mass following the skull (`crop`, `swept`, `bob`);
+  expressions displace the connected flesh and are baked per cast, `jawOpen` stays live; four registers.
+  The hero form lifts a worn head whose chin would sit below the collar. A test file and the review renderer
+  (six views, expressions, 64 px silhouettes) come with it; the eyes gate is the operator's.
+
 ### Furniture audit
 
 - **Every room gets a way in.** An explicit `floorplan` (authored `rooms` / `halls`) used to
@@ -131,6 +357,20 @@ loops and the recipe format are unchanged.
 
 ### Create hero
 
+- **The loft segment.** A ring plan segment may be `kind: 'loft'`: explicit stations along a polyline
+  (`{ at, r, e? }`), each ring perpendicular to its local direction, caps pinched beyond the end rings unless
+  given, mirrored by name or in the plane like any segment. It is how a limb starts inside the trunk it hangs
+  from: a thigh from the hip crest at the waist down past the hip to the knee.
+- **The hero form, streamlined.** Picked up from an outside spike on the hero (its generator was lost, its plan
+  JSONs and renders remained): the two thighs are lofts from the hip crest and carry the pelvis between them, so
+  there is no pelvis part and the hips read as one line; the torso has a V and a narrow top the neck rises
+  from; the forearm and calf carry a mid swell; overshoots are small where the trunk covers the joint. `male` and
+  `female` cast words (shoulder span, an 8° shoulder drop, hip span, a girth) beside the figure-cast presets. The
+  hips are one mass: the thigh lofts' crest and hip rings reach the mirror plane and the hip spans are narrow
+  enough that the thighs meet at the crotch and the legs stand together (read off a reference through the
+  low-poly facet analyzer, where the whole trousers are one facet); the neck is thicker. The blank-head plan,
+  the register tests and the headed gate hold on the new form.
+
 - **The hero form.** `docs/examples/ring-plans/hero.plan.mjs`: a human ring plan on the vajra rest skeleton.
   Its joints come from `figure-cast.js` (a cast word or dial map, into metres), so the layered rig's core is
   the figure's own rest pose and the figure's pose words, gaits and emotes resolve on it unchanged; the mesh
@@ -144,7 +384,10 @@ loops and the recipe format are unchanged.
   `ring10` and `ring12` join `ring8` and `limb6`. A segment or station that names its own family or `e`
   keeps it; the defaults spelled out change nothing (a test). The hero's registers are its style block.
 - **The hero head.** `docs/examples/hero-head/`: a human head as HEAD DATA on the detail core, no new
-  operators: a cranium whose front bands stand nearly vertical (the face), a hinged jaw, skin maps by
+  operators: a cranium whose front bands stand nearly vertical (the face) and whose `jaw` slot runs along the
+  jawline so it carries the cheeks (read off a reference through the facet analyzer: one cheek plane from the
+  cheekbone to the jawline), a hinged jaw that is the mandible inside it (chin and underside, dropping under the
+  cheeks when the mouth opens), a lip band and a parting line on the face front, skin maps by
   landmark, the eye / brow / nostril / fold / cheek-web regions, ears and a midline nose, lips as band
   groups, and hair grown from the skull as data (`cap`, `bangs`, `tail`). Four expressions in the same
   words the dragon and the bear take. `bakeHero()` is the include a ring plan wears; the hero form takes it
