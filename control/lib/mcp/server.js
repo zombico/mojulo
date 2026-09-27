@@ -33,7 +33,19 @@ import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolIn
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
 import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
 
-export const PROTOCOL_VERSION = '2024-11-05';
+// MCP spec revisions this server speaks, newest first. `initialize` answers with
+// the revision the client asked for when it is one of these, otherwise the newest
+// (the client then decides whether it can continue). The revisions matter to
+// tools/list: tool `annotations` arrived in 2025-03-26 and the top-level tool
+// `title` in 2025-06-18. The entries carry both on every revision, since a client
+// on an older one ignores fields it does not know.
+export const SUPPORTED_PROTOCOL_VERSIONS = Object.freeze(['2025-06-18', '2025-03-26', '2024-11-05']);
+export const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
+
+export function negotiateProtocolVersion(requested) {
+  return SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : LATEST_PROTOCOL_VERSION;
+}
+
 export const SERVER_NAME = 'mojulo-control-plane';
 
 // The package version, resolved from package.json (lib/server-version.js). Re-exported
@@ -287,7 +299,7 @@ export async function dispatchMcpRequest(message, context) {
         return isNotification
           ? null
           : jsonRpcResult(message.id, {
-              protocolVersion: PROTOCOL_VERSION,
+              protocolVersion: negotiateProtocolVersion(message.params?.protocolVersion),
               capabilities: {
                 tools: { listChanged: false },
               },

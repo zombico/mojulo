@@ -12,6 +12,14 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### MCP tool annotations and protocol negotiation
+
+- **The protocol version is negotiated.** `initialize` answers with the revision the client asks
+  for when it is `2025-06-18`, `2025-03-26` or `2024-11-05`, and with `2025-06-18` otherwise. It
+  was fixed at `2024-11-05`, older than the revisions that define tool annotations (`2025-03-26`)
+  and tool titles (`2025-06-18`). The `version` tool reports the newest revision as
+  `protocolVersion` and the full list as `supportedProtocolVersions`.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

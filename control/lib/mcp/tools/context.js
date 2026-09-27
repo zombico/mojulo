@@ -36,7 +36,7 @@
  *   below the row lint makes body regrowth a conscious decision.
  */
 
-import { registerTool, PROTOCOL_VERSION, SERVER_NAME, getServerVersion } from '@/lib/mcp/server';
+import { registerTool, LATEST_PROTOCOL_VERSION, SUPPORTED_PROTOCOL_VERSIONS, SERVER_NAME, getServerVersion } from '@/lib/mcp/server';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { hostCapabilities } from '@/lib/mcp/hosts/registry';
@@ -1323,7 +1323,9 @@ const DEFAULT_BOT_IMAGE = 'ghcr.io/zombico/mojulo-bot:0.5.1';
 export async function versionHandler(_input, _ctx) {
   const payload = {
     server: { name: SERVER_NAME, version: getServerVersion() },
-    protocolVersion: PROTOCOL_VERSION,
+    // The newest revision this server speaks; each session negotiates its own at initialize.
+    protocolVersion: LATEST_PROTOCOL_VERSION,
+    supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
     node: process.version,
     platform: { os: process.platform, arch: process.arch },
     botImage: process.env.BOT_IMAGE || DEFAULT_BOT_IMAGE,
