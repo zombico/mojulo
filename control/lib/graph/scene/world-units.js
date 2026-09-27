@@ -23,6 +23,8 @@ export const UNIT_TO_M = Object.freeze({ mm: 0.001, cm: 0.01, m: 1, in: 0.0254, 
 export const AUTHORING_UNITS = Object.freeze({
   floorplan: 'ft',
   restaurant: 'ft',
+  store: 'ft',
+  mall: 'ft',
 });
 
 /** metersPerUnitFor(units) → metres per unit; unknown or absent label ⇒ 1 (metres). */
