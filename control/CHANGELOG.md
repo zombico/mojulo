@@ -68,6 +68,33 @@ loops and the recipe format are unchanged.
   facade's average colour, so the horizon matches the full-detail blocks. The stock city is
   unchanged.
 
+### Canal city
+
+- **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level
+  `compose_world` city override, stored only as `'canal'`) lays out an Amsterdam-class canal town at
+  metro's true scale instead of a street grid.
+  - **Layout.** `canals: { layout: 'ring' }` (the default) draws squared-off U-rings of canals around an
+    old core, open to the frame's far edge; `'parallel'` draws straight canals down the long axis, as in
+    Delft or Leiden. Each canal has a quay on both banks, and cross streets bridge every canal they
+    cross.
+  - **Canals** are about 27 m of water sunk about 1.1 m below the quays, behind brick quay walls. Each
+    quay (about 9 m) carries elms and canal lanterns at the water's edge, cars parked on the water side
+    of a brick-paved lane, and a walk along the houses. Houseboats line one bank of each stretch. Cross
+    streets (about 7.7 m) come every 180–240 m and bridge each canal on a solid brick bridge with one or
+    three arches.
+  - **Canal houses** are a new box kind: narrow (5–8.5 m, the odd double-wide), deep, attached brick or
+    painted houses of three to five floors with a tall ground floor. They have a pitched roof running
+    back from the water and a cornice, neck, bell, spout or step gable on the canal face, with cornice
+    fronts the majority. Stoops, dark green doors, cream frames and hoisting beams complete them. Block
+    interiors are gardens with trees.
+  - **The skyline is flat by construction.** There are no towers, slabs or podiums. Eaves sit around
+    12–17 m and gable tops stay under 23 m (mid-rise is barred in Amsterdam's UNESCO area). The one mass
+    above them is a church steeple of about 75–85 m.
+  - A canal recipe with no region gets a 240 × 150 frame (about 880 × 550 m). Presets are a 1.7 m eye
+    on a quay looking across the canal, a low aerial, and a view down a canal from a bridge's height.
+    The town gets a paler sky and haze sized to the frame.
+  - Absent, every stored city renders the same bytes.
+
 ### Furniture audit
 
 - **Every room gets a way in.** An explicit `floorplan` (authored `rooms` / `halls`) used to

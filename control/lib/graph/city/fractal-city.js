@@ -82,6 +82,7 @@ import { straightPath, sinePath, chainPaths, roadRibbons, groundStreet, offsetPa
 import { vehicleAntFaces, streetcarCorridor } from '../vehicles/vehicles-css3d.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
 import { pedestrianFaces, IDLE_POSES, STROLL_POSES, PALETTES } from '../figures/pedestrian-asset.js';
+import { planCanalCity, canalCameras, CANAL } from './canal-city.js';
 
 const CITY_ELEMENT_DEFAULTS = {
   buildings: true,
@@ -3489,7 +3490,14 @@ function reseatInsetFaces(faces, plot, R, yaw) {
   });
 }
 
-export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full', anchorSeat = null } = {}) {
+// `profile: 'canal'` is a different LAYOUT, not a proportion tweak: the canal town's primary network
+// is water, so it has its own planner (canal-city.js) and never touches this stream. Every other
+// recipe takes the quad-tree planner below exactly as before.
+export function planFractalCity(opts = {}) {
+  if (opts && opts.profile === 'canal') return planCanalCity({ ...opts, elements: normalizeFractalCityElements(opts.elements) });
+  return planGridCity(opts);
+}
+function planGridCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full', anchorSeat = null } = {}) {
   const rng = mulberry32(seed >>> 0 || 1);
   const lod = normalizeCityFidelity(fidelity);
   const frameRegion = region;                                  // the recipe's frame (map expansion + block reports read it)
@@ -3914,17 +3922,19 @@ function metroCameras(region) {
 // the far corner sits deep in haze and the city fades instead of ending. FogExp2 reaches 2 % contrast
 // at √3.91 / density, hence density = 1.98 / V. Metro only; null for every other recipe.
 export function metroAtmosphere(recipe = {}, time = null) {
-  if (recipe.profile !== 'metro') return null;
-  const R = recipe.region || DEFAULT_REGION, night = time === 'night';
-  const horizon = night ? [34, 40, 56] : [198, 207, 218], zenith = night ? [8, 11, 22] : [104, 142, 190];
+  if (recipe.profile !== 'metro' && recipe.profile !== 'canal') return null;
+  const canal = recipe.profile === 'canal';   // a canal town: a softer, paler Low Countries sky
+  const R = recipe.region || (canal ? CANAL.region : DEFAULT_REGION), night = time === 'night';
+  const horizon = night ? [34, 40, 56] : canal ? [208, 212, 214] : [198, 207, 218], zenith = night ? [8, 11, 22] : canal ? [122, 148, 178] : [104, 142, 190];
   const hex = '#' + horizon.map((c) => c.toString(16).padStart(2, '0')).join('');
   return {
     sky: { preset: night ? 'night' : 'day', zenith, horizon, day: night ? 0 : 1, stars: night ? 1 : 0, ...(night ? { moon: true } : {}), seed: recipe.seed ?? 7 },
     haze: { color: hex, density: 1.98 / (2 * Math.hypot(R.w, R.d)) },
   };
 }
-/** The city's preset shots: metro recipes get the human-scale set, every other recipe the stock one. */
+/** The city's preset shots: metro and canal recipes get a human-scale set, every other recipe the stock one. */
 export function fractalCityCameras(recipe = {}) {
+  if (recipe.profile === 'canal') return canalCameras(recipe);
   return recipe.profile === 'metro' ? metroCameras(recipe.region || DEFAULT_REGION) : FRACTAL_CAMERAS;
 }
 
@@ -4144,5 +4154,6 @@ export function cityThemeAdapter(slots = {}) {
   // the proportion class rides the top level too: 'metro' is real-city proportion,
   // not a theme's flavour; the mint validates it and stores only 'metro'
   if (slots.profile !== undefined) out.profile = slots.profile;
+  if (slots.canals !== undefined) out.canals = slots.canals;   // the canal profile's layout ({ layout: 'ring' | 'parallel' })
   return out;
 }

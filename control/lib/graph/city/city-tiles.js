@@ -39,7 +39,7 @@ export const STREAM_LODS = ['full', 'massing', 'base'];
 // a metro block is ≈ 25–40 units, so a metro city streams in 32-unit tiles with the full-detail and
 // cache radii doubled (≈ 290 m / 585 m); every other recipe keeps the stock sizing
 export function streamSizing(recipe = {}) {
-  return recipe && recipe.profile === 'metro' ? { tile: 32, near: 80, cache: 160 } : { tile: STREAM_TILE, near: STREAM_NEAR, cache: STREAM_CACHE };
+  return recipe && (recipe.profile === 'metro' || recipe.profile === 'canal') ? { tile: 32, near: 80, cache: 160 } : { tile: STREAM_TILE, near: STREAM_NEAR, cache: STREAM_CACHE };
 }
 const TILE_MAGIC = 0x31544a4d;            // 'MJT1' little-endian
 
