@@ -1101,6 +1101,12 @@ rock to classical, flamenco and gypsy jazz.
   `url` + `fileName`) and the dashboard's document uploads. The file now gets a fixed name in a fresh
   private `mkdtemp` directory, keeping only a sanitized extension, and the directory is removed
   afterwards.
+- **`upload_document_from_url` refuses private addresses.** It fetched any http(s) URL from the
+  operator's machine, following redirects, so it could read `127.0.0.1` services, the LAN or cloud
+  metadata. The fetch now checks the resolved address at connect time and on every redirect hop
+  and refuses loopback, link-local, private, carrier-grade NAT, multicast and reserved ranges
+  (IPv4, IPv6, v4-mapped and NAT64) ([lib/net/public-fetch.js](lib/net/public-fetch.js)). Set
+  `MOJULO_ALLOW_PRIVATE_URLS=1` to allow them for local development.
 
 ## [2.1.0] - 2026-09-23
 

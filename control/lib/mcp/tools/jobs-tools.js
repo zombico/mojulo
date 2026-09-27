@@ -22,6 +22,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { startJob, getJob } from '@/lib/mcp/jobs';
 import { parseDocument } from '@/lib/document-parser';
 import { uploadFile } from '@/lib/storage';
+import { fetchPublicUrl } from '@/lib/net/public-fetch';
 
 const JOB_TOOL_NAMES = ['process_documents', 'save_modular_bot'];
 
@@ -92,16 +93,14 @@ async function uploadDocumentFromUrlHandler(input, _mcpContext) {
     if (!/^https?:\/\//i.test(url)) {
       throw new Error('url must be http(s)://');
     }
-    const resp = await fetch(url);
+    // Server-side fetch of an agent-supplied URL: loopback, link-local and
+    // private-network addresses are refused, on every redirect hop.
+    const resp = await fetchPublicUrl(url, { maxBytes: MAX_DOC_BYTES });
     if (!resp.ok) {
       throw new Error(`Fetch failed: ${resp.status} ${resp.statusText}`);
     }
-    const ab = await resp.arrayBuffer();
-    if (ab.byteLength > MAX_DOC_BYTES) {
-      throw new Error(`Document too large: ${ab.byteLength} bytes (max ${MAX_DOC_BYTES})`);
-    }
-    buffer = Buffer.from(ab);
-    resolvedMime = resp.headers.get('content-type')?.split(';')[0]?.trim() || undefined;
+    buffer = resp.body;
+    resolvedMime = resp.headers['content-type']?.split(';')[0]?.trim() || undefined;
     if (!resolvedName) {
       const path = new URL(url).pathname;
       resolvedName = path.split('/').pop() || 'document';
@@ -205,7 +204,7 @@ export function registerJobsTools() {
       properties: {
         url: {
           type: 'string',
-          description: 'http(s) URL to fetch the document from. Mutually exclusive with `base64` and `text`.',
+          description: 'Public http(s) URL the control plane fetches the document from; loopback and private-network addresses are refused. Mutually exclusive with `base64` and `text`.',
         },
         base64: {
           type: 'string',
