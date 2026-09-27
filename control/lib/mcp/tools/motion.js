@@ -64,6 +64,7 @@ import { clipFrameSelections, compositeCels } from '@/lib/graph/image-outcomes/k
 import { renderSceneFrames } from '@/lib/graph/image-outcomes/keyframe-spike/scene-composite';
 import { viewerHtml, worldViewerHtml, stitchViewerHtml } from '@/lib/motion/viewer';
 import { composeFlipbook } from '@/lib/motion/flipbook';
+import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import {
   resolvePresentationTheme,
   PRESENTATION_THEME_NAMES,
@@ -461,7 +462,10 @@ export async function forgeMotionHandler(input) {
   if (!title || typeof title !== 'string') throw new Error('title is required');
   if (!shot || typeof shot !== 'object') throw new Error('forge_motion requires a shot');
 
-  const { resolved, isDeck, isEffect, isWorld, isScene, isCels, motion, result, theme } = await renderShot({ subject, shot });
+  // An explicit render: a world subject may download Chrome for Testing when the
+  // host has no browser, and the result says so (browser_download).
+  const { value: rendered, fetched: browserFetch } = await withChromiumFetch(() => renderShot({ subject, shot }));
+  const { resolved, isDeck, isEffect, isWorld, isScene, isCels, motion, result, theme } = rendered;
   // Raster-native families (no SVG flipbook): a three.js World, a composited
   // scene, or a keyframe clip's stitched cels.
   const isRaster = isWorld || isScene || isCels;
@@ -612,6 +616,7 @@ export async function forgeMotionHandler(input) {
     ...(motion === 'traversal' && Array.isArray(result.probes) && result.probes.length
       ? { final_probe: result.probes[result.probes.length - 1], probes_path: `${url}probes.json` }
       : {}),
+    ...(browserFetch ? { browser_download: browserFetch.notice } : {}),
     message:
       `Motion '${motion}' rendered (${result.meta.frames} frames${isWorld ? ', three.js world via headless WebGL' : ''}) at ${url}. `
       + `Filed under ops tag ${tag.tagRef} with subject/recipe stash ${stash.stashRef}.`

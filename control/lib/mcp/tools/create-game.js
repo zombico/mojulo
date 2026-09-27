@@ -26,6 +26,7 @@ import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/rep
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
+import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
 import { getMechanicVocabCatalog } from '@/lib/graph/game/mechanic-cards/loader';
 import { getKitVocabCatalog } from '@/lib/graph/game/kit-cards/loader';
@@ -71,7 +72,17 @@ export async function mintGame({ title, store, levels, menu, music, theme, setup
   const auditMap = audits && typeof audits === 'object' ? audits : {};
   // auto_audit runner: lazily built from the real headless traversal path (browser); injectable for
   // tests. Only constructed when asked, so a normal mint never imports the render pipeline.
-  const autoRun = autoAudit ? (runTraversal || (await import('@/lib/graph/game/auto-audit-runner')).runLevelTraversal) : null;
+  // auto_audit is an explicit render request: on a host with no browser its headless
+  // run may download Chrome for Testing, and the result says so (browser_download).
+  let browserDownload = null;
+  const traverse = autoAudit ? (runTraversal || (await import('@/lib/graph/game/auto-audit-runner')).runLevelTraversal) : null;
+  const autoRun = traverse
+    ? async (arg) => {
+        const { value, fetched } = await withChromiumFetch(() => traverse(arg));
+        if (fetched) browserDownload = fetched.notice;
+        return value;
+      }
+    : null;
   const auditReports = await Promise.all(resolved.map((lv) => auditLevel({
     ref: lv.ref,
     store: finalized.store,
@@ -109,6 +120,7 @@ export async function mintGame({ title, store, levels, menu, music, theme, setup
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
     ...(project ? { project } : {}),
+    ...(browserDownload ? { browser_download: browserDownload } : {}),
   };
 }
 

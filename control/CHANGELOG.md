@@ -24,6 +24,16 @@ loops and the recipe format are unchanged.
   figure-spec store copies an older `<package>/data/figure-specs` across if it has no specs yet; the
   old folder is left in place. The stdio server's mint-time warm and the dashboard now share one
   bake cache, so a warmed card is a cache hit in the gallery.
+- **Chrome for Testing downloads only for an explicit render, and says so.** The mint-time warm used to
+  resolve Chromium with the fetch on, so on a host with no browser any world, scene or solid mint (or
+  `update_sketch`) started the ~500 MB download in the background. Now the warm uses a browser that
+  is already installed and skips itself when there is none, and gallery thumbnails and turntable
+  strips never download either. The download is reserved for `forge_motion` on a world,
+  `export_game` hangar portraits, `create_game` with `auto_audit`, and the dashboard's PNG download
+  link; each tool result carries a `browser_download` notice when it happened, and the download is
+  logged to stderr. The resolve order is unchanged (`MOJULO_CHROMIUM`, the cached build, an
+  installed Chrome / Chromium / Edge / Brave, then the download). Without a browser, the inline PNG
+  route answers 503 naming the fix.
 
 ### Canal city
 

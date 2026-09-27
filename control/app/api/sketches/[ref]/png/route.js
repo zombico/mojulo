@@ -7,6 +7,12 @@
  * rasterized from their self-contained SVG with sharp. The gallery uses this as a
  * scene preview (scenes render hard live) and as the "Download PNG" target.
  *
+ * Chrome for Testing: a scene bake needs a Chromium-family browser. The download
+ * (an explicit act, see chromium-consent.js) is allowed for the attachment form,
+ * which is a person clicking "PNG" or an agent fetching a URL it was handed. The
+ * inline form is what gallery cards and portraits embed, and it never downloads:
+ * without a browser it answers 503 and names the fix.
+ *
  * Query params:
  *   ?inline=1   — serve inline (Content-Disposition: inline) instead of forcing a
  *                 download. Default is attachment.
@@ -17,6 +23,7 @@ import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
+import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { KIND_KEYFRAME_ANIMATION, KIND_SCENE_MOTION, normalizeImageOutcomesManifest } from '@/lib/graph/image-outcomes/manifest';
 import { emitKeyGuide } from '@/lib/graph/image-outcomes/keyframe-emit';
@@ -112,13 +119,15 @@ export async function GET(request, { params }) {
     // conditioner to trace into pseudo-text).
     const control = url.searchParams.get('control') === '1';
 
-    const png = await rasterizeSketchToPng(sketch, {
+    const inline = url.searchParams.get('inline') === '1';
+    const render = () => rasterizeSketchToPng(sketch, {
       scale,
       ...(panelId ? { panelId } : {}),
       ...(control ? { control: true } : {}),
     });
+    const png = inline ? await render() : (await withChromiumFetch(render)).value;
 
-    const disposition = url.searchParams.get('inline') === '1' ? 'inline' : 'attachment';
+    const disposition = inline ? 'inline' : 'attachment';
     const filename = safeFilename(
       panelId ? `${sketch.title || ''} ${panelId}` : sketch.title,
       sketch.ref || ref,
@@ -133,7 +142,7 @@ export async function GET(request, { params }) {
       },
     });
   } catch (err) {
-    const status = err.code === 'SCENE_INELIGIBLE' ? 422 : 500;
+    const status = err.code === 'SCENE_INELIGIBLE' ? 422 : err.code === 'CHROMIUM_UNAVAILABLE' ? 503 : 500;
     return NextResponse.json(
       { error: err.message || 'Failed to render sketch PNG' },
       { status },

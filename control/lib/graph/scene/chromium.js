@@ -5,14 +5,17 @@
  * The control plane deliberately ships no postinstall download — the embed model
  * (`fetch-embed-model.js`) and the ffmpeg binary (`lib/motion/ffmpeg.js`) are both
  * explicit/lazy so `npx mojulo` doesn't immediately pull hundreds of MB. We mirror
- * that exact stance here: DETECT a usable browser, else LAZY-FETCH a Chrome-for-
- * Testing build on the FIRST scene-PNG render (never at install), cache it, reuse.
+ * that stance here: DETECT a usable browser, else fetch a Chrome-for-Testing build
+ * the first time an EXPLICIT render needs one (never at install, never for a
+ * background or gallery bake), cache it, reuse.
  *
  * Resolution order:
  *   1. $MOJULO_CHROMIUM / $PUPPETEER_EXECUTABLE_PATH — an explicit pinned binary.
- *   2. A previously lazy-fetched Chrome-for-Testing build in the cache dir.
+ *   2. A previously fetched Chrome-for-Testing build in the cache dir.
  *   3. A system browser (Chrome / Chromium / Edge / Brave) at a well-known path.
- *   4. Lazy-fetch Chrome-for-Testing via @puppeteer/browsers into the cache dir.
+ *   4. Fetch Chrome-for-Testing via @puppeteer/browsers into the cache dir, only
+ *      with the caller's consent: `allowFetch: true`, or a render running inside
+ *      withChromiumFetch (chromium-consent.js lists the entry points that do).
  *
  * Integrity gate: a functional headless launch (open + close), the same "does it
  * actually run" gate ffmpeg.js applies with `-version`. A wrong/corrupt binary
@@ -29,6 +32,7 @@ import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 
 import { installedGroups } from '@/lib/mcp/packs';
+import { chromiumFetchAllowed, recordChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 
 // Pinned Chrome-for-Testing build fetched on first use. Cross-platform: the same
 // buildId resolves to the right per-platform asset via detectBrowserPlatform.
@@ -54,7 +58,10 @@ const WEBGL_LAUNCH_ARGS = [
   '--ignore-gpu-blocklist',
 ];
 
-/** Where the lazy-fetched browser is cached (gitignored data dir by default). */
+/**
+ * Where the fetched browser is cached: $MOJULO_HOME/chromium under the bins
+ * (seeded by scripts/mojulo-paths.mjs), control/data/chromium under `next dev`.
+ */
 export function chromiumCacheDir() {
   return process.env.MOJULO_CHROMIUM_DIR || path.join(process.cwd(), 'data', 'chromium');
 }
@@ -101,6 +108,17 @@ function noChromiumMessage(detail) {
     .join(' ');
 }
 
+function chromiumUnavailable() {
+  const err = new Error(
+    'No Chromium-family browser was found. mojulo downloads Chrome for Testing only when an explicit '
+      + 'render asks for it (a motion render, a game export, an audit run, the dashboard\'s PNG download), '
+      + 'never for a background or gallery bake. Install Google Chrome, Chromium, Edge or Brave '
+      + '(Debian/Ubuntu: `apt install chromium`), or point $MOJULO_CHROMIUM at one, then retry.',
+  );
+  err.code = 'CHROMIUM_UNAVAILABLE';
+  return err;
+}
+
 /** Resolve true if `executablePath` launches headless and closes cleanly. */
 async function probe(executablePath) {
   let browser = null;
@@ -114,7 +132,7 @@ async function probe(executablePath) {
   }
 }
 
-/** Lazy-fetch the pinned Chrome-for-Testing build into the cache dir. */
+/** Fetch the pinned Chrome-for-Testing build into the cache dir; `downloaded` is false when it was already there. */
 async function fetchChrome() {
   // Dynamic import: @puppeteer/browsers is only needed on the cold path, and this
   // keeps the resolver loadable in environments that never bake a scene.
@@ -125,22 +143,33 @@ async function fetchChrome() {
   const buildId = CHROME_BUILD;
 
   const existing = computeExecutablePath({ browser: Browser.CHROME, buildId, cacheDir });
-  if (existing && existsSync(existing)) return existing;
+  if (existing && existsSync(existing)) return { executablePath: existing, downloaded: false };
 
+  console.error(`[mojulo] downloading Chrome for Testing ${buildId} (~500 MB on disk) into ${cacheDir} for an explicit render…`);
   const installed = await install({ browser: Browser.CHROME, buildId, cacheDir });
-  return installed.executablePath;
+  console.error(`[mojulo] Chrome for Testing ${buildId} downloaded to ${installed.executablePath}`);
+  return { executablePath: installed.executablePath, downloaded: true };
+}
+
+// Two explicit renders racing on a cold host share one download.
+let fetching = null;
+function fetchChromeOnce() {
+  fetching ??= fetchChrome().finally(() => { fetching = null; });
+  return fetching;
 }
 
 let cachedExecutable = null;
 
 /**
- * Resolve a usable headless-Chromium executable path, fetching one if needed.
+ * Resolve a usable headless-Chromium executable path, fetching one only with consent.
  * @param {object} [opts]
- * @param {boolean} [opts.allowFetch=true] set false to require a pre-existing binary
+ * @param {boolean} [opts.allowFetch] true/false to decide here; omitted, the fetch is
+ *   allowed only inside withChromiumFetch (chromium-consent.js)
  * @returns {Promise<string>} an executable path suitable for puppeteer.launch()
  */
-export async function resolveChromium({ allowFetch = true } = {}) {
+export async function resolveChromium({ allowFetch } = {}) {
   if (cachedExecutable) return cachedExecutable;
+  const mayFetch = allowFetch ?? chromiumFetchAllowed();
 
   const override = process.env.MOJULO_CHROMIUM || process.env.PUPPETEER_EXECUTABLE_PATH;
   if (override && existsSync(override) && (await probe(override))) {
@@ -172,7 +201,7 @@ export async function resolveChromium({ allowFetch = true } = {}) {
     }
   }
 
-  if (!allowFetch) throw new Error(noChromiumMessage('auto-fetch disabled'));
+  if (!mayFetch) throw chromiumUnavailable();
 
   // Never trigger the ~500 MB Chrome-for-Testing download in an install WITHOUT
   // the creative pack. Scene-PNG baking is a creative capability; an ops install
@@ -183,19 +212,22 @@ export async function resolveChromium({ allowFetch = true } = {}) {
   if (!installedGroups().has('creative')) {
     throw new Error(
       'Scene-PNG rendering is a creative-pack capability and the creative pack is not installed here, '
-        + 'so no Chromium was auto-fetched (that download is ~500 MB). Install the creative pack '
-        + "(set MOJULO_PACKS to include 'creative'), or point $MOJULO_CHROMIUM at an existing "
-        + 'Chrome / Chromium / Edge binary.',
+        + 'so no Chromium was auto-fetched (that download is ~500 MB). Run `mojulo install creative` '
+        + "(or include 'creative' in MOJULO_PACKS if you manage the install manually), or point "
+        + '$MOJULO_CHROMIUM at an existing Chrome / Chromium / Edge binary.',
     );
   }
 
   let fetched;
   try {
-    fetched = await fetchChrome();
+    fetched = await fetchChromeOnce();
   } catch (err) {
     throw new Error(noChromiumMessage(`fetch failed: ${err.message}`));
   }
-  if (fetched && (await probe(fetched))) return (cachedExecutable = fetched);
+  if (fetched?.executablePath && (await probe(fetched.executablePath))) {
+    if (fetched.downloaded) recordChromiumFetch({ build: CHROME_BUILD, dir: chromiumCacheDir() });
+    return (cachedExecutable = fetched.executablePath);
+  }
   throw new Error(noChromiumMessage('fetched binary failed its launch check'));
 }
 

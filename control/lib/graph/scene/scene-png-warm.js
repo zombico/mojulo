@@ -18,6 +18,10 @@
  *   • render-mode-gated — only 'world' / 'scene' kinds bake here; SVG/diagram
  *     kinds rasterize cheaply with sharp on demand and need no warming.
  *   • error-swallowing — a failed warm just means the next view re-bakes.
+ *   • never a download — the warm uses a browser that is already on the host
+ *     and skips itself when there is none. Fetching Chrome for Testing is left
+ *     to explicit renders (chromium-consent.js); a mint must not start ~500 MB
+ *     of traffic nobody asked for.
  *   • scale-1 only — that's what the gallery requests. The scale-2 "Download PNG"
  *     target stays lazy (a deliberate click where a short wait is fine).
  *   • ordered still-then-strip — the cheap image the card shows at rest lands
@@ -29,6 +33,7 @@
  */
 
 import { isPolygomerManjiTree, sketchRenderMode } from '@/lib/graph/sketch/sketch-manifest';
+import { withoutChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 
 // Warming spawns a headless Chromium. Skip it under the test runner (vitest sets
 // VITEST) so the mint-tool unit tests don't each launch a browser in the
@@ -54,16 +59,36 @@ export function warmScenePng(sketch) {
   if (!sketch || !sketch.manifest) return;
   const mode = sketchRenderMode(sketch.manifest);
   if (mode !== 'world' && mode !== 'scene') return;
+
+  // Fire-and-forget. Keeps the heavy imports + bakes entirely off the caller's
+  // path; any failure (ineligible scene, write error) is swallowed so the lazy
+  // paths bake on first view instead.
+  bakeWarm(sketch).catch(() => {});
+}
+
+/**
+ * The warm itself, awaitable (warmScenePng fires it without waiting). Resolves
+ * false when it skipped because no browser is on the host.
+ *
+ * @param {{ ref?: string, manifest: object }} sketch
+ * @returns {Promise<boolean>}
+ */
+export function bakeWarm(sketch) {
   // Polygomer stills bake from the cheap manji SVG path (no Chromium, no PNG
   // cache) — nothing worth pre-warming. Their turntable still is worth it: the
   // manji-tree has a World form, so the card can turn even though the still is
   // vector.
   const stillWorthWarming = !isPolygomerManjiTree(sketch.manifest);
 
-  // Fire-and-forget. The IIFE keeps the heavy imports + bakes entirely off the
-  // caller's path; any failure (no Chromium, ineligible scene, write error) is
-  // swallowed so the lazy paths bake on first view instead.
-  void (async () => {
+  // The refusal scope covers every bake below, so even a warm fired from inside a
+  // consenting render cannot start the download.
+  return withoutChromiumFetch(async () => {
+    try {
+      const { resolveChromium } = await import('@/lib/graph/scene/chromium');
+      await resolveChromium({ allowFetch: false });
+    } catch {
+      return false; // no browser without a download: skip quietly
+    }
     if (stillWorthWarming) {
       try {
         const { rasterizeSketchToPng } = await import('@/lib/graph/sketch/sketch-png');
@@ -72,12 +97,13 @@ export function warmScenePng(sketch) {
         /* ignore — the on-demand /png path will bake on first view */
       }
     }
-    if (process.env.MOJULO_DISABLE_TURNTABLE_WARM) return;
+    if (process.env.MOJULO_DISABLE_TURNTABLE_WARM) return true;
     try {
       const { bakeTurntableStrip } = await import('@/lib/graph/sketch/turntable-bake');
       await bakeTurntableStrip(sketch);
     } catch {
       /* ignore — the on-demand /turntable.png path will bake on first hover */
     }
-  })();
+    return true;
+  });
 }
