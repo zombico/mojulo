@@ -3765,6 +3765,10 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // METRO SKINS (no rng): every mass's material and colours, stamped before the prune so a massing
   // box keeps them, and so every stream tile cuts the same skins.
   const skins = profile === 'metro' ? metroSkins(boxes, metroField, seed) : null;
+  // METRO LANDMARKS (no rng): a monument takes its refacade builder (landmarks/refacade.js), as the
+  // re-tagged church / mosque / temple / rotunda already does through its metro mass. After the
+  // skins, so a monument never wears one.
+  if (profile === 'metro') for (const b of boxes) if (b.class === 'landmark') b.metro = true;
   // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
   // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
   const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });

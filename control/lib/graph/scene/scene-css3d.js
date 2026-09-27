@@ -38,6 +38,7 @@ import { buildTerrainWorldMesh } from '../polygonizer/painted-landscape.js';
 import { skyCss } from './sky-css.js';
 import { safeJson, escapeHtml } from './emit-util.js';
 import { isLandmarkShape, renderLandmarkBuilding } from '../landmarks/index.js';
+import { refacadeBuilding, hasRefacade } from '../landmarks/refacade.js';
 import { isPlantShape, plantBoxToFaces } from '../polygonizer/plant-faces.js';
 import { roomFurnitureAssetFaces } from '../architecture/room-assets.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
@@ -2417,6 +2418,9 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const floors = facadeFloors(facade, b.z1 - b.z0);
       const bays = facadeBays(facade, b.w);
       faces.push(...cityBox(r, b.z0, b.z1, { facade, floors, bays, top: scaleHex(facade.glass, 0.6) }, L, camHint));
+    } else if (b.metro && (b.class === 'religious' || b.class === 'civic') && hasRefacade(b.shape)) {
+      // a metro church / mosque / temple / rotunda takes its refacade builder (landmarks/refacade.js)
+      faces.push(...refacadeBuilding(b, { L, camHint, cityBox }));
     } else if (b.shape === 'church') {
       // religious-place class: its own mass form, no window facade / rooftop extras
       faces.push(...churchBuilding(b, L, camHint));

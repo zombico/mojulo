@@ -1,5 +1,6 @@
 import { litFactor, scaleHex, hexToRgb } from '../polygonizer/vexar.js';
 import { buildStatueFigure, buildRizalFigure } from './statue-figure.js';
+import { refacadeBuilding } from './refacade.js';
 
 // vgl seam colour = the darkest swatch already in the palette (no hand-picked ink).
 function darkestHex(palette) {
@@ -2519,6 +2520,8 @@ export function isLandmarkShape(shape) {
 }
 
 export function renderLandmarkBuilding(b, ctx) {
+  const metro = refacadeBuilding(b, ctx);   // a metro box takes its refacade builder when it has one (refacade.js)
+  if (metro) return metro;
   if (b.shape === 'taj') return tajMahalBuilding(b, ctx);
   if (b.shape === 'cn-tower') return cnTowerBuilding(b, ctx);
   if (b.shape === 'skytree') return skytreeBuilding(b, ctx);

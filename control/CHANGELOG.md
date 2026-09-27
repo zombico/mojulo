@@ -68,6 +68,20 @@ loops and the recipe format are unchanged.
   facade's average colour, so the horizon matches the full-detail blocks. The stock city is
   unchanged.
 
+### Local city refacade
+
+- **Metro landmarks and sacred buildings are redrawn.** In a metro city the seeded landmark cluster,
+  the religious place (church, mosque, temple and their variants) and the civic rotunda take a
+  refacade builder (`landmarks/refacade.js`): more of the real architecture, lit from the true
+  outward normal so every side reads as a mass. The planner stamps `metro: true` on a metro city's
+  landmark boxes; the religious and civic boxes already carry it from their metro mass. Each builder
+  stays inside its footprint and under the stock silhouette, so plazas, roads and cameras are
+  unchanged. Every non-metro box keeps its stock builder, so stored cities render the same bytes.
+- `landmarks/refacade-kit.js`: the shared face primitives (box, prism, lathe, column, gable, and a
+  wall frame with proud panels, painted openings and round or pointed arch heads).
+- Machine gate: `landmarks/refacade.test.js` pins the stock bytes of every seeded subject and checks
+  each refacade's footprint, height, determinism and face budget.
+
 ### Furniture audit
 
 - **Every room gets a way in.** An explicit `floorplan` (authored `rooms` / `halls`) used to
