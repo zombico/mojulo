@@ -43,6 +43,3 @@ export { executeBuilderTool, builderToolHandlers } from './tool-executors.js';
 
 // Inverted flow system prompt
 export { buildBuilderSystemPrompt } from './system-prompt.js';
-
-// Smart intent evaluation
-export { evaluateIntent, shouldSkipEvaluation } from './evaluator.js';

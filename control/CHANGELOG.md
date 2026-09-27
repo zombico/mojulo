@@ -1144,7 +1144,9 @@ rock to classical, flamenco and gypsy jazz.
   was dropped) and its `map-boundary` sketch-vocab card, which told agents to call a function no
   tool exposes, are deleted, and geo data leaves the outbound-traffic lists in `get_substrate`, the
   README, the tour and `docs/tech-requirements.md`. Stored sketches with a `manifest.geo` block
-  still validate.
+  still validate. `lib/builder/evaluator.js`, an unused intent classifier that read
+  `BUILDER_ANTHROPIC_API_KEY` and imported the uninstalled `@anthropic-ai/sdk`, is deleted with its
+  re-export.
 
 ## [2.1.0] - 2026-09-23
 
