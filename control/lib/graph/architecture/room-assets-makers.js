@@ -267,6 +267,53 @@ export function buildDiningTableWorkbenchManifest({ w = 6, d = 3.5, h = 2.4, tit
   });
 }
 
+/** Entry bench — a plank seat on four splayed legs over a low shoe rail. No back: it sits
+ *  against a wall (front +y is the sitting side). */
+export function buildEntryBenchWorkbenchManifest({ w = 4, d = 1.4, h = 1.5, title } = {}) {
+  const m = Math.min(w, d);
+  const seatT = h * 0.11;
+  const railZ = h * 0.34;
+  return manifest(title, {
+    lathes: legSet({ w, d, topZ: h - seatT * 0.5, inset: m * 0.14, topR: m * 0.045, footR: m * 0.032, tint: WOOD.leg }),
+    extrudes: [
+      box(0, 0, h - seatT, h, w, d * 0.92, WOOD.top, m * 0.05, 4),                                     // seat plank
+      box(0, 0, railZ - h * 0.03, railZ + h * 0.03, w * 0.78, d * 0.6, WOOD.dark, 0.01),                 // shoe rail
+    ],
+  });
+}
+
+/** Utility shelving — two uprights and five open shelves with a few bins on them: the storage
+ *  room's rack and the office rack. Bins come from an integer hash of (shelf, slot), so a unit
+ *  is the same bytes on every render. */
+export function buildUtilityShelfWorkbenchManifest({ w = 3.6, d = 1.4, h = 6, title } = {}) {
+  const m = Math.min(w, d);
+  const postW = Math.max(0.02, w * 0.03), postD = d * 0.9;
+  const shelves = 5;
+  const shelfT = h * 0.012;
+  const gap = (h - shelfT) / (shelves - 1);
+  const metal = '#8f8a80', pine = '#b9a27f';
+  const binTints = ['#c9c2b5', '#5a6d80', '#a68f6a', '#6f7d6a'];
+  const parts = [
+    box(-(w / 2 - postW / 2), 0, 0, h, postW, postD, metal, 0.004),                                     // uprights
+    box(w / 2 - postW / 2, 0, 0, h, postW, postD, metal, 0.004),
+  ];
+  for (let i = 0; i < shelves; i += 1) {
+    const z = i * gap;
+    parts.push(box(0, 0, z, z + shelfT, w - postW * 0.4, d * 0.86, pine, 0.004));
+    if (i === shelves - 1) continue;
+    const slots = w > d * 2.2 ? 2 : 1;
+    for (let s = 0; s < slots; s += 1) {
+      const r = hash01(i, s);
+      if (r < 0.28) continue;                                                                          // an empty slot now and then
+      const bw = (w - postW * 2) / slots * (0.55 + hash01(i, s, 1) * 0.3);
+      const bh = gap * (0.32 + hash01(i, s, 2) * 0.3);
+      const cx = -w / 2 + postW + ((s + 0.5) * (w - postW * 2)) / slots;
+      parts.push(box(cx, d * 0.03, z + shelfT, z + shelfT + bh, bw, d * 0.7, binTints[Math.floor(r * binTints.length) % binTints.length], m * 0.02));
+    }
+  }
+  return manifest(title, { extrudes: parts });
+}
+
 /** Floor lamp — a weighted disc, a thin pole, a drum shade. Practical interior light as geometry. */
 export function buildFloorLampWorkbenchManifest({ w = 1.1, d = 1.1, h = 5.4, title } = {}) {
   const m = Math.min(w, d);

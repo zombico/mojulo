@@ -153,6 +153,13 @@ engine packs. Explicit `windows` / `floorStyle` / `entryDoor` / `furnishScale` /
 door `entry: false` still win; multi-cell and generated plans keep the opt-in posture. New room
 archetypes are added as fill recipes (data), not new mark kinds.
 
+Every room has a way in: a room your `doors` leave sealed gets a door cut on its widest shared
+wall with a hall (else with a reachable room) — mid-wall, or near the corner when the wall is
+too short for the open leaf. Interior doors stand open flat against the wall beside the jamb.
+In share mode the entry gets a bench under a picture, the storage room open shelving and a
+cabinet, tables and desks their tabletop pieces; chairs are never dropped for a door approach,
+and a wall piece in a door's way (or tall storage on a windowed wall) moves to a clear wall.
+
 ## Placing your own items
 
 Any explicit room (top-level `rooms`, or a level's) takes `items`, placed relative to the room

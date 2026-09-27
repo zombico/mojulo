@@ -547,6 +547,10 @@ export function planTabletopSurfaceElements(planOrInput, options = {}) {
   }
   const density = densityValue(opts.density ?? opts.amount);
   const budget = clamp(opts.areaBudget ?? (0.10 + density * 0.24), 0.04, 0.42);
+  // `assets: true` asks the renderer for the tabletop MESHES (room-assets, class room-tabletop)
+  // in place of the generic prop box; `heightScale` re-bases the recipes' metre heights to the
+  // room's unit (a feet floorplan passes 1/0.3048).
+  const heightScale = Number.isFinite(opts.heightScale) && opts.heightScale > 0 ? opts.heightScale : 1;
   const elements = [];
   const placements = [];
   for (const table of plan.elements.filter(tableSurfaceEligible)) {
@@ -576,7 +580,9 @@ export function planTabletopSurfaceElements(planOrInput, options = {}) {
         tabletopReason: recipe.reason,
         tabletopKind: kind,
         provenance: { kind: 'tabletopSurfaceElement', parentId: table.id, reason: recipe.reason },
+        ...(opts.assets ? { assetProp: true } : {}),
       };
+      const propH = (item.height ?? TABLETOP_HEIGHTS[item.type] ?? 0.08) * heightScale;
       const baseCorners = childTabletopCorners(table.heightManji.topPlane.corners, item.anchor, item.size);
       child.worldCorners = baseCorners;
       child.heightManji = {
@@ -585,9 +591,9 @@ export function planTabletopSurfaceElements(planOrInput, options = {}) {
         elementId: id,
         planeRole: 'tabletop-prop',
         supportPattern: 'none',
-        heightWorld: item.height ?? TABLETOP_HEIGHTS[item.type] ?? 0.08,
+        heightWorld: propH,
         basePlane: { id: `${id}:base-plane`, role: `${id}:base:tabletop-prop`, surface: 'tabletop', corners: baseCorners },
-        topPlane: { id: `${id}:top-plane`, role: `${id}:top:tabletop-prop`, surface: 'tabletop', corners: baseCorners.map((corner) => offsetZ(corner, item.height ?? TABLETOP_HEIGHTS[item.type] ?? 0.08)) },
+        topPlane: { id: `${id}:top-plane`, role: `${id}:top:tabletop-prop`, surface: 'tabletop', corners: baseCorners.map((corner) => offsetZ(corner, propH)) },
         supports: [],
       };
       elements.push(child);

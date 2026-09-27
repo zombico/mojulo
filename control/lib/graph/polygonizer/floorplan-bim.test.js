@@ -188,21 +188,19 @@ describe('floorplan-bim: manifest-level grade, repair, and the mint-time improve
     expect(improveFloorplanManifest(other)).toBe(other);   // same reference, untouched
   });
 
-  it('repairFloorplan cuts a door into a stranded room', () => {
-    // author a plan where one room is deliberately given NO door → isolated
+  it('a stranded room is doored by the structurizer itself; repairFloorplan finds nothing left to cut', () => {
+    // author a plan where every room is deliberately given NO door. The structurizer now doors
+    // every cell the authored doors leave sealed (connectPlan, the furniture-audit pass), so the
+    // plan is fully reachable before the mint-time repair ever runs, and the repair is a no-op.
     const s = structurizeFloorplan({ seed: 3, width: 40, height: 28 }, {});
     const plan = { rooms: s.plan.rooms, halls: s.plan.halls, doors: s.plan.doors };
-    // strip every door touching the last room to strand it
-    const before = scoreHouse(buildElementModel(structurizeFloorplan({ ...plan, doors: [] }, {}))).breakdown.reachability;
+    const stripped = structurizeFloorplan({ ...plan, doors: [] }, {});
+    expect(stripped.plan.doors.length).toBeGreaterThan(0);
+    expect(stripped.plan.doors.every((d) => d.auto)).toBe(true);
+    const before = scoreHouse(buildElementModel(stripped)).breakdown.reachability;
+    expect(before).toBe(1);
     const { plan: fixed, fixes } = repairFloorplan({ ...plan, doors: [] });
-    const after = scoreHouse(buildElementModel(structurizeFloorplan(fixed, {}))).breakdown.reachability;
-    expect(fixes.length).toBeGreaterThan(0);
-    expect(after).toBeGreaterThan(before);   // repair improved reachability
-    /* eslint-disable no-console */
-    console.log('\n=== REPAIR PASS ===');
-    console.log(`   reachability ${before.toFixed(2)} → ${after.toFixed(2)} after ${fixes.length} fix(es)`);
-    for (const f of fixes.slice(0, 5)) console.log(`   - ${f}`);
-    console.log('');
-    /* eslint-enable no-console */
+    expect(fixes.length).toBe(0);
+    expect(fixed.doors).toEqual([]);                                  // the authored list is returned as given
   });
 });
