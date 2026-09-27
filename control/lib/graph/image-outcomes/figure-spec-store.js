@@ -12,6 +12,12 @@
  * The spec is a plain JSON file on disk (data/figure-specs/<ref>.json) so the
  * operator can open and read it directly; the preview is a sibling PNG the
  * driving agent reads with its own eyes. No DB table — the file IS the artifact.
+ *
+ * Where: $MOJULO_FIGURE_SPECS_DIR, which the bins seed to
+ * $MOJULO_DATA_DIR/figure-specs. Before that seed the store sat at
+ * <package>/data/figure-specs — under npx, inside the _npx cache, where a new
+ * version or a cache purge lost the pending specs. First use copies that legacy
+ * folder across (see migrateLegacySpecs); the old folder is never deleted.
  */
 
 import { promises as fs, existsSync } from 'node:fs';
@@ -34,21 +40,87 @@ export function previewPngPath(ref) { return path.join(figureSpecsDir(), `${ref}
 
 export function validSpecRef(ref) { return typeof ref === 'string' && REF_RE.test(ref); }
 
+// Where earlier versions kept the store: <package>/data/figure-specs, and the
+// dashboard's copy under .next/standalone (it chdirs there). Only a bin exports
+// MOJULO_CONTROL_DIR, so tests and `next dev` never read a legacy folder.
+function legacySpecsDirs() {
+  const pkg = process.env.MOJULO_CONTROL_DIR;
+  if (!pkg) return [];
+  const target = path.resolve(figureSpecsDir());
+  return [
+    path.join(pkg, 'data', 'figure-specs'),
+    path.join(pkg, '.next', 'standalone', 'data', 'figure-specs'),
+  ].filter((dir) => path.resolve(dir) !== target);
+}
+
+const hasSpecs = async (dir) => existsSync(dir) && (await fs.readdir(dir)).some((f) => f.endsWith('.json'));
+
+/**
+ * Copy legacy specs into the current store, once, and only while the store has
+ * no specs of its own, so a spec deleted later never comes back. Copies, never
+ * moves: the legacy folder is left exactly as it was. A copied spec's
+ * preview_png is repointed at the copied preview so it survives the old folder.
+ */
+async function migrateLegacySpecs(target) {
+  if (await hasSpecs(target)) return;
+  for (const legacy of legacySpecsDirs()) {
+    if (!(await hasSpecs(legacy))) continue;
+    for (const name of await fs.readdir(legacy)) {
+      const from = path.join(legacy, name);
+      const to = path.join(target, name);
+      if (existsSync(to) || !(await fs.stat(from)).isFile()) continue;
+      if (!name.endsWith('.json')) {
+        await fs.copyFile(from, to);
+        continue;
+      }
+      const raw = await fs.readFile(from, 'utf8');
+      let out = raw;
+      try {
+        const spec = JSON.parse(raw);
+        if (typeof spec.preview_png === 'string' && path.dirname(spec.preview_png) === legacy) {
+          spec.preview_png = path.join(target, path.basename(spec.preview_png));
+          out = `${JSON.stringify(spec, null, 2)}\n`;
+        }
+      } catch { /* not a spec we can read: copy the bytes as they are */ }
+      await fs.writeFile(to, out, 'utf8');
+    }
+  }
+}
+
+let prepared = null;
+
+/** Create the store (and run the one-time legacy copy) before the first read or write. */
+export function prepareFigureSpecsDir() {
+  const dir = figureSpecsDir();
+  if (prepared?.dir !== dir) {
+    const done = (async () => {
+      await fs.mkdir(dir, { recursive: true });
+      await migrateLegacySpecs(dir);
+    })();
+    prepared = { dir, done };
+    // A failed attempt is retried on the next use instead of being cached.
+    done.catch(() => { if (prepared?.done === done) prepared = null; });
+  }
+  return prepared.done;
+}
+
 export async function writeSpec(spec) {
   if (!validSpecRef(spec?.ref)) throw new Error('writeSpec: invalid spec.ref');
-  await fs.mkdir(figureSpecsDir(), { recursive: true });
+  await prepareFigureSpecsDir();
   await fs.writeFile(specPath(spec.ref), `${JSON.stringify(spec, null, 2)}\n`, 'utf8');
   return spec;
 }
 
 export async function readSpec(ref) {
   if (!validSpecRef(ref)) throw new Error(`readSpec: invalid ref '${ref}'`);
+  await prepareFigureSpecsDir();
   const p = specPath(ref);
   if (!existsSync(p)) return null;
   return JSON.parse(await fs.readFile(p, 'utf8'));
 }
 
 export async function listSpecs({ status } = {}) {
+  await prepareFigureSpecsDir();
   const dir = figureSpecsDir();
   if (!existsSync(dir)) return [];
   const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.json'));

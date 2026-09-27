@@ -127,6 +127,30 @@ describe('instrumentedInvoke — config flags', () => {
     expect(allRows()).toHaveLength(0);
   });
 
+  // "off" is a log switch only. It used to skip the timeout race too, so a hung
+  // handler held the agent's session forever once the operator opted out of the log.
+  it('MOJULO_MCP_TELEMETRY=off still enforces the soft timeout, and logs nothing about it', async () => {
+    process.env.MOJULO_MCP_TELEMETRY = 'off';
+    process.env.MOJULO_MCP_TOOL_TIMEOUT_MS = '20';
+    let resolveLate;
+    const hungTool = {
+      name: 'stitch_motion',
+      handler: () => new Promise((res) => { resolveLate = () => res({ frames: 3 }); }),
+    };
+    await expect(instrumentedInvoke(hungTool, {}, {}, { via: 'rpc' }))
+      .rejects.toThrow(/exceeded its 20ms budget.*log is off/);
+    resolveLate();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(allRows()).toHaveLength(0);
+    expect(errSpy.mock.calls.flat().join('\n')).not.toMatch(/\[mcp\] tool=/);
+  });
+
+  it('MOJULO_MCP_TELEMETRY=off keeps error semantics without a row', async () => {
+    process.env.MOJULO_MCP_TELEMETRY = 'off';
+    await expect(instrumentedInvoke(boomTool, {}, {}, { via: 'rpc' })).rejects.toThrow('kaboom in handler');
+    expect(allRows()).toHaveLength(0);
+  });
+
   it('capture flag OFF ⇒ input_json / result_json stay null even for rich inputs', async () => {
     await instrumentedInvoke(okTool, { secret: 'pasted document text', more: [1, 2, 3] }, {}, { via: 'rpc' });
     const r = allRows()[0];

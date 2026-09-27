@@ -12,7 +12,7 @@
  */
 
 import { loadPuppeteer } from '@/lib/graph/scene/puppeteer-lazy';
-import { resolveChromium, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
+import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
 import {
   CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE,
   CAPTURE_COMPILE_WALK_TO, WORLD_ROOT_SELECTOR, WORLD_HIDE_SELECTORS,
@@ -44,12 +44,12 @@ export async function renderWorldFrames(html, specs, {
 } = {}) {
   if (!html || typeof html !== 'string') throw new Error('renderWorldFrames requires World HTML');
   if (!Array.isArray(specs) || !specs.length) throw new Error('renderWorldFrames requires ≥1 camera spec');
-  const puppeteer = await loadPuppeteer();
+  await loadPuppeteer();
   const executablePath = await resolveChromium();
 
   let browser = null;
   try {
-    browser = await puppeteer.launch({
+    browser = await launchChromium({
       executablePath,
       headless: true,
       args: CHROMIUM_WEBGL_ARGS,
@@ -143,12 +143,12 @@ export async function renderWorldTraversal(html, ticks, {
 } = {}) {
   if (!html || typeof html !== 'string') throw new Error('renderWorldTraversal requires World HTML');
   if (!Array.isArray(ticks) || !ticks.length) throw new Error('renderWorldTraversal requires ≥1 input tick');
-  const puppeteer = await loadPuppeteer();
+  await loadPuppeteer();
   const executablePath = await resolveChromium();
 
   let browser = null;
   try {
-    browser = await puppeteer.launch({
+    browser = await launchChromium({
       executablePath,
       headless: true,
       args: CHROMIUM_WEBGL_ARGS,
@@ -230,11 +230,11 @@ export async function compileWorldWaypoints(html, waypoints, {
 } = {}) {
   if (!html || typeof html !== 'string') throw new Error('compileWorldWaypoints requires World HTML');
   if (!Array.isArray(waypoints) || !waypoints.length) throw new Error('compileWorldWaypoints requires ≥1 waypoint');
-  const puppeteer = await loadPuppeteer();
+  await loadPuppeteer();
   const executablePath = await resolveChromium();
   let browser = null;
   try {
-    browser = await puppeteer.launch({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs });
+    browser = await launchChromium({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs });
     const page = await browser.newPage();
     await page.setViewport({ width: 320, height: 240 });   // compile pass renders tiny — probes, not pictures
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: timeoutMs });

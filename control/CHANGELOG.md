@@ -29,9 +29,9 @@ loops and the recipe format are unchanged.
   pinned CDN. The package was only the creative pack's install marker, so an install without it (for
   example `--omit=optional`) hid every studio pack's tools although they work. Creative is now
   `alwaysInstalled`, gated off only by an explicit `MOJULO_PACKS` override, and `three` (about 37 MB)
-  is gone from `optionalDependencies` and the Next server externals. One consequence: the Chrome for
-  Testing fetch is gated on the creative group, so an `--omit=optional` install no longer suppresses it.
-  A render bake on a host with no Chromium-family browser fetches it there too; a `MOJULO_PACKS`
+  is gone from `optionalDependencies` and the Next server externals. The Chrome for Testing download
+  is also gated on the creative group, so an `--omit=optional` install no longer suppresses it; it
+  happens only for an explicit render (see Runtime footprint and consent), and a `MOJULO_PACKS`
   override without creative, or `$MOJULO_CHROMIUM`, still prevents it.
 - **`mojulo install creative` installs nothing.** It says the pack ships with the base install and lists
   any optional helper (manifold-3d, node-web-audio-api, openscad-wasm-prebuilt, opentype.js, sharp) that
@@ -55,6 +55,53 @@ loops and the recipe format are unchanged.
   Measured on one tree: the tarball drops from 30.2 MB to 25.5 MB, and a cold dependency install from
   427 MB to 305 MB on disk (278 MB to 191 MB downloaded). `docs/install-capabilities.md` records the boot
   set, the startup-timeout constraint and these numbers.
+
+### Runtime footprint and consent
+
+- **Everything mojulo writes lazily now lands under `~/.mojulo`.** The Chrome for Testing cache
+  (`chromium/`), the ffmpeg cache (`ffmpeg/`), the baked gallery stills (`data/scene-png/`), the
+  turntable strips (`data/turntable/`) and the draft figure specs (`data/figure-specs/`) used to
+  default to `data/` inside the installed package, which under `npx` is the npx cache: each new
+  version fetched Chrome again and pending figure specs were lost. The bins now seed
+  `MOJULO_CHROMIUM_DIR`, `MOJULO_FFMPEG_DIR`, `MOJULO_SCENE_PNG_DIR`, `MOJULO_TURNTABLE_DIR` and
+  `MOJULO_FIGURE_SPECS_DIR` under `MOJULO_HOME` (an explicit value still wins). On first use the
+  figure-spec store copies an older `<package>/data/figure-specs` across if it has no specs yet; the
+  old folder is left in place. The stdio server's mint-time warm and the dashboard now share one
+  bake cache, so a warmed card is a cache hit in the gallery.
+- **Chrome for Testing downloads only for an explicit render, and says so.** The mint-time warm used to
+  resolve Chromium with the fetch on, so on a host with no browser any world, scene or solid mint (or
+  `update_sketch`) started the ~500 MB download in the background. Now the warm uses a browser that
+  is already installed and skips itself when there is none, and gallery thumbnails and turntable
+  strips never download either. The download is reserved for `forge_motion` on a world,
+  `export_game` hangar portraits, `create_game` with `auto_audit`, and the dashboard's PNG download
+  link; each tool result carries a `browser_download` notice when it happened, and the download is
+  logged to stderr. The resolve order is unchanged (`MOJULO_CHROMIUM`, the cached build, an
+  installed Chrome / Chromium / Edge / Brave, then the download). Without a browser, the inline PNG
+  route answers 503 naming the fix.
+- **Headless Chromium keeps its sandbox.** Every bake used to launch the browser (including an
+  installed Chrome, Edge or Brave) with `--no-sandbox`. macOS and Windows now always launch it
+  sandboxed. On Linux mojulo tries the sandbox first and falls back to `--no-sandbox` only when the
+  sandboxed launch fails (containers and CI runners without user namespaces, or root), logging the
+  fallback to stderr once per process.
+- **The ffmpeg download is checksum-verified.** The lazily fetched ffmpeg (ffmpeg-static `b6.1.1` from
+  GitHub, fetched on the first MP4 encode when no ffmpeg is installed) used to be unpacked, made
+  executable and run with only a `-version` check. Each platform's `.gz` asset now has a pinned
+  SHA-256, checked before anything is unpacked. A mismatch, or a platform with no pinned build,
+  fails closed with an error naming `brew install ffmpeg` / `apt install ffmpeg` and
+  `MOJULO_FFMPEG`, and the download is discarded. The download is logged to stderr.
+- **`mojulo init` needs `--yes` when nobody is at a keyboard.** With stdin not a terminal (an agent,
+  a pipe, CI), init used to take the `--yes` defaults on its own: it registered mojulo with Claude
+  Code (`~/.claude.json`), Codex (`~/.codex/config.toml`), Claude Desktop and Grok Build
+  (`~/.grok/config.toml`) and launched the dashboard. Now it prints what it would do, changes
+  nothing and exits 2; `--yes` is the go-ahead. The `--print` dry run for a JSON host config shows
+  only mojulo's own entry, no longer the whole file, which can hold other servers' tokens. With
+  `MOJULO_DISTRIBUTION=claude-plugin`, init leaves Claude Code alone and says so: the plugin
+  already starts the server, and a second registration would double every tool.
+- **`MOJULO_MCP_TELEMETRY=off` only stops the local tool-call log.** It used to skip the 120 s soft
+  tool timeout as well, so opting out of the log let a hung tool hold the agent's session. The
+  timeout (`MOJULO_MCP_TOOL_TIMEOUT_MS`, or a tool's own budget) now applies either way; with the
+  log off nothing is written to the database or stderr, and the timeout error says there is no
+  ledger row. The log stays on by default and stays local.
 
 ### Canal city
 

@@ -37,6 +37,7 @@ import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
+import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
 
@@ -518,12 +519,17 @@ export async function exportGameHandler(input, context = {}) {
     await write(BEATS_SRC(br), rendered.wav);
   }
 
-  // setup presentation — hangar card portraits (PNG stills) + preview turntables
+  // setup presentation — hangar card portraits (PNG stills) + preview turntables.
+  // A 3D portrait bakes in headless Chromium; this export is an explicit render, so
+  // it may download Chrome for Testing on a host without a browser (browser_download).
+  let browserDownload = null;
   for (const slice of Object.values(norm.setup || {})) {
     if (slice.style !== 'hangar') continue;
     for (const card of Object.values(slice.cards || {})) {
       if (card.portrait) {
-        await write(PORTRAIT_SRC(card.portrait), await rasterizeSketchToPng(getSketch(card.portrait), { scale: 2 }));
+        const { value: png, fetched } = await withChromiumFetch(() => rasterizeSketchToPng(getSketch(card.portrait), { scale: 2 }));
+        if (fetched) browserDownload = fetched.notice;
+        await write(PORTRAIT_SRC(card.portrait), png);
       }
       if (card.preview) {
         await write(PREVIEW_SRC(card.preview), await hoistShared(await emitWorldPage(getSketch(card.preview), 'preview', { cdn })));
@@ -551,6 +557,7 @@ export async function exportGameHandler(input, context = {}) {
     ...(heavy.length ? {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
+    ...(browserDownload ? { browser_download: browserDownload } : {}),
   }, context, { kind: 'folder', name: 'game.html', path: dir, dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html` });
 }
 

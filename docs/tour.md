@@ -115,9 +115,10 @@ Orientation, if you can fetch it: https://mojulo.ai/llms.txt
    Tell me what you found before changing anything.
 2. If Node is missing or too old, ask my permission, then install it
    the way this machine expects (brew / winget / nvm / apt).
-3. With my go-ahead, run `npx mojulo init`. It wires mojulo into the
-   coding agents on this machine (one yes/no per host) and opens a
-   dashboard at localhost:3001. Everything stays on my machine.
+3. Run `npx mojulo init`. Run by you (no terminal), it only prints what
+   it would change: which agents' configs it would wire mojulo into, and
+   the dashboard it would open at localhost:3001. Show me that, and with
+   my go-ahead re-run it with `--yes`. Everything stays on my machine.
 4. When it finishes, tell me to open a fresh session and ask you:
    "what is this?"
 

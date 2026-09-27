@@ -65,28 +65,47 @@ function runInit(...extraArgs) {
 // ── no keyboard ───────────────────────────────────────────────────────────────
 // A pipe / CI / an agent driving the install: stdin is not a TTY. Without --yes
 // the prompts used to block forever and die with exit 13 when stdin closed (the
-// 2026-09-21 Claude cloud field report). Now the defaults are taken, announced
-// once, and the run completes. stdio 'ignore' is exactly "no terminal".
+// 2026-09-21 Claude cloud field report); then init silently took the --yes
+// defaults and rewrote every detected host's config with nobody having agreed.
+// Now it prints its plan, writes nothing, and exits 2; --yes is the go-ahead.
+// stdio 'ignore' is exactly "no terminal".
+
+function runNoTty(args, env = {}) {
+  return spawnSync(process.execPath, [STDIO, 'init', ...args], {
+    encoding: 'utf8',
+    timeout: 25000,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      HOME: home,
+      USERPROFILE: home,
+      MOJULO_HOME: join(home, '.mojulo'),
+      PATH: join(home, 'bin') + delimiter + (process.env.PATH || ''),
+      ...env,
+    },
+  });
+}
 
 describe('init — stdin is not a terminal', () => {
-  it('takes the --yes defaults without --yes, announces it once, and exits 0', () => {
+  it('without --yes: prints the plan, changes nothing, exits 2', () => {
     seedCodex('# my config\n');
-    const res = spawnSync(process.execPath, [STDIO, 'init', '--no-ui', '--host', 'codex'], {
-      encoding: 'utf8',
-      timeout: 25000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        HOME: home,
-        USERPROFILE: home,
-        MOJULO_HOME: join(home, '.mojulo'),
-        PATH: join(home, 'bin') + delimiter + (process.env.PATH || ''),
-      },
-    });
+    const res = runNoTty(['--host', 'codex']);
     expect(res.error).toBeUndefined();
-    expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
+    expect(res.status, `stderr:\n${res.stderr}`).toBe(2);
     expect(res.stdout.match(/stdin is not a terminal/g)).toHaveLength(1);
+    expect(res.stdout).toContain('(--print) would append to');
+    expect(res.stdout).toContain('would launch the dashboard');
+    expect(res.stdout).toContain('re-run with --yes');
     expect(res.stderr).not.toMatch(/unsettled top-level await/);
+    expect(readFileSync(codexCfg(), 'utf8')).toBe('# my config\n');
+    expect(codexBackups()).toHaveLength(0);
+  });
+
+  it('with --yes: applies the plan and exits 0', () => {
+    seedCodex('# my config\n');
+    const res = runNoTty(['--yes', '--no-ui', '--host', 'codex']);
+    expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
+    expect(res.stdout).not.toContain('stdin is not a terminal');
     expect(readFileSync(codexCfg(), 'utf8')).toContain('[mcp_servers.mojulo]');
   });
 });
@@ -220,6 +239,16 @@ describe('init — desktop writer', () => {
     expect(readDesktop()).toEqual({ mcpServers: {} });
     expect(desktopBackups()).toHaveLength(0);
   });
+
+  it('--print shows only the mojulo entry, never the rest of the host config', () => {
+    const seeded = { mcpServers: { other: { command: 'other-cmd', env: { OTHER_TOKEN: 'sekret-value' } } } };
+    seedDesktop(seeded);
+    const res = runInit('--host', 'desktop', '--print');
+
+    expect(res.stdout).toContain('"mojulo"');
+    expect(res.stdout).not.toContain('sekret-value');
+    expect(readDesktop()).toEqual(seeded);
+  });
 });
 
 // ── dev-workshop guard (any file-editing host) ────────────────────────────────
@@ -258,6 +287,7 @@ function plantFakeClaude(listOutput) {
     bin,
     [
       '#!/bin/sh',
+      'echo "$@" >> "$HOME/claude-calls.log"',
       'if [ "$1" = "--version" ]; then echo "9.9.9 (fake)"; exit 0; fi',
       'if [ "$1" = "mcp" ] && [ "$2" = "list" ]; then cat "$HOME/mcp-list.txt"; exit 0; fi',
       'exit 0',
@@ -295,6 +325,17 @@ describe('init — cli-shellout writer', () => {
     plantFakeClaude('mojulo-dev: node /repo/scripts/mcp-stdio.mjs - ✓ Connected\n');
     const res = runInit('--host', 'claude-code');
     expect(res.stdout).toContain('dev workshop already wired (mojulo-dev)');
+  });
+
+  // The Claude Code plugin already starts the server; a `claude mcp add` on top
+  // would run a second copy with every tool doubled.
+  it('never registers claude-code when running as the Claude Code plugin', () => {
+    plantFakeClaude('');
+    const res = runNoTty(['--yes', '--no-ui', '--host', 'claude-code'], { MOJULO_DISTRIBUTION: 'claude-plugin' });
+    expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
+    expect(res.stdout).toContain('claude-code: skipped — mojulo is running as a Claude Code plugin');
+    const calls = existsSync(join(home, 'claude-calls.log')) ? readFileSync(join(home, 'claude-calls.log'), 'utf8') : '';
+    expect(calls).not.toMatch(/mcp (add|remove)/);
   });
 });
 
