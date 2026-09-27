@@ -1,6 +1,6 @@
 # Female head fit (frozen data)
 
-The female humanoid head's source surface. `../head-fit.mjs` resamples it into the landmark head's rows and slots,
+The female humanoid head's source surface. `../../humanoid-head-fit.js` resamples it into the landmark head's rows and slots,
 then builds the cheek planes and the jaw's meeting with the ear. Nothing here is solved at read time.
 
 - `head-source.json`: one exactly symmetric head, 110 named points (a midline plus mirrored `…R` / `…L` pairs)
@@ -27,10 +27,10 @@ the ears to the skull through root faces.
 Hair, ponytail and neck are not modelled. The cranium under the hair is a prior, not a measurement. The ears and
 their roots are not sampled; the skull openings the roots plug into are patched for sampling.
 
-The reference images are the operator's and are not in the repo. `../render-head-fit.mjs` reads them from
+The reference images are the operator's and are not in the repo. `docs/examples/humanoid/render-head-fit.mjs` reads them from
 `MOJULO_FIT_REFS/female/` for overlays.
 
 ## Changing it
 
-A new fit replaces all three files together. Re-pin their hashes in `../test-humanoid.mjs`, then re-render
+A new fit replaces all three files together. Re-pin their hashes in `../../humanoid-head.test.js`, then re-render
 the overlays and look. The data pins exist so the female head cannot drift silently.

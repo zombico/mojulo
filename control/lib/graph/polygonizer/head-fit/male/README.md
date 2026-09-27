@@ -1,13 +1,13 @@
 # Male head fit (frozen data)
 
-The male humanoid head's source surface. `../head-fit.mjs` resamples it into the landmark head's rows and slots,
+The male humanoid head's source surface. `../../humanoid-head-fit.js` resamples it into the landmark head's rows and slots,
 then builds the cheek planes and the jaw's meeting with the ear. Nothing here is solved at read time.
 
 - `head-source.json`: one exactly symmetric head, 96 named points and 96 named polygon faces. It also carries
   the fit's corrected triangulation (`occluderTriangles`: concave faces split properly, mirrored exactly), which
   the sampler uses. Fit units, +x right, +y front, +z up.
 - `landmarks.json`: hand-placed pixel targets on the two 600 px references (three-quarter, side).
-- `fit-report.json`: the fitted orthographic camera per reference (yaw about 40° and 74°) and each landmark's
+- `fit-report.json`: the fitted orthographic camera per reference (yaw about 33° and 71°) and each landmark's
   residual.
 
 ## How it was made
@@ -22,9 +22,9 @@ on the template and its priors more than on the images. The front view in the re
 of the same head, marked inferred and never scored. Hair and neck are not modelled; the ear patches are open
 flaps and are not sampled.
 
-The reference crops are the operator's and are not in the repo. `../render-head-fit.mjs` reads them from
+The reference crops are the operator's and are not in the repo. `docs/examples/humanoid/render-head-fit.mjs` reads them from
 `MOJULO_FIT_REFS/male/`.
 
 ## Changing it
 
-A new fit replaces all three files together. Re-pin their hashes in `../test-humanoid.mjs`, re-render, and look.
+A new fit replaces all three files together. Re-pin their hashes in `../../humanoid-head.test.js`, re-render, and look.

@@ -486,7 +486,7 @@ describe('the hero door wears a face', () => {
     expect(SketchRepository.getByRef('hero-faced').manifest.recipe.parts.hairCap).toBeUndefined();
     expect(h.stats.hero.warnings).toEqual([expect.stringMatching(/face\.faceLength 0\.9 .*\[0\.92, 1\.15\]/)]);
     await expect(updateSketchHandler({ ref: 'hero-faced', patch: [{ op: 'set', path: '/hero/face/jawline', value: 1.1 }] })).rejects.toThrow(/unknown control/);
-    await expect(updateSketchHandler({ ref: 'hero-faced', patch: [{ op: 'set', path: '/hero/hair', value: 'mohawk' }] })).rejects.toThrow(/unknown hair/);
+    await expect(updateSketchHandler({ ref: 'hero-faced', patch: [{ op: 'set', path: '/hero/hair', value: 'mohawk' }] })).rejects.toThrow(/hair: unknown style 'mohawk'/);
   });
   it("head: 'none' is the blank trunk and takes no face; a figure cast wears the male head; the door refuses by name", async () => {
     const bare = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-bare', spec: { head: 'none' } });
@@ -529,6 +529,8 @@ describe('a hero dressed through the door', () => {
     expect(Object.keys(SketchRepository.getByRef('hero-ranger').manifest.recipe.parts).some((k) => k.startsWith('tile.'))).toBe(false);
     // a word the door does not know refuses by name, and the row is untouched
     await expect(updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/adorn', value: 'knight' }] })).rejects.toThrow(/adorn: 'ranger' \| 'none'/);
+    await expect(updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/palette', value: { Top: 'green' } }] })).rejects.toThrow(/palette\.Top: must be a "#rrggbb" colour/);
+    expect(SketchRepository.getByRef('hero-ranger').manifest.hero).toMatchObject({ detail: 'none', adorn: 'none' }); expect(SketchRepository.getByRef('hero-ranger').manifest.hero.palette).toBeUndefined();
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { detail: 'armoured' } })).rejects.toThrow(/detail: 'clothed' \| 'none'/);
   });
   it("the blank-headed form wears the dress too (head: 'none')", async () => {

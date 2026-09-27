@@ -68,6 +68,10 @@ loops and the recipe format are unchanged.
   before its neighbour instead of after it, folding that band on every refined left-side limb (heads and pinned recipes
   never refined that pair; their bytes hold); a pad's per-face groups were dropped through `pinned`, so a pad was one
   colour. Both change only the dragon body-detail example's render, which is not a stored recipe.
+- **A `/hero` patch passes the door's form check.** `update_sketch` now validates the patched `hero` record as the mint
+  does, so a field the generator never reads closely (a `palette` colour that is not `#rrggbb`) refuses by name instead
+  of storing; a refused patch leaves the row untouched. The frozen fits' byte pins moved from the example's tests into
+  `humanoid-head.test.js`, so the core suite guards the data core reads.
 
 ### Hair library
 

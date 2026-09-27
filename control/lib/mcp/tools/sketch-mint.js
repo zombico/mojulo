@@ -56,7 +56,7 @@ import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
-import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout } from '@/lib/mcp/tools/layered';
+import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
@@ -723,6 +723,9 @@ export async function updateSketchHandler(input) {
       const heroWarnings = [];
       try {
         if (heroTouched) {
+          // the door's own form check on the patched record (a word the generator never reads, a palette colour, would
+          // otherwise pass silently)
+          const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
           const prev = existingSketch?.manifest;
           if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
           manifest = expandLayeredManifest(manifest, { from: 'hero' });

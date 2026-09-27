@@ -1,9 +1,12 @@
 // humanoid-head.test.js — the FACE: the face proportion lab's checker transposed onto the fitted landmark head. Identity,
 // composition, exact bilateral symmetry, closure at every control's limits and at both combined extremes on both heads,
-// and what each new control means. The fits' byte pins and the reference-camera gates live with the docs (test-humanoid.mjs).
+// what each new control means, and the frozen fits' byte pins. The reference-camera gates live with the docs (test-humanoid.mjs).
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join } from 'node:path';
 import { humanoidHead, humanoidAnchors, FACE, FACE_KEYS, FACE_GROUPS, FACE_RANGES, FACE_MOVES, FACE_MOVE_NAMES, HEAD_SHAPE_DEFAULTS, resolveFace, validateFace, faceWarnings } from './humanoid-head.js';
-import { FACE_EXTRA_DEFAULTS } from './humanoid-head-fit.js';
+import { FACE_EXTRA_DEFAULTS, FIT_PRESETS, FIT_DATA_DIR } from './humanoid-head-fit.js';
 import { humanoidPlan } from './humanoid-plan.js';
 import { expandPlan } from './station-loft-plan.js';
 import { compileLayered, auditLayered } from './station-loft.js';
@@ -16,6 +19,26 @@ const pts = (h, part) => h.parts[part].stations.flatMap((st) => Object.entries(s
 /** the x of a compiled part's centroid */
 const centroidX = (mesh, part) => { const xs = mesh.pointIds.map((id, i) => (id.startsWith(`${part}/`) ? mesh.vertices[i][0] : null)).filter((v) => v !== null); return xs.reduce((a, b) => a + b, 0) / xs.length; };
 const maxX = (mesh, part) => Math.max(...mesh.pointIds.map((id, i) => (id.startsWith(`${part}/`) ? mesh.vertices[i][0] : -Infinity)));
+
+// The frozen fits: byte-pinned data (re-fitting is an authoring step that re-pins these), exactly symmetric.
+const FIT_FILES = {
+  female: { 'head-source.json': '639fcdb723e825537f801943116f1c6c93efa54b9451d76c032de30ccd48de02', 'landmarks.json': '82874379b9bf9db9380113efc80df717958c7238fb639b14c160e01b222efddd', 'fit-report.json': '15f7aa122dd305a4e37d9ffe0244c11d0eb48c81b37d2ce3afb392429864e84b' },
+  male: { 'head-source.json': 'e8f18cd54bcc016de905482854e36fe9bd12edb4ab93966e26c3647a1693145b', 'landmarks.json': 'cfb6680abfc4bf153eee59f4b4436b058ea12a33d3d9abef9f01d908787d1d00', 'fit-report.json': '5adab46fedc839502d6891f7af4fa58a135139267780339e28ff0c2fd750d01e' },
+};
+describe('the frozen fits', () => {
+  it('each head fit is frozen data: pinned bytes, exact bilateral symmetry', () => {
+    expect([...FIT_PRESETS].sort()).toEqual(Object.keys(FIT_FILES).sort());
+    for (const [preset, files] of Object.entries(FIT_FILES)) {
+      for (const [file, sha] of Object.entries(files)) {
+        const bytes = readFileSync(join(FIT_DATA_DIR, preset, file));
+        expect(createHash('sha256').update(bytes).digest('hex'), `${preset}/${file} changed; re-pin only with a new fit`).toBe(sha);
+      }
+      const src = JSON.parse(readFileSync(join(FIT_DATA_DIR, preset, 'head-source.json'), 'utf8'));
+      const at = Object.fromEntries(src.pointIds.map((k, i) => [k, src.vertices[i]]));
+      for (const [k, p] of Object.entries(at)) if (k.endsWith('L')) expect([-p[0], p[1], p[2]], `${preset} ${k}`).toEqual(at[k.replace(/L$/, 'R')]);
+    }
+  });
+});
 
 describe('the face resolves like the body tune', () => {
   it('identity: an empty face, a unit ratio and a move at 1 change no bytes', () => {

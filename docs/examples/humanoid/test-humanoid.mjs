@@ -5,7 +5,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { humanoidPlan, REGISTERS, HAIR_STYLES, EXPRESSIONS, FACE_VERSION } from './humanoid.plan.mjs';
 import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { humanoidHead, humanoidAnchors, HEAD_SOURCES } from './head.mjs';
 import { fitCameraSource, fitSilhouetteAgreement, cheekReport, fitViews, FIT_CHEEK, FIT_PRESETS, FIT_DATA_DIR } from './head-fit.mjs';
 import { join } from 'node:path';
@@ -140,24 +139,7 @@ test('refined humanoids remain deterministic, bind and clear the collar at diffe
   }
 });
 
-// The frozen fits: byte-pinned data (re-fitting is an authoring step that re-pins these), exactly symmetric.
-const FIT_FILES = {
-  female: { 'head-source.json': '639fcdb723e825537f801943116f1c6c93efa54b9451d76c032de30ccd48de02', 'landmarks.json': '82874379b9bf9db9380113efc80df717958c7238fb639b14c160e01b222efddd', 'fit-report.json': '15f7aa122dd305a4e37d9ffe0244c11d0eb48c81b37d2ce3afb392429864e84b' },
-  male: { 'head-source.json': 'e8f18cd54bcc016de905482854e36fe9bd12edb4ab93966e26c3647a1693145b', 'landmarks.json': 'cfb6680abfc4bf153eee59f4b4436b058ea12a33d3d9abef9f01d908787d1d00', 'fit-report.json': '5adab46fedc839502d6891f7af4fa58a135139267780339e28ff0c2fd750d01e' },
-};
-test('each head fit is frozen data: pinned bytes, exact bilateral symmetry', () => {
-  assert.deepEqual(FIT_PRESETS.sort(), Object.keys(FIT_FILES).sort());
-  for (const [preset, files] of Object.entries(FIT_FILES)) {
-    for (const [file, sha] of Object.entries(files)) {
-      const bytes = readFileSync(join(FIT_DATA_DIR, preset, file));
-      assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${preset}/${file} changed; re-pin only with a new fit`);
-    }
-    const src = JSON.parse(readFileSync(join(FIT_DATA_DIR, preset, 'head-source.json'), 'utf8'));
-    const at = Object.fromEntries(src.pointIds.map((k, i) => [k, src.vertices[i]]));
-    for (const [k, p] of Object.entries(at)) if (k.endsWith('L')) assert.deepEqual([-p[0], p[1], p[2]], at[k.replace(/L$/, 'R')], `${preset} ${k}`);
-  }
-});
-
+// The frozen fits' byte pins and symmetry live in core (control/lib/graph/polygonizer/humanoid-head.test.js).
 test('each head follows its fit: silhouettes agree through every fitted camera, pupils land on the marked eyes', () => {
   for (const preset of FIT_PRESETS) {
     const mesh = compileLayered(humanoidHead({ preset, hair: 'none' }));

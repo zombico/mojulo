@@ -1,7 +1,9 @@
-/** humanoid-plan.js — the HUMANOID starter (core since face-tune; docs/examples/humanoid/humanoid.plan.mjs re-exports it): the hero form (docs/examples/ring-plans) with a male / female preset,
- * the body controls, and the planar LANDMARK HEAD from ./head.mjs (a cage on the figure's own skull landmarks, the
- * jaw hinged along the mandibular angle, expressions displacing the flesh, hair as one mass). Hair, palette and
- * expression are independent of the proportions. The shirt-panel refinement lives here; shared anatomy lives in the hero form or the head. */
+/** humanoid-plan.js — the HUMANOID starter (core since face-tune; docs/examples/humanoid/humanoid.plan.mjs re-exports it): the
+ * hero form (hero-form.js) with a male / female preset, the body controls, and the HEAD from humanoid-head.js (rows and
+ * slots resampled from a head fitted to reference images, the jaw hinged along the mandibular angle, the face controls,
+ * expressions displacing the flesh, hair from the library), then the DRESS (hero-dress.js: body detail and adornment).
+ * Hair, palette and expression are independent of the proportions. The shirt-panel refinement lives here; shared anatomy
+ * lives in the hero form or the head. */
 import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune } from './hero-form.js';
 import { humanoidHead, HAIR_STYLES, EXPRESSIONS, FACE_VERSION, FACE, resolveFace, validateFace, HEAD_PRESETS } from './humanoid-head.js';
 import { validateCast } from './figure-cast.js';
@@ -20,7 +22,7 @@ export { HAIR_STYLES, EXPRESSIONS, REGISTERS, FACE_VERSION, FACE };
  *               eyeSize, browHeight, noseWidth, noseSize, mouthWidth …) or a list composed by product; 1 = the fitted head
  *   headPreset  the head's pole and fit ('male' | 'female'); defaults to `preset` when that is a hero cast, else 'male'
  *   register    'lowpoly' | 'round' | 'chamfer' | 'box' (the body's rings and the head's planes)
- *   hair        'crop' | 'swept' | 'bob' | 'none';  expression  'neutral' | 'smile' | 'determined' | 'surprised'
+ *   hair        a HAIR_STYLES word ('crop', 'swept', 'bob', 'ponytail' … 'none');  expression  an EXPRESSIONS word
  *   headScale   scales the head (its carriers, pin-local detail and jaw anchors together)
  *   detail      BODY DETAIL (hero-dress.js): 'clothed' | 'none' | body data — the dragon's passes with the hero's parameters
  *   adorn       ADORNMENT (hero-dress.js): 'ranger' | 'none' | a kit — worn over the detail, one signature each

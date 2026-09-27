@@ -39,7 +39,7 @@ reconciled into it: the body lives in the hero form now, the head here.
   for both casts at four views, at 128 / 256 / 512 px, mid-walk and mid-wave, and a bust, with the adornment ledger.
 - `head.mjs`, `head-fit.mjs`, `humanoid.plan.mjs` are RE-EXPORTS since face-tune: the modules are core
   (`control/lib/graph/polygonizer/humanoid-head.js`, `humanoid-head-fit.js`, `humanoid-plan.js`; the frozen fits under
-  `control/lib/graph/polygonizer/head-fit/{female,male}/`, still byte-pinned by `test-humanoid.mjs`), so the `mint_solid`
+  `control/lib/graph/polygonizer/head-fit/{female,male}/`, byte-pinned by `humanoid-head.test.js`), so the `mint_solid`
   hero door wears this head and regenerates it from its FACE controls. The head's FACE (`FACE` in `humanoid-head.js`) is
   the face proportion lab's contract: ratios about the fit in groups (`skull`: skullWidth, faceWidth, faceLength; `brow`:
   browHeight, browRidge, foreheadSlope; `eyes`: eyeSpacing, eyeSize; `cheeks`: cheekbone, cheek; `nose`: noseWidth,
@@ -106,8 +106,8 @@ reconciled into it: the body lives in the hero form now, the head here.
 - `test-humanoid.mjs`: both presets in every register close at rest and at every dial extreme; the jaw hinges
   by the ear and the chin drops; both eyes read in the exposure ledger; the chin clears the collar; hair,
   expression and face knobs never move a joint; unknown presets, hair and body controls refuse. The
-  cage-construction ratios run with the landmark cage selected. The fit gates run for both heads:
-  - each head's frozen data is pinned and exactly symmetric;
+  cage-construction ratios run with the landmark cage selected. The fit gates run for both heads (each head's
+  frozen data is pinned and exactly symmetric in core, `humanoid-head.test.js`):
   - silhouette IoU against its fitted source is above 0.88 through every fitted camera;
   - each compiled pupil lands within 5 px of the hand-marked eye centre;
   - `noseWidth` and `jawWidth` still shape them;
