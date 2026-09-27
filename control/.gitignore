@@ -36,3 +36,5 @@ lib/graph/mobile-suit/*
 scripts/_*.mjs
 # npm pack output; publish from it, never commit it.
 mojulo-*.tgz
+# Precompiled JSX twins, written at prepack by scripts/precompile-jsx.mjs.
+*.jsx.mjs

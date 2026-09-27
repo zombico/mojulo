@@ -1,7 +1,7 @@
 import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
-import { ZipArchive } from 'archiver';
+import { lazyDependency } from '../lazy-deps.js';
 import { composeInstructions } from '../composer/composer.js';
 import { downloadToBuffer } from '../storage/index.js';
 
@@ -13,6 +13,9 @@ const ARTIFACTS_DIR =
   process.env.ARTIFACTS_DIR || path.join(process.cwd(), 'data', 'artifacts');
 
 const BOT_DEFAULT_PORT = process.env.BOT_DEFAULT_PORT || '3000';
+
+// Loaded on the first artifact build, not at import: this module sits on the stdio boot path.
+const loadArchiver = lazyDependency('archiver', () => import('archiver'), 'zips the bot artifact');
 
 // Prebuilt bot image published by .github/workflows/publish-bot-image.yml.
 // Pin tracks lite-template releases: bump to the new tag when a bot-vX.Y.Z
@@ -218,7 +221,8 @@ function writeJson(file, data) {
   return fsp.writeFile(file, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function zipDirectory(sourceDir, outPath) {
+async function zipDirectory(sourceDir, outPath) {
+  const { ZipArchive } = await loadArchiver();
   return new Promise((resolve, reject) => {
     const output = fs.createWriteStream(outPath);
     const archive = new ZipArchive({ zlib: { level: 9 } }); // archiver ≥8: class exports, no default factory
@@ -286,6 +290,18 @@ export class DockerDeployer {
         );
       }
       await copyTemplateFiles(LITE_TEMPLATE_PATH, stagingDir, TEMPLATE_EXCLUDES);
+      // The npm package leaves lite-template/models/ out (17 MB of tokenizer files). The image
+      // build fetches the whole model in its postinstall and then overlays `COPY models/`,
+      // which fails if the directory is absent, so give it one when the template had none.
+      const modelsDir = path.join(stagingDir, 'models');
+      if (!fs.existsSync(modelsDir)) {
+        await ensureDir(modelsDir);
+        await fsp.writeFile(
+          path.join(modelsDir, 'README.txt'),
+          'The embedding model is fetched into this directory by `npm install` (postinstall) during the image build.\n',
+          'utf8'
+        );
+      }
     }
 
     // 2. Create config, data dirs

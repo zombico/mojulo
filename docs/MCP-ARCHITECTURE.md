@@ -86,7 +86,7 @@ A **wing** is taxonomy and routing: `forward_context()` opens the STUDIO wing by
         │   pack_voice              │         │  ╷  pack_bot_operate      ╷        │
         │   pack_game               │         │  ╷  pack_fleet            ╷        │
         │                           │         │  ╵ mojulo install chatbot ╵        │
-        │  mojulo install creative  │         │                                    │
+        │  always installed         │         │                                    │
         └───────────────────────────┘         └────────────────────────────────────┘
 ```
 
@@ -115,7 +115,7 @@ A **wing** is taxonomy and routing: `forward_context()` opens the STUDIO wing by
 
 Roster and membership: [packs.js](../control/lib/mcp/packs.js).
 
-**Install is PACK-grain, and derived from disk.** State comes from what is physically present on the host, with `MOJULO_PACKS` as an explicit override. The heavy creative stack is optional (`mojulo install creative`); the chatbot factory is opt-in since 2.0 (`mojulo install chatbot`, `--remove` to take it away) and is **absent from a default install** — every pack except the chatbot group's, no bot tools listed. The kernel alone can still mint a diagram: `mint_diagram` is spine, not pack. See [install-capabilities.md](install-capabilities.md).
+**Install is PACK-grain, and derived from disk.** State comes from what is physically present on the host, with `MOJULO_PACKS` as an explicit override. The creative stack ships with every install (only a `MOJULO_PACKS` override gates it off; its heavy helpers are optional dependencies that fail in-band when missing); the chatbot factory is opt-in since 2.0 (`mojulo install chatbot`, `--remove` to take it away) and is **absent from a default install** — every pack except the chatbot group's, no bot tools listed. The kernel alone can still mint a diagram: `mint_diagram` is spine, not pack. See [install-capabilities.md](install-capabilities.md).
 
 **The iron wall is execution, not information.** An uninstalled pack's tools do not list and do not run, and refuse with an advisory naming the install rather than pretending not to exist. `mojulo tools` / `mojulo packs` list only installed packs with a `not installed: … add with: …` footer. Knowledge is never hidden; only execution is walled.
 

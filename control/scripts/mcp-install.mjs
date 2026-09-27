@@ -8,10 +8,13 @@
  * it. See lib/mcp/install-capabilities.plan.md.
  *
  * The install axis has three GROUPS (mojulo-2.0-pure-creative.plan.md, Phase 1a):
- *   - creative  — the render / media / games stack, the flagship default pack. Its
- *                 footprint is the three optionalDependencies (three /
- *                 node-web-audio-api / opentype.js); installing them flips physical
- *                 detection (packs.js installedGroups) with no env flag needed.
+ *   - creative  — the render / media / games stack, the flagship default pack. It
+ *                 ships with the base install and is always present, so `install
+ *                 creative` has nothing to do: it reports which of the optional
+ *                 helpers (package.json optionalDependencies) resolve, and installs
+ *                 nothing. Until 2.2 it ran `npm install --include=optional` inside
+ *                 the package directory, which under npx is a throwaway cache dir
+ *                 and pulled the whole devDependency tree.
  *   - chatbot   — the bot factory. OPT-IN as of 2.0: a fresh install does not
  *                 have it. `mojulo install chatbot` writes a marker file under
  *                 $MOJULO_HOME which flips physical detection on; deleting that
@@ -47,10 +50,6 @@ import { createRequire } from 'node:module';
 
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-
-// The marker the creative group is keyed on (kept in sync with INSTALL_GROUPS
-// in lib/mcp/packs.js — omitted/installed together with the other creative deps).
-const CREATIVE_MARKER = 'three';
 
 // Kept in sync with INSTALL_GROUPS.chatbot.markerFile in lib/mcp/packs.js.
 const CHATBOT_MARKER = 'packs/chatbot';
@@ -148,13 +147,28 @@ function chatbotInstalled() {
   return fs.existsSync(chatbotMarkerPath());
 }
 
-function creativeInstalled() {
-  try {
-    createRequire(import.meta.url).resolve(CREATIVE_MARKER);
-    return true;
-  } catch {
-    return false;
-  }
+// creative is always installed (INSTALL_GROUPS.creative.alwaysInstalled in
+// lib/mcp/packs.js). What can be missing is an optional helper that some of its
+// calls load lazily; those calls say so in-band.
+function missingCreativeHelpers() {
+  const { optionalDependencies = {} } = JSON.parse(fs.readFileSync(path.join(CONTROL_DIR, 'package.json'), 'utf8'));
+  // ESM resolution: manifold-3d and openscad-wasm-prebuilt export no `require` entry.
+  return Object.keys(optionalDependencies).filter((name) => {
+    try {
+      import.meta.resolve(name);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+}
+
+function creativeHelpersLine(missing) {
+  return missing.length
+    ? `  Optional helpers not installed here: ${missing.join(', ')}. The calls that need them say so\n`
+      + '  in-band (for example WAV audio, OpenSCAD meshing, exact booleans, raster images); everything\n'
+      + '  else in the creative pack works without them.\n'
+    : '';
 }
 
 function run(cmd, args, opts) {
@@ -169,20 +183,16 @@ function run(cmd, args, opts) {
 }
 
 function printStatus() {
-  const creative = creativeInstalled();
   const recall = recallInstalled();
   const chatbot = chatbotInstalled();
   process.stdout.write(
     'mojulo install — on-demand capability packs\n\n'
-      + 'Usage: mojulo install <creative|recall|chatbot> [--remove]\n\n'
+      + 'Usage: mojulo install <recall|chatbot> [--remove]\n\n'
       + 'Status:\n'
-      + `  creative   ${creative ? 'installed' : 'not installed'}  (render / media / games stack)\n`
+      + '  creative   installed  (render / media / games stack; ships with the base install)\n'
+      + creativeHelpersLine(missingCreativeHelpers())
       + `  recall     ${recall ? 'installed' : 'not installed'}  (the embedding model behind semantic_search — lexical without it)\n`
       + `  chatbot    ${chatbot ? 'installed' : 'not installed'}  (the bot factory — opt-in since 2.0; needs recall)\n\n`
-      + (creative
-        ? ''
-        : 'Run `mojulo install creative` to add the render/media/games stack (~82 MB of deps;\n'
-          + 'Chromium for scene/world PNG bakes stays lazy-fetched on first render).\n')
       + (recall
         ? ''
         : 'Run `mojulo install recall` to add vector recall (~480 MB runtime under ~/.mojulo/recall plus a\n'
@@ -191,7 +201,7 @@ function printStatus() {
         ? ''
         : 'Run `mojulo install chatbot` to add the bot factory (build/deploy/operate chatbots).\n'
           + 'It is opt-in since 2.0 — mojulo is a 3D compiler first.\n')
-      + (creative && recall && chatbot ? 'Everything installed — nothing to add.\n' : ''),
+      + (recall && chatbot ? 'Everything installed — nothing to add.\n' : ''),
   );
 }
 
@@ -269,23 +279,9 @@ if (pack !== 'creative') {
   process.exit(1);
 }
 
-if (creativeInstalled()) {
-  process.stdout.write('Creative pack already installed (its optional deps resolve). Nothing to do.\n');
-  process.exit(0);
-}
-
-process.stdout.write('Installing the creative pack — optional deps: three, node-web-audio-api, opentype.js …\n\n');
-// --include=optional forces the optionalDependencies even if a prior
-// `npm install --omit=optional` (or an .npmrc omit) left them out.
-const code = await run(NPM, ['install', '--include=optional'], { cwd: CONTROL_DIR });
-
-if (code !== 0 || !creativeInstalled()) {
-  process.stderr.write('\nCreative pack install did not complete — the optional deps are still not resolvable.\n');
-  process.exit(code || 1);
-}
-
 process.stdout.write(
-  '\nCreative pack installed. Studio tools (compose_world, create_view, beats, …) are now live;\n'
-    + 'scene/world PNG renders will lazy-fetch Chromium on first use.\n',
+  'The creative pack ships with the base install, so there is nothing to install: its tools are\n'
+    + 'always listed unless a MOJULO_PACKS override leaves it out.\n'
+    + creativeHelpersLine(missingCreativeHelpers()),
 );
 process.exit(0);

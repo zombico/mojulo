@@ -12,6 +12,50 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Lean cold start
+
+- **The stdio server boots without loading any heavy package.** puppeteer-core, archiver, pdf2json,
+  officeparser, react and react-dom now load on the first call that needs them instead of when the tool
+  modules are imported (`lib/lazy-deps.js`, `lib/graph/scene/puppeteer-lazy.js`). A package that cannot
+  load is an in-band error on that one call, naming the package and what it is for; every other tool
+  keeps working. Tool behaviour is unchanged.
+- **@swc/core is no longer installed with the package.** `CreationMap.jsx`, the one JSX file the
+  package ships, is compiled at prepack into `CreationMap.jsx.mjs` (`scripts/precompile-jsx.mjs`), and
+  the stdio loader serves that file while the source hash on its first line matches the `.jsx`. A dev
+  checkout, or a `.jsx` edited after a pack, still compiles through @swc/core, now a devDependency.
+  This drops a native addon and its install script from `npx mojulo`.
+- **The creative pack is always installed, and `three` is no longer a dependency.** No Node code
+  imports `three`; the exported pages load it from the vendored copy in `public/vendor` or from the
+  pinned CDN. The package was only the creative pack's install marker, so an install without it (for
+  example `--omit=optional`) hid every studio pack's tools although they work. Creative is now
+  `alwaysInstalled`, gated off only by an explicit `MOJULO_PACKS` override, and `three` (about 37 MB)
+  is gone from `optionalDependencies` and the Next server externals. One consequence: the Chrome for
+  Testing fetch is gated on the creative group, so an `--omit=optional` install no longer suppresses it.
+  A render bake on a host with no Chromium-family browser fetches it there too; a `MOJULO_PACKS`
+  override without creative, or `$MOJULO_CHROMIUM`, still prevents it.
+- **`mojulo install creative` installs nothing.** It says the pack ships with the base install and lists
+  any optional helper (manifold-3d, node-web-audio-api, openscad-wasm-prebuilt, opentype.js, sharp) that
+  does not resolve. It used to run `npm install --include=optional` inside the package directory, which
+  under npx is a cache directory and pulled in the whole devDependency tree (about 600 packages). The
+  in-band hints that pointed at it (sharp, OpenSCAD, `mint_diagram`) no longer do.
+- **Dashboard-only packages are devDependencies, and dotenv is gone.** isomorphic-dompurify,
+  react-markdown, remark-gfm, swr and image-size are imported only by dashboard pages and routes, which
+  the Next build compiles into the shipped standalone bundle (jsdom, the one they keep external, is
+  traced into it). No stdio code imports them, so `npx mojulo` no longer installs them. Nothing imported
+  dotenv. `npm run smoke:tarball` now opens a stash page and uploads an image to it (the routes that use
+  these packages), renders a diagram SVG through the stdio loader, and fails if @swc/core or `three` is
+  installed or the precompiled CreationMap is missing.
+- **The tarball leaves out files nothing reads at runtime.** `files` now excludes
+  `lite-template/models/**` (the bot's 17 MB tokenizer files; the bot image fetches the model while it
+  builds), `messages/**` (the dashboard's locale strings, which the Next build already compiles into
+  the standalone bundle), and `lib/**/__snapshots__/**`, `lib/**/spike-output/**` and
+  `lib/graph/mobile-suit/scripts/**` (test snapshots and local scratch output that a publisher's working
+  tree could carry into the package). An offline bot build (`MOJULO_OFFLINE_BUILD=1`) from a template
+  without `models/` now gets an empty `models/` directory, so the Dockerfile's `COPY models/` still works.
+  Measured on one tree: the tarball drops from 30.2 MB to 25.5 MB, and a cold dependency install from
+  427 MB to 305 MB on disk (278 MB to 191 MB downloaded). `docs/install-capabilities.md` records the boot
+  set, the startup-timeout constraint and these numbers.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

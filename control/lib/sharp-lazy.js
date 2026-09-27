@@ -21,7 +21,7 @@ export class SharpUnavailableError extends Error {
     super(
       `sharp (the image library) is not loadable on this host: ${cause?.message || cause}. `
         + 'Its native binary is an optional dependency that `npm install --omit=optional` leaves out; '
-        + 'run `npm install sharp` in the package directory (or `mojulo install creative`) and retry. '
+        + 'run `npm install sharp` in the package directory and retry. '
         + 'Recipes, exports, and every non-raster tool work without it.',
     );
     this.name = 'SharpUnavailableError';

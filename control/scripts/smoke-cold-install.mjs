@@ -4,9 +4,10 @@
  *
  * Packs the control plane (or takes `--tarball <path>`), installs that tarball
  * into an EMPTY temp directory the way `npx mojulo` does on a stranger's
- * machine, and drives the result: `mojulo call version`, boot `mojulo-ui` on a
- * free port, read `/api/sketches`, mint a floorplan through the CLI and fetch
- * its SVG. Then it reports the shipped size and every package that exists both
+ * machine, and drives the result: `mojulo call version`, render a diagram SVG
+ * through the stdio loader, boot `mojulo-ui` on a free port, read `/api/sketches`,
+ * mint a floorplan through the CLI and fetch its SVG, and open a stash page and
+ * upload an image to it. Then it reports the shipped size and every package that exists both
  * nested in the standalone bundle and hoisted in the fresh install at a
  * DIFFERENT version.
  *
@@ -50,6 +51,22 @@ const MUST_BE_HOISTED = [
   'onnxruntime-common',
   '@huggingface/transformers',
 ];
+
+// Installed only for the build, never for a user: the precompiled CreationMap twin
+// replaces @swc/core, and three was only ever the creative pack's install marker.
+const MUST_NOT_INSTALL = ['@swc/core', 'three'];
+
+// Dashboard-only packages, devDependencies since 2.2: the Next build compiles them
+// into the standalone bundle (jsdom, which isomorphic-dompurify needs, is traced into
+// .next/standalone/node_modules). The stash page and image upload below are the
+// routes that use them.
+const DASHBOARD_ONLY = ['isomorphic-dompurify', 'react-markdown', 'remark-gfm', 'swr', 'image-size'];
+
+// A 1×1 PNG for the stash image upload (image-size reads its header).
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
 
 const FLOORPLAN = {
   kind: 'floorplan',
@@ -191,11 +208,11 @@ function findFreePort() {
   });
 }
 
-async function get(url, timeoutMs = 15000) {
+async function get(url, timeoutMs = 15000, init = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, redirect: 'manual' });
+    const res = await fetch(url, { ...init, signal: ctrl.signal, redirect: 'manual' });
     const bytes = Buffer.from(await res.arrayBuffer());
     return { status: res.status, bytes, body: bytes.toString('utf8') };
   } catch (err) {
@@ -287,6 +304,16 @@ async function main() {
         fail(`${name} is still nested in .next/standalone/node_modules — add it to the files exclusions`);
       }
     }
+    for (const name of MUST_NOT_INSTALL) {
+      if (existsSync(path.join(nm, name))) fail(`${name} was installed by the tarball — it is build-only`);
+    }
+    const twin = path.join(pkgDir, 'components', 'graph', 'CreationMap.jsx.mjs');
+    if (!existsSync(twin) || !readFileSync(twin, 'utf8').startsWith('// mojulo-precompiled source-sha256=')) {
+      fail('components/graph/CreationMap.jsx.mjs (the prepack twin) is missing from the package');
+    } else ok(`no ${MUST_NOT_INSTALL.join(' / ')} installed; the precompiled CreationMap twin ships`);
+    const presentUiOnly = DASHBOARD_ONLY.filter((name) => existsSync(path.join(nm, name)));
+    if (presentUiOnly.length) note(`dashboard-only packages present in the install (another dependency pulled them): ${presentUiOnly.join(', ')}`);
+
     const nft = findFiles(path.join(pkgDir, '.next'), (p) => p.endsWith('.nft.json'));
     if (nft.length) fail(`${nft.length} .nft.json trace manifests shipped in the package`);
     else ok('no .nft.json manifests, native pairs all hoisted');
@@ -338,6 +365,20 @@ async function main() {
     } else if (reported !== expectedVersion) {
       fail(`installed version ${reported} ≠ package.json ${expectedVersion}`);
     } else ok(`mojulo call version → ${reported}`);
+
+    // The stdio side renders diagrams through the same loader every bin registers; in a
+    // published install it must serve the precompiled CreationMap (no @swc/core here).
+    const svgProbe = spawnSync(process.execPath, ['--input-type=module', '-e', [
+      "import { register } from 'node:module';",
+      "import { pathToFileURL } from 'node:url';",
+      `const pkg = ${JSON.stringify(pkgDir)};`,
+      "register(pathToFileURL(pkg + '/scripts/mcp-stdio-loader.mjs'));",
+      "const { renderSketchToSvg } = await import(pathToFileURL(pkg + '/lib/sketch-svg.js').href);",
+      `process.stdout.write(await renderSketchToSvg(${JSON.stringify(DIAGRAM)}, { includeXmlDecl: false }));`,
+    ].join('\n')], { cwd: tmp, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    if (svgProbe.status !== 0 || !/^<svg[\s>]/.test(svgProbe.stdout)) {
+      fail(`diagram SVG through the stdio loader failed (exit ${svgProbe.status}): ${(svgProbe.stderr || '').trim().split('\n').pop()}`);
+    } else ok(`diagram SVG through the stdio loader → ${svgProbe.stdout.length} bytes`);
 
     // semantic_search on a fresh process: the lexical index self-populates on the
     // first call (text-only reindex, no model), so this must return a routing card
@@ -417,6 +458,32 @@ async function main() {
       const page = await get(`${base}/sketches/${ref}`, 60000);
       if (page.status !== 200) fail(`GET /sketches/${ref} → ${page.status}`);
       else ok(`GET /sketches/${ref} → 200`);
+    }
+
+    // The stash page server-renders the component that imports react-markdown,
+    // remark-gfm and isomorphic-dompurify (→ jsdom); the image upload runs image-size.
+    const mintStash = call('mint_stash', { title: 'smoke stash' });
+    let sref = null;
+    try {
+      sref = JSON.parse(mintStash.stdout).stash_ref;
+    } catch {}
+    if (mintStash.status !== 0 || !sref) {
+      fail(`mint_stash failed (exit ${mintStash.status}): ${mintStash.reason}`);
+    } else {
+      ok(`mint_stash → ${sref}`);
+      const stashPage = await get(`${base}/stashes/${sref}`, 60000);
+      if (stashPage.status !== 200) fail(`GET /stashes/${sref} → ${stashPage.status}`);
+      else ok(`GET /stashes/${sref} → 200`);
+      const form = new FormData();
+      form.append('file', new Blob([PNG_1X1], { type: 'image/png' }), 'dot.png');
+      const upload = await get(`${base}/api/stashes/${sref}/items`, 30000, { method: 'POST', body: form });
+      let item = null;
+      try {
+        item = JSON.parse(upload.body).item;
+      } catch {}
+      if (upload.status !== 200 || item?.metadata?.width !== 1 || item?.metadata?.height !== 1) {
+        fail(`POST /api/stashes/${sref}/items (image) → ${upload.status} ${upload.body.slice(0, 200)}`);
+      } else ok(`POST /api/stashes/${sref}/items (image) → 200, 1×1 read by image-size`);
     }
 
     const errs = uiLog.split('\n').filter((l) => /⨯|TypeError|Error:/.test(l));

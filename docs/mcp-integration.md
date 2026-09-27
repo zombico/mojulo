@@ -105,7 +105,7 @@ The mint tools are re-cut by FORM behind one reader rather than listed flat: cal
 
 Every one of these mints a **recipe** — params plus a kind — into the `sketches` table and returns a `ref`. Iterate in place with `update_sketch` on the same ref rather than re-minting. Export with `export_model` (`.glb` / `.stl`), `export_game`, or `export_beats`. Keep a tuned setting with `save_recipe({ ref, id, when })` — it lands in your cookbook and becomes recallable by intent through `semantic_search`.
 
-Creative packs are install-gated (`mojulo install creative`, on by default); `mint_diagram` is kernel and always present.
+Creative packs ship with every install (only a `MOJULO_PACKS` override gates them off); `mint_diagram` is kernel and always present.
 
 ### Operate and deliberate
 

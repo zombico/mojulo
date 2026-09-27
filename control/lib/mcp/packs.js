@@ -495,7 +495,13 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 // (a third-party pack declares a group; it does not join a wing).
 //
 // Two groups today:
-//   creative — the render / media / games stack (the flagship default pack).
+//   creative — the render / media / games stack (the flagship default pack). Always
+//              installed: its code is in the package and its tools list on every
+//              install. The heavy helpers some of its calls need (manifold-3d,
+//              node-web-audio-api, openscad-wasm-prebuilt, opentype.js, sharp) are
+//              optionalDependencies; a call whose helper is missing says so in-band,
+//              and the rest of the pack works. Only an explicit MOJULO_PACKS override
+//              gates it off.
 //   chatbot  — the bot factory. OPT-IN as of 2.0: a fresh install does not have it,
 //              and `mojulo install chatbot` turns it on by writing a marker file
 //              under $MOJULO_HOME. The code is still in-tree (the package split
@@ -506,15 +512,17 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 // The orchestration plumbing (connected-services / catalysts / triggers / runtime /
 // plan / research / stash) declares no group and is therefore ALWAYS present.
 //
-// SOURCE OF TRUTH = physical presence per group — so `npm install --omit=optional`
-// self-describes and an env flag can't silently disagree with what's on disk.
+// SOURCE OF TRUTH = physical presence per group — so an install self-describes
+// and an env flag can't silently disagree with what's on disk.
 // MOJULO_PACKS is an explicit OVERRIDE on top (a deliberate operator choice:
 // dev/test, or gating a present group's tools off); a typo/unknown value falls
 // through to physical detection, never an empty workshop.
 const INSTALL_GROUPS = {
-  // Creative's optional deps (three / opentype.js / node-web-audio-api) are omitted
-  // together by `--omit=optional`, so the marquee `three` is a faithful marker.
-  creative: { markerModule: 'three' },
+  // Until 2.2 creative was keyed on the `three` package resolving. No Node code
+  // imports three (scene-three.js only names it inside browser template strings),
+  // so the 37 MB dependency existed only to be detected, and removing it hid the
+  // studio's tools although nothing needed it.
+  creative: { alwaysInstalled: true },
   // Marker path is relative to $MOJULO_HOME (default ~/.mojulo). Written by
   // `mojulo install chatbot`; delete it (or drop 'chatbot' from MOJULO_PACKS)
   // to put the factory away again.
@@ -629,13 +637,10 @@ export function isToolInstalled(name, env = process.env) {
   return pack ? isPackInstalled(pack, env) : true;
 }
 
-// The action that actually enables an uninstalled group. creative is a PHYSICAL
-// install (its optional deps), so `mojulo install creative` is what makes its tools
-// runnable — setting MOJULO_PACKS alone would only make them LIST while still
-// failing at runtime with the deps absent. chatbot is in-tree code today and is
-// only ever "off" via an explicit MOJULO_PACKS override, so its fix is the flag,
-// not an install — until it ships as @mojulo/chatbot, when it becomes an install
-// like creative and this branch flips with the marker.
+// The action that actually enables an uninstalled group. creative is always
+// installed, so it is only ever "off" through an explicit MOJULO_PACKS override and
+// its fix is the flag. chatbot and recall are physical installs (a marker file under
+// $MOJULO_HOME, the recall runtime), so their fix is `mojulo install <group>`.
 function installAction(group) {
   return INSTALL_GROUPS[group]?.alwaysInstalled
     ? `include '${group}' in MOJULO_PACKS (${group} ships with the base install; it is only gated by an explicit override)`

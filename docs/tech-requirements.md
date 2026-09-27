@@ -64,19 +64,22 @@ have been excluded since 2.0.6.
 | Dependency | Size | Why it's there |
 |---|---|---|
 | `node-web-audio-api` | 41 MB | Audio synthesis (beats, SFX). Creative group, optional. |
-| `three` | 38 MB | WebGL worlds. Creative group, optional. |
 | `better-sqlite3` | 27 MB | The database. |
-| `@swc/core` | 26 MB | Compiles generated code. |
 | `sharp` + libvips | 17 MB | Image handling (skins, sprite sheets, the PNG bake, the forges). Creative group, optional. |
 | `puppeteer-core` | 13 MB | Drives a browser for scene bakes. The browser itself is **not** included (below). |
 | `opentype.js`, `manifold-3d` | 7 MB | Fonts for wordmarks; WASM CSG for `union: true` exports. Creative group, optional. |
 | `openscad-wasm-prebuilt` | 11 MB | OpenSCAD 2025.01.19 as WASM with the Manifold backend: the in-process mesher for `mint_solid kind:'scad'` and the exact twin behind `exact: true`. A fresh instance per render, about 210 MB RSS while one runs. Creative group, optional; a stored `scad` row cannot render without it. |
 
-**Lean install.** `npm install --omit=optional` sheds the four creative deps (~86 MB) and turns the
-creative tools off; it can also leave `sharp` without its native binary (`@img/sharp-<platform>`
-is an optional dependency). The kernel and the CLI still run: `sharp` is loaded on first use, so
-only the raster tools fail, in-band, naming `npm install sharp`. `mojulo install creative` adds
-everything back. See [install-capabilities.md](install-capabilities.md).
+Since 2.2 two former rows are gone: `three` (38 MB; no Node code imports it, and the exported pages
+load the vendored copy or the pinned CDN) and `@swc/core` (26 MB; the one shipped JSX file is
+precompiled at pack time). The dashboard-only libraries are devDependencies compiled into the
+dashboard bundle. The table above still reflects the 2.0.7 measurement; re-measure at the next release.
+
+**Lean install.** `npm install --omit=optional` sheds the optional creative helpers (about 150 MB with
+what they pull in). The creative tools still list and run; the calls that need a missing helper fail
+in-band naming it, and `sharp` (loaded on first use) fails only the raster tools, naming
+`npm install sharp`. The kernel and the CLI always run. `mojulo install creative` installs nothing; it
+reports which helpers are missing. See [install-capabilities.md](install-capabilities.md).
 
 ### Downloads that happen later, on first use only
 
