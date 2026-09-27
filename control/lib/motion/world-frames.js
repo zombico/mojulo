@@ -13,7 +13,7 @@
 
 import puppeteer from 'puppeteer-core';
 
-import { resolveChromium, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
+import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
 import {
   CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE,
   CAPTURE_COMPILE_WALK_TO, WORLD_ROOT_SELECTOR, WORLD_HIDE_SELECTORS,
@@ -49,7 +49,7 @@ export async function renderWorldFrames(html, specs, {
 
   let browser = null;
   try {
-    browser = await puppeteer.launch({
+    browser = await launchChromium({
       executablePath,
       headless: true,
       args: CHROMIUM_WEBGL_ARGS,
@@ -147,7 +147,7 @@ export async function renderWorldTraversal(html, ticks, {
 
   let browser = null;
   try {
-    browser = await puppeteer.launch({
+    browser = await launchChromium({
       executablePath,
       headless: true,
       args: CHROMIUM_WEBGL_ARGS,
@@ -232,7 +232,7 @@ export async function compileWorldWaypoints(html, waypoints, {
   const executablePath = await resolveChromium();
   let browser = null;
   try {
-    browser = await puppeteer.launch({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs });
+    browser = await launchChromium({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs });
     const page = await browser.newPage();
     await page.setViewport({ width: 320, height: 240 });   // compile pass renders tiny — probes, not pictures
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: timeoutMs });

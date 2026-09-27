@@ -22,6 +22,10 @@
  * fails the gate and we surface an actionable error pointing at `brew install`
  * and the $MOJULO_CHROMIUM override.
  *
+ * Sandbox: Chromium keeps its own sandbox (the pages are agent-generated HTML).
+ * Only Linux ever drops it, and only after a sandboxed launch has failed; see
+ * launchChromium.
+ *
  * CONTROL-PLANE concern only. The Debian-slim / glibc bot-image rules in CLAUDE.md
  * govern the bot image, not this path; the control plane is single-user/self-hosted.
  */
@@ -39,7 +43,8 @@ import { chromiumFetchAllowed, recordChromiumFetch } from '@/lib/graph/scene/chr
 // Override with $MOJULO_CHROMIUM_BUILD if this pin ever goes stale.
 const CHROME_BUILD = process.env.MOJULO_CHROMIUM_BUILD || '131.0.6778.204';
 
-const LAUNCH_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'];
+// No --no-sandbox here: launchChromium adds it on Linux only, as a fallback.
+const LAUNCH_ARGS = ['--disable-gpu'];
 
 // WebGL launch args for the navigable three.js World (scene-three.js → /world).
 // The default LAUNCH_ARGS pass `--disable-gpu`, which is correct for the CSS-3D
@@ -50,13 +55,14 @@ const LAUNCH_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'
 // otherwise gate it; `--ignore-gpu-blocklist` keeps a blocklisted host from
 // silently falling back to no-GL.
 const WEBGL_LAUNCH_ARGS = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
   '--use-gl=angle',
   '--use-angle=swiftshader',
   '--enable-unsafe-swiftshader',
   '--ignore-gpu-blocklist',
 ];
+
+// The Linux fallback when Chromium's sandbox cannot start (see launchChromium).
+const NO_SANDBOX_ARGS = ['--no-sandbox', '--disable-setuid-sandbox'];
 
 /**
  * Where the fetched browser is cached: $MOJULO_HOME/chromium under the bins
@@ -119,11 +125,50 @@ function chromiumUnavailable() {
   return err;
 }
 
+// Set once a sandboxed launch has failed on this Linux host; later launches go
+// straight to the fallback instead of failing first every time.
+let linuxSandboxUnavailable = false;
+
+/**
+ * puppeteer.launch with Chromium's sandbox on. macOS and Windows always launch
+ * sandboxed. A Linux container or CI runner often lacks the unprivileged user
+ * namespaces the sandbox needs (or runs as root, which Chrome refuses to
+ * sandbox), so there a failed sandboxed launch is retried once with
+ * --no-sandbox, the fallback is logged to stderr, and later launches reuse it.
+ *
+ * @param {object} opts  puppeteer.launch options; `args` defaults to the CSS-3D/SVG bake args
+ * @param {object} [seams]  tests only: { platform, launch }
+ */
+export async function launchChromium(opts = {}, { platform = process.platform, launch = (o) => puppeteer.launch(o) } = {}) {
+  const sandboxed = { headless: true, ...opts, args: opts.args || LAUNCH_ARGS };
+  if (platform !== 'linux') return launch(sandboxed);
+  const unsandboxed = { ...sandboxed, args: [...NO_SANDBOX_ARGS, ...sandboxed.args] };
+  if (linuxSandboxUnavailable) return launch(unsandboxed);
+  try {
+    return await launch(sandboxed);
+  } catch (err) {
+    let browser;
+    try {
+      browser = await launch(unsandboxed);
+    } catch {
+      throw err; // fails either way, so not a sandbox problem: report the sandboxed attempt
+    }
+    linuxSandboxUnavailable = true;
+    const why = String(err?.message || err).split('\n')[0].slice(0, 200);
+    console.error(
+      `[mojulo] Chromium would not start with its sandbox on this Linux host (${why}). `
+        + 'Running it with --no-sandbox for the rest of this process; containers and CI runners '
+        + 'often lack the user namespaces the sandbox needs.',
+    );
+    return browser;
+  }
+}
+
 /** Resolve true if `executablePath` launches headless and closes cleanly. */
 async function probe(executablePath) {
   let browser = null;
   try {
-    browser = await puppeteer.launch({ executablePath, headless: true, args: LAUNCH_ARGS });
+    browser = await launchChromium({ executablePath, args: LAUNCH_ARGS });
     return true;
   } catch {
     return false;
@@ -165,7 +210,7 @@ let cachedExecutable = null;
  * @param {object} [opts]
  * @param {boolean} [opts.allowFetch] true/false to decide here; omitted, the fetch is
  *   allowed only inside withChromiumFetch (chromium-consent.js)
- * @returns {Promise<string>} an executable path suitable for puppeteer.launch()
+ * @returns {Promise<string>} an executable path suitable for launchChromium()
  */
 export async function resolveChromium({ allowFetch } = {}) {
   if (cachedExecutable) return cachedExecutable;
@@ -237,7 +282,8 @@ export const CHROMIUM_LAUNCH_ARGS = LAUNCH_ARGS;
 /** Launch args for baking the WebGL World — software GL via SwiftShader (see above). */
 export const CHROMIUM_WEBGL_ARGS = WEBGL_LAUNCH_ARGS;
 
-/** Reset the memoized resolution (tests). */
+/** Reset the memoized resolution and the Linux sandbox fallback (tests). */
 export function _resetChromiumCache() {
   cachedExecutable = null;
+  linuxSandboxUnavailable = false;
 }

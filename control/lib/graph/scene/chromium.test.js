@@ -1,7 +1,9 @@
 // The Chrome for Testing download (~500 MB) happens only with consent: inside
 // withChromiumFetch, which the explicit render entry points use. The mint-time
-// warm and the gallery never start it. No browser is launched and nothing is
-// fetched here: puppeteer, @puppeteer/browsers and the probed paths are stubs.
+// warm and the gallery never start it. Chromium keeps its sandbox; only Linux
+// falls back to --no-sandbox, after a sandboxed launch failed. No browser is
+// launched and nothing is fetched here: puppeteer, @puppeteer/browsers and the
+// probed paths are stubs.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,7 +39,9 @@ vi.mock('@/lib/mcp/packs', () => ({ installedGroups: () => new Set(['creative'])
 vi.mock('@/lib/graph/sketch/sketch-png', () => ({ rasterizeSketchToPng: (...a) => h.rasterize(...a) }));
 vi.mock('@/lib/graph/sketch/turntable-bake', () => ({ bakeTurntableStrip: (...a) => h.bakeStrip(...a) }));
 
-const { resolveChromium, _resetChromiumCache } = await import('@/lib/graph/scene/chromium');
+const {
+  resolveChromium, launchChromium, _resetChromiumCache, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS,
+} = await import('@/lib/graph/scene/chromium');
 const { withChromiumFetch, withoutChromiumFetch } = await import('@/lib/graph/scene/chromium-consent');
 const { bakeWarm } = await import('@/lib/graph/scene/scene-png-warm');
 
@@ -142,5 +146,59 @@ describe('mint-time warm', () => {
     expect(h.rasterize).toHaveBeenCalledTimes(1);
     expect(h.bakeStrip).toHaveBeenCalledTimes(1);
     expect(h.install).not.toHaveBeenCalled();
+  });
+});
+
+describe('launchChromium — sandbox', () => {
+  const browser = { close: async () => {} };
+
+  it('never passes --no-sandbox by default', () => {
+    for (const args of [CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS]) {
+      expect(args).not.toContain('--no-sandbox');
+      expect(args).not.toContain('--disable-setuid-sandbox');
+    }
+  });
+
+  it.each(['darwin', 'win32'])('%s launches sandboxed and never retries without it', async (platform) => {
+    const launch = vi.fn(async () => { throw new Error('launch failed'); });
+    await expect(launchChromium({ executablePath: '/x', args: CHROMIUM_WEBGL_ARGS }, { platform, launch }))
+      .rejects.toThrow('launch failed');
+    expect(launch).toHaveBeenCalledTimes(1);
+    expect(launch.mock.calls[0][0].args).not.toContain('--no-sandbox');
+  });
+
+  it('linux tries the sandbox first and keeps it when it starts', async () => {
+    const launch = vi.fn(async () => browser);
+    await launchChromium({ executablePath: '/x' }, { platform: 'linux', launch });
+    expect(launch).toHaveBeenCalledTimes(1);
+    expect(launch.mock.calls[0][0].args).toEqual(CHROMIUM_LAUNCH_ARGS);
+  });
+
+  it('linux retries once with --no-sandbox when the sandbox cannot start, says so, and remembers', async () => {
+    const launch = vi.fn(async (opts) => {
+      if (!opts.args.includes('--no-sandbox')) throw new Error('No usable sandbox! Update your kernel\nmore log');
+      return browser;
+    });
+    await expect(launchChromium({ executablePath: '/x', args: CHROMIUM_WEBGL_ARGS }, { platform: 'linux', launch }))
+      .resolves.toBe(browser);
+    expect(launch).toHaveBeenCalledTimes(2);
+    expect(launch.mock.calls[1][0].args).toEqual(['--no-sandbox', '--disable-setuid-sandbox', ...CHROMIUM_WEBGL_ARGS]);
+    expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/No usable sandbox!.*--no-sandbox/));
+
+    // The host fact is remembered: the next launch goes straight to the fallback.
+    await launchChromium({ executablePath: '/x' }, { platform: 'linux', launch });
+    expect(launch).toHaveBeenCalledTimes(3);
+    expect(launch.mock.calls[2][0].args[0]).toBe('--no-sandbox');
+  });
+
+  it('linux reports the sandboxed failure when the retry fails too', async () => {
+    const launch = vi.fn(async (opts) => {
+      throw new Error(opts.args.includes('--no-sandbox') ? 'still broken' : 'missing libnss3');
+    });
+    await expect(launchChromium({ executablePath: '/x' }, { platform: 'linux', launch })).rejects.toThrow('missing libnss3');
+    // Not a sandbox problem, so nothing is remembered.
+    launch.mockClear();
+    await expect(launchChromium({ executablePath: '/x' }, { platform: 'linux', launch })).rejects.toThrow('missing libnss3');
+    expect(launch.mock.calls[0][0].args).not.toContain('--no-sandbox');
   });
 });

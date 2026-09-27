@@ -11,7 +11,7 @@
 
 import puppeteer from 'puppeteer-core';
 
-import { resolveChromium, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
+import { resolveChromium, launchChromium, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
 
 // The scene emitters wrap their canvas in one of these (`.viewport` for the
 // preserve-3d scene/city/hub, `.stage` for the solid turntable). Screenshotting
@@ -43,7 +43,7 @@ export async function renderSceneToPng(html, { deviceScaleFactor = 2, settleMs =
 
   let browser = null;
   try {
-    browser = await puppeteer.launch({
+    browser = await launchChromium({
       executablePath,
       headless: true,
       args: CHROMIUM_LAUNCH_ARGS,
@@ -130,7 +130,7 @@ export async function renderWorldToPng(html, {
 
   let browser = null;
   try {
-    browser = await puppeteer.launch({
+    browser = await launchChromium({
       executablePath,
       headless: true,
       args: CHROMIUM_WEBGL_ARGS,

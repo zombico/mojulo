@@ -34,6 +34,11 @@ loops and the recipe format are unchanged.
   logged to stderr. The resolve order is unchanged (`MOJULO_CHROMIUM`, the cached build, an
   installed Chrome / Chromium / Edge / Brave, then the download). Without a browser, the inline PNG
   route answers 503 naming the fix.
+- **Headless Chromium keeps its sandbox.** Every bake used to launch the browser (including an
+  installed Chrome, Edge or Brave) with `--no-sandbox`. macOS and Windows now always launch it
+  sandboxed. On Linux mojulo tries the sandbox first and falls back to `--no-sandbox` only when the
+  sandboxed launch fails (containers and CI runners without user namespaces, or root), logging the
+  fallback to stderr once per process.
 
 ### Canal city
 
