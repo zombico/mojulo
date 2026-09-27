@@ -795,6 +795,9 @@ const LANDMARK_FOOTPRINT = {
   liberty: { frac: 0.24, aspect: 1.0 },
   'rizal-monument': { frac: 0.28, aspect: 1.1 }, // hexagonal granite base + centred obelisk, bronze figure in the front gap
   rizal: { frac: 0.28, aspect: 1.1 },
+  'tian-tan-buddha': { frac: 0.30, aspect: 1.0 }, // round three-tier altar with its front stair, the seated Buddha on top
+  'big-buddha': { frac: 0.30, aspect: 1.0 },
+  'tian-tan': { frac: 0.30, aspect: 1.0 },
 };
 
 // METRO LANDMARKS at their real size (metres). `h` is the overall height (tip, mast or finial); `long`
@@ -830,8 +833,9 @@ const LANDMARK_REAL = {
   'cloud-gate': { h: 10, long: 20 },
   'statue-of-liberty': { h: 93 },
   'rizal-monument': { h: 12.7 },
+  'tian-tan-buddha': { h: 44 },                  // the 34 m statue on its lotus (0.715 of the builder's height) over the altar
 };
-const LANDMARK_REAL_ALIAS = { skydome: 'rogers-centre', eiffel: 'eiffel-tower', tokyo: 'tokyo-tower', 'empire-state': 'empire-state-building', empire: 'empire-state-building', gateway: 'gateway-arch', 'chicago-bean': 'cloud-gate', bean: 'cloud-gate', liberty: 'statue-of-liberty', rizal: 'rizal-monument' };
+const LANDMARK_REAL_ALIAS = { skydome: 'rogers-centre', eiffel: 'eiffel-tower', tokyo: 'tokyo-tower', 'empire-state': 'empire-state-building', empire: 'empire-state-building', gateway: 'gateway-arch', 'chicago-bean': 'cloud-gate', bean: 'cloud-gate', liberty: 'statue-of-liberty', rizal: 'rizal-monument', 'big-buddha': 'tian-tan-buddha', 'tian-tan': 'tian-tan-buddha' };
 // a metro landmark's short side (u) at its real size; null for a shape with no real entry
 function metroLandmarkBase(shape) {
   const real = LANDMARK_REAL[LANDMARK_REAL_ALIAS[shape] || shape];
@@ -3890,6 +3894,10 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // METRO SKINS (no rng): every mass's material and colours, stamped before the prune so a massing
   // box keeps them, and so every stream tile cuts the same skins.
   const skins = profile === 'metro' ? metroSkins(boxes, metroField, seed, FL) : null;
+  // METRO LANDMARKS (no rng): a monument takes its refacade builder (landmarks/refacade.js), as the
+  // re-tagged church / mosque / temple / rotunda already does through its metro mass. After the
+  // skins, so a monument never wears one.
+  if (profile === 'metro') for (const b of boxes) if (b.class === 'landmark') b.metro = true;
   // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
   // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
   const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });
