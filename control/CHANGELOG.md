@@ -59,6 +59,14 @@ loops and the recipe format are unchanged.
   full-detail radius at 80 units and the cache at 160 (`streamSizing`). The tile route uses the
   recipe's own size. A camera standing low (under 4 units) now gathers full-detail tiles around
   itself rather than its far orbit target, so the street it stands on is the part at full detail.
+- **Metro buildings wear a downtown's materials.** The stock facade draw is light glass (sage, sky
+  blue, lilac), and at metro heights almost every mass drew it, down to the roofs and the streamed
+  massing horizon. A metro mass now carries a `skin`: dark low-chroma curtainwall, limestone or
+  precast with dark windows, or dull brick up to walk-up height, with a grey roof. The material
+  follows a district of about two blocks, biased to glass at the core and masonry toward the edge.
+  The skin is stamped after planning, off its own hash, so no mass moves. A massing box takes its
+  facade's average colour, so the horizon matches the full-detail blocks. The stock city is
+  unchanged.
 
 ### Furniture audit
 

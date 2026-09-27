@@ -21,7 +21,7 @@
  * differently from one shared card.
  */
 
-import { scaleHex, litFactor } from '../polygonizer/vexar.js';
+import { scaleHex, litFactor, hexToRgb, rgbToHex } from '../polygonizer/vexar.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -97,6 +97,22 @@ const SHIRT_GAP = {
   pier:    { fu: 0.40, fv: 0.12, us: 1, vs: 2 },   // dominant pilasters
   punched: { fu: 0.30, fv: 0.30, us: 1, vs: 1 },   // discrete windows in more wall
 };
+
+// The colour a facade reads as from far off: its body sheet and its proud structure mixed, in
+// linear light, by the share of wall the realizer covers with structure (SHIRT_GAP for glass;
+// the brick finband's fins × spandrels × piers cover about 69 %). A massing box paints this, so
+// the fidelity prune and the stream horizon match the full-detail skin they stand in for.
+const FINBAND_SHARE = 0.69;
+const toLin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const toSrgb = (l) => 255 * (l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055);
+export function facadeReadHex(facade) {
+  const brick = facade.material === 'brick';
+  const g = SHIRT_GAP[facade.rhythm] || SHIRT_GAP.grid;
+  const share = brick ? FINBAND_SHARE : 1 - (1 - g.fu / g.us) * (1 - g.fv / g.vs);
+  const body = hexToRgb(brick ? BRICK_WINDOW : scaleHex(facade.glass, facade.glassVar ?? 1));
+  const bar = hexToRgb(brick ? facade.glass : facade.frame);
+  return rgbToHex(body.map((v, i) => toSrgb(toLin(v) + (toLin(bar[i]) - toLin(v)) * share)));
+}
 
 // Planar wall basis from a quad: origin + unit width/height axes + outward normal.
 function wallBasis(corners) {

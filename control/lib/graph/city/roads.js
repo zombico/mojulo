@@ -99,7 +99,7 @@ export function roadRibbons({ path, width = 2.4, lift = 0, deck = 0.4, laneLine 
 }
 
 /** Convenience: a straight ground street (lanes:2 → a 2-lane main with lane markings). */
-export const groundStreet = (a, b, opts = {}) => roadRibbons({ path: straightPath(a, b, opts.n || 4), width: opts.width || 1.6, lift: 0, laneLine: opts.laneLine ?? false, edgeLines: opts.edgeLines ?? false, lanes: opts.lanes || 1, asphalt: opts.asphalt || '#3a414b', bikeLanes: opts.bikeLanes || null });
+export const groundStreet = (a, b, opts = {}) => roadRibbons({ path: straightPath(a, b, opts.n || 4), width: opts.width || 1.6, lift: 0, laneLine: opts.laneLine ?? false, edgeLines: opts.edgeLines ?? false, lanes: opts.lanes || 1, asphalt: opts.asphalt || '#3a414b', bikeLanes: opts.bikeLanes || null, surface: opts.surface });
 
 /**
  * Airfield pavement — a DEDICATED airport surface primitive, deliberately NOT the urban

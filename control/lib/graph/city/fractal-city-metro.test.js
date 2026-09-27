@@ -7,6 +7,10 @@ vi.setConfig({ testTimeout: 120000 });
 
 import { planFractalCity, assembleFractalCityScene, cityScaleCensus, fractalCityCameras, metroAtmosphere, FRACTAL_CAMERAS, METRO, CITY_METERS_PER_UNIT } from './fractal-city.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
+import { assembleBoxCityScene } from '../scene/scene-css3d.js';
+import { facadeReadHex } from '../architecture/facade-card.js';
+import { surfaceTexture } from '../landscape/surface-textures.js';
+import { hexToRgb } from '../polygonizer/vexar.js';
 
 const FRAME = { x: 2, y: 2, w: 220, d: 140 };
 const metro = (seed, extra = {}) => planFractalCity({ seed, profile: 'metro', anchor: 'tower', region: FRAME, elements: { frontage: true }, ...extra });
@@ -137,5 +141,76 @@ describe('metro profile: atmosphere and kerb lamps', () => {
     const poles = p.boxes.filter((b) => b.kind === 'street-lamp' && b.z0 === 0);
     const masses = p.boxes.filter((b) => MASS.has(b.kind));
     for (const pole of poles) expect(masses.some((m) => overlap(m, pole))).toBe(false);
+  });
+});
+
+// colour: real facades are low in chroma, glass is the darkest of them (solar albedo 0.08 against
+// 0.1–0.4 for concrete, stone and brick), and the material follows a district, glass at the core
+const lum = (hex) => { const [r, g, b] = hexToRgb(hex).map((v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const chroma = (hex) => { const c = hexToRgb(hex).map((v) => v / 255); return Math.max(...c) - Math.min(...c); };
+const skinnable = (p) => p.boxes.filter((b) => b.metro && ['building', 'anchor', 'midtower'].includes(b.kind));
+describe('metro profile: materials', () => {
+  it('every metro mass wears a skin; the stock city wears none', () => {
+    for (const p of PLANS) {
+      const masses = skinnable(p);
+      expect(masses.length).toBeGreaterThan(100);
+      for (const b of masses) {
+        expect(['glass', 'stone', 'brick']).toContain(b.skin.material);
+        for (const k of ['glass', 'frame', 'roof']) expect(b.skin[k]).toMatch(/^#[0-9a-f]{6}$/);
+      }
+      const { glass, stone, brick } = p.stats.skins;
+      expect(glass + stone + brick).toBe(masses.length);
+      expect(Math.min(glass, stone, brick)).toBeGreaterThan(0);
+    }
+    expect(planFractalCity({ seed: 7, anchor: 'tower' }).boxes.some((b) => b.skin)).toBe(false);
+  });
+  it('skins are low in chroma, and glass is darker than the masonry around it', () => {
+    const skins = PLANS.flatMap((p) => skinnable(p).map((b) => b.skin));
+    const colours = skins.flatMap((k) => [k.glass, k.frame, k.roof]);
+    for (const c of colours) expect(chroma(c)).toBeLessThan(0.25);                         // brick is the most chromatic, ≈ 0.2
+    expect(colours.reduce((a, c) => a + chroma(c), 0) / colours.length).toBeLessThan(0.08);
+    for (const k of skins.filter((k) => k.material === 'stone')) expect(lum(k.glass)).toBeLessThan(lum(k.frame));
+    const mean = (xs) => xs.reduce((a, x) => a + x, 0) / xs.length;
+    expect(mean(skins.filter((k) => k.material === 'glass').map((k) => lum(k.glass))))
+      .toBeLessThan(mean(skins.filter((k) => k.material === 'stone').map((k) => lum(k.frame))) / 2.5);
+  });
+  it('glass gathers at the core and masonry toward the edge; towers are never brick, brick stays walk-up height', () => {
+    for (const p of PLANS) {
+      const masses = skinnable(p), r = (b) => Math.hypot(b.x + b.w / 2 - p.core.cx, b.y + b.d / 2 - p.core.cy);
+      const sorted = [...masses].sort((a, b) => r(a) - r(b)), q = Math.floor(sorted.length / 4);
+      const glassShare = (xs) => xs.filter((b) => b.skin.material === 'glass').length / xs.length;
+      expect(glassShare(sorted.slice(0, q))).toBeGreaterThan(glassShare(sorted.slice(-q)));
+      for (const b of masses) {
+        if (b.tower || b.kind === 'anchor') expect(b.skin.material).not.toBe('brick');
+        if (b.skin.material === 'brick') expect(b.z1 - b.z0).toBeLessThanOrEqual(14);
+      }
+    }
+  });
+  it('skinning moves nothing: the massing prune keeps each skin, and a seed always skins the same', () => {
+    const full = new Map(skinnable(PLANS[1]).map((b) => [`${b.x},${b.y},${b.z1}`, b.skin]));
+    const massing = skinnable(metro(7, { fidelity: 'massing' }));
+    expect(massing.length).toBe(full.size);
+    for (const b of massing) expect(b.skin).toEqual(full.get(`${b.x},${b.y},${b.z1}`));
+  });
+  it('a massing box paints its facade\'s average and its own roof', () => {
+    const stone = { material: 'stone', glass: '#3f4952', frame: '#c4bfb4', rhythm: 'punched' };
+    const read = facadeReadHex(stone);
+    expect(lum(read)).toBeGreaterThan(lum(stone.glass));
+    expect(lum(read)).toBeLessThan(lum(stone.frame));
+    const brick = facadeReadHex({ material: 'brick', glass: '#835d50', frame: '#cfc6b6', rhythm: 'grid' });
+    expect(Math.abs(lum(brick) - lum('#835d50'))).toBeLessThan(Math.abs(lum(brick) - lum('#2a2f36')));
+    const box = { kind: 'building', lod: 'mass', x: 0, y: 0, w: 4, d: 4, z0: 0, z1: 10 };
+    const plain = assembleBoxCityScene({ boxes: [box] }).faces, skinned = assembleBoxCityScene({ boxes: [{ ...box, skin: { ...stone, roof: '#9e9c96' } }] }).faces;
+    const top = (fs) => fs.find((f) => f.corners.every((c) => c[2] === 10));
+    const [r, g, b] = hexToRgb(top(skinned).fill);
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThanOrEqual(8);   // a grey roof, not darkened glass
+    expect(skinned.map((f) => f.fill)).not.toEqual(plain.map((f) => f.fill));
+  });
+  it('metro streets run on aged asphalt; the stock streets keep the charcoal', () => {
+    const textured = (p) => p.ribbons.filter((rb) => rb.texture).map((rb) => rb.texture);
+    expect(new Set(textured(PLANS[1]))).toEqual(new Set(['asphalt-aged']));
+    expect(textured(planFractalCity({ seed: 7, anchor: 'tower' }))).not.toContain('asphalt-aged');
+    expect(surfaceTexture('asphalt-aged')).toMatch(/^data:image\/png;base64,/);
+    expect(surfaceTexture('asphalt-aged')).not.toBe(surfaceTexture('asphalt'));
   });
 });

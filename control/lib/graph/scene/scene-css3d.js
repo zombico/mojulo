@@ -33,7 +33,7 @@ import { getFurnitureNet, getFurnitureFaceCard } from '../polygonizer/furniture-
 import { bakeDiffusion3d, applyDiffusion, bakeDiffusionField, applyDiffusionSoft, emissiveFixture } from '../effects/light-diffusion-3d.js';
 import { bakeAmbientOcclusion } from '../effects/ao-bake.js';
 import { makeFacade, facadeCss, facadeHtml, facadeFloors, facadeBays, buildingExtras, faceFrame } from '../architecture/building-facade.js';
-import { buildFacadeCard } from '../architecture/facade-card.js';
+import { buildFacadeCard, facadeReadHex } from '../architecture/facade-card.js';
 import { buildTerrainWorldMesh } from '../polygonizer/painted-landscape.js';
 import { skyCss } from './sky-css.js';
 import { safeJson, escapeHtml } from './emit-util.js';
@@ -1433,6 +1433,14 @@ function dressGarage(faces, b, L) {
   for (let i = 1; i < 4; i++) { const z = b.z0 + (i / 4) * dh; panel(cx - dw / 2, cx + dw / 2, z - 0.008, z + 0.008, 0.008, '#b6b0a2'); }   // sectional grooves
 }
 
+// a metro mass's SKIN (fractal-city metroSkins): the district's material and colours laid over the
+// hashed facade, which keeps its program, balconies and crown. Only a brick wall carries a fire escape.
+function wearSkin(facade, skin) {
+  return { ...facade, ...skin, ...(skin.material === 'brick' ? {} : { fireEscape: false }) };
+}
+// a roof: the skin's own roof when it has one, else the facade glass darkened by k (the stock read)
+const roofOf = (facade, k) => facade.roof || scaleHex(facade.glass, k);
+
 // a box: top (shaded, up) + 4 sides (single-sided, natural winding so backface-cull
 // shows only camera-facing sides; local x=width, local y=up → facade grid lands right)
 function cityBox(r, z0, z1, { top, side, glass, facade, floors, bays }, L, camHint) {
@@ -1467,7 +1475,7 @@ function cylinderBuilding(b, facade, floors, L, camHint) {
   }
   const capPts = Array.from({ length: N }, (_, i) => { const a = (i / N) * 2 * Math.PI; return `${(50 + 50 * Math.cos(a)).toFixed(1)}% ${(50 + 50 * Math.sin(a)).toFixed(1)}%`; }).join(', ');
   const cap = [[cx - r, cy - r, b.z1], [cx + r, cy - r, b.z1], [cx + r, cy + r, b.z1], [cx - r, cy + r, b.z1]];
-  faces.push({ corners: windToward(cap, [cx, cy, 1e4]), fill: scaleHex(facade.glass, 0.62), clip: `polygon(${capPts})` });
+  faces.push({ corners: windToward(cap, [cx, cy, 1e4]), fill: facade.roof ? scaleHex(facade.roof, litFactor([0, 0, 1], L)) : scaleHex(facade.glass, 0.62), clip: `polygon(${capPts})` });
   return faces;
 }
 // a setback (stepped) skyscraper: stacked boxes with decreasing footprint
@@ -1476,7 +1484,7 @@ function setbackBuilding(b, facade, L, camHint) {
   let z = b.z0, x = b.x, y = b.y, w = b.w, d = b.d;
   for (let t = 0; t < 3; t++) {
     const th = h * hf[t], fl = Math.max(2, Math.round(th / facade.floorH)), by = Math.max(2, Math.round(w / facade.bayW));
-    faces.push(...cityBox({ x, y, w, d }, z, z + th, { facade, floors: fl, bays: by, top: scaleHex(facade.glass, 0.62) }, L, camHint));
+    faces.push(...cityBox({ x, y, w, d }, z, z + th, { facade, floors: fl, bays: by, top: roofOf(facade, 0.62) }, L, camHint));
     z += th;
     if (t < 2) { const ins = Math.min(w, d) * 0.18; x += ins / 2; y += ins / 2; w -= ins; d -= ins; }
   }
@@ -1490,10 +1498,10 @@ function podiumBuilding(b, facade, L, camHint) {
   const h = b.z1 - b.z0, faces = [];
   const baseH = Math.max(facade.floorH * 1.6, Math.min(h * 0.30, facade.floorH * 3));
   faces.push(...cityBox({ x: b.x, y: b.y, w: b.w, d: b.d }, b.z0, b.z0 + baseH,
-    { facade, floors: Math.max(2, Math.round(baseH / facade.floorH)), bays: Math.max(2, Math.round(b.w / facade.bayW)), top: scaleHex(facade.glass, 0.5) }, L, camHint));
+    { facade, floors: Math.max(2, Math.round(baseH / facade.floorH)), bays: Math.max(2, Math.round(b.w / facade.bayW)), top: roofOf(facade, 0.5) }, L, camHint));
   const iw = b.w * 0.28, id = b.d * 0.34, tw = b.w - iw, td = b.d - id;
   faces.push(...cityBox({ x: b.x + iw / 2, y: b.y + id / 2, w: tw, d: td }, b.z0 + baseH, b.z1,
-    { facade, floors: Math.max(3, Math.round((h - baseH) / facade.floorH)), bays: Math.max(2, Math.round(tw / facade.bayW)), top: scaleHex(facade.glass, 0.62) }, L, camHint));
+    { facade, floors: Math.max(3, Math.round((h - baseH) / facade.floorH)), bays: Math.max(2, Math.round(tw / facade.bayW)), top: roofOf(facade, 0.62) }, L, camHint));
   return faces;
 }
 
@@ -1509,10 +1517,10 @@ function complexBuilding(b, facade, L, camHint) {
   const baseH = Math.max(facade.floorH * 1.7, Math.min(h * 0.30, facade.floorH * 3));
   const fl = (hh) => Math.max(2, Math.round(hh / facade.floorH));
   const by = (ww) => Math.max(2, Math.round(ww / facade.bayW));
-  const podium = (r, z0, z1) => cityBox(r, z0, z1, { facade, floors: fl(z1 - z0), bays: by(Math.max(r.w, r.d)), top: scaleHex(facade.glass, 0.46) }, L, camHint);
+  const podium = (r, z0, z1) => cityBox(r, z0, z1, { facade, floors: fl(z1 - z0), bays: by(Math.max(r.w, r.d)), top: roofOf(facade, 0.46) }, L, camHint);
   const tower = (r, z0, z1) => (cyl
     ? cylinderBuilding({ ...r, z0, z1 }, facade, fl(z1 - z0), L, camHint)
-    : cityBox(r, z0, z1, { facade, floors: fl(z1 - z0), bays: by(Math.min(r.w, r.d)), top: scaleHex(facade.glass, 0.62) }, L, camHint));
+    : cityBox(r, z0, z1, { facade, floors: fl(z1 - z0), bays: by(Math.min(r.w, r.d)), top: roofOf(facade, 0.62) }, L, camHint));
 
   if (r1 < 0.5) {
     // ABOVE — long retail podium (full footprint) + a point condo tower on one end
@@ -2370,6 +2378,13 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
     // fidelity prune (fractal-city `massing` / `skyline`): a mass flagged `lod:'mass'` is a plain
     // tinted extrusion — no facade, roof, curtainwall or rooftop kit. Only the prune sets the flag,
     // so every full-fidelity box takes the branches below exactly as before.
+    if (b.lod === 'mass' && b.skin) {
+      // a skinned (metro) mass reads as its facade's average and its own roof, so the massing
+      // horizon is the same city as the full-detail blocks around the camera
+      const skinned = wearSkin(makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : b.program }), b.skin);
+      faces.push(...cityBox(r, b.z0, b.z1, { top: b.skin.roof, side: facadeReadHex(skinned) }, L, camHint));
+      continue;
+    }
     if (b.lod === 'mass') {
       // the mass keeps the colour its full-fidelity skin would have had: a house / merged row its
       // cladding tint, a townhouse unit its facade glass, a building / tower the glass of the SAME
@@ -2423,14 +2438,15 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const facade0 = b.facade || makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : b.program });
       // a metro mass carries its own floor height + count (whole floors off the city's height field),
       // so its floor bands read at 3.1 / 3.9 m and a two-storey shop is not drawn as three floors
-      const facade = b.floorH ? { ...facade0, floorH: b.floorH } : facade0;
+      const facade1 = b.floorH ? { ...facade0, floorH: b.floorH } : facade0;
+      const facade = b.skin ? wearSkin(facade1, b.skin) : facade1;
       const floors = b.floors || facadeFloors(facade, b.z1 - b.z0);
       const bays = facadeBays(facade, b.w);
       if (b.shape === 'cylinder') faces.push(...cylinderBuilding(b, facade, floors, L, camHint));
       else if (b.shape === 'setback') faces.push(...setbackBuilding(b, facade, L, camHint));
       else if (b.shape === 'podium') faces.push(...podiumBuilding(b, facade, L, camHint));
       else if (b.shape === 'complex') faces.push(...complexBuilding(b, facade, L, camHint));
-      else faces.push(...cityBox(r, b.z0, b.z1, { facade, floors, bays, top: scaleHex(facade.glass, 0.62) }, L, camHint));
+      else faces.push(...cityBox(r, b.z0, b.z1, { facade, floors, bays, top: roofOf(facade, 0.62) }, L, camHint));
       // 3D ornaments: protruding balconies/awning/rooftop boxes + printed signage decals
       // (cylinders + podiums skip the +y-face balconies/escapes — the inset tower would
       // float them off the facade — keeping rooftop kit, which centres over the tower)

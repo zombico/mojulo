@@ -1310,10 +1310,10 @@ function freewayAnchor(region, rng) {
 // (LOT) so nothing else lands on it, and it never spawns as a leak-fill over the anchor.
 // Asphalt pad + stripes; cars are deferred as INTENTS (emitted in a final grid-checked
 // pass) so a car can never end up parked under a tower decided later in the recursion.
-function addParkingLot(grounds, c, rng, elements, grid, cars, sMax = 0.82) {
+function addParkingLot(grounds, c, rng, elements, grid, cars, sMax = 0.82, pave = '#43474d') {
   if (!elements.parkingLots) return;
   stampRect(grid, c, CLAIM.LOT, [CLAIM.EMPTY, CLAIM.VERGE]);
-  grounds.push({ kind: 'lot-asphalt', x: c.x, y: c.y, w: c.w, d: c.d, z: 0.03, fill: '#43474d' });
+  grounds.push({ kind: 'lot-asphalt', x: c.x, y: c.y, w: c.w, d: c.d, z: 0.03, fill: pave });
   for (let i = 1; i < 4; i++) { const sx = c.x + c.w * (i / 4); grounds.push({ kind: 'lot-stripe', x: sx - 0.03, y: c.y + 0.15, w: 0.06, d: c.d - 0.3, z: 0.05, fill: '#c6c0ad' }); }
   if (elements.cars) {
     const s = Math.max(Math.min(0.45, sMax), Math.min(sMax, c.d * 0.26));   // fit the car to the stall depth (metro caps it at the real car size)
@@ -1974,6 +1974,65 @@ function metroKerbLamps(boxes, grid, roads, junctions) {
     }
   }
 }
+// METRO SKINS: the material and colours each metro mass wears, laid by scene-css3d over its hashed
+// facade (which keeps its program, balconies and crown). Real facades are low in chroma, and glass is
+// the darkest of them (solar albedo: glass 0.08, concrete / stone 0.1–0.35, brick 0.2–0.4); the glass
+// here sits a little lighter than that, standing in for the sky it would reflect. Pairs are
+// [glass, frame]: for curtainwall the panes and mullions, for stone the dark windows and the stone, for
+// brick the brick body and its trim (the facade's brick contract).
+const METRO_SKIN = {
+  district: 60,   // u: the lattice a material bias is drawn on, about two blocks
+  glass: [['#56636f', '#3a3f45'], ['#627180', '#9aa0a6'], ['#4b5560', '#2b2e32'], ['#6b7a88', '#c3c7ca'], ['#665c53', '#463d35'], ['#5d6c69', '#7c827f'], ['#707e8a', '#5d646b']],
+  stone: [['#3f4952', '#c4bfb4'], ['#444c55', '#b2aea6'], ['#3b434b', '#a7a8a5'], ['#475260', '#c3b9a6'], ['#40474e', '#8f8c87'], ['#4a5561', '#d0cdc5']],
+  brick: [['#835d50', '#cfc6b6'], ['#8d6454', '#d5ccbc'], ['#74584e', '#bdb4a6'], ['#9b8170', '#d8d0c1'], ['#6a5149', '#b9afa1'], ['#a8927c', '#ddd6c8'], ['#7a6b62', '#c9c1b3']],
+  roof: ['#9e9c96', '#a8a59e', '#86837c', '#6c6d6c', '#bdbcb6', '#8f918d'],
+  brickMax: 14,   // u: brick walk-ups and warehouses stay under about 15 floors
+  tilt: 3,        // a district triples its own material's weight: it clusters, but never outweighs the core gradient
+};
+// the metro ground: roads on the aged asphalt texture (the stock charcoal grain × a dark tint renders
+// near black), flat paving (crossings, lots) at that road's mean, and a dull lawn
+const METRO_GROUND = { asphalt: '#b9babb', surface: 'asphalt-aged', paving: '#5c5e60', lawn: '#56643f' };
+function metroSkinWeights(k, tilt = null) {
+  const w = { glass: 0.05 + 1.2 * k * k, stone: 0.3, brick: 0.5 * (1 - k) };   // glass at the core, masonry toward the edge
+  if (tilt) w[tilt] *= METRO_SKIN.tilt;
+  return w;
+}
+function drawSkinMaterial(u, w) {
+  const tot = w.glass + w.stone + w.brick;
+  return u * tot < w.glass ? 'glass' : u * tot < w.glass + w.stone ? 'stone' : 'brick';
+}
+// a district's bias (a material it tilts toward, and a home family per material) and each mass's own
+// draw come off their own hashes, not the plan rng, so skinning moves nothing and no other draw shifts
+function metroSkins(boxes, field, seed) {
+  const S = METRO_SKIN, districts = new Map(), counts = { glass: 0, stone: 0, brick: 0 };
+  const coreK = (x, y) => (field ? Math.exp(-Math.hypot(x - field.cx, y - field.cy) / field.lambda) : 0);
+  const district = (x, y) => {
+    const i = Math.floor(x / S.district), j = Math.floor(y / S.district), key = `${i},${j}`;
+    if (!districts.has(key)) {
+      const r = mulberry32((strHash(`${seed}|district|${key}`) ^ 0x5c1e7) >>> 0);
+      const material = drawSkinMaterial(r(), metroSkinWeights(coreK((i + 0.5) * S.district, (j + 0.5) * S.district)));
+      districts.set(key, { material, home: { glass: Math.floor(r() * S.glass.length), stone: Math.floor(r() * S.stone.length), brick: Math.floor(r() * S.brick.length) } });
+    }
+    return districts.get(key);
+  };
+  for (const b of boxes) {
+    if (!b.metro || b.facade || !['building', 'anchor', 'midtower'].includes(b.kind)) continue;
+    const cx = b.x + b.w / 2, cy = b.y + b.d / 2, h = b.z1 - b.z0, D = district(cx, cy);
+    const r = mulberry32((strHash(`${seed}|skin|${b.x.toFixed(2)},${b.y.toFixed(2)}`) ^ 0x51c1a) >>> 0);
+    let material = drawSkinMaterial(r(), metroSkinWeights(coreK(cx, cy), D.material));
+    if (b.tower || b.kind === 'anchor') material = r() < 0.85 ? 'glass' : 'stone';   // towers are curtainwall, the odd one masonry
+    if (material === 'brick' && h > S.brickMax) material = 'stone';
+    const fams = S[material], fam = fams[r() < 0.5 ? D.home[material] : Math.floor(r() * fams.length)];
+    const shade = 0.94 + r() * 0.12;
+    b.skin = {
+      material, glass: scaleHex(fam[0], shade), frame: scaleHex(fam[1], shade),
+      ...(material === 'stone' ? { rhythm: r() < 0.6 ? 'punched' : 'pier' } : {}),
+      roof: S.roof[Math.floor(r() * S.roof.length)],
+    };
+    counts[material]++;
+  }
+  return counts;
+}
 // shrink a leaf region off the right-of-way around it: each side steps in while its edge strip is
 // mostly sidewalk or carriageway (a side against the frame edge has none and stays put)
 const WAY_CLAIM = new Set([CLAIM.VERGE, CLAIM.ROAD]);
@@ -2067,13 +2126,13 @@ function fillMetroBlock(region, reserved, rng, boxes, grounds, faces, opts, grid
         const lot = strip.run === 'x' ? { x: t, y: strip.r.y, w: f, d: strip.r.d } : { x: strip.r.x, y: t, w: strip.r.w, d: f };
         t += f;
         if (lot.w < 0.7 || lot.d < 0.7 || !isBuildable(grid, lot)) continue;
-        if (!opts.elements.buildings || rng() > 0.86 + density * 0.14) { addParkingLot(grounds, lot, rng, opts.elements, grid, cars, METRO.car); continue; }   // a surface lot, as downtowns keep a few
+        if (!opts.elements.buildings || rng() > 0.86 + density * 0.14) { addParkingLot(grounds, lot, rng, opts.elements, grid, cars, METRO.car, METRO_GROUND.paving); continue; }   // a surface lot, as downtowns keep a few
         placeMetroMass(boxes, lot, metroLotHeight(lot, rng, opts), grid);
       }
     }
   }
   // the inner court: service parking or a planted yard (left EMPTY → the leftover layer greens it)
-  if (courtRect && !cuts.some((c) => rectsOverlap(courtRect, c)) && isBuildable(grid, courtRect) && rng() < 0.6) addParkingLot(grounds, courtRect, rng, opts.elements, grid, cars, METRO.car);
+  if (courtRect && !cuts.some((c) => rectsOverlap(courtRect, c)) && isBuildable(grid, courtRect) && rng() < 0.6) addParkingLot(grounds, courtRect, rng, opts.elements, grid, cars, METRO.car, METRO_GROUND.paving);
 }
 
 // ── townhouse rows ──────────────────────────────────────────────────────────────
@@ -2739,12 +2798,12 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
       // STOP at the curb (so lane lines don't cross through the box) + a plain
       // pavement patch in the box. Every span is clipped out of reserved
       // footprints, so the road never runs under the anchor/buildings.
-      const half = streetW / 2, opt = { width: streetW, laneLine: true, lanes: 2, bikeLanes };
+      const half = streetW / 2, opt = { width: streetW, laneLine: true, lanes: 2, bikeLanes, ...(metro ? { asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface } : {}) };
       // the junction PATCH is paving, so the whole square must clear reserved zones (propClear
       // tolerates PLAZA, and the patch can spill its half-width into a plaza even when its centre
       // sits just outside) — else a crossing beside a landmark/civic plaza paves into it.
       const patch = { x: vx - half, y: hy - half, w: streetW, d: streetW };
-      if (propClear(grid, vx, hy) && !reserved.some((r) => rectsOverlap(patch, r))) grounds.push({ kind: 'junction', ...patch, z: 0.045, fill: '#3a414b' });
+      if (propClear(grid, vx, hy) && !reserved.some((r) => rectsOverlap(patch, r))) grounds.push({ kind: 'junction', ...patch, z: 0.045, fill: metro ? METRO_GROUND.paving : '#3a414b' });
       pushStreet(ribbons, [vx, region.y], [vx, hy - half], opt, reserved);
       pushStreet(ribbons, [vx, hy + half], [vx, region.y + region.d], opt, reserved);
       pushStreet(ribbons, [region.x, hy], [vx - half, hy], opt, reserved);
@@ -2752,7 +2811,7 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
       if (opts.elements.cars && !opts.traffic) placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes, metro ? METRO.car : 0.9);   // moving cars (traffic) replace the static street ants
       if (bikeLanes && opts.elements.cyclists) placeBikeLaneCyclists(cars, vx, hy, region, streetW, metro ? 0.9 * METRO.figure : 0.9);
     } else {
-      const opt = { width: streetW, laneLine: false, lanes: 1, bikeLanes };
+      const opt = { width: streetW, laneLine: false, lanes: 1, bikeLanes, ...(metro ? { asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface } : {}) };
       pushStreet(ribbons, [vx, region.y], [vx, region.y + region.d], opt, reserved);
       pushStreet(ribbons, [region.x, hy], [region.x + region.w, hy], opt, reserved);
     }
@@ -3680,7 +3739,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const bigTags = new Set(bigLeftover.map((c) => c.tag));      // skip crumb-only tags
   for (const t of leftoverTiles) {
     if (!bigTags.has(t.tag)) continue;
-    grounds.push({ kind: `leftover-${t.tag}`, x: t.x, y: t.y, w: t.w, d: t.d, z: 0.022, fill: t.tag === 'pocket' ? '#3c5a3a' : '#54514a', leftover: t.tag });
+    grounds.push({ kind: `leftover-${t.tag}`, x: t.x, y: t.y, w: t.w, d: t.d, z: 0.022, fill: t.tag === 'pocket' ? (profile === 'metro' ? METRO_GROUND.lawn : '#3c5a3a') : '#54514a', leftover: t.tag });
   }
   // PARK DOODADS: bins / benches / playgrounds scattered onto the planted (pocket) green.
   // Runs AFTER the grass tiles are laid so claimed footprints never punch holes in the lawn.
@@ -3703,6 +3762,9 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   if (frontage) delete frontage.cuts;                          // the tiles are geometry, not a stat
   // AMBIENT-WALKER LOOPS with frontage on (see the note above): planned on the final grid, off the portal cuts
   if (frontage && walkers && full) walkerLoops = planCityWalkerLoops(grid, region, seed, walkers, boxes, portalCuts);
+  // METRO SKINS (no rng): every mass's material and colours, stamped before the prune so a massing
+  // box keeps them, and so every stream tile cuts the same skins.
+  const skins = profile === 'metro' ? metroSkins(boxes, metroField, seed) : null;
   // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
   // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
   const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });
@@ -3764,7 +3826,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     ...(rootZone ? { anchorSeat: 'side' } : {}),                // the root tower sits beside the main crossing (see `seat`)
     ...(frontage ? { frontage } : {}),                          // road-aware masses: { masses, withRoad, withoutRoad, parking, swept? }
     ...(pruned ? { fidelity: pruned.level, pruned: pruned.dropped } : {}),   // what the level-of-detail prune took off the full plan
-    ...(profile === 'metro' ? { profile: 'metro', crossings: countCrossings(roadStrips) } : {}),
+    ...(profile === 'metro' ? { profile: 'metro', crossings: countCrossings(roadStrips), skins } : {}),
   };
   return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}), ...(signals ? { signals, junctions: junctionsFrame } : {}), ...(profile === 'metro' ? { cues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight }, core: metroField } : {}) };
 }

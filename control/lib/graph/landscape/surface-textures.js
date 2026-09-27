@@ -61,7 +61,8 @@ export function encodePng(rgb, W, H) {
 }
 
 // ── asphalt: charcoal base + dense crushed aggregate, seamless under RepeatWrapping ──
-function asphaltPng({ size = 128, seed = 1357 } = {}) {
+// `floor` lifts the blacks (v → floor + v·(1 − floor/255)): the same grain, sun-bleached and aged
+function asphaltPng({ size = 128, seed = 1357, floor = 0 } = {}) {
   const W = size, H = size;
   let s = seed >>> 0;
   const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
@@ -87,6 +88,7 @@ function asphaltPng({ size = 128, seed = 1357 } = {}) {
       if (dx * dx + dy * dy <= r * r) put(cx + dx, cy + dy, c);
     }
   }
+  if (floor) for (let i = 0; i < rgb.length; i++) rgb[i] = Math.round(floor + rgb[i] * (1 - floor / 255));
   return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
 }
 
@@ -879,6 +881,7 @@ const GENERATORS = {
   clapboard: () => clapboardPng(MASONRY.clapboard, { size: 256, seed: MASONRY.clapboard.seed }),
   stucco: () => stuccoPng(MASONRY.stucco, { size: 128, seed: MASONRY.stucco.seed }),
   asphalt: () => asphaltPng({ size: 128, seed: 20620 }),
+  'asphalt-aged': () => asphaltPng({ size: 128, seed: 20620, floor: 96 }),   // the metro city's roads: mid-grey, not charcoal
   ...Object.fromEntries(Object.entries(TILE).map(([k, cfg]) => [k, () => tilePng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(MARBLE).map(([k, cfg]) => [k, () => marblePng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(WOOD).map(([k, cfg]) => [k, () => woodPng(cfg, { size: 256, seed: cfg.seed })])),
@@ -909,7 +912,7 @@ const GENERATORS = {
 // Wood is directional, so it's 'slab' (grain runs along the face's +v); a plank-floor variant
 // that repeats along its length would be added as its own 'repeat'-family key later.
 export const SURFACE_TILING = {
-  asphalt: 'repeat',
+  asphalt: 'repeat', 'asphalt-aged': 'repeat',
   brick: 'repeat', clapboard: 'repeat', stucco: 'repeat',   // tint-driven facade textures, small world-XY/local repeat
   ...Object.fromEntries(Object.keys(TILE).map((k) => [k, 'repeat'])),   // ceramic tiles, small local repeat (face-authored uv)
   ...Object.fromEntries(Object.keys(MARBLE).map((k) => [k, 'slab'])),
