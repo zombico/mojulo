@@ -13,6 +13,9 @@
  *   → print the KEYLESS first-look instruction.
  *
  * Design invariants:
+ *   - Consent before writes. Every host-config write is a yes at a prompt or an
+ *     explicit --yes. With no terminal and no --yes, init prints its plan (the
+ *     --print dry run), changes nothing, and exits 2.
  *   - No LLM key REQUIRED. Offered, skippable. The first look needs no key.
  *   - Idempotent + safe. Detect-before-write; back up JSON/TOML; atomic writes;
  *     one bad host never aborts init (fall back to printing the manual command).
@@ -69,8 +72,11 @@ function parseArgs(argv) {
     }
   }
   if (!args.yes && !args.print && !INTERACTIVE) {
-    args.yes = true;
-    process.stdout.write('mojulo init: stdin is not a terminal — taking the --yes defaults (add --no-ui to skip the dashboard).\n');
+    args.print = true;
+    args.needsYes = true;
+    process.stdout.write(
+      'mojulo init: stdin is not a terminal and --yes was not given, so this is a dry run — nothing will be changed.\n'
+    );
   }
   return args;
 }
@@ -82,7 +88,8 @@ function usage(code = 0) {
       '',
       'Wire mojulo into your MCP host(s), optionally set a key, open the dashboard.',
       '',
-      '  --yes         take all defaults (wire every detected host, skip key, open UI)',
+      '  --yes         take all defaults (wire every detected host, skip key, open UI);',
+      '                required when stdin is not a terminal, else init only prints its plan',
       '  --no-ui       do not launch the dashboard',
       `  --host <id>   target one host: ${HOST_IDS.join(' | ')}`,
       '  --print       dry-run: show what would be written, change nothing',
@@ -95,10 +102,13 @@ function usage(code = 0) {
 
 // ── prompts ───────────────────────────────────────────────────────────────────
 // Nobody at a keyboard (CI, a pipe, an agent driving the install, `</dev/null`)
-// means every prompt takes its default, announced once, instead of waiting on
-// stdin forever and dying with an unsettled-await warning when it closes
-// (the 2026-09-21 Claude cloud field report, §2.2). `--yes` stays the explicit
-// spelling; `--print` and `--no-ui` compose with it as before.
+// used to mean every prompt silently took its default: an agent that ran
+// `npx mojulo init` rewrote ~/.claude.json, ~/.codex/config.toml, the Claude
+// Desktop config and ~/.grok/config.toml and launched the dashboard, with no
+// one having said yes. Now it runs as a dry run instead (parseArgs): the plan is
+// printed, nothing is written, and the exit code is 2. `--yes` is the explicit
+// go-ahead; `--print` and `--no-ui` compose with it as before. Never waiting on
+// a closed stdin (the 2026-09-21 Claude cloud field report, §2.2) still holds.
 const INTERACTIVE = !!process.stdin.isTTY;
 let rl = null;
 function ask(question) {
@@ -364,7 +374,9 @@ function wireJsonPatch(profile, { print }) {
   };
   const out = JSON.stringify(json, null, 2) + '\n';
   if (print) {
-    process.stdout.write(`  (--print) would write ${cfg}:\n\n${out}\n`);
+    // Only mojulo's own entry: the rest of the file can hold other servers' tokens.
+    const entry = JSON.stringify({ [SERVER_NAME]: servers[SERVER_NAME] }, null, 2).replace(/\n/g, '\n    ');
+    process.stdout.write(`  (--print) would write ${wire.serversKey} in ${cfg}:\n\n    ${entry}\n\n`);
     return true;
   }
   if (exists) {
@@ -531,6 +543,19 @@ async function launchDashboard() {
   return port;
 }
 
+// Installed as a Claude Code plugin, the plugin itself starts this server. A
+// `claude mcp add` registration on top would run a second copy with every tool
+// doubled, so the claude-code host is left alone there.
+const PLUGIN_DISTRIBUTION = process.env.MOJULO_DISTRIBUTION === 'claude-plugin';
+function skippedForPlugin(host) {
+  if (!PLUGIN_DISTRIBUTION || host !== 'claude-code') return false;
+  process.stdout.write(
+    '  ↪ claude-code: skipped — mojulo is running as a Claude Code plugin, which already starts the server; '
+      + 'a `claude mcp add` registration would run a duplicate.\n'
+  );
+  return true;
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 const args = parseArgs(process.argv.slice(3)); // argv: node mcp-stdio.mjs init [...]
 
@@ -547,6 +572,7 @@ if (detected.length === 0) {
 } else {
   process.stdout.write(`Detected: ${detected.join(', ')}\n\n`);
   for (const host of detected) {
+    if (skippedForPlugin(host)) continue;
     const go = args.yes || args.print || (await confirm(`Wire mojulo into ${host}?`, true));
     if (!go) {
       process.stdout.write(`  → skipped ${host}.\n`);
@@ -560,6 +586,17 @@ if (detected.length === 0) {
       );
     }
   }
+}
+
+if (args.needsYes) {
+  if (args.ui) {
+    process.stdout.write('  (--print) would launch the dashboard (mojulo-ui) on 127.0.0.1 and open your browser; --no-ui skips it.\n');
+  }
+  process.stdout.write(
+    '\nNothing was changed. To apply the plan above, re-run with --yes (the operator\'s go-ahead),\n'
+      + 'e.g. npx mojulo init --yes --no-ui\n'
+  );
+  process.exit(2);
 }
 
 if (!args.print) await maybeSetKey({ yes: args.yes });

@@ -45,6 +45,14 @@ loops and the recipe format are unchanged.
   SHA-256, checked before anything is unpacked. A mismatch, or a platform with no pinned build,
   fails closed with an error naming `brew install ffmpeg` / `apt install ffmpeg` and
   `MOJULO_FFMPEG`, and the download is discarded. The download is logged to stderr.
+- **`mojulo init` needs `--yes` when nobody is at a keyboard.** With stdin not a terminal (an agent,
+  a pipe, CI), init used to take the `--yes` defaults on its own: it registered mojulo with Claude
+  Code (`~/.claude.json`), Codex (`~/.codex/config.toml`), Claude Desktop and Grok Build
+  (`~/.grok/config.toml`) and launched the dashboard. Now it prints what it would do, changes
+  nothing and exits 2; `--yes` is the go-ahead. The `--print` dry run for a JSON host config shows
+  only mojulo's own entry, no longer the whole file, which can hold other servers' tokens. With
+  `MOJULO_DISTRIBUTION=claude-plugin`, init leaves Claude Code alone and says so: the plugin
+  already starts the server, and a second registration would double every tool.
 
 ### Canal city
 
