@@ -10,6 +10,7 @@ import officeParser from 'officeparser';
 import { writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { mkdtemp, rmdir } from 'node:fs/promises';
 
 /**
  * Parse PDF using pdf2json (Node.js native parser)
@@ -74,13 +75,27 @@ async function parsePDF(buffer) {
 }
 
 /**
+ * The extension officeparser reads the format from, taken from an untrusted
+ * upload name: lowercase letters and digits only, or '' when there is none.
+ */
+export function safeTempExtension(fileName) {
+  const match = /\.([A-Za-z0-9]{1,10})$/.exec(String(fileName ?? ''));
+  return match ? `.${match[1].toLowerCase()}` : '';
+}
+
+/**
  * Parse Office documents using officeparser (requires file path)
  * @param {Buffer} buffer - File buffer
  * @param {string} fileName - Original file name
  * @returns {Promise<string>} Extracted text
  */
 async function parseOfficeDocument(buffer, fileName) {
-  const tempFilePath = join(tmpdir(), `temp-${Date.now()}-${fileName}`);
+  // The upload name never reaches the path: '../' in it once let a crafted
+  // name overwrite and then delete any file the process could write. The
+  // file gets a fixed name in a fresh private directory; only a sanitized
+  // extension survives, because officeparser picks the format from it.
+  const tempDir = await mkdtemp(join(tmpdir(), 'mojulo-doc-'));
+  const tempFilePath = join(tempDir, `upload${safeTempExtension(fileName)}`);
 
   try {
     await writeFile(tempFilePath, buffer);
@@ -90,8 +105,11 @@ async function parseOfficeDocument(buffer, fileName) {
     try {
       await unlink(tempFilePath);
     } catch (unlinkError) {
-      console.warn(`Failed to delete temp file ${tempFilePath}:`, unlinkError);
+      if (unlinkError.code !== 'ENOENT') {
+        console.warn(`Failed to delete temp file ${tempFilePath}:`, unlinkError);
+      }
     }
+    await rmdir(tempDir).catch(() => {});
   }
 }
 

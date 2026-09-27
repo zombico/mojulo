@@ -1095,6 +1095,12 @@ rock to classical, flamenco and gypsy jazz.
   Fly deployers and the `version` / `check_for_updates` readers share; Fly used to need `BOT_IMAGE`
   set). **The `bot-v0.5.2` image must be published before this npm release, and existing bots must
   be rebuilt and redeployed to pick up the fix.**
+- **Document upload names no longer reach a file path.** The Office-document parser wrote its temp
+  file to `join(tmpdir(), 'temp-<ms>-' + fileName)`, so a name with `../` in it overwrote and then
+  deleted any file the process could write. Reachable from `upload_document_from_url` (base64 or
+  `url` + `fileName`) and the dashboard's document uploads. The file now gets a fixed name in a fresh
+  private `mkdtemp` directory, keeping only a sanitized extension, and the directory is removed
+  afterwards.
 
 ## [2.1.0] - 2026-09-23
 
