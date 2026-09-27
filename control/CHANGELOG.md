@@ -39,6 +39,12 @@ loops and the recipe format are unchanged.
   sandboxed. On Linux mojulo tries the sandbox first and falls back to `--no-sandbox` only when the
   sandboxed launch fails (containers and CI runners without user namespaces, or root), logging the
   fallback to stderr once per process.
+- **The ffmpeg download is checksum-verified.** The lazily fetched ffmpeg (ffmpeg-static `b6.1.1` from
+  GitHub, fetched on the first MP4 encode when no ffmpeg is installed) used to be unpacked, made
+  executable and run with only a `-version` check. Each platform's `.gz` asset now has a pinned
+  SHA-256, checked before anything is unpacked. A mismatch, or a platform with no pinned build,
+  fails closed with an error naming `brew install ffmpeg` / `apt install ffmpeg` and
+  `MOJULO_FFMPEG`, and the download is discarded. The download is logged to stderr.
 
 ### Canal city
 
