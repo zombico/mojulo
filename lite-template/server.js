@@ -148,8 +148,11 @@ app.set('trust proxy', 1);
 // The chat page and the embeddable widget call the bot cross-origin, so CORS
 // stays open, except on /api/send-webhook: that route is operator-only (API
 // key) and has no business being called from a browser on another site.
+// Express matches routes case-insensitively and ignores a trailing slash, so
+// compare the same way.
 const openCors = cors();
-app.use((req, res, next) => (req.path === '/api/send-webhook' ? next() : openCors(req, res, next)));
+const isSendWebhook = (req) => req.path.toLowerCase().replace(/\/+$/, '') === '/api/send-webhook';
+app.use((req, res, next) => (isSendWebhook(req) ? next() : openCors(req, res, next)));
 app.use(express.json());
 
 // Prometheus HTTP request tracking middleware
