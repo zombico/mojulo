@@ -19,6 +19,8 @@ loops and the recipe format are unchanged.
   was fixed at `2024-11-05`, older than the revisions that define tool annotations (`2025-03-26`)
   and tool titles (`2025-06-18`). The `version` tool reports the newest revision as
   `protocolVersion` and the full list as `supportedProtocolVersions`.
+- **The HTTP MCP route answers a POST of only notifications with `202 Accepted`** (it was
+  `204`), as Streamable HTTP specifies.
 
 ### Canal city
 

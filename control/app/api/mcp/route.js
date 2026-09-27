@@ -33,6 +33,12 @@ function notConfigured() {
   return notFound();
 }
 
+// Streamable HTTP (MCP 2025-03-26 on): a POST that carries only notifications
+// or responses is answered 202 Accepted with no body.
+function accepted() {
+  return new Response(null, { status: 202 });
+}
+
 function unauthorized() {
   return new Response('Unauthorized', {
     status: 401,
@@ -130,7 +136,7 @@ export async function POST(request) {
       if (resp !== null) responses.push(resp);
     }
     if (responses.length === 0) {
-      return new Response(null, { status: 204 });
+      return accepted();
     }
     return new Response(JSON.stringify(responses), {
       status: 200,
@@ -141,7 +147,7 @@ export async function POST(request) {
   const response = await dispatchMcpRequest(body, context);
   if (response === null) {
     // Notification — no response body.
-    return new Response(null, { status: 204 });
+    return accepted();
   }
   return new Response(JSON.stringify(response), {
     status: 200,
