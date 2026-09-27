@@ -53,6 +53,11 @@ loops and the recipe format are unchanged.
   only mojulo's own entry, no longer the whole file, which can hold other servers' tokens. With
   `MOJULO_DISTRIBUTION=claude-plugin`, init leaves Claude Code alone and says so: the plugin
   already starts the server, and a second registration would double every tool.
+- **`MOJULO_MCP_TELEMETRY=off` only stops the local tool-call log.** It used to skip the 120 s soft
+  tool timeout as well, so opting out of the log let a hung tool hold the agent's session. The
+  timeout (`MOJULO_MCP_TOOL_TIMEOUT_MS`, or a tool's own budget) now applies either way; with the
+  log off nothing is written to the database or stderr, and the timeout error says there is no
+  ledger row. The log stays on by default and stays local.
 
 ### Canal city
 

@@ -17,6 +17,9 @@
  *     unblock the session and flag the call; the orphaned promise is watched so
  *     its eventual settle is recorded as `late_settle` (which is what
  *     distinguishes "slow" from "hung forever" after the fact).
+ *   - MOJULO_MCP_TELEMETRY=off stops the local log (the row and the stderr
+ *     line) and nothing else. The soft timeout still unblocks the session: it
+ *     protects the agent, not the ledger.
  */
 
 import { performance } from 'node:perf_hooks';
@@ -171,17 +174,13 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
   // the operator / roles off — runs bare.
   const scope = scopeFromContext(context);
 
-  // Fast path: telemetry off ⇒ no timing, no timeout, no record. The signal
-  // key is still stripped so it never leaks to the wire.
-  if (!telemetryEnabled()) {
-    const result = await runWithScope(scope, () => tool.handler(input || {}, context || {}));
-    takeSignal(result);
-    return result;
-  }
+  // Telemetry off ⇒ no row and no stderr line, but the same soft timeout. The
+  // signal key is still stripped on every path so it never leaks to the wire.
+  const logging = telemetryEnabled();
 
   const sessionId = context?.mcpSessionId || null;
-  const client = sessionId ? getClientInfo(sessionId) : null;
-  const { keys, bytes } = computeInputShape(input);
+  const client = logging && sessionId ? getClientInfo(sessionId) : null;
+  const { keys, bytes } = logging ? computeInputShape(input) : { keys: [], bytes: 0 };
   const startedAt = Date.now();
   const started = performance.now();
   const timeoutMs = resolveTimeoutMs(tool);
@@ -197,7 +196,7 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
     startedAt,
     inputKeys: keys,
     inputBytes: bytes,
-    inputJson: captureJson(input, tool),
+    inputJson: logging ? captureJson(input, tool) : null,
   };
 
   // Race the handler against a soft timeout. The handler promise is retained so
@@ -215,30 +214,37 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
     if (timer) clearTimeout(timer);
     const durationMs = performance.now() - started;
     const signalJson = takeSignal(result); // strip BEFORE measuring wire bytes
-    recordRow({
-      ...base,
-      durationMs,
-      status: 'ok',
-      resultBytes: serializedBytes(result),
-      resultJson: captureJson(result, tool),
-      signalJson,
-    });
-    logLine({ tool: calledName, durationMs, status: 'ok', via: base.via, sessionId });
+    if (logging) {
+      recordRow({
+        ...base,
+        durationMs,
+        status: 'ok',
+        resultBytes: serializedBytes(result),
+        resultJson: captureJson(result, tool),
+        signalJson,
+      });
+      logLine({ tool: calledName, durationMs, status: 'ok', via: base.via, sessionId });
+    }
     return result;
   } catch (err) {
     if (timer) clearTimeout(timer);
     const durationMs = performance.now() - started;
 
     if (err === TIMEOUT) {
-      recordRow({ ...base, durationMs, status: 'timeout', errorMessage: `exceeded ${timeoutMs}ms budget` });
-      logLine({ tool: calledName, durationMs, status: 'timeout', via: base.via, sessionId });
+      if (logging) {
+        recordRow({ ...base, durationMs, status: 'timeout', errorMessage: `exceeded ${timeoutMs}ms budget` });
+        logLine({ tool: calledName, durationMs, status: 'timeout', via: base.via, sessionId });
+      }
 
       // Watch the orphaned handler so its true outcome is recorded once it
       // finally settles. late_settle carries the REAL duration from start.
+      // With the log off it is still watched, so a late rejection is never
+      // an unhandled one.
       handlerPromise.then(
         (lateResult) => {
-          const lateMs = performance.now() - started;
           const lateSignalJson = takeSignal(lateResult);
+          if (!logging) return;
+          const lateMs = performance.now() - started;
           recordRow({
             ...base,
             durationMs: lateMs,
@@ -250,6 +256,7 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
           logLine({ tool: calledName, durationMs: lateMs, status: 'late_settle', via: base.via, sessionId });
         },
         (lateErr) => {
+          if (!logging) return;
           const lateMs = performance.now() - started;
           recordRow({
             ...base,
@@ -263,17 +270,21 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
 
       throw new Error(
         `${calledName} exceeded its ${timeoutMs}ms budget; the work may still be running. ` +
-          `Check /observability or get_tool_ledger.`
+          (logging
+            ? 'Check /observability or get_tool_ledger.'
+            : 'The tool-call log is off (MOJULO_MCP_TELEMETRY=off), so no ledger row records it.')
       );
     }
 
-    recordRow({
-      ...base,
-      durationMs,
-      status: 'error',
-      errorMessage: truncate(err?.message || String(err), ERROR_MESSAGE_MAX),
-    });
-    logLine({ tool: calledName, durationMs, status: 'error', via: base.via, sessionId });
+    if (logging) {
+      recordRow({
+        ...base,
+        durationMs,
+        status: 'error',
+        errorMessage: truncate(err?.message || String(err), ERROR_MESSAGE_MAX),
+      });
+      logLine({ tool: calledName, durationMs, status: 'error', via: base.via, sessionId });
+    }
     throw err;
   }
 }
