@@ -19,6 +19,11 @@ loops and the recipe format are unchanged.
   modules are imported (`lib/lazy-deps.js`, `lib/graph/scene/puppeteer-lazy.js`). A package that cannot
   load is an in-band error on that one call, naming the package and what it is for; every other tool
   keeps working. Tool behaviour is unchanged.
+- **@swc/core is no longer installed with the package.** `CreationMap.jsx`, the one JSX file the
+  package ships, is compiled at prepack into `CreationMap.jsx.mjs` (`scripts/precompile-jsx.mjs`), and
+  the stdio loader serves that file while the source hash on its first line matches the `.jsx`. A dev
+  checkout, or a `.jsx` edited after a pack, still compiles through @swc/core, now a devDependency.
+  This drops a native addon and its install script from `npx mojulo`.
 
 ### Canal city
 

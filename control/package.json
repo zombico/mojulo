@@ -58,6 +58,7 @@
     "!lib/embedder/models/**",
     "!lib/**/*.test.js",
     "components/graph/CreationMap.jsx",
+    "components/graph/CreationMap.jsx.mjs",
     "bin/app-runtime.mjs",
     "bin/daemons.mjs",
     "scripts/mcp-stdio.mjs",
@@ -106,13 +107,12 @@
     "stage-standalone": "node scripts/stage-standalone.mjs",
     "fetch-models": "node scripts/fetch-embed-model.js",
     "gen-app": "node scripts/gen-app.js",
-    "prepack": "node scripts/stage-lite-template.mjs && NODE_OPTIONS=--max-old-space-size=8192 next build --webpack && node scripts/stage-standalone.mjs",
+    "prepack": "node scripts/precompile-jsx.mjs && node scripts/stage-lite-template.mjs && NODE_OPTIONS=--max-old-space-size=8192 next build --webpack && node scripts/stage-standalone.mjs",
     "test": "vitest run",
     "smoke:tarball": "node scripts/smoke-cold-install.mjs"
   },
   "dependencies": {
     "@puppeteer/browsers": "^2.13.2",
-    "@swc/core": "^1.15.47",
     "archiver": "^8.0.0",
     "better-sqlite3": "^13.0.3",
     "croner": "^10.0.1",
@@ -138,6 +138,7 @@
     "three": "^0.184.0"
   },
   "devDependencies": {
+    "@swc/core": "^1.15.47",
     "@tailwindcss/postcss": "^4",
     "adm-zip": "^0.5.16",
     "next": "^16.0.7",

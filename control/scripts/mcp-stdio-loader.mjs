@@ -11,7 +11,7 @@
  * resolution rules and Node's, both of which are fatal to the stdio entry:
  *   - extensionless relative specifiers (`./files`, `./exports-dir`), which
  *     Next resolves and Node rejects with ERR_MODULE_NOT_FOUND;
- *   - `.jsx` sources, which Node cannot parse — `lib/graph/sketch/sketch-svg.js`
+ *   - `.jsx` sources, which Node cannot parse — `lib/sketch-svg.js`
  *     server-renders `components/graph/CreationMap.jsx` through React, so the
  *     stdio process has to compile JSX itself. See `load` below.
  */
@@ -20,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync, statSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -77,14 +78,65 @@ export function resolve(specifier, context, nextResolve) {
   return nextResolve(specifier, context);
 }
 
-// swc is loaded lazily: it is a native addon, and the overwhelming majority of
-// stdio processes never touch a `.jsx` file. Requiring it at module scope would
-// put that load on every MCP server start.
+// JSX has two sources. The published package ships each .jsx with a twin,
+// `<name>.jsx.mjs`, compiled at prepack by scripts/precompile-jsx.mjs; its first
+// line records the sha256 of the .jsx it came from, and the twin is served while
+// that still matches. Otherwise (a dev checkout, or a twin left stale by an edit)
+// the .jsx is compiled here with @swc/core, a devDependency. The twin's name is
+// one neither this resolver's EXTS probe nor Next's or Vite's resolution tries,
+// so it can never shadow the .jsx in a dev checkout.
+export const PRECOMPILED_SUFFIX = '.mjs';
+const PRECOMPILED_HEADER = /^\/\/ mojulo-precompiled source-sha256=([0-9a-f]{64})\n/;
+
+export function jsxSourceHash(source) {
+  return createHash('sha256').update(source).digest('hex');
+}
+
+export function precompiledHeader(source) {
+  return `// mojulo-precompiled source-sha256=${jsxSourceHash(source)}\n`;
+}
+
+/** The same transform the prepack twin uses, so both paths emit the same module. */
+export function jsxTransformOptions(filename) {
+  return {
+    filename,
+    jsc: {
+      parser: { syntax: 'ecmascript', jsx: true },
+      target: 'es2022',
+      transform: { react: { runtime: 'automatic' } },
+    },
+    module: { type: 'es6' },
+    sourceMaps: false,
+  };
+}
+
+/** The twin's code when it exists and was compiled from exactly `source`, else null. */
+export function readPrecompiled(filename, source) {
+  let twin;
+  try {
+    twin = readFileSync(filename + PRECOMPILED_SUFFIX, 'utf8');
+  } catch {
+    return null;
+  }
+  const header = PRECOMPILED_HEADER.exec(twin);
+  return header && header[1] === jsxSourceHash(source) ? twin : null;
+}
+
+// swc is a native addon and only a devDependency, so it is required only when a
+// .jsx has no fresh twin.
 let transformSync = null;
-function getTransform() {
+function getTransform(filename) {
   if (!transformSync) {
     const require = createRequire(import.meta.url);
-    ({ transformSync } = require('@swc/core'));
+    try {
+      ({ transformSync } = require('@swc/core'));
+    } catch (err) {
+      throw new Error(
+        `${path.relative(CONTROL_DIR, filename)} has no up-to-date precompiled twin (${path.basename(filename)}${PRECOMPILED_SUFFIX}, `
+          + 'written at prepack) and @swc/core, which compiles it in a dev checkout, is not installed: '
+          + `${err.message}`,
+      );
+    }
   }
   return transformSync;
 }
@@ -92,16 +144,9 @@ function getTransform() {
 export async function load(url, context, nextLoad) {
   if (url.startsWith('file://') && url.endsWith('.jsx')) {
     const filename = fileURLToPath(url);
-    const { code } = getTransform()(readFileSync(filename, 'utf8'), {
-      filename,
-      jsc: {
-        parser: { syntax: 'ecmascript', jsx: true },
-        target: 'es2022',
-        transform: { react: { runtime: 'automatic' } },
-      },
-      module: { type: 'es6' },
-      sourceMaps: false,
-    });
+    const source = readFileSync(filename, 'utf8');
+    const code = readPrecompiled(filename, source)
+      ?? getTransform(filename)(source, jsxTransformOptions(filename)).code;
     return { format: 'module', source: code, shortCircuit: true };
   }
   return nextLoad(url, context);
