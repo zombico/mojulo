@@ -803,11 +803,13 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
     const base = manji.basePlane.corners, top = manji.topPlane.corners;
     const onProp = el.surface === 'tabletop';
     const elevated = (el.surface === 'floor' || onProp) && manji.heightWorld > 0;
-    const assetHit = (el.surface === 'floor' && elevated) ? roomFurnitureAssetFaces(el, { light: L }) : null;
+    // a tabletop prop planned with `assets` (planTabletopSurfaceElements) dispatches to its
+    // room-tabletop mesh too; it casts no floor contact (it stands on the table, not the floor)
+    const assetHit = ((el.surface === 'floor' || (onProp && el.assetProp)) && elevated) ? roomFurnitureAssetFaces(el, { light: L }) : null;
 
     if (assetHit) {                                // workbench-authored room asset
       for (const f of assetHit.faces) faces.push(f);   // a dense asset: no spread (see extraFaces below)
-      if (assetHit.contactFootprint) contactFootprints.push(assetHit.contactFootprint);
+      if (assetHit.contactFootprint && !onProp) contactFootprints.push(assetHit.contactFootprint);
     } else if (onProp && elevated && !net) {       // tabletop prop without a dedicated net: generic shaded box
       const quads = boxFaceQuads(base, top);
       const boxC = centroid([...base, ...top]);

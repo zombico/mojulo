@@ -88,7 +88,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fission",
   },
   "floorplan": {
-    "hash": "ef67dac1",
+    "hash": "d1d9566f",
     "tier": "T0",
     "title": "mojulo house",
   },
@@ -175,7 +175,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo reactor",
   },
   "restaurant": {
-    "hash": "486b8c4b",
+    "hash": "60756cf1",
     "tier": "T0",
     "title": "mojulo restaurant",
   },
@@ -257,7 +257,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
 
 exports[`world-scene kinds — per-arm characterization > viewOpts.view forwards into the floorplan arm (pinned: forwarding must survive the refactor) 1`] = `
 {
-  "base": "ef67dac1",
-  "dollhouse": "ef67dac1",
+  "base": "d1d9566f",
+  "dollhouse": "d1d9566f",
 }
 `;

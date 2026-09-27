@@ -349,7 +349,7 @@ export const FURNITURE_BANDS = {
   table: { long: [3, 5], short: [1.6, 2.6] },
   'media-unit': { long: [4, 8], short: [1.4, 1.9] },
   bookshelf: { long: [2.5, 4], short: [1, 1.4] },
-  'rack-shelf': { long: [2.5, 4], short: [1, 1.5] },
+  'rack-shelf': { long: [3, 4.2], short: [1.2, 1.6] },      // open utility shelving (share mode: the utility-shelf mesh)
   rug: { long: [7, 12], short: [5, 9] },
   'dining-table': { long: [4, 8], short: [3, 4] },
   'ladder-chair': { long: [1.5, 1.9], short: [1.5, 1.9] },
@@ -361,6 +361,8 @@ export const FURNITURE_BANDS = {
   'computer-table': { long: [4.5, 6], short: [2, 2.8], share: 0.065, aspect: 1.9 },
   'standing-desk': { long: [4.5, 6], short: [2, 2.8] },
   'computer-chair': { long: [1.6, 2.2], short: [1.6, 2.2] },
+  cabinet: { long: [3, 4.2], short: [1.5, 2] },
+  bench: { long: [3.2, 4.5], short: [1.3, 1.7], share: 0.045, aspect: 2.6 },
   'floor-lamp': { long: [0.8, 1.4], short: [0.8, 1.4] },
 };
 // Per-archetype keep order — the budget pass drops from the END (and, among equals,
@@ -371,6 +373,8 @@ export const FURNISH_PRIORITY = {
   D: ['dining-table', 'ladder-chair', 'sideboard'],
   B: ['bed', 'nightstand', 'dresser', 'study-table', 'computer-table', 'standing-desk', 'computer-chair'],
   O: ['computer-table', 'study-table', 'standing-desk', 'computer-chair', 'bookshelf', 'rack-shelf'],
+  E: ['bench'],
+  S: ['rack-shelf', 'cabinet', 'dresser'],
 };
 // PACKING was tuned as a room-SIZING target (furniture ÷ packing = the area a room
 // WANTS); a real room is legitimately tighter than what it wants, so pieces are only
@@ -384,7 +388,11 @@ export const SHARE_ASSETS = {
   armchair: 'club-armchair', table: 'coffee-table', 'media-unit': 'media-console', bookshelf: 'bookcase',
   'floor-lamp': 'floor-lamp',
   rug: 'bordered-rug', bed: 'platform-bed', nightstand: 'bedside-table', dresser: 'low-dresser',
-  sideboard: 'sideboard-cabinet', 'dining-table': 'plank-dining-table', 'ladder-chair': 'chair',
+  sideboard: 'sideboard-cabinet', 'dining-table': 'plank-dining-table',
+  // the office / study-nook chair wears the dining chair's mesh (a real chair at a desk beats the
+  // box-net card); it sits BEFORE 'ladder-chair' so the id → type map still reads 'chair' as a dining
+  // chair. The rack is open utility shelving.
+  'computer-chair': 'chair', 'ladder-chair': 'chair', 'rack-shelf': 'utility-shelf',
 };
 const clampFt = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 
@@ -412,7 +420,25 @@ export function makeSizer({ w = 12, h = 12, scale = 'feet' } = {}) {
 // Pieces that live against a wall. In share mode their arranger anchor (authored for a
 // smaller legacy footprint) is snapped so the piece TOUCHES the nearest wall when it is
 // already within `WALL_SNAP` of it — a bookcase no longer stands a foot off the wall.
-const WALL_HUG = new Set(['media-unit', 'bookshelf', 'rack-shelf', 'bed', 'nightstand', 'sideboard', 'dresser', 'study-table', 'computer-table', 'standing-desk', 'l-table']);
+export const WALL_HUG_TYPES = new Set(['media-unit', 'bookshelf', 'rack-shelf', 'bed', 'nightstand', 'sideboard', 'dresser', 'study-table', 'computer-table', 'standing-desk', 'l-table', 'cabinet', 'bench']);
+const WALL_HUG = WALL_HUG_TYPES;
+// Seats that tuck under the piece they serve: a door approach never drops one (the approach
+// stays walkable — a pushed-in chair is not in the door's path). Stairs and placed items still do.
+export const SEAT_TUCK_TYPES = new Set(['ladder-chair', 'computer-chair', 'chair', 'stool']);
+// Tall storage that must not stand in front of a window (a windowed wall is low-furniture-only).
+export const TALL_STORAGE_TYPES = new Set(['bookshelf', 'rack-shelf', 'cabinet']);
+// A local asset's facing letter that points its front INTO the room off each wall (measured:
+// 'N' → +v, 'S' → −v, 'E' → +u, 'W' → −u in the renderer's frame, mirrored in v).
+export const ASSET_FACING_IN = { N: 'N', S: 'S', W: 'E', E: 'W' };
+/** The wall an element ({anchor:[u,v], w, h} fractions of a W × H room) stands against —
+ *  'N' | 'S' | 'W' | 'E' — or null when its nearest edge is more than `snap` feet off. */
+export function nearestWallOf(e, W = 1, H = 1, snap = 0.6) {
+  if (!Array.isArray(e.anchor) || e.w == null || e.h == null) return null;
+  const [u, v] = e.anchor;
+  const d = [['W', (u - e.w / 2) * W], ['E', (1 - u - e.w / 2) * W], ['N', (v - e.h / 2) * H], ['S', (1 - v - e.h / 2) * H]]
+    .sort((a, b) => a[1] - b[1]);
+  return d[0][1] <= snap ? d[0][0] : null;
+}
 const WALL_SNAP = 0.22, WALL_GAP = 0.004;
 
 /** Share-mode post-pass: keep every footprint inside the room, snap wall pieces to
@@ -597,7 +623,9 @@ export function arrangeBedroom(rng = Math.random, { w = 11, h = 11, scale = 'fee
   const [nsW, nsD] = sz('nightstand', 1.6, 1.6);
   els.push({ type: 'nightstand', anchor: [Math.min(0.9, bedU + bedW / w / 2 + 1.3 / w), 0.13], w: nsW / w, h: nsD / h, heightWorld: 2.2 });
   if (area >= 90) {
-    const [drW, drD] = sz('dresser', Math.min(4, w * 0.32), 1.8);
+    // the dresser lives on the side wall, so its long side runs ALONG that wall (it used to
+    // stand end-on, four feet out into the room, when share mode sized it)
+    const [drW, drD] = sz('dresser', Math.min(4, w * 0.32), 1.8, 'y');
     els.push({ type: 'dresser', anchor: [0.84, 0.62], w: drW / w, h: drD / h, heightWorld: 3.2 });
   }
   if (area >= 130 && rng() < 0.6) {                          // study nook: desk asset + chair facing it
@@ -630,8 +658,39 @@ export function arrangeOffice(rng = Math.random, { w = 11, h = 11, scale = 'feet
   return els;
 }
 
-/** Furniture for a room: geometry-aware arrangers for kitchen/living/dining/bedroom,
- *  the flat archetype list otherwise. `dims` are the room's interior feet {w, h}. */
+/** Entry (share mode): a bench along the left side wall under a picture, a sconce on the
+ *  right wall. The door walls (front, and often the back — a hall door opposite the front
+ *  door) stay clear: the flat fill's bench sat in the front-door approach and was dropped. */
+export function arrangeEntry(rng = Math.random, { w = 8, h = 8, scale = 'feet' } = {}) {
+  const sz = makeSizer({ w, h, scale });
+  const [bW, bD] = sz('bench', 1.4, Math.min(4, h * 0.4), 'y');           // long side along the wall
+  return [
+    { type: 'bench', asset: 'entry-bench', instance: 'main', anchor: [bW / w / 2 + 0.004, 0.5], w: bW / w, h: bD / h, heightWorld: 1.5, facing: 'E' },
+    { type: 'picture', surface: 'leftWall', anchor: [0.5, 0.62], w: Math.min(0.3, 2.6 / h), h: 0.24 },
+    { type: 'sconce', surface: 'rightWall', anchor: [0.5, 0.74], w: Math.min(0.08, 0.6 / h), h: 0.18 },
+  ];
+}
+
+/** Storage (share mode): open utility shelving across the back wall (two units when the wall
+ *  carries them), a low cabinet along the left wall. Real feet, real meshes — the flat fill's
+ *  fractions made a foot-wide shelving tower and blank slabs in a small room. */
+export function arrangeStorage(rng = Math.random, { w = 8, h = 8, scale = 'feet' } = {}) {
+  const els = [];
+  const sz = makeSizer({ w, h, scale });
+  const [shW, shD] = sz('rack-shelf', Math.min(4, w * 0.4), 1.4, 'x');
+  const n = w >= shW * 2 + 2 ? 2 : 1;
+  for (let i = 0; i < n; i += 1) {
+    const u = n === 1 ? 0.5 : 0.5 + (i - 0.5) * ((shW + 0.5) / w);
+    els.push({ type: 'rack-shelf', asset: 'utility-shelf', instance: n === 1 ? 'main' : (i ? 'east' : 'west'), anchor: [u, shD / h / 2 + 0.004], w: shW / w, h: shD / h, heightWorld: 6.0, facing: 'N' });
+  }
+  const [cbW, cbD] = sz('cabinet', 1.7, Math.min(3.5, h * 0.35), 'y');
+  els.push({ type: 'cabinet', asset: 'sideboard-cabinet', instance: 'main', anchor: [cbW / w / 2 + 0.004, 0.66], w: cbW / w, h: cbD / h, heightWorld: 3.0, facing: 'E' });
+  return els;
+}
+
+/** Furniture for a room: geometry-aware arrangers for kitchen/living/dining/bedroom (and, in
+ *  share mode, entry/storage), the flat archetype list otherwise. `dims` are the room's
+ *  interior feet {w, h}. */
 export function furnishElements(glyph, seed = 1, dims = {}) {
   const rng = mulberry32((seed >>> 0) || 1);
   if (glyph === 'K') return arrangeKitchen(rng, dims);      // feet in every mode (see makeSizer)
@@ -641,6 +700,8 @@ export function furnishElements(glyph, seed = 1, dims = {}) {
   if (glyph === 'D') return post(arrangeDining(rng, dims));
   if (glyph === 'B') return post(arrangeBedroom(rng, dims));
   if (glyph === 'O') return post(arrangeOffice(rng, dims));
+  if (glyph === 'E' && share) return post(arrangeEntry(rng, dims));
+  if (glyph === 'S' && share) return post(arrangeStorage(rng, dims));
   // the flat archetype lists author fractions of the room outright — already a share
   return (ARCHETYPES[glyph] || ARCHETYPES.S).fill(rng);
 }
@@ -666,7 +727,7 @@ const EDGE_SURFACE = { N: 'backWall', E: 'rightWall', S: 'frontWall', W: 'leftWa
 export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1, { assetFacing = false, canonical = null } = {}) {
   const [cw, ch] = Array.isArray(canonical) ? canonical : [W, H];
   const k = FACING_SPIN[doorEdge] ?? 0;               // door 'S' ⇒ already canonical
-  if (!k) return elements;
+  if (!k && !assetFacing) return elements;            // (share mode still stamps its wall pieces' facings below)
   const rotUV = (u, v) => { let x = u, y = v; for (let i = 0; i < k; i += 1) { const nx = y, ny = 1 - x; x = nx; y = ny; } return [x, y]; };
   // Wall EDGES and seat FACINGS use the same letters but not the same frame: an edge letter
   // names a wall (N = the v≈0 back wall, S = v≈1), while a facing letter names the way a
@@ -680,15 +741,29 @@ export function orientElementsToDoor(elements, doorEdge, W = 1, H = 1, { assetFa
   const odd = k % 2 === 1;
   return elements.map((e) => {
     const out = { ...e };
-    if (Array.isArray(e.anchor)) out.anchor = rotUV(e.anchor[0], e.anchor[1]);
+    const hung = !!(e.surface && SURFACE_EDGE[e.surface]);
+    if (hung) {
+      // a wall-hung piece's anchor is (along the wall, height up the wall): the wall moves with
+      // the spin and the along fraction mirrors with it, the height never turns. Its width is a
+      // fraction of the wall it hangs on, re-based to the new wall's length.
+      out.surface = EDGE_SURFACE[spinEdge(SURFACE_EDGE[e.surface])];
+      if (Array.isArray(e.anchor)) out.anchor = [k === 3 ? e.anchor[0] : 1 - e.anchor[0], e.anchor[1]];
+      if (e.w != null) out.w = (e.w * cw) / (odd ? H : W);
+    } else {
+      if (Array.isArray(e.anchor)) out.anchor = rotUV(e.anchor[0], e.anchor[1]);
+      if (odd && e.w != null && e.h != null) { out.w = (e.h * ch) / W; out.h = (e.w * cw) / H; }  // 90°: footprint swaps
+    }
     if (e.facing != null && FACING_SPIN[e.facing] != null) out.facing = spin(e.facing);
-    if (e.surface && SURFACE_EDGE[e.surface]) out.surface = EDGE_SURFACE[spinEdge(SURFACE_EDGE[e.surface])];
-    if (odd && e.w != null && e.h != null) { out.w = (e.h * ch) / W; out.h = (e.w * cw) / H; }  // 90°: footprint swaps
     // An unfaced LOCAL asset fronts +v (into the room off the canonical back wall) — facing
     // letter 'N' in the renderer's frame; once the layout is spun that wall moves, so stamp
     // the facing the spin implies. Share mode only (assets ride in via SHARE_ASSETS); a
     // feet-mode plan carries no such pieces and stays as-is.
-    if (assetFacing && e.asset && e.facing == null && e.surface !== 'backWall') out.facing = spin('N');
+    // A wall piece (WALL_HUG) faces the room off the wall it actually stands on: a side-wall
+    // bookcase or dresser used to take the back wall's letter and face along its wall.
+    if (assetFacing && e.asset && e.facing == null && !hung) {
+      const wall = WALL_HUG.has(e.type) ? nearestWallOf(out, W, H) : null;
+      out.facing = wall ? ASSET_FACING_IN[wall] : spin('N');
+    }
     return out;
   });
 }

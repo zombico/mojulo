@@ -31,7 +31,7 @@
  */
 
 import { shadeHex, makeLight, scaleHex } from './vexar.js';
-import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS } from './floorplan-glyphs.js';
+import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
 import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
@@ -322,6 +322,9 @@ export function placeOpenings(graph, doors = [], opts = {}) {
       else if (circ(M) && !circ(P)) op.doorSwing = '+';
       else if (P && M) op.doorSwing = P.w * P.h <= M.w * M.h ? '+' : '-';
     }
+    // an interior hinged leaf stands OPEN AGAINST THE WALL beside its jamb (leafParking /
+    // doorLeafFaces); a leaf with no wall to lie on keeps the 90° swing
+    if (op && !exterior && op.kind === 'hinged') op.park = leafParking(graph, run, op, o);
     if (op && exterior) {
       op.exterior = true;
       op.leadsTo = leadsTo;
@@ -629,11 +632,74 @@ function applyPotLightPools(faces, pots, p, { cell = 1.5 } = {}) {
   return out;
 }
 
+// ── share mode: wall pieces move instead of vanishing ─────────────────────────
+// A wall piece that lands in a door's approach (the sideboard on the wall a second door cuts
+// through), or tall storage on a windowed wall (a bookcase blotting out the window), slides
+// along its wall to the nearest clear stretch, or moves to another wall — its own wall first,
+// then the opposite one, then the sides — keeping its length along the wall and turning its
+// front into the room. Nothing else moves; a piece with nowhere to go stays put and the door
+// filter decides. Seats never come here (they tuck under their table). Pure and step-ordered,
+// so the same room places the same bytes.
+function relocateWallPieces(elements, { x0, x1, y0, y1 }, exclude, windowWalls) {
+  const W = x1 - x0, H = y1 - y0;
+  const doorRects = exclude.filter((h) => h.door), itemRects = exclude.filter((h) => h.item);
+  const rectOf = (e) => {
+    const cx = x0 + e.anchor[0] * W, cy = y0 + e.anchor[1] * H, ew = e.w * W, eh = e.h * H;
+    return { x0: cx - ew / 2, x1: cx + ew / 2, y0: cy - eh / 2, y1: cy + eh / 2 };
+  };
+  const hit = (r, list) => list.some((h) => Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
+  const floorPiece = (e) => Array.isArray(e.anchor) && e.w != null && e.h != null && (!e.surface || e.surface === 'floor') && e.type !== 'rug' && e.type !== 'runner';
+  const out = elements.slice();
+  for (let i = 0; i < out.length; i += 1) {
+    const e = out[i];
+    if (!WALL_HUG_TYPES.has(e.type) || !floorPiece(e)) continue;
+    const wall = nearestWallOf(e, W, H);
+    if (!wall) continue;
+    const r = rectOf(e);
+    const tall = TALL_STORAGE_TYPES.has(e.type) || (e.heightWorld || 0) >= 4.5;
+    if (!hit(r, doorRects) && !(tall && windowWalls.has(wall))) continue;
+    const others = out.filter((x, j) => j !== i && floorPiece(x)).map(rectOf);
+    const ownHoriz = wall === 'N' || wall === 'S';
+    const along = ownHoriz ? r.x1 - r.x0 : r.y1 - r.y0, deep = ownHoriz ? r.y1 - r.y0 : r.x1 - r.x0;
+    const order = [wall, OPP_EDGE[wall], ...(ownHoriz ? ['W', 'E'] : ['N', 'S'])];
+    let placed = null;
+    for (const cand of order) {
+      if (tall && windowWalls.has(cand)) continue;
+      const horiz = cand === 'N' || cand === 'S';
+      const lo = horiz ? x0 : y0, hi = horiz ? x1 : y1;
+      if (hi - lo < along - eps || (horiz ? H : W) < deep - eps) continue;
+      const cur = horiz ? (r.x0 + r.x1) / 2 : (r.y0 + r.y1) / 2;
+      const steps = Math.ceil((hi - lo) / 0.5);
+      for (let s = 0; s <= steps && !placed; s += 1) {
+        for (const sign of (s ? [-1, 1] : [1])) {
+          const c = Math.min(hi - along / 2, Math.max(lo + along / 2, cur + sign * s * 0.5));
+          const rr = horiz
+            ? { x0: c - along / 2, x1: c + along / 2, y0: cand === 'N' ? y0 : y1 - deep, y1: cand === 'N' ? y0 + deep : y1 }
+            : { x0: cand === 'W' ? x0 : x1 - deep, x1: cand === 'W' ? x0 + deep : x1, y0: c - along / 2, y1: c + along / 2 };
+          if (hit(rr, doorRects) || hit(rr, itemRects) || hit(rr, others)) continue;
+          placed = { cand, rr };
+          break;
+        }
+      }
+      if (placed) break;
+    }
+    if (!placed) continue;
+    const { cand, rr } = placed;
+    out[i] = {
+      ...e,
+      anchor: [((rr.x0 + rr.x1) / 2 - x0) / W, ((rr.y0 + rr.y1) / 2 - y0) / H],
+      w: (rr.x1 - rr.x0) / W, h: (rr.y1 - rr.y0) / H,
+      ...(e.asset ? { facing: ASSET_FACING_IN[cand] } : {}),
+    };
+  }
+  return out;
+}
+
 // ── FURNISH: a registered room's archetype furniture → baked world faces ──────
 // Reuses the room-spike furniture pipeline: the generated cell IS the room basis, so
 // `extractRoomSceneFaces` returns furniture already in world coords, ready to merge.
 // Structural openings (window/door) are dropped — the house cuts those for real.
-function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
+function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, windowWalls = null) {
   if (!glyph || glyph === 'H') return [];
   const pad = Math.max(o.wallThickness, 0.4);           // keep furniture off the walls
   const x0 = rect.x + pad, x1 = rect.x + rect.w - pad, y0 = rect.y + pad, y1 = rect.y + rect.h - pad;
@@ -648,10 +714,15 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
     .filter((e) => e.type !== 'window' && e.type !== 'door');
   // command position (movement-flow kernel #2): rotate the canonical layout so the anchor
   // piece backs a solid wall and faces the room's ACTUAL door, not the assumed front 'S'.
-  if (doorEdge) elements = orientElementsToDoor(elements, doorEdge, W, H, { assetFacing: o.furnishScale === 'share', canonical: [cw, ch] });
+  // (share mode runs the orientation pass even for a canonical door, so its wall pieces get the
+  // facing of the wall they stand on)
+  const share = o.furnishScale === 'share';
+  if (doorEdge || share) elements = orientElementsToDoor(elements, doorEdge || 'S', W, H, { assetFacing: share, canonical: [cw, ch] });
   // keep furniture OUT of circulation: drop any piece whose footprint overlaps a stair
   // exclusion rect (the flight rising through this room). Hall cells are already skipped.
   const exclude = o.furnishExclude || [];
+  // share mode: a wall piece in a door's way, or tall storage on a windowed wall, moves first
+  if (share) elements = relocateWallPieces(elements, { x0, x1, y0, y1 }, exclude, windowWalls || new Set());
   if (exclude.length) {
     elements = elements.filter((e) => {
       const u = e.anchor ? e.anchor[0] : 0.5, v = e.anchor ? e.anchor[1] : 0.5;
@@ -661,29 +732,34 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null) {
       // a floor skin (rug / runner) is walked over, not around: a door approach never strips
       // it (a stair still does — the flight stands on that floor)
       const skin = e.type === 'rug' || e.type === 'runner';
-      return !exclude.some((h) => !(skin && (h.door || h.item)) && Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
+      // a seat that tucks under its table is not in the door's path (share mode): the approach
+      // stays walkable, and the table keeps its chairs
+      const seat = share && SEAT_TUCK_TYPES.has(e.type);
+      return !exclude.some((h) => !(skin && (h.door || h.item)) && !(seat && h.door) && Math.min(r.x1, h.x1) > Math.max(r.x0, h.x0) + eps && Math.min(r.y1, h.y1) > Math.max(r.y0, h.y0) + eps);
     });
   }
-  // Wall-hung decor (picture / sconce / tv) mounts on the room's BACK wall (the
-  // y0 wall) by box-net convention, regardless of its plan anchor — so the
-  // plan-rect test above cannot keep it off a doorway or window cut into that
-  // wall. Test the decor where it will actually hang: its horizontal span along
-  // the back-wall line vs every opening on that line. Doorways and windows own
-  // their wall; decor never overlaps them.
+  // Wall-hung decor (picture / sconce / tv) mounts on the wall its `surface` names (the back
+  // wall, y0, by box-net convention; the layout spin moves it to the wall the canonical back
+  // became), regardless of its plan anchor — so the plan-rect test above cannot keep it off a
+  // doorway or window cut into that wall. Test the decor where it will actually hang: its span
+  // along that wall's line vs every opening on the line. Openings own their wall; decor never
+  // overlaps them.
   const WALL_HUNG = new Set(['picture', 'sconce', 'tv', 'television']);
   const wallOpenings = o.wallOpenings || [];
   if (wallOpenings.length) {
-    const wallLine = rect.y;
-    const onBackWall = wallOpenings.filter((op) => op.orientation === 'h' && Math.abs(op.at - wallLine) <= (o.exteriorThickness || 0.67) + 0.35);
-    if (onBackWall.length) {
-      elements = elements.filter((e) => {
-        if (!WALL_HUNG.has(e.type)) return true;
-        const u = e.anchor ? e.anchor[0] : 0.5;
-        const ew = (e.w || 0.12) * W;
-        const s0 = x0 + u * W - ew / 2 - 0.3, s1 = x0 + u * W + ew / 2 + 0.3;
-        return !onBackWall.some((op) => Math.min(s1, op.b) > Math.max(s0, op.a));
-      });
-    }
+    const tol = (o.exteriorThickness || 0.67) + 0.35;
+    const SURFACE_LINE = { backWall: ['h', rect.y], frontWall: ['h', rect.y + rect.h], leftWall: ['v', rect.x], rightWall: ['v', rect.x + rect.w] };
+    elements = elements.filter((e) => {
+      if (!WALL_HUNG.has(e.type)) return true;
+      const line = SURFACE_LINE[e.surface] || SURFACE_LINE.backWall;
+      const onWall = wallOpenings.filter((op) => op.orientation === line[0] && Math.abs(op.at - line[1]) <= tol);
+      if (!onWall.length) return true;
+      const u = e.anchor ? e.anchor[0] : 0.5;
+      const len = line[0] === 'h' ? W : H, base = line[0] === 'h' ? x0 : y0;
+      const ew = (e.w || 0.12) * len;
+      const s0 = base + u * len - ew / 2 - 0.3, s1 = base + u * len + ew / 2 + 0.3;
+      return !onWall.some((op) => Math.min(s1, op.b) > Math.max(s0, op.a));
+    });
   }
   if (!elements.length) return [];
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
@@ -708,6 +784,8 @@ function roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o) {
     ...(o.contactShadows || o._lamps
       ? { lighting: { light: o.light, ...(o.contactShadows ? { diffusion: { contact: true, contactStrength: o.contactStrength ?? 0.75, contactLift: 0.09, contactProfile: 'rim' } } : {}), ...(o._lamps ? { lamps: o._lamps } : {}) } }
       : { light: o.light }),
+    // share mode: the tabletop props (a place setting, a laptop) are their meshes, at feet
+    ...(o.furnishScale === 'share' ? { tabletop: { assets: true, heightScale: 1 / FLOORPLAN_METERS_PER_UNIT } } : {}),
     includeShell: false, deferDiffusion: false,
   });
   return out.faces || [];
@@ -858,6 +936,128 @@ function doorClearanceRects(doors, o) {
     .map((r) => ({ ...r, door: true }));
 }
 
+// ── THE OPEN LEAF ─────────────────────────────────────────────────────────────
+// An interior door stands open against the wall, the way doors are left in a lived-in house:
+// hinged at one jamb and swung the whole way, so the leaf lies flat on the room-side face of
+// the wall beside its opening. It used to stand at 90° — a door-sized blank slab out in the
+// room (in a kitchen aisle, a 3 × 7 ft "monolith" in the walk). The leaf parks beyond jamb `a`
+// when that stretch of wall is the same room's and carries no other opening, else beyond `b`;
+// with neither it keeps the 90° swing (`park` null). The parked strip is a furnish exclusion.
+function leafParking(graph, run, op, o) {
+  const fw = o.casingWidth ?? FLOORPLAN_DEFAULTS.casingWidth;
+  const span = (op.b - op.a) - 2 * fw;
+  if (span < Q) return null;
+  const swing = op.doorSwing ?? o.doorSwing;
+  const dir = swing === '-' ? -1 : swing === '+' ? 1 : (Number.isFinite(swing) ? Math.sign(swing) || 1 : 1);
+  const leafD = o.doorLeafThickness ?? FLOORPLAN_DEFAULTS.doorLeafThickness;
+  const t = runThickness(run, o);
+  const gap = 0.03;                                                    // the leaf hangs a hair off the wall face
+  const face = run.at + dir * (t / 2 + gap), back = face + dir * leafD;
+  const [lo, hi] = run.along;
+  const cellAt = (along) => {
+    const px = run.orientation === 'v' ? run.at + dir * 0.6 : along, py = run.orientation === 'v' ? along : run.at + dir * 0.6;
+    return (graph.cells || []).find((c) => px > c.x && px < c.x + c.w && py > c.y && py < c.y + c.h) || null;
+  };
+  const room = cellAt((op.a + op.b) / 2);
+  const clear = (s0, s1) => s0 >= lo - Q && s1 <= hi + Q
+    && cellAt(s0 + 0.1) === room && cellAt(s1 - 0.1) === room
+    && !run.openings.some((x) => x !== op && Math.min(s1, x.b) > Math.max(s0, x.a) + Q);
+  let hinge = null, s0 = 0, s1 = 0;
+  if (clear(op.a + fw - span, op.a + fw)) { hinge = 'a'; s0 = op.a + fw - span; s1 = op.a + fw; }
+  else if (clear(op.b - fw, op.b - fw + span)) { hinge = 'b'; s0 = op.b - fw; s1 = op.b - fw + span; }
+  if (!hinge) return null;
+  // the exclusion strip: the leaf plus the half-foot in front of it that lets it swing (a shelf
+  // flush against an open leaf is a shelf the door can never close over)
+  const clearTo = back + dir * 0.5;
+  const rect = run.orientation === 'v'
+    ? { x0: Math.min(face, clearTo), x1: Math.max(face, clearTo), y0: s0, y1: s1 }
+    : { x0: s0, x1: s1, y0: Math.min(face, clearTo), y1: Math.max(face, clearTo) };
+  return { hinge, dir, s0, s1, face, back, rect };
+}
+
+// ── EVERY ROOM GETS A WAY IN ──────────────────────────────────────────────────
+// An explicit plan lists its doors by hand, and a room left without one is SEALED: no doorway
+// is cut, the furnish pass sees no door edge (no command position) and no door approach, and
+// the walk cannot enter. Generated plans door every room (computeDoors / computeRoomDoors in
+// floorplan-glyphs.js); this is the same guarantee for a hand-authored plan. From the entry (the
+// `E` room, else the first hall, else the first room) every cell the authored doors do not
+// reach gets a door cut at the midpoint of its widest shared edge with a reachable cell — a
+// hall first (rooms door onto circulation), any room otherwise. A plan whose cells are all
+// reachable gets no door and renders the same bytes. Auto doors carry `auto: true` and the
+// index of the room they are tagged to (the door edge letter is that room's).
+const MIN_SHARED_WALL = 3.5;   // a doorway needs ~3.5 ft of shared wall
+const OPP_EDGE = { N: 'S', S: 'N', E: 'W', W: 'E' };
+export function connectPlan(plan, o = FLOORPLAN_DEFAULTS) {
+  const rooms = plan.rooms || [], halls = plan.halls || [];
+  const cells = [...rooms.map((r, i) => ({ ...r, kind: 'room', room: i })), ...halls.map((h) => ({ ...h, kind: 'hall', room: -1 }))];
+  const doors = [...(plan.doors || [])];
+  if (cells.length < 2) return doors;
+  const cellAt = (x, y) => cells.findIndex((c) => x > c.x && x < c.x + c.w && y > c.y && y < c.y + c.h);
+  // the cells each authored door joins: the two cells either side of the door point
+  const links = [];
+  for (const d of doors) {
+    if (d.x == null || d.y == null) continue;
+    const vertical = d.edge === 'E' || d.edge === 'W';
+    const a = vertical ? cellAt(d.x - 0.6, d.y) : cellAt(d.x, d.y - 0.6);
+    const b = vertical ? cellAt(d.x + 0.6, d.y) : cellAt(d.x, d.y + 0.6);
+    if (a >= 0 && b >= 0 && a !== b) links.push([a, b]);
+  }
+  const entry = cells.findIndex((c) => c.kind === 'room' && c.glyph === 'E');
+  const hall = cells.findIndex((c) => c.kind === 'hall');
+  const reach = new Set([entry >= 0 ? entry : hall >= 0 ? hall : 0]);
+  const flood = () => {
+    let grew = true;
+    while (grew) { grew = false; for (const [a, b] of links) if (reach.has(a) !== reach.has(b)) { reach.add(a); reach.add(b); grew = true; } }
+  };
+  flood();
+  // the widest shared edge between two cells, as a door point on A's edge
+  const shared = (A, B) => {
+    const eps = 0.5;
+    const vOv = Math.max(0, Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y));
+    const hOv = Math.max(0, Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x));
+    const my = Math.max(A.y, B.y) + vOv / 2, mx = Math.max(A.x, B.x) + hOv / 2;
+    if (vOv > MIN_SHARED_WALL && Math.abs(A.x + A.w - B.x) < eps) return { edge: 'E', x: A.x + A.w, y: my, span: vOv };
+    if (vOv > MIN_SHARED_WALL && Math.abs(B.x + B.w - A.x) < eps) return { edge: 'W', x: A.x, y: my, span: vOv };
+    if (hOv > MIN_SHARED_WALL && Math.abs(A.y + A.h - B.y) < eps) return { edge: 'S', x: mx, y: A.y + A.h, span: hOv };
+    if (hOv > MIN_SHARED_WALL && Math.abs(B.y + B.h - A.y) < eps) return { edge: 'N', x: mx, y: A.y, span: hOv };
+    return null;
+  };
+  let guard = 0;
+  while (reach.size < cells.length && guard < cells.length) {
+    guard += 1;
+    let best = null;
+    cells.forEach((c, i) => {
+      if (reach.has(i)) return;
+      cells.forEach((r, j) => {
+        if (!reach.has(j)) return;
+        const seg = shared(c, r);
+        if (!seg) return;
+        const score = seg.span + (r.kind === 'hall' || c.kind === 'hall' ? 1000 : 0);
+        if (!best || score > best.score) best = { score, seg, i, j };
+      });
+    });
+    if (!best) break;                                                  // genuinely detached: no shared wall
+    const { seg, i, j } = best;
+    const tagged = cells[i].kind === 'room' ? i : j;                    // the room the door is tagged to
+    const edge = tagged === i ? seg.edge : OPP_EDGE[seg.edge];
+    const width = o.doorWidth ?? FLOORPLAN_DEFAULTS.doorWidth;
+    // the door sits mid-wall when the wall is long enough for its open leaf to lie beside either
+    // jamb (leafParking), else near the low corner the way a short wall is doored in a house, so
+    // the leaf parks on the long side instead of standing out at 90°
+    const casing = o.casingWidth ?? FLOORPLAN_DEFAULTS.casingWidth;
+    const parksMid = seg.span >= 3 * width - 2 * casing + 0.5;
+    const lo = seg.edge === 'E' || seg.edge === 'W' ? seg.y - seg.span / 2 : seg.x - seg.span / 2;
+    const at = parksMid ? null : lo + (o.wallThickness ?? FLOORPLAN_DEFAULTS.wallThickness) + width / 2 + 0.3;
+    const x = at != null && (seg.edge === 'N' || seg.edge === 'S') ? at : seg.x;
+    const y = at != null && (seg.edge === 'E' || seg.edge === 'W') ? at : seg.y;
+    doors.push({ x, y, edge, width, auto: true, ...(cells[tagged].room >= 0 ? { room: cells[tagged].room } : {}) });
+    links.push([i, j]);
+    reach.add(i);
+    flood();
+  }
+  return doors;
+}
+
 // Which wall of `room` ({x,y,w,h}) a door point sits on — 'N' (y0) | 'S' (y1) | 'W' (x0) |
 // 'E' (x1) — or null when the door is on none of them. `tol` absorbs wall thickness.
 export function doorWallOf(room, door, tol = 1) {
@@ -876,7 +1076,7 @@ export function doorWallOf(room, door, tol = 1) {
 // One room → its furniture. The OPEN CORE (open + multi-zone) is split along its long
 // axis into living/kitchen/dining sub-rects (weighted by furniture budget) and each is
 // furnished as itself — open plan, distinct zones.
-function furnishRoom(room, baseZ, o, doorEdge = null, doorWalls = null) {
+function furnishRoom(room, baseZ, o, doorEdge = null, doorWalls = null, windowWalls = null) {
   if (room.open && Array.isArray(room.zones) && room.zones.length > 1) {
     // the open core keeps its canonical zone layout (open plan — command position is the
     // private rooms' concern, not the great room's), so doorEdge is not threaded here.
@@ -904,9 +1104,9 @@ function furnishRoom(room, baseZ, o, doorEdge = null, doorWalls = null) {
   if (room.glyph === 'K' && doorWalls) {
     const len = { N: room.w, S: room.w, E: room.h, W: room.h };
     const free = ['N', 'S', 'W', 'E'].filter((e) => !doorWalls.has(e)).sort((a, b) => len[b] - len[a]);
-    if (free.length) return furnishCell(room, 'K', baseZ, o, free[0], null);
+    if (free.length) return furnishCell(room, 'K', baseZ, o, free[0], null, windowWalls);
   }
-  return furnishCell(room, room.glyph, baseZ, o, null, doorEdge);
+  return furnishCell(room, room.glyph, baseZ, o, null, doorEdge, windowWalls);
 }
 
 /** Plan-space rect for a [s0,s1] span of a run, straddling its centerline by t/2. */
@@ -1031,9 +1231,26 @@ function doorLeafFaces(run, op, baseZ, o, fw) {
     ? (o.entryDoorTint || FLOORPLAN_DEFAULTS.entryDoorTint)
     : (o.doorLeafTint || FLOORPLAN_DEFAULTS.doorLeafTint);
   const z0 = baseZ, z1 = baseZ + op.top - fw;
+  const faces = [];
+  if (op.park) {
+    // parked flat against the wall beside the jamb (leafParking): the slab, two recessed panels
+    // and a lever handle on its exposed face, so it reads as a door and not a slab
+    const p = op.park;
+    const vert = run.orientation === 'v';
+    const along = (s0, s1, f0, f1) => (vert ? [Math.min(f0, f1), Math.max(f0, f1), s0, s1] : [s0, s1, Math.min(f0, f1), Math.max(f0, f1)]);
+    faces.push(...boxFaces(...along(p.s0, p.s1, p.face, p.back), z0, z1, tint, o.light));
+    const panelT = 0.012, inset = Math.min(0.35, (p.s1 - p.s0) * 0.16), hL = z1 - z0;
+    const panel = scaleHex(tint, 0.86);
+    for (const [pz0, pz1] of [[z0 + hL * 0.1, z0 + hL * 0.43], [z0 + hL * 0.52, z0 + hL * 0.92]]) {
+      faces.push(...boxFaces(...along(p.s0 + inset, p.s1 - inset, p.back, p.back + p.dir * panelT), pz0, pz1, panel, o.light));
+    }
+    const free = p.hinge === 'a' ? p.s0 : p.s1;                          // the swinging edge, where the handle is
+    const hs0 = p.hinge === 'a' ? free + 0.22 : free - 0.62, hs1 = hs0 + 0.4;
+    faces.push(...boxFaces(...along(hs0, hs1, p.back, p.back + p.dir * 0.11), z0 + 3.0, z0 + 3.06, '#b9b2a4', o.light));
+    return faces;
+  }
   const swing = op.doorSwing ?? o.doorSwing;
   const dir = swing === '-' ? -1 : swing === '+' ? 1 : (Number.isFinite(swing) ? Math.sign(swing) || 1 : 1);
-  const faces = [];
   const leaf = (hinge, len) => {
     if (run.orientation === 'v') {
       const x = run.at, x0 = Math.min(x, x + dir * len), x1 = Math.max(x, x + dir * len);
@@ -1463,6 +1680,8 @@ export function structurizeFloorplan(input = {}, opts = {}) {
       o.entryDoor = true;                                                // no door authored → auto-cut one
     }
   }
+  // an explicit multi-cell plan: door every cell the authored doors leave sealed (connectPlan)
+  if (Array.isArray(input.rooms) && !oneCell) plan.doors = connectPlan(plan, o);
   const cells = [
     // carry `role` through (the true space-type the principle evaluator reads); `glyph` stays the
     // furniture/finish costume. Undefined role is fine — the evaluator defaults it from the glyph.
@@ -1520,9 +1739,11 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     const wallOpenings = wallGraph.runs.flatMap((run) =>
       run.openings.map((op) => ({ orientation: run.orientation, at: run.at, a: op.a, b: op.b })));
     const itemClear = placed.map((p) => ({ ...p.rect, item: true }));
+    // the strip each parked leaf lies on (leafParking): no wall piece is placed through it
+    const leafClear = wallGraph.runs.flatMap((run) => run.openings.filter((op) => op.park).map((op) => ({ ...op.park.rect, door: true })));
     const fo = {
       ...o,
-      ...(doorClear.length || itemClear.length ? { furnishExclude: [...(o.furnishExclude || []), ...doorClear, ...itemClear] } : {}),
+      ...(doorClear.length || itemClear.length || leafClear.length ? { furnishExclude: [...(o.furnishExclude || []), ...doorClear, ...itemClear, ...leafClear] } : {}),
       wallOpenings,
     };
     // the edge a room is entered from (its interior access door) → command-position orient.
@@ -1549,7 +1770,23 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     // its counter run on a wall that has none
     const allDoors = [...(plan.doors || []), ...(wallGraph.entryDoor ? [wallGraph.entryDoor] : [])];
     const doorWallsFor = (i) => new Set(allDoors.map((d) => doorWallOf(plan.rooms[i], d)).filter(Boolean));
-    plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i), doorWallsFor(i))));
+    // every wall of a room that carries a window: tall storage keeps off it (relocateWallPieces)
+    const winTol = (o.exteriorThickness ?? o.wallThickness) + 0.35;
+    const windowWallsFor = (i) => {
+      const r = plan.rooms[i], out = new Set();
+      for (const run of wallGraph.runs) {
+        const wins = (run.openings || []).filter((op) => op.sill > 0);
+        if (!wins.length) continue;
+        const edge = run.orientation === 'h'
+          ? (Math.abs(run.at - r.y) <= winTol ? 'N' : Math.abs(run.at - (r.y + r.h)) <= winTol ? 'S' : null)
+          : (Math.abs(run.at - r.x) <= winTol ? 'W' : Math.abs(run.at - (r.x + r.w)) <= winTol ? 'E' : null);
+        if (!edge) continue;
+        const [lo, hi] = run.orientation === 'h' ? [r.x, r.x + r.w] : [r.y, r.y + r.h];
+        if (wins.some((op) => Math.min(op.b, hi) > Math.max(op.a, lo) + Q)) out.add(edge);
+      }
+      return out;
+    };
+    plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i), doorWallsFor(i), windowWallsFor(i))));
   }
   // placed items render whether or not the room is furnished: a `type` bakes here, a `ref`
   // rides out as a placement record for the World to resolve (world-scene.js)

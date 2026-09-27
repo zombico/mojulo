@@ -130,7 +130,14 @@ describe('registry wiring', () => {
     expect(north.find((e) => e.type === 'bed').facing).toBe('S');
     const plain = orientElementsToDoor(els, 'N', 19.2, 23.2);
     expect(plain.find((e) => e.type === 'bed').facing).toBeUndefined();
+    // a canonical (S-door) layout is still stamped in share mode: the back-wall bed gets the
+    // letter the renderer defaulted it to ('N', same bytes), and a SIDE-wall piece gets the wall
+    // it stands on — the dresser on the E wall faces west into the room, not along its wall
     const south = orientElementsToDoor(els, 'S', 19.2, 23.2, { assetFacing: true });
-    expect(south.find((e) => e.type === 'bed').facing).toBeUndefined();
+    expect(south.find((e) => e.type === 'bed').facing).toBe('N');
+    expect(south.find((e) => e.type === 'dresser').facing).toBe('W');
+    expect(north.find((e) => e.type === 'dresser').facing).toBe('E');
+    const southPlain = orientElementsToDoor(els, 'S', 19.2, 23.2);
+    expect(southPlain).toBe(els);                                   // feet mode: canonical is untouched
   });
 });

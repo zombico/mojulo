@@ -12,6 +12,57 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Furniture audit
+
+- **Every room gets a way in.** An explicit `floorplan` (authored `rooms` / `halls`) used to
+  leave any room without an authored door SEALED: no doorway, no door edge for the furnish pass
+  (the bed's headboard and the desk sat on the hall wall), no door approach, and no way in for
+  the walk. The structurizer now doors every cell the authored doors do not reach, from the entry
+  (`connectPlan`): a door at the midpoint of the widest shared edge with a hall, else with a
+  reachable room, tagged `auto: true` with the room it belongs to. A wall too short for its open
+  leaf to lie beside the jamb is doored near the corner instead, as a short wall is in a house.
+  A plan whose cells are all reachable renders the same bytes; the mint-time `repairFloorplan`
+  finds nothing left to cut and its test says so.
+- **Interior doors stand open against the wall.** A hinged interior leaf used to stand at 90°
+  into its room, a blank door-sized slab in the walker's path (the "monolith" in a kitchen
+  aisle). It now lies flat on the room-side face of the wall beside its hinge jamb (jamb `a`
+  first, then `b`; a doorway with no wall for it keeps the 90° swing), with two recessed panels
+  and a lever handle so it reads as a door. The parked leaf and the half foot in front of it are
+  a furnish exclusion. Exterior doors are unchanged. Three more boxes per interior door: the
+  furnish characterization pins re-based, logged in the file.
+- **Chair legs.** The dining chair mesh capped its seat at 0.48, a metre, whatever unit the room
+  handed it, so a 2.9 ft chair in a house collapsed to a footstool under its table. The seat now
+  sits at half the chair's height in any unit (a 0.92 m chair is the same bytes). The office and
+  study-nook `computer-chair` wears the same mesh in share mode instead of its box-net card.
+- **Chairs stay, wall pieces move.** In share mode a seat that tucks under its table is never
+  dropped by a door approach (the approach stays walkable), so a pass-through dining room keeps
+  its chairs. A wall piece that lands in a door's way (the sideboard on the wall a second door
+  cuts through) slides along its wall to a clear stretch or moves to another wall — its own,
+  the opposite, then the sides — and tall storage (bookcase, shelving, cabinet) keeps off a
+  windowed wall the same way (`relocateWallPieces`). Feet-mode plans keep their legacy bytes.
+- **Wall pieces face the room.** An unfaced wall asset was stamped the back wall's facing whatever
+  wall it stood on: a side-wall bookcase faced along its wall, the dresser showed its end to the
+  room. Share mode now faces a wall piece off the wall it actually stands on (canonical S-door
+  layouts included), the bedroom dresser runs along its side wall, and a wall-hung picture or
+  sconce keeps its height through the layout spin (the anchor's height fraction no longer flips)
+  and is tested against the openings of the wall it actually hangs on, side walls included.
+- **Entry and storage share-mode arrangers** with real meshes: an `entry-bench` (plank seat,
+  four legs, a shoe rail) on a side wall under a picture, a sconce opposite; `utility-shelf`
+  (uprights, five open shelves, hashed bins) for the storage room and the office rack, and a
+  `sideboard-cabinet` as the storage cabinet. The flat fills stay for feet mode.
+- **Tabletop meshes.** In share mode the tabletop props the planner puts on a table or desk (a
+  place setting, a water bottle, a laptop, a keyboard and mouse) dispatch to their
+  `room-tabletop` makers at the room's unit, in place of the generic prop box that read as a
+  breadbox on the dining table. `planTabletopSurfaceElements` takes `{ assets, heightScale }`.
+- `scripts/lookdev-shots.mjs`: interior stills from explicit `{pos, target, hfov}` cameras
+  through the world capture pipeline, over a stored ref or a bare manifest file — the repro
+  harness the audit used, now in the tree.
+- Machine gate: `furniture-audit.test.js` (sealed rooms doored, the corner rule, chair seat
+  height, chairs kept in a pass-through dining room, wall assets facing in, tall storage off a
+  windowed wall, the parked leaf and its exclusion, the E/S arrangers, tabletop meshes). The
+  `floorplan` kind snapshots re-based. Eyes gate: the audit cameras re-rendered on the fix
+  branch, for the operator.
+
 ### Art direction
 
 - **The passes serve a read.** The creature and hero catalysts carry an "Art direction" section: primary

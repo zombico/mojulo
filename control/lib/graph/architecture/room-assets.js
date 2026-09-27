@@ -13,6 +13,7 @@ import {
   buildCoffeeTableWorkbenchManifest, buildDiningTableWorkbenchManifest, buildFloorLampWorkbenchManifest,
   buildLowDresserWorkbenchManifest, buildMediaConsoleWorkbenchManifest, buildNightstandWorkbenchManifest,
   buildPlatformBedWorkbenchManifest, buildSideboardWorkbenchManifest,
+  buildEntryBenchWorkbenchManifest, buildUtilityShelfWorkbenchManifest,
 } from './room-assets-makers.js';
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -218,8 +219,11 @@ export function buildDiningChairWorkbenchManifest({ x = 0, y = 0, z = 0, w = 0.4
   const y1 = y + d / 2;   // front edge (where you sit)
   const z0 = z;
 
-  const seatTopZ = z0 + Math.min(0.48, h * 0.5);   // ergonomic seat surface height
-  const seatThick = Math.min(0.06, h * 0.07);
+  // the seat sits at half the chair's height, whatever unit the room hands over (a 0.92 m chair
+  // seats at 0.46, a 2.9 ft chair at 1.45 ft — it used to be capped at 0.48, a metre, so a
+  // feet-scale chair collapsed to a footstool under its table)
+  const seatTopZ = z0 + h * 0.5;
+  const seatThick = Math.min(h * 0.07, 0.06 * (h / 0.92));
   const m = Math.min(w, d);
 
   const legTopR = m * 0.08;                          // widened ~2.5× — substantial turned legs, not spindles
@@ -1146,6 +1150,18 @@ export const ROOM_FURNITURE_ASSETS = {
     aliases: ['computer-desk', 'pc-table', 'computer-workstation'],
     tags: { rooms: ['office', 'study', 'bedroom', 'classroom'], roles: ['table', 'desk', 'computer'], planeRole: ['table-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood', 'metal'] },
     buildManifest: (el) => buildComputerTableWorkbenchManifest(footprintDims(el)),
+  },
+  'entry-bench': {
+    id: 'entry-bench', class: 'room-furniture', local: true,
+    aliases: ['hall-bench', 'bench.entry', 'shoe-bench'],
+    tags: { rooms: ['entry', 'hall', 'bedroom'], roles: ['seat', 'bench'], planeRole: ['seat-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] },
+    buildManifest: (el) => buildEntryBenchWorkbenchManifest(footprintDims(el)),
+  },
+  'utility-shelf': {
+    id: 'utility-shelf', class: 'room-furniture', local: true,
+    aliases: ['utility-shelving', 'storage-rack', 'open-shelving', 'shelving-unit'],
+    tags: { rooms: ['storage', 'office', 'laundry', 'garage'], roles: ['storage', 'shelving'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['metal', 'wood'] },
+    buildManifest: (el) => buildUtilityShelfWorkbenchManifest(footprintDims(el)),
   },
   'l-table': {
     id: 'l-table', class: 'room-furniture', local: true,

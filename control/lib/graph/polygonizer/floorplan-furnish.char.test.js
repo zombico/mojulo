@@ -58,6 +58,11 @@
  *     out across a hall; between rooms, into the smaller). A: seed 7 now tiles a kitchen (4166→12051 faces,
  *     the kitchen assets). B: the lounge finds its door and takes command position
  *     (3134→3164). C: the stacked house's wider hall and stair (same count, new bytes).
+ *   - furniture audit (2026-09-26, CHANGELOG "Furniture audit"): an interior door leaf now
+ *     stands open flat against the wall beside its jamb, with two panels and a lever handle
+ *     (three more boxes, +15 faces per hinged interior door: A +75 for five doors, B +15, C +30);
+ *     and a wall-hung piece's anchor keeps its height through the layout spin (its along
+ *     fraction mirrors, its height no longer flips). A, B and C re-based.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -69,8 +74,8 @@ const sha = (v) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 describe('floorplan furnish characterization (legacy paths byte-identical)', () => {
   it('generated seed plan, furnish:true', () => {
     const s = structurizeFloorplan({ seed: 7, width: 46, height: 34 }, { furnish: true });
-    expect(s.faces.length).toBe(12051);
-    expect(sha(s.faces)).toBe('d6d30cf6cbd9c6f7077fae77d82b7ca658c85fdd48b95fd2a860ad8bfaf85bc3');
+    expect(s.faces.length).toBe(12126);
+    expect(sha(s.faces)).toBe('4e11a2645c36277369527b368356109361eefa0ff7945b4770bb985fed63da22');
   });
 
   it('explicit two-cell plan with an interior door, furnish:true', () => {
@@ -79,13 +84,13 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
       rooms: [{ x: 0, y: 0, w: 15, h: 12, glyph: 'L' }, { x: 15, y: 0, w: 15, h: 12, glyph: 'B' }],
       doors: [{ x: 15, y: 6, room: 1, edge: 'W' }],
     }, { furnish: true });
-    expect(s.faces.length).toBe(3164);
-    expect(sha(s.faces)).toBe('8cff9cc18e739aac79cdc9b01ba161651de6b1c1a918649b1ea9ede9e1b8834a');
+    expect(s.faces.length).toBe(3179);
+    expect(sha(s.faces)).toBe('34934227a462203a3f2590aedd273abdcd5017fec1cbf88e8d61d4c52ecfae66');
   });
 
   it('stacked house, cutaway (furnish defaults on)', () => {
     const s = structurizeHouse({ seed: 7, width: 40, height: 30 }, { view: 'cutaway' });
-    expect(s.faces.length).toBe(238);
-    expect(sha(s.faces)).toBe('4a03a70310fb79ffff2faefb85fd9e3fa9d34cb344e228a82966845a8e322e54');
+    expect(s.faces.length).toBe(268);
+    expect(sha(s.faces)).toBe('0b5c211bebc9256d7d8edc253d730460247e47a25b8eac0ac27754b1582bf35f');
   });
 });
