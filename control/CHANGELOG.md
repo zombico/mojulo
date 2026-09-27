@@ -67,6 +67,34 @@ loops and the recipe format are unchanged.
   The skin is stamped after planning, off its own hash, so no mass moves. A massing box takes its
   facade's average colour, so the horizon matches the full-detail blocks. The stock city is
   unchanged.
+- **Metro landmarks stand at their real size.** A monument's footprint used to be a fraction of the
+  demo frame, so in a metro city the CN Tower stood 49 m tall and the Colosseum was 21 m long.
+  - A metro landmark is now sized from its real dimensions. A tower fits on height (CN Tower 553 m,
+    Eiffel Tower 330 m, Petronas 452 m). A building whose ground plan is the landmark fits height and
+    plan together (Colosseum, stadium, pyramids, Empire State), which splits a builder's proportion
+    error evenly between the two. The builders themselves are unchanged.
+  - Every landmark fits the default 220 × 140 metro frame at full size, around a 22 m forecourt
+    rather than a plaza a quarter of the cluster wide. `stats.landmarkSizes` reports each height and
+    any zoom-out a smaller frame forced.
+  - The band a plaza leaves between its flanking avenue and the frame edge is cut by a side street
+    into blocks, instead of standing as one 550 m block around a single court.
+  - The presets find it from the recipe alone. The street eye stands on the walk of the avenue that
+    flanks the plaza, just past the corner, looking up at the monument; the skyline stands at the
+    city's corner with the lens widened only enough to hold the tip.
+  - The stock city is unchanged.
+- **Metro cities have a regional flavour.** `flavor` names one of north-american, new-york, paris,
+  london, mediterranean, tokyo, southeast-asia, latin-american or gulf, and the city takes that
+  place's materials, affectations, heights and lot grain.
+  - Paris is cream cut stone with French balconies and zinc mansards under one cornice line. New
+    York has brick walk-ups with fire escapes and a water tank on anything over six storeys. Tokyo
+    has narrow lots, tile fronts and vertical signs. The Mediterranean has stucco under terracotta
+    hip roofs. London is stock brick and Portland stone around a glass core. The gulf has sand stucco
+    under supertall glass.
+  - A metro mint writes a flavour into the recipe: the one asked for, else the landmark's own city,
+    else a roll within the recipe's `locale` region, else a roll over all. It adds the flavour's
+    `locale` and `climate` when the recipe has none. The roll happens once, at mint, so adding a
+    flavour later never changes a stored city.
+  - A metro recipe with no flavour renders as before (`north-american`). The stock city is unchanged.
 
 ### Furniture audit
 

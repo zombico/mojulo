@@ -82,6 +82,7 @@ import { straightPath, sinePath, chainPaths, roadRibbons, groundStreet, offsetPa
 import { vehicleAntFaces, streetcarCorridor } from '../vehicles/vehicles-css3d.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
 import { pedestrianFaces, IDLE_POSES, STROLL_POSES, PALETTES } from '../figures/pedestrian-asset.js';
+import { CITY_FLAVORS, normalizeCityFlavor } from './city-flavors.js';
 
 const CITY_ELEMENT_DEFAULTS = {
   buildings: true,
@@ -220,7 +221,7 @@ const RELIGIOUS_LOCALE_ALIASES = {
   himalaya: 'himalaya', tibet: 'himalaya', nepal: 'himalaya', bhutan: 'himalaya', mongolia: 'himalaya',
   indochina: 'indochina', thailand: 'indochina', myanmar: 'indochina', burma: 'indochina', cambodia: 'indochina', laos: 'indochina', 'sri-lanka': 'indochina',
 };
-const canonLocale = (locale) => {
+export const canonLocale = (locale) => {
   if (!locale || typeof locale !== 'string') return null;
   const key = locale.trim().toLowerCase().replace(/[\s_]+/g, '-');
   return RELIGIOUS_LOCALE_ALIASES[key] || key;
@@ -796,6 +797,62 @@ const LANDMARK_FOOTPRINT = {
   rizal: { frac: 0.28, aspect: 1.1 },
 };
 
+// METRO LANDMARKS at their real size (metres). `h` is the overall height (tip, mast or finial); `long`
+// is the ground plan's long side, given only where the builder's footprint IS the structure (a tower's
+// footprint is its plaza, so a tower fits on height alone). A builder is scale-free (its height is
+// LANDMARK_HEIGHTS × its short side), so one uniform scale sizes it: the height fit, or where `long` is
+// real the geometric mean of the height fit and the plan fit, which splits a builder's proportion error
+// evenly between the two instead of honouring one and doubling the other.
+const LANDMARK_REAL = {
+  taj: { h: 73, long: 95.5 },                    // dome 73 m on a 95.5 m square plinth
+  'cn-tower': { h: 553.3 },
+  skytree: { h: 634 },
+  'rogers-centre': { h: 86, long: 281 },         // 4.6 ha oval at the builder's 1.35 : 1 ≈ 281 × 208 m
+  colosseum: { h: 48, long: 189 },
+  arena: { h: 45, long: 150 },                   // a generic modern arena
+  'great-pyramid': { h: 146.6, long: 230.3 },
+  'louvre-pyramid': { h: 21.6, long: 35.4 },
+  'mexican-pyramid': { h: 30, long: 55.3 },      // El Castillo, Chichén Itzá
+  'petronas-towers': { h: 451.9 },
+  'big-ben': { h: 96 },
+  stonehenge: { h: 7.3, long: 41 },              // 33 m sarsen ring, heel stone offset (the builder's 1.25 : 1)
+  'chinatown-gate': { h: 14, long: 20 },         // a typical paifang
+  'arc-de-triomphe': { h: 50, long: 45 },
+  parthenon: { h: 13.7, long: 69.5 },            // stylobate to entablature (the builder draws no pediment)
+  'griffith-observatory': { h: 23.5 },
+  'washington-monument': { h: 169.3 },
+  'parliament-hill': { h: 92.2, long: 144 },     // Peace Tower over the 144 m Centre Block
+  'mobile-edm-hall': { h: 40 },                  // fictional: a tracked concert hall
+  'eiffel-tower': { h: 330 },
+  'tokyo-tower': { h: 332.9 },
+  'empire-state-building': { h: 443.2, long: 129 },
+  'gateway-arch': { h: 192, long: 192 },
+  'cloud-gate': { h: 10, long: 20 },
+  'statue-of-liberty': { h: 93 },
+  'rizal-monument': { h: 12.7 },
+};
+const LANDMARK_REAL_ALIAS = { skydome: 'rogers-centre', eiffel: 'eiffel-tower', tokyo: 'tokyo-tower', 'empire-state': 'empire-state-building', empire: 'empire-state-building', gateway: 'gateway-arch', 'chicago-bean': 'cloud-gate', bean: 'cloud-gate', liberty: 'statue-of-liberty', rizal: 'rizal-monument' };
+// a metro landmark's short side (u) at its real size; null for a shape with no real entry
+function metroLandmarkBase(shape) {
+  const real = LANDMARK_REAL[LANDMARK_REAL_ALIAS[shape] || shape];
+  if (!real) return null;
+  const byHeight = real.h / CITY_METERS_PER_UNIT / (LANDMARK_HEIGHTS[shape] ?? 1);
+  if (!real.long) return byHeight;
+  const byPlan = real.long / CITY_METERS_PER_UNIT / (LANDMARK_FOOTPRINT[shape]?.aspect ?? 1);
+  return Math.sqrt(byHeight * byPlan);
+}
+const METRO_PLAZA_RING = 6;   // u: the forecourt around a metro landmark cluster, ≈ 22 m
+// a metro recipe's landmark as the presets need it, read off the recipe alone (the cluster is laid with
+// no rng, so this is the plan's own plaza) so a stream tile and its page agree: the tallest one's height
+// in u and where it stands, and the plaza the main avenues flank. null when the recipe names none.
+function metroLandmarkView(recipe, region) {
+  const landmarks = normalizeLandmarks(recipe.landmark);
+  if (!landmarks.length) return null;
+  const la = landmarkAnchor(region, landmarks, true, region, Infinity, true);
+  const tallest = la.boxes.reduce((a, b) => (b.z1 > a.z1 ? b : a));
+  return { top: tallest.z1, at: [tallest.x + tallest.w / 2, tallest.y + tallest.d / 2], plaza: la.footprint };
+}
+
 // A LANDMARK anchor: one or more named monuments laid out as an adjacent CLUSTER, centred
 // in the region, each sized to its real ground footprint. Returns the landmark boxes + the
 // combined bounding footprint (with margin) so the caller can stamp it CLAIM.ANCHOR *before*
@@ -806,13 +863,13 @@ const LANDMARK_FOOTPRINT = {
 // `sizeRegion` is the BUDGET basis: when a corridor pushes placement into a side band,
 // pass the full city region here so the monuments keep their real surface-area budget
 // (displacing blocks) instead of being re-budgeted off the shallow band.
-function landmarkAnchor(region, landmarks, big = true, sizeRegion = region, budgetCap = Infinity) {
+function landmarkAnchor(region, landmarks, big = true, sizeRegion = region, budgetCap = Infinity, metro = false) {
   const minDim = Math.min(sizeRegion.w, sizeRegion.d, budgetCap);   // never more than the default frame's short side (see rootAnchorCap)
   const horizontal = region.w >= region.d;             // lay the cluster along the longer axis
   const gap = minDim * 0.05;
   let items = landmarks.map((shape) => {
     const spec = LANDMARK_FOOTPRINT[shape] || { frac: 0.24, aspect: 1 };
-    const base = minDim * spec.frac;
+    const base = (metro && metroLandmarkBase(shape)) || minDim * spec.frac;   // metro: the real size
     return { shape, w: horizontal ? base * spec.aspect : base, d: horizontal ? base : base * spec.aspect };
   });
   const alongOf = (it) => (horizontal ? it.w : it.d);
@@ -855,8 +912,10 @@ function landmarkAnchor(region, landmarks, big = true, sizeRegion = region, budg
   // PLAZA ring around the monuments — a real civic buffer (the road network routes around
   // this whole zone, not just the bases). Scaled off the SMALLER cluster extent so a wide
   // cluster doesn't inflate the short axis into the whole region.
-  const m = Math.max(1.8, Math.min(maxX - minX, maxY - minY) * 0.25);
-  return { boxes, footprint: { x: minX - m, y: minY - m, w: (maxX - minX) + 2 * m, d: (maxY - minY) + 2 * m } };
+  // metro caps the ring at a real forecourt (METRO_PLAZA_RING): a quarter of a real-size cluster is a
+  // 40 m apron of nothing on every side
+  const m = Math.min(metro ? METRO_PLAZA_RING : Infinity, Math.max(1.8, Math.min(maxX - minX, maxY - minY) * 0.25));
+  return { boxes, footprint: { x: minX - m, y: minY - m, w: (maxX - minX) + 2 * m, d: (maxY - minY) + 2 * m }, fit: scale };
 }
 
 // ── civic areas (reserved districts) ──────────────────────────────────────────────
@@ -1914,10 +1973,10 @@ function metroCore(opts, x, y) {
 }
 function gaussian(rng) { const u = Math.max(1e-9, rng()), v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function metroLotHeight(rect, rng, opts) {
-  const H = METRO.height, k = metroCore(opts, rect.x + rect.w / 2, rect.y + rect.d / 2);
+  const H = (opts.metroCfg || METRO).height, k = metroCore(opts, rect.x + rect.w / 2, rect.y + rect.d / 2);
   const med = H.edge + (H.core - H.edge) * k, sigma = H.sigmaEdge + (H.sigmaCore - H.sigmaEdge) * k;
   const z = Math.max(-1.8, Math.min(2.4, gaussian(rng)));
-  const h = Math.min(med * Math.exp(sigma * z), H.slender * Math.min(rect.w, rect.d));   // a narrow lot carries no supertall
+  const h = Math.min(med * Math.exp(sigma * z), H.slender * Math.min(rect.w, rect.d), H.cap ?? Infinity);   // a narrow lot carries no supertall; a flavour may cap the cornice
   const floorH = h > 8 ? METRO.floorH.office : METRO.floorH.residential;
   const floors = Math.max(1, Math.round(h / floorH));
   return { h: floors * floorH + 0.12, floors, floorH };                                  // whole floors + a parapet
@@ -1991,9 +2050,11 @@ const METRO_SKIN = {
 };
 // the metro ground: roads on the aged asphalt texture (the stock charcoal grain × a dark tint renders
 // near black), flat paving (crossings, lots) at that road's mean, and a dull lawn
-const METRO_GROUND = { asphalt: '#b9babb', surface: 'asphalt-aged', paving: '#5c5e60', lawn: '#56643f' };
-function metroSkinWeights(k, tilt = null) {
-  const w = { glass: 0.05 + 1.2 * k * k, stone: 0.3, brick: 0.5 * (1 - k) };   // glass at the core, masonry toward the edge
+const METRO_GROUND = { asphalt: '#b9babb', surface: 'asphalt-aged', paving: '#5c5e60', lawn: '#56643f', plaza: '#a19f97' };
+function metroSkinWeights(k, tilt = null, mix = null) {
+  const w = mix   // a flavour's own mix: per material [base, core, edge] (city-flavors.js)
+    ? Object.fromEntries(['glass', 'stone', 'brick'].map((m) => [m, mix[m][0] + mix[m][1] * k * k + mix[m][2] * (1 - k)]))
+    : { glass: 0.05 + 1.2 * k * k, stone: 0.3, brick: 0.5 * (1 - k) };   // glass at the core, masonry toward the edge
   if (tilt) w[tilt] *= METRO_SKIN.tilt;
   return w;
 }
@@ -2002,15 +2063,18 @@ function drawSkinMaterial(u, w) {
   return u * tot < w.glass ? 'glass' : u * tot < w.glass + w.stone ? 'stone' : 'brick';
 }
 // a district's bias (a material it tilts toward, and a home family per material) and each mass's own
-// draw come off their own hashes, not the plan rng, so skinning moves nothing and no other draw shifts
-function metroSkins(boxes, field, seed) {
-  const S = METRO_SKIN, districts = new Map(), counts = { glass: 0, stone: 0, brick: 0 };
+// draw come off their own hashes, not the plan rng, so skinning moves nothing and no other draw shifts.
+// A FLAVOUR (city-flavors.js) swaps in its own mix and families, then rolls its affectations per mass,
+// after every draw above, so a flavour that sets none leaves each skin exactly as it was.
+function metroSkins(boxes, field, seed, flavor = null) {
+  const S = { ...METRO_SKIN, ...(flavor && flavor.skin) }, districts = new Map(), counts = { glass: 0, stone: 0, brick: 0 };
+  const mix = flavor && flavor.skin && flavor.skin.mix;
   const coreK = (x, y) => (field ? Math.exp(-Math.hypot(x - field.cx, y - field.cy) / field.lambda) : 0);
   const district = (x, y) => {
     const i = Math.floor(x / S.district), j = Math.floor(y / S.district), key = `${i},${j}`;
     if (!districts.has(key)) {
       const r = mulberry32((strHash(`${seed}|district|${key}`) ^ 0x5c1e7) >>> 0);
-      const material = drawSkinMaterial(r(), metroSkinWeights(coreK((i + 0.5) * S.district, (j + 0.5) * S.district)));
+      const material = drawSkinMaterial(r(), metroSkinWeights(coreK((i + 0.5) * S.district, (j + 0.5) * S.district), null, mix));
       districts.set(key, { material, home: { glass: Math.floor(r() * S.glass.length), stone: Math.floor(r() * S.stone.length), brick: Math.floor(r() * S.brick.length) } });
     }
     return districts.get(key);
@@ -2019,19 +2083,48 @@ function metroSkins(boxes, field, seed) {
     if (!b.metro || b.facade || !['building', 'anchor', 'midtower'].includes(b.kind)) continue;
     const cx = b.x + b.w / 2, cy = b.y + b.d / 2, h = b.z1 - b.z0, D = district(cx, cy);
     const r = mulberry32((strHash(`${seed}|skin|${b.x.toFixed(2)},${b.y.toFixed(2)}`) ^ 0x51c1a) >>> 0);
-    let material = drawSkinMaterial(r(), metroSkinWeights(coreK(cx, cy), D.material));
-    if (b.tower || b.kind === 'anchor') material = r() < 0.85 ? 'glass' : 'stone';   // towers are curtainwall, the odd one masonry
+    let material = drawSkinMaterial(r(), metroSkinWeights(coreK(cx, cy), D.material, mix));
+    const tower = b.tower || b.kind === 'anchor';
+    if (tower) material = r() < 0.85 ? 'glass' : 'stone';   // towers are curtainwall, the odd one masonry
     if (material === 'brick' && h > S.brickMax) material = 'stone';
     const fams = S[material], fam = fams[r() < 0.5 ? D.home[material] : Math.floor(r() * fams.length)];
     const shade = 0.94 + r() * 0.12;
     b.skin = {
       material, glass: scaleHex(fam[0], shade), frame: scaleHex(fam[1], shade),
-      ...(material === 'stone' ? { rhythm: r() < 0.6 ? 'punched' : 'pier' } : {}),
+      ...(material === 'stone' ? { rhythm: S.stoneRhythm ? S.stoneRhythm[Math.floor(r() * S.stoneRhythm.length)] : (r() < 0.6 ? 'punched' : 'pier') } : {}),
       roof: S.roof[Math.floor(r() * S.roof.length)],
     };
+    if (flavor && flavor.facade && !tower) flavorFacade(b.skin, flavor.facade, material, b.floors ?? Math.round(h / (b.floorH || 1)), Math.min(b.w, b.d), r);
     counts[material]++;
   }
   return counts;
+}
+// a flavour's affectations on one skin (scene-css3d wearSkin lays them over the facade): a roof cap
+// (a zinc mansard, a terracotta hip) that takes the place of the rooftop kit and the crown, balconies
+// of the flavour's kind or none, fire escapes on brick, rooftop tanks by storeys, awnings, shopfronts,
+// a painted sign, vertical blade signs. Each rolls only when the flavour names it.
+function flavorFacade(skin, F, material, floors, short, r) {
+  const pick = (xs) => xs[Math.floor(r() * xs.length)];
+  if (F.roof && (!F.roof.on || F.roof.on.includes(material)) && floors <= F.roof.maxFloors && r() < F.roof.p) {
+    const rise = F.roof.form === 'hip' ? Math.min(F.roof.rise, Math.tan(0.49) * short / 2) : Math.min(F.roof.rise, short * 0.3);
+    skin.roofCap = { form: F.roof.form, rise, tint: pick(F.roof.tints), ...(F.roof.chimneys ? { chimneys: true } : {}) };
+    skin.rooftopKit = []; skin.crown = 'none';
+  }
+  if (F.balcony) {
+    if (r() < F.balcony.p) Object.assign(skin, { balcony: true, balconyType: pick(F.balcony.types), balconyBays: pick(F.balcony.bays), ...(F.balcony.floors ? { balconyFloors: F.balcony.floors } : {}) });
+    else skin.balcony = false;
+  }
+  if (F.fireEscape && material === 'brick' && r() < F.fireEscape) Object.assign(skin, { fireEscape: true, balcony: false });
+  if (F.kit && !skin.roofCap) {
+    const kit = F.kit.filter((k) => floors >= k.minFloors && r() < k.p).map((k) => k.item);
+    if (kit.length) skin.kit = kit;
+  }
+  if (F.awning) { skin.awning = r() < F.awning.p; if (skin.awning) skin.awningTint = pick(F.awning.tints); }
+  if (F.storefront !== undefined) skin.storefront = r() < F.storefront;
+  if (F.sign) skin.sign = r() < F.sign.p ? pick(F.sign.palette) : null;
+  if (F.blades && floors >= F.blades.minFloors && floors <= F.blades.maxFloors && r() < F.blades.p) {
+    skin.blades = r() < 0.4 ? [pick(F.blades.palette), pick(F.blades.palette)] : [pick(F.blades.palette)];
+  }
 }
 // shrink a leaf region off the right-of-way around it: each side steps in while its edge strip is
 // mostly sidewalk or carriageway (a side against the frame edge has none and stays put)
@@ -2052,8 +2145,8 @@ function trimOffWay(g, rect, maxIn = 4) {
   return { x, y, w, d };
 }
 // lot frontages along one run, summing to its length (the last lot takes a remainder too short to stand alone)
-function metroFrontages(len, rng) {
-  const L = METRO.lot, out = [];
+function metroFrontages(len, rng, L = METRO.lot) {
+  const out = [];
   let left = len;
   while (left > 1e-6) {
     let f = rng() < L.wideP ? L.wide[0] + rng() * (L.wide[1] - L.wide[0]) : L.front[0] + rng() * (L.front[1] - L.front[0]);
@@ -2074,14 +2167,13 @@ function runIntervals(strip, cuts) {
   return spans.filter(([a, b]) => b - a > 0.5);
 }
 function metroTowerSites(block, along, long, short, rng, opts) {
-  const T = METRO.tower, k = metroCore(opts, block.x + block.w / 2, block.y + block.d / 2);
+  const T = (opts.metroCfg || METRO).tower, k = metroCore(opts, block.x + block.w / 2, block.y + block.d / 2);
   if (!opts.elements.buildings || rng() >= T.p * k ** 1.5) return [];
-  const first = metroTowerSite(block, along, long, short, rng, k, null);
+  const first = metroTowerSite(block, along, long, short, rng, k, null, T);
   if (k < T.secondAt || rng() >= T.second) return [first];
-  return [first, metroTowerSite(block, along, long, short, rng, k, first.corner)];   // the diagonally opposite corner
+  return [first, metroTowerSite(block, along, long, short, rng, k, first.corner, T)];   // the diagonally opposite corner
 }
-function metroTowerSite(block, along, long, short, rng, k, opposite) {
-  const T = METRO.tower;
+function metroTowerSite(block, along, long, short, rng, k, opposite, T = METRO.tower) {
   const h = (T.h[0] + rng() * (T.h[1] - T.h[0])) * (0.55 + 0.45 * k);
   let b = Math.max(T.base[0], Math.min(T.base[1], h / (T.slender[0] + rng() * (T.slender[1] - T.slender[0]))));
   b = Math.min(b, short, long * 0.6, h / T.slender[0]);
@@ -2089,7 +2181,8 @@ function metroTowerSite(block, along, long, short, rng, k, opposite) {
   const atEnd = opposite ? !opposite.atEnd : rng() < 0.5, atFar = opposite ? !opposite.atFar : rng() < 0.5;
   const a0 = atEnd ? long - bl : 0, c0 = atFar ? short - b : 0;
   const rect = along === 'x' ? { x: block.x + a0, y: block.y + c0, w: bl, d: b } : { x: block.x + c0, y: block.y + a0, w: b, d: bl };
-  const r = rng(), shape = r < 0.35 ? 'setback' : r < 0.7 ? 'box' : r < 0.85 ? 'podium' : 'cylinder';
+  const [s1, s2, s3] = T.shapes || [0.35, 0.7, 0.85];   // cumulative setback / box / podium, the rest cylinder (a flavour may weigh them)
+  const r = rng(), shape = r < s1 ? 'setback' : r < s2 ? 'box' : r < s3 ? 'podium' : 'cylinder';
   const floors = Math.max(1, Math.round(h / METRO.floorH.office));
   return { rect, m: { h: floors * METRO.floorH.office + 0.2, floors, floorH: METRO.floorH.office }, shape, corner: { atEnd, atFar } };
 }
@@ -2097,7 +2190,7 @@ function fillMetroBlock(region, reserved, rng, boxes, grounds, faces, opts, grid
   const block = trimOffWay(grid, region);                                           // the lots start at the back of the sidewalk
   if (block.w < 2 || block.d < 2) return;
   if (opts.blocks) opts.blocks.push(block);
-  const L = METRO.lot, density = Math.max(0, Math.min(1, Number.isFinite(opts.density) ? opts.density : 0.58));
+  const L = (opts.metroCfg || METRO).lot, density = Math.max(0, Math.min(1, Number.isFinite(opts.density) ? opts.density : 0.58));
   const along = block.w >= block.d ? 'x' : 'y', across = along === 'x' ? 'y' : 'x';
   const long = Math.max(block.w, block.d), short = Math.min(block.w, block.d);
   const R = (a0, c0, aLen, cLen) => (along === 'x' ? { x: block.x + a0, y: block.y + c0, w: aLen, d: cLen } : { x: block.x + c0, y: block.y + a0, w: cLen, d: aLen });
@@ -2122,7 +2215,7 @@ function fillMetroBlock(region, reserved, rng, boxes, grounds, faces, opts, grid
   for (const strip of strips) {
     for (const [lo, hi] of runIntervals(strip, cuts)) {
       let t = lo;
-      for (const f of metroFrontages(hi - lo, rng)) {
+      for (const f of metroFrontages(hi - lo, rng, L)) {
         const lot = strip.run === 'x' ? { x: t, y: strip.r.y, w: f, d: strip.r.d } : { x: strip.r.x, y: t, w: strip.r.w, d: f };
         t += f;
         if (lot.w < 0.7 || lot.d < 0.7 || !isBuildable(grid, lot)) continue;
@@ -2762,6 +2855,7 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
   // recurses down to a fillBlock leaf), NOT a fracture to bail on — so the whole-region
   // fallback applies only when no avoid zone forced the geometry.
   if (!avoidList.length && quads.some(isScrap)) {
+    if (metro && Math.max(region.w, region.d) > 2 * METRO.leaf) { metroCutLong(region, depth, rng, boxes, ribbons, grounds, faces, reserved, opts, grid, cars); return; }
     fillBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, cars);
     return;
   }
@@ -2798,7 +2892,7 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
       // STOP at the curb (so lane lines don't cross through the box) + a plain
       // pavement patch in the box. Every span is clipped out of reserved
       // footprints, so the road never runs under the anchor/buildings.
-      const half = streetW / 2, opt = { width: streetW, laneLine: true, lanes: 2, bikeLanes, ...(metro ? { asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface } : {}) };
+      const half = streetW / 2, opt = { width: streetW, laneLine: true, lanes: 2, bikeLanes, ...(metro ? { asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface, ...(opts.metroCfg?.street?.centreLine ? { centreLine: opts.metroCfg.street.centreLine } : {}) } : {}) };
       // the junction PATCH is paving, so the whole square must clear reserved zones (propClear
       // tolerates PLAZA, and the patch can spill its half-width into a plaza even when its centre
       // sits just outside) — else a crossing beside a landmark/civic plaza paves into it.
@@ -2826,6 +2920,25 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
     const qReserved = reserved.map((r) => clipRect(r, q)).filter(Boolean);
     recurse(q, depth - 1, null, rng, boxes, ribbons, grounds, faces, qReserved, childOpts, grid, cars);
   }
+}
+
+// METRO long block: a region the cross would cut into scraps (its short side holds one block, not two)
+// while its long side runs past two block lengths, as in the band a landmark plaza leaves between its
+// flanking avenue and the frame edge. Filled whole it is a 550 m block around one court; instead ONE
+// minor street crosses it at the middle and each half recurses. No rng: the cut is the middle, claimed,
+// recorded and drawn the way recurse lays its own cross (the walks come from the grid afterwards).
+function metroCutLong(region, depth, rng, boxes, ribbons, grounds, faces, reserved, opts, grid, cars) {
+  const alongX = region.w >= region.d, streetW = METRO.street.minor, swW = streetW + METRO.walk.minor;
+  const c = alongX ? region.x + region.w / 2 : region.y + region.d / 2, g = streetW / 2;
+  const band = (half) => (alongX ? { x: c - half, y: region.y, w: 2 * half, d: region.d } : { x: region.x, y: c - half, w: region.w, d: 2 * half });
+  stampRect(grid, band(swW / 2), CLAIM.VERGE, [CLAIM.EMPTY]);
+  stampRect(grid, band(g), CLAIM.ROAD, [CLAIM.EMPTY, CLAIM.VERGE]);
+  if (opts.roads) opts.roads.push({ ...band(g), streetW, major: false });
+  if (opts.elements.roads) pushStreet(ribbons, alongX ? [c, region.y] : [region.x, c], alongX ? [c, region.y + region.d] : [region.x + region.w, c], { width: streetW, laneLine: false, lanes: 1, bikeLanes: null, asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface }, reserved);
+  const halves = alongX
+    ? [{ x: region.x, y: region.y, w: c - g - region.x, d: region.d }, { x: c + g, y: region.y, w: region.x + region.w - c - g, d: region.d }]
+    : [{ x: region.x, y: region.y, w: region.w, d: c - g - region.y }, { x: region.x, y: c + g, w: region.w, d: region.y + region.d - c - g }];
+  for (const q of halves) recurse(q, depth - 1, null, rng, boxes, ribbons, grounds, faces, reserved.map((r) => clipRect(r, q)).filter(Boolean), opts, grid, cars);
 }
 
 // Uniformly scale a generated scene about the region's origin corner by factor `s` (a similarity
@@ -3489,7 +3602,7 @@ function reseatInsetFaces(faces, plot, R, yaw) {
   });
 }
 
-export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full', anchorSeat = null } = {}) {
+export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full', anchorSeat = null, flavor = null } = {}) {
   const rng = mulberry32(seed >>> 0 || 1);
   const lod = normalizeCityFidelity(fidelity);
   const frameRegion = region;                                  // the recipe's frame (map expansion + block reports read it)
@@ -3556,6 +3669,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const blockList = !blockSpec ? [] : Array.isArray(blockSpec) ? blockSpec : expandCityBlockMap(blockSpec.map, frameRegion, blockSpec.gap ?? BLOCK_MAP_GAP);
   let placedRootAnchor = false;
   let landmarkZone = null;                                     // reserved plaza footprint → roads avoid it (opts.avoid)
+  let landmarkStats = null;                                    // metro: each monument's real height and the cluster's fit
   let rootZone = null;                                         // side-seated root tower → the crossing flanks it (opts.avoid)
   if (landmarks.length && recipeElements.anchorTowers && anchorRegion.w > 4 && anchorRegion.d > 4) {
     // Budget off the FULL region and take NO baseScale pre-shrink: a landmark's
@@ -3563,13 +3677,18 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     // monuments stay frame-true while only the generic fabric densifies — the plaza
     // reservation displaces blocks/props to pay for it. (The generic tower below keeps
     // its pre-shrink: it has no real-world budget to honour.)
-    const la = landmarkAnchor(anchorRegion, landmarks, true, region, landmarkBudgetCap(bs));
+    // METRO: each monument at its real size (LANDMARK_REAL), no demo-frame cap; the zoom-out rule
+    // still fits the cluster to the region, and stats.landmarks reports the fit
+    const la = profile === 'metro'
+      ? landmarkAnchor(anchorRegion, landmarks, true, region, Infinity, true)
+      : landmarkAnchor(anchorRegion, landmarks, true, region, landmarkBudgetCap(bs));
+    if (profile === 'metro') landmarkStats = la.boxes.map((b) => ({ shape: b.shape, heightM: +(b.z1 * CITY_METERS_PER_UNIT).toFixed(1), fit: +la.fit.toFixed(3) }));
     boxes.push(...la.boxes); seedReserved.push({ ...la.footprint, hard: true });
     stampRect(grid, la.footprint, CLAIM.PLAZA);              // claim the whole plaza (incl. the ring) so nothing builds on it
     // the monument BASES are a hard claim, not plaza: PLAZA is a TREE_SURFACE (so the civic
     // ring can hold trees), but a tree must never sprout up through a monument itself.
     for (const b of la.boxes) stampRect(grid, b, CLAIM.ANCHOR, [CLAIM.PLAZA]);
-    grounds.push({ kind: 'landmark-plaza', x: la.footprint.x, y: la.footprint.y, w: la.footprint.w, d: la.footprint.d, z: 0.02, fill: '#bdbcae' });
+    grounds.push({ kind: 'landmark-plaza', x: la.footprint.x, y: la.footprint.y, w: la.footprint.w, d: la.footprint.d, z: 0.02, fill: profile === 'metro' ? METRO_GROUND.plaza : '#bdbcae' });
     landmarkZone = la.footprint;
     placedRootAnchor = true;
   } else if (corridor && anchor && (anchor === 'freeway' ? recipeElements.elevatedFreeways : recipeElements.anchorTowers) && anchorRegion.w > 4 && anchorRegion.d > 4) {
@@ -3657,10 +3776,16 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // centre (where a centred root tower and the metro main crossing both sit); heights decay from it over
   // λ, a fraction of the frame clamped to 165–585 m. No rng; metro only.
   const coreOf = (r) => (r ? { cx: r.x + r.w / 2, cy: r.y + r.d / 2 } : { cx: region.x + region.w / 2, cy: region.y + region.d / 2 });
+  // METRO FLAVOUR (city-flavors.js): a regional architecture over the metro dials. Resolved from the
+  // recipe only (the mint does the rolling); a metro recipe with none, or an unknown name, is
+  // north-american, METRO itself. Ignored by every other profile.
+  const flavorKey = profile === 'metro' ? normalizeCityFlavor(flavor) : null;
+  const FL = flavorKey ? CITY_FLAVORS[flavorKey] : null;
+  const metroCfg = FL ? { ...METRO, height: { ...METRO.height, ...FL.height }, tower: { ...METRO.tower, ...FL.tower }, lot: { ...METRO.lot, ...FL.lot }, street: FL.street || null } : null;
   const metroField = profile === 'metro'
     ? { ...coreOf(landmarkZone || rootZone), lambda: Math.max(METRO.height.lambda[0], Math.min(METRO.height.lambda[1], METRO.height.lambdaFrac * Math.max(region.w, region.d))) }
     : null;
-  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs), roads: roadStrips, junctions, lots: lotLog, ...(metroField ? { metroField } : {}) }, grid, cars);
+  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs), roads: roadStrips, junctions, lots: lotLog, ...(metroField ? { metroField } : {}), ...(metroCfg ? { metroCfg } : {}) }, grid, cars);
   // METRO WALKS: the verge cells tiled into non-overlapping rects (metroSidewalkTiles). The stock city lays
   // one band per street, which overlap at every crossing; at metro lengths the renderer's coplanar lift
   // (face-mesh decollideFaces, ∝ face size) would raise an overlapped band over the asphalt.
@@ -3764,7 +3889,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   if (frontage && walkers && full) walkerLoops = planCityWalkerLoops(grid, region, seed, walkers, boxes, portalCuts);
   // METRO SKINS (no rng): every mass's material and colours, stamped before the prune so a massing
   // box keeps them, and so every stream tile cuts the same skins.
-  const skins = profile === 'metro' ? metroSkins(boxes, metroField, seed) : null;
+  const skins = profile === 'metro' ? metroSkins(boxes, metroField, seed, FL) : null;
   // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
   // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
   const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });
@@ -3826,7 +3951,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     ...(rootZone ? { anchorSeat: 'side' } : {}),                // the root tower sits beside the main crossing (see `seat`)
     ...(frontage ? { frontage } : {}),                          // road-aware masses: { masses, withRoad, withoutRoad, parking, swept? }
     ...(pruned ? { fidelity: pruned.level, pruned: pruned.dropped } : {}),   // what the level-of-detail prune took off the full plan
-    ...(profile === 'metro' ? { profile: 'metro', crossings: countCrossings(roadStrips), skins } : {}),
+    ...(profile === 'metro' ? { profile: 'metro', crossings: countCrossings(roadStrips), skins, ...(flavorKey ? { flavor: flavorKey } : {}), ...(landmarkStats ? { landmarkSizes: landmarkStats } : {}) } : {}),
   };
   return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}), ...(signals ? { signals, junctions: junctionsFrame } : {}), ...(profile === 'metro' ? { cues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight }, core: metroField } : {}) };
 }
@@ -3899,14 +4024,38 @@ export const FRACTAL_CAMERAS = [
 // sidewalk looking in toward the core; the aerial is lower and shallower than the default (a steep
 // downward shot is a miniature cue); the skyline stands off the near edge. Plan-free on purpose: the
 // first camera is the facade lighting hint, so the whole city and every stream tile must agree on it.
-function metroCameras(region) {
+function metroCameras(region, lm = null) {
   const { x, y, w, d } = region, cx = x + w / 2, cy = y + d / 2, eye = 1.7 / CITY_METERS_PER_UNIT;
   const side = METRO.street.major / 2 + METRO.walk.major / 4, span = Math.max(w, d);
-  const pc = [560, 390];
+  const pc = [560, 390], aspect = pc[0] / pc[1], deg = 180 / Math.PI;
+  // the street eye stands on the main avenue's kerb-side walk looking along it. A landmark plaza pushes
+  // the main avenues out to flank its south and west edges (subdivide → shiftLineOut, the lower side on
+  // a tie), so the eye stands on the south avenue's walk west of where they cross: 7 u past the corner
+  // (clear of the crossing's kit; the next street is at least a block on, so never a junction), 1 u in
+  // from the kerb on its 1.4 u walk (METRO.walk is both walks; the kerb lamps stand at 0.35), looking
+  // past the corner at the monument, pitched up at most 14° so the street stays in frame
+  const flank = (METRO.street.major + METRO.walk.major) / 2;
+  let avenue = cy, streetPos = [x + w * 0.08, cy - side], streetAt = [cx, cy - side * 0.5, eye + 5];
+  if (lm) {
+    avenue = lm.plaza.y - flank;
+    streetPos = [lm.plaza.x - flank - (METRO.street.major + METRO.walk.major) / 2 - 7, avenue - METRO.street.major / 2 - 1];
+    const at = [lm.at[0], avenue + (lm.at[1] - avenue) * 0.5], D = Math.hypot(at[0] - streetPos[0], at[1] - streetPos[1]);
+    streetAt = [...at, eye + D * Math.tan(Math.min(14 / deg, Math.atan((lm.top * 0.3) / D)))];
+  }
+  // the skyline: the stock stand-off, or for a tall landmark a vantage at the frame's south-west corner
+  // (as far back as the city reaches, so no bare ground fills the foreground), the lens widened only
+  // as much as holding the tip needs
+  let skyPos = [cx - w * 0.25, y - d * 0.1, 12], skyAt = [cx, cy, 16], skyFov = 62;
+  if (lm && lm.top > 24) {
+    const z = 12, pos = [x + w * 0.02, y + d * 0.02], D = Math.hypot(lm.at[0] - pos[0], lm.at[1] - pos[1]);
+    const up = Math.atan((lm.top - z) / D), down = Math.atan(z / D), vfov = (up + down) * 1.12;
+    skyPos = [...pos, z]; skyAt = [lm.at[0], lm.at[1], z + D * Math.tan((up - down) / 2)];
+    skyFov = Math.min(90, Math.max(62, 2 * Math.atan(Math.tan(vfov / 2) * aspect) * deg));
+  }
   return [
-    { name: 'street', worldFraming: { cameraPosition: [x + w * 0.08, cy - side, eye], lookAt: [cx, cy - side * 0.5, eye + 5], horizontalFov: 72, pictureCenter: pc } },
+    { name: 'street', worldFraming: { cameraPosition: [...streetPos, eye], lookAt: streetAt, horizontalFov: 72, pictureCenter: pc } },
     { name: 'aerial', worldFraming: { cameraPosition: [cx - w * 0.2, y - d * 0.3, span * 0.2], lookAt: [cx, cy, 0], horizontalFov: 58, pictureCenter: pc } },
-    { name: 'skyline', worldFraming: { cameraPosition: [cx - w * 0.25, y - d * 0.1, 12], lookAt: [cx, cy, 16], horizontalFov: 62, pictureCenter: pc } },
+    { name: 'skyline', worldFraming: { cameraPosition: skyPos, lookAt: skyAt, horizontalFov: +skyFov.toFixed(2), pictureCenter: pc } },
   ];
 }
 // METRO atmosphere: a gradient sky (the World's dome; the stock city's preset sky has none, so /world
@@ -3925,7 +4074,9 @@ export function metroAtmosphere(recipe = {}, time = null) {
 }
 /** The city's preset shots: metro recipes get the human-scale set, every other recipe the stock one. */
 export function fractalCityCameras(recipe = {}) {
-  return recipe.profile === 'metro' ? metroCameras(recipe.region || DEFAULT_REGION) : FRACTAL_CAMERAS;
+  if (recipe.profile !== 'metro') return FRACTAL_CAMERAS;
+  const region = recipe.region || DEFAULT_REGION;
+  return metroCameras(region, metroLandmarkView(recipe, region));
 }
 
 const NIGHT_DIFFUSION = { soft: true, gain: 2.6, softness: 1.0, shadows: true, shadowStrength: 1.15, shadowMaxAlpha: 0.5 };
@@ -4144,5 +4295,6 @@ export function cityThemeAdapter(slots = {}) {
   // the proportion class rides the top level too: 'metro' is real-city proportion,
   // not a theme's flavour; the mint validates it and stores only 'metro'
   if (slots.profile !== undefined) out.profile = slots.profile;
+  if (slots.flavor !== undefined) out.flavor = slots.flavor;   // a metro regional flavour (city-flavors.js); the mint resolves and stores it
   return out;
 }

@@ -21,7 +21,8 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { normalizeEdificeEntries, resolveCityInsets } from '@/lib/graph/worlds/city-insets';
-import { planFractalCity, normalizeCivicAreas, normalizeCityBlocks, normalizeCityFidelity } from '@/lib/graph/city/fractal-city';
+import { planFractalCity, normalizeCivicAreas, normalizeCityBlocks, normalizeCityFidelity, canonLocale } from '@/lib/graph/city/fractal-city';
+import { CITY_FLAVORS, resolveMintFlavor } from '@/lib/graph/city/city-flavors';
 
 // a metro mint with no region gets a downtown frame: 8 × 5 blocks at a ~27-unit pitch (≈ 0.8 × 0.5 km)
 const METRO_DEFAULT_REGION = { x: 2, y: 2, w: 220, d: 140 };
@@ -38,8 +39,15 @@ function normalizeLandmarkInput(landmark) {
   return isLandmarkShape(landmark) ? landmark : null;
 }
 
-export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, edifices, blocks, fidelity, anchorSeat, profile, ref, folderRef } = {}) {
+export function mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, edifices, blocks, fidelity, anchorSeat, profile, flavor, ref, folderRef } = {}) {
   const metro = profile === 'metro';
+  // METRO FLAVOUR (city-flavors.js): resolved here, once, and written into the row: the one asked for,
+  // else the landmark's own city, else a seeded roll within the locale's region, else over all. The
+  // planner never rolls, so a flavour added later moves no stored city. Its locale and climate fill
+  // the recipe's gaps (the locale picks the religious building, the climate the street trees).
+  const seedN = Number.isFinite(+seed) ? Math.trunc(+seed) : 1;
+  const flavorKey = metro ? resolveMintFlavor({ flavor, landmarks: [].concat(normalizeLandmarkInput(landmark) || []), region: canonLocale(locale), seed: seedN }) : null;
+  const FLV = flavorKey ? CITY_FLAVORS[flavorKey] : null;
   const manifest = {
     kind: 'fractal-city',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
@@ -50,6 +58,7 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
     // lot grain, heights and the familiar-size cues into proportion with it. Omit ⇒ not stored ⇒ the stock
     // city, byte-identical. A metro recipe with no region gets a downtown frame (≈ 0.8 × 0.5 km).
     ...(metro ? { profile: 'metro' } : {}),
+    ...(flavorKey ? { flavor: flavorKey } : {}),
     density: Number.isFinite(+density) ? Math.max(0.2, Math.min(1, +density)) : 0.6,
     // where the root tower sits vs the main crossing: 'side' (beside it, the crossing flanks the tower)
     // or 'centre' (the original centred tower). Omit ⇒ the planner's gate: side when the region exceeds
@@ -70,8 +79,8 @@ export function mintFractalCity({ title, seed, anchor, depth, density, baseScale
       if (elements && typeof elements === 'object') return { elements: FRONTAGE_KEYS.some((k) => k in elements) ? elements : { ...elements, frontage: true } };
       return { elements: { frontage: true } };
     })()),
-    ...(locale && typeof locale === 'string' ? { locale } : {}),   // regional cue — gates locale-weighted classes (e.g. one church in NA/SA/EU/PH)
-    ...(climate === 'tropical' || climate === 'equatorial' ? { climate } : {}),   // species mix — tropical/equatorial swaps conifers for coconut palms among the street trees
+    ...(locale && typeof locale === 'string' ? { locale } : FLV && FLV.locale ? { locale: FLV.locale } : {}),   // regional cue — gates locale-weighted classes (e.g. one church in NA/SA/EU/PH)
+    ...(climate === 'tropical' || climate === 'equatorial' ? { climate } : FLV && FLV.climate ? { climate: FLV.climate } : {}),   // species mix — tropical/equatorial swaps conifers for coconut palms among the street trees
 
     ...((() => { const lm = normalizeLandmarkInput(landmark); return lm ? { landmark: lm } : {}; })()),   // monument(s) as the reserved root anchor (one shape, or an array for a cluster like Toronto's CN Tower + Rogers Centre)
     ...((() => { const ca = normalizeCivicAreas(civicAreas); return ca.length ? { civicAreas: ca } : {}; })()),   // reserved districts (town-square / school / strip-mall), each given a surface-area budget before roads
@@ -139,6 +148,6 @@ export async function createFractalCityHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_fractal_city requires a recipe object');
   }
-  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, profile, ref, folder_ref: folderRef } = input;
-  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, profile, ref, folderRef });
+  const { title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, profile, flavor, ref, folder_ref: folderRef } = input;
+  return mintFractalCity({ title, seed, anchor, depth, density, baseScale, region, viewBox, time, elements, locale, landmark, civicAreas, climate, walkers, traffic, fog, clouds, audio, blocks, fidelity, anchorSeat, profile, flavor, ref, folderRef });
 }

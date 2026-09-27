@@ -28,3 +28,31 @@ describe('compose_world: the metro profile', () => {
     expect('profile' in junk.recipe).toBe(false);
   });
 });
+
+// A metro mint writes one flavour into the row: the one asked for, else the landmark's own city, else a
+// seeded roll in the locale's region, else over all. The planner never rolls, so the row keeps saying so.
+describe('compose_world: the metro flavour', () => {
+  it('an asked flavour is stored by its canonical name with the locale it implies', () => {
+    const r = composeWorld({ base: 'city', seed: 3, overrides: { profile: 'metro', flavor: 'Paris' } });
+    expect(r.recipe.flavor).toBe('paris');
+    expect(r.recipe.locale).toBe('europe');
+    expect(r.stats.flavor).toBe('paris');
+  });
+  it('a landmark brings its own city; an explicit flavour still wins', () => {
+    expect(composeWorld({ base: 'city', seed: 3, overrides: { profile: 'metro', asset: { monument: 'colosseum' } } }).recipe.flavor).toBe('mediterranean');
+    expect(composeWorld({ base: 'city', seed: 3, overrides: { profile: 'metro', flavor: 'tokyo', asset: { monument: 'colosseum' } } }).recipe.flavor).toBe('tokyo');
+  });
+  it('the dice: a region rolls among its own flavours, the same seed rolls the same, and the roll is stored', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const r = composeWorld({ base: 'city', seed, overrides: { profile: 'metro', context: { locale: 'europe' } } });
+      expect(['paris', 'london', 'mediterranean']).toContain(r.recipe.flavor);
+      expect(composeWorld({ base: 'city', seed, overrides: { profile: 'metro', context: { locale: 'europe' } } }).recipe.flavor).toBe(r.recipe.flavor);
+    }
+    const open = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => composeWorld({ base: 'city', seed, overrides: { profile: 'metro' } }).recipe.flavor));
+    expect(open.size).toBeGreaterThan(3);
+  });
+  it('a stock city stores no flavour even when asked', () => {
+    expect('flavor' in composeWorld({ base: 'city', seed: 3, overrides: { flavor: 'paris' } }).recipe).toBe(false);
+  });
+});
+

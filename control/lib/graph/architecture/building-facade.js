@@ -240,6 +240,20 @@ function addRoofItem(out, item, idx, x, y, w, d, z1) {
   const spot = [[0.22, 0.28], [0.66, 0.62], [0.42, 0.7], [0.74, 0.24]][idx % 4];
   const px = x + w * spot[0], py = y + d * spot[1];
   if (item === 'water-tank') out.boxes.push({ x: px - w * 0.14, y: py - d * 0.16, w: w * 0.3, d: d * 0.34, z0: z1, z1: z1 + 0.6, tint: '#7a7d82' });
+  else if (item === 'wood-tank') {
+    // New York's wooden water tank (a metro flavour's kit, real size in 3.66 m units): an octagon of
+    // staves about 4 m across under a conical cap, on a steel stand. Sides shaded by a fixed key.
+    const r = Math.min(0.6, Math.min(w, d) * 0.22), zs = z1 + 0.9, zb = zs + 0.08, zt = zb + 1.25, s = r * 0.62;
+    for (const [lx, ly] of [[-s, -s], [s, -s], [s, s], [-s, s]]) out.boxes.push({ x: px + lx - 0.04, y: py + ly - 0.04, w: 0.08, d: 0.08, z0: z1, z1: zs, tint: '#3b3d40' });
+    out.boxes.push({ x: px - r, y: py - r, w: 2 * r, d: 2 * r, z0: zs, z1: zb, tint: '#3b3d40' });
+    const ring = (rad, z) => Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * 2 * Math.PI; return [px + Math.cos(a) * rad, py + Math.sin(a) * rad, z]; });
+    const lo = ring(r, zb), hi = ring(r, zt), apex = [px, py, zt + 0.45];
+    for (let k = 0; k < 8; k++) {
+      const j = (k + 1) % 8, lit = 0.72 + 0.28 * Math.max(0, Math.cos(((k + 0.5) / 8) * 2 * Math.PI + 2.2));
+      out.faces.push({ corners: [lo[k], lo[j], hi[j], hi[k]], fill: scaleHex('#76624b', lit), doubleSided: true });
+      out.faces.push({ corners: [hi[k], hi[j], apex], fill: scaleHex('#4a4541', lit), doubleSided: true });
+    }
+  }
   else if (item === 'mechanical') out.boxes.push({ x: px, y: py, w: w * 0.26, d: d * 0.26, z0: z1, z1: z1 + 0.35, tint: '#6b6e73' });
   else if (item === 'antenna') out.boxes.push({ x: px, y: py, w: 0.1, d: 0.1, z0: z1, z1: z1 + 1.4, tint: '#9aa0a6' });
   else if (item === 'smoke-stack') {
@@ -298,9 +312,20 @@ export function buildingExtras(box, f, floors, bays) {
 
   if (f.loggia) {                                            // continuous partitioned apartment-slab loggia
     addLoggia(out, x, y, w, d, z0, z1, floors);
+  } else if (f.balcony && f.balconyType === 'continuous') {
+    // one balcony the whole width of the face (Haussmann's second and fifth floors): a slab, a rail and
+    // a post per bay, on the floors `balconyFloors` names (every floor when absent)
+    for (let fl = 1; fl < floors; fl++) {
+      if (f.balconyFloors && !f.balconyFloors.includes(fl)) continue;
+      const z = z0 + fl * fh;
+      out.boxes.push({ x: x + 0.04, y: y1, w: w - 0.08, d: 0.34, z0: z, z1: z + 0.1, tint: scaleHex(f.frame, 0.9) });
+      out.boxes.push({ x: x + 0.04, y: y1 + 0.3, w: w - 0.08, d: 0.04, z0: z + 0.38, z1: z + 0.43, tint: '#2c2f33' });
+      for (let b = 0; b <= bays; b++) out.boxes.push({ x: x + 0.04 + (w - 0.12) * (b / bays), y: y1 + 0.3, w: 0.04, d: 0.04, z0: z + 0.1, z1: z + 0.38, tint: '#2c2f33' });
+    }
   } else if (f.balcony && f.balconyType) {
     const step = floors * bays > 24 ? 2 : 1;                 // repeat every floor; thin out only if huge
     for (let fl = 1; fl < floors; fl += step) {
+      if (f.balconyFloors && !f.balconyFloors.includes(fl)) continue;   // a flavour may name the floors
       for (let b = 0; b < bays; b++) {
         const on = f.balconyBays === 'all' ? true : f.balconyBays === 'alt' ? ((fl + b) % 2 === 0) : (b % 2 === 0);
         if (!on) continue;
