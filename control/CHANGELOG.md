@@ -1139,6 +1139,12 @@ rock to classical, flamenco and gypsy jazz.
   is created or updated, and the machine config carries only non-secret env. The unused
   `getCloudDeployer`, which read `FLY_API_TOKEN` from the environment, is removed; the Fly token
   still comes only from the encrypted store.
+- **Dead code with network and credential reach removed.** `lib/graph/geo/` (the map illustrator's
+  Natural Earth and OpenStreetMap Nominatim fetchers; nothing had imported it since the last caller
+  was dropped) and its `map-boundary` sketch-vocab card, which told agents to call a function no
+  tool exposes, are deleted, and geo data leaves the outbound-traffic lists in `get_substrate`, the
+  README, the tour and `docs/tech-requirements.md`. Stored sketches with a `manifest.geo` block
+  still validate.
 
 ## [2.1.0] - 2026-09-23
 

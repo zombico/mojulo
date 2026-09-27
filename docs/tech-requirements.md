@@ -87,7 +87,6 @@ are cached, and are skipped entirely if you already have the tool:
 |---|---|---|---|
 | Chrome for Testing (pinned build in [chromium.js](../control/lib/graph/scene/chromium.js)) | First scene-to-PNG bake or motion render | **~500 MB** | Chrome, Chromium, Edge, or Brave is installed at a standard path, or `MOJULO_CHROMIUM` points at one |
 | ffmpeg static build (pinned in [ffmpeg.js](../control/lib/motion/ffmpeg.js)) | First multi-clip MP4 stitch | ~19 MB download | `ffmpeg` is on PATH or `MOJULO_FFMPEG` points at one |
-| Geo data (Natural Earth, Nominatim) | First map-backed landscape | small, disk-cached | — |
 | Embedding model | `mojulo install recall` (never on a default install) | ~130 MB | Already in `~/.mojulo/models/` |
 
 > **Where the browser and ffmpeg caches live.** They default to `data/chromium` and `data/ffmpeg`

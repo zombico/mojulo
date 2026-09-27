@@ -362,9 +362,8 @@ the code paths are the join into the source.
 - **Interior layout** — connected rooms and hallways with derived doorways. → [suite-layout.js](../control/lib/graph/architecture/suite-layout.js).
 - **Vehicle family** — the parameterized swept-net vehicles, the streetcar corridor, roads. → [vehicles-css3d.js](../control/lib/graph/vehicles/vehicles-css3d.js), [roads.js](../control/lib/graph/city/roads.js), [transportation-hub.js](../control/lib/graph/architecture/transportation-hub.js).
 - **Carved solid / turntable** — wordmarks and single spinning solids. → [carved-solid.js](../control/lib/graph/effects/carved-solid.js), [solid-turntable.js](../control/lib/graph/worlds/solid-turntable.js).
-- **Curated recipe cards** — token-small briefs for landscapes, charts, palettes. → [painted-landscape-cards/](../control/lib/graph/painted-landscape-cards/), [sketch-vocab/](../control/lib/graph/sketch-vocab/), [geo/palette.js](../control/lib/graph/geo/palette.js).
+- **Curated recipe cards** — token-small briefs for landscapes, charts, palettes. → [painted-landscape-cards/](../control/lib/graph/painted-landscape-cards/), [sketch-vocab/](../control/lib/graph/sketch-vocab/).
 - **Placer glyphs & apocrypha** — façade glyphs, furniture cards, room-scene elements, the architecture planner. → [polygonizer/architecture-glyph-registry.js](../control/lib/graph/polygonizer/architecture-glyph-registry.js), [polygonizer/furniture-cards.js](../control/lib/graph/polygonizer/furniture-cards.js), [polygonizer/room-scene-elements.js](../control/lib/graph/polygonizer/room-scene-elements.js), [polygonizer/architecture-mandala-planner.js](../control/lib/graph/polygonizer/architecture-mandala-planner.js).
-- **Map illustrator** — place queries to polygon marks. → [geo/](../control/lib/graph/geo/).
 
 **Tools**
 - The MCP render tools named in Part II are registered from [control/lib/mcp/tools/](../control/lib/mcp/tools/): sketches, manji-trees, painted-landscape, figure, scene-city, scene-transport-hub, solid-turntable-tool, carved-solid, motion.
