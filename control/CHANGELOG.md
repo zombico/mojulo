@@ -35,6 +35,13 @@ loops and the recipe format are unchanged.
   does not resolve. It used to run `npm install --include=optional` inside the package directory, which
   under npx is a cache directory and pulled in the whole devDependency tree (about 600 packages). The
   in-band hints that pointed at it (sharp, OpenSCAD, `mint_diagram`) no longer do.
+- **Dashboard-only packages are devDependencies, and dotenv is gone.** isomorphic-dompurify,
+  react-markdown, remark-gfm, swr and image-size are imported only by dashboard pages and routes, which
+  the Next build compiles into the shipped standalone bundle (jsdom, the one they keep external, is
+  traced into it). No stdio code imports them, so `npx mojulo` no longer installs them. Nothing imported
+  dotenv. `npm run smoke:tarball` now opens a stash page and uploads an image to it (the routes that use
+  these packages), renders a diagram SVG through the stdio loader, and fails if @swc/core or `three` is
+  installed or the precompiled CreationMap is missing.
 
 ### Canal city
 
