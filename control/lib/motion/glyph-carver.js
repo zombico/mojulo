@@ -17,8 +17,14 @@
  */
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { moduleDir } from '../module-dir.js';
 
-const require = createRequire(import.meta.url);
+// Anchored through moduleDir, not import.meta.url alone: the dashboard's webpack build bakes the
+// build machine's path into import.meta.url, so a require anchored there looked for opentype.js
+// in a directory that exists on no user's machine. From the package root it resolves from the
+// install the dashboard shares with core.
+const require = createRequire(path.join(moduleDir(import.meta.url, 'lib/motion'), 'glyph-carver.js'));
 // Lazy so the font lib is only pulled when a font is actually parsed. Keeping it
 // off module-load means an ops install that never carves text can shed
 // opentype.js (an optionalDependency) without breaking `next build`'s page-data
