@@ -33,6 +33,7 @@ import { getFurnitureNet, getFurnitureFaceCard } from '../polygonizer/furniture-
 import { bakeDiffusion3d, applyDiffusion, bakeDiffusionField, applyDiffusionSoft, emissiveFixture } from '../effects/light-diffusion-3d.js';
 import { bakeAmbientOcclusion } from '../effects/ao-bake.js';
 import { makeFacade, facadeCss, facadeHtml, facadeFloors, facadeBays, buildingExtras, faceFrame } from '../architecture/building-facade.js';
+import { canalHouseFaces, canalBridgeFaces } from '../architecture/canal-house.js';
 import { buildFacadeCard, facadeReadHex } from '../architecture/facade-card.js';
 import { buildTerrainWorldMesh } from '../polygonizer/painted-landscape.js';
 import { skyCss } from './sky-css.js';
@@ -344,6 +345,7 @@ export function applyMoonlight(faces, { dir = [-0.4, -0.28, -0.85], color = [0.5
   const toMoon = norm([-dir[0], -dir[1], -dir[2]]);
   const c255 = color.map((c) => Math.round(c * 255));
   return faces.map((f) => {
+    if (f.moonless) return f;   // a surface that reads dark under the moon (the canal city's water); only the canal emits the key
     const c = f.corners, n = norm(cross(sub(c[1], c[0]), sub(c[3] || c[2], c[0])));
     const k = ambient + intensity * Math.abs(dot(n, toMoon)); // abs → winding-agnostic; rooftops/moon-axis faces read brightest
     if (typeof f.fill === 'string' && f.fill[0] === '#') {
@@ -2465,6 +2467,16 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const { faces: rf, textureKeys } = townRoofFaces(b, L);
       faces.push(...rf);
       for (const k of textureKeys) { if (!sceneTextures[k]) { const u = surfaceTexture(k); if (u) sceneTextures[k] = u; } }
+      continue;
+    }
+    if (b.kind === 'canalhouse' || b.kind === 'canalbridge') {
+      // the canal city (city/canal-city.js): a canal house's facade walls, then its roof and water
+      // gable; a bridge's masonry, arches and deck (architecture/canal-house.js). Only a canal plan
+      // emits these kinds, so every other box keeps its bytes.
+      const shade = (c, hex) => scaleHex(hex, litFactor(normalToward(c, camHint), L));
+      if (b.kind === 'canalbridge') { faces.push(...canalBridgeFaces(b, shade)); continue; }
+      faces.push(...cityBox(r, b.z0, b.z1, { facade: b.facade, floors: b.floors, bays: b.bays, top: scaleHex(b.roofTint || '#3f4247', 0.9) }, L, camHint));
+      faces.push(...canalHouseFaces(b, shade));
       continue;
     }
     if (b.kind === 'townhouse') {
