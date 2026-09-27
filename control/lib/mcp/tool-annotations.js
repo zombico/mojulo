@@ -19,8 +19,9 @@
  * row names a tool that is not registered.
  *
  * What each hint means here (the rules every row was classified by):
- *   readOnly     never writes mojulo's DB, files, or processes. Per-call telemetry and
- *                lazily created per-session scratch rows do not count.
+ *   readOnly     never writes mojulo's DB, files, or processes. Per-call telemetry, a
+ *                lazily created per-session scratch row, and filling a derived index
+ *                on first use (semantic_search's lexical corpus) do not count.
  *   destructive  may delete, archive, stop, unbind, or overwrite existing state in place
  *                without keeping the previous version. Writes that only add rows or
  *                files, edits that archive the prior revision first, and rewrites of
