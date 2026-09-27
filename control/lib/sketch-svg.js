@@ -10,9 +10,23 @@
  * honor `var(...)` references.
  */
 
-import React from 'react';
+import { lazyDependency } from '@/lib/lazy-deps';
 
-import CreationMap from '@/components/graph/CreationMap';
+// React, react-dom/server and CreationMap load on the first render, not at import. Many stdio tool
+// modules reach this file, so a static import put them (and the loader's .jsx transform) on every
+// boot; lib/lazy-deps.js says why that matters.
+const loadRenderer = lazyDependency(
+  'react / react-dom',
+  async () => {
+    const [{ default: React }, { renderToStaticMarkup }, { default: CreationMap }] = await Promise.all([
+      import('react'),
+      import('react-dom/server'),
+      import('@/components/graph/CreationMap'),
+    ]);
+    return { React, renderToStaticMarkup, CreationMap };
+  },
+  'renders diagram sketches to SVG',
+);
 
 // Resolved values lifted from app/globals.css. Kept in sync deliberately —
 // CreationMap uses CSS variables for in-app theming; portable export needs
@@ -91,9 +105,8 @@ export async function renderSketchToSvg(manifest, { technical = false, includeXm
   if (!manifest || typeof manifest !== 'object') {
     throw new Error('renderSketchToSvg requires a sketch manifest');
   }
-  // Dynamic import keeps this lib usable from app-router code that lints
-  // against static `react-dom/server` imports. Server-side only.
-  const { renderToStaticMarkup } = await import('react-dom/server');
+  // Server-side only; the dynamic react-dom/server import also keeps app-router lint quiet.
+  const { React, renderToStaticMarkup, CreationMap } = await loadRenderer();
   const inner = renderToStaticMarkup(
     React.createElement(CreationMap, { manifest, technical }),
   );

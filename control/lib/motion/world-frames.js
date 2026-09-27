@@ -11,8 +11,7 @@
  * looped, camera-driven form. Returns uniform PNG buffers the gif/mp4 encoders consume.
  */
 
-import puppeteer from 'puppeteer-core';
-
+import { loadPuppeteer } from '@/lib/graph/scene/puppeteer-lazy';
 import { resolveChromium, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
 import {
   CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE,
@@ -45,6 +44,7 @@ export async function renderWorldFrames(html, specs, {
 } = {}) {
   if (!html || typeof html !== 'string') throw new Error('renderWorldFrames requires World HTML');
   if (!Array.isArray(specs) || !specs.length) throw new Error('renderWorldFrames requires ≥1 camera spec');
+  const puppeteer = await loadPuppeteer();
   const executablePath = await resolveChromium();
 
   let browser = null;
@@ -143,6 +143,7 @@ export async function renderWorldTraversal(html, ticks, {
 } = {}) {
   if (!html || typeof html !== 'string') throw new Error('renderWorldTraversal requires World HTML');
   if (!Array.isArray(ticks) || !ticks.length) throw new Error('renderWorldTraversal requires ≥1 input tick');
+  const puppeteer = await loadPuppeteer();
   const executablePath = await resolveChromium();
 
   let browser = null;
@@ -229,6 +230,7 @@ export async function compileWorldWaypoints(html, waypoints, {
 } = {}) {
   if (!html || typeof html !== 'string') throw new Error('compileWorldWaypoints requires World HTML');
   if (!Array.isArray(waypoints) || !waypoints.length) throw new Error('compileWorldWaypoints requires ≥1 waypoint');
+  const puppeteer = await loadPuppeteer();
   const executablePath = await resolveChromium();
   let browser = null;
   try {

@@ -12,6 +12,14 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Lean cold start
+
+- **The stdio server boots without loading any heavy package.** puppeteer-core, archiver, pdf2json,
+  officeparser, react and react-dom now load on the first call that needs them instead of when the tool
+  modules are imported (`lib/lazy-deps.js`, `lib/graph/scene/puppeteer-lazy.js`). A package that cannot
+  load is an in-band error on that one call, naming the package and what it is for; every other tool
+  keeps working. Tool behaviour is unchanged.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

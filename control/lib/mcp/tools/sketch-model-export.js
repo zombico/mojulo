@@ -38,7 +38,7 @@ import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/p
 import { unitMillimetres, declaredUnits } from '@/lib/graph/scene/world-units';
 import { assessWorldTier } from '@/lib/graph/worlds/world-contract';
 import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
-import { ZipArchive } from 'archiver';
+import { lazyDependency } from '@/lib/lazy-deps';
 import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
 
 /**
@@ -191,7 +191,10 @@ export const HTML_CDN_NOTE = 'three.js loads from cdn.jsdelivr.net (pinned) — 
 // a file card and a PR carry one binary. Deterministic: fixed entry mtime, sorted names, one
 // zlib level — the same rows zip byte-identical.
 const ZIP_EPOCH = new Date('1980-01-01T00:00:00Z'); // the DOS-time floor zip can represent
+// archiver loads on the first bundle, not at boot (lib/lazy-deps.js).
+const loadArchiver = lazyDependency('archiver', () => import('archiver'), 'writes the export bundle zip');
 async function zipEntries(entries) {
+  const { ZipArchive } = await loadArchiver();
   const archive = new ZipArchive({ zlib: { level: 9 } });
   const chunks = [];
   const done = new Promise((resolve, reject) => {

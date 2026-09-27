@@ -9,8 +9,7 @@
  * own canvas element so there's no surrounding page chrome or letterboxing.
  */
 
-import puppeteer from 'puppeteer-core';
-
+import { loadPuppeteer } from '@/lib/graph/scene/puppeteer-lazy';
 import { resolveChromium, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
 
 // The scene emitters wrap their canvas in one of these (`.viewport` for the
@@ -39,6 +38,7 @@ export async function renderSceneToPng(html, { deviceScaleFactor = 2, settleMs =
   if (!html || typeof html !== 'string') {
     throw new Error('renderSceneToPng requires scene HTML');
   }
+  const puppeteer = await loadPuppeteer();
   const executablePath = await resolveChromium();
 
   let browser = null;
@@ -126,6 +126,7 @@ export async function renderWorldToPng(html, {
   if (!html || typeof html !== 'string') {
     throw new Error('renderWorldToPng requires World HTML');
   }
+  const puppeteer = await loadPuppeteer();
   const executablePath = await resolveChromium();
 
   let browser = null;

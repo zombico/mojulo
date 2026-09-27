@@ -26,7 +26,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-import puppeteer from 'puppeteer-core';
+import { puppeteer } from '@/lib/graph/scene/puppeteer-lazy';
 
 import { installedGroups } from '@/lib/mcp/packs';
 

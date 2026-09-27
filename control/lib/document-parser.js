@@ -5,11 +5,14 @@
  * - DOCX/PPTX/XLSX: Uses officeparser
  */
 
-import PDFParser from 'pdf2json';
-import officeParser from 'officeparser';
 import { writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { lazyDependency } from './lazy-deps.js';
+
+// Both parsers load on the first document, not at import: this module sits on the stdio boot path.
+const loadPdf2json = lazyDependency('pdf2json', () => import('pdf2json'), 'reads PDF text');
+const loadOfficeParser = lazyDependency('officeparser', () => import('officeparser'), 'reads DOCX, PPTX and XLSX text');
 
 /**
  * Parse PDF using pdf2json (Node.js native parser)
@@ -17,6 +20,7 @@ import { tmpdir } from 'node:os';
  * @returns {Promise<string>} Extracted text
  */
 async function parsePDF(buffer) {
+  const { default: PDFParser } = await loadPdf2json();
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser();
 
@@ -84,6 +88,7 @@ async function parseOfficeDocument(buffer, fileName) {
 
   try {
     await writeFile(tempFilePath, buffer);
+    const { default: officeParser } = await loadOfficeParser();
     const extractedText = await officeParser.parseOfficeAsync(tempFilePath);
     return extractedText;
   } finally {
