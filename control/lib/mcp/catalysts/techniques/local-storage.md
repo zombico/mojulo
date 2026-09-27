@@ -50,7 +50,7 @@ If the filesystem MCP is *not* in the operator's inventory, surface the one-line
 claude mcp add filesystem npx -y @modelcontextprotocol/server-filesystem <workspace_root>
 ```
 
-…with the workspace_root from step 1 as the allowed path. After install, the operator runs `meta_context_declare_inventory` (their agent typically auto-runs this on session start) to register the new server.
+…with the workspace_root from step 1 as the allowed path. After install, re-run `meta_context_declare_inventory` as part of this workflow so the new server is registered.
 
 ### 3 — Choose the sub-path, apply `conflict-vs-claim`, call `bind_primitives`
 

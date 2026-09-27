@@ -14,8 +14,10 @@
  *
  * MCP is one-way; mojulo cannot introspect the client. So the agent is the
  * trust anchor for what's actually connected. The replacement semantic +
- * declared_at timestamp + agent guidance to re-declare on session start are
- * the mitigations.
+ * declared_at timestamp + agent guidance to re-declare when the environment
+ * changes during connected-service work are the mitigations. The declaration
+ * runs on the user's ask, never at session start (directory policy 1.D/2.D:
+ * it records the user's other MCP servers).
  *
  * See lite-template/integration/MCP_INVENTORY_PLAN.md for the design.
  */
@@ -53,7 +55,7 @@ export function registerInventoryTools() {
   registerTool({
     name: 'meta_context_declare_inventory',
     description:
-      "Register the operator's installed MCPs (Gmail/Drive/Calendar/Linear/HubSpot/etc.) so the mcp-orbit composer has materials to compose against. **Call first** when the user wants outcomes without a chatbot — operator-side workflows, MCP-to-MCP wiring, scheduled digests, signal-triggered automations — or at session start if your MCP environment has changed (new MCP installed, one removed). REPLACE semantics — latest declaration wins; tools not in this call are wiped (mojulo can't introspect your environment, so you are the trust anchor). Distinct from `meta_context_commit`, which seals append-only structural decisions. Snapshot rides on `meta_context_brief({kind:'fleet'})` as `inventory.{declaredAt, ageSeconds, toolCount}`. **Richer-snapshot mode (recommended when binding primitives):** include each tool's `inputSchema` and `introspectionConfidence` to upgrade the declaration into a capability snapshot the primitive-binding generator can consume directly. `introspectionConfidence` values: `tools_list_full` (you read the full schema from the MCP's tools/list), `agent_inferred` (you guessed the schema from tool name + description), `names_only` (you only know the tool exists). Returns `{ ok, serversSeen, toolsSeen, replaced, declaredAt, warnings? }` — `warnings: ['no_operator_anchor']` means inventory saved but no KYC; consider offering it if a sustained non-bot workflow is on the table.",
+      "Register the operator's installed MCPs (Gmail/Drive/Calendar/Linear/HubSpot/etc.) so the mcp-orbit composer has materials to compose against. **Call first** when the user asks for outcomes across their connected services without a chatbot — operator-side workflows, MCP-to-MCP wiring, scheduled digests, signal-triggered automations — and again only if an MCP is added or removed mid-task. Not at session start or unprompted: it stores the names of the user's other MCPs. REPLACE semantics — latest declaration wins; tools not in this call are wiped (mojulo can't introspect your environment, so you are the trust anchor). Distinct from `meta_context_commit`, which seals append-only structural decisions. Snapshot rides on `meta_context_brief({kind:'fleet'})` as `inventory.{declaredAt, ageSeconds, toolCount}`. **Richer-snapshot mode (recommended when binding primitives):** include each tool's `inputSchema` and `introspectionConfidence` to upgrade the declaration into a capability snapshot the primitive-binding generator can consume directly. `introspectionConfidence` values: `tools_list_full` (you read the full schema from the MCP's tools/list), `agent_inferred` (you guessed the schema from tool name + description), `names_only` (you only know the tool exists). Returns `{ ok, serversSeen, toolsSeen, replaced, declaredAt, warnings? }`; `no_operator_anchor` means no KYC is recorded (optional).",
     inputSchema: {
       type: 'object',
       properties: {

@@ -27,6 +27,12 @@ loops and the recipe format are unchanged.
   was fixed at `2024-11-05`, older than the revisions that define tool annotations (`2025-03-26`)
   and tool titles (`2025-06-18`). The `version` tool reports the newest revision as
   `protocolVersion` and the full list as `supportedProtocolVersions`.
+- **Connected-service declarations run when the user asks.** `meta_context_declare_inventory` and
+  `declare_skills` no longer tell the agent to call them at session start. They run when the user
+  asks for connected-service work, since the inventory records the names of the user's other MCP
+  servers. `get_register_kit`, `get_adapter` and `list_adapters` no longer ask for a read on every
+  session; the agent reads them when a task needs them. The deliberation overview, the tool index
+  and the local-storage catalyst say the same.
 - **The HTTP MCP route answers a POST of only notifications with `202 Accepted`** (it was
   `204`), as Streamable HTTP specifies.
 

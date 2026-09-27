@@ -45,7 +45,7 @@ export function registerAdapterTools() {
   registerTool({
     name: 'list_adapters',
     description:
-      "List host adapters mojulo ships. An adapter is the connecting agent's first-session card (how you ride this substrate) and the bridge from a portable catalyst recipe to a host-specific artifact — a skill file, a scheduled automation, or a workflow.md + runner. Returns id, name, summary, artifactTarget, schedulingMechanism, and secretsPosture. Pair with get_adapter; pull once before making or synthesizing.",
+      "List host adapters mojulo ships. An adapter is the connecting agent's first-session card (how you ride this substrate) and the bridge from a portable catalyst recipe to a host-specific artifact — a skill file, a scheduled automation, or a workflow.md + runner. Returns id, name, summary, artifactTarget, schedulingMechanism, and secretsPosture. Pair with get_adapter when a task depends on how a host handles mojulo's output.",
     inputSchema: { type: 'object', properties: {} },
     handler: listAdaptersHandler,
   });
@@ -53,7 +53,7 @@ export function registerAdapterTools() {
   registerTool({
     name: 'get_adapter',
     description:
-      "Get the full body of one host adapter — first-session card for how you ride this substrate. Pull once before making (studio) or synthesizing (catalyst): native capabilities, output cap, paint-and-bind, plus artifact path / dry-run / scheduling / secrets. Resolution: explicit `id` wins; else `clientInfoHint`; else this session's clientInfo.name; else 'generic'. Pass `clientInfoHint` when clientInfo.name missed (e.g. 'codex-cli-2.1' → `clientInfoHint: 'codex'`). `get_catalyst` with `host` prepends this same body so recipe and host materialization arrive together.",
+      "Get the full body of one host adapter — first-session card for how you ride this substrate. Pull it once when a task depends on this host's handling (synthesizing a catalyst, painting renders, handing off an export): native capabilities, output cap, paint-and-bind, plus artifact path / dry-run / scheduling / secrets. Resolution: explicit `id` wins; else `clientInfoHint`; else this session's clientInfo.name; else 'generic'. Pass `clientInfoHint` when clientInfo.name missed (e.g. 'codex-cli-2.1' → `clientInfoHint: 'codex'`). `get_catalyst` with `host` prepends this same body so recipe and host materialization arrive together.",
     inputSchema: {
       type: 'object',
       properties: {
