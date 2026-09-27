@@ -113,7 +113,7 @@ loops and the recipe format are unchanged.
   posts only to that configured URL, no longer echoes the target's response, and sends no CORS
   headers. The webhook and send-home URLs are no longer included in the config the chat page and
   `/context` expose. The default pin moves to `ghcr.io/zombico/mojulo-bot:0.5.2`
-  ([lib/deployers/bot-image.js](lib/deployers/bot-image.js), now the one constant the docker and
+  ([lib/version/bot-image.js](lib/version/bot-image.js), now the one constant the docker and
   Fly deployers and the `version` / `check_for_updates` readers share; Fly used to need `BOT_IMAGE`
   set). **The `bot-v0.5.2` image must be published before this npm release, and existing bots must
   be rebuilt and redeployed to pick up the fix.**

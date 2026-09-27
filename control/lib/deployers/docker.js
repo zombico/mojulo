@@ -4,7 +4,7 @@ import path from 'path';
 import { lazyDependency } from '../lazy-deps.js';
 import { composeInstructions } from '../composer/composer.js';
 import { downloadToBuffer } from '../storage/index.js';
-import { DEFAULT_BOT_IMAGE } from './bot-image.js';
+import { DEFAULT_BOT_IMAGE } from '../version/bot-image.js';
 
 const LITE_TEMPLATE_PATH =
   process.env.LITE_TEMPLATE_PATH ||
@@ -19,8 +19,8 @@ const BOT_DEFAULT_PORT = process.env.BOT_DEFAULT_PORT || '3000';
 const loadArchiver = lazyDependency('archiver', () => import('archiver'), 'zips the bot artifact');
 
 // Prebuilt bot image published by .github/workflows/publish-bot-image.yml.
-// The pin lives in bot-image.js; control-plane releases with no lite-template
-// runtime changes don't need a pin bump.
+// The pin lives in lib/version/bot-image.js; control-plane releases with no
+// lite-template runtime changes don't need a pin bump.
 const BOT_IMAGE = process.env.BOT_IMAGE || DEFAULT_BOT_IMAGE;
 
 // Escape hatch for users who can't reach ghcr.io (air-gapped networks,

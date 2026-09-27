@@ -22,7 +22,7 @@
  */
 
 import crypto from 'crypto';
-import { DEFAULT_BOT_IMAGE } from './bot-image.js';
+import { DEFAULT_BOT_IMAGE } from '../version/bot-image.js';
 
 const FLY_API_BASE = 'https://api.machines.dev/v1';
 const FLY_GRAPHQL_URL = 'https://api.fly.io/graphql';

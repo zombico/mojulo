@@ -4,7 +4,7 @@
  * Returns what the *running* control plane thinks it is:
  *   - Control-plane package version, read from control/package.json.
  *   - Pinned bot image, read from process.env.BOT_IMAGE, falling back to the
- *     default in lib/deployers/bot-image.js (the one the deployers use).
+ *     default in lib/version/bot-image.js (the one the deployers use).
  *
  * Kept separate from remote.js so the local read is cheap and never fails on
  * registry outage — the tool can still report current state even when the
@@ -14,7 +14,7 @@
 import fs from 'fs';
 import path from 'path';
 import { moduleDir } from '../module-dir.js';
-import { DEFAULT_BOT_IMAGE } from '../deployers/bot-image.js';
+import { DEFAULT_BOT_IMAGE } from './bot-image.js';
 const __dirname = moduleDir(import.meta.url, 'lib/version');
 
 // Memoize the package.json read — it doesn't change during process lifetime.

@@ -1500,7 +1500,7 @@ function controlPlaneInstallHint(latest, sourceClone) {
 }
 
 function botImageUpdateHint(repo, latestTag) {
-  return `Bump \`BOT_IMAGE\` in control/.env to \`${repo}:${latestTag}\` (and the default pin in control/lib/deployers/bot-image.js), then rebuild affected bots.`;
+  return `Bump \`BOT_IMAGE\` in control/.env to \`${repo}:${latestTag}\` (and the default pin in control/lib/version/bot-image.js), then rebuild affected bots.`;
 }
 
 export async function checkForUpdatesHandler(_input, _ctx) {
