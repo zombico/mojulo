@@ -28,6 +28,8 @@ import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
 import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice } from '@/lib/mcp/packs';
+// Titles + behavior hints for every tool; pure data like packs.js.
+import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 // Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
 // and flags ride the execution context, minted in api/mcp/route.js.
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
@@ -111,8 +113,19 @@ export function registerTool(tool) {
   }
   // Optional `timeoutMs` overrides the global soft-timeout budget for handlers
   // that legitimately run long (heavy render bakes, gif encodes). See the soft
-  // timeout in lib/mcp/telemetry.js.
+  // timeout in lib/mcp/telemetry.js. Optional `aliasOf` names the tool a
+  // deprecated alias forwards to; the alias takes that tool's annotations.
   registeredTools.set(tool.name, tool);
+}
+
+/** A tools/list entry with its title and annotations (lib/mcp/tool-annotations.js),
+ * key order name → title → description → inputSchema → annotations. Unchanged when
+ * nothing classifies the name; tool-annotations.test.js keeps that from shipping. */
+function withAnnotations(entry, aliasOf) {
+  const meta = toolAnnotations(entry.name, aliasOf);
+  if (!meta) return entry;
+  const { name, ...rest } = entry;
+  return { name, title: meta.title, ...rest, annotations: meta.annotations };
 }
 
 /** True when the connecting host already defers MCP tool schemas client-side
@@ -131,11 +144,15 @@ export function clientDefersSchemas(clientInfo) {
 }
 
 export function listTools({ clientInfo, context } = {}) {
-  const toEntry = (t) => ({
-    name: t.name,
-    description: t.description || '',
-    inputSchema: t.inputSchema || { type: 'object', properties: {} },
-  });
+  const toEntry = (t) =>
+    withAnnotations(
+      {
+        name: t.name,
+        description: t.description || '',
+        inputSchema: t.inputSchema || { type: 'object', properties: {} },
+      },
+      t.aliasOf,
+    );
   // Roles pack (Phase 2): with roles enabled, ADMIN callers additionally see
   // the roles-admin tools (registered listed:false so a roles-off install
   // stays byte-identical); privileged callers see only their granted bays —
@@ -161,7 +178,7 @@ export function listTools({ clientInfo, context } = {}) {
     const packs = installedPacks(process.env).filter(
       (pack) => !rolesOn || isAdminContext(context) || packGranted(pack, context)
     );
-    return [...spine, ...packs.map((pack) => packToolEntry(pack)), ...adminExtras];
+    return [...spine, ...packs.map((pack) => withAnnotations(packToolEntry(pack))), ...adminExtras];
   }
   // `listed: false` tools (deprecated aliases) resolve in tools/call and
   // invokeRegisteredTool but are omitted from tools/list — retired names keep

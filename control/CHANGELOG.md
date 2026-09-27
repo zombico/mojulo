@@ -14,6 +14,14 @@ loops and the recipe format are unchanged.
 
 ### MCP tool annotations and protocol negotiation
 
+- **Every tool carries a title and behavior hints.** Each `tools/list` entry now has a top-level
+  `title` and `annotations` with the same `title` plus `readOnlyHint`, `destructiveHint`,
+  `idempotentHint` and `openWorldHint`. This covers the flat surface, the spine, the pack
+  dispatchers and the roles-admin tools, on every host profile. The classification is one table,
+  `lib/mcp/tool-annotations.js`, with its rules at the top. A pack dispatcher takes the union of the
+  tools it can dispatch, and a deprecated alias takes its target's row. A test fails when a
+  registered tool has no row. Each entry grows by about 165 bytes; the flat and packs payload pins
+  are re-pinned for it.
 - **The protocol version is negotiated.** `initialize` answers with the revision the client asks
   for when it is `2025-06-18`, `2025-03-26` or `2024-11-05`, and with `2025-06-18` otherwise. It
   was fixed at `2024-11-05`, older than the revisions that define tool annotations (`2025-03-26`)

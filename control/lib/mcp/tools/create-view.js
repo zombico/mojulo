@@ -284,6 +284,7 @@ export function registerCreateViewTools() {
     registerTool({
       name: entry.retired,
       listed: false,
+      aliasOf: 'create_view',
       description: `Deprecated alias — use create_view({ kind: '${kind}', params }) (manual: get_view_vocab({ id: '${kind}' })).`,
       inputSchema: { type: 'object', properties: {}, required: [] },
       handler: entry.handler,

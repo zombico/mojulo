@@ -116,24 +116,25 @@ export const EDIT_OPS = {
 
 const OP_LIST = Object.keys(EDIT_OPS);
 
-// Flat list of every retired tool name → its original handler, for the
-// listed:false alias loop. These keep persisted plans/skills executing.
+// Flat list of every retired tool name → its original handler and the consolidated
+// tool it folded into, for the listed:false alias loop. These keep persisted
+// plans/skills executing; the target also lends the alias its annotations.
 const RETIRED_ALIASES = [
-  ['create_figure', createFigureHandler],
-  ['emote_figure', emoteFigureHandler],
-  ['create_manji_tree', createManjiTreeHandler],
-  ['sketch_polygomer', sketchPolygomerHandler],
-  ['create_polygonized_sketch', createPolygonizedSketchHandler],
-  ['get_polygonizer_packet', getPolygonizerPacketHandler],
-  ['submit_polygonizer_manifest', submitPolygonizerManifestHandler],
-  ['create_workbench', createWorkbenchHandler],
-  ['create_assembler', createAssemblerHandler],
-  ['create_carved_solid', createCarvedSolidHandler],
-  ['create_solid_turntable', createSolidTurntableHandler],
-  ['create_edifice', createEdificeHandler],
-  ['preview_vehicle_instance', previewVehicleInstanceHandler],
-  ['get_skin_packet', getSkinPacketHandler],
-  ['skin_polygomer', skinPolygomerHandler],
+  ['create_figure', createFigureHandler, 'mint_solid'],
+  ['emote_figure', emoteFigureHandler, 'edit_solid'],
+  ['create_manji_tree', createManjiTreeHandler, 'mint_solid'],
+  ['sketch_polygomer', sketchPolygomerHandler, 'mint_solid'],
+  ['create_polygonized_sketch', createPolygonizedSketchHandler, 'mint_solid'],
+  ['get_polygonizer_packet', getPolygonizerPacketHandler, 'mint_solid'],
+  ['submit_polygonizer_manifest', submitPolygonizerManifestHandler, 'mint_solid'],
+  ['create_workbench', createWorkbenchHandler, 'mint_solid'],
+  ['create_assembler', createAssemblerHandler, 'mint_solid'],
+  ['create_carved_solid', createCarvedSolidHandler, 'mint_solid'],
+  ['create_solid_turntable', createSolidTurntableHandler, 'mint_solid'],
+  ['create_edifice', createEdificeHandler, 'mint_solid'],
+  ['preview_vehicle_instance', previewVehicleInstanceHandler, 'mint_solid'],
+  ['get_skin_packet', getSkinPacketHandler, 'edit_solid'],
+  ['skin_polygomer', skinPolygomerHandler, 'edit_solid'],
 ];
 
 function mergeTop(spec, { title, ref, folderRef }) {
@@ -291,10 +292,11 @@ export function registerMintSolidTools() {
 
   // Deprecated per-type creators/verbs — resolve in tools/call, hidden from
   // tools/list. Each forwards to its original handler unchanged.
-  for (const [name, handler] of RETIRED_ALIASES) {
+  for (const [name, handler, aliasOf] of RETIRED_ALIASES) {
     registerTool({
       name,
       listed: false,
+      aliasOf,
       description: `Deprecated alias — folded into mint_solid / edit_solid. See get_solid_vocab.`,
       inputSchema: { type: 'object', properties: {}, required: [] },
       handler,

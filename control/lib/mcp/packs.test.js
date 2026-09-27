@@ -35,7 +35,9 @@ import {
 // Packs-mode connect payload pin — the plan's headline number (~35KB target
 // from ~250KB flat). Growth is a conscious re-pin, same contract as the flat
 // PAYLOAD_CEILING in tool-descriptions.test.js.
-const PACKS_PAYLOAD_CEILING = 35_000;
+// Re-pinned 2026-09-27 (35_000 -> 37_000; measured 36,794) for tool annotations: each spine tool
+// and pack dispatcher now carries `title` + `annotations` (lib/mcp/tool-annotations.js).
+const PACKS_PAYLOAD_CEILING = 37_000;
 
 let server;
 let listTools;
