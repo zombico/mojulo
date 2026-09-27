@@ -47,6 +47,14 @@ loops and the recipe format are unchanged.
   as a `next_pass` on every surface of the named figure, so the base vertex-colour material stays
   untouched and the five numbers match the World page's patch. Absent rims ⇒ no score key, no-op
   kernel pass, byte-identical pack.
+- **The rim reaches Unreal, and the ink stays black there.** The importer keeps `toon:ink` slots on
+  Interchange's own import — the ink primitives ship no COLOR_0, and UE's VertexColor node defaults
+  to white, so the vertex-colour masters would have drawn the outline as a white halo — and lowers
+  `score.look` rims as a dedicated master (`M_MojuloRim`/`M_MojuloRimLit`): the same fresnel
+  construction (RimColor × RimStrength × pow(1 − saturate(N·V), RimPower)) added to emissive, one
+  `MI_MojuloRim_<figure>` instance per figure, restamped on every export, never on an ink slot. The
+  verify pass gains `rim_applied` (only when a score declares look) and counts kept ink slots as
+  correct. No look ⇒ the plain masters, byte-identical project (unreal-project.js).
 
 ### Art direction
 
