@@ -12,6 +12,114 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### City scale
+
+- **A metro profile for the fractal city.** `profile: 'metro'` (a top-level `compose_world` city
+  override, stored only as `'metro'`) keeps the 3.0 m storey and brings everything the storey
+  should govern into proportion with it.
+  - **Blocks** sit at a 100–115 m pitch (80–110 crossings per km²). Each is cut into 6–15 m lots
+    (the odd office lot is wider), wall to wall around an inner court that is either parking or a
+    yard.
+  - **Streets** have a real right-of-way: about 19 m, with about 29 m avenues on the top two tiers.
+    Side streets run through the avenue's sidewalk to its kerb.
+  - **Heights** come from a log-normal field that peaks at the core (the root tower, a monument
+    plaza, or the centre), in whole 3.1 m / 3.9 m floors, with slender corner towers near the
+    core. The root tower is 175–285 m at ≥ 5 : 1, and there are no quadrant-sized sub-anchor slabs.
+    Heights are p50 about 19 m, max 200–245 m.
+  - **People, cars and the street kit** are real size: about 1.75 m, 4.6 m, and 3.2 m / 5.7 m
+    signs / signals. That covers static people, parked and portal cars, and `/world`'s walkers and
+    car bank. A signalled crossing carries no stop signs, and there are no overhead power lines.
+    Facades draw the plan's own floors.
+  - **Presets** are a 1.7 m street eye on the main avenue, a low aerial, and a skyline stand-off.
+    The stream tiles use the same shots.
+  - A metro recipe with no region gets a 220 × 140 frame (about 0.8 × 0.5 km). Its recursion always
+    reaches block size, and `depth` may go to 6.
+  - Absent, every stored city renders the same bytes.
+- **Metro walks never overlap.** The stock city lays one walk band per street, and the bands
+  overlap at every crossing. The World's coplanar lift (`decollideFaces`) raises an overlapped face
+  in proportion to its size, so at metro lengths a band rose over the asphalt and avenues rendered
+  as sidewalk. Metro walks are tiled from the claim grid instead. The stock city is unchanged.
+- **`cityScaleCensus(plan, region)`.** The city measured in metres: block pitch, crossing density,
+  street share, the height distribution with a core-vs-edge split, tower slenderness, and the
+  street kit's heights. It is the machine gate for the metro bands (`fractal-city-metro.test.js`).
+- **Stream tiles read the planner's frame.** `city-tiles.js` imports `DEFAULT_REGION` and the
+  preset shots from the planner instead of copying them.
+- **A metro city has a sky and air.**
+  - A metro scene carries a gradient sky, so the World's dome draws it. The stock city's preset sky
+    has no dome, and `/world` showed a void.
+  - It also carries a distance haze sized to its frame (visibility of twice the frame's diagonal), so
+    distance fades toward the horizon colour and the frame's far edge sits in haze.
+  - The haze is a new opt-in on `emitThreeWorld` (`haze: { color, density }`): three's exponential fog
+    over every basic-material mesh, with the sky dome and stars left clear. It rides the sky block's
+    string, so a page without it is byte-identical.
+  - The streamed page carries both.
+- **Metro kerb lamps.** A lamp stands about every 31 m along both kerbs of every metro street, on
+  the walk, its arm over the road. The crossings keep their own four.
+- **Streaming follows the street eye.** A metro city streams in 32-unit tiles, with the
+  full-detail radius at 80 units and the cache at 160 (`streamSizing`). The tile route uses the
+  recipe's own size. A camera standing low (under 4 units) now gathers full-detail tiles around
+  itself rather than its far orbit target, so the street it stands on is the part at full detail.
+- **Metro buildings wear a downtown's materials.** The stock facade draw is light glass (sage, sky
+  blue, lilac), and at metro heights almost every mass drew it, down to the roofs and the streamed
+  massing horizon. A metro mass now carries a `skin`: dark low-chroma curtainwall, limestone or
+  precast with dark windows, or dull brick up to walk-up height, with a grey roof. The material
+  follows a district of about two blocks, biased to glass at the core and masonry toward the edge.
+  The skin is stamped after planning, off its own hash, so no mass moves. A massing box takes its
+  facade's average colour, so the horizon matches the full-detail blocks. The stock city is
+  unchanged.
+- **Metro landmarks stand at their real size.** A monument's footprint used to be a fraction of the
+  demo frame, so in a metro city the CN Tower stood 49 m tall and the Colosseum was 21 m long.
+  - A metro landmark is now sized from its real dimensions. A tower fits on height (CN Tower 553 m,
+    Eiffel Tower 330 m, Petronas 452 m). A building whose ground plan is the landmark fits height and
+    plan together (Colosseum, stadium, pyramids, Empire State), which splits a builder's proportion
+    error evenly between the two. The builders themselves are unchanged.
+  - Every landmark fits the default 220 × 140 metro frame at full size, around a 22 m forecourt
+    rather than a plaza a quarter of the cluster wide. `stats.landmarkSizes` reports each height and
+    any zoom-out a smaller frame forced.
+  - The band a plaza leaves between its flanking avenue and the frame edge is cut by a side street
+    into blocks, instead of standing as one 550 m block around a single court.
+  - The presets find it from the recipe alone. The street eye stands on the walk of the avenue that
+    flanks the plaza, just past the corner, looking up at the monument; the skyline stands at the
+    city's corner with the lens widened only enough to hold the tip.
+  - The stock city is unchanged.
+- **Metro cities have a regional flavour.** `flavor` names one of north-american, new-york, paris,
+  london, mediterranean, tokyo, southeast-asia, latin-american or gulf, and the city takes that
+  place's materials, affectations, heights and lot grain.
+  - Paris is cream cut stone with French balconies and zinc mansards under one cornice line. New
+    York has brick walk-ups with fire escapes and a water tank on anything over six storeys. Tokyo
+    has narrow lots, tile fronts and vertical signs. The Mediterranean has stucco under terracotta
+    hip roofs. London is stock brick and Portland stone around a glass core. The gulf has sand stucco
+    under supertall glass.
+  - A metro mint writes a flavour into the recipe: the one asked for, else the landmark's own city,
+    else a roll within the recipe's `locale` region, else a roll over all. It adds the flavour's
+    `locale` and `climate` when the recipe has none. The roll happens once, at mint, so adding a
+    flavour later never changes a stored city.
+  - A metro recipe with no flavour renders as before (`north-american`). The stock city is unchanged.
+
+### Local city refacade
+
+- **Metro landmarks and sacred buildings are redrawn.** In a metro city the seeded landmark cluster,
+  the religious place (church, mosque, temple and their variants) and the civic rotunda take a
+  refacade builder (`landmarks/refacade.js`): more of the real architecture, lit from the true
+  outward normal so every side reads as a mass. The planner stamps `metro: true` on a metro city's
+  landmark boxes; the religious and civic boxes already carry it from their metro mass. Each builder
+  stays inside its footprint and under the stock silhouette, so plazas, roads and cameras are
+  unchanged. Every non-metro box keeps its stock builder, so stored cities render the same bytes.
+- **The Tian Tan Buddha is a monument** (`landmark: 'tian-tan-buddha'`, aliases `big-buddha` and
+  `tian-tan`), drawn by one builder for every city. It is the seated bronze Buddha on a lotus, set on a
+  three-tier round altar modelled on the Temple of Heaven's, with a stair up the front and the six
+  kneeling Devas on the second tier. The figure is low-poly masses hung on the vajra armature's pose:
+  FK arms (the right hand raised palm out, the left in the lap) and authored lotus legs, since the hip
+  cone stops at 62°. The head is the vajra figure's own, cut from a bare figure build, re-meshed, and
+  shaded in bronze under the curled-hair cap and the ushnisha. The first build costs about 1 s, then it
+  is memoised.
+- `decimateFaces` (the vertex-clustering re-mesh the Liberty and Rizal refacades use) moves into the
+  kit. Their output is byte-identical.
+- `landmarks/refacade-kit.js`: the shared face primitives (box, prism, lathe, column, gable, and a
+  wall frame with proud panels, painted openings and round or pointed arch heads).
+- Machine gate: `landmarks/refacade.test.js` pins the stock bytes of every seeded subject and checks
+  each refacade's footprint, height, determinism and face budget.
+
 ### Retail concept cards
 
 - **A store is a card.** `kind: 'store'` builds one walkable shop from a concept card. A card is pure JSON: finishes,
@@ -906,6 +1014,45 @@ rock to classical, flamenco and gypsy jazz.
 - Machine gate: `beats-roots.test.js`. Ears gate: the operator listened to the
   eight songs and approved them (the country song after a drier, guitar-banjo-
   tambourine-cowbell rework).
+
+### World streaming
+
+- **A large fractal city no longer has to fit in one page.** `/world?stream=1` on a `fractal-city`
+  inlines only a horizon — the base layer (grounds and roads) plus the whole city at
+  `fidelity:'massing'`, each ground tile's massing in its own render group — and the page fetches
+  FULL-detail tiles near the camera from the new `GET /api/sketches/[ref]/world/tile?t=i,j&lod=full|massing|base`.
+  Nearest tiles first, four in flight, kept out to a cache radius (an LRU capped by count), GPU
+  buffers disposed beyond it; a landed tile hides its massing group and an evicted one shows it
+  again. Tile meshes join the pick/wireframe set and the walk colliders. Measured on a 480×288
+  city (seed 7, frontage, depth 6; 1.03 million faces whole): the whole-city page is 262 MB and
+  takes 82 s to emit; the streamed page is 10.4 MB, and with the 13 tiles a headless browser
+  fetched around the opening camera the first load is 16.3 MB. A full tile is 0.35 MB median and
+  1.1 MB at most.
+- **The cut is exact.** `lib/graph/city/city-tiles.js` partitions the plan's boxes by footprint
+  centre (a building is never cut) and its extra faces by corner centroid, and assembles each tile
+  through the same `assembleBoxCityScene`; the base is assembled once and its faces partitioned by
+  centroid. In plain lighting the union of the tiles is the whole-city face multiset, with nothing
+  missing and nothing extra (`city-tiles.test.js`). The horizon is the planner's own fidelity prune,
+  so it is the same city as its full tiles. Plans are memoized per recipe in a small LRU.
+- **Tile wire format.** `u32 'MJT1' · u32 header length · JSON header · Float32 data`: the header
+  lists the untextured mesh and one part per texture key, with offsets, and carries only the
+  texture data URLs the page does not already hold. Cards expand and faces de-collide per tile.
+  The route answers with an ETag over (manifest, tile, lod, code version) and a 304 on
+  `If-None-Match`, under the same session/bearer middleware as its siblings; 404 for any other
+  kind, 400 for a malformed or off-grid tile.
+- **Streaming stands down instead of guessing.** Night or day lighting, moonlight, lamp sources,
+  diffusion, ground shadows, crease seams, AO and toon each read the whole face set, so the split
+  is no longer exact; figures, physics, a game, signage and the other channels the streamed page
+  does not carry stand down too, and so does `?download=1` (tiles need the live server). The
+  route then serves the normal whole-city page and names the reason in an
+  `X-Mojulo-World-Stream` response header. Walkers, traffic, fog and `instancing` are left out of
+  a streamed page in v1 and listed in the same header.
+- `stream` is an opt-in `emitThreeWorld` channel (`channels/stream.js`): absent, it contributes
+  zero bytes and every emit pin holds. `stream` joins the `/world` cache flags, so a streamed and
+  a whole page never share a cache entry.
+- **Eyes gate not run.** Still to look at: seams or z-fighting where tiles meet (de-collision now
+  runs per tile), the pop from massing to full detail, whether the horizon reads as the same city,
+  and massing edges that stay visible in wireframe mode after their full tile lands.
 
 ## [2.1.0] - 2026-09-23
 

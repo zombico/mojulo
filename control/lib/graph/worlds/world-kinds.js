@@ -204,7 +204,7 @@ async function attachCityWalkers(scene) {
   const loops = scene && scene.walkerLoops;
   if (!Array.isArray(loops) || !loops.length) return scene;
   const rigs = await walkerRigVariants();
-  const scale = CITY_PED_HEIGHT / (rigs[0].figH || 1.85);
+  const scale = (scene.cityCues?.pedHeight ?? CITY_PED_HEIGHT) / (rigs[0].figH || 1.85);   // a metro city walks real-size people (fractal-city METRO)
   scene.walkers = loops.map((L, i) => ({ figure: 'ped' + (i % rigs.length), path: L.path, style: L.style || 'bumble', scale, speed: 0.7 }));
   // embed only the outfits actually walking this city (a 2-loop city ships 2 rigs, not all six).
   const used = new Set(scene.walkers.map((w) => w.figure));
@@ -223,24 +223,26 @@ const CAR_SPEED = 1.26;       // ≈ 1.8× the walker speed (0.7 city units/s)
 const CARS_PER_LANE = 3;
 // a small mulberry32 so the vehicle cast is deterministic + city-independent (bake once, memoize).
 const _mul32 = (a) => () => { a |= 0; a = a + 0x6d2b79f5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-let _carBank = null;
-function carMeshBank() {
-  if (!_carBank) {
-    _carBank = (async () => {
+const _carBanks = new Map();   // one bank per car scale: the stock 0.9, and metro's real-size cars
+function carMeshBank(scale = CITY_CAR_SCALE) {
+  if (!_carBanks.has(scale)) {
+    _carBanks.set(scale, (async () => {
       const { bakeCarMesh } = await import('@/lib/graph/vehicles/car-bake');
       const rng = _mul32(0x2545f491);
       const bank = {};
-      for (let i = 0; i < 6; i++) bank['car' + i] = bakeCarMesh({ scale: CITY_CAR_SCALE, rng });   // sampled type + paint + hull
+      for (let i = 0; i < 6; i++) bank['car' + i] = bakeCarMesh({ scale, rng });   // sampled type + paint + hull
       return bank;
-    })().catch((err) => { _carBank = null; throw err; });
+    })().catch((err) => { _carBanks.delete(scale); throw err; }));
   }
-  return _carBank;
+  return _carBanks.get(scale);
 }
 async function attachCityCars(scene) {
+  const cues = scene && scene.cityCues;
+  if (cues) delete scene.cityCues;   // consumed here (walkers read it first) → keep the payload clean for emitThreeWorld
   let lanes = scene && scene.carLanes;
   if (!Array.isArray(lanes) || !lanes.length) return scene;
   const { carLaneToPath } = await import('@/lib/graph/city/fractal-city');
-  const bank = await carMeshBank();
+  const bank = await carMeshBank(cues?.car ?? CITY_CAR_SCALE);
   const names = Object.keys(bank);
   // SIGNALISED traffic: when the plan exported the crossings, the city's own traffic constants are
   // derived from the MEASURED car bank — the longest and widest model are the collision footprint,

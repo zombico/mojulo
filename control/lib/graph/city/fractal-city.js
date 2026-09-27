@@ -82,6 +82,7 @@ import { straightPath, sinePath, chainPaths, roadRibbons, groundStreet, offsetPa
 import { vehicleAntFaces, streetcarCorridor } from '../vehicles/vehicles-css3d.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
 import { pedestrianFaces, IDLE_POSES, STROLL_POSES, PALETTES } from '../figures/pedestrian-asset.js';
+import { CITY_FLAVORS, normalizeCityFlavor } from './city-flavors.js';
 
 const CITY_ELEMENT_DEFAULTS = {
   buildings: true,
@@ -220,7 +221,7 @@ const RELIGIOUS_LOCALE_ALIASES = {
   himalaya: 'himalaya', tibet: 'himalaya', nepal: 'himalaya', bhutan: 'himalaya', mongolia: 'himalaya',
   indochina: 'indochina', thailand: 'indochina', myanmar: 'indochina', burma: 'indochina', cambodia: 'indochina', laos: 'indochina', 'sri-lanka': 'indochina',
 };
-const canonLocale = (locale) => {
+export const canonLocale = (locale) => {
   if (!locale || typeof locale !== 'string') return null;
   const key = locale.trim().toLowerCase().replace(/[\s_]+/g, '-');
   return RELIGIOUS_LOCALE_ALIASES[key] || key;
@@ -512,8 +513,9 @@ function shiftLineOut(v, lo, hi, spans, clear) {
 }
 
 // `avoids` — array of reserved rects this level's cross-streets must flank around.
-function subdivide(region, gap, rng, avoids, clear = gap / 2) {
-  const fx = 0.36 + rng() * 0.28, fy = 0.36 + rng() * 0.28;
+function subdivide(region, gap, rng, avoids, clear = gap / 2, centred = false) {
+  let fx = 0.36 + rng() * 0.28, fy = 0.36 + rng() * 0.28;
+  if (centred) fx = fy = 0.5;                                   // metro root: the main avenues cross at the core (the draws are still taken)
   let vx = region.x + (region.w - gap) * fx + gap / 2;
   let hy = region.y + (region.d - gap) * fy + gap / 2;
   if (avoids && avoids.length) {
@@ -694,12 +696,46 @@ function leftoverComponents(g) {
 // short side, so a bigger region means more city around the same tower. The caps are passed in gen
 // units (÷ baseScale) so a baseScale recipe on the default frame is untouched, and the default frame
 // itself sits exactly AT the cap — every existing default-frame seed is byte-identical.
-const DEFAULT_REGION = { x: 2, y: 2, w: 30, d: 18 };
+export const DEFAULT_REGION = { x: 2, y: 2, w: 30, d: 18 };
 const ROOT_ANCHOR_FRAC = 0.34;
+// ── METRO profile ────────────────────────────────────────────────────────────────────────────────
+// `profile: 'metro'` keeps the storey (STOREY_H = 3.0 m) and brings everything the storey governs
+// into proportion with it: block pitch, right-of-way, lot grain, the height distribution, and the
+// familiar-size cues (people, cars, the street kit). Every value below is in city units at
+// CITY_METERS_PER_UNIT (3.66 m); the bands they aim at are real-world ones (Manhattan / Chicago /
+// Portland / Eixample block pitch and crossing density, CTBUH floor heights, city height datasets). Nothing here is read unless the profile is 'metro', so every stored row keeps
+// its bytes.
+export const METRO = {
+  leaf: 26,                // a region narrower than this on either axis is a block (≈ 95 m)
+  minBlock: 13,            // a cross that would carve a child under this is refused (≈ 48 m)
+  small: 40, smallStop: 0.3,    // a region under this on both axes stops early at this odds → block variety
+  street: { minor: 3.0, major: 5.2 },   // carriageway: 2 lanes + parking (≈ 11 m) / 4 lanes + parking (≈ 19 m)
+  walk: { minor: 2.2, major: 2.8 },     // both sidewalks together: ≈ 4 m / 5 m each side
+  avenueTiers: 2,          // the top two recursion tiers are avenues
+  lot: { front: [1.8, 4.2], wide: [5, 9], wideP: 0.2, depth: [3.6, 7.2], court: 3 },   // 6–15 m lots (offices 18–33 m), 13–26 m deep; an inner court when it fits
+  height: { core: 11, edge: 3.0, sigmaCore: 1.0, sigmaEdge: 0.55, lambda: [45, 160], lambdaFrac: 0.28, slender: 7 },   // core median ≈ 40 m, edge ≈ 11 m; σ(ln h) 1.0 → 0.55 (Financial District → all Manhattan)
+  tower: { p: 1, second: 0.75, secondAt: 0.45, h: [28, 75], slender: [4.2, 6.5], base: [6, 12] },   // core-weighted, slenderness ≥ 4.2 : 1; a core block may seat a second on the opposite corner
+  anchor: { h: [48, 78], slender: 5, ring: 1.6 },   // the root tower: 175–285 m, ≥ 5 : 1, a plaza ring
+  floorH: { residential: 0.85, office: 1.07 },     // 3.1 m / 3.9 m floor-to-floor (CTBUH)
+  figure: 0.67, car: 0.72, kit: 0.55,   // people ≈ 1.75 m, a sedan ≈ 4.6 m, signs ≈ 2.8–3.2 m
+  pedHeight: 1.75 / 3.66,  // the world path's walker height, city units
+};
+const isMetro = (opts) => opts && opts.profile === 'metro';
+// the metro root tower: a slender tower (height : base ≥ METRO.anchor.slender), not 34 % of the frame
+function metroTowerAnchor(region, rng) {
+  const cx = region.x + region.w / 2, cy = region.y + region.d / 2, A = METRO.anchor;
+  const h = A.h[0] + rng() * (A.h[1] - A.h[0]);
+  const side = Math.min(h / (A.slender + rng() * 1.5), region.w * ROOT_ANCHOR_FRAC, region.d * ROOT_ANCHOR_FRAC);
+  const aw = side * (1 + rng() * 0.25), ad = side;
+  const r = rng(), shape = r < 0.45 ? 'setback' : r < 0.7 ? 'box' : 'cylinder';
+  const box = { x: cx - aw / 2, y: cy - ad / 2, w: aw, d: ad, z0: 0, z1: h, kind: 'anchor', glass: '#aebfd0', shape, floorH: METRO.floorH.office, metro: true };
+  return { boxes: [box], footprint: { x: box.x - A.ring, y: box.y - A.ring, w: box.w + 2 * A.ring, d: box.d + 2 * A.ring } };
+}
 const ANCHOR_RING = 0.7;                                     // a generic tower's reserved ring: its footprint is the box plus this margin on every side
 const rootAnchorCap = (bs) => ({ w: (DEFAULT_REGION.w / bs) * ROOT_ANCHOR_FRAC, d: (DEFAULT_REGION.d / bs) * ROOT_ANCHOR_FRAC });
 const landmarkBudgetCap = (bs) => Math.min(DEFAULT_REGION.w, DEFAULT_REGION.d) / bs;
-function towerAnchor(region, rng, big, cap = null) {
+function towerAnchor(region, rng, big, cap = null, metro = false) {
+  if (big && metro) return metroTowerAnchor(region, rng);
   const cx = region.x + region.w / 2, cy = region.y + region.d / 2;
   const aw = big && cap ? Math.min(region.w * ROOT_ANCHOR_FRAC, cap.w) : region.w * (big ? ROOT_ANCHOR_FRAC : 0.26);
   const ad = big && cap ? Math.min(region.d * ROOT_ANCHOR_FRAC, cap.d) : region.d * (big ? ROOT_ANCHOR_FRAC : 0.26);
@@ -759,7 +795,67 @@ const LANDMARK_FOOTPRINT = {
   liberty: { frac: 0.24, aspect: 1.0 },
   'rizal-monument': { frac: 0.28, aspect: 1.1 }, // hexagonal granite base + centred obelisk, bronze figure in the front gap
   rizal: { frac: 0.28, aspect: 1.1 },
+  'tian-tan-buddha': { frac: 0.30, aspect: 1.0 }, // round three-tier altar with its front stair, the seated Buddha on top
+  'big-buddha': { frac: 0.30, aspect: 1.0 },
+  'tian-tan': { frac: 0.30, aspect: 1.0 },
 };
+
+// METRO LANDMARKS at their real size (metres). `h` is the overall height (tip, mast or finial); `long`
+// is the ground plan's long side, given only where the builder's footprint IS the structure (a tower's
+// footprint is its plaza, so a tower fits on height alone). A builder is scale-free (its height is
+// LANDMARK_HEIGHTS × its short side), so one uniform scale sizes it: the height fit, or where `long` is
+// real the geometric mean of the height fit and the plan fit, which splits a builder's proportion error
+// evenly between the two instead of honouring one and doubling the other.
+const LANDMARK_REAL = {
+  taj: { h: 73, long: 95.5 },                    // dome 73 m on a 95.5 m square plinth
+  'cn-tower': { h: 553.3 },
+  skytree: { h: 634 },
+  'rogers-centre': { h: 86, long: 281 },         // 4.6 ha oval at the builder's 1.35 : 1 ≈ 281 × 208 m
+  colosseum: { h: 48, long: 189 },
+  arena: { h: 45, long: 150 },                   // a generic modern arena
+  'great-pyramid': { h: 146.6, long: 230.3 },
+  'louvre-pyramid': { h: 21.6, long: 35.4 },
+  'mexican-pyramid': { h: 30, long: 55.3 },      // El Castillo, Chichén Itzá
+  'petronas-towers': { h: 451.9 },
+  'big-ben': { h: 96 },
+  stonehenge: { h: 7.3, long: 41 },              // 33 m sarsen ring, heel stone offset (the builder's 1.25 : 1)
+  'chinatown-gate': { h: 14, long: 20 },         // a typical paifang
+  'arc-de-triomphe': { h: 50, long: 45 },
+  parthenon: { h: 13.7, long: 69.5 },            // stylobate to entablature (the builder draws no pediment)
+  'griffith-observatory': { h: 23.5 },
+  'washington-monument': { h: 169.3 },
+  'parliament-hill': { h: 92.2, long: 144 },     // Peace Tower over the 144 m Centre Block
+  'mobile-edm-hall': { h: 40 },                  // fictional: a tracked concert hall
+  'eiffel-tower': { h: 330 },
+  'tokyo-tower': { h: 332.9 },
+  'empire-state-building': { h: 443.2, long: 129 },
+  'gateway-arch': { h: 192, long: 192 },
+  'cloud-gate': { h: 10, long: 20 },
+  'statue-of-liberty': { h: 93 },
+  'rizal-monument': { h: 12.7 },
+  'tian-tan-buddha': { h: 44 },                  // the 34 m statue on its lotus (0.715 of the builder's height) over the altar
+};
+const LANDMARK_REAL_ALIAS = { skydome: 'rogers-centre', eiffel: 'eiffel-tower', tokyo: 'tokyo-tower', 'empire-state': 'empire-state-building', empire: 'empire-state-building', gateway: 'gateway-arch', 'chicago-bean': 'cloud-gate', bean: 'cloud-gate', liberty: 'statue-of-liberty', rizal: 'rizal-monument', 'big-buddha': 'tian-tan-buddha', 'tian-tan': 'tian-tan-buddha' };
+// a metro landmark's short side (u) at its real size; null for a shape with no real entry
+function metroLandmarkBase(shape) {
+  const real = LANDMARK_REAL[LANDMARK_REAL_ALIAS[shape] || shape];
+  if (!real) return null;
+  const byHeight = real.h / CITY_METERS_PER_UNIT / (LANDMARK_HEIGHTS[shape] ?? 1);
+  if (!real.long) return byHeight;
+  const byPlan = real.long / CITY_METERS_PER_UNIT / (LANDMARK_FOOTPRINT[shape]?.aspect ?? 1);
+  return Math.sqrt(byHeight * byPlan);
+}
+const METRO_PLAZA_RING = 6;   // u: the forecourt around a metro landmark cluster, ≈ 22 m
+// a metro recipe's landmark as the presets need it, read off the recipe alone (the cluster is laid with
+// no rng, so this is the plan's own plaza) so a stream tile and its page agree: the tallest one's height
+// in u and where it stands, and the plaza the main avenues flank. null when the recipe names none.
+function metroLandmarkView(recipe, region) {
+  const landmarks = normalizeLandmarks(recipe.landmark);
+  if (!landmarks.length) return null;
+  const la = landmarkAnchor(region, landmarks, true, region, Infinity, true);
+  const tallest = la.boxes.reduce((a, b) => (b.z1 > a.z1 ? b : a));
+  return { top: tallest.z1, at: [tallest.x + tallest.w / 2, tallest.y + tallest.d / 2], plaza: la.footprint };
+}
 
 // A LANDMARK anchor: one or more named monuments laid out as an adjacent CLUSTER, centred
 // in the region, each sized to its real ground footprint. Returns the landmark boxes + the
@@ -771,13 +867,13 @@ const LANDMARK_FOOTPRINT = {
 // `sizeRegion` is the BUDGET basis: when a corridor pushes placement into a side band,
 // pass the full city region here so the monuments keep their real surface-area budget
 // (displacing blocks) instead of being re-budgeted off the shallow band.
-function landmarkAnchor(region, landmarks, big = true, sizeRegion = region, budgetCap = Infinity) {
+function landmarkAnchor(region, landmarks, big = true, sizeRegion = region, budgetCap = Infinity, metro = false) {
   const minDim = Math.min(sizeRegion.w, sizeRegion.d, budgetCap);   // never more than the default frame's short side (see rootAnchorCap)
   const horizontal = region.w >= region.d;             // lay the cluster along the longer axis
   const gap = minDim * 0.05;
   let items = landmarks.map((shape) => {
     const spec = LANDMARK_FOOTPRINT[shape] || { frac: 0.24, aspect: 1 };
-    const base = minDim * spec.frac;
+    const base = (metro && metroLandmarkBase(shape)) || minDim * spec.frac;   // metro: the real size
     return { shape, w: horizontal ? base * spec.aspect : base, d: horizontal ? base : base * spec.aspect };
   });
   const alongOf = (it) => (horizontal ? it.w : it.d);
@@ -820,8 +916,10 @@ function landmarkAnchor(region, landmarks, big = true, sizeRegion = region, budg
   // PLAZA ring around the monuments — a real civic buffer (the road network routes around
   // this whole zone, not just the bases). Scaled off the SMALLER cluster extent so a wide
   // cluster doesn't inflate the short axis into the whole region.
-  const m = Math.max(1.8, Math.min(maxX - minX, maxY - minY) * 0.25);
-  return { boxes, footprint: { x: minX - m, y: minY - m, w: (maxX - minX) + 2 * m, d: (maxY - minY) + 2 * m } };
+  // metro caps the ring at a real forecourt (METRO_PLAZA_RING): a quarter of a real-size cluster is a
+  // 40 m apron of nothing on every side
+  const m = Math.min(metro ? METRO_PLAZA_RING : Infinity, Math.max(1.8, Math.min(maxX - minX, maxY - minY) * 0.25));
+  return { boxes, footprint: { x: minX - m, y: minY - m, w: (maxX - minX) + 2 * m, d: (maxY - minY) + 2 * m }, fit: scale };
 }
 
 // ── civic areas (reserved districts) ──────────────────────────────────────────────
@@ -1275,13 +1373,13 @@ function freewayAnchor(region, rng) {
 // (LOT) so nothing else lands on it, and it never spawns as a leak-fill over the anchor.
 // Asphalt pad + stripes; cars are deferred as INTENTS (emitted in a final grid-checked
 // pass) so a car can never end up parked under a tower decided later in the recursion.
-function addParkingLot(grounds, c, rng, elements, grid, cars) {
+function addParkingLot(grounds, c, rng, elements, grid, cars, sMax = 0.82, pave = '#43474d') {
   if (!elements.parkingLots) return;
   stampRect(grid, c, CLAIM.LOT, [CLAIM.EMPTY, CLAIM.VERGE]);
-  grounds.push({ kind: 'lot-asphalt', x: c.x, y: c.y, w: c.w, d: c.d, z: 0.03, fill: '#43474d' });
+  grounds.push({ kind: 'lot-asphalt', x: c.x, y: c.y, w: c.w, d: c.d, z: 0.03, fill: pave });
   for (let i = 1; i < 4; i++) { const sx = c.x + c.w * (i / 4); grounds.push({ kind: 'lot-stripe', x: sx - 0.03, y: c.y + 0.15, w: 0.06, d: c.d - 0.3, z: 0.05, fill: '#c6c0ad' }); }
   if (elements.cars) {
-    const s = Math.max(0.45, Math.min(0.82, c.d * 0.26));           // fit the car to the stall depth
+    const s = Math.max(Math.min(0.45, sMax), Math.min(sMax, c.d * 0.26));   // fit the car to the stall depth (metro caps it at the real car size)
     const cols = Math.max(1, Math.min(2, Math.floor(c.w / (0.84 * s + 0.3))));   // lots stay sparse — traffic lives on the road
     for (let k = 0; k < cols; k++) {
       if (rng() < 0.7) continue;                                     // only ~30% of stalls occupied
@@ -1325,7 +1423,7 @@ function bandSpans(lo, hi, fixed, hw, vert, reserved) {
 // place car ants in the LANES of a coherent (major) street pair — offset to a
 // right-hand lane, oriented along travel, spaced out, skipping the junction box
 // and any reserved footprint. `context:'street'` → mix can include buses/box-trucks.
-function placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes) {
+function placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes, carScale = 0.9) {
   // ants are RAILED to the centre of one of the two driving lanes with OPPOSING
   // travel per lane. The rail is fixed regardless of vehicle size (each ant is
   // centred on it, so a bus and a car share the line). When the road carries edge
@@ -1333,7 +1431,7 @@ function placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes) {
   // Each ant is pushed as an INTENT; the final grid-checked pass drops any whose lane
   // cell is not actually ROAD (clipped by the anchor, or a sub-anchor decided later) —
   // so cars never drive through a tower regardless of recursion order.
-  const laneOff = streetW * (bikeLanes ? 0.18 : 0.25), scale = 0.9, step = 3.4, keep = 0.72;
+  const laneOff = streetW * (bikeLanes ? 0.18 : 0.25), scale = carScale, step = 3.4, keep = 0.72;
   for (const [lx, dir] of [[vx + laneOff, 1], [vx - laneOff, -1]])           // vertical street: two opposing lanes along y
     for (let y = region.y + 2.2; y < region.y + region.d - 1.8; y += step) {
       if (Math.abs(y - hy) < streetW * 1.1 || rng() > keep) continue;
@@ -1351,10 +1449,10 @@ function placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes) {
 // the curb at 0.5) and is sparser. Uses a POSITION-SEEDED local rng so enabling
 // cyclists is purely additive — the main rng stream (cars, buildings) is untouched, so
 // the same seed's city is unchanged and cyclists merely populate its existing bike lanes.
-function placeBikeLaneCyclists(cars, vx, hy, region, streetW) {
+function placeBikeLaneCyclists(cars, vx, hy, region, streetW, riderScale = 0.9) {
   const seed = ((Math.floor(vx * 1000) * 73856093) ^ (Math.floor(hy * 1000) * 19349663)) >>> 0;
   const rng = mulberry32(seed || 1);
-  const bikeOff = streetW * 0.40, scale = 0.9, step = 5.0, keep = 0.5;
+  const bikeOff = streetW * 0.40, scale = riderScale, step = 5.0, keep = 0.5;
   for (const [lx, dir] of [[vx + bikeOff, 1], [vx - bikeOff, -1]])           // vertical street: outer lane each side, with travel
     for (let y = region.y + 2.6; y < region.y + region.d - 2.0; y += step) {
       if (Math.abs(y - hy) < streetW * 1.2 || rng() > keep) continue;
@@ -1376,7 +1474,7 @@ function placeBikeLaneCyclists(cars, vx, hy, region, streetW) {
 const PED_SURFACE = new Set([CLAIM.VERGE, CLAIM.PLAZA]);
 const GROUP_WEIGHTS = { solo: 0.5, duo: 0.3, family: 0.2 };
 
-function placePedestrianGroups(region, grid, people, faces, seed) {
+function placePedestrianGroups(region, grid, people, faces, seed, figureScale = 1) {
   const opts = (people && typeof people === 'object') ? people : {};
   const density = Math.max(0, Math.min(1, Number.isFinite(opts.density) ? opts.density : 0.5));
   const kinds = Array.isArray(opts.groups) && opts.groups.length ? opts.groups : ['solo', 'duo', 'family'];
@@ -1398,7 +1496,7 @@ function placePedestrianGroups(region, grid, people, faces, seed) {
     faces.push(...pedestrianFaces({
       cx: x, cy: y,
       heading: heading + (rng() - 0.5) * 0.5,
-      scale: scale * (0.94 + rng() * 0.12),
+      scale: scale * figureScale * (0.94 + rng() * 0.12),
       archetype, pose: pick(poseList), palette: pick(PALETTES),
     }));
     return true;
@@ -1803,6 +1901,7 @@ function dressAlleyway(alley, run, rng, grounds, faces) {
 // claimed (anchor / corridor / road spill) is simply SKIPPED, leaving the cells for the
 // tagged leftover layer (plaza/park) instead of paving a lot under the tower.
 function fillBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, cars) {
+  if (isMetro(opts)) { fillMetroBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, cars); return; }
   const m = 0.72, block = { x: region.x + m, y: region.y + m, w: region.w - 2 * m, d: region.d - 2 * m };  // inset clears the (now wider) road spill
   if (block.w < 1.3 || block.d < 1.3) return;
   if (opts.blocks) opts.blocks.push(block);   // the census of blocks (stats.blocks): every recursion leaf big enough to fill. Count only — no rng, no bytes.
@@ -1863,6 +1962,274 @@ function fillBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, car
     if (keepBuilding) placeBuilding(boxes, it.rect, it.size, rng, grid, opts);
     // else: leave the parcel EMPTY → tagged leftover (plaza/greenspace), never a random lot
   }
+}
+
+// ── metro block fill: perimeter lots, party walls, an inner court ────────────────────────────────
+// A metro block is not composed of one to four masses: its faces are cut into lots of real frontage
+// (METRO.lot, 6–15 m, the odd office lot wider) at a real depth, attached wall to wall, around an
+// inner court when the block is deep enough for one (else the two rows meet back to back). Every
+// lot's height is read off the city's HEIGHT FIELD (metroLotHeight): a log-normal about a median
+// that decays from the core, quantised to whole floors. A block near the core may seat one slender
+// tower on a corner site first. Metro only (fillBlock dispatches), so no stored row reaches it.
+function metroCore(opts, x, y) {
+  const F = opts.metroField;
+  return F ? Math.exp(-Math.hypot(x - F.cx, y - F.cy) / F.lambda) : 0;   // 1 at the core → 0 far out
+}
+function gaussian(rng) { const u = Math.max(1e-9, rng()), v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function metroLotHeight(rect, rng, opts) {
+  const H = (opts.metroCfg || METRO).height, k = metroCore(opts, rect.x + rect.w / 2, rect.y + rect.d / 2);
+  const med = H.edge + (H.core - H.edge) * k, sigma = H.sigmaEdge + (H.sigmaCore - H.sigmaEdge) * k;
+  const z = Math.max(-1.8, Math.min(2.4, gaussian(rng)));
+  const h = Math.min(med * Math.exp(sigma * z), H.slender * Math.min(rect.w, rect.d), H.cap ?? Infinity);   // a narrow lot carries no supertall; a flavour may cap the cornice
+  const floorH = h > 8 ? METRO.floorH.office : METRO.floorH.residential;
+  const floors = Math.max(1, Math.round(h / floorH));
+  return { h: floors * floorH + 0.12, floors, floorH };                                  // whole floors + a parapet
+}
+function placeMetroMass(boxes, rect, m, grid, shape = 'box', tower = false) {
+  stampRect(grid, rect, CLAIM.BUILDING, [CLAIM.EMPTY, CLAIM.VERGE]);
+  boxes.push({ ...rect, z0: 0, z1: m.h, kind: 'building', shape, floors: m.floors, floorH: m.floorH, metro: true, ...(tower ? { tower: true } : {}) });
+}
+// the metro walks: every VERGE cell, tiled row-run by row-run into the largest rects that repeat down
+// the rows, so no two walk tiles overlap (the renderer's coplanar lift never fires on them)
+function metroSidewalkTiles(g) {
+  const out = [], open = new Map();
+  const close = (key, t) => out.push({ kind: 'sidewalk', x: g.x0 + t.c0 * g.cell, y: g.y0 + t.r0 * g.cell, w: (t.c1 - t.c0 + 1) * g.cell, d: (t.r1 - t.r0 + 1) * g.cell, z: 0.018, fill: '#b0aa9c' });
+  for (let r = 0; r <= g.rows; r++) {
+    const runs = new Set();
+    if (r < g.rows) {
+      for (let c = 0; c < g.cols; c++) {
+        if (g.data[r * g.cols + c] !== CLAIM.VERGE) continue;
+        const c0 = c;
+        while (c + 1 < g.cols && g.data[r * g.cols + c + 1] === CLAIM.VERGE) c++;
+        const key = `${c0},${c}`;
+        runs.add(key);
+        const t = open.get(key);
+        if (t) t.r1 = r; else open.set(key, { c0, c1: c, r0: r, r1: r });
+      }
+    }
+    for (const [key, t] of open) if (!runs.has(key)) { close(key, t); open.delete(key); }
+  }
+  return out;
+}
+// METRO kerb lamps: a lamp every METRO_LAMP_STEP along both kerbs of every street, on the walk, its arm
+// reaching over the road; a crossing's own four lamps (intersectionDoodads) own the corner. Deterministic
+// spacing (no rng); the frontage sweep later clears any that land in a curb cut.
+const METRO_LAMP_STEP = 8.5;   // ≈ 31 m
+function kerbLamp(boxes, x, y, dx, dy) {
+  boxes.push({ kind: 'street-lamp', x: x - 0.045, y: y - 0.045, w: 0.09, d: 0.09, z0: 0, z1: 2.35, tint: '#555b62' });
+  boxes.push({ kind: 'street-lamp', ...(dx ? { x: dx > 0 ? x : x - 0.42, w: 0.42, y: y - 0.035, d: 0.07 } : { y: dy > 0 ? y : y - 0.42, d: 0.42, x: x - 0.035, w: 0.07 }), z0: 2.18, z1: 2.26, tint: '#555b62' });
+  const hx = x + dx * 0.46, hy = y + dy * 0.46;
+  boxes.push({ kind: 'street-lamp', x: hx - (dx ? 0.09 : 0.08), y: hy - (dx ? 0.08 : 0.09), w: dx ? 0.18 : 0.16, d: dx ? 0.16 : 0.18, z0: 2.06, z1: 2.22, tint: '#f0d982' });
+}
+function metroKerbLamps(boxes, grid, roads, junctions) {
+  const nearCrossing = (x, y) => junctions.some((j) => Math.abs(j.x - x) < j.streetW / 2 + 3.2 && Math.abs(j.y - y) < j.streetW / 2 + 3.2);
+  for (const r of roads) {
+    if (r.corridor) continue;
+    const vert = Math.abs(r.w - r.streetW) < 1e-9;
+    const lo = vert ? r.y : r.x, hi = vert ? r.y + r.d : r.x + r.w;
+    for (const side of [-1, 1]) {
+      const kerb = vert ? (side < 0 ? r.x - 0.35 : r.x + r.w + 0.35) : (side < 0 ? r.y - 0.35 : r.y + r.d + 0.35);
+      for (let t = lo + METRO_LAMP_STEP / 2 + (side > 0 ? METRO_LAMP_STEP / 2 : 0); t < hi - 1; t += METRO_LAMP_STEP) {
+        const x = vert ? kerb : t, y = vert ? t : kerb;
+        if (cellAt(grid, x, y) !== CLAIM.VERGE || nearCrossing(x, y)) continue;
+        kerbLamp(boxes, x, y, vert ? -side : 0, vert ? 0 : -side);
+      }
+    }
+  }
+}
+// METRO SKINS: the material and colours each metro mass wears, laid by scene-css3d over its hashed
+// facade (which keeps its program, balconies and crown). Real facades are low in chroma, and glass is
+// the darkest of them (solar albedo: glass 0.08, concrete / stone 0.1–0.35, brick 0.2–0.4); the glass
+// here sits a little lighter than that, standing in for the sky it would reflect. Pairs are
+// [glass, frame]: for curtainwall the panes and mullions, for stone the dark windows and the stone, for
+// brick the brick body and its trim (the facade's brick contract).
+const METRO_SKIN = {
+  district: 60,   // u: the lattice a material bias is drawn on, about two blocks
+  glass: [['#56636f', '#3a3f45'], ['#627180', '#9aa0a6'], ['#4b5560', '#2b2e32'], ['#6b7a88', '#c3c7ca'], ['#665c53', '#463d35'], ['#5d6c69', '#7c827f'], ['#707e8a', '#5d646b']],
+  stone: [['#3f4952', '#c4bfb4'], ['#444c55', '#b2aea6'], ['#3b434b', '#a7a8a5'], ['#475260', '#c3b9a6'], ['#40474e', '#8f8c87'], ['#4a5561', '#d0cdc5']],
+  brick: [['#835d50', '#cfc6b6'], ['#8d6454', '#d5ccbc'], ['#74584e', '#bdb4a6'], ['#9b8170', '#d8d0c1'], ['#6a5149', '#b9afa1'], ['#a8927c', '#ddd6c8'], ['#7a6b62', '#c9c1b3']],
+  roof: ['#9e9c96', '#a8a59e', '#86837c', '#6c6d6c', '#bdbcb6', '#8f918d'],
+  brickMax: 14,   // u: brick walk-ups and warehouses stay under about 15 floors
+  tilt: 3,        // a district triples its own material's weight: it clusters, but never outweighs the core gradient
+};
+// the metro ground: roads on the aged asphalt texture (the stock charcoal grain × a dark tint renders
+// near black), flat paving (crossings, lots) at that road's mean, and a dull lawn
+const METRO_GROUND = { asphalt: '#b9babb', surface: 'asphalt-aged', paving: '#5c5e60', lawn: '#56643f', plaza: '#a19f97' };
+function metroSkinWeights(k, tilt = null, mix = null) {
+  const w = mix   // a flavour's own mix: per material [base, core, edge] (city-flavors.js)
+    ? Object.fromEntries(['glass', 'stone', 'brick'].map((m) => [m, mix[m][0] + mix[m][1] * k * k + mix[m][2] * (1 - k)]))
+    : { glass: 0.05 + 1.2 * k * k, stone: 0.3, brick: 0.5 * (1 - k) };   // glass at the core, masonry toward the edge
+  if (tilt) w[tilt] *= METRO_SKIN.tilt;
+  return w;
+}
+function drawSkinMaterial(u, w) {
+  const tot = w.glass + w.stone + w.brick;
+  return u * tot < w.glass ? 'glass' : u * tot < w.glass + w.stone ? 'stone' : 'brick';
+}
+// a district's bias (a material it tilts toward, and a home family per material) and each mass's own
+// draw come off their own hashes, not the plan rng, so skinning moves nothing and no other draw shifts.
+// A FLAVOUR (city-flavors.js) swaps in its own mix and families, then rolls its affectations per mass,
+// after every draw above, so a flavour that sets none leaves each skin exactly as it was.
+function metroSkins(boxes, field, seed, flavor = null) {
+  const S = { ...METRO_SKIN, ...(flavor && flavor.skin) }, districts = new Map(), counts = { glass: 0, stone: 0, brick: 0 };
+  const mix = flavor && flavor.skin && flavor.skin.mix;
+  const coreK = (x, y) => (field ? Math.exp(-Math.hypot(x - field.cx, y - field.cy) / field.lambda) : 0);
+  const district = (x, y) => {
+    const i = Math.floor(x / S.district), j = Math.floor(y / S.district), key = `${i},${j}`;
+    if (!districts.has(key)) {
+      const r = mulberry32((strHash(`${seed}|district|${key}`) ^ 0x5c1e7) >>> 0);
+      const material = drawSkinMaterial(r(), metroSkinWeights(coreK((i + 0.5) * S.district, (j + 0.5) * S.district), null, mix));
+      districts.set(key, { material, home: { glass: Math.floor(r() * S.glass.length), stone: Math.floor(r() * S.stone.length), brick: Math.floor(r() * S.brick.length) } });
+    }
+    return districts.get(key);
+  };
+  for (const b of boxes) {
+    if (!b.metro || b.facade || !['building', 'anchor', 'midtower'].includes(b.kind)) continue;
+    const cx = b.x + b.w / 2, cy = b.y + b.d / 2, h = b.z1 - b.z0, D = district(cx, cy);
+    const r = mulberry32((strHash(`${seed}|skin|${b.x.toFixed(2)},${b.y.toFixed(2)}`) ^ 0x51c1a) >>> 0);
+    let material = drawSkinMaterial(r(), metroSkinWeights(coreK(cx, cy), D.material, mix));
+    const tower = b.tower || b.kind === 'anchor';
+    if (tower) material = r() < 0.85 ? 'glass' : 'stone';   // towers are curtainwall, the odd one masonry
+    if (material === 'brick' && h > S.brickMax) material = 'stone';
+    const fams = S[material], fam = fams[r() < 0.5 ? D.home[material] : Math.floor(r() * fams.length)];
+    const shade = 0.94 + r() * 0.12;
+    b.skin = {
+      material, glass: scaleHex(fam[0], shade), frame: scaleHex(fam[1], shade),
+      ...(material === 'stone' ? { rhythm: S.stoneRhythm ? S.stoneRhythm[Math.floor(r() * S.stoneRhythm.length)] : (r() < 0.6 ? 'punched' : 'pier') } : {}),
+      roof: S.roof[Math.floor(r() * S.roof.length)],
+    };
+    if (flavor && flavor.facade && !tower) flavorFacade(b.skin, flavor.facade, material, b.floors ?? Math.round(h / (b.floorH || 1)), Math.min(b.w, b.d), r);
+    counts[material]++;
+  }
+  return counts;
+}
+// a flavour's affectations on one skin (scene-css3d wearSkin lays them over the facade): a roof cap
+// (a zinc mansard, a terracotta hip) that takes the place of the rooftop kit and the crown, balconies
+// of the flavour's kind or none, fire escapes on brick, rooftop tanks by storeys, awnings, shopfronts,
+// a painted sign, vertical blade signs. Each rolls only when the flavour names it.
+function flavorFacade(skin, F, material, floors, short, r) {
+  const pick = (xs) => xs[Math.floor(r() * xs.length)];
+  if (F.roof && (!F.roof.on || F.roof.on.includes(material)) && floors <= F.roof.maxFloors && r() < F.roof.p) {
+    const rise = F.roof.form === 'hip' ? Math.min(F.roof.rise, Math.tan(0.49) * short / 2) : Math.min(F.roof.rise, short * 0.3);
+    skin.roofCap = { form: F.roof.form, rise, tint: pick(F.roof.tints), ...(F.roof.chimneys ? { chimneys: true } : {}) };
+    skin.rooftopKit = []; skin.crown = 'none';
+  }
+  if (F.balcony) {
+    if (r() < F.balcony.p) Object.assign(skin, { balcony: true, balconyType: pick(F.balcony.types), balconyBays: pick(F.balcony.bays), ...(F.balcony.floors ? { balconyFloors: F.balcony.floors } : {}) });
+    else skin.balcony = false;
+  }
+  if (F.fireEscape && material === 'brick' && r() < F.fireEscape) Object.assign(skin, { fireEscape: true, balcony: false });
+  if (F.kit && !skin.roofCap) {
+    const kit = F.kit.filter((k) => floors >= k.minFloors && r() < k.p).map((k) => k.item);
+    if (kit.length) skin.kit = kit;
+  }
+  if (F.awning) { skin.awning = r() < F.awning.p; if (skin.awning) skin.awningTint = pick(F.awning.tints); }
+  if (F.storefront !== undefined) skin.storefront = r() < F.storefront;
+  if (F.sign) skin.sign = r() < F.sign.p ? pick(F.sign.palette) : null;
+  if (F.blades && floors >= F.blades.minFloors && floors <= F.blades.maxFloors && r() < F.blades.p) {
+    skin.blades = r() < 0.4 ? [pick(F.blades.palette), pick(F.blades.palette)] : [pick(F.blades.palette)];
+  }
+}
+// shrink a leaf region off the right-of-way around it: each side steps in while its edge strip is
+// mostly sidewalk or carriageway (a side against the frame edge has none and stays put)
+const WAY_CLAIM = new Set([CLAIM.VERGE, CLAIM.ROAD]);
+function wayFrac(g, rect) {
+  const { c0, c1, r0, r1 } = gridCells(g, rect);
+  let tot = 0, hit = 0;
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) { tot++; if (WAY_CLAIM.has(g.data[r * g.cols + c])) hit++; }
+  return tot ? hit / tot : 0;
+}
+function trimOffWay(g, rect, maxIn = 4) {
+  const c = g.cell, onWay = (strip) => wayFrac(g, strip) >= 0.5;
+  let { x, y, w, d } = rect;
+  for (let t = 0; t < maxIn && w > 2 * c && onWay({ x, y, w: c, d }); t += c) { x += c; w -= c; }
+  for (let t = 0; t < maxIn && w > 2 * c && onWay({ x: x + w - c, y, w: c, d }); t += c) w -= c;
+  for (let t = 0; t < maxIn && d > 2 * c && onWay({ x, y, w, d: c }); t += c) { y += c; d -= c; }
+  for (let t = 0; t < maxIn && d > 2 * c && onWay({ x, y: y + d - c, w, d: c }); t += c) d -= c;
+  return { x, y, w, d };
+}
+// lot frontages along one run, summing to its length (the last lot takes a remainder too short to stand alone)
+function metroFrontages(len, rng, L = METRO.lot) {
+  const out = [];
+  let left = len;
+  while (left > 1e-6) {
+    let f = rng() < L.wideP ? L.wide[0] + rng() * (L.wide[1] - L.wide[0]) : L.front[0] + rng() * (L.front[1] - L.front[0]);
+    if (left - f < L.front[0]) f = left;
+    out.push(f); left -= f;
+  }
+  return out;
+}
+// a strip's free intervals along its run once the tower sites are cut out of it
+function runIntervals(strip, cuts) {
+  const ax = strip.run === 'x';
+  let spans = [[ax ? strip.r.x : strip.r.y, (ax ? strip.r.x + strip.r.w : strip.r.y + strip.r.d)]];
+  for (const cut of cuts) {
+    if (!rectsOverlap(strip.r, cut)) continue;
+    const c0 = ax ? cut.x : cut.y, c1 = c0 + (ax ? cut.w : cut.d);
+    spans = spans.flatMap(([a, b]) => [[a, Math.min(b, c0)], [Math.max(a, c1), b]]);
+  }
+  return spans.filter(([a, b]) => b - a > 0.5);
+}
+function metroTowerSites(block, along, long, short, rng, opts) {
+  const T = (opts.metroCfg || METRO).tower, k = metroCore(opts, block.x + block.w / 2, block.y + block.d / 2);
+  if (!opts.elements.buildings || rng() >= T.p * k ** 1.5) return [];
+  const first = metroTowerSite(block, along, long, short, rng, k, null, T);
+  if (k < T.secondAt || rng() >= T.second) return [first];
+  return [first, metroTowerSite(block, along, long, short, rng, k, first.corner, T)];   // the diagonally opposite corner
+}
+function metroTowerSite(block, along, long, short, rng, k, opposite, T = METRO.tower) {
+  const h = (T.h[0] + rng() * (T.h[1] - T.h[0])) * (0.55 + 0.45 * k);
+  let b = Math.max(T.base[0], Math.min(T.base[1], h / (T.slender[0] + rng() * (T.slender[1] - T.slender[0]))));
+  b = Math.min(b, short, long * 0.6, h / T.slender[0]);
+  const bl = Math.min(long * 0.6, b * (1 + rng() * 0.3));
+  const atEnd = opposite ? !opposite.atEnd : rng() < 0.5, atFar = opposite ? !opposite.atFar : rng() < 0.5;
+  const a0 = atEnd ? long - bl : 0, c0 = atFar ? short - b : 0;
+  const rect = along === 'x' ? { x: block.x + a0, y: block.y + c0, w: bl, d: b } : { x: block.x + c0, y: block.y + a0, w: b, d: bl };
+  const [s1, s2, s3] = T.shapes || [0.35, 0.7, 0.85];   // cumulative setback / box / podium, the rest cylinder (a flavour may weigh them)
+  const r = rng(), shape = r < s1 ? 'setback' : r < s2 ? 'box' : r < s3 ? 'podium' : 'cylinder';
+  const floors = Math.max(1, Math.round(h / METRO.floorH.office));
+  return { rect, m: { h: floors * METRO.floorH.office + 0.2, floors, floorH: METRO.floorH.office }, shape, corner: { atEnd, atFar } };
+}
+function fillMetroBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, cars) {
+  const block = trimOffWay(grid, region);                                           // the lots start at the back of the sidewalk
+  if (block.w < 2 || block.d < 2) return;
+  if (opts.blocks) opts.blocks.push(block);
+  const L = (opts.metroCfg || METRO).lot, density = Math.max(0, Math.min(1, Number.isFinite(opts.density) ? opts.density : 0.58));
+  const along = block.w >= block.d ? 'x' : 'y', across = along === 'x' ? 'y' : 'x';
+  const long = Math.max(block.w, block.d), short = Math.min(block.w, block.d);
+  const R = (a0, c0, aLen, cLen) => (along === 'x' ? { x: block.x + a0, y: block.y + c0, w: aLen, d: cLen } : { x: block.x + c0, y: block.y + a0, w: cLen, d: aLen });
+  let D = L.depth[0] + rng() * (L.depth[1] - L.depth[0]);
+  const court = short - 2 * D >= L.court;
+  if (!court) D = short / 2;                                                        // two rows back to back
+  const strips = [{ r: R(0, 0, long, D), run: along }, { r: R(0, short - D, long, D), run: along }];
+  let courtRect = null;
+  if (court) {
+    const D2 = Math.min(D, (long - L.court) / 2);
+    if (D2 > 1.5) {
+      strips.push({ r: R(0, D, D2, short - 2 * D), run: across }, { r: R(long - D2, D, D2, short - 2 * D), run: across });
+      courtRect = R(D2, D, long - 2 * D2, short - 2 * D);
+    } else courtRect = R(0, D, long, short - 2 * D);
+  }
+  const cuts = [];
+  for (const t of metroTowerSites(block, along, long, short, rng, opts)) {
+    if (!isBuildable(grid, t.rect)) continue;
+    placeMetroMass(boxes, t.rect, t.m, grid, t.shape, true);
+    cuts.push(t.rect);
+  }
+  for (const strip of strips) {
+    for (const [lo, hi] of runIntervals(strip, cuts)) {
+      let t = lo;
+      for (const f of metroFrontages(hi - lo, rng, L)) {
+        const lot = strip.run === 'x' ? { x: t, y: strip.r.y, w: f, d: strip.r.d } : { x: strip.r.x, y: t, w: strip.r.w, d: f };
+        t += f;
+        if (lot.w < 0.7 || lot.d < 0.7 || !isBuildable(grid, lot)) continue;
+        if (!opts.elements.buildings || rng() > 0.86 + density * 0.14) { addParkingLot(grounds, lot, rng, opts.elements, grid, cars, METRO.car, METRO_GROUND.paving); continue; }   // a surface lot, as downtowns keep a few
+        placeMetroMass(boxes, lot, metroLotHeight(lot, rng, opts), grid);
+      }
+    }
+  }
+  // the inner court: service parking or a planted yard (left EMPTY → the leftover layer greens it)
+  if (courtRect && !cuts.some((c) => rectsOverlap(courtRect, c)) && isBuildable(grid, courtRect) && rng() < 0.6) addParkingLot(grounds, courtRect, rng, opts.elements, grid, cars, METRO.car, METRO_GROUND.paving);
 }
 
 // ── townhouse rows ──────────────────────────────────────────────────────────────
@@ -2059,6 +2426,13 @@ function chooseTownhouseStyle(locale, rng, profile) {
 }
 
 const STREET = 1.1;
+// scale the kit boxes pushed since `start` about a pole's foot (sx, sy, 0) — metro's real-size street kit
+function scaleKitAbout(boxes, start, sx, sy, k) {
+  for (let i = start; i < boxes.length; i++) {
+    const b = boxes[i];
+    boxes[i] = { ...b, x: sx + (b.x - sx) * k, y: sy + (b.y - sy) * k, w: b.w * k, d: b.d * k, z0: (b.z0 || 0) * k, z1: b.z1 * k };
+  }
+}
 
 function streetLamp(boxes, x, y) {
   boxes.push({ kind: 'street-lamp', x: x - 0.045, y: y - 0.045, w: 0.09, d: 0.09, z0: 0, z1: 2.35, tint: '#555b62' });
@@ -2357,19 +2731,28 @@ function scatterParkDoodads(leftover, grid, boxes, grounds, faces, rng) {
 // line can't thread through a building.
 function intersectionDoodads(vx, hy, region, swW, streetW, boxes, grounds, elements, rng, grid, major, signalized = true, reserved = [], climate = 'temperate', profile = null) {
   const signalKit = signalized && (profile !== 'town' || major);    // town: stoplights + crosswalks only on the WIDE main street, not residential corners
-  if (elements.streetSignals && signalKit) for (const [sx, sy] of [[vx - 1.0, hy - 1.0], [vx + 1.0, hy + 1.0]]) {           // stoplights — signalized tiers only
+  // metro: the kit stands at the kerb of a real-width road (offsets from the carriageway edge, not the
+  // centre) and at its real size (METRO.kit about each pole's foot); the default offsets and sizes are untouched
+  const metro = profile === 'metro';
+  const o1 = metro ? streetW / 2 + 0.35 : 1.0, o2 = metro ? streetW / 2 + 0.6 : 1.55, o3 = metro ? streetW / 2 + 0.3 : 1.8;
+  const kitAt = (start, sx, sy) => { if (metro) scaleKitAbout(boxes, start, sx, sy, METRO.kit); };
+  if (elements.streetSignals && signalKit) for (const [sx, sy] of [[vx - o1, hy - o1], [vx + o1, hy + o1]]) {           // stoplights — signalized tiers only
     if (!propClear(grid, sx, sy)) continue;
+    const k0 = boxes.length;
     boxes.push({ kind: 'street-signal', x: sx, y: sy, w: 0.14, d: 0.14, z0: 0, z1: 1.9, tint: '#3a3d42' });
     boxes.push({ kind: 'street-signal', x: sx - 0.06, y: sy - 0.05, w: 0.26, d: 0.16, z0: 1.5, z1: 2.06, tint: '#26282b' });
     ['#e0463a', '#e3b13a', '#46c06a'].forEach((c, i) => boxes.push({ kind: 'street-signal', x: sx + 0.01, y: sy - 0.07, w: 0.1, d: 0.04, z0: 1.56 + i * 0.15, z1: 1.66 + i * 0.15, tint: c }));
+    if (metro) scaleKitAbout(boxes, k0, sx, sy, 0.75);            // a signal head stands higher than a sign: ≈ 5.3 m
   }
-  if (elements.streetSigns) for (const [sx, sy] of [[vx + 1.0, hy - 1.0], [vx - 1.0, hy + 1.0]]) {           // street signs
+  if (elements.streetSigns) for (const [sx, sy] of [[vx + o1, hy - o1], [vx - o1, hy + o1]]) {           // street signs
     if (!propClear(grid, sx, sy)) continue;
+    const k0 = boxes.length;
     boxes.push({ kind: 'street-sign', x: sx, y: sy, w: 0.09, d: 0.09, z0: 0, z1: 1.6, tint: '#6b7176' });
     boxes.push({ kind: 'street-sign', x: sx - 0.28, y: sy - 0.03, w: 0.56, d: 0.06, z0: 1.32, z1: 1.52, tint: '#2f7a4a' });
+    kitAt(k0, sx, sy);
   }
-  if (elements.stopSigns) for (const [sx, sy] of [[vx + 1.55, hy - 1.55], [vx - 1.55, hy + 1.55]]) { if (propClear(grid, sx, sy)) stopSign(boxes, sx, sy); }
-  if (elements.streetLamps) for (const [sx, sy] of [[vx - 1.8, hy - 1.8], [vx + 1.8, hy - 1.8], [vx - 1.8, hy + 1.8], [vx + 1.8, hy + 1.8]]) {
+  if (elements.stopSigns && !(metro && signalKit)) for (const [sx, sy] of [[vx + o2, hy - o2], [vx - o2, hy + o2]]) { if (propClear(grid, sx, sy)) { const k0 = boxes.length; stopSign(boxes, sx, sy); kitAt(k0, sx, sy); } }   // metro: a signalled crossing carries no stop signs
+  if (elements.streetLamps) for (const [sx, sy] of [[vx - o3, hy - o3], [vx + o3, hy - o3], [vx - o3, hy + o3], [vx + o3, hy + o3]]) {
     if (propClear(grid, sx, sy) && rng() < 0.74) streetLamp(boxes, sx, sy);
   }
   if (elements.cityTrees) for (const [sx, sy] of [[vx - swW * 0.62, hy - swW * 0.9], [vx + swW * 0.62, hy + swW * 0.9], [vx - swW * 0.95, hy + swW * 0.55], [vx + swW * 0.95, hy - swW * 0.55]]) {
@@ -2397,7 +2780,7 @@ function intersectionDoodads(vx, hy, region, swW, streetW, boxes, grounds, eleme
         grounds.push({ kind: 'crosswalk-horizontal-road-stripe', x, y: hy - half + i * 2 * u, w: bandD, d: u, z: 0.065, fill: '#d6d0bd' });
     }
   }
-  if (!elements.powerLines || !major) return;                                     // power lines follow the MAIN street only
+  if (!elements.powerLines || !major || metro) return;                            // power lines follow the MAIN street only (metro: downtown lines run underground)
   const py = hy + swW / 2 - 0.25, top = 3.0, placed = [];                          // power line on the sidewalk verge
   const inReserved = (x, y) => reserved.some((r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.d);
   // a wire span [xa,xb] is blocked if any reserved footprint straddling the pole line lies
@@ -2428,12 +2811,12 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
   if (rootAnchor) {
     const enabled = rootAnchor === 'freeway' ? opts.elements.elevatedFreeways : opts.elements.anchorTowers;
     if (enabled) {
-      const a = rootAnchor === 'freeway' ? freewayAnchor(region, rng) : towerAnchor(region, rng, true, opts.rootCap);
+      const a = rootAnchor === 'freeway' ? freewayAnchor(region, rng) : towerAnchor(region, rng, true, opts.rootCap, isMetro(opts));
       if (opts.baseScale && opts.baseScale !== 1 && rootAnchor === 'tower') shrinkAnchorAbout(a, opts.baseScale, false);   // root tower sized off the enlarged region → footprint needs correcting (height is absolute, scales downstream)
       boxes.push(...a.boxes); if (a.ribbons) ribbons.push(...a.ribbons); reserved.push(a.footprint);
       stampRect(grid, a.footprint, CLAIM.ANCHOR);
     }
-  } else if (opts.subAnchors && depth >= 1 && rng() < opts.subAnchorChance) {
+  } else if (!isMetro(opts) && opts.subAnchors && depth >= 1 && rng() < opts.subAnchorChance) {   // metro: towers come from the height field, never a quadrant-sized slab
     const a = towerAnchor(region, rng, false);
     if (isClear(grid, a.footprint, 0.05)) {
       boxes.push(...a.boxes); reserved.push(a.footprint); stampRect(grid, a.footprint, CLAIM.ANCHOR);
@@ -2442,38 +2825,41 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
   }
   // 2. early-stop OR forced leaf → fill the block. Stopping early on a mid-size region
   //    yields a BIGGER block, so block sizes vary.
-  const small = region.w < 11 && region.d < 11;                          // raised ceiling → more single big blocks, room for set-back megatowers
-  if (depth <= 0 || region.w < 4.5 || region.d < 4.5 || (small && rng() < (opts.profile === 'town' ? 0.6 : 0.42))) {   // town stops earlier → bigger residential blocks, fewer streets
+  const metro = isMetro(opts);
+  const small = metro ? region.w < METRO.small && region.d < METRO.small : region.w < 11 && region.d < 11;   // raised ceiling → more single big blocks, room for set-back megatowers
+  const leaf = metro ? METRO.leaf : 4.5;
+  if (depth <= 0 || region.w < leaf || region.d < leaf || (small && rng() < (metro ? METRO.smallStop : opts.profile === 'town' ? 0.6 : 0.42))) {   // town stops earlier → bigger residential blocks, fewer streets
     fillBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, cars);
     return;
   }
   // 3. the top-down mandala IS the road skeleton: the cross-streets are the gesture lines
   //    of this level. Subdivide with VARIED ratios (non-square blocks), CLAIM the road
   //    right-of-way (verge then carriageway) into the grid, draw the streets, recurse.
-  const gap = STREET;
-  const major = depth >= opts.maxDepth;                      // the top-level cross is the WIDE main street (town keeps it; its side streets stay narrow)
-  const signalized = depth >= opts.maxDepth - 1;             // signal heads + painted crosswalks only on the top tiers; the smallest streets keep their stop signs
-  const streetW = gap * (major ? 2.82 : 1.176) * (opts.profile === 'town' ? 0.78 : 1);   // narrower residential carriageway for town (main street still ~2.4× the side streets)
-  const swW = streetW + SIDEWALK_BAND;                       // sidewalk (lighter, wider) under each street
+  const major = depth >= opts.maxDepth - (metro ? METRO.avenueTiers - 1 : 0);   // the top-level cross is the WIDE main street (town keeps it; its side streets stay narrow); metro: the top tiers are avenues
+  const signalized = metro || depth >= opts.maxDepth - 1;   // signal heads + painted crosswalks only on the top tiers; the smallest streets keep their stop signs (metro: a downtown signals every crossing)
+  const streetW = metro ? (major ? METRO.street.major : METRO.street.minor) : STREET * (major ? 2.82 : 1.176) * (opts.profile === 'town' ? 0.78 : 1);   // narrower residential carriageway for town (main street still ~2.4× the side streets)
+  const swW = streetW + (metro ? (major ? METRO.walk.major : METRO.walk.minor) : SIDEWALK_BAND);   // sidewalk (lighter, wider) under each street
+  const gap = metro ? streetW : STREET;                      // metro: the quads meet at the carriageway, so a side street runs through the avenue's sidewalk to its kerb (fillMetroBlock trims the walk back off)
   // keep the cross-streets clear of reserved masses at any level whose region still overlaps
   // one — a landmark plaza (inherited via opts.avoid) OR a centred sub-anchor tower placed
   // THIS level — so the mass keeps its budget and sits IN a block instead of being bisected /
   // stranded at the intersection. The clearance is the road's FULL right-of-way half-width
   // (sidewalk included), so the flanking street's sidewalk sits flush against the mass's edge.
   const avoidList = [...(opts.avoid || []), ...(subAnchorFp ? [subAnchorFp] : [])].filter((r) => rectsOverlap(region, r));
-  const { quads, vx, hy } = subdivide(region, gap, rng, avoidList, swW / 2);
+  const { quads, vx, hy } = subdivide(region, gap, rng, avoidList, swW / 2, metro && depth >= opts.maxDepth);
   // don't fracture into scraps: if this cross would carve off a child too small to host
   // anything (the short-axis cut of an already-shallow region is the usual culprit), keep
   // the parent WHOLE and let fillBlock compose its interior — every block then stays
   // substantial enough to place objects, and small central blocks stop manifesting. A
   // child clipped to ~0 by a landmark is intentional emptiness, not a scrap, so ignore it.
-  const MIN_BLOCK = 3.2;
+  const MIN_BLOCK = metro ? METRO.minBlock : 3.2;
   const isScrap = (q) => (q.w > 0.4 && q.w < MIN_BLOCK) || (q.d > 0.4 && q.d < MIN_BLOCK);
   // A landmark plaza deliberately shoves a cross-street out to flank the monument, which can
   // pin one band thin against the region edge. That sliver is intentional emptiness (it just
   // recurses down to a fillBlock leaf), NOT a fracture to bail on — so the whole-region
   // fallback applies only when no avoid zone forced the geometry.
   if (!avoidList.length && quads.some(isScrap)) {
+    if (metro && Math.max(region.w, region.d) > 2 * METRO.leaf) { metroCutLong(region, depth, rng, boxes, ribbons, grounds, faces, reserved, opts, grid, cars); return; }
     fillBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, cars);
     return;
   }
@@ -2486,7 +2872,7 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
   // the frontage pass reads these back (which road a face fronts, how wide, and where the crossings are); no rng, no bytes
   if (opts.roads) opts.roads.push({ x: vx - streetW / 2, y: region.y, w: streetW, d: region.d, streetW, major }, { x: region.x, y: hy - streetW / 2, w: region.w, d: streetW, streetW, major });
   if (opts.junctions) opts.junctions.push({ x: vx, y: hy, streetW });
-  if (opts.elements.sidewalks) {
+  if (opts.elements.sidewalks && !metro) {   // metro paves its walks from the claim grid once the recursion is done (metroSidewalkTiles)
     // clip each walk band out of the reserved footprints (landmark plaza / anchor) it crosses,
     // exactly as pushStreet clips the carriageway — so the gray walk never paves across the
     // monument when shiftLineOut couldn't flank the street clear of it.
@@ -2510,20 +2896,20 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
       // STOP at the curb (so lane lines don't cross through the box) + a plain
       // pavement patch in the box. Every span is clipped out of reserved
       // footprints, so the road never runs under the anchor/buildings.
-      const half = streetW / 2, opt = { width: streetW, laneLine: true, lanes: 2, bikeLanes };
+      const half = streetW / 2, opt = { width: streetW, laneLine: true, lanes: 2, bikeLanes, ...(metro ? { asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface, ...(opts.metroCfg?.street?.centreLine ? { centreLine: opts.metroCfg.street.centreLine } : {}) } : {}) };
       // the junction PATCH is paving, so the whole square must clear reserved zones (propClear
       // tolerates PLAZA, and the patch can spill its half-width into a plaza even when its centre
       // sits just outside) — else a crossing beside a landmark/civic plaza paves into it.
       const patch = { x: vx - half, y: hy - half, w: streetW, d: streetW };
-      if (propClear(grid, vx, hy) && !reserved.some((r) => rectsOverlap(patch, r))) grounds.push({ kind: 'junction', ...patch, z: 0.045, fill: '#3a414b' });
+      if (propClear(grid, vx, hy) && !reserved.some((r) => rectsOverlap(patch, r))) grounds.push({ kind: 'junction', ...patch, z: 0.045, fill: metro ? METRO_GROUND.paving : '#3a414b' });
       pushStreet(ribbons, [vx, region.y], [vx, hy - half], opt, reserved);
       pushStreet(ribbons, [vx, hy + half], [vx, region.y + region.d], opt, reserved);
       pushStreet(ribbons, [region.x, hy], [vx - half, hy], opt, reserved);
       pushStreet(ribbons, [vx + half, hy], [region.x + region.w, hy], opt, reserved);
-      if (opts.elements.cars && !opts.traffic) placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes);   // moving cars (traffic) replace the static street ants
-      if (bikeLanes && opts.elements.cyclists) placeBikeLaneCyclists(cars, vx, hy, region, streetW);
+      if (opts.elements.cars && !opts.traffic) placeStreetCars(cars, vx, hy, region, streetW, rng, bikeLanes, metro ? METRO.car : 0.9);   // moving cars (traffic) replace the static street ants
+      if (bikeLanes && opts.elements.cyclists) placeBikeLaneCyclists(cars, vx, hy, region, streetW, metro ? 0.9 * METRO.figure : 0.9);
     } else {
-      const opt = { width: streetW, laneLine: false, lanes: 1, bikeLanes };
+      const opt = { width: streetW, laneLine: false, lanes: 1, bikeLanes, ...(metro ? { asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface } : {}) };
       pushStreet(ribbons, [vx, region.y], [vx, region.y + region.d], opt, reserved);
       pushStreet(ribbons, [region.x, hy], [region.x + region.w, hy], opt, reserved);
     }
@@ -2538,6 +2924,25 @@ function recurse(region, depth, rootAnchor, rng, boxes, ribbons, grounds, faces,
     const qReserved = reserved.map((r) => clipRect(r, q)).filter(Boolean);
     recurse(q, depth - 1, null, rng, boxes, ribbons, grounds, faces, qReserved, childOpts, grid, cars);
   }
+}
+
+// METRO long block: a region the cross would cut into scraps (its short side holds one block, not two)
+// while its long side runs past two block lengths, as in the band a landmark plaza leaves between its
+// flanking avenue and the frame edge. Filled whole it is a 550 m block around one court; instead ONE
+// minor street crosses it at the middle and each half recurses. No rng: the cut is the middle, claimed,
+// recorded and drawn the way recurse lays its own cross (the walks come from the grid afterwards).
+function metroCutLong(region, depth, rng, boxes, ribbons, grounds, faces, reserved, opts, grid, cars) {
+  const alongX = region.w >= region.d, streetW = METRO.street.minor, swW = streetW + METRO.walk.minor;
+  const c = alongX ? region.x + region.w / 2 : region.y + region.d / 2, g = streetW / 2;
+  const band = (half) => (alongX ? { x: c - half, y: region.y, w: 2 * half, d: region.d } : { x: region.x, y: c - half, w: region.w, d: 2 * half });
+  stampRect(grid, band(swW / 2), CLAIM.VERGE, [CLAIM.EMPTY]);
+  stampRect(grid, band(g), CLAIM.ROAD, [CLAIM.EMPTY, CLAIM.VERGE]);
+  if (opts.roads) opts.roads.push({ ...band(g), streetW, major: false });
+  if (opts.elements.roads) pushStreet(ribbons, alongX ? [c, region.y] : [region.x, c], alongX ? [c, region.y + region.d] : [region.x + region.w, c], { width: streetW, laneLine: false, lanes: 1, bikeLanes: null, asphalt: METRO_GROUND.asphalt, surface: METRO_GROUND.surface }, reserved);
+  const halves = alongX
+    ? [{ x: region.x, y: region.y, w: c - g - region.x, d: region.d }, { x: c + g, y: region.y, w: region.x + region.w - c - g, d: region.d }]
+    : [{ x: region.x, y: region.y, w: region.w, d: c - g - region.y }, { x: region.x, y: c + g, w: region.w, d: region.y + region.d - c - g }];
+  for (const q of halves) recurse(q, depth - 1, null, rng, boxes, ribbons, grounds, faces, reserved.map((r) => clipRect(r, q)).filter(Boolean), opts, grid, cars);
 }
 
 // Uniformly scale a generated scene about the region's origin corner by factor `s` (a similarity
@@ -2617,7 +3022,8 @@ const FRONTAGE_REACH = ANCHOR_RING + SIDEWALK_BAND / 2 + CELL;
 const FRONTAGE_KINDS = new Set(['building', 'anchor', 'midtower', 'garage']);
 const FRONTAGE_FACES = ['+y', '-y', '+x', '-x'];
 const ROAD_CLAIMS = new Set([CLAIM.ROAD, CLAIM.CORRIDOR]);
-const PARKING_ENTRANCE_MIN = { area: 6, height: 3 };        // a "large" mass: footprint ≥ 6 units² and ≥ 3 units tall (a generic tower always qualifies)
+const PARKING_ENTRANCE_MIN = { area: 6, height: 3 };
+const METRO_PARKING_ENTRANCE_MIN = { area: 60, height: 12 };   // ≈ 800 m² and ≈ 44 m: the towers and the big office lots        // a "large" mass: footprint ≥ 6 units² and ≥ 3 units tall (a generic tower always qualifies)
 const PARKING_VARIANTS = ['garage', 'ramp', 'porte', 'arch'];
 const PARKING_SHAPES = new Set([undefined, null, 'box', 'podium', 'setback', 'complex', 'cylinder']);   // a cylinder takes its portal on a tangent podium (buildParkingEntrance)
 const HOUSE_FACE = { 'y-': '-y', 'y+': '+y', 'x-': '-x', 'x+': '+x' };                    // a house's street-edge vocabulary ↔ the mass face vocabulary
@@ -2771,7 +3177,8 @@ function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs
     const score = (f) => (f.jd > SIDEWALK_BAND / 2 + 0.5 ? 1000 : 0) + f.width * 100 + Math.min(10, Math.max(0, f.jd)) * 2 + f.hitLen;
     fr.sort((p, q) => score(q) - score(p));
     b.front = fr[0].face;
-    const large = b.kind === 'anchor' || (b.w * b.d >= PARKING_ENTRANCE_MIN.area && (b.z1 - b.z0) >= PARKING_ENTRANCE_MIN.height);
+    const pmin = ctx.metro ? METRO_PARKING_ENTRANCE_MIN : PARKING_ENTRANCE_MIN;   // metro lots are many and small: only a real garage-sized mass gets a portal
+    const large = b.kind === 'anchor' || (b.w * b.d >= pmin.area && (b.z1 - b.z0) >= pmin.height);
     const [fx, fy] = toFrame(b.x, b.y);
     const key = `${fx.toFixed(1)},${fy.toFixed(1)},${((b.z1 - b.z0) * bs).toFixed(1)}`;   // the facade's own key
     let portal = null;
@@ -2805,9 +3212,10 @@ function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs
         const n = F.normal, axis = n[1] !== 0 ? 'y' : 'x', outward = n[1] !== 0 ? n[1] : n[0];
         // the static car's footprint (a lot-context ant is a car, 1.7 × 0.8 at scale 0.9), so the world
         // path can keep it off every moving lane (removal only) and the tests can check it pairwise
-        const cl = 1.7 * 0.9, cw = 0.8 * 0.9;
+        const cs = ctx.metro ? METRO.car : 0.9;
+        const cl = 1.7 * cs, cw = 0.8 * cs;
         const portalCarRect = axis === 'y' ? { x: wx - cw / 2, y: wy - cl / 2, w: cw, d: cl } : { x: wx - cl / 2, y: wy - cw / 2, w: cl, d: cw };
-        faces.push(...vehicleAntFaces({ rng: local, context: 'lot', cx: wx, cy: wy, axis, dir: arriving ? -outward : outward, scale: 0.9 }).map((face) => ({ ...face, portalCar: arriving ? 'arriving' : 'departing', portalCarKey: key, portalCarRect })));
+        faces.push(...vehicleAntFaces({ rng: local, context: 'lot', cx: wx, cy: wy, axis, dir: arriving ? -outward : outward, scale: cs }).map((face) => ({ ...face, portalCar: arriving ? 'arriving' : 'departing', portalCarKey: key, portalCarRect })));
         stats.portalCars = (stats.portalCars || 0) + 1;
       }
     }
@@ -2824,7 +3232,7 @@ function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs
         const v = cellAt(grid, wx, wy);
         if (v === -1 || v === CLAIM.ROAD || v === CLAIM.BUILDING || v === CLAIM.LOT || v === CLAIM.CORRIDOR) continue;
         if (cuts.some((c) => wx >= c.x && wx <= c.x + c.w && wy >= c.y && wy <= c.y + c.d)) continue;
-        faces.push(...pedestrianFaces({ cx: wx, cy: wy, heading: Math.atan2(-F.normal[1], -F.normal[0]) + (local() - 0.5) * 0.4, scale: 0.94 + local() * 0.12, archetype: local() < 0.5 ? 'adultM' : 'adultF', pose: pick(IDLE_POSES), palette: pick(PALETTES) }).map((face) => ({ ...face, lobbyIdle: true })));
+        faces.push(...pedestrianFaces({ cx: wx, cy: wy, heading: Math.atan2(-F.normal[1], -F.normal[0]) + (local() - 0.5) * 0.4, scale: (ctx.metro ? METRO.figure : 1) * (0.94 + local() * 0.12), archetype: local() < 0.5 ? 'adultM' : 'adultF', pose: pick(IDLE_POSES), palette: pick(PALETTES) }).map((face) => ({ ...face, lobbyIdle: true })));
         stats.lobbyIdles = (stats.lobbyIdles || 0) + 1;
       }
     }
@@ -3198,7 +3606,7 @@ function reseatInsetFaces(faces, plot, R, yaw) {
   });
 }
 
-export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full', anchorSeat = null } = {}) {
+export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full', anchorSeat = null, flavor = null } = {}) {
   const rng = mulberry32(seed >>> 0 || 1);
   const lod = normalizeCityFidelity(fidelity);
   const frameRegion = region;                                  // the recipe's frame (map expansion + block reports read it)
@@ -3218,6 +3626,9 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const bs = Number.isFinite(baseScale) && baseScale > 0 ? baseScale : 1;
   const frameOrigin = { x: region.x, y: region.y };
   if (bs !== 1) region = { x: region.x, y: region.y, w: region.w / bs, d: region.d / bs };
+  // metro: the block size is METRO.leaf's, not the depth's — the recursion gets at least the tiers its
+  // frame needs to reach block size (depth stays a ceiling for the stock city, byte-identical)
+  if (profile === 'metro') depth = Math.max(depth, Math.ceil(Math.log2(Math.max(region.w, region.d) / METRO.leaf)) + 1);
   const recipeElements = normalizeFractalCityElements(elements);
   if (isEuropeanLocale(locale) && !elementExplicitlyFalse(elements, 'townhouses')) recipeElements.townhouses = true;
   if (profile === 'town' && !elementExplicitlyFalse(elements, 'townhouses')) recipeElements.townhouses = true;   // town mixes detached houses with townhouse rows
@@ -3262,6 +3673,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const blockList = !blockSpec ? [] : Array.isArray(blockSpec) ? blockSpec : expandCityBlockMap(blockSpec.map, frameRegion, blockSpec.gap ?? BLOCK_MAP_GAP);
   let placedRootAnchor = false;
   let landmarkZone = null;                                     // reserved plaza footprint → roads avoid it (opts.avoid)
+  let landmarkStats = null;                                    // metro: each monument's real height and the cluster's fit
   let rootZone = null;                                         // side-seated root tower → the crossing flanks it (opts.avoid)
   if (landmarks.length && recipeElements.anchorTowers && anchorRegion.w > 4 && anchorRegion.d > 4) {
     // Budget off the FULL region and take NO baseScale pre-shrink: a landmark's
@@ -3269,17 +3681,22 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     // monuments stay frame-true while only the generic fabric densifies — the plaza
     // reservation displaces blocks/props to pay for it. (The generic tower below keeps
     // its pre-shrink: it has no real-world budget to honour.)
-    const la = landmarkAnchor(anchorRegion, landmarks, true, region, landmarkBudgetCap(bs));
+    // METRO: each monument at its real size (LANDMARK_REAL), no demo-frame cap; the zoom-out rule
+    // still fits the cluster to the region, and stats.landmarks reports the fit
+    const la = profile === 'metro'
+      ? landmarkAnchor(anchorRegion, landmarks, true, region, Infinity, true)
+      : landmarkAnchor(anchorRegion, landmarks, true, region, landmarkBudgetCap(bs));
+    if (profile === 'metro') landmarkStats = la.boxes.map((b) => ({ shape: b.shape, heightM: +(b.z1 * CITY_METERS_PER_UNIT).toFixed(1), fit: +la.fit.toFixed(3) }));
     boxes.push(...la.boxes); seedReserved.push({ ...la.footprint, hard: true });
     stampRect(grid, la.footprint, CLAIM.PLAZA);              // claim the whole plaza (incl. the ring) so nothing builds on it
     // the monument BASES are a hard claim, not plaza: PLAZA is a TREE_SURFACE (so the civic
     // ring can hold trees), but a tree must never sprout up through a monument itself.
     for (const b of la.boxes) stampRect(grid, b, CLAIM.ANCHOR, [CLAIM.PLAZA]);
-    grounds.push({ kind: 'landmark-plaza', x: la.footprint.x, y: la.footprint.y, w: la.footprint.w, d: la.footprint.d, z: 0.02, fill: '#bdbcae' });
+    grounds.push({ kind: 'landmark-plaza', x: la.footprint.x, y: la.footprint.y, w: la.footprint.w, d: la.footprint.d, z: 0.02, fill: profile === 'metro' ? METRO_GROUND.plaza : '#bdbcae' });
     landmarkZone = la.footprint;
     placedRootAnchor = true;
   } else if (corridor && anchor && (anchor === 'freeway' ? recipeElements.elevatedFreeways : recipeElements.anchorTowers) && anchorRegion.w > 4 && anchorRegion.d > 4) {
-    const a = anchor === 'freeway' ? freewayAnchor(anchorRegion, rng) : towerAnchor(anchorRegion, rng, true, rootAnchorCap(bs));
+    const a = anchor === 'freeway' ? freewayAnchor(anchorRegion, rng) : towerAnchor(anchorRegion, rng, true, rootAnchorCap(bs), profile === 'metro');
     if (bs !== 1 && anchor === 'tower') shrinkAnchorAbout(a, bs, false);   // tower height is absolute (scales downstream); only its footprint needs correcting
     boxes.push(...a.boxes); if (a.ribbons) ribbons.push(...a.ribbons); seedReserved.push(a.footprint);
     stampRect(grid, a.footprint, CLAIM.ANCHOR);
@@ -3288,7 +3705,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     // SIDE-SEATED root tower (see `seat` above): sized like the centred one (capped), then moved to
     // the centre of a drawn quadrant, clamped inside the frame, and put on the cross-street AVOID
     // list with the right-of-way pad — the main crossing flanks it instead of running into it.
-    const a = towerAnchor(region, rng, true, rootAnchorCap(bs));
+    const a = towerAnchor(region, rng, true, rootAnchorCap(bs), profile === 'metro');
     if (bs !== 1) shrinkAnchorAbout(a, bs, false);
     // one draw picks the first quadrant to try; with operator blocks the four are then ranked by how
     // little of the footprint they would overlap (starting from the drawn one, so ties stay seeded)
@@ -3359,7 +3776,25 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // leaf, after the road inset, above the 1.3-unit floor). The stats had rows for what stands ON a
   // block (buildings, townhouses, lots) but none for the block itself (grok-headless-affordances P5).
   const cityBlocks = [];
-  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs), roads: roadStrips, junctions, lots: lotLog }, grid, cars);
+  // METRO HEIGHT FIELD: the core is the landmark plaza, else the side-seated root tower, else the region
+  // centre (where a centred root tower and the metro main crossing both sit); heights decay from it over
+  // λ, a fraction of the frame clamped to 165–585 m. No rng; metro only.
+  const coreOf = (r) => (r ? { cx: r.x + r.w / 2, cy: r.y + r.d / 2 } : { cx: region.x + region.w / 2, cy: region.y + region.d / 2 });
+  // METRO FLAVOUR (city-flavors.js): a regional architecture over the metro dials. Resolved from the
+  // recipe only (the mint does the rolling); a metro recipe with none, or an unknown name, is
+  // north-american, METRO itself. Ignored by every other profile.
+  const flavorKey = profile === 'metro' ? normalizeCityFlavor(flavor) : null;
+  const FL = flavorKey ? CITY_FLAVORS[flavorKey] : null;
+  const metroCfg = FL ? { ...METRO, height: { ...METRO.height, ...FL.height }, tower: { ...METRO.tower, ...FL.tower }, lot: { ...METRO.lot, ...FL.lot }, street: FL.street || null } : null;
+  const metroField = profile === 'metro'
+    ? { ...coreOf(landmarkZone || rootZone), lambda: Math.max(METRO.height.lambda[0], Math.min(METRO.height.lambda[1], METRO.height.lambdaFrac * Math.max(region.w, region.d))) }
+    : null;
+  recurse(region, depth, recurseRoot, rng, boxes, ribbons, grounds, faces, seedReserved, { density, elements: recipeElements, locale, climate, subAnchors: subAnchors && recipeElements.subAnchors && recipeElements.anchorTowers, subAnchorChance, maxDepth: depth, avoid: [...(landmarkZone ? [landmarkZone] : []), ...(rootZone ? [rootZone] : []), ...blockZones], baseScale: bs, profile, traffic, blocks: cityBlocks, rootCap: rootAnchorCap(bs), roads: roadStrips, junctions, lots: lotLog, ...(metroField ? { metroField } : {}), ...(metroCfg ? { metroCfg } : {}) }, grid, cars);
+  // METRO WALKS: the verge cells tiled into non-overlapping rects (metroSidewalkTiles). The stock city lays
+  // one band per street, which overlap at every crossing; at metro lengths the renderer's coplanar lift
+  // (face-mesh decollideFaces, ∝ face size) would raise an overlapped band over the asphalt.
+  if (profile === 'metro' && recipeElements.sidewalks) grounds.push(...metroSidewalkTiles(grid));
+  if (profile === 'metro' && recipeElements.streetLamps) metroKerbLamps(boxes, grid, roadStrips, junctions);
   if (corridor) { ribbons.push(...corridor.ribbons); boxes.push(...corridor.boxes); grounds.push(...corridor.grounds); faces.push(...corridor.faces); }
   // LOT INSETS (city-insets.js, the default): with the roads and blocks laid, each minted
   // building takes over a generated PARCEL — the candidate that evicts the fewest neighbours,
@@ -3415,7 +3850,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // People, walker loops and car lanes are dressing: below full fidelity none are planned (each runs
   // on its own local rng, so skipping them leaves the city stream untouched).
   const full = lod === 'full';
-  if (people && full) placePedestrianGroups(region, grid, people, faces, seed);
+  if (people && full) placePedestrianGroups(region, grid, people, faces, seed, profile === 'metro' ? METRO.figure : 1);
   // AMBIENT-WALKER LOOPS (city/walkers.plan.md): grid-validated closed rings for the `walkers`
   // channel, planned off the now-final walkable grid. Opt-in only (null ⇒ untouched); paths ride
   // the output scale-down below, exactly like the faces + static people.
@@ -3433,7 +3868,7 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   const bigTags = new Set(bigLeftover.map((c) => c.tag));      // skip crumb-only tags
   for (const t of leftoverTiles) {
     if (!bigTags.has(t.tag)) continue;
-    grounds.push({ kind: `leftover-${t.tag}`, x: t.x, y: t.y, w: t.w, d: t.d, z: 0.022, fill: t.tag === 'pocket' ? '#3c5a3a' : '#54514a', leftover: t.tag });
+    grounds.push({ kind: `leftover-${t.tag}`, x: t.x, y: t.y, w: t.w, d: t.d, z: 0.022, fill: t.tag === 'pocket' ? (profile === 'metro' ? METRO_GROUND.lawn : '#3c5a3a') : '#54514a', leftover: t.tag });
   }
   // PARK DOODADS: bins / benches / playgrounds scattered onto the planted (pocket) green.
   // Runs AFTER the grass tiles are laid so claimed footprints never punch holes in the lawn.
@@ -3451,11 +3886,18 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
   // the entrance dressing as furnishing / marking and keeps the mass). Frame-space keys for the
   // variant hash so it matches the facade's own key after the scale-down.
   const toFrame = (x, y) => [frameOrigin.x + (x - frameOrigin.x) * bs, frameOrigin.y + (y - frameOrigin.y) * bs];
-  const frontage = recipeElements.frontage ? frontagePass(boxes, grounds, faces, grid, roadStrips, junctions, toFrame, bs, { lots: lotLog, traffic, carsOn: recipeElements.cars, people, seed }) : null;
+  const frontage = recipeElements.frontage ? frontagePass(boxes, grounds, faces, grid, roadStrips, junctions, toFrame, bs, { lots: lotLog, traffic, carsOn: recipeElements.cars, people, seed, metro: profile === 'metro' }) : null;
   const portalCuts = frontage ? frontage.cuts : null;
   if (frontage) delete frontage.cuts;                          // the tiles are geometry, not a stat
   // AMBIENT-WALKER LOOPS with frontage on (see the note above): planned on the final grid, off the portal cuts
   if (frontage && walkers && full) walkerLoops = planCityWalkerLoops(grid, region, seed, walkers, boxes, portalCuts);
+  // METRO SKINS (no rng): every mass's material and colours, stamped before the prune so a massing
+  // box keeps them, and so every stream tile cuts the same skins.
+  const skins = profile === 'metro' ? metroSkins(boxes, metroField, seed, FL) : null;
+  // METRO LANDMARKS (no rng): a monument takes its refacade builder (landmarks/refacade.js), as the
+  // re-tagged church / mosque / temple / rotunda already does through its metro mass. After the
+  // skins, so a monument never wears one.
+  if (profile === 'metro') for (const b of boxes) if (b.class === 'landmark') b.metro = true;
   // FIDELITY PRUNE: the last step before the scale-down, after every rng consumer — so the plan
   // below full is the full plan minus its dressing (file header). Reported in stats.fidelity.
   const pruned = full ? null : pruneFidelity(lod, { boxes, grounds, faces });
@@ -3517,8 +3959,54 @@ export function planFractalCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth =
     ...(rootZone ? { anchorSeat: 'side' } : {}),                // the root tower sits beside the main crossing (see `seat`)
     ...(frontage ? { frontage } : {}),                          // road-aware masses: { masses, withRoad, withoutRoad, parking, swept? }
     ...(pruned ? { fidelity: pruned.level, pruned: pruned.dropped } : {}),   // what the level-of-detail prune took off the full plan
+    ...(profile === 'metro' ? { profile: 'metro', crossings: countCrossings(roadStrips), skins, ...(flavorKey ? { flavor: flavorKey } : {}), ...(landmarkStats ? { landmarkSizes: landmarkStats } : {}) } : {}),
   };
-  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}), ...(signals ? { signals, junctions: junctionsFrame } : {}) };
+  return { boxes, grounds, ribbons, faces, sources: lampSources(boxes), stats, elements: recipeElements, locale, ...(placedInsets.length ? { insets: placedInsets } : {}), ...(walkerLoops ? { walkerLoops } : {}), ...(carLanes ? { carLanes } : {}), ...(signals ? { signals, junctions: junctionsFrame } : {}), ...(profile === 'metro' ? { cues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight }, core: metroField } : {}) };
+}
+
+// ── cityScaleCensus: the city measured in metres ────────────────────────────────────────────────
+// The machine gate for proportion: block pitch, crossing density, the height distribution (with the
+// core-vs-edge split on a metro plan), tower slenderness, and the street kit's heights, all in metres
+// at CITY_METERS_PER_UNIT (or the recipe's own). Reads a finished plan; no rng, no bytes. `streetShare`
+// sums the sidewalk bands, so crossings count twice — a ceiling, not an exact area.
+// every crossing and every T: a vertical × a horizontal road strip that overlap, one per cell (the
+// signals derivation's rule, without the rng or the frame transform)
+function countCrossings(roads) {
+  const vs = roads.filter((r) => !r.corridor && Math.abs(r.w - r.streetW) < 1e-9), hs = roads.filter((r) => !r.corridor && Math.abs(r.d - r.streetW) < 1e-9);
+  const seen = new Set();
+  const touch = (V, H) => rectsOverlap({ x: V.x, y: V.y - 0.05, w: V.w, d: V.d + 0.1 }, { x: H.x - 0.05, y: H.y, w: H.w + 0.1, d: H.d });   // a T meets its avenue at the kerb
+  for (const V of vs) for (const H of hs) if (touch(V, H)) seen.add(`${Math.round((V.x + V.w / 2) / CELL)},${Math.round((H.y + H.d / 2) / CELL)}`);
+  return seen.size;
+}
+const CENSUS_MASS = new Set(['building', 'anchor', 'midtower', 'townhouse', 'house']);
+export function cityScaleCensus(plan, region = DEFAULT_REGION, mpu = CITY_METERS_PER_UNIT) {
+  const areaU = region.w * region.d, km2 = (areaU * mpu * mpu) / 1e6;
+  const masses = plan.boxes.filter((b) => CENSUS_MASS.has(b.kind));
+  const hOf = (b) => (b.z1 - (b.z0 || 0)) * mpu;
+  const qs = (arr, p) => { if (!arr.length) return 0; const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+  const hs = masses.map(hOf), p50 = qs(hs, 0.5), max = hs.length ? Math.max(...hs) : 0;
+  const tall = masses.filter((b) => hOf(b) >= 100);
+  const slender = tall.length ? Math.min(...tall.map((b) => (b.z1 - (b.z0 || 0)) / Math.min(b.w, b.d))) : null;
+  const walk = plan.grounds.filter((g) => g.kind === 'sidewalk').reduce((a, g) => a + g.w * g.d, 0);
+  const crossings = plan.stats.crossings ?? (plan.junctions ? plan.junctions.length : null);
+  const kitTop = (kind) => { const z = plan.boxes.filter((b) => b.kind === kind).map((b) => b.z1); return z.length ? Math.max(...z) * mpu : null; };
+  let coreEdge = null;
+  if (plan.core) {
+    const r = (b) => Math.hypot(b.x + b.w / 2 - plan.core.cx, b.y + b.d / 2 - plan.core.cy);
+    const core = masses.filter((b) => r(b) <= plan.core.lambda).map(hOf), edge = masses.filter((b) => r(b) >= 2 * plan.core.lambda).map(hOf);
+    const cp50 = qs(core, 0.5);
+    coreEdge = { coreP50: cp50, edgeP50: qs(edge, 0.5), ratio: edge.length && core.length ? cp50 / qs(edge, 0.5) : null, coreMaxOverP50: core.length ? Math.max(...core) / cp50 : null, coreShare100: core.length ? core.filter((h) => h >= 100).length / core.length : null, coreCount: core.length, edgeCount: edge.length };
+  }
+  return {
+    km2, masses: masses.length, blocks: plan.stats.blocks,
+    pitch: plan.stats.blocks ? Math.sqrt(areaU / plan.stats.blocks) * mpu : null,
+    crossingsPerKm2: crossings == null ? null : crossings / km2,
+    streetShare: walk / areaU,
+    height: { p10: qs(hs, 0.1), p50, p90: qs(hs, 0.9), max, maxOverP50: p50 ? max / p50 : null, share100: hs.length ? tall.length / hs.length : 0 },
+    towers: tall.length, minSlenderness: slender,
+    ...(coreEdge ? { core: coreEdge } : {}),
+    kit: { stopSign: kitTop('stop-sign'), streetSign: kitTop('street-sign'), signal: kitTop('street-signal'), lamp: kitTop('street-lamp') },
+  };
 }
 
 // Derive light SOURCES from the warm lamp HEADS the generator already places — each
@@ -3534,10 +4022,70 @@ function lampSources(boxes) {
   return sources;
 }
 
-const FRACTAL_CAMERAS = [
+export const FRACTAL_CAMERAS = [
   { name: 'street', worldFraming: { cameraPosition: [-7, 31, 9], lookAt: [16, 8, 5], horizontalFov: 82, pictureCenter: [560, 390] } },
   { name: 'aerial', worldFraming: { cameraPosition: [16, -9, 27], lookAt: [16, 11, 1], horizontalFov: 60, pictureCenter: [560, 390] } },
 ];
+
+// METRO cameras: human-scale shots read off the region alone — the metro root
+// crossing sits at the region centre, so the street eye (1.7 m) stands on the main avenue's near
+// sidewalk looking in toward the core; the aerial is lower and shallower than the default (a steep
+// downward shot is a miniature cue); the skyline stands off the near edge. Plan-free on purpose: the
+// first camera is the facade lighting hint, so the whole city and every stream tile must agree on it.
+function metroCameras(region, lm = null) {
+  const { x, y, w, d } = region, cx = x + w / 2, cy = y + d / 2, eye = 1.7 / CITY_METERS_PER_UNIT;
+  const side = METRO.street.major / 2 + METRO.walk.major / 4, span = Math.max(w, d);
+  const pc = [560, 390], aspect = pc[0] / pc[1], deg = 180 / Math.PI;
+  // the street eye stands on the main avenue's kerb-side walk looking along it. A landmark plaza pushes
+  // the main avenues out to flank its south and west edges (subdivide → shiftLineOut, the lower side on
+  // a tie), so the eye stands on the south avenue's walk west of where they cross: 7 u past the corner
+  // (clear of the crossing's kit; the next street is at least a block on, so never a junction), 1 u in
+  // from the kerb on its 1.4 u walk (METRO.walk is both walks; the kerb lamps stand at 0.35), looking
+  // past the corner at the monument, pitched up at most 14° so the street stays in frame
+  const flank = (METRO.street.major + METRO.walk.major) / 2;
+  let avenue = cy, streetPos = [x + w * 0.08, cy - side], streetAt = [cx, cy - side * 0.5, eye + 5];
+  if (lm) {
+    avenue = lm.plaza.y - flank;
+    streetPos = [lm.plaza.x - flank - (METRO.street.major + METRO.walk.major) / 2 - 7, avenue - METRO.street.major / 2 - 1];
+    const at = [lm.at[0], avenue + (lm.at[1] - avenue) * 0.5], D = Math.hypot(at[0] - streetPos[0], at[1] - streetPos[1]);
+    streetAt = [...at, eye + D * Math.tan(Math.min(14 / deg, Math.atan((lm.top * 0.3) / D)))];
+  }
+  // the skyline: the stock stand-off, or for a tall landmark a vantage at the frame's south-west corner
+  // (as far back as the city reaches, so no bare ground fills the foreground), the lens widened only
+  // as much as holding the tip needs
+  let skyPos = [cx - w * 0.25, y - d * 0.1, 12], skyAt = [cx, cy, 16], skyFov = 62;
+  if (lm && lm.top > 24) {
+    const z = 12, pos = [x + w * 0.02, y + d * 0.02], D = Math.hypot(lm.at[0] - pos[0], lm.at[1] - pos[1]);
+    const up = Math.atan((lm.top - z) / D), down = Math.atan(z / D), vfov = (up + down) * 1.12;
+    skyPos = [...pos, z]; skyAt = [lm.at[0], lm.at[1], z + D * Math.tan((up - down) / 2)];
+    skyFov = Math.min(90, Math.max(62, 2 * Math.atan(Math.tan(vfov / 2) * aspect) * deg));
+  }
+  return [
+    { name: 'street', worldFraming: { cameraPosition: [...streetPos, eye], lookAt: streetAt, horizontalFov: 72, pictureCenter: pc } },
+    { name: 'aerial', worldFraming: { cameraPosition: [cx - w * 0.2, y - d * 0.3, span * 0.2], lookAt: [cx, cy, 0], horizontalFov: 58, pictureCenter: pc } },
+    { name: 'skyline', worldFraming: { cameraPosition: skyPos, lookAt: skyAt, horizontalFov: +skyFov.toFixed(2), pictureCenter: pc } },
+  ];
+}
+// METRO atmosphere: a gradient sky (the World's dome; the stock city's preset sky has none, so /world
+// showed a void) and a distance haze sized to the frame — visibility V = 2 × the frame's diagonal, so
+// the far corner sits deep in haze and the city fades instead of ending. FogExp2 reaches 2 % contrast
+// at √3.91 / density, hence density = 1.98 / V. Metro only; null for every other recipe.
+export function metroAtmosphere(recipe = {}, time = null) {
+  if (recipe.profile !== 'metro') return null;
+  const R = recipe.region || DEFAULT_REGION, night = time === 'night';
+  const horizon = night ? [34, 40, 56] : [198, 207, 218], zenith = night ? [8, 11, 22] : [104, 142, 190];
+  const hex = '#' + horizon.map((c) => c.toString(16).padStart(2, '0')).join('');
+  return {
+    sky: { preset: night ? 'night' : 'day', zenith, horizon, day: night ? 0 : 1, stars: night ? 1 : 0, ...(night ? { moon: true } : {}), seed: recipe.seed ?? 7 },
+    haze: { color: hex, density: 1.98 / (2 * Math.hypot(R.w, R.d)) },
+  };
+}
+/** The city's preset shots: metro recipes get the human-scale set, every other recipe the stock one. */
+export function fractalCityCameras(recipe = {}) {
+  if (recipe.profile !== 'metro') return FRACTAL_CAMERAS;
+  const region = recipe.region || DEFAULT_REGION;
+  return metroCameras(region, metroLandmarkView(recipe, region));
+}
 
 const NIGHT_DIFFUSION = { soft: true, gain: 2.6, softness: 1.0, shadows: true, shadowStrength: 1.15, shadowMaxAlpha: 0.5 };
 const DAY_DIFFUSION = { soft: true, gain: 1.9, softness: 1.05, shadows: true, shadowStrength: 1.0, shadowMaxAlpha: 0.4 };
@@ -3648,7 +4196,7 @@ export function assembleFractalCityScene(opts = {}) {
     // toon dial (opts.toon, world-scene ctx.toon): bands the key; withBands leaves an undefined/flat light alone
     light: unshaded ? FLAT_LIGHT : withBands(opts.light || (night ? makeLight({ direction: [0.2, 0.3, -0.9], ambient: 0.18, diffuse: 0.1 })
       : day ? makeLight({ direction: [0.35, 0.4, -0.85], ambient: 0.5, diffuse: 0.4 }) : undefined), resolveToon(opts.toon ?? opts.scene?.toon)?.bands),
-    cameras: opts.cameras || FRACTAL_CAMERAS,
+    cameras: opts.cameras || fractalCityCameras(opts),
     viewBox: opts.viewBox || { width: 1120, height: 780 },
     unitScale: opts.unitScale || 22,
     title: opts.title || (night ? 'mojulo fractal city · night' : day ? 'mojulo fractal city · day' : 'mojulo fractal city'),
@@ -3669,7 +4217,7 @@ export function assembleFractalCityScene(opts = {}) {
     if (furniture.groups.length) {
       scene.repeats = furniture.groups.map((g) => ({
         template: assembleBoxCityScene({
-          boxes: [g.template], cameras: opts.cameras || FRACTAL_CAMERAS,
+          boxes: [g.template], cameras: opts.cameras || fractalCityCameras(opts),
           viewBox: opts.viewBox || { width: 1120, height: 780 }, unitScale: opts.unitScale || 22,
           light: opts.light,
         }).faces,
@@ -3691,6 +4239,9 @@ export function assembleFractalCityScene(opts = {}) {
   if (Array.isArray(opts.insets)) for (const i of opts.insets) if (i && i.textures && Object.keys(i.textures).length) scene.textures = { ...(scene.textures || {}), ...i.textures };
   if (plan.walkerLoops && plan.walkerLoops.length) scene.walkerLoops = plan.walkerLoops;
   if (plan.carLanes && plan.carLanes.length) scene.carLanes = plan.carLanes;
+  if (plan.cues) scene.cityCues = plan.cues;
+  const atm = metroAtmosphere(opts, skyTime);
+  if (atm) { if (!opts.sky) scene.sky = atm.sky; if (!unshaded) scene.haze = atm.haze; }   // metro: the world path sizes its walkers and car bank to the real-size cues (world-kinds)
   if (plan.signals && plan.signals.length) {   // the crossings' phase programs; the world path rebuilds them with its measured car bank (deriveClearance)
     scene.signals = plan.signals;
     scene.junctions = plan.junctions;
@@ -3749,5 +4300,9 @@ export function cityThemeAdapter(slots = {}) {
   // recipe's own frame, and the level of detail is a render budget, not a theme role.
   if (slots.blocks !== undefined) out.blocks = slots.blocks;
   if (slots.fidelity !== undefined) out.fidelity = slots.fidelity;
+  // the proportion class rides the top level too: 'metro' is real-city proportion,
+  // not a theme's flavour; the mint validates it and stores only 'metro'
+  if (slots.profile !== undefined) out.profile = slots.profile;
+  if (slots.flavor !== undefined) out.flavor = slots.flavor;   // a metro regional flavour (city-flavors.js); the mint resolves and stores it
   return out;
 }
