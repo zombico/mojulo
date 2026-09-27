@@ -5,7 +5,7 @@
 // from b.z0) and maps to the world through `frameOf`, so a footprint laid either way draws the same
 // building. Proportions come from the footprint (the short side S = 2B), never from b.z1.
 // Deterministic: no rng, no Date; the figure decimation is a pure function memoised per module.
-import { makeKit, mixHex, v3 } from './refacade-kit.js';
+import { makeKit, mixHex, v3, decimateFaces } from './refacade-kit.js';
 import { scaleHex } from '../polygonizer/vexar.js';
 import { buildStatueFigure, buildRizalFigure } from './statue-figure.js';
 
@@ -735,42 +735,8 @@ function decimatedFigure(which, g) {
   const key = `${which}:${g}`;
   if (FIG_CACHE.has(key)) return FIG_CACHE.get(key);
   const src = which === 'liberty' ? buildStatueFigure({}).faces : buildRizalFigure({}).faces;
-  const kOf = (p) => `${Math.floor(p[0] * g)},${Math.floor(p[1] * g)},${Math.floor(p[2] * g)}`;
-  const acc = new Map();
-  for (const f of src) for (const p of f.corners) { const k = kOf(p), a = acc.get(k) || [0, 0, 0, 0]; a[0] += p[0]; a[1] += p[1]; a[2] += p[2]; a[3]++; acc.set(k, a); }
-  const rep = new Map(); for (const [k, a] of acc) rep.set(k, [a[0] / a[3], a[1] / a[3], a[2] / a[3]]);
-  const seen = new Set(), out = [];
-  for (const f of src) {
-    const ks = [];
-    for (const p of f.corners) { const k = kOf(p); if (ks[ks.length - 1] !== k) ks.push(k); }
-    if (ks.length > 1 && ks[0] === ks[ks.length - 1]) ks.pop();
-    if (new Set(ks).size !== ks.length || ks.length < 3) continue;
-    const sk = [...ks].sort().join('|');
-    if (seen.has(sk)) continue;
-    seen.add(sk);
-    const [r, gg] = [parseInt(f.fill.slice(1, 3), 16), parseInt(f.fill.slice(3, 5), 16)];
-    const pts = ks.map((k) => rep.get(k)), metal = r > gg + 12 ? 'gilt' : 'body';
-    if (pts.length === 4) {
-      const n = norm(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0]))), off = Math.abs(dot(n, sub(pts[3], pts[0])));
-      if (off > 0.25 / g) { out.push({ pts: [pts[0], pts[1], pts[2]], metal }, { pts: [pts[0], pts[2], pts[3]], metal }); continue; }
-    }
-    out.push({ pts, metal });
-  }
-  // orientation: away from the local centroid of the clustered vertices
-  const cell = 2 / g, grid = new Map(), gk = (p) => `${Math.floor(p[0] / cell)},${Math.floor(p[1] / cell)},${Math.floor(p[2] / cell)}`;
-  for (const p of rep.values()) { const k = gk(p); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(p); }
-  const R2 = (2.2 / g) ** 2;
-  for (const f of out) {
-    const c = v3.centroid(f.pts), [ix, iy, iz] = [Math.floor(c[0] / cell), Math.floor(c[1] / cell), Math.floor(c[2] / cell)];
-    const m = [0, 0, 0]; let cnt = 0;
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-      for (const p of grid.get(`${ix + dx},${iy + dy},${iz + dz}`) || []) { const d = sub(p, c); if (dot(d, d) < R2) { m[0] += p[0]; m[1] += p[1]; m[2] += p[2]; cnt++; } }
-    }
-    let n = norm(cross(sub(f.pts[1], f.pts[0]), sub(f.pts[2], f.pts[0])));
-    const away = cnt ? sub(c, mul(m, 1 / cnt)) : [c[0], c[1], 0];
-    if (dot(n, away) < 0) n = mul(n, -1);
-    f.n = n;
-  }
+  const out = decimateFaces(src, g, (f) => (parseInt(f.fill.slice(1, 3), 16) > parseInt(f.fill.slice(3, 5), 16) + 12 ? 'gilt' : 'body'))
+    .map(({ pts, n, tag }) => ({ pts, n, metal: tag }));
   FIG_CACHE.set(key, out);
   return out;
 }

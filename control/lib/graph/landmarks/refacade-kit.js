@@ -254,3 +254,49 @@ export function planFrame(cx, cy, yaw = 0) {
   const c = Math.cos(yaw), s = Math.sin(yaw);
   return (lx, ly) => [cx + lx * c - ly * s, cy + lx * s + ly * c];
 }
+
+/**
+ * Re-mesh a dense face soup (a polygonised figure: tens of thousands of faces) to a landmark's
+ * budget by vertex clustering: a grid of `g` cells per unit; every face keeps its corners' cluster
+ * means; collapsed and repeated faces drop; a quad that folds past a quarter cell splits in two.
+ * Normals are re-found (a figure mesher's winding is mixed): each face turns away from the centroid
+ * of the clustered vertices around it. `tagOf(face)` labels each output face (a material slot).
+ * Returns [{ pts, n, tag }]. Pure.
+ */
+export function decimateFaces(src, g, tagOf = () => 'body') {
+  const kOf = (p) => `${Math.floor(p[0] * g)},${Math.floor(p[1] * g)},${Math.floor(p[2] * g)}`;
+  const acc = new Map();
+  for (const f of src) for (const p of f.corners) { const k = kOf(p), a = acc.get(k) || [0, 0, 0, 0]; a[0] += p[0]; a[1] += p[1]; a[2] += p[2]; a[3]++; acc.set(k, a); }
+  const rep = new Map(); for (const [k, a] of acc) rep.set(k, [a[0] / a[3], a[1] / a[3], a[2] / a[3]]);
+  const seen = new Set(), out = [];
+  for (const f of src) {
+    const ks = [];
+    for (const p of f.corners) { const k = kOf(p); if (ks[ks.length - 1] !== k) ks.push(k); }
+    if (ks.length > 1 && ks[0] === ks[ks.length - 1]) ks.pop();
+    if (new Set(ks).size !== ks.length || ks.length < 3) continue;
+    const sk = [...ks].sort().join('|');
+    if (seen.has(sk)) continue;
+    seen.add(sk);
+    const pts = ks.map((k) => rep.get(k)), tag = tagOf(f);
+    if (pts.length === 4) {
+      const n = norm(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0]))), off = Math.abs(dot(n, sub(pts[3], pts[0])));
+      if (off > 0.25 / g) { out.push({ pts: [pts[0], pts[1], pts[2]], tag }, { pts: [pts[0], pts[2], pts[3]], tag }); continue; }
+    }
+    out.push({ pts, tag });
+  }
+  const cell = 2 / g, grid = new Map(), gk = (p) => `${Math.floor(p[0] / cell)},${Math.floor(p[1] / cell)},${Math.floor(p[2] / cell)}`;
+  for (const p of rep.values()) { const k = gk(p); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(p); }
+  const R2 = (2.2 / g) ** 2;
+  for (const f of out) {
+    const c = centroid(f.pts), [ix, iy, iz] = [Math.floor(c[0] / cell), Math.floor(c[1] / cell), Math.floor(c[2] / cell)];
+    const m = [0, 0, 0]; let cnt = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      for (const p of grid.get(`${ix + dx},${iy + dy},${iz + dz}`) || []) { const d = sub(p, c); if (dot(d, d) < R2) { m[0] += p[0]; m[1] += p[1]; m[2] += p[2]; cnt++; } }
+    }
+    let n = norm(cross(sub(f.pts[1], f.pts[0]), sub(f.pts[2], f.pts[0])));
+    const away = cnt ? sub(c, mul(m, 1 / cnt)) : [c[0], c[1], 0];
+    if (dot(n, away) < 0) n = mul(n, -1);
+    f.n = n;
+  }
+  return out;
+}

@@ -15,7 +15,7 @@ const LM = {
   'arc-de-triomphe': [0.24, 1.0], parthenon: [0.34, 2.2], 'griffith-observatory': [0.34, 2.3], 'washington-monument': [0.16, 1.0],
   'parliament-hill': [0.26, 2.6], 'mobile-edm-hall': [0.3, 1.05], 'eiffel-tower': [0.30, 1.0], 'tokyo-tower': [0.26, 1.0],
   'empire-state-building': [0.26, 1.3], 'gateway-arch': [0.36, 2.2], 'cloud-gate': [0.32, 1.55], 'statue-of-liberty': [0.24, 1.0],
-  'rizal-monument': [0.28, 1.1],
+  'rizal-monument': [0.28, 1.1], 'tian-tan-buddha': [0.30, 1.0],
 };
 const SUBJECTS = [];
 for (const [shape, [frac, aspect]] of Object.entries(LM)) {
@@ -91,6 +91,7 @@ const STOCK = {
   'rotunda-hemispheric': '6681e517e3b5c073',
   'rotunda-onion': '5faa189a9d631252',
   'rotunda-bulbous': '27145fa19bdb8fd8',
+  'tian-tan-buddha': '4c4f20c3c5d1577b',   // added with the shape: one builder for every city
 };
 
 describe('metro refacade', () => {
@@ -98,7 +99,7 @@ describe('metro refacade', () => {
     expect(hash(render(s.box))).toBe(STOCK[id]);
   });
 
-  const metro = SUBJECTS.filter((s) => hasRefacade(s.box.shape));
+  const metro = SUBJECTS.filter((s) => hasRefacade(s.box.shape) || s.id === 'tian-tan-buddha');   // one builder for every city
   it.each(metro.map((s) => [s.id, s]))('%s: the metro build stays in its footprint and under its silhouette', (id, s) => {
     const b = { ...s.box, metro: true };
     const faces = render(b);

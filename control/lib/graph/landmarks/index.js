@@ -1,6 +1,7 @@
 import { litFactor, scaleHex, hexToRgb } from '../polygonizer/vexar.js';
 import { buildStatueFigure, buildRizalFigure } from './statue-figure.js';
 import { refacadeBuilding } from './refacade.js';
+import { tianTanBuddhaBuilding } from './tian-tan-buddha.js';
 
 // vgl seam colour = the darkest swatch already in the palette (no hand-picked ink).
 function darkestHex(palette) {
@@ -2469,7 +2470,7 @@ function rizalMonumentBuilding(b, { L, camHint }) {
   return faces;
 }
 
-export const LANDMARK_SHAPES = new Set(['taj', 'cn-tower', 'skytree', 'rogers-centre', 'skydome', 'colosseum', 'arena', 'great-pyramid', 'louvre-pyramid', 'mexican-pyramid', 'petronas-towers', 'big-ben', 'stonehenge', 'chinatown-gate', 'arc-de-triomphe', 'parthenon', 'griffith-observatory', 'washington-monument', 'parliament-hill', 'mobile-edm-hall', 'eiffel-tower', 'eiffel', 'tokyo-tower', 'tokyo', 'empire-state-building', 'empire-state', 'empire', 'gateway-arch', 'gateway', 'cloud-gate', 'chicago-bean', 'bean', 'statue-of-liberty', 'liberty', 'rizal-monument', 'rizal']);
+export const LANDMARK_SHAPES = new Set(['taj', 'cn-tower', 'skytree', 'rogers-centre', 'skydome', 'colosseum', 'arena', 'great-pyramid', 'louvre-pyramid', 'mexican-pyramid', 'petronas-towers', 'big-ben', 'stonehenge', 'chinatown-gate', 'arc-de-triomphe', 'parthenon', 'griffith-observatory', 'washington-monument', 'parliament-hill', 'mobile-edm-hall', 'eiffel-tower', 'eiffel', 'tokyo-tower', 'tokyo', 'empire-state-building', 'empire-state', 'empire', 'gateway-arch', 'gateway', 'cloud-gate', 'chicago-bean', 'bean', 'statue-of-liberty', 'liberty', 'rizal-monument', 'rizal', 'tian-tan-buddha', 'big-buddha', 'tian-tan']);
 
 // Approximate overall height as a multiple of the footprint's MIN side — the silhouette
 // each builder actually reaches (taj finial ≈ 0.88·side; cn-tower mast = 3.72·side;
@@ -2513,6 +2514,9 @@ export const LANDMARK_HEIGHTS = {
   liberty: 3.0,
   'rizal-monument': 1.0, // bronze figure at the base of a granite obelisk; tip at ≈ 1·short side (modest, ≈¾ of a city building)
   rizal: 1.0,
+  'tian-tan-buddha': 0.95, // seated bronze Buddha on a lotus over a three-tier round altar; crown at ≈ 0.9·side
+  'big-buddha': 0.95,
+  'tian-tan': 0.95,
 };
 
 export function isLandmarkShape(shape) {
@@ -2548,5 +2552,6 @@ export function renderLandmarkBuilding(b, ctx) {
   if (b.shape === 'cloud-gate' || b.shape === 'chicago-bean' || b.shape === 'bean') return cloudGateBuilding(b, ctx);
   if (b.shape === 'statue-of-liberty' || b.shape === 'liberty') return statueOfLibertyBuilding(b, ctx);
   if (b.shape === 'rizal-monument' || b.shape === 'rizal') return rizalMonumentBuilding(b, ctx);
+  if (b.shape === 'tian-tan-buddha' || b.shape === 'big-buddha' || b.shape === 'tian-tan') return tianTanBuddhaBuilding(b, ctx);
   return null;
 }

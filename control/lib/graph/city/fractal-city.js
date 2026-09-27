@@ -794,6 +794,9 @@ const LANDMARK_FOOTPRINT = {
   liberty: { frac: 0.24, aspect: 1.0 },
   'rizal-monument': { frac: 0.28, aspect: 1.1 }, // hexagonal granite base + centred obelisk, bronze figure in the front gap
   rizal: { frac: 0.28, aspect: 1.1 },
+  'tian-tan-buddha': { frac: 0.30, aspect: 1.0 }, // round three-tier altar with its front stair, the seated Buddha on top
+  'big-buddha': { frac: 0.30, aspect: 1.0 },
+  'tian-tan': { frac: 0.30, aspect: 1.0 },
 };
 
 // A LANDMARK anchor: one or more named monuments laid out as an adjacent CLUSTER, centred

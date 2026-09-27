@@ -77,6 +77,16 @@ loops and the recipe format are unchanged.
   landmark boxes; the religious and civic boxes already carry it from their metro mass. Each builder
   stays inside its footprint and under the stock silhouette, so plazas, roads and cameras are
   unchanged. Every non-metro box keeps its stock builder, so stored cities render the same bytes.
+- **The Tian Tan Buddha is a monument** (`landmark: 'tian-tan-buddha'`, aliases `big-buddha` and
+  `tian-tan`), drawn by one builder for every city. It is the seated bronze Buddha on a lotus, set on a
+  three-tier round altar modelled on the Temple of Heaven's, with a stair up the front and the six
+  kneeling Devas on the second tier. The figure is low-poly masses hung on the vajra armature's pose:
+  FK arms (the right hand raised palm out, the left in the lap) and authored lotus legs, since the hip
+  cone stops at 62°. The head is the vajra figure's own, cut from a bare figure build, re-meshed, and
+  shaded in bronze under the curled-hair cap and the ushnisha. The first build costs about 1 s, then it
+  is memoised.
+- `decimateFaces` (the vertex-clustering re-mesh the Liberty and Rizal refacades use) moves into the
+  kit. Their output is byte-identical.
 - `landmarks/refacade-kit.js`: the shared face primitives (box, prism, lathe, column, gable, and a
   wall frame with proud panels, painted openings and round or pointed arch heads).
 - Machine gate: `landmarks/refacade.test.js` pins the stock bytes of every seeded subject and checks
