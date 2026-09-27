@@ -12,6 +12,7 @@ const { generateWidgetScript } = require('./helper/widget-generator');
 const { validateApiKey } = require('./middleware/auth');
 const { extractSearchTerms } = require('./helper/analytics');
 const { initFormSubmission, isFormSubmissionEnabled, sendFormHome } = require('./helper/form-submission');
+const { publicConfig, resolveWebhookUrl, postFormWebhook, createSendWebhookHandler } = require('./helper/form-webhook');
 const client = require('prom-client');
 require('dotenv').config();
 
@@ -144,7 +145,14 @@ const PORT = process.env.PORT || 3000;
 // Trust first proxy (K8s ingress/load balancer) for correct client IP in rate limiting
 app.set('trust proxy', 1);
 
-app.use(cors());
+// The chat page and the embeddable widget call the bot cross-origin, so CORS
+// stays open, except on /api/send-webhook: that route is operator-only (API
+// key) and has no business being called from a browser on another site.
+// Express matches routes case-insensitively and ignores a trailing slash, so
+// compare the same way.
+const openCors = cors();
+const isSendWebhook = (req) => req.path.toLowerCase().replace(/\/+$/, '') === '/api/send-webhook';
+app.use((req, res, next) => (isSendWebhook(req) ? next() : openCors(req, res, next)));
 app.use(express.json());
 
 // Prometheus HTTP request tracking middleware
@@ -190,7 +198,7 @@ app.get('/', (req, res) => {
     html = html.replace(/<title>.*?<\/title>/, `<title>${config.config.name}</title>`);
 
     // Load form structure if isForm is enabled
-    const configToInject = { ...config.config };
+    const configToInject = publicConfig(config.config);
     if (config.config.isForm && config.config.formStructure) {
         const formStructurePath = path.join(__dirname, config.config.formStructure);
         configToInject.formStructure = JSON.parse(fs.readFileSync(formStructurePath, 'utf-8'));
@@ -381,6 +389,14 @@ const extractLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 30,
     message: 'Too many extraction requests, please try again later'
+});
+
+// /api/submit-form is public and each call can post to the operator's
+// completion webhook, so cap it like /handoff.
+const submitFormLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    message: 'Too many form submissions, please try again later'
 });
 
 // 5MB raw image cap. Enforced post-parse against the decoded byte length so
@@ -1747,7 +1763,7 @@ function getConversationHistory(conversationId, maxTurns = null) {
 
 app.get('/context', async (req, res) => {
     // Load form structure if isForm is enabled
-    const response = { ...config.config };
+    const response = publicConfig(config.config);
     if (config.config.isForm && config.config.formStructure) {
         const formStructurePath = path.join(__dirname, config.config.formStructure);
         response.formStructure = JSON.parse(fs.readFileSync(formStructurePath, 'utf-8'));
@@ -1844,43 +1860,17 @@ app.get('/health', (req, res) => {
     res.json(health);
 });
 
-// API: Proxy webhook requests to avoid CORS issues
-// Called by client when formCompletionWebhook is configured
-app.post('/api/send-webhook', async (req, res) => {
-    try {
-        const { webhookUrl, data } = req.body;
+// API: re-send a payload to the configured form-completion webhook. Operator
+// only (API key); it never posts to a URL taken from the request. The chat
+// client does not call it: /api/submit-form posts completed forms itself.
+app.post('/api/send-webhook', validateApiKey, createSendWebhookHandler({
+    getWebhookUrl: () => resolveWebhookUrl(config),
+}));
 
-        if (!webhookUrl || !data) {
-            return res.status(400).json({ error: 'webhookUrl and data are required' });
-        }
-
-        console.log(`Proxying webhook to: ${webhookUrl}`);
-
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-
-        if (response.ok) {
-            console.log(`Webhook sent successfully: ${response.status}`);
-            res.json({ success: true, status: response.status });
-        } else {
-            const errorText = await response.text();
-            console.error(`Webhook failed: ${response.status} ${errorText}`);
-            res.status(response.status).json({ error: `Webhook failed: ${response.status}`, details: errorText });
-        }
-    } catch (error) {
-        console.error('Error proxying webhook:', error);
-        res.status(500).json({ error: 'Failed to send webhook', details: error.message });
-    }
-});
-
-// API: Capture completed form data locally; optionally relay to control plane.
+// API: Capture completed form data locally; optionally relay to control plane
+// and to the configured form-completion webhook.
 // Called by client when form collection is complete (regardless of webhook config).
-app.post('/api/submit-form', async (req, res) => {
+app.post('/api/submit-form', submitFormLimiter, async (req, res) => {
     try {
         const { conversationId, formData, metadata } = req.body;
 
@@ -1907,10 +1897,23 @@ app.post('/api/submit-form', async (req, res) => {
             metadata ? JSON.stringify(metadata) : null
         );
 
+        let completionWebhook = 'disabled';
+        const completionWebhookUrl = resolveWebhookUrl(config);
+        if (completionWebhookUrl) {
+            const result = await postFormWebhook(completionWebhookUrl, {
+                timestamp: new Date().toISOString(),
+                conversationId,
+                formData,
+                metadata: metadata || {},
+            });
+            completionWebhook = result.success ? 'sent' : 'failed';
+        }
+
         res.json({
             success: true,
             captured: true,
             webhook: webhookStatus,
+            completionWebhook,
         });
     } catch (error) {
         console.error('Error in /api/submit-form:', error);

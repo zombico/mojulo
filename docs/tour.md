@@ -42,7 +42,7 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 
 - **Buildings and interiors** — furnished floorplans that stack (`levels[]` gives a building storeys, stairs through the slabs, set-back terraces as real decks), bespoke buildings authored as masses and concourses, and caves and dungeons grown procedurally. All traversable, all exportable.
 - **Cities, hubs and campuses** — `compose_world` picks a base (a recursive skyline, an airport or station, a K-12 campus, a planetary body, a walkable Cayley graph) and a theme, then takes the base's own knobs. A city declares what one unit is in metres, so mechanics and exports scale with it.
-- **Landscapes** — painterly terrain composed from sky, palette and geometry glyphs, or map-backed from real geo data.
+- **Landscapes** — painterly terrain composed from sky, palette and geometry glyphs.
 - **Drivable worlds** — a live world you walk, fly or platform through, with the camera and entities as first-class primitives; an `action` base adds rules (score, timer, spawns, pickups). Opt-in WebXR on walkable worlds. A volumetric effects layer rides over the mesh.
 - **Study objects** — animated science and math explainers (fission, the double slit, a derivative, DNA) from one kind plus a few knobs. The catalog is open: an attached recipe book adds chapters and whole new kinds.
 
@@ -265,7 +265,7 @@ Open the dashboard separately anytime with `npx -y -p mojulo mojulo-ui`.
 - **Derived outputs.** Exported `.glb` / `.usdz` / `.stl` / `.3mf` / `.wav` files, engine packs and game folders write to plain files you can open in anything. Nothing is locked to the runtime.
 - **Encryption / keys.** Provider keys, if you save any, are AES-256-GCM encrypted at rest.
 
-No telemetry. No phone-home. Outbound traffic is explicit and listed: npm at install; a handful of one-time lazy downloads on first use (the embedding model, a pinned browser for scene bakes if you have none, ffmpeg for MP4 stitching, geo data for map-backed landscapes); an update check when your agent asks for one; and whatever your agent and anything you deploy yourself initiate. Full list, with where each cache lands: [docs/tech-requirements.md](tech-requirements.md#network-posture).
+No telemetry. No phone-home. Outbound traffic is explicit and listed: npm at install; a handful of one-time lazy downloads on first use (the embedding model, a pinned browser for scene bakes if you have none, ffmpeg for MP4 stitching); an update check when your agent asks for one; and whatever your agent and anything you deploy yourself initiate. Full list, with where each cache lands: [docs/tech-requirements.md](tech-requirements.md#network-posture).
 
 ---
 

@@ -22,7 +22,7 @@ The three build entry points — chat builder, modular wizard, and MCP build too
 
 [DockerDeployer.deploy()](../../control/lib/deployers/docker.js) composes `instructions.txt`, copies prebaked `embeddings.json`, writes `config/`, `docker-compose.yml`, `.env`, `.env.example`, and `README.md`, then zips the artifact. Build modes are prebuilt-image by default and offline-build when `MOJULO_OFFLINE_BUILD=1`.
 
-[cloudDeploy()](../../control/lib/deployers/cloud-deploy.js) builds the artifact if stale, harvests config files, decrypts the LLM key, and hands off to [FlyDeployer](../../control/lib/deployers/fly.js). Fly deploy injects per-bot config as base64 files through the Machines API; the image remains bot-agnostic.
+[cloudDeploy()](../../control/lib/deployers/cloud-deploy.js) builds the artifact if stale, harvests config files, decrypts the LLM key, and hands off to [FlyDeployer](../../control/lib/deployers/fly.js). Fly deploy injects per-bot config as base64 files through the Machines API and sets the LLM key and the bot's `MOJULO_API_KEY` as Fly app secrets (never in the machine config); the image remains bot-agnostic.
 
 ## Fleet aggregation
 
@@ -164,7 +164,7 @@ Four worked recipes that either feed a bot or read one. The main line now carrie
 - **PII back through the LLM.** The form-gathering protocol's design point is that PII bypasses the LLM at *capture* time. This recipe deliberately reintroduces it at *routing* time, since classifying on insurance carrier or chief complaint requires reading those fields. Fine for many setups; worth thinking through against the data-handling posture you advertised to end users.
 - **Irreversible writes.** For CRM creates, welcome-email sends, anything you can't easily undo — design the skill to propose the routing decision and confirm before firing, rather than fire-and-forget. The MCP tool surface doesn't enforce this; the skill's prompt does.
 
-**Not event-driven.** Skills are invoked, not subscribed — there's no MCP path that fires on a new submission. If you need true event delivery, point the bot's form webhook ([server.js](../../lite-template/server.js)'s `/api/send-webhook` proxy) at a listener you control; the skill then becomes the "what to do with what arrived" half, invoked by you or the listener-side automation.
+**Not event-driven.** Skills are invoked, not subscribed — there's no MCP path that fires on a new submission. If you need true event delivery, point the bot's `formCompletionWebhook` at a listener you control (the bot POSTs each completed form there from `/api/submit-form`); the skill then becomes the "what to do with what arrived" half, invoked by you or the listener-side automation.
 
 ### 4. Sampled mention scan → analytical handoff
 

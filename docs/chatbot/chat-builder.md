@@ -8,11 +8,10 @@ The wizard's internals are out of scope here, but the convergence point is the s
 
 ## Why this shape
 
-Three properties drive the design:
+Two properties drive the design:
 
 1. **Claude is the orchestrator, not the author.** Each step the user would manually click in the wizard becomes a tool. The handlers do the actual work — chunking documents, calling embedding models, generating form schemas, writing deployment rows. Claude picks which tools to call in what order, but never invents a config value from free-form text. This means a chat-builder bot's config is the typed output of the same handlers a wizard-builder bot would invoke; the two paradigms produce byte-equivalent artifacts because the work happens in the handlers, not in the LLM's prose.
-2. **Two-tier intent evaluation gates the system prompt.** Before the main builder runs, a separate cheap Claude call (the [evaluator](../../control/lib/builder/evaluator.js)) classifies the user's message as either *high assistance* (vague request — guided flow) or *low assistance* (detailed spec — direct orchestration). Heuristics in [shouldSkipEvaluation](../../control/lib/builder/evaluator.js#L144) short-circuit the obvious cases without an LLM call (≤10 words + docs = high; ≥100 words = low). The main builder gets a different system prompt depending on the result, so a power user with a 200-word spec doesn't get walked through "what's a knowledge base?"
-3. **Streaming with structured event overlays.** The route is Server-Sent Events end-to-end. On top of Claude's own SSE, the route emits 20+ custom event types — `tool_started`, `tool_completed`, `protocols_recommended`, `identity_composed`, `modulo_expression` — so the UI can react to specific milestones (advance a stepper, animate the Modulo avatar, surface a confirmation card) without re-parsing model text. The text channel and the event channel are independent.
+2. **Streaming with structured event overlays.** The route is Server-Sent Events end-to-end. On top of Claude's own SSE, the route emits 20+ custom event types — `tool_started`, `tool_completed`, `protocols_recommended`, `identity_composed`, `modulo_expression` — so the UI can react to specific milestones (advance a stepper, animate the Modulo avatar, surface a confirmation card) without re-parsing model text. The text channel and the event channel are independent.
 
 ---
 
@@ -23,21 +22,7 @@ Three properties drive the design:
                                     │
                                     ▼
                   ┌─────────────────────────────────┐
-                  │ shouldSkipEvaluation (heuristic)│
-                  └────────────┬────────────────────┘
-                               │ skip? ───────────────► default level
-                               │ no
-                               ▼
-                  ┌─────────────────────────────────┐
-                  │ evaluateIntent (separate Claude │
-                  │ call, cheap, no docs read)      │
-                  │ → high|low + extracted context  │
-                  └────────────┬────────────────────┘
-                               │
-                               ▼
-                  ┌─────────────────────────────────┐
                   │ buildBuilderSystemPrompt        │
-                  │ (branches by assistance level)  │
                   └────────────┬────────────────────┘
                                │
                                ▼
@@ -237,11 +222,10 @@ The one notable runtime difference: the chat builder calls `buildArtifact` inlin
 |------|------|
 | [control/app/chat-builder/page.jsx](../../control/app/chat-builder/page.jsx) | Route entry; mounts `InvertedModularChatPanel` |
 | [control/components/ModularChat/InvertedModularChatPanel.jsx](../../control/components/ModularChat/) | The chat UI: input box, message list, status pills, confirmation cards |
-| [control/app/api/builder/stream/route.js](../../control/app/api/builder/stream/route.js) | The SSE endpoint: evaluator call, system prompt, tool loop, event stream |
+| [control/app/api/builder/stream/route.js](../../control/app/api/builder/stream/route.js) | The SSE endpoint: system prompt, tool loop, event stream |
 | [control/lib/builder/tools.js](../../control/lib/builder/tools.js) | The 10 tool definitions (JSON schemas) Claude sees |
 | [control/lib/builder/tool-executors.js](../../control/lib/builder/tool-executors.js) | The handlers — one per tool, dispatched by `executeBuilderTool` |
 | [control/lib/builder/system-prompt.js](../../control/lib/builder/system-prompt.js) | `buildBuilderSystemPrompt` + the high/low assistance branch + edit-mode prompt |
-| [control/lib/builder/evaluator.js](../../control/lib/builder/evaluator.js) | The two-tier intent classifier (heuristic + LLM) |
 | [control/lib/builder/executor.js](../../control/lib/builder/executor.js) | `saveBuilderConfig` — the chat builder's config-row writer |
 | [control/lib/builder/session.js](../../control/lib/builder/session.js) | Session state, protocol toggling, instructions composition |
 | [control/lib/builder/index.js](../../control/lib/builder/index.js) | Module entry point — re-exports the public surface |

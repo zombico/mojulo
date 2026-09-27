@@ -103,6 +103,73 @@ loops and the recipe format are unchanged.
   log off nothing is written to the database or stderr, and the timeout error says there is no
   ledger row. The log stays on by default and stays local.
 
+### Security hardening
+
+- **Bot image 0.5.2: the form webhook is no longer an open relay.** `POST /api/send-webhook` on a
+  deployed bot took its target URL from the request body, with no API key and open CORS, so any
+  visitor could make the bot POST to any address and read back the answer. The bot now posts each
+  completed form to the operator's configured `formCompletionWebhook` itself, from
+  `/api/submit-form` (rate-limited), and `/api/send-webhook` needs the bot's `x-mojulo-api-key`,
+  posts only to that configured URL, no longer echoes the target's response, and sends no CORS
+  headers. The webhook and send-home URLs are no longer included in the config the chat page and
+  `/context` expose. The default pin moves to `ghcr.io/zombico/mojulo-bot:0.5.2`
+  ([lib/deployers/bot-image.js](lib/deployers/bot-image.js), now the one constant the docker and
+  Fly deployers and the `version` / `check_for_updates` readers share; Fly used to need `BOT_IMAGE`
+  set). **The `bot-v0.5.2` image must be published before this npm release, and existing bots must
+  be rebuilt and redeployed to pick up the fix.**
+- **Document upload names no longer reach a file path.** The Office-document parser wrote its temp
+  file to `join(tmpdir(), 'temp-<ms>-' + fileName)`, so a name with `../` in it overwrote and then
+  deleted any file the process could write. Reachable from `upload_document_from_url` (base64 or
+  `url` + `fileName`) and the dashboard's document uploads. The file now gets a fixed name in a fresh
+  private `mkdtemp` directory, keeping only a sanitized extension, and the directory is removed
+  afterwards.
+- **`upload_document_from_url` refuses private addresses.** It fetched any http(s) URL from the
+  operator's machine, following redirects, so it could read `127.0.0.1` services, the LAN or cloud
+  metadata. The fetch now checks the resolved address at connect time and on every redirect hop
+  and refuses loopback, link-local, private, carrier-grade NAT, multicast and reserved ranges
+  (IPv4, IPv6, v4-mapped and NAT64) ([lib/net/public-fetch.js](lib/net/public-fetch.js)). Set
+  `MOJULO_ALLOW_PRIVATE_URLS=1` to allow them for local development.
+- **Saved provider keys are encrypted under a per-install key.** With `API_KEY_ENCRYPTION_KEY`
+  unset (the default), keys and tokens were encrypted under `sha256('mojulo-lite-local-dev')`, a
+  constant in the source, while a comment called it host-derived. The fallback is now a random
+  32-byte key created on first use at `$MOJULO_HOME/secret.key` (mode 0600, written atomically);
+  the MCP server, the dashboard and `mojulo init` / `config` share it through the same
+  `MOJULO_HOME`. `API_KEY_ENCRYPTION_KEY` still takes precedence. Keys saved by 2.1.x still decrypt,
+  and each process re-encrypts any such `api_keys` row under the new key before its first read.
+  Deleting `secret.key` makes the saved keys unreadable (re-save them).
+- **The dashboard refuses DNS-rebinding and cross-site requests.** With login off (the default),
+  `middleware.js` let every request through, so a web page in the operator's browser could reach
+  the dashboard's API, including document upload and deploy, by rebinding its own hostname to
+  127.0.0.1 or by posting cross-site. It now answers 403 to any request whose `Host` is not
+  `localhost`, `127.0.0.1`, `[::1]` or `MOJULO_UI_HOST`, and to any non-GET request whose `Origin`
+  is not the dashboard's own or whose `Sec-Fetch-Site` is `cross-site`
+  ([lib/auth/request-guard.js](lib/auth/request-guard.js)). The check runs with login on too.
+  Callers presenting the `CONTROL_PLANE_MCP_KEY` bearer skip it; `/api/mcp` and `/api/health` stay
+  outside the middleware as before.
+- **`mint_solid` `via:'prompt'` no longer picks an LLM key for the caller.** The keyed polygonizer
+  door (and its hidden alias `create_polygonized_sketch`, and `POST /api/polygonizer`), called with
+  no `provider`, quietly decrypted the operator's saved default OpenAI/Anthropic key, or any saved
+  one, and sent the prompt to that API. `provider` is now required; the key is `apiKey`, the saved
+  key named by `apiKeyId`, or the saved key for that same provider, and the response's `keySource`
+  says which. `ollama` without a host uses the local default. The schema, the `manji-tree` card,
+  the scene-illustration routing card and `get_substrate` fact 5 now say the door calls an external
+  LLM API with the user's key, and `translate_modeler_lingo` routes to the key-free `via:'packet'`
+  door instead of the keyed alias.
+- **Fly deploys put credentials in Fly secrets.** The operator's decrypted OpenAI/Anthropic key and
+  the bot's `MOJULO_API_KEY` went into the Fly machine config's `env`, readable by anyone who can
+  read the machine. They are now set as Fly app secrets (GraphQL `setSecrets`) before the machine
+  is created or updated, and the machine config carries only non-secret env. The unused
+  `getCloudDeployer`, which read `FLY_API_TOKEN` from the environment, is removed; the Fly token
+  still comes only from the encrypted store.
+- **Dead code with network and credential reach removed.** `lib/graph/geo/` (the map illustrator's
+  Natural Earth and OpenStreetMap Nominatim fetchers; nothing had imported it since the last caller
+  was dropped) and its `map-boundary` sketch-vocab card, which told agents to call a function no
+  tool exposes, are deleted, and geo data leaves the outbound-traffic lists in `get_substrate`, the
+  README, the tour and `docs/tech-requirements.md`. Stored sketches with a `manifest.geo` block
+  still validate. `lib/builder/evaluator.js`, an unused intent classifier that read
+  `BUILDER_ANTHROPIC_API_KEY` and imported the uninstalled `@anthropic-ai/sdk`, is deleted with its
+  re-export.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

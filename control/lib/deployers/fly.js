@@ -13,14 +13,34 @@
  *   - Pattern 4: Lifecycle ops are thin platform mappings.
  *   - Pattern 5: deploy() accepts an onProgress callback for audit-trail
  *                events; the lifecycle wrapper persists them.
+ *   - Credentials (the LLM key, the bot's MOJULO_API_KEY) go in as Fly app
+ *     secrets, never in the machine config, where anyone who can read the
+ *     machine (`fly machine status`, the Machines API) would see them.
  *
  * Credentials are passed by constructor parameter — never read globally —
  * so future per-user token storage drops in without changing this file.
  */
 
 import crypto from 'crypto';
+import { DEFAULT_BOT_IMAGE } from './bot-image.js';
 
 const FLY_API_BASE = 'https://api.machines.dev/v1';
+const FLY_GRAPHQL_URL = 'https://api.fly.io/graphql';
+
+// Env names that carry credentials: ANTHROPIC_API_KEY, OPENAI_API_KEY,
+// MOJULO_API_KEY, *_TOKEN, *_SECRET, *_PASSWORD.
+const SECRET_ENV_NAME = /(^|_)(KEY|TOKEN|SECRET|PASSWORD)$/;
+
+/** Split a deploy env into plain machine env and credentials for Fly secrets. */
+export function splitSecretEnv(env = {}) {
+  const plain = {};
+  const secrets = {};
+  for (const [name, value] of Object.entries(env)) {
+    if (SECRET_ENV_NAME.test(name)) secrets[name] = value;
+    else plain[name] = value;
+  }
+  return { plain, secrets };
+}
 
 const DEFAULT_GUEST = { cpu_kind: 'shared', cpus: 1, memory_mb: 1024 };
 const DEFAULT_REGION = 'iad';
@@ -52,14 +72,16 @@ export class FlyDeployer {
     this.apiToken = apiToken;
     this.orgSlug = orgSlug;
     // Cloud always wants a public registry pin. In the common case BOT_IMAGE
-    // already points at GHCR, so fall back to it. Set MOJULO_CLOUD_IMAGE only
-    // when the cloud tag needs to diverge from the local docker-compose tag
-    // (e.g. BOT_IMAGE is a laptop tag like `mojulo/bot:latest`). The registry
-    // check below catches that case regardless of which env var supplied it.
+    // already points at GHCR, so fall back to it, then to the pinned default
+    // the docker path uses. Set MOJULO_CLOUD_IMAGE only when the cloud tag
+    // needs to diverge from the local docker-compose tag (e.g. BOT_IMAGE is a
+    // laptop tag like `mojulo/bot:latest`). The registry check below catches
+    // that case regardless of which env var supplied it.
     this.image =
       image ||
       process.env.MOJULO_CLOUD_IMAGE ||
-      process.env.BOT_IMAGE;
+      process.env.BOT_IMAGE ||
+      DEFAULT_BOT_IMAGE;
     if (!this.image || !this.image.includes('/')) {
       throw new Error(
         `Cloud image "${this.image}" has no registry prefix; Fly will route it through Docker Hub. ` +
@@ -117,7 +139,8 @@ export class FlyDeployer {
    * @param {Object} params
    * @param {string} params.appName       Deterministic app name (use computeAppName)
    * @param {Array}  params.configFiles   [{ guestPath, contents }] — written into the container at machine create
-   * @param {Object} params.env           Env vars for the bot process (LLM key, MOJULO_API_KEY, DOCKER_RUN, etc.)
+   * @param {Object} params.env           Env vars for the bot process (LLM key, MOJULO_API_KEY, DOCKER_RUN, etc.);
+   *                                      credential-named ones are set as Fly secrets instead (splitSecretEnv)
    * @param {string} [params.region]
    * @param {Object} [params.guest]       cpu_kind, cpus, memory_mb
    * @param {number} [params.volumeGb]
@@ -139,6 +162,14 @@ export class FlyDeployer {
     onProgress({ step: 'app', message: `Ensuring Fly app ${appName} exists` });
     await this._ensureApp(appName);
 
+    const { plain, secrets } = splitSecretEnv(env);
+    const secretNames = Object.keys(secrets);
+    if (secretNames.length) {
+      // Before the machine is created or updated, so it boots with them.
+      onProgress({ step: 'secrets', message: `Setting Fly secrets ${secretNames.join(', ')}` });
+      await this._setSecrets(appName, secrets);
+    }
+
     onProgress({ step: 'ips', message: `Ensuring public IPs for ${appName}` });
     await this._ensureIps(appName);
 
@@ -147,7 +178,7 @@ export class FlyDeployer {
 
     onProgress({ step: 'machine_config', message: 'Building machine config' });
     const machineConfig = this._buildMachineConfig({
-      env,
+      env: plain,
       configFiles,
       volumeId,
       guest,
@@ -216,6 +247,28 @@ export class FlyDeployer {
     if (!hasV6) await this._allocateIp(appName, 'v6');
   }
 
+  async _graphql(label, query, variables) {
+    const res = await fetch(FLY_GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`Fly GraphQL ${res.status} ${label}: ${text}`);
+    }
+    const data = JSON.parse(text);
+    if (data.errors && data.errors.length) {
+      const err = new Error(`Fly GraphQL ${label}: ${data.errors[0].message || ''}`);
+      err.graphqlMessage = data.errors[0].message || '';
+      throw err;
+    }
+    return data.data;
+  }
+
   async _allocateIp(appName, type) {
     const query = `
       mutation($input: AllocateIPAddressInput!) {
@@ -224,30 +277,36 @@ export class FlyDeployer {
         }
       }
     `;
-    const res = await fetch('https://api.fly.io/graphql', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: { input: { appId: appName, type } },
-      }),
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(
-        `Fly GraphQL ${res.status} allocateIpAddress(${type}): ${text}`
-      );
-    }
-    const data = JSON.parse(text);
-    if (data.errors && data.errors.length) {
-      const msg = data.errors[0].message || '';
+    try {
+      await this._graphql(`allocateIpAddress(${type})`, query, {
+        input: { appId: appName, type },
+      });
+    } catch (err) {
       // Race: another deploy raced us and already allocated this type.
-      if (/already/i.test(msg)) return;
-      throw new Error(`Fly GraphQL allocateIpAddress(${type}): ${msg}`);
+      if (/already/i.test(err.graphqlMessage || '')) return;
+      throw err;
     }
+  }
+
+  /**
+   * Set app secrets (merged with any already set). Fly exposes them to the
+   * app's machines as env vars when a machine is created or updated.
+   */
+  async _setSecrets(appName, secrets) {
+    const query = `
+      mutation($input: SetSecretsInput!) {
+        setSecrets(input: $input) {
+          app { name }
+        }
+      }
+    `;
+    await this._graphql('setSecrets', query, {
+      input: {
+        appId: appName,
+        secrets: Object.entries(secrets).map(([key, value]) => ({ key, value: String(value) })),
+        replaceAll: false,
+      },
+    });
   }
 
   async _ensureVolume(appName, region, sizeGb) {

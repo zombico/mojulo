@@ -88,7 +88,7 @@ Two layers of defense, both important:
 
 Default to **bulk inserts** (one statement per run, all rows in one batch). Reasons: cheaper per-row, atomic from the warehouse's perspective, easier to reason about for incremental loads. Streaming inserts are tempting for "near-real-time" but introduce per-row cost and break the idempotency story when retries land.
 
-If the user's volume is high enough to need streaming (>~1000 submissions/hour sustained), this catalyst isn't the right tool — the bot's webhook ([server.js](../../lite-template/server.js)'s `/api/send-webhook`) is the architecturally-correct path for event-driven warehouse loading, and the workflow becomes "drain the webhook DLQ" rather than "scan the bot's SQLite." Surface this distinction to the user if their submission rate is in that range.
+If the user's volume is high enough to need streaming (>~1000 submissions/hour sustained), this catalyst isn't the right tool — the bot's `formCompletionWebhook` (posted by [server.js](../../lite-template/server.js)'s `/api/submit-form`) is the architecturally-correct path for event-driven warehouse loading, and the workflow becomes "drain the webhook DLQ" rather than "scan the bot's SQLite." Surface this distinction to the user if their submission rate is in that range.
 
 ## Pitfalls
 

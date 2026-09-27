@@ -269,12 +269,12 @@ const SUBSTRATE_FACTS = `## Substrate facts — derive posture answers from thes
 
 When the operator asks a meta-question about mojulo itself — "does it phone home?", "where does my data live?", "is my customers' data safe?", "do I have to pay for anything?", "how do I uninstall?" — derive the answer from these invariants rather than guessing. Each names its own check.
 
-1. **Process.** One local control-plane process; the dashboard and this MCP are two faces over the same state. Two MCP transports: stdio (the npm-package default) has no auth — the parent process is the boundary; the HTTP route \`/api/mcp\` is bearer-gated on \`CONTROL_PLANE_MCP_KEY\` and 404s while that key is unset, by design. The packaged dashboard entry binds 127.0.0.1; a repo checkout's \`npm run dev\` does not pin a host. Runtime daemons (triggers, app supervision) are opt-in and off by default (*check: \`list_daemons\`, \`list_running\`*).
+1. **Process.** One local control-plane process; the dashboard and this MCP are two faces over the same state. Two MCP transports: stdio (the npm-package default) has no auth — the parent process is the boundary; the HTTP route \`/api/mcp\` is bearer-gated on \`CONTROL_PLANE_MCP_KEY\` and 404s while that key is unset, by design. The packaged dashboard entry binds 127.0.0.1; a repo checkout's \`npm run dev\` does not pin a host. Either way the dashboard refuses requests addressed to a non-loopback Host (unless \`MOJULO_UI_HOST\` names it) and writes from another origin. Runtime daemons (triggers, app supervision) are opt-in and off by default (*check: \`list_daemons\`, \`list_running\`*).
 2. **State.** One SQLite under \`$MOJULO_HOME\` (\`~/.mojulo/\` on an npm install; \`version\` reports the active home), plus \`data/cookbook/\` (kept recipes, as plain files), \`data/outcomes/\` (derived renders), and — with the chatbot pack — \`artifacts/\` (bot zips) and \`storage/\` (uploaded documents). No launch agents, no system services, no other footprint.
 3. **Bot data.** Each compiled bot keeps conversations and form submissions in its own SQLite; the control plane reads them live through an authenticated proxy and never copies them into its own DB (*check: \`verify_chain\` walks a bot's hash chain*).
-4. **Network.** No telemetry, no phone-home. Outbound traffic happens only on explicit actions: update checks (npm/GHCR) via \`check_for_updates\`, image/model pulls during bot builds, Fly deploys if the operator configures Fly, a one-time Chrome-for-Testing fetch the first time a world motion is baked without a browser on the host, geo data (Natural Earth / Nominatim) fetched and disk-cached the first time a map-backed landscape renders, and whatever the bots/services the operator builds call themselves.
-5. **The LLM flows that leave the machine** all belong to the chatbot pack: a *running bot* sends conversation turns to its configured provider — OpenAI, Anthropic, or local Ollama, which keeps even that on-machine — and, with the pack installed, the bot builder and its config generators (forms, RAG) call the operator's saved provider key from the control plane. Everything in the studio and the automation backend parks inference on the connecting agent; mojulo holds no LLM credentials on that path (the polygonizer behind \`mint_solid\` is the key-free packet/submit pair; its retired keyed alias stays callable only so persisted plans keep executing).
-6. **Credentials.** The substrate stores nothing it isn't handed: provider keys the operator explicitly saves are AES-256-GCM encrypted at rest under \`API_KEY_ENCRYPTION_KEY\`; with that variable unset a fixed development key is used, so set it before saving a real key. Exactly one artifact needs an LLM key of its own — a compiled bot.
+4. **Network.** No telemetry, no phone-home. Outbound traffic happens only on explicit actions: update checks (npm/GHCR) via \`check_for_updates\`, image/model pulls during bot builds, Fly deploys if the operator configures Fly, a one-time Chrome-for-Testing fetch the first time a world motion is baked without a browser on the host, and whatever the bots/services the operator builds call themselves.
+5. **The LLM flows that leave the machine** belong to the chatbot pack, bar one opt-in studio door (end of this fact): a *running bot* sends conversation turns to its configured provider — OpenAI, Anthropic, or local Ollama, which keeps even that on-machine — and, with the pack installed, the bot builder and its config generators (forms, RAG) call the operator's saved provider key from the control plane. Everything in the studio and the automation backend parks inference on the connecting agent, with one opt-in exception: \`mint_solid\` \`via:'prompt'\` (and its retired alias \`create_polygonized_sketch\`) sends the prompt to the provider the caller names (\`provider\` is required, nothing is picked for you) with the operator's key for it; the polygonizer's \`via:'packet'\` door is key-free.
+6. **Credentials.** The substrate stores nothing it isn't handed: provider keys the operator explicitly saves are AES-256-GCM encrypted at rest under a random per-install key in \`$MOJULO_HOME/secret.key\` (mode 0600), or under \`API_KEY_ENCRYPTION_KEY\` when that is set; deleting the key file makes saved keys unreadable. Exactly one artifact needs an LLM key of its own — a compiled bot.
 7. **Money.** Mojulo is free, Apache-2.0, no account, no subscription. Operating costs are the operator's: LLM provider usage for deployed bots, and optional Fly.io hosting on the operator's own Fly account. The open-source mojulo stays open source and never carries telemetry; a separately offered mojulo cloud on standard hosted services may be explored if there is demand, as its own opt-in product that changes nothing about the local install (TERMS.md, "The open-source commitment").
 8. **Artifacts.** Everything minted is a tiny seeded deterministic recipe; exports are plain files (zip, HTML, glb, stl, WAV, MIDI, a Godot project) that run without mojulo. Nothing is locked to the runtime.
 9. **Keeping and sharing.** \`save_recipe\` promotes a tuned artifact into the operator's own COOKBOOK at \`data/cookbook/\` — plain \`card.md\` + \`recipe.json\` folders in a local git repo with **no remote**, recallable later by intent through \`semantic_search\` because the agent writes the card's \`when\` line from the conversation. Sharing is the operator's act with their own git; the substrate never pushes. The kind catalog is likewise extensible from disk: cloning the public recipe book (\`MOJULO_RECIPE_BOOK\`) adds recipes and whole new view kinds, strictly additive, never fetched at runtime. A cookbook IS a valid book — the two formats are identical, which is what makes sharing free (*check: \`get_view_vocab\` shows kept entries with \`source: 'cookbook'\`*).
@@ -625,7 +625,7 @@ export const FORM_TOOLSETS = {
 - \`get_sketch_vocab\` — read a sketch-vocab card in full (layout math + example marks for one paradigm: \`donut-ring\`, \`stacked-bar\`, \`stat-tile\`, \`grid-layout\`, \`z-layering\`, \`pipeline\`, …). Pair with \`semantic_search({ kinds: ['sketch_vocab'] })\`. Omit \`id\` to list available cards.
 - \`get_style_vocab\` — read the STYLE presets (drawing-discipline templates: \`steamboat\`, \`ukiyo-e\`, \`photo-realism\`, \`louvrijks\`, …, plus \`clay-render\` — the untextured grey-model register the dream/reconstruction loops default to) that \`renderBrief\` locks on image / keyframe-animation / scene-motion sketches. Omit \`id\` to list. Presets are TEMPLATES — fork via \`renderBrief.overrides\` or author a custom style inline. Applying one style to a scene's cast clips + plate is its cohesion (the plate inherits the cast style by default).
 - \`diff_sketches\` — scratch visual diff between two sketch refs. Matches stations/marks structurally; highlights green (added) / red (removed) / amber (changed) / blue (moved). Returns \`{ ok, ref, url, verdict, similarity, summary }\` or \`verdict: 'too_different'\` (refuses to mint without \`force: true\`).
-- Natural-language → sketch (the polygonizer, keyed or key-free) is now an authoring door of the 3D-solid mint in the "object" toolset (kind \`manji-tree\`, \`via:'prompt'\` or \`via:'packet'\`). for the marks turn.`,
+- Natural-language → sketch (the polygonizer, keyed or key-free) is now an authoring door of the 3D-solid mint in the "object" toolset (kind \`manji-tree\`: \`via:'packet'\` is key-free; \`via:'prompt'\` calls an LLM API with the user's key and needs \`provider\`). for the marks turn.`,
   },
   'illustration': {
     title: "Scene & figure illustration",
@@ -1314,11 +1314,7 @@ export async function customProtocolHandler(_input, _ctx) {
 }
 
 // Reads at call time so a runtime env change (e.g. user toggles
-// MOJULO_OFFLINE_BUILD) shows up without a process restart. The BOT_IMAGE
-// default mirrors lib/deployers/docker.js — when that pin moves, this one
-// should too, but a stale display here just means the tool reports the
-// older tag; deploys still use the docker.js value.
-const DEFAULT_BOT_IMAGE = 'ghcr.io/zombico/mojulo-bot:0.5.1';
+// MOJULO_OFFLINE_BUILD) shows up without a process restart.
 
 export async function versionHandler(_input, _ctx) {
   const payload = {
@@ -1326,7 +1322,7 @@ export async function versionHandler(_input, _ctx) {
     protocolVersion: PROTOCOL_VERSION,
     node: process.version,
     platform: { os: process.platform, arch: process.arch },
-    botImage: process.env.BOT_IMAGE || DEFAULT_BOT_IMAGE,
+    botImage: getBotImagePin().image,
     offlineBuild: process.env.MOJULO_OFFLINE_BUILD === '1',
     mojuloHome: process.env.MOJULO_HOME || null,
   };
@@ -1502,7 +1498,7 @@ function controlPlaneInstallHint(latest, sourceClone) {
 }
 
 function botImageUpdateHint(repo, latestTag) {
-  return `Bump \`BOT_IMAGE\` in control/.env to \`${repo}:${latestTag}\` (and the matching constant in control/lib/deployers/docker.js), then rebuild affected bots.`;
+  return `Bump \`BOT_IMAGE\` in control/.env to \`${repo}:${latestTag}\` (and the default pin in control/lib/deployers/bot-image.js), then rebuild affected bots.`;
 }
 
 export async function checkForUpdatesHandler(_input, _ctx) {

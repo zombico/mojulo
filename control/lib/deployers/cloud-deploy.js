@@ -111,7 +111,7 @@ async function resolveLlmEnv(deployment) {
   } catch (err) {
     throw new Error(
       `Failed to decrypt the saved "${provider}" API key. ` +
-        `If API_KEY_ENCRYPTION_KEY changed, re-save the key in Settings. (${err.message})`
+        `If API_KEY_ENCRYPTION_KEY or $MOJULO_HOME/secret.key changed, re-save the key in Settings. (${err.message})`
     );
   }
 
@@ -148,7 +148,7 @@ async function buildProviderDeployer(provider) {
     } catch (err) {
       throw new Error(
         'Failed to decrypt the saved Fly.io token. ' +
-          `If API_KEY_ENCRYPTION_KEY changed, re-save the key in Settings. (${err.message})`
+          `If API_KEY_ENCRYPTION_KEY or $MOJULO_HOME/secret.key changed, re-save the key in Settings. (${err.message})`
       );
     }
     return new FlyDeployer({

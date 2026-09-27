@@ -90,7 +90,6 @@ are cached, and are skipped entirely if you already have the tool:
 |---|---|---|---|
 | Chrome for Testing (pinned build in [chromium.js](../control/lib/graph/scene/chromium.js)) | First explicit render that needs a browser: a world `forge_motion`, `export_game` hangar portraits, `create_game` with `auto_audit`, or the dashboard's PNG download. The tool result carries a `browser_download` notice. A mint's background warm and the gallery's thumbnails never download it; with no browser they skip | **~500 MB** | Chrome, Chromium, Edge, or Brave is installed at a standard path, or `MOJULO_CHROMIUM` points at one (mojulo then launches that browser headless, with its sandbox on) |
 | ffmpeg static build (pinned in [ffmpeg.js](../control/lib/motion/ffmpeg.js), from github.com/eugeneware/ffmpeg-static) | First MP4 encode: `stitch_motion`, or `forge_motion` with `export: 'mp4'`. The download's SHA-256 is pinned per platform and checked before it is unpacked or run; a mismatch fails the encode | ~19–30 MB download | `ffmpeg` is on PATH or `MOJULO_FFMPEG` points at one |
-| Geo data (Natural Earth, Nominatim) | First map-backed landscape | small, disk-cached | — |
 | Embedding model | `mojulo install recall` (never on a default install) | ~130 MB | Already in `~/.mojulo/models/` |
 
 > **Where the browser and ffmpeg caches live.** `~/.mojulo/chromium` and `~/.mojulo/ffmpeg`, beside

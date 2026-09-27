@@ -1247,7 +1247,7 @@ const STASH_RECIPES = {
       { name: 'ch-3-closing', role: 'chapter', hint: 'Closing beat — resolution, button, cliffhanger.' },
     ],
     items: [
-      { type: 'sketch', role: 'page', drawer: 'ch-1-opening', repeat: '1–4 per chapter', hint: 'Each sketch is one page. Author with create_polygonized_sketch or create_sketch using `depiction.panelRecipe` (sunday-comic, manga-high-eye-control, american-comic-widescreen-panels, monoculous) and `depiction.lettering.carriers` for balloons. body_md is the editor note (visible at all fidelities). Optional metadata.comic.{spread, fidelity, role} per page.' },
+      { type: 'sketch', role: 'page', drawer: 'ch-1-opening', repeat: '1–4 per chapter', hint: 'Each sketch is one page. Author with mint_solid (kind manji-tree, via packet, key-free) or create_sketch using `depiction.panelRecipe` (sunday-comic, manga-high-eye-control, american-comic-widescreen-panels, monoculous) and `depiction.lettering.carriers` for balloons. body_md is the editor note (visible at all fidelities). Optional metadata.comic.{spread, fidelity, role} per page.' },
     ],
     notes: [
       'Default fidelity is `nemu` (rough storyboard). The viewer ships a fidelity dial to flip stage in-place — no re-cook.',
