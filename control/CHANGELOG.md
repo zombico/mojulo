@@ -64,7 +64,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     downloads the matching version on first use (`MOJULO_UI_NO_FETCH=1` refuses). It answers 403 to
     a `Host` other than loopback, `MOJULO_UI_HOST` or a name in `MOJULO_UI_ALLOWED_HOSTS`, and to a
     cross-site write, so a LAN, proxy or tunnel setup needs `MOJULO_UI_ALLOWED_HOSTS`.
-  - `mint_solid` `via:'prompt'` requires `provider` and no longer picks a saved default key.
+  - `mint_solid` `via:'prompt'` requires `provider`: nothing chooses the provider for you any more.
+    The key is `apiKey`, the saved key named by `apiKeyId`, or else your saved key for the provider
+    you name.
   - Exported World pages are self-contained by default again (`world.html`, no third-party fetch);
     `cdn: true` writes `world.cdn.html`, and `world.offline.html` is no longer written.
   - Stored `floorplan` and `condo-complex` rows that relied on the old room defaults re-render
@@ -120,7 +122,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 - Saved provider keys are encrypted under a random per-install key (`$MOJULO_HOME/secret.key`, mode
   0600) instead of a constant in the source. The dashboard refuses DNS-rebinding and cross-site
-  requests. `mint_solid` `via:'prompt'` never picks an LLM key for the caller.
+  requests. `mint_solid` `via:'prompt'` never chooses the LLM provider for the caller: `provider` is
+  required, and the key is `apiKey`, the saved key `apiKeyId` names, or the caller's saved key for
+  that provider.
 - Chrome for Testing downloads only for an explicit render and says so (never under the Claude
   plugin, below); headless Chromium keeps its sandbox (on Linux it falls back only on Chrome's
   sandbox errors or as root); the ffmpeg download is SHA-256 pinned; everything mojulo writes lazily
