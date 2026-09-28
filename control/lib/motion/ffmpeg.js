@@ -35,6 +35,7 @@ import { createGunzip } from 'node:zlib';
 import { pipeline as streamPipeline } from 'node:stream/promises';
 import https from 'node:https';
 import path from 'node:path';
+import { trackDownload } from '@/lib/net/download-log';
 
 // Pinned ffmpeg-static release (see github.com/eugeneware/ffmpeg-static). Asset
 // names are `ffmpeg-${platform}-${arch}.gz`; platform/arch are Node's own.
@@ -207,7 +208,8 @@ export async function resolveFfmpeg({ allowFetch = true, get = httpsGet } = {}) 
 
   try {
     console.error(`[mojulo] downloading ffmpeg ${FFMPEG_STATIC_RELEASE} (SHA-256 pinned) from ${url} into ${path.dirname(onDisk)}…`);
-    await fetchVerifiedStatic({ url, sha256, destBin: onDisk, get });
+    await trackDownload(`ffmpeg ${FFMPEG_STATIC_RELEASE} (20 to 30 MB) from github.com into ${path.dirname(onDisk)}`, () =>
+      fetchVerifiedStatic({ url, sha256, destBin: onDisk, get }));
   } catch (err) {
     const wrapped = new Error(noFfmpegMessage(`fetch failed: ${err.message}`));
     if (err.code) wrapped.code = err.code;

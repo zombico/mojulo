@@ -151,6 +151,14 @@ loops and the recipe format are unchanged.
   timeout (`MOJULO_MCP_TOOL_TIMEOUT_MS`, or a tool's own budget) now applies either way; with the
   log off nothing is written to the database or stderr, and the timeout error says there is no
   ledger row. The log stays on by default and stays local.
+- **Render tools get a 10-minute budget, and a timeout names the download it waited on.**
+  `forge_motion`, `stitch_motion`, `export_game` and `create_game` can first download Chrome for
+  Testing (~500 MB) or ffmpeg and then bake frames, which ran past the 120 s default, and the
+  `browser_download` notice that rides in the result was lost with it. They now carry a 600 s
+  budget (the pack that dispatches one carries its largest member's budget, so it does not cut the
+  member off first), `MOJULO_MCP_TOOL_TIMEOUT_MS` can raise a tool's own budget but no longer
+  lowers it, and a timeout error names any Chrome or ffmpeg download that was running or started
+  during the call.
 
 ### Security hardening
 

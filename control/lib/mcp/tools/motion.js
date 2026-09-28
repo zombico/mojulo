@@ -36,6 +36,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import { registerTool } from '@/lib/mcp/server';
+import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { getMotionVocabCatalog } from '@/lib/graph/motion-vocab/loader';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { StashRepository } from '@/lib/db/repositories/stashes';
@@ -794,6 +795,8 @@ export async function getMotionVocabHandler(input) {
 export function registerMotionTools() {
   registerTool({
     name: 'forge_motion',
+    // May fetch Chrome for Testing or ffmpeg first, then bake frames: past the 120 s default.
+    timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       `Put a mojulo subject in MOTION and render an animated artifact — a self-contained CSS flipbook SVG (plays anywhere an <img> goes) plus an animated GIF; opt into a downloadable MP4. Motion is an OUTPUT concern, the sibling of illustration and cook: it CONSUMES a static subject and adds TIME, filed as a deterministic "Motion Project" recipe (subject + shot). Reach for "animate / make it move / turn it into a gif / spin it / a turntable / fly through / zoom in / orbit it", AND info-transfer framing "play these charts / a slideshow / a deck / an explainer / a report in motion". FOUR subject families behind one door — read the one you need via get_motion_vocab({ id }) (find it by intent via semantic_search({ kinds: ['motion_vocab'] })): 'camera' (turntable/orbit/push_in/dolly_zoom/flythrough over a manji-tree, figure rig, or terrain subject); 'deck' (a slideshow over ordered charts/sketches — reveals, themes, concept explainers); 'effect' (materialize/transfigure over a carved solid); 'world' (the camera moves plus a 'traversal' input-script run over a traversable three.js world, baked to gif/mp4). Pass the family's subject field (sketch_ref/manji_tree | deck/stash_ref | carved_solid/from/to | world_ref) plus shot ({ motion, params, frames, fps }) and export. RE-FORGE (the iterate surface): pass recipe_ref (an existing motion ref) or its edited recipe.json as recipe — subject+shot come from the recipe. Returns { motion_ref, tag_ref, stash_ref, url, ... }. (Contrast: draw me X → create_sketch / mint_solid; write up / publish X → cook.)`,
     inputSchema: {
@@ -853,6 +856,8 @@ export function registerMotionTools() {
 
   registerTool({
     name: 'stitch_motion',
+    // May fetch Chrome for Testing or ffmpeg first, then bake frames: past the 120 s default.
+    timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       `STITCH multiple already-forged motions into ONE long-form, downloadable MP4 (H.264) — the multi-clip sibling of forge_motion (forge makes one clip; stitch plays N end-to-end as a film). Reach for "stitch these together / combine the gifs / join the clips / make one long video / a movie out of these motions". Pass clips as an ordered list of motion refs (mo_...); each is snapshot-at-build (frames baked in, survives source deletion), letterboxed into one canvas, resampled to the output fps keeping real-time duration. CUT-only transitions; MP4-only (no GIF); warns but never refuses on large builds. A stitch is itself a motion outcome (its own mo_... folder + Motion Project tag). Parameter manual: get_motion_vocab({ id: 'stitch' }). Returns { motion_ref, url, mp4_path, clips, frames, duration_seconds, warning }.`,
     inputSchema: {

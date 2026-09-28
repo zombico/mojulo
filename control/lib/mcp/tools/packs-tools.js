@@ -142,6 +142,13 @@ export function registerPackTools() {
       listed: false,
       // No queue slot — member-level serialization happens in dispatch().
       concurrent: true,
+      // The member's own call is timed inside dispatch(), so the pack's budget only has to outlast
+      // it: the largest member budget (a render tool's), read at call time since members may
+      // register after the packs. Undefined means the default.
+      get timeoutMs() {
+        const budgets = dispatchTargets(pack).map((name) => getRegisteredTool(name)?.timeoutMs || 0);
+        return Math.max(0, ...budgets) || undefined;
+      },
       handler: (input, context) => {
         if (!input || typeof input.tool !== 'string' || input.tool.length === 0) {
           return unveil(pack);

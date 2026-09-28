@@ -562,6 +562,20 @@ describe('iron wall — dispatcher cannot RUN an uninstalled pack tool', () => {
 });
 
 describe('pack dispatcher', () => {
+  // A render tool may first download Chrome for Testing or ffmpeg. Its own budget applies to the
+  // member call, and the pack that dispatches it must not cut it off at the 120 s default first.
+  it('render tools carry the long budget, and so does every pack that dispatches them', async () => {
+    const { RENDER_TOOL_TIMEOUT_MS, DEFAULT_TOOL_TIMEOUT_MS } = await import('@/lib/mcp/telemetry');
+    const { homePackForTool } = await import('@/lib/mcp/packs');
+    for (const name of ['forge_motion', 'stitch_motion', 'export_game', 'create_game']) {
+      expect(server.getRegisteredTool(name).timeoutMs, name).toBe(RENDER_TOOL_TIMEOUT_MS);
+      const pack = homePackForTool(name);
+      expect(server.getRegisteredTool(pack.id).timeoutMs, pack.id).toBeGreaterThanOrEqual(RENDER_TOOL_TIMEOUT_MS);
+    }
+    // A pack with no long member keeps the default.
+    expect(server.getRegisteredTool('pack_audio').timeoutMs ?? DEFAULT_TOOL_TIMEOUT_MS).toBe(DEFAULT_TOOL_TIMEOUT_MS);
+  });
+
   it('bare call unveils: body + member manual with real schemas + grammar line', async () => {
     const res = await callTool('pack_audio', {});
     const text = res.result.content[0].text;

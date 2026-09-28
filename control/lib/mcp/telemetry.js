@@ -26,8 +26,12 @@ import { performance } from 'node:perf_hooks';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
 import { runWithScope, scopeFromContext } from '@/lib/roles/scope';
+import { downloadsSince } from '@/lib/net/download-log';
 
 export const DEFAULT_TOOL_TIMEOUT_MS = 120_000;
+// The render tools that may first download Chrome for Testing (~500 MB) or ffmpeg and then bake
+// frames: forge_motion, stitch_motion, export_game, create_game. Registered with this budget.
+export const RENDER_TOOL_TIMEOUT_MS = 600_000;
 const ERROR_MESSAGE_MAX = 500;
 const CAPTURE_JSON_MAX = 4096;
 
@@ -43,11 +47,22 @@ export function fullCaptureEnabled() {
   return process.env.MOJULO_MCP_TELEMETRY_CAPTURE === 'full';
 }
 
+// A tool's own budget wins over the default. MOJULO_MCP_TOOL_TIMEOUT_MS can raise it (a slow link)
+// but never cut a long render back below it.
 function resolveTimeoutMs(tool) {
-  if (tool && Number.isFinite(tool.timeoutMs) && tool.timeoutMs > 0) return tool.timeoutMs;
-  const env = Number(process.env.MOJULO_MCP_TOOL_TIMEOUT_MS);
-  if (Number.isFinite(env) && env > 0) return env;
-  return DEFAULT_TOOL_TIMEOUT_MS;
+  const raw = Number(process.env.MOJULO_MCP_TOOL_TIMEOUT_MS);
+  const env = Number.isFinite(raw) && raw > 0 ? raw : 0;
+  const own = tool && Number.isFinite(tool.timeoutMs) && tool.timeoutMs > 0 ? tool.timeoutMs : 0;
+  if (own) return Math.max(own, env);
+  return env || DEFAULT_TOOL_TIMEOUT_MS;
+}
+
+// A download the call may have waited on, which its result would have announced.
+function downloadNote(startedAt) {
+  const downloads = downloadsSince(startedAt);
+  if (!downloads.length) return '';
+  const list = downloads.map((d) => `${d.description}${d.done ? '' : ' (still downloading)'}`).join('; ');
+  return ` While it ran, mojulo was downloading: ${list}. Once the download finishes it is reused, so a retry is faster.`;
 }
 
 function truncate(text, max) {
@@ -272,7 +287,8 @@ export async function instrumentedInvoke(tool, input, context, { via, name } = {
         `${calledName} exceeded its ${timeoutMs}ms budget; the work may still be running. ` +
           (logging
             ? 'Check /observability or get_tool_ledger.'
-            : 'The tool-call log is off (MOJULO_MCP_TELEMETRY=off), so no ledger row records it.')
+            : 'The tool-call log is off (MOJULO_MCP_TELEMETRY=off), so no ledger row records it.') +
+          downloadNote(startedAt)
       );
     }
 

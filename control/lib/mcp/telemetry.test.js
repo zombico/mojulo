@@ -8,6 +8,7 @@ import { getDb, closeDb, pruneMcpToolCalls, MCP_TELEMETRY_MAX_ROWS } from '@/lib
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
 import { rememberClientInfo, _resetClientBindingsForTests } from '@/lib/mcp/client-bindings';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
+import { trackDownload, _resetDownloadLog } from '@/lib/net/download-log';
 import { getToolTelemetryHandler } from '@/lib/mcp/tools/context';
 
 // Silence the [mcp] stderr lines the seam emits during the run.
@@ -19,6 +20,7 @@ beforeEach(() => {
   delete process.env.MOJULO_MCP_TELEMETRY;
   delete process.env.MOJULO_MCP_TELEMETRY_CAPTURE;
   delete process.env.MOJULO_MCP_TOOL_TIMEOUT_MS;
+  _resetDownloadLog();
   errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -143,6 +145,36 @@ describe('instrumentedInvoke — config flags', () => {
     await new Promise((r) => setTimeout(r, 5));
     expect(allRows()).toHaveLength(0);
     expect(errSpy.mock.calls.flat().join('\n')).not.toMatch(/\[mcp\] tool=/);
+  });
+
+  // A render's result announces a Chrome or ffmpeg download (`browser_download`); a call that runs
+  // past its budget returns no result, so the timeout error names the download instead.
+  it('a timeout names a download the call was waiting on', async () => {
+    process.env.MOJULO_MCP_TELEMETRY = 'off';
+    let finishDownload;
+    const download = trackDownload('Chrome for Testing 1.2.3 (~500 MB on disk) into /h/chromium', () =>
+      new Promise((res) => { finishDownload = res; }));
+    let resolveLate;
+    const renderTool = {
+      name: 'forge_motion',
+      timeoutMs: 20,
+      handler: () => new Promise((res) => { resolveLate = () => res({ ok: true }); }),
+    };
+    await expect(instrumentedInvoke(renderTool, {}, {}, { via: 'rpc' }))
+      .rejects.toThrow(/exceeded its 20ms budget.*downloading: Chrome for Testing 1\.2\.3 .*\(still downloading\)/);
+    finishDownload();
+    await download;
+    resolveLate();
+    // A later call that started after the download finished is not told about it.
+    const quick = { name: 'forge_motion', timeoutMs: 20, handler: () => new Promise(() => {}) };
+    await new Promise((r) => setTimeout(r, 2));
+    await expect(instrumentedInvoke(quick, {}, {}, { via: 'rpc' })).rejects.not.toThrow(/downloading/);
+  });
+
+  it('MOJULO_MCP_TOOL_TIMEOUT_MS can raise a tool budget but not lower it', async () => {
+    process.env.MOJULO_MCP_TOOL_TIMEOUT_MS = '200';
+    const tool = { name: 'forge_motion', timeoutMs: 20, handler: () => new Promise((res) => setTimeout(() => res('done'), 40)) };
+    expect(await instrumentedInvoke(tool, {}, {}, { via: 'rpc' })).toBe('done');
   });
 
   it('MOJULO_MCP_TELEMETRY=off keeps error semantics without a row', async () => {

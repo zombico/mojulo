@@ -30,6 +30,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { registerTool } from '@/lib/mcp/server';
+import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { emitGameShell } from '@/lib/graph/game/game-shell';
@@ -564,6 +565,8 @@ export async function exportGameHandler(input, context = {}) {
 export function registerExportGameTools() {
   registerTool({
     name: 'export_game',
+    // May fetch Chrome for Testing first, then bake: past the 120 s default.
+    timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       'Materialize a stored game as a portable folder to share — the game '
       + 'sibling of export_model / export_beats, and the first leg of publishing a playable artifact '

@@ -41,6 +41,7 @@ import { puppeteer } from '@/lib/graph/scene/puppeteer-lazy';
 
 import { installedGroups } from '@/lib/mcp/packs';
 import { chromiumFetchAllowed, recordChromiumFetch } from '@/lib/graph/scene/chromium-consent';
+import { trackDownload } from '@/lib/net/download-log';
 
 // The Chrome-for-Testing build fetched on first use: the one the installed
 // puppeteer-core is released against (its PUPPETEER_REVISIONS.chrome), so a
@@ -222,7 +223,8 @@ async function fetchChrome() {
   if (existing && existsSync(existing)) return { executablePath: existing, downloaded: false };
 
   console.error(`[mojulo] downloading Chrome for Testing ${buildId} (~500 MB on disk) into ${cacheDir} for an explicit render…`);
-  const installed = await install({ browser: Browser.CHROME, buildId, cacheDir });
+  const installed = await trackDownload(`Chrome for Testing ${buildId} (~500 MB on disk) into ${cacheDir}`, () =>
+    install({ browser: Browser.CHROME, buildId, cacheDir }));
   console.error(`[mojulo] Chrome for Testing ${buildId} downloaded to ${installed.executablePath}`);
   return { executablePath: installed.executablePath, downloaded: true };
 }

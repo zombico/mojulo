@@ -19,6 +19,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
@@ -168,6 +169,8 @@ export async function getGameVocabHandler(input) {
 export function registerGameTools() {
   registerTool({
     name: 'create_game',
+    // May fetch Chrome for Testing first, then bake: past the 120 s default.
+    timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       'Mint a GAME — a standalone playable artifact composed of levels you have already minted as '
       + 'worlds (the fifth creatable paradigm — composition over Media: levels, music, art). A game '
