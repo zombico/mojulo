@@ -97,7 +97,6 @@ export default function MapBody({ authEnabled = false }) {
 
       {counts && (
         <div className="moj-part-b flex flex-wrap gap-x-10 gap-y-4 px-5 py-4">
-          <CountStat label={t('counts.bots')} value={counts.bots} />
           <CountStat label={t('counts.apps')} value={counts.apps} />
           <CountStat label={t('counts.servers')} value={counts.servers} />
           <CountStat label={t('counts.services')} value={counts.services} />
@@ -117,7 +116,6 @@ export default function MapBody({ authEnabled = false }) {
           {t('legend.ground')}
         </span>
         <LegendChip swatchClass="bg-slate-400/40" label={t('legend.apps')} />
-        <LegendChip swatchClass="bg-purple-400/40" label={t('legend.bots')} />
       </div>
 
       {error && (
