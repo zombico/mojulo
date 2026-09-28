@@ -128,6 +128,12 @@ export function resolveRock(rock) {
   if (!r) throw new Error(`rock: unknown preset '${rock}' (have ${ROCK_PRESET_IDS.join(', ')}, or give { modes:[[mineral, share], …], grain })`);
   return r;
 }
+/** A rock's modal mean colour, [r, g, b] 0–255: each mineral's colour (the rock's own override first) weighted by its share. */
+export function rockMeanRgb(rock) {
+  const r = resolveRock(rock); let tot = 0; const out = [0, 0, 0];
+  for (const [m, f] of r.modes) { const h = (r.colors?.[m] ?? MINERALS[m].color).replace('#', ''); for (let k = 0; k < 3; k++) out[k] += f * parseInt(h.slice(2 * k, 2 * k + 2), 16); tot += f; }
+  return out.map((v) => v / tot);
+}
 /** Errors (strings) for a `rock` value; [] when it resolves. */
 export function validateRockMix(rock, at = 'rock') {
   if (typeof rock === 'string') return ROCK_PRESETS[rock] ? [] : [`${at}: unknown preset '${rock}' (have ${ROCK_PRESET_IDS.join(', ')})`];

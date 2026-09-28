@@ -622,6 +622,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // non-casting groups (interiors): a roof/ceiling group that receives but never casts, so it
     // can't blanket the floor in shadow. Key present only when declared ⇒ existing worlds unchanged.
     ...(Array.isArray(castShadows.noCastGroups) && castShadows.noCastGroups.length ? { noCast: castShadows.noCastGroups } : {}),
+    // rock-scale shadows: contact slack and FIT floor in world units, present only when declared (bytes unchanged otherwise)
+    ...(Number.isFinite(castShadows.bias) && castShadows.bias > 0 ? { bias: castShadows.bias } : {}),
+    ...(Number.isFinite(castShadows.fitMin) && castShadows.fitMin > 0 ? { fitMin: castShadows.fitMin } : {}),
   }) : '';
   const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: !!castShadows }) : '';
   // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place

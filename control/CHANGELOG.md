@@ -14,6 +14,41 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Cliffs and mountains
+
+- **Landforms.** A painted landscape may carry `landform`: an ordered list of operations on its surface, mixed in
+  any order.
+  - `peaks`: ridged mountains on the two-regime roughness law.
+  - `strata`: beds. A hard bed stands as a cliff with a bench on top; a soft bed lies back.
+  - `scarp`: a cliff line along a path, tapering to its tips.
+  - `joints`: steep ground breaks into facets on the rock's joint sets (blocky, columnar or slabby).
+  - `talus`: each face sheds debris, which settles at the angle of repose below it, with power-law scree on the
+    apron.
+
+  Hardness couples them: with `erosion` declared, rivers cut soft beds and not hard ones, and bedrock holds its
+  face instead of slumping. Every consumer reads the result, as with `erosion`. Absent, every landscape is
+  byte-identical.
+- **Faces with detail.** In the World, a landform terrain is meshed by slicing at shared heights and at every
+  bedding plane. A cliff gets polygons in proportion to its height, and flat ground stays whole. The face is then
+  articulated: hard beds stand proud, soft beds recess, and the rock's skin follows its fabric. Neighbours share
+  every cut, so the mesh has no cracks. The CSS scene keeps the plain grid. `?render=raymarch` falls back to the mesh
+  for `landform` and `erosion`, which it cannot draw.
+
+### Nature scenes
+
+- **Landscape boulders are rocks.** A painted landscape may carry `rocks` (a rock preset, or `{ rock, variants,
+  detail, tone, sink }`). Its scene's boulders then become instances of a few pooled `rock` templates instead of
+  boxes, each template baked at its own yaw in the terrain's light. They ride `repeats`, one shared mesh per variant,
+  to the World, the `.glb`, USD and 3MF. The CSS scene draws each boulder as its exact far-LOD block. `tone:
+  'palette'` (the default) keeps the painting's colours. Absent, every landscape is byte-identical.
+- **Shadows at rock scale.** `shadows.bias` (contact slack in world units) and `shadows.fitMin` (the fitted
+  shadow box's floor) make cast shadows land on sub-metre and metre-scale subjects. The defaults (1.1 units, 60
+  units) were sized for city worlds. They are emitted only when declared.
+- **Erosion.** A painted landscape may carry `erosion`. Its height is baked on a grid, cut by stream-power incision
+  along the drainage network, and relaxed toward a talus angle, deterministically. Every consumer then reads the
+  eroded surface: the still, the World, the city and the scatter. It is the large-scale law the rock study measured
+  (continental relief is smoother than fracture), made by process instead of by noise. Absent, byte-identical.
+
 ### Rock formation
 
 - **A rock is a field shape.** `{ kind:'rock' }` joins the workbench `fields` shapes beside `expr`. It is a
