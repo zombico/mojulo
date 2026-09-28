@@ -1,13 +1,13 @@
 // Test-environment install state.
 //
-// Since 2.0 the chatbot pack is OPT-IN: a default install has no bot factory
-// (lib/mcp/packs.js, INSTALL_GROUPS.chatbot is marker-file gated). Almost every
-// suite here tests a CAPABILITY, not the install gate, so the default for tests
-// is a full workshop — otherwise hundreds of unrelated assertions would be
-// asserting the advisory instead of the behaviour.
+// Pins the install groups to creative only, so a suite measures the same surface on
+// every machine: without it, physical detection would add the recall group wherever
+// @huggingface/transformers happens to resolve (lib/mcp/packs.js, INSTALL_GROUPS).
+// Until 3.0 this also turned the chatbot pack on; that pack left mojulo with the
+// chatbot factory.
 //
 // This is a floor, not an override: it only fills MOJULO_PACKS when nothing set
 // it, so a suite that deliberately exercises gating (packs.test.js sets the env
 // per case, or passes an explicit env object that never reads process.env) still
 // controls its own state.
-process.env.MOJULO_PACKS ||= 'creative,chatbot';
+process.env.MOJULO_PACKS ||= 'creative';

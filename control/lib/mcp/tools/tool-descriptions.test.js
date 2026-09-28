@@ -81,7 +81,6 @@ const DESCRIPTION_ALLOWLIST = {
   // route curated + local origins and the mint author-guide hand-off.
   // Shrink-only from these snapshots.
   custom_catalyst: 764,
-  custom_protocol: 791,
   declare_skills: 1041,
   diff_sketches: 875,
   execute_plan: 1314,
@@ -134,7 +133,6 @@ const DESCRIPTION_ALLOWLIST = {
   recommend_mcp_orbit_compositions: 1056,
   record_mcp_capabilities: 1301,
   reference_protocol: 1708,
-  request_chat_decision: 893,
   run_experiment_sweep: 866,
   semantic_search: 2049,
   sketch_plan: 774,

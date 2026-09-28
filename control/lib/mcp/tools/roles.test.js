@@ -14,6 +14,7 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 // ---------------------------------------------------------------------------
 
 import { rolesEnabled, isAdminContext, mintToken, hashToken, resolveBearerUser } from '@/lib/roles/keys';
+import { OUTWARD_TOOLS, LIFECYCLE_TOOLS } from '@/lib/roles/enforce';
 import { UserRepository, LOCAL_ADMIN_ID } from '@/lib/db/repositories/users';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
 
@@ -188,20 +189,20 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
       const ok = await callTool('list_world_themes', {}, privilegedContext({ grants: ['pack_world'] }));
       expect(ok.isError).toBe(false);
 
-      const denied = await callTool('list_deployments', {}, privilegedContext({ grants: ['pack_world'] }));
+      const denied = await callTool('list_cooks', {}, privilegedContext({ grants: ['pack_world'] }));
       expect(denied.isError).toBe(true);
-      expect(denied.text).toMatch(/pack_bot_operate/);
+      expect(denied.text).toMatch(/pack_stash/);
       expect(denied.text).toMatch(/Do not retry/i);
     });
   });
 
   it('the hard deny-list holds even when the home pack is granted', async () => {
     await withRoles(async () => {
-      for (const name of ['set_env', 'inspect_bot_env', 'start_daemon', 'mint_role_key']) {
+      for (const name of ['set_env', 'list_env', 'start_daemon', 'mint_role_key']) {
         const { text, isError } = await callTool(
           name,
           {},
-          privilegedContext({ grants: ['pack_bot_operate', 'pack_runtime'] })
+          privilegedContext({ grants: ['pack_runtime'] })
         );
         expect(isError, `${name} must be denied`).toBe(true);
         expect(text).toMatch(/admin-only|deny-list/i);
@@ -236,7 +237,11 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
     });
   });
 
-  it('outward / lifecycle actions require their flags', async () => {
+  it('lifecycle actions require their flag (no retained tool is outward)', async () => {
+    // save_modular_bot was the one outward tool; it left with the chatbot factory in 3.0.0.
+    // The outward flag stays mintable and checked for the next tool that leaves the host.
+    expect(OUTWARD_TOOLS).toEqual([]);
+    expect(LIFECYCLE_TOOLS).toEqual(['install_scaffold', 'start_app', 'stop_app']);
     await withRoles(async () => {
       const noLifecycle = await callTool(
         'start_app',
@@ -246,15 +251,7 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
       expect(noLifecycle.isError).toBe(true);
       expect(noLifecycle.text).toMatch(/LIFECYCLE/);
 
-      const noOutward = await callTool(
-        'save_modular_bot',
-        {},
-        privilegedContext({ grants: ['pack_bot_build'], flags: { lifecycle: true } })
-      );
-      expect(noOutward.isError).toBe(true);
-      expect(noOutward.text).toMatch(/OUTWARD/);
-
-      // with both flags the auth gate passes (the real handler may still fail
+      // with the flag the auth gate passes (the real handler may still fail
       // on its own terms — that failure must not be an auth denial)
       const flagged = await callTool(
         'start_app',
@@ -268,12 +265,12 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
   it('the pack dispatcher is gated per member (third chokepoint)', async () => {
     await withRoles(async () => {
       const denied = await callTool(
-        'pack_bot_operate',
-        { tool: 'list_deployments', args: {} },
+        'pack_stash',
+        { tool: 'list_cooks', args: {} },
         privilegedContext({ grants: ['pack_world'] })
       );
       expect(denied.isError).toBe(true);
-      expect(denied.text).toMatch(/pack_bot_operate/);
+      expect(denied.text).toMatch(/pack_stash/);
 
       const granted = await callTool(
         'pack_world',
@@ -287,18 +284,18 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
   it('the plan-executor path is gated under the caller context', async () => {
     await withRoles(async () => {
       await expect(
-        server.invokeRegisteredTool('list_deployments', {}, privilegedContext({ grants: [] }))
-      ).rejects.toThrow(/pack_bot_operate/);
+        server.invokeRegisteredTool('list_cooks', {}, privilegedContext({ grants: [] }))
+      ).rejects.toThrow(/pack_stash/);
     });
   });
 
   it('roles off / admin context: authNotice never fires (byte-identical behavior)', async () => {
     // roles off — even a "privileged-shaped" context is not enforced
-    const off = await callTool('list_deployments', {}, privilegedContext());
+    const off = await callTool('list_cooks', {}, privilegedContext());
     expect(off.text).not.toMatch(/does not carry/);
     // roles on, admin — unbounded
     await withRoles(async () => {
-      const admin = await callTool('list_deployments', {}, ADMIN_CONTEXT);
+      const admin = await callTool('list_cooks', {}, ADMIN_CONTEXT);
       expect(admin.text).not.toMatch(/does not carry/);
     });
   });
@@ -322,15 +319,15 @@ describe('listTools filtering (privileged sees their bays; admin sees roles tool
       expect(list).toContain('forward_context'); // spine
       expect(list).toContain('pack_world');
       expect(list).toContain('pack_diagram');
-      expect(list).not.toContain('pack_bot_operate');
+      expect(list).not.toContain('pack_stash');
       expect(list).not.toContain('mint_role_key'); // roles admin never lists for delegates
     });
   });
 
   it('flat mode: granted members only, deny-list hidden', async () => {
     await withRoles(async () => {
-      const list = names('off', privilegedContext({ grants: ['pack_bot_operate'] }));
-      expect(list).toContain('list_deployments'); // granted member
+      const list = names('off', privilegedContext({ grants: ['pack_stash'] }));
+      expect(list).toContain('list_cooks'); // granted member
       expect(list).not.toContain('set_env'); // deny-listed, granted pack or not
       expect(list).not.toContain('compose_world'); // ungranted bay
       expect(list).toContain('forward_context'); // spine
@@ -366,18 +363,18 @@ describe('mint with grants + flags', () => {
 
       const { parsed } = await callTool('mint_role_key', {
         name: 'analyst',
-        grants: ['pack_fleet'],
+        grants: ['pack_research'],
         propose_only: true,
         expires_in_days: 30,
       });
-      expect(parsed.grants).toEqual(['pack_fleet']);
+      expect(parsed.grants).toEqual(['pack_research']);
       expect(parsed.flags).toEqual({ propose_only: true });
-      expect(UserRepository.grantsFor(parsed.userId)).toEqual(['pack_fleet']);
+      expect(UserRepository.grantsFor(parsed.userId)).toEqual(['pack_research']);
       expect(UserRepository.findById(parsed.userId).flags).toEqual({ propose_only: true });
 
       const list = await callTool('list_role_keys', {});
       const analyst = list.parsed.users.find((u) => u.name === 'analyst');
-      expect(analyst.grants).toEqual(['pack_fleet']);
+      expect(analyst.grants).toEqual(['pack_research']);
       expect(analyst.flags).toEqual({ propose_only: true });
     });
   });

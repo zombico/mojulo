@@ -58,14 +58,15 @@ describe('install and update hints under the Claude plugin', () => {
 
   it('names mojulo@<running version> in every install, dependency and update hint', async () => {
     const { distribution: d, packs, embedder, sharp, lazy, exact, scad, union, search } = m;
-    const pluginEnv = { ...PLUGIN, MOJULO_PACKS: 'creative' }; // chatbot and recall absent
+    // recall is the one physical-install group left (the chatbot group left in 3.0.0), and it owns
+    // no pack, so its advice is the group-level install line.
+    const pluginEnv = { ...PLUGIN, MOJULO_PACKS: 'creative' }; // recall absent
     const hints = {
       'mojulo install command': d.mojuloCommand('install recall'),
-      'run-mojulo prose': d.runMojulo('install chatbot'),
+      'run-mojulo prose': d.runMojulo('install recall'),
       'box install command': d.npxMojulo('init --yes --no-ui'),
-      'pack install notice': packs.installNotice('start_new_bot', pluginEnv),
-      'pack dispatcher notice': packs.packInstallNotice(packs.PACKS.find((p) => p.installGroup === 'chatbot'), pluginEnv),
-      'install command for a group': packs.installCommandFor('chatbot'),
+      'group install advice': packs.installAdvice('recall', pluginEnv),
+      'install command for a group': packs.installCommandFor('recall'),
       'recall install line': embedder.recallInstallLine(),
       'recall unavailable error': new embedder.RecallUnavailableError().message,
       'sharp unavailable error': new sharp.SharpUnavailableError(new Error('x')).message,
@@ -106,7 +107,9 @@ describe('install and update hints under the Claude plugin', () => {
     // The plugin starts the server itself; `init` there would only register a second copy.
     expect(substrate).not.toContain('init --yes --no-ui');
     expect(substrate).toContain('where the mojulo plugin starts it');
-    expect(m.server.SERVER_INSTRUCTIONS).toContain(`npx -y ${PINNED} install chatbot`);
+    // The chatbot factory left in 3.0.0; the preamble says where it went, and names no install for it.
+    expect(m.server.SERVER_INSTRUCTIONS).not.toMatch(/install chatbot/);
+    expect(m.server.SERVER_INSTRUCTIONS).toContain((await import('@/lib/mcp/bot-factory-moved')).BOT_FACTORY_MOVED);
   });
 
   it('wires other hosts to the plugin version and adds no second Claude Code server', () => {

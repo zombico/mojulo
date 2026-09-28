@@ -25,52 +25,22 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 
 const EXAMPLE_INDEX = `# Worked examples — one successful flight per paradigm
 
 Pass \`paradigm\` to read one annotated trace (real call sequence, gate moments marked, one refusal + recovery included):
 
-- \`bot\` — build → compile → deploy-ready zip → operate. The chatbot paradigm end to end.
-- \`connected-service\` — declare inventory → bind a primitive → dry-run → seal. MCP-to-MCP with no chatbot.
+- \`connected-service\` — declare inventory → bind a primitive → dry-run → seal. MCP-to-MCP, mojulo as the audit trail.
 - \`app\` — scaffold → commit → start → fulfill parked inference. The local-runner paradigm.
 - \`game\` — mint a level world → watch the promotion gate refuse it → prove it completable → mint the game. The flagship verification-gate trace.
 - \`media\` — stash → gather typed items (one rejection shown) → cook a publication.
 
 Each trace is illustrative (your refs and values will differ) but the call sequence, gate order, and refusal shapes are real.`;
 
-const TRACE_BOT = `# Worked example — Bot (build → compile → operate)
-
-**The shape:** conversation → structured intent → protocol configs → compiled zip on disk → a running bot that phones home. Everything before \`save_modular_bot\` is *proposed* — config accumulating in this MCP connection's builder session; nothing exists on disk yet.
-
-**1. Read the intent.**
-\`infer_intent({ userMessage: "a bot for my pottery studio that answers questions from our class PDF and signs students up for workshops" })\`
-→ \`{ flowType, confidence, capabilities: ['knowledge', 'formGathering'] }\`
-
-**2. Protocols + identity.** *(still proposed — builder-session state only)*
-\`recommend_protocols({ ... })\` → confirms \`knowledge\` + \`formGathering\` for the selected model (the recommendation CLAMPS to what the model reliably supports — a small Ollama model would have dropped formGathering here; that clamp is a refusal-shaped kindness, not a bug).
-\`compose_identity({ ... })\` → \`{ botName: "Kiln & Quill", persona, starterPrompts }\`
-\`generate_form_schema({ ... })\` → the workshop-signup fields.
-
-**3. Documents for the knowledge protocol.**
-\`upload_document_from_url({ url: "https://…/class-guide.pdf" })\` → \`{ documentId }\`
-\`process_documents({ documentIds: [documentId] })\` → \`{ jobId }\` — **async**; poll it:
-\`poll_job({ jobId })\` → \`{ status: 'done' }\` (~10–30s per doc).
-
-**4. The refusal + recovery.** Calling \`save_modular_bot({})\` before the builder session has an identity fails with a validation error naming the missing pieces. Recovery: the builder session is readable — \`get_builder_session({})\` shows exactly what's set and what's missing; fill the gap and retry. (Starting over is \`start_new_bot({})\`, which discards the in-progress config.)
-
-**5. Compile.** *(the materialization gate — this writes to disk)*
-\`save_modular_bot({ sessionId, confirmedProtocols, llm: { provider: 'anthropic', apiKeyId } })\` → \`{ jobId }\`; \`poll_job({ jobId })\` → \`{ status: 'done', result: { deploymentId, artifactPath } }\`
-The \`llm\` choice is the operator's, made explicitly — the deployed bot calls that provider with that key at runtime (\`{ provider: 'ollama' }\` is the local, keyless option). Omit it and the save refuses with the configured choices listed; nothing is lost — re-call with the operator's pick.
-**\`artifactPath\` is the value to hand the user** — the absolute path to the zip. Unzipped + \`npm install && npm start\`, the bot phones home and its deployment row goes live.
-
-**6. Operate.** *(read-once vs watched — these are reads, not bindings)*
-\`list_deployments({})\` → the fleet. \`get_deployment({ id: deploymentId })\` → identity, form schema, protocol configs. Conversations stay IN the bot: \`query_conversations({ id })\` → summaries, \`get_conversation({ id, conversationId })\` → turns. The bot's \`.env\` → \`inspect_bot_env({ deploymentId })\`, never \`cat\`.
-
-**7. The after-life.** "What can this bot do for me now?" → \`recommend_catalysts({ deploymentId })\` — the entry to turning captured signal into action. That's a new flight (see the \`connected-service\` trace for the deliberation half).`;
-
 const TRACE_CONNECTED_SERVICE = `# Worked example — Connected Service (inventory → primitive binding → seal)
 
-**The shape:** no chatbot. The operator wants "every Friday, digest this week's invoices folder into a summary doc." Mojulo is the deliberation anchor + audit trail; the runtime is the operator's own MCPs + your host.
+**The shape:** no conversational runtime. The operator wants "every Friday, digest this week's invoices folder into a summary doc." Mojulo is the deliberation anchor + audit trail; the runtime is the operator's own MCPs + your host.
 
 **1. Declare what's installed.** *(present-state, replace-semantic — the latest declaration is the whole truth)*
 \`meta_context_declare_inventory({ servers: [{ name: 'claude_ai_Google_Drive', tools: [{ name: 'search_files', inputSchema: {…} }, …] }] })\`
@@ -166,7 +136,6 @@ Add a visual: \`create_sketch({ title: 'Yield by plot', manifest: { marks: […]
 **5. Afterlife.** The cook is a first-class deliberation node: \`get_cook({ cook_ref })\` from any ring; if it later reads as tractable work, plan mode seeds from it (\`forge_plan({ source: { kind: 'cook', cook_ref } })\`) — a plan-side decision, not a cook outlet. Housekeeping: \`archive_cook({ cook_ref })\` clears the inbox without touching the folder.`;
 
 const TRACES = {
-  bot: TRACE_BOT,
   'connected-service': TRACE_CONNECTED_SERVICE,
   app: TRACE_APP,
   game: TRACE_GAME,
@@ -185,6 +154,13 @@ export async function workedExampleHandler(input, _ctx) {
     return {
       content: [{ type: 'text', text: EXAMPLE_INDEX }],
       _telemetrySignal: { id_requested: false, found: true },
+    };
+  }
+  // The bot trace left with the chatbot factory in 3.0.0; say where it went.
+  if (paradigm === 'bot') {
+    return {
+      content: [{ type: 'text', text: `No worked example for 'bot' in this version. ${BOT_FACTORY_MOVED}` }],
+      _telemetrySignal: { id_requested: true, found: false },
     };
   }
   // 'creative-mint' was the pre-1.0 name for the media paradigm's trace —
@@ -213,7 +189,7 @@ export function registerWorkedExampleTools() {
   registerTool({
     name: 'get_worked_example',
     description:
-      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs materialized, dry-run vs promoted, sealed vs not recorded), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `bot` (build → compile → operate), `connected-service` (inventory → primitive binding → seal), `app` (scaffold → commit → start → fulfill inference), `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `media` (stash → gather → cook). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
+      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs materialized, dry-run vs promoted, sealed vs not recorded), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `connected-service` (inventory → primitive binding → seal), `app` (scaffold → commit → start → fulfill inference), `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `media` (stash → gather → cook). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
     inputSchema: {
       type: 'object',
       properties: {

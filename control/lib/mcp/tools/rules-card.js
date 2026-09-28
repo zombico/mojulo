@@ -29,7 +29,7 @@ const CLAUSE_STEPS = [72, 48, 32, 0]; // 0 = names only
 const RULES = [
   'Recipes, not renders — an artifact is seeded params that re-render; a PNG/WAV/STL is a derived file bound to it.',
   '`forward_context` first, then one drawer at a time. `semantic_search` when you have an intent but no ref.',
-  'Never read `.env` — use `inspect_bot_env`. No path may log raw secrets, including error paths.',
+  'Never read `.env` — `list_env` names an app\'s keys without their values. No path may log raw secrets, including error paths.',
   'Dry-run before live writes. The operator flips it, not you.',
   'Seal with `meta_context_commit` AFTER the artifact exists, never to declare intent.',
   'Loopback only — stdio is local; HTTP MCP is bearer-gated (404 without `CONTROL_PLANE_MCP_KEY`). No tunnels, no public exposure.',

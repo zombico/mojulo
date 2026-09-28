@@ -26,7 +26,7 @@ describe('parseArgv', () => {
 
   it('parses each command shape', () => {
     expect(parseArgv(['tools'])).toEqual({ command: 'tools', pack: null });
-    expect(parseArgv(['tools', 'pack_fleet'])).toEqual({ command: 'tools', pack: 'pack_fleet' });
+    expect(parseArgv(['tools', 'pack_plan'])).toEqual({ command: 'tools', pack: 'pack_plan' });
     expect(parseArgv(['packs'])).toEqual({ command: 'packs' });
     expect(parseArgv(['help', 'cook'])).toEqual({ command: 'help', name: 'cook' });
     expect(parseArgv(['call', 'version'])).toMatchObject({
@@ -238,7 +238,7 @@ describe('runCli', () => {
   // override that leaves it out must be undone in MOJULO_PACKS, as tools/call already says.
   it('tools tells a MOJULO_PACKS override without creative to fix the override', async () => {
     const saved = process.env.MOJULO_PACKS;
-    process.env.MOJULO_PACKS = 'chatbot';
+    process.env.MOJULO_PACKS = 'recall';
     try {
       const { lines, io } = capture();
       expect(await runCli(['tools'], io)).toBe(0);
@@ -249,6 +249,33 @@ describe('runCli', () => {
     } finally {
       if (saved === undefined) delete process.env.MOJULO_PACKS;
       else process.env.MOJULO_PACKS = saved;
+    }
+  });
+
+  // A 2.x config that still names the chatbot group keeps working; the listing says it is ignored.
+  it('tools and packs say a retired chatbot token is ignored, and list every pack', async () => {
+    const saved = process.env.MOJULO_PACKS;
+    process.env.MOJULO_PACKS = 'creative,chatbot';
+    try {
+      for (const cmd of ['tools', 'packs']) {
+        const { lines, io } = capture();
+        expect(await runCli([cmd], io)).toBe(0);
+        const text = lines.out.join('\n');
+        expect(text).toMatch(/ignored: MOJULO_PACKS=chatbot/);
+        expect(text).not.toMatch(/not installed:/);
+      }
+    } finally {
+      if (saved === undefined) delete process.env.MOJULO_PACKS;
+      else process.env.MOJULO_PACKS = saved;
+    }
+  });
+
+  it('a chatbot-factory tool or pack name says where it went, not "unknown"', async () => {
+    const { BOT_FACTORY_MOVED } = await import('@/lib/mcp/bot-factory-moved');
+    for (const argv of [['call', 'save_modular_bot'], ['help', 'list_deployments'], ['pack_bot_build'], ['tools', 'pack_fleet'], ['pack_runtime', 'emit_chat_signal']]) {
+      const { lines, io } = capture();
+      expect(await runCli(argv, io), argv.join(' ')).toBe(2);
+      expect(lines.err.join('\n'), argv.join(' ')).toContain(BOT_FACTORY_MOVED);
     }
   });
 
@@ -285,10 +312,10 @@ describe('runCli', () => {
 
   it('tools <pack> lists members; unknown pack is a usage error', async () => {
     const { lines, io } = capture();
-    expect(await runCli(['tools', 'pack_fleet'], io)).toBe(0);
+    expect(await runCli(['tools', 'pack_plan'], io)).toBe(0);
     const names = lines.out.map((l) => l.split('\t')[0]);
     expect(names).toEqual(
-      expect.arrayContaining(['fleet_query_conversations', 'fleet_analytics_summary', 'verify_fleet_chains'])
+      expect.arrayContaining(['enter_plan_mode', 'forge_plan', 'list_plans'])
     );
 
     const bad = capture();
@@ -349,18 +376,18 @@ describe('runCli', () => {
 
   it('pack sugar: bare pack unveils; member dispatch runs through the pack', async () => {
     const unveil = capture();
-    expect(await runCli(['pack_fleet'], unveil.io)).toBe(0);
+    expect(await runCli(['pack_plan'], unveil.io)).toBe(0);
     const text = unveil.lines.out.join('\n');
-    expect(text).toMatch(/pack_fleet/);
+    expect(text).toMatch(/pack_plan/);
     expect(text).toMatch(/Member manual/);
 
     const dispatch = capture();
-    expect(await runCli(['pack_bot_operate', 'list_deployments'], dispatch.io)).toBe(0);
+    expect(await runCli(['pack_stash', 'list_cooks'], dispatch.io)).toBe(0);
 
     // A tool that is not a dispatch target of this pack fails at the
     // dispatcher (tool-level error, not usage).
     const wrongPack = capture();
-    expect(await runCli(['pack_fleet', 'list_deployments'], wrongPack.io)).toBe(1);
+    expect(await runCli(['pack_plan', 'list_cooks'], wrongPack.io)).toBe(1);
 
     const unknownPack = capture();
     expect(await runCli(['pack_nope', 'whatever'], unknownPack.io)).toBe(2);

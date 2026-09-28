@@ -273,7 +273,6 @@ const CARVE_FILES = [
   'lib/form-structure-schema.js', // generate-form's schema
   'lib/mcp/jobs.js', // async jobs for process_documents / save_modular_bot
   'lib/mcp/session-binding.js', // binds an MCP session to a BuilderSession
-  'lib/mcp/tools/agent-ui.js', // emit_chat_signal / request_chat_decision, for chat_turn only
   'lib/net/public-fetch.js', // the SSRF guard of upload_document_from_url
   'lib/rate-limiter.js', // rate limits of the bot routes
   'lib/resolve-api-key.js', // LLM key resolution for deployments and previews

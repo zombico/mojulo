@@ -21,6 +21,7 @@ import { registerTool, getRegisteredTool, runToolSerialized } from '@/lib/mcp/se
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 import { PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
 import { authNotice } from '@/lib/roles/enforce';
+import { isRemovedBotTool, botToolMovedNotice } from '@/lib/mcp/bot-factory-moved';
 import { FORM_TOOLSETS } from '@/lib/mcp/tools/context';
 
 // One line per member for the unveil's index: the FORM_TOOLSETS row cut at
@@ -100,6 +101,8 @@ function dispatch(pack, input, context) {
   if (packNotice) throw new Error(packNotice);
   const name = input.tool;
   const targets = new Set(dispatchTargets(pack));
+  // A chatbot-factory member from the 2.x line, dispatched through any pack: say where it went.
+  if (!targets.has(name) && isRemovedBotTool(name)) throw new Error(botToolMovedNotice(name));
   if (!targets.has(name)) {
     const home = homePackForTool(name);
     if (home && home.id !== pack.id) {

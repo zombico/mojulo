@@ -5,15 +5,15 @@
  * forwards parsed JSON-RPC messages here. This module owns the MCP
  * protocol semantics: initialize / tools/list / tools/call.
  *
- * Tools are registered in rings (see [tools/build.js], [tools/operate.js]).
+ * Tools are registered in rings (see registerAllTools below and [tools/]).
  * Each registered tool has:
  *   - name, description, inputSchema (JSON Schema)
  *   - handler(input, context) → result | Promise<result>
  *
  * Execution context carries:
- *   - mcpSessionId — used by session-binding.js to attach a BuilderSession
- *   - userId — 'local' by default (single-operator posture, see
- *     auth/service.js). With the roles pack enabled (MOJULO_ROLES,
+ *   - mcpSessionId — the transport's session id (client bindings, telemetry)
+ *   - userId — 'local' by default (single-operator posture: one local
+ *     operator, no accounts). With the roles pack enabled (MOJULO_ROLES,
  *     roles-pack.plan.md) a delegate key's context carries that user's id
  *     plus userRole; identity is minted only in the transport layer
  *     (buildContext in api/mcp/route.js).
@@ -27,13 +27,14 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, installCommandFor } from '@/lib/mcp/packs';
+import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 // Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
 // and flags ride the execution context, minted in api/mcp/route.js.
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
 import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
+import { BOT_FACTORY_MOVED, isRemovedBotTool, botToolMovedNotice, botToolMovedResult } from '@/lib/mcp/bot-factory-moved';
 
 // MCP spec revisions this server speaks, newest first. `initialize` answers with
 // the revision the client asked for when it is one of these, otherwise the newest
@@ -73,15 +74,16 @@ export const SERVER_INSTRUCTIONS = `Mojulo is a **3D compiler for agents** on th
 What the agent can create — **Media and Game lead; the rest is the automation backend:**
 - **Media** — creative artifacts minted as tiny deterministic recipes, never renders: pictures, objects, worlds, buildings, motion, audio, voice, publications. Entry: \`forward_context()\` — the studio routing index, which is the DEFAULT read.
 - **Game** — composition over Media, playable standalone. Entry: \`create_game\` (routing: the studio).
-- **Connected Service** — a workflow over the operator's installed MCPs, no chatbot. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
+- **Connected Service** — a workflow over the operator's installed MCPs. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
 - **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
-- **Bot** — a chatbot deployed as its own process. Entry: \`start_new_bot\`. **OPT-IN since 2.0:** the chatbot factory is an install-gated pack and is ABSENT from a default install. If its tools are missing here, they are not broken — the operator has not run \`${installCommandFor('chatbot')}\`. Never promise a bot before checking; say it is one install away.
 
-**Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped bot as user secrets. Use \`inspect_bot_env\`, never \`cat\` or \`Read\`.
+**Chatbots are not built here.** ${BOT_FACTORY_MOVED}
 
-Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing — the STUDIO (creative) wing by default; \`forward_context({mode:'office'})\` opens the automation backend when the ask is to wire or operate something rather than to make something. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural/non-bot surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (what mojulo is, posture, costs).`;
+**Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any app scaffold as user secrets: never \`cat\` or \`Read\` them. \`list_env\` names an app's keys without their values.
 
-// Appended to SERVER_INSTRUCTIONS in packs mode only. The five-paradigm
+Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing — the STUDIO (creative) wing by default; \`forward_context({mode:'office'})\` opens the automation backend when the ask is to wire or operate something rather than to make something. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (what mojulo is, posture, costs).`;
+
+// Appended to SERVER_INSTRUCTIONS in packs mode only. The paradigm
 // preamble stays as-is (its entry-tool names remain accurate — they dispatch
 // through their pack); this teaches the one new mechanic.
 export const PACKS_INSTRUCTIONS_ADDENDUM = `
@@ -222,12 +224,12 @@ export function listRegisteredToolNames() {
 // handler to be concurrency-safe, `tools/call` executions serialize through one
 // promise chain: a parallel batch becomes a FIFO queue, every call still
 // succeeds, and no handler ever observes another's half-applied state. This is
-// the in-process sibling of the hand-off buses (mcp_jobs, image_render_requests)
+// the in-process sibling of the hand-off buses (agent tasks, image_render_requests)
 // — they park work BETWEEN parties; this serializes execution WITHIN the plane.
 //
 // Two deliberate exclusions:
-//  - Tools that BLOCK awaiting an external event (the long-polls:
-//    pull_agent_task, request_chat_decision) register `concurrent: true` and
+//  - Tools that BLOCK awaiting an external event (the long-poll
+//    pull_agent_task) register `concurrent: true` and
 //    bypass the queue — a parked 25s wait must never starve the writes behind it.
 //  - `invokeRegisteredTool` (the plan-executor path) is NOT queued: it runs
 //    INSIDE an already-serialized outer tool call (execute_plan holds the queue
@@ -246,7 +248,7 @@ function runSerialized(tool, fn) {
  * Pack tools register `concurrent: true` — they hold NO queue slot — so a
  * dispatched member must re-enter the chain here with the MEMBER's own
  * concurrency flag: a writer serializes as if called directly, a long-poll
- * (pull_agent_task, request_chat_decision) bypasses and never starves the
+ * (pull_agent_task) bypasses and never starves the
  * writes behind it. Without this, a pack dispatch either deadlocks on its own
  * member (if the pack held a slot) or lets writers race (if nothing re-enters).
  */
@@ -264,6 +266,7 @@ export function runToolSerialized(tool, fn) {
  */
 export async function invokeRegisteredTool(name, input, context) {
   const tool = registeredTools.get(name);
+  if (!tool && isRemovedBotTool(name)) throw new Error(botToolMovedNotice(name));
   if (!tool) throw new Error(`Unknown tool: ${name}`);
   const notice = installNotice(name);
   if (notice) throw new Error(notice);
@@ -369,6 +372,11 @@ async function handleToolCall(message, context) {
   const toolInput = params.arguments || {};
 
   const tool = registeredTools.get(toolName);
+  // A chatbot-factory name from the 2.x line: an in-band notice saying where it went, not a
+  // bare unknown-tool error (lib/mcp/bot-factory-moved.js).
+  if (!tool && isRemovedBotTool(toolName)) {
+    return jsonRpcResult(message.id, botToolMovedResult(toolName));
+  }
   if (!tool) {
     return jsonRpcError(
       message.id,
@@ -479,10 +487,6 @@ async function registerAllTools() {
   const { registerContextTools } = await import('@/lib/mcp/tools/context');
   const { registerWorkedExampleTools } = await import('@/lib/mcp/tools/worked-examples');
   const { registerAdapterTools } = await import('@/lib/mcp/tools/adapters');
-  const { registerBuildTools } = await import('@/lib/mcp/tools/build');
-  const { registerJobsTools } = await import('@/lib/mcp/tools/jobs-tools');
-  const { registerOperateTools } = await import('@/lib/mcp/tools/operate');
-  const { registerFleetTools } = await import('@/lib/mcp/tools/fleet');
   const { registerCatalystTools } = await import('@/lib/mcp/tools/catalysts');
   const { registerMetaContextTools } = await import('@/lib/mcp/tools/meta-context');
   const { registerInventoryTools } = await import('@/lib/mcp/tools/mcp-inventory');
@@ -496,7 +500,6 @@ async function registerAllTools() {
   const { registerRunnerTools } = await import('@/lib/mcp/tools/runner');
   const { registerRuntimeDaemonTools } = await import('@/lib/mcp/tools/runtime-daemons');
   const { registerAgentTaskTools } = await import('@/lib/mcp/tools/agent-tasks');
-  const { registerAgentUiTools } = await import('@/lib/mcp/tools/agent-ui');
   const { registerPlanModeTools } = await import('@/lib/mcp/tools/plan-mode');
   const { registerResearchModeTools } = await import('@/lib/mcp/tools/research-mode');
   const { registerResearchSweepTools } = await import('@/lib/mcp/tools/research-sweep');
@@ -534,9 +537,10 @@ async function registerAllTools() {
   // Order matters only for tools/list output (insertion order). Putting
   // forward_context first means clients that surface the tool list to the
   // model see the orientation tool at the top. Adapter tools sit next to
-  // orientation (they're the binding-orientation surface). Fleet tools sit
-  // between per-bot operate and catalysts so the natural reading order is
-  // per-bot → fleet → outcome. meta_context registers LAST as Ring 6 — it's
+  // orientation (they're the binding-orientation surface). The chatbot
+  // factory's rings (build, jobs, operate, fleet, the chat-builder narration
+  // tools) left in 3.0.0; lib/mcp/bot-factory-moved.js answers for their
+  // names. meta_context registers LAST as Ring 6 — it's
   // a deliberation surface, not an orientation or action surface, and reading
   // order should put it after the action rings. Inventory registers
   // immediately after the contextmap tools — it's the third Ring 6 surface
@@ -552,10 +556,6 @@ async function registerAllTools() {
   registerContextTools();
   registerWorkedExampleTools();
   registerAdapterTools();
-  registerBuildTools();
-  registerJobsTools();
-  registerOperateTools();
-  registerFleetTools();
   registerCatalystTools();
   registerMetaContextTools();
   registerInventoryTools();
@@ -599,10 +599,6 @@ async function registerAllTools() {
   registerRunnerTools();
   registerRuntimeDaemonTools();
   registerAgentTaskTools();
-  // agent-ui registers right after agent-tasks — it's the chat-builder worker's
-  // narration + decision surface, used while fulfilling a `chat_turn` task. The
-  // reading order in tools/list stays pull → submit → cancel → emit → decide.
-  registerAgentUiTools();
   // Ring 8 (plan mode) — the PROPOSED layer of the deliberation model: the
   // speculative counterpart to contextmap's committed reality. Sessions that
   // accumulate enough signal forge into Plans (sealed spike schematics) that
