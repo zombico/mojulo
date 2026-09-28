@@ -91,6 +91,7 @@ Two things are opt-in, and the choice is the same in both places:
 |---|---|---|
 | **creative** (installed by default) | plain `npm install` | worlds, audio, fonts for wordmarks, exact booleans, OpenSCAD-in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds it for a kernel-only install that still mints diagrams, floorplans, workbench solids and exports GLB and STL. |
 | **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers, ranking by the words in your ask (about 480 MB of runtime plus a 130 MB model, kept under `~/.mojulo/` so it survives upgrades). Most sessions never need it: the agent reads the tool index and the vocab cards directly. |
+
 `mojulo install` with no argument prints which of the two are present.
 
 The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. `mojulo install chatbot` now installs nothing and prints this notice.
