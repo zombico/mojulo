@@ -77,8 +77,8 @@ can never silently disagree with reality. In [control/lib/mcp/packs.js](../contr
   explicit render (a world `forge_motion`, `export_game` hangar portraits, `create_game` with
   `auto_audit`, the dashboard's PNG download) on a host with no Chromium-family browser still fetches
   Chrome for Testing ([control/lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js));
-  background bakes never do. A `MOJULO_PACKS` override that leaves creative out, or `$MOJULO_CHROMIUM`,
-  prevents it.
+  background bakes never do. A `MOJULO_PACKS` override that leaves creative out, `$MOJULO_CHROMIUM`, or
+  the Claude plugin build (below) prevents it.
 - **The studio needs no install step.** `mojulo install creative`
   ([control/scripts/mcp-install.mjs](../control/scripts/mcp-install.mjs)) installs nothing: it says so and
   lists any optional helper that does not resolve. `mojulo install` with no arg prints status for
@@ -107,6 +107,21 @@ can never silently disagree with reality. In [control/lib/mcp/packs.js](../contr
 
 `sharp` is an `optionalDependency` of its own (it used to arrive through the embedder) and belongs to
 the creative group like the rest of the optional set; `sharp-lazy.js` keeps the kernel up without it.
+
+## The Claude plugin build
+
+When the Claude plugin starts mojulo it sets `MOJULO_DISTRIBUTION=claude-plugin`, and
+`distribution()` ([control/lib/version/distribution.js](../control/lib/version/distribution.js))
+reports `claude-plugin`. Under that distribution, and only there,
+[control/lib/mcp/plugin-profile.js](../control/lib/mcp/plugin-profile.js) leaves out what conflicts with
+Anthropic's Software Directory Policy: the handoff tools for AI image, voice and mesh generators (and
+the kinds, ops, catalysts and cards that drive them), `mint_solid`'s keyed `via:'prompt'` door, every
+automatic download (Chrome for Testing, ffmpeg, the recall model), and the CDN form of an exported
+page. What it leaves out is absent from `tools/list` in flat and packs mode, not named by any
+orientation surface, and refused in-band when called by name, through a pack, from a plan or from the
+CLI. The lists live in that module. Every other distribution is byte-identical to a build without it;
+[control/lib/mcp/plugin-profile.test.js](../control/lib/mcp/plugin-profile.test.js) pins both halves.
+The plugin's listing, [plugins/mojulo/README.md](../plugins/mojulo/README.md), describes the same build.
 
 ## The iron wall — execution integrity, not information hiding
 

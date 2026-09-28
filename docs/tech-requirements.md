@@ -106,6 +106,13 @@ are cached, and are skipped entirely if you already have the tool:
 | ffmpeg static build (pinned in [ffmpeg.js](../control/lib/motion/ffmpeg.js), from github.com/eugeneware/ffmpeg-static) | First MP4 encode: `stitch_motion`, or `forge_motion` with `export: 'mp4'`. The download's SHA-256 is pinned per platform and checked before it is unpacked or run; a mismatch fails the encode | ~19–30 MB download | `ffmpeg` is on PATH or `MOJULO_FFMPEG` points at one |
 | Embedding model | `mojulo install recall` (never on a default install) | ~130 MB | Already in `~/.mojulo/models/` |
 
+> **Under the Claude plugin** (`MOJULO_DISTRIBUTION=claude-plugin`, which the plugin sets), none of
+> these downloads happens on its own. A render uses an installed Chrome, Chromium, Edge or Brave or
+> `MOJULO_CHROMIUM`, and without one the tool says how to install one; an MP4 encode uses an installed
+> ffmpeg or `MOJULO_FFMPEG`; the model arrives only through the user-run `mojulo install recall`.
+> [control/lib/mcp/plugin-profile.js](../control/lib/mcp/plugin-profile.js) lists what else the plugin
+> build leaves out.
+
 > **Where the browser and ffmpeg caches live.** `~/.mojulo/chromium` and `~/.mojulo/ffmpeg`, beside
 > the baked-image caches and figure specs under `~/.mojulo/data/`. Set `MOJULO_CHROMIUM_DIR` /
 > `MOJULO_FFMPEG_DIR` to move them. Before 3.0 they sat inside the installed package (the npx cache
@@ -138,6 +145,11 @@ them rather than say "never":
   default export is self-contained.
 - `mint_solid` with `via: 'prompt'`: the prompt goes to the LLM provider the caller names, with
   the operator's key for it.
+
+Under the Claude plugin the list is shorter: the server fetches no browser, ffmpeg or model on its
+own (with the recall group installed and its model missing, neither a start nor a search downloads
+it; the user-run `install recall` does), `cdn: true` is ignored so every exported page is
+self-contained, and `mint_solid` has no `via: 'prompt'` door, so nothing goes to an LLM provider.
 - Anything your agent's own provider does. That traffic is your agent's, not mojulo's.
 - No Docker, Fly, GHCR, webhook or uploaded-document traffic at all: since 3.0.0 mojulo has no code
   path for them (the chatbot factory that had them is no longer part of mojulo).
