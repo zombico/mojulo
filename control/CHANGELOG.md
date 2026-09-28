@@ -77,7 +77,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `MOJULO_MCP_TELEMETRY=off` stops only the local tool-call log, no longer the tool timeout, and
     `MOJULO_MCP_TOOL_TIMEOUT_MS` can raise a tool's budget but not lower it. Render tools get 600 s.
   - `mojulo install creative` installs nothing (the creative pack always ships), and
-    `mojulo install recall` now works from npm and npx.
+    `mojulo install recall` now works from npm and npx. With the runtime already installed and the
+    search model missing, it fetches the model instead of reporting nothing to do.
 
 ### What 3.0 is
 

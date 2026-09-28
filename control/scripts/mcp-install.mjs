@@ -73,6 +73,16 @@ function recallDir() {
   return path.join(mojuloHome(), RECALL_DIR);
 }
 
+function modelsDir() {
+  return process.env.MOJULO_MODELS_DIR || path.join(mojuloHome(), 'models');
+}
+
+// The file scripts/fetch-embed-model.js checks for once the model is in place (the model it names,
+// pinned in lib/embedder/local.js).
+function recallModelPresent() {
+  return fs.existsSync(path.join(modelsDir(), 'Xenova', 'multilingual-e5-small', 'onnx', 'model_quantized.onnx'));
+}
+
 function recallInstalled() {
   if (fs.existsSync(path.join(recallDir(), 'node_modules', RECALL_PACKAGE, 'package.json'))) return true;
   try {
@@ -84,11 +94,17 @@ function recallInstalled() {
 }
 
 // Installs the embedding runtime under $MOJULO_HOME/recall and fetches the model.
-// Returns the exit code. Idempotent: an installed group is reported, not redone.
+// Returns the exit code. Idempotent: an installed group is reported, not redone. A runtime whose
+// model is missing (a fetch that failed once, a cleared models/ dir) gets the model fetched: the
+// Claude plugin build never fetches it on its own, so this command is the one that does.
 async function installRecall() {
   if (recallInstalled()) {
-    process.stdout.write('Recall group already installed (the embedding runtime resolves). Nothing to do.\n');
-    return 0;
+    if (recallModelPresent()) {
+      process.stdout.write('Recall group already installed (the embedding runtime resolves). Nothing to do.\n');
+      return 0;
+    }
+    process.stdout.write(`The embedding runtime is installed, but its model is not in ${modelsDir()}.\n`);
+    return fetchRecallModel();
   }
   const dir = recallDir();
   fs.mkdirSync(dir, { recursive: true });
@@ -117,6 +133,11 @@ async function installRecall() {
     process.stderr.write('\nRecall group install did not complete — the embedding runtime is still not resolvable.\n');
     return code || 1;
   }
+  return fetchRecallModel();
+}
+
+// Fetches the model into $MOJULO_HOME/models (scripts/fetch-embed-model.js). Returns the exit code.
+async function fetchRecallModel() {
   process.stdout.write('\nFetching the embedding model (~130 MB, once) …\n');
   const fetched = await run(
     process.execPath,
@@ -126,15 +147,19 @@ async function installRecall() {
       env: {
         ...process.env,
         MOJULO_HOME: mojuloHome(),
-        MOJULO_MODELS_DIR: process.env.MOJULO_MODELS_DIR || path.join(mojuloHome(), 'models'),
+        MOJULO_MODELS_DIR: modelsDir(),
       },
     },
   );
   if (fetched !== 0) {
+    // The Claude plugin build never fetches the model on its own (lib/embedder/local.js): running
+    // this command again is the way there. Elsewhere the server also fetches it when it next starts.
+    const later = distribution() === 'claude-plugin'
+      ? '.\n'
+      : '; the MCP server also fetches it when it next starts (and again on the first embedding call if that fails too)'
+        + (distribution() === 'source' ? ', or run `node scripts/fetch-embed-model.js` in control/.\n' : '.\n');
     process.stderr.write(
-      '\nThe runtime is installed but the model fetch failed. The MCP server fetches it when it next starts'
-        + ' (and again on the first embedding call if that fails too)'
-        + (distribution() === 'source' ? ', or run `node scripts/fetch-embed-model.js` in control/.\n' : '.\n'),
+      `\nThe runtime is installed but the model fetch failed. Run \`${mojuloCommand('install recall')}\` again to retry${later}`,
     );
     return fetched;
   }
