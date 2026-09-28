@@ -73,8 +73,10 @@ the hats more". Claude edits the stored recipe in place and re-exports.
 
 ## What it runs, sends and fetches
 
-Nothing is sent to the maintainer or to any analytics service, and starting the server makes no
-network call. Everything below happens only on the action named.
+Nothing is sent to the maintainer or to any analytics service. Starting the server makes no
+network call, except that with the opt-in recall group installed it loads the search model at
+startup and downloads it (about 130 MB) if it is not already under `~/.mojulo/models`. Everything
+below happens only on the action named.
 
 ### Network
 
@@ -83,7 +85,7 @@ network call. Everything below happens only on the action named.
 | registry.npmjs.org | Starting the server through `npx` (the full download on the first start); `install recall` | Standard npm. |
 | storage.googleapis.com (Chrome for Testing, about 500 MB, once) | Only an explicit render that needs a browser (a world `forge_motion`, `export_game` hangar portraits, `create_game` with `auto_audit`, the dashboard's PNG download) on a machine with no Chrome, Chromium, Edge or Brave | The result says `browser_download` when it happened. Previews made while minting never download it. |
 | github.com (ffmpeg-static, 20 to 30 MB, once) | The first MP4 encode when no ffmpeg is installed | SHA-256 pinned per platform and checked before it runs. |
-| huggingface.co (the search model, about 130 MB, once) | Only after you run `npx -y mojulo@2.2.0 install recall` | Without it, search ranks by words and nothing is fetched. |
+| huggingface.co (the search model, about 130 MB, once) | Only after you run `npx -y mojulo@2.2.0 install recall`: that command fetches it, and a server start fetches it again if it is missing from `~/.mojulo/models` | Without the recall group, search ranks by words and nothing is fetched. |
 | registry.npmjs.org (the `mojulo-ui` dashboard, once per version) | Only when you open the dashboard (`npx -y mojulo-ui@2.2.0`) | `MOJULO_UI_NO_FETCH=1` refuses the download. |
 | registry.npmjs.org and ghcr.io | Only when Claude calls `check_for_updates` | An anonymous version lookup. |
 | cdn.jsdelivr.net | Only when an exported page was built with `cdn: true`, as it opens | The default page carries its own three.js. |

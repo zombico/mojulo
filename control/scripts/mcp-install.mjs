@@ -133,7 +133,8 @@ async function installRecall() {
   );
   if (fetched !== 0) {
     process.stderr.write(
-      '\nThe runtime is installed but the model fetch failed — it is retried lazily on the first embedding call'
+      '\nThe runtime is installed but the model fetch failed. The MCP server fetches it when it next starts'
+        + ' (and again on the first embedding call if that fails too)'
         + (distribution() === 'source' ? ', or run `node scripts/fetch-embed-model.js` in control/.\n' : '.\n'),
     );
     return fetched;

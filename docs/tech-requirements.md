@@ -108,8 +108,10 @@ are cached, and are skipped entirely if you already have the tool:
 ## Network posture
 
 No external telemetry: nothing goes to the maintainer or an analytics service, and starting the
-server makes no network call. Outbound traffic happens only on explicit actions, and the site
-should list them rather than say "never":
+server makes no network call, except that with the opt-in recall group installed the server loads
+the search model at startup and downloads it from huggingface.co (~130 MB) when it is missing from
+`~/.mojulo/models`. Outbound traffic happens only on explicit actions, and the site should list
+them rather than say "never":
 
 - `npm` fetching the package and its dependencies at install and at `npx` resolution. One
   dependency's install script reaches further: on macOS, `sharp`'s checks for a system libvips by

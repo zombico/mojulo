@@ -68,6 +68,7 @@
     "scripts/mcp-stdio-loader.mjs",
     "scripts/mcp-init.mjs",
     "scripts/mcp-install.mjs",
+    "scripts/fetch-embed-model.js",
     "scripts/mcp-cli.mjs",
     "scripts/mcp-config.mjs",
     "scripts/mcp-ui.mjs",

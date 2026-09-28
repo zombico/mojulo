@@ -57,6 +57,15 @@ loops and the recipe format are unchanged.
   Measured on one tree: the tarball drops from 30.2 MB to 25.5 MB, and a cold dependency install from
   427 MB to 305 MB on disk (278 MB to 191 MB downloaded). `docs/install-capabilities.md` records the boot
   set, the startup-timeout constraint and these numbers.
+- **`mojulo install recall` works from an npm or npx install.** The package did not ship
+  `scripts/fetch-embed-model.js`, the model fetch `install recall` runs after installing the
+  runtime, so on every npm or npx install the fetch failed with `MODULE_NOT_FOUND`, the command
+  exited 1, and `install chatbot`, which installs recall first, failed on its first run. The
+  script is in `files` now, and a test fails when a shipped script imports or spawns one that is
+  not. The failure message now says the model is fetched when the server next starts, which is
+  when it is: with the recall group installed, the server loads the model at startup and downloads
+  it if it is missing. The plugin README, `get_substrate` fact 4 and `docs/tech-requirements.md`
+  say so instead of claiming that a start never touches the network.
 
 ### Dashboard package
 
