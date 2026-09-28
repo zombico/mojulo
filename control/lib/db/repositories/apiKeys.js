@@ -17,7 +17,7 @@ function rowToApiKey(row) {
   };
 }
 
-// Re-encrypt rows saved under the pre-2.2 built-in key with the per-install
+// Re-encrypt rows saved under the pre-3.0 built-in key with the per-install
 // key (lib/deployment-auth.js), once per process and database, before the
 // first read. The WHERE on the old value keeps a concurrent process's
 // migration of the same row from being overwritten.

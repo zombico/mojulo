@@ -92,7 +92,7 @@ function decryptWith(key, encrypted) {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
-// { plaintext, legacy } where legacy means only the pre-2.2 built-in key
+// { plaintext, legacy } where legacy means only the pre-3.0 built-in key
 // opened it. With API_KEY_ENCRYPTION_KEY set, only that key is tried.
 function decryptDetailed(encrypted) {
   const fromEnv = envKey();
@@ -126,7 +126,7 @@ export function decryptApiKey(encrypted) {
 }
 
 /**
- * A value saved under the pre-2.2 built-in key, re-encrypted under the
+ * A value saved under the pre-3.0 built-in key, re-encrypted under the
  * per-install key; null for anything else (already current, undecryptable,
  * or API_KEY_ENCRYPTION_KEY is set). ApiKeyRepository runs this over the
  * api_keys rows once per process.
