@@ -1,6 +1,6 @@
 /**
  * Furniture audit — the machine gate for the fixes the 2026-09-26 interior audit asked for
- * (CHANGELOG "Furniture audit"). Each test measures one thing a walk camera saw wrong: a room
+ * (CHANGELOG-2.x.md "Furniture audit"). Each test measures one thing a walk camera saw wrong: a room
  * with no door, a chair with no legs, chairs dropped from a pass-through dining room, a bookcase
  * facing its wall, a door leaf standing out in a kitchen aisle, an entry and a storage room made
  * of blank slabs, a prop box on the table. The eyes gate (the audit cameras) is the operator's.

@@ -46,7 +46,7 @@
  *     architecture (verified arm64 + x64). Same face counts. A and B re-based;
  *     C unchanged.
  *   - room livability defaults (2026-09-25, the operator's "rooms and corridors feel
- *     narrow" pass; CHANGELOG "Room livability"): the house planners' defaults rose —
+ *     narrow" pass; CHANGELOG-2.x.md "Room livability"): the house planners' defaults rose —
  *     MIN_ROOM 9→10 ft with the BSP cut clamped so no room falls under it, corridor and
  *     landing halls 3.5/3.75→4.5 ft, bedroom band 10→11 ft, stair 3→3.5 ft, door
  *     approach 2.5→3 ft — and the furnish pass changed on purpose: the command-position
@@ -58,7 +58,7 @@
  *     out across a hall; between rooms, into the smaller). A: seed 7 now tiles a kitchen (4166→12051 faces,
  *     the kitchen assets). B: the lounge finds its door and takes command position
  *     (3134→3164). C: the stacked house's wider hall and stair (same count, new bytes).
- *   - furniture audit (2026-09-26, CHANGELOG "Furniture audit"): an interior door leaf now
+ *   - furniture audit (2026-09-26, CHANGELOG-2.x.md "Furniture audit"): an interior door leaf now
  *     stands open flat against the wall beside its jamb, with two panels and a lever handle
  *     (three more boxes, +15 faces per hinged interior door: A +75 for five doors, B +15, C +30);
  *     and a wall-hung piece's anchor keeps its height through the layout spin (its along
