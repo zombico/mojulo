@@ -16,6 +16,10 @@
  *   4. Fetch Chrome-for-Testing via @puppeteer/browsers into the cache dir, only
  *      with the caller's consent: `allowFetch: true`, or a render running inside
  *      withChromiumFetch (chromium-consent.js lists the entry points that do).
+ *      The download comes from storage.googleapis.com and is unpacked by running
+ *      the system `unzip` (`tar.exe` or PowerShell on Windows); @puppeteer/browsers
+ *      3 has no built-in unzip or proxy support, so a host behind an HTTP proxy
+ *      points $MOJULO_CHROMIUM at an installed browser instead.
  *
  * Integrity gate: a functional headless launch (open + close), the same "does it
  * actually run" gate ffmpeg.js applies with `-version`. A wrong/corrupt binary
@@ -38,10 +42,13 @@ import { puppeteer } from '@/lib/graph/scene/puppeteer-lazy';
 import { installedGroups } from '@/lib/mcp/packs';
 import { chromiumFetchAllowed, recordChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 
-// Pinned Chrome-for-Testing build fetched on first use. Cross-platform: the same
-// buildId resolves to the right per-platform asset via detectBrowserPlatform.
-// Override with $MOJULO_CHROMIUM_BUILD if this pin ever goes stale.
-const CHROME_BUILD = process.env.MOJULO_CHROMIUM_BUILD || '131.0.6778.204';
+// The Chrome-for-Testing build fetched on first use: the one the installed
+// puppeteer-core is released against (its PUPPETEER_REVISIONS.chrome), so a
+// puppeteer bump moves this pin in the same commit; chromium.test.js fails until
+// it does. One buildId covers every platform through detectBrowserPlatform.
+// $MOJULO_CHROMIUM_BUILD overrides it.
+export const PINNED_CHROME_BUILD = '154.0.8037.57';
+const CHROME_BUILD = process.env.MOJULO_CHROMIUM_BUILD || PINNED_CHROME_BUILD;
 
 // No --no-sandbox here: launchChromium adds it on Linux only, as a fallback.
 const LAUNCH_ARGS = ['--disable-gpu'];
