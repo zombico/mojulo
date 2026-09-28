@@ -54,7 +54,7 @@ Reports about the following are welcome and treated as security issues:
 - **Path escape from the operator's data directory.** Any tool input, recipe field (other than a `program`, above), or export that reads or writes outside `~/.mojulo/` (or the configured `MOJULO_HOME`) without the operator naming that path.
 - **Artifact tampering.** Any way to inject code into a generated export — the self-contained HTML, a Godot project, an engine data pack, a Blender pack — that the operator did not put there through a tool call.
 - **Undisclosed traffic or writes.** Any network request, spawned process, or write outside the places the plugin README's "What it runs, sends and fetches" section and substrate fact 3 name.
-- **API key extraction.** Any way to read decrypted provider keys (stored by `mojulo-config` for the optional image and voice paths) out of the control plane's `api_keys` table without filesystem access to the host.
+- **API key extraction.** Any way to read decrypted provider keys (stored by `mojulo-config` for `mint_solid`'s optional `via:'prompt'` door) out of the control plane's `api_keys` table without filesystem access to the host.
 - **Dependency vulnerabilities** with a clear exploit path against it.
 
 ### Out of scope

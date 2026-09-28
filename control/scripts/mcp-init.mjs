@@ -499,17 +499,20 @@ function wireViaCli(profile, { print }) {
 }
 
 // ── provider key (reuses the mcp-config path) ─────────────────────────────────
-const ALLOWED_PROVIDERS = new Set(['anthropic', 'openai', 'ollama', 'fly']);
+// The one reader of a saved key is mint_solid's via:'prompt' door, so the providers are its LLM
+// providers (lib/llm-providers.js).
 async function maybeSetKey({ yes }) {
   if (yes) return; // --yes skips the key by design (first look needs none)
   const want = await confirm(
-    'Set an LLM provider key now? (needed for bots/cooks, not for the first look)',
+    "Set an LLM provider key now? (only mint_solid's via:'prompt' door uses one; not needed for the first look)",
     false
   );
   if (!want) {
     process.stdout.write('  → skipped. Add one later: mojulo-config set anthropic sk-...\n');
     return;
   }
+  const { LLM_PROVIDERS } = await import('@/lib/llm-providers');
+  const ALLOWED_PROVIDERS = new Set(Object.keys(LLM_PROVIDERS));
   const provider = (await ask(`  provider [${[...ALLOWED_PROVIDERS].join('/')}]: `)).toLowerCase();
   if (!ALLOWED_PROVIDERS.has(provider)) {
     process.stdout.write(`  ! unknown provider "${provider}" — skipping. Use mojulo-config later.\n`);

@@ -12,12 +12,14 @@
  *   mojulo-mcp-config set anthropic sk-ant-...
  *   mojulo-mcp-config set openai sk-...
  *   mojulo-mcp-config set ollama http://localhost:11434
- *   mojulo-mcp-config set fly fo1_...
  *   mojulo-mcp-config list
  *   mojulo-mcp-config unset openai
  *
  * `set` replaces any existing key(s) for that provider with a single fresh
- * row, and marks it default if no default exists.
+ * row, and marks it default if no default exists. The one reader of a saved
+ * key is mint_solid's via:'prompt' door, so the providers are its LLM
+ * providers. `list` and `unset` also reach a row for a provider 3.0 no longer
+ * takes (a 2.x Fly deploy token, which only the chatbot factory read).
  */
 
 import { register } from 'node:module';
@@ -32,7 +34,8 @@ resolveMojuloPaths();
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(CONTROL_DIR);
 
-const ALLOWED_PROVIDERS = new Set(['anthropic', 'openai', 'ollama', 'fly']);
+const { LLM_PROVIDERS } = await import('@/lib/llm-providers');
+const ALLOWED_PROVIDERS = new Set(Object.keys(LLM_PROVIDERS));
 
 function usage(exitCode = 0) {
   const lines = [
@@ -91,6 +94,7 @@ async function listKeys() {
     name: k.name,
     default: k.isDefault ? '*' : '',
   }));
+  const retired = [...new Set(rows.map((r) => r.provider).filter((p) => !ALLOWED_PROVIDERS.has(p)))];
   const widths = {
     provider: Math.max(8, ...rows.map((r) => r.provider.length)),
     name: Math.max(4, ...rows.map((r) => r.name.length)),
@@ -103,6 +107,12 @@ async function listKeys() {
     `${'-'.repeat(widths.provider)}  ${'-'.repeat(widths.name)}  ${'-'.repeat(widths.default)}\n`
   );
   for (const r of rows) process.stdout.write(fmt(r) + '\n');
+  if (retired.length) {
+    process.stdout.write(
+      `\nNothing in this version reads ${retired.join(', ')} (saved by an earlier install). ` +
+        `Remove with: mojulo-mcp-config unset ${retired[0]}\n`
+    );
+  }
 }
 
 async function unsetKey(provider) {
@@ -110,6 +120,11 @@ async function unsetKey(provider) {
   const existing = await ApiKeyRepository.findByUserId('local');
   const sameProvider = existing.filter((k) => k.provider === provider);
   if (sameProvider.length === 0) {
+    // A provider this version does not take is only reachable while a row for it exists.
+    if (!ALLOWED_PROVIDERS.has(provider)) {
+      process.stderr.write(`Unknown provider: ${provider}\n`);
+      usage(2);
+    }
     process.stdout.write(`No keys for ${provider}.\n`);
     return;
   }
@@ -143,10 +158,6 @@ try {
     const [provider] = rest;
     if (!provider) {
       process.stderr.write('unset requires <provider>\n');
-      usage(2);
-    }
-    if (!ALLOWED_PROVIDERS.has(provider)) {
-      process.stderr.write(`Unknown provider: ${provider}\n`);
       usage(2);
     }
     await unsetKey(provider);
