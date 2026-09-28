@@ -251,7 +251,8 @@ function uninstalledNote(packs, profile) {
   }
   const retired = packs.retiredInstallTokens();
   if (retired.length) {
-    lines.push('', `ignored: ${retired.join(', ')} (the chatbot pack left mojulo in 3.0.0; \`mojulo install chatbot\` says where it went)`);
+    // `install chatbot` prints the approved moved notice, which names no destination: promise none.
+    lines.push('', `ignored: ${retired.join(', ')} (the chatbot pack left mojulo in 3.0.0 and is ignored; \`mojulo install chatbot\` explains)`);
   }
   return lines;
 }

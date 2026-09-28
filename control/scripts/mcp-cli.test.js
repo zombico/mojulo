@@ -261,7 +261,9 @@ describe('runCli', () => {
         const { lines, io } = capture();
         expect(await runCli([cmd], io)).toBe(0);
         const text = lines.out.join('\n');
-        expect(text).toMatch(/ignored: MOJULO_PACKS=chatbot/);
+        expect(text).toMatch(/ignored: MOJULO_PACKS=chatbot \(the chatbot pack left mojulo in 3\.0\.0 and is ignored; `mojulo install chatbot` explains\)/);
+        // The moved notice names no destination, so the listing promises none.
+        expect(text).not.toMatch(/where it went/);
         expect(text).not.toMatch(/not installed:/);
       }
     } finally {
