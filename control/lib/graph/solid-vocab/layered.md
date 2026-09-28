@@ -131,6 +131,58 @@ absent, every byte is identical.
   or `/hero/hair/<control>`. The readout's `hero.hair`, `hairMoved` and `hairMeasures` (`top_m` above the crown, `hem_m`
   below the chin, negative when it hangs past it, `back_m` behind the occiput) answer in the operator's terms. Hair colour
   is the palette's `Hair`.
+  THE ANIME HEAD. `head: 'anime'` wears the Anime Form Studio's head instead: an original anime construction (one
+  designed surface, eye and mouth apertures, a tall iris clipped by the lids, a modelled upper lash and a thin lower rim,
+  a brow ribbon, ears; clump hair along root → control → tip curves), ported from the studio bit for bit and registered
+  where the landmark head sits (crown to chin, chin at the menton), every part closed and riding the head bone. It has
+  no jaw: the studio opens the mouth as an aperture, so there is no `jawOpen`. Its words are the studio's. `headPreset`
+  is the design base (`female` / `male`; a figure cast wears the male), the studio's with the chin set back (its
+  `chinProjection` slider 0.2 lower on both). `face`: the studio's controls, 1 = the base,
+  applied as its sliders — `skull` (`width`, `depth`, `backDepth`, `occiput`, `nape`), `brow` (`foreheadDepth`,
+  `browDepth`), `cheeks` (`cheekVolume`, `lowerCheekVolume`), `jawline` (`jaw`, `jawAngle`, `jawDepth`), `chinShape`
+  (`chin` breadth, `chinProjection`, `chinHeight`), `eyes` (`eyeWidth`, `eyeHeight`), and alone `lower` (the lower face's
+  length), `nose` (projection), `spacing`, `iris`, `headPitch` (the six-degree chin-up rest), `tilt` (the outer-eye lift,
+  an OFFSET about the base's own: positive lifts, negative droops). `hair`: a FAMILY (the studio's `bob`, `short`,
+  `long`, and `hime`: a blunt fringe cut level at the brow, sidelocks squared at the jaw, a long straight back; the base's
+  own by default: bob / short; `none`), the studio's controls (`volume`, `length`, `fringe`, `clump` width, `thickness`,
+  `taper`; `sweep`, `part` and `ahoge` — one upright curl at the crown, 0 none — offsets) and `locks`: one clump directed by the studio's clump name (`fringe-1`…`7`,
+  `left-temple-0`…`2`, `right-temple-0`…`2`, `back-1`…`11`, on short `crown-1-0`…`2` and `crown--1-0`…`2`, `ahoge`) as
+  `{ cx, cy, cz, tx, ty, tz }`, its control point and tip moved in the studio's construction units (the head is about 2.2
+  tall; ±0.2 is the studio's range), its root held. `expression`: a pose (`neutral`, `blink`, `smile`, `open`) or the
+  four amounts `{ blink, smile, open, brow }`; `['smile', { brow: -0.2 }]` adjusts a pose. Lists compose (ratios by
+  product, offsets and lock edits by sum, a family or a pose last-wins); the studio's ranges advise, never refuse. Patch
+  `/hero/face/<control>`, `/hero/hair/style`, `/hero/hair/<control>`, `/hero/hair/locks/<clump>` (a whole edit object),
+  `/hero/expression`. The readout's `hero.faceMeasures` answer in metres (`head_m`, `face_m` across, `depth_m`,
+  `pupils_m`, `eye_m` the opening), `hairMeasures` as above, `evidence` says the head is authored. THE HAIR SEATS ON THE
+  HEAD: the cap is the head's own surface lifted off it down to the studio's hairline (the studio grew a fixed ellipsoid,
+  and a fuller occiput showed through it), and every clump hangs outside the head's actual section at its height, so the
+  hair follows every face control (a deeper face, fuller cheeks, a fuller occiput). `hero.hairCoverage` is the ledger:
+  the share of the scalp that still shows from the back, the side, the rear three-quarter and above (0 is covered; the
+  studio's own bob showed 28 % from the back on the female base, 47 % on the male); over 5 % advises in `warnings`.
+  HAIR FORMS: the `bob`, `long` and `hime` families are a few consolidated SECTIONS, not a comb of strands — three bang
+  sections, a side section each side, three back sections (parts `hairFormFringeL/C/R`, `hairFormSideL/R`,
+  `hairFormBackL/C/R`), each one closed shell skinned across its member clumps and ending in ONE point (its hem a V;
+  `taper` deepens it; the hime is cut straight). A clump's `locks` edit still moves the sections it belongs to.
+  `strands: 1` builds the studio's separate clumps instead; `short` stays spiky strands.
+  ANIME PROPORTIONS: a hero wearing the anime head wears an anime body by default (`proportions: 'anime'`; `'hero'` keeps
+  the realistic cast): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
+  at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller hands and feet, the
+  overall height kept. A `tune` is a percentage of THAT baseline. The readout says `proportions` and `headsTall`. The anime head is
+  denser than the landmark head (every studio vertex is a pinned offset; `register: 'lowpoly'` is the studio's coarse
+  sampling).
+  LOOKS (the anime head's presets). `look` is ONE list of words that compose, the conversational surface for a
+  character: ARCHETYPES `heroine`, `lead`, `rival`, `princess`, `mentor`, `kid`, `stoic` (each a face, a family and hair
+  traits, a pose, and where it needs one a body `tune`: a bigger head, a shorter stature — never palette, cast,
+  register or head); face TRAITS `tsurime` (upturned outer corners), `tareme` (drooping), `large-eyes`, `narrow-eyes`,
+  `soft`, `sharp`, `youthful`, `mature`, `button-nose`, `strong-chin`; hair TRAITS `spiky`, `sleek`, `messy`,
+  `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
+  clumps) and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
+  `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
+  sum, a family and a pose last-wins; the own `face` / `hair` / `expression` / `tune` apply ON TOP (`/hero/hair/length`
+  1.1 is ten percent over the look). `look: ['rival', 'tareme']`, then `set /hero/look` to add or peel a word (a list is
+  set whole). The row keeps the words and a resolved STAMP (`lookResolved`): a later re-tuning of a word never changes a
+  stored hero until its list is edited. The readout says `look`, `lookFrom`, the effective head and tune, and the own
+  layer apart. Every preset stays inside the studio's ranges on both bases.
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a
   jerkin and trousers keep, soft sleeve folds at the elbows, a QUILTED jerkin (front panels either side of a bare placket,

@@ -17,6 +17,9 @@
  * `recipe`. A patch under `/hero` regenerates the plan and the recipe (`/hero/tune/shoulders` → 1.1 is "ten percent
  * broader"); the readout answers in metres. The recipe stays the compatibility promise; `hero` is the authoring record
  * one level above the plan.
+ * The hero wears the fitted LANDMARK head by default; `head: 'anime'` wears the ANIME HEAD instead (anime-head.js: the
+ * Anime Form Studio's head, ported) with its own words for `face`, `hair` (families, controls, per-clump `locks`) and
+ * `expression`; `headPreset` is its design base.
  * Manual: lib/graph/solid-vocab/layered.md. Reference recipe: docs/examples/dragon-layered; reference plan:
  * docs/examples/dragon-body/seed-recipe.mjs.
  */
@@ -35,6 +38,9 @@ import { justify } from '@/lib/graph/polygonizer/station-loft-adorn';
 import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
 import { layeredLegibility } from '@/lib/graph/polygonizer/station-loft-legibility';
 import { fitEvidence } from '@/lib/graph/polygonizer/humanoid-head-fit';
+import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, ANIME_PRESETS, animeDefaultStyle, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, animeExpressionWarnings, animeCoverageWarnings } from '@/lib/graph/polygonizer/anime-head';
+import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
+import { LOOK_TABLES, validateLook, resolveLook, composeAnime } from '@/lib/graph/polygonizer/anime-looks';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
 
@@ -63,16 +69,29 @@ export function planLayered(manifest) {
  * lacks are dropped. */
 export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
-  const plan = manifest.hero && from !== 'plan' ? heroPlanOf(manifest.hero) : manifest.plan;
+  const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
+  const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
   const recipe = expandPlan(plan);
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
-  return { ...manifest, plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
+  return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
+}
+/** An anime hero's LOOK stamp kept with its words: re-resolved only when the list changed (a re-tuned look word never
+ * changes a stored row until its list is edited); an emptied or removed look drops its stamp. Anything else as given. */
+export function normalizeHero(hero) {
+  if (!hero || hero.head !== 'anime') return hero;
+  const words = hero.look === undefined || hero.look === null ? [] : Array.isArray(hero.look) ? hero.look : [hero.look];
+  if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
+  if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
+  return { ...hero, look: words, lookResolved: resolveLook(words) };
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'detail', 'adorn'];
-const HEAD_WORDS = ['landmark', 'none'];
+const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn'];
+const HEAD_WORDS = ['landmark', 'anime', 'none'];
+/** the heads that take face / hair / expression / headPreset words */
+const WORN = new Set(['landmark', 'anime']);
+const headOf = (hero) => hero.head ?? 'landmark';
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 
 /** Error strings for a hero spec (empty = valid). Form only; the numbers' fitness is heroPlan's to judge. */
@@ -97,15 +116,25 @@ export function validateHeroSpec(spec) {
     else for (const [g, v] of Object.entries(spec.palette)) if (!isHex(v)) errs.push(`palette.${g}: must be a "#rrggbb" colour`);
   }
   if (spec.head !== undefined && spec.head !== null && !HEAD_WORDS.includes(spec.head) && !(spec.head && typeof spec.head === 'object' && spec.head.parts && typeof spec.head.parts === 'object')) {
-    errs.push(`head: 'landmark' (the fitted landmark head, the default), 'none' (a blank head trunk), or a baked head include { parts, dials?, creases?, palette?, joints, bind } (docs/examples/hero-head baked.json)`);
+    errs.push(`head: 'landmark' (the fitted landmark head, the default), 'anime' (the Anime Form Studio's head), 'none' (a blank head trunk), or a baked head include { parts, dials?, creases?, palette?, joints, bind } (docs/examples/hero-head baked.json)`);
   }
-  errs.push(...validateFace(spec.face));
-  errs.push(...validateHair(spec.hair));
-  if (spec.expression !== undefined && !EXPRESSIONS[spec.expression]) errs.push(`expression: one of ${Object.keys(EXPRESSIONS).join(', ')}`);
-  if (spec.headPreset !== undefined && !HEAD_PRESETS[spec.headPreset]) errs.push(`headPreset: one of ${Object.keys(HEAD_PRESETS).join(', ')} (the head's pole and fit; defaults to the cast when it is male / female, else male)`);
+  if (spec.head === 'anime') {
+    errs.push(...validateAnimeFace(spec.face));
+    if (spec.hair !== 'none') errs.push(...validateAnimeHair(spec.hair));
+    errs.push(...validateAnimeExpression(spec.expression));
+    if (spec.headPreset !== undefined && !ANIME_PRESETS.includes(spec.headPreset)) errs.push(`headPreset: one of ${ANIME_PRESETS.join(', ')} (the anime head's design base; defaults to the cast when it is male / female, else male)`);
+    errs.push(...validateLook(spec.look));
+  } else {
+    if (spec.look !== undefined && spec.look !== null) errs.push(`look: the looks are the anime head's (head: 'anime')`);
+    errs.push(...validateFace(spec.face));
+    errs.push(...validateHair(spec.hair));
+    if (spec.expression !== undefined && !EXPRESSIONS[spec.expression]) errs.push(`expression: one of ${Object.keys(EXPRESSIONS).join(', ')}`);
+    if (spec.headPreset !== undefined && !HEAD_PRESETS[spec.headPreset]) errs.push(`headPreset: one of ${Object.keys(HEAD_PRESETS).join(', ')} (the head's pole and fit; defaults to the cast when it is male / female, else male)`);
+  }
   errs.push(...validateDress({ detail: spec.detail, adorn: spec.adorn }));
-  const wearsLandmark = spec.head === undefined || spec.head === 'landmark';
-  if (!wearsLandmark) for (const k of ['face', 'hair', 'expression', 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head takes it (head: 'landmark')`);
+  if (spec.proportions !== undefined && !['hero', 'anime'].includes(spec.proportions)) errs.push(`proportions: 'anime' (about 6.5 / 7 heads tall: the default with the anime head) or 'hero' (the realistic casts: the default with the landmark head)`);
+  const wearsHead = spec.head === undefined || WORN.has(spec.head);
+  if (!wearsHead) for (const k of ['face', 'hair', 'expression', 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
   return errs;
 }
 
@@ -121,8 +150,18 @@ export function heroRecord(spec) {
     const { from: faceFrom, ...face } = resolveFace(spec.face);
     Object.assign(hero, { face, ...(faceFrom ? { faceFrom } : {}), hair: resolveHair(spec.hair ?? 'swept'), expression: spec.expression ?? 'neutral' });
     if (spec.headPreset !== undefined) hero.headPreset = spec.headPreset;
+  } else if (hero.head === 'anime') {
+    // the OWN layer, stored resolved like the landmark head's (every control at its value, so a patch by path finds it)
+    // but sparse where a look may speak: the family is null unless named, the expression absent unless given, so a
+    // look's family and pose stand; the effective head is the look's stamp with this layer on top (composeAnime)
+    const { from: faceFrom, ...face } = resolveAnimeFace(spec.face);
+    if (spec.headPreset !== undefined) hero.headPreset = spec.headPreset;
+    const hair = spec.hair === 'none' ? 'none' : resolveAnimeHair(spec.hair ?? null);
+    Object.assign(hero, { face, ...(faceFrom ? { faceFrom } : {}), hair, ...(spec.expression !== undefined ? { expression: resolveAnimeExpression(spec.expression) } : {}) });
+    const words = spec.look === undefined || spec.look === null ? [] : Array.isArray(spec.look) ? spec.look : [spec.look];
+    if (words.length) Object.assign(hero, { look: [...words], lookResolved: resolveLook(words) });
   }
-  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'detail', 'adorn']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   return hero;
 }
 
@@ -132,7 +171,11 @@ export function heroPlanOf(hero) {
   const common = { register: hero.register, tune: hero.tune, body: hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}) };
   if ((hero.head ?? 'landmark') === 'landmark') {
-    return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...dress });
+    return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+  }
+  if (hero.head === 'anime') {
+    const eff = composeAnime(hero, animeDefaultStyle(headPoleOf(hero)));   // the look's stamp, the own layer on top
+    return humanoidPlan({ preset: hero.cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, palette: hero.palette ?? {}, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   const plan = heroPlan({ cast: hero.cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head });
   return dressPlan(plan, { ...dress, operatorPalette: hero.palette ?? {}, scale: (hero.scale ?? HERO_CASTS[hero.cast]?.scale ?? 1) * (hero.tune?.stature ?? 1) });
@@ -156,6 +199,10 @@ export function dressReadout(hero, plan, mesh, recipe) {
 /** what the hero's form rests on: the worn head's fit (views observed, views inferred), whether the face moved off it
  * (then the face is AUTHORED, not fitted), and the body (authored from a cast and a tune, no reference). */
 export function heroEvidence(hero) {
+  if (hero.head === 'anime') {
+    const moved = Object.entries(composeAnime(hero, 'bob').face).filter(([k, v]) => v !== ANIME_FACE.DEFAULT[k]).map(([k]) => k);
+    return { head: { construction: 'the Anime Form Studio head (authored, no fit, no reference)', base: headPoleOf(hero), face: moved.length ? `authored off the base: ${moved.join(', ')}` : 'as the base' }, body: 'authored: a cast and a tune, no reference' };
+  }
   if ((hero.head ?? 'landmark') !== 'landmark') return { head: typeof hero.head === 'string' ? `${hero.head}: no fit` : 'include: as given', body: 'authored: a cast and a tune, no reference' };
   const pole = headPoleOf(hero); const E = fitEvidence(pole); const moved = Object.entries(hero.face || {}).filter(([, v]) => v !== 1).map(([k]) => k);
   return { head: { fit: pole, observed: E.observed.map((o) => `${o.view} (${o.yawDegrees}°)`), inferred: E.inferred, face: moved.length ? `authored off the fit: ${moved.join(', ')}` : 'as fitted' }, body: 'authored: a cast and a tune, no reference' };
@@ -166,6 +213,8 @@ const headPoleOf = (hero) => hero.headPreset ?? (HEAD_PRESETS[hero.cast] ? hero.
  * across the jaw angles, between the pupils. */
 export function faceMeasures(hero, plan) {
   const inc = plan.include?.find((i) => i.name === 'head'); if (!inc) return null;
+  // the anime head measures itself (at its worn head scale); the figure's cast scale is applied after
+  if (hero.head === 'anime') { const k = HERO_CASTS[hero.cast]?.scale ?? 1; return inc.faceMeasures ? Object.fromEntries(Object.entries(inc.faceMeasures).map(([m, v]) => [m, Math.round(v * k * 1000) / 1000])) : null; }
   const scale = HERO_CASTS[hero.cast]?.scale ?? 1;   // the worn head is scaled with the figure
   const headScale = (hero.headScale ?? HERO_CASTS[hero.cast]?.headScale ?? 1) * (hero.tune?.head ?? 1);
   const a = humanoidAnchors(headPoleOf(hero), hero.face ?? {}), k = scale * headScale, r3 = (x) => Math.round(x * k * 1000) / 1000;
@@ -186,16 +235,24 @@ export function heroMeasures(plan, stats) {
 /** The hero readout that rides the mint and every `/hero` edit: cast, register, the tune with its trail, metres, advice. */
 export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recipe } = {}) {
   const movedOf = (r) => Object.fromEntries(Object.entries(r || {}).filter(([, v]) => v !== 1));
-  const landmark = (hero.head ?? 'landmark') === 'landmark';
-  const hair = landmark ? resolveHair(hero.hair ?? 'swept') : null;
-  const warnings = [...tuneWarnings(hero.tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []), ...extraWarnings];
+  const kind = headOf(hero), landmark = kind === 'landmark', anime = kind === 'anime';
   const inc = plan.include?.find((i) => i.name === 'head');
+  const eff = anime ? composeAnime(hero, animeDefaultStyle(headPoleOf(hero))) : null;
+  const hair = landmark ? resolveHair(hero.hair ?? 'swept') : anime ? (eff.hair === 'none' ? { style: 'none' } : eff.hair) : null;
+  const animeFace = anime ? eff.face : null, animeExpression = anime ? eff.expression : null, tune = anime ? eff.tune : hero.tune;
+  const warnings = [...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
+    ...(anime ? [...animeFaceWarnings(animeFace, headPoleOf(hero)), ...(hair.style === 'none' ? [] : animeHairWarnings(hair)), ...animeExpressionWarnings(animeExpression), ...animeCoverageWarnings(inc?.hairCoverage)] : []), ...extraWarnings];
   const dress = dressReadout(hero, plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);
   if (unjustified.length) warnings.push(...unjustified);
   for (const id of dress?.clearance?.sinking || []) { const w = dress.clearance.worst[id]; warnings.push(`adornment ${id} sinks into ${(w.into || []).join(', ') || 'the body'} at ${w.at} (${Math.round(w.share * 100)} % of its points): keep that dial nearer rest, or move the adornment`); }
-  return { cast: hero.cast, register: hero.register, tune: hero.tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(hero.tune), measures: heroMeasures(plan, stats),
+  const ownMoved = (r, one = (k) => ANIME_FACE.DEFAULT[k] ?? ANIME_HAIR.DEFAULT[k] ?? 1) => (r && typeof r === 'object' ? Object.fromEntries(Object.entries(r).filter(([k, v]) => k !== 'style' && k !== 'locks' && typeof v === 'number' && v !== one(k))) : r);
+  return { cast: hero.cast, register: hero.register, tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(tune), measures: heroMeasures(plan, stats),
+    ...(anime && hero.look?.length ? { look: hero.look, lookFrom: hero.look.join('+'), own: { face: ownMoved(hero.face), hair: hero.hair === 'none' ? 'none' : { ...(hero.hair?.style ? { style: hero.hair.style } : {}), ...ownMoved(hero.hair), ...(Object.keys(hero.hair?.locks || {}).length ? { locks: Object.keys(hero.hair.locks) } : {}) }, ...(hero.expression ? { expression: hero.expression } : {}), tune: movedOf(hero.tune) } } : {}),
     head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include',
+    ...(anime ? { base: headPoleOf(hero), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== ANIME_FACE.DEFAULT[k])),
+      hair, hairMoved: hair.style === 'none' ? {} : { ...Object.fromEntries(ANIME_HAIR_KEYS.filter((k) => hair[k] !== ANIME_HAIR.DEFAULT[k]).map((k) => [k, hair[k]])), ...(Object.keys(hair.locks || {}).length ? { locks: Object.keys(hair.locks) } : {}) },
+      hairMeasures: inc?.hairMeasures ?? null, ...(inc?.hairCoverage ? { hairCoverage: inc.hairCoverage } : {}), expression: animeExpression, faceMeasures: faceMeasures(hero, plan) } : {}),
     ...(landmark ? { face: hero.face, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: movedOf(hero.face), hair, hairMoved: movedOf(Object.fromEntries(Object.entries(hair).filter(([k]) => k !== 'style'))), hairMeasures: inc?.hairMeasures ?? null, expression: hero.expression, faceMeasures: faceMeasures(hero, plan) } : {}),
     evidence: heroEvidence(hero),
     ...(dress ? { dress } : {}),
@@ -211,8 +268,8 @@ export async function createLayeredHeroHandler(input) {
   try { plan = heroPlanOf(hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door section).`); }
   const rest = Object.fromEntries(Object.entries(input).filter(([k]) => !HERO_FIELDS.includes(k)));
-  const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${hero.cast}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` });
-  const face = hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
+  const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${hero.cast}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` });
+  const face = hero.head === 'anime' ? ` The anime head by word: /hero/face/<control> (${ANIME_FACE_KEYS.join(', ')}; 1 = the base, tilt an offset); the hair: /hero/hair/style (${ANIME_HAIR_STYLES.join(', ')}), /hero/hair/<control> (${ANIME_HAIR_KEYS.join(', ')}) and /hero/hair/locks/<clump> ({ cx, cy, cz, tx, ty, tz }: fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-±1-0…2 on short); /hero/expression (${Object.keys(ANIME_POSES).join(', ')} or { blink, smile, open, brow }). A LOOK composes presets by word: set /hero/look to a list (archetypes ${LOOK_TABLES.archetype.join(', ')}; face traits ${LOOK_TABLES.face.join(', ')}; hair traits and families ${LOOK_TABLES.hair.join(', ')}; poses); the controls above apply on top of it.` : hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
   const dressed = hero.detail !== undefined || hero.adorn !== undefined;
   const recipe = dressed ? expandPlan(plan) : undefined; const mesh = recipe ? compileLayered(recipe, {}) : undefined;   // the dress ledgers read the compiled figure
   const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}) and /hero/adorn (${KIT_WORDS.join(', ')}).`;

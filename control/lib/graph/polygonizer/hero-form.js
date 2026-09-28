@@ -54,6 +54,31 @@ export const HERO_CASTS = {
  * that agree by default. */
 export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, hipDepth: null, thigh: 0.086, calf: 0.067, arm: 0.061, forearm: null, neck: 0.066, bust: 0 };
 
+/** ANIME PROPORTIONS (anime-form): the female and male casts re-proportioned for the anime head, as ratios of the
+ * realistic casts, baked into the anime casts below so a tune stays a percentage of THEIR baseline. The head is larger
+ * relative to the body (about 6.5 heads tall on the female, 7 on the male, where the realistic casts are ~7.6), the legs
+ * a little longer and the torso shorter (the inseam at about half the height), the shoulders narrower (about 1.6 and
+ * 2 heads), the neck, waist and limbs slimmer, the hands and feet smaller (`extremities`: lengths and widths; a foot
+ * keeps its height, so the sole stays on the ground). Measured, not asserted (hero-form.test.js). The overall height stays
+ * within a centimetre of the realistic cast's. */
+export const ANIME_PROPORTIONS = Object.freeze({
+  female: Object.freeze({ head: 1.14, legs: 1.03, torso: 0.86, neck: 0.95, shoulders: 0.93, waist: 0.93, upperArm: 0.86, thigh: 0.92, calf: 0.9, neckGirth: 0.82, extremities: 0.85 }),
+  male: Object.freeze({ head: 1.08, legs: 1.03, torso: 0.9, neck: 0.95, shoulders: 0.93, waist: 0.95, upperArm: 0.9, thigh: 0.95, calf: 0.92, neckGirth: 0.88, extremities: 0.9 }),
+});
+/** a hero cast re-proportioned: the lengths and the shoulder span on its resolved dials, the radii on its body, the head
+ * on its head scale (the forearm follows the arm, as on the realistic casts) */
+function animeCast(c, a) {
+  const { from: _f, ...dials } = resolveCast(c.dials);
+  dials.lumbar *= a.torso; dials.thoracic *= a.torso; dials.thigh *= a.legs; dials.shank *= a.legs; dials.neck *= a.neck; dials.shoulderSpan *= a.shoulders;
+  const b = { ...BODY_DEFAULTS, ...c.body };
+  const body = { ...c.body, waist: r6(b.waist * a.waist), arm: r6(b.arm * a.upperArm), thigh: r6(b.thigh * a.thigh), calf: r6(b.calf * a.calf), neck: r6(b.neck * a.neckGirth) };
+  return { ...c, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((c.headScale ?? 1) * a.head), extremities: a.extremities, proportions: 'anime' };
+}
+/** the anime casts (`heroPlan({ proportions: 'anime' })`): the hero casts re-proportioned for the anime head */
+export const ANIME_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, ANIME_PROPORTIONS.female), male: animeCast(HERO_CASTS.male, ANIME_PROPORTIONS.male) });
+/** the cast a word names under a proportion: the anime cast when asked for and there is one, else the hero cast */
+export const castOf = (cast, proportions = 'hero') => (typeof cast === 'string' ? (proportions === 'anime' && ANIME_CASTS[cast]) || HERO_CASTS[cast] : null);
+
 // ─── The tune ─────────────────────────────────────────────────────────────
 // the thirteen body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses),
 // the lab's exploration limits (comfortable, not a wall) and its three MOVES. A move earns a slot by demonstrated need,
@@ -100,10 +125,11 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero' } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!reg) throw new Error(`hero.plan: unknown register '${register}' (have ${Object.keys(REGISTERS).join(', ')})`);
-  const preset = typeof cast === 'string' ? HERO_CASTS[cast] : null;
+  if (!['hero', 'anime'].includes(proportions)) throw new Error(`hero.plan: unknown proportions '${proportions}' (have hero, anime)`);
+  const preset = castOf(cast, proportions);
   if (typeof cast === 'string' && !preset) { const errs = validateCast(cast, 'cast'); if (errs.length) throw new Error(`hero.plan: ${errs[0]} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')})`); }
   const tuneErrors = validateTune(tune); if (tuneErrors.length) throw new Error(`hero.plan: ${tuneErrors.join('; ')}`);
   const TN = resolveTune(tune);
@@ -131,9 +157,11 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // ── the joint table (metres): midline hubs and the right side; hands and feet extend the core ──
   const J = { pelvisHub: P('pelvisHub'), navel: P('navel'), neckHub: P('neckHub'), headBase: P('headBase'), headTop: P('headTop'),
     hip: P('hipR'), knee: P('kneeR'), ankle: P('ankleR'), shoulder: P('shoulderR'), elbow: P('elbowR'), wrist: P('wristR') };
-  J.toeBase = R(add(J.ankle, [0, 0.085, J.ankle[2] > 0.02 ? 0.02 - J.ankle[2] : 0]));
-  J.toeTip = R(add(J.toeBase, [0, 0.08, -0.005]));
-  J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09)));
+  // hands and feet: a cast may carry an `extremities` scale (the anime casts' smaller hands and feet; 1 is exact)
+  const X = preset?.extremities ?? 1;
+  J.toeBase = R(add(J.ankle, [0, 0.085 * X, J.ankle[2] > 0.02 ? 0.02 - J.ankle[2] : 0]));
+  J.toeTip = R(add(J.toeBase, [0, 0.08 * X, -0.005]));
+  J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09 * X)));
   const joints = Object.fromEntries(Object.entries(J).filter(([k]) => !['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop'].includes(k)));
   Object.assign(joints, { neckHub: J.neckHub, headBase: J.headBase });
 
@@ -196,28 +224,30 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const segments = [torso, ...bust, neck, ...(head ? [] : [blankHead]),
     limb('upperArmR', 'shoulder', 'elbow', g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), [0.03, 0.36], 'Top', 'torso', 'foreArmR'),
     limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
-    limb('handR', 'wrist', 'knuckles', g([0.035, 0.025]), g([0.037, 0.023]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) }),
+    limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) }),
     thigh,
     limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)] }),
-    limb('footR', 'ankle', 'toeBase', [0.046, 0.038], [0.056, 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),
-    limb('toesR', 'toeBase', 'toeTip', [0.056, 0.028], [0.05, 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) }),
+    limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
+    limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) }),
   ];
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
   const armParts = ['upperArm$S', 'foreArm$S', 'hand$S'], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S'], trunkParts = ['torso', ...(rb > 0 ? ['bust$S'] : [])];
   // a worn head sits at the atlas; if its chin would hang below the collar (a big or chibi head), lift it, jaw anchors too
-  const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : 0;
+  // (a head without a jaw part — the anime head opens its mouth as an aperture — says its chin as `chinZ`)
+  const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : (head?.chinZ ?? 0);
+  const jawed = !!head?.joints?.jawHinge;
   const rise = head ? Math.max(0, zs + 0.07 - (hb + chin)) : 0;
   const HEAD_SHIFT = [0, 0, r6(hb + rise)];
   const shifted = (p) => R(add(p, HEAD_SHIFT));
   // a worn head's hair record and measures ride the include (extra include keys are tolerated), so the readout can answer
-  const include = head ? [{ name: 'head', parts: head.parts, dials: head.dials, creases: head.creases, palette: head.palette, shift: HEAD_SHIFT, bind: head.bind, ...(head.hair && typeof head.hair === 'object' ? { hair: head.hair, hairMeasures: head.hairMeasures ?? null } : {}) }] : [];
+  const include = head ? [{ name: 'head', parts: head.parts, dials: head.dials, creases: head.creases, palette: head.palette, shift: HEAD_SHIFT, bind: head.bind, ...(head.hair && typeof head.hair === 'object' ? { hair: head.hair, hairMeasures: head.hairMeasures ?? null } : {}), ...(head.measures ? { faceMeasures: head.measures } : {}), ...(head.hairCoverage ? { hairCoverage: head.hairCoverage } : {}) }] : [];
   const dials = {
     ...(head ? { head: { op: 'include', name: 'head' } } : {}),
     bulk: { min: 0.8, max: 1.4, rest: 1, doc: 'x scale of the torso and arms about the mirror plane (broader chest and shoulders)', op: 'scale', axis: 'x', pivot: 0, parts: [...trunkParts, ...armParts], blend: all(1) },
     stance: { min: 0.8, max: 1.35, rest: 1, doc: 'x scale of the legs about the mirror plane (wider hips and stance, thicker legs)', op: 'scale', axis: 'x', pivot: 0, parts: legParts, blend: all(1) },
-    lean: { min: -10, max: 25, rest: 0, doc: 'degrees the torso, arms, neck and head hinge forward about the waist; the legs stay planted', op: 'hinge', parts: [...trunkParts, 'neck', ...(head ? ['cranium', 'jaw'] : ['head']), ...armParts], pivot: 'torso/back', axis: 'x', sign: -1 },
+    lean: { min: -10, max: 25, rest: 0, doc: 'degrees the torso, arms, neck and head hinge forward about the waist; the legs stay planted', op: 'hinge', parts: [...trunkParts, 'neck', ...(head ? (jawed ? ['cranium', 'jaw'] : Object.keys(head.bind)) : ['head']), ...armParts], pivot: 'torso/back', axis: 'x', sign: -1 },
   };
 
   // ── the rig: the vajra core IS the joint table; hands and feet ride or plant ──
@@ -225,16 +255,16 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     joints: { pelvisHub: { at: J.pelvisHub }, navel: { at: J.navel }, neckHub: { at: J.neckHub }, headBase: { at: J.headBase }, headTop: { at: J.headTop },
       hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.ankle }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
-      ...(head ? { jawHinge: { at: shifted(head.joints.jawHinge), rides: 'head' }, jawTip: { at: shifted(head.joints.jawTip), rides: 'head' } } : {}) },
+      ...(jawed ? { jawHinge: { at: shifted(head.joints.jawHinge), rides: 'head' }, jawTip: { at: shifted(head.joints.jawTip), rides: 'head' } } : {}) },
     bones: [
       { id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }, { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
-      { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, ...(head ? [{ id: 'jaw', head: 'jawHinge', tail: 'jawTip' }] : []),
+      { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, ...(jawed ? [{ id: 'jaw', head: 'jawHinge', tail: 'jawTip' }] : []),
       { perSide: [
         { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S' },
         { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shank$S', head: 'knee$S', tail: 'ankle$S' }, { id: 'foot$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
       ] },
     ],
-    ...(head ? { chains: { jaw: { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] } } } : {}),
+    ...(jawed ? { chains: { jaw: { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] } } } : {}),
     legs: Object.fromEntries(['R', 'L'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
     reach: 'reject',
   };
@@ -244,14 +274,14 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const swingR = { support: 'L', legR: { x: 0.08, y: 0.45, z: -0.89 }, kneeR: 'slight', armL: { x: -0.2, y: 0.42, z: -0.88 }, armR: { x: 0.2, y: -0.4, z: -0.9 }, elbowL: 'half', elbowR: 'slight' };
   const swingL = { support: 'R', legL: { x: -0.08, y: 0.45, z: -0.89 }, kneeL: 'slight', armR: { x: 0.2, y: 0.42, z: -0.88 }, armL: { x: -0.2, y: -0.4, z: -0.9 }, elbowR: 'half', elbowL: 'slight' };
   const clips = {
-    idle: [READY, { ...READY, spine: { arch: 0.06 } }, READY, { ...READY, crouch: 0.03, ...(head ? { jaw: 4 } : {}) }],
+    idle: [READY, { ...READY, spine: { arch: 0.06 } }, READY, { ...READY, crouch: 0.03, ...(jawed ? { jaw: 4 } : {}) }],
     walk: [{ ...READY, ...swingR }, READY, { ...READY, ...swingL }, READY],
     wave: [READY, { ...READY, armR: { x: 0.35, y: 0.25, z: 0.9 }, elbowR: 'half', head: { x: 0.1, y: 0.95, z: 0.3 } }, { ...READY, armR: { x: 0.6, y: 0.2, z: 0.75 }, elbowR: 'slight' }, { ...READY, armR: { x: 0.35, y: 0.25, z: 0.9 }, elbowR: 'half' }],
   };
 
   return scalePlan({
     schema: PLAN_SCHEMA,
-    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}${tuned(TN)}), soles on z = 0, facing +y` },
+    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${preset?.proportions === 'anime' ? ', anime proportions' : ''}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}${tuned(TN)}), soles on z = 0, facing +y` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot' },
     style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e },
     joints, segments, include, dials, palette, rig, clips,

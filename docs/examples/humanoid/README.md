@@ -49,6 +49,14 @@ reconciled into it: the body lives in the hero form now, the head here.
   weight). `humanoidPlan({ face, headPreset })` takes a move, an object or a list; a figure cast wears the male head.
   `render-face.mjs` draws the FACE contact sheet (both heads × as fit / each move / both combined extremes as portraits
   through one camera per head, with a measurements table) into the gitignored spike tree.
+- The ANIME HEAD is the hero's second head (`humanoidPlan({ head: 'anime' })`; at the door `head: 'anime'`):
+  `control/lib/graph/polygonizer/anime-form.js` is the Anime Form Studio's construction ported bit for bit (its recipe
+  contract, baselines, apertures, lash and brow ribbons, clump hair with per-clump lock edits; `anime-form.test.js`
+  holds it to hashes frozen from the studio's own code), and `anime-head.js` makes it wearable: the studio's words as
+  composable vocabularies, registered where the landmark head sits, every part closed and pinned to a hidden core on
+  the head bone, no jaw (the mouth opens as an aperture). `render-anime.mjs` draws both design bases × bald / each
+  family / each pose at four views and both hero casts wearing it, with a measurements table, into the gitignored
+  spike tree.
 - `head.mjs`: `humanoidHead(…)`: a head as ONE designed surface. The cranium's rings are horizontal landmark
   rows read off the figure's own skull landmarks (`figure-head.js` `headLandmarks`: stomion, subnasale, nose
   tip and bridge, the eye line, glabella, frontal, crown) under the `DIMORPH` male / female head pole and the
