@@ -1,15 +1,19 @@
 'use client';
 
 /**
- * /settings' client body — keys, builder mode, provider and language tabs
- * inside the workshop shell. The `?gate=` read needs useSearchParams (hence
- * the Suspense boundary); page.jsx resolves the auth flag server-side and
- * hands it down for the strip's sign-out. (The strip's own Settings link is
- * self-referential here — that's fine.)
+ * /settings' client body — the LLM keys and language tabs inside the workshop
+ * shell. page.jsx resolves the auth flag server-side and hands it down for the
+ * strip's sign-out. (The strip's own Settings link is self-referential here —
+ * that's fine.)
+ *
+ * The stored LLM keys serve mint_solid's prompt door (via:'prompt'), which
+ * reads the operator's saved key for the provider it is asked to call. The
+ * builder-mode and Fly provider-key tabs left with the chatbot factory in 3.0;
+ * rows a 2.x install saved for other providers stay in the table, unlisted.
  */
 
-import { Suspense, useState, useTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import useSWR, { mutate } from 'swr';
 import WorkshopShell from '@/components/WorkshopShell';
@@ -18,12 +22,10 @@ import { locales, localeNames } from '@/i18n/config';
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
 const LLM_PROVIDER_IDS_LIST = ['anthropic', 'openai', 'ollama'];
-const INFRA_PROVIDER_IDS_LIST = ['fly'];
 
 const LLM_PROVIDER_IDS = new Set(LLM_PROVIDER_IDS_LIST);
-const INFRA_PROVIDER_IDS = new Set(INFRA_PROVIDER_IDS_LIST);
 
-const TAB_IDS = ['llm', 'builder', 'provider', 'language'];
+const TAB_IDS = ['llm', 'language'];
 
 function KeySection({ title, description, providers, keys, isLoading, defaultName, placeholderFor, labelFor }) {
   const t = useTranslations('settings.mojulo');
@@ -183,122 +185,6 @@ function KeySection({ title, description, providers, keys, isLoading, defaultNam
   );
 }
 
-function BuilderModeSection() {
-  const t = useTranslations('settings.mojulo.builder');
-  const { data, isLoading } = useSWR('/api/settings/app', fetcher);
-  // Poll worker liveness while this tab is open so the indicator reflects a
-  // freshly-attached /loop worker or Node fulfiller without a manual refresh.
-  const { data: workerData } = useSWR('/api/agent-tasks/status?format=json', fetcher, {
-    refreshInterval: 5000,
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  const mode = data?.builderDriverMode || 'agent';
-
-  async function setMode(next) {
-    if (next === mode) return;
-    setSaving(true);
-    setError(null);
-    const res = await fetch('/api/settings/app', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ builderDriverMode: next }),
-    });
-    if (!res.ok) {
-      setError(t('saveError'));
-    } else {
-      await mutate('/api/settings/app');
-    }
-    setSaving(false);
-  }
-
-  // Worker is "live" if the in-process Node fulfiller is running, or an
-  // interactive /loop worker is currently long-polling (waitingPullers) or
-  // pulled recently (lastPullAt within the long-poll window + margin).
-  const fulfillerRunning = !!workerData?.fulfiller?.running;
-  const recentlyPulled =
-    typeof workerData?.lastPullAt === 'number' &&
-    workerData.lastPullAt > 0 &&
-    Date.now() - workerData.lastPullAt < 35000;
-  const workerLive = fulfillerRunning || (workerData?.waitingPullers || 0) > 0 || recentlyPulled;
-
-  const options = [
-    { id: 'agent', label: t('agentLabel'), description: t('agentDescription') },
-    { id: 'self-hosted', label: t('selfHostedLabel'), description: t('selfHostedDescription') },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <header>
-        <h2 className="text-2xl font-semibold">{t('title')}</h2>
-        <p className="text-[color:var(--text-secondary)] mt-1 text-sm">{t('description')}</p>
-      </header>
-
-      <section className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-6 space-y-3">
-        <h3 className="text-lg font-semibold">{t('modeLabel')}</h3>
-        <div className="space-y-2">
-          {options.map((opt) => {
-            const isActive = mode === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                disabled={saving || isLoading}
-                onClick={() => setMode(opt.id)}
-                className={`w-full text-left rounded-xl border p-4 transition-colors disabled:opacity-50 ${
-                  isActive
-                    ? 'border-[color:var(--brand-teal)] bg-[color:var(--surface-elevated)]'
-                    : 'border-[color:var(--border-color)] hover:bg-[color:var(--surface-elevated)]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{opt.label}</span>
-                  {isActive && (
-                    <span className="text-xs text-[color:var(--brand-teal)]">●</span>
-                  )}
-                </div>
-                <p className="text-sm text-[color:var(--text-muted)] mt-1">{opt.description}</p>
-              </button>
-            );
-          })}
-        </div>
-        {error && <p className="text-sm text-red-400">{error}</p>}
-      </section>
-
-      {mode === 'agent' && (
-        <section className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--surface-primary)] p-6 space-y-3">
-          <h3 className="text-lg font-semibold">{t('worker.title')}</h3>
-          {!workerData && (
-            <p className="text-sm text-[color:var(--text-muted)]">{t('worker.checking')}</p>
-          )}
-          {workerData && workerLive && (
-            <p className="text-sm text-green-400">
-              ● {fulfillerRunning
-                ? t('worker.liveNode', { runtime: workerData.fulfiller.runtime })
-                : t('worker.live')}
-            </p>
-          )}
-          {workerData && !workerLive && (
-            <div className="space-y-2">
-              <p className="text-sm text-amber-300">○ {t('worker.none')}</p>
-              <p className="text-sm text-[color:var(--text-secondary)]">{t('worker.howto')}</p>
-              <ul className="space-y-1 text-sm text-[color:var(--text-muted)]">
-                <li>
-                  <code className="rounded bg-[color:var(--surface-elevated)] px-1.5 py-0.5">
-                    {t('worker.howtoLoop')}
-                  </code>
-                </li>
-                <li>{t('worker.howtoEnv')}</li>
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
 function LanguageSection() {
   const t = useTranslations('settings.mojulo.language');
   const current = useLocale();
@@ -343,21 +229,14 @@ function LanguageSection() {
 
 function SettingsPageInner() {
   const t = useTranslations('settings.mojulo');
-  const searchParams = useSearchParams();
-  const gate = searchParams.get('gate');
   const { data, isLoading } = useSWR('/api/settings/api-keys', fetcher);
   const allKeys = data?.keys || [];
   const llmKeys = allKeys.filter((k) => LLM_PROVIDER_IDS.has(k.provider));
-  const infraKeys = allKeys.filter((k) => INFRA_PROVIDER_IDS.has(k.provider));
   const [activeTab, setActiveTab] = useState('llm');
 
   const llmProviders = LLM_PROVIDER_IDS_LIST.map((id) => ({
     id,
     label: t(`llm.providers.${id}`),
-  }));
-  const infraProviders = INFRA_PROVIDER_IDS_LIST.map((id) => ({
-    id,
-    label: t(`provider.providers.${id}`),
   }));
 
   function llmPlaceholder(provider) {
@@ -372,22 +251,12 @@ function SettingsPageInner() {
     return t('form.apiKey');
   }
 
-  function infraPlaceholder(provider) {
-    if (provider === 'fly') return t('provider.placeholder');
-    return '';
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <header>
           <h1 className="text-3xl font-semibold">{t('title')}</h1>
           <p className="text-[color:var(--text-secondary)] mt-2">{t('subtitle')}</p>
-          {gate === 'no-key' && llmKeys.length === 0 && (
-            <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
-              {t('noKeyGate')}
-            </div>
-          )}
         </header>
 
         <div className="grid gap-8 md:grid-cols-[220px_1fr]">
@@ -424,18 +293,6 @@ function SettingsPageInner() {
                 labelFor={llmLabel}
               />
             )}
-            {activeTab === 'provider' && (
-              <KeySection
-                title={t('provider.title')}
-                description={t('provider.description')}
-                providers={infraProviders}
-                keys={infraKeys}
-                isLoading={isLoading}
-                defaultName={t('provider.defaultName')}
-                placeholderFor={infraPlaceholder}
-              />
-            )}
-            {activeTab === 'builder' && <BuilderModeSection />}
             {activeTab === 'language' && <LanguageSection />}
           </div>
         </div>
@@ -448,9 +305,7 @@ export default function SettingsBody({ authEnabled = false }) {
   const t = useTranslations('settings.mojulo');
   return (
     <WorkshopShell posture="pinned" width={1400} crumb={t('title')} authEnabled={authEnabled}>
-      <Suspense fallback={null}>
-        <SettingsPageInner />
-      </Suspense>
+      <SettingsPageInner />
     </WorkshopShell>
   );
 }

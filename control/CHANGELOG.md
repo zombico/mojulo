@@ -28,6 +28,15 @@ loops and the recipe format are unchanged.
   `botTypeUtils.js`, `useEntitlements.js`, `lib/builder/chat-processor.js` and `lib/builder/index.js`,
   the `lib/composer/index.js` facade, the no-op `botSpaces` repository, and three form-schema locale
   files the locale index never loaded (`af-ZA`, `ar-SA`, `hi-IN`). Nothing imported any of them.
+- **The dashboard has no bot pages.** `/bots`, `/bot-factory/modular`, `/chat-builder`,
+  `/dashboard/documents`, the `/dashboard/deployments/[id]/…` pages and `/data` are deleted, with the
+  wizard, the chat builder panel and the components only they used. The Operate mode has no bots door
+  (a host with bots deployed from 2.x does not bring one back), the breadcrumbs and shell routes name
+  no bot page, `/observability` no longer links to `/bots`, and `/map` shows apps alone on the ground
+  plane. `/settings` keeps the LLM keys tab (the keys serve `mint_solid`'s prompt door) and the
+  language tab; the Builder Mode and Provider Keys tabs are gone, and Fly keys a 2.x install saved stay
+  in the table, unlisted. `/dashboard`, the splayed floor, stays. The bot-only locale namespaces and
+  keys leave every catalog.
 
 ### Lean cold start
 

@@ -8,10 +8,7 @@
 // `/sketches/<ref>` is NOT here: it is the bare artifact frame, where ALL
 // chrome (shell included) stands down — AuthNav/Breadcrumbs keep their own
 // check for it. `/login` is not here either: the auth screen stays chromeless
-// by its own rules. The nested `/dashboard/*` bot pages (documents,
-// deployments) are deliberately absent until the chatbot-pack phase of
-// components/workshop-shell.plan.md — an exact match on '/dashboard' must not
-// swallow them.
+// by its own rules. '/dashboard' is an exact match: nothing is nested under it.
 
 const SHELL_PATHS = new Set([
   '/',
@@ -30,7 +27,6 @@ const SHELL_PATHS = new Set([
   '/stashes',
   '/mcp-skills',
   '/apps',
-  '/data',
   '/graph',
   '/map',
   '/observability',

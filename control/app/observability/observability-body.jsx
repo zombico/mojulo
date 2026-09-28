@@ -9,7 +9,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import WorkshopShell from '@/components/WorkshopShell';
 
 function fmtMs(v) {
@@ -210,12 +209,6 @@ export default function ObservabilityBody({ authEnabled = false }) {
           </section>
         </>
       )}
-
-      <div className="mt-10 text-xs text-[color:var(--text-muted)]">
-        <Link href="/bots" className="underline decoration-dotted underline-offset-2 hover:text-[color:var(--text-primary)]">
-          ← /bots
-        </Link>
-      </div>
       </div>
     </WorkshopShell>
   );

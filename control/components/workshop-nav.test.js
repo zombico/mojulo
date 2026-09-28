@@ -31,7 +31,7 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
     expect(tileKeys(WORKSHOP_GROUPS, 'operate')).not.toContain('library');
     expect(LIBRARY_SHELVES.map((s) => s.key)).toContain('diagrams');
     // and it survives the empty-workshop case
-    expect(tileKeys(visibleWorkshopGroups({ bots: 0, apps: 0, services: 0 }), 'studio')).toContain('library');
+    expect(tileKeys(visibleWorkshopGroups({ apps: 0, services: 0 }), 'studio')).toContain('library');
   });
 
   it('every studio tile points at a route that still exists after the Library fold', () => {
@@ -52,7 +52,7 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
   });
 
   it('a fresh host shows only the creative + ideate modes', () => {
-    const groups = visibleWorkshopGroups({ bots: 0, apps: 0, services: 0 });
+    const groups = visibleWorkshopGroups({ apps: 0, services: 0 });
     expect(keysOf(groups)).toEqual(['studio', 'ideate']);
   });
 
@@ -61,19 +61,27 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
   });
 
   it('records bring their own tile back, and only their own', () => {
-    const groups = visibleWorkshopGroups({ bots: 2, apps: 0, services: 0 });
+    const groups = visibleWorkshopGroups({ apps: 2, services: 0 });
     expect(keysOf(groups)).toEqual(['studio', 'ideate', 'operate']);
-    expect(tileKeys(groups, 'operate')).toEqual(['bots']);
-  });
-
-  it('a null bot count (chatbot pack absent) reads as no bots', () => {
-    const groups = visibleWorkshopGroups({ bots: null, apps: 1, services: 0 });
     expect(tileKeys(groups, 'operate')).toEqual(['apps']);
   });
 
+  // 3.0: the chatbot factory is its own project, and its pages left the dashboard with it.
+  // A host with bots deployed from 2.x still has deployment rows, so a bots count (from an
+  // older presence route) must not bring a door back to a page that no longer exists.
+  it('bots have no door: a bots count brings no tile back', () => {
+    for (const group of WORKSHOP_GROUPS) {
+      for (const tile of group.tiles) {
+        expect(tile.key).not.toBe('bots');
+        expect(tile.href).not.toMatch(/^\/(bots|bot-factory|chat-builder|data)(\/|$)/);
+      }
+    }
+    expect(keysOf(visibleWorkshopGroups({ bots: 3, apps: 0, services: 0 }))).toEqual(['studio', 'ideate']);
+  });
+
   it('a full host shows everything', () => {
-    const groups = visibleWorkshopGroups({ bots: 3, apps: 1, services: 5 });
+    const groups = visibleWorkshopGroups({ apps: 1, services: 5 });
     expect(keysOf(groups)).toEqual(['studio', 'ideate', 'operate']);
-    expect(tileKeys(groups, 'operate')).toEqual(['bots', 'mcpSkills', 'apps']);
+    expect(tileKeys(groups, 'operate')).toEqual(['mcpSkills', 'apps']);
   });
 });

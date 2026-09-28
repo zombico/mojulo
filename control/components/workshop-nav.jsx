@@ -9,7 +9,7 @@
 // listed first, opened by default, and never gated — an empty studio is an
 // invitation, not clutter.
 //
-// The OPERATIONAL destinations are the opposite: a bots tile on a host with no bots
+// The OPERATIONAL destinations are the opposite: an apps tile on a host with no apps
 // is noise. Those tiles declare a `presence` key and appear only once that key has
 // records (counts from /api/workshop/presence); a group whose every tile is gated
 // away disappears with them. Diagrams live in Studio, not Operate, because
@@ -17,19 +17,6 @@
 // with the operational group.
 
 // --- Tile icons ---
-
-export function BotIcon({ className = 'h-10 w-10' }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <rect x="4" y="8" width="16" height="11" rx="2" />
-      <path d="M9 4v4" />
-      <path d="M15 4v4" />
-      <circle cx="9.5" cy="13" r="0.75" fill="currentColor" />
-      <circle cx="14.5" cy="13" r="0.75" fill="currentColor" />
-      <path d="M9.5 16.5h5" />
-    </svg>
-  );
-}
 
 export function ConnectedServicesIcon({ className = 'h-10 w-10' }) {
   return (
@@ -332,7 +319,6 @@ export const DOOR_ICONS = {
   AppsGridIcon,
   ArcadeIcon,
   BeatsIcon,
-  BotIcon,
   ConnectedServicesIcon,
   CookIcon,
   FloorIcon,
@@ -395,7 +381,6 @@ export const WORKSHOP_GROUPS = [
     Icon: OperateIcon,
     hue: { base: 'var(--mode-operate)', strong: 'var(--mode-operate-strong)', idle: 'var(--mode-operate-idle)' },
     tiles: [
-      { key: 'bots', href: '/bots', icon: 'BotIcon', presence: 'bots' },
       { key: 'mcpSkills', href: '/mcp-skills', icon: 'ConnectedServicesIcon', presence: 'services' },
       { key: 'apps', href: '/apps', icon: 'AppsGridIcon', presence: 'apps' },
     ],

@@ -12,10 +12,6 @@ import { isAuthEnabled } from '@/lib/auth/session';
  * `?ref=` keeps its meaning from the viewport-home phase: any link into the
  * workshop can still open the outliner/viewport/inspector reading of one
  * artifact, which is the bench's deep view rather than the landing surface.
- *
- * (This route used to redirect to `/bots`. Everything that meant "take me to the
- * fleet" now says `/bots` directly; the nested `/dashboard/*` bot pages are
- * unchanged and still reached from there.)
  */
 export default async function DashboardPage({ searchParams }) {
   const { ref } = await searchParams;
