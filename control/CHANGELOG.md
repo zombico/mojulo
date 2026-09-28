@@ -14,6 +14,34 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Form articulation
+
+The means to shape the anime hero, not only to proportion it: words at three degrees of touch (silhouette and proportion;
+planes and designed shadow shapes; lines and accents), judged under the light the hero ships with, from the three-quarter
+view first and at game size. Every new control is named for standard anatomy or standard art practice. The anime hero takes
+all of it by default (`head: 'anime'` is unreleased); every other hero and kind stays byte-identical. Being built on this
+branch; each bullet is rewritten as its phase lands.
+
+- **The look loop.** A per-character light as a manifest channel (`toon.light`: the key, a threshold, a shade colour per
+  palette group, unlit groups), read by the layered bake and the rig pack alike, so the rigged view keeps the palette;
+  smooth shading normals derived at read time from the mesh and simple proxies (a head sphere for the face, radial for
+  hair); a crisp shadow edge; a still `gesture` at the door; one review renderer that uses the same bake as the World page.
+- **The graphic face.** `hero.sculpt`, a sparse vocabulary beside the face controls: eye level, the nose tip and bridge,
+  the lip line, the palpebral fissure's shape, the lateral canthus set back along the globe, the upper lid's weight and how
+  far it covers the iris, the pupil, a lid shadow, a catchlight, the brow as a block, the mouth corners.
+- **Hair lift.** The hair mass stands off the skull, with thicker sections.
+- **Planes and designed shadow.** The cheek plane, the jaw set inside the cheek outline, the gonial angle, the chin, a
+  wedge nose; an occlusion bias, a deep second shade, a cast shadow from the fringe, ink widths that vanish at openings and
+  thin in valleys, authored interior lines.
+- **The hair grammar.** Sections, primary and secondary locks, a flow from the crown whorl, tip shapes, width rhythm,
+  fringe placement, a highlight shape; brows drawn through the fringe.
+- **Pose.** Jointed knees and elbows, weight on one leg with opposed pelvic and shoulder tilts, a head turn, hand targets,
+  the maquette standing in its gesture.
+- **The worn layer.** The figure wardrobe's garments on the hero, stored as a spec and derived on read, bound to the body
+  chart they were drafted on.
+- **The playable export.** A skinned, welded, shader-ready GLB with authored normals and outline data, per-class materials,
+  a parented skeleton, stepped clips and expression morphs, and a toon shader for the Godot leg.
+
 ### Anime proportions
 
 - **The anime head wears an anime body.** A hero with `head: 'anime'` is built on ANIME CASTS by default
