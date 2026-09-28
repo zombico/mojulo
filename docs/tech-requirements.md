@@ -66,9 +66,9 @@ have been excluded since 2.0.6.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **5.8 MB** | `mojulo-3.0.0`, 1,390 files; no dashboard build. The 2.2 line measured 6.0 MB and 1,483 files. |
+| npm tarball (what `npx` downloads) | **5.8 MB** | `mojulo-3.0.0`; no dashboard build. The 2.2 line measured 6.0 MB. |
 | Unpacked package | **18.6 MB** | The stdio server, the kernels and the vendored three.js (19 MB on the 2.2 line). |
-| Dependencies npm installs | **228 MB** on disk, 179 packages | About 89 MB on the wire (tarballs plus package metadata) from an empty cache. The 2.2 line, with the document parsers, measured 303 MB, 208 packages and 114 MB the same way. Breakdown below. |
+| What npm installs, the package included | **228 MB** on disk, 179 packages | About 89 MB on the wire (tarballs plus package metadata, the package included) from an empty cache, and about 150 MB left in npm's cache. The 2.2 line, with the document parsers, measured 303 MB, 208 packages and 114 MB the same way. Breakdown below. |
 | Dashboard (`mojulo-ui`, fetched the first time it is opened) | **12.1 MB** tarball, **55.3 MB** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. The 2.2 line, with the bot pages, measured 13.2 MB and 60.0 MB. |
 | Recall group (`mojulo install recall`) | **~480 MB** runtime + **~130 MB** model | `@huggingface/transformers` with `onnxruntime-node` and `onnxruntime-web` under `~/.mojulo/recall/`, and `Xenova/multilingual-e5-small` (q8 ONNX) under `~/.mojulo/models/`. Gives `semantic_search` vector ranking; runs in-process. Opt-in. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
@@ -89,8 +89,9 @@ load the vendored copy or the pinned CDN) and `@swc/core` (26 MB; the one shippe
 precompiled at pack time). The dashboard-only libraries are devDependencies compiled into the
 dashboard bundle. The per-dependency table reflects the 2.0.7 measurement; the totals above are 3.0.0's.
 
-**Lean install.** `npm install --omit=optional` sheds the optional creative helpers (about 150 MB with
-what they pull in). The creative tools still list and run; the calls that need a missing helper fail
+**Lean install.** `npm install --omit=optional` sheds the optional creative helpers (about 115 MB with
+what they pull in, summed on disk for the packages the 3.0.0 lockfile marks optional-only, macOS arm64,
+2026-09-28). The creative tools still list and run; the calls that need a missing helper fail
 in-band naming it, and `sharp` (loaded on first use) fails only the raster tools, saying how to
 reinstall with optional dependencies. The kernel and the CLI always run. `mojulo install creative` installs nothing; it
 reports which helpers are missing. See [install-capabilities.md](install-capabilities.md).

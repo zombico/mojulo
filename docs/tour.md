@@ -154,7 +154,7 @@ npx mojulo init
 and opens the dashboard at `http://localhost:3001` (or the next free port — the
 installer prints the URL). Nothing is sent anywhere; state lands in `~/.mojulo/`.
 The first install is the big one: npx pulls a ~6 MB package plus its dependencies (about 230 MB
-on disk, about 90 MB downloaded, measured for 3.0.0); after that, starts are instant. The
+on disk, about 89 MB downloaded, measured for 3.0.0); after that, starts are instant. The
 dashboard is its own package, fetched the first time you open it, and the local search model is
 the opt-in `mojulo install recall`. Measured sizes, lazy first-use downloads, and what each engine
 leg needs: [docs/tech-requirements.md](tech-requirements.md).

@@ -30,7 +30,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   3.0 plugin runs `npx -y mojulo@3.0.0`; update it, and remove any `mojulo init` or `claude mcp add`
   registration beside it (two registrations run two servers). Exact pins and a global
   `npm i -g mojulo` stay on their version until you change them. The first start downloads about
-  95 MB (the package and its dependencies); if the host gives up, start Claude Code with
+  89 MB (the package and its dependencies); if the host gives up, start Claude Code with
   `MCP_TIMEOUT=60000`, or run `npx -y mojulo@3.0.0 --help` once in a terminal. Restart every host
   afterwards so no 2.x server keeps running against the same `~/.mojulo`.
 - **Saved provider keys become unreadable to 2.x.** With `API_KEY_ENCRYPTION_KEY` unset (the
@@ -93,22 +93,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **3.0.0 against the published 2.1.0, one method.** A cold start with an empty npm cache and a
   fresh `HOME` and `MOJULO_HOME` (`npm exec --package=<tarball> -- mojulo`) through a local registry
   stand-in, timed from spawn to the `initialize` answer, on one macOS arm64 machine (M1 Max). Sizes
-  are decimal MB; "downloaded" is the unique tarballs plus the package metadata, estimated gzipped.
+  are decimal MB; the installed and downloaded rows include the package itself, and "downloaded" is
+  the unique tarballs plus the package metadata, estimated gzipped.
 
   | | 2.1.0 | 3.0.0 |
   |---|---|---|
-  | npm tarball | 31.2 MB, 6,326 files | 5.8 MB, 1,390 files |
+  | npm tarball | 31.2 MB | 5.8 MB |
   | Unpacked package | 121.7 MB | 18.6 MB |
-  | Dependencies installed | 539 MB, 426 packages | 228 MB, 179 packages |
-  | Downloaded on a cold start | about 182 MB | about 89 MB |
+  | Installed, package and dependencies | 539 MB, 426 packages | 228 MB, 179 packages |
+  | Downloaded on a cold start, package included | about 182 MB | about 89 MB |
   | Cold start to `initialize`, median (p90) | 12.7 s (15.7 s), 14 runs | 6.6 s (7.0 s), 10 runs |
 
 - **Machine caveat.** The two timings come from separate sessions, 2026-09-27 and 2026-09-28, on a
   busy machine (load average 3 to 12, then 11 to 33). The unreleased 2.2 line, run in both, took a
   median 7.3 s and 7.2 s, so the sessions agree; still, trust the sizes more than the seconds, and
-  expect the real registry to be slower than the stand-in. 2.1.0's package carried the dashboard
-  build; 3.0.0's dashboard is `mojulo-ui` (12.1 MB packed, 55.3 MB unpacked), fetched only when it is
-  opened.
+  expect the real registry to be slower than the stand-in. npm also keeps the downloaded tarballs in
+  its cache, about 150 MB for 3.0.0. 2.1.0's package carried the dashboard build; 3.0.0's dashboard
+  is `mojulo-ui` (12.1 MB packed, 55.3 MB unpacked), fetched only when it is opened.
 - **What left the install:** the dashboard build, `@swc/core`, `three`, the dashboard-only libraries,
   `dotenv`, and the chatbot factory's `officeparser` and `pdf2json`. puppeteer-core, archiver and
   react load on first use, so the stdio server boots without them. Details:

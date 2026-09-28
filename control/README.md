@@ -77,7 +77,7 @@ npx mojulo init
 ```
 
 First install is the big one: npx pulls a ~6 MB package plus its dependencies (about 230 MB on
-disk and about 90 MB downloaded, measured for 3.0.0; the dashboard is its own `mojulo-ui` package,
+disk and about 89 MB downloaded, measured for 3.0.0; the dashboard is its own `mojulo-ui` package,
 fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 
@@ -159,7 +159,7 @@ Two add-ons, the same choice in both places:
 
 | add | with | what you get |
 |---|---|---|
-| **creative** (on by default) | plain `npm install` | worlds, audio, wordmark fonts, exact booleans, OpenSCAD in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds those helpers (about 150 MB); the studio tools still list and run, and a call that needs a missing helper says so. |
+| **creative** (on by default) | plain `npm install` | worlds, audio, wordmark fonts, exact booleans, OpenSCAD in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds those helpers (about 115 MB); the studio tools still list and run, and a call that needs a missing helper says so. |
 | **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers by the words in your ask, and most sessions never need more: the agent reads the tool index and the vocab cards directly. About 480 MB plus a 130 MB model, kept under `~/.mojulo/` across upgrades. |
 
 `mojulo install` with no argument prints which are present.

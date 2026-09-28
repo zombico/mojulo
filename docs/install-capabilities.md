@@ -43,8 +43,8 @@ print an `ignored:` line naming it.
 image/illustration recipes, voice, and games composed from the rest. Its code ships in the package and its
 tools list on every install; only an explicit `MOJULO_PACKS` override gates it off. What is heavy about it
 is a set of helpers some of its calls load on first use: the `optionalDependencies` (`node-web-audio-api`,
-`manifold-3d`, `openscad-wasm-prebuilt`, `opentype.js`, `sharp`; about 150 MB installed with what they
-pull in), and a ~535 MB headless Chromium used only for render bakes. A call whose helper is missing says
+`manifold-3d`, `openscad-wasm-prebuilt`, `opentype.js`, `sharp`; about 115 MB installed with what they
+pull in, measured for 3.0.0 on macOS arm64), and a ~535 MB headless Chromium used only for render bakes. A call whose helper is missing says
 so in-band; the rest of the pack works.
 
 ## Install state is PHYSICAL, not a flag
@@ -69,7 +69,7 @@ can never silently disagree with reality. In [control/lib/mcp/packs.js](../contr
 
 ## Growing an install
 
-- **Lean:** `npm install --omit=optional` sheds the optional helpers (about 150 MB). The creative tools
+- **Lean:** `npm install --omit=optional` sheds the optional helpers (about 115 MB). The creative tools
   still list and run; the calls that need a missing helper fail in-band naming it. `sharp` loads on
   first use ([control/lib/sharp-lazy.js](../control/lib/sharp-lazy.js)), so `mojulo call version`, every
   mint and every export run, and only the raster tools (skins, sprite sheets, the PNG bake, the
