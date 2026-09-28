@@ -372,7 +372,10 @@ loops and the recipe format are unchanged.
   `MOJULO_UI_NO_FETCH=1` stops only mojulo's own `mojulo-ui` command, since `npx -y mojulo-ui`
   downloads the package before any mojulo code runs. It tells anyone who registered mojulo with
   `init` or `claude mcp add` to remove that registration, and names `MCP_TIMEOUT` and a cache
-  warm-up for a slow first start.
+  warm-up for a slow first start. Its Privacy link points at its own tool-call log section and
+  TERMS.md, since mojulo.ai/privacy still says "no telemetry" without the local log, and the log
+  section names the off-by-default `MOJULO_MCP_TELEMETRY_CAPTURE=full` debug flag, the one setting
+  that stores argument values.
 - **The plugin ships a routing skill** (`skills/mojulo/SKILL.md`): with the mojulo tools present it
   starts at `forward_context` and follows its routing; without them (a claude.ai chat) it says
   mojulo runs in Claude Code or a local Cowork session and installs nothing.

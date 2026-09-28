@@ -139,7 +139,9 @@ status, the argument names and their size (never the values), truncated error te
 client's name, version and session id, plus one line on the server's stderr, which Claude Code may
 keep in its MCP log. Rows older than 30 days, or beyond 50,000, are deleted at startup. It never
 leaves your machine; Claude can read it with `get_tool_ledger`. To turn it off, set
-`MOJULO_MCP_TELEMETRY=off` in the environment Claude Code starts with.
+`MOJULO_MCP_TELEMETRY=off` in the environment Claude Code starts with. The values are stored only
+if you set the debug flag `MOJULO_MCP_TELEMETRY_CAPTURE=full`, which also keeps each call's
+arguments and result (up to 4 KB each) in the same local rows; it is off unless you set it.
 
 ### Code that runs with your privileges
 
@@ -170,7 +172,8 @@ install of Node from nodejs.org fixes it.
 
 ## Links
 
-- Privacy: [mojulo.ai/privacy](https://mojulo.ai/privacy)
+- Privacy: [the local tool-call log](#the-local-tool-call-log) above, and the no-external-telemetry
+  commitment at the top of [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md)
 - Terms: [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md)
 - Security and reporting: [SECURITY.md](https://github.com/zombico/mojulo/blob/main/SECURITY.md)
 - Source and issues: [github.com/zombico/mojulo](https://github.com/zombico/mojulo)
