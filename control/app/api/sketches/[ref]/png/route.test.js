@@ -12,14 +12,16 @@ vi.mock('@/lib/graph/sketch/sketch-png', () => ({
     return Buffer.from('png');
   },
 }));
-vi.mock('@/lib/graph/scene/chromium-consent', () => ({
+vi.mock('@/lib/graph/scene/chromium-consent', async (importOriginal) => ({
+  ...(await importOriginal()),
   withChromiumFetch: async (fn) => {
     calls.withFetch += 1;
     return { value: await fn(), fetched: null };
   },
 }));
 
-const { GET, isExplicitRequest } = await import('./route.js');
+const { GET } = await import('./route.js');
+const { isExplicitRequest } = await import('@/lib/graph/scene/chromium-consent');
 
 function get(query = '', headers = {}) {
   const request = new Request(`http://127.0.0.1:3001/api/sketches/castle/png${query}`, { headers });

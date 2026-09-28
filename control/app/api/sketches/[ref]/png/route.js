@@ -28,18 +28,11 @@ import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
-import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
+import { isExplicitRequest, withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { KIND_KEYFRAME_ANIMATION, KIND_SCENE_MOTION, normalizeImageOutcomesManifest } from '@/lib/graph/image-outcomes/manifest';
 import { emitKeyGuide } from '@/lib/graph/image-outcomes/keyframe-emit';
 import { emitStageGuidePng } from '@/lib/graph/image-outcomes/scene-plate';
-
-/** True when the request is a person's or an agent's own act, not something another web page started. */
-export function isExplicitRequest(headers) {
-  const site = headers.get('sec-fetch-site');
-  if (!site || site === 'same-origin' || site === 'none') return true;
-  return headers.get('sec-fetch-mode') === 'navigate' && headers.get('sec-fetch-user') === '?1';
-}
 
 function safeFilename(title, ref) {
   const base = [title, ref].filter(Boolean).join(' ');

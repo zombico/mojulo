@@ -7,7 +7,7 @@
  * do so are the explicit ones: forge_motion, export_game's hangar portraits,
  * create_game with auto_audit, and the dashboard's PNG download when the request
  * is a person's or an agent's own (not another web page's <img> or fetch; see
- * that route's isExplicitRequest). Each puts the
+ * isExplicitRequest below). Each puts the
  * returned notice in its result, so the download is never silent. The mint-time
  * warm (scene-png-warm.js) runs inside withoutChromiumFetch, and gallery
  * thumbnails and strips run outside any scope, so neither can start it.
@@ -28,6 +28,19 @@ export async function withChromiumFetch(fn) {
   const scope = { allow: true, fetched: null };
   const value = await scopes.run(scope, fn);
   return { value, fetched: scope.fetched };
+}
+
+/**
+ * True when an HTTP request is a person's or an agent's own act: a same-origin request (a dashboard
+ * click), one with Sec-Fetch-Site none (a typed or opened URL), a user-activated navigation, or a
+ * request with no fetch-metadata headers (an agent's fetch). An <img> or fetch another web page
+ * points at the dashboard is none of these, so it never gets the download.
+ * @param {Headers} headers
+ */
+export function isExplicitRequest(headers) {
+  const site = headers.get('sec-fetch-site');
+  if (!site || site === 'same-origin' || site === 'none') return true;
+  return headers.get('sec-fetch-mode') === 'navigate' && headers.get('sec-fetch-user') === '?1';
 }
 
 /** Run `fn` with the download refused, even when the caller consented (background work). */
