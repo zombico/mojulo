@@ -14,6 +14,227 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Terrain vegetation
+
+Grown forests on terrain worlds. They stand where the ground is painted wood, at their real size in any world, and
+past a cutoff around the camera the ground's own colour carries the woods. Opt-in through `plants` on the terrain
+manifest.
+
+- **Woods where the ground says.** A composed world may carry `plants`. Its climate becomes two dials: a temperature
+  that falls with altitude, pinned to the climate's own treeline, and a moisture that rises near water. Each climate
+  names its species by zone: oak or beech low, fir toward the treeline, palms on a tropical coast and along an arid
+  river, Bambusa in clumps along tropical rivers, Moso in cool wet uplands, reeds on a lake's or a river's shore. Plants
+  stand where the ground is painted wood, read from the painter's own cover, treeline and snowline. None stands on
+  water, sand, bare rock or a city's graded ground. A stand's crowns cover what the ground shows as wood, and trees
+  shorten toward the treeline.
+- **Mountain jungle.** A tropical mountain is forested up to its treeline: umbrella trees on the lowland and the
+  lower slopes, tree ferns and bamboo in the cloud belt, a conifer under the treeline. Two new species, both grown by
+  the engine: `schefflera` (evergreen, Leeuwenberg's model) and `treefern` (Corner's model, grown like a palm). A
+  painted landscape's `plants` may name them too.
+- **Grown plants at every distance.** The World page builds the plants itself, tile by tile around the camera, from
+  the same recipe the server reads, so both stand the same plants in the same places. Each plant takes the detail its
+  size on screen earns. A draw budget moves the level boundaries outward together, so the nearest plants keep the
+  most. A far level of fourteen triangles fills the distance to the cutoff. Trunks near the camera wear their bark and
+  palm trunks their scars. The templates travel as compact arrays: a temperate world's four species add about 4 MB to
+  the page. Exports carry the plants within 600 m of the spawn as instances. The ground builds first. A continent's
+  ground no longer drops and rebuilds chunks it is about to need, a fix that holds with or without plants.
+- **Known limits.** Composed worlds only: a painted world (`from`) and a planet refuse `plants`. The far level reads a
+  little more olive than the woods the ground paints. Arid scrub stays painted.
+
+Absent, every terrain world stands on the same ground in the same colours, and its page carries no plants.
+
+### Grown plants
+
+- **Plants grown, not drawn.** `control/lib/graph/vegetation/` grows three kinds of plant.
+  - **Trees** come from a self-organizing engine: light by shadow propagation, wood by the pipe model, branches
+    held up by reaction wood, and the crown's plan from a small table of Hallé–Oldeman architectures.
+  - **Palms** keep stiffening internode by internode with no cambium, so the trunk is a stack by age, and a leaning
+    one stays curved.
+  - **Bamboo** is a culm turned as a lathe from an elongation wave, with its age as a colour.
+
+  Each has a four-level ladder cut by the pipe model: an axis is drawn while it covers a pixel, and past the leaf a
+  crown is a few clusters whose coverage and tone are the leaves'. A pool grows a few variants and stamps them
+  through `repeats`, like the rock pool. The science, the numbers checked against the literature and the known
+  limits are in `docs/vegetation.md`.
+- **Plants wear their surfaces.**
+  - A tree's trunk and limbs wear its species' bark, grown by the fracture model as a tile that repeats with no seam.
+  - A palm's trunk wears its own scar rings or leaf-base lattice, unrolled over its length.
+  - Both show in the near levels. The World page now draws textured faces on instanced templates; exports draw them
+    in their plain colour.
+- **Bamboo stands as a grove.** Where a scene puts one bamboo, a clumping species grows a clump whose outer culms
+  lean out, and a running one grows a patch of culms at a real grove's density. Culms come in cohorts, coloured by
+  age.
+- **Landscape trees are grown.** A painted landscape may carry `plants`: a species, or `{ canopy, cone, tuft,
+  variants, level }`. Its scene's trees then become instances of grown oak, beech, fir, coconut, date palm,
+  Washingtonia, Moso or Bambusa, with reed for tufts. Each takes its detail from the nearest bookmark within a draw
+  budget, so a scene of a few dozen trees shows them at the most detail `level` allows. The World, the
+  `.glb`, USD and 3MF instance them; the CSS scene keeps its drawn trees. Absent, every landscape is byte-identical.
+
+### Terrain composition
+
+- **Cities that stand on hills.** A terrain world may carry `cities`: fractal cities sited on its ground. The
+  ground a city can't build on (too steep, a cliff, scree, water) is reserved before its streets are laid, so the
+  streets go around it. The city stands on a graded ground (the land smoothed at half a block), which becomes the
+  terrain under it. Each building stands level at its front door with a stone plinth on the downhill side, streets
+  and lots follow the grade, and the tall buildings stay on the flat. A metro can sprawl for kilometres: it keeps
+  full detail around its core and turns to massing beyond it, with the far streets painted into the ground.
+- **Worlds sized by what is in them.** A terrain world may be composed instead of painted: `world: { features }`
+  names a river, a range, a lake, a plateau, a volcano or a coast, each with a size on a ladder of real-world bands.
+  The first feature sets the world's scale, so a great river makes a continent and a lake is tens of kilometres of
+  water. Rivers and lakes come from drainage and erosion around it. The ground is planned finer and finer toward the
+  place you stand, so it is detailed underfoot across a world thousands of kilometres wide. A painted scene can sit
+  inside the composed world.
+
+### Terrain worlds
+
+- **A painted scene becomes a world.** `compose_world({ base: 'terrain', overrides: { from } })` takes a painted
+  landscape (inline, or a stored sketch by `ref`), including its `landform` and `erosion`, and makes it ground at
+  real scale in metres. `span` says how many metres the painting covers. Below the painting's grid, a
+  fracture-rough detail law carries the ground down to the scale of a footstep.
+- **Walk, fly, orbit.** The World page carries the recipe, not a mesh, and builds terrain chunks around the camera:
+  fine near, coarse far, capped in memory. The same page walks the cliff foot, flies the escarpment with speed that
+  grows with altitude, and pulls back to see the whole world. With `planet`, the world wraps onto a small planet:
+  the painting at its pole, continents and seas beyond it, a night side, and space with a rim of air seen from
+  orbit.
+- **Composable ground.** Other sketches are placed on the ground by `place`, seated at the terrain's height. Rocks,
+  scree and trees scatter as pooled instances. Exports carry a baked mesh of the whole world.
+
+### Crystal light
+
+- **Crystals carry their optics.** `polygonizer/crystal-optics.js` holds quartz, amethyst, calcite, diamond, ruby,
+  sapphire, tourmaline and opal. Each gem's optical class (isotropic or uniaxial, with the optic axis on c) is derived
+  from the point group of its lattice (Neumann's principle). The rest comes from literature data:
+  - indices at three wavelengths for the ordinary and extraordinary rays, which give dispersion and birefringence
+    (calcite's 6.24° double image comes out of the cell and its two indices);
+  - the colour white light keeps after a path, per ray and tabled over path length, because a thin ruby is pink and
+    a thick one red;
+  - ruby's glow, and opal's sphere lattice (λ = 2·d·n·cosθ).
+
+  Every habit is an exact convex polytope built from the lattice planes: quartz's pointed prism, calcite's cleavage
+  rhomb, diamond's octahedron, corundum's barrel and tourmaline's trigonal prism. A round brilliant and a cabochon are
+  available as cuts.
+- **The light a crystal throws.** `polygonizer/crystal-print.js` beam-traces a polytope under a directional light,
+  with no photons. Each lit facet refracts a parallel beam per colour band and per ray. The beam is clipped by the
+  exit facets, then refracts out or reflects internally. Each piece lands on the receiving plane with its flux
+  conserved, carrying dispersion, calcite's double image and absorption along its own path. The resulting shadow and
+  caustic correlate with a spectral photon tracer at r = 0.93–0.99. The tracer is a self-contained kernel, so a page
+  runs the same code the server does.
+- **A crystal's shine is computed, not traced.** `polygonizer/crystal-shine.js` is an interpretive response per facet
+  or per pixel:
+  - a Fresnel glint of a small studio (a softbox and a ~1° sun);
+  - the view ray refracted per channel into the stone and out again, so fire appears where the channels part and
+    brilliance where total internal reflection traps the light;
+  - colour by path length, dichroism by the ray's angle to c, ruby's glow on its lit side, and opal's Bragg flashes.
+
+  It is computed in world space against the fixed light and the live camera, so it stays right as a model turns.
+  It needs no extra render pass.
+- **The turntable spins gems.** `shape: 'crystal'` takes `gem`, `cut`, `size` in cm and `glow`.
+  - The stone and a floor carrying its print (re-traced as it turns, on a budget) render on one canvas. Cost is the
+    shading, not one layer per facet: a 121-facet brilliant runs at interactive rates.
+  - Every other shape is byte-identical.
+- **Crystals on World pages.** Faces tagged `crystal` get the response live through an opt-in `crystal` channel.
+  - In GLSL, the stone's far side is taken as its bounding sphere, tilted per entry facet so the inside reads
+    faceted, so one pass shades any number of stones.
+  - Each stone's print is traced once at emit, largest stones first within a budget.
+  - A glowing stone spills a pool of its colour on the surface it grew from.
+  - A lit scene's ambient brightens the studio the stones reflect.
+  - With no crystal faces, the channel emits zero bytes.
+- **Crystals in recipes.** A workbench `fields` term `{ kind: 'crystal' }` is placed as its exact faces beside the
+  field instead of being blended into it. `cluster` seeds a druse on a bed, or lines a cavity's inner wall with
+  stones growing inward, which makes a geode a recipe. `glow` (0–1) makes any gem shine in its own colour.
+- **Crystals in game assets.** Crystal groups leave the `.glb` as `<group>:crystal` nodes. Their material carries
+  `KHR_materials_transmission`, `_ior` (the D line), `_volume` (the stone's colour after 1 cm) and `_dispersion`
+  (20/V); a glow becomes emissive. An opal becomes an opaque body with `KHR_materials_iridescence`. The Unreal leg
+  keeps a `:crystal` slot's imported material, as it keeps `:emissive` slots. With no crystal, every export is
+  byte-identical.
+- **Crystals in USD.** A crystal group is its own `<group>:crystal` prim, bound to a UsdPreviewSurface with its body
+  colour, its index (`ior`), an opacity, and its glow as emission; an opal is a dark body under a clearcoat. Blender
+  reads the opacity as transmission.
+- **Crystals as light operators.** A world's `crystalLight` places lamps whose beams pass through its crystals. Each
+  gem does one thing to a beam that a player can read:
+  - quartz relays it along its axis (amethyst and sapphire tint it their colour);
+  - diamond fans white into five colours;
+  - calcite splits it into two beams polarized at right angles;
+  - tourmaline passes only light polarized along its axis;
+  - ruby passes red, charges on the rest and pulses a red laser;
+  - opal throws colours whose hue is the angle.
+
+  The constants come from what each crystal does to real light, exaggerated so they read. `scene/crystal-rig.js` holds
+  the operators and the solver as one self-contained kernel, which the World page runs every frame.
+  - Beams stop at the world's own geometry, through an occluder grid built once on the page.
+  - A crystal a mover turns carries its light with it, and its print on the floor is re-traced as it turns.
+  - Small crystal groups act. A large one (a druse, a geode's lining) catches the light and glows where it lands.
+  - Targets raise `lit` and `dark` on the events bus and can step a mover (a door), so a light puzzle is a recipe.
+  - A crystal cluster can clear spots (`avoid`) for a hero stone or a path for light.
+
+  Absent `crystalLight`, every world is byte-identical.
+- **Light rigs leave with the game.** The `.glb` carries a frozen frame: the beams and pools as emissive nodes, the
+  brightest glows as point lights. `score.json` carries the rig and each crystal node's optics. The Godot kernel (0.3.0)
+  performs the rig live, choosing the same beams as the World page. It also gives crystal surfaces a refraction
+  material of their own, since Godot's importer drops transmission.
+### Cliffs and mountains
+
+- **Landforms.** A painted landscape may carry `landform`: an ordered list of operations on its surface, mixed in
+  any order.
+  - `peaks`: ridged mountains on the two-regime roughness law.
+  - `strata`: beds. A hard bed stands as a cliff with a bench on top; a soft bed lies back.
+  - `scarp`: a cliff line along a path, tapering to its tips.
+  - `joints`: steep ground breaks into facets on the rock's joint sets (blocky, columnar or slabby).
+  - `talus`: each face sheds debris, which settles at the angle of repose below it, with power-law scree on the
+    apron.
+
+  Hardness couples them: with `erosion` declared, rivers cut soft beds and not hard ones, and bedrock holds its
+  face instead of slumping. Every consumer reads the result, as with `erosion`. Absent, every landscape is
+  byte-identical.
+- **Faces with detail.** In the World, a landform terrain is meshed by slicing at shared heights and at every
+  bedding plane. A cliff gets polygons in proportion to its height, and flat ground stays whole. The face is then
+  articulated: hard beds stand proud, soft beds recess, and the rock's skin follows its fabric. Neighbours share
+  every cut, so the mesh has no cracks. The CSS scene keeps the plain grid. `?render=raymarch` falls back to the mesh
+  for `landform` and `erosion`, which it cannot draw.
+
+### Nature scenes
+
+- **Landscape boulders are rocks.** A painted landscape may carry `rocks` (a rock preset, or `{ rock, variants,
+  detail, tone, sink }`). Its scene's boulders then become instances of a few pooled `rock` templates instead of
+  boxes, each template baked at its own yaw in the terrain's light. They ride `repeats`, one shared mesh per variant,
+  to the World, the `.glb`, USD and 3MF. The CSS scene draws each boulder as its exact far-LOD block. `tone:
+  'palette'` (the default) keeps the painting's colours. Absent, every landscape is byte-identical.
+- **Shadows at rock scale.** `shadows.bias` (contact slack in world units) and `shadows.fitMin` (the fitted
+  shadow box's floor) make cast shadows land on sub-metre and metre-scale subjects. The defaults (1.1 units, 60
+  units) were sized for city worlds. They are emitted only when declared.
+- **Erosion.** A painted landscape may carry `erosion`. Its height is baked on a grid, cut by stream-power incision
+  along the drainage network, and relaxed toward a talus angle, deterministically. Every consumer then reads the
+  eroded surface: the still, the World, the city and the scatter. It is the large-scale law the rock study measured
+  (continental relief is smoother than fracture), made by process instead of by noise. Absent, byte-identical.
+
+### Rock formation
+
+- **A rock is a field shape.** `{ kind:'rock' }` joins the workbench `fields` shapes beside `expr`. It is a
+  fracture cascade over a mineral table, so it mints through `mint_solid` and exports on every leg without new
+  plumbing, and no tool changed. The recipe names a rock (`granite`, `slate`, `marble`, `quartzite`, `basalt`) or
+  its own modes, plus a size and a seed. `unit` (`cm` by default, like the workbench, or `m` / `mm`) says what a
+  world unit is, so the grain, stored in metres, lands at its true size. Its three layers keep three scale laws:
+  - **Lattice → angles.** Each mineral's cleavage planes are derived from its unit cell and point group
+    (`polygonizer/rock-minerals.js`): calcite's rhomb at 74.94°, quartz's r face at 51.79°, albite's oblique 86.38°,
+    augite's chain cleavages near 87°, hornblende's near 56°.
+  - **Grains → one length.** A seeded Voronoi of nucleation sites, each grain with a mineral by modal share and an
+    orientation, random or aligned by a `fabric` (slate's mica).
+  - **Fracture → one exponent.** A block of big planar fractures, then octaves of ball-bounded chips that seek edges.
+    Each chip breaks along the cleavage of the grain at its seed, or conchoidally where there is none. Its depth
+    follows a Hurst law (`hurst`, default 0.8), and joint sets take over above `joints.above`.
+  - **`octaves` is the level of detail.** `octaves: 0` is the block alone, and `rockBlockFaces` emits that block as
+    an exact convex polytope of about a dozen planes, the far LOD for a scatter.
+  - **Colour is the grain.** A field part whose term carries `colorAt` tints its faces by it, filtered to the cell
+    size: grains resolve on a hand sample and fall to the modal mean on a mountain. Absent, every field solid is
+    byte-identical.
+- **Noise can hold two roughness laws.** The `noise` field kind takes an opt-in `hurst`:
+  - a number is one law (persistence 2^-H);
+  - `{ small, large, crossover }` sets octave amplitude by wavelength, fracture-rough below the crossover and
+    relief-smooth above.
+
+  The default persistence of 0.5 is H = 1, smoother than fractured rock (≈ 0.8) or measured continental relief
+  (≈ 0.5). Absent, noise is byte-identical.
+
 ### Muse carpet
 
 - **Meta Muse is a shipped host.** `lib/mcp/hosts/muse.json` and `lib/mcp/adapters/muse.md`, for the shell-only agent

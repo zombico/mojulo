@@ -3312,7 +3312,7 @@ const LOD_KEEP = {
 // become plain extrusions
 const lodKeepsForm = (b) => b.class === 'landmark' || b.class === 'religious' || b.class === 'civic';
 function replaceInPlace(arr, next) { arr.length = 0; for (const x of next) arr.push(x); }
-function pruneFidelity(level, { boxes, grounds, faces }) {
+export function pruneFidelity(level, { boxes, grounds, faces }) {
   const keep = LOD_KEEP[level];
   if (!keep) return null;
   const before = { boxes: boxes.length, grounds: grounds.length, faces: faces.length };

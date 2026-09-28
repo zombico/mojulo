@@ -216,6 +216,74 @@ Distance honesty: an expression is a FIELD with the right sign; it is an exact d
 - **A twisted box** — `d: 'let a = tw * z; let u = x*cos(a) - y*sin(a); let v = x*sin(a) + y*cos(a); let qx = abs(u) - hx; let qy = abs(v) - hy; let qz = abs(z - hz) - hz; len3(max(qx,0), max(qy,0), max(qz,0)) + min(max(qx, max(qy, qz)), 0)'`, `vars: { tw: 0.8, hx: 0.5, hy: 0.5, hz: 2 }`, `reach: 3`.
 - **A fillet by `smin`** — `d: 'smin(len3(x, y, z - 1) - 1, len2(x, y) - 0.4, 0.3)'`: a sphere on a post, welded with a `0.3` fillet; `bounds` to the post's length.
 
+### Fields — rocks
+
+`{ kind:'rock', center, size, rock, seed? }` is a broken stone, not a displaced blob: a block of big planar fractures, then `octaves` of chips at halving scales that break edges and corners along the CLEAVAGE of the mineral grain they start in (or conchoidally where the mineral has none), over a seeded grain field that also colours it. `size` is the longest extent in the manifest's units, and `unit` (`'cm'` by default like the workbench, or `'m'` / `'mm'`) tells the rock what one unit is. That matters because the grain has a real size: a 10 cm `granite` is speckled pink, white, grey and black with feldspar cleavage steps, and an 800 m one is the grains' mean tone with the same kind of silhouette.
+
+- `rock` — a preset (`granite`, `slate`, `marble`, `quartzite`, `basalt`) or `{ modes:[[mineral, share], …], grain (metres), fabric?:{ normal:[x,y,z], scatterDeg? }, colors? }`. Minerals: quartz, orthoclase, albite, muscovite, biotite, augite, hornblende, olivine, calcite, halite; their cleavage angles come from their unit cells. A `fabric` aligns every grain (slate's mica), so the big breaks follow it; random grains break every way.
+- `octaves` (0–6, default 4) — detail. Each octave halves the chip scale; keep the finest chip ≥ 3 grid cells (`size × 0.45 / 2^octaves` ≥ 3 × longest side ÷ `cells`), so raise `cells` with it. `octaves: 0` is the block alone: the far level of detail.
+- `hurst` (default 0.8, fractured rock) — how much rougher the small scales are; `alpha` (0.3) the chip depth; `aspect` ([1, 0.8, 0.66]) the base proportions; `blockPlanes` (13); `grain` overrides the rock's (world units); `joints:{ above, prob? }` lets two steep joint sets and surface-parallel sheeting take the breaks larger than `above` world units (tors, blocky crags).
+- `color` — `'grain'` (default: faces take the grain colour, averaged over a grid cell), `'mean'`, or `false` (the entry's `tint`). A rock is a bound with the right sign, never `exact`.
+
+```
+units: 'cm', fields: [{ cells: 96, terms: [{ id: 'rock', op: 'add', shape: { kind: 'rock', center: [0,0,0], size: 12, rock: 'granite', seed: 7 } }] }]
+```
+
+### Fields — crystals
+
+`{ kind:'crystal', gem, center, size, cut?, axis?, spin?, unit?, glow?, cluster? }` is a gem, and it is PLACED, not blended: its faces are its lattice's planes (an exact polytope from the mineral's cell and point group), so the stone sits beside the rest of the field as its own exact solid and ops after it do not touch it. Every face carries a `crystal` tag. The World page shades it live (the crystal channel: glints, fire from three refracted wavelengths, total internal reflection, colour by how far light travels in the stone, dichroism, glow, opal's flashes), draws the light it throws on the surface under it (its print: shadow and caustic), and the `.glb` exports it as a transmissive material (KHR transmission, ior, volume, dispersion).
+
+- `gem` — `quartz`, `amethyst`, `calcite`, `diamond`, `ruby`, `sapphire`, `tourmaline`, `opal`. `cut` — `natural` (the habit: quartz's pointed prism, calcite's rhomb, diamond's octahedron, corundum's barrel, tourmaline's trigonal prism; opal, amorphous, is a cabochon), `brilliant`, `cabochon`.
+- `size` — the longest extent in the manifest's units; `unit` (`'cm'` by default, `'m'` / `'mm'`) says what a unit is, so a thin ruby path is pink and a long one red. `axis` — where the c axis points (default up); `spin` — degrees about it.
+- `glow` (0–1) — the stone shines in its own colour whatever its optics say (a ruby glows by nature; this is the dial for a game's glowing geode), and spills a pool of that colour on the surface it grew from.
+- `cluster: { count, seed, on, lengths:[min, max], tilt?, bury?, avoid? }` — a seeded druse instead of one stone: `on: { disc: { center, radius, normal? } }` grows them from a bed; `on: { ellipsoid: { center, radii, zMax? } }` lines a cavity's inner wall, growing inward (a geode). Lengths follow a power law: many small, a few large. `avoid: [{ center, radius }]` clears spots (for a hero stone, or a path for light); every other stone stays where it was.
+
+```
+units: 'cm', fields: [{ cells: 90, terms: [
+  { id: 'shell', op: 'add', shape: { kind: 'ellipsoid', center: [0,0,0], radii: [12, 10.8, 9] } },
+  { id: 'cavity', op: 'subtract', shape: { kind: 'ellipsoid', center: [0,0,0], radii: [9.8, 8.8, 7.2] } },
+  { id: 'open', op: 'subtract', shape: { kind: 'box', center: [0,0,10], size: [40, 40, 20] } },
+  { id: 'lining', op: 'add', shape: { kind: 'crystal', gem: 'amethyst', size: 3, glow: 0.55,
+      cluster: { count: 200, seed: 9, on: { ellipsoid: { center: [0,0,0], radii: [9.6, 8.6, 7], zMax: -0.6 } }, lengths: [0.7, 3.6] } } },
+  { id: 'heart', op: 'add', shape: { kind: 'crystal', gem: 'ruby', center: [0.5, -0.5, -5.2], size: 2.6 } } ] }]
+```
+
+### Light rigs
+
+`crystalLight` (top level, beside `fields` and `movers`) places lamps whose beams pass through the crystals. Each gem does one thing to a beam, so a player can tell the stones apart by their light alone. It is game-directed, not physics (the stones' shading is the physics). The constants come from what each crystal does to real light, exaggerated so they read.
+
+| gem | the beam |
+|---|---|
+| quartz (amethyst, sapphire: in their own colour) | leaves along the stone's c axis: turn the stone, steer the light |
+| diamond | white fans into five colours in the plane ⟂ c; a coloured beam bends as one |
+| calcite | splits into two parallel beams, polarized at right angles |
+| tourmaline | passes only light polarized along c (of a calcite's two beams, one passes) |
+| ruby | red passes; other light charges it, and it pulses a red laser along c |
+| opal | throws colours whose hue is the angle; they change as it turns |
+
+- `lamps: [{ at, aim | dir, color?, power?, width? }]` — `aim` is a point, `color` a `'#rrggbb'` (white by default); `width` defaults to a fraction of the stones' size.
+- A crystal group of 12 stones or fewer acts; a larger one (a druse, a geode's lining) catches the light and glows where it lands. `crystals: { <group>: true | false | { op?, spread?, bend? } }` overrides either way: `op` (`relay`, `fan`, `twin`, `gate`, `charge`, `iris`) swaps what a stone does; `spread` and `bend` (degrees) shape a fan.
+- Beams stop at the world's own geometry and pool where they land. A group a mover drives carries the light with it: a crystal on a toggle is a hand-turned mirror, and its print on the floor turns with it.
+- `targets: [{ id, at, r, want?: { color?, min? }, toggles? }]` — a target catches beams. When what it catches satisfies `want` (a colour: `white`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `violet`; a power, 0.05 by default), it raises `lit` on the events bus (with the colour), and `dark` when it stops. `toggles` names a mover group with `states` it steps on when lit and back when dark: a door. Reactions and HUD banners read `lit` like any event.
+- `budget: { depth?, beams?, maxLen? }`, `gain?` (how bright beams draw).
+- The `.glb` carries a frozen frame (the beams and pools as emissive nodes, the brightest glows as point lights). The Godot pack performs the rig live and gives crystals a refraction material; movers do not travel, so the stones stand at rest there.
+
+A light puzzle: a lamp, a brilliant fans it, a quartz in the green beam turns by hand (R), and green on the socket opens the door.
+
+```
+fields: [{ id: 'room', cells: 70, terms: [
+    { id: 'back', op: 'add', shape: { kind: 'box', center: [0,13,5], size: [40,1,10] } },
+    { id: 'prism', op: 'add', shape: { kind: 'crystal', gem: 'diamond', cut: 'brilliant', center: [8,0,3], size: 2.2 } },
+    { id: 'mirror', op: 'add', shape: { kind: 'crystal', gem: 'quartz', center: [-0.24,0.59,3], size: 1.8, axis: [0.9,0.43,0.03] } } ] },
+  { id: 'door', terms: [{ id: 'door', op: 'add', shape: { kind: 'box', center: [1.3,12.3,4], size: [4.4,0.6,8] } }] }],
+movers: [
+  { group: 'mirror', basePos: [0,0,0], turn: { axis: [0,0,1], center: [-0.24,0.59,3], absolute: true }, states: [0, 0.785, 1.571, 2.356], key: 'r' },
+  { group: 'door', basePos: [0,0,0], slide: { axis: [0,0,1] }, states: [0, -7.6], click: false }],
+crystalLight: { lamps: [{ at: [22,-1,3.4], aim: [8,0,3] }], crystals: { prism: { spread: 70, bend: 0 } },
+  targets: [{ id: 'socket', at: [-5.69,11.9,3.33], r: 0.9, want: { color: 'green' }, toggles: 'door' }] },
+events: { reactions: [{ on: 'lit', match: { source: 'socket' }, do: 'set', var: 'open', to: 1 }], hud: [{ on: 'lit', text: 'The door opens' }] }
+```
+
 ### Fields — domain operators
 
 Ops, not shapes: they apply to whatever the term list has built so far, or — with a nested `terms` list — to a SUB-SOLID that is then combined in (`combine: 'add' | 'subtract' | 'intersect'`, default `add`, with `blend`). That is how a feature is repeated without repeating the part: the bolt circle is ONE bore, repeated, subtracted. Group ids survive (every instance of the bore is still `bore`, and a `transform` moves the group with the geometry), so `{ group: 'bore' }` still selects every hole. Warps act about the ORIGIN / the axis line through it: author the sub-solid there, then `transform` it into place.

@@ -24,6 +24,7 @@
  */
 
 import { litFactor, makeLight, shadeHex, lodCount } from '../polygonizer/vexar.js';
+import { planCrystalTurntable, renderCrystalTurntableToHtml, crystalFirstFrame } from './crystal-turntable.js';
 
 // ── vector helpers (lifted from the spike; small + local so the room/city code is untouched)
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -117,8 +118,8 @@ function tetrahedron() {
 }
 
 const SHAPES = { sphere: uvSphere, cube, cylinder, dodecahedron, octahedron, tetrahedron };
-export const SOLID_SHAPES = Object.freeze(Object.keys(SHAPES));
-export const SOLID_SURFACES = Object.freeze(['vexar', 'solid', 'glow']);
+export const SOLID_SHAPES = Object.freeze([...Object.keys(SHAPES), 'crystal']);   // `crystal`: a gem's exact polytope (crystal-turntable.js)
+export const SOLID_SURFACES = Object.freeze(['vexar', 'solid', 'glow', 'crystal']);
 
 // Fixed viewport-space light. CSS coords: x right, y DOWN, z toward viewer → toLight points
 // upper-left and somewhat toward the camera, raking enough that the visible hemisphere carries
@@ -132,6 +133,10 @@ const TO_LIGHT = TURNTABLE_LIGHT.toLight;
  * render params. Pure — no DB, no HTML. Reused by the renderer and by tests.
  */
 export function planSolidTurntable(recipe = {}) {
+  if (recipe.shape === 'crystal') {
+    return planCrystalTurntable(recipe, { light: TURNTABLE_LIGHT, tilt: Number.isFinite(+recipe.tilt) ? +recipe.tilt : 18,
+      spinSeconds: Number.isFinite(+recipe.spinSeconds) ? Math.max(2, +recipe.spinSeconds) : 12 });
+  }
   const shape = SHAPES[recipe.shape] ? recipe.shape : 'sphere';
   const surface = SOLID_SURFACES.includes(recipe.surface) ? recipe.surface : 'vexar';
   const color = /^#[0-9a-fA-F]{6}$/.test(recipe.color || '') ? recipe.color : '#5f86ad';
@@ -193,6 +198,7 @@ function faceDiv(corners, normal, hex, surface) {
  */
 export function assembleSolidTurntableScene(recipe = {}, ctx = {}) {
   const plan = planSolidTurntable(recipe);
+  const crystalFills = plan.surface === 'crystal' ? crystalFirstFrame(plan, TO_LIGHT) : null;   // a gem's first frame, and its `crystal` tag
   // The World mesh builder consumes QUADS (first 4 corners; <4 skipped) — lower each
   // n-gon into quads + a final padded triangle ([a,b,c,c], padTrianglesForWorld's
   // convention). Flat per-face shade, so the split is invisible.
@@ -204,10 +210,17 @@ export function assembleSolidTurntableScene(recipe = {}, ctx = {}) {
     if (i + 1 < c.length) out.push([c[0], c[i], c[i + 1], c[i + 1]]);
     return out;
   };
-  const faces = plan.faces.flatMap((f) => {
-    const fill = plan.surface === 'vexar' ? shadeHex(f.hex, f.normal, plan.light) : f.hex;
-    return lowerPoly(f.corners.map(([x, y, z]) => [x, z, -y])).map((corners) => ({ corners, fill, group: plan.shape }));
+  const faces = plan.faces.flatMap((f, i) => {
+    const fill = crystalFills ? crystalFills[i] : plan.surface === 'vexar' ? shadeHex(f.hex, f.normal, plan.light) : f.hex;
+    const tag = crystalFills ? { crystal: { gem: plan.crystal.gem, stone: 0, c: [0, 0, 0], r: 1, axis: [0, 0, 1], cmu: plan.crystal.cmPerUnit, ...(plan.crystal.glow ? { glow: plan.crystal.glow } : {}) } } : {};
+    return lowerPoly(f.corners.map(([x, y, z]) => [x, z, -y])).map((corners) => ({ corners, fill, group: plan.shape, ...tag }));
   });
+  // a gem gets a floor under it to catch its print (the crystal channel traces it there); other shapes float as before
+  if (crystalFills) {
+    const z = plan.crystal.floorZ, n = 48;
+    for (let i = 0; i < n; i++) { const a0 = (i / n) * 2 * Math.PI, a1 = ((i + 1) / n) * 2 * Math.PI; const p = (a) => [2.2 * Math.cos(a), 2.2 * Math.sin(a), z];
+      faces.push({ corners: [[0, 0, z], p(a0), p(a1), p(a1)], fill: '#1b1e26', group: 'floor' }); }
+  }
   const el = (plan.tilt * Math.PI) / 180, R = 3.4;
   return {
     faces,
@@ -228,6 +241,7 @@ export function renderSolidTurntableToHtml(recipe = {}) {
   const vb = recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 480, height: 480 };
   const W = Number.isFinite(+vb.width) ? +vb.width : 480, H = Number.isFinite(+vb.height) ? +vb.height : 480;
   const title = recipe.title || `mojulo · ${plan.shape}`;
+  if (plan.surface === 'crystal') return renderCrystalTurntableToHtml(plan, { title: recipe.title || `mojulo · ${plan.crystal.gem}`, width: W, height: H, toLight: TO_LIGHT });
   const dom = plan.faces.map((f) => faceDiv(f.corners, f.normal, f.hex, plan.surface)).join('\n');
   // Inline Lambert (mirrors vexar.litFactor) — the rAF loop re-shades the vexar surface each frame
   // so the highlight stays fixed while the solid turns (Rx(-tilt)·Ry(yaw) applied to each normal).

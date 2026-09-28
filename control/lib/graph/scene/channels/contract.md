@@ -26,17 +26,18 @@ fails loud. A hash may change only when a plan step says emission changes.
 ## Emitted page splice order
 
 1. `skyBlock` → 2. `waterBlock` → 3. `shadowBlock` → 4. `inkBlock` → 5. `glowBlock` +
-`specBlock` → 6. `pickBlock` (+ castShadow, splats, toon — appended `sep:''` rows) → 7. runtime section (registry order: walk, tracers,
+`specBlock` → 6. `pickBlock` (+ castShadow, splats, toon, crystal — appended `sep:''` rows) → 7. runtime section (registry order: walk, tracers,
 sphereRig, planets, movers, comets, fields, surfaces, heatSpheres, starSurfaces, buildups,
-transports, deforms, signs, physics, actions, events, controllable) → 8. `let stepFx` /
+transports, deforms, signs, physics, actions, events, controllable; then the bespoke walkers, rigPreview, strokeOverlay,
+cars, xr, stream and crystalLight blocks, each only when present) → 8. `let stepFx` /
 `let stepSpriteSfx` (iff present) + `function __mojStep(t)` → 9. `fxBlock` +
 `spriteSfxBlock` → 10. fog quad (inline in scene-three) → 11. `effectsBlock` (inline) →
 12. `audioBlock` → 13. `_freeze` / `const _capture` → 14. `gameBlock` → 15. pause sidecar
 → 16. capture API + rAF loop.
 
 `__mojStep` body order: tracers, planets, movers, comets, fields, surfaces, heatSpheres,
-starSurfaces, buildups, transports, deforms, signs, physics, events (+ fx, spriteSfx
-appended by scene-three). walk / actions / controllable have NO `__mojStep` slot — walk
+starSurfaces, buildups, transports, deforms, signs, physics, events (+ walkers, rigPreview, cars, crystalLight, fx,
+spriteSfx appended by scene-three when present; crystalLight after movers, so it reads the poses they set). walk / actions / controllable have NO `__mojStep` slot — walk
 and controllable are stepped from the rAF loop / capture `step()`; actions is
 listeners-only.
 
@@ -73,6 +74,8 @@ Families, gates, and normalization site per block. `normalizedBy: registry` = th
 | specularChannelScript | setup | any group/tex spec, or any rig figure part spec | emitThreeWorld |
 | pickChannelScript | setup | ≥1 named pick | emitThreeWorld |
 | toonInkScript | setup | `toon.ink` && ≥1 group packed `ink` buffers (opaque non-studio faces outside `shell:` groups) | emitThreeWorld |
+| crystalChannelScript | setup | ≥1 group carrying `crystal` faces (+ the print kernel when a mover drives a crystal group) | emitThreeWorld |
+| crystalLightChannelScript | runtime (bespoke, `stepCrystalLight`) | `crystalLight` resolves against the faces (crystal-rig.js) | emitThreeWorld |
 | walkModeScript | runtime (loop-stepped) | `walk` truthy | emitThreeWorld |
 | tracerChannelScript | runtime | path.length > 1 | registry |
 | sphereRigPreamble | runtime (preamble) | planets \|\| heatSpheres \|\| starSurfaces | registry (special-cased) |
@@ -109,7 +112,9 @@ OPTIONAL = consumed behind a `typeof`/null guard; the provider may be absent.
 | `window.__mojSim` | physics | actions (REQUIRED), events (OPTIONAL) |
 | `window.__mojInk` | toon (setup) | probes / captures / page scripts (`tint` / `width` / `reset` / `set`, registry by group name) |
 | `__inkBuild` / `__inkGeoNormals` / `__inkCentroid` | toon (setup) | controllable's rig builder (OPTIONAL, typeof-guarded — inks every rig part when the emit cfg carries toon.ink) |
-| `__BUS` / `__busState` / `window.__mojBus` | events | fx, audio, game (OPTIONAL, wrap processEvents); page sidecar (OPTIONAL) |
+| `__BUS` / `__busState` / `window.__mojBus` | events | fx, audio, game (OPTIONAL, wrap processEvents); page sidecar (OPTIONAL); crystalLight (OPTIONAL, raises `lit` / `dark`) |
+| `window.__mojToggle` | movers | crystalLight targets' `toggles` (OPTIONAL) |
+| `window.__mojCrystalLight` / `window.__mojCrystalLive` | crystalLight / crystal (live prints) | probes |
 | `window.__mojCtrl` | controllable | fx, events, audio (OPTIONAL); page capture (null-guarded) |
 | `__ctrlActive`, `__ctrlOwnsCamera`, `stepControllable` | registry lets (assigned by controllable) | page loop (unconditional — lets always exist) |
 | `walkOn`, `walkMode`, `stepWalk`, `walkPrevT` | registry lets / walk block | page loop; audio (OPTIONAL probe) |

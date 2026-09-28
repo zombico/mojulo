@@ -47,6 +47,8 @@ import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
 import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph/worlds/workbench-assembler';
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
+import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
+import { resolveTerrainCities } from '@/lib/graph/terrain/terrain-city';
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleStoreWorldScene } from '../retail/store-world.js';
@@ -575,6 +577,13 @@ export const WORLD_KINDS = {
   // clouds: the deck rides over the terrain (no boxes to clip; the band clears the mesh's tallest
   // vertex). The ?render=raymarch backend returns before the channel layer, so it carries no deck.
   'painted-landscape': { walk: true, clouds: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
+  // a painted scene made ground at real scale: the live page meshes it around the camera (the
+  // terrain channel's LOD), everything else (exports, stills) gets the baked world. `from: { ref }` resolves to the
+  // stored painted-landscape, so a promoted painting follows its source's edits.
+  terrain: {
+    walk: true, title: 'mojulo terrain world',
+    resolve: async (m, ctx) => assembleTerrainWorld({ ...m, from: await resolveTerrainFrom(m), ...(m.cities ? { cities: await resolveTerrainCities(m.cities) } : {}) }, { title: ctx.title, live: !!ctx.live }),
+  },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host
   // entities, so an entities-only manifest renders without piggybacking on another kind.
   // fogBoxes: the manifest's own AABB collision hull doubles as the fog occluder — the same

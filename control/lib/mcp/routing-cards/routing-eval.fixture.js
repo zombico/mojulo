@@ -24,6 +24,8 @@ export const FIXTURE = [
   ['turn this concept art of an espresso machine into a 3d model piece by piece', 'mint_solid'],
   ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', 'mint_solid'],
   ['build me a little town I can wander around in', 'compose_world'],
+  ['turn my mountain painting into a world I can walk and fly over', 'compose_world'],
+  ['a continent with a huge river running to the sea that I can fly over', 'compose_world'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
