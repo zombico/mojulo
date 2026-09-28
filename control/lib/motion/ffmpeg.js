@@ -37,6 +37,7 @@ import { pipeline as streamPipeline } from 'node:stream/promises';
 import https from 'node:https';
 import path from 'node:path';
 import { trackDownload } from '@/lib/net/download-log';
+import { pluginProfileActive } from '@/lib/mcp/plugin-profile';
 
 // Pinned ffmpeg-static release (see github.com/eugeneware/ffmpeg-static). Asset
 // names are `ffmpeg-${platform}-${arch}.gz`; platform/arch are Node's own.
@@ -86,6 +87,13 @@ function noFfmpegMessage(detail) {
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+// The Claude plugin profile (lib/mcp/plugin-profile.js) never downloads ffmpeg: this is its answer.
+function noFfmpegInPlugin() {
+  return 'No ffmpeg was found, and the Claude plugin build of mojulo does not download one. Install ffmpeg '
+    + '(macOS: `brew install ffmpeg`, Debian/Ubuntu: `apt install ffmpeg`, Windows: `winget install ffmpeg`), '
+    + 'or set MOJULO_FFMPEG to an ffmpeg binary in the environment Claude Code starts with, then retry.';
 }
 
 /** Resolve true if `bin` runs and reports a version (the integrity gate). */
@@ -205,6 +213,7 @@ export async function resolveFfmpeg({ allowFetch = true, get = httpsGet } = {}) 
   const onDisk = path.join(ffmpegCacheDir(), binName);
   if (existsSync(onDisk) && (await probe(onDisk))) return (cachedBin = onDisk);
 
+  if (pluginProfileActive()) throw new Error(noFfmpegInPlugin());
   if (!allowFetch) throw new Error(noFfmpegMessage('auto-fetch disabled'));
 
   try {
