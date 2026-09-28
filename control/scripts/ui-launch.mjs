@@ -187,7 +187,7 @@ export async function startDashboard({ standaloneServer, liteTemplateDir, argv, 
   }
 
   // User data lives under MOJULO_HOME (default ~/.mojulo). This populates SQLITE_PATH /
-  // ARTIFACTS_DIR / STORAGE_ROOT / MOJULO_OUTCOMES_DIR / MOJULO_EXPORTS_DIR / MOJULO_MODELS_DIR so
+  // STORAGE_ROOT / MOJULO_OUTCOMES_DIR / MOJULO_EXPORTS_DIR / MOJULO_MODELS_DIR so
   // the lib code lands user state there instead of standalone-cwd-relative ./data/. Must run
   // before the standalone server import: route handlers read these when modules first evaluate.
   resolveMojuloPaths();

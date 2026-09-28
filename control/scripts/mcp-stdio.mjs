@@ -88,7 +88,7 @@ if (firstArg === '--version' || firstArg === '-v') {
 register('./mcp-stdio-loader.mjs', import.meta.url);
 
 // User data lives under MOJULO_HOME (default ~/.mojulo). This populates
-// SQLITE_PATH / ARTIFACTS_DIR / STORAGE_ROOT / MOJULO_OUTCOMES_DIR /
+// SQLITE_PATH / STORAGE_ROOT / MOJULO_OUTCOMES_DIR /
 // MOJULO_EXPORTS_DIR / MOJULO_MODELS_DIR so the lib
 // code lands user state there instead of a cwd-relative ./data/.
 resolveMojuloPaths();

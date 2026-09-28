@@ -2,9 +2,10 @@
  * GET /api/stashes/[ref]/media/[id] — stream image bytes for a stash image item.
  *
  * media_ref resolution is two-flavored:
- *   - `doc_…`  → looks up DocumentRepository, streams via its storage_path
- *                (the path agent-gathered images take today by reusing the
- *                documents table).
+ *   - `doc_…`  → looks up DocumentRepository, streams via its storage_path.
+ *                A legacy read: the documents rows were written by the 2.x
+ *                chatbot factory's uploader, and nothing writes them since
+ *                3.0.0, but an image gathered then still resolves.
  *   - anything else → treats media_ref as a literal storage key under
  *     control/data/storage/ — matches the per-stash storage scheme that
  *     lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md
