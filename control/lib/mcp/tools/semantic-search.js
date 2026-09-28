@@ -20,6 +20,39 @@ import {
 } from '@/lib/db/repositories/embeddings';
 import { WEAK_SEARCH_TOP_SCORE } from '@/lib/db/repositories/mcpToolCalls';
 import { distribution, runMojulo } from '@/lib/version/distribution';
+import { hiddenRowInPluginProfile, pluginProfileActive, profileEdit, PLUGIN_PROFILE_HIDDEN_ROWS } from '@/lib/mcp/plugin-profile';
+
+// Under the Claude plugin profile (lib/mcp/plugin-profile.js) the cards and catalysts it leaves out
+// never come back from a search, and four kept routing cards (returned whole) lose the sentence that
+// pointed at a generator loop. The index itself is the same under every distribution.
+const PROFILE_ROUTING_EDITS = {
+  'workbench-object': [
+    [" Rebuilding a COMPLEX real object from a dreamed/concept image, segment by segment → `get_catalyst({ id: 'reconstruct-from-dream' })`.", ''],
+    ['; the part comes home via `bind_mesh_render`)', ')'],
+  ],
+  'assemble-parts': [
+    [" Working from a dreamed/concept image of a complex object → the segment-first loop in `get_catalyst({ id: 'reconstruct-from-dream' })`.", ''],
+  ],
+  'creature': [
+    ["; from a sentence, the loop is the `creature-from-plan` catalyst (a worker prints a ring plan, `via: 'plan'` expands it).", '.'],
+  ],
+  'motion-comic': [
+    [" a printed comic page → kind `'sequential-art'`;", ''],
+  ],
+  'human-figure': [
+    [', painted with a diffusion skin,', ','],
+    [', "paint / skin a 3D character"', ''],
+    [" To PAINT the figure → `edit_solid({ op: 'skin', ref })` (paint the filled `?control=1` scaffold, then bind the PNG); to make it EMOTE", ' To make it EMOTE'],
+  ],
+};
+// Rows a search may drop under the profile: every hidden row, at most.
+const PROFILE_HEADROOM = Object.values(PLUGIN_PROFILE_HIDDEN_ROWS).reduce((n, ids) => n + ids.length, 0);
+const DEFAULT_LIMIT = 8;
+
+function profileRow(row) {
+  const edits = row.source_kind === 'routing' && PROFILE_ROUTING_EDITS[row.source_ref];
+  return edits ? { ...row, snippet: profileEdit(row.snippet, edits, `routing.${row.source_ref}`) } : row;
+}
 
 // In-band recovery hints (routing-context-weaving.plan.md C1/C2). The weak
 // threshold is the SAME constant the orientation cut counts gaps by — the
@@ -70,10 +103,18 @@ export async function semanticSearchHandler(input, _ctx) {
   const opts = {};
   if (kinds !== undefined && kinds !== null) opts.kinds = kinds;
   if (limit !== undefined && limit !== null) opts.limit = limit;
-  const { results, degraded, mode } = await EmbeddingsRepository.search(query, {
+  const profile = pluginProfileActive();
+  const want = opts.limit ?? DEFAULT_LIMIT;
+  const found = await EmbeddingsRepository.search(query, {
     ...opts,
+    // Room for the rows the profile drops; an out-of-range limit is passed through to be refused.
+    ...(profile && Number.isInteger(want) && want >= 1 && want <= 50 ? { limit: Math.min(50, want + PROFILE_HEADROOM) } : {}),
     withMeta: true,
   });
+  const { degraded, mode } = found;
+  const results = profile
+    ? found.results.filter((r) => !hiddenRowInPluginProfile(r.source_kind, r.source_ref)).map(profileRow).slice(0, want)
+    : found.results;
   const routing = opts.kinds ? [].concat(opts.kinds).includes('routing') : false;
   const hint = buildSearchHint({ degraded, results, routing, mode });
   // Outcome signal for the orientation-gap telemetry (numbers/enums only,

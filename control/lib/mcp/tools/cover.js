@@ -13,6 +13,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { pluginProfileActive, pluginProfileNotice, withPluginProfile } from '@/lib/mcp/plugin-profile';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { normalizeCoverManifest, coverRenderTargets } from '@/lib/graph/image-outcomes/cover-manifest';
@@ -35,7 +36,12 @@ export function createCoverHandler(input) {
   if (folderRef !== undefined && folderRef !== null && !SketchFolderRepository.getByRef(folderRef)) {
     throw new Error(`Folder '${folderRef}' not found`);
   }
-  const realizer = titleRealizer || 'painted';
+  // The Claude plugin profile (lib/mcp/plugin-profile.js) has no painted layers: its covers take a
+  // flat or carved title (flat is what an unpainted 'painted' title shows) and no render brief.
+  const profile = pluginProfileActive();
+  if (profile && titleRealizer === 'painted') throw new Error(pluginProfileNotice("create_cover title_realizer 'painted'"));
+  if (profile && renderBrief) throw new Error(pluginProfileNotice('create_cover render_brief'));
+  const realizer = titleRealizer || (profile ? 'flat' : 'painted');
   if (!['painted', 'carved', 'flat'].includes(realizer)) {
     throw new Error("`title_realizer` must be 'painted', 'carved', or 'flat'");
   }
@@ -83,6 +89,18 @@ export function createCoverHandler(input) {
 
   const enc = encodeURIComponent(sketch.ref);
   const targets = coverRenderTargets(manifest);
+  if (profile) {
+    return {
+      ok: true,
+      ref: sketch.ref,
+      url: `/sketches/${enc}`,
+      svgUrl: `/api/sketches/${enc}/svg?inline=1`,
+      coverUrl: `/api/sketches/${enc}/cover.png`,
+      archetype: manifest.artDirection.composition.archetype,
+      for_kind: manifest.for_kind,
+      next: `Cover renders now at coverUrl: a palette illustration and a ${realizer} title.`,
+    };
+  }
   return {
     ok: true,
     ref: sketch.ref,
@@ -97,7 +115,7 @@ export function createCoverHandler(input) {
 }
 
 export function registerCoverTools() {
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'create_cover',
     description:
       "Mint a publication COVER — an illustration + title + subtext (author/series) + metadata (barcode/note) composed under one art direction, ready to bind onto a publication (a novel/picture_book cover today). Persists with kind `cover`; renders immediately (a palette placeholder illustration + a carved title) with NO image worker, then swaps in painted layers later without changing the recipe.\n\nStructure is guaranteed (every declared piece is placed, legible, in the safe area); look is not (archetype × palette × typeface × title treatment vary), so covers don't clone. Pick a publication with `for_kind` (seeds aspect + archetype + slots); override any of it.\n\nTitle: `title_realizer` picks how the title becomes pixels — 'painted' (default; a worker paints an alpha'd letter mark onto mojulo-carved letterforms), 'carved' (metalified 3D wordmark), or 'flat' (filled outline). mojulo always owns the letter SHAPES (from the font shelf), so spelling/forms are fixed; the worker only paints style.\n\nReturns { ok, ref, url, svgUrl, coverUrl, render_targets, next }. View the SVG face at url; the raster composite is coverUrl (/cover.png).",
@@ -128,5 +146,23 @@ export function registerCoverTools() {
       },
     },
     handler: createCoverHandler,
-  });
+  }, {
+    edits: [
+      [
+        'renders immediately (a palette placeholder illustration + a carved title) with NO image worker, then swaps in painted layers later without changing the recipe.',
+        "renders immediately: a palette illustration and a title set from mojulo's own letterforms.",
+      ],
+      [
+        "Title: `title_realizer` picks how the title becomes pixels — 'painted' (default; a worker paints an alpha'd letter mark onto mojulo-carved letterforms), 'carved' (metalified 3D wordmark), or 'flat' (filled outline). mojulo always owns the letter SHAPES (from the font shelf), so spelling/forms are fixed; the worker only paints style.",
+        "Title: `title_realizer` picks how the title becomes pixels — 'flat' (default; filled outline) or 'carved' (metalified 3D wordmark). mojulo owns the letter SHAPES (from the font shelf), so spelling and forms are fixed.",
+      ],
+      ['Returns { ok, ref, url, svgUrl, coverUrl, render_targets, next }.', 'Returns { ok, ref, url, svgUrl, coverUrl, next }.'],
+    ],
+    schema: (schema) => {
+      delete schema.properties.render_brief;
+      delete schema.properties.illustration_brief;
+      schema.properties.title_realizer.description = "How the title becomes pixels: 'flat' (default) or 'carved'.";
+      return schema;
+    },
+  }));
 }

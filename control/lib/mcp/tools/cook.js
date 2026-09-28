@@ -26,6 +26,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { registerTool } from '@/lib/mcp/server';
+import { editSchemaDescriptions, withPluginProfile } from '@/lib/mcp/plugin-profile';
 import { CookRepository } from '@/lib/db/repositories/cooks';
 import { StashRepository } from '@/lib/db/repositories/stashes';
 import { outcomeUrlFor } from '@/lib/outcomes-paths';
@@ -1408,7 +1409,7 @@ export async function archiveCookHandler(input, _ctx) {
 }
 
 export function registerCookTools() {
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'cook',
     description:
       "Ring 9 — the COOK verb: the nucleation collider on cleaved stash slices.\n\n" +
@@ -1540,7 +1541,13 @@ export function registerCookTools() {
       required: ['slices', 'aim'],
     },
     handler: cookHandler,
-  });
+  }, {
+    // The Claude plugin profile has no painted comic pages (lib/mcp/plugin-profile.js).
+    schema: (schema) => editSchemaDescriptions(schema, [[
+      ' To CREATE AI-painted comic/manga pages first, mint `sequential-art` sketches via create_sketch (style presets, page recipes, character sheets) and drive the external image worker via `get_image_render_packet`; then gather those pages into the stash this cook publishes.',
+      '',
+    ]], 'cook'),
+  }));
 
   registerTool({
     name: 'get_cook',

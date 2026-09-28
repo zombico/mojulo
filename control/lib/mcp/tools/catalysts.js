@@ -33,6 +33,7 @@
  */
 
 import { getCatalystCatalog, serializeCatalystFile, validateCatalystMeta } from '@/lib/mcp/catalysts/loader';
+import { hiddenRowInPluginProfile, pluginProfileNotice } from '@/lib/mcp/plugin-profile';
 import { getMergedCatalog, getMergedCatalyst, listMergedCatalysts } from '@/lib/mcp/catalysts/catalog';
 import { LocalCatalystRepository } from '@/lib/db/repositories/local-catalysts';
 import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
@@ -119,15 +120,21 @@ function composeBody(catalystBody, adapter) {
   return CATALYST_CORE_PREAMBLE + adapterSection + catalystBody;
 }
 
+// The curated catalysts the Claude plugin profile does not serve: each one drives an image or mesh
+// generator (lib/mcp/plugin-profile.js). Filtered here, at the tools, so the search index and the
+// shared database stay the same under every distribution. Always true outside the profile.
+const served = (catalyst) => !hiddenRowInPluginProfile('catalyst', catalyst.id);
+
 export async function listCatalystsHandler(input, _ctx) {
   const { category, kind } = input || {};
-  const catalysts = listMergedCatalysts({ category, kind });
+  const catalysts = listMergedCatalysts({ category, kind }).filter(served);
   return { total: catalysts.length, catalysts };
 }
 
 export async function getCatalystHandler(input, ctx) {
   const { id, host, rev } = input || {};
   if (!id) throw new Error('id is required');
+  if (hiddenRowInPluginProfile('catalyst', id)) throw new Error(pluginProfileNotice(`The '${id}' catalyst`));
   const catalyst = getMergedCatalyst(id, rev === undefined ? {} : { rev });
   if (!catalyst) {
     const local = LocalCatalystRepository.get(id);
@@ -513,6 +520,7 @@ export async function recommendCatalystsHandler(input, ctx) {
     // `list_catalysts({ kind: 'technique' })`, not recommended as workflows.
     if (catalyst.kind === 'technique') continue;
     if (category && catalyst.category !== category) continue;
+    if (!served(catalyst)) continue;
     // A catalyst that still requires chatbot protocols (a local mint from the 2.x line) needs a
     // deployed bot to run against; mojulo has none, so it is not recommended. list_catalysts
     // still shows it.

@@ -20,6 +20,7 @@
 
 import { getRegisteredTool } from '@/lib/mcp/server';
 import { PACKS, SPINE, installedPacks, isToolInstalled, installAdvice } from '@/lib/mcp/packs';
+import { hiddenInPluginProfile, toolFace } from '@/lib/mcp/plugin-profile';
 
 export const DEFAULT_RULES_BUDGET = 20_000;
 const CLAUSE_STEPS = [72, 48, 32, 0]; // 0 = names only
@@ -58,7 +59,7 @@ function groups(env) {
   const out = [{ title: 'spine (always listed)', members: SPINE }];
   const installed = new Set(installedPacks(env).map((p) => p.id));
   for (const pack of PACKS) {
-    if (!installed.has(pack.id)) continue;
+    if (!installed.has(pack.id) || hiddenInPluginProfile(pack.id, env)) continue;
     out.push({ title: pack.title || pack.id, members: pack.members || [] });
   }
   return out;
@@ -73,9 +74,9 @@ function renderBody({ env, maxClause, notice, omitted }) {
   for (const group of groups(env)) {
     const rows = [];
     for (const name of group.members) {
-      if (!isToolInstalled(name, env)) continue;
+      if (!isToolInstalled(name, env) || hiddenInPluginProfile(name, env)) continue;
       const tool = getRegisteredTool(name);
-      const text = maxClause ? clause(tool?.description, maxClause) : '';
+      const text = maxClause ? clause(toolFace(tool, env).description, maxClause) : '';
       rows.push(text ? `- ${name} — ${text}` : `- ${name}`);
       listed += 1;
     }
@@ -102,7 +103,8 @@ function renderBody({ env, maxClause, notice, omitted }) {
  */
 export function buildRulesCard({ budgetBytes = DEFAULT_RULES_BUDGET, notice = '', env = process.env } = {}) {
   const installed = new Set(installedPacks(env).map((p) => p.id));
-  const omitted = PACKS.filter((p) => !installed.has(p.id));
+  // A pack the Claude plugin profile leaves out is not "not installed": it is simply absent.
+  const omitted = PACKS.filter((p) => !installed.has(p.id) && !hiddenInPluginProfile(p.id, env));
   let last = null;
   for (const maxClause of CLAUSE_STEPS) {
     const text = renderBody({ env, maxClause, notice, omitted });

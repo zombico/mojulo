@@ -35,6 +35,9 @@ import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
 import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
 import { BOT_FACTORY_MOVED, isRemovedBotTool, botToolMovedNotice, removedPackRedirect } from '@/lib/mcp/bot-factory-moved';
+// The Claude plugin profile (plugin-profile.js): what the plugin build leaves out. Pure data plus
+// distribution(); every check is false outside distribution() === 'claude-plugin'.
+import { pluginProfileActive, hiddenInPluginProfile, pluginProfileToolNotice, profileEdit, toolFace } from '@/lib/mcp/plugin-profile';
 
 // MCP spec revisions this server speaks, newest first. `initialize` answers with
 // the revision the client asked for when it is one of these, otherwise the newest
@@ -82,6 +85,18 @@ What the agent can create — **Media and Game lead; the rest is the automation 
 **Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any app scaffold as user secrets: never \`cat\` or \`Read\` them. \`list_env\` names an app's keys without their values.
 
 Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing — the STUDIO (creative) wing by default; \`forward_context({mode:'office'})\` opens the automation backend when the ask is to wire or operate something rather than to make something. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (what mojulo is, posture, costs).`;
+
+// The preamble under the Claude plugin profile: the voice registers are not in that build.
+const PLUGIN_PROFILE_INSTRUCTIONS = profileEdit(
+  SERVER_INSTRUCTIONS,
+  [['motion, audio, voice, publications', 'motion, audio, publications']],
+  'SERVER_INSTRUCTIONS',
+);
+
+/** The initialize preamble for this process: SERVER_INSTRUCTIONS, or its plugin-profile form. */
+export function serverInstructions(env = process.env) {
+  return pluginProfileActive(env) ? PLUGIN_PROFILE_INSTRUCTIONS : SERVER_INSTRUCTIONS;
+}
 
 // Appended to SERVER_INSTRUCTIONS in packs mode only. The paradigm
 // preamble stays as-is (its entry-tool names remain accurate — they dispatch
@@ -146,15 +161,20 @@ export function clientDefersSchemas(clientInfo) {
 }
 
 export function listTools({ clientInfo, context } = {}) {
-  const toEntry = (t) =>
-    withAnnotations(
+  // The Claude plugin profile (plugin-profile.js) drops its hidden tools and packs and shows a
+  // tool's profile face where it has one. Outside the profile both are no-ops.
+  const profile = pluginProfileActive();
+  const toEntry = (t) => {
+    const face = toolFace(t);
+    return withAnnotations(
       {
         name: t.name,
-        description: t.description || '',
-        inputSchema: t.inputSchema || { type: 'object', properties: {} },
+        description: face.description || '',
+        inputSchema: face.inputSchema || { type: 'object', properties: {} },
       },
       t.aliasOf,
     );
+  };
   // Roles pack (Phase 2): with roles enabled, ADMIN callers additionally see
   // the roles-admin tools (registered listed:false so a roles-off install
   // stays byte-identical); privileged callers see only their granted bays —
@@ -173,14 +193,16 @@ export function listTools({ clientInfo, context } = {}) {
   if (packsModeEnabled(process.env, { clientDefers: clientDefersSchemas(clientInfo) })) {
     const spine = SPINE.map((name) => registeredTools.get(name))
       .filter(Boolean)
+      .filter((t) => !profile || !hiddenInPluginProfile(t.name))
       .map(toEntry);
     // installedPacks (install-capabilities.plan.md P2): an uninstalled wing's
     // packs drop from the connect surface. Default full install ⇒ all PACKS.
     // A privileged caller's list carries only their granted bays.
     const packs = installedPacks(process.env).filter(
-      (pack) => !rolesOn || isAdminContext(context) || packGranted(pack, context)
+      (pack) => (!rolesOn || isAdminContext(context) || packGranted(pack, context))
+        && (!profile || !hiddenInPluginProfile(pack.id))
     );
-    return [...spine, ...packs.map((pack) => withAnnotations(packToolEntry(pack))), ...adminExtras];
+    return [...spine, ...packs.map((pack) => withAnnotations(packToolEntry(pack, { profile }))), ...adminExtras];
   }
   // `listed: false` tools (deprecated aliases) resolve in tools/call and
   // invokeRegisteredTool but are omitted from tools/list — retired names keep
@@ -192,6 +214,7 @@ export function listTools({ clientInfo, context } = {}) {
     ...Array.from(registeredTools.values())
       .filter((t) => t.listed !== false && isToolInstalled(t.name))
       .filter((t) => toolListedForContext(t.name, context))
+      .filter((t) => !profile || !hiddenInPluginProfile(t.name))
       .map(toEntry),
     ...adminExtras,
   ];
@@ -280,6 +303,9 @@ export async function invokeRegisteredTool(name, input, context) {
   const tool = registeredTools.get(name);
   if (!tool && isRemovedBotTool(name)) throw new Error(removedBotToolText(name, input));
   if (!tool) throw new Error(`Unknown tool: ${name}`);
+  // The Claude plugin profile: a hidden tool refuses on the plan path too.
+  const profileNotice = pluginProfileToolNotice(name);
+  if (profileNotice) throw new Error(profileNotice);
   const notice = installNotice(name);
   if (notice) throw new Error(notice);
   // Authorization gate — the plan-executor path runs under the CALLER's
@@ -339,8 +365,8 @@ export async function dispatchMcpRequest(message, context) {
               instructions: packsModeEnabled(process.env, {
                 clientDefers: clientDefersSchemas(clientInfo),
               })
-                ? SERVER_INSTRUCTIONS + PACKS_INSTRUCTIONS_ADDENDUM
-                : SERVER_INSTRUCTIONS,
+                ? serverInstructions() + PACKS_INSTRUCTIONS_ADDENDUM
+                : serverInstructions(),
             });
       }
 
@@ -399,6 +425,16 @@ async function handleToolCall(message, context) {
       ErrorCodes.METHOD_NOT_FOUND,
       `Unknown tool: ${toolName}`
     );
+  }
+
+  // The Claude plugin profile (plugin-profile.js): a tool that build leaves out answers in-band,
+  // like a tool failure, so the model reads it and moves on. No-op outside the profile.
+  const profileNotice = pluginProfileToolNotice(toolName);
+  if (profileNotice) {
+    return jsonRpcResult(message.id, {
+      content: [{ type: 'text', text: profileNotice }],
+      isError: true,
+    });
   }
 
   // Install gate (install-capabilities.plan.md P2): a registered tool whose

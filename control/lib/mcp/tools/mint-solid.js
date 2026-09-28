@@ -29,6 +29,14 @@
 
 import { registerTool } from '@/lib/mcp/server';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
+import {
+  pluginProfileActive,
+  pluginProfileNotice,
+  hiddenRowInPluginProfile,
+  profileEdit,
+  withPluginProfile,
+  PROMPT_DOOR_NOTICE,
+} from '@/lib/mcp/plugin-profile';
 import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
 import { createFigureHandler, emoteFigureHandler } from '@/lib/mcp/tools/figure';
 import { createAnimalHandler } from '@/lib/mcp/tools/animal';
@@ -159,6 +167,8 @@ export async function mintSolidHandler(input) {
         `parameter manual via get_solid_vocab({ id: '<kind>' }).`,
     );
   }
+  // The Claude plugin profile closes the keyed LLM door; via:'packet' is the key-free one.
+  if (via === 'prompt' && pluginProfileActive()) throw new Error(PROMPT_DOOR_NOTICE);
   let handler = entry.handler;
   if (via !== undefined) {
     if (!entry.via || !entry.via[via]) {
@@ -184,6 +194,8 @@ export async function editSolidHandler(input) {
     throw new Error('edit_solid requires an object: { op, ref, spec? }');
   }
   const { op, ref, spec } = input;
+  // The skin op binds a PNG painted by an image generator: not in the Claude plugin profile.
+  if (op === 'skin' && pluginProfileActive()) throw new Error(pluginProfileNotice("edit_solid op:'skin'"));
   const handler = EDIT_OPS[op];
   if (!handler) {
     throw new Error(
@@ -202,16 +214,19 @@ export async function editSolidHandler(input) {
 export async function getSolidVocabHandler(input) {
   const { id, family } = input && typeof input === 'object' ? input : {};
   const catalog = getSolidVocabCatalog();
+  // The Claude plugin profile does not serve the manual of an op it leaves out (skin).
+  const served = (cid) => !hiddenRowInPluginProfile('solid_vocab', cid);
   if (id) {
+    if (!served(id)) throw new Error(pluginProfileNotice(`The '${id}' card`));
     const card = catalog.get(id);
     if (!card) {
       throw new Error(
-        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
+        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].filter(served).join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
       );
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
-  let cards = [...catalog.values()];
+  let cards = [...catalog.values()].filter((c) => served(c.id));
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,
@@ -222,8 +237,11 @@ export async function getSolidVocabHandler(input) {
   };
 }
 
+// The Claude plugin profile's mint_solid: no prompt door (lib/mcp/plugin-profile.js).
+const PROMPT_DOOR_VIA = " | 'prompt' (NL: sends spec.prompt to an external LLM API with the user's key; spec.provider required, nothing is picked for you)";
+
 export function registerMintSolidTools() {
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'mint_solid',
     description:
       'Mint a 3D SOLID — a posed human figure, an ANIMAL, a part-graph creature/object, a measured object '
@@ -249,9 +267,15 @@ export function registerMintSolidTools() {
       required: ['kind'],
     },
     handler: mintSolidHandler,
-  });
+  }, {
+    edits: [['(manji-tree: ir/parts/prompt/packet; layered: ', '(manji-tree: ir/parts/packet; layered: ']],
+    schema: (schema) => {
+      schema.properties.via.description = profileEdit(schema.properties.via.description, [[PROMPT_DOOR_VIA, '']], 'mint_solid.via');
+      return schema;
+    },
+  }));
 
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'edit_solid',
     description:
       'Operate on an already-minted family solid. `op`: `skin` — make a manji-tree / workbench / '
@@ -270,7 +294,16 @@ export function registerMintSolidTools() {
       required: ['op'],
     },
     handler: editSolidHandler,
-  });
+  }, {
+    edits: [[
+      "`op`: `skin` — make a manji-tree / workbench / assembler polygomer or a figure WEAR a painted skin (two-phase: spec.phase `packet` hands back the skin packet, then `apply` binds the painted result); `emote` — apply",
+      "`op`: `emote` — apply",
+    ]],
+    schema: (schema) => {
+      schema.properties.op.enum = schema.properties.op.enum.filter((op) => op !== 'skin');
+      return schema;
+    },
+  }));
 
   registerTool({
     name: 'get_solid_vocab',

@@ -40,6 +40,7 @@ import { assessWorldTier } from '@/lib/graph/worlds/world-contract';
 import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
 import { lazyDependency } from '@/lib/lazy-deps';
 import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
+import { pluginProfileActive } from '@/lib/mcp/plugin-profile';
 
 /**
  * export_model — serialize a stored sketch's traversable World as a .glb or .stl.
@@ -495,7 +496,11 @@ export async function exportModelHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false, cdn = false } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false, cdn: cdnInput = false } = input;
+  // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only the self-contained page: a page
+  // it exports never loads anything from a third-party host. `cdn: true` is ignored there, and said so.
+  const pluginBuild = pluginProfileActive();
+  const cdn = pluginBuild ? false : cdnInput;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
@@ -662,7 +667,10 @@ export async function exportModelHandler(input, context = {}) {
     bytes: exported.byteLength,
     ...(isHtml ? { walk: exported.walk } : { vertices: exported.vertexCount, triangles: exported.triangleCount }),
   };
-  if (isHtml) result.note = cdn
+  if (isHtml && pluginBuild) {
+    result.note = `world.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE}`
+      + (cdnInput ? ' `cdn: true` was ignored: the Claude plugin build of mojulo writes only this self-contained page.' : '');
+  } else if (isHtml) result.note = cdn
     ? `world.cdn.html is ${exported.byteLength} bytes with three.js on the CDN. ${HTML_CDN_NOTE}`
     : `world.html is self-contained (${exported.byteLength} bytes). ${HTML_FILE_NOTE} \`cdn: true\` writes world.cdn.html, which loads three.js from cdn.jsdelivr.net instead: the form an artifact host's page CSP runs.`;
   result.cdn = isHtml ? Boolean(cdn) : false;

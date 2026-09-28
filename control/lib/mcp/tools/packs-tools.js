@@ -22,7 +22,8 @@ import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 import { PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
 import { authNotice } from '@/lib/roles/enforce';
 import { isRemovedBotTool, botToolMovedNotice } from '@/lib/mcp/bot-factory-moved';
-import { FORM_TOOLSETS } from '@/lib/mcp/tools/context';
+import { formToolset } from '@/lib/mcp/tools/context';
+import { hiddenInPluginProfile, pluginProfileToolNotice, toolFace } from '@/lib/mcp/plugin-profile';
 
 // One line per member for the unveil's index: the FORM_TOOLSETS row cut at
 // its first sentence. The full row is the flat-mode drawer's business
@@ -60,7 +61,7 @@ function packBody(pack) {
   const forms = pack.forms || [pack.form];
   return forms
     .map((key) => {
-      const form = FORM_TOOLSETS[key];
+      const form = formToolset(key);
       if (!form) return `(missing form body: ${key})`;
       return `**${form.title}** — ${form.makes}\n\n${memberIndex(form.body)}`;
     })
@@ -72,13 +73,16 @@ function memberManualEntry(name, { shared = false } = {}) {
   if (!tool) return `### ${name}\n(unregistered)`;
   const home = shared ? homePackForTool(name) : null;
   const homeNote = home ? ` _(homed in ${home.id}; dispatchable here)_` : '';
-  const schema = JSON.stringify(tool.inputSchema || { type: 'object', properties: {} });
-  return `### ${name}${homeNote}\n${tool.description || ''}\n\`inputSchema\`: ${schema}`;
+  const face = toolFace(tool);
+  const schema = JSON.stringify(face.inputSchema || { type: 'object', properties: {} });
+  return `### ${name}${homeNote}\n${face.description || ''}\n\`inputSchema\`: ${schema}`;
 }
 
 function unveil(pack) {
   const memberSet = new Set(pack.members);
+  // The Claude plugin profile's hidden members are not in the manual (no-op elsewhere).
   const manual = dispatchTargets(pack)
+    .filter((name) => !hiddenInPluginProfile(name))
     .map((name) => memberManualEntry(name, { shared: !memberSet.has(name) }))
     .join('\n\n');
   return [
@@ -100,6 +104,9 @@ function dispatch(pack, input, context) {
   const packNotice = packInstallNotice(pack);
   if (packNotice) throw new Error(packNotice);
   const name = input.tool;
+  // The Claude plugin profile: a member that build leaves out refuses, through any pack.
+  const profileNotice = pluginProfileToolNotice(name);
+  if (profileNotice) throw new Error(profileNotice);
   const targets = new Set(dispatchTargets(pack));
   // A chatbot-factory member from the 2.x line, dispatched through any pack: say where it went.
   if (!targets.has(name) && isRemovedBotTool(name)) throw new Error(botToolMovedNotice(name));

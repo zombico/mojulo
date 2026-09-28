@@ -1,9 +1,12 @@
 /**
  * Tool packs — the consolidated tools/list surface (tool-packs.plan.md P1-R/P2-D).
  *
- * Pure data. One top-level import, lib/version/distribution.js, which writes the
+ * Pure data. Two top-level imports: lib/version/distribution.js, which writes the
  * install commands the advisories name (the running version, and the plugin's
- * or the checkout's form); the install axis below does one local, import-free
+ * or the checkout's form), and ./plugin-profile.js, whose text edits give a pack
+ * its description under the Claude plugin profile (`profileEdits` below, applied
+ * once at load; tools/list shows them only under that profile). The install axis
+ * below does one local, import-free
  * filesystem probe to detect physical pack presence — see `installedGroups`.
  * This module is the partition of the listed tool
  * registry into a small SPINE (always listed with full schemas) plus ~20
@@ -30,6 +33,7 @@
  */
 
 import { mojuloCommand, runMojulo } from '../version/distribution.js';
+import { profileEdit } from './plugin-profile.js';
 
 export const PACK_DESCRIPTION_CEILING = 700;
 
@@ -81,6 +85,8 @@ export const PACKS = [
     description:
       "WORLDS — traversable three.js environments: compose_world (BASE × THEME × overrides — city, transport-hub, controllable, action, planetary, painted-landscape, math, school, dungeon), theme packs, glTF export (export_model), binding refined meshes back (bind_mesh_render), and modeler-lingo translation. Open for 'build a little town I can wander around', 'an airport', 'a game where I drive', 'export to Blender'. A house / apartment / furnished room is not a base — it is create_sketch kind 'floorplan' in pack_diagram (walkable, storeys: N); export_model here still exports it.",
     members: ['compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    // The Claude plugin profile leaves out bind_mesh_render (lib/mcp/plugin-profile.js).
+    profileEdits: [[', binding refined meshes back (bind_mesh_render),', ',']],
   },
   {
     id: 'pack_game',
@@ -102,6 +108,12 @@ export const PACKS = [
       'list_game_projects',
       'get_game_vocab',
       'export_game',
+    ],
+    // The Claude plugin profile leaves out the sprite sheets, painted through the image-render
+    // handoff, and the painted pixel-art cutscene (lib/mcp/plugin-profile.js).
+    profileEdits: [
+      [' sprite sheets (create + bake),', ''],
+      [" 'a pixel-art cutscene of my hero',", ''],
     ],
   },
   {
@@ -211,6 +223,12 @@ export const PACKS = [
     description:
       "DIAGRAMS & CHARTS + scene sketches viewed in the dashboard, and the HOUSE: flow charts (stations + edges), data charts (stacked bars, donut / ring, KPI tiles, marks), scene illustrations, keyframe / scene-motion animation of drawn characters, and walkable furnished houses / apartments / rooms (create_sketch manifest kind 'floorplan'; storeys: N stacks it); revise a sketch in place, visual-diff two, read sketch-vocab cards and style presets. Open for 'draw / diagram X', 'a bar chart of signups by week', 'sketch our pipeline as boxes and arrows', 'design me a two-storey house', 'a 20 by 24 living room', 'make my drawn character talk and blink', 'update that sketch'.",
     members: ['create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches'],
+    // The Claude plugin profile leaves out the painted animation kinds and the style presets.
+    profileEdits: [
+      [' keyframe / scene-motion animation of drawn characters,', ''],
+      ['read sketch-vocab cards and style presets.', 'read sketch-vocab cards.'],
+      [" 'make my drawn character talk and blink',", ''],
+    ],
   },
   // ── office — the retained automation backend, listed after the studio ────
   // (the chatbot factory's three packs left in 3.0.0; lib/mcp/bot-factory-moved.js answers for them)
@@ -359,8 +377,11 @@ export const PACKS = [
 
 const HOME_BY_TOOL = new Map();
 const PACK_BY_ID = new Map();
+// A pack's description under the Claude plugin profile, where its `profileEdits` name one.
+const PROFILE_DESCRIPTION = new Map();
 for (const pack of PACKS) {
   PACK_BY_ID.set(pack.id, pack);
+  if (pack.profileEdits) PROFILE_DESCRIPTION.set(pack.id, profileEdit(pack.description, pack.profileEdits, pack.id));
   for (const name of pack.members) {
     // Duplicate homes are a partition violation — surfaced by packs.test.js,
     // but keep first-wins here so runtime lookups stay deterministic.
@@ -386,11 +407,12 @@ export const PACK_INPUT_SCHEMA = {
 };
 
 /** The tools/list entry for a pack (used by listTools synthesis AND the
- * registered dispatcher, so the wire shape has one source). */
-export function packToolEntry(pack) {
+ * registered dispatcher, so the wire shape has one source). `profile: true` gives
+ * the description the Claude plugin profile shows (lib/mcp/plugin-profile.js). */
+export function packToolEntry(pack, { profile = false } = {}) {
   return {
     name: pack.id,
-    description: pack.description,
+    description: (profile && PROFILE_DESCRIPTION.get(pack.id)) || pack.description,
     inputSchema: PACK_INPUT_SCHEMA,
   };
 }

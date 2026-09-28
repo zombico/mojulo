@@ -237,9 +237,10 @@ const ORIENT_FOOTER = ['', 'new here? `mojulo orient` first, then `mojulo call f
 // is one command away, without it cluttering the surface as if it were live.
 // A host that still carries the retired chatbot group (its marker, or the token
 // in MOJULO_PACKS) is told it is ignored, once, so the leftover explains itself.
-function uninstalledNote(packs) {
+function uninstalledNote(packs, profile) {
   const lines = [];
-  const missing = packs.PACKS.filter((p) => !packs.isPackInstalled(p));
+  // A pack the Claude plugin profile leaves out is absent, not "not installed".
+  const missing = packs.PACKS.filter((p) => !packs.isPackInstalled(p) && !profile.hiddenInPluginProfile(p.id));
   if (missing.length) {
     const groups = [...new Set(missing.map((p) => p.installGroup).filter(Boolean))];
     lines.push(
@@ -287,7 +288,12 @@ export async function runCli(argv, io = {}) {
   const server = await import('@/lib/mcp/server');
   const packs = await import('@/lib/mcp/packs');
   const moved = await import('@/lib/mcp/bot-factory-moved');
+  // The Claude plugin profile (lib/mcp/plugin-profile.js): hidden names leave every listing, and a
+  // tool's profile face replaces its own there. Every check is false outside that distribution.
+  const profile = await import('@/lib/mcp/plugin-profile');
   await server.ensureToolsRegistered();
+  const listedPacks = () => packs.installedPacks().filter((pack) => !profile.hiddenInPluginProfile(pack.id));
+  const packLine = (pack) => firstLine(packs.packToolEntry(pack, { profile: profile.pluginProfileActive() }).description);
 
   // Tab-separated when piped (stable for cut/awk); padded columns on a TTY.
   const listRow = (rows) => {
@@ -352,7 +358,7 @@ export async function runCli(argv, io = {}) {
       e.usage = true;
       throw e;
     }
-    const coerced = coerceFlags(parsed.flags, tool.inputSchema);
+    const coerced = coerceFlags(parsed.flags, profile.toolFace(tool).inputSchema);
     if (coerced.error) {
       const e = new Error(coerced.error);
       e.usage = true;
@@ -369,7 +375,7 @@ export async function runCli(argv, io = {}) {
       // the CLI's own — all three blocks live in server.js.
       const { listHostProfiles } = await import('@/lib/mcp/hosts/registry');
       out(
-        server.SERVER_INSTRUCTIONS +
+        server.serverInstructions() +
           server.PACKS_INSTRUCTIONS_ADDENDUM +
           server.cliInstructionsAddendum({ hostIds: listHostProfiles().map((p) => p.id) })
       );
@@ -382,11 +388,16 @@ export async function runCli(argv, io = {}) {
           err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack)}`);
           return 2;
         }
+        const hiddenPack = profile.pluginProfileToolNotice(pack.id);
+        if (hiddenPack) {
+          err(`mojulo: ${hiddenPack}`);
+          return 2;
+        }
         const memberSet = new Set(pack.members);
-        const rows = packs.dispatchTargets(pack).map((name) => {
+        const rows = packs.dispatchTargets(pack).filter((name) => !profile.hiddenInPluginProfile(name)).map((name) => {
           const tool = server.getRegisteredTool(name);
           const shared = memberSet.has(name) ? '' : ' (shared)';
-          return [`${name}${shared}`, firstLine(tool?.description)];
+          return [`${name}${shared}`, firstLine(profile.toolFace(tool).description)];
         });
         for (const line of listRow(rows)) out(line);
         return 0;
@@ -395,19 +406,20 @@ export async function runCli(argv, io = {}) {
       // on install state. Listing a pack whose every tool refuses to run is the
       // worst of both worlds: it advertises a capability the host does not have.
       const rows = [
-        ...packs.SPINE.map((name) => [name, firstLine(server.getRegisteredTool(name)?.description)]),
-        ...packs.installedPacks().map((pack) => [pack.id, firstLine(pack.description)]),
+        ...packs.SPINE.filter((name) => !profile.hiddenInPluginProfile(name))
+          .map((name) => [name, firstLine(profile.toolFace(server.getRegisteredTool(name)).description)]),
+        ...listedPacks().map((pack) => [pack.id, packLine(pack)]),
       ];
       for (const line of listRow(rows)) out(line);
-      for (const line of uninstalledNote(packs)) out(line);
+      for (const line of uninstalledNote(packs, profile)) out(line);
       for (const line of ORIENT_FOOTER) out(line);
       return 0;
     }
 
     case 'packs': {
-      const rows = packs.installedPacks().map((pack) => [pack.id, firstLine(pack.description)]);
+      const rows = listedPacks().map((pack) => [pack.id, packLine(pack)]);
       for (const line of listRow(rows)) out(line);
-      for (const line of uninstalledNote(packs)) out(line);
+      for (const line of uninstalledNote(packs, profile)) out(line);
       return 0;
     }
 
@@ -417,11 +429,17 @@ export async function runCli(argv, io = {}) {
         err(`mojulo: ${unknownToolMessage(moved, packs, parsed.name)}`);
         return 2;
       }
+      const hidden = profile.pluginProfileToolNotice(parsed.name);
+      if (hidden) {
+        err(`mojulo: ${hidden}`);
+        return 2;
+      }
       const home = packs.homePackForTool(parsed.name);
+      const face = profile.toolFace(tool);
       out(`# ${tool.name}${home ? `  (pack: ${home.id})` : ''}`);
-      if (tool.description) out(`\n${tool.description}`);
+      if (face.description) out(`\n${face.description}`);
       out(`\ninputSchema:`);
-      out(JSON.stringify(tool.inputSchema || { type: 'object', properties: {} }, null, 2));
+      out(JSON.stringify(face.inputSchema || { type: 'object', properties: {} }, null, 2));
       return 0;
     }
 

@@ -54,6 +54,14 @@ import { MetaNodeRepository } from '@/lib/db/repositories/meta-context';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
 import { getRoutingCardCatalog } from '@/lib/mcp/routing-cards/loader';
 import {
+  pluginProfileActive,
+  pluginProfileNotice,
+  profileEdit,
+  dropHiddenToolLines,
+  withPluginProfile,
+  PLUGIN_PROFILE_HIDDEN_FORMS,
+} from '@/lib/mcp/plugin-profile';
+import {
   VOCABULARY_REGISTERS,
   PROCEDURAL_DISCLOSURES,
   DEFAULT_VOCABULARY_REGISTER,
@@ -678,9 +686,9 @@ export const FORM_TOOLSETS = {
 // asserts Object.keys(FORM_TOOLSETS) deep-equals this.
 export { CREATIVE_FORMS };
 
-function buildCreativeToolsetMap() {
-  const rows = CREATIVE_FORMS.map((k) => {
-    const t = FORM_TOOLSETS[k];
+function buildCreativeToolsetMap(profile = pluginProfileActive()) {
+  const rows = CREATIVE_FORMS.filter((k) => !profile || !PLUGIN_PROFILE_HIDDEN_FORMS.includes(k)).map((k) => {
+    const t = formToolset(k, profile);
     const n = (t.body.match(/^- `/gm) || []).length;
     return `- \`${k}\` — ${t.title}: ${t.makes} (${n} tool${n === 1 ? '' : 's'})`;
   });
@@ -865,6 +873,125 @@ The dashboard is the human-shaped face of the same \`~/.mojulo/\` state this MCP
 Default mode stays MCP — suggest a page only when the user wants to *look*, *browse*, or *click*, or when a visual scan would catch in a second something several rounds of tool output haven't.`;
 
 // ---------------------------------------------------------------------------
+// The Claude plugin profile (lib/mcp/plugin-profile.js)
+//
+// Under distribution() === 'claude-plugin' these bodies leave out what that build does not carry:
+// the image-render, mesh and voice handoffs, the sprite sheets and style presets, the painted
+// sketch kinds, the skin op, the prompt door, the automatic downloads and the CDN page. Each body
+// keeps its one source above; the edits here are applied to it once, at load, and served only
+// under the profile, so every other distribution reads the source unchanged. An edit whose `from`
+// stops matching is recorded by profileEdit and fails plugin-profile.test.js.
+// ---------------------------------------------------------------------------
+
+// The creative-form lists ("… · image-render · … · voice · game") without the hidden forms.
+const HIDDEN_FORM_LIST_EDITS = [
+  [/ · image-render(?= · )/g, ''],
+  [/ · voice(?= · )/g, ''],
+];
+
+const PROFILE_TOOL_INDEX = profileEdit(TOOL_INDEX, [
+  ...HIDDEN_FORM_LIST_EDITS,
+  [' / audio / voice / game mints', ' / audio / game mints'],
+  [', voice at `/maker/voice`', ''],
+], 'TOOL_INDEX');
+
+// Per-form edits on top of the line filter (dropHiddenToolLines drops a bullet naming a hidden tool).
+const PROFILE_FORM_EDITS = {
+  'motion-comic': [['; the image worker NEVER letters, placement', '; placement']],
+  'diagram': [[
+    "- Natural-language → sketch (the polygonizer, keyed or key-free) is now an authoring door of the 3D-solid mint in the \"object\" toolset (kind `manji-tree`: `via:'packet'` is key-free; `via:'prompt'` calls an LLM API with the user's key and needs `provider`). for the marks turn.",
+    "- Natural-language → sketch (the polygonizer) is now an authoring door of the 3D-solid mint in the \"object\" toolset: kind `manji-tree` with `via:'packet'`, key-free.",
+  ]],
+  'illustration': [
+    ['(kinds `figure` / `manji-tree`; painting + emotes via the skin / emote ops)', '(kinds `figure` / `manji-tree`; emotes via the emote op)'],
+    [
+      'Renders immediately with NO worker (palette placeholder + carved title); painted layers swap in later via the render bicycle, the recipe unchanged. mojulo always owns the letter SHAPES (`title_realizer`: painted / carved / flat).',
+      'Renders immediately: a palette illustration and a title set from mojulo\'s own letter SHAPES (`title_realizer`: flat / carved).',
+    ],
+  ],
+  'object': [
+    ['with `via` authoring doors ir / parts / prompt / packet)', 'with `via` authoring doors ir / parts / packet)'],
+    [
+      "`op:'skin'` makes a manji-tree / workbench / assembler polygomer or a figure WEAR a painted skin (two-phase: `spec.phase:'packet'` hands back the paint scaffold, then `'apply'` binds the painted PNG); `op:'emote'` applies",
+      "`op:'emote'` applies",
+    ],
+  ],
+};
+
+// A FORM_TOOLSETS entry as this process serves it: the source, or under the profile its bullets
+// minus hidden tools plus the form's edits. Null for a form the profile hides.
+const PROFILE_FORM_TOOLSETS = Object.fromEntries(
+  Object.entries(FORM_TOOLSETS).map(([key, form]) => [
+    key,
+    PLUGIN_PROFILE_HIDDEN_FORMS.includes(key)
+      ? null
+      : { ...form, body: profileEdit(dropHiddenToolLines(form.body), PROFILE_FORM_EDITS[key] || [], `FORM_TOOLSETS.${key}`) },
+  ]),
+);
+
+/** One creative form's { title, makes, body }, as get_creative_toolset and the pack unveils serve it. */
+export function formToolset(key, profile = pluginProfileActive()) {
+  return profile ? PROFILE_FORM_TOOLSETS[key] ?? null : FORM_TOOLSETS[key] ?? null;
+}
+
+const PROFILE_STUDIO_ROUTING_INDEX = profileEdit(STUDIO_ROUTING_INDEX, [
+  [' · voice never revises — re-`create_voice`', ''],
+  [" · direct an AI-generated image / comic page → `create_sketch` kind 'image-outcome'/'sequential-art'", ''],
+  [' · paint / emote one → `edit_solid`', ' · emote a figure → `edit_solid`'],
+  [/\n {2}VOICE {4}[^\n]*/, ''],
+  [' · sprites → `bake_sprite_sheet`', ''],
+], 'STUDIO_ROUTING_INDEX');
+
+const PROFILE_STUDIO_DRAWER_DIRECTORY = profileEdit(STUDIO_DRAWER_DIRECTORY, HIDDEN_FORM_LIST_EDITS, 'STUDIO_DRAWER_DIRECTORY');
+
+const PROFILE_ROUTING_INDEX = profileEdit(ROUTING_INDEX, [
+  ['(picture / object / world / building / motion / audio / voice / publication)', '(picture / object / world / building / motion / audio / publication)'],
+], 'ROUTING_INDEX');
+
+const PROFILE_CONCEPT_GLOSSARY_VARIANTS = Object.fromEntries(
+  Object.entries(CONCEPT_GLOSSARY_VARIANTS).map(([key, body]) => [
+    key,
+    profileEdit(body, key === 'mixed'
+      ? [['music/SFX, voice registers, publications', 'music/SFX, publications'], ['painted images and WAVs are bound derived files', 'renders and WAVs are bound derived files']]
+      : key === 'mojulo'
+        ? [['beats/voice/figure/motion', 'beats/figure/motion']]
+        : [], `CONCEPT_GLOSSARY.${key}`),
+  ]),
+);
+
+// get_substrate: no bound meshes, no automatic downloads, no CDN page, no keyed LLM door, and the
+// repo docs are something to point the operator at, not to fetch.
+const PROFILE_SUBSTRATE_POSITIONING = profileEdit(SUBSTRATE_POSITIONING, [
+  ['(a scad row returns its source verbatim); and `bind_mesh_render` takes an STL or 3MF made outside back into a world.', '(a scad row returns its source verbatim).'],
+], 'SUBSTRATE_POSITIONING');
+
+const PROFILE_SUBSTRATE_FACTS = profileEdit(SUBSTRATE_FACTS, [
+  [', a browser or ffmpeg fetched on demand (`chromium/`, `ffmpeg/`),', ','],
+  [
+    'starting the server makes no network call unless the opt-in recall group is installed and its search model is missing from `~/.mojulo/models` (then the start downloads it from huggingface.co, ~130 MB).',
+    'starting the server makes no network call. This build never downloads a helper on its own: renders use a Chrome, Chromium, Edge or Brave already installed (or `MOJULO_CHROMIUM`), MP4 encodes use an installed ffmpeg (or `MOJULO_FFMPEG`), and the opt-in search model is fetched only by the user-run `install recall`.',
+  ],
+  [/ the first explicit render that needs a browser on a host with no Chrome, Chromium, Edge or Brave \([^;]*; mint-time previews and thumbnails never download it\); the first MP4 encode with no ffmpeg installed \(ffmpeg-static from github\.com, SHA-256 pinned\);/, ''],
+  ['; an HTML export with `cdn: true` (the page loads three.js from cdn.jsdelivr.net when opened; the default page is self-contained); and `mint_solid` `via:\'prompt\'` (the LLM provider the caller names, fact 4).', '. An exported World page is always the self-contained one.'],
+  [
+    /4\. \*\*The one LLM flow that leaves the machine\*\*[^\n]*/,
+    "4. **No LLM flow leaves the machine.** The studio has no keyed LLM door in this build: `mint_solid`'s natural-language door is `via:'packet'`, key-free. Everything in the studio and the automation backend parks inference on the connecting agent.",
+  ],
+  ["Operating costs are the operator's: LLM provider usage when they use `mint_solid`'s prompt door (fact 4), and whatever their own agent host costs.", "Operating costs are the operator's: whatever their own agent host costs."],
+  ["For questions these facts don't settle, fetch the repo docs rather than guessing.", "For questions these facts don't settle, point the operator at the repo docs rather than guessing."],
+], 'SUBSTRATE_FACTS');
+
+// get_ui_map: the dashboard is the same package under every distribution; the profile only stops
+// pointing at the pages for what it leaves out.
+const PROFILE_UI_MAP_EDITS = [
+  [/, \*\*Voice\*\* \(`\/maker\/voice`[^)]*\)/, ''],
+  ['Characters the figure / character-sheet / sprite-sheet kinds,', 'Characters the figure kinds,'],
+  [/\(1\) the durable image-render queue \(`image_render_requests`[^;]*; \(2\) \*\*GI bakes\*\*/, '(1) **GI bakes**'],
+  ['; (3) **cooks and exports**', '; (2) **cooks and exports**'],
+  ['(`accept_image_render` / `reject_image_render`, `pull_image_render`, `bake-world-gi.mjs`)', '(`bake-world-gi.mjs`)'],
+];
+
+// ---------------------------------------------------------------------------
 // Composer
 // ---------------------------------------------------------------------------
 
@@ -876,7 +1003,7 @@ const SECTION_DIVIDER = '\n\n---\n\n';
 // no longer branch here; they drawerize. `pulse` is resolved in the HANDLER
 // (like the operator anchor), never here — this builder must stay pure so the
 // module-load-time FORWARD_CONTEXT_BODY export never touches the DB.
-export function buildForwardContextBody({ register, disclosure, source, pulse, mode } = {}) {
+export function buildForwardContextBody({ register, disclosure, source, pulse, mode, profile = pluginProfileActive() } = {}) {
   const m = FORWARD_CONTEXT_MODES.includes(mode) ? mode : DEFAULT_FORWARD_CONTEXT_MODE;
   const r = VOCABULARY_REGISTERS.includes(register) ? register : DEFAULT_VOCABULARY_REGISTER;
   const d = PROCEDURAL_DISCLOSURES.includes(disclosure) ? disclosure : DEFAULT_PROCEDURAL_DISCLOSURE;
@@ -893,9 +1020,9 @@ export function buildForwardContextBody({ register, disclosure, source, pulse, m
       STUDIO_OPENER,
       ...(studioPulseLine ? ['', studioPulseLine] : []),
       SECTION_DIVIDER.trim(),
-      STUDIO_ROUTING_INDEX,
+      profile ? PROFILE_STUDIO_ROUTING_INDEX : STUDIO_ROUTING_INDEX,
       SECTION_DIVIDER.trim(),
-      STUDIO_DRAWER_DIRECTORY,
+      profile ? PROFILE_STUDIO_DRAWER_DIRECTORY : STUDIO_DRAWER_DIRECTORY,
       SECTION_DIVIDER.trim(),
       standingRulesSection,
       SECTION_DIVIDER.trim(),
@@ -910,7 +1037,7 @@ export function buildForwardContextBody({ register, disclosure, source, pulse, m
     '',
     LEAN_OPENER,
     SECTION_DIVIDER.trim(),
-    ROUTING_INDEX,
+    profile ? PROFILE_ROUTING_INDEX : ROUTING_INDEX,
     SECTION_DIVIDER.trim(),
     DRAWER_DIRECTORY,
     SECTION_DIVIDER.trim(),
@@ -1009,7 +1136,7 @@ export function buildRegisterKitBody({ register, disclosure, source } = {}) {
     '',
     communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
     SECTION_DIVIDER.trim(),
-    CONCEPT_GLOSSARY_VARIANTS[r],
+    pluginProfileActive() ? PROFILE_CONCEPT_GLOSSARY_VARIANTS[r] : CONCEPT_GLOSSARY_VARIANTS[r],
     SECTION_DIVIDER.trim(),
     REFUSAL_LEGEND,
     SECTION_DIVIDER.trim(),
@@ -1031,9 +1158,10 @@ export async function registerKitHandler(input, _ctx) {
 // Mitigate and tell; never refuse, never silently reshape. (Capability comes
 // from the host profile, so a second capped host needs no change here.)
 export async function toolIndexHandler(input, ctx) {
-  const fullBytes = Buffer.byteLength(TOOL_INDEX, 'utf8');
+  const index = pluginProfileActive() ? PROFILE_TOOL_INDEX : TOOL_INDEX;
+  const fullBytes = Buffer.byteLength(index, 'utf8');
   if (input?.full === true) {
-    return { content: [{ type: 'text', text: TOOL_INDEX }] };
+    return { content: [{ type: 'text', text: index }] };
   }
   const captured = ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null;
   const hostId = resolveAdapterId({ clientName: input?.clientInfoHint || captured?.name });
@@ -1042,7 +1170,7 @@ export async function toolIndexHandler(input, ctx) {
   const budgetBytes =
     Number(input?.budget_bytes) || hostCapabilities(hostId).maxOutputBytes;
   if (!budgetBytes || fullBytes <= budgetBytes) {
-    return { content: [{ type: 'text', text: TOOL_INDEX }] };
+    return { content: [{ type: 'text', text: index }] };
   }
   const card = buildRulesCard({
     budgetBytes,
@@ -1062,14 +1190,19 @@ export async function creativeToolsetHandler(input, _ctx) {
       _telemetrySignal: { id_requested: false, found: true },
     };
   }
+  const profile = pluginProfileActive();
+  if (profile && PLUGIN_PROFILE_HIDDEN_FORMS.includes(form)) {
+    throw new Error(pluginProfileNotice(`The '${form}' form`));
+  }
   if (!CREATIVE_FORMS.includes(form)) {
     // "unknown form" keeps the miss visible to the orientation cut
     // (DRAWER_MISS_ERROR_RE in mcpToolCalls.js).
+    const known = profile ? CREATIVE_FORMS.filter((k) => !PLUGIN_PROFILE_HIDDEN_FORMS.includes(k)) : CREATIVE_FORMS;
     throw new Error(
-      `get_creative_toolset: unknown form '${form}'. Known: ${CREATIVE_FORMS.join(', ')}`,
+      `get_creative_toolset: unknown form '${form}'. Known: ${known.join(', ')}`,
     );
   }
-  const t = FORM_TOOLSETS[form];
+  const t = formToolset(form, profile);
   return {
     content: [{ type: 'text', text: `## ${t.title}\n\n${t.body}` }],
     _telemetrySignal: { id_requested: true, found: true },
@@ -1081,11 +1214,15 @@ export async function deliberationOverviewHandler(_input, _ctx) {
 }
 
 export async function uiMapHandler(_input, _ctx) {
-  return { content: [{ type: 'text', text: dashboardUiMap(getServerVersion()) }] };
+  const map = dashboardUiMap(getServerVersion());
+  return { content: [{ type: 'text', text: pluginProfileActive() ? profileEdit(map, PROFILE_UI_MAP_EDITS, 'get_ui_map') : map }] };
 }
 
 export async function substrateHandler(_input, _ctx) {
-  return { content: [{ type: 'text', text: `${SUBSTRATE_POSITIONING}\n${SUBSTRATE_FACTS}` }] };
+  const text = pluginProfileActive()
+    ? `${PROFILE_SUBSTRATE_POSITIONING}\n${PROFILE_SUBSTRATE_FACTS}`
+    : `${SUBSTRATE_POSITIONING}\n${SUBSTRATE_FACTS}`;
+  return { content: [{ type: 'text', text }] };
 }
 
 // Back-compat for any importer (mostly tests) that wants today's default body
@@ -1307,7 +1444,7 @@ export async function checkForUpdatesHandler(_input, _ctx) {
 }
 
 export function registerContextTools() {
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'forward_context',
     description:
       "Forward the agent mojulo's routing index — two wings behind one tool. No `mode` is the STUDIO, the DEFAULT: the creative wing's per-FORM recognizer rows (picture / object / world / building / motion / motion-comic / audio / voice / publication / game) plus the creative drawers (`get_creative_toolset`, routing cards, vocab kinds). `mode:'office'` is the automation backend: `user-framing → entry-tool` rows for connected services / apps / operate-what-exists. Both carry a lean opener, a drawer directory (`get_tool_index`, `get_register_kit`, `get_deliberation_overview`, `get_ui_map`, `get_substrate`), and the standing safety + commitment-level rules. Call FIRST when unsure what mojulo is or which tool fits; open the office when the ask is to WIRE or OPERATE, not to make. A thin map, not a manual — depth lives in the drawers. The disclosure directive branches on the operator's `procedural_disclosure`; optional per-call `register` / `disclosure` override the anchor for this read. Read-only, idempotent.",
@@ -1335,7 +1472,7 @@ export function registerContextTools() {
       },
     },
     handler: forwardContextHandler,
-  });
+  }, { edits: [[' / audio / voice / publication / game)', ' / audio / publication / game)']] }));
 
   registerTool({
     name: 'get_tool_index',
@@ -1357,7 +1494,7 @@ export function registerContextTools() {
     handler: toolIndexHandler,
   });
 
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'get_creative_toolset',
     description:
       "Return the tool list for ONE creative FORM — diagram · illustration · reference · image-render · object · world · view · motion · motion-comic · audio · voice · game. No arg → the FORM map (which form makes what, with a tool count each). Pull this instead of `get_tool_index` when the task is to MAKE something visual, audible, or playable; the routing index's Create-things rows point here. Read-only, idempotent.",
@@ -1373,7 +1510,13 @@ export function registerContextTools() {
       },
     },
     handler: creativeToolsetHandler,
-  });
+  }, {
+    edits: HIDDEN_FORM_LIST_EDITS,
+    schema: (schema) => {
+      schema.properties.form.enum = schema.properties.form.enum.filter((f) => !PLUGIN_PROFILE_HIDDEN_FORMS.includes(f));
+      return schema;
+    },
+  }));
 
   registerTool({
     name: 'get_register_kit',

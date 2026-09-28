@@ -27,6 +27,7 @@
 // specific sibling rather than from this barrel.
 
 import { registerTool } from '@/lib/mcp/server';
+import { profileEdit, withPluginProfile } from '@/lib/mcp/plugin-profile';
 import { STATION_KINDS, EDGE_VIA_VALUES, MARK_KINDS } from '@/lib/graph/sketch/sketch-manifest';
 import { recipeFamilyAllowlist } from '@/lib/graph/polygonizer/index.js';
 
@@ -83,8 +84,11 @@ export {
   bindImageRenderHandler,
 };
 
+// The Claude plugin profile leaves out the painted manifest kinds (lib/mcp/plugin-profile.js).
+const PAINTED_KINDS_CLAUSE = ", `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts)";
+
 export function registerSketchTools() {
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'create_sketch',
     description:
       "Mint a flow-charty diagram the operator can view in the control-plane UI. Use this to depict a workflow, a data flow, a decision chain, or any structure that's easier shown than described — without rearchitecting an overlay. The manifest mirrors the curated app-creation-map at /graph. Stations are positioned with explicit x/y/w/h (pixel coords inside the viewBox). Station kinds are " +
@@ -275,9 +279,14 @@ export function registerSketchTools() {
       required: ['title', 'manifest'],
     },
     handler: createSketchHandler,
-  });
+  }, {
+    schema: (schema) => {
+      schema.properties.manifest.description = profileEdit(schema.properties.manifest.description, [[PAINTED_KINDS_CLAUSE, '']], 'create_sketch.manifest');
+      return schema;
+    },
+  }));
 
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'update_sketch',
     description:
       "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate — diagrams validate like `create_sketch`; world/solid kinds resolve through the world registry; games pay create_game's structural gate (added levels noted unaudited). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`, on the stored manifest; `readout:'changed'` returns only what moved) over `manifest`, a FULL replacement. Re-mint only for a side-by-side variant.",
@@ -338,7 +347,12 @@ export function registerSketchTools() {
       required: ['ref'],
     },
     handler: updateSketchHandler,
-  });
+  }, {
+    edits: [
+      [", edifices, views, image-outcomes, kind:'game'.", ", edifices, views, kind:'game'."],
+      ['Beats/voice refuse and point at their domain tools.', 'Beats refuse and point at their domain tools.'],
+    ],
+  }));
 
   registerTool({
     name: 'get_sketch_vocab',
@@ -493,7 +507,7 @@ export function registerSketchTools() {
     handler: bindCharacterSheetHandler,
   });
 
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'export_model',
     description:
       "Export a stored sketch's traversable 3D World as a binary glTF (.glb) the operator can open in Blender, Unreal, three.js, or macOS Quick Look. Pass the sketch `ref`. Works for the World kinds (cities, hubs, rooms, terrain, workbench/assembler studies, `manji-tree` polygomers, vehicles, science views, posed figures, carved wordmarks, turntable solids); flat diagrams and charts have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: mojulo's lighting is BAKED into the geometry and the mesh is exported UNLIT (glTF KHR_materials_unlit + per-vertex colours), so it looks identical to the live World from any camera, with no lighting setup downstream. Camera-facing glow billboards and the sky dome are dropped (not geometry); gradient-painted faces collapse to a single colour; animated channels export at their static pose. `format: 'stl'` is the 3D-PRINTING handoff: a binary STL for slicers — shape only (colour/textures dropped; water/decals/studio grid omitted; repeats expanded; z-up). Sizing: literal kinds (workbench/assembler/carved-solid/turntable/vehicle) derive mm from `units`; worlds, views, and figures print as MINIATURES fit to `target_mm` (default 120). Honest triangle soup, not guaranteed-manifold — results report an advisory `closure` audit + printed size. Returns `{ ok, ref, kind, format, url, bytes, vertices, triangles }` (+ `nodes` for glb), plus an on-disk `path` when `write` is true (the default). The `url` (`/api/sketches/<ref>/model.glb` or `.stl`) regenerates deterministically on each request — hand it to the operator to download. Rig worlds: pass `clips` (names array or '_all') to bake figure/unit/vehicle rig clips into glTF animations (1s per cycle). `format: 'html'` writes `world.html`, the live page, self-contained (opens from file://, contacts no server); `cdn: true` writes `world.cdn.html` with three.js off the pinned jsdelivr CDN, the form a page door running a CSP executes. `format: 'bundle'` zips page + mesh (+ STL for literal kinds) + recipe + README into `<ref>.zip`, the one file every host's handoff door accepts. Every written result carries `handoff` (this host's next move: artifact, PR, file card, or the dashboard) and `fits` (against the host's byte limit).",
@@ -565,7 +579,14 @@ export function registerSketchTools() {
       required: ['ref'],
     },
     handler: exportModelHandler,
-  });
+  }, {
+    // The Claude plugin profile writes only the self-contained page (lib/mcp/plugin-profile.js).
+    edits: [["; `cdn: true` writes `world.cdn.html` with three.js off the pinned jsdelivr CDN, the form a page door running a CSP executes.", '.']],
+    schema: (schema) => {
+      delete schema.properties.cdn;
+      return schema;
+    },
+  }));
 
   registerTool({
     name: 'bind_mesh_render',
