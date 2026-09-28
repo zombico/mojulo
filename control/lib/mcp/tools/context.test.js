@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
 import { getRegisteredTool } from '@/lib/mcp/server';
-import { REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
+import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
 import {
   PARADIGMS,
   FORWARD_CONTEXT_MODES,
@@ -456,6 +456,12 @@ describe('get_substrate — the working description', () => {
     expect(text).not.toMatch(/ghcr\.io|verify_chain|inspect_bot_env|\*\*Bot data\.\*\*/);
     // The verification layer underneath: the public repo, read at the installed tag.
     expect(text).toMatch(/github\.com\/zombico\/mojulo/);
+    // Directory policy 2.F: the repo is where the operator reads further, not instructions the
+    // agent fetches and follows.
+    expect(text).toMatch(/point the operator at those docs/);
+    expect(text).not.toMatch(/fetch the repo docs/i);
+    // The chatbot factory paragraph quotes the shared notice, so the wording changes in one place.
+    expect(text).toContain(BOT_FACTORY_MOVED);
     // Facts stay behind the drawer — never in the always-paid routing body.
     const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
     expect(body).not.toContain('## Substrate facts');
