@@ -26,6 +26,8 @@
     "mojulo-dashboard": "bin/mojulo-dashboard.mjs"
   },
   "files": [
+    "LICENSE",
+    "NOTICE",
     "bin/",
     "standalone/",
     "!standalone/.env",

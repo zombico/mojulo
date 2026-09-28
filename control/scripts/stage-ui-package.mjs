@@ -14,7 +14,9 @@
  *   2. Copy .next/standalone to ui-package/standalone/, leaving out env files, data, trace
  *      manifests, tests, and every package the dashboard resolves from the install
  *      (ui-package-manifest.mjs, fromInstallPackages) plus the dependencies only those pulled in.
- *   3. stage-lite-template.mjs copies the tracked bot template, minus models/, to
+ *   3. Put back the license files tracing left out and write standalone/THIRD_PARTY_NOTICES.md,
+ *      and copy the repo's LICENSE and NOTICE to the package root (license-files.mjs).
+ *   4. stage-lite-template.mjs copies the tracked bot template, minus models/, to
  *      ui-package/lite-template/.
  */
 
@@ -23,6 +25,7 @@ import { cpSync, existsSync, readdirSync, rmSync, statSync, writeFileSync } from
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { UI_LITE_TEMPLATE_DIR, UI_STANDALONE_DIR } from '../lib/version/ui-package.js';
+import { copyProjectLicense, stageThirdPartyNotices } from './license-files.mjs';
 import {
   CONTROL_DIR,
   UI_PACKAGE_DIR,
@@ -115,6 +118,19 @@ function stageStandalone() {
   say(`staged ${path.relative(CONTROL_DIR, dest)}: ${files} files, ${mb} MB; left ${pruned.size} packages to the install`);
 }
 
+// The tracing that built standalone/node_modules keeps no license files; put them back, list every
+// redistributed package, and ship the project's own LICENSE and NOTICE at the package root.
+function stageLicenses() {
+  copyProjectLicense(UI_PACKAGE_DIR);
+  const { packages, missing } = stageThirdPartyNotices({
+    stagedNodeModules: path.join(UI_PACKAGE_DIR, UI_STANDALONE_DIR, 'node_modules'),
+    sourceNodeModules: path.join(CONTROL_DIR, 'node_modules'),
+    outFile: path.join(UI_PACKAGE_DIR, UI_STANDALONE_DIR, 'THIRD_PARTY_NOTICES.md'),
+  });
+  say(`license files for ${packages} redistributed packages; standalone/THIRD_PARTY_NOTICES.md lists them`);
+  if (missing.length) say(`no license file published by: ${missing.join(', ')} (listed with their declared license)`);
+}
+
 const flags = new Set(process.argv.slice(2));
 if (flags.has('--sync')) checkManifest({ sync: true });
 else {
@@ -122,6 +138,7 @@ else {
   if (!flags.has('--check')) {
     build();
     stageStandalone();
+    stageLicenses();
     run(process.execPath, [
       path.join(CONTROL_DIR, 'scripts', 'stage-lite-template.mjs'),
       path.join(UI_PACKAGE_DIR, UI_LITE_TEMPLATE_DIR),

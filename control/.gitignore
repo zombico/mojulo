@@ -40,3 +40,8 @@ scripts/_*.mjs
 mojulo-*.tgz
 # Precompiled JSX twins, written at prepack by scripts/precompile-jsx.mjs.
 *.jsx.mjs
+# The repo's LICENSE and NOTICE, copied into each package at pack time (scripts/license-files.mjs).
+/LICENSE
+/NOTICE
+/ui-package/LICENSE
+/ui-package/NOTICE

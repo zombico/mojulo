@@ -103,6 +103,14 @@ loops and the recipe format are unchanged.
   shared package, and that the stdio server answers `initialize` and `tools/list`. It also checks that
   the dashboard, started through the shim, serves a floorplan's World, a streamed city page and one of
   its tiles, and a stash page. `open` moves from core's dependencies to the dashboard package.
+- **Both tarballs carry the licenses.** Neither package shipped a LICENSE or NOTICE (they sit at
+  the repo root, outside both package folders), and the dashboard's `standalone/node_modules`
+  redistributed next, react, jsdom, undici and the rest with every license file removed, since
+  Next's output tracing copies only the files a server runs. Core's prepack now copies the repo's
+  LICENSE and NOTICE into the package (its postpack removes the copies), the dashboard stager
+  does the same, puts each staged package's LICENSE, NOTICE and COPYING files back from the
+  build's `node_modules`, and writes `standalone/THIRD_PARTY_NOTICES.md` listing every
+  redistributed package with its version and declared license (`scripts/license-files.mjs`).
 
 ### Runtime footprint and consent
 
