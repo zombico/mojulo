@@ -284,6 +284,7 @@ describe('orientation surfaces under the profile', () => {
     ...['panel-depiction-recipes', 'wardrobe-construction', 'motion-comic'].map((id) => ['get_sketch_vocab', { id }]),
     ['get_solid_vocab', {}],
     ['translate_modeler_lingo', { lingo: 'toleranced cad part' }],
+    ['get_tool_ledger', { orientation: true }],
     ...['pack_object', 'pack_world', 'pack_game', 'pack_view', 'pack_motion', 'pack_audio', 'pack_illustration', 'pack_reference',
       'pack_diagram', 'pack_runtime', 'pack_connected_services', 'pack_plan', 'pack_research', 'pack_stash', 'pack_catalysts']
       .map((id) => [id, {}]),

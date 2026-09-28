@@ -59,6 +59,7 @@ import {
   profileEdit,
   dropHiddenToolLines,
   withPluginProfile,
+  hiddenRowInPluginProfile,
   PLUGIN_PROFILE_HIDDEN_FORMS,
 } from '@/lib/mcp/plugin-profile';
 import {
@@ -1334,7 +1335,8 @@ function renderOrientationGaps(gaps, coverage) {
 // or aggregate failure just drops the section (same posture as the pulse).
 function readRoutingCardCoverage(sinceDays) {
   try {
-    const cards = [...getRoutingCardCatalog().values()];
+    // The Claude plugin profile's hidden routing cards are not part of its lexicon (no-op elsewhere).
+    const cards = [...getRoutingCardCatalog().values()].filter((c) => !hiddenRowInPluginProfile('routing', c.id));
     if (!cards.length) return null;
     const called = new Set(
       McpToolCallRepository.aggregates({ sinceDays }).map((a) => a.tool),
