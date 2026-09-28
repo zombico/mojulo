@@ -18,8 +18,14 @@
  * `--expect <version>` also requires package.json to be that version (the release workflow passes
  * the tag).
  *
+ * `--bot-image` also requires the chatbot image core pins by default (DEFAULT_BOT_IMAGE in
+ * lib/version/bot-image.js) to be published on GHCR: an anonymous pull token, then a manifest
+ * lookup for that tag. Every default bot deploy pulls it, so an npm release that pins an image
+ * publish-bot-image.yml has not pushed yet breaks them all. The release workflow and core's
+ * prepublishOnly pass it; it needs the network and fails closed without it.
+ *
  * Usage (from the repo root or control/):
- *   node control/scripts/check-plugin-version.mjs [--since origin/main] [--expect 2.2.0]
+ *   node control/scripts/check-plugin-version.mjs [--since origin/main] [--expect 2.2.0] [--bot-image]
  * Exit 0 when everything agrees, 1 with one line per problem otherwise.
  */
 
@@ -127,11 +133,61 @@ export function checkPluginVersionBump({ root = REPO_ROOT, since }) {
     : [];
 }
 
+export const BOT_IMAGE_MODULE = 'control/lib/version/bot-image.js';
+
+// Every form a pushed image's manifest can take, so the lookup answers 200 for any of them.
+const MANIFEST_TYPES = [
+  'application/vnd.oci.image.index.v1+json',
+  'application/vnd.docker.distribution.manifest.list.v2+json',
+  'application/vnd.oci.image.manifest.v1+json',
+  'application/vnd.docker.distribution.manifest.v2+json',
+].join(', ');
+
+/** DEFAULT_BOT_IMAGE, read from the source so this runs without control's dependencies installed. */
+export function defaultBotImage({ root = REPO_ROOT } = {}) {
+  const text = readFileSync(path.join(root, BOT_IMAGE_MODULE), 'utf8');
+  const image = text.match(/DEFAULT_BOT_IMAGE\s*=\s*'([^']+)'/)?.[1];
+  const m = image?.match(/^ghcr\.io\/([^:]+):(.+)$/);
+  return m ? { image, repo: m[1], tag: m[2] } : image ? { image, repo: null, tag: null } : null;
+}
+
+/**
+ * The problems with the default bot image's publication (empty when GHCR serves its tag).
+ * @param {object} [opts]
+ * @param {string} [opts.root]
+ * @param {typeof fetch} [opts.fetchImpl] — tests only
+ */
+export async function checkBotImagePublished({ root = REPO_ROOT, fetchImpl = fetch } = {}) {
+  const pin = defaultBotImage({ root });
+  if (!pin) return [`${BOT_IMAGE_MODULE}: no DEFAULT_BOT_IMAGE found`];
+  if (!pin.repo) return [`${BOT_IMAGE_MODULE}: DEFAULT_BOT_IMAGE ${pin.image} is not a ghcr.io/<repo>:<tag> pin`];
+  const order = `push the bot-v${pin.tag} tag and wait for publish-bot-image.yml to finish before releasing mojulo`;
+  try {
+    const tokenRes = await fetchImpl(`https://ghcr.io/token?scope=repository:${pin.repo}:pull`, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const token = tokenRes.ok ? (await tokenRes.json())?.token : null;
+    if (!token) return [`could not get a GHCR pull token for ${pin.repo} (HTTP ${tokenRes.status}), so ${pin.image} is unconfirmed`];
+    const res = await fetchImpl(`https://ghcr.io/v2/${pin.repo}/manifests/${encodeURIComponent(pin.tag)}`, {
+      method: 'HEAD',
+      headers: { authorization: `Bearer ${token}`, accept: MANIFEST_TYPES },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.ok) return [];
+    if (res.status === 404) return [`${pin.image} (DEFAULT_BOT_IMAGE) is not published on GHCR: ${order}`];
+    return [`GHCR answered HTTP ${res.status} for ${pin.image}, so it is unconfirmed: ${order}`];
+  } catch (err) {
+    return [`could not reach ghcr.io to confirm ${pin.image} (${err.message || err})`];
+  }
+}
+
 function parseArgs(argv) {
-  const out = { since: null, expect: null };
+  const out = { since: null, expect: null, botImage: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--since') out.since = argv[++i];
     else if (argv[i] === '--expect') out.expect = argv[++i];
+    else if (argv[i] === '--bot-image') out.botImage = true;
     else throw new Error(`unknown argument ${argv[i]}`);
   }
   return out;
@@ -142,6 +198,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const problems = [
     ...checkManifestVersions({ expect: args.expect }),
     ...(args.since ? checkPluginVersionBump({ since: args.since }) : []),
+    ...(args.botImage ? await checkBotImagePublished() : []),
   ];
   if (problems.length) {
     for (const p of problems) process.stderr.write(`check-plugin-version: ${p}\n`);
@@ -149,4 +206,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const { version } = JSON.parse(readFileSync(path.join(REPO_ROOT, 'control/package.json'), 'utf8'));
   process.stdout.write(`check-plugin-version: plugin.json, glama.json and server.json all run mojulo@${version}\n`);
+  if (args.botImage) process.stdout.write(`check-plugin-version: ${defaultBotImage().image} is published on GHCR\n`);
 }

@@ -10,7 +10,12 @@ directory goes with it rather than being untangled from the rest of `docs/`.
 
 **Already-deployed bots are unaffected by any of this.** The bot image
 (`ghcr.io/zombico/mojulo-bot`) is separately versioned on its own `bot-v*` tag line
-and runs as its own process — it was never part of the workshop install.
+and runs as its own process — it was never part of the workshop install. The control
+plane pins one exact tag (`DEFAULT_BOT_IMAGE` in `control/lib/version/bot-image.js`), so a
+release that moves the pin goes in order: push `bot-vX.Y.Z`, wait for
+`publish-bot-image.yml`, then release mojulo. `check-plugin-version.mjs --bot-image`
+(core's `prepublishOnly` and the release workflow) refuses the release until GHCR serves
+the pinned tag.
 
 ![The bot builder's Build step — a configuration summary on the left, the live preview answering a product question from the uploaded document on the right, before anything is deployed](../images/bot-wizard-build.png)
 

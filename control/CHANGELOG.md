@@ -187,7 +187,11 @@ loops and the recipe format are unchanged.
   ([lib/version/bot-image.js](lib/version/bot-image.js), now the one constant the docker and
   Fly deployers and the `version` / `check_for_updates` readers share; Fly used to need `BOT_IMAGE`
   set). **The `bot-v0.5.2` image must be published before this npm release, and existing bots must
-  be rebuilt and redeployed to pick up the fix.**
+  be rebuilt and redeployed to pick up the fix.** `check-plugin-version.mjs --bot-image` enforces
+  the order: it asks GHCR for the `DEFAULT_BOT_IMAGE` tag (an anonymous pull token, then a
+  manifest lookup) and fails when it is missing or unconfirmed. Core's `prepublishOnly` and the
+  release workflow run it, so neither `npm publish` nor a `v*` tag goes through before
+  publish-bot-image.yml has pushed the image.
 - **Document upload names no longer reach a file path.** The Office-document parser wrote its temp
   file to `join(tmpdir(), 'temp-<ms>-' + fileName)`, so a name with `../` in it overwrote and then
   deleted any file the process could write. Reachable from `upload_document_from_url` (base64 or

@@ -95,6 +95,7 @@
     "fetch-models": "node scripts/fetch-embed-model.js",
     "gen-app": "node scripts/gen-app.js",
     "prepack": "node scripts/precompile-jsx.mjs",
+    "prepublishOnly": "node scripts/check-plugin-version.mjs --bot-image",
     "pack:ui": "cd ui-package && npm pack --pack-destination ..",
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "test": "vitest run",
