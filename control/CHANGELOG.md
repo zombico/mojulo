@@ -183,9 +183,13 @@ loops and the recipe format are unchanged.
   `middleware.js` let every request through, so a web page in the operator's browser could reach
   the dashboard's API, including document upload and deploy, by rebinding its own hostname to
   127.0.0.1 or by posting cross-site. It now answers 403 to any request whose `Host` is not
-  `localhost`, `127.0.0.1`, `[::1]` or `MOJULO_UI_HOST`, and to any non-GET request whose `Origin`
-  is not the dashboard's own or whose `Sec-Fetch-Site` is `cross-site`
+  `localhost`, `127.0.0.1`, `[::1]`, `MOJULO_UI_HOST` or a name in `MOJULO_UI_ALLOWED_HOSTS`, and
+  to any non-GET request whose `Origin` is not the dashboard's own (or a name in
+  `MOJULO_UI_ALLOWED_HOSTS`) or whose `Sec-Fetch-Site` is `cross-site`
   ([lib/auth/request-guard.js](lib/auth/request-guard.js)). The check runs with login on too.
+  `MOJULO_UI_ALLOWED_HOSTS` (comma-separated) is for a dashboard reached by another name: a
+  reverse proxy's or tunnel's hostname, or a LAN address while bound to `0.0.0.0`. It is never
+  bound; `MOJULO_UI_HOST` stays the bind address. The 403 names it.
   Callers presenting the `CONTROL_PLANE_MCP_KEY` bearer skip it; `/api/mcp` and `/api/health` stay
   outside the middleware as before.
 - **`mint_solid` `via:'prompt'` no longer picks an LLM key for the caller.** The keyed polygonizer

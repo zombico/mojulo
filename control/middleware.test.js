@@ -82,7 +82,7 @@ describe('middleware 401 body shape (diagnostic friction fix)', () => {
 // DNS rebinding (Host: attacker.example) or a cross-site POST (document
 // upload, deploy).
 describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
-  const ENV_KEYS = ['MOJULO_UI_HOST', 'CONTROL_PLANE_MCP_KEY', 'CONTROL_PLANE_USER', 'CONTROL_PLANE_PASSWORD'];
+  const ENV_KEYS = ['MOJULO_UI_HOST', 'MOJULO_UI_ALLOWED_HOSTS', 'CONTROL_PLANE_MCP_KEY', 'CONTROL_PLANE_USER', 'CONTROL_PLANE_PASSWORD'];
   const saved = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
   afterEach(() => {
     for (const k of ENV_KEYS) {
@@ -117,6 +117,47 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
     expect(passes(await middleware(request('/', { host: '192.168.1.20:3001' })))).toBe(true);
     process.env.MOJULO_UI_HOST = '0.0.0.0';
     expect((await middleware(request('/', { host: '0.0.0.0:3001' }))).status).toBe(403);
+  });
+
+  // MOJULO_UI_HOST is also the bind address, so it cannot name a reverse proxy's hostname or a LAN
+  // address while the server is bound to 0.0.0.0. MOJULO_UI_ALLOWED_HOSTS is never bound.
+  it('MOJULO_UI_ALLOWED_HOSTS adds names the dashboard is reached by, and the 403 names it', async () => {
+    const refused = await middleware(request('/', { host: 'dash.example.lan' }));
+    expect(refused.status).toBe(403);
+    expect((await refused.json()).error).toContain('MOJULO_UI_ALLOWED_HOSTS');
+
+    process.env.MOJULO_UI_ALLOWED_HOSTS = ' Dash.Example.Lan , 192.168.1.10:3001, https://name-3001.app.github.dev/, 0.0.0.0';
+    expect(passes(await middleware(request('/api/documents', { host: 'dash.example.lan' })))).toBe(true);
+    expect(passes(await middleware(request('/', { host: 'name-3001.app.github.dev' })))).toBe(true);
+    // Bound to 0.0.0.0 and opened from the LAN; localhost keeps working beside it.
+    process.env.MOJULO_UI_HOST = '0.0.0.0';
+    expect(passes(await middleware(request('/', { host: '192.168.1.10:3001' })))).toBe(true);
+    expect(passes(await middleware(request('/', { host: 'localhost:3001' })))).toBe(true);
+    // An unspecified address is never a trusted Host, from either variable.
+    expect((await middleware(request('/', { host: '0.0.0.0:3001' }))).status).toBe(403);
+  });
+
+  it('a write through a proxy that rewrites Host passes when its Origin is an allowed name', async () => {
+    const write = () =>
+      middleware(
+        request('/api/documents', {
+          method: 'POST',
+          host: '127.0.0.1:3001',
+          headers: { origin: 'https://dash.example.lan', 'sec-fetch-site': 'same-origin' },
+        }),
+      );
+    expect((await write()).status).toBe(403);
+    process.env.MOJULO_UI_ALLOWED_HOSTS = 'dash.example.lan';
+    expect(passes(await write())).toBe(true);
+    // The allow-list names the operator's hosts only: another port on localhost is still another origin.
+    expect(
+      (await middleware(request('/api/documents', { method: 'POST', headers: { origin: 'http://127.0.0.1:5173' } })))
+        .status,
+    ).toBe(403);
+    expect(
+      (await middleware(request('/api/documents', { method: 'POST', headers: { origin: 'https://attacker.example' } })))
+        .status,
+    ).toBe(403);
   });
 
   it('a non-GET from another origin gets 403', async () => {

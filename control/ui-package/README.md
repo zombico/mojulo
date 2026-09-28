@@ -21,7 +21,10 @@ when it is installed beside mojulo at the same version, and otherwise downloads 
   mojulo's code, and both open the same SQLite database, so they must match. Use the same version
   your agent runs (`npx -y mojulo-ui@<version>`).
 - It binds to 127.0.0.1 only (`MOJULO_UI_HOST` overrides it) and refuses requests addressed to a
-  foreign Host.
+  foreign Host. To reach it by another name, such as a reverse proxy's or tunnel's hostname, or a
+  LAN address while bound to `0.0.0.0`, list that name in `MOJULO_UI_ALLOWED_HOSTS`
+  (comma-separated). That list is never bound, and a write whose Origin is one of its names passes
+  even when the proxy rewrites Host to 127.0.0.1.
 - It reads and writes the same places as the MCP server: `$MOJULO_HOME` (default `~/.mojulo`).
 - It opens your default browser on start unless you pass `--no-open`.
 - It ships the bot runtime template (`lite-template/`) that the bot preview routes serve.
