@@ -492,8 +492,11 @@ function init(db) {
     CREATE INDEX IF NOT EXISTS idx_stash_items_drawer ON stash_items(drawer_id);
 
     -- The adjacency layer: many-to-many edges from a stash to other substrate
-    -- resources (bot / app / plan / cook / contextmap_node). What turns "stash
-    -- inbox" into "this bot's knowledge corpus, this plan's working memory".
+    -- resources (app / plan / cook / contextmap_node / sketch). What turns
+    -- "stash inbox" into "this app's corpus, this plan's working memory".
+    -- 'bot' stays in the CHECK so rows a 2.x install bound to a deployed bot
+    -- stay readable; nothing writes it since the chatbot factory left in 3.0.0
+    -- (StashRepository.bind refuses it).
     -- bound_ref is NOT a foreign key — deletion of a bound resource leaves
     -- the binding as a "linked resource removed" chip (stashes survive the
     -- resources they're linked to). Purely navigational in v0 — no automatic

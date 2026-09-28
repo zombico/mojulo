@@ -6,7 +6,7 @@
  *     browser sends `Host: attacker.example:3001`. Refused unless the Host is
  *     a loopback name, MOJULO_UI_HOST, or a name in MOJULO_UI_ALLOWED_HOSTS.
  *   - Cross-site writes: a form or fetch from another site POSTs to
- *     127.0.0.1:3001 (document upload, deploy). Refused for any non-GET
+ *     127.0.0.1:3001 (a stash upload, a settings write). Refused for any non-GET
  *     request whose Origin is not the dashboard's own or whose
  *     Sec-Fetch-Site says cross-site.
  * Requests with neither header (curl, server-side fetch, CLI) pass the
