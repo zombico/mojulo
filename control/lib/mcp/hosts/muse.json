@@ -1,0 +1,40 @@
+{
+  "id": "muse",
+  "adapterId": "muse",
+  "order": 7,
+  "name": "Meta Muse (agent VM shell, no MCP client)",
+  "detect": {},
+  "wire": {
+    "format": "manual",
+    "verify": "Muse drives a persistent Linux VM from a shell with npm and node ≥22.12, and no MCP client: there is nothing to wire. Field runs since 2026-09-23 install the npm package locally and mint through `npx mojulo call`; `npx -y mojulo@<ver> orient` is the initialize equivalent. This profile exists so `MOJULO_HOST=muse` resolves a door table for the handoff note and the muse adapter card; init never detects it."
+  },
+  "manual": "No MCP client here — skip init. npm install mojulo (or npx -y mojulo@<ver>), then: npx mojulo call <tool> --json '{…}' (start with `npx mojulo orient`, with MOJULO_HOST=muse). Check pages locally with the default self-contained world.html — world.cdn.html draws black in this VM's offline Chromium. Save world.cdn.html with your Artifacts tool for the page door; copy files into ~/workspace/your_files/ for the Library.",
+  "capabilities": {
+    "defersToolSchemas": false,
+    "maxOutputBytes": null,
+    "nativeImageGen": true,
+    "scheduler": "cron",
+    "skillsDir": "~/workspace/skills",
+    "headlessRuntime": null
+  },
+  "handoff": {
+    "verified": "field",
+    "box": {
+      "name": "Muse's Linux VM",
+      "page": "artifact",
+      "file": "drop-folder",
+      "pageVerb": "save",
+      "pageTool": "your Artifacts tool",
+      "pageOpensIn": "in their Library's Artifacts tab",
+      "inlinePage": "fragile",
+      "dropDir": "~/workspace/your_files",
+      "dropLabel": "the operator's Library",
+      "pageMaxBytes": null,
+      "fileMaxBytes": null,
+      "downloadExtensions": ["html"],
+      "cdns": ["cdnjs.cloudflare.com", "cdn.jsdelivr.net"],
+      "egress": "internet",
+      "ephemeral": false
+    }
+  }
+}

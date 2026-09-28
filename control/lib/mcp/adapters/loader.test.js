@@ -4,6 +4,7 @@ import {
   getAdapterCatalog,
   listAdapters,
   resolveAdapterId,
+  resolveCallAdapterId,
   _parseAdapterFileForTests as parseAdapterFile,
 } from './loader.js';
 
@@ -59,7 +60,7 @@ describe('parseAdapterFile', () => {
 describe('built-in adapter catalog', () => {
   it('loads every shipped card', () => {
     const catalog = getAdapterCatalog();
-    for (const id of ['claude-code', 'codex', 'generic', 'grok-build', 'hermes']) {
+    for (const id of ['claude-code', 'codex', 'generic', 'grok-build', 'hermes', 'muse']) {
       expect(catalog.has(id)).toBe(true);
     }
   });
@@ -149,5 +150,34 @@ describe('resolveAdapterId', () => {
   it('falls back to generic when neither host nor clientInfo match', () => {
     expect(resolveAdapterId({})).toBe('generic');
     expect(resolveAdapterId({ clientName: 'some-other-agent' })).toBe('generic');
+  });
+});
+
+describe('resolveCallAdapterId', () => {
+  it('a shell host with no clientInfo gets its card from the MOJULO_HOST profile', () => {
+    expect(resolveCallAdapterId({}, { MOJULO_HOST: 'muse' })).toBe('muse');
+    expect(resolveCallAdapterId({}, {})).toBe('generic');
+  });
+
+  it('never outranks an explicit host, a matching clientInfo, or explicit generic', () => {
+    expect(resolveCallAdapterId({ host: 'codex' }, { MOJULO_HOST: 'muse' })).toBe('codex');
+    expect(resolveCallAdapterId({ clientName: 'Claude Code' }, { MOJULO_HOST: 'muse' })).toBe('claude-code');
+    expect(resolveCallAdapterId({ host: 'generic' }, { MOJULO_HOST: 'muse' })).toBe('generic');
+  });
+
+  it('a profile with no card, or an unknown id, falls back to generic', () => {
+    expect(resolveCallAdapterId({}, { MOJULO_HOST: 'grok-chat' })).toBe('generic'); // adapterId null
+    expect(resolveCallAdapterId({}, { MOJULO_HOST: 'desktop' })).toBe('generic');
+    expect(resolveCallAdapterId({}, { MOJULO_HOST: 'bogus' })).toBe('generic');
+  });
+
+  it('the pure resolver never reads the environment', () => {
+    const prev = process.env.MOJULO_HOST;
+    process.env.MOJULO_HOST = 'muse';
+    try {
+      expect(resolveAdapterId({})).toBe('generic');
+    } finally {
+      if (prev === undefined) delete process.env.MOJULO_HOST; else process.env.MOJULO_HOST = prev;
+    }
   });
 });

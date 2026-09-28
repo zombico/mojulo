@@ -51,7 +51,7 @@ Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints 
 other. Two shapes, one install.
 
 **In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
-throwaway Linux box it gives itself:
+Linux box it gives itself:
 
 - The Claude app (macOS, Windows, web, iOS); Grok chat; Meta Muse (iOS, web, macOS app, one session
   across all three): *Open a Linux box and install the mojulo npm package in it.*
@@ -60,10 +60,11 @@ throwaway Linux box it gives itself:
 
 Each of those has been run this way, from the sentence to a mint and an export handed back. You get
 the same recipes and the same exports, as files: the export result names this host's door, an
-artifact page, a PR or a file card. The box has no dashboard you can reach, a scene-to-PNG bake needs a
-browser it may not be allowed to fetch, and it is gone when the session ends, so ask for the bundle
-(one zip: `world.html`, mesh, print STL for literal-scale objects, `recipe.json`, README) and keep
-the recipe. A box with no MCP client never sends `initialize`, so tell the agent to run
+artifact page, a PR, a file card or Muse's Library. The box has no dashboard you can reach, a scene-to-PNG bake needs a
+browser it may not be allowed to fetch, and on most hosts it is gone when the session ends, so ask for
+the bundle (one zip: `world.html`, mesh, print STL for literal-scale objects, `recipe.json`, README)
+and keep the recipe. Meta Muse is the exception: one VM behind all its clients, where `~/.mojulo`
+stays across conversations. A box with no MCP client never sends `initialize`, so tell the agent to run
 `npx mojulo orient` first: it prints what an MCP client is handed at connect, translated to the
 shell, and points at the routing index. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
 Grok chat's sandbox minted a city from the shell. Blender installs in those boxes too.
@@ -73,7 +74,7 @@ opens the dashboard at `localhost:3001`, keeps everything under `~/.mojulo/`, an
 the optional local workers (Blender, a slicer, OpenSCAD, the game engines). This is the whole loop, and
 where a recipe from a box comes home to.
 
-Who has run it where. <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> persistent (your machine; `~/.mojulo/` stays) · <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> ephemeral (the web
+Who has run it where. <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> persistent (your machine, or a box that keeps `~/.mojulo/`) · <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> ephemeral (the web
 agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not "does not work".
 
 | agent | macOS | Windows | Web Agent Linux Box (Headless) |
@@ -83,7 +84,7 @@ agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not
 | ChatGPT (work mode; Codex) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> Codex | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
 | Hermes Agent | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | | |
 | Grok (Build; chat) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> Build | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
-| Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
+| Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> |
 
 Two things are opt-in, and the choice is the same in both places:
 

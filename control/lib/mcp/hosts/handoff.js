@@ -61,7 +61,7 @@ export function fitsBudget(bytes, budget) {
 // `a` is the artifact: { kind: 'page' | 'file' | 'folder', name, path, dir, bytes, download_url,
 // courier?, inlineScripts? } — `courier` names a page that embeds the file and offers it (the
 // bundle writes one); `inlineScripts` marks a page whose scripts are inline `data:` modules,
-// which a CSP page door refuses regardless of size (see the 'artifact' case).
+// which some page doors refuse or render unreliably (the row's `inlinePage`; see 'artifact').
 
 // "no server, no network" is only true of the SELF-CONTAINED build (the default page). Every door
 // that tells the operator to open the page from file:// has to say which of the two it is holding.
@@ -78,17 +78,24 @@ function pageSentence(door, row, a, caveats) {
       return `open ${a.download_url || a.path} in the dashboard, or ${a.name} straight from file://${fromDisk(a)}`;
     case 'artifact': {
       const cap = row.pageMaxBytes ? `, ≤ ${fmtBytes(row.pageMaxBytes)}` : '';
-      // An artifact door runs a CSP: scripts come from its allowlisted CDNs, never from an
-      // inline `data:` module. That is a fact about the DOOR, not about the page's size, so it is
-      // raised whether or not the page fits — a page that fits the ceiling perfectly still renders
-      // black. The default export is the inline build, so on this door the agent asks for the CDN
-      // one. `handoff.box.cdns` has been on the profile since 2.0.8; this reads it.
-      if (a.inlineScripts && Array.isArray(row.cdns) && row.cdns.length) {
-        caveats.push(`${a.name} carries three.js as inline \`data:\` modules, which this host's page CSP refuses at ANY size (it allows ${row.cdns.join(', ')}): re-export with \`cdn: true\` and publish world.cdn.html, or the page loads and nothing draws`);
+      // Each artifact host names its own action, tool and viewer; the defaults name no vendor.
+      const verb = row.pageVerb || 'publish';
+      const tool = row.pageTool || "your host's artifact tool";
+      const opensIn = row.pageOpensIn || 'where your host shows published pages';
+      // What the door does with the default page's inline `data:` three.js is a fact about the
+      // DOOR, not about the page's size, so it is raised whether or not the page fits. 'refused':
+      // a CSP that runs scripts only from its allowlisted CDNs, so a page that fits the ceiling
+      // perfectly still renders black. 'fragile': the page runs, but not on every viewer the
+      // operator may open it in, and it is the build that checks offline in the box.
+      if (a.inlineScripts && row.inlinePage === 'refused') {
+        const allows = Array.isArray(row.cdns) && row.cdns.length ? ` (it allows ${row.cdns.join(', ')})` : '';
+        caveats.push(`${a.name} carries three.js as inline \`data:\` modules, which this host's page CSP refuses at ANY size${allows}: re-export with \`cdn: true\` and ${verb} world.cdn.html, or the page loads and nothing draws`);
+      } else if (a.inlineScripts && row.inlinePage === 'fragile') {
+        caveats.push(`${a.name} carries three.js as inline \`data:\` modules, which are fragile on some of this host's mobile viewers: check it here from file:// (no network needed), then re-export with \`cdn: true\` and ${verb} world.cdn.html`);
       }
       const fit = fitsBudget(a.bytes, row.pageMaxBytes);
       if (!fit.fits) caveats.push(`${a.name} is ${fmtBytes(a.bytes)}, over this host's page limit by ${fmtBytes(fit.over_by)}: lighten the recipe${a.inlineScripts ? ', or re-export with `cdn: true`, which keeps ~1 MB of three.js off the page' : ''}`);
-      return `publish ${a.name}${size} with your Artifact tool (one HTML page${cap}); the operator opens it on claude.ai`;
+      return `${verb} ${a.name}${size} with ${tool} (one HTML page${cap}); the operator opens it ${opensIn}`;
     }
     case 'mcp-app':
       return `the host renders ${a.name}${size} inline as an MCP App; the file at ${a.path} is the fallback`;
@@ -129,6 +136,27 @@ function fileSentence(door, row, a, caveats) {
       if (!fit.fits) caveats.push(`${a.name} is over this host's file-card limit by ${fmtBytes(fit.over_by)}`);
       const cap = row.fileMaxBytes ? `, ≤ ${fmtBytes(row.fileMaxBytes)}` : '';
       return `hand ${a.name}${size} back as a file card${cap}; the operator saves it`;
+    }
+    case 'drop-folder': {
+      // A folder in the box that the host itself carries to the operator (Muse: your_files → Library).
+      // `downloadExtensions` lists the types the operator's side actually shows; anything else
+      // (a folder included) rides the bundle's courier page, which carries every file of the export.
+      const dir = String(row.dropDir).replace(/\/+$/, '');
+      const where = row.dropLabel || "the operator's side";
+      const allowed = Array.isArray(row.downloadExtensions) ? row.downloadExtensions : null;
+      const shown = !allowed || (a.kind !== 'folder' && ext && allowed.includes(ext));
+      if (!shown) {
+        const only = allowed.map((x) => `.${x}`).join(', ');
+        if (a.courier) {
+          return `copy ${a.courier} into ${dir}/; it lands in ${where} as one page (${where} shows only ${only} files) — the operator downloads it and opens it on their device to save ${a.name}${size} or any file of the export`;
+        }
+        caveats.push(`\`export_model({ format: 'bundle' })\` writes <ref>.courier.html, one page that carries every file of the export and does show in ${where}`);
+        return `${where} shows only ${only} files, so ${a.name} would not surface there; it is at ${a.path}${size}`;
+      }
+      const fit = fitsBudget(a.bytes, row.fileMaxBytes);
+      if (!fit.fits) caveats.push(`${a.name} is over this host's file limit by ${fmtBytes(fit.over_by)}`);
+      const lands = row.dropLabel ? `it lands in ${row.dropLabel}` : 'the host carries it to the operator';
+      return `copy ${a.kind === 'folder' ? 'the folder ' : ''}${a.name}${size} into ${dir}/; ${lands}`;
     }
     case 'none':
     default:

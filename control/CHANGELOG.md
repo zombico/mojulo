@@ -14,6 +14,47 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Muse carpet
+
+- **Meta Muse is a shipped host.** `lib/mcp/hosts/muse.json` and `lib/mcp/adapters/muse.md`, for the shell-only agent
+  on a persistent Linux VM that has run mojulo since 2026-09-23. Wire `manual` (no MCP client, nothing to detect), a
+  box-only door table, `verified: field`. The card covers the CLI as the whole surface, the two page builds (check
+  `world.html` locally, put `world.cdn.html` on the page door), the Library as the file door, the VM's Chromium through
+  `MOJULO_CHROMIUM`, and `~/workspace/skills/<slug>/SKILL.md` as the catalyst target. The profile's handoff is
+  `ephemeral: false`: the VM keeps `~/.mojulo` across conversations and across its iOS, web and macOS clients.
+- **A `drop-folder` file door.** A box row can name a folder the host carries to the operator (`dropDir`, and
+  `dropLabel` for what the operator sees). The note says "copy the file into that folder; it lands in …", with a fit
+  caveat when the row declares `fileMaxBytes`. Muse's is `~/workspace/your_files/` → the operator's Library. The
+  registry refuses a `drop-folder` row without `dropDir`. The row's `downloadExtensions` is the list of types the
+  folder surfaces. Muse's Library shows only `.html` (every other type mojulo writes was probed on 2026-09-28 and
+  none surfaced), so a zip, a mesh or a folder routes to the bundle's folder page, and a file with none gets a note
+  that names the bundle.
+- **The bundle's courier is the export's folder page.** `<ref>.courier.html` lists the export's files under
+  `outcomes/<ref>/`, each with its own Save, beside "Save `<ref>.zip`" for all of them. A single file is unpacked in
+  the page from the zip it already carried: the central directory gives the entry, and `DecompressionStream`
+  inflates it. So one `.html`, the only type Muse's Library shows, delivers any file of the export, and the page
+  stays deterministic and grows only by its reader script. Claude's `downloads` path, the filename and the Save-all
+  button are unchanged. An in-app viewer may start no downloads (Muse's Library viewer does not), so a static notice
+  says to download the page and open it on the device; the page's script hides it when opened from `file://`, and
+  Muse's handoff note says the same.
+- **The `artifact` page door speaks the host's words.** `pageVerb`, `pageTool` and `pageOpensIn` on the row name the
+  action, the tool and where the operator opens the page; the defaults name no vendor. `claude-code.json` declares its
+  own words, so its note is unchanged byte for byte. Muse's says "save … with your Artifacts tool; the operator opens
+  it in their Library's Artifacts tab", because publishing there makes a public link.
+- **The inline-page caveat states the host's reason.** `inlinePage: 'refused' | 'fragile'` on a box row replaces the
+  inference from `cdns`. `refused` is Claude's security policy, word for word as before. `fragile` is Muse's: inline
+  `data:` modules are fragile on some mobile viewers, so check the page locally, then re-export with `cdn: true` for
+  the page door. Absent means no caveat; the registry refuses an unknown value.
+- **`MOJULO_HOST` picks the adapter card on the CLI.** `get_adapter`, `get_catalyst` and `recommend_catalysts`' adapter
+  block fall back to the `MOJULO_HOST` profile's adapter before `generic`, after an explicit id, a client hint and the
+  session's clientInfo. A shell host with no `initialize` now gets its own card. `resolveAdapterId` stays pure, so an
+  MCP session's schema-deferral and output-cap reads never consult the environment. The CLI's `orient` addendum says
+  so, and names "the host's own box" rather than a throwaway one.
+- **Docs.** The README matrix gives Meta Muse a green (persistent) tick in the box column, and the legend reads
+  persistent as "your machine, or a box that keeps `~/.mojulo`". `AGENTS.md`'s box section names Muse as the
+  persistent-box case, and its adapter list gains `muse.md`. `docs/tech-requirements.md` records what Muse's runs
+  established for the `field` level and what stays unknown (the byte limits, downloads from a saved page).
+
 ### Stroke affordances
 
 - **A drawn line on a `layered` solid becomes a recipe op, and says how much of it could not.** A
