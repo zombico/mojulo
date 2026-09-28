@@ -14,9 +14,8 @@ those tools, never a fidelity rival and never "just an exporter." The canonical 
 `get_substrate` drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js); keep
 user-facing copy consistent with it.
 
-Two packages. [control/](control/) is the product (Next.js 16 on 3001, ESM, vitest); almost all work happens
-here. [lite-template/](lite-template/) is the runtime for the opt-in chatbot pack; read
-[docs/chatbot/](docs/chatbot/) only when the work is bot-factory work.
+One package. [control/](control/) is the product (Next.js 16 on 3001, ESM, vitest); all work happens here.
+The chatbot factory and its bot runtime left in 3.0.0 for their own project; the 2.x line keeps them.
 
 ## Where truth lives
 
@@ -100,8 +99,7 @@ On merge the plan moves to `plan-archive/`. Nothing tracked may cite a plan path
 
 Control plane: add `## [X.Y.Z] - YYYY-MM-DD` to the changelog, run `npm run smoke:tarball` (packs, installs
 the tarball into an empty temp dir, boots the dashboard; the npx cache reuses old trees and hides
-fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section. Bot image: tag `bot-vX.Y.Z`; control pins exact bot tags, never `:latest`. `bot-v*` tags do
-not release the control plane.
+fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section.
 
 ## Data and native landmines
 
@@ -114,7 +112,6 @@ not release the control plane.
   No `postinstall` model download. The embedding runtime is not a dependency at all: `mojulo install
   recall` installs it under `~/.mojulo/recall/` and runs `fetch-embed-model.js`; `semantic_search` is
   FTS5-lexical without it. Never add `@huggingface/transformers` or `onnxruntime-node` back to `dependencies`.
-- Chatbot pack: Debian slim Node 20, never Alpine (`onnxruntime-node` is glibc-only).
 
 ## Architecture map
 
@@ -139,4 +136,3 @@ Pointers only; each target carries its own design notes.
   [architecture/edifice.js](control/lib/graph/architecture/edifice.js).
 - Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
   [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).
-- Chatbot pack rules and map: [docs/chatbot/AGENT-REFERENCE.md](docs/chatbot/AGENT-REFERENCE.md).
