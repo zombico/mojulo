@@ -68,7 +68,9 @@ loops and the recipe format are unchanged.
   inside (interleaved, one macOS arm64 machine).
 - **`npx -y mojulo-ui` starts the dashboard, and `npx -y -p mojulo mojulo-ui` still works.** Core keeps
   its `mojulo-ui` command as a shim. It runs the dashboard package installed beside it at the same
-  version, or a repo checkout's own `next build`. Otherwise it downloads `mojulo-ui@<its version>` from
+  version (looked up from core's own install only, never from the working directory, so a
+  `node_modules/mojulo-ui` in the tree the command runs from is never imported), or a repo
+  checkout's own `next build`. Otherwise it downloads `mojulo-ui@<its version>` from
   the npm registry with `npm exec`, after printing that it is about to and the exact command;
   `MOJULO_UI_NO_FETCH=1` refuses the download. `mojulo init` says in its prompt when opening the
   dashboard will download it, `get_ui_map` names the exact-version command, and `get_substrate`'s network

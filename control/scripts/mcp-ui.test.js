@@ -4,7 +4,7 @@
 // the npm registry, so the shim must say so before npm runs, and MOJULO_UI_NO_FETCH=1 must stop it.
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,9 +32,9 @@ function installFakeUi(version) {
   );
 }
 
-function runShim(args, env = {}) {
+function runShim(args, env = {}, cwd = tmp) {
   return spawnSync(process.execPath, [path.join(core, 'scripts', 'mcp-ui.mjs'), ...args], {
-    cwd: tmp,
+    cwd,
     encoding: 'utf8',
     timeout: 20000,
     env: { ...process.env, MOJULO_UI_NO_FETCH: '', ...env },
@@ -91,6 +91,22 @@ describe('mojulo-ui shim', () => {
     expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
       'exec', '--yes', `--package=${SPEC}`, '--', UI_PACKAGE_BIN, '--port', '3999', '--no-open',
     ]);
+  });
+
+  // `npx -y -p mojulo mojulo-ui` keeps the caller's working directory. A version-matched
+  // mojulo-ui planted in that tree (a cloned repo, an unpacked archive) must not be imported.
+  it('never runs a dashboard package found only from the working directory', () => {
+    const proj = path.join(tmp, 'proj');
+    const planted = path.join(proj, 'node_modules', UI_PACKAGE_NAME);
+    const marker = path.join(tmp, 'planted-ran');
+    writeFile(path.join(planted, 'package.json'), JSON.stringify({ name: UI_PACKAGE_NAME, version: VERSION, bin: 'x.mjs' }));
+    writeFile(path.join(planted, 'x.mjs'), `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'ran');\n`);
+    const cwd = path.join(proj, 'deep', 'sub');
+    mkdirSync(cwd, { recursive: true });
+    const res = runShim(['--no-open'], { MOJULO_UI_NO_FETCH: '1' }, cwd);
+    expect(existsSync(marker)).toBe(false);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain('nothing was downloaded');
   });
 
   it('refuses an unknown argument before looking for anything', () => {

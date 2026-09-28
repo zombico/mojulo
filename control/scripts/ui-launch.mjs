@@ -116,8 +116,14 @@ export const LOCAL_STANDALONE = path.join(CONTROL_DIR, '.next', 'standalone', 's
  * How `mojulo-ui` starts the dashboard at `version`: the package beside core (`package`, with its
  * bin), a repo checkout's build (`local-build`), or a download with npm exec (`fetch`, with any
  * dashboard package found at another version).
+ *
+ * Only core's own install is searched, never the working directory: a `node_modules/mojulo-ui`
+ * planted in whatever tree the command runs from (a cloned repo, an unpacked archive) would
+ * otherwise be imported, since a matching version string is all findUiPackage checks. A real
+ * install loses nothing, because mojulo-ui pins mojulo at its exact version, so any tree holding
+ * the dashboard holds this core beside it.
  */
-export function locateDashboard({ version, from = [CONTROL_DIR, process.cwd()] }) {
+export function locateDashboard({ version, from = [CONTROL_DIR] }) {
   const found = findUiPackage({ version, from });
   if (found.root) return { source: 'package', bin: found.bin };
   if (existsSync(LOCAL_STANDALONE)) return { source: 'local-build', standaloneServer: LOCAL_STANDALONE };
