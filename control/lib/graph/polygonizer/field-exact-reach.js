@@ -19,6 +19,7 @@ export function exactSupport(terms, at = 'terms') {
       case 'add': case 'subtract': case 'intersect': {
         const k = t.shape && t.shape.kind;
         if (k === 'expr') return { ok: false, at: here, why: 'an `expr` distance expression has no closed-form solid' };
+        if (k === 'crystal') return { ok: false, at: here, why: 'a `crystal` is already exact: it is placed as its own polytope beside the field, not composed into it' };
         if (k === 'rock') return { ok: false, at: here, why: 'a `rock` is a sampled fracture cascade over a grain field (its far-LOD block is exact as faces: rockBlockFaces)' };
         if (k === 'lathe' && Array.isArray(t.shape.harmonics) && t.shape.harmonics.length) return { ok: false, at: here, why: 'a lathe with `harmonics` is not a surface of revolution' };
         break;

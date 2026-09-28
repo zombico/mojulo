@@ -99,6 +99,79 @@ Absent, every terrain world stands on the same ground in the same colours, and i
 - **Composable ground.** Other sketches are placed on the ground by `place`, seated at the terrain's height. Rocks,
   scree and trees scatter as pooled instances. Exports carry a baked mesh of the whole world.
 
+### Crystal light
+
+- **Crystals carry their optics.** `polygonizer/crystal-optics.js` holds quartz, amethyst, calcite, diamond, ruby,
+  sapphire, tourmaline and opal. Each gem's optical class (isotropic or uniaxial, with the optic axis on c) is derived
+  from the point group of its lattice (Neumann's principle). The rest comes from literature data:
+  - indices at three wavelengths for the ordinary and extraordinary rays, which give dispersion and birefringence
+    (calcite's 6.24° double image comes out of the cell and its two indices);
+  - the colour white light keeps after a path, per ray and tabled over path length, because a thin ruby is pink and
+    a thick one red;
+  - ruby's glow, and opal's sphere lattice (λ = 2·d·n·cosθ).
+
+  Every habit is an exact convex polytope built from the lattice planes: quartz's pointed prism, calcite's cleavage
+  rhomb, diamond's octahedron, corundum's barrel and tourmaline's trigonal prism. A round brilliant and a cabochon are
+  available as cuts.
+- **The light a crystal throws.** `polygonizer/crystal-print.js` beam-traces a polytope under a directional light,
+  with no photons. Each lit facet refracts a parallel beam per colour band and per ray. The beam is clipped by the
+  exit facets, then refracts out or reflects internally. Each piece lands on the receiving plane with its flux
+  conserved, carrying dispersion, calcite's double image and absorption along its own path. The resulting shadow and
+  caustic correlate with a spectral photon tracer at r = 0.93–0.99. The tracer is a self-contained kernel, so a page
+  runs the same code the server does.
+- **A crystal's shine is computed, not traced.** `polygonizer/crystal-shine.js` is an interpretive response per facet
+  or per pixel:
+  - a Fresnel glint of a small studio (a softbox and a ~1° sun);
+  - the view ray refracted per channel into the stone and out again, so fire appears where the channels part and
+    brilliance where total internal reflection traps the light;
+  - colour by path length, dichroism by the ray's angle to c, ruby's glow on its lit side, and opal's Bragg flashes.
+
+  It is computed in world space against the fixed light and the live camera, so it stays right as a model turns.
+  It needs no extra render pass.
+- **The turntable spins gems.** `shape: 'crystal'` takes `gem`, `cut`, `size` in cm and `glow`.
+  - The stone and a floor carrying its print (re-traced as it turns, on a budget) render on one canvas. Cost is the
+    shading, not one layer per facet: a 121-facet brilliant runs at interactive rates.
+  - Every other shape is byte-identical.
+- **Crystals on World pages.** Faces tagged `crystal` get the response live through an opt-in `crystal` channel.
+  - In GLSL, the stone's far side is taken as its bounding sphere, tilted per entry facet so the inside reads
+    faceted, so one pass shades any number of stones.
+  - Each stone's print is traced once at emit, largest stones first within a budget.
+  - A glowing stone spills a pool of its colour on the surface it grew from.
+  - A lit scene's ambient brightens the studio the stones reflect.
+  - With no crystal faces, the channel emits zero bytes.
+- **Crystals in recipes.** A workbench `fields` term `{ kind: 'crystal' }` is placed as its exact faces beside the
+  field instead of being blended into it. `cluster` seeds a druse on a bed, or lines a cavity's inner wall with
+  stones growing inward, which makes a geode a recipe. `glow` (0–1) makes any gem shine in its own colour.
+- **Crystals in game assets.** Crystal groups leave the `.glb` as `<group>:crystal` nodes. Their material carries
+  `KHR_materials_transmission`, `_ior` (the D line), `_volume` (the stone's colour after 1 cm) and `_dispersion`
+  (20/V); a glow becomes emissive. An opal becomes an opaque body with `KHR_materials_iridescence`. The Unreal leg
+  keeps a `:crystal` slot's imported material, as it keeps `:emissive` slots. With no crystal, every export is
+  byte-identical.
+- **Crystals in USD.** A crystal group is its own `<group>:crystal` prim, bound to a UsdPreviewSurface with its body
+  colour, its index (`ior`), an opacity, and its glow as emission; an opal is a dark body under a clearcoat. Blender
+  reads the opacity as transmission.
+- **Crystals as light operators.** A world's `crystalLight` places lamps whose beams pass through its crystals. Each
+  gem does one thing to a beam that a player can read:
+  - quartz relays it along its axis (amethyst and sapphire tint it their colour);
+  - diamond fans white into five colours;
+  - calcite splits it into two beams polarized at right angles;
+  - tourmaline passes only light polarized along its axis;
+  - ruby passes red, charges on the rest and pulses a red laser;
+  - opal throws colours whose hue is the angle.
+
+  The constants come from what each crystal does to real light, exaggerated so they read. `scene/crystal-rig.js` holds
+  the operators and the solver as one self-contained kernel, which the World page runs every frame.
+  - Beams stop at the world's own geometry, through an occluder grid built once on the page.
+  - A crystal a mover turns carries its light with it, and its print on the floor is re-traced as it turns.
+  - Small crystal groups act. A large one (a druse, a geode's lining) catches the light and glows where it lands.
+  - Targets raise `lit` and `dark` on the events bus and can step a mover (a door), so a light puzzle is a recipe.
+  - A crystal cluster can clear spots (`avoid`) for a hero stone or a path for light.
+
+  Absent `crystalLight`, every world is byte-identical.
+- **Light rigs leave with the game.** The `.glb` carries a frozen frame: the beams and pools as emissive nodes, the
+  brightest glows as point lights. `score.json` carries the rig and each crystal node's optics. The Godot kernel (0.3.0)
+  performs the rig live, choosing the same beams as the World page. It also gives crystal surfaces a refraction
+  material of their own, since Godot's importer drops transmission.
 ### Cliffs and mountains
 
 - **Landforms.** A painted landscape may carry `landform`: an ordered list of operations on its surface, mixed in

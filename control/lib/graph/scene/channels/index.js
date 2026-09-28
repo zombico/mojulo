@@ -8,6 +8,7 @@
 import { audioChannelScript } from './audio.js';
 import { buildupChannelScript } from './buildup.js';
 import { castShadowScript } from './cast-shadows.js';
+import { crystalChannelScript } from './crystal.js';
 import { cometChannelScript } from './comet.js';
 import { deformChannelScript } from './deform.js';
 import { fieldChannelScript } from './field.js';
@@ -194,6 +195,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // gated on payload.toon.ink; ink buffers packed per group
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojInk', '__inkBuild', '__inkGeoNormals', '__inkCentroid'] },   // live handle; builders the controllable rig hook probes (typeof-guarded)
+  { key: 'crystal', anchor: 'pre-runtime', script: crystalChannelScript,
+    normalizeIn: 'emitThreeWorld',     // gated on a group carrying crystal faces; prints traced there (crystal-prints.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojCrystal'] },      // the prints' count, for probes
   { key: 'fx', anchor: 'post-step', script: fxChannelScript,
     normalizeIn: 'emitThreeWorld',     // presence decides controllable's exposeBodies
     requiresOptional: ['__BUS', '__mojCtrl'] },   // assigns the scene-three-emitted `let stepFx`
