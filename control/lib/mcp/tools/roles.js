@@ -29,8 +29,8 @@ function requireRolesAdmin(context) {
   if (!rolesEnabled()) {
     throw new Error(
       'The roles pack is not enabled on this host — mojulo is in its default single-operator mode ' +
-        '(no user identity). To turn on operator-owned delegation, set MOJULO_ROLES=enabled in ' +
-        "control/.env and restart. Do not retry roles tools until it is enabled."
+        '(no user identity). To turn on operator-owned delegation, set MOJULO_ROLES=enabled in the ' +
+        "environment the server starts with (control/.env in a repo checkout) and restart. Do not retry roles tools until it is enabled."
     );
   }
   if (!isAdminContext(context)) {
@@ -159,7 +159,7 @@ async function revokeRoleKeyHandler(input, context) {
   if (!target) throw new Error(`No key found for '${user.trim()}'. list_role_keys shows what exists.`);
   if (target.id === LOCAL_ADMIN_ID) {
     throw new Error(
-      "The operator's own row cannot be revoked — the admin credential is CONTROL_PLANE_MCP_KEY, rotated in control/.env, not here."
+      "The operator's own row cannot be revoked — the admin credential is CONTROL_PLANE_MCP_KEY, rotated in the server's environment (control/.env in a repo checkout), not here."
     );
   }
   if (target.revokedAt) {
