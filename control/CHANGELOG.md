@@ -278,6 +278,35 @@ loops and the recipe format are unchanged.
   it. `world.offline.html` is gone (the default build took the plain name), and the bundle zips
   the file it wrote on disk.
 
+- **"No telemetry" is now "no external telemetry", and the local tool-call log is described.**
+  The plugin, marketplace and Glama listings, the README, TERMS, SECURITY, the tour and
+  `get_substrate` said "no telemetry" or "never carries telemetry" while a local log of every tool
+  call is on by default. They now say nothing is sent to the maintainer or an analytics service,
+  and say what the log keeps: tool name, timing, status, argument names and sizes (never values),
+  truncated error text, the MCP client's name and session id; 30 days or 50,000 rows; one stderr
+  line per call; `MOJULO_MCP_TELEMETRY=off` stops it.
+- **`get_substrate`'s facts match the code.** Fact 2 lists everything under `$MOJULO_HOME` and the
+  few writes outside it (temp work folders, an `install_scaffold` folder the caller names, host
+  configs after `mojulo init` and a yes). Fact 4 lists every outbound destination and its trigger
+  (the Chrome for Testing download only for an explicit render, ffmpeg with pinned hashes, the
+  recall model from huggingface.co, the `mojulo-ui` download, `cdn: true` pages, the keyed
+  `via:'prompt'` door, the chatbot pack's calls) and the local log. Fact 8 says a recipe carrying a
+  `program` is JavaScript that runs with the operator's privileges, and fact 9 that a recipe
+  book's builders run at startup; fact 9 no longer calls the book code-free. The dashboard page map
+  no longer says the log records "shapes only". The install-size figures in the README,
+  `control/README.md`, the tour and `docs/tech-requirements.md` are 2.2.0's measured ones (about
+  6 MB packed, 290 MB on disk, 110 MB downloaded, a 7 to 10 s cold start on one machine).
+- **SECURITY.md states what runs as code.** A new section says that recipes carrying a `program`
+  and recipe-book builders run with the operator's privileges (`node:vm` there is a determinism
+  fence, not a sandbox), that reports of those doors doing what a local script can are expected,
+  and that code running without one of them is in scope, as is any traffic or write the README does
+  not disclose.
+- **Skill files and Claude settings only on the user's request.** The catalyst preamble and the
+  Claude Code adapter card now say to write a `.claude/skills/` skill only when the user asked for
+  that workflow, naming the path first, and to show the `.claude/settings.json` deny block only
+  when the user asks how to guard bot secrets, never editing that file. The card used to suggest
+  the deny block on first connect.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

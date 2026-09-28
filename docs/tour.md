@@ -96,7 +96,7 @@ Everything above is a few kilobytes of parameters plus a `kind`, or an OpenSCAD 
 
 - **Iterate in place.** `update_sketch` changes a field on the stored recipe; `edit_solid` dresses or emotes a minted solid; `diff_sketches` shows what moved. You review what the model made the way you review code: as a diff, kept or reverted a line at a time. Don't re-mint what you can edit.
 - **Keep what you tuned.** `save_recipe` promotes a recipe into your **cookbook** at `~/.mojulo/data/cookbook` — plain `card.md` + `recipe.json` folders in a local git repo with **no remote**. Your agent writes the card's `when` line from the conversation, so months later a paraphrase recalls it through `semantic_search` and it re-mints exactly.
-- **Extend the catalog from disk.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a public catalog you clone and point `MOJULO_RECIPE_BOOK` at — chapters of solids, worlds, loops, shots and study objects. Some entries are params over kinds mojulo already has; others are builders that add a whole new kind without touching core. Strictly additive, never fetched at runtime. A cookbook **is** a book, same format, so a friend can clone yours as their upstream. Precedence is first-wins: core kinds > your cookbook > any attached book.
+- **Extend the catalog from disk.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a public catalog you clone and point `MOJULO_RECIPE_BOOK` at — chapters of solids, worlds, loops, shots and study objects. Some entries are params over kinds mojulo already has; others are builders that add a whole new kind without touching core. Strictly additive and read from your clone, never fetched; the builders are JavaScript mojulo imports and runs with your privileges when it starts, so attach only a book you trust. A cookbook **is** a book, same format, so a friend can clone yours as their upstream. Precedence is first-wins: core kinds > your cookbook > any attached book.
 
 ---
 
@@ -153,19 +153,18 @@ npx mojulo init
 `init` detects your MCP host(s), wires mojulo into each (one yes/no per host),
 and opens the dashboard at `http://localhost:3001` (or the next free port — the
 installer prints the URL). Nothing is sent anywhere; state lands in `~/.mojulo/`.
-The first install is the big one: npx pulls a ~36 MB tarball plus its native
-dependencies (measured at about 985 MB on disk before any model), and the first
-launch fetches a ~130 MB embedding model in the background — after that, starts
-are instant. Measured sizes, lazy first-use downloads, and what each engine leg
-needs: [docs/tech-requirements.md](tech-requirements.md).
+The first install is the big one: npx pulls a ~6 MB package plus its dependencies (about 290 MB
+on disk, about 110 MB downloaded, measured for 2.2.0); after that, starts are instant. The
+dashboard is its own package, fetched the first time you open it, and the local search model is
+the opt-in `mojulo install recall`. Measured sizes, lazy first-use downloads, and what each engine
+leg needs: [docs/tech-requirements.md](tech-requirements.md).
 
-**Why these dependencies.** The install is mostly three things, and all of them run on your machine.
-`onnxruntime-node` and `@huggingface/transformers` run the *local* search model behind
-`semantic_search` — the runtime ships binaries for every platform in one package, which is most
-of the size. `puppeteer-core` drives a *local* headless Chrome for stills and bakes; the browser
-itself is fetched on first use, or skipped if you already have Chrome. `better-sqlite3` is the one
-database file under `~/.mojulo/`. Nothing in that list reaches the network on its own. The
-per-dependency sheet, with sizes, is in the same tech-requirements page.
+**Why these dependencies.** All of them run on your machine. `officeparser` and `pdf2json` read
+documents, `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
+geometry, `sharp` handles images, `puppeteer-core` drives a *local* headless Chrome for stills (the
+browser itself is fetched only for an explicit render, or skipped if you already have Chrome), and
+`better-sqlite3` is the one database file under `~/.mojulo/`. Nothing in that list reaches the
+network on its own. The per-dependency sheet, with sizes, is in the same tech-requirements page.
 
 The dashboard opens in English but ships fully translated in every locale under `control/messages/`,
 including right-to-left scripts — switch anytime under **Settings → Language**.
@@ -263,9 +262,10 @@ Open the dashboard separately anytime with `npx -y mojulo-ui` (its own npm packa
 - **Recipes.** Every object, world, game and score is a few kilobytes of parameters in SQLite at `~/.mojulo/mojulo-lite.db`. Renders are derived and disposable; the recipe is the thing you own.
 - **Your cookbook.** Recipes you `save_recipe` land in `~/.mojulo/data/cookbook` as plain folders in their own git repo with **no remote**. Sharing is your act, with your git.
 - **Derived outputs.** Exported `.glb` / `.usdz` / `.stl` / `.3mf` / `.wav` files, engine packs and game folders write to plain files you can open in anything. Nothing is locked to the runtime.
-- **Encryption / keys.** Provider keys, if you save any, are AES-256-GCM encrypted at rest.
+- **Encryption / keys.** Provider keys, if you save any, are AES-256-GCM encrypted at rest under a per-install key in `~/.mojulo/secret.key`.
+- **A local tool-call log.** Each tool call is recorded in the same database: tool name, timing, status, argument names and sizes (never their values), truncated error text, and the MCP client's name and session. Kept 30 days or 50,000 rows, never sent anywhere; `MOJULO_MCP_TELEMETRY=off` turns it off.
 
-No telemetry. No phone-home. Outbound traffic is explicit and listed: npm at install; a handful of one-time lazy downloads on first use (the embedding model, a pinned browser for scene bakes if you have none, ffmpeg for MP4 stitching); an update check when your agent asks for one; and whatever your agent and anything you deploy yourself initiate. Full list, with where each cache lands: [docs/tech-requirements.md](tech-requirements.md#network-posture).
+No external telemetry. Outbound traffic is explicit and listed: npm at install; a handful of one-time downloads on first use (a pinned browser for an explicit render if you have none, ffmpeg for the first MP4, the dashboard package when you first open it, the search model after `mojulo install recall`); an update check when your agent asks for one; and whatever your agent and anything you deploy yourself initiate. Exported pages carry their own three.js unless you ask for the CDN build. Full list, with where each cache lands: [docs/tech-requirements.md](tech-requirements.md#network-posture).
 
 ---
 
@@ -308,9 +308,9 @@ The control plane is **single-operator, self-hosted, localhost-only by default**
 
 ## Responsibility model
 
-Mojulo runs on your machine, on your credentials, driven by your agent. There is no hosted service, no telemetry, no remote kill switch — which means the operator (you) is the only party in the system with the context to evaluate intent, capability, and suitability for any given use. The terms of use formalize that posture; the architecture is what makes it true.
+Mojulo runs on your machine, on your credentials, driven by your agent. There is no hosted service, no external telemetry, no remote kill switch — which means the operator (you) is the only party in the system with the context to evaluate intent, capability, and suitability for any given use. The terms of use formalize that posture; the architecture is what makes it true.
 
-The open-source mojulo will always be open source and will never carry telemetry. That is a commitment about this software, not a bar on a hosted offering: if there is demand, a separate mojulo cloud built on standard services may be explored. It would be its own opt-in product, and the local mojulo would not change or depend on it.
+The open-source mojulo will always be open source and will never send telemetry anywhere. That is a commitment about this software, not a bar on a hosted offering: if there is demand, a separate mojulo cloud built on standard services may be explored. It would be its own opt-in product, and the local mojulo would not change or depend on it.
 
 - [TERMS.md](../TERMS.md) — terms of use.
 - [docs/responsibility-model.md](responsibility-model.md) — the architectural reasoning behind those terms.
@@ -353,7 +353,7 @@ mojulo/
 
 Per-package docs: [control/README.md](../control/README.md) — the npm package overview (what's published to npmjs.com/package/mojulo). [lite-template/](../lite-template/) — bot runtime internals.
 
-Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) — the attachable catalog of mintable recipes. Clone it, point `MOJULO_RECIPE_BOOK` at it; strictly additive, never fetched at runtime. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) — the attachable catalog of mintable recipes. Clone it, point `MOJULO_RECIPE_BOOK` at it; strictly additive and read from your clone, never fetched (its builders run as code, so attach a book you trust). See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 **Concept docs — the factory:**
 

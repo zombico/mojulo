@@ -12,12 +12,12 @@ These are not aspirations. They are properties of the codebase, verifiable from 
 
 The substrate is a Next.js app, a SQLite database, and a process supervisor. They live on your host. The npm package (`npx mojulo`) installs them locally. The Docker image runs locally. There is no hosted mojulo service today.
 
-The standing commitment is about the software, not about what else may exist: the open-source mojulo stays open source under Apache 2.0 and never carries telemetry. That does not rule out a separately offered mojulo cloud on standard hosted services, explored if there is demand. Such an offering would be its own opt-in product; nothing in this document, or in the local install, would change because of it. ([TERMS.md](../TERMS.md), "The open-source commitment".)
+The standing commitment is about the software, not about what else may exist: the open-source mojulo stays open source under Apache 2.0 and never sends telemetry anywhere. That does not rule out a separately offered mojulo cloud on standard hosted services, explored if there is demand. Such an offering would be its own opt-in product; nothing in this document, or in the local install, would change because of it. ([TERMS.md](../TERMS.md), "The open-source commitment".)
 
 This is enforced in the design, not just the deployment instructions:
 
 - The MCP transport binds to localhost. The dashboard binds to localhost. ([CLAUDE.md](../CLAUDE.md), golden rules.)
-- There is no telemetry, no phone-home, no analytics endpoint, no automatic update channel that calls out. (See README — "What stays on your machine.")
+- There is no external telemetry, no analytics endpoint, no automatic update channel that calls out. The one log mojulo keeps of its own tool calls stays in its local database. (See README — "What stays on your machine.")
 - The maintainer has no visibility into your installation. There is no instrumentation that would let them observe what you build, deploy, or run.
 
 When the terms say "the maintainer does not have, and is not seeking, the ability to see, approve, modify, or revoke any of these decisions," that is a statement about the code, not a marketing claim.

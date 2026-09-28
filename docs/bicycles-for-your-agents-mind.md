@@ -176,7 +176,7 @@ hundred forgetful sessions compound into one coherent body of work. The
 bicycle you get back on is the one you tuned last time.
 
 **It stays yours.** Mojulo runs on your machine. The transport binds to
-localhost. No telemetry, no phone-home, no remote kill switch, no account.
+localhost. No external telemetry, no remote kill switch, no account.
 Inference runs on *your* provider key and bills to *your* account. The intent
 never enters mojulo's process boundary — it lives in your prompt, gets
 translated by an agent *you* connected, and arrives as a tool call. Amplifying
