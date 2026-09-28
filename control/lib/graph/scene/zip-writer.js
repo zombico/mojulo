@@ -1,7 +1,7 @@
 /**
  * zip-writer — a deterministic, dependency-free ZIP container builder.
  *
- * `archiver` (already a control-plane dependency, used by the bot stager) streams
+ * `archiver` (already a control-plane dependency, used by export_model's bundle) streams
  * and stamps wall-clock mtimes, which breaks the one property every export here
  * must keep: a byte-identical file for a given recipe. This writer is the
  * container half of the OPC-style exports — 3MF (interchange-seams.plan.md

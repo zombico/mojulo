@@ -7,20 +7,15 @@
 # is the only thing that catches it.
 #
 # Scope:
-#   - npm install in both packages exits 0 (this is the OSS pain point)
-#   - the bot runtime's ONNX model lands at its expected path (lite-template)
+#   - npm install in control exits 0 (this is the OSS pain point)
 #   - the control plane needs NO model: its embedding runtime is the opt-in
 #     `recall` install group since 2.0.7, so the CLI must answer, and
 #     semantic_search must answer lexically, on a bare install
 #   - npm run build in control exits 0 (proves Next build works)
 #   - Control plane boots and /api/health returns 200
 #
-# Out of scope:
-#   - Booting the lite-template bot directly. The bot requires a built
-#     deployment artifact (config/config.json, instructions.txt, etc.)
-#     which is a control-plane operation, not a fresh-clone operation.
-#     The README path for running a bot is "build a deployment, unzip,
-#     docker compose up." That's an integration test, not a smoke test.
+# (Until 3.0 it also installed the chatbot runtime, lite-template/, and checked its ONNX model;
+# the runtime left with the chatbot factory.)
 #
 # Run from the repo root:  bash scripts/smoke.sh
 
@@ -46,29 +41,7 @@ cleanup() {
 trap cleanup EXIT
 
 # ---------------------------------------------------------------------------
-# 1. Install lite-template. The postinstall fetches ONNX weights (~113MB)
-#    into models/. We assert the file exists afterwards — a partial download
-#    is a silent failure that breaks RAG much later in the user's lifecycle.
-# ---------------------------------------------------------------------------
-echo "[smoke] installing lite-template…"
-(cd lite-template && npm install)
-
-LITE_MODEL_PATH="lite-template/models/Xenova/multilingual-e5-small/onnx/model_quantized.onnx"
-if [ ! -f "$LITE_MODEL_PATH" ]; then
-  echo "[smoke] FAIL: expected ONNX model at $LITE_MODEL_PATH (postinstall did not produce it)"
-  exit 1
-fi
-# Sanity-check size — multilingual-e5-small q8 is ~113MB. Reject anything
-# under 50MB as a partial download.
-LITE_MODEL_SIZE=$(stat -f%z "$LITE_MODEL_PATH" 2>/dev/null || stat -c%s "$LITE_MODEL_PATH")
-if [ "$LITE_MODEL_SIZE" -lt 50000000 ]; then
-  echo "[smoke] FAIL: ONNX model at $LITE_MODEL_PATH is only $LITE_MODEL_SIZE bytes (expected >50MB)"
-  exit 1
-fi
-echo "[smoke] lite-template install ok (ONNX = ${LITE_MODEL_SIZE} bytes)"
-
-# ---------------------------------------------------------------------------
-# 2. Install control plane and verify Next build. The build step exercises
+# 1. Install control plane and verify Next build. The build step exercises
 #    the path alias resolution, the env-var defaults, and every page route
 #    — if any of those break on a fresh clone, this is where it surfaces.
 # ---------------------------------------------------------------------------
@@ -105,7 +78,7 @@ echo "[smoke] building control plane (next build)…"
 echo "[smoke] control build ok"
 
 # ---------------------------------------------------------------------------
-# 3. Boot the control plane in the background, poll /api/health until it
+# 2. Boot the control plane in the background, poll /api/health until it
 #    comes up, assert 200. Strict timeout so CI never hangs.
 # ---------------------------------------------------------------------------
 echo "[smoke] starting control plane (next start, port 3001)…"

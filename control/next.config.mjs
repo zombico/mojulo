@@ -39,8 +39,6 @@ const nextConfig = {
     'archiver',
     'manifold-3d',
     'openscad-wasm-prebuilt',
-    'pdf2json',
-    'officeparser',
     '@huggingface/transformers',
     'onnxruntime-node',
     'node-web-audio-api',
@@ -52,8 +50,8 @@ const nextConfig = {
   turbopack: { root: __dirname },
   webpack: (config, { isServer }) => {
     // Keep the dev watcher OUT of the substrate's data store. control/data/ is
-    // written on nearly every MCP tool call (SQLite WAL, outcome PNGs/WAVs, bot
-    // artifact trees — 5k+ files and growing) and lives inside the project
+    // written on nearly every MCP tool call (SQLite WAL, outcome PNGs/WAVs,
+    // export trees — 5k+ files and growing) and lives inside the project
     // root, so without this the dev compiler treats artifact writes as source
     // changes. 2026-08-13: the Turbopack dev server repeatedly pinned the event
     // loop at ~100% CPU in an fs.realpath storm (sampled: 3010/3011 samples in

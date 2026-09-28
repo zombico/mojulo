@@ -7,7 +7,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { UI_LITE_TEMPLATE_DIR, UI_PACKAGE_BIN, UI_PACKAGE_NAME, UI_STANDALONE_DIR } from './ui-package.js';
+import { UI_PACKAGE_BIN, UI_PACKAGE_NAME, UI_STANDALONE_DIR } from './ui-package.js';
 import {
   CONTROL_DIR,
   UI_PACKAGE_DIR,
@@ -27,10 +27,10 @@ describe('dashboard package manifest', () => {
     expect(ui.dependencies.mojulo).toBe(core.version);
   });
 
-  it('ships its bin, its standalone build and the bot template, never the models', () => {
+  it('ships its bin and its standalone build, and no bot template (it left with the chatbot factory)', () => {
     expect(existsSync(path.join(UI_PACKAGE_DIR, ui.bin[UI_PACKAGE_BIN]))).toBe(true);
-    expect(ui.files).toEqual(expect.arrayContaining([`${UI_STANDALONE_DIR}/`, `${UI_LITE_TEMPLATE_DIR}/`]));
-    expect(ui.files).toContain(`!${UI_LITE_TEMPLATE_DIR}/models/**`);
+    expect(ui.files).toContain(`${UI_STANDALONE_DIR}/`);
+    expect(ui.files.filter((entry) => entry.includes('lite-template'))).toEqual([]);
   });
 
   it('does not reuse a core bin name, which would collide in one node_modules/.bin', () => {

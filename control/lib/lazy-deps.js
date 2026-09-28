@@ -6,8 +6,7 @@
  * package imported at module scope anywhere on that path loads on every boot, whether or not a call
  * ever needs it. These do not load at boot:
  *   - puppeteer-core — the scene/World PNG bakers and World frame capture (lib/graph/scene/chromium.js)
- *   - archiver — zip bundles (export_model `bundle`) and bot artifacts (lib/deployers/docker.js)
- *   - pdf2json, officeparser — document ingest (lib/document-parser.js)
+ *   - archiver — zip bundles (export_model `bundle`)
  *   - react, react-dom — the diagram SVG renderer (lib/sketch-svg.js)
  * Each caller loads its package through `lazyDependency` on the first call that needs it. A package
  * that cannot load becomes a DependencyUnavailableError on that one call; the kernel, the CLI and every

@@ -3,7 +3,7 @@
  * mojulo-dashboard — starts the mojulo dashboard from this package's prebuilt Next.js server.
  *
  * The launcher is core's (mojulo/scripts/ui-launch.mjs). This package depends on mojulo at its own
- * exact version, finds it from its own location, and hands it the two directories it ships.
+ * exact version, finds it from its own location, and hands it the standalone build it ships.
  * core's `mojulo-ui` bin runs this file when it finds this package beside it.
  */
 
@@ -45,14 +45,13 @@ if (coreVersion !== own.version) {
   );
 }
 
-const { UI_STANDALONE_DIR, UI_LITE_TEMPLATE_DIR } = await import(
+const { UI_STANDALONE_DIR } = await import(
   pathToFileURL(path.join(core, 'lib', 'version', 'ui-package.js')).href
 );
 const { startDashboard } = await import(pathToFileURL(path.join(core, 'scripts', 'ui-launch.mjs')).href);
 
 await startDashboard({
   standaloneServer: path.join(ROOT, UI_STANDALONE_DIR, 'server.js'),
-  liteTemplateDir: path.join(ROOT, UI_LITE_TEMPLATE_DIR),
   argv: process.argv.slice(2),
   // Resolved from this package, which declares it; core does not.
   openUrl: async (url) => (await import('open')).default(url),
