@@ -2,11 +2,17 @@ import { NextResponse } from 'next/server';
 import { SESSION_COOKIE, isAuthEnabled, verifySessionToken } from '@/lib/auth/session';
 import { checkDashboardRequest } from '@/lib/auth/request-guard';
 
+// Every path but Next's static assets and /api/mcp, which answers only its own bearer keys (the MCP
+// key and the roles pack's delegate keys) and 404s without one. Each exclusion is anchored: the
+// unanchored `api/mcp`, `api/health` and `login` it replaces also skipped /api/mcp-telemetry,
+// /api/healthz and /loginx, so the loopback guard never ran on the tool-call log.
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|api/health|api/auth/login|api/auth/logout|api/mcp|login).*)',
-  ],
+  matcher: ['/((?!_next/static/|_next/image(?:/|$)|favicon\\.ico$|icon\\.svg$|api/mcp(?:/|$)).*)'],
 };
+
+// Reachable without a login session: uptime probes and the login flow itself. They still pass the
+// loopback guard. Exact paths, so a route that only starts with one of these names is gated.
+const PUBLIC_PATHS = new Set(['/api/health', '/api/auth/login', '/api/auth/logout', '/login']);
 
 // Constant-time string compare for bearer tokens. Avoids early-exit timing
 // leaks on a mismatched prefix; not strictly load-bearing for single-user
@@ -57,6 +63,8 @@ export async function middleware(req) {
   }
 
   if (!isAuthEnabled()) return NextResponse.next();
+  const pathname = req.nextUrl.pathname.replace(/\/+$/, '') || '/';
+  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const ok = await verifySessionToken(token, process.env.CONTROL_PLANE_PASSWORD);

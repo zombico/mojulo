@@ -3,40 +3,39 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { NextRequest } from 'next/server';
-import { middleware } from './middleware.js';
+import { createRequire } from 'node:module';
+import { middleware, config } from './middleware.js';
 import { checkDashboardRequest, hostnameOf } from './lib/auth/request-guard.js';
 
-// The matcher is a static string literal; a text-level assertion is enough to
-// catch "we accidentally gated /api/health and broke probes." The loopback
-// guard is tested by calling middleware() directly (see the end of the file).
+// Which paths the middleware runs on is decided by Next's own matcher code, so the exported
+// config.matcher is run through it (the same functions `next build` uses) rather than read as text.
+// The exclusions used to be unanchored, so `api/mcp` also skipped /api/mcp-telemetry (the tool-call
+// log, readable through DNS rebinding), `api/health` /api/healthz, and `login` /loginx.
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SOURCE = readFileSync(join(HERE, 'middleware.js'), 'utf8');
+const nextRequire = createRequire(import.meta.url);
+const { getMiddlewareMatchers } = nextRequire('next/dist/build/analysis/get-page-static-info.js');
+const { getMiddlewareRouteMatcher } = nextRequire('next/dist/shared/lib/router/utils/middleware-route-matcher.js');
+const runsOn = getMiddlewareRouteMatcher(getMiddlewareMatchers(config.matcher, { i18n: undefined }));
+const middlewareRuns = (path) => runsOn(path, { headers: {}, cookies: {} }, {});
 
-describe('middleware matcher — public-path exemption list', () => {
-  it('exempts /api/health (uptime probes must reach the route unauthenticated)', () => {
-    expect(SOURCE).toMatch(/api\/health/);
+describe('middleware matcher', () => {
+  it('runs on every route that only starts with an excluded name', () => {
+    for (const path of ['/api/mcp-telemetry', '/api/mcp-telemetry/x', '/api/healthz', '/loginx', '/api/auth/loginfoo', '/favicon.icox']) {
+      expect(middlewareRuns(path), path).toBe(true);
+    }
   });
 
-  it('exempts the login route and its API endpoints', () => {
-    expect(SOURCE).toMatch(/api\/auth\/login/);
-    expect(SOURCE).toMatch(/api\/auth\/logout/);
-    expect(SOURCE).toMatch(/\blogin\b/);
+  it('runs on pages, the API, /api/health and the login routes (the guard covers them all)', () => {
+    for (const path of ['/', '/settings', '/api/documents', '/api/sketches/x/png', '/api/health', '/login', '/api/auth/login', '/api/auth/logout']) {
+      expect(middlewareRuns(path), path).toBe(true);
+    }
   });
 
-  it('exempts Next static asset paths', () => {
-    expect(SOURCE).toMatch(/_next\/static/);
-    expect(SOURCE).toMatch(/_next\/image/);
-  });
-
-  it('exempts the favicon and icon assets', () => {
-    expect(SOURCE).toMatch(/favicon\.ico/);
-    expect(SOURCE).toMatch(/icon\.svg/);
-  });
-
-  it('matcher is a negative-lookahead pattern (not an inverse-of-allow-list)', () => {
-    // Documents the matcher's shape so a refactor to a list-based matcher
-    // surfaces deliberately. The current form is /((?!exemptions).*).
-    expect(SOURCE).toMatch(/\/\(\(\?!/);
+  it('skips Next static assets, the icons and /api/mcp (its own bearer check)', () => {
+    for (const path of ['/_next/static/chunks/x.js', '/_next/image', '/favicon.ico', '/icon.svg', '/api/mcp', '/api/mcp/']) {
+      expect(middlewareRuns(path), path).toBe(false);
+    }
   });
 });
 
@@ -229,6 +228,24 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
     process.env.CONTROL_PLANE_PASSWORD = 'pw';
     expect((await middleware(request('/api/documents', { host: 'attacker.example' }))).status).toBe(403);
     expect((await middleware(request('/api/documents'))).status).toBe(401);
+  });
+
+  it('the tool-call log and /api/health refuse a rebinding Host', async () => {
+    for (const path of ['/api/mcp-telemetry?limit=500', '/api/health']) {
+      const res = await middleware(request(path, { host: 'rebind.attacker.example:3001' }));
+      expect(res.status, path).toBe(403);
+    }
+  });
+
+  it('with login on, only the exact public paths skip the session check', async () => {
+    process.env.CONTROL_PLANE_USER = 'op';
+    process.env.CONTROL_PLANE_PASSWORD = 'pw';
+    for (const path of ['/api/health', '/api/auth/login', '/api/auth/logout', '/login', '/login/']) {
+      expect(passes(await middleware(request(path))), path).toBe(true);
+    }
+    expect((await middleware(request('/api/mcp-telemetry'))).status).toBe(401);
+    expect((await middleware(request('/api/healthz'))).status).toBe(401);
+    expect((await middleware(request('/loginx'))).status).toBe(307);
   });
 
   it('hostnameOf strips ports and keeps IPv6 brackets', () => {

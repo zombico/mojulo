@@ -190,8 +190,12 @@ loops and the recipe format are unchanged.
   `MOJULO_UI_ALLOWED_HOSTS` (comma-separated) is for a dashboard reached by another name: a
   reverse proxy's or tunnel's hostname, or a LAN address while bound to `0.0.0.0`. It is never
   bound; `MOJULO_UI_HOST` stays the bind address. The 403 names it.
-  Callers presenting the `CONTROL_PLANE_MCP_KEY` bearer skip it; `/api/mcp` and `/api/health` stay
-  outside the middleware as before.
+  Callers presenting the `CONTROL_PLANE_MCP_KEY` bearer skip it. Only Next's static assets, the
+  icons and `/api/mcp` (which answers its own bearer keys and 404s without one) stay outside the
+  middleware. Its exclusions used to be unanchored prefixes, so `api/mcp` also left
+  `/api/mcp-telemetry`, the tool-call log, readable through DNS rebinding, and `login` and
+  `api/health` skipped `/loginx` and `/api/healthz`. `/api/health` and the login routes now pass
+  the guard and skip only the login check, matched by exact path.
 - **`mint_solid` `via:'prompt'` no longer picks an LLM key for the caller.** The keyed polygonizer
   door (and its hidden alias `create_polygonized_sketch`, and `POST /api/polygonizer`), called with
   no `provider`, quietly decrypted the operator's saved default OpenAI/Anthropic key, or any saved
