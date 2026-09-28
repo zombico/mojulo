@@ -2,7 +2,7 @@
 //
 // Exercises every host write path covered in step 5:
 //   - meta_principles via meta_context_commit handlers (commitOperatorKyc,
-//     commitArtifactMaterialization, commitPrimitiveArtifactMaterialization)
+//     commitPrimitiveArtifactMaterialization)
 //   - meta_mcp_inventory via InventoryRepository.replaceInventoryWithEmbeddings
 //   - meta_mcp_capabilities via CapabilitiesRepository.insertWithEmbedding
 //   - mcp_orbit_components via MCPOrbitComponentRepository.upsertWithEmbedding
@@ -54,7 +54,6 @@ vi.mock('@/lib/embedder/local', async () => {
 });
 
 import { closeDb, getDb } from '@/lib/db/index';
-import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
 import { CapabilitiesRepository } from '@/lib/db/repositories/mcp-capabilities';
 import {
@@ -65,7 +64,6 @@ import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-prov
 import { EmbeddingsRepository, reindexAll } from '@/lib/db/repositories/embeddings';
 import {
   commitOperatorKyc,
-  commitArtifactMaterialization,
   commitPrimitiveArtifactMaterialization,
 } from '@/lib/mcp/tools/meta-context';
 import { semanticSearchHandler } from '@/lib/mcp/tools/semantic-search';
@@ -94,16 +92,6 @@ afterAll(() => {
 beforeEach(() => {
   closeDb();
 });
-
-async function seedDeployment(id, botName) {
-  const db = getDb();
-  const now = Date.now();
-  db.prepare(
-    `INSERT INTO deployments (id, bot_name, flow_type, status, config, api_key, document_ids, created_at, updated_at)
-     VALUES (?, ?, 'modular', 'saved', ?, 'k', '[]', ?, ?)`,
-  ).run(id, botName, '{}', now, now);
-  return DeploymentRepository.findById(id);
-}
 
 // Seed every source kind so semantic_search has cross-kind material.
 async function seedFullCorpus() {
@@ -184,16 +172,16 @@ async function seedFullCorpus() {
   // reindexAll() picks them up — same path the first-boot backfill takes.
   await reindexAll();
 
-  // bot-shaped artifact_materialization principle so the principle kind has
-  // a second variant (user-supplied body, not just operator_kyc).
-  await seedDeployment('dep-int', 'Integration Bot');
-  await commitArtifactMaterialization({
-    type: 'artifact_materialization',
+  // primitive-binding materialization: the auto-summary principle plus a
+  // user-supplied one, so the principle kind has a second variant beside
+  // operator_kyc. (The 2.x bot-bound artifact_materialization supplied the
+  // user variant here until it left with the chatbot factory.)
+  await commitPrimitiveArtifactMaterialization({
+    type: 'primitive_artifact_materialization',
     adapter_id: 'generic',
-    artifact: { locator: existingArtifactPath, label: 'lead-router skill' },
-    bot_ref: 'dep-int',
-    catalyst_ref: 'qualify-lead-to-crm',
-    bindings: [{ mcp_tool: 'hubspot.create_contact', fields_bound: ['email'] }],
+    artifact: { locator: existingArtifactPath, label: 'drive digest' },
+    composition_intent: 'weekly digest of lead conversion rate into Drive',
+    provider_artifact_refs: [providerArtifact.ref],
     principles: [
       {
         scope: 'artifact',
@@ -201,16 +189,6 @@ async function seedFullCorpus() {
           'Operator confirmed HubSpot routing during onboarding — idempotency on normalized email.',
       },
     ],
-  });
-
-  // primitive-binding materialization so the auto-summary principle is
-  // present too.
-  await commitPrimitiveArtifactMaterialization({
-    type: 'primitive_artifact_materialization',
-    adapter_id: 'generic',
-    artifact: { locator: existingArtifactPath, label: 'drive digest' },
-    composition_intent: 'weekly digest of lead conversion rate into Drive',
-    provider_artifact_refs: [providerArtifact.ref],
   });
 
   return { kyc, composition, providerArtifact };

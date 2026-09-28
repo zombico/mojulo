@@ -426,28 +426,44 @@ describe('StashRepository', () => {
   // (lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md step 2)
   // ---------------------------------------------------------------------------
 
-  it('binds a stash to a bot and lists in both directions', () => {
+  it('binds a stash to an app and lists in both directions', () => {
     const a = StashRepository.mint({ title: 'corpus' });
     const b = StashRepository.mint({ title: 'sidekick' });
     const binding = StashRepository.bind({
       stashRef: a.stashRef,
-      boundKind: 'bot',
-      boundRef: 'dep_xyz',
+      boundKind: 'app',
+      boundRef: 'app_xyz',
       role: 'corpus',
     });
-    StashRepository.bind({ stashRef: b.stashRef, boundKind: 'bot', boundRef: 'dep_xyz' });
-    expect(binding.boundKind).toBe('bot');
-    expect(binding.boundRef).toBe('dep_xyz');
+    StashRepository.bind({ stashRef: b.stashRef, boundKind: 'app', boundRef: 'app_xyz' });
+    expect(binding.boundKind).toBe('app');
+    expect(binding.boundRef).toBe('app_xyz');
     expect(binding.role).toBe('corpus');
 
     // forward: bindings for stash a
     const forward = StashRepository.listBindings({ stashRef: a.stashRef });
     expect(forward).toHaveLength(1);
-    expect(forward[0].boundRef).toBe('dep_xyz');
+    expect(forward[0].boundRef).toBe('app_xyz');
 
-    // reverse: stashes linked to dep_xyz — both stashes show up
-    const reverse = StashRepository.listBindings({ boundKind: 'bot', boundRef: 'dep_xyz' });
+    // reverse: stashes linked to app_xyz — both stashes show up
+    const reverse = StashRepository.listBindings({ boundKind: 'app', boundRef: 'app_xyz' });
     expect(reverse.map((r) => r.stashRef).sort()).toEqual([a.stashRef, b.stashRef].sort());
+  });
+
+  // A 2.x install may hold bindings to deployed bots. They stay readable and removable; nothing
+  // writes a new one since the chatbot factory left in 3.0.0.
+  it("a 'bot' binding from 2.x lists and unbinds, and bind refuses a new one", () => {
+    const s = StashRepository.mint({ title: 'legacy corpus' });
+    getDb()
+      .prepare("INSERT INTO stash_bindings (stash_id, bound_kind, bound_ref, role) VALUES (?, 'bot', 'dep_old', 'corpus')")
+      .run(s.id);
+    const listed = StashRepository.listBindings({ boundKind: 'bot', boundRef: 'dep_old' });
+    expect(listed.map((r) => r.stashRef)).toEqual([s.stashRef]);
+    expect(() => StashRepository.bind({ stashRef: s.stashRef, boundKind: 'bot', boundRef: 'dep_new' })).toThrow(
+      /read-only since 3\.0\.0/,
+    );
+    expect(StashRepository.unbind({ stashRef: s.stashRef, boundKind: 'bot', boundRef: 'dep_old' })).toBe(true);
+    expect(StashRepository.listBindings({ stashRef: s.stashRef })).toHaveLength(0);
   });
 
   it('bind is idempotent on PK; rebind updates the role', () => {
@@ -490,11 +506,11 @@ describe('StashRepository', () => {
     // stash archive is soft, but if we ever hard-delete a stash row the FK
     // cascade should clean up its bindings.
     const s = StashRepository.mint({ title: 'cascading' });
-    StashRepository.bind({ stashRef: s.stashRef, boundKind: 'bot', boundRef: 'dep_z' });
+    StashRepository.bind({ stashRef: s.stashRef, boundKind: 'app', boundRef: 'app_z' });
     const db = getDb();
     db.prepare('DELETE FROM stashes WHERE stash_ref = ?').run(s.stashRef);
     expect(
-      StashRepository.listBindings({ boundKind: 'bot', boundRef: 'dep_z' }),
+      StashRepository.listBindings({ boundKind: 'app', boundRef: 'app_z' }),
     ).toHaveLength(0);
   });
 
@@ -503,17 +519,17 @@ describe('StashRepository', () => {
     const s = StashRepository.mint({ title: 'dangling' });
     const binding = StashRepository.bind({
       stashRef: s.stashRef,
-      boundKind: 'bot',
-      boundRef: 'dep_definitely_not_a_real_bot',
+      boundKind: 'app',
+      boundRef: 'app_definitely_not_a_real_app',
     });
-    expect(binding.boundRef).toBe('dep_definitely_not_a_real_bot');
+    expect(binding.boundRef).toBe('app_definitely_not_a_real_app');
   });
 
   it('listBindings with no filter returns everything', () => {
     const a = StashRepository.mint({ title: 'a' });
     const b = StashRepository.mint({ title: 'b' });
     StashRepository.bind({ stashRef: a.stashRef, boundKind: 'plan', boundRef: 'plan_1' });
-    StashRepository.bind({ stashRef: b.stashRef, boundKind: 'bot', boundRef: 'dep_1' });
+    StashRepository.bind({ stashRef: b.stashRef, boundKind: 'app', boundRef: 'app_1' });
     const all = StashRepository.listBindings();
     expect(all).toHaveLength(2);
   });

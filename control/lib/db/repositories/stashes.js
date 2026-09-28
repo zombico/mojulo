@@ -55,6 +55,9 @@ const SCRIPT_LANGUAGES = new Set(['js', 'ts', 'py', 'sh', 'sql']);
 // is how the substrate accretes drift. See
 // lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
 const BINDING_KINDS = new Set(['bot', 'app', 'plan', 'cook', 'contextmap_node', 'sketch']);
+// 'bot' stays a readable (and removable) bound_kind: rows a 2.x install bound to a deployed bot.
+// Nothing writes it since the chatbot factory left in 3.0.0, so bind() refuses it.
+const RETIRED_BINDING_KINDS = new Set(['bot']);
 const BINDING_ROLES = new Set(['corpus', 'working_memory', 'ingredient', 'reference']);
 
 function parseJSON(value, fallback) {
@@ -668,13 +671,18 @@ export const StashRepository = {
   // -------------------------------------------------------------------------
 
   /**
-   * Link a stash to another substrate resource (bot / app / plan / cook /
-   * contextmap_node). bound_ref is NOT validated against the target repo —
+   * Link a stash to another substrate resource (app / plan / cook /
+   * contextmap_node / sketch). bound_ref is NOT validated against the target repo —
    * dangling refs are tolerated by design (the navigational chip will surface
    * "linked resource removed"). Idempotent on the PK; calling bind twice with
    * the same (stash, kind, ref) updates the role only.
    */
   bind({ stashRef, boundKind, boundRef, role }) {
+    if (RETIRED_BINDING_KINDS.has(boundKind)) {
+      throw new Error(
+        `bound_kind '${boundKind}' is read-only since 3.0.0 (the chatbot factory left mojulo); existing rows stay listable and removable. Allowed for new bindings: ${[...BINDING_KINDS].filter((k) => !RETIRED_BINDING_KINDS.has(k)).join(', ')}.`,
+      );
+    }
     if (!BINDING_KINDS.has(boundKind)) {
       throw new Error(
         `bound_kind '${boundKind}' is not valid. Allowed: ${[...BINDING_KINDS].join(', ')}.`,

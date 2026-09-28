@@ -40,11 +40,9 @@ vi.mock('@/lib/embedder/local', async () => {
 });
 
 import { closeDb, getDb } from '@/lib/db/index';
-import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { EmbeddingsRepository } from '@/lib/db/repositories/embeddings';
 import {
   commitOperatorKyc,
-  commitArtifactMaterialization,
   commitPrimitiveArtifactMaterialization,
 } from './meta-context.js';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
@@ -66,16 +64,6 @@ beforeEach(() => {
   closeDb();
 });
 
-async function seedDeployment({ id = 'dep-embed', botName = 'Embed Bot' } = {}) {
-  const db = getDb();
-  const now = Date.now();
-  db.prepare(
-    `INSERT INTO deployments (id, bot_name, flow_type, status, config, api_key, document_ids, created_at, updated_at)
-     VALUES (?, ?, 'modular', 'saved', ?, 'k', '[]', ?, ?)`,
-  ).run(id, botName, '{}', now, now);
-  return DeploymentRepository.findById(id);
-}
-
 describe('operator_kyc principle embedding', () => {
   it('writes a meta_embeddings row keyed on the inserted principle id', async () => {
     getDb();
@@ -89,63 +77,6 @@ describe('operator_kyc principle embedding', () => {
     expect(row).not.toBe(null);
     expect(row.sourceKind).toBe('principle');
     expect(row.bodyText).toContain('product lead');
-  });
-});
-
-describe('artifact_materialization principle embeddings', () => {
-  it('writes one embedding row per user-supplied principle', async () => {
-    await seedDeployment({ id: 'dep-embed' });
-    const out = await commitArtifactMaterialization({
-      type: 'artifact_materialization',
-      adapter_id: 'generic',
-      artifact: { locator: existingArtifactPath, label: 'My Skill' },
-      bot_ref: 'dep-embed',
-      catalyst_ref: 'qualify-lead-to-crm',
-      bindings: [{ mcp_tool: 'hubspot.create_contact', fields_bound: ['email', 'name'] }],
-      principles: [
-        { scope: 'artifact', body_md: 'Maps email + name only, drops phone.' },
-        { scope: 'binds', body_md: 'Idempotency key is normalized email.' },
-      ],
-    });
-    expect(out.ok).toBe(true);
-    expect(out.principlesCreated).toBe(2);
-
-    const db = getDb();
-    const rows = db
-      .prepare("SELECT body_text FROM meta_embeddings WHERE source_kind = 'principle'")
-      .all();
-    expect(rows.length).toBe(2);
-    const bodies = rows.map((r) => r.body_text).sort();
-    expect(bodies).toEqual([
-      'Idempotency key is normalized email.',
-      'Maps email + name only, drops phone.',
-    ]);
-  });
-
-  it('fans `binds` scope into N embedding rows sharing the body text', async () => {
-    await seedDeployment({ id: 'dep-fanout' });
-    const out = await commitArtifactMaterialization({
-      type: 'artifact_materialization',
-      adapter_id: 'generic',
-      artifact: { locator: existingArtifactPath, label: 'Multi-bind' },
-      bot_ref: 'dep-fanout',
-      catalyst_ref: 'qualify-lead-to-crm',
-      bindings: [
-        { mcp_tool: 'hubspot.create_contact' },
-        { mcp_tool: 'hubspot.search_contact' },
-      ],
-      principles: [
-        { scope: 'binds', body_md: 'Operator confirmed both writes are atomic.' },
-      ],
-    });
-    expect(out.principlesCreated).toBe(2);
-    const db = getDb();
-    const rows = db
-      .prepare(
-        `SELECT body_text FROM meta_embeddings WHERE source_kind = 'principle' AND body_text = ?`,
-      )
-      .all('Operator confirmed both writes are atomic.');
-    expect(rows.length).toBe(2);
   });
 });
 
@@ -182,5 +113,38 @@ describe('primitive_artifact_materialization principle embeddings', () => {
     const bodies = rows.map((r) => r.body_text);
     expect(bodies).toContain('Skip closed issues.');
     expect(bodies.some((b) => b.includes('weekly digest'))).toBe(true);
+  });
+
+  // A bare `binds` principle fans out to every binds edge, one embedding row per edge.
+  it('fans `binds` scope into N embedding rows sharing the body text', async () => {
+    getDb();
+    const pa = ProviderArtifactRepository.insert({
+      primitiveRef: 'document-store@0.1.0',
+      role: 'source',
+      server: 'claude_ai_Google_Drive',
+      introspectedAt: '2026-05-24T18:00:00Z',
+      snapshotConfidence: 'tools_list_full',
+      bodyMd: '# body',
+      manifest: {
+        bound: [
+          { affordance: 'list-recent', tool: 'list_recent_files', confidence: 'tools_list_full' },
+          { affordance: 'read-content', tool: 'read_file_content', confidence: 'tools_list_full' },
+        ],
+      },
+      bindings: { 'list-recent': 'list_recent_files', 'read-content': 'read_file_content' },
+    });
+    const out = await commitPrimitiveArtifactMaterialization({
+      type: 'primitive_artifact_materialization',
+      adapter_id: 'generic',
+      artifact: { locator: existingArtifactPath, label: 'Multi-bind' },
+      composition_intent: 'read recent Drive files into a digest',
+      provider_artifact_refs: [pa.ref],
+      principles: [{ scope: 'binds', body_md: 'Operator confirmed both reads are cheap.' }],
+    });
+    expect(out.edges.binds).toHaveLength(2);
+    const rows = getDb()
+      .prepare(`SELECT body_text FROM meta_embeddings WHERE source_kind = 'principle' AND body_text = ?`)
+      .all('Operator confirmed both reads are cheap.');
+    expect(rows.length).toBe(2);
   });
 });

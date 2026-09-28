@@ -12,7 +12,6 @@ import { writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
-import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import {
   MetaContextRepository,
   MetaNodeRepository,
@@ -24,11 +23,12 @@ import {
   commitHandler,
   commitOperatorKyc,
   commitOperatorWorkspaceSetup,
-  commitArtifactMaterialization,
   commitPrimitiveArtifactMaterialization,
+  ARTIFACT_MATERIALIZATION_MOVED,
   commitAppMaterialization,
 } from './meta-context.js';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
+import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -47,21 +47,6 @@ afterAll(() => {
 beforeEach(() => {
   closeDb();
 });
-
-// Helper: seed a real deployment row so artifact_materialization commits can
-// resolve bot_ref via DeploymentRepository.findById.
-async function seedDeployment({ id = 'dep-test', botName = 'Test Bot' } = {}) {
-  // Insert directly so we can pin the id (DeploymentRepository.create
-  // generates its own id via newId('dep')).
-  const { getDb } = await import('@/lib/db/index');
-  const db = getDb();
-  const now = Date.now();
-  db.prepare(
-    `INSERT INTO deployments (id, bot_name, flow_type, status, config, api_key, document_ids, created_at, updated_at)
-     VALUES (?, ?, 'modular', 'saved', ?, 'k', '[]', ?, ?)`,
-  ).run(id, botName, '{}', now, now);
-  return DeploymentRepository.findById(id);
-}
 
 // ---------------------------------------------------------------------------
 // briefHandler
@@ -472,271 +457,49 @@ describe('commitOperatorWorkspaceSetup', () => {
 });
 
 // ---------------------------------------------------------------------------
-// commit: artifact_materialization
+// commit: artifact_materialization — moved with the chatbot factory (3.0.0)
 // ---------------------------------------------------------------------------
 
-function buildBaseMaterializationInput(overrides = {}) {
-  return {
+describe('artifact_materialization — the bot-bound seal left with the chatbot factory', () => {
+  const twoXInput = {
     type: 'artifact_materialization',
     adapter_id: 'claude-code',
-    artifact: {
-      locator: existingArtifactPath,
-      label: 'Qualify Lead to CRM',
-    },
+    artifact: { locator: '/tmp/skill.md', label: 'Qualify Lead to CRM' },
     bot_ref: 'dep-test',
     catalyst_ref: 'qualify-lead-to-crm',
-    bindings: [
-      { mcp_tool: 'hubspot.create_contact', fields_bound: ['name', 'email', 'phone'] },
-    ],
-    principles: [
-      {
-        scope: 'artifact',
-        body_md: 'Route qualified leads to HubSpot contacts.',
-      },
-      {
-        scope: 'materialized_by',
-        body_md: 'Materialized as Claude Code skill because clientInfo was claude-code.',
-      },
-    ],
-    ...overrides,
+    bindings: [{ mcp_tool: 'hubspot.create_contact', fields_bound: ['email'] }],
+    principles: [{ scope: 'artifact', body_md: 'Route qualified leads to HubSpot.' }],
   };
-}
 
-describe('commitArtifactMaterialization', () => {
-  it('happy path — writes bot, adapter, catalyst, artifact, mcp_tool nodes + 4 edges + 2 principles', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Dental Front Desk' });
-
-    const out = await commitArtifactMaterialization(buildBaseMaterializationInput());
-
-    expect(out.ok).toBe(true);
-    expect(out.artifactNodeId).toBeGreaterThan(0);
-    expect(out.nodes.bot).toBeGreaterThan(0);
-    expect(out.nodes.adapter).toBeGreaterThan(0);
-    expect(out.nodes.catalyst).toBeGreaterThan(0);
-    expect(out.nodes.artifact).toBeGreaterThan(0);
-    expect(out.edges.seeded).toBeGreaterThan(0);
-    expect(out.edges.materialized_by).toBeGreaterThan(0);
-    expect(out.edges.runs_for).toBeGreaterThan(0);
-    expect(out.edges.binds).toHaveLength(1);
-    expect(out.edges.binds[0].mcp_tool).toBe('hubspot.create_contact');
-    expect(out.principlesCreated).toBe(2);
-    expect(out.verification.ok).toBe(true);
-    expect(out.warnings).toContain('no_operator_anchor');
-  });
-
-  it('omits warnings when an operator anchor exists', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await commitOperatorKyc({ type: 'operator_kyc', role: 'r', constraints: ['c'] });
-    const out = await commitArtifactMaterialization(buildBaseMaterializationInput());
-    expect(out.warnings).toBeUndefined();
-  });
-
-  it('resolves catalyst label from the catalyst loader, falls back to ref', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await commitArtifactMaterialization(buildBaseMaterializationInput());
-    const catalystNode = MetaNodeRepository.findByRef('catalyst', 'qualify-lead-to-crm');
-    expect(catalystNode.label).not.toBe('qualify-lead-to-crm'); // it has a real name
-    expect(catalystNode.label.length).toBeGreaterThan(0);
-
-    // Unknown catalyst id → label falls back to the ref.
-    await commitArtifactMaterialization(
-      buildBaseMaterializationInput({
-        catalyst_ref: 'made-up-catalyst-that-does-not-exist',
-        artifact: { locator: existingArtifactPath, label: 'Other' },
-      }),
-    );
-    const fallback = MetaNodeRepository.findByRef('catalyst', 'made-up-catalyst-that-does-not-exist');
-    expect(fallback.label).toBe('made-up-catalyst-that-does-not-exist');
-  });
-
-  it('stores artifact payload with adapter_id, locator, host', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await commitArtifactMaterialization(buildBaseMaterializationInput());
-    const artifactNode = MetaNodeRepository.findByRef(
-      'artifact',
-      `claude-code:${existingArtifactPath}`,
-    );
-    expect(artifactNode.payload.adapter_id).toBe('claude-code');
-    expect(artifactNode.payload.locator).toBe(existingArtifactPath);
-    expect(artifactNode.payload.host).toBeTruthy();
-  });
-
-  it('binds edge carries fields_bound in its payload', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    const out = await commitArtifactMaterialization(buildBaseMaterializationInput());
-    const edge = MetaEdgeRepository.findById(out.edges.binds[0].edgeId);
-    expect(edge.payload).toEqual({ fields_bound: ['name', 'email', 'phone'] });
-  });
-
-  it('rejects unknown adapter_id', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await expect(
-      commitArtifactMaterialization(
-        buildBaseMaterializationInput({ adapter_id: 'not-a-real-adapter' }),
-      ),
-    ).rejects.toThrow(/Unknown adapter/);
-    // No writes.
+  it('a new commit answers with the moved notice and writes nothing', async () => {
+    await expect(commitHandler(twoXInput)).rejects.toThrow(ARTIFACT_MATERIALIZATION_MOVED);
+    expect(ARTIFACT_MATERIALIZATION_MOVED).toContain(BOT_FACTORY_MOVED);
+    expect(ARTIFACT_MATERIALIZATION_MOVED).toMatch(/primitive_artifact_materialization/);
     expect(MetaContextRepository.brief({ kind: 'fleet' }).nodes).toHaveLength(0);
   });
 
-  it('rejects missing artifact.locator / label', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await expect(
-      commitArtifactMaterialization(
-        buildBaseMaterializationInput({ artifact: { label: 'X' } }),
-      ),
-    ).rejects.toThrow(/locator/);
-    await expect(
-      commitArtifactMaterialization(
-        buildBaseMaterializationInput({ artifact: { locator: '/x' } }),
-      ),
-    ).rejects.toThrow(/label/);
-  });
-
-  it('rejects unknown bot_ref', async () => {
-    await expect(
-      commitArtifactMaterialization(buildBaseMaterializationInput({ bot_ref: 'nope' })),
-    ).rejects.toThrow(/Unknown bot_ref/);
-    expect(MetaContextRepository.brief({ kind: 'fleet' }).nodes).toHaveLength(0);
-  });
-
-  it('rejects when verification fails — no DB writes', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await expect(
-      commitArtifactMaterialization(
-        buildBaseMaterializationInput({
-          artifact: { locator: missingArtifactPath, label: 'Missing' },
-        }),
-      ),
-    ).rejects.toThrow(/Artifact verification failed/);
-    expect(MetaContextRepository.brief({ kind: 'fleet' }).nodes).toHaveLength(0);
-  });
-
-  it('codex adapter with opaque locator accepts on assertion, surfaces note in response', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    const out = await commitArtifactMaterialization(
-      buildBaseMaterializationInput({
-        adapter_id: 'codex',
-        artifact: { locator: 'my-codex-automation-handle', label: 'Codex Auto' },
-      }),
-    );
-    expect(out.ok).toBe(true);
-    expect(out.verification.note).toBe('codex_accept_on_assertion');
-  });
-
-  it('re-committing the same materialization is idempotent on edges, stacks principles', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    const first = await commitArtifactMaterialization(buildBaseMaterializationInput());
-    const second = await commitArtifactMaterialization(buildBaseMaterializationInput());
-
-    // Same node ids.
-    expect(second.nodes.artifact).toBe(first.nodes.artifact);
-    expect(second.nodes.catalyst).toBe(first.nodes.catalyst);
-    expect(second.edges.seeded).toBe(first.edges.seeded);
-
-    // Two principles per scope now.
-    const artifactNode = MetaNodeRepository.findById(first.nodes.artifact);
-    expect(MetaPrincipleRepository.listForScope('node', artifactNode.id)).toHaveLength(2);
-  });
-
-  it('rejects principle scope with no matching edge/node', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await expect(
-      commitArtifactMaterialization(
-        buildBaseMaterializationInput({
-          principles: [{ scope: 'binds:never-bound-tool', body_md: 'x' }],
-        }),
-      ),
-    ).rejects.toThrow(/no matching binding/);
-
-    await expect(
-      commitArtifactMaterialization(
-        buildBaseMaterializationInput({
-          principles: [{ scope: 'made-up-scope', body_md: 'x' }],
-        }),
-      ),
-    ).rejects.toThrow(/Unknown principle scope/);
-
-    // No writes from the failed commits.
-    expect(MetaContextRepository.brief({ kind: 'fleet' }).nodes).toHaveLength(0);
-  });
-
-  it("bare 'binds' principle fans out to every binding edge", async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    const out = await commitArtifactMaterialization(
-      buildBaseMaterializationInput({
-        bindings: [
-          { mcp_tool: 'hubspot.create_contact', fields_bound: ['email'] },
-          { mcp_tool: 'hubspot.update_contact', fields_bound: ['phone'] },
-        ],
-        principles: [{ scope: 'binds', body_md: 'Common binding posture.' }],
-      }),
-    );
-    expect(out.principlesCreated).toBe(2);
-    for (const { edgeId } of out.edges.binds) {
-      expect(MetaPrincipleRepository.listForScope('edge', edgeId)).toHaveLength(1);
-    }
-  });
-
-  it("binds:<ref> targets a specific binding edge only", async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    const out = await commitArtifactMaterialization(
-      buildBaseMaterializationInput({
-        bindings: [
-          { mcp_tool: 'hubspot.create_contact', fields_bound: ['email'] },
-          { mcp_tool: 'hubspot.update_contact', fields_bound: ['phone'] },
-        ],
-        principles: [
-          { scope: 'binds:hubspot.create_contact', body_md: 'Just the create edge.' },
-        ],
-      }),
-    );
-    expect(out.principlesCreated).toBe(1);
-    const createEdge = out.edges.binds.find((e) => e.mcp_tool === 'hubspot.create_contact');
-    const updateEdge = out.edges.binds.find((e) => e.mcp_tool === 'hubspot.update_contact');
-    expect(MetaPrincipleRepository.listForScope('edge', createEdge.edgeId)).toHaveLength(1);
-    expect(MetaPrincipleRepository.listForScope('edge', updateEdge.edgeId)).toHaveLength(0);
-  });
-
-  it('rejects principle missing body_md', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    await expect(
-      commitArtifactMaterialization(
-        buildBaseMaterializationInput({
-          principles: [{ scope: 'artifact' }],
-        }),
-      ),
-    ).rejects.toThrow(/body_md/);
-  });
-
-  it('per-bot brief after commit returns the artifact and edges', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Dental Front Desk' });
-    await commitArtifactMaterialization(buildBaseMaterializationInput());
+  it('the graph a 2.x commit recorded stays readable through brief', async () => {
+    const bot = MetaNodeRepository.upsert({ kind: 'bot', ref: 'dep-test', label: 'Dental Front Desk' });
+    const art = MetaNodeRepository.upsert({ kind: 'artifact', ref: 'claude-code:/tmp/skill.md', label: 'QLC' });
+    const edge = MetaEdgeRepository.upsert({ src_id: art.id, dst_id: bot.id, kind: 'runs_for' });
+    MetaPrincipleRepository.insert({
+      scope_kind: 'node',
+      scope_id: art.id,
+      body_md: 'Route qualified leads to HubSpot.',
+      source_event: 'artifact_materialization',
+    });
 
     const brief = await briefHandler({ scope: { kind: 'bot', ref: 'dep-test' } });
     expect(brief.nodes.find((n) => n.kind === 'bot')?.label).toBe('Dental Front Desk');
     expect(brief.nodes.find((n) => n.kind === 'artifact')).toBeTruthy();
-    expect(brief.edges.find((e) => e.kind === 'runs_for')).toBeTruthy();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// commitHandler routing
-// ---------------------------------------------------------------------------
-
-describe('commitHandler — routes artifact_materialization', () => {
-  it('end-to-end through the dispatcher', async () => {
-    await seedDeployment({ id: 'dep-test', botName: 'Bot' });
-    const out = await commitHandler(buildBaseMaterializationInput());
-    expect(out.ok).toBe(true);
-    expect(out.artifactNodeId).toBeGreaterThan(0);
+    expect(brief.edges.find((e) => e.id === edge.id)?.kind).toBe('runs_for');
   });
 });
 
 // ---------------------------------------------------------------------------
 // commit: primitive_artifact_materialization
 //
-// Sibling to artifact_materialization, no bot / no catalyst. The audit chain
+// No catalyst node (the 2.x bot-bound sibling had one). The audit chain
 // in the contextmap is built from persisted provider artifacts (the rows
 // bind_primitives produces). See MCP_PRIMITIVE_BINDING_PLAN.md.
 // ---------------------------------------------------------------------------
@@ -893,22 +656,58 @@ describe('commitPrimitiveArtifactMaterialization', () => {
 
   it('rejects principle scopes that do not exist in primitive flow (catalyst, bot, seeded, runs_for)', async () => {
     const pa = seedProviderArtifact();
+    for (const scope of ['catalyst', 'bot', 'seeded', 'runs_for', 'made-up-scope']) {
+      await expect(
+        commitPrimitiveArtifactMaterialization(
+          buildBasePrimitiveMaterializationInput({
+            provider_artifact_refs: [pa.ref],
+            principles: [{ scope, body_md: 'not a scope here' }],
+          }),
+        ),
+        scope,
+      ).rejects.toThrow(/Unknown principle scope/);
+    }
+    // No writes from the failed commits.
+    expect(MetaContextRepository.brief({ kind: 'fleet' }).nodes).toHaveLength(0);
+  });
+
+  // The shared principle attach (attachPrinciples) — its binding-targeted and body checks, which
+  // the 2.x bot-bound commit used to cover.
+  it("binds:<mcp_tool_ref> targets one binding edge; an unbound ref is refused", async () => {
+    const pa = seedProviderArtifact();
+    const out = await commitPrimitiveArtifactMaterialization(
+      buildBasePrimitiveMaterializationInput({
+        provider_artifact_refs: [pa.ref],
+        principles: [
+          { scope: 'binds:claude_ai_Google_Drive.list_recent_files', body_md: 'Just the list edge.' },
+        ],
+      }),
+    );
+    const listEdge = out.edges.binds.find((e) => e.mcp_tool === 'claude_ai_Google_Drive.list_recent_files');
+    const readEdge = out.edges.binds.find((e) => e.mcp_tool === 'claude_ai_Google_Drive.read_file_content');
+    expect(MetaPrincipleRepository.listForScope('edge', listEdge.edgeId)).toHaveLength(1);
+    expect(MetaPrincipleRepository.listForScope('edge', readEdge.edgeId)).toHaveLength(0);
+
+    await expect(
+      commitPrimitiveArtifactMaterialization(
+        buildBasePrimitiveMaterializationInput({
+          provider_artifact_refs: [seedProviderArtifact().ref],
+          principles: [{ scope: 'binds:never-bound-tool', body_md: 'x' }],
+        }),
+      ),
+    ).rejects.toThrow(/no matching binding/);
+  });
+
+  it('rejects a principle missing body_md', async () => {
+    const pa = seedProviderArtifact();
     await expect(
       commitPrimitiveArtifactMaterialization(
         buildBasePrimitiveMaterializationInput({
           provider_artifact_refs: [pa.ref],
-          principles: [{ scope: 'catalyst', body_md: 'no catalyst here' }],
+          principles: [{ scope: 'artifact' }],
         }),
       ),
-    ).rejects.toThrow(/no matching/);
-    await expect(
-      commitPrimitiveArtifactMaterialization(
-        buildBasePrimitiveMaterializationInput({
-          provider_artifact_refs: [pa.ref],
-          principles: [{ scope: 'runs_for', body_md: 'no bot here' }],
-        }),
-      ),
-    ).rejects.toThrow(/no matching/);
+    ).rejects.toThrow(/body_md/);
   });
 
   it('rejects unknown provider_artifact_refs', async () => {
@@ -1105,7 +904,7 @@ describe('commitAppMaterialization', () => {
           principles: [{ scope: 'catalyst', body_md: 'should fail — no catalyst scope for apps' }],
         }),
       ),
-    ).rejects.toThrow(/scope 'catalyst' has no matching node/);
+    ).rejects.toThrow(/Unknown principle scope 'catalyst'/);
     await expect(
       commitAppMaterialization(
         buildBaseAppMaterializationInput({
