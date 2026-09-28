@@ -223,9 +223,22 @@ function sourceFiles(absDir, out = []) {
   return out;
 }
 
+// What may sit under a carve directory without it counting as back. lite-template/integration/
+// is the maintainer's gitignored plan and spike-output folder (root .gitignore, CLAUDE.md "Plans
+// and changelog"); it outlived the runtime it sat beside, so a working tree may still have it.
+const CARVE_RESIDUE = { '../lite-template/': ['integration'] };
+
+function carvePathBack(entry) {
+  const abs = join(CONTROL_ROOT, entry);
+  if (!existsSync(abs)) return false;
+  const residue = CARVE_RESIDUE[entry];
+  if (!residue) return true;
+  return readdirSync(abs).some((name) => !residue.includes(name) && name !== '.DS_Store');
+}
+
 describe('chatbot carve-out: a default install carries no bot code', () => {
   it('no carve path is back on disk, and no retained server-side source imports one', () => {
-    const back = CARVE_SET.filter((entry) => existsSync(join(CONTROL_ROOT, entry)));
+    const back = CARVE_SET.filter(carvePathBack);
     expect(back, `carve paths back in the tree:\n${back.join('\n')}`).toEqual([]);
 
     const roots = ['lib', 'app/api', 'scripts', 'bin'].map((d) => join(CONTROL_ROOT, d));
