@@ -87,6 +87,10 @@ export const GROW_DEFAULTS = {
   firstSeason: 0.8,                            // the share of that done in the season the shoot grows (twigs are ~3 GPa)
   react: 3e-3,                                 // Δα, the maturation-strain asymmetry reaction wood can apply (0.1–0.3%)
   shedAfter: 2, shedLight: 0.18,               // a branch starved this many years in a row is shed
+  // a stand: neighbours like this plant, growing alongside it, whose crowns shade everything below the stand's top as a
+  // turbid layer (Beer–Lambert, k · LAI through the depth of their crowns). 0 = open-grown; 1 = a closed stand, where the
+  // low branches starve and are shed and the crown lifts: the clean bole and high crown of a forest tree
+  stand: 0, standLAI: 4.5, standK: 0.5, standCrown: 0.5,
   maxNodes: 150000,                            // a safety cap only: reaching it stops growth, and a tree that stops leafing starves
 };
 
@@ -126,8 +130,12 @@ export function grow(archIn, opts = {}) {
       }
     }
   }
-  // a bud does not shade itself: its own node's unit is taken back out (Palubicki's `+ a`)
-  const exposure = (p, own = 0) => Math.max(0, P.fullLight - shadowAt(p) + own * P.shadowA) / P.fullLight;
+  // a bud does not shade itself: its own node's unit is taken back out (Palubicki's `+ a`); in a stand, the neighbours'
+  // crowns above the point (their top is this plant's top: they grow alike) take their share of what is left
+  let standTop = 0;
+  // (the stand's top is in full sun: the shade starts a sixth of the height down and deepens over standCrown of it)
+  const standLight = (z) => (P.stand > 0 && standTop > 0 ? Math.exp(-P.standK * P.standLAI * P.stand * Math.min(1, Math.max(0, (standTop - z - standTop / 6) / (P.standCrown * standTop)))) : 1);
+  const exposure = (p, own = 0) => (Math.max(0, P.fullLight - shadowAt(p) + own * P.shadowA) / P.fullLight) * standLight(p[2]);
   function lightDir(p) {                     // toward less shadow: the negative gradient, plus a sky bias
     const h = vs; const g = [0, 1, 2].map((a) => { const e = [0, 0, 0]; e[a] = h; return shadowAt(add(p, e)) - shadowAt(sub(p, e)); });
     const d = [-g[0], -g[1], -g[2] + 0.05]; return len(d) < 1e-9 ? UP : unit(d);
@@ -169,6 +177,7 @@ export function grow(archIn, opts = {}) {
 
   for (let year = 1; year <= P.years; year++) {
     castShadows();
+    if (P.stand > 0) { standTop = 0; for (const n of nodes) if (!n.died && n.pos[2] > standTop) standTop = n.pos[2]; }
     // exposure of every live bud, and the basipetal sum per node (Q flows down to the root)
     const liveBuds = buds.filter((b) => b.alive);
     for (const b of liveBuds) b.Q = exposure(nodes[b.node].pos, nodes[b.node].leaves ? 1 : 0);

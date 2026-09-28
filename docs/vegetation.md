@@ -22,10 +22,17 @@ numbers below were checked against the literature, and several first guesses tur
    - Light comes from a voxel shadow grid, and resources are shared by Borchert–Honda allocation (Palubicki et al.
      2009).
    - Architecture is Hallé–Oldeman's table of choices; the presets are Rauh, Massart, Troll, Leeuwenberg and Corner.
+   - A species may keep its leaves longer than its architecture does (`leafLife`, in years). The evergreen
+     `schefflera`, the umbrella tree of tropical mountains, keeps three years' leaves on Leeuwenberg's crown.
    - Wood follows the pipe model plus Pressler (ring area ∝ foliage above), so Leonardo's rule and taper are
      emergent.
    - Each year's extra load bends each internode, and reaction wood (∝ Δα·Δr/r², Fournier) pulls it back where there
      is wood to do it.
+   - `stand` (0 by default, open-grown) grows the plant among neighbours like itself. Their crowns shade everything
+     below the stand's top, which is in full sun, by Beer–Lambert through their leaf area. The low branches starve and
+     are shed, so the crown lifts and narrows: a massart fir's crown starts at 0.16 of its height open-grown and 0.75
+     in a stand at 0.5.
+     - **Known limit:** the stand also cuts the foliage 10–20×, so stand-grown crowns read airier still.
 6. **Wood is a field.** Formation time t(p) is the minimum over internodes of the first year whose radius reaches p.
    Rings, knots and board figures are its level sets (`wood.js`). Past a pixel, grain fades to its mean colour.
 7. **Bark is fracture** (`bark.js`). A brittle skin on a growing cylinder takes hoop strain only:
@@ -57,6 +64,11 @@ numbers below were checked against the literature, and several first guesses tur
   W. robusta 5/8), and they mirror with the hand.
 - **Palm wood is bundle dots, not rings**, darker outward and downward.
 - **Pool palms by age, not scale:** girth never changes, so a young palm is not a small old one.
+- **A tree fern is Corner's model too.** `treefern` (Cyathea) grows as a palm:
+  - a thin fibrous trunk that climbs about 14 cm a year;
+  - arching pinnate fronds;
+  - old stipe bases kept on the trunk;
+  - dead fronds fall. A hanging skirt of fronds that wide reads as a palm's.
 
 ## Bamboo: the stack as a lathe (`bamboo.js`)
 

@@ -157,6 +157,24 @@ export function atlasKernel(K) {
     const c = [0, 1, 2].map((m) => (lerp2(q[k + m], q[k2 + m], q[k3 + m], q[k4 + m], fu, fv) / a) * 255 * sh);
     return mix(base, c, a / 255);
   }
+  // the painter's two noises, shared with landAt: a plant kernel (vegetation-kernel.js) stands trees where they say woods
+  /** The treeline's and the snowline's wobble, about 0.5. */
+  function hnOf(X, Y, fade) { return 0.5 + 0.5 * gn(X / 900, Y / 900, SEED + 501) * 0.6 * fade(900) + 0.2 * gn(X / 130, Y / 130, SEED + 502) * fade(130); }
+  /**
+   * Land cover: wooded country and open country over tens of kilometres, woods and fields within it down to a field's
+   * size, thicker near water (`r`, the river groundInfo found here); each scale fades where the mesh is too coarse to
+   * draw it. Above 0.35 the ground is painted wood, below −0.25 open.
+   */
+  function coverOf(X, Y, r, fade) {
+    const nearWater = r ? 1 - smooth(r[1] + 20, r[1] + 400 + 4 * r[1], r[0]) : 0;
+    const region = gn(X / 60000, Y / 60000, SEED + 506) * 0.5 + gn(X / 17000, Y / 17000, SEED + 507) * 0.3;
+    return region + (gn(X / 2300, Y / 2300, SEED + 503) * 0.35 * fade(2300) + gn(X / 610, Y / 610, SEED + 504) * 0.25 * fade(610) + gn(X / 170, Y / 170, SEED + 505) * 0.15 * fade(170)) + 0.3 * nearWater;
+  }
+  /** What the painter reads at (X, Y), without the colour: [ground z, bare 0..1, river | null, water | null, cover, hn]. */
+  function landAt(X, Y, res) {
+    const fade = (L) => (res ? 1 - smooth(0.25 * L, 0.6 * L, res) : 1); const [z, bare, r, w] = groundInfo(X, Y);
+    return [z, bare, r, w, coverOf(X, Y, r, fade), hnOf(X, Y, fade)];
+  }
   /** Colour (0–255) at (X, Y, Z) with rendered normal n: water by depth, else land by height, slope and shore. `res`
    *  (the mesh's vertex spacing, optional) fades out patterns too fine for the mesh to show, so they do not alias. */
   function colorAt(X, Y, Zs, n, lamIn, res) {
@@ -179,12 +197,7 @@ export function atlasKernel(K) {
       if (r && r[0] < r[1]) c = mix(c, rampAt(RP.silt, flat), 0.45);
     } else {
       const gN = n[2] > 1e-6 ? Math.sqrt(n[0] * n[0] + n[1] * n[1]) / n[2] : 1e6, bare = Math.max(bareG, smooth(0.7, 1.3, gN));
-      const hn = 0.5 + 0.5 * gn(X / 900, Y / 900, SEED + 501) * 0.6 * fade(900) + 0.2 * gn(X / 130, Y / 130, SEED + 502) * fade(130);
-      // land cover: wooded country and open country over tens of kilometres, woods and fields within it down to a field's
-      // size, thicker near water; each scale fades where the mesh is too coarse to draw it
-      const nearWater = r ? 1 - smooth(r[1] + 20, r[1] + 400 + 4 * r[1], r[0]) : 0;
-      const region = gn(X / 60000, Y / 60000, SEED + 506) * 0.5 + gn(X / 17000, Y / 17000, SEED + 507) * 0.3;
-      const cover = region + (gn(X / 2300, Y / 2300, SEED + 503) * 0.35 * fade(2300) + gn(X / 610, Y / 610, SEED + 504) * 0.25 * fade(610) + gn(X / 170, Y / 170, SEED + 505) * 0.15 * fade(170)) + 0.3 * nearWater;
+      const hn = hnOf(X, Y, fade), cover = coverOf(X, Y, r, fade);
       const low = RP.forest ? mix(rampAt(RP.low, lam), rampAt(RP.forest, lam), 0.15 + 0.7 * smooth(-0.25, 0.35, cover)) : rampAt(RP.low, lam);
       c = mix(low, rampAt(RP.high, lam), smooth(Z.tree * 0.8, Z.tree * 1.1, z + (hn - 0.5) * 0.25 * Z.tree));   // woods and meadows up to the treeline
       c = mix(c, rampAt(RP.rock, lam), bare);
@@ -226,7 +239,7 @@ export function atlasKernel(K) {
   }
   return {
     heightAt, groundAt, waterAt, normalAt, colorAt, planetAt, gridAt, band, levelAt, riverAt: (X, Y) => { const [l] = levelAt(X, Y); return riverAt(LV[l], X, Y); },
-    baseAt: (X, Y) => groundInfo(X, Y)[0], looseAt: () => 0, seaZ: 0, gradeAt: (X, Y) => (GL ? gradeAt(X, Y) : null),
+    baseAt: (X, Y) => groundInfo(X, Y)[0], looseAt: () => 0, seaZ: 0, gradeAt: (X, Y) => (GL ? gradeAt(X, Y) : null), landAt,
     toWorld: (x, y) => [x, y], toPainting: (X, Y) => [X, Y],
   };
 }

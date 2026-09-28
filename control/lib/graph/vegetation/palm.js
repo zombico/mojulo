@@ -77,6 +77,16 @@ export const PALMS = {
     dead: 'skirt', skirtYears: 16, lean: 3, trop: 0.12, nuts: false,
     trunk: [132, 124, 112], scar: [110, 102, 94], frond: [110, 150, 92], frondOld: [150, 160, 100], deadFrond: [176, 152, 110],
   },
+  // Corner's model is a tree fern's too: one axis and a crown of big leaves, no cambium. A thin fibrous trunk that climbs
+  // a few centimetres a year, arching fronds, the old stipe bases kept on the trunk; dead fronds fall (a hanging skirt of
+  // fronds this wide reads as a palm's).
+  treefern: {
+    label: 'tree fern (Cyathea): a thin fibrous trunk, a crown of arching fronds', estYears: 3, rate: 0.14, frondsPerYear: 12, frondLife: 1.6, frondLen: 2.6,
+    rEst: 0.09, bole: { r: 0.16, h: 0.4 }, E: { E0: 1.5, Einf: 6, tau: 12 }, rho: { rho0: 900, rhoInf: 1050 }, frondMass: 1.2, nutMass: 0,
+    divergence: 137.5, divJitter: 2.5, blade: 'pinnate', leaflets: 70, leafletLen: 0.42, leafletAngle: 70, leafletTilt: -8, leafletDroop: 0.3,
+    insert: [20, 110], frondB: [1.2, 6], scars: 'boots', bootLife: 40, dead: 'shed', lean: 3, trop: 0.1, nuts: false,
+    trunk: [74, 58, 44], scar: [52, 40, 30], frond: [92, 142, 58], frondOld: [120, 140, 70], deadFrond: [128, 96, 62],
+  },
 };
 
 const E_of = (sp, age) => sp.E.E0 + (sp.E.Einf - sp.E.E0) * (1 - Math.exp(-Math.max(0, age) / sp.E.tau));

@@ -12,6 +12,7 @@
  */
 import { terrainField, validateTerrainSpec, gradedField } from './terrain-field.js';
 import { validateTerrainCities, prepareCity, seatCity, cityLight } from './terrain-city.js';
+import { validateTerrainPlants, resolveTerrainPlants, plantsConfig, plantPools, plantsPageChannel, plantsBake } from './terrain-plants.js';
 import { terrainKernel } from './terrain-kernel.js';
 import { slicedTerrainFaces, sliceLevels } from '../polygonizer/landform-mesh.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
@@ -43,6 +44,7 @@ export function validateTerrainWorld(m) {
     });
   }
   if (m && m.cities !== undefined) errs.push(...validateTerrainCities(m.cities));
+  if (m && m.plants !== undefined) errs.push(...validateTerrainPlants(m.plants, m));
   const lod = m && m.lod;
   if (lod !== undefined) {
     if (!lod || typeof lod !== 'object') errs.push('terrain.lod must be { minSize?, split?, maxChunks? }');
@@ -208,14 +210,24 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   const scree = field.meta.scree.filter((r) => !(field.meta.sea !== null && r.z0 < field.meta.sea) && !((field.kernel.gradeAt(r.x, r.y) || [0, 0])[1] > 0.2));
   const L = field.K.light;
   const repeats = scree.length ? rockRepeats(rockPool({ rock: field.meta.rock || 'granite', variants: 5, detail: 1, tone: '#' + field.K.ramps.scree.stops[3].map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), seed: 'terrain::scree', light: makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }), group: 'scree' }), scree.map((r) => ({ ...r, z0: field.groundAt(r.x, r.y), size: Math.min(6, Math.max(0.5, r.size * 0.1)) })), { sink: 0.25, group: 'scree' }) : [];
+  // plants (terrain-plants.js): the live page places them around the camera from the plant kernel; exports carry the
+  // stand within 600 m of the spawn as repeats
+  const plantsSpec = resolveTerrainPlants(manifest.plants); let plantBake = null, plantMeta = null;
+  if (plantsSpec) {
+    const V = plantsConfig(field), pools = plantPools(V, plantsSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
+    if (live) { channel.plants = plantsPageChannel(V, pools, plantsSpec); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), templates: channel.plants.templates.length, triangles: channel.plants.templates.reduce((a, t) => a + t.tris, 0) }; }
+    else { plantBake = plantsBake(field, V, pools, { at: [wx, wy], radius: 600 }); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), baked: plantBake.count }; }
+  }
+  const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];
   const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place) : null;
   return {
     faces: live ? cityFaces : [...bakeTerrainFaces(field, { spacing: field.atlas ? 2 * field.K.levels[0].dx : null, patches: [...(field.patches || []), ...cities.map(({ prep: p }) => p.rect)] }), ...cityFaces], terrain: channel, cameras, sky, bg, title,
-    ...(repeats.length ? { repeats } : {}),
+    ...(allRepeats.length ? { repeats: allRepeats } : {}),
+    ...(plantBake && Object.keys(plantBake.textures).length ? { textures: plantBake.textures } : {}),
     ...(itemRefs ? { itemRefs } : {}),
     haze: { color: bg, density: field.atlas ? 1.2 / Math.min(world, 8e4) : 0.9 / world },   // a composed world is seen through the air: tens of kilometres, not its whole width
     walk: { speed: channel.speeds.walk, spawn: [wx, wy, gz + EYE], radius: 0.4, minEye: EYE, gravity: 20, jump: 6 },
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
-    meta: { span: field.meta.span, bounds: b, rootSize: channel.root.size, octaves: field.meta.octaves, planet: PLN ? { R: PLN.R } : null, ...(field.atlas ? { world: field.atlas } : {}), ...(cities.length ? { cities: cities.map(({ prep: p, stats }) => ({ center: p.center, size: [p.rect.w, p.rect.d], sited: p.sited, grade: p.grade.stats, ...stats })) } : {}) },
+    meta: { span: field.meta.span, bounds: b, rootSize: channel.root.size, octaves: field.meta.octaves, planet: PLN ? { R: PLN.R } : null, ...(field.atlas ? { world: field.atlas } : {}), ...(cities.length ? { cities: cities.map(({ prep: p, stats }) => ({ center: p.center, size: [p.rect.w, p.rect.d], sited: p.sited, grade: p.grade.stats, ...stats })) } : {}), ...(plantMeta ? { plants: plantMeta } : {}) },
   };
 }

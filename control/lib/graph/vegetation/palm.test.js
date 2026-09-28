@@ -4,7 +4,7 @@
  * which the same stem with its stiffness frozen young buckles (18 m frozen against 27 m sustained on literature
  * stiffness); with no reaction wood a seedling's lean stays in the trunk while the crown turns up, and a dicot's
  * reaction wood would straighten it; the leaf-base spirals are consecutive Fibonacci numbers that mirror with the
- * hand; growth is deterministic.
+ * hand; a tree fern grows on the same model (a thin trunk under a crown of fronds); growth is deterministic.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -50,6 +50,13 @@ describe('palm', () => {
     }
   });
 
+  it('grows a tree fern on the same model: a thin trunk under a crown of arching fronds', () => {
+    const p = growPalm('treefern', { years: 50, seed: 3 }), H = p.nodes.at(-1).pos[2];
+    expect(H).toBeGreaterThan(4); expect(H).toBeLessThan(9);
+    expect(rAt(PALMS.treefern, 2)).toBeLessThan(0.7 * rAt(PALMS.coconut, 2));
+    expect(p.fronds.filter((f) => !f.dead).length).toBeGreaterThan(12);
+    const lad = palmLadder(p); expect(lad.L2.length).toBeGreaterThan(lad.L1.length); expect(lad.L1.length).toBeGreaterThan(lad.L0.length);
+  });
   it('is deterministic, and its ladder falls from leaflets to a frond star', () => {
     const a = growPalm('date', { years: 25, seed: 7 }), b = growPalm('date', { years: 25, seed: 7 });
     expect(JSON.stringify(a.nodes)).toBe(JSON.stringify(b.nodes));

@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { terrainPlantsScript } from './terrain-plants.js';
 
 // In-page script: the TERRAIN channel (opt-in via emitThreeWorld({ terrain })). The page
 // carries the terrain world's RECIPE — the kernel's source (terrain-kernel.js, inlined as text) and its quantised grids —
@@ -15,7 +16,8 @@ import { safeJson } from '../emit-util.js';
 // Hidden chunks leave the raycast layer, so walk (which raycasts `walkColliders`) stands on exactly what is drawn.
 // Near and far follow altitude, haze thins with it, the sky rides with the camera, and high above a planet the sky
 // gives way to space and an atmosphere rim. In fly, WALK.speed grows with height above the ground.
-// Absent `terrain` ⇒ NOT emitted, so every other World stays byte-identical.
+// Absent `terrain` ⇒ NOT emitted, so every other World stays byte-identical. `plants` (optional) appends the plants'
+// script (terrain-plants.js), which reads this one's kernel through window.__mojTerrain.
 // `cfg`: { kernel: source text, K: the kernel's page config, root: { cx, cy, size }, n, split, minSize, maxChunks,
 //          budgetMs, skirt, hazeHeight, bg, rect | null, water: { z, color, opacity } | null,
 //          speeds: { walk, flyMin, flyPerAlt }, planet: null | { R, sea, space, rim, ocean },
@@ -23,7 +25,7 @@ import { safeJson } from '../emit-util.js';
 //          the camera is nearer than the pin's `split` × its size (above the world's own), down to `size`: the ground
 //          under a city's streets and lots stays nearly as fine as they are wherever they can be seen (flat worlds).
 export function terrainChannelScript(cfg) {
-  const { kernel, ...rest } = cfg;
+  const { kernel, plants, ...rest } = cfg;   // plants (terrain-plants.js): its own script, after the ground's
   return `
 // --- terrain world (opt-in): the recipe's ground, meshed around the camera ---
 const TERRAIN = ${safeJson(rest)};
@@ -199,9 +201,13 @@ function __tTick() {
   for (const k of show) { const r = __tChunks.get(k); if (r) { r.mesh.visible = true; r.mesh.layers.set(0); r.used = now; } }
   __tShown.clear(); for (const k of show) __tShown.add(k);
   for (const k of __tSel.keep) { const r = __tChunks.get(k); if (r) r.used = now; }
-  if (__tChunks.size > TERRAIN.maxChunks) {                       // the least recently wanted go first; the drawn tree, its ancestors and the queue stay
+  // the least recently wanted go first; the drawn tree, its ancestors and the queue stay. The cap never falls below what
+  // the view keeps (a continent's deep tree at the ground can keep more than maxChunks): under it, chunks about to be
+  // wanted again would be dropped and rebuilt without end
+  const __tCap = Math.max(TERRAIN.maxChunks, __tSel.keep.size + 64);
+  if (__tChunks.size > __tCap) {
     const idle = [...__tChunks].filter(([k, r]) => !__tSel.keep.has(k) && r.level > 1).sort((a, b) => a[1].used - b[1].used);
-    for (let q = 0; q < idle.length && __tChunks.size > TERRAIN.maxChunks; q++) __tDrop(idle[q][0]);
+    for (let q = 0; q < idle.length && __tChunks.size > __tCap; q++) __tDrop(idle[q][0]);
   }
   __tStat.shown = show.size; __tStat.live = __tChunks.size;
   const alt = __tAlt(), reach = __tPL ? camera.position.distanceTo(__tC) + __tPL.R : 0;
@@ -242,5 +248,5 @@ if (TERRAIN.water && !__tPL) {
   wm.position.set(TERRAIN.root.cx, TERRAIN.root.cy, W.z); wm.renderOrder = 1; scene.add(wm);
 }
 __tTick();
-`;
+${plants ? terrainPlantsScript(plants) : ''}`;
 }

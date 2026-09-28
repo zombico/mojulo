@@ -17,25 +17,29 @@ connected-service and app loops and the recipe format are the stable surface.
 ### Terrain vegetation
 
 Grown forests on terrain worlds. They stand where the ground is painted wood, at their real size in any world, and
-thin into the ground's own colour past a cutoff, so the woods you walk through are the woods you see from the air.
-Opt-in through `plants` on the terrain manifest. Being built on this branch; each bullet is rewritten as its phase
-lands.
+past a cutoff around the camera the ground's own colour carries the woods. Opt-in through `plants` on the terrain
+manifest.
 
-- **Woods where the ground says.** A climate gets a temperature, which falls with altitude, and a moisture, which rises
-  near water. The treeline is where the growing season gets too cold, and trees shorten toward it. A species table per
-  climate picks oak or beech low, fir high, palms on tropical coasts and along arid rivers, bamboo in wet valleys, and
-  reeds at shores. Trees are placed from the same cover the ground is painted with. They keep off water, sand, cliffs
-  and a city's graded ground.
-- **Grown trees at every distance.** The World page scatters the trees around the camera from the recipe, a few tiles
-  at a time. Each tree takes its level of detail from its size on screen as you move. A far level of a few dozen
-  triangles fills the distance out to the cutoff. The templates travel as compact arrays, and exports carry the trees
-  around the spawn as instances.
-- **The forest past its trees.** Grown templates take the climate's forest colour, so the canopy the ground paints
-  far off is what the trees add up to near.
-- **Painted worlds get their woods.** A painting's trees, which at world scale are whole stands, become woods of grown
-  trees.
-- **City trees.** A city's street trees and parks are grown trees of the climate's species, one instance each.
-- **Grass underfoot.** Grass and reeds appear near the camera and thin out with distance.
+- **Woods where the ground says.** A composed world may carry `plants`. Its climate becomes two dials: a temperature
+  that falls with altitude, pinned to the climate's own treeline, and a moisture that rises near water. Each climate
+  names its species by zone: oak or beech low, fir toward the treeline, palms on a tropical coast and along an arid
+  river, Bambusa in clumps along tropical rivers, Moso in cool wet uplands, reeds on a lake's or a river's shore. Plants
+  stand where the ground is painted wood, read from the painter's own cover, treeline and snowline. None stands on
+  water, sand, bare rock or a city's graded ground. A stand's crowns cover what the ground shows as wood, and trees
+  shorten toward the treeline.
+- **Mountain jungle.** A tropical mountain is forested up to its treeline: umbrella trees on the lowland and the
+  lower slopes, tree ferns and bamboo in the cloud belt, a conifer under the treeline. Two new species, both grown by
+  the engine: `schefflera` (evergreen, Leeuwenberg's model) and `treefern` (Corner's model, grown like a palm). A
+  painted landscape's `plants` may name them too.
+- **Grown plants at every distance.** The World page builds the plants itself, tile by tile around the camera, from
+  the same recipe the server reads, so both stand the same plants in the same places. Each plant takes the detail its
+  size on screen earns. A draw budget moves the level boundaries outward together, so the nearest plants keep the
+  most. A far level of fourteen triangles fills the distance to the cutoff. Trunks near the camera wear their bark and
+  palm trunks their scars. The templates travel as compact arrays: a temperate world's four species add about 4 MB to
+  the page. Exports carry the plants within 600 m of the spawn as instances. The ground builds first. A continent's
+  ground no longer drops and rebuilds chunks it is about to need, a fix that holds with or without plants.
+- **Known limits.** Composed worlds only: a painted world (`from`) and a planet refuse `plants`. The far level reads a
+  little more olive than the woods the ground paints. Arid scrub stays painted.
 
 Absent, every terrain world stands on the same ground in the same colours, and its page carries no plants.
 
