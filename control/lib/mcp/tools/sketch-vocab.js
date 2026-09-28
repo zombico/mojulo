@@ -12,36 +12,14 @@ import {
   getSketchVocabCard,
   listSketchVocab,
 } from '@/lib/graph/sketch-vocab/loader';
-import { hiddenRowInPluginProfile, pluginProfileActive, pluginProfileNotice, profileEdit } from '@/lib/mcp/plugin-profile';
+import { hiddenRowInPluginProfile, pluginProfileNotice } from '@/lib/mcp/plugin-profile';
+import { profiledCard as profiledCardOf } from '@/lib/mcp/plugin-profile-cards';
 
 // Under the Claude plugin profile (lib/mcp/plugin-profile.js) the manuals of the painted kinds are not
-// served (nor the motion-comic tricks built on painted pages), and two kept cards lose the lines that
-// send a picture to an image generator. Per card,
-// per field: the edits apply to the list row and the card alike.
-const PROFILE_CARD_EDITS = {
-  'panel-depiction-recipes': {
-    when: [['; for an AI-PAINTED comic or manga page use the sequential-art kind instead', '']],
-    body: [[/ When the user wants an AI-painted comic or\nmanga page[\s\S]*?for the external image worker\./, '']],
-  },
-  'wardrobe-construction': {
-    summary: [['on a create_figure / character-sheet body', 'on a create_figure body']],
-    when: [[' or character-sheet,', ','], [' reconstruct a dreamed outfit as a garment spec,', '']],
-    body: [[
-      "The image model's native construction register is CUT-AND-SEW panels, not ring\nwireframes — so target this vocabulary directly when reading a dream. A garment",
-      'The construction register is CUT-AND-SEW panels, not ring\nwireframes. A garment',
-    ]],
-  },
-};
-
-function profiledCard(card) {
-  const edits = pluginProfileActive() && PROFILE_CARD_EDITS[card.id];
-  if (!edits) return card;
-  const out = { ...card };
-  for (const [field, list] of Object.entries(edits)) {
-    if (typeof out[field] === 'string') out[field] = profileEdit(out[field], list, `sketch_vocab.${card.id}.${field}`);
-  }
-  return out;
-}
+// served (nor the motion-comic tricks built on painted pages), and the kept cards lose the lines that
+// point at an image generator, a painted skin or a hidden catalyst (lib/mcp/plugin-profile-cards.js).
+// The edits apply to the list row and the card alike.
+const profiledCard = (card) => profiledCardOf('sketch_vocab', card);
 
 function servedCards() {
   return listSketchVocab().filter((c) => !hiddenRowInPluginProfile('sketch_vocab', c.id)).map(profiledCard);

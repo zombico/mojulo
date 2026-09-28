@@ -15,16 +15,23 @@
 
 import { registerTool } from '@/lib/mcp/server';
 import {
+  BodyComposition,
   EmbeddingsRepository,
   SOURCE_KINDS,
+  snippetOf,
 } from '@/lib/db/repositories/embeddings';
 import { WEAK_SEARCH_TOP_SCORE } from '@/lib/db/repositories/mcpToolCalls';
 import { distribution, runMojulo } from '@/lib/version/distribution';
 import { hiddenRowInPluginProfile, pluginProfileActive, profileEdit, PLUGIN_PROFILE_HIDDEN_ROWS } from '@/lib/mcp/plugin-profile';
+import { hasProfileCardEdits, profiledCard } from '@/lib/mcp/plugin-profile-cards';
+import { getSketchVocabCard } from '@/lib/graph/sketch-vocab/loader';
+import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
+import { getCatalystCatalog } from '@/lib/mcp/catalysts/loader';
 
 // Under the Claude plugin profile (lib/mcp/plugin-profile.js) the cards and catalysts it leaves out
-// never come back from a search, and four kept routing cards (returned whole) lose the sentence that
-// pointed at a generator loop. The index itself is the same under every distribution.
+// never come back from a search, the kept routing cards (returned whole) lose the sentence that
+// pointed at a generator loop, and a kept card or catalyst with profile edits comes back with its
+// snippet recomposed from the edited text. The index itself is the same under every distribution.
 const PROFILE_ROUTING_EDITS = {
   'workbench-object': [
     [" Rebuilding a COMPLEX real object from a dreamed/concept image, segment by segment → `get_catalyst({ id: 'reconstruct-from-dream' })`.", ''],
@@ -49,9 +56,21 @@ const PROFILE_ROUTING_EDITS = {
 const PROFILE_HEADROOM = Object.values(PLUGIN_PROFILE_HIDDEN_ROWS).reduce((n, ids) => n + ids.length, 0);
 const DEFAULT_LIMIT = 8;
 
+// A kept card or catalyst the profile serves edited (lib/mcp/plugin-profile-cards.js): its snippet is
+// recomposed from the edited card the way the index composed it, so a search shows what the card's
+// reader shows.
+const CARD_SNIPPET_SOURCES = {
+  sketch_vocab: { load: (id) => getSketchVocabCard(id), compose: BodyComposition.sketchVocab },
+  solid_vocab: { load: (id) => getSolidVocabCatalog().get(id), compose: BodyComposition.solidVocab },
+  catalyst: { load: (id) => getCatalystCatalog().get(id), compose: BodyComposition.catalyst },
+};
+
 function profileRow(row) {
   const edits = row.source_kind === 'routing' && PROFILE_ROUTING_EDITS[row.source_ref];
-  return edits ? { ...row, snippet: profileEdit(row.snippet, edits, `routing.${row.source_ref}`) } : row;
+  if (edits) return { ...row, snippet: profileEdit(row.snippet, edits, `routing.${row.source_ref}`) };
+  const source = CARD_SNIPPET_SOURCES[row.source_kind];
+  const card = source && hasProfileCardEdits(row.source_kind, row.source_ref) ? source.load(row.source_ref) : null;
+  return card ? { ...row, snippet: snippetOf(source.compose(profiledCard(row.source_kind, card))) } : row;
 }
 
 // In-band recovery hints (routing-context-weaving.plan.md C1/C2). The weak

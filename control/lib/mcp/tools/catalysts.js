@@ -34,6 +34,7 @@
 
 import { getCatalystCatalog, serializeCatalystFile, validateCatalystMeta } from '@/lib/mcp/catalysts/loader';
 import { hiddenRowInPluginProfile, pluginProfileNotice } from '@/lib/mcp/plugin-profile';
+import { profiledCard } from '@/lib/mcp/plugin-profile-cards';
 import { getMergedCatalog, getMergedCatalyst, listMergedCatalysts } from '@/lib/mcp/catalysts/catalog';
 import { LocalCatalystRepository } from '@/lib/db/repositories/local-catalysts';
 import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
@@ -122,12 +123,13 @@ function composeBody(catalystBody, adapter) {
 
 // The curated catalysts the Claude plugin profile does not serve: each one drives an image or mesh
 // generator (lib/mcp/plugin-profile.js). Filtered here, at the tools, so the search index and the
-// shared database stay the same under every distribution. Always true outside the profile.
+// shared database stay the same under every distribution. Always true outside the profile. A kept
+// catalyst that names one is served without that line (lib/mcp/plugin-profile-cards.js).
 const served = (catalyst) => !hiddenRowInPluginProfile('catalyst', catalyst.id);
 
 export async function listCatalystsHandler(input, _ctx) {
   const { category, kind } = input || {};
-  const catalysts = listMergedCatalysts({ category, kind }).filter(served);
+  const catalysts = listMergedCatalysts({ category, kind }).filter(served).map((c) => profiledCard('catalyst', c));
   return { total: catalysts.length, catalysts };
 }
 
@@ -135,7 +137,9 @@ export async function getCatalystHandler(input, ctx) {
   const { id, host, rev } = input || {};
   if (!id) throw new Error('id is required');
   if (hiddenRowInPluginProfile('catalyst', id)) throw new Error(pluginProfileNotice(`The '${id}' catalyst`));
-  const catalyst = getMergedCatalyst(id, rev === undefined ? {} : { rev });
+  const found = getMergedCatalyst(id, rev === undefined ? {} : { rev });
+  // A local catalyst is the operator's own text: only a curated one carries profile edits.
+  const catalyst = found?.origin === 'curated' ? profiledCard('catalyst', found) : found;
   if (!catalyst) {
     const local = LocalCatalystRepository.get(id);
     if (local?.status === 'archived') {

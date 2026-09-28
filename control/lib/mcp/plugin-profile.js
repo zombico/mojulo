@@ -13,7 +13,8 @@
  *     generator), the painted create_sketch kinds, create_cover's painted layers, the scene /
  *     cel families of forge_motion (both composite accepted image renders), and the
  *     character-from-dream loop (the figure-spec tools and a figure's dream_audit), plus the
- *     catalysts, routing cards and vocab cards that exist to drive those loops;
+ *     catalysts, routing cards and vocab cards that exist to drive those loops, and the lines of
+ *     kept cards that point at them (lib/mcp/plugin-profile-cards.js);
  *   - the keyed LLM door, mint_solid via:'prompt' (the user's text to a third-party provider);
  *   - automatic third-party downloads (Chrome for Testing, ffmpeg, the recall model): the
  *     resolvers in lib/graph/scene/chromium.js, lib/motion/ffmpeg.js and lib/embedder/local.js

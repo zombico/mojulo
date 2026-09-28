@@ -59,9 +59,11 @@ function freshEnv(extra = {}) {
   return { env, home };
 }
 
-// One stdio session: initialize as `client`, tools/list, then `calls` in order. Resolves with the
-// initialize result, the tools, and each call's result (or JSON-RPC error) in order.
-function session({ distribution, client, calls = [], packs }) {
+// One stdio session: initialize as `client`, tools/list, then `calls` in order, then `script` (an
+// async function given `call(name, args)`, for calls that depend on earlier answers). Resolves with
+// the initialize result, the tools, each call's result (or JSON-RPC error) in order, and what
+// `script` returned.
+function session({ distribution, client, calls = [], packs, script, budget = HOOK_BUDGET }) {
   const { env, home } = freshEnv({
     ...(distribution ? { MOJULO_DISTRIBUTION: distribution } : {}),
     ...(packs ? { MOJULO_TOOL_PACKS: packs } : {}),
@@ -72,7 +74,7 @@ function session({ distribution, client, calls = [], packs }) {
     let out = '';
     let stderr = '';
     let id = 0;
-    const timer = setTimeout(() => child.kill('SIGKILL'), HOOK_BUDGET - 10_000);
+    const timer = setTimeout(() => child.kill('SIGKILL'), budget - 10_000);
     child.stderr.on('data', (d) => { stderr += d; });
     child.stdout.on('data', (d) => {
       out += d;
@@ -97,12 +99,14 @@ function session({ distribution, client, calls = [], packs }) {
       });
       child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
       const list = await request('tools/list', {});
-      const results = [];
-      for (const [name, args] of calls) {
+      const call = async (name, args) => {
         const r = await request('tools/call', { name, arguments: args ?? {} });
-        results.push(r.error ? { rpcError: r.error } : { isError: Boolean(r.result?.isError), text: (r.result?.content ?? []).map((c) => c.text).join('\n') });
-      }
-      return { init: init.result, tools: list.result?.tools ?? [], results, stderr };
+        return r.error ? { rpcError: r.error } : { isError: Boolean(r.result?.isError), text: (r.result?.content ?? []).map((c) => c.text).join('\n') };
+      };
+      const results = [];
+      for (const [name, args] of calls) results.push(await call(name, args));
+      const scripted = script ? await script(call) : undefined;
+      return { init: init.result, tools: list.result?.tools ?? [], results, scripted, stderr };
     };
     child.on('error', reject);
     run().then((r) => {
@@ -392,6 +396,75 @@ describe('orientation surfaces under the profile', () => {
   });
 });
 
+// Every card, catalyst, form, host card and pack manual the profile serves, read the way a client
+// reads them: each one by id from its own listing, plus the search snippets of the card kinds whose
+// text the profile edits. None may name a hidden tool, card, catalyst or kind, or point at a closed
+// loop (lib/mcp/plugin-profile-cards.js holds the card edits).
+describe('every served card, catalyst, form and manual under the profile', () => {
+  let s;
+  beforeAll(async () => {
+    s = await session({
+      distribution: 'claude-plugin',
+      client: 'claude-code',
+      budget: 4 * 60_000,
+      script: async (call) => {
+        const read = [];
+        const ids = async (name, key, pick = (row) => row.id) => {
+          const r = await call(name, {});
+          read.push([name, {}, r]);
+          return JSON.parse(r.text)[key].map(pick);
+        };
+        const byId = async (name, list, arg = 'id') => {
+          for (const id of list) read.push([name, { [arg]: id }, await call(name, { [arg]: id })]);
+        };
+        await byId('get_sketch_vocab', await ids('get_sketch_vocab', 'cards'));
+        await byId('get_solid_vocab', await ids('get_solid_vocab', 'cards'));
+        for (const reader of ['get_view_vocab', 'get_motion_vocab', 'get_beats_vocab', 'get_game_vocab']) {
+          const r = await call(reader, {});
+          read.push([reader, {}, r]);
+          const body = JSON.parse(r.text);
+          const rows = body.cards || body.kinds || body.families || body.entries || [];
+          await byId(reader, rows.map((row) => row.id || row.kind).filter(Boolean));
+        }
+        await byId('get_catalyst', await ids('list_catalysts', 'catalysts'));
+        await byId('get_adapter', await ids('list_adapters', 'adapters'));
+        const { CREATIVE_FORMS } = await import('./creative-forms.js');
+        await byId('get_creative_toolset', CREATIVE_FORMS.filter((f) => !PLUGIN_PROFILE_HIDDEN_FORMS.includes(f)), 'form');
+        const { PACKS } = await import('./packs.js');
+        for (const pack of PACKS.filter((p) => !PLUGIN_PROFILE_HIDDEN_PACKS.includes(p.id))) read.push([pack.id, {}, await call(pack.id, {})]);
+        for (const kind of ['sketch_vocab', 'solid_vocab', 'catalyst']) {
+          for (const query of ['dress a figure in a garment', 'a mech robot with a skin', 'a motion comic', 'a hero character', 'a creature from parts']) {
+            read.push(['semantic_search', { kind, query }, await call('semantic_search', { query, kinds: [kind], limit: 12 })]);
+          }
+        }
+        return read;
+      },
+    });
+  }, 4 * 60_000);
+
+  it('reads every one without an error', () => {
+    expect(s.scripted.length, s.stderr).toBeGreaterThan(100);
+    for (const [name, args, r] of s.scripted) {
+      // A pack not installed on a fresh home answers that it is not installed; that is not a leak.
+      if (name.startsWith('pack_') && r.isError) continue;
+      expect(r.isError, `${name} ${JSON.stringify(args)}: ${r.text?.slice(0, 200)}`).toBe(false);
+    }
+  });
+
+  it('names no hidden tool, card, catalyst or kind, and points at no closed loop', () => {
+    for (const [name, args, r] of s.scripted) {
+      expect(leaksIn(r.text ?? JSON.stringify(r.rpcError)), `${name} ${JSON.stringify(args)}`).toEqual([]);
+    }
+  });
+
+  it('serves the edited cards in the search snippets too', () => {
+    const snippets = s.scripted.filter(([name]) => name === 'semantic_search').flatMap(([, , r]) => JSON.parse(r.text).results);
+    const wardrobe = snippets.find((row) => row.source_kind === 'sketch_vocab' && row.source_ref === 'wardrobe-construction');
+    expect(wardrobe, 'the wardrobe card comes back for a garment query').toBeTruthy();
+    expect(wardrobe.snippet).toMatch(/on a create_figure body/);
+  });
+});
+
 describe('the CLI under the profile', () => {
   it('lists no hidden tool or pack, and refuses them on every verb', { timeout: 6 * 60_000 }, () => {
     const tools = cli(['tools']);
@@ -478,7 +551,14 @@ describe('in-process', () => {
     await context.toolIndexHandler({ full: true });
     for (const adapter of listAdapters()) getAdapter(adapter.id);
     await getSketchVocabHandler({});
-    for (const id of ['panel-depiction-recipes', 'wardrobe-construction']) await getSketchVocabHandler({ id });
+    const { PROFILE_CARD_EDITS } = await import('./plugin-profile-cards.js');
+    const { getSolidVocabHandler } = await import('./tools/mint-solid.js');
+    const { getCatalystHandler, listCatalystsHandler } = await import('./tools/catalysts.js');
+    for (const id of Object.keys(PROFILE_CARD_EDITS.sketch_vocab)) await getSketchVocabHandler({ id });
+    await getSolidVocabHandler({});
+    for (const id of Object.keys(PROFILE_CARD_EDITS.solid_vocab)) await getSolidVocabHandler({ id });
+    await listCatalystsHandler({});
+    for (const id of Object.keys(PROFILE_CARD_EDITS.catalyst)) await getCatalystHandler({ id }, {});
     const { handoffFor } = await import('./hosts/handoff.js');
     handoffFor({ host: 'claude-code', surface: 'box', artifact: { kind: 'page', name: 'world.html', path: '/p/world.html', bytes: 40 * 1024 * 1024, inlineScripts: true } });
     expect(profileEditMisses().filter((m) => !m.startsWith('unit-miss:'))).toEqual([]);

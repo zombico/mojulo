@@ -899,7 +899,10 @@ const PROFILE_TOOL_INDEX = profileEdit(TOOL_INDEX, [
 
 // Per-form edits on top of the line filter (dropHiddenToolLines drops a bullet naming a hidden tool).
 const PROFILE_FORM_EDITS = {
-  'motion-comic': [['; the image worker NEVER letters, placement', '; placement']],
+  'motion-comic': [
+    ['; the image worker NEVER letters, placement', '; placement'],
+    [' The trick protocol (approach / recede / quick-cut beat / impact frame / expression swap / held flurry — the animation cheat shelf transposed to the click) is the `motion-comic-tricks` sketch_vocab card.', ''],
+  ],
   'diagram': [[
     "- Natural-language → sketch (the polygonizer, keyed or key-free) is now an authoring door of the 3D-solid mint in the \"object\" toolset (kind `manji-tree`: `via:'packet'` is key-free; `via:'prompt'` calls an LLM API with the user's key and needs `provider`). for the marks turn.",
     "- Natural-language → sketch (the polygonizer) is now an authoring door of the 3D-solid mint in the \"object\" toolset: kind `manji-tree` with `via:'packet'`, key-free.",

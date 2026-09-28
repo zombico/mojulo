@@ -189,7 +189,7 @@ function cosine(a, b) {
   return s;
 }
 
-function snippetOf(bodyText) {
+export function snippetOf(bodyText) {
   if (typeof bodyText !== 'string') return '';
   if (bodyText.length <= SNIPPET_MAX_CHARS) return bodyText;
   return bodyText.slice(0, SNIPPET_MAX_CHARS - 1) + '…';

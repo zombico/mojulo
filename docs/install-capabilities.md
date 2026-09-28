@@ -119,7 +119,9 @@ the kinds, ops, catalysts and cards that drive them), `mint_solid`'s keyed `via:
 automatic download (Chrome for Testing, ffmpeg, the recall model), and the CDN form of an exported
 page. What it leaves out is absent from `tools/list` in flat and packs mode, not named by any
 orientation surface, and refused in-band when called by name, through a pack, from a plan or from the
-CLI. The lists live in that module. Every other distribution is byte-identical to a build without it;
+CLI. The lists live in that module; the lines it leaves out of the vocab cards and catalysts it keeps
+live in [control/lib/mcp/plugin-profile-cards.js](../control/lib/mcp/plugin-profile-cards.js). Every
+other distribution is byte-identical to a build without it;
 [control/lib/mcp/plugin-profile.test.js](../control/lib/mcp/plugin-profile.test.js) pins both halves.
 The plugin's listing, [plugins/mojulo/README.md](../plugins/mojulo/README.md), describes the same build.
 

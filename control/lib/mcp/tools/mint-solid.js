@@ -37,6 +37,7 @@ import {
   withPluginProfile,
   PROMPT_DOOR_NOTICE,
 } from '@/lib/mcp/plugin-profile';
+import { profiledCard } from '@/lib/mcp/plugin-profile-cards';
 import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
 import { createFigureHandler, emoteFigureHandler } from '@/lib/mcp/tools/figure';
 import { createAnimalHandler } from '@/lib/mcp/tools/animal';
@@ -218,7 +219,9 @@ export async function editSolidHandler(input) {
 export async function getSolidVocabHandler(input) {
   const { id, family } = input && typeof input === 'object' ? input : {};
   const catalog = getSolidVocabCatalog();
-  // The Claude plugin profile does not serve the manual of an op it leaves out (skin).
+  // The Claude plugin profile does not serve the manual of an op it leaves out (skin), and serves the
+  // kept cards without their lines about the skin seam, a dreamed reference or the prompt door
+  // (lib/mcp/plugin-profile-cards.js).
   const served = (cid) => !hiddenRowInPluginProfile('solid_vocab', cid);
   if (id) {
     if (!served(id)) throw new Error(pluginProfileNotice(`The '${id}' card`));
@@ -228,9 +231,9 @@ export async function getSolidVocabHandler(input) {
         `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].filter(served).join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
       );
     }
-    return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
+    return { ok: true, card: profiledCard('solid_vocab', card), _telemetrySignal: { id_requested: true, found: true } };
   }
-  let cards = [...catalog.values()].filter((c) => served(c.id));
+  let cards = [...catalog.values()].filter((c) => served(c.id)).map((c) => profiledCard('solid_vocab', c));
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,
