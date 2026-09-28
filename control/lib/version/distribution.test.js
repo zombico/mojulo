@@ -103,7 +103,9 @@ describe('install and update hints under the Claude plugin', () => {
       expect(text, `${label} names no unpinned command`).not.toMatch(UNPINNED);
     }
     expect(substrate).toContain(`npx -y ${PINNED} install recall`);
-    expect(substrate).toContain(`npx -y ${PINNED} init --yes --no-ui`);
+    // The plugin starts the server itself; `init` there would only register a second copy.
+    expect(substrate).not.toContain('init --yes --no-ui');
+    expect(substrate).toContain('where the mojulo plugin starts it');
     expect(m.server.SERVER_INSTRUCTIONS).toContain(`npx -y ${PINNED} install chatbot`);
   });
 

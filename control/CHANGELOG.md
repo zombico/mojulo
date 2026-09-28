@@ -129,9 +129,16 @@ loops and the recipe format are unchanged.
   Code (`~/.claude.json`), Codex (`~/.codex/config.toml`), Claude Desktop and Grok Build
   (`~/.grok/config.toml`) and launched the dashboard. Now it prints what it would do, changes
   nothing and exits 2; `--yes` is the go-ahead. The `--print` dry run for a JSON host config shows
-  only mojulo's own entry, no longer the whole file, which can hold other servers' tokens. With
-  `MOJULO_DISTRIBUTION=claude-plugin`, init leaves Claude Code alone and says so: the plugin
-  already starts the server, and a second registration would double every tool.
+  only mojulo's own entry, no longer the whole file, which can hold other servers' tokens. When
+  the Claude Code plugin is installed, init leaves Claude Code alone and says so: the plugin
+  already starts the server, and a second registration would double every tool. Init runs from a
+  terminal or an agent's shell, never inside the plugin's server, so it finds the plugin on disk:
+  its `plugin:<name>:mojulo` row in `claude mcp list`, or a mojulo entry in Claude Code's
+  `plugins/installed_plugins.json` (a disabled one does not count), with
+  `MOJULO_DISTRIBUTION=claude-plugin` as a third signal. It names a `claude mcp add` registration
+  found beside the plugin, which already doubles every tool, and how to remove it. Only a server's
+  name in that list counts, so the plugin's row and a command that merely mentions mojulo no longer
+  read as an older project-local registration.
 - **`MOJULO_MCP_TELEMETRY=off` only stops the local tool-call log.** It used to skip the 120 s soft
   tool timeout as well, so opting out of the log let a hung tool hold the agent's session. The
   timeout (`MOJULO_MCP_TOOL_TIMEOUT_MS`, or a tool's own budget) now applies either way; with the
@@ -265,7 +272,9 @@ loops and the recipe format are unchanged.
   says to update the plugin (a second `npx mojulo@latest` would be another server version on the
   same `~/.mojulo`), a missing dependency explains how to have the plugin's npx copy reinstalled,
   and `mojulo init` wires every other host to the plugin's exact version while leaving Claude Code
-  to the plugin. `version` and `check_for_updates` report the distribution. A test renders every
+  to the plugin; `get_substrate` no longer suggests `init` for Claude Code on the web under the
+  plugin, which starts the server there itself. `version` and `check_for_updates` report the
+  distribution. A test renders every
   hint under `MOJULO_DISTRIBUTION=claude-plugin` and requires `mojulo@<version>`.
 
 - **Exported World pages are self-contained again; the CDN build is opt-in.** Since 2.0.9

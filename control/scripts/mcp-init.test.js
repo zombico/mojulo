@@ -329,13 +329,80 @@ describe('init — cli-shellout writer', () => {
 
   // The Claude Code plugin already starts the server; a `claude mcp add` on top
   // would run a second copy with every tool doubled.
+  const claudeCalls = () =>
+    existsSync(join(home, 'claude-calls.log')) ? readFileSync(join(home, 'claude-calls.log'), 'utf8') : '';
+
   it('never registers claude-code when running as the Claude Code plugin', () => {
     plantFakeClaude('');
     const res = runNoTty(['--yes', '--no-ui', '--host', 'claude-code'], { MOJULO_DISTRIBUTION: 'claude-plugin' });
     expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
-    expect(res.stdout).toContain('claude-code: skipped — mojulo is running as a Claude Code plugin');
-    const calls = existsSync(join(home, 'claude-calls.log')) ? readFileSync(join(home, 'claude-calls.log'), 'utf8') : '';
-    expect(calls).not.toMatch(/mcp (add|remove)/);
+    expect(res.stdout).toContain('claude-code: skipped — mojulo is installed as a Claude Code plugin');
+    expect(claudeCalls()).not.toMatch(/mcp (add|remove)/);
+  });
+
+  // The real case: init runs from the user's terminal or an agent's Bash tool, where the plugin's
+  // MOJULO_DISTRIBUTION is not set. The plugin's own row in `claude mcp list` is what gives it away,
+  // and its `mojulo@` segments must not read as an older project-local registration.
+  it('finds the plugin from its `claude mcp list` row with MOJULO_DISTRIBUTION unset', () => {
+    plantFakeClaude('Checking MCP server health...\n\nplugin:mojulo:mojulo: npx -y mojulo@9.8.7 - ✓ Connected\n');
+    writeFileSync(join(home, '.claude.json'), JSON.stringify({ mcpServers: {} }));
+    seedCodex('# my config\n');
+    const res = runNoTty(['--yes', '--no-ui'], { MOJULO_DISTRIBUTION: '' });
+    expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
+    expect(res.stdout).toContain('claude-code: skipped — mojulo is installed as a Claude Code plugin');
+    expect(res.stdout).not.toContain('registered project-locally');
+    expect(claudeCalls()).not.toMatch(/mcp (add|remove)/);
+    // Every other host runs the plugin's version, not whatever npx resolves `mojulo` to.
+    expect(readFileSync(codexCfg(), 'utf8')).toContain('args = ["-y", "mojulo@9.8.7"]');
+  });
+
+  it('names a duplicate `claude mcp add` registration next to the plugin', () => {
+    plantFakeClaude('mojulo: npx -y mojulo - ✓ Connected\nplugin:mojulo:mojulo: npx -y mojulo@9.8.7 - ✓ Connected\n');
+    const res = runNoTty(['--yes', '--no-ui', '--host', 'claude-code'], { MOJULO_DISTRIBUTION: '' });
+    expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
+    expect(res.stdout).toContain('every tool is listed twice');
+    expect(claudeCalls()).not.toMatch(/mcp (add|remove)/);
+  });
+
+  // Without the claude CLI in play (another host targeted, or not on PATH), Claude Code's own
+  // record of installed plugins still pins the other hosts.
+  it('pins other hosts from installed_plugins.json when the list is not run', () => {
+    const installPath = join(home, '.claude', 'plugins', 'cache', 'mkt', 'mojulo', '9.8.7');
+    mkdirSync(join(installPath, '.claude-plugin'), { recursive: true });
+    writeFileSync(
+      join(installPath, '.claude-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'mojulo', version: '9.8.7', mcpServers: { mojulo: { command: 'npx', args: ['-y', 'mojulo@9.8.7'] } } })
+    );
+    writeFileSync(
+      join(home, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins: { 'mojulo@mkt': [{ scope: 'user', installPath, version: '9.8.7' }] } })
+    );
+    seedCodex('');
+    const res = runNoTty(['--yes', '--no-ui', '--host', 'codex'], { MOJULO_DISTRIBUTION: '' });
+    expect(res.status, `stderr:\n${res.stderr}`).toBe(0);
+    expect(res.stdout).toContain('Claude Code plugin found (installed_plugins.json (mojulo@mkt))');
+    expect(readFileSync(codexCfg(), 'utf8')).toContain('args = ["-y", "mojulo@9.8.7"]');
+  });
+
+  it('ignores a disabled plugin', () => {
+    const installPath = join(home, '.claude', 'plugins', 'cache', 'mkt', 'mojulo', '9.8.7');
+    mkdirSync(installPath, { recursive: true });
+    writeFileSync(
+      join(home, '.claude', 'plugins', 'installed_plugins.json'),
+      JSON.stringify({ version: 2, plugins: { 'mojulo@mkt': [{ scope: 'user', installPath, version: '9.8.7' }] } })
+    );
+    writeFileSync(join(home, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'mojulo@mkt': false } }));
+    seedCodex('');
+    const res = runNoTty(['--yes', '--no-ui', '--host', 'codex'], { MOJULO_DISTRIBUTION: '' });
+    expect(res.stdout).not.toContain('Claude Code plugin found');
+    expect(readFileSync(codexCfg(), 'utf8')).toContain('args = ["-y", "mojulo"]');
+  });
+
+  it('does not count a server whose command merely mentions mojulo', () => {
+    plantFakeClaude('other: npx -y mojulo - ✓ Connected\n');
+    const res = runInit('--host', 'claude-code');
+    expect(res.stdout).not.toContain('already registered');
+    expect(res.stdout).toContain('claude-code: mojulo registered.');
   });
 });
 

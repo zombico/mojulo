@@ -55,6 +55,8 @@ register('./mcp-stdio-loader.mjs', import.meta.url);
 resolveMojuloPaths();
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CONTROL_DIR = path.resolve(SCRIPTS_DIR, '..');
+// The directory init was run from: a project-scope Claude plugin install is recorded against it.
+const LAUNCH_CWD = process.cwd();
 process.chdir(CONTROL_DIR);
 
 // ── args ────────────────────────────────────────────────────────────────────
@@ -145,16 +147,12 @@ async function confirm(question, def = true) {
 // host in [../lib/mcp/hosts/](../lib/mcp/hosts/registry.js). This file owns the
 // three writer FORMATS (cli-shellout / toml-append / json-patch) and nothing
 // host-specific; adding a harness is a profile plus an adapter card, no JS edit.
-// Installed as the Claude Code plugin, the plugin itself starts this server at its pinned version.
-// A `claude mcp add` registration on top would run a second copy with every tool doubled, so the
-// claude-code host is left alone there (skippedForPlugin), and every other host is wired to the
-// plugin's exact version, so two hosts never run two versions against one ~/.mojulo.
-const PLUGIN_DISTRIBUTION = process.env.MOJULO_DISTRIBUTION === 'claude-plugin';
-const PROFILES = PLUGIN_DISTRIBUTION
-  ? listHostProfiles().map((p) => pinProfileToVersion(p, readPackageJson(CONTROL_DIR)?.version))
-  : listHostProfiles();
+// When the Claude Code plugin is installed (findClaudePlugin, below) PROFILES is re-pinned to the
+// plugin's version before any host is wired.
+const BASE_PROFILES = listHostProfiles();
+let PROFILES = BASE_PROFILES;
 const HOST_IDS = PROFILES.map((p) => p.id);
-const MANUAL = Object.fromEntries(PROFILES.map((p) => [p.id, p.manual]));
+let MANUAL = Object.fromEntries(PROFILES.map((p) => [p.id, p.manual]));
 
 // The one server name mojulo ever writes. A differently-named `mojulo*` entry
 // is the operator's repo workshop (`mojulo-dev`) — see the dev-workshop guard.
@@ -436,15 +434,37 @@ function userScopeHasMojulo(wire) {
   }
 }
 
+// `<cli> mcp list` prints one `<name>: <command or url> - <status>` row per server. A name can hold
+// spaces (`claude.ai Gmail`) and colons (a plugin's server is `plugin:<plugin>:<server>`), so it
+// ends at the first colon followed by whitespace. Only the row's name counts: a command that merely
+// mentions mojulo is some other server. The list health-checks every server, so it runs once.
+const mcpListCache = new Map();
+function cliServerRows(cli) {
+  const key = [cli.bin, ...cli.listArgs].join(' ');
+  if (!mcpListCache.has(key)) {
+    const res = spawnSync(cli.bin, cli.listArgs, { encoding: 'utf8', shell: WIN_SHELL });
+    const rows = [];
+    if (!res.error) {
+      for (const line of (res.stdout || '').split('\n')) {
+        const m = line.match(/^\s*(\S.*?):\s+(.*)$/);
+        if (m) rows.push({ name: m[1], command: m[2] });
+      }
+    }
+    mcpListCache.set(key, rows);
+  }
+  return mcpListCache.get(key);
+}
+
 function wireViaCli(profile, { print }) {
   const { cli } = profile.wire;
   // Detect-before-write: skip if `mojulo` is already registered at user scope.
   // Registered-but-not-user-scope is the old init's local-scope wiring — fall
   // through and add the user-scope entry so mojulo works in every project.
-  const list = spawnSync(cli.bin, cli.listArgs, { encoding: 'utf8', shell: WIN_SHELL });
-  const names = list.error
-    ? []
-    : [...(list.stdout || '').matchAll(/\bmojulo[A-Za-z0-9_-]*\b/g)].map((m) => m[0]);
+  // A plugin's server (`plugin:mojulo:mojulo`) is neither: the plugin owns it
+  // (skippedForPlugin), so it never reads as a user or local registration.
+  const names = cliServerRows(cli)
+    .map((r) => r.name)
+    .filter((n) => !n.startsWith('plugin:'));
   if (!names.includes(SERVER_NAME) && devWorkshopSkip(profile, names)) return true;
   if (names.includes(SERVER_NAME)) {
     const userScoped = userScopeHasMojulo(profile.wire);
@@ -560,12 +580,79 @@ async function launchDashboard() {
   return port;
 }
 
+// ── the Claude Code plugin ────────────────────────────────────────────────────
+// Installed as the Claude Code plugin, mojulo is started by the plugin at its pinned version. A
+// `claude mcp add` registration on top would run a second copy with every tool doubled, so the
+// claude-code host is left alone (skippedForPlugin), and every other host is wired to the plugin's
+// exact version, so two hosts never run two versions against one ~/.mojulo.
+//
+// The process running init is never the plugin's server: init runs from a terminal or an agent's
+// Bash tool, where the plugin's MOJULO_DISTRIBUTION is not set. So the plugin is found from what
+// is on disk, first hit wins:
+//   1. a `plugin:<plugin>:mojulo` row in `claude mcp list` (listed only when Claude Code is wired,
+//      since the list starts every server to check it),
+//   2. a mojulo entry in Claude Code's plugins/installed_plugins.json (read directly, so
+//      `--host codex` or a machine without the claude CLI on PATH still sees it),
+//   3. MOJULO_DISTRIBUTION=claude-plugin (init started from the plugin's own environment).
+const PLUGIN_HOST = 'claude-code';
+const MOJULO_SPEC = /\bmojulo@(\d+\.\d+\.\d+[0-9A-Za-z.+-]*)/;
+
+function pluginFromMcpList(detected) {
+  if (!detected.includes(PLUGIN_HOST)) return null;
+  const cli = BASE_PROFILES.find((p) => p.id === PLUGIN_HOST)?.wire?.cli;
+  if (!cli) return null;
+  const row = cliServerRows(cli).find((r) => /^plugin:[^:]+:mojulo$/.test(r.name));
+  return row ? { version: row.command.match(MOJULO_SPEC)?.[1] || null, via: `\`claude mcp list\` (${row.name})` } : null;
+}
+
+function pluginFromInstalledPlugins() {
+  const dir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  const readJson = (file) => {
+    try {
+      return JSON.parse(readFileSync(file, 'utf8'));
+    } catch {
+      return null;
+    }
+  };
+  const installed = readJson(path.join(dir, 'plugins', 'installed_plugins.json'));
+  const enabled = readJson(path.join(dir, 'settings.json'))?.enabledPlugins || {};
+  for (const [id, entry] of Object.entries(installed?.plugins || {})) {
+    if (id.split('@')[0] !== SERVER_NAME || enabled[id] === false) continue;
+    // Version 2 keeps a list of installs per plugin, each with a scope; version 1 kept one, user-wide.
+    const install = (Array.isArray(entry) ? entry : [entry]).find(
+      (i) => i && (!i.scope || i.scope === 'user' || i.scope === 'managed' || i.projectPath === LAUNCH_CWD)
+    );
+    if (!install) continue;
+    // The plugin's manifest names the package it runs; its own version field is the fallback.
+    const manifest = install.installPath && readJson(path.join(install.installPath, '.claude-plugin', 'plugin.json'));
+    const version = JSON.stringify(manifest?.mcpServers || {}).match(MOJULO_SPEC)?.[1]
+      || (/^\d+\.\d+\.\d+/.test(install.version || '') ? install.version : null);
+    return { version, via: `installed_plugins.json (${id})` };
+  }
+  return null;
+}
+
+function findClaudePlugin(detected) {
+  const found = pluginFromMcpList(detected)
+    || pluginFromInstalledPlugins()
+    || (process.env.MOJULO_DISTRIBUTION === 'claude-plugin' ? { version: null, via: 'MOJULO_DISTRIBUTION' } : null);
+  if (found && !found.version) found.version = VERSION;
+  return found;
+}
+
 function skippedForPlugin(host) {
-  if (!PLUGIN_DISTRIBUTION || host !== 'claude-code') return false;
+  if (!PLUGIN || host !== PLUGIN_HOST) return false;
   process.stdout.write(
-    '  ↪ claude-code: skipped — mojulo is running as a Claude Code plugin, which already starts the server; '
+    `  ↪ claude-code: skipped — mojulo is installed as a Claude Code plugin, which already starts \`npx -y mojulo@${PLUGIN.version}\`; `
       + 'a `claude mcp add` registration would run a duplicate.\n'
   );
+  const cli = BASE_PROFILES.find((p) => p.id === PLUGIN_HOST)?.wire?.cli;
+  if (mcpListCache.size && cli && cliServerRows(cli).some((r) => r.name === SERVER_NAME)) {
+    process.stdout.write(
+      '    A `mojulo` server from `claude mcp add` or an older init is registered too, so every tool is listed twice.\n'
+        + '    Remove it: claude mcp remove mojulo -s user (or -s local, from the project it was added in).\n'
+    );
+  }
   return true;
 }
 
@@ -576,6 +663,15 @@ process.stdout.write('\nmojulo init — wiring mojulo into your agent.\n\n');
 
 let detected = detectHosts();
 if (args.host) detected = detected.includes(args.host) ? [args.host] : [];
+
+const PLUGIN = findClaudePlugin(detected);
+if (PLUGIN) {
+  PROFILES = BASE_PROFILES.map((p) => pinProfileToVersion(p, PLUGIN.version));
+  MANUAL = Object.fromEntries(PROFILES.map((p) => [p.id, p.manual]));
+  process.stdout.write(
+    `Claude Code plugin found (${PLUGIN.via}): other hosts are wired to its version, mojulo@${PLUGIN.version}.\n\n`
+  );
+}
 
 if (detected.length === 0) {
   process.stdout.write('No MCP host detected. Wire mojulo manually:\n\n');

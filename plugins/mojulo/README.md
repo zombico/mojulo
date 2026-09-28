@@ -123,8 +123,10 @@ is, and Homebrew may refresh its own cache from formulae.brew.sh. Mojulo's code 
   may write a skill under `.claude/skills/`, naming the path first, under Claude Code's permission
   prompts. Mojulo never edits your Claude settings; if you ask how to keep agents away from bot
   secrets, Claude shows you a deny rule to add yourself.
-- **Other MCP hosts' configs** (Claude Code, Codex, Claude Desktop, Grok) only if you run
-  `mojulo init` yourself and say yes, each with a backup. The plugin never runs it.
+- **Other MCP hosts' configs** (Codex, Claude Desktop, Grok) only if you run `mojulo init`
+  yourself and say yes, each with a backup. The plugin never runs it. With the plugin installed,
+  init finds it, leaves Claude Code's config alone, and wires the other hosts to the plugin's
+  version.
 
 ### The local tool-call log
 
