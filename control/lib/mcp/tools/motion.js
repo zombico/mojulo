@@ -36,7 +36,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import { registerTool } from '@/lib/mcp/server';
-import { pluginProfileActive, pluginProfileNotice, withPluginProfile } from '@/lib/mcp/plugin-profile';
+import { pluginProfileActive, pluginProfileNotice, profileEdit, withPluginProfile } from '@/lib/mcp/plugin-profile';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { getMotionVocabCatalog } from '@/lib/graph/motion-vocab/loader';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -869,6 +869,12 @@ export function registerMotionTools() {
     schema: (schema) => {
       delete schema.properties.subject.properties.scene_ref;
       delete schema.properties.subject.properties.cel_set;
+      // This build never downloads ffmpeg (lib/motion/ffmpeg.js reads the profile).
+      schema.properties.export.description = profileEdit(
+        schema.properties.export.description,
+        [['(opt-in — first use resolves/lazy-fetches ffmpeg)', '(opt-in — uses an ffmpeg already installed, or `MOJULO_FFMPEG`)']],
+        'forge_motion.export',
+      );
       return schema;
     },
   }));

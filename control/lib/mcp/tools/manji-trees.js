@@ -44,6 +44,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { pluginProfileActive } from '@/lib/mcp/plugin-profile';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import {
@@ -495,7 +496,8 @@ export async function sketchPolygomerHandler(input) {
   return {
     ...result,
     parts: lathes.length,
-    next: `Open svgUrl and check the massing (adjust in place: update_sketch({ ref: "${result.ref}", manifest }) — full replace, validated by the render contract). Then: get_skin_packet({ ref: "${result.ref}" }) → paint the scaffold → skin_polygomer → export_model → /model.glb (turnable 3D).`,
+    // The Claude plugin profile has no skin step (lib/mcp/plugin-profile.js): the scaffold exports as it is.
+    next: `Open svgUrl and check the massing (adjust in place: update_sketch({ ref: "${result.ref}", manifest }) — full replace, validated by the render contract). Then: ${pluginProfileActive() ? '' : `get_skin_packet({ ref: "${result.ref}" }) → paint the scaffold → skin_polygomer → `}export_model → /model.glb (turnable 3D).`,
   };
 }
 

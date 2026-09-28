@@ -13,6 +13,8 @@
  * importing the MCP layer; dispatchMcpRequest renders it via toToolResult().
  */
 
+import { distribution, CLAUDE_PLUGIN } from '../version/distribution.js';
+
 export class ToolRefusal extends Error {
   constructor({ code, reason, hint, ...rest }) {
     super(hint ? `${reason} ${hint}` : reason);
@@ -38,6 +40,12 @@ export function isToolRefusal(err) {
 // everything else revises in place with update_sketch.
 function revisionFor(ref, kind) {
   const k = typeof kind === 'string' ? kind : '';
+  // The Claude plugin build leaves the voice tools out (lib/mcp/plugin-profile.js), so the refusal
+  // names none of them; `alternative` still says to omit the ref. Read from lib/version, not the MCP
+  // layer, so a repository can keep throwing this.
+  if (k === 'voice-register' && distribution() === CLAUDE_PLUGIN) {
+    return { hint: 'It is a voice register, which is not part of the Claude plugin build of mojulo.' };
+  }
   if (k.startsWith('beats')) {
     return {
       next_action: {

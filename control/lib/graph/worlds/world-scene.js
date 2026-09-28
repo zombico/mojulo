@@ -223,7 +223,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const { latestBoundMesh } = await import('@/lib/graph/scene/mesh-store.js');
       const bound = latestBoundMesh(src.ref);
       if (!bound) {
-        throw new Error(`figures.${name}: sketch '${rawSpec.meshRef}' has no bound mesh — bind one first via bind_mesh_render`);
+        // The Claude plugin profile has no bind_mesh_render (lib/mcp/plugin-profile.js): name no door.
+        const { pluginProfileActive, pluginProfileNotice } = await import('@/lib/mcp/plugin-profile');
+        throw new Error(pluginProfileActive()
+          ? `figures.${name}: sketch '${rawSpec.meshRef}' has no bound mesh. ${pluginProfileNotice('Binding a mesh made outside mojulo')}`
+          : `figures.${name}: sketch '${rawSpec.meshRef}' has no bound mesh — bind one first via bind_mesh_render`);
       }
       const { readBoundMeshScene } = await import('@/lib/graph/scene/scene-gltf-read.js');
       // A bind made with `units` / `scale` (text-to-cad-seam T4) records `scale_applied` on the

@@ -15,6 +15,7 @@
 import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { registerTool } from '@/lib/mcp/server';
+import { withPluginProfile } from '@/lib/mcp/plugin-profile';
 
 export async function listAdaptersHandler(_input, _ctx) {
   const adapters = listAdapters();
@@ -50,7 +51,7 @@ export function registerAdapterTools() {
     handler: listAdaptersHandler,
   });
 
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'get_adapter',
     description:
       "Get the full body of one host adapter — first-session card for how you ride this substrate. Pull it once when a task depends on this host's handling (synthesizing a catalyst, painting renders, handing off an export): native capabilities, output cap, paint-and-bind, plus artifact path / dry-run / scheduling / secrets. Resolution: explicit `id` wins; else `clientInfoHint`; else this session's clientInfo.name; else 'generic'. Pass `clientInfoHint` when clientInfo.name missed (e.g. 'codex-cli-2.1' → `clientInfoHint: 'codex'`). `get_catalyst` with `host` prepends this same body so recipe and host materialization arrive together.",
@@ -70,5 +71,12 @@ export function registerAdapterTools() {
       },
     },
     handler: getAdapterHandler,
-  });
+  }, {
+    // The Claude plugin profile has no image handoff to paint a render and bind it back through
+    // (lib/mcp/plugin-profile.js).
+    edits: [
+      ['(synthesizing a catalyst, painting renders, handing off an export)', '(synthesizing a catalyst, handing off an export)'],
+      ['native capabilities, output cap, paint-and-bind, plus artifact path', 'native capabilities, output cap, plus artifact path'],
+    ],
+  }));
 }

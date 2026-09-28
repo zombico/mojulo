@@ -19,6 +19,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { withPluginProfile } from '@/lib/mcp/plugin-profile';
 import {
   GameProjectRepository,
   GameProjectMemberRepository,
@@ -260,7 +261,7 @@ export function registerGameProjectTools() {
     handler: updateGameProjectHandler,
   });
 
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'bind_to_game_project',
     description:
       'Add or remove project members — typed refs with a game-facing role: rules (the deliverable game; '
@@ -284,7 +285,16 @@ export function registerGameProjectTools() {
       required: ['ref', 'members'],
     },
     handler: bindToGameProjectHandler,
-  });
+  }, {
+    // The Claude plugin profile makes no character sheets, voice registers, painted skins or dreamed
+    // references (lib/mcp/plugin-profile.js); the roles stay, their examples lose those.
+    edits: [
+      ['character (figures / sheets / units)', 'character (figures / units)'],
+      ['audio (beats + voice — one role; soundtrack-vs-SFX derives from the artifact)', 'audio (beats; soundtrack-vs-SFX derives from the artifact)'],
+      ['graphic (key art, skins)', 'graphic (key art)'],
+      ['reference (dreams, style bibles)', 'reference (style bibles)'],
+    ],
+  }));
 
   registerTool({
     name: 'list_game_projects',

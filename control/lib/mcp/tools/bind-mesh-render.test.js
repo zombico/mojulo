@@ -129,6 +129,19 @@ describe('meshRef end-to-end — bound mesh placed in a world, exported back out
     await expect(resolveWorldScene({ manifest, title: null })).rejects.toThrow(/bind_mesh_render/);
   });
 
+  it('under the Claude plugin profile, which has no bind_mesh_render, the refusal names no door', async () => {
+    const manifest = { ...WORLD, figures: { prop: { meshRef: 'sk_mesh_b' } } };
+    const saved = process.env.MOJULO_DISTRIBUTION;
+    process.env.MOJULO_DISTRIBUTION = 'claude-plugin';
+    try {
+      const err = await resolveWorldScene({ manifest, title: null }).catch((e) => e);
+      expect(err.message).toBe("figures.prop: sketch 'sk_mesh_b' has no bound mesh. Binding a mesh made outside mojulo is not part of the Claude plugin build of mojulo.");
+    } finally {
+      if (saved === undefined) delete process.env.MOJULO_DISTRIBUTION;
+      else process.env.MOJULO_DISTRIBUTION = saved;
+    }
+  });
+
   it('a meshRef to an unknown ref refuses', async () => {
     const manifest = { ...WORLD, figures: { prop: { meshRef: 'sk_ghost' } } };
     await expect(resolveWorldScene({ manifest, title: null })).rejects.toThrow(/not a stored sketch/);

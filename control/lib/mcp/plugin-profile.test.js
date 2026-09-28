@@ -28,6 +28,7 @@ import {
   PLUGIN_PROFILE_HIDDEN_PACKS,
   PLUGIN_PROFILE_HIDDEN_FORMS,
   PLUGIN_PROFILE_HIDDEN_ROWS,
+  PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS,
   PROMPT_DOOR_NOTICE,
   hiddenInPluginProfile,
   hiddenRowInPluginProfile,
@@ -123,6 +124,22 @@ function cli(args) {
 
 const hiddenIn = (text) => [...new Set(String(text).match(HIDDEN_RE) ?? [])];
 
+// The ids of the hidden cards, catalysts, routing cards and painted kinds, as words. Two are left to
+// the other checks: a hyphen-free id ('voice', 'skin') is an ordinary word, and 'pixel-art' names
+// the kept pixelizer games' art too (only the painted pixel-art routing card is hidden). A plan file
+// named like a catalyst (`mobile-suit-builder.plan.md`) is not the catalyst.
+const HIDDEN_IDS = [...new Set([...Object.values(PLUGIN_PROFILE_HIDDEN_ROWS).flat(), ...PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS])]
+  .filter((id) => id.includes('-') && id !== 'pixel-art');
+const HIDDEN_ID_RE = new RegExp(`(?<![\\w-])(?:${HIDDEN_IDS.join('|')})(?![\\w-]|\\.plan)`, 'g');
+// Wording that points at a loop the profile leaves out, whatever it names: an image generator and
+// what it dreams or paints, the skin seam, the automatic ffmpeg fetch, and the keyed prompt door.
+const CLOSED_LOOP_RE = /image worker|image generator|image model|dream|paint-and-bind|painting renders|lazy-fetch|skin seam|skin\.png|user's key|apiKeyId|via: ?'prompt'|character[- ]sheet/gi;
+const leaksIn = (text) => [...new Set([
+  ...(String(text).match(HIDDEN_RE) ?? []),
+  ...(String(text).match(HIDDEN_ID_RE) ?? []),
+  ...(String(text).match(CLOSED_LOOP_RE) ?? []),
+])];
+
 // Booting the server (or importing the whole tool registry) takes a few seconds alone and far more
 // under a parallel full-suite run, so the hooks and sessions here get generous budgets.
 const HOOK_BUDGET = 120_000;
@@ -197,6 +214,11 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
           ['get_solid_vocab', { id: 'skin' }],
           ['mint_solid', { kind: 'figure', title: 'k', spec: { dream_audit: DREAM_AUDIT } }],
           ['create_figure', { title: 'k', dream_audit: DREAM_AUDIT }],
+          // errors on kept tools list only the doors this build has
+          ['edit_solid', { op: 'nope', ref: 'sk_x' }],
+          ['mint_solid', { kind: 'manji-tree', via: 'x' }],
+          // the parts door's next move goes straight to the export
+          ['mint_solid', { kind: 'manji-tree', via: 'parts', title: 'drifter', spec: { parts: [{ shape: 'ball', from: [0, 0, 0], to: [0, 0, 1], girth: 0.5 }] } }],
         ],
       }),
       session({ distribution: 'claude-plugin', client: 'probe-client' }),
@@ -213,6 +235,19 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
     expect(packNames).toContain('pack_world');
     for (const name of HIDDEN) expect(packNames).not.toContain(name);
     expect(hiddenIn(JSON.stringify(packs.tools))).toEqual([]);
+  });
+
+  it('describes no closed loop in any listed description or schema, flat or packs', () => {
+    for (const s of [flat, packs]) {
+      for (const tool of s.tools) expect(leaksIn(JSON.stringify(tool)), tool.name).toEqual([]);
+    }
+    const packObject = packs.tools.find((t) => t.name === 'pack_object');
+    expect(packObject.description).toMatch(/edit_solid \(the emote op\)/);
+    expect(packObject.description).not.toMatch(/skin|concept art/);
+    const face = (name) => flat.tools.find((t) => t.name === name);
+    expect(face('edit_solid').inputSchema.properties.spec.description).not.toMatch(/skin/);
+    expect(face('forge_motion').inputSchema.properties.export.description).toMatch(/uses an ffmpeg already installed/);
+    expect(face('get_adapter').description).not.toMatch(/paint/);
   });
 
   it('shows the kept tools without their closed doors', () => {
@@ -265,6 +300,17 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
     // character-from-dream: a figure never carries a dream attestation here, by either name
     expect(doors[8].text).toMatch(/^A figure's dream_audit is not part of the Claude plugin build of mojulo\./);
     expect(doors[9].text).toMatch(/^A figure's dream_audit is not part of the Claude plugin build of mojulo\./);
+  });
+
+  it('names only this build\'s doors in the errors and next moves of kept tools', () => {
+    const [unknownOp, unknownVia, parts] = flat.results.slice(DIRECT.length + 15);
+    expect(unknownOp.isError).toBe(true);
+    expect(unknownOp.text).toMatch(/Known ops: emote\./);
+    expect(unknownVia.isError).toBe(true);
+    expect(unknownVia.text).toMatch(/Available via modes: ir, parts, packet\./);
+    expect(parts.isError, parts.text).toBe(false);
+    expect(JSON.parse(parts.text).next).toMatch(/Then: export_model → \/model\.glb/);
+    for (const r of [unknownOp, unknownVia, parts]) expect(leaksIn(r.text)).toEqual([]);
   });
 });
 

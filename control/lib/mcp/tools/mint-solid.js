@@ -172,7 +172,10 @@ export async function mintSolidHandler(input) {
   let handler = entry.handler;
   if (via !== undefined) {
     if (!entry.via || !entry.via[via]) {
-      const modes = entry.via ? Object.keys(entry.via).join(', ') : '(none)';
+      // The Claude plugin profile names no prompt door here either (it refused via:'prompt' above).
+      const modes = entry.via
+        ? Object.keys(entry.via).filter((m) => m !== 'prompt' || !pluginProfileActive()).join(', ')
+        : '(none)';
       throw new Error(
         `mint_solid: kind '${kind}' has no via '${via}'. Available via modes: ${modes}.`,
       );
@@ -198,8 +201,9 @@ export async function editSolidHandler(input) {
   if (op === 'skin' && pluginProfileActive()) throw new Error(pluginProfileNotice("edit_solid op:'skin'"));
   const handler = EDIT_OPS[op];
   if (!handler) {
+    const known = pluginProfileActive() ? OP_LIST.filter((o) => o !== 'skin') : OP_LIST;
     throw new Error(
-      `edit_solid: unknown op '${op}'. Known ops: ${OP_LIST.join(', ')}. ` +
+      `edit_solid: unknown op '${op}'. Known ops: ${known.join(', ')}. ` +
         `Parameter manual: get_solid_vocab({ id: '<op>' }).`,
     );
   }
@@ -301,6 +305,7 @@ export function registerMintSolidTools() {
     ]],
     schema: (schema) => {
       schema.properties.op.enum = schema.properties.op.enum.filter((op) => op !== 'skin');
+      schema.properties.spec.description = profileEdit(schema.properties.spec.description, [[" For 'skin', spec.phase selects 'packet' vs 'apply'.", '']], 'edit_solid.spec');
       return schema;
     },
   }));

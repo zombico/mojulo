@@ -22,7 +22,7 @@ import { pluginProfileActive, profileEdit } from '../plugin-profile.js';
 
 // Under the Claude plugin profile (../plugin-profile.js) the host cards drop what that build does
 // not have: the CDN page (every card), and the Grok card's paint-worker and native-video moves (no
-// image handoff to bind a painted render back through).
+// image handoff to bind a painted render back through) and its image-render pack.
 const PROFILE_ADAPTER_EDITS = {
   // The Claude Code card: that build writes no CDN page, so the web box's handoff is the file.
   'claude-code': {
@@ -49,6 +49,8 @@ const PROFILE_ADAPTER_EDITS = {
         '3. **Two motion systems.** `forge_motion` is deterministic (turntable, traversal that can prove a level). Native video (`image_to_video` / `reference_to_video`) is cinema. Do not substitute one for the other.',
         '3. **Motion is deterministic.** `forge_motion` renders turntables and traversals that can prove a level.',
       ],
+      // The image-render pack is not in this build.
+      ['The heavy ones (connected services, stash, image render, game,', 'The heavy ones (connected services, stash, game,'],
     ],
   },
 };

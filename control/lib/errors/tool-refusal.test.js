@@ -28,6 +28,23 @@ describe('ToolRefusal — a no that carries its next move', () => {
     expect(view.read_first.url).toBe('/sketches/r');
     expect(view.alternative).toMatch(/Omit `ref`/);
   });
+
+  it('names no voice tool for a voice register under the Claude plugin build', () => {
+    const saved = process.env.MOJULO_DISTRIBUTION;
+    process.env.MOJULO_DISTRIBUTION = 'claude-plugin';
+    try {
+      const voice = refExistsRefusal({ ref: 'r', kind: 'voice-register' });
+      expect(voice.payload.next_action).toBeUndefined();
+      expect(voice.payload.read_first).toBeUndefined();
+      expect(voice.payload.alternative).toMatch(/Omit `ref`/);
+      expect(voice.message).toBe("A sketch with ref 'r' already exists. It is a voice register, which is not part of the Claude plugin build of mojulo.");
+      expect(JSON.stringify(voice.payload) + voice.message).not.toMatch(/create_voice|get_voice/);
+      expect(refExistsRefusal({ ref: 'r', kind: 'black-hole' }).payload.next_action.tool).toBe('update_sketch');
+    } finally {
+      if (saved === undefined) delete process.env.MOJULO_DISTRIBUTION;
+      else process.env.MOJULO_DISTRIBUTION = saved;
+    }
+  });
 });
 
 describe('SketchRepository.create on a taken ref', () => {

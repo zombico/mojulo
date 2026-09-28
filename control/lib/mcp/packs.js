@@ -75,6 +75,12 @@ export const PACKS = [
     description:
       "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles, OpenSCAD: mint_solid (kinds figure / manji-tree / workbench / scad (an OpenSCAD program) / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), measure_solid, verify_machina. Open for 'model a wine glass true to size', 'a woman mid-stride', 'our logo in shiny chrome', 'a 3D creature', 'a bracket with bolt holes in OpenSCAD', 'put the wheels and the chassis together', 'turn this concept art into a 3D model'. Placing solids IN an environment is pack_world. A house / apartment / room is create_sketch kind 'floorplan' (pack_diagram); edifice is the institutional one-off.",
     members: ['mint_solid', 'edit_solid', 'get_solid_vocab', 'measure_solid', 'verify_machina'],
+    // The Claude plugin profile leaves out the skin op and the concept-art dream loop
+    // (lib/mcp/plugin-profile.js).
+    profileEdits: [
+      ['edit_solid (skin / emote ops)', 'edit_solid (the emote op)'],
+      [", 'turn this concept art into a 3D model'", ''],
+    ],
   },
   {
     id: 'pack_world',
