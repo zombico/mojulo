@@ -2,11 +2,11 @@
 {
   "id": "claude-code",
   "name": "Claude Code",
-  "summary": "When the user asks for a workflow, materializes the catalyst as a user-owned skill under .claude/skills/, scheduled via /schedule; secrets stay behind inspect_bot_env, with a deny block the user may add to .claude/settings.json if they ask.",
+  "summary": "When the user asks for a workflow, materializes the catalyst as a user-owned skill under .claude/skills/, scheduled via /schedule; secrets never read (list_env names an app's keys), with a deny block the user may add to .claude/settings.json if they ask.",
   "version": 1,
   "artifactTarget": ".claude/skills/<slug>/SKILL.md",
   "schedulingMechanism": "/schedule",
-  "secretsPosture": "inspect_bot_env; an optional .claude/settings.json deny block the user adds themselves, shown only when they ask",
+  "secretsPosture": "never read a .env (list_env names an app's keys, never values); an optional .claude/settings.json deny block the user adds themselves, shown only when they ask",
   "supportsClientInfoHint": ["claude-code", "claude-ai", "claude"]
 }
 ---
@@ -18,7 +18,7 @@ Your host is **Claude Code**. The runnable artifact this catalyst materializes i
 ## Artifact target
 
 - Path: `.claude/skills/<slug>/SKILL.md`
-- Slug pattern: `<bot-slug>-<short-purpose>` (e.g. `acme-crm-sync`, `acme-scan-churn-intent`). Multiple catalysts can materialize against one bot — they get distinct slugs so they don't collide.
+- Slug pattern: `<source-slug>-<short-purpose>` (e.g. `acme-crm-sync`, `acme-weekly-digest`). Multiple catalysts can materialize against one source — they get distinct slugs so they don't collide.
 - Helper files (config templates, mapping tables, fixtures) go next to the SKILL.md in the same directory.
 
 ## Parameter collection
@@ -57,7 +57,7 @@ Surface the per-record decision log declared in the catalyst's `outputContract` 
 
 ## Secrets posture
 
-Mojulo's standing rule is "never `cat` `.env`": read bot configuration through `inspect_bot_env`. **Only when the user asks** how to keep an agent away from bot secrets (or asks you to harden their Claude Code settings), show them this deny rule, which Claude Code's harness enforces, for them to add to `.claude/settings.json` themselves. Do not raise it unprompted and do not edit `.claude/settings.json` yourself: Claude's permission settings are the user's to change.
+Mojulo's standing rule is "never `cat` `.env`": an app's keys are named by `list_env`, and values are never read. **Only when the user asks** how to keep an agent away from those secrets (or asks you to harden their Claude Code settings), show them this deny rule, which Claude Code's harness enforces, for them to add to `.claude/settings.json` themselves. Do not raise it unprompted and do not edit `.claude/settings.json` yourself: Claude's permission settings are the user's to change.
 
 ```json
 {
@@ -71,14 +71,14 @@ Mojulo's standing rule is "never `cat` `.env`": read bot configuration through `
 }
 ```
 
-Inside the skill itself: never `cat` or `Read` a bot's `.env` directly — always go through the `inspect_bot_env` MCP tool, which returns masked sensitive values plus clear non-sensitive ones. Skill prompts should reference `inspect_bot_env` by name when they need to read bot configuration.
+Inside the skill itself: never `cat` or `Read` a `.env` directly. When a skill needs to know which keys an app has, it calls `list_env` (key names only); it never needs the values.
 
 ## Hand-off to the user
 
 When you finish synthesizing, tell the user:
 
 - Where the skill was written (`.claude/skills/<slug>/SKILL.md`).
-- That the skill is theirs — mojulo doesn't see it, doesn't execute it, doesn't update it. Re-run the catalyst flow if the bot's form schema or protocols change later.
+- That the skill is theirs — mojulo doesn't see it, doesn't execute it, doesn't update it. Re-run the catalyst flow if the source's shape changes later.
 - The first-invocation dry-run pattern is baked in; explain how to flip to live mode when they're satisfied.
 - That `/schedule` is the way to make it recurring if they want that.
 
@@ -91,9 +91,9 @@ Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`
 
 ---
 
-## Primitive binding flow (no-bot composition)
+## Primitive binding flow (compositions over installed MCPs)
 
-Everything above describes the **catalyst** flow — bot-shaped, vendor-shaped, curated body. There's a parallel flow mojulo supports for **no-bot, primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, and `meta_context_commit` seals the materialization. This is the supported path when the user wants outcomes without a chatbot in the picture — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
+Everything above describes the **catalyst** flow — vendor-shaped, curated body. There's a parallel flow mojulo supports for **primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, and `meta_context_commit` seals the materialization. This is the supported path for MCP-to-MCP outcomes — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
 
 ### Why Claude Code is well-suited as the introspection host
 

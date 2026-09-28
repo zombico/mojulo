@@ -3,14 +3,14 @@
  *
  * Skill catalysts are curated workflow patterns shipped with the control
  * plane. They live as .md files in this directory and are exposed via the MCP
- * server so the user's Claude can pull one, read the bot's shape via existing
- * operate tools, and **catalyze** the synthesis of a concrete local skill into
- * the user's `.claude/skills/`.
+ * server so the user's Claude can pull one, read its source's shape through
+ * mojulo's read tools or the declared inventory, and **catalyze** the synthesis
+ * of a concrete local skill (or run a creative loop in the session).
  *
  * The "catalyst" framing is literal: each file enables one phase transition
- * from a vague user intent + a bot's shape + a destination MCP into a
+ * from a vague user intent + a source's shape + a destination MCP into a
  * structured skill artifact. The catalyst is not consumed (the file persists
- * and can catalyze again for the next bot) and does not appear in the
+ * and can catalyze again for the next source) and does not appear in the
  * resulting skill — it's the nucleation point that lets the skill crystallize
  * out.
  *
@@ -45,15 +45,15 @@ const TECHNIQUES_SUBDIR = 'techniques';
 
 // `valueHook` is required: it's the consultation-mode sentence we read aloud
 // to position the catalyst when surfacing it via `recommend_catalysts` — one
-// sentence in user-outcome terms ("turn yesterday's submissions into qualified
-// CRM contacts"). Without it, the agent has only the `summary` (which is
+// sentence in user-outcome terms ("a weekly digest of your Linear issues in
+// Drive, without asking for it"). Without it, the agent has only the `summary` (which is
 // implementation-shaped) and consultation suggestions sound bureaucratic.
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'valueHook'];
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
 // Catalyst kinds. `workflow` is the historical default — recipes that produce a
-// runnable artifact through a host adapter against a bot's data + a destination
-// MCP. `technique` is the runtime-primitive-binding shape — recipes that bind a
+// runnable artifact through a host adapter against a source + a destination
+// MCP (or run in the session). `technique` is the runtime-primitive-binding shape — recipes that bind a
 // Node-native substrate (filesystem, http, sqlite) to an artifact, with the
 // binding recorded as a contextmap principle. Shelf placement infers kind:
 // catalysts/*.md → workflow, catalysts/techniques/*.md → technique. Frontmatter

@@ -87,7 +87,7 @@ async function mintRoleKeyHandler(input, context) {
   // typo never mints a silently-inert grant.
   const grantList = grants === undefined ? [] : grants;
   if (!Array.isArray(grantList) || grantList.some((g) => typeof g !== 'string')) {
-    throw new Error('grants must be an array of pack ids (e.g. ["pack_fleet", "pack_diagram"]).');
+    throw new Error('grants must be an array of pack ids (e.g. ["pack_research", "pack_diagram"]).');
   }
   const unknown = grantList.filter((g) => !isPackId(g));
   if (unknown.length) {
@@ -123,7 +123,7 @@ async function mintRoleKeyHandler(input, context) {
   });
 
   // Their room (Phase 4): one workshop space per privileged key, minted with
-  // it. Their deployments / documents / sketches / plans live here; the
+  // it. Their sketches / plans (and legacy documents) live here; the
   // operator's default space is the NULL scope.
   const space = WorkshopSpaceRepository.ensureForUser(user.id, trimmed);
 
@@ -188,12 +188,12 @@ export function registerRolesTools() {
           type: 'array',
           items: { type: 'string' },
           description:
-            "Pack ids the key may execute (e.g. ['pack_fleet'] for an analyst, ['pack_diagram','pack_bot_build'] for a builder). Validated against the capability-bay manifest. Default: none — spine orientation only.",
+            "Pack ids the key may execute (e.g. ['pack_research'] for an analyst, ['pack_diagram','pack_world'] for a builder). Validated against the capability-bay manifest. Default: none — spine orientation only.",
         },
         propose_only: {
           type: 'boolean',
           description:
-            'The key can forge plans and draft compositions but never seal reality (execute_plan, meta_context_commit, deploys stay with the operator). Its whole output is reviewable proposals.',
+            'The key can forge plans and draft compositions but never seal reality (execute_plan and meta_context_commit stay with the operator). Its whole output is reviewable proposals.',
         },
         outward: {
           type: 'boolean',
@@ -201,7 +201,7 @@ export function registerRolesTools() {
         },
         lifecycle: {
           type: 'boolean',
-          description: 'Allow actions that start/stop processes on this host (apps, bot builds). Default false.',
+          description: 'Allow actions that start/stop processes on this host (apps). Default false.',
         },
         house_keys: {
           type: 'boolean',

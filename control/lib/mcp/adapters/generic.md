@@ -6,7 +6,7 @@
   "version": 1,
   "artifactTarget": "./workflow.md + ./run.<ext>",
   "schedulingMechanism": "out-of-band (system cron, scheduler of user's choice)",
-  "secretsPosture": "inspect_bot_env only — never read .env directly",
+  "secretsPosture": "never read a .env directly — list_env names an app's keys, never values",
   "supportsClientInfoHint": []
 }
 ---
@@ -32,7 +32,7 @@ Ask the catalyst's `parameters` questions in one batched round before materializ
 
 Inspect your tool surface for:
 
-- **Required mojulo tools** named in the catalyst's `mcpTools.mojulo` array (`get_deployment`, `query_submissions`, `query_conversations`, `get_conversation`, etc.).
+- **Required mojulo tools** named in the catalyst's `mcpTools.mojulo` array (e.g. `meta_context_brief`, `get_stash`, `semantic_search`).
 - **Destination MCP** matching the catalyst's `requires.destinationMcpCategory`. Cross-reference `requires.destinationExamples` against what's available.
 
 If the destination MCP isn't installed, surface it as a soft suggestion ("a CRM MCP — HubSpot, Salesforce, Pipedrive, Attio — would unlock the live-write path"), not a blocker. Per the catalyst-core consultation posture, the user opts into upgrades.
@@ -64,7 +64,7 @@ Shape: at minimum `recordId`, `action` (`inserted | updated | skipped-* | failed
 
 ## Secrets posture
 
-- Never `cat` or `Read` `~/.mojulo/**/.env*` directly — always route through the `inspect_bot_env` MCP tool.
+- Never `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env` directly; `list_env` names an app's keys, never values.
 - The runner script should never log raw `.env` contents on any path, including error paths.
 - If your runtime has a secrets-injection mechanism, prefer it over inlining secret values in `config.json` or the runner script.
 
@@ -75,7 +75,7 @@ When you finish materializing, tell the user:
 - Where the workflow files live and how to invoke the runner.
 - The first-invocation dry-run pattern is baked in; explain how to flip to live mode.
 - The scheduling decision is theirs — point at the recommended cadence in `workflow.md` but don't try to wire the scheduler from inside the workflow.
-- Re-run the catalyst flow if the bot's form schema or protocols change later.
+- Re-run the catalyst flow if the source's shape changes later.
 
 ## Handing back an export
 
@@ -83,9 +83,9 @@ Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`
 
 ---
 
-## Primitive binding flow (no-bot composition)
+## Primitive binding flow (compositions over installed MCPs)
 
-Everything above describes the **catalyst** flow. There's a parallel flow mojulo supports for **no-bot, primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, materializes the workflow as a `workflow.md` + runner script, and seals via `meta_context_commit({type: 'primitive_artifact_materialization', ...})`. This is the supported path when the user wants outcomes without a chatbot in the picture — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
+Everything above describes the **catalyst** flow. There's a parallel flow mojulo supports for **primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, materializes the workflow as a `workflow.md` + runner script, and seals via `meta_context_commit({type: 'primitive_artifact_materialization', ...})`. This is the supported path for MCP-to-MCP outcomes — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
 
 Since this is the baseline generic adapter — your host doesn't have a specific introspection affordance the way Claude Code or Codex do — the introspection step is the part where you'll have to improvise based on what your runtime exposes.
 

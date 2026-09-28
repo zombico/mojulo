@@ -45,7 +45,10 @@ import { join } from 'node:path';
 // Checked 2026-09-27 for the chatbot carve-out's rehomed tools (pin unchanged; measured 36,793 ->
 // 36,808): pack_runtime and pack_stash now name list_running, the app .env trio and recommend_kind,
 // and the bot pack descriptions no longer do.
-const PACKS_PAYLOAD_CEILING = 37_000;
+// Re-pinned 2026-09-28 (37_000 -> 34_000; measured 33,694) for the chatbot carve-out (3.0.0): the
+// three bot pack dispatchers left, and pack_runtime and pack_connected_services stopped naming the
+// chat_turn tools and chatbots. Shrink-only from here.
+const PACKS_PAYLOAD_CEILING = 34_000;
 
 let server;
 let listTools;
