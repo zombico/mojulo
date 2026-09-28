@@ -9,11 +9,11 @@
  * single source of truth, reuses encryption, no downstream resolver shim.
  *
  * Usage:
- *   mojulo-mcp-config set anthropic sk-ant-...
- *   mojulo-mcp-config set openai sk-...
- *   mojulo-mcp-config set ollama http://localhost:11434
- *   mojulo-mcp-config list
- *   mojulo-mcp-config unset openai
+ *   mojulo-config set anthropic sk-ant-...
+ *   mojulo-config set openai sk-...
+ *   mojulo-config set ollama http://localhost:11434
+ *   mojulo-config list
+ *   mojulo-config unset openai
  *
  * `set` replaces any existing key(s) for that provider with a single fresh
  * row, and marks it default if no default exists. The one reader of a saved
@@ -40,9 +40,9 @@ const ALLOWED_PROVIDERS = new Set(Object.keys(LLM_PROVIDERS));
 function usage(exitCode = 0) {
   const lines = [
     'Usage:',
-    '  mojulo-mcp-config set <provider> <value>',
-    '  mojulo-mcp-config list',
-    '  mojulo-mcp-config unset <provider>',
+    '  mojulo-config set <provider> <value>',
+    '  mojulo-config list',
+    '  mojulo-config unset <provider>',
     '',
     `Providers: ${[...ALLOWED_PROVIDERS].join(', ')}`,
   ];
@@ -86,7 +86,7 @@ async function listKeys() {
   const keys = await ApiKeyRepository.findByUserId('local');
   if (keys.length === 0) {
     process.stdout.write('No provider keys configured.\n');
-    process.stdout.write('Set one with: mojulo-mcp-config set anthropic sk-ant-...\n');
+    process.stdout.write('Set one with: mojulo-config set anthropic sk-ant-...\n');
     return;
   }
   const rows = keys.map((k) => ({
@@ -110,7 +110,7 @@ async function listKeys() {
   if (retired.length) {
     process.stdout.write(
       `\nNothing in this version reads ${retired.join(', ')} (saved by an earlier install). ` +
-        `Remove with: mojulo-mcp-config unset ${retired[0]}\n`
+        `Remove with: mojulo-config unset ${retired[0]}\n`
     );
   }
 }
@@ -166,7 +166,7 @@ try {
     usage(2);
   }
 } catch (err) {
-  process.stderr.write(`mojulo-mcp-config: ${err.message || err}\n`);
+  process.stderr.write(`mojulo-config: ${err.message || err}\n`);
   process.exit(1);
 }
 

@@ -39,6 +39,8 @@ describe('mojulo-config providers', () => {
     const line = res.stdout.split('\n').find((l) => l.startsWith('Providers:'));
     expect(line).toBe(`Providers: ${Object.keys(LLM_PROVIDERS).join(', ')}`);
     expect(line).not.toMatch(/fly/);
+    // The messages name the bin a user runs (package.json "bin"), not the script file.
+    expect(res.stdout).toContain('  mojulo-config set <provider> <value>');
   });
 
   it('refuses to save a Fly deploy token', () => {
@@ -59,6 +61,7 @@ describe('mojulo-config providers', () => {
     expect(list.status).toBe(0);
     expect(list.stdout).toMatch(/^fly\s+fly-cli/m);
     expect(list.stdout).toContain('Nothing in this version reads fly');
+    expect(list.stdout).toContain('Remove with: mojulo-config unset fly');
 
     const unset = run('unset', 'fly');
     expect(unset.status).toBe(0);
