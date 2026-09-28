@@ -277,8 +277,12 @@ source of truth for what follows:
   link), one VM persists behind every client, and Chromium is at `/opt/meta-chromium/chrome` with no
   sandbox as root. Muse has no documented byte cap for the Library or a page, so both limits are
   null. A 30 MiB probe Muse wrote to `your_files/` reached the operator's Mac through the Library
-  byte-complete the same day: a floor, not a ceiling. Whether a saved page may offer a download is
-  untested.
+  byte-complete the same day: a floor, not a ceiling. The same day's probes showed the Library lists
+  `.html` only: none of glb, stl, 3mf, usda, usdz, scad, zip, wav, mid or json surfaced, nor a `.bin`
+  renamed `.zip` (an extension filter). The bundle's courier page, downloaded from the Library and
+  opened, saved its zip (operator-confirmed); that page is now the export's folder page, recorded on
+  the profile as `downloadExtensions: ["html"]`. Whether a saved Artifacts page may offer a download
+  is untested.
 - **docs** — read from the host's own documentation (2026-09-22): Claude Code on the web (one
   self-contained page ≤ 16 MiB through the Artifact tool, a download allowlist that carries `zip`
   and not `glb`), a Codex cloud task (the PR is the only door), Claude Desktop and Grok Build on

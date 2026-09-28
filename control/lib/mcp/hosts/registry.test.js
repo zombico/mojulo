@@ -124,7 +124,7 @@ describe('host profile registry', () => {
     expect(mu.local).toBeUndefined();
     expect(mu.box).toMatchObject({
       page: 'artifact', file: 'drop-folder', pageVerb: 'save', inlinePage: 'fragile',
-      dropDir: '~/workspace/your_files', ephemeral: false, fileMaxBytes: null, pageMaxBytes: null,
+      dropDir: '~/workspace/your_files', downloadExtensions: ['html'], ephemeral: false, fileMaxBytes: null, pageMaxBytes: null,
     });
     expect(mu.verified).toBe('field');
     expect(getHostProfile('muse').wire.format).toBe('manual');

@@ -25,7 +25,16 @@ connected-service and app loops and the recipe format are the stable surface.
 - **A `drop-folder` file door.** A box row can name a folder the host carries to the operator (`dropDir`, and
   `dropLabel` for what the operator sees). The note says "copy the file into that folder; it lands in …", with a fit
   caveat when the row declares `fileMaxBytes`. Muse's is `~/workspace/your_files/` → the operator's Library. The
-  registry refuses a `drop-folder` row without `dropDir`.
+  registry refuses a `drop-folder` row without `dropDir`. The row's `downloadExtensions` is the list of types the
+  folder surfaces. Muse's Library shows only `.html` (every other type mojulo writes was probed on 2026-09-28 and
+  none surfaced), so a zip, a mesh or a folder routes to the bundle's folder page, and a file with none gets a note
+  that names the bundle.
+- **The bundle's courier is the export's folder page.** `<ref>.courier.html` lists the export's files under
+  `outcomes/<ref>/`, each with its own Save, beside "Save `<ref>.zip`" for all of them. A single file is unpacked in
+  the page from the zip it already carried: the central directory gives the entry, and `DecompressionStream`
+  inflates it. So one `.html`, the only type Muse's Library shows, delivers any file of the export, and the page
+  stays deterministic and grows only by its reader script. Claude's `downloads` path, the filename and the Save-all
+  button are unchanged.
 - **The `artifact` page door speaks the host's words.** `pageVerb`, `pageTool` and `pageOpensIn` on the row name the
   action, the tool and where the operator opens the page; the defaults name no vendor. `claude-code.json` declares its
   own words, so its note is unchanged byte for byte. Muse's says "save … with your Artifacts tool; the operator opens

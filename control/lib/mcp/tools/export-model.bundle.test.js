@@ -15,7 +15,7 @@ import AdmZip from 'adm-zip';
 process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(path.join(os.tmpdir(), 'mojulo-bundle-outcomes-'));
 
 import { composeWorld } from './compose-world.js';
-import { exportModelHandler } from './sketch-model-export.js';
+import { exportModelHandler, COURIER_ZIP_READER } from './sketch-model-export.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { rememberClientInfo, _resetClientBindingsForTests } from '@/lib/mcp/client-bindings';
 
@@ -95,6 +95,39 @@ describe('export_model format:bundle', () => {
     expect(Array.isArray(r.print.advisories)).toBe(true);
     const readme = new AdmZip(readFileSync(r.path)).readAsText('README.md');
     expect(readme).toMatch(/`model\.stl` is the print file at literal scale \(40 × 40 × 60 mm\)/);
+  }, 120_000);
+
+  // muse-carpet P5: Meta Muse's Library shows only .html, so the courier is also the export's folder
+  // page. The reader it embeds is run here on the zip it embeds: every file must come out byte for byte.
+  it("the courier is the export's folder page: one Save per file, unpacked by the page's own reader byte for byte", async () => {
+    SketchRepository.create({ ref: 'sk_bundle_folder', title: 'folder', manifest: { kind: 'workbench', units: 'cm', lathes: [CYLINDER] } });
+    const r = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'bundle' });
+    expect(r.ok).toBe(true);
+    const courier = readFileSync(r.courier.path, 'utf8');
+    expect(courier).toContain('<code>outcomes/sk_bundle_folder/</code>');
+    for (const f of r.files) expect(courier).toContain(`data-save="${f.name}"`);
+    expect(courier).toContain('data-save="sk_bundle_folder.zip"');
+    expect(courier).toContain(COURIER_ZIP_READER);
+    expect(courier).not.toMatch(/https?:\/\/|127\.0\.0\.1|localhost/);
+    const b64 = /<script id="zip" type="application\/octet-stream">([^<]+)<\/script>/.exec(courier)[1];
+    const z = new Uint8Array(Buffer.from(b64, 'base64'));
+    const { zipEntries, zipRead } = new Function(`${COURIER_ZIP_READER}\nreturn { zipEntries, zipRead };`)();
+    const entries = zipEntries(z);
+    expect(Object.keys(entries).sort()).toEqual(r.files.map((f) => f.name));
+    for (const f of r.files) {
+      const got = await zipRead(z, entries[f.name]);
+      expect(Buffer.from(got).equals(readFileSync(path.join(r.dir, f.name))), f.name).toBe(true);
+    }
+  }, 120_000);
+
+  it('MOJULO_HOST=muse: the zip rides the courier page, the one type the Library shows', async () => {
+    process.env.MOJULO_HOST = 'muse';
+    const r = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'bundle' }, { mcpSessionId: 'cli' });
+    expect(r.handoff.host).toBe('muse');
+    expect(r.handoff.door).toBe('drop-folder');
+    expect(r.handoff.next).toMatch(/^copy sk_bundle_folder\.courier\.html into ~\/workspace\/your_files\/; it lands in the operator's Library as one page/);
+    const glb = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'glb' }, { mcpSessionId: 'cli' });
+    expect(glb.handoff.next).toMatch(/shows only \.html files, so model\.glb would not surface there/);
   }, 120_000);
 
   it('ineligible kinds answer the same { ok:false, eligible:false } as every leg', async () => {

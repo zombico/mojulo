@@ -31,7 +31,7 @@
       "dropLabel": "the operator's Library",
       "pageMaxBytes": null,
       "fileMaxBytes": null,
-      "downloadExtensions": null,
+      "downloadExtensions": ["html"],
       "cdns": ["cdnjs.cloudflare.com", "cdn.jsdelivr.net"],
       "egress": "internet",
       "ephemeral": false

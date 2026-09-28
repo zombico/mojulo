@@ -139,9 +139,22 @@ function fileSentence(door, row, a, caveats) {
     }
     case 'drop-folder': {
       // A folder in the box that the host itself carries to the operator (Muse: your_files → Library).
+      // `downloadExtensions` lists the types the operator's side actually shows; anything else
+      // (a folder included) rides the bundle's courier page, which carries every file of the export.
+      const dir = String(row.dropDir).replace(/\/+$/, '');
+      const where = row.dropLabel || "the operator's side";
+      const allowed = Array.isArray(row.downloadExtensions) ? row.downloadExtensions : null;
+      const shown = !allowed || (a.kind !== 'folder' && ext && allowed.includes(ext));
+      if (!shown) {
+        const only = allowed.map((x) => `.${x}`).join(', ');
+        if (a.courier) {
+          return `copy ${a.courier} into ${dir}/; it lands in ${where} as one page (${where} shows only ${only} files) — open it there and save ${a.name}${size} or any file of the export`;
+        }
+        caveats.push(`\`export_model({ format: 'bundle' })\` writes <ref>.courier.html, one page that carries every file of the export and does show in ${where}`);
+        return `${where} shows only ${only} files, so ${a.name} would not surface there; it is at ${a.path}${size}`;
+      }
       const fit = fitsBudget(a.bytes, row.fileMaxBytes);
       if (!fit.fits) caveats.push(`${a.name} is over this host's file limit by ${fmtBytes(fit.over_by)}`);
-      const dir = String(row.dropDir).replace(/\/+$/, '');
       const lands = row.dropLabel ? `it lands in ${row.dropLabel}` : 'the host carries it to the operator';
       return `copy ${a.kind === 'folder' ? 'the folder ' : ''}${a.name}${size} into ${dir}/; ${lands}`;
     }

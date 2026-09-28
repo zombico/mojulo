@@ -107,14 +107,26 @@ describe('handoffFor', () => {
     expect(`${inline.next} ${inline.caveats.join(' ')}`).not.toMatch(/claude\.ai|CSP|ANY size|publish/);
   });
 
-  it('muse + file: copy into the drop folder, it lands in the Library; the VM persists', () => {
-    const z = handoffFor({ host: 'muse', artifact: ZIP });
-    expect(z.door).toBe('drop-folder');
-    expect(z.next).toBe("copy sk_x.zip (5.7 MiB) into ~/workspace/your_files/; it lands in the operator's Library");
-    // no byte ceiling is known and the box is not reclaimed, so nothing rides along
-    expect(handoffFor({ host: 'muse', artifact: { ...GLB, bytes: 300 * 1024 * 1024 } }).caveats).toEqual([]);
+  // The Library shows only .html (operator, 2026-09-28: every other type mojulo writes was probed, none
+  // surfaced). So a zip, a mesh or a folder rides the bundle's courier page, the export's folder page.
+  it('muse + file: the Library shows only .html, so files ride the courier page', () => {
+    const c = handoffFor({ host: 'muse', artifact: { ...ZIP, courier: 'sk_x.courier.html' } });
+    expect(c.door).toBe('drop-folder');
+    expect(c.next).toBe("copy sk_x.courier.html into ~/workspace/your_files/; it lands in the operator's Library as one page (the operator's Library shows only .html files) — open it there and save sk_x.zip (5.7 MiB) or any file of the export");
+    expect(c.caveats).toEqual([]);
+    // a file with no courier is not sent into a folder the operator never sees; the note names the bundle
+    const g = handoffFor({ host: 'muse', artifact: GLB });
+    expect(g.next).toBe("the operator's Library shows only .html files, so model.glb would not surface there; it is at /box/outcomes/sk_x/model.glb (3.4 MiB)");
+    expect(g.caveats).toEqual([expect.stringMatching(/format: 'bundle'.*courier\.html, one page that carries every file of the export/)]);
+    // a folder has no extension to show and is outside the list too
     const f = handoffFor({ host: 'muse', artifact: { kind: 'folder', name: 'godot', path: '/box/outcomes/sk_x/godot' } });
-    expect(f.next).toBe("copy the folder godot into ~/workspace/your_files/; it lands in the operator's Library");
+    expect(f.next).toMatch(/^the operator's Library shows only \.html files, so godot would not surface there/);
+  });
+
+  it('muse + an .html file: straight into the drop folder; no ceiling known, the VM persists', () => {
+    const h = handoffFor({ host: 'muse', artifact: { kind: 'file', name: 'sk_x.courier.html', path: '/box/outcomes/sk_x/sk_x.courier.html', bytes: 300 * 1024 * 1024 } });
+    expect(h.next).toBe("copy sk_x.courier.html (300.0 MiB) into ~/workspace/your_files/; it lands in the operator's Library");
+    expect(h.caveats).toEqual([]);
   });
 
   it('asking for a surface the host has no row for says so and falls back', () => {

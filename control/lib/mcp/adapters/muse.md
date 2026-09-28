@@ -43,7 +43,7 @@ One VM behind every client (iOS, web, macOS). `~/.mojulo` survives between conve
 
 The VM's own Chromium is how a render gets checked, and it cannot reach the internet: check local files, never a remote URL.
 
-- **mojulo's renders** use it when `MOJULO_CHROMIUM` points at the binary. In the field that is `/opt/meta-chromium/chrome`. If it is not there, find the binary first (`ls /opt/*/chrome`, `command -v chromium`). Without the variable, an explicit render downloads Chrome for Testing instead. Export it in the shell profile beside `MOJULO_HOST`. The VM has run as root, and there mojulo launches Chromium without its sandbox on its own.
+- **mojulo's renders** use it when `MOJULO_CHROMIUM` points at the binary. The VM image ships Chromium at `/opt/meta-chromium/chrome`; if a VM ever lacks it, find the binary first (`ls /opt/*/chrome`, `command -v chromium`). Without the variable, an explicit render downloads Chrome for Testing instead. Export it in the shell profile beside `MOJULO_HOST`. Sessions run as root, where mojulo launches Chromium without its sandbox on its own.
 - **Your own screenshots over CDP**: launch with `--remote-debugging-port`, `--allow-file-access-from-files` and `--no-sandbox` (a sandboxed launch as root fails outright), and load pages from `file://`.
 
 ## Handing back exports
@@ -56,8 +56,8 @@ The VM's own Chromium is how a render gets checked, and it cannot reach the inte
 Then the doors:
 
 - **Page door: Artifacts.** Save `world.cdn.html` with your Artifacts tool; the operator opens it in their Library's Artifacts tab (on the web, `/artifacts`). Publishing gives it a public link anyone can open and asks the operator for a one-tap approval, so publish only when they want that link. Artifact pages are static and never update on their own: save again after a re-export.
-- **File door: the Library.** Copy the file into `~/workspace/your_files/`; it lands in the operator's Library for download. A 30 MiB file has made that trip intact; no ceiling is known (the ~25 MB limit is on chat attachments into the VM, not this door). Expiring public links serve third parties (not on confidential VMs). Chat file links carry no share token — don't hand those out.
-- `export_model` with `format: 'bundle'` gives one zip (the self-contained page, the mesh, STL for literal kinds, recipe, README) — the one file to copy into `your_files/`. Its `world.html` opens offline from the download.
+- **File door: the Library, which shows only `.html`.** A file copied into `~/workspace/your_files/` lands in the operator's Library, but the Library lists `.html` files only. Every other type mojulo writes (zip, glb, stl, 3mf, usd, scad, wav, mid, json) was probed and none surfaced. A 30 MiB `.html` has made the trip intact; no ceiling is known (the ~25 MB limit is on chat attachments into the VM, not this door). Expiring public links serve third parties (not on confidential VMs). Chat file links carry no share token — don't hand those out.
+- **So files leave as the bundle's folder page.** `export_model` with `format: 'bundle'` writes the zip (the self-contained page, the mesh, STL for literal kinds, recipe, README) and, beside it, `<ref>.courier.html`: one page that lists the export's files under `outcomes/<ref>/`, each with its own Save, plus Save-all for the zip. Copy that page into `your_files/`. The operator opens it from the Library and saves any file; the unzipped `world.html` opens offline.
 
 ## Dry-run, secrets, scheduling
 
@@ -65,4 +65,4 @@ A materialized skill demonstrates its dry run as its first step: pull one real r
 
 ## Handoff note
 
-With `MOJULO_HOST=muse`, every written export (`export_model`, `export_game`, `cook`) returns a `handoff` that names these doors — save to Artifacts, copy into `your_files/` — instead of the generic sentence. This host has one row (its VM), so `MOJULO_SURFACE` is not needed.
+With `MOJULO_HOST=muse`, every written export (`export_model`, `export_game`, `cook`) returns a `handoff` that names these doors — save the page to Artifacts, copy the bundle's folder page into `your_files/` — instead of the generic sentence. A file with no folder page gets a note naming the bundle rather than a copy the Library would hide. This host has one row (its VM), so `MOJULO_SURFACE` is not needed.
