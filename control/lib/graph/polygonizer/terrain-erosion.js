@@ -1,5 +1,5 @@
 /**
- * terrain-erosion — landforms by process (nature-scenes.plan.md N3). A heightfield is cut by water and slumps under
+ * terrain-erosion — landforms by process. A heightfield is cut by water and slumps under
  * gravity, deterministically:
  *
  *   1. drainage: priority-flood (Barnes et al. 2014) with an ε gradient, so every cell drains to the grid's edge
@@ -16,7 +16,7 @@
  * Why it belongs beside the rock: fracture roughness (H ≈ 0.8) sets a rock's skin, but above outcrop scale the
  * measured relief is smoother (H ≈ 0.5) and organised into valleys. That law is made by this process.
  *
- * Rock (landforms.plan.md L1): an optional `hardness(k, z)` → 0 soil … 1 bedrock scales incision by (1 − 0.9·h) and
+ * Rock: an optional `hardness(k, z)` → 0 soil … 1 bedrock scales incision by (1 − 0.9·h) and
  * raises the slump angle from `talus` toward 82°, so rivers cut soft beds and not hard ones and bedrock holds its face.
  * It is read again every step, so a bed registered as a function of height is the bed the surface has cut down to.
  * Absent, the arithmetic is the plain path's, bit for bit.

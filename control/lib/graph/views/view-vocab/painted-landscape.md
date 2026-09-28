@@ -119,6 +119,8 @@ Pass these via `compose_world`'s `overrides` (deep-merged over the theme pack). 
   fixed quad; `extent` scales the finished mesh (and its UVs) by that factor, so the map gets
   BIGGER — a longer walk under proportionally taller relief — without re-gridding. Walk speed
   is absolute, so `extent: 1.7` ≈ a 1.7× longer crossing. World-route only.
+  For a world at real scale (metres, walked at a 1.7 m eye, flown, seen whole), promote the recipe instead:
+  `compose_world({ base: 'terrain', overrides: { from: { ref: '<this sketch>' } } })`; manual `get_view_vocab({ id: 'terrain' })`.
 - `builds` (array) — explicit placed metal/material box STRUCTURES (launchpads, observation
   decks, towers), in terrain (domain) coords, so they ride the `extent` scale with the land.
   Each `{ x, y, w?, d?, h?, z0?, sink?, material?, tint? }` is terrain-anchored (z0 defaults to

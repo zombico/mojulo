@@ -145,6 +145,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     view: viewOpts.view,
     render: viewOpts.render,
     ref: sketch.ref,
+    // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
+    live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
     // its own default key (WORKBENCH_LIGHT etc.), so the shaded path is byte-identical.
     light: unshaded ? FLAT_LIGHT : undefined,

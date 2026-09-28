@@ -134,7 +134,7 @@ export function strata(s, { thickness, contrast = 0.9, hardShare = 0.5, jitter =
     const q = j * s.nx + i, o = off(gridX(s, i), gridY(s, j)); const v = s.z[q] - o; const L = layers[find(v)];
     const u = clamp01((v - L.b) / L.t); s.z[q] = L.b + L.t * (L.hard ? 1 - (1 - u) ** k : u) + o;
   }
-  s.strata = { layers, off, find, tones, dipped: dip !== 0 };
+  s.strata = { layers, off, find, tones, dipped: dip !== 0, tanD, cx, cy };
   s.hardFns.push((x, y, z) => (layers[find(z - off(x, y))].hard ? contrast : 0));
   return s;
 }

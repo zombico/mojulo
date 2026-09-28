@@ -1,5 +1,5 @@
 /**
- * terrain-erosion (nature-scenes.plan.md N3). Claims under test: priority-flood leaves no pit (every interior cell
+ * terrain-erosion. Claims under test: priority-flood leaves no pit (every interior cell
  * can drain) and every cell's water reaches the edge; erosion is deterministic; rivers organise — the drained area
  * concentrates into a few trunks — and those trunks are cut down while the relief survives; thermal relaxation
  * reduces the ground steeper than the talus angle; a painted landscape without `erosion` is unchanged, and with it

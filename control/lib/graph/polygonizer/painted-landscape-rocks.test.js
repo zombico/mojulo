@@ -1,5 +1,5 @@
 /**
- * painted-landscape `rocks` (nature-scenes.plan.md N1). Claims under test: absent, the World mesh and the assembled
+ * painted-landscape `rocks`. Claims under test: absent, the World mesh and the assembled
  * payload are exactly as before (no `rocks`, no `repeats`, the boulder boxes stand); present, every boulder the
  * scene places becomes one instance of a pooled rock template (and no box), the pool is deterministic and at most
  * `variants` wide, `extent` scales the rocks with the map, the CSS scene expands the exact far-LOD block instead of

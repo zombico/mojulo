@@ -1,5 +1,5 @@
 /**
- * cast-shadows at rock scale (nature-scenes.plan.md N2). Claims under test: without `bias` / `fitMin` the script
+ * cast-shadows at rock scale. Claims under test: without `bias` / `fitMin` the script
  * carries the city-scale literals exactly as before (1.1 world units of contact slack, a 60-unit FIT floor, a 0.5
  * near plane); declared, they land in the script and the near plane follows the box; emitThreeWorld passes them
  * through only when declared.

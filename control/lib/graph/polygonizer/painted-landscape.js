@@ -185,7 +185,7 @@ export function resolveSkySpec(sky) {
 // ─── Validation (mint-time errors, not render-time) ────────────────────
 
 /**
- * `rocks` (nature-scenes.plan.md N1): the scene's boulders become pooled `rock` templates instead of massed boxes.
+ * `rocks`: the scene's boulders become pooled `rock` templates instead of massed boxes.
  * A rock preset id, or { rock, variants?: 1–8 (6), detail?: 0–4 (2, the rock's octaves; 0 = the exact block),
  * tone?: 'palette' | 'mineral' ('palette' keeps the painting's colour), sink?: 0–0.6 (0.2, share of height buried) }.
  * Returns the normalized spec, or null when absent.
@@ -1744,22 +1744,27 @@ function makeSampler(manifest, seed) {
   return manifest.erosion ? erodedSampler(base, manifest, seed) : base;
 }
 
-// opt-in `landform` (landforms.plan.md L3): the base surface baked on a square-celled grid over the domain, then the
+// opt-in `landform`: the base surface baked on a square-celled grid over the domain, then the
 // operator list (landform.js) in order, `erosion` (if declared) reading the rock's hardness, then the talus ops. Every
 // consumer reads the result, as with erosion; the World also meshes it face-aware from the state (`landform`).
 // Memoised per (surface, erosion, landform) so the still and the World build it once.
 const landformMemo = new Map();
-function landformSampler(base, manifest, seed) {
+function landformStateFor(base, manifest, seed) {
   const erosion = manifest.erosion ? (manifest.erosion === true ? {} : manifest.erosion) : null;
   const key = JSON.stringify([seed, manifest.heartbeat, manifest.heartbeatOverrides, manifest.elevation, erosion, manifest.landform]);
   let state = landformMemo.get(key);
   if (!state) {
     state = bakeGrid(landformGrid({ x0: X_MIN, x1: X_MAX, y0: Y_FAR, y1: Y_NEAR, res: erosion?.res ?? LANDFORM_RES }), base.heightAt);
-    applyLandform(state, manifest.landform, { seed, erosion });
+    applyLandform(state, manifest.landform || [], { seed, erosion });
     state.grad = gridGradient(state);
     if (landformMemo.size >= 8) landformMemo.delete(landformMemo.keys().next().value);
     landformMemo.set(key, state);
   }
+  return state;
+}
+function landformSampler(base, manifest, seed) {
+  const erosion = manifest.erosion ? (manifest.erosion === true ? {} : manifest.erosion) : null;
+  const state = landformStateFor(base, manifest, seed);
   return {
     ...base,
     heightAt: (x, y) => gridSample(state, x, y),
@@ -1795,14 +1800,10 @@ function landformStone(palette, rockName) {
   const screeStops = stoneStops.map((c) => lerpRgb(c, desat(c, 1).map((v) => Math.min(255, v * 1.1)), 0.45));
   return { stoneStops, stone: ramp(stoneStops), scree: ramp(screeStops), screeTone: screeStops[3], ramp };
 }
-function landformWorldFaces(state, { palette, light, haze, wl, seedNum, rockName }) {
-  const { gx, gy } = state.grad;
-  let lo = Infinity, hi = -Infinity; for (const z of state.z) { if (z < lo) lo = z; if (z > hi) hi = z; }
-  const beds = state.strata && !state.strata.dipped ? state.strata.layers.map((l) => l.b) : [];
-  const levels = sliceLevels(lo, hi, 1.2 * state.dx, beds);
-  const { stoneStops, stone, scree, ramp } = landformStone(palette, rockName);
+/** A bed's ramp: its own `tones` colour, else the stone lightened (hard) or darkened and warmed (soft); memoised. */
+function landformBedRamp(state, palette, { stone, stoneStops, ramp }) {
   const bedRamps = new Map();
-  const bedRamp = (i) => {
+  return (i) => {
     if (i < 0 || !state.strata) return stone;
     let r = bedRamps.get(i); if (r) return r;
     const L = state.strata.layers[i]; const tones = state.strata.tones;
@@ -1810,6 +1811,38 @@ function landformWorldFaces(state, { palette, light, haze, wl, seedNum, rockName
     else { const h = ((Math.imul(i + 1, 2654435761) >>> 0) / 4294967296); const f = L.hard ? 1.04 + 0.06 * h : 0.86 + 0.06 * h; r = ramp(stoneStops.map((c) => lerpRgb(c.map((v) => Math.min(255, v * f)), palette.shadow, L.hard ? 0 : 0.1))); }
     bedRamps.set(i, r); return r;
   };
+}
+
+/**
+ * A painted scene's ground, for the terrain world: the landform grid state its own pipeline
+ * builds (heartbeat or `elevation`, then `landform` and `erosion`; a scene without `landform` gets the plain baked grid),
+ * with its palette, light, water level, and the stone, scree and bed ramps its World mesh paints with.
+ * Heights are in the painting's units over its domain; the terrain field scales them to metres.
+ */
+export function paintedTerrainState(manifest) {
+  const errors = validatePaintedLandscape(manifest);
+  if (errors.length) throw new Error(`Invalid painted-landscape manifest:\n - ${errors.join('\n - ')}`);
+  const seed = manifest.seed || 'default';
+  const base = makeBaseSampler(manifest, seed);
+  const state = landformStateFor(base, manifest, seed);
+  const palette = derivePalette(manifest.splatch, manifest.paletteOverrides);
+  const light = normalize3(manifest.light || base.defaultLight || { x: 0.4, y: 0.6, z: 0.6 });
+  const rockName = state.rock || (manifest.rocks ? resolveLandscapeRocks(manifest.rocks).rock : null);
+  const kit = landformStone(palette, rockName); const bedRamp = landformBedRamp(state, palette, kit);
+  const skySpec = resolveSkySpec(manifest.sky); const sky = !skySpec.disabled ? deriveSky(palette, light) : null;
+  return {
+    state, palette, light, waterLevel: base.waterLevel, rockName, sky,
+    stone: kit.stone, scree: kit.scree, beds: state.strata ? state.strata.layers.map((_, i) => bedRamp(i)) : [],
+    domain: { x0: X_MIN, x1: X_MAX, y0: Y_FAR, y1: Y_NEAR }, lambert: { ambient: AMBIENT, gain: LAMBERT_GAIN },
+  };
+}
+function landformWorldFaces(state, { palette, light, haze, wl, seedNum, rockName }) {
+  const { gx, gy } = state.grad;
+  let lo = Infinity, hi = -Infinity; for (const z of state.z) { if (z < lo) lo = z; if (z > hi) hi = z; }
+  const beds = state.strata && !state.strata.dipped ? state.strata.layers.map((l) => l.b) : [];
+  const levels = sliceLevels(lo, hi, 1.2 * state.dx, beds);
+  const kit = landformStone(palette, rockName); const { scree } = kit;
+  const bedRamp = landformBedRamp(state, palette, kit);
   const rgbOf = (str) => str.match(/\d+/g).slice(0, 3).map(Number);
   const tan = (d) => Math.tan(d * D2R_LF); const T22 = tan(22), T30 = tan(30), T34 = tan(34), T45 = tan(45), T48 = tan(48), T52 = tan(52), T70 = tan(70);
   const smoothLF = (a, b, x) => { const u = Math.max(0, Math.min(1, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
@@ -1849,7 +1882,7 @@ function landformWorldFaces(state, { palette, light, haze, wl, seedNum, rockName
   return slicedTerrainFaces(state, { stride: 2, levels, displace, paint });
 }
 
-// opt-in `erosion` (nature-scenes.plan.md N3): the base surface baked on a grid over the domain, cut by rivers
+// opt-in `erosion`: the base surface baked on a grid over the domain, cut by rivers
 // (implicit stream power over the priority-flooded D8 network) and slumped to the talus angle (terrain-erosion.js),
 // then read back bilinearly. Every consumer of the sampler — the still, the World mesh, structures, scatter, the
 // city — reads the eroded surface. Memoised per (surface, erosion) so the SVG and World paths erode once.

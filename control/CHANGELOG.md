@@ -14,6 +14,20 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Terrain worlds
+
+- **A painted scene becomes a world.** `compose_world({ base: 'terrain', overrides: { from } })` takes a painted
+  landscape (inline, or a stored sketch by `ref`), including its `landform` and `erosion`, and makes it ground at
+  real scale in metres. `span` says how many metres the painting covers. Below the painting's grid, a
+  fracture-rough detail law carries the ground down to the scale of a footstep.
+- **Walk, fly, orbit.** The World page carries the recipe, not a mesh, and builds terrain chunks around the camera:
+  fine near, coarse far, capped in memory. The same page walks the cliff foot, flies the escarpment with speed that
+  grows with altitude, and pulls back to see the whole world. With `planet`, the world wraps onto a small planet:
+  the painting at its pole, continents and seas beyond it, a night side, and space with a rim of air seen from
+  orbit.
+- **Composable ground.** Other sketches are placed on the ground by `place`, seated at the terrain's height. Rocks,
+  scree and trees scatter as pooled instances. Exports carry a baked mesh of the whole world.
+
 ### Cliffs and mountains
 
 - **Landforms.** A painted landscape may carry `landform`: an ordered list of operations on its surface, mixed in

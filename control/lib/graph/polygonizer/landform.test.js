@@ -1,5 +1,5 @@
 /**
- * landform operators and the sliced mesh (landforms.plan.md L1–L2). Claims under test, each measured:
+ * landform operators and the sliced mesh. Claims under test, each measured:
  *   peaks  — ridged: the Laplacian is skewed negative (knife crests, broad valleys); a plain fBm's is not
  *   strata — on a ramp, the slopes split into benches and near-vertical risers
  *   scarp  — the throw across mid-trace is the declared throw, the face is steep, the tips taper

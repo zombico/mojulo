@@ -29,7 +29,7 @@ export function castShadowScript(cfg) {
   // floor in the sun's shadow, killing every suit/pillar silhouette (a directional shadow map
   // records the nearest occluder; an overhead ceiling wins for every floor texel). Emitted ONLY
   // when a world declares noCast, so every existing cast-shadow world stays byte-identical.
-  // Rock-scale subjects (nature-scenes.plan.md N2): the contact slack (1.1 world units) and the FIT floor (60) were
+  // Rock-scale subjects: the contact slack (1.1 world units) and the FIT floor (60) were
   // sized for city worlds and swallow a sub-metre caster's shadow. `bias` / `fitMin` override them; the literals are
   // emitted unchanged when a world declares neither, so every existing cast-shadow world stays byte-identical. A
   // declared floor also lets the near plane follow a small box (a fixed 0.5 would clip it).

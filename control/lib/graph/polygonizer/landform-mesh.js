@@ -1,5 +1,5 @@
 /**
- * landform-mesh — a heightfield meshed so its faces have detail (landforms.plan.md L2).
+ * landform-mesh — a heightfield meshed so its faces have detail.
  *
  * A uniform grid gives a vertical cliff one or two stretched quads: no room for a ledge, a bed or a crack. Here every
  * grid triangle is clipped at shared horizontal `levels` (an even step, plus every bedding plane the caller passes):

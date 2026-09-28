@@ -1,5 +1,5 @@
 /**
- * painted-landscape `landform` (landforms.plan.md L3). Claims under test: absent, nothing moves (no scree, no sliced
+ * painted-landscape `landform`. Claims under test: absent, nothing moves (no scree, no sliced
  * terrain, the grid quads stand); present, every consumer reads the landform surface (the sampler under the still,
  * the World, structures), the World's terrain is the sliced face-aware mesh (triangles with per-corner colour, more
  * of them on the cliff), scree rides `repeats` as pooled rocks, the CSS scene keeps the plain grid and no scree,

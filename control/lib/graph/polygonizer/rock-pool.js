@@ -1,5 +1,5 @@
 /**
- * rock-pool — many rocks for the memory of a few (nature-scenes.plan.md N1). A scatter of N boulders is K pooled
+ * rock-pool — many rocks for the memory of a few. A scatter of N boulders is K pooled
  * `rock` templates (unit size, base seated at z = 0, each baked at its own yaw in the scene's light) stamped N times
  * through the `repeats` channel: one shared mesh per variant in the World (InstancedMesh), the .glb (shared mesh +
  * nodes), USD (PointInstancer) and 3MF. Instances only translate and scale uniformly, never yaw: baked light would

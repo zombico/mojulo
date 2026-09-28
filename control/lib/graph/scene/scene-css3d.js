@@ -2675,7 +2675,7 @@ export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, t
       else faces.push(...cityBox({ x: b.x, y: b.y, w: b.w, d: b.d }, b.z0, b.z1, { top: b.roof, side: b.wall }, L, camHint));
     }
   }
-  // opt-in `rocks` (nature-scenes.plan.md N1): the boulders arrive as items, realized as a few pooled rock templates
+  // opt-in `rocks`: the boulders arrive as items, realized as a few pooled rock templates
   // lit by the same terrain light and stamped through `repeats` (World / glb / USD / 3MF instance them). A renderer
   // without instancing (the CSS scene) asks for the exact far-LOD block per rock instead.
   let repeats = null;
@@ -2687,7 +2687,7 @@ export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, t
     const placed = rockRepeats(pool, rocks.items, { sink: rocks.sink });
     if (rocksAsFaces) faces.push(...expandRepeats(placed)); else repeats = placed;
   }
-  // landform scree (landforms.plan.md L3): hundreds of fragments as five pooled templates. Only a renderer that
+  // landform scree: hundreds of fragments as five pooled templates. Only a renderer that
   // instances carries them; the CSS scene keeps its face budget for the terrain.
   if (scree && scree.items.length && !rocksAsFaces) {
     const SL = terrainLight
