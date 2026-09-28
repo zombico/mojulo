@@ -29,7 +29,7 @@ const __soIntent = __soSel([['silhouette', 'silhouette: outline → dials'], ['c
 const __soMirror = __soEl('label', 'display:flex;gap:4px;align-items:center'); const __soMirrorBox = document.createElement('input'); __soMirrorBox.type = 'checkbox'; __soMirror.append(__soMirrorBox, 'mirror');
 const __soDraw = __soEl('button', 'font:inherit;background:#2b6cb0;color:#fff;border:0;border-radius:5px;padding:4px 10px;cursor:pointer', 'draw');
 const __soClear = __soEl('button', 'font:inherit;background:#1b1f26;color:inherit;border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:4px 8px;cursor:pointer', 'clear');
-const __soStored = __soSel([['', 'stored strokes: ' + SOV.strokes.length], ...SOV.strokes.map((s) => [s.id, s.id + ' · ' + s.intent + ' · ' + (typeof s.view === 'string' ? s.view : 'az ' + s.view.azimuth) + (s.solved ? ' · IoU ' + s.solved.iou : '')])], '');
+const __soStored = __soSel([['', 'stored strokes: ' + SOV.strokes.length], ...SOV.strokes.map((s) => [s.id, s.id + ' · ' + s.intent + ' · ' + (typeof s.view === 'string' ? s.view : 'az ' + s.view.azimuth) + (s.solved ? (Number.isFinite(s.solved.iou) ? ' · IoU ' + s.solved.iou : s.solved.parts ? ' · ' + s.solved.parts.length + ' part' + (s.solved.parts.length === 1 ? '' : 's') : ' · solved') : '')])], '');
 const __soNote = __soEl('span', 'opacity:.75', 'the page writes nothing: hand the patch to your agent');
 __soBar.append(__soView, __soIntent, __soMirror, __soDraw, __soClear, __soStored, __soNote);
 document.body.appendChild(__soBar);

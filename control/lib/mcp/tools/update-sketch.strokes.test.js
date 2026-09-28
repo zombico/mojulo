@@ -82,6 +82,26 @@ describe('update_sketch on layered rows — strokes', () => {
     const plain = await createLayeredHandler({ recipe, ref: 'lay-measure-plain' }); expect((await measureSolidHandler({ ref: plain.ref, volume: false, exposure: false })).strokes).toBeUndefined();
   });
 
+  it('a `solve` on a contour grows a strip along it (a layer-2 part carrying `from`); a re-solve replaces it; mirror makes two', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-contour' });
+    // a line down the right flank as seen from the side: view points over the body's middle
+    const line = { id: 'c1', view: 'lateral', intent: 'contour', points: [[0.35, 0.45, 0.9], [0.45, 0.46, 0.9], [0.55, 0.47, 0.9], [0.65, 0.48, 0.9]] };
+    await updateSketchHandler({ ref: 'lay-contour', patch: [{ op: 'set', path: '/strokes/-', value: line }] });
+    const r = await updateSketchHandler({ ref: 'lay-contour', patch: [{ op: 'solve', from: '/strokes/c1' }] });
+    const S = r.stats.solved[0]; expect(S.intent).toBe('contour'); expect(S.parts).toEqual(['stroke.c1R']); expect(S.carrier).toBe('body'); expect(S.hits).toBe(4);
+    const stored = SketchRepository.getByRef('lay-contour').manifest;
+    expect(stored.recipe.parts['stroke.c1R']).toMatchObject({ layer: 2, from: 'c1', follow: true }); expect(stored.strokes[0].solved.parts).toEqual(['stroke.c1R']);
+    expect(r.stats.parts.map((p) => p.id)).toContain('stroke.c1R'); expect(r.stats.closed).toBe(true);
+    const again = await updateSketchHandler({ ref: 'lay-contour', patch: [{ op: 'set', path: '/strokes/0/mirror', value: true }, { op: 'solve', from: '/strokes/c1', height: 0.06 }] });
+    expect(again.stats.solved[0].parts).toEqual(['stroke.c1R', 'stroke.c1L']); expect(again.stats.solved[0].height).toBe(0.06);
+    const parts = Object.keys(SketchRepository.getByRef('lay-contour').manifest.recipe.parts); expect(parts.filter((n) => n.startsWith('stroke.')).sort()).toEqual(['stroke.c1L', 'stroke.c1R']);
+    const m = await measureSolidHandler({ ref: 'lay-contour', volume: false, exposure: false }); expect(m.strokes.c1.solved.parts).toHaveLength(2);
+    // a contour that misses the solid refuses by name and leaves the row alone
+    await updateSketchHandler({ ref: 'lay-contour', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'c2', view: 'lateral', intent: 'contour', points: [[0.02, 0.02], [0.05, 0.02]] } }] });
+    await expect(updateSketchHandler({ ref: 'lay-contour', patch: [{ op: 'solve', from: '/strokes/c2' }] })).rejects.toThrow(/no-surface-under-stroke/);
+    expect(Object.keys(SketchRepository.getByRef('lay-contour').manifest.recipe.parts).filter((n) => n.startsWith('stroke.')).length).toBe(2);
+  });
+
   it('the World page carries the overlay only when the row opts in with channels.strokes', async () => {
     await createLayeredHandler({ recipe, ref: 'lay-page', strokes: [OUTLINE], channels: { strokes: true } });
     const on = await resolveWorldScene(SketchRepository.getByRef('lay-page'));
@@ -107,9 +127,9 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 's1', view: 'frontal', intent: 'scribble', points: [[0.1, 0.1], [0.2, 0.2]] } }] }))
       .rejects.toThrow(/strokes refused[\s\S]*intent/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s9' }] })).rejects.toThrow(/needs a stored stroke/);
-    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'c1', view: 'frontal', intent: 'contour', points: [[0.4, 0.4], [0.6, 0.6]] } }] });
+    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'b1', view: 'frontal', intent: 'brush', points: [[0.4, 0.4], [0.6, 0.6]] } }] });
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s9' }] })).rejects.toThrow(/no stroke 's9'/);
-    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/c1' }] })).rejects.toThrow(/only silhouette strokes solve/);
+    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/b1' }] })).rejects.toThrow(/silhouette and contour strokes solve today/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve' }] })).rejects.toThrow(/from: '\/strokes\/<id>'/);
     expect(SketchRepository.getByRef('lay-refuse').manifest.dials).toEqual({ width: 1, lift: 0 });   // every refusal left the row alone
   });
