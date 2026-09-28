@@ -98,7 +98,7 @@
     "gen-app": "node scripts/gen-app.js",
     "prepack": "node scripts/precompile-jsx.mjs && node scripts/license-files.mjs copy .",
     "postpack": "node scripts/license-files.mjs remove .",
-    "prepublishOnly": "node scripts/check-plugin-version.mjs --bot-image",
+    "prepublishOnly": "node scripts/check-plugin-version.mjs",
     "pack:ui": "cd ui-package && npm pack --pack-destination ..",
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "test": "vitest run",

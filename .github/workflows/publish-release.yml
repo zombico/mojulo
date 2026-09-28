@@ -2,8 +2,8 @@ name: Publish control-plane release
 
 # Fires when a v* tag is pushed (e.g. v0.4.0). Slices the matching
 # section out of control/CHANGELOG.md and creates a GitHub Release
-# with that body. bot-v* tags are unaffected — those start with "b"
-# and are handled by publish-bot-image.yml.
+# with that body. (The bot-v* image tags and their workflow left with
+# the chatbot factory in 3.0.0.)
 
 on:
   push:
@@ -19,10 +19,9 @@ jobs:
       - uses: actions/checkout@v4
 
       # The tag, control/package.json, the Claude plugin's pin, glama.json and server.json must
-      # all name one version before anything is released, and the bot image core pins by default
-      # must already be on GHCR (its bot-v tag pushed and publish-bot-image.yml finished).
+      # all name one version before anything is released.
       - name: Check the manifests pin the tagged version
-        run: node control/scripts/check-plugin-version.mjs --expect "${GITHUB_REF_NAME#v}" --bot-image
+        run: node control/scripts/check-plugin-version.mjs --expect "${GITHUB_REF_NAME#v}"
 
       - name: Slice changelog section
         id: slice

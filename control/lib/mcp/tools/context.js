@@ -43,15 +43,13 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { buildRulesCard, overBudgetNotice } from '@/lib/mcp/tools/rules-card';
 import { CREATIVE_FORMS } from '@/lib/mcp/creative-forms';
 import { UI_PACKAGE_NAME, uiLaunchCommand } from '@/lib/version/ui-package';
-import { botImageAdvice, distribution, mojuloCommand, npxMojulo, updateAdvice } from '@/lib/version/distribution';
+import { distribution, mojuloCommand, npxMojulo, updateAdvice } from '@/lib/version/distribution';
 import {
   getControlPlaneVersion,
   getControlPlanePackageName,
-  getBotImagePin,
-  parseImageRef,
   isSourceClone,
 } from '@/lib/version/local';
-import { fetchLatestNpmVersion, fetchLatestGhcrTag, compareSemver } from '@/lib/version/remote';
+import { fetchLatestNpmVersion, compareSemver } from '@/lib/version/remote';
 import { getDb } from '@/lib/db/index';
 import { MetaNodeRepository } from '@/lib/db/repositories/meta-context';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
@@ -460,8 +458,8 @@ const TOOL_INDEX = `## Tool index (one line each)
 - \`get_deliberation_overview\` — the why-it's-structured-this-way explainer for the Ring 6 deliberation surfaces plus the daemon runtime-gating posture. Call only when doing structural / non-bot work.
 - \`get_ui_map\` — the page-by-page map of the \`mojulo-ui\` dashboard (one line per page + when to point the user there). Call when the user wants to look / browse / click and you need to name the right page.
 - \`get_substrate\` — what mojulo is and what it can honestly claim (pipelines, inference posture, always-on, bots as an optional pack, cloud properties it lacks) plus the substrate facts: a dozen architecture invariants (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE self-description answers from. Call when the user compares mojulo to cloud primitives, asks "what is this really?", or asks about mojulo itself — "does it phone home?", "where does my data live?", "do I have to pay?", "how do I uninstall?".
-- \`version\` — runtime versions: server, MCP protocol, Node, platform, pinned bot image tag, offline-build flag, MOJULO_HOME. Use to diagnose version mismatches.
-- \`check_for_updates\` — compare the running control-plane package (\`mojulo\` on npm) and the pinned bot image (\`ghcr.io/zombico/mojulo-bot\`) against their latest published versions. Returns \`{ controlPlane, botImage, warnings }\` with current, latest, \`updateAvailable\`, and a one-line install hint per surface. Read-only; never performs the upgrade. Call when the user asks "am I up to date?" or after a long gap between sessions.
+- \`version\` — runtime versions: server, install distribution, MCP protocol, Node, platform, MOJULO_HOME. Local, no network. Use to diagnose version mismatches.
+- \`check_for_updates\` — compare the running control-plane package (\`mojulo\` on npm) against its latest published version. Returns \`{ controlPlane, warnings }\` with current, latest, \`updateAvailable\`, and a one-line install hint. Read-only; never performs the upgrade. Call when the user asks "am I up to date?" or after a long gap between sessions.
 - \`get_tool_ledger\` — the substrate's own tool-call telemetry. No args → per-tool aggregate table (calls, error rate, p50/p95, last-called) over the last N days + recent errors/timeouts; \`{ tool }\` → that tool's recent calls; \`{ orientation: true }\` → the orientation-gap cut (weak searches, drawer misses, oriented-then-abandoned sessions — "is the lexicon working?"). Records shapes only, never values. Mirrors the \`/observability\` page.
 - \`list_adapters\` — list the host adapters mojulo ships, whatever they are on this version (the roster grows; \`generic\` is always there as the fallback). An adapter is the host's first-session card (studio ride + catalyst materialization). Read \`get_adapter\` once before making or synthesizing.
 - \`get_adapter\` — full body of one adapter: how you ride this substrate, plus artifact target, dry-run, scheduling, state, secrets. Pull once before making or synthesizing. Pass \`id\` or auto-resolve from clientInfo.
@@ -1174,8 +1172,10 @@ export const FORWARD_CONTEXT_BODY = buildForwardContextBody({
   source: 'defaults',
 });
 
-// Reads at call time so a runtime env change (e.g. user toggles
-// MOJULO_OFFLINE_BUILD) shows up without a process restart.
+// Reads at call time so a runtime env change (e.g. MOJULO_HOME) shows up
+// without a process restart. Local only: no network call (until 3.0 it also
+// reported the chatbot image pin and the offline-build flag; both left with
+// the chatbot factory).
 
 export async function versionHandler(_input, _ctx) {
   const payload = {
@@ -1187,8 +1187,6 @@ export async function versionHandler(_input, _ctx) {
     supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
     node: process.version,
     platform: { os: process.platform, arch: process.arch },
-    botImage: getBotImagePin().image,
-    offlineBuild: process.env.MOJULO_OFFLINE_BUILD === '1',
     mojuloHome: process.env.MOJULO_HOME || null,
   };
   return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
@@ -1355,28 +1353,18 @@ export async function getToolTelemetryHandler(input, _ctx) {
   };
 }
 
+// One upstream read: the npm registry for this package. Until 3.0 it also listed
+// the chatbot image's tags on GHCR; that image left with the chatbot factory.
 export async function checkForUpdatesHandler(_input, _ctx) {
   const pkgName = getControlPlanePackageName();
   const localVersion = getControlPlaneVersion();
-  const { image, source } = getBotImagePin();
-  const { repo, tag: localTag } = parseImageRef(image);
-  // Strip the leading registry host so the GHCR API receives just `owner/name`.
-  // E.g. `ghcr.io/zombico/mojulo-bot` → `zombico/mojulo-bot`.
-  const ghcrRepo = repo.startsWith('ghcr.io/') ? repo.slice('ghcr.io/'.length) : repo;
-
-  const [npmResult, ghcrResult] = await Promise.all([
-    fetchLatestNpmVersion(pkgName),
-    fetchLatestGhcrTag(ghcrRepo),
-  ]);
+  const npmResult = await fetchLatestNpmVersion(pkgName);
 
   const warnings = [];
   if (npmResult.error) warnings.push(npmResult.error);
-  if (ghcrResult.error) warnings.push(ghcrResult.error);
 
   const cpUpdate =
     npmResult.version !== null && compareSemver(localVersion, npmResult.version) < 0;
-  const botUpdate =
-    ghcrResult.tag !== null && localTag !== null && compareSemver(localTag, ghcrResult.tag) < 0;
 
   const payload = {
     controlPlane: {
@@ -1387,15 +1375,6 @@ export async function checkForUpdatesHandler(_input, _ctx) {
       sourceClone: isSourceClone(),
       distribution: distribution(),
       installHint: cpUpdate ? updateAdvice(npmResult.version) : null,
-    },
-    botImage: {
-      currentPin: image,
-      pinSource: source,
-      repo,
-      currentTag: localTag,
-      latestTag: ghcrResult.tag,
-      updateAvailable: botUpdate,
-      updateHint: botUpdate ? botImageAdvice(`${repo}:${ghcrResult.tag}`) : null,
     },
     warnings,
   };
@@ -1522,7 +1501,7 @@ export function registerContextTools() {
   registerTool({
     name: 'version',
     description:
-      'Report runtime versions: server name + version (from package.json), MCP protocol version, Node version, platform os/arch, the pinned bot container image tag, whether MOJULO_OFFLINE_BUILD is on, and the active MOJULO_HOME. Use this to diagnose version mismatches between a user-reported issue and what their control plane is actually running, or to confirm a version bump landed after a publish. Read-only, no inputs, idempotent.',
+      'Report runtime versions: server name + version (from package.json), how it was installed, MCP protocol version, Node version, platform os/arch, and the active MOJULO_HOME. Local only, no network call. Use this to diagnose version mismatches between a user-reported issue and what their control plane is actually running, or to confirm a version bump landed after a publish. Read-only, no inputs, idempotent.',
     inputSchema: { type: 'object', properties: {} },
     handler: versionHandler,
   });
@@ -1530,7 +1509,7 @@ export function registerContextTools() {
   registerTool({
     name: 'check_for_updates',
     description:
-      "Compare the running control-plane package (`mojulo` on npm) and the pinned bot image (`ghcr.io/zombico/mojulo-bot`) against their latest published versions. Returns `{ controlPlane, botImage, warnings }` — each surface reports `current`, `latest`, `updateAvailable`, and a one-line install/update hint when an upgrade exists. Read-only: never installs or restarts anything; surface the hint and let the user run it. Best-effort upstream calls — a registry timeout produces `latest: null` plus a warning, not a tool failure. Call this when the user asks 'am I up to date?', after a long gap between sessions, or before recommending a feature that depends on a recent version.",
+      "Compare the running control-plane package (`mojulo` on npm) against its latest published version. Returns `{ controlPlane, warnings }` — `current`, `latest`, `updateAvailable`, and a one-line install/update hint when an upgrade exists. Read-only: never installs or restarts anything; surface the hint and let the user run it. Best-effort upstream calls — a registry timeout produces `latest: null` plus a warning, not a tool failure. Call this when the user asks 'am I up to date?', after a long gap between sessions, or before recommending a feature that depends on a recent version.",
     inputSchema: { type: 'object', properties: {} },
     handler: checkForUpdatesHandler,
   });

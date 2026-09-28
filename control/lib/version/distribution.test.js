@@ -85,12 +85,6 @@ describe('install and update hints under the Claude plugin', () => {
     expect(hints['update advice']).not.toMatch(/npm i -g/);
   });
 
-  it('points bot-image updates at the environment, not a repo file', () => {
-    const text = m.distribution.botImageAdvice('ghcr.io/zombico/mojulo-bot:9.9.9');
-    expect(text).toContain('BOT_IMAGE=ghcr.io/zombico/mojulo-bot:9.9.9');
-    expect(text).not.toMatch(REPO_STEP);
-  });
-
   it('launches the dashboard at the same version', async () => {
     expect(m.distribution.dashboardCommand()).toBe(`npx -y mojulo-ui@${VERSION}`);
     const uiMap = (await m.context.uiMapHandler({})).content[0].text;
@@ -137,7 +131,6 @@ describe('the same hints from a plain npm install', () => {
       expect(text).not.toMatch(UNPINNED);
       expect(text).not.toMatch(REPO_STEP);
     }
-    expect(d.botImageAdvice('ghcr.io/zombico/mojulo-bot:9.9.9', { env })).not.toMatch(REPO_STEP);
   });
 });
 

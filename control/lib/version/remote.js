@@ -1,7 +1,9 @@
 /**
- * Upstream registry fetchers for `check_for_updates`.
+ * Upstream registry fetcher for `check_for_updates`: the npm registry only.
+ * (Until 3.0 a second fetcher listed the chatbot image's tags on GHCR; the
+ * image left with the chatbot factory, so core has no GHCR reach.)
  *
- * Both calls are best-effort: a network blip or registry 5xx returns
+ * The call is best-effort: a network blip or registry 5xx returns
  * `{ version: null, error: 'reason' }` rather than throwing. The tool's
  * report should still surface the local state even when the upstream
  * lookup fails.
@@ -11,12 +13,6 @@
 
 const NPM_LATEST_URL = (pkg) =>
   `https://registry.npmjs.org/${encodeURIComponent(pkg)}/latest`;
-
-// GHCR exposes the docker v2 registry API at the same hostname, but tag
-// listing requires an anonymous bearer token first.
-const GHCR_TOKEN_URL = (repo) =>
-  `https://ghcr.io/token?scope=repository:${repo}:pull&service=ghcr.io`;
-const GHCR_TAGS_URL = (repo) => `https://ghcr.io/v2/${repo}/tags/list`;
 
 const DEFAULT_TIMEOUT_MS = 4000;
 
@@ -56,51 +52,6 @@ export async function fetchLatestNpmVersion(pkg, { timeoutMs = DEFAULT_TIMEOUT_M
 }
 
 /**
- * Look up the newest semver-shaped tag (`X.Y.Z`) for a GHCR repository like
- * `zombico/mojulo-bot`. Pre-releases and `latest` are ignored — we only care
- * about the kind of tag the control plane actually pins.
- * Returns `{ tag: string | null, error?: string }`.
- */
-export async function fetchLatestGhcrTag(repo, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  try {
-    const tokenRes = await fetchWithTimeout(GHCR_TOKEN_URL(repo), {
-      headers: { accept: 'application/json' },
-      timeoutMs,
-    });
-    if (!tokenRes.ok) {
-      return { tag: null, error: `ghcr token HTTP ${tokenRes.status}` };
-    }
-    const tokenBody = await tokenRes.json();
-    const token = tokenBody?.token;
-    if (!token) {
-      return { tag: null, error: 'ghcr token missing from response' };
-    }
-
-    const tagsRes = await fetchWithTimeout(GHCR_TAGS_URL(repo), {
-      headers: {
-        accept: 'application/json',
-        authorization: `Bearer ${token}`,
-      },
-      timeoutMs,
-    });
-    if (!tagsRes.ok) {
-      return { tag: null, error: `ghcr tags HTTP ${tagsRes.status}` };
-    }
-    const tagsBody = await tagsRes.json();
-    const tags = Array.isArray(tagsBody?.tags) ? tagsBody.tags : [];
-    const semver = tags.filter((t) => /^\d+\.\d+\.\d+$/.test(t));
-    if (semver.length === 0) {
-      return { tag: null, error: 'ghcr response had no semver tags' };
-    }
-    semver.sort(compareSemverDesc);
-    return { tag: semver[0] };
-  } catch (err) {
-    const reason = err?.name === 'AbortError' ? 'ghcr timeout' : `ghcr error: ${err?.message || err}`;
-    return { tag: null, error: reason };
-  }
-}
-
-/**
  * Compare two semver strings (`X.Y.Z`). Returns negative if `a < b`,
  * positive if `a > b`, zero if equal. Tolerates non-matching shapes by
  * coercing missing components to 0.
@@ -113,8 +64,4 @@ export function compareSemver(a, b) {
     if (diff !== 0) return diff;
   }
   return 0;
-}
-
-function compareSemverDesc(a, b) {
-  return compareSemver(b, a);
 }
