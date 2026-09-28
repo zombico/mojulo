@@ -8,7 +8,7 @@ This policy covers **the build the publisher ships**: the official `mojulo` pack
 
 ## Supported versions
 
-Security fixes go to the **latest `3.x` minor** only. Every `2.x`, `1.x` and `0.x` release is unmaintained: it gets no fixes, and the maintainer does not recommend running it. Upgrade with `npx mojulo@latest init`; if you run mojulo as the Claude plugin, update the plugin instead (it pins one version). Before you upgrade from 2.x, read "Upgrading from 2.x" in the [changelog](control/CHANGELOG.md#upgrading-from-2x).
+Security fixes go to the **latest `3.x` minor** only. Every `2.x`, `1.x` and `0.x` release is unmaintained: it gets no fixes, and the maintainer does not recommend running it. Upgrade with `npx -y mojulo@3 init`, which installs the newest 3.x; if you run mojulo as the Claude plugin, update the plugin instead (it pins one version). Before you upgrade from 2.x, read "Upgrading from 2.x" in the [changelog](control/CHANGELOG.md#upgrading-from-2x).
 
 ### Known issues in 2.x
 
