@@ -216,6 +216,19 @@ Distance honesty: an expression is a FIELD with the right sign; it is an exact d
 - **A twisted box** — `d: 'let a = tw * z; let u = x*cos(a) - y*sin(a); let v = x*sin(a) + y*cos(a); let qx = abs(u) - hx; let qy = abs(v) - hy; let qz = abs(z - hz) - hz; len3(max(qx,0), max(qy,0), max(qz,0)) + min(max(qx, max(qy, qz)), 0)'`, `vars: { tw: 0.8, hx: 0.5, hy: 0.5, hz: 2 }`, `reach: 3`.
 - **A fillet by `smin`** — `d: 'smin(len3(x, y, z - 1) - 1, len2(x, y) - 0.4, 0.3)'`: a sphere on a post, welded with a `0.3` fillet; `bounds` to the post's length.
 
+### Fields — rocks
+
+`{ kind:'rock', center, size, rock, seed? }` is a broken stone, not a displaced blob: a block of big planar fractures, then `octaves` of chips at halving scales that break edges and corners along the CLEAVAGE of the mineral grain they start in (or conchoidally where the mineral has none), over a seeded grain field that also colours it. `size` is the longest extent in the manifest's units, and `unit` (`'cm'` by default like the workbench, or `'m'` / `'mm'`) tells the rock what one unit is. That matters because the grain has a real size: a 10 cm `granite` is speckled pink, white, grey and black with feldspar cleavage steps, and an 800 m one is the grains' mean tone with the same kind of silhouette.
+
+- `rock` — a preset (`granite`, `slate`, `marble`, `quartzite`, `basalt`) or `{ modes:[[mineral, share], …], grain (metres), fabric?:{ normal:[x,y,z], scatterDeg? }, colors? }`. Minerals: quartz, orthoclase, albite, muscovite, biotite, augite, hornblende, olivine, calcite, halite; their cleavage angles come from their unit cells. A `fabric` aligns every grain (slate's mica), so the big breaks follow it; random grains break every way.
+- `octaves` (0–6, default 4) — detail. Each octave halves the chip scale; keep the finest chip ≥ 3 grid cells (`size × 0.45 / 2^octaves` ≥ 3 × longest side ÷ `cells`), so raise `cells` with it. `octaves: 0` is the block alone: the far level of detail.
+- `hurst` (default 0.8, fractured rock) — how much rougher the small scales are; `alpha` (0.3) the chip depth; `aspect` ([1, 0.8, 0.66]) the base proportions; `blockPlanes` (13); `grain` overrides the rock's (world units); `joints:{ above, prob? }` lets two steep joint sets and surface-parallel sheeting take the breaks larger than `above` world units (tors, blocky crags).
+- `color` — `'grain'` (default: faces take the grain colour, averaged over a grid cell), `'mean'`, or `false` (the entry's `tint`). A rock is a bound with the right sign, never `exact`.
+
+```
+units: 'cm', fields: [{ cells: 96, terms: [{ id: 'rock', op: 'add', shape: { kind: 'rock', center: [0,0,0], size: 12, rock: 'granite', seed: 7 } }] }]
+```
+
 ### Fields — domain operators
 
 Ops, not shapes: they apply to whatever the term list has built so far, or — with a nested `terms` list — to a SUB-SOLID that is then combined in (`combine: 'add' | 'subtract' | 'intersect'`, default `add`, with `blend`). That is how a feature is repeated without repeating the part: the bolt circle is ONE bore, repeated, subtracted. Group ids survive (every instance of the bore is still `bore`, and a `transform` moves the group with the geometry), so `{ group: 'bore' }` still selects every hole. Warps act about the ORIGIN / the axis line through it: author the sub-solid there, then `transform` it into place.

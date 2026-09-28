@@ -31,6 +31,8 @@
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { noise3, noise3Amplitude } from './fields.js';
 import { parseFieldExpr, compileFieldExpr, validateExprVars, sampleExprGate, FieldExprError } from './field-expr.js';
+import { rockField, validateRockSpec } from './rock-fracture.js';
+import { validateRockMix } from './rock-minerals.js';
 
 // ─── small vector kit ({x,y,z} objects; recipe points may also be [x,y,z]) ─────────
 
@@ -265,6 +267,19 @@ export function exprBounds(shape) {
  * construction like every other term, instead of losing its quads where it grazes the grid.
  * Distance honesty: a field with the right sign, exact only if the author made it one.
  */
+/**
+ * `{ kind:'rock', center, size, rock, seed?, octaves?, hurst?, … }` — a fractured rock (rock-fracture.js): a block of
+ * planar fractures and `octaves` of cleavage-aware chips over a mineral grain field. A bound with the right sign (like
+ * ellipsoid). The term carries `colorAt(p, footprint)`, the grain colour field-faces tints the part's faces with.
+ */
+export function rockTerm(shape) {
+  const c = vec(shape.center);
+  const f = rockField({ ...shape, center: [c.x, c.y, c.z] });
+  const t = term((p) => f.d([p.x, p.y, p.z]), { min: vec(f.bounds.min), max: vec(f.bounds.max) });
+  if (f.colorAt) t.colorAt = (p, footprint) => f.colorAt([p.x, p.y, p.z], footprint);
+  return t;
+}
+
 export function exprField(shape) {
   const ast = parseFieldExpr(shape.d);
   const raw = compileFieldExpr(ast, shape.vars || {}, shape.d);
@@ -341,7 +356,11 @@ const cornersOf = (b) => {
 
 // wrap a composed solid ({ d, bounds, parts }) with a point warp; parts get the same warp
 function warpSolid(sub, warp, boundsFn, scale = 1) {
-  const wrap = (t) => term((p) => t.d(warp(p)) * scale, boundsFn(t.bounds));
+  const wrap = (t) => {
+    const w = term((p) => t.d(warp(p)) * scale, boundsFn(t.bounds));
+    if (t.colorAt) w.colorAt = (p, footprint) => t.colorAt(warp(p), footprint);   // a coloured part (rock) keeps its colour
+    return w;
+  };
   return { ...wrap(sub), parts: (sub.parts || []).map((pt) => ({ ...pt, term: wrap(pt.term) })) };
 }
 
@@ -476,7 +495,7 @@ export const FIELD_DOMAIN_OPS = Object.freeze(['transform', 'repeat', 'twist', '
 const DOMAIN_OP_FN = { transform: transformSolid, repeat: repeatSolid, twist: twistSolid, bend: bendSolid, taper: taperSolid, elongate: elongateSolid };
 const COMBINES = ['add', 'subtract', 'intersect'];
 
-export const FIELD_SHAPE_KINDS = Object.freeze(['sphere', 'ellipsoid', 'roundCone', 'box', 'capsule', 'lathe', 'extrude', 'sweep', 'expr']);
+export const FIELD_SHAPE_KINDS = Object.freeze(['sphere', 'ellipsoid', 'roundCone', 'box', 'capsule', 'lathe', 'extrude', 'sweep', 'expr', 'rock']);
 export const FIELD_OPS = Object.freeze(['add', 'subtract', 'intersect', 'stroke', 'displace', 'shell', 'round', ...FIELD_DOMAIN_OPS]);
 
 /** Build a primitive term from a recipe `shape` (`{ kind, …params }`). Throws on an unknown kind. */
@@ -491,6 +510,7 @@ export function shapeFromSpec(shape) {
     case 'extrude': return extrudeField(shape);
     case 'sweep': return sweepField(shape);
     case 'expr': return exprField(shape);
+    case 'rock': return rockTerm(shape);
     default: throw new Error(`field shape kind must be one of ${FIELD_SHAPE_KINDS.join(' | ')}`);
   }
 }
@@ -529,6 +549,7 @@ function validateShape(shape, at) {
       break;
     }
     case 'expr': e.push(...validateExprShape(shape, at)); break;
+    case 'rock': needPt('center'); e.push(...validateRockMix(shape.rock, `${at}.rock`), ...validateRockSpec(shape, at)); break;
     default: break;
   }
   return e;

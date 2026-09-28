@@ -14,7 +14,33 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
-### Stroke affordances
+### Rock formation
+
+- **A rock is a field shape.** `{ kind:'rock' }` joins the workbench `fields` shapes beside `expr`. It is a
+  fracture cascade over a mineral table, so it mints through `mint_solid` and exports on every leg without new
+  plumbing, and no tool changed. The recipe names a rock (`granite`, `slate`, `marble`, `quartzite`, `basalt`) or
+  its own modes, plus a size and a seed. `unit` (`cm` by default, like the workbench, or `m` / `mm`) says what a
+  world unit is, so the grain, stored in metres, lands at its true size. Its three layers keep three scale laws:
+  - **Lattice → angles.** Each mineral's cleavage planes are derived from its unit cell and point group
+    (`polygonizer/rock-minerals.js`): calcite's rhomb at 74.94°, quartz's r face at 51.79°, albite's oblique 86.38°,
+    augite's chain cleavages near 87°, hornblende's near 56°.
+  - **Grains → one length.** A seeded Voronoi of nucleation sites, each grain with a mineral by modal share and an
+    orientation, random or aligned by a `fabric` (slate's mica).
+  - **Fracture → one exponent.** A block of big planar fractures, then octaves of ball-bounded chips that seek edges.
+    Each chip breaks along the cleavage of the grain at its seed, or conchoidally where there is none. Its depth
+    follows a Hurst law (`hurst`, default 0.8), and joint sets take over above `joints.above`.
+  - **`octaves` is the level of detail.** `octaves: 0` is the block alone, and `rockBlockFaces` emits that block as
+    an exact convex polytope of about a dozen planes, the far LOD for a scatter.
+  - **Colour is the grain.** A field part whose term carries `colorAt` tints its faces by it, filtered to the cell
+    size: grains resolve on a hand sample and fall to the modal mean on a mountain. Absent, every field solid is
+    byte-identical.
+- **Noise can hold two roughness laws.** The `noise` field kind takes an opt-in `hurst`:
+  - a number is one law (persistence 2^-H);
+  - `{ small, large, crossover }` sets octave amplitude by wavelength, fracture-rough below the crossover and
+    relief-smooth above.
+
+  The default persistence of 0.5 is H = 1, smoother than fractured rock (≈ 0.8) or measured continental relief
+  (≈ 0.5). Absent, noise is byte-identical.
 
 - **A drawn line on a `layered` solid becomes a recipe op, and says how much of it could not.** A
   layered manifest may carry `strokes`: lines drawn in a named view (`frontal`, `three-quarter`,

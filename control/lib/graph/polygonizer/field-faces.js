@@ -55,7 +55,11 @@ function translated(term, t) {
   const d = (p) => term.d({ x: p.x - t[0], y: p.y - t[1], z: p.z - t[2] });
   const b = term.bounds;
   const bounds = { min: { x: b.min.x + t[0], y: b.min.y + t[1], z: b.min.z + t[2] }, max: { x: b.max.x + t[0], y: b.max.y + t[1], z: b.max.z + t[2] } };
-  const parts = term.parts.map((pt) => ({ ...pt, term: { d: (p) => pt.term.d({ x: p.x - t[0], y: p.y - t[1], z: p.z - t[2] }), bounds: pt.term.bounds } }));
+  const parts = term.parts.map((pt) => {
+    const moved = { d: (p) => pt.term.d({ x: p.x - t[0], y: p.y - t[1], z: p.z - t[2] }), bounds: pt.term.bounds };
+    if (pt.term.colorAt) moved.colorAt = (p, footprint) => pt.term.colorAt({ x: p.x - t[0], y: p.y - t[1], z: p.z - t[2] }, footprint);
+    return { ...pt, term: moved };
+  });
   return { d, bounds, parts };
 }
 
@@ -86,20 +90,28 @@ export function fieldToFaces(spec = {}, opts = {}) {
   const tint = opts.tint || spec.tint || spec.fill || (spec.style && spec.style.fill) || (mat && mat.base) || pickTint(spec);
   const shade = (hex, n) => shadeHexMat(hex, n, mat, { light });
 
-  const { cells, bounds, composed } = fieldGrid(spec);
+  const { cells, cell, bounds, composed } = fieldGrid(spec);
   const quads = surfaceNetFaces(composed.d, bounds, { cells });
   const parts = composed.parts;
+  // a part whose term carries colorAt (rock) tints its own faces, filtered to the cell size; absent → one tint
+  const coloured = parts.some((pt) => pt.op !== 'subtract' && typeof pt.term.colorAt === 'function');
   const faces = quads.map((q) => {
     const corners = q.corners.map((c) => [c.x, c.y, c.z]);
-    let group;
+    let group, owner = parts[0];
     if (parts.length === 1) group = parts[0].id;
     else {
       const cen = { x: 0, y: 0, z: 0 };
       for (const c of q.corners) { cen.x += c.x / 4; cen.y += c.y / 4; cen.z += c.z / 4; }
       let best = Infinity;
-      for (const pt of parts) { const dd = Math.abs(pt.term.d(cen)); if (dd < best) { best = dd; group = pt.id; } }
+      for (const pt of parts) { const dd = Math.abs(pt.term.d(cen)); if (dd < best) { best = dd; group = pt.id; owner = pt; } }
     }
-    return { corners, fill: shade(tint, q.n), doubleSided: true, outNormal: q.n, group };
+    let hex = tint;
+    if (coloured && owner && owner.op !== 'subtract' && typeof owner.term.colorAt === 'function') {
+      const cen = { x: 0, y: 0, z: 0 };
+      for (const c of q.corners) { cen.x += c.x / 4; cen.y += c.y / 4; cen.z += c.z / 4; }
+      hex = owner.term.colorAt(cen, cell);
+    }
+    return { corners, fill: shade(hex, q.n), doubleSided: true, outNormal: q.n, group };
   });
   return tagFacesWithMaterial(faces, mat);
 }
