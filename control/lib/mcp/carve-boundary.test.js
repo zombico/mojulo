@@ -23,7 +23,7 @@
  * lives here on its own because those ledgers retired with the fence.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep, posix } from 'node:path';
@@ -324,5 +324,26 @@ describe('chatbot carve-out: a default install carries no bot code', () => {
       if (prevPacks === undefined) delete process.env.MOJULO_PACKS;
       else process.env.MOJULO_PACKS = prevPacks;
     }
+  });
+});
+
+// The runtime's own .gitignore left with it, but a checkout that ran a bot or staged the runtime
+// for a 2.x pack still holds what that file ignored. Those must stay out of `git add -A`: bot
+// provider keys, end-user conversation databases, a ~113 MB model.
+const REPO_ROOT = resolve(CONTROL_ROOT, '..');
+const inGitCheckout = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: REPO_ROOT, encoding: 'utf8' }).stdout?.trim() === 'true';
+describe.skipIf(!inGitCheckout)('chatbot carve-out: a 2.x checkout\'s bot leftovers stay ignored', () => {
+  it('the runtime folder, its staged copies and the plan folder are ignored', () => {
+    const leftovers = [
+      'lite-template/.env',
+      'lite-template/data/conversation.db',
+      'lite-template/models/multilingual-e5-small/onnx/model.onnx',
+      'lite-template/package-lock.json',
+      'lite-template/integration/some.plan.md',
+      'control/lite-template/server.js',
+      'control/ui-package/lite-template/.env',
+    ];
+    const res = spawnSync('git', ['check-ignore', '--no-index', ...leftovers], { cwd: REPO_ROOT, encoding: 'utf8' });
+    expect(res.stdout.split('\n').filter(Boolean).sort()).toEqual([...leftovers].sort());
   });
 });

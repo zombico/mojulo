@@ -9,6 +9,10 @@ lib/embedder/models/
 # The dashboard package's build output, staged at pack time by
 # scripts/stage-ui-package.mjs.
 /ui-package/standalone/
+# Stale copies of the chatbot runtime a 2.x checkout staged at pack time (control/lite-template/,
+# ui-package/lite-template/). The runtime left mojulo in 3.0.0; this keeps a leftover staging copy,
+# and any bot .env or data inside it, out of a `git add`.
+lite-template/
 # Generative illustration spikes — visual experiments, not load-bearing.
 # They import polygonizer primitives and dump SVGs to lite-template/integration
 # (already ignored). Kept on disk for local iteration; never committed.
