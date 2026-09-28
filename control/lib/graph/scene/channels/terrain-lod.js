@@ -18,7 +18,10 @@ import { safeJson } from '../emit-util.js';
 // Absent `terrain` ⇒ NOT emitted, so every other World stays byte-identical.
 // `cfg`: { kernel: source text, K: the kernel's page config, root: { cx, cy, size }, n, split, minSize, maxChunks,
 //          budgetMs, skirt, hazeHeight, bg, rect | null, water: { z, color, opacity } | null,
-//          speeds: { walk, flyMin, flyPerAlt }, planet: null | { R, sea, space, rim, ocean } }
+//          speeds: { walk, flyMin, flyPerAlt }, planet: null | { R, sea, space, rim, ocean },
+//          pins?: [{ rect: [x0, x1, y0, y1], size, split }] }. Over a pin's rect (a city's footprint) a node splits while
+//          the camera is nearer than the pin's `split` × its size (above the world's own), down to `size`: the ground
+//          under a city's streets and lots stays nearly as fine as they are wherever they can be seen (flat worlds).
 export function terrainChannelScript(cfg) {
   const { kernel, ...rest } = cfg;
   return `
@@ -28,7 +31,11 @@ const __tKernel = (${kernel});
 const __tk = (function () {
   const K = TERRAIN.K, G = K.grids;
   const dec = (b, T) => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new T(u.buffer); };
-  return __tKernel(Object.assign({}, K, { hq: dec(G.hq, Uint16Array), hard: dec(G.hard, Uint8Array), apron: dec(G.apron, Uint8Array) }));
+  // a composed world (terrain-atlas.js): every typed array rides as { __b64, t } where it sits
+  const deep = (v) => (v && typeof v === 'object' ? (typeof v.__b64 === 'string' ? dec(v.__b64, self[v.t]) : Array.isArray(v) ? v.map(deep) : Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)]))) : v);
+  if (K.atlas) return __tKernel(deep(K));
+  const grade = K.grade ? K.grade.map((L) => Object.assign({}, L, { dq: dec(L.dq, Uint16Array), w: dec(L.w, Uint8Array) }, L.paint ? { paint: Object.assign({}, L.paint, { pc: dec(L.paint.pc, Uint8Array) }) } : {})) : undefined;
+  return __tKernel(Object.assign({}, K, { hq: dec(G.hq, Uint16Array), hard: dec(G.hard, Uint8Array), apron: dec(G.apron, Uint8Array) }, grade ? { grade } : {}));
 })();
 const __tN = TERRAIN.n, __tV = __tN + 1, __tPL = TERRAIN.planet;
 const __tChunks = new Map();                       // key → { mesh, f, level, ix, iy, used }
@@ -76,7 +83,7 @@ function __tBuildFlat(l, ix, iy) {
   for (let j = 0; j < __tV; j++) for (let i = 0; i < __tV; i++) {
     const v = j * __tV + i, h = Hg[(j + 1) * W + i + 1], X = x0 + i * step, Y = y0 + j * step;
     const gx = (Hg[(j + 1) * W + i + 2] - Hg[(j + 1) * W + i]) / (2 * step), gy = (Hg[(j + 2) * W + i + 1] - Hg[j * W + i + 1]) / (2 * step);
-    const ln = Math.sqrt(gx * gx + gy * gy + 1), c = __tk.colorAt(X, Y, h, [-gx / ln, -gy / ln, 1 / ln]);
+    const ln = Math.sqrt(gx * gx + gy * gy + 1), c = __tk.colorAt(X, Y, h, [-gx / ln, -gy / ln, 1 / ln], undefined, step);
     pos[v * 3] = X - cx; pos[v * 3 + 1] = Y - cy; pos[v * 3 + 2] = h;
     col[v * 3] = __tLin(c[0]); col[v * 3 + 1] = __tLin(c[1]); col[v * 3 + 2] = __tLin(c[2]);
   }
@@ -102,7 +109,7 @@ function __tBuildPlanet(f, l, ix, iy) {
     nx /= ln; ny /= ln; nz /= ln; const up = nx * D[q * 3] + ny * D[q * 3 + 1] + nz * D[q * 3 + 2];
     if (up < 0) { nx = -nx; ny = -ny; nz = -nz; }
     const cu = Math.abs(up), lam = A.ambient + A.gain * Math.max(0, nx * L[0] + ny * L[1] + nz * L[2]);
-    let c = __tk.colorAt(XY[q * 2], XY[q * 2 + 1], H[q], [Math.sqrt(Math.max(0, 1 - cu * cu)), 0, cu], lam);
+    let c = __tk.colorAt(XY[q * 2], XY[q * 2 + 1], H[q], [Math.sqrt(Math.max(0, 1 - cu * cu)), 0, cu], lam, R * step);
     if (H[q] < __tSea) { const t = Math.min(1, (__tSea - H[q]) / 60); c = [c[0] * (1 - t) + 40 * t, c[1] * (1 - t) + 70 * t, c[2] * (1 - t) + 95 * t]; }
     pos[v * 3] = P[q * 3] - cx; pos[v * 3 + 1] = P[q * 3 + 1] - cy; pos[v * 3 + 2] = P[q * 3 + 2] - R - cz;
     down[v * 3] = D[q * 3]; down[v * 3 + 1] = D[q * 3 + 1]; down[v * 3 + 2] = D[q * 3 + 2];
@@ -132,9 +139,11 @@ function __tAlt() {
 // exist (until then it draws itself and queues the missing ones, nearest first)
 function __tSelect() {
   const c = camera.position, alt = __tAlt(), show = [], queue = [], keep = new Set(), R = TERRAIN.root, lim = TERRAIN.rect;
-  const visit = (f, l, i, j, size, d, rec) => {
+  const pins = TERRAIN.pins || null;
+  const pinned = (size, x0, y0, d) => { if (!pins) return false; for (const p of pins) if (size > p.size && d < p.split * size && x0 < p.rect[1] && x0 + size > p.rect[0] && y0 < p.rect[3] && y0 + size > p.rect[2]) return true; return false; };
+  const visit = (f, l, i, j, size, d, rec, x0, y0) => {
     const k = __tKey(f, l, i, j); keep.add(k);
-    if (size > TERRAIN.minSize && d < TERRAIN.split * size) {
+    if (size > TERRAIN.minSize && (d < TERRAIN.split * size || (f < 0 && pinned(size, x0, y0, d)))) {
       const kids = [[2 * i, 2 * j], [2 * i + 1, 2 * j], [2 * i, 2 * j + 1], [2 * i + 1, 2 * j + 1]];
       if (kids.every(([a, b]) => __tChunks.has(__tKey(f, l + 1, a, b)))) { for (const [a, b] of kids) rec(f, l + 1, a, b); return; }
       for (const [a, b] of kids) { const kk = __tKey(f, l + 1, a, b); keep.add(kk); if (!__tChunks.has(kk)) queue.push([f, l + 1, a, b, d]); }
@@ -146,7 +155,7 @@ function __tSelect() {
       const size = R.size / (1 << l), x0 = R.cx - R.size / 2 + i * size, y0 = R.cy - R.size / 2 + j * size;
       if (lim && (x0 > lim[1] || x0 + size < lim[0] || y0 > lim[3] || y0 + size < lim[2])) return;   // horizon 'none': the world ends
       const dx = Math.max(0, Math.abs(x0 + size / 2 - c.x) - size / 2), dy = Math.max(0, Math.abs(y0 + size / 2 - c.y) - size / 2);
-      visit(f, l, i, j, size, Math.sqrt(dx * dx + dy * dy + alt * alt), rec);
+      visit(f, l, i, j, size, Math.sqrt(dx * dx + dy * dy + alt * alt), rec, x0, y0);
     };
     rec(-1, 0, 0, 0);
   } else {
@@ -171,8 +180,10 @@ let __tRim = null;
 if (__tPL) {                                                      // a rim of air seen from orbit, and the sea as a sphere
   __tRim = new THREE.Mesh(new THREE.SphereGeometry(__tPL.R * 1.03, 96, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(__tPL.rim), transparent: true, opacity: 0.32, side: THREE.BackSide, depthWrite: false }));
   __tRim.position.copy(__tC); __tRim.visible = false; scene.add(__tRim);
-  const ocean = new THREE.Mesh(new THREE.SphereGeometry(__tPL.R + __tPL.sea, 128, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(__tPL.ocean), transparent: true, opacity: 0.86, depthWrite: false }));
-  ocean.position.copy(__tC); ocean.renderOrder = 1; scene.add(ocean);
+  if (__tPL.ocean) {                                              // (a composed world's chunks draw their own seas: no sphere)
+    const ocean = new THREE.Mesh(new THREE.SphereGeometry(__tPL.R + __tPL.sea, 128, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(__tPL.ocean), transparent: true, opacity: 0.86, depthWrite: false }));
+    ocean.position.copy(__tC); ocean.renderOrder = 1; scene.add(ocean);
+  }
 }
 function __tTick() {
   const now = performance.now();

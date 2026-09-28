@@ -48,6 +48,7 @@ import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
 import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
+import { resolveTerrainCities } from '@/lib/graph/terrain/terrain-city';
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleStoreWorldScene } from '../retail/store-world.js';
@@ -581,7 +582,7 @@ export const WORLD_KINDS = {
   // stored painted-landscape, so a promoted painting follows its source's edits.
   terrain: {
     walk: true, title: 'mojulo terrain world',
-    resolve: async (m, ctx) => assembleTerrainWorld({ ...m, from: await resolveTerrainFrom(m) }, { title: ctx.title, live: !!ctx.live }),
+    resolve: async (m, ctx) => assembleTerrainWorld({ ...m, from: await resolveTerrainFrom(m), ...(m.cities ? { cities: await resolveTerrainCities(m.cities) } : {}) }, { title: ctx.title, live: !!ctx.live }),
   },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host
   // entities, so an entities-only manifest renders without piggybacking on another kind.

@@ -6,7 +6,9 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
  * compose_world({ base: 'terrain' }) — the on-ramp. Claims under test: an inline painted
  * scene mints and resolves; a stored painted-landscape promotes by `{ ref }` and the world follows it; the live
  * /world resolve ships the recipe while an export resolve carries the baked world; a placed sketch lands in the
- * payload's faces fitted and seated; a bad recipe refuses at mint, a dangling ref at resolve.
+ * payload's faces fitted and seated; a world composed from features mints and resolves with its bookmarks; a stored
+ * fractal city stands on the ground by `{ ref }` (a canal city refuses); a bad recipe refuses at mint, a dangling ref at
+ * resolve.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -49,8 +51,25 @@ describe("compose_world base 'terrain'", () => {
     expect(mug.length).toBeGreaterThan(20);
     const xs = mug.flatMap((f) => f.corners.map((c) => c[0])); expect(Math.max(...xs) - Math.min(...xs)).toBeLessThanOrEqual(30 + 1e-6);
   });
+  it('a world composed from features mints and resolves, standing you at the anchor', async () => {
+    const r = composeWorld({ base: 'terrain', overrides: { world: { features: [{ feature: 'lake', size: 'tarn' }], climate: 'alpine' } } });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef(r.ref), { live: true });
+    expect(payload.meta.world.anchor.feature).toBe('lake'); expect(payload.cameras.map((c) => c.name)).toEqual(['ground', 'aerial', 'region', 'world']);
+    expect(payload.terrain.K.atlas).toBe(true);
+  });
+  it('a stored fractal city stands on the ground by ref; a canal city refuses', async () => {
+    SketchRepository.create({ ref: 'sk_terrain_town', title: 'town', manifest: { kind: 'fractal-city', profile: 'town', seed: 3, region: { x: 0, y: 0, w: 60, d: 40 } } });
+    const r = composeWorld({ base: 'terrain', overrides: { from: FROM, cities: [{ ref: 'sk_terrain_town' }] } });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef(r.ref), { live: true });
+    expect(payload.meta.cities[0].size).toEqual([60 * 3.66, 40 * 3.66]); expect(payload.meta.cities[0].masses).toBeGreaterThan(5);
+    expect(payload.faces.some((f) => f.group === 'city')).toBe(true);
+    SketchRepository.create({ ref: 'sk_terrain_canal', title: 'canal', manifest: { kind: 'fractal-city', profile: 'canal', seed: 3 } });
+    const c = composeWorld({ base: 'terrain', overrides: { from: FROM, cities: [{ ref: 'sk_terrain_canal' }] } });
+    await expect(resolveWorldScene(SketchRepository.getByRef(c.ref), { live: true })).rejects.toThrow(/canal city/);
+  });
   it('refuses a bad recipe at mint and a dangling ref at resolve', async () => {
-    expect(() => composeWorld({ base: 'terrain', overrides: {} })).toThrow(/`from` is required/);
+    expect(() => composeWorld({ base: 'terrain', overrides: {} })).toThrow(/give `from`.*or `world`/);
+    expect(() => composeWorld({ base: 'terrain', overrides: { world: { features: [{ feature: 'sea' }] } } })).toThrow(/feature must be one of/);
     expect(() => composeWorld({ base: 'terrain', overrides: { from: { heartbeat: 'nope', splatch: 'verdure-trio' } } })).toThrow(/terrain\.from/);
     const m = { kind: 'terrain', from: { ref: 'sk_does_not_exist' } };
     await expect(resolveWorldScene({ ref: 'x', title: 't', manifest: m })).rejects.toThrow(/not a stored sketch/);

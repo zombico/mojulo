@@ -18,6 +18,12 @@
  *   detail                 { octaves: [[L metres, weight]…], norm, rock, soil (metres), seed }
  *   light, lambert         the painting's light (unit vector) and { ambient, gain }
  *   ramps                  { soil, stone, scree, beds[] }: each { stops: [4 × rgb], pos: [4], gamma }
+ *   grade                  optional [{ x0, y0, dx, nx, ny, dMin, dStep, dq, w, ramp, paint? }] (world metres): graded
+ *                          ground, one layer per city. Where a layer's weight w (Uint8 /255) is 1 the ground is its
+ *                          datum D = dMin + dq·dStep (Uint16), where 0 the natural ground, mixed between; colour
+ *                          likewise toward the city's: its ground plan painted on a grid (`paint`: { x0, y0, dx, nx, ny,
+ *                          pc: Uint8 rgba, alpha premultiplied }) where it has one, else the layer's ramp. Absent,
+ *                          every height and colour is the plain path's.
  *
  * World frame: metres, z up; world (X, Y) = painting (x·s, (y − yc)·s); heights Z = z·zs + detail.
  */
@@ -83,12 +89,42 @@ export function terrainKernel(K) {
     for (let k = 0; k < oc.length; k++) v += oc[k][1] * gn(X / oc[k][0], Y / oc[k][0], D.seed + k);
     return v / D.norm;
   }
-  function heightAt(X, Y) {
+  // graded ground: the first layer holding (X, Y) with weight > 0 → [datum, weight, layer], else null
+  const GL = K.grade && K.grade.length ? K.grade : null;
+  function gradeAt(X, Y) {
+    for (let g = 0; g < GL.length; g++) {
+      const L = GL[g]; const u = (X - L.x0) / L.dx, v = (Y - L.y0) / L.dx;
+      if (!(u >= 0 && v >= 0 && u <= L.nx - 1 && v <= L.ny - 1)) continue;
+      let i = Math.floor(u), j = Math.floor(v); if (i > L.nx - 2) i = L.nx - 2; if (j > L.ny - 2) j = L.ny - 2;
+      const fu = u - i, fv = v - j, k = j * L.nx + i, w = lerp2(L.w[k], L.w[k + 1], L.w[k + L.nx], L.w[k + L.nx + 1], fu, fv) / 255;
+      if (w > 0) return [L.dMin + L.dStep * lerp2(L.dq[k], L.dq[k + 1], L.dq[k + L.nx], L.dq[k + L.nx + 1], fu, fv), w, g];
+    }
+    return null;
+  }
+  function naturalAt(X, Y) {
     const x = X / s, y = Y / s + yc; const zm = macroZ(x, y) * zs;
     if (!(D.rock > 0 || D.soil > 0)) return zm;
     const [bare] = bareAt(x, y); const ap = outside(x, y) > 0 ? 0 : apronIn(x, y);
     let rough = D.soil + (D.rock - D.soil) * bare; if (ap > 0.02) rough += (D.rock * 0.5 - rough) * smooth(0.02, 0.3, ap);
     return zm + rough * detail(X, Y);
+  }
+  function heightAt(X, Y) {
+    if (!GL) return naturalAt(X, Y);
+    const g = gradeAt(X, Y); if (!g) return naturalAt(X, Y);
+    if (g[1] >= 1) return g[0];                                   // on the built ground, the datum itself
+    const z = naturalAt(X, Y); return z + (g[0] - z) * g[1];
+  }
+  // the city's own ground colour at (X, Y) under light lam: its painted ground plan (lit relative to flat ground), else
+  // the graded ground's ramp
+  function cityColor(L, X, Y, lam) {
+    const base = rampAt(L.ramp, lam), P = L.paint; if (!P) return base;
+    const u = (X - P.x0) / P.dx, v = (Y - P.y0) / P.dx; if (!(u >= 0 && v >= 0 && u <= P.nx - 1 && v <= P.ny - 1)) return base;
+    let i = Math.floor(u), j = Math.floor(v); if (i > P.nx - 2) i = P.nx - 2; if (j > P.ny - 2) j = P.ny - 2;
+    const fu = u - i, fv = v - j, q = P.pc, k = (j * P.nx + i) * 4, k2 = k + 4, k3 = k + P.nx * 4, k4 = k3 + 4;
+    const a = lerp2(q[k + 3], q[k2 + 3], q[k3 + 3], q[k4 + 3], fu, fv); if (a <= 0) return base;
+    const flat = K.lambert.ambient + K.lambert.gain * Math.max(0, K.light[2]), sh = flat > 0 ? lam / flat : 1;
+    const c = [0, 1, 2].map((m) => (lerp2(q[k + m], q[k2 + m], q[k3 + m], q[k4 + m], fu, fv) / a) * 255 * sh);
+    return mix(base, c, a / 255);
   }
   function normalAt(X, Y, e) {
     const hx = heightAt(X + e, Y) - heightAt(X - e, Y), hy = heightAt(X, Y + e) - heightAt(X, Y - e);
@@ -107,6 +143,7 @@ export function terrainKernel(K) {
   function colorAt(X, Y, Z, n, lamIn) {
     const x = X / s, y = Y / s + yc, z = (Z) / zs, L = K.light;
     const lam = lamIn !== undefined ? lamIn : K.lambert.ambient + K.lambert.gain * Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2]);
+    const gc = GL ? gradeAt(X, Y) : null; if (gc && gc[1] >= 1) return cityColor(GL[gc[2]], X, Y, lam);
     const [bareM] = bareAt(x, y); const gN = n[2] > 1e-6 ? Math.sqrt(n[0] * n[0] + n[1] * n[1]) / n[2] : 1e6;
     const bare = Math.max(bareM, smooth(T34, T52, gN));
     const rockRamp = K.beds && outside(x, y) <= 0 ? K.ramps.beds[bedIndex(x, y, z)] : K.ramps.stone;
@@ -114,6 +151,7 @@ export function terrainKernel(K) {
     const ap = outside(x, y) > 0 ? 0 : apronIn(x, y);
     if (ap > 0.02) c = mix(c, rampAt(K.ramps.scree, lam), smooth(0.02, 0.3, ap) * 0.9);
     if (K.sea !== null && z < K.sea) c = [c[0] * 0.5, c[1] * 0.5, c[2] * 0.5];
+    if (gc) c = mix(c, cityColor(GL[gc[2]], X, Y, lam), gc[1]);
     return c;
   }
   // ── planet (optional K.planet = { R, inner, outer, cont: { amp, wl, bias }, seed }): the world wrapped on a sphere of
@@ -144,5 +182,12 @@ export function terrainKernel(K) {
     const hp = w < 1 ? heightAt(X, Y) : 0, hc = w > 0 ? continentAt(dx, dy, dz) : 0;
     return [hp + (hc - hp) * w, X, Y, w];
   }
-  return { heightAt, groundAt: heightAt, normalAt, colorAt, macroZ, detail, bareAt, planetAt, toWorld: (x, y) => [x * s, (y - yc) * s], toPainting: (X, Y) => [X / s, Y / s + yc] };
+  return {
+    heightAt, groundAt: heightAt, normalAt, colorAt, macroZ, detail, bareAt, planetAt, toWorld: (x, y) => [x * s, (y - yc) * s], toPainting: (X, Y) => [X / s, Y / s + yc],
+    // for siting on the ground (world metres): the natural ground without its detail, the loose apron's depth, the sea
+    baseAt: (X, Y) => macroZ(X / s, Y / s + yc) * zs,
+    looseAt: (X, Y) => { const x = X / s, y = Y / s + yc; return outside(x, y) > 0 ? 0 : apronIn(x, y) * zs; },
+    seaZ: K.sea === null ? null : K.sea * zs,
+    gradeAt: (X, Y) => (GL ? gradeAt(X, Y) : null),
+  };
 }

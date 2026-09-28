@@ -13,6 +13,7 @@
  */
 import { paintedTerrainState } from '../polygonizer/painted-landscape.js';
 import { terrainKernel } from './terrain-kernel.js';
+import { atlasField, validateAtlas } from './terrain-atlas.js';
 
 export const TERRAIN_DEFAULTS = Object.freeze({ span: 2400, relief: 1, horizon: 'plain' });
 export const HORIZON_MODES = Object.freeze(['plain', 'sea', 'none']);
@@ -25,8 +26,17 @@ const rampOf = (p) => ({ stops: [p.shadow, p.base, p.mid, p.highlight].map(rgbAr
 /** Errors (strings) for a terrain spec; [] when it builds. `from` is checked by painted-landscape's own validator. */
 export function validateTerrainSpec(spec, at = 'terrain') {
   const e = [];
-  if (!spec || typeof spec !== 'object') return [`${at} must be an object { from, span?, relief?, horizon?, detail? }`];
-  if (!spec.from || typeof spec.from !== 'object' || Array.isArray(spec.from)) e.push(`${at}.from must be a painted-landscape recipe (the scene the world is made from), inline or { ref: '<sketch>' }`);
+  if (!spec || typeof spec !== 'object') return [`${at} must be an object { from | world, span?, relief?, horizon?, detail? }`];
+  if (spec.world !== undefined) {
+    // a composed world (terrain-atlas.js): its features size it, so span / relief / horizon / detail do not apply
+    e.push(...validateAtlas(spec.world, `${at}.world`));
+    if (spec.from) e.push(`${at}: give either \`from\` (a painted scene) or \`world\` (a composed one), not both`);
+    for (const k of ['span', 'relief', 'horizon', 'detail']) if (spec[k] !== undefined) e.push(`${at}.${k} does not apply to a composed world: its features' sizes set its scale`);
+    const pl = spec.planet;
+    if (pl !== undefined && pl !== false && pl !== true && !(pl && typeof pl === 'object' && (pl.radius === undefined || (Number.isFinite(pl.radius) && pl.radius >= 20000 && pl.radius <= 7e6)))) e.push(`${at}.planet must be true or { radius }: metres, 20000–7000000 (Earth's 6371000 is the default for a continent)`);
+    return e;
+  }
+  if (!spec.from || typeof spec.from !== 'object' || Array.isArray(spec.from)) e.push(`${at}.from must be a painted-landscape recipe (the scene the world is made from), inline or { ref: '<sketch>' }; or give \`world\` to compose one from features`);
   const num = (k, lo, hi, what) => { if (spec[k] !== undefined && !(Number.isFinite(spec[k]) && spec[k] >= lo && spec[k] <= hi)) e.push(`${at}.${k} must be ${what}`); };
   num('span', 50, 200000, 'the metres the painting\'s width covers, 50–200000 (2400 default)');
   num('relief', 0.05, 20, 'a vertical scale on top of the span\'s, 0.05–20 (1 default)');
@@ -54,6 +64,7 @@ export function validateTerrainSpec(spec, at = 'terrain') {
  */
 export function terrainField(spec) {
   const errs = validateTerrainSpec(spec); if (errs.length) throw new Error(`terrain: ${errs.join('; ')}`);
+  if (spec.world) return atlasField(spec);
   const span = spec.span ?? TERRAIN_DEFAULTS.span, relief = spec.relief ?? TERRAIN_DEFAULTS.relief, mode = spec.horizon ?? TERRAIN_DEFAULTS.horizon;
   const P = paintedTerrainState({ kind: 'painted-landscape', ...spec.from });
   const st = P.state; const N = st.nx * st.ny; const s = span / PAINT_WIDTH, zs = s * relief;
@@ -92,12 +103,26 @@ export function terrainField(spec) {
     bounds: { x: [wx0, wx1], y: [wy0, wy1], z: [lo * zs, hi * zs], cell: cellM },
     meta: { span, relief, horizon: mode, sea: sea === null ? null : sea * zs, planet: K.planet || null, sky: P.sky, rock: P.rockName, octaves: octaves.length, scree: st.scree.map((r) => ({ ...r, ...Object.fromEntries([['x', r.x * s], ['y', (r.y - PAINT_YC) * s], ['z0', r.z0 * zs], ['size', r.size * s]]) })) },
     /** The kernel's inputs for the World page: grids as base64, everything else as is. */
-    pageConfig() {
-      const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
-      const { hq: q, hard: h, apron: a, ...rest } = K;
-      return { ...rest, grids: { hq: b64(q), hard: b64(h), apron: b64(a) } };
-    },
+    pageConfig() { return pageConfigOf(K); },
   };
+}
+
+const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
+function pageConfigOf(K) {
+  const { hq: q, hard: h, apron: a, grade, ...rest } = K;
+  return { ...rest, grids: { hq: b64(q), hard: b64(h), apron: b64(a) }, ...(grade ? { grade: grade.map((L) => ({ ...L, dq: b64(L.dq), w: b64(L.w), ...(L.paint ? { paint: { ...L.paint, pc: b64(L.paint.pc) } } : {}) })) } : {}) };
+}
+
+/**
+ * The same field with graded ground laid over it (terrain-city.js): `layers` become the kernel's `K.grade`, so the
+ * server and the page stand on the same datum. No layers → the field itself.
+ */
+export function gradedField(field, layers) {
+  if (!layers || !layers.length) return field;
+  const K = { ...field.K, grade: layers };
+  if (field.atlas) { const g = field.withK(K); return g; }
+  const kernel = terrainKernel(K);
+  return { ...field, K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt, pageConfig() { return pageConfigOf(K); } };
 }
 
 function hashSeed(seed) {

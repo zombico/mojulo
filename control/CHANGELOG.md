@@ -14,6 +14,21 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Terrain composition
+
+- **Cities that stand on hills.** A terrain world may carry `cities`: fractal cities sited on its ground. The
+  ground a city can't build on (too steep, a cliff, scree, water) is reserved before its streets are laid, so the
+  streets go around it. The city stands on a graded ground (the land smoothed at half a block), which becomes the
+  terrain under it. Each building stands level at its front door with a stone plinth on the downhill side, streets
+  and lots follow the grade, and the tall buildings stay on the flat. A metro can sprawl for kilometres: it keeps
+  full detail around its core and turns to massing beyond it, with the far streets painted into the ground.
+- **Worlds sized by what is in them.** A terrain world may be composed instead of painted: `world: { features }`
+  names a river, a range, a lake, a plateau, a volcano or a coast, each with a size on a ladder of real-world bands.
+  The first feature sets the world's scale, so a great river makes a continent and a lake is tens of kilometres of
+  water. Rivers and lakes come from drainage and erosion around it. The ground is planned finer and finer toward the
+  place you stand, so it is detailed underfoot across a world thousands of kilometres wide. A painted scene can sit
+  inside the composed world.
+
 ### Terrain worlds
 
 - **A painted scene becomes a world.** `compose_world({ base: 'terrain', overrides: { from } })` takes a painted
