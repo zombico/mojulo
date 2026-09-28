@@ -12,7 +12,11 @@ loops and the recipe format are unchanged. From `3.0.0` the chatbot factory is
 no longer part of mojulo (see "Chatbot carve-out"); the media, game,
 connected-service and app loops and the recipe format are the stable surface.
 
-## [Unreleased]
+## 3.0.0 development log (unreleased 2.2 line and the chatbot carve-out)
+
+This is the detailed working log behind the 3.0.0 summary in [CHANGELOG.md](CHANGELOG.md).
+Some entries describe bot-factory work that was removed before 3.0.0 shipped.
+2.2 was never released; its work ships in 3.0.0.
 
 ### Chatbot carve-out
 
@@ -64,16 +68,17 @@ connected-service and app loops and the recipe format are the stable surface.
   kinds for `cook` and now lives in `pack_stash`. They used to be listed and callable only with the
   chatbot pack installed; a default install now has them, unchanged. `custom_protocol` left with the
   bot build tools.
-- **What a default install no longer carries.** `officeparser` and `pdf2json` (about <measured> MB and
-  <measured> packages of the install) are gone from the dependencies, the lockfile and the Next server
+- **What a default install no longer carries.** `officeparser` and `pdf2json` (about 75 MB and
+  29 packages of the install) are gone from the dependencies, the lockfile and the Next server
   externals. `registerAllTools()` no longer imports the deployers, builder or composer at boot;
   `getDb()` creates no bot tables and runs no bot migrations; `version` makes no network call and
   `check_for_updates` no longer queries GHCR, and neither reports a bot image. Core has no Docker, Fly,
   GHCR, webhook or uploaded-document reach. The core tarball is roughly unchanged (the factory was about
-  1 MB of 19 MB unpacked); `mojulo-ui` drops <measured> MB now that it ships no `lite-template/` and no
-  bot pages. `lib/mcp/carve-boundary.test.js` checks this: a traced stdio boot loads no factory module
-  and neither parser, a fresh database has no bot table, `version` reaches no network, and no factory
-  path is back on disk or imported by retained server code.
+  1 MB of 19 MB unpacked); `mojulo-ui` drops 1.1 MB packed (13.2 MB to 12.1 MB; 60.0 MB to 55.3 MB
+  unpacked) now that it ships no `lite-template/` and no bot pages. `lib/mcp/carve-boundary.test.js`
+  checks this: a traced stdio boot loads no factory module and neither parser, a fresh database has
+  no bot table, `version` reaches no network, and no factory path is back on disk or imported by
+  retained server code.
 - **The dashboard has no bot pages.** `/bots`, `/bot-factory/modular`, `/chat-builder`,
   `/dashboard/documents`, the `/dashboard/deployments/[id]/…` pages and `/data` are deleted, with the
   wizard, the chat builder panel and the components only they used. The Operate mode has no bots door
@@ -413,7 +418,8 @@ connected-service and app loops and the recipe format are the stable surface.
   book's builders run at startup; fact 8 no longer calls the book code-free. The dashboard page map
   no longer says the log records "shapes only". The install-size figures in the README,
   `control/README.md`, the tour and `docs/tech-requirements.md` are the release's measured ones
-  (<measured>).
+  (for 3.0.0, 2026-09-28: a 5.8 MB tarball, 228 MB and 179 packages installed, about 89 MB
+  downloaded).
 - **SECURITY.md states what runs as code.** A new section says that recipes carrying a `program`
   and recipe-book builders run with the operator's privileges (`node:vm` there is a determinism
   fence, not a sandbox), that reports of those doors doing what a local script can are expected,
@@ -428,7 +434,7 @@ connected-service and app loops and the recipe format are the stable surface.
 - **The plugin README is the directory listing, and it discloses what the server does.** It says
   what mojulo is, where it runs (Claude Code and Cowork sessions on your computer; not a plain
   claude.ai chat; the same package headless in agent sandboxes), what it needs (Node 22.12 on the
-  `PATH`, about <measured> MB), three example prompts checked on a fresh install with no dashboard or
+  `PATH`, about 230 MB), three example prompts checked on a fresh install with no dashboard or
   extra packs (a mug as STL, a walkable town as one offline HTML page, a groove as MIDI), and a
   "What it runs, sends and fetches" section built from the code: every network destination and its
   trigger, every process the server may start, every place it writes, the local tool-call log, the
