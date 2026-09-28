@@ -121,7 +121,9 @@ them rather than say "never":
   `storage.googleapis.com`, ffmpeg-static from `github.com`, the embedding model from
   `huggingface.co` (after `mojulo install recall`, which also runs npm).
 - The dashboard package (`mojulo-ui`) from the npm registry the first time the dashboard is
-  launched without it; `MOJULO_UI_NO_FETCH=1` refuses.
+  launched without it. Through mojulo's own `mojulo-ui` command (`npx -y -p mojulo mojulo-ui`)
+  the download is announced first and `MOJULO_UI_NO_FETCH=1` refuses it; `npx -y mojulo-ui`
+  downloads it through npx before any mojulo code runs.
 - `check_for_updates`, when your agent calls it (npm and GHCR version lookups).
 - An exported page built with `cdn: true` loads three.js from `cdn.jsdelivr.net` when opened; the
   default export is self-contained.
