@@ -44,7 +44,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   known security issues. Its tools, packs and dashboard pages are not in 3.0; calling one of its
   tools, `mojulo install chatbot` or an `artifact_materialization` commit does nothing and answers
   with that notice. Its tables (`deployments`, `modular_sessions`, `mcp_jobs`) and their rows, and the
-  `packs/chatbot` marker, stay in `~/.mojulo`, inert: 3.0 never reads them, and you may delete them.
+  `packs/chatbot` marker, stay in `~/.mojulo`, inert: 3.0 does not use them, and you may delete them.
   **`~/.mojulo/data/artifacts/` holds each old bot's `.env` with its provider key in plain text:
   delete it.**
 - **Downloaded helpers and draft figure specs move out of the npx cache.** 2.1.0 kept Chrome for
