@@ -158,8 +158,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The Claude plugin build.** When the Claude plugin starts mojulo, it leaves out the handoff tools
   for AI image, voice and mesh generators. That covers the image-render and mesh handoffs, the voice
   registers, sprite sheets, style presets, the skin op, the painted sketch kinds, the painted cover
-  title, `forge_motion`'s scene and cel sources, and the image-driven catalysts. It also leaves out the
-  keyed `mint_solid via:'prompt'` door (use `via:'packet'`) and every automatic download:
+  title, `forge_motion`'s scene and cel sources, the character-from-dream figure specs and a
+  figure's `dream_audit`, and the image-driven catalysts. The vocab cards and catalysts it keeps are
+  served without their lines about those loops. It also leaves out the keyed
+  `mint_solid via:'prompt'` door (use `via:'packet'`) and every automatic download:
   - renders use a Chrome, Chromium, Edge or Brave you already have, or `MOJULO_CHROMIUM`;
   - MP4 encodes use an ffmpeg you already have, or `MOJULO_FFMPEG`;
   - the search model arrives only through `install recall`.
