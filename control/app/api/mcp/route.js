@@ -3,8 +3,8 @@
  *
  * Wire protocol: MCP over Streamable HTTP — JSON-RPC 2.0 messages POSTed to
  * this route, with a bearer token for auth. The user's Claude becomes the
- * agent loop; the control plane is a tool host that wraps the same
- * builderToolHandlers that the in-app web chat-builder uses.
+ * agent loop; the control plane is a tool host serving the same tool registry
+ * (lib/mcp/server.js) the stdio entry serves.
  *
  * Auth: a bearer token. CONTROL_PLANE_MCP_KEY is the operator's key — if
  * unset, the route returns 404 — MCP is opt-in. With the roles pack enabled
