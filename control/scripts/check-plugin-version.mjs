@@ -8,8 +8,9 @@
  *   - glama.json — the same launcher, for the Glama listing;
  *   - server.json — the MCP registry entry, `version` and the npm package's `version`.
  * Each must name exactly control/package.json's version. The marketplace entry carries no version of
- * its own (plugin.json is the source), and every `mojulo@<version>` written anywhere under
- * plugins/mojulo/ must be that version too.
+ * its own (plugin.json is the source), and every `mojulo@<version>` or `mojulo-ui@<version>` written
+ * anywhere under plugins/mojulo/ must be that version too (the dashboard package is published at
+ * core's version and runs against the same database, so a stale pin opens an older dashboard).
  *
  * `--since <git ref>` adds the plugin cache rule: Claude Code keys an installed plugin by its
  * plugin.json `version`, so a change under plugins/mojulo/ that keeps the version never reaches
@@ -97,11 +98,12 @@ export function checkManifestVersions({ root = REPO_ROOT, expect = null } = {}) 
     }
   }
 
-  // A version written in prose (the README's inline command, a skill) drifts the same way.
+  // A version written in prose (the README's inline command, a skill) drifts the same way, for
+  // core and for the dashboard package, which is published at core's version.
   for (const rel of listFiles(root, PLUGIN_DIR)) {
     const text = readFileSync(path.join(root, rel), 'utf8');
-    for (const m of text.matchAll(/\bmojulo@(\d+\.\d+\.\d+[0-9A-Za-z.+-]*)/g)) {
-      if (m[1] !== version) problems.push(`${rel}: names mojulo@${m[1]}, expected mojulo@${version}`);
+    for (const m of text.matchAll(/\b(mojulo(?:-ui)?)@(\d+\.\d+\.\d+[0-9A-Za-z.+-]*)/g)) {
+      if (m[2] !== version) problems.push(`${rel}: names ${m[1]}@${m[2]}, expected ${m[1]}@${version}`);
     }
   }
   return problems;

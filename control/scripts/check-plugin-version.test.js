@@ -59,6 +59,17 @@ describe('check-plugin-version', () => {
       expect(problems).toMatch(/README\.md: names mojulo@3\.0\.9, expected mojulo@3\.1\.0/);
     });
 
+    // The dashboard is published at core's version; a README that still opens the old one after a
+    // bump points the user at a dashboard built from other code over the same database.
+    it('checks the dashboard package pin in the plugin prose too', () => {
+      tree({ readme: 'Starts `npx -y mojulo@3.1.0`; the dashboard is `npx -y mojulo-ui@3.0.9`.' });
+      expect(checkManifestVersions({ root })).toEqual([
+        'plugins/mojulo/README.md: names mojulo-ui@3.0.9, expected mojulo-ui@3.1.0',
+      ]);
+      tree({ readme: 'The dashboard is `npx -y mojulo-ui@3.1.0`.' });
+      expect(checkManifestVersions({ root })).toEqual([]);
+    });
+
     it('checks the release tag when asked', () => {
       tree();
       expect(checkManifestVersions({ root, expect: '3.2.0' })).toEqual(['control/package.json is 3.1.0, expected 3.2.0']);

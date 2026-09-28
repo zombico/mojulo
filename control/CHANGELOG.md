@@ -294,9 +294,10 @@ loops and the recipe format are unchanged.
   `MOJULO_DISTRIBUTION=claude-plugin` for the server; `glama.json` pins the same version and the
   marketplace entry no longer carries a version of its own. `scripts/check-plugin-version.mjs`
   fails when `plugin.json`, `glama.json` or `server.json` names a version other than
-  `package.json`'s, or when a pull request changes `plugins/mojulo/` without raising the plugin's
-  version (Claude Code caches an installed plugin by it). CI runs it on every push and pull
-  request, and the release workflow checks it against the tag.
+  `package.json`'s, when a `mojulo@<version>` or `mojulo-ui@<version>` written under
+  `plugins/mojulo/` names another one, or when a pull request changes `plugins/mojulo/` without
+  raising the plugin's version (Claude Code caches an installed plugin by it). CI runs it on every
+  push and pull request, and the release workflow checks it against the tag.
 
 - **Install and update advice names the running version and fits the install.** The commands
   mojulo tells an agent to run were written for one kind of install: `mojulo install <group>` (no
