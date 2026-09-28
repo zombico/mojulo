@@ -257,3 +257,22 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
     expect(checkDashboardRequest({ method: 'GET', host: null })).toMatchObject({ code: 'HOST_NOT_ALLOWED' });
   });
 });
+
+// Roles pack: a delegate's session is also checked against the users table
+// (lib/auth/delegate-session.js; its test runs it end to end through this
+// middleware). The operator's session never reaches that check.
+describe('middleware delegate-session check (placement)', () => {
+  it('runs on the Node runtime, which the users-table read needs', () => {
+    expect(config.runtime).toBe('nodejs');
+  });
+
+  it('comes after the loopback guard and the signature check, and skips admin claims', () => {
+    const guard = SOURCE.indexOf('checkDashboardRequest({');
+    const verify = SOURCE.indexOf('verifySessionToken(token');
+    const live = SOURCE.indexOf('await sessionIsLive(claims)');
+    expect(guard).toBeGreaterThan(0);
+    expect(guard).toBeLessThan(verify);
+    expect(verify).toBeLessThan(live);
+    expect(SOURCE).toMatch(/if \(claims\.r === 'admin'\) return true;/);
+  });
+});
