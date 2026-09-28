@@ -4,13 +4,13 @@ Status: **phases 0–4 executed** (2026-09-01, working tree, uncommitted).
 Foundation (registry, posture prop, self-serve pills), the bench deep view,
 Studio, Ideate, and Operate + system are all converted and verified:
 `npm run build` clean, every converted route serving 200 with zero global
-chrome. Remaining: phase 5 (chatbot pack) and phase 6 (trails + retirements),
-which is gated on phase 5. Executed-state notes worth keeping: `/observability`
+chrome. Remaining: phase 6 (trails + retirements). Phase 5 (chatbot pack) is
+void: the bot pages left mojulo with the chatbot factory in 3.0. Executed-state notes worth keeping: `/observability`
 and several Studio rails took the scroll posture (no 66px idiom to replace);
 `/maker` was broken at HEAD (tiles carried string icon names the page never
 resolved) and was fixed to resolve through `DOOR_ICONS`; pre-existing i18n
 gaps found — `data.explorer`/`data.table` namespaces missing (explorer tab
-renders raw keys, predates the sweep; still open), `apps.detail.graph.subtitle`
+renders raw keys, predates the sweep; moot since `/data` left in 3.0), `apps.detail.graph.subtitle`
 missing (added). Repo quirk: `control/.gitignore`'s bare `data/` pattern also
 ignores `control/app/data/` — that page directory is untracked; needs a
 maintainer decision (anchor the pattern to `/data/`).
@@ -122,7 +122,10 @@ canvas, same trap as the library). `/settings` gets crumb `settings`; the
 strip's own Settings link becomes self-referential there, which is fine (the
 strip is chrome, not a trail).
 
-### Phase 5 — chatbot pack (only when bot work is in scope)
+### Phase 5 — chatbot pack (void since 3.0)
+
+The chatbot factory is its own project as of 3.0 and these pages left the
+dashboard with it; nothing here remains to convert. Kept for the record:
 
 `/bots`, `/dashboard/documents`, `/dashboard/deployments/[id]/…`
 (conversations / submissions / cloud-deploy), `/chat-builder`,
@@ -136,7 +139,7 @@ it, the rule stands.
 1. **Trail crumbs.** NavStrip's `crumb` learns to take the ROUTES trail model
    (label + optional href per segment) — fold Breadcrumbs' route table into a
    shared module; deep pages (`apps/[ref]/graph`, `stashes/[ref]`,
-   `beats/[ref]`, deployments) render their trail as mono micro-segments in
+   `beats/[ref]`) render their trail as mono micro-segments in
    the strip. Reuse the existing `breadcrumbs.*` keys; do NOT mint per-page
    crumb words beyond the ones already minted (`floor.crumb`,
    `library.crumb`).
@@ -172,6 +175,6 @@ it, the rule stands.
 
 ## Decision points for the maintainer
 
-- `/pose-lab` and `/bot-factory/modular`: shell, or leave as labs?
+- `/pose-lab`: shell, or leave as a lab?
 - Width table above is a proposal — override per page at conversion time.
 - Whether `StatusBar` ever spreads beyond the home family (this plan says no).
