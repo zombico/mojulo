@@ -14,6 +14,31 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Terrain vegetation
+
+Grown forests on terrain worlds. They stand where the ground is painted wood, at their real size in any world, and
+thin into the ground's own colour past a cutoff, so the woods you walk through are the woods you see from the air.
+Opt-in through `plants` on the terrain manifest. Being built on this branch; each bullet is rewritten as its phase
+lands.
+
+- **Woods where the ground says.** A climate gets a temperature, which falls with altitude, and a moisture, which rises
+  near water. The treeline is where the growing season gets too cold, and trees shorten toward it. A species table per
+  climate picks oak or beech low, fir high, palms on tropical coasts and along arid rivers, bamboo in wet valleys, and
+  reeds at shores. Trees are placed from the same cover the ground is painted with. They keep off water, sand, cliffs
+  and a city's graded ground.
+- **Grown trees at every distance.** The World page scatters the trees around the camera from the recipe, a few tiles
+  at a time. Each tree takes its level of detail from its size on screen as you move. A far level of a few dozen
+  triangles fills the distance out to the cutoff. The templates travel as compact arrays, and exports carry the trees
+  around the spawn as instances.
+- **The forest past its trees.** Grown templates take the climate's forest colour, so the canopy the ground paints
+  far off is what the trees add up to near.
+- **Painted worlds get their woods.** A painting's trees, which at world scale are whole stands, become woods of grown
+  trees.
+- **City trees.** A city's street trees and parks are grown trees of the climate's species, one instance each.
+- **Grass underfoot.** Grass and reeds appear near the camera and thin out with distance.
+
+Absent, every terrain world stands on the same ground in the same colours, and its page carries no plants.
+
 ### Grown plants
 
 - **Plants grown, not drawn.** `control/lib/graph/vegetation/` grows three kinds of plant.
