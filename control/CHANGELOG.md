@@ -307,6 +307,20 @@ loops and the recipe format are unchanged.
   when the user asks how to guard bot secrets, never editing that file. The card used to suggest
   the deny block on first connect.
 
+- **The plugin README is the directory listing, and it discloses what the server does.** It says
+  what mojulo is, where it runs (Claude Code and Cowork sessions on your computer; not a plain
+  claude.ai chat; the same package headless in agent sandboxes), what it needs (Node 22.12 on the
+  `PATH`, about 290 MB), three example prompts checked on a fresh install with no dashboard or
+  extra packs (a mug as STL, a walkable town as one offline HTML page, a groove as MIDI), and a
+  "What it runs, sends and fetches" section built from the code: every network destination and its
+  trigger, every process the server may start, every place it writes, the local tool-call log, the
+  code that runs with your privileges, and the one keyed LLM door. It tells anyone who registered
+  mojulo with `init` or `claude mcp add` to remove that registration, and names `MCP_TIMEOUT` and a
+  cache warm-up for a slow first start.
+- **The plugin ships a routing skill** (`skills/mojulo/SKILL.md`): with the mojulo tools present it
+  starts at `forward_context` and follows its routing; without them (a claude.ai chat) it says
+  mojulo runs in Claude Code or a local Cowork session and installs nothing.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level
