@@ -37,6 +37,9 @@ import {
 // PAYLOAD_CEILING in tool-descriptions.test.js.
 // Re-pinned 2026-09-27 (35_000 -> 37_000; measured 36,794) for tool annotations: each spine tool
 // and pack dispatcher now carries `title` + `annotations` (lib/mcp/tool-annotations.js).
+// Checked 2026-09-27 for the chatbot carve-out's rehomed tools (pin unchanged; measured 36,793 ->
+// 36,808): pack_runtime and pack_stash now name list_running, the app .env trio and recommend_kind,
+// and the bot pack descriptions no longer do.
 const PACKS_PAYLOAD_CEILING = 37_000;
 
 let server;

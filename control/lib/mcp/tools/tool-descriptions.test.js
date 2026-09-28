@@ -250,6 +250,10 @@ const DESCRIPTION_ALLOWLIST = {
 // 5.E): every entry now carries a top-level `title` and `annotations` { title, readOnlyHint,
 // destructiveHint, idempotentHint, openWorldHint } from lib/mcp/tool-annotations.js, about 165 bytes
 // per tool. No description grew past its budget. Shrink-only from here.
+// Checked 2026-09-27 for the chatbot carve-out's rehomed tools (pin unchanged; measured 295,324).
+// This pin is measured with the chatbot pack on (vitest.setup.js), so moving list_running,
+// list_env, set_env, delete_env and recommend_kind out of the bot packs only reorders it. On a
+// default install those five tools now list, about 4 KB more than before.
 const PAYLOAD_CEILING = 295_500;
 
 async function listedTools() {

@@ -219,7 +219,7 @@ export const PACKS = [
     wing: 'office',
     title: 'Apps, daemons & agent tasks',
     description:
-      "APPS & RUNTIME — local apps (install_scaffold → start / stop / status, runner listing), runtime daemons (list / status / start / stop / restart), and the agent-task loop (pull_agent_task → submit_envelope_inference → cancel; chat signals and decisions for the chat_turn worker). Open for 'scaffold and run a local app', 'watch a folder and process new files as they arrive', 'a background worker that reacts to events', 'restart the daemon', 'work the task queue'.",
+      "APPS & RUNTIME — local apps (install_scaffold → start / stop / status, the running list, per-app .env keys), runtime daemons (list / status / start / stop / restart), and the agent-task loop (pull_agent_task → submit_envelope_inference → cancel; chat signals and decisions for the chat_turn worker). Open for 'scaffold and run a local app', 'watch a folder and process new files as they arrive', 'a background worker that reacts to events', 'restart the daemon', 'work the task queue'.",
     body: 'Ring 7. An app is a local process plus an MCP sidecar with inference parked back on the agent; daemons are the supervisor\'s long-lived hosts; agent tasks are the pull → submit → cancel work loop (the long-polls pull_agent_task and request_chat_decision park up to ~25s and do not block other calls).',
     members: [
       'install_scaffold',
@@ -227,6 +227,12 @@ export const PACKS = [
       'stop_app',
       'status_app',
       'list_runners',
+      // list_running and the .env trio act on local apps (lib/runners/local.js). Until the chatbot
+      // carve-out they sat in pack_bot_operate, so an install without the bot pack could not reach them.
+      'list_running',
+      'list_env',
+      'set_env',
+      'delete_env',
       'list_daemons',
       'start_daemon',
       'stop_daemon',
@@ -306,7 +312,7 @@ export const PACKS = [
     wing: 'office',
     title: 'Gather / stash / cook / publish',
     description:
-      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes (gather, mint / get / list / rename a stash, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals) and forge publications. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
+      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes (gather, mint / get / list / rename a stash, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
     body: 'The typed-intake collection layer (seven item types, required-per-type metadata validated at the gate) and the multi-input collider on top of it. Cook files the report the AGENT authors — no server-side LLM call; outcomes land under data/outcomes/<cook_ref>/.',
     members: [
       'gather',
@@ -320,6 +326,9 @@ export const PACKS = [
       'unbind_stash',
       'list_stash_bindings',
       'sketch_stash',
+      // recommend_kind ranks publication kinds for cook(); it sat in pack_bot_build until the
+      // chatbot carve-out.
+      'recommend_kind',
       'cook',
       'get_cook',
       'list_cooks',
@@ -360,7 +369,6 @@ export const PACKS = [
       'save_modular_bot',
       'compose_identity',
       'infer_intent',
-      'recommend_kind',
       'recommend_protocols',
       'custom_protocol',
       'generate_form_schema',
@@ -378,12 +386,11 @@ export const PACKS = [
     installGroup: 'chatbot',
     title: 'Chatbot — operate deployed bots',
     description:
-      "Run & read DEPLOYED bots: list deployments and running processes, read conversations and form submissions, export transcripts, summarize a bot, verify its turn hash-chain, inspect/set/delete bot env (secrets-safe), set suggested prompts. Open for 'what did people ask my bot', 'is my bot up', 'rotate its key', 'export the conversations'. Cross-bot analytics is pack_fleet.",
+      "Run & read DEPLOYED bots: list deployments, read conversations and form submissions, export transcripts, summarize a bot, verify its turn hash-chain, inspect bot env (masked), set suggested prompts. Open for 'what did people ask my bot', 'is my bot up', 'rotate its key', 'export the conversations'. Cross-bot analytics is pack_fleet.",
     body: 'Per-bot operation. Conversation and submission reads go through the bot proxy (conversation data never enters the control-plane DB); env inspection is masked — never cat a bot .env.',
     members: [
       'list_deployments',
       'get_deployment',
-      'list_running',
       'query_conversations',
       'get_conversation',
       'query_submissions',
@@ -391,9 +398,6 @@ export const PACKS = [
       'generate_bot_summary',
       'verify_chain',
       'inspect_bot_env',
-      'set_env',
-      'list_env',
-      'delete_env',
       'set_suggested_prompts',
     ],
   },

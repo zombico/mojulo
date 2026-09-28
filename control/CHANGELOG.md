@@ -14,6 +14,11 @@ loops and the recipe format are unchanged.
 
 ### Chatbot carve-out
 
+- **Five tools that were filed in the bot packs move out of them.** `list_running`, `list_env`,
+  `set_env` and `delete_env` act on local apps, and now live in `pack_runtime`; `recommend_kind` ranks
+  publication kinds for `cook`, and now lives in `pack_stash`. They used to be listed and callable only
+  with the chatbot pack installed; a default install now has them. Their behaviour is unchanged.
+  `custom_protocol` stays in `pack_bot_build`; its guide moved into the bot build tool module.
 - **The home-page chat relay is gone.** The `host_chat` agent-task kind, the `/api/agent-chat/stream`
   route that parked it, and the `run-host-chat-worker` catalyst are deleted. No page in the dashboard
   called the route. `pull_agent_task` and `submit_envelope_inference` now name `envelope_inference` and
