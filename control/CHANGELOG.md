@@ -229,6 +229,19 @@ loops and the recipe format are unchanged.
 - **The HTTP MCP route answers a POST of only notifications with `202 Accepted`** (it was
   `204`), as Streamable HTTP specifies.
 
+### Dependency currency
+
+- **puppeteer-core 25 and @puppeteer/browsers 3** (were 23 and 2). The Chrome for Testing build
+  fetched on an explicit render moves from `131.0.6778.204` to `154.0.8037.57`, the build
+  puppeteer-core 25 is released against; `chromium.test.js` fails when the two drift apart.
+  `$MOJULO_CHROMIUM_BUILD` still overrides the pin. @puppeteer/browsers 3 drops its proxy-agent
+  chain (about 25 fewer packages) and has no built-in proxy support, so a host behind an HTTP proxy
+  points `$MOJULO_CHROMIUM` at an installed browser. A browser already cached under the old build
+  is not reused; the next explicit render fetches the new one.
+- **officeparser stays on 5.** Version 8 needs Node 22.13 (mojulo supports 22.12), adds
+  tesseract.js, which fetches OCR language data at runtime, and more than doubles the install
+  (62 MB to 142 MB). It is loaded only for DOCX, PPTX and XLSX uploads.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

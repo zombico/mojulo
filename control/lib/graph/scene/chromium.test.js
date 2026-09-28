@@ -40,7 +40,7 @@ vi.mock('@/lib/graph/sketch/sketch-png', () => ({ rasterizeSketchToPng: (...a) =
 vi.mock('@/lib/graph/sketch/turntable-bake', () => ({ bakeTurntableStrip: (...a) => h.bakeStrip(...a) }));
 
 const {
-  resolveChromium, launchChromium, _resetChromiumCache, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS,
+  resolveChromium, launchChromium, _resetChromiumCache, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS, PINNED_CHROME_BUILD,
 } = await import('@/lib/graph/scene/chromium');
 const { withChromiumFetch, withoutChromiumFetch } = await import('@/lib/graph/scene/chromium-consent');
 const { bakeWarm } = await import('@/lib/graph/scene/scene-png-warm');
@@ -84,6 +84,7 @@ describe('resolveChromium — download consent', () => {
     expect(value).toBe('/fake/cft/chrome');
     expect(h.install).toHaveBeenCalledTimes(1);
     expect(h.install.mock.calls[0][0].cacheDir).toBe('/fake/home/chromium');
+    expect(h.install.mock.calls[0][0].buildId).toBe(process.env.MOJULO_CHROMIUM_BUILD || PINNED_CHROME_BUILD);
     expect(fetched.dir).toBe('/fake/home/chromium');
     expect(fetched.notice).toMatch(/Downloaded Chrome for Testing .* into \/fake\/home\/chromium/);
   });
@@ -121,6 +122,14 @@ describe('resolveChromium — download consent', () => {
     h.existing.add('/fake/cft/chrome');
     await expect(resolveChromium()).resolves.toBe('/fake/cft/chrome');
     expect(h.install).not.toHaveBeenCalled();
+  });
+});
+
+describe('the pinned Chrome for Testing build', () => {
+  // The bare 'puppeteer-core' specifier is mocked above; this subpath is the real file.
+  it('is the build the installed puppeteer-core is released against', async () => {
+    const { PUPPETEER_REVISIONS } = await import('puppeteer-core/internal/revisions.js');
+    expect(PINNED_CHROME_BUILD).toBe(PUPPETEER_REVISIONS.chrome);
   });
 });
 
