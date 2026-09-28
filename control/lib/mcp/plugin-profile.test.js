@@ -71,7 +71,7 @@ function session({ distribution, client, calls = [], packs }) {
     let out = '';
     let stderr = '';
     let id = 0;
-    const timer = setTimeout(() => child.kill('SIGKILL'), 25000);
+    const timer = setTimeout(() => child.kill('SIGKILL'), HOOK_BUDGET - 10_000);
     child.stderr.on('data', (d) => { stderr += d; });
     child.stdout.on('data', (d) => {
       out += d;
@@ -116,12 +116,16 @@ function session({ distribution, client, calls = [], packs }) {
 // The CLI, as a shell caller runs it under the plugin's environment.
 function cli(args) {
   const { env, home } = freshEnv({ MOJULO_DISTRIBUTION: 'claude-plugin' });
-  const r = spawnSync(process.execPath, [STDIO, ...args], { cwd: home, env, encoding: 'utf8', timeout: 25000 });
+  const r = spawnSync(process.execPath, [STDIO, ...args], { cwd: home, env, encoding: 'utf8', timeout: 60_000 });
   rmSync(home, { recursive: true, force: true });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
 const hiddenIn = (text) => [...new Set(String(text).match(HIDDEN_RE) ?? [])];
+
+// Booting the server (or importing the whole tool registry) takes a few seconds alone and far more
+// under a parallel full-suite run, so the hooks and sessions here get generous budgets.
+const HOOK_BUDGET = 120_000;
 
 describe('the profile module', () => {
   it('is on only for the claude-plugin distribution', () => {
@@ -191,7 +195,7 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
       }),
       session({ distribution: 'claude-plugin', client: 'probe-client' }),
     ]);
-  });
+  }, HOOK_BUDGET);
 
   it('lists none of the hidden tools, flat or packs, and names none in any description or schema', () => {
     expect(flat.tools.length, flat.stderr).toBeGreaterThan(50);
@@ -294,7 +298,7 @@ describe('orientation surfaces under the profile', () => {
   ];
   beforeAll(async () => {
     s = await session({ distribution: 'claude-plugin', client: 'claude-code', calls: surfaces });
-  });
+  }, HOOK_BUDGET);
 
   it('never name a hidden tool or pack', () => {
     surfaces.forEach(([name, args], i) => {
@@ -323,6 +327,8 @@ describe('orientation surfaces under the profile', () => {
     expect(substrate).not.toMatch(/storage\.googleapis\.com|ffmpeg-static|cdn: true|via:'prompt'|then the start downloads it/);
     expect(substrate).toMatch(/No LLM flow leaves the machine/);
     expect(substrate).toMatch(/point the operator at the repo docs/);
+    expect(substrate).toMatch(/Earlier 2\.x versions that include it are unmaintained and have known security issues\./);
+    expect(substrate).not.toMatch(/2\.x line keeps it/);
     for (const form of PLUGIN_PROFILE_HIDDEN_FORMS) {
       expect(text('forward_context')).not.toMatch(new RegExp(`· ${form} ·`));
       expect(text('get_creative_toolset')).not.toMatch(new RegExp(`\`${form}\``));
@@ -333,7 +339,7 @@ describe('orientation surfaces under the profile', () => {
 });
 
 describe('the CLI under the profile', () => {
-  it('lists no hidden tool or pack, and refuses them on every verb', () => {
+  it('lists no hidden tool or pack, and refuses them on every verb', { timeout: 6 * 60_000 }, () => {
     const tools = cli(['tools']);
     expect(tools.code, tools.stderr).toBe(0);
     expect(hiddenIn(tools.stdout)).toEqual([]);
@@ -365,7 +371,7 @@ describe('in-process', () => {
     server = await import('./server.js');
     packsMod = await import('./packs.js');
     await server.ensureToolsRegistered();
-  });
+  }, HOOK_BUDGET);
   afterAll(() => {
     if (saved === undefined) delete process.env.MOJULO_DISTRIBUTION;
     else process.env.MOJULO_DISTRIBUTION = saved;

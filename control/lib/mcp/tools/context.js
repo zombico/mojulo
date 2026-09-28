@@ -964,6 +964,11 @@ const PROFILE_CONCEPT_GLOSSARY_VARIANTS = Object.fromEntries(
 // repo docs are something to point the operator at, not to fetch.
 const PROFILE_SUBSTRATE_POSITIONING = profileEdit(SUBSTRATE_POSITIONING, [
   ['(a scad row returns its source verbatim); and `bind_mesh_render` takes an STL or 3MF made outside back into a world.', '(a scad row returns its source verbatim).'],
+  // The approved wording for the chatbot factory: the plugin build names no 2.x install.
+  [
+    'The chatbot factory (bot builder, deployers, fleet tools) left mojulo in 3.0.0 for its own project; the 2.x line keeps it until that ships, and bots deployed from 2.x keep running as their own containers.',
+    'The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues.',
+  ],
 ], 'SUBSTRATE_POSITIONING');
 
 const PROFILE_SUBSTRATE_FACTS = profileEdit(SUBSTRATE_FACTS, [
