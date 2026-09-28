@@ -129,26 +129,25 @@ The adapter doesn't care about branching shape — it packages the resolved logi
 
 ### Step 8 — Seal the materialization
 
+After the artifact is on disk / in the host substrate, bind each MCP the artifact calls with `bind_primitives` (one call per primitive slot, `role: 'source'` or `'destination'`; each returns a `prov_…` ref), then seal:
+
 ```jsonc
 meta_context_commit({
-  type: 'artifact_materialization',
+  type: 'primitive_artifact_materialization',
   adapter_id: '<bound adapter>',
   artifact: { locator: '<…>', label: 'Linear closed → branched notification' },
-  // bot_ref omitted.
-  catalyst_ref: 'linear-issue-closed-branched-notification',
-  bindings: [
-    { mcp_tool: 'linear.list_issues', fields_bound: ['state', 'completedAt', 'labels', 'project'] },
-    { mcp_tool: 'gmail.create_draft', fields_bound: ['to', 'subject', 'body'] },
-    { mcp_tool: 'gdrive.append_to_doc', fields_bound: ['doc_id', 'entry'] }
-  ],
+  composition_intent: 'When a Linear issue closes, draft a customer email for customer-facing issues and append an internal Drive entry for the rest.',
+  provider_artifact_refs: ['prov_<source>', 'prov_<destination>'],
   principles: [
     {
       scope: 'artifact',
-      body_md: 'Classification: label `customer-facing` → email; otherwise → Drive doc. Email drafts from support@. Internal entry: date + title + URL + closer. Both branches always run.\n\n**Context:** Operator confirmed at synthesis time. Classification rule was the friction point — operator initially asked for LLM-based classification; pushed back to a label-based rule for auditability.\n\n**Applies to:** This artifact only.'
+      body_md: 'Classification: label `customer-facing` → email; otherwise → Drive doc. Email drafts from support@. Internal entry: date + title + URL + closer. Both branches always run.\n\n**Context:** Operator confirmed at synthesis time. Catalyst: linear-issue-closed-branched-notification.\n\n**Applies to:** This artifact only.'
     }
   ]
 })
 ```
+
+(Until 3.0 this step named `artifact_materialization`, which required a deployed bot and never sealed an MCP-only artifact; that commit type left with the chatbot factory.)
 
 **For mcp-orbit catalysts, this commit IS the audit chain.** For branching catalysts especially, the principle should capture *which classification rule was chosen and why* — that's the most likely thing to need re-litigation six months later.
 

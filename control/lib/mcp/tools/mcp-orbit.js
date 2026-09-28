@@ -589,7 +589,7 @@ export async function recommendCompositionsHandler(input, _ctx) {
       "Call `get_mcp_orbit_component({kind, ref})` for each component in the candidate to read its body in full.",
       'Negotiate the components\' `exposesKnobs` with the operator in ONE round, then update the composition.',
       'Dry-run against a draft destination artifact before promoting.',
-      'On promotion: host-adapter materialization → `meta_context_commit({type:"artifact_materialization", ...})`. Record the compositionRef in an artifact-scope principle.',
+      'On promotion: host-adapter materialization → `bind_primitives` per mcp entry → `meta_context_commit({type:"primitive_artifact_materialization", ...})` with the returned prov_ refs. Record the compositionRef in an artifact-scope principle.',
     ],
     ...(schemaToolCount > 0
       ? {
@@ -635,7 +635,7 @@ export function registerMCPOrbitTools() {
   registerTool({
     name: 'list_mcp_orbit_components',
     description:
-      "List components in the mcp-orbit store. Components are typed building blocks (`mcp`, `trigger`, `pattern`, `idempotency`, `render`) that compose into MCP-to-MCP workflows. Each `mcp` component declares an `affordances` map (`read`/`write`/`watch`); `source`/`destination` are composition roles per-entry in `component_refs`, not separate kinds — the same Gmail MCP can play source in one composition and destination in another. Use this when the user wants a workflow that reads from one MCP and writes to another (e.g. 'weekly Linear digest into Drive'), NOT for bot or bot-shaped catalyst work. Bodies are omitted from list responses — fetch with `get_mcp_orbit_component`.",
+      "List components in the mcp-orbit store. Components are typed building blocks (`mcp`, `trigger`, `pattern`, `idempotency`, `render`) that compose into MCP-to-MCP workflows. Each `mcp` component declares an `affordances` map (`read`/`write`/`watch`); `source`/`destination` are composition roles per-entry in `component_refs`, not separate kinds — the same Gmail MCP can play source in one composition and destination in another. Use this when the user wants a workflow that reads from one MCP and writes to another (e.g. 'weekly Linear digest into Drive'), not for a curated catalyst. Bodies are omitted from list responses — fetch with `get_mcp_orbit_component`.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -679,7 +679,7 @@ export function registerMCPOrbitTools() {
   registerTool({
     name: 'get_meta_catalyst',
     description:
-      "The mcp-orbit composition rulebook — pattern catalog, constraint table, composition discipline, ranking heuristic, dry-run + commit discipline. Read once per session before composing any mcp-orbit workflow, then re-read the constraint and dry-run sections at assembly time. Distinct from `get_catalyst` (which fetches a single bot-shaped recipe by id); this is the composer's posture for the component-store path, not a recipe.",
+      "The mcp-orbit composition rulebook — pattern catalog, constraint table, composition discipline, ranking heuristic, dry-run + commit discipline. Read once per session before composing any mcp-orbit workflow, then re-read the constraint and dry-run sections at assembly time. Distinct from `get_catalyst` (which fetches a single curated recipe by id); this is the composer's posture for the component-store path, not a recipe.",
     inputSchema: { type: 'object', properties: {} },
     handler: getMetaCatalystHandler,
   });
