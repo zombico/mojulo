@@ -8,6 +8,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createLayeredHandler } from './layered.js';
 import { updateSketchHandler } from './sketches.js';
 import { measureSolidHandler } from './measure-solid.js';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 
 // Stroke affordances S0/S1: a stroke is stored on a layered row as data, given the camera it was drawn against,
 // resolved into the ledger on every edit; a `solve` op turns a silhouette into a dial solve. A row without
@@ -79,6 +80,16 @@ describe('update_sketch on layered rows — strokes', () => {
     expect(after.strokes.s1.now.iou).toBeGreaterThan(before.strokes.s1.now.iou); expect(after.strokes.s1.solved.iou).toBe(after.strokes.s1.now.iou);
     if (after.strokes.s1.solved.bounds) expect(after.strokes.s1.hint).toMatch(/stopped on a bound/);
     const plain = await createLayeredHandler({ recipe, ref: 'lay-measure-plain' }); expect((await measureSolidHandler({ ref: plain.ref, volume: false, exposure: false })).strokes).toBeUndefined();
+  });
+
+  it('the World page carries the overlay only when the row opts in with channels.strokes', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-page', strokes: [OUTLINE], channels: { strokes: true } });
+    const on = await resolveWorldScene(SketchRepository.getByRef('lay-page'));
+    expect(on.payload.strokeOverlay).toMatchObject({ ref: 'lay-page', views: expect.objectContaining({ frontal: 180 }) });
+    expect(on.payload.strokeOverlay.strokes[0].camera).toBeTruthy(); expect(on.payload.strokeOverlay.residuals.s1.runs.length).toBeGreaterThan(0);
+    expect(on.payload.strokeOverlay.framing.distance).toBe(SketchRepository.getByRef('lay-page').manifest.strokes[0].camera.distance);   // the page's snap is the stroke's camera
+    await createLayeredHandler({ recipe, ref: 'lay-nopage', strokes: [OUTLINE] });
+    expect((await resolveWorldScene(SketchRepository.getByRef('lay-nopage'))).payload.strokeOverlay).toBeUndefined();
   });
 
   it('absent strokes, a row keeps its shape: no `strokes` key, no `ledger.strokes`', async () => {
