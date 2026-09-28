@@ -16,6 +16,7 @@
 import { validateStrokes, cameraRecord, resolveStroke, strokeLedgerEntry, viewOf } from '@/lib/graph/polygonizer/stroke-resolve';
 import { fitSilhouetteDials, solvedRecord, silhouetteResidual } from '@/lib/graph/polygonizer/silhouette-solve';
 import { contourStripParts, partsFrom } from '@/lib/graph/polygonizer/contour-strip';
+import { brushDial, dialsFrom } from '@/lib/graph/polygonizer/brush-map';
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { layeredExposure } from '@/lib/graph/polygonizer/station-loft-exposure';
 
@@ -92,8 +93,26 @@ export function applySolves(manifest, mesh, ops, indexOffset = 0) {
       const record = { parts: made.names, carrier: made.carrier, side: made.side, stations: made.run.length, height: made.height, width: made.width, hits: resolved.hits, misses: resolved.misses, exposure };
       next.strokes[at] = { ...stroke, solved: record };
       solved.push({ id, intent: stroke.intent, ...record });
+    } else if (stroke.intent === 'brush') {
+      // a brush becomes a `brush` dial (brush-map.js): skin-map entries at the resolved addresses, stored at 1 so it
+      // replays under every other dial and can be turned down by name; the dial an earlier solve made is replaced
+      const m = currentMesh || compileLayered(next.recipe, next.dials || {}, next.channels || {});
+      const resolved = resolveStroke(m, stroke);
+      let made;
+      try { made = brushDial(compileLayered(next.recipe, {}, { details: false, creases: false }), stroke, resolved, { amp: op.amp, radius: op.radius, direction: op.direction }); }
+      catch (err) { throw new Error(`patch[${i}]: ${err.message}. ${MANUAL}`); }
+      const dials = { ...next.recipe.dials }; const values = { ...next.dials }; for (const n of dialsFrom(next.recipe, id)) { delete dials[n]; delete values[n]; }
+      dials[made.name] = made.dial; values[made.name] = made.value;
+      next.recipe = { ...next.recipe, dials }; next.dials = values; currentMesh = null; recipeChanged = true;
+      // the push, measured: how far the carrier's points moved at the dial's value
+      const before = compileLayered({ ...next.recipe, dials: { ...next.recipe.dials, [made.name]: { ...made.dial, rest: 0 } } }, { ...next.dials, [made.name]: 0 });
+      const after = compileLayered(next.recipe, next.dials);
+      let moved = 0, maxPush = 0; after.vertices.forEach((v, k) => { const d = Math.hypot(v[0] - before.vertices[k][0], v[1] - before.vertices[k][1], v[2] - before.vertices[k][2]); if (d > 1e-9) { moved++; if (d > maxPush) maxPush = d; } });
+      const record = { dial: made.name, carrier: made.carrier, side: made.side, entries: made.entries, amp: made.amp, radius: made.radius, hits: resolved.hits, misses: resolved.misses, pointsMoved: moved, maxPush: Math.round(maxPush * 1e6) / 1e6 };
+      next.strokes[at] = { ...stroke, solved: record };
+      solved.push({ id, intent: stroke.intent, ...record });
     } else {
-      throw new Error(`patch[${i}]: stroke '${id}' is a ${stroke.intent}; silhouette and contour strokes solve today (brush, fold and landmark follow). ${MANUAL}`);
+      throw new Error(`patch[${i}]: stroke '${id}' is a ${stroke.intent}; silhouette, contour and brush strokes solve today (fold and landmark follow). ${MANUAL}`);
     }
   });
   return { manifest: next, solved, dialsChanged: dialsChanged || recipeChanged };
@@ -121,6 +140,7 @@ export function strokesReadout(manifest, mesh) {
       const R = silhouetteResidual(mesh, s); entry.now = { iou: R.iou, reached: Math.round((1 - Math.min(1, R.share)) * 1000) / 1000, residual: { share: R.share, bbox: R.bbox } };
       if (s.solved?.bounds?.length) entry.hint = `the solve stopped on a bound (${s.solved.bounds.join(', ')}): the residual there is outside what the dials can say — a new dial or op, or a different outline`;
     } else if (s.intent === 'contour') { if (!s.solved) entry.hint = 'unsolved: { op: \'solve\', from: \'/strokes/' + s.id + '\' } grows a strip along it'; else { const buried = Object.entries(s.solved.exposure || {}).filter(([, e]) => e && e.flag !== 'reads').map(([n, e]) => `${n} ${e.flag}`); if (buried.length) entry.hint = `the strip is hard to see from its own view (${buried.join(', ')}): raise height, or draw it where the surface faces the camera`; } }
+    else if (s.intent === 'brush') { if (!s.solved) entry.hint = 'unsolved: { op: \'solve\', from: \'/strokes/' + s.id + '\' } pushes the skin along it (a brush dial you can turn down by name)'; else if (!s.solved.pointsMoved) entry.hint = 'the brush moved no point: the carrier has no vertex within its radius — a larger radius, or refine the carrier there'; }
     else entry.hint = `${s.intent} strokes resolve but do not solve yet`;
     if (entry.misses) entry.hint = `${entry.misses} of ${entry.points} points miss the solid in this view${entry.hint ? `; ${entry.hint}` : ''}`;
     out[s.id] = entry;

@@ -11,7 +11,7 @@
  * anatomy (station tables, region addresses, skin maps, amplitudes, ornaments, palettes) is data a head recipe
  * supplies (docs/examples/head-detail). Deterministic: the only dice are `mulberry32` seeded per tile id.
  */
-import { compileLayered, pinFrame, mirrorFaceId, mirrorPid } from './station-loft.js';
+import { compileLayered, pinFrame, mirrorPid, addressPin } from './station-loft.js';
 import { placeSurfaceOffset, surfaceLocalOffset } from './surface-pin.js';
 import { mulberry32 } from './floorplan-glyphs.js';
 
@@ -66,18 +66,8 @@ function volumize(recipe, part, slotW, stationW, amount) {
 }
 
 // ── addresses and frames ──
-function address(L1, name, s, t, side = 'R') {
-  const part = L1[name]; const slots = part.slots, ids = part.stations.map((x) => x.id), n = slots.length, half = n / 2;
-  const U = part.stations.map((st, i) => st.u ?? i), T = slots.slice(0, half + 1).map((sl, k) => part.slotT?.[sl] ?? k);
-  if (!(s >= U[0] && s <= U[U.length - 1] && t >= T[0] && t <= T[half])) throw new Error(`address (${s},${t}) off ${name}`);
-  let i = 0; while (i < U.length - 2 && s > U[i + 1]) i++; let k = 0; while (k < half - 1 && t > T[k + 1]) k++;
-  const u = (s - U[i]) / (U[i + 1] - U[i]), v = (t - T[k]) / (T[k + 1] - T[k]);
-  const P = (j, kk) => `${name}/${ids[j]}.${slots[kk % n]}`; const band = `${name}/${ids[i]}-${ids[i + 1]}.k${k}`;
-  const p00 = P(i, k), p01 = P(i, k + 1), p10 = P(i + 1, k), p11 = P(i + 1, k + 1);
-  const [id, w, edge] = u <= v ? [`${band}.a`, { [p00]: 1 - v, [p01]: v - u, [p11]: u }, [p01, p11]] : [`${band}.b`, { [p00]: 1 - u, [p11]: v, [p10]: u - v }, [p00, p10]];
-  const pin = { parent: name, face: id, weights: part.faces[id].map((p) => w[p]), tangentEdge: edge, handedness: 1 };
-  return side === 'R' ? pin : { ...pin, face: mirrorFaceId(pin.face, n), weights: [...pin.weights].reverse(), tangentEdge: pin.tangentEdge.map(mirrorPid), handedness: -1 };
-}
+// the pin at an address: the grammar's own (station-loft.js addressPin), so the brush dial and the details agree
+const address = (L1, name, s, t, side = 'R') => addressPin(L1[name], name, s, t, side);
 const frameAt = (L1, name, [s, t], side) => pinFrame(L1[name], address(L1, name, s, t, side));
 /** a midline frame: the average of an address's frame and its mirror, so a midline detail stays on x = 0 */
 function symmetricFrameAt(L1, name, at) { const a = frameAt(L1, name, at, 'R'), b = frameAt(L1, name, at, 'L');

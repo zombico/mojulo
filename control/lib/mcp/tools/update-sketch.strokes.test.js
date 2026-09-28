@@ -102,6 +102,21 @@ describe('update_sketch on layered rows — strokes', () => {
     expect(Object.keys(SketchRepository.getByRef('lay-contour').manifest.recipe.parts).filter((n) => n.startsWith('stroke.')).length).toBe(2);
   });
 
+  it('a `solve` on a brush adds a `brush` dial at 1 that pushes the skin along it and replays under a later dial; a re-solve replaces it', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-brush' });
+    const line = { id: 'b1', view: 'lateral', intent: 'brush', points: [[0.4, 0.45, 1], [0.5, 0.46, 1], [0.6, 0.47, 1]] };
+    await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'set', path: '/strokes/-', value: line }] });
+    // the two-station body has few points: a wide brush so the flank's vertices sit inside it
+    const r = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'solve', from: '/strokes/b1', amp: 0.1, radius: 1.2 }] });
+    const S = r.stats.solved[0]; expect(S.intent).toBe('brush'); expect(S.dial).toBe('stroke.b1'); expect(S.pointsMoved).toBeGreaterThan(0); expect(S.maxPush).toBeGreaterThan(0.01);
+    const stored = SketchRepository.getByRef('lay-brush').manifest;
+    expect(stored.recipe.dials['stroke.b1']).toMatchObject({ op: 'brush', from: 'b1', parts: ['body'] }); expect(stored.dials['stroke.b1']).toBe(1);
+    const off = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'set', path: '/dials/stroke.b1', value: 0 }] }); expect(off.ok).toBe(true);   // turned down by name
+    const again = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'solve', from: '/strokes/b1', mirror: true }] });
+    expect(Object.keys(SketchRepository.getByRef('lay-brush').manifest.recipe.dials).filter((n) => n.startsWith('stroke.'))).toEqual(['stroke.b1']); expect(again.stats.solved[0].entries).toBe(3);
+    const m = await measureSolidHandler({ ref: 'lay-brush', volume: false, exposure: false }); expect(m.strokes.b1.solved.dial).toBe('stroke.b1');
+  });
+
   it('the World page carries the overlay only when the row opts in with channels.strokes', async () => {
     await createLayeredHandler({ recipe, ref: 'lay-page', strokes: [OUTLINE], channels: { strokes: true } });
     const on = await resolveWorldScene(SketchRepository.getByRef('lay-page'));
@@ -127,9 +142,9 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 's1', view: 'frontal', intent: 'scribble', points: [[0.1, 0.1], [0.2, 0.2]] } }] }))
       .rejects.toThrow(/strokes refused[\s\S]*intent/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s9' }] })).rejects.toThrow(/needs a stored stroke/);
-    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'b1', view: 'frontal', intent: 'brush', points: [[0.4, 0.4], [0.6, 0.6]] } }] });
+    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'f1', view: 'frontal', intent: 'fold', points: [[0.4, 0.4], [0.6, 0.6]] } }] });
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s9' }] })).rejects.toThrow(/no stroke 's9'/);
-    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/b1' }] })).rejects.toThrow(/silhouette and contour strokes solve today/);
+    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/f1' }] })).rejects.toThrow(/silhouette, contour and brush strokes solve today/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve' }] })).rejects.toThrow(/from: '\/strokes\/<id>'/);
     expect(SketchRepository.getByRef('lay-refuse').manifest.dials).toEqual({ width: 1, lift: 0 });   // every refusal left the row alone
   });
