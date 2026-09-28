@@ -226,9 +226,10 @@ describe('middleware and a delegate session, end to end', () => {
     return { key, cookie: await signIn(key.name, key.token) };
   }
 
-  const request = (pathname, cookie, { host = '127.0.0.1:3001' } = {}) =>
+  const request = (pathname, cookie, { host = '127.0.0.1:3001', method = 'GET' } = {}) =>
     middleware(
       new NextRequest(`http://127.0.0.1:3001${pathname}`, {
+        method,
         headers: { host, ...(cookie ? { cookie: `${SESSION_COOKIE}=${cookie}` } : {}) },
       }),
     );
@@ -319,6 +320,49 @@ describe('middleware and a delegate session, end to end', () => {
     expect(passes(await request('/api/stashes'))).toBe(true);
     expect(passes(await request('/api/stashes', cookie))).toBe(true);
     expect(closeDelegateReader()).toBe(false);
+  });
+
+  // No dashboard route checks a role, grant or flag, so a live delegate session that could write would
+  // hold the operator's authority (the review deleted the operator's saved keys through it, and an
+  // app's .env plus start runs code as the operator). It reads; it does not write.
+  it("a live delegate's session is read-only, and the settings API is the operator's", async () => {
+    const { cookie } = await delegateSession({ grants: [] });
+    await expectLive(cookie);
+    expect(passes(await request('/api/sketches', cookie))).toBe(true);
+    const refused = [
+      ['/api/settings/api-keys/key_1', 'DELETE'],
+      ['/api/settings/api-keys', 'POST'],
+      ['/api/settings/api-keys', 'GET'],
+      ['/api/%73ettings/api-keys', 'GET'],
+      ['/api/apps/app_1/env', 'POST'],
+      ['/api/apps/app_1/start', 'POST'],
+      ['/api/sketches/delete', 'POST'],
+      ['/api/polygonizer', 'POST'],
+      ['/api/stashes/st_1', 'PATCH'],
+      ['/settings', 'POST'],
+    ];
+    for (const [pathname, method] of refused) {
+      const res = await request(pathname, cookie, { method });
+      expect(res.status, `${method} ${pathname}`).toBe(403);
+      expect((await res.json()).code).toBe('DELEGATE_READ_ONLY');
+    }
+    // Signing out is a public path: a delegate can always end the session.
+    expect(passes(await request('/api/auth/logout', cookie, { method: 'POST' }))).toBe(true);
+  });
+
+  it("the operator's session still writes, the settings API included", async () => {
+    const admin = await signIn('op', PASSWORD);
+    for (const [pathname, method] of [['/api/settings/api-keys/key_1', 'DELETE'], ['/api/settings/api-keys', 'GET'], ['/api/sketches/delete', 'POST']]) {
+      expect(passes(await request(pathname, admin, { method })), `${method} ${pathname}`).toBe(true);
+    }
+  });
+
+  it('a revoked delegate still gets 401, not the read-only 403', async () => {
+    const { key, cookie } = await delegateSession();
+    await tool('revoke_role_key', { user: key.name });
+    const res = await request('/api/sketches/delete', cookie, { method: 'POST' });
+    expect(res.status).toBe(401);
+    expect((await res.json()).code).toBe('SESSION_REQUIRED');
   });
 
   it('the loopback guard still answers first: a revoked session behind a forged Host gets 403', async () => {

@@ -56,6 +56,32 @@ async function sessionIsLive(claims) {
   return delegateSessionRefusal(claims) === null;
 }
 
+// A live delegate's session is READ-ONLY. No dashboard route checks a role, a grant or a flag, so a
+// delegate session that could write would hold the operator's whole authority: delete the operator's
+// saved keys, write an app's `.env` and start the app, delete sketches, spend a saved provider key
+// through the polygonizer route. The roles pack's grants and deny-list bind the MCP bearer; until the
+// dashboard enforces them too, a delegate reads pages and the API and writes nothing, and the settings
+// API (the operator's saved keys) answers no read either. The operator's session is unaffected.
+const READ_METHODS = new Set(['GET', 'HEAD']);
+const OPERATOR_ONLY_READS = /^\/api\/settings(?:\/|$)/;
+
+function decodedPath(pathname) {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
+}
+
+function delegateWriteRefusal(claims, method, pathname) {
+  if (claims.r === 'admin') return null;
+  if (READ_METHODS.has(method) && !OPERATOR_ONLY_READS.test(decodedPath(pathname))) return null;
+  return {
+    error: "A delegate's dashboard session is read-only: the dashboard does not check a delegate's grants, so writes and the settings API are the operator's. Use your MCP key for what your role grants.",
+    code: 'DELEGATE_READ_ONLY',
+  };
+}
+
 export async function middleware(req) {
   // A matching bearer cannot come from a rebinding or cross-site page, so it
   // skips the loopback guard too.
@@ -82,7 +108,13 @@ export async function middleware(req) {
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const claims = await verifySessionToken(token, process.env.CONTROL_PLANE_PASSWORD);
-  if (claims && (await sessionIsLive(claims))) return NextResponse.next();
+  if (claims && (await sessionIsLive(claims))) {
+    const readOnly = delegateWriteRefusal(claims, req.method, pathname);
+    if (readOnly) {
+      return new NextResponse(JSON.stringify(readOnly), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
+    return NextResponse.next();
+  }
 
   if (req.nextUrl.pathname.startsWith('/api/')) {
     return new NextResponse(

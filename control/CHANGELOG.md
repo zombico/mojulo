@@ -20,8 +20,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   recommended. 2.1.0 and the bot image it deploys (`mojulo-bot` 0.5.1) have known security issues: an
   open relay on deployed bots (`/api/send-webhook`), SSRF in `upload_document_from_url`, path
   traversal in the Office-document parser, Fly credentials in the machine environment, and dashboard
-  DNS rebinding and cross-site writes, and a revoked delegate's dashboard session that outlives the
-  revocation
+  DNS rebinding and cross-site writes, a revoked delegate's dashboard session that outlives the
+  revocation, and a delegate's dashboard session that holds the operator's authority
   ([SECURITY.md](https://github.com/zombico/mojulo/blob/v3.0.0/SECURITY.md#known-issues-in-2x)). Bots
   already deployed from 2.x run on their own, on that image, until you take them down.
 - **Unpinned installs move to 3.0 on their next start once 3.0.0 is npm `latest`.** A host that runs
@@ -79,6 +79,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `mojulo install creative` installs nothing (the creative pack always ships), and
     `mojulo install recall` now works from npm and npx. With the runtime already installed and the
     search model missing, it fetches the model instead of reporting nothing to do.
+  - A delegate (roles pack) signed in to the dashboard reads and no longer writes (below).
 
 ### What 3.0 is
 
@@ -136,6 +137,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the roles pack off a delegate session is refused outright. The dashboard middleware now runs on the
   Node runtime so it can make this check. The operator's own session, installs with login off, and
   installs without the roles pack make no database read.
+- **A delegate's dashboard session is read-only.** No dashboard route checks a role, a grant or a
+  flag, so on 2.x a signed-in delegate held the operator's authority there, whatever the role
+  granted: deleting the operator's saved keys, writing an app's `.env` and starting the app, deleting
+  sketches. A live delegate session now reads pages and the API, and gets 403 (`DELEGATE_READ_ONLY`)
+  on every write and on the settings API. The roles pack's grants still bind the delegate's MCP key;
+  the operator's session is unchanged.
 
 ### Claude plugin and directory readiness
 
