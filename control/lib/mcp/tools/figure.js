@@ -28,6 +28,7 @@ import { articulate } from '@/lib/graph/polygonizer/figure-vajra';
 import { encodeGif } from '@/lib/motion';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { FIGURE_SETUPS, FIGURE_SETUP_NAMES } from '@/lib/visual-language/themes';
+import { pluginProfileActive, pluginProfileNotice } from '@/lib/mcp/plugin-profile';
 
 const GARMENT_KEYS = Object.keys(GARMENTS);
 
@@ -51,6 +52,11 @@ export async function createFigureHandler(input) {
   }
   if (typeof dreamAudit === 'string' && /^\s*[{[]/.test(dreamAudit)) {
     try { dreamAudit = JSON.parse(dreamAudit); } catch { /* leave as string; validator will reject */ }
+  }
+  // The Claude plugin profile leaves out the character-from-dream loop (lib/mcp/plugin-profile.js):
+  // a figure there never claims to be reconstructed from an image generator's reference.
+  if (dreamAudit !== undefined && dreamAudit !== null && pluginProfileActive()) {
+    throw new Error(pluginProfileNotice("A figure's dream_audit"));
   }
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {

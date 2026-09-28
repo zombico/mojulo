@@ -163,6 +163,12 @@ describe('the profile module', () => {
   });
 });
 
+// Hidden tools called by name, listed or not (the figure-spec tools never were).
+const DIRECT = ['bind_image_render', 'request_image_render', 'get_image_render_packet', 'bind_character_sheet', 'request_mesh_render',
+  'accept_mesh_render', 'bind_mesh_render', 'create_voice', 'get_voice_vocab', 'create_sprite_sheet', 'get_style_vocab',
+  'get_skin_packet', 'create_polygonized_sketch', 'draft_figure_spec', 'get_figure_spec', 'resolve_figure_spec', 'build_figure_spec'];
+const DREAM_AUDIT = { source: 'native', invoked_generator: true, prompt: 'a knight', seed: '1' };
+
 describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
   let flat;
   let packs;
@@ -173,9 +179,7 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
         client: 'claude-code',
         calls: [
           // direct calls to hidden tools
-          ...['bind_image_render', 'request_image_render', 'get_image_render_packet', 'bind_character_sheet', 'request_mesh_render',
-            'accept_mesh_render', 'bind_mesh_render', 'create_voice', 'get_voice_vocab', 'create_sprite_sheet', 'get_style_vocab',
-            'get_skin_packet', 'create_polygonized_sketch'].map((name) => [name, {}]),
+          ...DIRECT.map((name) => [name, name === 'draft_figure_spec' ? { title: 'hero', dream_audit: DREAM_AUDIT } : {}]),
           // through the pack dispatchers, including a hidden pack itself
           ['pack_image_render', {}],
           ['pack_voice', { tool: 'create_voice', args: {} }],
@@ -191,6 +195,8 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
           ['get_catalyst', { id: 'render-image-outcome-locally' }],
           ['get_sketch_vocab', { id: 'sequential-art' }],
           ['get_solid_vocab', { id: 'skin' }],
+          ['mint_solid', { kind: 'figure', title: 'k', spec: { dream_audit: DREAM_AUDIT } }],
+          ['create_figure', { title: 'k', dream_audit: DREAM_AUDIT }],
         ],
       }),
       session({ distribution: 'claude-plugin', client: 'probe-client' }),
@@ -231,11 +237,8 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
   });
 
   it('refuses every hidden tool in-band, directly and through any pack', () => {
-    const direct = ['bind_image_render', 'request_image_render', 'get_image_render_packet', 'bind_character_sheet', 'request_mesh_render',
-      'accept_mesh_render', 'bind_mesh_render', 'create_voice', 'get_voice_vocab', 'create_sprite_sheet', 'get_style_vocab',
-      'get_skin_packet', 'create_polygonized_sketch'];
-    direct.forEach((name, i) => expect(flat.results[i]).toEqual({ isError: true, text: notice(name) }));
-    const via = flat.results.slice(direct.length, direct.length + 5);
+    DIRECT.forEach((name, i) => expect(flat.results[i]).toEqual({ isError: true, text: notice(name) }));
+    const via = flat.results.slice(DIRECT.length, DIRECT.length + 5);
     expect(via).toEqual([
       { isError: true, text: notice('pack_image_render') },
       { isError: true, text: notice('pack_voice') },
@@ -246,8 +249,8 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
   });
 
   it('refuses the closed doors of kept tools, and says which door to use for the prompt', () => {
-    const doors = flat.results.slice(18);
-    expect(doors).toHaveLength(8);
+    const doors = flat.results.slice(DIRECT.length + 5, DIRECT.length + 15);
+    expect(doors).toHaveLength(10);
     for (const r of doors) {
       expect(r.isError).toBe(true);
       expect(r.text).toMatch(/not part of the Claude plugin build of mojulo/);
@@ -259,6 +262,9 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
     expect(doors[3].text).toMatch(/forge_motion subject\.scene_ref/);
     expect(doors[4].text).toMatch(/'voice' form/);
     expect(doors[5].text).toMatch(/'render-image-outcome-locally' catalyst/);
+    // character-from-dream: a figure never carries a dream attestation here, by either name
+    expect(doors[8].text).toMatch(/^A figure's dream_audit is not part of the Claude plugin build of mojulo\./);
+    expect(doors[9].text).toMatch(/^A figure's dream_audit is not part of the Claude plugin build of mojulo\./);
   });
 });
 

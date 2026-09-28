@@ -10,9 +10,10 @@
  *     generator: the image-render and mesh handoffs, the voice registers (rendered by the Kokoro
  *     TTS model), the sprite sheets painted through the image handoff and the Style Lock presets
  *     only an image worker reads, the `skin` op of edit_solid (a PNG painted by an image
- *     generator), the painted create_sketch kinds, create_cover's painted layers, and the scene /
- *     cel families of forge_motion (both composite accepted image renders), plus the catalysts,
- *     routing cards and vocab cards that exist to drive those loops;
+ *     generator), the painted create_sketch kinds, create_cover's painted layers, the scene /
+ *     cel families of forge_motion (both composite accepted image renders), and the
+ *     character-from-dream loop (the figure-spec tools and a figure's dream_audit), plus the
+ *     catalysts, routing cards and vocab cards that exist to drive those loops;
  *   - the keyed LLM door, mint_solid via:'prompt' (the user's text to a third-party provider);
  *   - automatic third-party downloads (Chrome for Testing, ffmpeg, the recall model): the
  *     resolvers in lib/graph/scene/chromium.js, lib/motion/ffmpeg.js and lib/embedder/local.js
@@ -67,6 +68,10 @@ const STYLE_TOOLS = ['get_style_vocab'];
 // Retired aliases of the doors the profile closes: the skin op of edit_solid, and the prompt door
 // of mint_solid (lib/mcp/tools/mint-solid.js RETIRED_ALIASES).
 const CLOSED_DOOR_ALIASES = ['get_skin_packet', 'skin_polygomer', 'create_polygonized_sketch'];
+// The character-from-dream spec loop (lib/mcp/tools/figure-specs.js): a figure reconstructed from an
+// image generator's dreamed reference, drafted with its dream_audit, approved and built. Unlisted
+// everywhere; hidden here so a call by name is refused like the rest of that loop.
+const DREAM_FIGURE_SPEC_TOOLS = ['draft_figure_spec', 'get_figure_spec', 'resolve_figure_spec', 'build_figure_spec'];
 
 export const PLUGIN_PROFILE_HIDDEN_TOOLS = Object.freeze([
   ...IMAGE_RENDER_TOOLS,
@@ -75,6 +80,7 @@ export const PLUGIN_PROFILE_HIDDEN_TOOLS = Object.freeze([
   ...SPRITE_SHEET_TOOLS,
   ...STYLE_TOOLS,
   ...CLOSED_DOOR_ALIASES,
+  ...DREAM_FIGURE_SPEC_TOOLS,
 ]);
 
 /** Pack dispatchers whose every member is hidden: the pack itself leaves the surface. */
