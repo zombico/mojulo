@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { installedGroups } from '../mcp/packs.js';
+import { pruneRetiredShelfEmbeddings } from './embeddings-prune.js';
 
 // Resolved lazily at first getDb() call (not at module load) so test files can
 // set SQLITE_PATH after their `import` block has hoisted — ESM evaluates imports
@@ -826,6 +827,7 @@ function init(db) {
   migrateUserColumns(db);
   migrateRenderRequestMedium(db);
   pruneMcpToolCalls(db);
+  pruneRetiredShelf(db);
   maybeBackfillEmbeddings(db);
   maybeStartNodeFulfiller();
   maybeStartTriggerDaemons();
@@ -927,6 +929,22 @@ function triggerReindex(reason) {
     .catch((err) => {
       console.warn('[meta_embeddings] backfill module load failed:', err.message);
     });
+}
+
+// A routing card or curated catalyst a release deleted keeps its index row
+// (reindexAll only upserts), so an upgraded home would go on surfacing it
+// through semantic_search — 3.0.0's removed `bot` card and chatbot-factory
+// catalysts are the case. Runs on every boot, before any search can answer,
+// and is soft: a failure leaves the index as it was and never fails getDb().
+function pruneRetiredShelf(db) {
+  try {
+    const removed = pruneRetiredShelfEmbeddings(db);
+    if (removed > 0) {
+      console.error(`[meta_embeddings] removed ${removed} index row(s) for routing cards / catalysts this version no longer ships`);
+    }
+  } catch (err) {
+    console.warn('[meta_embeddings] retired-shelf prune failed:', err?.message || err);
+  }
 }
 
 function maybeBackfillEmbeddings(db) {

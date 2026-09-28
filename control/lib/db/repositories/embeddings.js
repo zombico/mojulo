@@ -42,6 +42,7 @@
 import { createHash } from 'node:crypto';
 
 import { getDb } from '../index.js';
+import { pruneRetiredShelfEmbeddings } from '../embeddings-prune.js';
 import {
   generateEmbeddings,
   LOCAL_EMBEDDING_MODEL,
@@ -1131,7 +1132,8 @@ export const BodyComposition = {
 // ── reindexAll ────────────────────────────────────────────────────────────
 //
 // One-shot backfill across every source kind. Idempotent — re-running on a
-// populated index is a no-op (hash-skip on every row). Run on first boot
+// populated index is a no-op (hash-skip on every row), apart from dropping
+// routing / catalyst rows whose source no longer ships. Run on first boot
 // (wired via maybeBackfillEmbeddings in db/index.js) and re-invocable via
 // scripts/reindex-embeddings.js.
 
@@ -1508,6 +1510,15 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`routing: ${routingCards.size}`);
+
+  // Rows whose routing card or catalyst no longer ships (a release deleted the
+  // file, or the operator archived a local mint) go: the passes above only
+  // upsert, so without this a from-scratch reindex keeps serving them.
+  const pruned = pruneRetiredShelfEmbeddings(db, {
+    routingIds: new Set(routingCards.keys()),
+    catalystIds: new Set(catalog.keys()),
+  });
+  if (pruned > 0) log(`pruned ${pruned} retired routing/catalyst row(s)`);
 
   if (items.length === 0) {
     log('nothing to index');
