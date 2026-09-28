@@ -39,7 +39,14 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 
 ## Package size and disk footprint
 
-Measured for 3.0.0: <measured>. The last measurement, **2026-09-27**, was of the unreleased 2.2 line
+Measured for 3.0.0 on **2026-09-28**: the core tarball packed from its release branch, cold-started 10
+times with an empty npm cache and a fresh `MOJULO_HOME` through a local registry stand-in on macOS
+arm64 (M1 Max), answered `initialize` in a median 6.6 s (p90 7.0 s, slowest 7.7 s), against 7.2 s
+(p90 7.9 s, slowest 8.5 s) for the 2.2 line in the same interleaved rounds. Nearly all of that is
+npm's install; the server answers about 0.06 s after npm finishes. The machine was busy throughout
+(load average 11 to 33), so trust the difference more than the absolute times. Sizes here are
+decimal MB; `du -h` shows disk sizes about 5% lower, in MiB. The measurement before that,
+**2026-09-27**, was of the unreleased 2.2 line
 3.0.0 grew from, which still carried the chatbot factory: the core tarball packed from its release
 branch, cold-started 14 times with an empty npm cache through a local registry stand-in on macOS arm64
 (M1 Max), answered `tools/list` in a median 7.3 s (p90 9.5 s, slowest 9.7 s); the published 2.1.0 took
@@ -59,10 +66,10 @@ have been excluded since 2.0.6.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **<measured>** | `mojulo-3.0.0`, <measured> files; no dashboard build. The 2.2 line measured 6.0 MB and 1,478 files. |
-| Unpacked package | **<measured>** | The stdio server, the kernels and the vendored three.js (19 MB on the 2.2 line). |
-| Dependencies npm installs | **<measured>** on disk, <measured> packages | About <measured> on the wire (tarballs plus package metadata) from an empty cache. The 2.2 line, with the document parsers, measured ~290 MB, 208 packages and ~110 MB. Breakdown below. |
-| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **<measured>** tarball, **<measured>** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. The 2.2 line, with the bot pages, measured 13 MB and 60 MB. |
+| npm tarball (what `npx` downloads) | **5.8 MB** | `mojulo-3.0.0`, 1,390 files; no dashboard build. The 2.2 line measured 6.0 MB and 1,483 files. |
+| Unpacked package | **18.6 MB** | The stdio server, the kernels and the vendored three.js (19 MB on the 2.2 line). |
+| Dependencies npm installs | **228 MB** on disk, 179 packages | About 89 MB on the wire (tarballs plus package metadata) from an empty cache. The 2.2 line, with the document parsers, measured 303 MB, 208 packages and 114 MB the same way. Breakdown below. |
+| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **12.1 MB** tarball, **55.3 MB** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. The 2.2 line, with the bot pages, measured 13.2 MB and 60.0 MB. |
 | Recall group (`mojulo install recall`) | **~480 MB** runtime + **~130 MB** model | `@huggingface/transformers` with `onnxruntime-node` and `onnxruntime-web` under `~/.mojulo/recall/`, and `Xenova/multilingual-e5-small` (q8 ONNX) under `~/.mojulo/models/`. Gives `semantic_search` vector ranking; runs in-process. Opt-in. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 

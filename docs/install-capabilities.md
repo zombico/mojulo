@@ -170,7 +170,8 @@ loads almost nothing:
   core's tarball is 6.0 MB (19.2 MB unpacked, from 25.5 MB and 100 MB) and `mojulo-ui`'s is 13.2 MB
   (59.9 MB unpacked). A cold `npx mojulo` from an empty cache then added 251 packages (303 MB on
   disk), three samples through a local registry stand-in. With the chatbot factory's document parsers
-  gone in 3.0.0 the same cold start adds <measured> packages (<measured> MB on disk).
+  gone in 3.0.0 the same cold start adds 179 packages (228 MB on disk): 29 packages and 75 MB fewer
+  than the 2.2 line measured the same way on 2026-09-28.
 
 ## Diagram maker in the kernel
 

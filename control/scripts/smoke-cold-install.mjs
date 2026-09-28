@@ -50,8 +50,9 @@ const MUST_BE_HOISTED = fromInstallPackages();
 // replaces @swc/core, and three was only ever the creative pack's install marker.
 const MUST_NOT_INSTALL = ['@swc/core', 'three'];
 
-// The chatbot factory's document parsers (about 76 MB and 30 packages). They left with the
-// factory in 3.0.0; neither package may come back into a default install.
+// The chatbot factory's document parsers (75 MB and 29 packages of a cold install, measured
+// for 3.0.0). They left with the factory in 3.0.0; neither package may come back into a
+// default install.
 const BOT_ONLY_PACKAGES = ['officeparser', 'pdf2json'];
 
 // Dashboard-only packages, devDependencies since 3.0: the Next build compiles them

@@ -49,9 +49,9 @@ does not use this plugin.
 ## Requirements
 
 - **Node.js 22.12 or newer**, with `npx` on the `PATH` Claude sees.
-- **About <measured> MB of disk.** The first start downloads the package (about 6 MB) and its
-  dependencies, about <measured> MB in all, into the npm cache. Measured for 3.0.0 on an Apple Silicon Mac,
-  that first start answered in <measured> seconds; later starts reuse the cache.
+- **About 230 MB of disk.** The first start downloads the package (about 6 MB) and its
+  dependencies, about 90 MB in all, into the npm cache. Measured for 3.0.0 on an Apple Silicon Mac,
+  that first start answered in 6 to 8 seconds, nearly all of it npm's install; later starts reuse the cache.
 - No account, no API key, no GPU. Game engines, Blender and slicers are optional, and mojulo never
   installs them.
 
@@ -174,7 +174,7 @@ plugin, delete `~/.mojulo/`, and optionally clear the npm cache's `_npx` folder 
 
 ## If the first start times out
 
-Claude Code gives a local server 30 seconds to start, and the first start downloads about <measured> MB.
+Claude Code gives a local server 30 seconds to start, and the first start downloads about 90 MB.
 On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm the
 cache once from a terminal with `npx -y mojulo@3.0.0 --help` and reconnect in `/mcp`. If a desktop
 or Cowork session reports `spawn npx ENOENT`, the Node on that session's `PATH` is missing; a system
