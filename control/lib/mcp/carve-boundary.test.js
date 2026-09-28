@@ -108,8 +108,8 @@ function inCarveSet(rel) {
 }
 
 // Environment for a child that behaves like a fresh `npx mojulo` on a host with no chatbot
-// marker: every MOJULO_* and path variable dropped (the vitest setup file turns the chatbot
-// pack on, and a developer's shell may point at real data), MOJULO_HOME in a temp directory.
+// marker: every MOJULO_* and path variable dropped (the vitest setup file pins the install
+// groups, and a developer's shell may point at real data), MOJULO_HOME in a temp directory.
 function freshInstallEnv(home) {
   const env = {};
   for (const [key, value] of Object.entries(process.env)) {
