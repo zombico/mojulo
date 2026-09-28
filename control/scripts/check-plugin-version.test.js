@@ -4,13 +4,10 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  BOT_IMAGE_MODULE,
   MARKETPLACE_MANIFEST,
   PLUGIN_MANIFEST,
-  checkBotImagePublished,
   checkManifestVersions,
   checkPluginVersionBump,
-  defaultBotImage,
 } from './check-plugin-version.mjs';
 
 // The published manifests outside control/ pin the npm version by hand; this is what keeps them
@@ -71,45 +68,6 @@ describe('check-plugin-version', () => {
       ]);
       tree({ readme: 'The dashboard is `npx -y mojulo-ui@3.1.0`.' });
       expect(checkManifestVersions({ root })).toEqual([]);
-    });
-
-    // Every default chatbot deploy pulls DEFAULT_BOT_IMAGE, so a release that pins a tag
-    // publish-bot-image.yml has not pushed yet breaks them all. --bot-image asks GHCR.
-    describe('--bot-image', () => {
-      const pinImage = (image) => write(BOT_IMAGE_MODULE, `export const DEFAULT_BOT_IMAGE = '${image}';\n`);
-      function fakeGhcr(manifestStatus) {
-        const calls = [];
-        const fetchImpl = async (url, init = {}) => {
-          calls.push({ url, method: init.method || 'GET' });
-          if (url.startsWith('https://ghcr.io/token')) return new Response(JSON.stringify({ token: 't' }), { status: 200 });
-          return new Response(null, { status: manifestStatus });
-        };
-        return { calls, fetchImpl };
-      }
-
-      it('reads the pin from the source', () => {
-        pinImage('ghcr.io/zombico/mojulo-bot:9.9.9');
-        expect(defaultBotImage({ root })).toEqual({ image: 'ghcr.io/zombico/mojulo-bot:9.9.9', repo: 'zombico/mojulo-bot', tag: '9.9.9' });
-      });
-
-      it('passes when GHCR serves the pinned tag', async () => {
-        pinImage('ghcr.io/zombico/mojulo-bot:9.9.9');
-        const { calls, fetchImpl } = fakeGhcr(200);
-        expect(await checkBotImagePublished({ root, fetchImpl })).toEqual([]);
-        expect(calls.at(-1)).toEqual({ url: 'https://ghcr.io/v2/zombico/mojulo-bot/manifests/9.9.9', method: 'HEAD' });
-      });
-
-      it('fails, naming the order to release in, when the tag is not published', async () => {
-        pinImage('ghcr.io/zombico/mojulo-bot:9.9.9');
-        const problems = await checkBotImagePublished({ root, fetchImpl: fakeGhcr(404).fetchImpl });
-        expect(problems.join('\n')).toMatch(/not published on GHCR: push the bot-v9\.9\.9 tag and wait for publish-bot-image\.yml/);
-      });
-
-      it('fails closed when GHCR cannot be reached', async () => {
-        pinImage('ghcr.io/zombico/mojulo-bot:9.9.9');
-        const fetchImpl = async () => { throw new Error('getaddrinfo ENOTFOUND ghcr.io'); };
-        expect((await checkBotImagePublished({ root, fetchImpl })).join('\n')).toMatch(/could not reach ghcr\.io/);
-      });
     });
 
     it('checks the release tag when asked', () => {

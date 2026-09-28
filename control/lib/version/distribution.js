@@ -96,11 +96,3 @@ export function updateAdvice(latest, opts = {}) {
   }
   return `Run \`npm i -g mojulo@${latest}\` (or restart with \`npx -y mojulo@${latest}\`) to upgrade.`;
 }
-
-/** check_for_updates: how to move deployed bots to a newer bot image. */
-export function botImageAdvice(image, opts = {}) {
-  if (distribution(opts.env) === 'source') {
-    return `Bump \`BOT_IMAGE\` in control/.env to \`${image}\` (and the default pin in control/lib/version/bot-image.js), then rebuild affected bots.`;
-  }
-  return `Set \`BOT_IMAGE=${image}\` in the environment the mojulo server starts with (or wait for the mojulo release that pins it), then rebuild affected bots.`;
-}

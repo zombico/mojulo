@@ -48,8 +48,9 @@ const SEVERITY_RANK = {
 
 /**
  * Split a canonical tool ref `${server}.${tool}` into its server prefix.
- * Tool refs are composed as `${server}.${toolName}` at bind time (both the
- * bot-shaped and primitive-binding commit paths). Server + tool names don't
+ * Tool refs are composed as `${server}.${toolName}` at bind time (the
+ * primitive-binding commit path, and the 2.x bot-bound one whose rows stay
+ * readable). Server + tool names don't
  * carry dots in practice, so the first-dot split recovers the server. Only
  * used as a fallback — for tools still present in inventory we read the
  * authoritative `server` off the inventory row instead.
@@ -229,7 +230,7 @@ export function analyzeStaleBindings({ artifactRef } = {}) {
 /**
  * Lens dispatcher. Scope mirrors meta_context_brief: `{ kind: 'fleet' }` audits
  * every sealed binding; `{ kind: 'artifact', ref }` scopes to one connected
- * service. `bot` scope (audit all services running for one bot) is a follow-up.
+ * service. (A `bot` scope was a follow-up until the chatbot factory left in 3.0.0.)
  */
 export function analyze({ scope, lens } = {}) {
   if (!lens || !ANALYZE_LENSES.includes(lens)) {

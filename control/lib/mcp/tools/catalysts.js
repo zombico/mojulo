@@ -4,11 +4,12 @@
  * Exposes the curated library of workflow patterns shipped with mojulo. The
  * connecting agent calls `list_catalysts` to discover what patterns exist,
  * `get_catalyst` to read the full prose body for a chosen pattern, then
- * combines that with `get_deployment` (operate ring), the user's installed
- * destination MCPs, and a **host adapter** (see [adapters/loader.js]) to
- * materialize a concrete runnable artifact — a Claude Code skill, a Codex
- * automation, a generic workflow file, etc. depending on which host the
- * agent runs on.
+ * combines that with the workflow's source (mojulo state it reads, or an
+ * installed MCP), the user's installed destination MCPs, and a **host
+ * adapter** (see [adapters/loader.js]) to materialize a concrete runnable
+ * artifact — a Claude Code skill, a Codex automation, a generic workflow
+ * file, etc. depending on which host the agent runs on. Creative catalysts
+ * run inside the session instead and mint recipes.
  *
  * The catalyst body itself is host-neutral: it carries mapping intent,
  * idempotency strategy, and pitfalls — the portable workflow contract. The
@@ -17,9 +18,14 @@
  * composes the two in its response.
  *
  * The "catalyst" framing is literal: each pattern enables one phase transition
- * from user intent + bot shape + destination MCP into a structured runnable
+ * from user intent + source shape + destination MCP into a structured runnable
  * artifact. The catalyst itself is not consumed and does not appear in the
  * resulting artifact.
+ *
+ * Until 3.0 the shelf also carried the chatbot factory's catalysts, and
+ * recommend_catalysts ranked the shelf against a deployed bot's enabled
+ * protocols (single-bot and fleet modes). Those catalysts and modes left with
+ * the factory; recommend_catalysts now ranks the whole workflow shelf.
  *
  * Catalysts are read-only from MCP. Authoring lives in the repo
  * ([control/lib/mcp/catalysts/](control/lib/mcp/catalysts/)) — see
@@ -31,7 +37,7 @@ import { getMergedCatalog, getMergedCatalyst, listMergedCatalysts } from '@/lib/
 import { LocalCatalystRepository } from '@/lib/db/repositories/local-catalysts';
 import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
-import { DeploymentRepository } from '@/lib/db/repositories/deployments';
+import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
 import { registerTool } from '@/lib/mcp/server';
 
@@ -39,7 +45,7 @@ import { registerTool } from '@/lib/mcp/server';
 // operator node exists, expose the locked-in constraints to the agent so it
 // can self-clamp recommendations; when missing, append suggest_kyc so the
 // agent surfaces the optional bootstrap before showing the picks. Centralized
-// so the single-bot and fleet branches emit the same shape.
+// so every response carries the same shape.
 //
 // Exported for tests.
 export function buildOperatorAnchorBlock() {
@@ -65,8 +71,8 @@ export function buildOperatorAnchorBlock() {
 //      the recipe even when the user's situation doesn't fit.
 //
 //   2. Vocabulary disambiguation — three terms ("runnable artifact",
-//      "protocol", "catalyst") overlap enough that the model needs grounding
-//      on each read.
+//      "mojulo recipe", "catalyst") overlap enough that the model needs
+//      grounding on each read.
 //
 // Host-specific framing (artifact target, scheduling, secrets, dry-run as a
 // concrete step in the host's substrate) lives in the adapter body and is
@@ -79,9 +85,9 @@ This catalyst is a **starting point, not a contract.** The library is non-exhaus
 
 - **Write only what the user asked for.** Reading a catalyst is not a request to install anything. Materialize a runnable artifact (a skill file, an automation, a workflow file) only when the user has asked for this workflow to be set up; say where it will be written before you write it, and let your host's own permission prompt cover the write. Mojulo writes none of these files itself.
 - **Adapt freely.** Combine elements across catalysts, skip sections that don't apply to the user's situation, add steps the catalyst didn't anticipate. The value is its *thinking* — mapping intent, idempotency strategy, pitfalls — not its literal prose.
-- **No catalyst fits the user's intent? Write from scratch.** Don't force a mismatched pattern onto the user's request. Synthesize directly from their goal and the bot's shape, drawing on judgment absorbed from any catalysts you've read.
+- **No catalyst fits the user's intent? Write from scratch.** Don't force a mismatched pattern onto the user's request. Synthesize directly from their goal and the shape of the source the workflow reads, drawing on judgment absorbed from any catalysts you've read.
 - **Pitfalls in the body still apply when you adapt.** The PII-through-the-LLM warnings, rate-limit notes, irreversible-write cautions, and calibration advice generalize across patterns — they're not catalyst-specific gotchas. Carry them forward even when you deviate from the catalyst's prescribed flow.
-- **Safety defaults are standing posture, not negotiable.** Regardless of path: (1) default \`dryRun: true\` for any external write, requiring explicit per-run opt-in for live mode; (2) include mojulo trace (deployment id, conversation id, submission id, captured-at) in every destination payload so reviewers can walk back to the source.
+- **Safety defaults are standing posture, not negotiable.** Regardless of path: (1) default \`dryRun: true\` for any external write, requiring explicit per-run opt-in for live mode; (2) include mojulo trace (the source record's id — a stash item, a cook, a contextmap node, a source MCP's record — and captured-at) in every destination payload so reviewers can walk back to the source.
 - **Encode the dry-run as a concrete artifact step, not a conversational promise.** Mojulo synthesizes; it does not certify (see the verification posture in \`forward_context\`). The dry-run / inspect / promote sequence belongs *inside the materialized artifact* — your host adapter (below) names the exact shape. A workflow that defaults \`dryRun: true\` but doesn't *demonstrate* dry-run as its first step gets skipped under deadline pressure.
 
 ---
@@ -90,11 +96,11 @@ This catalyst is a **starting point, not a contract.** The library is non-exhaus
 
 Three terms easy to confuse. The term **catalyst** is intentionally bare — not prefixed with "skill" or "workflow" — because catalysts *produce* runnable artifacts; they are not themselves the artifact:
 
-- **Mojulo protocols** are a *bot's* runtime capabilities (\`knowledge\`, \`formGathering\`, \`triage\`, \`appointments\`, \`opticalRead\`). A deployed mojulo bot has zero or more enabled — they determine what the bot does when it talks to end users. The \`requires.protocols\` field in this catalyst's metadata names which protocols the target bot must have. Read enabled protocols off a deployment via \`get_deployment\`.
+- **A mojulo recipe** is state inside mojulo — a sketch, world, solid, beats or view row minted by a mojulo tool, regenerated on every read. A creative catalyst's run produces recipes, not a runnable artifact; it lives in the session and in mojulo's database, not in your host.
 - **A runnable artifact** is what your host adapter materializes — a Claude Code skill at \`.claude/skills/<name>/SKILL.md\`, a Codex automation created via \`automation_update\`, a generic \`workflow.md\` + runner script, or whatever fits your substrate. The artifact is what actually runs when the user invokes the workflow. Mojulo doesn't host, execute, or store these artifacts — they belong to the user once your adapter writes them.
-- **This document** is a *mojulo catalyst* — a host-neutral workflow recipe mojulo ships through MCP. The name is literal: you read it once to **catalyze** the synthesis of a runnable artifact from the user's intent, the bot's shape, the destination MCP, and your host adapter's materialization rules. The catalyst itself doesn't end up in the resulting artifact — it's the nucleation point that lets a structured artifact crystallize out. Catalysts are not a sub-type of any host's artifact; they're a separate concept that *produces* artifacts.
+- **This document** is a *mojulo catalyst* — a host-neutral workflow recipe mojulo ships through MCP. The name is literal: you read it once to **catalyze** the synthesis of a runnable artifact from the user's intent, the source's shape, the destination MCP, and your host adapter's materialization rules. The catalyst itself doesn't end up in the resulting artifact — it's the nucleation point that lets a structured artifact crystallize out. Catalysts are not a sub-type of any host's artifact; they're a separate concept that *produces* artifacts.
 
-Your job: combine this catalyst's body (or your judgment-driven adaptation of it), the target bot's shape (from \`get_deployment\`), the destination MCP the user has installed locally, and your **host adapter's** materialization rules → write a concrete runnable artifact wherever your adapter says it goes.
+Your job: combine this catalyst's body (or your judgment-driven adaptation of it), the shape of its source (the mojulo read tool it names, or the source MCP from declared inventory), the destination MCP the user has installed locally, and your **host adapter's** materialization rules → write a concrete runnable artifact wherever your adapter says it goes.
 
 ---
 
@@ -248,7 +254,7 @@ You are about to help the user draft a new mojulo catalyst — a workflow recipe
 
 Write to the curated bar even when minting locally — a catalyst that wouldn't survive review usually won't pay rent on a private shelf either. The difference is only who enforces it: the structural spec is enforced mechanically by \`mint_catalyst\`; the editorial bar is enforced by maintainers at graduation.
 
-A catalyst is *not* a Claude Code skill, *not* a mojulo bot capability ("protocol"), and *not* a one-off automation for this specific user. If you're unclear on the distinction, call \`forward_context\` first — it disambiguates all three terms.
+A catalyst is *not* a Claude Code skill, *not* a new mojulo capability (a tool or a recipe kind), and *not* a one-off automation for this specific user. If you're unclear on the distinction, call \`forward_context\` first.
 
 ---
 
@@ -257,8 +263,8 @@ A catalyst is *not* a Claude Code skill, *not* a mojulo bot capability ("protoco
 Before you write a single line, anchor on what the bar looks like. Call:
 
 1. \`list_catalysts\` — see every shipped pattern (id, summary, category).
-2. \`get_catalyst("qualify-lead-to-crm")\` — the canonical exemplar. Study its mapping section, idempotency section, and pitfalls section specifically. That is the density you have to match.
-3. \`get_catalyst("<closest existing id>")\` — whichever catalyst is closest in shape to the user's intent. If the user wants a digest pattern, read \`weekly-submissions-digest\`. If extraction, read \`document-extract-to-store\`. Etc.
+2. \`get_catalyst("refresh-connected-services")\` — the canonical six-section exemplar. Study its mapping section, idempotency section, and pitfalls section specifically. That is the density you have to match.
+3. \`get_catalyst("<closest existing id>")\` — whichever catalyst is closest in shape to the user's intent. If the user wants a vendor-knowledge pattern, read \`research-mcp-vendor\`. If a teaching sequence, read \`explain-the-internet\`. Etc.
 
 The body you draft is a **prompt that has to teach a future Claude how to synthesize a working skill on first try.** It is not documentation for a human reader. The exemplars show what that looks like. Don't skim them.
 
@@ -268,24 +274,24 @@ The body you draft is a **prompt that has to teach a future Claude how to synthe
 
 A catalyst is the **wrong tool** in these cases. If any apply, stop and tell the user — don't try to force the request into a catalyst shape.
 
-1. **The request changes what the bot *does* during a conversation.** That's a mojulo protocol, not a catalyst. Protocols change what the bot does *inside* a conversation; catalysts change what happens with the bot's data *afterward*. Protocols are a control-plane code change, not a contributor catalyst.
-2. **The workflow writes back to the bot's corpus or config.** Forbidden by body principle 4 below. Catalysts read from mojulo and write to *destinations* only — never back into the bot.
-3. **The request is bot-specific or one-off.** Catalysts are shipped library entries — reusable across bots and users. If it's bespoke, the user should have you synthesize a runnable artifact directly (per the active host adapter) with no catalyst — that's already a supported path.
+1. **The request changes what mojulo itself can do** — a new tool, a new recipe kind, a new export. That's a code change (or a recipe-book builder), not a contributor catalyst. Catalysts compose what mojulo and the installed MCPs already do.
+2. **The workflow writes back into its own source.** Forbidden by body principle 4 below. Catalysts read from a source and write to *destinations* only — never back into what they read.
+3. **The request is one-off.** Catalysts are shipped library entries — reusable across users. If it's bespoke, the user should have you synthesize a runnable artifact directly (per the active host adapter) with no catalyst — that's already a supported path.
 4. **The destination is one specific MCP, not a category.** A catalyst's value is destination-agnostic mapping intent (\`crm-like\`, \`calendar-like\`, \`actuator-like\`, etc.). "Sync to my specific Notion database with this exact schema" is a skill, not a catalyst.
 5. **The "mapping intent" is generic.** If the user can't articulate at least one non-obvious, opinionated decision the catalyst encodes — a specific field-mapping choice, a default behavior, a calibration heuristic — the catalyst won't pay rent.
    - **Bad mapping insight:** "map the form fields to the CRM contact fields by name." (The synthesizer would already do this without a catalyst.)
    - **Good mapping insight:** "HubSpot splits identity into \`firstname\`/\`lastname\` while Salesforce uses \`FirstName\`/\`LastName\` and Attio uses object/attribute pairs — synthesize the right shape from the destination MCP's surface, never assume a flat \`name\` field." (Specific, opinionated, would be guessed wrong by default.)
 6. **No clear idempotency story.** Without a cursor field AND a dedupe key, the Idempotency section becomes hand-waving and the materialized artifact will double-write or skip records under real conditions.
    - **Bad idempotency story:** "the workflow should be idempotent." (Aspiration, not mechanism.)
-   - **Good idempotency story:** "cursor on submission \`captured_at\` via a \`since\` parameter; dedupe on the user-configured \`dedupeKey\` (typically email or phone) with a search-before-create against the destination — two layers because the cursor doesn't catch a user re-running an old window."
+   - **Good idempotency story:** "cursor on the source record's \`updated_at\` via a \`since\` parameter; dedupe on the user-configured \`dedupeKey\` (typically an email or the source record's id) with a search-before-create against the destination — two layers because the cursor doesn't catch a user re-running an old window."
 
-When pushing back, name the specific failure and suggest the right alternative (mojulo protocol PR, local-only skill, more specific request). Don't soften — a thin catalyst won't pay rent even on the user's private shelf, and it dilutes the curated library if it ever graduates.
+When pushing back, name the specific failure and suggest the right alternative (a mojulo code change or recipe-book builder, a local-only skill, a more specific request). Don't soften — a thin catalyst won't pay rent even on the user's private shelf, and it dilutes the curated library if it ever graduates.
 
 **Example pushback exchange (do this, don't fudge):**
 
-> User: "I want a catalyst that automatically emails me a daily summary of conversations from my bot."
+> User: "I want a catalyst that automatically emails me a weekly summary of my Linear issues."
 >
-> You: That's not catalyst-shaped — it's closer to the existing \`conversations-to-channel-digest\` pattern, but as you described it, the destination is "email me" (one specific surface) and the mapping insight is "summarize the day's conversations" (generic). Two options: (a) call \`get_catalyst("conversations-to-channel-digest")\` and we synthesize a personal skill for you that emails the digest via Gmail — no PR needed; (b) if you want to *contribute* a digest variant, the value-add would need to be a specific decision the existing digest catalyst doesn't make, like "group by triage outcome" or "elevate any conversation with a low CSAT signal." Which fits?
+> You: That's not catalyst-shaped as you described it — the destination is "email me" (one specific surface) and the mapping insight is "summarize the week's issues" (generic). Two options: (a) we synthesize a personal skill for you that reads Linear and emails the digest via Gmail — no catalyst, no PR needed; (b) if you want to *contribute* a digest pattern, the value-add would need to be a specific decision a generic digest doesn't make, like "group by cycle and flag anything reopened twice" or "lead with issues whose estimate grew." Which fits?
 
 ---
 
@@ -293,15 +299,14 @@ When pushing back, name the specific failure and suggest the right alternative (
 
 If the posture-check passes, ask the user the following in one message. Don't drip questions out one at a time. Skip questions the user already answered in their intent.
 
-1. **Workflow intent in one paragraph.** What mojulo data → what destination concept, and the user's motivation.
-2. **Mojulo source surface.** Which existing mojulo MCP tools (\`query_submissions\`, \`query_conversations\`, \`get_deployment\`, \`get_conversation\`, etc.) does the materialized artifact call? Common shapes: form-side (\`query_submissions\` + \`get_deployment\`), conversation-side (\`query_conversations\` + \`get_conversation\` + \`get_deployment\`), or both.
-3. **Required protocols.** Which mojulo bot capabilities does the target bot need enabled — \`formGathering\`, \`appointments\`, \`triage\`, \`opticalRead\`, \`knowledge\`, or none? Separate required from optional.
-4. **Destination MCP category.** Pick from existing categories where possible: \`crm-like\`, \`calendar-like\`, \`ticketing-like\`, \`actuator-like\`, \`doc-or-channel-like\`, \`data-store-like\`. If proposing a new category, the user must justify why none fit — don't proliferate categories.
-5. **Catalyst category (the \`category\` frontmatter field).** Existing: \`crm-sync\`, \`itsm\`, \`calendar\`, \`digest\`, \`analysis\`, \`rag-curation\`, \`extraction-pipeline\`. Same discipline — ask before adding a new one.
-6. **Mapping insight — the value-add.** What's the specific, opinionated decision this catalyst encodes that a future Claude would otherwise have to guess at? Apply the bad-vs-good rubric from posture rule 5.
-7. **Idempotency strategy.** Cursor field (usually a submission/conversation timestamp via a \`since\` input) AND dedupe key (usually a destination-side search-before-create on a stable id). Apply the bad-vs-good rubric from posture rule 6.
-8. **Pitfalls.** PII exposure, irreversible writes, rate limits, calibration drift are universal — surface those automatically. Ask the user for any domain-specific pitfalls (timezone bugs, confidence thresholds, schema drift).
-9. **Parameters to ask the user at synthesis time.** Each \`parameters[]\` entry the materialized artifact needs to be parameterized over (\`name\`, \`prompt\`, optional \`default\`). Typically 2-4. More than 5 usually means the catalyst is trying to do two things — push back.
+1. **Workflow intent in one paragraph.** What source data → what destination concept, and the user's motivation.
+2. **Source surface.** Where does the workflow read from? Either mojulo state through its read tools (\`get_stash\`, \`get_cook\`, \`list_cooks\`, \`meta_context_brief\`, \`semantic_search\`, …), or an installed MCP (declared through \`meta_context_declare_inventory\`), with mojulo as the audit trail. Name the tools the materialized artifact calls.
+3. **Destination MCP category.** Pick from existing categories where possible: \`crm-like\`, \`calendar-like\`, \`ticketing-like\`, \`actuator-like\`, \`doc-or-channel-like\`, \`data-store-like\`. If proposing a new category, the user must justify why none fit — don't proliferate categories.
+4. **Catalyst category (the \`category\` frontmatter field).** Use a category \`list_catalysts\` already shows where one fits. Same discipline — ask before adding a new one.
+5. **Mapping insight — the value-add.** What's the specific, opinionated decision this catalyst encodes that a future Claude would otherwise have to guess at? Apply the bad-vs-good rubric from posture rule 5.
+6. **Idempotency strategy.** Cursor field (usually a source timestamp via a \`since\` input) AND dedupe key (usually a destination-side search-before-create on a stable id). Apply the bad-vs-good rubric from posture rule 6.
+7. **Pitfalls.** PII exposure, irreversible writes, rate limits, calibration drift are universal — surface those automatically. Ask the user for any domain-specific pitfalls (timezone bugs, confidence thresholds, schema drift).
+8. **Parameters to ask the user at synthesis time.** Each \`parameters[]\` entry the materialized artifact needs to be parameterized over (\`name\`, \`prompt\`, optional \`default\`). Typically 2-4. More than 5 usually means the catalyst is trying to do two things — push back.
 
 ---
 
@@ -310,7 +315,7 @@ If the posture-check passes, ask the user the following in one message. Don't dr
 The \`id\` is the file slug and frontmatter \`id\`. Conventions:
 
 - kebab-case, descriptive, ≤ ~40 chars
-- shape: \`<source>-to-<destination>\` (e.g. \`qualify-lead-to-crm\`, \`appointment-to-calendar\`) or \`<verb>-<source>-<modifier>\` (e.g. \`scan-conversations-for-signal\`, \`knowledge-gap-miner\`)
+- shape: \`<source>-to-<destination>\` (e.g. \`gmail-support-thread-to-linear-issue\`, \`weekly-linear-digest-to-drive\`) or \`<verb>-<source>-<modifier>\` (e.g. \`refresh-connected-services\`, \`research-mcp-vendor\`)
 - must not collide with an existing id — check \`list_catalysts\` output before committing
 
 ---
@@ -331,10 +336,9 @@ Draft the same two parts a shelf file has — the frontmatter fields and a markd
 **Optional fields:**
 
 - \`version\` (number, default 1)
-- \`category\` (string — see Step 2.5)
-- \`requires.protocols\` (array of protocol names the target bot must have)
-- \`requires.optionalProtocols\` (array — nice to have but not required)
-- \`requires.destinationMcpCategory\` (one of the categories from Step 2.4)
+- \`category\` (string — see Step 2.4)
+- \`requires.destinationMcpCategory\` (one of the categories from Step 2.3)
+- (\`requires.protocols\` named chatbot capabilities on the 2.x line; leave it out. A catalyst that lists one is not recommended.)
 - \`requires.destinationExamples\` — **required if \`destinationMcpCategory\` is set.** Array of 3-5 named MCPs that satisfy the category (e.g., for \`crm-like\`: \`["HubSpot", "Salesforce", "Pipedrive", "Attio", "Close"]\`). The \`recommend_catalysts\` tool surfaces these as consultation suggestions ("you could install HubSpot to unlock this") — missing or empty is a hole in the consultation posture.
 - \`parameters\` (array of \`{ name, prompt, default? }\`)
 - \`mcpTools.mojulo\` (array of mojulo tool names the artifact calls)
@@ -344,24 +348,24 @@ Draft the same two parts a shelf file has — the frontmatter fields and a markd
 
 Every shipped catalyst follows this. Don't deviate without reason.
 
-1. **Opening paragraph** — what this catalyst does in plain English, ~2-3 sentences. Frame the source protocol or data shape it operates on.
-2. **Materialization** — numbered steps written host-neutrally. First step is almost always \`get_deployment(deploymentId)\` to read the bot's shape. Then "ask the user the N \`parameters\` questions" (batched). Then "inspect the bound destination MCP" to discover its concrete surface. Last step: "hand the resolved workflow to the host adapter to materialize the runnable artifact." Don't bake in a specific artifact path or scheduling mechanism — the host adapter owns that, and writing \`.claude/skills/<...>/SKILL.md\` or \`Codex automation\` directly into the catalyst body re-couples it to one host.
+1. **Opening paragraph** — what this catalyst does in plain English, ~2-3 sentences. Frame the source data shape it operates on.
+2. **Materialization** — numbered steps written host-neutrally. First step is almost always reading the source's shape (the mojulo read tool it names, or the source MCP's schema from declared inventory). Then "ask the user the N \`parameters\` questions" (batched). Then "inspect the bound destination MCP" to discover its concrete surface. Last step: "hand the resolved workflow to the host adapter to materialize the runnable artifact." Don't bake in a specific artifact path or scheduling mechanism — the host adapter owns that, and writing \`.claude/skills/<...>/SKILL.md\` or \`Codex automation\` directly into the catalyst body re-couples it to one host.
 3. **Mapping intent** — the load-bearing section. Specific field-to-field guidance, what to do when a field doesn't fit, when to ask the user vs. when to assume. This is where the value-add lives. Be concrete — quote field names, name destination shapes.
 4. **Idempotency** — cursor strategy AND dedupe key. Always pair them — the cursor is the primary defense, search-before-create is the safety net.
 5. **Pitfalls** — bullets, each with a specific mitigation (not just the risk). At minimum touch on: PII exposure (especially anything where the LLM reads form/conversation content), irreversible writes (default \`dryRun: true\`, opt-in to live), rate limits, calibration drift. Add domain-specific pitfalls the user surfaced.
-6. **Behavior contract** — bullets for \`Inputs:\`, \`Outputs:\`, \`Side effects (live mode):\`. Inputs always include \`deploymentId\` (required), \`since\` (optional ISO), \`dryRun\` (default true). The host adapter renders the contract into its substrate's idioms (CLI flags, automation parameters, etc.) — keep the body host-neutral.
+6. **Behavior contract** — bullets for \`Inputs:\`, \`Outputs:\`, \`Side effects (live mode):\`. Inputs always include the source handle (required), \`since\` (optional ISO), \`dryRun\` (default true). The host adapter renders the contract into its substrate's idioms (CLI flags, automation parameters, etc.) — keep the body host-neutral.
 
 ### Body principles to enforce
 
 - Default \`dryRun: true\` in the contract. Live mode is per-run opt-in.
-- Always require mojulo trace (submission id, conversation id, deployment id, captured-at) in destination payloads.
-- Surface PII concerns explicitly when the materialized artifact will read form/conversation content through the LLM.
-- Don't write back to the bot. Catalysts read from mojulo, write to destinations.
+- Always require mojulo trace (the source record's id and captured-at) in destination payloads.
+- Surface PII concerns explicitly when the materialized artifact will read personal content (email bodies, tickets, notes) through the LLM.
+- Don't write back to the source. Catalysts read from a source, write to destinations.
 - Sample, don't sweep. Analytical catalysts default to bounded samples (typically 30) — the user graduates after calibration.
 
 ### What NOT to write in the body
 
-- Don't restate vocabulary disambiguation (catalyst vs. skill vs. protocol). The synthesizer briefing prepended to every \`get_catalyst\` response already does that — you'd be duplicating.
+- Don't restate vocabulary disambiguation (catalyst vs. skill vs. recipe). The synthesizer briefing prepended to every \`get_catalyst\` response already does that — you'd be duplicating.
 - Don't restate the "adapt freely, posture is starting point not contract" preamble. Same reason.
 - Don't pad sections that don't apply. If there's no meaningful trend-delta concern, skip it — don't fabricate.
 
@@ -379,7 +383,7 @@ Every shipped catalyst follows this. Don't deviate without reason.
 - [ ] Mapping intent contains at least one specific, non-obvious decision (re-check posture rule 5).
 - [ ] Idempotency section names both a cursor field and a dedupe key (re-check posture rule 6).
 - [ ] Pitfalls section has a specific mitigation per bullet, not just a stated risk.
-- [ ] Behavior contract names \`deploymentId\`, \`since\`, \`dryRun\` inputs.
+- [ ] Behavior contract names the source handle, \`since\`, \`dryRun\` inputs.
 
 If any check fails, fix before minting. A maintainer's first review pass at graduation will run the same checks plus the loader's structural parse.
 
@@ -408,13 +412,13 @@ If any check fails, fix before minting. A maintainer's first review pass at grad
 // Exported for tests.
 export const CONSULTATION_POSTURE = `# How to use these recommendations — consultation, not gatekeeping
 
-This tool returns catalysts whose shape fits the bot you named, each annotated with a \`destinationCategory\` (the kind of MCP that satisfies it) and \`destinationExamples\` (named MCPs that fit). Mojulo does **not** know which MCPs are installed in your runtime — only you do.
+This tool returns the workflow catalysts on the shelf (shipped and the operator's local mints), each annotated with a \`destinationCategory\` (the kind of MCP that satisfies it) and \`destinationExamples\` (named MCPs that fit). Mojulo does **not** know which MCPs are installed in your runtime — only you do.
 
 Cross-reference \`destinationExamples\` against the MCPs available in this session:
 
 - **Example IS installed** → present as something the user can do now. Lead with the \`valueHook\`. Ask if they want to read the catalyst.
 - **No example installed** → present as a soft suggestion, not a blocker. Lead with the \`valueHook\` and add: "you'd need a CRM MCP — HubSpot, Salesforce, Pipedrive, Attio — wired into your runtime for this." Never gatekeep ("can't do this") — frame as an opt-in upgrade.
-- **\`missingProtocols\` non-empty** → the bot's protocols don't currently support this catalyst. Mention it as a possibility unlocked by editing the bot, not by installing an MCP.
+- **No destination at all** (\`destinationCategory: null\`) → a session workflow: it runs in this conversation against mojulo itself (a creative loop, a research sweep). Offer it as something to do now.
 
 Lead with the user's outcome (\`valueHook\`), not the catalyst's name. The catalyst id is a handle to fetch the recipe with \`get_catalyst\`; it's not how you describe the value to the user.
 
@@ -438,9 +442,8 @@ Every response from this tool includes a top-level \`materialization\` block:
 Skipping this step is how Claude-shaped artifacts end up in Codex sessions (or vice versa). The catalyst body is host-neutral on purpose; the adapter is what makes it runnable on your substrate.`;
 
 // Builds the materialization block included in every recommend_catalysts
-// response. Centralized so the single-bot, fleet, and any future scope all
-// emit the same shape — and so it can be unit-tested without mocking a
-// deployment.
+// response. Centralized so every response emits the same shape — and so it
+// can be unit-tested on its own.
 //
 // Exported for tests.
 export function buildMaterializationBlock(ctx) {
@@ -466,19 +469,11 @@ export async function customCatalystHandler(_input, _ctx) {
   return { content: [{ type: 'text', text: CUSTOM_CATALYST_GUIDE }] };
 }
 
-function enabledProtocolsOf(dep) {
-  const map = dep.config?.enabledProtocols || {};
-  return Object.entries(map)
-    .filter(([, on]) => on)
-    .map(([protocol]) => protocol);
-}
-
-function buildRecommendation(catalyst, applicableDeployments = []) {
+function buildRecommendation(catalyst) {
   // Ring 6 enrichment — surface prior materializations of this same catalyst
-  // anywhere in the fleet so the agent can triage overlap (same bot →
-  // duplicate, confirm intent), synergy (different bot → fleet pattern, align
-  // with prior binding choices unless intentionally diverging), or
-  // orthogonality (empty → net-new pattern in the fleet). Reading rules are
+  // so the agent can triage overlap (same artifact → likely duplicate, confirm
+  // intent), synergy (align with prior binding choices unless intentionally
+  // diverging), or orthogonality (empty → net-new). Reading rules are
   // documented in the recommend_catalysts tool description.
   const priorMaterializations = MetaContextRepository.getMaterializationsForCatalyst(catalyst.id);
   return {
@@ -495,142 +490,50 @@ function buildRecommendation(catalyst, applicableDeployments = []) {
       ? catalyst.requires.destinationExamples
       : [],
     priorMaterializations,
-    ...(applicableDeployments.length > 0 ? { applicableDeployments } : {}),
   };
 }
 
-async function recommendForOneBot(deploymentId, ctx) {
-  const dep = await DeploymentRepository.findById(deploymentId);
-  if (!dep) throw new Error(`Deployment not found: ${deploymentId}`);
-
-  const enabledProtocols = enabledProtocolsOf(dep);
-  const applicable = [];
-  const requiresProtocolChange = [];
-
-  for (const catalyst of getMergedCatalog().values()) {
-    // Technique catalysts bind runtime primitives — they have nothing to
-    // recommend against a bot's enabled-protocol set. The technique surface is
-    // discovered via `list_catalysts({ kind: 'technique' })`.
-    if (catalyst.kind === 'technique') continue;
-    const required = Array.isArray(catalyst.requires?.protocols)
-      ? catalyst.requires.protocols
-      : [];
-    const missingProtocols = required.filter((p) => !enabledProtocols.includes(p));
-    const rec = { ...buildRecommendation(catalyst), missingProtocols };
-    if (missingProtocols.length === 0) applicable.push(rec);
-    else requiresProtocolChange.push(rec);
-  }
-
-  return {
-    consultationPosture: CONSULTATION_POSTURE,
-    materialization: buildMaterializationBlock(ctx),
-    ...buildOperatorAnchorBlock(),
-    deployment: { id: dep.id, botName: dep.botName, enabledProtocols },
-    applicable,
-    requiresProtocolChange,
-  };
-}
-
-async function recommendForFleet(deploymentIds, ctx) {
-  let deployments = await DeploymentRepository.list();
-  if (Array.isArray(deploymentIds) && deploymentIds.length > 0) {
-    const wanted = new Set(deploymentIds);
-    deployments = deployments.filter((d) => wanted.has(d.id));
-  }
-  if (deployments.length === 0) {
-    throw new Error('No deployments matched fleet recommendation request');
-  }
-
-  // For each bot, compute the enabled-protocol set once.
-  const botEnabled = deployments.map((d) => ({
-    id: d.id,
-    botName: d.botName,
-    enabledProtocols: enabledProtocolsOf(d),
-  }));
-
-  const applicable = [];
-  const requiresProtocolChange = [];
-
-  for (const catalyst of getMergedCatalog().values()) {
-    if (catalyst.kind === 'technique') continue;
-    const required = Array.isArray(catalyst.requires?.protocols)
-      ? catalyst.requires.protocols
-      : [];
-
-    const fitting = botEnabled.filter((b) =>
-      required.every((p) => b.enabledProtocols.includes(p)),
-    );
-
-    if (fitting.length > 0) {
-      // crossBot: catalyst applies to ≥2 bots → the value-add of fleet mode.
-      // A skill synthesized from this recommendation should iterate over
-      // applicableDeployments rather than binding to a single bot.
-      const rec = {
-        ...buildRecommendation(
-          catalyst,
-          fitting.map((b) => ({ id: b.id, botName: b.botName })),
-        ),
-        crossBot: fitting.length > 1,
-      };
-      applicable.push(rec);
-    } else {
-      // No bot in the requested set has the required protocols. Surface a
-      // per-bot missingProtocols hint anchored on the smallest gap so the
-      // user can see what'd need to change.
-      const gaps = botEnabled.map((b) => ({
-        botId: b.id,
-        botName: b.botName,
-        missingProtocols: required.filter((p) => !b.enabledProtocols.includes(p)),
-      }));
-      gaps.sort((a, b) => a.missingProtocols.length - b.missingProtocols.length);
-      requiresProtocolChange.push({
-        ...buildRecommendation(catalyst),
-        smallestGap: gaps[0],
-      });
-    }
-  }
-
-  // Sort fleet-applicable by breadth (most bots first) — catalysts that span
-  // the fleet are the new category this surface enables.
-  applicable.sort(
-    (a, b) =>
-      (b.applicableDeployments?.length || 0) - (a.applicableDeployments?.length || 0),
-  );
-
-  return {
-    consultationPosture: CONSULTATION_POSTURE,
-    materialization: buildMaterializationBlock(ctx),
-    ...buildOperatorAnchorBlock(),
-    fleet: {
-      totalBots: deployments.length,
-      bots: botEnabled,
-    },
-    applicable,
-    requiresProtocolChange,
-  };
-}
+// The bot-scoped inputs recommend_catalysts took on the 2.x line (single-bot and fleet modes).
+const BOT_SCOPED_INPUTS = ['deploymentId', 'deploymentIds', 'scope'];
 
 export async function recommendCatalystsHandler(input, ctx) {
-  const { deploymentId, scope, deploymentIds } = input || {};
-
-  if (deploymentId) {
-    return recommendForOneBot(deploymentId, ctx);
+  const { category } = input || {};
+  // A 2.x caller asking for a bot's or a fleet's recommendations: those modes left with the
+  // chatbot factory, so say where it went rather than silently ranking the whole shelf.
+  const botScoped = BOT_SCOPED_INPUTS.filter((key) => input?.[key] !== undefined);
+  if (botScoped.length) {
+    throw new Error(
+      `recommend_catalysts no longer takes ${botScoped.join(' / ')}: recommending against a deployed bot left with the chatbot factory. ${BOT_FACTORY_MOVED} Call recommend_catalysts({}) (optionally with a category) for the workflow shelf.`,
+    );
   }
 
-  if (scope === 'fleet' || Array.isArray(deploymentIds)) {
-    return recommendForFleet(deploymentIds, ctx);
+  const applicable = [];
+  for (const catalyst of getMergedCatalog().values()) {
+    // Technique catalysts bind runtime primitives — they are discovered via
+    // `list_catalysts({ kind: 'technique' })`, not recommended as workflows.
+    if (catalyst.kind === 'technique') continue;
+    if (category && catalyst.category !== category) continue;
+    // A catalyst that still requires chatbot protocols (a local mint from the 2.x line) needs a
+    // deployed bot to run against; mojulo has none, so it is not recommended. list_catalysts
+    // still shows it.
+    const required = Array.isArray(catalyst.requires?.protocols) ? catalyst.requires.protocols : [];
+    if (required.length) continue;
+    applicable.push(buildRecommendation(catalyst));
   }
 
-  throw new Error(
-    "deploymentId is required, OR pass { scope: 'fleet' } / { deploymentIds: [...] } for cross-bot recommendations",
-  );
+  return {
+    consultationPosture: CONSULTATION_POSTURE,
+    materialization: buildMaterializationBlock(ctx),
+    ...buildOperatorAnchorBlock(),
+    applicable,
+  };
 }
 
 export function registerCatalystTools() {
   registerTool({
     name: 'list_catalysts',
     description:
-      "List catalyst recipes — the curated shelf shipped with mojulo plus the operator's local shelf (minted via `mint_catalyst`, `origin: 'local'`). Two kinds: `workflow` (the default — recipes that materialize a runnable artifact through a host adapter against a bot's data + a destination MCP) and `technique` (recipes that bind a runtime substrate like the filesystem or a local SQL store to an artifact, recorded as a contextmap principle). Returns id, name, summary, kind, category, origin, and requirements (notably `requires.protocols` for workflow catalysts); a local entry flagged `eclipsed: true` lost its id to a newly shipped curated catalyst and needs a re-slug. Read the full body with `get_catalyst`; see `list_adapters` for how host-specific materialization is bound (workflow only — techniques bind via `bind_primitives`).",
+      "List catalyst recipes — the curated shelf shipped with mojulo plus the operator's local shelf (minted via `mint_catalyst`, `origin: 'local'`). Two kinds: `workflow` (the default — run in the session, or materialized through a host adapter against a source + a destination MCP) and `technique` (recipes that bind a runtime substrate like the filesystem or a local SQL store to an artifact, recorded as a contextmap principle). Returns id, name, summary, kind, category, origin, and requirements (notably the destination MCP category); a local entry flagged `eclipsed: true` lost its id to a newly shipped curated catalyst and needs a re-slug. Read the full body with `get_catalyst`; see `list_adapters` for how host-specific materialization is bound (workflow only — techniques bind via `bind_primitives`).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -700,7 +603,7 @@ export function registerCatalystTools() {
         requires: {
           type: 'object',
           description:
-            'Optional { protocols, optionalProtocols, destinationMcpCategory, destinationExamples }. destinationExamples is REQUIRED when destinationMcpCategory is set.',
+            'Optional { destinationMcpCategory, destinationExamples }. destinationExamples is REQUIRED when destinationMcpCategory is set. (protocols / optionalProtocols named 2.x chatbot capabilities; a catalyst that lists one is not recommended.)',
         },
         parameters: {
           type: 'array',
@@ -734,24 +637,13 @@ export function registerCatalystTools() {
   registerTool({
     name: 'recommend_catalysts',
     description:
-      "Recommend catalysts for a single bot or fleet. Pass `deploymentId` for single-bot mode (returns per-bot annotations including `missingProtocols`). Pass `scope: 'fleet'` or `deploymentIds: [...]` for fleet mode (returns `applicableDeployments` and `crossBot: true` flags for catalysts spanning ≥2 bots). Use this instead of `list_catalysts` when the user asks \"what can I do with this bot / my fleet?\". Response includes `consultationPosture` (soft-suggest rules — catalysts whose `destinationExamples` aren't installed are soft suggestions, not blockers), `operatorAnchor` (KYC constraints to self-clamp against; `suggest_kyc: true` means consider offering `meta_context_commit({ type: 'operator_kyc' })` first), and `priorMaterializations` per catalyst — read: empty = orthogonal; prior on a DIFFERENT bot = align with existing binding choices (especially `latestArtifactPrinciple`) unless intentionally diverging; prior on the SAME bot = likely duplicate, confirm before re-materializing. Append-only — verify before treating a row as live.",
+      "Recommend workflow catalysts from the shelf (shipped plus the operator's local mints; techniques are listed by `list_catalysts`), optionally narrowed to one `category`. Each recommendation carries a `valueHook`, the `destinationCategory` and `destinationExamples` it needs, its `origin`, and `priorMaterializations`. Use this instead of `list_catalysts` for \"what can I automate?\" / \"is there a recipe for this?\". Response includes `consultationPosture` (soft-suggest rules — catalysts whose `destinationExamples` aren't installed are soft suggestions, not blockers), `operatorAnchor` (KYC constraints to self-clamp against; `suggest_kyc: true` means consider offering `meta_context_commit({ type: 'operator_kyc' })` first), and the `materialization` block. Read `priorMaterializations`: empty = orthogonal; prior rows = align with those binding choices (especially `latestArtifactPrinciple`) unless intentionally diverging, or confirm before re-materializing the same thing. Append-only — verify before treating a row as live.",
     inputSchema: {
       type: 'object',
       properties: {
-        deploymentId: {
+        category: {
           type: 'string',
-          description:
-            'Single-bot mode. Deployment id from list_deployments. Mutually exclusive with scope/deploymentIds.',
-        },
-        scope: {
-          type: 'string',
-          enum: ['fleet'],
-          description: "Pass 'fleet' to recommend across every connected bot.",
-        },
-        deploymentIds: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Explicit deployment-id subset for fleet mode. Overrides scope: fleet.',
+          description: 'Optional filter (a category list_catalysts shows, e.g. substrate, explainer, object-design).',
         },
       },
     },

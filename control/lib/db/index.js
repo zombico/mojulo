@@ -32,16 +32,22 @@ function init(db) {
       created_at INTEGER NOT NULL
     );
 
-    -- Single-user app preferences. First user-selectable persisted "mode" in
-    -- the control plane. Key/value so new settings are additive without a
-    -- migration. Absence of a key IS its fresh-install default (resolved in
-    -- the repository), so no seed row. See app-system/0528/agent-routed-chat.md.
+    -- Single-user app preferences. Key/value so new settings are additive
+    -- without a migration; absence of a key IS its fresh-install default, so
+    -- no seed row. Today it holds sketches.derivation (sketches.js). Until 3.0
+    -- it also held the chatbot builder's driver mode; a 2.x row stays, unread.
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     );
 
+    -- Documents uploaded to the chatbot factory on 2.x (its RAG corpus). The
+    -- factory left in 3.0.0 and nothing writes this table any more; it stays
+    -- so a stash image item whose media_ref is a legacy doc_ key still
+    -- resolves (app/api/stashes/[ref]/media/[id]). The factory's other tables
+    -- (deployments, modular_sessions, mcp_jobs) are no longer created: an
+    -- install that has them keeps them, inert, and nothing drops them.
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
       original_name TEXT NOT NULL,
@@ -51,56 +57,6 @@ function init(db) {
       parsed_text TEXT,
       created_at INTEGER NOT NULL
     );
-
-    CREATE TABLE IF NOT EXISTS deployments (
-      id TEXT PRIMARY KEY,
-      bot_name TEXT NOT NULL,
-      flow_type TEXT NOT NULL,
-      status TEXT NOT NULL,
-      config TEXT NOT NULL,
-      config_hash TEXT,
-      last_built_hash TEXT,
-      artifact_path TEXT,
-      document_ids TEXT,
-      api_key TEXT NOT NULL,
-      error TEXT,
-      url TEXT,
-      last_seen_at INTEGER,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS modular_sessions (
-      id TEXT PRIMARY KEY,
-      status TEXT NOT NULL,
-      preloaded_context TEXT,
-      messages TEXT,
-      inferred_intent TEXT,
-      intent_confidence REAL,
-      recommended_protocols TEXT,
-      enabled_protocols TEXT,
-      core_config TEXT,
-      identity_config TEXT,
-      protocol_data TEXT,
-      generated_configs TEXT,
-      deployment_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS mcp_jobs (
-      id TEXT PRIMARY KEY,
-      tool TEXT NOT NULL,
-      status TEXT NOT NULL,
-      progress INTEGER,
-      result TEXT,
-      error TEXT,
-      mcp_session_id TEXT,
-      builder_session_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_mcp_jobs_created_at ON mcp_jobs(created_at);
 
     -- MCP tool-call telemetry. One row per handler invocation across both call
     -- paths (rpc tools/call + plan-mode executor). Describes the CALL — never
@@ -536,8 +492,11 @@ function init(db) {
     CREATE INDEX IF NOT EXISTS idx_stash_items_drawer ON stash_items(drawer_id);
 
     -- The adjacency layer: many-to-many edges from a stash to other substrate
-    -- resources (bot / app / plan / cook / contextmap_node). What turns "stash
-    -- inbox" into "this bot's knowledge corpus, this plan's working memory".
+    -- resources (app / plan / cook / contextmap_node / sketch). What turns
+    -- "stash inbox" into "this app's corpus, this plan's working memory".
+    -- 'bot' stays in the CHECK so rows a 2.x install bound to a deployed bot
+    -- stay readable; nothing writes it since the chatbot factory left in 3.0.0
+    -- (StashRepository.bind refuses it).
     -- bound_ref is NOT a foreign key — deletion of a bound resource leaves
     -- the binding as a "linked resource removed" chip (stashes survive the
     -- resources they're linked to). Purely navigational in v0 — no automatic
@@ -628,8 +587,8 @@ function init(db) {
     -- schema migration. UNIQUE on (tag_ref, member_kind, member_ref) prevents
     -- duplicate bindings; the reverse index supports "which tags own this
     -- resource" lookups (used by the /motion gallery). member_ref is opaque to
-    -- this table — refs into the per-kind primary table (deployments.id for
-    -- bot, motion outcome folder name for motion, etc.).
+    -- this table — refs into the per-kind primary table (a 2.x bot's
+    -- deployments.id for bot, motion outcome folder name for motion, etc.).
     CREATE TABLE IF NOT EXISTS ops_tag_members (
       id INTEGER PRIMARY KEY,
       tag_ref TEXT NOT NULL REFERENCES ops_tags(tag_ref) ON DELETE CASCADE,
@@ -774,8 +733,8 @@ function init(db) {
     -- bicycle; see docs/bicycles.md). One DURABLE row per render target parked
     -- for an external image-capable worker: request to pull to submit to audit
     -- to accept. Mirrors the beats-sidecar durability (survives a control-plane
-    -- restart) — deliberately NOT the in-memory mcp_jobs long-poll, which drops
-    -- on restart and is wrong for minutes-long renders. render_n links a
+    -- restart) — deliberately NOT an in-memory long-poll, which drops on
+    -- restart and is wrong for minutes-long renders. render_n links a
     -- submitted PNG to its append-only render-store slot; worker_audit is what
     -- the worker claims at submit, accept_audit what the accepting agent
     -- verifies (the same worker cannot self-accept). Spike folds the I4 audit
@@ -847,7 +806,6 @@ function init(db) {
     );
   `);
 
-  migrateDeploymentColumns(db);
   migrateInventoryColumns(db);
   migratePlanColumns(db);
   migrateResearchColumns(db);
@@ -867,7 +825,6 @@ function init(db) {
   migrateMcpToolCallColumns(db);
   migrateUserColumns(db);
   migrateRenderRequestMedium(db);
-  reapStaleMcpJobs(db);
   pruneMcpToolCalls(db);
   maybeBackfillEmbeddings(db);
   maybeStartNodeFulfiller();
@@ -1119,11 +1076,14 @@ function migrateUserColumns(db) {
   if (!keyHave.has('owner_user_id')) {
     db.exec('ALTER TABLE api_keys ADD COLUMN owner_user_id TEXT');
   }
-  // workshop_space_id (Phase 4) on the four tables where delegates create
-  // things. NULL = the admin's default space — every existing row is already
-  // correct. The deny-first lever bounds the sweep to exactly these four;
-  // creative stores stay unscoped until a real delegate needs them.
-  for (const table of ['deployments', 'documents', 'sketches', 'plans']) {
+  // workshop_space_id (Phase 4) on the tables where delegates create things.
+  // NULL = the admin's default space — every existing row is already correct.
+  // The deny-first lever bounds the sweep to exactly these; creative stores
+  // stay unscoped until a real delegate needs them. deployments was the fourth
+  // until the chatbot factory left in 3.0.0: a fresh install has no such table,
+  // and an existing one already carries the column. documents stays for its
+  // legacy read (see its CREATE above).
+  for (const table of ['documents', 'sketches', 'plans']) {
     const tCols = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!tCols.some((c) => c.name === 'workshop_space_id')) {
       db.exec(`ALTER TABLE ${table} ADD COLUMN workshop_space_id TEXT`);
@@ -1800,18 +1760,6 @@ function ensureEmbeddingsFts(db) {
   }
 }
 
-function reapStaleMcpJobs(db) {
-  // Job runner is in-process; a control-plane restart kills running jobs.
-  // Mark anything still in pending / running as errored on startup so
-  // clients polling stale jobIds get a clear failure instead of an
-  // indefinite "pending" state.
-  db.prepare(
-    `UPDATE mcp_jobs
-     SET status = 'error', error = COALESCE(error, 'Control plane restarted while job was in flight'), updated_at = ?
-     WHERE status IN ('pending', 'running')`
-  ).run(Date.now());
-}
-
 // Telemetry retention caps. Keep at most MCP_TELEMETRY_MAX_DAYS of history and
 // at most MCP_TELEMETRY_MAX_ROWS rows, whichever bounds tighter. Exported so the
 // startup sweep here and scripts/cleanup-stale-artifacts.js prune identically.
@@ -1837,71 +1785,6 @@ export function pruneMcpToolCalls(db) {
     );
   }
   return deleted;
-}
-
-function migrateDeploymentColumns(db) {
-  const cols = db.prepare('PRAGMA table_info(deployments)').all();
-  const have = new Set(cols.map((c) => c.name));
-  if (!have.has('config_hash')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN config_hash TEXT');
-  }
-  if (!have.has('last_built_hash')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN last_built_hash TEXT');
-  }
-  if (!have.has('url')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN url TEXT');
-  }
-  if (!have.has('last_seen_at')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN last_seen_at INTEGER');
-  }
-  // Vector RAG: per-deployment embeddings live alongside the row. No separate
-  // table — embeddings are 1:1 with deployments and ride the same lifecycle.
-  if (!have.has('rag_mode')) {
-    db.exec("ALTER TABLE deployments ADD COLUMN rag_mode TEXT NOT NULL DEFAULT 'keyword'");
-  }
-  if (!have.has('embedding_storage_key')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN embedding_storage_key TEXT');
-  }
-  if (!have.has('embedding_model')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN embedding_model TEXT');
-  }
-  if (!have.has('embedding_chunk_count')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN embedding_chunk_count INTEGER');
-  }
-  // Cloud deploy state. Cloud orchestration runs the published GHCR image on
-  // a remote provider (Fly.io first) using user-supplied credentials. The
-  // existing artifact-build state above is independent: cloud deploys reuse
-  // the staged config files but don't replace the local-ZIP path.
-  if (!have.has('cloud_provider')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_provider TEXT');
-  }
-  if (!have.has('cloud_app_name')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_app_name TEXT');
-  }
-  if (!have.has('cloud_status')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_status TEXT');
-  }
-  if (!have.has('cloud_url')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_url TEXT');
-  }
-  if (!have.has('cloud_progress')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_progress TEXT');
-  }
-  if (!have.has('cloud_options')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_options TEXT');
-  }
-  if (!have.has('cloud_error')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_error TEXT');
-  }
-  if (!have.has('cloud_last_deployed_at')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_last_deployed_at INTEGER');
-  }
-  if (!have.has('cloud_machine_id')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_machine_id TEXT');
-  }
-  if (!have.has('cloud_volume_id')) {
-    db.exec('ALTER TABLE deployments ADD COLUMN cloud_volume_id TEXT');
-  }
 }
 
 export function getDb() {

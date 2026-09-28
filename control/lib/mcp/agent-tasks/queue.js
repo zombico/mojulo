@@ -20,7 +20,7 @@
  *
  * In-memory only. A control-plane restart drops all in-flight requests —
  * each parked promise rejects with `INFERENCE_PARKED_LOST`. Matches the
- * existing in-memory MCP state surfaces (session-binding, client-bindings).
+ * other in-memory MCP state surface (client-bindings).
  *
  * See APP_SPIKE_A_REFRAME_PLAN.md, spike_qualities.md, and
  * AGENT_TASKS_NODE_DRIVEN_PLAN.md.

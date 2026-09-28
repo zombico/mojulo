@@ -12,19 +12,21 @@
  *   2. getDb() on a fresh database creates none of the bot tables;
  *   3. `version` makes no network call at all, and `check_for_updates` makes none to GHCR.
  *
- * The suite is `describe.todo` while the carve is in progress: each of the three fails on a
- * tree that still carries the factory. The removal phase makes them true and flips the
- * `.todo` off; after that they are the "nothing came back" regression.
+ * The factory left in 3.0.0, so these run live: they are the "nothing came back" regression.
+ * A fourth, static check covers what a boot does not load: no carve path is back on disk, and
+ * no retained server-side source (lib/, app/api/, scripts/, bin/, middleware.js) imports one.
+ * The dashboard's pages, components and hooks are covered by the Next build, which fails on a
+ * dangling import.
  *
- * The carve set below is the list pack-boundary.test.js ledgers (CARVE_ENGINE, the bot tool
- * modules, CARVE_DATA, CARVE_FILES), kept here on its own so this file survives those
- * ledgers being retired once they have nothing left to fence.
+ * The carve set below is the list pack-boundary.test.js ledgered while the fence stood
+ * (CARVE_ENGINE, the bot tool modules, CARVE_DATA, CARVE_FILES), plus the bot API routes; it
+ * lives here on its own because those ledgers retired with the fence.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep, posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const CONTROL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -67,6 +69,17 @@ const CARVE_SET = [
   'lib/rate-limiter.js',
   'lib/resolve-api-key.js',
   'lib/version/bot-image.js',
+  // the dashboard's bot API routes
+  'app/api/agent-ui/',
+  'app/api/builder/',
+  'app/api/data/',
+  'app/api/deployments/',
+  'app/api/documents/',
+  'app/api/generate-form/',
+  'app/api/preview/',
+  'app/api/registry/bots/',
+  'app/api/settings/app/',
+  'app/api/vectorize-rag/',
   // the bot runtime, beside control/
   '../lite-template/',
 ];
@@ -177,7 +190,58 @@ async function traceStdioBoot() {
   }
 }
 
-describe.todo('chatbot carve-out: a default install carries no bot code', () => {
+// Every static import / export-from / require specifier in a source file, resolved to a
+// control/-relative path ('@/x' and relative specifiers; bare packages are skipped).
+const SPEC_RE = /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\s*\(?\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g;
+function importedPaths(code, fromRel) {
+  const out = [];
+  let m;
+  SPEC_RE.lastIndex = 0;
+  while ((m = SPEC_RE.exec(code))) {
+    const spec = m[1] || m[2] || m[3];
+    if (spec.startsWith('@/')) out.push(spec.slice(2));
+    else if (spec.startsWith('.')) out.push(posix.normalize(posix.join(posix.dirname(fromRel), spec)));
+  }
+  return out;
+}
+const withoutExt = (rel) => rel.replace(/\.(jsx?|mjs|cjs)$/, '').replace(/\/(index|route)$/, '');
+function inCarveSetLoose(rel) {
+  if (inCarveSet(rel)) return true;
+  const bare = withoutExt(rel);
+  return CARVE_SET.some((entry) => (entry.endsWith('/')
+    ? `${bare}/`.startsWith(entry)
+    : withoutExt(entry) === bare));
+}
+function sourceFiles(absDir, out = []) {
+  if (!existsSync(absDir)) return out;
+  for (const name of readdirSync(absDir)) {
+    if (name === 'node_modules' || name === '.next' || name === 'data') continue;
+    const abs = join(absDir, name);
+    if (statSync(abs).isDirectory()) sourceFiles(abs, out);
+    else if (/\.(jsx?|mjs|cjs)$/.test(name)) out.push(abs);
+  }
+  return out;
+}
+
+describe('chatbot carve-out: a default install carries no bot code', () => {
+  it('no carve path is back on disk, and no retained server-side source imports one', () => {
+    const back = CARVE_SET.filter((entry) => existsSync(join(CONTROL_ROOT, entry)));
+    expect(back, `carve paths back in the tree:\n${back.join('\n')}`).toEqual([]);
+
+    const roots = ['lib', 'app/api', 'scripts', 'bin'].map((d) => join(CONTROL_ROOT, d));
+    const files = [...roots.flatMap((d) => sourceFiles(d)), join(CONTROL_ROOT, 'middleware.js')];
+    const offenders = [];
+    for (const abs of files) {
+      const rel = relative(CONTROL_ROOT, abs).split(sep).join('/');
+      if (rel === 'lib/mcp/carve-boundary.test.js') continue; // names the carve set on purpose
+      const code = readFileSync(abs, 'utf8');
+      for (const target of importedPaths(code, rel)) {
+        if (inCarveSetLoose(target)) offenders.push(`${rel}  →  ${target}`);
+      }
+    }
+    expect(offenders, `retained sources importing carve paths:\n${offenders.join('\n')}`).toEqual([]);
+  });
+
   it('booting the stdio server loads no module of the carve set', async () => {
     const { loaded, toolsList } = await traceStdioBoot();
     // The trace is only evidence if it saw the boot: the registry and a kernel tool module.

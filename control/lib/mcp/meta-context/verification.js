@@ -1,6 +1,7 @@
 /**
- * Adapter-delegated verification for `meta_context_commit({ type:
- * 'artifact_materialization' })`.
+ * Adapter-delegated verification for the `meta_context_commit`
+ * materializations (primitive_artifact_materialization, app_materialization;
+ * the 2.x artifact_materialization used it too).
  *
  * The v2 design assumed every artifact was a file on disk, so verification was
  * just existsSync(skill_path). v3 had to absorb adapters whose artifacts may

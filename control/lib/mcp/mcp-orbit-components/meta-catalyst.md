@@ -74,13 +74,13 @@ These weights aren't load-bearing in v0 — they get tuned by watching real comp
 
 The seven-step flow every mcp-orbit composition follows:
 
-1. **Recognize the intent.** Operator says "I want a weekly Linear digest in Drive" — that's mcp-orbit, not a bot catalyst.
+1. **Recognize the intent.** Operator says "I want a weekly Linear digest in Drive" — that's mcp-orbit.
 2. **Call `recommend_mcp_orbit_compositions({ intent, inventory? })`.** Server filters available components by the operator's inventory and KYC constraints, returns 2–3 ranked candidate compositions as `proposed` rows.
 3. **Call `get_meta_catalyst()` once per composition session.** You're reading it now — re-read sections 4 and 5 right before you assemble, they're the rulebook.
 4. **Pull each component via `get_mcp_orbit_component({ ref })`.** Read the body in full — for mcp components, read BOTH the source-role and destination-role sections even if the composition only uses one (it informs the affordances posture). Don't skim the pitfalls — they're load-bearing.
 5. **Negotiate knobs with the operator in ONE round.** Each component declares its `exposesKnobs` — collect every prompt, ask the operator in one message, capture the answers. Update the composition row with `knobs_json`.
 6. **Dry-run.** Materialize the composition's substrate as a draft artifact. Update the composition row to `status: dry_run`. Show the operator the rendered output and one real destination write (in draft posture). Ask "promote or adjust?"
-7. **Promote → host-adapter materialization → `meta_context_commit({type:'artifact_materialization', ...})`.** The commit's `bindings` include every mcp entry the composition used, with its role and the bound tool (`{ kind: 'mcp', ref, version, role, mcp_tool }` shapes in the bindings payload). The commit's principles capture the negotiated knob values. Update the composition row to `status: materialized` and set `artifact_ref` to the artifact node's composite ref.
+7. **Promote → host-adapter materialization → `bind_primitives` per mcp entry → `meta_context_commit({type:'primitive_artifact_materialization', ...})`.** Bind every mcp entry the composition used with `bind_primitives` (its role, on the declared server); the `prov_…` refs it returns are the commit's `provider_artifact_refs`, and the commit writes one `binds` edge per bound tool. The commit's principles capture the negotiated knob values. Update the composition row to `status: materialized` and set `artifact_ref` to the artifact node's composite ref.
 
 ---
 
@@ -98,11 +98,11 @@ A "dry-run" that skips step 3 is a preview, not a dry-run. The destination MCP I
 
 ## Commit discipline
 
-After the artifact is materialized via the host adapter, `meta_context_commit({type:'artifact_materialization', ...})` IS the audit chain — for mcp-orbit compositions, there's no bot turn history to walk back to. Skipping the commit means the next session has no record of *why this artifact exists and what it's configured to do*.
+After the artifact is materialized via the host adapter, `meta_context_commit({type:'primitive_artifact_materialization', ...})` IS the audit chain: it is the only record of *why this artifact exists and what it's configured to do*, so skipping it leaves the next session with none. (Until 3.0 this section named `artifact_materialization`, which required a deployed bot and never sealed an mcp-orbit artifact; it left with the chatbot factory.)
 
 The commit's payload, specific to mcp-orbit:
 
-- `bindings[]` — one entry per source-role and destination-role mcp tool the artifact calls (e.g. `linear.list_issues` for the source-role linear mcp, `gdrive.create_file` for the destination-role gdrive mcp). The `fields_bound` array names the actual fields the composition reads / writes.
+- `provider_artifact_refs[]` — one `prov_…` ref per source-role and destination-role mcp entry, from `bind_primitives` (e.g. the source-role linear mcp, the destination-role gdrive mcp). The commit resolves each to its bound tools and writes the `binds` edges; `composition_intent` states the operator's intent in one paragraph.
 - Record the **composition ref** in an artifact-scope principle: `"Composed from components: mcp/linear@0.1.0 (role=source), mcp/gdrive@0.1.0 (role=destination), trigger/scheduled@0.1.0, idempotency/window-key@0.1.0, pattern/aggregation@0.1.0. Composition ref: comp_<id>. Knobs: cadence=weekly, day=Mon, depth=title+url+one-line, ..."` — this is the durable link from the materialized artifact back to its composition row.
 
 If the commit fails, **roll the artifact back via the host adapter's affordance** (delete the file / cancel the automation). A successful materialization with no commit is worse than a failed materialization — it's an unauditable artifact that will surprise the next session.

@@ -281,7 +281,7 @@ export async function bindStashHandler(input, _ctx) {
     throw new Error('stash_ref is required');
   }
   if (!bound_kind || typeof bound_kind !== 'string') {
-    throw new Error('bound_kind is required (one of: bot, app, plan, cook, contextmap_node)');
+    throw new Error('bound_kind is required (one of: app, plan, cook, contextmap_node)');
   }
   if (!bound_ref || typeof bound_ref !== 'string') {
     throw new Error('bound_ref is required (the target resource ref)');
@@ -494,17 +494,17 @@ export function registerStashModeTools() {
   registerTool({
     name: 'bind_stash',
     description:
-      "Ring 9 — link a stash to another substrate resource. The adjacency layer that turns a generic bucket into 'this bot's corpus' / 'this plan's working memory' / 'this cook's declared ingredients'. Many-to-many: a stash can bind to many resources, a resource can have many stashes. Idempotent on (stash_ref, bound_kind, bound_ref); re-binding updates the role. v0 is purely navigational — agents do NOT auto-read linked stashes mid-conversation. bound_ref is NOT validated against the target repo (dangling refs are tolerated; the UI shows 'linked resource removed').\n\nbound_kind: bot | app | plan | cook | contextmap_node\nrole (optional): corpus | working_memory | ingredient | reference",
+      "Ring 9 — link a stash to another substrate resource. The adjacency layer that turns a generic bucket into 'this app's corpus' / 'this plan's working memory' / 'this cook's declared ingredients'. Many-to-many: a stash can bind to many resources, a resource can have many stashes. Idempotent on (stash_ref, bound_kind, bound_ref); re-binding updates the role. v0 is purely navigational — agents do NOT auto-read linked stashes mid-conversation. bound_ref is NOT validated against the target repo (dangling refs are tolerated; the UI shows 'linked resource removed').\n\nbound_kind: app | plan | cook | contextmap_node\nrole (optional): corpus | working_memory | ingredient | reference",
     inputSchema: {
       type: 'object',
       properties: {
         stash_ref: { type: 'string', description: 'The stash to link.' },
         bound_kind: {
           type: 'string',
-          enum: ['bot', 'app', 'plan', 'cook', 'contextmap_node'],
+          enum: ['app', 'plan', 'cook', 'contextmap_node'],
           description: 'The target resource kind.',
         },
-        bound_ref: { type: 'string', description: 'The target resource ref (dep_…, app_…, plan_…, cook_…, or a contextmap node ref).' },
+        bound_ref: { type: 'string', description: 'The target resource ref (app_…, plan_…, cook_…, or a contextmap node ref).' },
         role: {
           type: 'string',
           enum: ['corpus', 'working_memory', 'ingredient', 'reference'],
@@ -526,8 +526,9 @@ export function registerStashModeTools() {
         stash_ref: { type: 'string', description: 'The stash side of the binding.' },
         bound_kind: {
           type: 'string',
+          // 'bot' stays so a binding a 2.x install made to a deployed bot can be removed.
           enum: ['bot', 'app', 'plan', 'cook', 'contextmap_node'],
-          description: 'The resource kind the binding targets.',
+          description: "The resource kind the binding targets ('bot' only for a binding made before 3.0).",
         },
         bound_ref: { type: 'string', description: 'The resource ref the binding targets.' },
       },
@@ -546,8 +547,9 @@ export function registerStashModeTools() {
         stash_ref: { type: 'string', description: 'Filter to bindings on this stash.' },
         bound_kind: {
           type: 'string',
+          // 'bot' stays readable: bindings a 2.x install made to a deployed bot.
           enum: ['bot', 'app', 'plan', 'cook', 'contextmap_node'],
-          description: 'Filter to bindings targeting this kind.',
+          description: "Filter to bindings targeting this kind ('bot' only for bindings made before 3.0).",
         },
         bound_ref: { type: 'string', description: 'Filter to bindings targeting this resource ref (reverse lookup).' },
       },

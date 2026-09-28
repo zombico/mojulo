@@ -32,6 +32,12 @@ const DESCRIPTION_CEILING = 700;
 // (forge_motion → motion vocab cards; create_manji_tree → manji_program cards;
 // dna/energy/turntable → create_view kinds).
 const DESCRIPTION_ALLOWLIST = {
+  // Ratcheted 2026-09-28 for the chatbot carve-out (3.0.0): these descriptions stopped naming the
+  // bot factory (bot scopes, fleet modes, chat_turn, the bot trace, the bot-bound commit), so each
+  // pin drops to its new length: forward_context 1081 -> 1012, get_worked_example 946 -> 903,
+  // list_catalysts 833 -> 805, meta_context_brief 972 -> 963, meta_context_commit 2635 -> 2586,
+  // meta_context_declare_inventory 1405 -> 1387, pull_agent_task 762 -> 718,
+  // recommend_catalysts 1042 -> 1027.
   bind_primitives: 1904,
   bind_research_item: 1233,
   bind_trigger: 1227,
@@ -81,7 +87,6 @@ const DESCRIPTION_ALLOWLIST = {
   // route curated + local origins and the mint author-guide hand-off.
   // Shrink-only from these snapshots.
   custom_catalyst: 764,
-  custom_protocol: 791,
   declare_skills: 1041,
   diff_sketches: 875,
   execute_plan: 1314,
@@ -105,7 +110,7 @@ const DESCRIPTION_ALLOWLIST = {
   forge_motion: 1560,
   forge_plan: 1167,
   forge_publications: 955,
-  forward_context: 1081,
+  forward_context: 1012,
   gather: 1181,
   // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
   // the screen-space UI language of hud-widgets.js: readouts / banners / legends in
@@ -116,25 +121,24 @@ const DESCRIPTION_ALLOWLIST = {
   get_mcp_capabilities: 890,
   get_register_kit: 731,
   get_tool_ledger: 937,
-  get_worked_example: 946,
+  get_worked_example: 903,
   install_scaffold: 1317,
-  list_catalysts: 833,
+  list_catalysts: 805,
   // measure_view re-pinned 2026-08-24: rocket-view landed as a measurable
   // kind (full-mission SI telemetry) and the description gained its one-line
   // column note. Shrink-only from here.
   measure_view: 1423,
-  meta_context_brief: 972,
+  meta_context_brief: 963,
   mint_catalyst: 850,
-  meta_context_commit: 2635,
-  meta_context_declare_inventory: 1405,
+  meta_context_commit: 2586,
+  meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
-  pull_agent_task: 762,
-  recommend_catalysts: 1042,
+  pull_agent_task: 718,
+  recommend_catalysts: 1027,
   recommend_kind: 922,
   recommend_mcp_orbit_compositions: 1056,
   record_mcp_capabilities: 1301,
   reference_protocol: 1708,
-  request_chat_decision: 893,
   run_experiment_sweep: 866,
   semantic_search: 2049,
   sketch_plan: 774,
@@ -254,7 +258,10 @@ const DESCRIPTION_ALLOWLIST = {
 // This pin is measured with the chatbot pack on (vitest.setup.js), so moving list_running,
 // list_env, set_env, delete_env and recommend_kind out of the bot packs only reorders it. On a
 // default install those five tools now list, about 4 KB more than before.
-const PAYLOAD_CEILING = 295_500;
+// Re-pinned 2026-09-28 (295_500 -> 267_500; measured 267,031, 148 tools) for the chatbot carve-out
+// (3.0.0): the bot factory's tools left the registry, custom_protocol and the two chat_turn tools
+// with them, and the retained descriptions stopped naming them. Shrink-only from here.
+const PAYLOAD_CEILING = 267_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

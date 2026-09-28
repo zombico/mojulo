@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
 import { getRegisteredTool } from '@/lib/mcp/server';
+import { REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
 import {
   PARADIGMS,
   FORWARD_CONTEXT_MODES,
@@ -170,12 +171,11 @@ describe('buildForwardContextBody — variant composition', () => {
     // names stay invariant across registers (the agent uses them to call tools).
     // The list includes the game paradigm + creative-arm nouns (orientation-diet
     // thread C) — paradigm parity means the glossary covers every arm, not just
-    // the bot/service/app one.
+    // the service/app one. (Bot, Deployment, Protocol and Chain left with the
+    // chatbot factory in 3.0.0.)
     const names = [
-      'Bot',
-      'Deployment',
-      'Protocol',
-      'Chain',
+      'App',
+      'Skill',
       'Catalyst',
       'Host adapter',
       'Connected Service',
@@ -397,8 +397,12 @@ describe('get_ui_map — dashboard page map', () => {
   it('maps the current dashboard pages and stays out of the always-paid body', async () => {
     const { content } = await uiMapHandler({});
     const text = content[0].text;
-    for (const page of ['/bots', '/apps', '/data', '/map', '/graph', '/plan', '/research', '/sketches', '/settings']) {
+    for (const page of ['/apps', '/map', '/graph', '/plan', '/research', '/sketches', '/settings']) {
       expect(text, `ui map missing page ${page}`).toContain(`\`${page}\``);
+    }
+    // The bot pages left with the chatbot factory (3.0.0).
+    for (const page of ['/bots', '/chat-builder', '/data']) {
+      expect(text, `ui map still names ${page}`).not.toContain(`\`${page}\``);
     }
     // Hints at the breadth of UI localization without enumerating every locale.
     expect(text).toMatch(/internationaliz|languages|locales|right-to-left/i);
@@ -431,7 +435,7 @@ describe('get_substrate — the working description', () => {
     // 0816 post-install persona sims: agents routed build questions cleanly but
     // had no in-substrate source for "does it phone home?", "how do I
     // uninstall?", "do I have to pay?" — semantic_search returned vendor tools.
-    // The facts block closes that: a dozen falsifiable architecture invariants
+    // The facts block closes that: falsifiable architecture invariants
     // the agent derives meta-answers from, with the repo as the depth layer.
     const { content } = await substrateHandler({});
     const text = content[0].text;
@@ -448,7 +452,8 @@ describe('get_substrate — the working description', () => {
     expect(text).toMatch(/AES-256-GCM/);
     expect(text).toMatch(/Apache-2\.0/);
     expect(text).toMatch(/\*\*Removal\.\*\*/);
-    expect(text).toMatch(/tamper-evident, not tamper-proof/);
+    // The chatbot factory left in 3.0.0: no bot-data fact, no GHCR read, and no bot tool named.
+    expect(text).not.toMatch(/ghcr\.io|verify_chain|inspect_bot_env|\*\*Bot data\.\*\*/);
     // The verification layer underneath: the public repo, read at the installed tag.
     expect(text).toMatch(/github\.com\/zombico\/mojulo/);
     // Facts stay behind the drawer — never in the always-paid routing body.
@@ -554,7 +559,6 @@ describe('workshop pulse (orientation-ramp R1) + craft floor (R5)', () => {
   it('pulse line renders counts, omitting zero segments', () => {
     const body = buildForwardContextBody({
       pulse: {
-        bots: 3,
         sketches: 12,
         stashes: 0,
         cooks: 1,
@@ -563,15 +567,16 @@ describe('workshop pulse (orientation-ramp R1) + craft floor (R5)', () => {
         lastActivityMs: Date.now() - 2 * 86_400_000,
       },
     });
-    expect(body).toContain('Workshop pulse: 3 bots · 12 sketches · 1 open cook · 4 unseen plans');
+    expect(body).toContain('Workshop pulse: 12 sketches · 1 open cook · 4 unseen plans');
     expect(body).toContain('last activity 2d ago');
     const pulseLine = body.split('\n').find((l) => l.includes('Workshop pulse'));
     expect(pulseLine).not.toContain('stash'); // zero-count segments are omitted
+    expect(pulseLine).not.toMatch(/\bbots?\b/); // the bot count left with the chatbot factory (3.0.0)
   });
 
   it('empty workshop renders the first-win variant instead of counts', () => {
     const body = buildForwardContextBody({
-      pulse: { bots: 0, sketches: 0, stashes: 0, cooks: 0, unseenPlans: 0, triggers: 0, lastActivityMs: 0 },
+      pulse: { sketches: 0, stashes: 0, cooks: 0, unseenPlans: 0, triggers: 0, lastActivityMs: 0 },
     });
     expect(body).toContain('Workshop pulse: empty');
     expect(body).toContain('`create_sketch`');
@@ -736,7 +741,7 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.
   const SAMPLE_PULSE = {
-    bots: 12, sketches: 340, stashes: 6, cooks: 4, unseenPlans: 3, triggers: 2,
+    sketches: 340, stashes: 6, cooks: 4, unseenPlans: 3, triggers: 2,
     lastActivityMs: Date.now() - 3 * 86_400_000,
   };
 
@@ -788,10 +793,12 @@ describe('studio containment (orientation-containment C1) — office pays no cre
     expect(office).toContain('get_creative_toolset');
   });
 
-  it('the office wing states that bots are an optional pack', () => {
-    // Routing honesty for the demoted chatbot factory (Phase 1f): an agent must
-    // not promise a bot on a host where the pack is not installed.
-    expect(buildForwardContextBody({ mode: 'office' })).toMatch(/optional capability pack/i);
+  it('the office wing says chatbots are not built here and names no bot tool', () => {
+    // Routing honesty: the chatbot factory left mojulo in 3.0.0, so an agent must not
+    // promise a bot, and no row may send it to a removed tool.
+    const office = buildForwardContextBody({ mode: 'office' });
+    expect(office).toMatch(/Chatbots are not built here|chatbot factory left mojulo/i);
+    for (const name of REMOVED_BOT_TOOLS) expect(office, name).not.toContain(`\`${name}`);
   });
 
   it('studio body is standalone: spine (floor + safety) present in every cell', () => {

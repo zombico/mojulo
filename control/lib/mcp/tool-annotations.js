@@ -67,45 +67,11 @@ export const TOOL_ANNOTATIONS = {
   get_ui_map: ['Dashboard page map', READ],
   get_substrate: ['What mojulo is', READ],
   version: ['Server version', READ],
-  check_for_updates: ['Check for updates', READ_EXTERNAL], // asks the npm registry and GHCR
+  check_for_updates: ['Check for updates', READ_EXTERNAL], // asks the npm registry
   get_tool_ledger: ['Tool-call ledger', READ],
-  custom_protocol: ['Custom bot protocol guide', READ],
   get_worked_example: ['Worked example', READ],
   list_adapters: ['List host adapters', READ],
   get_adapter: ['Get host adapter', READ],
-
-  // ── chatbot build (build.js, jobs-tools.js; opt-in chatbot pack) ───────────
-  // Builder tools write the connection's in-progress bot draft. Regenerating a draft
-  // field is not counted as destructive; discarding the draft (start_new_bot) is.
-  infer_intent: ['Infer bot intent', hints(false, false, false, true)], // LLM provider call
-  recommend_protocols: ['Recommend bot protocols', ADDITIVE_IDEMPOTENT],
-  generate_form_schema: ['Generate bot form schema', hints(false, false, false, true)], // LLM
-  generate_appointment_config: ['Generate bot appointment config', ADDITIVE_IDEMPOTENT],
-  generate_triage_config: ['Generate bot triage config', ADDITIVE_IDEMPOTENT],
-  generate_optical_read_config: ['Generate bot optical-read config', ADDITIVE_IDEMPOTENT],
-  compose_identity: ['Compose bot identity', hints(false, false, false, true)], // LLM
-  set_suggested_prompts: ['Set bot suggested prompts', ADDITIVE_IDEMPOTENT],
-  generate_bot_summary: ['Generate bot summary', hints(false, false, false, true)], // LLM
-  start_new_bot: ['Start a new bot draft', DESTRUCTIVE_IDEMPOTENT], // discards the draft
-  get_builder_session: ['Get bot builder draft', READ],
-  process_documents: ['Process bot documents', hints(false, false, false, true)], // LLM summaries
-  save_modular_bot: ['Save and deploy bot', hints(false, true, false, true)], // builds, deploys, replaces on redeploy
-  upload_document_from_url: ['Upload bot document', hints(false, false, false, true)], // fetches the URL
-  poll_job: ['Poll background job', READ],
-
-  // ── chatbot operate + fleet (operate.js, fleet.js) ─────────────────────────
-  // Conversation reads go through the deployed bot's own HTTP API.
-  list_deployments: ['List bot deployments', READ],
-  get_deployment: ['Get bot deployment', READ],
-  inspect_bot_env: ['Inspect bot env (masked)', READ_EXTERNAL], // reads a bot's .env, wherever it was unzipped
-  query_conversations: ['Query bot conversations', READ_EXTERNAL],
-  get_conversation: ['Get bot conversation', READ_EXTERNAL],
-  export_conversations: ['Export bot conversations', READ_EXTERNAL],
-  query_submissions: ['Query bot form submissions', READ_EXTERNAL],
-  verify_chain: ['Verify bot audit chain', READ_EXTERNAL],
-  fleet_analytics_summary: ['Fleet analytics summary', READ_EXTERNAL],
-  fleet_query_conversations: ['Query conversations across bots', READ_EXTERNAL],
-  verify_fleet_chains: ['Verify audit chains across bots', READ_EXTERNAL],
 
   // ── catalysts (catalysts.js) ───────────────────────────────────────────────
   list_catalysts: ['List catalysts', READ],
@@ -152,12 +118,10 @@ export const TOOL_ANNOTATIONS = {
   stop_daemon: ['Stop a daemon', DESTRUCTIVE_IDEMPOTENT],
   restart_daemon: ['Restart a daemon', DESTRUCTIVE], // interrupts in-flight work
 
-  // ── agent tasks and the chat worker (agent-tasks.js, agent-ui.js) ──────────
+  // ── agent tasks (agent-tasks.js) ───────────────────────────────────────────
   pull_agent_task: ['Pull an agent task', ADDITIVE], // claims the next task
   submit_envelope_inference: ['Submit task inference', ADDITIVE_IDEMPOTENT], // a resubmit finds nothing in flight
   cancel_agent_task: ['Cancel an agent task', DESTRUCTIVE_IDEMPOTENT],
-  emit_chat_signal: ['Post a chat progress signal', ADDITIVE],
-  request_chat_decision: ['Ask the operator to decide', ADDITIVE],
 
   // ── plan mode (Ring 8: plan-mode.js) ───────────────────────────────────────
   enter_plan_mode: ['Enter plan mode', READ],

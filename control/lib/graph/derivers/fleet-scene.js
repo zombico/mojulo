@@ -6,11 +6,13 @@
  * Every node carries `role`, `layer:'air'|'ground'`, and an optional `href`
  * (clickable target). Every edge carries `kind` so a page's `framing` can pick
  * which kinds render. Reuses the four existing station kinds:
- *   apps → filesystem (slate)   bots → db_row (purple)
+ *   apps → filesystem (slate)
  *   servers → mcp_tool (teal)   services → input (dashed)
+ * (A bots row, db_row purple, drew deployed chatbots until the chatbot factory
+ * left in 3.0.0.)
  *
  * Node id scheme (must match crossLinks ids built in the loader):
- *   app-<ref>   bot-<id>   server-<name>   service-<ref>
+ *   app-<ref>   server-<name>   service-<ref>
  *
  * No DB I/O — the caller passes the view model in. See
  * lite-template/integration/app-system/0528/fleet-scene/FLEET_SCENE_PLAN.md.
@@ -78,20 +80,6 @@ function deriveAppNodes(apps, nodes) {
   }
 }
 
-function deriveBotNodes(bots, nodes) {
-  for (const bot of bots) {
-    nodes.push({
-      id: `bot-${bot.id}`,
-      role: 'bot',
-      layer: 'ground',
-      kind: 'db_row',
-      label: bot.name || bot.id,
-      sublabel: bot.status || 'bot',
-      href: bot.href,
-    });
-  }
-}
-
 // `calls` edges (service → server) — only emitted under framings that allow
 // them, and only when the called server is present as a node in this scene.
 function deriveCallEdges(services, serverIds, edges) {
@@ -117,7 +105,6 @@ export function deriveFleetSceneTopology(vm, { framing = 'map' } = {}) {
   // Ground first, air second — paint order matches the band stacking, though
   // the renderer also keys elevation off `layer` independently.
   deriveAppNodes(ground.apps || [], nodes);
-  deriveBotNodes(ground.bots || [], nodes);
   deriveServerNodes(servers, nodes);
   deriveServiceNodes(services, nodes);
 

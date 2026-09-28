@@ -21,7 +21,6 @@
  */
 
 import { spawn } from 'node:child_process';
-import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   CONTROL_DIR,
@@ -59,7 +58,6 @@ if (found.source === 'package') {
 } else if (found.source === 'local-build') {
   await startDashboard({
     standaloneServer: found.standaloneServer,
-    liteTemplateDir: path.join(CONTROL_DIR, '..', 'lite-template'),
     argv,
   });
 } else {

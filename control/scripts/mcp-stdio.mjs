@@ -53,7 +53,8 @@ if (process.argv[2] === 'init') {
   process.exit(0);
 }
 
-// `mojulo install <creative|recall|chatbot>` — on-demand capability-pack installer. Branch
+// `mojulo install <creative|recall>` — on-demand capability-pack installer (`install chatbot`
+// only says where the factory went). Branch
 // out here for the same reason as `init`: it runs `npm install` for the recall group
 // and needs neither the @/ loader nor the tool registry. Self-contained and exits
 // itself; the guard exit is belt-and-suspenders.
@@ -87,7 +88,7 @@ if (firstArg === '--version' || firstArg === '-v') {
 register('./mcp-stdio-loader.mjs', import.meta.url);
 
 // User data lives under MOJULO_HOME (default ~/.mojulo). This populates
-// SQLITE_PATH / ARTIFACTS_DIR / STORAGE_ROOT / MOJULO_OUTCOMES_DIR /
+// SQLITE_PATH / STORAGE_ROOT / MOJULO_OUTCOMES_DIR /
 // MOJULO_EXPORTS_DIR / MOJULO_MODELS_DIR so the lib
 // code lands user state there instead of a cwd-relative ./data/.
 resolveMojuloPaths();
@@ -149,8 +150,8 @@ await ensureToolsRegistered();
 // Kick off the embedder model load in background — a no-op unless the recall
 // install group is present (preloadModel returns at once without it; a default
 // install has no runtime and nothing to fetch). With it, the model load (~130MB
-// on a cold cache) is the longest single step of the first RAG bot build, and
-// starting it now lets it overlap with Claude's initial exchanges. The lazy
+// on a cold cache) is the longest single step of the first vector semantic_search,
+// and starting it now lets it overlap with Claude's initial exchanges. The lazy
 // path in lib/embedder/local.js shares promise state, so a tool call arriving
 // mid-load simply awaits whatever's left. Failures here surface at first use —
 // don't crash the MCP server.

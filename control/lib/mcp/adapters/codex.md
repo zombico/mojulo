@@ -6,7 +6,7 @@
   "version": 1,
   "artifactTarget": "Codex automation (preferred for recurrence) OR workspace ./mojulo-workflows/<slug>/ (workflow + helpers Codex follows interactively)",
   "schedulingMechanism": "automation_update cron",
-  "secretsPosture": "automation-level secrets + inspect_bot_env",
+  "secretsPosture": "automation-level secrets; never read a .env (list_env names an app's keys, never values)",
   "supportsClientInfoHint": ["codex", "openai-codex", "openai", "codex-cli"]
 }
 ---
@@ -32,7 +32,7 @@ Inline mode (artifact target 3) skips this — no workspace, no substrate.
 
 ### Why the substrate exists, what it is NOT
 
-The substrate is **directly-addressed cached state**, not a discovery convention. Codex does not auto-load workspace metadata files when it enters a workspace — an earlier iteration of this adapter wrote `AGENTS.md` and `.codex/procedures/*.md` expecting future Codex sessions to pick them up, and they don't. So the substrate's value is not that a fresh session stumbles across it; the value is that **per-catalyst artifacts the adapter materializes reference these paths directly** — to detect drift on every run, share provenance across catalysts that bind the same bot, and skip re-fetching deployment shape unnecessarily.
+The substrate is **directly-addressed cached state**, not a discovery convention. Codex does not auto-load workspace metadata files when it enters a workspace — an earlier iteration of this adapter wrote `AGENTS.md` and `.codex/procedures/*.md` expecting future Codex sessions to pick them up, and they don't. So the substrate's value is not that a fresh session stumbles across it; the value is that **the artifacts the adapter materializes reference these paths directly** — to detect drift on every run and share provenance across artifacts built in the same workspace.
 
 The corollary: don't write discovery breadcrumbs (`AGENTS.md`, `.codex/procedures/`, `README.md` stubs). Nothing reads them. The artifact carries its own preamble (see "Standing-moves preamble" below).
 
@@ -45,14 +45,11 @@ The corollary: don't write discovery breadcrumbs (`AGENTS.md`, `.codex/procedure
      "convention": "mojulo-codex-workspace",
      "version": 1,
      "bootstrappedAt": "<ISO timestamp>",
-     "mojuloServerVersion": "<from mojulo MCP version tool>",
-     "deployments": []
+     "mojuloServerVersion": "<from mojulo MCP version tool>"
    }
    ```
 
-   `deployments` accumulates bot ids as later catalysts bind them (see "Dock into the workspace substrate" below). Don't re-bootstrap when this file exists.
-
-2. **`<workspace>/.codex/mojulo/deployments/`** — empty directory. Per-deployment slots are created on first bind by per-catalyst materialization, not at bootstrap.
+   Don't re-bootstrap when this file exists. Primitive compositions dock under `.codex/mojulo/compositions/` when they are materialized (see the primitive binding flow below), not at bootstrap.
 
 That's the entire bootstrap. Don't pre-create `tools/mojulo/`, `tests/mojulo/`, `verification/`, `AGENTS.md`, or any other stub — none of them pay rent.
 
@@ -63,10 +60,10 @@ Because Codex won't auto-load a procedure file from the workspace, the standing 
 ```md
 ## Standing moves — run every time, before this workflow's main steps
 
-1. **Preflight (mojulo MCP).** Verify mojulo MCP tools are visible (e.g. `get_deployment`, `query_submissions`). If missing, log "mojulo MCP not bound" and exit non-zero.
+1. **Preflight (mojulo MCP).** Verify mojulo MCP tools are visible (e.g. `version`, `meta_context_brief`). If missing, log "mojulo MCP not bound" and exit non-zero.
 2. **Preflight (destination MCP).** Verify destination MCP tools are visible. If missing, log "destination MCP <name> not bound" and exit non-zero.
-3. **Drift check.** Call `get_deployment(deploymentId)`. Compare its `configHash` against `<workspace>/.codex/mojulo/deployments/<id>/provenance.json` `configHash`. If different, refresh `deployment.json`, `schema.json`, and bump `provenance.json` `capturedAt` before continuing — otherwise yesterday's schema bakes into today's writes.
-4. **Secrets posture.** Never `cat` or `Read` `~/.mojulo/**/.env*` directly — always go through `inspect_bot_env`. Same rule on error/exception paths.
+3. **Drift check.** Re-read the source's shape (the mojulo read tool this artifact names, or the declared inventory via `meta_context_brief`) and compare it against this artifact's `provenance.json`. If different, refresh the snapshot and bump `capturedAt` before continuing — otherwise yesterday's schema bakes into today's writes.
+4. **Secrets posture.** Never `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env` directly — `list_env` names an app's keys, never values. Same rule on error/exception paths.
 5. **Dry-run gate.** Read `liveMode` from this artifact's config / parameters. If `false`, render the destination payload to the log and exit. If `true`, proceed to the live write.
 ```
 
@@ -77,7 +74,7 @@ Bake this exact block (or a near-equivalent matching the artifact mode) into the
 Pick one of these three, in priority order:
 
 1. **Codex automation** (preferred for recurring work). Create/update via the `automation_update` tool with: a self-contained prompt, the resolved workspace `cwd`, the cadence, and model settings. Right target when the user wants the workflow to run on a schedule without further intervention.
-2. **Workspace workflow file** at `./mojulo-workflows/<bot-slug>-<purpose>/` (inside the resolved workspace), containing `workflow.md` plus a small `config.json`. The workflow file is a **procedure Codex follows interactively** in a workspace session — not a standalone script. Codex reads it, makes the mojulo MCP calls and destination MCP calls itself, persists state. Right target for one-shot or version-controlled workflows where the user wants a file they can commit and review.
+2. **Workspace workflow file** at `./mojulo-workflows/<slug>-<purpose>/` (inside the resolved workspace), containing `workflow.md` plus a small `config.json`. The workflow file is a **procedure Codex follows interactively** in a workspace session — not a standalone script. Codex reads it, makes the mojulo MCP calls and destination MCP calls itself, persists state. Right target for one-shot or version-controlled workflows where the user wants a file they can commit and review.
 3. **Inline one-shot** in the current Codex thread. Acceptable for exploration and as the fallback when no workspace is available. Don't default to this for anything the user expects to re-run.
 
 Default to (2) for design-time work, (1) when the user has named a cadence ("nightly", "every Monday morning", "every hour").
@@ -86,36 +83,9 @@ Default to (2) for design-time work, (1) when the user has named a cadence ("nig
 
 A plain `run.sh` / `run.ts` / `run.py` cannot call mojulo's MCP tools — local scripts don't speak MCP, they'd need an MCP client runtime that isn't there by default. So **`workflow.md` is the artifact, not a runner**. The workflow file documents the procedure; Codex executes it via its native MCP client. A deterministic helper script (e.g. one that formats a destination payload) can sit alongside `workflow.md` and be invoked by Codex during execution — but the helper is a leaf, not the entry point.
 
-## Dock into the workspace substrate
+## Record provenance
 
-After picking the artifact target (modes 1 or 2), snapshot the target deployment(s) into `.codex/mojulo/deployments/<id>/` and record this catalyst in their provenance. This is what makes the substrate worth having — without it, the per-catalyst artifact still runs, but a future session has no record of when it was materialized or against what schema.
-
-For each deployment the artifact binds:
-
-1. **Snapshot or refresh.** If `<workspace>/.codex/mojulo/deployments/<id>/` doesn't exist, create it. Either way: call `get_deployment(<id>)` and compare its `configHash` against `provenance.json` `configHash`. If different (or the slot is new), write:
-   - `deployment.json` — the full `get_deployment` response.
-   - `schema.json` — the bot's form schema lifted out of `deployment.config` for easy diff (formGathering bots only; skip if the protocol isn't enabled).
-   - `provenance.json`:
-
-     ```json
-     {
-       "deploymentId": "<id>",
-       "botName": "<name>",
-       "capturedAt": "<ISO timestamp>",
-       "mojuloServerVersion": "<from version>",
-       "botImage": "<from version>",
-       "configHash": "<from get_deployment>",
-       "schemaFingerprint": "<sha256 of schema.json or null>",
-       "enabledProtocols": ["..."],
-       "relatedCatalysts": []
-     }
-     ```
-
-2. **Append this catalyst.** Add the catalyst id to `provenance.json` `relatedCatalysts` if it's not already there. This is the per-deployment audit trail — a future session reads it to know what's been built against this bot.
-
-3. **Register in the workspace manifest.** Add the deployment id to `<workspace>/.codex/mojulo/manifest.json` `deployments` if absent.
-
-`configHash` and `schemaFingerprint` are the staleness signals the standing-moves preamble (above) checks on every run. At materialization time, don't bind against a stale snapshot — refresh first, or you'll bake yesterday's schema into tomorrow's automation.
+For modes 1 and 2, record what the artifact was built against in a `provenance.json` beside it (`<workspace>/mojulo-workflows/<slug>/provenance.json`, or the automation's parameters): the catalyst id, `capturedAt`, `mojuloServerVersion` (from `version`) and the source shape the mapping reads. The standing-moves drift check compares against it on every run. Don't bind against a stale snapshot — refresh first, or you'll bake yesterday's schema into tomorrow's automation.
 
 ## Parameter collection
 
@@ -129,7 +99,7 @@ Ask the catalyst's `parameters` questions in one batched round before materializ
 **Detached automations may not see your current tool surface.** Codex tool schemas load lazily, destination MCPs may not be wired, and an automation executing on a schedule starts from a fresh tool registry. Bake a preflight into every materialized artifact as its **first step**:
 
 ```
-1. Verify mojulo MCP tools are visible (e.g. get_deployment, query_submissions). If missing: log "mojulo MCP not bound" and exit non-zero.
+1. Verify mojulo MCP tools are visible (e.g. version, meta_context_brief). If missing: log "mojulo MCP not bound" and exit non-zero.
 2. Verify destination MCP tools are visible (e.g. the CRM's contact-create tool). If missing: log "destination MCP <name> not bound" and exit non-zero.
 3. Only then proceed to the workflow.
 ```
@@ -148,7 +118,7 @@ A workflow that defaults `liveMode: false` but doesn't *demonstrate* dry-run as 
 
 ## Scheduling
 
-- **Mode 1 (automation):** cadence is `automation_update`'s native cron. The automation prompt must be self-contained — bot id, mapping table, destination MCP binding, dry-run preflight, parameter references. Codex automations don't carry external state across runs by default; use the workspace state file (below) for anything cross-run.
+- **Mode 1 (automation):** cadence is `automation_update`'s native cron. The automation prompt must be self-contained — source handle, mapping table, destination MCP binding, dry-run preflight, parameter references. Codex automations don't carry external state across runs by default; use the workspace state file (below) for anything cross-run.
 - **Mode 2 (workflow file):** schedule with the user's preferred system cron / launchd / systemd, which invokes a Codex CLI session against the workspace. Document the recommended cadence in `workflow.md`'s frontmatter.
 
 ## State storage
@@ -174,7 +144,7 @@ Shape: at minimum `recordId`, `action` (`inserted | updated | skipped-* | failed
 
 Translate mojulo's "never `cat` `.env`" standing rule into Codex behavior:
 
-- Don't `cat` or `Read` `~/.mojulo/**/.env*` directly — always route through the `inspect_bot_env` MCP tool, which returns `{ key, value, masked }`.
+- Don't `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env` directly. `list_env` names an app's keys (never values); the values stay where the operator set them.
 - Don't echo secrets into the automation prompt as plain text. If the user has Codex's secret-injection mechanism wired, reference secrets through that interface; otherwise leave secret values out of the prompt entirely and let the destination MCP's auth surface handle them.
 - The materialized artifact (automation prompt or workflow file) must never log raw `.env` contents on any execution path, including error/exception paths. Error handlers that dump environment for debugging are a common leak vector — explicitly redact.
 
@@ -187,8 +157,8 @@ When you finish materializing, tell the user:
 - For automations: how to view the execution log; how to inspect parameters.
 - For workflow files: how to invoke a Codex session against the workspace; the state file location.
 - That the preflight will hard-fail if mojulo MCP or destination MCP isn't bound at run time — they should expect to see that message on first run if their automation environment differs from the materialization environment.
-- If the bootstrap fired: that you wrote `.codex/mojulo/manifest.json` and the empty `.codex/mojulo/deployments/` directory. Subsequent catalysts materialized into this workspace will dock onto the same substrate and share its per-deployment provenance. Commit it if the workspace is version-controlled. (You did not write `AGENTS.md` or `.codex/procedures/` — Codex doesn't auto-load those, so the procedure prose was inlined into this artifact's standing-moves preamble instead.)
-- That `.codex/mojulo/deployments/<id>/provenance.json` records when this catalyst was materialized and against what `configHash` + `schemaFingerprint`. The artifact's standing-moves preamble compares against these on every run — if the bot is rebuilt or its schema is regenerated, the artifact will refresh the snapshot itself before continuing.
+- If the bootstrap fired: that you wrote `.codex/mojulo/manifest.json`. Later artifacts materialized into this workspace share the same substrate. Commit it if the workspace is version-controlled. (You did not write `AGENTS.md` or `.codex/procedures/` — Codex doesn't auto-load those, so the procedure prose was inlined into this artifact's standing-moves preamble instead.)
+- That the artifact's `provenance.json` records when it was materialized and against what source shape. The standing-moves preamble compares against it on every run — if the source changes, the artifact refreshes the snapshot itself before continuing.
 
 ## Handing back an export
 
@@ -199,9 +169,9 @@ Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`
 
 ---
 
-## Primitive binding flow (no-bot composition)
+## Primitive binding flow (compositions over installed MCPs)
 
-Everything above describes the **catalyst** flow — bot-shaped, vendor-shaped, curated body. There's a parallel flow mojulo supports for **no-bot, primitive-shaped** workflows: an interactive Codex session declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, materializes via the same automation / workflow-file / inline modes as the catalyst flow, and seals via `meta_context_commit({type: 'primitive_artifact_materialization', ...})`. This is the supported path when the user wants outcomes without a chatbot in the picture — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
+Everything above describes the **catalyst** flow — vendor-shaped, curated body. There's a parallel flow mojulo supports for **primitive-shaped** workflows: an interactive Codex session declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, materializes via the same automation / workflow-file / inline modes as the catalyst flow, and seals via `meta_context_commit({type: 'primitive_artifact_materialization', ...})`. This is the supported path for MCP-to-MCP outcomes — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
 
 ### Why an interactive session has to do the binding (not the automation)
 
@@ -259,7 +229,7 @@ Same artifact target options as catalyst materialization: **automation** (mode 1
    - `claude_ai_Linear.list_issues`
    If any missing: log "bound tool <name> not available" and exit non-zero.
 3. **Snapshot freshness (optional, advisory).** This artifact was materialized against a snapshot from <ISO>. If significantly later, the bound MCP may have drifted — log a warning but proceed.
-4. **Secrets posture.** Never `cat` or `Read` `~/.mojulo/**/.env*` — always `inspect_bot_env`.
+4. **Secrets posture.** Never `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env`; `list_env` names keys, never values.
 5. **Dry-run gate.** Read `liveMode` from this artifact's config / parameters. If `false`, render destination payload to log and exit.
 ```
 
@@ -270,7 +240,7 @@ Step 3 (snapshot freshness) is advisory — there's no contextmap call to refres
 - `provider-artifacts.json` — the array of provider artifact refs + full bodies returned by `bind_primitives`. This is the durable copy a future session can read to understand what this composition was built from.
 - `provenance.json` — composition_intent + snapshot timestamps + bound tool list. Mirror of what mojulo's contextmap will record on commit; carrying it in the workspace too means a session that lost MCP-bound mojulo connectivity can still recover the artifact's provenance from the filesystem.
 
-(Don't dock primitive compositions under `.codex/mojulo/deployments/<id>/` — there's no bot. The `compositions/` directory is the parallel substrate for the primitive flow.)
+(The `compositions/` directory is the workspace substrate for the primitive flow.)
 
 ### Step 6 — Seal with `meta_context_commit` (primitive_artifact_materialization)
 

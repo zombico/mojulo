@@ -45,11 +45,11 @@ export async function POST(request) {
     }
   }
 
-  // The default key powers the chat builder, whose agentic tool-use loop
-  // relies on cloud-provider reliability and latency. Ollama keys can exist
-  // (the wizard / bot artifact still uses them) but must never hold the
-  // default flag — silently coerce instead of erroring so legacy clients
-  // sending the old `makeDefault: true` payload still succeed.
+  // The default key powered the 2.x chat builder, whose agentic tool-use loop
+  // relied on cloud-provider reliability and latency. Ollama keys can exist
+  // (a caller names them explicitly) but never hold the default flag —
+  // silently coerce instead of erroring so legacy clients sending the old
+  // `makeDefault: true` payload still succeed.
   const effectiveMakeDefault = provider === 'ollama' ? false : makeDefault;
 
   // Ollama doesn't have a secret — the "credential" slot holds the endpoint

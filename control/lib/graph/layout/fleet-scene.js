@@ -2,14 +2,13 @@
  * layoutFleetScene — purpose-built layout for the fleet scene.
  *
  * The app `lib/graph/layout.js` SLOTS table is app-specific (fixed roles) and
- * won't fit unbounded N servers / M services / K apps+bots, so this is its own
+ * won't fit unbounded N servers / M services / K apps, so this is its own
  * pass. It lays one horizontal row per node category, stacked top→bottom:
  *
  *   servers    ← air block (lifted; renderer keys elevation off `layer`)
  *   services   ←
  *      · · · · · · band gap · · · · · ·
  *   apps       ← ground block (flat)
- *   bots       ←
  *
  * Each row is centered, so a row with fewer items reads as indented under a
  * wider one. Empty categories are skipped (no blank row). Edges connect across
@@ -36,7 +35,7 @@ const MAX_ROW_WIDTH = 1120;
 
 // Top→bottom row order. Air categories lead, ground categories trail; anything
 // the deriver emits outside this set is appended at the end so no node is lost.
-const ROW_ORDER = ['server', 'service', 'app', 'bot'];
+const ROW_ORDER = ['server', 'service', 'app'];
 
 function nodeHeight(node) {
   // Compact font preset: label + sublabel band ≈ 40; each bullet 13; +6 pad.

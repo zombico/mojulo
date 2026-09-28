@@ -7,8 +7,7 @@ node_modules/
 .DS_Store
 lib/embedder/models/
 # The dashboard package's build output, staged at pack time by
-# scripts/stage-ui-package.mjs (lite-template/ also covers a stale control/lite-template).
-lite-template/
+# scripts/stage-ui-package.mjs.
 /ui-package/standalone/
 # Generative illustration spikes — visual experiments, not load-bearing.
 # They import polygonizer primitives and dump SVGs to lite-template/integration

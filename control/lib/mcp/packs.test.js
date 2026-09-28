@@ -29,8 +29,13 @@ import {
   isToolInstalled,
   installNotice,
   DEFAULT_ON_GROUPS,
+  retiredInstallTokens,
   _setGroupPresence,
 } from '@/lib/mcp/packs';
+import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // Packs-mode connect payload pin — the plan's headline number (~35KB target
 // from ~250KB flat). Growth is a conscious re-pin, same contract as the flat
@@ -40,7 +45,10 @@ import {
 // Checked 2026-09-27 for the chatbot carve-out's rehomed tools (pin unchanged; measured 36,793 ->
 // 36,808): pack_runtime and pack_stash now name list_running, the app .env trio and recommend_kind,
 // and the bot pack descriptions no longer do.
-const PACKS_PAYLOAD_CEILING = 37_000;
+// Re-pinned 2026-09-28 (37_000 -> 34_000; measured 33,694) for the chatbot carve-out (3.0.0): the
+// three bot pack dispatchers left, and pack_runtime and pack_connected_services stopped naming the
+// chat_turn tools and chatbots. Shrink-only from here.
+const PACKS_PAYLOAD_CEILING = 34_000;
 
 let server;
 let listTools;
@@ -323,29 +331,22 @@ describe('install axis — the recall group', () => {
   });
 });
 
-describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs + creative/chatbot', () => {
+describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs + creative', () => {
   const world = () => PACKS.find((p) => p.id === 'pack_world');
-  const botOps = () => PACKS.find((p) => p.id === 'pack_bot_operate');
   const catalysts = () => PACKS.find((p) => p.id === 'pack_catalysts');
 
-  // THE 2.0 DEFAULT: a fresh install is the 3D factory WITHOUT the bot factory.
-  // `_setGroupPresence` forces the physical probe so this asserts the shipped
-  // default rather than whatever the developer's own ~/.mojulo happens to hold.
-  it('default (unset) is creative + the always-on packs — the chatbot factory is ABSENT', () => {
+  // THE DEFAULT: a fresh install is the whole workshop. `_setGroupPresence` forces the
+  // physical probe so this asserts the shipped default rather than whatever the
+  // developer's own ~/.mojulo happens to hold.
+  it('default (unset) is creative + the always-on packs: every pack is installed', () => {
     _setGroupPresence(['creative']); // what a fresh `npx mojulo` detects
     try {
       expect([...installedGroups({})]).toEqual(['creative']);
-      // creative and the ungrouped plumbing are all there...
       expect(isToolInstalled('compose_world', {})).toBe(true);
       expect(isToolInstalled('list_catalysts', {})).toBe(true);
       expect(isToolInstalled('start_app', {})).toBe(true);
       for (const s of SPINE) expect(isToolInstalled(s, {})).toBe(true);
-      // ...and the bot factory is not.
-      for (const id of ['pack_bot_build', 'pack_bot_operate', 'pack_fleet']) {
-        expect(isPackInstalled(PACKS.find((p) => p.id === id), {})).toBe(false);
-      }
-      expect(isToolInstalled('start_new_bot', {})).toBe(false);
-      expect(installedPacks({}).length).toBe(PACKS.length - 3);
+      expect(installedPacks({}).length).toBe(PACKS.length);
     } finally {
       _setGroupPresence(null);
     }
@@ -361,84 +362,86 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
     }
   });
 
-  // THE 2.0 semantics change. Under 1.5 this was wing-grain, so gating the studio
-  // wing off also gated the whole office wing's fate to the chatbot factory's.
-  // Now only packs that DECLARE a group are gatable; the orchestration plumbing
-  // declares none and is unconditional, exactly like the kernel.
+  // Under 1.5 this was wing-grain, so gating the studio wing off also gated the whole
+  // office wing. Now only packs that DECLARE a group are gatable; the orchestration
+  // plumbing declares none and is unconditional, exactly like the kernel.
   it('packs declaring NO install group are always present — plumbing is not gatable', () => {
     const ungrouped = PACKS.filter((p) => !p.installGroup);
     expect(ungrouped.map((p) => p.id).sort()).toEqual([
       'pack_catalysts', 'pack_connected_services', 'pack_plan',
       'pack_research', 'pack_runtime', 'pack_stash',
     ]);
-    for (const env of [{ MOJULO_PACKS: 'creative' }, { MOJULO_PACKS: 'chatbot' }]) {
+    for (const env of [{ MOJULO_PACKS: 'creative' }, { MOJULO_PACKS: 'recall' }]) {
       for (const pack of ungrouped) expect(isPackInstalled(pack, env)).toBe(true);
     }
     // and their tools run under any override
-    expect(isToolInstalled('list_catalysts', { MOJULO_PACKS: 'creative' })).toBe(true);
-    expect(isToolInstalled('list_plans', { MOJULO_PACKS: 'creative' })).toBe(true);
+    expect(isToolInstalled('list_catalysts', { MOJULO_PACKS: 'recall' })).toBe(true);
+    expect(isToolInstalled('list_plans', { MOJULO_PACKS: 'recall' })).toBe(true);
   });
 
-  it('MOJULO_PACKS=creative gates the chatbot factory off — and NOTHING else', () => {
+  it('MOJULO_PACKS=creative is the whole workshop', () => {
     const env = { MOJULO_PACKS: 'creative' };
     expect([...installedGroups(env)]).toEqual(['creative']);
-    expect(isToolInstalled('compose_world', env)).toBe(true);
-    expect(isToolInstalled('start_new_bot', env)).toBe(false);   // chatbot group absent
-    expect(isToolInstalled('list_deployments', env)).toBe(false);
-    expect(isToolInstalled('list_catalysts', env)).toBe(true);   // plumbing unconditional
-    expect(isToolInstalled('start_app', env)).toBe(true);
+    expect(installedPacks(env).length).toBe(PACKS.length);
     for (const s of SPINE) expect(isToolInstalled(s, env)).toBe(true);
   });
 
-  it('MOJULO_PACKS=chatbot gates the creative pack off, plumbing still on', () => {
-    const env = { MOJULO_PACKS: 'chatbot' };
-    expect([...installedGroups(env)]).toEqual(['chatbot']);
-    expect(isToolInstalled('start_new_bot', env)).toBe(true);
+  it('MOJULO_PACKS=recall gates the creative pack off, plumbing still on', () => {
+    const env = { MOJULO_PACKS: 'recall' };
+    expect([...installedGroups(env)]).toEqual(['recall']);
     expect(isToolInstalled('compose_world', env)).toBe(false);
     expect(isToolInstalled('list_catalysts', env)).toBe(true);
+    expect(isToolInstalled('start_app', env)).toBe(true);
   });
 
-  it("'ops' stays a deprecated alias for 'chatbot' so existing configs keep their bots", () => {
-    expect([...installedGroups({ MOJULO_PACKS: 'ops' })]).toEqual(['chatbot']);
-    expect(isToolInstalled('start_new_bot', { MOJULO_PACKS: 'ops' })).toBe(true);
-    expect(isToolInstalled('compose_world', { MOJULO_PACKS: 'ops' })).toBe(false);
-    // but it now grants strictly less than it used to: the plumbing it also covered
-    // is unconditional, not gated behind the token
-    expect(isToolInstalled('list_catalysts', { MOJULO_PACKS: 'ops' })).toBe(true);
+  // The chatbot group left with the chatbot factory in 3.0.0. A 2.x config that still names it
+  // (or its `ops` alias) must keep working: the token is skipped, never an error, never a group.
+  it("the retired 'chatbot' and 'ops' tokens are ignored, and reported as retired", () => {
+    _setGroupPresence(['creative']);
+    try {
+      for (const csv of ['chatbot', 'ops', 'ops,chatbot']) {
+        expect([...installedGroups({ MOJULO_PACKS: csv })]).toEqual(['creative']); // falls through to disk
+        expect(installedPacks({ MOJULO_PACKS: csv }).length).toBe(PACKS.length);
+      }
+      expect([...installedGroups({ MOJULO_PACKS: 'chatbot,creative' })]).toEqual(['creative']);
+      expect([...installedGroups({ MOJULO_PACKS: 'chatbot,recall' })]).toEqual(['recall']);
+      expect(retiredInstallTokens({ MOJULO_PACKS: 'creative, Chatbot,ops' })).toEqual(
+        expect.arrayContaining(['MOJULO_PACKS=chatbot', 'MOJULO_PACKS=ops']),
+      );
+      expect(retiredInstallTokens({ MOJULO_PACKS: 'creative' }).filter((t) => t.startsWith('MOJULO_PACKS'))).toEqual([]);
+    } finally {
+      _setGroupPresence(null);
+    }
   });
 
-  it('MOJULO_PACKS=chatbot,creative is the full install again', () => {
-    const env = { MOJULO_PACKS: 'chatbot,creative' };
-    expect([...installedGroups(env)].sort()).toEqual(['chatbot', 'creative']);
+  it('MOJULO_PACKS=recall,creative is the full install again', () => {
+    const env = { MOJULO_PACKS: 'recall,creative' };
+    expect([...installedGroups(env)].sort()).toEqual(['creative', 'recall']);
     expect(installedPacks(env).length).toBe(PACKS.length);
   });
 
   it('installNotice: null when installed, advisory (not a refusal) when gated', () => {
     expect(installNotice('compose_world', {})).toBeNull();
-    expect(installNotice('compose_world', { MOJULO_PACKS: 'chatbot' })).toMatch(/creative capability pack/);
+    expect(installNotice('compose_world', { MOJULO_PACKS: 'recall' })).toMatch(/creative capability pack/);
     // creative ships with every install, so the fix for a gated creative is the override, not an install
-    expect(installNotice('compose_world', { MOJULO_PACKS: 'chatbot' })).toMatch(/include 'creative' in MOJULO_PACKS/);
-    expect(installNotice('compose_world', { MOJULO_PACKS: 'chatbot' })).not.toMatch(/mojulo install creative/);
-    expect(installNotice('start_new_bot', { MOJULO_PACKS: 'chatbot' })).toBeNull();
-    expect(installNotice('forward_context', { MOJULO_PACKS: 'chatbot' })).toBeNull(); // spine → kernel
-    expect(installNotice('list_catalysts', { MOJULO_PACKS: 'chatbot' })).toBeNull(); // ungrouped → kernel-adjacent
+    expect(installNotice('compose_world', { MOJULO_PACKS: 'recall' })).toMatch(/include 'creative' in MOJULO_PACKS/);
+    expect(installNotice('compose_world', { MOJULO_PACKS: 'recall' })).not.toMatch(/mojulo install creative/);
+    expect(installNotice('forward_context', { MOJULO_PACKS: 'recall' })).toBeNull(); // spine → kernel
+    expect(installNotice('list_catalysts', { MOJULO_PACKS: 'recall' })).toBeNull(); // ungrouped → kernel-adjacent
   });
 
   it('isPackInstalled follows the pack install GROUP, not its wing', () => {
-    // pack_bot_operate and pack_catalysts share wing:'office' but no longer share a fate
-    expect(botOps().wing).toBe(catalysts().wing);
-    expect(isPackInstalled(botOps(), { MOJULO_PACKS: 'creative' })).toBe(false);
-    expect(isPackInstalled(catalysts(), { MOJULO_PACKS: 'creative' })).toBe(true);
+    expect(isPackInstalled(world(), { MOJULO_PACKS: 'recall' })).toBe(false);
+    expect(isPackInstalled(catalysts(), { MOJULO_PACKS: 'recall' })).toBe(true);
     expect(isPackInstalled(world(), { MOJULO_PACKS: 'creative' })).toBe(true);
   });
 
-  it('every pack declares a known install group, or none', () => {
+  it('every pack declares the creative group or none, and no chatbot pack remains', () => {
     for (const pack of PACKS) {
-      if (pack.installGroup) expect(['creative', 'chatbot']).toContain(pack.installGroup);
+      if (pack.installGroup) expect(pack.installGroup).toBe('creative');
     }
-    // the carve set is exactly the three chatbot packs
-    expect(PACKS.filter((p) => p.installGroup === 'chatbot').map((p) => p.id).sort())
-      .toEqual(['pack_bot_build', 'pack_bot_operate', 'pack_fleet']);
+    const ids = PACKS.map((p) => p.id);
+    for (const id of ['pack_bot_build', 'pack_bot_operate', 'pack_fleet']) expect(ids).not.toContain(id);
   });
 });
 
@@ -452,38 +455,42 @@ describe('install axis — physical detection is the source of truth (unset MOJU
   });
 
   it('unset env derives groups from physical presence, not a hardcoded default', () => {
-    _setGroupPresence(['chatbot']); // a probe that found chatbot only (seam; creative itself is always present)
-    expect([...installedGroups({})]).toEqual(['chatbot']);
+    _setGroupPresence(['recall']); // a probe that found recall only (seam; creative itself is always present)
+    expect([...installedGroups({})]).toEqual(['recall']);
     expect(isPackInstalled(PACKS.find((p) => p.installGroup === 'creative'), {})).toBe(false);
-    expect(isPackInstalled(PACKS.find((p) => p.installGroup === 'chatbot'), {})).toBe(true);
     expect(isToolInstalled('compose_world', {})).toBe(false);
-    expect(isToolInstalled('start_new_bot', {})).toBe(true);
     // ungrouped packs survive a probe that found nothing
     _setGroupPresence([]);
     expect(isToolInstalled('list_catalysts', {})).toBe(true);
   });
 
   it('explicit MOJULO_PACKS overrides physical detection (a deliberate operator wins)', () => {
-    _setGroupPresence(['chatbot']); // creative absent on disk...
-    expect([...installedGroups({ MOJULO_PACKS: 'chatbot,creative' })].sort()).toEqual(['chatbot', 'creative']);
+    _setGroupPresence(['recall']); // creative absent on disk...
+    expect([...installedGroups({ MOJULO_PACKS: 'recall,creative' })].sort()).toEqual(['creative', 'recall']);
   });
 
   it('typo falls through to physical detection, never an empty workshop', () => {
-    _setGroupPresence(['chatbot']);
-    expect([...installedGroups({ MOJULO_PACKS: 'zzz' })]).toEqual(['chatbot']);
+    _setGroupPresence(['recall']);
+    expect([...installedGroups({ MOJULO_PACKS: 'zzz' })]).toEqual(['recall']);
   });
 
-  it('chatbot is marker-gated: absent unless `mojulo install chatbot` wrote its marker', () => {
-    // The marker path is derived from $MOJULO_HOME, so point HOME at a directory
-    // that certainly has no marker and assert the factory stays away.
+  it('a chatbot marker left by a 2.x install is ignored by the probe and reported as retired', () => {
+    const home = mkdtempSync(join(tmpdir(), 'mojulo-retired-marker-'));
+    mkdirSync(join(home, 'packs'));
+    writeFileSync(join(home, 'packs', 'chatbot'), 'mojulo chatbot pack — presence marker.\n');
     const prev = process.env.MOJULO_HOME;
-    process.env.MOJULO_HOME = '/nonexistent-mojulo-home-for-this-test';
+    process.env.MOJULO_HOME = home;
     _setGroupPresence(null); // force the real probe
     try {
-      expect(installedGroups({}).has('chatbot')).toBe(false);
+      const groups = installedGroups({});
+      expect(groups.has('chatbot')).toBe(false);
+      expect(groups.has('creative')).toBe(true);
+      expect(installedPacks({}).length).toBe(PACKS.length);
+      expect(retiredInstallTokens({})).toEqual([join(home, 'packs', 'chatbot')]);
     } finally {
       if (prev === undefined) delete process.env.MOJULO_HOME; else process.env.MOJULO_HOME = prev;
       _setGroupPresence(null);
+      rmSync(home, { recursive: true, force: true });
     }
   });
 });
@@ -498,9 +505,8 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
   }
 
   it('packs-mode list drops an uninstalled group\'s pack dispatchers, keeps spine + the rest', () => {
-    withInstall('chatbot', () => withPacksMode(() => {
+    withInstall('recall', () => withPacksMode(() => {
       const names = listTools({ clientInfo: { name: 'codex' } }).map((t) => t.name);
-      expect(names).toContain('pack_bot_build');   // chatbot → installed
       expect(names).toContain('pack_catalysts');   // ungrouped → always present
       expect(names).toContain('forward_context');  // spine → kernel
       for (const studio of ['pack_world', 'pack_audio', 'pack_object', 'pack_game', 'pack_view']) {
@@ -510,27 +516,66 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
   });
 
   it('flat-mode list drops an uninstalled group\'s member tools', () => {
-    withInstall('chatbot', () => withFlatMode(() => {
+    withInstall('recall', () => withFlatMode(() => {
       const names = listTools({}).map((t) => t.name);
-      expect(names).toContain('start_new_bot');     // chatbot member
       expect(names).toContain('list_catalysts');    // ungrouped → always present
       expect(names).not.toContain('compose_world'); // creative member gated
     }));
   });
 
   it('tools/call on a gated tool returns the install advisory (METHOD_NOT_FOUND), not execution', async () => {
-    const res = await withInstall('chatbot', () => server.dispatchMcpRequest(
+    const res = await withInstall('recall', () => server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 991, method: 'tools/call', params: { name: 'compose_world', arguments: {} } }, {}));
     expect(res.error).toBeTruthy();
     expect(res.error.message).toMatch(/creative capability pack/);
   });
 
   it('tools/call on an installed tool is NOT gated (no install advisory)', async () => {
-    const res = await withInstall('chatbot', () => server.dispatchMcpRequest(
-      { jsonrpc: '2.0', id: 992, method: 'tools/call', params: { name: 'list_deployments', arguments: {} } }, {}));
+    const res = await withInstall('recall', () => server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 992, method: 'tools/call', params: { name: 'list_cooks', arguments: {} } }, {}));
     // may succeed or return a tool-level isError, but must never be the install notice
     const msg = res.error?.message || res.result?.content?.[0]?.text || '';
     expect(msg).not.toMatch(/capability pack/);
+  });
+});
+
+describe('the chatbot factory left in 3.0.0 — its names answer with the moved notice', () => {
+  it('no removed name is registered, listed in either mode, or a pack member', () => {
+    const members = new Set(PACKS.flatMap((p) => dispatchTargets(p)));
+    const flat = withFlatMode(() => listTools({}).map((t) => t.name));
+    const packs = withPacksMode(() => listTools({ clientInfo: { name: 'codex' } }).map((t) => t.name));
+    for (const name of REMOVED_BOT_TOOLS) {
+      expect(hasRegisteredTool(name), name).toBe(false);
+      expect(members.has(name), name).toBe(false);
+      expect(flat, name).not.toContain(name);
+      expect(packs, name).not.toContain(name);
+    }
+  });
+
+  it('tools/call on a removed name is an in-band isError result carrying the notice', async () => {
+    for (const name of ['save_modular_bot', 'emit_chat_signal', 'pack_bot_build']) {
+      const res = await server.dispatchMcpRequest(
+        { jsonrpc: '2.0', id: 881, method: 'tools/call', params: { name, arguments: {} } }, {});
+      expect(res.error, name).toBeUndefined();
+      expect(res.result.isError, name).toBe(true);
+      expect(res.result.content[0].text, name).toContain(BOT_FACTORY_MOVED);
+      expect(res.result.content[0].text, name).toContain(`'${name}'`);
+    }
+  });
+
+  it('a removed name dispatched through a pack, or run by the plan executor, gets the notice too', async () => {
+    const res = await server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 882, method: 'tools/call',
+        params: { name: 'pack_runtime', arguments: { tool: 'request_chat_decision', args: {} } } }, {});
+    expect(res.result.isError).toBe(true);
+    expect(res.result.content[0].text).toContain(BOT_FACTORY_MOVED);
+    await expect(server.invokeRegisteredTool('list_deployments', {}, {})).rejects.toThrow(BOT_FACTORY_MOVED);
+  });
+
+  it('any other unknown name stays an unknown tool', async () => {
+    const res = await server.dispatchMcpRequest(
+      { jsonrpc: '2.0', id: 883, method: 'tools/call', params: { name: 'no_such_tool', arguments: {} } }, {});
+    expect(res.error.message).toMatch(/Unknown tool/);
   });
 });
 
@@ -545,8 +590,8 @@ describe('iron wall — dispatcher cannot RUN an uninstalled pack tool', () => {
     }
   }
 
-  it('chatbot-only install: pack_world({tool:compose_world}) is refused (group-level, anti-spin), not executed', async () => {
-    const res = await withInstall('chatbot', () => server.dispatchMcpRequest(
+  it('creative gated off: pack_world({tool:compose_world}) is refused (group-level, anti-spin), not executed', async () => {
+    const res = await withInstall('recall', () => server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 771, method: 'tools/call',
         params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
     const msg = res.error?.message || res.result?.content?.[0]?.text || '';
@@ -556,7 +601,7 @@ describe('iron wall — dispatcher cannot RUN an uninstalled pack tool', () => {
   });
 
   it('full install: the same dispatch is NOT gated', async () => {
-    const res = await withInstall('chatbot,creative', () => server.dispatchMcpRequest(
+    const res = await withInstall('recall,creative', () => server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 772, method: 'tools/call',
         params: { name: 'pack_world', arguments: { tool: 'compose_world', args: {} } } }, {}));
     const msg = res.error?.message || res.result?.content?.[0]?.text || '';

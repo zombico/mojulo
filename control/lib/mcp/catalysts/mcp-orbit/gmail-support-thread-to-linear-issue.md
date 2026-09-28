@@ -29,7 +29,7 @@ The operator receives support requests via email that today get triaged by hand 
 
 - No email MCP is in the declared inventory. Call `meta_context_brief({ scope: { kind: 'fleet' } })` first — `inventory.servers` is the truth.
 - No structured-record-store MCP is in the declared inventory.
-- The user wants conversational triage (back-and-forth with the sender) — that's bot-shaped, not signal-shaped; redirect to a bot catalyst.
+- The user wants conversational triage (back-and-forth with the sender) — that's a conversation, not a signal; mojulo has no conversational runtime (the chatbot factory left in 3.0.0), so say so rather than fake one.
 - The user wants aggregation ("weekly digest of support volume") rather than per-message routing — redirect to `weekly-linear-digest-to-drive` or a similar scheduled-aggregation catalyst.
 
 ## Materialization
@@ -114,26 +114,25 @@ This catalyst's payload to the adapter: source query, destination resolver, issu
 
 ### Step 8 — Seal the materialization
 
+After the artifact is on disk / in the host substrate, bind each MCP the artifact calls with `bind_primitives` (one call per primitive slot, `role: 'source'` or `'destination'`; each returns a `prov_…` ref), then seal:
+
 ```jsonc
 meta_context_commit({
-  type: 'artifact_materialization',
+  type: 'primitive_artifact_materialization',
   adapter_id: '<bound adapter>',
   artifact: { locator: '<…>', label: 'Gmail support → Linear' },
-  // bot_ref omitted — this artifact runs against MCP inventory, not a bot.
-  catalyst_ref: 'gmail-support-thread-to-linear-issue',
-  bindings: [
-    { mcp_tool: 'gmail.search_messages', fields_bound: ['label', 'subject'] },
-    { mcp_tool: 'gmail.modify_labels', fields_bound: ['linear-filed'] },
-    { mcp_tool: 'linear.create_issue', fields_bound: ['title', 'team', 'labels', 'body'] }
-  ],
+  composition_intent: 'File a Linear issue for each Gmail support thread, labelled so a re-run never files it twice.',
+  provider_artifact_refs: ['prov_<source>', 'prov_<destination>'],
   principles: [
     {
       scope: 'artifact',
-      body_md: 'Filter: label:support -label:linear-filed. Routes to <team>. Dedupe via source-side label `linear-filed`. Auto-reply: yes, from support@.\n\n**Context:** Operator confirmed at synthesis time.\n\n**Applies to:** This artifact only.'
+      body_md: 'Filter: label:support -label:linear-filed. Routes to <team>. Dedupe via source-side label `linear-filed`. Auto-reply: yes, from support@.\n\n**Context:** Operator confirmed at synthesis time. Catalyst: gmail-support-thread-to-linear-issue.\n\n**Applies to:** This artifact only.'
     }
   ]
 })
 ```
+
+(Until 3.0 this step named `artifact_materialization`, which required a deployed bot and never sealed an MCP-only artifact; that commit type left with the chatbot factory.)
 
 **For mcp-orbit catalysts, this commit IS the audit chain.** Don't skip it. If the commit fails, roll the artifact back via the adapter's own affordance.
 

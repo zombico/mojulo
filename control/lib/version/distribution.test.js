@@ -58,14 +58,15 @@ describe('install and update hints under the Claude plugin', () => {
 
   it('names mojulo@<running version> in every install, dependency and update hint', async () => {
     const { distribution: d, packs, embedder, sharp, lazy, exact, scad, union, search } = m;
-    const pluginEnv = { ...PLUGIN, MOJULO_PACKS: 'creative' }; // chatbot and recall absent
+    // recall is the one physical-install group left (the chatbot group left in 3.0.0), and it owns
+    // no pack, so its advice is the group-level install line.
+    const pluginEnv = { ...PLUGIN, MOJULO_PACKS: 'creative' }; // recall absent
     const hints = {
       'mojulo install command': d.mojuloCommand('install recall'),
-      'run-mojulo prose': d.runMojulo('install chatbot'),
+      'run-mojulo prose': d.runMojulo('install recall'),
       'box install command': d.npxMojulo('init --yes --no-ui'),
-      'pack install notice': packs.installNotice('start_new_bot', pluginEnv),
-      'pack dispatcher notice': packs.packInstallNotice(packs.PACKS.find((p) => p.installGroup === 'chatbot'), pluginEnv),
-      'install command for a group': packs.installCommandFor('chatbot'),
+      'group install advice': packs.installAdvice('recall', pluginEnv),
+      'install command for a group': packs.installCommandFor('recall'),
       'recall install line': embedder.recallInstallLine(),
       'recall unavailable error': new embedder.RecallUnavailableError().message,
       'sharp unavailable error': new sharp.SharpUnavailableError(new Error('x')).message,
@@ -84,12 +85,6 @@ describe('install and update hints under the Claude plugin', () => {
     expect(hints['update advice']).not.toMatch(/npm i -g/);
   });
 
-  it('points bot-image updates at the environment, not a repo file', () => {
-    const text = m.distribution.botImageAdvice('ghcr.io/zombico/mojulo-bot:9.9.9');
-    expect(text).toContain('BOT_IMAGE=ghcr.io/zombico/mojulo-bot:9.9.9');
-    expect(text).not.toMatch(REPO_STEP);
-  });
-
   it('launches the dashboard at the same version', async () => {
     expect(m.distribution.dashboardCommand()).toBe(`npx -y mojulo-ui@${VERSION}`);
     const uiMap = (await m.context.uiMapHandler({})).content[0].text;
@@ -106,7 +101,9 @@ describe('install and update hints under the Claude plugin', () => {
     // The plugin starts the server itself; `init` there would only register a second copy.
     expect(substrate).not.toContain('init --yes --no-ui');
     expect(substrate).toContain('where the mojulo plugin starts it');
-    expect(m.server.SERVER_INSTRUCTIONS).toContain(`npx -y ${PINNED} install chatbot`);
+    // The chatbot factory left in 3.0.0; the preamble says where it went, and names no install for it.
+    expect(m.server.SERVER_INSTRUCTIONS).not.toMatch(/install chatbot/);
+    expect(m.server.SERVER_INSTRUCTIONS).toContain((await import('@/lib/mcp/bot-factory-moved')).BOT_FACTORY_MOVED);
   });
 
   it('wires other hosts to the plugin version and adds no second Claude Code server', () => {
@@ -134,7 +131,6 @@ describe('the same hints from a plain npm install', () => {
       expect(text).not.toMatch(UNPINNED);
       expect(text).not.toMatch(REPO_STEP);
     }
-    expect(d.botImageAdvice('ghcr.io/zombico/mojulo-bot:9.9.9', { env })).not.toMatch(REPO_STEP);
   });
 });
 

@@ -3,8 +3,8 @@
  * the dashboard package beside core.
  *
  * The standalone build ships in its own npm package (lib/version/ui-package.js has its name). Two
- * callers start it through startDashboard: that package's bin, with its standalone/ and
- * lite-template/, and core's `mojulo-ui` shim for a repo checkout that ran `next build`
+ * callers start it through startDashboard: that package's bin, with its standalone/, and core's
+ * `mojulo-ui` shim for a repo checkout that ran `next build`
  * (control/.next/standalone). The code lives in core and the dashboard package depends on core's
  * exact version, so both callers run the same launcher.
  *
@@ -162,12 +162,11 @@ async function defaultOpenUrl(url) {
  *
  * @param {object} opts
  * @param {string} opts.standaloneServer — the build's server.js
- * @param {string} [opts.liteTemplateDir] — the bot template the preview routes read
  * @param {string[]} opts.argv — the dashboard's arguments (see UI_USAGE)
  * @param {(url: string) => Promise<void>} [opts.openUrl] — opens the browser; the dashboard
  *   package passes one that resolves `open` from its own dependencies
  */
-export async function startDashboard({ standaloneServer, liteTemplateDir, argv, openUrl = defaultOpenUrl }) {
+export async function startDashboard({ standaloneServer, argv, openUrl = defaultOpenUrl }) {
   const args = parseUiArgs(argv);
   if (args.error) {
     process.stderr.write(`mojulo-ui: ${args.error}\n`);
@@ -187,14 +186,10 @@ export async function startDashboard({ standaloneServer, liteTemplateDir, argv, 
   }
 
   // User data lives under MOJULO_HOME (default ~/.mojulo). This populates SQLITE_PATH /
-  // ARTIFACTS_DIR / STORAGE_ROOT / MOJULO_OUTCOMES_DIR / MOJULO_EXPORTS_DIR / MOJULO_MODELS_DIR so
+  // STORAGE_ROOT / MOJULO_OUTCOMES_DIR / MOJULO_EXPORTS_DIR / MOJULO_MODELS_DIR so
   // the lib code lands user state there instead of standalone-cwd-relative ./data/. Must run
   // before the standalone server import: route handlers read these when modules first evaluate.
   resolveMojuloPaths();
-
-  // The preview/* routes (wizard iframe, extract, chat) and the offline-build deployer read
-  // LITE_TEMPLATE_PATH. The stdio server exposes no preview surface and never sets it.
-  if (liteTemplateDir) process.env.LITE_TEMPLATE_PATH ??= liteTemplateDir;
 
   // Packaged-asset anchor for moduleDir (lib/module-dir.js). The webpack build inlines each lib
   // module's import.meta.url as a LITERAL build-machine path, so the standalone bundle cannot find
@@ -214,7 +209,7 @@ export async function startDashboard({ standaloneServer, liteTemplateDir, argv, 
   const url = `http://${host}:${port}`;
 
   // Same overlap rationale as mcp-stdio.mjs: a no-op without the recall install group; with it,
-  // the embedder load (~130MB cold) is the longest single step of the first RAG bot build, so
+  // the embedder load (~130MB cold) is the longest single step of the first vector search, so
   // start it in the background while the user scans the dashboard. Failures surface at first
   // use; don't crash the UI. pathToFileURL, not the bare path: on Windows a raw `C:\...`
   // specifier is parsed as URL protocol `c:` and the ESM loader rejects it.

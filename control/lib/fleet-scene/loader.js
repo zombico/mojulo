@@ -4,7 +4,7 @@
  *
  *   - Connected Services (air solutions)  ← listConnectedServices()
  *   - the capability substrate (air servers) ← InventoryRepository
- *   - hosted processes (ground apps + bots)  ← listApps() + DeploymentRepository
+ *   - hosted processes (ground apps)         ← listApps()
  *
  * Each upstream loader stays sovereign over its own paradigm; this composes
  * their outputs into the two-plane view model the deriver projects. It owns no
@@ -15,12 +15,13 @@
  * that word mean two things. See
  * lite-template/integration/app-system/0528/fleet-scene/FLEET_SCENE_PLAN.md.
  *
- * `loadFleetScene()` is async because the deployments read is async; everything
- * else is sync repository reads.
+ * The ground plane carried a bots row (deployed chatbots, from the deployments
+ * table) until the chatbot factory left mojulo in 3.0.0; it holds apps only now.
+ * `loadFleetScene()` stays async so its callers need not change; every read is
+ * a sync repository read.
  */
 
 import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
-import { DeploymentRepository } from '@/lib/db/repositories/deployments';
 import { listApps } from '@/lib/apps/loader';
 import { listConnectedServices } from '@/lib/connected-services/loader';
 
@@ -66,15 +67,6 @@ function projectApp(app) {
   };
 }
 
-function projectBot(dep) {
-  return {
-    id: dep.id,
-    name: dep.botName,
-    status: dep.status,
-    href: `/bots?id=${encodeURIComponent(dep.id)}`,
-  };
-}
-
 // The one cross-plane link the data model persists cleanly: a running app
 // exposes its own sidecar MCP. Match the app's declared server name to the
 // app-kind inventory row (by name, falling back to runningRef) so the edge
@@ -110,8 +102,7 @@ function buildExposesLinks(apps, servers) {
  *   {
  *     air:    { servers:  [{ name, kind, toolCount, topTools, runningRef }],
  *               services: [{ ref, kind, form, name, summary, calls, needs }] },
- *     ground: { apps:     [{ ref, name, status, appServerName, href }],
- *               bots:     [{ id, name, status, href }] },
+ *     ground: { apps:     [{ ref, name, status, appServerName, href }] },
  *     crossLinks: [{ from, to, kind:'exposes' }],
  *   }
  */
@@ -127,14 +118,11 @@ export async function loadFleetScene() {
 
   const apps = (listApps().apps || []).map(projectApp);
 
-  const deployments = await DeploymentRepository.list();
-  const bots = deployments.map(projectBot);
-
   const crossLinks = buildExposesLinks(apps, servers);
 
   return {
     air: { servers, services },
-    ground: { apps, bots },
+    ground: { apps },
     crossLinks,
   };
 }

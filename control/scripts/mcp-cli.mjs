@@ -233,17 +233,34 @@ let rpcId = 0;
 const ORIENT_FOOTER = ['', 'new here? `mojulo orient` first, then `mojulo call forward_context` (the routing index)'];
 
 // Capability that EXISTS but is not installed here. The iron wall is about
-// execution, not information hiding — the operator should know the bot factory
+// execution, not information hiding — the operator should know a gated pack
 // is one command away, without it cluttering the surface as if it were live.
+// A host that still carries the retired chatbot group (its marker, or the token
+// in MOJULO_PACKS) is told it is ignored, once, so the leftover explains itself.
 function uninstalledNote(packs) {
+  const lines = [];
   const missing = packs.PACKS.filter((p) => !packs.isPackInstalled(p));
-  if (!missing.length) return [];
-  const groups = [...new Set(missing.map((p) => p.installGroup).filter(Boolean))];
-  return [
-    '',
-    `not installed: ${missing.map((p) => p.id).join(', ')}`,
-    `  to add them: ${groups.map((g) => packs.installAdvice(g)).join(' / ')}`,
-  ];
+  if (missing.length) {
+    const groups = [...new Set(missing.map((p) => p.installGroup).filter(Boolean))];
+    lines.push(
+      '',
+      `not installed: ${missing.map((p) => p.id).join(', ')}`,
+      `  to add them: ${groups.map((g) => packs.installAdvice(g)).join(' / ')}`,
+    );
+  }
+  const retired = packs.retiredInstallTokens();
+  if (retired.length) {
+    lines.push('', `ignored: ${retired.join(', ')} (the chatbot pack left mojulo in 3.0.0; \`mojulo install chatbot\` says where it went)`);
+  }
+  return lines;
+}
+
+// A name the chatbot factory took with it answers with the moved notice, not "unknown".
+function unknownToolMessage(moved, name) {
+  return moved.isRemovedBotTool(name) ? moved.botToolMovedNotice(name) : `unknown tool: ${name} (run \`mojulo tools\`)`;
+}
+function unknownPackMessage(moved, name) {
+  return moved.isRemovedBotTool(name) ? moved.botToolMovedNotice(name) : `unknown pack: ${name} (run \`mojulo packs\`)`;
 }
 
 export async function runCli(argv, io = {}) {
@@ -260,6 +277,7 @@ export async function runCli(argv, io = {}) {
 
   const server = await import('@/lib/mcp/server');
   const packs = await import('@/lib/mcp/packs');
+  const moved = await import('@/lib/mcp/bot-factory-moved');
   await server.ensureToolsRegistered();
 
   // Tab-separated when piped (stable for cut/awk); padded columns on a TTY.
@@ -321,7 +339,7 @@ export async function runCli(argv, io = {}) {
     });
     const tool = server.getRegisteredTool(parsed.name);
     if (!tool) {
-      const e = new Error(`unknown tool: ${parsed.name} (run \`mojulo tools\`)`);
+      const e = new Error(unknownToolMessage(moved, parsed.name));
       e.usage = true;
       throw e;
     }
@@ -352,7 +370,7 @@ export async function runCli(argv, io = {}) {
       if (parsed.pack) {
         const pack = packs.PACKS.find((p) => p.id === parsed.pack);
         if (!pack) {
-          err(`mojulo: unknown pack: ${parsed.pack} (run \`mojulo packs\`)`);
+          err(`mojulo: ${unknownPackMessage(moved, parsed.pack)}`);
           return 2;
         }
         const memberSet = new Set(pack.members);
@@ -387,7 +405,7 @@ export async function runCli(argv, io = {}) {
     case 'help': {
       const tool = server.getRegisteredTool(parsed.name);
       if (!tool) {
-        err(`mojulo: unknown tool: ${parsed.name} (run \`mojulo tools\`)`);
+        err(`mojulo: ${unknownToolMessage(moved, parsed.name)}`);
         return 2;
       }
       const home = packs.homePackForTool(parsed.name);
@@ -411,7 +429,7 @@ export async function runCli(argv, io = {}) {
 
     case 'pack': {
       if (!server.hasRegisteredTool(parsed.pack)) {
-        err(`mojulo: unknown pack: ${parsed.pack} (run \`mojulo packs\`)`);
+        err(`mojulo: ${unknownPackMessage(moved, parsed.pack)}`);
         return 2;
       }
       if (parsed.name === null) {

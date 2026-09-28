@@ -8,4 +8,4 @@
   "wing": "office"
 }
 ---
-→ THE TELL: a long-running LOCAL process on your machine that calls back to the agent for inference (no per-app LLM key). Not this if it's a one-shot / scheduled MCP-to-MCP wire with no resident process (→ Connected Service, `connected-service` card), or if end-users chat with it (→ Bot, `bot` card). Flow: `install_scaffold` → `meta_context_commit({ type: 'app_materialization' })` → `start_app`; inference parks on `pull_agent_task` / `submit_envelope_inference`. First flight → `get_worked_example({ paradigm: 'app' })`.
+→ THE TELL: a long-running LOCAL process on your machine that calls back to the agent for inference (no per-app LLM key). Not this if it's a one-shot / scheduled MCP-to-MCP wire with no resident process (→ Connected Service, `connected-service` card). Flow: `install_scaffold` → `meta_context_commit({ type: 'app_materialization' })` → `start_app`; inference parks on `pull_agent_task` / `submit_envelope_inference`. First flight → `get_worked_example({ paradigm: 'app' })`.

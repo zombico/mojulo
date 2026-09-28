@@ -35,7 +35,6 @@ export const DENY_LIST = [
   'set_env',
   'delete_env',
   'list_env',
-  'inspect_bot_env',
   // daemon control
   'start_daemon',
   'stop_daemon',
@@ -46,16 +45,18 @@ export const DENY_LIST = [
 
 // ── Action-class tags (gated by flags on the key, independent of packs) ──────
 // outward: things that LEAVE the host (deploys, anything that spends or
-// publishes). lifecycle: things that start/stop processes. save_modular_bot
-// carries both — it spawns the bot locally and can deploy it to Fly. The
-// daemon tools are deny-listed above and never reach these checks.
-export const OUTWARD_TOOLS = ['save_modular_bot'];
-export const LIFECYCLE_TOOLS = ['install_scaffold', 'start_app', 'stop_app', 'save_modular_bot'];
+// publishes). lifecycle: things that start/stop processes. The daemon tools are
+// deny-listed above and never reach these checks.
+// No retained tool is outward today: the one that was, save_modular_bot, left
+// with the chatbot factory in 3.0.0. The flag stays mintable and checked, so a
+// key cut earlier keeps its shape and a future outward tool only joins the list.
+export const OUTWARD_TOOLS = [];
+export const LIFECYCLE_TOOLS = ['install_scaffold', 'start_app', 'stop_app'];
 
 // propose-vs-seal: a propose_only key can forge plans, draft compositions,
 // sketch research — but sealing reality stays with the operator. "Claude
 // proposes, user disposes", promoted to an access boundary.
-export const SEAL_TOOLS = ['execute_plan', 'meta_context_commit', 'save_modular_bot'];
+export const SEAL_TOOLS = ['execute_plan', 'meta_context_commit'];
 
 const DENY_SET = new Set(DENY_LIST);
 const OUTWARD_SET = new Set(OUTWARD_TOOLS);
@@ -108,7 +109,7 @@ export function authNotice(name, context, env = process.env) {
   const flags = context?.userFlags || {};
   if (flags.propose_only && SEAL_SET.has(name)) {
     return (
-      `This key is propose-only: '${name}' seals reality (executes plans / commits the contextmap / deploys), ` +
+      `This key is propose-only: '${name}' seals reality (executes plans / commits the contextmap), ` +
       `which stays with the operator. Leave the proposal (a plan, a draft) for the operator to review and execute. ` +
       `Do not retry '${name}' with this key.`
     );

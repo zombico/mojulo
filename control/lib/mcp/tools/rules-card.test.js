@@ -32,15 +32,18 @@ beforeAll(async () => {
 // `install creative` changes nothing. The card must give the fix the tools/call refusal gives.
 describe('rules card — install advice for what is left out', () => {
   it('points an overridden-out creative pack at MOJULO_PACKS, not at `install creative`', () => {
-    const card = buildRulesCard({ env: { ...process.env, MOJULO_PACKS: 'chatbot' } });
+    const card = buildRulesCard({ env: { ...process.env, MOJULO_PACKS: 'recall' } });
     expect(card.text).toContain('Not installed on this host');
     expect(card.text).toContain("include 'creative' in `MOJULO_PACKS`");
     expect(card.text).not.toMatch(/install creative/);
   });
 
-  it('still names the install command for a group that is a physical install', () => {
+  // Until 3.0 the chatbot packs were the physical-install case here; no pack joins a
+  // physical-install group now (recall owns none), so a default install omits nothing.
+  it('a default install leaves no pack out, so the card names no install', () => {
     const card = buildRulesCard({ env: { ...process.env, MOJULO_PACKS: 'creative' } });
-    expect(card.text).toMatch(/`[^`]*install chatbot`/);
+    expect(card.text).not.toContain('Not installed on this host');
+    expect(card.text).not.toMatch(/install chatbot/);
   });
 });
 

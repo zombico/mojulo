@@ -60,7 +60,7 @@ export function parseRoutingCard(filePath, raw) {
     );
   }
   // `wing` tags which orientation wing a card serves — 'studio' (creative FORMs,
-  // the default and original population) or 'office' (the Bot / App / Connected
+  // the default and original population) or 'office' (the App / Connected
   // Service paradigm-disambiguation cards). Optional; both wings share the
   // 'routing' source_kind and the one semantic_search hop. The eval harness
   // filters office vs studio fixtures on it.

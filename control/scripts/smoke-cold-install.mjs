@@ -35,7 +35,8 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { UI_LITE_TEMPLATE_DIR, UI_PACKAGE_BIN, UI_PACKAGE_NAME, UI_STANDALONE_DIR } from '../lib/version/ui-package.js';
+import { UI_PACKAGE_BIN, UI_PACKAGE_NAME, UI_STANDALONE_DIR } from '../lib/version/ui-package.js';
+import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '../lib/mcp/bot-factory-moved.js';
 import { CONTROL_DIR, UI_PACKAGE_DIR, fromInstallPackages, matchesPackage } from './ui-package-manifest.mjs';
 import { enginesViolations, floorOf } from './engines-floor.mjs';
 
@@ -48,6 +49,10 @@ const MUST_BE_HOISTED = fromInstallPackages();
 // Installed only for the build, never for a user: the precompiled CreationMap twin
 // replaces @swc/core, and three was only ever the creative pack's install marker.
 const MUST_NOT_INSTALL = ['@swc/core', 'three'];
+
+// The chatbot factory's document parsers (about 76 MB and 30 packages). They left with the
+// factory in 3.0.0; neither package may come back into a default install.
+const BOT_ONLY_PACKAGES = ['officeparser', 'pdf2json'];
 
 // Dashboard-only packages, devDependencies since 2.2: the Next build compiles them
 // into the standalone bundle (jsdom, which isomorphic-dompurify needs, is traced into
@@ -348,6 +353,10 @@ async function main() {
     }
     if (!existsSync(path.join(nm, '@huggingface'))) ok('no embedding runtime in the cold install (recall is opt-in)');
 
+    const botPackages = BOT_ONLY_PACKAGES.filter((name) => existsSync(path.join(nm, name)));
+    if (botPackages.length) fail(`${botPackages.join(' and ')} installed — the chatbot factory's document parsers left in 3.0.0`);
+    else ok(`no ${BOT_ONLY_PACKAGES.join(' / ')} in the cold install (the chatbot factory left in 3.0.0)`);
+
     // A fresh install resolves every range anew, so an upstream release can raise a dependency's
     // engines.node above mojulo's floor (pdf2json 4.1.0 did). npm warns on each first start and
     // fails under engine-strict.
@@ -359,9 +368,10 @@ async function main() {
     } else ok(`every non-optional package accepts Node ${floor}, mojulo's floor`);
 
     // ── packaging invariants ─────────────────────────────────────────────
-    // Core is what a host's `npx mojulo` downloads: no dashboard build, no bot template.
+    // Core is what a host's `npx mojulo` downloads: no dashboard build, and no bot template (the
+    // chatbot runtime left with the factory in 3.0.0).
     const coreCarries = ['.next', 'lite-template'].filter((d) => existsSync(path.join(pkgDir, d)));
-    if (coreCarries.length) fail(`core ships ${coreCarries.join(' and ')} — both belong to ${UI_PACKAGE_NAME}`);
+    if (coreCarries.length) fail(`core ships ${coreCarries.join(' and ')} — .next belongs to ${UI_PACKAGE_NAME}, lite-template to no mojulo package`);
     else ok(`core ships no .next/ and no lite-template/ (the dashboard is ${UI_PACKAGE_NAME})`);
 
     // The dashboard runs on the core installed beside it, the local tarball at the same version.
@@ -372,10 +382,9 @@ async function main() {
       fail('the installed core has no scripts/ui-launch.mjs — npm took mojulo from the registry, not the local tarball');
     } else ok(`${UI_PACKAGE_NAME} ${expectedVersion} shares the one core at node_modules/mojulo`);
     if (!existsSync(path.join(uiDir, UI_STANDALONE_DIR, 'server.js'))) fail(`${UI_PACKAGE_NAME} has no ${UI_STANDALONE_DIR}/server.js`);
-    const liteDir = path.join(uiDir, UI_LITE_TEMPLATE_DIR);
-    if (!existsSync(path.join(liteDir, 'client')) || existsSync(path.join(liteDir, 'models'))) {
-      fail(`${UI_PACKAGE_NAME}/${UI_LITE_TEMPLATE_DIR} is missing client/ or still carries models/`);
-    } else ok(`${UI_PACKAGE_NAME} ships ${UI_STANDALONE_DIR}/server.js and ${UI_LITE_TEMPLATE_DIR}/ without models/`);
+    else if (existsSync(path.join(uiDir, 'lite-template'))) {
+      fail(`${UI_PACKAGE_NAME} still ships lite-template/ — the chatbot runtime left with the factory in 3.0.0`);
+    } else ok(`${UI_PACKAGE_NAME} ships ${UI_STANDALONE_DIR}/server.js and no lite-template/`);
 
     for (const name of listPackages(standaloneNm)) {
       if (matchesPackage(name, MUST_BE_HOISTED)) {
@@ -431,7 +440,12 @@ async function main() {
     const listed = await stdioToolsList(path.join(pkgDir, 'scripts', 'mcp-stdio.mjs'), { cwd: tmp, env });
     if (listed.error || !listed.tools?.length) {
       fail(`stdio initialize + tools/list failed: ${listed.error || 'no tools'}\n${(listed.stderr || '').slice(-800)}`);
-    } else ok(`stdio initialize + tools/list → ${listed.tools.length} tools (clientInfo claude-code)`);
+    } else {
+      ok(`stdio initialize + tools/list → ${listed.tools.length} tools (clientInfo claude-code)`);
+      const removedListed = listed.tools.map((t) => t.name).filter((name) => REMOVED_BOT_TOOLS.includes(name));
+      if (removedListed.length) fail(`tools/list still lists chatbot-factory tools: ${removedListed.join(', ')}`);
+      else ok('tools/list lists no chatbot-factory tool');
+    }
 
     // ── CLI over the registry ────────────────────────────────────────────
     const stdio = path.join(pkgDir, 'scripts', 'mcp-stdio.mjs');
@@ -452,6 +466,11 @@ async function main() {
         (r.stderr || '').trim().split('\n').pop();
       return r;
     };
+    // `mojulo install chatbot` on 3.x installs nothing, says where the factory went, and exits 0.
+    const chatbot = spawnSync(process.execPath, [stdio, 'install', 'chatbot'], { cwd: tmp, env, encoding: 'utf8' });
+    if (chatbot.status !== 0 || !chatbot.stdout.includes(BOT_FACTORY_MOVED)) {
+      fail(`mojulo install chatbot exited ${chatbot.status} without the moved notice: ${(chatbot.stdout || chatbot.stderr || '').trim().slice(0, 300)}`);
+    } else ok('mojulo install chatbot prints where the chatbot factory went and exits 0');
     if (args.recall) {
       const t1 = Date.now();
       const inst = spawnSync(process.execPath, [stdio, 'install', 'recall'], { cwd: tmp, env, stdio: ['ignore', 'ignore', 'inherit'] });

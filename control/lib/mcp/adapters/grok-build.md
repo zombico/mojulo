@@ -6,7 +6,7 @@
   "version": 2,
   "artifactTarget": "~/.grok/skills/<slug>/SKILL.md",
   "schedulingMechanism": "system cron / launchd invoking a headless grok session (verify Grok's native scheduler before preferring it)",
-  "secretsPosture": "Grok-config-held secrets + inspect_bot_env — never cat .env",
+  "secretsPosture": "Grok-config-held secrets — never cat .env (list_env names an app's keys, never values)",
   "supportsClientInfoHint": ["grok-shell", "grok-build", "grok"]
 }
 ---
@@ -56,8 +56,8 @@ A skill is the only thing guaranteed to be read at run time, so the standing mov
 
 1. **Preflight (mojulo MCP).** Verify the mojulo tools this workflow calls are visible. If missing, say "mojulo MCP not bound" and stop.
 2. **Preflight (destination MCP).** Verify the destination tools are visible. If missing, name the missing server and stop.
-3. **Drift check.** Re-read the source shape (e.g. `get_deployment`) and compare against the snapshot recorded in this skill's config. Refresh before writing if it moved.
-4. **Secrets posture.** Never `cat` or read `~/.mojulo/**/.env*` — route through `inspect_bot_env`. Same rule on error paths.
+3. **Drift check.** Re-read the source shape (the mojulo read tool the skill names, or the declared inventory via `meta_context_brief`) and compare against the snapshot recorded in this skill's config. Refresh before writing if it moved.
+4. **Secrets posture.** Never `cat` or read `~/.mojulo/**/.env*` or an app's `.env`; `list_env` names keys, never values. Same rule on error paths.
 5. **Dry-run gate.** Read `liveMode` from `config.json`. If `false`, render the destination payload and stop. If `true`, proceed to the live write.
 ```
 
@@ -95,7 +95,7 @@ Print the per-record decision log from the catalyst's `outputContract`, and pers
 
 ## Secrets posture
 
-- Never `cat` or read `~/.mojulo/**/.env*` directly — always `inspect_bot_env`, which returns `{ key, value, masked }`.
+- Never `cat` or read `~/.mojulo/**/.env*` directly; `list_env` names an app's keys, never values.
 - Never inline secret values into the SKILL.md or `config.json`. If Grok has a secret-injection mechanism, reference secrets through it; otherwise leave them out entirely and let the destination MCP's auth surface hold them.
 - No path may log raw `.env` contents — error handlers that dump the environment for debugging are the common leak.
 
@@ -115,9 +115,9 @@ Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`
 
 ---
 
-## Primitive binding flow (no-bot composition)
+## Primitive binding flow (compositions over installed MCPs)
 
-The parallel flow for **no-bot, primitive-shaped** workflows: declare your installed MCPs as a richer-snapshot inventory (`meta_context_declare_inventory`, REPLACE semantics), call `bind_primitives` once per primitive slot, materialize as a skill in the same layout as above, and seal with `meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id: 'grok-build', ... })`.
+The parallel flow for **primitive-shaped** workflows: declare your installed MCPs as a richer-snapshot inventory (`meta_context_declare_inventory`, REPLACE semantics), call `bind_primitives` once per primitive slot, materialize as a skill in the same layout as above, and seal with `meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id: 'grok-build', ... })`.
 
 Two Grok-specific notes:
 

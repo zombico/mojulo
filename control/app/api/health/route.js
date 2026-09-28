@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
+// Liveness for the dashboard (the smoke script polls it, the middleware leaves it public). Until 3.0
+// it also reported whether the chatbot runtime template (lite-template) was on disk; the template
+// left with the chatbot factory.
 export async function GET() {
-  const templatePath =
-    process.env.LITE_TEMPLATE_PATH || path.resolve(process.cwd(), '..', 'lite-template');
-  return NextResponse.json({
-    ok: true,
-    templateReady: fs.existsSync(templatePath),
-    templatePath,
-    ts: Date.now(),
-  });
+  return NextResponse.json({ ok: true, ts: Date.now() });
 }

@@ -7,7 +7,7 @@
  * install stays lean and the operator opts INTO heavy capability when they want
  * it. See lib/mcp/install-capabilities.plan.md.
  *
- * The install axis has three GROUPS (mojulo-2.0-pure-creative.plan.md, Phase 1a):
+ * The install axis has two GROUPS (mojulo-2.0-pure-creative.plan.md, Phase 1a):
  *   - creative  — the render / media / games stack, the flagship default pack. It
  *                 ships with the base install and is always present, so `install
  *                 creative` has nothing to do: it reports which of the optional
@@ -15,14 +15,6 @@
  *                 nothing. Until 2.2 it ran `npm install --include=optional` inside
  *                 the package directory, which under npx is a throwaway cache dir
  *                 and pulled the whole devDependency tree.
- *   - chatbot   — the bot factory. OPT-IN as of 2.0: a fresh install does not
- *                 have it. `mojulo install chatbot` writes a marker file under
- *                 $MOJULO_HOME which flips physical detection on; deleting that
- *                 file puts it away again. The code is in-tree until the Phase 3
- *                 ABI lands, so this is a logical gate — but from the operator's
- *                 side it behaves like the eventual @mojulo/chatbot package.
- *                 Installing it installs `recall` first: the builder's preview
- *                 RAG must behave like the deployed bot, which embeds.
  *   - recall    — the embedding runtime (@huggingface/transformers + onnxruntime +
  *                 the e5 model). OPT-IN: not a dependency of the package at all.
  *                 Installed OUTSIDE the package, under $MOJULO_HOME/recall/ — its
@@ -34,7 +26,12 @@
  *                 model cache under models/ is left alone).
  *
  * Everything else — the kernel and the always-present orchestration packs — declares
- * no group and is never gated. `ops` is a deprecated alias for `chatbot`.
+ * no group and is never gated.
+ *
+ * `chatbot` (and its old alias `ops`) was a third group from 2.0 to 2.x: the bot factory.
+ * It left mojulo in 3.0.0, so `install chatbot` installs nothing, writes nothing, prints
+ * where the factory went (lib/mcp/bot-factory-moved.js) and exits 0. A marker an earlier
+ * install wrote under $MOJULO_HOME/packs/chatbot is left alone; nothing reads it.
  *
  * Imported (not spawned) by scripts/mcp-stdio.mjs BEFORE it configures itself as
  * an MCP server — this verb needs neither the @/ loader nor the tool registry.
@@ -48,11 +45,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { distribution, mojuloCommand } from '../lib/version/distribution.js';
+import { BOT_FACTORY_MOVED } from '../lib/mcp/bot-factory-moved.js';
 
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-// Kept in sync with INSTALL_GROUPS.chatbot.markerFile in lib/mcp/packs.js.
+// The marker `install chatbot` wrote on 2.x (RETIRED_CHATBOT_MARKER in lib/mcp/packs.js). Only
+// read, to mention a leftover; never written or removed.
 const CHATBOT_MARKER = 'packs/chatbot';
 
 // The recall group's home and marker (INSTALL_GROUPS.recall.markerFile) and the
@@ -145,7 +144,7 @@ async function installRecall() {
   return 0;
 }
 
-function chatbotInstalled() {
+function chatbotMarkerLeftover() {
   return fs.existsSync(chatbotMarkerPath());
 }
 
@@ -186,24 +185,17 @@ function run(cmd, args, opts) {
 
 function printStatus() {
   const recall = recallInstalled();
-  const chatbot = chatbotInstalled();
   process.stdout.write(
     'mojulo install — on-demand capability packs\n\n'
-      + `Usage: ${mojuloCommand('install')} <recall|chatbot> [--remove]\n\n`
+      + `Usage: ${mojuloCommand('install')} recall [--remove]\n\n`
       + 'Status:\n'
       + '  creative   installed  (render / media / games stack; ships with the base install)\n'
       + creativeHelpersLine(missingCreativeHelpers())
-      + `  recall     ${recall ? 'installed' : 'not installed'}  (the embedding model behind semantic_search — lexical without it)\n`
-      + `  chatbot    ${chatbot ? 'installed' : 'not installed'}  (the bot factory — opt-in since 2.0; needs recall)\n\n`
+      + `  recall     ${recall ? 'installed' : 'not installed'}  (the embedding model behind semantic_search — lexical without it)\n\n`
       + (recall
-        ? ''
+        ? 'Everything installed — nothing to add.\n'
         : `Run \`${mojuloCommand('install recall')}\` to add vector recall (~480 MB runtime under ~/.mojulo/recall plus a\n`
-          + '~130 MB model). semantic_search works without it, ranking by lexical match.\n')
-      + (chatbot
-        ? ''
-        : `Run \`${mojuloCommand('install chatbot')}\` to add the bot factory (build/deploy/operate chatbots).\n`
-          + 'It is opt-in since 2.0 — mojulo is a 3D compiler first.\n')
-      + (recall && chatbot ? 'Everything installed — nothing to add.\n' : ''),
+          + '~130 MB model). semantic_search works without it, ranking by lexical match.\n'),
   );
 }
 
@@ -214,48 +206,15 @@ if (!pack || pack === 'status' || pack === '--help' || pack === '-h') {
   process.exit(0);
 }
 
+// The chatbot factory left in 3.0.0: install nothing, write nothing, say where it went. Exit 0 so
+// a setup script that still runs `install chatbot` keeps going (the rest of mojulo is unaffected).
 if (pack === 'chatbot' || pack === 'ops') {
-  if (pack === 'ops') {
-    process.stdout.write("('ops' is a deprecated alias for 'chatbot'.)\n");
-  }
-  const marker = chatbotMarkerPath();
-  const remove = process.argv.includes('--remove');
-  if (remove) {
-    if (!chatbotInstalled()) {
-      process.stdout.write('The chatbot pack is already absent — nothing to remove.\n');
-      process.exit(0);
-    }
-    fs.rmSync(marker);
+  process.stdout.write(`${BOT_FACTORY_MOVED}\n`);
+  if (chatbotMarkerLeftover()) {
     process.stdout.write(
-      'Chatbot pack removed. Its tools no longer list or run.\n'
-        + 'Already-deployed bots are unaffected — they run as their own processes and\n'
-        + `were never part of the workshop install. Re-add with \`${mojuloCommand('install chatbot')}\`.\n`,
+      `(The marker an earlier install wrote at ${chatbotMarkerPath()} is ignored by 3.0; you may delete it.)\n`,
     );
-    process.exit(0);
   }
-  if (chatbotInstalled()) {
-    process.stdout.write(`Chatbot pack already installed (marker at ${marker}). Nothing to do.\n`);
-    process.exit(0);
-  }
-  // The builder's preview RAG embeds with the same model the deployed bot uses;
-  // a preview that ranked differently from the bot would lie to the operator.
-  if (!recallInstalled()) {
-    process.stdout.write('The chatbot pack needs the recall group (the embedding runtime). Installing it first.\n\n');
-    const code = await installRecall();
-    if (code !== 0) process.exit(code);
-    process.stdout.write('\n');
-  }
-  fs.mkdirSync(path.dirname(marker), { recursive: true });
-  fs.writeFileSync(
-    marker,
-    'mojulo chatbot pack — presence marker.\n'
-      + 'Delete this file (or run `mojulo install chatbot --remove`) to put the bot\n'
-      + 'factory away. The code ships in-tree; this file is what turns it on.\n',
-  );
-  process.stdout.write(
-    `Chatbot pack installed (marker written to ${marker}).\n`
-      + 'The bot factory tools now list and run. Restart your MCP host to pick them up.\n',
-  );
   process.exit(0);
 }
 
@@ -277,7 +236,7 @@ if (pack === 'recall') {
 }
 
 if (pack !== 'creative') {
-  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, recall, chatbot. Try \`${mojuloCommand('install')}\` for status.\n`);
+  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, recall. Try \`${mojuloCommand('install')}\` for status.\n`);
   process.exit(1);
 }
 

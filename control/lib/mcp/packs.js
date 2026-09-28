@@ -213,22 +213,22 @@ export const PACKS = [
     members: ['create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches'],
   },
   // ── office — the retained automation backend, listed after the studio ────
-  // (the three chatbot packs last: they are install-gated and usually absent)
+  // (the chatbot factory's three packs left in 3.0.0; lib/mcp/bot-factory-moved.js answers for them)
   {
     id: 'pack_runtime',
     wing: 'office',
     title: 'Apps, daemons & agent tasks',
     description:
-      "APPS & RUNTIME — local apps (install_scaffold → start / stop / status, the running list, per-app .env keys), runtime daemons (list / status / start / stop / restart), and the agent-task loop (pull_agent_task → submit_envelope_inference → cancel; chat signals and decisions for the chat_turn worker). Open for 'scaffold and run a local app', 'watch a folder and process new files as they arrive', 'a background worker that reacts to events', 'restart the daemon', 'work the task queue'.",
-    body: 'Ring 7. An app is a local process plus an MCP sidecar with inference parked back on the agent; daemons are the supervisor\'s long-lived hosts; agent tasks are the pull → submit → cancel work loop (the long-polls pull_agent_task and request_chat_decision park up to ~25s and do not block other calls).',
+      "APPS & RUNTIME — local apps (install_scaffold → start / stop / status, the running list, per-app .env keys), runtime daemons (list / status / start / stop / restart), and the agent-task loop (pull_agent_task → submit_envelope_inference → cancel). Open for 'scaffold and run a local app', 'watch a folder and process new files as they arrive', 'a background worker that reacts to events', 'restart the daemon', 'work the task queue'.",
+    body: 'Ring 7. An app is a local process plus an MCP sidecar with inference parked back on the agent; daemons are the supervisor\'s long-lived hosts; agent tasks are the pull → submit → cancel work loop (the long-poll pull_agent_task parks up to ~25s and does not block other calls).',
     members: [
       'install_scaffold',
       'start_app',
       'stop_app',
       'status_app',
       'list_runners',
-      // list_running and the .env trio act on local apps (lib/runners/local.js). Until the chatbot
-      // carve-out they sat in pack_bot_operate, so an install without the bot pack could not reach them.
+      // list_running and the .env trio act on local apps (lib/runners/local.js). Until 3.0 they sat
+      // in the chatbot factory's operate pack, so an install without that pack could not reach them.
       'list_running',
       'list_env',
       'set_env',
@@ -241,8 +241,6 @@ export const PACKS = [
       'pull_agent_task',
       'submit_envelope_inference',
       'cancel_agent_task',
-      'emit_chat_signal',
-      'request_chat_decision',
     ],
   },
   {
@@ -250,7 +248,7 @@ export const PACKS = [
     wing: 'office',
     title: 'Connected services — MCP deliberation & binding',
     description:
-      "CONNECTED SERVICES — deliberate over the operator's installed MCP servers and bind workflows over them (no chatbot): declare inventory & skills, record/read provider capabilities, browse mcp-orbit components, get composition recommendations, bind primitives and triggers, read the deliberation overview and the contextmap (brief / commit). Open for 'wire Gmail + Calendar into a routine', 'every Monday summarize new leads into our CRM', 'sync submissions to a sheet nightly', 'what MCPs do I have', 'automate X across my services'.",
+      "CONNECTED SERVICES — deliberate over the operator's installed MCP servers and bind workflows over them: declare inventory & skills, record/read provider capabilities, browse mcp-orbit components, get composition recommendations, bind primitives and triggers, read the deliberation overview and the contextmap (brief / commit). Open for 'wire Gmail + Calendar into a routine', 'every Monday summarize new leads into our CRM', 'sync submissions to a sheet nightly', 'what MCPs do I have', 'automate X across my services'.",
     body: 'The Ring 6 deliberation surfaces. Mojulo is the anchor and audit trail here, not the runtime: the contextmap is sealed reality (append-only commits), inventory and skills are replace-semantic declarations about the present host, and bindings materialize session-scoped artifacts from the composer\'s component store.',
     members: [
       'get_deliberation_overview',
@@ -326,8 +324,8 @@ export const PACKS = [
       'unbind_stash',
       'list_stash_bindings',
       'sketch_stash',
-      // recommend_kind ranks publication kinds for cook(); it sat in pack_bot_build until the
-      // chatbot carve-out.
+      // recommend_kind ranks publication kinds for cook(); it sat in the chatbot factory's build
+      // pack until 3.0.
       'recommend_kind',
       'cook',
       'get_cook',
@@ -354,62 +352,6 @@ export const PACKS = [
       'get_adapter',
       'list_adapters',
     ],
-  },
-  {
-    id: 'pack_bot_build',
-    wing: 'office',
-    installGroup: 'chatbot',
-    title: 'Chatbot — build & deploy',
-    description:
-      "Deploy a CHATBOT — the bot factory: builder session → identity & protocol composition → typed config generators (forms, triage, appointments, optical-read) → documents/RAG → save & deploy → build-job polling. Open for 'make me a bot / chatbot / assistant for X', 'a bot that answers from my documents', 'intake / booking / support bot'. Operating an already-deployed bot is pack_bot_operate.",
-    body: 'The bot factory. A bot is built through a BuilderSession (chat builder and modular wizard converge on the same config composition), deployed as its own process, and polled to completion via poll_job. Documents uploaded here become the bot\'s RAG corpus.',
-    members: [
-      'start_new_bot',
-      'get_builder_session',
-      'save_modular_bot',
-      'compose_identity',
-      'infer_intent',
-      'recommend_protocols',
-      'custom_protocol',
-      'generate_form_schema',
-      'generate_triage_config',
-      'generate_appointment_config',
-      'generate_optical_read_config',
-      'process_documents',
-      'upload_document_from_url',
-      'poll_job',
-    ],
-  },
-  {
-    id: 'pack_bot_operate',
-    wing: 'office',
-    installGroup: 'chatbot',
-    title: 'Chatbot — operate deployed bots',
-    description:
-      "Run & read DEPLOYED bots: list deployments, read conversations and form submissions, export transcripts, summarize a bot, verify its turn hash-chain, inspect bot env (masked), set suggested prompts. Open for 'what did people ask my bot', 'is my bot up', 'rotate its key', 'export the conversations'. Cross-bot analytics is pack_fleet.",
-    body: 'Per-bot operation. Conversation and submission reads go through the bot proxy (conversation data never enters the control-plane DB); env inspection is masked — never cat a bot .env.',
-    members: [
-      'list_deployments',
-      'get_deployment',
-      'query_conversations',
-      'get_conversation',
-      'query_submissions',
-      'export_conversations',
-      'generate_bot_summary',
-      'verify_chain',
-      'inspect_bot_env',
-      'set_suggested_prompts',
-    ],
-  },
-  {
-    id: 'pack_fleet',
-    wing: 'office',
-    installGroup: 'chatbot',
-    title: 'Fleet — cross-bot aggregation',
-    description:
-      "FLEET-level reads across ALL bots at once: scoped SQL over every bot's conversations, an aggregated analytics summary, and fleet-wide hash-chain verification. Open for 'across all my bots…', 'which bot is busiest', 'a weekly digest of every deployment'. Single-bot reads are pack_bot_operate.",
-    body: 'Aggregation over the whole fleet through scoped SQL — reads fan out through the per-bot proxies and come back as one result.',
-    members: ['fleet_query_conversations', 'fleet_analytics_summary', 'verify_fleet_chains'],
   },
 ];
 
@@ -502,7 +444,7 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 // are now orthogonal, which is the generalization Phase 3's pack-host ABI needs
 // (a third-party pack declares a group; it does not join a wing).
 //
-// Two groups today:
+// The groups:
 //   creative — the render / media / games stack (the flagship default pack). Always
 //              installed: its code is in the package and its tools list on every
 //              install. The heavy helpers some of its calls need (manifold-3d,
@@ -510,15 +452,11 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 //              optionalDependencies; a call whose helper is missing says so in-band,
 //              and the rest of the pack works. Only an explicit MOJULO_PACKS override
 //              gates it off.
-//   chatbot  — the bot factory. OPT-IN as of 2.0: a fresh install does not have it,
-//              and `mojulo install chatbot` turns it on by writing a marker file
-//              under $MOJULO_HOME. The code is still in-tree (the package split
-//              waits on the Phase 3 ABI), so this is a LOGICAL gate — but from the
-//              operator's side it behaves exactly like the eventual package: absent
-//              until asked for. When @mojulo/chatbot publishes, this entry becomes
-//              `{ markerModule: '@mojulo/chatbot' }` and nothing else changes.
+//   recall   — the embedding runtime, below. No pack joins it.
 // The orchestration plumbing (connected-services / catalysts / triggers / runtime /
 // plan / research / stash) declares no group and is therefore ALWAYS present.
+// The chatbot group (2.0 to 2.x) left with the chatbot factory in 3.0.0: see
+// RETIRED_GROUP_TOKENS below for what happens to an install that still names it.
 //
 // SOURCE OF TRUTH = physical presence per group — so an install self-describes
 // and an env flag can't silently disagree with what's on disk.
@@ -531,17 +469,13 @@ const INSTALL_GROUPS = {
   // so the 37 MB dependency existed only to be detected, and removing it hid the
   // studio's tools although nothing needed it.
   creative: { alwaysInstalled: true },
-  // Marker path is relative to $MOJULO_HOME (default ~/.mojulo). Written by
-  // `mojulo install chatbot`; delete it (or drop 'chatbot' from MOJULO_PACKS)
-  // to put the factory away again.
-  chatbot: { markerFile: 'packs/chatbot' },
   // The embedding runtime (@huggingface/transformers + onnxruntime + the e5 model).
   // Opt-in: `mojulo install recall` installs it OUTSIDE the package, under
   // $MOJULO_HOME/recall/ (its own package.json + an entry.mjs shim), so it survives
   // package upgrades and never touches the shipped dependencies. The module marker
   // covers repo-dev with the package installed by hand. No pack joins this group:
   // `semantic_search` runs lexically (FTS5) without it; the group only changes the
-  // ranking and enables the chatbot preview RAG (`install chatbot` installs it first).
+  // ranking.
   recall: {
     markerModule: '@huggingface/transformers',
     markerFile: 'recall/node_modules/@huggingface/transformers/package.json',
@@ -549,12 +483,15 @@ const INSTALL_GROUPS = {
 };
 const ALL_GROUPS = Object.keys(INSTALL_GROUPS);
 
-// `ops` was the 1.5 install token for the whole office wing. In 2.0 the office
-// wing no longer installs as a unit — only the chatbot factory is gated — so the
-// token is kept as a DEPRECATED ALIAS so an existing MOJULO_PACKS=ops config keeps
-// its bots rather than silently changing meaning. It now grants strictly less than
-// it used to (the plumbing it also covered is unconditional now).
-const GROUP_ALIASES = { ops: 'chatbot' };
+// Install tokens that no longer name a group. `chatbot` was the bot factory's group (2.0 to
+// 2.x, marker file $MOJULO_HOME/packs/chatbot, written by `mojulo install chatbot`) and `ops` its
+// deprecated alias (the 1.5 office-wing token). The factory left mojulo in 3.0.0, so a host that
+// still carries the marker or names either token in MOJULO_PACKS keeps working: the marker is
+// never probed as a group, and in MOJULO_PACKS the token is skipped like any unknown one (the
+// override then falls through to physical detection if nothing else is named). The CLI's pack
+// listing says so (retiredInstallTokens); nothing else reacts to them.
+const RETIRED_GROUP_TOKENS = ['chatbot', 'ops'];
+const RETIRED_CHATBOT_MARKER = 'packs/chatbot';
 
 let _groupPresence = null; // memoized: install state is fixed for a process's life.
 
@@ -617,13 +554,25 @@ export function installedGroups(env = process.env) {
     const groups = new Set();
     for (const tok of raw.split(',')) {
       const name = tok.trim().toLowerCase();
-      const group = INSTALL_GROUPS[name] ? name : GROUP_ALIASES[name];
-      if (group) groups.add(group);
+      if (INSTALL_GROUPS[name]) groups.add(name); // a retired or unknown token is skipped
     }
     if (groups.size) return groups; // explicit override wins, even vs. disk
     // typo/unknown → fall through to physical detection (never an empty workshop)
   }
   return new Set(detectedGroups());
+}
+
+/** The retired chatbot-group signals this host still carries (see RETIRED_GROUP_TOKENS): each
+ * MOJULO_PACKS token naming the old group, and its marker file when present. Empty on a host
+ * that never installed the chatbot pack. Informational only; nothing is gated on it. */
+export function retiredInstallTokens(env = process.env) {
+  const out = [];
+  for (const tok of (env.MOJULO_PACKS || '').split(',')) {
+    const name = tok.trim().toLowerCase();
+    if (RETIRED_GROUP_TOKENS.includes(name) && !out.includes(`MOJULO_PACKS=${name}`)) out.push(`MOJULO_PACKS=${name}`);
+  }
+  if (markerFileExists(RETIRED_CHATBOT_MARKER)) out.push(markerFilePath(RETIRED_CHATBOT_MARKER));
+  return out;
 }
 
 /** A pack with no installGroup is kernel-adjacent: always present. */
@@ -647,8 +596,8 @@ export function isToolInstalled(name, env = process.env) {
 
 // The action that actually enables an uninstalled group. creative is always
 // installed, so it is only ever "off" through an explicit MOJULO_PACKS override and
-// its fix is the flag. chatbot and recall are physical installs (a marker file under
-// $MOJULO_HOME, the recall runtime), so their fix is `mojulo install <group>`, written
+// its fix is the flag. recall is a physical install (the runtime under
+// $MOJULO_HOME/recall), so its fix is `mojulo install <group>`, written
 // for this install: `npx -y mojulo@<running version> install <group>` from npm or the
 // Claude plugin, the checkout's own bin from a clone.
 function installAction(group, env = process.env) {

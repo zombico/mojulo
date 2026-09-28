@@ -59,12 +59,11 @@ const CARD_FIXTURE = [
 // crawler I walk around in" landing on the walkability-audit card instead of
 // create_game.
 
-// Office wing (Bot / App / Connected Service) — the paradigm-disambiguation
+// Office wing (App / Connected Service) — the paradigm-disambiguation
 // cards. Same top-K entry-membership contract as FIXTURE. Business phrasings
 // are less messy than creative ones (concrete nouns: CRM, submissions, folder),
 // so these route cleanly; the genuinely-ambiguous asks live in COVERAGE below.
 const OFFICE_FIXTURE = [
-  ['build me a customer support chatbot for my website', 'start_new_bot'],
   ['every Monday summarize qualified leads into our CRM', 'meta_context_declare_inventory'],
   ['sync new form submissions to a google sheet nightly', 'meta_context_declare_inventory'],
   ['watch this folder and process new invoices as they arrive', 'install_scaffold'],
@@ -76,7 +75,7 @@ const OFFICE_FIXTURE = [
   // routes them to get_substrate, whose facts block the agent derives from.
   ['does mojulo send my data to your servers', 'get_substrate'],
   ['how do I completely remove this thing from my laptop', 'get_substrate'],
-  ['can I safely put patient information into one of these bots', 'get_substrate'],
+  ['can I safely put patient information into this', 'get_substrate'],
   ['is there a subscription or do I need to buy an api key', 'get_substrate'],
 ];
 
@@ -85,11 +84,11 @@ const OFFICE_FIXTURE = [
 // wrong: the design wants the candidate SET to CONTAIN the viable paradigms so
 // step-2 (crisp who-touches-it criteria + ask-the-user) can decide. This pins
 // SET COVERAGE — ≥2 of the expected paradigm cards present in the top-SET_K —
-// which is the assertion the bot/app/connected-service two-step is built on.
+// which is the assertion the app/connected-service two-step is built on. (Until 3.0 the
+// chatbot was the third paradigm here; it left with the chatbot factory.)
 const SET_K = 5;
 const COVERAGE_FIXTURE = [
-  ['triage incoming support emails and route them to the right team', ['bot', 'connected-service']],
-  ['book appointments and add them to my calendar', ['bot', 'connected-service']],
+  ['triage incoming support emails and route them to the right team', ['app', 'connected-service']],
 ];
 
 const TOP_K = 3;

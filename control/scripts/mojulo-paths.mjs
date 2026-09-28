@@ -10,8 +10,7 @@
  * From those, sets — without overriding — the lower-level env vars the lib
  * code already honors:
  *   SQLITE_PATH         → $MOJULO_DATA_DIR/mojulo-lite.db
- *   ARTIFACTS_DIR       → $MOJULO_DATA_DIR/artifacts
- *   STORAGE_ROOT        → $MOJULO_DATA_DIR/storage
+ *   STORAGE_ROOT        → $MOJULO_DATA_DIR/storage   (stash media)
  *   MOJULO_OUTCOMES_DIR → $MOJULO_DATA_DIR/outcomes   (export_model / export_game / cooks)
  *   MOJULO_EXPORTS_DIR  → $MOJULO_DATA_DIR/exports    (export_beats .wav)
  *   MOJULO_SCENE_PNG_DIR    → $MOJULO_DATA_DIR/scene-png     (baked gallery stills)
@@ -32,6 +31,9 @@
  * own state. Repo-dev `next dev` does not run this resolver and keeps its
  * control/data/ fallback.
  *
+ * ARTIFACTS_DIR ($MOJULO_DATA_DIR/artifacts, the chatbot factory's bot zips) was seeded and
+ * created here until the factory left in 3.0.0. An existing folder is left alone.
+ *
  * Shared by [mcp-stdio.mjs](./mcp-stdio.mjs), [mcp-ui.mjs](./mcp-ui.mjs) and
  * [mcp-config.mjs](./mcp-config.mjs) so a fresh `~/.mojulo/` works for every bin.
  */
@@ -49,7 +51,6 @@ export function resolveMojuloPaths() {
   process.env.MOJULO_DATA_DIR ??= dataDir;
   process.env.MOJULO_MODELS_DIR ??= modelsDir;
   process.env.SQLITE_PATH ??= path.join(dataDir, 'mojulo-lite.db');
-  process.env.ARTIFACTS_DIR ??= path.join(dataDir, 'artifacts');
   process.env.STORAGE_ROOT ??= path.join(dataDir, 'storage');
   process.env.MOJULO_OUTCOMES_DIR ??= path.join(dataDir, 'outcomes');
   process.env.MOJULO_EXPORTS_DIR ??= path.join(dataDir, 'exports');
@@ -59,7 +60,7 @@ export function resolveMojuloPaths() {
   process.env.MOJULO_CHROMIUM_DIR ??= path.join(home, 'chromium');
   process.env.MOJULO_FFMPEG_DIR ??= path.join(home, 'ffmpeg');
 
-  for (const dir of [home, dataDir, modelsDir, process.env.ARTIFACTS_DIR, process.env.STORAGE_ROOT]) {
+  for (const dir of [home, dataDir, modelsDir, process.env.STORAGE_ROOT]) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
@@ -68,7 +69,6 @@ export function resolveMojuloPaths() {
     dataDir,
     modelsDir,
     dbPath: process.env.SQLITE_PATH,
-    artifactsDir: process.env.ARTIFACTS_DIR,
     storageRoot: process.env.STORAGE_ROOT,
     outcomesDir: process.env.MOJULO_OUTCOMES_DIR,
     exportsDir: process.env.MOJULO_EXPORTS_DIR,

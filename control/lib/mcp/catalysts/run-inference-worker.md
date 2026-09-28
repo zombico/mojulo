@@ -27,8 +27,8 @@ Run this loop until the operator stops you. The operator typically wraps you in 
 ```
 1. Call pull_agent_task({ wait_ms: 25000, kinds: ['envelope_inference'] })
    - The `kinds` filter means you only claim envelope_inference tasks, so you
-     never cancel a `chat_turn` (builder web-chat) task meant for the
-     chat-builder worker. Omit `kinds` only if you intend to handle every kind.
+     never cancel a task of another kind meant for a different worker. Omit
+     `kinds` only if you intend to handle every kind.
    - If `request: null`, the wait window expired with no work. Loop.
    - Otherwise you get a content array: a JSON manifest text block,
      optionally followed by a native MCP image block.

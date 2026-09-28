@@ -1,7 +1,5 @@
-// Isolate to in-memory SQLite so the operator-anchor tests below don't touch
-// the real control-plane DB. The pre-existing tests in this file either don't
-// hit the DB or only exercise the "unknown deploymentId → null → throw" path,
-// so this change doesn't affect their behavior.
+// Isolate to in-memory SQLite so the operator-anchor and materialization tests
+// below don't touch the real control-plane DB.
 process.env.SQLITE_PATH = ':memory:';
 // The mint_catalyst tests write through the *WithEmbedding repository paths —
 // disable the semantic index so no ONNX model load fires under test (the
@@ -29,10 +27,15 @@ import {
   MetaPrincipleRepository,
 } from '@/lib/db/repositories/meta-context';
 import { _resetCatalogForTests } from '@/lib/mcp/catalysts/loader';
+import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
+
+// A shipped workflow catalyst every test below can rely on (six-section, no destination).
+const CURATED_ID = 'refresh-connected-services';
+const OTHER_CURATED_ID = 'research-mcp-vendor';
 
 describe('CATALYST_CORE_PREAMBLE — vocabulary disambiguation', () => {
   it('names all three overlapping concepts so the model can keep them distinct', () => {
-    expect(CATALYST_CORE_PREAMBLE).toMatch(/Mojulo protocols/);
+    expect(CATALYST_CORE_PREAMBLE).toMatch(/mojulo recipe/i);
     expect(CATALYST_CORE_PREAMBLE).toMatch(/runnable artifact/i);
     expect(CATALYST_CORE_PREAMBLE).toMatch(/mojulo catalyst/i);
   });
@@ -42,9 +45,12 @@ describe('CATALYST_CORE_PREAMBLE — vocabulary disambiguation', () => {
     expect(CATALYST_CORE_PREAMBLE).not.toMatch(/skill catalyst/i);
   });
 
-  it('names the canonical protocols so requires.protocols values resolve', () => {
-    for (const p of ['knowledge', 'formGathering', 'triage', 'appointments', 'opticalRead']) {
-      expect(CATALYST_CORE_PREAMBLE).toContain(p);
+  // The chatbot factory left in 3.0.0: no guidance text may send the agent to one of its tools.
+  it('names no chatbot-factory tool in the preamble, the posture or the author guide', () => {
+    for (const text of [CATALYST_CORE_PREAMBLE, CONSULTATION_POSTURE, CUSTOM_CATALYST_GUIDE]) {
+      for (const name of REMOVED_BOT_TOOLS) {
+        expect(text.includes(`\`${name}\``) || text.includes(`${name}(`), name).toBe(false);
+      }
     }
   });
 
@@ -91,31 +97,31 @@ describe('CATALYST_CORE_PREAMBLE — posture preamble', () => {
 
 describe('getCatalystHandler — adapter composition', () => {
   it('prepends the core preamble to the body', async () => {
-    const out = await getCatalystHandler({ id: 'qualify-lead-to-crm' });
+    const out = await getCatalystHandler({ id: CURATED_ID });
     expect(out.body.startsWith(CATALYST_CORE_PREAMBLE)).toBe(true);
   });
 
   it('still returns metadata fields alongside the composed body', async () => {
-    const out = await getCatalystHandler({ id: 'qualify-lead-to-crm' });
-    expect(out.id).toBe('qualify-lead-to-crm');
+    const out = await getCatalystHandler({ id: CURATED_ID });
+    expect(out.id).toBe(CURATED_ID);
     expect(out.name).toBeTypeOf('string');
     expect(out.summary).toBeTypeOf('string');
     expect(Array.isArray(out.parameters)).toBe(true);
   });
 
   it('includes a host adapter section in the composed body', async () => {
-    const out = await getCatalystHandler({ id: 'qualify-lead-to-crm' });
+    const out = await getCatalystHandler({ id: CURATED_ID });
     expect(out.body).toMatch(/# Host adapter/);
     expect(out.adapter).toBeTruthy();
     expect(out.adapter.id).toBeTruthy();
   });
 
   it('honors an explicit host parameter and composes that adapter', async () => {
-    const claude = await getCatalystHandler({ id: 'qualify-lead-to-crm', host: 'claude-code' });
+    const claude = await getCatalystHandler({ id: CURATED_ID, host: 'claude-code' });
     expect(claude.adapter.id).toBe('claude-code');
     expect(claude.body).toMatch(/\.claude\/skills\//);
 
-    const codex = await getCatalystHandler({ id: 'qualify-lead-to-crm', host: 'codex' });
+    const codex = await getCatalystHandler({ id: CURATED_ID, host: 'codex' });
     expect(codex.adapter.id).toBe('codex');
     expect(codex.body).toMatch(/Codex automation/);
   });
@@ -123,7 +129,7 @@ describe('getCatalystHandler — adapter composition', () => {
   it('falls back to the generic adapter when host is unknown and no clientInfo', async () => {
     _resetClientBindingsForTests();
     const out = await getCatalystHandler(
-      { id: 'qualify-lead-to-crm', host: 'no-such-host' },
+      { id: CURATED_ID, host: 'no-such-host' },
       { mcpSessionId: 'test-session-unknown-host' }
     );
     expect(out.adapter.id).toBe('generic');
@@ -133,7 +139,7 @@ describe('getCatalystHandler — adapter composition', () => {
     _resetClientBindingsForTests();
     rememberClientInfo('test-session-codex-1', { name: 'codex', version: '1.0' });
     const out = await getCatalystHandler(
-      { id: 'qualify-lead-to-crm' },
+      { id: CURATED_ID },
       { mcpSessionId: 'test-session-codex-1' }
     );
     expect(out.adapter.id).toBe('codex');
@@ -143,7 +149,7 @@ describe('getCatalystHandler — adapter composition', () => {
     _resetClientBindingsForTests();
     rememberClientInfo('test-session-claude-1', { name: 'claude-code', version: '1.0' });
     const out = await getCatalystHandler(
-      { id: 'qualify-lead-to-crm', host: 'codex' },
+      { id: CURATED_ID, host: 'codex' },
       { mcpSessionId: 'test-session-claude-1' }
     );
     expect(out.adapter.id).toBe('codex');
@@ -167,9 +173,9 @@ describe('listCatalystsHandler', () => {
   });
 
   it('forwards the category filter', async () => {
-    const out = await listCatalystsHandler({ category: 'crm-sync' });
+    const out = await listCatalystsHandler({ category: 'explainer' });
     expect(out.total).toBeGreaterThan(0);
-    expect(out.catalysts.every((c) => c.category === 'crm-sync')).toBe(true);
+    expect(out.catalysts.every((c) => c.category === 'explainer')).toBe(true);
   });
 
   it('forwards the kind filter', async () => {
@@ -256,20 +262,10 @@ describe('catalyst kind discriminator — workflow vs technique', () => {
     expect(out.catalysts[0].id).toBe('fixture-technique');
   });
 
-  it('recommend_catalysts skips technique catalysts in single-bot mode', async () => {
-    seedDeployment();
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
-    const all = [...out.applicable, ...out.requiresProtocolChange];
-    expect(all.some((r) => r.id === 'fixture-workflow')).toBe(true);
-    expect(all.some((r) => r.id === 'fixture-technique')).toBe(false);
-  });
-
-  it('recommend_catalysts skips technique catalysts in fleet mode', async () => {
-    seedDeployment();
-    const out = await recommendCatalystsHandler({ scope: 'fleet' });
-    const all = [...out.applicable, ...out.requiresProtocolChange];
-    expect(all.some((r) => r.id === 'fixture-workflow')).toBe(true);
-    expect(all.some((r) => r.id === 'fixture-technique')).toBe(false);
+  it('recommend_catalysts skips technique catalysts', async () => {
+    const out = await recommendCatalystsHandler({});
+    expect(out.applicable.some((r) => r.id === 'fixture-workflow')).toBe(true);
+    expect(out.applicable.some((r) => r.id === 'fixture-technique')).toBe(false);
   });
 });
 
@@ -289,9 +285,9 @@ describe('CONSULTATION_POSTURE — recommend_catalysts framing', () => {
     expect(CONSULTATION_POSTURE).toMatch(/opt-in upgrade/i);
   });
 
-  it('distinguishes missing-MCP from missing-protocols', () => {
+  it('distinguishes a missing destination MCP from a session workflow with no destination', () => {
     expect(CONSULTATION_POSTURE).toMatch(/destinationExamples/);
-    expect(CONSULTATION_POSTURE).toMatch(/missingProtocols/);
+    expect(CONSULTATION_POSTURE).toMatch(/destinationCategory: null/);
   });
 
   it('reminds the agent that mojulo cannot see what MCPs are installed', () => {
@@ -354,7 +350,7 @@ describe('CUSTOM_CATALYST_GUIDE — author posture for remote contributors', () 
   it('points the remote agent at the existing exemplars via get_catalyst', () => {
     // The body is self-contained but tells the agent to anchor on exemplars
     // (which it can pull through MCP) rather than inlining 500 lines of prose.
-    expect(CUSTOM_CATALYST_GUIDE).toMatch(/get_catalyst\("qualify-lead-to-crm"\)/);
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/get_catalyst\("refresh-connected-services"\)/);
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/list_catalysts/);
   });
 
@@ -393,7 +389,7 @@ describe('CUSTOM_CATALYST_GUIDE — author posture for remote contributors', () 
   it('preserves the non-negotiable body principles', () => {
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/dryRun: true/);
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/mojulo trace/i);
-    expect(CUSTOM_CATALYST_GUIDE).toMatch(/Don't write back to the bot/i);
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/Don't write back to the source/i);
   });
 
   it('ships a by-hand validation checklist since the remote agent cannot run vitest', () => {
@@ -470,7 +466,7 @@ describe('mintCatalystHandler — the local shelf', () => {
     const mine = list.catalysts.find((c) => c.id === 'evening-digest');
     expect(mine).toMatchObject({ origin: 'local', rev: 1, kind: 'workflow' });
     // Curated entries are annotated too.
-    expect(list.catalysts.find((c) => c.id === 'qualify-lead-to-crm').origin).toBe('curated');
+    expect(list.catalysts.find((c) => c.id === CURATED_ID).origin).toBe('curated');
 
     const got = await getCatalystHandler({ id: 'evening-digest', host: 'generic' });
     expect(got.origin).toBe('local');
@@ -480,12 +476,19 @@ describe('mintCatalystHandler — the local shelf', () => {
   });
 
   it('a minted catalyst participates in recommend_catalysts with origin local', async () => {
-    seedDeployment();
-    await mintCatalystHandler({ ...mintInput, requires: { protocols: ['knowledge'] } });
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
-    const mine = [...out.applicable, ...out.requiresProtocolChange].find((r) => r.id === 'evening-digest');
+    await mintCatalystHandler(mintInput);
+    const out = await recommendCatalystsHandler({});
+    const mine = out.applicable.find((r) => r.id === 'evening-digest');
     expect(mine).toBeTruthy();
     expect(mine.origin).toBe('local');
+  });
+
+  // A local mint from the 2.x line may still name chatbot protocols; with no bot to run against it
+  // is listed but never recommended.
+  it('a minted catalyst that requires chatbot protocols is listed but not recommended', async () => {
+    await mintCatalystHandler({ ...mintInput, requires: { protocols: ['knowledge'] } });
+    expect((await listCatalystsHandler({})).catalysts.some((c) => c.id === 'evening-digest')).toBe(true);
+    expect((await recommendCatalystsHandler({})).applicable.some((r) => r.id === 'evening-digest')).toBe(false);
   });
 
   it('update requires a note, appends a revision, and rev reads history', async () => {
@@ -506,11 +509,11 @@ describe('mintCatalystHandler — the local shelf', () => {
   });
 
   it('rev is rejected for curated ids — their history lives in git', async () => {
-    await expect(getCatalystHandler({ id: 'qualify-lead-to-crm', rev: 1 })).rejects.toThrow(/git/);
+    await expect(getCatalystHandler({ id: CURATED_ID, rev: 1 })).rejects.toThrow(/git/);
   });
 
   it('refuses curated ids in both directions', async () => {
-    await expect(mintCatalystHandler({ ...mintInput, id: 'qualify-lead-to-crm' })).rejects.toThrow(
+    await expect(mintCatalystHandler({ ...mintInput, id: CURATED_ID })).rejects.toThrow(
       /curated catalyst shipped with mojulo/,
     );
   });
@@ -584,7 +587,6 @@ describe('mintCatalystHandler — the local shelf', () => {
   });
 
   it('minted technique catalysts skip preamble/adapter and recommendations', async () => {
-    seedDeployment();
     await mintCatalystHandler({
       ...mintInput,
       id: 'technique-scratch-store',
@@ -595,23 +597,34 @@ describe('mintCatalystHandler — the local shelf', () => {
     expect(got.adapter).toBeNull();
     expect(got.body).toBe('Technique body.');
 
-    const rec = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
-    const all = [...rec.applicable, ...rec.requiresProtocolChange];
-    expect(all.some((r) => r.id === 'technique-scratch-store')).toBe(false);
+    const rec = await recommendCatalystsHandler({});
+    expect(rec.applicable.some((r) => r.id === 'technique-scratch-store')).toBe(false);
   });
 });
 
-describe('recommendCatalystsHandler — input validation', () => {
-  it('throws when neither deploymentId nor fleet scope is provided', async () => {
-    await expect(recommendCatalystsHandler({})).rejects.toThrow(
-      /deploymentId is required|fleet/i,
-    );
+describe('recommendCatalystsHandler — input', () => {
+  beforeEach(() => {
+    closeDb();
   });
 
-  it('throws on unknown deploymentId', async () => {
-    await expect(
-      recommendCatalystsHandler({ deploymentId: 'no-such-deployment-id-xyz' })
-    ).rejects.toThrow(/not found/);
+  it('with no input, ranks the whole workflow shelf', async () => {
+    const out = await recommendCatalystsHandler({});
+    expect(out.applicable.some((r) => r.id === CURATED_ID)).toBe(true);
+    expect(out.consultationPosture).toBe(CONSULTATION_POSTURE);
+    expect(out.materialization.nextTool).toBe('get_adapter');
+  });
+
+  it('category narrows the shelf', async () => {
+    const out = await recommendCatalystsHandler({ category: 'explainer' });
+    expect(out.applicable.length).toBeGreaterThan(0);
+    expect(out.applicable.every((r) => r.category === 'explainer')).toBe(true);
+  });
+
+  // The 2.x single-bot and fleet modes left with the chatbot factory.
+  it('a bot-scoped input answers with the moved notice', async () => {
+    for (const input of [{ deploymentId: 'dep-1' }, { scope: 'fleet' }, { deploymentIds: ['a'] }]) {
+      await expect(recommendCatalystsHandler(input)).rejects.toThrow(BOT_FACTORY_MOVED);
+    }
   });
 });
 
@@ -665,22 +678,8 @@ describe('buildOperatorAnchorBlock', () => {
   });
 });
 
-// Test helper used by multiple describe blocks below. Pinned id (vs
-// DeploymentRepository.create) so meta_context references can reference a
-// stable bot_ref.
-function seedDeployment({
-  id = 'dep-rec-test',
-  botName = 'Rec Bot',
-  enabledProtocols = { knowledge: true, formGathering: true },
-} = {}) {
-  const db = getDb();
-  const now = Date.now();
-  db.prepare(
-    `INSERT INTO deployments (id, bot_name, flow_type, status, config, api_key, document_ids, created_at, updated_at)
-     VALUES (?, ?, 'modular', 'saved', ?, 'k', '[]', ?, ?)`,
-  ).run(id, botName, JSON.stringify({ enabledProtocols }), now, now);
-}
-
+// Seeds one catalyst → artifact materialization in the contextmap. The runs_for edge to a `bot`
+// node is the 2.x shape (artifact_materialization); those rows stay readable after 3.0.
 function seedMaterialization({
   catalystRef,
   botRef,
@@ -724,15 +723,13 @@ describe('recommendCatalystsHandler — operator anchor surfacing', () => {
     closeDb();
   });
 
-  it('single-bot mode → suggest_kyc when operator node is missing', async () => {
-    seedDeployment();
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+  it('suggest_kyc when the operator node is missing', async () => {
+    const out = await recommendCatalystsHandler({});
     expect(out.suggest_kyc).toBe(true);
     expect(out.operatorAnchor).toBeUndefined();
   });
 
-  it('single-bot mode → operatorAnchor when the anchor exists', async () => {
-    seedDeployment();
+  it('operatorAnchor when the anchor exists', async () => {
     const node = MetaNodeRepository.upsert({
       kind: 'operator',
       ref: 'self',
@@ -744,158 +741,85 @@ describe('recommendCatalystsHandler — operator anchor surfacing', () => {
       body_md: '**Locked-in constraints:**\n- CRM is HubSpot',
       source_event: 'operator_kyc',
     });
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const out = await recommendCatalystsHandler({});
     expect(out.suggest_kyc).toBeUndefined();
     expect(out.operatorAnchor.role).toBe('Dental agency owner');
-  });
-
-  it('fleet mode → suggest_kyc when operator node is missing', async () => {
-    seedDeployment();
-    const out = await recommendCatalystsHandler({ scope: 'fleet' });
-    expect(out.suggest_kyc).toBe(true);
-  });
-
-  it('fleet mode → operatorAnchor when the anchor exists', async () => {
-    seedDeployment();
-    MetaNodeRepository.upsert({ kind: 'operator', ref: 'self', label: 'Op' });
-    const out = await recommendCatalystsHandler({ scope: 'fleet' });
-    expect(out.suggest_kyc).toBeUndefined();
-    expect(out.operatorAnchor.role).toBe('Op');
   });
 });
 
 // Ring 6 enrichment — recommend_catalysts surfaces priorMaterializations per
-// recommendation so the agent can triage overlap (same bot), synergy (other
-// bot, fleet pattern), or orthogonality (no priors) before materializing.
+// recommendation so the agent can triage overlap, synergy, or orthogonality
+// (no priors) before materializing.
 describe('recommendCatalystsHandler — priorMaterializations surfacing', () => {
   beforeEach(() => {
     closeDb();
   });
 
+  const recFor = (out, id) => out.applicable.find((r) => r.id === id);
+
   it('every recommendation carries priorMaterializations — empty array when no priors exist', async () => {
-    seedDeployment();
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
+    const out = await recommendCatalystsHandler({});
     for (const rec of out.applicable) {
       expect(Array.isArray(rec.priorMaterializations)).toBe(true);
       expect(rec.priorMaterializations).toEqual([]);
     }
-    for (const rec of out.requiresProtocolChange) {
-      expect(Array.isArray(rec.priorMaterializations)).toBe(true);
-      expect(rec.priorMaterializations).toEqual([]);
-    }
   });
 
-  it('single-bot mode — prior on the SAME bot surfaces as a duplicate signal', async () => {
-    seedDeployment({ id: 'dep-rec-test', botName: 'Front Desk' });
+  it('a stored bot-scoped materialization from 2.x stays readable', async () => {
     seedMaterialization({
-      catalystRef: 'qualify-lead-to-crm',
-      botRef: 'dep-rec-test',
+      catalystRef: CURATED_ID,
+      botRef: 'dep-front',
       botName: 'Front Desk',
-      artifactRef: 'claude-code:/skills/qlc-front/SKILL.md',
-      artifactLabel: 'Qualify Lead — Front Desk',
-      artifactPrincipleBody: 'Route qualified leads to HubSpot.',
+      artifactRef: 'claude-code:/skills/refresh/SKILL.md',
+      artifactLabel: 'Refresh — Front Desk',
+      artifactPrincipleBody: 'Refresh inventory weekly.',
     });
 
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
-    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
-      (r) => r.id === 'qualify-lead-to-crm',
-    );
-    expect(qlc).toBeTruthy();
-    expect(qlc.priorMaterializations).toHaveLength(1);
-    expect(qlc.priorMaterializations[0]).toMatchObject({
-      botRef: 'dep-rec-test',
+    const rec = recFor(await recommendCatalystsHandler({}), CURATED_ID);
+    expect(rec.priorMaterializations).toHaveLength(1);
+    expect(rec.priorMaterializations[0]).toMatchObject({
+      botRef: 'dep-front',
       botName: 'Front Desk',
-      artifactLabel: 'Qualify Lead — Front Desk',
+      artifactLabel: 'Refresh — Front Desk',
       adapterId: 'claude-code',
     });
-    expect(qlc.priorMaterializations[0].latestArtifactPrinciple.bodyMd).toMatch(/HubSpot/);
+    expect(rec.priorMaterializations[0].latestArtifactPrinciple.bodyMd).toMatch(/weekly/);
   });
 
-  it('single-bot mode — prior on a DIFFERENT bot surfaces (fleet pattern signal)', async () => {
-    seedDeployment({ id: 'dep-rec-test', botName: 'Bot A' });
+  it('multiple priors are all surfaced, most-recent-first', async () => {
     seedMaterialization({
-      catalystRef: 'qualify-lead-to-crm',
-      botRef: 'dep-other',
-      botName: 'Bot B (other)',
-      artifactRef: 'claude-code:/skills/qlc-b/SKILL.md',
-      artifactLabel: 'QLC — Bot B',
-      artifactPrincipleBody: 'Route to HubSpot (fleet convention).',
-    });
-
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
-    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
-      (r) => r.id === 'qualify-lead-to-crm',
-    );
-    expect(qlc.priorMaterializations).toHaveLength(1);
-    expect(qlc.priorMaterializations[0].botRef).toBe('dep-other');
-    // The recommendation is for dep-rec-test, but the prior is on dep-other.
-    // The agent reads this as "fleet pattern, align unless intentionally diverging."
-    expect(qlc.priorMaterializations[0].botRef).not.toBe('dep-rec-test');
-  });
-
-  it('multiple priors across the fleet are all surfaced, most-recent-first', async () => {
-    seedDeployment({ id: 'dep-rec-test', botName: 'Target' });
-    seedMaterialization({
-      catalystRef: 'qualify-lead-to-crm',
+      catalystRef: CURATED_ID,
       botRef: 'dep-1',
       botName: 'Bot 1',
       artifactRef: 'claude-code:/a.md',
       artifactLabel: 'A',
     });
     seedMaterialization({
-      catalystRef: 'qualify-lead-to-crm',
+      catalystRef: CURATED_ID,
       botRef: 'dep-2',
       botName: 'Bot 2',
       artifactRef: 'codex:auto-2',
       artifactLabel: 'B',
       adapterRef: 'codex',
     });
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
-    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
-      (r) => r.id === 'qualify-lead-to-crm',
-    );
-    expect(qlc.priorMaterializations).toHaveLength(2);
+    const rec = recFor(await recommendCatalystsHandler({}), CURATED_ID);
+    expect(rec.priorMaterializations).toHaveLength(2);
     // Most recent (Bot 2 / codex) first.
-    expect(qlc.priorMaterializations[0].botRef).toBe('dep-2');
-    expect(qlc.priorMaterializations[0].adapterId).toBe('codex');
-  });
-
-  it('fleet mode — priorMaterializations attached per recommendation', async () => {
-    seedDeployment({ id: 'dep-rec-test', botName: 'Bot' });
-    seedMaterialization({
-      catalystRef: 'qualify-lead-to-crm',
-      botRef: 'dep-prev',
-      botName: 'Prev Bot',
-      artifactRef: 'claude-code:/skills/prev/SKILL.md',
-      artifactLabel: 'Prev',
-    });
-
-    const out = await recommendCatalystsHandler({ scope: 'fleet' });
-    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
-      (r) => r.id === 'qualify-lead-to-crm',
-    );
-    expect(qlc.priorMaterializations).toHaveLength(1);
-    expect(qlc.priorMaterializations[0].botRef).toBe('dep-prev');
+    expect(rec.priorMaterializations[0].botRef).toBe('dep-2');
+    expect(rec.priorMaterializations[0].adapterId).toBe('codex');
   });
 
   it('priorMaterializations only surface the SAME catalyst (no cross-catalyst leakage)', async () => {
-    seedDeployment({ id: 'dep-rec-test', botName: 'Bot' });
     seedMaterialization({
-      catalystRef: 'appointment-to-calendar',
+      catalystRef: OTHER_CURATED_ID,
       botRef: 'dep-other',
       botName: 'Other',
-      artifactRef: 'claude-code:/skills/cal/SKILL.md',
-      artifactLabel: 'Cal',
+      artifactRef: 'claude-code:/skills/vendor/SKILL.md',
+      artifactLabel: 'Vendor',
     });
 
-    const out = await recommendCatalystsHandler({ deploymentId: 'dep-rec-test' });
-    const qlc = [...out.applicable, ...out.requiresProtocolChange].find(
-      (r) => r.id === 'qualify-lead-to-crm',
-    );
-    const atc = [...out.applicable, ...out.requiresProtocolChange].find(
-      (r) => r.id === 'appointment-to-calendar',
-    );
-    expect(qlc.priorMaterializations).toEqual([]);
-    expect(atc.priorMaterializations).toHaveLength(1);
+    const out = await recommendCatalystsHandler({});
+    expect(recFor(out, CURATED_ID).priorMaterializations).toEqual([]);
+    expect(recFor(out, OTHER_CURATED_ID).priorMaterializations).toHaveLength(1);
   });
 });

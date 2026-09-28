@@ -52,8 +52,8 @@ export const ApiKeyRepository = {
    * (owner NULL) when their key carries the admin-granted `house_keys` flag.
    * A keyless delegate falls through to the existing "no LLM key configured"
    * refusal at the call sites. Scoping lives HERE so every caller that
-   * threads userId (session-binding preload, builder executor,
-   * tool-executors) is covered by one funnel.
+   * threads userId (mint_solid's prompt door today; the 2.x chatbot builder
+   * did too) is covered by one funnel.
    */
   async findByUserId(userId) {
     const db = migratedHandle();

@@ -218,9 +218,9 @@ describe('listCatalysts', () => {
   });
 
   it('filters by category', () => {
-    const crm = listCatalysts({ category: 'crm-sync' });
-    expect(crm.length).toBeGreaterThan(0);
-    expect(crm.every((c) => c.category === 'crm-sync')).toBe(true);
+    const explainers = listCatalysts({ category: 'explainer' });
+    expect(explainers.length).toBeGreaterThan(0);
+    expect(explainers.every((c) => c.category === 'explainer')).toBe(true);
   });
 
   it('returns empty array for unknown category', () => {
@@ -244,11 +244,11 @@ describe('listCatalysts', () => {
 
 describe('getCatalyst', () => {
   it('returns the full catalyst including body', () => {
-    const catalyst = getCatalyst('qualify-lead-to-crm');
+    const catalyst = getCatalyst('refresh-connected-services');
     expect(catalyst).not.toBeNull();
-    expect(catalyst.id).toBe('qualify-lead-to-crm');
+    expect(catalyst.id).toBe('refresh-connected-services');
     expect(typeof catalyst.body).toBe('string');
-    expect(catalyst.body).toMatch(/Qualify lead/);
+    expect(catalyst.body).toMatch(/## Idempotency/);
   });
 
   it('returns null for unknown id', () => {
@@ -256,7 +256,7 @@ describe('getCatalyst', () => {
   });
 
   it('does not expose internal _file field', () => {
-    const catalyst = getCatalyst('qualify-lead-to-crm');
+    const catalyst = getCatalyst('refresh-connected-services');
     expect(catalyst).not.toHaveProperty('_file');
   });
 });

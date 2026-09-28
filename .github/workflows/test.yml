@@ -21,23 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Node 20 matches the bot's Dockerfile (node:20-bookworm-slim) so the
-      # lite-template test environment shadows the runtime environment.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          # No cache: both packages' postinstall fetch ONNX weights (~113MB)
-          # outside node_modules, and a cache hit would skip them. Re-enable
-          # when the model fetch becomes opt-out.
-
-      - name: Install lite-template
-        working-directory: lite-template
-        run: npm install
-
-      - name: Test lite-template
-        working-directory: lite-template
-        run: npm test
-
       # Control requires Node >= 22.12: the mcp-stdio bin enforces that floor
       # (scripts/mcp-stdio.mjs), and node-web-audio-api@2 declares
       # engines >= 22 — as an optionalDependency, npm on Node 20 silently
@@ -70,15 +53,8 @@ jobs:
         with:
           node-version: 22
 
-      # Syntax floor — neither package has a typecheck script, so node --check
-      # is the cheapest way to catch a syntax error sitting in main.
-      - name: node --check (lite-template)
-        run: |
-          find lite-template -type f \( -name '*.js' -o -name '*.mjs' \) \
-            -not -path '*/node_modules/*' \
-            -not -path '*/models/*' \
-            -print0 | xargs -0 -n1 node --check
-
+      # Syntax floor — there is no typecheck script, so node --check is the
+      # cheapest way to catch a syntax error sitting in main.
       - name: node --check (control)
         run: |
           find control -type f \( -name '*.js' -o -name '*.mjs' \) \
@@ -111,10 +87,8 @@ jobs:
   smoke:
     name: README install-success smoke
     runs-on: ubuntu-latest
-    # Slower than unit tests (the bot runtime's postinstall downloads ~113MB
-    # of ONNX weights, then a full Next build + control-plane boot; the control
-    # plane itself fetches no model since 2.0.7). Allow up to 10 minutes so a
-    # transient ONNX-download stall doesn't fail the run.
+    # Slower than unit tests (a full Next build + control-plane boot; the
+    # control plane fetches no model since 2.0.7). Allow up to 10 minutes.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

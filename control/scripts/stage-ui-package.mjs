@@ -16,15 +16,15 @@
  *      (ui-package-manifest.mjs, fromInstallPackages) plus the dependencies only those pulled in.
  *   3. Put back the license files tracing left out and write standalone/THIRD_PARTY_NOTICES.md,
  *      and copy the repo's LICENSE and NOTICE to the package root (license-files.mjs).
- *   4. stage-lite-template.mjs copies the tracked bot template, minus models/, to
- *      ui-package/lite-template/.
+ * (Until 3.0 a fourth step staged the chatbot runtime template, lite-template/; it left with the
+ * chatbot factory.)
  */
 
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { UI_LITE_TEMPLATE_DIR, UI_STANDALONE_DIR } from '../lib/version/ui-package.js';
+import { UI_STANDALONE_DIR } from '../lib/version/ui-package.js';
 import { copyProjectLicense, stageThirdPartyNotices } from './license-files.mjs';
 import {
   CONTROL_DIR,
@@ -97,7 +97,7 @@ function build() {
 function stageStandalone() {
   const dest = path.join(UI_PACKAGE_DIR, UI_STANDALONE_DIR);
   const pruned = new Set(prunedPackages(path.join(BUILT, 'node_modules'), fromInstallPackages()));
-  const skipAtRoot = (rel) => rel === 'data' || rel === 'lite-template' || rel === '.env'
+  const skipAtRoot = (rel) => rel === 'data' || rel === '.env'
     || rel.startsWith('.env.') || /^mojulo-.*\.tgz$/.test(rel);
   const filter = (src) => {
     const rel = path.relative(BUILT, src).split(path.sep).join('/');
@@ -139,9 +139,5 @@ else {
     build();
     stageStandalone();
     stageLicenses();
-    run(process.execPath, [
-      path.join(CONTROL_DIR, 'scripts', 'stage-lite-template.mjs'),
-      path.join(UI_PACKAGE_DIR, UI_LITE_TEMPLATE_DIR),
-    ]);
   }
 }

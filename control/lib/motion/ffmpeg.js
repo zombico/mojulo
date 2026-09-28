@@ -22,9 +22,10 @@
  * $MOJULO_FFMPEG override. The `-version` run stays as the "does it actually
  * run" gate after that.
  *
- * This is a CONTROL-PLANE concern only. The Debian-slim / multi-arch-GHCR /
- * glibc native-dep rules in CLAUDE.md govern the bot image, not this path; the
- * control plane is single-user and self-hosted.
+ * This is a CONTROL-PLANE concern only; the control plane is single-user and
+ * self-hosted. (The Debian-slim / multi-arch-GHCR / glibc native-dep rules that
+ * once sat beside this note governed the chatbot image, which left with the
+ * chatbot factory in 3.0.0.)
  */
 
 import { promises as fs, existsSync, createReadStream, createWriteStream } from 'node:fs';

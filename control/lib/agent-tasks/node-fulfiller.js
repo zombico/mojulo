@@ -83,21 +83,19 @@ async function loopOnce({ adapter, invokeTimeoutMs, pullWaitMs }) {
 
     // Audit BEFORE delivery so the principle is durable before the parked
     // HTTP unblocks — mirrors the MCP submit_envelope_inference handler.
-    // chat_turn (the builder web-chat relay) is run-rate and records no
-    // principle, matching that handler's gating.
-    if (payload.task_kind !== 'chat_turn') {
-      try {
-        recordInferenceOutcome({
-          caller_ref: payload.caller_ref,
-          inputs: payload.inputs,
-          envelope,
-          durationMs,
-          model,
-          fulfiller: fulfillerStamp,
-        });
-      } catch (err) {
-        logWarn(`principle recording failed: ${err.message || err}`);
-      }
+    // (Until 3.0 the chatbot builder's chat_turn kind skipped this; it left
+    // with the chatbot factory.)
+    try {
+      recordInferenceOutcome({
+        caller_ref: payload.caller_ref,
+        inputs: payload.inputs,
+        envelope,
+        durationMs,
+        model,
+        fulfiller: fulfillerStamp,
+      });
+    } catch (err) {
+      logWarn(`principle recording failed: ${err.message || err}`);
     }
 
     try {

@@ -29,7 +29,14 @@ describe('get_worked_example — the transcript drawer', () => {
     const { content } = await workedExampleHandler({ paradigm: 'spaceship' });
     const text = content[0].text;
     expect(text).toContain('next:');
-    expect(text).toContain('bot');
+    expect(text).toContain('connected-service');
+  });
+
+  it("'bot' names where the chatbot factory went instead of a trace", async () => {
+    const { BOT_FACTORY_MOVED } = await import('@/lib/mcp/bot-factory-moved');
+    expect(WORKED_EXAMPLE_PARADIGMS).not.toContain('bot');
+    const { content } = await workedExampleHandler({ paradigm: 'bot' });
+    expect(content[0].text).toContain(BOT_FACTORY_MOVED);
   });
 
   it('HONESTY GATE: every `tool_name(...)` mention in every trace resolves in the live registry', async () => {

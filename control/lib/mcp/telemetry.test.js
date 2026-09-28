@@ -398,7 +398,7 @@ describe('McpToolCallRepository.orientationGaps — the dead-end-clue cut', () =
     record({ tool: 'forward_context', sessionId: 's2', signal: { mode: 'studio' } });
     // s3: legacy signal-less forward_context row defaults to office.
     record({ tool: 'forward_context', sessionId: 's3' });
-    record({ tool: 'start_new_bot', sessionId: 's3' });
+    record({ tool: 'install_scaffold', sessionId: 's3' });
     // Non-routing semantic_search opens no pending read.
     record({
       tool: 'semantic_search',
@@ -422,10 +422,10 @@ describe('McpToolCallRepository.orientationGaps — the dead-end-clue cut', () =
       tool: null,
       count: 1,
     });
-    // s3's legacy signal-less read labels as office and hops to start_new_bot.
+    // s3's legacy signal-less read labels as office and hops to install_scaffold.
     expect(gaps.firstHops).toContainEqual({
       after: 'forward_context[office]',
-      tool: 'start_new_bot',
+      tool: 'install_scaffold',
       count: 1,
     });
   });

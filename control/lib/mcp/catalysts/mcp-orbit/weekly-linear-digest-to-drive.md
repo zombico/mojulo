@@ -36,10 +36,10 @@ The operator wants a recurring, lightweight read-out of issue-tracker activity i
 
 ### Step 1 — Read mojulo's substantial anchors
 
-The substantial side of this catalyst is mojulo's own state, not the bot anatomy that bot catalysts get to lean on. Read it first, before touching either MCP.
+The substantial side of this catalyst is mojulo's own state. Read it first, before touching either MCP.
 
 1. `meta_context_brief({ scope: { kind: 'fleet' } })` — pulls the operator anchor, current inventory, and the contextmap subgraph in one call.
-2. **Check `inventory.ageSeconds`.** If `> 604800` (one week), ask the user to re-declare via `meta_context_declare_inventory` before continuing. Inventory IS the schema for this catalyst; stale inventory is the equivalent of a stale bot config.
+2. **Check `inventory.ageSeconds`.** If `> 604800` (one week), ask the user to re-declare via `meta_context_declare_inventory` before continuing. Inventory IS the schema for this catalyst; stale inventory means composing against tools that may be gone.
 3. **Check prior materializations of this catalyst.** Call `meta_context_brief({ scope: { kind: 'catalyst', ref: 'weekly-linear-digest-to-drive' } })`. If a prior artifact exists for this operator:
    - Same destination doc → likely duplicate. Confirm with the user before re-materializing; offer to *update* the existing artifact instead.
    - Different destination doc → ask whether this is a replacement or a parallel digest (latter usually means a different team).
@@ -116,29 +116,27 @@ This catalyst's payload to the adapter is: the source query, the destination res
 
 ### Step 8 — Seal the materialization
 
-After the artifact is on disk / in the host substrate:
+After the artifact is on disk / in the host substrate, bind each MCP the artifact calls with `bind_primitives` (one call per primitive slot, `role: 'source'` or `'destination'`; each returns a `prov_…` ref), then seal:
 
 ```jsonc
 meta_context_commit({
-  type: 'artifact_materialization',
+  type: 'primitive_artifact_materialization',
   adapter_id: '<bound adapter>',
   artifact: { locator: '<…>', label: 'Weekly Linear digest → Drive' },
-  // bot_ref omitted — this artifact runs against MCP inventory, not a bot.
-  catalyst_ref: 'weekly-linear-digest-to-drive',
-  bindings: [
-    { mcp_tool: 'linear.list_issues', fields_bound: ['updated_at', 'team', 'status'] },
-    { mcp_tool: 'gdrive.create_file', fields_bound: ['title', 'body'] }
-  ],
+  composition_intent: 'Weekly digest of the past 7 days of Linear issues, grouped by team, into a Drive doc.',
+  provider_artifact_refs: ['prov_<source>', 'prov_<destination>'],
   principles: [
     {
       scope: 'artifact',
-      body_md: 'Window: past 7 calendar days. Grouping: by team. Quiet mode: skip empty weeks. Destination: <doc URL>.\n\n**Context:** Operator confirmed at synthesis time.\n\n**Applies to:** This artifact only.'
+      body_md: 'Window: past 7 calendar days. Grouping: by team. Quiet mode: skip empty weeks. Destination: <doc URL>.\n\n**Context:** Operator confirmed at synthesis time. Catalyst: weekly-linear-digest-to-drive.\n\n**Applies to:** This artifact only.'
     }
   ]
 })
 ```
 
-**For mcp-orbit catalysts, this commit IS the audit chain.** There's no `verify_chain` because there's no bot turn history; the only durable record of *why this skill exists and what it's configured to do* is this commit. **Don't skip it.** If the commit fails, roll the artifact back via the adapter's own affordance (delete the SKILL.md / cancel the automation).
+(Until 3.0 this step named `artifact_materialization`, which required a deployed bot and never sealed an MCP-only artifact; that commit type left with the chatbot factory.)
+
+**For mcp-orbit catalysts, this commit IS the audit chain.** The only durable record of *why this skill exists and what it's configured to do* is this commit. **Don't skip it.** If the commit fails, roll the artifact back via the adapter's own affordance (delete the SKILL.md / cancel the automation).
 
 ## Pitfalls
 

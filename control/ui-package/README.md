@@ -27,7 +27,6 @@ when it is installed beside mojulo at the same version, and otherwise downloads 
   even when the proxy rewrites Host to 127.0.0.1.
 - It reads and writes the same places as the MCP server: `$MOJULO_HOME` (default `~/.mojulo`).
 - It opens your default browser on start unless you pass `--no-open`.
-- It ships the bot runtime template (`lite-template/`) that the bot preview routes serve.
 
 It was split out of the `mojulo` package in 2.2.0, so an agent's `npx mojulo` start no longer
 downloads the Next.js build. Source: [control/ui-package](https://github.com/zombico/mojulo/tree/main/control/ui-package).
