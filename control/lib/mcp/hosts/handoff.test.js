@@ -23,21 +23,22 @@ describe('handoffFor', () => {
     expect(n.verified).toBe('field');
   });
 
-  // cdn-default: the regression the flip exists for. Before it, the CSP advisory rode inside
-  // the over-budget branch, so a page that FITS the 16 MiB door — the overwhelmingly common
-  // case — was waved through and then rendered black behind the host's `script-src`. Size and
-  // CSP are independent facts about the door and each gets its own caveat.
-  it('claude-code + an inline-script page that FITS: the CSP caveat fires on size alone being fine', () => {
-    const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, name: 'world.offline.html', bytes: 2 * 1024 * 1024, inlineScripts: true } });
-    expect(n.next).toMatch(/publish world\.offline\.html/);
+  // The CSP advisory once rode inside the over-budget branch, so a page that FITS the 16 MiB
+  // door — the overwhelmingly common case — was waved through and then rendered black behind the
+  // host's `script-src`. Size and CSP are independent facts about the door and each gets its own
+  // caveat. The inline page is the default export since 2.2, so this is the common case again.
+  it('claude-code + the default inline-script page that FITS: the CSP caveat fires on size alone being fine', () => {
+    const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, bytes: 2 * 1024 * 1024, inlineScripts: true } });
+    expect(n.next).toMatch(/publish world\.html/);
     expect(n.caveats[0]).toMatch(/refuses at ANY size/);
     expect(n.caveats[0]).toMatch(/cdn\.jsdelivr\.net\/npm\//);
+    expect(n.caveats[0]).toMatch(/re-export with `cdn: true` and publish world\.cdn\.html/);
     // it fits, so NO byte caveat rides along
     expect(n.caveats.join(' ')).not.toMatch(/over this host's page limit/);
   });
 
-  it('claude-code + the default CDN page that fits: no CSP caveat at all', () => {
-    const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, bytes: 2 * 1024 * 1024 } });
+  it('claude-code + the cdn: true page that fits: no CSP caveat at all', () => {
+    const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, name: 'world.cdn.html', bytes: 2 * 1024 * 1024 } });
     expect(n.caveats.join(' ')).not.toMatch(/CSP|ANY size/);
   });
 
@@ -103,10 +104,10 @@ describe('handoffFor', () => {
   it('unknown host: the generic file:// sentence and the loopback caveat', () => {
     const n = handoffFor({ host: null, artifact: PAGE });
     expect(n.door).toBeNull();
-    // cdn-default: the default page needs the network for its three.js, so the generic sentence
-    // no longer promises otherwise; the self-contained build is the one that keeps that promise.
-    expect(n.next).toBe('the page is at /box/outcomes/sk_x/world.html; it opens straight from file:// — needs the network for three.js (`cdn: false` writes the self-contained page)');
-    const offline = handoffFor({ artifact: { ...PAGE, name: 'world.offline.html', inlineScripts: true } });
+    // A page without inline scripts is the `cdn: true` build: it needs the network for its
+    // three.js, so the generic sentence says so; the default self-contained page keeps the promise.
+    expect(n.next).toBe('the page is at /box/outcomes/sk_x/world.html; it opens straight from file:// — needs the network for three.js (the default, `cdn: false`, writes the self-contained world.html)');
+    const offline = handoffFor({ artifact: { ...PAGE, inlineScripts: true } });
     expect(offline.next).toMatch(/no server, no network$/);
     expect(n.caveats).toEqual(['/outcomes/sk_x/world.html is reachable only from the machine mojulo runs on']);
     expect(handoffFor({ host: 'no-such-host', artifact: GLB }).next).toBe('the file is at /box/outcomes/sk_x/model.glb');

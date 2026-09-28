@@ -63,14 +63,13 @@ export function fitsBudget(bytes, budget) {
 // bundle writes one); `inlineScripts` marks a page whose scripts are inline `data:` modules,
 // which a CSP page door refuses regardless of size (see the 'artifact' case).
 
-// "no server, no network" is only true of the SELF-CONTAINED build, and since cdn-default that is
-// no longer the default page — the default fetches three.js from the pinned CDN. Every door that
-// tells the operator to open the page from file:// has to say which of the two it is holding, or
-// mojulo makes the same promise the flip exists to stop making. `inlineScripts` is the marker the
-// export attaches; a page without it needs the network for its three.js.
+// "no server, no network" is only true of the SELF-CONTAINED build (the default page). Every door
+// that tells the operator to open the page from file:// has to say which of the two it is holding.
+// `inlineScripts` is the marker the export attaches; a page without it is the `cdn: true` build and
+// needs the network for its three.js.
 const fromDisk = (a) => (a.inlineScripts
   ? ' — no server, no network'
-  : ' — needs the network for three.js (`cdn: false` writes the self-contained page)');
+  : ' — needs the network for three.js (the default, `cdn: false`, writes the self-contained world.html)');
 
 function pageSentence(door, row, a, caveats) {
   const size = a.bytes != null ? ` (${fmtBytes(a.bytes)})` : '';
@@ -80,15 +79,15 @@ function pageSentence(door, row, a, caveats) {
     case 'artifact': {
       const cap = row.pageMaxBytes ? `, ≤ ${fmtBytes(row.pageMaxBytes)}` : '';
       // An artifact door runs a CSP: scripts come from its allowlisted CDNs, never from an
-      // inline `data:` module. That is a fact about the DOOR, not about the page's size, so it
-      // cannot ride inside the over-budget branch the way it did before cdn-default — a page
-      // that fits the ceiling perfectly is exactly the page that used to be waved through and
-      // then render black. `handoff.box.cdns` has been on the profile since 2.0.8; this reads it.
+      // inline `data:` module. That is a fact about the DOOR, not about the page's size, so it is
+      // raised whether or not the page fits — a page that fits the ceiling perfectly still renders
+      // black. The default export is the inline build, so on this door the agent asks for the CDN
+      // one. `handoff.box.cdns` has been on the profile since 2.0.8; this reads it.
       if (a.inlineScripts && Array.isArray(row.cdns) && row.cdns.length) {
-        caveats.push(`${a.name} carries three.js as inline \`data:\` modules, which this host's page CSP refuses at ANY size (it allows ${row.cdns.join(', ')}): re-export at the default (drop \`cdn: false\`) and publish the CDN build, or the page loads and nothing draws`);
+        caveats.push(`${a.name} carries three.js as inline \`data:\` modules, which this host's page CSP refuses at ANY size (it allows ${row.cdns.join(', ')}): re-export with \`cdn: true\` and publish world.cdn.html, or the page loads and nothing draws`);
       }
       const fit = fitsBudget(a.bytes, row.pageMaxBytes);
-      if (!fit.fits) caveats.push(`${a.name} is ${fmtBytes(a.bytes)}, over this host's page limit by ${fmtBytes(fit.over_by)}: lighten the recipe (the CDN build already keeps ~1 MB of three.js off the page)`);
+      if (!fit.fits) caveats.push(`${a.name} is ${fmtBytes(a.bytes)}, over this host's page limit by ${fmtBytes(fit.over_by)}: lighten the recipe${a.inlineScripts ? ', or re-export with `cdn: true`, which keeps ~1 MB of three.js off the page' : ''}`);
       return `publish ${a.name}${size} with your Artifact tool (one HTML page${cap}); the operator opens it on claude.ai`;
     }
     case 'mcp-app':

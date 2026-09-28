@@ -268,6 +268,16 @@ loops and the recipe format are unchanged.
   to the plugin. `version` and `check_for_updates` report the distribution. A test renders every
   hint under `MOJULO_DISTRIBUTION=claude-plugin` and requires `mojulo@<version>`.
 
+- **Exported World pages are self-contained again; the CDN build is opt-in.** Since 2.0.9
+  `export_model({ format: 'html' })` and `export_game`'s web pages loaded three.js from
+  cdn.jsdelivr.net by default, so opening an export contacted a third party. The default is now
+  the self-contained page (three.js inlined from the vendored copy, about 1 MB more), written as
+  `world.html`, which opens from `file://` and contacts no server. `cdn: true` writes
+  `world.cdn.html` with the pinned jsdelivr importmap, the one form an artifact host's page CSP
+  runs; the Claude Code adapter card and the handoff note tell the agent on that host to ask for
+  it. `world.offline.html` is gone (the default build took the plain name), and the bundle zips
+  the file it wrote on disk.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level
