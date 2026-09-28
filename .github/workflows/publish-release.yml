@@ -18,6 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The tag, control/package.json, the Claude plugin's pin, glama.json and server.json must
+      # all name one version before anything is released.
+      - name: Check the manifests pin the tagged version
+        run: node control/scripts/check-plugin-version.mjs --expect "${GITHUB_REF_NAME#v}"
+
       - name: Slice changelog section
         id: slice
         run: |

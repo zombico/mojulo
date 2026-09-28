@@ -242,6 +242,18 @@ loops and the recipe format are unchanged.
   tesseract.js, which fetches OCR language data at runtime, and more than doubles the install
   (62 MB to 142 MB). It is loaded only for DOCX, PPTX and XLSX uploads.
 
+### Directory listing and disclosure
+
+- **The Claude plugin runs `npx -y mojulo@2.2.0`, and the version is checked.** The plugin sat at
+  2.0.1 with an unpinned `npx -y mojulo` while npm shipped 2.1.0; the plugin directory refuses an
+  unpinned launcher. `plugin.json` now pins the package, carries `displayName` and sets
+  `MOJULO_DISTRIBUTION=claude-plugin` for the server; `glama.json` pins the same version and the
+  marketplace entry no longer carries a version of its own. `scripts/check-plugin-version.mjs`
+  fails when `plugin.json`, `glama.json` or `server.json` names a version other than
+  `package.json`'s, or when a pull request changes `plugins/mojulo/` without raising the plugin's
+  version (Claude Code caches an installed plugin by it). CI runs it on every push and pull
+  request, and the release workflow checks it against the tag.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level
