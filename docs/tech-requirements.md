@@ -283,7 +283,11 @@ source of truth for what follows:
   opened, saved its zip (operator-confirmed); that page is now the export's folder page, recorded on
   the profile as `downloadExtensions: ["html"]`. Opened inside the Library's own viewer, the page's
   Saves do nothing; downloaded and opened on the Mac, Save-all delivered a zip byte-identical to the
-  export (2026-09-28), so the page carries a static "download this page first" notice. Whether a saved Artifacts page may offer a download
+  export (2026-09-28), so the page carries a static "download this page first" notice. The same day
+  Muse installed the branch tarball on its VM in a separate `MOJULO_HOME` and ran it with
+  `MOJULO_HOST=muse`: `orient` listed the profile, `get_adapter` returned the muse card, and the html,
+  `cdn: true` and bundle exports returned exactly the save-to-Artifacts and copy-the-folder-page notes
+  above; the default `world.html` rendered from `file://` in the VM's Chromium. Whether a saved Artifacts page may offer a download
   is untested.
 - **docs** — read from the host's own documentation (2026-09-22): Claude Code on the web (one
   self-contained page ≤ 16 MiB through the Artifact tool, a download allowlist that carries `zip`
