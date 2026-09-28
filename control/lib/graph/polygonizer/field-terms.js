@@ -33,6 +33,8 @@ import { noise3, noise3Amplitude } from './fields.js';
 import { parseFieldExpr, compileFieldExpr, validateExprVars, sampleExprGate, FieldExprError } from './field-expr.js';
 import { rockField, validateRockSpec } from './rock-fracture.js';
 import { validateRockMix } from './rock-minerals.js';
+import { crystalPlacements, validateCrystalShape } from './crystal-faces.js';
+import { crystalPolytope } from './crystal-optics.js';
 
 // ─── small vector kit ({x,y,z} objects; recipe points may also be [x,y,z]) ─────────
 
@@ -280,6 +282,20 @@ export function rockTerm(shape) {
   return t;
 }
 
+/**
+ * `{ kind:'crystal', gem, center, size, cut?, axis?, spin?, cluster? }` — a gem (crystal-faces.js). As a term it is the
+ * union of its stones' half-space polytopes (max of the plane distances: a bound with the right sign), so bounds and
+ * probes see it; `fieldToFaces` does not polygonize it — a crystal is placed as its exact faces beside the field.
+ */
+export function crystalTerm(shape) {
+  const stones = crystalPlacements(shape).map((pl) => { const p = crystalPolytope(shape.gem, { size: pl.size, cut: shape.cut || 'natural' });
+    const planes = p.planes.map((q) => { const n = [0, 1, 2].map((i) => pl.R[i][0] * q.n[0] + pl.R[i][1] * q.n[1] + pl.R[i][2] * q.n[2]); return { n, d: q.d + n[0] * pl.center[0] + n[1] * pl.center[1] + n[2] * pl.center[2] }; });
+    const V = p.vertices.map((v) => [0, 1, 2].map((i) => pl.R[i][0] * v[0] + pl.R[i][1] * v[1] + pl.R[i][2] * v[2] + pl.center[i])); return { planes, V }; });
+  const all = stones.flatMap((st) => st.V); const lo = [0, 1, 2].map((k) => Math.min(...all.map((v) => v[k]))), hi = [0, 1, 2].map((k) => Math.max(...all.map((v) => v[k])));
+  return term((p) => { let best = Infinity; for (const st of stones) { let m = -Infinity; for (const q of st.planes) { const dd = q.n[0] * p.x + q.n[1] * p.y + q.n[2] * p.z - q.d; if (dd > m) m = dd; } if (m < best) best = m; } return best; },
+    { min: vec(lo), max: vec(hi) });
+}
+
 export function exprField(shape) {
   const ast = parseFieldExpr(shape.d);
   const raw = compileFieldExpr(ast, shape.vars || {}, shape.d);
@@ -495,7 +511,7 @@ export const FIELD_DOMAIN_OPS = Object.freeze(['transform', 'repeat', 'twist', '
 const DOMAIN_OP_FN = { transform: transformSolid, repeat: repeatSolid, twist: twistSolid, bend: bendSolid, taper: taperSolid, elongate: elongateSolid };
 const COMBINES = ['add', 'subtract', 'intersect'];
 
-export const FIELD_SHAPE_KINDS = Object.freeze(['sphere', 'ellipsoid', 'roundCone', 'box', 'capsule', 'lathe', 'extrude', 'sweep', 'expr', 'rock']);
+export const FIELD_SHAPE_KINDS = Object.freeze(['sphere', 'ellipsoid', 'roundCone', 'box', 'capsule', 'lathe', 'extrude', 'sweep', 'expr', 'rock', 'crystal']);
 export const FIELD_OPS = Object.freeze(['add', 'subtract', 'intersect', 'stroke', 'displace', 'shell', 'round', ...FIELD_DOMAIN_OPS]);
 
 /** Build a primitive term from a recipe `shape` (`{ kind, …params }`). Throws on an unknown kind. */
@@ -511,6 +527,7 @@ export function shapeFromSpec(shape) {
     case 'sweep': return sweepField(shape);
     case 'expr': return exprField(shape);
     case 'rock': return rockTerm(shape);
+    case 'crystal': return crystalTerm(shape);
     default: throw new Error(`field shape kind must be one of ${FIELD_SHAPE_KINDS.join(' | ')}`);
   }
 }
@@ -550,6 +567,7 @@ function validateShape(shape, at) {
     }
     case 'expr': e.push(...validateExprShape(shape, at)); break;
     case 'rock': needPt('center'); e.push(...validateRockMix(shape.rock, `${at}.rock`), ...validateRockSpec(shape, at)); break;
+    case 'crystal': e.push(...validateCrystalShape(shape, at)); break;
     default: break;
   }
   return e;

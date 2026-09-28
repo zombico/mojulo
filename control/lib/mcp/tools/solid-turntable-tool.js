@@ -17,7 +17,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { planSolidTurntable, SOLID_SHAPES, SOLID_SURFACES } from '@/lib/graph/worlds/solid-turntable';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSeconds, lod, viewBox, ref, folderRef } = {}) {
+export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSeconds, lod, viewBox, gem, cut, size, glow, ref, folderRef } = {}) {
   const manifest = {
     kind: 'css3d-turntable',
     shape: SOLID_SHAPES.includes(shape) ? shape : 'sphere',
@@ -28,6 +28,11 @@ export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSec
     ...(lod ? { lod } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(title ? { title } : {}),
+    // shape 'crystal': the gem, its cut, its size in cm (crystal-turntable.js); stored only when given
+    ...(shape === 'crystal' && typeof gem === 'string' ? { gem } : {}),
+    ...(shape === 'crystal' && typeof cut === 'string' ? { cut } : {}),
+    ...(shape === 'crystal' && Number.isFinite(+size) && +size > 0 ? { size: +size } : {}),
+    ...(shape === 'crystal' && Number.isFinite(+glow) && +glow > 0 ? { glow: Math.min(1, +glow) } : {}),
   };
 
   // Resolve once to validate the recipe is renderable + return a face-count readout (no
@@ -47,7 +52,7 @@ export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSec
     sceneUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/scene`,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     recipe: manifest,
-    stats: { shape: plan.shape, surface: plan.surface, faces: plan.faces.length },
+    stats: { shape: plan.shape, surface: plan.surface, faces: plan.faces.length, ...(plan.crystal ? { gem: plan.crystal.gem, cut: plan.crystal.cut } : {}) },
   };
 }
 
@@ -55,8 +60,8 @@ export async function createSolidTurntableHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_solid_turntable requires a recipe object');
   }
-  const { title, shape, color, surface, tilt, spin_seconds: spinSeconds, lod, viewBox, ref, folder_ref: folderRef } = input;
-  return mintSolidTurntable({ title, shape, color, surface, tilt, spinSeconds, lod, viewBox, ref, folderRef });
+  const { title, shape, color, surface, tilt, spin_seconds: spinSeconds, lod, viewBox, gem, cut, size, glow, ref, folder_ref: folderRef } = input;
+  return mintSolidTurntable({ title, shape, color, surface, tilt, spinSeconds, lod, viewBox, gem, cut, size, glow, ref, folderRef });
 }
 
 export function registerSolidTurntableTools() {

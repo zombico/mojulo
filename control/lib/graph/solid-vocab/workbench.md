@@ -229,6 +229,25 @@ Distance honesty: an expression is a FIELD with the right sign; it is an exact d
 units: 'cm', fields: [{ cells: 96, terms: [{ id: 'rock', op: 'add', shape: { kind: 'rock', center: [0,0,0], size: 12, rock: 'granite', seed: 7 } }] }]
 ```
 
+### Fields — crystals
+
+`{ kind:'crystal', gem, center, size, cut?, axis?, spin?, unit?, glow?, cluster? }` is a gem, and it is PLACED, not blended: its faces are its lattice's planes (an exact polytope from the mineral's cell and point group), so the stone sits beside the rest of the field as its own exact solid and ops after it do not touch it. Every face carries a `crystal` tag. The World page shades it live (the crystal channel: glints, fire from three refracted wavelengths, total internal reflection, colour by how far light travels in the stone, dichroism, glow, opal's flashes), draws the light it throws on the surface under it (its print: shadow and caustic), and the `.glb` exports it as a transmissive material (KHR transmission, ior, volume, dispersion).
+
+- `gem` — `quartz`, `amethyst`, `calcite`, `diamond`, `ruby`, `sapphire`, `tourmaline`, `opal`. `cut` — `natural` (the habit: quartz's pointed prism, calcite's rhomb, diamond's octahedron, corundum's barrel, tourmaline's trigonal prism; opal, amorphous, is a cabochon), `brilliant`, `cabochon`.
+- `size` — the longest extent in the manifest's units; `unit` (`'cm'` by default, `'m'` / `'mm'`) says what a unit is, so a thin ruby path is pink and a long one red. `axis` — where the c axis points (default up); `spin` — degrees about it.
+- `glow` (0–1) — the stone shines in its own colour whatever its optics say (a ruby glows by nature; this is the dial for a game's glowing geode), and spills a pool of that colour on the surface it grew from.
+- `cluster: { count, seed, on, lengths:[min, max], tilt?, bury? }` — a seeded druse instead of one stone: `on: { disc: { center, radius, normal? } }` grows them from a bed; `on: { ellipsoid: { center, radii, zMax? } }` lines a cavity's inner wall, growing inward (a geode). Lengths follow a power law: many small, a few large.
+
+```
+units: 'cm', fields: [{ cells: 90, terms: [
+  { id: 'shell', op: 'add', shape: { kind: 'ellipsoid', center: [0,0,0], radii: [12, 10.8, 9] } },
+  { id: 'cavity', op: 'subtract', shape: { kind: 'ellipsoid', center: [0,0,0], radii: [9.8, 8.8, 7.2] } },
+  { id: 'open', op: 'subtract', shape: { kind: 'box', center: [0,0,10], size: [40, 40, 20] } },
+  { id: 'lining', op: 'add', shape: { kind: 'crystal', gem: 'amethyst', size: 3, glow: 0.55,
+      cluster: { count: 200, seed: 9, on: { ellipsoid: { center: [0,0,0], radii: [9.6, 8.6, 7], zMax: -0.6 } }, lengths: [0.7, 3.6] } } },
+  { id: 'heart', op: 'add', shape: { kind: 'crystal', gem: 'ruby', center: [0.5, -0.5, -5.2], size: 2.6 } } ] }]
+```
+
 ### Fields — domain operators
 
 Ops, not shapes: they apply to whatever the term list has built so far, or — with a nested `terms` list — to a SUB-SOLID that is then combined in (`combine: 'add' | 'subtract' | 'intersect'`, default `add`, with `blend`). That is how a feature is repeated without repeating the part: the bolt circle is ONE bore, repeated, subtracted. Group ids survive (every instance of the bore is still `bore`, and a `transform` moves the group with the geometry), so `{ group: 'bore' }` still selects every hole. Warps act about the ORIGIN / the axis line through it: author the sub-solid there, then `transform` it into place.

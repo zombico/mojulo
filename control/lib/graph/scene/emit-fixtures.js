@@ -208,6 +208,11 @@ export const EMIT_FIXTURES = [
   // the channels.contract.test.js provides check (channel-registry-formalization amendment).
   ['specular', { faces: [floor(), { ...quad('#8899aa'), spec: [0.8, 24] }], light: { toLight: [0.4, -0.5, 0.75] } }],
 
+  // crystal channel (crystal-shine S4): faces tagged `crystal` gate the live crystal response (and __mojCrystal); the
+  // stone is a small tetrahedron resting on the floor, so its print is traced into the block too.
+  ['crystal', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
+    .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'diamond', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0, 1], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] } }],
+
   ['fog', { faces: [floor()], fog: FOG }],
   // effects[] (U3): stacked raymarch overlays. `effects` alone (live); `fog-effects` co-resident +
   // capture (pins the fog quad + effect quad + the frame() __mojClock overlay-clock pin together).

@@ -25,6 +25,7 @@
  */
 
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear } from '../figures/face-mesh.js';
+import { shineOptics } from '../polygonizer/crystal-shine.js';
 import { inkBake, inkGeoNormals, inkCentroid } from './ink-geometry.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
@@ -386,6 +387,29 @@ class GlbBuilder {
         mat.extensions = { ...(mat.extensions || {}), KHR_materials_emissive_strength: { emissiveStrength } };
       }
     }
+    this.json.materials.push(mat);
+    return this.json.materials.length - 1;
+  }
+
+  // A crystal (crystal-shine S6): a clear dielectric carried by the standard extensions an engine's importer reads —
+  // KHR_materials_transmission, _ior, _volume (thickness + the stone's colour after a path), _dispersion (20/V), and
+  // emissive for a glow; an opal is an opaque body with KHR_materials_iridescence instead. Each extension is declared
+  // once, only when a crystal is exported.
+  crystalMaterial({ name, optics, thickness = 1, unitsPerCm = 1 }) {
+    const declare = (ext) => { this.crystalExts ||= new Set(); if (!this.crystalExts.has(ext)) { this.crystalExts.add(ext); this.json.extensionsUsed.push(ext); } };
+    const opal = !!optics.photonic; const ext = {};
+    const mat = { name, doubleSided: false, pbrMetallicRoughness: { baseColorFactor: opal ? [0.012, 0.013, 0.018, 1] : [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: opal ? 0.1 : 0.02 } };
+    if (opal) { declare('KHR_materials_iridescence'); ext.KHR_materials_iridescence = { iridescenceFactor: 1, iridescenceIor: optics.photonic.nEff, iridescenceThicknessMinimum: 200, iridescenceThicknessMaximum: 600 }; }
+    else {
+      declare('KHR_materials_transmission'); declare('KHR_materials_ior'); declare('KHR_materials_volume');
+      const nD = optics.nD, V = optics.abbe;                                    // the D line and the Abbe number, as glTF means them
+      const att = optics.colour.o[2].map((c) => +Math.max(0.002, Math.min(1, c)).toFixed(4));   // white light after 1 cm
+      ext.KHR_materials_transmission = { transmissionFactor: 1 }; ext.KHR_materials_ior = { ior: +nD.toFixed(4) };
+      ext.KHR_materials_volume = { thicknessFactor: +thickness.toFixed(5), attenuationDistance: +unitsPerCm.toFixed(5), attenuationColor: att };
+      const disp = +(20 / V).toFixed(4); if (disp > 0) { declare('KHR_materials_dispersion'); ext.KHR_materials_dispersion = { dispersion: disp }; }
+    }
+    if (optics.glow && optics.glow.strength > 0) mat.emissiveFactor = optics.glow.rgb.map((c) => +(c * Math.min(1, optics.glow.strength)).toFixed(4));
+    mat.extensions = ext;
     this.json.materials.push(mat);
     return this.json.materials.length - 1;
   }
@@ -1002,7 +1026,13 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // pair; everything else keeps the unlit path. No pbr faces → identical export to today.
     const pbrBuckets = new Map();
     const plain = [];
+    // crystal faces (crystal-shine S6): one `<group>:crystal` node per gem variant, a transmissive material; no crystal
+    // faces → this map stays empty and the export is byte-identical
+    const crystalBuckets = new Map();
     for (const f of fs) {
+      if (f && f.crystal && typeof f.crystal.gem === 'string') {
+        const k = f.crystal.glow ? `${f.crystal.gem}~${f.crystal.glow}` : f.crystal.gem; (crystalBuckets.get(k) || crystalBuckets.set(k, []).get(k)).push(f); continue;
+      }
       // textured faces stay on the texture path (a label wrap outranks its material)
       if (f && Array.isArray(f.pbr) && f.pbr.length >= 2 && typeof f.texture !== 'string') {
         // an emissive face (`emissive: [r,g,b]`, `emissiveStrength`) is its own bucket + material
@@ -1019,6 +1049,14 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (gm.positions.length) {
       const mat = b.surfaceMaterial({ alpha: groupAlpha, name });
       tally(b.addNode(name, gm.positions, gm.colors, 3, mat, undefined, gm.normals));
+    }
+    let cryIdx = 0;
+    for (const [key, bucket] of crystalBuckets) {
+      const bm = faceListToMesh(bucket.map(({ crystal, ...f }) => ({ ...f, fill: '#ffffff', cornerFills: undefined, vao: undefined })), { decollide: false, withNormals: true });
+      if (!bm.positions.length) continue;
+      const k = bucket[0].crystal; const nodeName = crystalBuckets.size > 1 ? `${name}:crystal${cryIdx++}` : `${name}:crystal`;
+      const mat = b.crystalMaterial({ name: nodeName, optics: shineOptics(key), thickness: 2 * (k.r || 1), unitsPerCm: 1 / (Number.isFinite(k.cmu) && k.cmu > 0 ? k.cmu : 1) });
+      tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));   // COLOR_0 white: glTF multiplies it into the glass
     }
     let pbrIdx = 0, emIdx = 0;
     for (const [, bucket] of pbrBuckets) {

@@ -650,8 +650,13 @@ def is_mojulo_material(mat_iface):
 def is_emissive_slot(mat_iface):
     """A GLB material named '<group>:emissive' (a pot-light lens): Interchange's own
     import of it carries the emissive factor + strength, which the mojulo masters
-    do not — so the swap leaves it alone and the verify pass counts it as kept."""
-    return mat_iface is not None and 'emissive' in mat_iface.get_name().lower()
+    do not — so the swap leaves it alone and the verify pass counts it as kept.
+    A '<group>:crystal' slot (crystal-shine) is kept the same way: its transmission,
+    ior, volume and dispersion ride Interchange's import, not the vertex-colour masters."""
+    if mat_iface is None:
+        return False
+    n = mat_iface.get_name().lower()
+    return 'emissive' in n or ':crystal' in n
 
 
 def is_ink_slot(mat_iface):

@@ -56,6 +56,9 @@ import {
 import { xrModeScript } from './channels/xr.js';
 import { streamChannelScript } from './channels/stream.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
+import { crystalChannelScript } from './channels/crystal.js';
+import { crystalPrintsFor, crystalGlowPools, crystalSun } from './crystal-prints.js';
+import { shineOptics } from '../polygonizer/crystal-shine.js';
 
 
 // horizontal fov (deg) + aspect → vertical fov (deg) for THREE.PerspectiveCamera
@@ -363,7 +366,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const ink = im && im.positions.length ? { pos: b64(im.positions), ...(im.normals ? { nrm: b64(im.normals) } : {}) } : null;
     // per-vertex specular params (faces tagged `spec` by a material) — the key is only present
     // when the group carries them, so material-free scenes serialize byte-identically.
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}) };
+    // per-vertex crystal data (crystal-shine S4) — the key is only present when the group carries a crystal face
+    const cryFace = gm.crys ? fs.find((f) => f && f.crystal) : null;
+    const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}) };
   });
   const hasTextures = groups.some((g) => g.tex.length);
   // Any single-sided (bound-mesh) group? Only then does the render script reference
@@ -705,10 +711,18 @@ scene.add(__eQuad${i});
   // bounding radius (`widthAbs` = world units instead); `crease` the EdgesGeometry angle.
   const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg) : '';
 
+  // crystal (crystal-shine S4): emitted only when some group carries crystal faces — the live response for those
+  // groups, and each stone's print traced once here (crystal-prints.js). Absent → zero bytes.
+  const cryGroups = groups.filter((g) => g.crystal);
+  const crystalBlock = cryGroups.length ? (() => {
+    const toL = crystalSun(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight);
+    const gems = Object.fromEntries([...new Set(cryGroups.flatMap((g) => g.crystal.gems))].map((name) => [name, shineOptics(name)]));
+    return crystalChannelScript({ toLight: toL, gems, prints: crystalPrintsFor(expanded, toL), pools: crystalGlowPools(expanded), ambient: light && Number.isFinite(light.ambient) ? light.ambient : 0.4 });
+  })() : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
-    splats: splatBlock, toon: toonBlock,
+    splats: splatBlock, toon: toonBlock, crystal: crystalBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
   };
 

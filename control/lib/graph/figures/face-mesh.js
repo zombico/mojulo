@@ -431,6 +431,18 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
   const hasSpec = faces.some((f) => f && Array.isArray(f.spec) && f.spec.length >= 2);
   const specs = hasSpec ? [] : null;
   const pushSpec = (f, n) => { if (!specs) return; const s = Array.isArray(f.spec) ? f.spec : null; for (let i = 0; i < n; i++) specs.push(s ? s[0] : 0, s ? s[1] : 1); };
+  // Per-vertex crystal data (crystal-shine S4): a face tagged `crystal: { gem, c, r, axis }` contributes its
+  // stone's centre and radius, its c axis and a slot into this mesh's own gem list, so the World's crystal channel
+  // can shade it live. Packed ONLY when some face is a crystal (crys stays null otherwise: byte-identical downstream).
+  // a slot is a gem VARIANT: 'amethyst' or, with the glow dial, 'amethyst~0.5' (the page resolves the variant's optics)
+  const hasCry = faces.some((f) => f && f.crystal && typeof f.crystal.gem === 'string');
+  const cryKey = (k) => (k.glow ? `${k.gem}~${k.glow}` : k.gem);
+  const crys = hasCry ? [] : null; const cryGems = hasCry ? [...new Set(faces.filter((f) => f && f.crystal).map((f) => cryKey(f.crystal)))].sort() : null;
+  const pushCry = (f, n) => {
+    if (!crys) return; const k = f.crystal; const c = k && Array.isArray(k.c) ? k.c : [0, 0, 0], a = k && Array.isArray(k.axis) ? k.axis : [0, 0, 1];
+    const row = k ? [c[0], c[1], c[2], Number.isFinite(k.r) ? k.r : 1, a[0], a[1], a[2], cryGems.indexOf(cryKey(k))] : [0, 0, 0, 0, 0, 0, 1, -1];
+    for (let i = 0; i < n; i++) crys.push(...row);
+  };
   // Faces carrying a `texture` key + per-corner `uv` are split into one mesh group per key (rendered
   // with a MeshBasicMaterial({ map }) by emitThreeWorld — the workbench's label-wrap path). Faces
   // WITHOUT a texture follow the exact path below, so a scene with no textured faces is unchanged.
@@ -509,6 +521,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
           colors.push(lr * a, lg * a, lb * a);
         }
         pushSpec(f, 3);
+        pushCry(f, 3);
         pushNormal(3);
       }
     } else {
@@ -529,6 +542,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
         }
       }
       pushSpec(f, tris.length * 3);
+      pushCry(f, tris.length * 3);
       pushNormal(tris.length * 3);
     }
     for (let i = 0; i < c.length && i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
@@ -564,6 +578,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     normals: normals && normals.length ? Float32Array.from(normals) : null,
     // per-vertex [strength, power] — null unless some face carried `spec`
     specs: specs && specs.length ? Float32Array.from(specs) : null,
+    // per-vertex [cx, cy, cz, r, ax, ay, az, slot] and the gems the slots index — null unless some face is a crystal
+    ...(crys && crys.length ? { crys: Float32Array.from(crys), cryGems } : {}),
     vertexCount: positions.length / 3,
     faceCount: faces.length,
     center,

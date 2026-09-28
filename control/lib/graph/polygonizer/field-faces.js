@@ -26,6 +26,7 @@
  */
 
 import { shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
+import { crystalTermFaces } from './crystal-faces.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import { surfaceNetFaces } from './field-mesh.js';
 import { composeFieldTerms, validateFieldTerms, padBounds } from './field-terms.js';
@@ -84,6 +85,15 @@ export function fieldToFaces(spec = {}, opts = {}) {
   if (spec.exact === true) {
     if (!exactRenderer) throw new Error(`fields '${spec.id || ''}' asks for exact: true but the exact kernel is not loaded — the entry point must await ensureExactKernel() first, and manifold-3d (an optional dependency of mojulo) must be installed`);
     return tagFacesWithMaterial(exactRenderer(spec, opts), opts.material ? resolveMaterial(opts.material) : null);
+  }
+  // crystals (crystal-shine S5): a `crystal` term is PLACED as its exact faces beside the field, never polygonized; the
+  // other terms go on as before. No crystal term → this branch is never taken (byte-identical).
+  if (Array.isArray(spec.terms) && spec.terms.some((t) => t && t.shape && t.shape.kind === 'crystal')) {
+    const rest = spec.terms.filter((t) => !(t && t.shape && t.shape.kind === 'crystal'));
+    const field = rest.some((t) => t && t.op === 'add') ? fieldToFaces({ ...spec, terms: rest }, opts) : [];
+    const gems = spec.terms.filter((t) => t && t.shape && t.shape.kind === 'crystal').flatMap((t, i) => crystalTermFaces(t, { light: opts.light || DEFAULT_LIGHT, index: i }));
+    const moved = Array.isArray(spec.translate) ? gems.map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] + spec.translate[0], c[1] + spec.translate[1], c[2] + spec.translate[2]]), crystal: { ...f.crystal, c: [0, 1, 2].map((k) => f.crystal.c[k] + spec.translate[k]) } })) : gems;
+    return [...field, ...moved];
   }
   const light = opts.light || DEFAULT_LIGHT;
   const mat = opts.material ? resolveMaterial(opts.material) : null;

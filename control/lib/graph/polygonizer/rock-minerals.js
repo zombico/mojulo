@@ -54,6 +54,7 @@ export const POINT_GROUP_GENERATORS = Object.freeze({
   'm-3m': [Rz(Math.PI / 2), [[0, 0, 1], [1, 0, 0], [0, 1, 0]], INV],   // cubic: halite, garnet
   '32': [Rz(2 * Math.PI / 3), Rx(Math.PI)],                           // quartz (no centre)
   '-3m': [Rz(2 * Math.PI / 3), Rx(Math.PI), INV],                      // calcite
+  '3m': [Rz(2 * Math.PI / 3), [[-1, 0, 0], [0, 1, 0], [0, 0, 1]]],     // tourmaline: polar; the mirror ⟂ a makes {10‾10} trigonal
   mmm: [Rx(Math.PI), Ry(Math.PI), INV],                               // orthorhombic: olivine
   '2/m': [Ry(Math.PI), INV],                                           // monoclinic, b unique: micas, feldspar, augite, hornblende
   '-1': [INV],                                                         // triclinic: albite
