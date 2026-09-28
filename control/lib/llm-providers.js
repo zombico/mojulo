@@ -1,13 +1,16 @@
 /**
  * LLM Provider Configurations
- * Shared between ConfigForm and config-builder
+ *
+ * mojulo's one retained caller is mint_solid's prompt door (lib/graph/polygonizer/index.js:
+ * generateStructured, getDefaultModelForTask, LLM_PROVIDERS). The chatbot factory, which used
+ * the rest (the protocol and vision gates, generateSummary), left in 3.0.0 and takes its own copy;
+ * those exports stay here until a retained caller needs them or a cleanup removes them.
  */
 
 /**
  * Providers whose runtime adapter accepts image input on the current user
- * turn. Optical Read and any future vision-using protocol gate themselves
- * against this set — keep it in sync with the adapters in
- * lite-template/helper/llm-client.js.
+ * turn. The chatbot runtime's Optical Read protocol gated itself against this
+ * set (2.x).
  */
 export const VISION_PROVIDERS = new Set(['anthropic', 'openai']);
 

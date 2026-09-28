@@ -5,11 +5,13 @@
 // every outstanding session with no extra bookkeeping.
 //
 // Roles pack Phase 4 (lib/mcp/roles-pack.plan.md): the Edge layer (middleware)
-// verifies signature + expiry ONLY — it cannot reach SQLite. Per-user
-// revocation is checked lazily in the Node runtime (lib/auth/service.js):
-// compare the token's `e` to users.token_epoch — bumping the epoch (revoke)
-// kills all of that user's sessions. Pre-claims tokens fail verification, so
-// upgrading costs each browser one re-login.
+// verifies signature + expiry ONLY — it cannot reach SQLite. The claims carry
+// `e` so a Node-runtime reader can compare it to users.token_epoch (revoke
+// bumps the epoch, killing that user's sessions). The one reader that did,
+// lib/auth/service.js getCurrentUser(), served only the chatbot factory's
+// routes and left with it in 3.0.0; no retained route resolves a delegate from
+// this cookie, so signature + expiry is the whole gate today. Pre-claims
+// tokens fail verification, so upgrading costs each browser one re-login.
 //
 // Web Crypto only — middleware runs on the Edge runtime.
 

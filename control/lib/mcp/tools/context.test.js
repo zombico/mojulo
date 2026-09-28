@@ -554,7 +554,6 @@ describe('workshop pulse (orientation-ramp R1) + craft floor (R5)', () => {
   it('pulse line renders counts, omitting zero segments', () => {
     const body = buildForwardContextBody({
       pulse: {
-        bots: 3,
         sketches: 12,
         stashes: 0,
         cooks: 1,
@@ -563,15 +562,16 @@ describe('workshop pulse (orientation-ramp R1) + craft floor (R5)', () => {
         lastActivityMs: Date.now() - 2 * 86_400_000,
       },
     });
-    expect(body).toContain('Workshop pulse: 3 bots · 12 sketches · 1 open cook · 4 unseen plans');
+    expect(body).toContain('Workshop pulse: 12 sketches · 1 open cook · 4 unseen plans');
     expect(body).toContain('last activity 2d ago');
     const pulseLine = body.split('\n').find((l) => l.includes('Workshop pulse'));
     expect(pulseLine).not.toContain('stash'); // zero-count segments are omitted
+    expect(pulseLine).not.toMatch(/\bbots?\b/); // the bot count left with the chatbot factory (3.0.0)
   });
 
   it('empty workshop renders the first-win variant instead of counts', () => {
     const body = buildForwardContextBody({
-      pulse: { bots: 0, sketches: 0, stashes: 0, cooks: 0, unseenPlans: 0, triggers: 0, lastActivityMs: 0 },
+      pulse: { sketches: 0, stashes: 0, cooks: 0, unseenPlans: 0, triggers: 0, lastActivityMs: 0 },
     });
     expect(body).toContain('Workshop pulse: empty');
     expect(body).toContain('`create_sketch`');
@@ -736,7 +736,7 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.
   const SAMPLE_PULSE = {
-    bots: 12, sketches: 340, stashes: 6, cooks: 4, unseenPlans: 3, triggers: 2,
+    sketches: 340, stashes: 6, cooks: 4, unseenPlans: 3, triggers: 2,
     lastActivityMs: Date.now() - 3 * 86_400_000,
   };
 

@@ -158,7 +158,8 @@ function readWorkshopPulse() {
       const row = db.prepare(sql).get();
       return row && Number.isFinite(row.n) ? row.n : 0;
     };
-    const bots = count('SELECT COUNT(*) AS n FROM deployments');
+    // No bot count: the deployments table left with the chatbot factory (3.0.0),
+    // and a fresh install has none, so reading it would drop the whole line.
     const sketches = count('SELECT COUNT(*) AS n FROM sketches');
     const stashes = count("SELECT COUNT(*) AS n FROM stashes WHERE status = 'open'");
     const cooks = count('SELECT COUNT(*) AS n FROM stash_cooks WHERE archived_at IS NULL');
@@ -168,8 +169,8 @@ function readWorkshopPulse() {
     );
 
     // Last activity: max updated/created stamp across the mint surfaces.
-    // Units are mixed by table (deployments store ms; the newer tables store
-    // unixepoch seconds) — normalize to ms before comparing.
+    // Units may be mixed by table (ms or unixepoch seconds) — normalize to ms
+    // before comparing.
     const toMs = (v) => (v == null ? 0 : v > 1e12 ? v : v * 1000);
     const maxStamp = (sql) => {
       try {
@@ -180,14 +181,13 @@ function readWorkshopPulse() {
       }
     };
     const lastActivityMs = Math.max(
-      maxStamp('SELECT MAX(updated_at) AS m FROM deployments'),
       maxStamp('SELECT MAX(created_at) AS m FROM sketches'),
       maxStamp('SELECT MAX(updated_at) AS m FROM stashes'),
       maxStamp('SELECT MAX(created_at) AS m FROM stash_cooks'),
       maxStamp('SELECT MAX(updated_at) AS m FROM plans'),
     );
 
-    return { bots, sketches, stashes, cooks, unseenPlans, triggers, lastActivityMs };
+    return { sketches, stashes, cooks, unseenPlans, triggers, lastActivityMs };
   } catch {
     return null;
   }
@@ -204,13 +204,12 @@ function fmtPulseAge(lastActivityMs) {
 
 function buildWorkshopPulseLine(pulse) {
   if (!pulse) return null;
-  const { bots, sketches, stashes, cooks, unseenPlans, triggers, lastActivityMs } = pulse;
-  const total = bots + sketches + stashes + cooks + unseenPlans + triggers;
+  const { sketches, stashes, cooks, unseenPlans, triggers, lastActivityMs } = pulse;
+  const total = sketches + stashes + cooks + unseenPlans + triggers;
   if (total === 0) {
     return '*Workshop pulse: empty — nothing minted yet. The cheapest first proof is a sketch (`create_sketch`) or a cook (`mint_stash` → `gather` → `cook`).*';
   }
   const parts = [];
-  if (bots) parts.push(`${bots} bot${bots === 1 ? '' : 's'}`);
   if (sketches) parts.push(`${sketches} sketch${sketches === 1 ? '' : 'es'}`);
   if (stashes) parts.push(`${stashes} open stash${stashes === 1 ? '' : 'es'}`);
   if (cooks) parts.push(`${cooks} open cook${cooks === 1 ? '' : 's'}`);
