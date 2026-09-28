@@ -30,13 +30,12 @@ export async function GET(req) {
 
     const vm = sceneForFraming(await loadFleetScene(), framing);
     const counts = {
-      bots: vm.ground.bots.length,
       apps: vm.ground.apps.length,
       servers: vm.air.servers.length,
       services: vm.air.services.length,
     };
 
-    const total = counts.bots + counts.apps + counts.servers + counts.services;
+    const total = counts.apps + counts.servers + counts.services;
     if (total === 0) {
       return NextResponse.json({ manifest: null, counts, empty: true });
     }
