@@ -32,18 +32,30 @@ connected-service and app loops and the recipe format are the stable surface.
   maximise the silhouette IoU (`polygonizer/silhouette-solve.js`, over `scene/wire-compare.js`); posing
   dials (`hinge`, `chain`) move only when named. On a `via:'hero'` sketch the solve runs in `tune` space,
   so the answer is in the hero's own words.
-- **A contour is a driven strip; a brush is a skin map; a fold is wave components.** `contour` resolves
-  through the view's depth to surface addresses `(part, s, t)` (`polygonizer/stroke-resolve.js`) and adds a
-  `strip` along them, mirrored by name when asked, gated by the exposure ledger's `reads`; `brush` writes
-  skin-map entries (address, falloff from pressure) on a named control, so the brushwork replays when the
-  form under it changes; `fold` on a wave-field surface runs the drape fit's matching pursuit and keeps
-  the residual as its proof metric.
+- **A contour is a ridge strip; a brush is a `brush` dial.** `contour` resolves through the view's depth to
+  surface addresses `(part, s, t)` (`polygonizer/stroke-resolve.js`; a hit on a pinned detail names it and its
+  carrier address) and `polygonizer/contour-strip.js` lofts a closed ridge along them — height from pressure,
+  tapering to nothing at the ends — stored as a layer-2 `follow` part pinned at the run's middle, in the
+  carrier face's group and tint, `mirror` adding the twin by name; each strip's exposure from its own view
+  (the twin from the mirrored azimuth) rides the record. `brush` becomes a new dial op of the layered grammar
+  (`station-loft.js`): entries at addresses push a layer-1 part's points within a radius along the surface
+  normal with the skin-map falloff, frames read on the part as the earlier dials left it, so the brushwork
+  replays on a widened or lifted form and followers ride the push; `polygonizer/brush-map.js` builds it from
+  the stroke (radius and weight from pressure, a default radius that grows with the carrier's grain), stored
+  at 1 with a [−2, 2] range so `/dials/stroke.<id>` turns it down, off or inward by name. `addressPin`, the
+  address → pin math, moves from `station-loft-detail.js` into the grammar (byte-identical). Every op a stroke
+  makes carries `from: <id>`, so a re-solve replaces exactly it. `fold` and `landmark` strokes store and
+  resolve but do not solve yet: the layered grammar has no wave-field carrier for a fold to land on.
 - **A drawing overlay on the World page, as an input channel.** `channels: { strokes: true }` on a layered
   manifest mounts `scene/channels/stroke-overlay.js`: `?draw=<view>` snaps the camera to the named view's
   pinhole basis (the wire's), a canvas takes pointer strokes with pressure, and on release the page shows
   the stroke JSON in a copy block for the operator's host agent, which writes it through `update_sketch`.
-  The page writes nothing. After a solve it draws the residual band over the stored stroke where it was
-  drawn. A page without the opt-in is byte-identical.
+  The page writes nothing. Stored strokes are listed; choosing one snaps back to the camera it was drawn
+  against and draws its residual band where it was drawn. A page without the opt-in is byte-identical.
+- **The route.** A `stroke` routing card ("here is the outline I want", "let me draw on the model") lands on
+  `update_sketch`; the manual is the "Drawing on it" entry of `get_solid_vocab({ id: 'layered' })`; the
+  `update_sketch` description and its `TOOL_INDEX` row name the stroke ops (re-cut to their ceilings, not
+  re-pinned); `docs/planar-drawing-svg.md` records the inverse (a stroke to an address).
 
 ### Chatbot carve-out
 

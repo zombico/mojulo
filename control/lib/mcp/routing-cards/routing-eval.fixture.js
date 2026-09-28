@@ -64,6 +64,9 @@ export const FIXTURE = [
   // creature (layered): an invented body with a rig, kept editable by dials
   ['a hulking dragon with a detailed head that I can rig and animate', 'mint_solid'],
   ['invent a swamp monster whose jaw and tail I can keep tweaking', 'mint_solid'],
+  // stroke (layered): a drawn outline / line / brush on an existing creature or hero becomes a recipe op
+  ['I sketched the outline I want for the dragon head, make it match my drawing', 'update_sketch'],
+  ['let me draw a ridge along the brow instead of guessing station numbers', 'update_sketch'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'mint_solid'],
   ['a boxy pixel knight that walks and exports skinned', 'mint_solid'],
