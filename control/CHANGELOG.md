@@ -34,7 +34,9 @@ connected-service and app loops and the recipe format are the stable surface.
   the page from the zip it already carried: the central directory gives the entry, and `DecompressionStream`
   inflates it. So one `.html`, the only type Muse's Library shows, delivers any file of the export, and the page
   stays deterministic and grows only by its reader script. Claude's `downloads` path, the filename and the Save-all
-  button are unchanged.
+  button are unchanged. An in-app viewer may start no downloads (Muse's Library viewer does not), so a static notice
+  says to download the page and open it on the device; the page's script hides it when opened from `file://`, and
+  Muse's handoff note says the same.
 - **The `artifact` page door speaks the host's words.** `pageVerb`, `pageTool` and `pageOpensIn` on the row name the
   action, the tool and where the operator opens the page; the defaults name no vendor. `claude-code.json` declares its
   own words, so its note is unchanged byte for byte. Muse's says "save … with your Artifacts tool; the operator opens

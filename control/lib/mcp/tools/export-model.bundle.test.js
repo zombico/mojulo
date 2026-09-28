@@ -108,6 +108,9 @@ describe('export_model format:bundle', () => {
     for (const f of r.files) expect(courier).toContain(`data-save="${f.name}"`);
     expect(courier).toContain('data-save="sk_bundle_folder.zip"');
     expect(courier).toContain(COURIER_ZIP_READER);
+    // an in-app viewer may block downloads and even scripts: the notice is static HTML, hidden only on file://
+    expect(courier).toMatch(/<p class="local" id="local">If Save does nothing here, .*download this page, open the copy on your device/);
+    expect(courier).toContain("if (location.protocol === 'file:') document.getElementById('local').hidden = true;");
     expect(courier).not.toMatch(/https?:\/\/|127\.0\.0\.1|localhost/);
     const b64 = /<script id="zip" type="application\/octet-stream">([^<]+)<\/script>/.exec(courier)[1];
     const z = new Uint8Array(Buffer.from(b64, 'base64'));

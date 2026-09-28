@@ -112,7 +112,7 @@ describe('handoffFor', () => {
   it('muse + file: the Library shows only .html, so files ride the courier page', () => {
     const c = handoffFor({ host: 'muse', artifact: { ...ZIP, courier: 'sk_x.courier.html' } });
     expect(c.door).toBe('drop-folder');
-    expect(c.next).toBe("copy sk_x.courier.html into ~/workspace/your_files/; it lands in the operator's Library as one page (the operator's Library shows only .html files) — open it there and save sk_x.zip (5.7 MiB) or any file of the export");
+    expect(c.next).toBe("copy sk_x.courier.html into ~/workspace/your_files/; it lands in the operator's Library as one page (the operator's Library shows only .html files) — the operator downloads it and opens it on their device to save sk_x.zip (5.7 MiB) or any file of the export");
     expect(c.caveats).toEqual([]);
     // a file with no courier is not sent into a folder the operator never sees; the note names the bundle
     const g = handoffFor({ host: 'muse', artifact: GLB });

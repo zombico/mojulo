@@ -148,7 +148,7 @@ function fileSentence(door, row, a, caveats) {
       if (!shown) {
         const only = allowed.map((x) => `.${x}`).join(', ');
         if (a.courier) {
-          return `copy ${a.courier} into ${dir}/; it lands in ${where} as one page (${where} shows only ${only} files) — open it there and save ${a.name}${size} or any file of the export`;
+          return `copy ${a.courier} into ${dir}/; it lands in ${where} as one page (${where} shows only ${only} files) — the operator downloads it and opens it on their device to save ${a.name}${size} or any file of the export`;
         }
         caveats.push(`\`export_model({ format: 'bundle' })\` writes <ref>.courier.html, one page that carries every file of the export and does show in ${where}`);
         return `${where} shows only ${only} files, so ${a.name} would not surface there; it is at ${a.path}${size}`;

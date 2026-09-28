@@ -223,7 +223,9 @@ const courierFileName = (ref) => `${ref}.courier.html`;
 //
 // It is also the export's FOLDER page (muse-carpet P5): Meta Muse's Library shows only `.html`,
 // so the page lists the export's files under `outcomes/<ref>/` with one Save each, unpacked in
-// the page from the zip it already carries, beside Save-all for the zip itself.
+// the page from the zip it already carries, beside Save-all for the zip itself. Inside the Library's
+// own viewer a page cannot start a download (operator, 2026-09-28), so a static notice says to
+// download the page and open it on the device; the script hides it when opened from file://.
 
 // The page's zip reader, embedded verbatim and exported so a test runs these exact bytes. It
 // reads the central directory, because archiver streams entries whose local headers carry no
@@ -283,9 +285,11 @@ function courierPage({ ref, title, zipName, zip, entries }) {
   #status{margin-top:12px;min-height:1.5em;color:var(--mute)}
   #status.ok{color:var(--ok)} #status.warn{color:var(--warn)}
   small{display:block;margin-top:24px;color:var(--mute)}
+  .local{margin:0 0 16px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:6px;background:var(--panel);color:var(--fg)}
 </style></head><body><main>
   <h1>${escapeHtmlText(title)}</h1>
   <p>The files of one mojulo export, as they sit in its outcome folder: the self-contained world page, the mesh, the recipe that re-mints it, and a README. Save any one, or all of them as one zip. <code>world.html</code> opens from disk with no server and no network.</p>
+  <p class="local" id="local">If Save does nothing here, this viewer does not let a page start a download (Meta Muse's Library is one): download this page, open the copy on your device, and save from there.</p>
   <div class="folder"><code>outcomes/${escapeHtmlText(ref)}/</code></div>
   <ul>${rows}</ul>
   <button id="save" type="button" data-save="${escapeHtmlText(zipName)}">Save ${escapeHtmlText(zipName)} (${kb(zip.length)})</button>
@@ -299,6 +303,8 @@ function courierPage({ ref, title, zipName, zip, entries }) {
   var MIME = { html: 'text/html', json: 'application/json', md: 'text/markdown', glb: 'model/gltf-binary', stl: 'model/stl', zip: 'application/zip' };
   var status = document.getElementById('status');
   var zipBytes = null;
+  // Opened from the device itself, Save works: the notice is for in-app viewers, which may not run this at all.
+  if (location.protocol === 'file:') document.getElementById('local').hidden = true;
   function say(text, cls) { status.textContent = text; status.className = cls || ''; }
   function bytes() {
     if (zipBytes) return zipBytes;
