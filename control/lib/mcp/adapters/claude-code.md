@@ -2,18 +2,18 @@
 {
   "id": "claude-code",
   "name": "Claude Code",
-  "summary": "Materializes catalysts as user-owned skills under .claude/skills/, scheduled via /schedule, secrets-guarded via .claude/settings.json deny rules.",
+  "summary": "When the user asks for a workflow, materializes the catalyst as a user-owned skill under .claude/skills/, scheduled via /schedule; secrets stay behind inspect_bot_env, with a deny block the user may add to .claude/settings.json if they ask.",
   "version": 1,
   "artifactTarget": ".claude/skills/<slug>/SKILL.md",
   "schedulingMechanism": "/schedule",
-  "secretsPosture": ".claude/settings.json deny rules + inspect_bot_env",
+  "secretsPosture": "inspect_bot_env; an optional .claude/settings.json deny block the user adds themselves, shown only when they ask",
   "supportsClientInfoHint": ["claude-code", "claude-ai", "claude"]
 }
 ---
 
 # Claude Code adapter
 
-Your host is **Claude Code**. The runnable artifact this catalyst materializes is a **user-owned skill** at `.claude/skills/<slug>/SKILL.md`. Once written, it belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not host, execute, or store skills.
+Your host is **Claude Code**. The runnable artifact this catalyst materializes is a **user-owned skill** at `.claude/skills/<slug>/SKILL.md`. Write it **only when the user has asked for this workflow to be set up**: reading a catalyst, or recommending one, is not that request. Tell the user the path before you write, and let Claude Code's own permission prompt cover the write. Once written, the skill belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not write, host, execute, or store skills.
 
 ## Artifact target
 
@@ -57,7 +57,7 @@ Surface the per-record decision log declared in the catalyst's `outputContract` 
 
 ## Secrets posture
 
-Translate mojulo's "never `cat` `.env`" standing rule into a defense-in-depth deny rule the harness enforces. Suggest the user add this to `.claude/settings.json` on first connect:
+Mojulo's standing rule is "never `cat` `.env`": read bot configuration through `inspect_bot_env`. **Only when the user asks** how to keep an agent away from bot secrets (or asks you to harden their Claude Code settings), show them this deny rule, which Claude Code's harness enforces, for them to add to `.claude/settings.json` themselves. Do not raise it unprompted and do not edit `.claude/settings.json` yourself: Claude's permission settings are the user's to change.
 
 ```json
 {
@@ -87,7 +87,7 @@ When you finish synthesizing, tell the user:
 Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` for this host — the door, the next move, the caveats — and `fits` against the door's byte limit. Read it; do not improvise from the `download_url`, which is loopback and unreachable from a box. Two surfaces, and `clientInfo` cannot tell them apart, so the note states both when `MOJULO_SURFACE` is unset; you know which machine you are on.
 
 - **On the operator's machine** (Claude Code local, Claude Desktop): the dashboard URL works, and every file is on their disk. Hand over the path.
-- **Inside Claude Code on the web** (`MOJULO_SURFACE=box`): the page door is your Artifact tool — publish `world.html` as one HTML page, ≤ 16 MiB (`export_model({ ref, format: 'html' })`). Its three.js comes from the pinned jsdelivr path on your CDN allowlist, which is the ONLY form that runs here: your page CSP refuses inline `data:` scripts at any size, so the self-contained build loads and draws nothing. That build is still available as `cdn: false` → `world.offline.html`, for handing the operator a file that works with no network. The file door is a page: the artifact host serves no archive or model as a supporting file and blocks page-initiated downloads, but a published page may offer a file it generated through the viewer's `downloads` capability (the allowlist carries `zip`, not `glb` / `stl`). So ask for `export_model({ ref, format: 'bundle' })` and publish its `<ref>.courier.html` with `capabilities: { downloads: true }`: its Save button hands the zip over. Or push the outcome folder to the branch and let the PR carry it. The box is reclaimed when the session ends — hand over `recipe.json` too; any host running mojulo re-mints it. One wire note: this host renders a result's `structuredContent` in place of its text block, so mojulo ships the whole body there, never a subset.
+- **Inside Claude Code on the web** (`MOJULO_SURFACE=box`): the page door is your Artifact tool — publish `world.cdn.html` as one HTML page, ≤ 16 MiB (`export_model({ ref, format: 'html', cdn: true })`). Its three.js comes from the pinned jsdelivr path on your CDN allowlist, which is the ONLY form that runs here: your page CSP refuses inline `data:` scripts at any size, so the default self-contained `world.html` loads and draws nothing there. Ask for `cdn: true` for this door only; the default build is the file that works with no network. The file door is a page: the artifact host serves no archive or model as a supporting file and blocks page-initiated downloads, but a published page may offer a file it generated through the viewer's `downloads` capability (the allowlist carries `zip`, not `glb` / `stl`). So ask for `export_model({ ref, format: 'bundle' })` and publish its `<ref>.courier.html` with `capabilities: { downloads: true }`: its Save button hands the zip over. Or push the outcome folder to the branch and let the PR carry it. The box is reclaimed when the session ends — hand over `recipe.json` too; any host running mojulo re-mints it. One wire note: this host renders a result's `structuredContent` in place of its text block, so mojulo ships the whole body there, never a subset.
 
 ---
 
@@ -167,7 +167,7 @@ The `confidence` per binding is `agent-inferred` by default. Bump to `operator-c
 
 ### Step 5 — Materialize as a `.claude/skills/<slug>/SKILL.md` skill
 
-Same artifact target as the catalyst flow above — Claude Code's substrate is unchanged. Differences in the skill's content:
+Same artifact target as the catalyst flow above, under the same rule: only for a workflow the user asked you to set up, with the path named before the write. Differences in the skill's content:
 
 - The skill embeds the **bound tool calls by name** (e.g. `search_files`, `create_file`) from the `bind_primitives` response, not generic affordance names.
 - The skill references the generated provider body's mapping intent for pitfalls + integration specifics — copy the relevant sections directly into the SKILL.md (the provider body is session-scoped; the skill needs to be self-contained at run time).

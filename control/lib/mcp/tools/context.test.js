@@ -436,7 +436,15 @@ describe('get_substrate — the working description', () => {
     const { content } = await substrateHandler({});
     const text = content[0].text;
     expect(text).toMatch(/## Substrate facts/);
-    expect(text).toMatch(/No telemetry, no phone-home/);
+    // No external telemetry, and the local tool-call log described rather than denied.
+    expect(text).toMatch(/No external telemetry/);
+    expect(text).toMatch(/local tool-call log/);
+    expect(text).toMatch(/30 days/);
+    expect(text).toMatch(/MOJULO_MCP_TELEMETRY=off/);
+    expect(text).not.toMatch(/no telemetry|never carries telemetry|no phone-home/i);
+    // Code that runs: a recipe's program and a recipe book's builders, disclosed as such.
+    expect(text).toMatch(/not a sandbox/);
+    expect(text).toMatch(/builder\.js/);
     expect(text).toMatch(/AES-256-GCM/);
     expect(text).toMatch(/Apache-2\.0/);
     expect(text).toMatch(/\*\*Removal\.\*\*/);

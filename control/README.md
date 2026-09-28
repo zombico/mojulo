@@ -77,15 +77,16 @@ npx mojulo init
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
-First install is the big one: npx pulls a ~27 MB tarball plus its native dependencies
-(about 590 MB on disk; 2.0.6 measured 885 MB before the embedding runtime became opt-in,
-below). Measured sizes, lazy downloads, and what each engine leg
+First install is the big one: npx pulls a ~6 MB package plus its dependencies (about 290 MB on
+disk and about 110 MB downloaded, measured for 2.2.0; the dashboard is its own `mojulo-ui` package,
+fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 
-**Why these dependencies.** The install is mostly two things, and all of them run on your machine.
-`puppeteer-core` drives a *local* headless Chrome for stills and bakes; the browser
-itself is fetched on first use, or skipped if you already have Chrome. `better-sqlite3` is the one
-database file under `~/.mojulo/`. The *local* search model behind `semantic_search`
+**Why these dependencies.** All of them run on your machine. `officeparser` and `pdf2json` read
+documents, `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
+geometry, and `puppeteer-core` drives a *local* headless Chrome for stills; the browser itself is
+fetched only for an explicit render, or skipped if you already have Chrome. `better-sqlite3` is the
+one database file under `~/.mojulo/`. The *local* search model behind `semantic_search`
 (`@huggingface/transformers` on `onnxruntime-node`, which ships binaries for every platform in one
 package) is the opt-in `mojulo install recall`; without it `semantic_search` ranks lexically over the
 same index. Nothing in that list reaches the network on its own. The per-dependency sheet, with

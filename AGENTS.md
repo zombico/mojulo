@@ -53,7 +53,7 @@ When mojulo runs inside your own box — a disk the operator never sees — ever
 
 | Host surface | The box | Page door | File door | The ask |
 |---|---|---|---|---|
-| Claude Code on the web | ephemeral VM, egress allowlisted | the Artifact tool: one self-contained `world.html` ≤ 16 MiB (`cdn: true` when close) | the bundle's `<ref>.courier.html` published with `capabilities: { downloads: true }` — its Save button hands over the zip (no archive or model rides as a supporting file, and a page cannot start a download itself) — or the branch | `format: 'html'` and `format: 'bundle'` |
+| Claude Code on the web | ephemeral VM, egress allowlisted | the Artifact tool: one `world.cdn.html` ≤ 16 MiB (`cdn: true`: the page CSP refuses the inline three.js of the default `world.html`) | the bundle's `<ref>.courier.html` published with `capabilities: { downloads: true }` — its Save button hands over the zip (no archive or model rides as a supporting file, and a page cannot start a download itself) — or the branch | `format: 'html'` with `cdn: true`, and `format: 'bundle'` |
 | Codex cloud task | ephemeral, internet off by default | none | the PR carries the outcome folder or `<ref>.zip` | `format: 'bundle'`, commit the folder |
 | Grok chat's sandbox | ephemeral, no MCP client | file card (`world.html` opens from `file://`) | file card ≤ 25 MB | `npx mojulo call export_model --json '{"ref":"…","format":"bundle"}'` |
 | Grok Build CLI, Claude Desktop, Codex desktop, Hermes | none — the operator's machine | the dashboard or the host's preview | the file on disk | the path |

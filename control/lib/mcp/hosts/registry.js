@@ -185,6 +185,31 @@ export function expandPath(value, { platform = process.platform, home = os.homed
 
 // Test seam — profiles are read once and cached; a test that drops a fixture
 // file into this directory calls this to make the next read see it.
+/**
+ * A profile whose wiring runs `mojulo@<version>` instead of the bare `mojulo` the JSON carries.
+ * Used when mojulo runs as the Claude plugin: the plugin pins one version, and any other host
+ * `mojulo init` wires from there must run that same version against the shared $MOJULO_HOME.
+ * The claude-code profile gets no command at all there: the plugin already starts the server, and
+ * a `claude mcp add` registration would run a second copy, so its manual line says to remove one.
+ */
+export function pinProfileToVersion(profile, version, { plugin = true } = {}) {
+  const spec = `mojulo@${version}`;
+  // Only the package npx runs (`-y mojulo`); `mojulo` elsewhere in addArgs is the server's name.
+  const pinArgs = (args) => (Array.isArray(args) ? args.map((a, i) => (a === 'mojulo' && args[i - 1] === '-y' ? spec : a)) : args);
+  const copy = JSON.parse(JSON.stringify(profile));
+  if (copy.wire?.stanza) copy.wire.stanza.args = pinArgs(copy.wire.stanza.args);
+  if (copy.wire?.cli) copy.wire.cli.addArgs = pinArgs(copy.wire.cli.addArgs);
+  copy.manual = String(copy.manual || '')
+    .replace(/\bnpx -y mojulo(?![@\w-])/g, `npx -y ${spec}`)
+    .replace(/\bnpx mojulo(?![@\w-])/g, `npx -y ${spec}`)
+    .replace(/"-y", "mojulo"/g, `"-y", "${spec}"`)
+    .replace(/\bnpm install mojulo(?![@\w-])/g, `npm install ${spec}`);
+  if (plugin && copy.id === 'claude-code') {
+    copy.manual = `Nothing to add: the mojulo Claude plugin already starts \`npx -y ${spec}\`. If mojulo was also registered with \`claude mcp add\` or \`mojulo init\`, remove that copy: claude mcp remove mojulo -s user`;
+  }
+  return copy;
+}
+
 export function _resetHostProfilesForTests() {
   _catalog = null;
 }

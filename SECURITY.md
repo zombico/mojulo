@@ -4,11 +4,11 @@ Mojulo is a solo-maintained, open-source, self-hosted project: a local MCP serve
 
 ## Scope of this policy
 
-This policy covers **the build the publisher ships**: the official `mojulo` package on npm and the source published in this repository. Apache-2.0 lets anyone fork the code or host it for other people; a modified build or a third-party hosted instance is that party's software under that party's policy, and reports about it belong with that party. The maintainer publishes no hosted mojulo today; if a mojulo cloud is ever offered it will be a separate product under its own security policy, and the open-source build stays open source and telemetry-free regardless (see [TERMS.md](TERMS.md)).
+This policy covers **the build the publisher ships**: the official `mojulo` package on npm and the source published in this repository. Apache-2.0 lets anyone fork the code or host it for other people; a modified build or a third-party hosted instance is that party's software under that party's policy, and reports about it belong with that party. The maintainer publishes no hosted mojulo today; if a mojulo cloud is ever offered it will be a separate product under its own security policy, and the open-source build stays open source and free of external telemetry regardless (see [TERMS.md](TERMS.md)).
 
 ## Supported versions
 
-Security fixes go to the **latest `2.x` minor** only. Older `2.x` minors and every `1.x` and `0.x` release are not patched; upgrade with `npx mojulo@latest init`.
+Security fixes go to the **latest `2.x` minor** only. Older `2.x` minors and every `1.x` and `0.x` release are not patched. Upgrade with `npx mojulo@latest init`; if you run mojulo as the Claude plugin, update the plugin instead (it pins one version).
 
 ## Reporting a vulnerability
 
@@ -33,17 +33,27 @@ This is a solo-maintained project. Expect best-effort acknowledgement within a f
 
 Mojulo has two components with different security postures:
 
-- **The MCP server and dashboard** ([control/](control/)) — single operator, self-hosted, listening on `localhost`. The coding agent the operator already runs (Claude Code, Codex, any MCP host) drives it over stdio; the dashboard is the same state with a human face. Everything it makes — recipes, renders, exports — lands under `~/.mojulo/` on the operator's disk. It ships with an **opt-in HTTP login** (set `CONTROL_PLANE_USER` / `CONTROL_PLANE_PASSWORD`; sessions are HMAC-signed with the password itself, so rotating the password invalidates outstanding sessions). The login is a last-line-of-defense affordance, not a substitute for network isolation.
+- **The MCP server and dashboard** ([control/](control/)) — single operator, self-hosted, listening on `localhost`. The coding agent the operator already runs (Claude Code, Codex, any MCP host) drives it over stdio; the dashboard is the same state with a human face. Everything it makes — recipes, renders, exports, caches — lands under `~/.mojulo/` on the operator's disk, apart from temporary work folders in the OS temp directory, a folder the operator names for `install_scaffold`, and the host configs `mojulo init` edits after a yes. It ships with an **opt-in HTTP login** (set `CONTROL_PLANE_USER` / `CONTROL_PLANE_PASSWORD`; sessions are HMAC-signed with the password itself, so rotating the password invalidates outstanding sessions). The login is a last-line-of-defense affordance, not a substitute for network isolation.
 - **The chatbot pack's bot runtime** ([lite-template/](lite-template/)) — installed only by `mojulo install chatbot`, and designed to be exposed to end users. Conversation data stays in the bot's local SQLite and never leaves it.
 
 These two postures shape what is in and out of scope below.
+
+### Code that runs with the operator's privileges
+
+Two features run JavaScript that did not ship in the package, inside the mojulo process, with the operator's user privileges. This is how they work, not a boundary mojulo claims to enforce:
+
+- **Recipes that carry a `program`** (the code door: `mint_solid` with `kind: 'code'`, or a workbench recipe's `program`). The program runs when the recipe is rendered or exported. It runs in a `node:vm` context, which keeps it deterministic but is **not a sandbox**: a program can reach the host process, the filesystem and the network. A recipe you did not write that carries a `program` is code; read it before you render it, as you would a script.
+- **Recipe books** (`MOJULO_RECIPE_BOOK`). A book's Door-2 `builder.js` files are imported when mojulo starts, like a dependency. Point it only at a book you trust. The cookbook `save_recipe` writes is recipes only; a builder there is skipped.
+
+Reports that a `program` or a book builder can do what any local script can do are expected behavior. Reports that code runs *without* one of these doors (a recipe with no `program`, a cookbook entry, a stored row read or listed rather than rendered) are in scope.
 
 ### In scope
 
 Reports about the following are welcome and treated as security issues:
 
-- **Path escape from the operator's data directory.** Any tool input, recipe field, or export that reads or writes outside `~/.mojulo/` (or the configured `MOJULO_HOME`) without the operator naming that path.
+- **Path escape from the operator's data directory.** Any tool input, recipe field (other than a `program`, above), or export that reads or writes outside `~/.mojulo/` (or the configured `MOJULO_HOME`) without the operator naming that path.
 - **Artifact tampering.** Any way to inject code into a generated export — the self-contained HTML, a Godot project, an engine data pack, a Blender pack — that the operator did not put there through a tool call.
+- **Undisclosed traffic or writes.** Any network request, spawned process, or write outside the places the plugin README's "What it runs, sends and fetches" section and substrate fact 4 name.
 - **API key extraction.** Any way to read decrypted provider keys (stored by `mojulo-config` for the optional image, voice or chatbot paths) out of the control plane's `api_keys` table without filesystem access to the host.
 - **Tamper-evident chain bypass** in the chatbot pack. Any way to insert, modify, or delete turn rows in a bot's SQLite without the `content_hash` / `chain_hash` chain detecting it, including attacks on the `/verify/:id` walker and on cross-bot triage handoffs.
 - **Bot proxy auth bypass.** Any way to read or write through `/api/deployments/[id]/conversations*` or `/api/deployments/[id]/submissions*` without holding the deployment's `MOJULO_API_KEY`.

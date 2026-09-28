@@ -41,6 +41,7 @@ import { fieldToFaces, validateFields } from '../polygonizer/field-faces.js';
 import { ensureExactKernel } from '../polygonizer/field-exact.js';
 import { manifestWantsExact } from '../polygonizer/field-exact-reach.js';
 import { facesToPolyhedron } from '../scene/scene-scad.js';
+import { optionalHelperHint } from '../../version/distribution.js';
 
 export const SCAD_KIND = 'scad';
 export const MAX_SOURCE_BYTES = 64 * 1024;
@@ -184,7 +185,8 @@ export async function loadOpenscad() {
   return _modPromise;
 }
 
-export const OPENSCAD_INSTALL_LINE = 'openscad-wasm-prebuilt is not installed — `npm install --include=optional` in control/ adds it';
+/** Why a `scad` row cannot mesh here, and how to add OpenSCAD-in-WASM on this install. */
+export const openscadInstallLine = () => `openscad-wasm-prebuilt is not installed — ${optionalHelperHint('openscad-wasm-prebuilt')}`;
 
 let _version = null;
 /** The OpenSCAD version the WASM reports (memoised), or null when the package is absent. */
@@ -207,7 +209,7 @@ export async function openscadVersion() {
  */
 export async function renderScadOff(program, { fn } = {}) {
   const mod = await loadOpenscad();
-  if (!mod) return { skipped: true, reason: OPENSCAD_INSTALL_LINE };
+  if (!mod) return { skipped: true, reason: openscadInstallLine() };
   const log = [];
   const o = await mod.createOpenSCAD({ print: (s) => log.push(String(s)), printErr: (s) => log.push(String(s)) });
   const inst = o.getInstance();
@@ -368,7 +370,7 @@ function remember(key, value) {
  */
 async function renderProgram(source, statement, { fn, group, prelude = '' }) {
   const version = await openscadVersion();
-  if (version == null) return { skipped: true, reason: OPENSCAD_INSTALL_LINE };
+  if (version == null) return { skipped: true, reason: openscadInstallLine() };
   const program = `${prelude}${statement ? `${source}\n${statement}\n` : source}`;
   const key = cacheKey([version, SCAD_BACKEND, String(fn ?? ''), group, program]);
   const hit = geomCache.get(key);

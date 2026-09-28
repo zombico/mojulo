@@ -1,5 +1,5 @@
 // remote-worker exports P2–P4 — `format: 'bundle'` (the one file every host door accepts),
-// `cdn: true` on the html leg, and the `fits` + `handoff` every written export carries. The
+// the opt-in `cdn: true` on the html leg, and the `fits` + `handoff` every written export carries. The
 // seed-91 city is the same fixture export-model.html.test.js pins.
 
 process.env.SQLITE_PATH = ':memory:';
@@ -47,11 +47,9 @@ describe('export_model format:bundle', () => {
     const zip = new AdmZip(zipBytes);
     const entries = zip.getEntries().map((e) => e.entryName);
     expect(entries).toEqual(['README.md', 'model.glb', 'recipe.json', 'world.html']);
-    // cdn-default: inside the zip the page is plain `world.html`; on DISK the bundle wrote it
-    // as `world.offline.html` (it asked for `cdn: false`), so the entry maps back to that name.
-    const onDisk = (name) => (name === 'world.html' ? 'world.offline.html' : name);
+    // the page is `world.html` on disk and in the zip: the default self-contained build
     for (const e of zip.getEntries()) {
-      expect(e.getData().equals(readFileSync(path.join(a.dir, onDisk(e.entryName))))).toBe(true);
+      expect(e.getData().equals(readFileSync(path.join(a.dir, e.entryName)))).toBe(true);
     }
     const readme = zip.readAsText('README.md');
     expect(readme).toMatch(/## Bundle/);
@@ -59,13 +57,13 @@ describe('export_model format:bundle', () => {
     expect(readme).toMatch(/world\.html/);
     // no loopback address anywhere in the page the zip carries
     expect(zip.readAsText('world.html')).not.toMatch(/127\.0\.0\.1|localhost/);
-    // cdn-default, THE trap: the handler's default flipped to the CDN build, but the zip is a
-    // download the operator unzips and opens from disk. Its page must carry its own three.js —
-    // `bundleExport` passes `cdn: false` for this line. No network reference of any kind.
+    // The zip is a download the operator unzips and opens from disk. Its page must carry its own
+    // three.js whatever the handler's default is — `bundleExport` passes `cdn: false` for this
+    // line. No network reference of any kind.
     expect(zip.readAsText('world.html')).toMatch(/"three": ?"data:text\/javascript;base64,/);
     expect(zip.readAsText('world.html')).not.toMatch(/jsdelivr|https?:\/\//);
     // and the README inside the zip names the page by the name the zip actually uses
-    expect(readme).not.toMatch(/world\.offline\.html/);
+    expect(readme).not.toMatch(/world\.(offline|cdn)\.html/);
     // the courier page: the zip embedded in one page with a Save button, for the host whose file
     // door is a page; not itself in the zip
     expect(a.courier.path).toBe(path.join(a.dir, 'sk_bundle_city.courier.html'));
@@ -139,29 +137,29 @@ describe('export_model format:bundle', () => {
   }, 120_000);
 });
 
-describe('export_model format:html — the CDN build is the default', () => {
-  it('loads three from the pinned jsdelivr path, drops the ~1 MB of data: modules, and says file:// is out', async () => {
-    const offline = await exportModelHandler({ ref: CITY.ref, format: 'html', cdn: false });
-    const cdn = await exportModelHandler({ ref: CITY.ref, format: 'html' });
+describe('export_model format:html — the self-contained build is the default, the CDN build opt-in', () => {
+  it('cdn:true loads three from the pinned jsdelivr path, drops the ~1 MB of data: modules, and says file:// is out', async () => {
+    const page = await exportModelHandler({ ref: CITY.ref, format: 'html' });
+    const cdn = await exportModelHandler({ ref: CITY.ref, format: 'html', cdn: true });
+    expect(page.cdn).toBe(false);
     expect(cdn.ok).toBe(true);
     expect(cdn.cdn).toBe(true);
-    // its own file: the offline build stays on disk untouched beside the default page
-    expect(cdn.path).toBe(path.join(offline.dir, 'world.html'));
-    expect(cdn.download_url).toBe(`/outcomes/${CITY.ref}/world.html`);
-    expect(cdn.handoff.next).toMatch(/world\.html/);
-    expect(readFileSync(offline.path, 'utf8')).toMatch(/data:text\/javascript;base64/);
+    // its own file: the default page stays on disk untouched beside the CDN build
+    expect(cdn.path).toBe(path.join(page.dir, 'world.cdn.html'));
+    expect(cdn.download_url).toBe(`/outcomes/${CITY.ref}/world.cdn.html`);
+    expect(cdn.handoff.next).toMatch(/world\.cdn\.html/);
+    expect(readFileSync(page.path, 'utf8')).toMatch(/data:text\/javascript;base64/);
     expect(cdn.note).toMatch(/cdn\.jsdelivr\.net/);
     expect(cdn.note).toMatch(/will NOT open from file:\/\//);
     const html = readFileSync(cdn.path, 'utf8');
     expect(html).toMatch(/"three": ?"https:\/\/cdn\.jsdelivr\.net\/npm\/three@0\.184\.0\/build\/three\.module\.min\.js"/);
     expect(html).not.toMatch(/data:text\/javascript;base64/);
     expect(html).not.toMatch(/127\.0\.0\.1|localhost/);
-    expect(offline.bytes - cdn.bytes).toBeGreaterThan(900_000);
-    // the default is deterministic and the offline build is unaffected by it
-    const again = await exportModelHandler({ ref: CITY.ref, format: 'html' });
+    expect(page.bytes - cdn.bytes).toBeGreaterThan(900_000);
+    // the CDN build is deterministic and the default build is unaffected by it
+    const again = await exportModelHandler({ ref: CITY.ref, format: 'html', cdn: true });
     expect(again.bytes).toBe(cdn.bytes);
-    // `cdn` now defaults true, so the html-only guard must fire on an EXPLICIT flag only —
-    // otherwise the default would throw on every mesh leg.
+    // the html-only guard fires on an EXPLICIT flag only, never on the default of a mesh leg
     await expect(exportModelHandler({ ref: CITY.ref, format: 'glb', cdn: true })).rejects.toThrow(/`cdn` applies to/);
     await expect(exportModelHandler({ ref: CITY.ref, format: 'glb', cdn: false })).rejects.toThrow(/`cdn` applies to/);
     expect((await exportModelHandler({ ref: CITY.ref, format: 'glb' })).ok).toBe(true);

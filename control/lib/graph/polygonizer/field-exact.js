@@ -38,10 +38,12 @@ import { shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
 import { resolveMaterial } from './materials.js';
 import { pickTint, setExactFieldRenderer } from './field-faces.js';
 import { exactSupport } from './field-exact-reach.js';
+import { optionalHelperHint } from '../../version/distribution.js';
 export { exactSupport };
 
 export const DEFAULT_SEGMENTS = 48;
-export const EXACT_INSTALL_LINE = 'manifold-3d is not installed (an optional creative dependency — `npm install --include=optional` in control/ adds it)';
+/** Why an `exact: true` mint cannot run here, and how to add the kernel on this install. */
+export const exactInstallLine = () => `manifold-3d is not installed (${optionalHelperHint('manifold-3d')})`;
 
 let wasm = null;
 let tried = false;
@@ -210,7 +212,7 @@ const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], 
  * `opts` as fieldToFaces (light, material, tint). Requires the kernel (ensureExactKernel).
  */
 export function exactFieldFaces(spec = {}, opts = {}) {
-  if (!wasm) throw new Error(`fields '${spec.id || ''}' asks for exact: true but the exact kernel is not loaded — ${EXACT_INSTALL_LINE}`);
+  if (!wasm) throw new Error(`fields '${spec.id || ''}' asks for exact: true but the exact kernel is not loaded — ${exactInstallLine()}`);
   const reach = exactSupport(spec.terms);
   if (!reach.ok) throw new Error(`fields '${spec.id || ''}' cannot be exact: ${reach.at} — ${reach.why}. Drop \`exact\`, or shape the detail with exact terms.`);
   const M = wasm.Manifold;

@@ -63,13 +63,13 @@ const PREVIEW_SRC = (ref) => `levels/preview-${ref}.html`;
  *   menu    → ?hud=0         (walk per the world's own default)
  *   preview → ?spin=1&hud=0  (turntable read, orbit only)
  *
- * three.js delivery follows `cdn` (default TRUE, cdn-default): the pinned jsdelivr importmap,
- * which is the only form a page door running a CSP will execute — an artifact host refuses
- * inline `data:` modules at ANY size, so before this flag an exported game simply could not be
- * published as a page. `cdn: false` restores `inline: true` (the ?download=1 behavior) and the
- * page carries its own three.js, for a folder served from disk or committed to Pages offline.
+ * three.js delivery follows `cdn`. The default (false) is `inline: true`, the ?download=1
+ * behavior: each page carries its own three.js and the folder contacts no third-party server.
+ * `cdn: true` points the importmap at the pinned jsdelivr path, the only form a page door running
+ * a CSP will execute (an artifact host refuses inline `data:` modules at ANY size), for publishing
+ * a game as a page. 2.0.9 through 2.1 defaulted to the CDN; 2.2 made it opt-in.
  */
-async function emitWorldPage(sketch, role, { cdn = true } = {}) {
+async function emitWorldPage(sketch, role, { cdn = false } = {}) {
   const { payload, kind } = await resolveWorldScene(sketch);
   if (!payload) {
     throw new Error(`'${sketch.ref}' has no traversable World form (kind '${kind ?? sketch.manifest?.kind}') — it cannot ship as a ${role} page`);
@@ -264,7 +264,7 @@ function withHandoff(result, context, artifact) {
 
 export async function exportGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
-  const { ref, target, posture = null, cdn = true } = input;
+  const { ref, target, posture = null, cdn = false } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
 
   if (target === 'godot') {
@@ -569,8 +569,8 @@ export function registerExportGameTools() {
       + 'sibling of export_model / export_beats, and the first leg of publishing a playable artifact '
       + '(the folder is `git init && gh repo create` away from a GitHub-Pages URL). '
       + 'Pass a game `ref` (a create_game / create_pixelizer_game sketch). Writes '
-      + '`data/outcomes/<ref>/`: `game.html` (the shell), `levels/<ref>.html` (geometry inlined, '
-      + 'three.js off the pinned CDN, `cdn: false` inlines it; banks hoisted to `assets/` — serve '
+      + '`data/outcomes/<ref>/`: `game.html` (the shell), `levels/<ref>.html` (geometry, three.js inlined; '
+      + '`cdn: true`: three.js off the pinned CDN; banks hoisted to `assets/` — serve '
       + 'over HTTP, file:// does not load levels), `assets/<ref>.wav` (the shell score), and '
       + '`recipe/*.json` (the SOVEREIGN manifests — anyone with mojulo re-mints) + a README. '
       + 'Deterministic; previews at `/outcomes/<ref>/game.html`, exactly what ships. Slow for big '
@@ -587,7 +587,7 @@ export function registerExportGameTools() {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
         target: { type: 'string', enum: ['web', 'godot', 'unity', 'unreal'], description: 'Optional. Default `web` (the self-contained folder). `godot`/`unity`/`unreal` emit the engine pack instead.' },
         posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
-        cdn: { type: 'boolean', description: "web target only. Default true: level/menu/preview pages load three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute. `false` inlines three.js in every page (~1 MB each) for a folder that must work with no network." },
+        cdn: { type: 'boolean', description: "web target only. Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },
       },
       required: ['ref'],
     },

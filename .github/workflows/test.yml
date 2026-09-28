@@ -55,10 +55,13 @@ jobs:
         run: npm test
 
   lint-hygiene:
-    name: lint hygiene (node --check + locale validator)
+    name: lint hygiene (node --check + locale validator + manifest pins)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The plugin-version check below compares against the PR's base branch.
+          fetch-depth: 0
 
       # Node 22: control's package.json declares "type": "module", so
       # node --check parses its .js files as ESM — keep the checker on the
@@ -84,6 +87,12 @@ jobs:
             -not -path '*/data/*' \
             -not -path '*/lib/embedder/models/*' \
             -print0 | xargs -0 -n1 node --check
+
+      # The Claude plugin, glama.json and server.json name the npm version by hand; they must
+      # all run control/package.json's version. On a PR, a change under plugins/mojulo/ must
+      # also raise plugin.json's version (Claude Code caches an installed plugin by it).
+      - name: Plugin and registry manifests pin the package version
+        run: node control/scripts/check-plugin-version.mjs ${{ github.event_name == 'pull_request' && format('--since origin/{0}', github.base_ref) || '' }}
 
       # Locale catalog parity — runs the existing validator against every
       # non-en code so the EN-default coding standard from CLAUDE.md doesn't

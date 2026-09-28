@@ -18,7 +18,7 @@ self-description; keep site copy consistent with it), [install-capabilities.md](
 Mojulo runs **two local processes** on your machine: an MCP server your coding agent spawns over
 stdio (`npx -y mojulo`), and a dashboard (`npx -y mojulo-ui`, its own npm package since 2.2.0) that
 binds to `127.0.0.1` on port 3001 or the next free port. Both read and write the same state under
-`~/.mojulo/`. There is no hosted service, no account, no telemetry, and no LLM key for the studio:
+`~/.mojulo/`. There is no hosted service, no account, no external telemetry, and no LLM key for the studio:
 your agent is the reasoning loop. Game engines, Blender, slicers, and image or voice models are
 **never installed by mojulo** — you install them if you want them, and mojulo detects them.
 
@@ -39,9 +39,14 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 
 ## Package size and disk footprint
 
-Measured **2026-09-21** against the packed `mojulo@2.0.7` tarball cold-installed into an empty
-directory on macOS arm64 by `npm run smoke:tarball`, which is how these numbers are re-measured for
-every release. The 2.0.6 figures it replaces were 27.3 MB / 110 MB / ~775 MB / ~885 MB; the drop is
+Measured **2026-09-27** for 2.2.0: the core tarball packed from the release branch, cold-started 14
+times with an empty npm cache through a local registry stand-in on macOS arm64 (M1 Max). A cold
+`npx mojulo` answered `tools/list` in a median 7.3 s (p90 9.5 s, slowest 9.7 s); the published
+2.1.0 took a median 12.7 s (p90 15.7 s) the same way. Most of 2.2.0's drop is the dashboard
+leaving for its own package (`mojulo-ui`) and the lazy, lean dependency set (see
+[install-capabilities.md](install-capabilities.md)). `npm run smoke:tarball` re-measures a release.
+Earlier releases, as tarball / unpacked / dependencies / total: 2.0.7 (measured 2026-09-21) was
+30 MB / 116 MB / ~470 MB / ~590 MB, and 2.0.6 was 27.3 MB / 110 MB / ~775 MB / ~885 MB; the 2.0.7 drop was
 the embedding runtime (`@huggingface/transformers`, `onnxruntime-node`, `onnxruntime-web`, plus the
 ~130 MB model) leaving the package's dependencies to become the opt-in **recall** install group
 (`mojulo install recall`, installed under `~/.mojulo/recall/`; see
@@ -52,14 +57,14 @@ have been excluded since 2.0.6.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **30 MB** | `mojulo-2.0.7.tgz` |
-| Unpacked package | **116 MB** | Includes the prebuilt Next.js dashboard (`.next/standalone`), translations, and the bot-runtime template. |
-| Production dependencies npm installs | **~470 MB** | Measured from a cold install of the tarball on macOS arm64. Breakdown below. |
-| **Total after `npx mojulo init`** | **~590 MB** | Before any browser download. No model download on a default install. |
+| npm tarball (what `npx` downloads) | **6.0 MB** | `mojulo-2.2.0`, 1,478 files; no dashboard build, no bot template |
+| Unpacked package | **19 MB** | The stdio server, the kernels and the vendored three.js. |
+| Dependencies npm installs | **~290 MB** on disk, 208 packages | About 110 MB on the wire (tarballs plus package metadata) from an empty cache. Breakdown below. |
+| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **13 MB** tarball, **60 MB** unpacked | Its own npm package since 2.2.0; shares core's installed dependencies. |
 | Recall group (`mojulo install recall`) | **~480 MB** runtime + **~130 MB** model | `@huggingface/transformers` with `onnxruntime-node` and `onnxruntime-web` under `~/.mojulo/recall/`, and `Xenova/multilingual-e5-small` (q8 ONNX) under `~/.mojulo/models/`. Gives `semantic_search` vector ranking; runs in-process. Opt-in. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 
-**Why the dependencies are ~470 MB.** The largest pieces, all runtime deps of the kernel unless noted:
+**What the dependencies are.** The largest pieces, sized from the 2.0.7 cold install (the 2.2.0 download is led by `officeparser` with `pdfjs-dist` and a native canvas, `node-web-audio-api`, and `manifold-3d`'s tooling), all runtime deps of the kernel unless noted:
 
 | Dependency | Size | Why it's there |
 |---|---|---|
@@ -73,12 +78,12 @@ have been excluded since 2.0.6.
 Since 2.2 two former rows are gone: `three` (38 MB; no Node code imports it, and the exported pages
 load the vendored copy or the pinned CDN) and `@swc/core` (26 MB; the one shipped JSX file is
 precompiled at pack time). The dashboard-only libraries are devDependencies compiled into the
-dashboard bundle. The table above still reflects the 2.0.7 measurement; re-measure at the next release.
+dashboard bundle. The per-dependency table reflects the 2.0.7 measurement; the totals above are 2.2.0's.
 
 **Lean install.** `npm install --omit=optional` sheds the optional creative helpers (about 150 MB with
 what they pull in). The creative tools still list and run; the calls that need a missing helper fail
-in-band naming it, and `sharp` (loaded on first use) fails only the raster tools, naming
-`npm install sharp`. The kernel and the CLI always run. `mojulo install creative` installs nothing; it
+in-band naming it, and `sharp` (loaded on first use) fails only the raster tools, saying how to
+reinstall with optional dependencies. The kernel and the CLI always run. `mojulo install creative` installs nothing; it
 reports which helpers are missing. See [install-capabilities.md](install-capabilities.md).
 
 ### Downloads that happen later, on first use only
@@ -102,15 +107,36 @@ are cached, and are skipped entirely if you already have the tool:
 
 ## Network posture
 
-No telemetry, no phone-home. Outbound traffic happens only on explicit actions, and the site
+No external telemetry: nothing goes to the maintainer or an analytics service, and starting the
+server makes no network call. Outbound traffic happens only on explicit actions, and the site
 should list them rather than say "never":
 
-- `npm` fetching the package and its dependencies at install and at `npx` resolution.
-- The one-time lazy downloads in the table above.
+- `npm` fetching the package and its dependencies at install and at `npx` resolution. One
+  dependency's install script reaches further: on macOS, `sharp`'s checks for a system libvips by
+  running `brew` when Homebrew is installed, and Homebrew may refresh its own formula cache under
+  `~/Library/Caches/Homebrew` from formulae.brew.sh. mojulo's own code never runs `brew`.
+- The one-time lazy downloads in the table above: Chrome for Testing from
+  `storage.googleapis.com`, ffmpeg-static from `github.com`, the embedding model from
+  `huggingface.co` (after `mojulo install recall`, which also runs npm).
+- The dashboard package (`mojulo-ui`) from the npm registry the first time the dashboard is
+  launched without it; `MOJULO_UI_NO_FETCH=1` refuses.
 - `check_for_updates`, when your agent calls it (npm and GHCR version lookups).
+- An exported page built with `cdn: true` loads three.js from `cdn.jsdelivr.net` when opened; the
+  default export is self-contained.
+- `mint_solid` with `via: 'prompt'`: the prompt goes to the LLM provider the caller names, with
+  the operator's key for it.
 - Anything your agent's own provider does. That traffic is your agent's, not mojulo's.
-- With the chatbot pack: image pulls during bot builds, a running bot's LLM provider calls, and
-  Fly.io deploys if you configure Fly.
+- With the chatbot pack: image pulls during bot builds, a running bot's LLM provider calls, the
+  bot builder's provider calls, `upload_document_from_url` (a public URL; private addresses are
+  refused), reads from your deployed bots, and Fly.io deploys if you configure Fly.
+
+**The local tool-call log.** Each tool call writes one row to the SQLite under `~/.mojulo/`: the
+tool name, start time, duration, status, argument key names and byte size (never the values),
+truncated error text, the MCP client's name and version, and the session id, plus one stderr line
+(`[mcp] tool=… ms=…`) that the host may keep in its MCP log. Rows older than 30 days, and beyond
+50,000, are pruned at startup. `get_tool_ledger` and the dashboard's `/observability` read it;
+nothing sends it anywhere. `MOJULO_MCP_TELEMETRY=off` stops the row and the stderr line (the soft
+tool timeout still applies).
 
 Source of truth: fact 4 of the substrate facts in
 [context.js](../control/lib/mcp/tools/context.js).
@@ -316,7 +342,8 @@ you installed yourself are yours to remove.
 - "Identical output across all four engines." Godot is first-class; the others are gated legs with
   honest-loss ledgers.
 - "Watertight" or "manifold" STL. Say "print-ready at true scale" for literal objects.
-- "Zero network." Say "no telemetry" and list the explicit outbound actions above.
+- "Zero network" or "no telemetry" alone. Say "no external telemetry", describe the local
+  tool-call log, and list the explicit outbound actions above.
 - Any enumerable count (tools, kinds, locales, packs). Point at the list that defines it.
 - The old size figures ("a few hundred MB", "~340 MB kernel"). Use the measured table above and
   re-measure at each release.

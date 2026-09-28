@@ -242,6 +242,85 @@ loops and the recipe format are unchanged.
   tesseract.js, which fetches OCR language data at runtime, and more than doubles the install
   (62 MB to 142 MB). It is loaded only for DOCX, PPTX and XLSX uploads.
 
+### Directory listing and disclosure
+
+- **The Claude plugin runs `npx -y mojulo@2.2.0`, and the version is checked.** The plugin sat at
+  2.0.1 with an unpinned `npx -y mojulo` while npm shipped 2.1.0; the plugin directory refuses an
+  unpinned launcher. `plugin.json` now pins the package, carries `displayName` and sets
+  `MOJULO_DISTRIBUTION=claude-plugin` for the server; `glama.json` pins the same version and the
+  marketplace entry no longer carries a version of its own. `scripts/check-plugin-version.mjs`
+  fails when `plugin.json`, `glama.json` or `server.json` names a version other than
+  `package.json`'s, or when a pull request changes `plugins/mojulo/` without raising the plugin's
+  version (Claude Code caches an installed plugin by it). CI runs it on every push and pull
+  request, and the release workflow checks it against the tag.
+
+- **Install and update advice names the running version and fits the install.** The commands
+  mojulo tells an agent to run were written for one kind of install: `mojulo install <group>` (no
+  such bin under npx or the plugin), `npm install --include=optional` "in control/" (a repo
+  checkout's step) for a missing manifold-3d or OpenSCAD, `npm install sharp` "in the package
+  directory" (the npx cache), and `npx -y mojulo@latest` for an update. They now come from one place,
+  `lib/version/distribution.js`, which reads `MOJULO_DISTRIBUTION` and otherwise tells a checkout
+  from an npm install: from npm or the Claude plugin every command is `npx -y mojulo@<running
+  version> …`, and only a checkout is told about `control/`. Under the plugin, `check_for_updates`
+  says to update the plugin (a second `npx mojulo@latest` would be another server version on the
+  same `~/.mojulo`), a missing dependency explains how to have the plugin's npx copy reinstalled,
+  and `mojulo init` wires every other host to the plugin's exact version while leaving Claude Code
+  to the plugin. `version` and `check_for_updates` report the distribution. A test renders every
+  hint under `MOJULO_DISTRIBUTION=claude-plugin` and requires `mojulo@<version>`.
+
+- **Exported World pages are self-contained again; the CDN build is opt-in.** Since 2.0.9
+  `export_model({ format: 'html' })` and `export_game`'s web pages loaded three.js from
+  cdn.jsdelivr.net by default, so opening an export contacted a third party. The default is now
+  the self-contained page (three.js inlined from the vendored copy, about 1 MB more), written as
+  `world.html`, which opens from `file://` and contacts no server. `cdn: true` writes
+  `world.cdn.html` with the pinned jsdelivr importmap, the one form an artifact host's page CSP
+  runs; the Claude Code adapter card and the handoff note tell the agent on that host to ask for
+  it. `world.offline.html` is gone (the default build took the plain name), and the bundle zips
+  the file it wrote on disk.
+
+- **"No telemetry" is now "no external telemetry", and the local tool-call log is described.**
+  The plugin, marketplace and Glama listings, the README, TERMS, SECURITY, the tour and
+  `get_substrate` said "no telemetry" or "never carries telemetry" while a local log of every tool
+  call is on by default. They now say nothing is sent to the maintainer or an analytics service,
+  and say what the log keeps: tool name, timing, status, argument names and sizes (never values),
+  truncated error text, the MCP client's name and session id; 30 days or 50,000 rows; one stderr
+  line per call; `MOJULO_MCP_TELEMETRY=off` stops it.
+- **`get_substrate`'s facts match the code.** Fact 2 lists everything under `$MOJULO_HOME` and the
+  few writes outside it (temp work folders, an `install_scaffold` folder the caller names, host
+  configs after `mojulo init` and a yes). Fact 4 lists every outbound destination and its trigger
+  (the Chrome for Testing download only for an explicit render, ffmpeg with pinned hashes, the
+  recall model from huggingface.co, the `mojulo-ui` download, `cdn: true` pages, the keyed
+  `via:'prompt'` door, the chatbot pack's calls) and the local log. Fact 8 says a recipe carrying a
+  `program` is JavaScript that runs with the operator's privileges, and fact 9 that a recipe
+  book's builders run at startup; fact 9 no longer calls the book code-free. The dashboard page map
+  no longer says the log records "shapes only". The install-size figures in the README,
+  `control/README.md`, the tour and `docs/tech-requirements.md` are 2.2.0's measured ones (about
+  6 MB packed, 290 MB on disk, 110 MB downloaded, a 7 to 10 s cold start on one machine).
+- **SECURITY.md states what runs as code.** A new section says that recipes carrying a `program`
+  and recipe-book builders run with the operator's privileges (`node:vm` there is a determinism
+  fence, not a sandbox), that reports of those doors doing what a local script can are expected,
+  and that code running without one of them is in scope, as is any traffic or write the README does
+  not disclose.
+- **Skill files and Claude settings only on the user's request.** The catalyst preamble and the
+  Claude Code adapter card now say to write a `.claude/skills/` skill only when the user asked for
+  that workflow, naming the path first, and to show the `.claude/settings.json` deny block only
+  when the user asks how to guard bot secrets, never editing that file. The card used to suggest
+  the deny block on first connect.
+
+- **The plugin README is the directory listing, and it discloses what the server does.** It says
+  what mojulo is, where it runs (Claude Code and Cowork sessions on your computer; not a plain
+  claude.ai chat; the same package headless in agent sandboxes), what it needs (Node 22.12 on the
+  `PATH`, about 290 MB), three example prompts checked on a fresh install with no dashboard or
+  extra packs (a mug as STL, a walkable town as one offline HTML page, a groove as MIDI), and a
+  "What it runs, sends and fetches" section built from the code: every network destination and its
+  trigger, every process the server may start, every place it writes, the local tool-call log, the
+  code that runs with your privileges, and the one keyed LLM door. It tells anyone who registered
+  mojulo with `init` or `claude mcp add` to remove that registration, and names `MCP_TIMEOUT` and a
+  cache warm-up for a slow first start.
+- **The plugin ships a routing skill** (`skills/mojulo/SKILL.md`): with the mojulo tools present it
+  starts at `forward_context` and follows its routing; without them (a claude.ai chat) it says
+  mojulo runs in Claude Code or a local Cowork session and installs nothing.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

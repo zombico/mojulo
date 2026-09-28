@@ -22,6 +22,11 @@
  * is untouched (this only runs when a caller opts in).
  */
 
+import { optionalHelperHint } from '../../version/distribution.js';
+
+/** Why `union: true` shipped the shells un-unioned, and how to add the kernel on this install. */
+export const manifoldMissingReason = () => `manifold-3d is not installed (${optionalHelperHint('manifold-3d')}); shells ship un-unioned`;
+
 let _modulePromise = null;
 
 // `manifold-3d` is ESM-only (an `exports` map with just an `import` condition). Next's server
@@ -110,7 +115,7 @@ function shellToManifold(wasm, positions, colors) {
 export async function unionShells(shells) {
   const wasm = await loadManifold();
   if (!wasm) {
-    return { skipped: true, reason: "manifold-3d is not installed (an optional creative dependency — `npm install manifold-3d` in control/); shells ship un-unioned" };
+    return { skipped: true, reason: manifoldMissingReason() };
   }
   const { Manifold } = wasm;
   const parts = [];

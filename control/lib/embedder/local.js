@@ -32,6 +32,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { moduleDir } from '../module-dir.js';
 import { installedGroups, markerFilePath } from '../mcp/packs.js';
+import { runMojulo } from '../version/distribution.js';
 
 const __dirname = moduleDir(import.meta.url, 'lib/embedder');
 
@@ -45,8 +46,10 @@ const __dirname = moduleDir(import.meta.url, 'lib/embedder');
 const USER_CACHE = !!process.env.MOJULO_MODELS_DIR;
 const CACHE_DIR = process.env.MOJULO_MODELS_DIR || path.resolve(__dirname, 'models');
 
-export const RECALL_INSTALL_LINE =
-  'run `mojulo install recall` (or include \'recall\' in MOJULO_PACKS if you manage the install manually)';
+/** How to add the recall group on this install (the running version's `install recall`). */
+export function recallInstallLine(env = process.env) {
+  return `${runMojulo('install recall', { env })} (or include 'recall' in MOJULO_PACKS if you manage the install manually)`;
+}
 
 /** The recall group's install dir under $MOJULO_HOME (kept in sync with scripts/mcp-install.mjs). */
 export function recallDir() {
@@ -63,7 +66,7 @@ export class RecallUnavailableError extends Error {
     super(
       'The embedding runtime (the `recall` install group) is not installed on this host'
         + (detail ? ` — ${detail}` : '')
-        + `. Semantic search runs lexically without it; to add vector recall ${RECALL_INSTALL_LINE}.`,
+        + `. Semantic search runs lexically without it; to add vector recall ${recallInstallLine()}.`,
     );
     this.name = 'RecallUnavailableError';
     this.code = 'RECALL_UNAVAILABLE';
@@ -101,7 +104,7 @@ export function loadEmbeddingRuntime() {
         transformersPromise = null;
         throw new Error(
           `The embedding runtime (@huggingface/transformers) failed to load: ${err.message}. `
-            + `Semantic search runs lexically and embedding backfill is off until it loads (${RECALL_INSTALL_LINE} to reinstall); recipes, exports, and every other tool work without it.`,
+            + `Semantic search runs lexically and embedding backfill is off until it loads (${recallInstallLine()} to reinstall); recipes, exports, and every other tool work without it.`,
         );
       });
   }

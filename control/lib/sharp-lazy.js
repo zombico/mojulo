@@ -1,10 +1,10 @@
 /**
  * Lazy `sharp` — the one door every raster module walks through.
  *
- * `sharp` is a transitive dependency (the embedder's `@huggingface/transformers` pulls it in)
- * whose native half, `@img/sharp-<platform>`, is an OPTIONAL dependency. An
- * `npm install --omit=optional`, or a platform with no prebuilt libvips, leaves the JavaScript
- * half in place and makes its import throw `Could not load the "sharp" module`. Thirteen
+ * `sharp` is one of mojulo's optionalDependencies, and its native half, `@img/sharp-<platform>`,
+ * is an optional dependency of sharp. An `npm install --omit=optional`, or a platform with no
+ * prebuilt libvips, leaves it out (or leaves only the JavaScript half, whose import then throws
+ * `Could not load the "sharp" module`). Thirteen
  * modules on the tool-registration path used to import it statically, so a host in that state
  * could not even run `mojulo call version` (the 2026-09-21 Grok sandbox report). Every raster
  * call site now loads it here, on first use, so a missing `sharp` is an in-band error on the
@@ -14,14 +14,15 @@
  * stays a real runtime require in the standalone dashboard, exactly like the static one did.
  */
 
+import { optionalHelperHint } from './version/distribution.js';
+
 let sharpPromise = null;
 
 export class SharpUnavailableError extends Error {
   constructor(cause) {
     super(
       `sharp (the image library) is not loadable on this host: ${cause?.message || cause}. `
-        + 'Its native binary is an optional dependency that `npm install --omit=optional` leaves out; '
-        + 'run `npm install sharp` in the package directory and retry. '
+        + `${optionalHelperHint('sharp')}. `
         + 'Recipes, exports, and every non-raster tool work without it.',
     );
     this.name = 'SharpUnavailableError';

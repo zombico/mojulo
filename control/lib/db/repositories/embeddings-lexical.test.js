@@ -23,7 +23,7 @@ vi.mock('../../embedder/local.js', () => {
   return {
     LOCAL_EMBEDDING_MODEL: 'multilingual-e5-small',
     LOCAL_EMBEDDING_DIM: 384,
-    RECALL_INSTALL_LINE: 'run `mojulo install recall`',
+    recallInstallLine: () => 'run `npx -y mojulo@2.2.0 install recall`',
     RecallUnavailableError,
     embedderAvailable: () => false,
     preloadModel: vi.fn().mockResolvedValue(undefined),

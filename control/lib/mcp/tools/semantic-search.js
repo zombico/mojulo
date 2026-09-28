@@ -19,6 +19,7 @@ import {
   SOURCE_KINDS,
 } from '@/lib/db/repositories/embeddings';
 import { WEAK_SEARCH_TOP_SCORE } from '@/lib/db/repositories/mcpToolCalls';
+import { distribution, runMojulo } from '@/lib/version/distribution';
 
 // In-band recovery hints (routing-context-weaving.plan.md C1/C2). The weak
 // threshold is the SAME constant the orientation cut counts gaps by — the
@@ -27,11 +28,12 @@ import { WEAK_SEARCH_TOP_SCORE } from '@/lib/db/repositories/mcpToolCalls';
 // hint turns the silent miss into a one-hop recovery. `degraded` separates
 // "the index answered nothing" from "the index couldn't answer" (embed
 // failure) — an empty result with no explanation reads as "nothing exists".
-function buildSearchHint({ degraded, results, routing, mode }) {
+export function buildSearchHint({ degraded, results, routing, mode }) {
   if (degraded) {
     return (
       'Semantic index degraded — the query could not be embedded, so this empty result does NOT mean nothing matches. ' +
-      'Retry once; if it persists, the embedding runtime or its model is broken — run `mojulo install recall` again (or `node scripts/reindex-embeddings.js` on the control plane).'
+      `Retry once; if it persists, the embedding runtime or its model is broken — ${runMojulo('install recall')} again`
+      + (distribution() === 'source' ? ' (or `node scripts/reindex-embeddings.js` in control/).' : '.')
     );
   }
   const topScore = results.length ? results[0].score : null;
