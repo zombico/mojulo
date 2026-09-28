@@ -571,7 +571,14 @@ describe('in-process', () => {
     const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: page });
     expect(n.caveats.join(' ')).not.toMatch(/cdn: true/);
     expect(n.caveats.join(' ')).toMatch(/format: 'bundle'/);
+    // The next move agrees with the caveat: hand over the file, never publish a page that draws nothing.
+    expect(n.next).not.toMatch(/publish world\.html|Artifact tool/);
+    expect(n.next).toMatch(/as a file, not a published page: `export_model\(\{ format: 'bundle' \}\)`/);
+    // Both rows at once (the surface unknown): the box half says the same.
+    expect(handoffFor({ host: 'claude-code', artifact: page }).next).not.toMatch(/publish world\.html/);
     process.env.MOJULO_DISTRIBUTION = 'npm';
-    expect(handoffFor({ host: 'claude-code', surface: 'box', artifact: page }).caveats.join(' ')).toMatch(/cdn: true/);
+    const npm = handoffFor({ host: 'claude-code', surface: 'box', artifact: page });
+    expect(npm.caveats.join(' ')).toMatch(/cdn: true/);
+    expect(npm.next).toMatch(/^publish world\.html \(40\.0 MiB\) with your Artifact tool/);
   });
 });

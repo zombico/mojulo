@@ -93,6 +93,11 @@ function pageSentence(door, row, a, caveats) {
       }
       const fit = fitsBudget(a.bytes, row.pageMaxBytes);
       if (!fit.fits) caveats.push(`${a.name} is ${fmtBytes(a.bytes)}, over this host's page limit by ${fmtBytes(fit.over_by)}: lighten the recipe${a.inlineScripts && !profile ? ', or re-export with `cdn: true`, which keeps ~1 MB of three.js off the page' : ''}`);
+      // Under the profile the caveat above says a published copy draws nothing, so the next move is
+      // the file, never a publish of this page.
+      if (profile && a.inlineScripts && Array.isArray(row.cdns) && row.cdns.length) {
+        return `hand the operator ${a.name}${size} as a file, not a published page: \`export_model({ format: 'bundle' })\` zips it with a courier page that offers it, and it opens from file://${fromDisk(a)}`;
+      }
       return `publish ${a.name}${size} with your Artifact tool (one HTML page${cap}); the operator opens it on claude.ai`;
     }
     case 'mcp-app':
