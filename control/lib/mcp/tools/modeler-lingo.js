@@ -23,6 +23,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { hiddenInPluginProfile, pluginProfileActive, profileEdit } from '@/lib/mcp/plugin-profile';
 
 // support levels:
 //   native  — mojulo genuinely produces this; the generated geometry IS the thing.
@@ -390,6 +391,12 @@ function scoreEntry(entry, phrase) {
 const PIPELINE_NOTE =
   "mojulo's role: generate the depiction deterministically from a recipe, then export_model (.glb, baked-unlit) hands it to your DCC where you finish — retopo, UV, bake, rig, PBR. It is a GENERATOR THAT FEEDS your pipeline, not a modeller. The .glb is faithful to what mojulo depicts (KHR_materials_unlit + vertex colour); treat it as upstream of your real modelling work.";
 
+// The Claude plugin profile has no bind_mesh_render (lib/mcp/plugin-profile.js): a CAD part is
+// finished in the CAD tool, not bound back.
+const PROFILE_DCC_EDITS = {
+  'precision-cad': [[' — and bring the tessellated GLB home with `bind_mesh_render`. Mojulo then places it in a world, ships it to an engine, or prints it beside its own parts;', ';']],
+};
+
 function publicEntry(entry, subject) {
   // '<subject>' placeholders may sit in nested objects (mint_solid's spec).
   const fill = (v) => {
@@ -400,15 +407,18 @@ function publicEntry(entry, subject) {
     return v;
   };
   const fillArgs = (args) => (args ? fill(args) : undefined);
+  const shown = (r) => !hiddenInPluginProfile(r.tool);
+  const dccEdits = pluginProfileActive() && PROFILE_DCC_EDITS[entry.id];
+  const dcc = dccEdits ? profileEdit(entry.dcc, dccEdits, `modeler-lingo.${entry.id}`) : entry.dcc;
   return {
     id: entry.id,
     terms: entry.terms,
     concept: entry.concept,
     support: entry.support,
-    mojulo_routes: (entry.routes || []).map((r) => ({ tool: r.tool, when: r.when, ...(r.args ? { args: fillArgs(r.args) } : {}) })),
-    then: (entry.then || []).map((r) => ({ tool: r.tool, when: r.when, ...(r.args ? { args: r.args } : {}) })),
+    mojulo_routes: (entry.routes || []).filter(shown).map((r) => ({ tool: r.tool, when: r.when, ...(r.args ? { args: fillArgs(r.args) } : {}) })),
+    then: (entry.then || []).filter(shown).map((r) => ({ tool: r.tool, when: r.when, ...(r.args ? { args: r.args } : {}) })),
     ...(entry.ceiling ? { ceiling: entry.ceiling } : {}),
-    ...(entry.dcc ? { do_in_dcc: entry.dcc } : {}),
+    ...(dcc ? { do_in_dcc: dcc } : {}),
     ...(entry.note ? { note: entry.note } : {}),
   };
 }

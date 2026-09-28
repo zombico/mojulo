@@ -24,6 +24,7 @@
 import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { hostProfileForAdapter, getHostProfile, hostHandoff } from './registry.js';
+import { pluginProfileActive } from '../plugin-profile.js';
 
 export const SURFACES = new Set(['local', 'box']);
 
@@ -83,11 +84,15 @@ function pageSentence(door, row, a, caveats) {
       // raised whether or not the page fits — a page that fits the ceiling perfectly still renders
       // black. The default export is the inline build, so on this door the agent asks for the CDN
       // one. `handoff.box.cdns` has been on the profile since 2.0.8; this reads it.
+      // The Claude plugin profile (../plugin-profile.js) has no CDN build to point at: the file is the handoff.
+      const profile = pluginProfileActive();
       if (a.inlineScripts && Array.isArray(row.cdns) && row.cdns.length) {
-        caveats.push(`${a.name} carries three.js as inline \`data:\` modules, which this host's page CSP refuses at ANY size (it allows ${row.cdns.join(', ')}): re-export with \`cdn: true\` and publish world.cdn.html, or the page loads and nothing draws`);
+        caveats.push(profile
+          ? `${a.name} carries three.js as inline \`data:\` modules, which this host's page CSP refuses at ANY size, so a published copy loads and nothing draws: hand the operator the file instead (\`export_model({ format: 'bundle' })\` zips it with a courier page)`
+          : `${a.name} carries three.js as inline \`data:\` modules, which this host's page CSP refuses at ANY size (it allows ${row.cdns.join(', ')}): re-export with \`cdn: true\` and publish world.cdn.html, or the page loads and nothing draws`);
       }
       const fit = fitsBudget(a.bytes, row.pageMaxBytes);
-      if (!fit.fits) caveats.push(`${a.name} is ${fmtBytes(a.bytes)}, over this host's page limit by ${fmtBytes(fit.over_by)}: lighten the recipe${a.inlineScripts ? ', or re-export with `cdn: true`, which keeps ~1 MB of three.js off the page' : ''}`);
+      if (!fit.fits) caveats.push(`${a.name} is ${fmtBytes(a.bytes)}, over this host's page limit by ${fmtBytes(fit.over_by)}: lighten the recipe${a.inlineScripts && !profile ? ', or re-export with `cdn: true`, which keeps ~1 MB of three.js off the page' : ''}`);
       return `publish ${a.name}${size} with your Artifact tool (one HTML page${cap}); the operator opens it on claude.ai`;
     }
     case 'mcp-app':

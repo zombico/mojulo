@@ -32,6 +32,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { moduleDir } from '../module-dir.js';
 import { installedGroups, markerFilePath } from '../mcp/packs.js';
+import { pluginProfileActive } from '../mcp/plugin-profile.js';
 import { runMojulo } from '../version/distribution.js';
 
 const __dirname = moduleDir(import.meta.url, 'lib/embedder');
@@ -96,7 +97,9 @@ export function loadEmbeddingRuntime() {
     transformersPromise = load
       .then((mod) => {
         mod.env.cacheDir = CACHE_DIR;
-        mod.env.allowRemoteModels = USER_CACHE;
+        // The Claude plugin profile never fetches the model on its own (lib/mcp/plugin-profile.js):
+        // the user-run `install recall` does, and a server start or a search only loads it.
+        mod.env.allowRemoteModels = USER_CACHE && !pluginProfileActive();
         mod.env.allowLocalModels = true;
         return mod;
       })
@@ -140,9 +143,11 @@ function getExtractor() {
       .catch((err) => {
         extractorPromise = null;
         if (err instanceof RecallUnavailableError) throw err;
-        const hint = USER_CACHE
-          ? `Lazy download from ${CACHE_DIR} failed — check network / disk and retry.`
-          : `Run "node scripts/fetch-embed-model.js" first.`;
+        const hint = pluginProfileActive()
+          ? `The Claude plugin build of mojulo does not download the model on its own: ${recallInstallLine()} to fetch it.`
+          : USER_CACHE
+            ? `Lazy download from ${CACHE_DIR} failed — check network / disk and retry.`
+            : `Run "node scripts/fetch-embed-model.js" first.`;
         throw new Error(
           `Failed to load embedding model from ${CACHE_DIR}. ${hint} Cause: ${err.message}`
         );

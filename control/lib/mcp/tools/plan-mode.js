@@ -37,6 +37,7 @@
  */
 
 import { registerTool, invokeRegisteredTool, hasRegisteredTool, isToolListed } from '@/lib/mcp/server';
+import { hiddenInPluginProfile } from '@/lib/mcp/plugin-profile';
 import { PlanRepository } from '@/lib/db/repositories/plans';
 import { CookRepository } from '@/lib/db/repositories/cooks';
 import { recordPlanReleases, isReleaseCommitType } from '@/lib/mcp/meta-context/plan-release';
@@ -322,7 +323,8 @@ function validateManifest(manifest) {
       illegalTools.push(tool);
       return;
     }
-    if (!hasRegisteredTool(tool)) {
+    // A tool the Claude plugin profile leaves out is unknown to that build (no-op elsewhere).
+    if (!hasRegisteredTool(tool) || hiddenInPluginProfile(tool)) {
       unknownTools.push(tool);
       return;
     }

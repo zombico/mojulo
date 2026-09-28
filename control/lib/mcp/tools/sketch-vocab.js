@@ -12,25 +12,60 @@ import {
   getSketchVocabCard,
   listSketchVocab,
 } from '@/lib/graph/sketch-vocab/loader';
+import { hiddenRowInPluginProfile, pluginProfileActive, pluginProfileNotice, profileEdit } from '@/lib/mcp/plugin-profile';
+
+// Under the Claude plugin profile (lib/mcp/plugin-profile.js) the manuals of the painted kinds are not
+// served (nor the motion-comic tricks built on painted pages), and two kept cards lose the lines that
+// send a picture to an image generator. Per card,
+// per field: the edits apply to the list row and the card alike.
+const PROFILE_CARD_EDITS = {
+  'panel-depiction-recipes': {
+    when: [['; for an AI-PAINTED comic or manga page use the sequential-art kind instead', '']],
+    body: [[/ When the user wants an AI-painted comic or\nmanga page[\s\S]*?for the external image worker\./, '']],
+  },
+  'wardrobe-construction': {
+    summary: [['on a create_figure / character-sheet body', 'on a create_figure body']],
+    when: [[' or character-sheet,', ','], [' reconstruct a dreamed outfit as a garment spec,', '']],
+    body: [[
+      "The image model's native construction register is CUT-AND-SEW panels, not ring\nwireframes — so target this vocabulary directly when reading a dream. A garment",
+      'The construction register is CUT-AND-SEW panels, not ring\nwireframes. A garment',
+    ]],
+  },
+};
+
+function profiledCard(card) {
+  const edits = pluginProfileActive() && PROFILE_CARD_EDITS[card.id];
+  if (!edits) return card;
+  const out = { ...card };
+  for (const [field, list] of Object.entries(edits)) {
+    if (typeof out[field] === 'string') out[field] = profileEdit(out[field], list, `sketch_vocab.${card.id}.${field}`);
+  }
+  return out;
+}
+
+function servedCards() {
+  return listSketchVocab().filter((c) => !hiddenRowInPluginProfile('sketch_vocab', c.id)).map(profiledCard);
+}
 
 export async function getSketchVocabHandler(input) {
   const id = input && typeof input === 'object' ? input.id : undefined;
   if (id === undefined || id === null || id === '') {
-    return { cards: listSketchVocab(), _telemetrySignal: { id_requested: false, found: true } };
+    return { cards: servedCards(), _telemetrySignal: { id_requested: false, found: true } };
   }
   if (typeof id !== 'string') {
     throw new Error('`id` must be a string (a sketch_vocab source_ref)');
   }
+  if (hiddenRowInPluginProfile('sketch_vocab', id)) throw new Error(pluginProfileNotice(`The '${id}' card`));
   const card = getSketchVocabCard(id);
   if (!card) {
-    const available = listSketchVocab().map((c) => c.id);
+    const available = servedCards().map((c) => c.id);
     // "unknown card" keeps the miss visible to the orientation cut
     // (DRAWER_MISS_ERROR_RE in mcpToolCalls.js).
     throw new Error(
       `get_sketch_vocab: unknown card '${id}'. Known: ${available.join(', ') || '(none)'}. Find one by intent via semantic_search({ kinds: ['sketch_vocab'], query: '<your ask>' }).`,
     );
   }
-  return { card, _telemetrySignal: { id_requested: true, found: true } };
+  return { card: profiledCard(card), _telemetrySignal: { id_requested: true, found: true } };
 }
 
 const STYLE_AUTHOR_NOTE =

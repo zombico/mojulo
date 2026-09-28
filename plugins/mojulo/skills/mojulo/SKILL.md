@@ -1,6 +1,6 @@
 ---
 name: mojulo
-description: Build and export 3D objects, walkable worlds, games and music with the mojulo tools. Use when the user asks to model or 3D-print an object, compose a city, room or world, make a game, write a beat or song, export STL, GLB, HTML, Godot or MIDI, or asks what mojulo is.
+description: Build and export 3D objects, walkable worlds and games with the mojulo tools. Use when the user asks to model or 3D-print an object, compose a city, room or world, make a game or a game level, export STL, 3MF, GLB, HTML or a Godot project, or asks what mojulo is.
 ---
 
 # Mojulo

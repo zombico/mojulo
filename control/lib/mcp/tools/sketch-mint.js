@@ -13,6 +13,7 @@
 import path from 'node:path';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
+import { pluginProfileActive, pluginProfileNotice, PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS } from '@/lib/mcp/plugin-profile';
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
@@ -371,10 +372,20 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   };
 }
 
+// The painted kinds (image-outcome, sequential-art, …) are finished by an image generator through
+// the render handoff; the Claude plugin profile leaves them out (lib/mcp/plugin-profile.js).
+function refusePaintedKind(tool, manifest) {
+  const kind = manifest?.kind;
+  if (PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS.includes(kind) && pluginProfileActive()) {
+    throw new Error(pluginProfileNotice(`${tool} kind '${kind}'`));
+  }
+}
+
 export async function createSketchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_sketch requires { title, manifest }');
   }
+  refusePaintedKind('create_sketch', input.manifest);
   const {
     title,
     manifest,
@@ -537,6 +548,7 @@ export async function updateSketchHandler(input) {
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
+  refusePaintedKind('update_sketch', manifestInput);
   if (note !== undefined && (typeof note !== 'string' || !note.trim())) {
     throw new Error('`note` must be a non-empty string if provided');
   }

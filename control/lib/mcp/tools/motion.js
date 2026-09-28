@@ -36,6 +36,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import { registerTool } from '@/lib/mcp/server';
+import { pluginProfileActive, pluginProfileNotice, withPluginProfile } from '@/lib/mcp/plugin-profile';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { getMotionVocabCatalog } from '@/lib/graph/motion-vocab/loader';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -202,6 +203,12 @@ function resolveSubject(subject) {
     return { kind: 'carved', carved: c.spec, subjectRef: c.ref, recipeSubject: { carved_solid: c.ref ?? c.spec } };
   }
 
+  // The raster/character families composite accepted image renders: the Claude plugin profile
+  // leaves them out (lib/mcp/plugin-profile.js).
+  if ((subject.scene_ref || subject.cel_set) && pluginProfileActive()) {
+    throw new Error(pluginProfileNotice(`forge_motion subject.${subject.scene_ref ? 'scene_ref' : 'cel_set'}`));
+  }
+
   // ── scene subjects (a scene-motion recipe: character clips staged over a
   // background plate with depth + camera moves — the RASTER/CHARACTER family,
   // composited from accepted cels + the accepted plate; renderShot resolves the
@@ -247,7 +254,9 @@ function resolveSubject(subject) {
       recipeSubject: { cel_set: { ref: sketch.ref, ...overrides } },
     };
   }
-  throw new Error('forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, from+to, scene_ref, or cel_set — capability manual: get_motion_vocab().');
+  throw new Error(pluginProfileActive()
+    ? 'forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, from+to, or world_ref — capability manual: get_motion_vocab().'
+    : 'forge_motion subject must provide sketch_ref, manji_tree, deck, stash_ref, carved_solid, from+to, scene_ref, or cel_set — capability manual: get_motion_vocab().');
 }
 
 /**
@@ -459,6 +468,10 @@ export async function forgeMotionHandler(input) {
       ...(loop !== undefined ? { loop } : {}),
       ...(Array.isArray(ticks) && ticks.length ? { ticks } : Array.isArray(waypoints) && waypoints.length ? { waypoints } : {}),
     };
+  }
+  // The raster/character families are not in the Claude plugin profile: say so before any other check.
+  if ((subject?.scene_ref || subject?.cel_set) && pluginProfileActive()) {
+    throw new Error(pluginProfileNotice(`forge_motion subject.${subject.scene_ref ? 'scene_ref' : 'cel_set'}`));
   }
   if (!title || typeof title !== 'string') throw new Error('title is required');
   if (!shot || typeof shot !== 'object') throw new Error('forge_motion requires a shot');
@@ -793,7 +806,7 @@ export async function getMotionVocabHandler(input) {
 }
 
 export function registerMotionTools() {
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'forge_motion',
     // May fetch Chrome for Testing or ffmpeg first, then bake frames: past the 120 s default.
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
@@ -852,7 +865,13 @@ export function registerMotionTools() {
       },
     },
     handler: forgeMotionHandler,
-  });
+  }, {
+    schema: (schema) => {
+      delete schema.properties.subject.properties.scene_ref;
+      delete schema.properties.subject.properties.cel_set;
+      return schema;
+    },
+  }));
 
   registerTool({
     name: 'stitch_motion',

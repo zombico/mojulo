@@ -16,6 +16,10 @@
  *   4. Fetch Chrome-for-Testing via @puppeteer/browsers into the cache dir, only
  *      with the caller's consent: `allowFetch: true`, or a render running inside
  *      withChromiumFetch (chromium-consent.js lists the entry points that do).
+ *      Never under the Claude plugin profile (lib/mcp/plugin-profile.js): there
+ *      the render answers with the options instead, including the user-run
+ *      @puppeteer/browsers command that installs the same build where step 2
+ *      finds it.
  *      The download comes from storage.googleapis.com and is unpacked by running
  *      the system `unzip` (`tar.exe` or PowerShell on Windows); @puppeteer/browsers
  *      3 has no built-in unzip or proxy support, so a host behind an HTTP proxy
@@ -41,6 +45,7 @@ import path from 'node:path';
 import { puppeteer } from '@/lib/graph/scene/puppeteer-lazy';
 
 import { installedGroups } from '@/lib/mcp/packs';
+import { pluginProfileActive } from '@/lib/mcp/plugin-profile';
 import { chromiumFetchAllowed, recordChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { trackDownload } from '@/lib/net/download-log';
 
@@ -129,6 +134,31 @@ function chromiumUnavailable() {
       + 'render asks for it (a motion render, a game export, an audit run, the dashboard\'s PNG download), '
       + 'never for a background or gallery bake. Install Google Chrome, Chromium, Edge or Brave '
       + '(Debian/Ubuntu: `apt install chromium`), or point $MOJULO_CHROMIUM at one, then retry.',
+  );
+  err.code = 'CHROMIUM_UNAVAILABLE';
+  return err;
+}
+
+// The version of @puppeteer/browsers this install carries, for the user-run install command below
+// (its CLI writes the same cache layout step 2 of resolveChromium reads). Null when it cannot be read.
+function puppeteerBrowsersVersion() {
+  try {
+    const { createRequire } = process.getBuiltinModule('module');
+    return createRequire(import.meta.url)('@puppeteer/browsers/package.json').version || null;
+  } catch {
+    return null;
+  }
+}
+
+/** The Claude plugin profile's answer when no browser is installed: it never downloads one. */
+function chromiumUnavailableInPlugin() {
+  const cli = `@puppeteer/browsers${puppeteerBrowsersVersion() ? `@${puppeteerBrowsersVersion()}` : ''}`;
+  const err = new Error(
+    'No Chromium-family browser was found, and the Claude plugin build of mojulo does not download one. '
+      + 'Install Google Chrome, Chromium, Microsoft Edge or Brave (Debian/Ubuntu: `apt install chromium`), '
+      + 'or set MOJULO_CHROMIUM to one in the environment Claude Code starts with, then retry. '
+      + `To fetch Chrome for Testing yourself instead, run this in a terminal: \`npx -y ${cli} install chrome@${CHROME_BUILD} --path "${chromiumCacheDir()}"\` `
+      + '(about 500 MB, from storage.googleapis.com); mojulo finds it there.',
   );
   err.code = 'CHROMIUM_UNAVAILABLE';
   return err;
@@ -248,7 +278,9 @@ let cachedExecutable = null;
  */
 export async function resolveChromium({ allowFetch } = {}) {
   if (cachedExecutable) return cachedExecutable;
-  const mayFetch = allowFetch ?? chromiumFetchAllowed();
+  // The Claude plugin profile never downloads a browser, whatever the caller consented to.
+  const profile = pluginProfileActive();
+  const mayFetch = (allowFetch ?? chromiumFetchAllowed()) && !profile;
 
   const override = process.env.MOJULO_CHROMIUM || process.env.PUPPETEER_EXECUTABLE_PATH;
   if (override && existsSync(override) && (await probe(override))) {
@@ -280,7 +312,7 @@ export async function resolveChromium({ allowFetch } = {}) {
     }
   }
 
-  if (!mayFetch) throw chromiumUnavailable();
+  if (!mayFetch) throw profile ? chromiumUnavailableInPlugin() : chromiumUnavailable();
 
   // Never trigger the ~500 MB Chrome-for-Testing download in an install WITHOUT
   // the creative pack. Creative ships with every install, so only a MOJULO_PACKS

@@ -30,6 +30,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { registerTool } from '@/lib/mcp/server';
+import { pluginProfileActive, withPluginProfile } from '@/lib/mcp/plugin-profile';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
@@ -265,7 +266,10 @@ function withHandoff(result, context, artifact) {
 
 export async function exportGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
-  const { ref, target, posture = null, cdn = false } = input;
+  const { ref, target, posture = null, cdn: cdnInput = false } = input;
+  // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only self-contained pages.
+  const pluginBuild = pluginProfileActive();
+  const cdn = pluginBuild ? false : cdnInput;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
 
   if (target === 'godot') {
@@ -559,11 +563,12 @@ export async function exportGameHandler(input, context = {}) {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
+    ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
   }, context, { kind: 'folder', name: 'game.html', path: dir, dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html` });
 }
 
 export function registerExportGameTools() {
-  registerTool({
+  registerTool(withPluginProfile({
     name: 'export_game',
     // May fetch Chrome for Testing first, then bake: past the 120 s default.
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
@@ -595,5 +600,11 @@ export function registerExportGameTools() {
       required: ['ref'],
     },
     handler: exportGameHandler,
-  });
+  }, {
+    edits: [['`cdn: true`: three.js off the pinned CDN; banks hoisted', 'banks hoisted']],
+    schema: (schema) => {
+      delete schema.properties.cdn;
+      return schema;
+    },
+  }));
 }

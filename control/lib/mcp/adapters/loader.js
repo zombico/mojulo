@@ -18,6 +18,45 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pluginProfileActive, profileEdit } from '../plugin-profile.js';
+
+// Under the Claude plugin profile (../plugin-profile.js) the host cards drop what that build does
+// not have: the CDN page (every card), and the Grok card's paint-worker and native-video moves (no
+// image handoff to bind a painted render back through).
+const PROFILE_ADAPTER_EDITS = {
+  // The Claude Code card: that build writes no CDN page, so the web box's handoff is the file.
+  'claude-code': {
+    body: [[
+      /the page door is your Artifact tool — publish `world\.cdn\.html`[\s\S]*?the default build is the file that works with no network\. /,
+      "your Artifact tool's page CSP refuses inline `data:` scripts at any size, so the self-contained `world.html` this build writes loads and draws nothing there: hand over the file instead. ",
+    ]],
+  },
+  'generic': {
+    body: [[" (`cdn: true` writes `world.cdn.html`, which loads three.js from the pinned jsdelivr CDN, for a page door whose CSP refuses inline scripts)", '']],
+  },
+  'codex': {
+    body: [["; `cdn: true` writes `world.cdn.html`, which loads three.js from the pinned jsdelivr CDN instead.", '.']],
+  },
+  'grok-build': {
+    summary: [['native image_gen/image_edit is the paint worker (recipe stays sovereign); ', '']],
+    body: [
+      ['Native image (`image_gen` / `image_edit`) is the look. Mojulo is the recipe', 'Mojulo is the recipe'],
+      [
+        /2\. \*\*You are the paint worker\.\*\*[^\n]*/,
+        "2. **Recipes, not renders.** A PNG, GLB or WAV is a derived file bound to its recipe; the recipe stays sovereign. The eyes gate is the operator's — see `docs/bicycles.md`; do not invent a gate here.",
+      ],
+      [
+        '3. **Two motion systems.** `forge_motion` is deterministic (turntable, traversal that can prove a level). Native video (`image_to_video` / `reference_to_video`) is cinema. Do not substitute one for the other.',
+        '3. **Motion is deterministic.** `forge_motion` renders turntables and traversals that can prove a level.',
+      ],
+    ],
+  },
+};
+
+function profiled(adapter, field) {
+  const edits = pluginProfileActive() && PROFILE_ADAPTER_EDITS[adapter.id]?.[field];
+  return edits ? profileEdit(adapter[field], edits, `adapter.${adapter.id}.${field}`) : adapter[field];
+}
 import { moduleDir } from '../../module-dir.js';
 const ADAPTER_DIR = moduleDir(import.meta.url, 'lib/mcp/adapters');
 
@@ -93,7 +132,7 @@ export function listAdapters() {
     out.push({
       id: adapter.id,
       name: adapter.name,
-      summary: adapter.summary,
+      summary: profiled(adapter, 'summary'),
       artifactTarget: adapter.artifactTarget,
       schedulingMechanism: adapter.schedulingMechanism,
       secretsPosture: adapter.secretsPosture,
@@ -106,7 +145,9 @@ export function getAdapter(id) {
   const adapter = getAdapterCatalog().get(id);
   if (!adapter) return null;
   const { _file, ...rest } = adapter;
-  return rest;
+  return pluginProfileActive() && PROFILE_ADAPTER_EDITS[id]
+    ? { ...rest, summary: profiled(adapter, 'summary'), body: profiled(adapter, 'body') }
+    : rest;
 }
 
 /**
