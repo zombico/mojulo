@@ -256,14 +256,6 @@ export function runToolSerialized(tool, fn) {
   return runSerialized(tool, fn);
 }
 
-/**
- * Invoke a registered tool's handler directly, bypassing JSON-RPC framing.
- * Used by the plan-mode executor to run a compiled manifest of tool calls
- * through the exact same handler path a remote `tools/call` would hit, so
- * executed plans behave identically to operator-typed calls. Throws if the
- * tool is unknown or its handler throws — the executor maps both to the
- * per-call result it records.
- */
 // A name the chatbot factory took with it: the moved notice, or, when a removed pack dispatcher is
 // asked to run a tool 3.0 kept (2.x listed list_running, recommend_kind and a few more there), the
 // redirect to that tool's live home pack.
@@ -276,6 +268,14 @@ function removedBotToolText(name, input) {
   );
 }
 
+/**
+ * Invoke a registered tool's handler directly, bypassing JSON-RPC framing.
+ * Used by the plan-mode executor to run a compiled manifest of tool calls
+ * through the exact same handler path a remote `tools/call` would hit, so
+ * executed plans behave identically to operator-typed calls. Throws if the
+ * tool is unknown or its handler throws — the executor maps both to the
+ * per-call result it records.
+ */
 export async function invokeRegisteredTool(name, input, context) {
   const tool = registeredTools.get(name);
   if (!tool && isRemovedBotTool(name)) throw new Error(removedBotToolText(name, input));
