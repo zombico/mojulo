@@ -1,8 +1,8 @@
 # Terms of Use
 
-mojulo is software you install on your own machine. There is no account you sign up for, no server we operate on your behalf, no data we receive about how you use it. The maintainer ("we") — **2364758 Ontario Inc.**, an Ontario corporation — publishes source code, an npm package, and a container image; everything else — what you do with it, what you build with it, what runs on your hardware — is yours.
+mojulo is software you install on your own machine. There is no account you sign up for, no server we operate on your behalf, no data we receive about how you use it. The maintainer ("we") — **Franz Ombico** — publishes source code and npm packages; everything else — what you do with it, what you build with it, what runs on your hardware — is yours.
 
-**The open-source commitment.** The mojulo you install — this repository, the npm package, the container image — is open source under Apache 2.0 and will remain so. It has no external telemetry and never will: no analytics endpoint, no usage reporting, no data sent to the maintainer. Its one log of its own tool calls stays on your machine, in its database under `~/.mojulo/`, and `MOJULO_MCP_TELEMETRY=off` turns it off. This is a commitment about the software, not a promise never to offer anything else. There is no hosted mojulo service today. If there is demand, a separately offered **mojulo cloud** built on standard hosted services may be explored. Any such offering would be its own product under its own terms, opt-in, and would change nothing above: the open-source mojulo stays open source, stays free of external telemetry, and never depends on a hosted service to run. Where any other document in this repository reads as ruling out a hosted offering, this paragraph is the stance that governs.
+**The open-source commitment.** The mojulo you install — this repository and its npm packages — is open source under Apache 2.0 and will remain so. It has no external telemetry and never will: no analytics endpoint, no usage reporting, no data sent to the maintainer. Its one log of its own tool calls stays on your machine, in its database under `~/.mojulo/`, and `MOJULO_MCP_TELEMETRY=off` turns it off. This is a commitment about the software, not a promise never to offer anything else. There is no hosted mojulo service today. If there is demand, a separately offered **mojulo cloud** built on standard hosted services may be explored. Any such offering would be its own product under its own terms, opt-in, and would change nothing above: the open-source mojulo stays open source, stays free of external telemetry, and never depends on a hosted service to run. Where any other document in this repository reads as ruling out a hosted offering, this paragraph is the stance that governs.
 
 This document describes how to think about that responsibility split. It supplements (and does not replace) the [Apache License 2.0](LICENSE) that governs the code itself, and the threat model in [SECURITY.md](SECURITY.md).
 
@@ -25,8 +25,8 @@ By installing and running mojulo, you accept that:
 
 - **You choose what to build.** Apps, connected services, cooks, sketches, plans, research — every artifact mojulo produces is something you (or your agent acting on your prompt) asked it to produce.
 - **You choose what inputs to give it.** Documents, URLs, conversation history, MCP tool outputs, credentials — mojulo stores and composes what you put in front of it. It does not curate the inputs for you.
-- **You choose what external systems it touches.** Any MCP server you connect (Gmail, Drive, Linear, your CRM, your own), any LLM provider key you paste in, any cloud deploy target (Fly, your registry) is a connection *you* established with *your* credentials, subject to *your* agreement with that vendor.
-- **You choose what to do with the outputs.** Generated bots, generated documents, generated plans, generated code — once mojulo has materialized them on your disk, they are your artifacts. Publishing, deploying, sharing, selling, or deleting them is your decision.
+- **You choose what external systems it touches.** Any MCP server you connect (Gmail, Drive, Linear, your CRM, your own), any LLM provider key you paste in is a connection *you* established with *your* credentials, subject to *your* agreement with that vendor.
+- **You choose what to do with the outputs.** Generated models, worlds, games, documents, plans, code — once mojulo has materialized them on your disk, they are your artifacts. Publishing, deploying, sharing, selling, or deleting them is your decision.
 
 The maintainer does not have, and is not seeking, the ability to see, approve, modify, or revoke any of these decisions.
 
@@ -44,13 +44,13 @@ The maintainer cannot evaluate your context. You can.
 
 ## 4. Third-party services
 
-Anything mojulo connects to on your behalf — LLM providers, MCP servers, cloud hosts, image registries, vector stores — is a service you have your own relationship with. mojulo is a client; you are the customer.
+Anything mojulo connects to on your behalf — LLM providers, MCP servers, and any other service you point it at — is a service you have your own relationship with. mojulo is a client; you are the customer.
 
 You are responsible for:
 
 - Complying with the terms of service of every LLM provider whose key you paste into mojulo, including their acceptable-use policies.
 - Complying with the terms of service of every MCP server you connect to mojulo, including any rate limits, data-handling obligations, and authorized-use scopes.
-- Complying with the terms of service of every deploy target (Fly, your own registry, your own infrastructure) you use to host artifacts mojulo generated.
+- Complying with the terms of service of every platform or host where you publish, deploy, or manufacture artifacts mojulo generated.
 - All costs incurred against those services. mojulo does not host inference; the bill goes to your provider, not to us.
 
 The maintainer is not a party to those relationships and has no visibility into them.
@@ -62,8 +62,8 @@ When you or your agent direct mojulo to scaffold an app, render a cook, mint a s
 This means:
 
 - **You own what you make.** Subject to the licenses of any third-party content you fed in and any provider-specific terms about model output, the artifacts are yours to keep, modify, deploy, distribute, or destroy.
-- **You are responsible for what it does.** If a bot you compiled gives a bad answer, leaks data through a misconfiguration, or violates a regulation in the jurisdiction you deployed it in, that is your bot. The maintainer did not write it; you and your agent did.
-- **You are responsible for what it processes.** Conversation data, uploaded documents, form submissions — these flow through bots you compiled, on infrastructure you chose. The maintainer does not see them. Any obligations you have to the people whose data passes through (notice, consent, retention limits, deletion requests) are yours.
+- **You are responsible for what it does.** If an app you scaffolded misbehaves, a printed part fails, or an artifact violates a regulation where you use it, that is your artifact. The maintainer did not make it; you and your agent did.
+- **You are responsible for what it processes.** Data that flows through apps or services you built with mojulo runs on infrastructure you chose. The maintainer does not see it. Any obligations you have to the people whose data passes through (notice, consent, retention limits, deletion requests) are yours.
 
 ## 6. No warranty, no fitness for purpose
 
@@ -78,7 +78,7 @@ If mojulo is unsuitable for your purposes, the remedy is to stop using it.
 
 ## 7. Limitation of liability
 
-To the maximum extent permitted by law, the maintainer is not liable for any direct, indirect, incidental, consequential, special, exemplary, or punitive damages arising out of your use of mojulo. This includes loss of data, loss of revenue, loss of reputation, regulatory penalties, claims by third parties (including users of bots you built and people whose data those bots processed), and costs of substitute software or services.
+To the maximum extent permitted by law, the maintainer is not liable for any direct, indirect, incidental, consequential, special, exemplary, or punitive damages arising out of your use of mojulo. This includes loss of data, loss of revenue, loss of reputation, regulatory penalties, claims by third parties (including users of apps, games, or objects you built and people whose data they processed), and costs of substitute software or services.
 
 If a court finds this limitation unenforceable in your jurisdiction, the maintainer's aggregate liability is capped at the amount you paid for mojulo, which is zero.
 
@@ -86,7 +86,7 @@ If a court finds this limitation unenforceable in your jurisdiction, the maintai
 
 You agree to indemnify and hold harmless the maintainer from any claim, demand, loss, or expense (including reasonable legal fees) arising out of:
 
-- Your use of mojulo, including any bots, apps, services, or other artifacts you produced with it.
+- Your use of mojulo, including any apps, games, objects, services, or other artifacts you produced with it.
 - Your violation of any law, regulation, or third-party agreement (including LLM-provider, MCP-provider, and hosting-provider terms) in connection with that use.
 - Any data you fed into mojulo or that flowed through artifacts you built with it.
 - Any claim by a user of an artifact you built or deployed with mojulo.
