@@ -144,7 +144,7 @@ If you run it somewhere we haven't, open an issue with what you saw.
 
 No provider key. Your agent is the reasoning loop, so objects, worlds, games,
 scores and exports all run keyless. A key enters only when something has to
-*paint* a directed image, or if you install the optional chatbot pack.
+*paint* a directed image, or when you use `mint_solid`'s prompt door.
 
 ```bash
 npx mojulo init
@@ -153,14 +153,13 @@ npx mojulo init
 `init` detects your MCP host(s), wires mojulo into each (one yes/no per host),
 and opens the dashboard at `http://localhost:3001` (or the next free port — the
 installer prints the URL). Nothing is sent anywhere; state lands in `~/.mojulo/`.
-The first install is the big one: npx pulls a ~6 MB package plus its dependencies (about 290 MB
-on disk, about 110 MB downloaded, measured for 2.2.0); after that, starts are instant. The
+The first install is the big one: npx pulls a ~6 MB package plus its dependencies (about <measured> MB
+on disk, about <measured> MB downloaded, measured for 3.0.0); after that, starts are instant. The
 dashboard is its own package, fetched the first time you open it, and the local search model is
 the opt-in `mojulo install recall`. Measured sizes, lazy first-use downloads, and what each engine
 leg needs: [docs/tech-requirements.md](tech-requirements.md).
 
-**Why these dependencies.** All of them run on your machine. `officeparser` and `pdf2json` read
-documents, `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
+**Why these dependencies.** All of them run on your machine. `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
 geometry, `sharp` handles images, `puppeteer-core` drives a *local* headless Chrome for stills (the
 browser itself is fetched only for an explicit render, or skipped if you already have Chrome), and
 `better-sqlite3` is the one database file under `~/.mojulo/`. Nothing in that list reaches the
@@ -244,7 +243,7 @@ args = ["-y", "mojulo"]
 "mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
 ```
 
-Open the dashboard separately anytime with `npx -y mojulo-ui` (its own npm package since 2.2.0; `npx -y -p mojulo mojulo-ui` fetches it on first use).
+Open the dashboard separately anytime with `npx -y mojulo-ui` (its own npm package since 3.0.0; `npx -y -p mojulo mojulo-ui` fetches it on first use).
 
 ### Commands
 
@@ -290,7 +289,8 @@ The factory is the point. The same recipe discipline covers a wider shelf, prese
 - **Publications, research, plans, stashes** — cooks (briefs, decks, comics, picture books, whole static sites), a searchable research notebook, plans tracked from draft to executed, and typed buckets the agent files inputs into. All land as plain files you diff and regenerate.
 - **Connected services** — workflows over the MCPs you already run (Drive, Gmail, Linear, your CRM), synthesized by your agent from a **catalyst** into a runnable artifact you own, with the wiring recorded in a durable contextmap. Mojulo ships no native integrations by design. [docs/catalysts.md](catalysts.md), [docs/meta-context.md](meta-context.md)
 - **Local apps** — a local process plus MCP sidecar whose inference parks back on your agent, so no per-app LLM key. [docs/app-runtime.md](app-runtime.md)
-- **The chatbot factory (opt-in)** — not part of a default install since 2.0. `mojulo install chatbot` adds compiled bots with hash-chained transcripts and offline RAG; `--remove` puts it away. A compiled bot is the one artifact that needs an LLM key of its own, because it runs without you. Already-deployed bots are unaffected either way. Everything about it: [docs/chatbot/](chatbot/).
+
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers.
 
 ---
 
@@ -329,15 +329,15 @@ A spectrum, all driving the same open-source, self-hosted stack from their own M
 - **Teachers and course builders** who tune a study object once, keep it in their cookbook, and recall it by intent a term later.
 - **Anyone with a Claude/ChatGPT subscription** who wants their agent to ship files other tools already read, not chat transcripts.
 
-The wider shelf reaches further: indie makers vibe-coding side projects without a SaaS bill, teams with a pile of MCPs who want them wired together once with the reasoning recorded, and, with the optional chatbot pack, agencies, internal IT and regulated SMBs who need a bot the client keeps.
+The wider shelf reaches further: indie makers vibe-coding side projects without a SaaS bill, and teams with a pile of MCPs who want them wired together once with the reasoning recorded.
 
 ---
 
 ## Architecture in one paragraph
 
-The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, OpenUSD, STL and 3MF, and the Godot, Unity, Unreal and Blender packs — each emitter owning its own frame and unit conversion from the native z-up metre frame, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: an attached [recipe book](https://github.com/zombico/mojulo-recipe-book) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps — and bots, if that pack is installed — run as separate processes supervised by a daemon.
+The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, OpenUSD, STL and 3MF, and the Godot, Unity, Unreal and Blender packs — each emitter owning its own frame and unit conversion from the native z-up metre frame, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: an attached [recipe book](https://github.com/zombico/mojulo-recipe-book) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps run as separate processes supervised by a daemon.
 
-Full diagrams: [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) (the headless control surface), [docs/POLYGONIZER-SYNTHESIS.md](POLYGONIZER-SYNTHESIS.md) (the geometry substrate), [docs/chatbot/BOT-ARCHITECTURE.md](chatbot/BOT-ARCHITECTURE.md) (the optional bot factory).
+Full diagrams: [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) (the headless control surface) and [docs/POLYGONIZER-SYNTHESIS.md](POLYGONIZER-SYNTHESIS.md) (the geometry substrate).
 
 ---
 
@@ -347,11 +347,10 @@ Full diagrams: [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) (the headless con
 mojulo/
 ├── control/        Next.js control plane: MCP server, dashboard, the geometry/audio/publication
 │                   kernels, render + export emitters, runtime supervisor
-├── lite-template/  Runtime for the OPTIONAL chatbot pack: Express server, RAG, LLM client, Dockerfile
-└── docs/           Concept docs; the bot factory's own set is isolated under docs/chatbot/
+└── docs/           Concept docs
 ```
 
-Per-package docs: [control/README.md](../control/README.md) — the npm package overview (what's published to npmjs.com/package/mojulo). [lite-template/](../lite-template/) — bot runtime internals.
+Per-package docs: [control/README.md](../control/README.md) — the npm package overview (what's published to npmjs.com/package/mojulo).
 
 Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) — the attachable catalog of mintable recipes. Clone it, point `MOJULO_RECIPE_BOOK` at it; strictly additive and read from your clone, never fetched (its builders run as code, so attach a book you trust). See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -368,14 +367,12 @@ Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-boo
 **Concept docs — the substrate and the backend:**
 
 - [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) — the headless control surface: transport, session binding, deliberation surfaces
-- [docs/mcp-integration.md](mcp-integration.md) — connecting an agent, the tool surface, the session model
-- [docs/install-capabilities.md](install-capabilities.md) — kernel, always-on packs, and the two install-gated groups
+- [docs/mcp-integration.md](mcp-integration.md) — connecting an agent, the tool surface, catalysts and composition recipes
+- [docs/install-capabilities.md](install-capabilities.md) — kernel, always-on packs, and the install groups
 - [docs/catalysts.md](catalysts.md) — what a catalyst is and how to author one
 - [docs/meta-context.md](meta-context.md), [docs/mcp-orbit.md](mcp-orbit.md) — connected-services composition
 - [docs/app-runtime.md](app-runtime.md) — the app runner daemon
 - [docs/responsibility-model.md](responsibility-model.md) — the operator-owns-consequences posture
-
-**Optional pack:** the chatbot factory's docs live together under **[docs/chatbot/](chatbot/)** — start at its [README](chatbot/README.md).
 
 ---
 

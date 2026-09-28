@@ -18,7 +18,7 @@ Needs **Node 22.12+** and an MCP-capable coding agent (Claude Code or Codex; Cla
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo`. It starts the same server pinned to one version ([plugins/mojulo](plugins/mojulo/README.md)). Use the plugin or `init` for Claude Code, not both: two registrations run two servers.
 
-The first install is the big one: npx pulls a ~6 MB package whose dependencies land at about 290 MB on disk (about 110 MB downloaded; measured for 2.2.0 on macOS arm64, where a cold start answered in 7 to 10 s). The biggest pieces are `officeparser` (document parsing), `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat and Meta Muse.
+The first install is the big one: npx pulls a ~6 MB package whose dependencies land at about <measured> MB on disk (about <measured> MB downloaded; measured for 3.0.0 on macOS arm64, where a cold start answered in <measured> s). The biggest pieces are `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat and Meta Muse.
 
 <details>
 <summary>Wire it by hand instead</summary>
@@ -39,7 +39,7 @@ args = ["-y", "mojulo"]
 "mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
 ```
 
-Open the dashboard on its own with `npx -y mojulo-ui`. It is its own npm package since 2.2.0, so your agent's `npx mojulo` start never downloads it; `npx -y -p mojulo mojulo-ui` still works and fetches the matching version from npm on first use. The `mojulo` bin is also a CLI over the tool registry: `npx mojulo tools`, `npx mojulo help mint_solid`, `npx mojulo call version`.
+Open the dashboard on its own with `npx -y mojulo-ui`. It is its own npm package since 3.0.0, so your agent's `npx mojulo` start never downloads it; `npx -y -p mojulo mojulo-ui` still works and fetches the matching version from npm on first use. The `mojulo` bin is also a CLI over the tool registry: `npx mojulo tools`, `npx mojulo help mint_solid`, `npx mojulo call version`.
 
 </details>
 
@@ -85,15 +85,15 @@ agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not
 | Grok (Build; chat) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> Build | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
 | Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
 
-Three things are opt-in, and the choice is the same in both places:
+Two things are opt-in, and the choice is the same in both places:
 
 | add | with | what you get |
 |---|---|---|
 | **creative** (installed by default) | plain `npm install` | worlds, audio, fonts for wordmarks, exact booleans, OpenSCAD-in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds it for a kernel-only install that still mints diagrams, floorplans, workbench solids and exports GLB and STL. |
 | **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers, ranking by the words in your ask (about 480 MB of runtime plus a 130 MB model, kept under `~/.mojulo/` so it survives upgrades). Most sessions never need it: the agent reads the tool index and the vocab cards directly. |
-| **chatbot** | `mojulo install chatbot` | the bot factory: build, deploy and operate chatbots. Needs an LLM key of its own and Docker for the default deploy, so this one is for your machine, not a temporary box. It installs `recall` first, because a bot's preview search must rank the way the deployed bot does. |
+`mojulo install` with no argument prints which of the two are present.
 
-`mojulo install` with no argument prints which of the three are present.
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. `mojulo install chatbot` now installs nothing and prints this notice.
 
 ## Six things to say to it
 
@@ -204,7 +204,7 @@ The control plane is single-operator and localhost-only by default. The stdio MC
 
 A Next.js app exposes two faces over one SQLite: an MCP server (stdio for the npm package, HTTP for remote clients) that your agent calls, and a dashboard at `localhost:3001` that renders what accumulates. The compiler shape: a recipe is the source (params plus a `kind`), a kernel is the backend that regenerates it on every read, and each emitter is a target that owns its own frame and unit conversion from the native z-up metre frame. A kernel's output for given params is a compatibility promise over already-minted rows, tested byte-for-byte. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies; absence degrades one loop without breaking any.
 
-Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications and research notebooks, local apps whose inference parks back on your agent, and workflows over the MCPs you already run. The chatbot factory is an opt-in pack (`mojulo install chatbot`) and is the one artifact that needs an LLM key of its own.
+Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications and research notebooks, local apps whose inference parks back on your agent, and workflows over the MCPs you already run.
 
 - [docs/tour.md](docs/tour.md) — the long tour: everything mojulo makes and who it is for
 - [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) — the substrate, rings, data layout, daemons
@@ -212,12 +212,11 @@ Also in the box, present by default and never in the way: diagrams and charts, d
 - [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) — the geometry substrate
 - [docs/tech-requirements.md](docs/tech-requirements.md) — measured footprint, engine legs, slicers, workers, platform notes
 - [docs/local-blender-worker.md](docs/local-blender-worker.md), [docs/local-slicer-worker.md](docs/local-slicer-worker.md), [docs/local-mesh-worker.md](docs/local-mesh-worker.md), [docs/local-image-worker.md](docs/local-image-worker.md) — the optional workers
-- [AGENTS.md](AGENTS.md) — for non-Claude hosts; [docs/chatbot/](docs/chatbot/) — the optional pack
+- [AGENTS.md](AGENTS.md) — for non-Claude hosts
 
 ```
 mojulo/
 ├── control/        Next.js control plane: MCP server, dashboard, kernels, emitters, runtime supervisor
-├── lite-template/  Runtime for the optional chatbot pack
 └── docs/           Concept docs
 ```
 

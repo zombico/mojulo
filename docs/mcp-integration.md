@@ -4,18 +4,18 @@ How to connect your own agent (Claude Code, Claude Desktop, Codex CLI, or any ot
 
 This is the primary way mojulo is driven. The `npx mojulo init` flow wires stdio automatically; the HTTP route below is for remote clients and is **opt-in** — with `CONTROL_PLANE_MCP_KEY` unset (the default), `/api/mcp` returns 404 and the surface is invisible. Set the key and it comes online with bearer auth.
 
-Architecture behind this surface: [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md). The **optional chatbot pack**'s tool surface and its own composition recipes live at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md).
+Architecture behind this surface: [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md).
 
 ---
 
 ## What you get
 
-When `/api/mcp` is enabled, the user's MCP-capable agent becomes the agent loop and the control plane becomes a tool host. The same `builderToolHandlers` that power the in-app chat builder are exposed as MCP tools, plus a few read tools for inspecting deployed bots.
+When `/api/mcp` is enabled, the user's MCP-capable agent becomes the agent loop and the control plane becomes a tool host: the same tool registry the stdio server serves, reachable from a remote client.
 
-- Build a bot from a fresh agent session: *"build me a triage bot for my dental practice"*.
-- Reasoning bill moves to the user's agent subscription (Claude Pro/Max, ChatGPT, etc.). The control plane does not need a provider key for builder-time work.
+- Mint and edit worlds, objects, games, audio and publications from a fresh agent session: *"a lighthouse on a rocky point, printable at 12 cm"*.
+- Reasoning bill stays on the user's agent subscription (Claude Pro/Max, ChatGPT, etc.). The control plane needs no provider key of its own.
 - Mix mojulo tools with other MCP servers in one agent loop (Linear, GitHub, Notion, etc.).
-- Read deployed bot state (deployments, conversations, submissions, chain verification) — without copying transcript data into the control-plane DB.
+- Read mojulo's own state (recipes, the contextmap, plans, stashes) and hand it to those servers.
 
 ---
 
@@ -118,9 +118,9 @@ Creative packs ship with every install (only a `MOJULO_PACKS` override gates the
 | `install_scaffold` / `start_app` / `stop_app` / `status_app` | App lifecycle. |
 | `forge_plan` / `compile_plan` / `execute_plan` | Plan mode — proposed work that compiles against the live registry. |
 
-### Chatbot pack (opt-in)
+### The chatbot factory
 
-The bot builder and per-bot operate tables are **not** part of a default install. `mojulo install chatbot` adds them; their tool surface and the four bot-shaped composition recipes live at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md#mcp-tool-surface-pack).
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. A call to one of its old tool names answers in-band with this notice.
 
 ### Catalysts
 
@@ -210,15 +210,15 @@ Recipes 1 and 2 use another MCP server as the *data source* and mojulo as the ar
 
 ### 5. Wiring two of your own MCPs together, with no mojulo artifact at all
 
-**You need:** any pair of installed MCPs — one with read affordances (Linear, Gmail, GitHub, etc.), one with write affordances (Drive, Notion, Slack, etc.). No mojulo bot. Mojulo offers two composers under mcp-orbit; both end at the same `meta_context_commit` audit surface.
+**You need:** any pair of installed MCPs — one with read affordances (Linear, Gmail, GitHub, etc.), one with write affordances (Drive, Notion, Slack, etc.). Mojulo offers two composers under mcp-orbit; both end at the same `meta_context_commit` audit surface.
 
 **Example.** Every Monday morning, summarize the past week of Linear issue activity into a Google Doc the operator can scan in a few minutes.
 
 **Primitive-binding flow (recommended).** When the agent has runtime-introspected tool-schema knowledge (which Claude Code, Codex, and similar hosts surface natively): `meta_context_declare_inventory` in **richer-snapshot mode** (per-tool `inputSchema` + `introspectionConfidence`) → `bind_primitives` once per primitive slot in the composition (e.g. `structured-record-store/source` on Linear, `document-store/destination` on Drive) — each call returns a `prov_<id>` artifact whose body is the primitive's role template filled with the operator's actual bound tool names and schemas → assemble + dry-run against a draft destination doc → promote → host-adapter materialization → `meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id, artifact, composition_intent, provider_artifact_refs: [...] })`. The four primitives — `document-store`, `structured-record-store`, `messaging-channel`, `message-thread` — cover the typed-shape space across vendors.
 
-**Vendor-shaped composer flow (seed-reasoning fallback).** When the agent doesn't have confident tool-schema knowledge yet, or wants curated vendor-specific pitfalls and intent baked into the body: `meta_context_declare_inventory` (thin-snapshot mode is fine) → `recommend_mcp_orbit_compositions({ intent: "weekly Linear digest into Drive..." })` (server returns 1–3 ranked candidate compositions from the typed component store — `mcp` × `trigger` × `pattern` × `idempotency` × `render`, each mcp entry carrying a `role: 'source' | 'destination'`) → `get_meta_catalyst` (composition rulebook, read once per session) → `get_mcp_orbit_component` per component the candidate uses → assemble + dry-run + promote → host-adapter materialization → `meta_context_commit({ type: 'artifact_materialization', ... })`.
+**Vendor-shaped composer flow (seed-reasoning fallback).** When the agent doesn't have confident tool-schema knowledge yet, or wants curated vendor-specific pitfalls and intent baked into the body: `meta_context_declare_inventory` (thin-snapshot mode is fine) → `recommend_mcp_orbit_compositions({ intent: "weekly Linear digest into Drive..." })` (server returns 1–3 ranked candidate compositions from the typed component store — `mcp` × `trigger` × `pattern` × `idempotency` × `render`, each mcp entry carrying a `role: 'source' | 'destination'`) → `get_meta_catalyst` (composition rulebook, read once per session) → `get_mcp_orbit_component` per component the candidate uses → assemble + dry-run + promote → host-adapter materialization → `bind_primitives` per mcp entry → `meta_context_commit({ type: 'primitive_artifact_materialization', ... })` with the returned `prov_…` refs.
 
-**Why this surface, not a catalyst.** Recipes 1–4 all end in a mojulo artifact. Recipe 5 produces none — it's MCP-to-MCP wiring with mojulo as the deliberation anchor (operator KYC, composition log, contextmap commit) rather than the conversational runtime. Both composers above add a new MCP to the library with O(1) marginal work, and combinations across triggers / patterns / idempotency strategies come for free.
+**Why this surface, not a catalyst.** Recipes 1–4 all end in a mojulo artifact. Recipe 5 produces none — it's MCP-to-MCP wiring with mojulo as the deliberation anchor (operator KYC, composition log, contextmap commit) rather than the runtime. Both composers above add a new MCP to the library with O(1) marginal work, and combinations across triggers / patterns / idempotency strategies come for free.
 
 See [docs/mcp-orbit.md](mcp-orbit.md) for both composers' full specs, the five typed component kinds, the four primitives + their affordance vocabularies, the constraint table, and the authoring guide.
 
@@ -226,17 +226,17 @@ See [docs/mcp-orbit.md](mcp-orbit.md) for both composers' full specs, the five t
 
 ## Catalysts — synthesizing a runnable artifact from a curated pattern
 
-Recipes 3 and 4 above are the **prototype**. Catalysts are the **productized** version. A catalyst is a reusable pattern shipped with mojulo (`qualify-lead-to-crm`, `submission-to-ticket`, `appointment-to-calendar`, `weekly-submissions-digest`, `scan-conversations-for-signal`, `knowledge-gap-miner`) that your agent reads and uses to synthesize a concrete runnable artifact specific to one of your bots. The catalyst body is host-neutral; the **host adapter** for your client (`claude-code`, `codex`, or `generic`) tells the agent what shape that artifact takes — a `.claude/skills/<name>/SKILL.md`, a Codex automation, or a generic `workflow.md`. The name is literal — each catalyst enables one phase transition from your intent + the bot's shape + a destination MCP into a structured artifact, without itself appearing in the result.
+Recipes 3 and 4 above are the **prototype**. Catalysts are the **productized** version. A catalyst is a reusable pattern shipped with mojulo (`refresh-connected-services`, `research-mcp-vendor`, `run-inference-worker`, the mcp-orbit shelf such as `weekly-linear-digest-to-drive`; `list_catalysts` has the whole shelf) that your agent reads and uses to synthesize a concrete runnable artifact specific to your setup. The catalyst body is host-neutral; the **host adapter** for your client (`claude-code`, `codex`, or `generic`) tells the agent what shape that artifact takes — a `.claude/skills/<name>/SKILL.md`, a Codex automation, or a generic `workflow.md`. The name is literal — each catalyst enables one phase transition from your intent + your declared MCP inventory + a destination MCP into a structured artifact, without itself appearing in the result.
 
 The synthesis sequence:
 
-1. **Discover.** *"What catalysts are available?"* — your agent calls `list_catalysts`. You can ask for a specific one (*"use the qualify-lead-to-crm catalyst for my dental intake bot"*) or have your agent pick by description.
+1. **Discover.** *"What catalysts are available?"* — your agent calls `list_catalysts`. You can ask for a specific one (*"use the weekly-linear-digest-to-drive catalyst"*) or have your agent pick by description.
 2. **Read the catalyst.** Your agent calls `get_catalyst(id)` to pull the full body — the workflow logic, mapping intent, pitfalls, and artifact contract. The body opens with a synthesizer briefing that licenses the agent to adapt, combine catalysts, or write from scratch if the catalog doesn't fit.
 3. **Read the host adapter.** Your agent calls `get_adapter` to pull the rules for materializing into its client's artifact shape (auto-resolved from `clientInfo.name` on first connect; pass `host` explicitly to override).
-4. **Read the bot shape.** Your agent calls `get_deployment(deploymentId)` to read your bot's form schema, enabled protocols, triage routes, and identity. The catalyst's mapping is derived from this — never guessed.
+4. **Read your setup.** Your agent calls `meta_context_brief({ scope: { kind: 'fleet' } })` for your declared MCP inventory and the decisions already on record. The catalyst's mapping is derived from this — never guessed.
 5. **Bind a destination MCP.** Your agent scans the MCPs you have installed in its host (HubSpot, Linear, Notion, Slack, whatever), finds the candidates that match the catalyst's destination category, and asks you to confirm: *"You have `hubspot-mcp` and `pipedrive-mcp` — which one is this for?"* The chosen MCP gets hard-coded into the synthesized artifact.
 6. **Answer parameter prompts.** Your agent asks the questions the catalyst declares (qualifying rubric, score threshold, dedupe key, etc.) in one round.
-7. **Write the artifact.** Your agent writes the host-specific output — `.claude/skills/<bot-slug>-<purpose>/SKILL.md` for Claude Code, a Codex automation (or workspace workflow file) for Codex, or a generic `workflow.md` + runner script for any other agent. The artifact defaults to `--dry-run` for any catalyst that writes externally; you opt into live writes explicitly.
+7. **Write the artifact.** Your agent writes the host-specific output — `.claude/skills/<purpose>/SKILL.md` for Claude Code, a Codex automation (or workspace workflow file) for Codex, or a generic `workflow.md` + runner script for any other agent. The artifact defaults to `--dry-run` for any catalyst that writes externally; you opt into live writes explicitly.
 
 From this point you own the artifact. Edit, version-control, share. The catalyst is not a live link — if the canonical catalyst later improves, your existing artifact doesn't auto-update. Re-run the flow if you want to regenerate.
 
@@ -337,22 +337,10 @@ The framing: your Claude Code session is for you, your status line is for mojulo
 
 ---
 
-## Session model
-
-A single MCP connection lazily binds one `modular_sessions` row on its first build-ring tool call. Subsequent build calls reuse it. To build a second bot in the same connection, call `start_new_bot` — the next build tool will create a fresh session.
-
-On control-plane restart, the in-memory binding map is lost. The bot row stays in SQLite; the user's agent effectively starts a new session.
-
-Jobs are reaped on startup: anything left in `pending` / `running` is marked `error` so polls on stale jobIds return a clear failure.
-
----
-
 ## Security posture
 
-- One token per user. By default there is a single operator token — god-mode for the control plane's build / read tools. With the opt-in roles pack, the operator can mint additional scoped bearer keys (pack-granted, revocable, expiring) for their own delegates; the operator's token remains god-mode.
+- One token per user. By default there is a single operator token — god-mode for the control plane's tools. With the opt-in roles pack, the operator can mint additional scoped bearer keys (pack-granted, revocable, expiring) for their own delegates; the operator's token remains god-mode.
 - Don't expose `/api/mcp` to the public internet. Same advice as `CONTROL_PLANE_USER` / `CONTROL_PLANE_PASSWORD`. Run locally, on a tailnet, or behind a reverse proxy you control.
-- Conversation data never lives in the control-plane DB. Read tools that surface conversations proxy through `bot-proxy.js` to the bot's own SQLite.
-- The bot runtime ([lite-template/](../lite-template/)) is untouched by MCP — there's no MCP path into runtime turn data that bypasses the existing proxy boundary.
 
 ---
 
@@ -360,6 +348,4 @@ Jobs are reaped on startup: anything left in `pending` / `running` is marked `er
 
 - **`/api/mcp` returns 404.** `CONTROL_PLANE_MCP_KEY` is unset. Set it and restart.
 - **`/api/mcp` returns 401.** The bearer token doesn't match. Check for trailing whitespace / a leading `Bearer ` doubled in the header.
-- **`No LLM provider key configured` from a build tool.** The control plane needs at least one provider key on `/settings` — the bot under construction inherits the default provider/model for in-loop LLM calls (form generation, identity composition, summary). The user's agent is the *agent loop*, but the *builder pipeline* still calls an LLM for these structured generations.
-- **`Bot is not connected` from a read tool.** The deployment row has no URL. Connect the bot via the dashboard or `gh` the bot's URL first.
-- **A job stays at `pending` forever.** Control plane probably restarted mid-flight. Start the operation again — the stale job is marked errored automatically on next launch.
+- **A tool answers that it "was part of the chatbot factory".** It left mojulo in 3.0.0; the answer says where it went.

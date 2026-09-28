@@ -2,7 +2,7 @@
 
 Dense agent-facing reference for details that used to live in `CLAUDE.md`. This doc is intentionally more specific than the fast orientation file, but still points to source-of-truth docs and code for the deepest details.
 
-Mojulo is a **3D compiler for agents** (a compiler, not a generator: the recipe is the source, renders are derived): the creative substrate is the main line, and the automation backend sits behind it. The chatbot factory is an **optional install-gated pack** — its dense reference is isolated at [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md) and nothing here depends on it.
+Mojulo is a **3D compiler for agents** (a compiler, not a generator: the recipe is the source, renders are derived): the creative substrate is the main line, and the automation backend sits behind it. The chatbot factory is no longer part of mojulo (see [The chatbot factory](#the-chatbot-factory)).
 
 ## The creative substrate
 
@@ -24,7 +24,7 @@ Mojulo is a **3D compiler for agents** (a compiler, not a generator: the recipe 
 
 ## Packs, wings, and install gating
 
-Install is **pack-grain**. Each pack in [packs.js](../control/lib/mcp/packs.js) declares a `wing` (`studio` | `office` — taxonomy and routing only) and either an `installGroup` (`creative` | `chatbot`) or none. A pack declaring none is unconditional, like the kernel; the orchestration plumbing (connected services, catalysts, triggers, apps, plan/research/stash) is in that category. Install state is derived from disk, with `MOJULO_PACKS` as an explicit override. The kernel alone can still mint a diagram. See [install-capabilities.md](install-capabilities.md).
+Install is **pack-grain**. Each pack in [packs.js](../control/lib/mcp/packs.js) declares a `wing` (`studio` | `office` — taxonomy and routing only) and either an `installGroup` (`creative`) or none. A pack declaring none is unconditional, like the kernel; the orchestration plumbing (connected services, catalysts, triggers, apps, plan/research/stash) is in that category. Install state is derived from disk, with `MOJULO_PACKS` as an explicit override. The kernel alone can still mint a diagram. See [install-capabilities.md](install-capabilities.md).
 
 Execution is walled; knowledge is not. `mojulo tools` / `mojulo packs` list only installed packs with a `not installed: … add with: …` footer, and an uninstalled pack's tools refuse with an advisory naming the install rather than pretending not to exist.
 
@@ -32,17 +32,14 @@ Execution is walled; knowledge is not. `mojulo tools` / `mojulo packs` list only
 
 The control plane exposes an HTTP MCP server at `/api/mcp` with bearer auth. Protocol dispatch lives in [control/lib/mcp/server.js](../control/lib/mcp/server.js); tools are registered lazily in [control/lib/mcp/tools/](../control/lib/mcp/tools/).
 
-Tool registration order matters. `forward_context` is first, fleet sits between per-bot operate and catalysts, Ring 6 registers in the order contextmap -> inventory -> capabilities -> composer -> primitive-binding -> trigger-binding -> semantic-search, then Ring 7 runtime tools, Ring 8 plan mode, and Ring 9 research mode. When adding a main-flow MCP tool, slot it into the right ring and update `TOOL_INDEX` and, if it is an entry point, `ROUTING_INDEX` in [context.js](../control/lib/mcp/tools/context.js). Low-prominence optional drawers such as sketches and research mode deliberately stay out of the routing index.
+Tool registration order matters. `forward_context` is first, catalysts follow the orientation drawers, Ring 6 registers in the order contextmap -> inventory -> capabilities -> composer -> primitive-binding -> trigger-binding -> semantic-search, then Ring 7 runtime tools, Ring 8 plan mode, and Ring 9 research mode. When adding a main-flow MCP tool, slot it into the right ring and update `TOOL_INDEX` and, if it is an entry point, `ROUTING_INDEX` in [context.js](../control/lib/mcp/tools/context.js). Low-prominence optional drawers such as sketches and research mode deliberately stay out of the routing index.
 
-Auth is local-user only. MCP calls are scoped to the single control-plane user through [control/lib/auth/service.js](../control/lib/auth/service.js); there is no multi-tenant identity model.
+Auth is local-user only. MCP calls are scoped to the single control-plane user: the MCP route ([app/api/mcp/route.js](../control/app/api/mcp/route.js)) mints the execution context's `userId` — `'local'` for the operator's key, or a delegate's id when the opt-in roles pack resolves an operator-issued key ([lib/roles/keys.js](../control/lib/roles/keys.js)). There is no multi-tenant identity model.
 
 ### Ring map
 
 - Ring 0, orientation: [context.js](../control/lib/mcp/tools/context.js). `forward_context` is a lean routing index. Heavy material belongs behind drawers such as `get_register_kit`, `get_tool_index`, `get_deliberation_overview`, `get_ui_map`, and `get_substrate`.
-- Ring 1, build: [build.js](../control/lib/mcp/tools/build.js). Wraps `BuilderSession` and the same [tool-executors.js](../control/lib/builder/tool-executors.js) used by the UI chat builder.
-- Ring 2, jobs: [jobs-tools.js](../control/lib/mcp/tools/jobs-tools.js) and [jobs.js](../control/lib/mcp/jobs.js). Long-running deploy/rebuild work is surfaced as pollable jobs because MCP clients can be short-lived.
-- Ring 3, operate: [operate.js](../control/lib/mcp/tools/operate.js). Per-bot reads forward through [bot-proxy.js](../control/lib/deployers/bot-proxy.js); they must not copy conversation data into control-plane SQLite.
-- Ring 4, fleet: [fleet.js](../control/lib/mcp/tools/fleet.js). Cross-bot rollups and SQL Explorer over fresh in-memory SQLite.
+- Rings 1–4: retired in 3.0.0 with the chatbot factory (its build, jobs, operate and fleet lanes). The numbers are not reused.
 - Ring 5, catalysts: [catalysts.js](../control/lib/mcp/tools/catalysts.js). Curated workflow recipes from [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/).
 - Ring 6, deliberation: contextmap, inventory, capabilities, mcp-orbit composer, primitive binding, trigger binding, and semantic recall.
 - Ring 7, runtime: app runner plus agent-task queue.
@@ -50,7 +47,7 @@ Auth is local-user only. MCP calls are scoped to the single control-plane user t
 - Ring 9, research mode: accretive exploratory layer upstream of plans.
 - Ring 10, creative mints: the studio's make-something tools. **Re-cut by FORM, not listed flat** — `get_creative_toolset` (no arg → the form map; `{ form }` → that form's tools) is the reader, and `get_tool_index` points at it rather than enumerating them. Form enum in [creative-forms.js](../control/lib/mcp/creative-forms.js).
 
-**The rings predate the studio; read them as registration order.** Rings 1–4 are the chatbot factory's build/jobs/operate/fleet lanes and register only when that pack is installed. Ring 10 carries the whole creative substrate behind one folded reader, so ring number is a poor proxy for weight. Ring 11 ("operations view") is deprecated — surviving only as naming inside [ops-tags.js](../control/lib/db/repositories/ops-tags.js). What the connecting agent actually sees is grouped by **wing and pack** ([packs.js](../control/lib/mcp/packs.js)); `forward_context` splits on wing (`mode:'studio'` default, `mode:'office'`), not on ring.
+**The rings predate the studio; read them as registration order.** Rings 1–4 were the chatbot factory's lanes and are empty since it left. Ring 10 carries the whole creative substrate behind one folded reader, so ring number is a poor proxy for weight. Ring 11 ("operations view") is deprecated — surviving only as naming inside [ops-tags.js](../control/lib/db/repositories/ops-tags.js). What the connecting agent actually sees is grouped by **wing and pack** ([packs.js](../control/lib/mcp/packs.js)); `forward_context` splits on wing (`mode:'studio'` default, `mode:'office'`), not on ring.
 
 ## Ring 6 deliberation surfaces
 
@@ -80,14 +77,17 @@ Plan mode lives in [plan-mode.js](../control/lib/mcp/tools/plan-mode.js). Plans 
 
 Research mode lives in [research-mode.js](../control/lib/mcp/tools/research-mode.js). It is an optional accretive drawer upstream of plans, storing broad research items and append-only abstracts. `synthesize_abstract` can evaluate through the research-to-plan bridge in [evaluate.js](../control/lib/research/evaluate.js); a draft plan is forged only when the recommendation is `forge`.
 
-## Chatbot factory (optional pack)
+## The chatbot factory
 
-Install-gated since 2.0 and absent from a default install. The dense reference — build entry points and `buildDeploymentConfig()`, the Docker/Fly deploy path, fleet aggregation and scoped SQL, the bot runtime's LLM/protocol adapter, and the pack's own invariants — is isolated at **[docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md)**, alongside the rest of the pack's docs in [docs/chatbot/](chatbot/).
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots already deployed keep running; they are separate containers.
 
-Two things carry into main-line work even when you are not touching the pack:
+What stays behind in mojulo, and why:
 
-- **Conversation data never moves into the control-plane DB.** Per-bot reads go through [bot-proxy.js](../control/lib/deployers/bot-proxy.js).
-- **Nothing outside the pack may import it** — enforced by `pack-boundary.test.js` checks F/G/H, plus shrink-only ledgers over the dashboard routes and the retained code still reading bot tables.
+- **Its old tool names answer.** A call to one (directly, through a pack, in a plan step or on the CLI) gets an in-band error carrying the moved notice from [bot-factory-moved.js](../control/lib/mcp/bot-factory-moved.js), the one place its wording lives. The names never list. `mojulo install chatbot` installs nothing and prints the same notice.
+- **Its tables stay, inert.** A 2.x install keeps `deployments`, `modular_sessions`, `mcp_jobs` and their rows; nothing reads or drops them, and a fresh install does not create them. The `documents` table stays for the stash media route's legacy `doc_…` reads; nothing writes it.
+- **`'bot'` stays a readable value.** `stash_bindings.bound_kind` and the brief's scope kinds keep it for stored rows; nothing writes it.
+- **The agent-task queue stays.** `envelope_inference` (app inference) is the queue's kind; the chat builder's `chat_turn` relay left with the factory.
+- **No reach remains.** Core has no Docker, Fly, GHCR, webhook or uploaded-document path, and [carve-boundary.test.js](../control/lib/mcp/carve-boundary.test.js) fails if a boot loads one of the factory's modules, `getDb()` creates a bot table, or `version` reaches the network.
 
 ## Data layout
 
@@ -97,6 +97,5 @@ Two things carry into main-line work even when you are not touching the pack:
 - Deliberation tables: `meta_nodes`, `meta_edges`, `meta_principles`, `meta_mcp_inventory`, `meta_mcp_providers`, `meta_mcp_capabilities`, `mcp_orbit_components`, `mcp_orbit_compositions`, `mcp_orbit_provider_artifacts`, `mcp_orbit_trigger_artifacts`, and `meta_embeddings`.
 - Plan/research tables: `plans`, `research_sessions`, `research_items`, and `research_abstracts`.
 - Derived outcomes (painted PNGs, baked meshes, render sidecars): `MOJULO_OUTCOMES_DIR`, default `<data dir>/outcomes`.
-- Chatbot-pack storage (generated zips, uploaded documents, per-bot SQLite): see [docs/chatbot/AGENT-REFERENCE.md](chatbot/AGENT-REFERENCE.md#data-layout-bot-side).
 
 SQLite runs with WAL and foreign keys. Repositories live in [control/lib/db/repositories/](../control/lib/db/repositories/).

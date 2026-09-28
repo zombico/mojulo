@@ -21,8 +21,8 @@ Mojulo is the **upstream** that feeds the tools you already use. It does not try
 The bins:
 
 - `mojulo` — stdio MCP server (`npx -y mojulo`, wired into Claude Code, Codex, or any other MCP host); also the installer and a CLI front door (below).
-- `mojulo-ui` — local dashboard (`npx -y mojulo-ui`). Its own npm package since 2.2.0, at the same version as `mojulo`; the `mojulo-ui` command inside `mojulo` starts it, and fetches it from npm first when it is not installed.
-- `mojulo-config` — provider key CLI, only needed for directed images or the optional chatbot pack.
+- `mojulo-ui` — local dashboard (`npx -y mojulo-ui`). Its own npm package since 3.0.0, at the same version as `mojulo`; the `mojulo-ui` command inside `mojulo` starts it, and fetches it from npm first when it is not installed.
+- `mojulo-config` — provider key CLI, only needed for directed images or `mint_solid`'s prompt door.
 
 `mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint from your agent shows up in the dashboard immediately.
 
@@ -73,17 +73,15 @@ npx mojulo init
 # 4. Optional add-ons, same choice on your machine or in a box:
 #      npx -y -p mojulo mojulo install recall     # the embedding model behind
 #                                                # semantic_search (lexical without it)
-#      npx -y -p mojulo mojulo install chatbot    # the bot factory — needs an LLM key
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
-First install is the big one: npx pulls a ~6 MB package plus its dependencies (about 290 MB on
-disk and about 110 MB downloaded, measured for 2.2.0; the dashboard is its own `mojulo-ui` package,
+First install is the big one: npx pulls a ~6 MB package plus its dependencies (about <measured> MB on
+disk and about <measured> MB downloaded, measured for 3.0.0; the dashboard is its own `mojulo-ui` package,
 fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 
-**Why these dependencies.** All of them run on your machine. `officeparser` and `pdf2json` read
-documents, `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
+**Why these dependencies.** All of them run on your machine. `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
 geometry, and `puppeteer-core` drives a *local* headless Chrome for stills; the browser itself is
 fetched only for an explicit render, or skipped if you already have Chrome. `better-sqlite3` is the
 one database file under `~/.mojulo/`. The *local* search model behind `semantic_search`
@@ -157,15 +155,15 @@ agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not
 | Grok (Build; chat) | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> Build | | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
 | Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
 
-Three add-ons, the same choice in both places:
+Two add-ons, the same choice in both places:
 
 | add | with | what you get |
 |---|---|---|
 | **creative** (on by default) | plain `npm install` | worlds, audio, wordmark fonts, exact booleans, OpenSCAD in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds it; the kernel still mints diagrams, floorplans and workbench solids and exports GLB and STL. |
 | **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers by the words in your ask, and most sessions never need more: the agent reads the tool index and the vocab cards directly. About 480 MB plus a 130 MB model, kept under `~/.mojulo/` across upgrades. |
-| **chatbot** | `mojulo install chatbot` | the bot factory: build, deploy and operate chatbots. Needs an LLM key of its own and Docker for the default deploy, so it is for your machine, not a temporary box. Installs `recall` first. |
-
 `mojulo install` with no argument prints which are present.
+
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. `mojulo install chatbot` now installs nothing and prints this notice.
 
 ## What you can make
 
@@ -178,7 +176,7 @@ Three add-ons, the same choice in both places:
 
 Iterate in place — `update_sketch` changes a field on the stored recipe; nothing is re-minted — and keep what you tuned: `save_recipe` writes it to a cookbook of plain files in a local git repo with no remote, recallable by intent in a later session. Attach the public [recipe book](https://github.com/zombico/mojulo-recipe-book) to add chapters and whole new kinds from disk.
 
-Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications, research, plans, local apps whose inference parks back on your agent, and connected services over the MCPs you already run. The chatbot factory is opt-in.
+Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications, research, plans, local apps whose inference parks back on your agent, and connected services over the MCPs you already run.
 
 ## Why it's different
 
@@ -186,7 +184,7 @@ Also in the box, present by default and never in the way: diagrams and charts, d
 - **Recipes, not renders.** Every artifact is a seeded deterministic recipe — diffable, replayable, re-mintable on any mojulo host. Exports and painted renders are derived files with provenance, never the sovereign artifact.
 - **Two gates, never conflated.** A machine gate imports the pack headless when the engine or slicer is installed and stamps what it measured; a human looking at the result is the eyes gate. Gates advise; none refuse, and none claim the other one passed.
 - **It remembers why — where that matters.** Connected services and apps are sealed beside an append-only record of intent (the contextmap), so a fresh session improves the existing wiring instead of minting a stranger next to it. Studio artifacts are recalled by ref, by semantic search, and by their cookbook card.
-- **Pay for what you install.** The kernel plus the creative studio is the default; the embedding model behind vector search (`mojulo install recall`) and the chatbot factory (`mojulo install chatbot`) are opt-in. Uninstalled packs neither list nor run, so your agent's context isn't spent on tools this host doesn't have.
+- **Pay for what you install.** The kernel plus the creative studio is the default; the embedding model behind vector search (`mojulo install recall`) is opt-in. Uninstalled packs neither list nor run, so your agent's context isn't spent on tools this host doesn't have.
 
 ## Dashboard
 
@@ -204,7 +202,7 @@ The dashboard starts in English but ships fully translated in every locale under
 
 ## Stability
 
-The five paradigm loops (media · game · connected service · app · bot) and the recipe format are the stable surface: additive-only DB migrations, deterministic re-render of stored recipes, loopback-only transport. A kernel's output for given params is a compatibility promise over already-minted rows. The creative vocabularies keep growing in minor releases. See the [changelog](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md).
+The paradigm loops (media · game · connected service · app) and the recipe format are the stable surface: additive-only DB migrations, deterministic re-render of stored recipes, loopback-only transport. A kernel's output for given params is a compatibility promise over already-minted rows. The creative vocabularies keep growing in minor releases. 3.0.0 is a major version because it removed a loop that surface named: the bot loop left with the chatbot factory. See the [changelog](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md).
 
 ## More
 
@@ -213,7 +211,7 @@ The five paradigm loops (media · game · connected service · app · bot) and t
 - The handoff doctrine: [docs/bicycles.md](https://github.com/zombico/mojulo/blob/main/docs/bicycles.md) (machine gate, eyes gate); the Unreal worked example: [docs/examples/unreal-night-run/](https://github.com/zombico/mojulo/blob/main/docs/examples/unreal-night-run/)
 - Optional workers: [Blender](https://github.com/zombico/mojulo/blob/main/docs/local-blender-worker.md), [slicers](https://github.com/zombico/mojulo/blob/main/docs/local-slicer-worker.md), [mesh sculptors](https://github.com/zombico/mojulo/blob/main/docs/local-mesh-worker.md), [image](https://github.com/zombico/mojulo/blob/main/docs/local-image-worker.md), [voice](https://github.com/zombico/mojulo/blob/main/docs/local-voice-worker.md)
 - Architecture: [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (the headless control surface), [docs/AGENT-REFERENCE.md](https://github.com/zombico/mojulo/blob/main/docs/AGENT-REFERENCE.md) (the creative substrate, data layout), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the geometry substrate)
-- MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md); catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md); the optional chatbot pack: [docs/chatbot/](https://github.com/zombico/mojulo/blob/main/docs/chatbot/)
+- MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md); catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)
 - Terms & responsibility model: [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md), [docs/responsibility-model.md](https://github.com/zombico/mojulo/blob/main/docs/responsibility-model.md)
 
 ## License

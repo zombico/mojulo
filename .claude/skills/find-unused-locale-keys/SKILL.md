@@ -78,7 +78,7 @@ Three to five lines:
 
 ## Notes for the orchestrator
 
-- **Scope is `control/**` only.** The bot runtime (`lite-template/`) does not consume `control/messages/`. If that ever changes, widen `listSourceFiles` in the script.
+- **Scope is `control/**` only.** Nothing outside `control/` consumes `control/messages/`. If that ever changes, widen `listSourceFiles` in the script.
 - **Deletion is en.json-only by design.** Cross-locale propagation is `/sync-locales`'s job — keeping one deletion mechanism (the diff-driven `removed` path) avoids two code paths that could drift. After `--apply`, the other locales are intentionally out of sync until `/sync-locales` runs.
 - **Don't auto-commit.** The user reviews the diff before staging.
 - **Don't run `next build`.** Not needed; nothing is added.

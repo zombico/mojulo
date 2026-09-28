@@ -8,7 +8,7 @@ This policy covers **the build the publisher ships**: the official `mojulo` pack
 
 ## Supported versions
 
-Security fixes go to the **latest `2.x` minor** only. Older `2.x` minors and every `1.x` and `0.x` release are not patched. Upgrade with `npx mojulo@latest init`; if you run mojulo as the Claude plugin, update the plugin instead (it pins one version).
+Security fixes go to the **latest `3.x` minor** only. Every `2.x`, `1.x` and `0.x` release is not patched. Upgrade with `npx mojulo@latest init`; if you run mojulo as the Claude plugin, update the plugin instead (it pins one version).
 
 ## Reporting a vulnerability
 
@@ -31,12 +31,12 @@ This is a solo-maintained project. Expect best-effort acknowledgement within a f
 
 ## Threat model
 
-Mojulo has two components with different security postures:
+Mojulo has one component:
 
 - **The MCP server and dashboard** ([control/](control/)) — single operator, self-hosted, listening on `localhost`. The coding agent the operator already runs (Claude Code, Codex, any MCP host) drives it over stdio; the dashboard is the same state with a human face. Everything it makes — recipes, renders, exports, caches — lands under `~/.mojulo/` on the operator's disk, apart from temporary work folders in the OS temp directory, a folder the operator names for `install_scaffold`, and the host configs `mojulo init` edits after a yes. It ships with an **opt-in HTTP login** (set `CONTROL_PLANE_USER` / `CONTROL_PLANE_PASSWORD`; sessions are HMAC-signed with the password itself, so rotating the password invalidates outstanding sessions). The login is a last-line-of-defense affordance, not a substitute for network isolation.
-- **The chatbot pack's bot runtime** ([lite-template/](lite-template/)) — installed only by `mojulo install chatbot`, and designed to be exposed to end users. Conversation data stays in the bot's local SQLite and never leaves it.
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots already deployed keep running; they are separate containers. Since 3.0.0 the package has no Docker, Fly, GHCR, webhook or uploaded-document code path.
 
-These two postures shape what is in and out of scope below.
+That posture shapes what is in and out of scope below.
 
 ### Code that runs with the operator's privileges
 
@@ -53,13 +53,9 @@ Reports about the following are welcome and treated as security issues:
 
 - **Path escape from the operator's data directory.** Any tool input, recipe field (other than a `program`, above), or export that reads or writes outside `~/.mojulo/` (or the configured `MOJULO_HOME`) without the operator naming that path.
 - **Artifact tampering.** Any way to inject code into a generated export — the self-contained HTML, a Godot project, an engine data pack, a Blender pack — that the operator did not put there through a tool call.
-- **Undisclosed traffic or writes.** Any network request, spawned process, or write outside the places the plugin README's "What it runs, sends and fetches" section and substrate fact 4 name.
-- **API key extraction.** Any way to read decrypted provider keys (stored by `mojulo-config` for the optional image, voice or chatbot paths) out of the control plane's `api_keys` table without filesystem access to the host.
-- **Tamper-evident chain bypass** in the chatbot pack. Any way to insert, modify, or delete turn rows in a bot's SQLite without the `content_hash` / `chain_hash` chain detecting it, including attacks on the `/verify/:id` walker and on cross-bot triage handoffs.
-- **Bot proxy auth bypass.** Any way to read or write through `/api/deployments/[id]/conversations*` or `/api/deployments/[id]/submissions*` without holding the deployment's `MOJULO_API_KEY`.
-- **Cross-document RAG leakage.** Any input that causes a bot to surface chunks from documents the operator did not include in that bot's knowledge set.
-- **Conversation data leaving the bot.** Any code path that copies conversation rows from a bot's SQLite back into the control plane's database, or to any third party other than the configured LLM provider.
-- **Dependency vulnerabilities** with a clear exploit path against either component.
+- **Undisclosed traffic or writes.** Any network request, spawned process, or write outside the places the plugin README's "What it runs, sends and fetches" section and substrate fact 3 name.
+- **API key extraction.** Any way to read decrypted provider keys (stored by `mojulo-config` for the optional image and voice paths) out of the control plane's `api_keys` table without filesystem access to the host.
+- **Dependency vulnerabilities** with a clear exploit path against it.
 
 ### Out of scope
 
@@ -68,7 +64,7 @@ These are known design constraints, not vulnerabilities:
 - **Control plane exposed to the public internet.** The built-in login is not designed to withstand internet-facing traffic on its own (no MFA, no lockout, no audit trail of failed attempts). The control plane is meant to run locally or behind operator-controlled access (VPN, SSH tunnel, Tailscale, a reverse proxy with stronger auth). The dashboard refuses a request whose Host is not a loopback name, so a proxy or tunnel that reaches it by another name needs that name in `MOJULO_UI_ALLOWED_HOSTS` (comma-separated; `MOJULO_UI_HOST` is the bind address). Reachability of port 3001 from the internet is the operator's responsibility, not a project bug.
 - **Local filesystem attacks.** Issues that require an attacker to already have read or write access to the host's filesystem (reading the SQLite file under `~/.mojulo/` directly, reading `.env` files) are out of scope. The threat model assumes the host is trusted.
 - **What the connecting agent decides to do.** Mojulo holds no credentials of its own and supplies no judgment; the coding agent chooses which tools to call with which inputs. Prompt injection that steers the agent into calling a mojulo tool is an agent-host concern unless the tool itself crosses a boundary above.
-- **Denial of service against a single self-hosted instance.** Resource exhaustion of the control plane or a single bot is not treated as a security issue.
+- **Denial of service against a single self-hosted instance.** Resource exhaustion of the control plane is not treated as a security issue.
 - **Issues in third-party providers or engines.** Bugs in Anthropic or OpenAI APIs, or in Godot, Blender, Unity, Unreal or a slicer that opens a mojulo export, belong with those vendors.
 - **LLM output quality** — hallucination, jailbreak, or prompt-injection content that does not cross a security boundary. These are product-quality issues; open a regular GitHub issue.
 - **Lack of rate limiting** and **missing security headers** on the control plane UI, since it is single-user on localhost. If you need brute-force resistance, front the control plane with a reverse proxy that rate-limits.
@@ -79,10 +75,6 @@ If you are reviewing or fuzzing these areas, your reports are especially welcome
 
 - Export writers — the self-contained HTML bundle, the Godot project writer, the engine data packs — and any path derived from a recipe field.
 - API key encryption and decryption paths in the control plane.
-- Turn-hashing helpers and the `/verify/:id` walker — see [docs/chatbot/turn-hashing.md](docs/chatbot/turn-hashing.md).
-- Federated routing and the cross-bot handoff flow — see [docs/chatbot/federated-routing.md](docs/chatbot/federated-routing.md).
-- The bot proxy in [control/lib/deployers/bot-proxy.js](control/lib/deployers/bot-proxy.js) and the routes that forward through it.
-- The artifact build pipeline in [control/lib/deployers/docker.js](control/lib/deployers/docker.js).
 
 ## Disclosure
 

@@ -6,7 +6,6 @@
 - "Why is this catalyst materialized as a Codex automation instead of a Claude Code skill?"
 - "What catalysts have I materialized, and via which host adapter?"
 - "What constraints did the operator lock in?"
-- *(chatbot pack)* "Why does bot-3 route field X to tool Y?"
 
 The materialized artifact (a Claude Code `SKILL.md`, a Codex automation, a generic `workflow.md`) is the *execution* of an outcome. `meta_context` is the *codified reasoning* that led to it. Artifacts run; `meta_context` persists.
 
@@ -21,14 +20,13 @@ For the broader MCP control surface see [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECT
 | Structural (writes allowed)                      | Outcome (writes forbidden)        |
 | ------------------------------------------------ | --------------------------------- |
 | Operator KYC sealed                              | Artifact fired                    |
-| Artifact materialized via adapter                | Conversation occurred             |
-| (Post-MVP) New catalyst shipped                  | Transcript ingested               |
-| (Post-MVP) New host adapter shipped              | Submission created                |
-|                                                  | Automation run completed          |
+| Artifact materialized via adapter                | App inference answered            |
+| (Post-MVP) New catalyst shipped                  | Trigger fired                     |
+| (Post-MVP) New host adapter shipped              | Automation run completed          |
 
 The connecting agent's **current MCP inventory** is a separate category — present-state, not a sealed decision — so it lives in its own table with replace semantics (see [Inventory (current-state cache, alongside the contextmap)](#inventory-current-state-cache-alongside-the-contextmap) below), not in the append-only contextmap.
 
-This asymmetry is what makes the layer auditable. Outcomes happen at run-rate (every conversation, every automation execution); structural decisions happen at deliberation-rate (a user pivoting their fleet, an artifact being materialized). MVP ships only the two write triggers in the table above — passive triggers stay off until we know what they'd write.
+This asymmetry is what makes the layer auditable. Outcomes happen at run-rate (every app inference, every automation execution); structural decisions happen at deliberation-rate (a user pivoting their setup, an artifact being materialized). MVP ships only the two write triggers in the table above — passive triggers stay off until we know what they'd write.
 
 ---
 
@@ -36,14 +34,14 @@ This asymmetry is what makes the layer auditable. Outcomes happen at run-rate (e
 
 **Contextmap (graph).** Typed graph of current bindings.
 
-- **Node kinds:** `mcp_tool`, `catalyst`, `adapter`, `artifact`, `operator`, and `bot`. `operator` is a singleton — at most one node, ref `'self'`. The `bot` kind and its `runs_for` edge are **chatbot-pack-scoped**: they are part of the schema's CHECK constraint and always valid, but a workshop without that pack simply never creates one. The primitive-binding flow below is the worked proof — a full contextmap with no `bot` node in it.
+- **Node kinds:** `mcp_tool`, `catalyst`, `adapter`, `artifact`, `operator`, and `bot`. `operator` is a singleton — at most one node, ref `'self'`. The `bot` kind and its `runs_for` edge are legacy: the chatbot factory wrote them on the 2.x line and left mojulo in 3.0.0. They stay in the schema's CHECK constraint so a 2.x install's rows keep reading; nothing writes them.
 - **Edge kinds:**
   - `catalyst —seeded→ artifact` (this artifact was materialized from that catalyst)
   - `artifact —materialized_by→ adapter` (this host adapter produced the artifact)
-  - `artifact —runs_for→ bot` (the artifact operates on this bot's data)
+  - `artifact —runs_for→ bot` (legacy, 2.x rows only)
   - `artifact —binds→ mcp_tool` (the artifact's runtime depends on this tool; payload carries `fields_bound`)
 
-The graph answers questions like "what artifacts bind to HubSpot?", "which catalysts have been materialized into Codex automations vs Claude Code skills?", and — with the chatbot pack — "what artifacts run against bot-3 and why?".
+The graph answers questions like "what artifacts bind to HubSpot?", "which catalysts have been materialized into Codex automations vs Claude Code skills?".
 
 **Principles (rationale).** Markdown attached to a node or an edge, recording the *why* at materialization time. Format convention: lead with the decision, then a **Context:** line (what prompted it) and an **Applies to:** line (scope). The convention isn't enforced in v0 — the loader stores `body_md` verbatim.
 
@@ -103,10 +101,10 @@ Read the contextmap subgraph + principles for a scope.
 { "scope": { "kind": "fleet" } }
 
 // Per-scope brief (1-hop neighborhood around the named node)
-{ "scope": { "kind": "bot", "ref": "deploy-123" } }
-{ "scope": { "kind": "catalyst", "ref": "qualify-lead-to-crm" } }
+{ "scope": { "kind": "catalyst", "ref": "refresh-connected-services" } }
 { "scope": { "kind": "adapter", "ref": "claude-code" } }
-{ "scope": { "kind": "artifact", "ref": "claude-code:.claude/skills/qualify-lead/SKILL.md" } }
+{ "scope": { "kind": "artifact", "ref": "claude-code:.claude/skills/weekly-linear-digest/SKILL.md" } }
+// { "kind": "bot", "ref": … } still reads a 2.x install's bot rows
 ```
 
 Returns `{ nodes, edges, principles, meta }`. The `meta` block carries hints:
@@ -117,18 +115,17 @@ Returns `{ nodes, edges, principles, meta }`. The `meta` block carries hints:
 
 **When to call:**
 - Wondering "has the fleet already committed to something related to what I'm about to do?" before materializing an artifact.
-- User asks "why does bot-3 route field X to tool Y?" or "why is this a Codex automation and not a skill?"
+- User asks "why is this digest bound to these tools?" or "why is this a Codex automation and not a skill?"
 - First-session orientation against the fleet to discover whether the operator anchor exists.
 
 **When NOT to call:**
 - Routine orientation (use `forward_context`).
-- Operational metrics (use Ring 4 `fleet_*`).
-- Content questions (use Ring 3 `operate.*`).
+- Operational state (use `list_running` / `status_app` for apps, `list_triggers` for triggers).
 - Looking up an adapter's shape (use Ring 0 `list_adapters` / `get_adapter`).
 
 ### `meta_context_commit`
 
-Seal a structural decision. One verb, dispatches by `type`. MVP supports three types: `operator_kyc` (bootstrap), `artifact_materialization` (bot-shaped catalyst flow), and `primitive_artifact_materialization` (no-bot primitive-binding flow).
+Seal a structural decision. One verb, dispatches by `type`: `operator_kyc` (bootstrap), `operator_workspace_setup`, `primitive_artifact_materialization` (the primitive-binding flow), `app_materialization` and `trigger_artifact_materialization`. `artifact_materialization`, the 2.x seal of a catalyst materialized for a deployed bot, left with the chatbot factory in 3.0.0: its stored events stay readable, and a new commit of it writes nothing and answers with the chatbot factory's moved notice.
 
 #### `operator_kyc`
 
@@ -142,7 +139,7 @@ Optional one-time bootstrap that anchors the fleet on role + primary goal + lock
   "constraints": [
     "CRM is HubSpot — do not propose alternatives without explicit override.",
     "Connecting agent is Claude Code.",
-    "All bots must capture HIPAA-relevant fields with consent prompts."
+    "Anything that leaves the practice must strip patient identifiers."
   ],
   "vocabulary_register": "plain",
   "procedural_disclosure": "reflective"
@@ -179,50 +176,9 @@ Persistence + consumer:
 
 The floor rule is structurally enforced across every register × disclosure cell: the four commitment gates (*proposed* vs *materialized*, *dry-run* vs *promoted*, *watched* vs *read-once*, *recorded in the audit trail* vs *not*) stay legible regardless of register. A unit test fails if any cell drops any gate phrase — `plain` is "gate language in plain English," not "no gate language."
 
-#### `artifact_materialization`
-
-Atomic per-materialization seal. Run only AFTER materializing the artifact on disk / in the host substrate.
-
-```json
-{
-  "type": "artifact_materialization",
-  "adapter_id": "claude-code",
-  "artifact": {
-    "locator": "/abs/path/to/.claude/skills/qualify-lead/SKILL.md",
-    "label": "Qualify Lead to CRM"
-  },
-  "bot_ref": "dep_abc-123",
-  "catalyst_ref": "qualify-lead-to-crm",
-  "bindings": [
-    { "mcp_tool": "hubspot.create_contact", "fields_bound": ["name", "email", "phone"] }
-  ],
-  "principles": [
-    {
-      "scope": "artifact",
-      "body_md": "Route qualified leads to HubSpot contacts.\n\n**Context:** User confirmed HubSpot as CRM.\n\n**Applies to:** All bots with form-gathering."
-    },
-    {
-      "scope": "materialized_by",
-      "body_md": "Materialized as Claude Code skill because the connecting agent was Claude Code.\n\n**Context:** clientInfo.name='claude-code' at session start.\n\n**Applies to:** This artifact only."
-    }
-  ]
-}
-```
-
-Behavior:
-1. Resolve adapter — `adapter_id` must exist in the adapter catalog ([loader.js](../control/lib/mcp/adapters/loader.js)).
-2. Adapter-delegated verification (below). Failure rejects before any DB writes.
-3. Resolve bot — `bot_ref` must match a deployment row.
-4. In one transaction: upsert bot / adapter / catalyst / artifact / mcp_tool nodes, upsert edges (`seeded`, `materialized_by`, `runs_for`, one `binds` per binding), insert principles attached to the appropriate scopes.
-5. Returns `{ ok: true, artifactNodeId, nodes, edges, principlesCreated, verification, warnings? }`.
-
-`warnings: ['no_operator_anchor']` is appended when the commit succeeds but no operator node exists yet — cue for the agent to offer the KYC inline.
-
-**Principle scopes:** `'artifact' | 'catalyst' | 'adapter' | 'bot'` map to node ids; `'seeded' | 'materialized_by' | 'runs_for'` map to the specific edge ids the commit just inserted; `'binds'` fans out to every binding edge; `'binds:<mcp_tool_ref>'` targets one specific binding edge.
-
 #### `primitive_artifact_materialization`
 
-Sibling commit path for the **no-bot primitive-binding flow** (see [docs/mcp-orbit.md#the-primitive-binding-layer](mcp-orbit.md#the-primitive-binding-layer)). Where `artifact_materialization` records "this catalyst was materialized into this artifact for this bot," `primitive_artifact_materialization` records "this composition intent was materialized into this artifact from these bound primitive artifacts" — bot-independent, with the audit chain pointing at the `prov_<id>` refs returned from `bind_primitives` calls rather than at a catalyst id.
+Atomic per-materialization seal for the **primitive-binding flow** (see [docs/mcp-orbit.md#the-primitive-binding-layer](mcp-orbit.md#the-primitive-binding-layer)), and for a catalyst-synthesized skill whose MCP calls were bound with `bind_primitives`. Run only AFTER materializing the artifact on disk / in the host substrate. It records "this composition intent was materialized into this artifact from these bound primitive artifacts", with the audit chain pointing at the `prov_<id>` refs returned from `bind_primitives` calls.
 
 ```json
 {
@@ -245,14 +201,16 @@ Sibling commit path for the **no-bot primitive-binding flow** (see [docs/mcp-orb
 
 Behavior:
 1. Resolve adapter — `adapter_id` must exist in the adapter catalog.
-2. Adapter-delegated verification on the artifact locator (same rules as `artifact_materialization`).
+2. Adapter-delegated verification on the artifact locator ([below](#adapter-delegated-verification)). Failure rejects before any DB writes.
 3. Resolve provider artifacts — every ref in `provider_artifact_refs` must exist in [mcp_orbit_provider_artifacts](mcp-orbit.md#schema); resolution fails the commit if any are missing.
 4. In one transaction: upsert the artifact / adapter nodes; insert one `materialized_by` edge from artifact → adapter; insert one `binds` edge per **bound affordance** across all referenced provider artifacts (each carrying `fields_bound = [<primitive>, <role>, <affordance>, <tool>, <confidence>]` in its payload); insert principles attached to scope; **auto-write a summary principle on the artifact node** that records `composition_intent` + the full binding list inline so future readers don't need to dereference the `prov_*` rows to understand what the artifact was built from.
 5. Returns `{ ok: true, artifactNodeId, nodes, edges, principlesCreated, verification, warnings? }`.
 
-There is **no** `runs_for` edge — no bot in the picture. There is **no** `seeded` edge — no catalyst nucleated the artifact; primitives + bound tools are the substrate. The audit chain reads as: composition_intent (in the auto-principle) → primitive artifacts (named in the principle, persisted in `mcp_orbit_provider_artifacts`) → bound MCP tools (one `binds` edge per affordance).
+`warnings: ['no_operator_anchor']` is appended when the commit succeeds but no operator node exists yet — cue for the agent to offer the KYC inline.
 
-If commit fails (adapter-rejection, missing provider artifact, scope error), roll back the materialization via the host adapter's affordance — same rule as `artifact_materialization`.
+There is **no** `runs_for` edge. There is **no** `seeded` edge — no catalyst nucleated the artifact; primitives + bound tools are the substrate. The audit chain reads as: composition_intent (in the auto-principle) → primitive artifacts (named in the principle, persisted in `mcp_orbit_provider_artifacts`) → bound MCP tools (one `binds` edge per affordance).
+
+If commit fails (adapter-rejection, missing provider artifact, scope error), roll back the materialization via the host adapter's affordance (delete the file / cancel the automation).
 
 #### `trigger_artifact_materialization`
 
@@ -278,7 +236,7 @@ There is no new node kind, no new edge kind. The trigger artifact persistence la
 
 ### The `trigger_firing` principle convention
 
-Audit principles in mojulo come in two flavors. Most are written at **structural-decision rate** (deliberation rate) — `artifact_materialization`, `primitive_artifact_materialization`, `app_materialization`, `trigger_artifact_materialization`. They land when an operator + agent seal a binding. Two are written at **outcome rate** (run rate) — `app_inference` and `trigger_firing`. They land per fire / per call.
+Audit principles in mojulo come in two flavors. Most are written at **structural-decision rate** (deliberation rate) — `primitive_artifact_materialization`, `app_materialization`, `trigger_artifact_materialization` (and, on a 2.x install's stored rows, `artifact_materialization`). They land when an operator + agent seal a binding. Two are written at **outcome rate** (run rate) — `app_inference` and `trigger_firing`. They land per fire / per call.
 
 Outcome-rate principles inherit the same convention:
 
@@ -309,7 +267,7 @@ CREATE TABLE meta_mcp_inventory (
 );
 ```
 
-The contextmap's `mcp_tool` node kind is unchanged — those nodes are still created **only at binding time** (`artifact_materialization`), recording "this artifact was sealed against this tool ref" as a frozen decision. The inventory table is independent: it records "as of the latest declaration, the operator has these tools available." Cross-referencing the two is what surfaces stale bindings.
+The contextmap's `mcp_tool` node kind is unchanged — those nodes are still created **only at binding time** (`primitive_artifact_materialization`), recording "this artifact was sealed against this tool ref" as a frozen decision. The inventory table is independent: it records "as of the latest declaration, the operator has these tools available." Cross-referencing the two is what surfaces stale bindings.
 
 ### `meta_context_declare_inventory`
 
@@ -373,12 +331,12 @@ The reading order across all six is: contextmap → inventory → capabilities �
 
 The contextmap is **append-only**. Nothing the MVP ships ever deletes nodes, retires edges, or tombstones principles. New principles stack on the same scope (most-recent-first on read); revising operator KYC inserts a new principle alongside the old one; re-materializing an artifact reuses the same node ids and stacks new principles on the same edges.
 
-This means **brief returns the contextmap as *recorded*, not as *currently active***. If the operator runs `rm` against a `SKILL.md`, the `runs_for` and `binds` edges that pointed at it stay in the graph. A future `meta_context_brief({kind:'bot', ref:…})` will still report those edges — they're a historical record of a binding that was sealed, not a live assertion that the binding is in force.
+This means **brief returns the contextmap as *recorded*, not as *currently active***. If the operator runs `rm` against a `SKILL.md`, the `materialized_by` and `binds` edges that pointed at it stay in the graph. A future `meta_context_brief({kind:'artifact', ref:…})` will still report those edges — they're a historical record of a binding that was sealed, not a live assertion that the binding is in force.
 
 Two consequences worth being deliberate about:
 
-- **The agent must cross-reference before acting on a binding as live.** A skill the brief reports may not exist on disk anymore. The current-state surfaces are the filesystem (for filesystem-shaped adapters) and `list_deployments` (for the bot's existence). The brief tells you what *was decided*; those other surfaces tell you what *is still there*.
-- **Cleanup is operator-driven, not system-driven.** When a binding genuinely needs to leave the graph (artifact retired, bot deleted, fleet pivoted), the operator runs SQL directly:
+- **The agent must cross-reference before acting on a binding as live.** A skill the brief reports may not exist on disk anymore. The current-state surfaces are the filesystem (for filesystem-shaped adapters), `list_running` (for apps) and `list_triggers` (for triggers). The brief tells you what *was decided*; those other surfaces tell you what *is still there*.
+- **Cleanup is operator-driven, not system-driven.** When a binding genuinely needs to leave the graph (artifact retired, setup pivoted), the operator runs SQL directly:
 
   ```bash
   # remove all rows associated with a specific artifact
@@ -427,12 +385,12 @@ The actual clamping is left to the agent's judgment — automated filtering need
 3. Agent calls `meta_context_brief({ scope: { kind: 'fleet' } })` (Ring 6) → returns empty graph with `meta: { empty: true, suggest_kyc: true }`.
 4. Agent surfaces the KYC to the user; user answers role + goal + constraints. Agent calls `meta_context_commit({ type: 'operator_kyc', … })`. (Skip 3–4 if the anchor already exists, or skip step 4 if the user declines.)
 5. Agent calls `get_adapter()` (Ring 0) to confirm the materialization shape.
-6. Agent calls `recommend_catalysts(deploymentId, …)` (Ring 5). Response now carries `operatorAnchor` — agent uses its constraints to clamp suggestions.
+6. Agent calls `recommend_catalysts()` (Ring 5). Response now carries `operatorAnchor` — agent uses its constraints to clamp suggestions — and each pick's `priorMaterializations`.
 7. Agent calls `get_catalyst(id)` (Ring 5) — receives `CATALYST_CORE_PREAMBLE + adapter body + catalyst body`.
-8. Agent calls `meta_context_brief({ scope: { kind: 'bot', ref } })` to see existing bindings on this bot.
-9. Agent calls Ring 3 readers to inspect the bot's submission shape.
+8. Agent calls `meta_context_declare_inventory` with its current MCP servers, then `bind_primitives` once per source and destination the workflow uses; each call returns a `prov_<id>` ref.
+9. Agent calls `meta_context_brief({ scope: { kind: 'artifact', ref } })` if a related artifact already exists, to align with (or knowingly diverge from) its bindings.
 10. Agent materializes the artifact per adapter instructions (writes `SKILL.md` / posts to Codex automation / writes `workflow.md`).
-11. Agent calls `meta_context_commit({ type: 'artifact_materialization', adapter_id, … })` — atomic write.
+11. Agent calls `meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id, provider_artifact_refs, … })` — atomic write.
 
 If step 11 fails, the agent rolls back step 10 by the adapter's own affordance (delete the file / cancel the automation).
 
@@ -440,9 +398,9 @@ If step 11 fails, the agent rolls back step 10 by the adapter's own affordance (
 
 ## What does NOT belong in meta_context
 
-- Outcome counts, conversation content (use Ring 3 / Ring 4 / Ring 6 of the bot's SQLite — never copy into the control plane).
+- Outcome counts or the content a workflow moved (it belongs to the source and destination systems — never copy it into the control plane).
 - Auto-memory user preferences (lives in the agent's harness, not in mojulo).
-- Session state or in-flight work (use `BuilderSession` / `mcp_jobs`).
+- Session state or in-flight work (plans hold proposed work; the agent-task queue holds parked inference).
 - Anything inferable from `git log` or current code.
 - Speculative "I might do this" records (commits record decisions that were *sealed*, not intentions).
 - The adapter catalog itself (lives in [control/lib/mcp/adapters/](../control/lib/mcp/adapters/)) — `meta_context` references adapter ids but doesn't replicate the prose.
@@ -472,4 +430,4 @@ The MVP ships the smallest useful slice. The following extensions are designed-a
 - **Passive writes** — auto-writes when new catalysts or adapters load. Every passive write is a new way for the graph to lie about what the operator actually decided; don't ship until we know what we'd write. (Inventory turned out to belong in its own current-state cache, not the contextmap — see the Inventory section. So the remaining "passive write" candidates are catalyst/adapter ship events.)
 - **Stale-binding audit lens** — `LEFT JOIN meta_nodes mcp_tool` (with incoming `binds` edges) against `meta_mcp_inventory` to surface "this sealed artifact binds to a tool no longer in your environment." Designed-around but not yet built; follow-up to the inventory primitive.
 - **Re-materialization tracking UX** — graph already supports the same catalyst materialized into multiple hosts via multiple `materialized_by` edges; a surfacing layer is a follow-up.
-- **Dashboard** — `/data` pane tab rendering contextmap as a graph, adapter colour-coded for multi-host fleets.
+- **Dashboard** — a pane rendering the contextmap as a graph, adapter colour-coded for multi-host setups.

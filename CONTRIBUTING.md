@@ -207,25 +207,20 @@ If you have a concept PR you believe in, **fork it**. Mojulo is Apache 2.0 for e
 ## Running tests
 
 ```bash
-# Bot runtime (Node's built-in node:test, no extra deps)
-cd lite-template
-npm install
-npm test
-
 # Control plane (Vitest)
 cd control
 npm install
 npm test
 ```
 
-Both run in CI on every PR via [.github/workflows/test.yml](.github/workflows/test.yml) — Linux + macOS on Node 20.
+It runs in CI on every PR via [.github/workflows/test.yml](.github/workflows/test.yml) — Linux + macOS on Node 22.
 
 ## Test surface
 
 Tests target three surfaces where a regression would be either silent or load-bearing:
 
 1. **Public attack surface.** Auth, file uploads, user-controlled inputs — anything reachable from the open internet has tests. A regression here is a CVE.
-2. **Silent corruption.** Hash chains, key encryption, artifact ZIP shape — bugs that ship to a user and aren't noticed for weeks.
+2. **Silent corruption.** Key encryption, schema migrations over stored rows, export bundle shape — bugs that ship to a user and aren't noticed for weeks.
 3. **Install success.** The README must work on a fresh clone. CI smoke-tests this.
 
 If you're adding a test, mapping it to one of those surfaces is the fastest path to merge. Tests for React rendering, framework glue (`path.join`, route wiring), translation fluency, or IO-heavy mocked wiring tend to lock in implementation details without catching regressions a user would notice — they'll usually be asked to retarget. Coverage percentages aren't a goal.
@@ -237,7 +232,6 @@ Recipe determinism is a fourth, quieter case of #2: a builder whose output shift
 ## File layout
 
 - `control/lib/foo.js` → `control/lib/foo.test.js` (co-located).
-- `lite-template/test/*.test.js` (the bot's runner uses native CommonJS, kept under `test/` to match `node --test test/**/*.test.js`).
 - `.mcp.json` at the repo root is for contributors, not users: it wires `mojulo-orient` (`control/scripts/orient-mcp.mjs`), a tiny stdio MCP that tours the founding works as recipes, into any agent that reads project MCP config. It is not part of the published package.
 
 New tests should follow the existing pattern in the package they cover.
@@ -253,7 +247,7 @@ New tests should follow the existing pattern in the package they cover.
 
 **A core PR** (this repo):
 
-1. `npm test` passes in both packages.
+1. `npm test` passes in `control/`.
 2. `node --check` passes on any `.js`/`.mjs` you edited (CI enforces this).
 3. If you touched `control/messages/en.json`, run `node control/scripts/validate-locale.mjs en <code>` for the locales you have changes for (the `/sync-locales` workflow handles propagation if you don't).
 4. New strings in JSX are i18n-wrapped per [CLAUDE.md](CLAUDE.md).
@@ -264,6 +258,5 @@ New tests should follow the existing pattern in the package they cover.
 - [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) — the headless control surface.
 - [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) — the polygonizer / manji-tree substrate.
 - [docs/bicycles.md](docs/bicycles.md) — the two-gate doctrine (machine gate, eyes gate).
-- [docs/install-capabilities.md](docs/install-capabilities.md) — kernel, packs, and the two install-gated groups.
-- [docs/chatbot/README.md](docs/chatbot/README.md) — the chatbot factory, an optional pack since 2.0.
+- [docs/install-capabilities.md](docs/install-capabilities.md) — kernel, packs, and the install groups.
 - [TERMS.md](TERMS.md), [docs/responsibility-model.md](docs/responsibility-model.md) — the operator-owns-consequences posture that user-facing copy should follow.

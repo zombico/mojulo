@@ -1,6 +1,6 @@
 # mcp-orbit — the component store and composer
 
-mcp-orbit is mojulo's surface for **workflows that don't need a deployed chatbot** — MCP-to-MCP wiring where the operator wants to read from one MCP (Gmail, Linear, a CRM) and write to another (Drive, Notion, Slack) on a schedule or signal. The connecting agent assembles the workflow from a small library of typed components; mojulo provides the components, the constraint validation, and the audit trail.
+mcp-orbit is mojulo's surface for **MCP-to-MCP workflows** — wiring where the operator wants to read from one MCP (Gmail, Linear, a CRM) and write to another (Drive, Notion, Slack) on a schedule or signal. The connecting agent assembles the workflow from a small library of typed components; mojulo provides the components, the constraint validation, and the audit trail.
 
 If a catalyst is "one curated recipe per problem," mcp-orbit is "one curated component per part-of-a-problem, agent composes the recipe." Server-stored, agent-composed.
 
@@ -8,12 +8,12 @@ Two companion composers live under mcp-orbit: the **vendor-shaped composer** (`r
 
 ## When mcp-orbit, when catalysts
 
-Both surfaces synthesize runnable artifacts. The split is about whose data the workflow reads:
+Both surfaces synthesize runnable artifacts. The split is about how much is already decided:
 
-- **Catalysts** ([docs/catalysts.md](catalysts.md)) — the artifact reads from a **deployed mojulo bot**'s SQLite via `query_submissions` / `query_conversations`. The catalyst body assumes there's a bot with shape to read against.
-- **mcp-orbit** — the artifact reads from the **operator's installed MCPs** (Linear, Gmail, etc.) and writes to other installed MCPs (Drive, Notion, Slack). No bot in the picture.
+- **Catalysts** ([docs/catalysts.md](catalysts.md)) — one curated recipe per problem. The body already carries the mapping judgement, the idempotency strategy and the pitfalls; the agent fills in the operator's specifics.
+- **mcp-orbit** — the agent composes the workflow from typed components against the **operator's installed MCPs** (Linear, Gmail, etc.), writing to other installed MCPs (Drive, Notion, Slack).
 
-The two paths share the same downstream — both end in a host-adapter materialization (a Claude Code skill, a Codex automation, a generic workflow) sealed via `meta_context_commit({type:'artifact_materialization', ...})`. The difference is what flows into the synthesis.
+The two paths share the same downstream — both end in a host-adapter materialization (a Claude Code skill, a Codex automation, a generic workflow), with the MCP calls bound through `bind_primitives` and sealed via `meta_context_commit({type:'primitive_artifact_materialization', ...})`. The difference is what flows into the synthesis. (Until 3.0 the catalyst side read a deployed mojulo bot and sealed with `artifact_materialization`; both left with the chatbot factory.)
 
 ## The five categories
 
@@ -41,13 +41,13 @@ The composer's rulebook — the **meta-catalyst** — lives at [control/lib/mcp/
 
 The agent flow is fixed — call sites in order:
 
-1. **Recognize mcp-orbit intent.** "Weekly Linear digest in Drive," "route Gmail support threads into Linear," "summarize closed issues into a channel" — these are mcp-orbit, not bot catalysts.
+1. **Recognize mcp-orbit intent.** "Weekly Linear digest in Drive," "route Gmail support threads into Linear," "summarize closed issues into a channel" — these are mcp-orbit, not a curated catalyst.
 2. **`recommend_mcp_orbit_compositions({ intent, inventory? })`.** Server filters available components by the declared MCP inventory and the operator's KYC anchor, returns 1–3 ranked candidate compositions, and persists each as a `proposed` row in `mcp_orbit_compositions`. The recommendation itself is auditable.
 3. **`get_meta_catalyst()`** once per session. Pattern catalog, constraint table, ranking heuristic, composition discipline.
 4. **`get_mcp_orbit_component({ kind, ref })`** for each component the candidate uses. Read the body in full — the pitfalls sections are load-bearing.
 5. **Negotiate knobs with the operator in ONE round.** Each component declares its `exposesKnobs` array; collect every prompt and batch into a single message. Update the composition row's `knobs_json`.
 6. **Dry-run.** Resolve every parameter, render the output in memory, write one real (reversible) destination artifact in draft posture, then ask for promotion. Update the composition's status to `dry_run`. A "dry-run" that skips the destination write is a preview, not a dry-run.
-7. **Promote → host-adapter materialization → `meta_context_commit({type:'artifact_materialization', ...})`.** The commit's `bindings` array names the actual MCP tools the composition calls (e.g. `linear.list_issues`, `gdrive.create_file`) with `fields_bound`; an artifact-scope principle records the composition ref and the negotiated knobs as the durable link between the materialized artifact and the components it was built from. Update the composition row to `status: 'materialized'` and set its `artifact_ref` to the artifact node's composite ref.
+7. **Promote → host-adapter materialization → `bind_primitives` per mcp entry → `meta_context_commit({type:'primitive_artifact_materialization', ...})`.** The commit's `provider_artifact_refs` are the `prov_…` refs `bind_primitives` returned, and it writes one `binds` edge per bound MCP tool (e.g. `linear.list_issues`, `gdrive.create_file`); an artifact-scope principle records the composition ref and the negotiated knobs as the durable link between the materialized artifact and the components it was built from. Update the composition row to `status: 'materialized'` and set its `artifact_ref` to the artifact node's composite ref.
 
 If the commit fails, **roll the artifact back via the host adapter's affordance** (delete the file / cancel the automation). A successful materialization with no contextmap commit is worse than a failed one — it's an unauditable artifact.
 
@@ -308,7 +308,6 @@ See [docs/meta-context.md](meta-context.md#trigger_artifact_materialization) for
 
 ## What does NOT belong in mcp-orbit
 
-- **Bot-shaped workflows** that read submissions or conversations from a deployed mojulo bot — those are catalysts, not mcp-orbit. The bot is the source of truth there; mcp-orbit assumes no bot.
 - **One-off scripts the operator wants once.** Components are *reusable shapes* shared across compositions. A one-off goes straight to the host adapter, no component needed.
 - **Live runtime state.** The composition log records *deliberation* (what the agent considered, what it chose), not outcomes. Outcomes happen at run-rate against the materialized artifact; mojulo doesn't host or observe those runs.
 

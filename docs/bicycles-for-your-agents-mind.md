@@ -62,9 +62,9 @@ still hold your cargo tomorrow.
 
 The one-breath version, when someone asks what mojulo is: *a workshop the
 agent works in — a local, stateful substrate that turns conversations into
-things that keep existing after the chat ends.* Chatbots, connected services,
-apps, playable games, and creative artifacts — worlds, diagrams, films, audio,
-publications. They look like five different products until you notice they're
+things that keep existing after the chat ends.* Connected services, apps,
+playable games, and creative artifacts — worlds, diagrams, films, audio,
+publications. They look like four different products until you notice they're
 all the same move: **a durable binding minted from a conversation.** That's
 the category. Everything else is an instance of it.
 

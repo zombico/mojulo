@@ -49,9 +49,9 @@ does not use this plugin.
 ## Requirements
 
 - **Node.js 22.12 or newer**, with `npx` on the `PATH` Claude sees.
-- **About 290 MB of disk.** The first start downloads the package (about 6 MB) and its
-  dependencies, about 110 MB in all, into the npm cache. Measured for 2.2.0 on an Apple Silicon Mac,
-  that first start answered in 7 to 10 seconds; later starts reuse the cache.
+- **About <measured> MB of disk.** The first start downloads the package (about 6 MB) and its
+  dependencies, about <measured> MB in all, into the npm cache. Measured for 3.0.0 on an Apple Silicon Mac,
+  that first start answered in <measured> seconds; later starts reuse the cache.
 - No account, no API key, no GPU. Game engines, Blender and slicers are optional, and mojulo never
   installs them.
 
@@ -91,6 +91,9 @@ below happens only on the action named.
 | cdn.jsdelivr.net | Only when an exported page was built with `cdn: true`, as it opens | The default page carries its own three.js. |
 | The LLM provider you name (OpenAI, Anthropic, or a local Ollama) | Only for `mint_solid` with `via: 'prompt'` (or its retired, unlisted alias `create_polygonized_sketch`) and an explicit `provider` | Sends that prompt with your key for that provider. Every other tool uses Claude, in your session. |
 
+That table is the whole list. Mojulo has no Docker, Fly.io, container-registry (GHCR), webhook or
+uploaded-document traffic: those belonged to the chatbot factory, which left in 3.0.0 (see below).
+
 On macOS, one dependency's install script (`sharp`) asks Homebrew, if you have it, where libvips
 is, and Homebrew may refresh its own cache from formulae.brew.sh. Mojulo's code never runs `brew`.
 
@@ -119,12 +122,12 @@ is, and Homebrew may refresh its own cache from formulae.brew.sh. Mojulo's code 
   `data/outcomes/` and `data/exports/`, preview caches, a downloaded browser or ffmpeg,
   `secret.key` (created the first time a provider key is saved, and used to encrypt it), and
   the opt-in recall runtime.
-- **The OS temp directory**, while an MP4 encode, a document parse or a headless browser runs,
+- **The OS temp directory**, while an MP4 encode or a headless browser runs,
   removed afterwards (Blender bakes leave their `moj-bake-*` folders).
 - **A folder you name**, only for `install_scaffold`, which writes an app there, `.env` included.
 - **Claude's own files, only through Claude:** if you ask for a connected-service workflow, Claude
   may write a skill under `.claude/skills/`, naming the path first, under Claude Code's permission
-  prompts. Mojulo never edits your Claude settings; if you ask how to keep agents away from bot
+  prompts. Mojulo never edits your Claude settings; if you ask how to keep agents away from app
   secrets, Claude shows you a deny rule to add yourself.
 - **Other MCP hosts' configs** (Codex, Claude Desktop, Grok) only if you run `mojulo init`
   yourself and say yes, each with a backup. The plugin never runs it. With the plugin installed,
@@ -154,6 +157,14 @@ arguments and result (up to 4 KB each) in the same local rows; it is off unless 
 Mojulo reads no provider API keys from your environment. A key exists only if you save one with
 `npx -y -p mojulo@2.2.0 mojulo-config` for the optional paths above.
 
+## The chatbot factory
+
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of
+3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line:
+`npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. Its old
+tool names answer with that notice instead of running, and `mojulo install chatbot` installs
+nothing.
+
 ## Updating and removing
 
 The plugin pins one mojulo version. To update, update the plugin (`/plugin`, then mojulo), then
@@ -163,7 +174,7 @@ plugin, delete `~/.mojulo/`, and optionally clear the npm cache's `_npx` folder 
 
 ## If the first start times out
 
-Claude Code gives a local server 30 seconds to start, and the first start downloads about 110 MB.
+Claude Code gives a local server 30 seconds to start, and the first start downloads about <measured> MB.
 On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm the
 cache once from a terminal with `npx -y mojulo@2.2.0 --help` and reconnect in `/mcp`. If a desktop
 or Cowork session reports `spawn npx ENOENT`, the Node on that session's `PATH` is missing; a system

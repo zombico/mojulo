@@ -16,7 +16,7 @@ self-description; keep site copy consistent with it), [install-capabilities.md](
 ## The shape in one paragraph
 
 Mojulo runs **two local processes** on your machine: an MCP server your coding agent spawns over
-stdio (`npx -y mojulo`), and a dashboard (`npx -y mojulo-ui`, its own npm package since 2.2.0) that
+stdio (`npx -y mojulo`), and a dashboard (`npx -y mojulo-ui`, its own npm package since 3.0.0) that
 binds to `127.0.0.1` on port 3001 or the next free port. Both read and write the same state under
 `~/.mojulo/`. There is no hosted service, no account, no external telemetry, and no LLM key for the studio:
 your agent is the reasoning loop. Game engines, Blender, slicers, and image or voice models are
@@ -32,19 +32,21 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 | **An MCP host** | Claude Code or Codex get the most out of it; Claude Desktop and other hosts wire by declared profile. | [scripts/mcp-init.mjs](../control/scripts/mcp-init.mjs) |
 | **A desktop OS** | macOS is the development and verification platform. Windows and Linux are handled by the installer and the native binaries below, but the engine gates are not verified there (see [Platform notes](#platform-notes)). | — |
 | **No GPU** | Headless WebGL bakes rasterize on the CPU via SwiftShader. A GPU only matters for optional workers you host yourself (Blender Cycles, ComfyUI). | [lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js) |
-| **No provider key** | Studio, games, publications, research, apps: keyless. A key enters only when something must *paint* (image models) or when you install the chatbot pack. | [README](../README.md#quickstart) |
+| **No provider key** | Studio, games, publications, research, apps: keyless. A key enters only when something must *paint* (image models) or when you use `mint_solid`'s prompt door. | [README](../README.md#quickstart) |
 | **RAM / CPU** | **No measured minimum.** Nothing in the tree states one. Do not put a number on the site until one is measured. | — |
 
 ---
 
 ## Package size and disk footprint
 
-Measured **2026-09-27** for 2.2.0: the core tarball packed from the release branch, cold-started 14
-times with an empty npm cache through a local registry stand-in on macOS arm64 (M1 Max). A cold
-`npx mojulo` answered `tools/list` in a median 7.3 s (p90 9.5 s, slowest 9.7 s); the published
-2.1.0 took a median 12.7 s (p90 15.7 s) the same way. Most of 2.2.0's drop is the dashboard
-leaving for its own package (`mojulo-ui`) and the lazy, lean dependency set (see
-[install-capabilities.md](install-capabilities.md)). `npm run smoke:tarball` re-measures a release.
+Measured for 3.0.0: <measured>. The last measurement, **2026-09-27**, was of the unreleased 2.2 line
+3.0.0 grew from, which still carried the chatbot factory: the core tarball packed from its release
+branch, cold-started 14 times with an empty npm cache through a local registry stand-in on macOS arm64
+(M1 Max), answered `tools/list` in a median 7.3 s (p90 9.5 s, slowest 9.7 s); the published 2.1.0 took
+a median 12.7 s (p90 15.7 s) the same way. Most of that drop is the dashboard leaving for its own
+package (`mojulo-ui`) and the lazy, lean dependency set (see [install-capabilities.md](install-capabilities.md)).
+3.0.0 also drops the chatbot factory's document parsers (`officeparser`, about 68 MB, and `pdf2json`,
+about 8 MB, on that line). `npm run smoke:tarball` re-measures a release.
 Earlier releases, as tarball / unpacked / dependencies / total: 2.0.7 (measured 2026-09-21) was
 30 MB / 116 MB / ~470 MB / ~590 MB, and 2.0.6 was 27.3 MB / 110 MB / ~775 MB / ~885 MB; the 2.0.7 drop was
 the embedding runtime (`@huggingface/transformers`, `onnxruntime-node`, `onnxruntime-web`, plus the
@@ -57,14 +59,14 @@ have been excluded since 2.0.6.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **6.0 MB** | `mojulo-2.2.0`, 1,478 files; no dashboard build, no bot template |
-| Unpacked package | **19 MB** | The stdio server, the kernels and the vendored three.js. |
-| Dependencies npm installs | **~290 MB** on disk, 208 packages | About 110 MB on the wire (tarballs plus package metadata) from an empty cache. Breakdown below. |
-| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **13 MB** tarball, **60 MB** unpacked | Its own npm package since 2.2.0; shares core's installed dependencies. |
+| npm tarball (what `npx` downloads) | **<measured>** | `mojulo-3.0.0`, <measured> files; no dashboard build. The 2.2 line measured 6.0 MB and 1,478 files. |
+| Unpacked package | **<measured>** | The stdio server, the kernels and the vendored three.js (19 MB on the 2.2 line). |
+| Dependencies npm installs | **<measured>** on disk, <measured> packages | About <measured> on the wire (tarballs plus package metadata) from an empty cache. The 2.2 line, with the document parsers, measured ~290 MB, 208 packages and ~110 MB. Breakdown below. |
+| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **<measured>** tarball, **<measured>** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. The 2.2 line, with the bot pages, measured 13 MB and 60 MB. |
 | Recall group (`mojulo install recall`) | **~480 MB** runtime + **~130 MB** model | `@huggingface/transformers` with `onnxruntime-node` and `onnxruntime-web` under `~/.mojulo/recall/`, and `Xenova/multilingual-e5-small` (q8 ONNX) under `~/.mojulo/models/`. Gives `semantic_search` vector ranking; runs in-process. Opt-in. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 
-**What the dependencies are.** The largest pieces, sized from the 2.0.7 cold install (the 2.2.0 download is led by `officeparser` with `pdfjs-dist` and a native canvas, `node-web-audio-api`, and `manifold-3d`'s tooling), all runtime deps of the kernel unless noted:
+**What the dependencies are.** The largest pieces, sized from the 2.0.7 cold install (on the 2.2 line the download was led by `officeparser` with `pdfjs-dist` and a native canvas, which left with the chatbot factory in 3.0.0), all runtime deps of the kernel unless noted:
 
 | Dependency | Size | Why it's there |
 |---|---|---|
@@ -75,10 +77,10 @@ have been excluded since 2.0.6.
 | `opentype.js`, `manifold-3d` | 7 MB | Fonts for wordmarks; WASM CSG for `union: true` exports. Creative group, optional. |
 | `openscad-wasm-prebuilt` | 11 MB | OpenSCAD 2025.01.19 as WASM with the Manifold backend: the in-process mesher for `mint_solid kind:'scad'` and the exact twin behind `exact: true`. A fresh instance per render, about 210 MB RSS while one runs. Creative group, optional; a stored `scad` row cannot render without it. |
 
-Since 2.2 two former rows are gone: `three` (38 MB; no Node code imports it, and the exported pages
+Since 3.0 two former rows are gone: `three` (38 MB; no Node code imports it, and the exported pages
 load the vendored copy or the pinned CDN) and `@swc/core` (26 MB; the one shipped JSX file is
 precompiled at pack time). The dashboard-only libraries are devDependencies compiled into the
-dashboard bundle. The per-dependency table reflects the 2.0.7 measurement; the totals above are 2.2.0's.
+dashboard bundle. The per-dependency table reflects the 2.0.7 measurement; the totals above are 3.0.0's.
 
 **Lean install.** `npm install --omit=optional` sheds the optional creative helpers (about 150 MB with
 what they pull in). The creative tools still list and run; the calls that need a missing helper fail
@@ -99,7 +101,7 @@ are cached, and are skipped entirely if you already have the tool:
 
 > **Where the browser and ffmpeg caches live.** `~/.mojulo/chromium` and `~/.mojulo/ffmpeg`, beside
 > the baked-image caches and figure specs under `~/.mojulo/data/`. Set `MOJULO_CHROMIUM_DIR` /
-> `MOJULO_FFMPEG_DIR` to move them. Before 2.2 they sat inside the installed package (the npx cache
+> `MOJULO_FFMPEG_DIR` to move them. Before 3.0 they sat inside the installed package (the npx cache
 > for an `npx` install); nothing reads or deletes those old copies now, so remove them by hand if you
 > want the space back.
 
@@ -124,15 +126,14 @@ them rather than say "never":
   launched without it. Through mojulo's own `mojulo-ui` command (`npx -y -p mojulo mojulo-ui`)
   the download is announced first and `MOJULO_UI_NO_FETCH=1` refuses it; `npx -y mojulo-ui`
   downloads it through npx before any mojulo code runs.
-- `check_for_updates`, when your agent calls it (npm and GHCR version lookups).
+- `check_for_updates`, when your agent calls it (one npm registry version lookup).
 - An exported page built with `cdn: true` loads three.js from `cdn.jsdelivr.net` when opened; the
   default export is self-contained.
 - `mint_solid` with `via: 'prompt'`: the prompt goes to the LLM provider the caller names, with
   the operator's key for it.
 - Anything your agent's own provider does. That traffic is your agent's, not mojulo's.
-- With the chatbot pack: image pulls during bot builds, a running bot's LLM provider calls, the
-  bot builder's provider calls, `upload_document_from_url` (a public URL; private addresses are
-  refused), reads from your deployed bots, and Fly.io deploys if you configure Fly.
+- No Docker, Fly, GHCR, webhook or uploaded-document traffic at all: since 3.0.0 mojulo has no code
+  path for them (the chatbot factory that had them is no longer part of mojulo).
 
 **The local tool-call log.** Each tool call writes one row to the SQLite under `~/.mojulo/`: the
 tool name, start time, duration, status, argument key names and byte size (never the values),
@@ -142,7 +143,7 @@ truncated error text, the MCP client's name and version, and the session id, plu
 nothing sends it anywhere. `MOJULO_MCP_TELEMETRY=off` stops the row and the stderr line (the soft
 tool timeout still applies).
 
-Source of truth: fact 4 of the substrate facts in
+Source of truth: fact 3 of the substrate facts in
 [context.js](../control/lib/mcp/tools/context.js).
 
 ---
@@ -238,27 +239,15 @@ agent is the bridge. Absence degrades one loop and breaks nothing.
 | ComfyUI + Qwen-Image-Edit | Paints the directed-image scaffolds when your agent has no image capability | **~31 GB** (fp8); `--gguf` adds a ~17 GB quant for lower RAM; `--sdxl` ~15 GB; `--anime` ~6.8 GB | Python venv, loopback port 8188 (ComfyUI has no auth: keep it on 127.0.0.1). Documented performance is on an M1-class machine with 64 GB. Apple Silicon needs the GGUF quant. | [local-image-worker.md](local-image-worker.md) |
 | Kokoro TTS | Spoken narration when your agent cannot speak | ~92 MB weights plus a few MB of npm deps | Node; runs on onnxruntime | [local-voice-worker.md](local-voice-worker.md) |
 | Mesh sculptors (TripoSR, Hunyuan3D, or cloud APIs) | High-frequency surface detail over mojulo's greybox | TripoSR: ~1.4 GB on the maintainer's machine; Hunyuan3D needs a GPU | Python 3.11 + torch; cloud keys live in your worker script, never in mojulo | [local-mesh-worker.md](local-mesh-worker.md) |
-| Ollama (via the chatbot pack) | A local LLM for compiled bots | Ollama's own models | The chatbot pack | [chatbot/](chatbot/) |
 
 ---
 
-## The chatbot pack (opt-in since 2.0)
+## The chatbot factory
 
-Absent from a default install; `mojulo install chatbot` writes a marker file and turns the tools
-on, installing the **recall** group first (the builder's preview RAG embeds with the same model the
-deployed bot uses). What it needs beyond the baseline:
-
-- **An LLM provider key** (OpenAI, Anthropic, or local Ollama). A compiled bot calls a model on its
-  own because it runs without you. This is the one artifact mojulo makes that needs a key.
-- **Docker** for the default local deploy (`docker compose up` on the exported zip). The bot image
-  is `ghcr.io/zombico/mojulo-bot`, Debian bookworm slim on Node 20, pinned to an exact tag in
-  [control/.env.example](../control/.env.example); never `:latest`.
-- **A Fly.io token**, only if you want cloud deploy. Your Fly account, your bill. No `flyctl`
-  install needed.
-- **Air-gapped**: `MOJULO_OFFLINE_BUILD=1` bundles full source and Dockerfile so the image builds
-  on the target machine.
-
-Full requirements and deploy options: [chatbot/README.md](chatbot/README.md).
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of
+3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line:
+`npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers, and their
+requirements (an LLM key, Docker, optionally Fly.io) are the 2.x line's.
 
 ---
 
@@ -331,7 +320,7 @@ not claim a door at a level its profile does not carry.
 ## Uninstall footprint
 
 Unwire mojulo from the MCP host config, remove the npm package, delete `~/.mojulo/` (or
-`$MOJULO_HOME`), and remove any bot containers, images, or Fly apps you created. Also delete the
+`$MOJULO_HOME`), and remove any bot containers, images, or Fly apps you created with a 2.x install. Also delete the
 browser and ffmpeg caches if they were fetched (see the note under
 [Downloads that happen later](#downloads-that-happen-later-on-first-use-only)). Engines and workers
 you installed yourself are yours to remove.
@@ -373,7 +362,7 @@ Recorded so nobody rediscovers them. None are fixed by this page.
    the measured table above.
 3. **Browser and ffmpeg caches land outside `$MOJULO_HOME`** (see the note above), which
    contradicts substrate fact 11's "delete `$MOJULO_HOME`, that is the whole footprint."
-   **Resolved in 2.2.0:** both caches, the baked stills and the figure specs moved under
+   **Resolved in 3.0.0:** both caches, the baked stills and the figure specs moved under
    `$MOJULO_HOME`; only copies fetched by an older version stay behind in its package directory.
 4. **Substrate fact 8** lists exports as "zip, HTML, glb, stl, WAV, MIDI, a Godot project" and
    omits 3MF, USD, and the Unity, Unreal, and Blender packs.

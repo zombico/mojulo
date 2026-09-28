@@ -23,7 +23,7 @@ mojulo is the workshop. You and your agent are the operator.
 
 By installing and running mojulo, you accept that:
 
-- **You choose what to build.** Bots, apps, connected services, cooks, sketches, plans, research — every artifact mojulo produces is something you (or your agent acting on your prompt) asked it to produce.
+- **You choose what to build.** Apps, connected services, cooks, sketches, plans, research — every artifact mojulo produces is something you (or your agent acting on your prompt) asked it to produce.
 - **You choose what inputs to give it.** Documents, URLs, conversation history, MCP tool outputs, credentials — mojulo stores and composes what you put in front of it. It does not curate the inputs for you.
 - **You choose what external systems it touches.** Any MCP server you connect (Gmail, Drive, Linear, your CRM, your own), any LLM provider key you paste in, any cloud deploy target (Fly, your registry) is a connection *you* established with *your* credentials, subject to *your* agreement with that vendor.
 - **You choose what to do with the outputs.** Generated bots, generated documents, generated plans, generated code — once mojulo has materialized them on your disk, they are your artifacts. Publishing, deploying, sharing, selling, or deleting them is your decision.
@@ -32,7 +32,7 @@ The maintainer does not have, and is not seeking, the ability to see, approve, m
 
 ## 3. Capability is compositional; intent is yours
 
-mojulo ships a set of primitives — stashes, cooks, catalysts, mcp-orbit chains, bot scaffolds, app scaffolds, the polygonizer, the planner. Composed, those primitives are broadly capable. The maintainer does not enumerate, vet, predict, or restrict the combinations you and your agent can assemble from them.
+mojulo ships a set of primitives — stashes, cooks, catalysts, mcp-orbit chains, app scaffolds, the polygonizer, the planner. Composed, those primitives are broadly capable. The maintainer does not enumerate, vet, predict, or restrict the combinations you and your agent can assemble from them.
 
 That means:
 
@@ -57,7 +57,7 @@ The maintainer is not a party to those relationships and has no visibility into 
 
 ## 5. Generated artifacts are your work product
 
-When you or your agent direct mojulo to compile a bot, scaffold an app, render a cook, mint a sketch, or write a plan, the resulting artifact is yours. mojulo provided the workshop; you provided the intent, the inputs, and the prompts.
+When you or your agent direct mojulo to scaffold an app, render a cook, mint a sketch, or write a plan, the resulting artifact is yours. mojulo provided the workshop; you provided the intent, the inputs, and the prompts.
 
 This means:
 

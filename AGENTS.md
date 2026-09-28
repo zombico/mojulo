@@ -73,16 +73,18 @@ For comparison, Claude Code uses `claude mcp add --transport http mojulo http://
 
 ## Secrets posture
 
-- Don't `cat` or read `~/.mojulo/**/.env*` directly once connected — route through the `inspect_bot_env` MCP tool, which masks sensitive values. The repo's own [control/.env](control/.env) is a one-time read for the bearer token during registration; after that, prefer MCP tools.
+- Don't `cat` or read `~/.mojulo/**/.env*` directly once connected — `list_env` names an app's keys without their values, and `set_env` / `delete_env` change them. The repo's own [control/.env](control/.env) is a one-time read for the bearer token during registration; after that, prefer MCP tools.
 - Never echo the `CONTROL_PLANE_MCP_KEY` into materialized artifacts (automation prompts, workflow files) as plain text. Use Codex's secret-injection mechanism if available; otherwise leave the value out and let the host's stored config supply it at run time.
 
 ## Architecture pointers
 
 Everything below is host-neutral. Start with [CLAUDE.md](CLAUDE.md), then use [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) for denser agent-facing detail:
 
-- Repo shape (control plane + lite-template), build pipeline, fleet aggregation posture.
-- MCP tool rings (Ring 0 orientation through Ring 9 research mode).
-- Tamper-evident chain, vector RAG, LLM provider abstraction, per-model protocol gates and task tiers.
+- Repo shape and the creative substrate (one table, one row per recipe).
+- MCP tool rings (Ring 0 orientation through Ring 10 creative mints) and the wing / pack split.
+- The deliberation surfaces (contextmap, inventory, mcp-orbit, semantic recall) and the runtime (apps, the agent-task queue).
 - Native-dependency landmines and data layout.
+
+The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots already deployed keep running; they are separate containers.
 
 If anything in this file drifts from CLAUDE.md, CLAUDE.md wins on architecture; this file wins on Codex-specific procedure.

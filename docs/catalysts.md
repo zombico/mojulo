@@ -16,7 +16,7 @@ The library holds two shapes, and confusing them is the most common authoring mi
 
 **Making catalysts** — the majority of the shelf. These teach the agent how to compose mojulo's OWN primitives into an artifact: `design-object-workbench` (bond lathe/extrude/sweep monomers on a measured grid at literal scale), `design-world-asset`, `design-vehicle-family`, `dream-edifice`, `character-from-dream`, `mobile-suit-builder`, `reconstruct-from-dream`, `explain-the-internet`, `explain-computing-from-first-principles`, `numerical-experiment-notebook`, `render-image-outcome-locally`. No destination MCP, no cursor, no dry-run — the output is a minted `ref`. Their bodies are **domain-shaped**, not templated: the value is the modelling discipline ("model each object by the manufacturing process that makes it"), the failure modes, and the iteration loop.
 
-**Workflow catalysts** — mojulo state out to a destination MCP the operator already has. These follow the six-section template below, and their non-negotiables (dry-run default, trace fields, idempotency) exist because they write to systems outside mojulo. Some are pack-scoped: `qualify-lead-to-crm`, `submission-to-ticket`, `appointment-to-calendar`, `weekly-submissions-digest`, `scan-conversations-for-signal`, `conversations-to-channel-digest`, `submissions-to-warehouse`, and `knowledge-gap-miner` all read a deployed bot and require the **chatbot pack**. Others don't touch a bot at all — `document-extract-to-store`, `refresh-connected-services`, `research-mcp-vendor`.
+**Workflow catalysts** — mojulo state out to a destination MCP the operator already has. These follow the six-section template below, and their non-negotiables (dry-run default, trace fields, idempotency) exist because they write to systems outside mojulo. The shipped ones are `refresh-connected-services` and `research-mcp-vendor`; their source is mojulo's own state or an installed MCP the operator declared. (The bot-sourced workflow catalysts left mojulo with the chatbot factory in 3.0.0.)
 
 The `category` field is the practical tell, though `substrate` currently does double duty across both shapes. When a new catalyst doesn't clearly sit in one shape, that is usually a sign it is trying to do two things.
 
@@ -24,11 +24,10 @@ The `category` field is the practical tell, though `substrate` currently does do
 
 ## Three concepts, kept distinct
 
-Three terms in this space overlap and need to be kept separate by authors and by the model reading the catalysts. (The first row applies only when the chatbot pack is installed.) If you're weighing whether to **add a new mojulo protocol** vs. **write a catalyst**, see the decision rubric in [docs/chatbot/protocol-composition.md](chatbot/protocol-composition.md) under "Before adding a protocol — could a catalyst do this?" — short version: protocols change what a bot does inside a conversation, catalysts change what happens with its data afterward.
+Three terms in this space overlap and need to be kept separate by authors and by the model reading the catalysts.
 
 | Concept                    | Where it lives                                              | What it is                                                                                                                                                                                                                                                | Lifecycle                                                                                  |
 | -------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **Mojulo protocol** *(chatbot pack)* | [control/lib/composer/protocols/](../control/lib/composer/protocols/) | A *bot's* runtime capability — `knowledge`, `formGathering`, `triage`, `appointments`, `opticalRead`. Composed into the bot's `instructions.txt` at build time.                                                                                          | Set when the bot is built. Read off a deployment via `get_deployment`.                     |
 | **Runnable artifact**      | User's machine, host-specific path                          | A *user-owned* file the agent's host executes when invoked — a Claude Code skill at `.claude/skills/<name>/SKILL.md`, a Codex automation, a generic `workflow.md` + runner. Calls MCP tools (mojulo's + others) to do the work. Path and scheduling shape are host-specific.   | Synthesized once from a catalyst + host adapter; owned and edited by the user thereafter. Mojulo never sees it. |
 | **Catalyst** (this doc)    | [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/) | A *host-neutral workflow recipe* mojulo ships through MCP. Consumed once at synthesis time to catalyze a runnable artifact. The catalyst is not the artifact; it tells the agent how to make one, paired with a host adapter when the result leaves mojulo.                | Lives in the repo. Read once per synthesis via `get_catalyst`.                          |
 | **Host adapter**           | [control/lib/mcp/adapters/](../control/lib/mcp/adapters/)   | The host-specific half of synthesis — artifact path, scheduling mechanism, secrets posture, output reporting. Three ship today: `claude-code`, `codex`, `generic`. Composed into every `get_catalyst` response between the core preamble and the catalyst body. | Lives in the repo. Auto-resolved per session from MCP `clientInfo.name`, or overridden by passing `host` to `get_catalyst`. |
@@ -53,11 +52,11 @@ This split matters most for **workflow catalysts**, whose output leaves mojulo. 
 - Don't name specific scheduling mechanisms (`/schedule`, `automation_update`, cron). The adapter knows.
 - Don't name specific secret-posture mechanisms (`.claude/settings.json` deny rules, automation-level secrets). The adapter knows.
 - Don't bake in specific dry-run UX (CLI flag, automation parameter). The adapter encodes the dry-run / inspect / promote loop in its substrate's idioms; you only require the *default*.
-- The Behavior contract section names inputs in host-neutral terms (`deploymentId`, `since`, `dryRun`). The adapter renders those into CLI flags, automation parameters, or whatever fits.
+- The Behavior contract section names inputs in host-neutral terms (the source handle, `since`, `dryRun`). The adapter renders those into CLI flags, automation parameters, or whatever fits.
 
 If your body sentence is something the Codex adapter and the Claude Code adapter would phrase differently, it belongs in the adapter, not the catalyst.
 
-Two exemplars, one per shape. Workflow: [qualify-lead-to-crm.md](../control/lib/mcp/catalysts/qualify-lead-to-crm.md) — its Materialization section opens with "Per the bound host adapter (artifact target, scheduling, and dry-run encoding live there):" and proceeds with host-neutral steps. Making: [design-object-workbench.md](../control/lib/mcp/catalysts/design-object-workbench.md) — numbered domain sections (decompose by manufacturing process → author each monomer → package → mint + iterate → pitfalls) and no adapter section at all.
+Two exemplars, one per shape. Workflow: [refresh-connected-services.md](../control/lib/mcp/catalysts/refresh-connected-services.md) — its Materialization section hands scheduling and the report sink to the bound host adapter and proceeds with host-neutral steps. Making: [design-object-workbench.md](../control/lib/mcp/catalysts/design-object-workbench.md) — numbered domain sections (decompose by manufacturing process → author each monomer → package → mint + iterate → pitfalls) and no adapter section at all.
 
 ---
 
@@ -79,27 +78,26 @@ JSON frontmatter between two `---` fences, then a markdown body:
 ```markdown
 ---
 {
-  "id": "qualify-lead-to-crm",
-  "name": "Qualify lead and sync to CRM",
-  "summary": "Score new submissions against the user's rubric and create matching CRM records, skipping low-quality leads.",
-  "valueHook": "Turn yesterday's intake submissions into qualified CRM contacts overnight, deduped and scored.",
+  "id": "weekly-stash-digest-to-channel",
+  "name": "Weekly stash digest to a channel",
+  "summary": "Summarize the week's new stash items and post one digest message to the operator's channel MCP.",
+  "valueHook": "A Monday-morning digest of what you gathered last week, in the channel you already read.",
   "version": 1,
-  "category": "crm-sync",
+  "category": "digest",
   "requires": {
-    "protocols": ["formGathering"],
-    "destinationMcpCategory": "crm-like",
-    "destinationExamples": ["HubSpot", "Salesforce", "Pipedrive", "Attio", "Close"]
+    "destinationMcpCategory": "doc-or-channel-like",
+    "destinationExamples": ["Slack", "Discord", "Microsoft Teams", "Google Docs", "Notion"]
   },
   "parameters": [
     {
-      "name": "qualifyingCriteria",
-      "prompt": "What makes a 'qualified' submission for your business?"
+      "name": "stashRef",
+      "prompt": "Which stash should the digest cover?"
     }
   ],
   "mcpTools": {
-    "mojulo": ["query_submissions", "get_deployment"],
+    "mojulo": ["get_stash", "list_stashes"],
     "destination": {
-      "description": "A CRM-like MCP exposing search-by-property + contact create."
+      "description": "A channel- or doc-like MCP exposing a post or append call."
     }
   }
 }
@@ -123,8 +121,7 @@ JSON, not YAML, is intentional: dep-free parsing, unambiguous types, fails loudl
 
 - `version` (number, default 1) — bump when the body changes meaningfully.
 - `category` (string) — filter axis for `list_catalysts`. Making shapes: `object-design`, `world-building`, `explainer`, `research-science`. Workflow shapes: `crm-sync`, `itsm`, `calendar`, `digest`, `analysis`, `rag-curation`, `extraction-pipeline`, `warehouse`. Plus `substrate`, which currently spans both and should not grow. Don't proliferate.
-- `requires.protocols` (string[]) — *(chatbot pack)* mojulo protocols the target bot must have enabled. Making catalysts leave this empty or omit it.
-- `requires.optionalProtocols` (string[]) — *(chatbot pack)* protocols that enrich the catalyst but aren't required.
+- `requires.protocols` / `requires.optionalProtocols` — named the chatbot factory's bot capabilities on the 2.x line. Leave them out: `recommend_catalysts` does not recommend a catalyst that lists one.
 - `requires.destinationMcpCategory` (string) — *(workflow only)* what kind of destination MCP the artifact needs (e.g., `crm-like`, `ticketing-like`, `calendar-like`, `actuator-like`, `doc-or-channel-like`, `data-store-like`). Omit for making catalysts — they have no destination.
 - `requires.destinationExamples` (string[]) — **required when `destinationMcpCategory` is set.** 3-5 named MCPs that satisfy the category (e.g., for `crm-like`: `["HubSpot", "Salesforce", "Pipedrive", "Attio", "Close"]`). `recommend_catalysts` surfaces these as consultation suggestions ("you could install HubSpot to unlock this"); missing or empty is a hole in the consultation posture.
 - `parameters` (object[]) — questions the agent asks the user during synthesis. Each entry: `{ name, prompt, default? }`. Typically 2-4 entries; more than 5 usually means the catalyst is trying to do two things.
@@ -159,12 +156,12 @@ The body is a prompt. The reader is the connecting agent (Claude Code, Codex, or
 
 Every shipped **workflow** catalyst follows this template. Don't deviate without reason. (For making catalysts, see the next subsection — this template does not apply to them.)
 
-1. **Opening paragraph** — what this catalyst does in plain English, ~2-3 sentences. Frame the source protocol or data shape it operates on.
-2. **Materialization** — numbered steps, host-neutral. When the source is a deployed bot, the first step is `get_deployment(deploymentId)` to read its shape. Then "ask the user the N `parameters` questions" (batched). Then "inspect the bound destination MCP" to discover its concrete surface. Last step: **"hand the resolved workflow to the host adapter to materialize the runnable artifact."** Don't bake in a specific artifact path or scheduling mechanism — the host adapter owns that, and writing `.claude/skills/<...>/SKILL.md` or `Codex automation` directly into the catalyst body re-couples it to one host.
+1. **Opening paragraph** — what this catalyst does in plain English, ~2-3 sentences. Frame the source data shape it operates on.
+2. **Materialization** — numbered steps, host-neutral. The first step is almost always reading the source's shape (the mojulo read tool it names, or the source MCP's schema from declared inventory). Then "ask the user the N `parameters` questions" (batched). Then "inspect the bound destination MCP" to discover its concrete surface. Last step: **"hand the resolved workflow to the host adapter to materialize the runnable artifact."** Don't bake in a specific artifact path or scheduling mechanism — the host adapter owns that, and writing `.claude/skills/<...>/SKILL.md` or `Codex automation` directly into the catalyst body re-couples it to one host.
 3. **Mapping intent** — the load-bearing section. Specific field-to-field guidance, what to do when a field doesn't fit, when to ask the user vs. when to assume. This is where the value-add lives. Be concrete — quote field names, name destination shapes (e.g. "HubSpot uses `firstname`/`lastname`; Salesforce uses `FirstName`/`LastName`; Attio uses object/attribute pairs — synthesize from the destination MCP's surface, never assume a flat `name` field").
 4. **Idempotency** — cursor strategy AND dedupe key. Always pair them — the cursor (typically a `since` parameter on a timestamp) is the primary defense, search-before-create on a stable id is the safety net.
-5. **Pitfalls** — bullets, each with a specific mitigation (not just the risk). At minimum touch on: PII exposure (especially anything where the LLM reads form/conversation content), irreversible writes (default `dryRun: true`, opt-in to live), rate limits, calibration drift. Add domain-specific pitfalls.
-6. **Behavior contract** — bullets for `Inputs:`, `Outputs:`, `Side effects (live mode):`. For a bot-sourced catalyst, inputs include `deploymentId` (required), `since` (optional ISO), and `dryRun` (default true). The host adapter renders the contract into its substrate's idioms (CLI flags, automation parameters, etc.) — keep the body host-neutral.
+5. **Pitfalls** — bullets, each with a specific mitigation (not just the risk). At minimum touch on: PII exposure (especially anything where the LLM reads personal content), irreversible writes (default `dryRun: true`, opt-in to live), rate limits, calibration drift. Add domain-specific pitfalls.
+6. **Behavior contract** — bullets for `Inputs:`, `Outputs:`, `Side effects (live mode):`. Inputs always include the source handle (required), `since` (optional ISO), and `dryRun` (default true). The host adapter renders the contract into its substrate's idioms (CLI flags, automation parameters, etc.) — keep the body host-neutral.
 
 ### Making catalysts — domain-shaped, not templated
 
@@ -183,9 +180,9 @@ No dry-run, no cursor, no trace fields, no destination — those exist to protec
 These four bind **workflow catalysts**, because they write outside mojulo:
 
 - **Default `dryRun` to true.** Any catalyst that writes externally should produce an artifact that defaults to dry-run, with the user opting into live writes explicitly. The user can override after synthesis, but the synthesized default is conservative.
-- **Always require mojulo trace in destination payloads.** Submission id, conversation id, deployment id, captured-at timestamp. The reviewer on the destination side needs to be able to walk back to the source — this is the differentiator vs. opaque integration platforms.
-- **Surface PII concerns.** Multiple catalysts pull form/conversation content back through the LLM at routing time. The bot's data-handling posture was set at capture time; artifact synthesis is a place to reaffirm the user is OK with the new exposure.
-- **Don't auto-write back to the source.** A workflow catalyst reads from mojulo and writes to destinations; it should never reach into a bot's corpus or config. Those paths stay user-mediated.
+- **Always require mojulo trace in destination payloads.** The source ids (a stash item id, a ref, a source-MCP record id) and a captured-at timestamp. The reviewer on the destination side needs to be able to walk back to the source — this is the differentiator vs. opaque integration platforms.
+- **Surface PII concerns.** A workflow that pulls personal content (an inbox, a CRM record) back through the LLM widens its exposure; artifact synthesis is the place to reaffirm the user is OK with that.
+- **Don't auto-write back to the source.** A workflow catalyst reads from its source and writes to destinations; it should never rewrite the source's records or config. Those paths stay user-mediated.
 - **Sample, don't sweep.** Analytical catalysts (signal scanning, gap mining) should default to bounded samples (typically 30). The user graduates after calibration. Full-scan defaults produce surprise LLM bills.
 
 These bind **every** catalyst:
@@ -196,7 +193,7 @@ These bind **every** catalyst:
 
 ### What NOT to write in the body
 
-- Don't restate vocabulary disambiguation (catalyst vs. artifact vs. protocol). The core preamble prepended to every `get_catalyst` response already does that — you'd be duplicating.
+- Don't restate vocabulary disambiguation (recipe vs. runnable artifact vs. catalyst). The core preamble prepended to every `get_catalyst` response already does that — you'd be duplicating.
 - Don't restate the "adapt freely, posture is starting point not contract" preamble. Same reason.
 - Don't restate host adapter rules (artifact path, scheduling, secrets). The composed adapter section already does that.
 - Don't pad sections that don't apply. If there's no meaningful trend-delta concern, skip it — don't fabricate.
@@ -211,11 +208,9 @@ Five tools, registered by [control/lib/mcp/tools/catalysts.js](../control/lib/mc
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `list_catalysts`      | Returns `id`, `name`, `summary`, `valueHook`, `category`, `requires`, `origin` for each catalyst. Optional `category` filter. Local entries eclipsed by a later-shipped curated id are flagged `eclipsed: true`. |
 | `get_catalyst`        | Returns one catalyst's full composed body: core preamble + host adapter section + catalyst body. Accepts optional `host` to override the auto-resolved adapter, and `rev` to read a local catalyst's historical revision. Local reads include `fileText` (the shelf-file serialization) + the revision index. |
-| `recommend_catalysts` | Recommends catalysts for one bot (`deploymentId`) or across the fleet (`scope: 'fleet'` / `deploymentIds`). Annotates each with `missingProtocols`, `crossBot`, `origin`, etc. Includes a `consultationPosture` block + a `materialization` block (available adapters + recommended-for-this-client). |
+| `recommend_catalysts` | Ranks the workflow shelf (curated + local), optionally narrowed to one `category`. Annotates each with its `valueHook`, destination category and examples, `origin` and `priorMaterializations`. Includes a `consultationPosture` block + a `materialization` block (available adapters + recommended-for-this-client). |
 | `custom_catalyst`     | Returns the author's guide for drafting a new catalyst. Self-contained — posture-check rules, batched context questions, body template, validation checklist, mint + graduation hand-off. Read before `mint_catalyst`. |
 | `mint_catalyst`       | Writes to the local shelf. Upsert keyed on `id`: new id → rev 1; existing local id → appends a revision (`note` required — the commit message) and revives if archived; `archive: true` shelves it (revisions kept, embedding row dropped). Refuses curated ids. Response includes `fileText` for graduation. |
-
-Bot-shape introspection is intentionally not a separate tool — `get_deployment` ([control/lib/mcp/tools/operate.js](../control/lib/mcp/tools/operate.js)) already returns enabled protocols, form schema, triage routes, and identity. The agent does the match between a catalyst's `requires` and a deployment's shape.
 
 Adapter discovery is handled by `list_adapters` / `get_adapter` from the adapters ring (sibling to catalysts). Every `get_catalyst` response auto-composes the resolved adapter into the returned body, so most agents won't need to call `get_adapter` directly — but it's there for sessions that want to bind the adapter once and reuse it across multiple catalyst reads.
 
