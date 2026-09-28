@@ -1,6 +1,6 @@
 // The dashboard ships as its own package at core's exact version (ui-package.js says why). A
 // release packs both from one checkout, so the two manifests must agree before either is packed:
-// a dashboard built against 2.2.0's schema and published as 2.2.1, or one pinned to a core it
+// a dashboard built against 3.0.0's schema and published as 3.0.1, or one pinned to a core it
 // was not built with, would open the operator's database with different code than the stdio
 // server. The stager refuses to pack when this test would fail.
 
