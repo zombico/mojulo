@@ -8,26 +8,72 @@ From `1.0.0`, the five paradigm loops and the recipe format are the stable
 surface (see "The 1.0 contract" below); the bundled bot image stays pinned
 exact per control-plane version. From `2.0.0` the chatbot factory is an opt-in
 pack (`mojulo install chatbot`) and the studio is the default read; the five
-loops and the recipe format are unchanged.
+loops and the recipe format are unchanged. From `3.0.0` the chatbot factory is
+no longer part of mojulo (see "Chatbot carve-out"); the media, game,
+connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
 ### Chatbot carve-out
 
-- **Five tools that were filed in the bot packs move out of them.** `list_running`, `list_env`,
-  `set_env` and `delete_env` act on local apps, and now live in `pack_runtime`; `recommend_kind` ranks
-  publication kinds for `cook`, and now lives in `pack_stash`. They used to be listed and callable only
-  with the chatbot pack installed; a default install now has them. Their behaviour is unchanged.
-  `custom_protocol` stays in `pack_bot_build`; its guide moved into the bot build tool module.
-- **The home-page chat relay is gone.** The `host_chat` agent-task kind, the `/api/agent-chat/stream`
-  route that parked it, and the `run-host-chat-worker` catalyst are deleted. No page in the dashboard
-  called the route. `pull_agent_task` and `submit_envelope_inference` now name `envelope_inference` and
-  `chat_turn` only. App inference is unchanged.
-- **Dead bot-factory code is deleted.** `/api/deploy` (an alias of `POST /api/deployments` with no
-  caller; use `POST /api/deployments`), `/api/generate-rag`, `DeploymentStatus.jsx`, `WizardIcons.jsx`,
-  `botTypeUtils.js`, `useEntitlements.js`, `lib/builder/chat-processor.js` and `lib/builder/index.js`,
-  the `lib/composer/index.js` facade, the no-op `botSpaces` repository, and three form-schema locale
-  files the locale index never loaded (`af-ZA`, `ar-SA`, `hi-IN`). Nothing imported any of them.
+- **The chatbot factory is no longer part of mojulo; this is why the release is 3.0.0.** The bot
+  builder, the wizard, the deployers, the fleet tools, the bot runtime (`lite-template/`) and its image
+  pipeline, the three bot packs (`pack_bot_build`, `pack_bot_operate`, `pack_fleet`), their catalysts,
+  the bot dashboard and `docs/chatbot/` leave the package. The factory is moving to its own project.
+  Until that ships, it stays available on the 2.x line: `npx -y mojulo@2` (2.1.0 is the last published
+  release that carries it). The 1.0 contract named the bot loop as stable surface, so removing it is a
+  major version; the media, game, connected-service and app loops and the recipe format are unchanged.
+  Bots already deployed keep running; they were always separate containers.
+- **A call to a removed tool says where the factory went.** The removed names are not in `tools/list`
+  (flat or packs mode), `get_tool_index`, the routing cards or any pack manual. A `tools/call`, a pack
+  dispatch, a plan step or a CLI call (`mojulo call`, `mojulo help`, a pack verb) that names one of the
+  factory's tools, the chat builder's `emit_chat_signal` / `request_chat_decision`, or one of the bot
+  pack ids gets an in-band `isError` result carrying the moved notice instead of a bare unknown-tool
+  error (the CLI exits 2). The notice and the list of removed names live in one module,
+  `lib/mcp/bot-factory-moved.js`.
+- **`mojulo install chatbot` installs nothing.** It, and its old alias `ops`, prints the moved notice,
+  writes nothing and exits 0, and mentions a `$MOJULO_HOME/packs/chatbot` marker a 2.x install left.
+  That marker, or `chatbot` / `ops` in `MOJULO_PACKS`, is skipped and never an error; `mojulo tools`
+  and `mojulo packs` print an `ignored:` line naming it.
+- **Existing installs keep their bot data, inert.** `getDb()` no longer creates `deployments`,
+  `modular_sessions` or `mcp_jobs`, and no longer runs the bot column migrations or the stale-job
+  reaper. The tables and rows a 2.x install created are left in place; nothing reads, rewrites or drops
+  them, and they may be dropped by hand. Migrations stay additive-only. The `documents` table stays for
+  the stash media route's reads of existing `doc_…` items; nothing writes it any more.
+  `stash_bindings.bound_kind` and `meta_context_brief`'s scope kinds keep `'bot'`, so stored rows still
+  list, read and unbind; nothing writes it (`bind_stash` refuses a new bot binding). The bins no longer
+  create `$MOJULO_DATA_DIR/artifacts` (the bot zips).
+- **`artifact_materialization` leaves with the bots.** It sealed a catalyst materialized for a deployed
+  bot. Stored events of that type stay readable; a new `meta_context_commit` of that type writes nothing
+  and answers with the moved notice. The mcp-orbit rulebook, `recommend_mcp_orbit_compositions`' next
+  steps and the mcp-orbit catalysts told agents to seal with it, which needed a deployed bot and never
+  sealed an MCP-only artifact; they now say `bind_primitives` → `primitive_artifact_materialization`.
+- **`recommend_catalysts` ranks the whole workflow shelf.** An optional `category` narrows it. Its bot
+  modes (`deploymentId`, `scope: 'fleet'`, `deploymentIds`) answer with the moved notice, and a local
+  catalyst that still requires bot protocols is listed but not recommended. `get_worked_example('bot')`
+  answers with the moved notice.
+- **The agent-task queue stays; the chat builder's relay goes.** `pull_agent_task`,
+  `submit_envelope_inference`, `cancel_agent_task` and the `envelope_inference` kind (app inference, via
+  `/api/app-inference/envelope`) work as before. The `chat_turn` kind, its skip in the node fulfiller,
+  its branch in the Claude Code runtime adapter, the `/api/builder/stream` and `/api/agent-ui/respond`
+  routes and the `emit_chat_signal` / `request_chat_decision` tools served only the web chat builder
+  and are gone. The home-page `host_chat` relay (`/api/agent-chat/stream` and the
+  `run-host-chat-worker` catalyst), which no page called, is deleted too.
+- **Five tools that were filed in the bot packs stay.** `list_running`, `list_env`, `set_env` and
+  `delete_env` act on local apps and now live in `pack_runtime`; `recommend_kind` ranks publication
+  kinds for `cook` and now lives in `pack_stash`. They used to be listed and callable only with the
+  chatbot pack installed; a default install now has them, unchanged. `custom_protocol` left with the
+  bot build tools.
+- **What a default install no longer carries.** `officeparser` and `pdf2json` (about <measured> MB and
+  <measured> packages of the install) are gone from the dependencies, the lockfile and the Next server
+  externals. `registerAllTools()` no longer imports the deployers, builder or composer at boot;
+  `getDb()` creates no bot tables and runs no bot migrations; `version` makes no network call and
+  `check_for_updates` no longer queries GHCR, and neither reports a bot image. Core has no Docker, Fly,
+  GHCR, webhook or uploaded-document reach. The core tarball is roughly unchanged (the factory was about
+  1 MB of 19 MB unpacked); `mojulo-ui` drops <measured> MB now that it ships no `lite-template/` and no
+  bot pages. `lib/mcp/carve-boundary.test.js` checks this: a traced stdio boot loads no factory module
+  and neither parser, a fresh database has no bot table, `version` reaches no network, and no factory
+  path is back on disk or imported by retained server code.
 - **The dashboard has no bot pages.** `/bots`, `/bot-factory/modular`, `/chat-builder`,
   `/dashboard/documents`, the `/dashboard/deployments/[id]/…` pages and `/data` are deleted, with the
   wizard, the chat builder panel and the components only they used. The Operate mode has no bots door
@@ -37,14 +83,32 @@ loops and the recipe format are unchanged.
   language tab; the Builder Mode and Provider Keys tabs are gone, and Fly keys a 2.x install saved stay
   in the table, unlisted. `/dashboard`, the splayed floor, stays. The bot-only locale namespaces and
   keys leave every catalog.
+- **Release and CI drop the bot legs.** `publish-bot-image.yml`, the `bot-v*` tags,
+  `lib/version/bot-image.js`, the `--bot-image` GHCR check (in `check-plugin-version.mjs`,
+  `prepublishOnly` and the release workflow), the bot legs of the test workflow, the `build:bot` and
+  `stage-lite-template` scripts, `LITE_TEMPLATE_PATH` and the bot variables in `.env.example` are gone.
+  `npm run smoke:tarball` now fails if `officeparser` or `pdf2json` is installed, if either package
+  ships `lite-template/`, if `tools/list` names a removed tool, or if `install chatbot` does anything
+  but print the notice and exit 0.
+- **Orientation copy describes mojulo without the factory.** The `initialize` preamble names the four
+  paradigms and says in one line that chatbots are not built here; its secrets rule points at
+  `list_env`. `get_substrate`'s facts lose the bot-data and transcript-audit facts (the network fact is
+  now fact 3) and the GHCR read; the tool index, routing index, glossaries, drawers, the UI map, the
+  rules card and the catalyst author guide lose their bot content. The flat and packs payload pins are
+  re-pinned smaller (the tool-descriptions and packs tests say by how much).
+- **Dead bot-factory code went first.** `/api/deploy` (an alias of `POST /api/deployments` with no
+  caller), `/api/generate-rag`, `DeploymentStatus.jsx`, `WizardIcons.jsx`,
+  `botTypeUtils.js`, `useEntitlements.js`, `lib/builder/chat-processor.js` and `lib/builder/index.js`,
+  the `lib/composer/index.js` facade, the no-op `botSpaces` repository, and three form-schema locale
+  files the locale index never loaded (`af-ZA`, `ar-SA`, `hi-IN`). Nothing imported any of them.
 
 ### Lean cold start
 
-- **The stdio server boots without loading any heavy package.** puppeteer-core, archiver, pdf2json,
-  officeparser, react and react-dom now load on the first call that needs them instead of when the tool
-  modules are imported (`lib/lazy-deps.js`, `lib/graph/scene/puppeteer-lazy.js`). A package that cannot
-  load is an in-band error on that one call, naming the package and what it is for; every other tool
-  keeps working. Tool behaviour is unchanged.
+- **The stdio server boots without loading any heavy package.** puppeteer-core, archiver, react and
+  react-dom now load on the first call that needs them instead of when the tool modules are imported
+  (`lib/lazy-deps.js`, `lib/graph/scene/puppeteer-lazy.js`). A package that cannot load is an in-band
+  error on that one call, naming the package and what it is for; every other tool keeps working. Tool
+  behaviour is unchanged.
 - **@swc/core is no longer installed with the package.** `CreationMap.jsx`, the one JSX file the
   package ships, is compiled at prepack into `CreationMap.jsx.mjs` (`scripts/precompile-jsx.mjs`), and
   the stdio loader serves that file while the source hash on its first line matches the `.jsx`. A dev
@@ -73,34 +137,31 @@ loops and the recipe format are unchanged.
   dotenv. `npm run smoke:tarball` now opens a stash page and uploads an image to it (the routes that use
   these packages), renders a diagram SVG through the stdio loader, and fails if @swc/core or `three` is
   installed or the precompiled CreationMap is missing.
-- **The tarball leaves out files nothing reads at runtime.** `files` now excludes
-  `lite-template/models/**` (the bot's 17 MB tokenizer files; the bot image fetches the model while it
-  builds), `messages/**` (the dashboard's locale strings, which the Next build already compiles into
-  the standalone bundle), and `lib/**/__snapshots__/**`, `lib/**/spike-output/**` and
-  `lib/graph/mobile-suit/scripts/**` (test snapshots and local scratch output that a publisher's working
-  tree could carry into the package). An offline bot build (`MOJULO_OFFLINE_BUILD=1`) from a template
-  without `models/` now gets an empty `models/` directory, so the Dockerfile's `COPY models/` still works.
-  Measured on one tree: the tarball drops from 30.2 MB to 25.5 MB, and a cold dependency install from
-  427 MB to 305 MB on disk (278 MB to 191 MB downloaded). `docs/install-capabilities.md` records the boot
-  set, the startup-timeout constraint and these numbers.
+- **The tarball leaves out files nothing reads at runtime.** `files` now excludes `messages/**` (the
+  dashboard's locale strings, which the Next build already compiles into the standalone bundle), and
+  `lib/**/__snapshots__/**`, `lib/**/spike-output/**` and `lib/graph/mobile-suit/scripts/**` (test
+  snapshots and local scratch output that a publisher's working tree could carry into the package).
+  Measured on one tree before the chatbot carve-out, with the bot template's tokenizer files also left
+  out: the tarball drops from 30.2 MB to 25.5 MB, and a cold dependency install from 427 MB to 305 MB
+  on disk (278 MB to 191 MB downloaded). `docs/install-capabilities.md` records the boot set, the
+  startup-timeout constraint and these numbers.
 - **`mojulo install recall` works from an npm or npx install.** The package did not ship
   `scripts/fetch-embed-model.js`, the model fetch `install recall` runs after installing the
-  runtime, so on every npm or npx install the fetch failed with `MODULE_NOT_FOUND`, the command
-  exited 1, and `install chatbot`, which installs recall first, failed on its first run. The
-  script is in `files` now, and a test fails when a shipped script imports or spawns one that is
-  not. The failure message now says the model is fetched when the server next starts, which is
+  runtime, so on every npm or npx install the fetch failed with `MODULE_NOT_FOUND` and the command
+  exited 1. The script is in `files` now, and a test fails when a shipped script imports or spawns one
+  that is not. The failure message now says the model is fetched when the server next starts, which is
   when it is: with the recall group installed, the server loads the model at startup and downloads
-  it if it is missing. The plugin README, `get_substrate` fact 4 and `docs/tech-requirements.md`
+  it if it is missing. The plugin README, `get_substrate` fact 3 and `docs/tech-requirements.md`
   say so instead of claiming that a start never touches the network.
 
 ### Dashboard package
 
 - **The dashboard is its own npm package, `mojulo-ui`.** The prebuilt Next.js server
-  (`.next/standalone`) and the bot template were most of what `npx mojulo` downloaded, and the stdio
-  server a host starts loads neither. They now ship as `mojulo-ui`, published at the same version as
-  `mojulo` and depending on exactly that version, because the dashboard runs a compiled copy of
-  mojulo's code against the same database. Core's tarball drops from 25.5 MB to 6.0 MB (100 MB to
-  19.2 MB unpacked); `mojulo-ui` is 13.2 MB. Three cold `npx mojulo` starts through a local registry
+  (`.next/standalone`) was most of what `npx mojulo` downloaded, and the stdio server a host starts
+  never loads it. It now ships as `mojulo-ui`, published at the same version as `mojulo` and depending
+  on exactly that version, because the dashboard runs a compiled copy of mojulo's code against the same
+  database. Measured before the chatbot carve-out, core's tarball drops from 25.5 MB to 6.0 MB (100 MB
+  to 19.2 MB unpacked); `mojulo-ui` is 13.2 MB. Three cold `npx mojulo` starts through a local registry
   stand-in answered `tools/list` in a median 7.1 s, against 9.9 s for the same tree with the dashboard
   inside (interleaved, one macOS arm64 machine).
 - **`npx -y mojulo-ui` starts the dashboard, and `npx -y -p mojulo mojulo-ui` still works.** Core keeps
@@ -114,8 +175,8 @@ loops and the recipe format are unchanged.
   fact lists the download. The dashboard package's own bin is `mojulo-dashboard`, so the two packages
   never link the same bin name.
 - **The dashboard resolves shared packages from the install, not from copies in its build.** The Next
-  build traced its own copies of manifold-3d, openscad-wasm-prebuilt, puppeteer-core, archiver,
-  officeparser, pdf2json and others into the standalone bundle, at whatever versions the build machine
+  build traced its own copies of manifold-3d, openscad-wasm-prebuilt, puppeteer-core, archiver and
+  others into the standalone bundle, at whatever versions the build machine
   had, while the stdio server used the installed ones. The dashboard package now leaves out every server
   external and the dependencies only they pulled in, and declares them with core's ranges, so npm
   installs one copy for both processes. `lib/motion/glyph-carver.js` also resolves opentype.js from the
@@ -150,7 +211,7 @@ loops and the recipe format are unchanged.
   figure-spec store copies older specs across if it has no specs yet, from a repo checkout's
   `control/data/figure-specs` or, under npx, from the earlier version folders beside this one in
   the npm cache's `_npx` directory (read, never changed). An in-place upgrade (`npm i -g`, or an
-  unpinned `npx mojulo` picking up a new release) deletes the old package's `data/` before 2.2
+  unpinned `npx mojulo` picking up a new release) deletes the old package's `data/` before 3.0
   starts, so pending specs from such an install cannot be recovered. The stdio server's mint-time
   warm and the dashboard now share one bake cache, so a warmed card is a cache hit in the gallery.
 - **Chrome for Testing downloads only for an explicit render, and says so.** The mint-time warm used to
@@ -210,34 +271,9 @@ loops and the recipe format are unchanged.
 
 ### Security hardening
 
-- **Bot image 0.5.2: the form webhook is no longer an open relay.** `POST /api/send-webhook` on a
-  deployed bot took its target URL from the request body, with no API key and open CORS, so any
-  visitor could make the bot POST to any address and read back the answer. The bot now posts each
-  completed form to the operator's configured `formCompletionWebhook` itself, from
-  `/api/submit-form` (rate-limited), and `/api/send-webhook` needs the bot's `x-mojulo-api-key`,
-  posts only to that configured URL, no longer echoes the target's response, and sends no CORS
-  headers. The webhook and send-home URLs are no longer included in the config the chat page and
-  `/context` expose. The default pin moves to `ghcr.io/zombico/mojulo-bot:0.5.2`
-  ([lib/version/bot-image.js](lib/version/bot-image.js), now the one constant the docker and
-  Fly deployers and the `version` / `check_for_updates` readers share; Fly used to need `BOT_IMAGE`
-  set). **The `bot-v0.5.2` image must be published before this npm release, and existing bots must
-  be rebuilt and redeployed to pick up the fix.** `check-plugin-version.mjs --bot-image` enforces
-  the order: it asks GHCR for the `DEFAULT_BOT_IMAGE` tag (an anonymous pull token, then a
-  manifest lookup) and fails when it is missing or unconfirmed. Core's `prepublishOnly` and the
-  release workflow run it, so neither `npm publish` nor a `v*` tag goes through before
-  publish-bot-image.yml has pushed the image.
-- **Document upload names no longer reach a file path.** The Office-document parser wrote its temp
-  file to `join(tmpdir(), 'temp-<ms>-' + fileName)`, so a name with `../` in it overwrote and then
-  deleted any file the process could write. Reachable from `upload_document_from_url` (base64 or
-  `url` + `fileName`) and the dashboard's document uploads. The file now gets a fixed name in a fresh
-  private `mkdtemp` directory, keeping only a sanitized extension, and the directory is removed
-  afterwards.
-- **`upload_document_from_url` refuses private addresses.** It fetched any http(s) URL from the
-  operator's machine, following redirects, so it could read `127.0.0.1` services, the LAN or cloud
-  metadata. The fetch now checks the resolved address at connect time and on every redirect hop
-  and refuses loopback, link-local, private, carrier-grade NAT, multicast and reserved ranges
-  (IPv4, IPv6, v4-mapped and NAT64) ([lib/net/public-fetch.js](lib/net/public-fetch.js)). Set
-  `MOJULO_ALLOW_PRIVATE_URLS=1` to allow them for local development.
+- **Bot factory fixes made on the unreleased 2.2 line leave with the factory** (the bot image 0.5.2
+  pin and its form-webhook relay fix, the document-upload file-name and private-address fixes, Fly
+  secrets, and the `--bot-image` release check; see Chatbot carve-out).
 - **Saved provider keys are encrypted under a per-install key.** With `API_KEY_ENCRYPTION_KEY`
   unset (the default), keys and tokens were encrypted under `sha256('mojulo-lite-local-dev')`, a
   constant in the source, while a comment called it host-derived. The fallback is now a random
@@ -248,7 +284,7 @@ loops and the recipe format are unchanged.
   Deleting `secret.key` makes the saved keys unreadable (re-save them).
 - **The dashboard refuses DNS-rebinding and cross-site requests.** With login off (the default),
   `middleware.js` let every request through, so a web page in the operator's browser could reach
-  the dashboard's API, including document upload and deploy, by rebinding its own hostname to
+  the dashboard's API, including its write routes, by rebinding its own hostname to
   127.0.0.1 or by posting cross-site. It now answers 403 to any request whose `Host` is not
   `localhost`, `127.0.0.1`, `[::1]`, `MOJULO_UI_HOST` or a name in `MOJULO_UI_ALLOWED_HOSTS`, and
   to any non-GET request whose `Origin` is not the dashboard's own (or a name in
@@ -269,23 +305,15 @@ loops and the recipe format are unchanged.
   one, and sent the prompt to that API. `provider` is now required; the key is `apiKey`, the saved
   key named by `apiKeyId`, or the saved key for that same provider, and the response's `keySource`
   says which. `ollama` without a host uses the local default. The schema, the `manji-tree` card,
-  the scene-illustration routing card and `get_substrate` fact 5 now say the door calls an external
+  the scene-illustration routing card and `get_substrate` fact 4 now say the door calls an external
   LLM API with the user's key, and `translate_modeler_lingo` routes to the key-free `via:'packet'`
   door instead of the keyed alias.
-- **Fly deploys put credentials in Fly secrets.** The operator's decrypted OpenAI/Anthropic key and
-  the bot's `MOJULO_API_KEY` went into the Fly machine config's `env`, readable by anyone who can
-  read the machine. They are now set as Fly app secrets (GraphQL `setSecrets`) before the machine
-  is created or updated, and the machine config carries only non-secret env. The unused
-  `getCloudDeployer`, which read `FLY_API_TOKEN` from the environment, is removed; the Fly token
-  still comes only from the encrypted store.
 - **Dead code with network and credential reach removed.** `lib/graph/geo/` (the map illustrator's
   Natural Earth and OpenStreetMap Nominatim fetchers; nothing had imported it since the last caller
   was dropped) and its `map-boundary` sketch-vocab card, which told agents to call a function no
   tool exposes, are deleted, and geo data leaves the outbound-traffic lists in `get_substrate`, the
   README, the tour and `docs/tech-requirements.md`. Stored sketches with a `manifest.geo` block
-  still validate. `lib/builder/evaluator.js`, an unused intent classifier that read
-  `BUILDER_ANTHROPIC_API_KEY` and imported the uninstalled `@anthropic-ai/sdk`, is deleted with its
-  re-export.
+  still validate.
 
 ### MCP tool annotations and protocol negotiation
 
@@ -320,19 +348,16 @@ loops and the recipe format are unchanged.
   chain (about 25 fewer packages) and has no built-in proxy support, so a host behind an HTTP proxy
   points `$MOJULO_CHROMIUM` at an installed browser. A browser already cached under the old build
   is not reused; the next explicit render fetches the new one.
-- **officeparser stays on 5.** Version 8 needs Node 22.13 (mojulo supports 22.12), adds
-  tesseract.js, which fetches OCR language data at runtime, and more than doubles the install
-  (62 MB to 142 MB). It is loaded only for DOCX, PPTX and XLSX uploads.
-- **pdf2json stays on the 4.0 line (`~4.0.3`).** `^4.0.0` let a fresh `npx -y mojulo@2.2.0`
-  resolve pdf2json 4.1.0, which declares Node `>=22.23.2`: on Node 22.12 to 22.22, which mojulo
-  supports, npm warned on the plugin's first start, and under `engine-strict=true` the install
-  failed and the server never answered `initialize`. The lockfile already held 4.0.3, but npx
-  ignores a dependency's lockfile. `npm run smoke:tarball` now fails when any non-optional package
-  in the fresh install refuses mojulo's declared Node floor (`scripts/engines-floor.mjs`).
+- **`npm run smoke:tarball` fails when a fresh install carries a package that refuses mojulo's Node
+  floor** (`scripts/engines-floor.mjs`). A fresh `npx` resolves every dependency range anew and ignores
+  a dependency's lockfile: pdf2json 4.1.0 declared Node `>=22.23.2`, so on Node 22.12 to 22.22, which
+  mojulo supports, npm warned on the plugin's first start, and under `engine-strict=true` the install
+  failed and the server never answered `initialize`. (pdf2json and officeparser have since left with
+  the chatbot factory.)
 
 ### Directory listing and disclosure
 
-- **The Claude plugin runs `npx -y mojulo@2.2.0`, and the version is checked.** The plugin sat at
+- **The Claude plugin runs `npx -y mojulo@3.0.0`, and the version is checked.** The plugin sat at
   2.0.1 with an unpinned `npx -y mojulo` while npm shipped 2.1.0; the plugin directory refuses an
   unpinned launcher. `plugin.json` now pins the package, carries `displayName` and sets
   `MOJULO_DISTRIBUTION=claude-plugin` for the server; `glama.json` pins the same version and the
@@ -378,17 +403,17 @@ loops and the recipe format are unchanged.
   line per call; `MOJULO_MCP_TELEMETRY=off` stops it.
 - **`get_substrate`'s facts match the code.** Fact 2 lists everything under `$MOJULO_HOME` and the
   few writes outside it (temp work folders, an `install_scaffold` folder the caller names, host
-  configs after `mojulo init` and a yes). Fact 4 lists every outbound destination and its trigger
+  configs after `mojulo init` and a yes). Fact 3 lists every outbound destination and its trigger
   (the Chrome for Testing download only for an explicit render, unpacked by the system `unzip`
   or, on Windows, `tar.exe` or PowerShell, which the plugin README also lists as a process it may
   start; ffmpeg with pinned hashes; the recall model from huggingface.co; the `mojulo-ui`
-  download; `cdn: true` pages; the keyed `via:'prompt'` door; the chatbot pack's calls) and the
-  local log. Fact 8 says a recipe carrying a
-  `program` is JavaScript that runs with the operator's privileges, and fact 9 that a recipe
-  book's builders run at startup; fact 9 no longer calls the book code-free. The dashboard page map
+  download; `cdn: true` pages; the keyed `via:'prompt'` door) and the
+  local log. Fact 7 says a recipe carrying a
+  `program` is JavaScript that runs with the operator's privileges, and fact 8 that a recipe
+  book's builders run at startup; fact 8 no longer calls the book code-free. The dashboard page map
   no longer says the log records "shapes only". The install-size figures in the README,
-  `control/README.md`, the tour and `docs/tech-requirements.md` are 2.2.0's measured ones (about
-  6 MB packed, 290 MB on disk, 110 MB downloaded, a 7 to 10 s cold start on one machine).
+  `control/README.md`, the tour and `docs/tech-requirements.md` are the release's measured ones
+  (<measured>).
 - **SECURITY.md states what runs as code.** A new section says that recipes carrying a `program`
   and recipe-book builders run with the operator's privileges (`node:vm` there is a determinism
   fence, not a sandbox), that reports of those doors doing what a local script can are expected,
@@ -397,13 +422,13 @@ loops and the recipe format are unchanged.
 - **Skill files and Claude settings only on the user's request.** The catalyst preamble and the
   Claude Code adapter card now say to write a `.claude/skills/` skill only when the user asked for
   that workflow, naming the path first, and to show the `.claude/settings.json` deny block only
-  when the user asks how to guard bot secrets, never editing that file. The card used to suggest
+  when the user asks how to guard app secrets, never editing that file. The card used to suggest
   the deny block on first connect.
 
 - **The plugin README is the directory listing, and it discloses what the server does.** It says
   what mojulo is, where it runs (Claude Code and Cowork sessions on your computer; not a plain
   claude.ai chat; the same package headless in agent sandboxes), what it needs (Node 22.12 on the
-  `PATH`, about 290 MB), three example prompts checked on a fresh install with no dashboard or
+  `PATH`, about <measured> MB), three example prompts checked on a fresh install with no dashboard or
   extra packs (a mug as STL, a walkable town as one offline HTML page, a groove as MIDI), and a
   "What it runs, sends and fetches" section built from the code: every network destination and its
   trigger, every process the server may start, every place it writes, the local tool-call log, the
