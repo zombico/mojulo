@@ -27,7 +27,7 @@
  * No three.js import — pure Buffer assembly, unit-testable in node.
  */
 
-import { faceListToMesh } from '../figures/face-mesh.js';
+import { faceListToMesh, plainFaces } from '../figures/face-mesh.js';
 
 // Binary STL: 80-byte header + uint32 triangle count + 50 bytes per triangle
 // (normal 3×f32, three vertices 9×f32, uint16 attribute byte count = 0).
@@ -50,7 +50,7 @@ export function isPrintableFace(f) {
 // face-mesh's own order — the STL byte contract rides this ordering.
 function solidMesh(faces) {
   const printable = (Array.isArray(faces) ? faces : []).filter(isPrintableFace);
-  const gm = faceListToMesh(printable, { decollide: false });
+  const gm = faceListToMesh(plainFaces(printable), { decollide: false });   // a plant's bark prints in its own colour
   const posParts = [gm.positions];
   const colParts = [gm.colors];
   for (const grp of Object.values(gm.textureGroups || {})) { posParts.push(grp.positions); colParts.push(grp.colors); }

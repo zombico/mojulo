@@ -419,6 +419,19 @@ export function decollideFaces(faces = [], { eps = STAGGER_EPS } = {}) {
  * curve in the World instead of squaring off. `ellipse(...)` clips and px-unit radii
  * are still approximated by the full quad.
  */
+/**
+ * A textured face that also carries `plainFill` (a grown plant's bark or trunk quad: its tile's own colour lit as a
+ * plain face) becomes that plain face, for a consumer that cannot texture it (an export's instanced prototype, a print
+ * shell). Faces without `plainFill` pass through as the same objects, so a list without any is unchanged.
+ */
+export function plainFaces(faces) {
+  if (!faces.some((f) => f && f.plainFill && typeof f.texture === 'string')) return faces;
+  return faces.map((f) => {
+    if (!(f && f.plainFill && typeof f.texture === 'string')) return f;
+    const { texture, uv, textureLit, plainFill, ...rest } = f;   // eslint-disable-line no-unused-vars
+    return { ...rest, fill: plainFill };
+  });
+}
 export function faceListToMesh(faces = [], { decollide = true, withNormals = false } = {}) {
   const positions = [];
   const colors = [];

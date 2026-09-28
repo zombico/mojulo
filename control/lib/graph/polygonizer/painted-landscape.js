@@ -45,6 +45,7 @@ import { familyKeys } from '../landscape/surface-textures.js';
 import { buildFieldResolver, validateFields, valueNoise3D } from './fields.js';
 import { applyLandform, landformGrid, bakeGrid, validateLandform, gridGradient, gridSample, bedAt, LANDFORM_RES } from './landform.js';
 import { slicedTerrainFaces, sliceLevels } from './landform-mesh.js';
+import { SPECIES as PLANT_SPECIES, LEVELS as PLANT_LEVELS } from '../vegetation/species.js';
 import {
   HEARTBEATS as LOADED_HEARTBEATS,
   SPLATCHES as LOADED_SPLATCHES,
@@ -213,6 +214,33 @@ function validateLandscapeRocks(rocks) {
   return e;
 }
 
+/**
+ * `plants`: the scene's trees become grown plants (vegetation/: a self-organizing tree, a palm grown to an age, a
+ * bamboo culm) pooled as `repeats` instead of taiji boxes. A species for the canopy trees, or { canopy?: species
+ * ('oak'), cone?: species ('fir'), tuft?: species (none: tufts stay clumps), variants?: 1–6 (3), level?: 'L0'–'L3'
+ * ('L2', the most detail a template carries) }. docs/vegetation.md has the species and the science.
+ * Returns the normalized spec, or null when absent.
+ */
+export function resolveLandscapePlants(plants) {
+  if (plants === undefined || plants === null || plants === false) return null;
+  const p = plants === true ? {} : typeof plants === 'string' ? { canopy: plants, ...(PLANT_SPECIES[plants]?.arch === 'massart' ? { cone: plants } : {}) } : plants;
+  return {
+    canopy: p.canopy ?? 'oak', cone: p.cone ?? 'fir', tuft: p.tuft ?? null,
+    variants: Number.isInteger(p.variants) ? p.variants : 3, level: PLANT_LEVELS.includes(p.level) ? p.level : 'L2',
+  };
+}
+function validateLandscapePlants(plants) {
+  const ids = Object.keys(PLANT_SPECIES); const known = (v, key) => (ids.includes(v) ? [] : [`${key} must be a species: ${ids.join(', ')}`]);
+  if (plants === true || plants === false) return [];
+  if (typeof plants === 'string') return known(plants, 'plants');
+  if (typeof plants !== 'object' || Array.isArray(plants)) return [`plants must be a species (${ids.join(', ')}) or { canopy?, cone?, tuft?, variants?, level? } when provided`];
+  const e = [];
+  for (const k of ['canopy', 'cone', 'tuft']) if (plants[k] !== undefined && plants[k] !== null) e.push(...known(plants[k], `plants.${k}`));
+  if (plants.variants !== undefined && !(Number.isInteger(plants.variants) && plants.variants >= 1 && plants.variants <= 6)) e.push('plants.variants must be an integer 1–6 (grown variants per species; more variety, more memory)');
+  if (plants.level !== undefined && !PLANT_LEVELS.includes(plants.level)) e.push(`plants.level must be one of ${PLANT_LEVELS.join(', ')} (the most detail a template carries)`);
+  return e;
+}
+
 export function validatePaintedLandscape(manifest) {
   const errors = [];
   if (!manifest || typeof manifest !== 'object') {
@@ -302,6 +330,7 @@ export function validatePaintedLandscape(manifest) {
     }
   }
   if (manifest.rocks !== undefined && manifest.rocks !== null) errors.push(...validateLandscapeRocks(manifest.rocks));
+  if (manifest.plants !== undefined && manifest.plants !== null) errors.push(...validateLandscapePlants(manifest.plants));
   if (manifest.erosion !== undefined && manifest.erosion !== null && manifest.erosion !== false) errors.push(...validateErosion(manifest.erosion));
   if (manifest.landform !== undefined && manifest.landform !== null) errors.push(...validateLandform(manifest.landform));
   if (manifest.ground !== undefined && manifest.ground !== null) {
@@ -2717,7 +2746,7 @@ export function renderPaintedLandscapeToSvg(manifest) {
 // distance instead of screen depth (the screen depth doesn't exist until the
 // browser projects). v1 scope: terrain mesh + water sheet — no structures,
 // scatter, forest, or sky adornments yet (those return on the SVG path).
-export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.6, bridges = [], farmland = false, landformMesh = 'sliced' } = {}) {
+export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.6, bridges = [], farmland = false, landformMesh = 'sliced', plantsAsBoxes = false } = {}) {
   const errors = validatePaintedLandscape(manifest);
   if (errors.length) {
     throw new Error(`Invalid painted-landscape manifest:\n - ${errors.join('\n - ')}`);
@@ -3080,6 +3109,10 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
   // above) — this is the World's volumetric counterpart, ridden only by the css3d/three seam.
   const rocksSpec = resolveLandscapeRocks(manifest.rocks);
   let rockItems = null, rockTone = null;
+  // opt-in `plants`: tree items (and tufts, when asked) become grown plants, realized by the assembler as pools; a
+  // renderer that cannot instance asks for the boxes instead (plantsAsBoxes), and gets exactly the landscape without it
+  const plantsSpec = plantsAsBoxes ? null : resolveLandscapePlants(manifest.plants);
+  const plantItems = plantsSpec && manifest.scene ? { cone: [], canopy: [], tuft: [] } : null;
   if (manifest.scene) {
     const clampHex = (c) => '#' + c.map((v) => clamp255(v).toString(16).padStart(2, '0')).join('');
     if (rocksSpec) {
@@ -3094,6 +3127,7 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
       const w = Math.max(0.2, it.width), hgt = Math.max(0.3, it.height);
       if (rockItems && it.kind === 'boulder') { rockItems.push({ x: it.x, y: it.y, z0, size: w }); continue; }   // opt-in: a pooled rock, not a box
       const base = { x: it.x - w / 2, y: it.y - w / 2, w, d: w, z0 };
+      if (plantItems && (it.kind === 'cone' || it.kind === 'canopy' || (it.kind === 'tuft' && plantsSpec.tuft))) { plantItems[it.kind].push({ x: it.x, y: it.y, z0, height: hgt, width: w }); continue; }
       if (it.kind === 'cone' || it.kind === 'canopy') {
         const conifer = it.kind === 'cone';
         structures.push({
@@ -3347,6 +3381,7 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
       }
     }
     if (rockItems) for (const r of rockItems) { r.x *= ext; r.y *= ext; r.z0 *= ext; r.size *= ext; }
+    if (plantItems) for (const list of Object.values(plantItems)) for (const r of list) { r.x *= ext; r.y *= ext; r.z0 *= ext; r.height *= ext; r.width *= ext; }
     if (screeItems) for (const r of screeItems) { r.x *= ext; r.y *= ext; r.z0 *= ext; r.size *= ext; }
   }
 
@@ -3354,6 +3389,8 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
     faces,
     structures,
     ...(rockItems ? { rocks: { ...rocksSpec, items: rockItems, tone: rockTone, seed } } : {}),
+    // (a grove stands each of its culms on the ground where it lands, and none in the lake)
+    ...(plantItems ? { plants: { ...plantsSpec, items: plantItems, seed, groundAt: (x, y) => sampler.heightAt(x / ext, y / ext) * ext, water: hasWater ? wl * ext : null } } : {}),
     ...(screeItems && screeItems.length ? { scree: { ...screeSpec, items: screeItems, seed } } : {}),
     extraFaces,
     bounds: { xRange: [X_MIN * ext, X_MAX * ext], yRange: [Y_FAR * ext, Y_NEAR * ext], zRange: [zMin * ext, zMax * ext] },

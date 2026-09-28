@@ -14,6 +14,33 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Grown plants
+
+- **Plants grown, not drawn.** `control/lib/graph/vegetation/` grows three kinds of plant.
+  - **Trees** come from a self-organizing engine: light by shadow propagation, wood by the pipe model, branches
+    held up by reaction wood, and the crown's plan from a small table of Hallé–Oldeman architectures.
+  - **Palms** keep stiffening internode by internode with no cambium, so the trunk is a stack by age, and a leaning
+    one stays curved.
+  - **Bamboo** is a culm turned as a lathe from an elongation wave, with its age as a colour.
+
+  Each has a four-level ladder cut by the pipe model: an axis is drawn while it covers a pixel, and past the leaf a
+  crown is a few clusters whose coverage and tone are the leaves'. A pool grows a few variants and stamps them
+  through `repeats`, like the rock pool. The science, the numbers checked against the literature and the known
+  limits are in `docs/vegetation.md`.
+- **Plants wear their surfaces.**
+  - A tree's trunk and limbs wear its species' bark, grown by the fracture model as a tile that repeats with no seam.
+  - A palm's trunk wears its own scar rings or leaf-base lattice, unrolled over its length.
+  - Both show in the near levels. The World page now draws textured faces on instanced templates; exports draw them
+    in their plain colour.
+- **Bamboo stands as a grove.** Where a scene puts one bamboo, a clumping species grows a clump whose outer culms
+  lean out, and a running one grows a patch of culms at a real grove's density. Culms come in cohorts, coloured by
+  age.
+- **Landscape trees are grown.** A painted landscape may carry `plants`: a species, or `{ canopy, cone, tuft,
+  variants, level }`. Its scene's trees then become instances of grown oak, beech, fir, coconut, date palm,
+  Washingtonia, Moso or Bambusa, with reed for tufts. Each takes its detail from the nearest bookmark within a draw
+  budget, so a scene of a few dozen trees shows them at the most detail `level` allows. The World, the
+  `.glb`, USD and 3MF instance them; the CSS scene keeps its drawn trees. Absent, every landscape is byte-identical.
+
 ### Terrain composition
 
 - **Cities that stand on hills.** A terrain world may carry `cities`: fractal cities sited on its ground. The

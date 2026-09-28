@@ -295,6 +295,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
           return [base[0] * a, base[1] * a, base[2] * a];
         })
         : null,
+      // textured template faces (a grown plant's bark or trunk): one { key, pos, uv, col, lit } per texture, drawn by
+      // the textured-instances block below with the same transforms; the key is absent without them
+      ...(Object.keys(gm.textureGroups || {}).length ? { tex: Object.entries(gm.textureGroups).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit })) } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -368,7 +371,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // when the group carries them, so material-free scenes serialize byte-identically.
     return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}) };
   });
-  const hasTextures = groups.some((g) => g.tex.length);
+  const hasRepeatTextures = packedRepeats.some((r) => r.tex);
+  const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures;
   // Any single-sided (bound-mesh) group? Only then does the render script reference
   // grp.singleSide — so a world without one emits the exact prior `side: THREE.DoubleSide`
   // string and stays byte-identical (the emit char-net holds; the feature is opt-in).
@@ -867,7 +871,28 @@ for (const r of REPEATS) {
   im.userData.g = r.name;
   scene.add(im); solids.push(im); meshes[r.name] = im;
 }
-
+${hasRepeatTextures ? `// textured template faces (a grown plant's bark, a palm's trunk): per repeat and texture key, one InstancedMesh with
+// the repeat's transforms and tints, drawing texel × the baked light (vertex colours) with the tile repeating
+const REP_TEX = {};
+for (const r of REPEATS) for (const t of (r.tex || [])) {
+  const url = TEXTURES[t.key]; if (!url) continue;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(decodeF32(t.pos), 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(decodeF32(t.uv), 2));
+  if (t.lit) g.setAttribute('color', new THREE.BufferAttribute(decodeF32(t.col), 3));
+  g.computeBoundingSphere();
+  let tex = REP_TEX[t.key];
+  if (!tex) { tex = REP_TEX[t.key] = new THREE.TextureLoader().load(url); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; }
+  const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide }), r.t.length);
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
+  r.t.forEach((q, i) => {
+    Q.setFromAxisAngle(UP, q[3]); P.set(q[0], q[1], q[2]); S.set(q[4], q[4], q[4]); M.compose(P, Q, S); im.setMatrixAt(i, M);
+    if (r.tint) im.setColorAt(i, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
+  });
+  im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  im.userData.g = r.name; scene.add(im); solids.push(im);
+}
+` : ''}
 const camera = new THREE.PerspectiveCamera(CAMS[0].vfov, wrap.clientWidth / wrap.clientHeight, 0.1, 8000);
 camera.up.set(0, 0, 1); // world is z-up
 const controls = new OrbitControls(camera, renderer.domElement);

@@ -35,7 +35,7 @@
  * Pure text + Buffer assembly, unit-testable in node.
  */
 
-import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals } from '../figures/face-mesh.js';
+import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, plainFaces } from '../figures/face-mesh.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
@@ -319,7 +319,7 @@ export function facesToUsda(payload = {}, { generator = 'mojulo scene-usd', titl
   // instanced repeats → PointInstancer (one prototype mesh, N transforms)
   let instancerCount = 0;
   repeatList.forEach((r, i) => {
-    const gm = faceListToMesh(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]);
+    const gm = faceListToMesh(plainFaces(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]));   // plant textures → plain colour
     if (!gm.positions.length) return;
     const name = primNamer(r.group || `repeat-${i}`);
     const protoIx = indexSoup(gm.positions, gm.colors, 3);

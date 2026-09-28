@@ -24,7 +24,7 @@
  * No three.js import — pure typed-array + Buffer assembly, unit-testable in node.
  */
 
-import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear } from '../figures/face-mesh.js';
+import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
 import { inkBake, inkGeoNormals, inkCentroid } from './ink-geometry.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
@@ -1127,7 +1127,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // per-instance ambient tint is deliberately NOT mirrored (glTF per-node color would need
   // per-node materials).
   repeatList.forEach((r, i) => {
-    const gm = faceListToMesh(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]);
+    // a textured plant face exports as its plain lit colour (plainFaces): instanced prototypes carry no texture yet
+    const gm = faceListToMesh(plainFaces(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]));
     if (!gm.positions.length) return;
     const name = r.group || `repeat-${i}`;
     const mat = b.unlitMaterial({ name });

@@ -23,6 +23,7 @@
  */
 
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
+import { plantPool, plantRepeats, groveItems } from '../vegetation/pool.js';
 import { makeLight, litFactor, scaleHex, hexToRgb, rgbToHex, withBands, resolveToon } from '../polygonizer/vexar.js';
 import {
   resolveRoomSurfaces,
@@ -2649,6 +2650,9 @@ const rgbStr = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
  *
  * Returns null for a non-painted-landscape manifest (the caller decides the fallback).
  */
+// faces the grown plants of one painted landscape may draw, summed over their instances (a GPU draws a million with
+// ease; the page's bytes are the templates, a few per species, whatever the budget)
+const LANDSCAPE_PLANT_FACES = 1_000_000;
 export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, title = 'mojulo terrain', city, cityDensity, bridges, farmland, rocksAsFaces = false, landformMesh = 'sliced' } = {}) {
   if (!manifest || manifest.kind !== 'painted-landscape') return null;
   // Aerial-map sticker/structure layers, all opt-in (render option or manifest):
@@ -2659,7 +2663,7 @@ export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, t
   const wantFarm = farmland ?? manifest.farmland === true;
   const density = cityDensity ?? manifest.cityDensity ?? 0.6;
   const spans = bridges ?? manifest.bridges ?? [];
-  const { faces, structures, extraFaces, bounds, sky, light: terrainLight, day = 1, rocks, scree } = buildTerrainWorldMesh(manifest, { city: wantCity, cityDensity: density, bridges: spans, farmland: wantFarm, landformMesh });
+  const { faces, structures, extraFaces, bounds, sky, light: terrainLight, day = 1, rocks, scree, plants } = buildTerrainWorldMesh(manifest, { city: wantCity, cityDensity: density, bridges: spans, farmland: wantFarm, landformMesh, plantsAsBoxes: rocksAsFaces });
   const cameras = synthTerrainCameras(bounds);
   // Realize each box-spec. Tree scatter (shape ∈ conifer|tree|…) becomes real branched
   // taiji-plant geometry via plantBoxToFaces; city doodads / bridge piers / rocks extrude as
@@ -2696,13 +2700,38 @@ export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, t
     const pool = rockPool({ rock: scree.rock, variants: 5, detail: 1, tone: scree.tone, seed: `${scree.seed}::scree`, light: SL, group: 'scree' });
     repeats = [...(repeats || []), ...rockRepeats(pool, scree.items, { sink: 0.25, group: 'scree' })];
   }
+  // opt-in `plants`: the scene's trees arrive as items, grown per species (vegetation/pool.js: a few variants × four
+  // levels of detail, baked in the terrain light) and stamped through `repeats`. Each instance takes the level its
+  // height projects to from the nearest of the scene's bookmarks (the survey, the low angle, the aerial), capped at the
+  // spec's `level`, so every bookmark sees the detail it needs. Landscape units are not metres, so palms and culms
+  // scale freely. (The CSS scene asked for boxes: plantsAsBoxes above.)
+  let plantTextures = null;   // the tiles the grown plants wear (a tree's bark), beside their repeats
+  if (plants) {
+    const PL = terrainLight
+      ? makeLight({ direction: [terrainLight.x, terrainLight.y, terrainLight.z], ambient: 0.3 + 0.26 * day, diffuse: 0.26 + 0.3 * day })
+      : makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
+    const vw = manifest.viewBox?.width || 1120;
+    const eyes = cameras.filter((c) => c.worldFraming).map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: vw / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
+    // one draw budget for the scene's plants: a landscape of a few dozen trees spends it on the cap everywhere
+    let left = LANDSCAPE_PLANT_FACES;
+    plantTextures = {};
+    for (const kind of ['cone', 'canopy', 'tuft']) {
+      const listed = plants.items[kind]; const species = plants[kind]; if (!listed || !listed.length || !species) continue;
+      // a bamboo stands as a grove where the painting put one tree: a clump, or a patch of running culms
+      const items = listed.flatMap((it, i) => groveItems(species, it, { groundAt: plants.groundAt, water: plants.water, seed: plants.seed, index: i }));
+      const pool = plantPool({ species, variants: plants.variants, seed: `${plants.seed}::plants::${kind}`, light: PL, maxLevel: plants.level });
+      const placed = plantRepeats(pool, items, { eyes, level: plants.level, budget: Math.max(0, left), sink: 0, clamp: false });
+      left -= placed.stats.drawnFaces; Object.assign(plantTextures, pool.textures);
+      repeats = [...(repeats || []), ...placed.repeats];
+    }
+  }
   // Bridge decks/parapets arrive pre-shaded as raw faces (per-point z → not boxes).
   if (extraFaces && extraFaces.length) faces.push(...extraFaces);
   const viewBox = manifest.viewBox && manifest.viewBox.width
     ? manifest.viewBox
     : { width: 1120, height: 760 };
   const bg = sky ? rgbStr(sky.horizon) : '#0e1014';
-  return { faces, cameras, viewBox, unitScale, title, sky, bg, ...(repeats ? { repeats } : {}) };
+  return { faces, cameras, viewBox, unitScale, title, sky, bg, ...(repeats ? { repeats } : {}), ...(plantTextures && Object.keys(plantTextures).length ? { textures: plantTextures } : {}) };
 }
 
 export function renderPaintedLandscapeToHtml(manifest = {}, opts = {}) {

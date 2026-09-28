@@ -79,6 +79,18 @@ Pass these via `compose_world`'s `overrides` (deep-merged over the theme pack). 
   detail?: 0–4 (2; 0 = the exact faceted block), tone?: 'palette' (default, the painting's
   colour) | 'mineral', sink?: 0–0.6 (0.2) }`. World + glTF/USD/3MF instance them; the CSS-3D
   scene draws each as its block. Needs a `scene` with boulders (`coastal-rocks`, …).
+- `plants` (species or object) — the scene's TREES are grown instead of drawn: a self-organizing
+  tree in its own bark, a palm grown to an age with its trunk's scars or leaf bases, or bamboo
+  standing as a grove (a clump, or a patch of running culms, where the scene put one tree),
+  pooled as a few variants × four levels of detail and instanced once per plant; a few dozen
+  trees take the most detail `level` allows. Species `oak`, `beech`, `fir`, `coconut`, `date`,
+  `washingtonia`, `moso`, `vulgaris`, `reed`; a species sets the canopy trees (`fir` sets both);
+  `true` is oak canopies and fir cones. Object form `{ canopy?: ('oak'), cone?: ('fir'), tuft?:
+  (none), variants?: 1–6 (3), level?: 'L0'–'L3' ('L2', the most detail a template carries) }`.
+  World + glTF/USD/3MF instance them (bark and trunk textures and a culm's age tint are
+  World-only; exports draw them in plain colour); the CSS-3D scene
+  keeps its drawn trees. Needs a `scene` with trees (`pine-forest`, …). The science and the
+  species are in `docs/vegetation.md`.
 - `erosion` (`true` or object) — LANDFORMS BY PROCESS: the terrain (heartbeat or `elevation`) is
   baked on a grid, cut by rivers along its drainage network (stream power: big rivers carve to
   base level, small gullies barely move, ridges stay ridges) and slumped to a talus angle.
