@@ -23,7 +23,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   Releases before 3.0.0, and the detailed log behind 3.0.0, are in
   [control/CHANGELOG-2.x.md](control/CHANGELOG-2.x.md) (archive; add nothing new there).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
-- Version: `package.json` says 3.0.0, the release the Unreleased section becomes (2.1.0 was released 2026-09-23; 2.2 was prepared and never released, and its work ships in 3.0.0; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 3.0.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see the changelog; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot factory left in 3.0.0).
+- Version: `package.json` says 3.0.0, the release the Unreleased section becomes (2.1.0 was released 2026-09-23; 2.2 was prepared and never released, and its work ships in 3.0.0; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 3.0.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see `CHANGELOG-2.x.md`; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot factory left in 3.0.0).
   Unreleased is empty at the tag; new work goes under it as `###` themes.
 - Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
@@ -106,7 +106,9 @@ fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices
 
 - Two path resolvers. Bins use `~/.mojulo` via `scripts/mojulo-paths.mjs`; `next dev` uses `control/.env`
   (`SQLITE_PATH=./data/…`). Repo-dev exports `MOJULO_DATA_DIR="$(pwd)/data"
-  MOJULO_OUTCOMES_DIR="$(pwd)/data/outcomes"` before any script. Quote them.
+  MOJULO_OUTCOMES_DIR="$(pwd)/data/outcomes"` before any script. Quote them. `middleware.js` runs on the Node
+  runtime (since 3.0.0) so `lib/auth/delegate-session.js` can check a delegate's session; it carries its own
+  copy of the `SQLITE_PATH` fallback, pinned by its test.
 - Schema and migrations are hand-written, idempotent, and ordered in `control/lib/db/index.js`. No version
   ledger. `getDb()` has side effects (backfill, daemons).
 - `better-sqlite3` compiles per arch; new native server deps go in `next.config.mjs` `serverExternalPackages`.
@@ -119,6 +121,9 @@ fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices
 Pointers only; each target carries its own design notes.
 
 - MCP: [server.js](control/lib/mcp/server.js), [tools/](control/lib/mcp/tools/), [packs.js](control/lib/mcp/packs.js).
+  Claude plugin profile (`MOJULO_DISTRIBUTION=claude-plugin`): [plugin-profile.js](control/lib/mcp/plugin-profile.js)
+  and [plugin-profile-cards.js](control/lib/mcp/plugin-profile-cards.js) hide the AI-generator handoffs, the
+  keyed prompt door, automatic downloads and CDN pages; npm and source builds must stay byte-identical.
 - Recipe dispatch: [sketch-manifest.js](control/lib/graph/sketch/sketch-manifest.js) (render mode + bucket),
   [world-scene.js](control/lib/graph/worlds/world-scene.js) (world resolution and opt-in channels),
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
