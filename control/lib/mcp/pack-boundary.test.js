@@ -10,7 +10,7 @@
  *
  * Two checks:
  *   A. no creative-engine file imports an ops-engine module, and no ops-engine file imports a
- *      creative-engine module.
+ *      creative-engine module; the cook layer (lib/outcomes) imports neither.
  *   B. no SINGLE file (anywhere under lib/, e.g. an MCP tool handler) imports BOTH engines. This is
  *      the operator-world guard: that tool straddled both packs by direct import and was removed;
  *      nothing may reintroduce the shape. Cross-pack composition rides kernel-stored refs, not
@@ -19,7 +19,7 @@
  * Tests, spikes, and generated files are exempt — they legitimately reach across for coverage.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, posix } from 'node:path';
 import { PACKS } from '@/lib/mcp/packs';
@@ -31,17 +31,24 @@ const CONTROL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 // CSS-var presets) shared by both wings (cook, figure, motion) — kernel-grade
 // vocabulary, not the render engine. Per the model/render principle it is NOT bucketed
 // as creative (install-capabilities.plan.md P3b).
-const CREATIVE_ENGINE = ['lib/graph/', 'lib/motion/', 'lib/preview/'];
-// lib/outcomes is the cook/gather/publish WRITER layer (pack_stash = office). Its
-// report-kind writers are render-free; its one render bridge (resolvers/sketch.js)
-// loads the creative renderers lazily, so it carries no static creative import.
-// Its pure path helper was relocated to the kernel (lib/outcomes-paths.js). See
-// install-capabilities.plan.md P3b.
+// lib/preview is NOT creative: build-preview-config.js turns bot-wizard state into the bot
+// runtime's /context shape for the wizard's live preview. It is bot-factory code, bucketed with
+// the ops engines below and fenced by the carve (CARVE_ENGINE).
+const CREATIVE_ENGINE = ['lib/graph/', 'lib/motion/'];
 const OPS_ENGINE = [
   'lib/deployers/', 'lib/builder/', 'lib/composer/', 'lib/fleet/', 'lib/fleet-scene/',
   'lib/connected-services/', 'lib/triggers/', 'lib/apps/', 'lib/app-mcp-scaffold/',
-  'lib/runtime-adapters/', 'lib/form-schema-config/', 'lib/outcomes/',
+  'lib/runtime-adapters/', 'lib/form-schema-config/', 'lib/preview/',
 ];
+// lib/outcomes is the COOK layer: the writers that cook / forge_publications file outcome
+// folders with (pack_stash). It is not ops: no automation or bot engine uses it, and it was
+// only bucketed there because pack_stash sits in the office wing. It is not the creative
+// engine either: its report-kind writers are render-free and its one render bridge
+// (resolvers/sketch.js) loads the creative renderers lazily, so the office tool that imports
+// it (cook.js) still loads without the renderers (check D). Its own bucket keeps that
+// property explicit: check A requires it to import neither engine statically. Its pure path
+// helper lives in the kernel (lib/outcomes-paths.js).
+const COOK_LAYER = ['lib/outcomes/'];
 
 const EXCLUDE = /(\.test\.|\.spike|\.gen\.|\.integration\.)/;
 // .jsx is included for the F/G carve fence below, which scans app/ as well as lib/
@@ -77,6 +84,7 @@ function resolveSpec(spec, fromRel) {
 const bucketOf = (rel) => {
   if (CREATIVE_ENGINE.some((p) => rel.startsWith(p))) return 'creative';
   if (OPS_ENGINE.some((p) => rel.startsWith(p))) return 'ops';
+  if (COOK_LAYER.some((p) => rel.startsWith(p))) return 'cook';
   return 'kernel';
 };
 
@@ -101,11 +109,14 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
     for (const t of targets) {
       if (from === 'creative' && t.bucket === 'ops') crossEngine.push(`${rel}  →  ${t.rel}`);
       if (from === 'ops' && t.bucket === 'creative') crossEngine.push(`${rel}  →  ${t.rel}`);
+      if (from === 'cook' && (t.bucket === 'creative' || t.bucket === 'ops')) {
+        crossEngine.push(`${rel}  →  ${t.rel}`);
+      }
     }
     if (touchesCreative && touchesOps) straddlers.push(rel);
   }
 
-  it('A: creative and ops engines do not import each other', () => {
+  it('A: creative and ops engines do not import each other, and the cook layer imports neither', () => {
     expect(crossEngine, `cross-engine imports:\n${crossEngine.join('\n')}`).toEqual([]);
   });
 
@@ -209,11 +220,14 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
 // rather than archaeological.
 //
 // F is a true fence (zero allowlist): the lib/ side of the cut is already clean.
-// G is a LEDGER, not a fence: the dashboard still has 20 route files bound to the
+// G is a LEDGER, not a fence: the dashboard still has route files bound to the
 // factory, and no phase has moved them yet. Freezing the set stops the coupling from
 // growing while Phase 1/3 works it down, and each removal must delete its ledger line.
+// H (bot data) and I (bot-only files outside the engine directories) are ledgers too.
+// In 3.0 the factory leaves mojulo for its own project, and these lists are its carve list.
 const CARVE_ENGINE = [
   'lib/deployers/', 'lib/builder/', 'lib/composer/', 'lib/fleet/', 'lib/form-schema-config/',
+  'lib/preview/',
 ];
 // lib/fleet-scene is deliberately NOT carve-engine: loadFleetScene() returns the HOST
 // topology — {ground:{bots,apps}, air:{servers,services}} — and /map + /mcp-skills render
@@ -228,19 +242,62 @@ const CARVE_DATA = [
   'lib/db/repositories/deployments',
   'lib/db/repositories/builderSessions',
   'lib/db/repositories/deploymentEvents',
+  'lib/db/repositories/mcpJobs',
 ];
 const CARVE_PACKS = new Set(['pack_bot_build', 'pack_bot_operate', 'pack_fleet']);
 
-const inCarveDir = (rel) => CARVE_ENGINE.some((p) => rel.startsWith(p));
+// The bot-only modules OUTSIDE the engine directories (listed 2026-09-27 for the 3.0 carve-out).
+// The directory fence cannot see a single file, so a retained module could import one of these
+// without any check noticing. Each is used only by the chatbot factory and leaves mojulo with
+// it. I (below) fences them; G counts the app/ routes bound to them.
+// Deliberately NOT listed:
+//   - lib/fleet-scene/loader.js — host topology for /map and /mcp-skills; it stays, and only its
+//     bots layer leaves (policed by H through the deployments repository);
+//   - the shared infrastructure mojulo keeps and the factory's own project copies: api keys and
+//     deployment-auth, llm-providers, envelope-schema, storage, lazy-deps, the embedder, and the
+//     documents repository's read side (the stash media route still reads legacy doc_ rows);
+//   - the four bot tool modules (build, jobs-tools, operate, fleet): packsServed() finds them
+//     through CARVE_PACKS.
+const CARVE_FILES = [
+  'lib/agent-chat/relay.js', // the chat_turn relay body of the builder web chat
+  'lib/agent-ui/signal-bus.js', // chat signals and decisions for a live builder turn
+  'lib/audit-logger-new.js', // the builder stream's audit log
+  'lib/auth/gate.js', // requireLLMKey for the wizard and chat-builder pages
+  'lib/auth/service.js', // getCurrentUser; only bot routes call it
+  'lib/config-builder.js', // wizard state to bot config and back
+  'lib/db/repositories/appSettings.js', // holds builder_driver_mode only
+  'lib/db/repositories/mcpJobs.js', // the mcp_jobs table (also in CARVE_DATA)
+  'lib/document-parser.js', // officeparser / pdf2json for bot documents
+  'lib/embedder/chunker.js', // bot RAG chunking
+  'lib/embedder/preview-rag.js', // the wizard preview's RAG
+  'lib/form-structure-schema.js', // generate-form's schema
+  'lib/mcp/jobs.js', // async jobs for process_documents / save_modular_bot
+  'lib/mcp/session-binding.js', // binds an MCP session to a BuilderSession
+  'lib/mcp/tools/agent-ui.js', // emit_chat_signal / request_chat_decision, for chat_turn only
+  'lib/net/public-fetch.js', // the SSRF guard of upload_document_from_url
+  'lib/rate-limiter.js', // rate limits of the bot routes
+  'lib/resolve-api-key.js', // LLM key resolution for deployments and previews
+  'lib/version/bot-image.js', // the pinned mojulo-bot image
+];
 
-// Every carve-engine module a file imports (repo-relative), as seen from `rel`.
-function carveImports(rel) {
+const noExt = (rel) => rel.replace(/\.(jsx?|mjs)$/, '');
+const CARVE_FILE_BY_KEY = new Map(CARVE_FILES.map((rel) => [noExt(rel), rel]));
+const inCarveDir = (rel) => CARVE_ENGINE.some((p) => rel.startsWith(p));
+const isCarveFile = (rel) => CARVE_FILE_BY_KEY.has(noExt(rel));
+const inCarve = (rel) => inCarveDir(rel) || isCarveFile(rel);
+
+// Every module a file imports (repo-relative), as seen from `rel`.
+function importTargets(rel) {
   let code;
   try { code = readFileSync(join(CONTROL_ROOT, rel), 'utf8'); } catch { return []; }
   return specifiers(code)
     .map((s) => resolveSpec(s, rel))
-    .filter((t) => t && inCarveDir(t));
+    .filter(Boolean);
 }
+// Every carve-engine module a file imports: the directory fence (F).
+const carveDirImports = (rel) => importTargets(rel).filter(inCarveDir);
+// Every carve module a file imports, engine directory or listed file (G).
+const carveImports = (rel) => importTargets(rel).filter(inCarve);
 
 // Which packs a tool file serves, resolved from the tool names it registers.
 const PACK_BY_TOOL = new Map();
@@ -267,8 +324,8 @@ describe('pack boundary — the 2.0 chatbot-factory carve fence', () => {
     const offenders = [];
     const straddlers = [];
     for (const rel of libFiles) {
-      if (inCarveDir(rel)) continue; // the factory may import itself
-      const hits = carveImports(rel);
+      if (inCarve(rel)) continue; // the factory may import itself
+      const hits = carveDirImports(rel);
       if (!hits.length) continue;
 
       // A tool file that registers ONLY carve-pack tools is part of the factory and
@@ -296,11 +353,59 @@ describe('pack boundary — the 2.0 chatbot-factory carve fence', () => {
     ).toEqual([]);
   });
 
+  // ── I: the bot-only files outside the engine directories ─────────────────
+  // CARVE_FILES is exact both ways: every line names a file that exists, and the only retained
+  // lib/ modules that import one are the frozen seams below. A seam is a retained module that
+  // still reaches bot-only code and has to be cut (not moved) when the factory leaves:
+  //   lib/version/local.js  getBotImagePin() for version / check_for_updates.
+  // Shrink-only, like G and H: a line whose coupling is gone is deleted.
+  // The scan reads static imports only. registerAllTools() in lib/mcp/server.js reaches the bot
+  // tool modules (agent-ui.js among them) through dynamic import(), which this scan cannot see;
+  // lib/mcp/carve-boundary.test.js traces what a boot actually loads.
+  const CARVE_FILE_SEAMS = [
+    'lib/version/local.js  →  lib/version/bot-image.js',
+  ];
+
+  it('I: the bot-only files are ledgered exactly, and retained lib/ reaches them only through frozen seams', () => {
+    const missing = CARVE_FILES.filter((rel) => !existsSync(join(CONTROL_ROOT, rel)));
+    expect(
+      missing,
+      `CARVE_FILES lines naming a file that no longer exists — delete them:\n${missing.join('\n')}`,
+    ).toEqual([]);
+
+    const actual = [];
+    for (const rel of libFiles) {
+      if (inCarve(rel)) continue; // the factory may import itself
+      const served = packsServed(rel);
+      // a pure factory tool module travels with the pack — not a retained seam
+      if (served.size && [...served].every((id) => CARVE_PACKS.has(id))) continue;
+      const hits = new Set(importTargets(rel).filter(isCarveFile).map((t) => CARVE_FILE_BY_KEY.get(noExt(t))));
+      for (const t of hits) actual.push(`${rel}  →  ${t}`);
+    }
+    actual.sort();
+    const frozen = new Set(CARVE_FILE_SEAMS);
+    const added = actual.filter((edge) => !frozen.has(edge));
+    const stale = CARVE_FILE_SEAMS.filter((edge) => !actual.includes(edge));
+    expect(
+      added,
+      `NEW retained lib/ modules importing bot-only code. Everything bot-related is carving OUT. ` +
+        `Import the shared module instead, or add the edge to CARVE_FILE_SEAMS with a reason:\n${added.join('\n')}`,
+    ).toEqual([]);
+    expect(
+      stale,
+      `CARVE_FILE_SEAMS lines whose coupling is gone — delete them (progress!):\n${stale.join('\n')}`,
+    ).toEqual([]);
+  });
+
   // Frozen 2026-08-28. Every entry is a dashboard route still wired to the factory —
   // a bot-factory SURFACE that travels with @mojulo/chatbot or gets gated behind it.
   // These are edges the plan's "the cut is clean" audit did not see, because that audit
   // swept lib/ and not app/.
+  // Extended 2026-09-27 when CARVE_FILES joined the fence: the agent-ui respond route, the
+  // document and form-generation routes, the builder-driver setting, the RAG vectorizer and the
+  // two layouts behind requireLLMKey are bound to bot-only files, not to an engine directory.
   const APP_CARVE_LEDGER = [
+    'app/api/agent-ui/respond/route.js',
     'app/api/builder/stream/route.js',
     'app/api/data/analytics/route.js',
     'app/api/data/conversations/route.js',
@@ -318,8 +423,14 @@ describe('pack boundary — the 2.0 chatbot-factory carve fence', () => {
     'app/api/deployments/[id]/submissions/export/route.js',
     'app/api/deployments/[id]/submissions/route.js',
     'app/api/deployments/route.js',
+    'app/api/documents/route.js',
+    'app/api/generate-form/route.js',
     'app/api/preview/chat/route.js',
     'app/api/preview/extract/route.js',
+    'app/api/settings/app/route.js',
+    'app/api/vectorize-rag/route.js',
+    'app/bot-factory/modular/layout.js',
+    'app/chat-builder/layout.js',
   ];
 
   it('G: the app/ → chatbot-factory ledger is exact (no new coupling, no stale lines)', () => {
@@ -347,26 +458,21 @@ describe('pack boundary — the 2.0 chatbot-factory carve fence', () => {
   // code reading a bot table, and each one must end up gated so the module works
   // with the chatbot pack ABSENT (bots simply are not there) rather than broken.
   // Entries already in APP_CARVE_LEDGER are excluded — they are accounted for as
-  // factory surfaces and travel wholesale; H is only what is left behind.
+  // factory surfaces and travel wholesale — and so are CARVE_FILES, which leave with
+  // the factory; H is only what is left behind.
   //
-  //   lib/mcp/session-binding.js   kernel TRANSPORT binding an MCP session to a
-  //                                BuilderSession — the deepest seam; the kernel
-  //                                itself must stop knowing the concept (Phase 3 ABI).
   //   lib/mcp/tools/catalysts.js   RETAINED catalysts pack reading the bot list.
   //   lib/mcp/tools/meta-context.js RETAINED connected-services reading the bot list.
   //   lib/fleet-scene/loader.js    host-topology scene whose BOTS LAYER must become
   //                                an optional contributor yielding [] when absent.
   //   app/api/registry/bots/…      a bots registry endpoint on the retained registry.
-  //   app/api/documents/…          document/RAG surface shared with stashes media —
-  //                                split the bot-RAG path from the shared path.
-  //   app/api/generate-form/…      form-schema generation keyed on a deployment.
+  //   app/api/documents/[id]/…     the bot document library's per-document route.
+  // Left 2026-09-27: lib/mcp/session-binding.js (bot-only, now in CARVE_FILES) and the
+  // documents and generate-form collection routes (now in APP_CARVE_LEDGER).
   const BOT_DATA_LEDGER = [
     'app/api/documents/[id]/route.js',
-    'app/api/documents/route.js',
-    'app/api/generate-form/route.js',
     'app/api/registry/bots/route.js',
     'lib/fleet-scene/loader.js',
-    'lib/mcp/session-binding.js',
     'lib/mcp/tools/catalysts.js',
     'lib/mcp/tools/meta-context.js',
   ];
@@ -376,7 +482,7 @@ describe('pack boundary — the 2.0 chatbot-factory carve fence', () => {
     const all = [...libFiles, ...walk(join(CONTROL_ROOT, 'app'))
       .map((abs) => posix.normalize(abs.slice(CONTROL_ROOT.length + 1)))];
     const actual = all
-      .filter((rel) => !inCarveDir(rel) && !carveTravels.has(rel))
+      .filter((rel) => !inCarve(rel) && !carveTravels.has(rel))
       .filter((rel) => {
         const served = packsServed(rel);
         // a pure factory tool file travels with the pack — not a retained seam
