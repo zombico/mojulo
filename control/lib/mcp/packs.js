@@ -658,6 +658,19 @@ export function installCommandFor(group, env = process.env) {
   return mojuloCommand(`install ${group}`, { env });
 }
 
+/**
+ * The short fix for an uninstalled group, for a one-line list (the rules card, `mojulo tools`): the
+ * install command, or for a group that ships with the base install (creative) the MOJULO_PACKS
+ * override that left it out, since `install creative` changes nothing. The same split as
+ * installAction. `code` wraps names in backticks for Markdown surfaces.
+ */
+export function installAdvice(group, env = process.env, { code = false } = {}) {
+  const q = (t) => (code ? `\`${t}\`` : t);
+  return INSTALL_GROUPS[group]?.alwaysInstalled
+    ? `include '${group}' in ${q('MOJULO_PACKS')} (it ships with the base install; only that override leaves it out)`
+    : q(installCommandFor(group, env));
+}
+
 /** The install groups a DEFAULT install has, for copy that must not overclaim. */
 export const DEFAULT_ON_GROUPS = ALL_GROUPS.filter((g) => !INSTALL_GROUPS[g].markerFile);
 

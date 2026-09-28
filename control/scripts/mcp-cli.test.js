@@ -234,6 +234,24 @@ describe('runCli', () => {
     expect(lines.out.at(-1)).toMatch(/`mojulo orient` first, then `mojulo call forward_context`/);
   });
 
+  // `install creative` installs nothing (creative ships with the base install), so an
+  // override that leaves it out must be undone in MOJULO_PACKS, as tools/call already says.
+  it('tools tells a MOJULO_PACKS override without creative to fix the override', async () => {
+    const saved = process.env.MOJULO_PACKS;
+    process.env.MOJULO_PACKS = 'chatbot';
+    try {
+      const { lines, io } = capture();
+      expect(await runCli(['tools'], io)).toBe(0);
+      const text = lines.out.join('\n');
+      expect(text).toMatch(/not installed: .*pack_/);
+      expect(text).toContain("include 'creative' in MOJULO_PACKS");
+      expect(text).not.toMatch(/install creative/);
+    } finally {
+      if (saved === undefined) delete process.env.MOJULO_PACKS;
+      else process.env.MOJULO_PACKS = saved;
+    }
+  });
+
   it('orient prints the initialize preamble, the packs mechanic, and the shell translation', async () => {
     const server = await import('@/lib/mcp/server');
     const { listHostProfiles } = await import('@/lib/mcp/hosts/registry');

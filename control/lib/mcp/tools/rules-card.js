@@ -19,7 +19,7 @@
  */
 
 import { getRegisteredTool } from '@/lib/mcp/server';
-import { PACKS, SPINE, installedPacks, isToolInstalled, installCommandFor } from '@/lib/mcp/packs';
+import { PACKS, SPINE, installedPacks, isToolInstalled, installAdvice } from '@/lib/mcp/packs';
 
 export const DEFAULT_RULES_BUDGET = 20_000;
 const CLAUSE_STEPS = [72, 48, 32, 0]; // 0 = names only
@@ -89,7 +89,7 @@ function renderBody({ env, maxClause, notice, omitted }) {
   );
   if (omitted.length) {
     lines.push(
-      `- Not installed on this host, so not listed: ${omitted.map((p) => p.id).join(', ')} — add with ${[...new Set(omitted.map((p) => p.installGroup).filter(Boolean))].map((g) => `\`${installCommandFor(g)}\``).join(' / ')}.`
+      `- Not installed on this host, so not listed: ${omitted.map((p) => p.id).join(', ')} — to add them: ${[...new Set(omitted.map((p) => p.installGroup).filter(Boolean))].map((g) => installAdvice(g, env, { code: true })).join(' / ')}.`
     );
   }
   lines.push('- Per-form creative tools stay behind `get_creative_toolset({ form })`.');

@@ -37,7 +37,9 @@ loops and the recipe format are unchanged.
   any optional helper (manifold-3d, node-web-audio-api, openscad-wasm-prebuilt, opentype.js, sharp) that
   does not resolve. It used to run `npm install --include=optional` inside the package directory, which
   under npx is a cache directory and pulled in the whole devDependency tree (about 600 packages). The
-  in-band hints that pointed at it (sharp, OpenSCAD, `mint_diagram`) no longer do.
+  in-band hints that pointed at it (sharp, OpenSCAD, `mint_diagram`) no longer do, and when a
+  `MOJULO_PACKS` override leaves creative out, the rules card and the `mojulo tools` note say to
+  include it in `MOJULO_PACKS`, as a refused tool call does, instead of `install creative`.
 - **Dashboard-only packages are devDependencies, and dotenv is gone.** isomorphic-dompurify,
   react-markdown, remark-gfm, swr and image-size are imported only by dashboard pages and routes, which
   the Next build compiles into the shipped standalone bundle (jsdom, the one they keep external, is

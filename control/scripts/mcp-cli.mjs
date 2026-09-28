@@ -242,7 +242,7 @@ function uninstalledNote(packs) {
   return [
     '',
     `not installed: ${missing.map((p) => p.id).join(', ')}`,
-    `  add with: ${groups.map((g) => packs.installCommandFor(g)).join(' / ')}`,
+    `  to add them: ${groups.map((g) => packs.installAdvice(g)).join(' / ')}`,
   ];
 }
 

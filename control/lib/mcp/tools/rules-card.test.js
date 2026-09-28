@@ -28,6 +28,22 @@ beforeAll(async () => {
   _resetClientBindingsForTests();
 });
 
+// Creative ships with the base install, so only a MOJULO_PACKS override leaves it out, and
+// `install creative` changes nothing. The card must give the fix the tools/call refusal gives.
+describe('rules card — install advice for what is left out', () => {
+  it('points an overridden-out creative pack at MOJULO_PACKS, not at `install creative`', () => {
+    const card = buildRulesCard({ env: { ...process.env, MOJULO_PACKS: 'chatbot' } });
+    expect(card.text).toContain('Not installed on this host');
+    expect(card.text).toContain("include 'creative' in `MOJULO_PACKS`");
+    expect(card.text).not.toMatch(/install creative/);
+  });
+
+  it('still names the install command for a group that is a physical install', () => {
+    const card = buildRulesCard({ env: { ...process.env, MOJULO_PACKS: 'creative' } });
+    expect(card.text).toMatch(/`[^`]*install chatbot`/);
+  });
+});
+
 describe('rules card fits its budget', () => {
   it('fits the default 20k budget with descriptions intact', () => {
     const card = buildRulesCard({});
