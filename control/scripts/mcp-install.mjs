@@ -209,7 +209,7 @@ if (!pack || pack === 'status' || pack === '--help' || pack === '-h') {
 // The chatbot factory left in 3.0.0: install nothing, write nothing, say where it went. Exit 0 so
 // a setup script that still runs `install chatbot` keeps going (the rest of mojulo is unaffected).
 if (pack === 'chatbot' || pack === 'ops') {
-  process.stdout.write(`${BOT_FACTORY_MOVED}\n`);
+  process.stdout.write(`${BOT_FACTORY_MOVED}\nNothing was installed.\n`);
   if (chatbotMarkerLeftover()) {
     process.stdout.write(
       `(The marker an earlier install wrote at ${chatbotMarkerPath()} is ignored by 3.0; you may delete it.)\n`,

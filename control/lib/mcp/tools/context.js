@@ -41,6 +41,7 @@ import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { buildRulesCard, overBudgetNotice } from '@/lib/mcp/tools/rules-card';
 import { CREATIVE_FORMS } from '@/lib/mcp/creative-forms';
+import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { UI_PACKAGE_NAME, uiLaunchCommand } from '@/lib/version/ui-package';
 import { distribution, mojuloCommand, npxMojulo, updateAdvice } from '@/lib/version/distribution';
 import {
@@ -244,7 +245,7 @@ const SUBSTRATE_POSITIONING = `## What mojulo is — the working description
 
 **"3D" is a PIPELINE-POSITION claim, never a fidelity claim.** Mojulo is the agent-driven upstream that FEEDS the tools professionals already use; it does not rival them on rendering. Never enter a fidelity contest with a game engine — and never describe mojulo as "just an exporter" either: the recipe is where the thing is born and lives (and runs standalone in-browser); the engine or printer is where it is optionally *finished*.
 
-**Chatbots are not part of mojulo.** The chatbot factory (bot builder, deployers, fleet tools) left mojulo in 3.0.0 for its own project; the 2.x line keeps it until that ships, and bots deployed from 2.x keep running as their own containers. The embedding model behind vector \`semantic_search\` is the one opt-in install group (\`recall\`, \`${mojuloCommand('install recall')}\`): without it search still answers, ranking lexically, and a result's \`mode\` says which ran. Everything else — the kernel, the creative studio, and the automation backend — is always present, on the operator's machine or in the agent's own temporary box (Claude Code on the web ${BOX_CLAUDE_CODE}, or a shell-only sandbox such as Grok chat's with \`${npxMojulo('call')}\`, at this server's version so a recipe re-mints identically; results handed back as files — every written export carries a \`handoff\` naming this host's door, and \`format: 'bundle'\` is the one-zip handoff). Do not describe mojulo as a bot factory.
+**Chatbots are not part of mojulo.** ${BOT_FACTORY_MOVED} The embedding model behind vector \`semantic_search\` is the one opt-in install group (\`recall\`, \`${mojuloCommand('install recall')}\`): without it search still answers, ranking lexically, and a result's \`mode\` says which ran. Everything else — the kernel, the creative studio, and the automation backend — is always present, on the operator's machine or in the agent's own temporary box (Claude Code on the web ${BOX_CLAUDE_CODE}, or a shell-only sandbox such as Grok chat's with \`${npxMojulo('call')}\`, at this server's version so a recipe re-mints identically; results handed back as files — every written export carries a \`handoff\` naming this host's door, and \`format: 'bundle'\` is the one-zip handoff). Do not describe mojulo as a bot factory.
 
 **Inference runs on you.** Mojulo holds state, runtime, and the audit trail, and no LLM credentials of its own: apps park inference on the agent-tasks queue and you fulfil it (\`pull_agent_task\` → \`submit_envelope_inference\`), photo references are read by your eyes (\`reference_protocol\`), cooks are agent-authored, games are verified by agent-compiled traversals. Serve the operator's intent against the substrate; do not try to make mojulo run without you.
 
