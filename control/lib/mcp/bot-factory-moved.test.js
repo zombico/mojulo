@@ -21,7 +21,7 @@ describe('the chatbot factory moved notice', () => {
       'The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. '
       + 'Earlier 2.x versions that include it are unmaintained and have known security issues.',
     );
-    expect(BOT_FACTORY_MOVED).not.toMatch(/mojulo@|npx|MOJULO_HOME|\.mojulo-2/);
+    expect(BOT_FACTORY_MOVED).not.toMatch(/mojulo@|npx|MOJULO_HOME|\.mojulo-\d/);
     expect(BOT_FACTORY_MOVED).not.toMatch(/[`*_]/); // plain text: an in-band answer and a CLI line
   });
 
@@ -90,7 +90,7 @@ describe('mojulo install chatbot', () => {
       expect(withMarker.status).toBe(0);
       expect(withMarker.stdout).toContain(`${BOT_FACTORY_MOVED}\nNothing was installed.\n`);
       expect(withMarker.stdout).toContain(`${marker} is ignored by 3.0; you may delete it.`);
-      expect(withMarker.stdout).not.toMatch(/mojulo@2|2\.x (needs|reads|uses)/);
+      expect(withMarker.stdout).not.toMatch(/mojulo@\d|2\.x (needs|reads|uses)/);
       expect(existsSync(marker)).toBe(true);
     } finally {
       rmSync(home, { recursive: true, force: true });
