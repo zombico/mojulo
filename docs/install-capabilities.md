@@ -55,9 +55,9 @@ can never silently disagree with reality. In [control/lib/mcp/packs.js](../contr
 
 - Each group declares an install signal as data (`INSTALL_GROUPS`): `creative` is `alwaysInstalled` (until
   3.0 it was keyed on the `three` package resolving, which no Node code imports, so an install without
-  `three` hid the whole studio); `recall` has
-  a marker and a module signal — the runtime's own `package.json` under `$MOJULO_HOME/recall/node_modules/`, or the module
-  resolving from the package (repo-dev, installed by hand).
+  `three` hid the whole studio); `recall` has a marker and a module signal — the runtime's own
+  `package.json` under `$MOJULO_HOME/recall/node_modules/`, or the module resolving from the package
+  (repo-dev, installed by hand).
 - Each pack declares its `installGroup`, or none. **A pack with no group is always installed**, so the
   plumbing and the kernel share one rule.
 - `installedGroups()` folds over that with a memoized, import-free probe (`process.getBuiltinModule`
@@ -160,16 +160,17 @@ loads almost nothing:
   (`MOJULO_UI_NO_FETCH=1` refuses). `npm run smoke:tarball` packs and installs both.
 - **The tarball carries only what runs.** `files` leaves out the dashboard build, the
   locale JSON (compiled into the dashboard bundle), test snapshots and scratch output.
-- **Measured once for the dependency trim and the dashboard split** (made on the unreleased 2.2 line and
-  shipping in 3.0.0; macOS arm64, one tree under the 2.1 and then the 2.2 `package.json`, both still
-  carrying the chatbot factory's `officeparser` and `pdf2json`). The tarball went from 30.2 MB to 25.5 MB (121 MB to 100 MB unpacked). Installing the
-  tarball without its dashboard build into an empty npm cache added 426 packages (427 MB on disk, 278 MB
-  downloaded) before and 264 packages (305 MB on disk, 191 MB downloaded) after; `--omit=optional`
-  brings it to 151 MB on disk. These are single samples; re-measure a release with `npm run smoke:tarball`.
-  With the dashboard split out, core's tarball is 6.0 MB (19.2 MB unpacked, from 25.5 MB and 100 MB) and
-  `mojulo-ui`'s is 13.2 MB (59.9 MB unpacked). A cold `npx mojulo` from an empty cache then added 251
-  packages (303 MB on disk), three samples through a local registry stand-in. With the chatbot factory's
-  document parsers gone in 3.0.0 the same cold start adds <measured> packages (<measured> MB on disk).
+- **Measured once for the dependency trim and the dashboard split** (made on the unreleased 2.2 line
+  and shipping in 3.0.0; macOS arm64, one tree under the 2.1 and then the 2.2 `package.json`, both
+  still carrying the chatbot factory's `officeparser` and `pdf2json`). The tarball went from 30.2 MB to
+  25.5 MB (121 MB to 100 MB unpacked). Installing the tarball without its dashboard build into an
+  empty npm cache added 426 packages (427 MB on disk, 278 MB downloaded) before and 264 packages
+  (305 MB on disk, 191 MB downloaded) after; `--omit=optional` brings it to 151 MB on disk. These are
+  single samples; re-measure a release with `npm run smoke:tarball`. With the dashboard split out,
+  core's tarball is 6.0 MB (19.2 MB unpacked, from 25.5 MB and 100 MB) and `mojulo-ui`'s is 13.2 MB
+  (59.9 MB unpacked). A cold `npx mojulo` from an empty cache then added 251 packages (303 MB on
+  disk), three samples through a local registry stand-in. With the chatbot factory's document parsers
+  gone in 3.0.0 the same cold start adds <measured> packages (<measured> MB on disk).
 
 ## Diagram maker in the kernel
 
