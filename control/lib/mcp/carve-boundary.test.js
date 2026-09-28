@@ -52,6 +52,20 @@ const CARVE_SET = [
   'lib/db/repositories/deploymentEvents.js',
   'lib/db/repositories/mcpJobs.js',
   'lib/db/repositories/appSettings.js',
+  'lib/db/repositories/botSpaces.js',
+  // the agent-facing markdown that routed to the factory or ran its loops
+  'lib/mcp/routing-cards/bot.md',
+  'lib/mcp/catalysts/appointment-to-calendar.md',
+  'lib/mcp/catalysts/conversations-to-channel-digest.md',
+  'lib/mcp/catalysts/document-extract-to-store.md',
+  'lib/mcp/catalysts/knowledge-gap-miner.md',
+  'lib/mcp/catalysts/qualify-lead-to-crm.md',
+  'lib/mcp/catalysts/run-chat-builder-worker.md',
+  'lib/mcp/catalysts/run-host-chat-worker.md',
+  'lib/mcp/catalysts/scan-conversations-for-signal.md',
+  'lib/mcp/catalysts/submission-to-ticket.md',
+  'lib/mcp/catalysts/submissions-to-warehouse.md',
+  'lib/mcp/catalysts/weekly-submissions-digest.md',
   // the other bot-only modules
   'lib/agent-chat/',
   'lib/agent-ui/',
@@ -69,6 +83,8 @@ const CARVE_SET = [
   'lib/rate-limiter.js',
   'lib/resolve-api-key.js',
   'lib/version/bot-image.js',
+  // the pack-time staging of the bot runtime
+  'scripts/stage-lite-template.mjs',
   // the dashboard's bot API routes
   'app/api/agent-ui/',
   'app/api/builder/',
@@ -191,14 +207,15 @@ async function traceStdioBoot() {
 }
 
 // Every static import / export-from / require specifier in a source file, resolved to a
-// control/-relative path ('@/x' and relative specifiers; bare packages are skipped).
-const SPEC_RE = /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\s*\(?\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g;
+// control/-relative path ('@/x' and relative specifiers; bare packages are skipped). A dynamic
+// import() of a template literal with no interpolation counts too.
+const SPEC_RE = /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\s*\(?\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)|import\s*\(\s*`([^`$]+)`\s*\)/g;
 function importedPaths(code, fromRel) {
   const out = [];
   let m;
   SPEC_RE.lastIndex = 0;
   while ((m = SPEC_RE.exec(code))) {
-    const spec = m[1] || m[2] || m[3];
+    const spec = m[1] || m[2] || m[3] || m[4];
     if (spec.startsWith('@/')) out.push(spec.slice(2));
     else if (spec.startsWith('.')) out.push(posix.normalize(posix.join(posix.dirname(fromRel), spec)));
   }
@@ -253,6 +270,37 @@ describe('chatbot carve-out: a default install carries no bot code', () => {
       }
     }
     expect(offenders, `retained sources importing carve paths:\n${offenders.join('\n')}`).toEqual([]);
+  });
+
+  it('the import scan sees a template-literal dynamic import', () => {
+    const code = "const m = await import(`@/lib/builder/index.js`);\nconst n = await import(`./${x}.js`);";
+    expect(importedPaths(code, 'lib/mcp/tools/x.js')).toEqual(['lib/builder/index.js']);
+  });
+
+  // The routing cards, catalysts (every shelf) and host adapters are what agents are served
+  // (forward_context, get_catalyst, get_adapter, semantic_search). A body naming a removed tool
+  // sends the agent to a name that answers with the moved notice.
+  it('no shipped routing card, catalyst or adapter names a removed tool', async () => {
+    const { REMOVED_BOT_TOOLS } = await import('@/lib/mcp/bot-factory-moved');
+    const markdown = (dir, out = []) => {
+      for (const name of readdirSync(dir)) {
+        const abs = join(dir, name);
+        if (statSync(abs).isDirectory()) markdown(abs, out);
+        else if (name.endsWith('.md')) out.push(abs);
+      }
+      return out;
+    };
+    const files = ['lib/mcp/routing-cards', 'lib/mcp/catalysts', 'lib/mcp/adapters']
+      .flatMap((d) => markdown(join(CONTROL_ROOT, d)));
+    expect(files.length, 'the shelves were found').toBeGreaterThan(0);
+    const hits = [];
+    for (const abs of files) {
+      const body = readFileSync(abs, 'utf8');
+      for (const name of REMOVED_BOT_TOOLS) {
+        if (new RegExp(`\\b${name}\\b`).test(body)) hits.push(`${relative(CONTROL_ROOT, abs)}: ${name}`);
+      }
+    }
+    expect(hits, `shipped markdown naming removed tools:\n${hits.join('\n')}`).toEqual([]);
   });
 
   it('booting the stdio server loads no module of the carve set', async () => {
