@@ -37,6 +37,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { UI_LITE_TEMPLATE_DIR, UI_PACKAGE_BIN, UI_PACKAGE_NAME, UI_STANDALONE_DIR } from '../lib/version/ui-package.js';
 import { CONTROL_DIR, UI_PACKAGE_DIR, fromInstallPackages, matchesPackage } from './ui-package-manifest.mjs';
+import { enginesViolations, floorOf } from './engines-floor.mjs';
 
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
@@ -346,6 +347,16 @@ async function main() {
       if (existsSync(path.join(nm, name))) fail(`${name} was installed by the tarball — it belongs to the recall group`);
     }
     if (!existsSync(path.join(nm, '@huggingface'))) ok('no embedding runtime in the cold install (recall is opt-in)');
+
+    // A fresh install resolves every range anew, so an upstream release can raise a dependency's
+    // engines.node above mojulo's floor (pdf2json 4.1.0 did). npm warns on each first start and
+    // fails under engine-strict.
+    const floor = floorOf(JSON.parse(readFileSync(path.join(CONTROL_DIR, 'package.json'), 'utf8')).engines.node);
+    const engines = floor ? enginesViolations(nm, floor) : { checked: false, violations: [] };
+    if (!engines.checked) note('engines check skipped: no semver or no node_modules/.package-lock.json');
+    else if (engines.violations.length) {
+      fail(`packages that refuse Node ${floor}, mojulo's floor: ${engines.violations.map((v) => `${v.name}@${v.version} (${v.range})`).join('; ')}`);
+    } else ok(`every non-optional package accepts Node ${floor}, mojulo's floor`);
 
     // ── packaging invariants ─────────────────────────────────────────────
     // Core is what a host's `npx mojulo` downloads: no dashboard build, no bot template.

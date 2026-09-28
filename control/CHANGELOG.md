@@ -297,6 +297,12 @@ loops and the recipe format are unchanged.
 - **officeparser stays on 5.** Version 8 needs Node 22.13 (mojulo supports 22.12), adds
   tesseract.js, which fetches OCR language data at runtime, and more than doubles the install
   (62 MB to 142 MB). It is loaded only for DOCX, PPTX and XLSX uploads.
+- **pdf2json stays on the 4.0 line (`~4.0.3`).** `^4.0.0` let a fresh `npx -y mojulo@2.2.0`
+  resolve pdf2json 4.1.0, which declares Node `>=22.23.2`: on Node 22.12 to 22.22, which mojulo
+  supports, npm warned on the plugin's first start, and under `engine-strict=true` the install
+  failed and the server never answered `initialize`. The lockfile already held 4.0.3, but npx
+  ignores a dependency's lockfile. `npm run smoke:tarball` now fails when any non-optional package
+  in the fresh install refuses mojulo's declared Node floor (`scripts/engines-floor.mjs`).
 
 ### Directory listing and disclosure
 
