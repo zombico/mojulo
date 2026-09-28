@@ -26,6 +26,7 @@
 
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear } from '../figures/face-mesh.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
+import { crystalRigFor, rigFrozenFrame } from './crystal-rig.js';
 import { inkBake, inkGeoNormals, inkCentroid } from './ink-geometry.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
@@ -1211,6 +1212,19 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // Positioned lights (`payload.lights`: pot lights today) — KHR_lights_punctual nodes.
   const lightDefs = Array.isArray(payload.lights) ? payload.lights.filter((l) => l && Array.isArray(l.position)) : [];
   for (const l of lightDefs) b.addLightNode({ ...l, translation: l.position });
+  // A crystal light rig (crystal-rig R5) leaves as a frozen frame at t = 0: its beams and pools as one emissive node
+  // per colour (`crystal-light:<colour>`), its brightest glows as point lights. The Godot kernel performs the rig live
+  // from score.json and hides these; every other importer keeps the frame. No rig → zero bytes.
+  const cryRig = payload.crystalLight ? crystalRigFor(expanded, payload.crystalLight) : null;
+  if (cryRig) {
+    const frame = rigFrozenFrame(expanded, cryRig);
+    for (const g of frame.groups) {
+      if (!g.positions.length) continue;
+      const mat = b.pbrMaterial({ name: `crystal-light:${g.name}`, metallic: 0, roughness: 1, alpha: 0.85, emissive: g.color, emissiveStrength: 4 });
+      tally(b.addNode(`crystal-light:${g.name}`, new Float32Array(g.positions), new Float32Array(g.positions.length).fill(1), 3, mat));
+    }
+    frame.lights.forEach((l, i) => b.addLightNode({ name: `crystal-light:glow${i}`, type: 'point', translation: l.p, color: l.color, intensity: +(1.5 + 6 * l.power).toFixed(3) }));
+  }
   // Units: a kind authored in other-than-metres declares `metersPerUnit`; the root scales.
   // Scene extras are plain data outside the node tree, so they are pre-scaled below.
   const mpu = Number(payload.metersPerUnit);

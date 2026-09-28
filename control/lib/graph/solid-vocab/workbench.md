@@ -236,7 +236,7 @@ units: 'cm', fields: [{ cells: 96, terms: [{ id: 'rock', op: 'add', shape: { kin
 - `gem` — `quartz`, `amethyst`, `calcite`, `diamond`, `ruby`, `sapphire`, `tourmaline`, `opal`. `cut` — `natural` (the habit: quartz's pointed prism, calcite's rhomb, diamond's octahedron, corundum's barrel, tourmaline's trigonal prism; opal, amorphous, is a cabochon), `brilliant`, `cabochon`.
 - `size` — the longest extent in the manifest's units; `unit` (`'cm'` by default, `'m'` / `'mm'`) says what a unit is, so a thin ruby path is pink and a long one red. `axis` — where the c axis points (default up); `spin` — degrees about it.
 - `glow` (0–1) — the stone shines in its own colour whatever its optics say (a ruby glows by nature; this is the dial for a game's glowing geode), and spills a pool of that colour on the surface it grew from.
-- `cluster: { count, seed, on, lengths:[min, max], tilt?, bury? }` — a seeded druse instead of one stone: `on: { disc: { center, radius, normal? } }` grows them from a bed; `on: { ellipsoid: { center, radii, zMax? } }` lines a cavity's inner wall, growing inward (a geode). Lengths follow a power law: many small, a few large.
+- `cluster: { count, seed, on, lengths:[min, max], tilt?, bury?, avoid? }` — a seeded druse instead of one stone: `on: { disc: { center, radius, normal? } }` grows them from a bed; `on: { ellipsoid: { center, radii, zMax? } }` lines a cavity's inner wall, growing inward (a geode). Lengths follow a power law: many small, a few large. `avoid: [{ center, radius }]` clears spots (for a hero stone, or a path for light); every other stone stays where it was.
 
 ```
 units: 'cm', fields: [{ cells: 90, terms: [
@@ -246,6 +246,42 @@ units: 'cm', fields: [{ cells: 90, terms: [
   { id: 'lining', op: 'add', shape: { kind: 'crystal', gem: 'amethyst', size: 3, glow: 0.55,
       cluster: { count: 200, seed: 9, on: { ellipsoid: { center: [0,0,0], radii: [9.6, 8.6, 7], zMax: -0.6 } }, lengths: [0.7, 3.6] } } },
   { id: 'heart', op: 'add', shape: { kind: 'crystal', gem: 'ruby', center: [0.5, -0.5, -5.2], size: 2.6 } } ] }]
+```
+
+### Light rigs
+
+`crystalLight` (top level, beside `fields` and `movers`) places lamps whose beams pass through the crystals. Each gem does one thing to a beam, so a player can tell the stones apart by their light alone. It is game-directed, not physics (the stones' shading is the physics). The constants come from what each crystal does to real light, exaggerated so they read.
+
+| gem | the beam |
+|---|---|
+| quartz (amethyst, sapphire: in their own colour) | leaves along the stone's c axis: turn the stone, steer the light |
+| diamond | white fans into five colours in the plane ⟂ c; a coloured beam bends as one |
+| calcite | splits into two parallel beams, polarized at right angles |
+| tourmaline | passes only light polarized along c (of a calcite's two beams, one passes) |
+| ruby | red passes; other light charges it, and it pulses a red laser along c |
+| opal | throws colours whose hue is the angle; they change as it turns |
+
+- `lamps: [{ at, aim | dir, color?, power?, width? }]` — `aim` is a point, `color` a `'#rrggbb'` (white by default); `width` defaults to a fraction of the stones' size.
+- A crystal group of 12 stones or fewer acts; a larger one (a druse, a geode's lining) catches the light and glows where it lands. `crystals: { <group>: true | false | { op?, spread?, bend? } }` overrides either way: `op` (`relay`, `fan`, `twin`, `gate`, `charge`, `iris`) swaps what a stone does; `spread` and `bend` (degrees) shape a fan.
+- Beams stop at the world's own geometry and pool where they land. A group a mover drives carries the light with it: a crystal on a toggle is a hand-turned mirror, and its print on the floor turns with it.
+- `targets: [{ id, at, r, want?: { color?, min? }, toggles? }]` — a target catches beams. When what it catches satisfies `want` (a colour: `white`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `violet`; a power, 0.05 by default), it raises `lit` on the events bus (with the colour), and `dark` when it stops. `toggles` names a mover group with `states` it steps on when lit and back when dark: a door. Reactions and HUD banners read `lit` like any event.
+- `budget: { depth?, beams?, maxLen? }`, `gain?` (how bright beams draw).
+- The `.glb` carries a frozen frame (the beams and pools as emissive nodes, the brightest glows as point lights). The Godot pack performs the rig live and gives crystals a refraction material; movers do not travel, so the stones stand at rest there.
+
+A light puzzle: a lamp, a brilliant fans it, a quartz in the green beam turns by hand (R), and green on the socket opens the door.
+
+```
+fields: [{ id: 'room', cells: 70, terms: [
+    { id: 'back', op: 'add', shape: { kind: 'box', center: [0,13,5], size: [40,1,10] } },
+    { id: 'prism', op: 'add', shape: { kind: 'crystal', gem: 'diamond', cut: 'brilliant', center: [8,0,3], size: 2.2 } },
+    { id: 'mirror', op: 'add', shape: { kind: 'crystal', gem: 'quartz', center: [-0.24,0.59,3], size: 1.8, axis: [0.9,0.43,0.03] } } ] },
+  { id: 'door', terms: [{ id: 'door', op: 'add', shape: { kind: 'box', center: [1.3,12.3,4], size: [4.4,0.6,8] } }] }],
+movers: [
+  { group: 'mirror', basePos: [0,0,0], turn: { axis: [0,0,1], center: [-0.24,0.59,3], absolute: true }, states: [0, 0.785, 1.571, 2.356], key: 'r' },
+  { group: 'door', basePos: [0,0,0], slide: { axis: [0,0,1] }, states: [0, -7.6], click: false }],
+crystalLight: { lamps: [{ at: [22,-1,3.4], aim: [8,0,3] }], crystals: { prism: { spread: 70, bend: 0 } },
+  targets: [{ id: 'socket', at: [-5.69,11.9,3.33], r: 0.9, want: { color: 'green' }, toggles: 'door' }] },
+events: { reactions: [{ on: 'lit', match: { source: 'socket' }, do: 'set', var: 'open', to: 1 }], hud: [{ on: 'lit', text: 'The door opens' }] }
 ```
 
 ### Fields — domain operators

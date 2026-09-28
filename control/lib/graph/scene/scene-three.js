@@ -57,7 +57,9 @@ import { xrModeScript } from './channels/xr.js';
 import { streamChannelScript } from './channels/stream.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { crystalChannelScript } from './channels/crystal.js';
-import { crystalPrintsFor, crystalGlowPools, crystalSun } from './crystal-prints.js';
+import { crystalPrintsFor, crystalLivePrints, crystalGlowPools, crystalSun } from './crystal-prints.js';
+import { crystalLightChannelScript } from './channels/crystal-light.js';
+import { crystalRigFor } from './crystal-rig.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
 
 
@@ -176,7 +178,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, crystalLight = null } = {}) {
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -717,8 +719,17 @@ scene.add(__eQuad${i});
   const crystalBlock = cryGroups.length ? (() => {
     const toL = crystalSun(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight);
     const gems = Object.fromEntries([...new Set(cryGroups.flatMap((g) => g.crystal.gems))].map((name) => [name, shineOptics(name)]));
-    return crystalChannelScript({ toLight: toL, gems, prints: crystalPrintsFor(expanded, toL), pools: crystalGlowPools(expanded), ambient: light && Number.isFinite(light.ambient) ? light.ambient : 0.4 });
+    // a crystal group a mover drives throws its print live (re-traced on the page as it turns); the rest bake here
+    const moving = new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => cryGroups.some((cg) => cg.name === g)));
+    return crystalChannelScript({ toLight: toL, gems, prints: crystalPrintsFor(expanded, toL, undefined, moving.size ? { skip: moving } : {}), pools: crystalGlowPools(expanded), ambient: light && Number.isFinite(light.ambient) ? light.ambient : 0.4,
+      ...(moving.size ? { live: crystalLivePrints(expanded, moving) } : {}) });
   })() : '';
+  // crystal light (crystal-rig R2): lamps through the page's crystals, each gem an operator, re-solved every frame.
+  // Present only when the payload's `crystalLight` resolves against its faces; groups a mover drives are raycast live
+  // (the static rest is one occluder grid). Absent → zero bytes.
+  const cryRig = crystalLight ? crystalRigFor(expanded, crystalLight) : null;
+  const crystalLightBlock = cryRig ? crystalLightChannelScript({ ...cryRig,
+    dynamic: [...new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => typeof g === 'string' && !cryRig.stones.some((st) => st.group === g)))] }) : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
@@ -1084,12 +1095,12 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${crystalLightBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };

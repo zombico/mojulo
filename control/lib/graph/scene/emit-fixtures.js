@@ -213,6 +213,16 @@ export const EMIT_FIXTURES = [
   ['crystal', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
     .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'diamond', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0, 1], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] } }],
 
+  // crystal light (crystal-rig R2): the same stone as a fan under one lamp, a target on the fan (zero bytes without it)
+  ['crystal-light', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
+    .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'diamond', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0, 1], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },
+    crystalLight: { lamps: [{ at: [0, -4, 0.3], aim: [0, 0, 0.25] }], targets: [{ id: 'door', at: [0, 3, 0.25], r: 0.3, want: { color: 'green' } }] } }],
+
+  // a crystal a mover turns: its print is re-traced on the page (crystal-rig R4), not baked
+  ['crystal-moving', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
+    .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'calcite', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0.6, 0.8], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },
+    movers: [{ group: 'gem', basePos: [0, 0, 0], turn: { axis: [0, 0, 1], center: [0, 0, 0.25], absolute: true }, states: [0, 1.2] }] }],
+
   ['fog', { faces: [floor()], fog: FOG }],
   // effects[] (U3): stacked raymarch overlays. `effects` alone (live); `fog-effects` co-resident +
   // capture (pins the fog quad + effect quad + the frame() __mojClock overlay-clock pin together).

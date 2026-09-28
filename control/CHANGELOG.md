@@ -62,7 +62,31 @@ connected-service and app loops and the recipe format are the stable surface.
   (20/V); a glow becomes emissive. An opal becomes an opaque body with `KHR_materials_iridescence`. The Unreal leg
   keeps a `:crystal` slot's imported material, as it keeps `:emissive` slots. With no crystal, every export is
   byte-identical.
+- **Crystals in USD.** A crystal group is its own `<group>:crystal` prim, bound to a UsdPreviewSurface with its body
+  colour, its index (`ior`), an opacity, and its glow as emission; an opal is a dark body under a clearcoat. Blender
+  reads the opacity as transmission.
+- **Crystals as light operators.** A world's `crystalLight` places lamps whose beams pass through its crystals. Each
+  gem does one thing to a beam that a player can read:
+  - quartz relays it along its axis (amethyst and sapphire tint it their colour);
+  - diamond fans white into five colours;
+  - calcite splits it into two beams polarized at right angles;
+  - tourmaline passes only light polarized along its axis;
+  - ruby passes red, charges on the rest and pulses a red laser;
+  - opal throws colours whose hue is the angle.
 
+  The constants come from what each crystal does to real light, exaggerated so they read. `scene/crystal-rig.js` holds
+  the operators and the solver as one self-contained kernel, which the World page runs every frame.
+  - Beams stop at the world's own geometry, through an occluder grid built once on the page.
+  - A crystal a mover turns carries its light with it, and its print on the floor is re-traced as it turns.
+  - Small crystal groups act. A large one (a druse, a geode's lining) catches the light and glows where it lands.
+  - Targets raise `lit` and `dark` on the events bus and can step a mover (a door), so a light puzzle is a recipe.
+  - A crystal cluster can clear spots (`avoid`) for a hero stone or a path for light.
+
+  Absent `crystalLight`, every world is byte-identical.
+- **Light rigs leave with the game.** The `.glb` carries a frozen frame: the beams and pools as emissive nodes, the
+  brightest glows as point lights. `score.json` carries the rig and each crystal node's optics. The Godot kernel (0.3.0)
+  performs the rig live, choosing the same beams as the World page. It also gives crystal surfaces a refraction
+  material of their own, since Godot's importer drops transmission.
 ### Cliffs and mountains
 
 - **Landforms.** A painted landscape may carry `landform`: an ordered list of operations on its surface, mixed in

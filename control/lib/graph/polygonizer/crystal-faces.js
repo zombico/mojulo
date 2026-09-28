@@ -14,6 +14,8 @@
  *     cluster a seeded druse instead of one stone: { count, seed, on, lengths: [min, max], tilt, bury }
  *       on: { disc: { center, radius, normal? } } — a flat bed; or { ellipsoid: { center, radii, zMax? } } — the inner
  *           wall of a cavity, stones growing inward (a geode); lengths follow a power law (many small, a few large)
+ *       avoid: [{ center, radius }] — clear a spot (for a hero stone, a path for light): a stone whose base falls inside
+ *           is not placed, and every other stone stays exactly where it was
  */
 
 import { crystalPolytope, crystalOptics, CRYSTAL_GEMS, CRYSTAL_CUTS } from './crystal-optics.js';
@@ -77,7 +79,9 @@ export function crystalPlacements(shape) {
     }
     const jitter = unit([rnd() - 0.5, rnd() - 0.5, rnd() - 0.5]); const axis = unit(add(normal, scale(unit(sub(jitter, scale(normal, dot(jitter, normal)))), Math.tan(tilt * rnd()))));
     const L = lo + (hi - lo) * Math.pow(rnd(), 3);                                    // a power law: many small, a few large
-    out.push({ center: add(base, scale(axis, L * (0.5 - bury))), size: L, R: frameFor(axis, 360 * rnd()), base });
+    const R = frameFor(axis, 360 * rnd());                                            // drawn before `avoid`, so a cleared spot moves nothing else
+    if (Array.isArray(k.avoid) && k.avoid.some((a) => Math.hypot(base[0] - a.center[0], base[1] - a.center[1], base[2] - a.center[2]) < a.radius)) continue;
+    out.push({ center: add(base, scale(axis, L * (0.5 - bury))), size: L, R, base });
   }
   return out;
 }
@@ -105,6 +109,7 @@ export function validateCrystalShape(s, at = 'crystal') {
     if (k.lengths !== undefined && !(Array.isArray(k.lengths) && k.lengths.length === 2 && k.lengths[0] > 0 && k.lengths[1] >= k.lengths[0])) e.push(`${at}.cluster.lengths: [min, max] world units, 0 < min ≤ max`);
     if (on.ellipsoid && !(v3(on.ellipsoid.center) && v3(on.ellipsoid.radii) && on.ellipsoid.radii.every((x) => x > 0))) e.push(`${at}.cluster.on.ellipsoid: { center: [x,y,z], radii: [a,b,c], zMax? } — the cavity the stones line`);
     if (on.disc && !(v3(on.disc.center) && Number.isFinite(on.disc.radius) && on.disc.radius > 0)) e.push(`${at}.cluster.on.disc: { center: [x,y,z], radius, normal? } — the bed the stones grow from`);
+    if (k.avoid !== undefined && !(Array.isArray(k.avoid) && k.avoid.every((a) => a && v3(a.center) && Number.isFinite(a.radius) && a.radius > 0))) e.push(`${at}.cluster.avoid: [{ center: [x,y,z], radius }] — spots no stone grows in`);
     if (!on.ellipsoid && !on.disc && !v3(s.center)) e.push(`${at}.cluster.on: { disc } or { ellipsoid }, or give the shape a center (a disc of radius size)`);
   }
   return e;

@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { printKernel } from '../../polygonizer/crystal-print.js';
 
 // In-page script: the crystal channel (crystal-shine S4) — crystals shaded live on the World page. Groups whose
 // geometry carries the per-vertex crystal attribute (packed by faceListToMesh from faces tagged `crystal`) get their
@@ -9,9 +10,10 @@ import { safeJson } from '../emit-util.js';
 // internal reflection once, colour by path length, dichroism by the ray's angle to c, ruby's glow on its lit side,
 // opal's Bragg flashes from an object-space domain mosaic. World-space normals from dFdx × dFdy, the fixed light and
 // the live camera: right as the camera orbits, and on instances. Each stone's print (the light it throws, traced once
-// on the server by crystal-print.js) is drawn under it: the shadow, then the caustic added. A one-shot setup block:
-// pages with no crystal faces emit ZERO bytes of it.
-export function crystalChannelScript({ toLight, gems, prints, pools = [], ambient = 0 }) {
+// on the server by crystal-print.js) is drawn under it: the shadow, then the caustic added. A stone a mover drives
+// (`live`) is re-traced here instead, by the same kernel, whenever its group's pose changes (throttled live, every frame
+// under the capture bridge). A one-shot setup block: pages with no crystal faces emit ZERO bytes of it.
+export function crystalChannelScript({ toLight, gems, prints, pools = [], ambient = 0, live = null }) {
   return `
 // --- crystal channel (crystal shine): live crystal response + the prints stones throw ---
 const CRY = ${safeJson({ sun: toLight.map((v) => +v.toFixed(6)), amb: +ambient.toFixed(3), gems, prints, ...(pools.length ? { pools } : {}) })};
@@ -112,5 +114,37 @@ if (CRY.pools) {
   const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3)); pg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
   const pm = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
   pm.renderOrder = 4; scene.add(pm); __mojCrystal.pools = CRY.pools.length;
+}${live && live.stones.length ? liveScript(live) : ''}`;
+}
+
+// the prints of stones a mover turns, re-traced on the page (crystal-rig R4): the print kernel, run when a pose changes
+function liveScript(live) {
+  return `
+{
+  const LIVE = ${safeJson(live)}; const PK = (${printKernel.toString()})();
+  const init = () => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3)); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(9), 3)); return g; };
+  const sm = new THREE.Mesh(init(), new THREE.MeshBasicMaterial({ color: 0x05060a, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  const cm = new THREE.Mesh(init(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  sm.renderOrder = 2; cm.renderOrder = 3; sm.frustumCulled = cm.frustumCulled = false; scene.add(sm); scene.add(cm);
+  const seen = LIVE.stones.map(() => ''); let last = -1e9, gap = 90; const dir = [-CRY.sun[0], -CRY.sun[1], -CRY.sun[2]];
+  cm.onBeforeRender = () => {
+    const now = performance.now(); const poses = LIVE.stones.map((s) => { const m = meshes[s.group]; if (!m) return null; m.updateMatrixWorld(true); return m.matrixWorld.elements; });
+    const keys = poses.map((e) => (e ? Array.prototype.join.call(e, ',') : '')); if (keys.every((k, i) => k === seen[i])) return;
+    if (!window.__mojCapture && now - last < gap) return;
+    const t0 = performance.now(); const sh = [], pos = [], col = [];
+    LIVE.stones.forEach((s, i) => {
+      const e = poses[i]; if (!e) return; seen[i] = keys[i];
+      const M = [[e[0], e[4], e[8]], [e[1], e[5], e[9]], [e[2], e[6], e[10]]];
+      const R = M.map((r) => [0, 1, 2].map((j) => r[0] * s.R[0][j] + r[1] * s.R[1][j] + r[2] * s.R[2][j]));
+      const at = [0, 1, 2].map((k) => M[k][0] * s.at[0] + M[k][1] * s.at[1] + M[k][2] * s.at[2] + e[12 + k]);
+      const r = PK.tracePrint({ optics: LIVE.optics[s.gem], poly: s.poly, pose: { R, at }, light: { dir }, receiver: { z: s.z }, depth: 1, maxPolygons: 160, unit: s.unit, minFace: 0.03 });
+      for (let k = 1; k + 1 < r.shadow.length; k++) sh.push(...r.shadow[0], ...r.shadow[k], ...r.shadow[k + 1]);
+      for (const q of r.polygons) { const c = q.rgb.map((x) => Math.min(1.5, x * 0.35)); for (let k = 1; k + 1 < q.corners.length; k++) for (const p of [q.corners[0], q.corners[k], q.corners[k + 1]]) { pos.push(p[0], p[1], p[2]); col.push(c[0], c[1], c[2]); } }
+    });
+    sm.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sh.length ? sh : 9), 3));
+    cm.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos.length ? pos : 9), 3)); cm.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col.length ? col : 9), 3));
+    last = now; gap = Math.max(90, 6 * (performance.now() - t0));
+    window.__mojCrystalLive = { traces: ((window.__mojCrystalLive || {}).traces || 0) + 1, ms: +(performance.now() - t0).toFixed(2), polygons: pos.length / 9 };
+  };
 }`;
 }

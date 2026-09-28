@@ -402,6 +402,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // off every opaque mass and figure (static masses, walkers, controllable bodies), light keyed
   // to the payload's baked sun when one exists. Opt-in; absent ⇒ byte-identical.
   if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
+  // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
+  // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
+  if (payload && sketch.manifest.crystalLight) {
+    const { validateCrystalLight } = await import('@/lib/graph/scene/crystal-rig.js');
+    const errs = validateCrystalLight(sketch.manifest.crystalLight);
+    if (errs.length) throw new Error(`crystalLight is invalid — see get_solid_vocab({ id: 'workbench' }), "Light rigs":\n- ${errs.join('\n- ')}`);
+    payload.crystalLight = sketch.manifest.crystalLight;
+  }
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;

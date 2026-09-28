@@ -53,3 +53,15 @@ describe('the crystal field shape', () => {
     expect(emitThreeWorld({ faces: fieldToFaces(spec) })).not.toContain('crystal channel');
   });
 });
+
+describe('a cluster can clear a spot', () => {
+  it('stones inside `avoid` are not placed; every other stone is where it was', () => {
+    const shape = { kind: 'crystal', gem: 'amethyst', size: 1, cluster: { count: 60, seed: 4, on: { disc: { center: [0, 0, 0], radius: 5 } } } };
+    const all = crystalPlacements(shape); const spot = { center: [1, 1, 0], radius: 2 };
+    const some = crystalPlacements({ ...shape, cluster: { ...shape.cluster, avoid: [spot] } });
+    const inside = all.filter((p) => Math.hypot(p.base[0] - 1, p.base[1] - 1, p.base[2]) < 2);
+    expect(inside.length).toBeGreaterThan(0); expect(some).toHaveLength(all.length - inside.length);
+    expect(JSON.stringify(some)).toBe(JSON.stringify(all.filter((p) => !inside.includes(p))));
+    expect(validateCrystalShape({ ...shape, cluster: { ...shape.cluster, avoid: [{ center: [0, 0], radius: 1 }] } }).join()).toContain('avoid');
+  });
+});

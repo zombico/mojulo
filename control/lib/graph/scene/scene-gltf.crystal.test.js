@@ -28,3 +28,16 @@ describe('crystals leave the GLB as transmissive materials', () => {
     expect(j.extensionsUsed || []).not.toContain('KHR_materials_transmission');
   });
 });
+
+describe('a crystal light rig leaves the GLB as a frozen frame', () => {
+  const faces = [{ corners: [[-9, -9, 0], [9, -9, 0], [9, 9, 0], [-9, 9, 0]], fill: '#333', group: 'floor' },
+    ...assembleSolidTurntableScene({ shape: 'crystal', gem: 'diamond', cut: 'brilliant' }).faces.filter((f) => f.group !== 'floor').map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + 1.2]), crystal: { ...f.crystal, c: [0, 0, 1.2] } }))];
+  it('one emissive node per beam colour and the brightest glows as point lights; none without a rig', () => {
+    const j = gltfJson(facesToGlb({ faces, crystalLight: { lamps: [{ at: [0, -8, 1.4], aim: [0, 0, 1.2] }] } }));
+    const nodes = j.nodes.map((n) => n.name).filter((n) => n.startsWith('crystal-light:'));
+    expect(nodes.length).toBeGreaterThanOrEqual(5);
+    expect(j.extensionsUsed).toContain('KHR_lights_punctual'); expect(j.nodes.some((n) => (n.name || '').startsWith('light:crystal-light:glow'))).toBe(true);
+    const m = j.materials.find((x) => x.name === 'crystal-light:red'); expect(m.emissiveFactor[0]).toBeGreaterThan(0.9); expect(m.alphaMode).toBe('BLEND');
+    const plain = gltfJson(facesToGlb({ faces })); expect(plain.nodes.some((n) => (n.name || '').startsWith('crystal-light'))).toBe(false);
+  });
+});

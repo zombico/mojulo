@@ -36,6 +36,10 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > crystal emits byte-identically 1`] = `"3f3ce744a290713a9ee5c19948ec5d5d579142ba4579d17e59ce9ce03437c49e"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > crystal-light emits byte-identically 1`] = `"115f153b4f4de633d20ae9e3f54eecc045dacd0ca2513429f0ae881861852029"`;
+
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > crystal-moving emits byte-identically 1`] = `"6d0a2ca1e95f92fd67cdfb1974839a479db3d6cf7f1f5e3edf4d7f125498b581"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > deforms emits byte-identically 1`] = `"35fcb1e2e0ed821eb1e638315789c9a3cb9371a35bae798e19d4af32ae1af757"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > effects emits byte-identically 1`] = `"54000c82bee950ef596af61ec05383b8feaaacf772ee31759157ddfed5d3f1aa"`;
