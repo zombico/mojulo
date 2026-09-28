@@ -18,7 +18,7 @@ import { isShellPath } from '@/components/workshop-shell-routes';
 //   - { dynamic }   — name of a [param] segment; its decoded value is the label
 // An optional `href` (a path template, [param] tokens filled from the URL) turns
 // the crumb into a link when it isn't the leaf. Non-routable intermediates
-// (e.g. a deployment, which has no standalone page) simply omit `href`.
+// (a segment with no standalone page) simply omit `href`.
 const ROUTES = [
   { tpl: '/apps', trail: [{ labelKey: 'apps.title' }] },
   {
@@ -33,54 +33,7 @@ const ROUTES = [
       { labelKey: 'breadcrumbs.appGraph' },
     ],
   },
-  { tpl: '/bots', trail: [{ labelKey: 'home.tiles.bots' }] },
   { tpl: '/dashboard', trail: [{ labelKey: 'home.tiles.dashboard' }] },
-  {
-    tpl: '/bot-factory/modular',
-    trail: [
-      { labelKey: 'home.tiles.bots', href: '/bots' },
-      { labelKey: 'dashboard.newBotWizard' },
-    ],
-  },
-  {
-    tpl: '/chat-builder',
-    trail: [
-      { labelKey: 'home.tiles.bots', href: '/bots' },
-      { labelKey: 'dashboard.newBotChat' },
-    ],
-  },
-  {
-    tpl: '/dashboard/documents',
-    trail: [
-      { labelKey: 'home.tiles.bots', href: '/bots' },
-      { labelKey: 'dashboard.documents.title' },
-    ],
-  },
-  {
-    tpl: '/dashboard/deployments/[id]/conversations',
-    trail: [
-      { labelKey: 'home.tiles.bots', href: '/bots' },
-      { labelKey: 'breadcrumbs.deployment' },
-      { labelKey: 'nav.conversations' },
-    ],
-  },
-  {
-    tpl: '/dashboard/deployments/[id]/submissions',
-    trail: [
-      { labelKey: 'home.tiles.bots', href: '/bots' },
-      { labelKey: 'breadcrumbs.deployment' },
-      { labelKey: 'submissions.title' },
-    ],
-  },
-  {
-    tpl: '/dashboard/deployments/[id]/cloud-deploy',
-    trail: [
-      { labelKey: 'home.tiles.bots', href: '/bots' },
-      { labelKey: 'breadcrumbs.deployment' },
-      { labelKey: 'cloudDeploy.title' },
-    ],
-  },
-  { tpl: '/data', trail: [{ labelKey: 'data.title' }] },
   { tpl: '/graph', trail: [{ labelKey: 'graph.title' }] },
   { tpl: '/map', trail: [{ labelKey: 'map.title' }] },
   { tpl: '/observability', trail: [{ labelKey: 'observability.title' }] },
