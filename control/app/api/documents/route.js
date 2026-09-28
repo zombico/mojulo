@@ -5,8 +5,8 @@ import { parseDocument } from '@/lib/document-parser';
 import { uploadFile } from '@/lib/storage';
 
 // Shape returned to the wizard. storagePath is required downstream by
-// /api/generate-rag and /api/preview/chat (they download the blob and parse
-// it). Without it, those routes 400 with "Document missing storage path".
+// /api/vectorize-rag, which downloads the blob and parses it; a document
+// without it is skipped there.
 function serializeDocument(d) {
   return {
     id: d.id,

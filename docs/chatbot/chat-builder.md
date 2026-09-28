@@ -174,7 +174,7 @@ Tier resolution lives in [getLLMConfigFromSession(session, userId, task)](../../
 | `generate_form_schema` handler                  | `structured` | JSON bounded by `FORM_STRUCTURE_SCHEMA`          |
 | `generate_bot_summary`                          | `summary`    | Free-text federation metadata                    |
 
-The same tier system covers other control-plane LLM call sites — `generate-form/route.js` (structured) and `generate-rag/route.js` (summary) — see the LLM-provider section of [CLAUDE.md](../../CLAUDE.md) for the project-wide picture. Wizard user-overrides still win: tier resolution only fires when no explicit model is passed in the session/preloaded context. The bot runtime stays single-model per artifact — tiers are control-plane only.
+The same tier system covers the other control-plane LLM call site, `generate-form/route.js` (structured) — see the LLM-provider section of [CLAUDE.md](../../CLAUDE.md) for the project-wide picture. Wizard user-overrides still win: tier resolution only fires when no explicit model is passed in the session/preloaded context. The bot runtime stays single-model per artifact — tiers are control-plane only.
 
 ---
 
@@ -228,7 +228,6 @@ The one notable runtime difference: the chat builder calls `buildArtifact` inlin
 | [control/lib/builder/system-prompt.js](../../control/lib/builder/system-prompt.js) | `buildBuilderSystemPrompt` + the high/low assistance branch + edit-mode prompt |
 | [control/lib/builder/executor.js](../../control/lib/builder/executor.js) | `saveBuilderConfig` — the chat builder's config-row writer |
 | [control/lib/builder/session.js](../../control/lib/builder/session.js) | Session state, protocol toggling, instructions composition |
-| [control/lib/builder/index.js](../../control/lib/builder/index.js) | Module entry point — re-exports the public surface |
 
 ---
 

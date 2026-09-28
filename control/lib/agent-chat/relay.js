@@ -4,20 +4,15 @@
  * The control plane never "calls" the local agent — it parks a turn on the
  * agent-tasks queue and the operator's Claude Code agent pulls it, answers,
  * and submits an envelope back (see agent-tasks/queue.js). This helper is the
- * common body two surfaces share:
+ * relay body of the builder web chat in `agent` mode (task_kind 'chat_turn').
  *
- *   - the builder web chat in `agent` mode  (task_kind 'chat_turn')
- *   - the home-page unfiltered chat          (task_kind 'host_chat')
- *
- * Both subscribe the open SSE stream to the agent-ui signal bus for the turn
+ * It subscribes the open SSE stream to the agent-ui signal bus for the turn
  * (so the worker's `emit_chat_signal` narration and `request_chat_decision`
- * cards reach the browser over the same EventTypes vocabulary), park the turn,
- * stream the answer back, and unsubscribe. What differs — session bookkeeping,
- * audit, the `done` payload — is injected via callbacks so neither surface
- * leaks into the other.
+ * cards reach the browser over the same EventTypes vocabulary), parks the turn,
+ * streams the answer back, and unsubscribes. Session bookkeeping, audit and
+ * the `done` payload are injected via callbacks so the relay stays generic.
  *
- * See lite-template/integration/app-system/0528/home-agent-chat.md and
- * agent-routed-chat.md.
+ * See agent-routed-chat.md.
  */
 
 import { parkRequest, AgentTaskError } from '@/lib/mcp/agent-tasks/queue';
@@ -41,11 +36,10 @@ function sendEvent(controller, encoder, type, data) {
  * unexpected errors throw to the caller's outer catch.
  *
  * @param {object} args
- * @param {string} args.taskKind          — 'chat_turn' | 'host_chat'
+ * @param {string} args.taskKind          — 'chat_turn'
  * @param {string} args.sessionId         — couples the turn to the signal bus
  *                                           subscription + any decision prompt
- *                                           (builder session id, or the home
- *                                           chat's client conversationId).
+ *                                           (the builder session id).
  * @param {string} args.text              — the operator's latest message.
  * @param {Array}  [args.history]         — prior turns [{role, content}].
  * @param {object} [args.extraInputs]     — merged into queue `inputs` (e.g.

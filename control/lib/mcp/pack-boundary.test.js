@@ -228,7 +228,6 @@ const CARVE_DATA = [
   'lib/db/repositories/deployments',
   'lib/db/repositories/builderSessions',
   'lib/db/repositories/deploymentEvents',
-  'lib/db/repositories/botSpaces',
 ];
 const CARVE_PACKS = new Set(['pack_bot_build', 'pack_bot_operate', 'pack_fleet']);
 

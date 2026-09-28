@@ -12,6 +12,18 @@ loops and the recipe format are unchanged.
 
 ## [Unreleased]
 
+### Chatbot carve-out
+
+- **The home-page chat relay is gone.** The `host_chat` agent-task kind, the `/api/agent-chat/stream`
+  route that parked it, and the `run-host-chat-worker` catalyst are deleted. No page in the dashboard
+  called the route. `pull_agent_task` and `submit_envelope_inference` now name `envelope_inference` and
+  `chat_turn` only. App inference is unchanged.
+- **Dead bot-factory code is deleted.** `/api/deploy` (an alias of `POST /api/deployments` with no
+  caller; use `POST /api/deployments`), `/api/generate-rag`, `DeploymentStatus.jsx`, `WizardIcons.jsx`,
+  `botTypeUtils.js`, `useEntitlements.js`, `lib/builder/chat-processor.js` and `lib/builder/index.js`,
+  the `lib/composer/index.js` facade, the no-op `botSpaces` repository, and three form-schema locale
+  files the locale index never loaded (`af-ZA`, `ar-SA`, `hi-IN`). Nothing imported any of them.
+
 ### Lean cold start
 
 - **The stdio server boots without loading any heavy package.** puppeteer-core, archiver, pdf2json,

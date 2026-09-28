@@ -387,7 +387,7 @@ export function parseDeploymentConfig(config) {
  * @returns {Object} State suitable for ModularWizardProvider initialData
  */
 export function parseModularDeploymentConfig(config, options = {}) {
-  // Extract modular metadata (persisted by /api/deploy)
+  // Extract modular metadata (persisted by POST /api/deployments)
   const modularMeta = config._modular || {};
   const enabledProtocols = modularMeta.enabledProtocols || {
     // Infer protocols from config if metadata not available (legacy fallback)

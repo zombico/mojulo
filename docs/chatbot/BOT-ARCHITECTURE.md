@@ -24,7 +24,7 @@ The control plane's [DockerDeployer](../../control/lib/deployers/docker.js) asse
                                     │
                                     ▼
                      ┌──────────────────────────────────────┐
-                     │  POST /api/deploy                    │
+                     │  POST /api/deployments               │
                      │  → DockerDeployer.deploy()           │
                      │    (control/lib/deployers/docker.js) │
                      └──────────────┬───────────────────────┘

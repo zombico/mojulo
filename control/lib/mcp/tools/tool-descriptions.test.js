@@ -127,7 +127,8 @@ const DESCRIPTION_ALLOWLIST = {
   mint_catalyst: 850,
   meta_context_commit: 2635,
   meta_context_declare_inventory: 1405,
-  pull_agent_task: 810,
+  // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
+  pull_agent_task: 762,
   recommend_catalysts: 1042,
   recommend_kind: 922,
   recommend_mcp_orbit_compositions: 1056,
