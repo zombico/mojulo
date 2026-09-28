@@ -1,7 +1,7 @@
 {
   "name": "mojulo",
   "displayName": "Mojulo",
-  "description": "A 3D compiler for coding agents: objects, walkable worlds and games as small recipes compiled back byte-for-byte and emitted to HTML, Godot, Blender, STL/3MF. Runs the mojulo MCP server locally with npx; no account, no API key, no external telemetry.",
+  "description": "A 3D compiler for Claude Code: build objects, walkable worlds and games by conversation as small recipes on your machine, exported to STL/3MF, glTF, HTML or Godot. No account, no external telemetry.",
   "version": "3.0.0",
   "author": {
     "name": "Franz Ombico",
