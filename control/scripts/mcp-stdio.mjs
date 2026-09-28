@@ -35,7 +35,9 @@ if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 12)) {
   process.stderr.write(
     `mojulo needs Node.js 22.12 or newer — this is Node ${process.versions.node}.\n` +
       `Install the current LTS from https://nodejs.org (or ask your coding agent\n` +
-      `to install it), then re-run: npx mojulo init\n`
+      (process.env.MOJULO_DISTRIBUTION === 'claude-plugin'
+        ? `to install it), then restart your Claude session: the mojulo plugin starts the server again.\n`
+        : `to install it), then re-run: npx mojulo init\n`)
   );
   process.exit(1);
 }

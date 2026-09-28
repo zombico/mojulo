@@ -11,7 +11,7 @@
 import { NextResponse } from 'next/server';
 import {
   LOCAL_EMBEDDING_MODEL,
-  RECALL_INSTALL_LINE,
+  recallInstallLine,
   embedderAvailable,
 } from '@/lib/embedder/local';
 
@@ -22,6 +22,6 @@ export async function GET() {
     provider: available ? 'local' : 'none',
     model: available ? LOCAL_EMBEDDING_MODEL : null,
     group: 'recall',
-    ...(available ? {} : { install: RECALL_INSTALL_LINE }),
+    ...(available ? {} : { install: recallInstallLine() }),
   });
 }

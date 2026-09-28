@@ -27,7 +27,7 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice } from '@/lib/mcp/packs';
+import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, installCommandFor } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 // Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
@@ -75,7 +75,7 @@ What the agent can create — **Media and Game lead; the rest is the automation 
 - **Game** — composition over Media, playable standalone. Entry: \`create_game\` (routing: the studio).
 - **Connected Service** — a workflow over the operator's installed MCPs, no chatbot. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
 - **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
-- **Bot** — a chatbot deployed as its own process. Entry: \`start_new_bot\`. **OPT-IN since 2.0:** the chatbot factory is an install-gated pack and is ABSENT from a default install. If its tools are missing here, they are not broken — the operator has not run \`mojulo install chatbot\`. Never promise a bot before checking; say it is one install away.
+- **Bot** — a chatbot deployed as its own process. Entry: \`start_new_bot\`. **OPT-IN since 2.0:** the chatbot factory is an install-gated pack and is ABSENT from a default install. If its tools are missing here, they are not broken — the operator has not run \`${installCommandFor('chatbot')}\`. Never promise a bot before checking; say it is one install away.
 
 **Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any unzipped bot as user secrets. Use \`inspect_bot_env\`, never \`cat\` or \`Read\`.
 

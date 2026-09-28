@@ -47,7 +47,7 @@ import { register } from 'node:module';
 import { spawnSync, spawn } from 'node:child_process';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 import { locateDashboard, readPackageJson } from './ui-launch.mjs';
-import { listHostProfiles, getHostProfile, expandPath } from '../lib/mcp/hosts/registry.js';
+import { listHostProfiles, getHostProfile, expandPath, pinProfileToVersion } from '../lib/mcp/hosts/registry.js';
 import { UI_PACKAGE_NAME, uiLaunchCommand } from '../lib/version/ui-package.js';
 
 // Same setup as mcp-config.mjs so the key step can reach @/lib code.
@@ -145,7 +145,14 @@ async function confirm(question, def = true) {
 // host in [../lib/mcp/hosts/](../lib/mcp/hosts/registry.js). This file owns the
 // three writer FORMATS (cli-shellout / toml-append / json-patch) and nothing
 // host-specific; adding a harness is a profile plus an adapter card, no JS edit.
-const PROFILES = listHostProfiles();
+// Installed as the Claude Code plugin, the plugin itself starts this server at its pinned version.
+// A `claude mcp add` registration on top would run a second copy with every tool doubled, so the
+// claude-code host is left alone there (skippedForPlugin), and every other host is wired to the
+// plugin's exact version, so two hosts never run two versions against one ~/.mojulo.
+const PLUGIN_DISTRIBUTION = process.env.MOJULO_DISTRIBUTION === 'claude-plugin';
+const PROFILES = PLUGIN_DISTRIBUTION
+  ? listHostProfiles().map((p) => pinProfileToVersion(p, readPackageJson(CONTROL_DIR)?.version))
+  : listHostProfiles();
 const HOST_IDS = PROFILES.map((p) => p.id);
 const MANUAL = Object.fromEntries(PROFILES.map((p) => [p.id, p.manual]));
 
@@ -224,7 +231,7 @@ const WRITERS = {
 };
 
 function wireHost(host, opts) {
-  const profile = getHostProfile(host);
+  const profile = PROFILES.find((p) => p.id === host) || getHostProfile(host);
   const writer = profile && WRITERS[profile.wire.format];
   if (writer) return writer(profile, opts);
   process.stdout.write(
@@ -553,10 +560,6 @@ async function launchDashboard() {
   return port;
 }
 
-// Installed as a Claude Code plugin, the plugin itself starts this server. A
-// `claude mcp add` registration on top would run a second copy with every tool
-// doubled, so the claude-code host is left alone there.
-const PLUGIN_DISTRIBUTION = process.env.MOJULO_DISTRIBUTION === 'claude-plugin';
 function skippedForPlugin(host) {
   if (!PLUGIN_DISTRIBUTION || host !== 'claude-code') return false;
   process.stdout.write(

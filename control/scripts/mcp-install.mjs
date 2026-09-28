@@ -47,6 +47,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { distribution, mojuloCommand } from '../lib/version/distribution.js';
 
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -132,8 +133,8 @@ async function installRecall() {
   );
   if (fetched !== 0) {
     process.stderr.write(
-      '\nThe runtime is installed but the model fetch failed — it is retried lazily on the first embedding call, '
-        + 'or run `node scripts/fetch-embed-model.js` in the package directory.\n',
+      '\nThe runtime is installed but the model fetch failed — it is retried lazily on the first embedding call'
+        + (distribution() === 'source' ? ', or run `node scripts/fetch-embed-model.js` in control/.\n' : '.\n'),
     );
     return fetched;
   }
@@ -187,7 +188,7 @@ function printStatus() {
   const chatbot = chatbotInstalled();
   process.stdout.write(
     'mojulo install — on-demand capability packs\n\n'
-      + 'Usage: mojulo install <recall|chatbot> [--remove]\n\n'
+      + `Usage: ${mojuloCommand('install')} <recall|chatbot> [--remove]\n\n`
       + 'Status:\n'
       + '  creative   installed  (render / media / games stack; ships with the base install)\n'
       + creativeHelpersLine(missingCreativeHelpers())
@@ -195,11 +196,11 @@ function printStatus() {
       + `  chatbot    ${chatbot ? 'installed' : 'not installed'}  (the bot factory — opt-in since 2.0; needs recall)\n\n`
       + (recall
         ? ''
-        : 'Run `mojulo install recall` to add vector recall (~480 MB runtime under ~/.mojulo/recall plus a\n'
+        : `Run \`${mojuloCommand('install recall')}\` to add vector recall (~480 MB runtime under ~/.mojulo/recall plus a\n`
           + '~130 MB model). semantic_search works without it, ranking by lexical match.\n')
       + (chatbot
         ? ''
-        : 'Run `mojulo install chatbot` to add the bot factory (build/deploy/operate chatbots).\n'
+        : `Run \`${mojuloCommand('install chatbot')}\` to add the bot factory (build/deploy/operate chatbots).\n`
           + 'It is opt-in since 2.0 — mojulo is a 3D compiler first.\n')
       + (recall && chatbot ? 'Everything installed — nothing to add.\n' : ''),
   );
@@ -227,7 +228,7 @@ if (pack === 'chatbot' || pack === 'ops') {
     process.stdout.write(
       'Chatbot pack removed. Its tools no longer list or run.\n'
         + 'Already-deployed bots are unaffected — they run as their own processes and\n'
-        + 'were never part of the workshop install. Re-add with `mojulo install chatbot`.\n',
+        + `were never part of the workshop install. Re-add with \`${mojuloCommand('install chatbot')}\`.\n`,
     );
     process.exit(0);
   }
@@ -267,7 +268,7 @@ if (pack === 'recall') {
     fs.rmSync(dir, { recursive: true, force: true });
     process.stdout.write(
       `Recall group removed (${dir} deleted). semantic_search ranks lexically from the next restart;\n`
-        + 'text rows stay indexed. The model cache under models/ is kept. Re-add with `mojulo install recall`.\n',
+        + `text rows stay indexed. The model cache under models/ is kept. Re-add with \`${mojuloCommand('install recall')}\`.\n`,
     );
     process.exit(0);
   }
@@ -275,7 +276,7 @@ if (pack === 'recall') {
 }
 
 if (pack !== 'creative') {
-  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, recall, chatbot. Try \`mojulo install\` for status.\n`);
+  process.stderr.write(`Unknown pack '${pack}'. Known packs: creative, recall, chatbot. Try \`${mojuloCommand('install')}\` for status.\n`);
   process.exit(1);
 }
 

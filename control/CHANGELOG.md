@@ -254,6 +254,20 @@ loops and the recipe format are unchanged.
   version (Claude Code caches an installed plugin by it). CI runs it on every push and pull
   request, and the release workflow checks it against the tag.
 
+- **Install and update advice names the running version and fits the install.** The commands
+  mojulo tells an agent to run were written for one kind of install: `mojulo install <group>` (no
+  such bin under npx or the plugin), `npm install --include=optional` "in control/" (a repo
+  checkout's step) for a missing manifold-3d or OpenSCAD, `npm install sharp` "in the package
+  directory" (the npx cache), and `npx -y mojulo@latest` for an update. They now come from one place,
+  `lib/version/distribution.js`, which reads `MOJULO_DISTRIBUTION` and otherwise tells a checkout
+  from an npm install: from npm or the Claude plugin every command is `npx -y mojulo@<running
+  version> …`, and only a checkout is told about `control/`. Under the plugin, `check_for_updates`
+  says to update the plugin (a second `npx mojulo@latest` would be another server version on the
+  same `~/.mojulo`), a missing dependency explains how to have the plugin's npx copy reinstalled,
+  and `mojulo init` wires every other host to the plugin's exact version while leaving Claude Code
+  to the plugin. `version` and `check_for_updates` report the distribution. A test renders every
+  hint under `MOJULO_DISTRIBUTION=claude-plugin` and requires `mojulo@<version>`.
+
 ### Canal city
 
 - **A canal-city profile for the fractal city (spike).** `profile: 'canal'` (a top-level

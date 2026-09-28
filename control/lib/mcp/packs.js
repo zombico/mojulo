@@ -1,9 +1,11 @@
 /**
  * Tool packs — the consolidated tools/list surface (tool-packs.plan.md P1-R/P2-D).
  *
- * Pure data, no top-level imports (the install axis below does one local,
- * import-free filesystem probe to detect physical pack presence — see
- * `installedGroups`): this module is the partition of the listed tool
+ * Pure data. One top-level import, lib/version/distribution.js, which writes the
+ * install commands the advisories name (the running version, and the plugin's
+ * or the checkout's form); the install axis below does one local, import-free
+ * filesystem probe to detect physical pack presence — see `installedGroups`.
+ * This module is the partition of the listed tool
  * registry into a small SPINE (always listed with full schemas) plus ~20
  * PACKS, each listed as ONE stateless dispatcher tool whose description is
  * its recognizer. In packs mode (MOJULO_TOOL_PACKS=on) connect-time
@@ -26,6 +28,8 @@
  * prose has one source. Office packs carry a short `body` here; the
  * generated member manual is the meat either way.
  */
+
+import { mojuloCommand, runMojulo } from '../version/distribution.js';
 
 export const PACK_DESCRIPTION_CEILING = 700;
 
@@ -640,11 +644,18 @@ export function isToolInstalled(name, env = process.env) {
 // The action that actually enables an uninstalled group. creative is always
 // installed, so it is only ever "off" through an explicit MOJULO_PACKS override and
 // its fix is the flag. chatbot and recall are physical installs (a marker file under
-// $MOJULO_HOME, the recall runtime), so their fix is `mojulo install <group>`.
-function installAction(group) {
+// $MOJULO_HOME, the recall runtime), so their fix is `mojulo install <group>`, written
+// for this install: `npx -y mojulo@<running version> install <group>` from npm or the
+// Claude plugin, the checkout's own bin from a clone.
+function installAction(group, env = process.env) {
   return INSTALL_GROUPS[group]?.alwaysInstalled
     ? `include '${group}' in MOJULO_PACKS (${group} ships with the base install; it is only gated by an explicit override)`
-    : `run \`mojulo install ${group}\` (or include '${group}' in MOJULO_PACKS if you manage the install manually)`;
+    : `${runMojulo(`install ${group}`, { env })} (or include '${group}' in MOJULO_PACKS if you manage the install manually)`;
+}
+
+/** The command that installs `group` on this host (`npx -y mojulo@<version> install <group>`). */
+export function installCommandFor(group, env = process.env) {
+  return mojuloCommand(`install ${group}`, { env });
 }
 
 /** The install groups a DEFAULT install has, for copy that must not overclaim. */
@@ -656,7 +667,7 @@ export function installNotice(name, env = process.env) {
   const pack = homePackForTool(name);
   if (!pack || isPackInstalled(pack, env)) return null;
   const group = pack.installGroup;
-  return `'${name}' belongs to the ${group} capability pack, which is not installed on this host — ${installAction(group)}.`;
+  return `'${name}' belongs to the ${group} capability pack, which is not installed on this host — ${installAction(group, env)}.`;
 }
 
 /** Pack-level advisory used by the dispatcher when a whole pack is uninstalled.
@@ -667,5 +678,5 @@ export function installNotice(name, env = process.env) {
 export function packInstallNotice(pack, env = process.env) {
   if (!pack || isPackInstalled(pack, env)) return null;
   const group = pack.installGroup;
-  return `The ${group} capability pack is not installed on this host, so ${pack.id} and its tools cannot run here. To enable them, ${installAction(group)}. Everything outside the ${group} pack — the kernel and the always-present packs — still works. Do not retry ${group}-pack tools until it is installed.`;
+  return `The ${group} capability pack is not installed on this host, so ${pack.id} and its tools cannot run here. To enable them, ${installAction(group, env)}. Everything outside the ${group} pack — the kernel and the always-present packs — still works. Do not retry ${group}-pack tools until it is installed.`;
 }

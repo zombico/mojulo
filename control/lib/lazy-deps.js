@@ -19,12 +19,13 @@
  * own door, lib/sharp-lazy.js.
  */
 
+import { reinstallHint } from './version/distribution.js';
+
 export class DependencyUnavailableError extends Error {
   constructor(name, purpose, cause) {
     super(
       `${name} (${purpose}) could not be loaded on this host: ${cause?.message || cause}. `
-        + 'It ships as a dependency of the mojulo package, so this install is incomplete; reinstall mojulo '
-        + '(a fresh `npx -y mojulo`, or `npm install` in the package directory) and retry. '
+        + `It ships as a dependency of the mojulo package, so this install is incomplete. To reinstall mojulo, ${reinstallHint()}. `
         + 'Tools that do not need it keep working.',
     );
     this.name = 'DependencyUnavailableError';

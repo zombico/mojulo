@@ -78,7 +78,7 @@ export function fieldToFaces(spec = {}, opts = {}) {
   // `exact: true` (field-exact.js): the same term list composed by Manifold — sharp edges in the
   // recipe itself. Opt-in, so every other entry is byte-identical to before.
   if (spec.exact === true) {
-    if (!exactRenderer) throw new Error(`fields '${spec.id || ''}' asks for exact: true but the exact kernel is not loaded — the entry point must await ensureExactKernel() first, and manifold-3d must be installed (an optional creative dependency: \`npm install --include=optional\` in control/)`);
+    if (!exactRenderer) throw new Error(`fields '${spec.id || ''}' asks for exact: true but the exact kernel is not loaded — the entry point must await ensureExactKernel() first, and manifold-3d (an optional dependency of mojulo) must be installed`);
     return tagFacesWithMaterial(exactRenderer(spec, opts), opts.material ? resolveMaterial(opts.material) : null);
   }
   const light = opts.light || DEFAULT_LIGHT;
