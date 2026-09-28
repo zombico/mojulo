@@ -4,16 +4,14 @@
 // with the password itself means rotating CONTROL_PLANE_PASSWORD invalidates
 // every outstanding session with no extra bookkeeping.
 //
-// Roles pack Phase 4 (lib/mcp/roles-pack.plan.md): the Edge layer (middleware)
-// verifies signature + expiry ONLY — it cannot reach SQLite. The claims carry
-// `e` so a Node-runtime reader can compare it to users.token_epoch (revoke
-// bumps the epoch, killing that user's sessions). The one reader that did,
-// lib/auth/service.js getCurrentUser(), served only the chatbot factory's
-// routes and left with it in 3.0.0; no retained route resolves a delegate from
-// this cookie, so signature + expiry is the whole gate today. Pre-claims
-// tokens fail verification, so upgrading costs each browser one re-login.
+// Roles pack: this file verifies signature + expiry only. For a delegate's
+// session (r !== 'admin') middleware.js then asks lib/auth/delegate-session.js
+// whether the key behind it is still live: the user row exists, is not revoked
+// or expired, and its token_epoch still equals `e` (revoke bumps the epoch).
+// The operator's session stops here, with no database read. Pre-claims tokens
+// fail verification, so upgrading costs each browser one re-login.
 //
-// Web Crypto only — middleware runs on the Edge runtime.
+// Web Crypto only, so nothing here depends on the runtime middleware runs on.
 
 const enc = new TextEncoder();
 
@@ -72,9 +70,9 @@ export async function createSessionToken(password, opts = {}) {
 }
 
 /**
- * Verify signature + expiry and return the claims object, or null. The Edge
- * layer treats the truthy return as "let through"; the Node layer additionally
- * checks the epoch against the users table (lazy revocation).
+ * Verify signature + expiry and return the claims object, or null. Enough for
+ * the operator's session; middleware.js checks a delegate's claims against the
+ * users table too (lib/auth/delegate-session.js).
  */
 export async function verifySessionToken(token, password) {
   if (!token || typeof token !== 'string') return null;

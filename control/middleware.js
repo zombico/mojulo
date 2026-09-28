@@ -7,6 +7,9 @@ import { checkDashboardRequest } from '@/lib/auth/request-guard';
 // unanchored `api/mcp`, `api/health` and `login` it replaces also skipped /api/mcp-telemetry,
 // /api/healthz and /loginx, so the loopback guard never ran on the tool-call log.
 export const config = {
+  // Node, not Edge: a delegate's session (roles pack) is checked against the users table, which the
+  // Edge runtime cannot reach. The operator's session and installs without the roles pack read nothing.
+  runtime: 'nodejs',
   matcher: ['/((?!_next/static/|_next/image(?:/|$)|favicon\\.ico$|icon\\.svg$|api/mcp(?:/|$)).*)'],
 };
 
@@ -42,6 +45,17 @@ function presentedBearerMatchesMcpKey(req) {
   return constantTimeEquals(match[1].trim(), expected);
 }
 
+// A verified session is the operator's (r: 'admin', from the CONTROL_PLANE_USER login) or a
+// delegate's (roles pack). The operator's is live until it expires, with no database read, as before.
+// A delegate's also needs its key to be live: revoking it, letting it expire or bumping its epoch ends
+// the session on the next request rather than when the 7-day cookie runs out. The check is loaded
+// only for a delegate's session, so the operator's path loads no SQLite.
+async function sessionIsLive(claims) {
+  if (claims.r === 'admin') return true;
+  const { delegateSessionRefusal } = await import('@/lib/auth/delegate-session');
+  return delegateSessionRefusal(claims) === null;
+}
+
 export async function middleware(req) {
   // A matching bearer cannot come from a rebinding or cross-site page, so it
   // skips the loopback guard too.
@@ -67,8 +81,8 @@ export async function middleware(req) {
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const ok = await verifySessionToken(token, process.env.CONTROL_PLANE_PASSWORD);
-  if (ok) return NextResponse.next();
+  const claims = await verifySessionToken(token, process.env.CONTROL_PLANE_PASSWORD);
+  if (claims && (await sessionIsLive(claims))) return NextResponse.next();
 
   if (req.nextUrl.pathname.startsWith('/api/')) {
     return new NextResponse(

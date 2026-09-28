@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { UserRepository } from '@/lib/db/repositories/users';
+import { rolesEnabled } from './enabled.js';
 
 /**
  * Roles pack — activation gate + key mint/resolve (lib/mcp/roles-pack.plan.md).
@@ -20,9 +21,7 @@ import { UserRepository } from '@/lib/db/repositories/users';
 
 const TOKEN_PREFIX = 'mjr_';
 
-export function rolesEnabled(env = process.env) {
-  return env.MOJULO_ROLES === 'enabled';
-}
+export { rolesEnabled };
 
 export function mintToken() {
   return `${TOKEN_PREFIX}${randomBytes(24).toString('hex')}`;
