@@ -24,8 +24,8 @@ Some entries describe bot-factory work that was removed before 3.0.0 shipped.
   builder, the wizard, the deployers, the fleet tools, the bot runtime (`lite-template/`) and its image
   pipeline, the three bot packs (`pack_bot_build`, `pack_bot_operate`, `pack_fleet`), their catalysts,
   the bot dashboard and `docs/chatbot/` leave the package. The factory is moving to its own project.
-  Until that ships, it stays available on the 2.x line: `npx -y mojulo@2` (2.1.0 is the last published
-  release that carries it). The 1.0 contract named the bot loop as stable surface, so removing it is a
+  2.1.0 is the last published release that carries it; the 2.x versions that include it are
+  unmaintained and have known security issues. The 1.0 contract named the bot loop as stable surface, so removing it is a
   major version; the media, game, connected-service and app loops and the recipe format are unchanged.
   Bots already deployed keep running; they were always separate containers.
 - **A call to a removed tool says where the factory went.** The removed names are not in `tools/list`
