@@ -6,7 +6,7 @@
  * humans run to scan the fleet and act on outcomes. Both share `~/.mojulo/` state via
  * [resolveMojuloPaths](./mojulo-paths.mjs).
  *
- * Since 2.2.0 the dashboard's prebuilt Next.js server is its own npm package
+ * Since 3.0.0 the dashboard's prebuilt Next.js server is its own npm package
  * (lib/version/ui-package.js), so a host's cold `npx mojulo` no longer downloads it. This bin is
  * the shim that keeps `npx -y -p mojulo mojulo-ui` and `mojulo init`'s launch working:
  *   1. the dashboard package installed beside core at the same version → run its bin;

@@ -2,7 +2,7 @@
   "name": "mojulo",
   "displayName": "Mojulo",
   "description": "A 3D compiler for coding agents: objects, walkable worlds and games as small recipes compiled back byte-for-byte and emitted to HTML, Godot, Blender, STL/3MF. Runs the mojulo MCP server locally with npx; no account, no API key, no external telemetry.",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "author": {
     "name": "Franz Ombico",
     "url": "https://mojulo.ai"
@@ -14,7 +14,7 @@
   "mcpServers": {
     "mojulo": {
       "command": "npx",
-      "args": ["-y", "mojulo@2.2.0"],
+      "args": ["-y", "mojulo@3.0.0"],
       "env": {
         "MOJULO_DISTRIBUTION": "claude-plugin"
       }

@@ -12,7 +12,7 @@
  *                 ships with the base install and is always present, so `install
  *                 creative` has nothing to do: it reports which of the optional
  *                 helpers (package.json optionalDependencies) resolve, and installs
- *                 nothing. Until 2.2 it ran `npm install --include=optional` inside
+ *                 nothing. Until 3.0 it ran `npm install --include=optional` inside
  *                 the package directory, which under npx is a throwaway cache dir
  *                 and pulled the whole devDependency tree.
  *   - recall    — the embedding runtime (@huggingface/transformers + onnxruntime +

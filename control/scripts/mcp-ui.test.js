@@ -1,4 +1,4 @@
-// `mojulo-ui` is core's shim for the dashboard, which ships as its own package since 2.2.0. The
+// `mojulo-ui` is core's shim for the dashboard, which ships as its own package since 3.0.0. The
 // shim is driven here as it is installed: a copy of core's bin in a temp node_modules, with the
 // dashboard package present, present at another version, or absent. Absent means a download from
 // the npm registry, so the shim must say so before npm runs, and MOJULO_UI_NO_FETCH=1 must stop it.

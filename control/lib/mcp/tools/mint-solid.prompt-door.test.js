@@ -14,7 +14,7 @@ import { createPolygonizedSketchHandler } from '@/lib/mcp/tools/sketch-polygoniz
 import { resolvePolygonizerModelConfig } from '@/lib/graph/polygonizer/index.js';
 
 // mint_solid kind:'manji-tree' via:'prompt' (and its hidden alias
-// create_polygonized_sketch) sends the prompt to an LLM API. Before 2.2.0,
+// create_polygonized_sketch) sends the prompt to an LLM API. Before 3.0.0,
 // with no provider given it quietly decrypted the operator's saved default
 // OpenAI/Anthropic key and used it. Now the caller must name the provider.
 

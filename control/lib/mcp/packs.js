@@ -464,7 +464,7 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 // dev/test, or gating a present group's tools off); a typo/unknown value falls
 // through to physical detection, never an empty workshop.
 const INSTALL_GROUPS = {
-  // Until 2.2 creative was keyed on the `three` package resolving. No Node code
+  // Until 3.0 creative was keyed on the `three` package resolving. No Node code
   // imports three (scene-three.js only names it inside browser template strings),
   // so the 37 MB dependency existed only to be detected, and removing it hid the
   // studio's tools although nothing needed it.

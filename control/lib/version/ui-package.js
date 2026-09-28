@@ -1,4 +1,4 @@
-// The dashboard ships as its own npm package since 2.2.0. Its Next.js build was most of what the
+// The dashboard ships as its own npm package since 3.0.0. Its Next.js build was most of what the
 // core package downloaded, and the stdio server a host spawns never loads it. This file is the one
 // place the package's name and layout live; control/ui-package/package.json must agree with it
 // (lib/version/ui-package.test.js). The package is published at exactly the core version and

@@ -9,7 +9,7 @@ import path from 'path';
 //     (mode 0600). The MCP server, the dashboard and the CLI bins all resolve
 //     the same MOJULO_HOME (scripts/mojulo-paths.mjs; default ~/.mojulo), so
 //     they share the file. Deleting it makes every saved key unreadable.
-// Before 2.2.0 the fallback was a key built into this file. Values saved
+// Before 3.0.0 the fallback was a key built into this file. Values saved
 // under it still decrypt, and migrateLegacyCiphertext re-encrypts them under
 // the per-install key; the built-in key is never used to encrypt.
 const LEGACY_BUILT_IN_KEY = crypto.createHash('sha256').update('mojulo-lite-local-dev').digest();

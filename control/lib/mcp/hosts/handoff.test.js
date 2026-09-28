@@ -26,7 +26,7 @@ describe('handoffFor', () => {
   // The CSP advisory once rode inside the over-budget branch, so a page that FITS the 16 MiB
   // door — the overwhelmingly common case — was waved through and then rendered black behind the
   // host's `script-src`. Size and CSP are independent facts about the door and each gets its own
-  // caveat. The inline page is the default export since 2.2, so this is the common case again.
+  // caveat. The inline page is the default export since 3.0, so this is the common case again.
   it('claude-code + the default inline-script page that FITS: the CSP caveat fires on size alone being fine', () => {
     const n = handoffFor({ host: 'claude-code', surface: 'box', artifact: { ...PAGE, bytes: 2 * 1024 * 1024, inlineScripts: true } });
     expect(n.next).toMatch(/publish world\.html/);

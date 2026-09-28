@@ -7,7 +7,7 @@ the recipe mojulo exports print-ready STL and 3MF at true scale, glTF, OpenUSD, 
 HTML page you can walk through, Godot, Unity, Unreal and Blender packs, WAV and MIDI. The recipes
 and every export stay on your machine.
 
-This plugin starts the mojulo MCP server, `npx -y mojulo@2.2.0`, and adds one skill that tells
+This plugin starts the mojulo MCP server, `npx -y mojulo@3.0.0`, and adds one skill that tells
 Claude to start from mojulo's routing index. Nothing in this folder runs code of its own: no
 hooks, no scripts. The server is the open-source npm package built from
 [github.com/zombico/mojulo](https://github.com/zombico/mojulo).
@@ -43,7 +43,7 @@ claude mcp remove mojulo -s user
 
 The same npm package also runs headless inside an agent's own sandbox, with no MCP client: the
 Claude app and web, ChatGPT and Codex, Grok, Meta Muse and Google AI Studio have each installed it
-in their Linux box and minted and exported from the shell (`npx -y mojulo@2.2.0 orient`). That path
+in their Linux box and minted and exported from the shell (`npx -y mojulo@3.0.0 orient`). That path
 does not use this plugin.
 
 ## Requirements
@@ -85,8 +85,8 @@ below happens only on the action named.
 | registry.npmjs.org | Starting the server through `npx` (the full download on the first start); `install recall` | Standard npm. |
 | storage.googleapis.com (Chrome for Testing, about 500 MB, once) | Only an explicit render that needs a browser (a world `forge_motion`, `export_game` hangar portraits, `create_game` with `auto_audit`, the dashboard's PNG download) on a machine with no Chrome, Chromium, Edge or Brave | The result says `browser_download` when it happened. Previews made while minting never download it. |
 | github.com (ffmpeg-static, 20 to 30 MB, once) | The first MP4 encode when no ffmpeg is installed | SHA-256 pinned per platform and checked before it runs. |
-| huggingface.co (the search model, about 130 MB, once) | Only after you run `npx -y mojulo@2.2.0 install recall`: that command fetches it, and a server start fetches it again if it is missing from `~/.mojulo/models` | Without the recall group, search ranks by words and nothing is fetched. |
-| registry.npmjs.org (the `mojulo-ui` dashboard, once per version) | Only when you open the dashboard (`npx -y mojulo-ui@2.2.0`) | Running `npx -y mojulo-ui@2.2.0` always downloads it. `npx -y -p mojulo@2.2.0 mojulo-ui` runs the same dashboard through mojulo's own command, which announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1`. |
+| huggingface.co (the search model, about 130 MB, once) | Only after you run `npx -y mojulo@3.0.0 install recall`: that command fetches it, and a server start fetches it again if it is missing from `~/.mojulo/models` | Without the recall group, search ranks by words and nothing is fetched. |
+| registry.npmjs.org (the `mojulo-ui` dashboard, once per version) | Only when you open the dashboard (`npx -y mojulo-ui@3.0.0`) | Running `npx -y mojulo-ui@3.0.0` always downloads it. `npx -y -p mojulo@3.0.0 mojulo-ui` runs the same dashboard through mojulo's own command, which announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1`. |
 | registry.npmjs.org | Only when Claude calls `check_for_updates` | An anonymous version lookup. |
 | cdn.jsdelivr.net | Only when an exported page was built with `cdn: true`, as it opens | The default page carries its own three.js. |
 | The LLM provider you name (OpenAI, Anthropic, or a local Ollama) | Only for `mint_solid` with `via: 'prompt'` (or its retired, unlisted alias `create_polygonized_sketch`) and an explicit `provider` | Sends that prompt with your key for that provider. Every other tool uses Claude, in your session. |
@@ -111,7 +111,7 @@ is, and Homebrew may refresh its own cache from formulae.brew.sh. Mojulo's code 
 - **git**, when you ask Claude to save a recipe (`save_recipe`): local commits in your cookbook
   under `~/.mojulo/data/cookbook`, with your git identity and no remote. It never pushes.
 - **npm**, only for `install recall` and the dashboard download.
-- **Only when you set them up yourself:** Blender, through `npx -y mojulo@2.2.0 script …` from a
+- **Only when you set them up yourself:** Blender, through `npx -y mojulo@3.0.0 script …` from a
   terminal; the `claude` CLI, when `MOJULO_AGENT_RUNTIME=claude-code-headless` is set; app
   processes, inside the opt-in app runtime (`mojulo-app-runtime`) the server never starts itself.
   Godot, Unity and Unreal are never started by the server.
@@ -155,7 +155,7 @@ arguments and result (up to 4 KB each) in the same local rows; it is off unless 
   files are imported when the server starts. Point it only at a book you trust.
 
 Mojulo reads no provider API keys from your environment. A key exists only if you save one with
-`npx -y -p mojulo@2.2.0 mojulo-config` for the optional paths above.
+`npx -y -p mojulo@3.0.0 mojulo-config` for the optional paths above.
 
 ## The chatbot factory
 
@@ -170,13 +170,13 @@ nothing.
 The plugin pins one mojulo version. To update, update the plugin (`/plugin`, then mojulo), then
 restart the session; don't run a newer `npx mojulo` beside it. To remove everything: uninstall the
 plugin, delete `~/.mojulo/`, and optionally clear the npm cache's `_npx` folder for
-`mojulo@2.2.0`.
+`mojulo@3.0.0`.
 
 ## If the first start times out
 
 Claude Code gives a local server 30 seconds to start, and the first start downloads about <measured> MB.
 On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm the
-cache once from a terminal with `npx -y mojulo@2.2.0 --help` and reconnect in `/mcp`. If a desktop
+cache once from a terminal with `npx -y mojulo@3.0.0 --help` and reconnect in `/mcp`. If a desktop
 or Cowork session reports `spawn npx ENOENT`, the Node on that session's `PATH` is missing; a system
 install of Node from nodejs.org fixes it.
 

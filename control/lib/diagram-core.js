@@ -592,7 +592,7 @@ function validateEdge(edge, idx, stationIds, errors) {
 }
 
 // Optional informational block carried by sketches from the retired map
-// illustrator (removed in 2.2.0; stored ones keep validating). Records the
+// illustrator (removed in 3.0.0; stored ones keep validating). Records the
 // source, query, and projection used to derive the polygon marks so a replay
 // is auditable. The renderer ignores it; the validator only type-checks.
 function validateGeo(geo, errors) {

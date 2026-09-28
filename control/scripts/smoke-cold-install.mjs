@@ -54,7 +54,7 @@ const MUST_NOT_INSTALL = ['@swc/core', 'three'];
 // factory in 3.0.0; neither package may come back into a default install.
 const BOT_ONLY_PACKAGES = ['officeparser', 'pdf2json'];
 
-// Dashboard-only packages, devDependencies since 2.2: the Next build compiles them
+// Dashboard-only packages, devDependencies since 3.0: the Next build compiles them
 // into the standalone bundle (jsdom, which isomorphic-dompurify needs, is traced into
 // the dashboard package's standalone/node_modules). The stash page and image upload below are the
 // routes that use them.
