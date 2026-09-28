@@ -20,7 +20,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   recommended. 2.1.0 and the bot image it deploys (`mojulo-bot` 0.5.1) have known security issues: an
   open relay on deployed bots (`/api/send-webhook`), SSRF in `upload_document_from_url`, path
   traversal in the Office-document parser, Fly credentials in the machine environment, and dashboard
-  DNS rebinding and cross-site writes
+  DNS rebinding and cross-site writes, and a revoked delegate's dashboard session that outlives the
+  revocation
   ([SECURITY.md](https://github.com/zombico/mojulo/blob/v3.0.0/SECURITY.md#known-issues-in-2x)). Bots
   already deployed from 2.x run on their own, on that image, until you take them down.
 - **Unpinned installs move to 3.0 on their next start once 3.0.0 is npm `latest`.** A host that runs
@@ -29,9 +30,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   3.0 plugin runs `npx -y mojulo@3.0.0`; update it, and remove any `mojulo init` or `claude mcp add`
   registration beside it (two registrations run two servers). Exact pins and a global
   `npm i -g mojulo` stay on their version until you change them. The first start downloads about
-  90 MB; if the host gives up, start Claude Code with `MCP_TIMEOUT=60000`, or run
-  `npx -y mojulo@3.0.0 --help` once in a terminal. Restart every host afterwards so no 2.x server
-  keeps running against the same `~/.mojulo`.
+  95 MB (the package and its dependencies); if the host gives up, start Claude Code with
+  `MCP_TIMEOUT=60000`, or run `npx -y mojulo@3.0.0 --help` once in a terminal. Restart every host
+  afterwards so no 2.x server keeps running against the same `~/.mojulo`.
 - **Saved provider keys become unreadable to 2.x.** With `API_KEY_ENCRYPTION_KEY` unset (the
   default), the first time a 3.0 process reads saved keys (`mojulo-config`, `list` included;
   `mojulo init`'s key prompt; the dashboard's key settings; `mint_solid` `via:'prompt'` without an
@@ -53,7 +54,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   carried over; pending figure specs are lost unless another version's npx folder still holds them
   (3.0 copies those across once). The browser (now build 154) is no longer fetched in the
   background: with no browser installed, gallery thumbnails stay blank until one is available (an
-  installed one, `MOJULO_CHROMIUM`, or an explicit render's download).
+  installed one, `MOJULO_CHROMIUM`, or, outside the Claude plugin build, an explicit render's
+  download).
   @puppeteer/browsers 3 has no proxy support, so a host behind an HTTP proxy sets `MOJULO_CHROMIUM`.
 - **Other changes a 2.x setup can notice.**
   - `mojulo init` changes nothing without `--yes` when stdin is not a terminal: it prints its plan and
@@ -116,23 +118,45 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Saved provider keys are encrypted under a random per-install key (`$MOJULO_HOME/secret.key`, mode
   0600) instead of a constant in the source. The dashboard refuses DNS-rebinding and cross-site
   requests. `mint_solid` `via:'prompt'` never picks an LLM key for the caller.
-- Chrome for Testing downloads only for an explicit render and says so; headless Chromium keeps its
-  sandbox (on Linux it falls back only on Chrome's sandbox errors or as root); the ffmpeg download is
-  SHA-256 pinned; everything mojulo writes lazily lands under `~/.mojulo`.
+- Chrome for Testing downloads only for an explicit render and says so (never under the Claude
+  plugin, below); headless Chromium keeps its sandbox (on Linux it falls back only on Chrome's
+  sandbox errors or as root); the ffmpeg download is SHA-256 pinned; everything mojulo writes lazily
+  lands under `~/.mojulo`.
 - `mojulo init` needs `--yes` when nobody is at a keyboard. "No telemetry" is now "no external
   telemetry", with the local tool-call log described. Core has no Docker, Fly, GHCR, webhook or
   uploaded-document code path.
   ([Security hardening](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#security-hardening),
   [Runtime footprint and consent](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#runtime-footprint-and-consent))
+- **Revoking a delegate's key now ends their dashboard session on their next request.** Before, the
+  dashboard checked only a session's signature and 7-day cookie expiry. A delegate (roles pack) whose
+  key was revoked with `revoke_role_key`, had expired, or had its token epoch bumped could keep using
+  the dashboard until the cookie ran out, even though their MCP bearer had already stopped working.
+  Such a session now gets the same 401 on `/api/*` and redirect to `/login` as no session, and with
+  the roles pack off a delegate session is refused outright. The dashboard middleware now runs on the
+  Node runtime so it can make this check. The operator's own session, installs with login off, and
+  installs without the roles pack make no database read.
 
 ### Claude plugin and directory readiness
 
 - Every tool carries a `title` and behavior `annotations`, `initialize` negotiates `2025-06-18`,
-  `2025-03-26` or `2024-11-05`, the Claude plugin pins `npx -y mojulo@3.0.0` and its README discloses
-  what the server runs, sends, fetches and writes, and under the plugin mojulo leaves out what
-  conflicts with Anthropic's Software Directory Policy
+  `2025-03-26` or `2024-11-05`, and the Claude plugin pins `npx -y mojulo@3.0.0`
   ([annotations](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#mcp-tool-annotations-and-protocol-negotiation),
   [disclosure](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#directory-listing-and-disclosure)).
+- **The Claude plugin build.** When the Claude plugin starts mojulo, it leaves out the handoff tools
+  for AI image, voice and mesh generators. That covers the image-render and mesh handoffs, the voice
+  registers, sprite sheets, style presets, the skin op, the painted sketch kinds, the painted cover
+  title, `forge_motion`'s scene and cel sources, and the image-driven catalysts. It also leaves out the
+  keyed `mint_solid via:'prompt'` door (use `via:'packet'`) and every automatic download:
+  - renders use a Chrome, Chromium, Edge or Brave you already have, or `MOJULO_CHROMIUM`;
+  - MP4 encodes use an ffmpeg you already have, or `MOJULO_FFMPEG`;
+  - the search model arrives only through `install recall`.
+
+  Exported World and game pages are always self-contained there: `cdn: true` is ignored, and the
+  result says so. A call to a tool the plugin build leaves out answers in-band. Installs from npm or a
+  checkout are unchanged.
+- **The plugin listing.** It is rewritten for 3.0 with three example prompts that work in the plugin
+  build, a table of what it installs, fetches, runs and writes, a privacy policy link, an "Upgrading
+  from 2.x" note, and an icon.
 
 ### Dashboard package
 

@@ -19,6 +19,7 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 - **Path traversal in the Office-document parser.** An uploaded document's file name reaches a temp file path, so a name containing `../` overwrites and then deletes a file the process can write.
 - **Fly credentials in the machine environment.** Fly deploys put the operator's decrypted provider key and the bot's API key in the Fly machine's `env`, readable by anyone who can read the machine.
 - **Dashboard DNS rebinding and cross-site writes.** With login off (the default), a web page in the operator's browser can reach the dashboard's API, write routes included, by rebinding its hostname to 127.0.0.1 or by posting cross-site.
+- **A revoked delegate's dashboard session outlives the revocation.** With the roles pack on and login set, a delegate whose key is revoked with `revoke_role_key`, expires, or has its token epoch bumped keeps dashboard access until their 7-day session cookie runs out, though their MCP bearer has stopped working.
 
 ## Reporting a vulnerability
 
@@ -64,7 +65,7 @@ Reports about the following are welcome and treated as security issues:
 
 - **Path escape from the operator's data directory.** Any tool input, recipe field (other than a `program`, above), or export that reads or writes outside `~/.mojulo/` (or the configured `MOJULO_HOME`) without the operator naming that path.
 - **Artifact tampering.** Any way to inject code into a generated export — the self-contained HTML, a Godot project, an engine data pack, a Blender pack — that the operator did not put there through a tool call.
-- **Undisclosed traffic or writes.** Any network request, spawned process, or write outside the places the plugin README's "What it runs, sends and fetches" section and substrate fact 3 name.
+- **Undisclosed traffic or writes.** Any network request, spawned process, or write outside the places the plugin README's "What it installs, fetches, runs and writes" section and substrate fact 3 name.
 - **API key extraction.** Any way to read decrypted provider keys (stored by `mojulo-config` for `mint_solid`'s optional `via:'prompt'` door) out of the control plane's `api_keys` table without filesystem access to the host.
 - **Dependency vulnerabilities** with a clear exploit path against it.
 
