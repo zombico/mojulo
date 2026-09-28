@@ -169,7 +169,8 @@ export function resolvePreloads(preloadInput) {
     const prior = SketchRepository.getByRef(ref);
     if (!prior) {
       throw new Error(
-        `preload sketch '${ref}' not found — mint it via create_sketch / create_polygonized_sketch first, or pass a known sk_ ref`,
+        // The Claude plugin profile has no create_polygonized_sketch (the prompt door's old alias).
+        `preload sketch '${ref}' not found — mint it via create_sketch${pluginProfileActive() ? '' : ' / create_polygonized_sketch'} first, or pass a known sk_ ref`,
       );
     }
     return { ref: prior.ref, title: prior.title, manifest: prior.manifest, as, note };
@@ -587,6 +588,9 @@ export async function updateSketchHandler(input) {
   // through the sketch validator half-works for titles and hard-fails
   // confusingly on manifests. Teach the domain tool instead.
   const existingSketch = SketchRepository.getByRef(ref);
+  // Under the Claude plugin profile a painted row (one an npm install on the same home minted) is
+  // not edited either, whatever the edit is.
+  refusePaintedKind('update_sketch', existingSketch?.manifest);
   if (existingSketch?.manifest && isBeatsKind(existingSketch.manifest.kind)) {
     throw new Error(
       `'${ref}' is a beats artifact (${existingSketch.manifest.kind}) — edit it with `
@@ -597,6 +601,8 @@ export async function updateSketchHandler(input) {
   // Voice guard rail: a voice register is not an SVG manifest either — the
   // sketch validator would mangle it. Re-mint through the domain tool.
   if (existingSketch?.manifest && isVoiceRegisterKind(existingSketch.manifest.kind)) {
+    // The Claude plugin profile leaves the voice tools out: name none of them.
+    if (pluginProfileActive()) throw new Error(pluginProfileNotice(`Editing the voice register '${ref}'`));
     throw new Error(
       `'${ref}' is a voice register — re-mint a variant with create_voice (read it first `
       + 'with get_voice; the capability manual is get_voice_vocab).',
@@ -618,6 +624,8 @@ export async function updateSketchHandler(input) {
     } catch (err) {
       throw new Error(`Invalid patch: ${err.message}`);
     }
+    // A patch that sets /kind reaches a painted kind as surely as a full manifest does.
+    refusePaintedKind('update_sketch', manifest);
   }
 
   let nextManifest;

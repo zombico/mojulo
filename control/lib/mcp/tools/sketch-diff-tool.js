@@ -12,6 +12,7 @@ import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { deriveSketchDiffManifest } from '@/lib/graph/sketch/sketch-diff';
 import { mintSketch } from './sketch-mint.js';
+import { pluginProfileActive, pluginProfileNotice } from '@/lib/mcp/plugin-profile';
 
 export async function diffSketchesHandler(input) {
   if (!input || typeof input !== 'object') {
@@ -68,6 +69,8 @@ export async function diffSketchesHandler(input) {
     );
   }
   if ((left.manifest && isVoiceRegisterKind(left.manifest.kind)) || (right.manifest && isVoiceRegisterKind(right.manifest.kind))) {
+    // The Claude plugin profile leaves the voice tools out (lib/mcp/plugin-profile.js): name none.
+    if (pluginProfileActive()) throw new Error(pluginProfileNotice('Comparing voice registers'));
     throw new Error(
       'These are voice registers — compare them by reading both with get_voice: the recipes are '
       + 'two axes + a blend, small enough to diff by eye, not SVG geometry.',
