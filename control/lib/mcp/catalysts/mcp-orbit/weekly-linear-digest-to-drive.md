@@ -47,7 +47,7 @@ The substantial side of this catalyst is mojulo's own state. Read it first, befo
 
 ### Step 2 — Probe the source MCP at synthesis time
 
-Don't assume Linear. Read inventory and pick whichever structured-record-store MCP the operator declared. Then probe it — the same way `qualify-lead-to-crm` probes the CRM destination instead of assuming HubSpot.
+Don't assume Linear. Read inventory and pick whichever structured-record-store MCP the operator declared. Then probe it: read its declared tools and their input schemas before binding anything, rather than assuming one vendor's shape.
 
 Per common MCP, look for:
 

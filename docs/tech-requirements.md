@@ -361,10 +361,10 @@ Recorded so nobody rediscovers them. None are fixed by this page.
    platforms' binaries in one package. Both the README and `install-capabilities.md` now point at
    the measured table above.
 3. **Browser and ffmpeg caches land outside `$MOJULO_HOME`** (see the note above), which
-   contradicts substrate fact 11's "delete `$MOJULO_HOME`, that is the whole footprint."
+   contradicts substrate fact 9's "delete `$MOJULO_HOME`, that is the whole footprint."
    **Resolved in 3.0.0:** both caches, the baked stills and the figure specs moved under
    `$MOJULO_HOME`; only copies fetched by an older version stay behind in its package directory.
-4. **Substrate fact 8** lists exports as "zip, HTML, glb, stl, WAV, MIDI, a Godot project" and
+4. **Substrate fact 7** lists exports as "zip, HTML, glb, stl, WAV, MIDI, a Godot project" and
    omits 3MF, USD, and the Unity, Unreal, and Blender packs.
 5. **The embedding model** was described as ~113 MB in the README; it is ~130 MB on disk including
    the tokenizer. The README now says ~130 MB.
