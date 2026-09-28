@@ -290,7 +290,7 @@ The factory is the point. The same recipe discipline covers a wider shelf, prese
 - **Connected services** — workflows over the MCPs you already run (Drive, Gmail, Linear, your CRM), synthesized by your agent from a **catalyst** into a runnable artifact you own, with the wiring recorded in a durable contextmap. Mojulo ships no native integrations by design. [docs/catalysts.md](catalysts.md), [docs/meta-context.md](meta-context.md)
 - **Local apps** — a local process plus MCP sidecar whose inference parks back on your agent, so no per-app LLM key. [docs/app-runtime.md](app-runtime.md)
 
-The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers.
+The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues.
 
 ---
 

@@ -32,10 +32,9 @@ index (SQLite FTS5, inside `better-sqlite3`; the embedding model is the opt-in *
 over the operator's other MCPs, catalysts, triggers, local apps/daemons, plan, research, stash. Pure code
 with no heavy optional deps to shed, so it ships in every install and is never gated.
 
-**The chatbot group is gone.** It was the third group from 2.0 on. The chatbot factory (bot builder,
-wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own
-project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots already deployed
-keep running; they are separate containers. `mojulo install chatbot` (and its old alias `ops`) installs
+**The chatbot group is gone.** It was the third group from 2.0 on. The chatbot factory is no longer
+part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are
+unmaintained and have known security issues. `mojulo install chatbot` (and its old alias `ops`) installs
 nothing, writes nothing, prints that notice and exits 0. A `$MOJULO_HOME/packs/chatbot` marker a 2.x
 install wrote, or `chatbot` / `ops` in `MOJULO_PACKS`, is ignored; `mojulo tools` and `mojulo packs`
 print an `ignored:` line naming it.

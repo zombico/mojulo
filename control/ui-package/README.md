@@ -30,6 +30,7 @@ when it is installed beside mojulo at the same version, and otherwise downloads 
 
 It was split out of the `mojulo` package in 3.0.0, so an agent's `npx mojulo` start no longer
 downloads the Next.js build. Source: [control/ui-package](https://github.com/zombico/mojulo/tree/main/control/ui-package).
-The bot pages (the wizard, the chat builder, deployments) left in 3.0.0 with the chatbot factory,
-which is moving to its own project; until that ships it stays on the 2.x line (`npx -y mojulo@2`).
+The bot pages (the wizard, the chat builder, deployments) left with the chatbot factory, which is no
+longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it
+are unmaintained and have known security issues.
 License: Apache-2.0.

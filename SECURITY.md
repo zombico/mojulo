@@ -8,7 +8,17 @@ This policy covers **the build the publisher ships**: the official `mojulo` pack
 
 ## Supported versions
 
-Security fixes go to the **latest `3.x` minor** only. Every `2.x`, `1.x` and `0.x` release is not patched. Upgrade with `npx mojulo@latest init`; if you run mojulo as the Claude plugin, update the plugin instead (it pins one version).
+Security fixes go to the **latest `3.x` minor** only. Every `2.x`, `1.x` and `0.x` release is unmaintained: it gets no fixes, and the maintainer does not recommend running it. Upgrade with `npx mojulo@latest init`; if you run mojulo as the Claude plugin, update the plugin instead (it pins one version). Before you upgrade from 2.x, read "Upgrading from 2.x" in the [changelog](control/CHANGELOG.md#upgrading-from-2x).
+
+### Known issues in 2.x
+
+The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues. No 2.x release will be patched. 2.1.0, the last one, and the bot image it deploys (`mojulo-bot` 0.5.1) have these; each is fixed in 3.0.0 or left mojulo with the chatbot factory:
+
+- **An open relay on deployed bots.** The bot image's `POST /api/send-webhook` takes its target URL from the request body, with no API key and open CORS, so any visitor to a deployed bot can make it post to any address and read the answer.
+- **SSRF in `upload_document_from_url`.** It fetches any http(s) URL from the operator's machine, following redirects, including loopback, LAN and cloud-metadata addresses.
+- **Path traversal in the Office-document parser.** An uploaded document's file name reaches a temp file path, so a name containing `../` overwrites and then deletes a file the process can write.
+- **Fly credentials in the machine environment.** Fly deploys put the operator's decrypted provider key and the bot's API key in the Fly machine's `env`, readable by anyone who can read the machine.
+- **Dashboard DNS rebinding and cross-site writes.** With login off (the default), a web page in the operator's browser can reach the dashboard's API, write routes included, by rebinding its hostname to 127.0.0.1 or by posting cross-site.
 
 ## Reporting a vulnerability
 
@@ -34,7 +44,8 @@ This is a solo-maintained project. Expect best-effort acknowledgement within a f
 Mojulo has one component:
 
 - **The MCP server and dashboard** ([control/](control/)) — single operator, self-hosted, listening on `localhost`. The coding agent the operator already runs (Claude Code, Codex, any MCP host) drives it over stdio; the dashboard is the same state with a human face. Everything it makes — recipes, renders, exports, caches — lands under `~/.mojulo/` on the operator's disk, apart from temporary work folders in the OS temp directory, a folder the operator names for `install_scaffold`, and the host configs `mojulo init` edits after a yes. It ships with an **opt-in HTTP login** (set `CONTROL_PLANE_USER` / `CONTROL_PLANE_PASSWORD`; sessions are HMAC-signed with the password itself, so rotating the password invalidates outstanding sessions). The login is a last-line-of-defense affordance, not a substitute for network isolation.
-The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots already deployed keep running; they are separate containers. Since 3.0.0 the package has no Docker, Fly, GHCR, webhook or uploaded-document code path.
+
+Since 3.0.0 the package has no Docker, Fly, GHCR, webhook or uploaded-document code path: the chatbot factory that had them is no longer part of mojulo (see [Known issues in 2.x](#known-issues-in-2x)).
 
 That posture shapes what is in and out of scope below.
 

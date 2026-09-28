@@ -120,7 +120,7 @@ Creative packs ship with every install (only a `MOJULO_PACKS` override gates the
 
 ### The chatbot factory
 
-The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. A call to one of its old tool names answers in-band with this notice.
+The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues. A call to one of its old tool names answers in-band with this notice.
 
 ### Catalysts
 
@@ -348,4 +348,4 @@ The framing: your Claude Code session is for you, your status line is for mojulo
 
 - **`/api/mcp` returns 404.** `CONTROL_PLANE_MCP_KEY` is unset. Set it and restart.
 - **`/api/mcp` returns 401.** The bearer token doesn't match. Check for trailing whitespace / a leading `Bearer ` doubled in the header.
-- **A tool answers that it "was part of the chatbot factory".** It left mojulo in 3.0.0; the answer says where it went.
+- **A tool answers that it "was part of the chatbot factory".** It left mojulo in 3.0.0 and has no replacement here; the answer says so.

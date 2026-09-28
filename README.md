@@ -89,12 +89,14 @@ Two things are opt-in, and the choice is the same in both places:
 
 | add | with | what you get |
 |---|---|---|
-| **creative** (installed by default) | plain `npm install` | worlds, audio, fonts for wordmarks, exact booleans, OpenSCAD-in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds it for a kernel-only install that still mints diagrams, floorplans, workbench solids and exports GLB and STL. |
+| **creative** (installed by default) | plain `npm install` | worlds, audio, fonts for wordmarks, exact booleans, OpenSCAD-in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds those helpers (about 150 MB); the studio tools still list and run, and a call that needs a missing helper says so. |
 | **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers, ranking by the words in your ask (about 480 MB of runtime plus a 130 MB model, kept under `~/.mojulo/` so it survives upgrades). Most sessions never need it: the agent reads the tool index and the vocab cards directly. |
 
 `mojulo install` with no argument prints which of the two are present.
 
-The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. `mojulo install chatbot` now installs nothing and prints this notice.
+The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues ([SECURITY.md](SECURITY.md#known-issues-in-2x)). `mojulo install chatbot` now installs nothing and prints this notice.
+
+**Upgrading from 2.x?** Read [Upgrading from 2.x](control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.0 on its next start, and 3.0 re-encrypts saved provider keys so 2.x can no longer read them.
 
 ## Six things to say to it
 

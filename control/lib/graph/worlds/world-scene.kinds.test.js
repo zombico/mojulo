@@ -19,10 +19,10 @@ import { assessWorldTier } from './world-contract.js';
  * (snapshot update = explicit acknowledgment).
  *
  * Re-pin log:
- *   - 2026-09-26 furniture audit (CHANGELOG "Furniture audit"): the floorplan arm's rows re-based —
+ *   - 2026-09-26 furniture audit (CHANGELOG-2.x.md "Furniture audit"): the floorplan arm's rows re-based —
  *     sealed rooms are doored, interior leaves park against the wall with panels and a handle,
  *     share-mode chairs / wall pieces / entry / storage / tabletop meshes changed on purpose.
- *   - room livability defaults (2026-09-25, CHANGELOG "Room livability"): condo-complex
+ *   - room livability defaults (2026-09-25, CHANGELOG-2.x.md "Room livability"): condo-complex
  *     (wider hall runs, frontage-capped units with an entry doorway, a person-sized walker)
  *     and floorplan (base + dollhouse: bigger default footprint, 10 ft rooms, 4.5 ft halls,
  *     the corrected furnish orientation, a person-sized walker) re-based on purpose. Every
