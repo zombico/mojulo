@@ -27,7 +27,7 @@ describe('middleware matcher', () => {
   });
 
   it('runs on pages, the API, /api/health and the login routes (the guard covers them all)', () => {
-    for (const path of ['/', '/settings', '/api/documents', '/api/sketches/x/png', '/api/health', '/login', '/api/auth/login', '/api/auth/logout']) {
+    for (const path of ['/', '/settings', '/api/stashes', '/api/sketches/x/png', '/api/health', '/login', '/api/auth/login', '/api/auth/logout']) {
       expect(middlewareRuns(path), path).toBe(true);
     }
   });
@@ -97,7 +97,7 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
   const passes = (res) => res.headers.get('x-middleware-next') === '1';
 
   it('a forged Host header gets 403, on API routes and pages alike', async () => {
-    for (const path of ['/api/documents', '/settings']) {
+    for (const path of ['/api/stashes', '/settings']) {
       const res = await middleware(request(path, { host: 'attacker.example:3001' }));
       expect(res.status).toBe(403);
       expect((await res.json()).code).toBe('HOST_NOT_ALLOWED');
@@ -106,7 +106,7 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
 
   it('loopback Hosts pass', async () => {
     for (const host of ['localhost:3001', '127.0.0.1:3001', '[::1]:3001', 'LOCALHOST:3001', 'localhost']) {
-      expect(passes(await middleware(request('/api/documents', { host })))).toBe(true);
+      expect(passes(await middleware(request('/api/stashes', { host })))).toBe(true);
     }
   });
 
@@ -126,7 +126,7 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
     expect((await refused.json()).error).toContain('MOJULO_UI_ALLOWED_HOSTS');
 
     process.env.MOJULO_UI_ALLOWED_HOSTS = ' Dash.Example.Lan , 192.168.1.10:3001, https://name-3001.app.github.dev/, 0.0.0.0';
-    expect(passes(await middleware(request('/api/documents', { host: 'dash.example.lan' })))).toBe(true);
+    expect(passes(await middleware(request('/api/stashes', { host: 'dash.example.lan' })))).toBe(true);
     expect(passes(await middleware(request('/', { host: 'name-3001.app.github.dev' })))).toBe(true);
     // Bound to 0.0.0.0 and opened from the LAN; localhost keeps working beside it.
     process.env.MOJULO_UI_HOST = '0.0.0.0';
@@ -139,7 +139,7 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
   it('a write through a proxy that rewrites Host passes when its Origin is an allowed name', async () => {
     const write = () =>
       middleware(
-        request('/api/documents', {
+        request('/api/stashes', {
           method: 'POST',
           host: '127.0.0.1:3001',
           headers: { origin: 'https://dash.example.lan', 'sec-fetch-site': 'same-origin' },
@@ -150,35 +150,35 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
     expect(passes(await write())).toBe(true);
     // The allow-list names the operator's hosts only: another port on localhost is still another origin.
     expect(
-      (await middleware(request('/api/documents', { method: 'POST', headers: { origin: 'http://127.0.0.1:5173' } })))
+      (await middleware(request('/api/stashes', { method: 'POST', headers: { origin: 'http://127.0.0.1:5173' } })))
         .status,
     ).toBe(403);
     expect(
-      (await middleware(request('/api/documents', { method: 'POST', headers: { origin: 'https://attacker.example' } })))
+      (await middleware(request('/api/stashes', { method: 'POST', headers: { origin: 'https://attacker.example' } })))
         .status,
     ).toBe(403);
   });
 
   it('a non-GET from another origin gets 403', async () => {
     const res = await middleware(
-      request('/api/documents', { method: 'POST', headers: { origin: 'https://attacker.example' } }),
+      request('/api/stashes', { method: 'POST', headers: { origin: 'https://attacker.example' } }),
     );
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe('CROSS_SITE_REQUEST');
     // Another port on localhost is another origin too.
     expect(
-      (await middleware(request('/api/documents', { method: 'POST', headers: { origin: 'http://127.0.0.1:5173' } })))
+      (await middleware(request('/api/stashes', { method: 'POST', headers: { origin: 'http://127.0.0.1:5173' } })))
         .status,
     ).toBe(403);
     // Sandboxed frames and file:// pages send Origin: null.
     expect(
-      (await middleware(request('/api/documents', { method: 'DELETE', headers: { origin: 'null' } }))).status,
+      (await middleware(request('/api/stashes', { method: 'DELETE', headers: { origin: 'null' } }))).status,
     ).toBe(403);
   });
 
   it('Sec-Fetch-Site: cross-site on a non-GET gets 403 even without Origin', async () => {
     const res = await middleware(
-      request('/api/deployments/x/cloud-deploy', { method: 'POST', headers: { 'sec-fetch-site': 'cross-site' } }),
+      request('/api/sketches/x/png', { method: 'POST', headers: { 'sec-fetch-site': 'cross-site' } }),
     );
     expect(res.status).toBe(403);
   });
@@ -187,14 +187,14 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
     expect(
       passes(
         await middleware(
-          request('/api/documents', {
+          request('/api/stashes', {
             method: 'POST',
             headers: { origin: 'http://127.0.0.1:3001', 'sec-fetch-site': 'same-origin' },
           }),
         ),
       ),
     ).toBe(true);
-    expect(passes(await middleware(request('/api/documents', { method: 'POST' })))).toBe(true);
+    expect(passes(await middleware(request('/api/stashes', { method: 'POST' })))).toBe(true);
   });
 
   it('a cross-site GET is not refused (reads are covered by the Host check)', async () => {
@@ -226,8 +226,8 @@ describe('middleware loopback guard (DNS rebinding, cross-site writes)', () => {
   it('the guard runs before the login gate when login is on', async () => {
     process.env.CONTROL_PLANE_USER = 'op';
     process.env.CONTROL_PLANE_PASSWORD = 'pw';
-    expect((await middleware(request('/api/documents', { host: 'attacker.example' }))).status).toBe(403);
-    expect((await middleware(request('/api/documents'))).status).toBe(401);
+    expect((await middleware(request('/api/stashes', { host: 'attacker.example' }))).status).toBe(403);
+    expect((await middleware(request('/api/stashes'))).status).toBe(401);
   });
 
   it('the tool-call log and /api/health refuse a rebinding Host', async () => {

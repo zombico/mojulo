@@ -58,6 +58,8 @@ const APPLY = process.argv.includes('--apply');
 // were never scanned, so all 49 of their keys reported as unused and `--apply`
 // would have deleted the entire page's catalog. The tool's whole promise is
 // zero false positives, and an unscanned source directory silently voids it.
+// (That page left with the chatbot factory in 3.0.0; the anchoring below still
+// protects any future route directory that shares a root-only name.)
 //
 // So: names that can never hold source are skipped anywhere, and names that are
 // only meaningful at the control root are anchored there. A future `app/public/`

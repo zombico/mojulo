@@ -373,8 +373,7 @@ async function generateSummaryWithOllama(content, host, systemInstruction, model
   const hasContent = content && content.trim().length > 0;
 
   // Ollama doesn't expose a separate `system` field; the system role inside
-  // messages is the supported shape and matches what the bot-runtime adapter
-  // sends in lite-template/helper/llm-client.js.
+  // messages is the supported shape.
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

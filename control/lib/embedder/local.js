@@ -14,8 +14,8 @@
  * `generateEmbeddings` throws the install line; `semantic_search` runs lexically
  * (FTS5) without it, and every other tool is unaffected.
  *
- * The same model + dtype combo runs in the lite-template artifact at
- * runtime, so corpus and query vectors live in the same geometric space.
+ * Corpus and query vectors come from the same model + dtype, so they live in
+ * the same geometric space; changing either means re-embedding every stored row.
  *
  * e5 models expect prefixed inputs:
  *   - 'passage: <text>' for corpus chunks

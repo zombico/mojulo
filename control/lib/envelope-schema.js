@@ -1,8 +1,7 @@
-// Canonical envelope shape — mirror of lite-template/helper/envelope-schema.js.
-// Two npm packages, no shared layer; keep in sync.
-//
-// canonical source: lite-template/helper/envelope-schema.js
-// mirror:           control/lib/envelope-schema.js
+// Canonical envelope shape for app inference (the agent-task queue validates
+// every submitted envelope against it). The chatbot runtime kept a mirror
+// (lite-template/helper/envelope-schema.js) until the chatbot factory left in
+// 3.0.0; this file is now the only copy in mojulo.
 
 export const ENVELOPE_SCHEMA = {
   type: 'object',
