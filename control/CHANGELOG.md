@@ -104,9 +104,12 @@ loops and the recipe format are unchanged.
   version fetched Chrome again and pending figure specs were lost. The bins now seed
   `MOJULO_CHROMIUM_DIR`, `MOJULO_FFMPEG_DIR`, `MOJULO_SCENE_PNG_DIR`, `MOJULO_TURNTABLE_DIR` and
   `MOJULO_FIGURE_SPECS_DIR` under `MOJULO_HOME` (an explicit value still wins). On first use the
-  figure-spec store copies an older `<package>/data/figure-specs` across if it has no specs yet; the
-  old folder is left in place. The stdio server's mint-time warm and the dashboard now share one
-  bake cache, so a warmed card is a cache hit in the gallery.
+  figure-spec store copies older specs across if it has no specs yet, from a repo checkout's
+  `control/data/figure-specs` or, under npx, from the earlier version folders beside this one in
+  the npm cache's `_npx` directory (read, never changed). An in-place upgrade (`npm i -g`, or an
+  unpinned `npx mojulo` picking up a new release) deletes the old package's `data/` before 2.2
+  starts, so pending specs from such an install cannot be recovered. The stdio server's mint-time
+  warm and the dashboard now share one bake cache, so a warmed card is a cache hit in the gallery.
 - **Chrome for Testing downloads only for an explicit render, and says so.** The mint-time warm used to
   resolve Chromium with the fetch on, so on a host with no browser any world, scene or solid mint (or
   `update_sketch`) started the ~500 MB download in the background. Now the warm uses a browser that

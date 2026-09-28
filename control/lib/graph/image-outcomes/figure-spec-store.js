@@ -16,8 +16,14 @@
  * Where: $MOJULO_FIGURE_SPECS_DIR, which the bins seed to
  * $MOJULO_DATA_DIR/figure-specs. Before that seed the store sat at
  * <package>/data/figure-specs — under npx, inside the _npx cache, where a new
- * version or a cache purge lost the pending specs. First use copies that legacy
- * folder across (see migrateLegacySpecs); the old folder is never deleted.
+ * version or a cache purge lost the pending specs. First use copies what is
+ * still there across (see migrateLegacySpecs); the old folder is never deleted.
+ * What is still there: a repo checkout's control/data/figure-specs, and under
+ * npx the other version folders beside this one in the _npx cache (a pinned
+ * `npx -y mojulo@<v>` installs each version into its own folder and leaves the
+ * old ones). An in-place upgrade of the same folder (`npm i -g mojulo`, an
+ * unpinned npx picking up a new latest) deletes the old data/ before this
+ * version starts, so there is nothing left to copy.
  */
 
 import { promises as fs, existsSync } from 'node:fs';
@@ -43,14 +49,30 @@ export function validSpecRef(ref) { return typeof ref === 'string' && REF_RE.tes
 // Where earlier versions kept the store: <package>/data/figure-specs, and the
 // dashboard's copy under .next/standalone (it chdirs there). Only a bin exports
 // MOJULO_CONTROL_DIR, so tests and `next dev` never read a legacy folder.
-function legacySpecsDirs() {
+const legacyIn = (pkg) => [
+  path.join(pkg, 'data', 'figure-specs'),
+  path.join(pkg, '.next', 'standalone', 'data', 'figure-specs'),
+];
+
+// This package under npx is <cache>/_npx/<hash>/node_modules/mojulo, and each
+// pinned version gets its own <hash>. Earlier versions' folders are read, never
+// written.
+const NPX_PACKAGE = /^(.*[\\/]_npx)[\\/][^\\/]+[\\/]node_modules[\\/]mojulo[\\/]?$/;
+
+async function legacySpecsDirs() {
   const pkg = process.env.MOJULO_CONTROL_DIR;
   if (!pkg) return [];
+  const dirs = legacyIn(pkg);
+  const npxRoot = path.resolve(pkg).match(NPX_PACKAGE)?.[1];
+  if (npxRoot) {
+    const siblings = await fs.readdir(npxRoot).catch(() => []);
+    for (const hash of siblings.sort()) {
+      const other = path.join(npxRoot, hash, 'node_modules', 'mojulo');
+      if (path.resolve(other) !== path.resolve(pkg)) dirs.push(...legacyIn(other));
+    }
+  }
   const target = path.resolve(figureSpecsDir());
-  return [
-    path.join(pkg, 'data', 'figure-specs'),
-    path.join(pkg, '.next', 'standalone', 'data', 'figure-specs'),
-  ].filter((dir) => path.resolve(dir) !== target);
+  return dirs.filter((dir) => path.resolve(dir) !== target);
 }
 
 const hasSpecs = async (dir) => existsSync(dir) && (await fs.readdir(dir)).some((f) => f.endsWith('.json'));
@@ -63,7 +85,7 @@ const hasSpecs = async (dir) => existsSync(dir) && (await fs.readdir(dir)).some(
  */
 async function migrateLegacySpecs(target) {
   if (await hasSpecs(target)) return;
-  for (const legacy of legacySpecsDirs()) {
+  for (const legacy of await legacySpecsDirs()) {
     if (!(await hasSpecs(legacy))) continue;
     for (const name of await fs.readdir(legacy)) {
       const from = path.join(legacy, name);

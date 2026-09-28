@@ -71,6 +71,34 @@ describe('figure-spec store — legacy folder migration', () => {
     expect(existsSync(path.join(target, 'fs_old.json'))).toBe(false);
   });
 
+  // A pinned `npx -y mojulo@<new>` installs into its own _npx/<hash> folder; the old version's
+  // specs are in the folder beside it, not in this package.
+  it('under npx, copies specs from an earlier version folder beside this one', async () => {
+    const npx = path.join(root, 'cache', '_npx');
+    const oldPkg = path.join(npx, 'aaa111', 'node_modules', 'mojulo');
+    const legacy = plantLegacy(oldPkg, 'fs_npx');
+    const current = path.join(npx, 'bbb222', 'node_modules', 'mojulo');
+    mkdirSync(current, { recursive: true });
+    mkdirSync(path.join(npx, 'ccc333', 'node_modules', 'other'), { recursive: true });
+    const target = path.join(root, 'home4', 'figure-specs');
+    process.env.MOJULO_CONTROL_DIR = current;
+    process.env.MOJULO_FIGURE_SPECS_DIR = target;
+
+    expect((await listSpecs({ status: SPEC_STATUS.PENDING })).map((s) => s.ref)).toEqual(['fs_npx']);
+    expect((await readSpec('fs_npx')).preview_png).toBe(path.join(target, 'fs_npx.preview.png'));
+    expect(existsSync(path.join(legacy, 'fs_npx.json'))).toBe(true);
+  });
+
+  it('outside _npx, reads no folder but its own package', async () => {
+    const oldPkg = path.join(root, 'lib', 'aaa111', 'node_modules', 'mojulo');
+    plantLegacy(oldPkg, 'fs_elsewhere');
+    const current = path.join(root, 'lib', 'bbb222', 'node_modules', 'mojulo');
+    mkdirSync(current, { recursive: true });
+    process.env.MOJULO_CONTROL_DIR = current;
+    process.env.MOJULO_FIGURE_SPECS_DIR = path.join(root, 'home5', 'figure-specs');
+    expect(await listSpecs()).toEqual([]);
+  });
+
   it('reads no legacy folder outside a bin (no MOJULO_CONTROL_DIR)', async () => {
     delete process.env.MOJULO_CONTROL_DIR;
     const target = path.join(root, 'home3', 'figure-specs');
