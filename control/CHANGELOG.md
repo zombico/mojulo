@@ -14,6 +14,37 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Stroke affordances
+
+- **A drawn line on a `layered` solid becomes a recipe op, and says how much of it could not.** A
+  layered manifest may carry `strokes`: lines drawn in a named view (`frontal`, `three-quarter`,
+  `lateral`, …) as normalized view points with pressure, each with an intent — `silhouette`, `contour`,
+  `brush`, `landmark`, `fold` — and an optional `mirror`. A stroke is an authoring record beside `plan`
+  and `hero`; `update_sketch { patch:[{ op:'solve', from:'/strokes/<id>' }] }` runs the intent's solver
+  and writes ordinary ops (dials, a driven strip, a skin map, wave components) that carry `from: '<id>'`,
+  so the recipe stays the compatibility promise and re-lowers as before. Every solve stamps the ledger
+  with what was reached and a **residual**: the share of the drawn line the grammar could not hold, and
+  which dials hit a bound. `measure_solid` reads it back; `export-wire-svg.mjs --stroke <id>` draws the
+  stroke over the wire with the residual as a band on the line. Absent, every stored layered recipe
+  compiles byte-identically.
+- **A silhouette solves the dials.** A closed `silhouette` stroke is rasterised into the view's square and
+  the continuous shape dials are solved by deterministic coordinate descent within their bounds to
+  maximise the silhouette IoU (`polygonizer/silhouette-solve.js`, over `scene/wire-compare.js`); posing
+  dials (`hinge`, `chain`) move only when named. On a `via:'hero'` sketch the solve runs in `tune` space,
+  so the answer is in the hero's own words.
+- **A contour is a driven strip; a brush is a skin map; a fold is wave components.** `contour` resolves
+  through the view's depth to surface addresses `(part, s, t)` (`polygonizer/stroke-resolve.js`) and adds a
+  `strip` along them, mirrored by name when asked, gated by the exposure ledger's `reads`; `brush` writes
+  skin-map entries (address, falloff from pressure) on a named control, so the brushwork replays when the
+  form under it changes; `fold` on a wave-field surface runs the drape fit's matching pursuit and keeps
+  the residual as its proof metric.
+- **A drawing overlay on the World page, as an input channel.** `channels: { strokes: true }` on a layered
+  manifest mounts `scene/channels/stroke-overlay.js`: `?draw=<view>` snaps the camera to the named view's
+  pinhole basis (the wire's), a canvas takes pointer strokes with pressure, and on release the page shows
+  the stroke JSON in a copy block for the operator's host agent, which writes it through `update_sketch`.
+  The page writes nothing. After a solve it draws the residual band over the stored stroke where it was
+  drawn. A page without the opt-in is byte-identical.
+
 ### Chatbot carve-out
 
 - **The chatbot factory is no longer part of mojulo; this is why the release is 3.0.0.** The bot

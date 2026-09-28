@@ -22,6 +22,7 @@ import { layeredStats } from '@/lib/graph/polygonizer/station-loft-faces';
 import { layeredExposure } from '@/lib/graph/polygonizer/station-loft-exposure';
 import { layeredLegibility } from '@/lib/graph/polygonizer/station-loft-legibility';
 import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
+import { strokesReadout } from '@/lib/mcp/tools/layered-strokes';
 import { facesToStl, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
@@ -63,7 +64,7 @@ export async function measureSolidHandler(input) {
   let parts = null;
   let warnings;
   let cuts;
-  let exposure, legibility, clearance, assembly;
+  let exposure, legibility, clearance, assembly, strokes;
   if (sketch.manifest.kind === 'workbench') {
     const { stats } = planWorkbench(sketch.manifest);
     parts = stats.parts;
@@ -89,6 +90,9 @@ export async function measureSolidHandler(input) {
         for (const id of C.sinking) { const w = C.adornments[id].worst; warnings = [...(warnings || []), `${id} sinks into ${(w.into || []).join(', ')} at ${w.dial ? `${w.dial} ${w.value}` : 'rest'} (${Math.round(w.share * 100)} % of its points)`]; }
       }
     }
+    // strokes (layered-strokes.js): each drawn line re-resolved against this form; a silhouette says what the form
+    // reaches now and where the residual sits; a solve that stopped on a bound is named as the grammar's edge
+    strokes = strokesReadout(m, mesh);
     // closure is per part: a layered solid is closed parts that overlap where they meet, not one welded solid
     assembly = 'overlapping closed parts: every part closed, joined by overlap and pins, not one welded solid (the print union is measured below)';
   }
@@ -128,6 +132,7 @@ export async function measureSolidHandler(input) {
     ...(legibility ? { legibility } : {}),
     ...(clearance ? { clearance } : {}),
     ...(assembly ? { assembly } : {}),
+    ...(strokes ? { strokes } : {}),
     scale,
     scale_note: scaleNote,
     bounds: { min: probe.bounds.min.map(r3), max: probe.bounds.max.map(r3), size: probe.bounds.size.map(r3) },

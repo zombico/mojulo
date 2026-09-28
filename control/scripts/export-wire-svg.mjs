@@ -16,6 +16,9 @@
  *            --compare frontal=ref.png,lateral=side.png (the matched-azimuth silhouette compare: numbers to compare.json,
  *                      a sheet per view — reference | silhouette | overlap; views are frontal / three-quarter /
  *                      three-quarter-left / lateral / left / back or an azimuth) --compare-res 256
+ *            --stroke s1 (a layered sketch's stored stroke drawn over the wire in the camera it was drawn against —
+ *                      stroke-<id>.svg — with, for a silhouette, the RESIDUAL band where the outline and the solid
+ *                      disagree; stroke-<id>.json carries the resolve) --stroke-res 256
  * Azimuth convention: az 0 = camera south of the target looking north (+y); image-right = (cos az, sin az).
  */
 import { parseArgs } from 'node:util';
@@ -30,6 +33,7 @@ const { values: args } = parseArgs({ options: {
   'dist-mul': { type: 'string' }, size: { type: 'string', default: '900' }, f: { type: 'string', default: '1400' },
   features: { type: 'string', default: '' }, turntable: { type: 'string' }, 'no-construction': { type: 'boolean', default: false }, 'with-studio': { type: 'boolean', default: false },
   compare: { type: 'string' }, 'compare-res': { type: 'string', default: '256' },
+  stroke: { type: 'string' }, 'stroke-res': { type: 'string', default: '256' },
 } });
 const fail = (msg) => { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); };
 if (!args.out || (!args.ref && !args.source)) fail('need --out <dir> and one of --ref <sketch> | --source <json>');
@@ -73,6 +77,32 @@ const views = args.views.split(',').map(Number).filter(Number.isFinite);
 for (const az of views) await write(`az${String(az).padStart(3, '0')}.svg`, wireSvg(source, cam(az), { features, title: `${title} — wire az ${az}` }));
 if (!args['no-construction']) await write(`az${String(views[0]).padStart(3, '0')}-construction.svg`, wireSvg(source, cam(views[0]), { features, hidden: true, title: `${title} — construction az ${views[0]}` }));
 if (args.turntable) { const n = Number(args.turntable); for (let i = 0; i < n; i++) { const az = (views[0] + i * 360 / n) % 360; await write(`turn-${String(i).padStart(3, '0')}.svg`, wireSvg(source, cam(az), { features, title: `${title} — turn ${i}`, embedSource: i === 0 })); } }
+let strokeOut;
+if (args.stroke) {
+  // a stored stroke over the wire (lib/graph/scene/stroke-overlay-svg.js): the wire is drawn from the compiled mesh in
+  // the stroke's OWN camera (unseated, the frame the stroke resolves in), the stroke on top, and for a silhouette the
+  // residual against this form (silhouette-solve.js) as a band. Numbers to stdout and stroke-<id>.json.
+  if (!args.ref) fail('--stroke needs --ref (a layered sketch)');
+  const { SketchRepository } = await import('@/lib/db/repositories/sketches'); const sk = SketchRepository.getByRef(args.ref);
+  if (sk?.manifest?.kind !== 'layered') fail(`--stroke needs a layered sketch (${args.ref} is kind '${sk?.manifest?.kind}')`);
+  const stroke = (sk.manifest.strokes || []).find((s) => s.id === args.stroke); if (!stroke) fail(`no stroke '${args.stroke}' on ${args.ref} (have ${(sk.manifest.strokes || []).map((s) => s.id).join(', ') || 'none'})`);
+  const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft');
+  const { resolveStroke, strokeCamera } = await import('@/lib/graph/polygonizer/stroke-resolve');
+  const { silhouetteResidual } = await import('@/lib/graph/polygonizer/silhouette-solve');
+  const { strokeOverlaySvg, overlayWireSvg } = await import('@/lib/graph/scene/stroke-overlay-svg');
+  const mesh = compileLayered(sk.manifest.recipe, sk.manifest.dials || {}, sk.manifest.channels || {});
+  const src = { schema: 'wire-source-v1', ref: args.ref, kind: 'layered', vertices: mesh.vertices, faces: mesh.faces, groups: mesh.groups, pointIds: mesh.pointIds };
+  const scam = strokeCamera(stroke, mesh); const resolved = resolveStroke(mesh, stroke);
+  const residual = stroke.intent === 'silhouette' ? silhouetteResidual(mesh, stroke, { res: Number(args['stroke-res']) }) : null;
+  // a non-silhouette stroke shows its resolve: hit / miss marks, and the mirrored twins projected back through the camera
+  const { projectVertices } = await import('@/lib/graph/scene/wire-svg.js');
+  const marks = stroke.intent === 'silhouette' ? {} : { resolved: resolved.addresses, mirrored: resolved.mirrored ? projectVertices(resolved.mirrored.filter((a) => a.hit).map((a) => a.hit.world), scam).map(([x, y]) => [x / scam.size, y / scam.size]) : null };
+  const svg = overlayWireSvg(wireSvg(src, scam, { features, title: `${title} — stroke ${stroke.id} (${stroke.intent})`, embedSource: false }), strokeOverlaySvg(stroke, scam.size, { residual, ...marks }));
+  await write(`stroke-${stroke.id}.svg`, svg);
+  const { mask: _m, ...numbers } = residual || {};
+  strokeOut = { id: stroke.id, intent: stroke.intent, view: stroke.view, camera: scam.meta, hits: resolved.hits, misses: resolved.misses, ...(residual ? { residual: numbers } : {}), ...(stroke.solved ? { solved: stroke.solved } : {}) };
+  await write(`stroke-${stroke.id}.json`, `${JSON.stringify({ ...strokeOut, addresses: resolved.addresses, ...(resolved.mirrored ? { mirrored: resolved.mirrored } : {}) }, null, 1)}\n`);
+}
 let compare;
 if (args.compare) {
   // the matched-azimuth compare (lib/graph/scene/wire-compare.js): the source's silhouette at a NAMED view against a
@@ -89,4 +119,4 @@ if (args.compare) {
   }
   await write('compare.json', `${JSON.stringify({ ref: args.ref || null, res, views: compare }, null, 1)}\n`);
 }
-process.stdout.write(`${JSON.stringify({ ok: true, out: args.out, files: written.length, vertices: source.vertices.length, faces: source.faces.length, target, distance, distanceMultiplier, basis: 'physical', ...(compare ? { compare } : {}) })}\n`);
+process.stdout.write(`${JSON.stringify({ ok: true, out: args.out, files: written.length, vertices: source.vertices.length, faces: source.faces.length, target, distance, distanceMultiplier, basis: 'physical', ...(compare ? { compare } : {}), ...(strokeOut ? { stroke: strokeOut } : {}) })}\n`);

@@ -61,4 +61,5 @@ export function layeredStats(mesh, recipe = {}, { units = 'm', seat = true } = {
   };
 }
 
-export function persistedLayeredLedger(ledger) { if (!ledger) return undefined; return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed }; }
+/** `strokes` rides only when the manifest carries strokes (layered-strokes.js), so a row without them keeps its bytes. */
+export function persistedLayeredLedger(ledger) { if (!ledger) return undefined; return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed, ...(ledger.strokes ? { strokes: ledger.strokes } : {}) }; }
