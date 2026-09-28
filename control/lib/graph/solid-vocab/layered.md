@@ -182,6 +182,24 @@ absent, every byte is identical.
   draws the solid's silhouette at the reference's named azimuth and reports `iou`, `aspect` and the centroid
   offset per view (shape only, both normalised to their boxes), plus a sheet (reference | silhouette | overlap).
   The reference picture is never persisted; the numbers are the record.
+- **Drawing on it (strokes).** For someone who thinks in lines, not station tables. A layered manifest may carry
+  `strokes`: `{ id, view, intent, points: [[x, y, pressure], …], mirror?, closed? }` — `view` a named azimuth
+  (`frontal`, `three-quarter`, `three-quarter-left`, `lateral`, `left`, `back`) or `{ azimuth, elevation }`, points
+  normalized image coordinates in the wire's pinhole square, `intent` one of `silhouette` (a closed outline),
+  `contour` (a line on the skin), `brush` (push the skin), `fold`, `landmark`. Store one with
+  `update_sketch { patch: [{ op: 'set', path: '/strokes/-', value: stroke }] }` — the camera it was drawn against is
+  recorded on it, so it keeps its meaning after the form changes — then `{ op: 'solve', from: '/strokes/<id>' }`:
+  a **silhouette** solves the continuous shape dials (`scale` / `offset` / `stretch`; `dials: [...]` narrows,
+  `budget` caps the compiles) to match the outline in that camera and leaves `solved` on the stroke with `iou`,
+  the **residual** (the share of the drawn area the dials could not reach, its box) and the dials that stopped on a
+  bound — the grammar's edge, where it was drawn; a **contour** grows a closed ridge strip along its resolved
+  `(part, s, t)` addresses (`height`, `width`, `group`; `mirror` adds the twin), pinned `follow` so it rides every
+  dial, in the carrier's own tint, judged by exposure from its view; a **brush** becomes a `brush` dial (`amp`,
+  `radius`, `direction`), a skin map at 1 that replays under any dial and turns down by name (`/dials/stroke.<id>`).
+  Every op a stroke makes carries `from: <id>`, so a re-solve replaces exactly it; the stroke is the authoring record.
+  `measure_solid` reads `strokes` back (`now.reached`, the residual box, hints); `export-wire-svg.mjs --stroke <id>`
+  draws the stroke over the wire with the residual band; `channels: { strokes: true }` puts a drawing bar on the
+  World page (`?draw=<view>`) that hands the patch to the agent — the page writes nothing. Absent, zero bytes.
 
 Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
 `creature-from-plan` catalyst carries the spec forms a worker fills; the `create-hero` catalyst is the human loop on the hero form

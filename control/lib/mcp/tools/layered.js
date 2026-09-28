@@ -37,6 +37,7 @@ import { layeredLegibility } from '@/lib/graph/polygonizer/station-loft-legibili
 import { fitEvidence } from '@/lib/graph/polygonizer/humanoid-head-fit';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
+import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
 export function planLayered(manifest) {
@@ -262,8 +263,8 @@ export async function createLayeredHandler(input) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, rim, ref, folder_ref: folderRef } = input;
-  const manifest = {
+  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, rim, strokes, ref, folder_ref: folderRef } = input;
+  let manifest = {
     kind: 'layered',
     ...(title ? { title } : {}),
     recipe,
@@ -280,9 +281,13 @@ export async function createLayeredHandler(input) {
     // stored as authored; the layered world resolve validates shapes on read
     ...(hullShade === true || (hullShade && typeof hullShade === 'object') ? { hullShade } : {}),
     ...(Array.isArray(rim) && rim.length === 5 && rim.every(Number.isFinite) ? { rim } : {}),
+    ...(strokes !== undefined ? { strokes } : {}),   // drawn lines as the authoring record (layered-strokes.js); usually stored later by update_sketch
   };
-  const { stats } = planLayered(manifest);
-  manifest.ledger = persistedLayeredLedger(stats.ledger);
+  const planned = planLayered(manifest); const { stats } = planned;
+  // strokes: validated, each given the camera it was drawn against, and resolved into the ledger
+  manifest = prepareStrokes(manifest, planned.mesh);
+  const strokeLedger = strokesLedger(manifest, planned.mesh);
+  manifest.ledger = persistedLayeredLedger({ ...stats.ledger, ...(strokeLedger ? { strokes: strokeLedger } : {}) });
   const sketch = SketchRepository.create({ title: title || `layered · ${stats.monomers} part${stats.monomers === 1 ? '' : 's'}`, manifest, ref, folderRef: folderRef ?? null });
   warmScenePng(sketch);
   return {

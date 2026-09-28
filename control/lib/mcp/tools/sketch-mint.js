@@ -59,6 +59,7 @@ import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
 import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
+import { splitSolveOps, prepareStrokes, applySolves, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
@@ -596,13 +597,19 @@ export async function updateSketchHandler(input) {
   // below knows the edit arrived as ops; the stored row is the resolved manifest, as always.
   let manifest = manifestInput;
   let touched = new Set();
+  let solveOps = [];
   if (patch !== undefined) {
     if (!existingSketch) throw new Error(`No sketch exists at ref '${ref}'`);
     if (!existingSketch.manifest || typeof existingSketch.manifest !== 'object') {
       throw new Error(`'${ref}' has no stored manifest to patch — pass \`manifest\``);
     }
+    // a layered row takes `solve` ops too (layered-strokes.js): they run in the layered gate below,
+    // after the generic ops, against the compiled mesh
+    let rest = patch;
+    if (existingSketch.manifest.kind === 'layered') ({ rest, solves: solveOps } = splitSolveOps(patch));
     try {
-      ({ manifest, touched } = applyManifestPatch(existingSketch.manifest, patch));
+      if (Array.isArray(rest) && !rest.length && solveOps.length) { manifest = structuredClone(existingSketch.manifest); touched = new Set(); }
+      else ({ manifest, touched } = applyManifestPatch(existingSketch.manifest, rest));
     } catch (err) {
       throw new Error(`Invalid patch: ${err.message}`);
     }
@@ -741,7 +748,15 @@ export async function updateSketchHandler(input) {
           if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
           manifest = expandLayeredManifest(manifest, { from: 'hero' });
         } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
-        const planned = planLayered(manifest); layeredStats = planned.stats;
+        let planned = planLayered(manifest);
+        // strokes (layered-strokes.js): validate, record each new stroke's camera, run the `solve` ops against the
+        // compiled mesh (a solve that moved a dial re-plans), then re-resolve every stroke into the ledger
+        manifest = prepareStrokes(manifest, planned.mesh);
+        const solves = applySolves(manifest, planned.mesh, solveOps);
+        manifest = solves.manifest; if (solves.dialsChanged) planned = planLayered(manifest);
+        layeredStats = planned.stats;
+        const strokeLedger = strokesLedger(manifest, planned.mesh);
+        if (strokeLedger) layeredStats = { ...layeredStats, strokes: strokeLedger, ...(solves.solved.length ? { solved: solves.solved } : {}), ledger: { ...layeredStats.ledger, strokes: strokeLedger } };
         if (manifest.hero) layeredStats = { ...layeredStats, hero: heroReadout(manifest.hero, manifest.plan, layeredStats, heroWarnings, { mesh: planned.mesh, recipe: manifest.recipe }) };
       } catch (err) {
         throw new Error(`Invalid world manifest (kind 'layered'): ${err.message}`);

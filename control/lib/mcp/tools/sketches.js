@@ -280,7 +280,7 @@ export function registerSketchTools() {
   registerTool({
     name: 'update_sketch',
     description:
-      "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate — diagrams validate like `create_sketch`; world/solid kinds resolve through the world registry; games pay create_game's structural gate (added levels noted unaudited). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`, on the stored manifest; `readout:'changed'` returns only what moved) over `manifest`, a FULL replacement. Re-mint only for a side-by-side variant.",
+      "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate (diagrams as `create_sketch`; world/solid kinds resolve through the world registry; games create_game's structural gate). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`; `readout:'changed'` returns only what moved) over a FULL `manifest` replace. A layered row takes drawn `strokes` and `{ op:'solve', from:'/strokes/<id>' }` (get_solid_vocab layered · Drawing on it).",
     inputSchema: {
       type: 'object',
       properties: {

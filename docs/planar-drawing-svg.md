@@ -182,3 +182,20 @@ point and face keys survive property reordering, and unresolved pins fail. The
 example preserves the previous head rather than introducing a station-loft schema.
 Native recipe-book exposure, generalized topology-edit migration and rigging remain
 separate follow-up work.
+
+## The inverse: a stroke to an address
+
+The wire's camera is the same pinhole the depth raster uses
+(`control/lib/graph/scene/depth-raster.js`), so a line drawn in a named view runs
+the other way: each normalized image point is cast through the view's z-buffer onto
+the compiled mesh, its face's perspective-correct barycentrics over the face's
+station/slot provenance give the parameter address `(part, s, t, side)` the detail
+operators use, and a hit on a pinned detail names the detail with its pin's carrier
+address (`control/lib/graph/polygonizer/stroke-resolve.js`). The stroke records the
+camera it was drawn against, so it keeps its meaning after the form changes. A
+closed outline compares against the silhouette raster in that same camera and solves
+the shape dials (`silhouette-solve.js`); what the dials cannot reach is the residual,
+drawn back over the wire by `scripts/export-wire-svg.mjs --stroke <id>` as a band on
+the line. The World page's overlay (`channels: { strokes: true }`) snaps the three.js
+camera to this basis — the same azimuth, elevation and lens, seated by the solid's
+own `dz` — so a stroke drawn there and one drawn on the SVG resolve alike.

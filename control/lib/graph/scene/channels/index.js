@@ -317,5 +317,6 @@ export { fxChannelScript } from './fx.js';
 export { gameChannelScript } from './game.js';
 export { walkersChannelScript } from './walkers.js';
 export { rigPreviewChannelScript } from './rig-preview.js';
+export { strokeOverlayChannelScript } from './stroke-overlay.js';
 export { carsChannelScript } from './cars.js';
 export { castShadowScript } from './cast-shadows.js';

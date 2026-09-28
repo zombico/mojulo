@@ -33,6 +33,11 @@ import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbe
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, packLayeredRig } from '@/lib/graph/polygonizer/station-loft-rig';
+import { meshSource } from '@/lib/graph/polygonizer/stroke-resolve';
+import { silhouetteResidual } from '@/lib/graph/polygonizer/silhouette-solve';
+import { residualRuns } from '@/lib/graph/scene/channels/stroke-overlay';
+import { frameSource } from '@/lib/graph/scene/wire-svg';
+import { LAYERED_VIEW_AZ } from '@/lib/graph/scene/depth-raster';
 import { assembleScadScene } from '@/lib/graph/worlds/scad';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
@@ -513,6 +518,15 @@ export const WORLD_KINDS = {
         // rendered by the rig-preview channel's rim patch; absent ⇒ byte-identical.
         const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : null;
         scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null }), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips: Object.keys(m.recipe.clips), hide: 'body', period: 3 } } };
+      }
+      // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It
+      // carries the wire's framing of the UNSEATED mesh (what a stroke resolves against) and the seat, the stored
+      // strokes, and each silhouette's residual against this form as scanline runs. Absent ⇒ byte-identical.
+      if (m.channels?.strokes === true) {
+        const source = meshSource(mesh); const { target, distance } = frameSource(source);
+        const strokes = Array.isArray(m.strokes) ? m.strokes : []; const residuals = {};
+        for (const s of strokes) if (s.intent === 'silhouette' && Array.isArray(s.points) && s.points.length >= 3) { const R = silhouetteResidual(mesh, s); residuals[s.id] = { res: R.res, runs: residualRuns(R.mask, R.res), now: { iou: R.iou, share: R.share, bbox: R.bbox } }; }
+        scene.strokeOverlay = { ref: ctx.ref || null, dz: layeredSeat(mesh, seat), framing: { target: target.map((v) => Math.round(v * 1e6) / 1e6), distance: Math.round(distance * 1e6) / 1e6, focalPixels: 1400, size: 900 }, views: LAYERED_VIEW_AZ, strokes, residuals };
       }
       return scene;
     },

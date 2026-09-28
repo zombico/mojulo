@@ -22,6 +22,8 @@
  *     chain   { links: [{ pivot, parts, weight? }], axis, sign? }         sequential hinges off one dial: link k rotates its parts
  *                                                                         about its pivot (read after links < k moved it) by d·weight
  *     stretch { parts }                                                   each part's own `stretch` axis
+ *     brush   { parts: [carrier], entries: [{ at: [s, t], side?, r?, w? }], amp }   push the skin at addresses along the
+ *                                                                         surface normal with a falloff (a drawn brush)
  * Creases (`recipe.creases`): `{ id: { parent, edge: [pointId, pointId] } }` → feature edges.
  * Channels: `details` (L2/L3 geometry) and `creases`; off ⇒ zero bytes from that channel.
  *
@@ -98,6 +100,24 @@ function loft(name, part) {
   return { points, faces, groups };
 }
 
+/**
+ * The PIN at a surface ADDRESS (s, t) of a layer-1 part: stations carry a continuous `u` (default: index), the
+ * right-half slots a `t` (`slotT`, default: index); the address lands on one generated face with barycentric
+ * weights, `side: 'L'` takes the mirrored face by name. station-loft-detail.js builds every detail on this.
+ */
+export function addressPin(part, name, s, t, side = 'R') {
+  const slots = part.slots, ids = part.stations.map((x) => x.id), n = slots.length, half = n / 2;
+  const U = part.stations.map((st, i) => st.u ?? i), T = slots.slice(0, half + 1).map((sl, k) => part.slotT?.[sl] ?? k);
+  if (!(s >= U[0] && s <= U[U.length - 1] && t >= T[0] && t <= T[half])) throw new Error(`address (${s},${t}) off ${name}`);
+  let i = 0; while (i < U.length - 2 && s > U[i + 1]) i++; let k = 0; while (k < half - 1 && t > T[k + 1]) k++;
+  const u = (s - U[i]) / (U[i + 1] - U[i]), v = (t - T[k]) / (T[k + 1] - T[k]);
+  const P = (j, kk) => `${name}/${ids[j]}.${slots[kk % n]}`; const band = `${name}/${ids[i]}-${ids[i + 1]}.k${k}`;
+  const p00 = P(i, k), p01 = P(i, k + 1), p10 = P(i + 1, k), p11 = P(i + 1, k + 1);
+  const [id, w, edge] = u <= v ? [`${band}.a`, { [p00]: 1 - v, [p01]: v - u, [p11]: u }, [p01, p11]] : [`${band}.b`, { [p00]: 1 - u, [p11]: v, [p10]: u - v }, [p00, p10]];
+  const pin = { parent: name, face: id, weights: part.faces[id].map((p) => w[p]), tangentEdge: edge, handedness: 1 };
+  return side === 'R' ? pin : { ...pin, face: mirrorFaceId(pin.face, n), weights: [...pin.weights].reverse(), tangentEdge: pin.tangentEdge.map(mirrorPid), handedness: -1 };
+}
+
 /** A pin's frame; `pin.mirror` averages the frame with its mirror so a midline detail stays on x = 0. */
 export function pinFrame(parent, pin) {
   const f = surfacePinFrame(parent, pin);
@@ -137,6 +157,25 @@ function applyDial(op, name, d, built, recipe, follow) {
       const riders = (link.parts || []).flatMap((n) => followersOf(follow, n).map((F) => F.part));   // followers turn with their parent
       for (const part of [...chain, ...riders]) for (const [id, p] of Object.entries(part.points)) { const u = p[i] - hp[i], v = p[j] - hp[j]; const q = [...p]; q[i] = hp[i] + u * c - v * s; q[j] = hp[j] + u * s + v * c; part.points[id] = q; }
     }
+  } else if (op.op === 'brush') {
+    // BRUSH (stroke-affordances S5): push the skin at surface addresses. Each entry `{ at: [s, t], side, r, w }` moves
+    // every point of the part within `r` (recipe units) of the address's origin along that address's surface normal
+    // by d · amp · w · (1 − (dist / r)²)², the skin-map falloff station-loft-detail's carriers use. Frames are read
+    // on the part as the earlier dials left it, so a brush replays on a widened or lifted form. Followers move by the
+    // displacement at their own pin origin.
+    if (d === 0) return; const amp = Number.isFinite(op.amp) ? op.amp : 0.01;
+    (op.parts || []).forEach((pn, pi) => {
+      const part = parts[pi]; if (part.layer !== 1) throw new Error(`station-loft: brush '${name}' pushes a layer-1 part (${pn} is layer ${part.layer})`);
+      const moved = {};
+      for (const e of op.entries || []) {
+        if (!Array.isArray(e.at) || e.at.length !== 2) throw new Error(`station-loft: brush '${name}' entry needs at: [s, t]`);
+        const r = e.r > 0 ? e.r : 0.02; const f = pinFrame(part, addressPin(part, pn, e.at[0], e.at[1], e.side === 'L' ? 'L' : 'R'));
+        const push = mul(f.normal, d * amp * (e.w ?? 1));
+        for (const [id, p] of Object.entries(part.points)) { const dist = Math.hypot(...sub(p, f.origin)); if (dist >= r) continue; const k = (1 - (dist / r) ** 2) ** 2; moved[id] = add(moved[id] || part.points[id], mul(push, k)); }
+        for (const F of followersOf(follow, pn)) { const o = F.face.map((id, k) => mul(part.points[id], F.weights[k])).reduce(add, [0, 0, 0]); const dist = Math.hypot(...sub(o, f.origin)); if (dist >= r) continue; const k = (1 - (dist / r) ** 2) ** 2; for (const [id, p] of Object.entries(F.part.points)) F.part.points[id] = add(p, mul(push, k)); }
+      }
+      for (const [id, p] of Object.entries(moved)) part.points[id] = p;
+    });
   } else if (op.op !== 'stretch') throw new Error(`station-loft: dial '${name}' has unknown op '${op.op}'`);
 }
 
