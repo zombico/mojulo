@@ -95,6 +95,28 @@ describe('handoffFor', () => {
     expect(big.caveats[0]).toMatch(/over this host's file-card limit by 5\.0 MiB/);
   });
 
+  it('muse + page: save with the Artifacts tool, in its own words; the inline page is fragile, not refused', () => {
+    const cdn = handoffFor({ host: 'muse', artifact: { ...PAGE, name: 'world.cdn.html', bytes: 90_000 } });
+    expect(cdn.surface).toBe('box');
+    expect(cdn.door).toBe('artifact');
+    expect(cdn.next).toBe("save world.cdn.html (88 KB) with your Artifacts tool (one HTML page); the operator opens it in their Library's Artifacts tab");
+    expect(cdn.caveats).toEqual([]);
+    const inline = handoffFor({ host: 'muse', artifact: { ...PAGE, bytes: 2 * 1024 * 1024, inlineScripts: true } });
+    expect(inline.caveats).toEqual(['world.html carries three.js as inline `data:` modules, which are fragile on some of this host\'s mobile viewers: check it here from file:// (no network needed), then re-export with `cdn: true` and save world.cdn.html']);
+    // Nothing Claude's leaks into another artifact host's note.
+    expect(`${inline.next} ${inline.caveats.join(' ')}`).not.toMatch(/claude\.ai|CSP|ANY size|publish/);
+  });
+
+  it('muse + file: copy into the drop folder, it lands in the Library; the VM persists', () => {
+    const z = handoffFor({ host: 'muse', artifact: ZIP });
+    expect(z.door).toBe('drop-folder');
+    expect(z.next).toBe("copy sk_x.zip (5.7 MiB) into ~/workspace/your_files/; it lands in the operator's Library");
+    // no byte ceiling is known and the box is not reclaimed, so nothing rides along
+    expect(handoffFor({ host: 'muse', artifact: { ...GLB, bytes: 300 * 1024 * 1024 } }).caveats).toEqual([]);
+    const f = handoffFor({ host: 'muse', artifact: { kind: 'folder', name: 'godot', path: '/box/outcomes/sk_x/godot' } });
+    expect(f.next).toBe("copy the folder godot into ~/workspace/your_files/; it lands in the operator's Library");
+  });
+
   it('asking for a surface the host has no row for says so and falls back', () => {
     const n = handoffFor({ host: 'desktop', surface: 'box', artifact: PAGE });
     expect(n.surface).toBe('local');
@@ -131,6 +153,11 @@ describe('host + surface resolution', () => {
     expect(resolveHandoffHost({ mcpSessionId: 's2' }, {})).toBe('codex');
     expect(resolveHandoffHost({ mcpSessionId: 's3' }, {})).toBeNull();
     expect(resolveHandoffHost({ mcpSessionId: 'never-initialized' }, {})).toBeNull();
+  });
+
+  it('MOJULO_HOST=muse resolves the Muse door table for a CLI call', () => {
+    expect(resolveHandoffHost({}, { MOJULO_HOST: 'muse' })).toBe('muse');
+    expect(handoffForContext({}, GLB, { MOJULO_HOST: 'muse' }).door).toBe('drop-folder');
   });
 
   it('MOJULO_HOST / context.host win, and an unknown id is ignored', () => {

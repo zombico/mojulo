@@ -43,6 +43,13 @@
  *                                        cdns?, egress, ephemeral } — the host's
  *                                        remote box, when it has one
  *                          `page` ∈ HANDOFF_PAGE_DOORS, `file` ∈ HANDOFF_FILE_DOORS.
+ *                          An `artifact` page row may name the host's words:
+ *                          `pageVerb` (default 'publish'), `pageTool`, `pageOpensIn`,
+ *                          and `inlinePage` ∈ HANDOFF_INLINE_PAGE — what the door
+ *                          does with the default page's inline `data:` three.js
+ *                          (absent: no caveat). A `drop-folder` file row needs
+ *                          `dropDir` (the folder the host carries to the operator)
+ *                          and may name `dropLabel` (what the operator sees).
  *                          clientInfo cannot tell a host's local surface from
  *                          its box (Claude Code local / web / Desktop all say
  *                          "claude"), so one profile carries both rows and the
@@ -65,8 +72,11 @@ const WIRE_FORMATS = new Set(['toml-append', 'json-patch', 'cli-shellout', 'manu
 /** Handoff door vocabularies (remote-worker exports). A door is what the HOST
  * does with a page or a file; the server never publishes anything itself. */
 export const HANDOFF_PAGE_DOORS = new Set(['dashboard', 'artifact', 'mcp-app', 'hosted-publish', 'local-preview', 'file-card', 'none']);
-export const HANDOFF_FILE_DOORS = new Set(['local', 'artifact-download', 'git', 'file-card', 'none']);
+export const HANDOFF_FILE_DOORS = new Set(['local', 'artifact-download', 'git', 'file-card', 'drop-folder', 'none']);
 export const HANDOFF_VERIFIED = new Set(['field', 'docs', 'inferred']);
+/** 'refused': the page door's CSP will not run inline `data:` modules at any size (Claude).
+ * 'fragile': they run, but not on every viewer the operator may open it in (Muse's mobile). */
+export const HANDOFF_INLINE_PAGE = new Set(['refused', 'fragile']);
 
 function validateHandoff(file, handoff) {
   if (handoff == null) return null;
@@ -80,6 +90,10 @@ function validateHandoff(file, handoff) {
     if (row == null) continue;
     if (!HANDOFF_PAGE_DOORS.has(row.page)) throw new Error(`Host profile ${file}: handoff.${key}.page '${row.page}' is not a known page door.`);
     if (!HANDOFF_FILE_DOORS.has(row.file)) throw new Error(`Host profile ${file}: handoff.${key}.file '${row.file}' is not a known file door.`);
+    if (row.file === 'drop-folder' && !row.dropDir) throw new Error(`Host profile ${file}: handoff.${key}.dropDir is required for a drop-folder door (the note names the folder).`);
+    if (row.inlinePage != null && !HANDOFF_INLINE_PAGE.has(row.inlinePage)) {
+      throw new Error(`Host profile ${file}: handoff.${key}.inlinePage '${row.inlinePage}' must be one of ${[...HANDOFF_INLINE_PAGE].join(', ')}.`);
+    }
     if (key === 'box') {
       if (!row.name) throw new Error(`Host profile ${file}: handoff.box.name is required (the note names the box).`);
       if (typeof row.ephemeral !== 'boolean') throw new Error(`Host profile ${file}: handoff.box.ephemeral must be a boolean.`);
@@ -213,3 +227,5 @@ export function pinProfileToVersion(profile, version, { plugin = true } = {}) {
 export function _resetHostProfilesForTests() {
   _catalog = null;
 }
+
+export { parseProfile as _parseProfileForTests };

@@ -35,7 +35,7 @@
 import { getCatalystCatalog, serializeCatalystFile, validateCatalystMeta } from '@/lib/mcp/catalysts/loader';
 import { getMergedCatalog, getMergedCatalyst, listMergedCatalysts } from '@/lib/mcp/catalysts/catalog';
 import { LocalCatalystRepository } from '@/lib/db/repositories/local-catalysts';
-import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
+import { getAdapter, listAdapters, resolveCallAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
@@ -160,7 +160,7 @@ export async function getCatalystHandler(input, ctx) {
   }
 
   const clientInfo = ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null;
-  const adapterId = resolveAdapterId({ host, clientName: clientInfo?.name });
+  const adapterId = resolveCallAdapterId({ host, clientName: clientInfo?.name });
   const adapter = getAdapter(adapterId);
 
   return {
@@ -448,7 +448,7 @@ Skipping this step is how Claude-shaped artifacts end up in Codex sessions (or v
 // Exported for tests.
 export function buildMaterializationBlock(ctx) {
   const clientInfo = ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null;
-  const recommended = resolveAdapterId({ clientName: clientInfo?.name });
+  const recommended = resolveCallAdapterId({ clientName: clientInfo?.name });
   return {
     availableAdapters: listAdapters().map((a) => ({
       id: a.id,

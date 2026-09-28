@@ -19,6 +19,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
+import { getHostProfile } from '../hosts/registry.js';
 const ADAPTER_DIR = moduleDir(import.meta.url, 'lib/mcp/adapters');
 
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'artifactTarget'];
@@ -138,6 +139,20 @@ export function resolveAdapterId({ host, clientName } = {}) {
   }
 
   return 'generic';
+}
+
+/**
+ * resolveAdapterId for a TOOL CALL: the same order, then the `MOJULO_HOST`
+ * profile's adapter before the 'generic' fallback. A shell host (the CLI never
+ * sends `initialize`, so there is no clientInfo) gets its own card this way.
+ * An explicit `host: 'generic'` still wins. Kept separate so the server's
+ * clientInfo reads (schema deferral, output cap) never consult the environment.
+ */
+export function resolveCallAdapterId({ host, clientName } = {}, env = process.env) {
+  const resolved = resolveAdapterId({ host, clientName });
+  if (resolved !== 'generic' || host === 'generic') return resolved;
+  const fromEnv = getHostProfile(env.MOJULO_HOST)?.adapterId;
+  return fromEnv && getAdapterCatalog().has(fromEnv) ? fromEnv : resolved;
 }
 
 // Test seam — let the test suite point at a fixture directory.

@@ -254,7 +254,7 @@ requirements (an LLM key, Docker, optionally Fly.io) are the 2.x line's.
 ## Handing an export out of a box
 
 When mojulo runs inside the agent's own machine (Claude Code on the web, a Codex cloud task, Grok
-chat's sandbox) the outcome folder is on a disk the operator never sees and the dashboard URL is
+chat's sandbox, Meta Muse's VM) the outcome folder is on a disk the operator never sees and the dashboard URL is
 loopback. Every written export (`export_model`, `export_game`, `cook`) returns a `handoff` naming the
 host's door and `fits` against its byte limit; `export_model({ format: 'bundle' })` is the one-zip
 handoff. The door table is data, one profile per host under
@@ -270,7 +270,15 @@ source of truth for what follows:
   result's `structuredContent` in place of its text block. The `downloads` allowlist
   (`downloadExtensions`) is from the platform's own runtime type definitions. The 2026-09-21 runs
   (a Claude cloud sandbox handing back a glTF, Grok chat's sandbox exporting a city) established
-  that the boxes exist and install cleanly, not their door limits.
+  that the boxes exist and install cleanly, not their door limits. `muse` is at this level from
+  Muse's own runs (since 2026-09-23, minting and exporting through `npx mojulo call`) and what Muse
+  measured on its VM on 2026-09-28: `~/workspace/your_files/` lands in the operator's Library, the
+  page tool is Artifacts (saved pages open in the Library's Artifacts tab, publishing makes a public
+  link), one VM persists behind every client, and Chromium is at `/opt/meta-chromium/chrome` with no
+  sandbox as root. Muse has no documented byte cap for the Library or a page, so both limits are
+  null. A 30 MiB probe Muse wrote to `your_files/` reached the operator's Mac through the Library
+  byte-complete the same day: a floor, not a ceiling. Whether a saved page may offer a download is
+  untested.
 - **docs** — read from the host's own documentation (2026-09-22): Claude Code on the web (one
   self-contained page ≤ 16 MiB through the Artifact tool, a download allowlist that carries `zip`
   and not `glb`), a Codex cloud task (the PR is the only door), Claude Desktop and Grok Build on
