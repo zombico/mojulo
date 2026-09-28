@@ -310,9 +310,11 @@ loops and the recipe format are unchanged.
 - **`get_substrate`'s facts match the code.** Fact 2 lists everything under `$MOJULO_HOME` and the
   few writes outside it (temp work folders, an `install_scaffold` folder the caller names, host
   configs after `mojulo init` and a yes). Fact 4 lists every outbound destination and its trigger
-  (the Chrome for Testing download only for an explicit render, ffmpeg with pinned hashes, the
-  recall model from huggingface.co, the `mojulo-ui` download, `cdn: true` pages, the keyed
-  `via:'prompt'` door, the chatbot pack's calls) and the local log. Fact 8 says a recipe carrying a
+  (the Chrome for Testing download only for an explicit render, unpacked by the system `unzip`
+  or, on Windows, `tar.exe` or PowerShell, which the plugin README also lists as a process it may
+  start; ffmpeg with pinned hashes; the recall model from huggingface.co; the `mojulo-ui`
+  download; `cdn: true` pages; the keyed `via:'prompt'` door; the chatbot pack's calls) and the
+  local log. Fact 8 says a recipe carrying a
   `program` is JavaScript that runs with the operator's privileges, and fact 9 that a recipe
   book's builders run at startup; fact 9 no longer calls the book code-free. The dashboard page map
   no longer says the log records "shapes only". The install-size figures in the README,
