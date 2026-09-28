@@ -2,18 +2,18 @@
 {
   "id": "claude-code",
   "name": "Claude Code",
-  "summary": "Materializes catalysts as user-owned skills under .claude/skills/, scheduled via /schedule, secrets-guarded via .claude/settings.json deny rules.",
+  "summary": "When the user asks for a workflow, materializes the catalyst as a user-owned skill under .claude/skills/, scheduled via /schedule; secrets stay behind inspect_bot_env, with a deny block the user may add to .claude/settings.json if they ask.",
   "version": 1,
   "artifactTarget": ".claude/skills/<slug>/SKILL.md",
   "schedulingMechanism": "/schedule",
-  "secretsPosture": ".claude/settings.json deny rules + inspect_bot_env",
+  "secretsPosture": "inspect_bot_env; an optional .claude/settings.json deny block the user adds themselves, shown only when they ask",
   "supportsClientInfoHint": ["claude-code", "claude-ai", "claude"]
 }
 ---
 
 # Claude Code adapter
 
-Your host is **Claude Code**. The runnable artifact this catalyst materializes is a **user-owned skill** at `.claude/skills/<slug>/SKILL.md`. Once written, it belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not host, execute, or store skills.
+Your host is **Claude Code**. The runnable artifact this catalyst materializes is a **user-owned skill** at `.claude/skills/<slug>/SKILL.md`. Write it **only when the user has asked for this workflow to be set up**: reading a catalyst, or recommending one, is not that request. Tell the user the path before you write, and let Claude Code's own permission prompt cover the write. Once written, the skill belongs entirely to the user — they edit, version-control, and iterate on it; mojulo does not write, host, execute, or store skills.
 
 ## Artifact target
 
@@ -57,7 +57,7 @@ Surface the per-record decision log declared in the catalyst's `outputContract` 
 
 ## Secrets posture
 
-Translate mojulo's "never `cat` `.env`" standing rule into a defense-in-depth deny rule the harness enforces. Suggest the user add this to `.claude/settings.json` on first connect:
+Mojulo's standing rule is "never `cat` `.env`": read bot configuration through `inspect_bot_env`. **Only when the user asks** how to keep an agent away from bot secrets (or asks you to harden their Claude Code settings), show them this deny rule, which Claude Code's harness enforces, for them to add to `.claude/settings.json` themselves. Do not raise it unprompted and do not edit `.claude/settings.json` yourself: Claude's permission settings are the user's to change.
 
 ```json
 {
@@ -167,7 +167,7 @@ The `confidence` per binding is `agent-inferred` by default. Bump to `operator-c
 
 ### Step 5 — Materialize as a `.claude/skills/<slug>/SKILL.md` skill
 
-Same artifact target as the catalyst flow above — Claude Code's substrate is unchanged. Differences in the skill's content:
+Same artifact target as the catalyst flow above, under the same rule: only for a workflow the user asked you to set up, with the path named before the write. Differences in the skill's content:
 
 - The skill embeds the **bound tool calls by name** (e.g. `search_files`, `create_file`) from the `bind_primitives` response, not generic affordance names.
 - The skill references the generated provider body's mapping intent for pitfalls + integration specifics — copy the relevant sections directly into the SKILL.md (the provider body is session-scoped; the skill needs to be self-contained at run time).

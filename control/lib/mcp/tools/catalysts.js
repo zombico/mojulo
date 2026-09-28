@@ -77,6 +77,7 @@ export const CATALYST_CORE_PREAMBLE = `# How to read this catalyst — posture f
 
 This catalyst is a **starting point, not a contract.** The library is non-exhaustive. Treat it as a worked example to learn from, not a recipe to recite.
 
+- **Write only what the user asked for.** Reading a catalyst is not a request to install anything. Materialize a runnable artifact (a skill file, an automation, a workflow file) only when the user has asked for this workflow to be set up; say where it will be written before you write it, and let your host's own permission prompt cover the write. Mojulo writes none of these files itself.
 - **Adapt freely.** Combine elements across catalysts, skip sections that don't apply to the user's situation, add steps the catalyst didn't anticipate. The value is its *thinking* — mapping intent, idempotency strategy, pitfalls — not its literal prose.
 - **No catalyst fits the user's intent? Write from scratch.** Don't force a mismatched pattern onto the user's request. Synthesize directly from their goal and the bot's shape, drawing on judgment absorbed from any catalysts you've read.
 - **Pitfalls in the body still apply when you adapt.** The PII-through-the-LLM warnings, rate-limit notes, irreversible-write cautions, and calibration advice generalize across patterns — they're not catalyst-specific gotchas. Carry them forward even when you deviate from the catalyst's prescribed flow.
