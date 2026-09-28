@@ -164,7 +164,9 @@ Two add-ons, the same choice in both places:
 
 `mojulo install` with no argument prints which are present.
 
-The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers. `mojulo install chatbot` now installs nothing and prints this notice.
+The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues ([SECURITY.md](https://github.com/zombico/mojulo/blob/main/SECURITY.md#known-issues-in-2x)). `mojulo install chatbot` now installs nothing and prints this notice.
+
+**Upgrading from 2.x?** Read [Upgrading from 2.x](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.0 on its next start, and 3.0 re-encrypts saved provider keys so 2.x can no longer read them.
 
 ## What you can make
 

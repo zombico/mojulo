@@ -49,7 +49,7 @@ decimal MB; `du -h` shows disk sizes about 5% lower, in MiB. The measurement bef
 **2026-09-27**, was of the unreleased 2.2 line
 3.0.0 grew from, which still carried the chatbot factory: the core tarball packed from its release
 branch, cold-started 14 times with an empty npm cache through a local registry stand-in on macOS arm64
-(M1 Max), answered `tools/list` in a median 7.3 s (p90 9.5 s, slowest 9.7 s); the published 2.1.0 took
+(M1 Max), answered `initialize` in a median 7.3 s (p90 9.5 s, slowest 9.7 s); the published 2.1.0 took
 a median 12.7 s (p90 15.7 s) the same way. Most of that drop is the dashboard leaving for its own
 package (`mojulo-ui`) and the lazy, lean dependency set (see [install-capabilities.md](install-capabilities.md)).
 3.0.0 also drops the chatbot factory's document parsers (`officeparser`, about 68 MB, and `pdf2json`,
@@ -251,10 +251,9 @@ agent is the bridge. Absence degrades one loop and breaks nothing.
 
 ## The chatbot factory
 
-The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of
-3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line:
-`npx -y mojulo@2`. Bots you already deployed keep running; they are separate containers, and their
-requirements (an LLM key, Docker, optionally Fly.io) are the 2.x line's.
+The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier
+2.x versions that include it are unmaintained and have known security issues
+([SECURITY.md](../SECURITY.md#known-issues-in-2x)).
 
 ---
 

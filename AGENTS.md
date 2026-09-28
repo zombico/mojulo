@@ -85,6 +85,6 @@ Everything below is host-neutral. Start with [CLAUDE.md](CLAUDE.md), then use [d
 - The deliberation surfaces (contextmap, inventory, mcp-orbit, semantic recall) and the runtime (apps, the agent-task queue).
 - Native-dependency landmines and data layout.
 
-The chatbot factory (bot builder, wizard, deployers, fleet tools) is no longer part of mojulo as of 3.0.0. It is moving to its own project. Until that ships, it stays available on the 2.x line: `npx -y mojulo@2`. Bots already deployed keep running; they are separate containers.
+The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues. Do not add bot code back, and do not point anyone at a 2.x install.
 
 If anything in this file drifts from CLAUDE.md, CLAUDE.md wins on architecture; this file wins on Codex-specific procedure.
