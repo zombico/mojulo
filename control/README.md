@@ -159,7 +159,7 @@ Two add-ons, the same choice in both places:
 
 | add | with | what you get |
 |---|---|---|
-| **creative** (on by default) | plain `npm install` | worlds, audio, wordmark fonts, exact booleans, OpenSCAD in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds it; the kernel still mints diagrams, floorplans and workbench solids and exports GLB and STL. |
+| **creative** (on by default) | plain `npm install` | worlds, audio, wordmark fonts, exact booleans, OpenSCAD in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds those helpers (about 150 MB); the studio tools still list and run, and a call that needs a missing helper says so. |
 | **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers by the words in your ask, and most sessions never need more: the agent reads the tool index and the vocab cards directly. About 480 MB plus a 130 MB model, kept under `~/.mojulo/` across upgrades. |
 
 `mojulo install` with no argument prints which are present.
