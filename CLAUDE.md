@@ -15,13 +15,15 @@ those tools, never a fidelity rival and never "just an exporter." The canonical 
 user-facing copy consistent with it.
 
 One package. [control/](control/) is the product (Next.js 16 on 3001, ESM, vitest); all work happens here.
-The chatbot factory and its bot runtime left in 3.0.0 for their own project; the 2.x line keeps them.
+The chatbot factory and its bot runtime left in 3.0.0 for their own project; the unmaintained 2.x line still carries them.
 
 ## Where truth lives
 
 - Current state of the branch: the Unreleased section of [control/CHANGELOG.md](control/CHANGELOG.md).
+  Releases before 3.0.0, and the detailed log behind 3.0.0, are in
+  [control/CHANGELOG-2.x.md](control/CHANGELOG-2.x.md) (archive; add nothing new there).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
-- Version: `package.json` says 2.2.0, the release the Unreleased section becomes (2.1.0 was released 2026-09-23; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 2.2.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see the changelog; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot pack is opt-in since 2.0.0).
+- Version: `package.json` says 3.0.0, the release the Unreleased section becomes (2.1.0 was released 2026-09-23; 2.2 was prepared and never released, and its work ships in 3.0.0; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 3.0.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see the changelog; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot factory left in 3.0.0).
   Unreleased is empty at the tag; new work goes under it as `###` themes.
 - Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
@@ -48,11 +50,10 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   delegation, not multi-tenancy. Do not add tenant isolation, tunnels, or public exposure. The MCP route is
   bearer-gated and 404s without a key; that is the whole auth surface, by design.
 - **The dashboard is not a conversational surface.** The operator drives from their host agent. Do not add
-  `HomeAgentChat` / `useAgentChatStream` consumers to deliberation surfaces (the bot builder chat is the
-  one exception).
+  chat surfaces to the dashboard.
 - **Suitability is the operator's.** Do not add intent classification, use-case gating, or content-policy
   layers over what the operator's LLM provider already enforces. Posture: [TERMS.md](TERMS.md).
-- Never read or echo `.env` secrets from generated app or bot directories.
+- Never read or echo `.env` secrets from generated app directories.
 - UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
 - Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies.
   Absence degrades a loop, never breaks one.
