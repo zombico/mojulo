@@ -7,6 +7,7 @@ import {
   MARKETPLACE_MANIFEST,
   PLUGIN_MANIFEST,
   checkManifestVersions,
+  checkPlaceholders,
   checkPluginVersionBump,
 } from './check-plugin-version.mjs';
 
@@ -15,6 +16,7 @@ import {
 describe('check-plugin-version', () => {
   it('passes on this repository', () => {
     expect(checkManifestVersions()).toEqual([]);
+    expect(checkPlaceholders()).toEqual([]);
   });
 
   describe('against a fixture tree', () => {
@@ -68,6 +70,24 @@ describe('check-plugin-version', () => {
       ]);
       tree({ readme: 'The dashboard is `npx -y mojulo-ui@3.1.0`.' });
       expect(checkManifestVersions({ root })).toEqual([]);
+    });
+
+    // A size or timing left as a placeholder renders as an empty tag on npmjs.com and GitHub.
+    it('refuses an unfilled <measured> placeholder in the published prose, not in the changelog', () => {
+      tree({ readme: 'About <measured> MB of disk.' });
+      write('README.md', 'Fine.\nIt answered in <measured> s.');
+      write('docs/tour.md', 'About <measured> MB.');
+      write('docs/STATUS.md', '<measured> (the gitignored ledger)');
+      write('control/CHANGELOG.md', '## [Unreleased]\n- about <measured> MB');
+      expect(checkPlaceholders({ root }).sort()).toEqual([
+        'README.md:2: unfilled <measured> placeholder',
+        'docs/tour.md:1: unfilled <measured> placeholder',
+        'plugins/mojulo/README.md:1: unfilled <measured> placeholder',
+      ]);
+      tree();
+      write('README.md', 'About 230 MB.');
+      write('docs/tour.md', 'About 230 MB.');
+      expect(checkPlaceholders({ root })).toEqual([]);
     });
 
     it('checks the release tag when asked', () => {

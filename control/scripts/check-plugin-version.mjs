@@ -18,6 +18,10 @@
  * `--expect <version>` also requires package.json to be that version (the release workflow passes
  * the tag).
  *
+ * It also refuses an unfilled `<measured>` placeholder in the published prose (the READMEs npm, GitHub
+ * and the plugin directory render, and docs/): a renderer drops it as an unknown HTML tag, so
+ * "about <measured> MB" ships as "about  MB".
+ *
  * (Until 3.0 a `--bot-image` flag also asked GHCR whether the chatbot image core pinned was
  * published. The image left with the chatbot factory, so the flag and its GHCR read are gone.)
  *
@@ -27,7 +31,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -112,6 +116,28 @@ export function checkManifestVersions({ root = REPO_ROOT, expect = null } = {}) 
   return problems;
 }
 
+// The prose a release publishes as written: the READMEs npmjs.com, GitHub and the plugin directory
+// render, and docs/. control/CHANGELOG.md is not scanned; its Unreleased section is curated at the tag.
+export const PUBLISHED_PROSE = ['README.md', 'control/README.md', PLUGIN_DIR, 'docs'];
+const UNPUBLISHED = new Set(['docs/STATUS.md']); // the maintainer's gitignored ledger
+
+/** Unfilled `<measured>` placeholders in the published prose, one problem per line. */
+export function checkPlaceholders({ root = REPO_ROOT } = {}) {
+  const problems = [];
+  for (const rel of PUBLISHED_PROSE) {
+    const abs = path.join(root, rel);
+    if (!existsSync(abs)) continue;
+    const files = statSync(abs).isDirectory() ? listFiles(root, rel).filter((f) => f.endsWith('.md')) : [rel];
+    for (const file of files) {
+      if (UNPUBLISHED.has(file)) continue;
+      readFileSync(path.join(root, file), 'utf8').split('\n').forEach((line, i) => {
+        if (line.includes('<measured>')) problems.push(`${file}:${i + 1}: unfilled <measured> placeholder`);
+      });
+    }
+  }
+  return problems;
+}
+
 /** The cache rule: files under plugins/mojulo/ changed since `ref` but plugin.json's version did not. */
 export function checkPluginVersionBump({ root = REPO_ROOT, since }) {
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
@@ -144,6 +170,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = parseArgs(process.argv.slice(2));
   const problems = [
     ...checkManifestVersions({ expect: args.expect }),
+    ...checkPlaceholders(),
     ...(args.since ? checkPluginVersionBump({ since: args.since }) : []),
   ];
   if (problems.length) {
