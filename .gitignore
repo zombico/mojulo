@@ -8,3 +8,7 @@ node_modules/
 # Maintainer's private working-tree ledger. Agents operating mojulo orient via
 # forward_context (runtime MCP); repo-dev orientation is CLAUDE.md + CHANGELOG.
 /docs/STATUS.md
+# Plans and spike output (CLAUDE.md, "Plans and changelog"). The tracked chatbot runtime that
+# lived beside it (lite-template/, whose own .gitignore ignored integration/) left with the
+# chatbot factory in 3.0.0; this keeps the working tree's plan folder ignored.
+/lite-template/integration/
