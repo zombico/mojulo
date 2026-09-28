@@ -8,15 +8,20 @@
  * scene preview (scenes render hard live) and as the "Download PNG" target.
  *
  * Chrome for Testing: a scene bake needs a Chromium-family browser. The download
- * (an explicit act, see chromium-consent.js) is allowed for the attachment form,
- * which is a person clicking "PNG" or an agent fetching a URL it was handed. The
+ * (an explicit act, see chromium-consent.js) is allowed for the attachment form
+ * when the request is one: a person clicking "PNG" in the dashboard (same-origin),
+ * a URL typed or opened from a click (Sec-Fetch-Site none, or a user-activated
+ * navigation), or an agent fetching a URL it was handed (no browser headers). A
+ * cross-site request such as an <img> on another web page pointed at 127.0.0.1
+ * is none of those, so it renders only with a browser already installed. The
  * inline form is what gallery cards and portraits embed, and it never downloads:
  * without a browser it answers 503 and names the fix.
  *
  * Query params:
  *   ?inline=1   — serve inline (Content-Disposition: inline) instead of forcing a
  *                 download. Default is attachment.
- *   ?scale=N    — pixel density / supersample factor (default 2; clamped 1–4).
+ *   ?scale=N    — pixel density / supersample factor (default 2; rounded, clamped
+ *                 1–4, so the bake cache holds at most four sizes per sketch).
  */
 
 import { NextResponse } from 'next/server';
@@ -28,6 +33,13 @@ import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { KIND_KEYFRAME_ANIMATION, KIND_SCENE_MOTION, normalizeImageOutcomesManifest } from '@/lib/graph/image-outcomes/manifest';
 import { emitKeyGuide } from '@/lib/graph/image-outcomes/keyframe-emit';
 import { emitStageGuidePng } from '@/lib/graph/image-outcomes/scene-plate';
+
+/** True when the request is a person's or an agent's own act, not something another web page started. */
+export function isExplicitRequest(headers) {
+  const site = headers.get('sec-fetch-site');
+  if (!site || site === 'same-origin' || site === 'none') return true;
+  return headers.get('sec-fetch-mode') === 'navigate' && headers.get('sec-fetch-user') === '?1';
+}
 
 function safeFilename(title, ref) {
   const base = [title, ref].filter(Boolean).join(' ');
@@ -110,7 +122,7 @@ export async function GET(request, { params }) {
     }
 
     const rawScale = Number.parseFloat(url.searchParams.get('scale'));
-    const scale = Number.isFinite(rawScale) ? Math.min(4, Math.max(1, rawScale)) : 2;
+    const scale = Number.isFinite(rawScale) ? Math.min(4, Math.max(1, Math.round(rawScale))) : 2;
     // ?panel=<id> — sequential-art scaffolds only: rasterize one panel's crop
     // (the per-panel render payload for the image-render worker).
     const panelId = url.searchParams.get('panel') || undefined;
@@ -125,7 +137,7 @@ export async function GET(request, { params }) {
       ...(panelId ? { panelId } : {}),
       ...(control ? { control: true } : {}),
     });
-    const png = inline ? await render() : (await withChromiumFetch(render)).value;
+    const png = inline || !isExplicitRequest(request.headers) ? await render() : (await withChromiumFetch(render)).value;
 
     const disposition = inline ? 'inline' : 'attachment';
     const filename = safeFilename(

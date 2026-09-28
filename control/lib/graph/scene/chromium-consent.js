@@ -5,7 +5,9 @@
  * resolveChromium never downloads a browser on its own. A render reaches the
  * download only when it runs inside withChromiumFetch, and the entry points that
  * do so are the explicit ones: forge_motion, export_game's hangar portraits,
- * create_game with auto_audit, and the dashboard's PNG download. Each puts the
+ * create_game with auto_audit, and the dashboard's PNG download when the request
+ * is a person's or an agent's own (not another web page's <img> or fetch; see
+ * that route's isExplicitRequest). Each puts the
  * returned notice in its result, so the download is never silent. The mint-time
  * warm (scene-png-warm.js) runs inside withoutChromiumFetch, and gallery
  * thumbnails and strips run outside any scope, so neither can start it.

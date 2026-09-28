@@ -109,10 +109,13 @@ loops and the recipe format are unchanged.
   is already installed and skips itself when there is none, and gallery thumbnails and turntable
   strips never download either. The download is reserved for `forge_motion` on a world,
   `export_game` hangar portraits, `create_game` with `auto_audit`, and the dashboard's PNG download
-  link; each tool result carries a `browser_download` notice when it happened, and the download is
-  logged to stderr. The resolve order is unchanged (`MOJULO_CHROMIUM`, the cached build, an
-  installed Chrome / Chromium / Edge / Brave, then the download). Without a browser, the inline PNG
-  route answers 503 naming the fix.
+  link when a person or an agent asks for it (a dashboard click, an opened URL, a fetch with no
+  browser headers); another web page's `<img>` or fetch pointed at the dashboard renders only with
+  a browser already installed, and `?scale` is rounded so such requests cannot fill the bake cache
+  with sizes. Each tool result carries a `browser_download` notice when it happened, and the
+  download is logged to stderr. The resolve order is unchanged (`MOJULO_CHROMIUM`, the cached
+  build, an installed Chrome / Chromium / Edge / Brave, then the download). Without a browser, the
+  inline PNG route answers 503 naming the fix.
 - **Headless Chromium keeps its sandbox.** Every bake used to launch the browser (including an
   installed Chrome, Edge or Brave) with `--no-sandbox`. macOS and Windows now always launch it
   sandboxed. On Linux mojulo tries the sandbox first and falls back to `--no-sandbox` only when the
