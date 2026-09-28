@@ -27,14 +27,14 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice } from '@/lib/mcp/packs';
+import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 // Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
 // and flags ride the execution context, minted in api/mcp/route.js.
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
 import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
-import { BOT_FACTORY_MOVED, isRemovedBotTool, botToolMovedNotice, botToolMovedResult } from '@/lib/mcp/bot-factory-moved';
+import { BOT_FACTORY_MOVED, isRemovedBotTool, botToolMovedNotice, removedPackRedirect } from '@/lib/mcp/bot-factory-moved';
 
 // MCP spec revisions this server speaks, newest first. `initialize` answers with
 // the revision the client asked for when it is one of these, otherwise the newest
@@ -264,9 +264,21 @@ export function runToolSerialized(tool, fn) {
  * tool is unknown or its handler throws — the executor maps both to the
  * per-call result it records.
  */
+// A name the chatbot factory took with it: the moved notice, or, when a removed pack dispatcher is
+// asked to run a tool 3.0 kept (2.x listed list_running, recommend_kind and a few more there), the
+// redirect to that tool's live home pack.
+function removedBotToolText(name, input) {
+  return (
+    removedPackRedirect(name, input?.tool, {
+      homeOf: (member) => homePackForTool(member)?.id ?? null,
+      isSpine: (member) => SPINE.includes(member),
+    }) ?? botToolMovedNotice(name)
+  );
+}
+
 export async function invokeRegisteredTool(name, input, context) {
   const tool = registeredTools.get(name);
-  if (!tool && isRemovedBotTool(name)) throw new Error(botToolMovedNotice(name));
+  if (!tool && isRemovedBotTool(name)) throw new Error(removedBotToolText(name, input));
   if (!tool) throw new Error(`Unknown tool: ${name}`);
   const notice = installNotice(name);
   if (notice) throw new Error(notice);
@@ -372,10 +384,14 @@ async function handleToolCall(message, context) {
   const toolInput = params.arguments || {};
 
   const tool = registeredTools.get(toolName);
-  // A chatbot-factory name from the 2.x line: an in-band notice saying where it went, not a
-  // bare unknown-tool error (lib/mcp/bot-factory-moved.js).
+  // A chatbot-factory name from the 2.x line: an in-band notice saying where it went (or where a
+  // kept tool it used to dispatch now lives), not a bare unknown-tool error
+  // (lib/mcp/bot-factory-moved.js).
   if (!tool && isRemovedBotTool(toolName)) {
-    return jsonRpcResult(message.id, botToolMovedResult(toolName));
+    return jsonRpcResult(message.id, {
+      content: [{ type: 'text', text: removedBotToolText(toolName, toolInput) }],
+      isError: true,
+    });
   }
   if (!tool) {
     return jsonRpcError(

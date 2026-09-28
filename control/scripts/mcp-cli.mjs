@@ -255,12 +255,21 @@ function uninstalledNote(packs) {
   return lines;
 }
 
-// A name the chatbot factory took with it answers with the moved notice, not "unknown".
-function unknownToolMessage(moved, name) {
-  return moved.isRemovedBotTool(name) ? moved.botToolMovedNotice(name) : `unknown tool: ${name} (run \`mojulo tools\`)`;
+// A name the chatbot factory took with it answers with the moved notice, not "unknown" — or, for a
+// removed pack dispatcher asked to run a tool 3.0 kept (`member`), the redirect to its live home.
+function removedMessage(moved, packs, name, member) {
+  if (!moved.isRemovedBotTool(name)) return null;
+  const redirect = moved.removedPackRedirect(name, member, {
+    homeOf: (tool) => packs.homePackForTool(tool)?.id ?? null,
+    isSpine: (tool) => packs.SPINE.includes(tool),
+  });
+  return redirect ?? moved.botToolMovedNotice(name);
 }
-function unknownPackMessage(moved, name) {
-  return moved.isRemovedBotTool(name) ? moved.botToolMovedNotice(name) : `unknown pack: ${name} (run \`mojulo packs\`)`;
+function unknownToolMessage(moved, packs, name, member) {
+  return removedMessage(moved, packs, name, member) ?? `unknown tool: ${name} (run \`mojulo tools\`)`;
+}
+function unknownPackMessage(moved, packs, name, member) {
+  return removedMessage(moved, packs, name, member) ?? `unknown pack: ${name} (run \`mojulo packs\`)`;
 }
 
 export async function runCli(argv, io = {}) {
@@ -339,7 +348,7 @@ export async function runCli(argv, io = {}) {
     });
     const tool = server.getRegisteredTool(parsed.name);
     if (!tool) {
-      const e = new Error(unknownToolMessage(moved, parsed.name));
+      const e = new Error(unknownToolMessage(moved, packs, parsed.name, base?.tool));
       e.usage = true;
       throw e;
     }
@@ -370,7 +379,7 @@ export async function runCli(argv, io = {}) {
       if (parsed.pack) {
         const pack = packs.PACKS.find((p) => p.id === parsed.pack);
         if (!pack) {
-          err(`mojulo: ${unknownPackMessage(moved, parsed.pack)}`);
+          err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack)}`);
           return 2;
         }
         const memberSet = new Set(pack.members);
@@ -405,7 +414,7 @@ export async function runCli(argv, io = {}) {
     case 'help': {
       const tool = server.getRegisteredTool(parsed.name);
       if (!tool) {
-        err(`mojulo: ${unknownToolMessage(moved, parsed.name)}`);
+        err(`mojulo: ${unknownToolMessage(moved, packs, parsed.name)}`);
         return 2;
       }
       const home = packs.homePackForTool(parsed.name);
@@ -429,7 +438,7 @@ export async function runCli(argv, io = {}) {
 
     case 'pack': {
       if (!server.hasRegisteredTool(parsed.pack)) {
-        err(`mojulo: ${unknownPackMessage(moved, parsed.pack)}`);
+        err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack, parsed.name)}`);
         return 2;
       }
       if (parsed.name === null) {

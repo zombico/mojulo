@@ -572,6 +572,32 @@ describe('the chatbot factory left in 3.0.0 — its names answer with the moved 
     await expect(server.invokeRegisteredTool('list_deployments', {}, {})).rejects.toThrow(BOT_FACTORY_MOVED);
   });
 
+  // A 2.x skill that managed app env or ranked cook kinds through the old bot packs: the tool is
+  // still here under a new home, so the answer is where to dispatch it, not "the factory moved".
+  it('a removed pack dispatcher naming a tool 3.0 kept is re-routed to its home pack', async () => {
+    const cases = [
+      ['pack_bot_operate', 'list_running', 'pack_runtime'],
+      ['pack_bot_operate', 'set_env', 'pack_runtime'],
+      ['pack_bot_build', 'recommend_kind', homePackForTool('recommend_kind').id],
+    ];
+    for (const [pack, tool, home] of cases) {
+      const res = await server.dispatchMcpRequest(
+        { jsonrpc: '2.0', id: 884, method: 'tools/call', params: { name: pack, arguments: { tool, args: {} } } }, {});
+      const text = res.result.content[0].text;
+      expect(res.result.isError, `${pack} ${tool}`).toBe(true);
+      expect(text, `${pack} ${tool}`).toContain(`it is homed in ${home}. Dispatch it there: ${home}({ tool: '${tool}'`);
+      expect(text, `${pack} ${tool}`).not.toContain(BOT_FACTORY_MOVED);
+    }
+    await expect(server.invokeRegisteredTool('pack_bot_operate', { tool: 'list_env' }, {})).rejects.toThrow(/homed in pack_runtime/);
+    // A removed member, or a bare call, still gets the moved notice.
+    for (const args of [{ tool: 'get_deployment', args: {} }, {}]) {
+      const res = await server.dispatchMcpRequest(
+        { jsonrpc: '2.0', id: 885, method: 'tools/call', params: { name: 'pack_bot_operate', arguments: args } }, {});
+      expect(res.result.isError).toBe(true);
+      expect(res.result.content[0].text).toContain(BOT_FACTORY_MOVED);
+    }
+  });
+
   it('any other unknown name stays an unknown tool', async () => {
     const res = await server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 883, method: 'tools/call', params: { name: 'no_such_tool', arguments: {} } }, {});
