@@ -19,8 +19,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The 2.x line is unmaintained.** No 2.x release will be patched, and running one is not
   recommended. 2.1.0 and the bot image it deploys (`mojulo-bot` 0.5.1) have known security issues: an
   open relay on deployed bots (`/api/send-webhook`), SSRF in `upload_document_from_url`, path
-  traversal in the Office-document parser, Fly credentials in the machine environment, and dashboard
-  DNS rebinding and cross-site writes, a revoked delegate's dashboard session that outlives the
+  traversal in the Office-document parser, Fly credentials in the machine environment, dashboard DNS
+  rebinding and cross-site writes, a revoked delegate's dashboard session that outlives the
   revocation, and a delegate's dashboard session that holds the operator's authority
   ([SECURITY.md](https://github.com/zombico/mojulo/blob/v3.0.0/SECURITY.md#known-issues-in-2x)). Bots
   already deployed from 2.x run on their own, on that image, until you take them down.
