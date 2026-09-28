@@ -27,8 +27,8 @@
  * and the $MOJULO_CHROMIUM override.
  *
  * Sandbox: Chromium keeps its own sandbox (the pages are agent-generated HTML).
- * Only Linux ever drops it, and only after a sandboxed launch has failed; see
- * launchChromium.
+ * Only Linux ever drops it: as root, or after a sandboxed launch failed with one
+ * of Chrome's sandbox errors; see launchChromium.
  *
  * CONTROL-PLANE concern only. The Debian-slim / glibc bot-image rules in CLAUDE.md
  * govern the bot image, not this path; the control plane is single-user/self-hosted.
@@ -132,36 +132,60 @@ function chromiumUnavailable() {
   return err;
 }
 
-// Set once a sandboxed launch has failed on this Linux host; later launches go
-// straight to the fallback instead of failing first every time.
+// Set once this Linux host has shown it cannot run the sandbox (a launch failed
+// with one of Chrome's sandbox errors, or the process is root); later launches
+// go straight to the fallback instead of failing first every time.
 let linuxSandboxUnavailable = false;
+
+// Chrome's own words when its sandbox cannot start. puppeteer puts the browser's
+// recent stderr in the launch error's message, so they are matched there; a
+// timeout, a missing library or a spawn failure never matches, and never drops
+// the sandbox.
+const SANDBOX_FAILURE = /No usable sandbox|setuid sandbox|SUID sandbox|Running as root without --no-sandbox|Failed to move to new namespace|user namespace/i;
+
+/** The line of a launch error that names a sandbox failure, or null when it is some other failure. */
+export function sandboxFailureLine(err) {
+  const lines = String(err?.message || err || '').split('\n');
+  return lines.find((line) => SANDBOX_FAILURE.test(line))?.trim().slice(0, 200) || null;
+}
 
 /**
  * puppeteer.launch with Chromium's sandbox on. macOS and Windows always launch
  * sandboxed. A Linux container or CI runner often lacks the unprivileged user
- * namespaces the sandbox needs (or runs as root, which Chrome refuses to
- * sandbox), so there a failed sandboxed launch is retried once with
- * --no-sandbox, the fallback is logged to stderr, and later launches reuse it.
+ * namespaces the sandbox needs, so there a sandboxed launch that fails with one
+ * of Chrome's sandbox errors is retried once with --no-sandbox, the fallback is
+ * logged to stderr, and later launches reuse it. Chrome never sandboxes as
+ * root, so a root process starts on the fallback. Any other failure (a launch
+ * timeout under load, a missing library, a spawn error) is thrown as it is and
+ * leaves the sandbox on for the next launch.
  *
  * @param {object} opts  puppeteer.launch options; `args` defaults to the CSS-3D/SVG bake args
- * @param {object} [seams]  tests only: { platform, launch }
+ * @param {object} [seams]  tests only: { platform, launch, uid }
  */
-export async function launchChromium(opts = {}, { platform = process.platform, launch = (o) => puppeteer.launch(o) } = {}) {
+export async function launchChromium(
+  opts = {},
+  { platform = process.platform, launch = (o) => puppeteer.launch(o), uid = process.getuid?.() } = {},
+) {
   const sandboxed = { headless: true, ...opts, args: opts.args || LAUNCH_ARGS };
   if (platform !== 'linux') return launch(sandboxed);
   const unsandboxed = { ...sandboxed, args: [...NO_SANDBOX_ARGS, ...sandboxed.args] };
+  if (!linuxSandboxUnavailable && uid === 0) {
+    linuxSandboxUnavailable = true;
+    console.error('[mojulo] Running as root, where Chromium cannot keep its sandbox: launching it with --no-sandbox.');
+  }
   if (linuxSandboxUnavailable) return launch(unsandboxed);
   try {
     return await launch(sandboxed);
   } catch (err) {
+    const why = sandboxFailureLine(err);
+    if (!why) throw err;
     let browser;
     try {
       browser = await launch(unsandboxed);
     } catch {
-      throw err; // fails either way, so not a sandbox problem: report the sandboxed attempt
+      throw err; // fails either way: report the sandboxed attempt
     }
     linuxSandboxUnavailable = true;
-    const why = String(err?.message || err).split('\n')[0].slice(0, 200);
     console.error(
       `[mojulo] Chromium would not start with its sandbox on this Linux host (${why}). `
         + 'Running it with --no-sandbox for the rest of this process; containers and CI runners '

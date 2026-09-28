@@ -119,8 +119,10 @@ loops and the recipe format are unchanged.
 - **Headless Chromium keeps its sandbox.** Every bake used to launch the browser (including an
   installed Chrome, Edge or Brave) with `--no-sandbox`. macOS and Windows now always launch it
   sandboxed. On Linux mojulo tries the sandbox first and falls back to `--no-sandbox` only when the
-  sandboxed launch fails (containers and CI runners without user namespaces, or root), logging the
-  fallback to stderr once per process.
+  sandboxed launch fails with one of Chrome's sandbox errors (containers and CI runners without
+  user namespaces), or straight away as root, where Chrome never sandboxes; it logs the fallback
+  and the sandbox error to stderr once per process. A launch that times out under load, a missing
+  library or a spawn error is reported as it is and leaves the sandbox on for the next launch.
 - **The ffmpeg download is checksum-verified.** The lazily fetched ffmpeg (ffmpeg-static `b6.1.1` from
   GitHub, fetched on the first MP4 encode when no ffmpeg is installed) used to be unpacked, made
   executable and run with only a `-version` check. Each platform's `.gz` asset now has a pinned

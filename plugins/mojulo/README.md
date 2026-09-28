@@ -97,8 +97,8 @@ is, and Homebrew may refresh its own cache from formulae.brew.sh. Mojulo's code 
 
 - **A headless browser** for PNG stills, turntables and motion: a Chrome, Chromium, Edge or Brave
   you already have (or `MOJULO_CHROMIUM`), otherwise the Chrome for Testing above. It keeps its
-  sandbox on macOS and Windows; on Linux it retries once without it if a sandboxed launch fails,
-  and says so on stderr. Minting or editing a world, scene or solid renders a preview in the
+  sandbox on macOS and Windows; on Linux it retries once without it if a sandboxed launch fails
+  with one of Chrome's sandbox errors (or starts without it as root), and says so on stderr. Minting or editing a world, scene or solid renders a preview in the
   background with an installed browser, and skips when there is none;
   `MOJULO_DISABLE_SCENE_WARM=1` turns that off.
 - **ffmpeg** for MP4 encodes (yours on the `PATH`, `MOJULO_FFMPEG`, or the pinned download).
