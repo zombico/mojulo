@@ -1,6 +1,6 @@
 {
   "name": "heroine",
-  "$note": "The lead girl, full body: the heroine look with a soft face, large eyes and a side-parted cut (a longer fall, a crown curl, the fringe eased off the brows), smiling with the mouth a little open; a fitted cream top over navy leggings, a coral sash tied in a bow at the small of the back, tan buckled boots. Shows the dress as data (detail refines the limb and torso rings and adds the collars; adorn the sash, the bow and the boots) and a stand from pose words: relaxed, the chest opened, the near hand raised in a small wave; and four clips of her own at the door (clips: greet, idleRelaxed, run, victory), each key in the rig's pose words.",
+  "$note": "The lead girl, full body: the heroine look with a soft face, large eyes and a side-parted cut (a longer fall, a crown curl, the fringe eased off the brows), smiling with the mouth a little open; a fitted cream top over navy leggings, a coral sash tied in a bow at the small of the back, tan buckled boots. Shows the dress as data (detail refines the limb and torso rings and adds the collars; adorn the sash, the bow and the boots) and a stand from pose words: relaxed, the chest opened, the near hand raised in a small wave; and four clips of her own at the door (clips: greet, idleRelaxed, run, victory), each key in the rig's pose words, each clip with its designed duration (seconds: greet and victory 2, idleRelaxed 4, run 0.8) and a facial performance in its keys' face words: the greet shuts her eyes in a grin on the first stroke and opens into a wider smile, the run holds a determined squint whose mouth pushes on each contact, the victory gathers on the crouch (the brows down, the eyes a touch narrower) and cheers eyes shut with the arms up; idleRelaxed keeps her authored face and blinks once a loop.",
   "hero": {
     "cast": "female",
     "head": "anime",
@@ -29,220 +29,243 @@
       }
     ],
     "clips": {
-      "greet": [
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 12, "pitch": 0 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -25, "pitch": 35, "roll": 48 },
-          "elbowR": 135
-        },
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 12, "pitch": 3 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -25, "pitch": 35, "roll": 95 },
-          "elbowR": 135
-        },
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 12, "pitch": 0 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -25, "pitch": 35, "roll": 48 },
-          "elbowR": 135
-        },
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 10, "pitch": -2 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -25, "pitch": 35, "roll": 95 },
-          "elbowR": 135
-        }
-      ],
-      "idleRelaxed": [
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.06 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 12, "pitch": 0 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
-          "elbowR": 45
-        },
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.12 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 12, "pitch": 2 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
-          "elbowR": 45
-        },
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.06 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 12, "pitch": 0 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
-          "elbowR": 45
-        },
-        {
-          "support": "L",
-          "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.09 },
-          "pelvis": 8,
-          "shoulders": -6,
-          "neck": { "yaw": 8 },
-          "head": { "yaw": 11, "pitch": -3 },
-          "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
-          "kneeR": 15,
-          "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
-          "elbowL": 12,
-          "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
-          "elbowR": 45
-        }
-      ],
-      "run": [
-        {
-          "support": "L",
-          "crouch": 0.04,
-          "spine": { "lean": ["forward", 0.25], "twist": ["left", 0.2] },
-          "pelvis": 10,
-          "shoulders": -12,
-          "head": { "pitch": 6 },
-          "legR": { "x": 0.06, "y": 0.75, "z": -0.66 },
-          "kneeR": 100,
-          "armL": { "x": -0.15, "y": 0.7, "z": -0.7 },
-          "elbowL": 100,
-          "armR": { "x": 0.18, "y": -0.6, "z": -0.78 },
-          "elbowR": 80
-        },
-        {
-          "crouch": 0.08,
-          "spine": { "lean": ["forward", 0.25] },
-          "head": { "pitch": 6 },
-          "legR": { "x": 0.05, "y": -0.15, "z": -0.99 },
-          "kneeR": 95,
-          "legL": { "x": -0.05, "y": -0.15, "z": -0.99 },
-          "kneeL": 95,
-          "armL": { "x": -0.2, "y": 0.1, "z": -0.97 },
-          "elbowL": 95,
-          "armR": { "x": 0.2, "y": 0.1, "z": -0.97 },
-          "elbowR": 95
-        },
-        {
-          "support": "R",
-          "crouch": 0.04,
-          "spine": { "lean": ["forward", 0.25], "twist": ["right", 0.2] },
-          "pelvis": -10,
-          "shoulders": 12,
-          "head": { "pitch": 6 },
-          "legL": { "x": -0.06, "y": 0.75, "z": -0.66 },
-          "kneeL": 100,
-          "armR": { "x": 0.15, "y": 0.7, "z": -0.7 },
-          "elbowR": 100,
-          "armL": { "x": -0.18, "y": -0.6, "z": -0.78 },
-          "elbowL": 80
-        },
-        {
-          "crouch": 0.08,
-          "spine": { "lean": ["forward", 0.25] },
-          "head": { "pitch": 6 },
-          "legR": { "x": 0.05, "y": -0.15, "z": -0.99 },
-          "kneeR": 95,
-          "legL": { "x": -0.05, "y": -0.15, "z": -0.99 },
-          "kneeL": 95,
-          "armL": { "x": -0.2, "y": 0.1, "z": -0.97 },
-          "elbowL": 95,
-          "armR": { "x": 0.2, "y": 0.1, "z": -0.97 },
-          "elbowR": 95
-        }
-      ],
-      "victory": [
-        {
-          "support": "both",
-          "crouch": 0.1,
-          "spine": { "curl": 0.15 },
-          "head": { "pitch": -8 },
-          "shR": { "yaw": -10, "pitch": 30, "roll": 0 },
-          "elbowR": 140,
-          "shL": { "yaw": 10, "pitch": 30, "roll": 0 },
-          "elbowL": 140
-        },
-        {
-          "support": "both",
-          "crouch": 0,
-          "spine": { "arch": 0.25, "sideBend": ["left", 0.15] },
-          "head": { "yaw": -8, "pitch": 12 },
-          "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
-          "elbowR": "slight",
-          "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
-          "elbowL": 90
-        },
-        {
-          "support": "both",
-          "crouch": 0.03,
-          "spine": { "arch": 0.2, "sideBend": ["left", 0.15] },
-          "head": { "yaw": -10, "pitch": 10 },
-          "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
-          "elbowR": "slight",
-          "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
-          "elbowL": 90
-        },
-        {
-          "support": "both",
-          "crouch": 0,
-          "spine": { "arch": 0.25, "sideBend": ["left", 0.15] },
-          "head": { "yaw": -8, "pitch": 12 },
-          "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
-          "elbowR": "slight",
-          "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
-          "elbowL": 90
-        }
-      ]
+      "greet": {
+        "seconds": 2,
+        "keys": [
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -25, "pitch": 35, "roll": 48 },
+            "elbowR": 135
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 3 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -25, "pitch": 35, "roll": 95 },
+            "elbowR": 135,
+            "face": ["happy", { "open": 0.4 }]
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -25, "pitch": 35, "roll": 48 },
+            "elbowR": 135,
+            "face": ["smile", { "open": 0.5, "brow": -0.2 }]
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 10, "pitch": -2 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -25, "pitch": 35, "roll": 95 },
+            "elbowR": 135,
+            "face": ["smile", { "open": 0.5, "brow": -0.2 }]
+          }
+        ]
+      },
+      "idleRelaxed": {
+        "seconds": 4,
+        "keys": [
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.06 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.12 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 2 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.06 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.09 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 11, "pitch": -3 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          }
+        ]
+      },
+      "run": {
+        "seconds": 0.8,
+        "keys": [
+          {
+            "support": "L",
+            "crouch": 0.04,
+            "spine": { "lean": ["forward", 0.25], "twist": ["left", 0.2] },
+            "pelvis": 10,
+            "shoulders": -12,
+            "head": { "pitch": 6 },
+            "legR": { "x": 0.06, "y": 0.75, "z": -0.66 },
+            "kneeR": 100,
+            "armL": { "x": -0.15, "y": 0.7, "z": -0.7 },
+            "elbowL": 100,
+            "armR": { "x": 0.18, "y": -0.6, "z": -0.78 },
+            "elbowR": 80,
+            "face": ["determined", { "open": 0.32, "brow": 0.6 }]
+          },
+          {
+            "crouch": 0.08,
+            "spine": { "lean": ["forward", 0.25] },
+            "head": { "pitch": 6 },
+            "legR": { "x": 0.05, "y": -0.15, "z": -0.99 },
+            "kneeR": 95,
+            "legL": { "x": -0.05, "y": -0.15, "z": -0.99 },
+            "kneeL": 95,
+            "armL": { "x": -0.2, "y": 0.1, "z": -0.97 },
+            "elbowL": 95,
+            "armR": { "x": 0.2, "y": 0.1, "z": -0.97 },
+            "elbowR": 95,
+            "face": ["determined", { "open": 0.2 }]
+          },
+          {
+            "support": "R",
+            "crouch": 0.04,
+            "spine": { "lean": ["forward", 0.25], "twist": ["right", 0.2] },
+            "pelvis": -10,
+            "shoulders": 12,
+            "head": { "pitch": 6 },
+            "legL": { "x": -0.06, "y": 0.75, "z": -0.66 },
+            "kneeL": 100,
+            "armR": { "x": 0.15, "y": 0.7, "z": -0.7 },
+            "elbowR": 100,
+            "armL": { "x": -0.18, "y": -0.6, "z": -0.78 },
+            "elbowL": 80,
+            "face": ["determined", { "open": 0.32, "brow": 0.6 }]
+          },
+          {
+            "crouch": 0.08,
+            "spine": { "lean": ["forward", 0.25] },
+            "head": { "pitch": 6 },
+            "legR": { "x": 0.05, "y": -0.15, "z": -0.99 },
+            "kneeR": 95,
+            "legL": { "x": -0.05, "y": -0.15, "z": -0.99 },
+            "kneeL": 95,
+            "armL": { "x": -0.2, "y": 0.1, "z": -0.97 },
+            "elbowL": 95,
+            "armR": { "x": 0.2, "y": 0.1, "z": -0.97 },
+            "elbowR": 95,
+            "face": ["determined", { "open": 0.2 }]
+          }
+        ]
+      },
+      "victory": {
+        "seconds": 2,
+        "keys": [
+          {
+            "support": "both",
+            "crouch": 0.1,
+            "spine": { "curl": 0.15 },
+            "head": { "pitch": -8 },
+            "shR": { "yaw": -10, "pitch": 30, "roll": 0 },
+            "elbowR": 140,
+            "shL": { "yaw": 10, "pitch": 30, "roll": 0 },
+            "elbowL": 140,
+            "face": { "blink": 0.2, "smile": 0.6, "brow": 0.55 }
+          },
+          {
+            "support": "both",
+            "crouch": 0,
+            "spine": { "arch": 0.25, "sideBend": ["left", 0.15] },
+            "head": { "yaw": -8, "pitch": 12 },
+            "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
+            "elbowR": "slight",
+            "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
+            "elbowL": 90,
+            "face": ["happy", { "open": 0.85, "brow": -0.6 }]
+          },
+          {
+            "support": "both",
+            "crouch": 0.03,
+            "spine": { "arch": 0.2, "sideBend": ["left", 0.15] },
+            "head": { "yaw": -10, "pitch": 10 },
+            "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
+            "elbowR": "slight",
+            "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
+            "elbowL": 90,
+            "face": ["happy", { "open": 0.85, "brow": -0.6 }]
+          },
+          {
+            "support": "both",
+            "crouch": 0,
+            "spine": { "arch": 0.25, "sideBend": ["left", 0.15] },
+            "head": { "yaw": -8, "pitch": 12 },
+            "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
+            "elbowR": "slight",
+            "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
+            "elbowL": 90,
+            "face": ["happy", { "open": 0.85, "brow": -0.6 }]
+          }
+        ]
+      }
     },
     "detail": {
       "refine": [

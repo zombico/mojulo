@@ -2,7 +2,8 @@
 // (the bytes export_model { clips: '_all', skinned: true } writes) with its importer settings and a scene that plays
 // one clip under the authored view; every other pack — clips off or naming none of its clips, an unrigged layered
 // solid, the figure kind — emits as before, and the emitter without a figure writes the text it wrote before the figure
-// pack.
+// pack. The anime hero's figure carries its face: its scene is figure_face.gd, its README says the designed durations,
+// and its view is re-placed so every corner of the figure's extent over its clips lies inside the frustum.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
@@ -17,8 +18,9 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { facesToGlb } from './scene-gltf.js';
-import { buildGodotWorldPack, figureClip } from './godot-pack.js';
-import { emitGodotProject, FIGURE_IMPORT, FIGURE_VIEW_GD } from './godot-project.js';
+import { buildGodotWorldPack, figureClip, figureExtent, layeredFigure } from './godot-pack.js';
+import { emitGodotProject, FIGURE_IMPORT, FIGURE_VIEW_GD, FIGURE_FACE_GD } from './godot-project.js';
+import { extractEngineScore } from './engine-score.js';
 
 const glbJson = (bytes) => JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString('utf8'));
 const outDir = (ref) => path.join(process.env.MOJULO_OUTCOMES_DIR, ref, 'godot');
@@ -27,6 +29,8 @@ const text = (ref, f) => read(ref, f).toString('utf8');
 
 // the fast hero (no head, lowpoly): an 18-joint rig and the hero's own idle, walk and wave
 const HERO = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'none', register: 'lowpoly' }) });
+// the lowpoly anime hero (its face as blend shapes, its clips at their designed durations), an authored face off the neutral
+const ANIME = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', register: 'lowpoly', expression: ['smile', { open: 0.3 }] }) });
 // the walking figure of world-scene.export-kinds.test.js: a rig, but not a layered one (rigid parts stay)
 const FIGURE_KIND = { kind: 'figure', pose: { shR: { yaw: -40, pitch: -10 }, elbowR: 60, spine: { lateral: 0.2 } }, proto: { sex: 'female' }, garment: 'tee', motion: 'walk', title: 'walking figure' };
 
@@ -156,6 +160,62 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
   }, 60000);
 });
 
+// a quaternion [x, y, z, w] applied to a vector
+const rotate = ([x, y, z, w], [vx, vy, vz]) => {
+  const tx = 2 * (y * vz - z * vy), ty = 2 * (z * vx - x * vz), tz = 2 * (x * vy - y * vx);
+  return [vx + w * tx + (y * tz - z * ty), vy + w * ty + (z * tx - x * tz), vz + w * tz + (x * ty - y * tx)];
+};
+
+describe("buildGodotWorldPack — the anime hero's figure", () => {
+  it('plays under figure_face.gd, says its designed durations and its face, and its view frames every clip', async () => {
+    SketchRepository.create({ ref: 'sk_gf_anime', title: 'anime hero', manifest: ANIME });
+    const pack = await buildGodotWorldPack({ ref: 'sk_gf_anime', outDir: outDir('sk_gf_anime') });
+    expect(pack.figure).toEqual({
+      name: 'body', clip: 'idle', clips: ['gesture', 'idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 18,
+      anime: true, seconds: { gesture: 1, idle: 4, walk: 1, wave: 2 }, face: true, ambientOver: ['body:gesture', 'body:walk', 'body:wave'],
+    });
+    // the bytes export_model { format: 'glb', clips: '_all', skinned: true } writes: the face asked for
+    const sketch = SketchRepository.getByRef('sk_gf_anime');
+    const { payload } = await resolveWorldScene(sketch, { face: true });
+    const want = facesToGlb(payload, { generator: 'mojulo sk_gf_anime', clips: '_all', skinned: true }).bytes;
+    expect(Buffer.compare(read('sk_gf_anime', 'model.glb'), Buffer.from(want))).toBe(0);
+    expect(glbJson(want).meshes.find((m) => m.extras?.face)?.extras.targetNames).toHaveLength(17);
+
+    const files = pack.written.map((f) => f.file);
+    for (const f of ['model.glb.import', 'figure.gd', 'figure_face.gd']) expect(files, f).toContain(f);
+    expect(text('sk_gf_anime', 'level.tscn')).toBe(STUB.replace('res://figure.gd', 'res://figure_face.gd'));
+    expect(text('sk_gf_anime', 'figure_face.gd')).toBe(FIGURE_FACE_GD);
+    expect(text('sk_gf_anime', 'figure.gd')).toBe(FIGURE_VIEW_GD);
+    expect(FIGURE_FACE_GD.startsWith('extends "res://figure.gd"\n')).toBe(true);
+    const readme = text('sk_gf_anime', 'README.md');
+    expect(readme).toContain('re-placed so it\nframes the figure over all its clips');
+    expect(readme).toContain('gesture 1 s, idle 4 s, walk 1 s, wave 2 s');
+    expect(readme).toContain('`body:gesture`, `body:walk`, `body:wave`.');
+    expect(readme).not.toContain('one second each');
+    expect(Object.keys(pack.ledger)).toEqual(expect.arrayContaining(['figure_skinned', 'figure_face', 'figure_normals']));
+
+    // the view: the score's three-quarter camera, its rotation and yfov kept, re-placed; the other cameras the score's own
+    const cams = JSON.parse(text('sk_gf_anime', 'score.json')).cameras, authored = JSON.parse(JSON.stringify(extractEngineScore(sketch, payload, {}).cameras));
+    const cam = cams[pack.figure.view];
+    cams.forEach((c, i) => (i === pack.figure.view ? expect(c).toEqual({ ...authored[i], translation: c.translation }) : expect(c).toEqual(authored[i])));
+    expect(cam.translation).not.toEqual(authored[pack.figure.view].translation);
+    // every corner of the figure's extent over its clips inside the frustum
+    const ext = figureExtent(layeredFigure(payload)[1], pack.figure.clips);
+    const R = rotate(cam.rotation, [1, 0, 0]), U = rotate(cam.rotation, [0, 1, 0]), B = rotate(cam.rotation, [0, 0, 1]), t = Math.tan(cam.yfov / 2);
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    expect(ext.corners.length).toBeGreaterThan(8 * 18);
+    let worst = 0;
+    for (const p of ext.corners) {
+      const w = p.map((x, c) => x - cam.translation[c]), z = -dot(w, B);
+      expect(z).toBeGreaterThan(cam.znear);
+      worst = Math.max(worst, Math.abs(dot(w, U)) / (z * t), Math.abs(dot(w, R)) / (z * t * cam.aspectRatio));
+    }
+    // a tenth to spare, and tight: the extent touches the fitted frame's margin
+    expect(worst).toBeLessThanOrEqual(1 / 1.1 + 1e-9);
+    expect(worst).toBeGreaterThan(1 / 1.1 - 1e-6);
+  }, 120000);
+});
+
 describe('the emitter without a figure (the text before the figure pack)', () => {
   it('writes the kernel stub and the presets byte for byte', () => {
     const score = { ref: 'w', title: 'fixture', units: '1 mojulo unit = 1 meter', ground: 0, eye: 1.7, colliders: [], cameras: [], entities: [], mechanics: [], soundtrack: null, ledger: {} };
@@ -180,7 +240,8 @@ describe('the emitter with a figure that stands', () => {
 describe('figure.gd against the kernel', () => {
   it("the kernel's level still defines what the figure's scene extends and calls", () => {
     const level = readFileSync(path.join(process.cwd(), 'lib/graph/scene/godot-kernel/level.gd'), 'utf8');
-    for (const def of ['func _spawn_walker(', 'func _imported_player(', 'func _anim_name(', 'func _play_loop(', 'var score_path']) expect(level, def).toContain(def);
+    // figure_face.gd (FIGURE_FACE_GD) reaches _loop besides
+    for (const def of ['func _spawn_walker(', 'func _imported_player(', 'func _anim_name(', 'func _play_loop(', 'func _loop(', 'var score_path']) expect(level, def).toContain(def);
     expect(FIGURE_VIEW_GD.startsWith('extends "res://kernel/level.gd"\n')).toBe(true);
   });
 });

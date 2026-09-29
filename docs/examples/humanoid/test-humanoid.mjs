@@ -1,7 +1,7 @@
 // node --test docs/examples/humanoid/test-humanoid.mjs — the humanoid starter: both presets in every register close,
 // the jaw hinges by the ear, both eyes read, hair and expression never move a joint. Both heads are resampled from
 // fitted heads (canonical); the landmark cage's construction gates run with the cage selected. The worked cast (cast/)
-// passes the hero door.
+// passes the hero door. The animations page (view-animations.mjs) reads a GLB's face and shows its panel only then.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
@@ -14,6 +14,7 @@ import { expandPlan } from '../../../control/lib/graph/polygonizer/station-loft-
 import { compileLayered, auditLayered } from '../../../control/lib/graph/polygonizer/station-loft.js';
 import { validateRig, bindLayered, rigNodesAt } from '../../../control/lib/graph/polygonizer/station-loft-rig.js';
 import { layeredExposure } from '../../../control/lib/graph/polygonizer/station-loft-exposure.js';
+import { glbFaceExtras, animationsPage } from './view-animations.mjs';
 
 /** Run with both presets on the landmark cage (kept selectable; its own construction gates). */
 const onCage = (fn) => { const was = { ...HEAD_SOURCES }; HEAD_SOURCES.male = HEAD_SOURCES.female = 'landmarks'; try { return fn(); } finally { Object.assign(HEAD_SOURCES, was); } };
@@ -223,7 +224,37 @@ test('the worked cast: every spec passes the hero door without a refusal; the he
       const planned = planLayered({ ...m, ...(spec.toon ? { toon: spec.toon } : {}), units: 'm' });
       assert.ok(planned.stats.layered.rig, 'the heroine plans, rigged');
       assert.deepEqual(planned.stats.layered.rig.clips, ['gesture', 'idle', 'walk', 'wave', 'greet', 'idleRelaxed', 'run', 'victory'], "her own clips follow the hero's, through the rig gates with them");
-      for (const [name, keys] of Object.entries(spec.hero.clips)) assert.deepEqual(m.recipe.clips[name], keys, name);
+      // the recipe carries the door's keys without their facial track (`face`: the export draws it, the rig never reads
+      // it); a `{ seconds, keys }` clip merges its keys
+      for (const [name, clip] of Object.entries(spec.hero.clips)) assert.deepEqual(m.recipe.clips[name], (Array.isArray(clip) ? clip : clip.keys).map(({ face: _f, ...pose }) => pose), name);
     }
   }
+});
+
+test('the animations page: the face a GLB carries, the model inlined, the face panel only with a face', () => {
+  // a hand-made GLB: the JSON chunk (padded to 4 bytes) and an empty BIN chunk
+  const glb = (json) => {
+    const j = Buffer.from(JSON.stringify(json)), jp = Buffer.concat([j, Buffer.alloc((4 - (j.length % 4)) % 4, 0x20)]);
+    const head = Buffer.alloc(12), jh = Buffer.alloc(8), bh = Buffer.alloc(8);
+    head.writeUInt32LE(0x46546c67, 0); head.writeUInt32LE(2, 4); head.writeUInt32LE(12 + 8 + jp.length + 8, 8);
+    jh.writeUInt32LE(jp.length, 0); jh.writeUInt32LE(0x4e4f534a, 4); bh.writeUInt32LE(0, 0); bh.writeUInt32LE(0x004e4942, 4);
+    return Buffer.concat([head, jh, jp, bh]);
+  };
+  const face = { fps: 30, eyeKnots: [0, 0.5, 1], fixKnots: [0.5], words: { neutral: [0, 0], authored: [0.5, 1] }, ambientClip: 'face:ambientBlink', ambientOver: ['body:walk'] };
+  const faced = glb({ asset: { version: '2.0' }, meshes: [{ name: 'static', primitives: [] }, { name: 'body:skinned', primitives: [], extras: { targetNames: ['blink', 'blinkFix50L'], face } }] });
+  const plain = glb({ asset: { version: '2.0' }, meshes: [{ name: 'body:skinned', primitives: [] }] });
+  assert.deepEqual(glbFaceExtras(faced), { ...face, targetNames: ['blink', 'blinkFix50L'] });
+  assert.equal(glbFaceExtras(plain), null);
+  assert.equal(glbFaceExtras(new Uint8Array(faced)).ambientClip, 'face:ambientBlink', 'any Uint8Array');
+  assert.throws(() => glbFaceExtras(Buffer.from('not a glb, not at all')), /not a GLB/);
+  const withFace = animationsPage({ title: 'hero', models: [{ name: 'hero', bytes: faced }] });
+  const without = animationsPage({ title: 'plain', models: [{ name: 'plain', bytes: plain }] });
+  for (const [html, bytes] of [[withFace, faced], [without, plain]]) {
+    assert.ok(html.includes(bytes.toString('base64')), 'the GLB inlined');
+    assert.ok(html.includes('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'), 'three.js 0.170.0 from jsdelivr');
+    assert.ok(html.includes('window.__view'), 'the test hook');
+  }
+  assert.ok(withFace.includes('<div id="face" hidden>') && withFace.includes('id="camface"') && withFace.includes('clip drives the face'), 'the face panel and camera with a face');
+  assert.ok(!without.includes('<div id="face"') && !without.includes('id="camface"'), 'neither without one');
+  assert.throws(() => animationsPage({ models: [] }), /no models/);
 });

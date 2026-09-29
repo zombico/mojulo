@@ -25,7 +25,7 @@ function digest(model) {
 // studio's head bit for bit (the fixture), each word gates only its own parts, and the lens budget is its own option.
 describe('anime-form: the sculpt keeps the port pinned', () => {
   const ROUND = { h: 1, hDn: 1, upper: { m: 2, p: 0.5, k: 0 }, lower: { m: 2, p: 0.5, k: 0 } };
-  const NEUTRALS = { null: null, empty: {}, neutral: { ...SCULPT_NEUTRAL }, 'neutral, the round fissure and null words': { ...SCULPT_NEUTRAL, fissure: ROUND, lidWeight: null, brow: null, nose: null, noseLine: null, catchlight: null, lidCover: false, ear: null, lidShut: null } };
+  const NEUTRALS = { null: null, empty: {}, neutral: { ...SCULPT_NEUTRAL }, 'neutral, the round fissure and null words': { ...SCULPT_NEUTRAL, fissure: ROUND, lidWeight: null, brow: null, nose: null, noseLine: null, catchlight: null, lidCover: false, ear: null, lidShut: null, scleraShut: null } };
   for (const c of FIXTURE.cases) it(`explicit neutral sculpts are the studio: ${c.name}`, () => {
     for (const [name, sculpt] of Object.entries(NEUTRALS)) expect(digest(buildAnime(animeReadRecipe(c.recipe), { ...c.options, sculpt })), name).toEqual(c.digest);
   });
@@ -64,6 +64,19 @@ describe('anime-form: the sculpt keeps the port pinned', () => {
     const at = (sculpt) => digest(buildAnime(rb, { weld: true, sculpt })), diff = (a, b) => Object.keys(a).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
     expect(diff(at({ ...lid, lidShut: B.lidShut }), at(lid))).toEqual(['lid']);
     expect(diff(at({ brow: B.brow }), at({ brow: { ...B.brow, shutLift: undefined } }))).toEqual(['brow']);
+  });
+  // scleraShut (the graphic bases' build field): shutting, the sclera's dish flattens and the lid band's lower edge tucks
+  // further under the opening; nothing moves at or below a blink of 0.7, and nothing but those two parts past it
+  it("the sclera's scleraShut moves only the sclera and the lid band, and only past a blink of 0.7", () => {
+    for (const kind of ['male', 'female']) {
+      const S = sculptBuild(kind, resolveAnimeSculpt({})), { scleraShut, ...rest } = S;
+      expect(scleraShut, kind).toBe(0.1);
+      for (const weld of [true, false]) for (const blink of [0, 0.5, 0.7, 0.85, 1]) {
+        const r = animeFresh(kind); r.expression.blink = blink;
+        const a = digest(buildAnime(r, { weld, sculpt: S })), b = digest(buildAnime(r, { weld, sculpt: rest }));
+        expect(Object.keys(a).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])).sort(), `${kind} weld ${weld} blink ${blink}`).toEqual(blink > 0.7 ? ['lid', 'sclera'] : []);
+      }
+    }
   });
   it("the lens budget is its own option: 'game' moves only the iris and the pupil, never keyed on coarse", () => {
     for (const coarse of [false, true]) {

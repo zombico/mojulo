@@ -53,9 +53,9 @@ const godotBin = args.godot || GODOT;
 register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 resolveMojuloPaths();
 const { SketchRepository } = await import('@/lib/db/repositories/sketches');
-const { buildGodotWorldPack, buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
+const { buildGodotWorldPack, buildGodotGamePack, figureClip } = await import('@/lib/graph/scene/godot-pack.js');
 const { compareShading, declaredShading, sumDeclared } = await import('@/lib/graph/scene/materials-gate.js');
-const { declaredFigure, parseFigureLine, compareFigure } = await import('@/lib/graph/scene/figure-gate.js');
+const { declaredFigure, parseFigureLine, compareFigure, godotName } = await import('@/lib/graph/scene/figure-gate.js');
 const { parseReplayLine, compareReplay, parsePerfLine } = await import('@/lib/graph/pixelizer/brickster-replay.js');
 
 const sketch = SketchRepository.getByRef(args.ref);
@@ -176,6 +176,25 @@ if (!args['no-gate'] && existsSync(godotBin)) {
     if (!gate.figure.ok) {
       process.stderr.write(text);
       fail(`machine gate FAILED: figure probe — ${JSON.stringify(gate.figure)}`);
+    }
+    // the anime face's AMBIENT LAYER: a second run on another clip the face-only blink layers over (the one the scene
+    // would pick among them: figureClip over the pack's recipe) shows the tree active (figure_face.gd)
+    const over = pack.figure.clips.filter((c) => c !== pack.figure.clip && (declared.face?.ambientOver || []).includes(godotName(`${pack.figure.name}:${c}`)));
+    const recipe = over.length ? JSON.parse(await fs.readFile(path.join(outDir, 'recipe', `${args.ref}.json`), 'utf8').catch(() => 'null')) : null;
+    const layerClip = over.length ? figureClip(recipe?.recipe?.clips, over) : null;
+    if (layerClip) {
+      log(`machine gate — figure probe, the ambient layer (plays ${pack.figure.name}:${layerClip})`);
+      const probe2 = await runGodot(['--headless', '--path', outDir, '--script', path.join(here, 'godot-figure-probe.gd'), '--', 'res://level.tscn', `${pack.figure.name}:${layerClip}`]);
+      const text2 = probe2.out + probe2.err;
+      const built2 = parseFigureLine(text2);
+      const cmp2 = compareFigure({ declared, built: built2, figure: { ...pack.figure, clip: layerClip } });
+      const ran2 = probe2.code === 0 && !!built2 && !built2.error && !SCRIPT_ERR.test(text2);
+      gate.figure_layer = { ok: ran2 && cmp2.ok, ran: ran2, clip: layerClip, built: built2, checks: cmp2.checks };
+      for (const [k, c] of Object.entries(cmp2.checks)) log(`  ${c.ok === null ? '·' : c.ok ? '✓' : '✗'} ${k}: expected ${c.expected} got ${c.got}`);
+      if (!gate.figure_layer.ok) {
+        process.stderr.write(text2);
+        fail(`machine gate FAILED: figure probe (the ambient layer) — ${JSON.stringify(gate.figure_layer)}`);
+      }
     }
   }
   // walking-suit-backport G-P: the headless locomotion probe — the one

@@ -751,6 +751,54 @@ describe("the hero door's clips through update_sketch", () => {
   });
 });
 
+// the anime head's door clips: a clip `{ seconds, keys }` (its designed duration) and a key's `face` (its facial track),
+// stored as given, the plan without the face; they survive an unrelated /hero edit and edit by path; `blink` is stored
+// only when false; the readout says every clip's duration and the clips carrying a face; the World payload's packed
+// clips carry the durations the page, the GLB and the Godot pack play.
+describe("the anime hero's timed clips, facial tracks and ambient blink through update_sketch", () => {
+  it('stored as given; survives an unrelated /hero edit; by path; blink stored only when false; refusals leave the row', async () => {
+    const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
+    const K = [{ support: 'both', crouch: 0.1, face: { blink: 0.2, smile: 0.6, brow: 0.55 } }, { support: 'both', armR: { x: 0.3, y: 0.15, z: 0.94 }, elbowR: 'slight', face: ['happy', { open: 0.85 }] }];
+    const row = () => SketchRepository.getByRef('anime-clips');
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'anime-clips', spec: { cast: 'male', head: 'anime', register: 'lowpoly', clips: { cheer: { seconds: 1.5, keys: K } } } });
+    expect(minted.ok).toBe(true); expect('blink' in row().manifest.hero).toBe(false);
+    expect(minted.hero.clips).toEqual({ plays: ['gesture', 'idle', 'walk', 'wave', 'cheer'], authored: ['cheer'], seconds: { gesture: 1, idle: 4, walk: 1, wave: 2, cheer: 1.5 }, face: ['cheer'] });
+    expect(minted.next.reason).toMatch(/On the anime head a key may carry face \(an expression word, \{ blink, smile, open, brow \} or a list\), a clip may be \{ seconds, keys \} \(its designed duration; the clips play idle 4 s, walk 1 s, wave 2 s, cheer 1\.5 s\), and \/hero\/blink false turns the ambient blink off\./);
+    expect(row().manifest.hero.clips).toEqual({ cheer: { seconds: 1.5, keys: K } });
+    expect(row().manifest.recipe.clips.cheer).toEqual(K.map(({ face: _f, ...pose }) => pose));
+    const clipsOf = async () => (await resolveWorldScene({ ref: 'anime-clips', title: 't', manifest: row().manifest })).payload.figures.body.clips;
+    expect(Object.fromEntries(Object.entries(await clipsOf()).map(([c, v]) => [c, v.s]))).toEqual({ gesture: 1, idle: 4, walk: 1, wave: 2, cheer: 1.5 });
+    // an unrelated /hero edit regenerates the plan from the record: the clip, its duration and its faces ride along
+    const legs = await updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/tune/legs', value: 1.05 }] });
+    expect(legs.ok).toBe(true); expect(row().manifest.hero.clips).toEqual({ cheer: { seconds: 1.5, keys: K } }); expect(legs.stats.hero.clips.seconds.cheer).toBe(1.5);
+    // by path: the duration, a key's face
+    const faster = await updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/seconds', value: 1 }, { op: 'set', path: '/hero/clips/cheer/keys/0/face', value: 'determined' }] });
+    expect(faster.ok).toBe(true); expect(row().manifest.hero.clips.cheer.seconds).toBe(1); expect(row().manifest.hero.clips.cheer.keys[0].face).toBe('determined');
+    expect((await clipsOf()).cheer.s).toBe(1); expect(row().manifest.recipe.clips.cheer).toEqual(K.map(({ face: _f, ...pose }) => pose));
+    // the ambient blink: stored only when off; setting it back on drops the field
+    await updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/blink', value: false }] });
+    expect(row().manifest.hero.blink).toBe(false);
+    await updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/blink', value: true }] });
+    expect('blink' in row().manifest.hero).toBe(false);
+    // refused by name; the row untouched
+    const before = JSON.stringify(row().manifest);
+    await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/blink', value: 'off' }] })).rejects.toThrow(/blink: false turns the anime hero's ambient blink off/);
+    await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/seconds', value: 100 }] })).rejects.toThrow(/clips\.cheer\.seconds: the clip's length in seconds, 0\.25 … 60/);
+    await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/keys/1/face', value: 'grin' }] })).rejects.toThrow(/clips\.cheer\.keys\[1\]\.face: unknown anime pose 'grin'/);
+    expect(JSON.stringify(row().manifest)).toBe(before);
+  });
+  it('every other head refuses the face, the duration and the blink by name at the door', async () => {
+    const cheer = [{ support: 'both', crouch: 0.1 }];
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: [{ ...cheer[0], face: 'happy' }] } } })).rejects.toThrow(/clips\.cheer\[0\]\.face: a facial track is the anime head's \(head: 'anime'\); this head's face is \/hero\/expression/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', head: 'none', register: 'lowpoly', clips: { cheer: { seconds: 2, keys: cheer } } } })).rejects.toThrow(/clips\.cheer\.seconds: a designed duration is the anime hero's/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', blink: false } })).rejects.toThrow(/blink: the ambient blink is the anime head's/);
+    // a { keys } clip without a duration is a list on any head
+    const ok = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'landmark-keys', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: { keys: cheer } } } });
+    expect(ok.ok).toBe(true); expect(ok.hero.clips).toEqual({ plays: ['idle', 'walk', 'wave', 'cheer'], authored: ['cheer'] });
+    expect(SketchRepository.getByRef('landmark-keys').manifest.recipe.clips.cheer).toEqual(cheer);
+  });
+});
+
 // the door around the new channels: the non-anime readout's keys (it gains only the budget), the dress ledgers read at
 // rest whatever dial the mint turned, and the character light's toon fields — the anime hero's outline opt-out kept at
 // the door, an invalid light refused by field at the door and on a /toon edit.

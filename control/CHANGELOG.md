@@ -130,24 +130,95 @@ branch; each bullet is rewritten as its phase lands.
   body: a `/hero/cast` or `/hero/tune` edit carries them unchanged). The readout's `hero.clips` lists what the figure
   plays, the door's clips and the removed ones (only on a hero that authored some). Set `/hero/clips`, then
   `/hero/clips/<name>`. The worked heroine carries four of her own (`greet`, `idleRelaxed`, `run`, `victory`) and the
-  docs test plans them. A hero without clips is byte-identical; only the mint's next hint gains a sentence on the clips.
+  docs test plans them. The anime hero waves its own way (`hero-form.js` `ANIME_WAVE`, under the anime head whatever
+  the proportions; every other head keeps the form's wave byte for byte): the upper arm out to the side and about 27°
+  below horizontal, the forearm upright, the hand beside the head, then two strokes 35° out and back on the elbow's
+  hinge (the elbow still, the hand dipping toward the chin at the outer end), the head tilted toward the hand; six keys
+  a third of a second apart over its 2 s, each on one of the pack's 12 samples a cycle. On the anime head a clip may be
+  `{ seconds, keys }` and a key may carry `face` (an expression word, `{ blink, smile, open, brow }` or a list, read as
+  `hero.expression` reads); both refuse by name on every other head (a key's `face` pointing at `/hero/expression` on
+  the landmark head), whose other refusals read as before. Every clip of the anime hero plays a designed duration, the
+  same on the World page's clip preview, in the GLB and in the Godot pack: the door clip's own `seconds` (0.25 … 60),
+  else the hero's own (`gesture` 1 s, a hold; `idle` 4 s, one breath; `walk` 1 s, two steps at 120 a minute; `wave`
+  2 s, two strokes), else half a second a key; every other hero keeps one second in an export and three on the World
+  page. The face never reaches the plan; the skinned export draws it as a STEP `weights` channel per clip on a 30-fps
+  grid keyed half a frame early: each key's face held to the next key, the eyes only at the knots, an eye that changes
+  passing its in-betweens one frame each right before the next key (closing, the half lid; opening, the half lid then
+  0.20), the mouth and brows already the next key's; a key without a face holds the authored one. The AMBIENT BLINK is
+  derived on read, never stored: seeded per hero and clip, 2.5 … 5 s apart, one in five a double, none across a loop
+  seam and none on or beside a frame whose drawing shuts an eye or changes one (over a half lid the eye shuts from it
+  and comes back to it); a clip of 2.5 s or more bakes its own, and a 12-s face-only `face:ambientBlink` holds the
+  authored face for an engine to layer over the clips whose eyes hold (`extras.face.ambientOver`); `/hero/blink`
+  `false` turns it off (stored only when false). The drawings are a frame each: play them at 30 fps or more (at 24,
+  Blender's default scene rate, a one-frame drawing can fall between two samples). The readout's `hero.clips` adds each
+  clip's `seconds` and the door clips carrying a `face` on the anime head. The worked heroine's clips carry their
+  durations (greet and victory 2 s, idleRelaxed 4 s, run 0.8 s) and her performance: a closed-eye grin opening into a
+  wider smile on the greet, a determined squint pushing on each contact on the run, the brows down on the victory's
+  crouch and an eyes-shut cheer at its peak. A hero without clips is byte-identical but for the anime hero's durations
+  (its packed clips carry `s`, its World page plays them, its GLBs end each clip there); only the mint's next hint
+  gains a sentence on the clips, and a second on the anime head.
 - **The playable export.** The Godot world pack (`scripts/export-godot.mjs`, clips on, the default) ships a rigged
   layered figure SKINNED: `model.glb` is the bytes `export_model { clips: '_all', skinned: true }` writes (one mesh, its
-  joints, every clip, one second each; `--lit` adds `lit: true`), with a `model.glb.import` that turns LOD generation off
-  (by default Godot builds up to six LODs of the figure) and mesh compression off (Godot never compresses a skinned
-  surface; the setting keeps the static meshes whole once they carry normals), and a `level.tscn` whose `figure.gd`
-  (emitted beside the kernel, which it extends: the material, rim and light contracts kept, no walker) plays the
-  figure's `idle` (else its first clip of more than one key, else its first) on a loop under the authored three-quarter
-  view (else the score's first camera), which frames the figure at rest; its presets carry the `exclude_filter` Godot
-  requires, so its import logs no error. On a hero that `idle` is its own ready loop, not the stand the World page
-  opens on (a door clip named `idle` replaces it), and it runs three times as fast as the World page, which plays a
-  clip over three seconds. The machine gate adds a figure probe (`scripts/godot-figure-probe.gd`, `figure-gate.js`):
-  one skeleton with the skin's joints, an AnimationPlayer listing every clip, no LOD and no compressed surface, the
-  chosen clip playing on a loop with the authored view current. Every other pack is byte-identical: the figure kind's
-  rig and a rigged hero's pack built with `--no-clips` stay rigid parts, as do game, Unity and Unreal packs, and every
-  other Godot world, game and arcade pack still logs the two `exclude_filter` preset errors on import. Still to come:
-  welded, indexed figure meshes with authored normals and outline data (NORMAL, TANGENT), per-class materials, a
-  parented skeleton, stepped clips, expression morphs and a toon shader for the Godot leg.
+  joints, every clip — the anime hero's at their designed durations, every other hero's one second each; `--lit` adds
+  `lit: true`), with a `model.glb.import` that turns LOD generation off (by default Godot builds up to six LODs of the
+  figure) and mesh compression off (Godot never compresses a skinned surface; the setting keeps the static meshes whole
+  once they carry normals), and a `level.tscn` whose `figure.gd` (emitted beside the kernel, which it extends: the
+  material, rim and light contracts kept, no walker) plays the figure's `idle` (else its first clip of more than one
+  key, else its first) on a loop under the authored three-quarter view (else the score's first camera), which frames the
+  figure at rest — on the anime hero re-placed before `score.json` is written (its rotation and field of view kept, its
+  axis on the centre of the figure's extent over every exported clip, each bone part's rest box padded by 3% of the
+  height and carried through every packed key, backed off until every corner lies inside the frustum with a tenth to
+  spare), so the victory's raised fist stays in frame and the figure reads smaller at rest; its presets carry the
+  `exclude_filter` Godot requires, so its import logs no error. On a hero that `idle` is its own ready loop, not the
+  stand the World page opens on (a door clip named `idle` replaces it); on every other hero it runs three times as fast
+  as the World page, which plays a clip over three seconds, and the anime hero's clips play the same durations in both.
+  The anime hero's figure plays under `figure_face.gd` (emitted beside `figure.gd`, which it extends): Godot ignores
+  `mesh.weights`, so on ready it sets the blend shapes to the authored face from the mesh extras, and when the clip is
+  one whose eyes hold the authored face (`extras.face.ambientOver`; the heroine's `gesture`, `walk` and `wave`) an
+  AnimationTree plays it with `face:ambientBlink` through a Blend2 whose filter passes only the eye shapes (`blink*`,
+  the correctives among them); the README and ledger list the durations and a `figure_face` row. The machine gate adds a
+  figure probe (`scripts/godot-figure-probe.gd`, `figure-gate.js`): one skeleton with the skin's joints, an
+  AnimationPlayer listing every clip, no LOD and no compressed surface, the chosen clip playing on a loop with the
+  authored view current; on the anime hero the face's checks besides — the blend shapes by name, the authored face at
+  ready (within 1e-5), a blend-shape track per target in every body clip, each clip's length its designed duration
+  (within 1e-3), and the layer's tree active exactly when the clip is one it layers over, with a second run on such a
+  clip to show it active. The docs example `docs/examples/humanoid/view-animations.mjs` writes one self-contained page
+  for any skinned GLB (three.js from jsdelivr, the GLBs inlined; `node ../docs/examples/humanoid/view-animations.mjs
+  <a.glb> [<b.glb> …] [--out <file.html>]` from `control/`): each clip at its own length with real skinning and morph
+  targets, the baked vertex colours unlit; a model picker, a button per clip, pause, speed and a 1/30 s frame-step,
+  orbit, and a `full` camera framed over all the clips; when the file carries the anime face, a `face` camera and a face
+  panel — every word in `extras.face.words`, 'clip drives the face', 'ambient blink' (the file's own `face:ambientBlink`
+  over the `ambientOver` clips or a held word, never reopening a shut eye) and a right-eye wink, the eyes always drawn
+  at the file's knots. Every other pack is byte-identical: the figure kind's rig and a rigged hero's pack built with
+  `--no-clips` stay rigid parts, as do game, Unity and Unreal packs, and every other Godot world, game and arcade pack
+  still logs the two `exclude_filter` preset errors on import. Still to come: welded, indexed figure meshes with
+  authored normals and outline data (NORMAL, TANGENT), per-class materials, a parented skeleton, stepped body clips and
+  a toon shader for the Godot leg; the World page's clip preview plays neither the face nor the skin.
+- **The face in the engines.** The anime hero's skinned GLB (`export_model { clips, skinned: true }`, the bytes the
+  Godot pack ships) carries its face as blend shapes (`anime-face-rig.js`): POSITION morph targets on the NEUTRAL head,
+  each the difference of two builds of the same head with only the expression changed (one layout at every expression) —
+  `blink`, `blinkLeft` and `blinkRight` (one eye each, a smoothstep across the midline, where the lids move nothing
+  within 4 mm), `smile`, `mouthOpen`, `browInnerRaise` and `browInnerLower` (the brow channel slants the brow about its
+  middle, it does not lift it), and the in-between correctives `blinkFix10`, `12`, `18`, `20` and `50` per eye (the
+  closing lid crops the lenses and drops them behind the face, so a half-shut lid is up to 12.7 mm off half a blink).
+  Eye closure is drawn, never tweened: an eye shows only at a knot (0, 0.10, 0.12, 0.18, 0.20, 0.50, 1), each an exact
+  build, with its corrective at weight 1; a hero whose own `blink` sits between two knots (a 0.35, a 0.6) is drawn at it
+  too, one more build and its own corrective pair after the others (`blinkFix35L` / `R`, named by the closure's
+  decimals). The targets ride the character light's split by its own interpolation, as joints and weights do: sparse
+  accessors on the body primitive, the baked ink's targets all one zero accessor, every other attribute as before byte
+  for byte. `mesh.weights` is the hero's authored expression, so an engine that plays nothing shows the approved face,
+  and `mesh.extras` names the targets and holds every expression word's weights (`face.words`: the words and
+  `authored`), the knots and the sides. Every word blends within 0.3 mm of a true build of that word (the docs heroine:
+  0.194 mm at worst, at the mouth). The builds are only the parts an expression moves, kept per hero: a hero's first
+  export in a process takes about a second longer (the stored heroine's skinned export 1.45 s against 0.4 s, near four
+  times), a second one about what it took before. A row stored by older head code (checked against a build at the hero's
+  own expression), or one whose dial moves the head, exports without the face and says why (`face_skipped`) until any
+  `/hero` edit regenerates it or the dial rests. The shut eye loses its white line: shutting, the sclera's dish flattens
+  to a tenth of its depth and the lid band's lower edge tucks further under the opening (`scleraShut` in both graphic
+  bases, gated in the port, its fixture unchanged), so no sclera shows under the female base's shut lid; the male base's
+  lid sags below the slit as it shuts and still leaves a thin line above it. An upturned closed-eye drawing for a smile
+  with the eyes shut (`happy`, the grins) waits for the shut eye's own arc, which the male's sag needs too. The World
+  page, every other hero and kind, and every export of them are byte-identical.
 - **Planes and designed shadow.** The cheek plane, the jaw set inside the cheek outline, the gonial angle, the chin, a
   wedge nose; an occlusion bias, a deep second shade, a cast shadow from the fringe, ink widths that vanish at openings and
   thin in valleys, authored interior lines.

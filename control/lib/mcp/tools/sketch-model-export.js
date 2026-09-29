@@ -442,7 +442,11 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
       '- `$fn` sets the facet count for curved primitives — raise it for a smoother print. `mm_per_unit` wraps the assembly so the part lands at real millimetres.',
       '- Round-trip warning: mojulo does NOT read `.scad` back. This is a derived snapshot; edit the recipe with `update_sketch`, or take this file as a starting point and own it from there. `color()` is preview-only and will not appear in an STL OpenSCAD renders.',
     ] : []),
-    '- Animations: rig clips are baked at 1 second per cycle (looping clips repeat key 0 as a wrap key) — retime freely in the NLA/AnimationPlayer.',
+    // a clip carrying its designed duration (the anime hero's, hero-gesture.js heroClipSeconds) says it; else the old line
+    exported.clipSeconds
+      ? `- Animations: rig clips play at their designed durations (${Object.entries(exported.clipSeconds).map(([c, s]) => `${c.slice(c.indexOf(':') + 1)} ${s} s`).join(', ')}; looping clips repeat key 0 as a wrap key), the same the World page's clip preview plays — retime freely in the NLA/AnimationPlayer.${exported.faceFigures ? ' Each clip\'s face is a STEP `weights` channel on the skinned mesh (a drawing per frame at 30 fps, keyed half a frame early: play at 30 fps or more — at 24, Blender\'s default scene rate, a one-frame drawing can fall between two samples, so set the scene to 30); the face-only clip named by `mesh.extras.face.ambientClip` (null when the blink is off) holds the authored face with its blinks, to layer over the clips in `ambientOver` through a filter on the blink targets.' : ''}`
+      : '- Animations: rig clips are baked at 1 second per cycle (looping clips repeat key 0 as a wrap key) — retime freely in the NLA/AnimationPlayer.',
+    ...(exported.faceFigures ? ['- Face: the skinned mesh carries the anime head\'s expression as blend shapes — POSITION morph targets on the neutral head, one per expression channel and per lid corrective (their names in `mesh.extras.targetNames`); `mesh.weights` is the authored face (an engine that ignores it, as Godot does, sets it from `mesh.extras.face.words.authored`), and `mesh.extras.face.words` holds every expression word\'s weights. Eye closure is drawn at the knots (`extras.face.eyeKnots`, the hero\'s own closure among them when it sits between the others; each with its corrective at weight 1), never tweened.'] : []),
     '- Level semantics ride glTF `extras` under the `moj:` namespace: `entity:<id>` nodes carry `moj:entity`/`moj:rule`/`moj:body`; the scene carries `moj:spawn`, `moj:colliders` (AABB boxes), and `moj:game` (contract summary). Cameras are mojulo\'s own framings.',
     '- Colours are baked vertex colours on unlit materials — the depiction is the asset; no lighting setup needed.',
     '',
@@ -570,7 +574,9 @@ export async function exportModelHandler(input, context = {}) {
 
   // a lit export sources the UNSHADED payload (flat albedo, no mojulo Lambert / AO / material
   // darkening) so the importer's light is the only light on the geometry
-  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, lit ? { unshaded: true } : {});
+  // a skinned export also asks for the anime hero's FACE (its expression channels as morph targets on the skinned mesh;
+  // world-kinds layered, anime-face-rig.js) — every other kind and hero resolves exactly as without it
+  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, { ...(lit ? { unshaded: true } : {}), ...(skinned ? { face: true } : {}) });
   let payload = resolvedPayload;
   let unionResult = null;
   if (union && payload) {
@@ -758,6 +764,9 @@ export async function exportModelHandler(input, context = {}) {
       result.animations = exported.animationCount ?? 0;
       result.animated_figures = exported.animatedFigures ?? [];
       if (exported.skinnedFigures) result.skinned_figures = exported.skinnedFigures;
+      if (exported.faceFigures) result.face_figures = exported.faceFigures;
+      const faceSkipped = skinned && payload?.figures ? Object.values(payload.figures).map((f) => f?.faceSkipped).find(Boolean) : null;
+      if (faceSkipped) result.face_skipped = faceSkipped;
       if (exported.humanoidFigures) {
         result.humanoid_figures = exported.humanoidFigures;
         result.humanoid_note = 'VRM 1.0 bone names on the skin joints (hips / spine / head / left+rightUpperArm…Foot; weightless leaf joints at the wrists and ankles stand in for hands / feet) + the VRMC_vrm extension on the first figure. '

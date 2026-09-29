@@ -110,6 +110,21 @@ export const ANIME_NECK_FORMS = deepFreeze({
 });
 function deepFreeze(o) { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); }
 
+/** THE ANIME WAVE (the humanoid starter puts it over the form's own `wave` under the anime head, whatever the
+ * proportions; every other head keeps the form's): the upper arm out to the side, about 27° below horizontal and 11°
+ * forward (the elbow 14–15 cm below the shoulder and out past the torso's side), the elbow bent so the forearm stands
+ * upright with the hand beside the head, the mitten's broad face to the front, the head tilted toward the hand, the other
+ * arm hanging. The stroke swings the forearm on the elbow's HINGE (the elbow still, the hand across the front plane; a
+ * shoulder roll would swing it toward and away from the camera), 35° out and back, twice, the hand dipping toward the
+ * chin at the outer end. The upright key is the inner end of the stroke, since the forearm bone's frame is the shortest
+ * arc from its hanging direction and spins where the forearm leans past about 15° toward the head (that direction's
+ * opposite). Six keys, so each lands on one of the pack's 12 samples a cycle, a third of a second apart over the
+ * designed 2 s: rest, in, out, in, out, in, back to rest at the seam. Found by a search over the rig's solve on the anime
+ * casts; the words are directions, so one set serves every cast. */
+const WAVE_ARM = { shR: { yaw: -53, pitch: 20, roll: 90 }, head: { yaw: 8, pitch: 0 } };
+const WAVE_IN = { elbowL: 'slight', elbowR: 120, ...WAVE_ARM }, WAVE_OUT = { elbowL: 'slight', elbowR: 85, ...WAVE_ARM };
+export const ANIME_WAVE = deepFreeze(JSON.parse(JSON.stringify([{ elbowL: 'slight', elbowR: 'slight' }, WAVE_IN, WAVE_OUT, WAVE_IN, WAVE_OUT, WAVE_IN])));
+
 // ─── The tune ─────────────────────────────────────────────────────────────
 // the thirteen body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses),
 // the lab's exploration limits (comfortable, not a wall) and its three MOVES. A move earns a slot by demonstrated need,
@@ -181,7 +196,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const hipDepthBase = b.hipDepth ?? b.hip + 0.013;
   b.waist *= TN.waist; b.hip *= TN.hips; b.chestDepth *= TN.depth; b.arm *= TN.upperArm; b.forearm = forearmBase * TN.forearm; b.thigh *= TN.thigh; b.calf *= TN.calf;
   const D = TN.depth;
-  const S = (scale ?? preset?.scale ?? 1) * TN.stature;
+  const S = planScale({ cast, scale, tune, proportions });
   const HS = (headScale ?? preset?.headScale ?? 1) * TN.head;
   if (!(Number.isFinite(S) && S > 0)) throw new Error(`hero.plan: scale must be a positive number, got ${scale}`);
   const P = (k) => [m[k].x, m[k].y, m[k].z].map((v) => r6(v * SCALE));
@@ -344,6 +359,17 @@ function neckLoft(N, { b, g, zs, hb }) {
 /** the frame note's tune clause: the keys that moved, as percentages (`from` first when a move named it) */
 const tuned = (T) => { const d = TUNE.describe(T); return d ? `; ${d}` : ''; };
 
+/** The uniform scale heroPlan puts over a finished figure (scalePlan's `s`): the given `scale`, else the cast's, times the
+ * tune's stature. */
+export const planScale = ({ cast, scale, tune, proportions = 'hero' }) => (scale ?? castOf(cast, proportions)?.scale ?? 1) * resolveTune(tune).stature;
+/** One include part under scalePlan's scale: a layer-1 part's station points and caps, any other part's pin-local
+ * offsets (a new object; the part is not touched). */
+export function scaleIncludePart(part, s) {
+  const v = (p) => R(mul(p, s));
+  return part.stations
+    ? { ...part, stations: part.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([k, p]) => [k, v(p)])) })), caps: Object.fromEntries(Object.entries(part.caps).map(([k, p]) => [k, v(p)])) }
+    : { ...part, offsets: Object.fromEntries(Object.entries(part.offsets).map(([k, p]) => [k, v(p)])) };
+}
 /** One uniform scale over a finished hero plan: every joint, ring, cap, include point and rig anchor, so the figure keeps
  * its proportions at another height (overshoots are fractions and dials are angles or ratios, so they stay). */
 export function scalePlan(plan, s) {
@@ -359,9 +385,7 @@ export function scalePlan(plan, s) {
     if (seg.caps) out.caps = { back: v(seg.caps.back), tip: v(seg.caps.tip) };
     return out;
   });
-  const include = (plan.include || []).map((inc) => ({ ...inc, shift: v(inc.shift), parts: Object.fromEntries(Object.entries(inc.parts).map(([name, part]) => [name, part.stations
-    ? { ...part, stations: part.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([k, p]) => [k, v(p)])) })), caps: Object.fromEntries(Object.entries(part.caps).map(([k, p]) => [k, v(p)])) }
-    : { ...part, offsets: Object.fromEntries(Object.entries(part.offsets).map(([k, p]) => [k, v(p)])) }])) }));
+  const include = (plan.include || []).map((inc) => ({ ...inc, shift: v(inc.shift), parts: Object.fromEntries(Object.entries(inc.parts).map(([name, part]) => [name, scaleIncludePart(part, s)])) }));
   const rigJoints = Object.fromEntries(Object.entries(plan.rig.joints).map(([k, j]) => [k, { ...j, at: v(j.at) }]));
   return { ...plan, joints, segments, include, rig: { ...plan.rig, joints: rigJoints } };
 }

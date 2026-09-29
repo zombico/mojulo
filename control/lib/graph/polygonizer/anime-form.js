@@ -38,12 +38,15 @@
  * below the brow); the lip line (stomion) and the mouth width (the mouth aperture widened on the lattice past the studio's);
  * the palpebral fissure as upper / lower lid curves (one outline shared by the aperture, the sclera dish, the iris clip and
  * the lid band); the lateral canthus set back along the globe; the upper-lid band (`lidWeight`: its weight, a tail past
- * the lateral canthus, a flick; `lidShut`: shutting, it thins and its line sags) replacing the upper lash; the graphic
- * lenses (`lidCover`: the iris sized so the lid covers that share of it, clipped by the lid, a catchlight; at every
- * expression the same grid, what the lids hide set back behind them); the brow as a block (`shutLift`: relaxing up as
- * the lids shut); a nose line down the shade side; the pupil; the lower rim; the ear raised (`ear { lift }`). A part key
- * (`lid`, `brow`, `catch`, `nose`) exists only while its word is on. `options.budget: 'game'` lowers the lenses'
- * resolution (its own option, never `coarse`).
+ * the lateral canthus, a flick; `lidShut`: shutting, it thins and its line sags) replacing the upper lash; the sclera's
+ * dish (`scleraShut`: shutting, it flattens and the lid band's lower edge tucks further under the opening, so a shut lid
+ * holds no white trough — a lid that sags as it shuts, `lidShut.sag`, can still leave a thin line above the slit); the
+ * graphic lenses (`lidCover`: the
+ * iris sized so the lid covers that share of it, clipped by the lid, a catchlight; at every expression the same grid,
+ * what the lids hide set back behind them); the brow as a block (`shutLift`: relaxing up as the lids shut); a nose line
+ * down the shade side; the pupil; the lower rim; the ear raised (`ear { lift }`). A part key (`lid`, `brow`, `catch`,
+ * `nose`) exists only while its word is on. `options.budget: 'game'` lowers the lenses' resolution (its own option, never
+ * `coarse`).
  *
  * mojulo's HAIR FORM (`options.hairForm`; anime-head.js turns the door's hair words into these units): the hair mass
  * built off the skull instead of hugging it, under the same discipline as the sculpt (each term an if-block or a ternary
@@ -220,7 +223,9 @@ export function buildAnime(r, options = {}) {
       const steps = 4;
       for (let j = 0; j < steps; j++) {
         // weld (additive): the rim's 0.001 lift fades to zero so the sclera's rim is its aperture ring
-        const point = (idx, rad) => { const a = inner[idx], u = mix(centerUV[0], a[0], rad), y = mix(centerUV[1], a[1], rad), p = surface(u, y); p[2] -= options.weld ? 0.024 * (1 - rad * rad) + 0.001 * (1 - rad) : 0.024 * (1 - rad * rad) + 0.001; return p; };
+        // scleraShut: shutting (the blink past 0.7, full at 1, as the lid band's lidShut) the sclera's dish flattens to that
+        // share of its depth, so a shut lid holds no white trough (the lenses already drop behind the lid)
+        const point = (idx, rad) => { const a = inner[idx], u = mix(centerUV[0], a[0], rad), y = mix(centerUV[1], a[1], rad), p = surface(u, y); if (S?.scleraShut !== undefined) { const q = clamp((e.blink - 0.7) / 0.3), k = q * q * (3 - 2 * q), dish = 1 - (1 - S.scleraShut) * k; p[2] -= options.weld ? 0.024 * (1 - rad * rad) * dish + 0.001 * (1 - rad) : 0.024 * (1 - rad * rad) * dish + 0.001; } else p[2] -= options.weld ? 0.024 * (1 - rad * rad) + 0.001 * (1 - rad) : 0.024 * (1 - rad * rad) + 0.001; return p; };
         quad('sclera', point(i, j / steps), point(i, (j + 1) / steps), point(n, (j + 1) / steps), point(n, j / steps));
       }
     }
@@ -293,8 +298,12 @@ export function buildAnime(r, options = {}) {
     // the thickness is ONE direction for the whole band (a fixed nib: up, leaning `lidLean` toward the lateral canthus),
     // not the line's normal: where the lid line turns steep at the lateral canthus the band thins by itself and the tail
     // takes it up again, with no rotating offset to fold the corner. The lower edge tucks 8 % under the opening's edge.
+    // scleraShut (the sclera's own word, see the dish): shutting, the lower edge tucks (8 + 17 × the shut) % under it, so
+    // the slit left between the lids is covered by the band, not shown as a white line (a band that sags below the slit,
+    // lidShut.sag, can still leave a thin one above it)
     const lean = S.lidLean ?? 0.15, dl = Math.hypot(lean, 1), D = [side * lean / dl, 1 / dl];
-    const rows = 1, G = Lp.map((L, i) => Array.from({ length: rows + 1 }, (_, r) => { const k = (r / rows * 1.08 - 0.08) * Tk[i], p = surface(L[0] + D[0] * k / WK, L[1] + D[1] * k); p[2] -= S.lidPush ?? 0.014; return p; }));
+    const TUCK = S.scleraShut !== undefined ? (() => { const q = clamp((e.blink - 0.7) / 0.3); return 0.08 + 0.17 * q * q * (3 - 2 * q); })() : null;
+    const rows = 1, G = Lp.map((L, i) => Array.from({ length: rows + 1 }, (_, r) => { const k = TUCK !== null ? (r / rows * (1 + TUCK) - TUCK) * Tk[i] : (r / rows * 1.08 - 0.08) * Tk[i], p = surface(L[0] + D[0] * k / WK, L[1] + D[1] * k); p[2] -= S.lidPush ?? 0.014; return p; }));
     for (let i = 0; i < Lp.length - 1; i++) for (let r = 0; r < rows; r++) quad('lid', G[i][r], G[i + 1][r], G[i + 1][r + 1], G[i][r + 1]);
   }
   // the brow as a block: its bottom `gap` of the opening above the lid's top, the inner end down `angle`°, `thick` of the
