@@ -289,9 +289,9 @@ describe('the anime hero: the rig pack and the ink take the character light by d
 // Every other rigged recipe keeps its pack, its page and its exports byte for byte: pins recorded BEFORE the character
 // light reached the rig pack and the ink (sha256, first 16 hex digits) — the dragon body (plain, and with hullShade +
 // rim), a landmark hero's World page with toon ink (the rig preview and the ink channel stay ungated), and its skinned
-// GLB with the baked ink. Each page pin takes one of two values: the page as it was, and the same page with the clip
-// picker tagged by its capture hide class (`sel.className = 'rig-preview'`, capture-contract WORLD_HIDE_SELECTORS),
-// a separate change to the rig preview channel; drop the first value once both have landed.
+// GLB with the baked ink. The page pins are the page with the clip picker tagged by its capture hide class
+// (`sel.className = 'rig-preview'`, capture-contract WORLD_HIDE_SELECTORS). The landmark hero's was re-pinned for the
+// hero's `wave` clip keeping its elbow at the shoulder line (hero-form.js).
 const DRAGON_BODY = path.resolve(process.cwd(), '../docs/examples/dragon-body/recipe.json');
 describe('absent ⇒ byte-identical: the rig packs, pages and exports of every non-anime rigged recipe', () => {
   const world = async (manifest) => (await resolveWorldScene({ ref: 'x', title: 't', manifest }, {})).payload;
@@ -300,12 +300,12 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
     expect(h((await world(m)).figures)).toBe('a111baa05193a10d');
     expect(h((await world({ ...m, hullShade: true, rim: [0.4, 0.6, 1, 0.5, 3] })).figures)).toBe('73694e6795405771');
     const { emitThreeWorld } = await import('../scene/scene-three.js');
-    expect(['00a711c37ca1f545', 'f5ab736433ae2b04']).toContain(h(emitThreeWorld(await world({ ...m, toon: { ink: true } }))));
+    expect(h(emitThreeWorld(await world({ ...m, toon: { ink: true } })))).toBe('f5ab736433ae2b04');
   });
   it('a landmark hero: the inked page; the skinned GLB with the baked ink', async () => {
     const { emitThreeWorld } = await import('../scene/scene-three.js');
-    expect(['cceaeb5056cc1c59', '91034853ebac31a3']).toContain(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), toon: { ink: true } }))));
+    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), toon: { ink: true } })))).toBe('1137ac00c4fe7415');
     const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female' }) }), toon: { ink: { crease: 50 }, bake: true } });
-    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('7e3ad794b91d56ca');
+    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('818fd9f23039d014');
   });
 });

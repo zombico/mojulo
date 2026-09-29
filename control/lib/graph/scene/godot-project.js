@@ -13,7 +13,11 @@
  *
  * The emitter's remaining jobs: scene stubs, project.godot, export presets,
  * .gitignore, and the provenance README with the honest-loss ledger (which
- * shrank — the vocabulary is now interpreted, not ledgered).
+ * shrank — the vocabulary is now interpreted, not ledgered). A rigged
+ * layered figure's pack also takes the importer's settings for its skinned
+ * GLB and figure.gd (FIGURE_VIEW_GD: the kernel's level extended, no walker);
+ * one whose mesh carries the anime face also takes figure_face.gd
+ * (FIGURE_FACE_GD: the authored face on ready, the ambient blink layered).
  * Everything emitted is deterministic text: no dice, no timestamps, stable
  * ordering, no uids (path fallback, the plan's uid note).
  */
@@ -46,7 +50,10 @@ const gdName = (s) => String(s).replace(/[^A-Za-z0-9_]/g, '_');
 const gdStr = (s) => JSON.stringify(String(s));
 const GITIGNORE = '.godot/\nbuild/\n';
 
-function buildPresets(ref) {
+// Godot 4 requires `exclude_filter` in every preset (without it the import logs one ERROR per preset); emitted with a
+// figure only, so every other pack stays byte-identical.
+function buildPresets(ref, { exclude = false } = {}) {
+  const ex = exclude ? 'exclude_filter=""\n' : '';
   return `[preset.0]
 
 name="Web"
@@ -54,7 +61,7 @@ platform="Web"
 runnable=true
 export_filter="all_resources"
 include_filter="*.json"
-export_path="build/web/index.html"
+${ex}export_path="build/web/index.html"
 
 [preset.0.options]
 
@@ -67,7 +74,7 @@ platform="macOS"
 runnable=true
 export_filter="all_resources"
 include_filter="*.json"
-export_path="build/mac/${gdName(ref)}.zip"
+${ex}export_path="build/mac/${gdName(ref)}.zip"
 
 [preset.1.options]
 
@@ -98,18 +105,22 @@ const ledgerLines = (ledger) => Object.entries(ledger)
   .map(([k, v]) => `- \`${k}\`${v.count != null ? ` ×${v.count}` : ''}${v.kinds ? ` (${v.kinds.join(', ')})` : ''} — ${v.note}`)
   .join('\n');
 
-/** The per-level scene stub: kernel/level.gd pointed at the level's data. */
-function levelStub({ resBase = '', glbFile = 'model.glb', musicPath = null, musicDb = null }) {
+/** The per-level scene stub: kernel/level.gd pointed at the level's data — or, for a rigged layered figure, figure.gd
+ * (the kernel's level extended) with the clip it plays and the view that frames it. */
+function levelStub({ resBase = '', glbFile = 'model.glb', musicPath = null, musicDb = null, figure = null }) {
   const props = [`score_path = "res://${resBase}score.json"`];
   if (musicPath) props.push(`music_path = "res://${musicPath}"`);
   if (musicDb != null) props.push(`music_db = ${fmt(musicDb)}`);
+  if (figure) props.push(`clip = ${gdStr(`${figure.name}:${figure.clip}`)}`, `view = ${figure.view}`);
+  // a figure whose mesh carries the anime face plays under figure_face.gd (FIGURE_FACE_GD, which extends figure.gd)
+  const script = figure?.face ? { path: `${resBase}figure_face.gd`, id: 'figure' } : figure ? { path: `${resBase}figure.gd`, id: 'figure' } : { path: 'kernel/level.gd', id: 'kernel' };
   return `[gd_scene load_steps=3 format=3]
 
 [ext_resource type="PackedScene" path="res://${resBase}${glbFile}" id="model"]
-[ext_resource type="Script" path="res://kernel/level.gd" id="kernel"]
+[ext_resource type="Script" path="res://${script.path}" id="${script.id}"]
 
 [node name="Level" type="Node3D"]
-script = ExtResource("kernel")
+script = ExtResource("${script.id}")
 ${props.join('\n')}
 
 [node name="World" parent="." instance=ExtResource("model")]
@@ -168,17 +179,218 @@ function levelLedger(score, { gameMode = false } = {}) {
   return ledger;
 }
 
+/** The importer's settings for a rigged layered figure's skinned GLB (`<glb>.import`): no LOD generation (by default
+ * Godot builds up to six LODs of the skinned surface), and mesh compression off — Godot never compresses a skinned
+ * surface, so that one keeps the static meshes whole once they carry normals and tangents. Godot rewrites the file on
+ * import (uid, path, every param); the pack ships only what differs from the defaults. */
+export const FIGURE_IMPORT = `[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+
+[params]
+
+meshes/generate_lods=false
+meshes/force_disable_compression=true
+`;
+
+/** A rigged layered figure's scene script (figure.gd at the pack root): the kernel's level — its material, rim and light
+ * contracts — with no walker spawned over the figure, playing one clip on a loop under one authored view. It reaches
+ * the kernel's _spawn_walker, _imported_player, _anim_name and _play_loop, so a kernel that renames them breaks it. */
+export const FIGURE_VIEW_GD = `extends "res://kernel/level.gd"
+# mojulo figure view — emitted beside the kernel for a rigged layered figure's pack
+# (godot-project.js): the kernel's level, its material, rim and light contracts
+# kept, with no walker; the figure plays \`clip\` (the GLB's clip name) on a loop
+# and the authored view \`view\` (an index into score.json cameras) frames it.
+
+@export var clip: String = ""
+@export var view: int = 0
+
+
+func _spawn_walker() -> void:
+\tpass
+
+
+func _ready() -> void:
+\tsuper()
+\tvar p := _imported_player()
+\tvar anim := _anim_name(p, clip) if p != null else ""
+\tif anim != "":
+\t\t_play_loop(p, anim)
+\tvar cam := get_node_or_null("View%d" % view) as Camera3D
+\tif cam != null:
+\t\tcam.make_current()
+`;
+
+/** A figure whose skinned mesh carries the ANIME FACE (anime-face-rig.js; figure_face.gd at the pack root): figure.gd, then
+ * on ready the blend shapes take the authored face from the mesh's extras (Godot ignores glTF mesh.weights, so with
+ * nothing playing the imported head would be the neutral one), and when `clip` is one of the clips whose eyes hold the
+ * authored face (extras face.ambientOver) and the GLB carries the face-only clip (face.ambientClip), an AnimationTree
+ * layers that clip over it through a Blend2 filtered to the eye shapes (blink*, the correctives among them). It reaches
+ * the kernel's _imported_player, _anim_name and _loop besides figure.gd's. */
+export const FIGURE_FACE_GD = `extends "res://figure.gd"
+# mojulo figure face — emitted beside figure.gd for a figure whose skinned mesh carries
+# the anime face (godot-project.js): Godot ignores glTF mesh.weights, so on ready the
+# blend shapes take the authored face from the mesh extras (targetNames,
+# face.words.authored); when \`clip\` is one of face.ambientOver and the GLB carries
+# face.ambientClip, an AnimationTree layers that face-only clip over it through a
+# Blend2 filtered to the eye shapes (blink*), so the figure blinks over a clip whose
+# eyes hold the authored face.
+
+
+func _ready() -> void:
+\tsuper()
+\tvar mi := _face_mesh()
+\tif mi == null or not mi.mesh.has_meta("extras"):
+\t\treturn
+\tvar extras = mi.mesh.get_meta("extras")
+\tif not (extras is Dictionary and extras.get("face") is Dictionary):
+\t\treturn
+\tvar face: Dictionary = extras["face"]
+\tvar names: Array = extras.get("targetNames", [])
+\tvar authored: Array = (face.get("words", {}) as Dictionary).get("authored", [])
+\tfor i in mini(names.size(), authored.size()):
+\t\tvar s := mi.find_blend_shape_by_name(StringName(str(names[i])))
+\t\tif s >= 0:
+\t\t\tmi.set_blend_shape_value(s, float(authored[i]))
+\tvar over = face.get("ambientOver", [])
+\tvar amb_clip = face.get("ambientClip")
+\tif not (over is Array and (over as Array).has(clip) and amb_clip is String):
+\t\treturn
+\tvar p := _imported_player()
+\tif p == null:
+\t\treturn
+\tvar body := _anim_name(p, clip)
+\tvar amb := _anim_name(p, amb_clip)
+\tif body != "" and amb != "":
+\t\t_layer_ambient(p, mi, body, amb)
+
+
+# the MeshInstance3D under World whose mesh carries blend shapes
+func _face_mesh() -> MeshInstance3D:
+\tvar world := get_node_or_null("World")
+\tif world == null:
+\t\treturn null
+\tfor n in world.find_children("*", "MeshInstance3D", true, false):
+\t\tvar mi := n as MeshInstance3D
+\t\tif mi.mesh != null and mi.mesh.get_blend_shape_count() > 0:
+\t\t\treturn mi
+\treturn null
+
+
+# the body clip and the face-only clip, both looping, through a Blend2 whose filter
+# passes only the eye shapes from the face clip (amount 1); the player stops and the
+# tree plays both (its track paths resolve from the player's root, as the player's do)
+func _layer_ambient(p: AnimationPlayer, mi: MeshInstance3D, body: String, amb: String) -> void:
+\t_loop(p, body)
+\t_loop(p, amb)
+\tp.stop()
+\tvar track_root: Node = p.get_node(p.root_node)
+\tvar mesh_path := str(track_root.get_path_to(mi))
+\tvar layer := AnimationNodeBlend2.new()
+\tlayer.filter_enabled = true
+\tfor i in mi.mesh.get_blend_shape_count():
+\t\tvar shape := str(mi.mesh.get_blend_shape_name(i))
+\t\tif shape.begins_with("blink"):
+\t\t\tlayer.set_filter_path(NodePath(mesh_path + ":" + shape), true)
+\tvar a_body := AnimationNodeAnimation.new()
+\ta_body.animation = body
+\tvar a_face := AnimationNodeAnimation.new()
+\ta_face.animation = amb
+\tvar bt := AnimationNodeBlendTree.new()
+\tbt.add_node("body", a_body)
+\tbt.add_node("face", a_face)
+\tbt.add_node("layer", layer)
+\tbt.connect_node("layer", 0, "body")
+\tbt.connect_node("layer", 1, "face")
+\tbt.connect_node("output", 0, "layer")
+\tvar tree := AnimationTree.new()
+\ttree.name = "FaceLayer"
+\tp.get_parent().add_child(tree)
+\ttree.tree_root = bt
+\ttree.anim_player = tree.get_path_to(p)
+\ttree.root_node = tree.get_path_to(track_root)
+\ttree.set("parameters/layer/blend_amount", 1.0)
+\ttree.active = true
+`;
+
+/** The figure's ledger rows: what the skinned figure carries and plays, and what it does not carry yet. The ANIME hero's
+ * figure says its clips' designed durations and the view fitted over every clip, and with the face the figure_face
+ * row; every other figure's rows as before. */
+const figureLedger = (f) => (f.anime ? {
+  figure_skinned: {
+    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips at their designed durations (${clipSeconds(f)}) — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, re-placed so it frames the figure over all its clips, with no walker (${f.face ? 'figure_face.gd extends figure.gd, which extends' : 'figure.gd extends'} the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
+  },
+  ...(f.face ? {
+    figure_face: {
+      note: `the anime face as blend shapes on the neutral head (the expression channels and the lid correctives; their names in the mesh extras); figure_face.gd restores the authored face on ready from the mesh extras (Godot ignores mesh.weights), each clip's face is a STEP blend-shape track (the eyes only ever at a drawn closure), and ${f.ambientOver?.length ? `face:ambientBlink is layered over ${f.ambientOver.map((c) => `'${c}'`).join(', ')} (the clips whose eyes hold the authored face) through an AnimationTree whose Blend2 passes only the eye shapes` : 'no clip takes the face-only ambient blink'}`,
+    },
+  } : {}),
+  figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
+} : {
+  figure_skinned: {
+    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, one second each — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
+  },
+  figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
+});
+
+// the designed durations, as a list: `idle 4 s, walk 1 s, …`
+const clipSeconds = (f) => f.clips.map((c) => `${c} ${f.seconds?.[c] ?? 1} s`).join(', ');
+
+/** The README's "Open and play" for an anime hero's figure: the designed durations, the view over all the clips, and the
+ * face (restored on ready, the ambient blink layered over the clips whose eyes hold). */
+const animeFigurePlay = (f) => `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run: the figure plays
+\`${f.clip}\` on a loop under the authored ${f.viewName} view, re-placed so it
+frames the figure over all its clips.${f.clips.includes('gesture') && f.clip !== 'gesture' ? `
+\`${f.clip}\` is the figure's own loop, not the stand the World page opens on
+(the clip \`gesture\`).` : ''} It is one skinned mesh (${f.joints} joints)
+carrying its ${f.clips.length} clips on the imported AnimationPlayer as \`${f.name}_<clip>\`, each at
+its designed duration (the World page's clip preview plays the same):
+
+${clipSeconds(f)}
+
+Set \`clip\` (\`${f.name}:<clip>\`) and \`view\` (an index into the score's cameras) on
+the \`Level\` node of \`level.tscn\` to play another. \`model.glb.import\` imports
+it with LOD generation off.${f.face ? `
+
+The face travels as blend shapes. Godot ignores the file's default
+weights, so \`figure_face.gd\` sets the authored face from the mesh's extras
+on ready (\`face.words\` holds every expression word's weights). Each clip
+carries its face as a STEP blend-shape track. ${f.ambientOver?.length ? `An AnimationTree layers
+\`face:ambientBlink\` over the clips whose eyes hold the authored face,
+through a Blend2 that passes only the eye shapes (\`blink*\`):
+${f.ambientOver.map((c) => `\`${c}\``).join(', ')}.` : 'No clip takes the face-only ambient blink.'}` : ''}`;
+
+/** The README's "Open and play" for a figure's pack. */
+const figurePlay = (f) => (f.anime ? animeFigurePlay(f) : `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run: the figure plays
+\`${f.clip}\` on a loop under the authored ${f.viewName} view, which frames it at
+rest (a clip that reaches overhead can leave the frame).${f.clips.includes('gesture') && f.clip !== 'gesture' ? `
+\`${f.clip}\` is the figure's own loop, not the stand the World page opens on
+(the clip \`gesture\`).` : ''} It is one skinned mesh
+(${f.joints} joints) carrying its ${f.clips.length} clips (${f.clips.map((c) => `\`${c}\``).join(', ')}) on the
+imported AnimationPlayer as \`${f.name}_<clip>\`, one second each (the World
+page plays a clip over three): set \`clip\` (\`${f.name}:<clip>\`) and \`view\`
+(an index into the score's cameras) on the \`Level\` node of \`level.tscn\` to
+play another. \`model.glb.import\` imports it with LOD generation off.`);
+
 /**
  * emitGodotProject — a standalone world pack: stub + shell + README.
  * The driver ships kernel/, model.glb, score.json, recipe/, audio/.
+ * `figure` ({ name, clip, clips, view, viewName, joints }, godot-pack.js): a
+ * rigged layered figure's pack — its scene plays the clip under the view, and
+ * the pack gains model.glb.import and figure.gd; absent, every file as before.
+ * An anime hero's figure adds { anime, seconds, face, ambientOver }: the
+ * README and ledger say the designed durations, and with `face` the scene is
+ * figure_face.gd (FIGURE_FACE_GD), written beside figure.gd.
  */
-export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, kernelVersion = '?', remint = null }) {
+export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, kernelVersion = '?', remint = null, figure = null }) {
   const title = score.title ?? ref;
-  const ledger = levelLedger(score);
+  const ledger = figure ? { ...levelLedger(score), ...figureLedger(figure) } : levelLedger(score);
   const files = [
     { file: 'project.godot', text: buildProjectGodot({ title, mainScene: 'level.tscn' }) },
-    { file: 'level.tscn', text: levelStub({ glbFile, musicPath: audioFile }) },
-    { file: 'export_presets.cfg', text: buildPresets(ref) },
+    { file: 'level.tscn', text: levelStub({ glbFile, musicPath: audioFile, figure }) },
+    { file: 'export_presets.cfg', text: buildPresets(ref, { exclude: !!figure }) },
     { file: '.gitignore', text: GITIGNORE },
     {
       file: 'README.md',
@@ -201,17 +413,18 @@ reference performance.
 
 ${greyboxSection(score.posture === 'greybox')}## Open and play
 
-Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
+${figure ? figurePlay(figure) : `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
 walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.${playerSuit(score) ? `
 Your figure is a rigged body: it follows you as a third-person suit (walk
 cycle while moving, idle when still), and every other rigged figure breathes
-its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}
+its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}`}
 
 ## What travelled, what didn't
 
 ${ledgerLines(ledger)}
 `,
     },
+    ...(figure ? [{ file: `${glbFile}.import`, text: FIGURE_IMPORT }, { file: 'figure.gd', text: FIGURE_VIEW_GD }, ...(figure.face ? [{ file: 'figure_face.gd', text: FIGURE_FACE_GD }] : [])] : []),
   ];
   return { files, ledger };
 }

@@ -10,6 +10,18 @@
  *   • a gesture is a WORD (GESTURE_PRESETS, or `rest`: no stand, the bind pose), an OBJECT of pose words
  *     (GESTURE_KEYS), or a LIST of either resolved left → right (a later entry's keys win; `spine`, `neck`, `head` and
  *     the raw swivels merge one level deep), so `['relaxed', { head: { pitch: -12 } }]` is the relaxed stand, chin down.
+ *   • the door's CLIPS (`hero.clips`, withHeroClips): the operator's motion in the same words —
+ *     `{ <name>: [keys] | false }`, each key an object of the stand's pose words plus the clip words (CLIP_KEYS: a
+ *     direction for the head and neck, the heel and lift channels, `support: 'none'`, the jaw on a head that has one),
+ *     merged over the form's own clips when the plan is generated (a name it has replaced in place, a new one after,
+ *     `false` removing one); `gesture` stays the stand's. On the anime head a clip may be `{ seconds, keys }` (its
+ *     designed duration) and a key may carry `face` (an expression word, `{ blink, smile, open, brow }` or a list, as
+ *     `hero.expression` reads): the plan never sees it (the rig does not read it); the export draws it
+ *     (heroClipFaces, anime-face-tracks.js).
+ *   • CLIP TIMING (heroClipSeconds, the anime hero only): every clip a designed duration the World page's clip preview,
+ *     the GLB and the Godot pack all play — the door clip's own `seconds`, else the hero's own clip's
+ *     (ANIME_CLIP_SECONDS), else half a second a key. Every other hero's clips play one second in an export and three
+ *     on the World page.
  *   • the presets are per CAST (each body carries its arms and free leg differently): the rig has no arm IK and no
  *     foot targets, so each placed hand and free foot is a set of raw channel values found offline by a deterministic
  *     search over the rig's own channels (the free sole on the floor, the hand at its target, the hand and forearm
@@ -22,6 +34,8 @@
  * Pure and deterministic: tables and functions of the mesh, the recipe and the pose alone.
  */
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, layeredClip } from './station-loft-rig.js';
+import { validateAnimeExpression, resolveAnimeExpression } from './anime-head.js';
+import { SWING_WORDS, isSwing } from './hero-swing.js';
 
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -88,6 +102,9 @@ const BEND_WORDS = ['straight', 'slight', 'half', 'bent', 'full'];
 const SPINE_WORDS = { curl: 'amount', arch: 'amount', lean: ['forward', 'back'], sideBend: ['left', 'right'], twist: ['left', 'right'] };
 /** Every key a gesture object takes: the vajra core's words and raw swivels, and the rig's stance channels. */
 export const GESTURE_KEYS = ['support', 'crouch', 'spine', 'pelvis', 'hinge', 'shoulders', 'neck', 'head', 'armL', 'armR', 'legL', 'legR', 'shL', 'shR', 'hipL', 'hipR', 'elbowL', 'elbowR', 'kneeL', 'kneeR'];
+/** Every word a door clip's key takes: the stand's, the rig's heel and lift channels, and the jaw chain on a head that
+ * has one. */
+export const CLIP_KEYS = [...GESTURE_KEYS, 'heelL', 'heelR', 'lift', 'jaw'];
 /** Words the pose language knows that move nothing on this rig (said by name when refused). */
 const INERT = { wristL: 'the hand is rigid on the forearm (no wrist)', wristR: 'the hand is rigid on the forearm (no wrist)', fingersL: 'the hand has no fingers', fingersR: 'the hand has no fingers', weight: 'the rig has no sideways root shift', twist: "the spine's twist is spine.twist", lift: 'a gesture stands on the floor' };
 const DEEP = new Set(['spine', 'neck', 'head', 'shL', 'shR', 'hipL', 'hipR']);
@@ -97,19 +114,24 @@ function directionErrors(v, label) {
   const ok = Array.isArray(v) ? v.length > 0 && v.every((d) => typeof d === 'string' && DIR_WORDS.includes(d)) : one(v);
   return ok ? [] : [`${label}: a direction to aim the limb — ${DIR_WORDS.join(' / ')}, a list of them, or { x, y, z }`];
 }
-/** the ranges a gesture's numbers must sit in (degrees, or an amount 0 … 1): wide enough for any stand the rig solves,
- * narrow enough that a stray number (a 720° swivel, a curl of 1e6) is refused by name instead of minting a wild pose */
-const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180 };
+/** the ranges a gesture's numbers must sit in (degrees, or an amount 0 … 1), and a door clip's heel (degrees), lift
+ * (metres, 0 … 1) and jaw (degrees, the jawOpen dial's 0 … 25): wide enough for any pose the rig solves, narrow enough
+ * that a stray number (a 720° swivel, a curl of 1e6) is refused by name instead of minting a wild pose */
+const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180, heel: 90, lift: [0, 1], jaw: [0, 25] };
 const inRange = (x, [lo, hi]) => fin(x) && x >= lo && x <= hi;
 const anglesErrors = (v, label, keys, lim) => (isObj(v) && Object.keys(v).length && Object.entries(v).every(([k, x]) => keys.includes(k) && inRange(x, [-lim, lim])) ? [] : [`${label}: { ${keys.join(', ')} } in degrees, each within ±${lim}`]);
 
-/** Error strings for one gesture object (empty = valid). Form only; solvability is the rig's (the mint gate). */
-function gestureObjectErrors(g, label) {
-  const errs = [];
+/** Error strings for one gesture object (empty = valid) — or, with `clip` ({ jaw, face, expression }), one KEY of a door
+ * clip, which takes the clip words besides (CLIP_KEYS), and on the anime head (`face`) the key's facial track: `face`,
+ * read as `hero.expression` reads (a word, the channels or a list); elsewhere refused, pointing at /hero/expression only
+ * on a head that takes one (`expression`). Form only; solvability is the rig's (the mint gate). */
+function gestureObjectErrors(g, label, clip = null) {
+  const errs = [], KEYS = clip ? CLIP_KEYS : GESTURE_KEYS, noun = clip ? 'clip' : 'gesture';
   for (const [k, v] of Object.entries(g)) {
     const at = `${label}.${k}`;
-    if (!GESTURE_KEYS.includes(k)) { errs.push(`${at}: ${INERT[k] ? `${INERT[k]}, so the gesture refuses it` : 'not a gesture word'} (have ${GESTURE_KEYS.join(', ')})`); continue; }
-    if (k === 'support') { if (!['both', 'L', 'R'].includes(v)) errs.push(`${at}: 'both' | 'L' | 'R' (the planted foot or feet)`); }
+    if (clip && k === 'face') { errs.push(...(clip.face ? validateAnimeExpression(v, at) : [`${at}: a facial track is the anime head's (head: 'anime')${clip.expression ? "; this head's face is /hero/expression" : ''}`])); continue; }
+    if (!KEYS.includes(k)) { errs.push(`${at}: ${INERT[k] ? `${INERT[k]}, so the ${noun} refuses it` : `not a ${noun} word`} (have ${KEYS.join(', ')})`); continue; }
+    if (k === 'support') { const S = clip ? ['both', 'L', 'R', 'none'] : ['both', 'L', 'R']; if (!S.includes(v)) errs.push(`${at}: ${S.map((s) => `'${s}'`).join(' | ')} (the planted foot or feet${clip ? '; none: both free' : ''})`); }
     else if (k === 'crouch') { if (!(fin(v) && v >= 0 && v <= 1)) errs.push(`${at}: 0 (standing) … 1 (a deep squat)`); }
     else if (k === 'pelvis' || k === 'shoulders') { if (!inRange(v, [-RANGE.girdle, RANGE.girdle])) errs.push(`${at}: degrees, within ±${RANGE.girdle} (the girdle's turn)`); }
     else if (k === 'hinge') { if (!inRange(v, RANGE.hinge)) errs.push(`${at}: degrees, ${RANGE.hinge[0]} … ${RANGE.hinge[1]} (the trunk hinging over the hips)`); }
@@ -121,9 +143,16 @@ function gestureObjectErrors(g, label) {
         else if (want === 'amount') { if (!inRange(x, [0, 1])) errs.push(`${at}.${s}: an amount (0 … 1)`); }
         else if (!(Array.isArray(x) && x.length === 2 && want.includes(x[0]) && inRange(x[1], [0, 1]))) errs.push(`${at}.${s}: [${want.map((w) => `'${w}'`).join(' | ')}, amount 0 … 1]`);
       }
-    } else if (k === 'neck' || k === 'head') errs.push(...anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look));
+    } else if (k === 'neck' || k === 'head') {
+      // a clip's head and neck may AIM (a direction, as the hero's own `wave` does) as well as turn by angles
+      if (!clip) errs.push(...anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look));
+      else if ((isObj(v) && ['yaw', 'pitch', 'roll'].some((a) => a in v) ? anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look) : directionErrors(v, at)).length) errs.push(`${at}: { yaw, pitch } in degrees${isObj(v) && 'roll' in v ? ' (no roll)' : ''}, each within ±${RANGE.look}, or a direction to aim (${DIR_WORDS.join(' / ')}, a list of them, or { x, y, z })`);
+    }
     else if (/^(arm|leg)[LR]$/.test(k)) errs.push(...directionErrors(v, at));
     else if (/^(sh|hip)[LR]$/.test(k)) errs.push(...anglesErrors(v, at, ['yaw', 'pitch', 'roll'], RANGE.swivel));
+    else if (k === 'heelL' || k === 'heelR') { if (!inRange(v, [-RANGE.heel, RANGE.heel])) errs.push(`${at}: degrees the metatarsus turns about the toe base, within ±${RANGE.heel}`); }
+    else if (k === 'lift') { if (!inRange(v, RANGE.lift)) errs.push(`${at}: metres the root rises off the floor, ${RANGE.lift[0]} … ${RANGE.lift[1]} (both feet free)`); }
+    else if (k === 'jaw') { if (!clip.jaw) errs.push(`${at}: this head has no jaw bone (the landmark head has one; the anime head's mouth is /hero/expression), so the clip refuses it`); else if (!inRange(v, RANGE.jaw)) errs.push(`${at}: degrees the jaw opens, ${RANGE.jaw[0]} … ${RANGE.jaw[1]} (the jawOpen dial's range)`); }
     else if (!(BEND_WORDS.includes(v) || (fin(v) && v >= 0 && v <= 150))) errs.push(`${at}: a bend word (${BEND_WORDS.join(', ')}) or degrees 0 … 150`);
   }
   return errs;
@@ -132,15 +161,51 @@ function gestureObjectErrors(g, label) {
 /** Error strings for a hero `gesture` (empty = valid): a word, an object of pose words, or a list of either. */
 export function validateGesture(gesture, label = 'gesture') {
   if (gesture === undefined || gesture === null) return [];
+  if (isSwing(gesture)) return [];   // a swing word (hero-swing.js): the stand is its ready key, the swing its clip
   const items = Array.isArray(gesture) ? gesture : [gesture];
   if (!items.length) return [`${label}: a gesture word (${GESTURE_WORDS.join(', ')}), an object of pose words, or a list of them`];
   const errs = [];
   items.forEach((it, i) => {
     const at = Array.isArray(gesture) ? `${label}[${i}]` : label;
-    if (typeof it === 'string') { if (!GESTURE_WORDS.includes(it)) errs.push(`${at}: unknown gesture word '${it}' (${GESTURE_WORDS.join(', ')}, or an object of pose words: ${GESTURE_KEYS.join(', ')})`); }
+    if (typeof it === 'string') { if (isSwing(it)) errs.push(`${at}: a swing word ('${it}') stands alone, not in a list`); else if (!GESTURE_WORDS.includes(it)) errs.push(`${at}: unknown gesture word '${it}' (${GESTURE_WORDS.join(', ')}; a swing: ${SWING_WORDS.join(', ')}; or an object of pose words: ${GESTURE_KEYS.join(', ')})`); }
     else if (isObj(it)) errs.push(...gestureObjectErrors(it, at));
     else errs.push(`${at}: a gesture word (${GESTURE_WORDS.join(', ')}) or an object of pose words`);
   });
+  return errs;
+}
+
+/** A door clip's name: a word (it names the GLB animation `<figure>:<name>`, the page's ?clip= and a patch path). */
+const CLIP_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
+/** a designed duration's range (seconds): a quarter second (a snap) to a minute (a long idle) */
+const CLIP_SECONDS = [0.25, 60];
+/** Error strings for a hero's `clips` (empty = valid): `{ <name>: [keys] | { seconds, keys } | false }`, each key an
+ * object of pose words (CLIP_KEYS; `jaw` only when the head has a jaw bone); on the anime head (`face`) a key may carry
+ * `face` and a clip its `seconds`, elsewhere both refuse by name (`expression`: the head takes /hero/expression, which the
+ * refusal points at). `gesture` is the stand's and refuses here. Another head's refusals read as before the anime forms:
+ * an object that names neither `keys` nor `seconds` is refused as a list. */
+export function validateHeroClips(clips, { jaw = false, face = false, expression = false } = {}, label = 'clips') {
+  if (clips === undefined || clips === null) return [];
+  if (!isObj(clips)) return [`${label}: { <name>: [keys]${face ? ' | { seconds, keys }' : ''} | false } — each key an object of pose words (${CLIP_KEYS.join(', ')})`];
+  const errs = [];
+  const keyErrors = (keys, at, name, form) => {
+    if (!Array.isArray(keys) || !keys.length) return [form ? `${at}: a list of keys, each an object of pose words` : `${at}: a list of keys, each an object of pose words — or false to remove the hero's own clip of that name (remove /hero/clips/${name} drops a door clip)`];
+    return keys.flatMap((k, i) => (isObj(k) ? gestureObjectErrors(k, `${at}[${i}]`, { jaw, face, expression }) : [`${at}[${i}]: a key is an object of pose words (${CLIP_KEYS.join(', ')})`]));
+  };
+  for (const [name, keys] of Object.entries(clips)) {
+    const at = `${label}.${name}`;
+    if (name === GESTURE_CLIP) errs.push(`${at}: the stand's clip — set /hero/gesture (${Object.keys(GESTURE_PRESETS).join(', ')}, pose words or a list; 'rest' for none); a door clip cannot replace or remove it`);
+    else if (!CLIP_NAME_RE.test(name)) errs.push(`${at}: a clip name is a word of up to 32 letters, digits, '_' or '-', starting with a letter`);
+    else if (keys === false) continue;
+    else if (isObj(keys) && (face || 'keys' in keys || 'seconds' in keys)) {
+      // the clip with its designed duration: `{ seconds, keys }` (the anime hero's; `{ keys }` alone is the list)
+      for (const k of Object.keys(keys)) if (k !== 'seconds' && k !== 'keys') errs.push(`${at}.${k}: a clip is [keys] or { seconds, keys }`);
+      if (keys.seconds !== undefined) {
+        if (!face) errs.push(`${at}.seconds: a designed duration is the anime hero's (head: 'anime'); this hero's clips play one second in an export and three on the World page`);
+        else if (!inRange(keys.seconds, CLIP_SECONDS)) errs.push(`${at}.seconds: the clip's length in seconds, ${CLIP_SECONDS[0]} … ${CLIP_SECONDS[1]}`);
+      }
+      errs.push(...keyErrors(keys.keys, `${at}.keys`, name, true));
+    } else errs.push(...keyErrors(keys, at, name, false));
+  }
   return errs;
 }
 
@@ -166,6 +231,52 @@ export function withGestureClip(plan, pose) {
   if (!pose || !plan?.rig) return plan;
   const { [GESTURE_CLIP]: _old, ...rest } = plan.clips || {};
   return { ...plan, clips: { [GESTURE_CLIP]: [pose], ...rest } };
+}
+
+/** a door clip's keys: the list, or the `keys` of `{ seconds, keys }` */
+const doorKeys = (clip) => (Array.isArray(clip) ? clip : clip?.keys);
+/** a door key as the rig reads it: its pose words, without its facial track */
+const poseOf = (k) => { if (!isObj(k) || !('face' in k)) return k; const { face: _f, ...pose } = k; return pose; };
+/** A plan with the door's CLIPS (hero.clips) merged over its own: a name it has replaced in place, a new one after it,
+ * `false` removing one of its own (refused, naming them, when it has none of that name); the plan untouched when there
+ * are none. A `{ seconds, keys }` clip merges its keys; a key's `face` stays with the record (the rig never reads it; the
+ * export draws it). The stand is added after (withGestureClip). */
+export function withHeroClips(plan, clips) {
+  if (!clips || !plan?.rig || !Object.keys(clips).length) return plan;
+  const out = { ...(plan.clips || {}) };
+  for (const [name, clip] of Object.entries(clips)) {
+    if (clip !== false) { out[name] = clone(doorKeys(clip).map(poseOf)); continue; }
+    if (!Object.hasOwn(out, name)) throw new Error(`clips.${name}: false removes one of the hero's own clips (${Object.keys(plan.clips || {}).join(', ')}); it has no '${name}'`);
+    delete out[name];
+  }
+  return { ...plan, clips: out };
+}
+
+/**
+ * The anime hero's own clips' DESIGNED DURATIONS (seconds a cycle), timed as an animator times them: the stand's one key
+ * holds (a second, played as a hold); a breathing idle takes one breath in four seconds (about 15 breaths a minute at
+ * rest); a walk cycle is two steps, and 120 steps a minute puts the cycle at a second; the wave (hero-form.js ANIME_WAVE)
+ * raises the hand, strokes out and back twice and lowers it, a third of a second a key.
+ */
+export const ANIME_CLIP_SECONDS = Object.freeze({ gesture: 1, idle: 4, walk: 1, wave: 2 });
+/** Every clip's designed duration on the ANIME hero (null on any other: its clips play one second in an export and three
+ * on the World page): `{ <name>: seconds }` over the recipe's clips — the door clip's own `seconds`, else the hero's own
+ * clip's (ANIME_CLIP_SECONDS), else half a second a key (a second at least). */
+export function heroClipSeconds(hero, clips) {
+  if (hero?.head !== 'anime' || !clips) return null;
+  return Object.fromEntries(Object.entries(clips).map(([name, keys]) => {
+    const door = hero.clips && Object.hasOwn(hero.clips, name) ? hero.clips[name] : null;
+    return [name, isObj(door) && fin(door.seconds) ? door.seconds : Object.hasOwn(ANIME_CLIP_SECONDS, name) ? ANIME_CLIP_SECONDS[name] : Math.max(1, 0.5 * keys.length)];
+  }));
+}
+/** Every clip's FACIAL TRACK as the door gave it: `{ <name>: [channels | null per key] }` over the recipe's clips — a door
+ * key's `face` resolved as `hero.expression` is (anime-head resolveAnimeExpression: `{ blink, smile, open, brow }`),
+ * null where a key carries none (the authored face holds) and for every key of the hero's own clips. */
+export function heroClipFaces(hero, clips) {
+  return Object.fromEntries(Object.entries(clips || {}).map(([name, keys]) => {
+    const door = hero?.clips && Object.hasOwn(hero.clips, name) ? doorKeys(hero.clips[name]) : null;
+    return [name, keys.map((_, i) => { const f = door?.[i]?.face; return f === undefined || f === null ? null : resolveAnimeExpression(f); })];
+  }));
 }
 
 /** The word a gesture reads as in the readout: the word, the words of a list joined by '+', 'data' for an object. */

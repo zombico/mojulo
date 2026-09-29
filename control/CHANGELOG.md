@@ -17,8 +17,8 @@ connected-service and app loops and the recipe format are the stable surface.
 ### A round street kit
 
 The city's street kit stops reading as blocks: lamp posts, signal and sign poles, heads, lenses, bins, bollards,
-freeway piers, playground frames and rooftop equipment are drawn round, with a few of them in metal. It is stylized, not realistic, and in the city's own look.
-Every city minted from here on has it. Stored cities are byte-identical.
+freeway piers, playground frames and rooftop equipment are drawn round, with a few of them in metal. It is stylized,
+not realistic, and in the city's own look. Every city minted from here on has it. Stored cities are byte-identical.
 
 - **Lamps first.** A street lamp is a tapered round standard on a base collar, a round arm, and a luminaire: a warm
   glass bowl under a domed housing. The freeway median lamps take the same head. The canal city's lamp is a lantern:
@@ -36,6 +36,137 @@ Every city minted from here on has it. Stored cities are byte-identical.
 - **One element.** `elements.roundKit` (also `round`, `rounded`, `roundPoles`) turns it on. New mints and terrain
   cities stamp it beside `frontage`; `roundKit: false` keeps the block kit. The instanced-furniture channel still
   collapses identical lamps.
+
+### Fantasy armor
+
+Worn armour composed from intent and art direction, on the hero: plate from a single pauldron to full harness, and
+samurai lamellar with laced rows, hanging boards and a crested kabuto. It is built from a few dials and laws, not a
+catalogue. The hero stores the words, and the suit is re-derived on every read. Opt-in through `adorn` on the hero.
+
+- **A suit is a build on the hero.** `adorn: { type: 'armor', style, dials }` on the hero door
+  (`mint_solid({ kind: 'layered', via: 'hero', spec: { …, adorn } })`) expands into an adornment kit wherever the hero
+  is read. `update_sketch` restyles it in place: `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'`.
+  A build is stamped with the version of the armour laws it was minted under.
+- **Dials, not presets.**
+  - `stylize` runs from realistic to stylized along one curve: the focal piece grows fastest, plates stand further
+    off the body, openings flare, and lames and lacing get fewer and bigger.
+  - `coverage` grows the suit out from its focal piece, from one pauldron to full plate.
+  - `mass` sets heft, and `ornament` is the edge budget.
+- **The laws, as worn.**
+  - One focal piece per suit, and every piece is sized against its body part.
+  - A plate never crosses a joint: each rides one bone. A cop caps a joint from one side, lames shingle away from
+    their anchor, and plate stays off where two body parts touch at rest.
+  - Coverage grows from the focal. The suit is asymmetric until its partner piece arrives as a lesser piece, and the
+    side follows function (a bracer on the bow arm).
+  - Plates read over a layer one clear value step away.
+  - The edge is the ornament field.
+  - Each piece is built the way its material is made: plate as halves strapped at the sides; lamellar as sawtooth
+    rows held by the lacing, where the construction is the ornament.
+- **Styles are cards.** The samples ship as plain data: `knight` (plate) and three lamellar samurai, `kuro-kon`
+  (black lacquer, navy lacing, a gold crescent), `aka` (red lacquer, gold horns) and `shiro` (white lacing, a sun
+  disc). `style` also takes an inline card.
+- **Hard-suits, a third family.** Moulded shells over a bodysuit, segmented so the panel lines show the layer beneath,
+  with a smooth helmet and optional power pack:
+  - `grim-scifi`: massive power armour with domed pauldrons, glowing lenses and a grille;
+  - `fantasy-space`: minimal trooper plates and a T-visor helmet;
+  - `armored-hero`: a modular powered suit with a faceplate helm and a glowing chest reactor.
+  Groups named in `plan.emissive` (lenses, visor slits, a reactor) render full-bright on the World page.
+- **Themes carried down.** `adorn.theme` (`death-knight`, `radiant`, or an inline card) layers a theme over any plate
+  suit as a motif vocabulary, not a skin:
+  - The primary motif repeats with hierarchy: full size at the focal piece, then smaller at the partner, chest, belt
+    and knees, as far as the ornament budget reaches, never on every piece.
+  - The secondary motif is the field's one structural line (ribs across the abdomen).
+  - Edge verbs run the edges they name: a painted rim on every plate, fur at the cuffs.
+  - The crest verb stands only on the crest line (spikes along the pauldron tops, a crown on the helm).
+  - Glyphs mark the plain fields, and the glow spends on the focal and the eyes.
+  - A theme can add the pieces only it wants: a helm, a tabard, a belt that carries the belt motif.
+  - A theme leans the dials and language between the style's and the build's own, and its tones layer over the
+    style's.
+  - Theme cards are plain data in `lib/graph/themes/`, to be shared with held gear. Samurai and hard-suit armour take
+    a theme's tones for now.
+- **Adornment signatures as data.**
+  - A signature can be:
+    - `facing`: a disc on the piece's lifted outer skin, facing where the eye comes from;
+    - `boards`: flat laced rows hung from a piece's edge;
+    - `crest`: a crescent, horns or a sun disc;
+    - `helm`: a smooth helmet sized to the head, with its visor, lenses or grille, a shadowing brow, and a coronet
+      of spikes at the front or the back;
+    - `pack`: a vented block on the back;
+    - one of the theme motifs: `skull` (sockets dark or glowing, 0–2 horns), `spikes`, `ribs`, `fur`, `tabard`,
+      `runes`.
+  - A signature element may carry its own group.
+  - A shell's `rim` paints a band along its own edges in another group, so a trim follows every flare of the plate.
+  - `stack: false` keeps an adornment out of the ones worn after it, so lamellar rows keep a sawtooth profile instead
+    of piling outward.
+  - A rigid strap no longer fails to wear.
+  - Kits that use none of these are unchanged.
+
+### Equipment
+
+Fantasy arms composed from intent and art direction: swords, daggers, greatswords, staves, bows and shields, built
+by a handful of dials and a few laws rather than a catalogue. The recipe stores the words; the item is re-derived on
+every read. Opt-in through `build` on a workbench.
+
+- **An item is a build, not a model.** `mint_solid({ kind: 'equipment', spec: { item, style, dials, parts, gem } })`
+  stores a workbench with a `build` (the same `build` may sit on any workbench beside hand-made parts). The build
+  expands into ordinary monomers (lofts, lathes, sweeps, extrudes, fields) wherever a workbench is read: the World,
+  the studio shots, the exports, an assembler that freezes it. `update_sketch` restyles it in place: one dial, one word. A build is stamped with
+  the version of the laws it was minted under, so a later refinement never moves a stored item.
+- **Dials, not presets.** `stylize` runs from realistic to stylized along one proportion curve. `mass` sets heft,
+  `focus` names the signature (a guard, a pommel, a staff head, a bow's riser, a shield's boss), and `ornament`
+  caps the secondary accents. Shape language picks a variant per part: leaf, cleaver, sabre, flamberge and tanto
+  blades; bar, crescent, disc, block, spiked and winged guards; branch, claw, crescent, block, mace and ringed staff
+  heads; longbow, recurve, horn and yumi limbs; round, heater and kite shields with rays, bands, vines, wings,
+  spikes or a mon.
+- **The laws.**
+  - One focal element per item, with everything else sized against it.
+  - Stylization grows the focal fastest, and detail gets fewer and bigger.
+  - The part that carries a stone re-forms as its setting: a flush bezel when realistic, a boss, cage or claw when
+    stylized. The setting grips the stone at its girdle, the widest ring measured on the exact crystal
+    (`crystalGirdle`): a bezel lip sits in the girdle's plane, and prongs and branches pass the girdle at its radius.
+    The cut follows the setting, so a raw crystal set face-on becomes a cabochon, while a cradle keeps it raw.
+  - No feature is thinner than a stylize-dependent fraction of the item's length.
+  - Fittings recede so the focal carries the contrast.
+  - The focal sits where the eye already goes, and leading lines run into it.
+  - A branching head grows by the pipe model.
+  - On a shield, the stone is sized against the whole face.
+- **Styles are cards.** Eight samples ship as plain data: historical, elven, dwarven, brutal, eastern, anime-hero,
+  druid and celestial. `style` also takes an inline card, so a new direction is a new card, not code.
+- **Real metal.** A card's material role may be a metal surface `{ metal, finish, film }` (see Metal surfaces), so
+  a blade reflects the studio instead of reading as paint. The samples wear:
+  - brushed steel and blasted fittings (historical), and polished silver (elven);
+  - blued, tempered steel with planished bronze and gold (dwarven), and mill-scaled steel (brutal);
+  - blued-steel fittings with brushed gold (eastern), and a chrome edge (anime-hero);
+  - planished bronze with verdigris accents (druid), and mirror stainless under polished gold (celestial).
+  - A painted fitting still recedes as stylization rises; a metal keeps its own colour.
+- **The readout.** `stats.equipment` names the focal and its share of its host or face, the resolved dials and
+  variants, and the sockets (`grip`, `tip`, `focal`, and a bow's nocks) that a figure mounts gear by.
+- **Bark on any lathe or loft.** `bark: 'oak'` (or `{ species, tile }`) on a lathe or loft wears the trees' own
+  fracture-grown bark: oak, beech, pine, chestnut, spruce, silver fir or upper pine. The mapping is seamless, running
+  round and along the stem, and the page lights the texture. A druid's gnarled staff and its grown branches wear it,
+  with the tile scaled to the stem, because bark cracks closer on a thinner stem.
+- **Pattern-welded blades.** `pattern: { kind: 'damascus', type: 'random' | 'ladder' | 'raindrop' | 'twist', folds }`
+  on a metal surface forges a billet of layers (seven times two to the folds) and etches it where the blade's grind cuts
+  them. It is drawn in the metal shader, so the blade keeps its reflection and needs no texture. The layers grey out
+  at a distance and resolve up close, as real Damascus does. The eastern sample's blade is a twist Damascus.
+- **Gear on the hero.** `gear: { right, left, back, hip }` on the hero door takes the same build words as an item. Each
+  piece is placed by its sockets at true size, scaled with the figure, and held by class:
+  - a blade goes through the fist with its tip forward and down; a raised guard swings it upright;
+  - a staff and a bow are gripped in the hand;
+  - a shield rides the forearm;
+  - back and hip gear is carried.
+  The gear is bound to its bone, so the stands, the clips, the preview and the skinned GLB carry it. An anime hero's
+  gear defaults to a stylized proportion. Absent `gear`, the hero is byte-identical.
+- **Swings.** `gesture: 'chop' | 'thrust' | 'rising' | 'cleave' | 'bash' | 'plant'` stands in the swing's ready pose
+  and plays the swing as a looping clip, with the body driving it: windup, strike, follow-through and recovery at about
+  28 : 14 : 14 : 44. The item's mass and length set the timing: a heavy or long item strikes later from a held, higher
+  cock, and a dagger strikes early. The chop's cock rolls the arm so the blade stands up and back, and holds that roll
+  through the strike, so the edge leads. A swing needs gear in its hand, and the door says which. The readout names the
+  contact window, reach and cone for a game to read.
+- **The elbow stays low.** A raised hand no longer lifts its elbow over the head. The upper arm comes up level and
+  forward and the forearm stands, so the elbow points forward or down at the shoulder line: in every swing's windup,
+  and in the hero's `wave`. The wave's clip changed with it, so every hero's plan, recipe, page and skinned GLB moved
+  by that clip alone.
 
 ### Metal surfaces
 
@@ -731,6 +862,112 @@ branch; each bullet is rewritten as its phase lands.
   hides every `body:*` group with the solid. The baked GLB ink cannot stencil: it splits its outline by the same groups
   and leaves out the shell of hair lying inside another hair part (`ink-geometry.js` `inkBuried`: a lock's root sunk into
   the cap, a section pressed into another), and a lock standing off another still outlines over it in an engine.
+- **Clips at the door.** `hero.clips`: `{ <name>: [keys] }`, each key an object of the rig's pose words — the stand's
+  words and ranges, plus a direction for the head and neck, `heelL` / `heelR`, `lift`, `support: 'none'` and, on a head
+  with a jaw bone (the landmark head, or an include with a `jawHinge` joint), `jaw` — stored as given and merged over
+  the hero's own clips when the plan is generated: a door clip of the same name replaces `idle`, `walk` or `wave` in
+  place, a new one follows them, `false` removes one of the hero's own; `gesture` is the stand's and refuses (set
+  `/hero/gesture`). Every clip pays the mint's rig gates, and a key or a blend between keys the rig cannot solve names
+  the clip and the key or the phase; a word the rig does not know refuses naming the clip, the key and the word; a clip
+  survives every other `/hero` edit, since the plan regenerates from the record (the keys are values placed on that
+  body: a `/hero/cast` or `/hero/tune` edit carries them unchanged). The readout's `hero.clips` lists what the figure
+  plays, the door's clips and the removed ones (only on a hero that authored some). Set `/hero/clips`, then
+  `/hero/clips/<name>`. The worked heroine carries four of her own (`greet`, `idleRelaxed`, `run`, `victory`) and the
+  docs test plans them. The anime hero waves its own way (`hero-form.js` `ANIME_WAVE`, under the anime head whatever
+  the proportions; every other head keeps the form's wave byte for byte): the upper arm out to the side and about 27°
+  below horizontal, the forearm upright, the hand beside the head, then two strokes 35° out and back on the elbow's
+  hinge (the elbow still, the hand dipping toward the chin at the outer end), the head tilted toward the hand; six keys
+  a third of a second apart over its 2 s, each on one of the pack's 12 samples a cycle. On the anime head a clip may be
+  `{ seconds, keys }` and a key may carry `face` (an expression word, `{ blink, smile, open, brow }` or a list, read as
+  `hero.expression` reads); both refuse by name on every other head (a key's `face` pointing at `/hero/expression` on
+  the landmark head), whose other refusals read as before. Every clip of the anime hero plays a designed duration, the
+  same on the World page's clip preview, in the GLB and in the Godot pack: the door clip's own `seconds` (0.25 … 60),
+  else the hero's own (`gesture` 1 s, a hold; `idle` 4 s, one breath; `walk` 1 s, two steps at 120 a minute; `wave`
+  2 s, two strokes), else half a second a key; every other hero keeps one second in an export and three on the World
+  page. The face never reaches the plan; the skinned export draws it as a STEP `weights` channel per clip on a 30-fps
+  grid keyed half a frame early: each key's face held to the next key, the eyes only at the knots, an eye that changes
+  passing its in-betweens one frame each right before the next key (closing, the half lid; opening, the half lid then
+  0.20), the mouth and brows already the next key's; a key without a face holds the authored one. The AMBIENT BLINK is
+  derived on read, never stored: seeded per hero and clip, 2.5 … 5 s apart, one in five a double, none across a loop
+  seam and none on or beside a frame whose drawing shuts an eye or changes one (over a half lid the eye shuts from it
+  and comes back to it); a clip of 2.5 s or more bakes its own, and a 12-s face-only `face:ambientBlink` holds the
+  authored face for an engine to layer over the clips whose eyes hold (`extras.face.ambientOver`); `/hero/blink`
+  `false` turns it off (stored only when false). The drawings are a frame each: play them at 30 fps or more (at 24,
+  Blender's default scene rate, a one-frame drawing can fall between two samples). The readout's `hero.clips` adds each
+  clip's `seconds` and the door clips carrying a `face` on the anime head. The worked heroine's clips carry their
+  durations (greet and victory 2 s, idleRelaxed 4 s, run 0.8 s) and her performance: a closed-eye grin opening into a
+  wider smile on the greet (twelve keys, one on each of the pack's samples: two strokes from her stand on the elbow's
+  hinge, each eased at both ends, with the arm held up across the loop; the waving side lifts into the first, the head
+  tilts toward the hand and nods a key after it, and the other arm answers sideways), a determined squint pushing on
+  each contact on the run, the brows down on the victory's crouch and an eyes-shut cheer at its peak. A hero without
+  clips is byte-identical but for the anime hero's durations (its packed clips carry `s`, its World page plays them, its
+  GLBs end each clip there); only the mint's next hint gains a sentence on the clips, and a second on the anime head.
+- **The playable export.** The Godot world pack (`scripts/export-godot.mjs`, clips on, the default) ships a rigged
+  layered figure SKINNED: `model.glb` is the bytes `export_model { clips: '_all', skinned: true }` writes (one mesh, its
+  joints, every clip — the anime hero's at their designed durations, every other hero's one second each; `--lit` adds
+  `lit: true`), with a `model.glb.import` that turns LOD generation off (by default Godot builds up to six LODs of the
+  figure) and mesh compression off (Godot never compresses a skinned surface; the setting keeps the static meshes whole
+  once they carry normals), and a `level.tscn` whose `figure.gd` (emitted beside the kernel, which it extends: the
+  material, rim and light contracts kept, no walker) plays the figure's `idle` (else its first clip of more than one
+  key, else its first) on a loop under the authored three-quarter view (else the score's first camera), which frames the
+  figure at rest — on the anime hero re-placed before `score.json` is written (its rotation and field of view kept, its
+  axis on the centre of the figure's extent over every exported clip, each bone part's rest box padded by 3% of the
+  height and carried through every packed key, backed off until every corner lies inside the frustum with a tenth to
+  spare), so the victory's raised fist stays in frame and the figure reads smaller at rest; its presets carry the
+  `exclude_filter` Godot requires, so its import logs no error. On a hero that `idle` is its own ready loop, not the
+  stand the World page opens on (a door clip named `idle` replaces it); on every other hero it runs three times as fast
+  as the World page, which plays a clip over three seconds, and the anime hero's clips play the same durations in both.
+  The anime hero's figure plays under `figure_face.gd` (emitted beside `figure.gd`, which it extends): Godot ignores
+  `mesh.weights`, so on ready it sets the blend shapes to the authored face from the mesh extras, and when the clip is
+  one whose eyes hold the authored face (`extras.face.ambientOver`; the heroine's `gesture`, `walk` and `wave`) an
+  AnimationTree plays it with `face:ambientBlink` through a Blend2 whose filter passes only the eye shapes (`blink*`,
+  the correctives among them); the README and ledger list the durations and a `figure_face` row. The machine gate adds a
+  figure probe (`scripts/godot-figure-probe.gd`, `figure-gate.js`): one skeleton with the skin's joints, an
+  AnimationPlayer listing every clip, no LOD and no compressed surface, the chosen clip playing on a loop with the
+  authored view current; on the anime hero the face's checks besides — the blend shapes by name, the authored face at
+  ready (within 1e-5), a blend-shape track per target in every body clip, each clip's length its designed duration
+  (within 1e-3), and the layer's tree active exactly when the clip is one it layers over, with a second run on such a
+  clip to show it active. The docs example `docs/examples/humanoid/view-animations.mjs` writes one self-contained page
+  for any skinned GLB (three.js from jsdelivr, the GLBs inlined; `node ../docs/examples/humanoid/view-animations.mjs
+  <a.glb> [<b.glb> …] [--out <file.html>]` from `control/`): each clip at its own length with real skinning and morph
+  targets, the baked vertex colours unlit; a model picker, a button per clip, pause, speed and a 1/30 s frame-step,
+  orbit, and a `full` camera framed over all the clips; when the file carries the anime face, a `face` camera and a face
+  panel — every word in `extras.face.words`, 'clip drives the face', 'ambient blink' (the file's own `face:ambientBlink`
+  over the `ambientOver` clips or a held word, never reopening a shut eye) and a right-eye wink, the eyes always drawn
+  at the file's knots. Every other pack is byte-identical: the figure kind's rig and a rigged hero's pack built with
+  `--no-clips` stay rigid parts, as do game, Unity and Unreal packs, and every other Godot world, game and arcade pack
+  still logs the two `exclude_filter` preset errors on import. Still to come: welded, indexed figure meshes with
+  authored normals and outline data (NORMAL, TANGENT), per-class materials, a parented skeleton, stepped body clips and
+  a toon shader for the Godot leg; the World page's clip preview plays neither the face nor the skin.
+- **The face in the engines.** The anime hero's skinned GLB (`export_model { clips, skinned: true }`, the bytes the
+  Godot pack ships) carries its face as blend shapes (`anime-face-rig.js`): POSITION morph targets on the NEUTRAL head,
+  each the difference of two builds of the same head with only the expression changed (one layout at every expression) —
+  `blink`, `blinkLeft` and `blinkRight` (one eye each, a smoothstep across the midline, where the lids move nothing
+  within 4 mm), `smile`, `mouthOpen`, `browInnerRaise` and `browInnerLower` (the brow channel slants the brow about its
+  middle, it does not lift it), and the in-between correctives `blinkFix10`, `12`, `18`, `20` and `50` per eye (the
+  closing lid crops the lenses and drops them behind the face, so a half-shut lid is up to 12.7 mm off half a blink).
+  Eye closure is drawn, never tweened: an eye shows only at a knot (0, 0.10, 0.12, 0.18, 0.20, 0.50, 1), each an exact
+  build, with its corrective at weight 1; a hero whose own `blink` sits between two knots (a 0.35, a 0.6) is drawn at it
+  too, one more build and its own corrective pair after the others (`blinkFix35L` / `R`, named by the closure's
+  decimals). The targets ride the character light's split by its own interpolation, as joints and weights do: sparse
+  accessors on the body primitive, the baked ink's targets all one zero accessor, every other attribute as before byte
+  for byte. `mesh.weights` is the hero's authored expression, so an engine that plays nothing shows the approved face,
+  and `mesh.extras` names the targets and holds every expression word's weights (`face.words`: the words and
+  `authored`), the knots and the sides. Every word blends within 0.3 mm of a true build of that word (the docs heroine:
+  0.194 mm at worst, at the mouth). The builds are only the parts an expression moves, kept per hero: a hero's first
+  export in a process takes about a second longer (the stored heroine's skinned export 1.45 s against 0.4 s, near four
+  times), a second one about what it took before. A row stored by older head code (checked against a build at the hero's
+  own expression), or one whose dial moves the head, exports without the face and says why (`face_skipped`) until any
+  `/hero` edit regenerates it or the dial rests. The shut eye loses its white line: shutting, the sclera's dish flattens
+  to a tenth of its depth and the lid band's lower edge tucks further under the opening (`scleraShut` in both graphic
+  bases, gated in the port, its fixture unchanged), so no sclera shows under the female base's shut lid; the male base's
+  lid sags below the slit as it shuts and still leaves a thin line above it. An upturned closed-eye drawing for a smile
+  with the eyes shut (`happy`, the grins) waits for the shut eye's own arc, which the male's sag needs too. The World
+  page, every other hero and kind, and every export of them are byte-identical.
+- **The clip picker out of captures.** The rig preview's clip `<select>` carries the class `rig-preview`, a
+  capture-contract `WORLD_HIDE_SELECTORS` entry, so World stills (`scene-png.js`, which now reads the root and hide
+  selectors from the contract instead of its own copy) and motion frames bake it out; the live page keeps it. A page
+  carrying a rigged figure's `preview` gains the one class; every other page is byte-identical.
 - **Planes and designed shadow.** The cheek plane, the jaw set inside the cheek outline, the gonial angle, the chin, a
   wedge nose; an occlusion bias, a deep second shade, a cast shadow from the fringe, ink widths that vanish at openings and
   thin in valleys, authored interior lines.
@@ -740,8 +977,6 @@ branch; each bullet is rewritten as its phase lands.
   (the stand above already carries the weight shift, the counter-turned girdles and the head tilt).
 - **The worn layer.** The figure wardrobe's garments on the hero, stored as a spec and derived on read, bound to the body
   chart they were drafted on.
-- **The playable export.** A skinned, welded, shader-ready GLB with authored normals and outline data, per-class materials,
-  a parented skeleton, stepped clips and expression morphs, and a toon shader for the Godot leg.
 
 ### Anime proportions
 

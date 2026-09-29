@@ -267,8 +267,9 @@ export function hullShadeNormals(mesh, { quantum = 1e-3, cell = 0.03, except = [
  * only for the layers it holds; the rig preview draws each span with its layer's stencil rule. A part with no layered
  * face keeps its order and carries no `ranges`.
  */
-function characterRigParts(mesh, skin, parts, { light, palette = null, normals = null, pieces = null, hairInk = false }, dz) {
+function characterRigParts(mesh, skin, parts, { light, palette = null, normals = null, pieces = null, hairInk = false }, dz, face = null) {
   const P0 = pieces || characterLitPieces(mesh, { light, palette, normals, dz });
+  const rowAt = faceRowOf(face);
   const colOf = new Map(); const skinOf = new Map(); const boneOf = new Map();
   const vote = (fi) => {   // the plain path's dominant-bone vote over the PARENT face
     let bi = boneOf.get(fi); if (bi !== undefined) return bi;
@@ -287,16 +288,24 @@ function characterRigParts(mesh, skin, parts, { light, palette = null, normals =
     const acc = {}; addRef(acc, r, 1); const top = topFour(acc); const j = [0, 0, 0, 0], w = [0, 0, 0, 0];
     top.forEach(([bi, ww], k) => { j[k] = bi; w[k] = ww; }); skinOf.set(r, e = [j, w]); return e;
   };
-  const run = () => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 });
+  const run = () => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0, ...(rowAt ? { mph: [] } : {}) });
+  if (rowAt) for (const P of parts) P.mph = [];
   const marks = parts.map(run), layered = parts.map(() => ({ hair: run(), veil: run(), through: run() }));
   for (const pc of P0) {
     const bi = vote(pc.fi); const layer = drawLayer(mesh, pc, { hairInk });
     const P = layer === 'through' ? layered[bi].through : pc.mark ? marks[bi] : layer ? layered[bi][layer] : parts[bi];
     let c = colOf.get(pc.fill); if (!c) colOf.set(pc.fill, c = faceColorLinear({ fill: pc.fill }));
     P.faces++;
-    for (const r of pc.refs) { const [j, w] = skinAt(r); P.pos.push(r.p[0], r.p[1], r.p[2]); P.col.push(c[0], c[1], c[2]); P.jnt.push(...j); P.wgt.push(...w); }
+    for (const r of pc.refs) {
+      const [j, w] = skinAt(r); P.pos.push(r.p[0], r.p[1], r.p[2]); P.col.push(c[0], c[1], c[2]); P.jnt.push(...j); P.wgt.push(...w);
+      if (rowAt) { const d = rowAt(r); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); }
+    }
   }
-  const append = (P, M) => { const at = P.faces; P.faces += M.faces; for (const k of ['pos', 'col', 'jnt', 'wgt']) for (const x of M[k]) P[k].push(x); return [at, P.faces]; };
+  const append = (P, M) => {
+    const at = P.faces, base = P.pos.length / 3; P.faces += M.faces; for (const k of ['pos', 'col', 'jnt', 'wgt']) for (const x of M[k]) P[k].push(x);
+    if (M.mph) for (const e of M.mph) P.mph.push({ i: e.i + base, d: e.d });   // the run's rows at their shifted vertices
+    return [at, P.faces];
+  };
   parts.forEach((P, bi) => {
     const L = layered[bi], ranges = {};
     for (const k of ['hair', 'veil']) if (L[k].faces) ranges[k] = append(P, L[k]);
@@ -304,6 +313,27 @@ function characterRigParts(mesh, skin, parts, { light, palette = null, normals =
     if (L.through.faces) ranges.through = append(P, L.through);
     if (Object.keys(ranges).length) P.ranges = ranges;
   });
+}
+
+/** The FACE ROWS a corner carries (anime-face-rig `heroFaceRig`: `sub` per mesh vertex, `rows` of (1 + targets) × 3):
+ * a corner on a mesh vertex takes that vertex's row, one the light's split made takes its ref's own interpolation of its
+ * sources' rows — (1 − s)·a + s·b along an edge, the weighted sum inside a triangle, the mean of a ring — exactly as
+ * joints and weights are carried; null where nothing moves. Null without a face. */
+function faceRowOf(face) {
+  if (!face) return null;
+  const W = (1 + face.targets.length) * 3, cache = new Map();
+  const vRow = (vi) => { const k = face.sub[vi]; return k < 0 ? null : face.rows.subarray(k * W, k * W + W); };
+  const add = (out, r, w) => {
+    if (r.vi !== undefined) { const x = vRow(r.vi); if (x) for (let j = 0; j < W; j++) out[j] += w * x[j]; }
+    else if (r.bary) for (const [vi, bw] of r.bary) add(out, { vi }, w * bw);
+    else if (r.mix) for (const x of r.mix) add(out, x, w / r.mix.length);
+    else { add(out, { vi: r.a }, w * (1 - r.s)); add(out, { vi: r.b }, w * r.s); }
+  };
+  return (r) => {
+    if (r.vi !== undefined) return vRow(r.vi);
+    let e = cache.get(r); if (e !== undefined) return e;
+    const out = new Float64Array(W); add(out, r, 1); e = out.some((x) => x !== 0) ? out : null; cache.set(r, e); return e;
+  };
 }
 
 /**
@@ -315,33 +345,53 @@ function characterRigParts(mesh, skin, parts, { light, palette = null, normals =
  * `character` (default null → byte-identical output): the CHARACTER LIGHT's parts instead (characterRigParts
  * above — the palette, the step and the split; `light` and `hullShade` do not apply), each part carrying
  * `inkFaces`, and `ranges` where it holds faces with a draw layer.
+ * `face` (default null → byte-identical output): the anime hero's face rows (anime-face-rig `heroFaceRig`), carried per
+ * corner (faceRowOf); a part holding a corner that moves gets `morph: { i, d }` after its other keys — `i` the part's
+ * vertex indices (u32), `d` each one's row as float32 ((1 + targets) × 3: the rebase, then every target) — which the
+ * skinned GLB writer turns into morph targets.
+ * `seconds` (default null → byte-identical output): each clip's DESIGNED DURATION (hero-gesture `heroClipSeconds`, the
+ * anime hero's), carried as `s` on its packed clip — the World page's clip preview and the GLB play the cycle over it
+ * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
+ * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null, face = null, seconds = null, gear = null } = {}) {
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
-  if (character) characterRigParts(mesh, skin, parts, character, dz);
+  const rowAt = !character ? faceRowOf(face) : null;
+  if (rowAt) for (const P of parts) P.mph = [];
+  if (character) characterRigParts(mesh, skin, parts, character, dz, face);
   else mesh.faces.forEach((tri, fi) => {
     const votes = {}; for (const vi of tri) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
     const bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
     const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: part.tint || '#8a8f96' });
     const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const shade = 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
     const P = parts[bi]; P.faces++;
-    tri.forEach((vi, k) => { const s = vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); });
+    tri.forEach((vi, k) => { const s = vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
   });
+  // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
+  // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
+  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; for (const p of t.p) { P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); } } }
   const packedClips = {};
   for (const [name, clip] of Object.entries(clips)) {
     const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const flat = [];
     for (let k = 0; k < keys; k++) { const { nodes } = rigNodesAt(R, fn(k / keys)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
-    packedClips[name] = { k: keys, b: flat };
+    packedClips[name] = { k: keys, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}) };
   }
   let mnz = Infinity, mxz = -Infinity; for (const v of mesh.vertices) { if (v[2] + dz < mnz) mnz = v[2] + dz; if (v[2] + dz > mxz) mxz = v[2] + dz; }
   return {
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
-    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}) } : null)),
+    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}) } : null)),
     clips: packedClips, figH: r4(mxz - mnz),
   };
+}
+
+/** a part's face rows as the pack carries them: `i` (u32 vertex indices, ascending) and `d` (float32 rows) in base64 */
+function packMorph(mph) {
+  const W = mph[0].d.length, d = new Float32Array(mph.length * W);
+  mph.forEach((e, k) => d.set(e.d, k * W));
+  return { i: Buffer.from(Uint32Array.from(mph, (e) => e.i).buffer).toString('base64'), d: Buffer.from(d.buffer).toString('base64') };
 }
 
 /** The doc's machine gates on a bound, posed rig: weights valid, rest identity, bone lengths, orthonormal frames, planted toes. */

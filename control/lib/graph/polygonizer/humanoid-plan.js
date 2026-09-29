@@ -4,7 +4,7 @@
  * expressions displacing the flesh, hair from the library), then the DRESS (hero-dress.js: body detail and adornment).
  * Hair, palette and expression are independent of the proportions. The shirt-panel refinement lives here; shared anatomy
  * lives in the hero form or the head. */
-import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune, castOf, ANIME_NECK_FORMS } from './hero-form.js';
+import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune, castOf, ANIME_NECK_FORMS, ANIME_WAVE, planScale, scaleIncludePart } from './hero-form.js';
 import { humanoidHead, HAIR_STYLES, EXPRESSIONS, FACE_VERSION, FACE, resolveFace, validateFace, HEAD_PRESETS } from './humanoid-head.js';
 import { validateCast } from './figure-cast.js';
 import { dressPlan, kitPalette } from './hero-dress.js';
@@ -13,6 +13,13 @@ import { animeHead, ANIME_FACE, validateAnimeFace, resolveAnimeFace } from './an
 export const BODY_PRESETS = Object.fromEntries(Object.entries(HERO_CASTS).map(([k, c]) => [k, { ...BODY_DEFAULTS, ...c.body }]));
 export const PALETTE = { Skin: '#d9a77e', Top: '#3d6fa8', Bottom: '#2c3a55', Shoes: '#4a3526', Hair: '#3b291e' };
 export { HAIR_STYLES, EXPRESSIONS, REGISTERS, FACE_VERSION, FACE };
+
+/** the worn head's pole (its design base or fit) and its scale, as humanoidPlan reads them from its options (the scale on
+ * demand: the tune is resolved only when it is read) */
+function wornHead({ preset, headPreset, headScale, tune, props }) {
+  const heroCast = typeof preset === 'string' && castOf(preset, props);
+  return { heroCast, pole: headPreset ?? (heroCast ? preset : 'male'), get scale() { return (headScale ?? heroCast?.headScale ?? 1) * resolveTune(tune).head; } };
+}
 
 /**
  * @param {object} opts
@@ -39,15 +46,14 @@ export { HAIR_STYLES, EXPRESSIONS, REGISTERS, FACE_VERSION, FACE };
  */
 export function humanoidPlan({ preset = 'male', body = {}, face = {}, register = 'round', girth = 1, headScale, palette = {}, hair, expression = 'neutral', tune, headPreset, detail, adorn, head: headKind = 'landmark', proportions, sculpt } = {}) {
   const props = proportions ?? (headKind === 'anime' ? 'anime' : 'hero');
-  const heroCast = typeof preset === 'string' && castOf(preset, props);
+  const worn = wornHead({ preset, headPreset, headScale, tune, props }), { heroCast, pole } = worn;
   if (!heroCast && (typeof preset !== 'string' || validateCast(preset).length)) throw new Error(`humanoid: unknown preset '${preset}' (have ${Object.keys(HERO_CASTS).join(', ')}, or a figure cast)`);
-  const pole = headPreset ?? (heroCast ? preset : 'male');
   if (!HEAD_PRESETS[pole]) throw new Error(`humanoid: unknown headPreset '${pole}' (have ${Object.keys(HEAD_PRESETS).join(', ')})`);
   if (!['landmark', 'anime'].includes(headKind)) throw new Error(`humanoid: unknown head '${headKind}' (have landmark, anime)`);
   const anime = headKind === 'anime';
   const faceErrors = anime ? validateAnimeFace(face) : validateFace(face); if (faceErrors.length) throw new Error(`humanoid: ${faceErrors.join('; ')}`);
   const colours = { ...PALETTE, ...kitPalette(adorn), ...palette };   // a kit's suggested colours, beneath the operator's
-  const resolvedHeadScale = (headScale ?? heroCast?.headScale ?? 1) * resolveTune(tune).head;
+  const resolvedHeadScale = worn.scale;
   let head;
   if (anime) head = animeHead({ preset: pole, face, hair, expression, register, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, sculpt });
   else { const { from: _faceFrom, ...shape } = resolveFace(face); head = humanoidHead({ preset: pole, shape, register, hair: hair ?? 'swept', expression, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours }); }
@@ -71,9 +77,25 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
     collar.r[0] *= 1.10;
     collar.r[1] *= 1.10;
   }
+  // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
+  // forearm upright); every other head keeps the form's wave
+  if (anime) plan.clips.wave = JSON.parse(JSON.stringify(ANIME_WAVE));
   dressPlan(plan, { detail, adorn, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature });
   plan.frame.note = anime
     ? `1 unit = 1 m; humanoid ${preset} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
     : `1 unit = 1 m; humanoid ${preset} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;
   return plan;
+}
+
+/** The anime head's parts `only` (a list of names) at another `expression`, as humanoidPlan with these options (`opts`, its
+ * own: preset, face, register, sculpt, tune, headScale, headPreset, proportions) would wear them — bald and unfitted (the
+ * expression parts are the same with the hair on), at the worn head's scale and then under the plan's own scale
+ * (hero-form scalePlan) — so a part equals the recipe's part of that name. The face rig's head builds
+ * (anime-face-rig.js). */
+export function animeHeadAt(opts, expression, only) {
+  const props = opts.proportions ?? 'anime';
+  const { pole, scale } = wornHead({ preset: opts.preset, headPreset: opts.headPreset, headScale: opts.headScale, tune: opts.tune, props });
+  const { parts } = animeHead({ preset: pole, face: opts.face ?? {}, register: opts.register ?? 'round', scale, sculpt: opts.sculpt, expression, hair: 'none', hairFit: false, only });
+  const S = planScale({ cast: opts.preset, tune: opts.tune, proportions: props });
+  return S === 1 ? parts : Object.fromEntries(Object.entries(parts).map(([n, p]) => [n, scaleIncludePart(p, S)]));
 }

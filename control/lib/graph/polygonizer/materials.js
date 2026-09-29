@@ -135,9 +135,13 @@ export function tagFacesWithMetal(faces, surface, { axis = null, along: fallback
   const pbr = [1, Math.max(0.08, surface.roughness)];
   // a generator may name its natural toolpath (a lathe turns: 'around' its own axis) for a spec that set none
   const along = surface.alongSet ? surface.along : (fallback || surface.along);
+  const pf = surface.pattern ? patternFrame(surface.pattern.layers, along) : null;
   for (const f of faces) {
     if (!f || !Array.isArray(f.corners) || f.corners.length < 3) continue;
     f.metal = { s: surface.key, d: surface.d, ta: +toolpathAngle(f.corners, along, axis).toFixed(4) };
+    // a pattern-welded surface: each corner's place in the billet — its depth through the layers, its offset across
+    // the blade and its distance along it — in the part's own frame, so the etch rides every later pose
+    if (pf) f.metal.p = f.corners.map((c) => [+dot3(c, pf.L).toFixed(5), +dot3(c, pf.W).toFixed(5), +dot3(c, pf.R).toFixed(5)]);
     f.pbr = pbr;
   }
   return faces;
@@ -146,6 +150,13 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]); return l > 1e-12 ? [a[0] / l, a[1] / l, a[2] / l] : null; };
+const AXES = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+/** A pattern's frame in the part: L through the layers, R along the pattern's run, W across (L × R). */
+function patternFrame(layers, along) {
+  const L = unit3(AXES[layers] || layers) || [0, 1, 0]; const run = unit3(AXES[along] || (Array.isArray(along) ? along : [0, 0, 1])) || [0, 0, 1];
+  const W = unit3(cross3(L, run)) || unit3(cross3(L, Math.abs(L[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]));
+  return { L, W, R: run };
+}
 /**
  * The toolpath direction on a face as an angle (radians) from its first edge, measured about the face normal
  * n = e0 × e1. `along`: 'auto' (an elongated face's longest edge, else the part's x — y where x is the normal), 'x' | 'y' | 'z' or [x, y, z] (in the part's own frame), or

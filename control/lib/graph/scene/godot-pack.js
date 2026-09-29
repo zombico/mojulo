@@ -36,15 +36,93 @@ function refuse(sketch, ref) {
   return manifest;
 }
 
-async function resolveLevel(levelSketch, { clips, posture = null, lit = false }) {
+/** A world's rigged LAYERED figure (station-loft-rig packLayeredRig: `layered: true`) as [name, figure], else null. */
+export const layeredFigure = (payload) => Object.entries(payload?.figures || {}).find(([, f]) => f?.rig === true && f.layered === true) ?? null;
+
+/** The clips of a figure the pack's GLB carries: every one under '_all', those a list names, none otherwise. */
+const figureClipNames = (clips, f) => (clips === '_all' ? Object.keys(f?.clips || {}) : Array.isArray(clips) ? clips.filter((c) => f?.clips?.[c]) : []);
+
+/** The clip a figure's scene plays: `idle` when it has one, else the first clip with more than one key, else the first
+ * (a one-key stand holds). */
+export function figureClip(recipeClips = {}, names = Object.keys(recipeClips || {})) {
+  if (names.includes('idle')) return 'idle';
+  return names.find((c) => Array.isArray(recipeClips?.[c]) && recipeClips[c].length > 1) ?? names[0] ?? null;
+}
+
+// a quaternion [x, y, z, w] applied to a vector
+const rotate = ([x, y, z, w], [vx, vy, vz]) => {
+  const tx = 2 * (y * vz - z * vy), ty = 2 * (z * vx - x * vz), tz = 2 * (x * vy - y * vx);
+  return [vx + w * tx + (y * tz - z * ty), vy + w * ty + (z * tx - x * tz), vz + w * tz + (x * ty - y * tx)];
+};
+
+/** The figure's EXTENT over its clips (z-up, the pack's frame): each bone part's rest bounding box, padded by 3% of the
+ * figure's height, its eight corners carried by that bone's frame (head' + q·(v − restHead)) at rest and at every packed
+ * key of every clip named → { min, max, corners } (the carried corners and their bounding box); null when no part
+ * carries positions. */
+export function figureExtent(f, clipNames = []) {
+  const bones = f?.bones || [], nb = bones.length;
+  const boxes = bones.map((bone, bi) => {
+    const part = f.parts?.[bi];
+    if (!part?.pos) return null;
+    const b = Buffer.from(part.pos, 'base64'), p = new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < p.length; i++) { const c = i % 3; if (p[i] < lo[c]) lo[c] = p[i]; if (p[i] > hi[c]) hi[c] = p[i]; }
+    return { lo, hi, head: bone.head };
+  });
+  const poses = [{}];   // the rest pose, then every packed key
+  for (const name of clipNames) { const clip = f.clips?.[name]; if (clip?.k && Array.isArray(clip.b)) for (let k = 0; k < clip.k; k++) poses.push({ B: clip.b, o: k * nb }); }
+  const carried = (pad) => {
+    const pts = [];
+    for (const pose of poses) boxes.forEach((box, bi) => {
+      if (!box) return;
+      const o = pose.B ? (pose.o + bi) * 7 : -1, q = pose.B ? [pose.B[o], pose.B[o + 1], pose.B[o + 2], pose.B[o + 3]] : [0, 0, 0, 1], head = pose.B ? [pose.B[o + 4], pose.B[o + 5], pose.B[o + 6]] : box.head;
+      for (let k = 0; k < 8; k++) {
+        const v = [0, 1, 2].map((c) => (k & (1 << c) ? box.hi[c] + pad : box.lo[c] - pad) - box.head[c]), r = rotate(q, v);
+        pts.push([head[0] + r[0], head[1] + r[1], head[2] + r[2]]);
+      }
+    });
+    return pts;
+  };
+  const bounds = (pts) => pts.reduce((m, p) => { for (let c = 0; c < 3; c++) { m.min[c] = Math.min(m.min[c], p[c]); m.max[c] = Math.max(m.max[c], p[c]); } return m; }, { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] });
+  const bare = bounds(carried(0));
+  if (!Number.isFinite(bare.min[0])) return null;
+  const corners = carried(0.03 * (bare.max[2] - bare.min[2]));
+  return { ...bounds(corners), corners };
+}
+
+/** An authored camera re-placed to FRAME THE FIGURE over its clips (figureExtent): its rotation and yfov kept, its axis
+ * through the centre of the extent's box, backed off to the nearest distance at which every corner of the extent lies
+ * inside the frustum with a tenth to spare (tan(yfov/2) / 1.1 up and down, times its aspectRatio across). `mpu` scales
+ * the extent into the score's metres. The camera as it was when the figure has no extent. */
+export function frameFigure(cam, f, clipNames = [], mpu = 1) {
+  const ext = figureExtent(f, clipNames);
+  if (!ext || !Array.isArray(cam?.rotation)) return cam;
+  const q = cam.rotation, R = rotate(q, [1, 0, 0]), U = rotate(q, [0, 1, 0]), B = rotate(q, [0, 0, 1]);
+  const ty = Math.tan((cam.yfov ?? 1) / 2) / 1.1, tx = ty * (cam.aspectRatio ?? 1);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const C = [0, 1, 2].map((c) => ((ext.min[c] + ext.max[c]) / 2) * mpu);
+  let d = 0;
+  for (const p of ext.corners) {
+    const w = [p[0] * mpu - C[0], p[1] * mpu - C[1], p[2] * mpu - C[2]], back = dot(w, B);
+    d = Math.max(d, back + Math.abs(dot(w, U)) / ty, back + Math.abs(dot(w, R)) / tx, back + (cam.znear ?? 0.1) * 1.5);
+  }
+  return { ...cam, translation: [0, 1, 2].map((c) => C[c] + d * B[c]) };
+}
+
+async function resolveLevel(levelSketch, { clips, posture = null, lit = false, figure = false }) {
   // `lit` (lit-handoff.plan.md): the UNSHADED payload + real PBR materials, so the engine lights it
-  const { payload, kind } = await resolveWorldScene(levelSketch, lit ? { unshaded: true } : {});
+  const { payload, kind } = await resolveWorldScene(levelSketch, { ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
   if (!payload) {
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
   }
-  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(lit ? { lit: true } : {}) });
+  // a standalone world whose figure is a rigged layered solid ships it SKINNED (one mesh, its clips: the bytes export_model
+  // { clips, skinned: true } writes) instead of rigid per-bone parts, when the GLB carries at least one of its clips;
+  // every other payload as before
+  const found = figure ? layeredFigure(payload) : null;
+  const fig = found && figureClipNames(clips, found[1]).length ? found : null;
+  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture });
-  return { kind, exported, score };
+  return { kind, exported, score, fig };
 }
 
 /** Clean-emit a pack folder: binaries + emitted text + (optional) portability
@@ -84,8 +162,25 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score } = await resolveLevel(sketch, { clips, posture, lit });
-  log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations`);
+  const { kind, exported, score, fig } = await resolveLevel(sketch, { clips, posture, lit, figure: true });
+  // the figure's scene (godot-project.js FIGURE_VIEW_GD): the clip it plays and the authored view that frames it (the
+  // score's 'three-quarter' camera, else its first). The ANIME hero's figure adds its clips' designed durations (`s` on
+  // the packed clip; hero-gesture heroClipSeconds) and whether its mesh carries the face (anime-face-rig.js; its scene is
+  // then FIGURE_FACE_GD), and its view is re-placed to frame the figure over every exported clip (frameFigure; a raised
+  // fist stays in frame) before score.json and the emitter read it; every other figure as before.
+  const figure = fig ? (() => {
+    const [name, f] = fig;
+    const clipNames = figureClipNames(clips, f);
+    const view = Math.max(0, (score.cameras || []).findIndex((c) => c?.name === 'three-quarter'));
+    const anime = manifest.hero?.head === 'anime';
+    if (anime && score.cameras?.[view]) score.cameras = score.cameras.map((c, i) => (i === view ? frameFigure(c, f, clipNames, score.metersPerUnit ?? 1) : c));
+    return {
+      name, clip: figureClip(manifest.recipe?.clips, clipNames), clips: clipNames, view, viewName: score.cameras?.[view]?.name ?? `view ${view}`, joints: f.bones.length,
+      // `ambientOver`: the exported clips the face-only ambient blink layers over (the GLB's names; scene-gltf writes the same)
+      ...(anime ? { anime: true, seconds: Object.fromEntries(clipNames.map((c) => [c, f.clips[c].s ?? 1])), face: !!f.face, ambientOver: f.face?.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
+    };
+  })() : null;
+  log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
     { rel: 'score.json', bytes: JSON.stringify(score, null, 2) },
@@ -99,7 +194,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const portability = assessPortability({ manifest, levels: [{ ref, score }] });
   const emitted = emitGodotProject({
     ref, score, manifestHash: hashOf(manifest), glbFile: 'model.glb', audioFile,
-    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`,
+    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, figure,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
@@ -108,7 +203,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       bytes: exported.byteLength, nodes: exported.nodeCount, triangles: exported.triangleCount,
       animations: exported.animationCount ?? 0, cameras: exported.cameraCount ?? 0, entities: exported.entityCount ?? 0,
     },
-    written, ledger: emitted.ledger, portability, sceneChecks: [],
+    written, ledger: emitted.ledger, portability, sceneChecks: [], ...(figure ? { figure } : {}),
   };
 }
 

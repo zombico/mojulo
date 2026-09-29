@@ -38,7 +38,10 @@ export const BROW_SHAPES = Object.freeze(['block', 'taper']);
  * flat-lidded opening under a thick block brow, the inner end down, a heavy lid with an outer wing that shuts to one
  * thinner, sagging lash line (the brow relaxing up), one small catchlight, a small nose read by a line on its shade
  * side. The female: an almond opening with a lid flick past the lateral canthus, a large oval iris, a thin tapered brow
- * set high, a small nose read by a short hooked line. */
+ * set high, a small nose read by a short hooked line. On both the sclera's dish flattens to a tenth as the lids shut and
+ * the lid band tucks further under the opening (`scleraShut`, a build field like `lidShut`, not a door word), so the
+ * female's shut eye shows no white under its lid; the male's band sags below the slit as it shuts and still leaves a
+ * thin line above it. */
 export const GRAPHIC_BASE = Object.freeze({
   male: Object.freeze({
     face: Object.freeze({ eyeWidth: 0.82, eyeHeight: 0.78, nose: 0.5, lower: 0.85 }),
@@ -51,7 +54,7 @@ export const GRAPHIC_BASE = Object.freeze({
       lidCover: 0.25, irisSpan: 1.1, irisOval: 1.0, pupil: 0.4, catchlight: { r: 0.14, at: [0.35, 0.2] },
       canthusSetback: 0.04,
       brow: { shape: 'block', thick: 0.5, gap: 0.12, angle: 18, inner: 1.0, outer: 1.15, arch: 0.01, tip: 0.35, shutLift: 0.3 },
-      lidShut: { weight: 0.55, sag: 0.1 },
+      lidShut: { weight: 0.55, sag: 0.1 }, scleraShut: 0.1,
       ear: { lift: 0.14 },
     }),
   }),
@@ -66,6 +69,7 @@ export const GRAPHIC_BASE = Object.freeze({
       lidCover: 0.2, irisSpan: 1.0, irisOval: 0.85, pupil: 0.45, catchlight: { r: 0.22, at: [0.35, 0.25] },
       canthusSetback: 0.035,
       brow: { shape: 'taper', thick: 0.28, gap: 0.6, angle: -4, inner: 0.85, outer: 1.1, arch: 0.03 },
+      scleraShut: 0.1,
       ear: { lift: 0.225 },
     }),
   }),

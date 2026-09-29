@@ -14,8 +14,9 @@
  * A look is stored as its words beside a RESOLVED stamp (`lookResolved`): a later re-tuning of a word here never changes a
  * stored row until its list is edited. Pure data and resolvers; no dice.
  */
-import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression } from './anime-head.js';
+import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression, animeDefaultStyle, ANIME_HAIR_BASE } from './anime-head.js';
 import { ANIME_HAIR_STYLES } from './anime-head.js';
+import { HEAD_PRESETS } from './humanoid-head.js';
 import { resolveTune, validateTune } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, resolveAnimeSculpt } from './anime-sculpt.js';
 
@@ -110,6 +111,12 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([L?.sculpt, hero.sculpt].filter((x) => x !== undefined && x !== null));
   return { face, sculpt, hair, expression, tune, hairWords, hairCut };
 }
+/** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */
+export const heroHeadPole = (hero) => hero.headPreset ?? (HEAD_PRESETS[hero.cast] ? hero.cast : 'male');
+/** the anime hero's effective head: the look's stamp, the own layer on top, and the hair base of its design base (its
+ * form under every family, its cut when nothing names a family) — read here, never stored (the hero door and the face
+ * rig read it the same way) */
+export const animeHeroEffective = (hero) => { const pole = heroHeadPole(hero); return composeAnime(hero, animeDefaultStyle(pole), { hairBase: ANIME_HAIR_BASE[pole] }); };
 /** the frame note's clause and the readout's trail */
 export const describeLook = (words) => (words?.length ? `look ${words.join('+')}` : '');
 export { ANIME_FACE };

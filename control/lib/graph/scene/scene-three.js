@@ -387,7 +387,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const cryFace = gm.crys ? fs.find((f) => f && f.crystal) : null;
     const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
     // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
-    const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets) } : null;
+    const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets), ...(gm.metP ? { p: b64(gm.metP) } : {}) } : null;
     return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);

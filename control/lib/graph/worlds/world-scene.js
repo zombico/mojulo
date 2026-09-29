@@ -155,6 +155,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
     toon: unshaded ? null : toon,
+    // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
+    // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
+    face: viewOpts.face === true,
   };
   const payload = await desc.resolve(manifest, ctx);
   // the World's ink channel reads it; stills ignore it. A resolver that sets its own `toon` keeps it (the layered kind's
