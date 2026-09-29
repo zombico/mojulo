@@ -61,8 +61,10 @@ connected-service and app loops and the recipe format are the stable surface.
     letters and counts, a turn arrow on each cam and a magnified detail. A piece that tips ends with fixing it to the
     wall.
 
-  Steps are drawn by the hidden-line renderer, now faster on large meshes with the same output. The manual is a
-  library for now: the `instruction_manual` publication does not read it yet.
+  Steps are drawn by the hidden-line renderer, now faster on large meshes with the same output.
+- **Cook it.** A workbench piece gathered into a stash as a sketch item and cooked as `instruction_manual` writes these
+  pages into the booklet itself, one set per frame, around any markdown steps the stash also holds; `manual: false` on
+  the item keeps it a single diagram.
 
 ### Building materials
 

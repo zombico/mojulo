@@ -2,6 +2,10 @@
 { "id": "assembly-line-art", "name": "Assembly line art (exploded isometric)", "summary": "IKEA-style furniture-assembly diagram grammar — stroked-only rect/line/polygon marks on a shared 30°/150°/up isometric axis, parts pulled apart along parallel explosion vectors with dashed alignment guides, hardware (screws/dowels/cam locks) drawn at fixed glyph sizes, zero fill", "when": "instruction-manual / assembly-step / how-to-build / exploded-view diagrams: show how flat-pack parts fit together, an exploded view of a shelf, frame, cabinet or device, an 'insert dowel A into hole B' step, a tools-and-hardware inventory plate, any line-only single-perspective technical assembly illustration", "tier": "mark", "marks": ["rect", "line", "polygon", "polyline", "circle"], "phase": "p1" }
 ---
 
+A piece BUILT on the workbench (`frames`: panels, joints, fittings) does not need this card: gathered into a stash
+and cooked as `instruction_manual`, it draws its own steps from its real geometry and assembly order. Use this card
+for a diagram of something that is not built there.
+
 This card is a **drawing grammar**, not a parts catalog. An assembly diagram
 reads when every part sits on one shared isometric grid, the explosion vectors
 are parallel, and the only ink is line — no fill, no shading, no color. These

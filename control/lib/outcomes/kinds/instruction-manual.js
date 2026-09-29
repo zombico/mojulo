@@ -19,6 +19,13 @@
  *   text     → appended to the current step's fine-print zone (or a standalone
  *              note page if no step is open yet).
  *
+ * A sketch that is a constructed piece — a workbench whose `frames` hold its
+ * members and joints — writes its OWN manual instead of one diagram: for each
+ * frame, the cover, the inventory (fittings at 1:1) and one page per assembly
+ * step, drawn by construction/manual.js as finished A4 sheets. Its steps are
+ * the frame's, so they are not numbered with the booklet's.
+ *   (item metadata `manual: false` keeps it a single diagram.)
+ *
  * Anything else is skipped. `report_md` becomes the cover blurb; `aim` is the
  * cover title. Default aspect 7/10 — portrait booklet.
  */
@@ -27,6 +34,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { StashRepository } from '@/lib/db/repositories/stashes';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
 
 import { renderMarkdown } from '../markdown.js';
 import { renderTemplate } from '../render-template.js';
@@ -85,6 +93,21 @@ function peelTrailingFinePrint(md) {
 
 const ACCEPTED = new Set(['sketch', 'markdown', 'text']);
 
+/**
+ * The manual a constructed piece writes (construction/manual.js), one per frame, or null when the sketch is not a
+ * workbench with frames. Loaded lazily, like the sketch renderer: the office carries no static dependency on graph.
+ * The exact kernel is asked for so joints are cut; without it the parts draw as plain boards and the page says so in
+ * the frame's own report.
+ */
+async function frameManuals(sketchRef) {
+  const sketch = sketchRef ? SketchRepository.getByRef(sketchRef) : null;
+  const m = sketch && sketch.manifest;
+  if (!m || m.kind !== 'workbench' || !Array.isArray(m.frames) || !m.frames.length) return null;
+  const [{ manualPages }, exact] = await Promise.all([import('@/lib/graph/construction/manual'), import('@/lib/graph/polygonizer/field-exact')]);
+  await exact.ensureExactKernel().catch(() => false);
+  return m.frames.map((f, i) => ({ frame: f.id || `frame-${i + 1}`, ...manualPages(f.id ? f : { ...f, id: sketch.title || `frame-${i + 1}` }) }));
+}
+
 function groupItemsByDrawer(full, itemIds) {
   const filter = itemIds ? new Set(itemIds) : null;
   const items = filter ? full.items.filter((it) => filter.has(it.id)) : full.items;
@@ -142,6 +165,7 @@ export async function writeInstructionManualOutcome({
   }
 
   const diagramFiles = [];
+  const frameBooks = [];
   const sectionsOut = [];
   let partIdx = 0;
   let stepCounter = 0;
@@ -168,6 +192,19 @@ export async function writeInstructionManualOutcome({
         if (finePrint) step.finePrintBits.push(finePrint);
       } else if (item.type === 'sketch') {
         const sketchRef = item.metadata?.sketch_ref;
+        const books = item.metadata?.manual === false ? null : await frameManuals(sketchRef);
+        if (books) {
+          for (const book of books) {
+            for (const pg of book.pages) {
+              const filename = `${book.frame}-${pg.name}.svg`.replace(/[^\w.-]+/g, '-');
+              diagramFiles.push({ filename, body: pg.svg });
+              steps.push({ framePage: { svg: pg.svg, filename, name: pg.name, frame: book.frame } });
+            }
+            frameBooks.push({ frame: book.frame, sketch_ref: sketchRef, pages: book.pages.length, steps: book.plan.steps.length, hardware: book.plan.hardware.map((h) => ({ letter: h.letter, code: h.code, count: h.count })) });
+          }
+          cur = null;
+          continue;
+        }
         // Diagrams sit on the light assembly-sheet band — render with dark ink
         // so default-colored labels/callouts stay legible (sketches default to
         // a white-on-dark theme for the /sketches viewer).
@@ -217,6 +254,10 @@ export async function writeInstructionManualOutcome({
       );
     }
     for (const step of s.steps) {
+      if (step.framePage) {
+        pageBlocks.push(`<section class="frame-page" data-viewer-page data-frame="${escapeHtml(step.framePage.frame)}" data-page="${escapeHtml(step.framePage.name)}">${step.framePage.svg}</section>`);
+        continue;
+      }
       let diagramHtml;
       if (!step.diagram) {
         diagramHtml = `<div class="diagram empty" aria-hidden="true"></div>`;
@@ -273,7 +314,7 @@ export async function writeInstructionManualOutcome({
   const indexPath = path.join(dir, 'index.html');
   await fs.writeFile(indexPath, filled, 'utf8');
 
-  const stepCount = sectionsOut.reduce((n, s) => n + s.steps.length, 0);
+  const stepCount = sectionsOut.reduce((n, s) => n + s.steps.filter((st) => !st.framePage).length, 0);
   const manifest = {
     cook_ref: cookRef,
     publication: { kind: publicationKind },
@@ -289,7 +330,7 @@ export async function writeInstructionManualOutcome({
     parts: sectionsOut.map((s) => ({
       number: s.numbered ? s.idx : null,
       name: s.name,
-      steps: s.steps.map((st) => ({
+      steps: s.steps.filter((st) => !st.framePage).map((st) => ({
         number: st.number,
         title: st.title || null,
         has_diagram: !!st.diagram,
@@ -297,6 +338,7 @@ export async function writeInstructionManualOutcome({
         dangling: !!st.diagram?.dangling,
       })),
     })),
+    ...(frameBooks.length ? { frame_manuals: frameBooks } : {}),
     skipped_items: plan.skippedItems,
     files: ['report.md', 'index.html', ...diagramFiles.map((f) => f.filename)],
   };
