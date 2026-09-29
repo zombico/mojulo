@@ -1,14 +1,15 @@
 // construction/frame — a workbench `frames` entry: a structure's members on centrelines, cut where they meet, each in its
 // material: timber dressed in its figure, steel in its section and finish, concrete with its reinforcement.
 //
-//   { id?, unit?: 'cm' | 'mm' | 'm' (default 'cm'), species?, finish?, tint?, cut?, figure?: 'full' | 'coarse' | 'flat',
+//   { id?, unit?: 'cm' | 'mm' | 'm' | 'in' | 'ft' (default 'cm'), species?, finish?, tint?, cut?, figure?: 'full' | 'coarse' | 'flat',
 //     seed?, load?: kN per metre of live load on level members, explode?: a distance (unit) to pull every member and
 //     piece back along the way it seats — the joinery drawing's exploded view, xray?: concrete drawn see-through,
 //     members: [{ id, from:[x,y,z], to:[x,y,z], up?,
 //                 timber:   stock: [w, d] | '2x6' | '4sun' …, species?, finish?, tint?, cut?, log?: { … }
 //                 steel:    section: 'W8x31' | 'IPE300' | 'SHS100x6' …, finish?: 'mill' | 'primer' | … | { paint }
 //                 concrete: material: 'concrete', stock: [w, d], finish?, rebar?: { … } | false (rebar.js) }],
-//     joints: [{ type, a, b, id?, …the type's options }] }
+//     joints: [{ type, a, b, id?, …the type's options }],
+//     walls?, paving?, slates?: masonry laid in units, tiles and slates (masonry.js) }
 //
 // A member's `from` end is its butt: the end that grew lowest in the tree (a post stands the way its tree stood; the
 // Japanese carpenter's rule against the upside-down post, sakasa-bashira, is this default). Its log is sized to the
@@ -35,10 +36,13 @@ import { movement } from './movement.js';
 import { applyJoints, JOINT_TYPES } from './joints.js';
 import { spanChecks, assemblyOrder } from './checks.js';
 import { timberTextureKey } from './textures.js';
+import { validateMasonry, layMasonry } from './masonry.js';
+import { instanceGroups } from './instancing.js';
 
-export const FRAME_UNITS = Object.freeze({ mm: 0.001, cm: 0.01, m: 1 });
+export const FRAME_UNITS = Object.freeze({ mm: 0.001, cm: 0.01, m: 1, in: 0.0254, ft: 0.3048 });
 export const FIGURE_MODES = Object.freeze(['full', 'coarse', 'flat']);
 export const MEMBER_MATERIALS = Object.freeze(['timber', 'steel', 'concrete']);
+export const FRAME_DETAILS = Object.freeze(['auto', 'full', 'boxes', 'sparse']);
 const XRAY_ALPHA = 0.28;
 /** The material a member spec names: a steel section, a concrete stock, or timber. */
 const materialOf = (m) => (m.section !== undefined ? 'steel' : m.material || 'timber');
@@ -66,7 +70,12 @@ export function validateFrames(frames) {
     if (f.load !== undefined && !(Number.isFinite(f.load) && f.load >= 0)) errors.push(`${at}.load: kN per metre, a number ≥ 0`);
     if (f.explode !== undefined && !(Number.isFinite(f.explode) && f.explode >= 0)) errors.push(`${at}.explode: a distance in the frame's unit, ≥ 0`);
     if (f.xray !== undefined && typeof f.xray !== 'boolean') errors.push(`${at}.xray: true or false`);
-    if (!Array.isArray(f.members) || !f.members.length) { errors.push(`${at}.members: a non-empty array of { id, from, to, stock }`); return; }
+    if (f.detail !== undefined && !FRAME_DETAILS.includes(f.detail)) errors.push(`${at}.detail: one of ${FRAME_DETAILS.join(', ')}`);
+    for (const k of ['walls', 'paving', 'slates']) if (f[k] !== undefined && !Array.isArray(f[k])) errors.push(`${at}.${k}: must be an array`);
+    errors.push(...validateMasonry(f, at));
+    const masonry = ['walls', 'paving', 'slates'].some((k) => Array.isArray(f[k]) && f[k].length);
+    if (f.members === undefined && masonry) return;
+    if (!Array.isArray(f.members) || !f.members.length) { errors.push(`${at}.members: a non-empty array of { id, from, to, stock } (or give the frame walls, paving or slates)`); return; }
     const scale = FRAME_UNITS[f.unit || 'cm'] || 0.01;
     const ids = new Set();
     f.members.forEach((m, j) => {
@@ -112,7 +121,7 @@ export function validateFrames(frames) {
 function resolveMembers(spec) {
   const scale = FRAME_UNITS[spec.unit || 'cm'];
   const seed = Number.isInteger(spec.seed) ? spec.seed : 1;
-  return spec.members.map((m, i) => {
+  return (spec.members || []).map((m, i) => {
     const material = materialOf(m);
     const from = m.from.map((v) => v * scale), to = m.to.map((v) => v * scale);
     const F = memberFrame(from, to, m.up);
@@ -232,38 +241,74 @@ function exactPolys(terms) {
   return faces.map((f) => ({ corners: f.corners.slice(0, 3), n: f.outNormal }));
 }
 
+/** How many pixels a member's thinner side spans from the nearest of `eyes` ([{ pos (m), focalPx }]). */
+function memberPx(M, eyes) {
+  let px = 0;
+  const a = toWorld(M.F, [M.xMin, 0, 0]), b = toWorld(M.F, [M.xMax, 0, 0]);
+  const ab = sub(b, a); const L2 = Math.max(1e-12, dot(ab, ab));
+  for (const e of eyes) {
+    const t = Math.max(0, Math.min(1, dot(sub(e.pos, a), ab) / L2));
+    const d = len(sub(e.pos, [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t]));
+    px = Math.max(px, (Math.min(M.W, M.D) * e.focalPx) / Math.max(0.1, d));
+  }
+  return px;
+}
+
 /**
- * lowerFrame(spec, { light }) → { faces, report }. Faces are in the recipe's unit (the workbench grid's).
+ * The frame's level of detail: 'full' (joints cut, figure baked), 'boxes' (members as plain boxes in their mean
+ * colour — no kernel, no textures — the joints still reported), 'sparse' (boxes, less every member thinner than
+ * a pixel: the pipe-model cut). 'auto' picks from the eyes: full while a jointed member's thinner side spans 6 px,
+ * else sparse; with no eyes, full.
  */
-export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
+function frameLevel(spec, members, eyes) {
+  if (spec.detail && spec.detail !== 'auto') return spec.detail;
+  if (!eyes || !eyes.length) return 'full';
+  const jointed = new Set((spec.joints || []).flatMap((j) => [j.a, j.b]));
+  return members.some((M) => jointed.has(M.id) && memberPx(M, eyes) >= 6) ? 'full' : 'sparse';
+}
+
+/**
+ * lowerFrame(spec, { light, eyes, instance }) → { faces, repeats, report }. Faces are in the recipe's unit (the
+ * workbench grid's). `eyes` ([{ pos: [x,y,z] in metres, focalPx }]) drive `detail: 'auto'` for the members and the
+ * masonry; `instance` stamps identical members (and masonry units) as `repeats` instead of faces.
+ */
+export function lowerFrame(spec, { light = DEFAULT_LIGHT, eyes = null, instance = false } = {}) {
   const unitScale = FRAME_UNITS[spec.unit || 'cm'];
-  const members = resolveMembers(spec);
+  const all = resolveMembers(spec);
+  const level = frameLevel(spec, all, eyes);
+  // sparse: a member thinner than a pixel from every eye is not drawn (it is still reported)
+  const drawnMember = (M) => !(level === 'sparse' && eyes && eyes.length && memberPx(M, eyes) < 0.6);
+  const members = all;
   const byId = new Map(members.map((M) => [M.id, M]));
   const joints = Array.isArray(spec.joints) ? spec.joints : [];
   const J = applyJoints(joints, byId);
   const kernel = exactFieldRendererReady();
-  const mode = spec.figure || 'full';
+  const cut = level === 'full';
+  const mode = cut ? (spec.figure || 'full') : 'flat';
   const MAT = { timber: resolveMaterial('wood'), steel: resolveMaterial('steel'), concrete: resolveMaterial('stone'), rebar: resolveMaterial('gunmetal') };
   const xray = spec.xray === true ? XRAY_ALPHA : null;
   const faces = [];
   const cages = new Map();
+  let dropped = 0;
   for (const M of members) {
+    if (!drawnMember(M)) { dropped++; continue; }
     const mat = MAT[M.material];
-    const jointed = M.trims.length || M.adds.length || M.subs.length;
+    const jointed = cut && (M.trims.length || M.adds.length || M.subs.length);
     const needsKernel = jointed || M.material === 'steel';
     const polys = needsKernel && kernel
-      ? exactPolys([...bodyTerms(M), ...M.trims.map((shape) => ({ op: 'subtract', shape })), ...M.adds.map((shape) => ({ op: 'add', shape })), ...M.subs.map((shape) => ({ op: 'subtract', shape }))])
+      ? exactPolys([...bodyTerms(M), ...(jointed ? [...M.trims.map((shape) => ({ op: 'subtract', shape })), ...M.adds.map((shape) => ({ op: 'add', shape })), ...M.subs.map((shape) => ({ op: 'subtract', shape }))] : [])])
       : memberBoxPolys(M);
     const planes = M.material === 'timber' ? sidePlanes(M, mode) : null;
     faces.push(...tagFacesWithMaterial(dressFaces(M, polys, { light, mat, color: colorOf(M), planes, unitScale, group: M.id, alpha: M.material === 'concrete' ? xray : null }), mat));
     if (M.material === 'concrete' && M.rebarSpec) {
+      // the cage is sealed inside opaque concrete: drawn only when the concrete is see-through or pulled apart
       const spec2 = M.rebarSpec === 'default' ? defaultCage(M, M.grounded) : { ...defaultCage(M, M.grounded), ...M.rebarSpec };
       const c = cage(M, spec2); cages.set(M.id, c.summary);
-      faces.push(...tagFacesWithMaterial(dressFaces(M, c.polys, { light, mat: MAT.rebar, color: colorOf({ material: 'rebar', finish: spec2.finish }), planes: null, unitScale, group: `${M.id}:rebar` }), MAT.rebar));
+      if (xray || spec.explode > 0) faces.push(...tagFacesWithMaterial(dressFaces(M, c.polys, { light, mat: MAT.rebar, color: colorOf({ material: 'rebar', finish: spec2.finish }), planes: null, unitScale, group: `${M.id}:rebar` }), MAT.rebar));
     }
   }
   for (const p of J.pieces) {
-    if (!p.polys && !kernel) continue;
+    if (!cut || (!p.polys && !kernel)) continue;
     const material = p.material || 'timber';
     const polys = p.polys || exactPolys(p.terms);
     const color = material === 'timber' ? { mode: 'paint', rgb: memberColor(p.species, {}).rgb.map((v, i) => v * figureMean(p.species)[i]) } : colorOf({ material, finish: p.finish });
@@ -301,7 +346,7 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
   }
   for (const M of spanMembers) if (cages.has(M.id)) M.cage = cages.get(M.id);
   const span = spanChecks(spanMembers, (id) => supports.get(id), { liveKNm: Number.isFinite(spec.load) ? spec.load : 0 });
-  const drawn = J.pieces.filter((p) => p.polys || kernel);
+  const drawn = J.pieces.filter((p) => cut && (p.polys || kernel));
   const drawnIds = new Set(drawn.map((p) => p.id));
   const ids = [...members.map((M) => M.id), ...drawn.map((p) => p.id)];
   const assembly = assemblyOrder(ids, J.edges.filter((e) => !e.piece || drawnIds.has(e.a)));
@@ -318,8 +363,19 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
       const h = off.get(p.host.id) || [0, 0, 0]; const v = assembly.moves[p.id] || [0, 0, 0];
       off.set(p.id, h.map((x, i) => x - v[i] * k * 1.2));
     }
-    for (const f of faces) { const o = off.get(f.group); if (o) f.corners = f.corners.map((c) => [c[0] + o[0], c[1] + o[1], c[2] + o[2]]); }
+    for (const f of faces) { const o = off.get(f.group) || off.get(String(f.group).replace(/:rebar$/, '')); if (o) f.corners = f.corners.map((c) => [c[0] + o[0], c[1] + o[1], c[2] + o[2]]); }
   }
+  // identical members drawn once and stamped (after the explode, which moved them)
+  let repeats = [];
+  if (instance) {
+    const inst = instanceGroups(faces, { name: `${spec.id || 'frame'}:member` });
+    faces.length = 0; faces.push(...inst.faces); repeats = inst.repeats.map(({ members: _m, ...r }) => r);
+  }
+  // masonry: laid after the explode, which moves members only; its detail follows the frame's unless it names its own
+  const MASONRY_OF = { full: 'units', boxes: 'surface', sparse: 'mass' };
+  const inherit = (list) => (Array.isArray(list) && spec.detail && spec.detail !== 'auto' ? list.map((x) => (x && x.detail === undefined ? { ...x, detail: MASONRY_OF[spec.detail] } : x)) : list);
+  const laid = layMasonry({ walls: inherit(spec.walls), paving: inherit(spec.paving), slates: inherit(spec.slates) }, { scale: unitScale, light, seed: Number.isInteger(spec.seed) ? spec.seed : 1, eyes, instance });
+  faces.push(...laid.faces); repeats.push(...laid.repeats);
   const mm = (v) => Math.round(v * 1000);
   const report = {
     members: members.map((M) => {
@@ -335,9 +391,11 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
     joints: J.report,
     pieces: drawn.map((p) => ({ id: p.id, kind: p.kind, ...(p.species && !p.material ? { species: p.species } : { material: p.material }) })),
     span, assembly: { order: assembly.order, lock: assembly.lock },
-    ...(jointedWithoutKernel(members, kernel) ? { degraded: 'joints are not cut and steel sections are not shaped: the exact kernel (manifold-3d) is not installed, so members draw as plain boxes' } : {}),
+    detail: level, ...(dropped ? { dropped } : {}),
+    ...laid.report,
+    ...(cut && jointedWithoutKernel(members, kernel) ? { degraded: 'joints are not cut and steel sections are not shaped: the exact kernel (manifold-3d) is not installed, so members draw as plain boxes' } : {}),
   };
-  return { faces, report };
+  return { faces, repeats, report };
 }
 
 const jointedWithoutKernel = (members, kernel) => !kernel && members.some((M) => M.trims.length || M.adds.length || M.subs.length || M.material === 'steel');

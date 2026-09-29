@@ -30,6 +30,9 @@
  * sibling: extrude-faces.js (the bar). Scene emit: scene-css3d.js.
  */
 
+import { framingOf, houseFramingFaces, clipFacesAtX } from '../construction/house-frame.js';
+import { shiftRepeats } from '../construction/instancing.js';
+import { expandRepeats } from './rock-pool.js';
 import { shadeHex, makeLight, scaleHex } from './vexar.js';
 import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
@@ -1703,19 +1706,20 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   // floor slab over the footprint (gives the level a base), sitting just below
   // this level's floor height so floors stack flush along the meru. Stair voids
   // ("open slots") are punched through as holes.
-  faces.push(...slabFaces(fp, baseZ - o.floorDrop, baseZ, o.floorTint || '#6e6450', o.light, slabHoles));
-  faces.push(...extrudeWalls(wallGraph, o));
+  // `_framed` (a house's framing, view 'framed'): the structure stands in for the slab, walls, ceiling and finish
+  if (!o._framed) faces.push(...slabFaces(fp, baseZ - o.floorDrop, baseZ, o.floorTint || '#6e6450', o.light, slabHoles));
+  if (!o._framed) faces.push(...extrudeWalls(wallGraph, o));
   // opt-in ceiling plane at the storey head. The hole set is this level's CEILING
   // holes (the stair rising to the floor above), distinct from its own floor's voids.
   // ceiling plane: opt-in for the cutaway; ALWAYS on for exterior view (cap the top so the
   // interior isn't seen from outside, under the roof).
-  if (o.ceilings || o.view === 'exterior') {
+  if (!o._framed && (o.ceilings || o.view === 'exterior')) {
     faces.push(...ceilingFaces(fp, baseZ + o.wallHeight, o.ceilingTint || '#d8d2c4', o.light, o.ceilingHoles || []));
     if (pots.length && o.view !== 'exterior') faces.push(...potLightFaces(pots, potCfg, o.light));
   }
   // FLOOR FINISH over the slab (floorboards / marble / auto), per room + halls, minus the
   // stair voids. 'auto' tiles wet rooms (kitchen/bath/laundry) in marble, the rest in boards.
-  if (o.floorStyle && o.floorStyle !== 'plain') {
+  if (!o._framed && o.floorStyle && o.floorStyle !== 'plain') {
     const wet = (g) => g === 'K' || g === 'W' || g === 'Y';
     const styleFor = (g) => (o.floorStyle === 'auto' ? (wet(g) ? 'marble' : 'floorboards') : o.floorStyle);
     for (const room of plan.rooms) faces.push(...floorFinishFaces(room, styleFor(room.glyph), baseZ, o, slabHoles));
@@ -2455,6 +2459,9 @@ export function structurizeHouse(input = {}, opts = {}) {
   // stacks the taller floors, stairs scale their rise to match) unless the caller set heights.
   if (o.facadeStyle === 'tofu' && opts.wallHeight == null) { o.wallHeight = 12.5; o.upperHeight = 11; }
   const meru = houseMeru({ ...o, groundZ: input.groundZ ?? 0, unitScale: opts.unitScale });
+  // opt-in structure under the skin (construction/house-frame.js): absent, nothing below reads it
+  const framing = o.framing ? framingOf(o.framing) : null;
+  const framedView = !!framing && framing.view === 'framed';
   const levelSpecs = (Array.isArray(input.levels) && input.levels.length)
     ? input.levels
     : [{ role: 'ground', seed: input.seed ?? 1 }];
@@ -2571,6 +2578,7 @@ export function structurizeHouse(input = {}, opts = {}) {
         // exterior caps only the TOP storey's ceiling (lower storeys are already capped by
         // the slab above); the per-level call's own exterior-cap is suppressed via _envelope.
         ceilings: (exterior && index === maxIndex) ? true : (r.ceilings ?? o.ceilings),
+        ...(framedView ? { _framed: true } : {}),
       },
     );
     faces.push(...s.faces);
@@ -2614,7 +2622,7 @@ export function structurizeHouse(input = {}, opts = {}) {
 
   // Roof over the top storey + ground plane (exterior), else the cutaway's datum helper line.
   let roofTextureKeys = [];
-  if (o.roof || exterior) {
+  if ((o.roof || exterior) && !framedView) {
     const top = levels.reduce((a, b) => (b.index > a.index ? b : a), levels[0]);
     const r = envelopeRoof(footprint, top.baseZ + top.height, o);
     faces.push(...r.faces);
@@ -2633,6 +2641,30 @@ export function structurizeHouse(input = {}, opts = {}) {
     faces.push(...groundDatumFaces(footprint, meru, {
       ...o, axisZ0: Math.min(...zs), axisZ1: Math.max(...zs),
     }));
+  }
+  if (framing) {
+    // the frame: each frame's faces ride the storey they belong to (so an exploded read lifts them with it); the
+    // cutaway keeps the finished house past the cut plane only, the frame whole
+    const fr = houseFramingFaces({ levels, footprint }, o.framing, o);
+    if (framing.view === 'cutaway') {
+      const xc = footprint.x0 + framing.cut * (footprint.x1 - footprint.x0);
+      const kept = clipFacesAtX(faces, xc);
+      faces.length = 0; faces.push(...kept);
+      for (const lvl of levels) lvl.structure.faces = clipFacesAtX(lvl.structure.faces, xc);
+      for (const st of stairs) st.faces = clipFacesAtX(st.faces, xc);
+    }
+    const sorted = [...levels].sort((a, b) => a.index - b.index);
+    const levelOf = (group) => {
+      const m = /^framing:(foundation|roof|storey-(-?\d+)):/.exec(group);
+      if (!m) return null;
+      if (m[1] === 'foundation') return sorted[0];
+      if (m[1] === 'roof') return sorted[sorted.length - 1];
+      return sorted.find((l) => l.index === Number(m[2])) || null;
+    };
+    for (const f of fr.faces) { faces.push(f); const l = levelOf(f.group); if (l) l.structure.faces.push(f); }
+    // stamped members and bricks ride their storey too: { level index, repeat }
+    const repeats = fr.repeats.map((r) => ({ ...r, level: (levelOf(r.group) || sorted[0]).index }));
+    return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}) };
   }
   return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot };
 }
@@ -2692,6 +2724,9 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
   // them into Math.min/max overflowed the call stack (same numbers for every smaller house).
   let zLo = Infinity, zHi = -Infinity;
   for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
+  // a framed house's stamped parts (construction/house-frame.js), lifted with their storey when exploded
+  const repeats = (house.repeats || []).map(({ level, ...r }) => (gap && level ? shiftRepeats([r], [0, 0, level * gap])[0] : r));
+  for (const r of repeats) for (const t of r.transforms) { if (t.pos[2] < zLo) zLo = t.pos[2]; if (t.pos[2] > zHi) zHi = t.pos[2]; }
   const cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);
   // First-person spawn: stand at the footprint centre on the ground storey (index 0 is
   // unshifted even when exploded). Fly to other floors with Space/Shift. Eye height is an
@@ -2712,6 +2747,7 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
     walk: exterior ? false : floorplanWalk(opts.walk, house.footprint, eyeZ),
     ...(Object.keys(textures).length ? { textures } : {}),
     ...(itemRefs.length ? { itemRefs } : {}),
+    ...(repeats.length ? { repeats } : {}),
     // authored in FEET like the single floor; the GLB root and engine score scale by this.
     metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
   };
@@ -2767,7 +2803,9 @@ export function renderHouseToHtml(input = {}, opts = {}) {
   const house = structurizeHouse(input, opts);
   const viewBox = opts.viewBox || { width: 1120, height: 820 };
   const gap = opts.view === 'exterior' ? 0 : (opts.explode || 0);
-  let faces = house.faces, cameras = opts.cameras || houseCameras(house, opts);
+  // the CSS scene cannot instance: a framed house's stamped parts are drawn out in full (lifted with their storey)
+  const stamped = (house.repeats || []).flatMap(({ level, ...r }) => expandRepeats(gap && level ? shiftRepeats([r], [0, 0, level * gap]) : [r]));
+  let faces = stamped.length ? [...house.faces, ...stamped] : house.faces, cameras = opts.cameras || houseCameras(house, opts);
   if (gap) {
     faces = house.levels.flatMap((lvl) => lvl.structure.faces.map((f) => ({
       ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + lvl.index * gap]),
@@ -2776,6 +2814,7 @@ export function renderHouseToHtml(input = {}, opts = {}) {
       const dz = Math.min(st.fromIndex, st.toIndex) * gap;
       for (const f of st.faces) faces.push({ ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + dz]) });
     }
+    faces.push(...stamped);
     let zLo = Infinity, zHi = -Infinity;
     for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
     cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);

@@ -56,7 +56,44 @@ Two ways to say "a two-storey house"; absent, the plan is the single floor it al
   `terrace: true` cuts the deck door; `explode: <feet>` pulls a cutaway's levels apart so
   each reads (exterior is never exploded). `levels[]` wins over `storeys` when both are set.
 
-Every furnishing knob defaults OFF: `furnish`, `windows`, `ceilings`, `wallDecor`,
+## Framing — the structure under the skin
+
+`framing` (a stack: `storeys` or `levels`) builds what stands under the finished house, read from its own plan: the
+wall runs, openings, storey heights, stair voids and roof style. Absent, the house is exactly what it was.
+
+```json
+{ "storeys": 2, "roof": "mission", "windows": true, "framing": { "system": "platform", "view": "cutaway" } }
+```
+
+- `system` — `platform` (default: 2×6 outer and 2×4 inner studs at 16 in, doubled top plates, kings, jacks and headers
+  at each opening, joists and 4×8 subfloor, a stem wall and reinforced footing), `masonry` (outer walls of brick in
+  English bond from the footing to the eaves, soldier courses over openings, timber floors and roof), `post-and-beam`
+  (8×8 posts on a 16 ft grid, plates, tie beams and knee braces, cut mortise and tenon), `kigumi` (dodai, 4-sun hinoki
+  posts at a ken and beside each opening, nuki through them at three heights, hozo, a wagoya roof), `steel` (HEA
+  columns on base plates, IPE beams bolted to them, steel joists under a meshed slab, a steel roof), `concrete` (a
+  reinforced frame of columns, beams and slabs, a timber roof on the ring beam).
+- `view` — `framed` (default: the structure alone, where the walls, slabs and roof would be) or `cutaway` (the
+  finished house past a section at `cut`, a fraction of the width, default 0.5; the frame whole).
+- `species`, `finish`, `figure` (`flat` by default; `coarse` / `full` bake grain), `joints: false` (draw the timber
+  and steel frames uncut, and skip the kernel).
+- The roof frames as its family: gable, gambrel and saltbox as a gable; hip, pyramid and mansard as a hip (commons,
+  hips and jacks); shed and butterfly as mono-pitches; flat forms as joists. No roof, and the top storey gets ceiling
+  joists.
+- `stage` — the house at a moment of its building: `frame` (default), `rough-in` (+ wiring, and what dries the frame
+  in: sheathing, block infill, SIPs, komai lath), `insulated` (+ batts, arakabe clay), `lined` (+ gypsum or plaster,
+  ceilings, shinkabe with fusuma and shoji, cover plates). `tradition` — `north-american` | `british` | `japanese` |
+  `metric`, defaulting from the system (platform, post-and-beam, steel → north-american; masonry → british;
+  kigumi → japanese; concrete → metric) — picks the assemblies and the wiring rules: NEC-like receptacle spacing and
+  NM-B bored through studs; a British ring in 2.5 mm² chased in the brick; VVF dropped down the posts in moulding
+  (never bored through a hashira); conduit in chases. Past `frame` the house carries `construction`: every member,
+  sheet, box and cable run with a stable IFC GlobalId, class, catalog material and quantities, a cut list, the sheets
+  to buy, the panel schedule, a takeoff and the checks (advisory).
+- `detail` — `auto` (default: each frame and wall at the level the house's cameras earn), `full` (joints cut, every
+  brick), `boxes` (members as plain boxes, walls as a bond texture), `sparse` (boxes less sub-pixel members, walls
+  in their far colour). Identical members and bricks are drawn once and stamped (`instance: false` draws each), so
+  a two-storey masonry house is about a thousand faces at `auto`, and still under 5k with every brick at `full`.
+
+ `furnish`, `windows`, `ceilings`, `wallDecor`,
 `facadeDecor`, `entryDoor`, `porch` / `stoop`. Set `furnish: true` (or `view:
 'cutaway'`, which implies it) to populate each room from its archetype. The one
 exception is a furnished ONE-CELL plan (below), which defaults windows, an entry

@@ -51,13 +51,56 @@ connected-service and app loops and the recipe format are the stable surface.
   ties at a spacing, a column's ring, a slab strip's mesh, inside the cover; left out, each member gets the cage its
   shape asks for, and `rebar: false` leaves it plain. `xray` draws the concrete see-through so the cage reads. A
   concrete beam is checked against its moment capacity from its bottom steel.
-- **Masonry.** (written before the code) Walls of bricks or stones laid in a bond, closed at openings with lintels;
-  stone and marble tiles and roof slates laid as units, each tile a window of the existing marble, granite and slate
-  surfaces.
-- **Houses as structures.** (written before the code) A house can show what stands under its skin: its framing in the
-  system it is built in, from the foundation up, framed alone or cut away.
+- **Masonry.** A frame may carry `walls`, `paving` and `slates`, with or without members. A wall is bricks or
+  blocks laid course by course in stretcher, English, Flemish, header or stack bond (UK, US, Roman and Japanese
+  bricks, concrete blocks, or a size of your own), or ashlar stone; its openings snap to the course gauge and are
+  spanned by a soldier course or a stone lintel, and its mortar is struck, raked or flush. Paving lays tiles in stack,
+  running, herringbone or basketweave, each tile a window of the existing marble, granite, slate, sandstone or
+  concrete surfaces, so a slab's veins stop at its edge. Slates hang on a pitched plane at the gauge their headlap
+  sets, alternate courses breaking joint.
+- **Houses as structures.** A stacked house (`storeys` or `levels`) takes `framing: { system, view }` and builds what
+  stands under its skin from its own plan: platform framing (studs, plates, kings, jacks and headers at every
+  opening, joists trimmed round the stair, subfloor, stem wall and footing), load-bearing brick, a Western timber
+  frame, a kigumi frame with nuki and a wagoya roof, a steel frame on base plates, or reinforced concrete. The roof is
+  framed after the house's roof style. `view: 'framed'` shows the structure alone; `'cutaway'` keeps the finished
+  house past a section and the frame whole. Absent, the house is byte-identical.
+- **Sustainable to render.** Building materials follow the forests' and cities' ladder: each frame and wall is drawn
+  at the level its cameras earn (`detail: 'auto'`) — every joint and brick up close, plain boxes and a baked bond
+  texture farther off, sub-pixel members dropped and walls in their far-read colour at a distance — and identical
+  members and bricks are drawn once and stamped as instances. A two-storey masonry house went from 51k faces and an
+  11 MB page to about a thousand faces and 2 MB; with every brick drawn it is 29k instances in 3 MB.
+- **Frames in feet.** A frame's `unit` may be `in` or `ft`. A concrete member's cage is drawn only when it can be
+  seen (`xray` or `explode`); the report still carries it.
 - **Timber textures resolve by key.** A face's texture key carries its log and plane, so the scene's texture channel
   bakes it on demand through a new prefix resolver in `surface-textures.js`; the key holds no colour.
+
+### Construction: the catalog, linings, wiring and the building model
+
+- **The catalog.** `construction/catalog.js` names every building material once, `kind:which` (`timber:hinoki`,
+  `brick:red`, `steel:HEA200`, `board:gypsum-12.7`, `clay:arakabe`, `paper:washi`, `cable:nm-b-12-2`…), with what a
+  takeoff reads, and the wall, floor and ceiling assemblies built of them, layer by layer, per tradition (North
+  American, British, Japanese, metric). It is opt-in: nothing that does not name a material changes.
+- **Linings by tradition.** A framed house's `framing.stage` (`frame`, `rough-in`, `insulated`, `lined`) closes the
+  frame the way its tradition does:
+  - North American: OSB sheathing and glass-wool batts, then gypsum board hung in staggered 4 × 8 sheets and boarded
+    ceilings; a timber frame closed in structural insulated panels, its posts left showing inside.
+  - British: two-coat plaster on the brick, and plasterboard partitions.
+  - Japanese: shinkabe. Each bay between the posts takes komai lath, then arakabe clay, then a jūraku finish (shikkui
+    outside). Fusuma part the rooms and shoji close the outer openings in the kamoi and shikii. Sugi floorboards,
+    and a sao-buchi ceiling.
+  - Metric: block infill, rendered and plastered.
+- **Wiring by tradition.** A panel beside the entry, circuits by room role (an open-plan kitchen found from the
+  plan's zones), boxes fixed beside a stud or post, and the cable routed through the frame by each tradition's rules:
+  - NEC-like receptacle spacing and switch heights, with NM-B bored through the studs.
+  - A British ring final chased in the brick.
+  - VVF run down the posts in surface moulding, never bored through a hashira.
+  - Conduit in chases.
+  Lined, cables are hidden and cover plates show.
+- **The building model.** Past `frame`, the house carries `construction`: every member, masonry wall, sheet, box and
+  cable run as an element with a stable IFC GlobalId, an IFC class and predefined type, a catalog material, its
+  storey and its quantities, with relations. It also carries a cut list, the sheets to buy, the panel schedule, a
+  takeoff by material, and advisory checks: receptacle spacing, a switch at every door, bored-hole edge distance and
+  depth, no bore through a hashira, and every material in the catalog.
 
 ### Grown plants
 

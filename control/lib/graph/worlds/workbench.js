@@ -239,7 +239,8 @@ function monomerIntendsClosed(kind, spec) {
   }
   if (kind === 'lathe') return spec && spec.caps === false ? false : true;
   if (kind === 'shell') return !(spec && spec.open !== undefined); // `open` cuts a dome/cutaway on purpose
-  return true;                                              // relief: always meant to be closed
+  if (kind === 'frame') return !(spec && ['walls', 'paving', 'slates'].some((k) => Array.isArray(spec[k]) && spec[k].length)); // masonry lays only the faces that show
+  return true;                                             // relief: always meant to be closed
 }
 
 /** Axis-aligned bounds of a baked face list → { min, max, center, radius }, or null if empty. */
