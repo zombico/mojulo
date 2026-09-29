@@ -1,0 +1,353 @@
+// construction/furniture-joints — where two panels (or a panel and a rail) meet in a piece of furniture, and the
+// hardware that holds them: dowels, cam locks, confirmats, screws, shelf pins, angle brackets, a housing (dado), and a
+// back captured in a groove.
+//
+// Casework meets EDGE TO FACE: one member's edge (or end) lies on the other's face. The contact decides the rest: the
+// FACE member is the one whose thinnest side is square to the contact (the side panel), the EDGE member the other (the
+// shelf). Fittings sit along the contact's long side, 37 mm in from each end and no more than `spacing` apart (the
+// 32 mm system's front setback), centred on the edge member's thickness. Every fitting is a catalog part
+// (hardware.js): it is placed as a loose piece and the members lose the hole it asks for (`boreTerm`), so a
+// countersink fits its head and a pilot its thread. Members are axis-aligned here (boxes), as casework is.
+//
+// Each joint records how firmly it holds the corner against racking (`rigidity`): 'moment' (a bracket; any dowel,
+// screw, confirmat or dado joint that is also glued, `glue: true`), 'shear' (a back in a groove, the carcass's
+// diagonal), 'pin' (the knock-down fittings: they hold the parts together but let the corner turn), 'none' (a shelf on
+// pins).
+import { toLocal } from './members.js';
+import { hardwarePart, partPolys, boreTerm, bracketHoles } from './hardware.js';
+import { SHEETS } from './sheets.js';
+import { TIMBERS } from './timber.js';
+
+const MM = 0.001;
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const axisVec = (k, s = 1) => { const v = [0, 0, 0]; v[k] = s; return v; };
+const r1 = (v) => Math.round(v * 10) / 10;
+
+export const FURNITURE_JOINTS = Object.freeze(['dowel', 'cam-lock', 'confirmat', 'screwed', 'shelf-pin', 'bracket', 'dado', 'groove']);
+export const RIGIDITY = Object.freeze({
+  'mortise-tenon': 'moment', hozo: 'pin', nuki: 'moment', 'kanawa-tsugi': 'moment', lap: 'moment', notch: 'pin',
+  welded: 'moment', bolted: 'moment', 'base-plate': 'moment',
+  dowel: 'pin', 'cam-lock': 'pin', confirmat: 'pin', screwed: 'pin', 'shelf-pin': 'none', bracket: 'moment', dado: 'pin', groove: 'shear',
+});
+
+/** A member's world box (metres): { lo, hi, c, size }. */
+export function worldBox(M) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const x of [M.xMin, M.xMax]) for (const y of [-M.W / 2, M.W / 2]) for (const z of [-M.D / 2, M.D / 2]) {
+    const p = [0, 1, 2].map((i) => M.F.origin[i] + M.F.ex[i] * x + M.F.ey[i] * y + M.F.ez[i] * z);
+    for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); }
+  }
+  return { lo, hi, c: lo.map((v, k) => (v + hi[k]) / 2), size: lo.map((v, k) => hi[k] - v) };
+}
+/** Is axis k the member's thinnest world extent (within 0.1 mm)? */
+const thinOn = (b, k) => b.size[k] <= Math.min(...b.size) + 1e-4;
+
+/** What a hole in M bites into: the pilot table's key. */
+export function materialClass(M) {
+  if (SHEETS[M.material]) return M.material === 'mfc' ? 'particleboard' : M.material;
+  if (M.material === 'steel') return 'steel';
+  if (M.material === 'concrete') return 'concrete';
+  return TIMBERS[M.species] && TIMBERS[M.species].group === 'softwood' ? 'softwood' : 'hardwood';
+}
+
+/**
+ * The contact between a and b → { F, E, k, s, n, plane, rect: { lo, hi } (the two other axes' world ranges), run, across,
+ * overlap }. `n` is the unit world vector from the face member into the edge member; `plane` the face member's
+ * surface coordinate on axis k. `prefer` ('a' | 'b') names the face member when both or neither qualify.
+ */
+function contact(J, A, B, prefer = 'b') {
+  const a = worldBox(A), b = worldBox(B);
+  const ov = [0, 1, 2].map((k) => Math.min(a.hi[k], b.hi[k]) - Math.max(a.lo[k], b.lo[k]));
+  const k = [0, 1, 2].reduce((m, i) => (ov[i] < ov[m] ? i : m), 0);
+  if (ov[k] < -0.002) throw new Error(`joint ${J.label}: ${A.id} and ${B.id} do not touch (${r1(-ov[k] * 1000)} mm apart) — a ${J.type} joins an edge to a face`);
+  if ([0, 1, 2].some((i) => i !== k && ov[i] <= 0.0005)) throw new Error(`joint ${J.label}: ${A.id} and ${B.id} meet only at an edge or corner — a ${J.type} joins an edge to a face`);
+  const aThin = thinOn(a, k), bThin = thinOn(b, k);
+  let faceIsB = bThin && !aThin ? true : aThin && !bThin ? false : J.through === 'a' ? false : J.through === 'b' ? true : prefer === 'b';
+  if (aThin && bThin && J.through === undefined) faceIsB = b.size[k] <= a.size[k];     // face to face: through the thinner
+  const [F, E, fb, eb] = faceIsB ? [B, A, b, a] : [A, B, a, b];
+  const s = Math.sign(eb.c[k] - fb.c[k]) || 1;
+  const n = axisVec(k, s);
+  const plane = s > 0 ? fb.hi[k] : fb.lo[k];
+  const others = [0, 1, 2].filter((i) => i !== k);
+  const rect = { lo: others.map((i) => Math.max(a.lo[i], b.lo[i])), hi: others.map((i) => Math.min(a.hi[i], b.hi[i])) };
+  const ext = others.map((_, j) => rect.hi[j] - rect.lo[j]);
+  const run = ext[0] >= ext[1] ? others[0] : others[1], across = run === others[0] ? others[1] : others[0];
+  const ri = others.indexOf(run), ci = others.indexOf(across);
+  return {
+    F, E, fb, eb, k, s, n, plane, overlap: ov[k],
+    run, across, runLo: rect.lo[ri], runHi: rect.hi[ri], acLo: rect.lo[ci], acHi: rect.hi[ci],
+    point: (rho, ac) => { const p = [0, 0, 0]; p[k] = plane; p[run] = rho; p[across] = ac; return p; },
+  };
+}
+
+/** Fitting positions along [lo, hi] (m): `inset` from each end, at most `spacing` apart; one in the middle if short. */
+export function fittingPositions(lo, hi, { inset = 0.037, spacing = 0.3 } = {}) {
+  const len = hi - lo;
+  if (len < 2 * inset + 0.03) return [(lo + hi) / 2];
+  const n = Math.max(2, Math.ceil((len - 2 * inset) / spacing - 1e-9) + 1);
+  return Array.from({ length: n }, (_, i) => lo + inset + ((len - 2 * inset) * i) / (n - 1));
+}
+
+/** The edge member's face a cam or bracket sits on → its outward world normal. */
+function chooseFace(E, eb, k, want) {
+  const thin = [0, 1, 2].filter((i) => i !== k && thinOn(eb, i));
+  const ax = thin.length ? thin[0] : [0, 1, 2].filter((i) => i !== k).reduce((m, i) => (eb.size[i] < eb.size[m] ? i : m));
+  const NAMES = { top: [2, 1], bottom: [2, -1], front: [1, -1], back: [1, 1], left: [0, -1], right: [0, 1] };
+  if (typeof want === 'string') {
+    const m = /^([+-])([xyz])$/.exec(want); const [i, s] = m ? ['xyz'.indexOf(m[2]), m[1] === '+' ? 1 : -1] : (NAMES[want] || []);
+    if (i === ax) return axisVec(ax, s);
+  }
+  // the hidden side: a horizontal member's underside, else the side toward the back (+y), else toward +x
+  if (ax === 2) return axisVec(2, -1);
+  return axisVec(ax, 1);
+}
+
+/** Convert a world point / direction to member M's local frame (the frame its subs and pieces live in). */
+const L = (M, p) => toLocal(M.F, p);
+const Ld = (M, v) => [dot(v, M.F.ex), dot(v, M.F.ey), dot(v, M.F.ez)];
+
+/** Place part `code` at world `at` along world `axis`, seated in `host` → a piece; cut its bore from `cuts` members. */
+function place(out, J, { code, part, at, axis, host, cuts = [], through = 0, material, idx, pre, needs }) {
+  const P = part || hardwarePart(code);
+  const id = `${J.label}:${P.family}${idx !== undefined ? idx + 1 : ''}`;
+  out.pieces.push({ id, kind: P.family, host, material: 'hardware', finish: P.finish, code: P.code, massG: P.massG, polys: partPolys(P, { at: L(host, at), axis: Ld(host, axis) }), ...(pre ? { pre } : {}) });
+  for (const M of cuts) {
+    const t = boreTerm(P, { at: L(M, at), axis: Ld(M, axis), through, material: material || materialClass(M) });
+    if (t) M.subs.push(t);
+  }
+  // a fitting seated in one part before assembly goes in along its axis; a screw after the parts it crosses
+  out.edges.push({ a: id, b: host.id, dirs: [axis], piece: true, needs: needs || (pre ? [host.id] : [...new Set([host.id, ...cuts.map((M) => M.id)])]) });
+  return id;
+}
+/** A plain round hole in M (world `at`, `axis`, from s0 to s1 mm along it, ⌀ mm): the cam bolt's passage. */
+function holeIn(M, at, axis, s0, s1, d) {
+  const a = L(M, add(at, scl(axis, s0 * MM))), b = L(M, add(at, scl(axis, s1 * MM)));
+  M.subs.push({ kind: 'lathe', axisFrom: a, axisTo: b, profile: [{ t: 0, radius: (d / 2) * MM }, { t: 1, radius: (d / 2) * MM }] });
+}
+
+/** The dowel a panel thickness takes (mm): 6 in thin stock, 8 in 16–21 mm, 10 above. */
+const dowelFor = (tMm) => (tMm < 15 ? 'dowel-6x30' : tMm < 22 ? 'dowel-8x35' : 'dowel-10x40');
+
+/** A fastener's report row: how far it bites, whether it pokes out, whether it goes into an edge. */
+function fastenerRow(P, c, { throughMm, into = c.E, intoEdge = true }) {
+  const len = P.length;
+  const ib = worldBox(into);
+  const avail = ib.size[c.k] * 1000;
+  const pen = len - throughMm;
+  return { code: P.code, into: into.id, material: materialClass(into), intoEdge, throughMm: r1(throughMm), penMm: r1(pen), pokeMm: r1(Math.max(0, pen - avail)), edgeMm: r1(Math.min(...[0, 1, 2].filter((i) => i !== c.k).map((i) => ib.size[i] * 1000)) / 2 - (P.d || 0) / 2) };
+}
+
+// ─── the joints ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+function dowelJoint(J, A, B, out) {
+  const c = contact(J, A, B);
+  const tE = Math.min(...[0, 1, 2].filter((i) => i !== c.k).map((i) => c.eb.size[i])) * 1000;
+  const P = hardwarePart(J.dowel || dowelFor(tE));
+  const tF = c.fb.size[c.k] * 1000;
+  const intoF = Math.min(P.length / 2, Math.max(6, tF * 0.65));
+  const ac = (c.acLo + c.acHi) / 2;
+  const pos = fittingPositions(c.runLo, c.runHi, { inset: 0.032, spacing: J.spacing ? J.spacing * MM : 0.15 });
+  const rows = [];
+  pos.forEach((rho, i) => {
+    const at = add(c.point(rho, ac), scl(c.n, (P.length / 2 - intoF) * MM));
+    place(out, J, { part: P, at, axis: c.n, host: c.E, cuts: [c.E, c.F], idx: i, pre: c.E.id });
+    rows.push(fastenerRow(P, c, { throughMm: intoF }));
+  });
+  out.edges.push({ a: c.E.id, b: c.F.id, dirs: [scl(c.n, -1)] });
+  out.report.push({ joint: J.label, type: 'dowel', a: A.id, b: B.id, face: c.F.id, edge: c.E.id, fasteners: summarize(rows), rigidity: rigidityOf(J) });
+}
+
+function camJoint(J, A, B, out) {
+  const c = contact(J, A, B);
+  const cam = hardwarePart('cam-15'), bolt = hardwarePart('cam-bolt-15');
+  const m = chooseFace(c.E, c.eb, c.k, J.face);
+  const mk = m.findIndex((v) => v !== 0);
+  const tE = c.eb.size[mk] * 1000;
+  const eMid = (c.eb.lo[mk] + c.eb.hi[mk]) / 2;
+  const withDowels = J.dowels !== false;
+  const dw = hardwarePart(dowelFor(tE));
+  const tF = c.fb.size[c.k] * 1000;
+  const intoF = Math.min(dw.length / 2, Math.max(6, tF * 0.65));
+  const pos = fittingPositions(c.runLo, c.runHi, { inset: 0.037, spacing: J.spacing ? J.spacing * MM : 0.3 });
+  const mid = (c.runLo + c.runHi) / 2;
+  const rows = []; const camRows = [];
+  pos.forEach((rho, i) => {
+    const p = c.point(rho, eMid);
+    // the cam: its centre `edgeDist` into the edge member, flush with the chosen face
+    const camAt = add(add(p, scl(c.n, cam.edgeDist * MM)), scl(m, (tE / 2) * MM));
+    place(out, J, { part: cam, at: camAt, axis: scl(m, -1), host: c.E, cuts: [c.E], idx: i, pre: c.E.id });
+    // the bolt: screwed into the face member, its ball reaching the cam through a ⌀8 passage in the edge
+    place(out, J, { part: bolt, at: p, axis: scl(c.n, -1), host: c.F, cuts: [c.F], idx: i, pre: c.F.id, material: materialClass(c.F) });
+    holeIn(c.E, p, c.n, -0.5, cam.edgeDist, 8);
+    camRows.push({ floorMm: r1(tE - cam.bore.depth) });
+    rows.push({ ...fastenerRow(bolt, c, { throughMm: 0, into: c.F, intoEdge: false }), penMm: bolt.into, pokeMm: r1(Math.max(0, bolt.into + 2 - tF)) });
+    if (withDowels && pos.length > 1) {
+      const rd = rho + Math.sign(mid - rho) * 0.032;
+      const at = add(c.point(rd, eMid), scl(c.n, (dw.length / 2 - intoF) * MM));
+      place(out, J, { part: dw, at, axis: c.n, host: c.F, cuts: [c.E, c.F], idx: i, pre: c.F.id });
+      rows.push(fastenerRow(dw, c, { throughMm: intoF }));
+    }
+  });
+  out.edges.push({ a: c.E.id, b: c.F.id, dirs: [scl(c.n, -1)] });
+  out.report.push({ joint: J.label, type: 'cam-lock', a: A.id, b: B.id, face: c.F.id, edge: c.E.id, camFace: faceName(m), cams: pos.length, camFloorMm: Math.min(...camRows.map((r) => r.floorMm)), fasteners: summarize(rows), rigidity: rigidityOf(J) });
+}
+
+/** A screw through the face member into the edge member: a confirmat or a wood screw. */
+function screwJoint(J, A, B, out, kind) {
+  const c = contact(J, A, B);
+  const tF = c.fb.size[c.k] * 1000;
+  const tE = Math.min(...[0, 1, 2].filter((i) => i !== c.k).map((i) => c.eb.size[i])) * 1000;
+  const intoEdge = !thinOn(c.eb, c.k);
+  let code = J.screw;
+  if (!code) {
+    if (kind === 'confirmat') code = tF <= 19 ? 'confirmat-7x50' : 'confirmat-7x70';
+    else {
+      const d = tF <= 6 ? 3.5 : 4;
+      const need = tF + Math.max(5 * d, 12);
+      const Ls = [16, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80];
+      code = `wood-${d}x${Ls.find((l) => l >= need) || 80}`;
+    }
+  }
+  const P = hardwarePart(code);
+  const ac = (c.acLo + c.acHi) / 2;
+  const pos = fittingPositions(c.runLo, c.runHi, { inset: kind === 'confirmat' ? 0.05 : 0.04, spacing: J.spacing ? J.spacing * MM : kind === 'confirmat' ? 0.3 : 0.2 });
+  const rows = [];
+  pos.forEach((rho, i) => {
+    const outer = add(c.point(rho, ac), scl(c.n, -tF * MM));        // the face member's far face, where the head sits
+    place(out, J, { part: P, at: outer, axis: c.n, host: c.F, cuts: [c.F, c.E], through: tF, material: materialClass(c.E), idx: i });
+    rows.push(fastenerRow(P, c, { throughMm: tF, intoEdge }));
+  });
+  out.edges.push({ a: c.E.id, b: c.F.id, dirs: [scl(c.n, -1)] });
+  out.report.push({ joint: J.label, type: kind, a: A.id, b: B.id, face: c.F.id, edge: c.E.id, edgeThickMm: r1(tE), fasteners: summarize(rows), rigidity: rigidityOf(J) });
+}
+
+function shelfPinJoint(J, A, B, out) {
+  // a is the shelf, b the side it rests against
+  const c = contact({ ...J, through: 'b' }, A, B);
+  const P = hardwarePart('shelf-pin-5');
+  const pos = fittingPositions(c.runLo, c.runHi, { inset: 0.037, spacing: 1 });
+  // the pin under the shelf: its axis at the shelf's underside less its radius (a horizontal shelf: across is z)
+  const acPin = c.acLo - (P.d / 2) * MM;
+  // pins go in when the shelf does (a builder sets the height then), not before the carcass is up
+  pos.forEach((rho, i) => place(out, J, { part: P, at: c.point(rho, acPin), axis: scl(c.n, -1), host: c.F, cuts: [c.F], idx: i, needs: [c.F.id, c.E.id] }));
+  const runV = axisVec(c.run, 1);
+  out.edges.push({ a: c.E.id, b: c.F.id, dirs: [runV, scl(runV, -1), [0, 0, -1]] });
+  // the 32 mm system: holes on a line 37 mm from the front, 32 mm apart from the side's foot
+  const foot = c.fb.lo[2];
+  const hMm = (acPin - foot) * 1000; const off = r1(((hMm - 37) % 32 + 32) % 32);
+  out.report.push({ joint: J.label, type: 'shelf-pin', a: A.id, b: B.id, pins: pos.length, heightMm: r1(hMm), gridOffMm: off > 16 ? r1(off - 32) : off, rigidity: rigidityOf(J) });
+}
+
+function bracketJoint(J, A, B, out) {
+  const c = contact(J, A, B);
+  const P = hardwarePart(J.bracket || 'bracket-L40');
+  const m = chooseFace(c.E, c.eb, c.k, J.face);
+  const mk = m.findIndex((v) => v !== 0);
+  const faceAt = m[mk] > 0 ? c.eb.hi[mk] : c.eb.lo[mk];
+  const halfW = (P.width / 2) * MM;
+  const pos = fittingPositions(c.runLo + halfW, c.runHi - halfW, { inset: 0.06, spacing: J.spacing ? J.spacing * MM : 0.6 });
+  const screw = hardwarePart(P.screw);
+  const rows = [];
+  pos.forEach((rho, i) => {
+    const at = c.point(rho, 0); at[mk] = faceAt;
+    const axis = scl(c.n, -1);
+    place(out, J, { part: P, at, axis, host: c.E, idx: i });
+    // partPolys takes the bracket's frame: `axis` into surface 1 (the face member), `spin` along surface 2's normal
+    out.pieces[out.pieces.length - 1].polys = partPolys(P, { at: L(c.E, at), axis: Ld(c.E, axis), spin: Ld(c.E, m) });
+    bracketHoles(P, { at, axis, spin: m }).forEach((h, j) => {
+      const into = h.leg === 1 ? c.F : c.E;
+      place(out, J, { part: screw, at: h.at, axis: h.axis, host: into, cuts: [into], idx: i * 4 + j });
+      rows.push({ code: screw.code, into: into.id, material: materialClass(into), intoEdge: false, penMm: r1(screw.length - P.t), pokeMm: r1(Math.max(0, screw.length - P.t - worldBox(into).size[h.leg === 1 ? c.k : mk] * 1000)) });
+    });
+  });
+  out.edges.push({ a: c.E.id, b: c.F.id, dirs: [scl(c.n, -1)] });
+  out.report.push({ joint: J.label, type: 'bracket', a: A.id, b: B.id, face: c.F.id, edge: c.E.id, brackets: pos.length, code: P.code, fasteners: summarize([...pos.map(() => ({ code: P.code })), ...rows]), rigidity: rigidityOf(J) });
+}
+
+/** The edge member housed in a trench across the face member, a third of its thickness deep. */
+function dadoJoint(J, A, B, out) {
+  const c = contact(J, A, B);
+  const tF = c.fb.size[c.k];
+  const depth = c.overlap > 0.0005 ? c.overlap : (J.depth ? J.depth * MM : tF / 3);
+  // the housing, in world: the contact footprint, `depth` into the face member (plus a working clearance across)
+  const lo = [0, 0, 0], hi = [0, 0, 0];
+  lo[c.run] = c.runLo - 0.002; hi[c.run] = c.runHi + 0.002;
+  lo[c.across] = c.acLo - 0.0002; hi[c.across] = c.acHi + 0.0002;
+  const inner = c.plane - c.s * depth;
+  lo[c.k] = Math.min(inner, c.plane + c.s * 0.001); hi[c.k] = Math.max(inner, c.plane + c.s * 0.001);
+  c.F.subs.push(localBox(c.F, lo, hi));
+  if (!(c.overlap > 0.0005)) {
+    const elo = lo.slice(), ehi = hi.slice(); elo[c.run] = c.runLo; ehi[c.run] = c.runHi; elo[c.across] = c.acLo; ehi[c.across] = c.acHi;
+    elo[c.k] = Math.min(inner + c.s * 0.0005, c.plane + c.s * 0.001); ehi[c.k] = Math.max(inner + c.s * 0.0005, c.plane + c.s * 0.001);
+    c.E.adds.push(localBox(c.E, elo, ehi));
+  }
+  const runV = axisVec(c.run, 1);
+  out.edges.push({ a: c.E.id, b: c.F.id, dirs: [scl(c.n, -1), runV, scl(runV, -1)] });
+  out.report.push({ joint: J.label, type: 'dado', a: A.id, b: B.id, face: c.F.id, edge: c.E.id, depthMm: r1(depth * 1000), leftMm: r1((tF - depth) * 1000), rigidity: rigidityOf(J) });
+}
+
+/** a (a back, a drawer bottom) runs into a groove in b: b loses the overlap, a slides along the groove. */
+function grooveJoint(J, A, B, out) {
+  const a = worldBox(A), b = worldBox(B);
+  const lo = [0, 1, 2].map((k) => Math.max(a.lo[k], b.lo[k])), hi = [0, 1, 2].map((k) => Math.min(a.hi[k], b.hi[k]));
+  if ([0, 1, 2].some((k) => hi[k] - lo[k] <= 0.0005)) throw new Error(`joint ${J.label}: ${A.id} must run into ${B.id} by the groove's depth — author ${A.id}'s box ${Math.round(Math.min(...b.size) * 1000 / 3)} mm or so into ${B.id}`);
+  const thin = [0, 1, 2].reduce((m, k) => (a.size[k] < a.size[m] ? k : m), 0);
+  // the groove's depth is the shallower of the two overlaps across a's face; its run the longer
+  const depthAx = [0, 1, 2].filter((k) => k !== thin).reduce((m, k) => (hi[k] - lo[k] < hi[m] - lo[m] ? k : m));
+  const runAx = [0, 1, 2].find((k) => k !== thin && k !== depthAx);
+  const glo = lo.slice(), ghi = hi.slice();
+  glo[thin] -= 0.0003; ghi[thin] += 0.0003;
+  // clearance past a's edge at the groove's bottom; open through b's face where a enters
+  if (a.hi[depthAx] < b.hi[depthAx] - 1e-6) ghi[depthAx] += 0.0005; else ghi[depthAx] += 0.001;
+  if (a.lo[depthAx] > b.lo[depthAx] + 1e-6) glo[depthAx] -= 0.0005; else glo[depthAx] -= 0.001;
+  // run the groove out through b where a reaches b's end
+  if (a.lo[runAx] <= b.lo[runAx] + 1e-6) glo[runAx] -= 0.002;
+  if (a.hi[runAx] >= b.hi[runAx] - 1e-6) ghi[runAx] += 0.002;
+  B.subs.push(localBox(B, glo, ghi));
+  // a slides along the groove, or drops straight into it (toward b across the depth); it bears nothing
+  const runV = axisVec(runAx, 1);
+  const into = axisVec(depthAx, Math.sign(b.c[depthAx] - a.c[depthAx]) || 1);
+  out.edges.push({ a: A.id, b: B.id, dirs: [runV, scl(runV, -1), into], bears: false });
+  out.report.push({ joint: J.label, type: 'groove', a: A.id, b: B.id, widthMm: r1((a.size[thin] + 0.0006) * 1000), depthMm: r1((hi[depthAx] - lo[depthAx]) * 1000), rigidity: rigidityOf(J) });
+}
+
+/** A world-axis-aligned box (lo, hi) as a box term in M's local frame (M is axis-aligned). */
+function localBox(M, lo, hi) {
+  const a = L(M, lo), b = L(M, hi);
+  return { kind: 'box', center: a.map((v, i) => (v + b[i]) / 2), size: a.map((v, i) => Math.abs(b[i] - v)) };
+}
+
+const faceName = (m) => ({ '0,0,-1': 'bottom', '0,0,1': 'top', '0,-1,0': 'front', '0,1,0': 'back', '-1,0,0': 'left', '1,0,0': 'right' })[m.join(',')] || m.join(',');
+
+/** Rows → the joint's fastener summary: counts by code, and the worst bite / poke / edge. */
+function summarize(rows) {
+  const by = new Map();
+  for (const r of rows) {
+    const e = by.get(r.code) || { code: r.code, count: 0 }; e.count++;
+    for (const k of ['penMm', 'edgeMm']) if (r[k] !== undefined) e[k] = e[k] === undefined ? r[k] : Math.min(e[k], r[k]);
+    if (r.pokeMm !== undefined) e.pokeMm = Math.max(e.pokeMm || 0, r.pokeMm);
+    for (const k of ['into', 'material', 'intoEdge', 'throughMm']) if (r[k] !== undefined && e[k] === undefined) e[k] = r[k];
+    by.set(r.code, e);
+  }
+  return [...by.values()];
+}
+
+/** How a joint holds its corner: its type's rigidity, or 'moment' when a fastened joint is glued. */
+export const rigidityOf = (J) => (J.glue === true && ['dowel', 'confirmat', 'screwed', 'dado'].includes(J.type) ? 'moment' : RIGIDITY[J.type] || 'pin');
+
+/** Apply one furniture joint (joints.js dispatches here). */
+export function applyFurnitureJoint(J, A, B, out) {
+  switch (J.type) {
+    case 'dowel': return dowelJoint(J, A, B, out);
+    case 'cam-lock': return camJoint(J, A, B, out);
+    case 'confirmat': return screwJoint(J, A, B, out, 'confirmat');
+    case 'screwed': return screwJoint(J, A, B, out, 'screwed');
+    case 'shelf-pin': return shelfPinJoint(J, A, B, out);
+    case 'bracket': return bracketJoint(J, A, B, out);
+    case 'dado': return dadoJoint(J, A, B, out);
+    case 'groove': return grooveJoint(J, A, B, out);
+    default: throw new Error(`unknown furniture joint '${J.type}'`);
+  }
+}

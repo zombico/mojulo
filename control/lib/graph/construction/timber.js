@@ -67,6 +67,38 @@ export const TIMBERS = Object.freeze({
     ringMm: 3, late: 0.3, lateShare: 0.3, pores: 0, ray: 0, sapMm: 40,
     density: 380, E: 7.5, MOR: 65, shrinkR: 2.5, shrinkT: 7.0,
   },
+  // furniture hardwoods (Wood Handbook, 12%): walnut's chocolate heart, cherry's red-brown heart, maple used as its pale
+  // sapwood, beech with its small dense rays, yellow birch; all diffuse- or semi-ring-porous, so no pore band to speak of
+  walnut: {
+    title: 'black walnut', group: 'hardwood', porous: 'semi', whorled: false,
+    base: [212, 194, 162], heart: [112, 80, 58], bark: [70, 60, 54],
+    ringMm: 3.5, late: 0.08, lateShare: 0.4, pores: 0.08, ray: 0.05, rayGapMm: 2, rayMm: 0.15, sapMm: 25,
+    density: 610, E: 11.6, MOR: 101, shrinkR: 5.5, shrinkT: 7.8,
+  },
+  cherry: {
+    title: 'black cherry', group: 'hardwood', porous: 'diffuse', whorled: false,
+    base: [228, 200, 164], heart: [182, 114, 80], bark: [70, 52, 46],
+    ringMm: 3, late: 0.07, lateShare: 0.35, pores: 0, ray: 0.08, rayGapMm: 2, rayMm: 0.2, sapMm: 20,
+    density: 560, E: 10.3, MOR: 85, shrinkR: 3.7, shrinkT: 7.1,
+  },
+  maple: {
+    title: 'hard maple', group: 'hardwood', porous: 'diffuse', whorled: false,
+    base: [238, 226, 200], heart: [214, 190, 152], bark: [110, 100, 92],
+    ringMm: 2.5, late: 0.06, lateShare: 0.25, pores: 0, ray: 0.1, rayGapMm: 1.5, rayMm: 0.15, sapMm: 70,
+    density: 705, E: 12.6, MOR: 109, shrinkR: 4.8, shrinkT: 9.9,
+  },
+  beech: {
+    title: 'American beech', group: 'hardwood', porous: 'diffuse', whorled: false,
+    base: [226, 196, 160], heart: [212, 176, 138], bark: [150, 150, 146],
+    ringMm: 2.5, late: 0.06, lateShare: 0.3, pores: 0, ray: 0.4, rayGapMm: 2, rayMm: 0.35, sapMm: 60,
+    density: 720, E: 11.9, MOR: 103, shrinkR: 5.5, shrinkT: 11.9,
+  },
+  birch: {
+    title: 'yellow birch', group: 'hardwood', porous: 'diffuse', whorled: false,
+    base: [234, 214, 180], heart: [212, 176, 136], bark: [196, 180, 150],
+    ringMm: 2.5, late: 0.06, lateShare: 0.3, pores: 0, ray: 0.05, rayGapMm: 1.5, rayMm: 0.1, sapMm: 50,
+    density: 690, E: 13.9, MOR: 114, shrinkR: 7.3, shrinkT: 9.5,
+  },
 });
 
 export const TIMBER_KEYS = Object.freeze(Object.keys(TIMBERS));

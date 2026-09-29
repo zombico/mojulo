@@ -6,7 +6,8 @@
 // relative to member `b` to seat (a sliding fit allows both senses). Sizes follow the members, so a joint has no size of
 // its own, as a rock's angles have none:
 //   · 'mortise-tenon' — Western: a tenon a third of the timber thick, 0.8 of it deep, into a mortise in b; `through`
-//     (default false: blind, two-thirds through) and `pegs` (default 1, a drawbored oak peg across the cheeks). The
+//     (default false: blind, two-thirds through), `depth` (mm, a shorter blind tenon) and `pegs` (default 1, a
+//     drawbored oak peg across the cheeks). The
 //     shoulder is b's face wherever a's centreline enters it, so a brace's shoulder is cut on the skew.
 //   · 'hozo' — kigumi: the short tenon a post carries into the beam above (or a beam into a post), no peg; `pin: true`
 //     adds a komisen, a square hardwood pin through the cheeks.
@@ -18,15 +19,18 @@
 //   · 'notch' — a takes b's shape where they overlap: a rafter's bird's-mouth on a plate, a joist housed in a beam.
 // Steel (any material may use them):
 //   · 'welded' — a trimmed to b's face (a timber butt joint, too).
-//   · 'bolted' — a trimmed back by an end plate (`plate` mm, default 12) bolted to b's face with four M20s: heads on the
-//     plate, nuts behind b's flange (or behind b itself when b is timber or concrete).
-//   · 'base-plate' — a column's foot on a plate (`plate` mm, default 20) with four anchor bolts; `b`, a footing, is
-//     optional.
+//   · 'bolted' — a trimmed back by an end plate (`plate` mm, default 12) bolted to b's face with four M20 hex bolts from
+//     the catalog (hardware.js), sized to the grip: heads and washers on the plate, washers and nuts behind b's flange
+//     (or behind b itself when b is timber or concrete).
+//   · 'base-plate' — a column's foot on a plate (`plate` mm, default 20) with four anchor rods, each with a washer and
+//     nut on the plate; `b`, a footing, is optional.
 import { perpBasisZ } from '../polygonizer/solid-frame.js';
 import { toWorld, toLocal, dirWorld } from './members.js';
 import { prismPolys, ngon, boxPolys } from './prims.js';
+import { FURNITURE_JOINTS, applyFurnitureJoint } from './furniture-joints.js';
+import { hardwarePart, partPolys, boltLength } from './hardware.js';
 
-export const JOINT_TYPES = Object.freeze(['mortise-tenon', 'hozo', 'nuki', 'kanawa-tsugi', 'lap', 'notch', 'welded', 'bolted', 'base-plate']);
+export const JOINT_TYPES = Object.freeze(['mortise-tenon', 'hozo', 'nuki', 'kanawa-tsugi', 'lap', 'notch', 'welded', 'bolted', 'base-plate', ...FURNITURE_JOINTS]);
 
 const EPS = 0.002;                  // cutters overshoot the faces they open, metres
 const CLEAR = 0.0008;               // a working clearance in a mortise or slot
@@ -125,7 +129,8 @@ function tenon(J, A, B, out, { kind }) {
   const dimOf = (ax) => (ax === 'y' ? A.W : A.D);
   const tT = Math.max(0.012, dimOf(thick) / 3);
   const hT = dimOf(other) * 0.8;
-  const depth = kind === 'hozo' ? Math.min(0.09, 0.6 * through) : (J.through ? through : 0.66 * through);
+  // `depth` (mm) shortens a tenon: two that meet in one leg from adjacent aprons collide unless shortened or mitred
+  const depth = Number.isFinite(J.depth) && J.depth > 0 ? Math.min(through, J.depth / 1000) : kind === 'hozo' ? Math.min(0.09, 0.6 * through) : (J.through ? through : 0.66 * through);
   const lead = (hT / 2) * Math.sqrt(Math.max(0, 1 - cosI * cosI)) / cosI + 0.001;  // the tenon starts inside a's body
   const x0 = xp - s * lead, x1 = xp + s * depth;
   trimShoulder(A, sh);
@@ -214,9 +219,9 @@ function kanawa(J, A, B, out) {
 
 // ─── steel ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
-const BOLT = { d: 0.02, head: 0.03, h: 0.013 };            // M20: 30 mm across flats, 13 mm head
-/** A bolt head (or nut) as a hex prism at local point c, its axis along unit vector ax, height h. */
-const hexAt = (c, ax, h) => prismPolys(c, add(c, scl(ax, h)), ngon(ax, BOLT.head / Math.sqrt(3), 6));
+// Structural bolts come from the catalog (hardware.js): M20 hex bolts (ISO 4017) with a washer under the head and under
+// the nut (ISO 7089), hex nuts (ISO 4032), the shortest preferred length that leaves two threads past the nut.
+const BOLT_SIZE = 'M20';
 /** How thick b is where a's bolts pass: a steel I or channel's flange, a plate-like member's depth, else b through. */
 function grip(B, hitN, through) {
   if (B.material === 'steel' && B.sec && (B.sec.shape === 'I' || B.sec.shape === 'C')) return hitN[2] !== 0 ? B.sec.tf / 1000 : B.sec.tw / 1000;
@@ -232,7 +237,7 @@ function welded(J, A, B, out) {
   out.report.push({ joint: J.label, type: 'welded', a: A.id, b: B.id, skewDeg: Math.round((Math.acos(Math.min(1, sh.cosI)) * 180) / Math.PI) });
 }
 
-/** a ends in a plate bolted to b's face: four bolts, heads on the plate, nuts behind b's flange. */
+/** a ends in a plate bolted to b's face: four bolts, heads and washers on the plate, washers and nuts behind b's flange. */
 function bolted(J, A, B, out) {
   const sh = shoulder(J, A, B, 'bolted joint');
   const tp = (Number.isFinite(J.plate) ? J.plate : 12) / 1000;
@@ -241,37 +246,48 @@ function bolted(J, A, B, out) {
   const pw = Math.max(0.1, A.W + 0.02), pd = A.D + 0.04;
   const plate = boxPolys([xp - (s * tp) / 2, 0, 0], [tp, pw, pd]);
   const by = Math.max(0.03, pw / 2 - 0.03), bz = pd / 2 - 0.035;
-  const heads = [], g = grip(B, sh.hitN, sh.through);
-  const ax = [s, 0, 0];
+  const g = grip(B, sh.hitN, sh.through);
+  const washer = hardwarePart(`washer-${BOLT_SIZE}`), nut = hardwarePart(`nut-${BOLT_SIZE}`);
+  const { length } = boltLength(BOLT_SIZE, (tp + g) * 1000, { washers: 2 });
+  const bolt = hardwarePart(`${BOLT_SIZE}x${length}-hex`);
+  const wT = washer.length / 1000, ax = [s, 0, 0];
+  const hw = [];
   for (const y of [-by, by]) for (const z of [-bz, bz]) {
-    heads.push(...hexAt([xp - s * tp, y, z], scl(ax, -1), BOLT.h));                   // the head, on the plate
-    heads.push(...hexAt([xp + s * g, y, z], ax, BOLT.h * 1.2));                       // the nut, behind b's flange
-    heads.push(...prismPolys([xp + s * (g + BOLT.h * 1.2), y, z], [xp + s * (g + BOLT.h * 1.2 + 0.008), y, z], ngon(ax, BOLT.d / 2, 8)));   // the thread past the nut
+    const face = xp - s * tp;                                                          // the plate's outer face
+    hw.push(...partPolys(washer, { at: [face - s * wT, y, z], axis: ax }));
+    hw.push(...partPolys(bolt, { at: [face - s * wT, y, z], axis: ax }));             // head on the washer, shank through
+    hw.push(...partPolys(washer, { at: [xp + s * g, y, z], axis: ax }));
+    hw.push(...partPolys(nut, { at: [xp + s * (g + wT), y, z], axis: ax }));
   }
   const id = `${J.label}:plate`;
-  out.pieces.push({ id, kind: 'end-plate', host: A, material: 'steel', finish: J.finish || A.finish, polys: [...plate, ...heads] });
+  out.pieces.push({ id, kind: 'end-plate', host: A, material: 'steel', finish: J.finish || A.finish, polys: [...plate, ...hw] });
   out.edges.push({ a: A.id, b: B.id, dirs: [sh.axisW] });
-  out.report.push({ joint: J.label, type: 'bolted', a: A.id, b: B.id, plateMm: [Math.round(tp * 1000), Math.round(pw * 1000), Math.round(pd * 1000)], bolts: 4, boltMm: BOLT.d * 1000, gripMm: Math.round(g * 1000) });
-}
+  out.report.push({ joint: J.label, type: 'bolted', a: A.id, b: B.id, plateMm: [Math.round(tp * 1000), Math.round(pw * 1000), Math.round(pd * 1000)], bolts: 4, boltMm: bolt.d, gripMm: Math.round(g * 1000),
+    fasteners: [{ code: bolt.code, count: 4 }, { code: washer.code, count: 8 }, { code: nut.code, count: 4 }] });
+  }
 
-/** a column's foot on a base plate with four anchor bolts; b (a footing) optional. */
+/** a column's foot on a base plate with four anchor rods, each with a washer and nut on the plate; b (a footing) optional. */
 function basePlate(J, A, B, out) {
   // the foot is a's lower end
   const low = A.F.ex[2] >= 0 ? 0 : A.L; const down = A.F.ex[2] >= 0 ? -1 : 1;
   const tp = (Number.isFinite(J.plate) ? J.plate : 20) / 1000;
   const pw = Math.max(A.W, A.D) + 0.1;
   const polys = [...boxPolys([low + (down * tp) / 2, 0, 0], [tp, pw, pw])];
+  const washer = hardwarePart(`washer-${BOLT_SIZE}`), nut = hardwarePart(`nut-${BOLT_SIZE}`);
+  const wT = washer.length / 1000, nH = nut.length / 1000, rod = nut.d / 2000, up = [-down, 0, 0];
   const o = pw / 2 - 0.035;
   for (const y of [-o, o]) for (const z of [-o, o]) {
-    polys.push(...hexAt([low, y, z], [-down, 0, 0], BOLT.h * 1.2));
-    polys.push(...prismPolys([low + -down * BOLT.h * 1.2, y, z], [low + -down * (BOLT.h * 1.2 + 0.02), y, z], ngon([1, 0, 0], BOLT.d / 2, 8)));
+    polys.push(...partPolys(washer, { at: [low, y, z], axis: up }));
+    polys.push(...partPolys(nut, { at: [low - down * wT, y, z], axis: up }));
+    polys.push(...prismPolys([low, y, z], [low - down * (wT + nH + 2 * nut.P / 1000), y, z], ngon([1, 0, 0], rod, 8)));   // the rod, two threads proud
   }
   // the column stands on the plate: its foot moves up by the plate
   if (down < 0) A.xMin = Math.max(A.xMin, low + tp); else A.xMax = Math.min(A.xMax, low - tp);
   const id = `${J.label}:base`;
   out.pieces.push({ id, kind: 'base-plate', host: A, material: 'steel', finish: J.finish || A.finish, polys });
   if (B) out.edges.push({ a: A.id, b: B.id, dirs: [scl(A.F.ex, A.F.ex[2] >= 0 ? -1 : 1)] });   // the column comes down onto it
-  out.report.push({ joint: J.label, type: 'base-plate', a: A.id, ...(B ? { b: B.id } : {}), plateMm: [Math.round(pw * 1000), Math.round(tp * 1000)], anchors: 4 });
+  out.report.push({ joint: J.label, type: 'base-plate', a: A.id, ...(B ? { b: B.id } : {}), plateMm: [Math.round(pw * 1000), Math.round(tp * 1000)], anchors: 4,
+    fasteners: [{ code: washer.code, count: 4 }, { code: nut.code, count: 4 }] });
 }
 
 /** Closest points of two members' axes (world) → { pa, pb, n (unit, a → b; the axes' common normal when they meet) }. */
@@ -338,7 +354,9 @@ export function applyJoints(joints, byId) {
       case 'welded': welded(J, A, B, out); break;
       case 'bolted': bolted(J, A, B, out); break;
       case 'base-plate': basePlate(J, A, B, out); break;
-      default: throw new Error(`joints[${i}]: unknown type '${J.type}'`);
+      default:
+        if (FURNITURE_JOINTS.includes(J.type)) { applyFurnitureJoint(J, A, B, out); break; }
+        throw new Error(`joints[${i}]: unknown type '${J.type}'`);
     }
   });
   return out;

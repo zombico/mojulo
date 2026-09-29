@@ -35,6 +35,32 @@ export function prismPolys(from, to, ring) {
   return polys;
 }
 
+/**
+ * A convex frustum from `from` (radius r0) to `to` (radius r1), n sides: a countersunk head, a cone point, a washer's
+ * chamfer. r0 or r1 may be 0 (a cone). → sides as quads (or triangles at an apex), caps as fans.
+ */
+export function frustumPolys(from, to, r0, r1, n = 12) {
+  const d = unit(sub(to, from));
+  const [u, v] = across(d);
+  const at = (c, r, i) => { const a = (2 * Math.PI * (i + 0.5)) / n; return add(c, add(scl(u, r * Math.cos(a)), scl(v, r * Math.sin(a)))); };
+  const A = Array.from({ length: n }, (_, i) => at(from, r0, i)), B = Array.from({ length: n }, (_, i) => at(to, r1, i));
+  const polys = [];
+  const slope = (r0 - r1) / (Math.hypot(sub(to, from)[0], sub(to, from)[1], sub(to, from)[2]) || 1);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const mid = (2 * Math.PI * (i + 1)) / n;
+    const out = add(scl(u, Math.cos(mid)), scl(v, Math.sin(mid)));
+    const nrm = unit(add(out, scl(d, slope)));
+    // wind so the quad's own normal points out (u × v = d, counter-clockwise seen from `to`)
+    if (r0 > 0 && r1 > 0) polys.push({ corners: [A[i], A[j], B[j], B[i]], n: nrm });
+    else if (r1 > 0) polys.push({ corners: [from, B[j], B[i]], n: nrm });
+    else polys.push({ corners: [A[i], A[j], to], n: nrm });
+  }
+  if (r1 > 0) for (let i = 1; i + 1 < n; i++) polys.push({ corners: [B[0], B[i], B[i + 1]], n: d });
+  if (r0 > 0) for (let i = 1; i + 1 < n; i++) polys.push({ corners: [A[0], A[i + 1], A[i]], n: scl(d, -1) });
+  return polys;
+}
+
 /** A regular n-gon of radius r square to d. */
 export function ngon(d, r, n = 8) {
   const [u, v] = across(unit(d));

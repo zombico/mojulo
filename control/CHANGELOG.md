@@ -14,6 +14,56 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Furniture construction
+
+- **Sheet goods.** A `frames` member may be cut from a sheet instead of a log: particleboard, melamine-faced board,
+  MDF, plywood, OSB and hardboard, each with its density, stiffness, strength, creep and screw holding, its standard
+  thicknesses and sheet size. Each wears its own figure: fine chips on a particleboard face and a coarse flaked core
+  on its raw edge, MDF's even speckle, plywood's rotary-peeled face read from the log and its plies on every edge,
+  OSB's strands. Melamine board has a decor face and banded edges; any edge can be banded or left raw. Walnut, cherry,
+  maple, beech and birch join the timbers, and furniture timber is clear stock.
+- **Panels as boxes.** A member may be given as a box (`box: { min, max }`) instead of a centreline. Its thinnest side
+  is its thickness and its grain runs the longest side, so casework is authored the way it is drawn.
+- **Furniture joints.** Cam locks (with a dowel beside each cam), dowels, confirmats, screwed butts, angle brackets,
+  shelf pins, a housing (dado) and a back captured in its grooves. A joint finds which part's edge meets which part's
+  face, places its fittings 37 mm in from each end, cuts the holes each fitting asks for, and records how firmly it
+  holds its corner; `glue` makes a fastened joint rigid. A mortise and tenon takes a `depth`.
+- **Furniture that stands.** A piece is checked where furniture fails, and never refused:
+  - shelf sag under a load of books, now (span/600) and as it creeps (span/300);
+  - racking: a carcass with no fixed back folds sideways;
+  - tipping over: standing, and a child pulling on anything tall and narrow ("fix it to the wall");
+  - fasteners that poke through, bite too little, or go into a particleboard edge as a plain screw;
+  - parts that overlap, and tenons that collide inside a leg.
+
+  The report also gives the piece's mass, its hardware list and tools, a cut list nested onto standard sheets and the
+  flat-pack carton. A piece that cannot go together one part at a time is built in sub-assemblies (a table's end
+  frame), and the report says which.
+
+### Fasteners
+
+- **A catalog of standard parts.** `construction/hardware.js` holds hex, socket, button and countersunk bolts, nuts and
+  nylocs, plain and large washers, wood and chipboard screws, confirmats, dowels, cam locks and their bolts, shelf pins
+  and angle brackets, sized from their standards (ISO for the metric parts; one maker's drawings, marked as estimates,
+  for the knock-down fittings). Each part knows its code, drive (and so its tool), mass and finish, and the hole it
+  asks for in what it passes through: clearance, a pilot for what it bites into, countersink, cam bore. Joints name a
+  part and cut that hole. A bolt's length is the shortest standard one that leaves two threads past its nut.
+- **Steel joints draw from it.** The bolted end plate uses catalog M20s sized to the grip, with a washer under each
+  head and nut; base-plate anchors get washers and nuts. Steel frames with these joints change on purpose.
+
+### Assembly manuals
+
+- **A piece writes its own instructions.** `construction/manual.js` turns a frame into a wordless instruction manual of
+  black-and-white A4 pages:
+  - a cover with the finished piece, its carton, mass and tools;
+  - an inventory with every part numbered and sized, and every fitting drawn at true scale beside a 10 mm check bar;
+  - one page per step. Fittings seated before assembly get their own steps (×2 for identical parts), then the parts
+    go on in the order they seat, pulled back along the way they go in, with motion lines, part numbers, hardware
+    letters and counts, a turn arrow on each cam and a magnified detail. A piece that tips ends with fixing it to the
+    wall.
+
+  Steps are drawn by the hidden-line renderer, now faster on large meshes with the same output. The manual is a
+  library for now: the `instruction_manual` publication does not read it yet.
+
 ### Building materials
 
 - **Timber comes from a log.** `control/lib/graph/construction/` builds a synthetic log without growing a tree: the

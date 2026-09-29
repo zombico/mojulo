@@ -7,7 +7,13 @@
 //     members: [{ id, from:[x,y,z], to:[x,y,z], up?,
 //                 timber:   stock: [w, d] | '2x6' | '4sun' …, species?, finish?, tint?, cut?, log?: { … }
 //                 steel:    section: 'W8x31' | 'IPE300' | 'SHS100x6' …, finish?: 'mill' | 'primer' | … | { paint }
-//                 concrete: material: 'concrete', stock: [w, d], finish?, rebar?: { … } | false (rebar.js) }],
+//                 concrete: material: 'concrete', stock: [w, d], finish?, rebar?: { … } | false (rebar.js)
+//                 sheet:    material: 'particleboard' | 'mfc' | 'mdf' | 'plywood' | 'osb' | 'hardboard', stock: [w, t],
+//                           finish?, tint?, edges?: { front: 'abs' | 'none' | { paint } … } (sheets.js)
+//                 any:      shelfLoad?: kg per metre this member carries as a shelf (furniture; the frame's `shelfLoad`,
+//                           default 30, a row of books) }],
+//     Any member may be a box instead of a centreline: { id, box: { min, max }, grain?: 'x'|'y'|'z', …material }; its
+//     grain runs the longest side and its thinnest side is its depth (members.js boxToCentreline).
 //     joints: [{ type, a, b, id?, …the type's options }] }
 //
 // A member's `from` end is its butt: the end that grew lowest in the tree (a post stands the way its tree stood; the
@@ -28,20 +34,25 @@ import { SECTIONS, sectionError, sectionBox, sectionProps, profile } from './sec
 import { materialFinishError, materialRgb } from './finishes.js';
 import { validateRebar, defaultCage, cage } from './rebar.js';
 import { boxPolys } from './prims.js';
+import { SHEETS, SHEET_KEYS, isSheet, sheetColor, sheetFigureMean, sheetTile, bandFor, edgesError, thicknessAdvice } from './sheets.js';
+import { HARDWARE_FINISHES } from './hardware.js';
+import { furnitureReport, furnitureStamps, isFurniture } from './furniture-checks.js';
 import { validateLog, ageForRadius } from './log.js';
 import { figureMean } from './figure.js';
-import { stockSection, memberFrame, toWorld, dirWorld, cutError, cutPose, poseReach, localToLog, localDirToLog } from './members.js';
+import { stockSection, memberFrame, toWorld, dirWorld, cutError, cutPose, poseReach, localToLog, localDirToLog, boxToCentreline, boxError } from './members.js';
 import { movement } from './movement.js';
 import { applyJoints, JOINT_TYPES } from './joints.js';
-import { spanChecks, assemblyOrder } from './checks.js';
+import { spanChecks, assemblyOrder, assemblyTree } from './checks.js';
 import { timberTextureKey } from './textures.js';
 
 export const FRAME_UNITS = Object.freeze({ mm: 0.001, cm: 0.01, m: 1 });
 export const FIGURE_MODES = Object.freeze(['full', 'coarse', 'flat']);
-export const MEMBER_MATERIALS = Object.freeze(['timber', 'steel', 'concrete']);
+export const MEMBER_MATERIALS = Object.freeze(['timber', 'steel', 'concrete', ...SHEET_KEYS]);
 const XRAY_ALPHA = 0.28;
 /** The material a member spec names: a steel section, a concrete stock, or timber. */
 const materialOf = (m) => (m.section !== undefined ? 'steel' : m.material || 'timber');
+/** A member written as a box, as its centreline twin (recipe units); any other member as written. */
+const asCentreline = (m) => (m && m.box && !boxError(m.box, m.grain, 1e9) ? { ...m, ...boxToCentreline(m.box, m.grain) } : m);
 const BUTT = 0.3;                 // the member starts this far up its log: the stump stays in the ground
 
 function mix(n) { n = Math.imul(n ^ (n >>> 16), 0x7feb352d); n = Math.imul(n ^ (n >>> 15), 0x846ca68b); return (n ^ (n >>> 16)) >>> 0; }
@@ -66,18 +77,26 @@ export function validateFrames(frames) {
     if (f.load !== undefined && !(Number.isFinite(f.load) && f.load >= 0)) errors.push(`${at}.load: kN per metre, a number ≥ 0`);
     if (f.explode !== undefined && !(Number.isFinite(f.explode) && f.explode >= 0)) errors.push(`${at}.explode: a distance in the frame's unit, ≥ 0`);
     if (f.xray !== undefined && typeof f.xray !== 'boolean') errors.push(`${at}.xray: true or false`);
+    if (f.shelfLoad !== undefined && !(Number.isFinite(f.shelfLoad) && f.shelfLoad >= 0)) errors.push(`${at}.shelfLoad: kg per metre, a number ≥ 0`);
     if (!Array.isArray(f.members) || !f.members.length) { errors.push(`${at}.members: a non-empty array of { id, from, to, stock }`); return; }
     const scale = FRAME_UNITS[f.unit || 'cm'] || 0.01;
     const ids = new Set();
-    f.members.forEach((m, j) => {
+    f.members.forEach((m0, j) => {
       const mt = `${at}.members[${j}]`;
-      if (!m || typeof m !== 'object') { errors.push(`${mt}: must be an object`); return; }
+      if (!m0 || typeof m0 !== 'object') { errors.push(`${mt}: must be an object`); return; }
+      if (m0.box !== undefined) {
+        const be = boxError(m0.box, m0.grain, scale);
+        if (be) { errors.push(`${mt}.${be}`); return; }
+        if (m0.from !== undefined || m0.to !== undefined || m0.stock !== undefined) errors.push(`${mt}: a box member has no from, to or stock (the box gives them)`);
+      }
+      const m = asCentreline(m0);
       if (typeof m.id !== 'string' || !m.id) errors.push(`${mt}.id: a non-empty string (joints name members by id)`);
       else if (ids.has(m.id)) errors.push(`${mt}.id: '${m.id}' is used twice`);
       else ids.add(m.id);
       if (!isPt(m.from) || !isPt(m.to)) errors.push(`${mt}: from and to must be [x, y, z]`);
       else if (len(sub(m.to, m.from)) * scale < 0.02) errors.push(`${mt}: from and to are less than 2 cm apart`);
       if (m.up !== undefined && !isPt(m.up)) errors.push(`${mt}.up: must be [x, y, z]`);
+      if (m.shelfLoad !== undefined && !(Number.isFinite(m.shelfLoad) && m.shelfLoad >= 0)) errors.push(`${mt}.shelfLoad: kg per metre, a number ≥ 0`);
       const material = materialOf(m);
       if (m.material !== undefined && !MEMBER_MATERIALS.includes(m.material)) errors.push(`${mt}.material: one of ${MEMBER_MATERIALS.join(', ')} (a steel member names its \`section\`)`);
       else if (material === 'steel') {
@@ -87,6 +106,10 @@ export function validateFrames(frames) {
         if (!stockSection(m.stock, scale)) errors.push(`${mt}.stock: [width, depth] in the frame's unit`);
         if (materialFinishError('concrete', m.finish)) errors.push(`${mt}.finish: ${materialFinishError('concrete', m.finish)}`);
         errors.push(...validateRebar(m.rebar, `${mt}.rebar`));
+      } else if (isSheet(material)) {
+        if (!stockSection(m.stock, scale)) errors.push(`${mt}.stock: [width, thickness] in the frame's unit (or give a box)`);
+        if (finishError(m.finish)) errors.push(`${mt}.finish: ${finishError(m.finish)}`);
+        if (edgesError(m.edges)) errors.push(`${mt}.${edgesError(m.edges)}`);
       } else {
         if (!stockSection(m.stock, scale)) errors.push(`${mt}.stock: [width, depth] in the frame's unit, or a named size (2x4, 4x6, 3.5sun, 4sun, nuki, …) — or a steel \`section\`, or material: 'concrete'`);
         if (m.species !== undefined && timberError(m.species)) errors.push(`${mt}.species: ${timberError(m.species)}`);
@@ -111,12 +134,15 @@ export function validateFrames(frames) {
 /** Resolve a frame's members: sections, frames, logs, colours (metres). */
 function resolveMembers(spec) {
   const scale = FRAME_UNITS[spec.unit || 'cm'];
+  // furniture is made from clear, graded stock: its timber has no knots unless the member's log asks for them
+  const clearStock = isFurniture(spec);
   const seed = Number.isInteger(spec.seed) ? spec.seed : 1;
-  return spec.members.map((m, i) => {
+  return spec.members.map((m0, i) => {
+    const m = asCentreline(m0);
     const material = materialOf(m);
     const from = m.from.map((v) => v * scale), to = m.to.map((v) => v * scale);
     const F = memberFrame(from, to, m.up);
-    const base = { id: m.id, index: i, F, L: F.L, material, xMin: 0, xMax: F.L, trims: [], adds: [], subs: [] };
+    const base = { id: m.id, index: i, F, L: F.L, material, xMin: 0, xMax: F.L, trims: [], adds: [], subs: [], ...(m0.box ? { box: true } : {}), ...(Number.isFinite(m.shelfLoad) ? { shelfKgM: m.shelfLoad } : {}) };
     if (material === 'steel') {
       const [W, D] = sectionBox(m.section);
       return { ...base, W, D, section: m.section, sec: SECTIONS[m.section], finish: m.finish !== undefined ? m.finish : (typeof spec.finish === 'string' && !materialFinishError('steel', spec.finish) ? spec.finish : undefined) };
@@ -127,6 +153,9 @@ function resolveMembers(spec) {
       const rebar = m.rebar === false ? null : (m.rebar && typeof m.rebar === 'object' ? m.rebar : null);
       return { ...base, W, D, finish: m.finish, rebarSpec: m.rebar === false ? null : (rebar || 'default'), grounded };
     }
+    if (isSheet(material)) {
+      return { ...base, W, D, sheet: SHEETS[material], finish: m.finish !== undefined ? m.finish : undefined, tint: m.tint, edges: m.edges, seed: mix((seed * 7919 + i * 104729) | 0) % 1000003 };
+    }
     const species = m.species || spec.species || 'oak';
     const pose = cutPose(m.cut !== undefined ? m.cut : spec.cut, W, D);
     const lg = m.log || {};
@@ -136,7 +165,7 @@ function resolveMembers(spec) {
     const log = {
       species, age, length: Math.round(length * 1000) / 1000,
       ...(Number.isFinite(lg.ringMm) ? { ringMm: lg.ringMm } : {}),
-      ...(lg.knots ? { knots: lg.knots } : {}),
+      ...(lg.knots ? { knots: lg.knots } : clearStock ? { knots: 'clear' } : {}),
       ...(Number.isFinite(lg.clearBelow) ? { clearBelow: lg.clearBelow } : {}),
       ...(Number.isFinite(lg.spiral) ? { spiral: lg.spiral } : {}),
       seed: Number.isInteger(lg.seed) ? lg.seed : mix((seed * 7919 + i * 104729) | 0) % 1000003,
@@ -186,10 +215,10 @@ function sidePlanes(M, mode) {
 }
 
 /** Local triangles or quads (corners in member-local metres, local normal) → textured, lit World faces. */
-function dressFaces(M, polys, { light, mat, color, planes, unitScale, group, alpha }) {
+function dressFaces(M, polys, { light, mat, color, planes, unitScale, group, alpha, mean }) {
   const inv = 1 / unitScale;
-  const figureMode = color.mode === 'figure' && planes && planes['+x'].key;
-  const meanRgb = color.mode === 'figure' ? color.rgb.map((v, i) => v * figureMean(M.species)[i]) : color.rgb;
+  const figureMode = color.mode === 'figure' && planes && Object.values(planes).some((P) => P && P.key);
+  const meanRgb = color.mode === 'figure' ? color.rgb.map((v, i) => v * (mean || figureMean(M.species))[i]) : color.rgb;
   const flatHex = rgbHex(meanRgb), tintHex = rgbHex(color.rgb);
   const a = alpha ? { alpha } : {};
   return polys.map(({ corners, n }) => {
@@ -198,6 +227,7 @@ function dressFaces(M, polys, { light, mat, color, planes, unitScale, group, alp
     const quad = corners.length === 3 ? [...cornersW, cornersW[0]] : cornersW;
     if (!figureMode) return { corners: quad, fill: shadeHexMat(flatHex, nW, mat, { light }), doubleSided: true, outNormal: nW, group, ...a, ...(corners.length === 3 ? { exact: true } : {}) };
     const P = planes[sideOf(n)];
+    if (!P || !P.key) return { corners: quad, fill: shadeHexMat(flatHex, nW, mat, { light }), doubleSided: true, outNormal: nW, group, ...a, ...(corners.length === 3 ? { exact: true } : {}) };
     const uv = corners.map((c) => [(c[P.iu] - P.u0) / P.w, (c[P.iv] - P.v0) / P.h]);
     return {
       corners: quad, fill: shadeHexMat(tintHex, nW, mat, { light }), doubleSided: true, outNormal: nW, group,
@@ -223,8 +253,42 @@ function colorOf(M) {
   if (M.material === 'steel') return { mode: 'paint', rgb: materialRgb('steel', M.finish) };
   if (M.material === 'concrete') return { mode: 'paint', rgb: materialRgb('concrete', M.finish) };
   if (M.material === 'rebar') return { mode: 'paint', rgb: materialRgb('rebar', M.finish) };
+  if (M.material === 'hardware') return { mode: 'paint', rgb: (HARDWARE_FINISHES[M.finish] || HARDWARE_FINISHES.zinc).slice() };
   return memberColor(M.species, { tint: M.tint, finish: M.finish });
 }
+
+/**
+ * A sheet member's faces: its two faces wear the face tile in the face colour, each edge the edge tile in the core's
+ * colour, or its band (the face's colour, or a paint) as one flat colour.
+ */
+function dressSheet(M, polys, { light, mat, unitScale, mode }) {
+  const col = sheetColor(M.material, { finish: M.finish, tint: M.tint });
+  const mean = sheetFigureMean(M.material);
+  const thickMm = Math.round(M.D * 10000) / 10;
+  const flat = (c) => ({ mode: 'paint', rgb: c.mode === 'figure' ? c.rgb.map((v, i) => v * mean[i]) : c.rgb });
+  const bySide = new Map();
+  for (const p of polys) { const s = sideOf(p.n); if (!bySide.has(s)) bySide.set(s, []); bySide.get(s).push(p); }
+  const out = [];
+  for (const [side, ps] of bySide) {
+    const ax = side[1];
+    const isFace = ax === 'z';
+    let color = isFace ? col.face : col.edge; let planes = null;
+    if (!isFace) {
+      const w = dirWorld(M.F, sideNormal(side)); const k = [0, 1, 2].reduce((b, i) => (Math.abs(w[i]) > Math.abs(w[b]) ? i : b), 0);
+      const band = bandFor(M.material, M.edges, `${w[k] >= 0 ? '+' : '-'}${'xyz'[k]}`);
+      if (band === 'abs') color = flat(col.face);
+      else if (band && typeof band === 'object') color = { mode: 'paint', rgb: sheetColor(M.material, { finish: band }).face.rgb };
+    }
+    if (color.mode === 'figure' && mode !== 'flat') {
+      const t = sheetTile(M.material, isFace ? 'face' : ax === 'y' ? 'edge-long' : 'edge-end', { thickMm, seed: M.seed % 7 });
+      const [iu, iv] = PLANE_AXES[ax];
+      planes = { [side]: { key: t.key, iu, iv, u0: iu === 0 ? M.xMin : -M.W / 2, v0: iv === 1 ? -M.W / 2 : -M.D / 2, w: t.tileU, h: t.tileV || M.D } };
+    }
+    out.push(...dressFaces(M, ps, { light, mat, color, planes, unitScale, group: M.id, mean }));
+  }
+  return out;
+}
+const sideNormal = (side) => { const n = [0, 0, 0]; n['xyz'.indexOf(side[1])] = side[0] === '+' ? 1 : -1; return n; };
 
 /** Compose a term list with the exact kernel → local triangles [{ corners, n }]. */
 function exactPolys(terms) {
@@ -243,17 +307,18 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
   const J = applyJoints(joints, byId);
   const kernel = exactFieldRendererReady();
   const mode = spec.figure || 'full';
-  const MAT = { timber: resolveMaterial('wood'), steel: resolveMaterial('steel'), concrete: resolveMaterial('stone'), rebar: resolveMaterial('gunmetal') };
+  const MAT = { timber: resolveMaterial('wood'), steel: resolveMaterial('steel'), concrete: resolveMaterial('stone'), rebar: resolveMaterial('gunmetal'), sheet: resolveMaterial('wood'), hardware: resolveMaterial('steel') };
   const xray = spec.xray === true ? XRAY_ALPHA : null;
   const faces = [];
   const cages = new Map();
   for (const M of members) {
-    const mat = MAT[M.material];
+    const mat = MAT[isSheet(M.material) ? 'sheet' : M.material];
     const jointed = M.trims.length || M.adds.length || M.subs.length;
     const needsKernel = jointed || M.material === 'steel';
     const polys = needsKernel && kernel
       ? exactPolys([...bodyTerms(M), ...M.trims.map((shape) => ({ op: 'subtract', shape })), ...M.adds.map((shape) => ({ op: 'add', shape })), ...M.subs.map((shape) => ({ op: 'subtract', shape }))])
       : memberBoxPolys(M);
+    if (isSheet(M.material)) { faces.push(...tagFacesWithMaterial(dressSheet(M, polys, { light, mat, unitScale, mode }), mat)); continue; }
     const planes = M.material === 'timber' ? sidePlanes(M, mode) : null;
     faces.push(...tagFacesWithMaterial(dressFaces(M, polys, { light, mat, color: colorOf(M), planes, unitScale, group: M.id, alpha: M.material === 'concrete' ? xray : null }), mat));
     if (M.material === 'concrete' && M.rebarSpec) {
@@ -267,7 +332,8 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
     const material = p.material || 'timber';
     const polys = p.polys || exactPolys(p.terms);
     const color = material === 'timber' ? { mode: 'paint', rgb: memberColor(p.species, {}).rgb.map((v, i) => v * figureMean(p.species)[i]) } : colorOf({ material, finish: p.finish });
-    faces.push(...tagFacesWithMaterial(dressFaces({ ...p.host, species: p.species }, polys, { light, mat: MAT[material], color, planes: null, unitScale, group: p.id }), MAT[material]));
+    const pm = material === 'hardware' && p.finish === 'beech' ? MAT.timber : MAT[material];
+    faces.push(...tagFacesWithMaterial(dressFaces({ ...p.host, species: p.species }, polys, { light, mat: pm, color, planes: null, unitScale, group: p.id }), pm));
   }
 
   // ── the report ──
@@ -276,7 +342,7 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
   const carries = (O) => Math.abs(O.F.ex[2]) < sin15 || Math.abs(O.F.ex[2]) > Math.cos((15 * Math.PI) / 180);
   const supports = new Map(members.map((M) => [M.id, []]));
   for (const e of J.edges) {
-    if (e.piece) continue;
+    if (e.piece || e.bears === false) continue;
     for (const [m, o] of [[e.a, e.b], [e.b, e.a]]) {
       const M = byId.get(m), O = byId.get(o);
       if (!carries(O)) continue;
@@ -300,11 +366,15 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
     run.id = names.join('+'); supports.set(run.id, xs); spanMembers.push(run);
   }
   for (const M of spanMembers) if (cages.has(M.id)) M.cage = cages.get(M.id);
-  const span = spanChecks(spanMembers, (id) => supports.get(id), { liveKNm: Number.isFinite(spec.load) ? spec.load : 0 });
+  const furniture = isFurniture(spec);
+  const span = spanChecks(spanMembers, (id) => supports.get(id), { liveKNm: Number.isFinite(spec.load) ? spec.load : 0, ...(furniture ? { shelfKgM: Number.isFinite(spec.shelfLoad) ? spec.shelfLoad : 30 } : {}) });
   const drawn = J.pieces.filter((p) => p.polys || kernel);
   const drawnIds = new Set(drawn.map((p) => p.id));
   const ids = [...members.map((M) => M.id), ...drawn.map((p) => p.id)];
-  const assembly = assemblyOrder(ids, J.edges.filter((e) => !e.piece || drawnIds.has(e.a)));
+  const seatEdges = J.edges.filter((e) => !e.piece || drawnIds.has(e.a));
+  let assembly = assemblyOrder(ids, seatEdges);
+  // furniture that cannot go together one member at a time is built in sub-assemblies (a table's end frames)
+  if (furniture && !assembly.order) { const t = assemblyTree(ids, seatEdges); if (t) assembly = { ...t, lock: null }; }
   // the exploded view: each member back along the way it seats; a piece with its host, then out along its own way
   if (Number.isFinite(spec.explode) && spec.explode > 0) {
     const k = spec.explode; const off = new Map();
@@ -314,6 +384,8 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
       const v = byId.has(id) && assembly.moves[id]; if (!v) continue;
       const kk = k * (1 + 0.5 * Math.min(4, rank++)); off.set(id, v.map((x) => -x * kk));
     }
+    // a sub-assembly pulls back as one, along the way it joins the rest
+    for (const sa of assembly.subassemblies || []) for (const id of sa.parts) { const o = off.get(id) || [0, 0, 0]; off.set(id, o.map((x, i) => x - sa.dir[i] * k * 2)); }
     for (const p of drawn) {
       const h = off.get(p.host.id) || [0, 0, 0]; const v = assembly.moves[p.id] || [0, 0, 0];
       off.set(p.id, h.map((x, i) => x - v[i] * k * 1.2));
@@ -326,6 +398,10 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
       const common = { id: M.id, material: M.material, lengthMm: mm(M.xMax - M.xMin), ...(M.finish !== undefined ? { finish: M.finish } : {}) };
       if (M.material === 'steel') { const p = sectionProps(M.section); return { ...common, section: M.section, grade: M.sec.grade, massKg: Math.round(p.mass * (M.xMax - M.xMin) * 10) / 10 }; }
       if (M.material === 'concrete') return { ...common, stockMm: [mm(M.W), mm(M.D)], ...(cages.has(M.id) ? { rebar: cages.get(M.id) } : { rebar: null }) };
+      if (isSheet(M.material)) {
+        const adv = thicknessAdvice(M.material, Math.round(M.D * 10000) / 10);
+        return { ...common, stockMm: [mm(M.W), Math.round(M.D * 10000) / 10], ...(M.edges ? { edges: M.edges } : {}), ...(adv ? { advice: adv } : {}) };
+      }
       return {
         ...common, species: M.species, stockMm: [mm(M.W), mm(M.D)], cut: M.pose.name,
         log: { age: M.log.age, ringMm: M.log.ringMm || TIMBERS[M.species].ringMm, knots: M.log.knots || 'normal' },
@@ -334,10 +410,17 @@ export function lowerFrame(spec, { light = DEFAULT_LIGHT } = {}) {
     }),
     joints: J.report,
     pieces: drawn.map((p) => ({ id: p.id, kind: p.kind, ...(p.species && !p.material ? { species: p.species } : { material: p.material }) })),
-    span, assembly: { order: assembly.order, lock: assembly.lock },
+    span, assembly: { order: assembly.order, lock: assembly.lock, ...(assembly.subassemblies && assembly.subassemblies.length ? { subassemblies: assembly.subassemblies.map((sa) => ({ parts: sa.parts, dir: sa.dir.map((v) => Math.round(v * 1000) / 1000) })) } : {}) },
+    ...(furniture ? { furniture: furnitureReport({ spec, members, byId, joints: J, drawn, assembly }) } : {}),
     ...(jointedWithoutKernel(members, kernel) ? { degraded: 'joints are not cut and steel sections are not shaped: the exact kernel (manifold-3d) is not installed, so members draw as plain boxes' } : {}),
   };
-  return { faces, report };
+  // beside the report (so a report's bytes do not move): the way each part seats, and the loose pieces as placed — what
+  // an instruction manual (manual.js) sequences and draws
+  const parts = drawn.map((p) => {
+    const e = J.edges.find((x) => x.piece && x.a === p.id);
+    return { id: p.id, kind: p.kind, host: p.host.id, ...(p.code ? { code: p.code } : {}), ...(p.pre ? { pre: p.pre } : {}), needs: e && e.needs ? e.needs : [p.host.id] };
+  });
+  return { faces, report, seat: assembly.moves, parts };
 }
 
 const jointedWithoutKernel = (members, kernel) => !kernel && members.some((M) => M.trims.length || M.adds.length || M.subs.length || M.material === 'steel');
@@ -356,12 +439,16 @@ export function frameStamps(report, label) {
   const out = [];
   for (const s of report.span) {
     if (s.ok) continue;
+    if (s.shelfKgM !== undefined) { out.push(`${label}: ${s.member} sags ${s.instantMm} mm over its ${s.spanMm} mm span under ${s.shelfKgM} kg/m (keep under ${s.instantLimitMm}, span/600), and ${s.deflMm} mm as it creeps (×${s.creep}; keep under ${s.limitMm}, span/300) — thicker stock, a shorter span, a stiffening rail, or a middle support`); continue; }
     const strength = s.capacityKNm !== undefined ? `carries ${s.momentKNm} kN·m against a capacity of ${s.capacityKNm}` : `is stressed to ${s.stressMPa} of a rough ${s.allowMPa} MPa`;
     out.push(`${label}: ${s.member} (${s.kind} ${s.spanMm} mm) deflects ${s.deflMm} mm against a ${s.limitMm} mm limit and ${strength} — deepen it, shorten the span, or add a support (advisory arithmetic, braces not counted)`);
   }
   for (const j of report.joints) if (j.relishOk === false) out.push(`${label}: joint ${j.joint} leaves ${j.relishMm} mm of relish past its peg (keep at least two peg diameters) — a deeper tenon or a peg nearer the shoulder`);
   const a = report.assembly;
-  if (!a.order && a.lock) out.push(`${label}: no order seats every joint by sliding — ${a.lock.member} would have to move in directions ${a.lock.spreadDeg}° apart (after ${a.lock.after.join(', ') || 'nothing'}). A framer seats this by flexing the frame together; a kigumi frame is shaped so it slides.`);
+  const placedMembers = a.lock ? a.lock.after.filter((id) => report.members.some((m) => m.id === id)) : [];
+  if (!a.order && a.lock) out.push(`${label}: no order seats every joint by sliding — ${a.lock.member} would have to move in directions ${a.lock.spreadDeg}° apart (after ${placedMembers.join(', ') || 'nothing'}). A framer seats this by flexing the frame together; a kigumi frame is shaped so it slides.`);
   if (report.degraded) out.push(`${label}: ${report.degraded}`);
+  for (const m of report.members) if (m.advice) out.push(`${label}: ${m.id}: ${m.advice}`);
+  if (report.furniture) out.push(...furnitureStamps(report.furniture, label));
   return out;
 }

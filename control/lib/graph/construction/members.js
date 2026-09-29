@@ -126,3 +126,30 @@ export const localToLog = (pose, z0, p) => [
 ];
 /** A member-local direction → a log direction (no translation). */
 export const localDirToLog = (pose, v) => [pose.wy[0] * v[1] + pose.wz[0] * v[2], pose.wy[1] * v[1] + pose.wz[1] * v[2], v[0]];
+
+/**
+ * A member given as a box ({ min, max } corners in the recipe's unit) → { from, to, stock, up } in the same unit: the
+ * grain runs `grain` ('x' | 'y' | 'z', default the longest side), the thinnest remaining side is the depth (it faces
+ * `up`), the other the width. So a shelf's faces are its local ±z and its length its local x, as a sheet's are.
+ */
+export function boxToCentreline(box, grain) {
+  const lo = [0, 1, 2].map((k) => Math.min(box.min[k], box.max[k])), hi = [0, 1, 2].map((k) => Math.max(box.min[k], box.max[k]));
+  const size = [0, 1, 2].map((k) => hi[k] - lo[k]);
+  const c = [0, 1, 2].map((k) => (lo[k] + hi[k]) / 2);
+  const g = grain !== undefined ? 'xyz'.indexOf(grain) : size.indexOf(Math.max(...size));
+  const rest = [0, 1, 2].filter((k) => k !== g);
+  const t = size[rest[0]] <= size[rest[1]] ? rest[0] : rest[1];
+  const w = rest[0] === t ? rest[1] : rest[0];
+  const from = c.slice(), to = c.slice(); from[g] = lo[g]; to[g] = hi[g];
+  const up = [0, 0, 0]; up[t] = 1;
+  return { from, to, stock: [size[w], size[t]], up };
+}
+
+/** Why a box is malformed, or null. `unitScale` metres per recipe unit. */
+export function boxError(box, grain, unitScale) {
+  const isPt = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
+  if (!box || typeof box !== 'object' || !isPt(box.min) || !isPt(box.max)) return 'box: { min: [x, y, z], max: [x, y, z] }';
+  if ([0, 1, 2].some((k) => Math.abs(box.max[k] - box.min[k]) * unitScale < 0.001)) return 'box: every side at least 1 mm';
+  if (grain !== undefined && !['x', 'y', 'z'].includes(grain)) return "grain: 'x', 'y' or 'z'";
+  return null;
+}
