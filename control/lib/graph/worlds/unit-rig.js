@@ -41,6 +41,7 @@ import { bakeAmbientOcclusion, bakeSkyShadow } from '../effects/ao-bake.js';
 import { facingYaw, WORKBENCH_LIGHT } from './workbench.js';
 import { env } from './pose-env.js';
 import { stampUniformMaterial } from '../polygonizer/ms-materials.js';
+import { optionalPackModule } from '../content-pack.js';
 
 const DEG = Math.PI / 180;
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -527,19 +528,15 @@ export const UNIT_CLIPS = {
 // twoHanded/leftHanded/ownOffHand flags). Pack absent → empty shelf: an
 // opts.swings entry resolves to nothing and the unit bakes without strike
 // clips.
-let UNIT_SWINGS = {};
-try {
-  ({ UNIT_SWINGS } = await import('../mobile-suit/unit-swings.js'));
-} catch (err) { console.error('mobile-suit pack absent — swing shelf empty:', err?.message); }
+const UNIT_SWINGS = (await optionalPackModule(() => import('../mobile-suit/unit-swings.js'),
+  'mobile-suit/unit-swings.js', 'swing shelf'))?.UNIT_SWINGS ?? {};
 
 // contrast treatment seam (ms-contrast.plan.md SPIKE): the role-based material
 // contrast treatment is game-pack CONTENT like the swing shelf — loaded lazily
 // and contained. Pack absent → a `contrast` opt-in no-ops and the unit bakes
 // exactly as before.
-let applyContrastTreatment = null;
-try {
-  ({ applyContrastTreatment } = await import('../mobile-suit/ms-contrast.js'));
-} catch (err) { console.error('mobile-suit pack absent — contrast treatment unavailable:', err?.message); }
+const applyContrastTreatment = (await optionalPackModule(() => import('../mobile-suit/ms-contrast.js'),
+  'mobile-suit/ms-contrast.js', 'contrast treatment'))?.applyContrastTreatment ?? null;
 
 // ── aim lock — arms hold a weapon-aim pose through every clip ────────────────
 // The armed-walker read (mobile-suit-builder.plan.md R5): a unit carries a

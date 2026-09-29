@@ -36,6 +36,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Next phases.** Verified ChatGPT file delivery and MCP Apps previews. Public hosting
   and submission remain separate milestones.
 
+### Content pack seams
+
+- **A clean install starts quietly.** Every process printed two warnings about absent mobile-suit
+  modules, even `mojulo orient`. That content is an operator-local pack that no release carries, so
+  its absence is now silent; a pack that is present but fails to load still says so.
+- **The package never carries a local content pack.** A tarball built from a checkout that had the
+  pack on disk included it. The package file list now leaves it out, and a test fails any tarball
+  that would carry a gitignored file.
+
 ### Upgrading from 2.x
 
 - **3.0.0 is the release after 2.1.0.** A 2.2 was prepared and never published; everything it carried

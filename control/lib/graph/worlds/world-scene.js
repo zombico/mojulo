@@ -38,6 +38,7 @@ import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-syn
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
+import { optionalPackModule } from '@/lib/graph/content-pack';
 
 export { resolveWrapTextures };
 
@@ -112,11 +113,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // remap through the baseline anchors), so the /world HTML cache keys on it like any flag.
   let manifest = sketch.manifest;
   if (viewOpts.livery && kind === 'assembler') {
-    // engine→mobile-suit seam: the shelf lives in the content pack — absent, serve the base world
-    try {
-      const { reliveryZSeries } = await import('../mobile-suit/z-series-livery.js');
-      manifest = reliveryZSeries(manifest, { to: viewOpts.livery }).manifest;
-    } catch (err) { console.error('mobile-suit pack absent — ?livery ignored:', err?.message); }
+    // engine→mobile-suit seam: the shelf lives in the content pack — absent, serve the base world.
+    // Said once per request, because this one was asked for.
+    const livery = await optionalPackModule(() => import('../mobile-suit/z-series-livery.js'),
+      'mobile-suit/z-series-livery.js', '?livery');
+    if (!livery) console.error('?livery ignored: no livery shelf (the mobile-suit content pack is not installed or failed to load)');
+    else {
+      try { manifest = livery.reliveryZSeries(manifest, { to: viewOpts.livery }).manifest; }
+      catch (err) { console.error('?livery ignored:', err?.message); }
+    }
   }
 
   // UNSHADED (flat-albedo) export mode (interchange.plan.md I5 blender leg): resolve the
