@@ -35,7 +35,9 @@ every read. Opt-in through `build` on a workbench.
   - One focal element per item, with everything else sized against it.
   - Stylization grows the focal fastest, and detail gets fewer and bigger.
   - The part that carries a stone re-forms as its setting: a flush bezel when realistic, a boss, cage or claw when
-    stylized. The setting always touches the stone.
+    stylized. The setting grips the stone at its girdle, the widest ring measured on the exact crystal
+    (`crystalGirdle`): a bezel lip sits in the girdle's plane, and prongs and branches pass the girdle at its radius.
+    The cut follows the setting, so a raw crystal set face-on becomes a cabochon, while a cradle keeps it raw.
   - No feature is thinner than a stylize-dependent fraction of the item's length.
   - Fittings recede so the focal carries the contrast.
   - The focal sits where the eye already goes, and leading lines run into it.

@@ -58,6 +58,24 @@ describe('law 3: the setting touches its stone', () => {
   it('a dwarven block guard grows a boss around its ruby: one body', () => {
     for (const s of [0.33, 1]) expect(bodies(withEquipment({ build: build('sword', 'dwarven', { dials: { stylize: s } }) }), ['guard', 'bezel', 'stone'])).toBe(1);
   });
+  // F3: every setting grips its stone by the girdle (crystalGirdle), so stone ∪ setting is one body at every stylize
+  const CRADLES = [['sword', 'elven', ['pommel']], ['sword', 'druid', ['guard', 'bezel']], ['staff', 'druid', ['branches']],
+    ['staff', 'brutal', ['head'], { head: 'claw', focus: 'head' }, 'ruby'], ['staff', 'celestial', ['head', 'bezel']],
+    ['bow', 'elven', ['riser', 'bezel']], ['shield', 'celestial', ['boss', 'bezel']]];
+  for (const [item, style, groups, parts, gem] of CRADLES) {
+    it(`${style} ${item}: the setting grips the stone at every stylize`, () => {
+      for (const s of [0, 0.5, 1]) {
+        const f = lowerObjectFaces(withEquipment({ build: build(item, style, { dials: { stylize: s }, ...(parts ? { parts } : {}), ...(gem ? { gem } : {}) }) }), WORKBENCH_LIGHT);
+        expect(solidComponentsStable(f.filter((x) => x.group === 'stone' || groups.includes(x.group)), { cells: 128 }).count).toBe(1);
+      }
+    });
+  }
+  it('the cut follows the setting: a raw crystal set face-on becomes a cabochon; a cradle keeps it raw', () => {
+    const face = withEquipment({ build: build('sword', 'druid') }).fields.flatMap((f) => f.terms).filter((t) => t.id === 'stone');
+    expect(face.every((t) => t.shape.cut === 'cabochon')).toBe(true);
+    const cradle = withEquipment({ build: build('staff', 'druid') }).fields.flatMap((f) => f.terms).filter((t) => t.id === 'stone');
+    expect(cradle[0].shape.cut).toBe('natural');
+  });
   it('a flush setting (stylize < 0.25) has no boss; a stylized one does', () => {
     expect(at('sword', 'dwarven', 0).trace.focal.setting).toBe('flush');
     expect(at('sword', 'dwarven', 0.5).trace.focal.setting).toBe('boss');

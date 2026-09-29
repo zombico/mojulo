@@ -5,7 +5,7 @@
 //   grip    leather (ridged) · banded · wire (a helix) · cord (two crossing helices)
 //   pommel  wheel · block · spike · cap · ring · cage (sized by its stone, prongs touching the girdle)
 import { proportion, focalStone, recede } from './principles.js';
-import { mulberry32, r3, P, A, clamp01, smooth, circle, mat, mergeInto, setStone, feather } from './shapes.js';
+import { mulberry32, r3, P, A, clamp01, smooth, circle, mat, mergeInto, setStone, feather, girdleOf } from './shapes.js';
 
 export const SWORDS = Object.freeze({
   dagger: { blade: { L: 24, W: 3.4, T: 0.5 }, grip: { L: 10, R: 1.25 }, guard: { span: 9, H: 1.3, D: 1.8 }, pommel: { R: 1.8 } },
@@ -118,16 +118,22 @@ function pommel(variant, { R, top, roles, stone, gem, gripR }) {
   let H = R * 1.2;
   const lathe = (prof, extra = {}) => out.lathes.push({ group: 'pommel', axisFrom: P(0, 0, top - H), axisTo: P(0, 0, top), profile: prof.map(([t, r]) => ({ t: r3(t), radius: r3(r) })), ...fit, ...extra });
   if (variant === 'cage' && stone) {
-    // law 3: the cage is sized BY the stone; four prongs bow out to the girdle and touch it
-    const sr = stone.r, pr = Math.max(stone.bezel, sr * 0.12);
-    H = stone.size * 1.25 + pr * 2; const cz = top - pr - stone.size * 0.62;
-    out.lathes.push({ group: 'pommel', axisFrom: P(0, 0, top - pr * 2.2), axisTo: P(0, 0, top + 0.4), profile: [{ t: 0, radius: r3(sr * 0.75) }, { t: 1, radius: r3(gripR * 1.05) }], ...fit }); // overlaps the grip: touching is not joined
-    out.lathes.push({ group: 'pommel', axisFrom: P(0, 0, top - H - pr), axisTo: P(0, 0, top - H + pr * 1.6), profile: [{ t: 0, radius: 0 }, { t: 0.5, radius: r3(pr * 1.8) }, { t: 1, radius: r3(sr * 0.5) }], ...fit });
+    // law 3: the cage is sized BY the stone — it spans the stone's own extent, and four prongs bow out to exactly the
+    // girdle (crystal-optics crystalGirdle), crossing it at its height and overlapping its edge, so the setting holds
+    const g = girdleOf(gem, stone.size), pr = Math.max(stone.bezel, g.radius * 0.12);
+    const above = g.top - g.z + pr * 1.5, below = g.z - g.bottom + pr * 1.5;
+    const zTop = top - pr * 2, zG = zTop - above, zBot = zG - below;
+    H = top - zBot + pr;
+    const rg = g.radius + pr * 0.5, rTop = Math.max(pr * 1.4, g.radius * 0.6), rBot = pr * 1.2;
+    out.lathes.push({ group: 'pommel', axisFrom: P(0, 0, top - pr * 2.2), axisTo: P(0, 0, top + 0.4), profile: [{ t: 0, radius: r3(rTop * 1.1) }, { t: 1, radius: r3(gripR * 1.05) }], ...fit }); // overlaps the grip: touching is not joined
+    out.lathes.push({ group: 'pommel', axisFrom: P(0, 0, top - H), axisTo: P(0, 0, zBot + pr), profile: [{ t: 0, radius: 0 }, { t: 0.5, radius: r3(pr * 1.8) }, { t: 1, radius: r3(rBot * 1.2) }], ...fit });
     for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, path = [];
-      for (let i = 0; i <= 14; i++) { const u = i / 14, rad = sr * 0.5 + (sr * 0.5 + pr * 0.4) * Math.sin(Math.PI * u); path.push(A(rad * Math.cos(a), rad * Math.sin(a), top - pr * 2 - u * (H - pr * 3))); }
+      for (let i = 0; i <= 16; i++) { const z = zTop - (i / 16) * (zTop - zBot);
+        const rad = z >= zG ? rTop + (rg - rTop) * Math.sin((Math.PI / 2) * (zTop - z) / above) : rBot + (rg - rBot) * Math.sin((Math.PI / 2) * (z - zBot) / below);
+        path.push(A(rad * Math.cos(a), rad * Math.sin(a), z)); }
       out.sweeps.push({ group: 'pommel', path, radius: r3(pr), sides: 8, ...acc }); }
-    out.fields.push({ group: 'pommel', cells: 40, terms: [{ id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut || 'brilliant', center: A(0, 0, cz), size: r3(stone.size), axis: [0, 0, 1], ...(gem.glow ? { glow: r3(Math.min(1, gem.glow)) } : {}) } }], ...acc });
-    return { out, H: H + pr };
+    out.fields.push({ group: 'pommel', cells: 40, terms: [{ id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut || 'brilliant', center: A(0, 0, zG - g.z), size: r3(stone.size), axis: [0, 0, 1], ...(gem.glow ? { glow: r3(Math.min(1, gem.glow)) } : {}) } }], ...acc });
+    return { out, H };
   }
   if (variant === 'wheel' || variant === 'cage') { H = R * 1.0; lathe([[0, R * 0.55], [0.12, R * 0.9], [0.5, R], [0.88, R * 0.9], [1, R * 0.45]], { samples: 40, ...acc }); }
   else if (variant === 'block') { H = R * 1.1; out.extrudes.push({ group: 'pommel', profile: { points: [0, 1, 2, 3, 4, 5].map((k) => [r3(R * Math.cos(k * Math.PI / 3)), r3(R * Math.sin(k * Math.PI / 3))]) }, axisFrom: P(0, 0, top - H), axisTo: P(0, 0, top), ...fit });

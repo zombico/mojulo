@@ -8,7 +8,7 @@
 //   shield  a focal on a FACE (law 1b), with leading lines from the rim into it. Outlines: round · heater · kite.
 //           Devices: chevron · rays · bands · spikes · mon · wings · vine
 import { focalStone, recede, focalGrow as growOf, lerp } from './principles.js';
-import { mulberry32, r3, P, A, circle, mat, mergeInto as merge, push, setStone, feather, ribbon } from './shapes.js';
+import { mulberry32, r3, P, A, circle, mat, mergeInto as merge, push, setStone, feather, ribbon, girdleOf } from './shapes.js';
 
 export const ITEMS = Object.freeze({ staff: { L: 175, R: 1.6 }, bow: { L: 180, W: 3.0, T: 2.2, brace: 16 }, shield: { R: 38, H: 72, T: 1.8 } });
 const GEMLESS_HEADS = ['plain', 'mace', 'ringed'];
@@ -40,14 +40,16 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng }) {
   } else if (head === 'branch') {
     // law 7: limbs share the shaft's cross-section (r² = Σ rᵢ²), spiral up, cradle the stone at its girdle (law 3),
     // and fork into twigs by the same rule; fewer, fatter twigs as stylize rises (law 2)
-    const nL = lang.limbs || 3, rL = R * Math.sqrt(1 / nL) * 1.2, Rc = st.r + rL * 0.35, zc = zTop + Rc * 0.94 + 1;
+    // the cradle is an ellipse about the stone: its waist wraps the girdle (crystalGirdle), its height the stone's own
+    const nL = lang.limbs || 3, rL = R * Math.sqrt(1 / nL) * 1.2, g = girdleOf(gem, st.size);
+    const Rc = g.radius + rL * 0.35, Rv = Math.max(Rc, (Math.max(g.top - g.z, g.z - g.bottom) + rL) / 1.2), zc = zTop + Rv * 1.2 * 0.94 + 1;
     const twist = law.twist * Math.PI;
     const limbPts = [];
     for (let k = 0; k < nL; k++) {
       const phi = (2 * Math.PI * k) / nL + 0.4 * (rng() - 0.5), path = [[R * 0.35 * Math.cos(phi), R * 0.35 * Math.sin(phi), zTop - 2]];
       for (let i = 0; i <= 20; i++) { const u = i / 20, th = (-72 + 150 * u) * Math.PI / 180, sp = phi + twist * u * (k % 2 ? -0.35 : 1);
         const rho = Rc * Math.cos(th) + (u > 0.78 ? (u - 0.78) * st.r * 2.4 : 0) + 0.12 * rL * (rng() - 0.5);
-        path.push([rho * Math.cos(sp), rho * Math.sin(sp), zc + Rc * Math.sin(th) * 1.2 + (u > 0.85 ? (u - 0.85) * st.r * 1.5 : 0)]); }
+        path.push([rho * Math.cos(sp), rho * Math.sin(sp), zc + Rv * Math.sin(th) * 1.2 + (u > 0.85 ? (u - 0.85) * st.r * 1.5 : 0)]); }
       const rOf = (t) => rL * (1 - 0.82 * t ** 1.2);
       push(m, 'lofts', ribbon({ path, w: rOf, h: () => 0, round: true, role: roles.shaft, group: 'branches', minF }));
       limbPts.push({ path, rOf, phi });
@@ -65,23 +67,21 @@ function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng }) {
       }
       if (lang.leaves) { const tip = path[path.length - 1]; leafAt(tip, [Math.cos(phi), Math.sin(phi)], st.size * 0.5); }
     });
-    push(m, 'fields', { group: 'head', cells: 40, terms: [{ id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut || 'brilliant', center: A(0, 0, zc), size: r3(st.size), axis: [0, 0, 1], glow: r3(Math.min(1, gem.glow)) } }], ...mat(roles.accent) });
+    push(m, 'fields', { group: 'head', cells: 40, terms: [{ id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut || 'brilliant', center: A(0, 0, zc - g.z), size: r3(st.size), axis: [0, 0, 1], glow: r3(Math.min(1, gem.glow)) } }], ...mat(roles.accent) });
     sockets.focal = { origin: A(0, 0, zc) };
   } else if (head === 'claw') {
     // law 3: the prongs are an orbit around the stone, touching its girdle
-    const pr = Math.max(minF, R * 0.42 * law.hilt ** 0.3), Rc = st.r + pr * 0.55, zc = zTop + Rc * 0.94 + 0.5;
-    const n = head === 'claw' ? 5 : 3;
-    for (let k = 0; k < n; k++) {
-      const phi = (2 * Math.PI * k) / n, path = [];
-      for (let i = 0; i <= 18; i++) { const u = i / 18;
-        if (true) { const th = (-70 + 142 * u) * Math.PI / 180, rho = Rc * Math.cos(th) * (u > 0.85 ? 1 + (u - 0.85) * 1.2 : 1);
-          path.push([rho * Math.cos(phi), rho * Math.sin(phi), zc + Rc * Math.sin(th)]); }
-        else { const th = (-70 + 150 * u) * Math.PI / 180, sp = phi + 1.3 * Math.PI * u, rho = Rc * Math.cos(th) + (u > 0.8 ? (u - 0.8) * st.r * 1.6 : 0);
-          path.push([rho * Math.cos(sp), rho * Math.sin(sp), zc + Rc * Math.sin(th) * 1.15]); } }
+    // five prongs on an ellipse about the stone: the waist wraps the girdle (crystalGirdle), the height the stone's own
+    const pr = Math.max(minF, R * 0.42 * law.hilt ** 0.3), g = girdleOf(gem, st.size);
+    const Rc = g.radius + pr * 0.55, Rv = Math.max(Rc, Math.max(g.top - g.z, g.z - g.bottom) + pr), zc = zTop + Rv * 0.94 + 0.5;
+    for (let k = 0; k < 5; k++) {
+      const phi = (2 * Math.PI * k) / 5, path = [];
+      for (let i = 0; i <= 18; i++) { const u = i / 18, th = (-70 + 142 * u) * Math.PI / 180, rho = Rc * Math.cos(th) * (u > 0.85 ? 1 + (u - 0.85) * 1.2 : 1);
+        path.push([rho * Math.cos(phi), rho * Math.sin(phi), zc + Rv * Math.sin(th)]); }
       path.unshift([R * 0.5 * Math.cos(phi), R * 0.5 * Math.sin(phi), zTop - 1]);
       push(m, 'lofts', ribbon({ path, w: (t) => pr * (1 - 0.75 * t ** 1.5), h: () => 0, round: true, role: head === 'branch' ? roles.shaft : roles.accent, group: 'head', minF }));
     }
-    push(m, 'fields', { group: 'head', cells: 40, terms: [{ id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut || 'brilliant', center: A(0, 0, zc), size: r3(st.size), axis: [0, 0, 1], glow: r3(Math.min(1, gem.glow)) } }], ...acc });
+    push(m, 'fields', { group: 'head', cells: 40, terms: [{ id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut || 'brilliant', center: A(0, 0, zc - g.z), size: r3(st.size), axis: [0, 0, 1], glow: r3(Math.min(1, gem.glow)) } }], ...acc });
     sockets.focal = { origin: A(0, 0, zc) };
   } else if (head === 'crescent') {
     const zc = zTop + st.size * 1.1 + R, Rm = st.bossR * 1.75;

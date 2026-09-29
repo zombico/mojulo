@@ -9,6 +9,7 @@
 // Loft frames: on a path of more than two points the loft puts profile u across the path's rotation-minimizing
 // normal. For a path running up z that is y, so a flat section that should lie in the xz plane takes `roll: 90`.
 import { mulberry32 } from '../vegetation/grow.js';
+import { crystalGirdle } from '../polygonizer/crystal-optics.js';
 
 export { mulberry32 };
 export const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -57,11 +58,25 @@ export function feather({ s, root, len, rise, width, thick, role, minF, group = 
 }
 
 /**
+ * Where a setting grips `gem` of `size`: the stone's girdle (polygonizer/crystal-optics.js crystalGirdle), in its own
+ * frame. A setting places the stone so its girdle lands on the grip, never by a guessed radius: a raw prism is long and
+ * thin, a brilliant's girdle sits above its centre, a cabochon's is its base.
+ */
+export function girdleOf(gem, size) { return crystalGirdle(gem.gem, { size, cut: gem.cut || 'brilliant' }); }
+
+/** Law 3, the cut follows the setting: a face setting (a bezel) takes a cut stone — a raw crystal reads as a speck
+ *  set face-on, so `natural` becomes a cabochon there. Cradles (a cage, a claw, branches) take any cut. */
+export const faceCut = (gem) => (gem.cut === 'natural' ? { ...gem, cut: 'cabochon' } : gem);
+
+/**
  * Law 3: a stone and its setting on the host at `at`, facing ±`axis`. A boss (a lathe through the host) when the
- * stone is stylized, a bezel lip on each face hugging the girdle, the stone seated a little proud of it.
+ * stone is stylized, and on each face a bezel lip in the face plane wrapping the girdle, the stone seated so its
+ * girdle lies in that plane and its crown stands proud.
  */
 export function setStone({ at, axis, st, gem, roles, group, both = true, bossDepth }) {
   const out = { lathes: [], fields: [] };
+  gem = faceCut(gem);
+  const g = girdleOf(gem, st.size);
   const [ax, ay, az] = axis; const faces = both ? [1, -1] : [1];
   const along = (c, d) => [c[0] + ax * d, c[1] + ay * d, c[2] + az * d];
   if (st.setting === 'boss') {
@@ -73,8 +88,8 @@ export function setStone({ at, axis, st, gem, roles, group, both = true, bossDep
     const c = along(at, s * face);
     const plane = Math.abs(ay) > 0.9 ? 'xz' : Math.abs(az) > 0.9 ? 'xy' : 'yz';
     out.fields.push({ group, cells: 40, terms: [
-      { id: 'bezel', op: 'add', shape: { kind: 'sweep', path: circle(c, st.r * 0.96, 40, plane), radius: r3(st.bezel) } },
-      { id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut || 'cabochon', center: A(...along(c, s * st.size * 0.08)), size: r3(st.size), axis: [ax * s, ay * s, az * s], ...(gem.glow ? { glow: r3(Math.min(1, gem.glow)) } : {}) } },
+      { id: 'bezel', op: 'add', shape: { kind: 'sweep', path: circle(c, g.radius + st.bezel * 0.35, 40, plane), radius: r3(st.bezel) } },
+      { id: 'stone', op: 'add', shape: { kind: 'crystal', gem: gem.gem, cut: gem.cut, center: A(...along(c, -s * g.z)), size: r3(st.size), axis: [ax * s, ay * s, az * s], ...(gem.glow ? { glow: r3(Math.min(1, gem.glow)) } : {}) } },
     ], ...mat(roles.accent) });
   }
   return out;

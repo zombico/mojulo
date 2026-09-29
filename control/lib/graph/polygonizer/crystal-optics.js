@@ -222,3 +222,17 @@ export function crystalPolytope(gem, { size = 1, cut = 'natural' } = {}) {
   const P = poly.planes.map((p) => ({ n: p.n, d: (p.d - dot(p.n, mid)) * s, form: p.form }));
   return { vertices, faces: poly.faces, normals: poly.normals, planes: P, forms: P.map((p) => p.form), cut: how };
 }
+
+/**
+ * Where a setting grips a stone: its GIRDLE, the widest ring about the c axis, measured on the exact polytope.
+ * `{ radius, z, top, bottom, cut }` in the stone's own frame (centred, c = z): `z` is the girdle's height (the mean
+ * height of the vertices within 1 % of the widest), `top` / `bottom` the crown's and the base's. A bezel lip sits at
+ * `z`, a prong passes the stone at `radius`; a cabochon's girdle is its base.
+ */
+export function crystalGirdle(gem, { size = 1, cut = 'natural' } = {}) {
+  const p = crystalPolytope(gem, { size, cut });
+  const rad = p.vertices.map((v) => Math.hypot(v[0], v[1])); const radius = Math.max(...rad);
+  const ring = p.vertices.filter((_, i) => rad[i] >= radius * 0.99);
+  const zs = p.vertices.map((v) => v[2]);
+  return { radius, z: ring.reduce((a, v) => a + v[2], 0) / ring.length, top: Math.max(...zs), bottom: Math.min(...zs), cut: p.cut };
+}
