@@ -1,6 +1,6 @@
 // grass — the tuft primitive and its kinds, the grass kernel's placement, and the terrain's opt-in `grass`.
 import { describe, it, expect } from 'vitest';
-import { GRASSES, grassTuft, grassLadder, volumeLit } from './grass.js';
+import { GRASSES, grassTuft, grassLadder, volumeLit, stylize } from './grass.js';
 import { trisToFaces } from './pool.js';
 import { grassKernel } from '../terrain/grass-kernel.js';
 import { grassConfig, grassKernelOf, validateTerrainGrass, resolveTerrainGrass, TERRAIN_GRASS_DEFAULTS } from '../terrain/terrain-grass.js';
@@ -33,6 +33,25 @@ describe('the tuft', () => {
     const t = { p: [[0, 0, 0], [1, 0, 0], [0, 0, 1]], c: [100, 150, 80], kind: 'leaf' };
     expect(trisToFaces([t])[0].outNormal).toEqual(trisToFaces([{ ...t }])[0].outNormal);
     expect(trisToFaces([{ ...t, n: [0, 0, 1] }])[0].outNormal).toEqual([0, 0, 1]);
+  });
+});
+
+describe('short grass and the stylized style', () => {
+  it('short grass is turf: short, dense, no heads, placed as plugs', () => {
+    expect(GRASSES.lawn.habit).toBe('turf'); expect(GRASSES.lawn.heights[1]).toBeLessThan(0.2); expect(GRASSES.lawn.culms).toBe(0);
+    const f = atlasField({ world: { features: [{ feature: 'river' }], climate: 'temperate', seed: 'vale' } }); const V = grassConfig(f, resolveTerrainGrass({ kinds: ['lawn'] })); const P = grassKernelOf(f, V);
+    let n = 0; for (let x = -600; x < 600; x += 80) n += P.plantsIn(x, 40, 16).length / 9; expect(n).toBeGreaterThan(50);
+  });
+  it('stylized: any kind, blades lit as the ground (normals up), more saturated, no heads unless a plume', () => {
+    for (const kind of Object.keys(GRASSES)) {
+      const lad = grassLadder(kind, { seed: 2, style: 'stylized' }); for (const t of lad.L2) expect(t.n[2]).toBeCloseTo(1, 6);
+      const S = stylize(GRASSES[kind]); if (GRASSES[kind].head !== 'plume') expect(S.culms).toBe(0);
+      const spread = (c) => Math.max(...c) - Math.min(...c); expect(spread(S.colors.tip)).toBeGreaterThanOrEqual(spread(GRASSES[kind].colors.tip));
+    }
+    expect(JSON.stringify(grassLadder('meadow', { seed: 2 }))).not.toBe(JSON.stringify(grassLadder('meadow', { seed: 2, style: 'stylized' })));
+  });
+  it('the natural style is the default: the same bytes with or without naming it', () => {
+    expect(JSON.stringify(grassLadder('tussock', { seed: 4, style: 'natural' }))).toBe(JSON.stringify(grassLadder('tussock', { seed: 4 })));
   });
 });
 
@@ -73,8 +92,10 @@ describe('terrain: grass is opt-in', () => {
   });
   it('validation teaches', () => {
     expect(validateTerrainGrass(true, { world: {} })).toEqual([]);
-    expect(validateTerrainGrass({ kinds: ['lawn'] }, { world: {} })[0]).toMatch(/grass kinds: fescue/);
+    expect(validateTerrainGrass({ kinds: ['bluegrass'] }, { world: {} })[0]).toMatch(/grass kinds: fescue/);
     expect(validateTerrainGrass(true, {})[0]).toMatch(/composed world/);
     expect(resolveTerrainGrass({ radius: 40 }).radius).toBe(40);
+    expect(resolveTerrainGrass({ style: 'stylized' }).density).toBe(5); expect(resolveTerrainGrass({ style: 'stylized', density: 2 }).density).toBe(2);
+    expect(validateTerrainGrass({ style: 'anime' }, { world: {} })[0]).toMatch(/style must be one of natural, stylized/);
   });
 });

@@ -12,9 +12,10 @@
  * wet; alpine fescue and tussock toward and above the treeline; steppe needlegrass in arid country; tall C4 elephant
  * grass in the warm tropical lowland (C3 above about 2,800 m on a tropical mountain: Tieszen et al. 1979), meadow grass
  * in the montane and tussock (páramo) above the treeline. `kinds` replaces the climate's choice with the kinds named,
- * placed by the same rules: an ornamental fountain-grass slope, a pampas steppe.
+ * placed by the same rules: an ornamental fountain-grass slope, a pampas steppe, a short `lawn`. `style: 'stylized'`
+ * draws whichever kinds grow in a stylized game's look (vegetation/grass.js), denser by default.
  */
-import { GRASSES, grassLadder } from '../vegetation/grass.js';
+import { GRASSES, GRASS_STYLES, grassLadder } from '../vegetation/grass.js';
 import { trisToFaces } from '../vegetation/pool.js';
 import { grassKernel } from './grass-kernel.js';
 import { packTemplate, LAPSE, TREELINE_T } from './terrain-plants.js';
@@ -54,11 +55,11 @@ export const GRASS_CLIMATES = Object.freeze({
 /** Tufts a square metre of full meadow (a sward kind; a tussock kind stands at a third, a tall kind at a third again). */
 export const TERRAIN_GRASS_DEFAULTS = Object.freeze({ radius: 60, near: 12, density: 3.5, cover: 0.45, variants: 3 });
 
-/** `grass` on a terrain manifest: true, or { radius?, near?, density?, cover?, kinds?, variants? }. → error strings. */
+/** `grass` on a terrain manifest: true, or { radius?, near?, density?, cover?, kinds?, variants?, style? }. → error strings. */
 export function validateTerrainGrass(grass, manifest = {}) {
   if (grass === undefined || grass === null || grass === false) return [];
   const e = [];
-  if (grass !== true && (typeof grass !== 'object' || Array.isArray(grass))) return ['terrain.grass must be true or { radius?, near?, density?, cover?, kinds?, variants? }'];
+  if (grass !== true && (typeof grass !== 'object' || Array.isArray(grass))) return ['terrain.grass must be true or { radius?, near?, density?, cover?, kinds?, variants?, style? }'];
   if (!manifest.world) e.push('terrain.grass needs a composed world (`world`) for now: its climate says which grass grows where');
   if (manifest.planet) e.push('terrain.grass is for flat worlds: grass is a near field, seen from the ground');
   if (grass === true) return e;
@@ -68,6 +69,7 @@ export function validateTerrainGrass(grass, manifest = {}) {
   num('density', 0.5, 20, 'tufts a square metre of full meadow');
   num('cover', 0, 1, 'how much of the open ground holds grass: its meadows, not a carpet');
   num('variants', 1, 4, 'grown tufts per kind');
+  if (grass.style !== undefined && !GRASS_STYLES.includes(grass.style)) e.push(`terrain.grass.style must be one of ${GRASS_STYLES.join(', ')} (stylized: chunky standing blades in a saturated gradient, lit as the ground)`);
   if (grass.kinds !== undefined) {
     const ids = Object.keys(GRASSES);
     if (!Array.isArray(grass.kinds) || !grass.kinds.length || grass.kinds.some((k) => !ids.includes(k))) e.push(`terrain.grass.kinds must be a list of grass kinds: ${ids.join(', ')}`);
@@ -78,7 +80,8 @@ export function validateTerrainGrass(grass, manifest = {}) {
 /** The grass spec, normalized, or null when absent. */
 export function resolveTerrainGrass(grass) {
   if (grass === undefined || grass === null || grass === false) return null;
-  return { ...TERRAIN_GRASS_DEFAULTS, ...(grass === true ? {} : grass) };
+  const g = grass === true ? {} : grass;
+  return { ...TERRAIN_GRASS_DEFAULTS, ...(g.style === 'stylized' && g.density === undefined ? { density: 5 } : {}), ...g };
 }
 
 /** The grass kernel's inputs for a composed world's field. */
@@ -108,9 +111,11 @@ export function grassPageChannel(V, spec, light) {
   const species = V.species.map((sp) => ({
     name: sp.name, kind: 'tuft',
     variants: [...Array(spec.variants)].map((_, v) => {
-      const lad = grassLadder(sp.name, { seed: 17 + 31 * v }); const yaw = (v * 2 * Math.PI) / spec.variants;
+      const lad = grassLadder(sp.name, { seed: 17 + 31 * v, ...(spec.style ? { style: spec.style } : {}) }); const yaw = (v * 2 * Math.PI) / spec.variants;
       const t = {}; for (const l of ['LF', 'L0', 'L1', 'L2']) t[l] = add(trisToFaces(lad[l], { light, yaw, group: `grass-${sp.name}` }));
-      return { h: 1, t };
+      // a tuft's size on screen is its larger extent: a turf plug is wider than it is tall
+      const ext = (tris) => { let r = 0; for (const f of tris) for (const p of f.p) r = Math.max(r, 2 * Math.hypot(p[0], p[1])); return r; };
+      return { h: 1, size: Math.max(1, +ext(lad.L2).toFixed(3)), t };
     }),
   }));
   return { kernel: grassKernel.toString(), V, species, templates, radius: spec.radius, near: spec.near, tile: 16, px: { L2: 70, L1: 22, L0: 7 }, cap: 40000, drawTris: 1.2e6, budgetMs: 3 };

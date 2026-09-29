@@ -12,6 +12,10 @@
 // short and steep, and it keeps its coverage as it thins (fewer blades, wider, as a crown's leaves become blobs):
 //   L2 every blade, 7 segments · L1 a third of them, 3 segments, 2.6× as wide · L0 seven strips and the heads as
 //   one triangle each · LF three blades of a triangle each, in the tuft's mean colour. Past the grass radius the ground's colour carries it.
+// A STYLE is orthogonal to the kind: `stylized` turns any kind into the look of a stylized game's field (Breath of the
+// Wild's the touchstone): chunkier tapered blades that stand, even in length, fewer or no heads, a saturated gradient from
+// a dark base to a bright tip, and every blade lit as the ground is lit (its normal straight up), so the field reads as
+// fur on the terrain rather than as plants on it.
 // Grown at unit height (an instance scales to its height), deterministic from its seed (mulberry32).
 import { mulberry32, vec } from './grow.js';
 import { elastica } from './mechanics.js';
@@ -25,7 +29,8 @@ const DEG = Math.PI / 180;
  * B: [lo, hi] bending numbers (low stands, high arches over); splay: [lo, hi] degrees from vertical at the crown;
  * crown: the crown's radius (m); culms: flowering culms, culmH: their height over H, head: 'panicle' | 'plume' | 'spike'
  * | 'awn' | null, headLen (m), headW (m); colors: base, tip, head (sRGB bytes); dry: 0..1, the share of blades gone to
- * straw; habit: 'tussock' | 'sward' | 'bed'; heights: [lo, hi], the placement range of a tuft's height (m).
+ * straw; habit: 'tussock' | 'sward' | 'turf' | 'bed'; heights: [lo, hi], the placement range of a tuft's height (m);
+ * segs?: the most segments a blade takes (short blades need few).
  */
 export const GRASSES = Object.freeze({
   // fine fescue (Festuca ovina / rubra): a tight, blue-green tuft of wiry blades, a few spiky heads
@@ -49,10 +54,25 @@ export const GRASSES = Object.freeze({
   // pampas grass (Cortaderia selloana): a big clump of arching blades under tall cream plumes
   pampas: { label: 'pampas grass', H: 1.5, blades: 110, w: 0.01, B: [3, 12], splay: [8, 45], crown: 0.3, culms: 12, culmH: 1.85, head: 'plume', headLen: 0.6, headW: 0.14,
     colors: { base: [92, 120, 70], tip: [150, 160, 100], head: [236, 226, 200] }, dry: 0.2, habit: 'tussock', heights: [1.8, 3] },
+  // a short sward (a grazed pasture, a lawn, alpine turf): short fine blades as a plug of turf, not a plant, packed into a
+  // carpet (habit 'turf'), seen only near
+  lawn: { label: 'short grass', H: 0.12, blades: 90, w: 0.0028, B: [0.6, 3], splay: [4, 45], crown: 0.12, culms: 0, head: null, headLen: 0, headW: 0, segs: 3,
+    colors: { base: [66, 108, 50], tip: [116, 150, 72] }, dry: 0.03, habit: 'turf', heights: [0.06, 0.15] },
   // tall tropical grass (Pennisetum purpureum, Imperata, Hyparrhenia): broad, stiff-ish blades, cane culms, bristly spikes
   elephant: { label: 'elephant grass', H: 2, blades: 26, w: 0.025, B: [1.5, 5], splay: [4, 30], crown: 0.2, culms: 8, culmH: 1.3, head: 'spike', headLen: 0.2, headW: 0.025,
     colors: { base: [70, 120, 48], tip: [128, 162, 70], head: [160, 124, 76] }, dry: 0.12, habit: 'sward', heights: [1.8, 3.2] },
 });
+
+export const GRASS_STYLES = Object.freeze(['natural', 'stylized']);
+const saturate = (c, f, lift = 0) => { const m = (c[0] + c[1] + c[2]) / 3; return c.map((x) => Math.max(0, Math.min(255, m + (x - m) * f + lift))); };
+/** A kind in the stylized look: chunky standing blades, even lengths, a saturated dark-to-bright gradient, heads only on a plume. */
+export function stylize(G) {
+  return {
+    ...G, blades: Math.round(G.blades * 1.2), w: Math.max(0.006, Math.min(0.018, G.w * 1.8)), B: [G.B[0] * 0.45, G.B[1] * 0.45], splay: [2, Math.min(26, G.splay[1])], lenVar: [0.85, 1.05], segs: 4,
+    culms: G.head === 'plume' ? Math.min(G.culms, 5) : 0, dry: G.dry * 0.25,
+    colors: { base: saturate(G.colors.base, 1.35, -12), tip: saturate(G.colors.tip, 1.45, 34), head: saturate(G.colors.head || G.colors.tip, 1.2, 20) },
+  };
+}
 
 /** A strip along a polyline (pts), width w0 at the root narrowing to wEnd, colour c(s): → tris. */
 function stripTris(pts, side, w0, wEnd, colorAt, tris) {
@@ -94,14 +114,15 @@ function headTris(G, at, dir, rng, tris, { coarse = false } = {}) {
  * One tuft of a kind, grown to unit height (the tallest of blades and culms is about 1), at a level. → tris.
  * `over` merges over the kind's row (a recipe may retune a kind's form or colours).
  */
-export function grassTuft(kind, { seed = 1, level = 'L2', over = null } = {}) {
+export function grassTuft(kind, { seed = 1, level = 'L2', over = null, style = 'natural' } = {}) {
   const G0 = typeof kind === 'string' ? GRASSES[kind] : kind; if (!G0) throw new Error(`unknown grass '${kind}' (one of ${Object.keys(GRASSES).join(', ')})`);
-  const G = over ? { ...G0, ...over, colors: { ...G0.colors, ...(over.colors || {}) } } : G0;
+  const G1 = over ? { ...G0, ...over, colors: { ...G0.colors, ...(over.colors || {}) } } : G0; const G = style === 'stylized' ? stylize(G1) : G1;
   const rng = mulberry32((seed * 2654435761 + 7) >>> 0); const tris = [];
-  const LV = { L2: { keep: 1, segs: 7, wk: 1 }, L1: { keep: 0.3, segs: 3, wk: 2.6 }, L0: { keep: 0, segs: 2, wk: 1 } }[level] || null;
+  const LV0 = { L2: { keep: 1, segs: 7, wk: 1 }, L1: { keep: 0.3, segs: 3, wk: 2.6 }, L0: { keep: 0, segs: 2, wk: 1 } }[level] || null;
+  const LV = LV0 && G.segs ? { ...LV0, segs: Math.min(LV0.segs, G.segs) } : LV0;
   const top = G.culms && G.head ? Math.max(G.H * 0.8, G.H * G.culmH) + G.headLen : G.H * 0.85; const k = 1 / top;   // unit height
   const colorOf = (dry) => (s) => mix(dry ? mix(G.colors.tip, [196, 178, 120], 0.6) : G.colors.base, dry ? [206, 190, 140] : G.colors.tip, s * 0.9);
-  const blades = []; for (let b = 0; b < G.blades; b++) blades.push({ B: G.B[0] * Math.pow(G.B[1] / G.B[0], rng()), th: 90 - (G.splay[0] + (G.splay[1] - G.splay[0]) * Math.pow(rng(), 0.8)), L: G.H * (0.55 + 0.6 * rng()), az: rng() * 2 * Math.PI, r: G.crown * Math.sqrt(rng()), a: rng() * 2 * Math.PI, dry: rng() < G.dry, w: G.w * (0.8 + 0.4 * rng()) });
+  const blades = []; for (let b = 0; b < G.blades; b++) blades.push({ B: G.B[0] * Math.pow(G.B[1] / G.B[0], rng()), th: 90 - (G.splay[0] + (G.splay[1] - G.splay[0]) * Math.pow(rng(), 0.8)), L: G.H * (G.lenVar ? G.lenVar[0] + (G.lenVar[1] - G.lenVar[0]) * rng() : 0.55 + 0.6 * rng()), az: rng() * 2 * Math.PI, r: G.crown * Math.sqrt(rng()), a: rng() * 2 * Math.PI, dry: rng() < G.dry, w: G.w * (0.8 + 0.4 * rng()) });
   const culms = []; for (let q = 0; q < (G.culms || 0); q++) culms.push({ az: rng() * 2 * Math.PI, lean: 3 + 14 * rng(), h: G.H * G.culmH * (0.8 + 0.3 * rng()), r: G.crown * 0.6 * Math.sqrt(rng()), a: rng() * 2 * Math.PI, bow: (G.head === 'plume' ? 0.1 : 0.04) + 0.1 * rng() });
   if (level === 'LF') {                                        // three blades fanned, a triangle each, in the tuft's mean colour
     const c = mix(mix(G.colors.base, G.colors.tip, 0.5), [206, 190, 140], G.dry * 0.5); const lean = Math.sin(((G.splay[0] + G.splay[1]) / 2) * DEG);
@@ -152,7 +173,11 @@ export function volumeLit(tris, { heart = 0.25, up = 0.65, ao = 0.38 } = {}) {
   });
 }
 
-/** A kind's ladder: { L2, L1, L0, LF } → tris, at unit height, lit as a volume. */
-export function grassLadder(kind, { seed = 1, over = null } = {}) {
-  return Object.fromEntries(['L2', 'L1', 'L0', 'LF'].map((l) => [l, volumeLit(grassTuft(kind, { seed, level: l, over }))]));
+/**
+ * A kind's ladder: { L2, L1, L0, LF } → tris, at unit height. Natural: lit as a volume. Stylized: lit as the ground is (every
+ * normal up), its base a little darker, so the gradient carries it.
+ */
+export function grassLadder(kind, { seed = 1, over = null, style = 'natural' } = {}) {
+  const lit = style === 'stylized' ? { up: 1, ao: 0.22 } : {};
+  return Object.fromEntries(['L2', 'L1', 'L0', 'LF'].map((l) => [l, volumeLit(grassTuft(kind, { seed, level: l, over, style }), lit)]));
 }

@@ -72,8 +72,9 @@ export function grassKernel(V, G) {
       const sp = V.species[row.s], tussock = sp.habit === 'tussock', tall = sp.h[1] > 1.5, keep = p * st.open;
       // clumps, not a sprinkle: a drift of n tufts packed at `pack` a square metre (sward) or a knot of tussocks, domed
       // (taller at its heart), with open ground between clumps: the meadow reads as grass, not as noise
-      const n = tall ? 5 : tussock ? 6 : 16, pack = tall ? 1.6 : tussock ? 2.5 : 11, R = Math.sqrt(n / (Math.PI * pack));
-      const E = (V.density * B * B * keep) / n, nc = Math.floor(E + hash(i, j, SEED + 13));
+      // a turf kind (a short sward) is plugs of turf packed into a carpet: many more, and closer
+      const turf = sp.habit === 'turf', n = tall ? 5 : tussock ? 6 : turf ? 24 : 16, pack = tall ? 1.6 : tussock ? 2.5 : turf ? 14 : 11, R = Math.sqrt(n / (Math.PI * pack));
+      const E = (V.density * (turf ? 4 : 1) * B * B * keep) / n, nc = Math.floor(E + hash(i, j, SEED + 13));
       for (let q = 0; q < nc; q++) {
         const s = SEED + 17 + q * 41, ccx = i * B + (0.1 + 0.8 * hash(i, j, s)) * B, ccy = j * B + (0.1 + 0.8 * hash(i, j, s + 1)) * B, a0 = 2 * Math.PI * hash(i, j, s + 2);
         const m = Math.max(2, Math.round(n * (0.6 + 0.8 * hash(i, j, s + 3)))), Rq = R * Math.sqrt(m / n);

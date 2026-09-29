@@ -12,7 +12,7 @@ import { safeJson } from '../emit-util.js';
 //     × the ratio of the ground's to the template's mean), so the far survivors are the meadow, not dots on it. Near, the
 //     clump's own shade (the kernel's tint, 0–9) is kept.
 //   · a clump's lean (the kernel's lean and az) tilts the tuft whole: the light is baked, and the leans are small.
-//   · each tuft's level comes from its size on screen (L2, L1, L0, else LF, at `px`); past `drawTris` triangles in all,
+//   · each tuft's level comes from its size on screen, its larger extent (L2, L1, L0, else LF, at `px`); past `drawTris` triangles in all,
 //     every size is scaled by the largest k that fits.
 // Registers as window.__mojTerrain.grass. Absent `grass` ⇒ NOT emitted.
 // `cfg`: { kernel: source text, V, species: [{ name, variants: [{ h, t: { LF, L0, L1, L2 } }] }], templates: [{ lo, sc, q,
@@ -73,7 +73,7 @@ const __gKernel = (${kernel});
         const grow = smooth(0, 0.25 * keep, keep - rank), fade = d > 0.8 * RAD ? Math.max(0, (RAD - d) / (0.2 * RAD)) : 1;
         const s = (h / v.h) * fade * grow, w = Math.min(1.8, 1 / Math.sqrt(keep)); if (s <= 1e-3) continue;
         const o = (q / PER) * 3, gc = tl.g; const tint = 0.9 + 0.022 * a[q + 6], toGround = 0.85 * smooth(0.5 * near, RAD, d);
-        all.push({ x, y, z, s, w, v, lean: a[q + 7], az: a[q + 8], tint, toGround, g: [gc[o], gc[o + 1], gc[o + 2]], px: (v.h * s * f) / d, lv: 'LF' });
+        all.push({ x, y, z, s, w, v, lean: a[q + 7], az: a[q + 8], tint, toGround, g: [gc[o], gc[o + 1], gc[o + 2]], px: ((v.size || v.h) * s * f) / d, lv: 'LF' });
       }
     }
     const lvOf = (e, k) => { const px = e.px * k; return px >= PX.L2 ? 'L2' : px >= PX.L1 ? 'L1' : px >= PX.L0 ? 'L0' : 'LF'; };
