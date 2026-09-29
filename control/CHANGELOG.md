@@ -119,6 +119,35 @@ branch; each bullet is rewritten as its phase lands.
   hides every `body:*` group with the solid. The baked GLB ink cannot stencil: it splits its outline by the same groups
   and leaves out the shell of hair lying inside another hair part (`ink-geometry.js` `inkBuried`: a lock's root sunk into
   the cap, a section pressed into another), and a lock standing off another still outlines over it in an engine.
+- **Clips at the door.** `hero.clips`: `{ <name>: [keys] }`, each key an object of the rig's pose words — the stand's
+  words and ranges, plus a direction for the head and neck, `heelL` / `heelR`, `lift`, `support: 'none'` and, on a head
+  with a jaw bone (the landmark head, or an include with a `jawHinge` joint), `jaw` — stored as given and merged over
+  the hero's own clips when the plan is generated: a door clip of the same name replaces `idle`, `walk` or `wave` in
+  place, a new one follows them, `false` removes one of the hero's own; `gesture` is the stand's and refuses (set
+  `/hero/gesture`). Every clip pays the mint's rig gates, and a key or a blend between keys the rig cannot solve names
+  the clip and the key or the phase; a word the rig does not know refuses naming the clip, the key and the word; a clip
+  survives every other `/hero` edit, since the plan regenerates from the record (the keys are values placed on that
+  body: a `/hero/cast` or `/hero/tune` edit carries them unchanged). The readout's `hero.clips` lists what the figure
+  plays, the door's clips and the removed ones (only on a hero that authored some). Set `/hero/clips`, then
+  `/hero/clips/<name>`. The worked heroine carries four of her own (`greet`, `idleRelaxed`, `run`, `victory`) and the
+  docs test plans them. A hero without clips is byte-identical; only the mint's next hint gains a sentence on the clips.
+- **The playable export.** The Godot world pack (`scripts/export-godot.mjs`, clips on, the default) ships a rigged
+  layered figure SKINNED: `model.glb` is the bytes `export_model { clips: '_all', skinned: true }` writes (one mesh, its
+  joints, every clip, one second each; `--lit` adds `lit: true`), with a `model.glb.import` that turns LOD generation off
+  (by default Godot builds up to six LODs of the figure) and mesh compression off (Godot never compresses a skinned
+  surface; the setting keeps the static meshes whole once they carry normals), and a `level.tscn` whose `figure.gd`
+  (emitted beside the kernel, which it extends: the material, rim and light contracts kept, no walker) plays the
+  figure's `idle` (else its first clip of more than one key, else its first) on a loop under the authored three-quarter
+  view (else the score's first camera), which frames the figure at rest; its presets carry the `exclude_filter` Godot
+  requires, so its import logs no error. On a hero that `idle` is its own ready loop, not the stand the World page
+  opens on (a door clip named `idle` replaces it), and it runs three times as fast as the World page, which plays a
+  clip over three seconds. The machine gate adds a figure probe (`scripts/godot-figure-probe.gd`, `figure-gate.js`):
+  one skeleton with the skin's joints, an AnimationPlayer listing every clip, no LOD and no compressed surface, the
+  chosen clip playing on a loop with the authored view current. Every other pack is byte-identical: the figure kind's
+  rig and a rigged hero's pack built with `--no-clips` stay rigid parts, as do game, Unity and Unreal packs, and every
+  other Godot world, game and arcade pack still logs the two `exclude_filter` preset errors on import. Still to come:
+  welded, indexed figure meshes with authored normals and outline data (NORMAL, TANGENT), per-class materials, a
+  parented skeleton, stepped clips, expression morphs and a toon shader for the Godot leg.
 - **Planes and designed shadow.** The cheek plane, the jaw set inside the cheek outline, the gonial angle, the chin, a
   wedge nose; an occlusion bias, a deep second shade, a cast shadow from the fringe, ink widths that vanish at openings and
   thin in valleys, authored interior lines.
@@ -128,8 +157,6 @@ branch; each bullet is rewritten as its phase lands.
   (the stand above already carries the weight shift, the counter-turned girdles and the head tilt).
 - **The worn layer.** The figure wardrobe's garments on the hero, stored as a spec and derived on read, bound to the body
   chart they were drafted on.
-- **The playable export.** A skinned, welded, shader-ready GLB with authored normals and outline data, per-class materials,
-  a parented skeleton, stepped clips and expression morphs, and a toon shader for the Godot leg.
 
 ### Anime proportions
 

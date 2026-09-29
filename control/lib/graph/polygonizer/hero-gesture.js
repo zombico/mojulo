@@ -10,6 +10,11 @@
  *   • a gesture is a WORD (GESTURE_PRESETS, or `rest`: no stand, the bind pose), an OBJECT of pose words
  *     (GESTURE_KEYS), or a LIST of either resolved left → right (a later entry's keys win; `spine`, `neck`, `head` and
  *     the raw swivels merge one level deep), so `['relaxed', { head: { pitch: -12 } }]` is the relaxed stand, chin down.
+ *   • the door's CLIPS (`hero.clips`, withHeroClips): the operator's motion in the same words —
+ *     `{ <name>: [keys] | false }`, each key an object of the stand's pose words plus the clip words (CLIP_KEYS: a
+ *     direction for the head and neck, the heel and lift channels, `support: 'none'`, the jaw on a head that has one),
+ *     merged over the form's own clips when the plan is generated (a name it has replaced in place, a new one after,
+ *     `false` removing one); `gesture` stays the stand's.
  *   • the presets are per CAST (each body carries its arms and free leg differently): the rig has no arm IK and no
  *     foot targets, so each placed hand and free foot is a set of raw channel values found offline by a deterministic
  *     search over the rig's own channels (the free sole on the floor, the hand at its target, the hand and forearm
@@ -88,6 +93,9 @@ const BEND_WORDS = ['straight', 'slight', 'half', 'bent', 'full'];
 const SPINE_WORDS = { curl: 'amount', arch: 'amount', lean: ['forward', 'back'], sideBend: ['left', 'right'], twist: ['left', 'right'] };
 /** Every key a gesture object takes: the vajra core's words and raw swivels, and the rig's stance channels. */
 export const GESTURE_KEYS = ['support', 'crouch', 'spine', 'pelvis', 'hinge', 'shoulders', 'neck', 'head', 'armL', 'armR', 'legL', 'legR', 'shL', 'shR', 'hipL', 'hipR', 'elbowL', 'elbowR', 'kneeL', 'kneeR'];
+/** Every word a door clip's key takes: the stand's, the rig's heel and lift channels, and the jaw chain on a head that
+ * has one. */
+export const CLIP_KEYS = [...GESTURE_KEYS, 'heelL', 'heelR', 'lift', 'jaw'];
 /** Words the pose language knows that move nothing on this rig (said by name when refused). */
 const INERT = { wristL: 'the hand is rigid on the forearm (no wrist)', wristR: 'the hand is rigid on the forearm (no wrist)', fingersL: 'the hand has no fingers', fingersR: 'the hand has no fingers', weight: 'the rig has no sideways root shift', twist: "the spine's twist is spine.twist", lift: 'a gesture stands on the floor' };
 const DEEP = new Set(['spine', 'neck', 'head', 'shL', 'shR', 'hipL', 'hipR']);
@@ -97,19 +105,21 @@ function directionErrors(v, label) {
   const ok = Array.isArray(v) ? v.length > 0 && v.every((d) => typeof d === 'string' && DIR_WORDS.includes(d)) : one(v);
   return ok ? [] : [`${label}: a direction to aim the limb — ${DIR_WORDS.join(' / ')}, a list of them, or { x, y, z }`];
 }
-/** the ranges a gesture's numbers must sit in (degrees, or an amount 0 … 1): wide enough for any stand the rig solves,
- * narrow enough that a stray number (a 720° swivel, a curl of 1e6) is refused by name instead of minting a wild pose */
-const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180 };
+/** the ranges a gesture's numbers must sit in (degrees, or an amount 0 … 1), and a door clip's heel (degrees), lift
+ * (metres, 0 … 1) and jaw (degrees, the jawOpen dial's 0 … 25): wide enough for any pose the rig solves, narrow enough
+ * that a stray number (a 720° swivel, a curl of 1e6) is refused by name instead of minting a wild pose */
+const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180, heel: 90, lift: [0, 1], jaw: [0, 25] };
 const inRange = (x, [lo, hi]) => fin(x) && x >= lo && x <= hi;
 const anglesErrors = (v, label, keys, lim) => (isObj(v) && Object.keys(v).length && Object.entries(v).every(([k, x]) => keys.includes(k) && inRange(x, [-lim, lim])) ? [] : [`${label}: { ${keys.join(', ')} } in degrees, each within ±${lim}`]);
 
-/** Error strings for one gesture object (empty = valid). Form only; solvability is the rig's (the mint gate). */
-function gestureObjectErrors(g, label) {
-  const errs = [];
+/** Error strings for one gesture object (empty = valid) — or, with `clip` ({ jaw }), one KEY of a door clip, which takes
+ * the clip words besides (CLIP_KEYS). Form only; solvability is the rig's (the mint gate). */
+function gestureObjectErrors(g, label, clip = null) {
+  const errs = [], KEYS = clip ? CLIP_KEYS : GESTURE_KEYS, noun = clip ? 'clip' : 'gesture';
   for (const [k, v] of Object.entries(g)) {
     const at = `${label}.${k}`;
-    if (!GESTURE_KEYS.includes(k)) { errs.push(`${at}: ${INERT[k] ? `${INERT[k]}, so the gesture refuses it` : 'not a gesture word'} (have ${GESTURE_KEYS.join(', ')})`); continue; }
-    if (k === 'support') { if (!['both', 'L', 'R'].includes(v)) errs.push(`${at}: 'both' | 'L' | 'R' (the planted foot or feet)`); }
+    if (!KEYS.includes(k)) { errs.push(`${at}: ${INERT[k] ? `${INERT[k]}, so the ${noun} refuses it` : `not a ${noun} word`} (have ${KEYS.join(', ')})`); continue; }
+    if (k === 'support') { const S = clip ? ['both', 'L', 'R', 'none'] : ['both', 'L', 'R']; if (!S.includes(v)) errs.push(`${at}: ${S.map((s) => `'${s}'`).join(' | ')} (the planted foot or feet${clip ? '; none: both free' : ''})`); }
     else if (k === 'crouch') { if (!(fin(v) && v >= 0 && v <= 1)) errs.push(`${at}: 0 (standing) … 1 (a deep squat)`); }
     else if (k === 'pelvis' || k === 'shoulders') { if (!inRange(v, [-RANGE.girdle, RANGE.girdle])) errs.push(`${at}: degrees, within ±${RANGE.girdle} (the girdle's turn)`); }
     else if (k === 'hinge') { if (!inRange(v, RANGE.hinge)) errs.push(`${at}: degrees, ${RANGE.hinge[0]} … ${RANGE.hinge[1]} (the trunk hinging over the hips)`); }
@@ -121,9 +131,16 @@ function gestureObjectErrors(g, label) {
         else if (want === 'amount') { if (!inRange(x, [0, 1])) errs.push(`${at}.${s}: an amount (0 … 1)`); }
         else if (!(Array.isArray(x) && x.length === 2 && want.includes(x[0]) && inRange(x[1], [0, 1]))) errs.push(`${at}.${s}: [${want.map((w) => `'${w}'`).join(' | ')}, amount 0 … 1]`);
       }
-    } else if (k === 'neck' || k === 'head') errs.push(...anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look));
+    } else if (k === 'neck' || k === 'head') {
+      // a clip's head and neck may AIM (a direction, as the hero's own `wave` does) as well as turn by angles
+      if (!clip) errs.push(...anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look));
+      else if ((isObj(v) && ['yaw', 'pitch', 'roll'].some((a) => a in v) ? anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look) : directionErrors(v, at)).length) errs.push(`${at}: { yaw, pitch } in degrees${isObj(v) && 'roll' in v ? ' (no roll)' : ''}, each within ±${RANGE.look}, or a direction to aim (${DIR_WORDS.join(' / ')}, a list of them, or { x, y, z })`);
+    }
     else if (/^(arm|leg)[LR]$/.test(k)) errs.push(...directionErrors(v, at));
     else if (/^(sh|hip)[LR]$/.test(k)) errs.push(...anglesErrors(v, at, ['yaw', 'pitch', 'roll'], RANGE.swivel));
+    else if (k === 'heelL' || k === 'heelR') { if (!inRange(v, [-RANGE.heel, RANGE.heel])) errs.push(`${at}: degrees the metatarsus turns about the toe base, within ±${RANGE.heel}`); }
+    else if (k === 'lift') { if (!inRange(v, RANGE.lift)) errs.push(`${at}: metres the root rises off the floor, ${RANGE.lift[0]} … ${RANGE.lift[1]} (both feet free)`); }
+    else if (k === 'jaw') { if (!clip.jaw) errs.push(`${at}: this head has no jaw bone (the landmark head has one; the anime head's mouth is /hero/expression), so the clip refuses it`); else if (!inRange(v, RANGE.jaw)) errs.push(`${at}: degrees the jaw opens, ${RANGE.jaw[0]} … ${RANGE.jaw[1]} (the jawOpen dial's range)`); }
     else if (!(BEND_WORDS.includes(v) || (fin(v) && v >= 0 && v <= 150))) errs.push(`${at}: a bend word (${BEND_WORDS.join(', ')}) or degrees 0 … 150`);
   }
   return errs;
@@ -141,6 +158,25 @@ export function validateGesture(gesture, label = 'gesture') {
     else if (isObj(it)) errs.push(...gestureObjectErrors(it, at));
     else errs.push(`${at}: a gesture word (${GESTURE_WORDS.join(', ')}) or an object of pose words`);
   });
+  return errs;
+}
+
+/** A door clip's name: a word (it names the GLB animation `<figure>:<name>`, the page's ?clip= and a patch path). */
+const CLIP_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
+/** Error strings for a hero's `clips` (empty = valid): `{ <name>: [keys] | false }`, each key an object of pose words
+ * (CLIP_KEYS; `jaw` only when the head has a jaw bone). `gesture` is the stand's and refuses here. */
+export function validateHeroClips(clips, { jaw = false } = {}, label = 'clips') {
+  if (clips === undefined || clips === null) return [];
+  if (!isObj(clips)) return [`${label}: { <name>: [keys] | false } — each key an object of pose words (${CLIP_KEYS.join(', ')})`];
+  const errs = [];
+  for (const [name, keys] of Object.entries(clips)) {
+    const at = `${label}.${name}`;
+    if (name === GESTURE_CLIP) errs.push(`${at}: the stand's clip — set /hero/gesture (${Object.keys(GESTURE_PRESETS).join(', ')}, pose words or a list; 'rest' for none); a door clip cannot replace or remove it`);
+    else if (!CLIP_NAME_RE.test(name)) errs.push(`${at}: a clip name is a word of up to 32 letters, digits, '_' or '-', starting with a letter`);
+    else if (keys === false) continue;
+    else if (!Array.isArray(keys) || !keys.length) errs.push(`${at}: a list of keys, each an object of pose words — or false to remove the hero's own clip of that name (remove /hero/clips/${name} drops a door clip)`);
+    else keys.forEach((k, i) => errs.push(...(isObj(k) ? gestureObjectErrors(k, `${at}[${i}]`, { jaw }) : [`${at}[${i}]: a key is an object of pose words (${CLIP_KEYS.join(', ')})`])));
+  }
   return errs;
 }
 
@@ -166,6 +202,20 @@ export function withGestureClip(plan, pose) {
   if (!pose || !plan?.rig) return plan;
   const { [GESTURE_CLIP]: _old, ...rest } = plan.clips || {};
   return { ...plan, clips: { [GESTURE_CLIP]: [pose], ...rest } };
+}
+
+/** A plan with the door's CLIPS (hero.clips) merged over its own: a name it has replaced in place, a new one after it,
+ * `false` removing one of its own (refused, naming them, when it has none of that name); the plan untouched when there
+ * are none. The stand is added after (withGestureClip). */
+export function withHeroClips(plan, clips) {
+  if (!clips || !plan?.rig || !Object.keys(clips).length) return plan;
+  const out = { ...(plan.clips || {}) };
+  for (const [name, keys] of Object.entries(clips)) {
+    if (keys !== false) { out[name] = clone(keys); continue; }
+    if (!Object.hasOwn(out, name)) throw new Error(`clips.${name}: false removes one of the hero's own clips (${Object.keys(plan.clips || {}).join(', ')}); it has no '${name}'`);
+    delete out[name];
+  }
+  return { ...plan, clips: out };
 }
 
 /** The word a gesture reads as in the readout: the word, the words of a list joined by '+', 'data' for an object. */

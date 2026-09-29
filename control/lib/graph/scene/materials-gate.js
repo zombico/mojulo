@@ -10,7 +10,7 @@
  * every check is a named boolean with the two numbers beside it.
  */
 
-function glbJson(buf) {
+export function glbJson(buf) {
   const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
   if (b.length < 20 || b.readUInt32LE(0) !== 0x46546c67) throw new Error('not a GLB (magic)');
   const jsonLen = b.readUInt32LE(12);

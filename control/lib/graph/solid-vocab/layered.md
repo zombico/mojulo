@@ -83,11 +83,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `heelL/R` (metatarsus degrees), `lift`, `support`, and every chain channel. Legs solve to PLANTED toes;
   an unreachable pose refuses with the numbers (`reach: 'clamp'` to accept a reported error). The mint
   pays the rig gates (valid weights, rest identity, planted drift). `export_model({ format: 'glb', clips:
-  '_all', skinned: true })` writes the skinned GLB with authored weights; `scripts/export-wire-svg.mjs --ref
-  <ref> --clip crouch --phase 0.5` draws a posed frame. The World page plays the clips in place (`?clip=<name>`,
-  or the selector in the corner; "rest" shows the solid). On a hero, a clip named `gesture` is the STAND (below): the
-  World and the static exports show the solid skinned at its key, and the page opens on that solid; a plan's own clip
-  of that name is an ordinary clip.
+  '_all', skinned: true })` writes the skinned GLB with authored weights; the Godot world pack
+  (`scripts/export-godot.mjs --ref <ref>`, clips on, the default) ships that same skinned GLB for a rigged layered
+  solid, imported with LOD generation off, in a scene that plays its `idle` (on a hero its ready loop, not the stand;
+  else its first clip of more than one key) on a loop under the authored three-quarter view (else the score's first
+  camera), with no walker; `scripts/export-wire-svg.mjs --ref <ref> --clip crouch --phase 0.5` draws a posed frame.
+  The World page plays the clips in place (`?clip=<name>`, or the selector in the corner; "rest" shows the solid). On
+  a hero, a clip named `gesture` is the STAND (below): the World and the static exports show the solid skinned at its
+  key, and the page opens on that solid; a plan's own clip of that name is an ordinary clip.
 
 - **Plan (the compact door).** `mint_solid({ kind: 'layered', via: 'plan', spec: { plan } })` — a RING PLAN
   is what the seeds write by hand: `{ schema: 'layered-plan-v1', frame, joints: { name: [x, y, z] } (the right
@@ -112,7 +115,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   under `/dials` or `/recipe` edits as before. Refusals name the plan field.
 
 - **Hero door (a human by word and percentage).** `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune,
-  face?, hair?, expression?, sculpt?, detail?, adorn?, gesture?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
+  face?, hair?, expression?, sculpt?, detail?, adorn?, gesture?, clips?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
   a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
   `lithe`, `stout`, `child`, `chibi`) — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
@@ -314,6 +317,19 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.gesture` says the word, the support, the hand and forearm against the torso, bust, thighs, neck and head
   (`clearance`, millimetres past their rest overlap) and the free sole against the floor; past 5 mm it advises, as does
   `lean` or `stance` off rest beside a stand (the rig poses the rest joints, so the dial is posed twice).
+  THE CLIPS. `clips: { <name>: [keys] | false }` adds the operator's motion to the hero's own (`idle`, `walk`, `wave`;
+  the stand first when it stands): each key an object of the rig's pose words — the stand's, every number
+  range-checked, plus `head` / `neck` as a direction to aim, `heelL` / `heelR` (degrees, ±90), `lift` (metres, 0 … 1,
+  both feet free), `support: 'none'`, and `jaw` (0 … 25°) on a head with a jaw bone (the landmark head, or an include
+  with a `jawHinge` joint). Stored as given and merged when the plan is generated: a name the hero has replaces its
+  clip in place, a new name follows the hero's own, `false` removes one of them; `gesture` is the stand's
+  (`/hero/gesture`, `rest` for none) and refuses here. The keys are values placed on this body, not words resolved per
+  cast: a `/hero/cast` or `/hero/tune` edit carries them unchanged. A word the rig does not know refuses naming the
+  clip, the key and the word; a key or a blend the rig cannot solve refuses naming the clip and the key or phase. The
+  clips ride the rig gates, the World's clip picker and every animated export. Set `/hero/clips` to an object first
+  (a path under it needs the field), then `/hero/clips/<name>`; `remove /hero/clips/<name>` drops a door clip, and
+  `false` removes one of the hero's own; any other `/hero` edit keeps them. The readout's `hero.clips` (on a hero with
+  clips) lists what the figure plays, the door's clips and the removed ones.
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
 - **Body detail and adornment as plan data** (any plan, not only a hero: `docs/examples/ring-plans/flask.plan.json` is a

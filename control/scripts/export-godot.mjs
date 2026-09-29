@@ -6,9 +6,11 @@
  * { target: 'godot' }); this script adds the MACHINE GATE: headless import
  * ×2, a one-frame run of every scene (import compiles no GDScript, and Godot
  * exits 0 even on script load failure — the gate greps the log), the
- * materials + locomotion probes (scene packs) or the replay probe (arcade
- * packs: pixelizer games, godot-arcade.js), and the optional --web build. Mirrors the local-worker posture of
- * bake-world-gi.mjs: env-located binary, stdout-JSON handback, stderr logs.
+ * materials + locomotion probes (scene packs; a rigged layered figure's pack
+ * adds the figure probe) or the replay probe (arcade packs: pixelizer games,
+ * godot-arcade.js), and the optional --web build. Mirrors the local-worker
+ * posture of bake-world-gi.mjs: env-located binary, stdout-JSON handback,
+ * stderr logs.
  *
  * Capability ladder rung 0 (no Godot binary): emit-only, gate skipped.
  *
@@ -53,6 +55,7 @@ resolveMojuloPaths();
 const { SketchRepository } = await import('@/lib/db/repositories/sketches');
 const { buildGodotWorldPack, buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
 const { compareShading, declaredShading, sumDeclared } = await import('@/lib/graph/scene/materials-gate.js');
+const { declaredFigure, parseFigureLine, compareFigure } = await import('@/lib/graph/scene/figure-gate.js');
 const { parseReplayLine, compareReplay, parsePerfLine } = await import('@/lib/graph/pixelizer/brickster-replay.js');
 
 const sketch = SketchRepository.getByRef(args.ref);
@@ -156,6 +159,25 @@ if (!args['no-gate'] && existsSync(godotBin)) {
       fail(`machine gate FAILED: materials probe — ${JSON.stringify(gate.materials)}`);
     }
   }
+  // the FIGURE probe (a rigged layered figure's pack): the importer built one skeleton with the skin's joints and an
+  // AnimationPlayer listing every clip, no LOD and no surface compressed (model.glb.import), and the scene plays the chosen
+  // clip on a loop with the authored view current. Gate-only script (scripts/godot-figure-probe.gd); nothing of it rides
+  // the pack.
+  if (pack.figure) {
+    const declared = declaredFigure(await fs.readFile(path.join(outDir, 'model.glb')));
+    log(`machine gate — figure probe (${declared.joints} joints, ${declared.animations.length} clips; plays ${pack.figure.name}:${pack.figure.clip})`);
+    const probe = await runGodot(['--headless', '--path', outDir, '--script', path.join(here, 'godot-figure-probe.gd'), '--', 'res://level.tscn']);
+    const text = probe.out + probe.err;
+    const built = parseFigureLine(text);
+    const cmp = compareFigure({ declared, built, figure: pack.figure });
+    const ran = probe.code === 0 && !!built && !built.error && !SCRIPT_ERR.test(text);
+    gate.figure = { ok: ran && cmp.ok, ran, declared, built, checks: cmp.checks };
+    for (const [k, c] of Object.entries(cmp.checks)) log(`  ${c.ok === null ? '·' : c.ok ? '✓' : '✗'} ${k}: expected ${c.expected} got ${c.got}`);
+    if (!gate.figure.ok) {
+      process.stderr.write(text);
+      fail(`machine gate FAILED: figure probe — ${JSON.stringify(gate.figure)}`);
+    }
+  }
   // walking-suit-backport G-P: the headless locomotion probe — the one
   // machine rung for MOTION that only Godot can run (physics without a
   // window). Every scene whose player carries a locomotion row is run with
@@ -235,5 +257,5 @@ process.stdout.write(`${JSON.stringify({
   gate,
   ...(webBuild ? { web_build: webBuild } : {}),
   ...(pack.scope === 'arcade' ? { reducer: pack.reducer } : {}),
-  eyes_gate: `run: ${godotBin} --path ${outDir}${pack.scope === 'arcade' ? ' — Enter starts; arrows move, Space hard-drops, C holds; the groove should loop and SFX fire on lock/rotate/clear/game over' : pack.scope === 'game' ? ' — pick a level from the menu; completing it unlocks the next' : ' — walk with WASD + mouse'}${gate.locomotion_probe && !gate.locomotion_probe.skipped ? '; the player suit should follow you in third person, walk while moving, idle when still, upright, turning with the mouse' : ''}`,
+  eyes_gate: `run: ${godotBin} --path ${outDir}${pack.scope === 'arcade' ? ' — Enter starts; arrows move, Space hard-drops, C holds; the groove should loop and SFX fire on lock/rotate/clear/game over' : pack.scope === 'game' ? ' — pick a level from the menu; completing it unlocks the next' : pack.figure ? ` — the figure plays '${pack.figure.clip}' on a loop under the authored ${pack.figure.viewName} view (no walker); every clip is on World → AnimationPlayer` : ' — walk with WASD + mouse'}${gate.locomotion_probe && !gate.locomotion_probe.skipped ? '; the player suit should follow you in third person, walk while moving, idle when still, upright, turning with the mouse' : ''}`,
 }, null, 2)}\n`);

@@ -36,15 +36,33 @@ function refuse(sketch, ref) {
   return manifest;
 }
 
-async function resolveLevel(levelSketch, { clips, posture = null, lit = false }) {
+/** A world's rigged LAYERED figure (station-loft-rig packLayeredRig: `layered: true`) as [name, figure], else null. */
+export const layeredFigure = (payload) => Object.entries(payload?.figures || {}).find(([, f]) => f?.rig === true && f.layered === true) ?? null;
+
+/** The clips of a figure the pack's GLB carries: every one under '_all', those a list names, none otherwise. */
+const figureClipNames = (clips, f) => (clips === '_all' ? Object.keys(f?.clips || {}) : Array.isArray(clips) ? clips.filter((c) => f?.clips?.[c]) : []);
+
+/** The clip a figure's scene plays: `idle` when it has one, else the first clip with more than one key, else the first
+ * (a one-key stand holds). */
+export function figureClip(recipeClips = {}, names = Object.keys(recipeClips || {})) {
+  if (names.includes('idle')) return 'idle';
+  return names.find((c) => Array.isArray(recipeClips?.[c]) && recipeClips[c].length > 1) ?? names[0] ?? null;
+}
+
+async function resolveLevel(levelSketch, { clips, posture = null, lit = false, figure = false }) {
   // `lit` (lit-handoff.plan.md): the UNSHADED payload + real PBR materials, so the engine lights it
   const { payload, kind } = await resolveWorldScene(levelSketch, lit ? { unshaded: true } : {});
   if (!payload) {
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
   }
-  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(lit ? { lit: true } : {}) });
+  // a standalone world whose figure is a rigged layered solid ships it SKINNED (one mesh, its clips: the bytes export_model
+  // { clips, skinned: true } writes) instead of rigid per-bone parts, when the GLB carries at least one of its clips;
+  // every other payload as before
+  const found = figure ? layeredFigure(payload) : null;
+  const fig = found && figureClipNames(clips, found[1]).length ? found : null;
+  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture });
-  return { kind, exported, score };
+  return { kind, exported, score, fig };
 }
 
 /** Clean-emit a pack folder: binaries + emitted text + (optional) portability
@@ -84,8 +102,16 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score } = await resolveLevel(sketch, { clips, posture, lit });
-  log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations`);
+  const { kind, exported, score, fig } = await resolveLevel(sketch, { clips, posture, lit, figure: true });
+  // the figure's scene (godot-project.js FIGURE_VIEW_GD): the clip it plays and the authored view that frames it (the
+  // score's 'three-quarter' camera, else its first)
+  const figure = fig ? (() => {
+    const [name, f] = fig;
+    const clipNames = figureClipNames(clips, f);
+    const view = Math.max(0, (score.cameras || []).findIndex((c) => c?.name === 'three-quarter'));
+    return { name, clip: figureClip(manifest.recipe?.clips, clipNames), clips: clipNames, view, viewName: score.cameras?.[view]?.name ?? `view ${view}`, joints: f.bones.length };
+  })() : null;
+  log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
     { rel: 'score.json', bytes: JSON.stringify(score, null, 2) },
@@ -99,7 +125,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const portability = assessPortability({ manifest, levels: [{ ref, score }] });
   const emitted = emitGodotProject({
     ref, score, manifestHash: hashOf(manifest), glbFile: 'model.glb', audioFile,
-    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`,
+    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, figure,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
@@ -108,7 +134,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       bytes: exported.byteLength, nodes: exported.nodeCount, triangles: exported.triangleCount,
       animations: exported.animationCount ?? 0, cameras: exported.cameraCount ?? 0, entities: exported.entityCount ?? 0,
     },
-    written, ledger: emitted.ledger, portability, sceneChecks: [],
+    written, ledger: emitted.ledger, portability, sceneChecks: [], ...(figure ? { figure } : {}),
   };
 }
 

@@ -79,11 +79,12 @@ reconciled into it: the body lives in the hero form now, the head here.
   (`--out <dir>` elsewhere).
 - `cast/`: worked characters as card specs, each with a `$note` saying who the character is and what the spec shows
   off: `heroine` in full dress (one base garment and one signature sash and bow, collars, boots with buckles, a stand
-  from pose words), then `lead`, `rival`, `noble`, `mentor`, `kid`, `tough` and `tomboy` (look words and the own layer
-  over them, the graphic face, the hair's form words and lock edits, expressions as a word, a list or an object, the
-  character light's shade swatches, streak and ring). The words are the manual's (`control/lib/graph/solid-vocab/layered.md`,
-  the Hero door). `node ../docs/examples/humanoid/render-articulation.mjs --spec ../docs/examples/humanoid/cast/<name>.json`
-  from `control/` draws one.
+  from pose words, four clips of her own at the door), then `lead`, `rival`, `noble`, `mentor`, `kid`, `tough` and
+  `tomboy` (look words and the own layer over them, the graphic face, the hair's form words and lock edits, expressions
+  as a word, a list or an object, the character light's shade swatches, streak and ring). The words are the manual's
+  (`control/lib/graph/solid-vocab/layered.md`, the Hero door).
+  `node ../docs/examples/humanoid/render-articulation.mjs --spec ../docs/examples/humanoid/cast/<name>.json` from
+  `control/` draws one.
 - `head.mjs`: `humanoidHead(…)`: a head as ONE designed surface. The cranium's rings are horizontal landmark
   rows read off the figure's own skull landmarks (`figure-head.js` `headLandmarks`: stomion, subnasale, nose
   tip and bridge, the eye line, glabella, frontal, crown) under the `DIMORPH` male / female head pole and the
@@ -151,7 +152,8 @@ reconciled into it: the body lives in the hero form now, the head here.
   - the rear column behind the jaw sits at row height and reaches the ear root, and the jaw opens closed.
 
   Every spec in `cast/` passes the hero door without a refusal (`heroRecord`, `heroPlanOf`, `expandLayeredManifest`, the
-  character light's check), and the heroine also plans (`planLayered`: the recipe and rig gates).
+  character light's check), and the heroine also plans (`planLayered`: the recipe and rig gates), her four clips among
+  them.
 
 Two heads exist for the hero: this landmark head (a designed planar surface, expressions baked, the read the
 reference sheets asked for) and [hero-head](../hero-head/README.md) (data on the species-free detail core:

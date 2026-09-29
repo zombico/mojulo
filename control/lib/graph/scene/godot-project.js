@@ -13,7 +13,9 @@
  *
  * The emitter's remaining jobs: scene stubs, project.godot, export presets,
  * .gitignore, and the provenance README with the honest-loss ledger (which
- * shrank — the vocabulary is now interpreted, not ledgered).
+ * shrank — the vocabulary is now interpreted, not ledgered). A rigged
+ * layered figure's pack also takes the importer's settings for its skinned
+ * GLB and figure.gd (FIGURE_VIEW_GD: the kernel's level extended, no walker).
  * Everything emitted is deterministic text: no dice, no timestamps, stable
  * ordering, no uids (path fallback, the plan's uid note).
  */
@@ -46,7 +48,10 @@ const gdName = (s) => String(s).replace(/[^A-Za-z0-9_]/g, '_');
 const gdStr = (s) => JSON.stringify(String(s));
 const GITIGNORE = '.godot/\nbuild/\n';
 
-function buildPresets(ref) {
+// Godot 4 requires `exclude_filter` in every preset (without it the import logs one ERROR per preset); emitted with a
+// figure only, so every other pack stays byte-identical.
+function buildPresets(ref, { exclude = false } = {}) {
+  const ex = exclude ? 'exclude_filter=""\n' : '';
   return `[preset.0]
 
 name="Web"
@@ -54,7 +59,7 @@ platform="Web"
 runnable=true
 export_filter="all_resources"
 include_filter="*.json"
-export_path="build/web/index.html"
+${ex}export_path="build/web/index.html"
 
 [preset.0.options]
 
@@ -67,7 +72,7 @@ platform="macOS"
 runnable=true
 export_filter="all_resources"
 include_filter="*.json"
-export_path="build/mac/${gdName(ref)}.zip"
+${ex}export_path="build/mac/${gdName(ref)}.zip"
 
 [preset.1.options]
 
@@ -98,18 +103,21 @@ const ledgerLines = (ledger) => Object.entries(ledger)
   .map(([k, v]) => `- \`${k}\`${v.count != null ? ` ×${v.count}` : ''}${v.kinds ? ` (${v.kinds.join(', ')})` : ''} — ${v.note}`)
   .join('\n');
 
-/** The per-level scene stub: kernel/level.gd pointed at the level's data. */
-function levelStub({ resBase = '', glbFile = 'model.glb', musicPath = null, musicDb = null }) {
+/** The per-level scene stub: kernel/level.gd pointed at the level's data — or, for a rigged layered figure, figure.gd
+ * (the kernel's level extended) with the clip it plays and the view that frames it. */
+function levelStub({ resBase = '', glbFile = 'model.glb', musicPath = null, musicDb = null, figure = null }) {
   const props = [`score_path = "res://${resBase}score.json"`];
   if (musicPath) props.push(`music_path = "res://${musicPath}"`);
   if (musicDb != null) props.push(`music_db = ${fmt(musicDb)}`);
+  if (figure) props.push(`clip = ${gdStr(`${figure.name}:${figure.clip}`)}`, `view = ${figure.view}`);
+  const script = figure ? { path: `${resBase}figure.gd`, id: 'figure' } : { path: 'kernel/level.gd', id: 'kernel' };
   return `[gd_scene load_steps=3 format=3]
 
 [ext_resource type="PackedScene" path="res://${resBase}${glbFile}" id="model"]
-[ext_resource type="Script" path="res://kernel/level.gd" id="kernel"]
+[ext_resource type="Script" path="res://${script.path}" id="${script.id}"]
 
 [node name="Level" type="Node3D"]
-script = ExtResource("kernel")
+script = ExtResource("${script.id}")
 ${props.join('\n')}
 
 [node name="World" parent="." instance=ExtResource("model")]
@@ -168,17 +176,84 @@ function levelLedger(score, { gameMode = false } = {}) {
   return ledger;
 }
 
+/** The importer's settings for a rigged layered figure's skinned GLB (`<glb>.import`): no LOD generation (by default
+ * Godot builds up to six LODs of the skinned surface), and mesh compression off — Godot never compresses a skinned
+ * surface, so that one keeps the static meshes whole once they carry normals and tangents. Godot rewrites the file on
+ * import (uid, path, every param); the pack ships only what differs from the defaults. */
+export const FIGURE_IMPORT = `[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+
+[params]
+
+meshes/generate_lods=false
+meshes/force_disable_compression=true
+`;
+
+/** A rigged layered figure's scene script (figure.gd at the pack root): the kernel's level — its material, rim and light
+ * contracts — with no walker spawned over the figure, playing one clip on a loop under one authored view. It reaches
+ * the kernel's _spawn_walker, _imported_player, _anim_name and _play_loop, so a kernel that renames them breaks it. */
+export const FIGURE_VIEW_GD = `extends "res://kernel/level.gd"
+# mojulo figure view — emitted beside the kernel for a rigged layered figure's pack
+# (godot-project.js): the kernel's level, its material, rim and light contracts
+# kept, with no walker; the figure plays \`clip\` (the GLB's clip name) on a loop
+# and the authored view \`view\` (an index into score.json cameras) frames it.
+
+@export var clip: String = ""
+@export var view: int = 0
+
+
+func _spawn_walker() -> void:
+\tpass
+
+
+func _ready() -> void:
+\tsuper()
+\tvar p := _imported_player()
+\tvar anim := _anim_name(p, clip) if p != null else ""
+\tif anim != "":
+\t\t_play_loop(p, anim)
+\tvar cam := get_node_or_null("View%d" % view) as Camera3D
+\tif cam != null:
+\t\tcam.make_current()
+`;
+
+/** The figure's ledger rows: what the skinned figure carries and plays, and what it does not carry yet. */
+const figureLedger = (f) => ({
+  figure_skinned: {
+    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, one second each — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
+  },
+  figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
+});
+
+/** The README's "Open and play" for a figure's pack. */
+const figurePlay = (f) => `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run: the figure plays
+\`${f.clip}\` on a loop under the authored ${f.viewName} view, which frames it at
+rest (a clip that reaches overhead can leave the frame).${f.clips.includes('gesture') && f.clip !== 'gesture' ? `
+\`${f.clip}\` is the figure's own loop, not the stand the World page opens on
+(the clip \`gesture\`).` : ''} It is one skinned mesh
+(${f.joints} joints) carrying its ${f.clips.length} clips (${f.clips.map((c) => `\`${c}\``).join(', ')}) on the
+imported AnimationPlayer as \`${f.name}_<clip>\`, one second each (the World
+page plays a clip over three): set \`clip\` (\`${f.name}:<clip>\`) and \`view\`
+(an index into the score's cameras) on the \`Level\` node of \`level.tscn\` to
+play another. \`model.glb.import\` imports it with LOD generation off.`;
+
 /**
  * emitGodotProject — a standalone world pack: stub + shell + README.
  * The driver ships kernel/, model.glb, score.json, recipe/, audio/.
+ * `figure` ({ name, clip, clips, view, viewName, joints }, godot-pack.js): a
+ * rigged layered figure's pack — its scene plays the clip under the view, and
+ * the pack gains model.glb.import and figure.gd; absent, every file as before.
  */
-export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, kernelVersion = '?', remint = null }) {
+export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, kernelVersion = '?', remint = null, figure = null }) {
   const title = score.title ?? ref;
-  const ledger = levelLedger(score);
+  const ledger = figure ? { ...levelLedger(score), ...figureLedger(figure) } : levelLedger(score);
   const files = [
     { file: 'project.godot', text: buildProjectGodot({ title, mainScene: 'level.tscn' }) },
-    { file: 'level.tscn', text: levelStub({ glbFile, musicPath: audioFile }) },
-    { file: 'export_presets.cfg', text: buildPresets(ref) },
+    { file: 'level.tscn', text: levelStub({ glbFile, musicPath: audioFile, figure }) },
+    { file: 'export_presets.cfg', text: buildPresets(ref, { exclude: !!figure }) },
     { file: '.gitignore', text: GITIGNORE },
     {
       file: 'README.md',
@@ -201,17 +276,18 @@ reference performance.
 
 ${greyboxSection(score.posture === 'greybox')}## Open and play
 
-Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
+${figure ? figurePlay(figure) : `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
 walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.${playerSuit(score) ? `
 Your figure is a rigged body: it follows you as a third-person suit (walk
 cycle while moving, idle when still), and every other rigged figure breathes
-its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}
+its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}`}
 
 ## What travelled, what didn't
 
 ${ledgerLines(ledger)}
 `,
     },
+    ...(figure ? [{ file: `${glbFile}.import`, text: FIGURE_IMPORT }, { file: 'figure.gd', text: FIGURE_VIEW_GD }] : []),
   ];
   return { files, ledger };
 }

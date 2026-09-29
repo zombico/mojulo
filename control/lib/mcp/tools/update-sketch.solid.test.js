@@ -715,6 +715,42 @@ describe('the hero door stands the hero in a gesture', () => {
   });
 });
 
+// the door's clips: `clips` at the hero door is `{ <name>: [keys] | false }` in the rig's pose words, stored as given and
+// merged over the hero's own when the plan is generated; /hero/clips and /hero/clips/<name> regenerate, any other /hero
+// edit keeps them (the plan regenerates from the record); a bad word, the stand's name and an unsolvable key refuse by
+// name and leave the row as it was.
+describe("the hero door's clips through update_sketch", () => {
+  it('mints with a clip; it survives an unrelated /hero edit; /hero/clips/<name> replaces, removes and re-adds; refusals leave the row', async () => {
+    const K = [{ armR: 'forward', elbowR: 'slight' }, { armR: ['forward', 'up'], elbowR: 'half', head: { x: 0.1, y: 0.95, z: 0.3 } }];
+    const K2 = [{}, { armL: ['forward', 'up'], elbowL: 'half', head: 'up' }];
+    const row = () => SketchRepository.getByRef('hero-clips');
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-clips', spec: { cast: 'male', head: 'none', register: 'lowpoly', clips: { reach: K } } });
+    expect(minted.ok).toBe(true); expect(minted.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave', 'reach']);
+    expect(minted.hero.clips).toEqual({ plays: ['idle', 'walk', 'wave', 'reach'], authored: ['reach'] }); expect(minted.next.reason).toMatch(/Clips: set \/hero\/clips to \{ <name>: \[keys\] \}.*; a name the figure plays \(idle, walk, wave, reach\) replaces that clip/);
+    expect(row().manifest.hero.clips).toEqual({ reach: K }); expect(row().manifest.recipe.clips.reach).toEqual(K);
+    // an unrelated /hero edit regenerates the plan from the record: the clip rides along
+    const legs = await updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/tune/legs', value: 1.05 }] });
+    expect(legs.ok).toBe(true); expect(legs.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave', 'reach']); expect(row().manifest.recipe.clips.reach).toEqual(K);
+    // by name: one door clip replaced, one of the hero's own removed
+    const swap = await updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/reach', value: K2 }, { op: 'set', path: '/hero/clips/wave', value: false }] });
+    expect(swap.stats.layered.rig.clips).toEqual(['idle', 'walk', 'reach']); expect(swap.stats.hero.clips).toEqual({ plays: ['idle', 'walk', 'reach'], authored: ['reach'], removed: ['wave'] });
+    expect(row().manifest.recipe.clips.reach).toEqual(K2); expect(row().manifest.recipe.clips.wave).toBeUndefined();
+    // both removed: the field drops (sparse) and the hero's own clips are back
+    const back = await updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'remove', path: '/hero/clips/reach' }, { op: 'remove', path: '/hero/clips/wave' }] });
+    expect(back.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave']); expect(back.stats.hero.clips).toBeUndefined();
+    expect('clips' in row().manifest.hero).toBe(false); expect(Object.keys(row().manifest.recipe.clips)).toEqual(['idle', 'walk', 'wave']);
+    expect(row().manifest.plan).toEqual(heroPlanOf(row().manifest.hero));
+    const again = await updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips', value: { reach: K } }] });
+    expect(again.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave', 'reach']); expect(row().manifest.hero.clips).toEqual({ reach: K });
+    // refused by name; the row untouched
+    const before = JSON.stringify(row().manifest);
+    await expect(updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/gesture', value: [{}] }] })).rejects.toThrow(/clips\.gesture: the stand's clip/);
+    await expect(updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/reach', value: [{ elbowR: 'kinked' }] }] })).rejects.toThrow(/clips\.reach\[0\]\.elbowR: a bend word/);
+    await expect(updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/lunge', value: [{}, { pelvis: 25 }] }] })).rejects.toThrow(/the clip 'lunge' \(hero\.clips\.lunge\[1\]\)/);
+    expect(JSON.stringify(row().manifest)).toBe(before);
+  });
+});
+
 // the door around the new channels: the non-anime readout's keys (it gains only the budget), the dress ledgers read at
 // rest whatever dial the mint turned, and the character light's toon fields — the anime hero's outline opt-out kept at
 // the door, an invalid light refused by field at the door and on a /toon edit.

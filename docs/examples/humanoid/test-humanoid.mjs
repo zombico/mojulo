@@ -202,7 +202,7 @@ test('each fitted jaw meets the ear: the rear column is the ramus back edge at r
   for (const dials of [{ jawOpen: 25 }]) assert.deepEqual(closed(head, dials), [], `${preset} the jaw still opens closed`);
 } });
 
-test('the worked cast: every spec passes the hero door without a refusal; the heroine also plans (the recipe and rig gates)', async () => {
+test('the worked cast: every spec passes the hero door without a refusal; the heroine also plans (the recipe and rig gates), her own clips among them', async () => {
   register('../../../control/scripts/mcp-stdio-loader.mjs', import.meta.url);   // the `@/` alias layered.js imports through
   const { HERO_FIELDS, heroRecord, expandLayeredManifest, planLayered } = await import('../../../control/lib/mcp/tools/layered.js');
   const { toonLightErrors } = await import('../../../control/lib/graph/polygonizer/vexar.js');
@@ -219,6 +219,11 @@ test('the worked cast: every spec passes the hero door without a refusal; the he
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(input) });
     assert.ok(m.plan && m.recipe, `${f}: a plan and its recipe`);
     assert.deepEqual(spec.toon && typeof spec.toon === 'object' ? toonLightErrors(spec.toon.light) : [], [], `${f}: toon.light`);
-    if (spec.name === 'heroine') assert.ok(planLayered({ ...m, ...(spec.toon ? { toon: spec.toon } : {}), units: 'm' }).stats.layered.rig, 'the heroine plans, rigged');
+    if (spec.name === 'heroine') {
+      const planned = planLayered({ ...m, ...(spec.toon ? { toon: spec.toon } : {}), units: 'm' });
+      assert.ok(planned.stats.layered.rig, 'the heroine plans, rigged');
+      assert.deepEqual(planned.stats.layered.rig.clips, ['gesture', 'idle', 'walk', 'wave', 'greet', 'idleRelaxed', 'run', 'victory'], "her own clips follow the hero's, through the rig gates with them");
+      for (const [name, keys] of Object.entries(spec.hero.clips)) assert.deepEqual(m.recipe.clips[name], keys, name);
+    }
   }
 });
