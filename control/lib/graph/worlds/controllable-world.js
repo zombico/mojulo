@@ -21,6 +21,7 @@
  */
 
 import { composeLive } from './controllable/compose.js';
+import { optionalPackModule } from '../content-pack.js';
 
 // ── standalone `controllable` world kind ─────────────────────────────────────────────────────────
 // Most controllable worlds RIDE on an existing kind (a figure walking a stored city). This assembler
@@ -31,10 +32,8 @@ import { composeLive } from './controllable/compose.js';
 // engine→mobile-suit seam (controllable-split.plan.md): the atmosphere regrade lives in the content
 // pack, loaded LAZILY and CONTAINED — pack absent, the no-op mirrors the function's own
 // "no manifest.atmosphere" null return, so un-keyed worlds are byte-identical either way.
-let applyArenaAtmosphere = () => null;
-try {
-  ({ applyArenaAtmosphere } = await import('../mobile-suit/arena-atmosphere.js'));
-} catch (err) { console.error('mobile-suit pack absent — atmosphere keying disabled:', err?.message); }
+const applyArenaAtmosphere = (await optionalPackModule(() => import('../mobile-suit/arena-atmosphere.js'),
+  'mobile-suit/arena-atmosphere.js', 'atmosphere keying'))?.applyArenaAtmosphere ?? (() => null);
 // `spec.center` ([x, y], default the origin) slides the checkerboard under content that does not
 // sit on the origin — a floorplan spans (0..w, 0..h), so its bake variant centres the stage on
 // the room. Absent ⇒ byte-identical to the origin-centred stage every existing manifest gets.

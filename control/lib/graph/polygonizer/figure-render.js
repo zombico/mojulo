@@ -33,11 +33,12 @@ import { manifestGarment } from './figure-outfit.js';
 import { buildWig, WIGS } from './wig.js';
 import { resolveFigureSetup } from '../../visual-language/themes.js';
 import { buildAnimal } from './figure-animal-build.js';
-// engine→mobile-suit seam (mobile-suit-pack.plan.md): the shield prop rides the ms-shield shelf
-// LAZILY and CONTAINED — with that module absent or broken, figures render shieldless instead of
-// the whole figure pipeline failing at import time.
-let resolveMsShieldRecipe = null;
-try { ({ resolveMsShieldRecipe } = await import('../mobile-suit/ms-shield.js')); } catch (err) { console.error('ms-shield shelf unavailable — figures render shieldless:', err?.message); }
+import { optionalPackModule } from '../content-pack.js';
+// engine→mobile-suit seam: the shield prop rides the ms-shield shelf LAZILY and CONTAINED — with
+// the pack absent (every release) or broken, figures render shieldless instead of the whole figure
+// pipeline failing at import time.
+const resolveMsShieldRecipe = (await optionalPackModule(() => import('../mobile-suit/ms-shield.js'),
+  'mobile-suit/ms-shield.js', 'figure shields'))?.resolveMsShieldRecipe ?? null;
 import { extrudeToFaces } from './extrude-faces.js';
 import { buildAttachments } from './figure-attach.js';
 import { sweepToFaces } from './sweep-faces.js';
