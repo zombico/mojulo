@@ -218,6 +218,13 @@ export const EMIT_FIXTURES = [
     .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'diamond', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0, 1], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },
     crystalLight: { lamps: [{ at: [0, -4, 0.3], aim: [0, 0, 0.25] }], targets: [{ id: 'door', at: [0, 3, 0.25], r: 0.3, want: { color: 'green' } }] } }],
 
+  // metal channel (metal-surfaces S3): faces tagged `metal` gate the live metal response (and __mojMetal): a brushed
+  // stainless panel beside an anodized titanium one, so the lookup texture carries a bare and a film metal
+  ['metal', { faces: [floor(),
+    { ...quad('#a8a39b'), group: 'panel', metal: { s: '{"metal":"stainless","finish":"brushed","along":"x","seed":0}', d: 0, ta: 0 } },
+    { corners: [[2.2, 0, 0], [4, 0, 0], [4, 0, 2], [2.2, 0, 2]], fill: '#2d6db2', group: 'panel', metal: { s: '{"metal":"titanium","finish":"polished","along":"auto","film":{"anodize":25},"seed":0}', d: 49, ta: 0 } }],
+    light: { toLight: [0.4, -0.5, 0.75] } }],
+
   // a crystal a mover turns: its print is re-traced on the page (crystal-rig R4), not baked
   ['crystal-moving', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
     .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'calcite', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0.6, 0.8], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },

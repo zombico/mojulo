@@ -432,6 +432,33 @@ export function plainFaces(faces) {
     return { ...rest, fill: plainFill };
   });
 }
+/**
+ * Smoothed normals for metal faces: Map(face → { face: n, 0: n0, 1: n1, … } per corner). Positions are matched on a
+ * fine grid (1e-4 of a unit); a neighbour counts only within 40° of the face's own normal, so creases stay sharp.
+ */
+function metalVertexNormals(faces) {
+  const key = (p) => `${Math.round(p[0] * 1e4)},${Math.round(p[1] * 1e4)},${Math.round(p[2] * 1e4)}`;
+  const nOf = (c) => { const e = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], f = [c[2][0] - c[0][0], c[2][1] - c[0][1], c[2][2] - c[0][2]];
+    const n = [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]]; const l = Math.hypot(...n); return l > 1e-12 ? n.map((v) => v / l) : null; };
+  const at = new Map(); const fn = new Map();
+  for (const f of faces) { if (!f || !f.metal || !Array.isArray(f.corners) || f.corners.length < 3) continue; const n = nOf(f.corners); if (!n) continue; fn.set(f, n);
+    for (const c of f.corners) { const k = key(c); (at.get(k) || at.set(k, []).get(k)).push(n); } }
+  const out = new Map(); const COS = Math.cos(40 * Math.PI / 180);
+  for (const [f, n] of fn) { const row = { face: n.map((v) => +v.toFixed(5)) };
+    f.corners.forEach((c, i) => { const s = [0, 0, 0]; for (const m of at.get(key(c)) || []) if (m[0] * n[0] + m[1] * n[1] + m[2] * n[2] >= COS) { s[0] += m[0]; s[1] += m[1]; s[2] += m[2]; } const l = Math.hypot(...s); row[i] = l > 1e-12 ? s.map((v) => +(v / l).toFixed(5)) : row.face; });
+    out.set(f, row); }
+  return out;
+}
+
+/** A face's toolpath tangent from its corners: the first edge turned by `ta` radians about the face normal. */
+function faceTangent(c, ta) {
+  const e = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], f = [c[2][0] - c[0][0], c[2][1] - c[0][1], c[2][2] - c[0][2]];
+  const n = [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]];
+  const le = Math.hypot(e[0], e[1], e[2]), ln = Math.hypot(n[0], n[1], n[2]); if (le < 1e-12 || ln < 1e-12) return [1, 0, 0];
+  const u = e.map((v) => v / le), w = n.map((v) => v / ln); const b = [w[1] * u[2] - w[2] * u[1], w[2] * u[0] - w[0] * u[2], w[0] * u[1] - w[1] * u[0]];
+  const cs = Math.cos(ta), sn = Math.sin(ta); return [u[0] * cs + b[0] * sn, u[1] * cs + b[1] * sn, u[2] * cs + b[2] * sn].map((v) => +v.toFixed(5));
+}
+
 export function faceListToMesh(faces = [], { decollide = true, withNormals = false } = {}) {
   const positions = [];
   const colors = [];
@@ -455,6 +482,23 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     if (!crys) return; const k = f.crystal; const c = k && Array.isArray(k.c) ? k.c : [0, 0, 0], a = k && Array.isArray(k.axis) ? k.axis : [0, 0, 1];
     const row = k ? [c[0], c[1], c[2], Number.isFinite(k.r) ? k.r : 1, a[0], a[1], a[2], cryGems.indexOf(cryKey(k))] : [0, 0, 0, 0, 0, 0, 1, -1];
     for (let i = 0; i < n; i++) crys.push(...row);
+  };
+  // Per-vertex metal data (metal-surfaces S2): a face tagged `metal: { s, d, ta }` (polygonizer/materials.js
+  // tagFacesWithMetal) contributes its toolpath tangent — rebuilt HERE from the final corners, at angle `ta` from the
+  // first edge about the face normal, so every pose and mirror applied since tagging is honoured — a slot into this
+  // mesh's own surface list, and its film thickness. Packed ONLY when some face is metal (null otherwise:
+  // byte-identical downstream). Untagged faces in a metal mesh pack slot −1.
+  const hasMet = faces.some((f) => f && f.metal && typeof f.metal.s === 'string');
+  const mets = hasMet ? [] : null; const metSurfaces = hasMet ? [...new Set(faces.filter((f) => f && f.metal && typeof f.metal.s === 'string').map((f) => f.metal.s))].sort() : null;
+  // A metal reflects its normal exactly, so a lathe's or a sweep's flat facets would read as facets: each metal vertex
+  // also carries a SMOOTHED normal — the mean of the metal face normals meeting at that position within 40° of its own
+  // face (a crease keeps its edge). `idx` names the corners a vertex came from; clip/radius vertices take the face's.
+  const smooth = hasMet ? metalVertexNormals(faces) : null;
+  const pushMet = (f, n, idx = null) => {
+    if (!mets) return; const m = f.metal && typeof f.metal.s === 'string' ? f.metal : null;
+    if (!m) { for (let i = 0; i < n; i++) mets.push(0, 0, 1, -1, 0, 0, 0, 0); return; }
+    const head = [...faceTangent(f.corners, m.ta || 0), metSurfaces.indexOf(m.s), Number.isFinite(m.d) ? m.d : 0];
+    const sn = smooth.get(f); for (let i = 0; i < n; i++) { const nn = sn ? sn[idx ? idx[i] : 0] || sn.face : [0, 0, 0]; mets.push(...head, ...(idx && sn ? nn : sn ? sn.face : nn)); }
   };
   // Faces carrying a `texture` key + per-corner `uv` are split into one mesh group per key (rendered
   // with a MeshBasicMaterial({ map }) by emitThreeWorld — the workbench's label-wrap path). Faces
@@ -535,6 +579,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
         }
         pushSpec(f, 3);
         pushCry(f, 3);
+        pushMet(f, 3);   // clip/radius vertices: the face normal
         pushNormal(3);
       }
     } else {
@@ -556,6 +601,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       }
       pushSpec(f, tris.length * 3);
       pushCry(f, tris.length * 3);
+      pushMet(f, tris.length * 3, tris.flat());
       pushNormal(tris.length * 3);
     }
     for (let i = 0; i < c.length && i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
@@ -593,6 +639,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     specs: specs && specs.length ? Float32Array.from(specs) : null,
     // per-vertex [cx, cy, cz, r, ax, ay, az, slot] and the gems the slots index — null unless some face is a crystal
     ...(crys && crys.length ? { crys: Float32Array.from(crys), cryGems } : {}),
+    // per-vertex [tx, ty, tz, slot, d, nx, ny, nz] and the metal surfaces the slots index — null unless some face is metal
+    ...(mets && mets.length ? { mets: Float32Array.from(mets), metSurfaces } : {}),
     vertexCount: positions.length / 3,
     faceCount: faces.length,
     center,

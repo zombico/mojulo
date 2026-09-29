@@ -14,6 +14,27 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Metal surfaces
+
+Metal becomes a surface any part, facade or roof can wear: a metal, a finish, an optional oxide film, and a seed. On
+the World page it reads as metal, not paint. Opt-in through a `{ metal, … }` spec wherever a material is accepted.
+Recipes without one are byte-identical.
+
+- **One spec, everywhere a material goes.** `{ metal: 'stainless', finish: 'brushed', along: 'x', film: { temper:
+  320 } }`. Metals, each carrying two measured colours (head-on and grazing): steel, stainless, aluminium, titanium,
+  copper, brass, bronze, zinc, nickel, chrome, gold, silver, bismuth. Finishes: mirror, polished, brushed, turned,
+  blasted, planished, spangle, mill scale, and bismuth's hopper terraces. Films by what makes them: a temper or heat
+  tint by temperature, an anodize by volts, copper's age by years, or a thickness in nanometres.
+- **The page reflects.** A new `metal` channel shades metal faces per pixel. It reflects a studio through the
+  finish's roughness, stretches the highlight along the toolpath (a turned face shows its bow tie), and colours oxide
+  films by thickness and angle. Streaks, feed rings, blast grain, hammer dimples and spangle are drawn in the shader,
+  so they cost no texture bytes. Scenes without metal faces emit none of it.
+- **Parts and buildings.** Workbench parts, face-ops, carved solids and vehicles take the spec as their `material`.
+  An edifice mass takes `facade.material: 'metal'` (panels with seams) and a metal curtain-wall frame. Roofs take
+  standing-seam metal. A house takes metal cladding and a metal roof. A store's trim takes a metal.
+- **Exports keep the metal.** Each metal surface becomes its own glTF and USD material: its colour, metallic 1, and
+  its finish's roughness. Oxide films declare iridescence.
+
 ### Terrain vegetation
 
 Grown forests on terrain worlds. They stand where the ground is painted wood, at their real size in any world, and
