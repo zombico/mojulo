@@ -7,6 +7,9 @@
  * the treeline). The temperature law is pinned to the climate's own treeline, so the painter's treeline and the trees'
  * agree.
  *
+ * With `figs`, a tropical world's lowland forest also grows figs: banyans, stranglers and rubber figs, sparse (large figs
+ * stand about one a hectare in a lowland rainforest).
+ *
  * Known gaps (no species yet): arid scrub stays painted, with no plants on it.
  */
 import { SPECIES } from '../vegetation/species.js';
@@ -21,7 +24,7 @@ export const LAPSE = 6.5;
 export const TREELINE_T = 6.7;
 /** A crown's diameter over the plant's height (a clump's, for Bambusa), for spacing a stand so its crowns cover what the
  *  painter shows. */
-const CROWN = { oak: 0.6, beech: 0.55, fir: 0.4, schefflera: 1.1, coconut: 0.5, date: 0.55, washingtonia: 0.3, treefern: 0.8, moso: 0.25, vulgaris: 1.1, reed: 0.3, spruce: 0.25, silverfir: 0.32, pine: 0.4 };
+const CROWN = { oak: 0.6, beech: 0.55, fir: 0.4, schefflera: 1.1, banyan: 1.6, strangler: 0.7, rubberfig: 0.9, coconut: 0.5, date: 0.55, washingtonia: 0.3, treefern: 0.8, moso: 0.25, vulgaris: 1.1, reed: 0.3, spruce: 0.25, silverfir: 0.32, pine: 0.4 };
 /** Culms per square metre of a running bamboo's grove: Moso managed for timber, about 1,500 a hectare (Moso stands run
  *  1,200–11,000; a world's groves are drawn at the managed end). */
 const GROVE = { moso: 0.15 };
@@ -101,9 +104,16 @@ export const PLANT_REGIONS = Object.freeze({
   },
 });
 
+/** The fig rows `plants.figs` adds to a tropical world, after its umbrella trees: the lowland only (T ≥ 18). */
+export const FIG_ROWS = Object.freeze([
+  { species: 'banyan', zone: 'land', T: [18, 45], w: 0.05 },
+  { species: 'strangler', zone: 'land', T: [18, 45], M: [0.7, 2], w: 0.05 },
+  { species: 'rubberfig', zone: 'land', T: [18, 45], M: [0.6, 2], w: 0.035 },
+]);
+
 export const TERRAIN_PLANT_DEFAULTS = Object.freeze({ radius: 1200, level: 'L2', variants: 2 });
 
-/** `plants` on a terrain manifest: true, or { radius?, level?, variants?, region? }. → error strings. */
+/** `plants` on a terrain manifest: true, or { radius?, level?, variants?, figs?, region? }. → error strings. */
 export function validateTerrainPlants(plants, manifest = {}) {
   if (plants === undefined || plants === null || plants === false) return [];
   const e = [];
@@ -115,6 +125,7 @@ export function validateTerrainPlants(plants, manifest = {}) {
   num('radius', 200, 3000, 'metres around the camera where plants are drawn; past it the ground\'s own colour carries the woods');
   num('variants', 1, 4, 'grown variants per species');
   if (plants.level !== undefined && !['L0', 'L1', 'L2'].includes(plants.level)) e.push('terrain.plants.level must be L0, L1 or L2 (the most detail a template carries)');
+  if (plants.figs !== undefined && typeof plants.figs !== 'boolean') e.push('terrain.plants.figs must be true or false (a tropical world\'s lowland forest also grows banyans, stranglers and rubber figs)');
   if (plants.region !== undefined && !PLANT_REGIONS[plants.region]) e.push(`terrain.plants.region must be one of ${Object.keys(PLANT_REGIONS).join(', ')} (whose conifers the climate grows; absent, the climate's own)`);
   return e;
 }
@@ -130,9 +141,11 @@ export function resolveTerrainPlants(plants) {
  * order (a `region`'s rows for the climate, when it names them); the canopy layer's cell is sized to the smallest crown
  * among them (bigger crowns keep fewer cells).
  */
-export function plantsConfig(field, { seed = 'plants', region = null } = {}) {
+export function plantsConfig(field, { seed = 'plants', figs = false, region = null } = {}) {
   const K = field.K, climate = field.atlas && field.atlas.climate ? field.atlas.climate : field.climate || 'temperate';
-  const C = (region && PLANT_REGIONS[region] && PLANT_REGIONS[region][climate]) || PLANT_CLIMATES[climate] || PLANT_CLIMATES.temperate;
+  const C0 = (region && PLANT_REGIONS[region] && PLANT_REGIONS[region][climate]) || PLANT_CLIMATES[climate] || PLANT_CLIMATES.temperate;
+  // figs join a tropical climate's rows right after its umbrella trees; any other climate is unchanged
+  const C = figs && climate === 'tropical' ? { ...C0, rows: C0.rows.flatMap((r) => (r.species === 'schefflera' ? [r, ...FIG_ROWS] : [r])) } : C0;
   const names = [...new Set(C.rows.map((r) => r.species))];
   const species = names.map((name) => ({ name, h: SPECIES[name].heights.slice(), crown: CROWN[name] }));
   const idx = (name) => names.indexOf(name);

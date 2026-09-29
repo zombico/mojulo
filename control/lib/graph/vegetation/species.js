@@ -4,7 +4,8 @@ export const LEVELS = ['L0', 'L1', 'L2', 'L3'];
 /**
  * The species table: what each name grows. Heights are the placement range a scatter should draw from; `bark` is the
  * fracture preset its trunk wears (`fir`, the self-organizing Massart tree, keeps pine's plates); `leafLife` (years a
- * leaf is kept, over the architecture's own) makes a tree evergreen.
+ * leaf is kept, over the architecture's own) makes a tree evergreen; `fig` names a fig row (ficus.js), whose architecture
+ * carries its roots, lattice or buttresses.
  */
 export const SPECIES = Object.freeze({
   oak: { kind: 'tree', bark: 'oak', arch: 'rauh', years: 20, leafScale: 1.5, heights: [11, 20] },
@@ -12,6 +13,11 @@ export const SPECIES = Object.freeze({
   fir: { kind: 'tree', bark: 'pine', arch: 'massart', years: 16, leafScale: 1, heights: [9, 17] },
   // the umbrella tree of tropical mountains: Leeuwenberg's sympodial crown on a short forking bole, evergreen
   schefflera: { kind: 'tree', bark: 'beech', arch: 'leeuwenberg', years: 18, leafScale: 1.4, leafLife: 3, heights: [10, 24] },
+  // the figs of a tropical forest (ficus.js): a banyan on its pillar roots, an emergent strangler on its lattice, a rubber
+  // fig on plank buttresses
+  banyan: { kind: 'tree', bark: 'beech', arch: 'rauh', fig: 'banyan', years: 22, leafScale: 1.3, heights: [12, 22] },
+  strangler: { kind: 'tree', bark: 'beech', arch: 'rauh', fig: 'strangler', years: 24, leafScale: 1.4, heights: [25, 38] },
+  rubberfig: { kind: 'tree', bark: 'beech', arch: 'troll', fig: 'rubberfig', years: 24, leafScale: 1.2, heights: [20, 35] },
   coconut: { kind: 'palm', palm: 'coconut', ages: [22, 32, 45], heights: [8, 26] },
   date: { kind: 'palm', palm: 'date', ages: [18, 30, 45], heights: [5, 16] },
   washingtonia: { kind: 'palm', palm: 'washingtonia', ages: [25, 40], heights: [11, 18] },
