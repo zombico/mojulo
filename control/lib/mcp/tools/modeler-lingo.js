@@ -151,6 +151,18 @@ const LEXICON = [
     dcc: "Import the .usdz/.usda; upAxis is Z and metersPerUnit follows the recipe's units, so it lands upright at true scale. Textured groups arrive as UsdPreviewSurface + UsdUVTexture; everything else shows displayColor. Re-light and re-shade there.",
   },
   {
+    id: 'bim-ifc',
+    terms: ['ifc', 'bim', 'building information model', 'revit', 'archicad', 'bonsai', 'blenderbim', 'ifc export', 'ifcopenshell'],
+    concept: 'Hand a building to the BIM side as elements with classes, materials and quantities, not as a mesh.',
+    support: NATIVE,
+    routes: [
+      { tool: 'export_model', when: "a house (floorplan with `storeys`): IFC4 — storeys, spaces, walls, openings, slabs, roof; a framed house's members, linings, circuits; its drains", args: { ref: '<sk_ref>', format: 'ifc' } },
+    ],
+    then: [],
+    ceiling: "Houses only. Members extrude along their centrelines without their joinery cut in; linings, boxes and cable are boxes. Export only: mojulo does not read IFC back.",
+    dcc: 'Open the .ifc in Bonsai (Blender), Revit or ArchiCAD. Elements carry a Mojulo_Element property set whose Key names them in the recipe; GlobalIds hold across re-exports.',
+  },
+  {
     id: 'low-poly',
     terms: ['low poly', 'low-poly', 'lowpoly', 'game res', 'game-res', 'real-time mesh', 'optimized mesh', 'poly count'],
     concept: 'Lean, game-ready geometry with a controlled triangle budget.',

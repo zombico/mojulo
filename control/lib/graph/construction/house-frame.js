@@ -24,13 +24,14 @@
 // The roof follows the house's roof style: gable-family forms frame as a gable, hip-family as a hip (commons, hips,
 // jacks), shed and butterfly as mono-pitches, flat forms as joists; no roof, just ceiling joists.
 import { lowerFrame, FRAME_DETAILS } from './frame.js';
-import { TRADITION_KEYS, TRADITION_OF, TRADITIONS } from './catalog.js';
+import { TRADITION_KEYS, TRADITION_OF, TRADITIONS, CATALOG } from './catalog.js';
 import { planLinings, STAGES } from './linings.js';
 import { planWiring } from './wiring.js';
 import { elementFaces } from './elements.js';
 import { instanceGroups } from './instancing.js';
 import { buildConstructionModel } from './bim.js';
 import { ROOF_STYLES } from '../architecture/roof.js';
+import { layCovering, COVERINGS } from './roofing.js';
 
 export const FRAMING_SYSTEMS = Object.freeze(['platform', 'masonry', 'post-and-beam', 'kigumi', 'steel', 'concrete']);
 export const FRAMING_VIEWS = Object.freeze(['framed', 'cutaway']);
@@ -307,10 +308,27 @@ function roofFrame(F, fp, ze, roof, r, { ceiling = null } = {}) {
   const spec = { ...r.spec, up: [0, 0, 1] };
   const rafter = (a0, c0, d0, a1, c1, d1, s = spec) => F.add('rafter', Pw(a0, c0, zAt(d0)), Pw(a1, c1, zAt(d1)), s);
   const as = layout(wA0, wA1, r.spacing, 0.75 * IN);
-  const out = { framedAs: roof.framedAs, rafters: 0 };
+  const out = { framedAs: roof.framedAs, rafters: 0, planes: [] };
+  // the planes over the rafters' backs, where the deck and the covering go
+  const zT = (dist) => ze + p * dist + r.d / cos;
+  const plane = (key, pts) => out.planes.push({ key, corners: pts.map(([a, c, z]) => pt3(Pw(a, c, z))) });
   if (roof.framedAs === 'flat' || p <= 0.01) {
     for (const a of as) F.add('roof-joist', Pw(a, wC0 - oh, ze + r.d / 2), Pw(a, wC1 + oh, ze + r.d / 2), spec);
+    plane('flat', [[wA0, wC0 - oh, ze + r.d], [wA1, wC0 - oh, ze + r.d], [wA1, wC1 + oh, ze + r.d], [wA0, wC1 + oh, ze + r.d]]);
     return out;
+  }
+  if (roof.framedAs === 'gable') for (const [k, c] of [['near', wC0 - oh], ['far', wC1 + oh]]) plane(k, [[wA0, c, zT(-oh)], [wA1, c, zT(-oh)], [wA1, acm, zT(half)], [wA0, acm, zT(half)]]);
+  else if (roof.framedAs === 'hip') {
+    const r0 = wA0 + half, r1 = wA1 - half;
+    const e = zT(-oh), t = zT(half);
+    plane('near', [[wA0 - oh, wC0 - oh, e], [wA1 + oh, wC0 - oh, e], [r1, acm, t], [r0, acm, t]]);
+    plane('far', [[wA0 - oh, wC1 + oh, e], [wA1 + oh, wC1 + oh, e], [r1, acm, t], [r0, acm, t]]);
+    plane('end0', [[wA0 - oh, wC0 - oh, e], [r0, acm, t], [wA0 - oh, wC1 + oh, e]]);
+    plane('end1', [[wA1 + oh, wC0 - oh, e], [wA1 + oh, wC1 + oh, e], [r1, acm, t]]);
+  } else if (roof.framedAs === 'shed') plane('shed', [[wA0, wC0 - oh, zT(-oh)], [wA1, wC0 - oh, zT(-oh)], [wA1, wC1 + oh, zT(2 * half + oh)], [wA0, wC1 + oh, zT(2 * half + oh)]]);
+  else {
+    const zV = (dist) => ze + p * (half - dist) + r.d / cos;
+    for (const [k, c] of [['near', wC0 - oh], ['far', wC1 + oh]]) plane(k, [[wA0, c, zV(-oh)], [wA1, c, zV(-oh)], [wA1, acm, zV(half)], [wA0, acm, zV(half)]]);
   }
   const ridgeT = r.ridge ? r.ridge.t : 1.5 * IN;
   if (roof.framedAs === 'gable') {
@@ -533,7 +551,7 @@ export function planHouseFraming(house, framing, o = {}) {
     notes.push('the house has no roof, so its top storey is capped with ceiling joists');
   }
   if (R.members.length) frames.push(finishFrame(R));
-  return { frames, notes, roof: roof ? { form: roof.form, framedAs: roofOut ? roofOut.framedAs : null } : null };
+  return { frames, notes, roof: roof ? { form: roof.form, framedAs: roofOut ? roofOut.framedAs : null } : null, roofPlanes: roofOut ? roofOut.planes : [] };
 }
 
 /** A concrete floor slab in strips over the grid (steel: on IPE joists at 4 ft between the grid beams). */
@@ -761,7 +779,8 @@ export function houseFramingFaces(house, framing, o = {}) {
     for (const w of r.walls || []) takeoff.masonry.units += w.units;
   }
   // ── the stage: what closes the frame (linings) and what runs in it (wiring), and the model of all of it ──
-  let model = null, wiring = null;
+  let model = null, wiring = null, roofing = null;
+  const roofEls = [];
   if (f.stage !== 'frame') {
     const cfg = { system: f.system, tradition: f.tradition, stage: f.stage };
     const lin = planLinings(house, cfg, plan.frames, o);
@@ -787,8 +806,31 @@ export function houseFramingFaces(house, framing, o = {}) {
         repeats.push({ ...r, group: tag, template: r.template.map((t) => ({ ...t, group: tag })) });
       }
     } else faces.push(...efaces);
-    model = buildConstructionModel({ frames: [...plan.frames, ...lin.frames], reports, elements: wiring ? [...lin.elements, ...wiring.all] : lin.elements, wiring, levels: house.levels });
+    // the roof: decked (North American, Japanese) or felted and battened (British, metric) at rough-in; covered when lined
+    if (plan.roofPlanes.length) {
+      const rs = o.roof && typeof o.roof === 'object' ? { style: o.roof.style || 'bungalow', ...o.roof } : { style: typeof o.roof === 'string' ? o.roof : 'bungalow' };
+      const st = { ...(ROOF_STYLES[rs.style] || ROOF_STYLES.bungalow), ...rs };
+      const lined = f.stage === 'lined';
+      const rstage = lined ? 'covered' : f.tradition === 'british' || f.tradition === 'metric' ? 'battens' : 'deck';
+      const deckMat = f.tradition === 'japanese' ? 'board:nojiita' : 'board:osb-11';
+      const cov = layCovering(plan.roofPlanes, rs.covering ?? true, { light: o.light, eyes, stage: rstage, deck: { rgb: CATALOG[deckMat].rgb }, styleTexture: st.material, group: 'framing:roof:covering', instance: f.instance });
+      // cut away, the roof keeps what stands past the cut, as the finished house does
+      const xc = f.view === 'cutaway' ? fp.x0 + f.cut * (fp.x1 - fp.x0) : null;
+      faces.push(...(xc === null ? cov.faces : clipFacesAtX(cov.faces, xc)));
+      repeats.push(...(xc === null ? cov.repeats : cov.repeats.map((r) => ({ ...r, transforms: r.transforms.filter((t) => t.pos[0] >= xc) })).filter((r) => r.transforms.length)));
+      const mat = rstage === 'covered' ? cov.report.material : rstage === 'battens' ? 'roofing:felt' : deckMat;
+      for (const pl of plan.roofPlanes) {
+        const pts = pl.corners;
+        const lo = [0, 1, 2].map((i) => Math.min(...pts.map((q) => q[i]))), hi = [0, 1, 2].map((i) => Math.max(...pts.map((q) => q[i])));
+        const pr = cov.report.planes.find((x) => x.key === pl.key);
+        roofEls.push({ key: `roof:${rstage}:${pl.key}`, ifc: rstage === 'covered' ? 'IfcCovering' : rstage === 'deck' ? 'IfcPlate' : 'IfcCovering', type: rstage === 'covered' ? 'ROOFING' : rstage === 'deck' ? 'SHEET' : 'MEMBRANE', material: mat, storey: levels[levels.length - 1].index, lo, hi, plane: pts, thicknessMm: rstage === 'covered' ? 2 * (COVERINGS[cov.report.covering].thick || 10) + (COVERINGS[cov.report.covering].depth || 0) : rstage === 'deck' ? CATALOG[deckMat].mm : 1, quantities: { areaSqFt: pr ? pr.areaSqFt : 0, ...(rstage === 'covered' && pr ? { units: pr.units } : {}) } });
+      }
+      roofing = cov.report;
+    }
+    model = buildConstructionModel({ frames: [...plan.frames, ...lin.frames], reports, elements: [...lin.elements, ...(wiring ? wiring.all : []), ...roofEls], wiring, levels: house.levels });
   }
+  // the frame alone as a model, when a caller asks for one (an IFC export of a house at `frame`)
+  if (!model && o._model) model = buildConstructionModel({ frames: plan.frames, reports, elements: [], wiring: null, levels: house.levels });
   const rd = (v) => Math.round(v);
   const report = {
     system: f.system, view: f.view, detail: details,
@@ -803,7 +845,7 @@ export function houseFramingFaces(house, framing, o = {}) {
     },
     ...(f.stage !== 'frame' ? { stage: f.stage, tradition: f.tradition, assemblies: TRADITIONS[f.tradition] } : {}),
     ...(model ? { model: { summary: model.summary, checks: model.checks, schedules: { sheets: model.schedules.sheets, panel: model.schedules.panel, cutList: model.schedules.cutList.length } } } : {}),
-    ...(plan.roof ? { roof: plan.roof } : {}),
+    ...(plan.roof ? { roof: { ...plan.roof, ...(roofing ? { covering: roofing.covering, stage: roofing.stage, units: roofing.units, areaSqFt: roofing.areaSqFt } : {}) } } : {}),
     ...(notes.length ? { notes } : {}),
     ...(degraded ? { degraded } : {}),
   };

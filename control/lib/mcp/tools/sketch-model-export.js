@@ -4,7 +4,7 @@
  * sketches.js hosted six unrelated tool families in one 2038-line file; each
  * now owns its own module and sketches.js is the registration surface.
  */
-// Model EXPORT (GLB, the print-purposed STL / 3MF, OpenUSD usda / usdz, OpenSCAD, and the
+// Model EXPORT (GLB, the print-purposed STL / 3MF, OpenUSD usda / usdz, OpenSCAD, IFC, and the
 // self-contained world.html) and the mesh-render bind.
 
 
@@ -26,6 +26,7 @@ import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
+import { manifestToIfc } from '@/lib/graph/construction/ifc';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
@@ -183,6 +184,49 @@ export const HTML_CDN_NOTE = 'three.js loads from cdn.jsdelivr.net (pinned) — 
   + '`data:` scripts (an artifact host\'s CSP) will actually run; the scene itself is inline. The page needs network and '
   + 'will NOT open from file://. Orbit with the mouse; walk where the HUD offers it. '
   + 'The default (`cdn: false`) writes `world.html`, the self-contained page that opens from disk.';
+
+// ── format: 'ifc' — a house as a building model (IFC4) ─────────────────────────────────────────────────────────
+// The BIM leg: storeys, spaces, walls with their openings, doors and windows, slabs and the roof; a framed house's
+// every member, lining, box, cable and circuit; its gutters and drains. Houses only (the floorplan kind with
+// `storeys` or `levels`); anything else is not eligible, and says so. Same recipe, same bytes.
+async function ifcExport(input, context) {
+  const { ref, write = true } = input;
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const kind = sketch.manifest.kind;
+  const title = sketch.title || sketch.manifest.title || ref;
+  const built = kind === 'floorplan' ? manifestToIfc(sketch.manifest, { ref, title }) : null;
+  if (!built) {
+    return {
+      ok: false, eligible: false, ref, kind: kind ?? null, format: 'ifc',
+      reason: kind === 'floorplan'
+        ? 'IFC export covers houses built in storeys: give this plan `storeys: 1` (or `levels`) and export again.'
+        : `IFC export covers houses (the floorplan kind with \`storeys\` or \`levels\`); '${kind}' is not one. For a mesh, \`format: 'glb'\` or \`'usdz'\`.`,
+    };
+  }
+  const bytes = Buffer.from(built.text, 'utf8');
+  const result = {
+    ok: true, ref, kind, format: 'ifc', bytes: bytes.byteLength, entities: built.entities, elements: built.counts,
+    framed: built.framed,
+    note: `IFC4 (STEP), metres, z up: ${built.framed ? "the house's building model — every member as its section along its centreline, linings, boxes and cable as their boxes, circuits as IfcDistributionCircuit" : 'the plan — walls voided by their openings, doors and windows in them, floor slabs, the roof as one slab per plane'}${sketch.manifest.drainage ? ', the rainwater system' : ''}, rooms as IfcSpace, every element with its catalog material and a Mojulo_Element property set naming its key. GlobalIds are stable across re-exports. Opens in Bonsai (Blender), Revit, ArchiCAD and IfcOpenShell; mojulo does not read IFC back.`,
+  };
+  if (write) {
+    const dir = outcomeDirFor(ref);
+    await fs.mkdir(dir, { recursive: true });
+    const fileName = modelFileName('ifc');
+    const file = path.join(dir, fileName);
+    await fs.writeFile(file, bytes);
+    const hash = createHash('sha256').update(JSON.stringify(sketch.manifest)).digest('hex').slice(0, 16);
+    await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
+    await fs.writeFile(path.join(dir, 'README.md'), buildModelReadme({ sketch, ref, kind, format: 'ifc', hash, exported: { byteLength: bytes.byteLength }, clips: null, fileName }));
+    result.path = file;
+    result.dir = dir;
+    result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
+    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url });
+  }
+  return result;
+}
 
 // ── format: 'bundle' (remote-worker exports P3) ───────────────────────────────────────────────
 // The one file every host's door accepts: a zip — the self-contained page, the mesh, the STL
@@ -430,6 +474,16 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     'regenerates this file deterministically — same recipe, same bytes (geometry byte for byte',
     'across platforms; an embedded texture PNG can differ in its compressed bytes, not its pixels).',
     '',
+    ...(format === 'ifc' ? [
+      '## Opening this file (BIM)',
+      '',
+      '- IFC4 in the STEP text form, metres, z up. Bonsai (the Blender BIM add-on), Revit, ArchiCAD and IfcOpenShell open it.',
+      '- The spatial tree is project → site → building → one storey per level; rooms are IfcSpace with their floor area.',
+      '- A framed house carries its building model: members as their sections extruded along their centrelines (steel as its rolled profile), linings, boxes and cable as boxes, circuits as IfcDistributionCircuit grouping what they feed. An unframed house carries its plan: walls voided by their openings, doors and windows filling them, slabs, the roof as one slab per plane.',
+      '- Every element is associated with its catalog material (with a colour) and carries a `Mojulo_Element` property set whose `Key` names it in the recipe\'s model; GlobalIds come from those keys, so a re-export keeps them.',
+      '- Round-trip warning: mojulo does not read IFC back. Edit the recipe and export again.',
+      '',
+    ] : [
     '## Importing this file (Blender / Godot)',
     '',
     ...(format === 'html' ? [`- HTML: \`${fileName}\` is the live World page itself, not a mesh. ${exported?.cdn ? HTML_CDN_NOTE : HTML_FILE_NOTE} For a mesh, \`export_model({ ref, format: 'glb' })\`.`] : []),
@@ -446,6 +500,7 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '- Level semantics ride glTF `extras` under the `moj:` namespace: `entity:<id>` nodes carry `moj:entity`/`moj:rule`/`moj:body`; the scene carries `moj:spawn`, `moj:colliders` (AABB boxes), and `moj:game` (contract summary). Cameras are mojulo\'s own framings.',
     '- Colours are baked vertex colours on unlit materials — the depiction is the asset; no lighting setup needed.',
     '',
+    ]),
   ].join('\n');
 }
 /**
@@ -502,15 +557,17 @@ export async function exportModelHandler(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc' if provided");
   }
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
   // stay silent for every mesh leg.
   if ('cdn' in input && format !== 'html') throw new Error("`cdn` applies to `format: 'html'` only");
   // bundle is the legs zipped: it always writes (a folder product, like export_game).
   if (format === 'bundle') return bundleExport(input, context);
+  // ifc is the building model, not the World's faces: it reads the house the recipe builds.
+  if (format === 'ifc') return ifcExport(input, context);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
   const isHtml = format === 'html';
   const isUsd = format === 'usda' || format === 'usdz';

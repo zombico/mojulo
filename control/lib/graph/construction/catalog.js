@@ -4,8 +4,10 @@
 // `concrete:grey`, `board:gypsum-12.7`, `insulation:glass-wool`, `plaster:jura`, `clay:arakabe`, `paper:washi`,
 // `cable:nm-b-14-2`, `box:nm-single`. The tables the construction modules already hold (timbers, finishes, brick bodies,
 // stones, steel sections and finishes) are named here as they are; the rest (boards, insulation, plasters, clays,
-// papers, cables, boxes, panels) are added. Each entry carries its kind, a colour, and what a takeoff or a check reads
-// (thickness, density, conductor size, ampacity, R-value).
+// papers, cables, boxes, panels, roof coverings) are added. Each entry carries its kind, a colour, and what a takeoff or
+// a check reads (thickness, density, conductor size, ampacity, R-value). An entry may carry its MAP, the surface it
+// draws with: `{ texture, tileM }` (a surface-texture key and the metres one tile spans) or, for a roof covering laid as
+// tiles, `{ covering }` (the covering whose map roofing.js bakes in the entry's colour).
 //
 // An ASSEMBLY is a wall, floor or ceiling type as ordered layers from the outside (or the underside) in — the IFC
 // material-layer set — `{ use, tradition, layers: [{ material, mm, role }] }`. A TRADITION names the assemblies it
@@ -65,6 +67,44 @@ const ADDED = {
   'panel:loadcenter': E('panel', [148, 150, 156], { size: [368, 762, 100], label: 'load center' }),
   'panel:consumer-unit': E('panel', [238, 238, 234], { size: [400, 250, 110], label: 'consumer unit' }),
   'panel:bunden-ban': E('panel', [236, 236, 232], { size: [520, 330, 100], label: 'bunden-ban (distribution board)' }),
+  // roof coverings. The library's roof textures are named as they are (their map is that texture, one tile a yard
+  // across); the rest are laid as tiles (construction/roofing.js), their map baked from the covering in their colour.
+  'roofing:shingle-weathered': E('roofing', [86, 90, 92], { map: { texture: 'shingle-weathered', tileM: 0.9144 }, density: 1100, label: 'asphalt shingle, weathered grey' }),
+  'roofing:shingle-brown': E('roofing', [96, 78, 58], { map: { texture: 'shingle-brown', tileM: 0.9144 }, density: 1100, label: 'asphalt shingle, brown' }),
+  'roofing:shingle-green': E('roofing', [68, 82, 66], { map: { texture: 'shingle-green', tileM: 0.9144 }, density: 1100, label: 'asphalt shingle, green' }),
+  'roofing:clay-terracotta': E('roofing', [172, 88, 56], { map: { texture: 'clay-terracotta', tileM: 0.9144 }, density: 1900, label: 'clay barrel tile, terracotta' }),
+  'roofing:clay-sand': E('roofing', [188, 140, 94], { map: { texture: 'clay-sand', tileM: 0.9144 }, density: 1900, label: 'clay barrel tile, sand' }),
+  'roofing:clay-slate': E('roofing', [96, 102, 108], { map: { texture: 'clay-slate', tileM: 0.9144 }, density: 1900, label: 'clay barrel tile, slate grey' }),
+  'roofing:shake-cedar': E('roofing', [150, 112, 78], { map: { covering: 'cedar-shake' }, density: 380, label: 'split cedar shake' }),
+  'roofing:slate-blue': E('roofing', [84, 92, 104], { map: { covering: 'slate' }, density: 2800, label: 'natural slate, blue-grey (Welsh)' }),
+  'roofing:slate-grey': E('roofing', [104, 106, 108], { map: { covering: 'slate' }, density: 2800, label: 'natural slate, grey' }),
+  'roofing:plain-tile-red': E('roofing', [150, 70, 48], { map: { covering: 'plain-tile' }, density: 1900, label: 'clay plain tile' }),
+  'roofing:pantile-red': E('roofing', [168, 82, 52], { map: { covering: 'pantile' }, density: 1900, label: 'clay pantile' }),
+  'roofing:kawara-ibushi': E('roofing', [92, 96, 102], { map: { covering: 'kawara' }, density: 1900, label: 'ibushi kawara (smoked silver-grey)' }),
+  'roofing:standing-seam-zinc': E('roofing', [150, 156, 160], { map: { covering: 'standing-seam' }, density: 7140, label: 'standing-seam zinc' }),
+  'roofing:standing-seam-charcoal': E('roofing', [62, 66, 70], { map: { covering: 'standing-seam' }, density: 7850, label: 'standing-seam steel, charcoal' }),
+  'roofing:felt': E('roofing', [58, 56, 54], { label: 'roofing underlay' }),
+  'roofing:membrane': E('roofing', [52, 54, 56], { label: 'single-ply roof membrane' }),
+  // lay-in ceiling tiles: the tile and its T-bar grid are the map, two tiles a side
+  'board:acoustic-tile-2x2': E('board', [236, 234, 228], { mm: 16, sheet: [610, 610], density: 250, map: { texture: 'ceiling:lay-in', tileM: 1.2192 }, label: '2 × 2 ft lay-in acoustic tile' }),
+  'board:acoustic-tile-600': E('board', [236, 234, 228], { mm: 15, sheet: [600, 600], density: 250, map: { texture: 'ceiling:lay-in', tileM: 1.2 }, label: '600 mm lay-in acoustic tile' }),
+  // rainwater: gutters, downpipes and chains, what they stand in at grade, and the drain below
+  'gutter:k-style-aluminium': E('gutter', [236, 236, 230], { mm: 127, density: 2700, label: '5 in K-style aluminium gutter' }),
+  'gutter:half-round-112': E('gutter', [44, 44, 46], { mm: 112, density: 1400, label: '112 mm half-round uPVC gutter' }),
+  'gutter:nokidoi-copper-105': E('gutter', [176, 104, 64], { mm: 105, density: 8900, label: '105 mm half-round copper nokidoi' }),
+  'gutter:box-zinc-125': E('gutter', [150, 156, 160], { mm: 125, density: 7140, label: '125 mm zinc box gutter' }),
+  'pipe:downspout-3x4': E('pipe', [236, 236, 230], { size: [76, 102], density: 2700, label: '3 × 4 in aluminium downspout' }),
+  'pipe:downpipe-68': E('pipe', [44, 44, 46], { size: [68], density: 1400, label: '68 mm round uPVC downpipe' }),
+  'pipe:tatedoi-copper-60': E('pipe', [176, 104, 64], { size: [60], density: 8900, label: '60 mm copper tatedoi' }),
+  'pipe:downpipe-80-zinc': E('pipe', [150, 156, 160], { size: [80], density: 7140, label: '80 mm zinc downpipe' }),
+  'pipe:drain-110': E('pipe', [196, 112, 58], { size: [110], density: 1400, label: '110 mm uPVC below-ground drain' }),
+  'chain:kusari-copper': E('chain', [176, 104, 64], { size: [60], density: 8900, label: 'kusari-doi (copper rain chain)' }),
+  'precast:splash-block': E('precast', [176, 174, 168], { density: 2400, label: 'concrete splash block' }),
+  'fitting:gully': E('fitting', [70, 72, 74], { label: 'back-inlet gully' }),
+  'fitting:masu': E('fitting', [150, 150, 146], { label: 'masu (rainwater pit)' }),
+  'chamber:inspection': E('chamber', [96, 98, 100], { label: 'inspection chamber' }),
+  'stone:amaochi': E('stone', [112, 110, 104], { density: 2600, label: 'amaochi-ishi (drip stone)' }),
+  'board:nojiita': E('board', [196, 160, 112], { mm: 12, sheet: [180, 3640], density: 380, label: 'nojiita (sugi roof boards)' }),
 };
 
 /** Every material, by name. */
@@ -100,15 +140,17 @@ export const ASSEMBLIES = Object.freeze({
   'jp-shinkabe-exterior': { use: 'wall-exterior', tradition: 'japanese', layers: [L('plaster:shikkui', 3, 'finish'), L('clay:nakanuri', 10, 'coat'), L('clay:arakabe', 50, 'coat'), L('bamboo:komai', 20, 'lath'), L('clay:nakanuri', 10, 'coat'), L('plaster:jura', 3, 'finish')] },
   'jp-saobuchi-ceiling': { use: 'ceiling', tradition: 'japanese', layers: [L('board:sugi-ceiling', 9, 'lining')] },
   'rc-block-infill': { use: 'wall-exterior', tradition: 'metric', layers: [L('plaster:render', 15, 'finish'), L('block:cmu', 190, 'infill'), L('plaster:gypsum-two-coat', 13, 'lining')] },
+  'na-suspended-ceiling': { use: 'ceiling', tradition: 'north-american', layers: [L('board:acoustic-tile-2x2', 16, 'lining')] },
+  'metric-suspended-ceiling': { use: 'ceiling', tradition: 'metric', layers: [L('board:plasterboard-12.5', 12.5, 'lining')] },
   'metric-stud-partition': { use: 'wall-interior', tradition: 'metric', layers: [L('board:plasterboard-12.5', 12.5, 'lining'), L('timber:spruce', 89, 'structure'), L('board:plasterboard-12.5', 12.5, 'lining')] },
 });
 
-/** How a tradition builds: its assemblies, its wiring rules, its sheet. */
+/** How a tradition builds: its assemblies (`suspended` the ceiling hung under a steel or concrete floor), its wiring rules. */
 export const TRADITIONS = Object.freeze({
-  'north-american': { exterior: 'na-2x6-exterior', partition: 'na-2x4-partition', ceiling: 'na-ceiling', wiring: 'nec' },
-  british: { exterior: 'uk-solid-brick', partition: 'uk-stud-partition', ceiling: 'uk-ceiling', wiring: 'bs' },
-  japanese: { exterior: 'jp-shinkabe-exterior', partition: 'jp-shinkabe', ceiling: 'jp-saobuchi-ceiling', wiring: 'jp' },
-  metric: { exterior: 'rc-block-infill', partition: 'metric-stud-partition', ceiling: null, wiring: 'iec' },
+  'north-american': { exterior: 'na-2x6-exterior', partition: 'na-2x4-partition', ceiling: 'na-ceiling', suspended: 'na-suspended-ceiling', wiring: 'nec' },
+  british: { exterior: 'uk-solid-brick', partition: 'uk-stud-partition', ceiling: 'uk-ceiling', suspended: 'metric-suspended-ceiling', wiring: 'bs' },
+  japanese: { exterior: 'jp-shinkabe-exterior', partition: 'jp-shinkabe', ceiling: 'jp-saobuchi-ceiling', suspended: 'metric-suspended-ceiling', wiring: 'jp' },
+  metric: { exterior: 'rc-block-infill', partition: 'metric-stud-partition', ceiling: null, suspended: 'metric-suspended-ceiling', wiring: 'iec' },
 });
 export const TRADITION_KEYS = Object.freeze(Object.keys(TRADITIONS));
 /** The tradition a structural system is built in when the recipe names none. */

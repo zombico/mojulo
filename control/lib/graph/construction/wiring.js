@@ -18,6 +18,7 @@
 // A circuit starts at the panel (on the ground storey, beside the entry) and runs device to device.
 import { CATALOG } from './catalog.js';
 import { archetypeArea } from '../polygonizer/floorplan-glyphs.js';
+import { suspendedCeilingZ } from './linings.js';
 
 const IN = 1 / 12, MM = 1 / 304.8;
 const q4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -208,11 +209,12 @@ export function planWiring(house, cfg, frames, o = {}) {
       checks.push({ rule: 'switch-at-door', room: rk, doors: doorCount, switches: switched, ok: switched === doorCount });
       // ceiling boxes: one per room, a grid 12 ft apart in a large one
       const nx = Math.max(1, Math.round(c.w / 12)), ny = Math.max(1, Math.round(c.h / 12));
-      const zc = cfg.tradition === 'japanese' ? zb + H - 0.2 : zb + H - (cfg.tradition === 'metric' ? 0 : boardT);
+      const hung = suspendedCeilingZ(frames, cfg, lvl.index, zb, H);
+      const zc = hung !== null ? hung : cfg.tradition === 'japanese' ? zb + H - 0.2 : zb + H - (cfg.tradition === 'metric' ? 0 : boardT);
       for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
         const x = c.x + ((i + 0.5) * c.w) / nx, y = c.y + ((j + 0.5) * c.h) / ny;
         const [bw, bh, bd] = CATALOG[rules.ceilingBox].size.map((v) => v * MM);
-        devices.push({ kind: 'light', key: `${rk}:light:${i}.${j}`, ifc: ['IfcJunctionBox', 'DATA'], lo: [x - bw / 2, y - bh / 2, zc], hi: [x + bw / 2, y + bh / 2, zc + bd], box: rules.ceilingBox, storey: lvl.index, at: [x, y, zc + bd], lvl, role: 'lighting', room: rk, ceiling: true });
+        devices.push({ kind: 'light', key: `${rk}:light:${i}.${j}`, ifc: ['IfcJunctionBox', 'POWER'], lo: [x - bw / 2, y - bh / 2, zc], hi: [x + bw / 2, y + bh / 2, zc + bd], box: rules.ceilingBox, storey: lvl.index, at: [x, y, zc + bd], lvl, role: 'lighting', room: rk, ceiling: true });
       }
     });
   }

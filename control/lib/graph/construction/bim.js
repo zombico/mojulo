@@ -45,20 +45,24 @@ export function buildConstructionModel({ frames, reports = {}, elements = [], wi
       const lengthFt = r ? r.lengthMm / MM_PER_FT : Math.hypot(m.to[0] - m.from[0], m.to[1] - m.from[1], m.to[2] - m.from[2]);
       const key = `${spec.id}:${m.id}`;
       const stockMm = r && r.stockMm ? r.stockMm : null;
-      out.push({ guid: ifcGuid(key), key, ifc, type, material: memberMaterial(m, spec), storey: S, quantities: { lengthFt: r1(lengthFt), ...(stockMm ? { sectionMm: stockMm } : {}), ...(r && r.massKg ? { massKg: r.massKg } : {}), ...(m.section ? { section: m.section } : {}) } });
+      out.push({ guid: ifcGuid(key), key, ifc, type, material: memberMaterial(m, spec), storey: S, quantities: { lengthFt: r1(lengthFt), ...(stockMm ? { sectionMm: stockMm } : {}), ...(r && r.massKg ? { massKg: r.massKg } : {}), ...(m.section ? { section: m.section } : {}) },
+        geom: { kind: 'member', from: m.from, to: m.to, ...(m.up ? { up: m.up } : {}), ...(m.section ? { section: m.section } : {}), ...(stockMm ? { sectionMm: stockMm } : {}) } });
     }
     for (const w of spec.walls || []) {
       const key = `${spec.id}:${w.id}`;
       const rw = rep && (rep.walls || []).find((x) => x.id === w.id);
-      out.push({ guid: ifcGuid(key), key, ifc: 'IfcWall', type: 'SOLIDWALL', material: w.unit === 'cmu' ? 'block:cmu' : `brick:${w.body || 'red'}`, storey: S, quantities: { lengthFt: r1(Math.hypot(w.to[0] - w.from[0], w.to[1] - w.from[1])), heightFt: r1(w.height), units: rw ? rw.units : null, openings: (w.openings || []).length } });
+      out.push({ guid: ifcGuid(key), key, ifc: 'IfcWall', type: 'SOLIDWALL', material: w.unit === 'cmu' ? 'block:cmu' : `brick:${w.body || 'red'}`, storey: S, quantities: { lengthFt: r1(Math.hypot(w.to[0] - w.from[0], w.to[1] - w.from[1])), heightFt: r1(w.height), units: rw ? rw.units : null, openings: (w.openings || []).length },
+        geom: { kind: 'wall', from: w.from, to: w.to, height: w.height, thicknessMm: rw && rw.thicknessMm ? rw.thicknessMm : 215, openings: (w.openings || []).map((op) => ({ at: op.at, width: op.width, height: op.height, sill: op.sill || 0 })) } });
     }
     for (const j of spec.joints || []) relations.push({ kind: 'connects', joint: j.type, a: `${spec.id}:${j.a}`, ...(j.b ? { b: `${spec.id}:${j.b}` } : {}) });
   }
   for (const el of elements) {
     const d = [0, 1, 2].map((i) => el.hi[i] - el.lo[i]).sort((a, b) => b - a);
-    const q = el.ifc === 'IfcCableSegment' ? { lengthFt: r1(el.lengthFt || d[0]) } : el.ifc === 'IfcCovering' || el.ifc === 'IfcWall' || el.ifc === 'IfcPlate' ? { areaSqFt: r1(d[0] * d[1]), thicknessMm: Math.round(d[2] * MM_PER_FT) } : { sizeMm: d.map((v) => Math.round(v * MM_PER_FT)) };
-    out.push({ guid: ifcGuid(el.key), key: el.key, ifc: el.ifc, type: el.type, material: el.material, storey: el.storey, quantities: q, ...(el.circuit ? { circuit: el.circuit } : {}), ...(el.host ? { host: el.host } : {}) });
+    const q = el.quantities ? { ...el.quantities, ...(el.thicknessMm ? { thicknessMm: el.thicknessMm } : {}) } : el.ifc === 'IfcCableSegment' || el.ifc === 'IfcPipeSegment' ? { lengthFt: r1(el.lengthFt || d[0]) } : el.ifc === 'IfcCovering' || el.ifc === 'IfcWall' || el.ifc === 'IfcPlate' ? { areaSqFt: r1(d[0] * d[1]), thicknessMm: Math.round(d[2] * MM_PER_FT) } : { sizeMm: d.map((v) => Math.round(v * MM_PER_FT)) };
+    const geom = el.plane ? { kind: 'plane', corners: el.plane, thicknessMm: el.thicknessMm || 10 } : el.sweep ? { kind: 'sweep', ...el.sweep } : { kind: 'box', lo: el.lo, hi: el.hi };
+    out.push({ guid: ifcGuid(el.key), key: el.key, ifc: el.ifc, type: el.type, material: el.material, storey: el.storey, quantities: q, geom, ...(el.circuit ? { circuit: el.circuit } : {}), ...(el.host ? { host: el.host } : {}), ...(el.system ? { system: el.system } : {}), ...(el.objectType ? { objectType: el.objectType } : {}) });
     if (el.host) relations.push({ kind: 'covers', a: el.key, b: el.host });
+    if (el.system) relations.push({ kind: 'assigned-to', a: el.key, b: `system:${el.system}` });
   }
   if (wiring) for (const c of wiring.circuits) relations.push({ kind: 'feeds', a: 'panel', b: `circuit:${c.no}`, rooms: c.rooms });
   for (const e of out) relations.push({ kind: 'contained-in', a: e.key, b: `storey:${e.storey}` });

@@ -30,7 +30,8 @@
  * sibling: extrude-faces.js (the bar). Scene emit: scene-css3d.js.
  */
 
-import { framingOf, houseFramingFaces, clipFacesAtX } from '../construction/house-frame.js';
+import { framingOf, houseFramingFaces, clipFacesAtX, houseEyes } from '../construction/house-frame.js';
+import { planDrainage } from '../construction/drainage.js';
 import { shiftRepeats } from '../construction/instancing.js';
 import { expandRepeats } from './rock-pool.js';
 import { shadeHex, makeLight, scaleHex } from './vexar.js';
@@ -133,7 +134,7 @@ export const FLOORPLAN_DEFAULTS = {
   ceilingTint: '#d8d2c4',  // off-white ceiling plane
   // VIEW + ROOF — the doll-house is one view; `exterior` is its roofed companion.
   view: 'cutaway',         // 'cutaway' = open-top doll-house (see interior) | 'exterior' = roofed solid massing, basement hidden, on the ground
-  roof: false,             // opt-in roof over the envelope: true | <ROOF_STYLES name> | { style, form, material, pitch, ... }. See roof.js.
+  roof: false,             // opt-in roof over the envelope: true | <ROOF_STYLES name> | { style, form, material, pitch, covering, ... }. See roof.js.
   groundTint: '#3a4632',   // exterior-view ground plane (grass/earth)
   groundMargin: 30,        // how far the ground plane extends past the footprint (ft)
   perimeter: false,        // opt-in LOT around the house (exterior view only): property line,
@@ -156,9 +157,9 @@ function roofSpec(roof) {
 // Cap an envelope footprint {x0,x1,y0,y1} with a real roof at wall-top z. The eave
 // overhang covers the small footprint↔outer-wall gap, so the centerline footprint is
 // close enough. Returns buildRoof's { faces, textureKeys }.
-function envelopeRoof(footprint, topZ, o) {
+function envelopeRoof(footprint, topZ, o, eyes = null) {
   const fp = { x: footprint.x0, y: footprint.y0, w: footprint.x1 - footprint.x0, d: footprint.y1 - footprint.y0, z: topZ };
-  return buildRoof(fp, { ...roofSpec(o.roof), light: o.light, roomHeight: o.wallHeight });
+  return buildRoof(fp, { ...roofSpec(o.roof), light: o.light, roomHeight: o.wallHeight, ...(eyes ? { eyes } : {}) });
 }
 
 // A solid GROUND plane at z, extended past the footprint — the exterior-view datum
@@ -2462,6 +2463,8 @@ export function structurizeHouse(input = {}, opts = {}) {
   // opt-in structure under the skin (construction/house-frame.js): absent, nothing below reads it
   const framing = o.framing ? framingOf(o.framing) : null;
   const framedView = !!framing && framing.view === 'framed';
+  // a house shown at a construction stage wears its roof as built (decked, battened or covered) instead of the finished one
+  const builtRoof = !!framing && framing.stage !== 'frame';
   const levelSpecs = (Array.isArray(input.levels) && input.levels.length)
     ? input.levels
     : [{ role: 'ground', seed: input.seed ?? 1 }];
@@ -2622,11 +2625,24 @@ export function structurizeHouse(input = {}, opts = {}) {
 
   // Roof over the top storey + ground plane (exterior), else the cutaway's datum helper line.
   let roofTextureKeys = [];
-  if ((o.roof || exterior) && !framedView) {
+  const roofRepeats = [];
+  let roofing = null;
+  if ((o.roof || exterior) && !framedView && !builtRoof) {
     const top = levels.reduce((a, b) => (b.index > a.index ? b : a), levels[0]);
-    const r = envelopeRoof(footprint, top.baseZ + top.height, o);
+    // a covered roof picks its tiles' level from the house's cameras, as the frame does
+    const covered = !!roofSpec(o.roof).covering;
+    const eyes = covered ? houseEyes(footprint, levels[0].baseZ - o.floorDrop, top.baseZ + top.height + (footprint.y1 - footprint.y0) / 2, { cameras: o.cameras }) : null;
+    const r = envelopeRoof(footprint, top.baseZ + top.height, o, eyes);
     faces.push(...r.faces);
     roofTextureKeys = r.textureKeys;
+    if (r.repeats) roofRepeats.push(...r.repeats.map((x) => ({ ...x, roof: true })));
+    if (r.covering) roofing = r.covering;
+  }
+  // opt-in rainwater (construction/drainage.js): gutters on the finished roof's eaves, downpipes to outlets at grade
+  let drainage = null;
+  if (o.drainage && (o.roof || exterior) && !framedView && !builtRoof) {
+    drainage = planDrainage({ levels, footprint, meru }, o.drainage, { ...o, tradition: framing ? framing.tradition : null });
+    if (drainage) { faces.push(...drainage.faces); roofRepeats.push(...drainage.repeats.map((x) => ({ ...x, roof: true }))); }
   }
   let lot = null;
   if (o.perimeter) {                                  // the lot renders in any view
@@ -2663,10 +2679,10 @@ export function structurizeHouse(input = {}, opts = {}) {
     };
     for (const f of fr.faces) { faces.push(f); const l = levelOf(f.group); if (l) l.structure.faces.push(f); }
     // stamped members and bricks ride their storey too: { level index, repeat }
-    const repeats = fr.repeats.map((r) => ({ ...r, level: (levelOf(r.group) || sorted[0]).index }));
-    return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}) };
+    const repeats = [...roofRepeats, ...fr.repeats.map((r) => ({ ...r, level: (levelOf(r.group) || sorted[0]).index }))];
+    return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}) };
   }
-  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot };
+  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}) };
 }
 
 /** Cameras for a multi-level house (pulls back to take in the whole stack — and lot). */
@@ -2725,7 +2741,8 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
   let zLo = Infinity, zHi = -Infinity;
   for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
   // a framed house's stamped parts (construction/house-frame.js), lifted with their storey when exploded
-  const repeats = (house.repeats || []).map(({ level, ...r }) => (gap && level ? shiftRepeats([r], [0, 0, level * gap])[0] : r));
+  // (a covered roof's tiles leave with the roof when the storeys are pulled apart)
+  const repeats = (house.repeats || []).filter((r) => !(gap && r.roof)).map(({ level, roof: _roof, ...r }) => (gap && level ? shiftRepeats([r], [0, 0, level * gap])[0] : r));
   for (const r of repeats) for (const t of r.transforms) { if (t.pos[2] < zLo) zLo = t.pos[2]; if (t.pos[2] > zHi) zHi = t.pos[2]; }
   const cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);
   // First-person spawn: stand at the footprint centre on the ground storey (index 0 is
@@ -2804,7 +2821,7 @@ export function renderHouseToHtml(input = {}, opts = {}) {
   const viewBox = opts.viewBox || { width: 1120, height: 820 };
   const gap = opts.view === 'exterior' ? 0 : (opts.explode || 0);
   // the CSS scene cannot instance: a framed house's stamped parts are drawn out in full (lifted with their storey)
-  const stamped = (house.repeats || []).flatMap(({ level, ...r }) => expandRepeats(gap && level ? shiftRepeats([r], [0, 0, level * gap]) : [r]));
+  const stamped = (house.repeats || []).filter((r) => !(gap && r.roof)).flatMap(({ level, roof: _roof, ...r }) => expandRepeats(gap && level ? shiftRepeats([r], [0, 0, level * gap]) : [r]));
   let faces = stamped.length ? [...house.faces, ...stamped] : house.faces, cameras = opts.cameras || houseCameras(house, opts);
   if (gap) {
     faces = house.levels.flatMap((lvl) => lvl.structure.faces.map((f) => ({

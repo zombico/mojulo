@@ -53,6 +53,9 @@ export function elementFaces(elements, { light = DEFAULT_LIGHT, eyes = null, uni
     }
     const mat = matOf(el);
     const sides = el.sides || SIDES;
+    // an element names its texture, or draws with its material's map when the catalog gives one
+    const map = !el.texture && CATALOG[el.material] && CATALOG[el.material].map && CATALOG[el.material].map.texture ? CATALOG[el.material].map : null;
+    const texture = el.texture || (map && map.texture), uvM = el.uvM || (map && map.tileM);
     for (const side of sides) {
       const k = 'xyz'.indexOf(side[1]); const s = side[0] === '+' ? 1 : -1;
       const at = s > 0 ? hi[k] : lo[k];
@@ -61,11 +64,11 @@ export function elementFaces(elements, { light = DEFAULT_LIGHT, eyes = null, uni
       const corners = [P(lo[a], lo[b]), P(hi[a], lo[b]), P(hi[a], hi[b]), P(lo[a], hi[b])];
       const n = [0, 0, 0]; n[k] = s;
       const rgb = (el.sideRgb && el.sideRgb[side]) || rgbOf(el);
-      const f = { corners, fill: shadeHexMat(el.texture ? '#ffffff' : rgbHex(rgb), n, mat, { light }), doubleSided: true, outNormal: n, group: el.key };
-      if (el.texture && (!el.textureSides || el.textureSides.includes(side))) {
-        const m = (el.uvM || 1) / unit;
-        Object.assign(f, { texture: el.texture, uv: corners.map((p) => [p[a] / m, p[b] / m]), textureLit: true });
-      } else if (el.texture) f.fill = shadeHexMat(rgbHex(rgb), n, mat, { light });
+      const f = { corners, fill: shadeHexMat(texture ? '#ffffff' : rgbHex(rgb), n, mat, { light }), doubleSided: true, outNormal: n, group: el.key };
+      if (texture && (!el.textureSides || el.textureSides.includes(side))) {
+        const m = (uvM || 1) / unit;
+        Object.assign(f, { texture, uv: corners.map((p) => [p[a] / m, p[b] / m]), textureLit: true });
+      } else if (texture) f.fill = shadeHexMat(rgbHex(rgb), n, mat, { light });
       if (el.alpha) f.alpha = el.alpha;
       tagFacesWithMaterial([f], mat);
       faces.push(f);

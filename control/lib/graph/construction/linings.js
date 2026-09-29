@@ -17,6 +17,7 @@
 import { registerTextureResolver, encodePng } from '../landscape/surface-textures.js';
 import { CATALOG, TRADITIONS, ASSEMBLIES } from './catalog.js';
 import { rectMinus, runBox } from './elements.js';
+import { SECTIONS } from './sections.js';
 
 export const STAGES = Object.freeze(['frame', 'rough-in', 'insulated', 'lined']);
 export const stageAt = (stage, s) => STAGES.indexOf(stage) >= STAGES.indexOf(s);
@@ -38,6 +39,49 @@ function lathPng() {
 }
 let lathUrl = null;
 registerTextureResolver(LATH_PREFIX, () => (lathUrl = lathUrl || lathPng()));
+
+// ── a lay-in ceiling's map: two tiles a side, fissured, in the white flanges of the T-bar grid ──
+export const LAY_IN_PREFIX = 'ceiling:lay-in';
+function layInPng() {
+  const T = 96, N = 2 * T, rgb = Buffer.alloc(N * N * 3);
+  const h = (x, y) => { let n = Math.imul(x * 374761393 + y * 668265263, 1274126177); n = Math.imul(n ^ (n >>> 13), 1103515245); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const fx = x % T, fy = y % T;
+    let c;
+    if (fx < 2 || fy < 2) c = [247, 247, 245];                              // the grid's flange
+    else if (fx < 3 || fy < 3) c = [196, 196, 192];                         // the tile's shadowed edge
+    else { const k = h(x, y) < 0.05 ? 0.8 : h(x >> 1, y >> 1) < 0.04 ? 0.88 : 1 - 0.03 * h(x, y + 7); c = [236 * k, 234 * k, 228 * k]; }
+    const o = (y * N + x) * 3; rgb[o] = c[0]; rgb[o + 1] = c[1]; rgb[o + 2] = c[2];
+  }
+  return `data:image/png;base64,${encodePng(rgb, N, N).toString('base64')}`;
+}
+let layInUrl = null;
+registerTextureResolver(LAY_IN_PREFIX, () => (layInUrl = layInUrl || layInPng()));
+
+/**
+ * The underside (ft) of the ceiling a steel or concrete storey hangs under its deepest beam, or null for a system
+ * that hangs none. Wiring drops its ceiling boxes to it.
+ */
+export function suspendedCeilingZ(frames, cfg, S, zb, H) {
+  const trad = TRADITIONS[cfg.tradition];
+  if ((cfg.system !== 'steel' && cfg.system !== 'concrete') || !trad || !trad.suspended) return null;
+  const t = (CATALOG[ASSEMBLIES[trad.suspended].layers[0].material].mm || 15) * MM;
+  const soffit = soffitOver(frames, S, zb, H);
+  return Math.max(zb + 7.5, Math.min(zb + H - 0.5, (soffit ?? zb + H) - 3 * IN) - t);
+}
+
+/** The underside (ft) of the lowest beam or joist over a storey, from its frame, or null. */
+function soffitOver(frames, S, zb, H) {
+  const fr = frames.find((f) => f.id === `storey-${S}`);
+  let z = null;
+  for (const m of (fr ? fr.members : [])) {
+    if (Math.abs(m.from[2] - m.to[2]) > 0.01 || m.from[2] < zb + H * 0.5 || m.from[2] > zb + H + 1.5) continue;
+    const depth = m.section ? (SECTIONS[m.section] ? SECTIONS[m.section].h * MM : 0.5) : Array.isArray(m.stock) ? m.stock[1] : 0.5;
+    const under = m.from[2] - depth / 2;
+    if (z === null || under < z) z = under;
+  }
+  return z;
+}
 
 /** Where the wall's structure stands: its depth (ft) for a run in a system. */
 export function structDepth(system, run) {
@@ -207,6 +251,16 @@ export function planLinings(house, cfg, frames, o = {}) {
         const rects = sheetRects(fp.x0, fp.x1, fp.y0, fp.y1, 12, 4, holes);
         rects.forEach(([p, qq, r, s], n) => add(`L${S}:ceiling:${n}`, 'IfcCovering', 'CEILING', board, S, { lo: [p, r, zc], hi: [qq, s, zc + bt] }));
       }
+    }
+    // ── a steel or concrete floor is hidden by a ceiling hung under its deepest beam: lay-in tiles in a T-bar grid
+    // (North American) or plasterboard on a suspended grid; the storey keeps at least 7½ ft of headroom ──
+    if (stageAt(stage, 'lined') && (system === 'steel' || system === 'concrete') && trad.suspended) {
+      const layer = ASSEMBLIES[trad.suspended].layers[0];
+      const t = (CATALOG[layer.material].mm || 15) * MM;
+      const zc = suspendedCeilingZ(frames, cfg, S, zb, H);
+      const holes = ((above && above.structure && above.structure.slabHoles) || []).map((h) => [h.x0, h.x1, h.y0, h.y1]);
+      const fp = house.footprint, inset = structDepth(system, { interior: false }) / 2;
+      rectMinus([[fp.x0 + inset, fp.x1 - inset, fp.y0 + inset, fp.y1 - inset]], holes).forEach(([p, qq, r, s], n) => add(`L${S}:ceiling:${n}`, 'IfcCovering', 'CEILING', layer.material, S, { lo: [p, r, zc], hi: [qq, s, zc + t] }, { suspended: true }));
     }
   }
   return { elements: els, frames: extraFrames };

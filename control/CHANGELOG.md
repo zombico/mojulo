@@ -102,6 +102,37 @@ connected-service and app loops and the recipe format are the stable surface.
   takeoff by material, and advisory checks: receptacle spacing, a switch at every door, bored-hole edge distance and
   depth, no bore through a hashira, and every material in the catalog.
 
+### Roofs, drainage and IFC
+
+- **The maps.** A catalog material can carry the surface it draws with: a library texture and the metres one tile
+  spans, or, for a covering laid as tiles, a map baked from the covering in the material's colour. The roof textures
+  the library already had (asphalt shingle, clay barrel, slate grey) are named as `roofing:` materials, and elements
+  draw with their material's map when they name no texture of their own.
+- **Tile roofs.** `roof: { style, covering }` lays the roof course by course from the eave: asphalt shingle, cedar
+  shake, slate, plain tile, pantile, barrel (cover and pan), kawara (under a noshi ridge) or standing seam, ridges and
+  hips capped, verges closed. `covering: true` lays the style's own material. Near the cameras every tile is drawn,
+  stamped with its own tint; further off the covering's map; far its colour. Absent, the roof is unchanged.
+- **The roof as built.** A framed house past `frame` is decked (OSB, or sugi nojiita) or felted and battened by its
+  tradition at rough-in and covered when lined, and no longer also draws the finished roof over it; a cutaway keeps the
+  covering past the cut.
+- **Ceilings for steel and concrete houses.** Lined, a steel house hangs a 2 × 2 ft lay-in acoustic ceiling (its tiles
+  and T-bar grid a map) and a concrete house plasterboard, under the deepest beam, with the light fittings dropped to
+  them. Ceiling boxes are now `IfcJunctionBox` of type POWER.
+- **Gutters and drains.** `drainage: true | { tradition, downpipe, outlet, below }` hangs gutters on every eave that
+  sheds water, falling to outlets placed clear of the openings and as many as the roof needs at the tradition's
+  design rainfall; downpipes swan-neck back to the wall and run to an outlet at grade. North American K-style gutters
+  to splash blocks; British half-round to gullies and a drain run through inspection chambers to an outfall; Japanese
+  copper nokidoi with kusari-doi rain chains to a stone (or tatedoi to a masu); metric box gutters to gullies. A
+  butterfly drains through a box gutter in its valley, a flat deck through scuppers. The house's `drainage` report
+  carries the lengths, the outlets and the checks (roof area per outlet, falls).
+- **IFC export.** `export_model({ ref, format: 'ifc' })` writes a house (with `storeys` or `levels`) as IFC4:
+  storeys, rooms as spaces, walls voided by their openings with doors and windows filling them, floor slabs, the
+  roof as a slab per plane and its gable walls; a framed house instead carries its building model, every member as its
+  section along its centreline (steel as its rolled profile), masonry walls with their openings, linings, boxes, cable,
+  circuits and the roof as built. Gutters and drains ride a rainwater system. Each element has its catalog material and
+  colour, and a property set naming its key; GlobalIds come from the keys and the sketch ref, so they hold across
+  re-exports and never collide between houses.
+
 ### Grown plants
 
 - **Plants grown, not drawn.** `control/lib/graph/vegetation/` grows three kinds of plant.
