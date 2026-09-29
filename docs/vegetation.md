@@ -105,7 +105,15 @@ numbers below were checked against the literature, and several first guesses tur
   A kind (`GRASSES`) is a row of numbers over that one builder: blade count, length, width, stiffness, splay, culms,
   head, colours and a dry share. The reed tuft is the same idea from the culm builder. `over` retunes a kind in a recipe.
 - **Habit is bamboo's split carried down**, as an analogy: a tussock (intravaginal tillers, packed) or a sward
-  (rhizomes or stolons, spreading).
+  (rhizomes or stolons, spreading). A short sward (`lawn`, 6–15 cm) is a third habit, turf: each instance is a plug of
+  turf, wider than it is tall, packed into a carpet. A tuft's size on screen is its larger extent, or a plug would take
+  the coarsest levels.
+- **A style is orthogonal to the kind.** `stylized` (Breath of the Wild the touchstone) turns any kind into:
+  - chunkier blades (at most 18 mm) that stand, even in length, of four segments (the gradient needs them: a face
+    carries one colour);
+  - heads only on a plume;
+  - a saturated gradient from a dark base to a bright tip;
+  - every normal straight up, so a blade is lit as the ground under it and the field reads as fur on the terrain.
 - **The leaf is the ruler, at its extreme.** A blade is 2–25 mm wide and falls below a pixel a few metres off, so the
   ladder is short:
   - L2 every blade;
