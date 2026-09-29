@@ -1,4 +1,4 @@
-# Vegetation: grown trees, palms and bamboo, and how to render many of them
+# Vegetation: grown trees, conifers, palms and bamboo, and how to render many of them
 
 Code: [control/lib/graph/vegetation/](../control/lib/graph/vegetation/). This page covers the science the code rests
 on, the rendering rules it follows, and the known limits. Read it before changing a preset or a level of detail: most
@@ -114,6 +114,40 @@ numbers below were checked against the literature, and several first guesses tur
 - **Reed** (Phragmites) is the same builder at a hundredth of the mass: a leaf per node, blades turned downwind, a
   plume.
 
+## Conifers: grown by rule (`conifer.js`, `conifer-mesh.js`)
+
+The self-organizing engine grows `fir` (Massart), but a real spruce or fir defeats it: tuned by data alone, its crown
+came out 1.2 times as wide as tall, and every attempt to narrow it starved the laterals or grew a spire with an empty
+middle (the mid-crown whorls grow, then are shed within three years). The light economy boom-busts on a dense crown of
+long-lived needles. So Norway spruce, silver fir and Scots pine are grown by rule, as palms and bamboo are, one rule
+per thing a person sees:
+
+- **A cone by construction.** A branch extends ratio · g0 · exp(−depth/shadeDepth) a year, so its length is the
+  leader's height gain since it formed times the ratio. Crown diameter over height is about 0.2 for spruce and 0.3 for
+  fir (tuned: no source gives the ratio).
+- **The flat top** (Edelin 1981, for Abies). The leader slows with age while the top whorls keep widening, and an old
+  fir's top laterals turn up.
+- **Architecture** (Edelin 1981). Abies is Massart's model; Picea sits between Rauh's and Massart's (orthotropic first
+  year, drooping after, with an upturned current-year tip); Scots pine is Rauh's short-shoot model: a whorl of shoots at
+  every year node, which whorls again, so a limb ends in a candelabra and its laterals are shed after about seven years.
+- **Needle retention** (European Atlas of Forest Tree Species 2016; Reich et al. 1996): pine 2–3 years, spruce 6–7,
+  silver fir 6–9. A shoot is clothed back as far as its needles live, so a pine's needle mass sits in clumps at its
+  limb ends.
+- **Shade tolerance** sets the live crown: fir > spruce > pine. In a closed stand a pine keeps the top third to half of
+  its stem, spruce and fir 0.6 or more.
+- **Bark by height.** Spruce is thin, small scales; silver fir smooth grey with resin blisters; a Scots pine is grey
+  plates low and papery orange from about 0.45 of its height.
+- **Needles as shoots.** The page draws opaque vertex colour, so needles are toothed strips whose edges read as needles
+  (a crossed brush for spruce and pine, a flat two-ranked spray for fir, a brush on a fir's sunlit top). Shoots deep in
+  the crown are dropped, and a `volume` factor widens the brush and spaces its teeth by the same factor, so a shoot
+  stands in for the finer shoots not grown at the same face count.
+- **Far off, not a cloud.** The far levels come from the crown's own envelope: tiers (L1) and a spire (L0) for spruce
+  and fir, a quarter of the voxel puffs' faces and closer to the tree's silhouette at 32 px; a pine is clumps, one per
+  limb. Voxel puffs on a spire read as topiary.
+- **Where they grow** (`plants.region: 'eurasia'` on a terrain world): boreal spruce throughout and pine on dry ground;
+  temperate and alpine beech and oak low, silver fir with beech in the montane belt (500–1,800 m in the Alps), spruce to
+  the treeline (the subalpine belt with larch and Swiss stone pine at 1,800–2,100 m), pine on dry and poor ground.
+
 ## Rendering rules
 
 - **A species is a pool.** K grown variants × four levels of detail, placed through `repeats` (one template, N
@@ -191,3 +225,7 @@ numbers below were checked against the literature, and several first guesses tur
 - Kawai et al. 2008 (J. Jpn. For. Soc. 90:151).
 - PROSEA (Dransfield & Widjaja 1995).
 - Flora of China vol. 22.
+- Edelin 1981 (Bull. Soc. bot. Fr. 128:177).
+- European Atlas of Forest Tree Species 2016: Caudullo et al. (Picea abies), Mauri et al. (Abies alba), Houston Durrant et al. (Pinus sylvestris).
+- Reich et al. 1996.
+- Priehäusser 1958; Geburek et al. 2008.
