@@ -38,6 +38,8 @@ import { auditFieldContribution } from '../polygonizer/field-contribution.js';
 import { solidComponentsStable, componentWarnings } from '../polygonizer/solid-components.js';
 import { lowerCuts, validateCuts } from '../polygonizer/workbench-cuts.js';
 import { expandWorkbenchProgram, hasProgram, MONOMER_KEYS } from './workbench-program.js';
+import { withEquipment, hasEquipment, equipmentReadout } from '../equipment/expand.js';
+import { barkLathe, barkLoft, validateBark } from '../polygonizer/bark-skin.js';
 import { makeLight, withBands, resolveToon } from '../polygonizer/vexar.js';
 import { validateMaterialRef } from '../polygonizer/materials.js';
 import { auditClosure } from '../polygonizer/face-closure.js';
@@ -101,6 +103,9 @@ const wrapKeyed = (spec, i, keyOf = wrapKey) => (spec && spec.wrap && typeof spe
 
 /** Lower a polygomer manifest (lathe + extrude + sweep + loft + field + drape + relief + shell monomers) into one baked World face list. */
 export function lowerObjectFaces(manifest, light) {
+  // An equipment `build` (equipment/expand.js) expands to monomers merged before the explicit arrays; absent one,
+  // `manifest` passes through by identity.
+  manifest = withEquipment(manifest);
   // A `program` (the code kind, expressiveness.plan.md E3) expands to monomers and/or a face
   // list first; absent one, `manifest` passes through untouched.
   if (hasProgram(manifest)) {
@@ -139,10 +144,11 @@ export function lowerObjectFaces(manifest, light) {
     return faces.map((f) => ({ ...f, ...(group && !f.group ? { group } : {}), ...(alpha != null ? { alpha } : {}) }));
   };
   return [
-    ...lathes.flatMap((spec, i) => grouped(latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps }), spec)),
+    // a lathe or loft may wear the trees' bark (`bark`, polygonizer/bark-skin.js); absent → the faces pass through
+    ...lathes.flatMap((spec, i) => grouped(barkLathe(latheToFaces(wrapKeyed(spec, i), { light, tint: latheTint(spec), material: spec.material, caps: spec.caps }), spec, light), spec)),
     ...extrudes.flatMap((spec, i) => grouped(extrudeToFaces(wrapKeyed(spec, i, xwrapKey), { light, material: spec.material }), spec)),
     ...sweeps.flatMap((spec) => grouped(sweepToFaces(spec, { light, material: spec.material }), spec)),
-    ...lofts.flatMap((spec) => grouped(loftToFaces(spec, { light, material: spec.material }), spec)),
+    ...lofts.flatMap((spec) => grouped(barkLoft(loftToFaces(spec, { light, material: spec.material }), spec, light), spec)),
     // field solids (field-solids.plan.md F3): one closed surface-net shell per entry, cuts included
     ...fields.flatMap((spec) => fieldToFaces(spec, { light, material: spec.material })),
     ...drapes.flatMap((spec) => grouped(drapeToFaces(spec, { light, material: spec.material }), spec)),
@@ -425,6 +431,10 @@ export function planWorkbench(manifest = {}) {
   // loop working. Its generated monomers then pay every gate below like hand-written ones.
   let programReport = null;
   let programFaces = [];
+  // An equipment build expands here once (an invalid build fails the mint, naming the choices) and its readout rides
+  // the stats as `equipment`: the focal, the sockets, the variants, the laws it was built under.
+  const equipment = hasEquipment(manifest) ? equipmentReadout(manifest.build) : null;
+  manifest = withEquipment(manifest);
   if (hasProgram(manifest)) {
     const ex = expandWorkbenchProgram(manifest, { light: WORKBENCH_LIGHT });
     programReport = ex.program;
@@ -458,6 +468,7 @@ export function planWorkbench(manifest = {}) {
   for (const k of ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields', 'drapes', 'reliefs', 'shells']) {
     src[k].forEach((s, i) => { const e = validateMaterialRef(s && s.material); if (e) errors.push(`${k}[${i}].material: ${e}`); });
   }
+  for (const k of ['lathes', 'lofts']) src[k].forEach((s, i) => { const e = validateBark(s && s.bark); if (e) errors.push(`${k}[${i}].${e}`); });
   if (manifest.cuts !== undefined) errors.push(...validateCuts(manifest));
   if (errors.length) {
     throw new Error(`Invalid monomers:\n- ${errors.join('\n- ')}`);
@@ -611,7 +622,7 @@ export function planWorkbench(manifest = {}) {
     closed: closureWarnings.length === 0,
     ...(programReport ? { program_ms: programReport.ms } : {}),
   };
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length + frames.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), ...(frames.length ? { frames: frameReports } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(cuts.length ? { cuts } : {}), ...(contribution.length ? { contribution } : {}), ...(components ? { components } : {}), ...(programReport ? { program: programReport } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length + frames.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), ...(frames.length ? { frames: frameReports } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(cuts.length ? { cuts } : {}), ...(contribution.length ? { contribution } : {}), ...(components ? { components } : {}), ...(programReport ? { program: programReport } : {}), ...(equipment ? { equipment } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

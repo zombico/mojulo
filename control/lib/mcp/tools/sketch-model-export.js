@@ -22,6 +22,7 @@ import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
 import { EXPR_GRAMMAR_VERSION } from '@/lib/graph/polygonizer/field-expr';
 import { FIELD_DOMAIN_OPS } from '@/lib/graph/polygonizer/field-terms';
 import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench-program';
+import { withEquipment } from '@/lib/graph/equipment/expand';
 import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
@@ -735,7 +736,7 @@ export async function exportModelHandler(input, context = {}) {
               // lower inside the transpiler. The payload is the fallback for a kind that has
               // no workbench manifest to read (decision 6: nothing refuses the format).
               ? scadExport({
-                manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : sketch.manifest,
+                manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : withEquipment(sketch.manifest),
                 payload,
                 title: sketch.title || sketch.manifest.title || ref,
                 ref,
@@ -786,7 +787,7 @@ export async function exportModelHandler(input, context = {}) {
   // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
   // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
   // program's monomers are the ones that shipped) and says what ran, in numbers
-  let ledgerManifest = sketch.manifest;
+  let ledgerManifest = withEquipment(sketch.manifest);
   if (hasProgram(sketch.manifest)) {
     const ex = expandWorkbenchProgram(sketch.manifest);
     ledgerManifest = ex.manifest;

@@ -42,6 +42,7 @@
 
 import { lowerObjectFaces, studioSceneFromFaces, WORKBENCH_LIGHT, bakeBoundSkinFaces, collectWrapSources } from './workbench.js';
 import { MONOMER_KEYS, hasProgram } from './workbench-program.js';
+import { hasEquipment } from '../equipment/expand.js';
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { makeLight, withBands, resolveToon } from '../polygonizer/vexar.js';
 
@@ -294,7 +295,7 @@ export function planAssembler(manifest = {}) {
       // legitimate part is rejected by the gate that is supposed to precede it —
       // a shell-only part (a faceted rock) rendered fine and threw anyway. The list
       // IS the workbench's (MONOMER_KEYS), so lofts and fields count too.
-      && (MONOMER_KEYS.some((k) => Array.isArray(src[k]) && src[k].length) || hasProgram(src));
+      && (MONOMER_KEYS.some((k) => Array.isArray(src[k]) && src[k].length) || hasProgram(src) || hasEquipment(src));
     if (!hasMonomer) {
       throw new Error(`Item ${index} has no renderable part — \`source\` must be a workbench manifest with a non-empty ${MONOMER_KEYS.join('/')} or a \`program\` (or a {ref} the mint tool froze into one).`);
     }

@@ -14,6 +14,42 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Equipment
+
+Fantasy arms composed from intent and art direction: swords, daggers, greatswords, staves, bows and shields, built
+by a handful of dials and a few laws rather than a catalogue. The recipe stores the words; the item is re-derived on
+every read. Opt-in through `build` on a workbench.
+
+- **An item is a build, not a model.** `mint_solid({ kind: 'equipment', spec: { item, style, dials, parts, gem } })`
+  stores a workbench with a `build` (the same `build` may sit on any workbench beside hand-made parts). The build
+  expands into ordinary monomers (lofts, lathes, sweeps, extrudes, fields) wherever a workbench is read: the World,
+  the studio shots, the exports, an assembler that freezes it. `update_sketch` restyles it in place: one dial, one word. A build is stamped with
+  the version of the laws it was minted under, so a later refinement never moves a stored item.
+- **Dials, not presets.** `stylize` runs from realistic to stylized along one proportion curve. `mass` sets heft,
+  `focus` names the signature (a guard, a pommel, a staff head, a bow's riser, a shield's boss), and `ornament`
+  caps the secondary accents. Shape language picks a variant per part: leaf, cleaver, sabre, flamberge and tanto
+  blades; bar, crescent, disc, block, spiked and winged guards; branch, claw, crescent, block, mace and ringed staff
+  heads; longbow, recurve, horn and yumi limbs; round, heater and kite shields with rays, bands, vines, wings,
+  spikes or a mon.
+- **The laws.**
+  - One focal element per item, with everything else sized against it.
+  - Stylization grows the focal fastest, and detail gets fewer and bigger.
+  - The part that carries a stone re-forms as its setting: a flush bezel when realistic, a boss, cage or claw when
+    stylized. The setting always touches the stone.
+  - No feature is thinner than a stylize-dependent fraction of the item's length.
+  - Fittings recede so the focal carries the contrast.
+  - The focal sits where the eye already goes, and leading lines run into it.
+  - A branching head grows by the pipe model.
+  - On a shield, the stone is sized against the whole face.
+- **Styles are cards.** Eight samples ship as plain data: historical, elven, dwarven, brutal, eastern, anime-hero,
+  druid and celestial. `style` also takes an inline card, so a new direction is a new card, not code.
+- **The readout.** `stats.equipment` names the focal and its share of its host or face, the resolved dials and
+  variants, and the sockets (`grip`, `tip`, `focal`, and a bow's nocks) that a figure mounts gear by.
+- **Bark on any lathe or loft.** `bark: 'oak'` (or `{ species, tile }`) on a lathe or loft wears the trees' own
+  fracture-grown bark: oak, beech, pine, chestnut, spruce, silver fir or upper pine. The mapping is seamless, running
+  round and along the stem, and the page lights the texture. A druid's gnarled staff and its grown branches wear it,
+  with the tile scaled to the stem, because bark cracks closer on a thinner stem.
+
 ### Terrain vegetation
 
 Grown forests on terrain worlds. They stand where the ground is painted wood, at their real size in any world, and

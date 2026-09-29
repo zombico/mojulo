@@ -506,6 +506,10 @@ cuts:   [{ id: 'bolts', from: 'flange', subtract: ['bore', 'b1', 'b2'], cells: 9
 - `blend` (units) fillets the cut rims.
 - **The advisory sees it.** A subtracted sweep's or lathe's diameter is a BORE: a hole under the printer's floor is a `tiny_feature` that will close up, not a strut that prints as a thread.
 
+## Builds — arms named by intent
+
+`build: { type: 'equipment', item, style, dials?, parts?, gem?, seed? }` expands, on every read, into the lofts, lathes, sweeps, extrudes and fields of a dagger, sword, greatsword, staff, bow or shield, merged before any monomers you write yourself (a hand-made part beside a built item). The recipe stores only the words, stamped with the version of the laws they were minted under, and `stats.equipment` reads out the focal and the sockets. The kind `equipment` mints one directly; its card (`equipment`) holds the dials, the laws and the slots.
+
 ## Materials, units, framing
 
 > **DCC handoff caveat.** `material` presets bake a shading response (ambient /
