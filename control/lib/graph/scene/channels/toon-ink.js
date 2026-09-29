@@ -27,11 +27,23 @@ import { safeJson } from '../emit-util.js';
 // ink a posed figure's parts — rig parts carry no authored normals, so the geometric fallback
 // orients each triangle AWAY from the part's centroid, which convex armour plates and limb
 // segments satisfy.
+// SILHOUETTE ONLY (`lines: false` in the cfg — the character ink's default): the hull alone; the line
+// segments are built but never attached, so the census draws nothing (a crease angle cannot do it: open
+// boundaries — a ribbon's edge, a lock's rim — ink at any angle). The rig preview channel reads
+// `__mojInk.reg[<its hidden group>]` to hide the static pair with the static solid while a clip plays.
+// Absent ⇒ the emitted text is byte-identical.
+// DRAW LAYERS (`layers`, passed by the emitter only on a page whose render groups carry a face `layer` —
+// channels/draw-layers.js): the hull of a `hair` or `veil` group takes that layer's stencil test and draws after
+// every fill (render order 3), so a hair outline never draws over hair and the fringe's never over the brow it lets
+// through; every other hull is built and drawn as before. No `layers` ⇒ the emitted text is byte-identical.
 // One-shot setup block (glow/specular posture): a world without `toon.ink` emits ZERO bytes.
 // BAKE twin: ../ink-geometry.js carries this same construction (weld → winding fix → crease census)
 // as importable code for the GLB export's `toon.bake` (shader-look phase 3) — a semantic change to the
-// builders here must land there too, and its tests pin the shared behaviour.
-export function toonInkScript(cfg) {
+// builders here must land there too, and its tests pin the shared behaviour. The one rule the bake cannot
+// carry is the stencil: a baked hull is plain geometry drawn by an engine's own pass, so the bake drops
+// instead the hull of the hair that lies INSIDE another hair part (ink-geometry.js inkBuried) — the lock
+// roots sunk into the cap, the sections pressed into each other — and keeps the rest (see its header).
+export function toonInkScript(cfg, { layers = false } = {}) {
   return `
 // --- toon ink (opt-in 'toon.ink'): inverted-hull silhouettes + crease lines ---
 const __INK = ${safeJson(cfg)};
@@ -129,8 +141,9 @@ const __inkReg = {};   // group name → the entry __inkBuild returned (+ scene-
   for (const [grp, g] of inkGeos) {
     const pos = g.getAttribute('position').array;
     const nrm = grp.ink.nrm ? decodeF32(grp.ink.nrm) : __inkGeoNormals(pos, __inkCentroid(pos));
-    const e = __inkBuild(pos, nrm, width, __INK.crease, q, __INK.color);
-    scene.add(e.hull); scene.add(e.lines); __inkReg[grp.name] = e;
+    const e = __inkBuild(pos, nrm, width, __INK.crease, q, __INK.color);${layers ? `
+    if (grp.layer && __layerHull(e.hullMat, grp.layer)) e.hull.renderOrder = 3;   // the draw layers' hull rule (after every fill)` : ''}
+    ${cfg && cfg.lines === false ? 'scene.add(e.hull);' : 'scene.add(e.hull); scene.add(e.lines);'} __inkReg[grp.name] = e;
     const m = meshes[grp.name];
     if (m) { m.material.polygonOffset = true; m.material.polygonOffsetFactor = 1; m.material.polygonOffsetUnits = 1; m.material.needsUpdate = true; }
   }

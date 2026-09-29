@@ -1,20 +1,23 @@
 /** anime-looks.js — LOOKS: presets for the anime head as words that compose, the conversational surface for a character.
  *
- * One list, `look`, takes words from five tables, each found in its own (the names are disjoint across them, checked at
+ * One list, `look`, takes words from six tables, each found in its own (the names are disjoint across them, checked at
  * load):
- *   - ARCHETYPES (`ANIME_LOOKS`): a whole starting character over the channels — face, hair, expression, and the body
- *     `tune` where a character needs it (head size, stature) — never the palette, cast, register or head, which stay the
- *     operator's (a look is shape, not character);
- *   - face TRAITS (`ANIME_FACE_MOVES`), hair TRAITS (`ANIME_HAIR_MOVES`, which may direct clumps), hair FAMILIES, POSES.
- * Resolved left to right: faces and tunes by their resolvers (ratios by product, offsets by sum), hair by its (the family
- * last-wins, controls composed, clump edits summed), the pose last-wins. The operator's own face / hair / expression /
- * tune compose ON TOP (`composeAnime`), so `/hero/face/eyeHeight 1.1` is ten percent over whatever the look made.
+ *   - ARCHETYPES (`ANIME_LOOKS`): a whole starting character over the channels — face, sculpt, hair, expression, and the
+ *     body `tune` where a character needs it (head size, stature) — never the palette, cast, register or head, which stay
+ *     the operator's (a look is shape, not character);
+ *   - face TRAITS (`ANIME_FACE_MOVES`), graphic-face TRAITS (`ANIME_SCULPT_MOVES`, on the sculpt), hair TRAITS
+ *     (`ANIME_HAIR_MOVES`, which may direct clumps), hair FAMILIES, POSES.
+ * Resolved left to right: faces, sculpts and tunes by their resolvers (ratios by product, offsets by sum), hair by its
+ * (the family last-wins, controls composed, clump edits summed), the pose last-wins. The operator's own face / sculpt /
+ * hair / expression / tune compose ON TOP (`composeAnime`), so `/hero/face/eyeHeight 1.1` is ten percent over whatever
+ * the look made; the operator's `sculpt: false` (the studio's face) sets the look's sculpt aside.
  * A look is stored as its words beside a RESOLVED stamp (`lookResolved`): a later re-tuning of a word here never changes a
  * stored row until its list is edited. Pure data and resolvers; no dice.
  */
 import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression } from './anime-head.js';
 import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { resolveTune, validateTune } from './hero-form.js';
+import { ANIME_SCULPT_MOVES, resolveAnimeSculpt } from './anime-sculpt.js';
 
 /** ARCHETYPES: starting characters (tuned for the anime head; numbers are starting points for the eyes gate). A `tune`
  * is relative to the anime proportions the anime head already wears (about 6.5 / 7 heads tall): only a character whose
@@ -33,7 +36,7 @@ export const ANIME_LOOKS = Object.freeze({
 
 /** every look word by table (the order a word is looked up in) */
 export const LOOK_TABLES = Object.freeze({
-  archetype: Object.keys(ANIME_LOOKS), face: Object.keys(ANIME_FACE_MOVES), hair: [...Object.keys(ANIME_HAIR_MOVES), ...ANIME_HAIR_STYLES], pose: Object.keys(ANIME_POSES),
+  archetype: Object.keys(ANIME_LOOKS), face: Object.keys(ANIME_FACE_MOVES), sculpt: Object.keys(ANIME_SCULPT_MOVES), hair: [...Object.keys(ANIME_HAIR_MOVES), ...ANIME_HAIR_STYLES], pose: Object.keys(ANIME_POSES),
 });
 export const LOOK_WORDS = Object.freeze(Object.values(LOOK_TABLES).flat());
 { // the tables must not share a word: a word means one thing wherever the conversation says it
@@ -49,48 +52,63 @@ export function validateLook(spec, label = 'look') {
   list.forEach((w, i) => {
     const at = Array.isArray(spec) ? `${label}[${i}]` : label;
     if (typeof w !== 'string') errs.push(`${at}: a look is a word or a list of words`);
-    else if (!tableOf(w)) errs.push(`${at}: unknown look word '${w}' (archetypes ${LOOK_TABLES.archetype.join(', ')}; face ${LOOK_TABLES.face.join(', ')}; hair ${LOOK_TABLES.hair.join(', ')}; poses ${LOOK_TABLES.pose.join(', ')})`);
+    else if (!tableOf(w)) errs.push(`${at}: unknown look word '${w}' (archetypes ${LOOK_TABLES.archetype.join(', ')}; face ${LOOK_TABLES.face.join(', ')}; sculpt ${LOOK_TABLES.sculpt.join(', ')}; hair ${LOOK_TABLES.hair.join(', ')}; poses ${LOOK_TABLES.pose.join(', ')})`);
   });
   return errs;
 }
 /** a look's words → each channel's entries, in order */
 export function lookEntries(spec) {
-  const out = { face: [], hair: [], expression: [], tune: [] };
+  const out = { face: [], sculpt: [], hair: [], expression: [], tune: [] };
   for (const w of (Array.isArray(spec) ? spec : [spec])) {
     const table = tableOf(w);
-    if (table === 'archetype') { const L = ANIME_LOOKS[w]; for (const k of ['face', 'hair', 'expression', 'tune']) if (L[k] !== undefined) out[k].push(...(Array.isArray(L[k]) ? L[k] : [L[k]])); }
+    if (table === 'archetype') { const L = ANIME_LOOKS[w]; for (const k of ['face', 'sculpt', 'hair', 'expression', 'tune']) if (L[k] !== undefined) out[k].push(...(Array.isArray(L[k]) ? L[k] : [L[k]])); }
     else if (table === 'face') out.face.push(w);
+    else if (table === 'sculpt') out.sculpt.push(w);
     else if (table === 'hair') out.hair.push(w);
     else if (table === 'pose') out.expression.push(w);
     else throw new Error(`look: unknown word '${w}'`);
   }
   return out;
 }
-/** The stamp: a look's words resolved per channel. `hair.style` is null and `expression` null when the look names none. */
+/** The stamp: a look's words resolved per channel. `hair.style` is null and `expression` null when the look names none;
+ * `sculpt` is there only when the look names a graphic-face word. */
 export function resolveLook(spec) {
   const errs = validateLook(spec); if (errs.length) throw new Error(errs.join('; '));
   const words = Array.isArray(spec) ? [...spec] : [spec], E = lookEntries(words);
   const { from: _ff, ...face } = resolveAnimeFace(E.face);
   const { from: _tf, ...tune } = resolveTune(E.tune.length ? E.tune : undefined);
-  return { words, face, hair: resolveAnimeHair(E.hair), expression: E.expression.length ? resolveAnimeExpression(E.expression) : null, tune };
+  return { words, face, ...(E.sculpt.length ? { sculpt: resolveAnimeSculpt(E.sculpt) } : {}), hair: resolveAnimeHair(E.hair), expression: E.expression.length ? resolveAnimeExpression(E.expression) : null, tune };
 }
 /** a look's `tune` entries are the body tune's words; the tune validator answers for them */
 export const validateLookTune = (look) => validateTune(lookEntries(look).tune);
 
 /**
- * The effective head and tune: the look's stamp, then the operator's own layer on top.
- * @param {{ lookResolved?, face?, hair?, expression?, tune? }} hero  (own layers stored resolved; `hair.style` may be null)
- * @param {string} defaultStyle  the family when neither names one
+ * The effective head and tune: the look's stamp, then the operator's own layer on top. `sculpt` is the graphic face's
+ * words (every word at its value; the head's graphic base when neither layer names one) or `false` (the studio's face).
+ * `hairBase` (anime-head ANIME_HAIR_BASE[pole], the hero door's default hair): its FORM goes under every family, and its
+ * CUT (a hair word) under the look and the own layer only when neither names a family — so a look or an operator that
+ * names a family gets that family as designed (with the form), and one that names none keeps the base's cut. The result
+ * also carries `hairWords` (the hair the WORDS made — the base's layers and the look's — which the hair advice reads past;
+ * null when bald) and `hairCut` (the base's cut worn, or null).
+ * @param {{ lookResolved?, face?, sculpt?, hair?, expression?, tune? }} hero  (own layers stored resolved, the sculpt
+ *   sparse; `hair.style` may be null)
+ * @param {string} defaultStyle  the family when none names one
+ * @param {{ hairBase?: { form: object, cut: string } | null }} [options]
  */
-export function composeAnime(hero, defaultStyle) {
+export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const L = hero.lookResolved ?? null;
   const { from: _f, ...face } = resolveAnimeFace([L?.face, hero.face].filter(Boolean));
   const own = hero.hair === 'none' ? 'none' : hero.hair;
-  const hair = own === 'none' ? 'none' : resolveAnimeHair([L?.hair, own].filter((x) => x !== undefined && x !== null));
+  const layers = own === 'none' ? [] : [L?.hair, own].filter((x) => x !== undefined && x !== null);
+  const named = !!hairBase && own !== 'none' && resolveAnimeHair(layers).style !== null;
+  const base = hairBase && own !== 'none' ? [hairBase.form, ...(named ? [] : [hairBase.cut])] : [];
+  const hair = own === 'none' ? 'none' : resolveAnimeHair([...base, ...layers]);
   if (hair !== 'none' && hair.style === null) hair.style = defaultStyle;
+  const hairWords = own === 'none' ? null : resolveAnimeHair([...base, L?.hair].filter((x) => x !== undefined && x !== null)), hairCut = hairBase && own !== 'none' && !named ? hairBase.cut : null;
   const expression = hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral');
   const { from: _t, ...tune } = resolveTune([L?.tune, hero.tune].filter(Boolean));
-  return { face, hair, expression, tune };
+  const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([L?.sculpt, hero.sculpt].filter((x) => x !== undefined && x !== null));
+  return { face, sculpt, hair, expression, tune, hairWords, hairCut };
 }
 /** the frame note's clause and the readout's trail */
 export const describeLook = (words) => (words?.length ? `look ${words.join('+')}` : '');

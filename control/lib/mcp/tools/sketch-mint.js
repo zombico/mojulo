@@ -60,6 +60,7 @@ import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
 import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
+import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
   classifyPromptForCards,
@@ -738,9 +739,12 @@ export async function updateSketchHandler(input) {
           // otherwise pass silently)
           const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
           const prev = existingSketch?.manifest;
-          if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
+          if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the stored plan differs from what the hero generates now (hand-edited under /plan, or the hero\'s generator changed since it was stored); this /hero edit regenerated the plan and replaced it (the old one is in the archived revision)');
           manifest = expandLayeredManifest(manifest, { from: 'hero' });
         } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
+        // the character light (`toon.light`) refuses by field on an edit as at mint, instead of being dropped at read
+        const lightErrs = under('/toon') && manifest.toon && typeof manifest.toon === 'object' ? toonLightErrors(manifest.toon.light) : [];
+        if (lightErrs.length) throw new Error(`toon refused:\n - ${lightErrs.join('\n - ')}`);
         const planned = planLayered(manifest); layeredStats = planned.stats;
         if (manifest.hero) layeredStats = { ...layeredStats, hero: heroReadout(manifest.hero, manifest.plan, layeredStats, heroWarnings, { mesh: planned.mesh, recipe: manifest.recipe }) };
       } catch (err) {

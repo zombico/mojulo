@@ -79,6 +79,37 @@ export const ANIME_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, 
 /** the cast a word names under a proportion: the anime cast when asked for and there is one, else the hero cast */
 export const castOf = (cast, proportions = 'hero') => (typeof cast === 'string' ? (proportions === 'anime' && ANIME_CASTS[cast]) || HERO_CASTS[cast] : null);
 
+/** THE NECK FORM (`heroPlan({ neckForm })`; the humanoid starter passes a cast's own under the anime head and anime
+ * proportions): the neck as a LOFT of explicit rings instead of the three-ring segment, so the column shades round and
+ * its back rises into the occiput instead of shelving out behind the lower skull, and the torso's top ring re-placed as
+ * the TRAPEZIUS RING, so the shoulder line breaks convex there instead of running as one straight cone to a collar.
+ *   girth     × the cast's neck radius (the loft's own factor: the cast's `neck` and the `body.neck` word still size it)
+ *   slots, e  the ring family and exponent in every register (ring12: 30° between faces, under the 35° weld crease)
+ *   lean      degrees the axis tilts forward going up (the cervical column's carriage); each ring stays square to the
+ *             axis, so its back sits higher than its front (the nape high under the occiput, the throat low)
+ *   yBase     the axis' y at its base (m, + = front); top: the axis' top above the head's base joint (m)
+ *   rings     [t, width ×, depth ×, (dy m)] along the base → top run, × the neck radius: a base flare hidden in the torso,
+ *             the collar, mid-neck, under the jaw, and past the top the NAPE RING set back, which carries the back of the
+ *             neck up into the occiput
+ *   tip       the top cap's point, [dy, dz] from the LAST ring's centre (inside the skull)
+ *   blend     the loft's bone weights by station; the base cap rides the torso, the top cap the head
+ *   trap      the trapezius ring: `z` and the top cap's `tip` above the neck hub (m), `r` [side, depth] (m), `yc`, `blend`
+ * A neck form moves only the neck and, with a `trap`, the torso's top ring (the starter then skips its collar rise and
+ * widening). */
+const NAPE_LOFT = {
+  slots: 'ring12', e: 2, lean: 3, yBase: -0.016, top: 0.03,
+  rings: [[0, 1.25, 0.98], [0.35, 1.04, 0.84], [0.7, 0.95, 0.72], [1, 0.86, 0.64], [1.2, 0.62, 0.5, -0.022]],
+  tip: [-0.01, 0.025],
+  blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st3: { neck: 0.5, head: 0.5 }, st4: { neck: 0.2, head: 0.8 }, tip: { head: 1 } },
+};
+/** the anime casts' neck forms: the male's column is 1.2 × his cast's neck radius (0.75–0.8 of the face width) with the
+ * trapezius ring; the female keeps her own radius (about 0.4 of the face width) and her collar, and takes the same loft */
+export const ANIME_NECK_FORMS = deepFreeze({
+  male: { ...NAPE_LOFT, girth: 1.2, trap: { z: 0.04, r: [0.135, 0.09], yc: -0.015, tip: 0.078, blend: { torso: 0.85, neck: 0.15 } } },
+  female: { ...NAPE_LOFT, girth: 1 },
+});
+function deepFreeze(o) { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); }
+
 // ─── The tune ─────────────────────────────────────────────────────────────
 // the thirteen body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses),
 // the lab's exploration limits (comfortable, not a wall) and its three MOVES. A move earns a slot by demonstrated need,
@@ -124,8 +155,10 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              multiply `scale` and `headScale`; lengths and `shoulders` multiply the cast's dials; the widths and
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
+ *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
+ *              default) is the three-ring segment
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero' } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!reg) throw new Error(`hero.plan: unknown register '${register}' (have ${Object.keys(REGISTERS).join(', ')})`);
   if (!['hero', 'anime'].includes(proportions)) throw new Error(`hero.plan: unknown proportions '${proportions}' (have hero, anime)`);
@@ -176,8 +209,18 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     st(J.shoulder[2] + 0.021, [shoulderHalf / g0 + armBase * 0.72, 0.104 * D]), st(zs + 0.025, [b.neck * 1.1, b.neck * 0.86]),
   ], caps: { back: R([0, 0, zp + 0.54 * L]), tip: R([0, 0, zs + 0.04]) }, group: 'Top', mirror: 'plane',
     bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, torso: 0.5 }, st4: { torso: 0.6, neck: 0.4 }, tip: { neck: 1 } } } };
-  const neck = { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [0.15, 0.2], group: 'Skin', mirror: 'plane',
+  // a worn head sits at the atlas; if its chin would hang below the collar (a big or chibi head), lift it, jaw anchors too
+  // (a head without a jaw part — the anime head opens its mouth as an aperture — says its chin as `chinZ`)
+  const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : (head?.chinZ ?? 0);
+  const rise = head ? Math.max(0, zs + 0.07 - (hb + chin)) : 0;
+  const neck = neckForm ? neckLoft(neckForm, { b, g, zs, hb: hb + rise }) : { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [0.15, 0.2], group: 'Skin', mirror: 'plane',
     bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } };
+  if (neckForm?.trap) {   // the trapezius ring: the torso's top ring, its top cap and its weights (absolute heights over the hub)
+    const T = neckForm.trap, top = torso.stations[4];
+    top.z = r6(zs + T.z); top.r = g([T.r[0], T.r[1]]); if (T.yc != null) top.yc = r6(T.yc);
+    torso.caps.tip = R([0, 0, zs + T.tip]);
+    if (T.blend) torso.bind.blend.st4 = { ...T.blend };
+  }
   const hs = (k, r, yc) => ({ z: r6(hb + k * H), r: r.map((x) => r6(x * H)), ...(yc ? { yc: r6(yc * H) } : {}) });
   const blankHead = { name: 'head', kind: 'trunk', stations: [
     hs(-0.25, [0.48, 0.5], 0.04), hs(0.35, [0.70, 0.74], 0.06), hs(0.9, [0.74, 0.78], 0.04), hs(1.35, [0.66, 0.70]), hs(1.65, [0.42, 0.46]),
@@ -234,11 +277,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
   const armParts = ['upperArm$S', 'foreArm$S', 'hand$S'], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S'], trunkParts = ['torso', ...(rb > 0 ? ['bust$S'] : [])];
-  // a worn head sits at the atlas; if its chin would hang below the collar (a big or chibi head), lift it, jaw anchors too
-  // (a head without a jaw part — the anime head opens its mouth as an aperture — says its chin as `chinZ`)
-  const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : (head?.chinZ ?? 0);
   const jawed = !!head?.joints?.jawHinge;
-  const rise = head ? Math.max(0, zs + 0.07 - (hb + chin)) : 0;
   const HEAD_SHIFT = [0, 0, r6(hb + rise)];
   const shifted = (p) => R(add(p, HEAD_SHIFT));
   // a worn head's hair record and measures ride the include (extra include keys are tolerated), so the readout can answer
@@ -286,6 +325,20 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e },
     joints, segments, include, dials, palette, rig, clips,
   }, S);
+}
+
+/** A neck form's loft (see ANIME_NECK_FORMS): the axis from below the neck hub (hidden in the torso) to `top` above the
+ * head's base joint (`hb`, lifted with a lifted head), leaning forward; each ring on it at its fraction, sized off the
+ * cast's neck radius, the nape ring set back; the base cap under the axis, the top cap off the LAST ring's centre (so
+ * a ring past the axis' top carries it, and the cap's fan keeps its winding). */
+function neckLoft(N, { b, g, zs, hb }) {
+  const k = N.girth ?? 1, lean = ((N.lean ?? 0) * Math.PI) / 180;
+  const z0 = zs - 0.15 * b.neck, z1 = hb + (N.top ?? 0.2 * b.neck), y0 = N.yBase ?? 0;
+  const at = (t) => { const z = z0 + t * (z1 - z0); return [0, y0 + (z - z0) * Math.tan(lean), z]; };
+  const stations = N.rings.map(([t, w, d, dy]) => { const p = at(t); return { at: R(dy ? [0, p[1] + dy, p[2]] : p), r: g([b.neck * k * w, b.neck * k * d]) }; });
+  const end = stations.at(-1).at, tip = N.tip ?? [0, 0.35 * b.neck];
+  return { name: 'neck', kind: 'loft', stations, caps: { back: R([0, y0, z0 - 0.3 * b.neck]), tip: R([0, end[1] + tip[0], end[2] + tip[1]]) }, slots: N.slots, ...(N.e ? { e: N.e } : {}), group: 'Skin', mirror: 'plane',
+    bind: { bone: 'neck', blend: JSON.parse(JSON.stringify(N.blend)) } };
 }
 
 /** the frame note's tune clause: the keys that moved, as percentages (`from` first when a move named it) */

@@ -50,7 +50,7 @@ import {
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
-  rigPreviewChannelScript,
+  rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
 import { streamChannelScript } from './channels/stream.js';
@@ -317,22 +317,30 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     width: Number.isFinite(toonInk.width) ? toonInk.width : 0.008,
     ...(Number.isFinite(toonInk.widthAbs) ? { widthAbs: toonInk.widthAbs } : {}),
     crease: Number.isFinite(toonInk.crease) ? toonInk.crease : 35,
+    // `lines: false` — the silhouette hull alone (no crease or open-boundary segments); absent ⇒ no key, same cfg
+    ...(toonInk.lines === false ? { lines: false } : {}),
   } : null;
   // The ink faces come from the PRE-decollide list (expanded0): decollide lifts coplanar cap
   // triangles by different amounts, so their shared edges would never weld into one hull or
-  // pass the crease census. Same grouping key as the render groups below.
+  // pass the crease census. Same grouping key as the render groups below. A face tagged `noInk`
+  // (a drawn feature on a character-lit figure: an eye lens, a stroke) takes no outline, nor does
+  // a face drawn `through` another (its draw layer, below).
+  // DRAW LAYERS (channels/draw-layers.js): a face carrying `layer` ('hair' | 'through' | 'veil', a
+  // character-lit figure's) lands in its group split by that layer (drawLayerGroup: `body:hair`…), so
+  // each layer is its own mesh and its own outline hull; a face without one keeps its group.
   const inkByGroup = new Map();
   if (toonInk) {
     for (const f of expanded0) {
-      if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
-      const k = f.group || 'static';
+      if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || f.noInk || f.layer === 'through' || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
+      const k = drawLayerGroup(f);
       (inkByGroup.get(k) || inkByGroup.set(k, []).get(k)).push(f);
     }
   }
   // `decal:'shadow'` faces render ONLY in the shadow-decal pass, and `water` faces ONLY in the
   // translucent water pass below — keep both out of the opaque mesh (shadows would double as flat
   // dark patches; water needs per-vertex alpha the opaque mesh can't carry).
-  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = f.group || 'static'; (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
+  const layerOf = new Map();
+  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = drawLayerGroup(f); if (k !== (f.group || 'static')) layerOf.set(k, f.layer); (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
   const groups = [...groupMap].map(([name, fs]) => {
     const gm = faceListToMesh(fs, { decollide: false }); // already de-collided globally above
     const nf = fs.find((f) => Array.isArray(f.normal));
@@ -362,7 +370,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const ink = im && im.positions.length ? { pos: b64(im.positions), ...(im.normals ? { nrm: b64(im.normals) } : {}) } : null;
     // per-vertex specular params (faces tagged `spec` by a material) — the key is only present
     // when the group carries them, so material-free scenes serialize byte-identically.
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}) };
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}) };
   });
   const hasTextures = groups.some((g) => g.tex.length);
   // Any single-sided (bound-mesh) group? Only then does the render script reference
@@ -629,7 +637,17 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const previewList = Object.entries(packedFigures).filter(([, f]) => f && f.rig === true && f.preview && typeof f.preview === 'object').map(([name, f]) => ({ figure: name, ...f.preview }));
   const previewBank = {};
   for (const pv of previewList) { const { preview, ...fig } = packedFigures[pv.figure]; previewBank[pv.figure] = fig; }
-  const rigPreviewBlock = previewList.length ? rigPreviewChannelScript(previewList, previewBank) : '';
+  // DRAW LAYERS (channels/draw-layers.js): a page whose render groups carry a face `layer`, or whose previewed figure's
+  // parts carry `ranges` (the same layers on the rig pack), draws the stencil rules — the layers block, the stencil
+  // buffer, the toon hulls' tests and the preview's layered parts. The hair rule is on when some face or part is hair.
+  // Absent ⇒ every one of them is '' or its old text.
+  const layeredGroups = groups.filter((g) => g.layer);
+  const previewParts = previewList.flatMap((pv) => (previewBank[pv.figure]?.parts || []).filter((p) => p && p.ranges));
+  const layered = layeredGroups.length > 0 || previewParts.length > 0;
+  const layersBlock = layered ? drawLayersScript({ hair: layeredGroups.some((g) => g.layer === 'hair') || previewParts.some((p) => p.ranges.hair), groups: layeredGroups.map((g) => g.name) }) : '';
+  // A preview carrying `ink` (the layered kind's character ink) outlines its moving parts with the toon setup's builders
+  // and hides the static outline with the static solid; the channel only sees the ink cfg then (absent ⇒ same bytes).
+  const rigPreviewBlock = previewList.length ? rigPreviewChannelScript(previewList, previewBank, { ...(toonInkCfg && previewList.some((pv) => pv.ink) ? { toonInk: toonInkCfg } : {}), ...(layered ? { layers: true } : {}) }) : '';
   // cars channel (the driver-ants sibling of walkers): each car names a baked mesh in `carMeshes` and
   // carries a lane path; only the meshes actually driven are embedded. Absent/empty ⇒ '' ⇒ a car-free
   // world is byte-identical (same discipline as walkers).
@@ -696,12 +714,12 @@ scene.add(__eQuad${i});
   // toon ink (toon-shading Phase 2): the outline block, emitted only when the toon dial asks for
   // ink AND some group packed ink buffers. `width` is a fraction of the largest ink geometry's
   // bounding radius (`widthAbs` = world units instead); `crease` the EdgesGeometry angle.
-  const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg) : '';
+  const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg, layered ? { layers: true } : undefined) : '';
 
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
-    splats: splatBlock, toon: toonBlock,
+    splats: splatBlock, layers: layersBlock, toon: toonBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
   };
 
@@ -780,7 +798,7 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 // sit only a few cm in front of their wall. A linear depth buffer starves that gap of
 // precision and the decals z-fight (shimmer). The log buffer restores precision across
 // the range so the proud faces win cleanly from any orbit distance.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''} });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
 const scene = new THREE.Scene();

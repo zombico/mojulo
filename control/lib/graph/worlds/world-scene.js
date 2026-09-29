@@ -103,9 +103,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // is the World's outline channel (emitThreeWorld reads `payload.toon`); `bake: true` (with ink)
   // additionally bakes the ink pair into the GLB export as real geometry (facesToGlb reads the same
   // `payload.toon` — shader-look phase 3). Absent → null → every byte identical. Dropped under the
-  // unshaded export: raw albedo has no tones to band.
-  const toon = resolveToon(sketch.manifest.toon ?? scene.toon);
+  // unshaded export: raw albedo has no tones to band. `light` (the layered kind's character light;
+  // `false` opts out) rides the same dial, read for a layered row only.
   const kind = sketch.manifest.kind;
+  const toon = resolveToon(sketch.manifest.toon ?? scene.toon, { light: kind === 'layered' });
 
   // ?livery=<shelf name> (z-series assembler units — the arena hangar's swatch row): repaint
   // the stored unit onto another shelf livery BEFORE assembly. Deterministic (a pure tint
@@ -154,7 +155,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     toon: unshaded ? null : toon,
   };
   const payload = await desc.resolve(manifest, ctx);
-  if (payload && ctx.toon) payload.toon = ctx.toon;   // the World's ink channel reads it; stills ignore it
+  // the World's ink channel reads it; stills ignore it. A resolver that sets its own `toon` keeps it (the layered kind's
+  // character ink — its default outline over the manifest's dial); no other kind sets one, so this is ctx.toon for them.
+  // The character light is the resolver's input, baked into the faces, never a page dial: it stays off the payload.
+  if (payload && ctx.toon && payload.toon === undefined) { const { light: _light, ...dial } = ctx.toon; if (Object.keys(dial).length) payload.toon = dial; }
 
   // opt-in RAYMARCH backend for painted-landscape (?render=raymarch): a per-pixel terrain/water/sky
   // render (painted-landscape-raymarch.js) instead of the polygon mesh. emitThreeWorld dispatches a

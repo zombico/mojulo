@@ -26,7 +26,7 @@ fails loud. A hash may change only when a plan step says emission changes.
 ## Emitted page splice order
 
 1. `skyBlock` → 2. `waterBlock` → 3. `shadowBlock` → 4. `inkBlock` → 5. `glowBlock` +
-`specBlock` → 6. `pickBlock` (+ castShadow, splats, toon — appended `sep:''` rows) → 7. runtime section (registry order: walk, tracers,
+`specBlock` → 6. `pickBlock` (+ castShadow, splats, layers, toon — appended `sep:''` rows) → 7. runtime section (registry order: walk, tracers,
 sphereRig, planets, movers, comets, fields, surfaces, heatSpheres, starSurfaces, buildups,
 transports, deforms, signs, physics, actions, events, controllable) → 8. `let stepFx` /
 `let stepSpriteSfx` (iff present) + `function __mojStep(t)` → 9. `fxBlock` +
@@ -107,8 +107,10 @@ OPTIONAL = consumed behind a `typeof`/null guard; the provider may be absent.
 | `meshes[group]` planet spheres | planets | movers (eval-time bind) |
 | `__specPatch` | specular | controllable rig builder (OPTIONAL) |
 | `window.__mojSim` | physics | actions (REQUIRED), events (OPTIONAL) |
-| `window.__mojInk` | toon (setup) | probes / captures / page scripts (`tint` / `width` / `reset` / `set`, registry by group name) |
-| `__inkBuild` / `__inkGeoNormals` / `__inkCentroid` | toon (setup) | controllable's rig builder (OPTIONAL, typeof-guarded — inks every rig part when the emit cfg carries toon.ink) |
+| `__layerFill` / `__layerHull` | layers (setup) | toon's hull build (a `hair` / `veil` group's hull takes its test and draws after every fill, emitted only on a layered page); rig preview's part builder (OPTIONAL, typeof-guarded — each part's fill rule and its `ranges` spans) |
+| `window.__mojLayers` | layers (setup) | probes / captures (`{ hair, groups }`: the hair rule and the layered render groups) |
+| `window.__mojInk` | toon (setup) | probes / captures / page scripts (`tint` / `width` / `reset` / `set`, registry by group name); rig preview (OPTIONAL, null-guarded — hides the static pair registered under its hidden group while a clip plays) |
+| `__inkBuild` / `__inkGeoNormals` / `__inkCentroid` | toon (setup) | controllable's rig builder (OPTIONAL, typeof-guarded — inks every rig part when the emit cfg carries toon.ink); rig preview's part builder (OPTIONAL, typeof-guarded — inks every part of a preview carrying `ink`) |
 | `__BUS` / `__busState` / `window.__mojBus` | events | fx, audio, game (OPTIONAL, wrap processEvents); page sidecar (OPTIONAL) |
 | `window.__mojCtrl` | controllable | fx, events, audio (OPTIONAL); page capture (null-guarded) |
 | `__ctrlActive`, `__ctrlOwnsCamera`, `stepControllable` | registry lets (assigned by controllable) | page loop (unconditional — lets always exist) |

@@ -1,7 +1,10 @@
 /** The anime head (anime-head.js): the studio's head, registered and made wearable. Its words compose; every part closes;
  * it sits where the landmark head sits; a hero wears it through the rig gates; the landmark path is untouched. */
 import { describe, it, expect } from 'vitest';
-import { animeHead, animeHairCoverage, animeCoverageWarnings, animeRecipe, animeLockPart, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, ANIME_FACE_KEYS } from './anime-head.js';
+import { createHash } from 'node:crypto';
+import { animeHead, animeHairCoverage, animeCoverageWarnings, animeRecipe, animeLockPart, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, ANIME_FACE_KEYS, ANIME_POSES, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS, ANIME_HAIR_MOVES, animeHairForm } from './anime-head.js';
+import { ANIME_SCULPT, ANIME_SCULPT_KEYS, GRAPHIC_BASE, FEATURE_BANDS, resolveAnimeSculpt, validateAnimeSculpt, sparseSculpt, sculptBuild, animeSculptWarnings } from './anime-sculpt.js';
+import { resolveToonLight } from './vexar.js';
 import { buildAnime, animeFresh, animeReadRecipe } from './anime-form.js';
 import { REGISTRATION } from './humanoid-head-fit.js';
 import { humanoidHead } from './humanoid-head.js';
@@ -18,14 +21,25 @@ describe('anime head: the words', () => {
   it('face: 1 is the base; ratios compose by product, the lift by sum; the recipe is the studio slider', () => {
     const F = resolveAnimeFace([{ eyeHeight: 1.1, tilt: 0.02 }, { eyeHeight: 1.1, tilt: 0.01 }, { eyes: 1.05 }]);
     expect(F.eyeHeight).toBeCloseTo(1.1 * 1.1 * 1.05, 6); expect(F.tilt).toBeCloseTo(0.03, 9); expect(F.eyeWidth).toBe(1.05);
-    const r = animeRecipe({ preset: 'male', face: { nose: 1.1, tilt: -0.02 } });
-    expect(r.face.nose).toBeCloseTo(1.1, 12); expect(r.face.tilt).toBeCloseTo(0.015, 12); expect(r.face.iris).toBe(0.88);
+    // `sculpt: false` is the studio's face: the words are its sliders
+    const r = animeRecipe({ preset: 'male', face: { nose: 1.1, tilt: -0.02 }, sculpt: false });
+    expect(r.face.nose).toBeCloseTo(1.1, 12); expect(r.face.tilt).toBeCloseTo(0.015, 12); expect(r.face.iris).toBe(0.88); expect(r.sculpt).toBeUndefined();
     expect(animeReadRecipe(r)).toEqual(r);   // a head's recipe is a recipe the studio loads
     // mojulo's anime base: the studio's with the chin set back (ANIME_BASE_ADJUST); otherwise the studio's fresh design
     const fresh = animeFresh('female'); fresh.face.chinProjection = 0.8;
-    expect(animeRecipe({ preset: 'female' })).toEqual(fresh); expect(animeRecipe({ preset: 'male' }).face.chinProjection).toBeCloseTo(0.8, 12);
+    expect(animeRecipe({ preset: 'female', sculpt: false })).toEqual(fresh); expect(animeRecipe({ preset: 'male', sculpt: false }).face.chinProjection).toBeCloseTo(0.8, 12);
+    // the male base is carried at 3° chin up (the studio's 6°, headPitch 1, less 0.25 of its 12° per unit)
+    expect(animeRecipe({ preset: 'male', sculpt: false }).face.headPitch).toBe(0.75); expect(animeRecipe({ preset: 'female', sculpt: false }).face.headPitch).toBe(1);
+    // the graphic face (the default): the base's face layer under the words, its sculpt beside them
+    const g = animeRecipe({ preset: 'male', face: { nose: 1.1 } });
+    expect(g.face.nose).toBeCloseTo(GRAPHIC_BASE.male.face.nose * 1.1, 12); expect(g.face.eyeHeight).toBeCloseTo(GRAPHIC_BASE.male.face.eyeHeight, 12);
+    expect(g.sculpt).toEqual(sculptBuild('male', resolveAnimeSculpt({}))); expect(g.sculpt.mouthWidth).toBe(2.2);
     expect(validateAnimeFace({ jawWidth: 1.1 })[0]).toMatch(/unknown control/); expect(validateAnimeFace({ tilt: -0.05 })).toEqual([]);
-    expect(animeFaceWarnings(resolveAnimeFace({ nose: 1.8 }), 'female')[0]).toMatch(/face\.nose 1\.8 .*studio's slider/);
+    expect(animeFaceWarnings(resolveAnimeFace({ nose: 1.8 }), 'female', { sculpt: false })[0]).toMatch(/face\.nose 1\.8 .*studio's slider/);
+    // under the graphic face the slider read is the layer times the word, the range widened by the layer: the male
+    // layer sits at the studio's eye-height floor, so a narrower opening still builds without advice
+    expect(animeFaceWarnings(resolveAnimeFace({ nose: 1.8 }), 'female')).toEqual([]); expect(animeFaceWarnings(resolveAnimeFace({ nose: 3 }), 'female')[0]).toMatch(/face\.nose 3 puts the studio's slider at 1\.8,/);
+    expect(animeFaceWarnings(resolveAnimeFace('narrow-eyes'), 'male')).toEqual([]); expect(animeFaceWarnings(resolveAnimeFace('narrow-eyes'), 'male', { sculpt: false })).toEqual([]);
     expect(ANIME_FACE_KEYS.length).toBe(23);
   });
   it('hair: a family word, controls, per-clump locks (summed per axis); advice past the studio', () => {
@@ -48,6 +62,7 @@ describe('anime head: the geometry', () => {
   const CASES = [];
   for (const preset of ['female', 'male']) for (const hair of ['bob', 'short', 'long', 'none']) CASES.push({ preset, hair });
   for (const expression of ['blink', 'smile', 'open']) CASES.push({ preset: 'female', expression }, { preset: 'male', expression, register: 'lowpoly' });
+  CASES.push({ preset: 'female', sculpt: false }, { preset: 'male', hair: 'short', expression: 'smile', register: 'lowpoly', sculpt: false });   // the studio's face
   CASES.push({ preset: 'male', face: resolveAnimeFace(Object.fromEntries(ANIME_FACE_KEYS.map((k) => [k, k === 'tilt' ? 0.08 : 1.15]))), hair: { style: 'long', locks: { 'back-5': { tx: -0.2, ty: 0.2 } } } });
   CASES.push({ preset: 'female', face: resolveAnimeFace(Object.fromEntries(ANIME_FACE_KEYS.map((k) => [k, k === 'tilt' ? -0.08 : 0.88]))), hair: ['short', { sweep: -0.3, part: 0.18 }] });
   for (const spec of CASES) it(`closed, outward, symmetric where asked, the eyes read: ${JSON.stringify(spec).slice(0, 90)}`, () => {
@@ -69,7 +84,13 @@ describe('anime head: the geometry', () => {
   it('the parts are the studio parts: every clump is its own part, named by the studio clump', () => {
     const h = animeHead({ preset: 'male', hair: 'short' }), model = buildAnime(animeRecipe({ preset: 'male', hair: 'short' }));
     expect(model.locks.map((l) => animeLockPart(l.name)).every((n) => h.parts[n])).toBe(true);
-    for (const p of ['face', 'earR', 'earL', 'irisR', 'irisL', 'pupilR', 'pupilL', 'browR', 'browL', 'lashR', 'lashL', 'lashLowR', 'lashLowL', 'hairCap']) expect(h.parts[p], p).toBeTruthy();
+    // the graphic face (the default) names its ink by key: the lower rim, the lid band, the brow block, the nose line, and
+    // the catchlight a lens; the studio's face ranks its three ribbons by height (brow, lash, lower rim)
+    const face = (x) => Object.keys(x.parts).filter((k) => !k.startsWith('hair')).sort();
+    expect(face(h)).toEqual(['browL', 'browR', 'catchL', 'catchR', 'cranium', 'earL', 'earR', 'face', 'irisL', 'irisR', 'lashLowL', 'lashLowR', 'lidL', 'lidR', 'noseLine', 'pupilL', 'pupilR']);
+    const studio = animeHead({ preset: 'male', hair: 'short', sculpt: false });
+    expect(face(studio)).toEqual(['browL', 'browR', 'cranium', 'earL', 'earR', 'face', 'irisL', 'irisR', 'lashL', 'lashLowL', 'lashLowR', 'lashR', 'pupilL', 'pupilR']);
+    for (const p of ['face', 'earR', 'earL', 'irisR', 'irisL', 'pupilR', 'pupilL', 'browR', 'browL', 'lashR', 'lashL', 'lashLowR', 'lashLowL', 'hairCap']) expect(studio.parts[p], p).toBeTruthy();
     expect(new Set(Object.values(h.parts.face.groups))).toEqual(new Set(['Skin', 'Sclera', 'Mouth']));
     expect(animeHead({ preset: 'male', hair: 'none' }).parts.hairCap).toBeUndefined();
   });
@@ -210,4 +231,165 @@ describe('anime head: the body in anime proportions', () => {
     expect(humanoidPlan({ preset: 'female' }).frame.note).not.toMatch(/anime proportions/);
     expect(humanoidPlan({ preset: 'female', head: 'anime' }).frame.note).toBe(humanoidPlan({ preset: 'female', head: 'anime' }).frame.note);
   });
+});
+
+// the GRAPHIC FACE (anime-sculpt.js): the anime head's default; `sculpt: false` is the studio's face exactly
+describe('anime head: the graphic face', () => {
+  const hash = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
+  const faceLists = (h) => Object.fromEntries(Object.entries(h.parts).filter(([, p]) => p.layer === 2).map(([k, p]) => [k, JSON.stringify(p.faces)]));
+  it("`sculpt: false` is the studio's face: the female's hash from before the graphic face; the male's the same once his rest carriage is carried back", () => {
+    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('d54c4a169430908e');
+    // re-pinned for the male base's rest carriage (ANIME_BASE_ADJUST.male headPitch −0.25: 3° chin up instead of 6°); a
+    // headPitch word of 1.25 carries it back, and with the face record it stores set back to the base the head is the
+    // hash it gave before the graphic face existed
+    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('85f729246f5d520b');
+    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('c33aae77c545dec5');
+  });
+  it('the words: ratios about the base and offsets compose; shape words ride beside; the stored layer is sparse; unknown words refused', () => {
+    const R = resolveAnimeSculpt(['heavy-lid', { lidWeight: 1.1, browAngle: 4, fissureShape: 'tri' }, { browAngle: 2 }]);
+    expect(R.lidWeight).toBeCloseTo(1.25 * 1.1, 6); expect(R.lidCover).toBe(1.3); expect(R.browAngle).toBe(6); expect(R.fissureShape).toBe('tri');
+    expect(sparseSculpt(R)).toEqual({ lidWeight: R.lidWeight, lidCover: 1.3, browAngle: 6, fissureShape: 'tri' });
+    expect(sparseSculpt(resolveAnimeSculpt({ lidWeight: 1, eyeLevel: 0 }))).toBeNull(); expect(sparseSculpt(resolveAnimeSculpt(false))).toBe(false);
+    expect(validateAnimeSculpt({ lidWidth: 1.2 })[0]).toMatch(/sculpt\.lidWidth: unknown control/);
+    expect(validateAnimeSculpt('big-eyes')[0]).toMatch(/unknown sculpt move 'big-eyes'/);
+    expect(validateAnimeSculpt({ fissureShape: 'oval' })[0]).toMatch(/fissureShape: one of round, almond, rect, tri/);
+    expect(validateAnimeSculpt({ lidWeight: 0 })[0]).toMatch(/> 0/); expect(validateAnimeSculpt({ catchlight: 0, noseLine: 0 })).toEqual([]);
+    expect(() => animeHead({ preset: 'female', sculpt: { lidWidth: 1 } })).toThrow(/unknown control/);
+    // the range advice promises no closure for a sculpt word (a lip line far past its range leaves the lattice's mouth
+    // opening): it points at the closure check instead
+    expect(animeSculptWarnings(resolveAnimeSculpt({ stomion: 0.06 }))).toEqual([expect.stringMatching(/^sculpt\.stomion 0\.06 is outside the comfortable range \[-0\.03, 0\.03\]: the read past this is the operator's call, and far past it the face may open \(the closure check says\)$/)]);
+    // an offset is in fractions of the head height: eyeLevel +0.01 raises the eye by 0.022 studio units
+    expect(sculptBuild('male', resolveAnimeSculpt({ eyeLevel: 0.01 })).eyeLevel).toBeCloseTo(GRAPHIC_BASE.male.sculpt.eyeLevel + 0.022, 9);
+  });
+  it('constant topology across every expression: the same parts and face lists (the lenses stay, behind the lids when shut)', () => {
+    for (const [preset, register] of [['female', 'round'], ['male', 'round'], ['male', 'lowpoly']]) {
+      const ref = faceLists(animeHead({ preset, register, hair: 'none' }));
+      for (const expression of Object.keys(ANIME_POSES)) expect(faceLists(animeHead({ preset, register, hair: 'none', expression })), `${preset} ${register} ${expression}`).toEqual(ref);
+    }
+    // the studio's face keeps its own behaviour: the lenses vanish when the lids shut
+    expect(animeHead({ preset: 'female', hair: 'none', expression: 'blink', sculpt: false }).parts.irisR).toBeUndefined();
+  }, 120000);
+  it('at a blink the iris is built but buried behind the lid skin; closed at every expression', () => {
+    for (const preset of ['female', 'male']) {
+      const h = animeHead({ preset, hair: 'none', expression: 'blink' }), mesh = compileLayered(h);
+      expect(failures(mesh)).toEqual([]); expect(h.parts.irisR).toBeTruthy();
+      const ex = layeredExposure(mesh, { res: 256 }); for (const e of ['irisR', 'irisL', 'pupilR', 'pupilL', 'catchR', 'catchL']) expect(ex.parts[e].exposed, `${preset} ${e}`).toBe(0);
+    }
+  }, 60000);
+  it('parts by key: a word switched off drops only its own parts; a word turned never renames or splits another', () => {
+    const keys = (h) => Object.keys(h.parts).sort(), base = keys(animeHead({ preset: 'male', hair: 'none' }));
+    expect(keys(animeHead({ preset: 'male', hair: 'none', sculpt: { catchlight: 0 } }))).toEqual(base.filter((k) => !/^catch/.test(k)));
+    expect(keys(animeHead({ preset: 'male', hair: 'none', sculpt: { noseLine: 0 } }))).toEqual(base.filter((k) => k !== 'noseLine'));
+    for (const sculpt of [{ lidWeight: 1.5, lidTail: 0 }, { browThick: 1.6, browShape: 'taper', browLength: 1.25 }, { fissureShape: 'tri', lidCover: 1.6 }, 'sharp-eyes']) expect(keys(animeHead({ preset: 'male', hair: 'none', sculpt })), JSON.stringify(sculpt)).toEqual(base);
+  }, 60000);
+  it('every word at its range ends closes (sampled across the bases and the families); the eyes read', () => {
+    const families = ['bob', 'short', 'long', 'hime'], bad = [];
+    ANIME_SCULPT_KEYS.forEach((k, i) => ANIME_SCULPT.RANGES[k].forEach((v, j) => {
+      // a family on every third build (the words reach the hair only through the fit's drape), bald otherwise
+      const preset = (i + j) % 2 ? 'male' : 'female', hair = (i + j) % 3 ? 'none' : families[i % 4], h = animeHead({ preset, hair, sculpt: { [k]: v } }), mesh = compileLayered(h);
+      const f = failures(mesh); if (f.length) bad.push(`${preset} ${hair} ${k}=${v}: ${f.join(', ')}`);
+      if (j === 1) { const ex = layeredExposure(mesh, { res: 128 }); for (const e of ['irisR', 'irisL']) if (!['reads', 'faint'].includes(ex.parts[e].flag)) bad.push(`${preset} ${k}=${v}: ${e} ${ex.parts[e].flag}`); }
+    }));
+    expect(bad).toEqual([]);
+  }, 180000);
+  it('the feature table sits inside its bands on both default bases, in ratios (the scale never moves it)', () => {
+    for (const preset of ['female', 'male']) {
+      const F = animeHead({ preset }).measures.features;
+      expect(F.advice, preset).toEqual([]);
+      for (const [k, [lo, hi]] of Object.entries(FEATURE_BANDS[preset])) { expect(F[k], `${preset} ${k}`).toBeGreaterThanOrEqual(lo); expect(F[k], `${preset} ${k}`).toBeLessThanOrEqual(hi); }
+      expect(animeHead({ preset, scale: 1.2 }).measures.features).toEqual(F);
+      expect(animeHead({ preset, expression: 'blink' }).measures.features).toEqual(F);   // always of the face at rest
+      // read at the studio's carriage: the head's own carriage (the base's rest pitch, a headPitch word) never moves it
+      expect(animeHead({ preset, face: { headPitch: 1.25 } }).measures.features).toEqual(F);
+    }
+    const male = animeHead({ preset: 'male' }).measures.features;
+    expect(male.mouthWidth).toBeCloseTo(0.30, 2); expect(male.browAngle).toBeGreaterThan(15);   // the male mouth at about 0.30 W; the brow's inner end down
+    // the advice names the word the way the door takes it (the stored sculpt is sparse: the object first, then the path)
+    expect(animeHead({ preset: 'male', sculpt: { mouthWidth: 0.8 } }).measures.features.advice).toEqual([expect.stringMatching(/the mouth width \(of W\) is 0\.2\d+, outside the male band \[0\.3, 0\.38\]: \/hero\/sculpt \{ mouthWidth: … \} moves it \(then \/hero\/sculpt\/<word>\)$/)]);
+    // the ear spans the eye level to the nose tip on both bases (its centre within 0.03 H of their midpoint); a word moves it
+    expect(animeHead({ preset: 'female', sculpt: { earLevel: -0.05 } }).measures.features.advice).toEqual([expect.stringMatching(/the ear centre from midway between the eye level and the nose tip \(of H\) is -0\.0\d+, outside the female band \[-0\.03, 0\.03\]: \/hero\/sculpt \{ earLevel: … \}/)]);
+    // a lip line moved up past the nose (a word far past its range) leaves the nose's ratios unmeasured and says so: the
+    // head still builds, never a thrown error inside the measurement
+    const past = animeHead({ preset: 'female', sculpt: { stomion: 0.2 } }).measures.features;
+    expect([past.pronasale, past.noseToMouth, past.noseProjection]).toEqual([null, null, null]); expect(past.advice).toContainEqual(expect.stringMatching(/the nose tip could not be measured/));
+    expect(animeHead({ preset: 'male', sculpt: false }).measures.features).toBeUndefined();
+  }, 60000);
+  it('the lenses on the lowpoly register take the game budget: at most 900 triangles for both eyes', () => {
+    const lensTris = (h) => ['irisR', 'irisL', 'pupilR', 'pupilL', 'catchR', 'catchL'].reduce((s, k) => s + (h.parts[k] ? Object.keys(h.parts[k].faces).length : 0), 0);
+    for (const preset of ['female', 'male']) expect(lensTris(animeHead({ preset, hair: 'none', register: 'lowpoly' })), preset).toBeLessThanOrEqual(900);
+  }, 30000);
+  it("the nose line on the shade side of the default key; the brows and lids drawn through the fringe, the fringe's parts veil them", () => {
+    const h = animeHead({ preset: 'female', hair: 'bob' }), key = resolveToonLight(true).toLight, mesh = compileLayered(h);
+    const noseX = mesh.vertices.filter((_, i) => mesh.provenance[i].part === 'noseLine').reduce((s, p, _, a) => s + p[0] / a.length, 0);
+    expect(Math.sign(noseX)).toBe(-Math.sign(key[0])); expect(key[0]).not.toBe(0);
+    const flagged = (x, f) => Object.keys(x.parts).filter((k) => x.parts[k][f]).sort();
+    expect(flagged(h, 'through')).toEqual(['browL', 'browR', 'lidL', 'lidR']); expect(h.parts.browR.through).toBe('fringe');
+    expect(flagged(h, 'veil')).toEqual(['hairFormFringeC', 'hairFormFringeL', 'hairFormFringeR']); expect(h.parts.hairFormFringeC.veil).toBe('fringe');
+    expect(flagged(animeHead({ preset: 'female', hair: ['bob', { strands: 1 }] }), 'veil')).toEqual([1, 2, 3, 4, 5, 6, 7].map((i) => `hairFringe${i}`));
+    const studio = animeHead({ preset: 'female', hair: 'bob', sculpt: false }); expect([...flagged(studio, 'through'), ...flagged(studio, 'veil')]).toEqual([]);
+  }, 30000);
+});
+
+// the HAIR FORM (mojulo's words on the hair: the lift, the section, the crown accents, the cut's words) and the HAIR
+// BASES (the anime hero's default hair per design base: a form under every family, a cut while no family is named)
+describe('anime head: the hair form and the hair bases', () => {
+  const zTop = (mesh, re) => { let z = -Infinity; mesh.faces.forEach((f) => { if (re.test(mesh.provenance[f[0]].part)) for (const i of f) z = Math.max(z, mesh.vertices[i][2]); }); return z; };
+  const baseHair = (pole, cut = true) => resolveAnimeHair([ANIME_HAIR_BASE[pole].form, ...(cut ? [ANIME_HAIR_BASE[pole].cut] : [])]);
+  it('the words ride on the hair SPARSE, compose last-wins (an object word key by key), false and null; never in the studio recipe', () => {
+    const plain = resolveAnimeHair('bob');
+    expect(Object.keys(plain)).toEqual(['style', 'volume', 'length', 'fringe', 'clump', 'thickness', 'taper', 'sweep', 'part', 'ahoge', 'strands', 'locks']);
+    const H = resolveAnimeHair([{ lift: { crown: 0.1, temple: 0.05 }, ridge: 0.5 }, 'long', { lift: { crown: 0.2 }, sweepBack: 0.5 }, { sweepBack: { rise: 1.5 }, ridge: null, section: 'ridge' }]);
+    expect(H.lift).toEqual({ crown: 0.2, temple: 0.05 }); expect(H.sweepBack).toEqual({ amount: 0.5, rise: 1.5 }); expect(H.ridge).toBe(0.5); expect(H.style).toBe('long');
+    expect(Object.keys(H).slice(12)).toEqual(ANIME_HAIR_FORM_WORDS.filter((k) => k in H));   // after the locks, in the words' order
+    expect(resolveAnimeHair([{ lift: { crown: 0.1 } }, { lift: false }]).lift).toBe(false);   // false: the studio's construction, over a base
+    // the build's units: the lift by the studio's region names, draped over the dome; grow is the studio's crown
+    expect(animeHairForm({ lift: { crown: 0.16, fringe: 0.06, nape: 0.05 }, crownAccents: 'grow', section: 'round', sweepSides: 0.5 })).toEqual({ lift: { crown: 0.16, temple: 0, front: 0.06, back: 0.05 }, section: 'round', sweepSides: { amount: 0.5 }, dome: true });
+    expect(animeHairForm({ lift: false, crownAccents: 'grow', sweepBack: 0, ridge: undefined })).toBeNull(); expect(animeHairForm(plain)).toBeNull();
+    const r = animeRecipe({ preset: 'male', hair: baseHair('male') });
+    expect(ANIME_HAIR_FORM_WORDS.filter((k) => k in r.hair)).toEqual([]); expect(r.hair.thickness).toBe(1.5);
+    expect(validateAnimeHair({ lift: { crown: 'high' }, flute: 2, sweepSides: { amount: 1, from: 3 }, hairline: { front: 2 } }).map((e) => e.split(':')[0])).toEqual(['hair.lift.crown', 'hair.flute', 'hair.hairline.front', 'hair.sweepSides.from']);
+    expect(validateAnimeHair([baseHair('female'), 'swept-back', 'side-parted'])).toEqual([]);
+  });
+  it('the words: an absent or all-neutral form builds the head it built before them, part for part', () => {
+    for (const preset of ['female', 'male']) {
+      const ref = animeHead({ preset, hair: 'bob' });
+      for (const extra of [{}, { lift: false, section: 'round', crownAccents: 'grow', ridge: 0, flute: 0, sweepBack: 0, sweepSides: false, hairline: false, fringeGroups: false, backNotch: false }]) {
+        const h = animeHead({ preset, hair: { style: 'bob', ...extra } });
+        expect(JSON.stringify(h.parts), preset).toBe(JSON.stringify(ref.parts)); expect(h.hairCoverage).toEqual(ref.hairCoverage);
+        // the whole head include is the same but for its `hair` record, which echoes the words as given (the operator's
+        // own record, by design: a neutral word stays readable where it was set)
+        const { hair: _h, ...built } = h, { hair: _r, ...refBuilt } = ref; expect(JSON.stringify(built), preset).toBe(JSON.stringify(refBuilt));
+      }
+    }
+  });
+  it('the bases close; the scalp stays covered (≤ 2 % from every view) under every family; the lifted hull and the whole mass stand 13–27 mm off the skull crown', () => {
+    for (const pole of ['female', 'male']) {
+      const h = animeHead({ preset: pole, hair: baseHair(pole) }), mesh = compileLayered(h);
+      expect(failures(mesh), pole).toEqual([]);
+      expect(Math.max(...Object.values(h.hairCoverage.views)), pole).toBeLessThanOrEqual(0.02);
+      const crown = zTop(mesh, /^face$/), hull = (zTop(mesh, /^hairCap$/) - crown) * 1000, top = (zTop(mesh, /^hair/) - crown) * 1000;
+      expect(hull, pole).toBeGreaterThanOrEqual(13); expect(hull, pole).toBeLessThanOrEqual(27);
+      // the whole mass on both bases: the female's sheet sits on the hull; the male's swept crest rises above it (his fringe
+      // arches over the crown) with its tips laid onto the mass, never standing past the band
+      expect(top, pole).toBeGreaterThanOrEqual(13); expect(top, pole).toBeLessThanOrEqual(27);
+      if (pole === 'male') expect(top).toBeGreaterThan(hull);
+      expect(h.hairMeasures.top_m).toBeCloseTo(top / 1000, 3);
+      // the form under every other family still covers
+      for (const style of ['bob', 'short', 'long', 'hime']) expect(Math.max(...Object.values(animeHead({ preset: pole, hair: [ANIME_HAIR_BASE[pole].form, style] }).hairCoverage.views)), `${pole} ${style}`).toBeLessThanOrEqual(0.02);
+    }
+    // the scalp's hairline follows the cut's: the swept-back cut's forehead (the front hairline raised) is not scalp
+    const raised = animeHead({ preset: 'male', hair: baseHair('male') }), level = animeHead({ preset: 'male', hair: [baseHair('male'), { hairline: false }] });
+    expect(raised.scalp.length).toBeLessThan(level.scalp.length);
+  }, 60000);
+  it('every word at its range ends closes (sampled on its family, both bases)', () => {
+    const ends = [
+      ['short', { lift: { crown: 0.3, temple: 0.14, fringe: 0.12, nape: 0.14 } }], ['short', { lift: { crown: 0, temple: 0, fringe: 0, nape: 0 } }], ['short', { section: 'ridge', crownAccents: 'tuck' }],
+      ['short', { sweepBack: { amount: 0.5 } }], ['short', ANIME_HAIR_MOVES['swept-back'].hair], ['short', { sweepSides: { amount: 1, from: 0 } }], ['short', { hairline: { front: 1 } }],
+      ['long', { ridge: 2, flute: 1 }], ['long', { fringeGroups: [[1, 2, 3, 4, 5, 6, 7]], backNotch: 1 }], ['bob', { fringeGroups: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]], backNotch: 0.5 }], ['long', ANIME_HAIR_MOVES['side-parted'].hair],
+    ];
+    for (const preset of ['female', 'male']) for (const [style, words] of ends) {
+      const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, { ...words, style }] });
+      expect(failures(compileLayered(h)), `${preset} ${style} ${JSON.stringify(words).slice(0, 80)}`).toEqual([]);
+    }
+  }, 60000);
 });

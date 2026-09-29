@@ -57,6 +57,16 @@ reconciled into it: the body lives in the hero form now, the head here.
   the head bone, no jaw (the mouth opens as an aperture). `render-anime.mjs` draws both design bases × bald / each
   family / each pose at four views and both hero casts wearing it, with a measurements table, into the gitignored
   spike tree.
+- `render-articulation.mjs`: the anime hero as the door mints it (`toon.light`, `sculpt`, the hair bases, the neck
+  form, `gesture`; the manual's hero door): a progression from a stored baseline (`--baseline <dir>`, the manifests an
+  earlier `--parity` run wrote, with `--predates` naming the bake and page rules it came before) to today's default,
+  the expressions, the preset stands with their readout, and on request before / after and three key directions; at
+  head and bust size and at 256 / 128 px, key- and shade-side profiles, on paper and on the World's own backdrop. It
+  draws the World payload's own static faces and refuses to run if its re-derivation of them drifts (coordinates,
+  fills, draw layers, ink marks), with the page's draw layers (the brows through the fringe, no hair outline over hair)
+  emulated per pixel; its measures carry the lit share per group and view, the hair lit at the rear ¾, and the hair's
+  lit and shade tones against the backdrop in L*. `--parity` writes a lookdev-shots camera list for the World page and
+  compares the capture. Into the gitignored spike tree.
 - `head.mjs`: `humanoidHead(…)`: a head as ONE designed surface. The cranium's rings are horizontal landmark
   rows read off the figure's own skull landmarks (`figure-head.js` `headLandmarks`: stomion, subnasale, nose
   tip and bridge, the eye line, glabella, frontal, crown) under the `DIMORPH` male / female head pole and the

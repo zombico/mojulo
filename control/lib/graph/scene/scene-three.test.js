@@ -150,6 +150,18 @@ describe('emitThreeWorld toon ink (toon-shading Phase 2)', () => {
   it('ink with nothing eligible (only a studio floor) emits no block', () => {
     expect(emitThreeWorld({ faces: [studio], toon: { ink: true } })).not.toContain('--- toon ink');
   });
+
+  it('lines: false attaches the hull alone; a noInk face (a drawn feature) stays out of the ink soup', () => {
+    const plain = emitThreeWorld({ faces: [body], toon: { ink: true } });
+    expect(plain).toContain('scene.add(e.hull); scene.add(e.lines); __inkReg[grp.name] = e;');
+    const hull = emitThreeWorld({ faces: [body], toon: { ink: { lines: false } } });
+    expect(hull).toContain('scene.add(e.hull); __inkReg[grp.name] = e;'); expect(hull).toContain('"lines":false');
+    expect(hull).not.toContain('scene.add(e.hull); scene.add(e.lines);');
+    const mark = { ...body, corners: body.corners.map((c) => [c[0] + 3, c[1], c[2]]), noInk: true };
+    const withMark = groupsOf(emitThreeWorld({ faces: [body, mark], toon: { ink: true } })).find((g) => g.name === 'body');
+    expect(withMark.ink.pos).toBe(groupsOf(plain).find((g) => g.name === 'body').ink.pos);   // same soup as the body alone
+    expect(withMark.pos).not.toBe(groupsOf(plain).find((g) => g.name === 'body').pos);        // the mark still renders
+  });
 });
 
 describe('emitThreeWorld live ink (toon-shading Phase 4)', () => {
@@ -170,6 +182,9 @@ describe('emitThreeWorld live ink (toon-shading Phase 4)', () => {
     const plain = emitThreeWorld({ faces: [floorF], entities: ents });
     expect(plain).not.toContain('__inkRigPart');
     expect(plain).not.toContain('--- toon ink');
+    expect(html).toContain('mesh.add(e.hull); mesh.add(e.lines);');
+    const hullOnly = emitThreeWorld({ faces: [floorF], entities: ents, toon: { ink: { lines: false } } });   // silhouette only, as the setup block
+    expect(hullOnly).toContain('function __inkRigPart'); expect(hullOnly).not.toContain('mesh.add(e.lines);');
   });
 
   it('4c: fx ink verbs splice only when the fx spec uses them', () => {
@@ -182,5 +197,47 @@ describe('emitThreeWorld live ink (toon-shading Phase 4)', () => {
     const inkGesture = emitThreeWorld({ ...base, fx: { on: { 'hit:*': { gesture: 'inkFlash', color: '#fff' } } } });
     expect(inkGesture).toContain("gesture === 'inkFlash'");
     expect(inkGesture).toContain('g.color');
+  });
+});
+
+describe('emitThreeWorld draw layers (the stencil rules: brows through the fringe, the hair outline never over hair)', () => {
+  const q = (fill, extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, group: 'body', outNormal: [0, -1, 0], ...extra });
+  const studio = { corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill: '#445566', studio: true };
+  const skin = q('#d9a77e'), hair = q('#3b4859', { layer: 'hair' }), veil = q('#3b4859', { layer: 'veil' }), brow = q('#16181c', { layer: 'through', noInk: true });
+  const groupsOf = (html) => JSON.parse(html.match(/const GROUPS = (\[[^\n]*\]);/)[1]);
+  const layersOf = (html) => JSON.parse(html.match(/const __LAYERS = ([^;]*);/)[1]);
+
+  it('no layer: no stencil buffer, no layers block, no hull rule; an unknown layer value is no layer at all', () => {
+    for (const toon of [undefined, { ink: { lines: false } }]) {
+      const plain = emitThreeWorld({ faces: [skin, { ...skin, fill: '#3b4859' }, studio], toon });
+      expect(plain).toContain("logarithmicDepthBuffer: true });"); expect(plain).not.toContain('stencil'); expect(plain).not.toContain('--- draw layers'); expect(plain).not.toContain('__layer');
+      for (const odd of ['x', 2, null, '']) expect(emitThreeWorld({ faces: [skin, { ...skin, fill: '#3b4859', layer: odd }, studio], toon })).toBe(plain);
+    }
+  });
+  it('a face `layer` splits its render group by it; the page asks for a stencil buffer and draws the fill rules', () => {
+    const html = emitThreeWorld({ faces: [skin, hair, veil, brow, studio] });
+    const groups = groupsOf(html);
+    expect(groups.map((g) => [g.name, g.layer])).toEqual([['body', undefined], ['body:hair', 'hair'], ['body:veil', 'veil'], ['body:through', 'through'], ['static', undefined]]);
+    expect(html).toContain('logarithmicDepthBuffer: true, stencil: true });');
+    expect(html).toContain('--- draw layers'); expect(html).toContain('window.__mojLayers = __LAYERS;');
+    expect(layersOf(html)).toEqual({ hair: true, groups: ['body:hair', 'body:veil', 'body:through'] });
+    for (const needle of ["if (layer === 'through') { mat.stencilRef = 1; mat.stencilWriteMask = 3; }", 'mat.stencilFunc = THREE.NotEqualStencilFunc; mat.stencilRef = 3; mat.stencilFuncMask = 1; mat.stencilWriteMask = 2;', 'const __LAYER_ORDER = { through: 1, veil: 2 };']) expect(html).toContain(needle);
+    // the block follows the group meshes and precedes the ink (the hulls take its rule)
+    expect(html.indexOf('meshes[grp.name] = m;')).toBeLessThan(html.indexOf('--- draw layers'));
+    // no hair face: the hair rule is off (a plain fill never touches the stencil)
+    expect(layersOf(emitThreeWorld({ faces: [skin, veil, brow] }))).toEqual({ hair: false, groups: ['body:veil', 'body:through'] });
+  });
+  it('with the ink: the hair and the veil groups outline on their own, drawn after every fill under their layer\'s test; a through face never outlines', () => {
+    const html = emitThreeWorld({ faces: [skin, hair, veil, brow, studio], toon: { ink: { lines: false, widthAbs: 0.002 } } });
+    const groups = Object.fromEntries(groupsOf(html).map((g) => [g.name, g]));
+    for (const k of ['body', 'body:hair', 'body:veil']) expect(typeof groups[k].ink.pos, k).toBe('string');
+    expect(groups['body:through'].ink).toBeUndefined();
+    expect(emitThreeWorld({ faces: [skin, hair, veil, q('#16181c', { layer: 'through' }), studio], toon: { ink: true } })).not.toMatch(/"name":"body:through"[^}]*"ink"/);
+    expect(html).toContain('if (grp.layer && __layerHull(e.hullMat, grp.layer)) e.hull.renderOrder = 3;');
+    expect(html.indexOf('--- draw layers')).toBeLessThan(html.indexOf('--- toon ink'));
+    expect(html).toContain("mat.stencilFuncMask = layer === 'veil' ? 3 : 2;");
+    // the ink soups are the render groups': the skin's soup is the skin alone
+    const skinOnly = groupsOf(emitThreeWorld({ faces: [skin, studio], toon: { ink: { lines: false, widthAbs: 0.002 } } }));
+    expect(groups.body.ink.pos).toBe(skinOnly.find((g) => g.name === 'body').ink.pos);
   });
 });

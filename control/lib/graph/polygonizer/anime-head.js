@@ -21,7 +21,29 @@
  *     visible is pinned to it and rides the head bone rigidly. The studio opens the mouth as an aperture, so there is no
  *     jaw part, no jaw hinge and no dial.
  * `register`: `lowpoly` is the studio's coarse sampling (its construction lab's cage density), anything else its full
- * sampling. Pure; no dice.
+ * sampling.
+ *
+ * The GRAPHIC FACE (`sculpt`, anime-sculpt.js): by default the head wears its design base's graphic base — a face layer
+ * under the face words and the sculpt (the eye level, the placed nose and its shade-side line, the lip line and mouth
+ * width, the fissure's shape, the lid band, the graphic lenses with a catchlight, the brow block); `sculpt: false` is the
+ * studio's own face, exactly. Under the sculpt the ink parts are named BY KEY (`lashLow*` the lower rim, `lid*` the lid
+ * band, `brow*` the brow block, `noseLine`; the catchlight `catch*` a lens), so a new stroke never renames another and
+ * each is one piece per side or the build refuses; every expression keeps the same vertex and face lists (the lenses stay
+ * behind the lids when they shut); `register: 'lowpoly'` takes the lighter lenses (anime-form `budget: 'game'`); the brow
+ * and lid parts carry `through: 'fringe'` and the fringe's parts `veil: 'fringe'` (the brows are drawn through the
+ * fringe); `measures.features` is the feature-spacing table with its advice.
+ *
+ * The HAIR FORM (mojulo's words on the hair, anime-form `hairForm`): the mass LIFTED off the skull by region (`lift
+ * { crown, temple, fringe, nape }`, construction units; the roots then emerge from the cap), the lock SECTION (`round`,
+ * the studio's 8-gon, or `ridge`, a roof with a spine), a section's `ridge` and `flute` (spines along a consolidated
+ * section and per member lock), the short family's `crownAccents` (`grow` | `tuck` | `none`), and the cut's words
+ * (`sweepBack`, `hairline { front }`, `sweepSides`, `fringeGroups`, `backNotch`). They ride on the hair beside its
+ * controls, SPARSE (a word is there only when given; `false` sets it to the studio's construction, over a base), compose
+ * across a list last-wins (an object word key by key), are passed to the build as an option and are never written into
+ * the studio recipe; the scalp's hairline follows `hairline`. The HAIR BASES (`ANIME_HAIR_BASE`, the anime hero's default
+ * hair, applied by the hero door through anime-looks `composeAnime`): per design base a FORM (the lift, the thickness,
+ * the ridge section, the crown accents off) worn under every family, and a CUT (a hair word — `swept-back` on the male,
+ * `side-parted` on the female) worn when neither a look nor the operator names a family. Pure; no dice.
  */
 import { compileLayered, pinFrame } from './station-loft.js';
 import { address } from './station-loft-detail.js';
@@ -31,6 +53,7 @@ import { ratioControls } from './ratio-controls.js';
 import { REGISTRATION } from './humanoid-head-fit.js';
 import { buildAnime, animeFresh, animeFaceDefs, ANIME_FACE_DEFS, ANIME_HAIR_DEFS, ANIME_EXPRESSION_DEFS, ANIME_HAIR_STYLES as STUDIO_FAMILIES, ANIME_LOCK_RE as STUDIO_LOCK_RE, ANIME_LOCK_KEYS } from './anime-form.js';
 import { rasterDepth, viewCamera } from '../scene/depth-raster.js';
+import { GRAPHIC_BASE, resolveAnimeSculpt, validateAnimeSculpt, sculptBuild, sculptFeatures } from './anime-sculpt.js';
 
 /** the hair FAMILIES: the studio's three and mojulo's `hime` (hair-passes) */
 export const ANIME_HAIR_STYLES = Object.freeze([...STUDIO_FAMILIES, 'hime']);
@@ -85,7 +108,93 @@ export const ANIME_HAIR_MOVES = Object.freeze({
   voluminous: { note: 'a bigger crown and thicker clumps', hair: { volume: 1.12, thickness: 1.15 } },
   peekaboo: { note: 'one bang dropped over the right eye', hair: { locks: { 'fringe-3': { ty: -0.16, tx: 0.03, tz: -0.02 } } } },
   ahoge: { note: 'one upright curl at the crown', hair: { ahoge: 1 } },
+  // the hair bases' CUTS (the anime hero's default hair per design base, ANIME_HAIR_BASE), words anywhere a hair word goes
+  'swept-back': { note: 'the short family swept back: the fringe rises off a raised front hairline over the crown and points back, the sides swept back over the ears, no crown accents',
+    hair: { style: 'short', clump: 1.12, sweepBack: { amount: 1, rise: 1.75, riseFall: 0.9, controlX: 1, spread: 1.12, controlZ: -0.45, tipY: 0.85, tipZ: 0.75 }, hairline: { front: 0.7 }, sweepSides: { amount: 1, from: 1, tipY: 0.55, tipZ: 0.62 }, crownAccents: 'none' } },
+  'side-parted': { note: 'a long sheet off a side part: one dominant bang swept across the brow and clear of the eyes, sidelocks ending at the jaw, a blunt back, spines along the sections and their locks',
+    hair: { style: 'long', part: 0.15, length: 1.2, fringeGroups: [[1, 2, 3, 4, 5], [5, 6, 7]], backNotch: 0.9, ridge: 0.8, flute: 0.35,
+      locks: { 'fringe-1': { tx: -0.2, ty: 0.05 }, 'fringe-2': { tx: -0.24, ty: 0.02 }, 'fringe-3': { tx: -0.28, ty: 0.18 }, 'fringe-4': { tx: -0.3, ty: 0.14 }, 'fringe-5': { tx: -0.28, ty: 0.26 }, 'fringe-6': { tx: -0.1, ty: 0.24 }, 'fringe-7': { ty: 0.3 },
+        'left-temple-0': { ty: 0.78 }, 'right-temple-0': { ty: 0.78 }, 'left-temple-1': { ty: 0.45 }, 'right-temple-1': { ty: 0.45 } } } },
 });
+/** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
+ * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
+export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch']);
+const LIFT_KEYS = Object.freeze(['crown', 'temple', 'fringe', 'nape']);
+const SWEEP_BACK_KEYS = Object.freeze(['amount', 'keep', 'rise', 'riseFall', 'controlX', 'controlZ', 'spread', 'tipY', 'tipZ', 'stagger', 'rootY', 'rootZ']);
+const SWEEP_SIDES_KEYS = Object.freeze(['amount', 'from', 'controlY', 'tipX', 'tipY', 'tipZ']);
+export const HAIR_SECTIONS = Object.freeze(['round', 'ridge']);
+export const CROWN_ACCENTS = Object.freeze(['grow', 'tuck', 'none']);
+/** the lift's comfortable range per region (construction units): about 3–12 % of the head's height at the crown, less
+ * at the rim — past it the mass reads as a helmet */
+const LIFT_COMFORT = Object.freeze({ crown: [0.04, 0.26], temple: [0, 0.14], fringe: [0, 0.12], nape: [0, 0.14] });
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+/** Error strings for the hair form words on one hair entry (empty = valid); `null` on a word is its removal */
+function hairFormErrors(entry, at) {
+  const errs = [];
+  const num = (k, v, lo, hi) => { if (!finite(v) || v < lo || v > hi) errs.push(`${at}.${k}: a number in [${lo}, ${hi}]`); };
+  const fields = (k, v, keys, check) => { if (!isObj(v)) return false; for (const [f, x] of Object.entries(v)) { if (!keys.includes(f)) errs.push(`${at}.${k}.${f}: not a ${k} field (have ${keys.join(', ')})`); else check(f, x); } return true; };
+  for (const k of ANIME_HAIR_FORM_WORDS) {
+    const v = entry[k]; if (v === undefined || v === null || v === false) continue;
+    if (k === 'lift') { if (!fields(k, v, LIFT_KEYS, (f, x) => num(`lift.${f}`, x, 0, 0.5))) errs.push(`${at}.lift: { ${LIFT_KEYS.join(', ')} } (construction units off the skull, the head ≈ 2.2 tall), or false`); }
+    else if (k === 'section') { if (!HAIR_SECTIONS.includes(v)) errs.push(`${at}.section: ${HAIR_SECTIONS.join(' | ')}`); }
+    else if (k === 'ridge') num(k, v, 0, 2);
+    else if (k === 'flute') num(k, v, 0, 1);
+    else if (k === 'crownAccents') { if (!CROWN_ACCENTS.includes(v)) errs.push(`${at}.crownAccents: ${CROWN_ACCENTS.join(' | ')} (the short family's six crown accents)`); }
+    else if (k === 'sweepBack' || k === 'sweepSides') {
+      if (finite(v)) num(k, v, 0, 1);
+      else if (!fields(k, v, k === 'sweepBack' ? SWEEP_BACK_KEYS : SWEEP_SIDES_KEYS, (f, x) => {
+        if (f === 'amount') num(`${k}.amount`, x, 0, 1);
+        else if (f === 'keep') { if (!Array.isArray(x) || !x.every((n) => typeof n === 'string' && /^fringe-[1-7]$/.test(n))) errs.push(`${at}.sweepBack.keep: a list of fringe clumps (fringe-1…7) that still fall`); }
+        else if (f === 'from') { if (!Number.isInteger(x) || x < 0 || x > 2) errs.push(`${at}.sweepSides.from: the first temple clump swept (0, 1 or 2)`); }
+        else num(`${k}.${f}`, x, -3, 3);
+      })) errs.push(`${at}.${k}: an amount in [0, 1], { ${(k === 'sweepBack' ? SWEEP_BACK_KEYS : SWEEP_SIDES_KEYS).join(', ')} }, or false`);
+      else if (!('amount' in v)) errs.push(`${at}.${k}: needs its amount (0 … 1)`);
+    }
+    else if (k === 'hairline') { if (!fields(k, v, ['front'], (f, x) => num('hairline.front', x, 0.3, 1))) errs.push(`${at}.hairline: { front } (the front hairline's height, the studio's 0.53), or false`); else if (!('front' in v)) errs.push(`${at}.hairline: needs its front`); }
+    else if (k === 'fringeGroups') {
+      const ok = Array.isArray(v) && v.length >= 1 && v.length <= 7 && v.every((g) => Array.isArray(g) && g.length >= 2 && g.every((n, i) => Number.isInteger(n) && n >= 1 && n <= 7 && (i === 0 || n === g[i - 1] + 1)));
+      if (!ok) errs.push(`${at}.fringeGroups: a list of bang sections, each two or more neighbouring fringe clumps in order (e.g. [[1, 2, 3, 4, 5], [5, 6, 7]]), or false`);
+    }
+    else if (k === 'backNotch') { if (!finite(v) || v <= 0 || v > 1) errs.push(`${at}.backNotch: the back sections' hem, a number in (0, 1] (1 is cut straight), or false`); }
+  }
+  return errs;
+}
+/** a word composed over what the layers before said: an object word merged key by key (an amount becomes `{ amount }`),
+ * anything else last-wins */
+function composeFormWord(k, cur, v) {
+  const obj = (x) => ((k === 'sweepBack' || k === 'sweepSides') && finite(x) ? { amount: x } : x);
+  const a = obj(cur), b = obj(v);
+  return isObj(a) && isObj(b) ? { ...a, ...b } : b;
+}
+/** The HAIR BASES: the anime hero's default hair per design base (the hero door, through anime-looks `composeAnime`). The
+ * FORM rides under every family — the regional lift, sections a little thicker (the studio's `thickness` as a ratio, so
+ * the traits compose on it), the ridge section, no crown accents; the CUT (a hair word) is worn only when neither a look
+ * nor the operator names a family. Words and ratios, 1 = the studio's. */
+export const ANIME_HAIR_BASE = Object.freeze({
+  male: Object.freeze({ form: Object.freeze({ thickness: 1.5, lift: Object.freeze({ crown: 0.12, temple: 0.06, fringe: 0.06, nape: 0.05 }), section: 'ridge', crownAccents: 'none' }), cut: 'swept-back' }),
+  female: Object.freeze({ form: Object.freeze({ thickness: 1.4, lift: Object.freeze({ crown: 0.13, temple: 0.06, fringe: 0.05, nape: 0.07 }), section: 'ridge', crownAccents: 'none' }), cut: 'side-parted' }),
+});
+/** The hair form a build reads (anime-form `hairForm`, buildAnime's units) from resolved hair words, or null when none is
+ * on: the lift's regions by the studio's names (fringe → front, nape → back), draped over the dome (a clump arching over
+ * the crown stays outside the lifted top; it moves nothing on a mass that does not arch there); the crown accents' word;
+ * the sweeps as `{ amount, … }`. */
+export function animeHairForm(H) {
+  if (!H || typeof H !== 'object') return null;
+  const on = (k) => H[k] !== undefined && H[k] !== null && H[k] !== false;
+  const out = {};
+  if (on('lift')) { const L = H.lift; out.lift = { crown: L.crown ?? 0, temple: L.temple ?? 0, front: L.fringe ?? 0, back: L.nape ?? 0 }; }
+  if (on('section')) out.section = H.section;
+  if (on('ridge')) out.ridge = H.ridge;
+  if (on('flute')) out.flute = H.flute;
+  if (on('crownAccents') && H.crownAccents !== 'grow') out.crown = H.crownAccents;
+  for (const k of ['sweepBack', 'sweepSides']) if (on(k)) { const v = finite(H[k]) ? { amount: H[k] } : H[k]; if (v.amount) out[k] = v; }
+  if (out.lift) out.dome = true;
+  if (on('hairline')) out.hairline = { front: H.hairline.front };
+  if (on('fringeGroups')) out.fringeGroups = H.fringeGroups;
+  if (on('backNotch')) out.backNotch = H.backNotch;
+  return Object.keys(out).length ? out : null;
+}
 /** the studio's expression poses (its buttons) as words, and hero-looks' more; an object of amounts after a word
  * adjusts it. The studio's brow: > 0 lowers the inner ends (a set, angry V), < 0 raises them (worried). */
 export const ANIME_POSES = Object.freeze({ neutral: {}, blink: { blink: 1 }, smile: { smile: 1, blink: 0.12, brow: 0.3 }, open: { open: 0.8, brow: 0.2 },
@@ -94,9 +203,11 @@ export const ANIME_POSES = Object.freeze({ neutral: {}, blink: { blink: 1 }, smi
 const EXPRESSION_KEYS = ANIME_EXPRESSION_DEFS.map(([k]) => k);
 export const ANIME_FACE_KEYS = ANIME_FACE.KEYS, ANIME_HAIR_KEYS = ANIME_HAIR.KEYS;
 /** mojulo's anime BASES: the studio's design bases with these slider offsets (the operator's call, 2026-09-28: the chin
- * set back on everyone — the studio's male base carried its chin flush with the mouth). `1` in the face words is THIS
- * base; the port itself stays the studio's. */
-export const ANIME_BASE_ADJUST = Object.freeze({ female: Object.freeze({ chinProjection: -0.2 }), male: Object.freeze({ chinProjection: -0.2 }) });
+ * set back on everyone — the studio's male base carried its chin flush with the mouth; the male head carried at 3° chin
+ * up instead of 6° (the chin lowered 3° from the studio's carriage), the studio's pitch being 6° + 12° × (headPitch − 1), so the underside of the jaw sits level over
+ * the neck and the back of the keel no longer drops below the chin). `1` in the face words is THIS base; the port
+ * itself stays the studio's. */
+export const ANIME_BASE_ADJUST = Object.freeze({ female: Object.freeze({ chinProjection: -0.2 }), male: Object.freeze({ chinProjection: -0.2, headPitch: -0.25 }) });
 export const ANIME_PRESETS = Object.freeze(['female', 'male']);
 /** the studio's default family per design base */
 export const animeDefaultStyle = (preset) => animeFresh(preset).hair.style;
@@ -104,13 +215,17 @@ export const animeDefaultStyle = (preset) => animeFresh(preset).hair.style;
 export const resolveAnimeFace = ANIME_FACE.resolve;
 export const validateAnimeFace = (spec, label = 'face') => ANIME_FACE.validate(spec, label);
 /** Advisory: each control against the studio's slider range for this design base (its `faceDefs`, widened by the base's
- * offset), the lift as the base's own plus the offset. */
-export function animeFaceWarnings(resolved, preset = 'female') {
+ * offset), the lift as the base's own plus the offset. Under the graphic face (any `sculpt` but `false`, the head's
+ * default) the value read is the one the head builds — the graphic base's face layer times the word — and the range is
+ * widened by the layer's offset the same way (the male layer sits at the studio's eye-width and eye-height floor). */
+export function animeFaceWarnings(resolved, preset = 'female', { sculpt } = {}) {
   if (!resolved) return [];
   const base = animeFresh(preset).face, adjust = ANIME_BASE_ADJUST[preset] ?? {}, out = [];
-  for (const [k, , lo, hi] of animeFaceDefs(preset)) {
+  const layer = sculpt === false ? {} : GRAPHIC_BASE[preset]?.face ?? {};
+  for (const [k, , lo0, hi0] of animeFaceDefs(preset)) {
     const v = resolved[k]; if (v === undefined) continue;
-    const slider = (k === 'tilt' ? base.tilt + v : base[k] + (v - 1)) + (adjust[k] ?? 0);
+    const L = layer[k], lo = L !== undefined ? Math.min(lo0, lo0 + (L - 1)) : lo0, hi = L !== undefined ? Math.max(hi0, hi0 + (L - 1)) : hi0;
+    const slider = (k === 'tilt' ? base.tilt + v : base[k] + ((L !== undefined ? r6(L * v) : v) - 1)) + (adjust[k] ?? 0);
     if (slider < lo - 1e-9 || slider > hi + 1e-9) out.push(`face.${k} ${v} puts the studio's slider at ${r6(slider)}, outside its range [${r6(lo)}, ${r6(hi)}] for the ${preset} base: the head still builds, but the read past this is the operator's call`);
   }
   return out;
@@ -119,18 +234,22 @@ export function animeFaceWarnings(resolved, preset = 'female') {
 /** `'short'` | `{ style, length: 1.1, locks: { 'fringe-3': { ty: -0.05 } } }` | a list → `{ style|null, …controls, locks }`.
  * The family word is last-wins, the controls compose (ratios by product, offsets by sum), lock edits sum per key. */
 export function resolveAnimeHair(spec) {
-  const list = Array.isArray(spec) ? spec : [spec]; let style = null; const controls = []; const locks = {};
+  const list = Array.isArray(spec) ? spec : [spec]; let style = null; const controls = []; const locks = {}; const form = {};
   for (const entry of list) {
     if (entry === undefined || entry === null) continue;
     let e = entry;
     if (typeof e === 'string') { if (!ANIME_HAIR_MOVES[e]) { style = e; continue; } e = ANIME_HAIR_MOVES[e].hair; }
     if (typeof e !== 'object') throw new Error('hair: an entry must be a family word, a hair trait or a control object');
-    const { style: s, locks: L, ...rest } = e; if (typeof s === 'string') style = s; controls.push(rest);
+    const { style: s, locks: L, ...rest } = e; if (typeof s === 'string') style = s;
+    // the hair form words ride beside the controls: composed last-wins (an object word key by key); null is no word
+    for (const k of ANIME_HAIR_FORM_WORDS) if (k in rest) { const v = rest[k]; delete rest[k]; if (v !== undefined && v !== null) form[k] = k in form ? composeFormWord(k, form[k], v) : composeFormWord(k, undefined, v); }
+    controls.push(rest);
     for (const [name, edit] of Object.entries(L || {})) { const cur = { ...(locks[name] ?? {}) }; for (const k of ANIME_LOCK_KEYS) if (edit?.[k] !== undefined) cur[k] = r6((cur[k] ?? 0) + edit[k]); locks[name] = cur; }
   }
   if (style !== null && !ANIME_HAIR_STYLES.includes(style)) throw new Error(`hair: unknown anime family '${style}' (have ${ANIME_HAIR_STYLES.join(', ')}; traits ${Object.keys(ANIME_HAIR_MOVES).join(', ')})`);
   const { from: _f, ...resolved } = ANIME_HAIR.resolve(controls);
-  return { style, ...resolved, locks: Object.fromEntries(Object.entries(locks).sort(([a], [b]) => (a < b ? -1 : 1))) };
+  // SPARSE: a form word only when some entry gave it, in the words' order
+  return { style, ...resolved, locks: Object.fromEntries(Object.entries(locks).sort(([a], [b]) => (a < b ? -1 : 1))), ...Object.fromEntries(ANIME_HAIR_FORM_WORDS.filter((k) => k in form).map((k) => [k, structuredClone(form[k])])) };
 }
 export function validateAnimeHair(spec, label = 'hair') {
   if (spec === undefined || spec === null) return [];
@@ -139,10 +258,11 @@ export function validateAnimeHair(spec, label = 'hair') {
     const at = list.length > 1 ? `${label}[${i}]` : label;
     if (typeof entry === 'string') { if (!ANIME_HAIR_STYLES.includes(entry) && !ANIME_HAIR_MOVES[entry]) errs.push(`${at}: unknown anime family '${entry}' (have ${ANIME_HAIR_STYLES.join(', ')}; traits ${Object.keys(ANIME_HAIR_MOVES).join(', ')})`); continue; }
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) { errs.push(`${at}: a family word (${ANIME_HAIR_STYLES.join(', ')}), a control object ({ style?, ${ANIME_HAIR_KEYS.join(', ')}, locks? }) or a list`); continue; }
-    const { style, locks, ...rest } = entry;
+    const { style, locks, ...rest0 } = entry;
     // a null family is the stored own layer's "none of its own" (a look's or the base's family stands)
     if (style !== undefined && style !== null && !ANIME_HAIR_STYLES.includes(style)) errs.push(`${at}.style: unknown anime family '${style}' (have ${ANIME_HAIR_STYLES.join(', ')})`);
-    errs.push(...ANIME_HAIR.validate(rest, at));
+    const rest = Object.fromEntries(Object.entries(rest0).filter(([k]) => !ANIME_HAIR_FORM_WORDS.includes(k)));
+    errs.push(...ANIME_HAIR.validate(rest, at), ...hairFormErrors(entry, at));
     if (locks !== undefined) {
       if (!locks || typeof locks !== 'object' || Array.isArray(locks)) errs.push(`${at}.locks: an object of clump name → { ${ANIME_LOCK_KEYS.join(', ')} } (construction units)`);
       else for (const [name, edit] of Object.entries(locks)) {
@@ -154,17 +274,31 @@ export function validateAnimeHair(spec, label = 'hair') {
   }
   return errs;
 }
-/** Advisory: the controls outside the studio's ranges, lock edits past its ±0.2, and clumps the family does not grow. */
-export function animeHairWarnings(resolved) {
+/** Advisory: the controls outside the studio's ranges, lock edits past its ±0.2, clumps the family does not grow, the lift
+ * past its comfortable range, and `volume` beside the lift. `words` (optional): the hair the WORDS made (the hair base
+ * and a look's hair, anime-looks `composeAnime` `hairWords`) — a control's range is widened by the words' own value and a
+ * lock edit read past the words' own, so only the operator's own layer is advised against (a cut's authored edits past
+ * ±0.2 never warn). */
+export function animeHairWarnings(resolved, { words = null } = {}) {
   if (!resolved) return [];
-  const out = ANIME_HAIR.warnings(resolved);
+  const out = [];
+  for (const k of ANIME_HAIR.KEYS) {
+    const v = resolved[k]; if (v === undefined) continue;
+    const [lo0, hi0] = ANIME_HAIR.RANGES[k], W = words?.[k], d = W === undefined ? 0 : W - ANIME_HAIR.DEFAULT[k], lo = Math.min(lo0, lo0 + d), hi = Math.max(hi0, hi0 + d);
+    if (v < lo - 1e-9 || v > hi + 1e-9) out.push(`hair.${k} ${v} is outside the comfortable range [${r6(lo)}, ${r6(hi)}]: the figure still closes, but the read past this is the operator's call`);
+  }
   for (const [name, edit] of Object.entries(resolved.locks || {})) {
     if (/^crown-/.test(name) && resolved.style !== 'short') out.push(`hair.locks.${name}: only the short family grows crown clumps; the edit has no effect on '${resolved.style}'`);
-    for (const [k, v] of Object.entries(edit)) if (Math.abs(v) > 0.2) out.push(`hair.locks.${name}.${k} ${v} is past the studio's ±0.2: the clump still builds, but its root may no longer lead it`);
+    for (const [k, v] of Object.entries(edit)) if (Math.abs(v - (words?.locks?.[name]?.[k] ?? 0)) > 0.2 + 1e-9) out.push(`hair.locks.${name}.${k} ${v} is past the studio's ±0.2${words?.locks?.[name]?.[k] ? ` off the words' ${words.locks[name][k]}` : ''}: the clump still builds, but its root may no longer lead it`);
   }
+  if (isObj(resolved.lift)) {
+    for (const k of LIFT_KEYS) { const v = resolved.lift[k]; if (v === undefined || v === words?.lift?.[k]) continue; const [lo, hi] = LIFT_COMFORT[k]; if (v < lo || v > hi) out.push(`hair.lift.${k} ${v} is outside the comfortable range [${lo}, ${hi}] (construction units; the head ≈ 2.2 tall): past it the mass reads as a helmet, or hugs the skull`); }
+    if (resolved.volume !== 1 && resolved.volume !== words?.volume) out.push(`hair.volume ${resolved.volume} beside the lift: volume scales the fringe's control points forward into a visor in profile; the lift already stands the mass off the skull — keep volume at 1 and raise hair.lift instead`);
+  }
+  if ((resolved.crownAccents === 'tuck' || resolved.crownAccents === 'none') && resolved.crownAccents !== words?.crownAccents && resolved.style !== 'short') out.push(`hair.crownAccents '${resolved.crownAccents}': only the short family grows crown accents; the word has no effect on '${resolved.style}'`);
   return out;
 }
-export const describeAnimeHair = (resolved) => { const d = ANIME_HAIR.describe(resolved), n = Object.keys(resolved.locks || {}).length; return `${resolved.style}${d ? ` (${d.replace(/^hair /, '')})` : ''}${n ? `, ${n} clump${n === 1 ? '' : 's'} directed` : ''}`; };
+export const describeAnimeHair = (resolved) => { const d = ANIME_HAIR.describe(resolved), n = Object.keys(resolved.locks || {}).length, form = ANIME_HAIR_FORM_WORDS.filter((k) => resolved[k] !== undefined && resolved[k] !== null && resolved[k] !== false); return `${resolved.style}${d ? ` (${d.replace(/^hair /, '')})` : ''}${n ? `, ${n} clump${n === 1 ? '' : 's'} directed` : ''}${form.length ? `; form ${form.map((k) => (typeof resolved[k] === 'string' ? `${k} ${resolved[k]}` : k)).join(', ')}` : ''}`; };
 
 /** `'smile'` | `{ open: 0.4 }` | `['smile', { brow: -0.2 }]` → the four amounts; a pose word resets, an object adjusts */
 export function resolveAnimeExpression(spec) {
@@ -195,16 +329,20 @@ export function animeExpressionWarnings(resolved) {
 
 /** The studio recipe these words make: the design base (with mojulo's base adjustments), each face value as the studio's
  * slider (base + (v − 1); the lift as base + offset), the hair family and controls, the four amounts and the lock edits
- * (missing axes 0). The result is a recipe the studio itself loads. */
-export function animeRecipe({ preset = 'female', face = {}, hair = {}, expression = {} } = {}) {
+ * (missing axes 0). The result is a recipe the studio itself loads. The GRAPHIC FACE (any `sculpt` but `false`, the
+ * default): the graphic base's face layer sits under the face words, and its sculpt rides as `r.sculpt` (buildAnime
+ * units, anime-sculpt.js `sculptBuild`); `sculpt: false` is the studio's recipe exactly. */
+export function animeRecipe({ preset = 'female', face = {}, hair = {}, expression = {}, sculpt } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
-  const r = animeFresh(preset), F = resolveAnimeFace(face), H = hair && typeof hair === 'object' && !Array.isArray(hair) && 'locks' in hair && 'volume' in hair ? hair : resolveAnimeHair(hair), E = expression && typeof expression === 'object' && !Array.isArray(expression) && EXPRESSION_KEYS.every((k) => k in expression) ? expression : resolveAnimeExpression(expression);
+  const SC = sculpt === false ? false : resolveAnimeSculpt(sculpt ?? null);
+  const r = animeFresh(preset), F = SC === false ? resolveAnimeFace(face) : resolveAnimeFace([GRAPHIC_BASE[preset].face, face]), H = hair && typeof hair === 'object' && !Array.isArray(hair) && 'locks' in hair && 'volume' in hair ? hair : resolveAnimeHair(hair), E = expression && typeof expression === 'object' && !Array.isArray(expression) && EXPRESSION_KEYS.every((k) => k in expression) ? expression : resolveAnimeExpression(expression);
   const adjust = ANIME_BASE_ADJUST[preset] ?? {};
   for (const k of ANIME_FACE_KEYS) r.face[k] = (k === 'tilt' ? r.face.tilt + F.tilt : r.face[k] + (F[k] - 1)) + (adjust[k] ?? 0);
   r.hair.style = H.style ?? r.hair.style;
   for (const k of ANIME_HAIR_KEYS) if (k !== 'strands' && (k !== 'ahoge' || H.ahoge)) r.hair[k] = H[k];   // the studio's recipe shape unless an ahoge grows; `strands` is how it is built, not what
   for (const k of EXPRESSION_KEYS) r.expression[k] = E[k];
   r.locks = Object.fromEntries(Object.entries(H.locks || {}).map(([name, e]) => [name, Object.fromEntries(ANIME_LOCK_KEYS.map((k) => [k, e[k] ?? 0]))]));
+  if (SC !== false) r.sculpt = sculptBuild(preset, SC);
   return r;
 }
 
@@ -359,32 +497,55 @@ const LOCK_PART = (name) => {
 };
 /** the part a studio clump becomes (`fringe-3` → `hairFringe3`, `left-temple-0` → `hairTempleL0`, `crown--1-2` → `hairCrownL2`) */
 export const animeLockPart = LOCK_PART;
+/** the graphic face's draw-order flags: the brows and the lid bands are drawn THROUGH the fringe (`through`), the fringe's
+ * parts VEIL them (`veil`) — never the side locks or the back, whose lid tails would smudge in profile */
+const layerFlag = (name) => (/^(brow|lid)[RL]$/.test(name) ? { through: 'fringe' } : /^hair(Form)?Fringe/.test(name) ? { veil: 'fringe' } : {});
 
 /**
  * The anime head, ready to wear.
  * @param {object} o
  *   preset      'female' | 'male' — the studio's design base
  *   face        the FACE words (a move, a ratio object over the studio's controls, a list); 1 = the base
- *   hair        a family word, `{ style, …controls, locks }` or a list; `'none'` wears no hair
+ *   hair        a family word, a hair trait, `{ style, …controls, locks, …hair form words }` or a list; `'none'` wears no
+ *               hair (the hair form rides to the build as its own option, never into the studio recipe)
  *   expression  a pose word, amounts `{ blink, smile, open, brow }` or a list
  *   register    'lowpoly' (the studio's coarse sampling) | anything else (its full sampling)
  *   scale       the head's uniform scale (its core, pin-local offsets and anchors together)
  *   skin, hairColor, palette  colours (`Skin`, `Hair` and the studio's groups)
+ *   sculpt      the GRAPHIC FACE's words (anime-sculpt.js: a move, an object, a list); absent is the graphic base, `false`
+ *               the studio's own face
  * @returns the landmark head's include shape: { name, parts, dials, creases, palette, bind, joints, chinZ, hair,
  *   hairMeasures, face, expression, preset, register, scale, landmarks, recipe, measures }
  */
-export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true } = {}) {
+/** The feature table of a head's NEUTRAL TWIN (the same base, face and sculpt at rest, bald and unfitted), for a head at
+ * another expression. animeHead is pure, so the table is kept by its inputs (a few recent ones): a door that generates
+ * the same hero twice (an edit's hand-edit check, then its plan) builds the twin once. A copy is handed out. */
+const FEATURE_TWINS = new Map(), FEATURE_TWINS_MAX = 16;
+function neutralTwinFeatures({ preset, face, register, sculpt }) {
+  const key = JSON.stringify([preset, face, register, sculpt === undefined ? null : sculpt]);
+  let f = FEATURE_TWINS.get(key);
+  if (f === undefined) {
+    f = animeHead({ preset, face, hair: 'none', expression: 'neutral', register, sculpt, hairFit: false }).measures.features;
+    if (FEATURE_TWINS.size >= FEATURE_TWINS_MAX) FEATURE_TWINS.delete(FEATURE_TWINS.keys().next().value);
+    FEATURE_TWINS.set(key, f);
+  }
+  return structuredClone(f);
+}
+export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('anime head: scale must be positive');
   const bald = hair === 'none';
-  for (const [spec, errs] of [[face, validateAnimeFace(face)], [bald ? null : hair, validateAnimeHair(bald ? null : hair)], [expression, validateAnimeExpression(expression)]]) if (errs.length) throw new Error(`anime head: ${errs.join('; ')}`);
+  for (const [spec, errs] of [[face, validateAnimeFace(face)], [bald ? null : hair, validateAnimeHair(bald ? null : hair)], [expression, validateAnimeExpression(expression)], [sculpt, validateAnimeSculpt(sculpt)]]) if (errs.length) throw new Error(`anime head: ${errs.join('; ')}`);
   const F = resolveAnimeFace(face), H = resolveAnimeHair(bald ? null : hair ?? null), E = resolveAnimeExpression(expression);
   if (H.style === null) H.style = animeDefaultStyle(preset);
-  const recipe = animeRecipe({ preset, face: F, hair: H, expression: E });
+  const recipe = animeRecipe({ preset, face: F, hair: H, expression: E, sculpt });
+  const SCULPT = !!recipe.sculpt;
   // the hair seats on the head it grows on (anime-form `fitHair`); `hairFit: false` is the studio's own cap and clumps
   // the bob, long and hime families consolidate their clumps into sections (anime-form `forms`); `strands: 1` keeps the
-  // studio's separate clumps
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0) });
+  // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
+  // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
+  const HAIR_FORM = bald ? null : animeHairForm(H);
+  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}) });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;
@@ -402,7 +563,8 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   meshes.face = zip(welded, 0.003);
   // the SCALP: skin faces above the studio's hairline (measured unpitched), for the coverage ledger
   const unpitch = (p) => { const c = Math.cos(-model.pitch), sn = Math.sin(-model.pitch), y = p[1] - model.pivot[1], z = p[2] - model.pivot[2]; return [p[0], model.pivot[1] + c * y - sn * z, model.pivot[2] + sn * y + c * z]; };
-  const hairlineY = (a) => 0.10 + 0.43 * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a));
+  // (the hair form's `hairline` raises its front edge, so a swept-back cut's forehead is not counted as scalp)
+  const hairlineY = HAIR_FORM?.hairline ? (a) => 0.10 + (HAIR_FORM.hairline.front - 0.10) * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a)) : (a) => 0.10 + 0.43 * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a));
   const scalp = meshes.face.faces.flatMap((f, i) => { if (meshes.face.groups[i] !== 'Skin') return []; const c = unpitch(vmul(f.reduce((acc, v) => vadd(acc, meshes.face.points[v]), [0, 0, 0]), 1 / 3)); return c[1] > hairlineY(Math.atan2(c[0], -(c[2] - 0.07))) + 0.02 ? [`f${i}`] : []; });
   meshes.face.points = meshes.face.points.map(toM);
   meshes.face = outward(orientConsistently(meshes.face), [0, 1, 0]);
@@ -412,15 +574,27 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
       const o = orientConsistently(c); o.groups = o.groups.map(() => group);
       const out = vunit(vsub(centroid(o), H0)); outward(o, out);
       const n = vunit(o.faces.reduce((s, f) => vadd(s, faceNormal(o, f)), [0, 0, 0]));
-      meshes[`${part}${centroid(o)[0] > 0 ? 'R' : 'L'}`] = solidify(o, depth, n);
+      const name = `${part}${centroid(o)[0] > 0 ? 'R' : 'L'}`; if (SCULPT && meshes[name]) throw new Error(`anime head: ${name} split into more than one piece`);
+      meshes[name] = solidify(o, depth, n);
     }
   };
   lens('iris', 'Iris', 0.0015 * S); lens('pupil', 'Pupil', 0.0012 * S);
   // the ink: per side the brow (highest), the upper lash and the lower rim (lowest), each a slab behind its ribbon
-  const ink = components(meshOf(trisOf(model.parts.ink), null)).map((c) => { const o = orientConsistently(c); o.groups = o.groups.map(() => 'Ink'); outward(o, vunit(vsub(centroid(o), H0))); return o; });
-  for (const side of ['R', 'L']) {
+  const inkOf = (part) => components(meshOf(trisOf(model.parts[part]), null)).map((c) => { const o = orientConsistently(c); o.groups = o.groups.map(() => 'Ink'); outward(o, vunit(vsub(centroid(o), H0))); return o; });
+  const ink = inkOf('ink');
+  if (!SCULPT) for (const side of ['R', 'L']) {
     const mine = ink.filter((m) => (centroid(m)[0] > 0) === (side === 'R')).sort((a, b) => centroid(b)[2] - centroid(a)[2]);
     mine.forEach((m, i) => { const n = vunit(m.faces.reduce((s, f) => vadd(s, faceNormal(m, f)), [0, 0, 0])); meshes[`${['brow', 'lash', 'lashLow'][i] ?? `ink${i}`}${side}`] = solidify(m, 0.004 * S, n); });
+  }
+  else {
+    // the graphic face's ink parts BY KEY (a new stroke never renames another): the lower rim stays in `ink` (lashLow),
+    // the lid band (lid), the brow block (brow), the nose line (noseLine, one part); the catchlight a Sclera-group lens.
+    // One piece per key and side, or the build refuses.
+    const slab = (key, list, sided = true) => { for (const m of list) { const n = vunit(m.faces.reduce((s, f) => vadd(s, faceNormal(m, f)), [0, 0, 0])); const name = sided ? `${key}${centroid(m)[0] > 0 ? 'R' : 'L'}` : key; if (meshes[name]) throw new Error(`anime head: ${name} split into more than one piece`); meshes[name] = solidify(m, 0.004 * S, n); } };
+    slab('lashLow', ink);
+    for (const key of ['lid', 'brow']) if (model.parts[key]?.length) slab(key, inkOf(key));
+    if (model.parts.nose?.length) slab('noseLine', inkOf('nose'), false);
+    if (model.parts.catch?.length) lens('catch', 'Sclera', 0.001 * S);
   }
   if (!bald) {
     const cap = orientConsistently(meshOf(trisOf(model.parts.hair, model.cap.start, model.cap.end), null)); cap.groups = cap.groups.map(() => 'Hair');
@@ -439,7 +613,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
     const { group, groups } = groupsOf(m);
     parts[name] = { layer: 2, closure: 'closed', pin, group,
       offsets: Object.fromEntries(m.points.map((p, i) => [`v${i}`, surfaceLocalOffset(frame, p).map(r6)])),
-      faces: Object.fromEntries(m.faces.map((f, i) => [`f${i}`, f.map((v) => `v${v}`)])), ...(groups ? { groups } : {}) };
+      faces: Object.fromEntries(m.faces.map((f, i) => [`f${i}`, f.map((v) => `v${v}`)])), ...(groups ? { groups } : {}), ...(SCULPT ? layerFlag(name) : {}) };
   }
 
   // anchors and measures, off the built parts (hero metres, before the scale)
@@ -458,7 +632,11 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   }
   const hairCoverage = bald ? null : animeHairCoverage(parts, scalp);
   const r3 = (x) => Math.round(x * scale * 1000) / 1000;
-  const measures = { head_m: r3(crown[2] - menton[2]), crown_z: r3(crown[2]), face_m: r3(faceBox.hi[0] - faceBox.lo[0]), depth_m: r3(faceBox.hi[1] - faceBox.lo[1]), pupils_m: r3(2 * eyeR[0]), eye_m: r3(eyeBox.hi[2] - eyeBox.lo[2]), eyeWidth_m: r3(eyeBox.hi[0] - eyeBox.lo[0]) };
+  const measures = { head_m: r3(crown[2] - menton[2]), crown_z: r3(crown[2]), face_m: r3(faceBox.hi[0] - faceBox.lo[0]), depth_m: r3(faceBox.hi[1] - faceBox.lo[1]), pupils_m: r3(2 * eyeR[0]), eye_m: r3(eyeBox.hi[2] - eyeBox.lo[2]), eyeWidth_m: r3(eyeBox.hi[0] - eyeBox.lo[0]),
+    // the feature spacing: ratios (the scale never moves them), always of the face at rest (an expression's closed lids or
+    // open mouth would read as a design): a head at another expression measures its neutral twin, bald and unfitted; read
+    // at the studio's carriage, so a base's rest carriage or a headPitch word never moves it
+    ...(SCULPT ? { features: EXPRESSION_KEYS.every((k) => !E[k]) ? sculptFeatures(meshes, preset, { carriage: model.pitch }) : neutralTwinFeatures({ preset, face: F, register, sculpt }) } : {}) };
 
   // the head's scale, once: the core, the pin-local offsets and the anchors together
   if (scale !== 1) for (const p of Object.values(parts)) {

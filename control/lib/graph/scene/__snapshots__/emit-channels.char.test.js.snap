@@ -36,6 +36,8 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > deforms emits byte-identically 1`] = `"35fcb1e2e0ed821eb1e638315789c9a3cb9371a35bae798e19d4af32ae1af757"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > draw-layers emits byte-identically 1`] = `"0aca973b32e58134096d7342eff7137eab75e3f40d37e0bf9763374b29885327"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > effects emits byte-identically 1`] = `"54000c82bee950ef596af61ec05383b8feaaacf772ee31759157ddfed5d3f1aa"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > events emits byte-identically 1`] = `"cf6907961f764f6382da9b0a3d93c7cbfc2e948e08e98653b9948053b383fbf4"`;

@@ -240,6 +240,20 @@ export const EMIT_FIXTURES = [
   // even with no static ink group) and the fx ink verbs (an object state + an inkFlash gesture).
   ['toon-ink-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: true } }],
   ['toon-ink-fx', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: { color: '#2a2f3a' } }, fx: { states: { d: { ink: '#ff4040', pulse: true } }, on: { 'hit:*': { gesture: 'inkFlash', color: '#ffffff' } } } }],
+  // the draw layers (channels/draw-layers.js): a character-lit figure's faces carrying `layer` — the render group split
+  // by it, the stencil buffer, the fill rules and the hair hulls' test — beside the silhouette ink. The static page
+  // only: no row of this matrix carries a rig preview (its live clip picker is its own concern), so the preview's
+  // layered parts, per-layer outlines and `body:*` hiding are pinned in channels/rig-preview.test.js
+  ['draw-layers', {
+    faces: [
+      quad('#d9a77e', { group: 'body', outNormal: [0, -1, 0] }),
+      quad('#3b4859', { group: 'body', layer: 'hair', outNormal: [0, -1, 0] }),
+      quad('#3b4859', { group: 'body', layer: 'veil', outNormal: [0, -1, 0] }),
+      quad('#16181c', { group: 'body', layer: 'through', noInk: true, outNormal: [0, -1, 0] }),
+      floor('#445566', { studio: true }),
+    ],
+    toon: { ink: { lines: false, widthAbs: 0.002 } },
+  }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],

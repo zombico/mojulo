@@ -357,6 +357,7 @@ describe('update_sketch { readout } — what an edit hands back (Phase 3)', () =
 // ring-plan: the layered kind's PLAN door stores the plan beside the recipe; an edit under /plan
 // re-expands the recipe, an edit under /dials leaves the plan alone; every edit pays the layered gates.
 import { mintSolidHandler } from './mint-solid.js';
+import { heroRecord, heroPlanOf, validateHeroSpec } from './layered.js';
 
 const RING_PLAN = {
   schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' },
@@ -443,7 +444,8 @@ describe('update_sketch on a hero minted through the hero door', () => {
     await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/plan/segments/0/stations/0/r/0', value: 0.3 }] });
     expect(SketchRepository.getByRef('hero-tuned').manifest.hero.tune.shoulders).toBe(1.3);
     const back = await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/hero/tune/waist', value: 1 }] });
-    expect(back.stats.hero.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/hand-edited under \/plan .* replaced/)]));
+    // (the warning names both causes: a stored plan also differs when the hero's generator changed since it was stored)
+    expect(back.stats.hero.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/differs from what the hero generates now \(hand-edited under \/plan, or the hero's generator changed .*\); this \/hero edit regenerated the plan and replaced it/)]));
     expect(SketchRepository.getByRef('hero-tuned').manifest.plan.segments[0].stations[0].r[0]).not.toBe(0.3);
     // an unknown control or a bad ratio refuses by name, and the row is untouched
     await expect(updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/hero/tune/shoulder', value: 1.1 }] })).rejects.toThrow(/unknown control/);
@@ -504,7 +506,8 @@ describe('the hero door wears a face', () => {
 describe('the hero door wears the anime head', () => {
   it("head: 'anime' mints by the studio's words; /hero/face, /hero/hair/locks/<clump>, /hero/expression regenerate", async () => {
     const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-anime', spec: { cast: 'female', head: 'anime', face: { eyeHeight: 1.05, tilt: 0.03 }, hair: ['long', { fringe: 0.9 }], expression: 'smile' } });
-    expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave']);
+    // the anime hero stands in its default gesture (hero-gesture.js): a one-key `gesture` clip listed first
+    expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.stats.layered.rig.clips).toEqual(['gesture', 'idle', 'walk', 'wave']);
     expect(minted.hero.head).toBe('anime'); expect(minted.hero.base).toBe('female');
     expect(minted.hero.proportions).toBe('anime'); expect(minted.hero.headsTall).toBeGreaterThan(6.3); expect(minted.hero.headsTall).toBeLessThan(6.7);
     expect(minted.hero.faceMoved).toEqual({ eyeHeight: 1.05, tilt: 0.03 }); expect(minted.hero.hair.style).toBe('long'); expect(minted.hero.hairMoved).toEqual({ fringe: 0.9 });
@@ -521,9 +524,16 @@ describe('the hero door wears the anime head', () => {
     expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true); expect(r.stats.hero.hairMoved.locks).toEqual(['fringe-3']);
     const after = SketchRepository.getByRef('hero-anime'); expect(tip(after.manifest)).not.toEqual(tip(stored.manifest));
     expect(after.manifest.recipe.parts.hairFormBackC.offsets).toEqual(stored.manifest.recipe.parts.hairFormBackC.offsets);   // the clump's sections moved, the rest held
-    const w = await updateSketchHandler({ ref: 'hero-anime', patch: [{ op: 'set', path: '/hero/face/nose', value: 1.9 }, { op: 'set', path: '/hero/expression', value: 'blink' }, { op: 'set', path: '/hero/hair/style', value: 'short' }] });
-    expect(w.stats.hero.warnings).toEqual([expect.stringMatching(/face\.nose 1\.9 .*studio's slider/)]);
-    expect(w.stats.hero.expression.blink).toBe(1); expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.irisR).toBeUndefined();   // closed lids hide the iris
+    // under the graphic face (the default) the slider read is its face layer times the word (the female nose 0.6 × 2.6)
+    // and the feature spacing is advised against the base's bands
+    const w = await updateSketchHandler({ ref: 'hero-anime', patch: [{ op: 'set', path: '/hero/face/nose', value: 2.6 }, { op: 'set', path: '/hero/expression', value: 'blink' }, { op: 'set', path: '/hero/hair/style', value: 'short' }] });
+    // (the minted eyeHeight 1.05 opens the fissure just past the female band)
+    expect(w.stats.hero.warnings).toEqual([expect.stringMatching(/face\.nose 2\.6 puts the studio's slider at 1\.56,/), expect.stringMatching(/face: the opening's height over its width is 0\.8\d*, outside the female band \[0\.55, 0\.8\]: \/hero\/sculpt \{ fissureHeight: … \} moves it \(then \/hero\/sculpt\/<word>\)/), expect.stringMatching(/face: the nose projection \(of H\) is 0\.\d+, outside the female band \[0\.025, 0\.04\]: \/hero\/sculpt \{ tipProjection: … \} moves it/)]);
+    // closed lids bury the lenses behind the lid skin; every expression keeps the same parts (the graphic face)
+    expect(w.stats.hero.expression.blink).toBe(1); expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.irisR).toBeTruthy();
+    // the hair base's form grows no crown accents (the short family's six clumps); the word by path grows them back
+    expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.hairCrownR0).toBeUndefined();
+    await updateSketchHandler({ ref: 'hero-anime', patch: [{ op: 'set', path: '/hero/hair/crownAccents', value: 'grow' }] });
     expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.hairCrownR0).toBeTruthy();   // the short family grows its crown clumps
     const bald = await updateSketchHandler({ ref: 'hero-anime', patch: [{ op: 'set', path: '/hero/hair', value: 'none' }] });
     expect(bald.stats.closed).toBe(true); expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.hairCap).toBeUndefined();
@@ -539,6 +549,211 @@ describe('the hero door wears the anime head', () => {
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', proportions: 'chibi' } })).rejects.toThrow(/proportions: 'anime'/);
     const male = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-anime-male', spec: { cast: 'chibi', head: 'anime', register: 'lowpoly' } });
     expect(male.hero.base).toBe('male'); expect(male.hero.hair.style).toBe('short'); expect(male.stats.closed).toBe(true);
+  });
+});
+
+// the graphic face: `sculpt` at the hero door (anime-sculpt.js) — on by default and never stored; the stored field is
+// SPARSE (only the words that differ from the base; absent when none), `false` (the studio's face) stored; /hero/sculpt
+// regenerates; refused by name, and refused on any hero but the anime one.
+describe('the hero door: the anime head\'s graphic face', () => {
+  it('stored sparse, false stored, the default never stored; /hero/sculpt/<word> regenerates; the readout carries the feature table', async () => {
+    expect(heroRecord({ cast: 'female', head: 'anime' }).sculpt).toBeUndefined();
+    expect(heroRecord({ cast: 'female', head: 'anime', sculpt: { lidWeight: 1, eyeLevel: 0 } }).sculpt).toBeUndefined();   // neutral words strip away
+    expect(heroRecord({ cast: 'female', head: 'anime', sculpt: false }).sculpt).toBe(false);
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-sculpt', spec: { cast: 'male', head: 'anime', gesture: 'rest', sculpt: ['heavy-lid', { lidWeight: 0.8, browThick: 1, fissureShape: 'tri' }] } });
+    expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true);
+    const stored = SketchRepository.getByRef('hero-sculpt');
+    expect(stored.manifest.hero.sculpt).toEqual({ lidCover: 1.3, fissureShape: 'tri' });   // heavy-lid's 1.25 × 0.8 is the base's lid again: stripped; browThick 1 too
+    expect(minted.hero.sculpt).toEqual(stored.manifest.hero.sculpt);
+    expect(minted.hero.evidence.head.sculpt).toMatch(/the graphic face, authored off its base: sculpt .*lidCover 130%.*fissureShape tri/);
+    expect(minted.hero.faceMeasures.features.eyeLevel).toBeGreaterThan(0.4); expect(minted.hero.faceMeasures.head_m).toBeGreaterThan(0.2);
+    expect(minted.next.reason).toMatch(/\/hero\/sculpt/);
+    const parts = stored.manifest.recipe.parts; expect(parts.lidR.through).toBe('fringe'); expect(parts.noseLine).toBeTruthy(); expect(parts.lashR).toBeUndefined();
+    // a word by path: regenerates the head; a word set back to the base drops out of the stored layer
+    const r = await updateSketchHandler({ ref: 'hero-sculpt', patch: [{ op: 'set', path: '/hero/sculpt/browThick', value: 1.3 }, { op: 'set', path: '/hero/sculpt/lidCover', value: 1 }] });
+    expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true);
+    const after = SketchRepository.getByRef('hero-sculpt');
+    expect(after.manifest.hero.sculpt).toEqual({ fissureShape: 'tri', browThick: 1.3 });
+    expect(after.manifest.recipe.parts.browR.offsets).not.toEqual(parts.browR.offsets); expect(after.manifest.recipe.parts.earR.offsets).toEqual(parts.earR.offsets);
+    // false: the studio's face, stored; back to the default by null
+    const off = await updateSketchHandler({ ref: 'hero-sculpt', patch: [{ op: 'set', path: '/hero/sculpt', value: false }] });
+    expect(off.stats.hero.sculpt).toBe(false); expect(off.stats.hero.faceMeasures.features).toBeUndefined();
+    expect(SketchRepository.getByRef('hero-sculpt').manifest.hero.sculpt).toBe(false); expect(SketchRepository.getByRef('hero-sculpt').manifest.recipe.parts.lashR).toBeTruthy();
+    await updateSketchHandler({ ref: 'hero-sculpt', patch: [{ op: 'set', path: '/hero/sculpt', value: null }] });
+    expect('sculpt' in SketchRepository.getByRef('hero-sculpt').manifest.hero).toBe(false); expect(SketchRepository.getByRef('hero-sculpt').manifest.recipe.parts.lidR).toBeTruthy();
+  }, 60000);
+  it('refuses an unknown word by name, and a sculpt on any hero but the anime one', async () => {
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', sculpt: { lidWidth: 1.2 } } })).rejects.toThrow(/sculpt\.lidWidth: unknown control/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', sculpt: 'big-eyes' } })).rejects.toThrow(/unknown sculpt move 'big-eyes'/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', sculpt: { browShape: 'arch' } } })).rejects.toThrow(/sculpt\.browShape: one of block, taper/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', sculpt: { lidWeight: 1.2 } } })).rejects.toThrow(/sculpt: the graphic face is the anime head's/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', head: 'none', sculpt: false } })).rejects.toThrow(/sculpt: the graphic face is the anime head's/);
+    expect(validateHeroSpec({ cast: 'male', sculpt: null })).toEqual([]);
+  });
+  it('a look carries graphic-face traits on its own channel; the own layer composes on top', () => {
+    const plain = heroRecord({ cast: 'female', head: 'anime' }), looked = heroRecord({ cast: 'female', head: 'anime', look: ['heavy-lid'] });
+    expect(looked.lookResolved.sculpt).toMatchObject({ lidWeight: 1.25, lidCover: 1.3 }); expect(plain.lookResolved).toBeUndefined();
+    expect(heroRecord({ cast: 'female', head: 'anime', look: ['heroine'] }).lookResolved.sculpt).toBeUndefined();   // a look without one keeps its stamp as it was
+    const lidOf = (hero) => heroPlanOf(hero).include[0].parts.lidR.offsets;
+    expect(lidOf(looked)).not.toEqual(lidOf(plain));
+    expect(lidOf({ ...looked, sculpt: { lidWeight: 0.8 } })).toEqual(lidOf({ ...plain, sculpt: { lidWeight: 1, lidCover: 1.3 } }));   // 1.25 × 0.8 over the look's cover
+  });
+});
+
+// the hair bases (anime-head ANIME_HAIR_BASE): the anime hero's default hair per design base — the FORM (the lift, thicker
+// ridge sections, no crown accents) under every family, the CUT (swept-back on the male, side-parted on the female) while
+// nothing names a family — with the base's hair colour under the operator's palette; read at plan time, never stored. The
+// hair form's words ride on the hair SPARSE (only when given; false the studio's construction, null back to the base's).
+describe('the hero door: the anime hair bases and the hair form words', () => {
+  it('the default hair per base, never stored; a named family keeps the form and drops the cut; the palette is the operator\'s first', () => {
+    const female = heroRecord({ cast: 'female', head: 'anime' }), male = heroRecord({ cast: 'male', head: 'anime' });
+    for (const hr of [female, male]) expect(Object.keys(hr.hair)).toEqual(['style', 'volume', 'length', 'fringe', 'clump', 'thickness', 'taper', 'sweep', 'part', 'ahoge', 'strands', 'locks']);   // nothing of the base stored
+    const inc = (hr) => heroPlanOf(hr).include[0];
+    expect(inc(female).hair).toMatchObject({ style: 'long', part: 0.15, length: 1.2, thickness: 1.4, lift: { crown: 0.13, temple: 0.06, fringe: 0.05, nape: 0.07 }, section: 'ridge', crownAccents: 'none', fringeGroups: [[1, 2, 3, 4, 5], [5, 6, 7]], backNotch: 0.9, ridge: 0.8, flute: 0.35 });
+    expect(inc(male).hair).toMatchObject({ style: 'short', clump: 1.12, thickness: 1.5, lift: { crown: 0.12, temple: 0.06, fringe: 0.06, nape: 0.05 }, section: 'ridge', crownAccents: 'none', hairline: { front: 0.7 } });
+    expect(inc(male).hair.sweepBack).toMatchObject({ amount: 1, rise: 1.75, tipY: 0.85, tipZ: 0.75 }); expect(inc(male).hair.sweepSides).toMatchObject({ amount: 1, from: 1 });
+    expect(heroPlanOf(female).palette.Hair).toBe('#465365'); expect(heroPlanOf(male).palette.Hair).toBe('#644634'); expect(heroPlanOf(male).palette.Ink).toBe('#16181c');
+    expect(heroPlanOf(heroRecord({ cast: 'female', head: 'anime', palette: { Hair: '#aa3322' } })).palette.Hair).toBe('#aa3322');   // the operator's palette wins
+    // a named family (by the operator or a look): that family, the form under it, no cut
+    const bob = inc(heroRecord({ cast: 'female', head: 'anime', hair: 'bob' })).hair;
+    expect(bob).toMatchObject({ style: 'bob', part: 0, length: 1, thickness: 1.4, section: 'ridge' }); expect(bob.fringeGroups).toBeUndefined(); expect(bob.locks).toEqual({});
+    expect(inc(heroRecord({ cast: 'female', head: 'anime', look: ['heroine'] })).hair).toMatchObject({ style: 'long', sweep: 0.2, part: 0.1, lift: { crown: 0.13 } });
+    // a face-only look keeps the cut; the base's cut is a word anywhere a hair word goes
+    expect(inc(heroRecord({ cast: 'female', head: 'anime', look: ['tsurime'] })).hair.style).toBe('long');
+    expect(inc(heroRecord({ cast: 'female', head: 'anime', look: ['swept-back'] })).hair).toMatchObject({ style: 'short', lift: { crown: 0.13 }, sweepBack: { amount: 1 } });
+    // the parts: the male's swept locks and no crown accents; the female's one dominant bang and its partner
+    expect(Object.keys(heroPlanOf(male).include[0].parts).filter((k) => /^hairCrown/.test(k))).toEqual([]);
+    expect(Object.keys(heroPlanOf(female).include[0].parts).filter((k) => /^hairFormFringe/.test(k))).toEqual(['hairFormFringeA', 'hairFormFringeB']);
+  });
+  it('the words by path regenerate and stay sparse; false is the studio\'s construction, null the base\'s; the readout and its advice', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-hairform', spec: { cast: 'male', head: 'anime', gesture: 'rest' } });
+    expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.hero.warnings).toBeUndefined();
+    expect(minted.hero.hairCut).toBe('swept-back'); expect(minted.hero.hairMoved).toEqual({}); expect(minted.hero.evidence.head.hair).toBe('the male hair base: the swept-back cut over its form');
+    expect(minted.hero.hairCoverage.views.back).toBeLessThanOrEqual(0.02); expect(minted.next.reason).toMatch(/\/hero\/hair\/<word> \(lift, section/);
+    const cap = (ref) => SketchRepository.getByRef(ref).manifest.recipe.parts.hairCap.offsets;
+    const before = cap('hero-hairform');
+    // an object word merges key by key over the base's; stored as given
+    const r = await updateSketchHandler({ ref: 'hero-hairform', patch: [{ op: 'set', path: '/hero/hair/lift', value: { crown: 0.2 } }] });
+    expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true); expect(r.stats.hero.hair.lift).toEqual({ crown: 0.2, temple: 0.06, fringe: 0.06, nape: 0.05 });
+    expect(SketchRepository.getByRef('hero-hairform').manifest.hero.hair.lift).toEqual({ crown: 0.2 }); expect(cap('hero-hairform')).not.toEqual(before);
+    // volume beside the lift: advised (the fringe's control points scale into a visor)
+    const v = await updateSketchHandler({ ref: 'hero-hairform', patch: [{ op: 'set', path: '/hero/hair/volume', value: 1.1 }] });
+    expect(v.stats.hero.warnings).toEqual([expect.stringMatching(/^hair\.volume 1\.1 beside the lift: .*visor/)]);
+    // false: the studio's cap (no lift), stored; null: the base's again, dropped from the record
+    await updateSketchHandler({ ref: 'hero-hairform', patch: [{ op: 'set', path: '/hero/hair/volume', value: 1 }, { op: 'set', path: '/hero/hair/lift', value: false }] });
+    expect(SketchRepository.getByRef('hero-hairform').manifest.hero.hair.lift).toBe(false);
+    const flat = SketchRepository.getByRef('hero-hairform').manifest.plan.include[0].hairMeasures.top_m;
+    const back = await updateSketchHandler({ ref: 'hero-hairform', patch: [{ op: 'set', path: '/hero/hair/lift', value: null }] });
+    expect(back.ok).toBe(true); expect('lift' in SketchRepository.getByRef('hero-hairform').manifest.hero.hair).toBe(false); expect(cap('hero-hairform')).toEqual(before);
+    expect(SketchRepository.getByRef('hero-hairform').manifest.plan.include[0].hairMeasures.top_m).toBeGreaterThan(flat);
+    // the round section by word; a family by word drops the cut
+    const round = await updateSketchHandler({ ref: 'hero-hairform', patch: [{ op: 'set', path: '/hero/hair/section', value: 'round' }, { op: 'set', path: '/hero/hair/style', value: 'short' }] });
+    expect(round.stats.hero.hair.section).toBe('round'); expect(round.stats.hero.hairCut).toBeNull(); expect(round.stats.hero.hair.sweepBack).toBeUndefined();
+    expect(round.stats.hero.evidence.head.hair).toBe("a named family over the hair base's form");
+  }, 60000);
+  it('refuses a bad hair form word by name', async () => {
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { lift: { top: 0.1 } } } })).rejects.toThrow(/hair\.lift\.top: not a lift field/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { lift: { crown: -0.1 } } } })).rejects.toThrow(/hair\.lift\.crown: a number in \[0, 0\.5\]/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { section: 'square' } } })).rejects.toThrow(/hair\.section: round \| ridge/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { crownAccents: 'hide' } } })).rejects.toThrow(/hair\.crownAccents: grow \| tuck \| none/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { fringeGroups: [[1, 3]] } } })).rejects.toThrow(/hair\.fringeGroups: a list of bang sections/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { sweepBack: { rise: 1.2 } } } })).rejects.toThrow(/hair\.sweepBack: needs its amount/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { backNotch: 0 } } })).rejects.toThrow(/hair\.backNotch/);
+    // the landmark head's hair has its own words
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', hair: { lift: { crown: 0.1 } } } })).rejects.toThrow(/hair/);
+  });
+});
+
+// the stand: `gesture` at the hero door is a preset word (per cast), pose words, or a list; stored as given; the anime hero
+// stands `relaxed` by default (a plan-time default, never stored). It rides as a one-key `gesture` clip first in the plan
+// (the mint's rig gates check it; the World poses the static solid at it); /hero/gesture regenerates; the readout
+// measures the stand and the budget.
+describe('the hero door stands the hero in a gesture', () => {
+  it('the anime hero stands relaxed; /hero/gesture regenerates by word, by pose words and back to rest; the readout measures it', async () => {
+    const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-stand', spec: { cast: 'female', head: 'anime' } });
+    expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.stats.layered.rig.clips[0]).toBe('gesture');
+    expect(minted.hero.gesture).toEqual({ word: 'relaxed', support: 'L', clearance: { pairs: {}, worstMm: 0 }, freeSoleMm: { R: 0 } });
+    expect(minted.hero.warnings).toBeUndefined(); expect(minted.next.reason).toMatch(/\/hero\/gesture \(rest, relaxed, hand-on-hip, guard/);
+    // the budget: triangles and vertices per palette group, the stored plan and recipe in bytes
+    const b = minted.hero.budget; expect(b.triangles).toBe(minted.stats.faces); expect(b.vertices).toBe(minted.stats.vertices);
+    expect(Object.keys(b.groups)).toEqual(expect.arrayContaining(['Skin', 'Hair', 'Iris', 'Pupil', 'Sclera', 'Ink', 'Top', 'Bottom', 'Shoes']));
+    expect(Object.values(b.groups).reduce((s, g) => s + g.triangles, 0)).toBe(b.triangles);
+    const row = () => SketchRepository.getByRef('hero-stand');
+    expect(b.bytes.plan).toBe(Buffer.byteLength(JSON.stringify(row().manifest.plan))); expect(b.bytes.recipe).toBe(Buffer.byteLength(JSON.stringify(row().manifest.recipe)));
+    expect(row().manifest.hero.gesture).toBeUndefined(); expect(Object.keys(row().manifest.recipe.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']);
+    // a word: the mirror stance
+    const hip = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'hand-on-hip' }] });
+    expect(hip.ok).toBe(true); expect(hip.stats.layered.rig.clips[0]).toBe('gesture'); expect(hip.stats.hero.gesture).toMatchObject({ word: 'hand-on-hip', support: 'R' });
+    expect(row().manifest.recipe.clips.gesture).toHaveLength(1); expect(row().manifest.recipe.clips.gesture[0].support).toBe('R');
+    // a list: the relaxed stand, chin down (the gesture owns the head's pitch)
+    const chin = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: ['relaxed', { head: { pitch: -12 } }] }] });
+    expect(chin.stats.hero.gesture.word).toBe('relaxed+data'); expect(row().manifest.recipe.clips.gesture[0].head).toEqual({ yaw: 10, pitch: -12 });
+    // a reshaping dial beside a stand advises (the rig poses the rest joints)
+    const lean = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/dials/lean', value: 10 }] });
+    expect(lean.stats.hero.warnings).toEqual([expect.stringMatching(/gesture 'relaxed\+data' beside lean 10: the stand poses the rest joints/)]);
+    await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/dials/lean', value: 0 }] });
+    // refused by name; the row untouched
+    await expect(updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'strut' }] })).rejects.toThrow(/gesture: unknown gesture word 'strut'/);
+    await expect(updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: { wristR: { flex: 30 } } }] })).rejects.toThrow(/gesture\.wristR: the hand is rigid on the forearm/);
+    expect(row().manifest.hero.gesture).toEqual(['relaxed', { head: { pitch: -12 } }]);
+    // back to rest: no stand clip, no stand readout
+    const rest = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'rest' }] });
+    expect(rest.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave']); expect(rest.stats.hero.gesture).toBeUndefined(); expect(row().manifest.recipe.clips.gesture).toBeUndefined();
+  });
+  it('refuses an unknown word at the door; a landmark hero stands only when it says so; a stand the body does not fit advises', async () => {
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', gesture: 'dance' } })).rejects.toThrow(/gesture: unknown gesture word 'dance' \(rest, relaxed, hand-on-hip, guard/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { gesture: { support: 'none' } } })).rejects.toThrow(/gesture\.support: 'both' \| 'L' \| 'R'/);
+    const plain = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-still', spec: { cast: 'male' } });
+    expect(plain.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave']); expect(plain.hero.gesture).toBeUndefined(); expect(SketchRepository.getByRef('hero-still').manifest.hero.gesture).toBeUndefined();
+    expect(plain.hero.budget.groups.Skin.triangles).toBeGreaterThan(0);
+    const guard = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-guard', spec: { cast: 'male', gesture: 'guard' } });
+    expect(guard.ok).toBe(true); expect(guard.stats.layered.rig.clips[0]).toBe('gesture'); expect(guard.hero.gesture.word).toBe('guard');
+    // the male's placed hands on the chibi body: the readout names what sinks and where the free foot went
+    const chibi = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-chibi-guard', spec: { cast: 'chibi', head: 'anime', gesture: 'guard' } });
+    expect(chibi.ok).toBe(true); expect(chibi.hero.gesture.clearance.worstMm).toBeGreaterThan(5);
+    expect(chibi.hero.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/^gesture 'guard': (hand|foreArm)R sinks [\d.]+ mm into (torso|thighR)/), expect.stringMatching(/^gesture 'guard': the free right foot sinks [\d.]+ mm below the floor/)]));
+  });
+});
+
+// the door around the new channels: the non-anime readout's keys (it gains only the budget), the dress ledgers read at
+// rest whatever dial the mint turned, and the character light's toon fields — the anime hero's outline opt-out kept at
+// the door, an invalid light refused by field at the door and on a /toon edit.
+describe('the hero door: readouts and the character light fields', () => {
+  it('the non-anime readout keys: the old set plus `budget`', async () => {
+    const keys = {
+      landmark: [{ cast: 'male' }, ['cast', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune']],
+      none: [{ cast: 'female', head: 'none' }, ['cast', 'evidence', 'head', 'measures', 'moved', 'register', 'tune']],
+      ranger: [{ cast: 'male', register: 'round', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['cast', 'dress', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune', 'warnings']],
+    };
+    for (const [k, [spec, before]] of Object.entries(keys)) {
+      const out = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: `keys-${k}`, spec });
+      expect(Object.keys(out.hero).sort(), k).toEqual([...before, 'budget'].sort());
+      const ed = await updateSketchHandler({ ref: `keys-${k}`, patch: [{ op: 'set', path: '/hero/tune/limbs', value: 1.1 }] });
+      expect(Object.keys(ed.stats.hero).sort(), `${k} edit`).toEqual([...before, 'budget'].sort());
+    }
+  });
+  it('a dressed hero minted with a dial: the dress ledgers read the figure at rest, as without the dial', async () => {
+    const spec = { cast: 'male', register: 'round', hair: 'crop', detail: 'clothed', adorn: 'ranger' };
+    const plain = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'dress-rest', spec });
+    const dialed = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'dress-dial', spec: { ...spec, dials: { stance: 1.35 } } });
+    expect(SketchRepository.getByRef('dress-dial').manifest.dials.stance).toBe(1.35);
+    expect(dialed.hero.dress).toEqual(plain.hero.dress);
+  });
+  it("the anime hero minted with toon: { ink: false } keeps the opt-out; an invalid light is refused by field", async () => {
+    const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
+    const off = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'anime-noink', spec: { cast: 'female', head: 'anime', gesture: 'rest', toon: { ink: false } } });
+    expect(off.ok).toBe(true); const row = SketchRepository.getByRef('anime-noink');
+    expect(row.manifest.toon).toEqual({ ink: false });
+    const { payload } = await resolveWorldScene({ ref: row.ref, title: 't', manifest: row.manifest });
+    expect(payload.toon).toBeUndefined(); expect(payload.figures.body.preview.ink).toBeUndefined();
+    // a landmark hero's `ink: false` is nothing the dial reads: dropped as before
+    await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'landmark-noink', spec: { cast: 'male', toon: { ink: false } } });
+    expect(SketchRepository.getByRef('landmark-noink').manifest.toon).toBeUndefined();
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', head: 'anime', toon: { light: { toLight: [0, 0, 0] } } } })).rejects.toThrow(/toon refused:\n - toon\.light\.toLight: \[x, y, z\] pointing TOWARD the light/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', toon: { ink: true, light: 'key' } } })).rejects.toThrow(/toon\.light: true \(the default character light\), false \(off\)/);
+    await expect(updateSketchHandler({ ref: 'anime-noink', patch: [{ op: 'set', path: '/toon/light', value: { threshold: 3 } }] })).rejects.toThrow(/toon\.light\.threshold: the N·L step/);
+    const on = await updateSketchHandler({ ref: 'anime-noink', patch: [{ op: 'set', path: '/toon/light', value: { threshold: 0.2 } }] });
+    expect(on.ok).toBe(true); expect(SketchRepository.getByRef('anime-noink').manifest.toon).toEqual({ ink: false, light: { threshold: 0.2 } });
   });
 });
 
@@ -574,7 +789,7 @@ describe('the hero door composes anime looks', () => {
     // drop the look: the stamp goes with it
     const none = await updateSketchHandler({ ref: 'hero-look', patch: [{ op: 'set', path: '/hero/look', value: [] }] });
     expect(none.stats.hero.look).toBeUndefined(); expect(SketchRepository.getByRef('hero-look').manifest.hero.lookResolved).toBeUndefined();
-    expect(none.stats.hero.hair.style).toBe('bob');   // the base's own family again
+    expect(none.stats.hero.hair.style).toBe('long'); expect(none.stats.hero.hairCut).toBe('side-parted');   // the female hair base's cut again (no family named)
   });
   it('refuses by name; the looks are the anime head\'s', async () => {
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', look: ['heroine', 'mohawk'] } })).rejects.toThrow(/unknown look word 'mohawk'/);

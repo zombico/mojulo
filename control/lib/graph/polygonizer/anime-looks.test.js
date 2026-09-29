@@ -2,8 +2,9 @@
  * eyes read (unless its pose closes them) with no advice at its own values; composition keeps its laws. */
 import { describe, it, expect } from 'vitest';
 import { ANIME_LOOKS, LOOK_TABLES, LOOK_WORDS, validateLook, resolveLook, lookEntries, composeAnime } from './anime-looks.js';
-import { animeHead, animeFaceWarnings, animeHairWarnings, animeExpressionWarnings, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES } from './anime-head.js';
+import { animeHead, animeFaceWarnings, animeHairWarnings, animeExpressionWarnings, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, ANIME_HAIR_BASE, resolveAnimeHair } from './anime-head.js';
 import { tuneWarnings } from './hero-form.js';
+import { ANIME_SCULPT_MOVES, animeSculptWarnings } from './anime-sculpt.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { layeredExposure } from './station-loft-exposure.js';
 
@@ -11,14 +12,14 @@ const failures = (m) => Object.entries(auditLayered(m)).filter(([, r]) => !r.pas
 const closedEyes = (e) => e.blink >= 0.985;
 
 describe('looks: the tables', () => {
-  it('five tables, one meaning per word', () => {
+  it('six tables, one meaning per word', () => {
     expect(new Set(LOOK_WORDS).size).toBe(LOOK_WORDS.length);
-    expect(LOOK_TABLES.archetype).toEqual(Object.keys(ANIME_LOOKS));
+    expect(LOOK_TABLES.archetype).toEqual(Object.keys(ANIME_LOOKS)); expect(LOOK_TABLES.sculpt).toEqual(Object.keys(ANIME_SCULPT_MOVES));
     expect(LOOK_TABLES.face).toEqual(Object.keys(ANIME_FACE_MOVES)); expect(LOOK_TABLES.pose).toEqual(Object.keys(ANIME_POSES));
     for (const w of Object.keys(ANIME_HAIR_MOVES)) expect(LOOK_TABLES.hair).toContain(w);
   });
-  it('an archetype names only shape: face, hair, expression, tune — never palette, cast, register or head', () => {
-    for (const [name, L] of Object.entries(ANIME_LOOKS)) { expect(Object.keys(L).every((k) => ['note', 'face', 'hair', 'expression', 'tune'].includes(k)), name).toBe(true); expect(validateLook(name)).toEqual([]); }
+  it('an archetype names only shape: face, sculpt, hair, expression, tune — never palette, cast, register or head', () => {
+    for (const [name, L] of Object.entries(ANIME_LOOKS)) { expect(Object.keys(L).every((k) => ['note', 'face', 'sculpt', 'hair', 'expression', 'tune'].includes(k)), name).toBe(true); expect(validateLook(name)).toEqual([]); }
   });
   it('refuses an unknown word by name, with the tables', () => {
     expect(validateLook(['heroine', 'mohawk'])[0]).toMatch(/look\[1\]: unknown look word 'mohawk' \(archetypes heroine/);
@@ -48,6 +49,26 @@ describe('looks: composition', () => {
     // no look: the own layer alone, the base's family by default
     expect(composeAnime({ face: {}, hair: { style: null, locks: {} } }, 'short').hair.style).toBe('short');
   });
+  it('the hair base: its form under every family, its cut only while nothing names a family; the advice reads past the words', () => {
+    const own = (hair = {}) => ({ face: {}, hair: { style: null, locks: {}, ...hair } });
+    const at = (hero, pole = 'female') => composeAnime(hero, pole === 'male' ? 'short' : 'bob', { hairBase: ANIME_HAIR_BASE[pole] });
+    // nothing named: the cut (the female's side-parted sheet, the male's swept-back mass) over the form
+    const f = at(own()); expect(f.hairCut).toBe('side-parted'); expect(f.hair).toMatchObject({ style: 'long', part: 0.15, thickness: 1.4, section: 'ridge', backNotch: 0.9 });
+    const m = at(own(), 'male'); expect(m.hairCut).toBe('swept-back'); expect(m.hair).toMatchObject({ style: 'short', clump: 1.12, thickness: 1.5, crownAccents: 'none', hairline: { front: 0.7 } });
+    // the own controls compose on the cut; a face-only look keeps it
+    expect(at(own({ length: 1.1 })).hair.length).toBeCloseTo(1.32, 9); expect(at({ ...own(), lookResolved: resolveLook(['tsurime']) }).hairCut).toBe('side-parted');
+    // a family named by the operator or a look: that family as designed, the form under it, no cut
+    const bob = at(own({ style: 'bob' })); expect(bob.hairCut).toBeNull(); expect(bob.hair).toMatchObject({ style: 'bob', part: 0, length: 1, thickness: 1.4, lift: ANIME_HAIR_BASE.female.form.lift }); expect(bob.hair.locks).toEqual({});
+    const heroine = at({ ...own(), lookResolved: resolveLook(['heroine']) }); expect(heroine.hairCut).toBeNull(); expect(heroine.hair).toMatchObject({ style: 'long', sweep: 0.2, part: 0.1 });
+    // the form's words give way to the operator's; bald wears nothing
+    expect(at(own({ lift: false, section: 'round' })).hair).toMatchObject({ lift: false, section: 'round' });
+    expect(at({ face: {}, hair: 'none' }).hair).toBe('none'); expect(at({ face: {}, hair: 'none' }).hairCut).toBeNull();
+    // without a base: exactly the composition before it
+    expect(composeAnime(own(), 'bob').hair).toEqual({ ...resolveAnimeHair([{ style: null, locks: {} }]), style: 'bob' }); expect(composeAnime(own(), 'bob').hairCut).toBeNull();
+    // the words' own values never advise (the cut's lock edits past ±0.2 are the word's); the operator's past them do
+    expect(animeHairWarnings(f.hair, { words: f.hairWords })).toEqual([]);
+    const pushed = at(own({ locks: { 'left-temple-0': { ty: 0.3 } } })); expect(animeHairWarnings(pushed.hair, { words: pushed.hairWords })).toEqual([expect.stringMatching(/hair\.locks\.left-temple-0\.ty 1\.08 is past the studio's ±0\.2 off the words' 0\.78/)]);
+  });
   it('hair traits direct clumps: peekaboo drops one bang; messy is authored, not dice', () => {
     expect(resolveLook('peekaboo').hair.locks).toEqual({ 'fringe-3': { ty: -0.16, tx: 0.03, tz: -0.02 } });
     expect(resolveLook(['messy', 'messy']).hair.locks['back-3']).toEqual({ tx: -0.12 });
@@ -59,11 +80,14 @@ describe('looks: composition', () => {
 });
 
 describe('looks: every preset builds', () => {
-  const words = [...LOOK_TABLES.archetype, ...LOOK_TABLES.face, ...Object.keys(ANIME_HAIR_MOVES), ...LOOK_TABLES.pose];
+  // (on the graphic face, the anime head's default: the face words' slider read is its face layer times the word; the
+  // hair advice reads past the words' own values, as the door reads it — a cut's authored lock edits past ±0.2 are the
+  // word's, not the operator's)
+  const words = [...LOOK_TABLES.archetype, ...LOOK_TABLES.face, ...LOOK_TABLES.sculpt, ...Object.keys(ANIME_HAIR_MOVES), ...LOOK_TABLES.pose];
   for (const preset of ['female', 'male']) for (const w of words) it(`${preset} · ${w}: closed, the eyes read, no advice at its own values`, () => {
     const eff = composeAnime({ lookResolved: resolveLook([w]), face: {}, hair: { style: null, locks: {} } }, preset === 'male' ? 'short' : 'bob');
-    expect([...animeFaceWarnings(eff.face, preset), ...animeHairWarnings(eff.hair), ...animeExpressionWarnings(eff.expression), ...tuneWarnings(eff.tune)]).toEqual([]);
-    const mesh = compileLayered(animeHead({ preset, face: eff.face, hair: eff.hair, expression: eff.expression }));
+    expect([...animeFaceWarnings(eff.face, preset, { sculpt: eff.sculpt }), ...animeSculptWarnings(eff.sculpt), ...animeHairWarnings(eff.hair, { words: eff.hairWords }), ...animeExpressionWarnings(eff.expression), ...tuneWarnings(eff.tune)]).toEqual([]);
+    const mesh = compileLayered(animeHead({ preset, face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt }));
     expect(failures(mesh)).toEqual([]);
     if (!closedEyes(eff.expression)) { const ex = layeredExposure(mesh, { res: 192 }); for (const e of ['irisR', 'irisL']) expect(['reads', 'faint']).toContain(ex.parts[e]?.flag); }
   });
