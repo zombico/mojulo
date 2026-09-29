@@ -78,7 +78,8 @@ const TRIS = [[0, 1, 2], [0, 2, 3]];
 // runtime — no intrinsic period). The exported glTF needs seconds, so we map one full cycle to
 // the runtime's ambient default: the clock rule advances gaitPhase at `rate ?? 1` cycles/second
 // (worlds/controllable/rules-basic.js), i.e. 1 second per cycle. Documented, deterministic, and
-// trivially retimed downstream (Blender scales NLA strips).
+// trivially retimed downstream (Blender scales NLA strips). A clip carrying its DESIGNED DURATION (`s`, the anime hero's:
+// hero-gesture.js heroClipSeconds, station-loft-rig packLayeredRig `seconds`) plays over that instead.
 const RIG_CLIP_SECONDS = 1;
 
 // base64 → typed array, COPYING into a fresh buffer: Buffer.from(base64) allocates from node's
@@ -600,6 +601,22 @@ class GlbBuilder {
     return this.json.accessors.length - 1;
   }
 
+  // One morph target (POSITION deltas) as a SPARSE float VEC3 accessor over `count` vertices: the u32 indices (ascending)
+  // of the vertices that move and their deltas, min/max over the deltas and 0; a target that moves nothing is an accessor
+  // with no data at all (every delta 0). The sparse views carry no buffer-view target (as the IBM).
+  morphAccessor(count, idx, val) {
+    const min = [0, 0, 0], max = [0, 0, 0];
+    for (let k = 0; k < val.length; k++) { const c = k % 3; if (val[k] < min[c]) min[c] = val[k]; if (val[k] > max[c]) max[c] = val[k]; }
+    const acc = { componentType: COMPONENT_FLOAT, count, type: 'VEC3', min, max };
+    if (idx.length) {
+      const iv = this.addView(Buffer.from(idx.buffer, idx.byteOffset, idx.byteLength), null);
+      const vv = this.addView(Buffer.from(val.buffer, val.byteOffset, val.byteLength), null);
+      acc.sparse = { count: idx.length, indices: { bufferView: iv, componentType: COMPONENT_UINT }, values: { bufferView: vv } };
+    }
+    this.json.accessors.push(acc);
+    return this.json.accessors.length - 1;
+  }
+
   /**
    * SKINNED rig export (skin-over-mesh.plan.md phase 4) — the same packed rig
    * as addRigFigure, exported as ONE SkinnedMesh + a glTF `skins` entry
@@ -618,6 +635,13 @@ class GlbBuilder {
    * IBM = T(-restHead), so J·IBM·v = head' + q·(v − restHead) — the runtime
    * formula, now evaluated by the engine per-vertex. At rest J·IBM = I: a
    * no-animation import shows the bake's rest pose byte-exactly.
+   *
+   * THE FACE (anime-face-rig.js; a figure carrying `face` whose parts carry `morph`): POSITION is the
+   * NEUTRAL head (each listed vertex less its rebase), one sparse POSITION target per face target (in
+   * `face.targets` order) on the body primitive, the ink primitive's targets all one zero accessor (its
+   * hull stays baked from the stored face), `mesh.weights` the authored expression (so an engine that
+   * plays nothing shows the approved face) and `mesh.extras` the target names and the face's words.
+   * Without a face every byte is as before.
    */
   addSkinnedRigFigure(name, fig, clipNames, { humanoid = false, ink = null } = {}) {
     const material = this.surfaceMaterial({ name: `fig:${name}` });
@@ -663,6 +687,8 @@ class GlbBuilder {
     // merge every part into one rest-space soup with per-vertex joints/weights
     const pos = [], col = [], jnt = [], wgt = [], idx = [];
     let vertices = 0, triangles = 0;
+    // the face's rows at their global vertex (base + the part's own index): the rebase, then every target
+    const faceT = fig.face && Array.isArray(fig.face.targets) ? fig.face.targets.length : 0, morphAt = [], morphRow = [];
     fig.bones.forEach((bone, bi) => {
       const part = fig.parts[bi];
       if (!part) return;
@@ -696,12 +722,19 @@ class GlbBuilder {
       if (d.indices) for (let i = 0; i < d.indices.length; i++) idx.push(base + d.indices[i]);
       else for (let i = 0; i < d.vertexCount; i++) idx.push(base + i);
       if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null, ...(Number.isInteger(part.inkFaces) ? { inkFaces: part.inkFaces } : {}), ...(part.ranges ? { ranges: part.ranges } : {}) });
+      if (faceT && part.morph) {
+        const mi = b64ToU32(part.morph.i), md = b64ToF32(part.morph.d), W = (1 + faceT) * 3;
+        if (md.length !== mi.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} face rows do not match their vertices`);
+        for (let k = 0; k < mi.length; k++) { morphAt.push(base + mi[k]); morphRow.push(md.subarray(k * W, k * W + W)); }
+      }
       vertices += d.vertexCount;
       triangles += d.triangleCount;
     });
     if (!vertices) return { nodes: 0, animations: 0, vertices: 0, triangles: 0, skinned: false };
 
     const positions = Float32Array.from(pos);
+    // the face: POSITION at the neutral head (the stored face less its rebase); the ink below bakes from `pos`
+    if (morphAt.length) morphAt.forEach((g, k) => { const r = morphRow[k]; for (let c = 0; c < 3; c++) positions[g * 3 + c] = pos[g * 3 + c] - r[c]; });
     const attributes = {
       POSITION: this.floatAccessor(positions, 3, bounds3(positions)),
       COLOR_0: this.floatAccessor(Float32Array.from(col), 3),
@@ -764,7 +797,31 @@ class GlbBuilder {
         triangles += ip.length / 9;
       }
     }
-    const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims }) - 1;
+    let faceMesh = null;
+    if (morphAt.length) {
+      const n = positions.length / 3;
+      prim.targets = fig.face.targets.map((_, t) => {
+        const ids = [], vals = [];
+        morphAt.forEach((g, k) => { const r = morphRow[k], o = 3 + t * 3; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } });
+        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) };
+      });
+      if (prims[1]) { const zero = this.morphAccessor(this.json.accessors[prims[1].attributes.POSITION].count, new Uint32Array(0), new Float32Array(0)); prims[1].targets = fig.face.targets.map(() => ({ POSITION: zero })); }
+      // the facial tracks (anime-face-tracks.js): a clip's track rides its animation, the ambient blink its own; the
+      // layer plays over the exported clips whose eyes hold the authored face
+      const tracked = fig.face.tracks ? clipNames.filter((c) => fig.clips?.[c]?.k && Array.isArray(fig.clips[c].b)) : [];
+      faceMesh = { weights: [...fig.face.weights], extras: { targetNames: [...fig.face.targets], face: {
+        about: 'morph targets on the neutral head (every expression channel 0), differences of head builds; the default weights are the authored expression; eye closure is drawn at the knots (eyeKnots: the hero\'s own closure among them when it sits between the others), blinkFix<k><L|R> is 1 while that eye is at closure k (k its decimals, two at least)',
+        fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words,
+        sides: "Left is mesh -x (the figure's left), Right mesh +x",
+        brow: 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',
+        ...(fig.face.tracks ? {
+          ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
+          ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],
+          keying: 'each clip carries a STEP weights channel on the mesh node, a drawing per frame at fps keyed half a frame early ((f - 0.5) / fps; the first key at 0, the last at the clip\'s end), the eyes only ever at the knots; ambientClip holds the authored face with seeded blinks, to layer over the ambientOver clips through a filter on the blink targets (blink*); play at 30 fps or more (at 24, Blender\'s default scene rate, a one-frame drawing can fall between two samples)',
+        } : {}),
+      } } };
+    }
+    const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims, ...(faceMesh || {}) }) - 1;
 
     // IBM: identity + translation(−restHead), column-major
     const ibm = new Float32Array(bones.length * 16);
@@ -797,34 +854,48 @@ class GlbBuilder {
     }
 
     let animations = 0;
+    const track = (c) => (faceMesh && fig.face.tracks?.[c] ? { node: meshNode, ...fig.face.tracks[c] } : null);
     for (const clipName of clipNames) {
       const clip = fig.clips && fig.clips[clipName];
       if (!clip || !clip.k || !Array.isArray(clip.b)) continue;
-      this.addRigClip(name, fig, jointNodes, clipName, clip);
+      this.addRigClip(name, fig, jointNodes, clipName, clip, track(clipName));
       animations++;
     }
-    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string') };
+    // the AMBIENT BLINK: a face-only animation (the authored face, seeded blinks) an engine layers over a held clip
+    if (faceMesh && fig.face.ambient) {
+      const samplers = [], channels = [];
+      this.addWeightsChannel(samplers, channels, { node: meshNode, t: fig.face.ambient.t, w: fig.face.ambient.w });
+      if (!this.json.animations) this.json.animations = [];
+      this.json.animations.push({ name: fig.face.ambient.name, samplers, channels });
+      animations++;
+    }
+    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(faceMesh ? { face: true } : {}) };
   }
 
-  // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once? }) → one glTF
+  // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once?, s? }) → one glTF
   // animation: per bone node a rotation channel + a translation channel, all samplers sharing
   // ONE input (times) accessor, LINEAR interpolation (glTF normalizes lerped quaternions —
-  // matching the runtime's nlerp). Timing: RIG_CLIP_SECONDS per cycle. LOOPING clips are baked
+  // matching the runtime's nlerp). Timing: T per cycle — the clip's designed duration `s` when it
+  // carries one, else RIG_CLIP_SECONDS. LOOPING clips are baked
   // at phases k/K (the runtime wraps key K-1 → key 0), so we emit K+1 keys with key 0 repeated
-  // at t = RIG_CLIP_SECONDS to close the cycle — glTF has no loop flag, so a player that loops
+  // at t = T to close the cycle — glTF has no loop flag, so a player that loops
   // the animation gets a seamless cycle and one that plays it once lands back on the start pose.
   // ONE-SHOT clips (clip.once — stagger/topple/getup) are baked 0..1 INCLUSIVE across their K
-  // keys and clamp at the end, so they export as-is: K keys spanning [0, RIG_CLIP_SECONDS].
+  // keys and clamp at the end, so they export as-is: K keys spanning [0, T].
   // Packed quaternion curves may carry sign flips (q and -q depict one rotation but lerp badly —
   // the runtime hemisphere-corrects per sample); exported keys are made hemisphere-continuous
   // per bone instead (negate any key with dot(q_k, q_{k-1}) < 0).
-  addRigClip(figName, fig, boneNodes, clipName, clip) {
+  // FACE (`face` = { node, t, w }: the clip's facial track, anime-face-tracks.js, on the skinned mesh's node): a `weights`
+  // channel with its own input (the drawings' times, the last one the body's last, so both end together) and a STEP
+  // sampler — the face holds each drawing, never tweens it. Absent ⇒ the channels as before.
+  addRigClip(figName, fig, boneNodes, clipName, clip, face = null) {
     const nb = fig.bones.length;
     const K = clip.k;
     const B = clip.b;
     const loop = !clip.once;
     const outKeys = loop ? K + 1 : K;
-    const dt = RIG_CLIP_SECONDS / (loop ? K : Math.max(1, K - 1));
+    const T = clip.s > 0 ? clip.s : RIG_CLIP_SECONDS;
+    const dt = T / (loop ? K : Math.max(1, K - 1));
     const times = new Float32Array(outKeys);
     for (let k = 0; k < outKeys; k++) times[k] = k * dt;
     const input = this.floatAccessor(times, 1, { min: [0], max: [times[outKeys - 1]] }, null);
@@ -850,8 +921,21 @@ class GlbBuilder {
       channels.push({ sampler: trSampler, target: { node, path: 'translation' } });
     }
     if (!channels.length) return;
+    if (face) this.addWeightsChannel(samplers, channels, face, times[outKeys - 1]);
     if (!this.json.animations) this.json.animations = [];
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels });
+  }
+
+  // A facial track ({ node, t, w: [weights per key] }) → a STEP sampler (its own float32 input; the last time `end` when
+  // given) and a `weights` channel on the node, pushed onto an animation's lists.
+  addWeightsChannel(samplers, channels, { node, t, w }, end = null) {
+    const times = Float32Array.from(t);
+    if (end !== null) times[times.length - 1] = end;
+    const out = new Float32Array(w.length * w[0].length);
+    w.forEach((x, k) => out.set(x, k * x.length));
+    const input = this.floatAccessor(times, 1, { min: [times[0]], max: [times[times.length - 1]] }, null);
+    const sampler = samplers.push({ input, output: this.floatAccessor(out, 1, null, null), interpolation: 'STEP' }) - 1;
+    channels.push({ sampler, target: { node, path: 'weights' } });
   }
 
   // One glTF perspective camera + its posed node (interchange.plan.md I4). The node lives
@@ -1227,6 +1311,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const animatedFigures = [];
   const skinnedFigures = [];
   const humanoidFigures = [];
+  const faceFigures = [];
+  const clipSeconds = {};   // the exported clips' designed durations (a clip carrying `s`), for the model README
   for (const [name, fig] of rigFigs) {
     const clipNames = clipSel === '_all'
       ? Object.keys(fig.clips || {})
@@ -1241,6 +1327,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     animatedFigures.push(name);
     if (added.skinned) skinnedFigures.push(name);
     if (added.humanoid) humanoidFigures.push(name);
+    if (added.face) faceFigures.push(name);
+    for (const c of clipNames) if (fig.clips?.[c]?.s > 0) clipSeconds[`${name}:${c}`] = fig.clips[c].s;
     animationCount += added.animations;
     vertexCount += added.vertices;
     triangleCount += added.triangles;
@@ -1323,6 +1411,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     out.animatedFigures = animatedFigures;
     if (skinnedFigures.length) out.skinnedFigures = skinnedFigures;
     if (humanoidFigures.length) out.humanoidFigures = humanoidFigures;
+    if (faceFigures.length) out.faceFigures = faceFigures;
+    if (Object.keys(clipSeconds).length) out.clipSeconds = clipSeconds;
   }
   if (camDefs.length) out.cameraCount = camDefs.length;
   if (lightDefs.length) out.lightCount = lightDefs.length;

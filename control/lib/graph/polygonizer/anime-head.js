@@ -350,16 +350,24 @@ export function animeRecipe({ preset = 'female', face = {}, hair = {}, expressio
 const TOL = 1e-7;   // weld tolerance, studio units
 /** flat triangle soup [x,y,z × 3 …] (a range of it) → triangles */
 const trisOf = (flat, start = 0, end = flat.length) => { const out = []; for (let i = start; i < end; i += 9) out.push([flat.slice(i, i + 3), flat.slice(i + 3, i + 6), flat.slice(i + 6, i + 9)]); return out; };
-/** weld coincident corners (within TOL) and drop triangles that collapse; `labels` ride per triangle */
+/** weld coincident corners (within TOL) and drop triangles that collapse; `labels` ride per triangle. The grid is keyed by
+ * integers, one Map per axis (no key string built per probe); the 27 cells are visited in the same order and each keeps
+ * its insertion order, so the first match (and the welded mesh) is the same as a string-keyed grid's. */
 function weld(tris, labels) {
   const points = [], grid = new Map(), faces = [], groups = [];
   const cell = (v) => v.map((x) => Math.round(x / TOL / 10));
+  const cellList = (c0, c1, c2, make) => {
+    let a = grid.get(c0); if (!a) { if (!make) return null; grid.set(c0, a = new Map()); }
+    let b = a.get(c1); if (!b) { if (!make) return null; a.set(c1, b = new Map()); }
+    let l = b.get(c2); if (!l && make) b.set(c2, l = []); return l || null;
+  };
   const idOf = (p) => {
     const c = cell(p);
     for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-      for (const i of grid.get(`${c[0] + dx},${c[1] + dy},${c[2] + dz}`) || []) { const q = points[i]; if (Math.abs(q[0] - p[0]) <= TOL && Math.abs(q[1] - p[1]) <= TOL && Math.abs(q[2] - p[2]) <= TOL) return i; }
+      const l = cellList(c[0] + dx, c[1] + dy, c[2] + dz, false); if (!l) continue;
+      for (const i of l) { const q = points[i]; if (Math.abs(q[0] - p[0]) <= TOL && Math.abs(q[1] - p[1]) <= TOL && Math.abs(q[2] - p[2]) <= TOL) return i; }
     }
-    const key = c.join(','); if (!grid.has(key)) grid.set(key, []); grid.get(key).push(points.length); points.push(p); return points.length - 1;
+    cellList(c[0], c[1], c[2], true).push(points.length); points.push(p); return points.length - 1;
   };
   tris.forEach((t, n) => { const f = t.map(idOf); if (f[0] !== f[1] && f[1] !== f[2] && f[0] !== f[2]) { faces.push(f); groups.push(labels?.[n]); } });
   return { points, faces, groups };
@@ -514,6 +522,8 @@ const layerFlag = (name) => (/^(brow|lid)[RL]$/.test(name) ? { through: 'fringe'
  *   skin, hairColor, palette  colours (`Skin`, `Hair` and the studio's groups)
  *   sculpt      the GRAPHIC FACE's words (anime-sculpt.js: a move, an object, a list); absent is the graphic base, `false`
  *               the studio's own face
+ *   only        a list of part names: just those parts, in the head's order and at its scale, as `{ parts }` — nothing
+ *               measured (no coverage, landmarks or feature table); absent (the default) is the whole head
  * @returns the landmark head's include shape: { name, parts, dials, creases, palette, bind, joints, chinZ, hair,
  *   hairMeasures, face, expression, preset, register, scale, landmarks, recipe, measures }
  */
@@ -531,7 +541,15 @@ function neutralTwinFeatures({ preset, face, register, sculpt }) {
   }
   return structuredClone(f);
 }
-export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt } = {}) {
+/** the head's scale over its parts, in place: the core's stations and caps, every pinned part's pin-local offsets */
+function scaleParts(parts, scale) {
+  if (scale !== 1) for (const p of Object.values(parts)) {
+    if (p.layer === 1) { for (const st of p.stations) for (const [k, v] of Object.entries(st.points)) st.points[k] = v.map((x) => r6(x * scale)); for (const [k, v] of Object.entries(p.caps)) p.caps[k] = v.map((x) => r6(x * scale)); }
+    else for (const [k, v] of Object.entries(p.offsets)) p.offsets[k] = v.map((x) => r6(x * scale));
+  }
+  return parts;
+}
+export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('anime head: scale must be positive');
   const bald = hair === 'none';
@@ -610,11 +628,15 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   const pin = address(carrier, 'cranium', 3.5, 4, 'R'), frame = pinFrame(carrier.cranium, pin);
   const groupsOf = (m) => { const g = m.groups.map((x) => x ?? 'Skin'); return g.every((x) => x === g[0]) ? { group: g[0] } : { group: g[0], groups: Object.fromEntries(g.map((x, i) => [`f${i}`, x])) }; };
   for (const [name, m] of Object.entries(meshes)) {
+    if (only && !only.includes(name)) continue;
     const { group, groups } = groupsOf(m);
     parts[name] = { layer: 2, closure: 'closed', pin, group,
       offsets: Object.fromEntries(m.points.map((p, i) => [`v${i}`, surfaceLocalOffset(frame, p).map(r6)])),
       faces: Object.fromEntries(m.faces.map((f, i) => [`f${i}`, f.map((v) => `v${v}`)])), ...(groups ? { groups } : {}), ...(SCULPT ? layerFlag(name) : {}) };
   }
+  // `only`: just those parts, at the head's scale, and nothing measured (no coverage, no landmarks, no neutral twin) — the
+  // face rig's head builds (anime-face-rig.js), which need the parts an expression moves and nothing else
+  if (only) return { parts: scaleParts(Object.fromEntries(Object.entries(parts).filter(([n]) => only.includes(n))), scale) };
 
   // anchors and measures, off the built parts (hero metres, before the scale)
   const all = (m) => m.points, bboxOf = (pts) => ({ lo: [0, 1, 2].map((k) => Math.min(...pts.map((p) => p[k]))), hi: [0, 1, 2].map((k) => Math.max(...pts.map((p) => p[k]))) });
@@ -639,10 +661,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
     ...(SCULPT ? { features: EXPRESSION_KEYS.every((k) => !E[k]) ? sculptFeatures(meshes, preset, { carriage: model.pitch }) : neutralTwinFeatures({ preset, face: F, register, sculpt }) } : {}) };
 
   // the head's scale, once: the core, the pin-local offsets and the anchors together
-  if (scale !== 1) for (const p of Object.values(parts)) {
-    if (p.layer === 1) { for (const st of p.stations) for (const [k, v] of Object.entries(st.points)) st.points[k] = v.map((x) => r6(x * scale)); for (const [k, v] of Object.entries(p.caps)) p.caps[k] = v.map((x) => r6(x * scale)); }
-    else for (const [k, v] of Object.entries(p.offsets)) p.offsets[k] = v.map((x) => r6(x * scale));
-  }
+  scaleParts(parts, scale);
   const sc = (p) => p.map((x) => r6(x * scale));
   return { name: 'head', parts, dials: {}, creases: {}, palette: animePalette(skin, hairColor, palette), bind: { cranium: 'head' }, joints: {},
     chinZ: r6(menton[2] * scale), preset, register, scale, face: F, hair: bald ? { style: 'none' } : H, hairMeasures, hairCoverage, scalp, expression: E, recipe,

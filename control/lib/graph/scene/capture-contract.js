@@ -32,9 +32,10 @@ export const PROBE_ENTITY_FIELDS = ['pos', 'heading', 'pitch', 'vel', 'moving', 
 // those are unconditional keys of every probe.
 export const PROBE_GAME_FIELD = 'game';
 
-// capture screenshot target + live-only overlays the bakes hide
+// capture screenshot target + live-only overlays the bakes hide (`.rig-preview`: the rig preview
+// channel's clip <select>, injected on any page carrying a rigged figure's `preview`)
 export const WORLD_ROOT_SELECTOR = '#wrap';
-export const WORLD_HIDE_SELECTORS = ['.hud', '.hint'];
+export const WORLD_HIDE_SELECTORS = ['.hud', '.hint', '.rig-preview'];
 
 // page-internal globals surfaced to probe consumers (literal in channels.js kernels)
 export const CTRL_GLOBAL = '__mojCtrl';

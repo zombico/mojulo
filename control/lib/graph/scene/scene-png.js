@@ -11,6 +11,7 @@
 
 import { loadPuppeteer } from '@/lib/graph/scene/puppeteer-lazy';
 import { resolveChromium, launchChromium, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS } from '@/lib/graph/scene/chromium';
+import { WORLD_ROOT_SELECTOR, WORLD_HIDE_SELECTORS } from '@/lib/graph/scene/capture-contract';
 
 // The scene emitters wrap their canvas in one of these (`.viewport` for the
 // preserve-3d scene/city/hub, `.stage` for the solid turntable). Screenshotting
@@ -87,12 +88,11 @@ export async function renderSceneToPng(html, { deviceScaleFactor = 2, settleMs =
   }
 }
 
-// The three.js World (scene-three.js) wraps its canvas in `#wrap`; screenshotting
-// that element clips to the rendered viewport, dropping body padding.
-const WORLD_ROOT_SELECTOR = '#wrap';
-// The World's live-only overlays: `.hud` camera presets (top-left), `.hint`
-// controls legend (bottom-right) — hidden so the baked still is just the scene.
-const WORLD_HIDE_SELECTORS = ['.hud', '.hint'];
+// The three.js World (scene-three.js) wraps its canvas in `#wrap` (WORLD_ROOT_SELECTOR);
+// screenshotting that element clips to the rendered viewport, dropping body padding. Its
+// live-only overlays (WORLD_HIDE_SELECTORS: the camera presets, the controls legend, the rig
+// preview's clip picker) are hidden so the baked still is just the scene. Both names come
+// from capture-contract.js, which the motion drivers read too.
 
 /**
  * Rasterize a navigable three.js World (scene-three.js `emitThreeWorld`) to a PNG.

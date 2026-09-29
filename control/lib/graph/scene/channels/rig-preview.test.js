@@ -84,4 +84,16 @@ describe('rig preview channel', () => {
     const bare = emitThreeWorld({ ...base, figures: { body: { ...fig, preview: { clips: ['bob'], hide: 'body', period: 2 } } } });
     for (const needle of ['stencil', '--- draw layers', '__rpLayer']) expect(bare).not.toContain(needle);
   });
+  it('timing: a bank clip carrying its designed duration `s` plays one cycle over it; without one, the phase line and the page as before', () => {
+    const pv = [{ figure: 'body', clips: ['bob'], hide: 'body', period: 2 }];
+    const plain = rigPreviewChannelScript(pv, { body: fig });
+    expect(plain).toContain('const phase = (sec / r.period) % 1;'); expect(plain).not.toContain('clip.s');
+    const timedFig = { ...fig, clips: { bob: { ...fig.clips.bob, s: 4 } } };
+    const timed = rigPreviewChannelScript(pv, { body: timedFig });
+    expect(timed).toContain('const phase = (sec / (clip.s > 0 ? clip.s : r.period)) % 1;');
+    // nothing else moves: the phase line and the bank's own `s` are the whole difference
+    expect(timed.replace('(clip.s > 0 ? clip.s : r.period)', 'r.period').replace(',"s":4', '')).toBe(plain);
+    const page = (f) => emitThreeWorld({ ...base, figures: { body: { ...f, preview: { clips: ['bob'], hide: 'body', period: 3 } } } });
+    expect(page(timedFig)).toContain('(clip.s > 0 ? clip.s : r.period)'); expect(page(fig)).not.toContain('clip.s');
+  });
 });

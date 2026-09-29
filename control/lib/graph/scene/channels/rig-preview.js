@@ -37,6 +37,10 @@ import { safeJson } from '../emit-util.js';
 // mesh of its bone with that layer's rule and order — the moving brows show through the moving fringe — and outlines
 // its plain, hair and veil spans as separate hulls, each with its layer's test (a moving lock's line never draws over
 // hair). No `layers` ⇒ every interpolation below is its old text ⇒ byte-identical.
+//
+// TIMING (a bank clip carrying `s`, its designed duration — the anime hero's, station-loft-rig packLayeredRig
+// `seconds`): that clip plays one cycle over `s` seconds, the length the GLB and the Godot pack give it; a clip without
+// one keeps the preview's period (3 s). No clip carrying `s` ⇒ the phase line is its old text ⇒ byte-identical.
 export function rigPreviewChannelScript(previews, bank, { toonInk = null, layers = false } = {}) {
   // rim (shader-look phase 4): a bank figure carrying `rim: [r,g,b,strength,power]` gets
   // ms-contrast's additive fresnel edge on every part material. The patch is DUPLICATED from the
@@ -122,6 +126,7 @@ function __rpLayer(mesh, part, fig) {   // the draw layers on one part: its fill
   if (R.veil) span(R.veil[0], R.veil[1], 'veil');
   if (R.through) span(R.through[0], R.through[1], 'through');
 }` : '';
+  const timed = Object.values(bank || {}).some((f) => Object.values(f?.clips || {}).some((c) => c?.s > 0));
   const stand = previews.some((pv) => pv && pv.solid === 'stand');
   const standStart = stand ? " || pv.solid === 'stand'" : '';
   const restLabel = stand ? "(pv.solid === 'stand' ? 'stand (the solid)' : 'rest (the solid)')" : "'rest (the solid)'";
@@ -183,6 +188,7 @@ const __rpRigs = RPREV.map((pv, pi) => {
   const hidden = [];
   if (pv.hide) scene.traverse((o) => { if (o.userData && ${hideTest} && o.isMesh) hidden.push(o); });${inkHide}
   const sel = document.createElement('select');
+  sel.className = 'rig-preview';   // a capture-contract WORLD_HIDE_SELECTORS entry: live-only, baked out
   sel.style.cssText = 'position:fixed;left:12px;bottom:' + (12 + pi * 34) + 'px;z-index:30;font:12px/1.4 system-ui,sans-serif;background:rgba(14,16,20,.85);color:#e8ecf1;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:4px 8px';
   for (const n of ['rest', ...names]) { const o = document.createElement('option'); o.value = n; o.textContent = n === 'rest' ? ${restLabel} : 'clip: ' + n; sel.appendChild(o); }
   sel.value = state.clip || 'rest';
@@ -200,7 +206,7 @@ stepRigPreview = (t) => {
     const probe = window.__mojRigPreview[ri]; probe.clip = r.state.clip;
     if (!playing) continue;
     const clip = fig.clips[r.state.clip];
-    const phase = (sec / r.period) % 1;
+    const phase = (sec / ${timed ? '(clip.s > 0 ? clip.s : r.period)' : 'r.period'}) % 1;
     for (let bi = 0; bi < fig.bones.length; bi++) {
       const mesh = r.rig.boneMeshes[bi];
       if (!mesh) continue;
