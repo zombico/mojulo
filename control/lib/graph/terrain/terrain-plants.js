@@ -21,7 +21,7 @@ export const LAPSE = 6.5;
 export const TREELINE_T = 6.7;
 /** A crown's diameter over the plant's height (a clump's, for Bambusa), for spacing a stand so its crowns cover what the
  *  painter shows. */
-const CROWN = { oak: 0.6, beech: 0.55, fir: 0.4, schefflera: 1.1, coconut: 0.5, date: 0.55, washingtonia: 0.3, treefern: 0.8, moso: 0.25, vulgaris: 1.1, reed: 0.3 };
+const CROWN = { oak: 0.6, beech: 0.55, fir: 0.4, schefflera: 1.1, coconut: 0.5, date: 0.55, washingtonia: 0.3, treefern: 0.8, moso: 0.25, vulgaris: 1.1, reed: 0.3, spruce: 0.25, silverfir: 0.32, pine: 0.4 };
 /** Culms per square metre of a running bamboo's grove: Moso managed for timber, about 1,500 a hectare (Moso stands run
  *  1,200–11,000; a world's groves are drawn at the managed end). */
 const GROVE = { moso: 0.15 };
@@ -68,9 +68,42 @@ export const PLANT_CLIMATES = Object.freeze({
   ] },
 });
 
+/**
+ * A region's own conifers for a climate (`plants.region`), replacing that climate's rows; a climate the region does not
+ * name keeps its own. Absent, every climate keeps its rows. Moisture is the kernel's: the climate's own, +0.35 near water.
+ *   eurasia — Norway spruce, silver fir and Scots pine (conifer.js). Boreal: spruce throughout, pine on the ground away
+ *             from water. Temperate and alpine: oak and beech low, silver fir with beech in the montane belt (8–12.5 °C),
+ *             spruce from 10 °C to the treeline, and pine on the dry ground at any height (European Atlas of Forest Tree
+ *             Species, 2016).
+ */
+export const PLANT_REGIONS = Object.freeze({
+  eurasia: {
+    temperate: { moist: 0.55, rows: [
+      { species: 'oak', zone: 'land', T: [12.5, 45], M: [0, 0.62], w: 1 },
+      { species: 'beech', zone: 'land', T: [11, 45], M: [0.5, 2], w: 1 },
+      { species: 'silverfir', zone: 'land', T: [8, 12.5], M: [0.5, 2], w: 1 },
+      { species: 'spruce', zone: 'land', T: [-10, 10], w: 1 },
+      { species: 'pine', zone: 'land', T: [-10, 45], M: [0, 0.6], w: 0.35 },
+      { species: 'reed', zone: 'shore', w: 1 },
+    ] },
+    alpine: { moist: 0.65, rows: [
+      { species: 'beech', zone: 'land', T: [12, 45], w: 1 },
+      { species: 'silverfir', zone: 'land', T: [8.5, 12.5], w: 1 },
+      { species: 'spruce', zone: 'land', T: [-10, 10], w: 1 },
+      { species: 'pine', zone: 'land', T: [-10, 45], M: [0, 0.7], w: 0.3 },
+      { species: 'reed', zone: 'shore', w: 1 },
+    ] },
+    boreal: { moist: 0.55, rows: [
+      { species: 'spruce', zone: 'land', w: 1 },
+      { species: 'pine', zone: 'land', M: [0, 0.6], w: 0.9 },
+      { species: 'reed', zone: 'shore', w: 1 },
+    ] },
+  },
+});
+
 export const TERRAIN_PLANT_DEFAULTS = Object.freeze({ radius: 1200, level: 'L2', variants: 2 });
 
-/** `plants` on a terrain manifest: true, or { radius?, level?, variants? }. → error strings. */
+/** `plants` on a terrain manifest: true, or { radius?, level?, variants?, region? }. → error strings. */
 export function validateTerrainPlants(plants, manifest = {}) {
   if (plants === undefined || plants === null || plants === false) return [];
   const e = [];
@@ -82,6 +115,7 @@ export function validateTerrainPlants(plants, manifest = {}) {
   num('radius', 200, 3000, 'metres around the camera where plants are drawn; past it the ground\'s own colour carries the woods');
   num('variants', 1, 4, 'grown variants per species');
   if (plants.level !== undefined && !['L0', 'L1', 'L2'].includes(plants.level)) e.push('terrain.plants.level must be L0, L1 or L2 (the most detail a template carries)');
+  if (plants.region !== undefined && !PLANT_REGIONS[plants.region]) e.push(`terrain.plants.region must be one of ${Object.keys(PLANT_REGIONS).join(', ')} (whose conifers the climate grows; absent, the climate's own)`);
   return e;
 }
 
@@ -93,11 +127,12 @@ export function resolveTerrainPlants(plants) {
 
 /**
  * The plant kernel's inputs for a composed world's field: V (vegetation-kernel.js). Species are the climate's, in row
- * order; the canopy layer's cell is sized to the smallest crown among them (bigger crowns keep fewer cells).
+ * order (a `region`'s rows for the climate, when it names them); the canopy layer's cell is sized to the smallest crown
+ * among them (bigger crowns keep fewer cells).
  */
-export function plantsConfig(field, { seed = 'plants' } = {}) {
+export function plantsConfig(field, { seed = 'plants', region = null } = {}) {
   const K = field.K, climate = field.atlas && field.atlas.climate ? field.atlas.climate : field.climate || 'temperate';
-  const C = PLANT_CLIMATES[climate] || PLANT_CLIMATES.temperate;
+  const C = (region && PLANT_REGIONS[region] && PLANT_REGIONS[region][climate]) || PLANT_CLIMATES[climate] || PLANT_CLIMATES.temperate;
   const names = [...new Set(C.rows.map((r) => r.species))];
   const species = names.map((name) => ({ name, h: SPECIES[name].heights.slice(), crown: CROWN[name] }));
   const idx = (name) => names.indexOf(name);

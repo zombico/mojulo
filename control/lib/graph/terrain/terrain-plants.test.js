@@ -5,12 +5,14 @@
  * sand; a stand's crowns cover what the painter shows as wood; the stand is spread, not clumped; tiles partition the
  * plants exactly, and the page computes the same plants from what it carries; palms keep to a tropical coast and an arid
  * river, clumping bamboo stands in clumps whose outer culms lean out; a tropical mountain is forested to its treeline,
- * its species by altitude; the manifest teaches.
+ * its species by altitude; a region grows its own conifers (northern Eurasia: spruce throughout and pine on the dry
+ * ground; the Alps: beech low, silver fir, spruce to the treeline), absent it is exactly the climate's own; the manifest
+ * teaches.
  */
 import { describe, expect, it } from 'vitest';
 
 import { vegetationKernel, PER } from './vegetation-kernel.js';
-import { plantsConfig, plantsKernel, validateTerrainPlants, PLANT_CLIMATES, LAPSE, TREELINE_T } from './terrain-plants.js';
+import { plantsConfig, plantsKernel, validateTerrainPlants, PLANT_CLIMATES, PLANT_REGIONS, LAPSE, TREELINE_T } from './terrain-plants.js';
 import { atlasField, decodeDeep } from './terrain-atlas.js';
 import { atlasKernel } from './atlas-kernel.js';
 import { plantPool } from '../vegetation/pool.js';
@@ -200,5 +202,44 @@ describe('the page plants (P2)', async () => {
     const baked = assembleTerrainWorld(W); const n = baked.repeats.reduce((s, r) => s + r.transforms.length, 0);
     expect(n).toBe(baked.meta.plants.baked); expect(n).toBeGreaterThan(50);
     const [sx, sy] = baked.walk.spawn; for (const r of baked.repeats) for (const t of r.transforms) expect(Math.hypot(t.pos[0] - sx, t.pos[1] - sy)).toBeLessThan(601);
+  });
+});
+
+describe('a region grows its own conifers', () => {
+  const around = (f, V, r = 3) => { const P = plantsKernel(f, V), [sx, sy] = f.views.spawn, got = []; for (let a = -r; a < r; a++) for (let b = -r; b < r; b++) got.push(...plants(P.plantsIn(sx + a * 128, sy + b * 128, 128))); return got; };
+  it('absent, a climate keeps exactly its own rows', () => {
+    const f = atlasField({ world: { features: [{ feature: 'lake' }], climate: 'boreal', seed: 'taiga' } });
+    expect(JSON.stringify(plantsConfig(f, { region: null }))).toBe(JSON.stringify(plantsConfig(f)));
+    const trop = atlasField({ world: { features: [{ feature: 'river' }], climate: 'tropical', seed: 'tropic' } });
+    expect(JSON.stringify(plantsConfig(trop, { region: 'eurasia' }))).toBe(JSON.stringify(plantsConfig(trop)));   // a climate the region does not name
+  });
+  it('northern Eurasia: spruce throughout, pine on the ground away from water', () => {
+    const f = atlasField({ world: { features: [{ feature: 'lake' }, { feature: 'river' }], climate: 'boreal', seed: 'taiga' } }); const V = plantsConfig(f, { region: 'eurasia' });
+    expect(V.species.map((s) => s.name)).toEqual(['spruce', 'pine', 'reed']);
+    const got = around(f, V); const name = (p) => V.species[p.s].name; const P = plantsKernel(f, V);
+    const spruce = got.filter((p) => name(p) === 'spruce'), pine = got.filter((p) => name(p) === 'pine');
+    expect(spruce.length).toBeGreaterThan(100); expect(pine.length).toBeGreaterThan(20);   // the spawn is by the lake: spruce holds the wet ground
+    const wet = (ps) => ps.reduce((s, p) => s + P.standAt(p.x, p.y).nearWater, 0) / ps.length;
+    expect(wet(pine)).toBeLessThan(wet(spruce));
+  });
+  it('the Alps: beech low, silver fir in the montane belt, spruce to the treeline', () => {
+    const f = atlasField({ world: { features: [{ feature: 'volcano' }], climate: 'alpine', seed: 'alps' } }); const V = plantsConfig(f, { region: 'eurasia' }), P = plantsKernel(f, V), S = f.atlas.span;
+    // a few small tiles in every 250 m band of wooded ground (as the tropical volcano's test samples)
+    let a = 11; const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const bands = {}; const got = [];
+    for (let n = 0; n < 4000; n++) {
+      const X = (rnd() - 0.5) * 0.6 * S, Y = (rnd() - 0.5) * 0.6 * S, st = P.standAt(X, Y); if (!st.ok || st.canopy < 0.3) continue;
+      const b = Math.floor(st.z / 250); if ((bands[b] = (bands[b] || 0) + 1) > 6) continue;
+      got.push(...plants(P.plantsIn(X - 32, Y - 32, 64)));
+    }
+    const z = (nm) => { const ps = got.filter((p) => V.species[p.s].name === nm); return ps.length ? ps.reduce((s, p) => s + p.z, 0) / ps.length : NaN; };
+    for (const nm of ['beech', 'silverfir', 'spruce']) expect(got.some((p) => V.species[p.s].name === nm)).toBe(true);
+    expect(z('beech')).toBeLessThan(z('silverfir')); expect(z('silverfir')).toBeLessThan(z('spruce'));
+    for (const c of Object.keys(PLANT_REGIONS.eurasia)) expect(PLANT_REGIONS.eurasia[c].rows.some((r) => r.species === 'fir')).toBe(false);
+  });
+  it('teaches a region it does not know', () => {
+    const w = { world: { features: [{ feature: 'river' }] } };
+    expect(validateTerrainPlants({ region: 'eurasia' }, w)).toEqual([]);
+    expect(validateTerrainPlants({ region: 'mars' }, w).join(' ')).toMatch(/region must be one of eurasia/);
   });
 });
