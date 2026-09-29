@@ -64,7 +64,7 @@ export function spanChecks(members, supportsOf, { liveKNm = 0, shelfKgM = null }
       if (shelfKgM !== null && vz && d < 0.04 && b > d) { shelf = true; creep = 1.6; }
     }
     const load = Number.isFinite(M.shelfKgM) ? M.shelfKgM : shelfKgM;
-    const w = wSelf + liveKNm * 1000 + (shelf ? load * G : 0);                // N/m
+    const w = wSelf + (Number.isFinite(M.liveKNm) ? M.liveKNm : liveKNm) * 1000 + (shelf ? load * G : 0);   // N/m
     const cases = [];
     for (let i = 0; i + 1 < xs.length; i++) cases.push({ L: xs[i + 1] - xs[i], kind: 'span' });
     const lo = Math.min(M.xMin, 0), hi = Math.max(M.xMax, M.L);

@@ -24,6 +24,7 @@ import { sectionProps } from './sections.js';
 import { hardwarePart, toolOf } from './hardware.js';
 import { FURNITURE_JOINTS, RIGIDITY, worldBox } from './furniture-joints.js';
 import { toWorld } from './members.js';
+import { seatingReport, seatingStamps } from './seating.js';
 
 const G = 9.81;
 const CHILD = { kg: 22.7, pullShare: 1 / 3, reach: 1.2, scopeM: 0.686 };
@@ -34,7 +35,7 @@ const mm = (v) => Math.round(v * 1000);
 export function isFurniture(spec) {
   const ms = Array.isArray(spec.members) ? spec.members : [];
   const js = Array.isArray(spec.joints) ? spec.joints : [];
-  return ms.some((m) => m && (m.box !== undefined || isSheet(m.material))) || js.some((j) => j && FURNITURE_JOINTS.includes(j.type));
+  return ms.some((m) => m && (m.box !== undefined || isSheet(m.material))) || js.some((j) => j && FURNITURE_JOINTS.includes(j.type)) || (Array.isArray(spec.soft) && spec.soft.length > 0);
 }
 
 /** A member's mass, kg. */
@@ -102,15 +103,17 @@ function termBox(M, t) {
 }
 
 /** The furniture report for a lowered frame. */
-export function furnitureReport({ members, joints: J, drawn }) {
+export function furnitureReport({ spec = {}, members, joints: J, drawn, soft = [] }) {
   const boxes = new Map(members.map((M) => [M.id, worldBox(M)]));
   // ── mass and centre of mass
   let kg = 0; const com = [0, 0, 0];
   for (const M of members) { const m = memberKg(M), c = boxes.get(M.id).c; kg += m; for (let k = 0; k < 3; k++) com[k] += m * c[k]; }
   let hwKg = 0;
   for (const p of drawn) if (Number.isFinite(p.massG)) { const m = p.massG / 1000; hwKg += m; const c = boxes.get(p.host.id).c; kg += m; for (let k = 0; k < 3; k++) com[k] += m * c[k]; }
+  // soft parts: their fill and cover, at their box's centre
+  for (const L of soft) { const m = L.row.massKg; kg += m; for (let k = 0; k < 3; k++) com[k] += m * L.frame.c[k]; }
   for (let k = 0; k < 3; k++) com[k] /= kg || 1;
-  const all = [...boxes.values()];
+  const all = [...boxes.values(), ...soft.map((L) => ({ lo: L.frame.lo, hi: L.frame.hi }))];
   const lo = [0, 1, 2].map((k) => Math.min(...all.map((b) => b.lo[k]))), hi = [0, 1, 2].map((k) => Math.max(...all.map((b) => b.hi[k])));
   const height = hi[2] - lo[2];
   // ── tip-over
@@ -145,6 +148,8 @@ export function furnitureReport({ members, joints: J, drawn }) {
     moment += CHILD.kg * G * (yChild - front);
     drawers = { count: drawerGroups.size, outMm: mm(Math.max(...ext.values())), childKg: CHILD.kg, onDrawer: top, netNm: r1(moment), tips: moment < 0 };
   }
+  // ── seating: a piece with seat cushions sits, and a sitter may tip it
+  const seating = soft.length ? seatingReport({ soft, J, kg, com, hull: H, seats: spec.built && spec.built.dials && spec.built.dials.seats }) : null;
   // ── racking
   const jointList = J.report.filter((r) => r.b !== undefined);
   const inPlane = (b, nk) => b.size[nk] <= 0.5 * Math.max(...b.size);
@@ -218,7 +223,7 @@ export function furnitureReport({ members, joints: J, drawn }) {
   return {
     massKg: r1(kg), hardwareKg: r1(hwKg), comMm: com.map(mm), sizeMm: [0, 1, 2].map((k) => mm(hi[k] - lo[k])),
     tip: { standingMarginMm: mm(standing), ...(pull ? { pull } : {}), ...(drawers ? { drawers } : {}) },
-    racking, interference, fasteners: flags, hardware, tools, cutList, cartonMm: carton,
+    racking, interference, fasteners: flags, hardware, tools, cutList, cartonMm: carton, ...(seating ? { seating } : {}),
   };
 }
 
@@ -241,5 +246,6 @@ export function furnitureStamps(f, label) {
     else if (x.issue === 'cam-floor') out.push(`${label}: joint ${x.joint}: the cam bore leaves ${x.mm} mm under it in ${x.into} (keep 3) — 16 mm board or thicker`);
   }
   for (const c of f.cutList) if (c.oversize) out.push(`${label}: ${c.oversize.join(', ')} will not fit a ${c.sheetMm.join(' × ')} ${c.material} sheet`);
+  if (f.seating) out.push(...seatingStamps(f.seating, label));
   return out;
 }

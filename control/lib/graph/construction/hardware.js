@@ -16,6 +16,11 @@
 //   'bracket-L40' | 'bracket-L60'                  angle bracket, pressed steel, two screw holes a leg
 //   'hinge-35'                                     concealed cup hinge: ⌀35 cup in the door, arm, mounting plate (`est`)
 //   'slide-250' … 'slide-550'                      ball-bearing drawer slide, a pair of rails, 45 mm tall, 12.7 mm a side
+//   'hanger-bolt-M8x70'                            a wood thread one end, a machine thread the other: a leg's fixing (`est`)
+//   'insert-M8'                                    a screw-in threaded insert for wood, M8 inside (`est`)
+//   'spring-clip'                                  the clip a sinuous spring hooks into, nailed to a rail (`est`)
+//   'sinuous-8g' | '-9g' | '-12g'                  a sinuous (zigzag, no-sag) spring by wire gauge (Washburn & Moen); its
+//                                                  length is the joint's, so the catalog gives the wire, mass a metre
 // Dimensions follow the standards' nominal values; a KD fitting follows one maker's published drawing and is marked
 // `est` (another maker's differs by a millimetre or two).
 //
@@ -66,6 +71,8 @@ const WOOD = { 3: { dk: 6, drive: 'PZ1' }, 3.5: { dk: 7, drive: 'PZ2' }, 4: { dk
 export const PILOT = Object.freeze({ softwood: 0.55, hardwood: 0.7, particleboard: 0.6, mdf: 0.7, plywood: 0.6, osb: 0.6, hardboard: 0.6 });
 
 const DENSITY = { steel: 7850, zamak: 6700, beech: 720, brass: 8500 };
+/** Washburn & Moen steel wire gauge → ⌀ mm: the gauges a sinuous spring is drawn in. */
+export const WIRE_GAUGE = Object.freeze({ 8: 4.11, 9: 3.77, 10: 3.43, 11: 3.06, 12: 2.68 });
 const HEX_KEY = (s) => `hex-key-${s}`;
 
 /** Tools by drive, as the manual names them. */
@@ -144,6 +151,24 @@ export function hardwarePart(code) {
     const L = +m[1];
     return { code, family: 'slide', label: `drawer slide ${L}`, length: L, h: 45, t: 12.7, drive: 'PZ2', screw: 'wood-4x16', material: 'steel', finish: 'zinc', massG: Math.round(L * 1.4) };
   }
+  if ((m = /^hanger-bolt-M(6|8|10)x(50|60|70|80)$/.exec(code))) {
+    // half its length a wood thread (into the leg), half an M-thread standing out of the leg's top (est)
+    const size = `M${m[1]}`, t = METRIC[size], L = +m[2];
+    return { code, family: 'hanger-bolt', label: `hanger bolt ${size}×${L}`, size, d: t.d, P: t.P, length: L, wood: L / 2, drive: null, material: 'steel', finish: 'zinc', est: true, massG: round(cyl(t.d / 2, L) * 1e-9 * DENSITY.steel * 1000, 10) };
+  }
+  if ((m = /^insert-M(6|8|10)$/.exec(code))) {
+    // a screw-in insert: a coarse outer thread cut into the wood, a machine thread inside, a hex socket to drive it (est)
+    const size = `M${m[1]}`, t = METRIC[size];
+    const od = { M6: 10, M8: 13, M10: 15 }[size], L = { M6: 12, M8: 13, M10: 15 }[size];
+    return { code, family: 'insert', label: `threaded insert ${size}`, size, d: t.d, od, length: L, pilot: od - 1.5, drive: HEX_KEY({ M6: 6, M8: 8, M10: 10 }[size]), material: 'zamak', finish: 'zamak', est: true, massG: round((cyl(od / 2, L) - cyl(t.d / 2, L)) * 1e-9 * DENSITY.zamak * 1000, 10) };
+  }
+  if (code === 'spring-clip') {
+    return { code, family: 'clip', label: 'sinuous spring clip', length: 32, width: 18, h: 9, drive: 'hammer', material: 'steel', finish: 'zinc', est: true, massG: 9 };
+  }
+  if ((m = /^sinuous-(8|9|10|11|12)g$/.exec(code))) {
+    const g = +m[1], d = WIRE_GAUGE[g];
+    return { code, family: 'spring', label: `sinuous spring, ${g} gauge`, gauge: g, d, length: 0, drive: null, material: 'steel', finish: 'black', gPerM: round(cyl(d / 2, 1000) * 1e-9 * DENSITY.steel * 1000, 10) };
+  }
   if ((m = /^bracket-L(40|60)$/.exec(code))) {
     const leg = +m[1], w = leg === 40 ? 16 : 20, t = leg === 40 ? 2 : 2.5;
     const holes = [leg * 0.35, leg * 0.75];
@@ -153,7 +178,7 @@ export function hardwarePart(code) {
 }
 
 /** Why a code names no part, or null. */
-export const hardwareError = (code) => (hardwarePart(code) ? null : `unknown hardware '${code}' (e.g. M6x30-hex, nut-M6, washer-M6, wood-4x30, confirmat-7x50, dowel-8x35, cam-15, shelf-pin-5, bracket-L40)`);
+export const hardwareError = (code) => (hardwarePart(code) ? null : `unknown hardware '${code}' (e.g. M6x30-hex, nut-M6, washer-M6, wood-4x30, confirmat-7x50, dowel-8x35, cam-15, shelf-pin-5, bracket-L40, hanger-bolt-M8x70, insert-M8)`);
 
 /** The tool a part's drive needs → { key, label } or null. */
 export const toolOf = (part) => (part && part.drive ? { key: part.drive, label: TOOLS[part.drive] || part.drive } : null);
@@ -194,6 +219,15 @@ export function partPolys(part, { at, axis, spin } = {}) {
     return polys;
   }
   if (part.family === 'nut') return prismPolys(P(0), P(part.length), ngon(ax, (part.s / Math.sqrt(3)) * MM, 6));
+  // `at` is the leg's top: the wood thread runs down into it along axis, the machine thread stands out above
+  if (part.family === 'hanger-bolt') return [...prismPolys(P(-(part.length - part.wood)), P(part.wood - part.d), ngon(ax, r(part.d), 10)), ...frustumPolys(P(part.wood - part.d), P(part.wood), r(part.d), 0, 10)];
+  if (part.family === 'insert') return prismPolys(P(0), P(part.length), ngon(ax, r(part.od), 12));
+  if (part.family === 'clip') {
+    // `at` on the rail's top, `axis` down into it, `spin` along the spring
+    const e = unit(spin || across(ax)[0]); const w = unit([ax[1] * e[2] - ax[2] * e[1], ax[2] * e[0] - ax[0] * e[2], ax[0] * e[1] - ax[1] * e[0]]);
+    const c = add(at, scl(back, (part.h / 2) * MM));
+    return boxPolys([0, 0, 0], [part.length * MM, part.width * MM, part.h * MM]).map(({ corners, n }) => ({ corners: corners.map((p) => add(c, add(add(scl(e, p[0]), scl(w, p[1])), scl(back, p[2])))), n: add(add(scl(e, n[0]), scl(w, n[1])), scl(back, n[2])) }));
+  }
   if (part.family === 'washer') return prismPolys(P(0), P(part.length), ngon(ax, r(part.od), 16));
   if (part.family === 'dowel') {
     // `at` is the dowel's middle; chamfered both ends
@@ -306,6 +340,8 @@ export function boreTerm(part, { at, axis, through = 0, material = 'softwood', e
     case 'cam-bolt': segs.push([-eps, part.into + extra, 5]); break;
     case 'shelf-pin': segs.push([-eps, part.into + extra, part.d]); break;
     case 'hinge': segs.push([-eps, part.cup.depth, part.cup.d]); break;
+    case 'hanger-bolt': segs.push([-eps, part.wood + extra, pilot(part.d)]); break;
+    case 'insert': segs.push([-eps, part.length + extra, part.pilot]); break;
     default: return null;
   }
   // the meridian: radius against axial position, stepped where the hole changes; t ∈ [0, 1] over [sMin, sMax]

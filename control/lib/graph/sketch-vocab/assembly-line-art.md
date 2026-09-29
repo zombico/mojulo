@@ -3,8 +3,9 @@
 ---
 
 A piece BUILT on the workbench (`frames`: panels, joints, fittings) does not need this card: gathered into a stash
-and cooked as `instruction_manual`, it draws its own steps from its real geometry and assembly order. Use this card
-for a diagram of something that is not built there.
+and cooked as `instruction_manual`, it draws its own steps from its real geometry and assembly order (an upholstered
+piece too: its cushions in hatched ink, its cloth and cutting layout at the end). Use this card for a diagram of
+something that is not built there.
 
 This card is a **drawing grammar**, not a parts catalog. An assembly diagram
 reads when every part sits on one shared isometric grid, the explosion vectors

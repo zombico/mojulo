@@ -17,9 +17,20 @@
 //              (30 mm), species? ('oak'), finish?, joinery? ('mortise-tenon' | 'dowel') }
 //   chair:   { w? (440 mm), d? (420 mm), seat? (450 mm), back? (850 mm), leg? (36 mm), species? ('beech'), finish?,
 //              seatMaterial? ('plywood') }
+//   sofa:    { seats? (3; 1–4), seatW? (600 mm a sitter), seatH? (440, to the cushion's top), seatD? (560, the seat's
+//              front to the back's face), backH? (820), arms? ('track' | 'rolled' | 'none'), armW? (150; rolled 180),
+//              armH? (620), legH? (130), cushions? ('loose' | 'bench'), back? ('loose' | 'tight' | 'tufted'), pillows?
+//              (0–4), fill? (the seat cushions' fill, 'foam-hr35'), fabric?, piping? (true), species? ('beech'),
+//              joinery? ('kd': upholstered sections bolted together | 'glued') }
+//   A sofa: a hardwood seat box with corner blocks and sinuous springs, legs on hanger bolts, plywood arms and back; its
+//   padding and cushions (soft.js). Each seat rail carries its sitters: a 100 kg sitter a seat landing at twice their
+//   weight, half to each rail. A `kd` sofa arrives as four upholstered sections (`supplied`) that bolt together.
+import { FILLS } from './soft.js';
+import { fabricError } from './fabric.js';
+
 const FRAME_UNITS = { mm: 0.001, cm: 0.01, m: 1 };                 // frame.js's units (kept here: frame.js imports this)
 
-export const BUILD_TYPES = Object.freeze(['carcass', 'table', 'chair']);
+export const BUILD_TYPES = Object.freeze(['carcass', 'table', 'chair', 'sofa']);
 const SLIDES = [250, 300, 350, 400, 450, 500, 550];
 
 const num = (v) => Number.isFinite(v) && v > 0;
@@ -28,6 +39,7 @@ export function validateBuild(b, at) {
   if (b === undefined) return [];
   if (!b || typeof b !== 'object' || !BUILD_TYPES.includes(b.type)) return [`${at}: { type: ${BUILD_TYPES.map((t) => `'${t}'`).join(' | ')}, …dials }`];
   const e = [];
+  if (b.type === 'sofa') return validateSofa(b, at);
   const need = b.type === 'chair' ? [] : ['w', 'd', 'h'];
   for (const k of need) if (!num(b[k])) e.push(`${at}.${k}: a size in the frame's unit`);
   for (const k of ['t', 'plinth', 'top', 'leg', 'apron', 'apronT', 'setback', 'overhang', 'drawerHeight', 'seat', 'back', 'w', 'd'])
@@ -49,6 +61,7 @@ export function expandBuild(spec) {
   const mmOf = (v, dflt) => (Number.isFinite(v) ? v * k : dflt);
   if (b.type === 'carcass') return carcass(b, k, mmOf);
   if (b.type === 'table') return table(b, k, mmOf);
+  if (b.type === 'sofa') return sofa(b, k, mmOf);
   return chair(b, k, mmOf);
 }
 
@@ -193,4 +206,134 @@ function chair(b, k, mmOf) {
     { type: 'notch', a: 'seat', b: 'leg-bl' }, { type: 'notch', a: 'seat', b: 'leg-br' },           // the seat round the back legs
   );
   return { members, joints, dials: { wMm: W, dMm: D, seatMm: S, backMm: BK, legMm: L, tenonDepthMm: depth, species: wood.species } };
+}
+
+// ── the sofa ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+const SOFA = { rt: 28, rh: 140, ply: 18, pad: 15, deck: 25, leg: 45, block: 50, seatKg: 100, dynamic: 2, backTilt: 12 };
+
+function validateSofa(b, at) {
+  const e = [];
+  if (b.seats !== undefined && !(Number.isInteger(b.seats) && b.seats >= 1 && b.seats <= 4)) e.push(`${at}.seats: 1 to 4`);
+  for (const k of ['seatW', 'seatH', 'seatD', 'backH', 'armW', 'armH', 'legH']) if (b[k] !== undefined && !(Number.isFinite(b[k]) && b[k] > 0)) e.push(`${at}.${k}: a size > 0 in the frame's unit`);
+  if (b.arms !== undefined && !['track', 'rolled', 'none'].includes(b.arms)) e.push(`${at}.arms: 'track', 'rolled' or 'none'`);
+  if (b.cushions !== undefined && !['loose', 'bench'].includes(b.cushions)) e.push(`${at}.cushions: 'loose' or 'bench'`);
+  if (b.back !== undefined && !['loose', 'tight', 'tufted'].includes(b.back)) e.push(`${at}.back: 'loose', 'tight' or 'tufted'`);
+  if (b.pillows !== undefined && !(Number.isInteger(b.pillows) && b.pillows >= 0 && b.pillows <= 4)) e.push(`${at}.pillows: 0 to 4`);
+  if (b.fill !== undefined && !FILLS[b.fill]) e.push(`${at}.fill: one of ${Object.keys(FILLS).join(', ')}`);
+  if (fabricError(b.fabric)) e.push(`${at}.${fabricError(b.fabric)}`);
+  if (b.piping !== undefined && typeof b.piping !== 'boolean' && !/^#[0-9a-f]{6}$/i.test(b.piping)) e.push(`${at}.piping: true, false or '#rrggbb'`);
+  if (b.joinery !== undefined && !['kd', 'glued'].includes(b.joinery)) e.push(`${at}.joinery: 'kd' (sections bolted together) or 'glued'`);
+  return e;
+}
+
+function sofa(b, k, mmOf) {
+  const S = SOFA;
+  const n = b.seats || 3, sW = mmOf(b.seatW, 600), seatH = mmOf(b.seatH, 440), seatD = mmOf(b.seatD, 560);
+  const backH = mmOf(b.backH, 820), legH = mmOf(b.legH, 130);
+  const arms = b.arms || 'track', rolled = arms === 'rolled';
+  const aW = arms === 'none' ? 0 : mmOf(b.armW, rolled ? 180 : 150), armH = mmOf(b.armH, 620);
+  const backKind = b.back || 'loose', cushions = b.cushions || 'loose', kd = (b.joinery || 'kd') === 'kd';
+  const wood = { species: b.species || 'beech' };
+  const inner = n * sW, W = inner + 2 * aW;
+  const deckTop = legH + S.rh + S.deck;
+  if (seatH - deckTop < 60) throw new Error(`build: a seat ${seatH} mm high leaves ${Math.round(seatH - deckTop)} mm of cushion over a deck at ${Math.round(deckTop)} mm — raise seatH or lower legH`);
+  if (aW && aW < 120) throw new Error(`build: arms ${aW} mm wide leave no room between their panels — 120 mm or more`);
+  if (aW && armH < deckTop + 100) throw new Error(`build: arms ${armH} mm high barely clear the deck at ${Math.round(deckTop)} mm`);
+  if (backH < seatH + 250) throw new Error(`build: a back ${backH} mm high stands only ${Math.round(backH - seatH)} mm over the seat — 250 mm or more`);
+  const B = boxer(k);
+  const Sft = (id, lo, hi, extra = {}) => ({ id, box: { min: lo.map((v) => Math.round((v / k) * 1e4) / 1e4), max: hi.map((v) => Math.round((v / k) * 1e4) / 1e4) }, ...extra });
+  const members = [], joints = [], soft = [];
+  const G = (g) => (kd ? { group: g } : {});
+  // the back: where a loose back cushion's face (or a tight back's raked inside back) stands 100 mm over the seat, and
+  // the pad behind it
+  const tilt = S.backTilt * Math.PI / 180, T = backKind === 'loose' ? 180 : backKind === 'tight' ? 130 : 120;
+  const z0b = seatH - 10, z1b = backH - 20, czb = (z0b + z1b) / 2;
+  const cyb = seatD - 10 + (T / 2) * Math.cos(tilt) - (seatH + 100 - czb) * Math.tan(tilt);
+  const ybp = Math.round(cyb + (T / 2) * Math.cos(tilt) + (z1b - czb) * Math.tan(tilt) - 15);
+  const bp = 90;
+  const D = ybp + bp, Db = D - S.pad - S.ply;                       // the base runs to the back panel's face
+  const bx0 = aW ? aW - S.pad : S.pad, bx1 = W - bx0;
+  // ── the base: rails, a centre rail on a long seat, corner blocks, legs, springs
+  const zr0 = legH, zr1 = legH + S.rh;
+  members.push(
+    B('rail-f', [bx0, 0, zr0], [bx1, S.rt, zr1], { ...wood, ...G('base') }),
+    B('rail-b', [bx0, Db - S.rt, zr0], [bx1, Db, zr1], { ...wood, ...G('base') }),
+    B('rail-l', [bx0, S.rt, zr0], [bx0 + S.rt, Db - S.rt, zr1], { ...wood, ...G('base') }),
+    B('rail-r', [bx1 - S.rt, S.rt, zr0], [bx1, Db - S.rt, zr1], { ...wood, ...G('base') }),
+  );
+  const centre = bx1 - bx0 > 1400;
+  const xc = W / 2;
+  if (centre) members.push(B('rail-c', [xc - S.rt / 2, S.rt, zr0], [xc + S.rt / 2, Db - S.rt, zr1], { ...wood, ...G('base') }));
+  const ends = ['rail-l', 'rail-r', ...(centre ? ['rail-c'] : [])];
+  for (const r of ends) joints.push({ type: 'dowel', a: r, b: 'rail-f', glue: true }, { type: 'dowel', a: r, b: 'rail-b', glue: true });
+  // a seat rail carries its sitters: each seat a 100 kg sitter landing at twice their weight, half to each rail
+  const railKNm = Math.round(((n * S.seatKg * S.dynamic * 9.81) / 2 / ((bx1 - bx0) / 1000)) / 10) / 100;
+  members[0].load = railKNm; members[1].load = railKNm;
+  const blocks = [['cb-fl', bx0 + S.rt, S.rt, 'rail-l', 'rail-f'], ['cb-fr', bx1 - S.rt - S.block, S.rt, 'rail-r', 'rail-f'], ['cb-bl', bx0 + S.rt, Db - S.rt - S.block, 'rail-l', 'rail-b'], ['cb-br', bx1 - S.rt - S.block, Db - S.rt - S.block, 'rail-r', 'rail-b']];
+  for (const [id, x, y, r1, r2] of blocks) {
+    members.push(B(id, [x, y, zr0], [x + S.block, y + S.block, zr1 - 20], { ...wood, ...G('base') }));
+    joints.push({ type: 'screwed', a: id, b: r1, glue: true }, { type: 'screwed', a: id, b: r2, glue: true });
+  }
+  const lg = (S.block - S.leg) / 2;
+  const legs = blocks.map(([id, x, y]) => [`leg-${id.slice(3)}`, x + lg, y + lg, id]);
+  if (centre) legs.push(['leg-cf', xc - S.leg / 2, S.rt + lg, 'rail-c'], ['leg-cb', xc - S.leg / 2, Db - S.rt - lg - S.leg, 'rail-c']);
+  for (const [id, x, y, under] of legs) { members.push(B(id, [x, y, 0], [x + S.leg, y + S.leg, legH], wood)); joints.push({ type: 'hanger-bolt', a: id, b: under }); }
+  joints.push({ type: 'springs', a: 'rail-f', b: 'rail-b' });
+  // ── the arms: two plywood panels, a top board, a front board and a post at the back
+  const armIds = [];
+  if (aW) {
+    for (const [side, x0, sg] of [['l', 0, 1], ['r', W, -1]]) {
+      const X = (a, b2) => (sg > 0 ? [x0 + a, x0 + b2] : [x0 - b2, x0 - a]);
+      const g = `arm-${side}`; const p = `arm-${side}-`;
+      const [o0, o1] = X(S.pad, S.pad + S.ply), [i0, i1] = X(aW - S.pad - S.ply, aW - S.pad), [m0, m1] = X(S.pad + S.ply, aW - S.pad - S.ply);
+      const zt = armH - 25;
+      members.push(
+        B(`${p}out`, [o0, 0, legH], [o1, Db, zt], { material: 'plywood', grain: 'y', ...G(g) }),
+        B(`${p}in`, [i0, 0, legH], [i1, Db, zt], { material: 'plywood', grain: 'y', ...G(g) }),
+        B(`${p}top`, [m0, 0, zt - S.rt], [m1, Db, zt], { ...wood, ...G(g) }),
+        B(`${p}front`, [m0, 0, legH], [m1, S.ply, zt - S.rt], { material: 'plywood', grain: 'z', ...G(g) }),
+        B(`${p}post`, [m0, Db - 45, legH], [m1, Db, zt - S.rt], { ...wood, ...G(g) }),
+      );
+      for (const part of ['top', 'front', 'post']) joints.push({ type: 'screwed', a: `${p}${part}`, b: `${p}out`, glue: true }, { type: 'screwed', a: `${p}${part}`, b: `${p}in`, glue: true });
+      joints.push(kd ? { type: 'insert-bolt', a: side === 'l' ? 'rail-l' : 'rail-r', b: `${p}in` } : { type: 'screwed', a: side === 'l' ? 'rail-l' : 'rail-r', b: `${p}in`, glue: true });
+      soft.push(Sft(`arm-pad-${side}`, [sg > 0 ? 0 : W - aW, -S.pad, legH - 5], [sg > 0 ? aW : W, Db, armH], { kind: 'pad', ...(rolled ? { roll: side === 'l' ? 'left' : 'right' } : {}), on: `${p}top`, ...G(g) }));
+      armIds.push(p);
+    }
+  }
+  // ── the back: a plywood panel the width of the sofa, a hardwood rail across its top between the arms
+  members.push(
+    B('back-panel', [0, Db, legH], [W, Db + S.ply, backH - 25], { material: 'plywood', grain: 'x', ...G('back') }),
+    B('back-rail', [aW ? bx0 : 0, Db - S.rt, backH - 130], [aW ? bx1 : W, Db, backH - 40], { ...wood, ...G('back') }),   // between the arms
+  );
+  joints.push({ type: 'screwed', a: 'back-rail', b: 'back-panel', glue: true });
+  joints.push(kd ? { type: 'insert-bolt', a: 'back-panel', b: 'rail-b' } : { type: 'screwed', a: 'rail-b', b: 'back-panel', glue: true });
+  for (const p of armIds) joints.push(kd ? { type: 'insert-bolt', a: 'back-panel', b: `${p}post` } : { type: 'screwed', a: `${p}post`, b: 'back-panel', glue: true });
+  // ── the padding: the deck over the springs, the back
+  const xa0 = aW, xa1 = W - aW;
+  soft.push(Sft('deck', [xa0, -S.pad, legH - 5], [xa1, Db, deckTop], { kind: 'pad', crown: 0, on: 'rail-f', ...G('base') }));
+  soft.push(Sft('back-pad', [0, ybp, legH - 5], [W, D, backH], { kind: 'pad', on: 'back-panel', ...G('back') }));
+  // a tight back: the inside back, raked and fixed to the back (tufted in a diamond, buttoned, on a chesterfield)
+  if (backKind !== 'loose') {
+    const tuft = backKind === 'tufted' ? { tufting: { pattern: 'diamond', rows: 3, cols: Math.max(3, Math.round(inner / 180)) } } : {};
+    soft.push(Sft('inside-back', [xa0, cyb - T / 2, z0b], [xa1, cyb + T / 2, z1b], { kind: 'cushion', fill: 'foam-30', tilt: S.backTilt, piping: false, on: 'back-pad', rest: 'back', ...tuft, ...G('back') }));
+  }
+  // ── the cushions: seats on the deck, backs leaning on the back pad, pillows in the corners
+  const cover = { ...(b.fabric !== undefined ? { fabric: b.fabric } : {}) };
+  const piping = b.piping !== undefined ? b.piping : true;
+  const seatCount = cushions === 'bench' ? 1 : n, cw = inner / seatCount;
+  for (let i = 0; i < seatCount; i++) soft.push(Sft(seatCount > 1 ? `seat-${i + 1}` : 'seat', [xa0 + i * cw, -10, deckTop], [xa0 + (i + 1) * cw, ybp, seatH], { kind: 'cushion', ...(cushions === 'bench' ? { style: 'bench' } : {}), fill: b.fill || 'foam-hr35', piping, on: 'deck', ...cover }));
+  if (backKind === 'loose') for (let i = 0; i < n; i++) soft.push(Sft(`back-${i + 1}`, [xa0 + i * sW, cyb - T / 2, z0b], [xa0 + (i + 1) * sW, cyb + T / 2, z1b], { kind: 'cushion', fill: 'fibre', tilt: S.backTilt, piping, on: 'back-pad', rest: 'back', ...cover }));
+  const face = backKind === 'loose' ? seatD - 10 : ybp;
+  for (let i = 0; i < (b.pillows || 0); i++) {
+    const left = i % 2 === 0, off = Math.floor(i / 2) * 380;
+    const x0 = left ? xa0 + 30 + off : xa1 - 30 - off - 450;
+    soft.push(Sft(`pillow-${i + 1}`, [x0, face - 170, seatH - 10], [x0 + 450, face - 20, seatH + 440], { kind: 'pillow', tilt: 16, on: backKind === 'loose' ? `back-${left ? 1 : n}` : 'inside-back', rest: 'back', ...cover }));
+  }
+  const supplied = kd ? ['base', ...armIds.map((p) => p.slice(0, -1)), 'back'] : null;
+  const dials = {
+    seats: n, seatWMm: sW, seatHMm: seatH, seatDMm: seatD, backHMm: backH, arms, ...(aW ? { armWMm: aW, armHMm: armH } : {}), legHMm: legH, cushions, back: backKind,
+    pillows: b.pillows || 0, joinery: kd ? 'kd' : 'glued', deckTopMm: deckTop, sizeMm: [W, Math.round(D), backH], railLoadKNm: railKNm, backTiltDeg: S.backTilt, seatKg: S.seatKg,
+  };
+  return { members, joints, soft, ...(supplied ? { supplied } : {}), dials };
 }

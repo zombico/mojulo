@@ -15,7 +15,7 @@ describe('construction/furniture-builds — a piece from a few dials', () => {
   beforeAll(async () => { await ensureExactKernel(); });
 
   it('validates its dials', () => {
-    expect(validateBuild({ type: 'sofa' }, 'b')[0]).toMatch(/type: 'carcass' \| 'table' \| 'chair'/);
+    expect(validateBuild({ type: 'bed' }, 'b')[0]).toMatch(/type: 'carcass' \| 'table' \| 'chair' \| 'sofa'/);
     expect(validateBuild({ type: 'carcass', w: 800, h: 0, d: 400 }, 'b')).toEqual(['b.h: a size in the frame\'s unit']);
     expect(validateBuild({ type: 'carcass', w: 800, h: 900, d: 400, doors: 3 }, 'b')[0]).toMatch(/doors: a whole number \(0, 1 or 2\)/);
     expect(validateFrames([{ build: { type: 'chair' }, unit: 'mm' }])).toEqual([]);

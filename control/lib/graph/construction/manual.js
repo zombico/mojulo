@@ -15,9 +15,19 @@
 // inventory page draws every fitting at TRUE SCALE (1:1 on A4, with a 10 mm check bar) so a builder can lay a screw on
 // the page to tell a 30 from a 35. Only numerals, part numbers, letters and counts are written; the title is the frame's
 // id. Pure: same frame, same pages.
+//
+// Soft parts (soft.js): a cushion is a part like any other, numbered, and goes in the way it rests (the cushions last);
+// a group the frame says arrives made (`supplied`: an upholstered sofa's base, arms and back) is ONE part — its insides
+// are not built on the page, and the fittings fitted at the factory are not in the inventory. Soft forms are drawn
+// with their silhouettes and seams and shaded in cross-contour hatching (scene/hatch-lines.js), their tufting's pleats
+// as lines. A frame with soft parts ends with its cloth: a swatch at true size in one ink, the weave's draft magnified,
+// and the cutting layout on the roll (covers.js).
 import { lowerFrame, FRAME_UNITS } from './frame.js';
 import { hardwarePart, toolOf } from './hardware.js';
-import { weldFaces, wireRuns, projectVertices } from '../scene/wire-svg.js';
+import { weldFaces, wireRuns, projectVertices, triangleGrid, visibleAt } from '../scene/wire-svg.js';
+import { hatchRuns, hatchPath } from '../scene/hatch-lines.js';
+import { fabricSvg } from './fabric.js';
+import { coverPages } from './covers.js';
 
 const PAGE = { w: 210, h: 297 };                    // A4, mm
 const INK = '#000';
@@ -41,16 +51,30 @@ export function manualPlan(spec) {
   const low = lowerFrame(spec);
   const { report, seat, parts } = low;
   const byId = new Map(report.members.map((m) => [m.id, m]));
+  // a soft part is a part: numbered by its kind and size
+  const softGroup = new Map((low.soft || []).map((L) => [L.id, L.group]));
+  for (const r of report.soft || []) byId.set(r.id, { id: r.id, material: 'soft', kind: r.kind, lengthMm: r.sizeMm[0], stockMm: r.sizeMm.slice(1), ...(softGroup.get(r.id) ? { group: softGroup.get(r.id) } : {}) });
   const order = (report.assembly.order || report.members.map((m) => m.id)).filter((id) => byId.has(id));
+  // a supplied group (an upholstered section) is one part; what was fitted in it at the factory is not the builder's
+  const supplied = new Set(low.supplied || []);
+  const sectionOf = new Map([...byId.values()].filter((m) => m.group && supplied.has(m.group)).map((m) => [m.id, m.group]));
+  const factory = (p) => (p.pre && sectionOf.has(p.pre)) || (p.needs.length > 0 && p.needs.every((m) => sectionOf.has(m) && sectionOf.get(m) === sectionOf.get(p.needs[0])));
+  const sectionIds = (g) => order.filter((id) => sectionOf.get(id) === g);
+  const sectionDims = (g) => { const b = bounds(low.faces.filter((f) => sectionIds(g).includes(f.group) || sectionIds(g).includes(String(f.group).split(':')[0]))); return b.hi.map((v, k) => Math.round((v - b.lo[k]) * FRAME_UNITS[spec.unit || 'cm'] * 1000)).sort((a, c) => c - a); };
   // identical parts share a number: same material, section and length
   const keyOf = (m) => JSON.stringify([m.material, m.species || '', m.section || '', m.stockMm || '', m.lengthMm]);
-  const numberOf = new Map(); const numbers = new Map();
-  for (const id of order) { const k = keyOf(byId.get(id)); if (!numbers.has(k)) numbers.set(k, numbers.size + 1); numberOf.set(id, numbers.get(k)); }
+  const numberOf = new Map(); const numbers = new Map(); const sectionKey = new Map();
+  for (const id of order) {
+    const g = sectionOf.get(id);
+    if (g && !sectionKey.has(g)) sectionKey.set(g, JSON.stringify(['section', sectionDims(g)]));
+    const k = g ? sectionKey.get(g) : keyOf(byId.get(id));
+    if (!numbers.has(k)) numbers.set(k, numbers.size + 1); numberOf.set(id, numbers.get(k));
+  }
   const jointOf = (pid) => pid.slice(0, pid.lastIndexOf(':'));
   const joints = new Map(report.joints.map((j) => [j.joint, j]));
   const steps = [];
   // ── fit: fittings seated in a part before it joins, one step per part kind
-  const pre = parts.filter((p) => p.pre && p.code);
+  const pre = parts.filter((p) => p.pre && p.code && !factory(p));
   const fitted = new Map();
   for (const id of order) {
     const ps = pre.filter((p) => p.pre === id); if (!ps.length) continue;
@@ -60,7 +84,7 @@ export function manualPlan(spec) {
   }
   for (const s of steps) s.times = s.hosts.length;
   // ── join: parts arrive in order; a sub-assembly is built on its own, then joins as one
-  const placed = new Set(); const done = new Set(pre.map((p) => p.id)); const turned = new Set();
+  const placed = new Set(); const done = new Set([...pre.map((p) => p.id), ...parts.filter(factory).map((p) => p.id)]); const turned = new Set();
   const loose = parts.filter((p) => !p.pre);
   const ready = (have) => loose.filter((p) => !done.has(p.id) && p.needs.every((m) => have.has(m)));
   const camsReady = (have) => parts.filter((p) => p.kind === 'cam' && !turned.has(p.id) && (() => { const j = joints.get(jointOf(p.id)); return j && have.has(j.a) && have.has(j.b); })());
@@ -75,9 +99,11 @@ export function manualPlan(spec) {
   // identical sub-assemblies (four drawers) are built once, ×N; each still joins the rest
   const subSig = (sa) => sa.parts.map((m) => numberOf.get(m)).join(',');
   const subCount = new Map(); for (const sa of subs) subCount.set(subSig(sa), (subCount.get(subSig(sa)) || 0) + 1);
-  const subBuilt = new Set();
+  const subBuilt = new Set(subs.filter((sa) => sa.group && supplied.has(sa.group)).map(subSig));
   for (let i = 0; i < order.length; i++) {
     const id = order[i];
+    // a supplied section first: it stands, whole
+    if (!placed.size && subOf.has(id) && supplied.has(subs[subOf.get(id)].group)) { const sa = subs[subOf.get(id)]; sa.parts.forEach((m) => placed.add(m)); i += sa.parts.length - 1; continue; }
     if (!placed.size) { placed.add(id); continue; }
     if (subOf.has(id)) {
       const sa = subs[subOf.get(id)]; const sig = subSig(sa);
@@ -116,15 +142,23 @@ export function manualPlan(spec) {
   const codeOf = new Map(parts.map((p) => [p.id, p.code || `piece:${p.kind}`]));
   const letters = new Map();
   for (const s of merged) for (const pid of s.pieces) { const c = codeOf.get(pid); if (c && !letters.has(c)) letters.set(c, String.fromCharCode(65 + letters.size)); }
-  const count = new Map(), sample = new Map(); for (const p of parts) { const c = codeOf.get(p.id); count.set(c, (count.get(c) || 0) + 1); if (!sample.has(c)) sample.set(c, p.id); }
+  const count = new Map(), sample = new Map(); for (const p of parts) { if (factory(p)) continue; const c = codeOf.get(p.id); count.set(c, (count.get(c) || 0) + 1); if (!sample.has(c)) sample.set(c, p.id); }
   const hardware = [...letters.entries()].map(([code, letter]) => ({ letter, code, label: code.startsWith('piece:') ? code.slice(6) : hardwarePart(code).label, count: count.get(code), sample: sample.get(code) }));
   const partsList = [...numbers.entries()].map(([k, n]) => {
     const ids = order.filter((id) => numberOf.get(id) === n); const m = byId.get(ids[0]);
+    const g = sectionOf.get(ids[0]);
+    if (g) { const groups = [...new Set(ids.map((id) => sectionOf.get(id)))]; return { n, ids: groups, count: groups.length, material: 'section', dimsMm: sectionDims(g), draw: sectionIds(g) }; }
     return { n, ids, count: ids.length, material: m.material, dimsMm: [m.lengthMm, ...(m.stockMm || [])] };
   });
   const TIMBER_PIECES = ['peg', 'komisen', 'kusabi', 'shachi'];
   const tools = [...new Map([...hardware.map((h) => toolOf(hardwarePart(h.code))), ...(hardware.some((h) => TIMBER_PIECES.includes(h.label)) ? [{ key: 'hammer', label: 'hammer' }] : [])].filter(Boolean).map((t) => [t.key, t])).values()];
-  return { id: spec.id || 'frame', unit: spec.unit || 'cm', steps: merged, parts: partsList, numberOf, hardware, letters, codeOf, tools, low };
+  // how soft forms are inked: their groups (and their cord and buttons) as soft, the parts themselves hatched
+  const ink = low.soft && low.soft.length ? {
+    softGroups: new Set(low.soft.flatMap((L) => [L.id, ...L.extras])),
+    hatch: new Map(low.soft.map((L) => [L.id, { axes: L.frame.axes, lightness: L.lightness }])),
+    pleats: low.soft.flatMap((L) => L.pleats.map(([a, b]) => ({ id: L.id, a: a.map((v) => v / (FRAME_UNITS[spec.unit || 'cm'])), b: b.map((v) => v / (FRAME_UNITS[spec.unit || 'cm'])) }))),
+  } : null;
+  return { id: spec.id || 'frame', unit: spec.unit || 'cm', steps: merged, parts: partsList, numberOf, hardware, letters, codeOf, tools, low, ...(ink ? { ink, sectionOf } : {}) };
 }
 const dirEq = (a, b) => a && b && Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - 1) < 1e-6;
 const joinsAny = (report, m, others) => report.joints.some((j) => (j.a === m && others.includes(j.b)) || (j.b === m && others.includes(j.a)));
@@ -133,27 +167,58 @@ const joinsAny = (report, m, others) => report.joints.some((j) => (j.a === m && 
 
 /** A near-orthographic three-quarter camera fitted to `pts` inside a page box { x, y, w, h } (mm). */
 function fitCamera(pts, box, { az = -35, el = 28 } = {}) {
-  const lo = [0, 1, 2].map((k) => Math.min(...pts.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...pts.map((p) => p[k])));
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of pts) for (let k = 0; k < 3; k++) { if (p[k] < lo[k]) lo[k] = p[k]; if (p[k] > hi[k]) hi[k] = p[k]; }
   const c = lo.map((v, k) => (v + hi[k]) / 2); const rad = Math.max(1e-6, Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2);
   const a = (az * Math.PI) / 180, e = (el * Math.PI) / 180, dist = 60 * rad;
   const position = [c[0] + dist * Math.cos(e) * Math.sin(a), c[1] - dist * Math.cos(e) * Math.cos(a), c[2] + dist * Math.sin(e)];
   const R = [[Math.cos(a), Math.sin(a), 0], [Math.sin(e) * Math.sin(a), -Math.sin(e) * Math.cos(a), -Math.cos(e)], [-Math.cos(e) * Math.sin(a), Math.cos(e) * Math.cos(a), -Math.sin(e)]];
   const probe = projectVertices(pts, { position, R, f: 1, principal: [0, 0] });
-  const xs = probe.map((p) => p[0]), ys = probe.map((p) => p[1]);
-  const w = Math.max(...xs) - Math.min(...xs) || 1e-9, h = Math.max(...ys) - Math.min(...ys) || 1e-9;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of probe) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+  const w = x1 - x0 || 1e-9, h = y1 - y0 || 1e-9;
   const f = Math.min(box.w / w, box.h / h);
-  const principal = [box.x + box.w / 2 - f * (Math.max(...xs) + Math.min(...xs)) / 2, box.y + box.h / 2 - f * (Math.max(...ys) + Math.min(...ys)) / 2];
+  const principal = [box.x + box.w / 2 - f * (x1 + x0) / 2, box.y + box.h / 2 - f * (y1 + y0) / 2];
   return { position, R, f, principal, size: PAGE.w };
 }
 
-/** Hidden-line strokes of a face list through cam → SVG path elements (black, weighted by role). */
-function inkRuns(faces, cam) {
+/**
+ * Hidden-line strokes of a face list through cam → SVG path elements (black, weighted by role). With `ink` (a frame
+ * with soft parts): soft forms keep only their silhouettes and seams, are hatched, and their pleats drawn.
+ */
+function inkRuns(faces, cam, ink = null) {
   if (!faces.length) return '';
   const src = weldFaces(faces);
-  const runs = wireRuns(src, cam, { creaseDegrees: 20 });
+  const runs = wireRuns(src, cam, { creaseDegrees: 20, ...(ink ? { softGroups: ink.softGroups } : {}) });
   const by = { outline: [], feature: [], plane: [] };
   for (const r of runs) if (r.visible) by[r.type].push(`M${r2(r.xy[0][0])} ${r2(r.xy[0][1])}L${r2(r.xy[1][0])} ${r2(r.xy[1][1])}`);
-  return ['plane', 'feature', 'outline'].map((t) => (by[t].length ? `<path d="${by[t].join('')}" fill="none" stroke="${INK}" stroke-width="${WEIGHT[t]}" stroke-linecap="round"/>` : '')).join('');
+  let out = '';
+  if (ink) {
+    const present = new Set(faces.map((f) => f.group));
+    const groups = new Map([...ink.hatch].filter(([id]) => present.has(id)));
+    // the hatch: slices of each soft form, where it turns from the light
+    if (groups.size) {
+      const b = bounds(faces); const depth = Math.abs((b.c[0] - cam.position[0]) * cam.R[2][0] + (b.c[1] - cam.position[1]) * cam.R[2][1] + (b.c[2] - cam.position[2]) * cam.R[2][2]);
+      const pagePerUnit = cam.f / depth, sizeOnPage = b.diag * pagePerUnit;
+      out += hatchPath(hatchRuns(src, cam, { groups, spacing: Math.max(0.55, Math.min(1.1, sizeOnPage / 160)), wobble: 0.08, tol: 0.08 }), { width: 0.12 });
+    }
+    // the pleats between buttons, where they show
+    const pl = ink.pleats.filter((p) => present.has(p.id));
+    if (pl.length) {
+      const q = projectVertices(src.vertices, cam); const grid = triangleGrid(src.faces.map((f) => [q[f[0]], q[f[1]], q[f[2]]]));
+      const lines = [];
+      // the pleat's line sits in its crease: nudge it toward the viewer so the crease does not hide it
+      const toCam = cam.R[2].map((v) => -v); const nudge = bounds(faces).diag * 0.004;
+      for (const p of pl) {
+        const pts = Array.from({ length: 13 }, (_, i) => [0, 1, 2].map((k) => p.a[k] + ((p.b[k] - p.a[k]) * i) / 12 + toCam[k] * nudge));
+        let run = [];
+        for (const w of projectVertices(pts, cam)) { if (visibleAt(w[0], w[1], w[2], grid.at(w[0], w[1]))) run.push(w); else { if (run.length > 1) lines.push(run); run = []; } }
+        if (run.length > 1) lines.push(run);
+      }
+      if (lines.length) out += `<path d="${lines.map((l) => `M${l.map((w) => `${r2(w[0])} ${r2(w[1])}`).join('L')}`).join('')}" fill="none" stroke="${INK}" stroke-width="${WEIGHT.feature}" stroke-linecap="round"/>`;
+    }
+  }
+  return ['plane', 'feature', 'outline'].map((t) => (by[t].length ? `<path d="${by[t].join('')}" fill="none" stroke="${INK}" stroke-width="${WEIGHT[t]}" stroke-linecap="round"/>` : '')).join('') + out;
 }
 
 const P = (cam, p) => { const q = projectVertices([p], cam)[0]; return [q[0], q[1]]; };
@@ -191,19 +256,24 @@ function stepPage(plan, s, groups, wholeCam, mmPerUnit) {
     tags.push({ kind: 'part', n: plan.numberOf.get(host), at: hb.c, times: s.times });
   } else if (s.kind === 'join') {
     const baseSet = new Set(s.base), adds = s.adds || [];
-    for (const id of s.base) { draw.push(...(groups.get(id) || [])); for (const pid of preOf(id)) draw.push(...(groups.get(pid) || [])); }
+    for (const id of s.base) { draw.push(...(groups.get(id) || [])); for (const pid of preOf(id)) draw.push(...(groups.get(pid) || [])); if (plan.ink) for (const [g, fs] of groups) if (String(g).startsWith(`${id}:`) && plan.ink.softGroups.has(g)) draw.push(...fs); }
     for (const pid of placedPieces) { const p = partById.get(pid); if (p.needs.every((m) => baseSet.has(m))) draw.push(...(groups.get(pid) || [])); }
     // a sub-assembly going in as one (a drawer) gets one motion line and no numbers: it was built on the pages before
     const off = scl(s.dir || [0, 0, 1], -(s.group ? pull(adds.slice(0, Math.max(1, adds.length / (s.times || 1)))) : pull(adds)));
     for (const id of adds) {
       draw.push(...moved(groups.get(id) || [], off)); for (const pid of preOf(id)) draw.push(...moved(groups.get(pid) || [], off));
+      for (const [g, fs] of groups) if (plan.ink && String(g).startsWith(`${id}:`) && plan.ink.softGroups.has(g)) draw.push(...moved(fs, off));   // a cushion's cord and buttons
       if (s.group) continue;
       const b = bounds(groups.get(id)); motions.push([add(b.c, off), b.c]);
       tags.push({ kind: 'part', n: plan.numberOf.get(id), at: add(b.c, off), ...(s.sub !== undefined && s.times > 1 && id === adds[0] ? { times: s.times } : {}) });
     }
     if (s.group) {
       const per = adds.length / (s.times || 1);
-      for (let g = 0; g < (s.times || 1); g++) { const b = bounds(adds.slice(g * per, (g + 1) * per).flatMap((id) => groups.get(id) || [])); motions.push([add(b.c, off), b.c]); }
+      for (let g = 0; g < (s.times || 1); g++) {
+        const b = bounds(adds.slice(g * per, (g + 1) * per).flatMap((id) => groups.get(id) || [])); motions.push([add(b.c, off), b.c]);
+        // a section that arrived made has not been seen being built: it carries its number
+        if (plan.sectionOf && plan.sectionOf.has(adds[g * per])) tags.push({ kind: 'part', n: plan.numberOf.get(adds[g * per]), at: add(b.c, off) });
+      }
     }
     for (const pid of s.pieces) {
       const p = partById.get(pid); const hostOff = adds.includes(p.host) ? off : [0, 0, 0];
@@ -218,7 +288,7 @@ function stepPage(plan, s, groups, wholeCam, mmPerUnit) {
   // a sub-assembly built on its own is framed on itself, not where it will end up in the piece
   if (s.kind === 'join' && s.sub !== undefined && draw.length) cam = fitCamera(draw.flatMap((f) => f.corners), { x: 20, y: 60, w: 170, h: 200 });
   // ── ink
-  let body = inkRuns(draw, cam);
+  let body = inkRuns(draw, cam, plan.ink);
   body += motions.map(([a, b]) => { const p = P(cam, a), q = P(cam, b); return `<line x1="${r2(p[0])}" y1="${r2(p[1])}" x2="${r2(q[0])}" y2="${r2(q[1])}" stroke="${INK}" stroke-width="0.25" stroke-dasharray="1.6 1.2"/>`; }).join('');
   const centre = P(cam, bounds(draw).c);
   for (const t of tags) {
@@ -261,7 +331,7 @@ function detailBubble(plan, s, focus, draw, cam, groups) {
   const id = `d${s.n}`;
   const at = P(cam, fb.c);
   let out = `<clipPath id="${id}"><circle cx="${B.cx}" cy="${B.cy}" r="${B.R}"/></clipPath><circle cx="${B.cx}" cy="${B.cy}" r="${B.R}" fill="#fff" stroke="none"/>`;
-  out += `<g clip-path="url(#${id})">${inkRuns(near, dcam)}</g><circle cx="${B.cx}" cy="${B.cy}" r="${B.R}" fill="none" stroke="${INK}" stroke-width="0.5"/>`;
+  out += `<g clip-path="url(#${id})">${inkRuns(near, dcam, plan.ink)}</g><circle cx="${B.cx}" cy="${B.cy}" r="${B.R}" fill="none" stroke="${INK}" stroke-width="0.5"/>`;
   out += `<circle cx="${r2(at[0])}" cy="${r2(at[1])}" r="2.2" fill="none" stroke="${INK}" stroke-width="0.3"/>` + leader(at, [B.cx - B.R * 0.7, B.cy - B.R * 0.7]);
   const q = P(dcam, fb.c);
   out += leader(q, [B.cx + B.R * 0.55, B.cy - B.R * 0.55]) + circle(B.cx + B.R * 0.62, B.cy - B.R * 0.62, 3.4, plan.letters.get(code), { size: 3.8 });
@@ -314,13 +384,23 @@ export function hardwareGlyph(part, x, y) {
     case 'nut': { const R = part.s / Math.sqrt(3); const cx = x + R; poly(Array.from({ length: 6 }, (_, i) => [cx + R * Math.cos((Math.PI / 3) * i), y + R * Math.sin((Math.PI / 3) * i)])); g.push(`<circle cx="${r2(cx)}" cy="${r2(y)}" r="${r2(part.d / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/>`); break; }
     case 'shelf-pin': rect(x, y - part.d / 2, L, part.d); break;
     case 'bracket': poly([[x, y + part.leg / 2], [x, y - part.leg / 2], [x + part.t, y - part.leg / 2], [x + part.t, y + part.leg / 2 - part.t], [x + part.leg, y + part.leg / 2 - part.t], [x + part.leg, y + part.leg / 2]]); break;
+    case 'hanger-bolt': {
+      // the machine thread (fine) to the left, the wood thread (coarse, pointed) to the right
+      const m = L - part.wood;
+      rect(x, y - part.d / 2, m, part.d); hatch(x, x + m, part.d / 2, part.P);
+      poly([[x + m, y - part.d / 2], [x + L - part.d, y - part.d / 2], [x + L, y], [x + L - part.d, y + part.d / 2], [x + m, y + part.d / 2]]); hatch(x + m, x + L - part.d, part.d / 2, part.d * 0.45);
+      break;
+    }
+    case 'insert': rect(x, y - part.od / 2, L, part.od); hatch(x, x + L, part.od / 2, 2.5); g.push(`<circle cx="${r2(x + L + 3 + part.od / 2)}" cy="${r2(y)}" r="${r2(part.od / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/><circle cx="${r2(x + L + 3 + part.od / 2)}" cy="${r2(y)}" r="${r2(part.d / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/>`); break;
+    case 'clip': rect(x, y - part.h / 2, L, part.h); break;
+    case 'spring': { const pts = []; for (let i = 0; i <= 12; i++) pts.push(`${r2(x + i * 5)} ${r2(y + (i % 2 ? -6 : 6))}`); g.push(`<path d="M${pts.join('L')}" fill="none" stroke="${INK}" stroke-width="${part.d / 4}"/>`); break; }
     default: rect(x, y - 2, L, 4);
   }
   return g.join('');
 }
 /** How long a glyph runs to the right (mm). */
-const glyphWidth = (p) => (p.family === 'cam' ? p.d : p.family === 'washer' ? p.length + 3 + p.od : p.family === 'nut' ? 2 * p.s / Math.sqrt(3) : p.family === 'bracket' ? p.leg : p.length + (p.head && p.head.shape === 'hex' ? p.head.k : 0));
-const glyphHeight = (p) => (p.family === 'bracket' ? p.leg : p.family === 'washer' ? p.od : p.head ? (p.head.dk || p.head.s || p.d) : p.d);
+const glyphWidth = (p) => (p.family === 'cam' ? p.d : p.family === 'washer' ? p.length + 3 + p.od : p.family === 'nut' ? 2 * p.s / Math.sqrt(3) : p.family === 'bracket' ? p.leg : p.family === 'insert' ? p.length + 3 + p.od : p.family === 'spring' ? 60 : p.length + (p.head && p.head.shape === 'hex' ? p.head.k : 0));
+const glyphHeight = (p) => (p.family === 'bracket' ? p.leg : p.family === 'washer' ? p.od : p.family === 'insert' ? p.od : p.family === 'clip' ? p.h : p.family === 'spring' ? 12 : p.head ? (p.head.dk || p.head.s || p.d) : p.d);
 
 /** The inventory: every part numbered with its size, every fitting lettered at 1:1, a 10 mm check bar. */
 function inventoryPage(plan, groups, mmPerUnit) {
@@ -329,8 +409,9 @@ function inventoryPage(plan, groups, mmPerUnit) {
   const cols = 3, cw = 60, ch = 44; const x0 = 15, y0 = 18;
   plan.parts.forEach((pt, i) => {
     const cx = x0 + (i % cols) * cw, cy = y0 + Math.floor(i / cols) * ch;
-    const fs = groups.get(pt.ids[0]) || [];
-    if (fs.length) { const cam = fitCamera(fs.flatMap((f) => f.corners), { x: cx + 10, y: cy + 4, w: cw - 16, h: ch - 18 }); body += inkRuns(fs, cam); }
+    // a section is drawn whole: every part in it, with its cord and buttons
+    const fs = pt.draw ? pt.draw.flatMap((id) => [...groups.entries()].filter(([g]) => g === id || String(g).startsWith(`${id}:`)).flatMap(([, f]) => f)) : (groups.get(pt.ids[0]) || []);
+    if (fs.length) { const cam = fitCamera(fs.flatMap((f) => f.corners), { x: cx + 10, y: cy + 4, w: cw - 16, h: ch - 18 }); body += inkRuns(fs, cam, plan.ink); }
     body += circle(cx + 4, cy + 5, 3.6, pt.n, { size: 4 });
     if (pt.count > 1) body += text(cx + 9, cy + 6.6, `×${pt.count}`, 4, 'start', 700);
     body += text(cx + cw / 2, cy + ch - 6, pt.dimsMm.map((v) => Math.round(v)).join(' × '), 3.2, 'middle');
@@ -346,7 +427,7 @@ function inventoryPage(plan, groups, mmPerUnit) {
     if (x + w > 196) { x = 18; y += rowH; rowH = 0; }
     body += circle(x + 4, y + hh / 2, 3.6, h.letter, { size: 4 }) + text(x + 9.5, y + hh / 2 + 1.5, `×${h.count}`, 4, 'start', 700);
     if (p) body += hardwareGlyph(p, x + 22, y + hh / 2);
-    else { const fs = groups.get(h.sample) || []; if (fs.length) body += inkRuns(fs, fitCamera(fs.flatMap((f) => f.corners), { x: x + 22, y: y + 2, w: w - 26, h: hh - 4 })); }
+    else { const fs = groups.get(h.sample) || []; if (fs.length) body += inkRuns(fs, fitCamera(fs.flatMap((f) => f.corners), { x: x + 22, y: y + 2, w: w - 26, h: hh - 4 }), plan.ink); }
     x += w + 6; rowH = Math.max(rowH, hh + 4);
   }
   // the check bar: print at 100 % and this is 10 mm (only when there are fittings drawn to scale)
@@ -359,9 +440,10 @@ function inventoryPage(plan, groups, mmPerUnit) {
 function coverPage(plan, groups) {
   const all = [...groups.values()].flat();
   const cam = fitCamera(all.flatMap((f) => f.corners), { x: 25, y: 40, w: 160, h: 170 });
-  let body = inkRuns(all, cam) + text(PAGE.w / 2, 26, plan.id.toUpperCase(), 11, 'middle', 700);
+  let body = inkRuns(all, cam, plan.ink) + text(PAGE.w / 2, 26, plan.id.toUpperCase(), 11, 'middle', 700);
   const f = plan.low.report.furniture;
-  if (f) body += text(PAGE.w / 2, 232, `${f.cartonMm.join(' × ')} mm · ${f.massKg} kg`, 4.5, 'middle');
+  // a piece that arrives in sections (an upholstered sofa) gives its size; a flat-pack one its carton
+  if (f) body += text(PAGE.w / 2, 232, `${(plan.sectionOf ? f.sizeMm : f.cartonMm).join(' × ')} mm · ${f.massKg} kg`, 4.5, 'middle');
   let x = PAGE.w / 2 - (plan.tools.length * 40) / 2;
   for (const t of plan.tools) { body += toolGlyph(t.key, x + 20, 258); x += 40; }
   return page(body);
@@ -391,7 +473,32 @@ export function manualPages(spec) {
   const wholeCam = fitCamera(pts, { x: 15, y: 45, w: 180, h: 235 });
   const pages = [{ name: 'cover', svg: coverPage(plan, groups) }, { name: 'inventory', svg: inventoryPage(plan, groups, mmPerUnit) }];
   for (const s of plan.steps) pages.push({ name: `step-${String(s.n).padStart(2, '0')}`, svg: stepPage(plan, s, groups, wholeCam, mmPerUnit) });
+  // the cloth: a swatch at true size in one ink and the weave's draft magnified, then where each piece is cut
+  for (const [i, c] of (plan.low.covers || []).entries()) {
+    const tag = plan.low.covers.length > 1 ? `-${i + 1}` : '';
+    pages.push({ name: `cloth${tag}`, svg: clothPage(plan, c, i) });
+    coverPages(c, { numberOf: plan.numberOf }).forEach((svg, k) => pages.push({ name: `cut${tag}-${String(k + 1).padStart(2, '0')}`, svg }));
+  }
   return { plan, pages };
+}
+
+/**
+ * A cloth's page: the parts it covers (numbered), a swatch at true size in hatched tones, the weave's draft magnified
+ * eight times, and the metres of it on its roll's width.
+ */
+function clothPage(plan, c, i) {
+  const spec = plan.low.clothSpecs ? plan.low.clothSpecs[i] : c.fabric;
+  const embed = (svg, x, y) => `<g transform="translate(${x} ${y})">${svg.replace(/^<svg[^>]*>/, (m) => m.replace(/ width="[^"]*mm" height="[^"]*mm"/, (w) => w.replace(/mm"/g, '"')))}</g>`;
+  let body = '';
+  body += embed(fabricSvg(spec, { widthMm: 170, heightMm: 90, scale: 1, ink: 'tone', id: `k${i}a` }), 20, 45) + `<rect x="20" y="45" width="170" height="90" fill="none" stroke="${INK}" stroke-width="0.3"/>`;
+  body += text(20, 141, '1:1', 3.2, 'start');
+  body += embed(fabricSvg(spec, { widthMm: 170, heightMm: 60, scale: 8, ink: 'draft', id: `k${i}b` }), 20, 150) + `<rect x="20" y="150" width="170" height="60" fill="none" stroke="${INK}" stroke-width="0.3"/>`;
+  body += text(20, 216, '8:1', 3.2, 'start');
+  const nums = [...new Set(c.parts.map((id) => plan.numberOf.get(id)).filter(Boolean))].sort((a, b) => a - b);
+  nums.forEach((n, k) => { body += circle(24 + k * 11, 232, 4.2, n, { size: 4.6 }); });
+  body += text(20, 256, `${c.metres} m × ${c.rollMm} mm`, 6, 'start', 700);
+  if (c.match) body += text(20, 266, `${c.repeatMm[0]} × ${c.repeatMm[1]} mm`, 4, 'start');
+  return page(body);
 }
 
 /** The pages as one printable HTML book: A4, one page a sheet, ink on white. */

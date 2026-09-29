@@ -321,6 +321,22 @@ units: 'mm', frames: [{ id: 'bookcase', unit: 'mm', members: [
             { type: 'groove', a: 'back', b: 'top' }, { type: 'groove', a: 'back', b: 'bottom' } ] }]
 ```
 
+### Frames — couches and upholstery: soft parts, cloth and covers
+
+- **a sofa** — `build: { type: 'sofa', seats?: 1–4, seatW?, seatH?, seatD?, backH?, arms?: 'track'|'rolled'|'none', armW?, armH?, legH?, cushions?: 'loose'|'bench', back?: 'loose'|'tight'|'tufted', pillows?, fill?, fabric?, piping?, species?, joinery?: 'kd'|'glued' }` writes a hardwood seat box with corner blocks, sinuous springs clipped across it, legs on hanger bolts, plywood arms and back, and the padding and cushions. A `kd` sofa is four upholstered sections (base, arms, back) bolted together (`insert-bolt`: an M8 through one into a threaded insert in the other); its manual shows each section as one part.
+- **soft parts** — `soft: [{ id, kind, box, … }]` on any frame, fluffed from the field primitives (Fields above) and surfaced as a mesh: `cushion` (`style: 'boxed'|'knife'|'bench'`, `crown`, `round`, `piping: true|'#hex'`, `tufting: { pattern: 'diamond'|'grid', rows, cols, depth? }`), `pillow` (every edge a seam), `bolster`, `pad` (padding over a member; `roll: true|'left'|'right'` for a rolled arm), `custom` (`terms` in the frame's unit about the box's centre — write your own form). Any: `tilt` (degrees, a back cushion leans back), `fill` (`foam-hr40|foam-hr35|foam-30|fibre|feather`), `fabric`, `on` (what it rests on), `rest: 'down'|'back'`, `group`. A soft part carries no load and takes no joint; it goes in last, the way it rests.
+- **views** — `view: 'finished'` (default with soft parts: members the padding hides are left out of the faces; bolts the owner drives stay) or `'frame'` (the bare frame, springs and all). `softCell` sets the mesh's grain (about 20 mm).
+- **cloth** — `fabric` on the frame (or a soft part): a preset (`linen`, `canvas`, `twill`, `herringbone`, `houndstooth`, `gingham`, `tartan`, `ticking`, `velvet`, `boucle`) or a weave draft `{ weave: 'plain'|'basket'|'satin'|'twill-2/2'|'twill-2/1'|'twill-3/1'|'herringbone', warp: ['#1d2a44', 4, 'cream', 4], weft?, threadMm?, rollMm?, martindale? }` — the colour order in each direction and the weave make the pattern (houndstooth IS a 2/2 twill in fours). It textures the World view (the stripe runs from the seat down the border) and prints as an SVG swatch in colour, as a weaver's draft, or in hatched tones. `railroad: true` turns the cloth so its width runs along the sofa.
+- **what the report adds** — `soft` (each part's size, fill, mass, the foam block to cut, how far a seat sinks under a sitter), `covers` (per cloth: pieces with seam allowance, laid on the roll with the pattern matched, the metres, bias strips for the piping), and `furniture.seating`: seat height and the height a sitter sits at, depth, back angle, arm height, width a sitter against the trade's usual ranges; seat foam density; spring gauge and pitch; tall legs on one hanger bolt; tipping when perched on, leaned back on hard, or sat on an arm. The seat rails carry their sitters (a member `load`, kN/m, like the frame's).
+- **its manual** — soft forms drawn in cross-contour hatching (darker cloth, more hatch), tufting's pleats as lines; cushions go in last; it ends with the cloth (a swatch at 1:1 in one ink, the draft at 8:1, the metres) and the cutting layout on the roll.
+
+```
+units: 'mm', frames: [{ id: 'sofa', unit: 'mm', build: { type: 'sofa', seats: 3, back: 'tufted', arms: 'rolled' }, fabric: 'velvet' }]
+units: 'mm', frames: [{ id: 'bench', unit: 'mm', members: [ /* a plywood bench */ ],
+  soft: [{ id: 'pad', kind: 'cushion', box: { min: [0,0,450], max: [1200,400,510] }, piping: '#222222', on: 'seat' }],
+  fabric: { weave: 'twill-2/1', warp: ['navy', 6, 'cream', 14, 'navy', 2, 'cream', 14], weft: 'cream' } }]
+```
+
 ## Drapes — hanging cloth
 
 An OPEN two-sided sheet with real folds, sag, and a pin→free billow (the wave-field specialized into cloth) — so cloth is never faked with thin flat extrudes. It drapes over ANY part of the object.

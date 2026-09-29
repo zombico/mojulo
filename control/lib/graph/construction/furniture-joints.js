@@ -15,7 +15,8 @@
 // pins).
 import { toLocal } from './members.js';
 import { perpBasisZ } from '../polygonizer/solid-frame.js';
-import { hardwarePart, partPolys, boreTerm, bracketHoles } from './hardware.js';
+import { hardwarePart, partPolys, boreTerm, bracketHoles, BOLT_LENGTHS } from './hardware.js';
+import { tubePolys } from './prims.js';
 import { SHEETS } from './sheets.js';
 import { TIMBERS } from './timber.js';
 
@@ -27,12 +28,12 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const axisVec = (k, s = 1) => { const v = [0, 0, 0]; v[k] = s; return v; };
 const r1 = (v) => Math.round(v * 10) / 10;
 
-export const FURNITURE_JOINTS = Object.freeze(['dowel', 'cam-lock', 'confirmat', 'screwed', 'shelf-pin', 'bracket', 'dado', 'groove', 'hinge', 'slide', 'dovetail', 'finger']);
+export const FURNITURE_JOINTS = Object.freeze(['dowel', 'cam-lock', 'confirmat', 'screwed', 'shelf-pin', 'bracket', 'dado', 'groove', 'hinge', 'slide', 'dovetail', 'finger', 'insert-bolt', 'hanger-bolt', 'springs']);
 export const RIGIDITY = Object.freeze({
   'mortise-tenon': 'moment', hozo: 'pin', nuki: 'moment', 'kanawa-tsugi': 'moment', lap: 'moment', notch: 'pin',
   welded: 'moment', bolted: 'moment', 'base-plate': 'moment',
   dowel: 'pin', 'cam-lock': 'pin', confirmat: 'pin', screwed: 'pin', 'shelf-pin': 'none', bracket: 'moment', dado: 'pin', groove: 'shear',
-  hinge: 'none', slide: 'none', dovetail: 'moment', finger: 'moment',
+  hinge: 'none', slide: 'none', dovetail: 'moment', finger: 'moment', 'insert-bolt': 'pin', 'hanger-bolt': 'pin', springs: 'none',
 });
 
 /** A member's world box (metres): { lo, hi, c, size }. */
@@ -459,6 +460,104 @@ function localBox(M, lo, hi) {
 const faceName = (m) => ({ '0,0,-1': 'bottom', '0,0,1': 'top', '0,-1,0': 'front', '0,1,0': 'back', '-1,0,0': 'left', '1,0,0': 'right' })[m.join(',')] || m.join(',');
 
 /** Rows → the joint's fastener summary: counts by code, and the worst bite / poke / edge. */
+/**
+ * A knock-down bolt: an M8 socket bolt through a (its face against b) with a washer under its head, into a screw-in
+ * threaded insert set in b — how an upholstered section bolts to the next (an arm to the seat, a back to it). The
+ * bolt is the longest standard one that stops inside the insert. `size` (M6 | M8 | M10), `spacing` (mm).
+ */
+function insertBoltJoint(J, A, B, out) {
+  const a = worldBox(A), b = worldBox(B);
+  const ov = [0, 1, 2].map((k) => Math.min(a.hi[k], b.hi[k]) - Math.max(a.lo[k], b.lo[k]));
+  const k = [0, 1, 2].reduce((m, i) => (ov[i] < ov[m] ? i : m), 0);
+  if (ov[k] < -0.002 || [0, 1, 2].some((i) => i !== k && ov[i] <= 0.0005)) throw new Error(`joint ${J.label}: ${A.id} and ${B.id} do not meet face to face — an insert-bolt passes through a into b`);
+  if (!thinOn(a, k)) throw new Error(`joint ${J.label}: the bolt would run the length of ${A.id} — a is the part the bolt passes through, square to its face`);
+  const s = Math.sign(b.c[k] - a.c[k]) || 1; const dir = axisVec(k, s);
+  const plane = s > 0 ? a.hi[k] : a.lo[k];
+  const size = J.size ? `M${String(J.size).replace(/^M/, '')}` : 'M8';
+  const ins = hardwarePart(`insert-${size}`), wa = hardwarePart(`washer-${size}`);
+  const tA = a.size[k] * 1000, depthB = b.size[k] * 1000;
+  const L = [...BOLT_LENGTHS].reverse().find((l) => l <= tA + wa.length + ins.length - 1) || BOLT_LENGTHS[0];
+  const bolt = hardwarePart(`${size}x${L}-socket`);
+  const others = [0, 1, 2].filter((i) => i !== k);
+  const ext = others.map((i) => ov[i]); const run = ext[0] >= ext[1] ? others[0] : others[1], across = run === others[0] ? others[1] : others[0];
+  const lo = Math.max(a.lo[run], b.lo[run]), hi = Math.min(a.hi[run], b.hi[run]);
+  const ac = (Math.max(a.lo[across], b.lo[across]) + Math.min(a.hi[across], b.hi[across])) / 2;
+  const pos = fittingPositions(lo, hi, { inset: 0.06, spacing: J.spacing ? J.spacing * MM : 0.35 });
+  const rows = [];
+  pos.forEach((rho, i) => {
+    const p = [0, 0, 0]; p[k] = plane; p[run] = rho; p[across] = ac;
+    const far = add(p, scl(dir, -tA * MM));                          // a's far face, where the washer and head sit
+    place(out, J, { part: ins, at: p, axis: dir, host: B, cuts: [B], idx: i, pre: B.id });
+    place(out, J, { part: wa, at: far, axis: dir, host: A, cuts: [], idx: i, needs: [A.id, B.id] });
+    place(out, J, { part: bolt, at: add(far, scl(dir, -wa.length * MM)), axis: dir, host: A, cuts: [A], through: tA, material: 'steel', idx: i, needs: [A.id, B.id] });
+    rows.push({ code: bolt.code, into: B.id, penMm: r1(L - tA - wa.length), pokeMm: 0 }, { code: ins.code, into: B.id, penMm: ins.length, pokeMm: r1(Math.max(0, ins.length + 2 - depthB)) });
+  });
+  out.edges.push({ a: A.id, b: B.id, dirs: [dir] });
+  out.report.push({ joint: J.label, type: 'insert-bolt', a: A.id, b: B.id, bolts: pos.length, bolt: bolt.code, insert: ins.code, fasteners: summarize(rows), rigidity: rigidityOf(J) });
+}
+
+/**
+ * A leg on a hanger bolt: a is the leg, b what it screws up under (a corner block, a rail). The bolt's wood thread goes
+ * into the leg's top (fitted first), its machine thread into an insert in b; the leg turns on by hand. A leg on one bolt
+ * is a lever on it: the report gives the leg's height, and the seating check flags a tall one.
+ */
+function hangerBoltJoint(J, A, B, out) {
+  const a = worldBox(A), b = worldBox(B);
+  if (Math.abs(a.hi[2] - b.lo[2]) > 0.002) throw new Error(`joint ${J.label}: ${A.id}'s top must meet ${B.id}'s underside — a hanger bolt screws a leg up under what it carries`);
+  const ov = [0, 1].map((k) => Math.min(a.hi[k], b.hi[k]) - Math.max(a.lo[k], b.lo[k]));
+  if (ov.some((v) => v <= 0.005)) throw new Error(`joint ${J.label}: ${A.id} is not under ${B.id}`);
+  const legMm = a.size[2] * 1000, legW = Math.min(a.size[0], a.size[1]) * 1000;
+  const size = legW < 32 ? 'M6' : 'M8';
+  const hb = hardwarePart(J.bolt || (size === 'M6' ? 'hanger-bolt-M6x50' : 'hanger-bolt-M8x70')), ins = hardwarePart(`insert-${hb.size}`);
+  const at = [(Math.max(a.lo[0], b.lo[0]) + Math.min(a.hi[0], b.hi[0])) / 2, (Math.max(a.lo[1], b.lo[1]) + Math.min(a.hi[1], b.hi[1])) / 2, a.hi[2]];
+  place(out, J, { part: ins, at, axis: [0, 0, 1], host: B, cuts: [B], pre: B.id });
+  place(out, J, { part: hb, at, axis: [0, 0, -1], host: A, cuts: [A], pre: A.id, material: materialClass(A) });
+  out.edges.push({ a: A.id, b: B.id, dirs: [[0, 0, 1]] });
+  const rows = [{ code: hb.code, into: A.id, penMm: hb.wood, pokeMm: r1(Math.max(0, hb.wood + 2 - legMm)) }, { code: ins.code, into: B.id, penMm: ins.length, pokeMm: r1(Math.max(0, ins.length + 2 - b.size[2] * 1000)) }];
+  out.report.push({ joint: J.label, type: 'hanger-bolt', a: A.id, b: B.id, legMm: r1(legMm), bolt: hb.code, fasteners: summarize(rows), rigidity: rigidityOf(J) });
+}
+
+/**
+ * Sinuous springs from a (the front seat rail) to b (the back one): zigzag wire hooked into a clip on each rail's top,
+ * `pitch` (mm, default 110) apart across the seat, arched `arc` (20 mm) above the rails. The wire is the trade's rule
+ * of thumb for the span: 8 gauge past 500 mm, 9 under (`gauge` to choose). The springs carry the seat into the rails.
+ */
+function springsJoint(J, A, B, out) {
+  const a = worldBox(A), b = worldBox(B);
+  const [F, K, fb, kb] = a.c[1] <= b.c[1] ? [A, B, a, b] : [B, A, b, a];
+  const x0 = Math.max(fb.lo[0], kb.lo[0]), x1 = Math.min(fb.hi[0], kb.hi[0]);
+  if (x1 - x0 < 0.1) throw new Error(`joint ${J.label}: ${A.id} and ${B.id} do not face each other across a seat`);
+  const clip = hardwarePart('spring-clip');
+  const y0 = fb.hi[1] - (clip.length / 2) * MM, y1 = kb.lo[1] + (clip.length / 2) * MM;
+  const zTop = Math.max(fb.hi[2], kb.hi[2]);
+  const span = y1 - y0;
+  const gauge = J.gauge || (span > 0.5 ? 8 : 9);
+  const P = hardwarePart(`sinuous-${gauge}g`);
+  if (!P) throw new Error(`joint ${J.label}: gauge ${gauge} — a sinuous spring is 8, 9, 10, 11 or 12 gauge`);
+  const pitch = (J.pitch || 110) * MM, arc = (J.arc !== undefined ? J.arc : 20) * MM;
+  const xs = fittingPositions(x0, x1, { inset: 0.05, spacing: pitch });
+  const amp = 0.028, period = 0.05, rw = (P.d / 2) * MM;
+  const z0 = zTop + clip.h * MM * 0.6;
+  let wireM = 0;
+  xs.forEach((x, i) => {
+    const n = Math.max(24, Math.round((span / period) * 12));
+    const path = []; let wire = 0;
+    for (let j = 0; j <= n; j++) {
+      const t = j / n, y = y0 + t * span, env = Math.min(1, Math.min(t, 1 - t) * span / 0.03);   // straight into each clip
+      path.push([x + amp * env * Math.sin((2 * Math.PI * (y - y0)) / period), y, z0 + arc * 4 * t * (1 - t)]);
+      if (j) wire += Math.hypot(...path[j].map((v, q) => v - path[j - 1][q]));
+    }
+    const id = `${J.label}:spring${i + 1}`;
+    out.pieces.push({ id, kind: 'spring', host: F, material: 'hardware', finish: P.finish, code: P.code, massG: Math.round(P.gPerM * wire), polys: tubePolys(path, rw, { sides: 6 }).map((q) => ({ corners: q.corners.map((c) => L(F, c)), n: Ld(F, q.n) })) });
+    out.edges.push({ a: id, b: F.id, dirs: [[0, 0, -1]], piece: true, needs: [F.id, K.id] });
+    place(out, J, { part: clip, at: [x, y0, fb.hi[2]], axis: [0, 0, -1], spin: [0, 1, 0], host: F, idx: 2 * i, needs: [F.id, K.id] });
+    place(out, J, { part: clip, at: [x, y1, kb.hi[2]], axis: [0, 0, -1], spin: [0, 1, 0], host: K, idx: 2 * i + 1, needs: [F.id, K.id] });
+    wireM = wire;
+  });
+  const wireMm = Math.round(wireM * 1000);
+  out.report.push({ joint: J.label, type: 'springs', a: A.id, b: B.id, springs: xs.length, gauge, code: P.code, spanMm: Math.round(span * 1000), pitchMm: xs.length > 1 ? Math.round(((xs[xs.length - 1] - xs[0]) / (xs.length - 1)) * 1000) : null, arcMm: Math.round(arc * 1000), wireMm, rigidity: rigidityOf(J) });
+}
+
 function summarize(rows) {
   const by = new Map();
   for (const r of rows) {
@@ -489,6 +588,9 @@ export function applyFurnitureJoint(J, A, B, out) {
     case 'slide': return slideJoint(J, A, B, out);
     case 'dovetail': return cornerJoint(J, A, B, out, 'dovetail');
     case 'finger': return cornerJoint(J, A, B, out, 'finger');
+    case 'insert-bolt': return insertBoltJoint(J, A, B, out);
+    case 'hanger-bolt': return hangerBoltJoint(J, A, B, out);
+    case 'springs': return springsJoint(J, A, B, out);
     default: throw new Error(`unknown furniture joint '${J.type}'`);
   }
 }

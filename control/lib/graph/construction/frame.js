@@ -14,7 +14,11 @@
 //                           default 30, a row of books) }],
 //     Any member may be a box instead of a centreline: { id, box: { min, max }, grain?: 'x'|'y'|'z', …material }; its
 //     grain runs the longest side and its thinnest side is its depth (members.js boxToCentreline).
-//     joints: [{ type, a, b, id?, …the type's options }] }
+//     joints: [{ type, a, b, id?, …the type's options }],
+//     soft?: [{ id, kind: 'cushion' | 'pillow' | 'bolster' | 'pad' | 'custom', box, … }] (soft.js): cushions and padding,
+//     fabric?: the cloth they are covered in (fabric.js), railroad?: the cloth turned so its width runs along the piece,
+//     view?: 'finished' (default: members the padding hides are left out of the faces) | 'frame' (no soft parts),
+//     softCell?: the surface-net cell (the frame's unit; about 20 mm) }
 //
 // A member's `from` end is its butt: the end that grew lowest in the tree (a post stands the way its tree stood; the
 // Japanese carpenter's rule against the upside-down post, sakasa-bashira, is this default). Its log is sized to the
@@ -45,6 +49,10 @@ import { movement } from './movement.js';
 import { applyJoints, JOINT_TYPES } from './joints.js';
 import { spanChecks, assemblyOrder, assemblyTree, assemblyGroups } from './checks.js';
 import { timberTextureKey } from './textures.js';
+import { validateSoft, lowerSoft, FILLS } from './soft.js';
+import { fabricError, resolveFabric, fabricSummary } from './fabric.js';
+import { worldBox } from './furniture-joints.js';
+import { coverLayout, coverSummary, coverStamps } from './covers.js';
 
 export const FRAME_UNITS = Object.freeze({ mm: 0.001, cm: 0.01, m: 1 });
 export const FIGURE_MODES = Object.freeze(['full', 'coarse', 'flat']);
@@ -56,7 +64,7 @@ const materialOf = (m) => (m.section !== undefined ? 'steel' : m.material || 'ti
 function withBuild(f) {
   if (!f || !f.build || validateBuild(f.build, 'build').length) return f;
   const x = expandBuild(f);
-  return { ...f, members: [...(Array.isArray(f.members) ? f.members : []), ...x.members], joints: [...(Array.isArray(f.joints) ? f.joints : []), ...x.joints], built: x };
+  return { ...f, members: [...(Array.isArray(f.members) ? f.members : []), ...x.members], joints: [...(Array.isArray(f.joints) ? f.joints : []), ...x.joints], ...(x.soft ? { soft: [...(Array.isArray(f.soft) ? f.soft : []), ...x.soft] } : {}), ...(x.supplied ? { supplied: x.supplied } : {}), built: x };
 }
 
 /** A member written as a box, as its centreline twin (recipe units); any other member as written. */
@@ -79,7 +87,7 @@ export function validateFrames(frames) {
     if (f0.unit !== undefined && !FRAME_UNITS[f0.unit]) { errors.push(`${at}.unit: must be one of ${Object.keys(FRAME_UNITS).join(', ')}`); return; }
     const buildErrors = validateBuild(f0.build, `${at}.build`);
     if (buildErrors.length) { errors.push(...buildErrors); return; }
-    const f = withBuild(f0);
+    let f; try { f = withBuild(f0); } catch (e) { errors.push(`${at}.${e.message}`); return; }
     if (f.species !== undefined && timberError(f.species)) errors.push(`${at}.species: ${timberError(f.species)}`);
     if (finishError(f.finish)) errors.push(`${at}.finish: ${finishError(f.finish)}`);
     if (cutError(f.cut)) errors.push(`${at}.cut: ${cutError(f.cut)}`);
@@ -91,6 +99,11 @@ export function validateFrames(frames) {
     if (f.layout !== undefined && f.layout !== 'kit') errors.push(`${at}.layout: 'kit' (every part laid flat to print), or leave it out`);
     if (f.kitGap !== undefined && !(Number.isFinite(f.kitGap) && f.kitGap >= 0)) errors.push(`${at}.kitGap: a distance in the frame's unit, ≥ 0`);
     if (f.shelfLoad !== undefined && !(Number.isFinite(f.shelfLoad) && f.shelfLoad >= 0)) errors.push(`${at}.shelfLoad: kg per metre, a number ≥ 0`);
+    if (fabricError(f.fabric)) errors.push(`${at}.${fabricError(f.fabric)}`);
+    if (f.railroad !== undefined && typeof f.railroad !== 'boolean') errors.push(`${at}.railroad: true (the cloth's width runs along the piece) or false`);
+    if (f.view !== undefined && !['finished', 'frame'].includes(f.view)) errors.push(`${at}.view: 'finished' or 'frame'`);
+    if (f.softCell !== undefined && !(Number.isFinite(f.softCell) && f.softCell > 0)) errors.push(`${at}.softCell: a size > 0 in the frame's unit`);
+    if (f.supplied !== undefined && !(Array.isArray(f.supplied) && f.supplied.every((g) => typeof g === 'string' && g))) errors.push(`${at}.supplied: the groups that arrive made (upholstered sections), as names`);
     if (!Array.isArray(f.members) || !f.members.length) { errors.push(`${at}.members: a non-empty array of { id, from, to, stock } (or a \`build\`)`); return; }
     const scale = FRAME_UNITS[f.unit || 'cm'] || 0.01;
     const ids = new Set();
@@ -111,6 +124,7 @@ export function validateFrames(frames) {
       if (m.up !== undefined && !isPt(m.up)) errors.push(`${mt}.up: must be [x, y, z]`);
       if (m.shelfLoad !== undefined && !(Number.isFinite(m.shelfLoad) && m.shelfLoad >= 0)) errors.push(`${mt}.shelfLoad: kg per metre, a number ≥ 0`);
       if (m.group !== undefined && !(typeof m.group === 'string' && m.group)) errors.push(`${mt}.group: a name — members sharing it are built together first (a drawer)`);
+      if (m.load !== undefined && !(Number.isFinite(m.load) && m.load >= 0)) errors.push(`${mt}.load: kN per metre of live load this member carries, ≥ 0`);
       const material = materialOf(m);
       if (m.material !== undefined && !MEMBER_MATERIALS.includes(m.material)) errors.push(`${mt}.material: one of ${MEMBER_MATERIALS.join(', ')} (a steel member names its \`section\`)`);
       else if (material === 'steel') {
@@ -132,6 +146,9 @@ export function validateFrames(frames) {
         if (m.log !== undefined) errors.push(...validateLog(m.log, `${mt}.log`));
       }
     });
+    errors.push(...validateSoft(f.soft, `${at}.soft`, { unitScale: scale, taken: ids }));
+    const softIds = new Set((Array.isArray(f.soft) ? f.soft : []).map((s) => s && s.id));
+    (Array.isArray(f.soft) ? f.soft : []).forEach((s, j) => { if (s && s.on !== undefined && typeof s.on === 'string' && !ids.has(s.on) && !softIds.has(s.on)) errors.push(`${at}.soft[${j}].on: '${s.on}' names no member or soft part`); });
     if (f.joints !== undefined && !Array.isArray(f.joints)) errors.push(`${at}.joints: must be an array`);
     (f.joints || []).forEach((J, j) => {
       const jt = `${at}.joints[${j}]`;
@@ -156,7 +173,7 @@ function resolveMembers(spec) {
     const material = materialOf(m);
     const from = m.from.map((v) => v * scale), to = m.to.map((v) => v * scale);
     const F = memberFrame(from, to, m.up);
-    const base = { id: m.id, index: i, F, L: F.L, material, xMin: 0, xMax: F.L, trims: [], adds: [], subs: [], ...(m0.box ? { box: true } : {}), ...(Number.isFinite(m.shelfLoad) ? { shelfKgM: m.shelfLoad } : {}), ...(typeof m.group === 'string' && m.group ? { group: m.group } : {}) };
+    const base = { id: m.id, index: i, F, L: F.L, material, xMin: 0, xMax: F.L, trims: [], adds: [], subs: [], ...(m0.box ? { box: true } : {}), ...(Number.isFinite(m.shelfLoad) ? { shelfKgM: m.shelfLoad } : {}), ...(typeof m.group === 'string' && m.group ? { group: m.group } : {}), ...(Number.isFinite(m.load) ? { liveKNm: m.load } : {}) };
     if (material === 'steel') {
       const [W, D] = sectionBox(m.section);
       return { ...base, W, D, section: m.section, sec: SECTIONS[m.section], finish: m.finish !== undefined ? m.finish : (typeof spec.finish === 'string' && !materialFinishError('steel', spec.finish) ? spec.finish : undefined) };
@@ -350,6 +367,33 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
     const pm = material === 'hardware' && p.finish === 'beech' ? MAT.timber : MAT[material];
     faces.push(...tagFacesWithMaterial(dressFaces({ ...p.host, species: p.species }, polys, { light, mat: pm, color, planes: null, unitScale, group: p.id }), pm));
   }
+  // ── soft parts: fluffed, covered; the finished view leaves out what the padding hides, the frame view the padding
+  const softSpecs = Array.isArray(spec.soft) ? spec.soft : [];
+  const softIds = new Set(softSpecs.map((s) => s.id));
+  const view = spec.view || 'finished';
+  const softMat = resolveMaterial('cloth') || resolveMaterial('wood');
+  const soft = softSpecs.map((s) => lowerSoft(s, { unitScale, light, mat: softMat, fabric: spec.fabric, railroad: spec.railroad === true, cellM: Number.isFinite(spec.softCell) ? spec.softCell * unitScale : 0.02, mode }));
+  const ownerOf = new Map(); for (const L of soft) for (const g of L.extras) ownerOf.set(g, L.row.id);
+  let hidden = [];
+  if (softSpecs.length && view === 'finished') {
+    const pads = soft.filter((L) => L.row.kind === 'pad').map((L) => L.frame);
+    // inside the padding: every point of a 3 × 3 × 3 lattice over the member's box lies in some pad
+    const inPad = (q) => pads.some((P) => [0, 1, 2].every((k) => q[k] >= P.lo[k] - 0.001 && q[k] <= P.hi[k] + 0.001));
+    const inside = (b) => [0, 0.5, 1].every((fx) => [0, 0.5, 1].every((fy) => [0, 0.5, 1].every((fz) => inPad([b.lo[0] + fx * b.size[0], b.lo[1] + fy * b.size[1], b.lo[2] + fz * b.size[2]]))));
+    const gone = new Set(members.filter((M) => inside(worldBox(M))).map((M) => M.id));
+    // a fitting inside the padding goes with it when it was fitted there at the factory: seated first in a hidden part, or
+    // joining only parts of the one section; a bolt the owner drives between two sections stays
+    const needsOf = new Map(J.edges.filter((e) => e.piece).map((e) => [e.a, e.needs || []]));
+    const groupOf = new Map(members.map((M) => [M.id, M.group]));
+    for (const p of J.pieces) {
+      if (!gone.has(p.host.id)) continue;
+      const nd = needsOf.get(p.id) || [p.host.id];
+      if (p.pre || nd.every((m) => gone.has(m) && groupOf.get(m) === groupOf.get(p.host.id))) gone.add(p.id);
+    }
+    hidden = members.map((M) => M.id).filter((id) => gone.has(id));
+    if (gone.size) { const keep = faces.filter((f) => !gone.has(f.group)); faces.length = 0; faces.push(...keep); }
+  }
+  if (view !== 'frame') for (const L of soft) faces.push(...tagFacesWithMaterial(L.faces, softMat));
 
   // ── the report ──
   // supports: a level member is carried where a post (or another level member) meets it; braces are not counted
@@ -385,33 +429,44 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
   const span = spanChecks(spanMembers, (id) => supports.get(id), { liveKNm: Number.isFinite(spec.load) ? spec.load : 0, ...(furniture ? { shelfKgM: Number.isFinite(spec.shelfLoad) ? spec.shelfLoad : 30 } : {}) });
   const drawn = J.pieces.filter((p) => p.polys || kernel);
   const drawnIds = new Set(drawn.map((p) => p.id));
-  const ids = [...members.map((M) => M.id), ...drawn.map((p) => p.id)];
-  const seatEdges = J.edges.filter((e) => !e.piece || drawnIds.has(e.a));
+  const ids = [...members.map((M) => M.id), ...drawn.map((p) => p.id), ...softSpecs.map((s) => s.id)];
+  // a soft part goes in the way it rests: down onto what carries it, or back against it
+  const REST = { down: [0, 0, -1], back: [0, 1, 0] };
+  const softEdges = softSpecs.filter((s) => typeof s.on === 'string').map((s) => ({ a: s.id, b: s.on, dirs: [REST[s.rest || 'down']] }));
+  const seatEdges = [...J.edges.filter((e) => !e.piece || drawnIds.has(e.a)), ...softEdges];
   // parts declared to be built together first (a drawer) go in as one; otherwise one member at a time
-  const declared = new Map(); for (const M of members) if (M.group) { if (!declared.has(M.group)) declared.set(M.group, []); declared.get(M.group).push(M.id); }
+  const declared = new Map(); for (const M of [...members, ...softSpecs]) if (M.group) { if (!declared.has(M.group)) declared.set(M.group, []); declared.get(M.group).push(M.id); }
   const orderOpts = furniture ? { connected: true } : {};
   let assembly = declared.size ? (assemblyGroups(ids, seatEdges, declared, orderOpts) || assemblyOrder(ids, seatEdges, orderOpts)) : assemblyOrder(ids, seatEdges, orderOpts);
   // furniture that cannot go together one member at a time is built in sub-assemblies (a table's end frames)
   if (furniture && !assembly.order) { const t = assemblyTree(ids, seatEdges); if (t) assembly = { ...t, lock: null }; }
   // the kit: every part laid flat for printing a model of it, the bought fittings left out (they are not printed)
   let kit = null;
-  if (spec.layout === 'kit') { const k = layKit(faces, members, drawn, unitScale, Number.isFinite(spec.kitGap) ? spec.kitGap : 5 / (unitScale * 1000)); faces.length = 0; faces.push(...k.faces); kit = k.report; }
+  if (spec.layout === 'kit') { const k = layKit(faces, members, drawn, unitScale, Number.isFinite(spec.kitGap) ? spec.kitGap : 5 / (unitScale * 1000), { soft, ownerOf }); faces.length = 0; faces.push(...k.faces); kit = k.report; }
   // the exploded view: each member back along the way it seats; a piece with its host, then out along its own way
   if (!kit && Number.isFinite(spec.explode) && spec.explode > 0) {
     const k = spec.explode; const off = new Map();
     // later members pull back further, so two that seat the same way (a splice's halves) still come apart
     let rank = 0;
     for (const id of assembly.order || members.map((M) => M.id)) {
-      const v = byId.has(id) && assembly.moves[id]; if (!v) continue;
+      const v = (byId.has(id) || softIds.has(id)) && assembly.moves[id]; if (!v) continue;
       const kk = k * (1 + 0.5 * Math.min(4, rank++)); off.set(id, v.map((x) => -x * kk));
     }
     // a sub-assembly pulls back as one, along the way it joins the rest
-    for (const sa of assembly.subassemblies || []) for (const id of sa.parts) { const o = off.get(id) || [0, 0, 0]; off.set(id, o.map((x, i) => x - sa.dir[i] * k * 2)); }
+    // (the one the rest join, first in the order, stays put)
+    for (const sa of assembly.subassemblies || []) { if (softSpecs.length && assembly.order && sa.parts.includes(assembly.order[0])) continue; for (const id of sa.parts) { const o = off.get(id) || [0, 0, 0]; off.set(id, o.map((x, i) => x - sa.dir[i] * k * 2)); } }
     for (const p of drawn) {
       const h = off.get(p.host.id) || [0, 0, 0]; const v = assembly.moves[p.id] || [0, 0, 0];
       off.set(p.id, h.map((x, i) => x - v[i] * k * 1.2));
     }
-    for (const f of faces) { const o = off.get(f.group); if (o) f.corners = f.corners.map((c) => [c[0] + o[0], c[1] + o[1], c[2] + o[2]]); }
+    for (const f of faces) { const o = off.get(ownerOf.get(f.group) || f.group); if (o) f.corners = f.corners.map((c) => [c[0] + o[0], c[1] + o[1], c[2] + o[2]]); }
+  }
+  // the covers: the soft parts cut flat and laid on the roll, one layout for each cloth
+  const covers = [], clothSpecs = [];
+  if (softSpecs.length) {
+    const byCloth = new Map();
+    soft.forEach((L, i) => { const f = softSpecs[i].fabric !== undefined ? softSpecs[i].fabric : spec.fabric; const key = JSON.stringify(f === undefined ? 'linen' : f); if (!byCloth.has(key)) byCloth.set(key, { fabric: f, parts: [] }); byCloth.get(key).parts.push(L); });
+    for (const { fabric, parts: ps } of byCloth.values()) { covers.push(coverLayout(ps, { fabric, railroad: spec.railroad === true })); clothSpecs.push(fabric === undefined ? 'linen' : fabric); }
   }
   const mm = (v) => Math.round(v * 1000);
   const report = {
@@ -433,7 +488,8 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
     pieces: drawn.map((p) => ({ id: p.id, kind: p.kind, ...(p.species && !p.material ? { species: p.species } : { material: p.material }) })),
     ...(spec.built ? { build: { type: spec0.build.type, dials: spec.built.dials, expanded: { members: spec.built.members, joints: spec.built.joints } } } : {}),
     span, assembly: { order: assembly.order, lock: assembly.lock, ...(assembly.subassemblies && assembly.subassemblies.length ? { subassemblies: assembly.subassemblies.map((sa) => ({ parts: sa.parts, dir: sa.dir.map((v) => Math.round(v * 1000) / 1000), ...(sa.group ? { group: sa.group } : {}) })) } : {}) },
-    ...(furniture ? { furniture: furnitureReport({ spec, members, byId, joints: J, drawn, assembly }) } : {}),
+    ...(softSpecs.length ? { soft: soft.map((L) => L.row), fabric: fabricSummary(resolveFabric(spec.fabric !== undefined ? spec.fabric : 'linen')), covers: covers.map(coverSummary), ...(hidden.length ? { hidden } : {}), ...(view !== 'finished' ? { view } : {}) } : {}),
+    ...(furniture ? { furniture: furnitureReport({ spec, members, byId, joints: J, drawn, assembly, soft }) } : {}),
     ...(kit ? { kit } : {}),
     ...(jointedWithoutKernel(members, kernel) ? { degraded: 'joints are not cut and steel sections are not shaped: the exact kernel (manifold-3d) is not installed, so members draw as plain boxes' } : {}),
   };
@@ -443,7 +499,7 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
     const e = J.edges.find((x) => x.piece && x.a === p.id);
     return { id: p.id, kind: p.kind, host: p.host.id, ...(p.code ? { code: p.code } : {}), ...(p.pre ? { pre: p.pre } : {}), needs: e && e.needs ? e.needs : [p.host.id] };
   });
-  return { faces, report, seat: assembly.moves, parts };
+  return { faces, report, seat: assembly.moves, parts, ...(covers.length ? { covers, clothSpecs } : {}), ...(Array.isArray(spec.supplied) ? { supplied: spec.supplied } : {}), ...(softSpecs.length ? { soft: soft.map((L) => ({ id: L.row.id, extras: L.extras, lightness: L.fabric.lightness, frame: L.frame, pleats: L.pleats, ...(L.row.kind ? { kind: L.row.kind } : {}), ...(softSpecs.find((s) => s.id === L.row.id).group ? { group: softSpecs.find((s) => s.id === L.row.id).group } : {}) })) } : {}) };
 }
 
 /**
@@ -452,10 +508,12 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
  * wide as the kit is deep. Fittings made of metal or plastic are left out: a model is
  * glued, and a real piece's fittings are bought. → { faces, report: { parts, sizeMm } } in the recipe's unit.
  */
-function layKit(faces, members, drawn, unitScale, gap) {
-  const byGroup = new Map(); for (const f of faces) { if (!byGroup.has(f.group)) byGroup.set(f.group, []); byGroup.get(f.group).push(f); }
+function layKit(faces, members, drawn, unitScale, gap, { soft = [], ownerOf = new Map() } = {}) {
+  const byGroup = new Map(); for (const f of faces) { const g = ownerOf.get(f.group) || f.group; if (!byGroup.has(g)) byGroup.set(g, []); byGroup.get(g).push(f); }
   const frameOf = new Map(members.map((M) => [M.id, M]));
   for (const p of drawn) if (!p.material || p.material === 'timber') frameOf.set(p.id, p.host);
+  // a soft part lies in its own frame (its cord and buttons with it)
+  for (const L of soft) frameOf.set(L.row.id, { F: { origin: L.frame.c, ex: L.frame.axes[0], ey: L.frame.axes[1], ez: L.frame.axes[2] } });
   const inv = 1 / unitScale;
   const items = [];
   for (const [g, fs] of byGroup) {
@@ -512,5 +570,7 @@ export function frameStamps(report, label) {
   if (report.degraded) out.push(`${label}: ${report.degraded}`);
   for (const m of report.members) if (m.advice) out.push(`${label}: ${m.id}: ${m.advice}`);
   if (report.furniture) out.push(...furnitureStamps(report.furniture, label));
+  const seatIds = new Set((report.soft || []).filter((r) => r.sinkMm !== undefined).map((r) => r.id));
+  for (const c of report.covers || []) out.push(...coverStamps(c, label, { seats: c.parts.some((id) => seatIds.has(id)) }));
   return out;
 }

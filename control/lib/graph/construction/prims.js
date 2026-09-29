@@ -80,3 +80,32 @@ export function boxPolys(center, size) {
     { n: [0, 0, -1], corners: [P(-1, -1, -1), P(-1, 1, -1), P(1, 1, -1), P(1, -1, -1)] },
   ];
 }
+
+/**
+ * A tube of radius r along a path (a polyline in any frame): rings carried round the path square to it, quads between
+ * them; `closed` joins the last ring to the first (piping round a cushion), else the ends are left open (a spring's
+ * wire ends in its clips). → polys { corners, n } in the path's frame.
+ */
+export function tubePolys(path, r, { sides = 8, closed = false } = {}) {
+  const P = path.slice();
+  if (closed && Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1], P[0][2] - P[P.length - 1][2]) < 1e-9) P.pop();
+  const n = P.length; const rings = []; let ref = null;
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  for (let i = 0; i < n; i++) {
+    const a = closed ? P[(i - 1 + n) % n] : P[Math.max(0, i - 1)], b = closed ? P[(i + 1) % n] : P[Math.min(n - 1, i + 1)];
+    const tg = unit([b[0] - a[0], b[1] - a[1], b[2] - a[2]]);
+    if (!ref) ref = Math.abs(tg[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+    const u = unit(cross(tg, ref)); const v = cross(tg, u); ref = v;           // carry the frame along the path
+    rings.push(Array.from({ length: sides }, (_, k) => { const t = (2 * Math.PI * k) / sides; return add(P[i], add(scl(u, r * Math.cos(t)), scl(v, r * Math.sin(t)))); }));
+  }
+  const polys = [];
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const A = rings[i], B = rings[(i + 1) % n], m = scl(add(P[i], P[(i + 1) % n]), 0.5);
+    for (let k = 0; k < sides; k++) {
+      const q = [A[k], A[(k + 1) % sides], B[(k + 1) % sides], B[k]];
+      const c = scl(add(add(q[0], q[1]), add(q[2], q[3])), 0.25);
+      polys.push({ corners: q, n: unit([c[0] - m[0], c[1] - m[1], c[2] - m[2]]) });
+    }
+  }
+  return polys;
+}

@@ -52,6 +52,56 @@ connected-service and app loops and the recipe format are the stable surface.
   cannot go together one part at a time is built in sub-assemblies (a table's end frame, a drawer), and the report
   says which. A notch now also lets a part slide along the member it is notched round.
 
+### Couches and upholstery
+
+- **Soft parts.** A frame's `soft` entries are cushions (boxed, knife-edge or bench), pillows, bolsters, padding over a
+  member, or a form of your own written in the field primitives. They are fluffed from those primitives: crowned,
+  rounded to their seams, piped, tufted with buttons and pleats, leaning. Each has:
+  - a fill (high-resilience and polyether foams, fibre, feather);
+  - a mass, and the foam block to cut;
+  - how far it sinks under a sitter.
+
+  `view: 'frame'` shows the bare frame; the finished view leaves out what the padding hides.
+- **A sofa from a few dials.** `build: { type: 'sofa', … }` writes:
+  - a hardwood seat box with glued corner blocks, and sinuous springs clipped across it;
+  - legs on hanger bolts;
+  - plywood arms (track or rolled) and a back;
+  - its padding and cushions: a loose, tight or buttoned back, loose or bench seats, throw pillows.
+
+  A flat-pack sofa arrives as four upholstered sections that bolt together with M8 bolts into threaded inserts. The
+  new joints (`springs`, `hanger-bolt`, `insert-bolt`) and fittings (hanger bolts, threaded inserts, spring clips,
+  sinuous springs by wire gauge) are open to any frame, and a member can carry a live `load`.
+- **Seating that holds and sits right.** Advisory, never refusing:
+  - the seat rails are span-checked under their sitters;
+  - seat height (and the height a sitter sinks to), depth, back angle, arm height and width a sitter are checked
+    against the trade's usual ranges;
+  - seat foam density, spring gauge and spacing, and tall legs on a single bolt are flagged;
+  - tipping is checked with someone perched on the front edge, leaning back hard, or sitting on an arm.
+- **Fabric from a weave draft.** A weave and a colour order in warp and weft make the cloth:
+  - weaves: plain, twill, herringbone, basket and satin;
+  - presets: houndstooth, gingham, tartan, ticking, linen, canvas, velvet and bouclé, each with a typical wear rating
+    and whether it has a nap.
+
+  The draft renders to the World texture, where the pattern runs on from seat to border, and to an SVG swatch at
+  true size: in colour, as a weaver's black-and-white draft, or in hatched tones for one ink.
+- **Covers.** Each soft part is cut into flat pieces with seam allowance: plates, boxing, zip boxing, and bias strips
+  for piping. The pieces are laid on the roll with the pattern centred on each and matched from piece to piece. The
+  report gives the metres of cloth, matched and not, and `railroad` turns the cloth to cut long pieces whole. Stamps
+  flag:
+  - a seat cloth too weak for daily use;
+  - a napped cloth;
+  - a pattern that railroading would turn on its side;
+  - pieces seamed where railroading would not need a seam.
+- **Hatched ink.** Soft parts are drawn in cross-contour hatching, denser where the form turns from the light and
+  where the cloth is darker, with tufted pleats as lines, so a cushion's crown reads in black and white. A sofa's
+  manual:
+  - shows each section as one part, leaving out the fittings fitted at the factory;
+  - puts the cushions in last;
+  - ends with its cloth (a swatch at 1:1, the draft at 8:1, the metres) and the cutting layout.
+
+  The hidden-line renderer now sizes its depth grid to the drawing, so a printed page renders several times faster,
+  with the same output.
+
 ### Fasteners
 
 - **A catalog of standard parts.** `construction/hardware.js` holds hex, socket, button and countersunk bolts, nuts and
