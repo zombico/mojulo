@@ -24,7 +24,7 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
 
 ## Spec shape
 
-`title`, `ref`, `folder_ref` are top-level mint params. Everything below lives in `spec`. Provide at least one monomer (any of `lathes` / `extrudes` / `sweeps` / `lofts` / `fields` / `drapes` / `reliefs` / `shells` / `assembly`).
+`title`, `ref`, `folder_ref` are top-level mint params. Everything below lives in `spec`. Provide at least one monomer (any of `lathes` / `extrudes` / `sweeps` / `lofts` / `fields` / `drapes` / `reliefs` / `shells` / `frames` / `assembly`).
 
 ```
 {
@@ -40,6 +40,8 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
   reliefs?:  [ { shape, size?, anchor, normal?, up?, style?, tint?, material? } ],
   shells?:   [ { solid, radius, center?, orient?, frequency?, tint?, material?,
                  group?, open?, ops? } ],
+  frames?:   [ { members[], joints?, unit?, species?, finish?, tint?, cut?, figure?, seed?,
+                 load?, explode? } ],
   assembly?: { parts: [ { kind, height, profile | stations | terms, id?, on?, gap?, offset?,
                           radial?, mirror?, ...passthrough } ] },
   units?:    'cm',
@@ -255,6 +257,34 @@ fields: [{
   ],
   material: 'steel'
 }]
+```
+
+## Frames — timber on centrelines
+
+A `frames` entry is carpentry: members laid on centrelines the way a frame is drawn, joints that cut them where they meet, and each member wearing the figure its cut would show in a real log. Lengths are in the entry's `unit` (`'cm'` by default).
+
+- **members** — `{ id, from, to, stock, up?, species?, finish?, tint?, cut?, log? }`. `stock` is `[width, depth]` or a named size: `2x4` … `8x10` (dressed, so a 2x4 is 3.8 × 8.9 cm), `3.5sun`, `4sun`, `5sun` (Japanese post sections), `nuki`, `kusabi`. `up` is the way the depth faces (default: up for a level member, +y for a post). `from` is the butt: a post stands the way its tree grew.
+- **species** — `oak`, `ash`, `keyaki`, `pine`, `douglas-fir`, `spruce`, `hinoki`, `sugi`. Each carries its figure (latewood, oak's pore band and ray fleck, sugi's red heart) and its numbers: density, stiffness, strength and shrinkage.
+- **cut** — where the section sat in its log: `boxed-heart` (the pith inside; the default for timbers), `free-of-heart`, `flat` (cathedral figure, cups; the default for boards), `quarter` (straight stripes, oak's fleck, stays flat), `rift`, or `{ offset:[a,b], angle }` in metres. `log: { age?, ringMm?, knots?: 'clear'|'few'|'normal'|'many', clearBelow?, spiral?, seed? }` shapes the log itself; left out, it is sized to the section and seeded from `seed`.
+- **finish** — colour is a finish over the figure, never baked into it: `raw`, `oil`, `wax`, `bengara`, `sumi`, `kakishibu`, `urushi`, `yakisugi` (grain shows through), `gofun`, `limewash` (cover it), or `{ stain:'#rrggbb' }` / `{ paint:'#rrggbb' }`. `tint` replaces the species' colour and keeps the figure. Restaining reuses every texture; paint and `figure:'flat'` draw one colour with no texture (`'coarse'` halves the texture size).
+- **steel and concrete** — a member with `section: 'W8x31' | 'IPE300' | 'HEA200' | 'PFC150' | 'L75x6' | 'SHS100x6' | 'CHS114x6' …` is steel (its depth faces `up`; finish `mill`, `primer`, `galvanized`, `weathering`, `stainless`, `{ paint }`). `material: 'concrete'` with `stock: [w, d]` is concrete with its cage (`rebar: { top?, bottom?: [n, ⌀], ring?, ties?: [⌀, spacing], mesh?, cover? }` in mm, a default cage when left out, `false` for none); `xray: true` on the frame shows the cage through it.
+- **joints** — `{ type, a, b, …options }`. Author members centreline to centreline and the joint makes the shoulder:
+  - `mortise-tenon` — a's end into b's side; `through?`, `pegs?` (default 1). A brace's shoulder is cut on the skew.
+  - `hozo` — the kigumi short tenon (a post into the beam above); `pin: true` adds a komisen.
+  - `nuki` — a runs through b in a slot, locked by a kusabi wedge; `drive: 'from'|'to'`. Extend a past both faces.
+  - `kanawa-tsugi` — the splice: a's `to` end on b's `from` end, one line, same section; a lapped Z with a lip each end and a shachi key.
+  - `lap` (crossing members halved) and `notch` (a takes b's shape: a bird's-mouth on a plate, a housed joist).
+  - `bolted` (end plate and four bolts), `welded` (trimmed to b's face), `base-plate` (a column's foot and anchors; `b` optional).
+  Joints are cut by the exact kernel; without it the members draw as plain boxes and the mint says so.
+- **the report** — `stats.frames[i]` gives each member's log, cut and **movement** (how much it shrinks, which face cups, whether a boxed heart checks), each joint's sizes (tenon, relish past the peg), a **span** check on level members (deflection against span/300, stress against a third of the clear-wood strength, `load` kN/m live; braces not counted), and the **assembly** order in which the members slide together, or the member that locks and by how many degrees. All advisory: a braced Western bent reports a 45° lock because framers seat it by flexing it; a kigumi bent slides together. `explode` (a distance) pulls every member and pin back along the way it seats.
+
+```
+units: 'cm', frames: [{ species: 'hinoki', members: [
+  { id: 'post-l', from: [0,0,0], to: [0,0,282], stock: '4sun' }, { id: 'post-r', from: [300,0,0], to: [300,0,282], stock: '4sun' },
+  { id: 'hari', from: [-30,0,282], to: [330,0,282], stock: [12,24], species: 'sugi' },
+  { id: 'nuki', from: [-15,0,150], to: [315,0,150], stock: 'nuki' } ],
+  joints: [ { type: 'hozo', a: 'post-l', b: 'hari', pin: true }, { type: 'hozo', a: 'post-r', b: 'hari', pin: true },
+            { type: 'nuki', a: 'nuki', b: 'post-l' }, { type: 'nuki', a: 'nuki', b: 'post-r', drive: 'to' } ] }]
 ```
 
 ## Drapes — hanging cloth

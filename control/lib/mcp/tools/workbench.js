@@ -27,7 +27,7 @@ function normalizeToon(toon) {
   return t;
 }
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef } = {}) {
+export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -49,9 +49,10 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
   const hasDrapes = Array.isArray(drapes) && drapes.length > 0;
   const hasReliefs = Array.isArray(reliefs) && reliefs.length > 0;
   const hasShells = Array.isArray(shells) && shells.length > 0;
+  const hasFrames = Array.isArray(frames) && frames.length > 0;
   const hasProgram = program && typeof program === 'object';
-  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasLofts && !hasFields && !hasDrapes && !hasReliefs && !hasShells && !hasProgram) {
-    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells`, or `assembly` (the polygomer) — or a `program` (the code kind).');
+  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasLofts && !hasFields && !hasDrapes && !hasReliefs && !hasShells && !hasFrames && !hasProgram) {
+    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells`, `frames`, or `assembly` (the polygomer) — or a `program` (the code kind).');
   }
   const manifest = {
     kind: 'workbench',
@@ -66,6 +67,7 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     ...(hasDrapes ? { drapes } : {}),
     ...(hasReliefs ? { reliefs } : {}),
     ...(hasShells ? { shells } : {}),
+    ...(hasFrames ? { frames } : {}),
     // parts-booleans B1: the cut is stored AS a cut (the monomers stay in their arrays); the
     // rewrite to a field happens on every render, so an edit to a bore re-cuts
     ...(Array.isArray(cuts) && cuts.length ? { cuts } : {}),
@@ -131,9 +133,9 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folder_ref: folderRef } = input;
-  await ensureExactKernel(); // an `exact: true` field or cut needs Manifold loaded before the sync lowering
-  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef });
+  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folder_ref: folderRef } = input;
+  await ensureExactKernel(); // an `exact: true` field or cut, or a frame's joints, need Manifold loaded before the sync lowering
+  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {

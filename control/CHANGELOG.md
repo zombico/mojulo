@@ -14,6 +14,51 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Building materials
+
+- **Timber comes from a log.** `control/lib/graph/construction/` builds a synthetic log without growing a tree: the
+  leader's height growth sets the taper, rings widen near the pith and follow a per-year climate, each sheath is a
+  little out of round, and branches become knots (whorled in conifers, scattered in hardwoods; a dead branch leaves an
+  encased knot with its bark ring). A member's section is placed in its log by its cut: boxed-heart, free-of-heart,
+  flat, quarter, rift, or an explicit offset. So a flat-sawn board shows its cathedral, a quarter-sawn oak board its ray
+  fleck, a sugi beam its red heart. Eight timbers (oak, ash, keyaki, pine, Douglas-fir, spruce, hinoki, sugi) carry
+  their figure and their numbers: density, stiffness, strength and shrinkage (Wood Handbook values; Scots pine and the
+  Japanese species are marked estimates).
+- **Movement from the cut.** The same placement says what drying does: how much the section shrinks each way, which
+  face cups (a flat-sawn board away from the heart; a quarter-sawn one stays flat), and whether a boxed-heart section
+  will check.
+- **Colour is a finish, not the grain.** A face's figure is baked relative to the species' colour, and its colour is a
+  tint over it: raw, oil, wax, a stain of any colour, or bengara, sumi, kakishibu, urushi or yakisugi. Paint (gofun,
+  limewash, any colour) covers the figure: one colour, no texture. Restaining a frame reuses every texture byte. The
+  figure is filtered per pixel from the log itself, so thin latewood and pore bands do not strobe.
+- **Members meet in joints.** A workbench `frames` entry lays members on centrelines and joints cut them where they
+  meet, through the exact kernel: Western mortise and tenon (blind or through, pegged, braces shouldered on the skew);
+  the kigumi hozo with a komisen pin, the nuki through its posts locked by a kusabi wedge, and the kanawa-tsugi splice
+  with its shachi key; a halved lap and a notch (a bird's-mouth, a housed joist). Without the kernel the members draw
+  as plain boxes and the mint says so. `explode` pulls every member and pin back along the way it seats.
+- **The frame is checked, never refused.** The mint reports each member's log, cut and movement, each joint's sizes,
+  a span check on level members (deflection against span/300, stress against a third of the clear-wood strength, an
+  optional live load; a spliced beam checks as one), and the order the members slide together in. A braced Western
+  bent reports the 45° its post would have to move at once, which framers take up by flexing the bent; the kigumi
+  bent slides together.
+- **Steel.** A member may name a rolled `section` instead of timber stock: AISC W-shapes, IPE and HEA, channels,
+  angles, square and round hollow sections, flat bar. It is its profile extruded along the centreline, in mill scale,
+  red-oxide primer, galvanizing, weathering steel, stainless or paint. Joints: `bolted` (an end plate and four bolts,
+  nuts behind the flange it meets), `welded` (trimmed to the face), `base-plate` (a column's foot and its anchor bolts,
+  on a footing or on nothing). The span check reads the section's own I and S (fillets left out, so a few percent
+  under the tables), E 200 GPa and 0.6·Fy.
+- **Concrete and rebar.** `material: 'concrete'` members carry their reinforcement: longitudinal bars, stirrups or
+  ties at a spacing, a column's ring, a slab strip's mesh, inside the cover; left out, each member gets the cage its
+  shape asks for, and `rebar: false` leaves it plain. `xray` draws the concrete see-through so the cage reads. A
+  concrete beam is checked against its moment capacity from its bottom steel.
+- **Masonry.** (written before the code) Walls of bricks or stones laid in a bond, closed at openings with lintels;
+  stone and marble tiles and roof slates laid as units, each tile a window of the existing marble, granite and slate
+  surfaces.
+- **Houses as structures.** (written before the code) A house can show what stands under its skin: its framing in the
+  system it is built in, from the foundation up, framed alone or cut away.
+- **Timber textures resolve by key.** A face's texture key carries its log and plane, so the scene's texture channel
+  bakes it on demand through a new prefix resolver in `surface-textures.js`; the key holds no colour.
+
 ### Grown plants
 
 - **Plants grown, not drawn.** `control/lib/graph/vegetation/` grows three kinds of plant.

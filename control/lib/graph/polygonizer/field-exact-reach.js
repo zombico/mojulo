@@ -51,5 +51,7 @@ export function manifestWantsExact(manifest) {
   if (!manifest || typeof manifest !== 'object') return false;
   if (manifest.kind === 'assembler') return Array.isArray(manifest.items) && manifest.items.some((it) => it && manifestWantsExact({ kind: 'workbench', ...it.source }));
   if (manifest.kind === 'scad') return listWantsExact(manifest.fields);
-  return listWantsExact(manifest.fields) || listWantsExact(manifest.cuts) || (manifest.program != null && typeof manifest.program === 'object');
+  return listWantsExact(manifest.fields) || listWantsExact(manifest.cuts) || (manifest.program != null && typeof manifest.program === 'object')
+    // a timber frame's joints are cut by the kernel (construction/frame.js degrades to plain boxes without it)
+    || (Array.isArray(manifest.frames) && manifest.frames.some((f) => f && Array.isArray(f.joints) && f.joints.length > 0));
 }
