@@ -316,7 +316,7 @@ function characterRigParts(mesh, skin, parts, { light, palette = null, normals =
  * above — the palette, the step and the split; `light` and `hullShade` do not apply), each part carrying
  * `inkFaces`, and `ranges` where it holds faces with a draw layer.
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null, gear = null } = {}) {
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
@@ -329,6 +329,9 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     const P = parts[bi]; P.faces++;
     tri.forEach((vi, k) => { const s = vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); });
   });
+  // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
+  // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
+  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; for (const p of t.p) { P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); } } }
   const packedClips = {};
   for (const [name, clip] of Object.entries(clips)) {
     const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const flat = [];

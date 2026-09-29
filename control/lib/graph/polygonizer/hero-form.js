@@ -315,7 +315,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const clips = {
     idle: [READY, { ...READY, spine: { arch: 0.06 } }, READY, { ...READY, crouch: 0.03, ...(jawed ? { jaw: 4 } : {}) }],
     walk: [{ ...READY, ...swingR }, READY, { ...READY, ...swingL }, READY],
-    wave: [READY, { ...READY, armR: { x: 0.35, y: 0.25, z: 0.9 }, elbowR: 'half', head: { x: 0.1, y: 0.95, z: 0.3 } }, { ...READY, armR: { x: 0.6, y: 0.2, z: 0.75 }, elbowR: 'slight' }, { ...READY, armR: { x: 0.35, y: 0.25, z: 0.9 }, elbowR: 'half' }],
+    // the wave: the upper arm out and forward at shoulder height, the forearm standing up (the elbow never over the head),
+    // the hand waving by the elbow opening and closing (raw swivels, searched on the rig: elbow ≤ the shoulder line)
+    wave: [READY, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 100, head: { x: 0.1, y: 0.95, z: 0.3 } }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 78 }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 118 }],
   };
 
   return scalePlan({

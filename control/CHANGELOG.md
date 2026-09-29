@@ -62,6 +62,24 @@ every read. Opt-in through `build` on a workbench.
   on a metal surface forges a billet of layers (seven times two to the folds) and etches it where the blade's grind cuts
   them. It is drawn in the metal shader, so the blade keeps its reflection and needs no texture. The layers grey out
   at a distance and resolve up close, as real Damascus does. The eastern sample's blade is a twist Damascus.
+- **Gear on the hero.** `gear: { right, left, back, hip }` on the hero door takes the same build words as an item. Each
+  piece is placed by its sockets at true size, scaled with the figure, and held by class:
+  - a blade goes through the fist with its tip forward and down; a raised guard swings it upright;
+  - a staff and a bow are gripped in the hand;
+  - a shield rides the forearm;
+  - back and hip gear is carried.
+  The gear is bound to its bone, so the stands, the clips, the preview and the skinned GLB carry it. An anime hero's
+  gear defaults to a stylized proportion. Absent `gear`, the hero is byte-identical.
+- **Swings.** `gesture: 'chop' | 'thrust' | 'rising' | 'cleave' | 'bash' | 'plant'` stands in the swing's ready pose
+  and plays the swing as a looping clip, with the body driving it: windup, strike, follow-through and recovery at about
+  28 : 14 : 14 : 44. The item's mass and length set the timing: a heavy or long item strikes later from a held, higher
+  cock, and a dagger strikes early. The chop's cock rolls the arm so the blade stands up and back, and holds that roll
+  through the strike, so the edge leads. A swing needs gear in its hand, and the door says which. The readout names the
+  contact window, reach and cone for a game to read.
+- **The elbow stays low.** A raised hand no longer lifts its elbow over the head. The upper arm comes up level and
+  forward and the forearm stands, so the elbow points forward or down at the shoulder line: in every swing's windup,
+  and in the hero's `wave`. The wave's clip changed with it, so every hero's plan, recipe, page and skinned GLB moved
+  by that clip alone.
 
 ### Metal surfaces
 

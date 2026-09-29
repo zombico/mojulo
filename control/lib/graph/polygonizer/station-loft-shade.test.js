@@ -418,6 +418,9 @@ describe('the character light on a stand: closed, continuous, the head in its ow
 // World payload pins, recorded from the layered resolver BEFORE the character light existed: a manifest the channel
 // does not reach (every non-anime hero and plan, and the anime hero under the unshaded export or with toon.light
 // false) resolves byte-identical. sha256(JSON.stringify(payload)), first 16 hex digits.
+// Re-pinned for the hero's `wave` clip (hero-form.js): the upper arm level and the forearm up, the elbow never over
+// the head. Every hero plan carries the clip, so the plan, the recipe and the pages move with it and with nothing else
+// (with the old wave restored these pins pass unchanged).
 describe('the World payload: absent ⇒ byte-identical', () => {
   const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
   // the draw layers undone: the faces without `layer`; each packed part without `ranges`, its streams as the sorted list
@@ -435,9 +438,9 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   };
   const PINS = {
     planBiped: [() => expandLayeredManifest({ kind: 'layered', plan }), ['a645ae390d3b0fbf', 'a33a830d8af3f744', 'f1b33d48167b8855']],
-    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), ['a8dbb1b376b13207', '35ddc86afcfcb8b0', '30ebcd44449ca2b8']],
-    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly' }) }), ['b828944c478fe902', '4897eddf6775858e', '200d61f270b14915']],
-    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none' }) }), ['b858e40fcf6dfa54', '34d7d2fa990b94aa', 'bdd08b9dd012e2a6']],
+    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), ['50f693843ceb2e44', '5af15b7c932e1e27', 'c499ac73612000db']],
+    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly' }) }), ['80ca1bf8963729c4', 'a331848f2c2bd5c4', 'af946a02d6dee4f2']],
+    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none' }) }), ['9284e50464c3a412', '00ab4889f9c168a6', '0e6eb7d4107141c3']],
   };
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {
@@ -467,19 +470,19 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // with the segment neck in its place the hero gives 5327a5ac4e4635a5 / e37584fef73693f7, the values before it.
     // Re-pinned for the female hair base (anime-head ANIME_HAIR_BASE: the lifted, thicker ridge-section form and the
     // side-parted cut) and her hair colour (#3b4859, layered.js ANIME_HERO_PALETTE): the hero as the door made it before
-    // them (beforeHairBase) gives 181621ea8ccaff0d / 52f574d5738e7642, the values before them, still.
+    // them (beforeHairBase) gives 996d63140c2c8f92 / c70c1f68db57186d, the values before them, still.
     // Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js ANIME_HERO_PALETTE, so her shade side parts from
-    // the World's backdrop): with #3b4859 passed as her operator palette she gives 117ca758714906c5 / 02fa6f106c288eec,
+    // the World's backdrop): with #3b4859 passed as her operator palette she gives 273c66c9558cca14 / 82226dddadb7a263,
     // the values before it, still.
     const spec = { cast: 'female', head: 'anime', gesture: 'rest', sculpt: false };
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
-    expect(h(await world(m, { unshaded: true }))).toBe('f3aec022ea5b2d63');
+    expect(h(await world(m, { unshaded: true }))).toBe('ea41b45ae2f53fcd');
     const off = await world({ ...m, toon: { light: false } });
-    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('437cd1cd36b08c58');
+    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('2c05de0b1d383565');
     const was = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ ...spec, palette: { Hair: '#3b4859' } }) });
-    expect(h(await world(was, { unshaded: true }))).toBe('117ca758714906c5'); expect(h(await world({ ...was, toon: { light: false } }))).toBe('02fa6f106c288eec');
+    expect(h(await world(was, { unshaded: true }))).toBe('273c66c9558cca14'); expect(h(await world({ ...was, toon: { light: false } }))).toBe('82226dddadb7a263');
     const before = beforeHairBase(spec);
-    expect(h(await world(before, { unshaded: true }))).toBe('181621ea8ccaff0d'); expect(h(await world({ ...before, toon: { light: false } }))).toBe('52f574d5738e7642');
+    expect(h(await world(before, { unshaded: true }))).toBe('996d63140c2c8f92'); expect(h(await world({ ...before, toon: { light: false } }))).toBe('c70c1f68db57186d');
     const lit = await world(m);
     expect(h(lit)).not.toBe('c07a8da432d22b96'); expect(lit.faces.length).toBeGreaterThan(off.faces.length);
     // the packed rig figure takes the same pieces (station-loft-rig characterRigParts): the skeleton and the clips
@@ -524,7 +527,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // ANIME_HAIR_BASE / the swept-back cut: the crown lift 0.12, the crest's tips laid onto the mass, the hairline lower) and
   // the graphic base (anime-sculpt GRAPHIC_BASE: the ear raised to span the eye level to the nose tip, the female's nose
   // line longer and hooked); the layers undone, the six values above are the ones before these. The hero before the hair
-  // bases, lit as before them, takes the top planes, the ear and the nose line too (79f4a138f0b7665a / 14b9902b9bf670f0;
+  // bases, lit as before them, takes the top planes, the ear and the nose line too (bf934d9e455fe93d / fa28e13ac632c3f8;
   // daac23168b144fc8 / 2afb8fb5408bc04f before them).
   // the hair's value design on the World's own faces: at the three-quarter view (the camera 45° off the front on the key's
   // side, 4° up, over the head), 65–85 % of the hair a viewer sees is on the lit side (its base tone or its highlight),
@@ -548,15 +551,15 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     }
   }, 60000);
   it('the anime hero default, pinned (female and male)', async () => {
-    const PINS = [['female', ['fadd5cfcbe0b26bc', '09732456856ee4db'], ['946d066c0c5eb8b0', 'aa2918adcb1feb6a'], ['9f588687155d2d9c', 'c2385d04f86b65f7']],
-      ['male', ['78207a6e4b9d75f2', 'c96602ab55f41c42'], ['3a924023f6c097d0', '786cabac18163b93'], ['6666f0edb34d1d33', 'bc7b9555a99784d8']]];
+    const PINS = [['female', ['6638d7faece840ed', 'c68d9dd2daf9c0a2'], ['97f568810e02d624', '48503d1cf2fbf351'], ['dd03f27f734e5ac1', '7232081e0d783020']],
+      ['male', ['15e57c4bc1d8a1f8', '8864f3e9d7b7c517'], ['0673f3eb6d1583e6', '29b93ac1aab62c1b'], ['43893c06763875ef', '7d7cba2a0afad84e']]];
     for (const [cast, pin, rest, studio] of PINS) {
       for (const [spec, [full, undone], label] of [[{}, pin, cast], [{ gesture: 'rest' }, rest, `${cast} at rest`], [{ sculpt: false }, studio, `${cast} on the studio's face`]]) {
         const payload = await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', ...spec }) }));
         expect(h(payload), label).toBe(full); expect(h(unlayered(payload)), `${label}, the layers undone`).toBe(undone);
       }
     }
-    for (const [cast, before] of [['female', '79f4a138f0b7665a'], ['male', '14b9902b9bf670f0']]) {
+    for (const [cast, before] of [['female', 'bf934d9e455fe93d'], ['male', 'fa28e13ac632c3f8']]) {
       const m = beforeHairBase({ cast, head: 'anime' });
       expect(h(unlayered(await world({ ...m, toon: { light: lightBefore } }))), `${cast} before the hair bases, the layers undone`).toBe(before);
     }

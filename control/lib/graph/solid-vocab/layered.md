@@ -314,6 +314,24 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.gesture` says the word, the support, the hand and forearm against the torso, bust, thighs, neck and head
   (`clearance`, millimetres past their rest overlap) and the free sole against the floor; past 5 mm it advises, as does
   `lean` or `stance` off rest beside a stand (the rig poses the rest joints, so the dial is posed twice).
+  THE GEAR. `gear: { right?, left?, back?, hip? }`, each slot an item's build words, the same an equipment item takes
+  (`{ item, style?, dials?, parts?, gem?, seed? }`, the equipment card): `gear: { right: { item: 'sword', style: 'dwarven' },
+  left: { item: 'shield', style: 'dwarven' } }`. Stored with the laws stamped; patch `/hero/gear/right/dials/stylize`.
+  Each item is placed by its sockets at true size (scaled with the figure's height) and held by its class: a blade
+  through the fist, its tip forward and down (a raised forearm carries it upright: the hand has no roll, so the rest
+  hold is the one the arm's swing reads best from); a staff or a bow near upright, its lower end just above the floor; a
+  shield along the forearm, its face outward; `back` across the shoulder blades (a blade hilt-up over the right
+  shoulder); `hip` at the left hip. The gear is rigid on its bone, so the stand, the clips, the preview and the skinned
+  GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says. The readout's `hero.gear` names each
+  slot's item, hold, bone, length (m) and share of the figure's height.
+  THE SWING. A swing word as the gesture: `chop`, `thrust`, `rising` (a low-to-high diagonal), `cleave` (two hands),
+  `plant` (a staff driven down) swing the `right` hand's gear; `bash` the `left` (a shield). The hero stands in the
+  swing's ready pose and the swing plays as its own looping clip (the World's clip picker, the skinned and engine
+  exports). The body drives it: the shoulders and spine coil at the cock and uncoil through the strike, the trunk hinges
+  over and the knees sink, both feet planted. The item sets the timing (law 8): a dagger strikes early from a small
+  cock, a greatsword (or a `mass` ≥ 1.2, or an item past three quarters of the figure) strikes late from a held, higher
+  cock. The readout's `hero.gear.<hand>.swing` gives the impact's phase, the contact `window`, `reachM` and `cone` for
+  a game's hit test. No bow draw yet: the hand has no wrist, so a bow raised to draw would point at the archer.
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
 - **Body detail and adornment as plan data** (any plan, not only a hero: `docs/examples/ring-plans/flask.plan.json` is a

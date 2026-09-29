@@ -34,7 +34,9 @@ import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP } from '@/lib/graph/polygonizer/hero-gesture';
-import { validateRig, bindLayered, packLayeredRig } from '@/lib/graph/polygonizer/station-loft-rig';
+import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from '@/lib/graph/polygonizer/station-loft-rig';
+import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
+import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { meshSource } from '@/lib/graph/polygonizer/stroke-resolve';
 import { silhouetteResidual } from '@/lib/graph/polygonizer/silhouette-solve';
 import { residualRuns } from '@/lib/graph/scene/channels/stroke-overlay';
@@ -545,8 +547,15 @@ export const WORLD_KINDS = {
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces, group: rigged ? 'body' : null, hairInk: !!ink })
         : layeredFaces(shown, m.recipe, { light, seat, group: rigged ? 'body' : null, ...(stand ? { dz: restDz } : {}) });
+      // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
+      // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
+      // the pack carries it). Absent ⇒ nothing here, byte-identical.
+      const gear = rig && m.hero?.gear ? gearMounts(m.hero, rig.R) : null;
+      const gearShown = gear?.length ? gearFaces(gear, { frames: stand ? boneFrames(rig.R, rig.R.joints, rigNodesAt(rig.R, stand).nodes) : null, light, dz: restDz, group: 'body' }) : null;
+      if (gearShown) faces.push(...gearShown);
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
+      if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark
       // A rigged recipe with clips also carries its packed rig figure (station-loft-rig.js): the skinned
       // glTF export (`export_model { clips, skinned }`) reads it, `embodies: 'body'` drops the static solid
       // from that export, and `preview` lets the World page play the clips over the hidden solid.
@@ -563,7 +572,7 @@ export const WORLD_KINDS = {
         // leaves the one-key clip out of its picker (played by rigidly moved parts it would only crack at the joints);
         // the clip stays in the pack for the skinned and engine exports.
         const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : null;
-        const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}) });
+        const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}) });
         const clips = Object.keys(m.recipe.clips).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       }
