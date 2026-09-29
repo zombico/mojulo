@@ -330,8 +330,9 @@ function notch(J, A, B, out) {
   const toA = (p) => toLocal(A.F, toWorld(B.F, p));
   const cA = (p) => dirLocal(A.F, dirWorld(B.F, p));
   A.subs.push(prism(toA([B.xMin - EPS, 0, 0]), toA([B.xMax + EPS, 0, 0]), rectCorners(cA(AXES.y), B.W / 2 + CLEAR, cA(AXES.z), B.D / 2 + CLEAR)));
+  // a seats onto b across it, or slides along b: the cut is b's whole section run along its length
   const n = m ? m.n : scl(A.F.ez, -1);
-  out.edges.push({ a: A.id, b: B.id, dirs: [n] });
+  out.edges.push({ a: A.id, b: B.id, dirs: [n, B.F.ex, scl(B.F.ex, -1)] });
   out.report.push({ joint: J.label, type: 'notch', a: A.id, b: B.id });
 }
 

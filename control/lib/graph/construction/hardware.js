@@ -14,6 +14,8 @@
 //   'cam-15', 'cam-bolt-15'                        eccentric cam connector and its bolt (maker drawings, `est`)
 //   'shelf-pin-5'                                  5 mm shelf support pin
 //   'bracket-L40' | 'bracket-L60'                  angle bracket, pressed steel, two screw holes a leg
+//   'hinge-35'                                     concealed cup hinge: ⌀35 cup in the door, arm, mounting plate (`est`)
+//   'slide-250' … 'slide-550'                      ball-bearing drawer slide, a pair of rails, 45 mm tall, 12.7 mm a side
 // Dimensions follow the standards' nominal values; a KD fitting follows one maker's published drawing and is marked
 // `est` (another maker's differs by a millimetre or two).
 //
@@ -132,6 +134,16 @@ export function hardwarePart(code) {
   if (code === 'shelf-pin-5') {
     return { code, family: 'shelf-pin', label: 'shelf pin ⌀5', d: 5, length: 16, into: 8, tab: [10, 6, 1.2], drive: null, material: 'brass', finish: 'nickel', massG: 2 };
   }
+  if (code === 'hinge-35') {
+    // the 35 mm cup sinks 13 mm into the door, its centre 21.5 mm from the door's edge; the plate sits on the side
+    // panel's inside face 37 mm back (the 32 mm system's line), held by two screws (est, after the common full-overlay
+    // clip hinge)
+    return { code, family: 'hinge', label: 'concealed hinge ⌀35', d: 35, length: 12.5, cup: { d: 35, depth: 13 }, edgeDist: 21.5, setback: 37, plate: [12, 50, 4], screw: 'wood-4x16', drive: 'PZ2', material: 'steel', finish: 'nickel', est: true, massG: 85 };
+  }
+  if ((m = /^slide-(250|300|350|400|450|500|550)$/.exec(code))) {
+    const L = +m[1];
+    return { code, family: 'slide', label: `drawer slide ${L}`, length: L, h: 45, t: 12.7, drive: 'PZ2', screw: 'wood-4x16', material: 'steel', finish: 'zinc', massG: Math.round(L * 1.4) };
+  }
   if ((m = /^bracket-L(40|60)$/.exec(code))) {
     const leg = +m[1], w = leg === 40 ? 16 : 20, t = leg === 40 ? 2 : 2.5;
     const holes = [leg * 0.35, leg * 0.75];
@@ -202,6 +214,32 @@ export function partPolys(part, { at, axis, spin } = {}) {
   }
   // `at` is the side panel's face: the pin runs `into` it along axis and stands proud of it as far again
   if (part.family === 'shelf-pin') return prismPolys(P(part.into), P(-part.into), ngon(ax, r(part.d), 10));
+  if (part.family === 'hinge') {
+    // `at` is the cup's centre on the door's back face, `axis` into the door; `spin` runs from `at` to the centre of the
+    // mounting plate on the side (its length is the arm's reach). The plate lies on the side along the depth.
+    const reach = spin || [0, 0, 0];
+    const plateAt = add(at, reach);
+    const up = unit([ax[1] * reach[2] - ax[2] * reach[1], ax[2] * reach[0] - ax[0] * reach[2], ax[0] * reach[1] - ax[1] * reach[0]]);
+    const out = [...prismPolys(P(part.cup.depth - 0.5), P(-1), ngon(ax, r(part.d), 16))];          // the cup, its rim proud 1 mm
+    const armFrom = add(at, scl(back, 4 * MM)), armTo = add(plateAt, scl(unit(reach), -0.004));
+    out.push(...prismPolys(armFrom, armTo, ngon(unit([armTo[0] - armFrom[0], armTo[1] - armFrom[1], armTo[2] - armFrom[2]]), 0.007, 4)));
+    const [pw, ph, pt] = part.plate.map((v) => v * MM);
+    const n = unit(reach), along = unit([up[1] * n[2] - up[2] * n[1], up[2] * n[0] - up[0] * n[2], up[0] * n[1] - up[1] * n[0]]);
+    const c = add(plateAt, scl(n, -pt / 2));
+    out.push(...boxPolys([0, 0, 0], [pw, ph, pt]).map(({ corners, n: nn }) => ({ corners: corners.map((p) => add(c, add(add(scl(along, p[0]), scl(up, p[1])), scl(n, p[2])))), n: add(add(scl(along, nn[0]), scl(up, nn[1])), scl(n, nn[2])) })));
+    return out;
+  }
+  if (part.family === 'slide') {
+    // `at` is the rail's front end on the cabinet side's inside face, `axis` into that side, `spin` along the rail
+    // (toward the back). Two nested rails: the cabinet member on the face, the drawer member beside it.
+    const e = unit(spin || across(ax)[0]); const up = unit([ax[1] * e[2] - ax[2] * e[1], ax[2] * e[0] - ax[0] * e[2], ax[0] * e[1] - ax[1] * e[0]]);
+    const L = part.length * MM, t = (part.t / 2) * MM;
+    const rail = (off, h, gap) => {
+      const c = add(at, add(scl(e, L / 2), scl(back, off + gap)));
+      return boxPolys([0, 0, 0], [L, h * MM, t]).map(({ corners, n: nn }) => ({ corners: corners.map((p) => add(c, add(add(scl(e, p[0]), scl(up, p[1])), scl(back, p[2])))), n: add(add(scl(e, nn[0]), scl(up, nn[1])), scl(back, nn[2])) }));
+    };
+    return [...rail(t / 2, part.h, 0), ...rail(t * 1.5, part.h * 0.78, 0.0003)];
+  }
   if (part.family === 'bracket') {
     // An inside corner between surface 1 (outward normal −axis) and surface 2 (outward normal `spin`): `at` is on the
     // corner line. Leg 1 lies on surface 1 running along `spin`; leg 2 lies on surface 2 running along −axis.
@@ -267,6 +305,7 @@ export function boreTerm(part, { at, axis, through = 0, material = 'softwood', e
     case 'cam': segs.push([-eps, part.bore.depth, part.bore.d]); break;
     case 'cam-bolt': segs.push([-eps, part.into + extra, 5]); break;
     case 'shelf-pin': segs.push([-eps, part.into + extra, part.d]); break;
+    case 'hinge': segs.push([-eps, part.cup.depth, part.cup.d]); break;
     default: return null;
   }
   // the meridian: radius against axial position, stepped where the hole changes; t ∈ [0, 1] over [sMin, sMax]

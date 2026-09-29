@@ -3,9 +3,11 @@
 // unchanged.
 //
 //   · tip-over: the centre of mass (every member's volume × density, and the hardware) against the footprint it stands
-//     on; and a scenario for anything tall and narrow — taller than 686 mm (ASTM F2057's 27 in) and at least one and a
+//     on; and a scenario for tall, narrow storage (a sheet side or back standing most of its height) — taller than 686 mm (ASTM F2057's 27 in) and at least one and a
 //     half times as tall as it is deep: a child (22.7 kg, the standard's 50 lb) pulling forward with a third of their
-//     weight at up to 1.2 m. Tipping stamps "fix it to the wall".
+//     weight at up to 1.2 m. A piece with drawers (members grouped and on slides) taller than 686 mm is also checked
+//     the way ASTM F2057-23 loads a chest: every drawer out two-thirds of its depth and the child's weight on the front
+//     of the highest one. Tipping stamps "fix it to the wall".
 //   · racking: in each upright plane (sideways x–z, front to back y–z), something must keep the corners square — a
 //     panel lying in that plane fastened along two or more of its edges (a side, a fixed back), or two or more
 //     moment-rigid joints between members in it (a table's aprons in their legs, a bracket). Knock-down fittings
@@ -117,11 +119,31 @@ export function furnitureReport({ members, joints: J, drawn }) {
   const H = hull(feet);
   const standing = insideMargin(H, [com[0], com[1]]);
   let pull = null;
-  if (height > CHILD.scopeM && height >= 1.5 * (hi[1] - lo[1])) {
+  // storage — a side or back panel standing most of the height — that is tall and narrow
+  const storage = members.some((M) => { const b = boxes.get(M.id); const thin = b.size.indexOf(Math.min(...b.size)); return thin !== 2 && b.size[2] >= 0.6 * height && isSheet(M.material); });
+  if (storage && height > CHILD.scopeM && height >= 1.5 * (hi[1] - lo[1])) {
     const front = Math.min(...H.map((q) => q[1]));                           // tipping about the front edge (front is −y)
     const F = CHILD.kg * CHILD.pullShare * G, h = Math.min(height, CHILD.reach);
     const over = F * h, restore = kg * G * (com[1] - front);
     pull = { forceN: r1(F), heightMm: mm(h), overturnNm: r1(over), restoreNm: r1(restore), tips: over > restore };
+  }
+  // ── drawers out (after ASTM F2057-23): every drawer two-thirds out, a child's weight on the highest one's front
+  let drawers = null;
+  const onSlides = new Set(J.report.filter((r) => r.type === 'slide').map((r) => r.a));
+  const drawerGroups = new Set(members.filter((M) => M.group && onSlides.has(M.id)).map((M) => M.group));
+  if (drawerGroups.size && height > CHILD.scopeM && H.length >= 3) {
+    const front = Math.min(...H.map((q) => q[1]));
+    const groupBox = (g) => { const bs = members.filter((M) => M.group === g).map((M) => boxes.get(M.id)); return { lo: [0, 1, 2].map((k) => Math.min(...bs.map((b) => b.lo[k]))), hi: [0, 1, 2].map((k) => Math.max(...bs.map((b) => b.hi[k]))) }; };
+    // out two-thirds of the slide's travel (the box's depth when no catalog slide says)
+    const slideOf = new Map(J.report.filter((r) => r.type === 'slide').map((r) => [members.find((M) => M.id === r.a).group, hardwarePart(r.slide)]));
+    const ext = new Map([...drawerGroups].map((g) => { const s = slideOf.get(g); const b = groupBox(g); return [g, (2 / 3) * (s ? s.length / 1000 : b.hi[1] - b.lo[1])]; }));
+    let moment = 0;                                                        // N·m about the front edge; positive holds it down
+    for (const M of members) { const b = boxes.get(M.id); const y = b.c[1] - (M.group && ext.has(M.group) ? ext.get(M.group) : 0); moment += memberKg(M) * G * (y - front); }
+    for (const p of drawn) if (Number.isFinite(p.massG)) { const hb = boxes.get(p.host.id); const Mh = members.find((M) => M.id === p.host.id); const y = hb.c[1] - (Mh && Mh.group && ext.has(Mh.group) ? ext.get(Mh.group) : 0); moment += (p.massG / 1000) * G * (y - front); }
+    const top = [...drawerGroups].sort((x, y) => groupBox(y).hi[2] - groupBox(x).hi[2])[0];
+    const yChild = groupBox(top).lo[1] - ext.get(top);
+    moment += CHILD.kg * G * (yChild - front);
+    drawers = { count: drawerGroups.size, outMm: mm(Math.max(...ext.values())), childKg: CHILD.kg, onDrawer: top, netNm: r1(moment), tips: moment < 0 };
   }
   // ── racking
   const jointList = J.report.filter((r) => r.b !== undefined);
@@ -167,7 +189,7 @@ export function furnitureReport({ members, joints: J, drawn }) {
     for (const f of r.fasteners || []) {
       const P = hardwarePart(f.code); if (!P) continue;
       if (f.pokeMm > 0) flags.push({ joint: r.joint, code: f.code, issue: 'pokes', mm: f.pokeMm, into: f.into });
-      if (P.family === 'wood-screw' && f.intoEdge && (f.material === 'particleboard' || f.material === 'mdf')) flags.push({ joint: r.joint, code: f.code, issue: 'edge-screw', into: f.into, material: f.material });
+      if (P.family === 'wood-screw' && f.intoEdge && !(f.throughMm <= 6) && (f.material === 'particleboard' || f.material === 'mdf')) flags.push({ joint: r.joint, code: f.code, issue: 'edge-screw', into: f.into, material: f.material });
       if (P.family === 'wood-screw' && f.penMm !== undefined && f.penMm < Math.max(4 * P.d, 12)) flags.push({ joint: r.joint, code: f.code, issue: 'short', mm: f.penMm, needMm: Math.max(4 * P.d, 12) });
       if (P.family === 'confirmat' && f.penMm !== undefined && f.penMm < 30) flags.push({ joint: r.joint, code: f.code, issue: 'short', mm: f.penMm, needMm: 30 });
       if (f.edgeMm !== undefined && f.edgeMm < 2.5 && f.intoEdge) flags.push({ joint: r.joint, code: f.code, issue: 'near-face', mm: f.edgeMm, into: f.into });
@@ -195,7 +217,7 @@ export function furnitureReport({ members, joints: J, drawn }) {
   const carton = [Math.max(...flatDims.map((d) => d[0])), Math.max(...flatDims.map((d) => d[1])), flatDims.reduce((s, d) => s + d[2], 0) + (hardware.length ? 20 : 0)];
   return {
     massKg: r1(kg), hardwareKg: r1(hwKg), comMm: com.map(mm), sizeMm: [0, 1, 2].map((k) => mm(hi[k] - lo[k])),
-    tip: { standingMarginMm: mm(standing), ...(pull ? { pull } : {}) },
+    tip: { standingMarginMm: mm(standing), ...(pull ? { pull } : {}), ...(drawers ? { drawers } : {}) },
     racking, interference, fasteners: flags, hardware, tools, cutList, cartonMm: carton,
   };
 }
@@ -205,6 +227,7 @@ export function furnitureStamps(f, label) {
   const out = [];
   if (f.tip.standingMarginMm < 0) out.push(`${label}: falls over as it stands — its centre of mass is ${-f.tip.standingMarginMm} mm outside its footprint`);
   else if (f.tip.pull && f.tip.pull.tips) out.push(`${label}: tips forward if a child pulls on it (${f.tip.pull.forceN} N at ${f.tip.pull.heightMm} mm turns it over ${f.tip.pull.overturnNm} N·m against ${f.tip.pull.restoreNm}; an advisory scenario after ASTM F2057) — fix it to the wall`);
+  if (f.tip.drawers && f.tip.drawers.tips) out.push(`${label}: tips forward with its ${f.tip.drawers.count} drawer${f.tip.drawers.count > 1 ? 's' : ''} out ${f.tip.drawers.outMm} mm and a child's ${f.tip.drawers.childKg} kg on ${f.tip.drawers.onDrawer} (net ${f.tip.drawers.netNm} N·m; after ASTM F2057-23) — fix it to the wall`);
   for (const r of f.racking) if (!r.resisted) out.push(`${label}: racks ${r.plane}: nothing keeps its corners square in that plane — fix a back (in a groove, screwed or nailed) or add a brace or bracket`);
   for (const i of f.interference) {
     if (i.tenons) out.push(`${label}: the tenons of ${i.a} and ${i.b} collide (${i.overlapMm.join(' × ')} mm) inside the member they share — shorten them (\`depth\`) or mitre their ends`);

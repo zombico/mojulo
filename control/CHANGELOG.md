@@ -28,22 +28,30 @@ connected-service and app loops and the recipe format are the stable surface.
   shelf pins, a housing (dado) and a back captured in its grooves. A joint finds which part's edge meets which part's
   face, places its fittings 37 mm in from each end, cuts the holes each fitting asks for, and records how firmly it
   holds its corner; `glue` makes a fastened joint rigid. A mortise and tenon takes a `depth`.
+- **Pieces from a few dials.** `build: { type: 'carcass' | 'table' | 'chair', … }` writes a piece's members and joints
+  (and reports them, to copy and edit): a knock-down carcass with its plinth, grooved or nailed back, fixed and
+  adjustable shelves, a partition when it is wide, doors on concealed hinges and drawers built as boxes on
+  ball-bearing slides; a table whose tenons stop short of each other in its legs, its top on brackets; a chair with a
+  mortise-and-tenon frame and a notched seat. Doors (`hinge`), drawer slides (`slide`) and parts built together first
+  (`group`) are available to hand-written frames too.
 - **Furniture that stands.** A piece is checked where furniture fails, and never refused:
   - shelf sag under a load of books, now (span/600) and as it creeps (span/300);
   - racking: a carcass with no fixed back folds sideways;
-  - tipping over: standing, and a child pulling on anything tall and narrow ("fix it to the wall");
+  - tipping over: standing, a child pulling on tall, narrow storage, and every drawer two-thirds out with a child's
+    weight on the highest one (after ASTM F2057-23) — "fix it to the wall";
   - fasteners that poke through, bite too little, or go into a particleboard edge as a plain screw;
   - parts that overlap, and tenons that collide inside a leg.
 
   The report also gives the piece's mass, its hardware list and tools, a cut list nested onto standard sheets and the
-  flat-pack carton. A piece that cannot go together one part at a time is built in sub-assemblies (a table's end
-  frame), and the report says which.
+  flat-pack carton. A piece's assembly order is found by taking it apart, which is fast for large pieces; one that
+  cannot go together one part at a time is built in sub-assemblies (a table's end frame, a drawer), and the report
+  says which. A notch now also lets a part slide along the member it is notched round.
 
 ### Fasteners
 
 - **A catalog of standard parts.** `construction/hardware.js` holds hex, socket, button and countersunk bolts, nuts and
-  nylocs, plain and large washers, wood and chipboard screws, confirmats, dowels, cam locks and their bolts, shelf pins
-  and angle brackets, sized from their standards (ISO for the metric parts; one maker's drawings, marked as estimates,
+  nylocs, plain and large washers, wood and chipboard screws, confirmats, dowels, cam locks and their bolts, shelf pins,
+  angle brackets, concealed cup hinges and ball-bearing drawer slides, sized from their standards (ISO for the metric parts; one maker's drawings, marked as estimates,
   for the knock-down fittings). Each part knows its code, drive (and so its tool), mass and finish, and the hole it
   asks for in what it passes through: clearance, a pilot for what it bites into, countersink, cam bore. Joints name a
   part and cut that hole. A bolt's length is the shortest standard one that leaves two threads past its nut.
@@ -56,7 +64,8 @@ connected-service and app loops and the recipe format are the stable surface.
   black-and-white A4 pages:
   - a cover with the finished piece, its carton, mass and tools;
   - an inventory with every part numbered and sized, and every fitting drawn at true scale beside a 10 mm check bar;
-  - one page per step. Fittings seated before assembly get their own steps (×2 for identical parts), then the parts
+  - one page per step. Fittings seated before assembly get their own steps (×2 for identical parts; four identical
+    drawers are built once, ×4, and slid in together), then the parts
     go on in the order they seat, pulled back along the way they go in, with motion lines, part numbers, hardware
     letters and counts, a turn arrow on each cam and a magnified detail. A piece that tips ends with fixing it to the
     wall.

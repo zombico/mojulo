@@ -25,11 +25,12 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const axisVec = (k, s = 1) => { const v = [0, 0, 0]; v[k] = s; return v; };
 const r1 = (v) => Math.round(v * 10) / 10;
 
-export const FURNITURE_JOINTS = Object.freeze(['dowel', 'cam-lock', 'confirmat', 'screwed', 'shelf-pin', 'bracket', 'dado', 'groove']);
+export const FURNITURE_JOINTS = Object.freeze(['dowel', 'cam-lock', 'confirmat', 'screwed', 'shelf-pin', 'bracket', 'dado', 'groove', 'hinge', 'slide']);
 export const RIGIDITY = Object.freeze({
   'mortise-tenon': 'moment', hozo: 'pin', nuki: 'moment', 'kanawa-tsugi': 'moment', lap: 'moment', notch: 'pin',
   welded: 'moment', bolted: 'moment', 'base-plate': 'moment',
   dowel: 'pin', 'cam-lock': 'pin', confirmat: 'pin', screwed: 'pin', 'shelf-pin': 'none', bracket: 'moment', dado: 'pin', groove: 'shear',
+  hinge: 'none', slide: 'none',
 });
 
 /** A member's world box (metres): { lo, hi, c, size }. */
@@ -109,10 +110,10 @@ const L = (M, p) => toLocal(M.F, p);
 const Ld = (M, v) => [dot(v, M.F.ex), dot(v, M.F.ey), dot(v, M.F.ez)];
 
 /** Place part `code` at world `at` along world `axis`, seated in `host` → a piece; cut its bore from `cuts` members. */
-function place(out, J, { code, part, at, axis, host, cuts = [], through = 0, material, idx, pre, needs }) {
+function place(out, J, { code, part, at, axis, spin, host, cuts = [], through = 0, material, idx, pre, needs }) {
   const P = part || hardwarePart(code);
   const id = `${J.label}:${P.family}${idx !== undefined ? idx + 1 : ''}`;
-  out.pieces.push({ id, kind: P.family, host, material: 'hardware', finish: P.finish, code: P.code, massG: P.massG, polys: partPolys(P, { at: L(host, at), axis: Ld(host, axis) }), ...(pre ? { pre } : {}) });
+  out.pieces.push({ id, kind: P.family, host, material: 'hardware', finish: P.finish, code: P.code, massG: P.massG, polys: partPolys(P, { at: L(host, at), axis: Ld(host, axis), ...(spin ? { spin: Ld(host, spin) } : {}) }), ...(pre ? { pre } : {}) });
   for (const M of cuts) {
     const t = boreTerm(P, { at: L(M, at), axis: Ld(M, axis), through, material: material || materialClass(M) });
     if (t) M.subs.push(t);
@@ -204,10 +205,12 @@ function screwJoint(J, A, B, out, kind) {
   if (!code) {
     if (kind === 'confirmat') code = tF <= 19 ? 'confirmat-7x50' : 'confirmat-7x70';
     else {
-      const d = tF <= 6 ? 3.5 : 4;
-      const need = tF + Math.max(5 * d, 12);
-      const Ls = [16, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80];
-      code = `wood-${d}x${Ls.find((l) => l >= need) || 80}`;
+      // long enough to bite 5 diameters (4 at least, and 12 mm), never so long it comes out of the far side of a
+      // face-to-face; a thinner screw before a short one
+      const cap = intoEdge ? Infinity : tF + c.eb.size[c.k] * 1000 - 3;
+      const Ls = [16, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80].filter((l) => l <= cap);
+      const pick = (want) => { for (const d of tF <= 6 ? [3.5, 3] : [4, 3.5, 3]) { const L = Ls.find((l) => l >= tF + Math.max(want * d, 12)); if (L) return `wood-${d}x${L}`; } return null; };
+      code = pick(5) || pick(4) || `wood-3x${Ls[Ls.length - 1] || 16}`;
     }
   }
   const P = hardwarePart(code);
@@ -248,7 +251,8 @@ function bracketJoint(J, A, B, out) {
   const faceAt = m[mk] > 0 ? c.eb.hi[mk] : c.eb.lo[mk];
   const halfW = (P.width / 2) * MM;
   const pos = fittingPositions(c.runLo + halfW, c.runHi - halfW, { inset: 0.06, spacing: J.spacing ? J.spacing * MM : 0.6 });
-  const screw = hardwarePart(P.screw);
+  // each leg's screw: the catalog's, or shorter where it would come out of the far side of a thin part
+  const screwFor = (thickMm) => { const s0 = hardwarePart(P.screw); if (s0.length - P.t <= thickMm - 3) return s0; const L = [10, 12, 14, 16, 20].filter((l) => l - P.t <= thickMm - 3).pop() || 10; return hardwarePart(`wood-3x${L}`); };
   const rows = [];
   pos.forEach((rho, i) => {
     const at = c.point(rho, 0); at[mk] = faceAt;
@@ -258,6 +262,7 @@ function bracketJoint(J, A, B, out) {
     out.pieces[out.pieces.length - 1].polys = partPolys(P, { at: L(c.E, at), axis: Ld(c.E, axis), spin: Ld(c.E, m) });
     bracketHoles(P, { at, axis, spin: m }).forEach((h, j) => {
       const into = h.leg === 1 ? c.F : c.E;
+      const screw = screwFor(worldBox(into).size[h.leg === 1 ? c.k : mk] * 1000);
       place(out, J, { part: screw, at: h.at, axis: h.axis, host: into, cuts: [into], idx: i * 4 + j });
       rows.push({ code: screw.code, into: into.id, material: materialClass(into), intoEdge: false, penMm: r1(screw.length - P.t), pokeMm: r1(Math.max(0, screw.length - P.t - worldBox(into).size[h.leg === 1 ? c.k : mk] * 1000)) });
     });
@@ -313,6 +318,58 @@ function grooveJoint(J, A, B, out) {
   out.report.push({ joint: J.label, type: 'groove', a: A.id, b: B.id, widthMm: r1((a.size[thin] + 0.0006) * 1000), depthMm: r1((hi[depthAx] - lo[depthAx]) * 1000), rigidity: rigidityOf(J) });
 }
 
+/**
+ * A door on a side: a concealed cup hinge 100 mm from each end of the door (more on a tall door: 3 past 900 mm, 4 past
+ * 1600, 5 past 2000), the cup 21.5 mm in from the door's edge on the hinge side, the plate on the side's inside face
+ * 37 mm back. a is the door, b the side it hangs on; the door clips on toward the side.
+ */
+function hingeJoint(J, A, B, out) {
+  const c = contact({ ...J, through: 'a' }, A, B);                  // the door's face on the side's front edge
+  const P = hardwarePart('hinge-35'); const screw = hardwarePart(P.screw);
+  const door = c.fb, side = c.eb;
+  const H = door.size[2], Hmm = H * 1000;
+  const n = Hmm > 2000 ? 5 : Hmm > 1600 ? 4 : Hmm > 900 ? 3 : 2;
+  const zs = Array.from({ length: n }, (_, i) => door.lo[2] + 0.1 + ((H - 0.2) * i) / (n - 1));
+  // the hinge edge: the door's edge over this side; the cup sits inward from it, the plate on the side's inner face
+  const toward = Math.sign(door.c[0] - side.c[0]) || 1;               // from the side toward the door's middle
+  const edgeX = toward > 0 ? door.lo[0] : door.hi[0];
+  const innerX = toward > 0 ? side.hi[0] : side.lo[0];
+  const rows = [];
+  zs.forEach((z, i) => {
+    const cup = [0, 0, 0]; cup[0] = edgeX + toward * P.edgeDist * MM; cup[c.k] = c.plane; cup[2] = z;
+    const plate = [innerX, c.plane + c.s * P.setback * MM, z];
+    const spin = [plate[0] - cup[0], plate[1] - cup[1], plate[2] - cup[2]];
+    place(out, J, { part: P, at: cup, axis: scl(c.n, -1), spin, host: c.F, cuts: [c.F], idx: i });
+    for (const [j, dz] of [[0, -0.016], [1, 0.016]]) {
+      place(out, J, { part: screw, at: [innerX, plate[1], z + dz], axis: [-toward, 0, 0], host: c.E, cuts: [c.E], idx: i * 2 + j, needs: [c.E.id, c.F.id] });
+      rows.push({ code: screw.code, into: c.E.id, material: materialClass(c.E), intoEdge: false, penMm: screw.length, pokeMm: r1(Math.max(0, screw.length - side.size[0] * 1000)) });
+    }
+  });
+  out.edges.push({ a: c.F.id, b: c.E.id, dirs: [c.n], bears: false });
+  out.report.push({ joint: J.label, type: 'hinge', a: A.id, b: B.id, hinges: n, fasteners: summarize([...zs.map(() => ({ code: P.code })), ...rows]), rigidity: rigidityOf(J) });
+}
+
+/**
+ * A drawer runs on a ball-bearing slide: a is the drawer's side, b the carcass side beside it, 12.7 mm apart (the
+ * slide's thickness). The slide is the longest standard one that fits the drawer's depth; the drawer slides in from
+ * the front.
+ */
+function slideJoint(J, A, B, out) {
+  const a = worldBox(A), b = worldBox(B);
+  const gap = Math.max(a.lo[0] - b.hi[0], b.lo[0] - a.hi[0]);
+  if (!(gap > 0.005 && gap < 0.03)) throw new Error(`joint ${J.label}: a drawer side runs 12.7 mm from the carcass side it slides on — ${A.id} is ${r1(gap * 1000)} mm from ${B.id}`);
+  const depth = a.size[1] * 1000;
+  const Ls = [250, 300, 350, 400, 450, 500, 550];
+  const len = J.length || [...Ls].reverse().find((l) => l <= depth) || 250;
+  const P = hardwarePart(`slide-${len}`);
+  const toward = Math.sign(a.c[0] - b.c[0]);
+  const faceX = toward > 0 ? b.hi[0] : b.lo[0];
+  const at = [faceX, a.lo[1] + 0.002, a.c[2]];
+  place(out, J, { part: P, at, axis: [-toward, 0, 0], spin: [0, 1, 0], host: B, needs: [B.id], pre: B.id });
+  out.edges.push({ a: A.id, b: B.id, dirs: [[0, 1, 0]], bears: false });
+  out.report.push({ joint: J.label, type: 'slide', a: A.id, b: B.id, slide: P.code, gapMm: r1(gap * 1000), ...(Math.abs(gap * 1000 - P.t) > 1 ? { advice: `the slide wants ${P.t} mm; the drawer side is ${r1(gap * 1000)} mm off the carcass` } : {}), fasteners: [{ code: P.code, count: 1 }], rigidity: rigidityOf(J) });
+}
+
 /** A world-axis-aligned box (lo, hi) as a box term in M's local frame (M is axis-aligned). */
 function localBox(M, lo, hi) {
   const a = L(M, lo), b = L(M, hi);
@@ -348,6 +405,8 @@ export function applyFurnitureJoint(J, A, B, out) {
     case 'bracket': return bracketJoint(J, A, B, out);
     case 'dado': return dadoJoint(J, A, B, out);
     case 'groove': return grooveJoint(J, A, B, out);
+    case 'hinge': return hingeJoint(J, A, B, out);
+    case 'slide': return slideJoint(J, A, B, out);
     default: throw new Error(`unknown furniture joint '${J.type}'`);
   }
 }

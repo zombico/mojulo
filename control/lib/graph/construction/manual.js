@@ -72,14 +72,22 @@ export function manualPlan(spec) {
     const ts = camsReady(have); ts.forEach((p) => turned.add(p.id));
     steps.push({ kind: 'join', base: [...base], adds, dir, pieces: ps.map((p) => p.id), turns: ts.map((p) => p.id), ...extra });
   };
+  // identical sub-assemblies (four drawers) are built once, ×N; each still joins the rest
+  const subSig = (sa) => sa.parts.map((m) => numberOf.get(m)).join(',');
+  const subCount = new Map(); for (const sa of subs) subCount.set(subSig(sa), (subCount.get(subSig(sa)) || 0) + 1);
+  const subBuilt = new Set();
   for (let i = 0; i < order.length; i++) {
     const id = order[i];
     if (!placed.size) { placed.add(id); continue; }
     if (subOf.has(id)) {
-      const sa = subs[subOf.get(id)];
+      const sa = subs[subOf.get(id)]; const sig = subSig(sa);
       const inSub = new Set([sa.parts[0]]);
-      for (const m of sa.parts.slice(1)) { join([...inSub], [m], seat[m], { sub: subOf.get(id) }); inSub.add(m); }
-      join([...placed], sa.parts, sa.dir, { group: true });
+      for (const m of sa.parts.slice(1)) {
+        if (subBuilt.has(sig)) { ready(new Set([...inSub, m])).forEach((p) => done.add(p.id)); inSub.add(m); continue; }
+        join([...inSub], [m], seat[m], { sub: subOf.get(id), times: subCount.get(sig) }); inSub.add(m);
+      }
+      subBuilt.add(sig);
+      join([...placed], sa.parts, sa.dir, { group: true, groupSig: sig });
       sa.parts.forEach((m) => placed.add(m)); i += sa.parts.length - 1; continue;
     }
     // a part joined to nothing placed yet (a second post) just stands: it appears at rest in the next step
@@ -90,13 +98,18 @@ export function manualPlan(spec) {
   const merged = [];
   for (const s of steps) {
     const last = merged[merged.length - 1];
+    // identical sub-assemblies going in the same way go in on one step (the drawers slide in together)
+    if (last && s.group && last.group && last.groupSig === s.groupSig && dirEq(last.dir, s.dir)) {
+      last.adds.push(...s.adds); last.pieces.push(...s.pieces); last.turns.push(...s.turns); last.times = (last.times || 1) + 1; continue;
+    }
     const same = last && last.kind === 'join' && s.kind === 'join' && !last.group && !s.group && last.sub === s.sub && last.dir && s.dir && last.adds.length < 3
       && Math.abs(last.dir[0] * s.dir[0] + last.dir[1] * s.dir[1] + last.dir[2] * s.dir[2] - 1) < 1e-6
       && s.base.every((m) => last.base.includes(m) || last.adds.includes(m)) && !s.adds.some((m) => joinsAny(report, m, last.adds));
     if (same) { last.adds.push(...s.adds); last.pieces.push(...s.pieces); last.turns.push(...s.turns); }
     else merged.push({ ...s, adds: s.adds ? [...s.adds] : undefined, pieces: [...s.pieces], turns: [...(s.turns || [])] });
   }
-  if (report.furniture && report.furniture.tip && report.furniture.tip.pull && report.furniture.tip.pull.tips) merged.push({ kind: 'anchor', pieces: [], turns: [] });
+  const tip = report.furniture && report.furniture.tip;
+  if (tip && ((tip.pull && tip.pull.tips) || (tip.drawers && tip.drawers.tips))) merged.push({ kind: 'anchor', pieces: [], turns: [] });
   merged.forEach((s, i) => { s.n = i + 1; });
   // hardware letters in order of first use
   const codeOf = new Map(parts.filter((p) => p.code).map((p) => [p.id, p.code]));
@@ -111,6 +124,7 @@ export function manualPlan(spec) {
   const tools = [...new Map(hardware.map((h) => toolOf(hardwarePart(h.code))).filter(Boolean).map((t) => [t.key, t])).values()];
   return { id: spec.id || 'frame', unit: spec.unit || 'cm', steps: merged, parts: partsList, numberOf, hardware, letters, codeOf, tools, low };
 }
+const dirEq = (a, b) => a && b && Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - 1) < 1e-6;
 const joinsAny = (report, m, others) => report.joints.some((j) => (j.a === m && others.includes(j.b)) || (j.b === m && others.includes(j.a)));
 
 // ── drawing ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -177,11 +191,17 @@ function stepPage(plan, s, groups, wholeCam, mmPerUnit) {
     const baseSet = new Set(s.base), adds = s.adds || [];
     for (const id of s.base) { draw.push(...(groups.get(id) || [])); for (const pid of preOf(id)) draw.push(...(groups.get(pid) || [])); }
     for (const pid of placedPieces) { const p = partById.get(pid); if (p.needs.every((m) => baseSet.has(m))) draw.push(...(groups.get(pid) || [])); }
-    const off = scl(s.dir || [0, 0, 1], -pull(adds));
+    // a sub-assembly going in as one (a drawer) gets one motion line and no numbers: it was built on the pages before
+    const off = scl(s.dir || [0, 0, 1], -(s.group ? pull(adds.slice(0, Math.max(1, adds.length / (s.times || 1)))) : pull(adds)));
     for (const id of adds) {
       draw.push(...moved(groups.get(id) || [], off)); for (const pid of preOf(id)) draw.push(...moved(groups.get(pid) || [], off));
+      if (s.group) continue;
       const b = bounds(groups.get(id)); motions.push([add(b.c, off), b.c]);
-      tags.push({ kind: 'part', n: plan.numberOf.get(id), at: add(b.c, off) });
+      tags.push({ kind: 'part', n: plan.numberOf.get(id), at: add(b.c, off), ...(s.sub !== undefined && s.times > 1 && id === adds[0] ? { times: s.times } : {}) });
+    }
+    if (s.group) {
+      const per = adds.length / (s.times || 1);
+      for (let g = 0; g < (s.times || 1); g++) { const b = bounds(adds.slice(g * per, (g + 1) * per).flatMap((id) => groups.get(id) || [])); motions.push([add(b.c, off), b.c]); }
     }
     for (const pid of s.pieces) {
       const p = partById.get(pid); const hostOff = adds.includes(p.host) ? off : [0, 0, 0];
@@ -193,6 +213,8 @@ function stepPage(plan, s, groups, wholeCam, mmPerUnit) {
   } else {
     for (const g of groups.values()) draw.push(...g);
   }
+  // a sub-assembly built on its own is framed on itself, not where it will end up in the piece
+  if (s.kind === 'join' && s.sub !== undefined && draw.length) cam = fitCamera(draw.flatMap((f) => f.corners), { x: 20, y: 60, w: 170, h: 200 });
   // ── ink
   let body = inkRuns(draw, cam);
   body += motions.map(([a, b]) => { const p = P(cam, a), q = P(cam, b); return `<line x1="${r2(p[0])}" y1="${r2(p[1])}" x2="${r2(q[0])}" y2="${r2(q[1])}" stroke="${INK}" stroke-width="0.25" stroke-dasharray="1.6 1.2"/>`; }).join('');
@@ -209,7 +231,7 @@ function stepPage(plan, s, groups, wholeCam, mmPerUnit) {
   body += text(14, 30, String(s.n), 22, 'start', 700);
   const used = new Map();
   for (const pid of s.pieces) { const c = plan.codeOf.get(pid); if (c) used.set(c, (used.get(c) || 0) + 1); }
-  if (s.kind === 'fit') for (const [c, k] of used) used.set(c, k * s.times);
+  if (s.kind === 'fit' || (s.sub !== undefined && s.times > 1)) for (const [c, k] of used) used.set(c, k * s.times);
   let x = 196;
   for (const [code, k] of [...used.entries()].reverse()) {
     x -= 26; body += `<rect x="${x}" y="12" width="24" height="18" fill="none" stroke="${INK}" stroke-width="0.3" rx="1.5"/>` + circle(x + 6, 21, 3.4, plan.letters.get(code), { size: 3.8 }) + text(x + 11.5, 22.6, `×${k}`, 4.2, 'start', 700);

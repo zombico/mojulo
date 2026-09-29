@@ -136,10 +136,11 @@ describe('construction/furniture — checks that stamp, never refuse', () => {
     expect(f.fasteners).toEqual([]);
     expect(f.interference).toEqual([]);
   });
-  it('finds the order a carcass goes together in: one side, the panels, the back, the other side, the loose shelf', () => {
+  it('finds the order a carcass goes together in: one side, the panels and the back, the other side, the loose shelf', () => {
     const { report } = lowerFrame(bookcase);
     const members = report.assembly.order.filter((id) => report.members.some((m) => m.id === id));
-    expect(members).toEqual(['side-l', 'top', 'bottom', 'plinth', 'shelf', 'back', 'side-r', 'shelf-a']);
+    // taken apart greedily and reversed: the back slides into the side's and top's grooves before the bottom closes it
+    expect(members).toEqual(['side-l', 'top', 'back', 'bottom', 'plinth', 'shelf', 'side-r', 'shelf-a']);
   });
   it('racks without a back, and holds square with one', () => {
     expect(lowerFrame(bookcase).report.furniture.racking).toEqual([{ plane: 'sideways (x–z)', resisted: true, by: 'panel back' }, { plane: 'front to back (y–z)', resisted: true, by: 'panel side-l' }]);

@@ -105,10 +105,11 @@ function bestDir(cs) {
 }
 
 /**
- * assemblyOrder(ids, edges, { tolerance }) → { order: [ids] | null, lock: { member, spreadDeg, dirs } | null }
+ * assemblyOrder(ids, edges, { tolerance, connected }) → { order: [ids] | null, lock: { member, spreadDeg, dirs } | null }
  * `edges`: [{ a, b, dirs: [unit world vectors a may move along relative to b], piece?, needs? }].
  */
-export function assemblyOrder(ids, edges, { tolerance = 8 } = {}) {
+export function assemblyOrder(ids, edges, { tolerance = 8, connected = false } = {}) {
+  if (connected) return disassemblyOrder(ids, edges, { tolerance });
   const cosTol = Math.cos((tolerance * Math.PI) / 180);
   const pieces = new Set(edges.filter((e) => e.piece).map((e) => e.a));
   const members = ids.filter((id) => !pieces.has(id));
@@ -133,7 +134,10 @@ export function assemblyOrder(ids, edges, { tolerance = 8 } = {}) {
     const key = [...placed].sort().join('|');
     if (seen.has(key)) return false;
     seen.add(key);
-    for (const m of members) {
+    // `connected`: try the members joined to what is placed first, so the build grows from one part as a builder's does
+    const touches = (m) => edges.some((e) => !e.piece && ((e.a === m && placed.has(e.b)) || (e.b === m && placed.has(e.a))));
+    const cands = connected && placed.size ? [...members.filter(touches), ...members.filter((m) => !touches(m))] : members;
+    for (const m of cands) {
       if (placed.has(m)) continue;
       const s = spread(constraints(m, placed));
       if (s > tolDeg) { if (!lock || s < lock.spreadDeg) lock = { member: m, spreadDeg: Math.round(s), after: [...placed] }; continue; }
@@ -172,14 +176,104 @@ export function assemblyOrder(ids, edges, { tolerance = 8 } = {}) {
 }
 
 /**
+ * disassemblyOrder(ids, edges, { tolerance }) → the same shape as assemblyOrder, found by taking the piece APART.
+ * A member that can slide out of a set can still slide out of any smaller set holding it (fewer joints, fewer
+ * directions to agree), so removing any member that can come out never closes off a way the rest comes apart: a
+ * greedy disassembly finds an order whenever one exists, in polynomial time, and reversed it is the build. Among the
+ * members that can come out, one whose going leaves the rest in one piece, then the one with the fewest joints left,
+ * then the last listed — so the first-listed part is the one the build starts from. Used for furniture, where frames
+ * run to dozens of parts.
+ */
+function disassemblyOrder(ids, edges, { tolerance = 8 } = {}) {
+  const pieces = new Set(edges.filter((e) => e.piece).map((e) => e.a));
+  const members = ids.filter((id) => !pieces.has(id));
+  const at = new Map(members.map((m, i) => [m, i]));
+  const own = edges.filter((e) => !e.piece && at.has(e.a) && at.has(e.b));
+  const constraints = (m, set) => {
+    const cs = [];
+    for (const e of own) {
+      if (e.a === m && set.has(e.b)) cs.push(e.dirs);
+      else if (e.b === m && set.has(e.a)) cs.push(e.dirs.map((v) => v.map((x) => -x)));
+    }
+    return cs;
+  };
+  const whole = (set) => {
+    if (set.size <= 1) return true;
+    const first = set.values().next().value; const seen = new Set([first]); let grew = true;
+    while (grew) { grew = false; for (const e of own) { if (!set.has(e.a) || !set.has(e.b)) continue; if (seen.has(e.a) !== seen.has(e.b)) { seen.add(e.a); seen.add(e.b); grew = true; } } }
+    return seen.size === set.size;
+  };
+  const remaining = new Set(members); const out = [];
+  let lock = null;
+  while (remaining.size > 1) {
+    const rest = (m) => { const r = new Set(remaining); r.delete(m); return r; };
+    const free = [...remaining].map((m) => ({ m, spread: bestDir(constraints(m, rest(m))).spread })).filter((c) => c.spread <= tolerance);
+    if (!free.length) {
+      const tight = [...remaining].map((m) => ({ m, spread: bestDir(constraints(m, rest(m))).spread })).sort((x, y) => x.spread - y.spread || at.get(y.m) - at.get(x.m))[0];
+      lock = { member: tight.m, spreadDeg: Math.round(tight.spread), after: [...rest(tight.m)] };
+      break;
+    }
+    const joins = (m) => constraints(m, rest(m)).length;
+    free.sort((x, y) => (whole(rest(y.m)) - whole(rest(x.m))) || joins(x.m) - joins(y.m) || at.get(y.m) - at.get(x.m));
+    out.push(free[0].m); remaining.delete(free[0].m);
+  }
+  const moves = {};
+  if (lock) {
+    for (const m of members) { const e = own.find((x) => x.a === m); if (e) moves[m] = e.dirs[0]; }
+    for (const e of edges) if (e.piece && !moves[e.a]) moves[e.a] = e.dirs[0];
+    return { order: null, lock, moves };
+  }
+  const order = [...remaining, ...out.reverse()];
+  const placed = new Set();
+  for (const m of order) { const v = bestDir(constraints(m, placed)).v; if (v) moves[m] = v; placed.add(m); }
+  for (const e of edges) if (e.piece && !moves[e.a]) moves[e.a] = e.dirs[0];
+  return { order: [...order, ...ids.filter((id) => pieces.has(id))], lock: null, moves };
+}
+
+/**
+ * assemblyGroups(ids, edges, groups, opts) → { order, subassemblies, moves, lock } — when parts are DECLARED to be
+ * built together first (a drawer: `group` on its members), each group is ordered on its own, then stands as one node
+ * among the rest: its crossing joints move it as a whole. Returns null when a group or the whole still locks.
+ */
+export function assemblyGroups(ids, edges, groups, opts = {}) {
+  const pieces = new Set(edges.filter((e) => e.piece).map((e) => e.a));
+  const node = new Map(); for (const [g, ms] of groups) for (const m of ms) node.set(m, `group:${g}`);
+  const inner = new Map();
+  for (const [g, ms] of groups) {
+    const own = edges.filter((e) => !e.piece && ms.includes(e.a) && ms.includes(e.b));
+    let o = assemblyOrder(ms, own, opts);
+    if (!o.order) { const t = assemblyTree(ms, own, opts); if (!t) return null; o = t; }
+    inner.set(g, o);
+  }
+  const outerIds = [...new Set(ids.filter((id) => !pieces.has(id)).map((id) => node.get(id) || id))];
+  const outerEdges = edges.filter((e) => !e.piece).map((e) => ({ ...e, a: node.get(e.a) || e.a, b: node.get(e.b) || e.b })).filter((e) => e.a !== e.b);
+  let outer = assemblyOrder(outerIds, outerEdges, opts);
+  if (!outer.order) { const t = assemblyTree(outerIds, outerEdges, opts); if (!t) return null; outer = t; }
+  const order = [], subassemblies = [...(outer.subassemblies || [])], moves = {};
+  for (const id of outer.order) {
+    if (!id.startsWith('group:')) { order.push(id); if (outer.moves[id]) moves[id] = outer.moves[id]; continue; }
+    const g = id.slice(6); const o = inner.get(g);
+    const parts = o.order.filter((m) => !pieces.has(m));
+    order.push(...parts);
+    for (const m of parts) if (o.moves[m]) moves[m] = o.moves[m];
+    for (const sa of o.subassemblies || []) subassemblies.push(sa);
+    subassemblies.push({ parts, dir: outer.moves[id] || [0, 0, 1], group: g });
+  }
+  // a sub-assembly found inside the outer order names group nodes: expand them
+  for (const sa of subassemblies) sa.parts = sa.parts.flatMap((p) => (p.startsWith('group:') ? inner.get(p.slice(6)).order.filter((m) => !pieces.has(m)) : [p]));
+  for (const e of edges) if (e.piece && !moves[e.a]) moves[e.a] = e.dirs[0];
+  return { order: [...order, ...ids.filter((id) => pieces.has(id))], subassemblies, moves, lock: null };
+}
+
+/**
  * assemblyTree(ids, edges, { tolerance, maxMembers }) → { order, subassemblies: [{ parts, dir, onto }], moves } | null.
  * When no order places ONE member at a time, furniture is built in sub-assemblies: a table's two end frames are glued
  * up, then brought together on their rails. This searches by disassembly: split the set into a part (a member, or a
  * connected group) that slides off the rest along one direction, and recurse on both. Single members are tried before
- * groups, smaller groups before larger. Up to `maxMembers` members (the search is exponential); null past that or when
- * even groups lock.
+ * groups, smaller groups before larger. Up to `maxMembers` members, and `budget` splits tried (the search is
+ * exponential); null past either, or when even groups lock.
  */
-export function assemblyTree(ids, edges, { tolerance = 8, maxMembers = 12 } = {}) {
+export function assemblyTree(ids, edges, { tolerance = 8, maxMembers = 16, budget = 250000 } = {}) {
   const pieces = new Set(edges.filter((e) => e.piece).map((e) => e.a));
   const members = ids.filter((id) => !pieces.has(id));
   const n = members.length;
@@ -203,12 +297,15 @@ export function assemblyTree(ids, edges, { tolerance = 8, maxMembers = 12 } = {}
     return seen === S;
   };
   const memo = new Map();
+  let spent = 0;
   const plan = (set) => {
+    if (spent > budget) return null;
     if (pop(set) === 1) return { leaf: members.findIndex((_, i) => bit(set, i)) };
     if (memo.has(set)) return memo.get(set);
     memo.set(set, null);
     let res = null;
     const tryS = (S) => {
+      if (++spent > budget) return false;
       const R = set & ~S;
       if (!R || !connected(R) || !connected(S)) return false;
       const cs = crossing(S, set); if (!cs.length) return false;

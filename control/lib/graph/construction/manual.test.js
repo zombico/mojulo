@@ -27,9 +27,9 @@ describe('construction/manual — a frame writes its own instructions', () => {
 
   it('plans fit steps, then the parts in the order they seat, then fixing it to the wall', () => {
     const plan = manualPlan(bookcase);
-    expect(plan.steps.map((s) => s.kind)).toEqual(['fit', 'fit', 'fit', 'fit', 'join', 'join', 'join', 'join', 'anchor']);
+    expect(plan.steps.map((s) => s.kind)).toEqual(['fit', 'fit', 'fit', 'fit', 'join', 'join', 'join', 'join', 'join', 'anchor']);
     expect(plan.steps[0]).toMatchObject({ hosts: ['side-l', 'side-r'], times: 2 });
-    expect(plan.steps.filter((s) => s.kind === 'join').map((s) => s.adds)).toEqual([['top', 'bottom', 'plinth'], ['shelf', 'back'], ['side-r'], ['shelf-a']]);
+    expect(plan.steps.filter((s) => s.kind === 'join').map((s) => s.adds)).toEqual([['top'], ['back'], ['bottom', 'plinth', 'shelf'], ['side-r'], ['shelf-a']]);
     // every cam is turned once, on the step its joint closes
     expect(plan.steps.reduce((n, s) => n + s.turns.length, 0)).toBe(14);
   });
@@ -49,7 +49,7 @@ describe('construction/manual — a frame writes its own instructions', () => {
   it('draws A4 pages in black ink on white, wordless, the same every time', () => {
     const a = manualPages(bookcase), b = manualPages(bookcase);
     expect(a.pages.map((p) => p.svg)).toEqual(b.pages.map((p) => p.svg));
-    expect(a.pages.map((p) => p.name)).toEqual(['cover', 'inventory', ...a.plan.steps.map((s) => `step-0${s.n}`)]);
+    expect(a.pages.map((p) => p.name)).toEqual(['cover', 'inventory', ...a.plan.steps.map((s) => `step-${String(s.n).padStart(2, '0')}`)]);
     for (const p of a.pages) {
       expect(p.svg).toMatch(/^<svg [^>]*width="210mm" height="297mm" viewBox="0 0 210 297"/);
       const colours = [...p.svg.matchAll(/(?:stroke|fill)="([^"]+)"/g)].map((m) => m[1]);
