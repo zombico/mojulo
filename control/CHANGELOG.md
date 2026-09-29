@@ -32,8 +32,10 @@ Recipes without one are byte-identical.
 - **Parts and buildings.** Workbench parts, face-ops, carved solids and vehicles take the spec as their `material`.
   An edifice mass takes `facade.material: 'metal'` (panels with seams) and a metal curtain-wall frame. Roofs take
   standing-seam metal. A house takes metal cladding and a metal roof. A store's trim takes a metal.
-- **Exports keep the metal.** Each metal surface becomes its own glTF and USD material: its colour, metallic 1, and
-  its finish's roughness. Oxide films declare iridescence.
+- **Exports keep the metal.** Each metal surface becomes its own glTF and USD material, with its colour (an oxide
+  film's colour at normal incidence), metallic 1 and the finish's roughness. The Unreal leg keeps those slots'
+  imported materials, as it does for crystal and emissive slots. Engines see the metal's colour and sheen; the
+  figure, the film's shift with angle, and the anisotropy stay on the page.
 
 ### Terrain vegetation
 

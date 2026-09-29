@@ -54,7 +54,7 @@ orientation.
 ```
 
 - **finishes.** `floor`: `floorboards` | `marble` | `plain`. `wall`: `paint` | `wainscot` | `wallpaper` | `brick`.
-  Hex values: `floorTint`, `paint`, `sign`, `trim`.
+  Hex values: `floorTint`, `paint`, `sign`, `trim`. `trim` may instead be a metal surface (`{ metal: 'brass', finish: 'brushed' }`): the storefront's mullions, jambs and head rail then shine as that metal.
 - **cells** are real rooms cut across the back of the unit, in card order from left to right: `fittingRoom`,
   `stockRoom` (staff side: it needs a path from behind the counter, not a customer aisle), `booth`, `restroom`.
   Take `count` for repeats and `minArea` for size. Cells that do not fit are shed in the order booth → restroom →
