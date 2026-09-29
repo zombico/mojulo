@@ -43,6 +43,7 @@ import { safeJson, escapeHtml } from './emit-util.js';
 import { isLandmarkShape, renderLandmarkBuilding } from '../landmarks/index.js';
 import { refacadeBuilding, hasRefacade } from '../landmarks/refacade.js';
 import { isPlantShape, plantBoxToFaces } from '../polygonizer/plant-faces.js';
+import { isRoundKitShape, roundKitFaces } from '../city/round-kit.js';
 import { roomFurnitureAssetFaces } from '../architecture/room-assets.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { buildRoof } from '../architecture/roof.js';
@@ -2400,14 +2401,15 @@ function curtainwallBuilding(b, L, camHint, textures, opts = {}) {
 // carry the same corners and normal as before (byte-identical). `bays` is recomputed off the
 // face's own length for a side face (the storefront pane count follows the face it sits on).
 function buildingExtrasOn(b, f, floors, bays, front) {
+  const opts = b.roundKit ? { round: true } : undefined;   // the round street kit reaches the rooftop kit too
   if (!front || front === '+y') {
-    const ex = buildingExtras({ x: b.x, y: b.y, w: b.w, d: b.d, z0: b.z0, z1: b.z1 }, f, floors, bays);
+    const ex = buildingExtras({ x: b.x, y: b.y, w: b.w, d: b.d, z0: b.z0, z1: b.z1 }, f, floors, bays, opts);
     const yo = b.y + b.d + 0.04;
     ex.decals = ex.decals.map((dc) => ({ ...dc, normal: [0, 1, 0], corners: [[dc.x0, yo, dc.z0], [dc.x1, yo, dc.z0], [dc.x1, yo, dc.z1], [dc.x0, yo, dc.z1]] }));
     return ex;
   }
   const F = faceFrame(b, front);
-  const ex = buildingExtras({ ...F.localBox, z0: b.z0, z1: b.z1 }, f, floors, facadeBays(f, F.L));
+  const ex = buildingExtras({ ...F.localBox, z0: b.z0, z1: b.z1 }, f, floors, facadeBays(f, F.L), opts);
   const toWorld = ([lx, ly, z]) => { const [wx, wy] = F.pt(lx, ly); return [wx, wy, z]; };
   return {
     boxes: ex.boxes.map((e) => ({ ...e, ...F.rect(e.x, e.y, e.w, e.d) })),
@@ -2489,6 +2491,9 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const floors = facadeFloors(facade, b.z1 - b.z0);
       const bays = facadeBays(facade, b.w);
       faces.push(...cityBox(r, b.z0, b.z1, { facade, floors, bays, top: scaleHex(facade.glass, 0.6) }, L, camHint));
+    } else if (isRoundKitShape(b.shape)) {
+      // the round street kit (fractal-city `elements.roundKit`): poles, heads, lenses, bins, bollards
+      faces.push(...roundKitFaces(b, L));
     } else if (b.metro && (b.class === 'religious' || b.class === 'civic') && hasRefacade(b.shape)) {
       // a metro church / mosque / temple / rotunda takes its refacade builder (landmarks/refacade.js)
       faces.push(...refacadeBuilding(b, { L, camHint, cityBox }));
@@ -2541,7 +2546,7 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const awareFacade = aware && !entranceFace ? { ...exFacade, noEntrance: true, storefront: false, awning: false }
         : aware && b.entrance ? { ...exFacade, awning: false } : exFacade;
       const extras = buildingExtrasOn(b, awareFacade, floors, bays, entranceFace || '+y');
-      for (const e of extras.boxes) faces.push(...cityBox({ x: e.x, y: e.y, w: e.w, d: e.d }, e.z0, e.z1, { top: scaleHex(e.tint, 1.06), side: e.tint }, L, camHint));
+      for (const e of extras.boxes) faces.push(...(isRoundKitShape(e.shape) ? roundKitFaces(e, L) : cityBox({ x: e.x, y: e.y, w: e.w, d: e.d }, e.z0, e.z1, { top: scaleHex(e.tint, 1.06), side: e.tint }, L, camHint)));
       for (const ef of extras.faces) faces.push(ef);     // tilted equipment (satellite dish)
       for (const dc of extras.decals) faces.push({ corners: dc.corners, fill: scaleHex(dc.fill, litFactor(dc.normal, L)), doubleSided: true });
       if (b.skin && b.skin.roofCap) faces.push(...roofCapFaces(b, b.skin.roofCap, L, facade.material === 'brick' ? facade.glass : facade.frame));

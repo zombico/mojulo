@@ -14,6 +14,29 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### A round street kit
+
+The city's street kit stops reading as blocks: lamp posts, signal and sign poles, heads, lenses, bins, bollards,
+freeway piers, playground frames and rooftop equipment are drawn round, with a few of them in metal. It is stylized, not realistic, and in the city's own look.
+Every city minted from here on has it. Stored cities are byte-identical.
+
+- **Lamps first.** A street lamp is a tapered round standard on a base collar, a round arm, and a luminaire: a warm
+  glass bowl under a domed housing. The freeway median lamps take the same head. The canal city's lamp is a lantern:
+  flared glass under a pitched cap with a finial. Night lighting reads the same heads as before.
+- **The rest of the kit.** Signal, sign, stop, power and tram poles and platform posts are round. Signal lenses are
+  round, and the stop plate is an octagon. Park bins are drums, drop-off bollards have domed tops, a parking
+  entrance's columns, posts and bollards are round, and the freeway stands on round piers. Power lines and tram
+  brackets are wires, not bars.
+- **Playgrounds and rooftops.** Swing, slide and climbing frames are tube: round posts, round beams, rungs and monkey
+  bars; the seesaw sits on a drum. On the roofs, the water tank is a round tank with a hoop band and a conical roof,
+  smoke stacks are round with a dark flue, antenna and cell masts and billboard posts are round, and the satellite
+  dish is a dish. The New York wood tank's stand is round too.
+- **Materials.** Metro lamp standards are brushed aluminium, and metro signal poles are galvanized. Sign posts are
+  galvanized in every city. Metro bollards are brushed stainless. The stock, town and canal kits stay painted.
+- **One element.** `elements.roundKit` (also `round`, `rounded`, `roundPoles`) turns it on. New mints and terrain
+  cities stamp it beside `frontage`; `roundKit: false` keeps the block kit. The instanced-furniture channel still
+  collapses identical lamps.
+
 ### Metal surfaces
 
 Metal becomes a surface any part, facade or roof can wear: a metal, a finish, an optional oxide film, and a seed. On

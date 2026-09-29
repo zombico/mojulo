@@ -567,7 +567,9 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     const clipPts = isTri ? null : parseClipPolygon(f.clip);
     const radPts = clipPts || isTri ? null : parseBorderRadius(f.radius);
     if (clipPts || radPts) {
-      const mapped0 = (clipPts || roundedRectOutline(radPts));
+      // `radiusSeg` (segments per quarter arc, default 8): a round cap drawn over an n-sided lathe asks for n / 4, so the
+      // mesh cap meets the ring corner for corner instead of spending ~30 triangles on a circle the ring cannot show
+      const mapped0 = (clipPts || roundedRectOutline(radPts, Number.isInteger(f.radiusSeg) && f.radiusSeg > 0 ? f.radiusSeg : 8));
       const mapped = mapped0.map(([u, v]) => bilerp(c, u, v));
       // clip/radius vertices live at (u,v) inside the quad → interpolate corner AO bilinearly
       const aoAt = vao ? mapped0.map(([u, v]) => { const t = vao[0] + (vao[1] - vao[0]) * u, b = vao[3] + (vao[2] - vao[3]) * u; return t + (b - t) * v; }) : null;

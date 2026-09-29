@@ -103,7 +103,7 @@ describe('in the world and on the page', () => {
     const K = live.terrain.K; expect(K.grade).toHaveLength(1); expect(typeof K.grade[0].dq).toBe('string'); expect(typeof K.grade[0].paint.pc).toBe('string');
     expect(live.terrain.pins).toHaveLength(1);
     expect(live.cameras.map((c) => c.name)).toEqual(['ground', 'aerial', 'world', 'city', 'city-aerial']);
-    expect(live.faces.length).toBeGreaterThan(10000); expect(live.faces.every((f) => f.group === 'city')).toBe(true);
+    expect(live.faces.length).toBeGreaterThan(10000); expect(live.faces.every((f) => f.group === (f.metal ? 'city:metal' : 'city'))).toBe(true);   // the kit's metal rides its own group
     expect(live.meta.cities[0].masses).toBeGreaterThan(50);
     expect(() => new Function('THREE', 'scene', 'camera', 'walkColliders', terrainChannelScript(live.terrain))).not.toThrow();   // eslint-disable-line no-new-func
   });

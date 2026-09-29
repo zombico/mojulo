@@ -266,7 +266,7 @@ export function prepareCity(field, spec, { index = 0, taken = [], mpu = CITY_MET
   const cityRecipe = {
     ...recipe, profile, region, seed: recipe.seed ?? 1 + index, ...(depth !== undefined ? { depth } : {}),
     blocks: [...ownList, ...G.reserved.map((r) => ({ rect: toFrame(r), use: 'empty' }))],
-    elements: { frontage: true, ...(recipe.elements || {}) },
+    elements: { frontage: true, roundKit: true, ...(recipe.elements || {}) },
   };
   const radius = detail && Number.isFinite(detail.radius) ? detail.radius : Math.max(W, Dp) <= DETAIL_ALL ? Infinity : DETAIL_RADIUS;
   return { profile, rect, center: [cx, cy], sited: sited ? { score: +sited.score.toFixed(3), frac: sited.frac } : null, grade: G, recipe: cityRecipe, mpu, reservedFrom: ownList.length, reservedRects: G.reserved.map(toFrame), radius };
@@ -307,7 +307,7 @@ export function seatCity(prep, field, { light = null } = {}) {
   const faces = [], stats = { masses: 0, plinths: 0, plinthMax: 0, capped: 0, props: 0, ridden: 0, draped: 0, rigidDressing: 0 };
   const lit = light ? { light } : {};
   const emitBox = (b, lift) => { for (const f of assembleBoxCityScene({ boxes: [b], grounds: [], ribbons: [], faces: [], ...lit }).faces) faces.push(place(f, lift)); };
-  const place = (f, lift) => ({ ...f, corners: f.corners.map((c) => [toX(c[0]), toY(c[1]), lift + c[2] * mpu]), ...(Number.isFinite(f.radius) ? { radius: f.radius * mpu } : {}), group: 'city' });
+  const place = (f, lift) => ({ ...f, corners: f.corners.map((c) => [toX(c[0]), toY(c[1]), lift + c[2] * mpu]), ...(Number.isFinite(f.radius) ? { radius: f.radius * mpu } : {}), group: f.metal ? 'city:metal' : 'city' });   // metal faces keep a group of their own (the page's per-vertex metal data)
   // masses first: each one's seat, plinth and height
   const masses = [], lifts = new Map(), seats = [];
   for (const b0 of boxes) {
