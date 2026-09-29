@@ -13,6 +13,8 @@ import { CELL_ARCHETYPES, subProgram } from './store-cells.js';
 import { FIXTURE_ARCHETYPES, box } from './store-fixtures.js';
 import { CAST_ARCHETYPES, buildMannequin } from './store-cast.js';
 import { degradeFitOut } from './store-degrade.js';
+import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
+import { isMetalSurface, metalSurfaceError } from '../materials/metal-surface.js';
 
 export const ZONE_ROLES = ['window', 'browse', 'service', 'back'];
 export const FLOOR_STYLES = ['floorboards', 'marble', 'plain'];
@@ -37,7 +39,8 @@ export function validateConceptCard(card) {
   const f = card.finishes || {};
   if (f.floor && !FLOOR_STYLES.includes(f.floor)) E('unknown-floor', f.floor);
   if (f.wall && !WALL_STYLES.includes(f.wall)) E('unknown-wall', f.wall);
-  for (const k of ['sign', 'paint', 'floorTint', 'trim']) if (f[k] != null && !HEX.test(f[k])) E('bad-hex', `finishes.${k}=${f[k]}`);
+  for (const k of ['sign', 'paint', 'floorTint']) if (f[k] != null && !HEX.test(f[k])) E('bad-hex', `finishes.${k}=${f[k]}`);
+  if (f.trim != null) { if (isMetalSurface(f.trim)) { const e = metalSurfaceError(f.trim); if (e) E('bad-metal', `finishes.trim: ${e}`); } else if (!HEX.test(f.trim)) E('bad-hex', `finishes.trim=${f.trim}`); }
   const merch = card.palette?.merch;
   if (!Array.isArray(merch) || !merch.length || merch.some((h) => !HEX.test(h))) E('bad-palette', 'palette.merch must be a non-empty hex list');
   const inUnit = (v) => typeof v === 'number' && v >= 0 && v <= 1;
@@ -241,6 +244,10 @@ const GLASS = 'rgba(205,228,235,0.13)';
 /** Local unit frame (depth 0 = the front wall centerline). Returns local faces. */
 export function storefrontLocal({ W, s0, s1, e0, e1, top, ceil, sign, trim = '#7c8088', light }) {
   const out = [];
+  // trim may be a metal surface (metal-surfaces S5): the mullions, jambs and head rail wear it
+  const metalTrim = isMetalSurface(trim) && !metalSurfaceError(trim) ? resolveMaterial(trim) : null;
+  const trimStart = [];
+  if (metalTrim) trim = metalTrim.base;
   const KICK = 0.5;
   const pane = (a, b) => { if (b - a > 0.05) out.push({ corners: [[a, 0, KICK], [b, 0, KICK], [b, 0, top], [a, 0, top]], fill: GLASS, normal: [0, -1, 0], doubleSided: true, water: true }); };
   pane(s0, e0); pane(e1, s1);
@@ -249,10 +256,11 @@ export function storefrontLocal({ W, s0, s1, e0, e1, top, ceil, sign, trim = '#7
     if (b - a < 0.05) continue;
     fb(a, b, 0, KICK, '#3a3d42', 0.09);                               // kick plinth
     const n = Math.max(1, Math.round((b - a) / 3.5));
-    for (let i = 1; i < n; i += 1) { const m = a + (i * (b - a)) / n; fb(m - 0.05, m + 0.05, KICK, top, trim); }  // mullions
+    for (let i = 1; i < n; i += 1) { const m = a + (i * (b - a)) / n; trimStart.push([out.length]); fb(m - 0.05, m + 0.05, KICK, top, trim); trimStart.at(-1).push(out.length); }  // mullions
   }
-  for (const j of [s0, e0, e1, s1]) fb(j - 0.07, j + 0.07, 0, top, trim);   // jambs (door jambs included)
-  fb(s0, s1, top - 0.14, top, trim);                                        // head rail across the whole opening
+  for (const j of [s0, e0, e1, s1]) { trimStart.push([out.length]); fb(j - 0.07, j + 0.07, 0, top, trim); trimStart.at(-1).push(out.length); }   // jambs (door jambs included)
+  trimStart.push([out.length]); fb(s0, s1, top - 0.14, top, trim); trimStart.at(-1).push(out.length);         // head rail across the whole opening
+  if (metalTrim) for (const [a, b] of trimStart) tagFacesWithMaterial(out.slice(a, b), metalTrim);
   box(out, s0 - 0.4, s1 + 0.4, -0.75, -0.34, top + 0.35, Math.min(ceil - 0.4, top + 2.2), sign, light);  // sign fascia, proud of the facade
   box(out, e0 - 0.2, e1 + 0.2, -0.3, 0.3, 0, 0.04, '#6a6f75', light);     // threshold
   return out;

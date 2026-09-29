@@ -26,6 +26,7 @@
 
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
+import { resolveMetalSurface } from '../materials/metal-surface.js';
 import { crystalRigFor, rigFrozenFrame } from './crystal-rig.js';
 import { inkBake, inkGeoNormals, inkCentroid, inkBuried } from './ink-geometry.js';
 import { drawLayerGroup } from './channels/draw-layers.js';
@@ -368,9 +369,10 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1 } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
-      baseColorFactor: [1, 1, 1, alpha == null ? 1 : alpha],
+      // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
+      baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
       metallicFactor: metallic,
       roughnessFactor: roughness,
     };
@@ -1052,7 +1054,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // crystal faces (crystal-shine S6): one `<group>:crystal` node per gem variant, a transmissive material; no crystal
     // faces → this map stays empty and the export is byte-identical
     const crystalBuckets = new Map();
+    // metal faces (metal-surfaces S6): one `<group>:metal` node per surface, its colour in the material (film
+    // included, at normal incidence), metallic 1 and the finish's roughness; no metal faces → byte-identical
+    const metalBuckets = new Map();
     for (const f of fs) {
+      if (f && f.metal && typeof f.metal.s === 'string' && typeof f.texture !== 'string') { (metalBuckets.get(f.metal.s) || metalBuckets.set(f.metal.s, []).get(f.metal.s)).push(f); continue; }
       if (f && f.crystal && typeof f.crystal.gem === 'string') {
         const k = f.crystal.glow ? `${f.crystal.gem}~${f.crystal.glow}` : f.crystal.gem; (crystalBuckets.get(k) || crystalBuckets.set(k, []).get(k)).push(f); continue;
       }
@@ -1080,6 +1086,14 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       const k = bucket[0].crystal; const nodeName = crystalBuckets.size > 1 ? `${name}:crystal${cryIdx++}` : `${name}:crystal`;
       const mat = b.crystalMaterial({ name: nodeName, optics: shineOptics(key), thickness: 2 * (k.r || 1), unitsPerCm: 1 / (Number.isFinite(k.cmu) && k.cmu > 0 ? k.cmu : 1) });
       tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));   // COLOR_0 white: glTF multiplies it into the glass
+    }
+    let metIdx = 0;
+    for (const [key, bucket] of metalBuckets) {
+      const bm = faceListToMesh(bucket.map(({ metal, ...f }) => ({ ...f, fill: '#ffffff', cornerFills: undefined, vao: undefined })), { decollide: false, withNormals: true });
+      if (!bm.positions.length) continue;
+      const surface = resolveMetalSurface(JSON.parse(key)); const nodeName = metalBuckets.size > 1 ? `${name}:metal${metIdx++}` : `${name}:metal`;
+      const mat = b.pbrMaterial({ metallic: 1, roughness: Math.max(0.05, surface.roughness), baseColor: surface.normal.map((v) => +v.toFixed(4)), alpha: groupAlpha, name: nodeName });
+      tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));   // COLOR_0 white: the material carries the metal
     }
     let pbrIdx = 0, emIdx = 0;
     for (const [, bucket] of pbrBuckets) {

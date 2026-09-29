@@ -9,6 +9,7 @@ import { audioChannelScript } from './audio.js';
 import { buildupChannelScript } from './buildup.js';
 import { castShadowScript } from './cast-shadows.js';
 import { crystalChannelScript } from './crystal.js';
+import { metalChannelScript } from './metal.js';
 import { cometChannelScript } from './comet.js';
 import { deformChannelScript } from './deform.js';
 import { drawLayersScript } from './draw-layers.js';
@@ -204,6 +205,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // gated on a group carrying crystal faces; prints traced there (crystal-prints.js)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojCrystal'] },      // the prints' count, for probes
+  { key: 'metal', anchor: 'pre-runtime', script: metalChannelScript,
+    normalizeIn: 'emitThreeWorld',     // gated on a group carrying metal faces (metal-surfaces S3)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojMetal'] },        // surface and lookup-row counts, for probes
   { key: 'fx', anchor: 'post-step', script: fxChannelScript,
     normalizeIn: 'emitThreeWorld',     // presence decides controllable's exposeBodies
     requiresOptional: ['__BUS', '__mojCtrl'] },   // assigns the scene-three-emitted `let stepFx`

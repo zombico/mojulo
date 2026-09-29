@@ -58,6 +58,7 @@ import { streamChannelScript } from './channels/stream.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { crystalChannelScript } from './channels/crystal.js';
+import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
 import { crystalPrintsFor, crystalLivePrints, crystalGlowPools, crystalSun } from './crystal-prints.js';
 import { crystalLightChannelScript } from './channels/crystal-light.js';
 import { crystalRigFor } from './crystal-rig.js';
@@ -179,7 +180,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, metersPerUnit = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -385,7 +386,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // per-vertex crystal data (crystal-shine S4) — the key is only present when the group carries a crystal face
     const cryFace = gm.crys ? fs.find((f) => f && f.crystal) : null;
     const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}) };
+    // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
+    const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets) } : null;
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures;
@@ -758,10 +761,16 @@ scene.add(__eQuad${i});
   const cryRig = crystalLight ? crystalRigFor(expanded, crystalLight) : null;
   const crystalLightBlock = cryRig ? crystalLightChannelScript({ ...cryRig,
     dynamic: [...new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => typeof g === 'string' && !cryRig.stones.some((st) => st.group === g)))] }) : '';
+  // metal (metal-surfaces S3): emitted only when some group carries metal faces — one studio, one lookup texture and
+  // one program for every metal surface on the page, the studio's dome tinted by the scene's sky when it has one.
+  // Absent → zero bytes.
+  const metKeys = [...new Set(groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces))].sort();
+  const metalBlock = metKeys.length ? metalChannelScript({ toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight,
+    inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit }) }) : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
-    splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock,
+    splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
   };
 

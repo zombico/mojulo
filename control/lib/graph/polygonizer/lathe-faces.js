@@ -177,7 +177,8 @@ export function latheToFaces(spec = {}, opts = {}) {
     }
   }
   if (spec.glow && !proxy) for (const f of faces) if (!f.glow) f.glow = spec.glow;   // full glow: cap faces inherit the halo too (proxy mode stays sparse)
-  return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_LATHE), mat);
+  // a metal on a lathe is turned: its toolpath circles the lathe's own axis unless the spec says otherwise
+  return tagFacesWithMaterial(faces.slice(0, MAX_FACES_PER_LATHE), mat, mat && mat.surface ? { along: 'around', axis: { at: [aF.x, aF.y, aF.z], dir: norm3([aT.x - aF.x, aT.y - aF.y, aT.z - aF.z]) } } : undefined);
 }
 
 export { DEFAULT_CROSS_SECTIONS, DEFAULT_SAMPLES, MAX_FACES_PER_LATHE, CAP_MIN_RADIUS };
