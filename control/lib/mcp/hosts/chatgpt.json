@@ -8,7 +8,7 @@
     "format": "manual",
     "verify": "User-reported MCP and Linux Work-box execution. ClientInfo names, attachment paths, preview behavior and limits still require per-surface field verification. No config writer or automatic host detection."
   },
-  "manual": "Use connected Mojulo MCP tools when available; get_adapter with id chatgpt selects the card explicitly. In a shell-enabled Work box use a pinned Mojulo CLI with MOJULO_HOST=chatgpt and MOJULO_SURFACE=box; start with orient. Do not run init in the box.",
+  "manual": "Use connected Mojulo MCP tools when available; get_adapter with id chatgpt selects the card explicitly. In a shell-enabled Work box, npm install mojulo, then npx mojulo orient with MOJULO_HOST=chatgpt and MOJULO_SURFACE=box. Do not run init in the box.",
   "capabilities": {
     "defersToolSchemas": false,
     "maxOutputBytes": null,
