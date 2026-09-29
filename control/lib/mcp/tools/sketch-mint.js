@@ -55,6 +55,7 @@ import {
 import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
@@ -343,6 +344,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   if (finalized?.kind === 'floorplan') {
     if (finalized.style === undefined) finalized = { ...finalized, style: 'auto' };
     else houseStyleOpts(finalized.style, '', undefined);   // an unknown style refuses, naming the families
+    // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
+    const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
+    for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
+      if (v == null) continue; const e = metalSurfaceError(v); if (e) throw new Error(`Invalid manifest: ${k}: ${e}`);
+    }
   }
 
   const { ok, errors } = validateSketchManifest(finalized);

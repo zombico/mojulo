@@ -30,7 +30,8 @@
  * sibling: extrude-faces.js (the bar). Scene emit: scene-css3d.js.
  */
 
-import { shadeHex, makeLight, scaleHex } from './vexar.js';
+import { shadeHex, shadeHexMat, makeLight, scaleHex } from './vexar.js';
+import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
@@ -102,7 +103,10 @@ export const FLOORPLAN_DEFAULTS = {
   trimTint: '#e7e2d4',     // painted casing / frame
   doorLeafTint: '#7d5a36', // stained-wood leaf
   entryDoorTint: '#355f74', // painted exterior front door
-  facadeStyle: 'siding',    // 'siding' (clapboard, default) | 'brick' (running bond) | 'tofu' (modern block)
+  facadeStyle: 'siding',    // 'siding' (clapboard, default) | 'brick' (running bond) | 'tofu' (modern block) | 'metal' (sheet cladding)
+  facadeMetal: null,        // metal cladding's surface (metal-surfaces S5): a { metal, finish?, … } spec; default by cladding
+  cladding: 'standing-seam', // metal cladding: 'standing-seam' | 'corrugated' | 'panel'
+  roofMetal: null,          // a metal-surface spec for the roof sheet (same as roof: { style, metal })
   facadeTrimTint: '#e8e0d2',
   facadeSidingTint: '#9fb4ad',
   facadeWaterTableTint: '#6f776e',
@@ -155,7 +159,7 @@ function roofSpec(roof) {
 // close enough. Returns buildRoof's { faces, textureKeys }.
 function envelopeRoof(footprint, topZ, o) {
   const fp = { x: footprint.x0, y: footprint.y0, w: footprint.x1 - footprint.x0, d: footprint.y1 - footprint.y0, z: topZ };
-  return buildRoof(fp, { ...roofSpec(o.roof), light: o.light, roomHeight: o.wallHeight });
+  return buildRoof(fp, { ...roofSpec(o.roof), ...(o.roofMetal ? { metal: o.roofMetal } : {}), light: o.light, roomHeight: o.wallHeight });
 }
 
 // A solid GROUND plane at z, extended past the footprint — the exterior-view datum
@@ -340,7 +344,7 @@ export function placeOpenings(graph, doors = [], opts = {}) {
     // with a long wall getting a ROW of them. So a bathroom gets one small window and a great
     // room a run of large ones. Facade style still nudges the unit (brick smaller-punched,
     // tofu wider + lower sill). Circulation (halls/bay) gets none.
-    const facadeWin = { siding: 'colonial', brick: 'double-hung', tofu: 'picture' }[o.facadeStyle];
+    const facadeWin = { siding: 'colonial', brick: 'double-hung', tofu: 'picture', metal: 'picture' }[o.facadeStyle];
     const winStyle = o.windowStyle || facadeWin || 'plain';
     // french = full-height divided-light doors (drop to the floor); german/european = tall
     // units with large panes + a top transom. Both run taller (lower sill) and a touch wider.
@@ -1166,7 +1170,7 @@ function openingAssemblyFaces(run, op, baseZ, o) {
     // explicit (op.style / o.windowStyle) or defaulted from the facade: siding→colonial grid,
     // brick→2-over-2 double-hung, tofu→clean picture pane.
     const style = op.style || o.windowStyle
-      || ({ siding: 'colonial', brick: 'double-hung', tofu: 'picture' }[o.facadeStyle]) || 'plain';
+      || ({ siding: 'colonial', brick: 'double-hung', tofu: 'picture', metal: 'picture' }[o.facadeStyle]) || 'plain';
     const W = gb - ga, Hh = gz1 - gz0, mt = fw * 0.8;
     const vbar = (x) => bar(x - mt / 2, x + mt / 2, gz0, gz1);
     const hbar = (z) => bar(ga, gb, z - mt / 2, z + mt / 2);
@@ -1383,6 +1387,7 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
 function facadeDecor(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
   if (o.facadeStyle === 'brick') return brickFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   if (o.facadeStyle === 'tofu') return tofuFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
+  if (o.facadeStyle === 'metal') return metalFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o);
   const faces = [];
   const side = run.exteriorSide;
   if (!side) return faces;
@@ -1543,6 +1548,53 @@ function tofuFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
   rect(s0, s1, baseZ + H - 0.62, baseZ + H - 0.5, reveal, 0.05);
   rect(s0, s0 + 0.16, baseZ, baseZ + H, reveal, 0.05);              // crisp corner reveals
   rect(s1 - 0.16, s1, baseZ, baseZ + H, reveal, 0.05);
+  return faces;
+}
+
+// Metal cladding (metal-surfaces S5): sheet metal over the run, wearing a metal surface for the World's metal channel.
+//   standing-seam — flat pans with a raised seam (two cheeks + a lock) every 16 in, toolpath vertical;
+//   corrugated    — a folded wave: each 3 in pitch is two slanted strips (the metal channel's smoothed normals turn the
+//                   folds into a round corrugation), toolpath vertical; galvanized by default;
+//   panel         — 2 × 4 ft flat panels on a dark open joint.
+// Geometry lives in (along, out from the wall, z) and maps to world through the run's orientation.
+export const METAL_CLADDING = Object.freeze({ 'standing-seam': { metal: 'zinc', finish: 'blasted' }, corrugated: { metal: 'zinc', finish: 'spangle' }, panel: { metal: 'aluminium', finish: 'brushed' } });
+function metalFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
+  const faces = [];
+  const side = run.exteriorSide;
+  if (!side) return faces;
+  const cladding = METAL_CLADDING[o.cladding] ? o.cladding : 'standing-seam';
+  const spec = o.facadeMetal || METAL_CLADDING[cladding]; const mat = resolveMaterial(spec);
+  const tHalf = t / 2; const N = run.orientation === 'h' ? [0, side, 0] : [side, 0, 0];
+  const P = (a, out, z) => { const off = side * (tHalf + out); return run.orientation === 'h' ? [a, run.at + off, z] : [run.at + off, a, z]; };
+  const lo = Math.max(zb, baseZ), hi = Math.min(zt, baseZ + H);
+  if (s1 - s0 < 0.05 || hi - lo < 0.05) return faces;
+  const alongV = run.orientation === 'h' ? [1, 0, 0] : [0, 1, 0];
+  const quad = (a0, o0, a1, o1, z0, z1, hex, nOver = null) => {
+    const corners = [P(a0, o0, z0), P(a1, o1, z0), P(a1, o1, z1), P(a0, o0, z1)];
+    let n = nOver;
+    if (!n) {   // the strip's own normal in plan, turned to face out of the wall
+      const e = [corners[1][0] - corners[0][0], corners[1][1] - corners[0][1], 0]; n = [e[1], -e[0], 0]; const l = Math.hypot(n[0], n[1]) || 1; n = [n[0] / l, n[1] / l, 0];
+      if (n[0] * N[0] + n[1] * N[1] < 0) n = [-n[0], -n[1], 0];
+    }
+    faces.push({ corners, fill: shadeHexMat(hex, n, mat, { light }), doubleSided: true, outNormal: n, group: 'facade:skin' });
+  };
+  const hex = mat.base;
+  if (cladding === 'corrugated') {
+    const pitch = 0.25, amp = 0.045;
+    for (let a = s0; a < s1 - 1e-6; a += pitch) { const m = Math.min(a + pitch / 2, s1), e = Math.min(a + pitch, s1); quad(a, 0.03, m, 0.03 + amp, lo, hi, hex); if (e > m) quad(m, 0.03 + amp, e, 0.03, lo, hi, hex); }
+  } else if (cladding === 'panel') {
+    quad(s0, 0.02, s1, 0.02, lo, hi, '#1d2126');                                     // the open joint behind
+    const pw = 2, ph = 4, j = 0.06;
+    for (let a = s0; a < s1 - 1e-6; a += pw) for (let z = lo; z < hi - 1e-6; z += ph) quad(a + j / 2, 0.07, Math.min(a + pw, s1) - j / 2, 0.07, z + j / 2, Math.min(z + ph, hi) - j / 2, hex);
+  } else {
+    quad(s0, 0.03, s1, 0.03, lo, hi, hex);                                          // the pans
+    const pitch = 1.33, w = 0.07, h = 0.12;
+    for (let a = s0 + pitch / 2; a < s1 - w; a += pitch) {                           // a seam: two cheeks and the lock
+      quad(a - w / 2, 0.03, a - w / 2, 0.03 + h, lo, hi, hex, alongV.map((v) => -v)); quad(a + w / 2, 0.03 + h, a + w / 2, 0.03, lo, hi, hex, alongV); quad(a - w / 2, 0.03 + h, a + w / 2, 0.03 + h, lo, hi, hex);
+    }
+  }
+  // a corrugated or seamed sheet is rolled vertically: its toolpath runs up the wall unless the spec names one
+  tagFacesWithMaterial(faces, mat, { along: cladding === 'panel' ? 'auto' : [0, 0, 1] });
   return faces;
 }
 
@@ -1984,7 +2036,7 @@ export function structurizeSplitMirror(input = {}, opts = {}) {
   const tofu = o.facadeStyle === 'tofu';
   const roof = opts.roof ?? (tofu ? 'tofu-deck' : 'gable');
   const wallHeight = opts.wallHeight ?? (tofu ? 12.5 : FLOORPLAN_DEFAULTS.wallHeight);
-  const facadeDecor = opts.facadeDecor ?? (tofu || o.facadeStyle === 'brick');
+  const facadeDecor = opts.facadeDecor ?? (tofu || o.facadeStyle === 'brick' || o.facadeStyle === 'metal');
 
   const W = fpB.x1 + sideYard, D = fpA.y1 + backYard;
   const storeys = Math.max(1, input.storeys ?? 1);

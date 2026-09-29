@@ -185,7 +185,7 @@ export function resolveMetalSurface(spec) {
   const along = spec.along ?? 'auto'; const seed = spec.seed ?? 0;
   const canon = { metal, finish, along, ...(film ? { film } : {}), seed };
   return {
-    key: JSON.stringify(canon), spec: canon, metal, finish, along, seed, fig: fin.fig, ax: fin.ax, ay: fin.ay,
+    key: JSON.stringify(canon), spec: canon, metal, finish, along, alongSet: spec.along != null, seed, fig: fin.fig, ax: fin.ax, ay: fin.ay,
     d, spread, thermal, scaleFrom: row.scaleFrom || 0, age, oxide: row.oxide || null,
     F0: F0.map((v) => round(v)), edge: edge.map((v) => round(v)), normal: normal.map((v) => round(v)), hex: rgbHex(normal),
     roughness: round(Math.min(1, Math.sqrt((fin.ax * fin.ax + fin.ay * fin.ay) / 2) * 2.2 + 0.05), 3),

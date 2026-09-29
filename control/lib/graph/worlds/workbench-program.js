@@ -24,6 +24,7 @@
 import { runCodeRealm, validateProgram, sourceHash, REALM_VERSION, DEFAULT_BUDGET_MS, MAX_BUDGET_MS } from '../polygonizer/code-realm.js';
 import { lowerAssembly } from '../polygonizer/workbench-assembly.js';
 import { shadeHexMat, DEFAULT_LIGHT } from '../polygonizer/vexar.js';
+import { resolveMaterial, validateMaterialRef, tagFacesWithMaterial } from '../polygonizer/materials.js';
 import { buildBookToolkit } from '../views/recipe-book/toolkit.js';
 
 export const MONOMER_KEYS = Object.freeze(['lathes', 'extrudes', 'sweeps', 'lofts', 'fields', 'drapes', 'reliefs', 'shells']);
@@ -54,12 +55,16 @@ const isPoint = (c) => Array.isArray(c) && c.length >= 3 && c.slice(0, 3).every(
 function facesFromProgram(list, light) {
   return list.map((f, i) => {
     if (!f || typeof f !== 'object' || !Array.isArray(f.corners) || f.corners.length < 3 || !f.corners.every(isPoint)) {
-      throw new Error(`face[${i}]: a returned face is { corners:[[x,y,z] × ≥3], fill?, group? } — got ${JSON.stringify(f).slice(0, 80)}`);
+      throw new Error(`face[${i}]: a returned face is { corners:[[x,y,z] × ≥3], fill?, tint?, material?, group? } — got ${JSON.stringify(f).slice(0, 80)}`);
     }
     const corners = f.corners.map((c) => [c[0], c[1], c[2]]);
     const n = newellNormal(corners);
-    const fill = typeof f.fill === 'string' ? f.fill : shadeHexMat(typeof f.tint === 'string' ? f.tint : DEFAULT_TINT, n, null, { light: light || DEFAULT_LIGHT });
-    return { corners, fill, doubleSided: true, outNormal: n, group: typeof f.group === 'string' ? f.group : 'program' };
+    // a face may name its material (a shelf name or a metal surface) — refused loudly here like a monomer's
+    const merr = f.material != null ? validateMaterialRef(f.material) : null; if (merr) throw new Error(`face[${i}]: ${merr}`);
+    const mat = f.material != null ? resolveMaterial(f.material) : null;
+    const fill = typeof f.fill === 'string' ? f.fill : shadeHexMat(typeof f.tint === 'string' ? f.tint : (mat ? mat.base : DEFAULT_TINT), n, mat, { light: light || DEFAULT_LIGHT });
+    const face = { corners, fill, doubleSided: true, outNormal: n, group: typeof f.group === 'string' ? f.group : 'program' };
+    return mat ? tagFacesWithMaterial([face], mat)[0] : face;
   });
 }
 

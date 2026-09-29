@@ -51,8 +51,10 @@ const FRAG_FNS = [
   '  return mix(mix(metHash(i), metHash(i + vec2(1.0, 0.0)), w.x), mix(metHash(i + vec2(0.0, 1.0)), metHash(i + vec2(1.0, 1.0)), w.x), w.y); }',
   'float metN(vec2 p, float feat) { return mix(0.5, metNoise(p), metAa(feat)); }',
   // the studio, without the sun (the sun is the analytic lobe): the dome to the horizon, the ground below, a softbox
-  'vec3 metStudio(vec3 d) { float h = d.z; vec3 c = h > 0.0 ? mix(uMetHor, uMetZen, pow(h, 0.7)) : mix(uMetGnd, uMetHor * 0.6, exp(8.0 * h));',
-  '  return c + vec3(3.2) * smoothstep(0.90, 0.94, dot(d, uMetBox)); }',
+  // `w` pre-blurs the studio for a rough lobe (the softbox edge widens, its peak lowers with the spread), so eight fixed
+  // samples read smooth instead of grainy: a cheap prefilter, the analytic studio's advantage over a texture
+  'vec3 metStudio(vec3 d, float w) { float h = d.z; vec3 c = h > 0.0 ? mix(uMetHor, uMetZen, pow(h, 0.7)) : mix(uMetGnd, uMetHor * 0.6, exp(8.0 * h / (1.0 + 6.0 * w)));',
+  '  return c + vec3(3.2 / (1.0 + 4.0 * w)) * smoothstep(0.90 - 0.9 * w, 0.94 + 0.2 * w, dot(d, uMetBox)); }',
   // reflectance by (film thickness, cosθ) from the metal's rows: columns crowd toward grazing, stored as sqrt(R)
   'vec3 metLutAt(vec4 B, float d, float c) { float col = 15.0 * (1.0 - sqrt(clamp(c, 0.0, 1.0))); float row = B.x + clamp(d / 5.0, 0.0, B.y - 1.0);',
   '  vec3 v = texture2D(uMetLut, vec2((col + 0.5) / 16.0, (row + 0.5) / uMetLutH)).rgb; return v * v; }',
@@ -96,13 +98,13 @@ const FRAG_MAIN = [
   '  vec3 Nf = normalize(N - slope.x * T - slope.y * Bt);',
   '  float dc = d; if (C.z > 0.5 && d > B.w) { float t = clamp((d - B.w) / (1.5 * B.w), 0.0, 1.0); t = t * t * (3.0 - 2.0 * t); if (t > cover) { cover = t; coverC = vec3(0.045, 0.045, 0.05); } dc = B.w; }',
   '  if (C.x > 0.0 || C.y > 0.0) {',                                                  // copper's age: brown, then green where water sits and runs
-  '    float blot = metN(pq * 120.0 + sd * 7.0, 1.0 / 120.0); float wet = 0.65 * sqrt(max(Nf.z, 0.0)) + 0.35 * metN(vec2(u * 300.0, pm.z * 25.0) + sd, 1.0 / 300.0);',
+  '    float blot = metN(pq * 120.0 + sd * 7.0, 1.0 / 120.0); float wet = 0.65 * sqrt(max(Nf.z, 0.0)) + 0.35 * metN(vec2((pq.x + pq.y) * 300.0, pm.z * 25.0) + sd, 1.0 / 300.0);',
   '    float g = C.y > 0.0 ? smoothstep(1.0 - C.y - 0.08, 1.0 - C.y + 0.08, wet * 0.8 + 0.2 * blot) : 0.0; float c2 = max(C.x * 0.92, g);',
   '    if (c2 > cover) { cover = c2; coverC = mix(vec3(0.07, 0.035, 0.022), vec3(0.16, 0.36, 0.28) * (0.85 + 0.3 * blot), g); } }',
-  '  vec3 acc = vec3(0.0); float jr = metHash(gl_FragCoord.xy) * 6.2832; float rough = ax + ay;',
-  '  for (int i = 0; i < 8; i++) { float a = jr + float(i) * 2.39996, r = sqrt((float(i) + 0.5) / 8.0) * 1.6;',
+  '  vec3 acc = vec3(0.0); float rough = ax + ay; float wb = 0.25 * rough;',
+  '  for (int i = 0; i < 8; i++) { float a = float(i) * 2.39996, r = sqrt((float(i) + 0.5) / 8.0) * 1.6;',
   '    vec3 h = rough < 0.03 ? Nf : normalize(Nf + ax * r * cos(a) * T + ay * r * sin(a) * Bt); vec3 R = reflect(-V, h); if (dot(R, Nf) < 0.0) R = reflect(R, Nf);',
-  '    acc += metStudio(R) * metLutAt(B, dc, max(dot(V, h), 0.0)); }',
+  '    acc += metStudio(R, wb) * metLutAt(B, dc, max(dot(V, h), 0.0)); }',
   '  vec3 col = acc / 8.0 * lum;',
   '  vec3 H = normalize(uMetSun + V); float hn = dot(H, Nf), nl = dot(Nf, uMetSun), nv = max(dot(Nf, V), 1e-3);',   // the sun: an analytic anisotropic lobe
   '  if (hn > 0.0 && nl > 0.0) { float sx = dot(H, T) / hn, sy = dot(H, Bt) / hn; float a2 = max(ax, 0.01), b2 = max(ay, 0.01), vh = max(dot(V, H), 1e-3);',

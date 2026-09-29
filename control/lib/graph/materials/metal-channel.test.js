@@ -59,3 +59,28 @@ describe('the metal channel on the World page (metal-surfaces S3)', () => {
     expect(L(warm.zen)).toBeCloseTo(L(plain.zen), 3);
   });
 });
+
+describe('metal surfaces on parts (metal-surfaces S4)', () => {
+  it('a lathe turns: its toolpath circles its own axis unless the spec names one', async () => {
+    const { latheToFaces } = await import('../polygonizer/lathe-faces.js');
+    const spec = { axisFrom: { x: 5, y: 0, z: 0 }, axisTo: { x: 5, y: 4, z: 0 }, profile: [{ t: 0, radius: 2 }, { t: 1, radius: 2 }] };   // a lathe lying along y, off the origin
+    const faces = latheToFaces(spec, { material: { metal: 'aluminium' } }).filter((f) => f.metal);
+    const m = faceListToMesh(faces, { decollide: false });
+    let worst = 0; for (let i = 0; i < m.mets.length; i += 8) worst = Math.max(worst, Math.abs(m.mets[i + 1]));   // a tangent circling a y axis has no y part
+    expect(worst).toBeLessThan(1e-3);
+    const along = latheToFaces(spec, { material: { metal: 'aluminium', along: 'y' } }).filter((f) => f.metal);
+    const ma = faceListToMesh(along, { decollide: false }); expect(Math.abs(ma.mets[1])).toBeGreaterThan(0.9);
+  });
+  it('a code program face may name a metal surface, and a bad one is refused', async () => {
+    const { expandWorkbenchProgram } = await import('../worlds/workbench-program.js');
+    const ok = expandWorkbenchProgram({ kind: 'workbench', program: { source: "return [{ corners: [[0,0,0],[1,0,0],[1,1,0],[0,1,0]], material: { metal: 'copper', film: { age: 5 } } }];" } });
+    expect(JSON.parse(ok.faces[0].metal.s).metal).toBe('copper');
+    expect(() => expandWorkbenchProgram({ kind: 'workbench', program: { source: "return [{ corners: [[0,0,0],[1,0,0],[1,1,0]], material: { metal: 'adamantium' } }];" } })).toThrow(/face\[0\]: metal surface: unknown metal/);
+  });
+  it('a workbench recipe with a metal material mints; a typo is refused at mint', async () => {
+    const { planWorkbench } = await import('../worlds/workbench.js');
+    const lathe = (material) => ({ lathes: [{ axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 3 }, profile: [{ t: 0, radius: 2 }, { t: 1, radius: 2 }], material }] });
+    expect(() => planWorkbench({ kind: 'workbench', ...lathe({ metal: 'stainless', finish: 'brushed' }) })).not.toThrow();
+    expect(() => planWorkbench({ kind: 'workbench', ...lathe({ metal: 'stainless', finish: 'satin' }) })).toThrow(/unknown finish/);
+  });
+});

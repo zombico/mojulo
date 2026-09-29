@@ -111,9 +111,9 @@ export function materialPbr(mat) {
  * is already IN the fills; these carry the view-dependent remainder. No material or
  * no specular → faces untouched (byte-identical downstream).
  */
-export function tagFacesWithMaterial(faces, mat) {
+export function tagFacesWithMaterial(faces, mat, opts = {}) {
   if (!mat || !Array.isArray(faces)) return faces;
-  if (mat.surface) return tagFacesWithMetal(faces, mat.surface);
+  if (mat.surface) return tagFacesWithMetal(faces, mat.surface, opts);
   const spec = mat.specular > 0 ? [mat.specular, mat.shininess || 16] : null;
   const pbr = materialPbr(mat);
   for (const f of faces) {
@@ -131,11 +131,13 @@ export function tagFacesWithMaterial(faces, mat) {
  * pose, scale and mirror of the corners (faceListToMesh rebuilds it from the final corners). No `spec`: the metal
  * channel draws the whole view-dependent response, and a white Blinn lobe on top would read as plastic again.
  */
-export function tagFacesWithMetal(faces, surface) {
+export function tagFacesWithMetal(faces, surface, { axis = null, along: fallback = null } = {}) {
   const pbr = [1, Math.max(0.08, surface.roughness)];
+  // a generator may name its natural toolpath (a lathe turns: 'around' its own axis) for a spec that set none
+  const along = surface.alongSet ? surface.along : (fallback || surface.along);
   for (const f of faces) {
     if (!f || !Array.isArray(f.corners) || f.corners.length < 3) continue;
-    f.metal = { s: surface.key, d: surface.d, ta: +toolpathAngle(f.corners, surface.along).toFixed(4) };
+    f.metal = { s: surface.key, d: surface.d, ta: +toolpathAngle(f.corners, along, axis).toFixed(4) };
     f.pbr = pbr;
   }
   return faces;
@@ -147,9 +149,10 @@ const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]); return l > 1e-12 
 /**
  * The toolpath direction on a face as an angle (radians) from its first edge, measured about the face normal
  * n = e0 × e1. `along`: 'auto' (an elongated face's longest edge, else the part's x — y where x is the normal), 'x' | 'y' | 'z' or [x, y, z] (in the part's own frame), or
- * 'around' (circumferential about the part's z axis through its origin: a lathe's turning marks).
+ * 'around' (circumferential about an axis: `axis = { at, dir }` when the generator knows one — a lathe's own —
+ * else the part's z through its origin: a lathe's turning marks).
  */
-export function toolpathAngle(corners, along = 'auto') {
+export function toolpathAngle(corners, along = 'auto', axis = null) {
   const e0 = unit3(sub3(corners[1], corners[0])); const n = unit3(cross3(sub3(corners[1], corners[0]), sub3(corners[2], corners[0])));
   if (!e0 || !n) return 0;
   let t;
@@ -161,7 +164,9 @@ export function toolpathAngle(corners, along = 'auto') {
     const across = best > 0 ? (corners.length === 3 ? 2 : 1) * area / best : 0;
     t = across > 0 && best / across > 2 ? sub3(corners[(bi + 1) % corners.length], corners[bi]) : (Math.abs(n[0]) > 0.9 ? [0, 1, 0] : [1, 0, 0]);
   }
-  else if (along === 'around') { const c = corners.reduce((a, p) => [a[0] + p[0] / corners.length, a[1] + p[1] / corners.length, a[2] + p[2] / corners.length], [0, 0, 0]); t = cross3([0, 0, 1], c); if (Math.hypot(...t) < 1e-9) t = e0; }
+  else if (along === 'around') { const c = corners.reduce((a, p) => [a[0] + p[0] / corners.length, a[1] + p[1] / corners.length, a[2] + p[2] / corners.length], [0, 0, 0]);
+    t = axis ? cross3(axis.dir, sub3(c, axis.at)) : cross3([0, 0, 1], c);
+    if (Math.hypot(...t) < 1e-9) { const a = axis ? axis.dir : [0, 0, 1]; t = cross3(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]); } }
   else t = along === 'x' ? [1, 0, 0] : along === 'y' ? [0, 1, 0] : along === 'z' ? [0, 0, 1] : along;
   // project into the face plane; a tangent along the normal has no in-plane direction → the first edge
   const tp = unit3(sub3(t, n.map((v) => v * dot3(t, n)))); if (!tp) return 0;
