@@ -59,6 +59,15 @@ describe('capture page publishes the capture-contract names', () => {
     entities: [{ id: 'd', transform: { pos: [1, 1, 0], heading: 0 }, rule: { type: 'walk' }, body: { type: 'mesh' } }],
     capture: true,
   });
+  // a rigged capture page (a layered hero's packed figure carrying `preview`) — the rig preview
+  // channel injects its clip <select> from script, so its hide class is set via `className`
+  const fig = { rig: true, bones: [{ id: 'root', head: [0, 0, 0], tail: [0, 0, 1] }], parts: [{ pos: 'AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAA', col: 'AAAAAAAAAAAAAAAA', faces: 1 }], clips: { idle: { k: 2, b: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.1] } }, figH: 1 };
+  const rigged = emitThreeWorld({
+    faces: [{ corners: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 0]], fill: '#888', group: 'body' }],
+    figures: { body: { ...fig, preview: { clips: ['idle'], hide: 'body', period: 2 } } },
+    capture: true,
+  });
+  const tags = (page, cls) => page.includes(`class="${cls}`) || page.includes(`className = '${cls}'`);
 
   it('bridge global, readiness flag, and every method', () => {
     expect(html).toContain(`window.${CAPTURE_GLOBAL} = {`);
@@ -74,6 +83,14 @@ describe('capture page publishes the capture-contract names', () => {
     expect(html).toContain(`{ ${PROBE_FIELDS.map((f) => `${f}:`).join(' ')}`.split(' ')[1]); // 't:' anchor
     for (const f of PROBE_FIELDS) expect(html).toContain(`${f}:`);
     expect(html).toContain(`id="${WORLD_ROOT_SELECTOR.slice(1)}"`);
-    for (const sel of WORLD_HIDE_SELECTORS) expect(html).toContain(`class="${sel.slice(1)}`);
+    for (const sel of WORLD_HIDE_SELECTORS) expect(tags(html, sel.slice(1)) || tags(rigged, sel.slice(1)), sel).toBe(true);
+  });
+
+  it('a rigged capture hides the rig preview clip <select>; the live page keeps it', () => {
+    // the drivers display:none every WORLD_HIDE_SELECTORS match, so the tagged <select> bakes out
+    expect(WORLD_HIDE_SELECTORS).toContain('.rig-preview');
+    expect(rigged).toMatch(/createElement\('select'\);\s*sel\.className = 'rig-preview';/);
+    // hiding is the capture drivers' job — the page itself never styles the picker away
+    expect(rigged).not.toMatch(/\.rig-preview\s*\{[^}]*display\s*:\s*none/);
   });
 });

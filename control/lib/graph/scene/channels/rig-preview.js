@@ -188,6 +188,7 @@ const __rpRigs = RPREV.map((pv, pi) => {
   const hidden = [];
   if (pv.hide) scene.traverse((o) => { if (o.userData && ${hideTest} && o.isMesh) hidden.push(o); });${inkHide}
   const sel = document.createElement('select');
+  sel.className = 'rig-preview';   // a capture-contract WORLD_HIDE_SELECTORS entry: live-only, baked out
   sel.style.cssText = 'position:fixed;left:12px;bottom:' + (12 + pi * 34) + 'px;z-index:30;font:12px/1.4 system-ui,sans-serif;background:rgba(14,16,20,.85);color:#e8ecf1;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:4px 8px';
   for (const n of ['rest', ...names]) { const o = document.createElement('option'); o.value = n; o.textContent = n === 'rest' ? ${restLabel} : 'clip: ' + n; sel.appendChild(o); }
   sel.value = state.clip || 'rest';

@@ -221,6 +221,10 @@ branch; each bullet is rewritten as its phase lands.
   lid sags below the slit as it shuts and still leaves a thin line above it. An upturned closed-eye drawing for a smile
   with the eyes shut (`happy`, the grins) waits for the shut eye's own arc, which the male's sag needs too. The World
   page, every other hero and kind, and every export of them are byte-identical.
+- **The clip picker out of captures.** The rig preview's clip `<select>` carries the class `rig-preview`, a
+  capture-contract `WORLD_HIDE_SELECTORS` entry, so World stills (`scene-png.js`, which now reads the root and hide
+  selectors from the contract instead of its own copy) and motion frames bake it out; the live page keeps it. A page
+  carrying a rigged figure's `preview` gains the one class; every other page is byte-identical.
 - **Planes and designed shadow.** The cheek plane, the jaw set inside the cheek outline, the gonial angle, the chin, a
   wedge nose; an occlusion bias, a deep second shade, a cast shadow from the fringe, ink widths that vanish at openings and
   thin in valleys, authored interior lines.
