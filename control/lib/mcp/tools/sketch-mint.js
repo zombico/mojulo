@@ -52,7 +52,7 @@ import {
   resolveMotionComicLayout,
   validateMotionComicRefs,
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
-import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
+import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
@@ -359,6 +359,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   }
 
   const sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
+  const design = houseDesignReadout(finalized);
 
   // Most sketches minted here are diagrams/illustrations (cheap on-demand SVG),
   // but a world/scene-kind manifest can arrive via create_sketch / the POST API
@@ -369,6 +370,28 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     ok: true,
     ref: sketch.ref,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
+    ...(design ? { design } : {}),
+  };
+}
+
+/**
+ * A house's design considerations, measured (floorplan-design.js) and read out for the agent: advisory, never a
+ * refusal (the house is the operator's). Only the findings travel, with the rules they were measured against and the
+ * next move; a single-floor plan or any other kind reads nothing. Never throws.
+ */
+function houseDesignReadout(manifest) {
+  let d;
+  try { d = assessHouseManifest(manifest); } catch { return null; }
+  if (!d) return null;
+  const repairing = manifest.design && manifest.design.repair;
+  return {
+    ok: d.ok,
+    tradition: d.tradition,
+    rules: d.rules,
+    ...(d.findings.length ? { findings: d.findings.slice(0, 8), ...(d.findings.length > 8 ? { more: d.findings.length - 8 } : {}) } : {}),
+    ...(!d.ok ? { next: repairing
+      ? 'repair could not make the room within this footprint: widen the house (width/height), try another seed, or author the storey with levels[i].rooms and place the stair with stairs[].'
+      : "design: { repair: true } sizes the upstairs hall and the stair's core to keep the passage — update_sketch({ ref, patch: [{ op: 'set', path: '/design', value: { repair: true } }] }); or author the storey with levels[i].rooms." } : {}),
   };
 }
 
@@ -823,10 +846,12 @@ export async function updateSketchHandler(input) {
   }
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
+  const design = nextManifest !== undefined ? houseDesignReadout(nextManifest) : null;
   return {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
+    ...(design ? { design } : {}),
     ...(gameNote ? { note: gameNote } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),

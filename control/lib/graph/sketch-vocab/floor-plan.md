@@ -86,6 +86,26 @@ Archetype glyphs (each carries a furniture fill recipe):
 `fillRoom(room, seed)` expands a room's archetype into boxNet
 `roomConcept.elements`, so any room renders through the normal box-net pipeline.
 
+## Design — walkways and stairs, checked
+
+A house with storeys is checked the way you would walk it, and `create_sketch` / `update_sketch` return what they
+found as `design` (advisory: the house is minted either way). On each storey the free floor between the walls, the
+stair's well and its flight is measured, and every door and both ends of each stair must connect through a passage at
+least the tradition's width; a finding says how wide the narrowest point is, where, what it lies between, and which
+doors lie beyond it. Doors are measured against a clear width, stairs against a width, riser and going.
+
+- `design: { tradition?, passage?, door?, stair?: { width?, riser?, going? }, repair? }` — the rules, in feet. The
+  tradition defaults from the framing, else `north-american` (passage 36 in, door 30 in, stair 36 in with 7¾ in
+  risers and 10 in goings); `british` (900 mm, Part K-like), `japanese` (780 mm), `metric` (900 mm).
+- `repair: true` builds the plan to keep the passage: the upstairs hall takes the stair's zone and a walkway past it,
+  doors on the well's side step off its span, the ground floor keeps the passage round the flight, and where a U-return
+  and its walkway would cost the upper floor a row of rooms the stair becomes a straight flight climbing toward the
+  middle of the house. Without it the house is exactly as it was.
+
+```json
+{ "storeys": 2, "seed": 4, "design": { "repair": true } }
+```
+
 ## Framing — the structure under the skin
 
 `framing` (a stack: `storeys` or `levels`) builds what stands under the finished house, read from its own plan: the

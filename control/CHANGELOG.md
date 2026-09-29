@@ -102,6 +102,24 @@ connected-service and app loops and the recipe format are the stable surface.
   takeoff by material, and advisory checks: receptacle spacing, a switch at every door, bored-hole edge distance and
   depth, no bore through a hashira, and every material in the catalog.
 
+### House design checks
+
+- **Walkways measured on the floor.** A house with storeys is checked the way you would walk it. On each storey the
+  free floor between the walls (at their thickness), the stair's well and its flight is measured, and every door and
+  both ends of each stair must connect through a passage at least as wide as the tradition asks (36 in, 900 mm,
+  780 mm). A finding names the narrowest point on the best route: how wide, where, what it lies between, and the doors
+  beyond it. The upstairs hall of a two-storey program house was one of them on every seed: its U-return well leaves
+  about 9 in on each side.
+- **Stair and door rules.** Stairs against a width, riser and going; doors against a clear width, by tradition.
+- **Considerations in the recipe.** `design: { tradition, passage, door, stair, repair }` names the rules and their
+  values (validated at mint). `create_sketch` and `update_sketch` return a house's findings as `design`, with the
+  next move, and never refuse; houses were not graded at mint before.
+- **Repair.** `design.repair: true` builds the plan to keep the passage: the upstairs hall takes the stair's zone and a
+  walkway past it, doors on the well's side step off its span, the ground floor keeps the passage round the flight,
+  and where a U-return and its walkway would cost the upper floor a row of rooms the stair becomes a straight flight
+  climbing toward the middle of the house. The room program is kept (a longer straight flight can cost the ground floor
+  a storage closet). Absent, a house is unchanged.
+
 ### Roofs, drainage and IFC
 
 - **The maps.** A catalog material can carry the surface it draws with: a library texture and the metres one tile

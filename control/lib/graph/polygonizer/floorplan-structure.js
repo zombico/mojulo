@@ -32,10 +32,11 @@
 
 import { framingOf, houseFramingFaces, clipFacesAtX, houseEyes } from '../construction/house-frame.js';
 import { planDrainage } from '../construction/drainage.js';
+import { assessHouseDesign, designRules } from './floorplan-design.js';
 import { shiftRepeats } from '../construction/instancing.js';
 import { expandRepeats } from './rock-pool.js';
 import { shadeHex, makeLight, scaleHex } from './vexar.js';
-import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
+import { generatePlan, generateProgramPlan, upperHallFits, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
 import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
@@ -2496,14 +2497,17 @@ export function structurizeHouse(input = {}, opts = {}) {
     : Array.isArray(input.stairs) ? input.stairs : input.stairs ? [input.stairs] : [];
   // program houses default to a SWITCHBACK (U-return) stair; it needs a wider open zone,
   // so the reserved stair span (and the upper landing that must cover it) grows to fit.
-  const switchbackDefault = useProgram;
-  const anySwitchback = stairSpecs.some((s) => s.switchback ?? switchbackDefault);
-  const stairSpan = anySwitchback ? (2 * STAIR_DEFAULTS.width + STAIR_DEFAULTS.wellGap + 1.2) : (STAIR_DEFAULTS.width + 0.4);
+  // design.repair: the generator keeps a passage past the stair (floorplan-design.js names its width)
+  const repairPassage = o.design && o.design.repair ? designRules(o.design, framing ? framing.tradition : null).passage : null;
+  let switchbackDefault = useProgram;
+  let stairRun = null;
+  const spanFor = () => (stairSpecs.some((s) => s.switchback ?? switchbackDefault) ? (2 * STAIR_DEFAULTS.width + STAIR_DEFAULTS.wellGap + 1.2) : (STAIR_DEFAULTS.width + 0.4));
+  let stairSpan = spanFor();
   // ground first so its open core fixes the shared stair zone the others must keep open.
   const order = [...resolved].sort((a, b) => (a.index === 0 ? -1 : b.index === 0 ? 1 : a.index - b.index));
   const planByIndex = new Map();
   let stairZone = null, stairDir = '+x';
-  for (const r of order) {
+  const makePlans = () => { for (const r of order) {
     if (Array.isArray(r.rooms) && r.rooms.length) {
       planByIndex.set(r.index, { rooms: r.rooms, halls: r.halls || [], doors: r.doors || [] });
       continue;
@@ -2512,13 +2516,25 @@ export function structurizeHouse(input = {}, opts = {}) {
       const role = r.index > 0 ? 'upper' : r.index < 0 ? 'basement' : 'ground';
       const plan = generateProgramPlan(r.seed ?? (input.seed ?? 1) + r.index, {
         width, height, role, hasUpper, reservedOpen: stairZone, inset: 2, stairSpan,
-        tier: input.tier, terrace: input.terrace, balcony: o.balcony,
+        tier: input.tier, terrace: input.terrace, balcony: o.balcony, ...(repairPassage != null ? { passage: repairPassage } : {}), ...(stairRun != null ? { stairRun, climbToCentre: true } : {}),
       });
       if (r.index === 0 && plan.stairZone) { stairZone = plan.stairZone; stairDir = plan.stairDir; }
       planByIndex.set(r.index, plan);
     } else {
       planByIndex.set(r.index, generatePlan(r.seed ?? (input.seed ?? 1) + r.index, { width, height, maxDepth: r.maxDepth, corridors: r.corridors ?? input.corridors ?? false, minRoom: r.minRoom ?? input.minRoom }));
     }
+  } };
+  makePlans();
+  // (repair) a U-return whose zone and a passage past it would cost the upper floor a row of rooms gives way to a
+  // straight flight along the hall, its zone running on to the landing at its head
+  if (repairPassage != null && useProgram && hasUpper && stairZone && stairSpecs.some((s) => s.switchback === undefined)
+    && !upperHallFits({ width, height, inset: 2, reservedOpen: stairZone, passage: repairPassage })) {
+    switchbackDefault = false;
+    stairSpan = spanFor();
+    const rise = (o.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight) + (o.floorDrop ?? FLOORPLAN_DEFAULTS.floorDrop);
+    stairRun = Math.max(2, Math.round(rise / STAIR_DEFAULTS.riser)) * STAIR_DEFAULTS.going + repairPassage + 1;
+    planByIndex.clear(); stairZone = null; stairDir = '+x';
+    makePlans();
   }
 
   const stairs = stairSpecs.map((s) => {
@@ -2623,6 +2639,9 @@ export function structurizeHouse(input = {}, opts = {}) {
     faces.push(...st.faces);            // stair flights climb in their lower-level volume
   }
 
+  // opt-in design considerations (floorplan-design.js): the walkways and stairs measured on the floor as built
+  const design = o.design ? assessHouseDesign({ levels, stairs, footprint }, o.design, { ...o, tradition: framing ? framing.tradition : null }) : null;
+
   // Roof over the top storey + ground plane (exterior), else the cutaway's datum helper line.
   let roofTextureKeys = [];
   const roofRepeats = [];
@@ -2680,9 +2699,9 @@ export function structurizeHouse(input = {}, opts = {}) {
     for (const f of fr.faces) { faces.push(f); const l = levelOf(f.group); if (l) l.structure.faces.push(f); }
     // stamped members and bricks ride their storey too: { level index, repeat }
     const repeats = [...roofRepeats, ...fr.repeats.map((r) => ({ ...r, level: (levelOf(r.group) || sorted[0]).index }))];
-    return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}) };
+    return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
   }
-  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}) };
+  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
 }
 
 /** Cameras for a multi-level house (pulls back to take in the whole stack — and lot). */
