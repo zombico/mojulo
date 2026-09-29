@@ -22,6 +22,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
 import { planAssembler } from '@/lib/graph/worlds/workbench-assembler';
 import { MONOMER_KEYS, hasProgram } from '@/lib/graph/worlds/workbench-program';
+import { hasEquipment } from '@/lib/graph/equipment/expand';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 // Pull the renderable monomer arrays off a workbench-shaped manifest (the frozen part). Every
@@ -38,6 +39,8 @@ function monomersOf(manifest) {
   // and the assembler's lowering expands it on every render exactly as the workbench does
   // (seeded, memoised), so a crankshaft written as a loop enters an engine as itself.
   if (hasProgram(manifest)) out.program = manifest.program;
+  // An equipment build freezes the same way: its words (laws stamp included) ride inline and expand in the lowering.
+  if (hasEquipment(manifest)) out.build = manifest.build;
   return Object.keys(out).length ? out : null;
 }
 

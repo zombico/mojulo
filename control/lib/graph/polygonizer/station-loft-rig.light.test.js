@@ -291,7 +291,9 @@ describe('the anime hero: the rig pack and the ink take the character light by d
 // rim), a landmark hero's World page with toon ink (the rig preview and the ink channel stay ungated), and its skinned
 // GLB with the baked ink. Each page pin takes one of two values: the page as it was, and the same page with the clip
 // picker tagged by its capture hide class (`sel.className = 'rig-preview'`, capture-contract WORLD_HIDE_SELECTORS),
-// a separate change to the rig preview channel; drop the first value once both have landed.
+// a separate change to the rig preview channel; drop the first value once both have landed. The landmark hero's pair was
+// re-pinned for the hero's `wave` clip keeping its elbow at the shoulder line (hero-form.js): both values, the second
+// with that picker tag applied.
 const DRAGON_BODY = path.resolve(process.cwd(), '../docs/examples/dragon-body/recipe.json');
 describe('absent ⇒ byte-identical: the rig packs, pages and exports of every non-anime rigged recipe', () => {
   const world = async (manifest) => (await resolveWorldScene({ ref: 'x', title: 't', manifest }, {})).payload;
@@ -304,8 +306,8 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
   });
   it('a landmark hero: the inked page; the skinned GLB with the baked ink', async () => {
     const { emitThreeWorld } = await import('../scene/scene-three.js');
-    expect(['cceaeb5056cc1c59', '91034853ebac31a3']).toContain(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), toon: { ink: true } }))));
+    expect(['0adb8ae46508117e', '1137ac00c4fe7415']).toContain(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), toon: { ink: true } }))));
     const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female' }) }), toon: { ink: { crease: 50 }, bake: true } });
-    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('7e3ad794b91d56ca');
+    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('818fd9f23039d014');
   });
 });

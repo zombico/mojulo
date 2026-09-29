@@ -19,14 +19,17 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) =>
 const RAY = [0.8726, 0.3313, 0.3589];
 const inside = (tris, q) => { let c = 0; for (const [A, B, C] of tris) { const e1 = sub(B, A), e2 = sub(C, A), p = cross(RAY, e2), det = dot(e1, p); if (Math.abs(det) < 1e-14) continue; const tv = sub(q, A), u = dot(tv, p) / det; if (u < 0 || u > 1) continue; const qq = cross(tv, e1), v = dot(RAY, qq) / det; if (v < 0 || u + v > 1) continue; if (dot(e2, qq) / det > 0) c++; } return c % 2 === 1; };
 
+// Re-pinned for the hero's `wave` clip (hero-form.js): the upper arm level and the forearm up, the elbow never over
+// the head. Every hero plan carries the clip, so the plan, the recipe and the pages move with it and with nothing else
+// (with the old wave restored these pins pass unchanged).
 describe('the neck form: absent ⇒ the plan as it was', () => {
   it('reaches only the anime head on anime proportions; every other path keeps the segment, byte for byte', () => {
     // pinned from the code before the neck form existed (sha256(JSON.stringify(plan)), first 16 hex digits)
-    expect(h(heroPlan({ cast: 'male', proportions: 'anime' }))).toBe('7595fc345fda8f5e');
-    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly' }))).toBe('1f30801578a99462');
+    expect(h(heroPlan({ cast: 'male', proportions: 'anime' }))).toBe('7df808760df93813');
+    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly' }))).toBe('d5582c1b5d57b926');
     expect(heroPlan({ cast: 'male', proportions: 'anime', neckForm: null })).toEqual(heroPlan({ cast: 'male', proportions: 'anime' }));
-    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime' }))).toBe('4d2162584f2c6168');   // the landmark head on anime proportions
-    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime' })))).toBe('bfdffda92b59cd4a');
+    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime' }))).toBe('a548ad8506b71fba');   // the landmark head on anime proportions
+    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime' })))).toBe('6e8dcaca2f4e56eb');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero' }))).kind).toBe('segment');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime' }))).kind).toBe('segment');   // a figure cast has none
     for (const cast of ['female', 'male']) {

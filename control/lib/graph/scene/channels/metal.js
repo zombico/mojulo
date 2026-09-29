@@ -1,5 +1,5 @@
 import { safeJson } from '../emit-util.js';
-import { resolveMetalSurface, metalLut, LUT_A } from '../../materials/metal-surface.js';
+import { resolveMetalSurface, metalLut, LUT_A, DAMASCUS_TYPES } from '../../materials/metal-surface.js';
 
 // In-page script: the metal channel (metal-surfaces S3) — metal surfaces shaded live on the World page. Groups whose
 // geometry carries the per-vertex metal attribute (packed by faceListToMesh from faces tagged `metal`) get their
@@ -30,7 +30,9 @@ export function metalChannelInputs(keys, { sky = null, unit = 1 } = {}) {
   const rgba = new Uint8Array(rows * LUT_A * 4); let o = 0;
   for (const m of metals) { const t = metalLut(m); for (let i = 0; i < t.length; i += 3) { rgba[o++] = t[i]; rgba[o++] = t[i + 1]; rgba[o++] = t[i + 2]; rgba[o++] = 255; } }
   const surfaces = S.map((s) => { const [row0, n] = rowOf[s.metal]; const age = s.age != null ? ageCover(s.age) : [0, 0];
-    return { A: [s.ax, s.ay, s.fig, +((s.seed * 12.9898) % 97).toFixed(4)], B: [row0, n, s.spread, s.scaleFrom], C: [age[0], age[1], s.thermal ? 1 : 0, 0] }; });
+    return { A: [s.ax, s.ay, s.fig, +((s.seed * 12.9898) % 97).toFixed(4)], B: [row0, n, s.spread, s.scaleFrom], C: [age[0], age[1], s.thermal ? 1 : 0, 0],
+      // a pattern-welded surface: [type, folds, scale, 0] for figure 8 (materials/damascus.js is the field's definition)
+      ...(s.pattern ? { D: [DAMASCUS_TYPES.indexOf(s.pattern.type), s.pattern.folds, s.pattern.scale, 0] } : {}) }; });
   const tinted = sky && Array.isArray(sky.zenith) && sky.zenith.length >= 3 && Array.isArray(sky.horizon) && sky.horizon.length >= 3;
   const zen = tinted ? toLum(sky.zenith.slice(0, 3).map(lin), lum(STUDIO.zen)) : STUDIO.zen, hor = tinted ? toLum(sky.horizon.slice(0, 3).map(lin), lum(STUDIO.hor)) : STUDIO.hor;
   const gnd = tinted ? toLum(hor, lum(STUDIO.gnd)) : STUDIO.gnd;
@@ -45,11 +47,25 @@ const FRAG_FNS = [
   // a figure feature of size `feat` (metres) fades out as it drops below two pixels: sub-pixel figures would sparkle,
   // and their mean is already in the reflectance (a brushed sheet far off is its anisotropic sheen, not its streaks)
   'float metAa(float feat) { return clamp(feat / (2.0 * metFp) - 0.5, 0.0, 1.0); }',
-  'varying vec4 vMetT; varying float vMetD; varying vec3 vMetWp; varying vec3 vMetN;',
+  'varying vec4 vMetT; varying float vMetD; varying vec3 vMetWp; varying vec3 vMetN; varying vec3 vMetP;',
   'float metHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
   'float metNoise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 w = f * f * (3.0 - 2.0 * f);',
   '  return mix(mix(metHash(i), metHash(i + vec2(1.0, 0.0)), w.x), mix(metHash(i + vec2(0.0, 1.0)), metHash(i + vec2(1.0, 1.0)), w.x), w.y); }',
   'float metN(vec2 p, float feat) { return mix(0.5, metNoise(p), metAa(feat)); }',
+  // pattern-welded steel (materials/damascus.js): the layer field's deformations, and the etch — a square wave of
+  // bright and dark layers box-filtered over the pixel's footprint in q, so sub-pixel layers read as their mean grey
+  'float metFbm(vec2 p) { return (0.5 * metNoise(p) + 0.25 * metNoise(p * 2.0 + 17.0) + 0.125 * metNoise(p * 4.0 + 34.0)) / 0.875; }',
+  'float metLay(float t, float sp) { float k = floor(t / (2.0 * sp)); return k * sp + clamp(t - k * 2.0 * sp - sp, 0.0, sp); }',
+  'float metDamascus(vec4 D, float x, float y, float w, float sd) { float mm = 0.001 * D.z; int ty = int(D.x + 0.5);',
+  '  float fb = metFbm(vec2(x / (9.0 * mm), w / (5.0 * mm)) + sd) - 0.5; float def = 0.7 * mm * fb;',
+  '  if (ty == 1) def = 0.9 * mm * pow(0.5 + 0.5 * cos(6.2832 * x / (6.0 * mm)), 3.0) + 0.0875 * mm * fb;',
+  '  else if (ty == 2) { float s = 7.0 * mm, R = 0.36 * s, best = 0.0; vec2 c0 = vec2(floor(x / s), floor(w / (s * 0.866)));',
+  '    for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) { vec2 c = c0 + vec2(float(i), float(j)); float odd = mod(c.y, 2.0);',
+  '      vec2 q = vec2((c.x + 0.5 * odd + 0.1 * (metHash(c + sd) - 0.5)) * s, c.y * s * 0.866); float r = length(vec2(x, w) - q) / R;',
+  '      if (r < 1.0) best = max(best, pow(cos(r * 1.5708), 2.0)); }',
+  '    def = 0.9 * mm * best + 0.0875 * mm * fb; }',
+  '  else if (ty == 3) { float th = 6.2832 * x / (40.0 * mm); def = y * cos(th) + w * 0.35 * sin(th) - y; }',
+  '  return y + def; }',
   // the studio, without the sun (the sun is the analytic lobe): the dome to the horizon, the ground below, a softbox
   // `w` pre-blurs the studio for a rough lobe (the softbox edge widens, its peak lowers with the spread), so eight fixed
   // samples read smooth instead of grainy: a cheap prefilter, the analytic studio's advantage over a texture
@@ -90,6 +106,10 @@ const FRAG_MAIN = [
   '  else if (fig == 6) {',                                                            // mill scale: rolled streaks, a few flakes of bright steel
   '    float streak = 0.85 + 0.3 * metN(vec2(u * 30.0, v * 700.0) + sd, 1.0 / 700.0);',
   '    float scale = metNoise(vec2(u * 60.0, v * 160.0) + sd * 4.0) < 0.9 ? 0.94 : 0.0; cover = mix(0.88, scale, metAa(1.0 / 160.0)); coverC = vec3(0.05, 0.056, 0.068) * streak; }',
+  '  else if (fig == 8) {',                                                            // pattern-welded steel, etched
+  '    vec4 D = uMetD[s]; float sp = 0.004 * D.z / (7.0 * exp2(D.y)); float q = metDamascus(D, vMetP.z * uMetUnit, vMetP.x * uMetUnit, vMetP.y * uMetUnit, sd);',
+  '    float fw = max(fwidth(q), 1e-9); float b = (metLay(q + 0.5 * fw, sp) - metLay(q - 0.5 * fw, sp)) / fw;',
+  '    lum = 0.3 + 0.7 * b; ax = 0.05 + 0.08 * (1.0 - b); ay = ax; cover = 0.45 * (1.0 - b); coverC = vec3(0.035, 0.035, 0.038); }',
   '  else if (fig == 7) {',                                                            // hopper terraces: nested squares, older inner steps thicker
   '    float cs = 0.02; vec2 p = pq / cs; vec2 ip = floor(p); vec2 f = p - ip - 0.5; float an = (metHash(ip + sd) - 0.5) * 0.5;',
   '    vec2 q = vec2(cos(an) * f.x - sin(an) * f.y, sin(an) * f.x + cos(an) * f.y); float m = max(abs(q.x), abs(q.y)) / 0.4; float dt = 26.0;',
@@ -123,21 +143,24 @@ export function metalChannelScript({ toLight, inputs }) {
 const MET = ${safeJson({ sun: toLight.map((v) => +v.toFixed(6)), ...inputs })};
 const __metLutTex = (() => { const b = atob(MET.lut.b64); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
   const t = new THREE.DataTexture(u, 16, MET.lut.h, THREE.RGBAFormat); t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.needsUpdate = true; return t; })();
+const __metZ4 = [0, 0, 0, 0];
 const __metUni = { uMetSun: { value: new THREE.Vector3(...MET.sun) }, uMetZen: { value: new THREE.Vector3(...MET.zen) }, uMetHor: { value: new THREE.Vector3(...MET.hor) },
   uMetGnd: { value: new THREE.Vector3(...MET.gnd) }, uMetBox: { value: new THREE.Vector3(...MET.box).normalize() }, uMetSunE: { value: MET.sunE },
   uMetLut: { value: __metLutTex }, uMetLutH: { value: MET.lut.h }, uMetUnit: { value: MET.unit },
-  uMetA: { value: MET.surfaces.map((s) => new THREE.Vector4(...s.A)) }, uMetB: { value: MET.surfaces.map((s) => new THREE.Vector4(...s.B)) }, uMetC: { value: MET.surfaces.map((s) => new THREE.Vector4(...s.C)) } };
+  uMetA: { value: MET.surfaces.map((s) => new THREE.Vector4(...s.A)) }, uMetB: { value: MET.surfaces.map((s) => new THREE.Vector4(...s.B)) }, uMetC: { value: MET.surfaces.map((s) => new THREE.Vector4(...s.C)) },
+  uMetD: { value: MET.surfaces.map((s) => new THREE.Vector4(...(s.D || __metZ4))) } };
 const __metPatch = (m, grp) => {
   const map = grp.metal.surfaces.map((k) => MET.index[k]); const buf = decodeF32(grp.metal.a);
   for (let i = 3; i < buf.length; i += 8) if (buf[i] > -0.5) buf[i] = map[Math.round(buf[i])];
   const ib = new THREE.InterleavedBuffer(buf, 8);
+  if (grp.metal.p) m.geometry.setAttribute('aMetP', new THREE.BufferAttribute(decodeF32(grp.metal.p), 3));
   m.geometry.setAttribute('aMetT', new THREE.InterleavedBufferAttribute(ib, 4, 0)); m.geometry.setAttribute('aMetD', new THREE.InterleavedBufferAttribute(ib, 1, 4)); m.geometry.setAttribute('aMetN', new THREE.InterleavedBufferAttribute(ib, 3, 5));
   const prev = m.material.onBeforeCompile;
   m.material.onBeforeCompile = (sh, r) => {
     if (prev) prev.call(m.material, sh, r); Object.assign(sh.uniforms, __metUni);
-    sh.vertexShader = 'attribute vec4 aMetT;\\nattribute float aMetD;\\nattribute vec3 aMetN;\\nvarying vec4 vMetT;\\nvarying float vMetD;\\nvarying vec3 vMetWp;\\nvarying vec3 vMetN;\\n' + sh.vertexShader.replace('#include <begin_vertex>',
-      '#include <begin_vertex>\\nvMetWp = (modelMatrix * vec4(transformed, 1.0)).xyz; vMetT = vec4(normalize(mat3(modelMatrix) * aMetT.xyz), aMetT.w); vMetD = aMetD; vMetN = mat3(modelMatrix) * aMetN;');
-    sh.fragmentShader = '${FRAG_FNS}\\nuniform vec4 uMetA[${S}]; uniform vec4 uMetB[${S}]; uniform vec4 uMetC[${S}];\\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>', '${FRAG_MAIN}');
+    sh.vertexShader = 'attribute vec4 aMetT;\\nattribute float aMetD;\\nattribute vec3 aMetN;\\nattribute vec3 aMetP;\\nvarying vec4 vMetT;\\nvarying float vMetD;\\nvarying vec3 vMetWp;\\nvarying vec3 vMetN;\\nvarying vec3 vMetP;\\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\\nvMetWp = (modelMatrix * vec4(transformed, 1.0)).xyz; vMetT = vec4(normalize(mat3(modelMatrix) * aMetT.xyz), aMetT.w); vMetD = aMetD; vMetN = mat3(modelMatrix) * aMetN; vMetP = aMetP;');
+    sh.fragmentShader = '${FRAG_FNS}\\nuniform vec4 uMetA[${S}]; uniform vec4 uMetB[${S}]; uniform vec4 uMetC[${S}]; uniform vec4 uMetD[${S}];\\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>', '${FRAG_MAIN}');
   };
   m.material.customProgramCacheKey = () => 'metal' + (prev ? String(prev) : '');
   m.material.needsUpdate = true;

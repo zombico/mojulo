@@ -22,6 +22,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
 import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench-program';
+import { withEquipment } from '@/lib/graph/equipment/expand';
 
 // A filesystem-safe download name derived from the sketch title (falls back to the ref).
 function scadFilename(sketch, ref) {
@@ -49,7 +50,7 @@ export async function GET(request, { params }) {
     const { payload, kind } = await resolveWorldScene(sketch);
     const exported = payload
       ? scadExport({
-        manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : sketch.manifest,
+        manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : withEquipment(sketch.manifest),
         payload,
         title: sketch.title || sketch.manifest.title || ref,
         ref,

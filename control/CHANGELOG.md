@@ -14,6 +14,137 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Fantasy armor
+
+Worn armour composed from intent and art direction, on the hero: plate from a single pauldron to full harness, and
+samurai lamellar with laced rows, hanging boards and a crested kabuto. It is built from a few dials and laws, not a
+catalogue. The hero stores the words, and the suit is re-derived on every read. Opt-in through `adorn` on the hero.
+
+- **A suit is a build on the hero.** `adorn: { type: 'armor', style, dials }` on the hero door
+  (`mint_solid({ kind: 'layered', via: 'hero', spec: { …, adorn } })`) expands into an adornment kit wherever the hero
+  is read. `update_sketch` restyles it in place: `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'`.
+  A build is stamped with the version of the armour laws it was minted under.
+- **Dials, not presets.**
+  - `stylize` runs from realistic to stylized along one curve: the focal piece grows fastest, plates stand further
+    off the body, openings flare, and lames and lacing get fewer and bigger.
+  - `coverage` grows the suit out from its focal piece, from one pauldron to full plate.
+  - `mass` sets heft, and `ornament` is the edge budget.
+- **The laws, as worn.**
+  - One focal piece per suit, and every piece is sized against its body part.
+  - A plate never crosses a joint: each rides one bone. A cop caps a joint from one side, lames shingle away from
+    their anchor, and plate stays off where two body parts touch at rest.
+  - Coverage grows from the focal. The suit is asymmetric until its partner piece arrives as a lesser piece, and the
+    side follows function (a bracer on the bow arm).
+  - Plates read over a layer one clear value step away.
+  - The edge is the ornament field.
+  - Each piece is built the way its material is made: plate as halves strapped at the sides; lamellar as sawtooth
+    rows held by the lacing, where the construction is the ornament.
+- **Styles are cards.** The samples ship as plain data: `knight` (plate) and three lamellar samurai, `kuro-kon`
+  (black lacquer, navy lacing, a gold crescent), `aka` (red lacquer, gold horns) and `shiro` (white lacing, a sun
+  disc). `style` also takes an inline card.
+- **Hard-suits, a third family.** Moulded shells over a bodysuit, segmented so the panel lines show the layer beneath,
+  with a smooth helmet and optional power pack:
+  - `grim-scifi`: massive power armour with domed pauldrons, glowing lenses and a grille;
+  - `fantasy-space`: minimal trooper plates and a T-visor helmet;
+  - `armored-hero`: a modular powered suit with a faceplate helm and a glowing chest reactor.
+  Groups named in `plan.emissive` (lenses, visor slits, a reactor) render full-bright on the World page.
+- **Themes carried down.** `adorn.theme` (`death-knight`, `radiant`, or an inline card) layers a theme over any plate
+  suit as a motif vocabulary, not a skin:
+  - The primary motif repeats with hierarchy: full size at the focal piece, then smaller at the partner, chest, belt
+    and knees, as far as the ornament budget reaches, never on every piece.
+  - The secondary motif is the field's one structural line (ribs across the abdomen).
+  - Edge verbs run the edges they name: a painted rim on every plate, fur at the cuffs.
+  - The crest verb stands only on the crest line (spikes along the pauldron tops, a crown on the helm).
+  - Glyphs mark the plain fields, and the glow spends on the focal and the eyes.
+  - A theme can add the pieces only it wants: a helm, a tabard, a belt that carries the belt motif.
+  - A theme leans the dials and language between the style's and the build's own, and its tones layer over the
+    style's.
+  - Theme cards are plain data in `lib/graph/themes/`, to be shared with held gear. Samurai and hard-suit armour take
+    a theme's tones for now.
+- **Adornment signatures as data.**
+  - A signature can be:
+    - `facing`: a disc on the piece's lifted outer skin, facing where the eye comes from;
+    - `boards`: flat laced rows hung from a piece's edge;
+    - `crest`: a crescent, horns or a sun disc;
+    - `helm`: a smooth helmet sized to the head, with its visor, lenses or grille, a shadowing brow, and a coronet
+      of spikes at the front or the back;
+    - `pack`: a vented block on the back;
+    - one of the theme motifs: `skull` (sockets dark or glowing, 0–2 horns), `spikes`, `ribs`, `fur`, `tabard`,
+      `runes`.
+  - A signature element may carry its own group.
+  - A shell's `rim` paints a band along its own edges in another group, so a trim follows every flare of the plate.
+  - `stack: false` keeps an adornment out of the ones worn after it, so lamellar rows keep a sawtooth profile instead
+    of piling outward.
+  - A rigid strap no longer fails to wear.
+  - Kits that use none of these are unchanged.
+
+### Equipment
+
+Fantasy arms composed from intent and art direction: swords, daggers, greatswords, staves, bows and shields, built
+by a handful of dials and a few laws rather than a catalogue. The recipe stores the words; the item is re-derived on
+every read. Opt-in through `build` on a workbench.
+
+- **An item is a build, not a model.** `mint_solid({ kind: 'equipment', spec: { item, style, dials, parts, gem } })`
+  stores a workbench with a `build` (the same `build` may sit on any workbench beside hand-made parts). The build
+  expands into ordinary monomers (lofts, lathes, sweeps, extrudes, fields) wherever a workbench is read: the World,
+  the studio shots, the exports, an assembler that freezes it. `update_sketch` restyles it in place: one dial, one word. A build is stamped with
+  the version of the laws it was minted under, so a later refinement never moves a stored item.
+- **Dials, not presets.** `stylize` runs from realistic to stylized along one proportion curve. `mass` sets heft,
+  `focus` names the signature (a guard, a pommel, a staff head, a bow's riser, a shield's boss), and `ornament`
+  caps the secondary accents. Shape language picks a variant per part: leaf, cleaver, sabre, flamberge and tanto
+  blades; bar, crescent, disc, block, spiked and winged guards; branch, claw, crescent, block, mace and ringed staff
+  heads; longbow, recurve, horn and yumi limbs; round, heater and kite shields with rays, bands, vines, wings,
+  spikes or a mon.
+- **The laws.**
+  - One focal element per item, with everything else sized against it.
+  - Stylization grows the focal fastest, and detail gets fewer and bigger.
+  - The part that carries a stone re-forms as its setting: a flush bezel when realistic, a boss, cage or claw when
+    stylized. The setting grips the stone at its girdle, the widest ring measured on the exact crystal
+    (`crystalGirdle`): a bezel lip sits in the girdle's plane, and prongs and branches pass the girdle at its radius.
+    The cut follows the setting, so a raw crystal set face-on becomes a cabochon, while a cradle keeps it raw.
+  - No feature is thinner than a stylize-dependent fraction of the item's length.
+  - Fittings recede so the focal carries the contrast.
+  - The focal sits where the eye already goes, and leading lines run into it.
+  - A branching head grows by the pipe model.
+  - On a shield, the stone is sized against the whole face.
+- **Styles are cards.** Eight samples ship as plain data: historical, elven, dwarven, brutal, eastern, anime-hero,
+  druid and celestial. `style` also takes an inline card, so a new direction is a new card, not code.
+- **Real metal.** A card's material role may be a metal surface `{ metal, finish, film }` (see Metal surfaces), so
+  a blade reflects the studio instead of reading as paint. The samples wear:
+  - brushed steel and blasted fittings (historical), and polished silver (elven);
+  - blued, tempered steel with planished bronze and gold (dwarven), and mill-scaled steel (brutal);
+  - blued-steel fittings with brushed gold (eastern), and a chrome edge (anime-hero);
+  - planished bronze with verdigris accents (druid), and mirror stainless under polished gold (celestial).
+  - A painted fitting still recedes as stylization rises; a metal keeps its own colour.
+- **The readout.** `stats.equipment` names the focal and its share of its host or face, the resolved dials and
+  variants, and the sockets (`grip`, `tip`, `focal`, and a bow's nocks) that a figure mounts gear by.
+- **Bark on any lathe or loft.** `bark: 'oak'` (or `{ species, tile }`) on a lathe or loft wears the trees' own
+  fracture-grown bark: oak, beech, pine, chestnut, spruce, silver fir or upper pine. The mapping is seamless, running
+  round and along the stem, and the page lights the texture. A druid's gnarled staff and its grown branches wear it,
+  with the tile scaled to the stem, because bark cracks closer on a thinner stem.
+- **Pattern-welded blades.** `pattern: { kind: 'damascus', type: 'random' | 'ladder' | 'raindrop' | 'twist', folds }`
+  on a metal surface forges a billet of layers (seven times two to the folds) and etches it where the blade's grind cuts
+  them. It is drawn in the metal shader, so the blade keeps its reflection and needs no texture. The layers grey out
+  at a distance and resolve up close, as real Damascus does. The eastern sample's blade is a twist Damascus.
+- **Gear on the hero.** `gear: { right, left, back, hip }` on the hero door takes the same build words as an item. Each
+  piece is placed by its sockets at true size, scaled with the figure, and held by class:
+  - a blade goes through the fist with its tip forward and down; a raised guard swings it upright;
+  - a staff and a bow are gripped in the hand;
+  - a shield rides the forearm;
+  - back and hip gear is carried.
+  The gear is bound to its bone, so the stands, the clips, the preview and the skinned GLB carry it. An anime hero's
+  gear defaults to a stylized proportion. Absent `gear`, the hero is byte-identical.
+- **Swings.** `gesture: 'chop' | 'thrust' | 'rising' | 'cleave' | 'bash' | 'plant'` stands in the swing's ready pose
+  and plays the swing as a looping clip, with the body driving it: windup, strike, follow-through and recovery at about
+  28 : 14 : 14 : 44. The item's mass and length set the timing: a heavy or long item strikes later from a held, higher
+  cock, and a dagger strikes early. The chop's cock rolls the arm so the blade stands up and back, and holds that roll
+  through the strike, so the edge leads. A swing needs gear in its hand, and the door says which. The readout names the
+  contact window, reach and cone for a game to read.
+- **The elbow stays low.** A raised hand no longer lifts its elbow over the head. The upper arm comes up level and
+  forward and the forearm stands, so the elbow points forward or down at the shoulder line: in every swing's windup,
+  and in the hero's `wave`. The wave's clip changed with it, so every hero's plan, recipe, page and skinned GLB moved
+  by that clip alone.
+
 ### Metal surfaces
 
 Metal becomes a surface any part, facade or roof can wear: a metal, a finish, an optional oxide film, and a seed. On

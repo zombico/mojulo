@@ -22,6 +22,7 @@
  * Pure and deterministic: tables and functions of the mesh, the recipe and the pose alone.
  */
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, layeredClip } from './station-loft-rig.js';
+import { SWING_WORDS, isSwing } from './hero-swing.js';
 
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -132,12 +133,13 @@ function gestureObjectErrors(g, label) {
 /** Error strings for a hero `gesture` (empty = valid): a word, an object of pose words, or a list of either. */
 export function validateGesture(gesture, label = 'gesture') {
   if (gesture === undefined || gesture === null) return [];
+  if (isSwing(gesture)) return [];   // a swing word (hero-swing.js): the stand is its ready key, the swing its clip
   const items = Array.isArray(gesture) ? gesture : [gesture];
   if (!items.length) return [`${label}: a gesture word (${GESTURE_WORDS.join(', ')}), an object of pose words, or a list of them`];
   const errs = [];
   items.forEach((it, i) => {
     const at = Array.isArray(gesture) ? `${label}[${i}]` : label;
-    if (typeof it === 'string') { if (!GESTURE_WORDS.includes(it)) errs.push(`${at}: unknown gesture word '${it}' (${GESTURE_WORDS.join(', ')}, or an object of pose words: ${GESTURE_KEYS.join(', ')})`); }
+    if (typeof it === 'string') { if (isSwing(it)) errs.push(`${at}: a swing word ('${it}') stands alone, not in a list`); else if (!GESTURE_WORDS.includes(it)) errs.push(`${at}: unknown gesture word '${it}' (${GESTURE_WORDS.join(', ')}; a swing: ${SWING_WORDS.join(', ')}; or an object of pose words: ${GESTURE_KEYS.join(', ')})`); }
     else if (isObj(it)) errs.push(...gestureObjectErrors(it, at));
     else errs.push(`${at}: a gesture word (${GESTURE_WORDS.join(', ')}) or an object of pose words`);
   });

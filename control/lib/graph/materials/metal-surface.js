@@ -9,6 +9,7 @@
 // under D65 to linear sRGB, white-balanced so a perfect mirror is [1, 1, 1]. Everything is Math on fixed tables: the
 // same bytes on every load. The metal-surface spike (lite-template/integration, not tracked) is the derivation.
 import { METAL_NK, OXIDE_NK, LAMBDA0, LAMBDA_STEP, LAMBDA_N } from './metal-optics-data.js';
+import { damascusError, canonDamascus, DAMASCUS_TYPES } from './damascus.js';
 
 // ---------- the metals ----------
 // nk: the measured table; oxide: the film it grows; finish: its natural finish. Film laws, per metal:
@@ -35,7 +36,8 @@ export const METAL_NAMES = Object.freeze(Object.keys(METALS));
 
 // ---------- the finishes ----------
 // ax / ay: microfacet slope widths along / across the toolpath; fig: the figure the page draws (0 none, 1 streaks,
-// 2 feed rings, 3 blast grain, 4 hammer dimples, 5 spangle, 6 mill scale, 7 hopper terraces); only: the metals it
+// 2 feed rings, 3 blast grain, 4 hammer dimples, 5 spangle, 6 mill scale, 7 hopper terraces; 8 is a pattern-welded
+// surface's etch, set by `pattern`, not a finish); only: the metals it
 // belongs to (mill scale is iron oxide; spangle is how zinc freezes; hopper terraces are how bismuth grows).
 export const FINISHES = Object.freeze({
   mirror: { ax: 0.01, ay: 0.01, fig: 0 },
@@ -50,6 +52,8 @@ export const FINISHES = Object.freeze({
 });
 export const FINISH_NAMES = Object.freeze(Object.keys(FINISHES));
 export const ALONG = Object.freeze(['auto', 'x', 'y', 'z', 'around']);
+export const PATTERN_METALS = Object.freeze(['steel', 'stainless']);
+export { DAMASCUS_TYPES };
 
 // ---------- colour ----------
 const LAMBDA = Array.from({ length: LAMBDA_N }, (_, i) => LAMBDA0 + LAMBDA_STEP * i);
@@ -149,9 +153,14 @@ export const isMetalSurface = (m) => !!m && typeof m === 'object' && typeof m.me
 const metalKey = (name) => (typeof name === 'string' ? (METALS[name] ? name : METAL_ALIASES[name.trim().toLowerCase()] || null) : null);
 /** Why a metal-surface spec is invalid (a sentence naming the choices), or null. */
 export function metalSurfaceError(spec) {
-  if (!isMetalSurface(spec)) return 'a metal surface is { metal, finish?, along?, film?, seed? }';
+  if (!isMetalSurface(spec)) return 'a metal surface is { metal, finish?, along?, film?, pattern?, seed? }';
   const metal = metalKey(spec.metal); if (!metal) return `unknown metal '${spec.metal}' — use one of: ${METAL_NAMES.join(', ')}`;
-  const extra = Object.keys(spec).filter((k) => !['metal', 'finish', 'along', 'film', 'seed'].includes(k)); if (extra.length) return `a metal surface takes metal, finish, along, film, seed — not ${extra.join(', ')}`;
+  const extra = Object.keys(spec).filter((k) => !['metal', 'finish', 'along', 'film', 'pattern', 'seed'].includes(k)); if (extra.length) return `a metal surface takes metal, finish, along, film, pattern, seed — not ${extra.join(', ')}`;
+  if (spec.pattern != null) {
+    const pe = damascusError(spec.pattern); if (pe) return pe;
+    if (!PATTERN_METALS.includes(metal)) return `pattern-welding folds steels — use ${PATTERN_METALS.join(' or ')}`;
+    if (spec.finish != null || spec.film != null) return 'a pattern-welded surface is etched: it takes no finish or film';
+  }
   if (spec.finish != null) { const f = FINISHES[spec.finish]; if (!f) return `unknown finish '${spec.finish}' — use one of: ${FINISH_NAMES.join(', ')}`; if (f.only && !f.only.includes(metal)) return `the ${spec.finish} finish belongs to ${f.only.join(', ')}`; }
   const a = spec.along; if (a != null && !(ALONG.includes(a) || (Array.isArray(a) && a.length === 3 && a.every(Number.isFinite) && Math.hypot(...a) > 0))) return `along is one of ${ALONG.join(', ')}, or a direction [x, y, z]`;
   if (spec.seed != null && !Number.isInteger(spec.seed)) return 'seed is an integer';
@@ -167,7 +176,7 @@ const round = (v, k = 4) => +v.toFixed(k);
  */
 export function resolveMetalSurface(spec) {
   const err = metalSurfaceError(spec); if (err) throw new Error(`metal surface: ${err}`);
-  const metal = metalKey(spec.metal); const row = METALS[metal]; const finish = spec.finish || row.finish; const fin = FINISHES[finish];
+  const metal = metalKey(spec.metal); const row = METALS[metal]; const finish = spec.finish || (spec.pattern != null ? 'polished' : row.finish); const fin = FINISHES[finish];
   const film = spec.film ?? row.film ?? null; let d = 0, spread = 0, age = null, thermal = false;
   if (film) {
     const [k] = Object.keys(film); const v = film[k];
@@ -182,10 +191,15 @@ export function resolveMetalSurface(spec) {
   if (thermal && d > row.scaleFrom) { const t = Math.min(1, (d - row.scaleFrom) / (1.5 * row.scaleFrom)); normal = normal.map((v) => v * (1 - t) + 0.045 * t); }
   if (age != null) { const a = copperAge(age); const cover = Math.max(a.brown * 0.92, a.green * 0.5); const under = [0.07 * (1 - a.green) + 0.16 * a.green, 0.035 * (1 - a.green) + 0.36 * a.green, 0.022 * (1 - a.green) + 0.28 * a.green]; normal = normal.map((v, k) => v * (1 - cover) + under[k] * cover); }
   if (finish === 'mill') normal = normal.map((v, k) => v * 0.15 + [0.07, 0.076, 0.088][k] * 0.85);   // magnetite-rich scale over most of it
-  const along = spec.along ?? 'auto'; const seed = spec.seed ?? 0;
-  const canon = { metal, finish, along, ...(film ? { film } : {}), seed };
+  // a pattern-welded blade: the etch darkens the carbon layers (about half the surface) under a dark oxide grey, and the
+  // pattern runs along the part's z unless told otherwise (a blade is built along z)
+  const pattern = spec.pattern != null ? canonDamascus(spec.pattern) : null;
+  if (pattern) normal = normal.map((v) => v * 0.65 * 0.775 + 0.036 * 0.225);
+  const along = spec.along ?? (pattern ? 'z' : 'auto'); const seed = spec.seed ?? 0;
+  const canon = { metal, ...(pattern ? {} : { finish }), along, ...(film ? { film } : {}), ...(pattern ? { pattern } : {}), seed };
   return {
-    key: JSON.stringify(canon), spec: canon, metal, finish, along, alongSet: spec.along != null, seed, fig: fin.fig, ax: fin.ax, ay: fin.ay,
+    key: JSON.stringify(canon), spec: canon, metal, finish, along, alongSet: spec.along != null || !!pattern, seed, fig: pattern ? 8 : fin.fig, ax: pattern ? 0.05 : fin.ax, ay: pattern ? 0.05 : fin.ay,
+    ...(pattern ? { pattern } : {}),
     d, spread, thermal, scaleFrom: row.scaleFrom || 0, age, oxide: row.oxide || null,
     F0: F0.map((v) => round(v)), edge: edge.map((v) => round(v)), normal: normal.map((v) => round(v)), hex: rgbHex(normal),
     roughness: round(Math.min(1, Math.sqrt((fin.ax * fin.ax + fin.ay * fin.ay) / 2) * 2.2 + 0.05), 3),

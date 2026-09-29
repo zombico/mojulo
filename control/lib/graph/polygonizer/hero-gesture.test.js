@@ -151,13 +151,16 @@ describe('the presets on the anime hero', () => {
 // The door's absent ⇒ byte-identical: the hero record, the plan and the recipe of every hero that does not stand, pinned
 // from the door BEFORE the gesture existed (sha256(JSON.stringify(x)), first 16 hex digits); the anime hero at
 // `gesture: 'rest'` keeps the plan and recipe it had (its record says 'rest').
+// Re-pinned for the hero's `wave` clip (hero-form.js): the upper arm level and the forearm up, the elbow never over
+// the head. Every hero plan carries the clip, so the plan, the recipe and the pages move with it and with nothing else
+// (with the old wave restored these pins pass unchanged).
 describe('the door: no gesture ⇒ byte-identical', () => {
   const PINS = {
-    landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', '6fe2cd3a9c74d711', 'fc8478c87f655ed3']],
-    landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '35de64b3f0ee35b0', '038a00c662b5944e']],
-    headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', 'efc53a2abc390cad', '5e8d8528833c1814']],
-    ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', 'bdd213bf73b9a667', 'd68b48d0267532a9']],
-    chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '76a47c3ed7d142b9', 'e267c39595020625']],
+    landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', '3c7bbf346eaac7ec', 'bea115d3e2080dac']],
+    landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '19bd030cf5c6b514', '0491e3116c5d971b']],
+    headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '3501097320b96707', 'cd26a720b2420d48']],
+    ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '406acf0f4215b0e5', '4124db4ac9b3b4a1']],
+    chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '73b7f4b40fcd97f1', '1f5bb5d11318a03f']],
   };
   for (const [name, [spec, [record, plan, recipe]]] of Object.entries(PINS)) {
     it(`${name}: record, plan, recipe`, () => {
@@ -172,21 +175,21 @@ describe('the door: no gesture ⇒ byte-identical', () => {
     // neck form (hero-form.js ANIME_NECK_FORMS: the neck a ring loft): the humanoid starter with the segment neck in its
     // place gives d56790646999f85a / efd7142540e4b892, the values before it, still. Re-pinned for the female HAIR BASE
     // (anime-head ANIME_HAIR_BASE, applied by the door: the lifted, thicker ridge-section form and the side-parted cut)
-    // and her hair colour (#3b4859): the starter with the studio's hair and the one palette gives 095252dbb83a1ef9 /
-    // 2c562764ab1eef7e, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
+    // and her hair colour (#3b4859): the starter with the studio's hair and the one palette gives 20603e67ecc8120a /
+    // c6c06fb062f633e5, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
     // ANIME_HERO_PALETTE, so her shade side parts from the World's backdrop): with #3b4859 passed as the operator's palette
-    // the door gives 4da49ea78bba6152 / 769748cc87d1a964, the values before it, still
+    // the door gives 981042f892f927a8 / fb4ca6e99c355c48, the values before it, still
     const hr = heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false }); const p = heroPlanOf(hr);
-    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('38d0100609dca818'); expect(h(expandPlan(p))).toBe('2fbbadfa437a7d35');
+    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('d5c955f2008e39c1'); expect(h(expandPlan(p))).toBe('86ed5d6451d0e21b');
     const was = heroPlanOf(heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, palette: { Hair: '#3b4859' } }));
-    expect(h(was)).toBe('4da49ea78bba6152'); expect(h(expandPlan(was))).toBe('769748cc87d1a964');
+    expect(h(was)).toBe('981042f892f927a8'); expect(h(expandPlan(was))).toBe('fb4ca6e99c355c48');
     const eff = composeAnime(hr, 'bob');
     const before = humanoidPlan({ preset: 'female', register: hr.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' } });
-    expect(h(before)).toBe('095252dbb83a1ef9'); expect(h(expandPlan(before))).toBe('2c562764ab1eef7e');
+    expect(h(before)).toBe('20603e67ecc8120a'); expect(h(expandPlan(before))).toBe('c6c06fb062f633e5');
   });
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);
     expect(hr.gesture).toBe('guard'); expect(Object.keys(p.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(p.clips.gesture).toEqual([GESTURE_PRESETS.guard.male]);
-    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe('6fe2cd3a9c74d711');   // nothing else moved
+    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe('3c7bbf346eaac7ec');   // nothing else moved
   });
 });

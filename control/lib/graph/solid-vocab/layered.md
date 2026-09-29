@@ -314,8 +314,83 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.gesture` says the word, the support, the hand and forearm against the torso, bust, thighs, neck and head
   (`clearance`, millimetres past their rest overlap) and the free sole against the floor; past 5 mm it advises, as does
   `lean` or `stance` off rest beside a stand (the rig poses the rest joints, so the dial is posed twice).
+  THE GEAR. `gear: { right?, left?, back?, hip? }`, each slot an item's build words, the same an equipment item takes
+  (`{ item, style?, dials?, parts?, gem?, seed? }`, the equipment card): `gear: { right: { item: 'sword', style: 'dwarven' },
+  left: { item: 'shield', style: 'dwarven' } }`. Stored with the laws stamped; patch `/hero/gear/right/dials/stylize`.
+  Each item is placed by its sockets at true size (scaled with the figure's height) and held by its class: a blade
+  through the fist, its tip forward and down (a raised forearm carries it upright: the hand has no roll, so the rest
+  hold is the one the arm's swing reads best from); a staff or a bow near upright, its lower end just above the floor; a
+  shield along the forearm, its face outward; `back` across the shoulder blades (a blade hilt-up over the right
+  shoulder); `hip` at the left hip. The gear is rigid on its bone, so the stand, the clips, the preview and the skinned
+  GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says. The readout's `hero.gear` names each
+  slot's item, hold, bone, length (m) and share of the figure's height.
+  THE SWING. A swing word as the gesture: `chop`, `thrust`, `rising` (a low-to-high diagonal), `cleave` (two hands),
+  `plant` (a staff driven down) swing the `right` hand's gear; `bash` the `left` (a shield). The hero stands in the
+  swing's ready pose and the swing plays as its own looping clip (the World's clip picker, the skinned and engine
+  exports). The body drives it: the shoulders and spine coil at the cock and uncoil through the strike, the trunk hinges
+  over and the knees sink, both feet planted. The item sets the timing (law 8): a dagger strikes early from a small
+  cock, a greatsword (or a `mass` ≥ 1.2, or an item past three quarters of the figure) strikes late from a held, higher
+  cock. The readout's `hero.gear.<hand>.swing` gives the impact's phase, the contact `window`, `reachM` and `cone` for
+  a game's hit test. No bow draw yet: the hand has no wrist, so a bow raised to draw would point at the archer.
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
+- **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
+  direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
+  `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or
+  `set /hero/adorn/language/crest 'sun'`.
+  - `style`: `knight` (plate), or the samurai lamellar `kuro-kon` (black lacquer, navy lacing, a gold crescent), `aka`
+    (red lacquer, gold horns) or `shiro` (white lacing, a sun disc); or the hard-suits `grim-scifi` (massive power
+    armour, glowing lenses, a power pack), `fantasy-space` (minimal trooper plates, a T-visor helmet) or `armored-hero`
+    (a segmented suit, a faceplate helm, a glowing chest reactor). Or an inline card
+    `{ family: 'plate' | 'lamellar' | 'hardsuit', dials, language, tones, emissive? }`: a new direction is a new card,
+    not code. A card's `emissive` groups render full-bright.
+  - `dials`:
+    - `stylize` 0 → 1 grows the focal piece fastest, stands plates further off the body, flares openings, and makes
+      lames, rows and lacing fewer and bigger.
+    - `coverage` 0 → 1 grows the suit out from its focal piece. Plate starts from one pauldron, then the breastplate,
+      the bow-arm vambrace and the gorget; the partner pauldron arrives at 0.5 as a lesser piece; then greaves, cops,
+      the fauld and tassets, cuisses, gauntlets and sabatons. Lamellar starts from the crested kabuto, then the dō, the
+      sode, the kusazuri, the kote and the suneate.
+    - `mass` sets heft.
+    - `ornament` 0–3 is the edge budget, spent on the focal piece first.
+  - `language`:
+    - plate: `pauldron` (`spaulder` | `bell`), `focalSide`, `fnSide` (the arm that carries function takes the first
+      bracer);
+    - lamellar: `crest` (`crescent` | `kuwagata` | `sun`);
+    - hardsuit: `helm` (`power` | `trooper` | `faceplate`), `pauldron` (`dome` | `cap` | `segmented`), `chest`
+      (`plain` | `reactor`), `pack` (`power` | `none`), `segments` 1–3 (the panel lines), `focal`
+      (`helm` | `pauldron` | `reactor`).
+  - `theme` (plate suits): `death-knight`, `radiant`, or an inline card from `control/lib/graph/themes/`. A theme is a
+    motif vocabulary carried down the suit, not a skin:
+    - the primary motif (a skull, a sun boss) sits full size at the focal piece, then smaller at the partner, chest,
+      belt and knees, as far as `ornament` reaches;
+    - the secondary motif is the field's one line (ribs);
+    - the edge verbs run the edges they name (a painted rim on every plate, fur at the cuffs);
+    - the crest verb stands only on the crest line (spikes or wings on the pauldron tops, a crown on the helm);
+    - glyphs mark the plain fields (runes).
+    A theme may add a helm, a tabard and a belt. It leans the dials and language between the style's and the
+    build's own, and its tones layer over the style's. Patch `set /hero/adorn/theme 'radiant'`.
+  - The laws, as worn:
+    - one focal piece per suit, every piece sized to its body part;
+    - a plate never crosses a joint (each rides one bone, and cops cap a joint from one side);
+    - plate stays off where two body parts touch at rest;
+    - layers one clear value step apart;
+    - the edge is the ornament field;
+    - lamellar rows are a sawtooth held by lacing.
+  - The card's tones sit beneath the operator's palette. A kabuto covers the head, so set `hair: 'none'` (the readout
+    warns otherwise). `hero.dress.armor` reads out the style, the resolved dials, the pieces worn and the focal.
+  - Adornment signatures this uses, open to any kit:
+    - `facing` `{ dir, r, h }`: a disc on the piece's lifted outer skin, facing the eye;
+    - `boards` `{ n, len, thick, tilt, stand?, dm?, bow?, widen?, wide?, bottom, cords?, cordR?, cordGroup? }`: flat
+      laced rows hung from a piece's edge, with the cords in their own group;
+    - `crest` `{ shape, w, z, r }`;
+    - `helm` `{ pad, n?, flare?, muzzle?, crown?, visor?, visorGroup?, faceplate?, grille?, brow?, coronet? }`: a
+      smooth helmet sized to the head;
+    - `pack` `{ w, h, d, vents? }`;
+    - the theme motifs `skull` `{ r, horns?, socketGroup? }`, `spikes` `{ count, len, r, rise?, profile? }`, `ribs`
+      `{ count, r }`, `fur` `{ r, tufts? }`, `tabard` `{ len, thick }` (on a strap) and `runes` `{ count, h, w }`.
+    An adornment with `stack: false` is never lifted under the ones worn after it. A shell's `rim: { group, at?, w? }`
+    paints a band along its own edges.
 - **Body detail and adornment as plan data** (any plan, not only a hero: `docs/examples/ring-plans/flask.plan.json` is a
   wicker-wrapped flask — woven tiles, a lip ring, a band with a buckle — from 1.2 KB of plan). A plan may carry `body: { refine, volume, creases, tiles, pads, spurs, rows,
   collars, rigid? }` (`station-loft-body.js`, the head's detail principles one scale over: named density with parameters

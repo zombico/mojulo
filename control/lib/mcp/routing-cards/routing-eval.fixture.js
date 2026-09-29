@@ -21,6 +21,8 @@ export const FIXTURE = [
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
   ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
+  ['I need a glowing crystal staff for my forest mage', 'mint_solid'],
+  ['give my paladin a shield with a sun on it and make it chunky and stylized', 'mint_solid'],
   ['turn this concept art of an espresso machine into a 3d model piece by piece', 'mint_solid'],
   ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', 'mint_solid'],
   ['build me a little town I can wander around in', 'compose_world'],
@@ -87,6 +89,9 @@ export const FIXTURE = [
   ['an anime heroine with a long layered cut and one bang swept over her eye', 'mint_solid'],
   // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
   ['start from the rival look, then give him droopy eyes and messy hair', 'mint_solid'],
+  // armor (layered hero adorn build): worn armour from a style and dials (armor)
+  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'mint_solid'],
+  ['only armour the shoulders and chest for now, full plate later', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary
