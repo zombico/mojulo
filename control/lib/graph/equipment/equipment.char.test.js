@@ -10,6 +10,8 @@
  *   - Settings grip the girdle (crystal-optics crystalGirdle): every item carrying a stone re-pinned. Laws 1 is
  *     unreleased, so the refinement folds into it rather than opening laws 2.
  *   - The samples wear metal surfaces (materials/metal-surface.js) in their metal roles: every item re-pinned.
+ *   - The eastern blade is pattern-welded (a twist Damascus, sized to its blade by law 4): eastern dagger, sword and
+ *     greatsword re-pinned.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -42,9 +44,9 @@ const PINS = {
   'brutal/staff': '651c107f14c8a143',
   'brutal/bow': '48f0e084267110a0',
   'brutal/shield': 'f8dcabd14014031a',
-  'eastern/dagger': 'c4860f04e43a6524',
-  'eastern/sword': '77424d1060bfd649',
-  'eastern/greatsword': '5dc3889cdb84995a',
+  'eastern/dagger': 'da6a533e30207a7d',
+  'eastern/sword': '51c7fcea38d75134',
+  'eastern/greatsword': 'afb88b0e46e65608',
   'eastern/staff': '19dcd69b475e18f0',
   'eastern/bow': '31934d965a8b2475',
   'eastern/shield': 'fe26116c25236619',

@@ -224,6 +224,10 @@ export const EMIT_FIXTURES = [
     { ...quad('#a8a39b'), group: 'panel', metal: { s: '{"metal":"stainless","finish":"brushed","along":"x","seed":0}', d: 0, ta: 0 } },
     { corners: [[2.2, 0, 0], [4, 0, 0], [4, 0, 2], [2.2, 0, 2]], fill: '#2d6db2', group: 'panel', metal: { s: '{"metal":"titanium","finish":"polished","along":"auto","film":{"anodize":25},"seed":0}', d: 49, ta: 0 } }],
     light: { toLight: [0.4, -0.5, 0.75] } }],
+  // a pattern-welded panel: the billet buffer (metal.p) and the surface's pattern dials ride only on such a face
+  ['metal-damascus', { faces: [floor(),
+    { ...quad('#6f7275'), group: 'blade', metal: { s: '{"metal":"steel","along":"z","pattern":{"kind":"damascus","type":"twist","folds":3,"scale":2,"layers":"y"},"seed":0}', d: 0, ta: 0, p: [[0.003, -0.02, 0], [0.003, 0.02, 0], [0, 0.02, 1], [0, -0.02, 1]] } }],
+    light: { toLight: [0.4, -0.5, 0.75] } }],
 
   // a crystal a mover turns: its print is re-traced on the page (crystal-rig R4), not baked
   ['crystal-moving', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]

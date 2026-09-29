@@ -494,8 +494,18 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
   // also carries a SMOOTHED normal — the mean of the metal face normals meeting at that position within 40° of its own
   // face (a crease keeps its edge). `idx` names the corners a vertex came from; clip/radius vertices take the face's.
   const smooth = hasMet ? metalVertexNormals(faces) : null;
+  // a pattern-welded face's corners carry their place in the billet ([depth, across, along], metal.p): packed per vertex as a
+  // second buffer ONLY when some face has one, so every other metal scene is byte-identical
+  const metP = hasMet && faces.some((f) => f && f.metal && Array.isArray(f.metal.p)) ? [] : null;
+  const pushMetP = (m, n, idx) => {
+    if (!metP) return; const p = m && Array.isArray(m.p) ? m.p : null;
+    if (!p) { for (let i = 0; i < n; i++) metP.push(0, 0, 0); return; }
+    const mean = [0, 1, 2].map((k) => p.reduce((a, c) => a + c[k], 0) / p.length);
+    for (let i = 0; i < n; i++) { const c = idx ? p[idx[i]] || mean : mean; metP.push(c[0], c[1], c[2]); }
+  };
   const pushMet = (f, n, idx = null) => {
     if (!mets) return; const m = f.metal && typeof f.metal.s === 'string' ? f.metal : null;
+    pushMetP(m, n, idx);
     if (!m) { for (let i = 0; i < n; i++) mets.push(0, 0, 1, -1, 0, 0, 0, 0); return; }
     const head = [...faceTangent(f.corners, m.ta || 0), metSurfaces.indexOf(m.s), Number.isFinite(m.d) ? m.d : 0];
     const sn = smooth.get(f); for (let i = 0; i < n; i++) { const nn = sn ? sn[idx ? idx[i] : 0] || sn.face : [0, 0, 0]; mets.push(...head, ...(idx && sn ? nn : sn ? sn.face : nn)); }
@@ -641,6 +651,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     ...(crys && crys.length ? { crys: Float32Array.from(crys), cryGems } : {}),
     // per-vertex [tx, ty, tz, slot, d, nx, ny, nz] and the metal surfaces the slots index — null unless some face is metal
     ...(mets && mets.length ? { mets: Float32Array.from(mets), metSurfaces } : {}),
+    // per-vertex [depth, across, along] in the billet — only when some metal face is pattern-welded
+    ...(metP && metP.length ? { metP: Float32Array.from(metP) } : {}),
     vertexCount: positions.length / 3,
     faceCount: faces.length,
     center,

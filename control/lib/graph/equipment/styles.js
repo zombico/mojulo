@@ -8,7 +8,7 @@
 //   language  slot → variant for the sword family, with per-item overrides (`dagger`, `staff`, `bow`, `shield`);
 //             staff / bow / shield entries may also name their `focus`, a `shaft` or `board` role, a `bark` species
 //   edge      blade edge: fuller (0–1), bevel (0–1), single (a spine), barbs (count), twoTone
-//   roles     material role → [shelf material, '#hex'] or a metal surface { metal, finish?, film? } (its colour is the
+//   roles     material role → [shelf material, '#hex'] or a metal surface { metal, finish?, film?, pattern? } (its colour is the
 //             metal's measured optics): blade, edge?, fittings, accent, wrap, leaf?
 //   gem       the stone the sample carries when its focus takes one: { gem, cut, glow }
 
@@ -70,7 +70,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "yumi", "tips": "none", "focus": "curve", "shaft": ["satin", "#2a1f1a"] },
       "shield": { "outline": "round", "device": "mon", "focus": "boss", "board": ["satin", "#1f1d1c"] } },
     "edge": { "fuller": 0, "bevel": 0.35, "single": true },
-    "roles": { "blade": { "metal": "steel", "finish": "polished" }, "fittings": { "metal": "steel", "finish": "blasted", "film": { "temper": 340 } }, "accent": { "metal": "gold", "finish": "brushed" }, "wrap": ["matte", "#1f2340"] }
+    "roles": { "blade": { "metal": "steel", "pattern": { "kind": "damascus", "type": "twist", "folds": 3 } }, "fittings": { "metal": "steel", "finish": "blasted", "film": { "temper": 340 } }, "accent": { "metal": "gold", "finish": "brushed" }, "wrap": ["matte", "#1f2340"] }
   },
   "anime-hero": {
     "id": "anime-hero",
@@ -141,7 +141,7 @@ export function validateStyleCard(card, path = 'style') {
     if ((slot === 'shaft' || slot === 'board') && !ROLE(v)) errs.push(`${p}.${slot}: a role is ['<material>', '#rrggbb']`); } };
   checkSlots(lang, `${path}.language`);
   for (const k of ['dagger', 'sword', 'greatsword', 'staff', 'bow', 'shield']) if (lang[k]) checkSlots(lang[k], `${path}.language.${k}`);
-  for (const [role, v] of Object.entries(card.roles || {})) if (!ROLE(v)) errs.push(`${path}.roles.${role}: a role is ['<material>', '#rrggbb'] or a metal surface { metal, finish?, film? }${isMetalSurface(v) ? ` — ${metalSurfaceError(v)}` : ''}`);
+  for (const [role, v] of Object.entries(card.roles || {})) if (!ROLE(v)) errs.push(`${path}.roles.${role}: a role is ['<material>', '#rrggbb'] or a metal surface { metal, finish?, film?, pattern? }${isMetalSurface(v) ? ` — ${metalSurfaceError(v)}` : ''}`);
   for (const role of ['blade', 'fittings', 'accent', 'wrap']) if (!card.roles?.[role]) errs.push(`${path}.roles.${role}: required`);
   return errs;
 }

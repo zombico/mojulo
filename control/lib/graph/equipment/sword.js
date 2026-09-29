@@ -4,7 +4,7 @@
 //   guard   bar · crescent · block · spiked · disc (a tsuba with a rim) · winged (three feathers a side)
 //   grip    leather (ridged) · banded · wire (a helix) · cord (two crossing helices)
 //   pommel  wheel · block · spike · cap · ring · cage (sized by its stone, prongs touching the girdle)
-import { proportion, focalStone, recedeRole } from './principles.js';
+import { proportion, focalStone, recedeRole, patternRole } from './principles.js';
 import { mulberry32, r3, P, A, clamp01, smooth, circle, mat, mergeInto, setStone, feather, girdleOf } from './shapes.js';
 
 export const SWORDS = Object.freeze({
@@ -188,10 +188,10 @@ export function buildSword({ item, card, d, law, lean, roles, gem: g, parts, see
   const edge = { ...cardEdge, barbs: cardEdge.barbs ? Math.max(1, Math.round(cardEdge.barbs * law.notches)) : 0 };
   if (cardEdge.twoTone) {
     m.lofts = m.lofts || [];
-    m.lofts.push({ group: 'blade', ...bladeLoft({ variant: bv, L: bL, W: bW, T: bT * 0.62, z0: z, edge: { ...edge, fuller: 0 }, rng: mulberry32(seed), role: roles.edge || roles.blade }) });
-    m.lofts.push({ group: 'blade-core', ...bladeLoft({ variant: bv, L: bL * 0.93, W: bW * 0.66, T: bT, z0: z, edge: { ...edge, bevel: 0.7 }, rng: mulberry32(seed), role: roles.blade }) });
+    m.lofts.push({ group: 'blade', ...bladeLoft({ variant: bv, L: bL, W: bW, T: bT * 0.62, z0: z, edge: { ...edge, fuller: 0 }, rng: mulberry32(seed), role: patternRole(roles.edge || roles.blade, bL, d.stylize) }) });
+    m.lofts.push({ group: 'blade-core', ...bladeLoft({ variant: bv, L: bL * 0.93, W: bW * 0.66, T: bT, z0: z, edge: { ...edge, bevel: 0.7 }, rng: mulberry32(seed), role: patternRole(roles.blade, bL, d.stylize) }) });
   } else {
-    (m.lofts ||= []).push({ group: 'blade', ...bladeLoft({ variant: bv, L: bL, W: bW, T: bT, z0: z, edge, rng, role: roles.blade }) });
+    (m.lofts ||= []).push({ group: 'blade', ...bladeLoft({ variant: bv, L: bL, W: bW, T: bT, z0: z, edge, rng, role: patternRole(roles.blade, bL, d.stylize) }) });
   }
   const tipX = BLADES[bv]?.path ? BLADES[bv].path(1, bL) : 0;
   const sockets = {

@@ -77,6 +77,15 @@ export const focalGrow = (s) => lerp(1, 2.1, s ** 0.9);
  * Law 5: a painted fitting's colour steps toward neutral as stylization rises, so the focal carries the contrast. A metal
  * surface keeps its colour (it is the metal's optics); its role passes through.
  */
+/**
+ * Law 4 on a pattern-welded role: a pattern with no `scale` is sized to its blade (length L, cm) as the forge spike's
+ * 20 cm blade was sized to read, and bolder as stylization rises. An explicit scale, or no pattern, passes through.
+ */
+export function patternRole(role, L, s) {
+  if (!role || Array.isArray(role) || !role.pattern || role.pattern.scale != null) return role;
+  const scale = Math.round(Math.min(20, Math.max(0.25, (L / 20) * lerp(1, 1.6, s))) * 100) / 100;
+  return { ...role, pattern: { ...role.pattern, scale } };
+}
 export function recedeRole(role, s) { return Array.isArray(role) ? [role[0], recede(role[1], s)] : role; }
 export function recede(hex, s, toward = '#9a9a9a') {
   const t = 0.35 * s;

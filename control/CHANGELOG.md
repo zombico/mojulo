@@ -58,6 +58,10 @@ every read. Opt-in through `build` on a workbench.
   fracture-grown bark: oak, beech, pine, chestnut, spruce, silver fir or upper pine. The mapping is seamless, running
   round and along the stem, and the page lights the texture. A druid's gnarled staff and its grown branches wear it,
   with the tile scaled to the stem, because bark cracks closer on a thinner stem.
+- **Pattern-welded blades.** `pattern: { kind: 'damascus', type: 'random' | 'ladder' | 'raindrop' | 'twist', folds }`
+  on a metal surface forges a billet of layers (seven times two to the folds) and etches it where the blade's grind cuts
+  them. It is drawn in the metal shader, so the blade keeps its reflection and needs no texture. The layers grey out
+  at a distance and resolve up close, as real Damascus does. The eastern sample's blade is a twist Damascus.
 
 ### Metal surfaces
 
