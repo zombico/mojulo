@@ -127,6 +127,12 @@ with books, a made bed with headboard, a nightstand with a lamp, a dresser, a
 sideboard, a plank dining table with chairs, a bordered rug. The default elsewhere is
 `furnishScale: 'feet'`, the legacy fixed-feet arrangers with their box-nets; set
 `'share'` on any furnished plan to opt in (the kitchen run stays in feet either way).
+`furnishing: 'constructed'` goes further: the sofa, armchairs, coffee table, media console,
+bookcase, sideboard, dining table and chairs, dresser and nightstand become the pieces built
+joint by joint on the workbench (upholstered cushions and woven cloth, boards, legs, pulls), as
+facades sized to the same footprints; a house style's finish colours their cloth and wood. Any
+item can name one: `asset: 'constructed-sofa'` (`-armchair`, `-chesterfield`, `-coffee-table`,
+`-dining-table`, `-chair`, `-bookcase`, `-media-console`, `-sideboard`, `-chest`, `-nightstand`).
 A one-cell plan also defaults `contactShadows: true` — a soft ambient-occlusion decal on
 the floor under each piece (`contactStrength` tunes it; off elsewhere) — and dresses its
 surfaces: `wallDecor: true` with `interiorWallStyle: 'paint'` (a baseboard course and a
@@ -197,6 +203,8 @@ window (1). `wall` / `facing` take `back`, `front`, `washroom`, `entry` (the sid
 for what stands at them), or a compass letter. A piece with no `wall` or `facing` faces the hall.
 The washroom fills the back corner on its side and the entry is the front corner on the other,
 so keep items out of both yourself.
+`furnishing: 'constructed'` on a `condo-complex` furnishes its units with the same built pieces
+(a sofa and coffee table, a nightstand, a desk chair), each unit's cloth drawn from its seed.
 
 ## House styles
 

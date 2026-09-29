@@ -89,6 +89,7 @@ export const FLOORPLAN_DEFAULTS = {
   xrayWalls: false,        // opt-in: render the outer envelope as a see-through wireframe cage
   furnish: false,          // opt-in: populate each registered room with its archetype furniture
   furnishScale: 'feet',    // 'feet' (legacy: arrangers size pieces in fixed feet) | 'share' (preset share of the floor, banded + budgeted)
+  furnishing: null,        // opt-in: 'constructed' — the pieces built on the workbench (construction/facades.js) in place of the simpler ones
   contactShadows: false,   // opt-in: a soft ambient-occlusion decal on the floor under each piece of furniture (the unbaked tier's grounding)
   wallMaterial: null,      // opt-in: a procedural-material preset the interior paint swath carries into the World tier ('plaster'); needs wallDecor
   floorTexture: null,      // opt-in: a surface-textures tile on the floor finish — 'auto' (oak boards / carrara marble by style) | a tile key | null. World + exports; the CSS still keeps its fill
@@ -762,8 +763,20 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
     });
   }
   if (!elements.length) return [];
+  // `furnishing: 'constructed'`: the pieces built on the workbench, as facades, in place of the simpler ones
+  if (o.furnishing === 'constructed') elements = elements.map(constructedPiece);
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
 }
+
+// arranger type (or the mesh it was given) → the constructed facade that stands in for it (room-assets.js)
+const CONSTRUCTED_FOR = {
+  sofa: 'constructed-sofa', 'modern-couch': 'constructed-sofa', armchair: 'constructed-armchair', 'club-armchair': 'constructed-armchair',
+  table: 'constructed-coffee-table', 'coffee-table': 'constructed-coffee-table', 'media-unit': 'constructed-media-console', 'media-console': 'constructed-media-console',
+  bookshelf: 'constructed-bookcase', bookcase: 'constructed-bookcase', sideboard: 'constructed-sideboard', 'sideboard-cabinet': 'constructed-sideboard',
+  'dining-table': 'constructed-dining-table', 'plank-dining-table': 'constructed-dining-table', 'ladder-chair': 'constructed-chair', 'computer-chair': 'constructed-chair',
+  dresser: 'constructed-chest', 'low-dresser': 'constructed-chest', nightstand: 'constructed-nightstand', 'bedside-table': 'constructed-nightstand',
+};
+const constructedPiece = (e) => { const id = CONSTRUCTED_FOR[e.asset] || CONSTRUCTED_FOR[e.type]; return id ? { ...e, asset: id } : e; };
 
 // Room elements (anchor / w / h as fractions of the interior {x0,x1,y0,y1}) → baked faces,
 // through the room-spike renderer: the generated furniture and the operator's placed items.

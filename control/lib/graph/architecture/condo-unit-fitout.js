@@ -20,6 +20,7 @@ import {
   buildBarCounter, buildBarStool, buildOfficeDesk, buildOfficeChair, buildToilet, buildVanity,
 } from '../polygonizer/floorplan-building-assets.js';
 import { roomItemPlacements, roomItemFaces } from '../polygonizer/floorplan-structure.js';
+import { facadeFaces } from '../construction/facades.js';
 
 // ── deterministic PRNG (mulberry32) — a unit's whole fit-out is a pure function of its
 // position seed. No Math.random (would break determinism). Same recipe as fractal-city. ──
@@ -117,7 +118,7 @@ function rugFaces(frame, alC, depC, alW, depW, z, tint, light) {
 function adder(faces, o) {
   const light = o.light, keepOut = o.keepOut;
   return (frag) => {
-    const fs = assetFaces(frag, { light });
+    const fs = frag.faces || assetFaces(frag, { light });
     if (keepOut && keepOut.length) {
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       for (const f of fs) for (const [x, y] of f.corners) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
@@ -129,6 +130,24 @@ function adder(faces, o) {
 }
 
 const RUGS = ['#7c5b52', '#4f6360', '#6b6480', '#8a7a56', '#566079'];
+
+// ── `furnishing: 'constructed'` — the pieces built on the workbench (construction/facades.js), as facades, where the
+// fit-out would place its simpler ones. A facade is authored facing +y; `front` ('+x' | '-x' | '+y' | '-y') turns it,
+// its width running across that facing. It is lit in its own frame, so the unit's light turns with it.
+const CLOTHS = ['#bca88a', '#9fb0a2', '#a9b3c4', '#c9ad7c', '#b99486', '#d2c7b4'];   // oat, sage, dove, ochre, clay, stone: light enough for a unit's light
+const TURN = { '+y': [[1, 0], [0, 1]], '-y': [[-1, 0], [0, -1]], '+x': [[0, 1], [-1, 0]], '-x': [[0, -1], [1, 0]] };   // local (x, y) → world, rows
+const opposite = (dir) => (dir[0] === '+' ? '-' : '+') + dir[1];
+function constructedPiece(kind, { x, y, z, w, d, h, front }, o) {
+  const [[a, b], [c, e]] = TURN[front];
+  const rot = (v) => [a * v[0] + b * v[1], c * v[0] + e * v[1], v[2]];
+  const unrot = (v) => (Array.isArray(v) ? [a * v[0] + c * v[1], b * v[0] + e * v[1], v[2]] : v);   // the transpose
+  const L = o.light, local = { ...L, dir: unrot(L.dir), toLight: unrot(L.toLight), ...(L.fillToLight ? { fillToLight: unrot(L.fillToLight) } : {}) };
+  const faces = facadeFaces(kind, { w, d, h, light: local, palette: o.cloth ? { upholstery: o.cloth } : null });
+  return { faces: faces.map((f) => ({ ...f, corners: f.corners.map((p) => { const q = rot(p); return [x + q[0], y + q[1], z + q[2]]; }), ...(Array.isArray(f.outNormal) ? { outNormal: rot(f.outNormal) } : {}) })) };
+}
+const built = (o) => o.furnishing === 'constructed';
+// a builder's long axis ('x' | 'y') and its back ('+y' …) → the facing a facade turns to
+const frontOf = (back) => opposite(back);
 
 // ── zone furnishers — each gets the FREE rect (leaf minus WC) in (al,depth), the frame, the
 // rng, base z, and the shared opts; returns baked faces. Anchors back the deep wall and face
@@ -148,8 +167,14 @@ function furnishBedsit(rect, F, rng, z, o) {
   const sofaDep = Math.max(2.4, rect.y + rect.d * 0.32), tableDep = rect.y + 1.6;
   const sofaC = F.toWorld(c.al, sofaDep);
   faces.push(...rugFaces(F, c.al, rect.y + rect.d * 0.34, Math.min(rect.w * 0.7, 8), Math.min(rect.d * 0.4, 6), z, RUGS[Math.floor(rng() * RUGS.length)], light));
-  add(buildLobbySofa({ ...sofaC, z, w: Math.min(rect.w * 0.66, 6.5), d: 2.8, h: 2.5, along: F.alongAxis, back: backAwayFrom(F, sofaDep, tableDep) }));
-  add(buildFeatureTable({ ...F.toWorld(c.al, tableDep), z, r: 1.5, h: 1.5 }));
+  if (built(o)) {
+    const front = frontOf(backAwayFrom(F, sofaDep, tableDep));
+    add(constructedPiece('sofa', { ...sofaC, z, w: Math.min(rect.w * 0.66, 6.5), d: 2.9, h: 2.6, front }, o));
+    add(constructedPiece('coffee-table', { ...F.toWorld(c.al, tableDep), z, w: 3.2, d: 1.8, h: 1.45, front: opposite(front) }, o));
+  } else {
+    add(buildLobbySofa({ ...sofaC, z, w: Math.min(rect.w * 0.66, 6.5), d: 2.8, h: 2.5, along: F.alongAxis, back: backAwayFrom(F, sofaDep, tableDep) }));
+    add(buildFeatureTable({ ...F.toWorld(c.al, tableDep), z, r: 1.5, h: 1.5 }));
+  }
   return faces;
 }
 
@@ -158,8 +183,14 @@ function furnishLiving(rect, F, rng, z, o) {
   const c = centre(rect);
   faces.push(...rugFaces(F, c.al, c.dep, Math.min(rect.w * 0.72, 9), Math.min(rect.d * 0.6, 7), z, RUGS[Math.floor(rng() * RUGS.length)], light));
   const sofaDep = rect.y + rect.d - 2.2, tableDep = c.dep - 0.4;
-  add(buildLobbySofa({ ...F.toWorld(c.al, sofaDep), z, w: Math.min(rect.w * 0.7, 7.5), d: 3, h: 2.6, along: F.alongAxis, back: backAwayFrom(F, sofaDep, tableDep) }));
-  add(buildFeatureTable({ ...F.toWorld(c.al, tableDep), z, r: 1.7, h: 1.5 }));
+  if (built(o)) {
+    const front = frontOf(backAwayFrom(F, sofaDep, tableDep));
+    add(constructedPiece('sofa', { ...F.toWorld(c.al, sofaDep), z, w: Math.min(rect.w * 0.7, 7.5), d: 3, h: 2.7, front }, o));
+    add(constructedPiece('coffee-table', { ...F.toWorld(c.al, tableDep), z, w: 3.8, d: 2, h: 1.45, front: opposite(front) }, o));
+  } else {
+    add(buildLobbySofa({ ...F.toWorld(c.al, sofaDep), z, w: Math.min(rect.w * 0.7, 7.5), d: 3, h: 2.6, along: F.alongAxis, back: backAwayFrom(F, sofaDep, tableDep) }));
+    add(buildFeatureTable({ ...F.toWorld(c.al, tableDep), z, r: 1.7, h: 1.5 }));
+  }
   if (rng() < 0.7) add(buildHousePlant({ ...F.toWorld(rect.x + 1.6, rect.y + rect.d - 1.6), z, h: 5.4, spread: 2.1 }));
   add(buildWallArt({ ...F.toWorld(c.al, rect.y + rect.d - 0.1), z: z + 5.2, w: Math.min(rect.w * 0.5, 3.2), h: 1.9, along: F.alongAxis, face: F.faceHall }));
   return faces;
@@ -171,7 +202,8 @@ function furnishBedroom(rect, F, rng, z, o, partition = false) {
   if (partition) faces.push(...partitionWall(rect, F, z, o));
   add(buildBed({ ...F.toWorld(c.al, rect.y + rect.d - 3.1), z, len: 6.6, wide: 5, along: F.crossAxis, head: F.backSign }));
   // a nightstand beside the head (a small round side table)
-  add(buildFeatureTable({ ...F.toWorld(rect.x + 1.2, rect.y + rect.d - 1.4), z, r: 0.8, h: 1.6 }));
+  if (built(o)) add(constructedPiece('nightstand', { ...F.toWorld(rect.x + 1.2, rect.y + rect.d - 1.1), z, w: 1.5, d: 1.3, h: 1.9, front: F.faceHall }, o));
+  else add(buildFeatureTable({ ...F.toWorld(rect.x + 1.2, rect.y + rect.d - 1.4), z, r: 0.8, h: 1.6 }));
   add(buildWallArt({ ...F.toWorld(c.al, rect.y + rect.d - 0.1), z: z + 5, w: 2.6, h: 1.7, along: F.alongAxis, face: F.faceHall }));
   return faces;
 }
@@ -191,7 +223,8 @@ function furnishWork(rect, F, rng, z, o) {
   // of the desk, so its back is to the hall (it used to back onto the desk, facing away)
   const deskDep = rect.y + rect.d - 1.8, chairDep = rect.y + rect.d - 3.6;
   add(buildOfficeDesk({ ...F.toWorld(c.al, deskDep), z, w: Math.min(rect.w * 0.7, 4.6), d: 2.2, h: 2.4, screenFace: F.faceHall }));
-  add(buildOfficeChair({ ...F.toWorld(c.al, chairDep), z, back: backAwayFrom(F, chairDep, deskDep) }));
+  if (built(o)) add(constructedPiece('chair', { ...F.toWorld(c.al, chairDep), z, w: 1.5, d: 1.5, h: 2.9, front: frontOf(backAwayFrom(F, chairDep, deskDep)) }, o));
+  else add(buildOfficeChair({ ...F.toWorld(c.al, chairDep), z, back: backAwayFrom(F, chairDep, deskDep) }));
   if (rng() < 0.6) add(buildHousePlant({ ...F.toWorld(rect.x + 1.4, rect.y + 1.5), z, h: 4.8, spread: 1.9 }));
   return faces;
 }
@@ -238,6 +271,7 @@ const ZONE_PREF = { living: 5, bedsit: 5, bedroom: 4, sleep: 3, work: 3, kitchen
 export function furnishUnit(u, opts = {}) {
   const o = { light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.56, diffuse: 0.5 }), unitWall: '#9b968d', height: u.height, ...opts };
   const rng = mulberry32(posSeed(u.alongCenter ?? (u.a0 + u.a1) / 2, u.cInner, u.seed ?? 1));
+  if (built(o) && !o.cloth) o.cloth = CLOTHS[posSeed(u.alongCenter ?? (u.a0 + u.a1) / 2, u.cInner, u.seed ?? 1) % CLOTHS.length];
   const arch = drawArchetype(rng);
   const F = makeFrame(u.axis, u.cInner, u.cOuter);
   const z = u.baseZ + 0.02, wallT = 0.4, setback = 1.3;
@@ -348,6 +382,7 @@ export function furnishApartment(a, opts = {}) {
   const z0 = a.baseZ, z1 = a.baseZ + a.height, z = a.baseZ + 0.02;
   const F = makeFrame(a.axis, a.entryCoord, a.windowCoord);   // depth 0 = corridor entry, D = facade window
   const rng = mulberry32(posSeed((a.rect.x0 + a.rect.x1) / 2, (a.rect.y0 + a.rect.y1) / 2 + a.bedrooms, a.seed ?? 1));
+  if (built(o) && !o.cloth) o.cloth = CLOTHS[posSeed((a.rect.x0 + a.rect.x1) / 2, (a.rect.y0 + a.rect.y1) / 2 + a.bedrooms, a.seed ?? 1) % CLOTHS.length];
   const alo = (a.axis === 'x' ? a.rect.x0 : a.rect.y0) + t, ahi = (a.axis === 'x' ? a.rect.x1 : a.rect.y1) - t;
   const alW = ahi - alo, D = F.D;
   if (alW < 12 || D < 12) return { faces, kind: `${a.bedrooms}br` };

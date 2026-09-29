@@ -267,7 +267,7 @@ export function lowerSoft(s, { unitScale, light, mat, fabric: frameFabric, railr
   const wl = [0, 1, 2].map((k) => Math.min(...pts.map((p) => p[k]))), wh = [0, 1, 2].map((k) => Math.max(...pts.map((p) => p[k])));
   const longest = Math.max(...wh.map((v, k) => v - wl[k]));
   // a flat pad reads at a coarser grid than a crowned cushion; tufting needs a finer one for its dimples
-  const cell = s.tufting ? Math.min(cellM, 0.012) : s.kind === 'pad' && !s.roll ? cellM * 1.5 : cellM;
+  const cell = s.tufting ? Math.min(cellM, Math.max(0.012, cellM * 0.45)) : s.kind === 'pad' && !s.roll ? cellM * 1.5 : cellM;
   const cells = Math.max(16, Math.min(128, Math.round(longest / cell)));
   const h = longest / cells;
   const bounds = { min: { x: wl[0] - 2 * h, y: wl[1] - 2 * h, z: wl[2] - 2 * h }, max: { x: wh[0] + 2 * h, y: wh[1] + 2 * h, z: wh[2] + 2 * h } };

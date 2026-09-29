@@ -52,6 +52,15 @@ connected-service and app loops and the recipe format are the stable surface.
   cannot go together one part at a time is built in sub-assemblies (a table's end frame, a drawer), and the report
   says which. A notch now also lets a part slide along the member it is notched round.
 
+### Constructed furniture in rooms
+
+- **Facades of the built pieces.** The sofas, armchair, chesterfield, tables, chair, bookcase, media console, sideboard,
+  chest and nightstand built on the workbench are saved as facades: what shows of each (boards, legs, padding,
+  cushions and cloth), without the joints and fittings, sized to a room's footprint.
+- **In rooms and condos.** A room can name one (`asset: 'constructed-sofa'`), and `furnishing: 'constructed'` on a
+  floor plan or a condo furnishes it with them in place of the simpler pieces. A house style's finish colours their
+  cloth, timber and boards. Without the option, rooms and condos are unchanged.
+
 ### Couches and upholstery
 
 - **Soft parts.** A frame's `soft` entries are cushions (boxed, knife-edge or bench), pillows, bolsters, padding over a

@@ -646,6 +646,8 @@ export function buildFractalCondoFaces(spec = {}, opts = {}) {
   // instanced balconies (renderer-convergence 1b): opt-in via spec/opts; towerShellFaces
   // accumulates one repeats entry per balcony wall side into repeatsOut.
   o.instancing = opts.instancing ?? spec.instancing ?? false;
+  // `furnishing: 'constructed'`: units furnished with the pieces built on the workbench (construction/facades.js)
+  { const fu = opts.furnishing ?? spec.furnishing; if (fu) o.furnishing = fu; }
   o.repeatsOut = [];
   o.itemRefsOut = [];
   const faces = [];

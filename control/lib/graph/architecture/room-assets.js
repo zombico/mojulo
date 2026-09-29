@@ -7,6 +7,7 @@
  */
 
 import { workbenchAssetFaces } from '../worlds/workbench.js';
+import { facadeFaces } from '../construction/facades.js';
 import { buildLeg, buildSlab } from './room-parts.js';
 import {
   buildBookcaseWorkbenchManifest, buildBorderedRugWorkbenchManifest, buildClubArmchairWorkbenchManifest,
@@ -1322,6 +1323,33 @@ export const ROOM_FURNITURE_ASSETS = {
   },
 };
 
+// ── CONSTRUCTED pieces (construction/facades.js): the sofas, tables, chairs and casework built joint by joint on the
+// workbench, placed as their facades — what shows, none of the fittings — sized to the footprint (in feet, or the
+// element's `unitMm`). A house style's finish colours their cloth, timber and boards. `buildFaces` returns the faces
+// themselves (a facade is lowered once and cached); a footprint no build can take falls back to `buildManifest`, the
+// simpler piece of the same kind.
+const palette = (el) => (el.finish ? { upholstery: el.finish.upholstery || null, wood: el.finish.wood || null, cabinet: el.finish.cabinet || null } : null);
+const constructed = (kind, fallback, tags, aliases = []) => ({
+  id: `constructed-${kind}`, class: 'room-furniture', local: true, aliases: [`${kind}.constructed`, ...aliases],
+  tags: { ...tags, styles: ['constructed', 'realistic'] },
+  buildFaces: (el, { light } = {}) => facadeFaces(kind, { ...footprintDims(el), ...(Number.isFinite(el.unitMm) ? { unitMm: el.unitMm } : {}), palette: palette(el), light }),
+  buildManifest: (el) => ROOM_FURNITURE_ASSETS[fallback].buildManifest(el),
+});
+const LIVING = ['living-room', 'lounge'];
+Object.assign(ROOM_FURNITURE_ASSETS, {
+  'constructed-sofa': constructed('sofa', 'modern-couch', { rooms: [...LIVING, 'office'], roles: ['seat', 'sofa'], planeRole: ['seat-plane'], placement: ['floor', 'wall-hugging', 'center-safe'], materials: ['fabric', 'wood'] }, ['upholstered-sofa']),
+  'constructed-armchair': constructed('armchair', 'club-armchair', { rooms: [...LIVING, 'bedroom', 'office'], roles: ['seat', 'armchair'], planeRole: ['seat-plane'], placement: ['floor'], materials: ['fabric', 'wood'] }),
+  'constructed-chesterfield': constructed('chesterfield', 'modern-couch', { rooms: [...LIVING, 'office'], roles: ['seat', 'sofa'], planeRole: ['seat-plane'], placement: ['floor', 'wall-hugging'], materials: ['velvet', 'wood'] }, ['tufted-sofa']),
+  'constructed-coffee-table': constructed('coffee-table', 'coffee-table', { rooms: LIVING, roles: ['table'], planeRole: ['table-plane'], placement: ['floor', 'center-safe'], materials: ['wood'] }),
+  'constructed-dining-table': constructed('dining-table', 'plank-dining-table', { rooms: ['dining', 'kitchen'], roles: ['table'], planeRole: ['table-plane'], placement: ['floor', 'center-safe'], materials: ['wood'] }),
+  'constructed-chair': constructed('chair', 'chair', { rooms: ['dining', 'kitchen', 'office', 'living-room', 'bedroom'], roles: ['seat', 'chair'], placement: ['floor'], materials: ['wood'] }),
+  'constructed-bookcase': constructed('bookcase', 'bookcase', { rooms: ['living-room', 'office', 'study', 'bedroom'], roles: ['storage', 'shelving'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }),
+  'constructed-media-console': constructed('media-console', 'media-console', { rooms: [...LIVING, 'bedroom'], roles: ['storage', 'media'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }),
+  'constructed-sideboard': constructed('sideboard', 'sideboard-cabinet', { rooms: ['dining', 'living-room'], roles: ['storage'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }),
+  'constructed-chest': constructed('chest', 'low-dresser', { rooms: ['bedroom'], roles: ['storage'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }, ['chest-of-drawers.constructed']),
+  'constructed-nightstand': constructed('nightstand', 'bedside-table', { rooms: ['bedroom'], roles: ['storage', 'table'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }),
+});
+
 const ALIAS_TO_ID = new Map(Object.values(ROOM_FURNITURE_ASSETS).flatMap((asset) => [
   [asset.id, asset.id],
   ...(asset.aliases || []).map((alias) => [alias, asset.id]),
@@ -1391,8 +1419,13 @@ export function recolorManifest(node, finish) {
 export function roomFurnitureAssetFaces(element, { light } = {}) {
   const asset = getRoomFurnitureAsset(element.asset || element.assetRef || element.type);
   if (!asset) return null;
-  const built = asset.buildManifest(element);
-  let faces = workbenchAssetFaces(element.finish ? recolorManifest(built, element.finish) : built, { light });
+  // a constructed piece's facade (its faces, lowered once and cached), or the maker's manifest
+  let faces = null;
+  if (asset.buildFaces) { try { faces = asset.buildFaces(element, { light }); } catch { faces = null; } }
+  if (!faces) {
+    const built = asset.buildManifest(element);
+    faces = workbenchAssetFaces(element.finish ? recolorManifest(built, element.finish) : built, { light });
+  }
   if (asset.local) {
     const place = localToFootprint(element.heightManji.basePlane.corners);
     faces = faces.map((face) => ({

@@ -328,9 +328,11 @@ function exactPolys(terms) {
 }
 
 /**
- * lowerFrame(spec, { light }) → { faces, report }. Faces are in the recipe's unit (the workbench grid's).
+ * lowerFrame(spec, { light, timberFigure }) → { faces, report }. Faces are in the recipe's unit (the workbench grid's).
+ * `timberFigure: 'flat'` (a lowering option, not the recipe's) tints timber flat while boards and cloth keep their
+ * shared tiles — a room full of pieces cannot carry a figure texture per timber face.
  */
-export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
+export function lowerFrame(spec0, { light = DEFAULT_LIGHT, timberFigure = null } = {}) {
   const spec = withBuild(spec0);
   const unitScale = FRAME_UNITS[spec.unit || 'cm'];
   const members = resolveMembers(spec);
@@ -351,7 +353,7 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
       ? exactPolys([...bodyTerms(M), ...M.trims.map((shape) => ({ op: 'subtract', shape })), ...M.adds.map((shape) => ({ op: 'add', shape })), ...M.subs.map((shape) => ({ op: 'subtract', shape }))])
       : memberBoxPolys(M);
     if (isSheet(M.material)) { faces.push(...tagFacesWithMaterial(dressSheet(M, polys, { light, mat, unitScale, mode }), mat)); continue; }
-    const planes = M.material === 'timber' ? sidePlanes(M, mode) : null;
+    const planes = M.material === 'timber' ? sidePlanes(M, timberFigure === 'flat' ? 'flat' : mode) : null;
     faces.push(...tagFacesWithMaterial(dressFaces(M, polys, { light, mat, color: colorOf(M), planes, unitScale, group: M.id, alpha: M.material === 'concrete' ? xray : null }), mat));
     if (M.material === 'concrete' && M.rebarSpec) {
       const spec2 = M.rebarSpec === 'default' ? defaultCage(M, M.grounded) : { ...defaultCage(M, M.grounded), ...M.rebarSpec };
