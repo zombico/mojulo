@@ -219,14 +219,7 @@ export function resolveCharacterRefs(manifest) {
   return { ...manifest, characters };
 }
 
-/**
- * Validate + persist a sketch, returning { ok, ref, url }. Shared by the
- * create_sketch MCP tool AND the plan-mode / research-mode auto-mint path
- * (which derives a manifest deterministically, then persists it here). Keeping
- * the "how a sketch is stored" logic in one place means the derived-sketch
- * callers get the same validation + ref + URL shape as a hand-authored one.
- */
-export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
+function validateSketchIdentity({ title, ref, folderRef, bucket }) {
   if (!title || typeof title !== 'string') {
     throw new Error('`title` is required (string)');
   }
@@ -251,6 +244,17 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
       throw new Error(`Folder '${folderRef}' not found`);
     }
   }
+}
+
+/**
+ * Validate + persist a sketch, returning { ok, ref, url }. Shared by the
+ * create_sketch MCP tool AND the plan-mode / research-mode auto-mint path
+ * (which derives a manifest deterministically, then persists it here). Keeping
+ * the "how a sketch is stored" logic in one place means the derived-sketch
+ * callers get the same validation + ref + URL shape as a hand-authored one.
+ */
+export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
+  validateSketchIdentity({ title, ref, folderRef, bucket });
   let finalized;
   if (isMotionComicKind(manifest?.kind)) {
     // Motion comics (the click-gated presentation, motion-comic.plan.md)
@@ -359,7 +363,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   }
   }
 
-  const sketch = SketchRepository.create({ title, manifest: finalized, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
+  return persistSketch({ title, manifest: finalized, ref, folderRef, bucket });
+}
+
+function persistSketch({ title, manifest, ref, folderRef, bucket }) {
+  const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
 
   // Most sketches minted here are diagrams/illustrations (cheap on-demand SVG),
   // but a world/scene-kind manifest can arrive via create_sketch / the POST API
@@ -380,6 +388,96 @@ function refusePaintedKind(tool, manifest) {
   if (PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS.includes(kind) && pluginProfileActive()) {
     throw new Error(pluginProfileNotice(`${tool} kind '${kind}'`));
   }
+}
+
+function isWorldRecipe(manifest) {
+  return typeof manifest?.kind === 'string' && Object.hasOwn(WORLD_KINDS, manifest.kind)
+    && manifest.kind !== 'floorplan' && manifest.kind !== 'restaurant';
+}
+
+// Creation from an exported world recipe pays the same gates as a whole-manifest edit.
+// This does not reinterpret it as authoring knobs or import assets from another filesystem.
+async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full' }) {
+  let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
+  // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
+  // validator demanded viewBox/stations from a world manifest, so iterating a world
+  // meant minting near-duplicate refs). Validate by RESOLVING through the world
+  // registry — the render contract itself, including the fog/audio/game channels —
+  // so an update can't store a world whose /world link then fails. floorplan/
+  // restaurant stay on the diagram path: validateSketchManifest kind-dispatches
+  // them and improveFloorplanManifest is their established update grader.
+  // continuous-guardrails.plan.md G1: the workbench kind (including the code door, which
+  // stores kind:'workbench' + program) pays the SAME gates on an edit it paid at mint — the
+  // monomer validators, the material whitelist, the closure lint (advisory, rides
+  // stats.warnings), the ledger. Before this the checks ran once: the edit path only asked
+  // "does it lower", so a bad material or a malformed spec slipped through on iteration.
+  if (manifest.kind === 'workbench') {
+    // field-exact: an `exact: true` field or cut composes through Manifold, which loads
+    // asynchronously; the plan gate below is synchronous, so the kernel is readied here first
+    // (the mint handlers do the same). Without it the first edit of an exact row after a
+    // restart refused with "the exact kernel is not loaded".
+    if (manifestWantsExact(manifest)) await ensureExactKernel();
+    try {
+      workbenchStats = planWorkbench(manifest).stats;
+    } catch (err) {
+      throw new Error(`Invalid world manifest (kind 'workbench'): ${err.message}`);
+    }
+    // A slim readout diffs against the stored recipe's readout: the last edit's stats when
+    // this process made it, else one extra plan (it showed in wall_ms — ~2 s at 128 cells).
+    if (readout !== 'full' && existingSketch?.manifest?.kind === 'workbench') {
+      prevWorkbenchStats = await previousStats(ref, existingSketch.manifest);
+    }
+  }
+  // The scad kind pays planScad's gates on an edit as at mint (the fence, the parts contract,
+  // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this
+  // an edited scad row re-resolved through the registry but answered with no stats at all.
+  if (manifest.kind === 'scad') {
+    try {
+      scadStats = (await planScad(manifest)).stats;
+    } catch (err) {
+      throw new Error(`Invalid world manifest (kind 'scad'): ${err.message}`);
+    }
+    if (readout !== 'full' && existingSketch?.manifest?.kind === 'scad') {
+      prevScadStats = await previousStats(ref, existingSketch.manifest);
+    }
+  }
+  // The layered kind pays planLayered's gates on an edit as at mint (compile, per-part closure, the rig
+  // gates) and re-stamps its ledger. A row minted through the PLAN door carries `plan` beside `recipe`:
+  // a whole-manifest replacement or a patch under `/plan` re-expands the recipe from the plan (the plan
+  // is the authoring record); a patch under `/dials` or `/recipe` leaves the plan alone.
+  // A row minted through the HERO door carries `hero` one level above: a patch under `/hero` (or a whole replacement
+  // carrying `hero`) regenerates the PLAN from it, then the recipe — and says in the readout when that replaced hand
+  // edits made under `/plan` since the last regeneration. A `/plan` patch keeps `hero` as the record of origin.
+  if (manifest.kind === 'layered') {
+    const under = (root) => patch === undefined || [...touched].some((t) => String(t) === root || String(t).startsWith(`${root}/`));
+    const heroTouched = !!manifest.hero && under('/hero'), planTouched = under('/plan');
+    const heroWarnings = [];
+    try {
+      if (heroTouched) {
+        // the door's own form check on the patched record (a word the generator never reads, a palette colour, would
+        // otherwise pass silently)
+        const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
+        const prev = existingSketch?.manifest;
+        if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
+        manifest = expandLayeredManifest(manifest, { from: 'hero' });
+      } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
+      const planned = planLayered(manifest); layeredStats = planned.stats;
+      if (manifest.hero) layeredStats = { ...layeredStats, hero: heroReadout(manifest.hero, manifest.plan, layeredStats, heroWarnings, { mesh: planned.mesh, recipe: manifest.recipe }) };
+    } catch (err) {
+      throw new Error(`Invalid world manifest (kind 'layered'): ${err.message}`);
+    }
+  }
+  try {
+    await resolveWorldScene({ ref, title: title ?? existingSketch?.title ?? 'world', manifest });
+  } catch (err) {
+    throw new Error(`Invalid world manifest (kind '${manifest.kind}'): ${err.message}`);
+  }
+  // G6: the ledger travels — re-stamped on every edit from THIS plan, never copied forward.
+  nextManifest = workbenchStats ? { ...manifest, ledger: persistedLedger(workbenchStats.ledger) }
+    : scadStats ? { ...manifest, ledger: persistedScadLedger(scadStats.ledger) }
+      : layeredStats ? { ...manifest, ledger: persistedLayeredLedger(layeredStats.ledger) }
+        : manifest;
+  return { nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats };
 }
 
 export async function createSketchHandler(input) {
@@ -406,7 +504,14 @@ export async function createSketchHandler(input) {
   // (only for the unlabeled single-string form does the top-level metadata
   // make sense).
   const priors = resolvePreloads(preload);
-  const result = mintSketch({ title, manifest, ref, folderRef, bucket });
+  let result;
+  if (isWorldRecipe(manifest)) {
+    validateSketchIdentity({ title, ref, folderRef, bucket });
+    const { nextManifest } = await prepareWorldRecipe({ manifest, ref, title });
+    result = persistSketch({ title, manifest: nextManifest, ref, folderRef, bucket });
+  } else {
+    result = mintSketch({ title, manifest, ref, folderRef, bucket });
+  }
   if (priors) {
     if (!Array.isArray(preload)) {
       const [only] = priors;
@@ -696,87 +801,10 @@ export async function updateSketchHandler(input) {
       throw new Error(`Invalid manifest: ${err.message} — manifest manual: get_sketch_vocab({ id: '${manifest?.kind}' }).`);
     }
   } else if (
-    manifest !== undefined && typeof manifest?.kind === 'string' && WORLD_KINDS[manifest.kind]
-    && manifest.kind !== 'floorplan' && manifest.kind !== 'restaurant'
+    isWorldRecipe(manifest)
   ) {
-    // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
-    // validator demanded viewBox/stations from a world manifest, so iterating a world
-    // meant minting near-duplicate refs). Validate by RESOLVING through the world
-    // registry — the render contract itself, including the fog/audio/game channels —
-    // so an update can't store a world whose /world link then fails. floorplan/
-    // restaurant stay on the diagram path: validateSketchManifest kind-dispatches
-    // them and improveFloorplanManifest is their established update grader.
-    // continuous-guardrails.plan.md G1: the workbench kind (including the code door, which
-    // stores kind:'workbench' + program) pays the SAME gates on an edit it paid at mint — the
-    // monomer validators, the material whitelist, the closure lint (advisory, rides
-    // stats.warnings), the ledger. Before this the checks ran once: the edit path only asked
-    // "does it lower", so a bad material or a malformed spec slipped through on iteration.
-    if (manifest.kind === 'workbench') {
-      // field-exact: an `exact: true` field or cut composes through Manifold, which loads
-      // asynchronously; the plan gate below is synchronous, so the kernel is readied here first
-      // (the mint handlers do the same). Without it the first edit of an exact row after a
-      // restart refused with "the exact kernel is not loaded".
-      if (manifestWantsExact(manifest)) await ensureExactKernel();
-      try {
-        workbenchStats = planWorkbench(manifest).stats;
-      } catch (err) {
-        throw new Error(`Invalid world manifest (kind 'workbench'): ${err.message}`);
-      }
-      // A slim readout diffs against the stored recipe's readout: the last edit's stats when
-      // this process made it, else one extra plan (it showed in wall_ms — ~2 s at 128 cells).
-      if (readout !== 'full' && existingSketch?.manifest?.kind === 'workbench') {
-        prevWorkbenchStats = await previousStats(ref, existingSketch.manifest);
-      }
-    }
-    // The scad kind pays planScad's gates on an edit as at mint (the fence, the parts contract,
-    // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this
-    // an edited scad row re-resolved through the registry but answered with no stats at all.
-    if (manifest.kind === 'scad') {
-      try {
-        scadStats = (await planScad(manifest)).stats;
-      } catch (err) {
-        throw new Error(`Invalid world manifest (kind 'scad'): ${err.message}`);
-      }
-      if (readout !== 'full' && existingSketch?.manifest?.kind === 'scad') {
-        prevScadStats = await previousStats(ref, existingSketch.manifest);
-      }
-    }
-    // The layered kind pays planLayered's gates on an edit as at mint (compile, per-part closure, the rig
-    // gates) and re-stamps its ledger. A row minted through the PLAN door carries `plan` beside `recipe`:
-    // a whole-manifest replacement or a patch under `/plan` re-expands the recipe from the plan (the plan
-    // is the authoring record); a patch under `/dials` or `/recipe` leaves the plan alone.
-    // A row minted through the HERO door carries `hero` one level above: a patch under `/hero` (or a whole replacement
-    // carrying `hero`) regenerates the PLAN from it, then the recipe — and says in the readout when that replaced hand
-    // edits made under `/plan` since the last regeneration. A `/plan` patch keeps `hero` as the record of origin.
-    if (manifest.kind === 'layered') {
-      const under = (root) => patch === undefined || [...touched].some((t) => String(t) === root || String(t).startsWith(`${root}/`));
-      const heroTouched = !!manifest.hero && under('/hero'), planTouched = under('/plan');
-      const heroWarnings = [];
-      try {
-        if (heroTouched) {
-          // the door's own form check on the patched record (a word the generator never reads, a palette colour, would
-          // otherwise pass silently)
-          const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
-          const prev = existingSketch?.manifest;
-          if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
-          manifest = expandLayeredManifest(manifest, { from: 'hero' });
-        } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
-        const planned = planLayered(manifest); layeredStats = planned.stats;
-        if (manifest.hero) layeredStats = { ...layeredStats, hero: heroReadout(manifest.hero, manifest.plan, layeredStats, heroWarnings, { mesh: planned.mesh, recipe: manifest.recipe }) };
-      } catch (err) {
-        throw new Error(`Invalid world manifest (kind 'layered'): ${err.message}`);
-      }
-    }
-    try {
-      await resolveWorldScene({ ref, title: title ?? existingSketch?.title ?? 'world', manifest });
-    } catch (err) {
-      throw new Error(`Invalid world manifest (kind '${manifest.kind}'): ${err.message}`);
-    }
-    // G6: the ledger travels — re-stamped on every edit from THIS plan, never copied forward.
-    nextManifest = workbenchStats ? { ...manifest, ledger: persistedLedger(workbenchStats.ledger) }
-      : scadStats ? { ...manifest, ledger: persistedScadLedger(scadStats.ledger) }
-        : layeredStats ? { ...manifest, ledger: persistedLayeredLedger(layeredStats.ledger) }
-          : manifest;
+    ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
+      await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout }));
   } else if (manifest !== undefined) {
     let expanded;
     try {

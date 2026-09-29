@@ -21,8 +21,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Shell orientation.** `MOJULO_HOST` selects the fallback adapter card for `get_adapter`,
   catalyst composition and recommendations, reusing the Muse approach without changing MCP
   capability detection. Explicit adapter selection and recognized client identity still win.
-- **Next phases.** Bootstrap/recovery, verified ChatGPT file delivery, MCP Apps previews,
-  and plugin packaging. Public hosting and submission remain separate milestones.
+- **Bootstrap/recovery.** A separate ChatGPT skills package prefers connected
+  MCP and supplies a pinned, workspace-local CLI runner for shell-enabled Work boxes.
+  Recovery reuses the recipe and existing mint API; no new renderer or database import path.
+- **Recipe recovery.** `create_sketch` accepts exported world manifests
+  through the same world validation as `update_sketch`, including solid validation and
+  ledger stamping. Duplicate refs still refuse; referenced assets must already exist.
+- **Recovery verification.** The branch-tarball smoke installs into two isolated homes,
+  edits a city, and reproduces its recipe, GLB, HTML and ZIP byte-for-byte after recovery.
+  A development field-test guide keeps ChatGPT delivery and preview checks separate.
+- **Next phases.** Verified ChatGPT file delivery and MCP Apps previews. Public hosting
+  and submission remain separate milestones.
 
 ### Upgrading from 2.x
 

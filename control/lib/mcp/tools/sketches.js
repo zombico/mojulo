@@ -91,7 +91,7 @@ export function registerSketchTools() {
   registerTool(withPluginProfile({
     name: 'create_sketch',
     description:
-      "Mint a flow-charty diagram the operator can view in the control-plane UI. Use this to depict a workflow, a data flow, a decision chain, or any structure that's easier shown than described — without rearchitecting an overlay. The manifest mirrors the curated app-creation-map at /graph. Stations are positioned with explicit x/y/w/h (pixel coords inside the viewBox). Station kinds are " +
+      "Mint diagrams, illustrations or exported world recipes. Use diagrams for workflows, data flows and decision chains. Stations are positioned with explicit x/y/w/h (pixel coords inside the viewBox). Station kinds are " +
       STATION_KINDS.map((k) => `\`${k}\``).join(' | ') +
       " — pick the closest fit (e.g. `mcp_tool` for any callable/process, `filesystem` for files/payloads/messages-in-motion, `db_row` for durable records, `input` for parameters/preconditions). Edges are `{ from, to, label?, via?, curvature? }`; `label` is the verb (e.g. \"writes\", \"reads\", \"triggers\"). The default path is an S-curve that goes between the two stations — fine when the straight line is clear, but it will slice through any station that happens to sit between the endpoints. Use `via` to route around when that happens: `via: 'right' | 'left' | 'top' | 'bottom'` exits the source on that side, runs along a channel just outside both stations' extents on that side, and re-enters the target from the same side. Pick the side opposite to whatever's in the way (right/left for vertical lanes, top/bottom for horizontal lanes). Use `curvature` (0.2 – 3, default 1) to swoop the default S-curve harder (> 1) or flatten it toward straight (< 1) — useful when two stations are close and the default curve looks awkward. " +
       "Beyond flow charts, the manifest also accepts `marks[]` — low-level chart primitives (" +
@@ -101,7 +101,8 @@ export function registerSketchTools() {
       recipeFamilyAllowlist().map((k) => `\`${k}\``).join(' | ') +
       " and the knob set is family-specific (architecturalConstruction takes style/roof/door/porch/steps/chimney; portraitBust takes its own; etc). The recipe is compiled deterministically into marks before persistence — no LLM in the lowering. This is the terminal step of the `sketch_what_possible` inverse-stable-diffusion loop: query → narrate underdetermined knobs to user → accumulate decisions → `create_sketch({ recipe: { kind, ...accumulated } })`. Don't hand-author marks for an illustration family unless you know the recipe doesn't cover what you need. " +
       "`manifest: { kind: 'floorplan', … }` is the HOUSE: a walkable furnished house / apartment / office floor plan / one room from a seed or an explicit rooms[] plan (a WORLD kind — served at `/world`, exported by `export_model`; `storeys: N` stacks it; NOT a diagram, NOT compose_world, NOT edifice). Read `get_sketch_vocab({ id: 'floor-plan' })` before minting one. " +
-      "Returns `{ ok, ref, url }` — hand the `url` to the user so they can open the sketch. The sketch persists across restarts at `/sketches/<ref>`.",
+      "Also restores exported world manifests through the same world validation as update_sketch; dependent assets/refs must already exist. " +
+      "Returns `{ ok, ref, url }`. The URL belongs to the server; use the host’s handoff mechanism. The sketch persists across restarts.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -128,7 +129,7 @@ export function registerSketchTools() {
         manifest: {
           type: 'object',
           description:
-            'Diagram manifest. Required: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. Rendrant resolves construction marks before storage; edges[] and grid are optional. '
+            'Exported world manifest, or diagram manifest. For diagrams: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. Rendrant resolves construction marks before storage; edges[] and grid are optional. '
             + "Alternatively `manifest.kind` selects a kind-dispatched manifest with its OWN shape (no stations/marks): `floorplan` (a walkable furnished HOUSE / apartment / one room — `seed` or `rooms[]`, `storeys: N`; card id `floor-plan`), `restaurant`, `store` / `mall` (a shop or a mall fit out from retail concept cards; card id `store`), `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts). Read that kind's sketch_vocab card (`get_sketch_vocab`) for the manifest contract before minting.",
           properties: {
             title: { type: 'string' },

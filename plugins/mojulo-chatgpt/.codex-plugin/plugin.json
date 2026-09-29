@@ -1,0 +1,24 @@
+{
+  "name": "mojulo-chatgpt",
+  "version": "0.1.0",
+  "description": "Build, edit, export and resume Mojulo recipes through connected MCP or a ChatGPT Work box.",
+  "author": {
+    "name": "Franz Ombico"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Mojulo for ChatGPT",
+    "shortDescription": "Create and resume 3D recipes with Mojulo.",
+    "longDescription": "Uses connected Mojulo MCP tools when available, or a pinned workspace-local CLI in a shell-enabled Work box. Includes portable recipe recovery guidance. This development package does not provision a box or host a public MCP endpoint.",
+    "developerName": "Franz Ombico",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Make a small 3D object with Mojulo and give me the editable recipe.",
+      "Resume my saved Mojulo recipe and change its proportions."
+    ]
+  },
+  "homepage": "https://mojulo.ai",
+  "repository": "https://github.com/zombico/mojulo",
+  "license": "Apache-2.0"
+}
