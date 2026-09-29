@@ -1,5 +1,6 @@
 import { safeJson } from '../emit-util.js';
 import { terrainPlantsScript } from './terrain-plants.js';
+import { terrainGrassScript } from './terrain-grass.js';
 
 // In-page script: the TERRAIN channel (opt-in via emitThreeWorld({ terrain })). The page
 // carries the terrain world's RECIPE — the kernel's source (terrain-kernel.js, inlined as text) and its quantised grids —
@@ -25,7 +26,7 @@ import { terrainPlantsScript } from './terrain-plants.js';
 //          the camera is nearer than the pin's `split` × its size (above the world's own), down to `size`: the ground
 //          under a city's streets and lots stays nearly as fine as they are wherever they can be seen (flat worlds).
 export function terrainChannelScript(cfg) {
-  const { kernel, plants, ...rest } = cfg;   // plants (terrain-plants.js): its own script, after the ground's
+  const { kernel, plants, grass, ...rest } = cfg;   // plants (terrain-plants.js) and grass (terrain-grass.js): scripts of their own, after the ground's
   return `
 // --- terrain world (opt-in): the recipe's ground, meshed around the camera ---
 const TERRAIN = ${safeJson(rest)};
@@ -248,5 +249,5 @@ if (TERRAIN.water && !__tPL) {
   wm.position.set(TERRAIN.root.cx, TERRAIN.root.cy, W.z); wm.renderOrder = 1; scene.add(wm);
 }
 __tTick();
-${plants ? terrainPlantsScript(plants) : ''}`;
+${plants ? terrainPlantsScript(plants) : ''}${grass ? terrainGrassScript(grass) : ''}`;
 }
