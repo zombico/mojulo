@@ -1,10 +1,12 @@
 // node --test docs/examples/humanoid/test-humanoid.mjs — the humanoid starter: both presets in every register close,
 // the jaw hinges by the ear, both eyes read, hair and expression never move a joint. Both heads are resampled from
-// fitted heads (canonical); the landmark cage's construction gates run with the cage selected.
+// fitted heads (canonical); the landmark cage's construction gates run with the cage selected. The worked cast (cast/)
+// passes the hero door.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { register } from 'node:module';
 import { humanoidPlan, REGISTERS, HAIR_STYLES, EXPRESSIONS, FACE_VERSION } from './humanoid.plan.mjs';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { humanoidHead, humanoidAnchors, HEAD_SOURCES } from './head.mjs';
 import { fitCameraSource, fitSilhouetteAgreement, cheekReport, fitViews, FIT_CHEEK, FIT_PRESETS, FIT_DATA_DIR } from './head-fit.mjs';
 import { join } from 'node:path';
@@ -199,3 +201,24 @@ test('each fitted jaw meets the ear: the rear column is the ramus back edge at r
   for (const st of cranium.stations.slice(1, 3)) assert.ok(st.points.rearR[0] > earX - 0.008, `${st.id} under the ear reaches the ear root (${st.points.rearR[0]} vs ear ${earX})`);
   for (const dials of [{ jawOpen: 25 }]) assert.deepEqual(closed(head, dials), [], `${preset} the jaw still opens closed`);
 } });
+
+test('the worked cast: every spec passes the hero door without a refusal; the heroine also plans (the recipe and rig gates)', async () => {
+  register('../../../control/scripts/mcp-stdio-loader.mjs', import.meta.url);   // the `@/` alias layered.js imports through
+  const { HERO_FIELDS, heroRecord, expandLayeredManifest, planLayered } = await import('../../../control/lib/mcp/tools/layered.js');
+  const { toonLightErrors } = await import('../../../control/lib/graph/polygonizer/vexar.js');
+  const dir = new URL('./cast/', import.meta.url), files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+  assert.ok(files.includes('heroine.json'), 'the heroine is in the cast');
+  for (const f of files) {
+    const spec = JSON.parse(readFileSync(new URL(f, dir), 'utf8'));
+    assert.equal(`${spec.name}.json`, f, `${f} is named for its file`);
+    assert.deepEqual(Object.keys(spec).filter((k) => !['name', 'hero', 'toon', 'palette'].includes(k) && !k.startsWith('$')), [], `${f}: spec fields only (the card's readSpec)`);
+    // the card's fold (render-articulation.mjs readSpec): `palette` is a hero field at the door, `toon` rides the manifest
+    const input = spec.palette ? { ...spec.hero, palette: { ...spec.hero.palette, ...spec.palette } } : spec.hero;
+    assert.deepEqual(Object.keys(input).filter((k) => !HERO_FIELDS.includes(k)), [], `${f}: hero fields only`);
+    // heroRecord refuses by validateHeroSpec; the expansion runs heroPlanOf (its refusal throws too) and expands the plan
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(input) });
+    assert.ok(m.plan && m.recipe, `${f}: a plan and its recipe`);
+    assert.deepEqual(spec.toon && typeof spec.toon === 'object' ? toonLightErrors(spec.toon.light) : [], [], `${f}: toon.light`);
+    if (spec.name === 'heroine') assert.ok(planLayered({ ...m, ...(spec.toon ? { toon: spec.toon } : {}), units: 'm' }).stats.layered.rig, 'the heroine plans, rigged');
+  }
+});

@@ -46,7 +46,9 @@ branch; each bullet is rewritten as its phase lands.
   hand edit under `/plan`, or the generator changed since the row was stored). Its own palette lifts the hair to a
   mid-dark value and darkens the eye and brow strokes; `toon.light: true` gives any layered solid the default key, and
   an invalid light refuses by field. A review renderer (`docs/examples/humanoid/render-articulation.mjs`) draws the
-  World payload's own faces and refuses to run if its re-derivation drifts.
+  World payload's own faces and refuses to run if its re-derivation drifts; it also draws a character card for any hero
+  spec, taken through the door's own steps without a database, and `docs/examples/humanoid/cast/` holds worked
+  characters (the heroine in full dress among them) that a test keeps to the door.
 - **The graphic face.** `hero.sculpt` (`anime-sculpt.js`), a vocabulary beside the face controls: the eye level and the
   ear's level, the nose tip (pronasale) with its projection and the start of the nasal dorsum, a nose line down the
   shade side, the lip line (stomion) and the mouth width, the palpebral fissure's height and shape (`round`, `almond`,

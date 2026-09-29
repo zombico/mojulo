@@ -1,0 +1,26 @@
+{
+  "name": "kid",
+  "$note": "A cheeky kid sidekick (male): a big head on a short body (tune), big round eyes with large irises and a bright catchlight, a button nose, messy hair and a beaming open smile. Shows the graphic face words for the eyes (a round fissure, a light lid) and a ring sheen on the hair in place of the fringe streak the male base wears, under its own key direction (toon.light).",
+  "hero": {
+    "cast": "male",
+    "head": "anime",
+    "look": ["kid", "youthful", "large-eyes", "button-nose", "messy"],
+    "expression": ["smile", { "open": 0.6 }],
+    "tune": { "head": 1.1, "legs": 0.85, "torso": 0.93, "shoulders": 0.9 },
+    "face": { "eyeHeight": 1.08, "eyeWidth": 1.04 },
+    "sculpt": {
+      "browAngle": -20,
+      "browArch": 0.03,
+      "browThick": 0.9,
+      "fissureShape": "round",
+      "fissureHeight": 1.12,
+      "lidWeight": 0.75,
+      "lidCover": 0.5,
+      "irisSize": 1.18,
+      "catchlight": 1.4,
+      "mouthWidth": 1.1
+    }
+  },
+  "palette": { "Top": "#c8553d" },
+  "toon": { "light": { "toLight": [0.45, 0.6, 0.85], "highlight": { "Hair": { "kind": "ring" } } } }
+}

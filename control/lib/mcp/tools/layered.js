@@ -106,7 +106,7 @@ export function normalizeHero(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'gesture', 'sculpt'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'gesture', 'sculpt'];
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);

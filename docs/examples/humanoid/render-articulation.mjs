@@ -1,5 +1,5 @@
 /** render-articulation.mjs — the FORM ARTICULATION review sheets (the character light, the graphic face, the hair
- * bases, the neck form and the stand on the anime hero).
+ * bases, the neck form and the stand on the anime hero), and a CHARACTER CARD for any hero spec (CARD MODE, below).
  * A hero as the door mints it (heroRecord → heroPlanOf → expandPlan, the path expandLayeredManifest takes) is resolved
  * through the World resolver itself (world-scene.js resolveWorldScene), and its static faces are drawn by a software
  * depth raster coloured from the payload's OWN fills: the character light's iso-split pieces (the step, the hair
@@ -54,23 +54,43 @@
  * Diagnostic renders for the eyes gate; nothing here is a recipe change. Deterministic. Run from control:
  *   MOJULO_SPIKE_OUT=/absolute/path node ../docs/examples/humanoid/render-articulation.mjs [--cast female] [--head 384]
  *     [--only progression,expressions,stands,before-after,keys | parity] [--baseline <dir>] [--predates neck-shade,hair-top,draw-layers]
- *     [--parity] [--compare <capture dir>]   (default --only: progression,expressions,stands; parity: the first --cast) */
+ *     [--parity] [--compare <capture dir>]   (default --only: progression,expressions,stands; parity: the first --cast)
+ * CARD MODE (--spec <file.json>): { name, hero: { <the hero door's fields> }, toon?, palette? } (a key starting with $
+ * is a comment) is taken through the hero door's own steps without a database (layered.js: HERO_FIELDS → heroRecord
+ * (validateHeroSpec) → heroPlanOf → expandLayeredManifest → the toon light's check → planLayered → heroReadout), refusing
+ * with the door's own messages (exit 1) wherever the door would; `palette` rides the hero (a hero field), `toon` the
+ * manifest (as the door stores it). The manifest is resolved through the World resolver under the same parity guard as
+ * the review sheets. Writes <out>/<name>/readout.json (the hero readout the door returns) and <out>/<name>/card.png: the
+ * spec's words and what the door read; the head ¾ at 512 px; at 256 px the head front, the key-side profile, the rear ¾
+ * 20° down and the head ¾ on the World backdrop; the bust ¾, the body ¾ and front, a silhouette and a 3-value render
+ * (the profile and the rear stand on the spec's key side). --expr adds expressions.png (the head ¾ at 256 px for every
+ * expression word the worn head takes, each minted through the door); --check-lens adds head-3q-review-lens.png (the
+ * head ¾ at the review sheets' lens, frozen on the same hero at gesture rest with toon.light false, to lay over a column
+ * of a progression sheet). SHEET MODE (--sheet <config.json>: { columns: [{ spec, summary }], title?, sheet?,
+ * expressions? }, spec paths relative to the config) draws the specs side by side, one lens per row (sheetMain); --expr
+ * adds a row of expressions per spec. <out> is --out, else cast/ under the spike tree. docs/examples/humanoid/cast/
+ * holds worked specs. Run from control:
+ *   node ../docs/examples/humanoid/render-articulation.mjs --spec ../docs/examples/humanoid/cast/lead.json [--expr]
+ *     [--check-lens] [--out <dir>]
+ *   node ../docs/examples/humanoid/render-articulation.mjs --sheet <config.json> [--expr] [--out <dir>] */
 import { register, createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
-import { resolve, basename } from 'node:path';
+import { resolve, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 register('../../../control/scripts/mcp-stdio-loader.mjs', import.meta.url);   // the `@/` alias the resolver's modules import through
 const lib = (p) => import(new URL(`../../../control/lib/${p}`, import.meta.url).href);
 const sharp = createRequire(new URL('../../../control/package.json', import.meta.url))('sharp');
-const { heroRecord, expandLayeredManifest, gestureReadout } = await lib('mcp/tools/layered.js');
+const { HERO_FIELDS, heroRecord, heroPlanOf, heroReadout, planLayered, expandLayeredManifest, gestureReadout } = await lib('mcp/tools/layered.js');
+const { ANIME_POSES } = await lib('graph/polygonizer/anime-head.js');
+const { EXPRESSIONS: LANDMARK_EXPRESSIONS } = await lib('graph/polygonizer/humanoid-head.js');
 const { resolveWorldScene } = await lib('graph/worlds/world-scene.js');
 const { compileLayered } = await lib('graph/polygonizer/station-loft.js');
-const { layeredSeat } = await lib('graph/polygonizer/station-loft-faces.js');
+const { layeredSeat, persistedLayeredLedger } = await lib('graph/polygonizer/station-loft-faces.js');
 const { validateRig, bindLayered } = await lib('graph/polygonizer/station-loft-rig.js');
 const { standPose, poseLayered, rigidParts, GESTURE_WORDS } = await lib('graph/polygonizer/hero-gesture.js');
 const { resolveCharacterLight, layeredShadingNormals, characterLitPieces, ANIME_CHARACTER_LIGHT, derivedHighlight, drawLayer } = await lib('graph/polygonizer/station-loft-shade.js');
-const { resolveToon } = await lib('graph/polygonizer/vexar.js');
+const { resolveToon, toonLightErrors } = await lib('graph/polygonizer/vexar.js');
 
 const OUT = resolve(process.env.MOJULO_SPIKE_OUT || fileURLToPath(new URL('../../../lite-template/integration/0928/spike-output/form-articulation', import.meta.url)));
 mkdirSync(OUT, { recursive: true });
@@ -181,17 +201,19 @@ const isHead = (f) => HEAD_RE.test(f.part);
 function headBox(faces) {
   let chin = Infinity;
   for (const f of faces) if (f.part === 'face' || f.part === 'cranium') for (const p of f.corners) if (p[2] < chin) chin = p[2];
-  return boxOf(faces, isHead, Number.isFinite(chin) ? (p) => p[2] >= chin : null);
+  const b = boxOf(faces, isHead, Number.isFinite(chin) ? (p) => p[2] >= chin : null);
+  // a hero with no worn head (`head: 'none'`, a blank trunk) frames its part named `head`
+  return Number.isFinite(b.mn[0]) ? b : boxOf(faces, (f) => f.part === 'head');
 }
 /** The per-cast LENS, frozen on a reference render (the rest figure) so every column of a cast shares the scale; each
  * render then aims it at its own head / figure centre. head: 16° vfov over the head box × 1.3; bust: the same lens 1.7×
  * as far, its frame's top a little over the head frame's; body: the figure `px` tall on a `w × h` canvas from the 22°
- * full-body distance. */
-function lensOf(faces) {
+ * full-body distance. The head frame is `headPx` square (default --head). */
+function lensOf(faces, headPx = HEAD_PX) {
   const h = headBox(faces), ext = Math.max(h.size[2] + 0.05, h.size[0], h.size[1]) * 1.3;
   const a = boxOf(faces), H = a.size[2], D = (H * 1.08 / 2) / Math.tan(rad(11));
   const body = (px, w, hh) => ({ distance: D, vfov: deg(2 * Math.atan((H / 2) * (hh / px) / D)), width: w, height: hh, ss: 4, floorZ: a.mn[2], H });
-  const head = { distance: (ext / 2) / Math.tan(rad(8)), vfov: 16, width: HEAD_PX, height: HEAD_PX, ss: 2, ext };
+  const head = { distance: (ext / 2) / Math.tan(rad(8)), vfov: 16, width: headPx, height: headPx, ss: 2, ext };
   return { head, bust: { ...head, distance: head.distance * 1.7 }, body256: body(256, 160, 288), body128: body(128, 80, 144) };
 }
 function aim(lens, faces, name) {
@@ -338,7 +360,7 @@ function wrap(s, n) {
   if (line) out.push(line);
   return out;
 }
-async function sheet(name, { title, note, columns, rows, gutter = 230 }) {
+async function sheet(name, { title, note, columns, rows, gutter = 230, file: fileAt = null }) {
   const pad = 6, headH = 40;
   const colLines = columns.map((c) => (Array.isArray(c) ? c : [c])), colH = 12 + 17 * Math.max(...colLines.map((l) => l.length));
   const colW = columns.map((_, c) => Math.max(...rows.map((r) => r.cells[c]?.width ?? 0)));
@@ -358,7 +380,7 @@ async function sheet(name, { title, note, columns, rows, gutter = 230 }) {
     r.cells.forEach((c, ci) => { if (c) layers.push({ input: c.rgb, raw: { width: c.width, height: c.height, channels: 3 }, left: cx + Math.floor((colW[ci] - c.width) / 2), top: y + Math.floor((rowH[ri] - c.height) / 2) }); cx += colW[ci] + pad; });
     y += rowH[ri] + pad;
   });
-  const file = `${OUT}/${name}.png`;
+  const file = fileAt ?? `${OUT}/${name}.png`;   // sheet mode writes beside the cards
   writeFileSync(file, await sharp({ create: { width: W, height: Ht, channels: 3, background: '#bdb8ae' } }).composite(layers).png().toBuffer());
   console.log(`wrote ${file}`);
 }
@@ -403,127 +425,347 @@ const record = (cast, variant, R, cells) => { const litShare = Object.fromEntrie
 /** one column of cells: every row's frame, view and mode; `side` puts the profile and rear on a key's side */
 const column = (R, lens, rows, side = sideOf(KEY)) => rows.map(([fr, view, mode]) => zoom(cell(R, orbit(aim(lens, R.faces, fr), view, side), mode === 'dark' ? 'fill' : mode, mode === 'dark' ? { bg: DARK(R) } : {}), fr === 'body128' ? 2 : 1));
 
-const lenses = {}, defaults = {};
-for (const cast of CASTS) {
-  const before = await resolveHero(cast, { gesture: 'rest', toon: { light: false } });
-  lenses[cast] = lensOf(before.faces);
-  defaults[cast] = await resolveHero(cast);
+// ─── CARD MODE: any hero the door accepts ──────────────────────────────────
+const SPEC_FILE = argOf('--spec'), EXPR = process.argv.includes('--expr');
+const CARD_OUT = resolve(argOf('--out') ?? `${OUT}/cast`);
+const SPEC_KEYS = ['name', 'hero', 'toon', 'palette'];
+/** mint_solid's own wrap on a failed mint (mint-solid.js mintSolidHandler) */
+const MINT_WRAP = " — parameter manual: get_solid_vocab({ id: 'layered' }).";
+class Refusal extends Error {}
+
+/** The hero door without its database write, mirrored step for step (layered.js createLayeredHeroHandler →
+ * createLayeredPlanHandler → createLayeredHandler, which end in the row write): the hero fields, heroRecord
+ * (validateHeroSpec: the door's refusal list), heroPlanOf, the plan's expansion (expandLayeredManifest, checked equal to
+ * the door's own plan), the toon light's check and the door's keep rule, planLayered (the recipe and rig gates), then
+ * heroReadout on the mint's own mesh (the dress ledgers on the rest figure, as the door reads them). Throws Refusal with
+ * the door's message where it refuses. */
+function doorMint(input) {
+  const heroSpec = Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]]));
+  let hero, plan;
+  try { hero = heroRecord(heroSpec); } catch (err) { throw new Refusal(`${err.message}${MINT_WRAP}`); }
+  try { plan = heroPlanOf(hero); } catch (err) { throw new Refusal(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door section).${MINT_WRAP}`); }
+  const title = input.title ?? `hero · ${hero.cast}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}`;
+  let expanded;
+  try { expanded = expandLayeredManifest({ kind: 'layered', title, hero }); } catch (err) { throw new Refusal(`${err.message} — manual: get_solid_vocab({ id: 'layered' }).${MINT_WRAP}`); }
+  if (JSON.stringify(expanded.plan) !== JSON.stringify(plan)) throw new Error('render-articulation: expandLayeredManifest generated another plan than the door\'s heroPlanOf (the card would not show what the door mints)');
+  const { toon } = input;
+  const lightErrs = toon && typeof toon === 'object' ? toonLightErrors(toon.light) : [];
+  if (lightErrs.length) throw new Refusal(`toon refused:\n - ${lightErrs.join('\n - ')}\nThe character light — manual: get_solid_vocab({ id: 'layered' }) (the Spec section).${MINT_WRAP}`);
+  const keepToon = !!resolveToon(toon, { light: true }) || (!!toon && typeof toon === 'object' && toon.ink === false && hero?.head === 'anime');
+  // the row as the door stores it: the record as heroRecord returned it, the plan, the recipe, every dial at rest
+  const manifest = { kind: 'layered', title, recipe: expanded.recipe, plan, hero, dials: expanded.dials, units: 'm', ...(toon != null && keepToon ? { toon } : {}) };
+  let planned;
+  try { planned = planLayered(manifest); } catch (err) { throw new Refusal(`${err.message}${MINT_WRAP}`); }
+  manifest.ledger = persistedLayeredLedger(planned.stats.ledger);
+  const dressed = hero.detail !== undefined || hero.adorn !== undefined;
+  const atRest = !manifest.channels && Object.entries(manifest.recipe.dials || {}).every(([k, d]) => manifest.dials?.[k] === d.rest);
+  const dressMesh = dressed ? (atRest ? planned.mesh : compileLayered(manifest.recipe, {})) : planned.mesh;
+  const readout = heroReadout(hero, plan, planned.stats, [], { mesh: planned.mesh, recipe: manifest.recipe, dressMesh });
+  return { hero, manifest, readout, toonDropped: toon != null && !keepToon };
+}
+
+/** the spec file: { name, hero, toon?, palette? }; `palette` is a hero field at the door, so it is folded into the hero */
+function readSpec(file) {
+  let spec;
+  try { spec = JSON.parse(readFileSync(resolve(file), 'utf8')); } catch (err) { throw new Refusal(`--spec ${file}: ${err.message}`); }
+  const errs = [];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Refusal(`--spec ${file}: a JSON object { name, hero, toon?, palette? }`);
+  for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k) && !k.startsWith('$')) errs.push(`${k}: not a spec field (have ${SPEC_KEYS.join(', ')}; a key starting with $ is a comment)`);
+  if (typeof spec.name !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,63}$/i.test(spec.name)) errs.push('name: a slug (letters, digits, . _ -), the output folder\'s name');
+  if (!spec.hero || typeof spec.hero !== 'object' || Array.isArray(spec.hero)) errs.push(`hero: an object of the hero door's fields (${HERO_FIELDS.join(', ')})`);
+  else for (const k of Object.keys(spec.hero)) if (!HERO_FIELDS.includes(k)) errs.push(`hero.${k}: not a hero field (have ${HERO_FIELDS.join(', ')}); the door would pass it on to the manifest or drop it — the card takes \`toon\` at the spec's top level`);
+  if (spec.palette !== undefined && (!spec.palette || typeof spec.palette !== 'object' || Array.isArray(spec.palette))) errs.push('palette: { <palette group>: "#rrggbb" } (it rides the hero: hero.palette)');
+  if (errs.length) throw new Refusal(`spec refused (the card's own check, before the door):\n - ${errs.join('\n - ')}`);
+  const hero = spec.palette ? { ...spec.hero, palette: { ...(spec.hero.palette || {}), ...spec.palette } } : { ...spec.hero };
+  return { name: spec.name, hero, toon: spec.toon, raw: spec };
+}
+
+/** the words a spec used, as short strings (objects compact) */
+const wordsOf = (hero, toon) => [...Object.entries(hero).map(([k, v]) => `${k} ${typeof v === 'string' ? v : JSON.stringify(v)}`), ...(toon !== undefined ? [`toon ${JSON.stringify(toon)}`] : [])];
+async function writePng(file, W, H, layers) {
+  writeFileSync(file, await sharp({ create: { width: W, height: H, channels: 3, background: '#bdb8ae' } }).composite(layers).png().toBuffer());
+  console.log(`wrote ${file}`);
+}
+/** a labelled cell: the label strip above the image, `w` wide */
+function placeCell(layers, c, x, y, w, lines, labH) {
+  layers.push({ input: label(w, labH, lines, { size: 12, weight: 700, pad: 5 }), left: x, top: y });
+  layers.push({ input: c.rgb, raw: { width: c.width, height: c.height, channels: 3 }, left: x + Math.floor((w - c.width) / 2), top: y + labH });
+}
+function titleBlock(W, lines) {
+  const wrapped = lines.flatMap((l, i) => (i === 0 ? [l] : wrap(l, Math.floor((W - 16) / 6.9))));
+  const H = 16 + Math.round(19 * 1.3) + 17 * (wrapped.length - 1) + 6;
+  // the first line at the title size, the rest at 13 px
+  const t = wrapped.map((s, i) => `<text x="8" y="${i === 0 ? 26 : 26 + 8 + i * 17}" font-family="Helvetica, Arial, sans-serif" font-size="${i === 0 ? 19 : 13}" font-weight="${i === 0 ? 700 : 400}" fill="#23201d">${esc(s)}</text>`).join('');
+  return { H, input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="100%" height="100%" fill="#c9c4bb"/>${t}</svg>`) };
+}
+
+async function cardMain() {
+  const t0 = Date.now();
+  let S, D;
+  try { S = readSpec(SPEC_FILE); D = doorMint({ ...S.hero, ...(S.toon !== undefined ? { toon: S.toon } : {}) }); }
+  catch (err) { if (!(err instanceof Refusal)) throw err; console.error(`refused: ${err.message}`); process.exitCode = 1; return; }
+  const dir = `${CARD_OUT}/${S.name}`; mkdirSync(dir, { recursive: true });
+  writeFileSync(`${dir}/readout.json`, JSON.stringify(D.readout, null, 1) + '\n'); console.log(`wrote ${dir}/readout.json`);
+  const warnings = D.readout.warnings ?? [], advice = D.readout.faceMeasures?.features?.advice ?? [];
+  console.log(`warnings (${warnings.length}):`); for (const w of warnings) console.log(`  - ${w}`);
+  console.log(`advice (faceMeasures.features.advice, ${advice.length}):`); for (const a of advice) console.log(`  - ${a}${warnings.includes(a) ? '  (also in warnings)' : ''}`);
+  if (D.toonDropped) console.log(`note: the door keeps no toon for ${JSON.stringify(S.toon)} (the dial reads it as nothing), so none is stored`);
+
+  const R = await resolveManifest(D.manifest, S.name);   // the World resolver, parity-guarded
+  const side = sideOf(R.light?.toLight ?? KEY), L = lensOf(R.faces, 256), L512 = lensOf(R.faces, 512);
+  const at = (lens, fr, view, mode = 'fill', opts = {}) => cell(R, orbit(aim(lens, R.faces, fr), view, side), mode, opts);
+  const big = at(L512, 'head', 'threequarter');
+  const heads = [[at(L, 'head', 'front'), ['head · front']], [at(L, 'head', 'profile'), ['head · profile', 'the key’s side']],
+    [at(L, 'head', 'rear'), ['head · rear ¾, 20° down', 'the gameplay camera, key side']], [at(L, 'head', 'threequarter', 'fill', { bg: DARK(R) }), ['head · ¾ on the World backdrop', 'the payload’s own bg']]];
+  const lower = [[at(L, 'bust', 'threequarter'), ['bust · ¾']], [at(L, 'body256', 'threequarter'), ['body · ¾', '256 px tall']], [at(L, 'body256', 'front'), ['body · front', '256 px tall']],
+    [at(L, 'body256', 'threequarter', 'silhouette'), ['silhouette · ¾']], [at(L, 'body256', 'threequarter', 'value'), ['3 values · ¾', 'L* < 33 / 33–66 / ≥ 66']]];
+
+  // the sheet: title; the head ¾ at 512 beside a 2 × 2 of head cells at 256; the bust, body, silhouette and values
+  const g = 8, labH = 34, W = g + 512 + g + 2 * (256 + g);
+  const r = D.readout, eff = [r.head !== 'anime' && `head ${r.head}`, r.head === 'landmark' && `hair ${r.hair?.style}`, r.head === 'landmark' && `expression ${r.expression}`, r.base && `base ${r.base}`, r.proportions && `proportions ${r.proportions}`, r.look && `look ${r.look.join('+')}`, r.hairCut !== undefined && `hair ${r.hairCut ? `the ${r.hairCut} cut (the hair base)` : r.hair?.style ?? 'none'}`,
+    r.head === 'anime' && `expression ${typeof S.hero.expression === 'string' ? S.hero.expression : Object.entries(r.expression || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' ') || 'neutral'}`, r.gesture ? `stand ${r.gesture.word}` : 'the bind pose (no stand)', r.headsTall && `${r.headsTall} heads tall`, r.neck && `neck ${r.neck.form} ${r.neck.ofW} W`].filter(Boolean);
+  const T = titleBlock(W, [`${S.name}`, `words: ${wordsOf(S.hero, S.toon).join(' · ') || '(none: the door’s defaults)'}`, `the door read: ${eff.join(' · ')}`,
+    `${warnings.length} warning${warnings.length === 1 ? '' : 's'} (readout.json) · ${R.faces.length} static faces, parity-guarded against the World payload · ${r.budget ? `${r.budget.triangles} triangles` : ''}`]);
+  const layers = [{ input: T.input, left: 0, top: 0 }];
+  let y = T.H + g;
+  placeCell(layers, big, g, y, 512, ['head · ¾ (512 px)', 'camera on +x (the figure’s right)'], labH);
+  heads.forEach(([c, lines], i) => placeCell(layers, c, g + 512 + g + (i % 2) * (256 + g), y + Math.floor(i / 2) * (256 + labH + g), 256, lines, labH));
+  y += Math.max(512 + labH, 2 * (256 + labH) + g) + g;
+  let x = g; const rowH = Math.max(...lower.map(([c]) => c.height)) + labH;
+  for (const [c, lines] of lower) { placeCell(layers, c, x, y, c.width, lines, labH); x += c.width + g; }
+  y += rowH + g;
+  await writePng(`${dir}/card.png`, W, y, layers);
+  const tCard = (Date.now() - t0) / 1000;
+  console.log(`card: ${tCard.toFixed(1)} s`);
+
+  // --check-lens: the head ¾ once more at the REVIEW SHEETS' lens (the review sheets freeze it per cast on the
+  // hero at gesture rest with toon.light false, at --head px, default 384), so a card can be laid pixel for pixel over
+  // a review sheet's column
+  if (process.argv.includes('--check-lens')) {
+    const Dr = doorMint({ ...S.hero, gesture: 'rest', toon: { ...(S.toon && typeof S.toon === 'object' ? S.toon : {}), light: false } });
+    const Rr = await resolveManifest(Dr.manifest, `${S.name} · rest, light off`), c = cell(R, orbit(aim(lensOf(Rr.faces), R.faces, 'head'), 'threequarter', side));
+    writeFileSync(`${dir}/head-3q-review-lens.png`, await sharp(c.rgb, { raw: { width: c.width, height: c.height, channels: 3 } }).png().toBuffer());
+    console.log(`wrote ${dir}/head-3q-review-lens.png (${c.width} px, the review sheets' lens)`);
+  }
+
+  if (EXPR) {
+    const t1 = Date.now(), head = D.hero.head ?? 'landmark';
+    const words = head === 'anime' ? Object.keys(ANIME_POSES) : head === 'landmark' ? Object.keys(LANDMARK_EXPRESSIONS) : [];
+    if (!words.length) { console.log(`expressions: head '${typeof head === 'string' ? head : 'include'}' takes no expression words`); return; }
+    const cells = [];
+    for (const word of words) {
+      let Rw;
+      if (S.hero.expression === word) Rw = R;
+      else {
+        let Dw; try { Dw = doorMint({ ...S.hero, expression: word, ...(S.toon !== undefined ? { toon: S.toon } : {}) }); }
+        catch (err) { if (!(err instanceof Refusal)) throw err; console.log(`expression ${word}: refused: ${err.message}`); continue; }
+        Rw = await resolveManifest(Dw.manifest, `${S.name} · ${word}`);
+      }
+      cells.push([cell(Rw, orbit(aim(L, Rw.faces, 'head'), 'threequarter', side)), [word, ...(S.hero.expression === word ? ['the spec’s own'] : [])]]);
+    }
+    const per = 5, EW = g + per * (256 + g);
+    const ET = titleBlock(EW, [`${S.name} · expressions`, `every expression word the ${head} head takes (hero.expression, the own layer: over a look’s pose); the rest of the spec as given; head ¾ at 256 px, one lens`]);
+    const el = [{ input: ET.input, left: 0, top: 0 }];
+    cells.forEach(([c, lines], i) => placeCell(el, c, g + (i % per) * (256 + g), ET.H + g + Math.floor(i / per) * (256 + labH + g), 256, lines, labH));
+    await writePng(`${dir}/expressions.png`, EW, ET.H + g + Math.ceil(cells.length / per) * (256 + labH + g), el);
+    console.log(`expressions: ${cells.length} words, ${((Date.now() - t1) / 1000).toFixed(1)} s`);
+  }
+}
+if (SPEC_FILE) await cardMain();
+
+// ─── SHEET MODE: the cast side by side, one lens per row ───────────────────
+/** --sheet <config.json>: { columns: [{ spec, summary }], title?, sheet?, expressions? } (spec paths relative to the
+ * config). Every spec goes through the same door steps and parity guard as a card. Writes <out>/<sheet>.png (default
+ * cast-sheet): one column per spec, rows head ¾ (320 px), head front and rear ¾ 20° down (256 px), body ¾ (256 px) and
+ * its black silhouette; with --expr also <out>/<expressions>.png (default cast-expressions): one row per spec, the head
+ * ¾ at 256 px for the spec's own expression and every expression word the anime head takes. SAME FRAMING PER ROW: the
+ * head rows share one lens (the largest head box of the cast, each aimed at its own head centre), the body rows one
+ * lens (the tallest figure at 256 px, each standing on the same floor line), so heads and figures compare in size. */
+const SHEET_FILE = argOf('--sheet');
+async function sheetMain() {
+  const cfgFile = resolve(SHEET_FILE), cfg = JSON.parse(readFileSync(cfgFile, 'utf8')), base = dirname(cfgFile), t0 = Date.now();
+  const cast = [];
+  for (const col of cfg.columns) {
+    let S, D;
+    try { S = readSpec(resolve(base, col.spec)); D = doorMint({ ...S.hero, ...(S.toon !== undefined ? { toon: S.toon } : {}) }); }
+    catch (err) { if (!(err instanceof Refusal)) throw err; console.error(`refused (${col.spec}): ${err.message}`); process.exitCode = 1; return; }
+    const R = await resolveManifest(D.manifest, S.name);   // the World resolver, parity-guarded
+    cast.push({ S, D, R, summary: col.summary ?? '', side: sideOf(R.light?.toLight ?? KEY) });
+    console.log(`${S.name}: ${R.faces.length} static faces, ${D.readout.budget?.triangles ?? '?'} triangles, ${D.readout.headsTall ?? '?'} heads tall`);
+  }
+  // the shared lenses
+  const exts = cast.map((c) => lensOf(c.R.faces, 256).head.ext), ext = Math.max(...exts);
+  const headLens = (px) => ({ distance: (ext / 2) / Math.tan(rad(8)), vfov: 16, width: px, height: px, ss: 2, ext });
+  const bodies = cast.map((c) => lensOf(c.R.faces, 256).body256), body = bodies.reduce((a, b) => (b.H > a.H ? b : a));
+  console.log(`head lens: ext ${ext.toFixed(4)} m (per spec: ${cast.map((c, i) => `${c.S.name} ${exts[i].toFixed(4)}`).join(', ')}); body lens: H ${body.H.toFixed(3)} m (per spec: ${cast.map((c, i) => `${c.S.name} ${bodies[i].H.toFixed(3)}`).join(', ')})`);
+  const headAt = (R, side, px, view, mode = 'fill') => { const h = headBox(R.faces); return cell(R, orbit({ ...headLens(px), target: [h.c[0], h.c[1], h.c[2] - 0.025] }, view, side), mode); };
+  const bodyAt = (R, side, view, mode = 'fill') => { const a = boxOf(R.faces); return cell(R, orbit({ ...body, target: [a.c[0], a.c[1], a.mn[2] + body.H / 2] }, view, side), mode); };
+  const colLabel = (c, n) => [c.S.name, ...wrap(c.summary, n)];
+  const ROWS_SHEET = [
+    [['head · ¾', '320 px, one lens', 'camera on +x'], (c) => headAt(c.R, c.side, 320, 'threequarter')],
+    [['head · front', '256 px, one lens'], (c) => headAt(c.R, c.side, 256, 'front')],
+    [['head · rear ¾, 20° down', 'the gameplay camera, key side', '256 px, one lens'], (c) => headAt(c.R, c.side, 256, 'rear')],
+    [['body · ¾', '256 px (the tallest)', 'one lens, one floor line'], (c) => bodyAt(c.R, c.side, 'threequarter')],
+    [['silhouette · ¾', 'as the body row'], (c) => bodyAt(c.R, c.side, 'threequarter', 'silhouette')],
+  ];
+  const grid = ROWS_SHEET.map(([, f]) => cast.map(f));
+  const out = (n) => `${CARD_OUT}/${n}.png`; mkdirSync(CARD_OUT, { recursive: true });
+  await sheet(cfg.sheet ?? 'cast-sheet', {
+    title: cfg.title ?? 'cast · the specs side by side',
+    note: [`each column is one spec through the hero door’s steps (no database), resolved by the World resolver under the parity guard. One lens per row: the head rows frame the largest head box of the cast (each aimed at its own head centre), the body rows the tallest figure at 256 px (each on the same floor line), so sizes compare. The rear ¾ stands on each spec’s key side. Triangles: ${cast.map((c) => `${c.S.name} ${c.D.readout.budget?.triangles ?? '?'}`).join(', ')}.`],
+    columns: cast.map((c) => colLabel(c, 50)), rows: ROWS_SHEET.map(([lab], i) => ({ label: lab, cells: grid[i] })), gutter: 190, file: out(cfg.sheet ?? 'cast-sheet'),
+  });
+  console.log(`sheet: ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  if (!EXPR) return;
+  const t1 = Date.now(), words = Object.keys(ANIME_POSES), rows = [];
+  for (const c of cast) {
+    if ((c.D.hero.head ?? 'landmark') !== 'anime') { console.log(`${c.S.name}: not the anime head, no expression row`); continue; }
+    const cells = [headAt(c.R, c.side, 256, 'threequarter')];
+    for (const word of words) {
+      let Dw; try { Dw = doorMint({ ...c.S.hero, expression: word, ...(c.S.toon !== undefined ? { toon: c.S.toon } : {}) }); }
+      catch (err) { if (!(err instanceof Refusal)) throw err; console.log(`${c.S.name} · ${word}: refused: ${err.message}`); cells.push(null); continue; }
+      const Rw = await resolveManifest(Dw.manifest, `${c.S.name} · ${word}`);
+      cells.push(headAt(Rw, c.side, 256, 'threequarter'));
+    }
+    const said = (e) => (typeof e === 'string' ? e : Array.isArray(e) ? e.map(said).join(' + ') : e && typeof e === 'object' ? Object.entries(e).map(([k, v]) => `${k} ${v}`).join(', ') : String(e));
+    const own = c.S.hero.expression === undefined ? 'none (the look’s pose)' : said(c.S.hero.expression);
+    const amounts = Object.entries(c.D.readout.expression || {}).filter(([, v]) => typeof v === 'number' && v).map(([k, v]) => `${k} ${+v.toFixed(3)}`).join(', ') || 'all 0';
+    rows.push({ label: [c.S.name, ...wrap(`own: ${own}`, 26), ...wrap(`the door read: ${amounts}`, 26)], cells });
+    console.log(`${c.S.name}: expressions done`);
+  }
+  await sheet(cfg.expressions ?? 'cast-expressions', {
+    title: `${cfg.title ?? 'cast'} · expressions`,
+    note: ['one row per spec: the head ¾ at 256 px on one lens for all rows (the largest head box of the cast). The first column is the spec as written; each other column replaces the spec’s own expression layer with that word (hero.expression = word), the rest of the spec as given, each minted through the door and parity-guarded.'],
+    columns: [['the spec’s own'], ...words.map((w) => [w])], rows, gutter: 190, file: out(cfg.expressions ?? 'cast-expressions'),
+  });
+  console.log(`expressions: ${((Date.now() - t1) / 1000).toFixed(1)} s`);
+}
+if (SHEET_FILE) await sheetMain();
+
+// ─── the review sheets (without --spec or --sheet) ─────────────────────────
+if (!SPEC_FILE && !SHEET_FILE) {
+  const lenses = {}, defaults = {};
+  for (const cast of CASTS) {
+    const before = await resolveHero(cast, { gesture: 'rest', toon: { light: false } });
+    lenses[cast] = lensOf(before.faces);
+    defaults[cast] = await resolveHero(cast);
+    if (ONLY.has('before-after')) {
+      const still = await resolveHero(cast, { gesture: 'rest' });
+      const b = column(before, lenses[cast], ROWS), r = column(still, lenses[cast], ROWS), a = column(defaults[cast], lenses[cast], ROWS);
+      record(cast, 'before', before, ROWS.map((row, i) => [row[3][0], b[i]])); record(cast, 'light at rest', still, ROWS.map((row, i) => [row[3][0], r[i]])); record(cast, 'default', defaults[cast], ROWS.map((row, i) => [row[3][0], a[i]]));
+      defaults[cast].cells = a; defaults[cast].still = r; defaults[cast].before = b;
+    }
+  }
   if (ONLY.has('before-after')) {
-    const still = await resolveHero(cast, { gesture: 'rest' });
-    const b = column(before, lenses[cast], ROWS), r = column(still, lenses[cast], ROWS), a = column(defaults[cast], lenses[cast], ROWS);
-    record(cast, 'before', before, ROWS.map((row, i) => [row[3][0], b[i]])); record(cast, 'light at rest', still, ROWS.map((row, i) => [row[3][0], r[i]])); record(cast, 'default', defaults[cast], ROWS.map((row, i) => [row[3][0], a[i]]));
-    defaults[cast].cells = a; defaults[cast].still = r; defaults[cast].before = b;
-  }
-}
-if (ONLY.has('before-after')) {
-  await sheet('articulation-before-after', {
-    title: 'eyes gate · before / after · the anime hero as the door mints it',
-    note: ['before: the World as it was (toon.light false, gesture rest: the Lambert studio bake, no ink). light at rest: the character light alone (gesture rest). after: the default (the character light, iso-split two tones, the silhouette ink, the relaxed stand; the head lit in its own frame).',
-      'software depth raster over the World payload’s own static faces (parity-guarded); the outline emulates the inverted hull at toon.ink.widthAbs, and the draw layers (brows and lids through the fringe, no hair outline over hair) per pixel. Same lens per cast. Profile and rear from the key’s side (+x).'],
-    columns: CASTS.flatMap((c) => [[`${c} · before`, 'Lambert studio bake, rest'], [`${c} · light at rest`, 'character light, gesture rest'], [`${c} · after (default)`, 'character light, relaxed']]),
-    rows: ROWS.map((row, i) => ({ label: row[3], cells: CASTS.flatMap((c) => [defaults[c].before[i], defaults[c].still[i], defaults[c].cells[i]]) })),
-  });
-}
-if (ONLY.has('keys')) {
-  const rows = ROWS.filter((r) => r[2] !== 'silhouette'), cols = [], cells = [];
-  for (const cast of CASTS) for (const [name, toLight, v] of KEYS) {
-    const R = toLight ? await resolveHero(cast, { toon: { light: { toLight } } }) : defaults[cast];
-    const c = column(R, lenses[cast], rows, sideOf(v)); cells.push(c); record(cast, `key: ${name}`, R, rows.map((r, i) => [r[3][0], c[i]]));
-    cols.push([`${cast} · ${name}`, `toLight [${v.map((x) => x.toFixed(2)).join(', ')}]`, angles(v)]);
-  }
-  await sheet('articulation-keys', {
-    title: 'eyes gate · the key direction · pick the default (character space: +y front, +z up)',
-    note: ['every column is the default hero (the relaxed stand, the default thresholds and shade swatches) with only toon.light.toLight changed; the ¾ camera stands on +x; the profile and rear ¾ stand on each column’s key side.',
-      'the silhouette row is omitted: a key never moves it (see the before / after sheet).'],
-    columns: cols, rows: rows.map((r, i) => ({ label: r[3], cells: cells.map((c) => c[i]) })),
-  });
-}
-if (ONLY.has('progression')) {
-  const dir = argOf('--baseline');
-  if (!dir) console.log('progression: skipped (no --baseline <dir> holding anime-<cast>.json manifests)');
-  else for (const cast of CASTS) {
-    const file = `${resolve(dir)}/anime-${cast}.json`, { title: _title, ...stored } = JSON.parse(readFileSync(file, 'utf8'));
-    const base = await resolveManifest(stored, `${cast} baseline`, { predates: PREDATES }), lens = lenses[cast];
-    const b = column(base, lens, PROGRESSION_ROWS), a = column(defaults[cast], lens, PROGRESSION_ROWS);
-    record(cast, 'progression: baseline', base, PROGRESSION_ROWS.map((row, i) => [row[3][0], b[i]])); record(cast, 'progression: default', defaults[cast], PROGRESSION_ROWS.map((row, i) => [row[3][0], a[i]]));
-    const own = stored.toon?.light;
-    await sheet(`articulation-progression-${cast}`, {
-      title: `eyes gate · progression · ${cast} · the baseline → the door's default today`,
-      note: [`baseline: ${file.split('/').slice(-3).join('/')} resolved as stored${own ? ' under its own toon.light' : ''}${PREDATES.size ? `, drawn without the rules it predates (${[...PREDATES].join(', ')})` : ''}. default: the anime hero as the door mints it today (every default channel on).`,
-        'software depth raster over the World payload’s own static faces (parity-guarded); the outline emulates the inverted hull at toon.ink.widthAbs and the draw layers per pixel. One lens per cast; the head frame is the skull and the hair above the chin.'],
-      columns: [[`${cast} · baseline`, own ? `its own light: Hair step ${own.thresholds?.Hair ?? '(default)'}, highlight ${own.highlight === false ? 'off' : 'default'}` : 'the default light'], [`${cast} · default today`, 'the door’s hero, relaxed']],
-      rows: PROGRESSION_ROWS.map((row, i) => ({ label: row[3], cells: [b[i], a[i]] })),
+    await sheet('articulation-before-after', {
+      title: 'eyes gate · before / after · the anime hero as the door mints it',
+      note: ['before: the World as it was (toon.light false, gesture rest: the Lambert studio bake, no ink). light at rest: the character light alone (gesture rest). after: the default (the character light, iso-split two tones, the silhouette ink, the relaxed stand; the head lit in its own frame).',
+        'software depth raster over the World payload’s own static faces (parity-guarded); the outline emulates the inverted hull at toon.ink.widthAbs, and the draw layers (brows and lids through the fringe, no hair outline over hair) per pixel. Same lens per cast. Profile and rear from the key’s side (+x).'],
+      columns: CASTS.flatMap((c) => [[`${c} · before`, 'Lambert studio bake, rest'], [`${c} · light at rest`, 'character light, gesture rest'], [`${c} · after (default)`, 'character light, relaxed']]),
+      rows: ROWS.map((row, i) => ({ label: row[3], cells: CASTS.flatMap((c) => [defaults[c].before[i], defaults[c].still[i], defaults[c].cells[i]]) })),
     });
   }
-}
-if (ONLY.has('expressions')) {
-  const cells = Object.fromEntries(CASTS.map((c) => [c, []]));
-  for (const cast of CASTS) for (const word of EXPRESSIONS) {
-    const R = word === (defaults[cast].hero.expression ?? 'neutral') ? defaults[cast] : await resolveHero(cast, { expression: word }), lens = lenses[cast];
-    const c = [cell(R, orbit(aim(lens, R.faces, 'head'), 'threequarter')), cell(R, orbit(aim(lens, R.faces, 'head'), 'front'))];
-    cells[cast].push(c); record(cast, `expression: ${word}`, R, [['head · ¾', c[0]], ['head · front', c[1]]]);
-  }
-  await sheet('articulation-expressions', {
-    title: 'eyes gate · the expressions · the default hero, each expression word',
-    note: ['the door’s default hero with only `expression` changed (the relaxed stand, the head lit in its own frame); one lens per cast.'],
-    columns: CASTS.flatMap((c) => [[`${c} · head ¾`], [`${c} · head front`]]),
-    rows: EXPRESSIONS.map((word, i) => ({ label: [word], cells: CASTS.flatMap((c) => cells[c][i]) })), gutter: 150,
-  });
-}
-if (ONLY.has('stands')) {
-  const cols = [['256 px · ¾'], ['256 px · front'], ['silhouette · ¾'], ['silhouette · front']], rows = [];
-  for (const cast of CASTS) for (const word of GESTURE_WORDS) {
-    const R = word === (defaults[cast].hero.gesture ?? 'relaxed') ? defaults[cast] : await resolveHero(cast, { gesture: word }), lens = lenses[cast];
-    const c = [cell(R, orbit(aim(lens, R.faces, 'body256'), 'threequarter')), cell(R, orbit(aim(lens, R.faces, 'body256'), 'front')), cell(R, orbit(aim(lens, R.faces, 'body256'), 'threequarter'), 'silhouette'), cell(R, orbit(aim(lens, R.faces, 'body256'), 'front'), 'silhouette')];
-    const g = gestureReadout(R.hero, R.mesh, R.manifest.recipe);
-    const worst = g ? Object.entries(g.clearance.pairs).sort((a, b) => (b[1].depthMm - b[1].restDepthMm) - (a[1].depthMm - a[1].restDepthMm))[0] : null;
-    rows.push({ label: [`${cast} · ${word}`, ...(g ? [`support ${g.support}`, `hand sink past rest: ${g.clearance.worstMm} mm${worst ? ` (${worst[0]})` : ''}`, ...Object.entries(g.freeSoleMm || {}).map(([S, mm]) => `free ${S} sole ${mm} mm`)] : ['the bind pose (no stand clip)'])], cells: c });
-    record(cast, `gesture: ${word}`, R, [['256 px · ¾', c[0]]]);
-  }
-  await sheet('articulation-stands', {
-    title: 'eyes gate · the stands · default light, each preset word',
-    note: ['the static solid skinned at the one-key `gesture` clip (bindLayered → rigNodesAt → boneFrames → skinLayered), lit posed with the head in its own frame; relaxed per cast word, hand-on-hip and guard per cast for female and male.',
-      'labels: the hero readout’s stand (gestureReadout): the worst hand / forearm sink beyond its rest overlap, the free sole against the floor.'],
-    columns: cols, rows, gutter: 300,
-  });
-}
-if (measures.length) writeFileSync(`${OUT}/articulation-measures.json`, JSON.stringify(measures, null, 1) + '\n');
-
-// ─── parity with the World page ────────────────────────────────────────────
-const PARITY = `${OUT}/parity`, SHOT = 900;
-/** the parity cameras: the World's own front camera (the payload's first), and the head ¾ at the head lens */
-function parityShots(R, lens) {
-  const wf = R.payload.cameras[0].worldFraming, head = orbit(aim(lens, R.faces, 'head'), 'threequarter');
-  return [{ id: 'world-front', pos: wf.cameraPosition, target: wf.lookAt, hfov: wf.horizontalFov }, { id: 'head-3q', pos: head.pos, target: head.target, hfov: head.vfov }];
-}
-const parityCell = (R, s) => cell(R, { pos: s.pos, target: s.target, vfov: s.hfov, width: SHOT, height: SHOT, ss: 2 }, 'fill', { bg: hexRgb(R.payload.bg || '#0d1218'), all: [...R.faces, ...R.payload.faces.filter((f) => f.studio)] });
-if (process.argv.includes('--parity') || argOf('--compare')) {
-  mkdirSync(PARITY, { recursive: true });
-  const cast = CASTS[0], R = defaults[cast] ?? await resolveHero(cast), shots = parityShots(R, lenses[cast]);
-  writeFileSync(`${PARITY}/anime-${cast}.json`, JSON.stringify({ ...R.manifest, title: `anime hero · ${cast}` }));
-  writeFileSync(`${PARITY}/shots.json`, JSON.stringify(shots.map((s) => ({ ...s, t: 0 })), null, 1));
-  const raster = Object.fromEntries(shots.map((s) => [s.id, parityCell(R, s)]));
-  for (const [id, c] of Object.entries(raster)) writeFileSync(`${PARITY}/raster-${id}.png`, await sharp(c.rgb, { raw: { width: c.width, height: c.height, channels: 3 } }).png().toBuffer());
-  console.log(`wrote ${PARITY}: anime-${cast}.json, shots.json, raster-*.png`);
-  const dir = argOf('--compare');
-  if (dir) {
-    const report = {};
-    for (const s of shots) {
-      const f = `${dir}/${s.id}.png`; if (!existsSync(f)) { console.log(`no capture ${f}`); continue; }
-      const cap = await sharp(readFileSync(f)).removeAlpha().resize(SHOT, SHOT, { fit: 'fill' }).raw().toBuffer(), r = raster[s.id];
-      const diff = Buffer.alloc(SHOT * SHOT * 3); let inside = 0, sum = 0, off = 0, all = 0;
-      const eroded = (i) => { const x = i % SHOT, y = (i - x) / SHOT; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= SHOT || yy >= SHOT || r.cover[yy * SHOT + xx] < 1) return false; } return true; };
-      for (let i = 0; i < SHOT * SHOT; i++) {
-        let m = 0; for (let ch = 0; ch < 3; ch++) { const d = Math.abs(r.rgb[i * 3 + ch] - cap[i * 3 + ch]); m = Math.max(m, d); diff[i * 3 + ch] = Math.min(255, d * 3); }
-        all += m; if (eroded(i)) { inside++; sum += m; if (m > 48) off++; }
-      }
-      report[s.id] = { figurePixels: inside, meanMaxChannelDiffInFigure: +(sum / inside).toFixed(2), figureShareOffBy48: +(off / inside).toFixed(4), meanMaxChannelDiffFrame: +(all / SHOT / SHOT).toFixed(2) };
-      const strip = await sharp({ create: { width: SHOT * 3 + 12, height: SHOT, channels: 3, background: '#bdb8ae' } }).composite([
-        { input: r.rgb, raw: { width: SHOT, height: SHOT, channels: 3 }, left: 0, top: 0 }, { input: cap, raw: { width: SHOT, height: SHOT, channels: 3 }, left: SHOT + 6, top: 0 },
-        { input: diff, raw: { width: SHOT, height: SHOT, channels: 3 }, left: 2 * SHOT + 12, top: 0 }]).png().toBuffer();
-      writeFileSync(`${PARITY}/parity-${basename(dir)}-${s.id}.png`, strip);
+  if (ONLY.has('keys')) {
+    const rows = ROWS.filter((r) => r[2] !== 'silhouette'), cols = [], cells = [];
+    for (const cast of CASTS) for (const [name, toLight, v] of KEYS) {
+      const R = toLight ? await resolveHero(cast, { toon: { light: { toLight } } }) : defaults[cast];
+      const c = column(R, lenses[cast], rows, sideOf(v)); cells.push(c); record(cast, `key: ${name}`, R, rows.map((r, i) => [r[3][0], c[i]]));
+      cols.push([`${cast} · ${name}`, `toLight [${v.map((x) => x.toFixed(2)).join(', ')}]`, angles(v)]);
     }
-    writeFileSync(`${PARITY}/parity-${basename(dir)}.json`, JSON.stringify(report, null, 1) + '\n');
-    console.log(`parity (${basename(dir)}):`, JSON.stringify(report));
+    await sheet('articulation-keys', {
+      title: 'eyes gate · the key direction · pick the default (character space: +y front, +z up)',
+      note: ['every column is the default hero (the relaxed stand, the default thresholds and shade swatches) with only toon.light.toLight changed; the ¾ camera stands on +x; the profile and rear ¾ stand on each column’s key side.',
+        'the silhouette row is omitted: a key never moves it (see the before / after sheet).'],
+      columns: cols, rows: rows.map((r, i) => ({ label: r[3], cells: cells.map((c) => c[i]) })),
+    });
+  }
+  if (ONLY.has('progression')) {
+    const dir = argOf('--baseline');
+    if (!dir) console.log('progression: skipped (no --baseline <dir> holding anime-<cast>.json manifests)');
+    else for (const cast of CASTS) {
+      const file = `${resolve(dir)}/anime-${cast}.json`, { title: _title, ...stored } = JSON.parse(readFileSync(file, 'utf8'));
+      const base = await resolveManifest(stored, `${cast} baseline`, { predates: PREDATES }), lens = lenses[cast];
+      const b = column(base, lens, PROGRESSION_ROWS), a = column(defaults[cast], lens, PROGRESSION_ROWS);
+      record(cast, 'progression: baseline', base, PROGRESSION_ROWS.map((row, i) => [row[3][0], b[i]])); record(cast, 'progression: default', defaults[cast], PROGRESSION_ROWS.map((row, i) => [row[3][0], a[i]]));
+      const own = stored.toon?.light;
+      await sheet(`articulation-progression-${cast}`, {
+        title: `eyes gate · progression · ${cast} · the baseline → the door's default today`,
+        note: [`baseline: ${file.split('/').slice(-3).join('/')} resolved as stored${own ? ' under its own toon.light' : ''}${PREDATES.size ? `, drawn without the rules it predates (${[...PREDATES].join(', ')})` : ''}. default: the anime hero as the door mints it today (every default channel on).`,
+          'software depth raster over the World payload’s own static faces (parity-guarded); the outline emulates the inverted hull at toon.ink.widthAbs and the draw layers per pixel. One lens per cast; the head frame is the skull and the hair above the chin.'],
+        columns: [[`${cast} · baseline`, own ? `its own light: Hair step ${own.thresholds?.Hair ?? '(default)'}, highlight ${own.highlight === false ? 'off' : 'default'}` : 'the default light'], [`${cast} · default today`, 'the door’s hero, relaxed']],
+        rows: PROGRESSION_ROWS.map((row, i) => ({ label: row[3], cells: [b[i], a[i]] })),
+      });
+    }
+  }
+  if (ONLY.has('expressions')) {
+    const cells = Object.fromEntries(CASTS.map((c) => [c, []]));
+    for (const cast of CASTS) for (const word of EXPRESSIONS) {
+      const R = word === (defaults[cast].hero.expression ?? 'neutral') ? defaults[cast] : await resolveHero(cast, { expression: word }), lens = lenses[cast];
+      const c = [cell(R, orbit(aim(lens, R.faces, 'head'), 'threequarter')), cell(R, orbit(aim(lens, R.faces, 'head'), 'front'))];
+      cells[cast].push(c); record(cast, `expression: ${word}`, R, [['head · ¾', c[0]], ['head · front', c[1]]]);
+    }
+    await sheet('articulation-expressions', {
+      title: 'eyes gate · the expressions · the default hero, each expression word',
+      note: ['the door’s default hero with only `expression` changed (the relaxed stand, the head lit in its own frame); one lens per cast.'],
+      columns: CASTS.flatMap((c) => [[`${c} · head ¾`], [`${c} · head front`]]),
+      rows: EXPRESSIONS.map((word, i) => ({ label: [word], cells: CASTS.flatMap((c) => cells[c][i]) })), gutter: 150,
+    });
+  }
+  if (ONLY.has('stands')) {
+    const cols = [['256 px · ¾'], ['256 px · front'], ['silhouette · ¾'], ['silhouette · front']], rows = [];
+    for (const cast of CASTS) for (const word of GESTURE_WORDS) {
+      const R = word === (defaults[cast].hero.gesture ?? 'relaxed') ? defaults[cast] : await resolveHero(cast, { gesture: word }), lens = lenses[cast];
+      const c = [cell(R, orbit(aim(lens, R.faces, 'body256'), 'threequarter')), cell(R, orbit(aim(lens, R.faces, 'body256'), 'front')), cell(R, orbit(aim(lens, R.faces, 'body256'), 'threequarter'), 'silhouette'), cell(R, orbit(aim(lens, R.faces, 'body256'), 'front'), 'silhouette')];
+      const g = gestureReadout(R.hero, R.mesh, R.manifest.recipe);
+      const worst = g ? Object.entries(g.clearance.pairs).sort((a, b) => (b[1].depthMm - b[1].restDepthMm) - (a[1].depthMm - a[1].restDepthMm))[0] : null;
+      rows.push({ label: [`${cast} · ${word}`, ...(g ? [`support ${g.support}`, `hand sink past rest: ${g.clearance.worstMm} mm${worst ? ` (${worst[0]})` : ''}`, ...Object.entries(g.freeSoleMm || {}).map(([S, mm]) => `free ${S} sole ${mm} mm`)] : ['the bind pose (no stand clip)'])], cells: c });
+      record(cast, `gesture: ${word}`, R, [['256 px · ¾', c[0]]]);
+    }
+    await sheet('articulation-stands', {
+      title: 'eyes gate · the stands · default light, each preset word',
+      note: ['the static solid skinned at the one-key `gesture` clip (bindLayered → rigNodesAt → boneFrames → skinLayered), lit posed with the head in its own frame; relaxed per cast word, hand-on-hip and guard per cast for female and male.',
+        'labels: the hero readout’s stand (gestureReadout): the worst hand / forearm sink beyond its rest overlap, the free sole against the floor.'],
+      columns: cols, rows, gutter: 300,
+    });
+  }
+  if (measures.length) writeFileSync(`${OUT}/articulation-measures.json`, JSON.stringify(measures, null, 1) + '\n');
+
+  // ─── parity with the World page ────────────────────────────────────────────
+  const PARITY = `${OUT}/parity`, SHOT = 900;
+  /** the parity cameras: the World's own front camera (the payload's first), and the head ¾ at the head lens */
+  function parityShots(R, lens) {
+    const wf = R.payload.cameras[0].worldFraming, head = orbit(aim(lens, R.faces, 'head'), 'threequarter');
+    return [{ id: 'world-front', pos: wf.cameraPosition, target: wf.lookAt, hfov: wf.horizontalFov }, { id: 'head-3q', pos: head.pos, target: head.target, hfov: head.vfov }];
+  }
+  const parityCell = (R, s) => cell(R, { pos: s.pos, target: s.target, vfov: s.hfov, width: SHOT, height: SHOT, ss: 2 }, 'fill', { bg: hexRgb(R.payload.bg || '#0d1218'), all: [...R.faces, ...R.payload.faces.filter((f) => f.studio)] });
+  if (process.argv.includes('--parity') || argOf('--compare')) {
+    mkdirSync(PARITY, { recursive: true });
+    const cast = CASTS[0], R = defaults[cast] ?? await resolveHero(cast), shots = parityShots(R, lenses[cast]);
+    writeFileSync(`${PARITY}/anime-${cast}.json`, JSON.stringify({ ...R.manifest, title: `anime hero · ${cast}` }));
+    writeFileSync(`${PARITY}/shots.json`, JSON.stringify(shots.map((s) => ({ ...s, t: 0 })), null, 1));
+    const raster = Object.fromEntries(shots.map((s) => [s.id, parityCell(R, s)]));
+    for (const [id, c] of Object.entries(raster)) writeFileSync(`${PARITY}/raster-${id}.png`, await sharp(c.rgb, { raw: { width: c.width, height: c.height, channels: 3 } }).png().toBuffer());
+    console.log(`wrote ${PARITY}: anime-${cast}.json, shots.json, raster-*.png`);
+    const dir = argOf('--compare');
+    if (dir) {
+      const report = {};
+      for (const s of shots) {
+        const f = `${dir}/${s.id}.png`; if (!existsSync(f)) { console.log(`no capture ${f}`); continue; }
+        const cap = await sharp(readFileSync(f)).removeAlpha().resize(SHOT, SHOT, { fit: 'fill' }).raw().toBuffer(), r = raster[s.id];
+        const diff = Buffer.alloc(SHOT * SHOT * 3); let inside = 0, sum = 0, off = 0, all = 0;
+        const eroded = (i) => { const x = i % SHOT, y = (i - x) / SHOT; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= SHOT || yy >= SHOT || r.cover[yy * SHOT + xx] < 1) return false; } return true; };
+        for (let i = 0; i < SHOT * SHOT; i++) {
+          let m = 0; for (let ch = 0; ch < 3; ch++) { const d = Math.abs(r.rgb[i * 3 + ch] - cap[i * 3 + ch]); m = Math.max(m, d); diff[i * 3 + ch] = Math.min(255, d * 3); }
+          all += m; if (eroded(i)) { inside++; sum += m; if (m > 48) off++; }
+        }
+        report[s.id] = { figurePixels: inside, meanMaxChannelDiffInFigure: +(sum / inside).toFixed(2), figureShareOffBy48: +(off / inside).toFixed(4), meanMaxChannelDiffFrame: +(all / SHOT / SHOT).toFixed(2) };
+        const strip = await sharp({ create: { width: SHOT * 3 + 12, height: SHOT, channels: 3, background: '#bdb8ae' } }).composite([
+          { input: r.rgb, raw: { width: SHOT, height: SHOT, channels: 3 }, left: 0, top: 0 }, { input: cap, raw: { width: SHOT, height: SHOT, channels: 3 }, left: SHOT + 6, top: 0 },
+          { input: diff, raw: { width: SHOT, height: SHOT, channels: 3 }, left: 2 * SHOT + 12, top: 0 }]).png().toBuffer();
+        writeFileSync(`${PARITY}/parity-${basename(dir)}-${s.id}.png`, strip);
+      }
+      writeFileSync(`${PARITY}/parity-${basename(dir)}.json`, JSON.stringify(report, null, 1) + '\n');
+      console.log(`parity (${basename(dir)}):`, JSON.stringify(report));
+    }
   }
 }

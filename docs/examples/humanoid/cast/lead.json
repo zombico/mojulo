@@ -1,0 +1,36 @@
+{
+  "name": "lead",
+  "$note": "A hot-headed young fighter (male): a short, set-jawed face with a strong chin, low brows and sharp upturned eyes, determined, in the guard stand. Shows the hair form words: short upright spikes from a hand-set sweepBack (the head construction frame, y up and +z back: the control point at rise and controlZ, the tip at tipY and tipZ), crown and fringe lifts, a raised front hairline and two fringe locks moved by hand; the hair lit without a highlight on its own step (toon.light).",
+  "hero": {
+    "cast": "male",
+    "head": "anime",
+    "look": ["lead", "tsurime", "strong-chin", "brow-block", "sharp-eyes"],
+    "face": { "lower": 0.95, "jaw": 1.08 },
+    "sculpt": { "browGap": 0.85, "browAngle": 4, "mouthWidth": 1.05, "eyeLevel": 0.006, "pronasale": -0.008 },
+    "hair": {
+      "style": "short",
+      "lift": { "crown": 0.2, "temple": 0.06, "fringe": 0.12, "nape": 0.05 },
+      "sweepBack": {
+        "amount": 1,
+        "rise": 1.35,
+        "riseFall": 0.5,
+        "controlZ": -0.6,
+        "tipY": 1.55,
+        "tipZ": -0.05,
+        "spread": 1.2,
+        "stagger": 1.6,
+        "keep": ["fringe-2", "fringe-5"]
+      },
+      "sweepSides": { "amount": 1, "tipY": 0.7, "tipZ": 0.7 },
+      "hairline": { "front": 0.7 },
+      "clump": 1.3,
+      "thickness": 1.25,
+      "sweep": 0.08,
+      "locks": { "fringe-1": { "tx": 0.06, "ty": -0.14 }, "fringe-7": { "tx": -0.06, "ty": -0.14 } }
+    },
+    "expression": "determined",
+    "gesture": "guard"
+  },
+  "palette": { "Hair": "#7a3322", "Top": "#c4472c", "Bottom": "#2c3040", "Iris": "#a8661c" },
+  "toon": { "light": { "highlight": { "Hair": false }, "thresholds": { "Hair": 0.25 } } }
+}
