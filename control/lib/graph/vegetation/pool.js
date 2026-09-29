@@ -13,6 +13,9 @@
  *           its own ruler (the culm's diameter on screen, the leaf's length); age is a per-instance tint, and
  *           first-year culms use their own wax-ringed variant;
  *   tuft  — a tuft of reed culms from the same builder, one level.
+ *   conifer — spruce, silver fir, Scots pine grown by rule (conifer.js), with needles as shoots and far levels from the
+ *           crown's own envelope (conifer-mesh.js); unit height like a tree, and the pool it makes IS a tree pool
+ *           (kind 'tree'), so placement, the page channel and the exports take it unchanged.
  *
  * Growth is deterministic, so it is cached in-process by its inputs (a tree takes 0.5–1.5 s to grow).
  */
@@ -21,6 +24,8 @@ import { grow, measure, ARCHITECTURES } from './grow.js';
 import { ladder } from './ladder.js';
 import { growPalm, palmLadder } from './palm.js';
 import { growCulm, culmLadder, culmTris, foliageTris, ageTint, runningGrove, clumpGrove, BAMBOOS } from './bamboo.js';
+import { growConifer } from './conifer.js';
+import { coniferLadder } from './conifer-mesh.js';
 import { LEVELS, SPECIES } from './species.js';
 import { barkTile, palmTrunkTexture } from './tiles.js';
 import { FIGS } from './ficus.js';
@@ -86,6 +91,16 @@ export function plantPool({ species, variants = 3, seed = 'plants', light = null
       const sd = hashSeed(`${seed}::${species}::${k}`) % 100000;
       const arch = S.fig ? FIGS[S.fig] : S.leafLife ? { ...ARCHITECTURES[S.arch], leafLife: S.leafLife } : S.arch;
       const grown = cached(`tree:${S.arch}:${S.years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}`, () => { const p = grow(arch, { years: S.years, seed: sd }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark }) }; });
+      const yaw = (k * 2 * Math.PI) / variants; const lad = cut(grown.lad, maxLevel);
+      out.variants.push({ height: 1, grownHeight: grown.H, levels: Object.fromEntries(LEVELS.map((l) => [l, trisToFaces(lad[l], { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])) });
+    }
+  } else if (S.kind === 'conifer') {
+    const tiles = { low: barkTile(S.bark), ...(S.barkHigh ? { high: barkTile(S.barkHigh) } : {}) };
+    for (const t of Object.values(tiles)) out.textures[t.key] = t.url;
+    out.kind = 'tree';
+    for (let k = 0; k < variants; k++) {
+      const sd = hashSeed(`${seed}::${species}::${k}`) % 100000;
+      const grown = cached(`conifer:${S.conifer}:${S.stand}:${sd}`, () => { const p = growConifer(S.conifer, { seed: sd, stand: S.stand }); return { H: p.H, lad: coniferLadder(p, S.conifer, { barks: tiles }) }; });
       const yaw = (k * 2 * Math.PI) / variants; const lad = cut(grown.lad, maxLevel);
       out.variants.push({ height: 1, grownHeight: grown.H, levels: Object.fromEntries(LEVELS.map((l) => [l, trisToFaces(lad[l], { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])) });
     }

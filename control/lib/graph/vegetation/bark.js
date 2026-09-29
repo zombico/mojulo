@@ -26,6 +26,14 @@ export const BARKS = {
               top: [132, 104, 88], floor: [178, 96, 58], mottle: 0.12, lenticels: 0 },
   chestnut: { label: 'sweet chestnut (spiral)', delta: 0.12, k: 1.15, beta: 0.5, h0: 0.003, h1: 0.05, start: 6, persist: 45, grain: (y) => Math.min(35, 12 + 0.4 * y), plates: 0,
               top: [120, 112, 104], floor: [74, 56, 44], mottle: 0.14, lenticels: 0 },
+  // the conifers (conifer.js): spruce is a thin layer broken across into small scales; silver fir keeps up with the
+  // stretch like beech, grey, with resin blisters; a Scots pine's upper trunk is thin papery orange (its lower is `pine`)
+  spruce:   { label: 'spruce (small scales)', delta: 0.12, k: 2.2, beta: 0.72, h0: 0.002, h1: 0.022, start: 5, persist: 14, grain: (y) => (y < 30 ? 3 * Math.min(1, y / 4) * (1 - y / 70) : Math.max(-1.2, 3 * (1 - y / 70))), plates: 1.1,
+              top: [140, 102, 82], floor: [92, 62, 48], mottle: 0.16, lenticels: 0 },
+  silverfir: { label: 'silver fir (smooth, blistered)', delta: 1.0, k: 1.6, beta: 0.6, h0: 0.002, h1: 0.012, start: 4, grain: () => 0, plates: 0,
+              top: [168, 168, 162], floor: [126, 126, 120], mottle: 0.1, lenticels: 0.9 },
+  pineUpper: { label: 'pine upper (papery orange)', delta: 0.5, k: 1.2, beta: 0.72, h0: 0.001, h1: 0.004, start: 5, persist: 6, grain: (y) => (y < 30 ? 3 * Math.min(1, y / 4) * (1 - y / 70) : Math.max(-1.2, 3 * (1 - y / 70))), plates: 3.2,
+              top: [214, 136, 82], floor: [170, 92, 54], mottle: 0.2, lenticels: 0 },
 };
 
 /**

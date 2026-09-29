@@ -83,6 +83,7 @@ describe('validation', () => {
     expect(errs({ variants: 9 })).toMatch(/variants must be an integer 1–6/);
     expect(errs({ level: 'L9' })).toMatch(/level must be one of L0/);
     expect(resolveLandscapePlants('fir')).toEqual({ canopy: 'fir', cone: 'fir', tuft: null, variants: 3, level: 'L2' });
+    expect(resolveLandscapePlants('spruce')).toEqual({ canopy: 'spruce', cone: 'spruce', tuft: null, variants: 3, level: 'L2' });   // a conifer's name alone names both
     expect(resolveLandscapePlants(true)).toEqual({ canopy: 'oak', cone: 'fir', tuft: null, variants: 3, level: 'L2' });
   });
 });
