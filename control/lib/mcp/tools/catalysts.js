@@ -37,7 +37,7 @@ import { hiddenRowInPluginProfile, pluginProfileNotice } from '@/lib/mcp/plugin-
 import { profiledCard } from '@/lib/mcp/plugin-profile-cards';
 import { getMergedCatalog, getMergedCatalyst, listMergedCatalysts } from '@/lib/mcp/catalysts/catalog';
 import { LocalCatalystRepository } from '@/lib/db/repositories/local-catalysts';
-import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
+import { getAdapter, listAdapters, resolveCallAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
@@ -171,7 +171,7 @@ export async function getCatalystHandler(input, ctx) {
   }
 
   const clientInfo = ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null;
-  const adapterId = resolveAdapterId({ host, clientName: clientInfo?.name });
+  const adapterId = resolveCallAdapterId({ host, clientName: clientInfo?.name });
   const adapter = getAdapter(adapterId);
 
   return {
@@ -445,7 +445,7 @@ Every response from this tool includes a top-level \`materialization\` block:
 }
 \`\`\`
 
-\`recommendedForThisClient\` is the adapter the server picked based on your \`clientInfo.name\` (falls back to \`generic\` when no match). Before you synthesize any artifact from a chosen catalyst:
+\`recommendedForThisClient\` is the adapter the server picked from your \`clientInfo.name\`, then \`MOJULO_HOST\` for shell calls (otherwise \`generic\`). Before you synthesize any artifact from a chosen catalyst:
 
 1. Call \`get_adapter\` (or pass \`host: "<id>"\` to \`get_catalyst\`) to load the host-specific materialization rules — artifact target, scheduling, dry-run encoding, state, secrets.
 2. If \`recommendedForThisClient\` is \`generic\` but you know your runtime ("I'm Codex"), self-identify by passing \`clientInfoHint: "<your-runtime>"\` to \`get_adapter\`. Don't ship a generic artifact when a host-specific one fits.
@@ -459,7 +459,7 @@ Skipping this step is how Claude-shaped artifacts end up in Codex sessions (or v
 // Exported for tests.
 export function buildMaterializationBlock(ctx) {
   const clientInfo = ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null;
-  const recommended = resolveAdapterId({ clientName: clientInfo?.name });
+  const recommended = resolveCallAdapterId({ clientName: clientInfo?.name });
   return {
     availableAdapters: listAdapters().map((a) => ({
       id: a.id,

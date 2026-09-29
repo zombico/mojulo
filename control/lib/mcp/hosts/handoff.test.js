@@ -151,3 +151,35 @@ describe('host + surface resolution', () => {
     expect(n.next).toMatch(/Artifact tool/);
   });
 });
+
+
+describe('ChatGPT handoff contract', () => {
+  it.each([PAGE, GLB, ZIP])('keeps Work-box delivery conditional for $name', (artifact) => {
+    const note = handoffFor({ host: 'chatgpt', surface: 'box', artifact });
+    expect(note.door).toBe('session-file');
+    expect(note.next).toContain('available file attachment/download tool');
+    expect(note.next).toContain('if no delivery tool is available');
+    expect(note.next).not.toMatch(/commit|publish|courier|sandbox:/);
+    expect(note.caveats.join(' ')).toContain('recipe.json');
+    expect(note.verified).toBe('inferred');
+  });
+
+  it('never treats an MCP-server path as a session attachment', () => {
+    const note = handoffFor({ host: 'chatgpt', surface: 'local', artifact: GLB });
+    expect(note.door).toBe('server-file');
+    expect(note.next).toContain('report delivery as incomplete');
+    expect(note.caveats.join(' ')).toContain('does not automatically share this filesystem');
+  });
+
+  it('states both paths when execution location is unknown', () => {
+    const note = handoffFor({ host: 'chatgpt', artifact: ZIP });
+    expect(note.surface).toBeNull();
+    expect(note.next).toContain('Through connected MCP:');
+    expect(note.next).toContain('Inside ChatGPT');
+    expect(note.door).toEqual({ local: 'server-file', box: 'session-file' });
+  });
+
+  it('resolves an explicit shell host without MCP initialization', () => {
+    expect(resolveHandoffHost({}, { MOJULO_HOST: 'chatgpt' })).toBe('chatgpt');
+  });
+});

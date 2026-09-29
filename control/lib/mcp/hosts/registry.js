@@ -43,6 +43,9 @@
  *                                        cdns?, egress, ephemeral } — the host's
  *                                        remote box, when it has one
  *                          `page` ∈ HANDOFF_PAGE_DOORS, `file` ∈ HANDOFF_FILE_DOORS.
+ *                          local.label optionally names the connected-server surface.
+ *                          session-file/server-file describe a transfer still required,
+ *                          not an implemented attachment service.
  *                          clientInfo cannot tell a host's local surface from
  *                          its box (Claude Code local / web / Desktop all say
  *                          "claude"), so one profile carries both rows and the
@@ -64,8 +67,8 @@ const WIRE_FORMATS = new Set(['toml-append', 'json-patch', 'cli-shellout', 'manu
 
 /** Handoff door vocabularies (remote-worker exports). A door is what the HOST
  * does with a page or a file; the server never publishes anything itself. */
-export const HANDOFF_PAGE_DOORS = new Set(['dashboard', 'artifact', 'mcp-app', 'hosted-publish', 'local-preview', 'file-card', 'none']);
-export const HANDOFF_FILE_DOORS = new Set(['local', 'artifact-download', 'git', 'file-card', 'none']);
+export const HANDOFF_PAGE_DOORS = new Set(['dashboard', 'artifact', 'mcp-app', 'hosted-publish', 'local-preview', 'file-card', 'session-file', 'server-file', 'none']);
+export const HANDOFF_FILE_DOORS = new Set(['local', 'artifact-download', 'git', 'file-card', 'session-file', 'server-file', 'none']);
 export const HANDOFF_VERIFIED = new Set(['field', 'docs', 'inferred']);
 
 function validateHandoff(file, handoff) {

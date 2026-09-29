@@ -119,7 +119,7 @@ export function cliInstructionsAddendum({ hostIds } = {}) {
   \`tool({ a: 1 })\`                          → \`mojulo call tool --json '{"a":1}'\`   (or \`--a 1\` for a top-level property)
   \`pack_x({ tool: 'name', args: { … } })\`  → \`mojulo pack_x name --json '{…}'\`
   \`pack_x()\` (open a pack)                 → \`mojulo pack_x\`
-\`mojulo help <tool>\` prints any tool's full description and input schema. Start with \`mojulo call forward_context\` — the routing index — unless the ask already names its tool. There is no \`initialize\` here, so mojulo cannot see which host you are: set \`MOJULO_HOST=<profile>\` (${ids}) so export results name this host's door, and \`MOJULO_SURFACE=box\` when you are in a throwaway box rather than on the operator's machine. Each \`mojulo\` invocation is a fresh process; long-poll tools need \`--timeout <ms>\`.`;
+\`mojulo help <tool>\` prints any tool's full description and input schema. Start with \`mojulo call forward_context\` — the routing index — unless the ask already names its tool. There is no \`initialize\` here, so mojulo cannot see which host you are: set \`MOJULO_HOST=<profile>\` (${ids}) so exports name this host's door and get_adapter returns its card, and \`MOJULO_SURFACE=box\` when you are in the host's own box rather than on the operator's machine. Each \`mojulo\` invocation is a fresh process; long-poll tools need \`--timeout <ms>\`.`;
 }
 
 const registeredTools = new Map();

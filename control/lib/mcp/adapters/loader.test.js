@@ -4,6 +4,7 @@ import {
   getAdapterCatalog,
   listAdapters,
   resolveAdapterId,
+  resolveCallAdapterId,
   _parseAdapterFileForTests as parseAdapterFile,
 } from './loader.js';
 
@@ -149,5 +150,23 @@ describe('resolveAdapterId', () => {
   it('falls back to generic when neither host nor clientInfo match', () => {
     expect(resolveAdapterId({})).toBe('generic');
     expect(resolveAdapterId({ clientName: 'some-other-agent' })).toBe('generic');
+  });
+});
+
+
+describe('ChatGPT identity and shell adapter fallback', () => {
+  it('does not conflate the OpenAI vendor with Codex', () => {
+    expect(resolveAdapterId({ clientName: 'openai' })).toBe('generic');
+    expect(resolveAdapterId({ clientName: 'OpenAI ChatGPT' })).toBe('chatgpt');
+    expect(resolveAdapterId({ clientName: 'openai-codex' })).toBe('codex');
+  });
+
+  it('uses MOJULO_HOST only as the tool-call fallback', () => {
+    const env = { MOJULO_HOST: 'chatgpt' };
+    expect(resolveCallAdapterId({}, env)).toBe('chatgpt');
+    expect(resolveCallAdapterId({ host: 'generic' }, env)).toBe('generic');
+    expect(resolveCallAdapterId({ clientName: 'codex' }, env)).toBe('codex');
+    expect(resolveCallAdapterId({}, { MOJULO_HOST: 'unknown' })).toBe('generic');
+    expect(resolveAdapterId({})).toBe('generic');
   });
 });

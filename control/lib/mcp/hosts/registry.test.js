@@ -28,6 +28,7 @@ describe('host profile registry', () => {
       'grok',
       'hermes',
       'grok-chat',
+      'chatgpt',
     ]);
   });
 

@@ -7,7 +7,7 @@
   "artifactTarget": "Codex automation (preferred for recurrence) OR workspace ./mojulo-workflows/<slug>/ (workflow + helpers Codex follows interactively)",
   "schedulingMechanism": "automation_update cron",
   "secretsPosture": "automation-level secrets; never read a .env (list_env names an app's keys, never values)",
-  "supportsClientInfoHint": ["codex", "openai-codex", "openai", "codex-cli"]
+  "supportsClientInfoHint": ["codex", "openai-codex", "codex-cli"]
 }
 ---
 

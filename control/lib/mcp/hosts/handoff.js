@@ -72,9 +72,22 @@ const fromDisk = (a) => (a.inlineScripts
   ? ' — no server, no network'
   : ' — needs the network for three.js (the default, `cdn: false`, writes the self-contained world.html)');
 
+// These doors describe a transfer still required, never a fabricated attachment.
+function transferSentence(door, a, caveats) {
+  if (door === 'server-file') {
+    caveats.push('a server path or relative /outcomes URL is not a ChatGPT attachment; the Work box does not automatically share this filesystem');
+    return `retrieve ${a.name} from the connected MCP server at ${a.path} through an available authorized file transfer, or use a reachable download URL supplied by that deployment; if neither exists, report delivery as incomplete`;
+  }
+  caveats.push('attachment paths, supported types and size limits depend on this session; do not invent a sandbox URL or assume HTML renders inline');
+  return `deliver ${a.name} from ${a.path} through this session’s available file attachment/download tool; use its returned link, or report that the file remains in the Work box if no delivery tool is available`;
+}
+
 function pageSentence(door, row, a, caveats) {
   const size = a.bytes != null ? ` (${fmtBytes(a.bytes)})` : '';
   switch (door) {
+    case 'session-file':
+    case 'server-file':
+      return transferSentence(door, a, caveats);
     case 'dashboard':
       return `open ${a.download_url || a.path} in the dashboard, or ${a.name} straight from file://${fromDisk(a)}`;
     case 'artifact': {
@@ -118,6 +131,9 @@ function fileSentence(door, row, a, caveats) {
   const size = a.bytes != null ? ` (${fmtBytes(a.bytes)})` : '';
   const ext = extOf(a.name);
   switch (door) {
+    case 'session-file':
+    case 'server-file':
+      return transferSentence(door, a, caveats);
     case 'local':
       return `the ${a.kind === 'folder' ? 'folder' : 'file'} is at ${a.path}${size}; the operator opens it from disk`;
     case 'artifact-download': {
@@ -195,7 +211,7 @@ export function handoffFor({ host = null, surface = null, artifact }) {
     host,
     surface: null,
     door: { local: local.door, box: box.door },
-    next: `On the operator's machine: ${local.next}. Inside ${table.box.name}: ${box.next}.`,
+    next: `${table.local.label || "On the operator's machine"}: ${local.next}. Inside ${table.box.name}: ${box.next}.`,
     caveats: [...local.caveats.map((c) => `local: ${c}`), ...box.caveats.map((c) => `${table.box.name}: ${c}`)],
     verified: table.verified,
   };

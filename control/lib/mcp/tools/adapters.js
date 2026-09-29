@@ -12,7 +12,7 @@
  * [tools/catalysts.js] for how adapters are composed into get_catalyst output.
  */
 
-import { getAdapter, listAdapters, resolveAdapterId } from '@/lib/mcp/adapters/loader';
+import { getAdapter, listAdapters, resolveCallAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { registerTool } from '@/lib/mcp/server';
 import { withPluginProfile } from '@/lib/mcp/plugin-profile';
@@ -27,13 +27,13 @@ export async function getAdapterHandler(input, ctx) {
   let resolvedId = id;
   if (!resolvedId) {
     // Resolution order: explicit clientInfoHint (agent self-identifying) >
-    // captured clientInfo from initialize (auto-bind) > 'generic' fallback.
+    // captured clientInfo from initialize > MOJULO_HOST > 'generic'.
     // clientInfoHint matters when the connecting client's clientInfo.name
     // doesn't match any adapter's supportsClientInfoHint list — the agent
     // can pass "codex" / "claude-code" etc. directly to opt into the right
     // adapter.
     const captured = ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null;
-    resolvedId = resolveAdapterId({
+    resolvedId = resolveCallAdapterId({
       clientName: clientInfoHint || captured?.name,
     });
   }
@@ -54,7 +54,7 @@ export function registerAdapterTools() {
   registerTool(withPluginProfile({
     name: 'get_adapter',
     description:
-      "Get the full body of one host adapter — first-session card for how you ride this substrate. Pull it once when a task depends on this host's handling (synthesizing a catalyst, painting renders, handing off an export): native capabilities, output cap, paint-and-bind, plus artifact path / dry-run / scheduling / secrets. Resolution: explicit `id` wins; else `clientInfoHint`; else this session's clientInfo.name; else 'generic'. Pass `clientInfoHint` when clientInfo.name missed (e.g. 'codex-cli-2.1' → `clientInfoHint: 'codex'`). `get_catalyst` with `host` prepends this same body so recipe and host materialization arrive together.",
+      "Get the full body of one host adapter — first-session card for how you ride this substrate. Pull it once when a task depends on this host's handling (synthesizing a catalyst, painting renders, handing off an export): native capabilities, output cap, paint-and-bind, plus artifact path / dry-run / scheduling / secrets. Resolution: explicit `id` wins; else `clientInfoHint`; else session clientInfo.name; else MOJULO_HOST; else 'generic'. Pass `clientInfoHint` when clientInfo.name missed (e.g. 'codex-cli-2.1' → `clientInfoHint: 'codex'`). `get_catalyst` with `host` prepends this same body so recipe and host materialization arrive together.",
     inputSchema: {
       type: 'object',
       properties: {

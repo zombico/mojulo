@@ -12,6 +12,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### ChatGPT carpet
+
+- **Host contract.** ChatGPT has its own adapter and handoff profile for connected MCP
+  and temporary Work boxes. Codex recognition no longer matches the bare OpenAI vendor name.
+  Transfer notes distinguish server files from session files without promising an attachment
+  or inline preview; unverified delivery details are marked inferred.
+- **Shell orientation.** `MOJULO_HOST` selects the fallback adapter card for `get_adapter`,
+  catalyst composition and recommendations, reusing the Muse approach without changing MCP
+  capability detection. Explicit adapter selection and recognized client identity still win.
+- **Next phases.** Bootstrap/recovery, verified ChatGPT file delivery, MCP Apps previews,
+  and plugin packaging. Public hosting and submission remain separate milestones.
+
 ### Upgrading from 2.x
 
 - **3.0.0 is the release after 2.1.0.** A 2.2 was prepared and never published; everything it carried

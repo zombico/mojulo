@@ -59,6 +59,7 @@ function profiled(adapter, field) {
   const edits = pluginProfileActive() && PROFILE_ADAPTER_EDITS[adapter.id]?.[field];
   return edits ? profileEdit(adapter[field], edits, `adapter.${adapter.id}.${field}`) : adapter[field];
 }
+import { getHostProfile } from '../hosts/registry.js';
 import { moduleDir } from '../../module-dir.js';
 const ADAPTER_DIR = moduleDir(import.meta.url, 'lib/mcp/adapters');
 
@@ -181,6 +182,16 @@ export function resolveAdapterId({ host, clientName } = {}) {
   }
 
   return 'generic';
+}
+
+/** Tool-call adapter fallback for shell hosts, which never send initialize.
+ * Keep protocol capability resolution on resolveAdapterId (no process env).
+ */
+export function resolveCallAdapterId({ host, clientName } = {}, env = process.env) {
+  const resolved = resolveAdapterId({ host, clientName });
+  if (resolved !== 'generic' || host === 'generic') return resolved;
+  const fromEnv = getHostProfile(env.MOJULO_HOST)?.adapterId;
+  return fromEnv && getAdapterCatalog().has(fromEnv) ? fromEnv : resolved;
 }
 
 // Test seam — let the test suite point at a fixture directory.

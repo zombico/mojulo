@@ -22,6 +22,16 @@ headers = { Authorization = "Bearer <CONTROL_PLANE_MCP_KEY>" }
 
 Restart the Codex session. `forward_context` should appear in your tool surface — call it first to pull mojulo's routing index and drawer map, then call the specific drawer/tool the task needs.
 
+### ChatGPT
+
+Use the connected Mojulo tools and read `get_adapter({ id: 'chatgpt' })`. If using a
+shell-enabled Work box instead, set `MOJULO_HOST=chatgpt` and `MOJULO_SURFACE=box`,
+reuse/install a pinned package, and start with `mojulo orient`. The adapter at
+[chatgpt.md](control/lib/mcp/adapters/chatgpt.md) covers setup and recipe resumption.
+A file on the MCP server and a file in the Work box require different transfers;
+use the current session's available delivery mechanism and do not invent a link.
+Inline MCP Apps previews and public plugin hosting are not implemented by this card.
+
 ### Grok Build
 
 Add to `~/.grok/config.toml` (same stanza shape as Codex):
