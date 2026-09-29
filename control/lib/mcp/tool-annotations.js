@@ -176,6 +176,7 @@ export const TOOL_ANNOTATIONS = {
   get_image_render_packet: ['Image render packet', READ],
   bind_image_render: ['Bind a rendered image', ADDITIVE], // append-only slots
   bind_character_sheet: ['Bind a character sheet render', ADDITIVE],
+  preview_world: ['Preview a stored mesh', ADDITIVE_IDEMPOTENT],
   export_model: ['Export a model file', ADDITIVE_IDEMPOTENT], // rewrites its own export files
   bind_mesh_render: ['Bind a refined mesh', ADDITIVE],
   mint_diagram: ['Mint a diagram', ADDITIVE],

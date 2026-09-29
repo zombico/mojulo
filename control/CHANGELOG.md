@@ -14,6 +14,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### ChatGPT carpet
 
+- **MCP Apps preview.** Opt-in recipe-bound mesh preview with a versioned
+  UI resource, existing GLB export pipeline, and host bridge refresh. Exported HTML
+  remains the full world experience; no public endpoint or hosting is provisioned.
+
 - **Host contract.** ChatGPT has its own adapter and handoff profile for connected MCP
   and temporary Work boxes. Codex recognition no longer matches the bare OpenAI vendor name.
   Transfer notes distinguish server files from session files without promising an attachment

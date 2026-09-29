@@ -89,3 +89,11 @@ For reusable workflows, save instructions and provenance in an explicitly availa
 workspace or downloadable file; do not invent a global skill installation directory.
 For recurring external actions, demonstrate a read-only dry run before the configured
 live run. Use list_env/set_env for secrets; never read .env or embed bearer tokens.
+
+## Connected MCP Apps preview
+
+If `preview_world` is advertised, call it with the stored ref after creation or an
+edit to show an inline mesh snapshot. Its Refresh action reads that same ref; recipe
+edits remain the existing Mojulo tools. Full world/game controls stay in HTML exports.
+This requires an MCP Apps-capable connection and server opt-in, not just a shell or
+an HTML window. When the tool is absent, continue with normal file delivery.

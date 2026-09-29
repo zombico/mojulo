@@ -19,3 +19,6 @@ No public MCP endpoint or directory submission is included. Current official gui
 [skills](https://developers.openai.com/plugins/build/skills),
 [packaging](https://developers.openai.com/plugins/build/plugins), and
 [submission](https://developers.openai.com/plugins/deploy/submission).
+
+The branch also includes an opt-in [MCP Apps mesh preview](MCP-APPS.md) on the
+existing Mojulo server. The plugin remains skills-only until a server is configured.

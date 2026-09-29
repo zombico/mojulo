@@ -30,7 +30,8 @@ reuse/install a pinned package, and start with `mojulo orient`. The adapter at
 [chatgpt.md](control/lib/mcp/adapters/chatgpt.md) covers setup and recipe resumption.
 A file on the MCP server and a file in the Work box require different transfers;
 use the current session's available delivery mechanism and do not invent a link.
-Inline MCP Apps previews and public plugin hosting are not implemented by this card.
+The opt-in MCP Apps mesh preview (`MOJULO_MCP_APPS=1`) is documented in
+[the preview guide](plugins/mojulo-chatgpt/MCP-APPS.md). Public hosting is not provisioned.
 
 ### Grok Build
 

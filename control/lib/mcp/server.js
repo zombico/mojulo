@@ -19,6 +19,8 @@
  *     (buildContext in api/mcp/route.js).
  */
 
+import { appsEnabled, previewResource, PREVIEW_URI, PREVIEW_MIME } from './apps/preview.js';
+
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { getServerVersion } from '@/lib/server-version';
 import { rememberClientInfo, getClientInfo } from '@/lib/mcp/client-bindings';
@@ -171,6 +173,8 @@ export function listTools({ clientInfo, context } = {}) {
         name: t.name,
         description: face.description || '',
         inputSchema: face.inputSchema || { type: 'object', properties: {} },
+        ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
+        ...(t._meta ? { _meta: t._meta } : {}),
       },
       t.aliasOf,
     );
@@ -184,6 +188,9 @@ export function listTools({ clientInfo, context } = {}) {
     rolesOn && isAdminContext(context)
       ? ROLES_ADMIN_TOOLS.map((name) => registeredTools.get(name)).filter(Boolean).map(toEntry)
       : [];
+  // Opt-in UI tool is standalone in both modes; ordinary surfaces remain unchanged.
+  const appExtras = appsEnabled() && isToolInstalled('export_model') && !authNotice('preview_world', context)
+    ? [registeredTools.get('preview_world')].filter(Boolean).map(toEntry) : [];
   // Packs mode (tool-packs.plan.md P1-R): the connect surface is the SPINE
   // (full schemas) plus one dispatcher tool per pack. Everything else stays
   // registered and callable — through its pack's dispatch, or directly for
@@ -202,7 +209,7 @@ export function listTools({ clientInfo, context } = {}) {
       (pack) => (!rolesOn || isAdminContext(context) || packGranted(pack, context))
         && (!profile || !hiddenInPluginProfile(pack.id))
     );
-    return [...spine, ...packs.map((pack) => withAnnotations(packToolEntry(pack, { profile }))), ...adminExtras];
+    return [...spine, ...packs.map((pack) => withAnnotations(packToolEntry(pack, { profile }))), ...adminExtras, ...appExtras];
   }
   // `listed: false` tools (deprecated aliases) resolve in tools/call and
   // invokeRegisteredTool but are omitted from tools/list — retired names keep
@@ -217,6 +224,7 @@ export function listTools({ clientInfo, context } = {}) {
       .filter((t) => !profile || !hiddenInPluginProfile(t.name))
       .map(toEntry),
     ...adminExtras,
+    ...appExtras,
   ];
 }
 
@@ -360,6 +368,7 @@ export async function dispatchMcpRequest(message, context) {
               protocolVersion: negotiateProtocolVersion(message.params?.protocolVersion),
               capabilities: {
                 tools: { listChanged: false },
+                ...(appsEnabled() ? { resources: { subscribe: false, listChanged: false } } : {}),
               },
               serverInfo: { name: SERVER_NAME, version: getServerVersion() },
               instructions: packsModeEnabled(process.env, {
@@ -381,6 +390,15 @@ export async function dispatchMcpRequest(message, context) {
         return jsonRpcResult(message.id, {
           tools: listTools({ clientInfo: getClientInfo(context?.mcpSessionId), context }),
         });
+
+      case 'resources/list':
+        if (!appsEnabled()) return jsonRpcError(message.id, ErrorCodes.METHOD_NOT_FOUND, 'MCP Apps resources are disabled');
+        return jsonRpcResult(message.id, { resources: [{ uri: PREVIEW_URI, name: 'mojulo-mesh-preview', mimeType: PREVIEW_MIME }] });
+
+      case 'resources/read':
+        if (!appsEnabled()) return jsonRpcError(message.id, ErrorCodes.METHOD_NOT_FOUND, 'MCP Apps resources are disabled');
+        if (message.params?.uri !== PREVIEW_URI) return jsonRpcError(message.id, -32002, 'Unknown resource');
+        return jsonRpcResult(message.id, { contents: [previewResource()] });
 
       case 'tools/call':
         return await handleToolCall(message, context);
@@ -819,6 +837,8 @@ async function registerAllTools() {
   // and listed:false for now: callable by name on every transport, off the
   // connect surface until Phase 2 promotes them into a listed pack alongside
   // grant enforcement.
+  const { registerPreviewWorldTool } = await import('@/lib/mcp/tools/preview-world');
+  registerPreviewWorldTool();
   const { registerRolesTools } = await import('@/lib/mcp/tools/roles');
   registerRolesTools();
   // Pack dispatchers register LAST — resolution is call-time so order doesn't
