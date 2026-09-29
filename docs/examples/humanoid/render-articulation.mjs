@@ -3,11 +3,14 @@
  * A hero as the door mints it (heroRecord → heroPlanOf → expandPlan, the path expandLayeredManifest takes) is resolved
  * through the World resolver itself (world-scene.js resolveWorldScene), and its static faces are drawn by a software
  * depth raster coloured from the payload's OWN fills: the character light's iso-split pieces (the step, the hair
- * highlight's second split, the neck occlusion rule) are flat-filled, so a face-id raster + fill IS the World bake,
- * with no shading of its own. Each face's palette group and part (the head framing and the lit shares read them) come
- * from re-deriving the resolver's faces with the same exported calls (station-loft-shade.js, hero-gesture.js); the run
- * REFUSES when those differ from the payload by one coordinate, fill, draw layer or ink mark, so a drifted resolver can
- * never feed a sheet. The outline is the World's character ink in screen space: an
+ * highlight's second split, the neck occlusion rule) are flat-filled, so for the figure a face-id raster + fill IS the
+ * World bake, with no shading of its own (held gear is drawn in its baked fill alone: see CARD MODE). Each face's
+ * palette group and part (the head framing and the lit shares read them) come from re-deriving the resolver's faces
+ * with the same exported calls (station-loft-shade.js, hero-gesture.js, and hero-gear.js for a hero's held gear, which
+ * the payload carries after the figure's own faces: group Gear, part gear.<slot>, baked by the studio key, never lit by
+ * the character light); the run REFUSES when those differ from the payload by one face, coordinate, fill, draw layer
+ * or ink mark, the gear's included, so a drifted resolver can never feed a sheet. The outline is the World's character
+ * ink in screen space: an
  * outward band `toon.ink.widthAbs` wide (projected per pixel), wherever the depth buffer breaks by more than that width
  * against the local slope, never from a drawn feature (`noInk`: the eye lenses, the strokes, the mouth); a payload
  * without ink draws none (the World as it was). The World's DRAW LAYERS (a payload face's `layer`, the page's stencil
@@ -62,14 +65,20 @@
  * manifest (as the door stores it). The manifest is resolved through the World resolver under the same parity guard as
  * the review sheets. Writes <out>/<name>/readout.json (the hero readout the door returns) and <out>/<name>/card.png: the
  * spec's words and what the door read; the head ¾ at 512 px; at 256 px the head front, the key-side profile, the rear ¾
- * 20° down and the head ¾ on the World backdrop; the bust ¾, the body ¾ and front, a silhouette and a 3-value render
- * (the profile and the rear stand on the spec's key side). --expr adds expressions.png (the head ¾ at 256 px for every
- * expression word the worn head takes, each minted through the door); --check-lens adds head-3q-review-lens.png (the
- * head ¾ at the review sheets' lens, frozen on the same hero at gesture rest with toon.light false, to lay over a column
- * of a progression sheet). SHEET MODE (--sheet <config.json>: { columns: [{ spec, summary }], title?, sheet?,
- * expressions? }, spec paths relative to the config) draws the specs side by side, one lens per row (sheetMain); --expr
- * adds a row of expressions per spec. <out> is --out, else cast/ under the spike tree. docs/examples/humanoid/cast/
- * holds worked specs. Run from control:
+ * 20° down and the head ¾ on the World backdrop; the bust ¾, the body ¾, front and from behind (rear ¾ 20° down, the
+ * gameplay camera), a silhouette and a 3-value render (the profile and both rears stand on the spec's key side). A hero
+ * with `gear` (the door's held and carried equipment) is drawn with it in its baked fill (the studio bake): its faces
+ * re-derived (gearMounts, then gearFaces at the stand's bone frames) and held to the parity guard with the figure's.
+ * The World page's metal and specular channels, which re-shade a blade, and any texture are not drawn, and the guard
+ * does not hold them. The body frames take their height and floor from the figure with its gear (so a long item shrinks
+ * the figure) and aim across at the figure's own box (so a blade held forward never pulls the frame off the feet).
+ * --expr adds expressions.png (the head ¾ at 256 px for every expression word the worn head takes, each minted through
+ * the door); --check-lens adds head-3q-review-lens.png (the head ¾ at the review sheets' lens, frozen on the same hero
+ * at gesture rest with toon.light false, to lay over a column of a progression sheet). SHEET MODE (--sheet
+ * <config.json>: { columns: [{ spec, summary }], title?, sheet?, expressions? }, spec paths relative to the config)
+ * draws the specs side by side, one lens per row (sheetMain), the body from the ¾ and from behind (rear ¾ 20° down)
+ * with any held gear, parity-guarded and framed as on a card; --expr adds a row of expressions per spec. <out> is
+ * --out, else cast/ under the spike tree. docs/examples/humanoid/cast/ holds worked specs. Run from control:
  *   node ../docs/examples/humanoid/render-articulation.mjs --spec ../docs/examples/humanoid/cast/lead.json [--expr]
  *     [--check-lens] [--out <dir>]
  *   node ../docs/examples/humanoid/render-articulation.mjs --sheet <config.json> [--expr] [--out <dir>] */
@@ -87,10 +96,12 @@ const { EXPRESSIONS: LANDMARK_EXPRESSIONS } = await lib('graph/polygonizer/human
 const { resolveWorldScene } = await lib('graph/worlds/world-scene.js');
 const { compileLayered } = await lib('graph/polygonizer/station-loft.js');
 const { layeredSeat, persistedLayeredLedger } = await lib('graph/polygonizer/station-loft-faces.js');
-const { validateRig, bindLayered } = await lib('graph/polygonizer/station-loft-rig.js');
+const { validateRig, bindLayered, rigNodesAt, boneFrames } = await lib('graph/polygonizer/station-loft-rig.js');
 const { standPose, poseLayered, rigidParts, GESTURE_WORDS } = await lib('graph/polygonizer/hero-gesture.js');
 const { resolveCharacterLight, layeredShadingNormals, characterLitPieces, ANIME_CHARACTER_LIGHT, derivedHighlight, drawLayer } = await lib('graph/polygonizer/station-loft-shade.js');
-const { resolveToon, toonLightErrors } = await lib('graph/polygonizer/vexar.js');
+const { resolveToon, toonLightErrors, withBands } = await lib('graph/polygonizer/vexar.js');
+const { gearMounts, gearFaces } = await lib('graph/polygonizer/hero-gear.js');
+const { WORKBENCH_LIGHT } = await lib('graph/worlds/workbench.js');
 
 const OUT = resolve(process.env.MOJULO_SPIKE_OUT || fileURLToPath(new URL('../../../lite-template/integration/0928/spike-output/form-articulation', import.meta.url)));
 mkdirSync(OUT, { recursive: true });
@@ -114,27 +125,28 @@ const HEAD_RE = /^(cranium|face|ear|brow|hair|iris|pupil|lash|lid|catch|noseLine
 
 // ─── the hero, through the door and the World resolver ─────────────────────
 /** The faces the layered resolver emits for `m`, re-derived with its own calls (world-kinds.js `layered`), with each
- * face's source: palette group, part, lit (character light only), its draw layer and ink mark (`noInk`). Returns the
- * rest mesh for the readouts. `occlusion: false` / `hairTop: false` derive the pieces as they were before the neck
- * occlusion rule / the hair's top planes (characterLitPieces' `neckShade` / `hairTop` turned off). */
+ * face's source: palette group, part, lit (character light only), its draw layer and ink mark (`noInk`); a hero's held
+ * gear follows the figure's own faces, as in the payload (heldGear). Returns the rest mesh for the readouts and `gear`,
+ * the count of held-gear faces at the tail. `occlusion: false` / `hairTop: false` derive the pieces as they were before
+ * the neck occlusion rule / the hair's top planes (characterLitPieces' `neckShade` / `hairTop` turned off). */
 function resolverFaces(m, { occlusion = true, hairTop = true } = {}) {
   const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
   const rigged = !!(m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length);
   const rig = rigged ? (() => { const R = validateRig(m.recipe.rig); return { R, skin: bindLayered(mesh, m.recipe, R) }; })() : null;
   const stand = rig && m.hero ? standPose(m.recipe, rig.R) : null;
   const shown = stand ? poseLayered(mesh, m.recipe, stand, rig).mesh : mesh; const dz = layeredSeat(mesh, m.seat !== false);
-  const raw = m.toon ?? m.scene?.toon, light = resolveCharacterLight(m, { toon: resolveToon(raw, { light: true }) });
-  const pal = m.recipe.palette || {};
+  const raw = m.toon ?? m.scene?.toon, toon = resolveToon(raw, { light: true }), light = resolveCharacterLight(m, { toon });
+  const pal = m.recipe.palette || {}, gear = heldGear(m, rig, stand, dz, toon);
   if (light) {
     const normals = layeredShadingNormals(shown, m.recipe, stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {});
     const pieces = characterLitPieces(shown, { light, normals, palette: pal, dz, rest: mesh, ...(occlusion ? {} : { neckShade: false }), ...(hairTop ? {} : { hairTop: false }) });   // the highlight's band rides the rest head
     const hairInk = raw?.ink !== false;   // the character ink is on unless the manifest says `toon.ink: false` (characterInk)
     // lit: the base swatch or its highlight (a third tone on the lit side), not the shade
-    return { mesh, light, faces: pieces.map((p) => {
+    return { mesh, light, gear: gear.length, faces: [...pieces.map((p) => {
       const g = shown.groups[p.fi], base = pal[g] || shown.parts[p.part]?.tint, layer = drawLayer(shown, p, { hairInk });
       return { corners: p.refs.map((r) => r.p), fill: p.fill, group: g, part: p.part, ...(p.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}),
         lit: p.mark ? null : p.fill === base || (!!light.highlight?.[g] && !!base && p.fill === (pal[`${g}Highlight`] || derivedHighlight(base))) };
-    }) };
+    }), ...gear] };
   }
   const faces = [];
   shown.faces.forEach((tri, fi) => {
@@ -142,23 +154,39 @@ function resolverFaces(m, { occlusion = true, hairTop = true } = {}) {
     const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0]));
     if (Math.hypot(n[0], n[1], n[2]) > 1e-14) faces.push({ corners, fill: null, group: shown.groups[fi], part: shown.provenance[tri[0]].part, lit: null });
   });
-  return { mesh, light: null, faces };
+  return { mesh, light: null, gear: gear.length, faces: [...faces, ...gear] };
+}
+/** HELD GEAR as the resolver bakes it (world-kinds.js `layered`, hero-gear.js): a rigged hero's `gear` mounted on its
+ * bones at rest (gearMounts), carried by the stand's bone frames (boneFrames at rigNodesAt of the stand; the rest pose
+ * without one), seated on the rest floor (`dz`), baked by the studio key (the World's default, banded by the toon dial)
+ * in the body's render group. Lowered one mount at a time so each face knows its slot: palette group 'Gear', part
+ * `gear.<slot>`, lit null (the character light never reaches it); the parity guard holds the concatenation to the
+ * payload's tail, so a resolver that lowered them otherwise would refuse. No gear (or no rig) ⇒ none. */
+function heldGear(m, rig, stand, dz, toon) {
+  const mounts = rig && m.hero?.gear ? gearMounts(m.hero, rig.R) : [];
+  if (!mounts.length) return [];
+  const frames = stand ? boneFrames(rig.R, rig.R.joints, rigNodesAt(rig.R, stand).nodes) : null;
+  const light = withBands(WORKBENCH_LIGHT, resolveToon(toon)?.bands);
+  return mounts.flatMap((G) => gearFaces([G], { frames, light, dz, group: 'body' }).map((f) => ({ corners: f.corners, fill: f.fill, group: 'Gear', part: `gear.${G.slot}`, lit: null,
+    ...(f.noInk ? { noInk: true } : {}), ...(f.layer ? { layer: f.layer } : {}) })));
 }
 const sameCorners = (f, o) => f.corners.length === o.corners.length && f.corners.every((c, k) => c.every((v, j) => v === o.corners[k][j]));
 
-/** A manifest resolved as the World page resolves it: `{ hero, manifest, payload, faces, mesh, ink }`, where `faces`
- * are the payload's static faces (fill, corners, noInk and layer as emitted) carrying their re-derived group and part.
- * The PARITY GUARD refuses when the re-derivation differs from the payload by one coordinate, fill, layer or ink mark.
+/** A manifest resolved as the World page resolves it: `{ hero, manifest, payload, faces, gear, mesh, ink }`, where
+ * `faces` are the payload's static faces (fill, corners, noInk and layer as emitted) carrying their re-derived group and
+ * part, the hero's held gear last (`gear` of them, group 'Gear', part gear.<slot>). The PARITY GUARD refuses when the
+ * re-derivation differs from the payload by one face, coordinate, fill, layer or ink mark, the gear's faces included.
  * `predates` (a baseline's rules to emulate off, see the header): 'neck-shade' / 'hair-top' take the pieces derived
  * without the neck occlusion rule / the hair's top planes (every face off the neck / off the hair checked equal to the
  * payload's), 'draw-layers' drops each `layer`. */
 async function resolveManifest(manifest, name, { predates = new Set() } = {}) {
   const { payload } = await resolveWorldScene({ ref: 'render-articulation', title: `anime hero · ${name}`, manifest });
-  const shown = payload.faces.filter((f) => !f.studio); const own = resolverFaces(manifest);
-  if (own.faces.length !== shown.length) throw new Error(`parity guard (${name}): the resolver emitted ${shown.length} static faces, the re-derivation ${own.faces.length}`);
+  const shown = payload.faces.filter((f) => !f.studio); const own = resolverFaces(manifest), body = own.faces.length - own.gear;
+  if (own.faces.length !== shown.length) throw new Error(`parity guard (${name}): the resolver emitted ${shown.length} static faces, the re-derivation ${own.faces.length}${own.gear ? ` (${body} of the figure, ${own.gear} of its held gear)` : ''}`);
+  // every face, the held gear's too (always filled: the studio bake), by coordinate, fill, draw layer and ink mark
   shown.forEach((f, i) => {
     const o = own.faces[i];
-    if ((o.fill !== null && (o.fill !== f.fill || (o.layer ?? null) !== (f.layer ?? null) || !!o.noInk !== !!f.noInk)) || !sameCorners(f, o)) throw new Error(`parity guard (${name}): static face ${i} differs from the re-derivation`);
+    if ((o.fill !== null && (o.fill !== f.fill || (o.layer ?? null) !== (f.layer ?? null) || !!o.noInk !== !!f.noInk)) || !sameCorners(f, o)) throw new Error(`parity guard (${name}): ${i < body ? `static face ${i}` : `held gear face ${i - body} (${o.part})`} differs from the re-derivation`);
   });
   let faces = shown.map((f, i) => ({ ...f, group: own.faces[i].group, part: own.faces[i].part, lit: own.faces[i].lit }));
   const noNeck = predates.has('neck-shade'), noTop = predates.has('hair-top');
@@ -170,7 +198,7 @@ async function resolveManifest(manifest, name, { predates = new Set() } = {}) {
   }
   if (predates.has('draw-layers')) faces = faces.map(({ layer: _layer, ...f }) => f);
   const ink = payload.toon?.ink ? { color: payload.toon.ink.color ?? '#101015', width: payload.toon.ink.widthAbs ?? null } : null;
-  return { hero: manifest.hero, manifest, payload, faces, mesh: own.mesh, light: own.light, ink, bytes: Buffer.byteLength(JSON.stringify(payload)) };
+  return { hero: manifest.hero, manifest, payload, faces, gear: own.gear, mesh: own.mesh, light: own.light, ink, bytes: Buffer.byteLength(JSON.stringify(payload)) };
 }
 /** The anime hero of `cast` as the door mints it, with any of the door's `gesture` / `expression` words and a manifest
  * `toon` beside it. */
@@ -216,9 +244,12 @@ function lensOf(faces, headPx = HEAD_PX) {
   const head = { distance: (ext / 2) / Math.tan(rad(8)), vfov: 16, width: headPx, height: headPx, ss: 2, ext };
   return { head, bust: { ...head, distance: head.distance * 1.7 }, body256: body(256, 160, 288), body128: body(128, 80, 144) };
 }
+/** the figure's own box, its held gear left out: the body cells aim across at it, so a blade held forward or out to
+ * the side never pulls the frame off the feet (the lens's height and floor still come from the whole box) */
+const figureBox = (faces) => boxOf(faces, (f) => f.group !== 'Gear');
 function aim(lens, faces, name) {
   if (name === 'head' || name === 'bust') { const h = headBox(faces), L = lens[name]; return { ...L, target: [h.c[0], h.c[1], h.c[2] - 0.025 - (name === 'bust' ? 0.3 * L.ext : 0)] }; }
-  const L = lens[name], a = boxOf(faces); return { ...L, target: [a.c[0], a.c[1], L.floorZ + L.H / 2] };
+  const L = lens[name], a = figureBox(faces); return { ...L, target: [a.c[0], a.c[1], L.floorZ + L.H / 2] };
 }
 function orbit(fr, view, side = 1) {
   const v = VIEWS[view], a = rad(v.keySide ? v.keySide * side * v.az : v.az), e = rad(v.el), dir = [Math.sin(a) * Math.cos(e), Math.cos(a) * Math.cos(e), Math.sin(e)];
@@ -518,14 +549,17 @@ async function cardMain() {
   const heads = [[at(L, 'head', 'front'), ['head · front']], [at(L, 'head', 'profile'), ['head · profile', 'the key’s side']],
     [at(L, 'head', 'rear'), ['head · rear ¾, 20° down', 'the gameplay camera, key side']], [at(L, 'head', 'threequarter', 'fill', { bg: DARK(R) }), ['head · ¾ on the World backdrop', 'the payload’s own bg']]];
   const lower = [[at(L, 'bust', 'threequarter'), ['bust · ¾']], [at(L, 'body256', 'threequarter'), ['body · ¾', '256 px tall']], [at(L, 'body256', 'front'), ['body · front', '256 px tall']],
+    [at(L, 'body256', 'rear'), ['body · rear ¾, 20° down', 'the gameplay camera']],
     [at(L, 'body256', 'threequarter', 'silhouette'), ['silhouette · ¾']], [at(L, 'body256', 'threequarter', 'value'), ['3 values · ¾', 'L* < 33 / 33–66 / ≥ 66']]];
 
-  // the sheet: title; the head ¾ at 512 beside a 2 × 2 of head cells at 256; the bust, body, silhouette and values
-  const g = 8, labH = 34, W = g + 512 + g + 2 * (256 + g);
+  // the sheet: title; the head ¾ at 512 beside a 2 × 2 of head cells at 256; the bust, the body (¾, front, rear ¾),
+  // silhouette and values, the sheet as wide as the wider of the two rows
+  const g = 8, labH = 34, W = Math.max(g + 512 + g + 2 * (256 + g), g + lower.reduce((s, [c]) => s + c.width + g, 0));
   const r = D.readout, eff = [r.head !== 'anime' && `head ${r.head}`, r.head === 'landmark' && `hair ${r.hair?.style}`, r.head === 'landmark' && `expression ${r.expression}`, r.base && `base ${r.base}`, r.proportions && `proportions ${r.proportions}`, r.look && `look ${r.look.join('+')}`, r.hairCut !== undefined && `hair ${r.hairCut ? `the ${r.hairCut} cut (the hair base)` : r.hair?.style ?? 'none'}`,
-    r.head === 'anime' && `expression ${typeof S.hero.expression === 'string' ? S.hero.expression : Object.entries(r.expression || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' ') || 'neutral'}`, r.gesture ? `stand ${r.gesture.word}` : 'the bind pose (no stand)', r.headsTall && `${r.headsTall} heads tall`, r.neck && `neck ${r.neck.form} ${r.neck.ofW} W`].filter(Boolean);
+    r.head === 'anime' && `expression ${typeof S.hero.expression === 'string' ? S.hero.expression : Object.entries(r.expression || {}).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(' ') || 'neutral'}`, r.gesture ? `stand ${r.gesture.word}` : 'the bind pose (no stand)', r.headsTall && `${r.headsTall} heads tall`, r.neck && `neck ${r.neck.form} ${r.neck.ofW} W`,
+    r.gear && Object.keys(r.gear).length && `gear ${Object.entries(r.gear).map(([slot, it]) => `${slot} ${it.item}`).join(', ')}`].filter(Boolean);
   const T = titleBlock(W, [`${S.name}`, `words: ${wordsOf(S.hero, S.toon).join(' · ') || '(none: the door’s defaults)'}`, `the door read: ${eff.join(' · ')}`,
-    `${warnings.length} warning${warnings.length === 1 ? '' : 's'} (readout.json) · ${R.faces.length} static faces, parity-guarded against the World payload · ${r.budget ? `${r.budget.triangles} triangles` : ''}`]);
+    `${warnings.length} warning${warnings.length === 1 ? '' : 's'} (readout.json) · ${R.faces.length} static faces${R.gear ? ` (${R.gear} of them held gear)` : ''}, parity-guarded against the World payload · ${r.budget ? `${r.budget.triangles} triangles` : ''}`]);
   const layers = [{ input: T.input, left: 0, top: 0 }];
   let y = T.H + g;
   placeCell(layers, big, g, y, 512, ['head · ¾ (512 px)', 'camera on +x (the figure’s right)'], labH);
@@ -576,11 +610,13 @@ if (SPEC_FILE) await cardMain();
 // ─── SHEET MODE: the cast side by side, one lens per row ───────────────────
 /** --sheet <config.json>: { columns: [{ spec, summary }], title?, sheet?, expressions? } (spec paths relative to the
  * config). Every spec goes through the same door steps and parity guard as a card. Writes <out>/<sheet>.png (default
- * cast-sheet): one column per spec, rows head ¾ (320 px), head front and rear ¾ 20° down (256 px), body ¾ (256 px) and
- * its black silhouette; with --expr also <out>/<expressions>.png (default cast-expressions): one row per spec, the head
- * ¾ at 256 px for the spec's own expression and every expression word the anime head takes. SAME FRAMING PER ROW: the
- * head rows share one lens (the largest head box of the cast, each aimed at its own head centre), the body rows one
- * lens (the tallest figure at 256 px, each standing on the same floor line), so heads and figures compare in size. */
+ * cast-sheet): one column per spec, rows head ¾ (320 px), head front and rear ¾ 20° down (256 px), body ¾ (256 px), the
+ * body rear ¾ 20° down (the gameplay camera, key side) and the ¾ black silhouette; with --expr also
+ * <out>/<expressions>.png (default cast-expressions): one row per spec, the head ¾ at 256 px for the spec's own
+ * expression and every expression word the anime head takes. SAME FRAMING PER ROW: the head rows share one lens (the
+ * largest head box of the cast, each aimed at its own head centre), the body rows one lens (the tallest figure with its
+ * gear at 256 px, each aimed across at its own figure and standing on the same floor line), so heads and figures
+ * compare in size. */
 const SHEET_FILE = argOf('--sheet');
 async function sheetMain() {
   const cfgFile = resolve(SHEET_FILE), cfg = JSON.parse(readFileSync(cfgFile, 'utf8')), base = dirname(cfgFile), t0 = Date.now();
@@ -599,13 +635,14 @@ async function sheetMain() {
   const bodies = cast.map((c) => lensOf(c.R.faces, 256).body256), body = bodies.reduce((a, b) => (b.H > a.H ? b : a));
   console.log(`head lens: ext ${ext.toFixed(4)} m (per spec: ${cast.map((c, i) => `${c.S.name} ${exts[i].toFixed(4)}`).join(', ')}); body lens: H ${body.H.toFixed(3)} m (per spec: ${cast.map((c, i) => `${c.S.name} ${bodies[i].H.toFixed(3)}`).join(', ')})`);
   const headAt = (R, side, px, view, mode = 'fill') => { const h = headBox(R.faces); return cell(R, orbit({ ...headLens(px), target: [h.c[0], h.c[1], h.c[2] - 0.025] }, view, side), mode); };
-  const bodyAt = (R, side, view, mode = 'fill') => { const a = boxOf(R.faces); return cell(R, orbit({ ...body, target: [a.c[0], a.c[1], a.mn[2] + body.H / 2] }, view, side), mode); };
+  const bodyAt = (R, side, view, mode = 'fill') => { const a = figureBox(R.faces), z = boxOf(R.faces).mn[2]; return cell(R, orbit({ ...body, target: [a.c[0], a.c[1], z + body.H / 2] }, view, side), mode); };
   const colLabel = (c, n) => [c.S.name, ...wrap(c.summary, n)];
   const ROWS_SHEET = [
     [['head · ¾', '320 px, one lens', 'camera on +x'], (c) => headAt(c.R, c.side, 320, 'threequarter')],
     [['head · front', '256 px, one lens'], (c) => headAt(c.R, c.side, 256, 'front')],
     [['head · rear ¾, 20° down', 'the gameplay camera, key side', '256 px, one lens'], (c) => headAt(c.R, c.side, 256, 'rear')],
     [['body · ¾', '256 px (the tallest)', 'one lens, one floor line'], (c) => bodyAt(c.R, c.side, 'threequarter')],
+    [['body · rear ¾, 20° down', 'the gameplay camera, key side', 'as the body row'], (c) => bodyAt(c.R, c.side, 'rear')],
     [['silhouette · ¾', 'as the body row'], (c) => bodyAt(c.R, c.side, 'threequarter', 'silhouette')],
   ];
   const grid = ROWS_SHEET.map(([, f]) => cast.map(f));

@@ -1,6 +1,6 @@
 {
   "name": "heroine",
-  "$note": "The lead girl, full body: the heroine look with a soft face, large eyes and a side-parted cut (a longer fall, a crown curl, the fringe eased off the brows), smiling with the mouth a little open; a fitted cream top over navy leggings, a coral sash tied in a bow at the small of the back, tan buckled boots. Shows the dress as data (detail refines the limb and torso rings and adds the collars; adorn the sash, the bow and the boots) and a stand from pose words: relaxed, the chest opened, the near hand raised beside her face (the upper arm out to the side, the elbow below the shoulder, the forearm upright), the greet's first key, so the greet starts from it (from an arm-down clip, the engine's crossfade does the raise); and four clips of her own at the door (clips: greet, idleRelaxed, run, victory), each key in the rig's pose words, each clip with its designed duration (seconds: greet and victory 2, idleRelaxed 4, run 0.8) and a facial performance in its keys' face words: the greet waves from that stand on the elbow's hinge with the arm held up across the loop (two strokes, each eased at both ends, the forearm swinging in the front plane; the waving side lifting into the first, the head tilting toward the hand and nodding a key after it, the other arm answering sideways, then settling a little onto her standing leg and rising back into the stand), and shuts her eyes in a grin on the first stroke, opening into a wider smile as the hand comes back in, the run holds a determined squint whose mouth pushes on each contact, the victory gathers on the crouch (the brows down, the eyes a touch narrower) and cheers eyes shut with the arms up; idleRelaxed keeps her authored face and blinks once a loop.",
+  "$note": "The lead girl, full body: the heroine look with a soft face, large eyes and a side-parted cut (a longer fall, a crown curl, the fringe eased off the brows), smiling with the mouth a little open; a fitted cream top over navy leggings, a coral sash tied in a bow at the small of the back, tan buckled boots. Shows the dress as data (detail refines the limb and torso rings and adds the collars; adorn the sash, the bow and the boots) and a stand from pose words: relaxed, the chest opened and the head turned toward the viewer, both arms down (a near hand raised beside her face read as a clenched fist, a fighter, which she is not); and four clips of her own at the door (clips: greet, idleRelaxed, run, victory), each key in the rig's pose words, each clip with its designed duration (seconds: greet and victory 2, idleRelaxed 4, run 0.8) and a facial performance in its keys' face words: the greet's first key raises the near hand beside her face (the upper arm out to the side, the elbow below the shoulder, the forearm upright), and an engine's crossfade takes her from the stand into it; it waves from there on the elbow's hinge with the arm held up across the loop (two strokes, each eased at both ends, the forearm swinging in the front plane; the waving side lifting into the first, the head tilting toward the hand and nodding a key after it, the other arm answering sideways, then settling a little onto her standing leg and rising back into that first key), and shuts her eyes in a grin on the first stroke, opening into a wider smile as the hand comes back in, the run holds a determined squint whose mouth pushes on each contact, the victory gathers on the crouch (the brows down, the eyes a touch narrower) and cheers eyes shut with the arms up; idleRelaxed keeps her authored face and blinks once a loop.",
   "hero": {
     "cast": "female",
     "head": "anime",
@@ -19,15 +19,7 @@
       "thigh": 1,
       "calf": 1.1
     },
-    "gesture": [
-      "relaxed",
-      {
-        "spine": { "arch": 0.1 },
-        "head": { "yaw": 12, "pitch": 0 },
-        "shR": { "yaw": -40, "pitch": 17.5, "roll": 90 },
-        "elbowR": 127.5
-      }
-    ],
+    "gesture": ["relaxed", { "spine": { "arch": 0.1 }, "head": { "yaw": 12, "pitch": 0 } }],
     "clips": {
       "greet": {
         "seconds": 2,
