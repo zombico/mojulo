@@ -23,6 +23,7 @@ import { growPalm, palmLadder } from './palm.js';
 import { growCulm, culmLadder, culmTris, foliageTris, ageTint, runningGrove, clumpGrove, BAMBOOS } from './bamboo.js';
 import { LEVELS, SPECIES } from './species.js';
 import { barkTile, palmTrunkTexture } from './tiles.js';
+import { FIGS } from './ficus.js';
 
 export { LEVELS, SPECIES };
 /** Projected-size thresholds (px) at which each level starts: trees and palms by height, culms by diameter and leaf. */
@@ -83,8 +84,8 @@ export function plantPool({ species, variants = 3, seed = 'plants', light = null
     const bark = tile ? { minR: 0.03, tile: tile.metres, color: tile.mean, key: tile.key } : null;
     for (let k = 0; k < variants; k++) {
       const sd = hashSeed(`${seed}::${species}::${k}`) % 100000;
-      const arch = S.leafLife ? { ...ARCHITECTURES[S.arch], leafLife: S.leafLife } : S.arch;
-      const grown = cached(`tree:${S.arch}:${S.years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}`, () => { const p = grow(arch, { years: S.years, seed: sd }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark }) }; });
+      const arch = S.fig ? FIGS[S.fig] : S.leafLife ? { ...ARCHITECTURES[S.arch], leafLife: S.leafLife } : S.arch;
+      const grown = cached(`tree:${S.arch}:${S.years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}`, () => { const p = grow(arch, { years: S.years, seed: sd }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark }) }; });
       const yaw = (k * 2 * Math.PI) / variants; const lad = cut(grown.lad, maxLevel);
       out.variants.push({ height: 1, grownHeight: grown.H, levels: Object.fromEntries(LEVELS.map((l) => [l, trisToFaces(lad[l], { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])) });
     }

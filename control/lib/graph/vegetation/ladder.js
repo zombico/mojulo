@@ -10,6 +10,7 @@
 //   L0 far  : the trunk to the crown + a few crown lobes (c0)           — ~a hundred faces, the rock's "block"
 import { axisChains, tubeTris, barkQuads, woodTone, leafTris, blobTris, defaultSides, TONES } from './tree-mesh.js';
 import { mix } from './util.js';
+import { figTris } from './ficus.js';
 
 function leafyNodes(plant) { return plant.nodes.filter((n) => !n.died && n.leaves > 0); }
 /** Voxel-cluster the leaves at cell size c → blobs (centroid, spread radii, Beer–Lambert tone). */
@@ -62,10 +63,18 @@ export function level(plant, { dCut = 0, sidesMax = 10, cell = 0, leaves = 'quad
  */
 export function ladder(plant, H, { leafScale = 1, bark = null } = {}) {
   const crownBase = Math.min(...leafyNodes(plant).map((n) => n.pos[2]));
-  return {
+  const lad = {
     L3: level(plant, { leafScale, bark }),
     L2: level(plant, { dCut: H / 420, sidesMax: 6, cell: H / 11, leaves: 'clusters', detail: 0, leafScale, bark }),
     L1: level(plant, { dCut: H / 180, sidesMax: 4, cell: H / 5, leaves: 'clusters', detail: 0, leafScale }),
     L0: level(plant, { dCut: H / 60, sidesMax: 4, cell: H / 2.4, leaves: 'clusters', detail: 0, leafScale, trunkOnlyBelow: crownBase + 0.25 * (H - crownBase) }),
   };
+  // a fig's roots, lattice and buttresses (ficus.js), under the same cuts: its hanging roots past the cut become curtains
+  if (plant.arch.fig) {
+    lad.L3.push(...figTris(plant, { bark }));
+    lad.L2.push(...figTris(plant, { dCut: H / 420, sidesMax: 6, cell: H / 11, bark }));
+    lad.L1.push(...figTris(plant, { dCut: H / 180, sidesMax: 4, cell: H / 5, near: false }));
+    lad.L0.push(...figTris(plant, { dCut: H / 60, sidesMax: 4, near: false, far: true }));
+  }
+  return lad;
 }

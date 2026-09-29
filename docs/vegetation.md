@@ -70,6 +70,32 @@ numbers below were checked against the literature, and several first guesses tur
   - old stipe bases kept on the trunk;
   - dead fronds fall. A hanging skirt of fronds that wide reads as a palm's.
 
+## Figs: what a fig adds is below its crown (`ficus.js`)
+
+- **The crown is the engine's.** An evergreen Rauh or Troll row with a fig's leaf (F. benjamina is Troll's model,
+  F. aurea Rauh's; the genus has no single model). No new growth code grows it.
+- **Aerial roots are an opt-in step of the engine** (`arch.aerial` in `grow.js`). They drop from limbs within 30° of
+  horizontal and hang as plumb lines 4–10 mm across. Landed, a root is a guy-cable first (it makes tension wood;
+  Zimmermann, Wardrop & Tomlinson 1968) and then a pillar. The pillar joins the two sums the engine already keeps:
+  - Pressler's: it takes `share` of the pipes of the foliage beyond its limb, so it thickens and the first trunk thins
+    among the pillars;
+  - the bending moment's: it carries `carry` of the load beyond it, so the limb behind it stops bending.
+  In 20–30 grown years the props do not widen the crown. A fig's spread takes centuries of reiteration; the Great
+  Banyan covers 1.89 ha on 3,772 pillars. A spreading crown comes from the architecture row, not the props.
+- **The strangler's lattice** is roots grafted where they cross (inosculation) round a host that dies and rots (Putz &
+  Holbrook 1989). It is drawn as two families of helices of opposite hand over a dark core, from the ground to the
+  crown base. The crown is emergent on a clear bole, which a stand lifts (`stand`).
+- **Buttresses** are plank fins giving about 60% of a shallow-rooted tree's anchorage. They work in tension windward
+  and in compression leeward, and the biggest faces away from the crown's lean (Crook, Ennos & Banks 1997).
+- **Economy by the tree's own rulers.** The fig parts cost under 2% of a banyan's crown at every level:
+  - a hanging root is one straight segment, cut by the ladder's diameter rule like a twig;
+  - past the cut, a curtain of hanging roots is one dark ribbon per foliage cell (Beer–Lambert, as leaves become
+    blobs);
+  - the lattice and the fins are drawn only at the near levels, and far off the column is a cylinder.
+- **Species:** `banyan` (Ficus benghalensis), `strangler` (F. aurea) and `rubberfig` (F. elastica), all in beech's
+  smooth grey bark. Large figs stand about one a hectare in lowland rainforest, so a terrain world's fig rows are
+  sparse.
+
 ## Bamboo: the stack as a lathe (`bamboo.js`)
 
 - **The culm is a profile r(s) swept round a spine.** There is no bark, no rings and no spiral grain.
@@ -191,3 +217,6 @@ numbers below were checked against the literature, and several first guesses tur
 - Kawai et al. 2008 (J. Jpn. For. Soc. 90:151).
 - PROSEA (Dransfield & Widjaja 1995).
 - Flora of China vol. 22.
+- Zimmermann, Wardrop & Tomlinson 1968 (Wood Sci. Technol. 2:95); Mackinnon et al. 2019 (PLoS ONE 14:e0226845).
+- Putz & Holbrook 1986, 1989; Ludwig et al. 2019 (Sci. Rep. 9:12459).
+- Crook, Ennos & Banks 1997 (J. Exp. Bot. 48:1703).

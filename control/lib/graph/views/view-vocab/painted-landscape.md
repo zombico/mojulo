@@ -83,7 +83,8 @@ Pass these via `compose_world`'s `overrides` (deep-merged over the theme pack). 
   tree in its own bark, a palm grown to an age with its trunk's scars or leaf bases, or bamboo
   standing as a grove (a clump, or a patch of running culms, where the scene put one tree),
   pooled as a few variants × four levels of detail and instanced once per plant; a few dozen
-  trees take the most detail `level` allows. Species `oak`, `beech`, `fir`, `schefflera`, `coconut`,
+  trees take the most detail `level` allows. Species `oak`, `beech`, `fir`, `schefflera`, the figs `banyan`
+  (pillar roots), `strangler` (a root lattice) and `rubberfig` (buttresses), `coconut`,
   `date`, `washingtonia`, `treefern`, `moso`, `vulgaris`, `reed`; a species sets the canopy trees
   (`fir` sets both);
   `true` is oak canopies and fir cones. Object form `{ canopy?: ('oak'), cone?: ('fir'), tuft?:
