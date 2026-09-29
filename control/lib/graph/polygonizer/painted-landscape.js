@@ -217,13 +217,14 @@ function validateLandscapeRocks(rocks) {
 /**
  * `plants`: the scene's trees become grown plants (vegetation/: a self-organizing tree, a palm grown to an age, a
  * bamboo culm) pooled as `repeats` instead of taiji boxes. A species for the canopy trees, or { canopy?: species
- * ('oak'), cone?: species ('fir'), tuft?: species (none: tufts stay clumps), variants?: 1–6 (3), level?: 'L0'–'L3'
- * ('L2', the most detail a template carries) }. docs/vegetation.md has the species and the science.
+ * ('oak'), cone?: species ('fir'; or a conifer grown by rule: 'spruce', 'silverfir', 'pine'), tuft?: species (none:
+ * tufts stay clumps), variants?: 1–6 (3), level?: 'L0'–'L3' ('L2', the most detail a template carries) }. A conifer's name
+ * alone names both. docs/vegetation.md has the species and the science.
  * Returns the normalized spec, or null when absent.
  */
 export function resolveLandscapePlants(plants) {
   if (plants === undefined || plants === null || plants === false) return null;
-  const p = plants === true ? {} : typeof plants === 'string' ? { canopy: plants, ...(PLANT_SPECIES[plants]?.arch === 'massart' ? { cone: plants } : {}) } : plants;
+  const p = plants === true ? {} : typeof plants === 'string' ? { canopy: plants, ...(PLANT_SPECIES[plants]?.arch === 'massart' || PLANT_SPECIES[plants]?.kind === 'conifer' ? { cone: plants } : {}) } : plants;
   return {
     canopy: p.canopy ?? 'oak', cone: p.cone ?? 'fir', tuft: p.tuft ?? null,
     variants: Number.isInteger(p.variants) ? p.variants : 3, level: PLANT_LEVELS.includes(p.level) ? p.level : 'L2',
