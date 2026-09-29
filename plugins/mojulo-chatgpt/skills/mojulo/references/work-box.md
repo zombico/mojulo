@@ -51,6 +51,17 @@ node "$runner" exec --workspace "$workspace" -- call forward_context
 node "$runner" exec --workspace "$workspace" -- help compose_world
 ```
 
+Tool names are arguments to `call`, not runner subcommands. For example:
+
+```sh
+node "$runner" exec --workspace "$workspace" -- call compose_world --json '{"base":"city","seed":91,"ref":"sk_chatgpt_field","title":"ChatGPT field test","overrides":{"context":{"depth":2},"region":{"x":0,"y":0,"w":16,"d":16}}}'
+```
+
+Use `help compose_world` to inspect the schema; do not invoke `pack_world` directly.
+The tested branch can warn that the optional `ms-shield.js` and `arena-atmosphere.js`
+modules are absent. City creation/export passed despite those warnings; shield and
+atmosphere features must not be assumed available. Preserve other errors for diagnosis.
+
 Pass a nondefault `--version` on each invocation. Put runner options before `--`;
 Mojulo arguments follow it. The wrapper sets `MOJULO_HOST=chatgpt`,
 `MOJULO_SURFACE=box`, and all standard data paths below `.mojulo-chatgpt/home` on

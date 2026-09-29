@@ -30,6 +30,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Recovery verification.** The branch-tarball smoke installs into two isolated homes,
   edits a city, and reproduces its recipe, GLB, HTML and ZIP byte-for-byte after recovery.
   A development field-test guide keeps ChatGPT delivery and preview checks separate.
+- **Reported Work field test.** A ChatGPT Linux session reported successful branch-tarball
+  installation, city editing and byte-identical recovery. Client downloads and visual
+  previews remain unverified. Bootstrap instructions clarify the required `call` syntax.
 - **Next phases.** Verified ChatGPT file delivery and MCP Apps previews. Public hosting
   and submission remain separate milestones.
 
