@@ -12,13 +12,15 @@
  * baldric across the chest from the right shoulder to the left hip with an iron ring, an archer's leather bracer on the
  * LEFT forearm, and ONE defended shoulder — an iron pauldron on the right with a bronze boss, the kit's single focal
  * accent. Worn in that order, so the pauldron stacks over the baldric. The kit suggests an earth palette beneath the
- * operator's own.
+ * operator's own. Or an ARMOUR BUILD `{ type: 'armor', style, dials }` (armor/expand.js): the words are stored and the
+ * kit is expanded from them on every read, so a dial patch restyles the suit in place; its card suggests the tones.
  *
  * Addresses are generated per register: the ring parameter `t` runs 0 (front) → H (back) and H is the ring family's
  * half (ring6 3, ring8 4), so a kit written as fractions of H sits in the same place in every register. Metres scale
  * with the cast. Tones that detail needs (folds, quilt, cuffs) are derived from the palette's own Top / Bottom / Shoes,
  * so a palette change carries them; any tone the operator names wins. */
 import { SLOT_FAMILIES } from './station-loft-plan.js';
+import { isArmorBuild, validateArmor, expandArmor, armorTones } from '../armor/expand.js';
 
 export const DETAIL_WORDS = ['clothed', 'none'];
 export const KIT_WORDS = ['ranger', 'none'];
@@ -82,14 +84,15 @@ export function dressTones(p) {
   return { TopFold: shade(p.Top, 0.84), BottomFold: shade(p.Bottom, 0.8), Quilt: shade(p.Top, 1.1), Cuff: shade(p.Top, 0.78), Toggle: '#d6c9a8',
     Patch: shade(p.Bottom, 1.28), PatchSeam: shade(p.Bottom, 0.75), Wrap: '#7d6547', Leather: '#6a4327', Iron: '#8d9197', Bronze: '#b98a44' };
 }
-/** the palette a kit suggests beneath the operator's own */
-export const kitPalette = (adorn) => (typeof adorn === 'string' ? KIT_PALETTES[adorn] || {} : {});
+/** the palette a kit suggests beneath the operator's own (an armour build suggests its card's tones) */
+export const kitPalette = (adorn) => (typeof adorn === 'string' ? KIT_PALETTES[adorn] || {} : isArmorBuild(adorn) ? armorTones(adorn) : {});
 
 /** Error strings for the door's `detail` / `adorn` (form only; the plan grammar judges the data). */
 export function validateDress({ detail, adorn } = {}) {
   const errs = [];
   if (detail !== undefined && !(typeof detail === 'string' ? DETAIL_WORDS.includes(detail) : detail && typeof detail === 'object' && !Array.isArray(detail))) errs.push(`detail: ${DETAIL_WORDS.map((w) => `'${w}'`).join(' | ')} or BODY DATA { refine, volume, creases, tiles, pads, rows, collars }`);
-  if (adorn !== undefined && !(typeof adorn === 'string' ? KIT_WORDS.includes(adorn) : Array.isArray(adorn))) errs.push(`adorn: ${KIT_WORDS.map((w) => `'${w}'`).join(' | ')} or a KIT [{ id, mode, part, …, signature }]`);
+  if (isArmorBuild(adorn)) errs.push(...validateArmor(adorn));
+  else if (adorn !== undefined && !(typeof adorn === 'string' ? KIT_WORDS.includes(adorn) : Array.isArray(adorn))) errs.push(`adorn: ${KIT_WORDS.map((w) => `'${w}'`).join(' | ')}, an armour build { type: 'armor', style, dials? } (armor/expand.js), or a KIT [{ id, mode, part, …, signature }]`);
   return errs;
 }
 
@@ -101,7 +104,8 @@ export function dressPlan(plan, { detail, adorn, operatorPalette = {}, scale = 1
   const errs = validateDress({ detail, adorn }); if (errs.length) throw new Error(`hero dress: ${errs.join('; ')}`);
   const ctx = dressContext(plan.style, scale);
   if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
-  if (wantAdorn) plan.adorn = typeof adorn === 'string' ? rangerKit(ctx) : adorn;
+  // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
+  if (wantAdorn) plan.adorn = typeof adorn === 'string' ? rangerKit(ctx) : isArmorBuild(adorn) ? expandArmor(adorn, ctx).kit : adorn;
   // the kit's suggestion is already beneath the operator's colours in plan.palette (humanoidPlan builds the head with it)
   const base = { ...plan.palette, ...operatorPalette };
   plan.palette = { ...base, ...dressTones(base), ...operatorPalette };

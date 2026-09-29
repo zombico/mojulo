@@ -14,6 +14,40 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Fantasy armor
+
+Worn armour composed from intent and art direction, on the hero: plate from a single pauldron to full harness, and
+samurai lamellar with laced rows, hanging boards and a crested kabuto. It is built from a few dials and laws, not a
+catalogue. The hero stores the words, and the suit is re-derived on every read. Opt-in through `adorn` on the hero.
+
+- **A suit is a build on the hero.** `adorn: { type: 'armor', style, dials }` on the hero door
+  (`mint_solid({ kind: 'layered', via: 'hero', spec: { …, adorn } })`) expands into an adornment kit wherever the hero
+  is read. `update_sketch` restyles it in place: `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'`.
+  A build is stamped with the version of the armour laws it was minted under.
+- **Dials, not presets.**
+  - `stylize` runs from realistic to stylized along one curve: the focal piece grows fastest, plates stand further
+    off the body, openings flare, and lames and lacing get fewer and bigger.
+  - `coverage` grows the suit out from its focal piece, from one pauldron to full plate.
+  - `mass` sets heft, and `ornament` is the edge budget.
+- **The laws, as worn.**
+  - One focal piece per suit, and every piece is sized against its body part.
+  - A plate never crosses a joint: each rides one bone. A cop caps a joint from one side, lames shingle away from
+    their anchor, and plate stays off where two body parts touch at rest.
+  - Coverage grows from the focal. The suit is asymmetric until its partner piece arrives as a lesser piece, and the
+    side follows function (a bracer on the bow arm).
+  - Plates read over a layer one clear value step away.
+  - The edge is the ornament field.
+  - Each piece is built the way its material is made: plate as halves strapped at the sides; lamellar as sawtooth
+    rows held by the lacing, where the construction is the ornament.
+- **Styles are cards.** The samples ship as plain data: `knight` (plate) and three lamellar samurai, `kuro-kon`
+  (black lacquer, navy lacing, a gold crescent), `aka` (red lacquer, gold horns) and `shiro` (white lacing, a sun
+  disc). `style` also takes an inline card.
+- **Adornment signatures as data.** A signature can be `facing` (a disc on the piece's lifted outer skin, facing where
+  the eye comes from), `boards` (flat laced rows hung from a piece's edge) or `crest` (a crescent, horns or a sun
+  disc). A signature element may carry its own group. `stack: false` keeps an adornment out of the ones worn after it,
+  so lamellar rows keep a sawtooth profile instead of piling outward. A rigid strap no longer fails to wear. Kits that
+  use none of these are unchanged.
+
 ### Equipment
 
 Fantasy arms composed from intent and art direction: swords, daggers, greatswords, staves, bows and shields, built

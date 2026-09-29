@@ -114,6 +114,40 @@ export const SIGNATURES = {
   /** a bell on a short chain from the shell's rim: { after, side, links, len, clear, link, profile, r, top, step, m?, capTop, capBottom } */
   bell: (fig, g, beneath, S) => { const [k] = gridAt(g, S, S.side); const a = g.outer[k][g.S.length - 1]; const { P, meshes } = hang(beneath, a, { links: S.links, len: S.len, clear: S.clear, r: S.link }); const e = P[P.length - 1];
     return { links: meshes, element: loftParts(S.profile.map((q, i) => ringAt(add(e, [0, 0, -S.top - S.step * i]), [0, 0, 1], S.r * q, S.m ?? 10)), add(e, [0, 0, -S.capTop]), add(e, [0, 0, -S.capBottom])) }; },
+  /** a disc set on the LIFTED outer skin where it faces `dir` (the eye's direction; x mirrors on the L side): { dir, r, h,
+   * m?, rim? }. A shell's frame normal is its carrier's, so on a cap lifted over the arm every address still faces up;
+   * the outer skin's own normal knows better (fantasy armour: the focal boss that hid on the crown). */
+  facing: (fig, g, _b, S) => { const O = g.outer, K = O.length, J = O[0].length; const want = unit(S.side === 'L' ? [-S.dir[0], S.dir[1], S.dir[2]] : S.dir); let best = null;
+    for (let k = Math.min(1, K - 1); k < Math.max(1, K - 1); k++) for (let j = Math.min(1, J - 1); j < Math.max(1, J - 1); j++) {
+      let n = unit(cross(sub(O[Math.min(K - 1, k + 1)][j], O[Math.max(0, k - 1)][j]), sub(O[k][Math.min(J - 1, j + 1)], O[k][Math.max(0, j - 1)])));
+      if (dot(n, g.F[k][j].normal) < 0) n = mul(n, -1); const score = dot(n, want); if (!best || score > best.score) best = { score, c: O[k][j], n }; }
+    return disc(best.c, best.n, S.r, S.h, S.m ?? 14, S.rim ?? 0.5); },
+  /** flat BOARDS hung from the shell's bottom edge (`bottom`: 'j0' | 'jN', the window end they hang from), a shell
+   * following its carrier can never be flat (lamellar sode, kusazuri): { n, len, thick, tilt, stand?, dm?, bow?, widen?,
+   * wide?, cords?, cordR?, cordGroup? }. Row i hangs `len/n` lower and `dm·i` further out, its bottom edge `tilt` out
+   * (the sawtooth); `bow` curves a row across its width, `widen` grows lower rows, `wide` scales the edge's span. With
+   * `cords`, lacing columns ride each row's outer face in their own group (`cordGroup`). */
+  boards: (fig, g, _b, S) => { const O = g.outer, K = O.length, J = O[0].length, jb = S.bottom === 'j0' ? 0 : J - 1, mid = Math.floor(K / 2);
+    const front = O[0][jb], back = O[K - 1][jb], n0 = unit(g.F[mid][jb].normal), along = unit(sub(back, front));
+    let down = unit(cross(along, n0)); if (down[2] > 0) down = mul(down, -1); let N = unit(cross(down, along)); if (dot(N, n0) < 0) N = mul(N, -1);
+    const c = add(O[mid][jb], mul(N, S.stand ?? 0)), W0 = Math.hypot(...sub(back, front)) * (S.wide ?? 1), step = S.len / S.n, h = step * 1.3, out = [];
+    for (let i = 0; i < S.n; i++) { const W = W0 * (1 + (S.widen ?? 0) * i) / 2, top = add(c, add(mul(down, i * step), mul(N, (S.dm ?? 0) * i)));
+      const at = (u, lift) => add(top, add(mul(along, u * W), mul(N, -(S.bow ?? 0) * u * u + lift)));
+      const sec = Array.from({ length: 9 }, (_, q) => { const o = at(-1 + q / 4, 0), b = add(o, add(mul(down, h), mul(N, S.tilt))); return [o, add(o, mul(N, S.thick)), add(b, mul(N, S.thick)), b]; });
+      out.push(loftParts(sec, sub(mean([sec[0][0], sec[0][2]]), mul(along, 0.001)), add(mean([sec[8][0], sec[8][2]]), mul(along, 0.001))));
+      for (let q = 0; q < (S.cords ?? 0); q++) { const base = at(-0.8 + 1.6 * (q + 0.5) / S.cords, S.thick * 1.15);
+        const spine = [0.08, 0.5, 0.92].map((f) => add(base, add(mul(down, h * f), mul(N, S.tilt * f))));
+        out.push({ ...sweep(spine, spine.map(() => S.cordR), 6, { squash: [1, 0.4] }), ...(S.cordGroup ? { group: S.cordGroup } : {}) }); } }
+    return out; },
+  /** a CREST rising from the shell's front edge (grid row 0 at its last station): { shape: 'crescent' | 'kuwagata' | 'sun',
+   * w, z, r, minR? } — a crescent moon lying horns-up, a pair of horns in a V, or a sun disc facing forward */
+  crest: (fig, g, _b, S) => { const c = g.outer[0][g.outer[0].length - 1]; const base = [0, c[1] + S.r * 0.9, c[2] + S.r * 0.7], N = 17, minR = S.minR ?? 0.002;
+    const arc = (f) => Array.from({ length: N }, (_, i) => f(i / (N - 1))), flat = { squash: [1, 0.22] };
+    if (S.shape === 'crescent') { const P = arc((u) => { const a = (u - 0.5) * 2.3; return [base[0] + S.w * Math.sin(a), base[1], base[2] + S.z + S.w * 0.55 * (1 - Math.cos(a))]; });
+      return sweep(P, P.map((_, i) => Math.max(minR, S.r * Math.sin(Math.PI * (0.06 + 0.88 * i / (N - 1))) ** 0.8)), 10, flat); }
+    if (S.shape === 'kuwagata') return [1, -1].map((sd) => { const P = arc((u) => [base[0] + sd * (S.r + S.w * 0.55 * u ** 1.3), base[1] + S.r * 1.5 * u, base[2] + S.r * 0.7 + S.z * 3.2 * u]);
+      return sweep(P, P.map((_, i) => Math.max(minR, S.r * 0.8 * (1 - 0.7 * i / (N - 1)))), 10, flat); });
+    return disc([base[0], base[1] + S.r * 0.4, base[2] + S.z * 1.6], [0, 1, 0.12], S.w * 0.28, Math.max(minR, S.r * 0.55), 20, 0.85); },
   /** a row of studs along a strap or a shell row: { r, h, count, from?, to?, m? } */
   studs: (fig, g, _b, S) => { const j = g.pts ? 0 : gridAt(g, S, S.side)[1];
     const row = g.pts ? g.pts.map((p) => ({ p, n: unit(sub(p, [0, 0, p[2]])) })) : g.list.map((_, k) => ({ p: g.outer[k][j], n: g.F[k][j].normal }));
@@ -135,12 +169,15 @@ export function wear(fig, kit, { recipe } = {}) { const out = {}; const record =
     if (!make) throw new Error(`adorn: ${A.id} signature kind '${A.signature.kind}' is not in the library (have ${Object.keys(SIGNATURES).join(', ')})`);
     const sig = make(fig, g, beneath, { side, ...A.signature });
     // a signature is its ELEMENT (what must read) plus whatever carries it (chain links), named apart
-    const el = sig.element ? sig.element : sig; (Array.isArray(el) ? el : [el]).forEach((m, i) => { out[`adorn.${A.id}.sig${i}`] = { ...m, group: A.signature.group, layer: 3 }; });
+    // an element may carry its own group (a board's lacing cords); absent, the signature's
+    const el = sig.element ? sig.element : sig; (Array.isArray(el) ? el : [el]).forEach((m, i) => { out[`adorn.${A.id}.sig${i}`] = { ...m, group: m.group ?? A.signature.group, layer: 3 }; });
     (sig.links || []).forEach((m, i) => { out[`adorn.${A.id}.link${i}`] = { ...m, group: A.signature.group, layer: 3 }; });
-    const dom = A.rigid && recipe ? dominance(recipe.parts[A.part]) : null; const bones = dom ? A.s.map((s) => dom(s)) : null;
+    const dom = A.rigid && recipe && A.s ? dominance(recipe.parts[A.part]) : null; const bones = dom ? A.s.map((s) => dom(s)) : null;   // a strap has no window: it rides its pin
     record.push({ id: A.id, mode: A.mode, carrier: A.part, over: A.over || [], mugen: A.mugen, signature: A.signature.kind, rigid: !!A.rigid, bone: bones ? bones.map((b) => `${b.bone}@${b.w.toFixed(2)}`).join('..') : 'skin (inherits)' });
     meta[A.id] = { g, side };
-    fig = { ...fig, parts: { ...fig.parts, ...out } }; }   // STACKING: the next adornment's beneath includes this one
+    // STACKING: the next adornment's beneath includes this one — unless it declares `stack: false` (lamellar rows keep a
+    // sawtooth: each row's standoff is its own, never lifted over the row before)
+    if (A.stack !== false) fig = { ...fig, parts: { ...fig.parts, ...Object.fromEntries(Object.entries(out).filter(([n]) => n === `adorn.${A.id}` || n.startsWith(`adorn.${A.id}.`))) } }; }
   return { parts: out, record, meta }; }
 
 /** ONE RECOGNIZABLE VISUAL ELEMENT: the signature must READ (exposed ≥ 0.25 from some view) and be a real share of
@@ -182,6 +219,7 @@ export function validateKit(kit, parts) {
     if (A.mode === 'strap') { if (!Array.isArray(A.path) || A.path.length < 2) errs.push(`${at}.path: two or more [s, t, side] addresses`); if (!Number.isFinite(A.width)) errs.push(`${at}.width: metres`); }
     else if (A.mode) { if (!Array.isArray(A.s) || A.s.length !== 2) errs.push(`${at}.s: [s0, s1]`); if (!(A.t === 'wrap' || (Array.isArray(A.t) && A.t.length === 2))) errs.push(`${at}.t: 'wrap' or [t0, t1]`); }
     for (const k of ['mugen', 'thick']) if (!Number.isFinite(A[k])) errs.push(`${at}.${k}: metres`);
+    if (A.stack !== undefined && typeof A.stack !== 'boolean') errs.push(`${at}.stack: true | false (false: later adornments are not lifted over it)`);
     if (!A.signature || typeof A.signature !== 'object' || !SIGNATURES[A.signature.kind]) errs.push(`${at}.signature: { kind: ${Object.keys(SIGNATURES).join(' | ')}, group, …numbers } — every adornment names the one element that justifies it`);
   }
   return errs;

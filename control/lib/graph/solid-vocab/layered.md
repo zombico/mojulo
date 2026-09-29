@@ -147,6 +147,41 @@ absent, every byte is identical.
   and that the body is authored from a cast and a tune. The ledger says an adornment is seen,
   not that it is wanted. Tones the detail needs (`TopFold`, `Quilt`, `Cuff`, `Patch`, …) derive from `Top` / `Bottom` /
   `Shoes`; any tone the operator names wins.
+- **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
+  direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
+  `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or
+  `set /hero/adorn/language/crest 'sun'`.
+  - `style`: `knight` (plate), or the samurai lamellar `kuro-kon` (black lacquer, navy lacing, a gold crescent), `aka`
+    (red lacquer, gold horns) or `shiro` (white lacing, a sun disc). Or an inline card
+    `{ family: 'plate' | 'lamellar', dials, language, tones }`: a new direction is a new card, not code.
+  - `dials`:
+    - `stylize` 0 → 1 grows the focal piece fastest, stands plates further off the body, flares openings, and makes
+      lames, rows and lacing fewer and bigger.
+    - `coverage` 0 → 1 grows the suit out from its focal piece. Plate starts from one pauldron, then the breastplate,
+      the bow-arm vambrace and the gorget; the partner pauldron arrives at 0.5 as a lesser piece; then greaves, cops,
+      the fauld and tassets, cuisses, gauntlets and sabatons. Lamellar starts from the crested kabuto, then the dō, the
+      sode, the kusazuri, the kote and the suneate.
+    - `mass` sets heft.
+    - `ornament` 0–3 is the edge budget, spent on the focal piece first.
+  - `language`:
+    - plate: `pauldron` (`spaulder` | `bell`), `focalSide`, `fnSide` (the arm that carries function takes the first
+      bracer);
+    - lamellar: `crest` (`crescent` | `kuwagata` | `sun`).
+  - The laws, as worn:
+    - one focal piece per suit, every piece sized to its body part;
+    - a plate never crosses a joint (each rides one bone, and cops cap a joint from one side);
+    - plate stays off where two body parts touch at rest;
+    - layers one clear value step apart;
+    - the edge is the ornament field;
+    - lamellar rows are a sawtooth held by lacing.
+  - The card's tones sit beneath the operator's palette. A kabuto covers the head, so set `hair: 'none'` (the readout
+    warns otherwise). `hero.dress.armor` reads out the style, the resolved dials, the pieces worn and the focal.
+  - Adornment signatures this uses, open to any kit:
+    - `facing` `{ dir, r, h }`: a disc on the piece's lifted outer skin, facing the eye;
+    - `boards` `{ n, len, thick, tilt, stand?, dm?, bow?, widen?, wide?, bottom, cords?, cordR?, cordGroup? }`: flat
+      laced rows hung from a piece's edge, with the cords in their own group;
+    - `crest` `{ shape, w, z, r }`.
+    An adornment with `stack: false` is never lifted under the ones worn after it.
 - **Body detail and adornment as plan data** (any plan, not only a hero: `docs/examples/ring-plans/flask.plan.json` is a
   wicker-wrapped flask — woven tiles, a lip ring, a band with a buckle — from 1.2 KB of plan). A plan may carry `body: { refine, volume, creases, tiles, pads, spurs, rows,
   collars, rigid? }` (`station-loft-body.js`, the head's detail principles one scale over: named density with parameters

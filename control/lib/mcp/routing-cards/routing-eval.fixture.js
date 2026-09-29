@@ -85,6 +85,9 @@ export const FIXTURE = [
   ['give my hero an undercut, then try a ponytail with a longer tail', 'mint_solid'],
   // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
   ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'mint_solid'],
+  // armor (layered hero adorn build): worn armour from a style and dials (armor)
+  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'mint_solid'],
+  ['only armour the shoulders and chest for now, full plate later', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

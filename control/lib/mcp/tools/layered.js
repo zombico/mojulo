@@ -30,7 +30,8 @@ import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygoniz
 import { humanoidAnchors, EXPRESSIONS, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
 import { validateCast, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
-import { DETAIL_WORDS, KIT_WORDS, validateDress, dressPlan, kitPalette } from '@/lib/graph/polygonizer/hero-dress';
+import { DETAIL_WORDS, KIT_WORDS, validateDress, dressPlan, kitPalette, dressContext } from '@/lib/graph/polygonizer/hero-dress';
+import { isArmorBuild, armorReadout, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { justify } from '@/lib/graph/polygonizer/station-loft-adorn';
 import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
 import { layeredLegibility } from '@/lib/graph/polygonizer/station-loft-legibility';
@@ -115,7 +116,7 @@ export function validateHeroSpec(spec) {
  * a later re-tuning of a move never changes a stored row's meaning. */
 export function heroRecord(spec) {
   const errs = validateHeroSpec(spec);
-  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')}, body?, palette?, head?: 'landmark' | 'none' | include }`);
+  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, body?, palette?, head?: 'landmark' | 'none' | include }`);
   const { from, ...tune } = resolveTune(spec.tune);
   const hero = { cast: spec.cast ?? 'male', register: spec.register ?? 'round', tune, ...(from ? { from } : {}), head: spec.head ?? 'landmark' };
   if (hero.head === 'landmark') {
@@ -124,6 +125,8 @@ export function heroRecord(spec) {
     if (spec.headPreset !== undefined) hero.headPreset = spec.headPreset;
   }
   for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'detail', 'adorn']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  // an armour build is stamped with the laws it was minted under, so a later refinement never moves a stored suit
+  if (isArmorBuild(hero.adorn) && hero.adorn.laws === undefined) hero.adorn = { ...hero.adorn, laws: ARMOR_LAWS_VERSION };
   return hero;
 }
 
@@ -143,10 +146,11 @@ export function heroPlanOf(hero) {
  * `mesh` is the compiled figure; without it the ledger is skipped. */
 export function dressReadout(hero, plan, mesh, recipe) {
   if (hero.detail === undefined && hero.adorn === undefined) return null;
-  const word = (v) => (v === undefined ? 'none' : typeof v === 'string' ? v : 'data');
+  const word = (v) => (v === undefined ? 'none' : typeof v === 'string' ? v : isArmorBuild(v) ? `armor:${typeof v.style === 'string' ? v.style : 'inline'}` : 'data');
   const DRESS = /^(crease|tile|patch|pad|spur|spine|stud|ring|cuff|wrap|collar)\./;
   const parts = Object.keys(mesh?.parts || {}); const count = (re) => parts.filter((n) => re.test(n)).length;
   const out = { detail: word(hero.detail), adorn: word(hero.adorn), ...(mesh ? { parts: { detail: count(DRESS), adorn: count(/^adorn\./) } } : {}) };
+  if (isArmorBuild(hero.adorn)) out.armor = armorReadout(hero.adorn, dressContext(plan.style));   // the style, dials, pieces worn, focal
   if (mesh && plan.adorn?.length) out.adornments = justify(mesh, plan.adorn.map((A) => ({ id: A.id, signature: A.signature.kind }))).map((r) => ({ id: r.id, signature: r.signature, verdict: r.verdict, exposed: r.sigExposed, share: r.sigShare }));
   // the read at the viewing height: the character height from which each dress family reads (the face's is measure_solid's)
   if (mesh) { const L = layeredLegibility(mesh); out.legibility = { viewPx: L.viewPx, families: L.families.filter((f) => DRESS.test(`${f.family}.`) || f.family.startsWith('adorn.')) }; }
@@ -194,6 +198,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const dress = dressReadout(hero, plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);
   if (unjustified.length) warnings.push(...unjustified);
+  if (dress?.armor?.worn?.includes('kabuto') && hair && hair.style !== 'none') warnings.push(`the kabuto covers the head and the hair (${hair.style}) passes through it: set /hero/hair/style 'none'`);
   for (const id of dress?.clearance?.sinking || []) { const w = dress.clearance.worst[id]; warnings.push(`adornment ${id} sinks into ${(w.into || []).join(', ') || 'the body'} at ${w.at} (${Math.round(w.share * 100)} % of its points): keep that dial nearer rest, or move the adornment`); }
   return { cast: hero.cast, register: hero.register, tune: hero.tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(hero.tune), measures: heroMeasures(plan, stats),
     head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include',
@@ -216,7 +221,7 @@ export async function createLayeredHeroHandler(input) {
   const face = hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
   const dressed = hero.detail !== undefined || hero.adorn !== undefined;
   const recipe = dressed ? expandPlan(plan) : undefined; const mesh = recipe ? compileLayered(recipe, {}) : undefined;   // the dress ledgers read the compiled figure
-  const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}) and /hero/adorn (${KIT_WORDS.join(', ')}).`;
+  const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament> and /hero/adorn/style.`;
   return {
     ...out,
     hero: heroReadout(hero, plan, out.stats, [], { mesh, recipe }),
