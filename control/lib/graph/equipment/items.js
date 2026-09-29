@@ -7,7 +7,7 @@
 //           longbow · recurve · horn · yumi (the grip a third of the way up). Tips: leaf · wing · spike · horn
 //   shield  a focal on a FACE (law 1b), with leading lines from the rim into it. Outlines: round · heater · kite.
 //           Devices: chevron · rays · bands · spikes · mon · wings · vine
-import { focalStone, recede, focalGrow as growOf, lerp } from './principles.js';
+import { focalStone, recedeRole, focalGrow as growOf, lerp } from './principles.js';
 import { mulberry32, r3, P, A, circle, mat, mergeInto as merge, push, setStone, feather, ribbon, girdleOf } from './shapes.js';
 
 export const ITEMS = Object.freeze({ staff: { L: 175, R: 1.6 }, bow: { L: 180, W: 3.0, T: 2.2, brace: 16 }, shield: { R: 38, H: 72, T: 1.8 } });
@@ -236,7 +236,7 @@ export function buildItem({ item, card, d, law, roles, gem: g, lang, seed }) {
   const gem = g && ['head', 'riser', 'boss'].includes(d.focus) && !GEMLESS_HEADS.includes(lang.head) && lang.device !== 'spikes'
     ? { ...g, glow: (g.glow || 0) + 0.35 * d.stylize } : null;
   roles = { ...roles, shaft: lang.shaft || roles.shaft || ['wood', '#6b4a2e'], board: lang.board || roles.board || ['wood', '#6b4a2e'],
-    ...(gem ? { fittings: [roles.fittings[0], recede(roles.fittings[1], d.stylize)] } : {}) };
+    ...(gem ? { fittings: recedeRole(roles.fittings, d.stylize) } : {}) };
   const minF = law.minFeature * (ITEMS[item].L || ITEMS[item].H * 1.5);
   const m = {};
   const rng = mulberry32(seed * 2654435761 + item.length * 97 + (card.id || '').length);

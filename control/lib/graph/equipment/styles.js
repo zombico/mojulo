@@ -8,8 +8,11 @@
 //   language  slot → variant for the sword family, with per-item overrides (`dagger`, `staff`, `bow`, `shield`);
 //             staff / bow / shield entries may also name their `focus`, a `shaft` or `board` role, a `bark` species
 //   edge      blade edge: fuller (0–1), bevel (0–1), single (a spine), barbs (count), twoTone
-//   roles     material role → [shelf material, '#hex']: blade, edge?, fittings, accent, wrap, leaf?
+//   roles     material role → [shelf material, '#hex'] or a metal surface { metal, finish?, film? } (its colour is the
+//             metal's measured optics): blade, edge?, fittings, accent, wrap, leaf?
 //   gem       the stone the sample carries when its focus takes one: { gem, cut, glow }
+
+import { isMetalSurface, metalSurfaceError } from '../materials/metal-surface.js';
 
 export const SEEDED_STYLES = Object.freeze({
   historical: {
@@ -21,7 +24,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "longbow", "tips": "none", "focus": "curve", "shaft": ["wood", "#8a5a32"] },
       "shield": { "outline": "heater", "device": "chevron", "focus": "none", "board": ["wood", "#7a2e2a"] } },
     "edge": { "fuller": 0.35, "bevel": 0.55 },
-    "roles": { "blade": ["steel", "#b8c0c8"], "fittings": ["steel", "#8e969e"], "accent": ["bronze", "#a9824a"], "wrap": ["leather", "#5a3b24"] }
+    "roles": { "blade": { "metal": "steel", "finish": "brushed" }, "fittings": { "metal": "steel", "finish": "blasted" }, "accent": { "metal": "bronze", "finish": "polished" }, "wrap": ["leather", "#5a3b24"] }
   },
   elven: {
     "id": "elven",
@@ -32,7 +35,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "recurve", "tips": "leaf", "focus": "riser", "shaft": ["wood", "#d8ceb4"] },
       "shield": { "outline": "kite", "device": "vine", "focus": "boss", "board": ["silver", "#c9d6df"] } },
     "edge": { "fuller": 0.25, "bevel": 0.4 },
-    "roles": { "blade": ["silver", "#dfe7ee"], "fittings": ["silver", "#c9d3dc"], "accent": ["silver", "#e8eef4"], "wrap": ["matte", "#2f4a5c"] },
+    "roles": { "blade": { "metal": "silver", "finish": "polished" }, "fittings": { "metal": "silver", "finish": "brushed" }, "accent": { "metal": "silver", "finish": "mirror" }, "wrap": ["matte", "#2f4a5c"] },
     "gem": { "gem": "sapphire", "glow": 0.35, "cut": "brilliant" }
   },
   dwarven: {
@@ -44,7 +47,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "horn", "tips": "horn", "focus": "riser", "shaft": ["wood", "#3b2a1e"] },
       "shield": { "outline": "round", "device": "bands", "focus": "boss", "board": ["wood", "#5a3a24"] } },
     "edge": { "fuller": 0.15, "bevel": 0.72 },
-    "roles": { "blade": ["gunmetal", "#8f969d"], "fittings": ["bronze", "#9c7a45"], "accent": ["gold", "#d6a93a"], "wrap": ["leather", "#3d2a1c"] },
+    "roles": { "blade": { "metal": "steel", "finish": "polished", "film": { "temper": 300 } }, "fittings": { "metal": "bronze", "finish": "planished" }, "accent": { "metal": "gold", "finish": "polished" }, "wrap": ["leather", "#3d2a1c"] },
     "gem": { "gem": "ruby", "glow": 0.1, "cut": "brilliant" }
   },
   brutal: {
@@ -56,7 +59,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "recurve", "tips": "spike", "focus": "tips", "shaft": ["matte", "#cbbd9c"] },
       "shield": { "outline": "round", "device": "spikes", "focus": "boss", "board": ["wood", "#4a3b2e"] } },
     "edge": { "fuller": 0, "bevel": 0.8, "barbs": 4 },
-    "roles": { "blade": ["gunmetal", "#5f5c58"], "fittings": ["gunmetal", "#3d3a37"], "accent": ["matte", "#d8ccb0"], "wrap": ["matte", "#d2c3a2"] }
+    "roles": { "blade": { "metal": "steel", "finish": "mill" }, "fittings": { "metal": "steel", "finish": "mill" }, "accent": ["matte", "#d8ccb0"], "wrap": ["matte", "#d2c3a2"] }
   },
   eastern: {
     "id": "eastern",
@@ -67,7 +70,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "yumi", "tips": "none", "focus": "curve", "shaft": ["satin", "#2a1f1a"] },
       "shield": { "outline": "round", "device": "mon", "focus": "boss", "board": ["satin", "#1f1d1c"] } },
     "edge": { "fuller": 0, "bevel": 0.35, "single": true },
-    "roles": { "blade": ["silver", "#d4dade"], "fittings": ["gunmetal", "#2d2b2a"], "accent": ["gold", "#c79a3c"], "wrap": ["matte", "#1f2340"] }
+    "roles": { "blade": { "metal": "steel", "finish": "polished" }, "fittings": { "metal": "steel", "finish": "blasted", "film": { "temper": 340 } }, "accent": { "metal": "gold", "finish": "brushed" }, "wrap": ["matte", "#1f2340"] }
   },
   "anime-hero": {
     "id": "anime-hero",
@@ -78,7 +81,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "recurve", "tips": "wing", "focus": "riser", "shaft": ["satin", "#f2f2f0"] },
       "shield": { "outline": "heater", "device": "wings", "focus": "boss", "board": ["satin", "#2f63d8"] } },
     "edge": { "fuller": 0, "bevel": 0.62, "twoTone": true },
-    "roles": { "blade": ["satin", "#2f63d8"], "edge": ["silver", "#e7edf3"], "fittings": ["satin", "#f2f2f0"], "accent": ["gold", "#e0b440"], "wrap": ["matte", "#b3242c"] },
+    "roles": { "blade": ["satin", "#2f63d8"], "edge": { "metal": "chrome", "finish": "mirror" }, "fittings": ["satin", "#f2f2f0"], "accent": { "metal": "gold", "finish": "mirror" }, "wrap": ["matte", "#b3242c"] },
     "gem": { "gem": "sapphire", "glow": 0.6, "cut": "brilliant" }
   },
   druid: {
@@ -90,7 +93,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "longbow", "tips": "leaf", "focus": "riser", "bark": "oak", "shaft": ["wood", "#6e5238"] },
       "shield": { "outline": "round", "device": "vine", "focus": "boss", "board": ["wood", "#5a4330"] } },
     "edge": { "fuller": 0, "bevel": 0.5 },
-    "roles": { "blade": ["bronze", "#9c7a45"], "fittings": ["wood", "#6e5238"], "accent": ["bronze", "#7d8f5a"], "wrap": ["leather", "#4a3524"], "leaf": ["matte", "#5d8a3c"] },
+    "roles": { "blade": { "metal": "bronze", "finish": "planished" }, "fittings": ["wood", "#6e5238"], "accent": { "metal": "bronze", "film": { "age": 40 } }, "wrap": ["leather", "#4a3524"], "leaf": ["matte", "#5d8a3c"] },
     "gem": { "gem": "tourmaline", "glow": 0.3, "cut": "natural" }
   },
   celestial: {
@@ -102,7 +105,7 @@ export const SEEDED_STYLES = Object.freeze({
       "bow": { "limb": "recurve", "tips": "wing", "focus": "riser", "shaft": ["satin", "#f4f1e8"] },
       "shield": { "outline": "heater", "device": "rays", "focus": "boss", "board": ["satin", "#f1ede2"] } },
     "edge": { "fuller": 0.3, "bevel": 0.5 },
-    "roles": { "blade": ["silver", "#eef1f4"], "fittings": ["gold", "#e3bb4c"], "accent": ["gold", "#f0cf6a"], "wrap": ["matte", "#f4f1e8"] },
+    "roles": { "blade": { "metal": "stainless", "finish": "mirror" }, "fittings": { "metal": "gold", "finish": "polished" }, "accent": { "metal": "gold", "finish": "mirror" }, "wrap": ["matte", "#f4f1e8"] },
     "gem": { "gem": "diamond", "glow": 0.2, "cut": "brilliant" }
   },
 });
@@ -121,7 +124,8 @@ export const VARIANTS = Object.freeze({
   device: ['none', 'chevron', 'rays', 'bands', 'spikes', 'mon', 'wings', 'vine'],
 });
 export const BARK_SPECIES = Object.freeze(['beech', 'oak', 'pine', 'chestnut', 'spruce', 'silverfir', 'pineUpper']);
-const ROLE = (v) => Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && /^#[0-9a-fA-F]{6}$/.test(v[1]);
+const SHELF = (v) => Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && /^#[0-9a-fA-F]{6}$/.test(v[1]);
+const ROLE = (v) => SHELF(v) || (isMetalSurface(v) && !metalSurfaceError(v));
 
 /** Validate a style card → an array of error strings (empty when valid). */
 export function validateStyleCard(card, path = 'style') {
@@ -137,7 +141,7 @@ export function validateStyleCard(card, path = 'style') {
     if ((slot === 'shaft' || slot === 'board') && !ROLE(v)) errs.push(`${p}.${slot}: a role is ['<material>', '#rrggbb']`); } };
   checkSlots(lang, `${path}.language`);
   for (const k of ['dagger', 'sword', 'greatsword', 'staff', 'bow', 'shield']) if (lang[k]) checkSlots(lang[k], `${path}.language.${k}`);
-  for (const [role, v] of Object.entries(card.roles || {})) if (!ROLE(v)) errs.push(`${path}.roles.${role}: a role is ['<material>', '#rrggbb']`);
+  for (const [role, v] of Object.entries(card.roles || {})) if (!ROLE(v)) errs.push(`${path}.roles.${role}: a role is ['<material>', '#rrggbb'] or a metal surface { metal, finish?, film? }${isMetalSurface(v) ? ` — ${metalSurfaceError(v)}` : ''}`);
   for (const role of ['blade', 'fittings', 'accent', 'wrap']) if (!card.roles?.[role]) errs.push(`${path}.roles.${role}: required`);
   return errs;
 }

@@ -45,6 +45,13 @@ every read. Opt-in through `build` on a workbench.
   - On a shield, the stone is sized against the whole face.
 - **Styles are cards.** Eight samples ship as plain data: historical, elven, dwarven, brutal, eastern, anime-hero,
   druid and celestial. `style` also takes an inline card, so a new direction is a new card, not code.
+- **Real metal.** A card's material role may be a metal surface `{ metal, finish, film }` (see Metal surfaces), so
+  a blade reflects the studio instead of reading as paint. The samples wear:
+  - brushed steel and blasted fittings (historical), and polished silver (elven);
+  - blued, tempered steel with planished bronze and gold (dwarven), and mill-scaled steel (brutal);
+  - blued-steel fittings with brushed gold (eastern), and a chrome edge (anime-hero);
+  - planished bronze with verdigris accents (druid), and mirror stainless under polished gold (celestial).
+  - A painted fitting still recedes as stylization rises; a metal keeps its own colour.
 - **The readout.** `stats.equipment` names the focal and its share of its host or face, the resolved dials and
   variants, and the sockets (`grip`, `tip`, `focal`, and a bow's nocks) that a figure mounts gear by.
 - **Bark on any lathe or loft.** `bark: 'oak'` (or `{ species, tile }`) on a lathe or loft wears the trees' own

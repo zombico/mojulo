@@ -17,7 +17,9 @@ export const P = (x, y, z) => ({ x: r3(x), y: r3(y), z: r3(z) });
 export const A = (x, y, z) => [r3(x), r3(y), r3(z)];
 export const clamp01 = (t) => Math.max(0, Math.min(1, t));
 export const smooth = (a, b, t) => { const x = clamp01((t - a) / (b - a)); return x * x * (3 - 2 * x); };
-export const mat = (role) => ({ material: role[0], tint: role[1] });
+// a role is a shelf row ['<material>', '#hex'] or a metal surface { metal, finish?, along?, film? } (materials/metal-surface.js),
+// which carries its own colour from measured optics
+export const mat = (role) => (Array.isArray(role) ? { material: role[0], tint: role[1] } : { material: role });
 
 /** A closed circle of n segments in the xz, xy or yz plane (first point repeated last). */
 export function circle(c, r, n, plane = 'xz') {

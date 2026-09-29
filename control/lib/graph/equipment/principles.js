@@ -73,7 +73,11 @@ export function focalStone({ stylize: s = 0, host = 1, face = null }) {
 /** A non-stone focal (a mace head, a ringed loop, a spiked boss) grows by this factor. */
 export const focalGrow = (s) => lerp(1, 2.1, s ** 0.9);
 
-/** Law 5: a fitting's colour steps toward neutral as stylization rises, so the focal carries the contrast. */
+/**
+ * Law 5: a painted fitting's colour steps toward neutral as stylization rises, so the focal carries the contrast. A metal
+ * surface keeps its colour (it is the metal's optics); its role passes through.
+ */
+export function recedeRole(role, s) { return Array.isArray(role) ? [role[0], recede(role[1], s)] : role; }
 export function recede(hex, s, toward = '#9a9a9a') {
   const t = 0.35 * s;
   const a = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)), b = [1, 3, 5].map((i) => parseInt(toward.slice(i, i + 2), 16));

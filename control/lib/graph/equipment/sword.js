@@ -4,7 +4,7 @@
 //   guard   bar · crescent · block · spiked · disc (a tsuba with a rim) · winged (three feathers a side)
 //   grip    leather (ridged) · banded · wire (a helix) · cord (two crossing helices)
 //   pommel  wheel · block · spike · cap · ring · cage (sized by its stone, prongs touching the girdle)
-import { proportion, focalStone, recede } from './principles.js';
+import { proportion, focalStone, recedeRole } from './principles.js';
 import { mulberry32, r3, P, A, clamp01, smooth, circle, mat, mergeInto, setStone, feather, girdleOf } from './shapes.js';
 
 export const SWORDS = Object.freeze({
@@ -157,7 +157,7 @@ export function buildSword({ item, card, d, law, lean, roles, gem: g, parts, see
   const pick = (slot) => parts[slot] || card.language[item]?.[slot] || card.language[slot];
   const gem = g && d.focus !== 'none' && d.focus !== 'blade' ? g : null;
   // law 5: fittings recede toward neutral when a stone carries the contrast
-  if (gem) roles = { ...roles, fittings: [roles.fittings[0], recede(roles.fittings[1], d.stylize)] };
+  if (gem) roles = { ...roles, fittings: recedeRole(roles.fittings, d.stylize) };
   const m = {};
   const trace = { variants: {} };
 

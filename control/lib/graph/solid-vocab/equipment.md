@@ -54,7 +54,7 @@ Gems: quartz, amethyst, calcite, diamond, ruby, sapphire, tourmaline, opal. A `n
 
 ## Samples, not a catalogue
 
-The eight styles are cards (plain JSON: `dials`, `lean`, `language` per item, `edge`, `roles`, `gem`). Copy one, change it, and pass it as `style` — a new direction is a new card, not code:
+The eight styles are cards (plain JSON: `dials`, `lean`, `language` per item, `edge`, `roles`, `gem`). A role is a shelf row `['<material>', '#hex']` or a metal surface `{ metal, finish?, film? }` (the workbench card's metal-surface line): `{ metal: 'steel', film: { temper: 300 } }` is blued steel, `{ metal: 'bronze', film: { age: 40 } }` verdigris. Copy one, change it, and pass it as `style` — a new direction is a new card, not code:
 
 ```
 style: { id: 'frost', dials: { stylize: 0.6, mass: 0.9, focus: 'guard', ornament: 2 },

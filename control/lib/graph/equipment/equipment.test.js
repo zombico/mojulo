@@ -121,6 +121,14 @@ describe('the recipe surface', () => {
     for (const want of ['dagger, sword', 'historical, elven', "'katana' is not one of straight", 'build.parts.helm', "'emerald'", 'stylize: a number 0–1']) expect(text).toContain(want);
     expect(() => expandEquipment({ type: 'equipment', item: 'staff', style: 'druid', laws: 99 })).toThrow(/laws 99|carries laws/);
   });
+  it('a role may be a metal surface; a bad one names the metals', () => {
+    const card = JSON.parse(JSON.stringify(SEEDED_STYLES.dwarven));
+    expect(card.roles.blade).toEqual({ metal: 'steel', finish: 'polished', film: { temper: 300 } });
+    const lofts = expandEquipment(build('sword', 'dwarven')).monomers.lofts;
+    expect(lofts.find((l) => l.group === 'blade').material).toEqual(card.roles.blade);
+    card.roles.blade = { metal: 'mithril' };
+    expect(validateStyleCard(card).join()).toMatch(/unknown metal 'mithril'.*steel/);
+  });
   it('a focus the item cannot take is refused', () => {
     expect(validateBuild(build('staff', 'druid', { dials: { focus: 'pommel' } })).join()).toContain('head, none');
   });
