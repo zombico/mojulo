@@ -12,6 +12,7 @@
  */
 import { terrainField, validateTerrainSpec, gradedField } from './terrain-field.js';
 import { validateTerrainCities, prepareCity, seatCity, cityLight } from './terrain-city.js';
+import { validateTerrainGrass, resolveTerrainGrass, grassConfig, grassPageChannel } from './terrain-grass.js';
 import { validateTerrainPlants, resolveTerrainPlants, plantsConfig, plantPools, plantsPageChannel, plantsBake } from './terrain-plants.js';
 import { terrainKernel } from './terrain-kernel.js';
 import { slicedTerrainFaces, sliceLevels } from '../polygonizer/landform-mesh.js';
@@ -45,6 +46,7 @@ export function validateTerrainWorld(m) {
   }
   if (m && m.cities !== undefined) errs.push(...validateTerrainCities(m.cities));
   if (m && m.plants !== undefined) errs.push(...validateTerrainPlants(m.plants, m));
+  if (m && m.grass !== undefined) errs.push(...validateTerrainGrass(m.grass, m));
   const lod = m && m.lod;
   if (lod !== undefined) {
     if (!lod || typeof lod !== 'object') errs.push('terrain.lod must be { minSize?, split?, maxChunks? }');
@@ -218,6 +220,13 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
     if (live) { channel.plants = plantsPageChannel(V, pools, plantsSpec); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), templates: channel.plants.templates.length, triangles: channel.plants.templates.reduce((a, t) => a + t.tris, 0) }; }
     else { plantBake = plantsBake(field, V, pools, { at: [wx, wy], radius: 600 }); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), baked: plantBake.count }; }
   }
+  // grass (terrain-grass.js): a near field the live page stands around the camera; exports carry none (a blade is below
+  // a pixel past a few tens of metres, and the ground's colour is the meadow)
+  const grassSpec = resolveTerrainGrass(manifest.grass); let grassMeta = null;
+  if (grassSpec && live) {
+    const Vg = grassConfig(field, grassSpec); channel.grass = grassPageChannel(Vg, grassSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
+    grassMeta = { climate: Vg.climate, kinds: Vg.species.map((sp) => sp.name), templates: channel.grass.templates.length, triangles: channel.grass.templates.reduce((a, t) => a + t.tris, 0) };
+  }
   const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];
   const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place) : null;
   return {
@@ -228,6 +237,6 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
     haze: { color: bg, density: field.atlas ? 1.2 / Math.min(world, 8e4) : 0.9 / world },   // a composed world is seen through the air: tens of kilometres, not its whole width
     walk: { speed: channel.speeds.walk, spawn: [wx, wy, gz + EYE], radius: 0.4, minEye: EYE, gravity: 20, jump: 6 },
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
-    meta: { span: field.meta.span, bounds: b, rootSize: channel.root.size, octaves: field.meta.octaves, planet: PLN ? { R: PLN.R } : null, ...(field.atlas ? { world: field.atlas } : {}), ...(cities.length ? { cities: cities.map(({ prep: p, stats }) => ({ center: p.center, size: [p.rect.w, p.rect.d], sited: p.sited, grade: p.grade.stats, ...stats })) } : {}), ...(plantMeta ? { plants: plantMeta } : {}) },
+    meta: { span: field.meta.span, bounds: b, rootSize: channel.root.size, octaves: field.meta.octaves, planet: PLN ? { R: PLN.R } : null, ...(field.atlas ? { world: field.atlas } : {}), ...(cities.length ? { cities: cities.map(({ prep: p, stats }) => ({ center: p.center, size: [p.rect.w, p.rect.d], sited: p.sited, grade: p.grade.stats, ...stats })) } : {}), ...(plantMeta ? { plants: plantMeta } : {}), ...(grassMeta ? { grass: grassMeta } : {}) },
   };
 }

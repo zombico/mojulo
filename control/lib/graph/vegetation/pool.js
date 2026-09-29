@@ -60,7 +60,8 @@ export function trisToFaces(tris, { light = null, yaw = 0, scale = 1, group = 'p
       continue;
     }
     const corners = t.p.map((q) => { const r = rotZ(q, yaw); return [r[0] * scale, r[1] * scale, r[2] * scale]; });
-    let n = faceNormal(corners); if (t.kind === 'leaf' && n[2] < 0) n = [-n[0], -n[1], -n[2]];
+    // a tri may carry its own normal (a grass tuft lit as one volume); else its face's, a leaf's lit side up
+    let n = t.n ? rotZ(t.n, yaw) : faceNormal(corners); if (!t.n && t.kind === 'leaf' && n[2] < 0) n = [-n[0], -n[1], -n[2]];
     out[i] = { corners, fill: shadeHexMat(hex(t.c), n, null, lit), outNormal: n, doubleSided: true, group };
   }
   return out;

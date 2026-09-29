@@ -96,6 +96,55 @@ numbers below were checked against the literature, and several first guesses tur
   smooth grey bark. Large figs stand about one a hectare in lowland rainforest, so a terrain world's fig rows are
   sparse.
 
+## Grass: the tuft as a primitive (`grass.js`)
+
+- **A grass branches only at its base.** A tuft is tillers from one crown:
+  - basal blades, each an elastica strip whose bending number sets how far it arches;
+  - flowering culms standing above the blades, headed by a panicle, a plume, a spike or feathered awns.
+
+  A kind (`GRASSES`) is a row of numbers over that one builder: blade count, length, width, stiffness, splay, culms,
+  head, colours and a dry share. The reed tuft is the same idea from the culm builder. `over` retunes a kind in a recipe.
+- **Habit is bamboo's split carried down**, as an analogy: a tussock (intravaginal tillers, packed) or a sward
+  (rhizomes or stolons, spreading). A short sward (`lawn`, 6–15 cm) is a third habit, turf: each instance is a plug of
+  turf, wider than it is tall, packed into a carpet. A tuft's size on screen is its larger extent, or a plug would take
+  the coarsest levels.
+- **A style is orthogonal to the kind.** `stylized` (Breath of the Wild the touchstone) turns any kind into:
+  - chunkier blades (at most 18 mm) that stand, even in length, of four segments (the gradient needs them: a face
+    carries one colour);
+  - heads only on a plume;
+  - a saturated gradient from a dark base to a bright tip;
+  - every normal straight up, so a blade is lit as the ground under it and the field reads as fur on the terrain.
+- **The leaf is the ruler, at its extreme.** A blade is 2–25 mm wide and falls below a pixel a few metres off, so the
+  ladder is short:
+  - L2 every blade;
+  - L1 a third of them, wider;
+  - L0 seven strips;
+  - LF three triangles.
+
+  Past the grass radius the ground's colour is the meadow.
+- **A tuft is lit as one volume.** Normals are bent out from its heart and up (Fox Engine's rotated normals, Ghost of
+  Tsushima's clump normals), and the base is darker, all baked into its vertex colours.
+- **Placement is the trees' read the other way round** (`terrain/grass-kernel.js`):
+  - grass stands on open ground and thins under the painter's wood; tree cover of LAI 1 halves grass cover (Pilon et
+    al. 2021);
+  - it comes in patches, and in clumps that share a height dome, a lean and a shade;
+  - tussocks lean out of their knots.
+- **Kinds by climate.** Tall C4 grass is placed up to about 2,700 m on a tropical mountain; on Mt Kenya the C3/C4
+  crossover is at 2,800–3,200 m (Tieszen et al. 1979). Tussock grass goes toward and above the treeline.
+- **The far field keeps its illusion by thinning, not detail** (`scene/channels/terrain-grass.js`):
+  - thinning by size bands: a tuft's `near` grows with its height;
+  - past `near`, a stable rank against (near/d)² decides which tufts stand, so a patch of screen holds about the same
+    tufts;
+  - survivors widen by up to 1.8×, grow and shrink over the last quarter of their threshold, and are drawn toward the
+    ground's colour with distance.
+
+  This is what MGSV's size-keyed bands and Ghost of Tsushima's far tiles (the same blade count over a larger area) do.
+- **Known limits:**
+  - no wind yet (a vertex sway within a near active distance would be the next opt-in);
+  - no interaction;
+  - a big plume (pampas) close up reads as paper, not feathers;
+  - exports carry no grass.
+
 ## Bamboo: the stack as a lathe (`bamboo.js`)
 
 - **The culm is a profile r(s) swept round a spine.** There is no bark, no rings and no spiral grain.
@@ -258,3 +307,5 @@ per thing a person sees:
 - European Atlas of Forest Tree Species 2016: Caudullo et al. (Picea abies), Mauri et al. (Abies alba), Houston Durrant et al. (Pinus sylvestris).
 - Reich et al. 1996.
 - Priehäusser 1958; Geburek et al. 2008.
+- Tieszen et al. 1979 (Oecologia 37:337); Pilon et al. 2021 (J. Veg. Sci.); Wohllaib 2021 (GDC, "Procedural Grass in
+  Ghost of Tsushima"); the Fox Engine's grass and brush classes (FoxTool, the MGSV Modding Wiki).
