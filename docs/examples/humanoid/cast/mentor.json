@@ -1,0 +1,20 @@
+{
+  "name": "mentor",
+  "$note": "An older, calm mentor (male): a slightly smaller head, a longer and leaner face, narrow tired eyes under heavy lids, a composed mouth and sleek swept-back greying hair. Shows an expression list (a pose word, then an own amount: the lids a third closed), the graphic face words for the lids and the brows, and a silver streak highlight on the fringe alone (toon.light.highlight, kind streak).",
+  "hero": {
+    "cast": "male",
+    "head": "anime",
+    "look": ["mentor", "swept-back", "mature", "narrow-eyes", "heavy-lid", "tareme", "sleek"],
+    "face": { "lower": 1.03, "width": 0.94, "cheekVolume": 0.9, "eyeHeight": 1.08, "tilt": -0.03 },
+    "sculpt": { "mouthWidth": 1.06, "browAngle": -8, "lidCover": 1.15, "browThick": 1.3, "browLength": 1.1 },
+    "hair": {
+      "lift": { "crown": 0.07, "temple": 0.04, "fringe": 0.04, "nape": 0.04 },
+      "sweepBack": { "amount": 1, "rise": 1.3, "spread": 1 },
+      "sweepSides": { "amount": 1, "from": 0 }
+    },
+    "tune": { "head": 0.97 },
+    "expression": ["neutral", { "blink": 0.35 }]
+  },
+  "palette": { "Hair": "#6c6a67", "HairHighlight": "#c4c1bb", "Top": "#3f4a5a", "Bottom": "#2e3138" },
+  "toon": { "light": { "highlight": { "Hair": { "kind": "streak", "threshold": 0.4, "parts": "fringe" } } } }
+}

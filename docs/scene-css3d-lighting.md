@@ -203,7 +203,8 @@ manifest.scene = {
           | { vexar, tint, sources, lamps, diffusion, gravity }, // advanced override
   sky: 'dusk' | { preset, sun, moon, stars }, // overrides the preset sky
 }
-manifest.toon = true | { bands: 3, ink: true | { color, width, crease } }   // the TOON dial (also at scene.toon)
+manifest.toon = true | { bands: 3, ink: true | { color, width, widthAbs, crease, lines },
+                         light?: true | false | { toLight, threshold, thresholds, shade, unlit, highlight } }   // the TOON dial (also at scene.toon)
 ```
 
 **`toon`** is a LOOK dial, orthogonal to `time` / `lighting`: `bands` quantizes the baked Lambert
@@ -211,9 +212,17 @@ term into N tones (`withBands` / `bandFactor` in vexar; the final key+fill facto
 the shadow hemisphere steps too, while gravity darkening, lamps and traced diffusion stay
 continuous on top). Because every backend draws the baked fills, the bands show identically in
 the SVG still, this CSS-3D scene, the orbit World and every export (COLOR_0). `ink` is the World's
-outline channel only (`channels/toon-ink.js`: inverted-hull silhouettes + crease lines); the
-stills ignore it. `true` = `{ bands: 3, ink: true }`. A monomer's own `material.cel` wins over the
-light's bands for that part; the unshaded export (`FLAT_LIGHT`) ignores the dial.
+outline channel only (`channels/toon-ink.js`: inverted-hull silhouettes + crease lines; `lines: false`
+keeps the silhouette alone, `widthAbs` sets the hull width in world units instead of a fraction of
+the group's radius); the stills ignore it. `true` = `{ bands: 3, ink: true }`. A monomer's own
+`material.cel` wins over the light's bands for that part; the unshaded export (`FLAT_LIGHT`) ignores
+the dial. `light` is the layered kind's CHARACTER LIGHT (its manual, `solid-vocab/layered.md`): a
+two-tone step in the figure's own frame, baked into the faces and split along the terminator
+(`highlight` a third tone on a group's lit side, a ring or a streak, split along a second line), the
+anime hero's default; every other kind never reads it, and it never reaches the page's dial. Its faces
+may carry a draw `layer` (`through`, `veil`, `hair`): the World page then splits the render group by it
+and draws two stencil rules (`channels/draw-layers.js`: the brows through the fringe, the hair outline
+never over hair), asking for a stencil buffer only on such a page.
 
 Per the decision rule above: `lighting: 'flat'` for technical figures; a `time` for
 artistic scenes. `time` is the one handle that matters for most lit scenes — it picks

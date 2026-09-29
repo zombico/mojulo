@@ -32,6 +32,8 @@ import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
+import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt } from '@/lib/graph/polygonizer/station-loft-shade';
+import { standPose, poseLayered, rigidParts, GESTURE_CLIP } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateRig, bindLayered, packLayeredRig } from '@/lib/graph/polygonizer/station-loft-rig';
 import { meshSource } from '@/lib/graph/polygonizer/stroke-resolve';
 import { silhouetteResidual } from '@/lib/graph/polygonizer/silhouette-solve';
@@ -166,6 +168,9 @@ async function resolveWrapSourceList(sources) {
   }
   return textures;
 }
+
+/** a compiled mesh's height (max z − min z): the character ink's width scale */
+const zExtent = (mesh) => { let lo = Infinity, hi = -Infinity; for (const v of mesh.vertices) { if (v[2] < lo) lo = v[2]; if (v[2] > hi) hi = v[2]; } return hi > lo ? hi - lo : 0; };
 
 // The two dominant calling conventions; odd kinds write their lambda inline.
 const view = (assemble, title) => ({ title, resolve: (m, ctx) => assemble(m, { title: ctx.title }) });
@@ -507,19 +512,60 @@ export const WORLD_KINDS = {
       const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
       const rigged = !!(m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length);
       const light = withBands(ctx.light || WORKBENCH_LIGHT, resolveToon(ctx.toon)?.bands); const seat = m.seat !== false;
-      const faces = layeredFaces(mesh, m.recipe, { light, seat, group: rigged ? 'body' : null });
+      // The STAND (hero-gesture.js): a HERO (a hero-door row, `m.hero`) whose rigged recipe carries the one-key `gesture`
+      // clip shows its static solid skinned at that key (bindLayered → rigNodesAt → boneFrames → skinLayered), seated on
+      // the REST floor its planted toes hold; the light below is baked on that posed mesh. Keyed on the hero record, so a
+      // plan's own clip of that name stays an ordinary clip. No stand ⇒ the rest mesh, byte-identical.
+      const rig = rigged ? (() => { const R = validateRig(m.recipe.rig); return { R, skin: bindLayered(mesh, m.recipe, R) }; })() : null;
+      const stand = rig && m.hero ? standPose(m.recipe, rig.R) : null;
+      const shown = stand ? poseLayered(mesh, m.recipe, stand, rig).mesh : mesh; const restDz = layeredSeat(mesh, seat);
+      // The character light (station-loft-shade.js): ctx.light (FLAT_LIGHT under the unshaded / lit export) wins, then
+      // the manifest's `toon.light`, then the anime head's read-time default; the static faces then take the step (two
+      // tones, three where the light names a highlight), split crisply along the iso-lines. Null (every other manifest)
+      // ⇒ today's Lambert bake, byte-identical. `light` stays the studio key for the grid either way; toon bands band
+      // that key, never the character step. The pieces are built ONCE (shading normals, step, split) and shared by the
+      // static faces and the rig pack, so the rest solid and the clip preview show the same tones on the same lines.
+      // Standing in a gesture, the step and the split are decided on the POSED mesh (the weld and the region weights
+      // read the rest), except the parts riding the head bone, lit in the head's OWN frame (rigidParts → the rest
+      // normals): a nodded or turned head keeps the shadow shapes it has at rest. The rig pack re-places those pieces on
+      // the rest mesh it skins from (piecesAt), so its bind pose carries the same two tones.
+      const character = resolveCharacterLight(m, ctx);
+      const normals = character ? layeredShadingNormals(shown, m.recipe, stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) : null;
+      const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh }) : null;
+      // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
+      // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
+      // fields win. It rides the payload's own `toon` (world-scene keeps a resolver's toon over the manifest's).
+      const rawToon = m.toon ?? m.scene?.toon; const toon = ctx && 'toon' in ctx ? ctx.toon : resolveToon(rawToon, { light: true });
+      const ink = character ? characterInk(rawToon?.ink === false ? false : toon?.ink, zExtent(mesh)) : null;
+      // The DRAW LAYERS (station-loft-shade drawLayer): the faces of a part flagged `through` / `veil` (the graphic face's
+      // brows and lids drawn through the fringe) carry that `layer`, and with the ink on every other hair face carries
+      // 'hair' (a hair outline never draws over hair), so the World page splits the render group by layer and draws the
+      // stencil rules (channels/draw-layers.js); the rig pack orders its parts the same way (`ranges`). A mesh with no
+      // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
+      const faces = character
+        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged ? 'body' : null, hairInk: !!ink })
+        : layeredFaces(shown, m.recipe, { light, seat, group: rigged ? 'body' : null, ...(stand ? { dz: restDz } : {}) });
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
+      if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       // A rigged recipe with clips also carries its packed rig figure (station-loft-rig.js): the skinned
       // glTF export (`export_model { clips, skinned }`) reads it, `embodies: 'body'` drops the static solid
       // from that export, and `preview` lets the World page play the clips over the hidden solid.
       if (rigged) {
-        const R = validateRig(m.recipe.rig); const skin = bindLayered(mesh, m.recipe, R); const dz = layeredSeat(mesh, seat);
+        const { R, skin } = rig; const dz = restDz;
         // hullShade (opt-in, manifest-level): bake COLOR_0 from the smooth L1 hull normal field instead of
         // flat face normals — `hullShade: true | { except: [...] }`; absent ⇒ the pack is byte-identical.
         // rim (opt-in): ms-contrast's fresnel edge `[r,g,b,strength,power]` carried on the packed figure,
         // rendered by the rig-preview channel's rim patch; absent ⇒ byte-identical.
+        // Under the character light the pack takes the same pieces (palette, step, split; joints and weights
+        // interpolated at the split), and with the character ink the preview inks its moving parts and hides the
+        // static outline with the static solid (`preview.ink`, the rig-preview channel).
+        // Standing, the static solid IS the stand (skinned exactly), so the preview opens on it (`solid: 'stand'`) and
+        // leaves the one-key clip out of its picker (played by rigidly moved parts it would only crack at the joints);
+        // the clip stays in the pack for the skinned and engine exports.
         const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : null;
-        scene.figures = { body: { ...packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null }), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips: Object.keys(m.recipe.clips), hide: 'body', period: 3 } } };
+        const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}) });
+        const clips = Object.keys(m.recipe.clips).filter((c) => !(stand && c === GESTURE_CLIP));
+        scene.figures = { body: { ...pack, ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It
       // carries the wire's framing of the UNSEATED mesh (what a stroke resolves against) and the seat, the stored

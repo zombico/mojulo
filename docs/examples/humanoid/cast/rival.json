@@ -1,0 +1,18 @@
+{
+  "name": "rival",
+  "$note": "A cool, aloof rival (female): an angular face, narrow upturned eyes, a short mouth and a deadpan look under a sleek dark navy bob. Shows the fringe regrouped by hand (fringeGroups) so one narrow section carries a single bang, which lock edits drop over the near eye in the three-quarter view.",
+  "hero": {
+    "cast": "female",
+    "head": "anime",
+    "look": ["rival", "sharp", "tsurime", "narrow-eyes", "sharp-eyes", "bob", "sleek", "deadpan"],
+    "face": { "tilt": 0.08 },
+    "sculpt": { "mouthWidth": 0.8 },
+    "hair": {
+      "fringeGroups": [[1, 2, 3, 4], [5, 6], [6, 7]],
+      "backNotch": 1,
+      "lift": { "crown": 0.09, "temple": 0.06 },
+      "locks": { "fringe-5": { "tx": 0.04, "ty": -0.46, "tz": -0.04 }, "fringe-6": { "ty": -0.08 } }
+    }
+  },
+  "palette": { "Hair": "#343c56" }
+}

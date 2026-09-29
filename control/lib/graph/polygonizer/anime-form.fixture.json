@@ -1,0 +1,919 @@
+{
+ "source": "Anime Form Studio model.js (anime-form-studio-v3)",
+ "studioSha256": "99ab4176a7ce0474722836d237544c8d1c7e10baa5e4fda0ea8526ee4989d71d",
+ "frozen": "2026-09-28",
+ "cases": [
+  {
+   "name": "female base",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "female",
+    "face": {
+     "foreheadDepth": 1,
+     "browDepth": 1,
+     "headPitch": 1,
+     "width": 1,
+     "lower": 1,
+     "jaw": 1,
+     "cheekVolume": 1,
+     "lowerCheekVolume": 1,
+     "chin": 1,
+     "depth": 1,
+     "backDepth": 1,
+     "occiput": 1,
+     "nape": 1,
+     "jawAngle": 1,
+     "jawDepth": 1,
+     "chinProjection": 1,
+     "chinHeight": 1,
+     "nose": 1,
+     "eyeWidth": 1,
+     "eyeHeight": 1,
+     "spacing": 1,
+     "tilt": 0,
+     "iris": 1
+    },
+    "hair": {
+     "style": "bob",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": 0,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0
+    },
+    "expression": {
+     "blink": 0,
+     "smile": 0,
+     "open": 0,
+     "brow": 0
+    },
+    "locks": {}
+   },
+   "options": {},
+   "digest": {
+    "skin": {
+     "n": 77652,
+     "sha": "27bce5ec95520542a81abd2471ba4e6883e4bb48e55522acf339e79ae9d3e214"
+    },
+    "hair": {
+     "n": 60480,
+     "sha": "375e8f5e1d825715f7972e0734013e89b40afdb6757e1c2ba57be81e0288fd09"
+    },
+    "sclera": {
+     "n": 4536,
+     "sha": "a9e0e284c0f0a6fe21d98fab1a91c1dbb8c6dd8ecb1948180e9a804c94522a93"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "c8ebb523c18b336983f62ca08f5b43fd3f8989adc410d4c621c7c0ae027e6abc"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "375a34221ba33e74595d0e1e99cf3bd9aa48745491ae153c2de11ae319d47af1"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "87ce7bc40cd670d5c15dfad202bb21fdb133317f540251e2d20ae99c60c1267f"
+    },
+    "mouth": {
+     "n": 360,
+     "sha": "d2a7788e837456b675002cd8dfc9285d7e3a21a6afa95388f6f37b527f1ab8c4"
+    },
+    "cage": {
+     "n": 45984,
+     "sha": "eca6633ad5177a276dfe8f029895ff254b3e82b59a7859a4ebb764adb4df3b92"
+    },
+    "guides": {
+     "n": 288,
+     "sha": "e31a38ab7b4109f8fe62e4e5a9f855cc534e28d1a58861084ac3dd89ee7fd1f6"
+    },
+    "locks": {
+     "n": 24,
+     "sha": "eca892b8643a1b92bc26e162b450082b3dbfcea14ca6459ffd6c38fd685f0270",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
+    },
+    "headPolygons": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+   }
+  },
+  {
+   "name": "male base",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "male",
+    "face": {
+     "foreheadDepth": 1,
+     "browDepth": 1,
+     "headPitch": 1,
+     "width": 1,
+     "lower": 1,
+     "jaw": 1,
+     "cheekVolume": 1,
+     "lowerCheekVolume": 1,
+     "chin": 1,
+     "depth": 1,
+     "backDepth": 1,
+     "occiput": 1,
+     "nape": 1,
+     "jawAngle": 1,
+     "jawDepth": 1,
+     "chinProjection": 1,
+     "chinHeight": 1,
+     "nose": 1,
+     "eyeWidth": 1,
+     "eyeHeight": 1,
+     "spacing": 1,
+     "tilt": 0.035,
+     "iris": 0.88
+    },
+    "hair": {
+     "style": "short",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": 0,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0
+    },
+    "expression": {
+     "blink": 0,
+     "smile": 0,
+     "open": 0,
+     "brow": 0
+    },
+    "locks": {}
+   },
+   "options": {},
+   "digest": {
+    "skin": {
+     "n": 77652,
+     "sha": "dc5335d39ea01753a0fad4ed2748c678bdecae7583f32d39426ca8e599a83c6e"
+    },
+    "hair": {
+     "n": 72576,
+     "sha": "dd45775e3cc06a67b14257515199feff1bf8cc6d56302db0fa937ea0d337bfb8"
+    },
+    "sclera": {
+     "n": 4536,
+     "sha": "989aa33f7b47451acba7a64a98dc87cb322bb104083f214648ea88c51d20654e"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "8042ef524a837da00473ff1b43f3e7eecb9ddd295226f5d083f8297bafca1a87"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "ca1192e154d62eb98e373ef41f2d99c06195b3a2a3bbb4ee26400dd15a7acca5"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "23af649a9c53325f3a06e63c8839bbc03c6e7885ad0569454464212fc60bd5c5"
+    },
+    "mouth": {
+     "n": 360,
+     "sha": "da2b5e618d1f99a868c9871428912b09d9ba63e2877cc1461cb313541e7edc9c"
+    },
+    "cage": {
+     "n": 45984,
+     "sha": "14705a0d87c4642c51073e0515a0b2c57bcbca815103f03098feb1171befa478"
+    },
+    "guides": {
+     "n": 360,
+     "sha": "f5c551602eb34b2517735e43c1227542e301e1fafddc681ce2de8e1d1ed9fb20"
+    },
+    "locks": {
+     "n": 30,
+     "sha": "4f95d930acfed540f11faf76a76f3b4c8a437dcbee83ab0a1b4a9e9dffca4a2d",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
+    },
+    "headPolygons": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+   }
+  },
+  {
+   "name": "female short blink",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "female",
+    "face": {
+     "foreheadDepth": 1,
+     "browDepth": 1,
+     "headPitch": 1,
+     "width": 1,
+     "lower": 1,
+     "jaw": 1,
+     "cheekVolume": 1,
+     "lowerCheekVolume": 1,
+     "chin": 1,
+     "depth": 1,
+     "backDepth": 1,
+     "occiput": 1,
+     "nape": 1,
+     "jawAngle": 1,
+     "jawDepth": 1,
+     "chinProjection": 1,
+     "chinHeight": 1,
+     "nose": 1,
+     "eyeWidth": 1,
+     "eyeHeight": 1,
+     "spacing": 1,
+     "tilt": 0,
+     "iris": 1
+    },
+    "hair": {
+     "style": "short",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": 0,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0
+    },
+    "expression": {
+     "blink": 1,
+     "smile": 0,
+     "open": 0,
+     "brow": 0
+    },
+    "locks": {}
+   },
+   "options": {},
+   "digest": {
+    "skin": {
+     "n": 77652,
+     "sha": "9ef8e8551d6741e023d4846e7f3442f64645dad677a780d3313c2d75ec0f4281"
+    },
+    "hair": {
+     "n": 72576,
+     "sha": "b25912043b7670498ddd9920d5632efb02f56f4733810882a7e2a86f5e9efc9a"
+    },
+    "sclera": {
+     "n": 4536,
+     "sha": "04c158006e1c1a5bdeef388b0f45ba43a61fd4c2a216dd100e4a94b36f4f384c"
+    },
+    "iris": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "pupil": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "beb5ffc3321818598721bec734b8ccb079088694afeb3a7f7eae24c447f93e4c"
+    },
+    "mouth": {
+     "n": 360,
+     "sha": "d2a7788e837456b675002cd8dfc9285d7e3a21a6afa95388f6f37b527f1ab8c4"
+    },
+    "cage": {
+     "n": 45984,
+     "sha": "38ffe6ffb21a6fbfe056d3cd683e5744d4e83e6a19e2241774cb435d1729949e"
+    },
+    "guides": {
+     "n": 360,
+     "sha": "258c926871a96b9fbacc214aca2f77ca6c5ec7c4c7e08314c7284c9d5a09de2c"
+    },
+    "locks": {
+     "n": 30,
+     "sha": "696ce72ac8a83837537b6bb82133a1db3584d26970db3d0b48209b6ac5dca02a",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
+    },
+    "headPolygons": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+   }
+  },
+  {
+   "name": "female long smile",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "female",
+    "face": {
+     "foreheadDepth": 1,
+     "browDepth": 1,
+     "headPitch": 1,
+     "width": 1,
+     "lower": 1,
+     "jaw": 1,
+     "cheekVolume": 1,
+     "lowerCheekVolume": 1,
+     "chin": 1,
+     "depth": 1,
+     "backDepth": 1,
+     "occiput": 1,
+     "nape": 1,
+     "jawAngle": 1,
+     "jawDepth": 1,
+     "chinProjection": 1,
+     "chinHeight": 1,
+     "nose": 1,
+     "eyeWidth": 1,
+     "eyeHeight": 1,
+     "spacing": 1,
+     "tilt": 0,
+     "iris": 1
+    },
+    "hair": {
+     "style": "long",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": 0,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0
+    },
+    "expression": {
+     "blink": 0.12,
+     "smile": 1,
+     "open": 0,
+     "brow": 0.3
+    },
+    "locks": {}
+   },
+   "options": {},
+   "digest": {
+    "skin": {
+     "n": 77652,
+     "sha": "3db4dd14213c12614293ac04df339de510c6c7a487da9b06ad501c2e24b8c71e"
+    },
+    "hair": {
+     "n": 60480,
+     "sha": "9bcdd319ffc94d0126f3fc0530c5c597df853d5ff18ac155089b893298ff909d"
+    },
+    "sclera": {
+     "n": 4536,
+     "sha": "a5e1e36c52ed20e4df9206bafb6fdbda52f6f94d5f31654c2035488e4506dcc2"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "57c5d344f53146fa93cf0fd7d5408a50effbd6223f95722b446ff2d1676346c5"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "3f4a3d2ac22b022ea61eea10bc11efd53906a18bb2890176d876ba74d5e0c40c"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "cded207795bcfc86051e698a7aabcf36e449057a266513a47bece40292598202"
+    },
+    "mouth": {
+     "n": 360,
+     "sha": "3c28b69be4aec3a79903f524b2f2ead68560078eed3e272799c0cb14ac795df3"
+    },
+    "cage": {
+     "n": 45984,
+     "sha": "7c2019721f41bd72a852e9b59916128b76f58537278850571818dcf199a43a45"
+    },
+    "guides": {
+     "n": 288,
+     "sha": "162a8cf50c7e5e7e8073af85ea28b94fc2c7f123694363bc3e21d5a8de512594"
+    },
+    "locks": {
+     "n": 24,
+     "sha": "0caf307e5f45c426b1127b46c7224fa9397e9fa866fc9961604707cc6636b4eb",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
+    },
+    "headPolygons": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+   }
+  },
+  {
+   "name": "male bob open",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "male",
+    "face": {
+     "foreheadDepth": 1,
+     "browDepth": 1,
+     "headPitch": 1,
+     "width": 1,
+     "lower": 1,
+     "jaw": 1,
+     "cheekVolume": 1,
+     "lowerCheekVolume": 1,
+     "chin": 1,
+     "depth": 1,
+     "backDepth": 1,
+     "occiput": 1,
+     "nape": 1,
+     "jawAngle": 1,
+     "jawDepth": 1,
+     "chinProjection": 1,
+     "chinHeight": 1,
+     "nose": 1,
+     "eyeWidth": 1,
+     "eyeHeight": 1,
+     "spacing": 1,
+     "tilt": 0.035,
+     "iris": 0.88
+    },
+    "hair": {
+     "style": "bob",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": 0,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0
+    },
+    "expression": {
+     "blink": 0,
+     "smile": 0,
+     "open": 0.8,
+     "brow": 0.2
+    },
+    "locks": {}
+   },
+   "options": {},
+   "digest": {
+    "skin": {
+     "n": 77652,
+     "sha": "75483adba9ba7f14e0130f92a6cdb2fcffa5a6fe9f6e1219d1cb5ebec43a4f69"
+    },
+    "hair": {
+     "n": 60480,
+     "sha": "7f5c72afa2b713f4ebbc010e6c87e706fc4f9f28d09dbc7cd9d9463facbf2e12"
+    },
+    "sclera": {
+     "n": 4536,
+     "sha": "989aa33f7b47451acba7a64a98dc87cb322bb104083f214648ea88c51d20654e"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "8042ef524a837da00473ff1b43f3e7eecb9ddd295226f5d083f8297bafca1a87"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "ca1192e154d62eb98e373ef41f2d99c06195b3a2a3bbb4ee26400dd15a7acca5"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "80c721d4af168706dc590a877c7e54b1ef95a4f8639fba54c95797ef164c67c0"
+    },
+    "mouth": {
+     "n": 360,
+     "sha": "5bbc9a6d54adcbc581bd53e9da6619df59c49054b17251866fe2cf2479986e5a"
+    },
+    "cage": {
+     "n": 45984,
+     "sha": "559457a09948a95ab0404cabc8a976f45ad1d62fc10b6eff7d4ee5001c0e4151"
+    },
+    "guides": {
+     "n": 288,
+     "sha": "423f5ce712de950ea266d1f65216d134e9145dfb558a6316de011e725f7ce315"
+    },
+    "locks": {
+     "n": 24,
+     "sha": "aadf6937a61a4cb755ed130cef57b1a8e2e7afba90dfa00a4afd8e29ee000c49",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
+    },
+    "headPolygons": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+   }
+  },
+  {
+   "name": "male long max face, lock edits",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "male",
+    "face": {
+     "foreheadDepth": 1.3,
+     "browDepth": 1.3,
+     "headPitch": 1.5,
+     "width": 1.1300000000000001,
+     "lower": 1.18,
+     "jaw": 1.22,
+     "cheekVolume": 1.4,
+     "lowerCheekVolume": 1.4,
+     "chin": 1.5,
+     "depth": 1.18,
+     "backDepth": 1.18,
+     "occiput": 1.25,
+     "nape": 1.58,
+     "jawAngle": 1.46,
+     "jawDepth": 1.3,
+     "chinProjection": 1.3,
+     "chinHeight": 1.48,
+     "nose": 1.5,
+     "eyeWidth": 1.23,
+     "eyeHeight": 1.27,
+     "spacing": 1.1,
+     "tilt": 0.12,
+     "iris": 1.1
+    },
+    "hair": {
+     "style": "long",
+     "volume": 1.15,
+     "length": 1.2,
+     "fringe": 0.75,
+     "sweep": 0.3,
+     "clump": 1.12,
+     "thickness": 1.4,
+     "taper": 0.7,
+     "part": -0.18
+    },
+    "expression": {
+     "blink": 0,
+     "smile": 0,
+     "open": 0,
+     "brow": 0
+    },
+    "locks": {
+     "fringe-3": {
+      "cx": 0.1,
+      "cy": -0.05,
+      "cz": 0,
+      "tx": 0.08,
+      "ty": -0.12,
+      "tz": 0.02
+     },
+     "back-5": {
+      "cx": 0,
+      "cy": 0,
+      "cz": 0.1,
+      "tx": -0.2,
+      "ty": 0.2,
+      "tz": 0
+     }
+    }
+   },
+   "options": {},
+   "digest": {
+    "skin": {
+     "n": 77652,
+     "sha": "241b21a17197215d6764c6819c602a46928070fb66fa31d4d902ad2faca0170e"
+    },
+    "hair": {
+     "n": 60480,
+     "sha": "2823f9c00dcc529572eece117c260ce6c265cd5bd29e671ff64fd2334a028cb5"
+    },
+    "sclera": {
+     "n": 4536,
+     "sha": "ba855e38e784aa0bfd86b760c63df1e468e36e8ed1a7d8d8625f1902f04c3f34"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "1e00c2549b81b9c2068878fbd4c045f50647b08ac8fa64f57c1736dab2e2d88c"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "c5035726b8fbf7e48696a817eed130e4a93ba37c3aa00863b86e5c67c05449bf"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "bd9ea28afa00ebddb145e3a145a9e162928ff5f58cee7857e093d0f0aa39987c"
+    },
+    "mouth": {
+     "n": 360,
+     "sha": "34afbdda72beaf089a41fd10c30d84475458ae43c53b62711972f7891898cb35"
+    },
+    "cage": {
+     "n": 45984,
+     "sha": "300a316f3203bc511fd0849fef4642638c006e9388d8bf954ed1c013440cf612"
+    },
+    "guides": {
+     "n": 288,
+     "sha": "6076a775e1c2b48cb72ebcc18d37d6ead5dc61ac63aa5e0ab0d4765eb4e0c2d0"
+    },
+    "locks": {
+     "n": 24,
+     "sha": "1d85bf969c6f219f72c4aa35a5244210f23a1cbde1f59f64db186e800918acbc",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
+    },
+    "headPolygons": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+   }
+  },
+  {
+   "name": "female min face, brow -1",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "female",
+    "face": {
+     "foreheadDepth": 0.7,
+     "browDepth": 0.7,
+     "headPitch": 0.5,
+     "width": 0.88,
+     "lower": 0.82,
+     "jaw": 0.74,
+     "cheekVolume": 0.5399999999999999,
+     "lowerCheekVolume": 0.42000000000000004,
+     "chin": 0.6,
+     "depth": 0.64,
+     "backDepth": 0.7199999999999999,
+     "occiput": 0.75,
+     "nape": 0.6,
+     "jawAngle": 0.75,
+     "jawDepth": 0.3999999999999999,
+     "chinProjection": 0.7,
+     "chinHeight": 0.75,
+     "nose": 0.1100000000000001,
+     "eyeWidth": 0.82,
+     "eyeHeight": 0.6799999999999999,
+     "spacing": 0.88,
+     "tilt": -0.12,
+     "iris": 0.75
+    },
+    "hair": {
+     "style": "short",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": -0.3,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0.18
+    },
+    "expression": {
+     "blink": 0,
+     "smile": 0,
+     "open": 0,
+     "brow": -1
+    },
+    "locks": {
+     "crown-1-2": {
+      "cx": 0.05,
+      "cy": 0.05,
+      "cz": 0.05,
+      "tx": 0.05,
+      "ty": 0.05,
+      "tz": 0.05
+     }
+    }
+   },
+   "options": {},
+   "digest": {
+    "skin": {
+     "n": 77652,
+     "sha": "97144140859b5519fd0386c0141d0864a9a3038942f1e300bec0c18b625950a7"
+    },
+    "hair": {
+     "n": 72576,
+     "sha": "9c62dd37bc463cbc030244539e3f65a1761174027c3ab7b1edc01007f21c4699"
+    },
+    "sclera": {
+     "n": 4536,
+     "sha": "06c67a4e14373be69940f4937edf1dd9e931f2776e9a92c1e791d2973318dbec"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "e996a3839b1709205048fad0b38077cde04889a8151a7942bf637355be452aa5"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "e84efbb93f9aaa66e3f679995031b0409b722b03cea9939b125f4654704aaf7d"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "b0180fe8e3b50a31c2f631032fcc49f5382b185e78d486cf93842cc503572127"
+    },
+    "mouth": {
+     "n": 360,
+     "sha": "1681c12b539077d628314dd06cab43e93724caca3782b2e2f662a245aa0e702f"
+    },
+    "cage": {
+     "n": 45984,
+     "sha": "4c7ef4b0534930e5fd24de801514f114f214f959a0f3878a03a0e3f030af7ad0"
+    },
+    "guides": {
+     "n": 360,
+     "sha": "74ddebb453bdcf17b24d521c327b8c6452024f47450a5f249f18597a7fec5d52"
+    },
+    "locks": {
+     "n": 30,
+     "sha": "f7cea0440688df4dc5898d4ab9a40592f9c6e931d54a89f7281baf6c11fc970a",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
+    },
+    "headPolygons": {
+     "n": 0,
+     "sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+   }
+  },
+  {
+   "name": "female coarse",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "female",
+    "face": {
+     "foreheadDepth": 1,
+     "browDepth": 1,
+     "headPitch": 1,
+     "width": 1,
+     "lower": 1,
+     "jaw": 1,
+     "cheekVolume": 1,
+     "lowerCheekVolume": 1,
+     "chin": 1,
+     "depth": 1,
+     "backDepth": 1,
+     "occiput": 1,
+     "nape": 1,
+     "jawAngle": 1,
+     "jawDepth": 1,
+     "chinProjection": 1,
+     "chinHeight": 1,
+     "nose": 1,
+     "eyeWidth": 1,
+     "eyeHeight": 1,
+     "spacing": 1,
+     "tilt": 0,
+     "iris": 1
+    },
+    "hair": {
+     "style": "bob",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": 0,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0
+    },
+    "expression": {
+     "blink": 0,
+     "smile": 0,
+     "open": 0,
+     "brow": 0
+    },
+    "locks": {}
+   },
+   "options": {
+    "coarse": true
+   },
+   "digest": {
+    "skin": {
+     "n": 32652,
+     "sha": "5e4c4420eba6cfa746c5e82a2c7eda5904284fcc51e0f430c2106d962bfe5da7"
+    },
+    "hair": {
+     "n": 60480,
+     "sha": "375e8f5e1d825715f7972e0734013e89b40afdb6757e1c2ba57be81e0288fd09"
+    },
+    "sclera": {
+     "n": 2268,
+     "sha": "0de7ad04c84c901fbe933e865c3a90214425d71a7bb99ad3672b04170f6f4a27"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "c8ebb523c18b336983f62ca08f5b43fd3f8989adc410d4c621c7c0ae027e6abc"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "375a34221ba33e74595d0e1e99cf3bd9aa48745491ae153c2de11ae319d47af1"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "87ce7bc40cd670d5c15dfad202bb21fdb133317f540251e2d20ae99c60c1267f"
+    },
+    "mouth": {
+     "n": 144,
+     "sha": "1ea151dd577927412973fd21658606b80e90ca7407d57b176d9bc9a62ba067be"
+    },
+    "cage": {
+     "n": 11520,
+     "sha": "e56689a24aceb90a0f4ffc31bb8404373c007aa3c1f190e323a3c8b70b1d46d4"
+    },
+    "guides": {
+     "n": 288,
+     "sha": "e31a38ab7b4109f8fe62e4e5a9f855cc534e28d1a58861084ac3dd89ee7fd1f6"
+    },
+    "locks": {
+     "n": 24,
+     "sha": "eca892b8643a1b92bc26e162b450082b3dbfcea14ca6459ffd6c38fd685f0270",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
+    },
+    "headPolygons": {
+     "n": 776,
+     "sha": "81817ab6de4ff5a40ec7aaee30c08ac62ea9bb08f445acc6b754aa52204aafa3"
+    }
+   }
+  },
+  {
+   "name": "male coarse smile",
+   "recipe": {
+    "schema": "anime-form-studio-v3",
+    "source": "male",
+    "face": {
+     "foreheadDepth": 1,
+     "browDepth": 1,
+     "headPitch": 1,
+     "width": 1,
+     "lower": 1,
+     "jaw": 1,
+     "cheekVolume": 1,
+     "lowerCheekVolume": 1,
+     "chin": 1,
+     "depth": 1,
+     "backDepth": 1,
+     "occiput": 1,
+     "nape": 1,
+     "jawAngle": 1,
+     "jawDepth": 1,
+     "chinProjection": 1,
+     "chinHeight": 1,
+     "nose": 1,
+     "eyeWidth": 1,
+     "eyeHeight": 1,
+     "spacing": 1,
+     "tilt": 0.035,
+     "iris": 0.88
+    },
+    "hair": {
+     "style": "short",
+     "volume": 1,
+     "length": 1,
+     "fringe": 1,
+     "sweep": 0,
+     "clump": 1,
+     "thickness": 1,
+     "taper": 1,
+     "part": 0
+    },
+    "expression": {
+     "blink": 0,
+     "smile": 1,
+     "open": 0,
+     "brow": 0
+    },
+    "locks": {}
+   },
+   "options": {
+    "coarse": true
+   },
+   "digest": {
+    "skin": {
+     "n": 32652,
+     "sha": "9ca054de0a57e70194a72d5ef2d2aeda8ff67da498f6bf65b5ce41d182adffff"
+    },
+    "hair": {
+     "n": 72576,
+     "sha": "dd45775e3cc06a67b14257515199feff1bf8cc6d56302db0fa937ea0d337bfb8"
+    },
+    "sclera": {
+     "n": 2268,
+     "sha": "1bf85ea108b542d2da73f6ee826646f6439de6296837dfe7ba8f584a78dbf458"
+    },
+    "iris": {
+     "n": 3600,
+     "sha": "8042ef524a837da00473ff1b43f3e7eecb9ddd295226f5d083f8297bafca1a87"
+    },
+    "pupil": {
+     "n": 3600,
+     "sha": "ca1192e154d62eb98e373ef41f2d99c06195b3a2a3bbb4ee26400dd15a7acca5"
+    },
+    "ink": {
+     "n": 2880,
+     "sha": "23af649a9c53325f3a06e63c8839bbc03c6e7885ad0569454464212fc60bd5c5"
+    },
+    "mouth": {
+     "n": 144,
+     "sha": "93781e26e1ab51d4f8e67f1185c1d5d54c782eee202f3355a917ff2d272f462e"
+    },
+    "cage": {
+     "n": 11520,
+     "sha": "62276ef52fb43d19f8c5073af9a4aa90f93d6e5774ab4f9e8cde8a848d9097bc"
+    },
+    "guides": {
+     "n": 360,
+     "sha": "f5c551602eb34b2517735e43c1227542e301e1fafddc681ce2de8e1d1ed9fb20"
+    },
+    "locks": {
+     "n": 30,
+     "sha": "4f95d930acfed540f11faf76a76f3b4c8a437dcbee83ab0a1b4a9e9dffca4a2d",
+     "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
+    },
+    "headPolygons": {
+     "n": 776,
+     "sha": "988173f2065f7756b415d1b954cfc894bad38e39b718a0f41db3a15e9bae4cab"
+    }
+   }
+  }
+ ]
+}

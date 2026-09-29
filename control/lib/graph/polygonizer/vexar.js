@@ -148,14 +148,110 @@ export function withBands(light, bands) {
  *  tuning object, and `bake: true` carried through ONLY when ink is on (shader-look phase 3: the GLB
  *  export bakes the ink pair as real geometry; bake reads the ink tuning, so bake without ink is
  *  meaningless and dropped). Anything else → null. Shared by the world resolver, the still renderers
- *  and the mint tools so one spelling is accepted everywhere. */
-export function resolveToon(t) {
+ *  and the mint tools so one spelling is accepted everywhere.
+ *  `{ light: true }` (the LAYERED kind's readers only — its resolver, its door, the world resolver for a
+ *  layered row) also reads `toon.light`, the CHARACTER LIGHT (resolveToonLight): a valid one rides
+ *  through normalized, `false` rides through as the explicit opt-out, an invalid one is dropped — and a
+ *  light alone is a dial (`{ light }`), since the step shades without bands or ink. Every other caller
+ *  never sees the field, so a toon returns exactly what it did before the channel existed. */
+export function resolveToon(t, { light: withLight = false } = {}) {
   if (t === true) return { bands: 3, ink: true };
   if (!t || typeof t !== 'object') return null;
   const bands = Number.isFinite(t.bands) && t.bands >= 2 ? Math.floor(t.bands) : null;
   const ink = t.ink === true ? true : (t.ink && typeof t.ink === 'object' ? t.ink : null);
-  if (bands == null && !ink) return null;
-  return { ...(bands != null ? { bands } : {}), ...(ink ? { ink } : {}), ...(ink && t.bake === true ? { bake: true } : {}) };
+  const light = !withLight ? null : t.light === false ? false : resolveToonLight(t.light);
+  if (bands == null && !ink && light == null) return null;
+  return { ...(bands != null ? { bands } : {}), ...(ink ? { ink } : {}), ...(ink && t.bake === true ? { bake: true } : {}), ...(light != null ? { light } : {}) };
+}
+
+// ---- the character light (toon.light) ---------------------------------------
+// One light per character, in CHARACTER space (+y front, +z up, so it turns with the figure): a
+// two-tone STEP on three inputs — the light vector, a threshold on N·L and the shading normal — with
+// a chosen shade swatch per palette group, never a Lambert gradient. Baked by the layered kind
+// (station-loft-shade.js); every field is optional and the defaults are the key below.
+/** the default key: from the front, above and the figure's RIGHT (+x; the rig's `R` side), about 32° up and 31° to the
+ *  side (unit([0.45, 0.75, 0.55])) — the three-quarter key, on the side the World's head and three-quarter cameras
+ *  stand, so the broad cheek toward the camera is the lit one */
+const CHARACTER_KEY = [0.45, 0.75, 0.55];
+/** groups drawn at their base colour by default: the eye lenses, the ink strokes, the mouth interior */
+export const CHARACTER_LIGHT_UNLIT = Object.freeze(['Iris', 'Pupil', 'Sclera', 'Ink', 'Mouth']);
+/** per-group thresholds by default: hair steps higher, so the locks read as a few lit shapes rather than one lit dome
+ *  (at 0.40 about three quarters of the hair is lit at the three-quarter view, with shade shapes under the locks) */
+const CHARACTER_THRESHOLDS = Object.freeze({ Hair: 0.40 });
+const TOON_LIGHT_KEYS = ['toLight', 'threshold', 'thresholds', 'shade', 'unlit', 'highlight'];
+/** the HIGHLIGHT (a third tone on a group's lit side, split crisply on a second iso-line; station-loft-shade.js): its
+ *  kinds and each kind's defaults — `ring`: N·L above `threshold` less `falloff`·u², u the height across the `band` (a
+ *  share of the head's height below the skull crown), so a band on the lit side broken where the locks turn away (the
+ *  sheen line on the hair); `streak`: N·L above `threshold` inside the band only (a hard window). `parts: 'fringe'` keeps
+ *  it to the fringe's locks and sections. */
+export const HIGHLIGHT_KINDS = Object.freeze({
+  ring: Object.freeze({ threshold: 0.3, band: Object.freeze([0.14, 0.22]), falloff: 1.4 }),
+  streak: Object.freeze({ threshold: 0.5, band: Object.freeze([0, 0.4]) }),
+});
+const HIGHLIGHT_KEYS = ['kind', 'threshold', 'band', 'falloff', 'parts'];
+const HIGHLIGHT_PARTS = ['fringe'];
+const isPlain = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
+const inStep = (v) => Number.isFinite(v) && v >= -1 && v <= 1;
+
+/** Error strings for an authored `toon.light` (empty = valid). `undefined` / `null` (absent), `true` (the
+ *  default key) and `false` (off) are valid; otherwise an object of the six fields (`highlight` a map of palette groups to a rule or false). */
+export function toonLightErrors(l) {
+  if (l === undefined || l === null || l === true || l === false) return [];
+  if (!isPlain(l)) return ['toon.light: true (the default character light), false (off), or { toLight, threshold, thresholds, shade, unlit, highlight }'];
+  const errs = [];
+  for (const k of Object.keys(l)) if (!TOON_LIGHT_KEYS.includes(k)) errs.push(`toon.light.${k}: not a light field (have ${TOON_LIGHT_KEYS.join(', ')})`);
+  if (l.toLight !== undefined && !(Array.isArray(l.toLight) && l.toLight.length === 3 && l.toLight.every(Number.isFinite) && Math.hypot(l.toLight[0], l.toLight[1], l.toLight[2]) > 1e-9)) {
+    errs.push('toon.light.toLight: [x, y, z] pointing TOWARD the light in character space (+y front, +z up), not zero');
+  }
+  if (l.threshold !== undefined && !inStep(l.threshold)) errs.push('toon.light.threshold: the N·L step, a number in [-1, 1]');
+  if (l.thresholds !== undefined) {
+    if (!isPlain(l.thresholds)) errs.push('toon.light.thresholds: { <palette group>: a number in [-1, 1] }');
+    else for (const [g, v] of Object.entries(l.thresholds)) if (!inStep(v)) errs.push(`toon.light.thresholds.${g}: a number in [-1, 1]`);
+  }
+  if (l.shade !== undefined) {
+    if (!isPlain(l.shade)) errs.push('toon.light.shade: { <palette group>: "#rrggbb" } (the shade swatch; absent groups derive theirs from the base)');
+    else for (const [g, v] of Object.entries(l.shade)) if (!(typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v))) errs.push(`toon.light.shade.${g}: a "#rrggbb" colour`);
+  }
+  if (l.unlit !== undefined && !(Array.isArray(l.unlit) && l.unlit.every((g) => typeof g === 'string' && g.length > 0))) errs.push('toon.light.unlit: a list of palette groups drawn at their base colour');
+  if (l.highlight !== undefined && l.highlight !== false) {
+    if (!isPlain(l.highlight)) errs.push(`toon.light.highlight: { <palette group>: { kind: ${Object.keys(HIGHLIGHT_KINDS).join(' | ')}, threshold?, band?, falloff?, parts? } | false }, or false (none)`);
+    else for (const [g, h] of Object.entries(l.highlight)) {
+      if (h === false) continue;
+      const at = `toon.light.highlight.${g}`;
+      if (!isPlain(h)) { errs.push(`${at}: { kind: ${Object.keys(HIGHLIGHT_KINDS).join(' | ')}, threshold?, band?, falloff?, parts? } or false`); continue; }
+      for (const k of Object.keys(h)) if (!HIGHLIGHT_KEYS.includes(k)) errs.push(`${at}.${k}: not a highlight field (have ${HIGHLIGHT_KEYS.join(', ')})`);
+      if (!HIGHLIGHT_KINDS[h.kind]) errs.push(`${at}.kind: ${Object.keys(HIGHLIGHT_KINDS).join(' | ')}`);
+      if (h.threshold !== undefined && !inStep(h.threshold)) errs.push(`${at}.threshold: the N·L step, a number in [-1, 1]`);
+      if (h.band !== undefined && !(Array.isArray(h.band) && h.band.length === 2 && h.band.every((x) => Number.isFinite(x) && x >= 0 && x <= 1) && h.band[1] > h.band[0])) errs.push(`${at}.band: [from, to], shares of the head's height below the skull crown, 0 ≤ from < to ≤ 1`);
+      if (h.falloff !== undefined && !(Number.isFinite(h.falloff) && h.falloff >= 0 && h.falloff <= 10)) errs.push(`${at}.falloff: a number in [0, 10] (how fast a ring fades off its band's centre)`);
+      if (h.parts !== undefined && !HIGHLIGHT_PARTS.includes(h.parts)) errs.push(`${at}.parts: ${HIGHLIGHT_PARTS.join(' | ')} (absent: every part of the group)`);
+    }
+  }
+  return errs;
+}
+/** An authored highlight map normalized: each group's rule over its kind's defaults (`band` copied); `false` rides
+ *  through (none, over a default); anything invalid is dropped by the caller's errors check. */
+function resolveHighlight(h) {
+  if (h === false) return false;
+  return Object.fromEntries(Object.entries(h).map(([g, r]) => [g, r === false ? false : { kind: r.kind, ...HIGHLIGHT_KINDS[r.kind], ...r, band: [...(r.band ?? HIGHLIGHT_KINDS[r.kind].band)] }]));
+}
+
+/** An authored `toon.light` normalized: `true` → the default light; a valid object → the defaults with its fields
+ *  on top (`toLight` unit length; `thresholds` merged over the Hair default; `unlit` replaces the default list; a
+ *  `highlight` over its kinds' defaults, present only when authored); anything else (absent, `false`, invalid) → null.
+ *  The result is a fresh object: `{ toLight, threshold, thresholds, shade, unlit, highlight? }`. */
+export function resolveToonLight(l) {
+  if (l !== true && !isPlain(l)) return null;
+  if (toonLightErrors(l).length) return null;
+  const o = l === true ? {} : l;
+  return {
+    toLight: norm3(o.toLight ?? CHARACTER_KEY),
+    threshold: o.threshold ?? 0,
+    thresholds: { ...CHARACTER_THRESHOLDS, ...(o.thresholds || {}) },
+    shade: { ...(o.shade || {}) },
+    unlit: [...(o.unlit ?? CHARACTER_LIGHT_UNLIT)],
+    ...(o.highlight !== undefined ? { highlight: resolveHighlight(o.highlight) } : {}),
+  };
 }
 
 /** Lambert brightness for an outward normal under a light (+ optional opposite fill). */

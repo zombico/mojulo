@@ -1,0 +1,28 @@
+{
+  "name": "tomboy",
+  "$note": "An athletic tomboy (female): the athletic tune, short messy spiky hair tucked at the crown, sharp upturned eyes (a triangular fissure, a flicked lid) under block brows, determined with a small smile. Shows the graphic face shape words (fissureShape, browShape) and orange-red hair with a hand-set shade over a dark green top.",
+  "hero": {
+    "cast": "female",
+    "head": "anime",
+    "tune": "athletic",
+    "look": ["short", "messy", "spiky", "tsurime", "sharp-eyes"],
+    "face": { "tilt": 0.05 },
+    "hair": {
+      "length": 0.8,
+      "fringe": 0.8,
+      "crownAccents": "tuck",
+      "sweepSides": { "amount": 0.8, "from": 1 }
+    },
+    "sculpt": {
+      "browShape": "block",
+      "browThick": 1.3,
+      "browArch": -0.03,
+      "lidAngle": 6,
+      "lidFlick": 40,
+      "fissureShape": "tri"
+    },
+    "expression": ["determined", { "smile": 0.45 }]
+  },
+  "palette": { "Hair": "#e2502a", "Top": "#2d4a3e", "Bottom": "#77705f" },
+  "toon": { "light": { "shade": { "Hair": "#a3301f" } } }
+}
