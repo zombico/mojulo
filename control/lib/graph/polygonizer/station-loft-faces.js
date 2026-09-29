@@ -27,6 +27,7 @@ export function layeredSeat(mesh, seat = true) { if (!seat) return 0; let mn = I
  * a posed mesh on its REST floor, so a figure standing in its gesture keeps the ground its planted toes hold. */
 export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null } = {}) {
   const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
+  const glows = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []);   // emissive groups: full-bright, not shaded
   const faces = [];
   mesh.faces.forEach((tri, i) => {
     const partName = mesh.provenance[tri[0]].part; const part = mesh.parts[partName]; const g = mesh.groups[i];
@@ -35,7 +36,7 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
     const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])); const l = Math.hypot(n[0], n[1], n[2]);
     if (!(l > 1e-14)) return;   // a degenerate triangle has no face
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
-    faces.push({ corners, fill: shadeHex(hex, outNormal, light), group: group || partName, outNormal });
+    faces.push({ corners, fill: glows.has(g) ? hex : shadeHex(hex, outNormal, light), group: group || partName, outNormal });
   });
   return faces;
 }

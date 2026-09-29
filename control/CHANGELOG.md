@@ -14,6 +14,70 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Fantasy armor
+
+Worn armour composed from intent and art direction, on the hero: plate from a single pauldron to full harness, and
+samurai lamellar with laced rows, hanging boards and a crested kabuto. It is built from a few dials and laws, not a
+catalogue. The hero stores the words, and the suit is re-derived on every read. Opt-in through `adorn` on the hero.
+
+- **A suit is a build on the hero.** `adorn: { type: 'armor', style, dials }` on the hero door
+  (`mint_solid({ kind: 'layered', via: 'hero', spec: { …, adorn } })`) expands into an adornment kit wherever the hero
+  is read. `update_sketch` restyles it in place: `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'`.
+  A build is stamped with the version of the armour laws it was minted under.
+- **Dials, not presets.**
+  - `stylize` runs from realistic to stylized along one curve: the focal piece grows fastest, plates stand further
+    off the body, openings flare, and lames and lacing get fewer and bigger.
+  - `coverage` grows the suit out from its focal piece, from one pauldron to full plate.
+  - `mass` sets heft, and `ornament` is the edge budget.
+- **The laws, as worn.**
+  - One focal piece per suit, and every piece is sized against its body part.
+  - A plate never crosses a joint: each rides one bone. A cop caps a joint from one side, lames shingle away from
+    their anchor, and plate stays off where two body parts touch at rest.
+  - Coverage grows from the focal. The suit is asymmetric until its partner piece arrives as a lesser piece, and the
+    side follows function (a bracer on the bow arm).
+  - Plates read over a layer one clear value step away.
+  - The edge is the ornament field.
+  - Each piece is built the way its material is made: plate as halves strapped at the sides; lamellar as sawtooth
+    rows held by the lacing, where the construction is the ornament.
+- **Styles are cards.** The samples ship as plain data: `knight` (plate) and three lamellar samurai, `kuro-kon`
+  (black lacquer, navy lacing, a gold crescent), `aka` (red lacquer, gold horns) and `shiro` (white lacing, a sun
+  disc). `style` also takes an inline card.
+- **Hard-suits, a third family.** Moulded shells over a bodysuit, segmented so the panel lines show the layer beneath,
+  with a smooth helmet and optional power pack:
+  - `grim-scifi`: massive power armour with domed pauldrons, glowing lenses and a grille;
+  - `fantasy-space`: minimal trooper plates and a T-visor helmet;
+  - `armored-hero`: a modular powered suit with a faceplate helm and a glowing chest reactor.
+  Groups named in `plan.emissive` (lenses, visor slits, a reactor) render full-bright on the World page.
+- **Themes carried down.** `adorn.theme` (`death-knight`, `radiant`, or an inline card) layers a theme over any plate
+  suit as a motif vocabulary, not a skin:
+  - The primary motif repeats with hierarchy: full size at the focal piece, then smaller at the partner, chest, belt
+    and knees, as far as the ornament budget reaches, never on every piece.
+  - The secondary motif is the field's one structural line (ribs across the abdomen).
+  - Edge verbs run the edges they name: a painted rim on every plate, fur at the cuffs.
+  - The crest verb stands only on the crest line (spikes along the pauldron tops, a crown on the helm).
+  - Glyphs mark the plain fields, and the glow spends on the focal and the eyes.
+  - A theme can add the pieces only it wants: a helm, a tabard, a belt that carries the belt motif.
+  - A theme leans the dials and language between the style's and the build's own, and its tones layer over the
+    style's.
+  - Theme cards are plain data in `lib/graph/themes/`, to be shared with held gear. Samurai and hard-suit armour take
+    a theme's tones for now.
+- **Adornment signatures as data.**
+  - A signature can be:
+    - `facing`: a disc on the piece's lifted outer skin, facing where the eye comes from;
+    - `boards`: flat laced rows hung from a piece's edge;
+    - `crest`: a crescent, horns or a sun disc;
+    - `helm`: a smooth helmet sized to the head, with its visor, lenses or grille, a shadowing brow, and a coronet
+      of spikes at the front or the back;
+    - `pack`: a vented block on the back;
+    - one of the theme motifs: `skull` (sockets dark or glowing, 0–2 horns), `spikes`, `ribs`, `fur`, `tabard`,
+      `runes`.
+  - A signature element may carry its own group.
+  - A shell's `rim` paints a band along its own edges in another group, so a trim follows every flare of the plate.
+  - `stack: false` keeps an adornment out of the ones worn after it, so lamellar rows keep a sawtooth profile instead
+    of piling outward.
+  - A rigid strap no longer fails to wear.
+  - Kits that use none of these are unchanged.
+
 ### Equipment
 
 Fantasy arms composed from intent and art direction: swords, daggers, greatswords, staves, bows and shields, built

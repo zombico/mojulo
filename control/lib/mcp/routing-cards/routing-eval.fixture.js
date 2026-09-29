@@ -89,6 +89,9 @@ export const FIXTURE = [
   ['an anime heroine with a long layered cut and one bang swept over her eye', 'mint_solid'],
   // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
   ['start from the rival look, then give him droopy eyes and messy hair', 'mint_solid'],
+  // armor (layered hero adorn build): worn armour from a style and dials (armor)
+  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'mint_solid'],
+  ['only armour the shoulders and chest for now, full plate later', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary
