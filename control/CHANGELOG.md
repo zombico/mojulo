@@ -42,11 +42,41 @@ catalogue. The hero stores the words, and the suit is re-derived on every read. 
 - **Styles are cards.** The samples ship as plain data: `knight` (plate) and three lamellar samurai, `kuro-kon`
   (black lacquer, navy lacing, a gold crescent), `aka` (red lacquer, gold horns) and `shiro` (white lacing, a sun
   disc). `style` also takes an inline card.
-- **Adornment signatures as data.** A signature can be `facing` (a disc on the piece's lifted outer skin, facing where
-  the eye comes from), `boards` (flat laced rows hung from a piece's edge) or `crest` (a crescent, horns or a sun
-  disc). A signature element may carry its own group. `stack: false` keeps an adornment out of the ones worn after it,
-  so lamellar rows keep a sawtooth profile instead of piling outward. A rigid strap no longer fails to wear. Kits that
-  use none of these are unchanged.
+- **Hard-suits, a third family.** Moulded shells over a bodysuit, segmented so the panel lines show the layer beneath,
+  with a smooth helmet and optional power pack:
+  - `grim-scifi`: massive power armour with domed pauldrons, glowing lenses and a grille;
+  - `fantasy-space`: minimal trooper plates and a T-visor helmet;
+  - `armored-hero`: a modular powered suit with a faceplate helm and a glowing chest reactor.
+  Groups named in `plan.emissive` (lenses, visor slits, a reactor) render full-bright on the World page.
+- **Themes carried down.** `adorn.theme` (`death-knight`, `radiant`, or an inline card) layers a theme over any plate
+  suit as a motif vocabulary, not a skin:
+  - The primary motif repeats with hierarchy: full size at the focal piece, then smaller at the partner, chest, belt
+    and knees, as far as the ornament budget reaches, never on every piece.
+  - The secondary motif is the field's one structural line (ribs across the abdomen).
+  - Edge verbs run the edges they name: a painted rim on every plate, fur at the cuffs.
+  - The crest verb stands only on the crest line (spikes along the pauldron tops, a crown on the helm).
+  - Glyphs mark the plain fields, and the glow spends on the focal and the eyes.
+  - A theme can add the pieces only it wants: a helm, a tabard, a belt that carries the belt motif.
+  - A theme leans the dials and language between the style's and the build's own, and its tones layer over the
+    style's.
+  - Theme cards are plain data in `lib/graph/themes/`, to be shared with held gear. Samurai and hard-suit armour take
+    a theme's tones for now.
+- **Adornment signatures as data.**
+  - A signature can be:
+    - `facing`: a disc on the piece's lifted outer skin, facing where the eye comes from;
+    - `boards`: flat laced rows hung from a piece's edge;
+    - `crest`: a crescent, horns or a sun disc;
+    - `helm`: a smooth helmet sized to the head, with its visor, lenses or grille, a shadowing brow, and a coronet
+      of spikes at the front or the back;
+    - `pack`: a vented block on the back;
+    - one of the theme motifs: `skull` (sockets dark or glowing, 0–2 horns), `spikes`, `ribs`, `fur`, `tabard`,
+      `runes`.
+  - A signature element may carry its own group.
+  - A shell's `rim` paints a band along its own edges in another group, so a trim follows every flare of the plate.
+  - `stack: false` keeps an adornment out of the ones worn after it, so lamellar rows keep a sawtooth profile instead
+    of piling outward.
+  - A rigid strap no longer fails to wear.
+  - Kits that use none of these are unchanged.
 
 ### Equipment
 

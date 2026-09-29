@@ -31,7 +31,7 @@ describe('armor build validation', () => {
     expect(isArmorBuild({ type: 'armor' })).toBe(true);
     expect(isArmorBuild('ranger')).toBe(false);
     expect(validateArmor({ type: 'armor', style: 'knight' })).toEqual([]);
-    expect(validateArmor({ type: 'armor', style: 'paladin' })[0]).toMatch(/not a sample \(knight, kuro-kon, aka, shiro\)/);
+    expect(validateArmor({ type: 'armor', style: 'paladin' })[0]).toMatch(/not a sample \(knight, kuro-kon, aka, shiro, grim-scifi, fantasy-space, armored-hero\)/);
     expect(validateArmor({ type: 'armor', dials: { coverage: 2 } })[0]).toMatch(/coverage: a number 0–1/);
     expect(validateArmor({ type: 'armor', dials: { heft: 1 } })[0]).toMatch(/not a dial/);
     expect(validateArmor({ type: 'armor', dials: { ornament: 1.5 } })[0]).toMatch(/an integer 0–3/);

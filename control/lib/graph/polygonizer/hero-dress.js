@@ -105,7 +105,8 @@ export function dressPlan(plan, { detail, adorn, operatorPalette = {}, scale = 1
   const ctx = dressContext(plan.style, scale);
   if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
-  if (wantAdorn) plan.adorn = typeof adorn === 'string' ? rangerKit(ctx) : isArmorBuild(adorn) ? expandArmor(adorn, ctx).kit : adorn;
+  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx); plan.adorn = A.kit; if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
+  else if (wantAdorn) plan.adorn = typeof adorn === 'string' ? rangerKit(ctx) : adorn;
   // the kit's suggestion is already beneath the operator's colours in plan.palette (humanoidPlan builds the head with it)
   const base = { ...plan.palette, ...operatorPalette };
   plan.palette = { ...base, ...dressTones(base), ...operatorPalette };
