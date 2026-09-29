@@ -3,7 +3,7 @@
 export const LEVELS = ['L0', 'L1', 'L2', 'L3'];
 /**
  * The species table: what each name grows. Heights are the placement range a scatter should draw from; `bark` is the
- * fracture preset its trunk wears (a fir takes pine's plates, the only conifer bark the model has); `leafLife` (years a
+ * fracture preset its trunk wears (`fir`, the self-organizing Massart tree, keeps pine's plates); `leafLife` (years a
  * leaf is kept, over the architecture's own) makes a tree evergreen.
  */
 export const SPECIES = Object.freeze({
@@ -19,4 +19,9 @@ export const SPECIES = Object.freeze({
   moso: { kind: 'culm', bamboo: 'moso', sizes: [0.8, 1.0, 1.15], heights: [10, 17] },
   vulgaris: { kind: 'culm', bamboo: 'vulgaris', sizes: [0.85, 1.0], heights: [8, 15] },
   reed: { kind: 'tuft', bamboo: 'reed', stems: 12, heights: [1.5, 3.5] },
+  // the conifers, grown by rule (conifer.js); `stand` is the live crown they are grown with (0 open, 1 closed), and a pine
+  // wears two barks, plated low and papery orange above
+  spruce: { kind: 'conifer', conifer: 'spruce', bark: 'spruce', stand: 0.6, heights: [18, 34] },
+  silverfir: { kind: 'conifer', conifer: 'silverfir', bark: 'silverfir', stand: 0.6, heights: [18, 32] },
+  pine: { kind: 'conifer', conifer: 'pine', bark: 'pine', barkHigh: 'pineUpper', stand: 0.5, heights: [15, 27] },
 });
