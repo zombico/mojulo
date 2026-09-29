@@ -85,6 +85,46 @@ describe('construction/furniture-builds — a piece from a few dials', () => {
     const r = lowerFrame(dresser).report;
     expect(ids(r)).not.toContain('partition');
   });
+  it('cuts dovetails that flare 1:8 in a hardwood and go together only across the tail board', () => {
+    const box = {
+      id: 'box', unit: 'mm', species: 'cherry',
+      members: [
+        { id: 'front', box: { min: [0, 0, 0], max: [400, 18, 120] }, grain: 'x' },
+        { id: 'side', box: { min: [0, 0, 0], max: [15, 300, 120] }, grain: 'y' },
+      ],
+      joints: [{ type: 'dovetail', a: 'side', b: 'front' }],
+    };
+    const { faces, report } = lowerFrame(box);
+    expect(report.joints[0]).toMatchObject({ type: 'dovetail', tails: 3, widthMm: 120, rigidity: 'moment' });
+    // the tails on the side's outer face: 24 mm at the front's inner face, 2.25 mm wider each side at the board's end
+    const pts = faces.filter((f) => f.group === 'side').flatMap((f) => f.corners).filter((c) => Math.abs(c[0]) < 0.01);
+    const at = (y) => [...new Set(pts.filter((c) => Math.abs(c[1] - y) < 0.01 && c[2] > 1 && c[2] < 40).map((c) => Math.round(c[2] * 10) / 10))].sort((p, q) => p - q);
+    expect(at(18)).toEqual([8, 32]);
+    const end = at(0); expect(end[0]).toBeCloseTo(8 - 18 / 8, 1); expect(end[1]).toBeCloseTo(32 + 18 / 8, 1);
+    expect(report.assembly.order.slice(0, 2)).toEqual(['front', 'side']);
+    const fb = lowerFrame({ ...box, joints: [{ type: 'finger', a: 'side', b: 'front' }] }).report.joints[0];
+    expect(fb).toMatchObject({ type: 'finger', fingers: 7 });
+    expect(() => lowerFrame({ ...box, members: [box.members[0], { id: 'side', box: { min: [0, 30, 0], max: [15, 300, 120] }, grain: 'y' }] })).toThrow(/overlap at the corner/);
+  });
+  it('lays a piece out flat as a print kit, leaving the bought fittings out', () => {
+    const stool = {
+      id: 'stool', unit: 'mm', layout: 'kit',
+      members: [
+        { id: 'end-l', box: { min: [0, 0, 0], max: [18, 300, 432] }, material: 'plywood', grain: 'z' },
+        { id: 'end-r', box: { min: [382, 0, 0], max: [400, 300, 432] }, material: 'plywood', grain: 'z' },
+        { id: 'seat', box: { min: [0, 0, 432], max: [400, 300, 450] }, material: 'plywood' },
+      ],
+      joints: [{ type: 'confirmat', a: 'end-l', b: 'seat' }, { type: 'confirmat', a: 'end-r', b: 'seat' }],
+    };
+    const { faces, report } = lowerFrame(stool);
+    expect(report.kit.parts.map((p) => [p.id, p.sizeMm])).toEqual([['end-l', [432, 300, 18]], ['end-r', [432, 300, 18]], ['seat', [400, 300, 18]]]);
+    expect(report.kit.left).toBe(4);                                 // the confirmats are bought, not printed
+    expect(new Set(faces.map((f) => f.group))).toEqual(new Set(['end-l', 'end-r', 'seat']));
+    const z = faces.flatMap((f) => f.corners.map((c) => c[2]));
+    expect(Math.min(...z)).toBeCloseTo(0, 6);
+    expect(Math.max(...z)).toBeCloseTo(18, 3);                       // every part lies on its face
+    expect(validateFrames([{ ...stool, layout: 'flat' }])[0]).toMatch(/layout: 'kit'/);
+  });
   it('catalogs the hinge and the slide', () => {
     expect(hardwarePart('hinge-35')).toMatchObject({ cup: { d: 35, depth: 13 }, edgeDist: 21.5, setback: 37 });
     expect(hardwarePart('slide-400')).toMatchObject({ length: 400, t: 12.7 });

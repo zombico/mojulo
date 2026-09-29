@@ -161,7 +161,7 @@ describe('construction/frame — members cut where they meet', () => {
   beforeAll(async () => { await ensureExactKernel(); });
 
   it('validates frames with teaching messages', () => {
-    const errs = validateFrames([{ members: [{ id: 'a', from: [0, 0, 0], to: [0, 0, 100], stock: 'plank' }, { id: 'a', from: [0, 0, 0], to: [0, 0, 100], stock: [10, 10], species: 'balsa' }], joints: [{ type: 'dovetail', a: 'a', b: 'z' }] }]);
+    const errs = validateFrames([{ members: [{ id: 'a', from: [0, 0, 0], to: [0, 0, 100], stock: 'plank' }, { id: 'a', from: [0, 0, 0], to: [0, 0, 100], stock: [10, 10], species: 'balsa' }], joints: [{ type: 'mitre', a: 'a', b: 'z' }] }]);
     expect(errs.join('\n')).toMatch(/stock: \[width, depth\]/);
     expect(errs.join('\n')).toMatch(/'a' is used twice/);
     expect(errs.join('\n')).toMatch(/unknown timber 'balsa'/);

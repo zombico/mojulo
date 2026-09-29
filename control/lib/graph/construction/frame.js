@@ -88,6 +88,8 @@ export function validateFrames(frames) {
     if (f.load !== undefined && !(Number.isFinite(f.load) && f.load >= 0)) errors.push(`${at}.load: kN per metre, a number ≥ 0`);
     if (f.explode !== undefined && !(Number.isFinite(f.explode) && f.explode >= 0)) errors.push(`${at}.explode: a distance in the frame's unit, ≥ 0`);
     if (f.xray !== undefined && typeof f.xray !== 'boolean') errors.push(`${at}.xray: true or false`);
+    if (f.layout !== undefined && f.layout !== 'kit') errors.push(`${at}.layout: 'kit' (every part laid flat to print), or leave it out`);
+    if (f.kitGap !== undefined && !(Number.isFinite(f.kitGap) && f.kitGap >= 0)) errors.push(`${at}.kitGap: a distance in the frame's unit, ≥ 0`);
     if (f.shelfLoad !== undefined && !(Number.isFinite(f.shelfLoad) && f.shelfLoad >= 0)) errors.push(`${at}.shelfLoad: kg per metre, a number ≥ 0`);
     if (!Array.isArray(f.members) || !f.members.length) { errors.push(`${at}.members: a non-empty array of { id, from, to, stock } (or a \`build\`)`); return; }
     const scale = FRAME_UNITS[f.unit || 'cm'] || 0.01;
@@ -391,8 +393,11 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
   let assembly = declared.size ? (assemblyGroups(ids, seatEdges, declared, orderOpts) || assemblyOrder(ids, seatEdges, orderOpts)) : assemblyOrder(ids, seatEdges, orderOpts);
   // furniture that cannot go together one member at a time is built in sub-assemblies (a table's end frames)
   if (furniture && !assembly.order) { const t = assemblyTree(ids, seatEdges); if (t) assembly = { ...t, lock: null }; }
+  // the kit: every part laid flat for printing a model of it, the bought fittings left out (they are not printed)
+  let kit = null;
+  if (spec.layout === 'kit') { const k = layKit(faces, members, drawn, unitScale, Number.isFinite(spec.kitGap) ? spec.kitGap : 5 / (unitScale * 1000)); faces.length = 0; faces.push(...k.faces); kit = k.report; }
   // the exploded view: each member back along the way it seats; a piece with its host, then out along its own way
-  if (Number.isFinite(spec.explode) && spec.explode > 0) {
+  if (!kit && Number.isFinite(spec.explode) && spec.explode > 0) {
     const k = spec.explode; const off = new Map();
     // later members pull back further, so two that seat the same way (a splice's halves) still come apart
     let rank = 0;
@@ -429,6 +434,7 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
     ...(spec.built ? { build: { type: spec0.build.type, dials: spec.built.dials, expanded: { members: spec.built.members, joints: spec.built.joints } } } : {}),
     span, assembly: { order: assembly.order, lock: assembly.lock, ...(assembly.subassemblies && assembly.subassemblies.length ? { subassemblies: assembly.subassemblies.map((sa) => ({ parts: sa.parts, dir: sa.dir.map((v) => Math.round(v * 1000) / 1000), ...(sa.group ? { group: sa.group } : {}) })) } : {}) },
     ...(furniture ? { furniture: furnitureReport({ spec, members, byId, joints: J, drawn, assembly }) } : {}),
+    ...(kit ? { kit } : {}),
     ...(jointedWithoutKernel(members, kernel) ? { degraded: 'joints are not cut and steel sections are not shaped: the exact kernel (manifold-3d) is not installed, so members draw as plain boxes' } : {}),
   };
   // beside the report (so a report's bytes do not move): the way each part seats, and the loose pieces as placed — what
@@ -439,6 +445,45 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT } = {}) {
   });
   return { faces, report, seat: assembly.moves, parts };
 }
+
+/**
+ * Lay a frame's parts out flat as a print kit: each member and each timber piece (peg, wedge, key) turned so its
+ * thinnest side stands up and its longest runs along x, then placed in rows on the floor `gap` apart, rows about as
+ * wide as the kit is deep. Fittings made of metal or plastic are left out: a model is
+ * glued, and a real piece's fittings are bought. → { faces, report: { parts, sizeMm } } in the recipe's unit.
+ */
+function layKit(faces, members, drawn, unitScale, gap) {
+  const byGroup = new Map(); for (const f of faces) { if (!byGroup.has(f.group)) byGroup.set(f.group, []); byGroup.get(f.group).push(f); }
+  const frameOf = new Map(members.map((M) => [M.id, M]));
+  for (const p of drawn) if (!p.material || p.material === 'timber') frameOf.set(p.id, p.host);
+  const inv = 1 / unitScale;
+  const items = [];
+  for (const [g, fs] of byGroup) {
+    const M = frameOf.get(g); if (!M) continue;
+    // corners in the part's own frame (its host's, for a piece), in the recipe's unit
+    const local = fs.map((f) => f.corners.map((c) => toLocalFrame(M.F, c.map((v) => v * unitScale)).map((v) => v * inv)));
+    const lo = [0, 1, 2].map((k) => Math.min(...local.flat().map((c) => c[k]))), hi = [0, 1, 2].map((k) => Math.max(...local.flat().map((c) => c[k])));
+    const size = lo.map((v, k) => hi[k] - v);
+    const order = [0, 1, 2].sort((a, b) => size[b] - size[a] || a - b);   // longest → x, middle → y, thinnest → z
+    const flip = ((order[0] + 1) % 3 === order[1]) ? 1 : -1;            // keep the mapping a rotation, not a mirror
+    items.push({ g, fs, local, lo, size, order, flip });
+  }
+  items.sort((a, b) => b.size[b.order[1]] - a.size[a.order[1]] || (a.g < b.g ? -1 : 1));
+  // rows about as wide as the kit is deep: the longest part, or the side of a square holding them all
+  const rowMax = Math.max(...items.map((it) => it.size[it.order[0]]), 1.2 * Math.sqrt(items.reduce((s, it) => s + it.size[it.order[0]] * (it.size[it.order[1]] + gap), 0)));
+  let x = 0, y = 0, rowH = 0; const out = [], parts = [];
+  for (const it of items) {
+    const [ax, ay, az] = it.order; const L = it.size[ax], Wd = it.size[ay];
+    if (x > 0 && x + L > rowMax) { x = 0; y += rowH + gap; rowH = 0; }
+    const map = (c) => [x + (c[ax] - it.lo[ax]), y + (it.flip > 0 ? c[ay] - it.lo[ay] : it.lo[ay] + it.size[ay] - c[ay]), c[az] - it.lo[az]];
+    it.fs.forEach((f, i) => out.push({ ...f, corners: it.local[i].map(map) }));
+    parts.push({ id: it.g, atMm: [x, y].map((v) => Math.round(v * unitScale * 1000)), sizeMm: [L, Wd, it.size[az]].map((v) => Math.round(v * unitScale * 1000)) });
+    x += L + gap; rowH = Math.max(rowH, Wd);
+  }
+  const X = Math.max(...parts.map((p) => p.atMm[0] + p.sizeMm[0])), Y = Math.max(...parts.map((p) => p.atMm[1] + p.sizeMm[1]));
+  return { faces: out, report: { parts, sizeMm: [X, Y], left: drawn.filter((p) => p.material && p.material !== 'timber').length } };
+}
+const toLocalFrame = (F, w) => { const q = [w[0] - F.origin[0], w[1] - F.origin[1], w[2] - F.origin[2]]; return [dot(q, F.ex), dot(q, F.ey), dot(q, F.ez)]; };
 
 const jointedWithoutKernel = (members, kernel) => !kernel && members.some((M) => M.trims.length || M.adds.length || M.subs.length || M.material === 'steel');
 

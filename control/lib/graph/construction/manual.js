@@ -111,17 +111,19 @@ export function manualPlan(spec) {
   const tip = report.furniture && report.furniture.tip;
   if (tip && ((tip.pull && tip.pull.tips) || (tip.drawers && tip.drawers.tips))) merged.push({ kind: 'anchor', pieces: [], turns: [] });
   merged.forEach((s, i) => { s.n = i + 1; });
-  // hardware letters in order of first use
-  const codeOf = new Map(parts.filter((p) => p.code).map((p) => [p.id, p.code]));
+  // hardware letters in order of first use: catalog fittings by code, a joint's own loose pieces (pegs, wedges, keys,
+  // plates) by kind — drawn from their geometry on the inventory, since they have no catalog size
+  const codeOf = new Map(parts.map((p) => [p.id, p.code || `piece:${p.kind}`]));
   const letters = new Map();
   for (const s of merged) for (const pid of s.pieces) { const c = codeOf.get(pid); if (c && !letters.has(c)) letters.set(c, String.fromCharCode(65 + letters.size)); }
-  const count = new Map(); for (const p of parts) if (p.code) count.set(p.code, (count.get(p.code) || 0) + 1);
-  const hardware = [...letters.entries()].map(([code, letter]) => ({ letter, code, label: hardwarePart(code).label, count: count.get(code) }));
+  const count = new Map(), sample = new Map(); for (const p of parts) { const c = codeOf.get(p.id); count.set(c, (count.get(c) || 0) + 1); if (!sample.has(c)) sample.set(c, p.id); }
+  const hardware = [...letters.entries()].map(([code, letter]) => ({ letter, code, label: code.startsWith('piece:') ? code.slice(6) : hardwarePart(code).label, count: count.get(code), sample: sample.get(code) }));
   const partsList = [...numbers.entries()].map(([k, n]) => {
     const ids = order.filter((id) => numberOf.get(id) === n); const m = byId.get(ids[0]);
     return { n, ids, count: ids.length, material: m.material, dimsMm: [m.lengthMm, ...(m.stockMm || [])] };
   });
-  const tools = [...new Map(hardware.map((h) => toolOf(hardwarePart(h.code))).filter(Boolean).map((t) => [t.key, t])).values()];
+  const TIMBER_PIECES = ['peg', 'komisen', 'kusabi', 'shachi'];
+  const tools = [...new Map([...hardware.map((h) => toolOf(hardwarePart(h.code))), ...(hardware.some((h) => TIMBER_PIECES.includes(h.label)) ? [{ key: 'hammer', label: 'hammer' }] : [])].filter(Boolean).map((t) => [t.key, t])).values()];
   return { id: spec.id || 'frame', unit: spec.unit || 'cm', steps: merged, parts: partsList, numberOf, hardware, letters, codeOf, tools, low };
 }
 const dirEq = (a, b) => a && b && Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] - 1) < 1e-6;
@@ -338,15 +340,18 @@ function inventoryPage(plan, groups, mmPerUnit) {
   body += `<line x1="12" y1="${y - 6}" x2="198" y2="${y - 6}" stroke="${INK}" stroke-width="0.3"/>`;
   let x = 18, rowH = 0;
   for (const h of plan.hardware) {
-    const p = hardwarePart(h.code); const w = glyphWidth(p) + 30, hh = Math.max(glyphHeight(p), 10) + 10;
+    const p = hardwarePart(h.code);
+    // a joint's own piece has no catalog size: a small drawing of it, not to scale
+    const w = p ? glyphWidth(p) + 30 : 60, hh = p ? Math.max(glyphHeight(p), 10) + 10 : 26;
     if (x + w > 196) { x = 18; y += rowH; rowH = 0; }
     body += circle(x + 4, y + hh / 2, 3.6, h.letter, { size: 4 }) + text(x + 9.5, y + hh / 2 + 1.5, `×${h.count}`, 4, 'start', 700);
-    body += hardwareGlyph(p, x + 22, y + hh / 2);
+    if (p) body += hardwareGlyph(p, x + 22, y + hh / 2);
+    else { const fs = groups.get(h.sample) || []; if (fs.length) body += inkRuns(fs, fitCamera(fs.flatMap((f) => f.corners), { x: x + 22, y: y + 2, w: w - 26, h: hh - 4 })); }
     x += w + 6; rowH = Math.max(rowH, hh + 4);
   }
-  // the check bar: print at 100 % and this is 10 mm
+  // the check bar: print at 100 % and this is 10 mm (only when there are fittings drawn to scale)
   const by = PAGE.h - 18;
-  body += `<g stroke="${INK}" stroke-width="0.3"><line x1="18" y1="${by}" x2="28" y2="${by}" stroke-width="0.6"/><line x1="18" y1="${by - 2}" x2="18" y2="${by + 2}"/><line x1="28" y1="${by - 2}" x2="28" y2="${by + 2}"/></g>${text(31, by + 1.4, '10 mm · 1:1', 3.2)}`;
+  if (plan.hardware.some((h) => hardwarePart(h.code))) body += `<g stroke="${INK}" stroke-width="0.3"><line x1="18" y1="${by}" x2="28" y2="${by}" stroke-width="0.6"/><line x1="18" y1="${by - 2}" x2="18" y2="${by + 2}"/><line x1="28" y1="${by - 2}" x2="28" y2="${by + 2}"/></g>${text(31, by + 1.4, '10 mm · 1:1', 3.2)}`;
   return page(body);
 }
 

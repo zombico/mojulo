@@ -14,23 +14,25 @@
 // diagonal), 'pin' (the knock-down fittings: they hold the parts together but let the corner turn), 'none' (a shelf on
 // pins).
 import { toLocal } from './members.js';
+import { perpBasisZ } from '../polygonizer/solid-frame.js';
 import { hardwarePart, partPolys, boreTerm, bracketHoles } from './hardware.js';
 import { SHEETS } from './sheets.js';
 import { TIMBERS } from './timber.js';
 
 const MM = 0.001;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const axisVec = (k, s = 1) => { const v = [0, 0, 0]; v[k] = s; return v; };
 const r1 = (v) => Math.round(v * 10) / 10;
 
-export const FURNITURE_JOINTS = Object.freeze(['dowel', 'cam-lock', 'confirmat', 'screwed', 'shelf-pin', 'bracket', 'dado', 'groove', 'hinge', 'slide']);
+export const FURNITURE_JOINTS = Object.freeze(['dowel', 'cam-lock', 'confirmat', 'screwed', 'shelf-pin', 'bracket', 'dado', 'groove', 'hinge', 'slide', 'dovetail', 'finger']);
 export const RIGIDITY = Object.freeze({
   'mortise-tenon': 'moment', hozo: 'pin', nuki: 'moment', 'kanawa-tsugi': 'moment', lap: 'moment', notch: 'pin',
   welded: 'moment', bolted: 'moment', 'base-plate': 'moment',
   dowel: 'pin', 'cam-lock': 'pin', confirmat: 'pin', screwed: 'pin', 'shelf-pin': 'none', bracket: 'moment', dado: 'pin', groove: 'shear',
-  hinge: 'none', slide: 'none',
+  hinge: 'none', slide: 'none', dovetail: 'moment', finger: 'moment',
 });
 
 /** A member's world box (metres): { lo, hi, c, size }. */
@@ -370,6 +372,84 @@ function slideJoint(J, A, B, out) {
   out.report.push({ joint: J.label, type: 'slide', a: A.id, b: B.id, slide: P.code, gapMm: r1(gap * 1000), ...(Math.abs(gap * 1000 - P.t) > 1 ? { advice: `the slide wants ${P.t} mm; the drawer side is ${r1(gap * 1000)} mm off the carcass` } : {}), fasteners: [{ code: P.code, count: 1 }], rigidity: rigidityOf(J) });
 }
 
+/**
+ * A corner of two boards that overlap there (each authored through the other's thickness): the overlap is split along
+ * the boards' shared width into cells, and each board loses the other's.
+ *   · 'dovetail' — a carries the tails, b the pins: trapezoids in the plane of a's face that widen toward a's end at
+ *     `slope` (1:6 softwood, 1:8 hardwood, 1:7 a sheet), half pins at both edges, `tails` of them (default one per
+ *     ~2.5 thicknesses of width). a goes on across its own face, the only way a dovetail assembles; pulled along
+ *     its length it locks — what the joint is for.
+ *   · 'finger' — square fingers, `fingers` of them (odd; b keeps the outer two); it goes together either way.
+ */
+function cornerJoint(J, A, B, out, kind) {
+  const a = worldBox(A), b = worldBox(B);
+  const lo = [0, 1, 2].map((k) => Math.max(a.lo[k], b.lo[k])), hi = [0, 1, 2].map((k) => Math.min(a.hi[k], b.hi[k]));
+  if ([0, 1, 2].some((k) => hi[k] - lo[k] <= 0.0005)) throw new Error(`joint ${J.label}: a ${kind} needs ${A.id} and ${B.id} to overlap at the corner — run each board through the other's thickness`);
+  const thinA = [0, 1, 2].reduce((m, k) => (a.size[k] < a.size[m] ? k : m), 0), thinB = [0, 1, 2].reduce((m, k) => (b.size[k] < b.size[m] ? k : m), 0);
+  if (thinA === thinB) throw new Error(`joint ${J.label}: ${A.id} and ${B.id} lie in parallel planes — a ${kind} joins boards at a corner`);
+  const r = [0, 1, 2].find((k) => k !== thinA && k !== thinB);          // the shared width the cells run along
+  const W = hi[r] - lo[r], tb = hi[thinB] - lo[thinB];
+  // along b's thickness, which way is a's end (outward): away from a's body
+  const out1 = Math.sign((lo[thinB] + hi[thinB]) / 2 - a.c[thinB]) || 1;
+  const inner = out1 > 0 ? lo[thinB] : hi[thinB];                        // b's inner face: where the tails are narrowest
+  const cellsB = [], cellsA = [];                                        // polygons in (r, thinB), world
+  const P = (rr, t) => [rr, t];
+  if (kind === 'finger') {
+    let n = Number.isInteger(J.fingers) && J.fingers >= 3 ? J.fingers : Math.max(3, Math.round(W / Math.max(tb, 0.006)));
+    if (n % 2 === 0) n += 1;
+    for (let i = 0; i < n; i++) {
+      const r0 = lo[r] + (W * i) / n, r1 = lo[r] + (W * (i + 1)) / n;
+      const poly = [P(r0, lo[thinB]), P(r1, lo[thinB]), P(r1, hi[thinB]), P(r0, hi[thinB])];
+      (i % 2 === 0 ? cellsB : cellsA).push(poly);                         // b keeps the even (outer) fingers
+    }
+  } else {
+    const soft = A.material === 'timber' && TIMBERS[A.species] && TIMBERS[A.species].group === 'softwood';
+    const slope = Number.isFinite(J.slope) ? J.slope : A.material !== 'timber' ? 1 / 7 : soft ? 1 / 6 : 1 / 8;
+    const n = Number.isInteger(J.tails) && J.tails >= 1 ? J.tails : Math.max(1, Math.round(W / (2.5 * tb)));
+    const p = W / n, half = 0.3 * p;                                     // a tail is 60 % of its pitch at b's inner face
+    const edges = [];
+    for (let i = 0; i < n; i++) {
+      const c = lo[r] + p * (i + 0.5), flare = slope * tb;
+      const inL = c - half, inR = c + half, outL = inL - flare, outR = inR + flare;
+      const tIn = inner, tOut = inner + out1 * tb;
+      cellsA.push([P(inL, tIn), P(inR, tIn), P(outR, tOut), P(outL, tOut)]);
+      edges.push({ inL, inR, outL, outR });
+    }
+    // pins (and a half pin at each edge) between the tails, what a loses
+    const tIn = inner, tOut = inner + out1 * tb;
+    const bounds = [{ inR: lo[r] - 0.001, outR: lo[r] - 0.001 }, ...edges, { inL: hi[r] + 0.001, outL: hi[r] + 0.001 }];
+    for (let i = 0; i + 1 < bounds.length; i++) {
+      const L0 = bounds[i], R0 = bounds[i + 1];
+      cellsB.push([P(L0.inR, tIn), P(R0.inL, tIn), P(R0.outL, tOut), P(L0.outR, tOut)]);
+    }
+  }
+  // each cell is a prism through the overlap along a's thickness, built in the member it cuts; a loses b's, b loses a's
+  const prismOf = (poly, M) => {
+    const pts = poly.map(([rr, t]) => { const v = [0, 0, 0]; v[r] = rr; v[thinB] = t; return v; });
+    const c = pts.reduce((sum, v) => add(sum, v), [0, 0, 0]).map((x) => x / pts.length);
+    const from = c.slice(), to = c.slice(); from[thinA] = lo[thinA] - 0.001; to[thinA] = hi[thinA] + 0.001;
+    return extrudeTerm(L(M, from), L(M, to), pts.map((v) => Ld(M, [v[0] - c[0], v[1] - c[1], v[2] - c[2]])));
+  };
+  for (const poly of cellsB) A.subs.push(prismOf(poly, A));
+  for (const poly of cellsA) B.subs.push(prismOf(poly, B));
+  const along = axisVec(thinA, Math.sign(b.c[thinA] - a.c[thinA]) || 1);  // a onto b, across a's face
+  const alongB = axisVec(thinB, -out1);
+  out.edges.push({ a: A.id, b: B.id, dirs: kind === 'finger' ? [along, alongB] : [along] });
+  out.report.push({ joint: J.label, type: kind, a: A.id, b: B.id, ...(kind === 'finger' ? { fingers: cellsA.length + cellsB.length } : { tails: cellsA.length }), widthMm: r1(W * 1000), rigidity: rigidityOf(J) });
+}
+
+/**
+ * An extruded prism from `from` to `to` (M-local) whose cross-section corners are `corners` (offsets square to the
+ * axis): the kernel reads a profile in perpBasisZ(axis) coordinates, so the corners are projected onto it.
+ */
+function extrudeTerm(from, to, corners) {
+  const d = sub(to, from); const l = Math.hypot(d[0], d[1], d[2]) || 1; const u = [d[0] / l, d[1] / l, d[2] / l];
+  const [e1, e2] = perpBasisZ({ x: u[0], y: u[1], z: u[2] });
+  const U = [e1.x, e1.y, e1.z], V = [e2.x, e2.y, e2.z];
+  const q = (v) => Math.round(v * 1e5) / 1e5;
+  return { kind: 'extrude', axisFrom: from, axisTo: to, profile: { points: corners.map((c) => [q(dot(c, U)), q(dot(c, V))]) } };
+}
+
 /** A world-axis-aligned box (lo, hi) as a box term in M's local frame (M is axis-aligned). */
 function localBox(M, lo, hi) {
   const a = L(M, lo), b = L(M, hi);
@@ -407,6 +487,8 @@ export function applyFurnitureJoint(J, A, B, out) {
     case 'groove': return grooveJoint(J, A, B, out);
     case 'hinge': return hingeJoint(J, A, B, out);
     case 'slide': return slideJoint(J, A, B, out);
+    case 'dovetail': return cornerJoint(J, A, B, out, 'dovetail');
+    case 'finger': return cornerJoint(J, A, B, out, 'finger');
     default: throw new Error(`unknown furniture joint '${J.type}'`);
   }
 }

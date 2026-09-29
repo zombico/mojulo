@@ -34,6 +34,11 @@ connected-service and app loops and the recipe format are the stable surface.
   ball-bearing slides; a table whose tenons stop short of each other in its legs, its top on brackets; a chair with a
   mortise-and-tenon frame and a notched seat. Doors (`hinge`), drawer slides (`slide`) and parts built together first
   (`group`) are available to hand-written frames too.
+- **Dovetails and finger joints.** Two boards overlapping at a corner are cut into tails and pins (flared 1:6 in a
+  softwood, 1:8 in a hardwood, half pins at the edges) or square fingers; a dovetail goes together only across the
+  tail board, and pulled along its length it locks.
+- **A print kit.** `layout: 'kit'` lays every part of a piece flat on the grid, its joints cut and its bought fittings
+  left out, so the piece exports as a model kit to print and glue up.
 - **Furniture that stands.** A piece is checked where furniture fails, and never refused:
   - shelf sag under a load of books, now (span/600) and as it creeps (span/300);
   - racking: a carcass with no fixed back folds sideways;
