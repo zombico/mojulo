@@ -30,8 +30,13 @@
  * sibling: extrude-faces.js (the bar). Scene emit: scene-css3d.js.
  */
 
+import { framingOf, houseFramingFaces, clipFacesAtX, houseEyes } from '../construction/house-frame.js';
+import { planDrainage } from '../construction/drainage.js';
+import { assessHouseDesign, designRules } from './floorplan-design.js';
+import { shiftRepeats } from '../construction/instancing.js';
+import { expandRepeats } from './rock-pool.js';
 import { shadeHex, makeLight, scaleHex } from './vexar.js';
-import { generatePlan, generateProgramPlan, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
+import { generatePlan, generateProgramPlan, upperHallFits, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
 import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
@@ -89,6 +94,7 @@ export const FLOORPLAN_DEFAULTS = {
   xrayWalls: false,        // opt-in: render the outer envelope as a see-through wireframe cage
   furnish: false,          // opt-in: populate each registered room with its archetype furniture
   furnishScale: 'feet',    // 'feet' (legacy: arrangers size pieces in fixed feet) | 'share' (preset share of the floor, banded + budgeted)
+  furnishing: null,        // opt-in: 'constructed' — the pieces built on the workbench (construction/facades.js) in place of the simpler ones
   contactShadows: false,   // opt-in: a soft ambient-occlusion decal on the floor under each piece of furniture (the unbaked tier's grounding)
   wallMaterial: null,      // opt-in: a procedural-material preset the interior paint swath carries into the World tier ('plaster'); needs wallDecor
   floorTexture: null,      // opt-in: a surface-textures tile on the floor finish — 'auto' (oak boards / carrara marble by style) | a tile key | null. World + exports; the CSS still keeps its fill
@@ -130,7 +136,7 @@ export const FLOORPLAN_DEFAULTS = {
   ceilingTint: '#d8d2c4',  // off-white ceiling plane
   // VIEW + ROOF — the doll-house is one view; `exterior` is its roofed companion.
   view: 'cutaway',         // 'cutaway' = open-top doll-house (see interior) | 'exterior' = roofed solid massing, basement hidden, on the ground
-  roof: false,             // opt-in roof over the envelope: true | <ROOF_STYLES name> | { style, form, material, pitch, ... }. See roof.js.
+  roof: false,             // opt-in roof over the envelope: true | <ROOF_STYLES name> | { style, form, material, pitch, covering, ... }. See roof.js.
   groundTint: '#3a4632',   // exterior-view ground plane (grass/earth)
   groundMargin: 30,        // how far the ground plane extends past the footprint (ft)
   perimeter: false,        // opt-in LOT around the house (exterior view only): property line,
@@ -153,9 +159,9 @@ function roofSpec(roof) {
 // Cap an envelope footprint {x0,x1,y0,y1} with a real roof at wall-top z. The eave
 // overhang covers the small footprint↔outer-wall gap, so the centerline footprint is
 // close enough. Returns buildRoof's { faces, textureKeys }.
-function envelopeRoof(footprint, topZ, o) {
+function envelopeRoof(footprint, topZ, o, eyes = null) {
   const fp = { x: footprint.x0, y: footprint.y0, w: footprint.x1 - footprint.x0, d: footprint.y1 - footprint.y0, z: topZ };
-  return buildRoof(fp, { ...roofSpec(o.roof), light: o.light, roomHeight: o.wallHeight });
+  return buildRoof(fp, { ...roofSpec(o.roof), light: o.light, roomHeight: o.wallHeight, ...(eyes ? { eyes } : {}) });
 }
 
 // A solid GROUND plane at z, extended past the footprint — the exterior-view datum
@@ -762,8 +768,20 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
     });
   }
   if (!elements.length) return [];
+  // `furnishing: 'constructed'`: the pieces built on the workbench, as facades, in place of the simpler ones
+  if (o.furnishing === 'constructed') elements = elements.map(constructedPiece);
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
 }
+
+// arranger type (or the mesh it was given) → the constructed facade that stands in for it (room-assets.js)
+const CONSTRUCTED_FOR = {
+  sofa: 'constructed-sofa', 'modern-couch': 'constructed-sofa', armchair: 'constructed-armchair', 'club-armchair': 'constructed-armchair',
+  table: 'constructed-coffee-table', 'coffee-table': 'constructed-coffee-table', 'media-unit': 'constructed-media-console', 'media-console': 'constructed-media-console',
+  bookshelf: 'constructed-bookcase', bookcase: 'constructed-bookcase', sideboard: 'constructed-sideboard', 'sideboard-cabinet': 'constructed-sideboard',
+  'dining-table': 'constructed-dining-table', 'plank-dining-table': 'constructed-dining-table', 'ladder-chair': 'constructed-chair', 'computer-chair': 'constructed-chair',
+  dresser: 'constructed-chest', 'low-dresser': 'constructed-chest', nightstand: 'constructed-nightstand', 'bedside-table': 'constructed-nightstand',
+};
+const constructedPiece = (e) => { const id = CONSTRUCTED_FOR[e.asset] || CONSTRUCTED_FOR[e.type]; return id ? { ...e, asset: id } : e; };
 
 // Room elements (anchor / w / h as fractions of the interior {x0,x1,y0,y1}) → baked faces,
 // through the room-spike renderer: the generated furniture and the operator's placed items.
@@ -1703,19 +1721,20 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   // floor slab over the footprint (gives the level a base), sitting just below
   // this level's floor height so floors stack flush along the meru. Stair voids
   // ("open slots") are punched through as holes.
-  faces.push(...slabFaces(fp, baseZ - o.floorDrop, baseZ, o.floorTint || '#6e6450', o.light, slabHoles));
-  faces.push(...extrudeWalls(wallGraph, o));
+  // `_framed` (a house's framing, view 'framed'): the structure stands in for the slab, walls, ceiling and finish
+  if (!o._framed) faces.push(...slabFaces(fp, baseZ - o.floorDrop, baseZ, o.floorTint || '#6e6450', o.light, slabHoles));
+  if (!o._framed) faces.push(...extrudeWalls(wallGraph, o));
   // opt-in ceiling plane at the storey head. The hole set is this level's CEILING
   // holes (the stair rising to the floor above), distinct from its own floor's voids.
   // ceiling plane: opt-in for the cutaway; ALWAYS on for exterior view (cap the top so the
   // interior isn't seen from outside, under the roof).
-  if (o.ceilings || o.view === 'exterior') {
+  if (!o._framed && (o.ceilings || o.view === 'exterior')) {
     faces.push(...ceilingFaces(fp, baseZ + o.wallHeight, o.ceilingTint || '#d8d2c4', o.light, o.ceilingHoles || []));
     if (pots.length && o.view !== 'exterior') faces.push(...potLightFaces(pots, potCfg, o.light));
   }
   // FLOOR FINISH over the slab (floorboards / marble / auto), per room + halls, minus the
   // stair voids. 'auto' tiles wet rooms (kitchen/bath/laundry) in marble, the rest in boards.
-  if (o.floorStyle && o.floorStyle !== 'plain') {
+  if (!o._framed && o.floorStyle && o.floorStyle !== 'plain') {
     const wet = (g) => g === 'K' || g === 'W' || g === 'Y';
     const styleFor = (g) => (o.floorStyle === 'auto' ? (wet(g) ? 'marble' : 'floorboards') : o.floorStyle);
     for (const room of plan.rooms) faces.push(...floorFinishFaces(room, styleFor(room.glyph), baseZ, o, slabHoles));
@@ -2455,6 +2474,11 @@ export function structurizeHouse(input = {}, opts = {}) {
   // stacks the taller floors, stairs scale their rise to match) unless the caller set heights.
   if (o.facadeStyle === 'tofu' && opts.wallHeight == null) { o.wallHeight = 12.5; o.upperHeight = 11; }
   const meru = houseMeru({ ...o, groundZ: input.groundZ ?? 0, unitScale: opts.unitScale });
+  // opt-in structure under the skin (construction/house-frame.js): absent, nothing below reads it
+  const framing = o.framing ? framingOf(o.framing) : null;
+  const framedView = !!framing && framing.view === 'framed';
+  // a house shown at a construction stage wears its roof as built (decked, battened or covered) instead of the finished one
+  const builtRoof = !!framing && framing.stage !== 'frame';
   const levelSpecs = (Array.isArray(input.levels) && input.levels.length)
     ? input.levels
     : [{ role: 'ground', seed: input.seed ?? 1 }];
@@ -2486,14 +2510,17 @@ export function structurizeHouse(input = {}, opts = {}) {
     : Array.isArray(input.stairs) ? input.stairs : input.stairs ? [input.stairs] : [];
   // program houses default to a SWITCHBACK (U-return) stair; it needs a wider open zone,
   // so the reserved stair span (and the upper landing that must cover it) grows to fit.
-  const switchbackDefault = useProgram;
-  const anySwitchback = stairSpecs.some((s) => s.switchback ?? switchbackDefault);
-  const stairSpan = anySwitchback ? (2 * STAIR_DEFAULTS.width + STAIR_DEFAULTS.wellGap + 1.2) : (STAIR_DEFAULTS.width + 0.4);
+  // design.repair: the generator keeps a passage past the stair (floorplan-design.js names its width)
+  const repairPassage = o.design && o.design.repair ? designRules(o.design, framing ? framing.tradition : null).passage : null;
+  let switchbackDefault = useProgram;
+  let stairRun = null;
+  const spanFor = () => (stairSpecs.some((s) => s.switchback ?? switchbackDefault) ? (2 * STAIR_DEFAULTS.width + STAIR_DEFAULTS.wellGap + 1.2) : (STAIR_DEFAULTS.width + 0.4));
+  let stairSpan = spanFor();
   // ground first so its open core fixes the shared stair zone the others must keep open.
   const order = [...resolved].sort((a, b) => (a.index === 0 ? -1 : b.index === 0 ? 1 : a.index - b.index));
   const planByIndex = new Map();
   let stairZone = null, stairDir = '+x';
-  for (const r of order) {
+  const makePlans = () => { for (const r of order) {
     if (Array.isArray(r.rooms) && r.rooms.length) {
       planByIndex.set(r.index, { rooms: r.rooms, halls: r.halls || [], doors: r.doors || [] });
       continue;
@@ -2502,13 +2529,25 @@ export function structurizeHouse(input = {}, opts = {}) {
       const role = r.index > 0 ? 'upper' : r.index < 0 ? 'basement' : 'ground';
       const plan = generateProgramPlan(r.seed ?? (input.seed ?? 1) + r.index, {
         width, height, role, hasUpper, reservedOpen: stairZone, inset: 2, stairSpan,
-        tier: input.tier, terrace: input.terrace, balcony: o.balcony,
+        tier: input.tier, terrace: input.terrace, balcony: o.balcony, ...(repairPassage != null ? { passage: repairPassage } : {}), ...(stairRun != null ? { stairRun, climbToCentre: true } : {}),
       });
       if (r.index === 0 && plan.stairZone) { stairZone = plan.stairZone; stairDir = plan.stairDir; }
       planByIndex.set(r.index, plan);
     } else {
       planByIndex.set(r.index, generatePlan(r.seed ?? (input.seed ?? 1) + r.index, { width, height, maxDepth: r.maxDepth, corridors: r.corridors ?? input.corridors ?? false, minRoom: r.minRoom ?? input.minRoom }));
     }
+  } };
+  makePlans();
+  // (repair) a U-return whose zone and a passage past it would cost the upper floor a row of rooms gives way to a
+  // straight flight along the hall, its zone running on to the landing at its head
+  if (repairPassage != null && useProgram && hasUpper && stairZone && stairSpecs.some((s) => s.switchback === undefined)
+    && !upperHallFits({ width, height, inset: 2, reservedOpen: stairZone, passage: repairPassage })) {
+    switchbackDefault = false;
+    stairSpan = spanFor();
+    const rise = (o.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight) + (o.floorDrop ?? FLOORPLAN_DEFAULTS.floorDrop);
+    stairRun = Math.max(2, Math.round(rise / STAIR_DEFAULTS.riser)) * STAIR_DEFAULTS.going + repairPassage + 1;
+    planByIndex.clear(); stairZone = null; stairDir = '+x';
+    makePlans();
   }
 
   const stairs = stairSpecs.map((s) => {
@@ -2571,6 +2610,7 @@ export function structurizeHouse(input = {}, opts = {}) {
         // exterior caps only the TOP storey's ceiling (lower storeys are already capped by
         // the slab above); the per-level call's own exterior-cap is suppressed via _envelope.
         ceilings: (exterior && index === maxIndex) ? true : (r.ceilings ?? o.ceilings),
+        ...(framedView ? { _framed: true } : {}),
       },
     );
     faces.push(...s.faces);
@@ -2612,13 +2652,29 @@ export function structurizeHouse(input = {}, opts = {}) {
     faces.push(...st.faces);            // stair flights climb in their lower-level volume
   }
 
+  // opt-in design considerations (floorplan-design.js): the walkways and stairs measured on the floor as built
+  const design = o.design ? assessHouseDesign({ levels, stairs, footprint }, o.design, { ...o, tradition: framing ? framing.tradition : null }) : null;
+
   // Roof over the top storey + ground plane (exterior), else the cutaway's datum helper line.
   let roofTextureKeys = [];
-  if (o.roof || exterior) {
+  const roofRepeats = [];
+  let roofing = null;
+  if ((o.roof || exterior) && !framedView && !builtRoof) {
     const top = levels.reduce((a, b) => (b.index > a.index ? b : a), levels[0]);
-    const r = envelopeRoof(footprint, top.baseZ + top.height, o);
+    // a covered roof picks its tiles' level from the house's cameras, as the frame does
+    const covered = !!roofSpec(o.roof).covering;
+    const eyes = covered ? houseEyes(footprint, levels[0].baseZ - o.floorDrop, top.baseZ + top.height + (footprint.y1 - footprint.y0) / 2, { cameras: o.cameras }) : null;
+    const r = envelopeRoof(footprint, top.baseZ + top.height, o, eyes);
     faces.push(...r.faces);
     roofTextureKeys = r.textureKeys;
+    if (r.repeats) roofRepeats.push(...r.repeats.map((x) => ({ ...x, roof: true })));
+    if (r.covering) roofing = r.covering;
+  }
+  // opt-in rainwater (construction/drainage.js): gutters on the finished roof's eaves, downpipes to outlets at grade
+  let drainage = null;
+  if (o.drainage && (o.roof || exterior) && !framedView && !builtRoof) {
+    drainage = planDrainage({ levels, footprint, meru }, o.drainage, { ...o, tradition: framing ? framing.tradition : null });
+    if (drainage) { faces.push(...drainage.faces); roofRepeats.push(...drainage.repeats.map((x) => ({ ...x, roof: true }))); }
   }
   let lot = null;
   if (o.perimeter) {                                  // the lot renders in any view
@@ -2634,7 +2690,31 @@ export function structurizeHouse(input = {}, opts = {}) {
       ...o, axisZ0: Math.min(...zs), axisZ1: Math.max(...zs),
     }));
   }
-  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot };
+  if (framing) {
+    // the frame: each frame's faces ride the storey they belong to (so an exploded read lifts them with it); the
+    // cutaway keeps the finished house past the cut plane only, the frame whole
+    const fr = houseFramingFaces({ levels, footprint }, o.framing, o);
+    if (framing.view === 'cutaway') {
+      const xc = footprint.x0 + framing.cut * (footprint.x1 - footprint.x0);
+      const kept = clipFacesAtX(faces, xc);
+      faces.length = 0; faces.push(...kept);
+      for (const lvl of levels) lvl.structure.faces = clipFacesAtX(lvl.structure.faces, xc);
+      for (const st of stairs) st.faces = clipFacesAtX(st.faces, xc);
+    }
+    const sorted = [...levels].sort((a, b) => a.index - b.index);
+    const levelOf = (group) => {
+      const m = /^framing:(foundation|roof|storey-(-?\d+)):/.exec(group);
+      if (!m) return null;
+      if (m[1] === 'foundation') return sorted[0];
+      if (m[1] === 'roof') return sorted[sorted.length - 1];
+      return sorted.find((l) => l.index === Number(m[2])) || null;
+    };
+    for (const f of fr.faces) { faces.push(f); const l = levelOf(f.group); if (l) l.structure.faces.push(f); }
+    // stamped members and bricks ride their storey too: { level index, repeat }
+    const repeats = [...roofRepeats, ...fr.repeats.map((r) => ({ ...r, level: (levelOf(r.group) || sorted[0]).index }))];
+    return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, framing: fr.report, ...(repeats.length ? { repeats } : {}), ...(fr.model ? { construction: fr.model } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
+  }
+  return { meru, levels, faces, footprint, stairs, roofTextureKeys, lot, ...(roofRepeats.length ? { repeats: roofRepeats } : {}), ...(roofing ? { roofing } : {}), ...(drainage ? { drainage: { ...drainage.report, elements: drainage.elements } } : {}), ...(design ? { design } : {}) };
 }
 
 /** Cameras for a multi-level house (pulls back to take in the whole stack — and lot). */
@@ -2692,6 +2772,10 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
   // them into Math.min/max overflowed the call stack (same numbers for every smaller house).
   let zLo = Infinity, zHi = -Infinity;
   for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
+  // a framed house's stamped parts (construction/house-frame.js), lifted with their storey when exploded
+  // (a covered roof's tiles leave with the roof when the storeys are pulled apart)
+  const repeats = (house.repeats || []).filter((r) => !(gap && r.roof)).map(({ level, roof: _roof, ...r }) => (gap && level ? shiftRepeats([r], [0, 0, level * gap])[0] : r));
+  for (const r of repeats) for (const t of r.transforms) { if (t.pos[2] < zLo) zLo = t.pos[2]; if (t.pos[2] > zHi) zHi = t.pos[2]; }
   const cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);
   // First-person spawn: stand at the footprint centre on the ground storey (index 0 is
   // unshifted even when exploded). Fly to other floors with Space/Shift. Eye height is an
@@ -2712,6 +2796,7 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
     walk: exterior ? false : floorplanWalk(opts.walk, house.footprint, eyeZ),
     ...(Object.keys(textures).length ? { textures } : {}),
     ...(itemRefs.length ? { itemRefs } : {}),
+    ...(repeats.length ? { repeats } : {}),
     // authored in FEET like the single floor; the GLB root and engine score scale by this.
     metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
   };
@@ -2767,7 +2852,9 @@ export function renderHouseToHtml(input = {}, opts = {}) {
   const house = structurizeHouse(input, opts);
   const viewBox = opts.viewBox || { width: 1120, height: 820 };
   const gap = opts.view === 'exterior' ? 0 : (opts.explode || 0);
-  let faces = house.faces, cameras = opts.cameras || houseCameras(house, opts);
+  // the CSS scene cannot instance: a framed house's stamped parts are drawn out in full (lifted with their storey)
+  const stamped = (house.repeats || []).filter((r) => !(gap && r.roof)).flatMap(({ level, roof: _roof, ...r }) => expandRepeats(gap && level ? shiftRepeats([r], [0, 0, level * gap]) : [r]));
+  let faces = stamped.length ? [...house.faces, ...stamped] : house.faces, cameras = opts.cameras || houseCameras(house, opts);
   if (gap) {
     faces = house.levels.flatMap((lvl) => lvl.structure.faces.map((f) => ({
       ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + lvl.index * gap]),
@@ -2776,6 +2863,7 @@ export function renderHouseToHtml(input = {}, opts = {}) {
       const dz = Math.min(st.fromIndex, st.toIndex) * gap;
       for (const f of st.faces) faces.push({ ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + dz]) });
     }
+    faces.push(...stamped);
     let zLo = Infinity, zHi = -Infinity;
     for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
     cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);

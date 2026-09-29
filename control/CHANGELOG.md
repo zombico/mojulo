@@ -43,6 +43,268 @@ manifest.
 
 Absent, every terrain world stands on the same ground in the same colours, and its page carries no plants.
 
+### Furniture construction
+
+- **Sheet goods.** A `frames` member may be cut from a sheet instead of a log: particleboard, melamine-faced board,
+  MDF, plywood, OSB and hardboard, each with its density, stiffness, strength, creep and screw holding, its standard
+  thicknesses and sheet size. Each wears its own figure: fine chips on a particleboard face and a coarse flaked core
+  on its raw edge, MDF's even speckle, plywood's rotary-peeled face read from the log and its plies on every edge,
+  OSB's strands. Melamine board has a decor face and banded edges; any edge can be banded or left raw. Walnut, cherry,
+  maple, beech and birch join the timbers, and furniture timber is clear stock.
+- **Panels as boxes.** A member may be given as a box (`box: { min, max }`) instead of a centreline. Its thinnest side
+  is its thickness and its grain runs the longest side, so casework is authored the way it is drawn.
+- **Furniture joints.** Cam locks (with a dowel beside each cam), dowels, confirmats, screwed butts, angle brackets,
+  shelf pins, a housing (dado) and a back captured in its grooves. A joint finds which part's edge meets which part's
+  face, places its fittings 37 mm in from each end, cuts the holes each fitting asks for, and records how firmly it
+  holds its corner; `glue` makes a fastened joint rigid. A mortise and tenon takes a `depth`.
+- **Pieces from a few dials.** `build: { type: 'carcass' | 'table' | 'chair', … }` writes a piece's members and joints
+  (and reports them, to copy and edit): a knock-down carcass with its plinth, grooved or nailed back, fixed and
+  adjustable shelves, a partition when it is wide, doors on concealed hinges and drawers built as boxes on
+  ball-bearing slides; a table whose tenons stop short of each other in its legs, its top on brackets; a chair with a
+  mortise-and-tenon frame and a notched seat. Doors (`hinge`), drawer slides (`slide`) and parts built together first
+  (`group`) are available to hand-written frames too.
+- **Dovetails and finger joints.** Two boards overlapping at a corner are cut into tails and pins (flared 1:6 in a
+  softwood, 1:8 in a hardwood, half pins at the edges) or square fingers; a dovetail goes together only across the
+  tail board, and pulled along its length it locks.
+- **A print kit.** `layout: 'kit'` lays every part of a piece flat on the grid, its joints cut and its bought fittings
+  left out, so the piece exports as a model kit to print and glue up.
+- **Furniture that stands.** A piece is checked where furniture fails, and never refused:
+  - shelf sag under a load of books, now (span/600) and as it creeps (span/300);
+  - racking: a carcass with no fixed back folds sideways;
+  - tipping over: standing, a child pulling on tall, narrow storage, and every drawer two-thirds out with a child's
+    weight on the highest one (after ASTM F2057-23) — "fix it to the wall";
+  - fasteners that poke through, bite too little, or go into a particleboard edge as a plain screw;
+  - parts that overlap, and tenons that collide inside a leg.
+
+  The report also gives the piece's mass, its hardware list and tools, a cut list nested onto standard sheets and the
+  flat-pack carton. A piece's assembly order is found by taking it apart, which is fast for large pieces; one that
+  cannot go together one part at a time is built in sub-assemblies (a table's end frame, a drawer), and the report
+  says which. A notch now also lets a part slide along the member it is notched round.
+
+### Constructed furniture in rooms
+
+- **Facades of the built pieces.** The sofas, armchair, chesterfield, tables, chair, bookcase, media console, sideboard,
+  chest and nightstand built on the workbench are saved as facades: what shows of each (boards, legs, padding,
+  cushions and cloth), without the joints and fittings, sized to a room's footprint.
+- **In rooms and condos.** A room can name one (`asset: 'constructed-sofa'`), and `furnishing: 'constructed'` on a
+  floor plan or a condo furnishes it with them in place of the simpler pieces. A house style's finish colours their
+  cloth, timber and boards. Without the option, rooms and condos are unchanged.
+
+### Couches and upholstery
+
+- **Soft parts.** A frame's `soft` entries are cushions (boxed, knife-edge or bench), pillows, bolsters, padding over a
+  member, or a form of your own written in the field primitives. They are fluffed from those primitives: crowned,
+  rounded to their seams, piped, tufted with buttons and pleats, leaning. Each has:
+  - a fill (high-resilience and polyether foams, fibre, feather);
+  - a mass, and the foam block to cut;
+  - how far it sinks under a sitter.
+
+  `view: 'frame'` shows the bare frame; the finished view leaves out what the padding hides.
+- **A sofa from a few dials.** `build: { type: 'sofa', … }` writes:
+  - a hardwood seat box with glued corner blocks, and sinuous springs clipped across it;
+  - legs on hanger bolts;
+  - plywood arms (track or rolled) and a back;
+  - its padding and cushions: a loose, tight or buttoned back, loose or bench seats, throw pillows.
+
+  A flat-pack sofa arrives as four upholstered sections that bolt together with M8 bolts into threaded inserts. The
+  new joints (`springs`, `hanger-bolt`, `insert-bolt`) and fittings (hanger bolts, threaded inserts, spring clips,
+  sinuous springs by wire gauge) are open to any frame, and a member can carry a live `load`.
+- **Seating that holds and sits right.** Advisory, never refusing:
+  - the seat rails are span-checked under their sitters;
+  - seat height (and the height a sitter sinks to), depth, back angle, arm height and width a sitter are checked
+    against the trade's usual ranges;
+  - seat foam density, spring gauge and spacing, and tall legs on a single bolt are flagged;
+  - tipping is checked with someone perched on the front edge, leaning back hard, or sitting on an arm.
+- **Fabric from a weave draft.** A weave and a colour order in warp and weft make the cloth:
+  - weaves: plain, twill, herringbone, basket and satin;
+  - presets: houndstooth, gingham, tartan, ticking, linen, canvas, velvet and bouclé, each with a typical wear rating
+    and whether it has a nap.
+
+  The draft renders to the World texture, where the pattern runs on from seat to border, and to an SVG swatch at
+  true size: in colour, as a weaver's black-and-white draft, or in hatched tones for one ink.
+- **Covers.** Each soft part is cut into flat pieces with seam allowance: plates, boxing, zip boxing, and bias strips
+  for piping. The pieces are laid on the roll with the pattern centred on each and matched from piece to piece. The
+  report gives the metres of cloth, matched and not, and `railroad` turns the cloth to cut long pieces whole. Stamps
+  flag:
+  - a seat cloth too weak for daily use;
+  - a napped cloth;
+  - a pattern that railroading would turn on its side;
+  - pieces seamed where railroading would not need a seam.
+- **Hatched ink.** Soft parts are drawn in cross-contour hatching, denser where the form turns from the light and
+  where the cloth is darker, with tufted pleats as lines, so a cushion's crown reads in black and white. A sofa's
+  manual:
+  - shows each section as one part, leaving out the fittings fitted at the factory;
+  - puts the cushions in last;
+  - ends with its cloth (a swatch at 1:1, the draft at 8:1, the metres) and the cutting layout.
+
+  The hidden-line renderer now sizes its depth grid to the drawing, so a printed page renders several times faster,
+  with the same output.
+
+### Fasteners
+
+- **A catalog of standard parts.** `construction/hardware.js` holds hex, socket, button and countersunk bolts, nuts and
+  nylocs, plain and large washers, wood and chipboard screws, confirmats, dowels, cam locks and their bolts, shelf pins,
+  angle brackets, concealed cup hinges and ball-bearing drawer slides, sized from their standards (ISO for the metric parts; one maker's drawings, marked as estimates,
+  for the knock-down fittings). Each part knows its code, drive (and so its tool), mass and finish, and the hole it
+  asks for in what it passes through: clearance, a pilot for what it bites into, countersink, cam bore. Joints name a
+  part and cut that hole. A bolt's length is the shortest standard one that leaves two threads past its nut.
+- **Steel joints draw from it.** The bolted end plate uses catalog M20s sized to the grip, with a washer under each
+  head and nut; base-plate anchors get washers and nuts. Steel frames with these joints change on purpose.
+
+### Assembly manuals
+
+- **A piece writes its own instructions.** `construction/manual.js` turns a frame into a wordless instruction manual of
+  black-and-white A4 pages:
+  - a cover with the finished piece, its carton, mass and tools;
+  - an inventory with every part numbered and sized, and every fitting drawn at true scale beside a 10 mm check bar;
+  - one page per step. Fittings seated before assembly get their own steps (×2 for identical parts; four identical
+    drawers are built once, ×4, and slid in together), then the parts
+    go on in the order they seat, pulled back along the way they go in, with motion lines, part numbers, hardware
+    letters and counts, a turn arrow on each cam and a magnified detail. A piece that tips ends with fixing it to the
+    wall.
+
+  Steps are drawn by the hidden-line renderer, now faster on large meshes with the same output.
+- **Cook it.** A workbench piece gathered into a stash as a sketch item and cooked as `instruction_manual` writes these
+  pages into the booklet itself, one set per frame, around any markdown steps the stash also holds; `manual: false` on
+  the item keeps it a single diagram.
+
+### Building materials
+
+- **Timber comes from a log.** `control/lib/graph/construction/` builds a synthetic log without growing a tree: the
+  leader's height growth sets the taper, rings widen near the pith and follow a per-year climate, each sheath is a
+  little out of round, and branches become knots (whorled in conifers, scattered in hardwoods; a dead branch leaves an
+  encased knot with its bark ring). A member's section is placed in its log by its cut: boxed-heart, free-of-heart,
+  flat, quarter, rift, or an explicit offset. So a flat-sawn board shows its cathedral, a quarter-sawn oak board its ray
+  fleck, a sugi beam its red heart. Eight timbers (oak, ash, keyaki, pine, Douglas-fir, spruce, hinoki, sugi) carry
+  their figure and their numbers: density, stiffness, strength and shrinkage (Wood Handbook values; Scots pine and the
+  Japanese species are marked estimates).
+- **Movement from the cut.** The same placement says what drying does: how much the section shrinks each way, which
+  face cups (a flat-sawn board away from the heart; a quarter-sawn one stays flat), and whether a boxed-heart section
+  will check.
+- **Colour is a finish, not the grain.** A face's figure is baked relative to the species' colour, and its colour is a
+  tint over it: raw, oil, wax, a stain of any colour, or bengara, sumi, kakishibu, urushi or yakisugi. Paint (gofun,
+  limewash, any colour) covers the figure: one colour, no texture. Restaining a frame reuses every texture byte. The
+  figure is filtered per pixel from the log itself, so thin latewood and pore bands do not strobe.
+- **Members meet in joints.** A workbench `frames` entry lays members on centrelines and joints cut them where they
+  meet, through the exact kernel: Western mortise and tenon (blind or through, pegged, braces shouldered on the skew);
+  the kigumi hozo with a komisen pin, the nuki through its posts locked by a kusabi wedge, and the kanawa-tsugi splice
+  with its shachi key; a halved lap and a notch (a bird's-mouth, a housed joist). Without the kernel the members draw
+  as plain boxes and the mint says so. `explode` pulls every member and pin back along the way it seats.
+- **The frame is checked, never refused.** The mint reports each member's log, cut and movement, each joint's sizes,
+  a span check on level members (deflection against span/300, stress against a third of the clear-wood strength, an
+  optional live load; a spliced beam checks as one), and the order the members slide together in. A braced Western
+  bent reports the 45° its post would have to move at once, which framers take up by flexing the bent; the kigumi
+  bent slides together.
+- **Steel.** A member may name a rolled `section` instead of timber stock: AISC W-shapes, IPE and HEA, channels,
+  angles, square and round hollow sections, flat bar. It is its profile extruded along the centreline, in mill scale,
+  red-oxide primer, galvanizing, weathering steel, stainless or paint. Joints: `bolted` (an end plate and four bolts,
+  nuts behind the flange it meets), `welded` (trimmed to the face), `base-plate` (a column's foot and its anchor bolts,
+  on a footing or on nothing). The span check reads the section's own I and S (fillets left out, so a few percent
+  under the tables), E 200 GPa and 0.6·Fy.
+- **Concrete and rebar.** `material: 'concrete'` members carry their reinforcement: longitudinal bars, stirrups or
+  ties at a spacing, a column's ring, a slab strip's mesh, inside the cover; left out, each member gets the cage its
+  shape asks for, and `rebar: false` leaves it plain. `xray` draws the concrete see-through so the cage reads. A
+  concrete beam is checked against its moment capacity from its bottom steel.
+- **Masonry.** A frame may carry `walls`, `paving` and `slates`, with or without members. A wall is bricks or
+  blocks laid course by course in stretcher, English, Flemish, header or stack bond (UK, US, Roman and Japanese
+  bricks, concrete blocks, or a size of your own), or ashlar stone; its openings snap to the course gauge and are
+  spanned by a soldier course or a stone lintel, and its mortar is struck, raked or flush. Paving lays tiles in stack,
+  running, herringbone or basketweave, each tile a window of the existing marble, granite, slate, sandstone or
+  concrete surfaces, so a slab's veins stop at its edge. Slates hang on a pitched plane at the gauge their headlap
+  sets, alternate courses breaking joint.
+- **Houses as structures.** A stacked house (`storeys` or `levels`) takes `framing: { system, view }` and builds what
+  stands under its skin from its own plan: platform framing (studs, plates, kings, jacks and headers at every
+  opening, joists trimmed round the stair, subfloor, stem wall and footing), load-bearing brick, a Western timber
+  frame, a kigumi frame with nuki and a wagoya roof, a steel frame on base plates, or reinforced concrete. The roof is
+  framed after the house's roof style. `view: 'framed'` shows the structure alone; `'cutaway'` keeps the finished
+  house past a section and the frame whole. Absent, the house is byte-identical.
+- **Sustainable to render.** Building materials follow the forests' and cities' ladder: each frame and wall is drawn
+  at the level its cameras earn (`detail: 'auto'`) — every joint and brick up close, plain boxes and a baked bond
+  texture farther off, sub-pixel members dropped and walls in their far-read colour at a distance — and identical
+  members and bricks are drawn once and stamped as instances. A two-storey masonry house went from 51k faces and an
+  11 MB page to about a thousand faces and 2 MB; with every brick drawn it is 29k instances in 3 MB.
+- **Frames in feet.** A frame's `unit` may be `in` or `ft`. A concrete member's cage is drawn only when it can be
+  seen (`xray` or `explode`); the report still carries it.
+- **Timber textures resolve by key.** A face's texture key carries its log and plane, so the scene's texture channel
+  bakes it on demand through a new prefix resolver in `surface-textures.js`; the key holds no colour.
+
+### Construction: the catalog, linings, wiring and the building model
+
+- **The catalog.** `construction/catalog.js` names every building material once, `kind:which` (`timber:hinoki`,
+  `brick:red`, `steel:HEA200`, `board:gypsum-12.7`, `clay:arakabe`, `paper:washi`, `cable:nm-b-12-2`…), with what a
+  takeoff reads, and the wall, floor and ceiling assemblies built of them, layer by layer, per tradition (North
+  American, British, Japanese, metric). It is opt-in: nothing that does not name a material changes.
+- **Linings by tradition.** A framed house's `framing.stage` (`frame`, `rough-in`, `insulated`, `lined`) closes the
+  frame the way its tradition does:
+  - North American: OSB sheathing and glass-wool batts, then gypsum board hung in staggered 4 × 8 sheets and boarded
+    ceilings; a timber frame closed in structural insulated panels, its posts left showing inside.
+  - British: two-coat plaster on the brick, and plasterboard partitions.
+  - Japanese: shinkabe. Each bay between the posts takes komai lath, then arakabe clay, then a jūraku finish (shikkui
+    outside). Fusuma part the rooms and shoji close the outer openings in the kamoi and shikii. Sugi floorboards,
+    and a sao-buchi ceiling.
+  - Metric: block infill, rendered and plastered.
+- **Wiring by tradition.** A panel beside the entry, circuits by room role (an open-plan kitchen found from the
+  plan's zones), boxes fixed beside a stud or post, and the cable routed through the frame by each tradition's rules:
+  - NEC-like receptacle spacing and switch heights, with NM-B bored through the studs.
+  - A British ring final chased in the brick.
+  - VVF run down the posts in surface moulding, never bored through a hashira.
+  - Conduit in chases.
+  Lined, cables are hidden and cover plates show.
+- **The building model.** Past `frame`, the house carries `construction`: every member, masonry wall, sheet, box and
+  cable run as an element with a stable IFC GlobalId, an IFC class and predefined type, a catalog material, its
+  storey and its quantities, with relations. It also carries a cut list, the sheets to buy, the panel schedule, a
+  takeoff by material, and advisory checks: receptacle spacing, a switch at every door, bored-hole edge distance and
+  depth, no bore through a hashira, and every material in the catalog.
+
+### House design checks
+
+- **Walkways measured on the floor.** A house with storeys is checked the way you would walk it. On each storey the
+  free floor between the walls (at their thickness), the stair's well and its flight is measured, and every door and
+  both ends of each stair must connect through a passage at least as wide as the tradition asks (36 in, 900 mm,
+  780 mm). A finding names the narrowest point on the best route: how wide, where, what it lies between, and the doors
+  beyond it. The upstairs hall of a two-storey program house was one of them on every seed: its U-return well leaves
+  about 9 in on each side.
+- **Stair and door rules.** Stairs against a width, riser and going; doors against a clear width, by tradition.
+- **Considerations in the recipe.** `design: { tradition, passage, door, stair, repair }` names the rules and their
+  values (validated at mint). `create_sketch` and `update_sketch` return a house's findings as `design`, with the
+  next move, and never refuse; houses were not graded at mint before.
+- **Repair.** `design.repair: true` builds the plan to keep the passage: the upstairs hall takes the stair's zone and a
+  walkway past it, doors on the well's side step off its span, the ground floor keeps the passage round the flight,
+  and where a U-return and its walkway would cost the upper floor a row of rooms the stair becomes a straight flight
+  climbing toward the middle of the house. The room program is kept (a longer straight flight can cost the ground floor
+  a storage closet). Absent, a house is unchanged.
+
+### Roofs, drainage and IFC
+
+- **The maps.** A catalog material can carry the surface it draws with: a library texture and the metres one tile
+  spans, or, for a covering laid as tiles, a map baked from the covering in the material's colour. The roof textures
+  the library already had (asphalt shingle, clay barrel, slate grey) are named as `roofing:` materials, and elements
+  draw with their material's map when they name no texture of their own.
+- **Tile roofs.** `roof: { style, covering }` lays the roof course by course from the eave: asphalt shingle, cedar
+  shake, slate, plain tile, pantile, barrel (cover and pan), kawara (under a noshi ridge) or standing seam, ridges and
+  hips capped, verges closed. `covering: true` lays the style's own material. Near the cameras every tile is drawn,
+  stamped with its own tint; further off the covering's map; far its colour. Absent, the roof is unchanged.
+- **The roof as built.** A framed house past `frame` is decked (OSB, or sugi nojiita) or felted and battened by its
+  tradition at rough-in and covered when lined, and no longer also draws the finished roof over it; a cutaway keeps the
+  covering past the cut.
+- **Ceilings for steel and concrete houses.** Lined, a steel house hangs a 2 × 2 ft lay-in acoustic ceiling (its tiles
+  and T-bar grid a map) and a concrete house plasterboard, under the deepest beam, with the light fittings dropped to
+  them. Ceiling boxes are now `IfcJunctionBox` of type POWER.
+- **Gutters and drains.** `drainage: true | { tradition, downpipe, outlet, below }` hangs gutters on every eave that
+  sheds water, falling to outlets placed clear of the openings and as many as the roof needs at the tradition's
+  design rainfall; downpipes swan-neck back to the wall and run to an outlet at grade. North American K-style gutters
+  to splash blocks; British half-round to gullies and a drain run through inspection chambers to an outfall; Japanese
+  copper nokidoi with kusari-doi rain chains to a stone (or tatedoi to a masu); metric box gutters to gullies. A
+  butterfly drains through a box gutter in its valley, a flat deck through scuppers. The house's `drainage` report
+  carries the lengths, the outlets and the checks (roof area per outlet, falls).
+- **IFC export.** `export_model({ ref, format: 'ifc' })` writes a house (with `storeys` or `levels`) as IFC4:
+  storeys, rooms as spaces, walls voided by their openings with doors and windows filling them, floor slabs, the
+  roof as a slab per plane and its gable walls; a framed house instead carries its building model, every member as its
+  section along its centreline (steel as its rolled profile), masonry walls with their openings, linings, boxes, cable,
+  circuits and the roof as built. Gutters and drains ride a rainwater system. Each element has its catalog material and
+  colour, and a property set naming its key; GlobalIds come from the keys and the sketch ref, so they hold across
+  re-exports and never collide between houses.
+
 ### Grown plants
 
 - **Plants grown, not drawn.** `control/lib/graph/vegetation/` grows three kinds of plant.

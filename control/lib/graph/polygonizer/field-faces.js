@@ -37,6 +37,8 @@ import { exactSupport } from './field-exact-reach.js';
 // is reachable from client bundles, and the kernel's package entry reads `node:module`.
 let exactRenderer = null;
 export function setExactFieldRenderer(fn) { exactRenderer = typeof fn === 'function' ? fn : null; }
+/** Is the exact renderer registered (the kernel loaded)? A caller that can degrade without it asks first. */
+export const exactFieldRendererReady = () => exactRenderer != null;
 
 const DEFAULT_CELLS = 64;
 const MIN_FIELD_CELLS = 16;

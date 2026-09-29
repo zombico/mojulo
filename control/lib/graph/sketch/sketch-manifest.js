@@ -40,6 +40,7 @@ import {
 // the diagram surface so existing importers are unchanged. See
 // lib/mcp/kernel-diagram-surface.plan.md.
 import { isFiniteNumber, validateDiagramManifest } from '@/lib/diagram-core';
+import { validateDesign } from '@/lib/graph/polygonizer/floorplan-design';
 import { isBookRenderKind } from '@/lib/graph/views/recipe-book/registry';
 
 export {
@@ -96,6 +97,7 @@ export function validateSketchManifest(manifest) {
         errors.push(`${key} must be an integer >= 1 (got ${JSON.stringify(manifest[key])}); see get_sketch_vocab({ id: 'floor-plan' })`);
       }
     }
+    if (manifest.kind === 'floorplan' && manifest.design !== undefined) errors.push(...validateDesign(manifest.design));
     return { ok: errors.length === 0, errors };
   }
   // Retail world kinds: a shop or a mall fit out from concept cards (retail/store-world.js). Shape

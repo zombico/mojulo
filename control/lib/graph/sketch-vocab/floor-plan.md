@@ -86,6 +86,98 @@ Archetype glyphs (each carries a furniture fill recipe):
 `fillRoom(room, seed)` expands a room's archetype into boxNet
 `roomConcept.elements`, so any room renders through the normal box-net pipeline.
 
+## Design — walkways and stairs, checked
+
+A house with storeys is checked the way you would walk it, and `create_sketch` / `update_sketch` return what they
+found as `design` (advisory: the house is minted either way). On each storey the free floor between the walls, the
+stair's well and its flight is measured, and every door and both ends of each stair must connect through a passage at
+least the tradition's width; a finding says how wide the narrowest point is, where, what it lies between, and which
+doors lie beyond it. Doors are measured against a clear width, stairs against a width, riser and going.
+
+- `design: { tradition?, passage?, door?, stair?: { width?, riser?, going? }, repair? }` — the rules, in feet. The
+  tradition defaults from the framing, else `north-american` (passage 36 in, door 30 in, stair 36 in with 7¾ in
+  risers and 10 in goings); `british` (900 mm, Part K-like), `japanese` (780 mm), `metric` (900 mm).
+- `repair: true` builds the plan to keep the passage: the upstairs hall takes the stair's zone and a walkway past it,
+  doors on the well's side step off its span, the ground floor keeps the passage round the flight, and where a U-return
+  and its walkway would cost the upper floor a row of rooms the stair becomes a straight flight climbing toward the
+  middle of the house. Without it the house is exactly as it was.
+
+```json
+{ "storeys": 2, "seed": 4, "design": { "repair": true } }
+```
+
+## Framing — the structure under the skin
+
+`framing` (a stack: `storeys` or `levels`) builds what stands under the finished house, read from its own plan: the
+wall runs, openings, storey heights, stair voids and roof style. Absent, the house is exactly what it was.
+
+```json
+{ "storeys": 2, "roof": "mission", "windows": true, "framing": { "system": "platform", "view": "cutaway" } }
+```
+
+- `system` — `platform` (default: 2×6 outer and 2×4 inner studs at 16 in, doubled top plates, kings, jacks and headers
+  at each opening, joists and 4×8 subfloor, a stem wall and reinforced footing), `masonry` (outer walls of brick in
+  English bond from the footing to the eaves, soldier courses over openings, timber floors and roof), `post-and-beam`
+  (8×8 posts on a 16 ft grid, plates, tie beams and knee braces, cut mortise and tenon), `kigumi` (dodai, 4-sun hinoki
+  posts at a ken and beside each opening, nuki through them at three heights, hozo, a wagoya roof), `steel` (HEA
+  columns on base plates, IPE beams bolted to them, steel joists under a meshed slab, a steel roof), `concrete` (a
+  reinforced frame of columns, beams and slabs, a timber roof on the ring beam).
+- `view` — `framed` (default: the structure alone, where the walls, slabs and roof would be) or `cutaway` (the
+  finished house past a section at `cut`, a fraction of the width, default 0.5; the frame whole).
+- `species`, `finish`, `figure` (`flat` by default; `coarse` / `full` bake grain), `joints: false` (draw the timber
+  and steel frames uncut, and skip the kernel).
+- The roof frames as its family: gable, gambrel and saltbox as a gable; hip, pyramid and mansard as a hip (commons,
+  hips and jacks); shed and butterfly as mono-pitches; flat forms as joists. No roof, and the top storey gets ceiling
+  joists.
+- `stage` — the house at a moment of its building: `frame` (default), `rough-in` (+ wiring, and what dries the frame
+  in: sheathing, block infill, SIPs, komai lath), `insulated` (+ batts, arakabe clay), `lined` (+ gypsum or plaster,
+  ceilings (hung under a steel floor in lay-in tiles, under concrete in plasterboard), shinkabe with fusuma and shoji, cover plates). `tradition` — `north-american` | `british` | `japanese` |
+  `metric`, defaulting from the system (platform, post-and-beam, steel → north-american; masonry → british;
+  kigumi → japanese; concrete → metric) — picks the assemblies and the wiring rules: NEC-like receptacle spacing and
+  NM-B bored through studs; a British ring in 2.5 mm² chased in the brick; VVF dropped down the posts in moulding
+  (never bored through a hashira); conduit in chases. Past `frame` the house carries `construction`: every member,
+  sheet, box and cable run with a stable IFC GlobalId, class, catalog material and quantities, a cut list, the sheets
+  to buy, the panel schedule, a takeoff and the checks (advisory).
+- `detail` — `auto` (default: each frame and wall at the level the house's cameras earn), `full` (joints cut, every
+  brick), `boxes` (members as plain boxes, walls as a bond texture), `sparse` (boxes less sub-pixel members, walls
+  in their far colour). Identical members and bricks are drawn once and stamped (`instance: false` draws each), so
+  a two-storey masonry house is about a thousand faces at `auto`, and still under 5k with every brick at `full`.
+
+## Roofs — the covering, as tiles
+
+`roof: { style, covering }` lays the roof as a roofer would: courses up from the eave at the gauge, each unit lapping
+the one below, ridges and hips capped. `covering: true` lays the style's own material (shingle styles as asphalt
+shingle, clay styles as barrel tile, `manor` as slate, the metal styles as standing seam), or name one:
+`asphalt-shingle`, `cedar-shake`, `slate`, `plain-tile`, `pantile`, `barrel` (mission and Spanish, cover and pan),
+`kawara` (with a noshi ridge), `standing-seam`; `{ type, material?, color?, detail? }` picks a `roofing:` material
+from the catalog or a colour. Near the cameras every tile is drawn (stamped, each with its own tint), further off the
+covering's map, far its colour (`detail` forces one). Absent, the roof is exactly what it was.
+
+```json
+{ "storeys": 2, "roof": { "style": "mission", "covering": "barrel" }, "view": "exterior" }
+```
+
+A framed house past `frame` wears its roof as built instead: decked in OSB (North American) or sugi boards
+(Japanese), or felted and battened (British, metric), at rough-in; covered when `lined`.
+
+## Drainage — gutters, downpipes, drains
+
+`drainage: true | { tradition?, downpipe?, outlet?, below? }` hangs gutters on every eave that sheds water, falling
+to outlets; downpipes swan-neck back to the wall, clear of the windows, down to an outlet at grade. Hip roofs drain
+round the corners; a butterfly through a box gutter in its valley and scuppers in the gable ends; a flat deck through
+scuppers in its parapet. By `tradition` (default: the framing's, else `north-american`): K-style gutters and 3 × 4 in
+downspouts onto splash blocks; British half-round into gullies and a drain run through inspection chambers; Japanese
+copper nokidoi with kusari-doi rain chains to a stone (`downpipe: 'pipe'` for tatedoi); metric box gutters into gullies.
+There are as many outlets as the roof needs at the tradition's design rainfall, and the house's `drainage` report
+checks each one's load. Gutters go up last: a house shown at a construction stage has none.
+
+## IFC — the house as a building model
+
+`export_model({ ref, format: 'ifc' })` writes a house (with `storeys` or `levels`) as IFC4 for Bonsai, Revit or
+ArchiCAD: storeys, rooms as spaces, walls voided by their openings with the doors and windows in them, slabs and the
+roof. A framed house carries every member as its section along its centreline, its linings, boxes, cable and
+circuits, and its roof as built. Gutters and drains ride a rainwater system. GlobalIds hold across re-exports.
+
 ## Rendering the result
 
 - **Top-down map** — draw `rooms` (tinted by archetype), `halls` (corridors), and
@@ -127,6 +219,12 @@ with books, a made bed with headboard, a nightstand with a lamp, a dresser, a
 sideboard, a plank dining table with chairs, a bordered rug. The default elsewhere is
 `furnishScale: 'feet'`, the legacy fixed-feet arrangers with their box-nets; set
 `'share'` on any furnished plan to opt in (the kitchen run stays in feet either way).
+`furnishing: 'constructed'` goes further: the sofa, armchairs, coffee table, media console,
+bookcase, sideboard, dining table and chairs, dresser and nightstand become the pieces built
+joint by joint on the workbench (upholstered cushions and woven cloth, boards, legs, pulls), as
+facades sized to the same footprints; a house style's finish colours their cloth and wood. Any
+item can name one: `asset: 'constructed-sofa'` (`-armchair`, `-chesterfield`, `-coffee-table`,
+`-dining-table`, `-chair`, `-bookcase`, `-media-console`, `-sideboard`, `-chest`, `-nightstand`).
 A one-cell plan also defaults `contactShadows: true` — a soft ambient-occlusion decal on
 the floor under each piece (`contactStrength` tunes it; off elsewhere) — and dresses its
 surfaces: `wallDecor: true` with `interiorWallStyle: 'paint'` (a baseboard course and a
@@ -197,6 +295,8 @@ window (1). `wall` / `facing` take `back`, `front`, `washroom`, `entry` (the sid
 for what stands at them), or a compass letter. A piece with no `wall` or `facing` faces the hall.
 The washroom fills the back corner on its side and the entry is the front corner on the other,
 so keep items out of both yourself.
+`furnishing: 'constructed'` on a `condo-complex` furnishes its units with the same built pieces
+(a sofa and coffee table, a nightstand, a desk chair), each unit's cloth drawn from its seed.
 
 ## House styles
 

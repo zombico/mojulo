@@ -901,9 +901,24 @@ function distribute(k, r) {
  *   Every EXTERIOR door carries `leadsTo:'entrance'|'terrace'` — the only places an
  *   envelope door is allowed to open; `terraceZone` reserves where a future deck attaches.
  */
+/**
+ * (design.repair) Can the upper floor's hall take the stair zone `reservedOpen` and a `passage` past it, and still
+ * keep a room row of a bedroom's depth on each side? The same arithmetic as the HALL builder below. When it cannot,
+ * the house takes a straight flight (a shallower zone) instead of the U-return.
+ */
+export function upperHallFits({ width = 46, height = 34, inset = 2, reservedOpen, passage }) {
+  const U = { x0: inset, y0: inset, x1: width - inset, y1: height - inset };
+  const wide = U.x1 - U.x0 >= U.y1 - U.y0, DE = wide ? U.y1 - U.y0 : U.x1 - U.x0;
+  const resD = wide ? [reservedOpen.y0 - U.y0, reservedOpen.y1 - U.y0] : [reservedOpen.x0 - U.x0, reservedOpen.x1 - U.x0];
+  const minBed = Math.max(9, Math.round(Math.sqrt(archetypeArea('B')) * 0.85));
+  const hallW = Math.max(PROGRAM_HALL, (resD[1] - resD[0]) + passage + 0.9);
+  const fits = (hd0) => hd0 >= minBed && DE - (hd0 + hallW) >= minBed;
+  return fits(Math.max(0, resD[0] - 0.2)) || fits(Math.min(DE - hallW, resD[1] + 0.2 - hallW));
+}
+
 export function generateProgramPlan(seed, {
   width = 46, height = 34, role = 'ground', hasUpper = false, reservedOpen = null, inset = 2, stairSpan = 3.4,
-  tier = DEFAULT_TIER, terrace = false, balcony = false,
+  tier = DEFAULT_TIER, terrace = false, balcony = false, passage = null, stairRun = 14, climbToCentre = false, _side = null,
 } = {}) {
   const t = resolveTier(tier);
   const rng = mulberry32((seed >>> 0) || 1);
@@ -939,6 +954,24 @@ export function generateProgramPlan(seed, {
   const hostsBeds = role === 'upper' || (!hasUpper && role !== 'basement');
   const nBath = hostsBeds ? (t.beds >= 4 ? 2 : 1) : 0;
 
+  // (repair) the stair zone may stand against either edge of the upstairs hall: build both, keep the one whose
+  // doors all clear the well (ties to the edge nearer a centred hall)
+  if (role === 'upper' && passage != null && reservedOpen && !_side) {
+    const args = arguments[1];
+    const blocked = (plan) => {
+      const z = reservedOpen;
+      const near = (v, a, b) => Math.abs(v - a) < 1.6 || Math.abs(v - b) < 1.6;
+      return plan.doors.filter((d) => !d.exterior && (wide
+        ? d.x > z.x0 - 1.5 && d.x < z.x1 + 1.5 && near(d.y, z.y0, z.y1)
+        : d.y > z.y0 - 1.5 && d.y < z.y1 + 1.5 && near(d.x, z.x0, z.x1))).length;
+    };
+    const first = generateProgramPlan(seed, { ...args, _side: 'auto' });
+    if (!blocked(first)) return first;
+    const other = generateProgramPlan(seed, { ...args, _side: first._wellLine === 'front' ? 'back' : 'front' });
+    // never at the cost of a room
+    return other.rooms.length >= first.rooms.length && blocked(other) < blocked(first) ? other : first;
+  }
+
   if (role === 'upper') {
     // ── HALL builder: a landing/hall strip with bedroom rows on each side ──────
     // bedroom count comes from the BUDGET: how many bedrooms (at ~1.7× their furniture
@@ -949,9 +982,16 @@ export function generateProgramPlan(seed, {
     const minBed = Math.max(9, Math.round(Math.sqrt(bedBudget) * 0.85));
     let nBed = Math.round((area - AL * PROGRAM_HALL) / (1.7 * bedBudget));
     nBed = Math.max(1, Math.min(t.beds, nBed));
-    const hallW = Math.max(PROGRAM_HALL, resD ? (resD[1] - resD[0]) + 0.8 : PROGRAM_HALL);
+    // `passage` (a house's design.repair): the hall takes the stair zone AND a walkway past it on one side, so the
+    // well never splits the landing; absent, the hall only covers the zone (every stored house keeps its plan)
+    const hallW = Math.max(PROGRAM_HALL, resD ? (resD[1] - resD[0]) + (passage != null ? passage + 0.9 : 0.8) : PROGRAM_HALL);
     let hd0 = (DE - hallW) / 2;                              // centred → equal-depth bedroom rows
-    if (resD) hd0 = Math.min(Math.max(hd0, resD[1] - hallW + 0.2), Math.max(0, resD[0] - 0.2));  // ...but cover the stair
+    let wellLine = null;                                     // the hall edge the stair zone stands against (repair)
+    if (resD && passage != null) {
+      const low = Math.max(0, resD[0] - 0.2), high = Math.min(DE - hallW, resD[1] + 0.2 - hallW);
+      hd0 = _side === 'front' ? low : _side === 'back' ? high : Math.abs(low - hd0) <= Math.abs(high - hd0) ? low : high;
+      wellLine = hd0 === low ? 'front' : 'back';
+    } else if (resD) hd0 = Math.min(Math.max(hd0, resD[1] - hallW + 0.2), Math.max(0, resD[0] - 0.2));  // ...but cover the stair
     hd0 = Math.max(0, Math.min(hd0, DE - hallW));
     let hd1 = hd0 + hallW;
     // absorb any leftover band too thin to host a room INTO the hall, so the floor
@@ -986,10 +1026,24 @@ export function generateProgramPlan(seed, {
       while (n > 1 && AL / n < minBed) n -= 1;
       const slice = prog.slice(idx, idx + n); idx += n;
       const segs = partitionWeighted(AL, balanceWeights(slice.map(archetypeArea)), rng, slice.map((g) => ROOM_MIN_DIM(g, minBed)));
+      // (repair) a door on the hall edge the stair stands against keeps off the well's span, where the room allows
+      const resA = reservedOpen ? (wide ? [reservedOpen.x0 - U.x0, reservedOpen.x1 - U.x0] : [reservedOpen.y0 - U.y0, reservedOpen.y1 - U.y0]) : null;
+      const onWell = wellLine && resA && ((wellLine === 'front' && row.line === hd0) || (wellLine === 'back' && row.line === hd1));
+      const doorA = (a0, a1) => {
+        const mid = (a0 + a1) / 2, half = 3 / 2 + 0.5;          // a 3 ft door and its trim
+        if (!onWell || mid + half <= resA[0] || mid - half >= resA[1]) return mid;
+        // step off the well's span; a room wider than the well on both sides can only get its door as near an end of
+        // it as the room reaches, onto the landing at the well's end
+        const lo = a0 + half, hi = a1 - half;
+        if (hi < lo) return mid;
+        const overlap = (a) => Math.max(0, Math.min(a + half, resA[1]) - Math.max(a - half, resA[0]));
+        const cands = [resA[0] - half, resA[1] + half].map((a) => Math.min(hi, Math.max(lo, a)));
+        return cands.sort((p, q) => overlap(p) - overlap(q) || Math.abs(p - mid) - Math.abs(q - mid))[0];
+      };
       slice.forEach((g, i) => {
         const [a0, a1] = segs[i];
         const r = toRect(a0, a1, row.d0, row.d1); r.glyph = g; rooms.push(r);
-        doors.push({ ...doorAt((a0 + a1) / 2, row.line), room: rooms.length - 1, onto: 'hall' });   // off the landing → circulation
+        doors.push({ ...doorAt(doorA(a0, a1), row.line), room: rooms.length - 1, onto: 'hall' });   // off the landing → circulation
         // host a balcony door on a bedroom's exterior wall — PREFER the front row (a balcony over
         // the entry, street-facing + visible), fall back to a back bedroom if there's no front row.
         if (balcony && g === 'B') {
@@ -1002,7 +1056,7 @@ export function generateProgramPlan(seed, {
     // a balcony: a french/glazed door on a bedroom's exterior wall, leading out to a projecting deck
     if (balconyDoor) doors.push({ ...doorAt(balconyDoor.a, balconyDoor.line), room: balconyDoor.room, exterior: true, leadsTo: 'balcony', kind: 'sliding' });
     openCells.push(-1);   // hall index tracked separately (halls[], not rooms[])
-    return { seed, width, height, rooms, halls, doors, stairZone, stairDir, openCells, terraceZone };
+    return { seed, width, height, rooms, halls, doors, stairZone, stairDir, openCells, terraceZone, ...(wellLine ? { _wellLine: wellLine } : {}) };
   }
 
   // ── OPEN-CORE builder (ground / single / basement) ──────────────────────────
@@ -1058,6 +1112,11 @@ export function generateProgramPlan(seed, {
   let bandDepth = rowDepth + hallW;
   let coreDepth = DE - bandDepth;
   if (resD && coreDepth < resD[1] + 0.8) { coreDepth = Math.min(resD[1] + 0.8, DE - minBand); bandDepth = DE - coreDepth; }
+  // (repair) a stair in the core needs a passage in front of it and behind it: deepen the core, from the band, to fit
+  if (passage != null && hasUpper && role === 'ground') {
+    const needCore = stairSpan + 2 * (passage + 0.4);
+    if (coreDepth < needCore) { coreDepth = Math.min(needCore, DE - minBand); bandDepth = DE - coreDepth; }
+  }
   const rowLine = coreDepth + hallW;                                    // depth the private rooms front onto
 
   const core = toRect(0, AL, 0, coreDepth); core.glyph = 'L'; core.open = true; core.zones = zones;
@@ -1081,14 +1140,14 @@ export function generateProgramPlan(seed, {
   // toward the entry/core. Captures the along-spine span so the rooms can tile AROUND it.
   let stairA0 = null, stairA1 = null;
   if (role !== 'basement' || reservedOpen) {
-    const sw = stairSpan, clear = 2;             // ≥2 ft gap to every surrounding wall
+    const sw = stairSpan, clear = passage != null ? Math.max(2, passage + 0.4) : 2;   // ≥2 ft gap to every surrounding wall (repair: a passage)
     const doorClr = PROGRAM_HALL;                // keep the run a doorway's width off the entry door
     const sCtr = Math.min(DE / 2, coreDepth - sw / 2 - clear);   // depth band, clear of the band partition
     const sD0 = Math.max(clear, sCtr - sw / 2), sD1 = sD0 + sw;  // ...and clear of the front exterior wall
     const lo = clear, hi = AL - clear;           // along-spine span, inset from both end walls
     // a SWITCHBACK's real along-footprint is ~one half-run + landing (≈ 12–14 ft); reserve to
     // that, not the whole clear side, so the budgeted bay matches the flight (not dead space).
-    const want = Math.min(hi - lo, 14);
+    const want = Math.min(hi - lo, stairRun);
     // the entry door splits the spine; run along whichever clear side of it is longer.
     const loGap = (entryA - doorClr) - lo, hiGap = hi - (entryA + doorClr);
     let sA0, sA1, forward = true;
@@ -1098,6 +1157,9 @@ export function generateProgramPlan(seed, {
     stairZone = toBox(sA0, sA1, sD0, sD1);
     // seat the run so its open end (entry/exit) faces the entry side, not the end wall:
     // high-side zone climbs back toward the entry (+); low-side zone climbs the other way (−).
+    // (repair, a straight flight) it climbs the other way: its foot at the end wall, a clear landing's gap before it,
+    // and its head arriving toward the middle of the house, onto the open hall
+    if (climbToCentre) forward = !forward;
     stairDir = wide ? (forward ? '+x' : '-x') : (forward ? '+y' : '-y');
     stairA0 = sA0; stairA1 = sA1;
   }

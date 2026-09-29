@@ -324,7 +324,7 @@ function unitFaces({ axis, alongCenter, sfW, cInner, cOuter, baseZ, height, id, 
   }
 
   // FRACTAL FIT-OUT: seed the interior from this unit's position → a furnished apartment.
-  const fit = furnishUnit({ axis, alongCenter, a0, a1, cInner, cOuter, wcSide, wcFront, baseZ, height, seed: o.unitSeed ?? 1, entry, ...(items ? { id, items } : {}) }, { light, unitWall: o.unitWall, height });
+  const fit = furnishUnit({ axis, alongCenter, a0, a1, cInner, cOuter, wcSide, wcFront, baseZ, height, seed: o.unitSeed ?? 1, entry, ...(items ? { id, items } : {}) }, { light, unitWall: o.unitWall, height, ...(o.furnishing ? { furnishing: o.furnishing } : {}) });
   faces.push(...fit.faces);
   // placed `ref` items ride out to the World (world-scene.js resolves them) via the caller's sink
   if (fit.itemRefs && Array.isArray(o.itemRefsOut)) o.itemRefsOut.push(...fit.itemRefs);
