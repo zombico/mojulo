@@ -14,6 +14,10 @@
 // The two lignification dials (separate: a palm or a bamboo has lignin and no cambium):
 //   lignin   0..1 — how locked the wall is: E(age) = stemModulus(lignin · maturity(age)).
 //   cambium  0..1 — secondary growth: the pipe increment is scaled by it. Monocots (grass, bamboo, palm) have none.
+// Aerial roots (opt-in, `arch.aerial`; the figs): a root dropped from a limb hangs as a plumb line until it reaches the
+// ground; landed, it is a new water path (it takes `share` of the pipes of the foliage beyond its limb, so it thickens
+// and the limb behind it stops thickening for that foliage) and a prop (it carries `carry` of the load beyond it, so the
+// limb behind it stops bending under it). That is how a banyan spreads wider than a cantilever allows.
 // Deterministic: mulberry32 dice from the seed; no Math.random, no Date.
 import { stemModulus, G } from './mechanics.js';
 
@@ -71,6 +75,14 @@ export const ARCHITECTURES = {
   },
 };
 
+/**
+ * Aerial roots (`arch.aerial`, merged over these): sites are limbs of order ≥ minOrder, above minZ metres, thicker than
+ * minR, within `flat` degrees of horizontal; each starts a root with chance `rate` a year, `spacing` metres from any
+ * other, up to `max`. A root drops `drop` m a year (±30%) at radius rHang; landed, it takes `share` of the pipes beyond
+ * its limb and carries `carry` of the load.
+ */
+export const AERIAL_DEFAULTS = { minOrder: 1, minZ: 2, minR: 0.012, flat: 30, rate: 0.05, spacing: 1.2, max: 80, drop: 1.5, rHang: 0.004, share: 0.6, carry: 0.85 };
+
 export const GROW_DEFAULTS = {
   years: 20, seed: 1, lignin: 1, cambium: 1,
   // light (Palubicki's constants, in voxel units)
@@ -107,6 +119,9 @@ export function grow(archIn, opts = {}) {
   const rng = mulberry32((P.seed * 2654435761) >>> 0);
   const at = (arr, k) => arr[Math.min(k, arr.length - 1)];
   const nodes = []; const axes = []; const buds = []; const history = [];
+  // aerial roots: their own dice, so the growth before the first landing is the rootless plant's
+  const A = arch.aerial ? { ...AERIAL_DEFAULTS, ...arch.aerial } : null; const roots = []; const props = A ? new Set() : null; const rooted = new Set();
+  const rngA = A ? mulberry32((P.seed * 3266489917 + 374761393) >>> 0) : null;
 
   // ── shadow grid: dense, sized from the most the plant could grow, clamped (outside the box = open sky) ────
   const vs = P.voxel ?? at(arch.internode, 0) * (arch.voxelScale ?? 1);
@@ -258,7 +273,7 @@ export function grow(archIn, opts = {}) {
     // ── wood: the pipe model. ring area this year = pipe × living leaves above (Pressler), scaled by cambium ──
     const F = new Float64Array(nodes.length);
     const ord2 = topo(nodes);
-    for (let t = ord2.length - 1; t >= 0; t--) { const id = ord2[t]; const n = nodes[id]; if (n.died) continue; let f = n.leaves; for (const c of children.get(id) || []) if (!nodes[c].died) f += F[c]; F[id] = f; }
+    for (let t = ord2.length - 1; t >= 0; t--) { const id = ord2[t]; const n = nodes[id]; if (n.died) continue; let f = n.leaves; for (const c of children.get(id) || []) if (!nodes[c].died) f += props && props.has(c) ? F[c] * (1 - A.share) : F[c]; F[id] = f; }
     for (const id of ord2) {
       const n = nodes[id]; const r0 = arch.rEstablish && n.order === 0 ? arch.rEstablish : P.rPrimary;
       const prevA = n.area.length ? n.area[n.area.length - 1] : Math.PI * r0 ** 2;
@@ -268,6 +283,7 @@ export function grow(archIn, opts = {}) {
     }
     // backfill area arrays of nodes born this year so area[y-1] indexes by year for everyone
     for (const n of nodes) while (n.area.length < year) n.area.unshift(Math.PI * P.rPrimary ** 2);
+    if (A) aerialYear(year, F, leafArea);
 
     // ── mechanics: this year's extra load bends each internode; reaction wood pulls back toward the set-point ──
     bendAndReact(year);
@@ -304,7 +320,7 @@ export function grow(archIn, opts = {}) {
       const own = P.rho * Math.PI * n.r * n.r * n.len + n.leaves * P.leafMass;
       const mid = n.parent >= 0 ? mul(add(n.pos, nodes[n.parent].pos), 0.5) : n.pos;
       let M = own, X = own * mid[0], Y = own * mid[1];
-      for (const c of children.get(id) || []) if (!nodes[c].died) { M += m[c]; X += mx[c]; Y += my[c]; }
+      for (const c of children.get(id) || []) if (!nodes[c].died) { const k = props && props.has(c) ? 1 - A.carry : 1; M += k * m[c]; X += k * mx[c]; Y += k * my[c]; }
       m[id] = M; mx[id] = X; my[id] = Y;
     }
     // root first: each internode (parent → n) rotates n's subtree
@@ -336,6 +352,28 @@ export function grow(archIn, opts = {}) {
       }
     }
   }
+  /**
+   * One year of aerial roots: new roots on near-horizontal limbs (spaced apart), hanging ones drop, landed ones take their
+   * share of the pipes beyond their limb as ring area. A root whose limb is shed dies with it.
+   */
+  function aerialYear(year, F, leafArea) {
+    const flat = Math.sin(A.flat * DEG);
+    for (const n of nodes) {
+      if (roots.length >= A.max) break;
+      if (n.died || n.order < A.minOrder || n.pos[2] < A.minZ || n.r < A.minR || Math.abs(n.dir[2]) > flat || rooted.has(n.id)) continue;
+      if (rngA() >= A.rate) continue;
+      if (roots.some((q) => !q.died && Math.hypot(q.at[0] - n.pos[0], q.at[1] - n.pos[1]) < A.spacing)) continue;
+      const q = { node: n.id, born: year, len: 0, landed: 0, area: Math.PI * A.rHang ** 2, at: [n.pos[0], n.pos[1]] }; roots.push(q); rooted.add(n.id);
+    }
+    for (const q of roots) {
+      if (q.died) continue; const n = nodes[q.node];
+      if (n.died) { q.died = year; props.delete(q.node); continue; }   // (props holds landed roots only)
+      q.at = [n.pos[0], n.pos[1]];
+      if (!q.landed) { q.len = Math.min(n.pos[2], q.len + A.drop * (0.7 + 0.6 * rngA())); if (q.len >= n.pos[2] - 1e-9) { q.landed = year; props.add(q.node); } }
+      else q.area += P.pipe * F[q.node] * A.share * leafArea * P.cambium;
+      q.r = Math.sqrt(q.area / Math.PI);
+    }
+  }
   function groundContact() { groundPass(nodes, children, rotateSubtree); }
   function rotateSubtree(id, pivot, axis, a) {
     const stack = [id];
@@ -348,7 +386,7 @@ export function grow(archIn, opts = {}) {
   }
 
   castShadows();
-  return { nodes, axes, arch, params: P, history, children, exposure, shadowAt };
+  return { nodes, axes, arch, params: P, history, children, exposure, shadowAt, ...(A ? { roots: roots.filter((q) => !q.died) } : {}) };
 }
 
 /** Parents before children (ids are already in that order: a child is always created after its parent). */
