@@ -214,7 +214,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   // stand within 600 m of the spawn as repeats
   const plantsSpec = resolveTerrainPlants(manifest.plants); let plantBake = null, plantMeta = null;
   if (plantsSpec) {
-    const V = plantsConfig(field), pools = plantPools(V, plantsSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
+    const V = plantsConfig(field, { figs: !!plantsSpec.figs }), pools = plantPools(V, plantsSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
     if (live) { channel.plants = plantsPageChannel(V, pools, plantsSpec); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), templates: channel.plants.templates.length, triangles: channel.plants.templates.reduce((a, t) => a + t.tris, 0) }; }
     else { plantBake = plantsBake(field, V, pools, { at: [wx, wy], radius: 600 }); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), baked: plantBake.count }; }
   }
