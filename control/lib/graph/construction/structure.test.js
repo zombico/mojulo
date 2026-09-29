@@ -52,6 +52,8 @@ describe('construction/frame — steel and reinforced concrete', () => {
     expect(faces.filter((f) => f.group === 'col-l').every((f) => !f.texture)).toBe(true);
     expect(report.pieces.map((p) => p.kind).sort()).toEqual(['base-plate', 'base-plate', 'end-plate']);
     expect(report.joints.find((j) => j.type === 'bolted')).toMatchObject({ bolts: 4, plateMm: [12, 170, 340], gripMm: 10 });
+    // from the catalog: 12 plate + 10 flange + two 3 mm washers + an 18 mm nut + two 2.5 mm threads = 53 → M20×55
+    expect(report.joints.find((j) => j.type === 'bolted').fasteners).toEqual([{ code: 'M20x55-hex', count: 4 }, { code: 'washer-M20', count: 8 }, { code: 'nut-M20', count: 4 }]);
     const s = report.span.find((x) => x.member === 'beam');
     expect(s.material).toBe('steel'); expect(s.allowMPa).toBeCloseTo(0.6 * 355, 1);
   });

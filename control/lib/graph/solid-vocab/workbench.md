@@ -264,7 +264,7 @@ fields: [{
 A `frames` entry is carpentry: members laid on centrelines the way a frame is drawn, joints that cut them where they meet, and each member wearing the figure its cut would show in a real log. Lengths are in the entry's `unit` (`'cm'` by default).
 
 - **members** — `{ id, from, to, stock, up?, species?, finish?, tint?, cut?, log? }`. `stock` is `[width, depth]` or a named size: `2x4` … `8x10` (dressed, so a 2x4 is 3.8 × 8.9 cm), `3.5sun`, `4sun`, `5sun` (Japanese post sections), `nuki`, `kusabi`. `up` is the way the depth faces (default: up for a level member, +y for a post). `from` is the butt: a post stands the way its tree grew.
-- **species** — `oak`, `ash`, `keyaki`, `pine`, `douglas-fir`, `spruce`, `hinoki`, `sugi`. Each carries its figure (latewood, oak's pore band and ray fleck, sugi's red heart) and its numbers: density, stiffness, strength and shrinkage.
+- **species** — `oak`, `ash`, `keyaki`, `pine`, `douglas-fir`, `spruce`, `hinoki`, `sugi`, and the furniture hardwoods `walnut`, `cherry`, `maple`, `beech`, `birch`. Each carries its figure (latewood, oak's pore band and ray fleck, sugi's red heart) and its numbers: density, stiffness, strength and shrinkage.
 - **cut** — where the section sat in its log: `boxed-heart` (the pith inside; the default for timbers), `free-of-heart`, `flat` (cathedral figure, cups; the default for boards), `quarter` (straight stripes, oak's fleck, stays flat), `rift`, or `{ offset:[a,b], angle }` in metres. `log: { age?, ringMm?, knots?: 'clear'|'few'|'normal'|'many', clearBelow?, spiral?, seed? }` shapes the log itself; left out, it is sized to the section and seeded from `seed`.
 - **finish** — colour is a finish over the figure, never baked into it: `raw`, `oil`, `wax`, `bengara`, `sumi`, `kakishibu`, `urushi`, `yakisugi` (grain shows through), `gofun`, `limewash` (cover it), or `{ stain:'#rrggbb' }` / `{ paint:'#rrggbb' }`. `tint` replaces the species' colour and keeps the figure. Restaining reuses every texture; paint and `figure:'flat'` draw one colour with no texture (`'coarse'` halves the texture size).
 - **steel and concrete** — a member with `section: 'W8x31' | 'IPE300' | 'HEA200' | 'PFC150' | 'L75x6' | 'SHS100x6' | 'CHS114x6' …` is steel (its depth faces `up`; finish `mill`, `primer`, `galvanized`, `weathering`, `stainless`, `{ paint }`). `material: 'concrete'` with `stock: [w, d]` is concrete with its cage (`rebar: { top?, bottom?: [n, ⌀], ring?, ties?: [⌀, spacing], mesh?, cover? }` in mm, a default cage when left out, `false` for none); `xray: true` on the frame shows the cage through it.
@@ -276,7 +276,8 @@ A `frames` entry is carpentry: members laid on centrelines the way a frame is dr
   - `nuki` — a runs through b in a slot, locked by a kusabi wedge; `drive: 'from'|'to'`. Extend a past both faces.
   - `kanawa-tsugi` — the splice: a's `to` end on b's `from` end, one line, same section; a lapped Z with a lip each end and a shachi key.
   - `lap` (crossing members halved) and `notch` (a takes b's shape: a bird's-mouth on a plate, a housed joist).
-  - `bolted` (end plate and four bolts), `welded` (trimmed to b's face), `base-plate` (a column's foot and anchors; `b` optional).
+  - `bolted` (end plate and four catalog M20s sized to the grip, washers and nuts), `welded` (trimmed to b's face), `base-plate` (a column's foot and anchors; `b` optional).
+  - furniture joints: see "Frames — furniture" below.
   Joints are cut by the exact kernel; without it the members draw as plain boxes and the mint says so.
 - **the report** — `stats.frames[i]` gives each member's log, cut and **movement** (how much it shrinks, which face cups, whether a boxed heart checks), each joint's sizes (tenon, relish past the peg), a **span** check on level members (deflection against span/300, stress against a third of the clear-wood strength, `load` kN/m live; braces not counted), and the **assembly** order in which the members slide together, or the member that locks and by how many degrees. All advisory: a braced Western bent reports a 45° lock because framers seat it by flexing it; a kigumi bent slides together. `explode` (a distance) pulls every member and pin back along the way it seats.
 
@@ -287,6 +288,55 @@ units: 'cm', frames: [{ species: 'hinoki', members: [
   { id: 'nuki', from: [-15,0,150], to: [315,0,150], stock: 'nuki' } ],
   joints: [ { type: 'hozo', a: 'post-l', b: 'hari', pin: true }, { type: 'hozo', a: 'post-r', b: 'hari', pin: true },
             { type: 'nuki', a: 'nuki', b: 'post-l' }, { type: 'nuki', a: 'nuki', b: 'post-r', drive: 'to' } ] }]
+```
+
+### Frames — furniture: panels, boards and fittings
+
+The same `frames` entry builds furniture. Author casework as boxes and let the joints place the hardware.
+
+- **a build** — `build: { type: 'carcass' | 'table' | 'chair', …dials }` on the frame writes the members and joints for you (appended to any you write; `stats.frames[i].build.expanded` holds them to copy and edit). Dials are in the frame's unit; defaults are the usual mm sizes.
+  - `carcass: { w, h, d, t?, material?, joinery?: 'kd'|'confirmat'|'dowel'|'dado', plinth?, back?: 'groove'|'nailed'|'none', shelves?, fixed?, doors?: 0|1|2, hinge?, drawers?, drawerHeight?, partition?, finish?, edges? }` — doors hang on concealed hinges, drawers are boxes on ball-bearing slides (each built first, its front screwed on last), a wide carcass gets a middle partition so no shelf spans more than about 700 mm.
+  - `table: { w, d, h, top?, leg?, apron?, apronT?, setback?, overhang?, species?, finish?, joinery?: 'mortise-tenon'|'dowel' }` — tenons sized to stop short of each other in the legs, the top on angle brackets.
+  - `chair: { w?, d?, seat?, back?, leg?, species?, finish?, seatMaterial? }` — mortise-and-tenon frame, a notched seat on brackets.
+- **a box member** — `{ id, box: { min, max }, grain?: 'x'|'y'|'z', …material }` instead of `from`/`to`/`stock`: the grain runs the longest side, the thinnest side is the thickness. Front is −y.
+- **boards** — `material: 'particleboard' | 'mfc' | 'mdf' | 'plywood' | 'osb' | 'hardboard'`, each with its figure (chips and a coarse core on a raw particleboard edge, plywood's rotary face and plies, OSB's strands), density, stiffness, creep and screw holding. `mfc` wears a white decor (`finish: { paint }` for another) with its edges banded; `edges: { front: 'abs' | 'none' | { paint }, back, top, … , all }` bands or bares an edge. Timber in a furniture frame is clear stock (no knots) unless its `log` asks.
+- **joints** — edge meets face (the face member is the one whose thinnest side is square to the contact; fittings sit 37 mm in from each end, `spacing` mm apart at most):
+  - `cam-lock` — cam in the edge member's hidden face (`face` to choose), bolt in the face member, a dowel beside each (`dowels: false` for none).
+  - `dowel`, `confirmat`, `screwed` (`screw: 'wood-4x30'` or picked to bite), `bracket` (`bracket: 'bracket-L40'`, `face`), `dado` (a housing a third deep), `groove` (a back or bottom authored into the grooves it sits in), `shelf-pin` (a is the shelf).
+  - `dovetail` (a carries the tails, b the pins; the two boards overlap at the corner; `tails`, `slope` — 1:6 softwood, 1:8 hardwood) and `finger` (a box joint; `fingers`, odd).
+  - `hinge` (a is a door, b the side it hangs on: cups, arms and plates, more hinges on a taller door) and `slide` (a is a drawer side 12.7 mm from b, the carcass side).
+  - `glue: true` makes a dowel, screw, confirmat or dado joint rigid; `mortise-tenon` takes `depth` (mm) to shorten a tenon.
+  - `group: 'name'` on members builds them together first (a drawer) and puts them in as one.
+- **hardware** — every fitting is a catalog part (`M6x30-hex|socket|button|csk`, `nut-M6`, `washer-M6`, `wood-4x30`, `confirmat-7x50`, `dowel-8x35`, `cam-15`, `shelf-pin-5`, `bracket-L40` …) that cuts the hole it needs: clearance, pilot for what it bites into, countersink, cam bore.
+- **the furniture report** (`stats.frames[i].furniture`, all advisory): mass and centre of mass; **tip-over** (standing; a child pulling on tall, narrow storage; drawers two-thirds out with a child's weight on the top one — "fix it to the wall"); **racking** per upright plane (a fastened panel or two rigid joints holds it square; a carcass with no back does not); **interference** (overlapping bodies, tenons colliding in a leg); **fasteners** (one that pokes out, bites short, or is a plain screw into a particleboard edge); the **hardware** list and tools; a **cut list** nested onto standard sheets; the flat-pack carton. Shelves are checked for sag under `shelfLoad` kg/m (default 30, a row of books; per member too): span/600 now, span/300 as it creeps. A piece that cannot go together one part at a time reports the **sub-assemblies** it is built in (a table's end frame).
+- **a print kit** — `layout: 'kit'` lays every part flat on the grid (thinnest side up, `kitGap` apart) with its joints cut and the bought fittings left out, so `export_model` prints a model of it as a kit to glue up (`target_mm` or `scale` for its size). `stats.frames[i].kit` lists where each part lies.
+- **its manual** — gather the minted piece into a stash (`sketch` item) and cook `instruction_manual`: a workbench with `frames` writes its own wordless A4 pages — cover, inventory with every fitting at 1:1, one page per step (fittings first, then parts in the order they seat, cams turned, a wall anchor if it tips). `metadata.manual: false` on the item keeps it one diagram.
+
+```
+units: 'mm', frames: [{ id: 'bookcase', unit: 'mm', members: [
+  { id: 'side-l', box: { min: [0,0,0], max: [18,300,1800] }, material: 'mfc' }, { id: 'side-r', box: { min: [782,0,0], max: [800,300,1800] }, material: 'mfc' },
+  { id: 'top', box: { min: [18,0,1782], max: [782,300,1800] }, material: 'mfc' }, { id: 'bottom', box: { min: [18,0,60], max: [782,300,78] }, material: 'mfc' },
+  { id: 'back', box: { min: [12,282,72], max: [788,285,1788] }, material: 'hardboard', grain: 'z' } ],
+  joints: [ { type: 'cam-lock', a: 'top', b: 'side-l' }, { type: 'cam-lock', a: 'top', b: 'side-r' },
+            { type: 'cam-lock', a: 'bottom', b: 'side-l' }, { type: 'cam-lock', a: 'bottom', b: 'side-r' },
+            { type: 'groove', a: 'back', b: 'side-l' }, { type: 'groove', a: 'back', b: 'side-r' },
+            { type: 'groove', a: 'back', b: 'top' }, { type: 'groove', a: 'back', b: 'bottom' } ] }]
+```
+
+### Frames — couches and upholstery: soft parts, cloth and covers
+
+- **a sofa** — `build: { type: 'sofa', seats?: 1–4, seatW?, seatH?, seatD?, backH?, arms?: 'track'|'rolled'|'none', armW?, armH?, legH?, cushions?: 'loose'|'bench', back?: 'loose'|'tight'|'tufted', pillows?, fill?, fabric?, piping?, species?, joinery?: 'kd'|'glued' }` writes a hardwood seat box with corner blocks, sinuous springs clipped across it, legs on hanger bolts, plywood arms and back, and the padding and cushions. A `kd` sofa is four upholstered sections (base, arms, back) bolted together (`insert-bolt`: an M8 through one into a threaded insert in the other); its manual shows each section as one part.
+- **soft parts** — `soft: [{ id, kind, box, … }]` on any frame, fluffed from the field primitives (Fields above) and surfaced as a mesh: `cushion` (`style: 'boxed'|'knife'|'bench'`, `crown`, `round`, `piping: true|'#hex'`, `tufting: { pattern: 'diamond'|'grid', rows, cols, depth? }`), `pillow` (every edge a seam), `bolster`, `pad` (padding over a member; `roll: true|'left'|'right'` for a rolled arm), `custom` (`terms` in the frame's unit about the box's centre — write your own form). Any: `tilt` (degrees, a back cushion leans back), `fill` (`foam-hr40|foam-hr35|foam-30|fibre|feather`), `fabric`, `on` (what it rests on), `rest: 'down'|'back'`, `group`. A soft part carries no load and takes no joint; it goes in last, the way it rests.
+- **views** — `view: 'finished'` (default with soft parts: members the padding hides are left out of the faces; bolts the owner drives stay) or `'frame'` (the bare frame, springs and all). `softCell` sets the mesh's grain (about 20 mm).
+- **cloth** — `fabric` on the frame (or a soft part): a preset (`linen`, `canvas`, `twill`, `herringbone`, `houndstooth`, `gingham`, `tartan`, `ticking`, `velvet`, `boucle`) or a weave draft `{ weave: 'plain'|'basket'|'satin'|'twill-2/2'|'twill-2/1'|'twill-3/1'|'herringbone', warp: ['#1d2a44', 4, 'cream', 4], weft?, threadMm?, rollMm?, martindale? }` — the colour order in each direction and the weave make the pattern (houndstooth IS a 2/2 twill in fours). It textures the World view (the stripe runs from the seat down the border) and prints as an SVG swatch in colour, as a weaver's draft, or in hatched tones. `railroad: true` turns the cloth so its width runs along the sofa.
+- **what the report adds** — `soft` (each part's size, fill, mass, the foam block to cut, how far a seat sinks under a sitter), `covers` (per cloth: pieces with seam allowance, laid on the roll with the pattern matched, the metres, bias strips for the piping), and `furniture.seating`: seat height and the height a sitter sits at, depth, back angle, arm height, width a sitter against the trade's usual ranges; seat foam density; spring gauge and pitch; tall legs on one hanger bolt; tipping when perched on, leaned back on hard, or sat on an arm. The seat rails carry their sitters (a member `load`, kN/m, like the frame's).
+- **its manual** — soft forms drawn in cross-contour hatching (darker cloth, more hatch), tufting's pleats as lines; cushions go in last; it ends with the cloth (a swatch at 1:1 in one ink, the draft at 8:1, the metres) and the cutting layout on the roll.
+
+```
+units: 'mm', frames: [{ id: 'sofa', unit: 'mm', build: { type: 'sofa', seats: 3, back: 'tufted', arms: 'rolled' }, fabric: 'velvet' }]
+units: 'mm', frames: [{ id: 'bench', unit: 'mm', members: [ /* a plywood bench */ ],
+  soft: [{ id: 'pad', kind: 'cushion', box: { min: [0,0,450], max: [1200,400,510] }, piping: '#222222', on: 'seat' }],
+  fabric: { weave: 'twill-2/1', warp: ['navy', 6, 'cream', 14, 'navy', 2, 'cream', 14], weft: 'cream' } }]
 ```
 
 ## Drapes — hanging cloth

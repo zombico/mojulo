@@ -14,6 +14,131 @@ connected-service and app loops and the recipe format are the stable surface.
 
 ## [Unreleased]
 
+### Furniture construction
+
+- **Sheet goods.** A `frames` member may be cut from a sheet instead of a log: particleboard, melamine-faced board,
+  MDF, plywood, OSB and hardboard, each with its density, stiffness, strength, creep and screw holding, its standard
+  thicknesses and sheet size. Each wears its own figure: fine chips on a particleboard face and a coarse flaked core
+  on its raw edge, MDF's even speckle, plywood's rotary-peeled face read from the log and its plies on every edge,
+  OSB's strands. Melamine board has a decor face and banded edges; any edge can be banded or left raw. Walnut, cherry,
+  maple, beech and birch join the timbers, and furniture timber is clear stock.
+- **Panels as boxes.** A member may be given as a box (`box: { min, max }`) instead of a centreline. Its thinnest side
+  is its thickness and its grain runs the longest side, so casework is authored the way it is drawn.
+- **Furniture joints.** Cam locks (with a dowel beside each cam), dowels, confirmats, screwed butts, angle brackets,
+  shelf pins, a housing (dado) and a back captured in its grooves. A joint finds which part's edge meets which part's
+  face, places its fittings 37 mm in from each end, cuts the holes each fitting asks for, and records how firmly it
+  holds its corner; `glue` makes a fastened joint rigid. A mortise and tenon takes a `depth`.
+- **Pieces from a few dials.** `build: { type: 'carcass' | 'table' | 'chair', … }` writes a piece's members and joints
+  (and reports them, to copy and edit): a knock-down carcass with its plinth, grooved or nailed back, fixed and
+  adjustable shelves, a partition when it is wide, doors on concealed hinges and drawers built as boxes on
+  ball-bearing slides; a table whose tenons stop short of each other in its legs, its top on brackets; a chair with a
+  mortise-and-tenon frame and a notched seat. Doors (`hinge`), drawer slides (`slide`) and parts built together first
+  (`group`) are available to hand-written frames too.
+- **Dovetails and finger joints.** Two boards overlapping at a corner are cut into tails and pins (flared 1:6 in a
+  softwood, 1:8 in a hardwood, half pins at the edges) or square fingers; a dovetail goes together only across the
+  tail board, and pulled along its length it locks.
+- **A print kit.** `layout: 'kit'` lays every part of a piece flat on the grid, its joints cut and its bought fittings
+  left out, so the piece exports as a model kit to print and glue up.
+- **Furniture that stands.** A piece is checked where furniture fails, and never refused:
+  - shelf sag under a load of books, now (span/600) and as it creeps (span/300);
+  - racking: a carcass with no fixed back folds sideways;
+  - tipping over: standing, a child pulling on tall, narrow storage, and every drawer two-thirds out with a child's
+    weight on the highest one (after ASTM F2057-23) — "fix it to the wall";
+  - fasteners that poke through, bite too little, or go into a particleboard edge as a plain screw;
+  - parts that overlap, and tenons that collide inside a leg.
+
+  The report also gives the piece's mass, its hardware list and tools, a cut list nested onto standard sheets and the
+  flat-pack carton. A piece's assembly order is found by taking it apart, which is fast for large pieces; one that
+  cannot go together one part at a time is built in sub-assemblies (a table's end frame, a drawer), and the report
+  says which. A notch now also lets a part slide along the member it is notched round.
+
+### Constructed furniture in rooms
+
+- **Facades of the built pieces.** The sofas, armchair, chesterfield, tables, chair, bookcase, media console, sideboard,
+  chest and nightstand built on the workbench are saved as facades: what shows of each (boards, legs, padding,
+  cushions and cloth), without the joints and fittings, sized to a room's footprint.
+- **In rooms and condos.** A room can name one (`asset: 'constructed-sofa'`), and `furnishing: 'constructed'` on a
+  floor plan or a condo furnishes it with them in place of the simpler pieces. A house style's finish colours their
+  cloth, timber and boards. Without the option, rooms and condos are unchanged.
+
+### Couches and upholstery
+
+- **Soft parts.** A frame's `soft` entries are cushions (boxed, knife-edge or bench), pillows, bolsters, padding over a
+  member, or a form of your own written in the field primitives. They are fluffed from those primitives: crowned,
+  rounded to their seams, piped, tufted with buttons and pleats, leaning. Each has:
+  - a fill (high-resilience and polyether foams, fibre, feather);
+  - a mass, and the foam block to cut;
+  - how far it sinks under a sitter.
+
+  `view: 'frame'` shows the bare frame; the finished view leaves out what the padding hides.
+- **A sofa from a few dials.** `build: { type: 'sofa', … }` writes:
+  - a hardwood seat box with glued corner blocks, and sinuous springs clipped across it;
+  - legs on hanger bolts;
+  - plywood arms (track or rolled) and a back;
+  - its padding and cushions: a loose, tight or buttoned back, loose or bench seats, throw pillows.
+
+  A flat-pack sofa arrives as four upholstered sections that bolt together with M8 bolts into threaded inserts. The
+  new joints (`springs`, `hanger-bolt`, `insert-bolt`) and fittings (hanger bolts, threaded inserts, spring clips,
+  sinuous springs by wire gauge) are open to any frame, and a member can carry a live `load`.
+- **Seating that holds and sits right.** Advisory, never refusing:
+  - the seat rails are span-checked under their sitters;
+  - seat height (and the height a sitter sinks to), depth, back angle, arm height and width a sitter are checked
+    against the trade's usual ranges;
+  - seat foam density, spring gauge and spacing, and tall legs on a single bolt are flagged;
+  - tipping is checked with someone perched on the front edge, leaning back hard, or sitting on an arm.
+- **Fabric from a weave draft.** A weave and a colour order in warp and weft make the cloth:
+  - weaves: plain, twill, herringbone, basket and satin;
+  - presets: houndstooth, gingham, tartan, ticking, linen, canvas, velvet and bouclé, each with a typical wear rating
+    and whether it has a nap.
+
+  The draft renders to the World texture, where the pattern runs on from seat to border, and to an SVG swatch at
+  true size: in colour, as a weaver's black-and-white draft, or in hatched tones for one ink.
+- **Covers.** Each soft part is cut into flat pieces with seam allowance: plates, boxing, zip boxing, and bias strips
+  for piping. The pieces are laid on the roll with the pattern centred on each and matched from piece to piece. The
+  report gives the metres of cloth, matched and not, and `railroad` turns the cloth to cut long pieces whole. Stamps
+  flag:
+  - a seat cloth too weak for daily use;
+  - a napped cloth;
+  - a pattern that railroading would turn on its side;
+  - pieces seamed where railroading would not need a seam.
+- **Hatched ink.** Soft parts are drawn in cross-contour hatching, denser where the form turns from the light and
+  where the cloth is darker, with tufted pleats as lines, so a cushion's crown reads in black and white. A sofa's
+  manual:
+  - shows each section as one part, leaving out the fittings fitted at the factory;
+  - puts the cushions in last;
+  - ends with its cloth (a swatch at 1:1, the draft at 8:1, the metres) and the cutting layout.
+
+  The hidden-line renderer now sizes its depth grid to the drawing, so a printed page renders several times faster,
+  with the same output.
+
+### Fasteners
+
+- **A catalog of standard parts.** `construction/hardware.js` holds hex, socket, button and countersunk bolts, nuts and
+  nylocs, plain and large washers, wood and chipboard screws, confirmats, dowels, cam locks and their bolts, shelf pins,
+  angle brackets, concealed cup hinges and ball-bearing drawer slides, sized from their standards (ISO for the metric parts; one maker's drawings, marked as estimates,
+  for the knock-down fittings). Each part knows its code, drive (and so its tool), mass and finish, and the hole it
+  asks for in what it passes through: clearance, a pilot for what it bites into, countersink, cam bore. Joints name a
+  part and cut that hole. A bolt's length is the shortest standard one that leaves two threads past its nut.
+- **Steel joints draw from it.** The bolted end plate uses catalog M20s sized to the grip, with a washer under each
+  head and nut; base-plate anchors get washers and nuts. Steel frames with these joints change on purpose.
+
+### Assembly manuals
+
+- **A piece writes its own instructions.** `construction/manual.js` turns a frame into a wordless instruction manual of
+  black-and-white A4 pages:
+  - a cover with the finished piece, its carton, mass and tools;
+  - an inventory with every part numbered and sized, and every fitting drawn at true scale beside a 10 mm check bar;
+  - one page per step. Fittings seated before assembly get their own steps (×2 for identical parts; four identical
+    drawers are built once, ×4, and slid in together), then the parts
+    go on in the order they seat, pulled back along the way they go in, with motion lines, part numbers, hardware
+    letters and counts, a turn arrow on each cam and a magnified detail. A piece that tips ends with fixing it to the
+    wall.
+
+  Steps are drawn by the hidden-line renderer, now faster on large meshes with the same output.
+- **Cook it.** A workbench piece gathered into a stash as a sketch item and cooked as `instruction_manual` writes these
+  pages into the booklet itself, one set per frame, around any markdown steps the stash also holds; `manual: false` on
+  the item keeps it a single diagram.
+
 ### Building materials
 
 - **Timber comes from a log.** `control/lib/graph/construction/` builds a synthetic log without growing a tree: the
