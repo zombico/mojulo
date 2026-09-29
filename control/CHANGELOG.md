@@ -153,10 +153,12 @@ branch; each bullet is rewritten as its phase lands.
   Blender's default scene rate, a one-frame drawing can fall between two samples). The readout's `hero.clips` adds each
   clip's `seconds` and the door clips carrying a `face` on the anime head. The worked heroine's clips carry their
   durations (greet and victory 2 s, idleRelaxed 4 s, run 0.8 s) and her performance: a closed-eye grin opening into a
-  wider smile on the greet, a determined squint pushing on each contact on the run, the brows down on the victory's
-  crouch and an eyes-shut cheer at its peak. A hero without clips is byte-identical but for the anime hero's durations
-  (its packed clips carry `s`, its World page plays them, its GLBs end each clip there); only the mint's next hint
-  gains a sentence on the clips, and a second on the anime head.
+  wider smile on the greet (twelve keys, one on each of the pack's samples: two strokes from her stand on the elbow's
+  hinge, each eased at both ends, with the arm held up across the loop; the waving side lifts into the first, the head
+  tilts toward the hand and nods a key after it, and the other arm answers sideways), a determined squint pushing on
+  each contact on the run, the brows down on the victory's crouch and an eyes-shut cheer at its peak. A hero without
+  clips is byte-identical but for the anime hero's durations (its packed clips carry `s`, its World page plays them, its
+  GLBs end each clip there); only the mint's next hint gains a sentence on the clips, and a second on the anime head.
 - **The playable export.** The Godot world pack (`scripts/export-godot.mjs`, clips on, the default) ships a rigged
   layered figure SKINNED: `model.glb` is the bytes `export_model { clips: '_all', skinned: true }` writes (one mesh, its
   joints, every clip — the anime hero's at their designed durations, every other hero's one second each; `--lit` adds

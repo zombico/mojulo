@@ -80,14 +80,14 @@ reconciled into it: the body lives in the hero form now, the head here.
 - `cast/`: worked characters as card specs, each with a `$note` saying who the character is and what the spec shows
   off: `heroine` in full dress (one base garment and one signature sash and bow, collars, boots with buckles, a stand
   from pose words, four clips of her own at the door, each `{ seconds, keys }` with a designed duration — `greet` and
-  `victory` 2 s, `idleRelaxed` 4 s, `run` 0.8 s — and a facial performance in its keys' `face` words: the greet shuts
-  her eyes in a grin on the first stroke and opens into a wider smile, the run holds a determined squint whose mouth
-  pushes on each contact, the victory gathers on the crouch (the brows down, the eyes a touch narrower) and cheers
-  eyes shut with the arms up; `idleRelaxed` keeps her authored face and blinks once a loop), then `lead`, `rival`,
-  `noble`, `mentor`, `kid`, `tough` and `tomboy` (look words and the own layer over them, the graphic face, the hair's
-  form words and lock edits, expressions as a word, a list or an object, the character light's shade swatches, streak
-  and ring). The words are the manual's
-  (`control/lib/graph/solid-vocab/layered.md`, the Hero door).
+  `victory` 2 s, `idleRelaxed` 4 s, `run` 0.8 s — and a facial performance in its keys' `face` words: the greet waves
+  from her stand in two strokes on the elbow's hinge, the arm held up across the loop, shuts her eyes in a grin on the
+  first stroke and opens into a wider smile, the run holds a determined squint whose mouth pushes on each contact, the
+  victory gathers on the crouch (the brows down, the eyes a touch narrower) and cheers eyes shut with the arms up;
+  `idleRelaxed` keeps her authored face and blinks once a loop), then `lead`, `rival`, `noble`, `mentor`, `kid`,
+  `tough` and `tomboy` (look words and the own layer over them, the graphic face, the hair's form words and lock
+  edits, expressions as a word, a list or an object, the character light's shade swatches, streak and ring). The words
+  are the manual's (`control/lib/graph/solid-vocab/layered.md`, the Hero door).
   `node ../docs/examples/humanoid/render-articulation.mjs --spec ../docs/examples/humanoid/cast/<name>.json` from
   `control/` draws one.
 - `view-animations.mjs`: a self-contained page that plays a skinned GLB's clips as an engine does (real skinning and
