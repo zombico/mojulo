@@ -3,6 +3,7 @@ import {
   makeLight, DEFAULT_LIGHT, litFactor, shadeHex, scaleHex,
   newellNormal, orientOutward, shadeFace, norm3, dot3,
   withBands, bandFactor, resolveToon, shadeHexMat, FLAT_LIGHT,
+  resolveToonLight, toonLightErrors, CHARACTER_LIGHT_UNLIT,
 } from './vexar.js';
 
 const z0 = (a) => a.map((x) => x + 0);   // normalize -0 → 0 for deep-equality
@@ -107,5 +108,41 @@ describe('toon bands (toon-shading)', () => {
     expect(resolveToon({})).toBeNull();
     expect(resolveToon('toon')).toBeNull();
     expect(resolveToon(undefined)).toBeNull();
+  });
+
+  it('resolveToon carries the character light for a layered reader: valid → normalized, false → the opt-out, invalid → dropped', () => {
+    const def = resolveToonLight(true);
+    // the default key: front, above and the figure's right (+x)
+    expect(def.toLight.map((v) => +v.toFixed(12))).toEqual([0.45, 0.75, 0.55].map((v) => +(v / Math.hypot(0.45, 0.75, 0.55)).toFixed(12)));
+    // hair steps at 0.40 (about three quarters of it lit at the three-quarter view); no highlight unless authored
+    expect(def).toMatchObject({ threshold: 0, thresholds: { Hair: 0.4 }, shade: {}, unlit: [...CHARACTER_LIGHT_UNLIT] }); expect(def.highlight).toBeUndefined();
+    const L = { light: true };
+    expect(resolveToon({ light: true }, L)).toEqual({ light: def });                       // a light alone is a dial
+    expect(resolveToon({ light: false }, L)).toEqual({ light: false });                    // the explicit opt-out rides through
+    expect(resolveToon({ bands: 3, ink: true, light: false }, L)).toEqual({ bands: 3, ink: true, light: false });
+    const own = resolveToon({ light: { toLight: [0, 0, 2], threshold: 0.1, thresholds: { Skin: -0.2 }, shade: { Skin: '#aa5544' }, unlit: ['Iris'] } }, L).light;
+    expect(own).toEqual({ toLight: [0, 0, 1], threshold: 0.1, thresholds: { Hair: 0.4, Skin: -0.2 }, shade: { Skin: '#aa5544' }, unlit: ['Iris'] });
+    // the highlight: each group's rule over its kind's defaults; false rides through
+    expect(resolveToonLight({ highlight: { Hair: { kind: 'ring' } } }).highlight).toEqual({ Hair: { kind: 'ring', threshold: 0.3, band: [0.14, 0.22], falloff: 1.4 } });
+    expect(resolveToonLight({ highlight: { Hair: { kind: 'streak', band: [0, 0.3], parts: 'fringe' }, Skin: false } }).highlight).toEqual({ Hair: { kind: 'streak', threshold: 0.5, band: [0, 0.3], parts: 'fringe' }, Skin: false });
+    expect(resolveToonLight({ highlight: false }).highlight).toBe(false);
+    expect(resolveToon({ light: { toLight: [0, 0, 0] } }, L)).toBeNull();                  // invalid → dropped (nothing else asked)
+    expect(resolveToon({ ink: true, light: 'key' }, L)).toEqual({ ink: true });
+    expect(resolveToon({ bands: 4, light: null }, L)).toEqual({ bands: 4 });                // absent ⇒ exactly the old shape
+    expect(resolveToonLight(true)).not.toBe(resolveToonLight(true));                       // a fresh object per call
+    // every other reader never sees the field: a toon is exactly what it was before the channel existed
+    expect(resolveToon({ light: true })).toBeNull(); expect(resolveToon({ light: false })).toBeNull();
+    expect(resolveToon({ bands: 3, ink: true, light: def })).toEqual({ bands: 3, ink: true });
+  });
+
+  it('toonLightErrors names every bad field', () => {
+    for (const ok of [undefined, null, true, false, {}, { threshold: -1 }, { unlit: [] }]) expect(toonLightErrors(ok)).toEqual([]);
+    expect(toonLightErrors('key')[0]).toMatch(/toon\.light: true/);
+    const errs = toonLightErrors({ toLight: [1, 0], threshold: 2, thresholds: { Hair: 'hi' }, shade: { Skin: 'warm' }, unlit: [3], bias: 1 });
+    expect(errs.map((e) => e.split(':')[0])).toEqual(['toon.light.bias', 'toon.light.toLight', 'toon.light.threshold', 'toon.light.thresholds.Hair', 'toon.light.shade.Skin', 'toon.light.unlit']);
+    for (const ok of [{ highlight: false }, { highlight: { Hair: false } }, { highlight: { Hair: { kind: 'ring', threshold: 0.2, band: [0.1, 0.3], falloff: 2 } } }]) expect(toonLightErrors(ok)).toEqual([]);
+    const hi = toonLightErrors({ highlight: { Hair: { kind: 'glint', threshold: 3, band: [0.3, 0.1], falloff: -1, parts: 'crown', glow: 1 } } });
+    expect(hi.map((e) => e.split(':')[0])).toEqual(['toon.light.highlight.Hair.glow', 'toon.light.highlight.Hair.kind', 'toon.light.highlight.Hair.threshold', 'toon.light.highlight.Hair.band', 'toon.light.highlight.Hair.falloff', 'toon.light.highlight.Hair.parts']);
+    expect(toonLightErrors({ highlight: 'ring' })[0]).toMatch(/^toon\.light\.highlight:/);
   });
 });

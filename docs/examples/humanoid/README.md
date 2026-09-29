@@ -49,6 +49,41 @@ reconciled into it: the body lives in the hero form now, the head here.
   weight). `humanoidPlan({ face, headPreset })` takes a move, an object or a list; a figure cast wears the male head.
   `render-face.mjs` draws the FACE contact sheet (both heads × as fit / each move / both combined extremes as portraits
   through one camera per head, with a measurements table) into the gitignored spike tree.
+- The ANIME HEAD is the hero's second head (`humanoidPlan({ head: 'anime' })`; at the door `head: 'anime'`):
+  `control/lib/graph/polygonizer/anime-form.js` is the Anime Form Studio's construction ported bit for bit (its recipe
+  contract, baselines, apertures, lash and brow ribbons, clump hair with per-clump lock edits; `anime-form.test.js`
+  holds it to hashes frozen from the studio's own code), and `anime-head.js` makes it wearable: the studio's words as
+  composable vocabularies, registered where the landmark head sits, every part closed and pinned to a hidden core on
+  the head bone, no jaw (the mouth opens as an aperture). `render-anime.mjs` draws both design bases × bald / each
+  family / each pose at four views and both hero casts wearing it, with a measurements table, into the gitignored
+  spike tree.
+- `render-articulation.mjs`: the anime hero as the door mints it (`toon.light`, `sculpt`, the hair bases, the neck
+  form, `gesture`; the manual's hero door): a progression from a stored baseline (`--baseline <dir>`, the manifests an
+  earlier `--parity` run wrote, with `--predates` naming the bake and page rules it came before) to today's default,
+  the expressions, the preset stands with their readout, and on request before / after and three key directions; at
+  head and bust size and at 256 / 128 px, key- and shade-side profiles, on paper and on the World's own backdrop. It
+  draws the World payload's own static faces and refuses to run if its re-derivation of them drifts (coordinates,
+  fills, draw layers, ink marks), with the page's draw layers (the brows through the fringe, no hair outline over hair)
+  emulated per pixel; its measures carry the lit share per group and view, the hair lit at the rear ¾, and the hair's
+  lit and shade tones against the backdrop in L*. `--parity` writes a lookdev-shots camera list for the World page and
+  compares the capture. Into the gitignored spike tree.
+  Its CARD MODE (`--spec <file.json>`) draws a CHARACTER CARD for any hero spec, `{ name, hero, toon?, palette? }`
+  (`hero` takes exactly the door's fields, `HERO_FIELDS` in `layered.js`; `palette` rides the hero and `toon` the
+  manifest, as the door stores them; a key starting with `$` is a comment). The spec goes through the hero door's own
+  steps without a database and refuses with the door's own messages; the card is drawn from the same parity-guarded
+  World payload: the head ¾ large, the head from the front, the key side and the rear ¾ 20° down (the gameplay
+  camera), the head on the World backdrop, the bust, the body ¾ and front at 256 px, a silhouette and a 3-value
+  render, under the spec's words and what the door read, beside the door's `hero` readout (`readout.json`). `--expr`
+  adds the head ¾ at every expression word the worn head takes, `--check-lens` the head ¾ at the review sheets' lens,
+  and `--sheet <config.json>` draws several specs side by side on one lens per row. Into `cast/` under the spike tree
+  (`--out <dir>` elsewhere).
+- `cast/`: worked characters as card specs, each with a `$note` saying who the character is and what the spec shows
+  off: `heroine` in full dress (one base garment and one signature sash and bow, collars, boots with buckles, a stand
+  from pose words), then `lead`, `rival`, `noble`, `mentor`, `kid`, `tough` and `tomboy` (look words and the own layer
+  over them, the graphic face, the hair's form words and lock edits, expressions as a word, a list or an object, the
+  character light's shade swatches, streak and ring). The words are the manual's (`control/lib/graph/solid-vocab/layered.md`,
+  the Hero door). `node ../docs/examples/humanoid/render-articulation.mjs --spec ../docs/examples/humanoid/cast/<name>.json`
+  from `control/` draws one.
 - `head.mjs`: `humanoidHead(…)`: a head as ONE designed surface. The cranium's rings are horizontal landmark
   rows read off the figure's own skull landmarks (`figure-head.js` `headLandmarks`: stomion, subnasale, nose
   tip and bridge, the eye line, glabella, frontal, crown) under the `DIMORPH` male / female head pole and the
@@ -114,6 +149,9 @@ reconciled into it: the body lives in the hero form now, the head here.
   - the cheek planes (the lower side included) are flat, the apex leads, the lower side bows past the straight ramus, the side column
     lies on the ramus, the jawline does not fold, and the chin rows sit at the fit's chin points;
   - the rear column behind the jaw sits at row height and reaches the ear root, and the jaw opens closed.
+
+  Every spec in `cast/` passes the hero door without a refusal (`heroRecord`, `heroPlanOf`, `expandLayeredManifest`, the
+  character light's check), and the heroine also plans (`planLayered`: the recipe and rig gates).
 
 Two heads exist for the hero: this landmark head (a designed planar surface, expressions baked, the read the
 reference sheets asked for) and [hero-head](../hero-head/README.md) (data on the species-free detail core:

@@ -218,6 +218,13 @@ export const EMIT_FIXTURES = [
     .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'diamond', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0, 1], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },
     crystalLight: { lamps: [{ at: [0, -4, 0.3], aim: [0, 0, 0.25] }], targets: [{ id: 'door', at: [0, 3, 0.25], r: 0.3, want: { color: 'green' } }] } }],
 
+  // metal channel (metal-surfaces S3): faces tagged `metal` gate the live metal response (and __mojMetal): a brushed
+  // stainless panel beside an anodized titanium one, so the lookup texture carries a bare and a film metal
+  ['metal', { faces: [floor(),
+    { ...quad('#a8a39b'), group: 'panel', metal: { s: '{"metal":"stainless","finish":"brushed","along":"x","seed":0}', d: 0, ta: 0 } },
+    { corners: [[2.2, 0, 0], [4, 0, 0], [4, 0, 2], [2.2, 0, 2]], fill: '#2d6db2', group: 'panel', metal: { s: '{"metal":"titanium","finish":"polished","along":"auto","film":{"anodize":25},"seed":0}', d: 49, ta: 0 } }],
+    light: { toLight: [0.4, -0.5, 0.75] } }],
+
   // a crystal a mover turns: its print is re-traced on the page (crystal-rig R4), not baked
   ['crystal-moving', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
     .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'calcite', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0.6, 0.8], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },
@@ -255,6 +262,20 @@ export const EMIT_FIXTURES = [
   // even with no static ink group) and the fx ink verbs (an object state + an inkFlash gesture).
   ['toon-ink-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: true } }],
   ['toon-ink-fx', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: { color: '#2a2f3a' } }, fx: { states: { d: { ink: '#ff4040', pulse: true } }, on: { 'hit:*': { gesture: 'inkFlash', color: '#ffffff' } } } }],
+  // the draw layers (channels/draw-layers.js): a character-lit figure's faces carrying `layer` — the render group split
+  // by it, the stencil buffer, the fill rules and the hair hulls' test — beside the silhouette ink. The static page
+  // only: no row of this matrix carries a rig preview (its live clip picker is its own concern), so the preview's
+  // layered parts, per-layer outlines and `body:*` hiding are pinned in channels/rig-preview.test.js
+  ['draw-layers', {
+    faces: [
+      quad('#d9a77e', { group: 'body', outNormal: [0, -1, 0] }),
+      quad('#3b4859', { group: 'body', layer: 'hair', outNormal: [0, -1, 0] }),
+      quad('#3b4859', { group: 'body', layer: 'veil', outNormal: [0, -1, 0] }),
+      quad('#16181c', { group: 'body', layer: 'through', noInk: true, outNormal: [0, -1, 0] }),
+      floor('#445566', { studio: true }),
+    ],
+    toon: { ink: { lines: false, widthAbs: 0.002 } },
+  }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],

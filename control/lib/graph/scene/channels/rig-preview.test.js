@@ -36,4 +36,52 @@ describe('rig preview channel', () => {
     const withRim = emitThreeWorld({ ...base, figures: { body: { ...fig, rim: [0.4, 0.6, 1, 0.5, 3], preview: { clips: ['bob'], hide: 'body', period: 2 } } } });
     expect(withRim).toContain('__rpRim');
   });
+  it('ink: only a preview carrying `ink` on a page drawing the toon ink outlines its parts and hides the static outline', () => {
+    const pv = [{ figure: 'body', clips: ['bob'], hide: 'body', period: 2 }];
+    const plain = rigPreviewChannelScript(pv, { body: fig });
+    expect(rigPreviewChannelScript(pv, { body: fig }, { toonInk: null })).toBe(plain);
+    for (const needle of ['__rpInk', '__RPINK', '__mojInk']) expect(plain).not.toContain(needle);
+    const cfg = { color: '#101015', width: 0.008, widthAbs: 0.0024, crease: 35, lines: false };
+    const inked = rigPreviewChannelScript([{ ...pv[0], ink: true }], { body: fig }, { toonInk: cfg });
+    for (const needle of ['function __rpInk(mesh, part, fig)', 'part.inkFaces * 9', '__inkGeoNormals(pos)', "if (fig.__rpInk && typeof __inkBuild === 'function') __rpInk(mesh, part, fig);", 'window.__mojInk.reg[pv.hide]', 'hidden.push(e.hull, e.lines)']) expect(inked).toContain(needle);
+    expect(inked).not.toContain('mesh.add(e.lines)');   // silhouette only
+    expect(rigPreviewChannelScript([{ ...pv[0], ink: true }], { body: fig }, { toonInk: { ...cfg, lines: undefined } })).toContain('mesh.add(e.hull); mesh.add(e.lines);');
+    // the world page: the ink block needs both the preview's `ink` and the page's toon ink
+    const figs = (ink) => ({ body: { ...fig, preview: { clips: ['bob'], hide: 'body', period: 2, ...(ink ? { ink: true } : {}) } } });
+    expect(emitThreeWorld({ ...base, figures: figs(true), toon: { ink: { lines: false, widthAbs: 0.0024 } } })).toContain('__rpInk(mesh, part, fig);');
+    expect(emitThreeWorld({ ...base, figures: figs(false), toon: { ink: true } })).not.toContain('__rpInk');
+    expect(emitThreeWorld({ ...base, figures: figs(true) })).not.toContain('__rpInk');
+  });
+  it('stand: a preview whose static solid is the figure standing in its gesture opens on the solid; any other keeps its text', () => {
+    const pv = [{ figure: 'body', clips: ['bob'], hide: 'body', period: 2 }];
+    const plain = rigPreviewChannelScript(pv, { body: fig });
+    expect(plain).not.toContain('pv.solid'); expect(plain).toContain("(__rpParam === 'rest' ? null : names[0] || null)"); expect(plain).toContain("n === 'rest' ? 'rest (the solid)' : 'clip: ' + n");
+    const stand = rigPreviewChannelScript([{ ...pv[0], solid: 'stand' }], { body: fig });
+    expect(stand).toContain("(__rpParam === 'rest' || pv.solid === 'stand' ? null : names[0] || null)");
+    expect(stand).toContain("n === 'rest' ? (pv.solid === 'stand' ? 'stand (the solid)' : 'rest (the solid)') : 'clip: ' + n");
+    // nothing else moves: the two interpolations and the preview's own field are the whole difference
+    expect(stand.replace(',"solid":"stand"', '').replace(" || pv.solid === 'stand'", '').replace("(pv.solid === 'stand' ? 'stand (the solid)' : 'rest (the solid)')", "'rest (the solid)'")).toBe(plain);
+  });
+  it('draw layers: only a page drawing them builds the layered parts, the per-layer outlines and the `<hide>:*` hiding', () => {
+    const pv = [{ figure: 'body', clips: ['bob'], hide: 'body', period: 2, ink: true }];
+    const cfg = { color: '#101015', width: 0.008, widthAbs: 0.0024, crease: 35, lines: false };
+    for (const opts of [{}, { toonInk: cfg }]) expect(rigPreviewChannelScript(pv, { body: fig }, { ...opts, layers: false })).toBe(rigPreviewChannelScript(pv, { body: fig }, opts));
+    const plain = rigPreviewChannelScript(pv, { body: fig }, { toonInk: cfg });
+    for (const needle of ['__rpLayer', '__layerFill', '__layerHull', "startsWith(pv.hide + ':')"]) expect(plain).not.toContain(needle);
+    const layered = rigPreviewChannelScript(pv, { body: fig }, { toonInk: cfg, layers: true });
+    for (const needle of ['function __rpLayer(mesh, part, fig)', '__rpLayer(mesh, part, fig);', "if (typeof __layerFill !== 'function') return;", '__layerFill(mesh.material, null);',
+      'g.setDrawRange(a * 3, (b - a) * 3);', "span(R.through[0], R.through[1], 'through');", 'mesh.geometry.setDrawRange(0, Math.min(n, R.hair ? R.hair[0] : n, R.veil ? R.veil[0] : n) * 3);',
+      'if (layer && __layerHull(e.hullMat, layer)) e.hull.renderOrder = 3;', "String(o.userData.g).startsWith(pv.hide + ':')", "if (k === pv.hide || k.startsWith(pv.hide + ':'))"]) expect(layered).toContain(needle);
+    // the layered parts run after the rim and the ink (their children clone the part's material), and carry the rim themselves
+    expect(layered.indexOf('__rpInk(mesh, part, fig);')).toBeLessThan(layered.indexOf('__rpLayer(mesh, part, fig);'));
+    expect(rigPreviewChannelScript(pv, { body: { ...fig, rim: [0.4, 0.6, 1, 0.5, 3] } }, { layers: true })).toContain('if (Array.isArray(fig.rim)) __rpRim(c, fig.rim);');
+    expect(rigPreviewChannelScript(pv, { body: fig }, { layers: true })).not.toContain('__rpRim(c, fig.rim)');
+    // the world page: a previewed part carrying `ranges` alone makes the page draw the layers (the stencil buffer, the
+    // layers block, the hair rule from its hair span); without ranges or a static layer, nothing of it
+    const ranged = { ...fig, parts: [{ ...fig.parts[0], inkFaces: 1, ranges: { hair: [0, 1] } }], preview: { clips: ['bob'], hide: 'body', period: 2 } };
+    const page = emitThreeWorld({ ...base, figures: { body: ranged } });
+    for (const needle of ['stencil: true', '--- draw layers', '"hair":true', '__rpLayer(mesh, part, fig);']) expect(page).toContain(needle);
+    const bare = emitThreeWorld({ ...base, figures: { body: { ...fig, preview: { clips: ['bob'], hide: 'body', period: 2 } } } });
+    for (const needle of ['stencil', '--- draw layers', '__rpLayer']) expect(bare).not.toContain(needle);
+  });
 });

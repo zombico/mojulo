@@ -23,9 +23,10 @@ const FALLBACK = '#8a8f96';
 /** The seat shift: −(lowest z) when seating, else 0. */
 export function layeredSeat(mesh, seat = true) { if (!seat) return 0; let mn = Infinity; for (const v of mesh.vertices) if (v[2] < mn) mn = v[2]; return Number.isFinite(mn) ? -mn : 0; }
 
-/** The compiled mesh as studio faces `{ corners, fill, group, outNormal }`. */
-export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null } = {}) {
-  const dz = layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
+/** The compiled mesh as studio faces `{ corners, fill, group, outNormal }`. `dz` (default: the mesh's own seat) seats
+ * a posed mesh on its REST floor, so a figure standing in its gesture keeps the ground its planted toes hold. */
+export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null } = {}) {
+  const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
   const faces = [];
   mesh.faces.forEach((tri, i) => {
     const partName = mesh.provenance[tri[0]].part; const part = mesh.parts[partName]; const g = mesh.groups[i];

@@ -51,8 +51,8 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
   (`canonical` / `heroic` / `brute` / `lithe` / `stout` / `child` / `chibi`) through `castArmature`.
   Tune proportion by radii, station heights and `e`; never hand-place a joint off the skeleton.
 - **The face is data on the head core, never hand-placed faces.** Eye size and spacing, the brow's
-  height and taper, the lip bands, the expression: numbers in the head data. Hair is grown from the
-  skull (`cap` tiles, `bangs` tiles, a `tail` sweep), never a floating mesh.
+  height and taper, the lip bands, the expression: numbers in the head data. Hair is a library style
+  following the skull by address (or, on the anime head, the studio's clumps), never a floating mesh.
 - **Every fix is a number.** Patch `/hero/tune/<control>` (a percentage of the cast), `/hero/face/<control>` (a
   percentage of the fitted head), `/plan/...` or `/dials/<name>`, re-read. Never re-mint for a change.
 - **Detail and adornment come LAST, by word, and each one earns its place.** They are the dragon's passes
@@ -93,7 +93,15 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
 
 3. COLOUR   Read the figure at 64 px (the World page zoomed out, or a thumbnail of the wire
             with the palette). The groups must separate; a Top and Bottom that merge are one
-            colour too close. Change the palette, not the geometry.
+            colour too close. Change the palette, not the geometry. The anime hero is lit by its
+            CHARACTER LIGHT (manifest `toon.light`: the key in its own frame, a threshold, a shade
+            swatch per group; on the hair a third tone, its highlight: a ring on the female, a
+            fringe streak on the male): judge each group's tones, and set `toon.light.shade`,
+            `toon.light.highlight` or the palette (`Hair`, `HairHighlight`), never the mesh;
+            `toon: { light: false }` shows the plain lit (Lambert) bake. On the World page the
+            brows and lids show through the fringe and the hair's outline stops where two locks
+            meet (its draw layers, a stencil the page asks for itself): judge them there, not on a
+            still. The rear three-quarter view (the gameplay camera) should keep the crown lit.
 
 4. FACE     The hero wears the LANDMARK head by default (core `humanoid-head.js`: one designed
             surface resampled from a head fitted to reference images, the jaw hinged by the ear so
@@ -106,6 +114,25 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             `/hero/face/<control>`; read `hero.faceMeasures` back; look at the face view. The
             DETAIL head (docs/examples/hero-head `bakeHero({ hair, eye, palette })`) is worn as a
             baked include through `head:` when its live expression controls are the point.
+            For an ANIME character wear `head: 'anime'` (core `anime-head.js`: the Anime Form Studio's
+            head, ported bit for bit): `headPreset` is its design base (female / male), `face` the
+            studio's controls as percentages of the base (skull, brow, cheeks, jawline, chinShape, eyes;
+            lower, nose, spacing, iris, headPitch; `tilt` an offset: + lifts the outer eye, − droops
+            it), `expression` a pose (neutral / blink / smile / open) or { blink, smile, open, brow }.
+            It has no jaw dial: the mouth opens as an aperture. Read `hero.faceMeasures` (eye_m is
+            the opening) and look at the face view. Start from a LOOK when the operator names a
+            character: `look: ['rival', 'tareme']` (archetypes heroine / lead / rival / princess /
+            mentor / kid / stoic; face and hair traits; poses), then add or peel ONE word with
+            `set /hero/look`, and fine-tune on top with `/hero/face/<control>`.
+            The anime head wears its GRAPHIC FACE by default (`sculpt`: the eye level, the nose tip
+            and a nose line on its shade side, the lip line, the fissure's shape, the upper-lid band,
+            the lid covering the iris, one catchlight, the brow as a block, the ear spanning the eye
+            level to the nose tip). Shape it by word:
+            `set /hero/sculpt` to `{ lidWeight: 1.2, browThick: 1.3, fissureShape: 'tri' }` (ratios
+            of the base; eyeLevel, earLevel, pronasale, stomion, browAngle, lidAngle offsets) or a move
+            (heavy-lid / brow-block / sharp-eyes / low-nose), then `/hero/sculpt/<word>`; read
+            `hero.faceMeasures.features` (the feature spacing, advised against the base's bands).
+            `sculpt: false` is the studio's own face.
 
 5. HAIR     A LIBRARY word on the landmark head (male: animeShort, buzz, crew, taper, undercut, crop,
             quiff, swept, curtains; female: animeBob, pixie, bob, angled, layers, long, wavy, ponytail,
@@ -117,6 +144,24 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             One word: `/hero/hair/style`; one number: `/hero/hair/length`; read `hero.hairMeasures`
             back (top, hem below the chin, reach behind the occiput). A control the style ignores is
             advice in `warnings`. The detail head grows a list of `cap`, `bangs`, `tail` tiles instead.
+            The ANIME head wears the studio's families (bob, short, long) and `hime`, or none, with its
+            controls (volume, length, fringe, clump, thickness, taper; sweep, part and ahoge offsets:
+            an ahoge is one upright curl at the crown) and LOCKS: one
+            clump directed by its studio name (fringe-1…7, left-/right-temple-0…2, back-1…11, crown
+            clumps on short), `/hero/hair/locks/fringe-3` → { ty: -0.05 } moves its tip, root held.
+            The hair seats on the head (cap lifted off the skull, clumps hung outside it); read
+            `hero.hairCoverage` (the scalp's share showing per view) and look from behind and above.
+            On bob, long and hime the clumps are consolidated into SECTIONS (a few forms, each one
+            point): judge the masses first; `strands: 1` only when separate strands are the point.
+            The anime hero wears its HAIR BASE by default: a form under every family (the mass
+            LIFTED off the skull by region, thicker ridge-section locks, no crown accents) and, while
+            no family is named, a cut (`swept-back` on the male, `side-parted` on the female; both
+            are hair words). Shape the form by word: `/hero/hair/lift` → { crown, temple, fringe,
+            nape } (keep volume at 1 beside it), `section`, `ridge`, `flute`, `crownAccents`, and the
+            cut's `sweepBack`, `hairline`, `sweepSides`, `fringeGroups`, `backNotch`; `false` is the
+            studio's construction, `null` the base's. Read `hero.hairCut` and `hairMeasures.top_m`.
+            The anime head wears ANIME PROPORTIONS (about 6.5 / 7 heads tall, longer legs, slimmer
+            limbs, smaller hands and feet); `proportions: 'hero'` keeps the realistic body.
             Hair is a mass before it is tufts. Hair colour is the palette.
 
 6. DETAIL   The body's structure, one word: `/hero/detail` → `clothed` (density at the elbows and
@@ -140,10 +185,14 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             frontal=ref.png[,lateral=side.png]; read `iou`, `aspect`, `centroid`. The numbers are
             the record; the picture is discarded.
 
-10. RIG     Free: the plan carries the rig and `idle` / `walk` / `wave`. Play `walk` and `wave` on the
-            World page; the feet stay planted, the pauldron stays on the torso while the arm moves
-            beneath it, the bracer rides its forearm. export_model({ ref, format: 'glb', skinned: true,
-            clips: '_all' }) ships it.
+10. RIG     Free: the plan carries the rig, `gesture` first when the hero stands, then `idle` / `walk`
+            / `wave`. Play `walk` and `wave` on the World page; the feet stay planted, the pauldron
+            stays on the torso while the arm moves beneath it, the bracer rides its forearm.
+            export_model({ ref, format: 'glb', skinned: true, clips: '_all' }) ships it.
+            STAND: `/hero/gesture` → `relaxed` (the anime hero's default), `hand-on-hip`, `guard`,
+            pose words or a list; `rest` for none. Read `hero.gesture` before accepting: the
+            hand clearance and the free sole within a few millimetres; judge the silhouette at
+            256 px ¾, not the numbers alone.
 
 11. LOCK    Report the ref, the thesis, the register, the palette, the compare numbers at the
             views you had, the exposure flags for the eyes and hair, the adornment ledger, and the

@@ -55,12 +55,14 @@ import {
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
 import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
 import { splitSolveOps, prepareStrokes, applySolves, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
+import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
   classifyPromptForCards,
@@ -343,6 +345,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   if (finalized?.kind === 'floorplan') {
     if (finalized.style === undefined) finalized = { ...finalized, style: 'auto' };
     else houseStyleOpts(finalized.style, '', undefined);   // an unknown style refuses, naming the families
+    // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
+    const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
+    for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
+      if (v == null) continue; const e = metalSurfaceError(v); if (e) throw new Error(`Invalid manifest: ${k}: ${e}`);
+    }
   }
 
   const { ok, errors } = validateSketchManifest(finalized);
@@ -768,9 +775,12 @@ export async function updateSketchHandler(input) {
           // otherwise pass silently)
           const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
           const prev = existingSketch?.manifest;
-          if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
+          if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the stored plan differs from what the hero generates now (hand-edited under /plan, or the hero\'s generator changed since it was stored); this /hero edit regenerated the plan and replaced it (the old one is in the archived revision)');
           manifest = expandLayeredManifest(manifest, { from: 'hero' });
         } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
+        // the character light (`toon.light`) refuses by field on an edit as at mint, instead of being dropped at read
+        const lightErrs = under('/toon') && manifest.toon && typeof manifest.toon === 'object' ? toonLightErrors(manifest.toon.light) : [];
+        if (lightErrs.length) throw new Error(`toon refused:\n - ${lightErrs.join('\n - ')}`);
         let planned = planLayered(manifest);
         // strokes (layered-strokes.js): validate, record each new stroke's camera, run the `solve` ops against the
         // compiled mesh (a solve that moved a dial re-plans), then re-resolve every stroke into the ledger

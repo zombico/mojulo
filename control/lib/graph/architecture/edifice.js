@@ -22,7 +22,8 @@
 
 import { makeLight, litFactor, withBands, resolveToon } from '../polygonizer/vexar.js';
 import { boxFaces } from './condo-entrance.js';
-import { buildFacadeCard, projectCardOntoQuad } from './facade-card.js';
+import { buildFacadeCard, projectCardOntoQuad, facadeMetalError } from './facade-card.js';
+import { metalSurfaceError } from '../materials/metal-surface.js';
 import { buildRoof } from './roof.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
@@ -35,8 +36,10 @@ const RELIEF = 0.5;              // facade shirt thickness (recess depth)
 const WALL_T = 0.4;              // corridor wall thickness
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-// Roof names the recipe uses → roof.js STYLE keys ('flat' is the one alias).
-const roofStyle = (roof) => (roof === 'flat' || roof == null ? 'tofu-deck' : roof);
+// Roof names the recipe uses → roof.js STYLE keys ('flat' is the one alias). A roof is a name, or
+// { style, metal?, seams? } for a metal roof (metal-surfaces S5; 'standing-seam' carries zinc by itself).
+const roofStyle = (roof) => { const r = roof && typeof roof === 'object' ? roof.style : roof; return r === 'flat' || r == null ? 'tofu-deck' : r; };
+const roofOpts = (roof) => (roof && typeof roof === 'object' ? { ...(roof.metal ? { metal: roof.metal } : {}), ...(roof.seams === false ? { seams: false } : {}) } : {});
 
 // ── planEdifice: recipe → plan-is-truth IR ──────────────────────────────────
 export function planEdifice(recipe) {
@@ -68,6 +71,8 @@ export function planEdifice(recipe) {
     } else {
       throw new Error(`planEdifice: mass '${m.id}' needs an 'at':[x,y] or an 'on':{anchor,side} placement`);
     }
+    const merr = facadeMetalError(m.facade || {}) || (m.roof && typeof m.roof === 'object' && m.roof.metal != null ? (metalSurfaceError(m.roof.metal) ? `roof.metal: ${metalSurfaceError(m.roof.metal)}` : null) : null);
+    if (merr) throw new Error(`planEdifice: mass '${m.id}' ${merr}`);
     const { w, d } = m.footprint;
     const z1 = Math.max(1, m.floors || 1) * FLOOR_FT;
     const node = {
@@ -213,7 +218,7 @@ export function buildEdificeFaces(plan, { light } = {}) {
     // exterior facade on all four walls, punched where concourses attach
     for (const side of ['S', 'N', 'E', 'W']) faces.push(...wallFaces(m, side, m.facade, L));
     // roof caps the footprint at the wall top
-    const { faces: rf, textureKeys } = buildRoof({ x: m.x0, y: m.y0, w: m.w, d: m.d, z: m.z1 }, { style: roofStyle(m.roof), light: L });
+    const { faces: rf, textureKeys } = buildRoof({ x: m.x0, y: m.y0, w: m.w, d: m.d, z: m.z1 }, { style: roofStyle(m.roof), ...roofOpts(m.roof), light: L });
     faces.push(...rf);
     for (const k of textureKeys) { const u = surfaceTexture(k); if (u) textures[k] = u; }
     // interior kernel: `open` (a bare shell — the mass IS the room) or `suite` (walkable rooms inside)

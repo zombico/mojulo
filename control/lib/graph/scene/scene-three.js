@@ -50,7 +50,7 @@ import {
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
-  rigPreviewChannelScript,
+  rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
   strokeOverlayChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
@@ -58,6 +58,7 @@ import { streamChannelScript } from './channels/stream.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { crystalChannelScript } from './channels/crystal.js';
+import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
 import { crystalPrintsFor, crystalLivePrints, crystalGlowPools, crystalSun } from './crystal-prints.js';
 import { crystalLightChannelScript } from './channels/crystal-light.js';
 import { crystalRigFor } from './crystal-rig.js';
@@ -179,7 +180,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, metersPerUnit = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -329,22 +330,30 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     width: Number.isFinite(toonInk.width) ? toonInk.width : 0.008,
     ...(Number.isFinite(toonInk.widthAbs) ? { widthAbs: toonInk.widthAbs } : {}),
     crease: Number.isFinite(toonInk.crease) ? toonInk.crease : 35,
+    // `lines: false` — the silhouette hull alone (no crease or open-boundary segments); absent ⇒ no key, same cfg
+    ...(toonInk.lines === false ? { lines: false } : {}),
   } : null;
   // The ink faces come from the PRE-decollide list (expanded0): decollide lifts coplanar cap
   // triangles by different amounts, so their shared edges would never weld into one hull or
-  // pass the crease census. Same grouping key as the render groups below.
+  // pass the crease census. Same grouping key as the render groups below. A face tagged `noInk`
+  // (a drawn feature on a character-lit figure: an eye lens, a stroke) takes no outline, nor does
+  // a face drawn `through` another (its draw layer, below).
+  // DRAW LAYERS (channels/draw-layers.js): a face carrying `layer` ('hair' | 'through' | 'veil', a
+  // character-lit figure's) lands in its group split by that layer (drawLayerGroup: `body:hair`…), so
+  // each layer is its own mesh and its own outline hull; a face without one keeps its group.
   const inkByGroup = new Map();
   if (toonInk) {
     for (const f of expanded0) {
-      if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
-      const k = f.group || 'static';
+      if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || f.noInk || f.layer === 'through' || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
+      const k = drawLayerGroup(f);
       (inkByGroup.get(k) || inkByGroup.set(k, []).get(k)).push(f);
     }
   }
   // `decal:'shadow'` faces render ONLY in the shadow-decal pass, and `water` faces ONLY in the
   // translucent water pass below — keep both out of the opaque mesh (shadows would double as flat
   // dark patches; water needs per-vertex alpha the opaque mesh can't carry).
-  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = f.group || 'static'; (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
+  const layerOf = new Map();
+  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = drawLayerGroup(f); if (k !== (f.group || 'static')) layerOf.set(k, f.layer); (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
   const groups = [...groupMap].map(([name, fs]) => {
     const gm = faceListToMesh(fs, { decollide: false }); // already de-collided globally above
     const nf = fs.find((f) => Array.isArray(f.normal));
@@ -377,7 +386,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // per-vertex crystal data (crystal-shine S4) — the key is only present when the group carries a crystal face
     const cryFace = gm.crys ? fs.find((f) => f && f.crystal) : null;
     const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}) };
+    // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
+    const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets) } : null;
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures;
@@ -651,7 +662,17 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const previewList = Object.entries(packedFigures).filter(([, f]) => f && f.rig === true && f.preview && typeof f.preview === 'object').map(([name, f]) => ({ figure: name, ...f.preview }));
   const previewBank = {};
   for (const pv of previewList) { const { preview, ...fig } = packedFigures[pv.figure]; previewBank[pv.figure] = fig; }
-  const rigPreviewBlock = previewList.length ? rigPreviewChannelScript(previewList, previewBank) : '';
+  // DRAW LAYERS (channels/draw-layers.js): a page whose render groups carry a face `layer`, or whose previewed figure's
+  // parts carry `ranges` (the same layers on the rig pack), draws the stencil rules — the layers block, the stencil
+  // buffer, the toon hulls' tests and the preview's layered parts. The hair rule is on when some face or part is hair.
+  // Absent ⇒ every one of them is '' or its old text.
+  const layeredGroups = groups.filter((g) => g.layer);
+  const previewParts = previewList.flatMap((pv) => (previewBank[pv.figure]?.parts || []).filter((p) => p && p.ranges));
+  const layered = layeredGroups.length > 0 || previewParts.length > 0;
+  const layersBlock = layered ? drawLayersScript({ hair: layeredGroups.some((g) => g.layer === 'hair') || previewParts.some((p) => p.ranges.hair), groups: layeredGroups.map((g) => g.name) }) : '';
+  // A preview carrying `ink` (the layered kind's character ink) outlines its moving parts with the toon setup's builders
+  // and hides the static outline with the static solid; the channel only sees the ink cfg then (absent ⇒ same bytes).
+  const rigPreviewBlock = previewList.length ? rigPreviewChannelScript(previewList, previewBank, { ...(toonInkCfg && previewList.some((pv) => pv.ink) ? { toonInk: toonInkCfg } : {}), ...(layered ? { layers: true } : {}) }) : '';
   // stroke overlay channel (stroke-affordances S3): drawing on a layered solid's page; an input channel that hands
   // the stroke back as an update_sketch patch. Present only when the layered manifest opts in ⇒ else zero bytes.
   const strokeOverlayBlock = strokeOverlay && typeof strokeOverlay === 'object' && strokeOverlay.views ? strokeOverlayChannelScript(strokeOverlay) : '';
@@ -721,7 +742,7 @@ scene.add(__eQuad${i});
   // toon ink (toon-shading Phase 2): the outline block, emitted only when the toon dial asks for
   // ink AND some group packed ink buffers. `width` is a fraction of the largest ink geometry's
   // bounding radius (`widthAbs` = world units instead); `crease` the EdgesGeometry angle.
-  const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg) : '';
+  const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg, layered ? { layers: true } : undefined) : '';
 
   // crystal (crystal-shine S4): emitted only when some group carries crystal faces — the live response for those
   // groups, and each stone's print traced once here (crystal-prints.js). Absent → zero bytes.
@@ -740,10 +761,16 @@ scene.add(__eQuad${i});
   const cryRig = crystalLight ? crystalRigFor(expanded, crystalLight) : null;
   const crystalLightBlock = cryRig ? crystalLightChannelScript({ ...cryRig,
     dynamic: [...new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => typeof g === 'string' && !cryRig.stones.some((st) => st.group === g)))] }) : '';
+  // metal (metal-surfaces S3): emitted only when some group carries metal faces — one studio, one lookup texture and
+  // one program for every metal surface on the page, the studio's dome tinted by the scene's sky when it has one.
+  // Absent → zero bytes.
+  const metKeys = [...new Set(groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces))].sort();
+  const metalBlock = metKeys.length ? metalChannelScript({ toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight,
+    inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit }) }) : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
-    splats: splatBlock, toon: toonBlock, crystal: crystalBlock,
+    splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
   };
 
@@ -822,7 +849,7 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 // sit only a few cm in front of their wall. A linear depth buffer starves that gap of
 // precision and the decals z-fight (shimmer). The log buffer restores precision across
 // the range so the proud faces win cleanly from any orbit distance.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''} });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
 const scene = new THREE.Scene();

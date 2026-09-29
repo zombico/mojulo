@@ -1,0 +1,199 @@
+{
+  "name": "heroine",
+  "$note": "The lead girl, full body: the heroine look with a soft face, large eyes and a side-parted cut (a longer fall, a crown curl, the fringe eased off the brows), smiling with the mouth a little open; a fitted cream top over navy leggings, a coral sash tied in a bow at the small of the back, tan buckled boots. Shows the dress as data (detail refines the limb and torso rings and adds the collars; adorn the sash, the bow and the boots) and a stand from pose words: relaxed, the chest opened, the near hand raised in a small wave.",
+  "hero": {
+    "cast": "female",
+    "head": "anime",
+    "look": ["heroine", "soft", "large-eyes", "side-parted"],
+    "expression": ["smile", { "open": 0.3 }],
+    "face": { "lower": 0.94, "chinProjection": 1.02 },
+    "sculpt": { "pronasale": 0.03 },
+    "hair": { "length": 1.5, "ahoge": 1, "sweep": -0.35, "part": -0.07, "fringe": 0.85 },
+    "register": "round",
+    "tune": {
+      "legs": 1.04,
+      "shoulders": 1.03,
+      "waist": 0.95,
+      "upperArm": 1.06,
+      "forearm": 1.06,
+      "thigh": 1,
+      "calf": 1.1
+    },
+    "gesture": [
+      "relaxed",
+      {
+        "spine": { "arch": 0.1 },
+        "head": { "yaw": 12, "pitch": 0 },
+        "shR": { "yaw": -25, "pitch": 35, "roll": 70 },
+        "elbowR": 135
+      }
+    ],
+    "detail": {
+      "refine": [
+        {
+          "parts": ["upperArmR", "upperArmL", "foreArmR", "foreArmL", "thighR", "thighL", "shankR", "shankL"],
+          "slots": "halve"
+        },
+        { "parts": ["torso"], "slots": "halve" }
+      ],
+      "collars": [
+        {
+          "id": "cuff.foreArmR",
+          "part": "foreArmR",
+          "at": "st2",
+          "height": 0.22,
+          "width": 0.55,
+          "group": "Cuff"
+        },
+        {
+          "id": "cuff.foreArmL",
+          "part": "foreArmL",
+          "at": "st2",
+          "height": 0.22,
+          "width": 0.55,
+          "group": "Cuff"
+        },
+        {
+          "id": "neckline.torso",
+          "part": "torso",
+          "at": "st3_st4_50",
+          "height": 0.07,
+          "width": 0.4,
+          "group": "Trim"
+        },
+        { "id": "hem.torso", "part": "torso", "at": "st0", "height": 0.08, "width": 1.2, "group": "Bottom" }
+      ]
+    },
+    "adorn": [
+      {
+        "id": "torsoSash",
+        "mode": "band",
+        "part": "torso",
+        "s": [0.05, 0.95],
+        "t": "wrap",
+        "nt": 16,
+        "ns": 3,
+        "mugen": 0.003,
+        "thick": 0.008,
+        "rad": 0.05,
+        "group": "Sash",
+        "signature": {
+          "kind": "plume",
+          "k": "mid",
+          "j": 2,
+          "spread": [-1, 1],
+          "spine": [
+            [0, 0, 0],
+            [0.025, -0.012, 0.025],
+            [0.055, -0.018, 0.045],
+            [0.085, -0.016, 0.04],
+            [0.1, -0.012, 0.012]
+          ],
+          "r": [0.012, 0.02, 0.025, 0.021],
+          "m": 10,
+          "squash": [0.4, 1],
+          "group": "Sash"
+        },
+        "over": ["thighR", "thighL"]
+      },
+      {
+        "id": "torsoBowKnot",
+        "mode": "shell",
+        "part": "torso",
+        "side": "R",
+        "s": [0.25, 0.7],
+        "t": [3.7, 4],
+        "nt": 2,
+        "ns": 2,
+        "mugen": 0.004,
+        "thick": 0.014,
+        "rad": 0.04,
+        "group": "Sash",
+        "signature": {
+          "kind": "plume",
+          "k": 2,
+          "j": 1,
+          "spread": [-1, 1],
+          "spine": [
+            [0, 0, 0],
+            [0.012, -0.006, -0.05],
+            [0.026, -0.008, -0.11],
+            [0.038, -0.006, -0.17],
+            [0.046, -0.002, -0.21]
+          ],
+          "r": [0.012, 0.014, 0.017, 0.021],
+          "m": 10,
+          "squash": [0.35, 1],
+          "group": "Sash"
+        },
+        "over": ["thighR", "thighL"]
+      },
+      {
+        "id": "bootR",
+        "mode": "shell",
+        "part": "shankR",
+        "s": [0.85, 1.85],
+        "t": "wrap",
+        "nt": 12,
+        "ns": 4,
+        "mugen": 0.008,
+        "thick": 0.006,
+        "rad": 0.03,
+        "support": 1.85,
+        "ramp": 0.5,
+        "group": "Boot",
+        "signature": {
+          "kind": "buckle",
+          "side": "R",
+          "t": 1.5,
+          "tol": 0.3,
+          "j": 1,
+          "w": 0.022,
+          "h": 0.018,
+          "bar": 0.006,
+          "standoff": 0.004,
+          "group": "Buckle"
+        }
+      },
+      {
+        "id": "bootL",
+        "mode": "shell",
+        "part": "shankL",
+        "s": [0.85, 1.85],
+        "t": "wrap",
+        "nt": 12,
+        "ns": 4,
+        "mugen": 0.008,
+        "thick": 0.006,
+        "rad": 0.03,
+        "support": 1.85,
+        "ramp": 0.5,
+        "group": "Boot",
+        "signature": {
+          "kind": "buckle",
+          "side": "L",
+          "t": 1.5,
+          "tol": 0.3,
+          "j": 1,
+          "w": 0.022,
+          "h": 0.018,
+          "bar": 0.006,
+          "standoff": 0.004,
+          "group": "Buckle"
+        }
+      }
+    ]
+  },
+  "palette": {
+    "Hair": "#8a4b2e",
+    "Skin": "#f0c8a6",
+    "Top": "#f3ead8",
+    "Bottom": "#2e3a5c",
+    "Shoes": "#96643c",
+    "Boot": "#96643c",
+    "Buckle": "#5b3b22",
+    "Sash": "#d9573f",
+    "Cuff": "#2e3a5c",
+    "Trim": "#2e3a5c"
+  }
+}

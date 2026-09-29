@@ -41,6 +41,7 @@ import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.
 import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
 import { buildZip } from './zip-writer.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
+import { resolveMetalSurface } from '../materials/metal-surface.js';
 
 const TRIS = [[0, 1, 2], [0, 2, 3]];
 
@@ -160,11 +161,12 @@ function meshPrim(name, ix, { material = null, indent = '    ' } = {}) {
 }
 
 // UsdPreviewSurface material blocks under /mojulo/Looks.
-function materialPrim(name, { texture = null, metallic = null, roughness = null, opacity = null } = {}) {
+function materialPrim(name, { texture = null, metallic = null, roughness = null, opacity = null, diffuse = null } = {}) {
   const I = '        ', J = '            ';
   const lines = [`${I}def Material "${name}"`, `${I}{`, `${J}token outputs:surface.connect = </mojulo/Looks/${name}/surface.outputs:surface>`];
   lines.push(`${J}def Shader "surface"`, `${J}{`, `${J}    uniform token info:id = "UsdPreviewSurface"`);
   if (texture) lines.push(`${J}    color3f inputs:diffuseColor.connect = </mojulo/Looks/${name}/tex.outputs:rgb>`);
+  else if (diffuse) lines.push(`${J}    color3f inputs:diffuseColor = (${diffuse.map((v) => num(v, 4)).join(', ')})`);   // a metal surface's own colour
   else lines.push(`${J}    color3f inputs:diffuseColor.connect = </mojulo/Looks/${name}/vertexColor.outputs:result>`);
   lines.push(`${J}    float inputs:metallic = ${num(metallic ?? 0, 3)}`);
   lines.push(`${J}    float inputs:roughness = ${num(roughness ?? 1, 3)}`);
@@ -173,7 +175,7 @@ function materialPrim(name, { texture = null, metallic = null, roughness = null,
   if (texture) {
     lines.push(`${J}def Shader "stReader"`, `${J}{`, `${J}    uniform token info:id = "UsdPrimvarReader_float2"`, `${J}    string inputs:varname = "st"`, `${J}    float2 outputs:result`, `${J}}`);
     lines.push(`${J}def Shader "tex"`, `${J}{`, `${J}    uniform token info:id = "UsdUVTexture"`, `${J}    asset inputs:file = @${texture}@`, `${J}    float2 inputs:st.connect = </mojulo/Looks/${name}/stReader.outputs:result>`, `${J}    token inputs:wrapS = "repeat"`, `${J}    token inputs:wrapT = "repeat"`, `${J}    float3 outputs:rgb`, `${J}}`);
-  } else {
+  } else if (!diffuse) {
     lines.push(`${J}def Shader "vertexColor"`, `${J}{`, `${J}    uniform token info:id = "UsdPrimvarReader_float3"`, `${J}    string inputs:varname = "displayColor"`, `${J}    float3 outputs:result`, `${J}}`);
   }
   lines.push(`${I}}`);
@@ -271,7 +273,10 @@ export function facesToUsda(payload = {}, { generator = 'mojulo scene-usd', titl
     const plain = [];
     // crystal faces: one `<group>:crystal` prim per gem variant, as the GLB splits them; none → byte-identical
     const crystalBuckets = new Map();
+    // metal faces: one `<group>:metal` prim per surface, its colour and metallic in the look (as the GLB does)
+    const metalBuckets = new Map();
     for (const f of fs) {
+      if (f && f.metal && typeof f.metal.s === 'string' && typeof f.texture !== 'string') { (metalBuckets.get(f.metal.s) || metalBuckets.set(f.metal.s, []).get(f.metal.s)).push(f); continue; }
       if (f && f.crystal && typeof f.crystal.gem === 'string') {
         const k = f.crystal.glow ? `${f.crystal.gem}~${f.crystal.glow}` : f.crystal.gem; (crystalBuckets.get(k) || crystalBuckets.set(k, []).get(k)).push(f); continue;
       }
@@ -300,6 +305,15 @@ export function facesToUsda(payload = {}, { generator = 'mojulo scene-usd', titl
       const nodeName = crystalBuckets.size > 1 ? `${name}:crystal${cryIdx++}` : `${name}:crystal`;
       const mname = lookNamer(nodeName);
       looks.push(crystalLook(mname, shineOptics(key)));
+      tally(meshPrimB(primNamer(nodeName), indexSoup(bm.positions, bm.colors, 3, null, bm.normals), { material: `/mojulo/Looks/${mname}` }));
+    }
+    let metIdx = 0;
+    for (const [key, bucket] of metalBuckets) {
+      const bm = faceListToMesh(bucket.map(({ metal, ...f }) => f), { decollide: false, withNormals: true });
+      if (!bm.positions.length) continue;
+      const surface = resolveMetalSurface(JSON.parse(key)); const nodeName = metalBuckets.size > 1 ? `${name}:metal${metIdx++}` : `${name}:metal`;
+      const mname = lookNamer(nodeName);
+      looks.push(materialPrim(mname, { metallic: 1, roughness: Math.max(0.05, surface.roughness), opacity: groupAlpha, diffuse: surface.normal }));
       tally(meshPrimB(primNamer(nodeName), indexSoup(bm.positions, bm.colors, 3, null, bm.normals), { material: `/mojulo/Looks/${mname}` }));
     }
     let pbrIdx = 0;

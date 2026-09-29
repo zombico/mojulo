@@ -30,6 +30,7 @@ import { articulate } from './figure-vajra.js';
 import { resolvePose } from './figure-posing.js';
 import { matToQuat, frameQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
+import { characterLitPieces, drawLayer } from './station-loft-shade.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
 export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR'];
@@ -247,17 +248,80 @@ export function hullShadeNormals(mesh, { quantum = 1e-3, cell = 0.03, except = [
 }
 
 /**
+ * The rig parts under the CHARACTER LIGHT (station-loft-shade.js): the same pieces the static solid shows — the
+ * palette colour (`palette[group]` → the part's tint → neutral grey) stepped into lit and shade swatches, split
+ * crisply along the iso-line, FLAT per piece — so the clip preview and every animated export carry the look the
+ * rest solid carries, not a grey Lambert of their own. A piece goes to its PARENT face's dominant-bone part (the
+ * same vote as the plain path, so no triangle changes part). A corner on a mesh vertex takes that vertex's
+ * joints and weights as authored; a corner the split made on edge a → b at fraction s takes the union of the two
+ * ends' joints with the weights lerped ((1 − s)·a + s·b), and a corner inside a triangle (where the highlight's line
+ * crosses the step's) its corners' by its weights, the heaviest four kept and renormalised — the skin is interpolated
+ * exactly as the position was, so a split vertex rides between its ends in every pose.
+ * Per part, the marks (the light's unlit groups: the eye lenses, the strokes, the mouth interior) come LAST and
+ * `inkFaces` counts the faces before them: the outline hull (the World's rig preview, the skinned GLB's baked
+ * ink) takes those only. `character`: `{ light, palette, normals }` (the pieces built here at `dz`), or
+ * `{ pieces }` already built at `dz` (characterLitPieces, shared with the static faces).
+ * DRAW LAYERS (station-loft-shade drawLayer; `hairInk` as the static faces take it): a part holding faces with a layer
+ * runs [plain | hair | veil | marks | through] — the hair and the veil inside the outlined faces, the `through` faces
+ * after the marks (never outlined) — and carries `ranges: { hair?, veil?, through? }`, each a [first, end) face span,
+ * only for the layers it holds; the rig preview draws each span with its layer's stencil rule. A part with no layered
+ * face keeps its order and carries no `ranges`.
+ */
+function characterRigParts(mesh, skin, parts, { light, palette = null, normals = null, pieces = null, hairInk = false }, dz) {
+  const P0 = pieces || characterLitPieces(mesh, { light, palette, normals, dz });
+  const colOf = new Map(); const skinOf = new Map(); const boneOf = new Map();
+  const vote = (fi) => {   // the plain path's dominant-bone vote over the PARENT face
+    let bi = boneOf.get(fi); if (bi !== undefined) return bi;
+    const votes = {}; for (const vi of mesh.faces[fi]) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
+    bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]); boneOf.set(fi, bi); return bi;
+  };
+  const addRef = (acc, r, w) => {
+    if (r.vi !== undefined) { const J = skin.joints[r.vi], W = skin.weights[r.vi]; for (let k = 0; k < 4; k++) if (W[k] > 0) acc[J[k]] = (acc[J[k]] || 0) + w * W[k]; }
+    else if (r.bary) for (const [vi, bw] of r.bary) addRef(acc, { vi }, w * bw);
+    else if (r.mix) for (const x of r.mix) addRef(acc, x, w / r.mix.length);
+    else { addRef(acc, { vi: r.a }, w * (1 - r.s)); addRef(acc, { vi: r.b }, w * r.s); }
+  };
+  const skinAt = (r) => {
+    if (r.vi !== undefined) return [skin.joints[r.vi], skin.weights[r.vi]];
+    let e = skinOf.get(r); if (e) return e;
+    const acc = {}; addRef(acc, r, 1); const top = topFour(acc); const j = [0, 0, 0, 0], w = [0, 0, 0, 0];
+    top.forEach(([bi, ww], k) => { j[k] = bi; w[k] = ww; }); skinOf.set(r, e = [j, w]); return e;
+  };
+  const run = () => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 });
+  const marks = parts.map(run), layered = parts.map(() => ({ hair: run(), veil: run(), through: run() }));
+  for (const pc of P0) {
+    const bi = vote(pc.fi); const layer = drawLayer(mesh, pc, { hairInk });
+    const P = layer === 'through' ? layered[bi].through : pc.mark ? marks[bi] : layer ? layered[bi][layer] : parts[bi];
+    let c = colOf.get(pc.fill); if (!c) colOf.set(pc.fill, c = faceColorLinear({ fill: pc.fill }));
+    P.faces++;
+    for (const r of pc.refs) { const [j, w] = skinAt(r); P.pos.push(r.p[0], r.p[1], r.p[2]); P.col.push(c[0], c[1], c[2]); P.jnt.push(...j); P.wgt.push(...w); }
+  }
+  const append = (P, M) => { const at = P.faces; P.faces += M.faces; for (const k of ['pos', 'col', 'jnt', 'wgt']) for (const x of M[k]) P[k].push(x); return [at, P.faces]; };
+  parts.forEach((P, bi) => {
+    const L = layered[bi], ranges = {};
+    for (const k of ['hair', 'veil']) if (L[k].faces) ranges[k] = append(P, L[k]);
+    P.inkFaces = P.faces; append(P, marks[bi]);
+    if (L.through.faces) ranges.through = append(P, L.through);
+    if (Object.keys(ranges).length) P.ranges = ranges;
+  });
+}
+
+/**
  * Pack the packed rig figure: parts per DOMINANT bone with explicit per-vertex joints/weights, bones with rest
  * head/tail, clips as [q, head] per bone per key. `dz` seats the figure (the lowering's seat shift).
  * `hullShade: true | { quantum?, cell?, except? }` (default null → byte-identical output) bakes the COLOR
  * shade from `hullShadeNormals` per corner instead of the flat face normal; a null field entry keeps the
  * flat shade, so an excepted part or an unanswerable vertex shades exactly as today.
+ * `character` (default null → byte-identical output): the CHARACTER LIGHT's parts instead (characterRigParts
+ * above — the palette, the step and the split; `light` and `hullShade` do not apply), each part carrying
+ * `inkFaces`, and `ranges` where it holds faces with a draw layer.
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null } = {}) {
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
-  const vN = hullShade ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
-  mesh.faces.forEach((tri, fi) => {
+  const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
+  if (character) characterRigParts(mesh, skin, parts, character, dz);
+  else mesh.faces.forEach((tri, fi) => {
     const votes = {}; for (const vi of tri) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
     const bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
     const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: part.tint || '#8a8f96' });
@@ -275,7 +339,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   return {
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
-    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt) } : null)),
+    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}) } : null)),
     clips: packedClips, figH: r4(mxz - mnz),
   };
 }

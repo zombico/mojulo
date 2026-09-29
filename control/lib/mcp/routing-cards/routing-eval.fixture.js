@@ -85,6 +85,10 @@ export const FIXTURE = [
   ['give my hero an undercut, then try a ponytail with a longer tail', 'mint_solid'],
   // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
   ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'mint_solid'],
+  // anime form: the Anime Form Studio's head worn by the hero (`head: 'anime'`), its clumps directed by name
+  ['an anime heroine with a long layered cut and one bang swept over her eye', 'mint_solid'],
+  // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
+  ['start from the rival look, then give him droopy eyes and messy hair', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

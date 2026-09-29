@@ -26,8 +26,10 @@
 
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
+import { resolveMetalSurface } from '../materials/metal-surface.js';
 import { crystalRigFor, rigFrozenFrame } from './crystal-rig.js';
-import { inkBake, inkGeoNormals, inkCentroid } from './ink-geometry.js';
+import { inkBake, inkGeoNormals, inkCentroid, inkBuried } from './ink-geometry.js';
+import { drawLayerGroup } from './channels/draw-layers.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, zRotationQuat } from './scene-gltf-level.js';
@@ -367,9 +369,10 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1 } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
-      baseColorFactor: [1, 1, 1, alpha == null ? 1 : alpha],
+      // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
+      baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
       metallicFactor: metallic,
       roughnessFactor: roughness,
     };
@@ -692,7 +695,7 @@ class GlbBuilder {
       for (let i = 0; i < d.colors.length; i++) col.push(d.colors[i]);
       if (d.indices) for (let i = 0; i < d.indices.length; i++) idx.push(base + d.indices[i]);
       else for (let i = 0; i < d.vertexCount; i++) idx.push(base + i);
-      if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null });
+      if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null, ...(Number.isInteger(part.inkFaces) ? { inkFaces: part.inkFaces } : {}), ...(part.ranges ? { ranges: part.ranges } : {}) });
       vertices += d.vertexCount;
       triangles += d.triangleCount;
     });
@@ -718,19 +721,33 @@ class GlbBuilder {
       const width = Number.isFinite(ink.widthAbs) ? ink.widthAbs : (Number.isFinite(ink.width) ? ink.width : 0.008) * (r || 1);
       const q = Math.max((r || 1) * 1.5e-3, 1e-6);
       const iPos = [], iJnt = [], iWgt = [];
-      for (const P of inkParts) {
-        const ids = P.indices ? Array.from(P.indices) : Array.from({ length: P.count }, (_, i) => i);
-        if (ids.length < 3) continue;
-        const sPos = new Float32Array(ids.length * 3);
-        ids.forEach((li, k) => { const g = (P.base + li) * 3; sPos[k * 3] = pos[g]; sPos[k * 3 + 1] = pos[g + 1]; sPos[k * 3 + 2] = pos[g + 2]; });
-        const nrm = inkGeoNormals(sPos, inkCentroid(sPos));
-        const baked = inkBake(sPos, nrm, { width, crease: Number.isFinite(ink.crease) ? ink.crease : 35, q });
+      const soupOf = (P, ids) => { const sPos = new Float32Array(ids.length * 3); ids.forEach((li, k) => { const g = (P.base + li) * 3; sPos[k * 3] = pos[g]; sPos[k * 3 + 1] = pos[g + 1]; sPos[k * 3 + 2] = pos[g + 2]; }); return sPos; };
+      const bakeIds = (P, ids, skip = null) => {
+        if (ids.length < 3) return;
+        const sPos = soupOf(P, ids);
+        const nrm = P.inkFaces !== undefined ? inkGeoNormals(sPos) : inkGeoNormals(sPos, inkCentroid(sPos));
+        const baked = inkBake(sPos, nrm, { width, crease: Number.isFinite(ink.crease) ? ink.crease : 35, q, ...(ink.lines === false ? { lines: false } : {}), ...(skip ? { skip } : {}) });
         for (let i = 0; i < baked.hullSrc.length; i++) {
           const li = ids[baked.hullSrc[i]]; const g4 = (P.base + li) * 4;
           iPos.push(baked.hullPos[i * 3], baked.hullPos[i * 3 + 1], baked.hullPos[i * 3 + 2]);
           iJnt.push(jnt[g4], jnt[g4 + 1], jnt[g4 + 2], jnt[g4 + 3]);
           iWgt.push(wgt[g4], wgt[g4 + 1], wgt[g4 + 2], wgt[g4 + 3]);
         }
+      };
+      for (const P of inkParts) {
+        // a character-lit part (station-loft-rig `inkFaces`) outlines its first inkFaces faces only (its drawn
+        // features come after them) along its WINDING normals (a layered mesh winds outward): the World rig
+        // preview's rule, so the baked outline and the live one agree. Any other part: the centroid rule, as before.
+        const ids = (P.indices ? Array.from(P.indices) : Array.from({ length: P.count }, (_, i) => i)).slice(0, P.inkFaces !== undefined ? P.inkFaces * 3 : undefined);
+        if (!P.ranges) { bakeIds(P, ids); continue; }
+        // DRAW LAYERS (a part carrying `ranges`, station-loft-rig characterRigParts): its plain, hair and veil spans each
+        // their own hull, as the rig preview outlines them; the bake cannot stencil, so the hair and the veil leave out
+        // the shell of the hair lying inside another hair part (ink-geometry inkBuried, over the two spans together)
+        const R = P.ranges, n = ids.length / 3, hairSpans = [R.hair, R.veil].filter(Boolean).map(([a, b]) => ids.slice(a * 3, b * 3));
+        const flags = inkBuried(soupOf(P, hairSpans.flat()));
+        bakeIds(P, ids.slice(0, Math.min(n, R.hair ? R.hair[0] : n, R.veil ? R.veil[0] : n) * 3));
+        let at = 0;
+        for (const h of hairSpans) { bakeIds(P, h, flags.subarray(at, at + h.length / 3)); at += h.length / 3; }
       }
       if (iPos.length) {
         const ip = Float32Array.from(iPos);
@@ -1004,6 +1021,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     width: Number.isFinite(inkDial.width) ? inkDial.width : 0.008,
     ...(Number.isFinite(inkDial.widthAbs) ? { widthAbs: inkDial.widthAbs } : {}),
     crease: Number.isFinite(inkDial.crease) ? inkDial.crease : 35,
+    ...(inkDial.lines === false ? { lines: false } : {}),   // the silhouette hull alone (the channel's cfg)
   } : null;
   const inkSoups = [];
   // one shared single-sided unlit ink material, created lazily on first use (static or skinned leg)
@@ -1014,12 +1032,18 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // channel builds from the PRE-decollide list; here the weld quantum (≥ 1.5e-3·r) spans the
     // global decollide nudge, so cap edges still weld into one hull.
     if (inkCfg && !name.startsWith('shell:')) {
-      const inkFs = fs.filter((f) => f && !f.decal && !f.water && !f.studio && !f.wireframe && !f.glow && !f.texture && !(typeof f.alpha === 'number' && f.alpha < 1));
-      if (inkFs.length) {
-        const im = faceListToMesh(inkFs, { decollide: false, withNormals: true });
+      const inkFs = fs.filter((f) => f && !f.decal && !f.water && !f.studio && !f.wireframe && !f.glow && !f.texture && !f.noInk && f.layer !== 'through' && !(typeof f.alpha === 'number' && f.alpha < 1));
+      // DRAW LAYERS (a face `layer`, channels/draw-layers.js): the soup splits by layer as the World's render groups do
+      // (drawLayerGroup: `body`, `body:hair`, `body:veil`), each its own hull node; the hair and the veil are marked for
+      // the buried-shell cull below. A group with no layered face is one soup, as before.
+      const soups = new Map();
+      for (const f of inkFs) { const k = f.layer ? drawLayerGroup({ group: name, layer: f.layer }) : name; (soups.get(k) || soups.set(k, []).get(k)).push(f); }
+      for (const [sname, sfs] of soups) {
+        const im = faceListToMesh(sfs, { decollide: false, withNormals: true });
         // no authored outNormals in the group → the channel's rig-part fallback: winding-derived
         // flat normals oriented away from the soup's centroid (convex closed groups satisfy it)
-        if (im.positions.length) inkSoups.push({ name, positions: im.positions, normals: im.normals || inkGeoNormals(im.positions, inkCentroid(im.positions)) });
+        const hair = sname !== name && (sfs[0].layer === 'hair' || sfs[0].layer === 'veil');
+        if (im.positions.length) inkSoups.push({ name: sname, positions: im.positions, normals: im.normals || inkGeoNormals(im.positions, inkCentroid(im.positions)), ...(hair ? { hair: name } : {}) });
       }
     }
     // Faces tagged `pbr: [metallic, roughness]` (a named material from the shelf) split into
@@ -1030,7 +1054,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // crystal faces (crystal-shine S6): one `<group>:crystal` node per gem variant, a transmissive material; no crystal
     // faces → this map stays empty and the export is byte-identical
     const crystalBuckets = new Map();
+    // metal faces (metal-surfaces S6): one `<group>:metal` node per surface, its colour in the material (film
+    // included, at normal incidence), metallic 1 and the finish's roughness; no metal faces → byte-identical
+    const metalBuckets = new Map();
     for (const f of fs) {
+      if (f && f.metal && typeof f.metal.s === 'string' && typeof f.texture !== 'string') { (metalBuckets.get(f.metal.s) || metalBuckets.set(f.metal.s, []).get(f.metal.s)).push(f); continue; }
       if (f && f.crystal && typeof f.crystal.gem === 'string') {
         const k = f.crystal.glow ? `${f.crystal.gem}~${f.crystal.glow}` : f.crystal.gem; (crystalBuckets.get(k) || crystalBuckets.set(k, []).get(k)).push(f); continue;
       }
@@ -1058,6 +1086,14 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
       const k = bucket[0].crystal; const nodeName = crystalBuckets.size > 1 ? `${name}:crystal${cryIdx++}` : `${name}:crystal`;
       const mat = b.crystalMaterial({ name: nodeName, optics: shineOptics(key), thickness: 2 * (k.r || 1), unitsPerCm: 1 / (Number.isFinite(k.cmu) && k.cmu > 0 ? k.cmu : 1) });
       tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));   // COLOR_0 white: glTF multiplies it into the glass
+    }
+    let metIdx = 0;
+    for (const [key, bucket] of metalBuckets) {
+      const bm = faceListToMesh(bucket.map(({ metal, ...f }) => ({ ...f, fill: '#ffffff', cornerFills: undefined, vao: undefined })), { decollide: false, withNormals: true });
+      if (!bm.positions.length) continue;
+      const surface = resolveMetalSurface(JSON.parse(key)); const nodeName = metalBuckets.size > 1 ? `${name}:metal${metIdx++}` : `${name}:metal`;
+      const mat = b.pbrMaterial({ metallic: 1, roughness: Math.max(0.05, surface.roughness), baseColor: surface.normal.map((v) => +v.toFixed(4)), alpha: groupAlpha, name: nodeName });
+      tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));   // COLOR_0 white: the material carries the metal
     }
     let pbrIdx = 0, emIdx = 0;
     for (const [, bucket] of pbrBuckets) {
@@ -1115,8 +1151,17 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     }
     const inkWidth = inkCfg.widthAbs != null ? inkCfg.widthAbs : inkCfg.width * (r || 1);
     const q = Math.max((r || 1) * 1.5e-3, 1e-6);
+    // the bake cannot stencil (ink-geometry.js header): per group, the hair and the veil soups together leave out the
+    // shell of the hair lying inside another hair part (inkBuried)
+    const skipOf = new Map();
+    for (const base of new Set(inkSoups.filter((s) => s.hair).map((s) => s.hair))) {
+      const own = inkSoups.filter((s) => s.hair === base), cat = new Float32Array(own.reduce((n, s) => n + s.positions.length, 0));
+      let at = 0; for (const s of own) { cat.set(s.positions, at); at += s.positions.length; }
+      const flags = inkBuried(cat); at = 0;
+      for (const s of own) { skipOf.set(s, flags.subarray(at / 9, (at + s.positions.length) / 9)); at += s.positions.length; }
+    }
     for (const s of inkSoups) {
-      const baked = inkBake(s.positions, s.normals, { width: inkWidth, crease: inkCfg.crease, q });
+      const baked = inkBake(s.positions, s.normals, { width: inkWidth, crease: inkCfg.crease, q, ...(inkCfg.lines === false ? { lines: false } : {}), ...(skipOf.has(s) ? { skip: skipOf.get(s) } : {}) });
       if (baked.hullPos.length) tally(b.addNode(`${s.name}:ink`, baked.hullPos, null, 3, inkMat()));
       if (baked.linePos.length) tally(b.addLineNode(`${s.name}:ink-lines`, baked.linePos, inkMat()));
     }

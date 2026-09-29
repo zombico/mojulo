@@ -652,11 +652,12 @@ def is_emissive_slot(mat_iface):
     import of it carries the emissive factor + strength, which the mojulo masters
     do not — so the swap leaves it alone and the verify pass counts it as kept.
     A '<group>:crystal' slot (crystal-shine) is kept the same way: its transmission,
-    ior, volume and dispersion ride Interchange's import, not the vertex-colour masters."""
+    ior, volume and dispersion ride Interchange's import, not the vertex-colour masters. A '<group>:metal'
+    slot (metal-surfaces) too: its colour and metallic ride the material, and its vertex colour is white."""
     if mat_iface is None:
         return False
     n = mat_iface.get_name().lower()
-    return 'emissive' in n or ':crystal' in n
+    return 'emissive' in n or ':crystal' in n or ':metal' in n
 
 
 def is_ink_slot(mat_iface):

@@ -71,7 +71,8 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // every loadout / livery rebuild gets them for free. Built with the toon setup channel's
   // \`__inkBuild\` (typeof-guarded: the channel is spliced earlier in the page). Parts carry no
   // authored normals, so the geometric fallback orients each triangle away from the part centroid.
-  // Gated on the emit-site cfg: a world without toon.ink emits byte-identical controllable text.
+  // Gated on the emit-site cfg: a world without toon.ink emits byte-identical controllable text; `lines: false`
+  // (silhouette only) leaves the part's line segments unattached, as the toon setup block does.
   const rigInkHook = toonInk ? `\n    if (typeof __inkBuild === 'function') __inkRigPart(mesh, geo, fig);` : '';
   const rigInkBlock = toonInk ? `
 // toon ink on rig parts (Phase 4b): de-index the part, orient normals off its centroid, ink it.
@@ -94,7 +95,7 @@ function __inkRigPart(mesh, geo, fig) {
   const r = __inkFigRadius(fig), q = Math.max(r * 1.5e-3, 1e-6);
   const width = __INKRIG.widthAbs != null ? __INKRIG.widthAbs : __INKRIG.width * r;
   const e = __inkBuild(pos, __inkGeoNormals(pos, __inkCentroid(pos)), width, __INKRIG.crease, q, __INKRIG.color);
-  mesh.add(e.hull); mesh.add(e.lines);
+  mesh.add(e.hull);${toonInk.lines === false ? '' : ' mesh.add(e.lines);'}
   mesh.material.polygonOffset = true; mesh.material.polygonOffsetFactor = 1; mesh.material.polygonOffsetUnits = 1; mesh.material.needsUpdate = true;
 }` : '';
   const rimPatchBlock = figHasRim ? `
