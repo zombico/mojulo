@@ -26,9 +26,11 @@ No Chromium binary was detected; that does not determine the client's preview ca
 
 - Direct `pack_world` invocation was rejected; `exec -- call compose_world` worked.
   The Work reference now includes a complete mint example and clarifies `call` syntax.
-- Missing `ms-shield.js` and `arena-atmosphere.js` warnings come from optional imports
-  in `figure-render.js` and `controllable-world.js`. Both have contained fallbacks;
-  the files are absent from this branch. City success does not certify those features.
+- The `ms-shield.js` and `arena-atmosphere.js` warnings named modules of the mobile-suit
+  content pack. That pack is operator-local and no build carries it, so every clean
+  install printed both lines on each start; the fallbacks left output unchanged. Fixed
+  (Content pack seams): an absent pack is silent, and the package can no longer carry
+  one. Shield and atmosphere features are not part of the package.
 - npm's `http-proxy` configuration warning was reported nonblocking; its source has
   not been independently diagnosed.
 

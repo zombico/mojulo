@@ -58,9 +58,7 @@ node "$runner" exec --workspace "$workspace" -- call compose_world --json '{"bas
 ```
 
 Use `help compose_world` to inspect the schema; do not invoke `pack_world` directly.
-The tested branch can warn that the optional `ms-shield.js` and `arena-atmosphere.js`
-modules are absent. City creation/export passed despite those warnings; shield and
-atmosphere features must not be assumed available. Preserve other errors for diagnosis.
+A clean start writes nothing to stderr. Preserve any warning or error for diagnosis.
 
 Pass a nondefault `--version` on each invocation. Put runner options before `--`;
 Mojulo arguments follow it. The wrapper sets `MOJULO_HOST=chatgpt`,
