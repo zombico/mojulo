@@ -12,6 +12,8 @@ import { mintSolidHandler } from './mint-solid.js';
 import { carryStrokeWork } from './layered-strokes.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
+import { getRoutingCard } from '@/lib/mcp/routing-cards/loader';
+import { FORM_TOOLSETS } from './context.js';
 
 // Stroke affordances S0/S1: a stroke is stored on a layered row as data, given the camera it was drawn against,
 // resolved into the ledger on every edit; a `solve` op turns a silhouette into a dial solve. A row without
@@ -252,5 +254,19 @@ describe('update_sketch on layered rows — stroke work across a regeneration', 
     expect(manifest.strokes.map((s) => s.solved)).toEqual([undefined, undefined, { iou: 0.5 }]);   // a silhouette made nothing to carry
     expect(warnings).toEqual([expect.stringMatching(/no carrier under what strokes b1, c1 made.*re-solve with \{ op: 'solve', from: '\/strokes\/<id>' \}/)]);
     expect(carryStrokeWork(prev, { ...next, strokes: [OUTLINE] }).manifest).toEqual({ ...next, strokes: [OUTLINE] });   // no stroke work, no-op
+  });
+});
+
+describe('the stroke route points where the feature lives', () => {
+  it('the card names the World page route that opens drawing, `mirror` as the stroke\'s field, and whole-solid outlines', () => {
+    const card = getRoutingCard('stroke');
+    // the dashboard page does not forward ?draw to its World iframe; the World route reads it itself (stroke-overlay.js)
+    expect(card.body).toContain('`/api/sketches/<ref>/world?draw=<view>`'); expect(card.body).not.toContain('`/sketches/<ref>` World page');
+    expect(card.body).toContain('`mirror: true` on the stroke'); expect(card.body).not.toMatch(/\(`height`, `mirror`\)/);
+    expect(card.body).toContain("the whole solid's outline in that view"); expect(card.when).not.toMatch(/jaw/);
+  });
+  it('the object toolset the card points at carries the stroke ops; the diagram toolset does not', () => {
+    expect(getRoutingCard('stroke').body).toContain("get_creative_toolset({ form: 'object' })");
+    expect(FORM_TOOLSETS.object.body).toContain("{ op:'solve', from:'/strokes/<id>' }"); expect(FORM_TOOLSETS.diagram.body).not.toContain('/strokes/');
   });
 });

@@ -491,20 +491,25 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   normalized image coordinates in the wire's pinhole square, `intent` one of `silhouette` (a closed outline),
   `contour` (a line on the skin), `brush` (push the skin), `fold`, `landmark`. Store one with
   `update_sketch { patch: [{ op: 'set', path: '/strokes/-', value: stroke }] }` — the camera it was drawn against is
-  recorded on it, so it keeps its meaning after the form changes — then `{ op: 'solve', from: '/strokes/<id>' }`:
+  recorded on it, so it keeps its meaning after the form changes — then `{ op: 'solve', from: '/strokes/<id>' }`
+  (solve ops come last in a patch, and each takes only the keys its intent reads):
   a **silhouette** solves the continuous shape dials (`scale` / `offset` / `stretch`; `dials: [...]` narrows,
   `budget` caps the compiles) to match the outline of the WHOLE solid in that view — one drawn around a part of it
   (a jaw, the head) encloses under a quarter of the solid's outline and is refused: a local change is a contour or a
   brush — and leaves `solved` on the stroke with `iou`, the **residual** (the pixels the dials could not reach as a
   share of the drawn area, above 1 when the solid spills past the drawing, and its box), the dials that stopped on a
-  bound — the grammar's edge, where it was drawn — and `dialsBefore`, the moved dials' earlier values; a **contour** grows a closed ridge strip along its resolved
-  `(part, s, t)` addresses (`height`, `width`, `group`; `mirror` adds the twin), pinned `follow` so it rides every
-  dial, in the carrier's own tint, judged by exposure from its view; a **brush** becomes a `brush` dial (`amp`,
+  bound — the grammar's edge, where it was drawn — and `dialsBefore`, the moved dials' earlier values; a **contour**
+  grows a closed ridge strip along its resolved `(part, s, t)` addresses (`height`, `width`, `group`; `mirror: true`
+  on the stroke adds the twin), pinned `follow` so it rides every dial, in the carrier's own tint, judged by exposure
+  from its view; a **brush** becomes a `brush` dial (`amp`,
   `radius`, `direction`), a skin map at 1 that replays under any dial and turns down by name (`/dials/stroke.<id>`).
   Every op a stroke makes carries `from: <id>`, so a re-solve replaces exactly it; the stroke is the authoring record.
+  A `/hero` or `/plan` edit regenerates the recipe and carries the strips and brush dials over where their carrier
+  still is; what no longer lands is dropped by name in `stats.warnings` (re-solve it).
   `measure_solid` reads `strokes` back (`now.reached`, the residual box, hints); `export-wire-svg.mjs --stroke <id>`
   draws the stroke over the wire with the residual band; `channels: { strokes: true }` puts a drawing bar on the
-  World page (`?draw=<view>`) that hands the patch to the agent — the page writes nothing. Absent, zero bytes.
+  World page (`/api/sketches/<ref>/world?draw=<view>`) that hands the patch to the agent — the page writes nothing.
+  Absent, zero bytes.
 
 Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
 `creature-from-plan` catalyst carries the spec forms a worker fills; the `create-hero` catalyst is the human loop on the hero form
