@@ -52,6 +52,6 @@
     "node-web-audio-api": "^2.0.0",
     "openscad-wasm-prebuilt": "^1.2.0",
     "opentype.js": "^2.0.0",
-    "sharp": "^0.34.5"
+    "sharp": "^0.35.5"
   }
 }
