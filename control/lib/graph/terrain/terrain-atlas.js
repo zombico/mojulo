@@ -39,6 +39,8 @@ export const ATLAS_FEATURES = Object.freeze([...Object.keys(ATLAS_SIZES), 'coast
 export const ATLAS_SIDES = Object.freeze({ N: [0, 1], S: [0, -1], E: [1, 0], W: [-1, 0] });
 const ALONG = { NS: [0, 1], EW: [1, 0], NE: [0.7071, 0.7071], NW: [-0.7071, 0.7071] };
 const LEVEL_N = 256, RATIO = 8, FINEST = 16, MAX_LEVELS = 6, MIN_L = 0.5;
+/** The most features a world composes: each costs seconds of placing and carving, on the server's one thread. */
+export const ATLAS_MAX_FEATURES = 8;
 
 const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const ramp = (a, b, c, d, gamma = 1) => ({ stops: [a, b, c, d].map(rgb), pos: [0, 1 / 3, 2 / 3, 1], gamma });
@@ -77,6 +79,7 @@ export function validateAtlas(w, at = 'terrain.world') {
   if (!w || typeof w !== 'object' || Array.isArray(w)) return [`${at} must be { features: [{ feature, size? }…], climate?, focus?, seed? }`];
   const e = [];
   if (!Array.isArray(w.features) || !w.features.length) e.push(`${at}.features must be a non-empty list: the first is the anchor, and its size sets the world's (${ATLAS_FEATURES.join(', ')})`);
+  else if (w.features.length > ATLAS_MAX_FEATURES) e.push(`${at}.features holds at most ${ATLAS_MAX_FEATURES} features (got ${w.features.length}): each is seconds of composing; name the anchor and what frames it`);
   else {
     if (w.features.every((f) => f && f.feature === 'coast')) e.push(`${at}.features needs one feature besides coasts: a coast is the edge of something`);
     w.features.forEach((f, i) => {

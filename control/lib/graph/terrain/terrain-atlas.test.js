@@ -105,6 +105,8 @@ describe('validation teaches', () => {
     expect(e({ features: [{ feature: 'ocean' }] })).toMatch(/feature must be one of river, range, lake, plateau, volcano, coast/);
     expect(e({ features: [{ feature: 'lake', size: 'huge' }] })).toMatch(/size must be one of lake, tarn, great/);
     expect(e({ features: [{ feature: 'river' }], climate: 'lunar' })).toMatch(/climate must be one of temperate/);
+    expect(validateAtlas({ features: [{ feature: 'river' }, ...[...Array(7)].map(() => ({ feature: 'lake', size: 'tarn' }))] })).toEqual([]);
+    expect(e({ features: [...Array(9)].map(() => ({ feature: 'lake', size: 'tarn' })) })).toMatch(/features holds at most 8 features \(got 9\)/);
     expect(() => assembleTerrainWorld({ kind: 'terrain', world: RIVER, span: 5000 })).toThrow(/span does not apply to a composed world/);
   });
 });

@@ -48,6 +48,9 @@ const FAR = { drape: 4, lift: 0.12 };                    // beyond the detail ra
 const DETAIL_ALL = 600;                                  // metres: a footprint no wider than this is full detail throughout
 const DETAIL_RADIUS = 200;                               // metres of full detail around a larger city's core
 const PAINT_UNITS = 1.5;                                 // the painted ground plan's texel, city units (5.5 m)
+// the work a world's cities may ask of the server's one thread: planning grows faster than a city's area (a
+// 2400 × 1600 m metro plans in seconds, a 4000 m square one in minutes), and siting tests every lattice place
+export const CITY_LIMITS = Object.freeze({ count: 6, areaKm2: 8, sites: 50000 });
 
 // a mass's front face: '+y' … on buildings, 'y+' … on a town's houses (the planner's two vocabularies)
 const FRONT = { '+y': '+y', '-y': '-y', '+x': '+x', '-x': '-x', 'y+': '+y', 'y-': '-y', 'x+': '+x', 'x-': '-x' };
@@ -57,6 +60,7 @@ const isPt = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinit
 export function validateTerrainCities(list, at = 'terrain.cities') {
   if (list === undefined) return [];
   if (!Array.isArray(list)) return [`${at} must be a list of { at?, size?, profile?, seed?, grade?, … } or { ref, at? }`];
+  if (list.length > CITY_LIMITS.count) return [`${at} holds at most ${CITY_LIMITS.count} cities (got ${list.length})`];
   const e = [];
   list.forEach((c, i) => {
     const here = `${at}[${i}]`;
@@ -75,6 +79,11 @@ export function validateTerrainCities(list, at = 'terrain.cities') {
       }
     }
   });
+  if (!e.length) {
+    // a `{ ref }` counts at its own `size` here, and at the stored city's footprint where it resolves
+    const km2 = list.reduce((a, c) => { const [w, d] = cityFootprint(c); return a + (w * d) / 1e6; }, 0);
+    if (km2 > CITY_LIMITS.areaKm2 + 1e-9) e.push(`${at}: the footprints total ${km2.toFixed(1)} km², more than the ${CITY_LIMITS.areaKm2} km² a world's cities may cover (a 2400 × 1600 m metro is 3.8)`);
+  }
   return e;
 }
 
@@ -117,6 +126,8 @@ function natural(field, X, Y, e, g) {
  */
 export function siteCity(field, size, { grade = CITY_GRADE_DEFAULTS, taken = [] } = {}) {
   const [W, D] = size, b = field.siteBounds || field.bounds, step = Math.max(40, Math.min(W, D) / 2);   // a composed world sites on its finest level
+  const places = Math.max(0, Math.floor((b.x[1] - b.x[0] - W) / step + 1)) * Math.max(0, Math.floor((b.y[1] - b.y[0] - D) / step + 1));
+  if (places > CITY_LIMITS.sites) throw new Error(`terrain.cities: siting a city of ${Math.round(W)} × ${Math.round(D)} m on this world would test ${places} places, more than the ${CITY_LIMITS.sites} the search allows; give it an 'at' ([x, y] metres) or a larger size`);
   const g = { ...CITY_GRADE_DEFAULTS, ...grade }; const sea = field.kernel.seaZ;
   let best = null;
   for (let y = b.y[0] + D / 2; y <= b.y[1] - D / 2 + 1e-9; y += step) {
