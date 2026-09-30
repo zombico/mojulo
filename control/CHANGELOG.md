@@ -85,6 +85,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - A delegate (roles pack) signed in to the dashboard reads and no longer writes (below).
   - A city minted from now on wears the round street kit (below); stored cities are unchanged, and
     `elements: { roundKit: false }` keeps the block kit.
+  - A material object whose `metal` is a name (`{ metal: 'steel', finish: 'brushed' }`) is a metal
+    surface (below); beside `base` or `preset` it is refused. The shelf's numeric `metal: 1` is
+    unchanged.
 
 ### What 3.0 is
 
@@ -195,8 +198,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   preview the session has not shown. Codex is no longer recognized by the bare OpenAI vendor name.
 - **Meta Muse.** A host profile and adapter card for the shell-only agent on its own persistent Linux
   VM, where `npx mojulo call` is the whole surface and `MOJULO_HOST=muse` names its doors: pages leave
-  through its Artifacts, files through its Library. A bundle export's `<ref>.courier.html` now lists
-  every file of the export with its own Save, so one HTML page delivers any of them. A host profile
+  through its Artifacts, files through its Library. A bundle export's `<ref>.courier.html` lists the
+  export's files under `outcomes/<ref>/`, each with a Save where the viewer allows it, so one HTML page
+  can deliver any of them. A host profile
   may name its own page words (`pageVerb`, `pageTool`, `pageOpensIn`), what its page door does with
   inline scripts (`inlinePage`), and a `drop-folder` file door.
 - **`MOJULO_HOST`** picks the adapter card on the CLI, for `get_adapter`, catalyst composition and
