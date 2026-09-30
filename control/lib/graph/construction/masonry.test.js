@@ -106,4 +106,46 @@ describe('construction/masonry — sustainable to render', () => {
       expect(b.rgb.length).toBe(b.W * b.H * 3);
     }
   });
+
+  it('refuses a unit, tile or slate no mason lays, and more units than a recipe may lay, by name', () => {
+    const wall = (w) => validateMasonry({ walls: [{ from: [0, 0, 0], to: [300, 0, 0], height: 200, ...w }] }, 'f').join('\n');
+    expect(wall({ unit: { l: 215, w: 102.5, h: 65, j: -10 } })).toMatch(/walls\[0\]\.unit: .*the joint j 0–50/);   // a zero-length slot: laid forever
+    expect(wall({ unit: { l: 5, w: 5, h: 5 } })).toMatch(/l, w and h 10–1000/);
+    expect(wall({ unit: { l: 1e6, w: 100, h: 65 } })).toMatch(/walls\[0\]\.unit/);
+    expect(wall({ unit: { l: 600, w: 250, h: 300, stone: true, vary: 2 } })).toMatch(/walls\[0\]\.unit/);
+    expect(wall({ leaves: 1e6 })).toMatch(/leaves: a whole number of leaves, 1–4/);
+    expect(wall({ unit: { l: 215, w: 102.5, h: 65, j: 10 }, leaves: 2 })).toBe('');
+    const floor = (p) => validateMasonry({ paving: [{ origin: [0, 0, 0], size: [100, 100], ...p }] }, 'f').join('\n');
+    expect(floor({ tile: [1, 1, 1] })).toMatch(/paving\[0\]\.tile: .*length and width 10–3000/);
+    const roof = (q) => validateMasonry({ slates: [{ eave: [[0, 0, 0], [100, 0, 0]], pitch: 40, run: 100, ...q }] }, 'f').join('\n');
+    expect(roof({ slate: [500, 0, 6] })).toMatch(/slates\[0\]\.slate/);
+    expect(roof({ headlap: 500 })).toMatch(/slates\[0\]\.headlap: mm, 0 to the slate's length less 20/);   // a zero gauge
+    expect(roof({ slate: [400, 200, 6], headlap: 100 })).toBe('');
+    // 100 m by 30 m of 20 mm bricks is millions laid one by one (seconds, then the stack overflowed); drawn as its bond it is one face
+    const huge = { unit: 'cm', walls: [{ from: [0, 0, 0], to: [10000, 0, 0], height: 3000, unit: { l: 20, w: 10, h: 10, j: 5 } }] };
+    const t0 = performance.now();
+    expect(validateFrames([huge]).join('\n')).toMatch(/frames: about \d+ bricks, tiles and slates to lay one by one, over the 250000 a recipe may lay/);
+    expect(performance.now() - t0).toBeLessThan(100);
+    expect(validateFrames([{ ...huge, walls: [{ ...huge.walls[0], detail: 'surface' }] }])).toEqual([]);
+    // so is a wall that takes its detail from the frame's ('boxes' draws it as its bond, 'sparse' as a mass) …
+    expect(validateFrames([{ ...huge, detail: 'boxes' }])).toEqual([]);
+    expect(validateFrames([{ ...huge, detail: 'sparse' }])).toEqual([]);
+    expect(lowerFrame({ ...huge, detail: 'boxes' }).report.walls[0].detail).toBe('surface');
+    // … unless it names its own, or the frame's is 'full' (units)
+    expect(validateFrames([{ ...huge, detail: 'boxes', walls: [{ ...huge.walls[0], detail: 'units' }] }]).join('\n')).toMatch(/over the 250000/);
+    expect(validateFrames([{ ...huge, detail: 'full' }]).join('\n')).toMatch(/over the 250000/);
+    // the cap counts every frame of the recipe
+    const half = { unit: 'cm', walls: [{ from: [0, 0, 0], to: [6000, 0, 0], height: 2000, bond: 'english' }] };
+    expect(validateFrames([half])).toEqual([]);
+    expect(validateFrames([half, half]).join('\n')).toMatch(/over the 250000/);
+    // a crafted bond key is held to the same unit
+    expect(bakeBondKey('masonry:' + Buffer.from(JSON.stringify({ b: 'stretcher', u: [1e6, 100, 1e6, 10, 0], c: [150, 64, 46], m: [208, 200, 184], f: 0, r: 0.003, s: 1 })).toString('base64url'))).toBeNull();
+  });
+
+  it('lays a long wall of more faces than a spread takes as arguments', () => {
+    // 60 m by 15 m in English bond: 106,800 bricks, 161k faces (the push overflowed the stack at about 120k)
+    const { faces, report } = lowerFrame({ unit: 'cm', walls: [{ from: [0, 0, 0], to: [6000, 0, 0], height: 1500, bond: 'english', detail: 'units' }] });
+    expect(report.walls[0].units).toBe(106800);
+    expect(faces.length).toBeGreaterThan(150000);
+  });
 });

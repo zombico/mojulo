@@ -3,11 +3,19 @@ import { CATALOG, ASSEMBLIES, TRADITIONS, assemblyProps, materialError } from '.
 import { ifcGuid } from './elements.js';
 import { validateFraming } from './house-frame.js';
 import { structurizeHouse, storeyLevels } from '../polygonizer/floorplan-structure.js';
+import { manifestToIfc } from './ifc.js';
+import { buildConstructionModel } from './bim.js';
 import { ensureExactKernel } from '../polygonizer/field-exact.js';
 
 const M = { storeys: 2, seed: 4, tier: 'house', windows: true, roof: 'mission' };
 const house = (framing) => { const m = { ...M, framing }; return structurizeHouse({ ...m, ...storeyLevels(m) }, m); };
 const check = (h, rule) => h.construction.checks.filter((c) => c.rule === rule);
+/** Run `fn` as if the host's collation were `locale` (Czech puts 'ch' after 'h'; Lithuanian sorts 'y' with 'i'). */
+function underCollation(locale, fn) {
+  const own = String.prototype.localeCompare;
+  String.prototype.localeCompare = function localeCompare(that, locales, options) { return own.call(this, that, locales ?? locale, options); };
+  try { return fn(); } finally { String.prototype.localeCompare = own; }
+}
 
 describe('construction — the catalog, linings, wiring and the building model', () => {
   beforeAll(async () => { await ensureExactKernel(); });
@@ -57,6 +65,23 @@ describe('construction — the catalog, linings, wiring and the building model',
     expect(h.construction.summary.holes.mouldingFt).toBeGreaterThan(50);
     expect(check(h, 'materials-in-catalog')[0].ok).toBe(true);
     expect(h.construction.schedules.panel.every((c) => c.amps === 20)).toBe(true);
+  });
+
+  it('writes the same IFC and schedules whatever the host\'s collation', () => {
+    // British drainage names chamber:inspection beside fitting:, gutter: and pipe:; a Czech collation used to move it
+    const drained = { kind: 'floorplan', storeys: 2, seed: 1, roof: 'bungalow', drainage: { tradition: 'british' } };
+    const ifc = manifestToIfc(drained).text;
+    expect(ifc).toContain("'chamber:inspection'");
+    expect(underCollation('cs', () => manifestToIfc(drained).text)).toBe(ifc);
+    // a cherry stud beside a Douglas fir one: Czech collates timber:cherry after timber:douglas-fir
+    const studs = () => {
+      const member = (id, x, species) => ({ id, from: [x, 0, 0], to: [x, 0, 8], ...(species ? { species } : {}) });
+      const lens = (id) => ({ id, lengthMm: 2438, stockMm: [38, 89] });
+      const { schedules } = buildConstructionModel({ frames: [{ id: 'storey-0', members: [member('stud-1', 0, 'cherry'), member('stud-2', 1)] }], reports: { 'storey-0': { members: [lens('stud-1'), lens('stud-2')] } }, levels: [{ index: 0 }] });
+      return [schedules.cutList.map((c) => c.material), schedules.takeoff.map((t) => t.material)];
+    };
+    expect(studs()).toEqual([['timber:cherry', 'timber:douglas-fir'], ['timber:cherry', 'timber:douglas-fir']]);
+    expect(underCollation('cs', studs)).toEqual(studs());
   });
 
   it('rings a British house in 2.5 mm², chased in the brick, and plasters it', () => {

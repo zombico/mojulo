@@ -31,7 +31,8 @@ import { elementFaces } from './elements.js';
 import { instanceGroups } from './instancing.js';
 import { buildConstructionModel } from './bim.js';
 import { ROOF_STYLES } from '../architecture/roof.js';
-import { layCovering, COVERINGS } from './roofing.js';
+import { layCovering, COVERINGS, validateCovering } from './roofing.js';
+import { validateDrainage } from './drainage.js';
 
 export const FRAMING_SYSTEMS = Object.freeze(['platform', 'masonry', 'post-and-beam', 'kigumi', 'steel', 'concrete']);
 export const FRAMING_VIEWS = Object.freeze(['framed', 'cutaway']);
@@ -58,6 +59,27 @@ export function validateFraming(f, at = 'framing') {
   if (f.instance !== undefined && typeof f.instance !== 'boolean') e.push(`${at}.instance: true or false`);
   if (f.stage !== undefined && !STAGES.includes(f.stage)) e.push(`${at}.stage: one of ${STAGES.join(', ')}`);
   if (f.tradition !== undefined && !TRADITION_KEYS.includes(f.tradition)) e.push(`${at}.tradition: one of ${TRADITION_KEYS.join(', ')}`);
+  return e;
+}
+
+/**
+ * A house recipe's construction fields → string[], checked when a recipe is minted or edited (sketch-mint.js): a
+ * floorplan's `framing`, `drainage`, `roof.covering` and `furnishing`, and a condo-complex's `furnishing`. The render
+ * reads each leniently (an unknown system frames as the default, an unknown covering lays asphalt shingle), so a typo
+ * is refused here, by field, instead of drawing something else. null (and false) mean "none".
+ */
+export function validateHouseConstruction(m) {
+  if (!m || typeof m !== 'object') return [];
+  const e = [];
+  if (m.kind === 'floorplan') {
+    if (m.framing != null) e.push(...validateFraming(m.framing));
+    if (m.drainage != null) e.push(...validateDrainage(m.drainage));
+    const covering = m.roof && typeof m.roof === 'object' ? m.roof.covering : undefined;
+    if (covering != null && covering !== false) e.push(...validateCovering(covering, 'roof.covering'));
+  }
+  if ((m.kind === 'floorplan' || m.kind === 'condo-complex') && m.furnishing != null && m.furnishing !== false && m.furnishing !== 'constructed') {
+    e.push(`furnishing: 'constructed' (the pieces built on the workbench), or leave it out`);
+  }
   return e;
 }
 

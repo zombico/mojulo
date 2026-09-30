@@ -6,7 +6,7 @@
 // colour: the member's tint and finish ride the face's fill, so restaining a frame reuses every texture byte.
 // Baked PNGs and their logs are cached, least recently used first out.
 import { registerTextureResolver, encodePng } from '../landscape/surface-textures.js';
-import { makeLog } from './log.js';
+import { makeLog, validateLog } from './log.js';
 import { bakeFigure } from './figure.js';
 
 export const TIMBER_TEXTURE_PREFIX = 'timber:';
@@ -30,13 +30,29 @@ export function timberTextureKey(log, plane, nu, nv) {
   }));
 }
 
-/** Bake a key → { rgb, nu, nv }, or null for a malformed key. */
+// A key is recipe text as well (a dungeon's style, an extrude's wrap and a figure's skin name a texture), so a key is
+// baked only inside what frame.js mints: at most 1024 × 512 pixels, and a log no older than 3000 years whose length
+// holds at most 600 whorls (a member's log is its length plus a metre; a 100 m member is 290). The bake's time and
+// memory grow with each.
+const MAX_NU = 1024, MAX_NV = 512, MAX_AGE = 3000, MAX_WHORLS = 600;
+const vec3 = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+function inReach(p) {
+  const L = p.log;
+  if (!(Number.isInteger(p.nu) && p.nu >= 1 && p.nu <= MAX_NU && Number.isInteger(p.nv) && p.nv >= 1 && p.nv <= MAX_NV)) return false;
+  if (!(vec3(p.o) && vec3(p.a) && vec3(p.b) && Number.isFinite(p.w) && Number.isFinite(p.h))) return false;
+  if (!L || typeof L !== 'object' || !(Number.isFinite(L.age) && L.age >= 1 && L.age <= MAX_AGE)) return false;
+  if (!(Number.isFinite(L.length) && L.length > 0 && L.length / (L.heightGrowth ?? 0.35) <= MAX_WHORLS)) return false;
+  return validateLog({ ...L, age: undefined }).length === 0;
+}
+
+/** Bake a key → { rgb, nu, nv }, or null for a malformed key, one past what frame.js mints, or an unknown species. */
 export function bakeTimberKey(key) {
   let p;
   try { p = JSON.parse(unb64u(key.slice(TIMBER_TEXTURE_PREFIX.length))); } catch { return null; }
-  if (!p || !p.log || !Array.isArray(p.o)) return null;
+  if (!p || !p.log || !Array.isArray(p.o) || !inReach(p)) return null;
   const lk = JSON.stringify(p.log);
-  const log = logs.get(lk) || touch(logs, lk, makeLog(p.log), MAX_LOGS);
+  let log = logs.get(lk);
+  if (!log) { try { log = touch(logs, lk, makeLog(p.log), MAX_LOGS); } catch { return null; } }
   const rgb = bakeFigure(log, { origin: p.o, a: p.a, b: p.b, w: p.w, h: p.h, nu: p.nu, nv: p.nv });
   return { rgb, nu: p.nu, nv: p.nv };
 }

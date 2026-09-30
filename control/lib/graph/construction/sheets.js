@@ -125,10 +125,26 @@ export function sheetTile(material, side, { thickMm, seed = 1 }) {
     const n = Math.round(tile / px);
     return { key: sheetKey({ m: row.figure, side, seed, ...(row.veneer ? { veneer: row.veneer } : {}), tile, nu: n, nv: n }), tileU: tile, tileV: tile };
   }
-  const nu = Math.round(EDGE_TILE / 0.00025), nv = Math.max(8, Math.round(thickMm / 0.25));
+  const nu = Math.round(EDGE_TILE / 0.00025), nv = Math.min(MAX_EDGE_NV, Math.max(8, Math.round(thickMm / 0.25)));
   return { key: sheetKey({ m: row.figure, side, seed, t: thickMm, ...(row.plyMm ? { ply: row.plyMm } : {}), nu, nv }), tileU: EDGE_TILE, tileV: null };
 }
 const sheetKey = (o) => SHEET_TEXTURE_PREFIX + b64u(JSON.stringify(o));
+
+// A key is recipe text as well (a dungeon's style, an extrude's wrap and a figure's skin name a texture), so a key is
+// baked only in the shape sheetTile mints: a known figure and side, a face at most 512 pixels square, an edge 256
+// along by a pixel per 0.25 mm of thickness up to 512 mm (2048; a thicker board's edge pixel grows), the veneer a
+// sheet names and dressSheet's seed (0–6). The bake's time and memory grow with the pixels.
+const MAX_FACE_N = 512, MAX_EDGE_NV = 2048;
+const FIGURES = new Set(Object.values(SHEETS).map((r) => r.figure));
+const VENEERS = new Set(Object.values(SHEETS).map((r) => r.veneer).filter(Boolean));
+const pos = (v) => Number.isFinite(v) && v > 0;
+const upTo = (n, max) => Number.isInteger(n) && n >= 1 && n <= max;
+function inReach(p) {
+  if (!FIGURES.has(p.m) || !(Number.isInteger(p.seed) && p.seed >= 0 && p.seed < 7)) return false;
+  if (p.side === 'face') return upTo(p.nu, MAX_FACE_N) && upTo(p.nv, MAX_FACE_N) && pos(p.tile) && (p.veneer === undefined || VENEERS.has(p.veneer));
+  if (p.side !== 'edge-long' && p.side !== 'edge-end') return false;
+  return upTo(p.nu, Math.round(EDGE_TILE / 0.00025)) && upTo(p.nv, MAX_EDGE_NV) && pos(p.t) && (p.ply === undefined || pos(p.ply));
+}
 
 /** Particleboard: Voronoi flakes, fine near a face and coarse in the core, flattened in the board's plane. */
 function particleAt(u, v, depthMm, seed, edge) {
@@ -198,20 +214,23 @@ function veneerLog(species, seed) {
   return LOGS.get(k);
 }
 
-/** Bake a key → { rgb, nu, nv }, or null. Row 0 is the top of the image (v = 1), uv's convention. */
+/**
+ * Bake a key → { rgb, nu, nv }, or null for a malformed key or one past what sheetTile mints. Row 0 is the top of the
+ * image (v = 1), uv's convention.
+ */
 export function bakeSheetKey(key) {
   let p;
   try { p = JSON.parse(unb64u(key.slice(SHEET_TEXTURE_PREFIX.length))); } catch { return null; }
-  if (!p || !p.m || !Number.isInteger(p.nu) || !Number.isInteger(p.nv)) return null;
-  const { nu, nv } = p; const rgb = Buffer.alloc(nu * nv * 3);
+  if (!p || typeof p !== 'object' || !inReach(p)) return null;
   const face = p.side === 'face';
   let rot = null;
   if (p.m === 'ply' && face) {
     // rotary veneer: the lathe peels the log from radius R0 inward; unrolled, v is arc length round the log, u runs
     // up it. The log's ovality and wobble make the knife cross the rings: the wide wandering figure of a peeled face.
-    const log = veneerLog(p.veneer || 'birch', p.seed); const rays = rayField(log);
-    rot = { log, rays, R0: 0.16, t: 0.0014 };
+    let log; try { log = veneerLog(p.veneer || 'birch', p.seed); } catch { return null; }
+    rot = { log, rays: rayField(log), R0: 0.16, t: 0.0014 };
   }
+  const { nu, nv } = p; const rgb = Buffer.alloc(nu * nv * 3);
   for (let j = 0; j < nv; j++) {
     const fv = 1 - (j + 0.5) / nv;
     for (let i = 0; i < nu; i++) {

@@ -54,8 +54,8 @@ export function manifestWantsExact(manifest) {
   if (manifest.kind === 'scad') return listWantsExact(manifest.fields);
   return listWantsExact(manifest.fields) || listWantsExact(manifest.cuts) || (manifest.program != null && typeof manifest.program === 'object')
     // a frame's joints are cut, and a steel member's section shaped, by the kernel (construction/frame.js degrades to
-    // plain boxes without it)
-    || (Array.isArray(manifest.frames) && manifest.frames.some((f) => f && ((Array.isArray(f.joints) && f.joints.length > 0) || (Array.isArray(f.members) && f.members.some((m) => m && m.section !== undefined)))))
+    // plain boxes without it); a `build` brings its joints in only when the frame is lowered, so it asks up front
+    || (Array.isArray(manifest.frames) && manifest.frames.some((f) => f && ((f.build != null && typeof f.build === 'object') || (Array.isArray(f.joints) && f.joints.length > 0) || (Array.isArray(f.members) && f.members.some((m) => m && m.section !== undefined)))))
     // a house framed in steel, or in a jointed timber frame (construction/house-frame.js)
     || (manifest.framing != null && typeof manifest.framing === 'object' && (manifest.framing.system === 'steel' || (['post-and-beam', 'kigumi'].includes(manifest.framing.system) && manifest.framing.joints !== false)));
 }

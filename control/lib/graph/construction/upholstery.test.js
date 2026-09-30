@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { resolveFabric, cellRgb, warpUp, fabricError, fabricTile, bakeFabricKey, fabricSvg, inkTone } from './fabric.js';
 import { lowerSoft, validateSoft, sinkMm } from './soft.js';
-import { coverLayout, partPieces } from './covers.js';
+import { coverLayout, partPieces, coverPages } from './covers.js';
 import { lowerFrame, validateFrames, frameStamps } from './frame.js';
 import { manualPages } from './manual.js';
 import { hatchRuns } from '../scene/hatch-lines.js';
@@ -45,6 +45,13 @@ describe('construction/fabric — cloth from a weave draft', () => {
     expect(fabricError({ weave: 'twill-5/5', warp: 'navy' })).toMatch(/fabric.weave/);
     expect(fabricError({ weave: 'twill', warp: ['navy', 0] })).toMatch(/fabric.warp/);
     expect(fabricError({ weave: 'plain', warp: '#224466', rollMm: 5000 })).toMatch(/rollMm/);
+    // a tile is the least common multiple of the weave's repeat and the colour orders: bounded, and said so by name
+    const odd = ['navy', 256, 'cream', 256, 'navy', 256, 'cream', 253];               // 1021 threads, against 46
+    expect(fabricError({ weave: 'herringbone-23', warp: odd })).toMatch(/fabric: the pattern repeats every 46966 × 4084 threads .* over the 4194304 crossings/);
+    expect(resolveFabric({ weave: 'herringbone-23', warp: odd })).toBeNull();
+    const crafted = 'fabric:' + Buffer.from(JSON.stringify({ weave: 'herringbone-23', warp: odd })).toString('base64url');
+    expect(bakeFabricKey(crafted)).toBeNull();                                          // a 575 MB buffer, before
+    expect(fabricError({ weave: 'herringbone-24', warp: ['navy', 256, 'cream', 256, 'navy', 256, 'cream', 256] })).toBeNull();   // 3072 × 1024
     const t = fabricTile({ weave: 'twill-2/1', warp: ['#1d2a44', 6, 'cream', 6] });
     const b = bakeFabricKey(t.key);
     expect([b.nu, b.nv]).toEqual([36, 36]);                              // 12 threads, 3 px a thread
@@ -197,5 +204,11 @@ describe('construction/covers — pieces', () => {
     const lay = coverLayout([c], { fabric: 'linen' });
     expect(lay.seams).toBe(1);                                           // the boxing, longer than the cloth is wide
     expect(lay.placed.every((p) => p.x >= 0 && p.x + p.w <= 1400)).toBe(true);
+  });
+  it('writes a part named in the recipe as text on the cutting page, escaped', () => {
+    const c = soft1({ id: 'seat & <back>', kind: 'cushion', box: { min: [0, 0, 0], max: [600, 580, 140] } });
+    const svg = coverPages(coverLayout([c], { fabric: 'linen' })).join('');
+    expect(svg).toContain('>seat &amp; &lt;back&gt;</text>');
+    expect(svg).not.toContain('<back>');
   });
 });

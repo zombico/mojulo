@@ -41,6 +41,7 @@ describe('export_model ifc', () => {
     expect(res.elements.IfcWindow).toBeGreaterThan(0);
     expect(res.elements.IfcRoof).toBe(1);
     expect(res.elements.IfcPipeSegment).toBeGreaterThan(0);
+    expect(res.note).toMatch(/the rainwater system/);
     expect(path.basename(res.path)).toBe('model.ifc');
     const text = readFileSync(res.path, 'utf8');
     expect(text.startsWith('ISO-10303-21;')).toBe(true);
@@ -67,6 +68,20 @@ describe('export_model ifc', () => {
     expect(res.elements.IfcBeam).toBeGreaterThan(10);
     expect(res.elements.IfcCableSegment).toBeGreaterThan(0);
     expect(res.elements.IfcDistributionCircuit).toBeGreaterThan(0);
+    // gutters go up last: a framed house past the 'frame' stage has none, so its note promises no rainwater system …
+    SketchRepository.create({ ref: 'sk_ifc_framed_drained', title: 'framed', manifest: { ...HOUSE, framing: { system: 'platform', stage: 'rough-in' } } });
+    const drained = await exportModelHandler({ ref: 'sk_ifc_framed_drained', format: 'ifc', write: false });
+    expect(drained.elements.IfcPipeSegment).toBeUndefined();
+    expect(drained.note).not.toMatch(/rainwater/);
+    // … nor one shown as its frame alone (view 'framed', the default); the cutaway at the 'frame' stage has its gutters
+    SketchRepository.create({ ref: 'sk_ifc_frame_view', title: 'framed', manifest: { ...HOUSE, framing: { system: 'platform' } } });
+    const bare = await exportModelHandler({ ref: 'sk_ifc_frame_view', format: 'ifc', write: false });
+    expect(bare.elements.IfcPipeSegment).toBeUndefined();
+    expect(bare.note).not.toMatch(/rainwater/);
+    SketchRepository.create({ ref: 'sk_ifc_cutaway_drained', title: 'framed', manifest: { ...HOUSE, framing: { system: 'platform', view: 'cutaway' } } });
+    const cutaway = await exportModelHandler({ ref: 'sk_ifc_cutaway_drained', format: 'ifc', write: false });
+    expect(cutaway.elements.IfcPipeSegment).toBeGreaterThan(0);
+    expect(cutaway.note).toMatch(/the rainwater system/);
   });
 
   it('two houses never share a GlobalId', async () => {
@@ -81,7 +96,26 @@ describe('export_model ifc', () => {
     SketchRepository.create({ ref: 'sk_ifc_floor', title: 'floor', manifest: { kind: 'floorplan', seed: 2 } });
     const floor = await exportModelHandler({ ref: 'sk_ifc_floor', format: 'ifc' });
     expect(floor.eligible).toBe(false);
-    expect(floor.reason).toMatch(/storeys: 1/);
+    expect(floor.reason).toMatch(/levels: \[\{ role: 'ground' \}\]/);
+    // the advice works: the one floor as a one-level stack exports
+    SketchRepository.create({ ref: 'sk_ifc_floor_level', title: 'floor', manifest: { kind: 'floorplan', seed: 2, levels: [{ role: 'ground' }] } });
+    const level = await exportModelHandler({ ref: 'sk_ifc_floor_level', format: 'ifc', write: false });
+    expect(level.ok).toBe(true);
+    expect(level.elements.IfcSpace).toBeGreaterThan(0);
+    // a plan that authors its rooms is told to carry them into the level (a bare level would be a seeded house)
+    const plan = { width: 30, height: 20, rooms: [{ x: 0, y: 0, w: 15, h: 20, glyph: 'L' }, { x: 15, y: 0, w: 15, h: 20, glyph: 'B' }], doors: [{ x: 15, y: 10, room: 1, edge: 'W' }] };
+    SketchRepository.create({ ref: 'sk_ifc_floor_rooms', title: 'floor', manifest: { kind: 'floorplan', ...plan } });
+    const rooms = await exportModelHandler({ ref: 'sk_ifc_floor_rooms', format: 'ifc' });
+    expect(rooms.eligible).toBe(false);
+    expect(rooms.reason).toMatch(/move this plan's `rooms`, `halls` and `doors` into a one-level stack, `levels: \[\{ role: 'ground', rooms, halls, doors \}\]`/);
+    const { rooms: rs, doors } = plan;
+    SketchRepository.create({ ref: 'sk_ifc_floor_rooms_level', title: 'floor', manifest: { kind: 'floorplan', width: 30, height: 20, levels: [{ role: 'ground', rooms: rs, halls: [], doors }] } });
+    const kept = await exportModelHandler({ ref: 'sk_ifc_floor_rooms_level', format: 'ifc', write: false });
+    expect(kept.ok).toBe(true);
+    expect(kept.elements.IfcSpace).toBe(rs.length);
+    // storeys: 1 is still a single floor, and says so
+    SketchRepository.create({ ref: 'sk_ifc_floor_one', title: 'floor', manifest: { kind: 'floorplan', seed: 2, storeys: 1 } });
+    expect((await exportModelHandler({ ref: 'sk_ifc_floor_one', format: 'ifc' })).eligible).toBe(false);
     SketchRepository.create({ ref: 'sk_ifc_cyl', title: 'cyl', manifest: { kind: 'workbench', boxes: [{ min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } }] } });
     const cyl = await exportModelHandler({ ref: 'sk_ifc_cyl', format: 'ifc' });
     expect(cyl.eligible).toBe(false);

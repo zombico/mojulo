@@ -19,6 +19,7 @@
 // same ids, two houses never share one), and nothing reads a clock — the header's time stamp is fixed.
 import { ifcGuid } from './elements.js';
 import { CATALOG } from './catalog.js';
+import { byCodeUnit } from './bim.js';
 import { SECTIONS } from './sections.js';
 import { memberFrame } from './members.js';
 import { planeFrame } from './roofing.js';
@@ -374,7 +375,9 @@ export function houseToIfc(house, o = {}) {
   }
 
   // ── drainage: gutters, downpipes and chains, outlets, drains, on one rainwater system ──
-  if (house.drainage && house.drainage.elements && house.drainage.elements.length) {
+  // (a house shown framed or at a construction stage has no gutters yet, so no system)
+  const rainwater = !!(house.drainage && house.drainage.elements && house.drainage.elements.length);
+  if (rainwater) {
     const members = [];
     for (const el of house.drainage.elements) {
       const s = storeyOf(el.storey);
@@ -408,7 +411,7 @@ export function houseToIfc(house, o = {}) {
     if (s.spaces.length) st.add('IFCRELAGGREGATES', [G(`rel:spaces:${i}`), '$', '$', '$', s.id, s.spaces], true);
     if (s.contained.length) st.add('IFCRELCONTAINEDINSPATIALSTRUCTURE', [G(`rel:contains:${i}`), '$', '$', '$', s.contained, s.id], true);
   }
-  for (const [mname, m] of [...materials].sort((a, b) => a[0].localeCompare(b[0]))) {
+  for (const [mname, m] of [...materials].sort((a, b) => byCodeUnit(a[0], b[0]))) {
     if (m.members.length) st.add('IFCRELASSOCIATESMATERIAL', [G(`rel:material:${mname}`), '$', '$', '$', m.members, m.id], true);
   }
 
@@ -425,12 +428,12 @@ export function houseToIfc(house, o = {}) {
     'END-ISO-10303-21;',
     '',
   ].join('\n');
-  return { text: out, counts, entities: st.lines.length, framed: !!model };
+  return { text: out, counts, entities: st.lines.length, framed: !!model, rainwater };
 }
 
 /**
- * manifestToIfc(manifest, { ref, title }) → { text, counts, entities, framed } for a house (a floorplan manifest with
- * `levels` or `storeys`), built exactly as the World builds it; null for a single-floor plan.
+ * manifestToIfc(manifest, { ref, title }) → { text, counts, entities, framed, rainwater } for a house (a floorplan
+ * manifest with `levels` or `storeys`), built exactly as the World builds it; null for a single-floor plan.
  */
 export function manifestToIfc(m, { ref = 'mojulo', title = null } = {}) {
   const stacked = Array.isArray(m.levels) && m.levels.length;

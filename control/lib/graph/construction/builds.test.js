@@ -4,6 +4,7 @@ import { lowerFrame, validateFrames, frameStamps } from './frame.js';
 import { manualPlan } from './manual.js';
 import { hardwarePart } from './hardware.js';
 import { ensureExactKernel } from '../polygonizer/field-exact.js';
+import { manifestWantsExact } from '../polygonizer/field-exact-reach.js';
 
 const dresser = { id: 'dresser', unit: 'mm', build: { type: 'carcass', w: 800, h: 1000, d: 450, drawers: 4, drawerHeight: 230 } };
 const cabinet = { id: 'cabinet', unit: 'mm', build: { type: 'carcass', w: 800, h: 1800, d: 400, doors: 2, shelves: 3 } };
@@ -124,6 +125,17 @@ describe('construction/furniture-builds — a piece from a few dials', () => {
     expect(Math.min(...z)).toBeCloseTo(0, 6);
     expect(Math.max(...z)).toBeCloseTo(18, 3);                       // every part lies on its face
     expect(validateFrames([{ ...stool, layout: 'flat' }])[0]).toMatch(/layout: 'kit'/);
+  });
+  it('asks for the exact kernel before a build-only frame renders (its joints arrive at lowering)', () => {
+    // the render seams gate ensureExactKernel() on manifestWantsExact: a build that did not ask drew uncut boxes in a
+    // cold process and cut joints in a warm one, so the same recipe rendered two ways
+    const sofa = { id: 'sofa', unit: 'mm', build: { type: 'sofa', seats: 3 }, fabric: 'velvet' };
+    for (const f of [dresser, cabinet, table, chair, sofa]) {
+      expect(f.joints).toBeUndefined();
+      expect(expandBuild(f).joints.length).toBeGreaterThan(0);
+      expect(manifestWantsExact({ kind: 'workbench', frames: [f] })).toBe(true);
+      expect(manifestWantsExact({ kind: 'assembler', items: [{ source: { frames: [f] } }] })).toBe(true);
+    }
   });
   it('catalogs the hinge and the slide', () => {
     expect(hardwarePart('hinge-35')).toMatchObject({ cup: { d: 35, depth: 13 }, edgeDist: 21.5, setback: 37 });

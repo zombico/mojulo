@@ -141,7 +141,7 @@ export function coverStamps(c, label, { seats = false } = {}) {
 
 const INK = '#000';
 const r2 = (v) => Math.round(v * 100) / 100;
-const text = (x, y, s, size = 3, anchor = 'middle', weight = 400) => `<text x="${r2(x)}" y="${r2(y)}" font-size="${size}" text-anchor="${anchor}" font-family="Helvetica, Arial, sans-serif" font-weight="${weight}">${s}</text>`;
+const text = (x, y, s, size = 3, anchor = 'middle', weight = 400) => `<text x="${r2(x)}" y="${r2(y)}" font-size="${size}" text-anchor="${anchor}" font-family="Helvetica, Arial, sans-serif" font-weight="${weight}">${String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>`;   // a part's name is the recipe's: escaped
 
 /**
  * The layout on A4 pages (mm): the roll's width across the page, its length down it, each page a stretch of roll.

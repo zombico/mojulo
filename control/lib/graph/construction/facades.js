@@ -103,14 +103,15 @@ function extras(kind, spec) {
   return out;
 }
 
+// keyed on the exact footprint: the faces are scaled to it, so a near size (7.0004 against 7.0001 ft) is its own entry
+// and a piece draws the same whatever the process drew before it (a condo's repeats are exact repeats)
 const CACHE = new Map(); const CACHE_MAX = 96;
-const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** The facade's faces in the room's frame and unit (see the header). */
 export function facadeFaces(kind, { w, d, h, unitMm = FT, palette = null, light = null } = {}) {
   if (!(w > 0 && d > 0 && h > 0)) throw new Error('facade: w, d and h must be positive');
   const L = light || ROOM_LIGHT;
-  const key = JSON.stringify([kind, r3(w), r3(d), r3(h), unitMm, palette, L]);
+  const key = JSON.stringify([kind, w, d, h, unitMm, palette, L]);
   if (CACHE.has(key)) return CACHE.get(key);
   const W = w * unitMm, D = d * unitMm, H = h * unitMm;
   const spec = facadeRecipe(kind, { W, D, H, palette });

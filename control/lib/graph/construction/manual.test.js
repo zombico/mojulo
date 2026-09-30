@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { manualPlan, manualPages, hardwareGlyph } from './manual.js';
+import { manualPlan, manualPages, manualHtml, hardwareGlyph } from './manual.js';
+import { validateFrames } from './frame.js';
 import { hardwarePart } from './hardware.js';
 import { ensureExactKernel } from '../polygonizer/field-exact.js';
 
@@ -58,6 +59,20 @@ describe('construction/manual — a frame writes its own instructions', () => {
       // numerals, letters, counts, sizes and units only; the title is the frame's id
       expect(words.filter((w) => w !== 'BOOKCASE' && /[a-z]{3,}/.test(w.replace(/mm|kg/g, '')))).toEqual([]);
     }
+  });
+  it('escapes the piece\'s name on the cover and the book (a sketch title stands in for a frame id), and takes a number', () => {
+    const { plan, pages } = manualPages({ ...bookcase, id: 'Tables & Chairs <img src=x onerror=alert(1)>' });
+    const cover = pages.find((p) => p.name === 'cover').svg;
+    expect(cover).toContain('>TABLES &amp; CHAIRS &lt;IMG SRC=X ONERROR=ALERT(1)&gt;</text>');
+    expect(cover).not.toMatch(/<IMG/i);
+    const book = manualHtml({ plan, pages });
+    expect(book).toContain('<title>Tables &amp; Chairs &lt;img src=x onerror=alert(1)&gt;</title>');
+    expect(book).not.toMatch(/<img/i);
+    // a numeric id (a frame minted before ids were checked) draws its number instead of failing the cook
+    expect(manualPages({ ...bookcase, id: 7 }).pages[0].svg).toContain('>7</text>');
+    expect(validateFrames([{ ...bookcase, id: 7 }]).join('\n')).toMatch(/frames\[0\]\.id: a non-empty string/);
+    expect(validateFrames([{ ...bookcase, id: '' }]).join('\n')).toMatch(/frames\[0\]\.id/);
+    expect(validateFrames([bookcase])).toEqual([]);
   });
   it('draws each fitting at true scale on the inventory', () => {
     const P = hardwarePart('wood-4x30');
