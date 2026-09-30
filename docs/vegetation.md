@@ -103,7 +103,8 @@ numbers below were checked against the literature, and several first guesses tur
   - flowering culms standing above the blades, headed by a panicle, a plume, a spike or feathered awns.
 
   A kind (`GRASSES`) is a row of numbers over that one builder: blade count, length, width, stiffness, splay, culms,
-  head, colours and a dry share. The reed tuft is the same idea from the culm builder. `over` retunes a kind in a recipe.
+  head, colours and a dry share. The reed tuft is the same idea from the culm builder. `over` retunes a kind in the builder
+  (`grassTuft`, `grassLadder`); a terrain recipe's `grass` does not carry it.
 - **Habit is bamboo's split carried down**, as an analogy: a tussock (intravaginal tillers, packed) or a sward
   (rhizomes or stolons, spreading). A short sward (`lawn`, 6–15 cm) is a third habit, turf: each instance is a plug of
   turf, wider than it is tall, packed into a carpet. A tuft's size on screen is its larger extent, or a plug would take

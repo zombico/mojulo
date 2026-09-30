@@ -18,7 +18,7 @@ describe('the tuft', () => {
       expect(JSON.stringify(grassLadder(kind, { seed: 3 }))).toBe(JSON.stringify(lad));
     }
   });
-  it('a recipe may retune a kind’s form and colours', () => {
+  it('the builder may retune a kind’s form and colours (`over`; a terrain recipe’s `grass` does not carry it)', () => {
     const a = grassTuft('meadow', { seed: 1 }), b = grassTuft('meadow', { seed: 1, over: { colors: { base: [200, 40, 40] } } });
     expect(a.length).toBe(b.length); expect(JSON.stringify(a)).not.toBe(JSON.stringify(b));
   });
