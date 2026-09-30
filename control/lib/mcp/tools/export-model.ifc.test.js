@@ -93,6 +93,17 @@ describe('export_model ifc', () => {
     const level = await exportModelHandler({ ref: 'sk_ifc_floor_level', format: 'ifc', write: false });
     expect(level.ok).toBe(true);
     expect(level.elements.IfcSpace).toBeGreaterThan(0);
+    // a plan that authors its rooms is told to carry them into the level (a bare level would be a seeded house)
+    const plan = { width: 30, height: 20, rooms: [{ x: 0, y: 0, w: 15, h: 20, glyph: 'L' }, { x: 15, y: 0, w: 15, h: 20, glyph: 'B' }], doors: [{ x: 15, y: 10, room: 1, edge: 'W' }] };
+    SketchRepository.create({ ref: 'sk_ifc_floor_rooms', title: 'floor', manifest: { kind: 'floorplan', ...plan } });
+    const rooms = await exportModelHandler({ ref: 'sk_ifc_floor_rooms', format: 'ifc' });
+    expect(rooms.eligible).toBe(false);
+    expect(rooms.reason).toMatch(/move this plan's `rooms`, `halls` and `doors` into a one-level stack, `levels: \[\{ role: 'ground', rooms, halls, doors \}\]`/);
+    const { rooms: rs, doors } = plan;
+    SketchRepository.create({ ref: 'sk_ifc_floor_rooms_level', title: 'floor', manifest: { kind: 'floorplan', width: 30, height: 20, levels: [{ role: 'ground', rooms: rs, halls: [], doors }] } });
+    const kept = await exportModelHandler({ ref: 'sk_ifc_floor_rooms_level', format: 'ifc', write: false });
+    expect(kept.ok).toBe(true);
+    expect(kept.elements.IfcSpace).toBe(rs.length);
     // storeys: 1 is still a single floor, and says so
     SketchRepository.create({ ref: 'sk_ifc_floor_one', title: 'floor', manifest: { kind: 'floorplan', seed: 2, storeys: 1 } });
     expect((await exportModelHandler({ ref: 'sk_ifc_floor_one', format: 'ifc' })).eligible).toBe(false);

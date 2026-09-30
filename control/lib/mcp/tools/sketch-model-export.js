@@ -200,11 +200,15 @@ async function ifcExport(input, context) {
   const title = sketch.title || sketch.manifest.title || ref;
   const built = kind === 'floorplan' ? manifestToIfc(sketch.manifest, { ref, title }) : null;
   if (!built) {
+    // a level with no rooms is generated from the seed, so a plan that authors its rooms carries them into the level
+    const authored = Array.isArray(sketch.manifest.rooms) && sketch.manifest.rooms.length > 0;
     return {
       ok: false, eligible: false, ref, kind: kind ?? null, format: 'ifc',
-      reason: kind === 'floorplan'
-        ? "IFC export covers houses built in storeys: give this plan `levels: [{ role: 'ground' }]` to keep its one floor (or `storeys: 2` or more) and export again."
-        : `IFC export covers houses (the floorplan kind with \`storeys\` or \`levels\`); '${kind}' is not one. For a mesh, \`format: 'glb'\` or \`'usdz'\`.`,
+      reason: kind !== 'floorplan'
+        ? `IFC export covers houses (the floorplan kind with \`storeys\` or \`levels\`); '${kind}' is not one. For a mesh, \`format: 'glb'\` or \`'usdz'\`.`
+        : authored
+          ? "IFC export covers houses built in storeys: move this plan's `rooms`, `halls` and `doors` into a one-level stack, `levels: [{ role: 'ground', rooms, halls, doors }]`, to keep its one floor, and export again."
+          : "IFC export covers houses built in storeys: give this plan `levels: [{ role: 'ground' }]` to keep its one floor (or `storeys: 2` or more) and export again.",
     };
   }
   const bytes = Buffer.from(built.text, 'utf8');
