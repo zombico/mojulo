@@ -55,6 +55,7 @@ import {
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
+import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
@@ -361,6 +362,8 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   const { ok, errors } = validateSketchManifest(finalized);
   // a store's card is graded at the door too (the validator's named errors), not first at /world
   if (ok && finalized?.kind === 'store') errors.push(...validateStoreManifest(finalized));
+  // a house's framing, drainage, roof covering and furnishing likewise (the render falls back on a bad name silently)
+  if (ok) errors.push(...validateHouseConstruction(finalized));
   if (!ok || errors.length) {
     // Error-as-drawer (pointer discipline): a bare validator string leaves the
     // agent guessing which drawer resolves it — name the read explicitly.
@@ -512,6 +515,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
       throw new Error(`Invalid world manifest (kind 'layered'): ${err.message}`);
     }
   }
+  // a condo-complex's `furnishing` is checked by name, as a floorplan's is (the render reads any other value as none)
+  const houseErrors = validateHouseConstruction(manifest);
+  if (houseErrors.length) throw new Error(`Invalid world manifest (kind '${manifest.kind}'): ${houseErrors.join('; ')}`);
   try {
     await resolveWorldScene({ ref, title: title ?? existingSketch?.title ?? 'world', manifest });
   } catch (err) {
@@ -871,7 +877,8 @@ export async function updateSketchHandler(input) {
       finalized = expanded;
     }
     const { ok, errors } = validateSketchManifest(finalized);
-    if (!ok) {
+    if (ok) errors.push(...validateHouseConstruction(finalized));   // as at mint
+    if (!ok || errors.length) {
       // Error-as-drawer (pointer discipline): same as the mint path.
       throw new Error(
         `Invalid manifest:\n - ${errors.join('\n - ')}\n`
