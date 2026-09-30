@@ -131,9 +131,9 @@ arguments and result (up to 4 KB each) in the same local rows; it is off unless 
 ### Code that runs with your privileges
 
 - A recipe that carries a `program` (the code door: `mint_solid` with `kind: 'code'`, or a
-  workbench `program`) is JavaScript that runs inside the server when it renders or exports. Its
-  `node:vm` context keeps it deterministic; it is not a sandbox. Treat a recipe someone else wrote
-  that carries a program as code.
+  workbench `program`) is JavaScript that runs inside the server when it is minted, edited, rendered
+  or exported. Its `node:vm` context keeps it deterministic; it is not a sandbox. Treat a recipe
+  someone else wrote that carries a program as code.
 - `MOJULO_RECIPE_BOOK`, if you set it, points at a local clone of a recipe book whose `builder.js`
   files are imported when the server starts. Point it only at a book you trust.
 

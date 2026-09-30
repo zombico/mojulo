@@ -63,6 +63,8 @@
     "!lib/**/spike-output/**",
     "!lib/graph/mobile-suit/**",
     "!lib/mcp/hosts/zz-test-*.json",
+    "!lib/**/*.fixture.js",
+    "!lib/**/*.fixture.json",
     "lib/graph/mobile-suit/ms-ai.js",
     "lib/graph/mobile-suit/ms-maneuvers.js",
     "components/graph/CreationMap.jsx",
