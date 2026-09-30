@@ -270,6 +270,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-09-29 (267_619 -> 267_588; -31 measured, 267,330 -> 267,299) for the same branch:
 // create_sketch's manifest schema drops `required: ['title', 'viewBox']`, which bound diagrams only (the
 // diagram validator still refuses a diagram without them) and refused an exported world recipe's restore.
+// Not re-pinned (2026-09-30, rel/combine): the post-freeze lines' own growth is inside the pin — export_model's
+// format 'ifc' (the enum value and one sentence, about +87 B, building materials) and the hero door's armour, gear
+// and anime words (fantasy equipment, form articulation); create_solid_turntable's surface names that 'crystal'
+// belongs to the crystal shape (+37 B).
 const PAYLOAD_CEILING = 267_588;
 
 async function listedTools() {

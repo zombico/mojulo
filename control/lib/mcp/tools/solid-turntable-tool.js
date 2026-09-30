@@ -95,7 +95,7 @@ export function registerSolidTurntableTools() {
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         shape: { type: 'string', enum: [...SOLID_SHAPES], description: 'The convex solid to spin (default sphere). sphere → a lit ball; the platonic solids (dodecahedron / octahedron / tetrahedron / cube) read as crystals / coordination polyhedra; cylinder → a column/disc.' },
         color: { type: 'string', description: "Base fill as a #rrggbb hex (default '#5f86ad'). vexar shades it per face." },
-        surface: { type: 'string', enum: [...SOLID_SURFACES], description: "'vexar' (default; lit, re-shaded per frame), 'solid' (flat fill), or 'glow' (emissive rim)." },
+        surface: { type: 'string', enum: [...SOLID_SURFACES], description: "'vexar' (default; lit, re-shaded per frame), 'solid' (flat fill), or 'glow' (emissive rim); 'crystal' only with shape 'crystal'." },
         tilt: { type: 'number', description: 'Turntable tilt in degrees — how far the top is tipped toward the camera (default 18).' },
         spin_seconds: { type: 'number', description: 'Seconds per full revolution (default 12; min 2).' },
         lod: { type: 'string', description: "Tessellation density for sphere/cylinder: 'draft' / 'default' / 'hero' / 'ultra' (default 'default'). Platonic solids are exact regardless." },
