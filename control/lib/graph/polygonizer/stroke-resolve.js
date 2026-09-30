@@ -80,7 +80,7 @@ function solvedErrors(v, at) {
   for (const k of SOLVED_NUMBERS) if (v[k] !== undefined && !Number.isFinite(v[k])) errs.push(`${at}.${k}: a number (${leave})`);
   for (const k of ['carrier', 'side', 'dial']) if (v[k] !== undefined && typeof v[k] !== 'string') errs.push(`${at}.${k}: a string (${leave})`);
   for (const k of ['bounds', 'parts']) if (v[k] !== undefined && !isStrings(v[k])) errs.push(`${at}.${k}: a list of strings (${leave})`);
-  if (v.dials !== undefined && !isNumberMap(v.dials)) errs.push(`${at}.dials: { <dial>: number } (${leave})`);
+  for (const k of ['dials', 'dialsBefore']) if (v[k] !== undefined && !isNumberMap(v[k])) errs.push(`${at}.${k}: { <dial>: number } (${leave})`);
   if (v.residual !== undefined && !(isObj(v.residual) && Number.isFinite(v.residual.share) && (v.residual.bbox === null || (Array.isArray(v.residual.bbox) && v.residual.bbox.length === 4 && v.residual.bbox.every(Number.isFinite))))) errs.push(`${at}.residual: { share: number, bbox: [x0, y0, x1, y1] | null } (${leave})`);
   if (v.exposure !== undefined && !(isObj(v.exposure) && Object.values(v.exposure).every((e) => e === null || (isObj(e) && Number.isFinite(e.exposed) && typeof e.flag === 'string')))) errs.push(`${at}.exposure: { <part>: { exposed, flag } | null } (${leave})`);
   return errs;

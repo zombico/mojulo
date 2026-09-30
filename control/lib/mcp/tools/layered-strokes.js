@@ -82,7 +82,9 @@ export function applySolves(manifest, mesh, ops, indexOffset = 0) {
     if (stroke.intent === 'silhouette') {
       const names = Array.isArray(op.dials) ? op.dials : null;
       const budget = Number.isFinite(op.budget) ? Math.max(4, Math.min(400, op.budget)) : undefined;
-      const fit = fitSilhouetteDials(next.recipe, next.dials, stroke, { names, budget, mesh: currentMesh });
+      let fit;
+      try { fit = fitSilhouetteDials(next.recipe, next.dials, stroke, { names, budget, mesh: currentMesh }); }
+      catch (err) { throw new Error(`patch[${i}]: ${err.message}. ${MANUAL}`); }
       if (Object.keys(fit.moved).length) { next.dials = { ...next.dials, ...fit.moved }; dialsChanged = true; currentMesh = null; }
       const record = solvedRecord(fit); next.strokes[at] = { ...stroke, solved: record };
       solved.push({ id, intent: stroke.intent, ...record, trace: fit.trace });

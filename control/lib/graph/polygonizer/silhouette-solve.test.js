@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { compileLayered } from './station-loft.js';
 import { cameraRecord, strokeCamera } from './stroke-resolve.js';
-import { fitSilhouetteDials, solvableDials, strokeMask, residualOf, solvedRecord } from './silhouette-solve.js';
+import { fitSilhouetteDials, solvableDials, strokeMask, residualOf, solvedRecord, SILHOUETTE_MIN_COVER } from './silhouette-solve.js';
 import { projectVertices } from '../scene/wire-svg.js';
+import { rasterDepth, rasterMask } from '../scene/depth-raster.js';
+import { expandPlan } from './station-loft-plan.js';
+import { heroPlan } from './hero-form.js';
+import { meshSource } from './stroke-resolve.js';
 
 // A convex prism (no detail), so its silhouette from any view IS the convex hull of its projected vertices —
 // the stroke a person would trace around it.
@@ -84,5 +88,28 @@ describe('silhouette-solve — a drawn outline becomes a dial solve', () => {
     const { stroke } = traced('frontal', {}, {});
     expect(() => fitSilhouetteDials(recipe, {}, { ...stroke, intent: 'contour' })).toThrow(/not a silhouette/);
     expect(() => fitSilhouetteDials(recipe, {}, { ...stroke, points: [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]] })).toThrow(/encloses no area/);
+  });
+
+  it('a silhouette is the WHOLE solid\'s outline: a drawing around part of it is refused; a slimmer whole outline solves', () => {
+    // an outline of the body at 0.4 × its size encloses 16 % of its outline: a local drawing, refused by name
+    const small = traced('frontal', {}, {}, 0.4);
+    expect(() => fitSilhouetteDials(recipe, {}, small.stroke, { mesh: small.start })).toThrow(/encloses 1\d % of the solid's outline in its view; a silhouette is the outline of the WHOLE solid there \(at least 25 %\) — for a local change \(a jaw, a cheek\) draw a contour or a brush stroke/);
+    // at 0.6 × (36 %) it is a slimmer body: the solve narrows width toward its bound
+    const slim = traced('frontal', {}, {}, 0.6);
+    const fit = fitSilhouetteDials(recipe, {}, slim.stroke, { mesh: slim.start });
+    expect(fit.dials.width).toBeLessThan(0.6); expect(fit.iou).toBeGreaterThan(fit.before);
+    // the record keeps what the moved dials were, so a solve can be undone by hand
+    const rec = solvedRecord(fit); expect(rec.dialsBefore).toEqual(Object.fromEntries(Object.keys(fit.moved).map((n) => [n, n === 'width' ? 1 : 0])));
+    expect(SILHOUETTE_MIN_COVER).toBe(0.25);
+  });
+
+  it('the review\'s case: a frontal outline around a hero\'s head alone no longer drives bulk and stance to their bounds', () => {
+    const hero = expandPlan(heroPlan({ cast: 'male' })); const mesh = compileLayered(hero, {});
+    const camera = cameraRecord(mesh, 'frontal'); const cam = strokeCamera({ view: 'frontal', camera }, mesh); const res = 128;
+    const got = rasterMask(rasterDepth(meshSource(mesh), cam, res)); let top = res, x0 = res, x1 = -1;
+    for (let k = 0; k < got.length; k++) if (got[k]) top = Math.min(top, Math.floor(k / res));
+    for (let j = top; j < top + 14; j++) for (let i = 0; i < res; i++) if (got[j * res + i]) { x0 = Math.min(x0, i); x1 = Math.max(x1, i); }
+    const head = { id: 'jaw', view: 'frontal', intent: 'silhouette', camera, points: [[x0 / res, top / res], [(x1 + 1) / res, top / res], [(x1 + 1) / res, (top + 14) / res], [x0 / res, (top + 14) / res]].map((p) => [...p, 0.5]) };
+    expect(() => fitSilhouetteDials(hero, {}, head, { mesh })).toThrow(/stroke 'jaw' encloses \d+ % of the solid's outline/);
   });
 });

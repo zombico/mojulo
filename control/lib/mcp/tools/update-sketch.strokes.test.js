@@ -57,6 +57,8 @@ describe('update_sketch on layered rows — strokes', () => {
     const stored = SketchRepository.getByRef('lay-solve').manifest;
     expect(stored.dials).not.toEqual({ width: 1, lift: 0 }); expect(stored.dials).toEqual(expect.objectContaining(S.dials));
     expect(stored.strokes[0].solved).toMatchObject({ iou: S.iou, before: S.before }); expect(stored.ledger.strokes.s1.solved.iou).toBe(S.iou);
+    // the moved dials' earlier values ride the record (a layered row keeps no revisions)
+    expect(stored.strokes[0].solved.dialsBefore).toEqual(Object.fromEntries(Object.keys(S.dials).map((n) => [n, { width: 1, lift: 0 }[n]])));
     // (the layered kind keeps no revision history today — REVISIONED_KINDS is a decision, not a default; the stroke record is the trail)
     // a later dial edit keeps the stroke and its solve, and re-stamps the resolve
     const r2 = await updateSketchHandler({ ref: 'lay-solve', patch: [{ op: 'set', path: '/dials/lift', value: 0.2 }] });
@@ -151,6 +153,9 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s9' }] })).rejects.toThrow(/no stroke 's9'/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/f1' }] })).rejects.toThrow(/silhouette, contour and brush strokes solve today/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve' }] })).rejects.toThrow(/from: '\/strokes\/<id>'/);
+    // an outline around a small part of the body is not its silhouette: refused, and no dial moves
+    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'jaw', view: 'frontal', intent: 'silhouette', points: [[0.45, 0.45], [0.55, 0.45], [0.55, 0.5], [0.45, 0.5]] } }] });
+    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/jaw' }] })).rejects.toThrow(/patch\[0\]: silhouette-solve: stroke 'jaw' encloses \d+ % of the solid's outline[\s\S]*contour or a brush stroke/);
     // a key the stroke's solver does not read is refused by name, not ignored
     await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: OUTLINE }] });
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s1', height: 0.1 }] })).rejects.toThrow(/a silhouette solve reads from, path, dials, budget — not height/);
