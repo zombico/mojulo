@@ -18,6 +18,7 @@ import { terrainKernel } from './terrain-kernel.js';
 import { slicedTerrainFaces, sliceLevels } from '../polygonizer/landform-mesh.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
 import { makeLight } from '../polygonizer/vexar.js';
+import * as dmath from '../../util/dmath.js';
 
 export const TERRAIN_LOD_DEFAULTS = Object.freeze({ n: 32, split: 1.6, minSize: 32, maxChunks: 520, budgetMs: 8, horizonScale: 4, skirt: 0.02 });
 const EYE = 1.7;
@@ -67,7 +68,7 @@ export function terrainPageChannel(field, lod = {}) {
   const w = b.x[1] - b.x[0], h = b.y[1] - b.y[0], world = Math.max(w, h); const none = field.meta.horizon === 'none';
   let size = o.minSize; const target = none ? world * 1.02 : world * o.horizonScale; while (size < target) size *= 2;   // leaves are exactly minSize
   // a deeper tree (a continent's) holds more chunks at once: about forty a level from the root to the leaves
-  if (lod.maxChunks === undefined) o.maxChunks = Math.max(o.maxChunks, 40 * Math.round(Math.log2(size / o.minSize) + 1));
+  if (lod.maxChunks === undefined) o.maxChunks = Math.max(o.maxChunks, 40 * Math.round(dmath.log2(size / o.minSize) + 1));
   const sky = field.meta.sky;
   return {
     kernel: field.kernelSource || terrainKernel.toString(), K: field.pageConfig(),
@@ -183,7 +184,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   // lower by the curvature; the walk and the bookmarks stand on it
   const surf = (x, y) => {
     if (!PLN) return [x, y, field.groundAt(x, y)];
-    const r = Math.hypot(x, y), th = r / PLN.R, c = r > 0 ? x / r : 1, sn = r > 0 ? y / r : 0, d = [Math.sin(th) * c, Math.sin(th) * sn, Math.cos(th)];
+    const r = dmath.hypot(x, y), th = r / PLN.R, c = r > 0 ? x / r : 1, sn = r > 0 ? y / r : 0, d = [dmath.sin(th) * c, dmath.sin(th) * sn, dmath.cos(th)];
     const h = field.kernel.planetAt(...d)[0], rr = PLN.R + h; return [d[0] * rr, d[1] * rr, d[2] * rr - PLN.R];
   };
   const [wx, wy, gz] = surf(sx, sy); const zMid = (b.z[0] + b.z[1]) / 2;
@@ -202,7 +203,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   cameras.push(
     ...(PLN ? [{ name: 'planet', worldFraming: { cameraPosition: [0.36 * 3.2 * PLN.R, 0.78 * 3.2 * PLN.R, 0.51 * 3.2 * PLN.R - PLN.R], lookAt: [0, 0, -PLN.R], horizontalFov: 45 } }] : []),
     ...cities.flatMap(({ prep: p, walk: st }, i) => {
-      const nm = i ? `city-${i + 1}` : 'city', r = p.rect, cz = field.groundAt(p.center[0], p.center[1]), R = Math.hypot(r.w, r.d);
+      const nm = i ? `city-${i + 1}` : 'city', r = p.rect, cz = field.groundAt(p.center[0], p.center[1]), R = dmath.hypot(r.w, r.d);
       return [
         ...(st ? [{ name: nm, worldFraming: { cameraPosition: [st.at[0] + 0.37, st.at[1] + 0.21, st.z + EYE], lookAt: [st.look[0], st.look[1], field.groundAt(st.look[0], st.look[1]) + EYE + 4], horizontalFov: 70 } }] : []),
         { name: `${nm}-aerial`, worldFraming: { cameraPosition: [p.center[0] + 0.55 * R, p.center[1] + 0.75 * R, cz + 0.55 * R], lookAt: [p.center[0], p.center[1], cz], horizontalFov: 55 } },

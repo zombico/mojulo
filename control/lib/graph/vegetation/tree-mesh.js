@@ -6,6 +6,7 @@
 import { elastica } from './mechanics.js';
 import { mulberry32, vec, rot } from './grow.js';
 import { mix } from './util.js';
+import * as dmath from '../../util/dmath.js';
 const { add, sub, mul, dot, cross, len, unit } = vec;
 const UP = [0, 0, 1];
 const DEG = Math.PI / 180;
@@ -37,7 +38,7 @@ export function tubeTris(chain, { sidesFor, colorFor }) {
   let N = perp(T[0]); const frames = [];
   for (let i = 0; i < m; i++) { N = unit(sub(N, mul(T[i], dot(N, T[i])))); if (len(N) < 1e-6) N = perp(T[i]); frames.push([N, cross(T[i], N)]); }
   const k = sidesFor(Math.max(...rs), chain);
-  const ring = (i) => { const [n, b] = frames[i]; const out = []; for (let j = 0; j < k; j++) { const a = (2 * Math.PI * j) / k; out.push(add(pts[i], add(mul(n, rs[i] * Math.cos(a)), mul(b, rs[i] * Math.sin(a))))); } return out; };
+  const ring = (i) => { const [n, b] = frames[i]; const out = []; for (let j = 0; j < k; j++) { const a = (2 * Math.PI * j) / k; out.push(add(pts[i], add(mul(n, rs[i] * dmath.cos(a)), mul(b, rs[i] * dmath.sin(a))))); } return out; };
   const tris = []; let prev = ring(0);
   for (let i = 1; i < m; i++) {
     const cur = i === m - 1 && !chain.continues ? null : ring(i); const c = colorFor(chain, i);
@@ -58,7 +59,7 @@ export function barkQuads(chain, { sidesFor, tile, color, key = 'bark' }) {
   let N = perp(T[0]); const frames = [];
   for (let i = 0; i < m; i++) { N = unit(sub(N, mul(T[i], dot(N, T[i])))); if (len(N) < 1e-6) N = perp(T[i]); frames.push([N, cross(T[i], N)]); }
   const k = sidesFor(Math.max(...rs), chain);
-  const ring = (i) => { const [n, b] = frames[i]; const out = []; for (let j = 0; j <= k; j++) { const a = (2 * Math.PI * j) / k; out.push(add(pts[i], add(mul(n, rs[i] * Math.cos(a)), mul(b, rs[i] * Math.sin(a))))); } return out; };
+  const ring = (i) => { const [n, b] = frames[i]; const out = []; for (let j = 0; j <= k; j++) { const a = (2 * Math.PI * j) / k; out.push(add(pts[i], add(mul(n, rs[i] * dmath.cos(a)), mul(b, rs[i] * dmath.sin(a))))); } return out; };
   const quads = []; let prev = ring(0), v0 = 0;
   for (let i = 1; i < m; i++) {
     const cur = ring(i); const v1 = v0 + len(sub(pts[i], pts[i - 1])) / tile; const circ = (Math.PI * (rs[i] + rs[i - 1])) / tile;
@@ -101,7 +102,7 @@ export function leafTris(plant, { seed = 7, scale = 1, only = null } = {}) {
     for (let j = 0; j < n.leaves; j++) {
       const size = arch.leafSize * (0.8 + 0.4 * rng()) * scale; const phi = (n.id * 137.5 + j * 180 + rng() * 40) * DEG;
       const [u] = [perp(n.dir)]; const w = cross(n.dir, u);
-      let ld = unit(add(mul(n.dir, Math.cos(55 * DEG)), mul(add(mul(u, Math.cos(phi)), mul(w, Math.sin(phi))), Math.sin(55 * DEG))));
+      let ld = unit(add(mul(n.dir, dmath.cos(55 * DEG)), mul(add(mul(u, dmath.cos(phi)), mul(w, dmath.sin(phi))), dmath.sin(55 * DEG))));
       ld = unit(add(ld, [0, 0, -0.25]));                               // leaves hang a little on their petiole
       const side = unit(cross(ld, UP)); const sd = len(side) < 1e-6 ? u : side;
       const b0 = add(n.pos, mul(ld, size * 0.25)); const tip = add(b0, mul(ld, size)); const mid = add(b0, mul(ld, size * 0.4));
@@ -117,11 +118,11 @@ export function leafTris(plant, { seed = 7, scale = 1, only = null } = {}) {
 function frondTris(n, arch, rng, tone) {
   const L = arch.leafSize * (0.85 + 0.3 * rng()); const B = 2.5 + 5 * rng(); const th0 = (35 + 30 * rng()) * DEG;
   const e = elastica({ B, theta0: th0, n: 24 }); const az = (n.id * 137.5) * DEG;
-  const hor = [Math.cos(az), Math.sin(az), 0]; const side = [-Math.sin(az), Math.cos(az), 0];
+  const hor = [dmath.cos(az), dmath.sin(az), 0]; const side = [-dmath.sin(az), dmath.cos(az), 0];
   const pts = e.pts.filter((_, i) => i % 2 === 0).map(([x, y]) => add(n.pos, add(mul(hor, x * L), [0, 0, y * L])));
   const tris = []; const c = mix(TONES.frond, TONES.leafLit, tone - 0.2);
   for (let i = 0; i < pts.length - 1; i++) {
-    const s0 = i / (pts.length - 1), s1 = (i + 1) / (pts.length - 1); const w0 = 0.22 * L * Math.sin(Math.PI * Math.min(0.95, s0 + 0.05)) ** 0.6, w1 = 0.22 * L * Math.sin(Math.PI * Math.min(0.95, s1 + 0.05)) ** 0.6;
+    const s0 = i / (pts.length - 1), s1 = (i + 1) / (pts.length - 1); const w0 = 0.22 * L * dmath.pow(dmath.sin(Math.PI * Math.min(0.95, s0 + 0.05)), 0.6), w1 = 0.22 * L * dmath.pow(dmath.sin(Math.PI * Math.min(0.95, s1 + 0.05)), 0.6);
     for (const sg of [1, -1]) {
       const k0 = add(pts[i], add(mul(side, sg * w0), [0, 0, -0.25 * w0])), k1 = add(pts[i + 1], add(mul(side, sg * w1), [0, 0, -0.25 * w1]));
       tris.push({ p: [pts[i], k0, k1], c, kind: 'leaf' }, { p: [pts[i], k1, pts[i + 1]], c, kind: 'leaf' });
@@ -134,8 +135,8 @@ function frondTris(n, arch, rng, tone) {
 export function tuftTris({ blades = 60, height = 0.5, width = 0.008, B = [4, 30], seed = 1, spread = 0.04 } = {}) {
   const rng = mulberry32(seed); const tris = [];
   for (let b = 0; b < blades; b++) {
-    const Bi = B[0] * Math.pow(B[1] / B[0], rng()); const th0 = (58 + 30 * rng()) * DEG; const L = height * (0.6 + 0.7 * rng());
-    const e = elastica({ B: Bi, theta0: th0, n: 16 }); const az = rng() * 2 * Math.PI; const hor = [Math.cos(az), Math.sin(az), 0]; const side = [-hor[1], hor[0], 0];
+    const Bi = B[0] * dmath.pow(B[1] / B[0], rng()); const th0 = (58 + 30 * rng()) * DEG; const L = height * (0.6 + 0.7 * rng());
+    const e = elastica({ B: Bi, theta0: th0, n: 16 }); const az = rng() * 2 * Math.PI; const hor = [dmath.cos(az), dmath.sin(az), 0]; const side = [-hor[1], hor[0], 0];
     const root = [spread * (rng() - 0.5), spread * (rng() - 0.5), 0];
     const pts = e.pts.filter((_, i) => i % 2 === 0).map(([x, y]) => add(root, add(mul(hor, x * L), [0, 0, y * L])));
     for (let i = 0; i < pts.length - 1; i++) {

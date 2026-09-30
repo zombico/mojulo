@@ -19,6 +19,7 @@
 import { ARCHITECTURES, mulberry32, vec } from './grow.js';
 import { tubeTris, barkQuads } from './tree-mesh.js';
 import { mix } from './util.js';
+import * as dmath from '../../util/dmath.js';
 
 const { add, mul } = vec;
 const TONE = { root: [132, 104, 80], rootLit: [156, 128, 100], pillar: [118, 112, 104], core: [58, 46, 36], lattice: [128, 120, 108], fin: [120, 114, 106] };
@@ -88,9 +89,9 @@ export function latticeTris(base, R, top, { strands = 6, turns = null, sides = 4
     const a0 = (2 * Math.PI * (s + 0.5 * (hand < 0))) / strands + 0.3 * (rng() - 0.5); const wob = 0.12 * rng();
     const pts = [], rs = [];
     for (let i = 0; i <= segs; i++) {
-      const u = i / segs, z = u * top, a = a0 + hand * 2 * Math.PI * t * u + wob * Math.sin(9 * u + s);
-      const rr = R * (1 + 0.35 * Math.pow(1 - u, 3));                      // the column flares where the roots enter the soil
-      pts.push([base[0] + rr * Math.cos(a), base[1] + rr * Math.sin(a), z]); rs.push(R * (0.26 + 0.2 * Math.pow(1 - u, 2)));
+      const u = i / segs, z = u * top, a = a0 + hand * 2 * Math.PI * t * u + wob * dmath.sin(9 * u + s);
+      const rr = R * (1 + 0.35 * dmath.pow(1 - u, 3));                      // the column flares where the roots enter the soil
+      pts.push([base[0] + rr * dmath.cos(a), base[1] + rr * dmath.sin(a), z]); rs.push(R * (0.26 + 0.2 * dmath.pow(1 - u, 2)));
     }
     for (const x of tubeTris({ pts, rs, continues: true }, { sidesFor: () => sides, colorFor: () => TONE.lattice })) tris.push(x);
   }
@@ -103,15 +104,15 @@ export function latticeTris(base, R, top, { strands = 6, turns = null, sides = 4
  * crown's offset), the tension side. → tris.
  */
 export function buttressTris(base, r, h, { n = 5, lean = [0, 0], seed = 1, segs = 7 } = {}) {
-  const rng = mulberry32((seed * 2246822519 + 5) >>> 0); const tris = []; const la = Math.hypot(lean[0], lean[1]);
-  const away = la > 1e-6 ? Math.atan2(-lean[1], -lean[0]) : 0; const reach = 1.4 * h;
+  const rng = mulberry32((seed * 2246822519 + 5) >>> 0); const tris = []; const la = dmath.hypot(lean[0], lean[1]);
+  const away = la > 1e-6 ? dmath.atan2(-lean[1], -lean[0]) : 0; const reach = 1.4 * h;
   for (let k = 0; k < n; k++) {
     const az = away + (2 * Math.PI * k) / n + 0.35 * (rng() - 0.5);
-    const cosd = Math.cos(az - away); const size = la > 1e-6 ? 0.6 + 0.4 * Math.max(0, cosd) + 0.15 * rng() : 0.75 + 0.3 * rng();
-    const d = [Math.cos(az), Math.sin(az), 0], sd = [-Math.sin(az), Math.cos(az), 0]; const th = Math.max(0.04, 0.22 * r) * size;
+    const cosd = dmath.cos(az - away); const size = la > 1e-6 ? 0.6 + 0.4 * Math.max(0, cosd) + 0.15 * rng() : 0.75 + 0.3 * rng();
+    const d = [dmath.cos(az), dmath.sin(az), 0], sd = [-dmath.sin(az), dmath.cos(az), 0]; const th = Math.max(0.04, 0.22 * r) * size;
     const H = h * size, L = reach * size; const edge = [];
     for (let i = 0; i <= segs; i++) {
-      const u = i / segs; const x = r * 0.7 + u * L; const z = H * (Math.exp(-3.2 * u) - Math.exp(-3.2)) / (1 - Math.exp(-3.2));
+      const u = i / segs; const x = r * 0.7 + u * L; const z = H * (dmath.exp(-3.2 * u) - dmath.exp(-3.2)) / (1 - dmath.exp(-3.2));
       edge.push([x, z, th * (1 - 0.7 * u)]);
     }
     const at = (x, z, s) => add(add(base, mul(d, x)), add(mul(sd, s), [0, 0, z]));

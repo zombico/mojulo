@@ -26,6 +26,7 @@
  */
 import { priorityFlood, drainage } from '../polygonizer/terrain-erosion.js';
 import { atlasKernel } from './atlas-kernel.js';
+import * as dmath from '../../util/dmath.js';
 
 // ── the size bands: metres; the first size of each feature is its default ────────────────────────────────────────────
 export const ATLAS_SIZES = Object.freeze({
@@ -64,10 +65,10 @@ function hashSeed(seed) {
   const t = String(seed ?? 'atlas'); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0;
 }
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const pick = (rng, [lo, hi]) => lo * (hi / lo) ** (0.3 + 0.4 * rng());   // geometric, within the band's middle
+const pick = (rng, [lo, hi]) => lo * dmath.pow(hi / lo, 0.3 + 0.4 * rng());   // geometric, within the band's middle
 /** The noise ladder: wavelengths S/2 down to half a metre, amplitudes on one spectrum (H 0.75 below 10 km, 0.3 above). */
 export function noiseLadder(S) {
-  const sig = (L) => (L <= 1e4 ? 22 * (L / 1000) ** 0.75 : 22 * 10 ** 0.75 * (L / 1e4) ** 0.3);
+  const sig = (L) => (L <= 1e4 ? 22 * dmath.pow(L / 1000, 0.75) : 22 * dmath.pow(10, 0.75) * dmath.pow(L / 1e4, 0.3));
   const out = []; for (let L = S / 2; L >= MIN_L; L /= 2) out.push([L, sig(L)]); return out;
 }
 const cutOf = (oct, dx) => { let k = 0; while (k < oct.length && oct[k][0] >= 2 * dx) k++; return k; };
@@ -106,7 +107,7 @@ function fractalPath(a, b, rng, { depth = 7, amp = 0.18, decay = 0.55 } = {}) {
   for (let d = 0; d < depth; d++) {
     const nx = [];
     for (let i = 0; i + 1 < pts.length; i++) {
-      const p = pts[i], q = pts[i + 1], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy), o = (rng() * 2 - 1) * A * L;
+      const p = pts[i], q = pts[i + 1], dx = q[0] - p[0], dy = q[1] - p[1], L = dmath.hypot(dx, dy), o = (rng() * 2 - 1) * A * L;
       nx.push(p, [(p[0] + q[0]) / 2 - (dy / (L || 1)) * o, (p[1] + q[1]) / 2 + (dx / (L || 1)) * o]);
     }
     nx.push(pts[pts.length - 1]); pts = nx; A *= decay;
@@ -116,11 +117,11 @@ function fractalPath(a, b, rng, { depth = 7, amp = 0.18, decay = 0.55 } = {}) {
 function resample(pts, step) {
   const out = [pts[0]]; let carry = 0;
   for (let i = 0; i + 1 < pts.length; i++) {
-    const p = pts[i], q = pts[i + 1], L = Math.hypot(q[0] - p[0], q[1] - p[1]); let s = step - carry;
+    const p = pts[i], q = pts[i + 1], L = dmath.hypot(q[0] - p[0], q[1] - p[1]); let s = step - carry;
     while (s <= L) { out.push([p[0] + ((q[0] - p[0]) * s) / L, p[1] + ((q[1] - p[1]) * s) / L]); s += step; }
     carry = L - (s - step);
   }
-  const last = pts[pts.length - 1], tail = out[out.length - 1]; if (Math.hypot(last[0] - tail[0], last[1] - tail[1]) > step * 0.25) out.push(last); else out[out.length - 1] = last;
+  const last = pts[pts.length - 1], tail = out[out.length - 1]; if (dmath.hypot(last[0] - tail[0], last[1] - tail[1]) > step * 0.25) out.push(last); else out[out.length - 1] = last;
   return out;
 }
 /** Nearest point on a polyline (with a coarse bucket skip): → [distance, along-fraction 0..1, segment index]. */
@@ -133,7 +134,7 @@ function polyNear(P, x, y) {
   }
   return [Math.sqrt(best), (P.cum[bi] + bt * (P.cum[bi + 1] - P.cum[bi])) / P.cum[P.cum.length - 1], bi];
 }
-const withCum = (pts) => { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, cum }; };
+const withCum = (pts) => { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dmath.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, cum }; };
 
 // ── the composition ──────────────────────────────────────────────────────────────────────────────────────────────────
 function extentOf(f, v) {
@@ -173,7 +174,7 @@ function planFeatures(world) {
     let best = null; for (const c of cands) { const r = [c[0] - half, c[1] - half, c[0] + half, c[1] + half], o = overlap(r); if (!best || o < best.o - 1e-6) best = { c, o }; }
     return best.c;
   };
-  const rot = (u, a) => [u[0] * Math.cos(a) - u[1] * Math.sin(a), u[0] * Math.sin(a) + u[1] * Math.cos(a)];
+  const rot = (u, a) => [u[0] * dmath.cos(a) - u[1] * dmath.sin(a), u[0] * dmath.sin(a) + u[1] * dmath.cos(a)];
   const coastDir = coasts.length ? ATLAS_SIDES[coasts[0].side] : null;
   // the river's mouth side: the first coast, else south; its source: the far side
   const mouthDir = coastDir || [0, -1];
@@ -198,10 +199,10 @@ function planFeatures(world) {
     if (f.feature === 'range') {
       const riv = placed.rivers[0];
       if (isAnchor || !riv) { const ax = axis || (coastDir ? [coastDir[1], -coastDir[0]] : rot([1, 0], rng() * Math.PI)); const c = at || (isAnchor ? [0, 0] : (coastDir ? [-coastDir[0] * 0.28 * S, -coastDir[1] * 0.28 * S] : seatFor(f.v.width))); rangeAt(f, c, ax); }
-      else { const s = riv.pts[0], d = [riv.pts[1][0] - s[0], riv.pts[1][1] - s[1]], l = Math.hypot(...d); rangeAt(f, at || [s[0] - (d[0] / l) * 0.2 * f.v.width, s[1] - (d[1] / l) * 0.2 * f.v.width], axis || [-d[1] / l, d[0] / l]); }
+      else { const s = riv.pts[0], d = [riv.pts[1][0] - s[0], riv.pts[1][1] - s[1]], l = dmath.hypot(...d); rangeAt(f, at || [s[0] - (d[0] / l) * 0.2 * f.v.width, s[1] - (d[1] / l) * 0.2 * f.v.width], axis || [-d[1] / l, d[0] / l]); }
     } else if (f.feature === 'lake') {
       const riv = placed.rivers[0];
-      if (!isAnchor && riv && !at) { const i = Math.floor(riv.pts.length * (0.5 + 0.2 * rng())), p = riv.pts[i], q = riv.pts[Math.min(riv.pts.length - 1, i + 3)]; const k = lakeAt(f, p, Math.atan2(q[1] - p[1], q[0] - p[0])); riv.lakes.push(k); }
+      if (!isAnchor && riv && !at) { const i = Math.floor(riv.pts.length * (0.5 + 0.2 * rng())), p = riv.pts[i], q = riv.pts[Math.min(riv.pts.length - 1, i + 3)]; const k = lakeAt(f, p, dmath.atan2(q[1] - p[1], q[0] - p[0])); riv.lakes.push(k); }
       else lakeAt(f, at || (isAnchor ? [0.04 * S * (rng() - 0.5), 0.04 * S * (rng() - 0.5)] : seatFor(f.v.length / 2)));
     } else if (f.feature === 'plateau') {
       const c = at || (isAnchor ? [0, 0] : seatFor(f.v.size / 2)); placed.plateaus.push({ c, r: f.v.size / 2, h: f.v.height, seed: (seed + 43 * (placed.plateaus.length + 1)) % 100003 }); claims.push([c[0] - f.v.size / 2, c[1] - f.v.size / 2, c[0] + f.v.size / 2, c[1] + f.v.size / 2]);
@@ -218,8 +219,8 @@ function planFeatures(world) {
       let src;
       if (range && !isAnchor) { const m = range.pts[3]; src = [m[0] + (mouth[0] - m[0]) * 0.12, m[1] + (mouth[1] - m[1]) * 0.12]; }
       else {
-        let dir = lake ? [lake.c[0], lake.c[1]] : [mouthDir[0], mouthDir[1]]; let l = Math.hypot(...dir);
-        if (l < 1e-9) { const a = rng() * 2 * Math.PI; dir = [Math.cos(a), Math.sin(a)]; l = 1; }
+        let dir = lake ? [lake.c[0], lake.c[1]] : [mouthDir[0], mouthDir[1]]; let l = dmath.hypot(...dir);
+        if (l < 1e-9) { const a = rng() * 2 * Math.PI; dir = [dmath.cos(a), dmath.sin(a)]; l = 1; }
         src = [mouth[0] - (dir[0] / l) * chord, mouth[1] - (dir[1] / l) * chord];
       }
       src = [Math.max(-0.47 * S, Math.min(0.47 * S, src[0])), Math.max(-0.47 * S, Math.min(0.47 * S, src[1]))];
@@ -241,7 +242,7 @@ function planFeatures(world) {
       const d = ATLAS_SIDES[c.side], along = -d[1] * x + d[0] * y, dist = H - (d[0] * x + d[1] * y);
       const wig = (0.05 * S * NZ.band(along, 1.3e7, 1, Math.min(cut, 10))) / (1.6 * oct[1][1]);
       const dc = dist - 0.15 * S + wig;
-      const zc = dc >= 0 ? tierH * (1 - Math.exp(-dc / (0.18 * S))) : -150 * smooth(0, 0.03 * S, -dc) - 2800 * smooth(0.03 * S, 0.12 * S, -dc) - 5;
+      const zc = dc >= 0 ? tierH * (1 - dmath.exp(-dc / (0.18 * S))) : -150 * smooth(0, 0.03 * S, -dc) - 2800 * smooth(0.03 * S, 0.12 * S, -dc) - 5;
       if (zc < z) z = zc;
     }
     return z;
@@ -268,19 +269,19 @@ function planFeatures(world) {
     let z = 0;
     for (const R of placed.ranges) {
       const [d, t] = polyNear(R, x, y); if (d > 1.6 * R.W) continue;
-      const env = Math.exp(-2 * (d / (R.W / 2)) ** 2) * smooth(0, 0.14, t) * smooth(1, 0.86, t);
+      const env = dmath.exp(-2 * (d / (R.W / 2)) ** 2) * smooth(0, 0.14, t) * smooth(1, 0.86, t);
       // valleys cut deep between sharp crests: the ridged value raised to 1.4 (a floor at 6 % of the peak inside the core)
-      z += R.peak * env * (0.06 + 1.15 * ridged(x, y, R.W, cut, R.seed) ** 1.4) + 0.14 * R.peak * Math.exp(-((d / R.W) ** 2)) * smooth(0, 0.1, t) * smooth(1, 0.9, t);
+      z += R.peak * env * (0.06 + 1.15 * dmath.pow(ridged(x, y, R.W, cut, R.seed), 1.4)) + 0.14 * R.peak * dmath.exp(-((d / R.W) ** 2)) * smooth(0, 0.1, t) * smooth(1, 0.9, t);
     }
     for (const P of placed.plateaus) {
-      const d = Math.hypot(x - P.c[0], y - P.c[1]); if (d > 1.5 * P.r) continue;
+      const d = dmath.hypot(x - P.c[0], y - P.c[1]); if (d > 1.5 * P.r) continue;
       const edge = P.r * (1 + 0.22 * NZ.band(x * 1.7 + 911, y * 1.7, Math.max(0, cutOf(oct, P.r / 2) - 1), Math.min(cut, cutOf(oct, P.r / 60))) / 200);
       z += P.h * smooth(-0.012 * P.r, 0.012 * P.r, edge - d);
     }
     for (const V of placed.volcanoes) {
-      const d = Math.hypot(x - V.c[0], y - V.c[1]); if (d > V.rb) continue;
-      z += V.h * (1 - d / V.rb) ** (V.shield ? 1.1 : 1.7);
-      if (d > 0.06 * V.rb) { const th = Math.atan2(y - V.c[1], x - V.c[0]), wob = NZ.band(d * 0.8 + 3.3e5, V.seed, 2, Math.min(cut, 12)) / (2 * oct[2][1]); let g = 0; for (const [m, a] of [[23, 1], [47, 0.5], [97, 0.25]]) g += a * (1 - Math.abs(Math.sin(m * th / 2 + wob * m * 0.3))) ** 3; z -= 0.035 * V.h * (d / V.rb) * (1 - d / V.rb) * 4 * g; }
+      const d = dmath.hypot(x - V.c[0], y - V.c[1]); if (d > V.rb) continue;
+      z += V.h * dmath.pow(1 - d / V.rb, V.shield ? 1.1 : 1.7);
+      if (d > 0.06 * V.rb) { const th = dmath.atan2(y - V.c[1], x - V.c[0]), wob = NZ.band(d * 0.8 + 3.3e5, V.seed, 2, Math.min(cut, 12)) / (2 * oct[2][1]); let g = 0; for (const [m, a] of [[23, 1], [47, 0.5], [97, 0.25]]) g += a * dmath.pow(1 - Math.abs(dmath.sin(m * th / 2 + wob * m * 0.3)), 3); z -= 0.035 * V.h * (d / V.rb) * (1 - d / V.rb) * 4 * g; }
       const cr = 0.05 * V.rb; if (d < cr && !V.shield) z -= 0.09 * V.h * (1 - (d / cr) ** 2);
     }
     return z;
@@ -288,11 +289,11 @@ function planFeatures(world) {
   const A0 = (x, y, cut) => baseZ(x, y, cut) + featuresZ(x, y, cut);
   // lakes: a basin below its level, a rim the water can leave only where a river cuts it
   for (const k of placed.lakes) {
-    let lo = Infinity; for (let i = 0; i < 24; i++) { const a = (i / 24) * 2 * Math.PI, p = [k.c[0] + Math.cos(a) * Math.cos(k.ang) * k.a - Math.sin(a) * Math.sin(k.ang) * k.b, k.c[1] + Math.cos(a) * Math.sin(k.ang) * k.a + Math.sin(a) * Math.cos(k.ang) * k.b]; lo = Math.min(lo, A0(p[0], p[1], 6)); }
+    let lo = Infinity; for (let i = 0; i < 24; i++) { const a = (i / 24) * 2 * Math.PI, p = [k.c[0] + dmath.cos(a) * dmath.cos(k.ang) * k.a - dmath.sin(a) * dmath.sin(k.ang) * k.b, k.c[1] + dmath.cos(a) * dmath.sin(k.ang) * k.a + dmath.sin(a) * dmath.cos(k.ang) * k.b]; lo = Math.min(lo, A0(p[0], p[1], 6)); }
     k.level = Math.max(coasts.length ? 2 : -1e9, lo - 0.02 * k.depth);
   }
   const lakeRho = (k, x, y, cut) => {
-    const dx = x - k.c[0], dy = y - k.c[1], u = (dx * Math.cos(k.ang) + dy * Math.sin(k.ang)) / k.a, v = (-dx * Math.sin(k.ang) + dy * Math.cos(k.ang)) / k.b;
+    const dx = x - k.c[0], dy = y - k.c[1], u = (dx * dmath.cos(k.ang) + dy * dmath.sin(k.ang)) / k.a, v = (-dx * dmath.sin(k.ang) + dy * dmath.cos(k.ang)) / k.b;
     const rho = Math.sqrt(u * u + v * v); if (rho > 1.8) return rho;
     const k0 = cutOf(oct, k.b); return rho * (1 + (0.16 * NZ.band(x + 7.7e5, y - 3.1e5, k0, Math.min(cut, cutOf(oct, k.b / 40)))) / (1.5 * oct[Math.min(oct.length - 1, k0)][1]));
   };
@@ -303,7 +304,7 @@ function planFeatures(world) {
     const prof = []; let run = zs;
     for (let i = 0; i < n; i++) {
       const t = R.cum[i] / R.cum[n - 1], p = R.pts[i];
-      let z = zm + (zs - zm) * (1 - t) ** 2.1, inLake = null;
+      let z = zm + (zs - zm) * dmath.pow(1 - t, 2.1), inLake = null;
       if (withLakes) for (const k of R.lakes) if (lakeRho(k, p[0], p[1], 5) < 1) inLake = k;
       if (inLake) z = inLake.level;
       run = Math.min(run, A0(p[0], p[1], 5) - 3, z); if (inLake) run = Math.min(run, inLake.level);
@@ -317,7 +318,7 @@ function planFeatures(world) {
       for (const k of R.lakes) { const e = R.pts.findIndex((p) => lakeRho(k, p[0], p[1], 5) < 1); if (e >= 0) k.level = p0[e] - 1; }
     }
     R.prof = profile(R, true);
-    R.halfW = (t) => 0.5 * R.mouthW * (0.12 + 0.88 * t ** 0.7);
+    R.halfW = (t) => 0.5 * R.mouthW * (0.12 + 0.88 * dmath.pow(t, 0.7));
     R.flood = (t) => Math.max(10 * R.halfW(t), 60);                     // the floodplain's half-width
     R.side = S > 8e5 ? 0.02 : S > 5e4 ? 0.05 : 0.1;                     // the valley sides' slope
   }
@@ -325,7 +326,7 @@ function planFeatures(world) {
     let z = A0(x, y, cut);
     for (const k of placed.lakes) {
       const rho = lakeRho(k, x, y, cut); if (rho > 1.6) continue;
-      if (rho < 1) z = Math.min(z, k.level - 1.5 - k.depth * (1 - rho * rho) ** 1.3);   // a shelving shore, deep in the middle
+      if (rho < 1) z = Math.min(z, k.level - 1.5 - k.depth * dmath.pow(1 - rho * rho, 1.3));   // a shelving shore, deep in the middle
       else z = Math.max(z, k.level + 3 + 0.004 * (rho - 1) * k.b);        // a low rim: the water leaves only where a river cuts it
     }
     for (const R of placed.rivers) {
@@ -357,11 +358,11 @@ function erodeLevel(z, n, dx, { steps, strength = 0.6, m = 0.5, inflow = null, t
     const Ac = Math.max(2, 0.002 * N);
     for (const k of order) {
       const r = rec[k]; if (r < 0 || area[k] <= Ac || z[k] <= 0 || (noCut && noCut[k])) continue;
-      const F = strength * ((area[k] - Ac) / maxA) ** m, zn = (z[k] + F * z[r]) / (1 + F);
+      const F = strength * dmath.pow((area[k] - Ac) / maxA, m), zn = (z[k] + F * z[r]) / (1 + F);
       if (zn < z[k] && zn >= z[r]) z[k] = zn;
     }
     if (thermal > 0) {
-      const talus = Math.tan((35 * Math.PI) / 180), dz = new Float64Array(N);
+      const talus = dmath.tan((35 * Math.PI) / 180), dz = new Float64Array(N);
       for (let j = 1; j < n - 1; j++) for (let i = 1; i < n - 1; i++) {
         const k = j * n + i;
         for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const q = (j + dj) * n + (i + di), ex = z[k] - z[q] - talus * dx; if (ex > 0) { const mm = (thermal * ex) / 8; dz[k] -= mm; dz[q] += mm; } }
@@ -391,7 +392,7 @@ function traceRivers(lv, { minArea, exclude, aw, maxRivers = 80 }) {
     const pts = c.map((k) => [x0 + (k % n) * dx, y0 + Math.floor(k / n) * dx]);
     let lvl = c.map((k) => (water[c[c.length - 1]] && k === c[c.length - 1] ? lv.wl[k] : filled[k]));
     for (let i = 1; i < lvl.length; i++) if (lvl[i] > lvl[i - 1]) lvl[i] = lvl[i - 1];
-    const half = c.map((k) => 0.5 * aw * (area[k] * dx * dx) ** 0.4);
+    const half = c.map((k) => 0.5 * aw * dmath.pow(area[k] * dx * dx, 0.4));
     return chaikin(pts, half, lvl, 2);
   });
 }
@@ -417,9 +418,9 @@ function declaredChannel(R, rng) {
   for (let i = 0; i < base.length; i++) {
     const t = cb.cum[i] / cb.cum[cb.cum.length - 1], h = R.halfW(t), la = 22 * h;
     if (i) { am = Math.max(0.25, Math.min(1.3, am + (rng() - 0.5) * 0.18)); wl = Math.max(0.6, Math.min(1.5, wl + (rng() - 0.5) * 0.12)); ph += (2 * Math.PI * (cb.cum[i] - cb.cum[i - 1])) / (la * wl); ps += (rng() - 0.5) * 0.3; }
-    const p = base[i], q = base[Math.min(i + 1, base.length - 1)], o = base[Math.max(i - 1, 0)], dx = q[0] - o[0], dy = q[1] - o[1], l = Math.hypot(dx, dy) || 1;
+    const p = base[i], q = base[Math.min(i + 1, base.length - 1)], o = base[Math.max(i - 1, 0)], dx = q[0] - o[0], dy = q[1] - o[1], l = dmath.hypot(dx, dy) || 1;
     const amp = Math.min(3 * h, 0.5 * R.flood(t)) * am * smooth(0, 0.03, t) * smooth(1, 0.97, t) * (R.fromLake && t < 0.02 ? 0 : 1);
-    const off = amp * (Math.sin(ph) + 0.3 * Math.sin(2 * ph + ps)) / 1.15;
+    const off = amp * (dmath.sin(ph) + 0.3 * dmath.sin(2 * ph + ps)) / 1.15;
     out.pts.push([p[0] - (dy / l) * off, p[1] + (dx / l) * off]); out.half.push(h);
     const [, tt, ii] = polyNear(R, p[0], p[1]); void tt; out.lvl.push(R.prof[ii]);
   }
@@ -517,7 +518,7 @@ export function composeAtlas(world) {
     if (l === 0 && declared.length) {                                   // calibrate widths: the anchor's mouth in its band
       const R = declared[0].R, m = R.pts[R.pts.length - 1], i = Math.round((m[0] - lv.x0) / lv.dx), j = Math.round((m[1] - lv.y0) / lv.dx);
       let A = 0; for (let b = -2; b <= 2; b++) for (let a = -2; a <= 2; a++) { const ii = Math.max(0, Math.min(lv.n - 1, i + a)), jj = Math.max(0, Math.min(lv.n - 1, j + b)); A = Math.max(A, lv.area[jj * lv.n + ii]); }
-      aw.v = R.mouthW / Math.max(1e6, A * lv.dx * lv.dx) ** 0.4;
+      aw.v = R.mouthW / dmath.pow(Math.max(1e6, A * lv.dx * lv.dx), 0.4);
     }
     const exclude = (x, y) => declared.some(({ R }) => { const [d, t] = polyNear(R, x, y); return d < R.flood(t); });
     const minArea = (lv.ext * lv.ext) * (l === 0 ? 0.004 : 0.006);
@@ -556,7 +557,7 @@ export function composeAtlas(world) {
     // the snowline: the climate's, or where the anchor's peaks catch it, whichever is higher (a cordillera is not a
     // snowfield: its valleys and most of its slopes are bare)
     zones: { snow: Math.max(clim.snow, 0.72 * Math.max(0, ...C.placed.ranges.map((r) => r.peak), ...C.placed.volcanoes.map((v) => v.h))), tree: clim.tree }, ramps: clim.ramps,
-    light: (() => { const l = [0.5, 0.32, 0.8], m = Math.hypot(...l); return l.map((v) => v / m); })(), lambert: { ambient: 0.36, gain: 0.72 },
+    light: (() => { const l = [0.5, 0.32, 0.8], m = dmath.hypot(...l); return l.map((v) => v / m); })(), lambert: { ambient: 0.36, gain: 0.72 },
   };
   const out = { K, C, levels, focus, clim, declared };
   MEMO.set(key, out); if (MEMO.size > 4) MEMO.delete(MEMO.keys().next().value);
@@ -566,10 +567,10 @@ export function composeAtlas(world) {
 function focusOf(C) {
   const a = C.anchor, P = C.placed;
   if (a.feature === 'river' && P.rivers[0]) { const R = P.rivers[0], i = Math.floor(R.pts.length * 0.72); return R.pts[i].slice(); }
-  if (a.feature === 'lake' && P.lakes[0]) { const k = P.lakes[0], an = 2.2; return [k.c[0] + Math.cos(an) * Math.cos(k.ang) * k.a * 0.98 - Math.sin(an) * Math.sin(k.ang) * k.b * 0.98, k.c[1] + Math.cos(an) * Math.sin(k.ang) * k.a * 0.98 + Math.sin(an) * Math.cos(k.ang) * k.b * 0.98]; }
+  if (a.feature === 'lake' && P.lakes[0]) { const k = P.lakes[0], an = 2.2; return [k.c[0] + dmath.cos(an) * dmath.cos(k.ang) * k.a * 0.98 - dmath.sin(an) * dmath.sin(k.ang) * k.b * 0.98, k.c[1] + dmath.cos(an) * dmath.sin(k.ang) * k.a * 0.98 + dmath.sin(an) * dmath.cos(k.ang) * k.b * 0.98]; }
   if (a.feature === 'range' && P.ranges[0]) {
     // out from the spine's middle, away from any coast, to where the ground first falls below the treeline: the foot
-    const R = P.ranges[0], m = R.pts[3], q = R.pts[4], d = [q[0] - m[0], q[1] - m[1]], l = Math.hypot(...d) || 1; let nrm = [-d[1] / l, d[0] / l];
+    const R = P.ranges[0], m = R.pts[3], q = R.pts[4], d = [q[0] - m[0], q[1] - m[1]], l = dmath.hypot(...d) || 1; let nrm = [-d[1] / l, d[0] / l];
     if (C.coasts.length) { const cd = ATLAS_SIDES[C.coasts[0].side]; if (nrm[0] * cd[0] + nrm[1] * cd[1] > 0) nrm = [-nrm[0], -nrm[1]]; }
     const tree = (ATLAS_CLIMATES[C.climate] || ATLAS_CLIMATES.temperate).tree;
     // a valley inside the range: the first place out from the spine whose floor (the lowest ground within 3 km) is
@@ -642,19 +643,19 @@ function atlasViews(P, k) {
   if (a === 'river' || a === 'lake') {
     // walk out from the water to dry ground, then stand a little back from the edge, looking at the water
     const r = k.riverAt(f[0], f[1]); let dir;
-    if (a === 'river' && r) { const e = 2; const gx = (k.riverAt(f[0] + e, f[1]) || r)[0] - (k.riverAt(f[0] - e, f[1]) || r)[0], gy = (k.riverAt(f[0], f[1] + e) || r)[0] - (k.riverAt(f[0], f[1] - e) || r)[0]; const l = Math.hypot(gx, gy) || 1; dir = [gx / l, gy / l]; at = [f[0] - dir[0] * (r[0] - 0), f[1] - dir[1] * (r[0] - 0)]; }
-    else { const c = P.C.placed.lakes[0] ? P.C.placed.lakes[0].c : [0, 0], l = Math.hypot(f[0] - c[0], f[1] - c[1]) || 1; dir = [(f[0] - c[0]) / l, (f[1] - c[1]) / l]; }
+    if (a === 'river' && r) { const e = 2; const gx = (k.riverAt(f[0] + e, f[1]) || r)[0] - (k.riverAt(f[0] - e, f[1]) || r)[0], gy = (k.riverAt(f[0], f[1] + e) || r)[0] - (k.riverAt(f[0], f[1] - e) || r)[0]; const l = dmath.hypot(gx, gy) || 1; dir = [gx / l, gy / l]; at = [f[0] - dir[0] * (r[0] - 0), f[1] - dir[1] * (r[0] - 0)]; }
+    else { const c = P.C.placed.lakes[0] ? P.C.placed.lakes[0].c : [0, 0], l = dmath.hypot(f[0] - c[0], f[1] - c[1]) || 1; dir = [(f[0] - c[0]) / l, (f[1] - c[1]) / l]; }
     let s = 0; while (s < 20000 && !dry(at[0] + dir[0] * s, at[1] + dir[1] * s)) s += 5;
     const edge = [at[0] + dir[0] * s, at[1] + dir[1] * s]; let t = s + 45; while (t < s + 300 && !dry(at[0] + dir[0] * t, at[1] + dir[1] * t)) t += 5;
     look = [edge[0] - dir[0] * 800 + dir[1] * 600, edge[1] - dir[1] * 800 - dir[0] * 600]; at = [at[0] + dir[0] * t, at[1] + dir[1] * t];
   } else if (a === 'range') {
     // the lowest dry ground within six kilometres of the focus: a valley floor under the range, looking up at it
     let best = at, bz = Infinity; for (let j = -15; j <= 15; j++) for (let i = -15; i <= 15; i++) { const x = f[0] + i * 400, y = f[1] + j * 400; if (!dry(x, y)) continue; const z = k.groundAt(x, y); if (z < bz) { bz = z; best = [x, y]; } }
-    at = best; let hz = -Infinity; for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const x = at[0] + i * 2000, y = at[1] + j * 2000, z = k.groundAt(x, y); if (z > hz && Math.hypot(i, j) > 1.5) { hz = z; look = [x, y]; } }
+    at = best; let hz = -Infinity; for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) { const x = at[0] + i * 2000, y = at[1] + j * 2000, z = k.groundAt(x, y); if (z > hz && dmath.hypot(i, j) > 1.5) { hz = z; look = [x, y]; } }
   } else if (a === 'plateau') { look = P.C.placed.plateaus[0].c; }
   else if (a === 'volcano') { look = P.C.placed.volcanoes[0].c; }
   if (!look) look = [at[0] + 500, at[1]];
-  const d = [look[0] - at[0], look[1] - at[1]], dl = Math.hypot(...d) || 1, u = [d[0] / dl, d[1] / dl];
+  const d = [look[0] - at[0], look[1] - at[1]], dl = dmath.hypot(...d) || 1, u = [d[0] / dl, d[1] / dl];
   const gz = k.heightAt(at[0], at[1]), up = a === 'range' || a === 'volcano' || a === 'plateau';
   // on water, a point across it; under a summit, the summit itself (the camera tilts up to it)
   const lookAt = up ? look.slice() : [at[0] + u[0] * Math.min(dl, 3000), at[1] + u[1] * Math.min(dl, 3000)]; const lz = k.heightAt(lookAt[0], lookAt[1]);

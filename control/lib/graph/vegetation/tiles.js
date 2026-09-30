@@ -7,6 +7,7 @@
 import { growBark, shadeBark, BARKS } from './bark.js';
 import { trunkSurface, rAt } from './palm.js';
 import { encodePng } from '../landscape/surface-textures.js';
+import * as dmath from '../../util/dmath.js';
 
 /** The metres of bark one tile covers, up and round. */
 export const BARK_TILE_M = 0.6;
@@ -42,10 +43,10 @@ export function palmTrunkTexture(palm, key, { pxPerM = 90 } = {}) {
     const sv = length * (1 - (j + 0.5) / H);                            // row 0 is the top of the image: v = 1
     for (let i = 0; i < W; i++) { const r = surf((2 * Math.PI * (i + 0.5)) / W, sv); hgt[j * W + i] = r.height; for (let k = 0; k < 3; k++) rgb[(j * W + i) * 3 + k] = r.color[k]; }
   }
-  const out = Buffer.alloc(W * H * 3); const Lx = -0.5, Ly = 0.6, Lz = 0.62, Ll = Math.hypot(Lx, Ly, Lz); const sum = [0, 0, 0];
+  const out = Buffer.alloc(W * H * 3); const Lx = -0.5, Ly = 0.6, Lz = 0.62, Ll = dmath.hypot(Lx, Ly, Lz); const sum = [0, 0, 0];
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const hx = (hgt[j * W + ((i + 1) % W)] - hgt[j * W + ((i - 1 + W) % W)]) * px * 0.5, hy = (hgt[Math.max(0, j - 1) * W + i] - hgt[Math.min(H - 1, j + 1) * W + i]) * px * 0.5;
-    const l = Math.hypot(hx, hy, 1); const d = (-hx * Lx - hy * Ly + Lz) / (l * Ll); const sh = 0.5 + 0.62 * Math.max(0, d);
+    const l = dmath.hypot(hx, hy, 1); const d = (-hx * Lx - hy * Ly + Lz) / (l * Ll); const sh = 0.5 + 0.62 * Math.max(0, d);
     for (let k = 0; k < 3; k++) { const v = Math.min(255, rgb[(j * W + i) * 3 + k] * sh); out[(j * W + i) * 3 + k] = v; sum[k] += v; }
   }
   return { key, url: `data:image/png;base64,${encodePng(out, W, H).toString('base64')}`, mean: sum.map((v) => Math.round(v / (W * H))), length };

@@ -20,6 +20,7 @@
 import { mulberry32, vec } from './grow.js';
 import { elastica } from './mechanics.js';
 import { mix } from './util.js';
+import * as dmath from '../../util/dmath.js';
 
 const { add, mul, unit, cross } = vec;
 const DEG = Math.PI / 180;
@@ -87,7 +88,7 @@ function stripTris(pts, side, w0, wEnd, colorAt, tris) {
 /** The head at `at` along `dir` (unit), in its kind's form: → tris. */
 function headTris(G, at, dir, rng, tris, { coarse = false } = {}) {
   const L = G.headLen * (0.8 + 0.4 * rng()), W = G.headW * (0.8 + 0.4 * rng()); const c = mix(G.colors.head, G.colors.tip, 0.25 * rng());
-  const side = unit(cross(dir, [0, 0, 1])); const s = Number.isFinite(side[0]) && Math.hypot(...side) > 1e-6 ? side : [1, 0, 0]; const s2 = cross(dir, s);
+  const side = unit(cross(dir, [0, 0, 1])); const s = Number.isFinite(side[0]) && dmath.hypot(...side) > 1e-6 ? side : [1, 0, 0]; const s2 = cross(dir, s);
   const tip = add(at, mul(dir, L));
   if (coarse) { tris.push({ p: [add(at, mul(s, W / 2)), add(at, mul(s, -W / 2)), tip], c, kind: 'leaf' }); return; }
   if (G.head === 'panicle' || G.head === 'plume') {
@@ -95,7 +96,7 @@ function headTris(G, at, dir, rng, tris, { coarse = false } = {}) {
     // plume many and close, staggered along its length
     const plume = G.head === 'plume'; const n = plume ? 20 : 8; const U = s, V = s2;
     for (let q = 0; q < n; q++) {
-      const a = q * 137.5 * DEG + rng() * 0.4; const out = add(mul(U, Math.cos(a)), mul(V, Math.sin(a)));
+      const a = q * 137.5 * DEG + rng() * 0.4; const out = add(mul(U, dmath.cos(a)), mul(V, dmath.sin(a)));
       const base = add(at, mul(dir, L * (plume ? 0.5 : 0.35) * (q / n))); const reach = plume ? 0.55 * W / G.headW * G.headW : W;
       const tip = add(add(base, mul(dir, L * (plume ? 0.6 : 0.55))), add(mul(out, plume ? 0.5 * W : reach), [0, 0, -(plume ? 0.12 : 0.18) * L]));
       const mid = add(add(base, mul(dir, 0.3 * L)), mul(out, 0.25 * W)); const t = Math.max(0.0015, (plume ? 0.01 : 0.01) * L);
@@ -105,7 +106,7 @@ function headTris(G, at, dir, rng, tris, { coarse = false } = {}) {
     const mid = add(at, mul(dir, L * 0.5));
     for (const o of [s, s2]) { const l = add(mid, mul(o, W / 2)), r = add(mid, mul(o, -W / 2)); tris.push({ p: [at, l, tip], c, kind: 'leaf' }, { p: [at, tip, r], c, kind: 'leaf' }); }
   } else if (G.head === 'awn') {                              // long fine awns, bowed out
-    for (let k = 0; k < 3; k++) { const o = mul(add(mul(s, Math.cos(k * 2.1)), mul(s2, Math.sin(k * 2.1))), 0.3 * L); const end = add(add(at, mul(dir, 0.85 * L)), o);
+    for (let k = 0; k < 3; k++) { const o = mul(add(mul(s, dmath.cos(k * 2.1)), mul(s2, dmath.sin(k * 2.1))), 0.3 * L); const end = add(add(at, mul(dir, 0.85 * L)), o);
       tris.push({ p: [add(at, mul(s, W)), add(at, mul(s, -W)), end], c, kind: 'leaf' }); }
   }
 }
@@ -123,36 +124,36 @@ export function grassTuft(kind, { seed = 1, level = 'L2', over = null, style = '
   const LV = LV0 && G.segs ? { ...LV0, segs: Math.min(LV0.segs, G.segs) } : LV0;
   const top = G.culms && G.head ? Math.max(G.H * 0.8, G.H * G.culmH) + G.headLen : G.H * 0.85; const k = 1 / top;   // unit height
   const colorOf = (dry) => (s) => mix(dry ? mix(G.colors.tip, [196, 178, 120], 0.6) : G.colors.base, dry ? [206, 190, 140] : G.colors.tip, s * 0.9);
-  const blades = []; for (let b = 0; b < G.blades; b++) blades.push({ B: G.B[0] * Math.pow(G.B[1] / G.B[0], rng()), th: 90 - (G.splay[0] + (G.splay[1] - G.splay[0]) * Math.pow(rng(), 0.8)), L: G.H * (G.lenVar ? G.lenVar[0] + (G.lenVar[1] - G.lenVar[0]) * rng() : 0.55 + 0.6 * rng()), az: rng() * 2 * Math.PI, r: G.crown * Math.sqrt(rng()), a: rng() * 2 * Math.PI, dry: rng() < G.dry, w: G.w * (0.8 + 0.4 * rng()) });
+  const blades = []; for (let b = 0; b < G.blades; b++) blades.push({ B: G.B[0] * dmath.pow(G.B[1] / G.B[0], rng()), th: 90 - (G.splay[0] + (G.splay[1] - G.splay[0]) * dmath.pow(rng(), 0.8)), L: G.H * (G.lenVar ? G.lenVar[0] + (G.lenVar[1] - G.lenVar[0]) * rng() : 0.55 + 0.6 * rng()), az: rng() * 2 * Math.PI, r: G.crown * Math.sqrt(rng()), a: rng() * 2 * Math.PI, dry: rng() < G.dry, w: G.w * (0.8 + 0.4 * rng()) });
   const culms = []; for (let q = 0; q < (G.culms || 0); q++) culms.push({ az: rng() * 2 * Math.PI, lean: 3 + 14 * rng(), h: G.H * G.culmH * (0.8 + 0.3 * rng()), r: G.crown * 0.6 * Math.sqrt(rng()), a: rng() * 2 * Math.PI, bow: (G.head === 'plume' ? 0.1 : 0.04) + 0.1 * rng() });
   if (level === 'LF') {                                        // three blades fanned, a triangle each, in the tuft's mean colour
-    const c = mix(mix(G.colors.base, G.colors.tip, 0.5), [206, 190, 140], G.dry * 0.5); const lean = Math.sin(((G.splay[0] + G.splay[1]) / 2) * DEG);
-    for (let q = 0; q < 3; q++) { const a = q * 2.0944 + 0.4, d = [Math.cos(a), Math.sin(a)], sd = [-d[1], d[0]], w = 0.07;
+    const c = mix(mix(G.colors.base, G.colors.tip, 0.5), [206, 190, 140], G.dry * 0.5); const lean = dmath.sin(((G.splay[0] + G.splay[1]) / 2) * DEG);
+    for (let q = 0; q < 3; q++) { const a = q * 2.0944 + 0.4, d = [dmath.cos(a), dmath.sin(a)], sd = [-d[1], d[0]], w = 0.07;
       tris.push({ p: [[sd[0] * w, sd[1] * w, 0], [-sd[0] * w, -sd[1] * w, 0], [d[0] * lean * 0.8, d[1] * lean * 0.8, 0.8]], c, kind: 'leaf' }); }
     return tris;
   }
   if (level === 'L0') {                                        // seven strips: the tuft's outline; the heads one triangle each
     for (let q = 0; q < 7; q++) {
       const az = q * 0.8976 + 0.3, th = 90 - (G.splay[0] + G.splay[1]) / 2, L = G.H * 0.95, B = Math.sqrt(G.B[0] * G.B[1]);
-      const e = elastica({ B, theta0: th * DEG, n: 8 }); const hor = [Math.cos(az), Math.sin(az), 0], side = [-hor[1], hor[0], 0];
+      const e = elastica({ B, theta0: th * DEG, n: 8 }); const hor = [dmath.cos(az), dmath.sin(az), 0], side = [-hor[1], hor[0], 0];
       const pts = e.pts.filter((_, i) => i % 4 === 0).map(([x, y]) => mul(add(mul(hor, x * L), [0, 0, y * L]), k));
       stripTris(pts, side, Math.max(G.w * 8, 0.16 * G.H) * k, 0.3 * G.w * k, colorOf(G.dry > 0.4), tris);
     }
-    culms.slice(0, 4).forEach((c) => { const d = unit([Math.sin(c.lean * DEG) * Math.cos(c.az), Math.sin(c.lean * DEG) * Math.sin(c.az), Math.cos(c.lean * DEG)]); headTris({ ...G, headLen: G.headLen * k, headW: G.headW * k * 2 }, mul(d, c.h * k), d, rng, tris, { coarse: true }); });
+    culms.slice(0, 4).forEach((c) => { const d = unit([dmath.sin(c.lean * DEG) * dmath.cos(c.az), dmath.sin(c.lean * DEG) * dmath.sin(c.az), dmath.cos(c.lean * DEG)]); headTris({ ...G, headLen: G.headLen * k, headW: G.headW * k * 2 }, mul(d, c.h * k), d, rng, tris, { coarse: true }); });
     return tris;
   }
   const keep = Math.max(3, Math.round(G.blades * LV.keep));
   blades.slice(0, keep).forEach((b) => {
-    const e = elastica({ B: b.B, theta0: b.th * DEG, n: 16 }); const hor = [Math.cos(b.az), Math.sin(b.az), 0], side = [-hor[1], hor[0], 0];
-    const root = [b.r * Math.cos(b.a), b.r * Math.sin(b.a), 0]; const step = Math.max(1, Math.round(16 / LV.segs));
+    const e = elastica({ B: b.B, theta0: b.th * DEG, n: 16 }); const hor = [dmath.cos(b.az), dmath.sin(b.az), 0], side = [-hor[1], hor[0], 0];
+    const root = [b.r * dmath.cos(b.a), b.r * dmath.sin(b.a), 0]; const step = Math.max(1, Math.round(16 / LV.segs));
     const pts = e.pts.filter((_, i) => i % step === 0 || i === e.pts.length - 1).map(([x, y]) => mul(add(root, add(mul(hor, x * b.L), [0, 0, y * b.L])), k));
     stripTris(pts, side, b.w * LV.wk * k, 0.1 * b.w * k, colorOf(b.dry), tris);
   });
   culms.slice(0, level === 'L1' ? Math.ceil(culms.length / 2) : culms.length).forEach((c) => {
-    const d = unit([Math.sin(c.lean * DEG) * Math.cos(c.az), Math.sin(c.lean * DEG) * Math.sin(c.az), Math.cos(c.lean * DEG)]);
-    const root = [c.r * Math.cos(c.a), c.r * Math.sin(c.a), 0]; const n = LV.segs; const pts = [];
-    for (let i = 0; i <= n; i++) { const u = i / n; pts.push(mul(add(root, add(mul(d, c.h * u), [c.bow * c.h * u * u * Math.cos(c.az), c.bow * c.h * u * u * Math.sin(c.az), -c.bow * c.h * u * u * 0.5])), k)); }
-    const side = [-Math.sin(c.az), Math.cos(c.az), 0]; stripTris(pts, side, 0.0016 * k * LV.wk, 0.001 * k, () => mix(G.colors.tip, G.colors.head, 0.4), tris);
+    const d = unit([dmath.sin(c.lean * DEG) * dmath.cos(c.az), dmath.sin(c.lean * DEG) * dmath.sin(c.az), dmath.cos(c.lean * DEG)]);
+    const root = [c.r * dmath.cos(c.a), c.r * dmath.sin(c.a), 0]; const n = LV.segs; const pts = [];
+    for (let i = 0; i <= n; i++) { const u = i / n; pts.push(mul(add(root, add(mul(d, c.h * u), [c.bow * c.h * u * u * dmath.cos(c.az), c.bow * c.h * u * u * dmath.sin(c.az), -c.bow * c.h * u * u * 0.5])), k)); }
+    const side = [-dmath.sin(c.az), dmath.cos(c.az), 0]; stripTris(pts, side, 0.0016 * k * LV.wk, 0.001 * k, () => mix(G.colors.tip, G.colors.head, 0.4), tris);
     const end = pts[pts.length - 1]; const dir = unit([end[0] - pts[n - 1][0], end[1] - pts[n - 1][1], end[2] - pts[n - 1][2]]);
     headTris({ ...G, headLen: G.headLen * k, headW: G.headW * k }, end, dir, rng, tris, { coarse: level === 'L1' && G.head === 'panicle' });
   });
@@ -168,7 +169,7 @@ export function grassTuft(kind, { seed = 1, level = 'L2', over = null, style = '
 export function volumeLit(tris, { heart = 0.25, up = 0.65, ao = 0.38 } = {}) {
   return tris.map((t) => {
     const m = [(t.p[0][0] + t.p[1][0] + t.p[2][0]) / 3, (t.p[0][1] + t.p[1][1] + t.p[2][1]) / 3, (t.p[0][2] + t.p[1][2] + t.p[2][2]) / 3];
-    const out = [m[0], m[1], m[2] - heart]; const l = Math.hypot(out[0], out[1], out[2]) || 1;
+    const out = [m[0], m[1], m[2] - heart]; const l = dmath.hypot(out[0], out[1], out[2]) || 1;
     const n = unit(add(mul(out, (1 - up) / l), [0, 0, up])); const shade = 1 - ao + ao * Math.min(1, Math.max(0, m[2] / 0.6));
     return { ...t, n, c: t.c.map((x) => x * shade) };
   });

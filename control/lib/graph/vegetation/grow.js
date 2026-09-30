@@ -20,6 +20,7 @@
 // limb behind it stops bending under it). That is how a banyan spreads wider than a cantilever allows.
 // Deterministic: mulberry32 dice from the seed; no Math.random, no Date.
 import { stemModulus, G } from './mechanics.js';
+import * as dmath from '../../util/dmath.js';
 
 export function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -27,11 +28,11 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 export const vec = { add, sub, mul, dot, cross, len, unit };
 /** Rodrigues: rotate v about unit axis k by angle a. */
-function rot(v, k, a) { const c = Math.cos(a), s = Math.sin(a), d = dot(k, v), x = cross(k, v); return [v[0] * c + x[0] * s + k[0] * d * (1 - c), v[1] * c + x[1] * s + k[1] * d * (1 - c), v[2] * c + x[2] * s + k[2] * d * (1 - c)]; }
+function rot(v, k, a) { const c = dmath.cos(a), s = dmath.sin(a), d = dot(k, v), x = cross(k, v); return [v[0] * c + x[0] * s + k[0] * d * (1 - c), v[1] * c + x[1] * s + k[1] * d * (1 - c), v[2] * c + x[2] * s + k[2] * d * (1 - c)]; }
 export { rot };
 function perp(d) { const a = Math.abs(d[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; const u = unit(cross(a, d)); return [u, cross(d, u)]; }
 const UP = [0, 0, 1];
@@ -139,7 +140,7 @@ export function grow(archIn, opts = {}) {
       const [i, j, k] = cell(n.pos); const w = 1;           // one leafy metamer casts one unit (Palubicki)
       for (let q = 0; q <= P.shadowDepth; q++) {
         const kk = k - q; if (kk < 0) break; if (kk >= NZ) continue;
-        const s = w * P.shadowA * Math.pow(P.shadowB, -q);
+        const s = w * P.shadowA * dmath.pow(P.shadowB, -q);
         const j0 = Math.max(0, j - q), j1 = Math.min(NX - 1, j + q), i0 = Math.max(0, i - q), i1 = Math.min(NX - 1, i + q);
         for (let jj = j0; jj <= j1; jj++) { const row = (kk * NX + jj) * NX; for (let ii = i0; ii <= i1; ii++) grid[row + ii] += s; }
       }
@@ -149,7 +150,7 @@ export function grow(archIn, opts = {}) {
   // crowns above the point (their top is this plant's top: they grow alike) take their share of what is left
   let standTop = 0;
   // (the stand's top is in full sun: the shade starts a sixth of the height down and deepens over standCrown of it)
-  const standLight = (z) => (P.stand > 0 && standTop > 0 ? Math.exp(-P.standK * P.standLAI * P.stand * Math.min(1, Math.max(0, (standTop - z - standTop / 6) / (P.standCrown * standTop)))) : 1);
+  const standLight = (z) => (P.stand > 0 && standTop > 0 ? dmath.exp(-P.standK * P.standLAI * P.stand * Math.min(1, Math.max(0, (standTop - z - standTop / 6) / (P.standCrown * standTop)))) : 1);
   const exposure = (p, own = 0) => (Math.max(0, P.fullLight - shadowAt(p) + own * P.shadowA) / P.fullLight) * standLight(p[2]);
   function lightDir(p) {                     // toward less shadow: the negative gradient, plus a sky bias
     const h = vs; const g = [0, 1, 2].map((a) => { const e = [0, 0, 0]; e[a] = h; return shadowAt(add(p, e)) - shadowAt(sub(p, e)); });
@@ -165,18 +166,18 @@ export function grow(archIn, opts = {}) {
     let sp = at(arch.setPoint, order);
     if (arch.uprightAge && order === 0 && age >= arch.uprightAge) sp = 0;       // Troll: the older trunk uprights
     const h = [d[0], d[1], 0]; const hl = len(h); const hu = hl < 1e-6 ? [1, 0, 0] : mul(h, 1 / hl);
-    return unit(add(mul(UP, Math.cos(sp * DEG)), mul(hu, Math.sin(sp * DEG))));
+    return unit(add(mul(UP, dmath.cos(sp * DEG)), mul(hu, dmath.sin(sp * DEG))));
   }
   function budDirs(d, order, nodeIndexInShoot, shootLen, phase) {
     // lateral bud directions at one node: phyllotaxis around the parent direction d
     const [u, w] = perp(d); const ins = at(arch.insertion, order) * DEG; const out = [];
-    const mk = (phi) => unit(add(mul(d, Math.cos(ins)), mul(add(mul(u, Math.cos(phi)), mul(w, Math.sin(phi))), Math.sin(ins))));
+    const mk = (phi) => unit(add(mul(d, dmath.cos(ins)), mul(add(mul(u, dmath.cos(phi)), mul(w, dmath.sin(phi))), dmath.sin(ins))));
     const plag = order > 0 && at(arch.plagio, order);
     if (plag || arch.phyllo === 'distichous') {
       // two ranks, in the plane of the horizontal: laterals go left and right, not up and down
       const side = unit(cross(UP, d)); const sgn = nodeIndexInShoot % 2 ? 1 : -1;
       const s = len(side) < 1e-6 ? u : side;
-      out.push(unit(add(mul(d, Math.cos(ins)), mul(s, sgn * Math.sin(ins)))));
+      out.push(unit(add(mul(d, dmath.cos(ins)), mul(s, sgn * dmath.sin(ins)))));
     } else if (arch.phyllo === 'decussate') {
       const phi = phase + (nodeIndexInShoot % 2) * Math.PI / 2; out.push(mk(phi), mk(phi + Math.PI));
     } else {
@@ -247,18 +248,18 @@ export function grow(archIn, opts = {}) {
           let dirs = [];
           if (arch.rhythm === 'whorl') {
             if (last) { const k = arch.whorl || 5; const [u, w] = perp(d); const ins = at(arch.insertion, order_) * DEG;
-              for (let j = 0; j < k; j++) { const phi = phase + year * 137.5 * DEG + (j * 2 * Math.PI) / k; dirs.push(unit(add(mul(d, Math.cos(ins)), mul(add(mul(u, Math.cos(phi)), mul(w, Math.sin(phi))), Math.sin(ins))))); } }
+              for (let j = 0; j < k; j++) { const phi = phase + year * 137.5 * DEG + (j * 2 * Math.PI) / k; dirs.push(unit(add(mul(d, dmath.cos(ins)), mul(add(mul(u, dmath.cos(phi)), mul(w, dmath.sin(phi))), dmath.sin(ins))))); } }
             else if (order_ > 0) dirs = budDirs(d, order_, i, n, phase);   // fir branches: two-ranked twigs along them
           } else dirs = budDirs(d, order_, i, n, phase);
           if (arch.sympodial && !last) dirs = [];                           // relays come from just below the tip only
-          for (const bd of dirs) pushBud({ node: node.id, axis: axisId, order: order_ + 1, dir: bd, apical: false, born: year, alive: true, acro: arch.rhythm === 'acrotonic' ? Math.pow((i + 1) / n, 2) : 1, phase: rng() * 2 * Math.PI });
+          for (const bd of dirs) pushBud({ node: node.id, axis: axisId, order: order_ + 1, dir: bd, apical: false, born: year, alive: true, acro: arch.rhythm === 'acrotonic' ? dmath.pow((i + 1) / n, 2) : 1, phase: rng() * 2 * Math.PI });
         }
         prev = node.id;
       }
       if (arch.sympodial) {
         // the apex ends (a flower); `relay` laterals just below it continue next year as new axes of the same order
         const tip = nodes[prev]; const [u, w] = perp(tip.dir); const k = arch.relay || 2; const ins = at(arch.insertion, order_) * DEG;
-        for (let j = 0; j < k; j++) { const phi = phase + (j * 2 * Math.PI) / k; const bd = unit(add(mul(tip.dir, Math.cos(ins)), mul(add(mul(u, Math.cos(phi)), mul(w, Math.sin(phi))), Math.sin(ins))));
+        for (let j = 0; j < k; j++) { const phi = phase + (j * 2 * Math.PI) / k; const bd = unit(add(mul(tip.dir, dmath.cos(ins)), mul(add(mul(u, dmath.cos(phi)), mul(w, dmath.sin(phi))), dmath.sin(ins))));
           pushBud({ node: tip.id, axis: axisId, order: order_ + 1, dir: bd, apical: false, born: year, alive: true, relay: true, phase: rng() * 2 * Math.PI }); }
         tip.flower = year;
       } else {
@@ -330,18 +331,18 @@ export function grow(archIn, opts = {}) {
       const Mv = [-(my[id] - m[id] * base[1]) * G, (mx[id] - m[id] * base[0]) * G, 0];
       const Mmag = len(Mv); const prevM = n.Mprev || 0; n.Mprev = Mmag;
       const age = year - n.born; const lig = P.lignin * Math.min(1, P.firstSeason + (1 - P.firstSeason) * age / P.maturity);
-      const E = stemModulus(lig) * 1e9; const I = Math.PI * n.r ** 4 / 4;
+      const E = stemModulus(lig) * 1e9; const I = Math.PI * dmath.pow(n.r, 4) / 4;
       // older wood is locked in its grown shape: it only answers the load added since last year
       const dM = age <= 0 ? Mmag : Math.max(0, Mmag - prevM);
       // never past hanging: cap at half the angle between the distal centroid's lever and straight down
       const c = [mx[id] / m[id] - base[0], my[id] / m[id] - base[1], 0]; const lever = len(c);
-      const cz = n.pos[2] - base[2]; const toDown = Math.atan2(lever, -cz - 1e-9);
+      const cz = n.pos[2] - base[2]; const toDown = dmath.atan2(lever, -cz - 1e-9);
       let theta = Math.min(0.5 * Math.max(0, toDown), 0.6, (dM * n.len) / (E * I));
       if (theta > 1e-7) rotateSubtree(id, base, unit(Mv), theta);
       // reaction wood: curvature ∝ Δα · Δr / r², only with lignin and new wood
       if (age >= 1 && P.lignin > 0 && n.dA > 0) {
         const want = setPointDir(n.dir, n.order, age);
-        const err = Math.acos(Math.max(-1, Math.min(1, dot(n.dir, want))));
+        const err = dmath.acos(Math.max(-1, Math.min(1, dot(n.dir, want))));
         if (err > 1e-4) {
           const dr = n.r - Math.sqrt(Math.max(0, n.r * n.r - n.dA / Math.PI));
           const kappa = 4 * P.react * lig * dr / (n.r * n.r);
@@ -356,12 +357,12 @@ export function grow(archIn, opts = {}) {
    * share of the pipes beyond their limb as ring area. A root whose limb is shed dies with it.
    */
   function aerialYear(year, F, leafArea) {
-    const flat = Math.sin(A.flat * DEG);
+    const flat = dmath.sin(A.flat * DEG);
     for (const n of nodes) {
       if (roots.length >= A.max) break;
       if (n.died || n.order < A.minOrder || n.pos[2] < A.minZ || n.r < A.minR || Math.abs(n.dir[2]) > flat || rooted.has(n.id)) continue;
       if (rngA() >= A.rate) continue;
-      if (roots.some((q) => !q.died && Math.hypot(q.at[0] - n.pos[0], q.at[1] - n.pos[1]) < A.spacing)) continue;
+      if (roots.some((q) => !q.died && dmath.hypot(q.at[0] - n.pos[0], q.at[1] - n.pos[1]) < A.spacing)) continue;
       const q = { node: n.id, born: year, len: 0, landed: 0, area: Math.PI * A.rHang ** 2, at: [n.pos[0], n.pos[1]] }; roots.push(q); rooted.add(n.id);
     }
     for (const q of roots) {
@@ -404,7 +405,7 @@ export function measure(plant) {
     if (!live(n)) continue; const cs = (children.get(n.id) || []).map((c) => nodes[c]).filter(live);
     if (cs.length < 2) continue; const rp = n.r; const rc = cs.map((c) => c.r);
     if (rc.some((r) => r >= rp)) continue;
-    let lo = 0.5, hi = 6; const f = (D) => Math.pow(rp, D) - rc.reduce((s, r) => s + Math.pow(r, D), 0);
+    let lo = 0.5, hi = 6; const f = (D) => dmath.pow(rp, D) - rc.reduce((s, r) => s + dmath.pow(r, D), 0);
     if (f(lo) * f(hi) > 0) continue; for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (f(lo) * f(m) <= 0) hi = m; else lo = m; }
     if (rp > 0.004) deltas.push((lo + hi) / 2);
   }
@@ -412,7 +413,7 @@ export function measure(plant) {
   // axes: length along the axis, diameter at its base
   const axLen = new Map(), axBase = new Map();
   for (const n of nodes) { if (!live(n)) continue; axLen.set(n.axis, (axLen.get(n.axis) || 0) + n.len); if (!axBase.has(n.axis)) axBase.set(n.axis, n); }
-  const pts = []; for (const [a, L] of axLen) { const b = axBase.get(a); if (L > 0.3 && b.r > 0.003) pts.push([Math.log(2 * b.r), Math.log(L)]); }
+  const pts = []; for (const [a, L] of axLen) { const b = axBase.get(a); if (L > 0.3 && b.r > 0.003) pts.push([dmath.log(2 * b.r), dmath.log(L)]); }
   const fit = (P) => { const n = P.length; if (n < 3) return null; const mx = P.reduce((s, p) => s + p[0], 0) / n, my = P.reduce((s, p) => s + p[1], 0) / n; let sxy = 0, sxx = 0; for (const [x, y] of P) { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; } return sxy / sxx; };
   // trunk ring area by height
   const trunk = nodes.filter((n) => n.axis === 0 && live(n)).sort((a, b) => a.pos[2] - b.pos[2]);
@@ -431,11 +432,11 @@ function groundPass(nodes, children, rotateSubtree) {
   for (let id = 1; id < nodes.length; id++) {
     const n = nodes[id]; if (n.died || n.pos[2] >= 0) continue; const p = nodes[n.parent].pos;
     const d = sub(n.pos, p); const l = len(d); if (l < 1e-9) continue;
-    const h = Math.hypot(d[0], d[1]); const hz = Math.max(-0.999 * l, -Math.max(0, p[2]));
+    const h = dmath.hypot(d[0], d[1]); const hz = Math.max(-0.999 * l, -Math.max(0, p[2]));
     const hh = Math.sqrt(Math.max(0, l * l - hz * hz)); const hx = h > 1e-9 ? d[0] / h : 1, hy = h > 1e-9 ? d[1] / h : 0;
     const want = unit([hx * hh, hy * hh, hz]); const cur = unit(d);
     const ax = cross(cur, want); const s = len(ax); if (s < 1e-9) continue;
-    rotateSubtree(id, p, mul(ax, 1 / s), Math.atan2(s, dot(cur, want)));
+    rotateSubtree(id, p, mul(ax, 1 / s), dmath.atan2(s, dot(cur, want)));
   }
 }
 
@@ -452,7 +453,7 @@ export function restand(plant, { lignin = 1, cambium = 1, scale = 1, steps = 12 
   for (const n of nodes) { const r0 = P.rPrimary; n.r = (r0 + cambium * (n.r - r0)) * scale; }
   const children = plant.children; const E = stemModulus(lignin) * 1e9;
   const rotateSubtree = (id, pivot, axis, a) => { const st = [id]; while (st.length) { const k = st.pop(); const n = nodes[k]; n.pos = add(pivot, rot(sub(n.pos, pivot), axis, a)); n.dir = unit(rot(n.dir, axis, a)); for (const c of children.get(k) || []) st.push(c); } };
-  const leafMass = P.leafMass * scale ** 3;
+  const leafMass = P.leafMass * dmath.pow(scale, 3);
   const Mprev = new Float64Array(nodes.length);
   for (let s = 1; s <= steps; s++) {
     const f = s / steps;
@@ -469,8 +470,8 @@ export function restand(plant, { lignin = 1, cambium = 1, scale = 1, steps = 12 
       const n = nodes[id]; if (n.died || m[id] <= 0) continue; const base = nodes[n.parent].pos;
       const Mv = [-(my[id] - m[id] * base[1]) * G, (mx[id] - m[id] * base[0]) * G, 0]; const Mm = len(Mv);
       const dM = Math.max(0, Mm - Mprev[id]); Mprev[id] = Mm;
-      const c = [mx[id] / m[id] - base[0], my[id] / m[id] - base[1], 0]; const toDown = Math.atan2(len(c), -(n.pos[2] - base[2]) - 1e-9);
-      const I = Math.PI * n.r ** 4 / 4; const th = Math.min(0.5 * Math.max(0, toDown), 0.6, (dM * n.len) / (E * I));
+      const c = [mx[id] / m[id] - base[0], my[id] / m[id] - base[1], 0]; const toDown = dmath.atan2(len(c), -(n.pos[2] - base[2]) - 1e-9);
+      const I = Math.PI * dmath.pow(n.r, 4) / 4; const th = Math.min(0.5 * Math.max(0, toDown), 0.6, (dM * n.len) / (E * I));
       if (th > 1e-7) rotateSubtree(id, base, unit(Mv), th);
     }
     groundPass(nodes, children, rotateSubtree);

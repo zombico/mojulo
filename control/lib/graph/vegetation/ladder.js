@@ -11,6 +11,7 @@
 import { axisChains, tubeTris, barkQuads, woodTone, leafTris, blobTris, defaultSides, TONES } from './tree-mesh.js';
 import { mix } from './util.js';
 import { figTris } from './ficus.js';
+import * as dmath from '../../util/dmath.js';
 
 function leafyNodes(plant) { return plant.nodes.filter((n) => !n.died && n.leaves > 0); }
 /** Voxel-cluster the leaves at cell size c → blobs (centroid, spread radii, Beer–Lambert tone). */
@@ -28,11 +29,11 @@ export function clusterBlobs(plant, c, { detail = 0, minR = 0.6, tint = null, le
     // (LAI = leaf area over the extent's footprint, G = 0.5), so a sparse crown stays sparse and a dense one solid
     const ext = sd.map((x) => Math.max(0.6 * size * leafScale, 1.6 * x + 0.5 * size * leafScale));
     const leafArea = g.w * 0.45 * (size * leafScale) ** 2 * (needles ? 2.5 : 1);
-    const lai = leafArea / (Math.PI * ext[0] * ext[1] + 1e-9); const cover = 1 - Math.exp(-0.5 * lai);
+    const lai = leafArea / (Math.PI * ext[0] * ext[1] + 1e-9); const cover = 1 - dmath.exp(-0.5 * lai);
     ext[2] = Math.max(ext[2], 0.55 * Math.max(ext[0], ext[1]));          // a cluster is a puff, not a pancake
     // an opaque blob cannot be 30% covered, so it shrinks part-way (cover^0.35 sits between area-preserving 0.5 and
     // none) — the eye tolerates a slightly fuller crown far off better than a sparser one
-    const r = ext.map((x) => Math.max(minR * size, x * Math.pow(cover, 0.35)));
+    const r = ext.map((x) => Math.max(minR * size, x * dmath.pow(cover, 0.35)));
     const e = g.e / g.w; const tone = 0.3 + 0.7 * e;
     const col = tint || (needles ? mix(TONES.needle, TONES.needleLit, tone - 0.25) : mix(TONES.leaf, TONES.leafLit, tone - 0.1));
     for (const t of blobTris(m, r, col, { detail })) tris.push(t);

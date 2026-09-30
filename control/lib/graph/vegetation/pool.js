@@ -29,6 +29,7 @@ import { coniferLadder } from './conifer-mesh.js';
 import { LEVELS, SPECIES } from './species.js';
 import { barkTile, palmTrunkTexture } from './tiles.js';
 import { FIGS } from './ficus.js';
+import * as dmath from '../../util/dmath.js';
 
 export { LEVELS, SPECIES };
 /** Projected-size thresholds (px) at which each level starts: trees and palms by height, culms by diameter and leaf. */
@@ -40,10 +41,10 @@ export const LEVEL_PX = Object.freeze({
 
 function hashSeed(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 const hex = (c) => `#${c.map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('')}`;
-const rotZ = (p, a) => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a), p[2]];
+const rotZ = (p, a) => [p[0] * dmath.cos(a) - p[1] * dmath.sin(a), p[0] * dmath.sin(a) + p[1] * dmath.cos(a), p[2]];
 function faceNormal(c) {
   const u = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], v = [c[2][0] - c[0][0], c[2][1] - c[0][1], c[2][2] - c[0][2]];
-  const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; const l = Math.hypot(...n) || 1; return [n[0] / l, n[1] / l, n[2] / l];
+  const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; const l = dmath.hypot(...n) || 1; return [n[0] / l, n[1] / l, n[2] / l];
 }
 /**
  * Triangles ({ p, c, kind }) → World faces with the light baked; a leaf shows its lit side. A bark quad ({ q, uv, n, c,
@@ -136,7 +137,7 @@ export function plantPool({ species, variants = 3, seed = 'plants', light = null
         const acc = [];
         for (let q = 0; q < S.stems; q++) {
           const c = growCulm(S.bamboo, { seed: hashSeed(`${seed}::${species}::${k}::${q}`) % 100000, size: 0.8 + (0.35 * ((q * 7) % 5)) / 4, age: 0.5, lean: 2 + (q % 4) * 3, az: q * 67 + k * 20 });
-          const off = [0.28 * Math.cos(q * 2.4) * Math.sqrt(q), 0.28 * Math.sin(q * 2.4) * Math.sqrt(q), 0];
+          const off = [0.28 * dmath.cos(q * 2.4) * Math.sqrt(q), 0.28 * dmath.sin(q * 2.4) * Math.sqrt(q), 0];
           for (const t of [...culmTris(c, { mode: 'plain', sides: 3, segs: 5 }), ...foliageTris(c, { mode: 'fans' })]) acc.push({ ...t, p: t.p.map((p) => [p[0] + off[0], p[1] + off[1], p[2]]) });
         }
         return acc;
@@ -165,7 +166,7 @@ export function groveItems(species, item, { groundAt = null, water = null, seed 
   } else {
     const W = Math.max(12, (1.6 * (item.width || item.height * 0.5)) / k);
     const g = runningGrove({ W, D: W, years: 16, founders: 4, seed: sd });
-    culms = g.culms.filter((c) => Math.hypot(c.pos[0] - W / 2, c.pos[1] - W / 2) < W / 2).map((c) => ({ dx: c.pos[0] - W / 2, dy: c.pos[1] - W / 2, size: c.size, age: c.age }));
+    culms = g.culms.filter((c) => dmath.hypot(c.pos[0] - W / 2, c.pos[1] - W / 2) < W / 2).map((c) => ({ dx: c.pos[0] - W / 2, dy: c.pos[1] - W / 2, size: c.size, age: c.age }));
   }
   const out = [];
   for (const c of culms) {
@@ -193,7 +194,7 @@ export function plantRepeats(pool, items, { eye = null, eyes = null, focalPx = 1
   const views = eyes && eyes.length ? eyes : eye ? [{ pos: eye, focalPx }] : null;
   const projected = (size, p) => {
     let m = 0;
-    for (const v of views) { const e = v.pos, d = Math.max(1e-6, Math.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2])), px = (size * v.focalPx) / d; if (px > m) m = px; }
+    for (const v of views) { const e = v.pos, d = Math.max(1e-6, dmath.hypot(p[0] - e[0], p[1] - e[1], p[2] - e[2])), px = (size * v.focalPx) / d; if (px > m) m = px; }
     return m;
   };
   // one slot per template an item takes (a culm takes two: the culm and its foliage, each by its own ruler)
@@ -208,7 +209,7 @@ export function plantRepeats(pool, items, { eye = null, eyes = null, focalPx = 1
       const k = i % pool.variants.length; const v = pool.variants[k]; const h = it.height;
       slot(v.levels, (l) => `${k}:${l}`, (l) => `${pool.species}-${l}`, h, [it.x, it.y, it.z0 + h / 2], LEVEL_PX.height, { pos, scale: h }, true);
     } else if (pool.kind === 'palm') {
-      let k = 0; pool.variants.forEach((v, j) => { if (Math.abs(Math.log(it.height / v.height)) < Math.abs(Math.log(it.height / pool.variants[k].height))) k = j; });
+      let k = 0; pool.variants.forEach((v, j) => { if (Math.abs(dmath.log(it.height / v.height)) < Math.abs(dmath.log(it.height / pool.variants[k].height))) k = j; });
       const v = pool.variants[k]; const s = fit(it.height, v.height);
       slot(v.levels, (l) => `${k}:${l}`, (l) => `${pool.species}-${l}`, v.height * s, [it.x, it.y, it.z0 + v.height / 2], LEVEL_PX.height, { pos, scale: s }, true);
     } else {                                                                                // culm
@@ -216,7 +217,7 @@ export function plantRepeats(pool, items, { eye = null, eyes = null, focalPx = 1
       // variant nearest its lean and way; any other the upright variant nearest its height
       const young = (it.age ?? 4) < 1; const leaning = !young && Number.isFinite(it.lean) && it.lean > 9 && pool.variants.some((v) => v.lean);
       const cands = pool.variants.map((v, j) => ({ v, j })).filter(({ v }) => v.wax === young && !!v.lean === leaning);
-      const off = (v) => (leaning ? Math.abs((((it.az ?? 0) - v.az + 540) % 360) - 180) / 30 + Math.abs(it.lean - v.lean) / 6 : 0) + Math.abs(Math.log(it.height / v.height));
+      const off = (v) => (leaning ? Math.abs((((it.az ?? 0) - v.az + 540) % 360) - 180) / 30 + Math.abs(it.lean - v.lean) / 6 : 0) + Math.abs(dmath.log(it.height / v.height));
       let best = cands[0]; for (const c of cands) if (off(c.v) < off(best.v)) best = c;
       const { v, j } = best; const s = fit(it.height, v.height); const tint = it.age !== undefined && !young ? ageTint(SPECIES[pool.species].bamboo, it.age) : null;
       slot(v.parts.culm, (l) => `${j}:culm:${l}`, (l) => `${pool.species}-culm-${l}`, v.D0 * s, [it.x, it.y, it.z0 + 1.5], LEVEL_PX.culm, { pos, scale: s, ...(tint ? { tint } : {}) }, true);

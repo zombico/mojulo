@@ -23,6 +23,7 @@
  *
  * Pure: typed arrays, no dice, no clock. Same field and spec → the same eroded field.
  */
+import * as dmath from '../../util/dmath.js';
 
 export const EROSION_DEFAULTS = Object.freeze({ steps: 60, strength: 0.5, m: 0.5, talus: 35, thermal: 0.25, res: 128, channelHead: 0.002 });
 export const HARD_RESIST = 0.9;
@@ -61,7 +62,7 @@ export function drainage(filled, nx, ny, cell = 1) {
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const k = j * nx + i; if (i === 0 || j === 0 || i === nx - 1 || j === ny - 1) continue;
     let best = 0, r = -1;
-    for (const [di, dj] of NB) { const q = (j + dj) * nx + (i + di); const s = (filled[k] - filled[q]) / (cell * Math.hypot(di, dj)); if (s > best) { best = s; r = q; } }
+    for (const [di, dj] of NB) { const q = (j + dj) * nx + (i + di); const s = (filled[k] - filled[q]) / (cell * dmath.hypot(di, dj)); if (s > best) { best = s; r = q; } }
     rec[k] = r;
   }
   const order = Array.from({ length: N }, (_, k) => k).sort((a, b) => filled[a] - filled[b] || a - b);   // outlets first
@@ -73,7 +74,7 @@ export function drainage(filled, nx, ny, cell = 1) {
 /** Erode a heightfield (row-major Float64Array, nx × ny, `cell` world units per cell). → { z, stats }. */
 export function erodeHeightfield(z0, nx, ny, cell, spec = {}, { hardness = null } = {}) {
   const o = { ...EROSION_DEFAULTS, ...spec };
-  const z = Float64Array.from(z0); const N = nx * ny; const talus = Math.tan((o.talus * Math.PI) / 180);
+  const z = Float64Array.from(z0); const N = nx * ny; const talus = dmath.tan((o.talus * Math.PI) / 180);
   const hard = hardness ? new Float64Array(N) : null;
   let maxArea = 1;
   for (let step = 0; step < o.steps; step++) {
@@ -84,7 +85,7 @@ export function erodeHeightfield(z0, nx, ny, cell, spec = {}, { hardness = null 
     const Ac = Math.max(2, o.channelHead * N);
     for (const k of order) {
       const r = rec[k]; if (r < 0 || area[k] <= Ac) continue;
-      const F = hard ? o.strength * (1 - HARD_RESIST * hard[k]) * ((area[k] - Ac) / maxArea) ** o.m : o.strength * ((area[k] - Ac) / maxArea) ** o.m;
+      const F = hard ? o.strength * (1 - HARD_RESIST * hard[k]) * dmath.pow((area[k] - Ac) / maxArea, o.m) : o.strength * dmath.pow((area[k] - Ac) / maxArea, o.m);
       const zn = (z[k] + F * z[r]) / (1 + F);
       if (zn < z[k] && zn >= z[r]) z[k] = zn;                   // cut toward the receiver, never below it
     }
@@ -92,9 +93,9 @@ export function erodeHeightfield(z0, nx, ny, cell, spec = {}, { hardness = null 
     if (o.thermal > 0) {
       const dz = new Float64Array(N);
       for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
-        const k = j * nx + i; const crit = hard ? Math.tan(((o.talus + (HARD_CLIFF_DEG - o.talus) * hard[k]) * Math.PI) / 180) : talus;
+        const k = j * nx + i; const crit = hard ? dmath.tan(((o.talus + (HARD_CLIFF_DEG - o.talus) * hard[k]) * Math.PI) / 180) : talus;
         for (const [di, dj] of NB) {
-          const q = (j + dj) * nx + (i + di); const d = cell * Math.hypot(di, dj); const excess = z[k] - z[q] - crit * d;
+          const q = (j + dj) * nx + (i + di); const d = cell * dmath.hypot(di, dj); const excess = z[k] - z[q] - crit * d;
           if (excess > 0) { const m = (o.thermal * excess) / 16; dz[k] -= m; dz[q] += m; }
         }
       }

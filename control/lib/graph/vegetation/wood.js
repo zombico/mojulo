@@ -11,10 +11,12 @@
 // an encased (loose) knot.
 // Colour is a function of t and the fractional ring position (earlywood → latewood), plus heartwood by age. A plank is
 // a box with a few faces whose colour is sampled from the field per pixel: grain has no memory.
+import * as dmath from '../../util/dmath.js';
+
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const unit = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 /** Build the field from a grown plant. Uses every node that ever lived (dead ones keep their wood as knots). */
 export function woodField(plant, { maxOrder = 3, minRadius = 0.004, wobble = 0.025, bark = 0.06 } = {}) {
@@ -42,16 +44,16 @@ export function woodField(plant, { maxOrder = 3, minRadius = 0.004, wobble = 0.0
     }
   });
   // ring wobble: each year's sheath is a little out of round, differently each year (deterministic in year and angle)
-  const wob = (y, th) => 1 + wobble * (Math.sin(3 * th + 0.23 * y) * 0.6 + Math.sin(5 * th - 0.31 * y + 0.4) * 0.4);   // drifts slowly: sheaths nest
+  const wob = (y, th) => 1 + wobble * (dmath.sin(3 * th + 0.23 * y) * 0.6 + dmath.sin(5 * th - 0.31 * y + 0.4) * 0.4);   // drifts slowly: sheaths nest
   /** t(p): fractional formation year (Infinity outside), the element that set it; `bark` true in the bark sheath. */
   function t(p) {
     const list = hash.get(K(Math.floor(p[0] / cs), Math.floor(p[1] / cs), Math.floor(p[2] / cs))); if (!list) return { t: Infinity, e: null, rho: 0 };
     let best = Infinity, be = null, brho = 0, inBark = false;
     for (const idx of list) {
       const e = els[idx]; const ap = sub(p, e.a); let s = dot(ap, e.ab) / e.L2; if (s < -0.02 || s > 1.02) continue; s = Math.max(0, Math.min(1, s));
-      const q = [p[0] - e.a[0] - e.ab[0] * s, p[1] - e.a[1] - e.ab[1] * s, p[2] - e.a[2] - e.ab[2] * s]; const rho = Math.hypot(q[0], q[1], q[2]);
+      const q = [p[0] - e.a[0] - e.ab[0] * s, p[1] - e.a[1] - e.ab[1] * s, p[2] - e.a[2] - e.ab[2] * s]; const rho = dmath.hypot(q[0], q[1], q[2]);
       if (rho > e.rMax) continue;
-      const th = Math.atan2(dot(q, e.e2), dot(q, e.e1));
+      const th = dmath.atan2(dot(q, e.e2), dot(q, e.e1));
       const R = (y) => ((1 - s) * e.Ra[y] + s * e.Rb[y]) * wob(y, th);
       let y = e.born; while (y <= Y && R(y) < rho) y++;
       if (y > Y) { const RY = R(Y); if (rho < RY * (1 + bark) + 0.003 && 0 < best) { if (!be || best === Infinity) { inBark = true; be = e; brho = rho; } } continue; }
@@ -78,7 +80,7 @@ export const WOODS = {
  */
 export function woodColor(tt, Y, wood, { footprint = 0, ringWidth = 0.004 } = {}) {
   const f = tt - Math.floor(tt); const age = Y - tt;
-  const late = f < 0.62 ? Math.pow(f / 0.62, 3) * 0.35 : 0.35 + 0.65 * Math.min(1, (f - 0.62) / 0.25);
+  const late = f < 0.62 ? dmath.pow(f / 0.62, 3) * 0.35 : 0.35 + 0.65 * Math.min(1, (f - 0.62) / 0.25);
   let c = wood.early.map((x, i) => x + (wood.late[i] - x) * late);
   const mean = wood.early.map((x, i) => x + (wood.late[i] - x) * 0.42);
   const fade = Math.max(0, Math.min(1, (footprint / ringWidth - 0.35) / 1.2));

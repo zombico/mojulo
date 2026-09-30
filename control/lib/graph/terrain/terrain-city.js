@@ -32,6 +32,7 @@
 import { planFractalCity, pruneFidelity, CITY_METERS_PER_UNIT, normalizeCityBlocks, expandCityBlockMap } from '../city/fractal-city.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { makeLight } from '../polygonizer/vexar.js';
+import * as dmath from '../../util/dmath.js';
 
 export const CITY_PROFILES = Object.freeze(['city', 'town', 'metro']);
 export const CITY_SIZES = Object.freeze({ city: [220, 132], town: [240, 160], metro: [440, 290] });   // metres, the default footprint per profile
@@ -116,8 +117,8 @@ function natural(field, X, Y, e, g) {
   const k = field.kernel, z = k.baseAt(X, Y);
   const gx = (k.baseAt(X + e, Y) - k.baseAt(X - e, Y)) / (2 * e), gy = (k.baseAt(X, Y + e) - k.baseAt(X, Y - e)) / (2 * e);
   const sea = k.seaZ, wet = k.waterAt ? k.waterAt(X, Y) !== null : false;
-  const ok = !wet && Math.hypot(gx, gy) <= g.cliff && (sea === null || z > sea + 0.5 * g.freeboard) && k.looseAt(X, Y) < 0.3;
-  return { z, slope: Math.hypot(gx, gy), ok };
+  const ok = !wet && dmath.hypot(gx, gy) <= g.cliff && (sea === null || z > sea + 0.5 * g.freeboard) && k.looseAt(X, Y) < 0.3;
+  return { z, slope: dmath.hypot(gx, gy), ok };
 }
 
 /**
@@ -138,7 +139,7 @@ export function siteCity(field, size, { grade = CITY_GRADE_DEFAULTS, taken = [] 
         const X = x - W / 2 + (W * i) / 8, Y = y - D / 2 + (D * j) / 6, p = natural(field, X, Y, 6, g); n++;
         if (p.ok && p.slope <= g.max) { ok++; slope += p.slope; }
       }
-      for (let a = 0; a < 12 && !wet; a++) { const r = 0.5 * Math.hypot(W, D) + 150, X = x + r * Math.cos(a * Math.PI / 6), Y = y + r * Math.sin(a * Math.PI / 6); if ((sea !== null && field.kernel.baseAt(X, Y) < sea) || (field.kernel.waterAt && field.kernel.waterAt(X, Y) !== null)) wet = true; }
+      for (let a = 0; a < 12 && !wet; a++) { const r = 0.5 * dmath.hypot(W, D) + 150, X = x + r * dmath.cos(a * Math.PI / 6), Y = y + r * dmath.sin(a * Math.PI / 6); if ((sea !== null && field.kernel.baseAt(X, Y) < sea) || (field.kernel.waterAt && field.kernel.waterAt(X, Y) !== null)) wet = true; }
       const frac = ok / n, score = frac - (ok ? 0.5 * (slope / ok) / g.max : 1) + (wet ? 0.15 : 0);
       if (!best || score > best.score + 1e-12) best = { at: [x, y], score, frac };
     }
@@ -150,7 +151,7 @@ export function siteCity(field, size, { grade = CITY_GRADE_DEFAULTS, taken = [] 
 // separable gaussian over a grid (edges clamp)
 function blur(a, nx, ny, sigma) {
   if (!(sigma > 0)) return Float64Array.from(a);
-  const r = Math.ceil(3 * sigma), k = []; let s = 0; for (let i = -r; i <= r; i++) { const v = Math.exp(-(i * i) / (2 * sigma * sigma)); k.push(v); s += v; }
+  const r = Math.ceil(3 * sigma), k = []; let s = 0; for (let i = -r; i <= r; i++) { const v = dmath.exp(-(i * i) / (2 * sigma * sigma)); k.push(v); s += v; }
   for (let i = 0; i < k.length; i++) k[i] /= s;
   const t = new Float64Array(nx * ny), o = new Float64Array(nx * ny);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { let v = 0; for (let q = -r; q <= r; q++) v += k[q + r] * a[j * nx + Math.min(nx - 1, Math.max(0, i + q))]; t[j * nx + i] = v; }
@@ -167,7 +168,7 @@ function datum(z0, m, nx, ny, sigma) {
 const slopeOf = (z, nx, ny, i, j, cell) => {
   const zx = (z[j * nx + Math.min(nx - 1, i + 1)] - z[j * nx + Math.max(0, i - 1)]) / (cell * (Math.min(nx - 1, i + 1) - Math.max(0, i - 1)));
   const zy = (z[Math.min(ny - 1, j + 1) * nx + i] - z[Math.max(0, j - 1) * nx + i]) / (cell * (Math.min(ny - 1, j + 1) - Math.max(0, j - 1)));
-  return Math.hypot(zx, zy);
+  return dmath.hypot(zx, zy);
 };
 
 /**
@@ -273,7 +274,7 @@ export function prepareCity(field, spec, { index = 0, taken = [], mpu = CITY_MET
   const own = normalizeCityBlocks(spec.blocks);
   const ownList = !own ? [] : Array.isArray(own) ? own : expandCityBlockMap(own.map, region, own.gap ?? 3);
   const { at, size, grade, ref, blocks, detail, region: _r, kind, title, fidelity, ...recipe } = spec; void at; void size; void grade; void ref; void blocks; void _r; void kind; void title; void fidelity;
-  const depth = profile === 'metro' ? recipe.depth : (recipe.depth ?? Math.max(2, 2 + Math.round(Math.log2(Math.max(region.w / 30, region.d / 18)))));
+  const depth = profile === 'metro' ? recipe.depth : (recipe.depth ?? Math.max(2, 2 + Math.round(dmath.log2(Math.max(region.w / 30, region.d / 18)))));
   const cityRecipe = {
     ...recipe, profile, region, seed: recipe.seed ?? 1 + index, ...(depth !== undefined ? { depth } : {}),
     blocks: [...ownList, ...G.reserved.map((r) => ({ rect: toFrame(r), use: 'empty' }))],
@@ -303,7 +304,7 @@ export function seatCity(prep, field, { light = null } = {}) {
   const massesAll = plan.boxes.filter((b) => MASS.has(b.kind) || b.class === 'landmark');
   const focus = plan.core ? [plan.core.cx, plan.core.cy] : massesAll.length ? [massesAll.reduce((a, b) => a + b.x + b.w / 2, 0) / massesAll.length, massesAll.reduce((a, b) => a + b.y + b.d / 2, 0) / massesAll.length] : [rect.w / mpu / 2, rect.d / mpu / 2];
   const ru = prep.radius / mpu;
-  const near = (u, v) => Math.hypot(u - focus[0], v - focus[1]) <= ru;
+  const near = (u, v) => dmath.hypot(u - focus[0], v - focus[1]) <= ru;
   const nearBox = (b) => near(b.x + b.w / 2, b.y + b.d / 2), nearG = (g) => near(g.x + g.w / 2, g.y + g.d / 2), nearF = (f) => { const c = faceCentroid(f); return near(c[0], c[1]); };
   let boxes = plan.boxes, ground = grounds, dress = plan.faces, far = null;
   if (Number.isFinite(ru)) {
@@ -314,7 +315,7 @@ export function seatCity(prep, field, { light = null } = {}) {
   const toX = (u) => rect.x0 + u * mpu, toY = (v) => rect.y0 + v * mpu;
   const G = (u, v) => graded(toX(u), toY(v));
   const e = 0.5 * CELL_UNITS;
-  const slopeAt = (u, v) => Math.hypot(G(u + e, v) - G(u - e, v), G(u, v + e) - G(u, v - e)) / (2 * e * mpu);
+  const slopeAt = (u, v) => dmath.hypot(G(u + e, v) - G(u - e, v), G(u, v + e) - G(u, v - e)) / (2 * e * mpu);
   const faces = [], stats = { masses: 0, plinths: 0, plinthMax: 0, capped: 0, props: 0, ridden: 0, draped: 0, rigidDressing: 0 };
   const lit = light ? { light } : {};
   const emitBox = (b, lift) => { for (const f of assembleBoxCityScene({ boxes: [b], grounds: [], ribbons: [], faces: [], ...lit }).faces) faces.push(place(f, lift)); };
@@ -340,7 +341,7 @@ export function seatCity(prep, field, { light = null } = {}) {
     seats.push({ kind: b.kind, x: b.x, y: b.y, w: b.w, d: b.d, front: fr, at: [su, sv], seat, low, plinth, height: (b.z1 - (b.z0 || 0)) * mpu, floors: b.floors ?? (b.floorH > 0 ? Math.round((b.z1 - (b.z0 || 0)) / b.floorH) : null), lod: b.lod || null });
     emitBox(b, seat); masses.push(b0); lifts.set(b0, seat); stats.masses++;
   }
-  const hostOf = (x, y, pad, z) => { let best = null, bd = Infinity; for (const m of masses) { if (!nearRect(m, x, y, pad)) continue; if (z !== undefined && (z < (m.z0 || 0) - 0.2 || z > m.z1 + 0.6)) continue; const d = Math.hypot(x - (m.x + m.w / 2), y - (m.y + m.d / 2)); if (d < bd) { bd = d; best = m; } } return best; };
+  const hostOf = (x, y, pad, z) => { let best = null, bd = Infinity; for (const m of masses) { if (!nearRect(m, x, y, pad)) continue; if (z !== undefined && (z < (m.z0 || 0) - 0.2 || z > m.z1 + 0.6)) continue; const d = dmath.hypot(x - (m.x + m.w / 2), y - (m.y + m.d / 2)); if (d < bd) { bd = d; best = m; } } return best; };
   // the street kit: against a mass it rides with it, else it stands on the datum at its centre
   for (const b of boxes) {
     if (MASS.has(b.kind) || b.class === 'landmark') continue;
@@ -403,7 +404,7 @@ function streetGrades(ribbons, G, mpu, built = () => true) {
   for (const r of ribbons) {
     const p = r.path; if (!Array.isArray(p) || p.length < 2) continue;
     for (let i = 0; i + 1 < p.length; i++) {
-      const L = Math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]), n = Math.max(1, Math.ceil(L));
+      const L = dmath.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]), n = Math.max(1, Math.ceil(L));
       let prev = G(p[i][0], p[i][1]);
       for (let s = 1; s <= n; s++) {
         const t = s / n, u = p[i][0] + (p[i + 1][0] - p[i][0]) * t, v = p[i][1] + (p[i + 1][1] - p[i][1]) * t, z = G(u, v), dl = (L / n) * mpu, gr = Math.abs(z - prev) / dl;
@@ -432,7 +433,7 @@ function streetSpot(plan, grounds, focus, boxes, G, toX, toY) {
     // look the way that runs furthest along the street, preferring the way into town when it runs a block or more
     const fwd = run(u, v, ax[0], ax[1]), back = run(u, v, -ax[0], -ax[1]), inward = (focus[0] - u) * ax[0] + (focus[1] - v) * ax[1] >= 0;
     const dir = (inward ? fwd : back) >= 20 ? (inward ? ax : [-ax[0], -ax[1]]) : fwd >= back ? ax : [-ax[0], -ax[1]];
-    const score = Math.hypot(u - focus[0], v - focus[1]) - 0.5 * Math.min(40, Math.max(fwd, back));
+    const score = dmath.hypot(u - focus[0], v - focus[1]) - 0.5 * Math.min(40, Math.max(fwd, back));
     if (!best || score < best.score) best = { score, u, v, dir };
   }
   if (!best) return null;

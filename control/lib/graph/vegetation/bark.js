@@ -16,6 +16,7 @@
 // chestnut's spiral bark; conifers lean left young and right old — Säll 2002).
 // The domain is the unrolled trunk (u around, v up), periodic in BOTH directions, so the result tiles as a texture.
 import { mulberry32 } from './grow.js';
+import * as dmath from '../../util/dmath.js';
 
 export const BARKS = {
   beech:    { label: 'beech (smooth)', delta: 1.0, k: 1.6, beta: 0.6, h0: 0.002, h1: 0.012, start: 4, grain: () => 0, plates: 0,
@@ -44,7 +45,7 @@ export function growBark(rHist, specIn, { rows = 320, height = 0.8, seed = 1, se
   const spec = typeof specIn === 'string' ? BARKS[specIn] : specIn; const rng = mulberry32((seed * 2246822519) >>> 0);
   const Y = rHist.length; const dv = height / rows;
   const R = rows; const row = Array.from({ length: R }, () => []);          // each: sorted [{u, g, born, id, ang}]
-  let C = 2 * Math.PI * rHist[0] * sector; let nextId = 1; const H = (y) => spec.h0 + spec.h1 * Math.pow(rHist[Math.min(Y, y) - 1], 0.8);
+  let C = 2 * Math.PI * rHist[0] * sector; let nextId = 1; const H = (y) => spec.h0 + spec.h1 * dmath.pow(rHist[Math.min(Y, y) - 1], 0.8);
   const flaw = new Float32Array(R * 64).map(() => 0.8 + 0.4 * rng());
   const plateAt = (cr, Cc, u) => {                     // the plate containing u in a row: [left crack index, right]
     const n = cr.length; if (!n) return { a: 0, b: Cc, w: Cc, li: -1, ri: -1, mid: u };
@@ -83,7 +84,7 @@ export function growBark(rHist, specIn, { rows = 320, height = 0.8, seed = 1, se
     for (const cd of cand) {
       const p0 = plateAt(row[cd.r], Cn, wrapU(cd.u, Cn)); const f0 = flaw[cd.r * 64 + (Math.floor(cd.u * 97) & 63)];
       if (p0.w <= wc * f0) continue;                                    // an earlier crack already relieved it
-      const id = nextId++; const ang = (spec.grain(y) * Math.PI) / 180; const tg = Math.tan(ang);
+      const id = nextId++; const ang = (spec.grain(y) * Math.PI) / 180; const tg = dmath.tan(ang);
       const u0 = wrapU(p0.a + p0.w * (0.5 + (rng() - 0.5) * 0.3), Cn);
       insert(row[cd.r], { u: u0, g: g0, born: y, id, ang });
       for (const dir of [1, -1]) {
@@ -126,16 +127,16 @@ function renderBark(row, C, height, spec, Y, H, px, seed) {
       let h;
       if (depthT === 0) h = hT * 0.12 * (1 - Math.sqrt(fissure));                        // the fissure floor: fresh inner bark
       else {
-        h = hT * (0.15 + 0.85 * (1 - Math.exp(-edgeD / (0.3 * hT + 1e-6))));          // a rounded ridge
+        h = hT * (0.15 + 0.85 * (1 - dmath.exp(-edgeD / (0.3 * hT + 1e-6))));          // a rounded ridge
         if (spec.plates > 0 && cr.length) {                                               // plated bark breaks across too
           const Lp = spec.plates * Math.max(plateW, 0.2 * hT); const ph = hash2(pairKey, 3, seed) * Lp; const t = ((v + ph) % Lp) / Lp;
-          const gapT = Math.min(t, 1 - t) * Lp; if (gapT < 0.35 * hT) h *= 0.25 + 0.75 * (gapT / (0.35 * hT)) ** 0.7;
+          const gapT = Math.min(t, 1 - t) * Lp; if (gapT < 0.35 * hT) h *= 0.25 + 0.75 * dmath.pow(gapT / (0.35 * hT), 0.7);
         }
         h *= 0.86 + 0.28 * vnoise(u * 40, v * 14, seed);                                  // flaking, vertical-grained
       }
       const m = 1 + spec.mottle * (vnoise(u * 9, v * 5, seed + 7) - 0.5) * 2;
       const t = Math.max(0, Math.min(1, h / hT));
-      let c = spec.floor.map((x, q) => (x + (spec.top[q] - x) * Math.pow(t, 0.7)) * m);
+      let c = spec.floor.map((x, q) => (x + (spec.top[q] - x) * dmath.pow(t, 0.7)) * m);
       if (spec.lenticels > 0) { const lv = vnoise(u * 60, v * 400, seed + 11); if (lv > 0.88) c = c.map((x) => x * (1 - spec.lenticels * (lv - 0.88) * 4)); }
       const o = j * W + i; hgt[o] = h; col[o * 3] = Math.max(0, Math.min(255, c[0])); col[o * 3 + 1] = Math.max(0, Math.min(255, c[1])); col[o * 3 + 2] = Math.max(0, Math.min(255, c[2]));
     }
@@ -145,11 +146,11 @@ function renderBark(row, C, height, spec, Y, H, px, seed) {
 
 /** Relief-shade a bark raster (light from the upper left) into RGB for a flat texture preview or a World texture. */
 export function shadeBark(map, { light = [-0.5, 0.6, 0.62], strength = 1 } = {}) {
-  const { W, H, height, color, px } = map; const out = Buffer.alloc(W * H * 3); const L = light.map((x) => x / Math.hypot(...light));
+  const { W, H, height, color, px } = map; const out = Buffer.alloc(W * H * 3); const L = light.map((x) => x / dmath.hypot(...light));
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const hx = (height[j * W + ((i + 1) % W)] - height[j * W + ((i - 1 + W) % W)]) * px * 0.5 * strength;
     const hy = (height[((j - 1 + H) % H) * W + i] - height[((j + 1) % H) * W + i]) * px * 0.5 * strength;
-    const n = [-hx, -hy, 1]; const l = Math.hypot(...n); const d = (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / l;
+    const n = [-hx, -hy, 1]; const l = dmath.hypot(...n); const d = (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / l;
     const s = 0.5 + 0.62 * Math.max(0, d);
     for (let k = 0; k < 3; k++) out[(j * W + i) * 3 + k] = Math.max(0, Math.min(255, color[(j * W + i) * 3 + k] * s));
   }
@@ -165,7 +166,7 @@ export function barkStats(b) {
     // unwrap rows and u; least squares du/dv
     let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0; const u0 = pts[0][1];
     for (const [r, u] of pts) { let du = u - u0; if (du > b.C / 2) du -= b.C; if (du < -b.C / 2) du += b.C; const x = r * dv; n++; sx += x; sy += du; sxx += x * x; sxy += x * du; }
-    const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1); angles.push((Math.atan(slope) * 180) / Math.PI);
+    const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1); angles.push((dmath.atan(slope) * 180) / Math.PI);
   }
   const counts = b.rows.map((cr) => cr.length); const meanCount = counts.reduce((a, c) => a + c, 0) / counts.length;
   const meanPlate = meanCount > 0 ? b.C / meanCount : b.C;

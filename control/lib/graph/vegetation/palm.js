@@ -18,6 +18,7 @@ import { elastica, G } from './mechanics.js';
 import { mulberry32, vec, rot } from './grow.js';
 import { blobTris } from './tree-mesh.js';
 import { mix } from './util.js';
+import * as dmath from '../../util/dmath.js';
 const { add, sub, mul, dot, cross, len, unit } = vec;
 const UP = [0, 0, 1]; const DEG = Math.PI / 180;
 function perp(d) { const a = Math.abs(d[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; return unit(cross(a, d)); }
@@ -29,7 +30,7 @@ function perp(d) { const a = Math.abs(d[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; retur
 export function ritzBuckling({ H, EI, q, P = 0, K = 6, n = 600 }) {
   const zs = [...Array(n + 1)].map((_, i) => (H * i) / n); const w = zs.map((_, i) => (i === 0 || i === n ? 1 : i % 2 ? 4 : 2) * (H / n / 3));
   const N = new Float64Array(n + 1); let acc = P; N[n] = P; for (let i = n - 1; i >= 0; i--) { acc += 0.5 * (q(zs[i]) + q(zs[i + 1])) * (H / n); N[i] = acc; }
-  const d1 = (k, z) => ((k + 1) * Math.pow(z / H, k)) / H, d2 = (k, z) => ((k + 1) * k * Math.pow(z / H, k - 1)) / (H * H);
+  const d1 = (k, z) => ((k + 1) * dmath.pow(z / H, k)) / H, d2 = (k, z) => ((k + 1) * k * dmath.pow(z / H, k - 1)) / (H * H);
   const Km = [...Array(K)].map(() => new Float64Array(K)), Gm = [...Array(K)].map(() => new Float64Array(K));
   for (let i = 0; i <= n; i++) { const z = zs[i], ei = EI(z); for (let a = 0; a < K; a++) for (let b = 0; b < K; b++) { Km[a][b] += w[i] * ei * d2(a + 1, z) * d2(b + 1, z); Gm[a][b] += w[i] * N[i] * d1(a + 1, z) * d1(b + 1, z); } }
   return smallestGeneralizedEig(Km, Gm);
@@ -89,8 +90,8 @@ export const PALMS = {
   },
 };
 
-const E_of = (sp, age) => sp.E.E0 + (sp.E.Einf - sp.E.E0) * (1 - Math.exp(-Math.max(0, age) / sp.E.tau));
-const rho_of = (sp, age) => sp.rho.rho0 + (sp.rho.rhoInf - sp.rho.rho0) * (1 - Math.exp(-Math.max(0, age) / sp.rho.tau || 0));
+const E_of = (sp, age) => sp.E.E0 + (sp.E.Einf - sp.E.E0) * (1 - dmath.exp(-Math.max(0, age) / sp.E.tau));
+const rho_of = (sp, age) => sp.rho.rho0 + (sp.rho.rhoInf - sp.rho.rho0) * (1 - dmath.exp(-Math.max(0, age) / sp.rho.tau || 0));
 export { E_of };
 
 /**
@@ -102,7 +103,7 @@ export function growPalm(specIn, { years = 30, seed = 1, lean = null, leanAz = 0
   const sp = typeof specIn === 'string' ? { ...PALMS[specIn] } : specIn; sp.rho.tau = sp.rho.tau || sp.E.tau;
   const rng = mulberry32((seed * 2654435761) >>> 0); const L = lean ?? sp.lean;
   const nodes = []; const perFrond = 1 / sp.frondsPerYear;
-  let d = unit([Math.sin(L * DEG) * Math.cos(leanAz * DEG), Math.sin(L * DEG) * Math.sin(leanAz * DEG), Math.cos(L * DEG)]);
+  let d = unit([dmath.sin(L * DEG) * dmath.cos(leanAz * DEG), dmath.sin(L * DEG) * dmath.sin(leanAz * DEG), dmath.cos(L * DEG)]);
   let pos = [0, 0, 0]; let s = 0; let k = 0; let phiAcc = 0;
   const Eage = (n, now) => (sustained ? E_of(sp, now - n.born) : sp.E.E0) * 1e9;
   const Mprev = new Map();
@@ -111,7 +112,7 @@ export function growPalm(specIn, { years = 30, seed = 1, lean = null, leanAz = 0
       const born = y - 1 + f * perFrond; const growing = y > sp.estYears;
       const h = growing ? (sp.rate / sp.frondsPerYear) * (0.8 + 0.4 * rng()) : 0.004;
       // apical gravitropism: the apex turns toward vertical at `trop` radians per metre grown
-      if (h > 0.01) { const ax = cross(d, UP); const a = Math.min(Math.acos(Math.min(1, d[2])), sp.trop * h); if (len(ax) > 1e-9 && a > 0) d = unit(rot(d, unit(ax), a)); }
+      if (h > 0.01) { const ax = cross(d, UP); const a = Math.min(dmath.acos(Math.min(1, d[2])), sp.trop * h); if (len(ax) > 1e-9 && a > 0) d = unit(rot(d, unit(ax), a)); }
       d = unit(add(d, mul([rng() - 0.5, rng() - 0.5, 0], 0.004)));
       pos = add(pos, mul(d, h)); s += h;
       phiAcc += hand * (sp.divergence + (sp.divJitter || 0) * (rng() + rng() + rng() - 1.5)) * DEG;
@@ -122,7 +123,7 @@ export function growPalm(specIn, { years = 30, seed = 1, lean = null, leanAz = 0
     const alive = nodes.filter((n) => y - n.born < sp.frondLife).length; const crownMass = alive * sp.frondMass + (sp.nuts ? sp.nutMass : 0);
     const top = nodes[nodes.length - 1].pos;
     for (let i = 1; i < nodes.length; i++) {
-      const n = nodes[i], base = nodes[i - 1].pos; const r = rAt(sp, n.s); const A = Math.PI * r * r, I = Math.PI * r ** 4 / 4;
+      const n = nodes[i], base = nodes[i - 1].pos; const r = rAt(sp, n.s); const A = Math.PI * r * r, I = Math.PI * dmath.pow(r, 4) / 4;
       // distal mass and its horizontal centroid: the trunk above + the crown at the apex
       let m = crownMass, mx = crownMass * top[0], my = crownMass * top[1];
       for (let j = i; j < nodes.length; j++) { const q = nodes[j]; const mm = rho_of(sp, y - q.born) * A * q.h; m += mm; mx += mm * q.pos[0]; my += mm * q.pos[1]; }
@@ -131,7 +132,7 @@ export function growPalm(specIn, { years = 30, seed = 1, lean = null, leanAz = 0
       const th = Math.min(0.2, (dM * n.h) / (Eage(n, y) * I));
       if (th > 1e-9) { const axn = unit(Mv); for (let j = i; j < nodes.length; j++) { nodes[j].pos = add(base, rot(sub(nodes[j].pos, base), axn, th)); nodes[j].dir = unit(rot(nodes[j].dir, axn, th)); } d = unit(rot(d, axn, th)); }
       if (reaction && y - n.born >= 1) {                     // the counterfactual: a dicot's reaction wood straightens the old stem
-        const err = Math.acos(Math.min(1, n.dir[2])); const fix = Math.min(err, 0.02 * n.h * 10); const ax = cross(n.dir, UP);
+        const err = dmath.acos(Math.min(1, n.dir[2])); const fix = Math.min(err, 0.02 * n.h * 10); const ax = cross(n.dir, UP);
         if (err > 1e-4 && len(ax) > 1e-9) { const axn = unit(ax); for (let j = i; j < nodes.length; j++) { nodes[j].pos = add(base, rot(sub(nodes[j].pos, base), axn, fix)); nodes[j].dir = unit(rot(nodes[j].dir, axn, fix)); } d = unit(rot(d, axn, fix)); }
       }
     }
@@ -146,7 +147,7 @@ export function growPalm(specIn, { years = 30, seed = 1, lean = null, leanAz = 0
   return { sp, nodes, fronds, nuts, hand, years, seed };
 }
 /** Trunk radius at arc length s: established girth, swollen at the bole, a touch slimmer under the crown. */
-export function rAt(sp, s) { return sp.rEst + (sp.bole.r - sp.rEst) * Math.exp(-s / sp.bole.h); }
+export function rAt(sp, s) { return sp.rEst + (sp.bole.r - sp.rEst) * dmath.exp(-s / sp.bole.h); }
 
 // ── geometry ────────────────────────────────────────────────────────────────────────────────────────────────────
 /**
@@ -163,7 +164,7 @@ export function palmTrunkTris(palm, { sides = 16, stride = 4, color = null, crow
   let N = perp(T[0]); const tris = []; let prev = null;
   for (let i = 0; i < pts.length; i++) {
     N = unit(sub(N, mul(T[i], dot(N, T[i])))); const B = cross(T[i], N); const r = rAt(sp, ss[i]) * (i === pts.length - 1 ? 0.8 : 1);
-    const ring = [...Array(sides)].map((_, j) => { const a = (2 * Math.PI * j) / sides; return add(pts[i], add(mul(N, r * Math.cos(a)), mul(B, r * Math.sin(a)))); });
+    const ring = [...Array(sides)].map((_, j) => { const a = (2 * Math.PI * j) / sides; return add(pts[i], add(mul(N, r * dmath.cos(a)), mul(B, r * dmath.sin(a)))); });
     if (prev && tex) {
       const v0 = ss[i - 1] / tex.length, v1 = ss[i] / tex.length; const mid = mul(add(pts[i], pts[i - 1]), 0.5);
       for (let j = 0; j < sides; j++) {
@@ -187,10 +188,10 @@ export function frondTris(palm, { detail = 'leaflets' } = {}) {
   const { sp, nodes } = palm; const F = crownFrame(palm); const tris = []; const rng = mulberry32(palm.seed * 7 + 3);
   for (const fr of palm.fronds) {
     const n = nodes[fr.i]; const life = sp.frondLife; const a = Math.min(1, fr.age / life);
-    let insert = sp.insert[0] + (sp.insert[1] - sp.insert[0]) * Math.pow(a, 0.6);          // degrees from the trunk axis
+    let insert = sp.insert[0] + (sp.insert[1] - sp.insert[0]) * dmath.pow(a, 0.6);          // degrees from the trunk axis
     let B = sp.frondB[0] + (sp.frondB[1] - sp.frondB[0]) * a;
     if (fr.dead) { insert = 168 - 6 * rng(); B = 0.2; }                                        // a skirt frond hangs against the trunk
-    const dirH = unit(add(mul(F.u, Math.cos(n.phi)), mul(F.w, Math.sin(n.phi))));           // its azimuth around the apex
+    const dirH = unit(add(mul(F.u, dmath.cos(n.phi)), mul(F.w, dmath.sin(n.phi))));           // its azimuth around the apex
     const theta0 = (90 - insert) * DEG;                                                       // elevation above the plane ⟂ trunk
     const e = elastica({ B, theta0, n: 30 }); const Lf = fr.len;
     const base = add(n.pos, mul(dirH, rAt(sp, n.s) * 0.8));
@@ -207,10 +208,10 @@ export function frondTris(palm, { detail = 'leaflets' } = {}) {
       const nl = sp.leaflets;
       for (let q = 0; q < nl; q++) {
         const u = 0.12 + (0.88 * q) / nl; const kf = u * (P.length - 1); const k0 = Math.floor(kf), k1 = Math.min(P.length - 1, k0 + 1); const at = add(P[k0], mul(sub(P[k1], P[k0]), kf - k0));
-        const t = tan(k0); const nrm = unit(cross(t, side)); const ll = sp.leafletLen * Math.pow(Math.sin(Math.PI * Math.min(0.98, (u - 0.05) / 0.95)), 0.55) * (fr.dead ? 0.7 : 1);
+        const t = tan(k0); const nrm = unit(cross(t, side)); const ll = sp.leafletLen * dmath.pow(dmath.sin(Math.PI * Math.min(0.98, (u - 0.05) / 0.95)), 0.55) * (fr.dead ? 0.7 : 1);
         for (const sg of [1, -1]) {
           const ang = sp.leafletAngle * DEG, tilt = sp.leafletTilt * DEG;
-          let ld = unit(add(mul(t, Math.cos(ang)), mul(add(mul(side, sg * Math.cos(tilt)), mul(nrm, Math.sin(tilt))), Math.sin(ang))));
+          let ld = unit(add(mul(t, dmath.cos(ang)), mul(add(mul(side, sg * dmath.cos(tilt)), mul(nrm, dmath.sin(tilt))), dmath.sin(ang))));
           const tip = add(add(at, mul(ld, ll)), [0, 0, -sp.leafletDroop * ll * (0.5 + a)]);
           const wv = mul(t, 0.028); const mid = add(add(at, mul(ld, ll * 0.5)), [0, 0, -sp.leafletDroop * ll * (0.5 + a) * 0.35]);
           tris.push({ p: [at, add(mid, wv), tip], c: col, kind: 'leaf' }, { p: [at, add(at, wv), add(mid, wv)], c: col, kind: 'leaf' });
@@ -220,10 +221,10 @@ export function frondTris(palm, { detail = 'leaflets' } = {}) {
       // V-strips (L2) or one flat strip (L1): the pinnae as a sheet each side of the rachis
       const sides = detail === 'v' ? [1, -1] : [0]; const step = detail === 'v' ? 1 : 2;
       for (let k = 0; k + step < P.length; k += step) {
-        const u0 = k / (P.length - 1), u1 = (k + step) / (P.length - 1); const w0 = sp.leafletLen * 0.6 * Math.sin(Math.PI * Math.min(0.98, u0 + 0.05)), w1 = sp.leafletLen * 0.6 * Math.sin(Math.PI * Math.min(0.98, u1 + 0.05));
+        const u0 = k / (P.length - 1), u1 = (k + step) / (P.length - 1); const w0 = sp.leafletLen * 0.6 * dmath.sin(Math.PI * Math.min(0.98, u0 + 0.05)), w1 = sp.leafletLen * 0.6 * dmath.sin(Math.PI * Math.min(0.98, u1 + 0.05));
         const t = tan(k); const nrm = unit(cross(t, side)); const tilt = sp.leafletTilt * DEG;
         for (const sg of sides) {
-          const dv = sg === 0 ? side : unit(add(mul(side, sg * Math.cos(tilt)), mul(nrm, Math.sin(tilt))));
+          const dv = sg === 0 ? side : unit(add(mul(side, sg * dmath.cos(tilt)), mul(nrm, dmath.sin(tilt))));
           const drop = [0, 0, -sp.leafletDroop * 0.6]; const ww = sg === 0 ? 2 : 1;
           const a0 = sg === 0 ? add(P[k], mul(dv, -w0)) : P[k], b0 = sg === 0 ? add(P[k + step], mul(dv, -w1)) : P[k + step];
           const a1 = add(add(P[k], mul(dv, w0 * (ww === 2 ? 1 : 1))), mul(drop, w0)), b1 = add(add(P[k + step], mul(dv, w1)), mul(drop, w1));
@@ -240,9 +241,9 @@ function fanBlade(tris, at, dir, side, sp, col, dead, detail) {
   const up = unit(cross(side, dir)); const span = sp.fanSpan * DEG;
   let prev = null;
   for (let q = 0; q <= segs; q++) {
-    const a = -span / 2 + (span * q) / segs; const rd = unit(add(add(mul(dir, Math.cos(a) * 0.8), mul(side, Math.sin(a))), mul(up, 0.35 * Math.cos(a))));
+    const a = -span / 2 + (span * q) / segs; const rd = unit(add(add(mul(dir, dmath.cos(a) * 0.8), mul(side, dmath.sin(a))), mul(up, 0.35 * dmath.cos(a))));
     const fold = (q % 2 ? 0.06 : -0.06) * R;                                                 // the pleats
-    const mid = add(add(at, mul(rd, R * 0.6)), mul(up, fold)); const tip = add(add(at, mul(rd, R)), [0, 0, -R * (dead ? 0.6 : 0.28) * Math.abs(Math.sin(a) + 0.2)]);
+    const mid = add(add(at, mul(rd, R * 0.6)), mul(up, fold)); const tip = add(add(at, mul(rd, R)), [0, 0, -R * (dead ? 0.6 : 0.28) * Math.abs(dmath.sin(a) + 0.2)]);
     if (prev) { tris.push({ p: [at, prev.mid, mid], c: col, kind: 'leaf' }, { p: [prev.mid, prev.tip, tip], c: col, kind: 'leaf' }, { p: [prev.mid, tip, mid], c: col, kind: 'leaf' }); }
     prev = { mid, tip };
   }
@@ -250,8 +251,8 @@ function fanBlade(tris, at, dir, side, sp, col, dead, detail) {
 /** Coconut bunches: a few nuts under the youngest mature fronds. */
 export function nutTris(palm) {
   const tris = []; const F = crownFrame(palm);
-  for (const nu of palm.nuts) { const n = palm.nodes[nu.i]; const dirH = unit(add(mul(F.u, Math.cos(n.phi)), mul(F.w, Math.sin(n.phi))));
-    for (let k = 0; k < 6; k++) { const c = add(add(n.pos, mul(dirH, 0.32 + 0.1 * (k % 3))), [0.1 * Math.cos(k * 2.1), 0.1 * Math.sin(k * 2.1), -0.35 - 0.12 * Math.floor(k / 3)]); for (const t of blobTris(c, 0.12, [118, 108, 50], { detail: 0 })) tris.push(t); } }
+  for (const nu of palm.nuts) { const n = palm.nodes[nu.i]; const dirH = unit(add(mul(F.u, dmath.cos(n.phi)), mul(F.w, dmath.sin(n.phi))));
+    for (let k = 0; k < 6; k++) { const c = add(add(n.pos, mul(dirH, 0.32 + 0.1 * (k % 3))), [0.1 * dmath.cos(k * 2.1), 0.1 * dmath.sin(k * 2.1), -0.35 - 0.12 * Math.floor(k / 3)]); for (const t of blobTris(c, 0.12, [118, 108, 50], { detail: 0 })) tris.push(t); } }
   return tris;
 }
 export function palmTris(palm, { detail = 'leaflets', sides = 16, stride = 2, tex = null } = {}) {
@@ -268,7 +269,7 @@ export function parastichies(palm, { at = 0.5 } = {}) {
   const { nodes, sp } = palm; const i0 = Math.floor(nodes.length * at); const R = rAt(sp, nodes[i0].s); const out = [];
   for (let k = 1; k < 80 && i0 + k < nodes.length; k++) {
     let dphi = (nodes[i0 + k].phi - nodes[i0].phi) % (2 * Math.PI); if (dphi > Math.PI) dphi -= 2 * Math.PI; if (dphi < -Math.PI) dphi += 2 * Math.PI;
-    out.push({ k, du: R * dphi, dv: nodes[i0 + k].s - nodes[i0].s, d: Math.hypot(R * dphi, nodes[i0 + k].s - nodes[i0].s) });
+    out.push({ k, du: R * dphi, dv: nodes[i0 + k].s - nodes[i0].s, d: dmath.hypot(R * dphi, nodes[i0 + k].s - nodes[i0].s) });
   }
   out.sort((a, b) => a.d - b.d); const [a, b] = out;
   return { numbers: [a.k, b.k].sort((x, y) => x - y), hands: { [a.k]: Math.sign(a.du), [b.k]: Math.sign(b.du) }, internode: nodes[i0 + 1].s - nodes[i0].s, circumference: 2 * Math.PI * R };
@@ -301,9 +302,9 @@ export function trunkSurface(palm) {
       if (best.dv > 0 && t > 0.25) c = mix(c, [150, 128, 100], 0.35);                            // the cut face catches light
     } else {
       // a scar ring per node, all the way round (the leaf base clasped the stem), oblique: higher where the petiole sat
-      let ring = null; for (let j = Math.max(0, i - 3); j < Math.min(nodes.length, i + 3); j++) { const dv = s - (S[j] + 0.3 * (nodes[j].h || h) * Math.cos(phi - nodes[j].phi)); if (!ring || Math.abs(dv) < Math.abs(ring.dv)) ring = { j, dv }; }
+      let ring = null; for (let j = Math.max(0, i - 3); j < Math.min(nodes.length, i + 3); j++) { const dv = s - (S[j] + 0.3 * (nodes[j].h || h) * dmath.cos(phi - nodes[j].phi)); if (!ring || Math.abs(dv) < Math.abs(ring.dv)) ring = { j, dv }; }
       const hr = nodes[ring.j].h || h; const wv = Math.max(0.003, 0.12 * hr * (sp.scars === 'rings-faint' ? 0.6 : 1));
-      const g = Math.exp(-((ring.dv / wv) ** 2)); height = -0.006 * g * (sp.scars === 'rings-faint' ? 0.5 : 1);
+      const g = dmath.exp(-((ring.dv / wv) ** 2)); height = -0.006 * g * (sp.scars === 'rings-faint' ? 0.5 : 1);
       const w2 = Math.min(1, (years - nodes[ring.j].born) / 25);
       c = mix(mix(sp.trunk, [168, 164, 156], w2 * 0.5), sp.scar, g * 0.8);
       c = mix(c, [110, 104, 96], 0.25 * vnoise(phi * 60, s * 8, 3));                           // fibre streaks along the stem
@@ -320,13 +321,13 @@ export function trunkSurface(palm) {
  */
 const bornCache = new WeakMap();
 export function palmWoodAt(palm, s, x, y, z = 0, { footprint = 0 } = {}) {
-  const { sp, years, nodes } = palm; const R = rAt(sp, s); const rho = Math.hypot(x, y) / R; if (rho > 1) return null;
+  const { sp, years, nodes } = palm; const R = rAt(sp, s); const rho = dmath.hypot(x, y) / R; if (rho > 1) return null;
   let memo = bornCache.get(palm); if (!memo || memo.s !== s) { let born = 0; for (const n of nodes) { if (n.s >= s) { born = n.born; break; } } memo = { s, born }; bornCache.set(palm, memo); }
   const age = years - memo.born;
-  const lig = 1 - Math.exp(-age / sp.E.tau); const periph = rho * rho;
+  const lig = 1 - dmath.exp(-age / sp.E.tau); const periph = rho * rho;
   const density = 1 + 5 * periph; const cell = 0.009 / Math.sqrt(density);                   // bundle spacing, m
   const gx = Math.floor(x / cell), gy = Math.floor(y / cell); let near = Infinity;
-  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const cx = (gx + dx + 0.2 + 0.6 * hash2(gx + dx, gy + dy, 1)) * cell, cy = (gy + dy + 0.2 + 0.6 * hash2(gx + dx, gy + dy, 2)) * cell + 0.0006 * Math.sin(z * 9 + gx); near = Math.min(near, Math.hypot(x - cx, y - cy)); }
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const cx = (gx + dx + 0.2 + 0.6 * hash2(gx + dx, gy + dy, 1)) * cell, cy = (gy + dy + 0.2 + 0.6 * hash2(gx + dx, gy + dy, 2)) * cell + 0.0006 * dmath.sin(z * 9 + gx); near = Math.min(near, dmath.hypot(x - cx, y - cy)); }
   const rb = cell * (0.22 + 0.12 * lig * (0.4 + 0.6 * periph));
   const ground = mix([222, 200, 160], [176, 142, 100], lig * (0.3 + 0.7 * periph));
   const bundle = mix([150, 110, 70], [58, 36, 24], lig * (0.4 + 0.6 * periph));
@@ -337,6 +338,6 @@ export function palmWoodAt(palm, s, x, y, z = 0, { footprint = 0 } = {}) {
 /** Bundle darkness sampled in annuli and at two heights: the gate that palm wood darkens outward and downward. */
 export function palmWoodProfile(palm, s, bins = 5, samples = 4000) {
   const R = rAt(palm.sp, s); const rng = mulberry32(99); const out = [];
-  for (let b = 0; b < bins; b++) { let dark = 0, nS = 0; for (let k = 0; k < samples / bins; k++) { const r = R * ((b + rng()) / bins) * 0.999, a = rng() * 2 * Math.PI; const c = palmWoodAt(palm, s, r * Math.cos(a), r * Math.sin(a)); if (!c) continue; dark += 1 - (c[0] + c[1] + c[2]) / 765; nS++; } out.push(+(dark / nS).toFixed(3)); }
+  for (let b = 0; b < bins; b++) { let dark = 0, nS = 0; for (let k = 0; k < samples / bins; k++) { const r = R * ((b + rng()) / bins) * 0.999, a = rng() * 2 * Math.PI; const c = palmWoodAt(palm, s, r * dmath.cos(a), r * dmath.sin(a)); if (!c) continue; dark += 1 - (c[0] + c[1] + c[2]) / 765; nS++; } out.push(+(dark / nS).toFixed(3)); }
   return out;
 }

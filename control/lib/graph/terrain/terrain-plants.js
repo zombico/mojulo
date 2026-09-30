@@ -17,6 +17,7 @@ import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { ageTint } from '../vegetation/bamboo.js';
 import { faceListToMesh } from '../figures/face-mesh.js';
 import { vegetationKernel, PER } from './vegetation-kernel.js';
+import * as dmath from '../../util/dmath.js';
 
 /** °C a kilometre: the environmental lapse rate. */
 export const LAPSE = 6.5;
@@ -176,7 +177,7 @@ export function plantPools(V, spec, light) {
 }
 
 const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
-const toSrgb = (c) => { const v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; return Math.max(0, Math.min(255, Math.round(v * 255))); };
+const toSrgb = (c) => { const v = c <= 0.0031308 ? 12.92 * c : 1.055 * dmath.pow(c, 1 / 2.4) - 0.055; return Math.max(0, Math.min(255, Math.round(v * 255))); };
 const hexOf = (lin) => '#' + lin.map((c) => toSrgb(c).toString(16).padStart(2, '0')).join('');
 
 /**
@@ -207,7 +208,7 @@ export function farTemplate(faces) {
   for (let t = 0; t < n; t++) {
     const o = t * 9, cz = (P[o + 2] + P[o + 5] + P[o + 8]) / 3;
     const ux = P[o + 3] - P[o], uy = P[o + 4] - P[o + 1], uz = P[o + 5] - P[o + 2], vx = P[o + 6] - P[o], vy = P[o + 7] - P[o + 1], vz = P[o + 8] - P[o + 2];
-    const area = 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) + 1e-12;
+    const area = 0.5 * dmath.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) + 1e-12;
     const into = cz > 0.4 * zTop ? cr : cz < 0.3 * zTop ? tr : null; if (!into) continue;
     for (let k = 0; k < 3; k++) into.c[k] += C[o + k] * area; into.w += area;
     if (into === cr) for (let v = 0; v < 3; v++) { const x = P[o + v * 3], y = P[o + v * 3 + 1], z = P[o + v * 3 + 2]; if (x < cr.x0) cr.x0 = x; if (x > cr.x1) cr.x1 = x; if (y < cr.y0) cr.y0 = y; if (y > cr.y1) cr.y1 = y; if (z < cr.z0) cr.z0 = z; if (z > cr.z1) cr.z1 = z; }
@@ -217,7 +218,7 @@ export function farTemplate(faces) {
   const cx = (cr.x0 + cr.x1) / 2, cy = (cr.y0 + cr.y1) / 2, cz = (cr.z0 + cr.z1) / 2, rx = (cr.x1 - cr.x0) / 2, ry = (cr.y1 - cr.y0) / 2, rz = (cr.z1 - cr.z0) / 2;
   const rt = Math.max(0.012 * zTop, 0.08 * Math.min(rx, ry)); const out = [];
   const tri = (a, b, c, fill) => out.push({ corners: [a, b, c], fill, doubleSided: true });
-  const ring = (z) => [0, 1, 2].map((k) => [rt * Math.cos((2 * Math.PI * k) / 3), rt * Math.sin((2 * Math.PI * k) / 3), z]);
+  const ring = (z) => [0, 1, 2].map((k) => [rt * dmath.cos((2 * Math.PI * k) / 3), rt * dmath.sin((2 * Math.PI * k) / 3), z]);
   const r0 = ring(0), r1 = ring(cz); for (let k = 0; k < 3; k++) { const k2 = (k + 1) % 3; tri(r0[k], r0[k2], r1[k2], trunk); tri(r0[k], r1[k2], r1[k], trunk); }
   const X0 = [cx - rx, cy, cz], X1 = [cx + rx, cy, cz], Y0 = [cx, cy - ry, cz], Y1 = [cx, cy + ry, cz], Z0 = [cx, cy, cz - rz], Z1 = [cx, cy, cz + rz];
   for (const [a, b] of [[X1, Y1], [Y1, X0], [X0, Y0], [Y0, X1]]) { tri(a, b, Z1, crown); tri(b, a, Z0, crown); }
@@ -250,7 +251,7 @@ export function plantItemsNear(field, V, [cx, cy], radius) {
   const P = vegetationKernel(V, field.kernel), T = 128, out = V.species.map(() => []);
   for (let y = Math.floor((cy - radius) / T) * T; y < cy + radius; y += T) for (let x = Math.floor((cx - radius) / T) * T; x < cx + radius; x += T) {
     const a = P.plantsIn(x, y, T);
-    for (let q = 0; q < a.length; q += PER) { if (Math.hypot(a[q] - cx, a[q + 1] - cy) > radius) continue; out[a[q + 4]].push({ x: a[q], y: a[q + 1], z0: a[q + 2], height: a[q + 3], ...(a[q + 6] >= 0 ? { age: a[q + 6] } : {}), ...(a[q + 7] ? { lean: a[q + 7], az: a[q + 8] } : {}) }); }
+    for (let q = 0; q < a.length; q += PER) { if (dmath.hypot(a[q] - cx, a[q + 1] - cy) > radius) continue; out[a[q + 4]].push({ x: a[q], y: a[q + 1], z0: a[q + 2], height: a[q + 3], ...(a[q + 6] >= 0 ? { age: a[q + 6] } : {}), ...(a[q + 7] ? { lean: a[q + 7], az: a[q + 8] } : {}) }); }
   }
   return out;
 }

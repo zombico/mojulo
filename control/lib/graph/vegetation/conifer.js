@@ -20,11 +20,12 @@
 // Returns a plant the mesh and ladder take: { nodes, axes, arch, params, children, exposure, spec, H }.
 // Deterministic: mulberry32 dice from the seed.
 import { mulberry32 } from './grow.js';
+import * as dmath from '../../util/dmath.js';
 
 const DEG = Math.PI / 180;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const smooth = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
@@ -63,7 +64,7 @@ export function growConifer(specIn, { seed = 1, years = null, stand = 0 } = {}) 
   const nodes = [], axes = [], children = new Map();
   const addNode = (n) => { n.id = nodes.length; nodes.push(n); if (n.parent >= 0) { if (!children.has(n.parent)) children.set(n.parent, []); children.get(n.parent).push(n.id); } return n; };
   // the leader's yearly growth, and its height at the end of year y (h[0] = 0)
-  const g = (t) => S.g0 * Math.min(1, (t + 1) / S.ramp) * (S.slowAfter && t > S.slowAfter ? Math.exp(-(t - S.slowAfter) * S.slowRate) : 1);
+  const g = (t) => S.g0 * Math.min(1, (t + 1) / S.ramp) * (S.slowAfter && t > S.slowAfter ? dmath.exp(-(t - S.slowAfter) * S.slowRate) : 1);
   const h = [0]; for (let t = 1; t <= A; t++) h.push(h[t - 1] + g(t));
   const H = h[A]; const crownDepth = (S.crown + (S.crownStand - S.crown) * stand) * H;
 
@@ -90,15 +91,15 @@ export function growConifer(specIn, { seed = 1, years = null, stand = 0 } = {}) 
     const age = A - u; if (age < 1) return;
     const side = unit(cross([0, 0, 1], hor)); const Lt = Math.min(S.twigMax, S.twigRate * age) * (1 - 0.4 * f) * (0.7 + 0.6 * rng());
     const dirs = [];
-    if (S.twig === 'spray') for (const sg of [-1, 1]) dirs.push(unit(add(mul(d, Math.cos(S.twigAngle * DEG)), mul(side, sg * Math.sin(S.twigAngle * DEG)))));
+    if (S.twig === 'spray') for (const sg of [-1, 1]) dirs.push(unit(add(mul(d, dmath.cos(S.twigAngle * DEG)), mul(side, sg * dmath.sin(S.twigAngle * DEG)))));
     else if (S.twig === 'comb') {
       // two-ranked, and low in the crown hanging: the comb spruce's curtains
       const depth = (h[A] - at.pos[2]) / h[A]; const hang = smooth((depth - 0.25) / 0.35);
-      for (const sg of [-1, 1]) dirs.push(unit(add(add(mul(d, Math.cos(S.twigAngle * DEG) * (1 - 0.6 * hang)), mul(side, sg * Math.sin(S.twigAngle * DEG) * (1 - 0.5 * hang))), [0, 0, -1.3 * hang])));
+      for (const sg of [-1, 1]) dirs.push(unit(add(add(mul(d, dmath.cos(S.twigAngle * DEG) * (1 - 0.6 * hang)), mul(side, sg * dmath.sin(S.twigAngle * DEG) * (1 - 0.5 * hang))), [0, 0, -1.3 * hang])));
     } else if (S.twig === 'whorl') {
       if (age > S.twigKeep) return;                                           // older laterals are shed: the limb is bare inside
       const w1 = unit(cross(d, side));
-      for (let q = 0; q < S.twigWhorl; q++) { const ph = (u * 97 + (q * 360) / S.twigWhorl) * DEG; dirs.push(unit(add(add(mul(d, Math.cos(S.twigAngle * DEG)), mul(side, Math.cos(ph) * Math.sin(S.twigAngle * DEG))), mul(w1, Math.sin(ph) * Math.sin(S.twigAngle * DEG) + 0.25)))); }
+      for (let q = 0; q < S.twigWhorl; q++) { const ph = (u * 97 + (q * 360) / S.twigWhorl) * DEG; dirs.push(unit(add(add(mul(d, dmath.cos(S.twigAngle * DEG)), mul(side, dmath.cos(ph) * dmath.sin(S.twigAngle * DEG))), mul(w1, dmath.sin(ph) * dmath.sin(S.twigAngle * DEG) + 0.25)))); }
     }
     for (let td of dirs) {
       td = unit(add(td, [(rng() - 0.5) * 0.35, (rng() - 0.5) * 0.35, (rng() - 0.5) * 0.3]));   // no two twigs alike
@@ -108,7 +109,7 @@ export function growConifer(specIn, { seed = 1, years = null, stand = 0 } = {}) 
         const nn = addNode({ parent: prev, axis, order: 2, born, pos: add(nodes[prev].pos, mul(td, step)), dir: td, len: step, leaves: A - born < S.leafLife ? S.leavesPerNode : 0 });
         prev = nn.id;
         if (S.twig === 'whorl' && k < n - 1) for (let q = 0; q < 2; q++) {       // the shoot whorls again: the candelabra at a limb's end
-          const ph = (born * 131 + q * 180) * DEG; const a1 = unit(cross(td, [0, 0, 1])); const dd = unit(add(add(mul(td, 0.75), mul(a1, 0.6 * Math.cos(ph))), [0, 0, 0.35 + 0.3 * Math.sin(ph)]));
+          const ph = (born * 131 + q * 180) * DEG; const a1 = unit(cross(td, [0, 0, 1])); const dd = unit(add(add(mul(td, 0.75), mul(a1, 0.6 * dmath.cos(ph))), [0, 0, 0.35 + 0.3 * dmath.sin(ph)]));
           const ax3 = axes.length; axes.push({ id: ax3, order: 3 }); const l3 = Math.min(0.5, 0.5 * S.twigRate * (A - born + 1));
           addNode({ parent: nn.id, axis: ax3, order: 3, born: born + 1, pos: add(nn.pos, mul(dd, l3)), dir: dd, len: l3, leaves: A - born - 1 < S.leafLife ? S.leavesPerNode : 0 });
         }
@@ -119,14 +120,14 @@ export function growConifer(specIn, { seed = 1, years = null, stand = 0 } = {}) 
   const branch = (base, t, az, scale, elevFromVert) => {
     const axis = axes.length; axes.push({ id: axis, order: 1 });
     if (A - t < 1) return;
-    const hor = [Math.cos(az * DEG), Math.sin(az * DEG), 0];
-    const inc = []; for (let u = t + 1; u <= A; u++) inc.push(scale * S.ratio * S.g0 * Math.exp(-(h[u] - h[t]) / S.shadeDepth) * (1 + (rng() - 0.5) * S.jitter));
+    const hor = [dmath.cos(az * DEG), dmath.sin(az * DEG), 0];
+    const inc = []; for (let u = t + 1; u <= A; u++) inc.push(scale * S.ratio * S.g0 * dmath.exp(-(h[u] - h[t]) / S.shadeDepth) * (1 + (rng() - 0.5) * S.jitter));
     const L = inc.reduce((a, b) => a + b, 0); let prev = base.id, s = 0;
     for (let k = 0; k < inc.length; k++) {
       const u = t + 1 + k; s += inc[k]; const f = s / L;
       // the angle from vertical along the branch: the set-point, sagging toward the tip, the newest year turned up
       const th = (elevFromVert + S.droop * f * f * Math.min(1.6, L / 2.5) - (k >= inc.length - 1 ? S.upturn : 0)) * DEG;
-      const d = unit(add(mul([0, 0, 1], Math.cos(th)), mul(hor, Math.sin(th))));
+      const d = unit(add(mul([0, 0, 1], dmath.cos(th)), mul(hor, dmath.sin(th))));
       const n = addNode({ parent: prev, axis, order: 1, born: u, pos: add(nodes[prev].pos, mul(d, inc[k])), dir: d, len: inc[k], leaves: A - u < S.leafLife ? S.leavesPerNode : 0 });
       prev = n.id;
       if (k < inc.length - 1) twigs(n, u, d, hor, f);
@@ -149,8 +150,8 @@ export function growConifer(specIn, { seed = 1, years = null, stand = 0 } = {}) 
   if (S.limbMin) { const rest = new Map(); for (let i = nodes.length - 1; i >= 0; i--) { const n = nodes[i]; if (n.order !== 1) continue; const acc = (rest.get(n.axis) || 0) + n.len; rest.set(n.axis, acc); n.r = Math.max(n.r, S.limbMin * Math.sqrt(acc / 3)); } }
   // light: Beer–Lambert into the crown from its envelope (a shoot deep inside, or low, is darker)
   const env = new Float64Array(20);
-  for (const n of nodes) { const b = Math.min(19, Math.floor((n.pos[2] / H) * 20)); env[b] = Math.max(env[b], Math.hypot(n.pos[0], n.pos[1])); }
-  const exposure = (p) => { const b = Math.max(0, Math.min(19, Math.floor((p[2] / H) * 20))); const inward = Math.max(0, (env[b] || 1) - Math.hypot(p[0], p[1])); return Math.max(0.05, Math.exp(-1.2 * inward) * (0.55 + 0.45 * p[2] / H)); };
+  for (const n of nodes) { const b = Math.min(19, Math.floor((n.pos[2] / H) * 20)); env[b] = Math.max(env[b], dmath.hypot(n.pos[0], n.pos[1])); }
+  const exposure = (p) => { const b = Math.max(0, Math.min(19, Math.floor((p[2] / H) * 20))); const inward = Math.max(0, (env[b] || 1) - dmath.hypot(p[0], p[1])); return Math.max(0.05, dmath.exp(-1.2 * inward) * (0.55 + 0.45 * p[2] / H)); };
   const arch = { label: S.label, needles: true, leafSize: S.leafSize, leafLife: S.leafLife, conifer: true };
   return { nodes, axes, arch, params: { years: A, lignin: 1, cambium: 1 }, children, exposure, spec: S, H };
 }

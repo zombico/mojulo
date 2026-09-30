@@ -14,6 +14,7 @@
 import { paintedTerrainState } from '../polygonizer/painted-landscape.js';
 import { terrainKernel } from './terrain-kernel.js';
 import { atlasField, validateAtlas } from './terrain-atlas.js';
+import * as dmath from '../../util/dmath.js';
 
 export const TERRAIN_DEFAULTS = Object.freeze({ span: 2400, relief: 1, horizon: 'plain' });
 export const HORIZON_MODES = Object.freeze(['plain', 'sea', 'none']);
@@ -79,7 +80,7 @@ export function terrainField(spec) {
   const horizon = { mode, fall: 18, amp: mode === 'sea' ? 0.05 * range : 0.35 * range, base: mode === 'sea' ? sea - 0.15 * range : p10 + 0.1 * range };
   const cellM = st.dx * s; const d = spec.detail === false ? { rock: 0, soil: 0 } : (spec.detail || {});
   const L0 = d.crossover ?? 4 * cellM, Lmin = d.min ?? 0.5, H = d.hurst ?? 0.8;
-  const octaves = []; for (let L = L0; L >= Lmin && octaves.length < 16; L /= 2) octaves.push([L, (L / L0) ** H]);
+  const octaves = []; for (let L = L0; L >= Lmin && octaves.length < 16; L /= 2) octaves.push([L, dmath.pow(L / L0, H)]);
   const seedNum = hashSeed(spec.seed ?? spec.from.seed ?? 'terrain') % 100003;
   const K = {
     nx: st.nx, ny: st.ny, x0: st.x0, y0: st.y0, dx: st.dx, hq, hMin: lo, hStep, hard, apron, apronStep,
@@ -91,7 +92,7 @@ export function terrainField(spec) {
   };
   if (spec.planet) {
     // the painting at the north pole of a sphere; continents past it, relative to the painting's horizon base
-    const R = (spec.planet === true ? null : spec.planet.radius) ?? 8 * span; const half = Math.hypot(PAINT_WIDTH, 30) / 2 * s;
+    const R = (spec.planet === true ? null : spec.planet.radius) ?? 8 * span; const half = dmath.hypot(PAINT_WIDTH, 30) / 2 * s;
     const baseM = horizon.base * zs, amp = Math.max(0.6 * range * zs, 0.02 * R);
     K.planet = { R, inner: (1.3 * half) / R, outer: (3.5 * half) / R, cont: { amp, wl: 0.9 * R, bias: 0.05, base: baseM }, seed: (seedNum + 911) % 100003, sea: (sea !== null ? sea * zs : baseM - 0.12 * amp) };
   }

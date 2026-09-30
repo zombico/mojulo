@@ -18,11 +18,12 @@
 //   L0 far  : a spire — a lathe of the envelope at five heights (spruce, fir); a pine keeps its biggest clumps
 import { axisChains, tubeTris, barkQuads, woodTone, blobTris, defaultSides } from './tree-mesh.js';
 import { mix as mixU } from './util.js';
+import * as dmath from '../../util/dmath.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const SHADE = [16, 30, 24];
@@ -64,10 +65,10 @@ export function needleTris(plant, species, { hide = null, volume = 1 } = {}) {
 export function crownEnvelope(plant, bands = 12) {
   const H = plant.H; const leafy = plant.nodes.filter((n) => !n.died && n.leaves > 0 && n.order > 0);
   const base = leafy.length ? Math.min(...leafy.map((n) => n.pos[2])) : 0.5 * H; const span = H - base;
-  const r = []; for (let b = 0; b < bands; b++) { const lo = base + (b / bands) * span, hi = base + ((b + 1) / bands) * span; const rs = leafy.filter((n) => n.pos[2] >= lo && n.pos[2] < hi).map((n) => Math.hypot(n.pos[0], n.pos[1])).sort((x, y) => x - y); r.push(rs.length ? rs[Math.floor(0.9 * (rs.length - 1))] : 0); }
+  const r = []; for (let b = 0; b < bands; b++) { const lo = base + (b / bands) * span, hi = base + ((b + 1) / bands) * span; const rs = leafy.filter((n) => n.pos[2] >= lo && n.pos[2] < hi).map((n) => dmath.hypot(n.pos[0], n.pos[1])).sort((x, y) => x - y); r.push(rs.length ? rs[Math.floor(0.9 * (rs.length - 1))] : 0); }
   return { base, span, H, r, z: (b) => base + ((b + 0.5) / bands) * span };
 }
-const ring = (z, R, k, phase = 0) => [...Array(k)].map((_, j) => { const a = phase + (2 * Math.PI * j) / k; return [R * Math.cos(a), R * Math.sin(a), z]; });
+const ring = (z, R, k, phase = 0) => [...Array(k)].map((_, j) => { const a = phase + (2 * Math.PI * j) / k; return [R * dmath.cos(a), R * dmath.sin(a), z]; });
 function trunkTo(plant, upTo, sides) {
   const col = woodTone(plant); const tris = [];
   for (const ch of axisChains(plant)) if (ch.order === 0) { const k = ch.pts.findIndex((p) => p[2] > upTo); const c = k > 1 ? { ...ch, pts: ch.pts.slice(0, k + 1), rs: ch.rs.slice(0, k + 1), nodes: ch.nodes.slice(0, k), continues: true } : ch; for (const t of tubeTris(c, { sidesFor: () => sides, colorFor: col })) tris.push(t); }

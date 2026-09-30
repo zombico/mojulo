@@ -19,6 +19,7 @@ import { GRASSES, GRASS_STYLES, grassLadder } from '../vegetation/grass.js';
 import { trisToFaces } from '../vegetation/pool.js';
 import { grassKernel } from './grass-kernel.js';
 import { packTemplate, LAPSE, TREELINE_T } from './terrain-plants.js';
+import * as dmath from '../../util/dmath.js';
 
 /** Per climate: its moisture and its rows ({ kind, T?, M?, w }). */
 export const GRASS_CLIMATES = Object.freeze({
@@ -114,7 +115,7 @@ export function grassPageChannel(V, spec, light) {
       const lad = grassLadder(sp.name, { seed: 17 + 31 * v, ...(spec.style ? { style: spec.style } : {}) }); const yaw = (v * 2 * Math.PI) / spec.variants;
       const t = {}; for (const l of ['LF', 'L0', 'L1', 'L2']) t[l] = add(trisToFaces(lad[l], { light, yaw, group: `grass-${sp.name}` }));
       // a tuft's size on screen is its larger extent: a turf plug is wider than it is tall
-      const ext = (tris) => { let r = 0; for (const f of tris) for (const p of f.p) r = Math.max(r, 2 * Math.hypot(p[0], p[1])); return r; };
+      const ext = (tris) => { let r = 0; for (const f of tris) for (const p of f.p) r = Math.max(r, 2 * dmath.hypot(p[0], p[1])); return r; };
       return { h: 1, size: Math.max(1, +ext(lad.L2).toFixed(3)), t };
     }),
   }));
