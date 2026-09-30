@@ -397,7 +397,7 @@ function isWorldRecipe(manifest) {
 
 // Creation from an exported world recipe pays the same gates as a whole-manifest edit.
 // This does not reinterpret it as authoring knobs or import assets from another filesystem.
-async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full' }) {
+async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full', restore = false }) {
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world
@@ -448,9 +448,12 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // A row minted through the HERO door carries `hero` one level above: a patch under `/hero` (or a whole replacement
   // carrying `hero`) regenerates the PLAN from it, then the recipe — and says in the readout when that replaced hand
   // edits made under `/plan` since the last regeneration. A `/plan` patch keeps `hero` as the record of origin.
+  // A restore (create_sketch with an exported recipe) keeps the most-derived layer it carries and regenerates
+  // only what is missing, so hand edits under `/plan` or `/recipe` come back as they were exported.
   if (manifest.kind === 'layered') {
     const under = (root) => patch === undefined || [...touched].some((t) => String(t) === root || String(t).startsWith(`${root}/`));
-    const heroTouched = !!manifest.hero && under('/hero'), planTouched = under('/plan');
+    const heroTouched = !!manifest.hero && (restore ? !manifest.plan : under('/hero'));
+    const planTouched = restore ? !!manifest.plan && !manifest.recipe : under('/plan');
     const heroWarnings = [];
     try {
       if (heroTouched) {
@@ -507,7 +510,7 @@ export async function createSketchHandler(input) {
   let result;
   if (isWorldRecipe(manifest)) {
     validateSketchIdentity({ title, ref, folderRef, bucket });
-    const { nextManifest } = await prepareWorldRecipe({ manifest, ref, title });
+    const { nextManifest } = await prepareWorldRecipe({ manifest, ref, title, restore: true });
     result = persistSketch({ title, manifest: nextManifest, ref, folderRef, bucket });
   } else {
     result = mintSketch({ title, manifest, ref, folderRef, bucket });
