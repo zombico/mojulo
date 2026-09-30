@@ -108,11 +108,22 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = expandPlan(plan);
+  const recipe = expandHeroAwarePlan(plan, hero);
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
 }
+/** expandPlan, except that an armour's head piece (a helm, a kabuto, a theme's helm) on the anime head refuses by
+ * name: the piece is addressed on the landmark cranium, which the anime head does not carry. */
+function expandHeroAwarePlan(plan, hero) {
+  try { return expandPlan(plan); } catch (err) {
+    if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
+      throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
+    }
+    throw err;
+  }
+}
+
 /** An anime hero's LOOK stamp kept with its words: re-resolved only when the list changed (a re-tuned look word never
  * changes a stored row until its list is edited); an emptied or removed look drops its stamp. Anything else as given. */
 export function normalizeHero(hero) {
@@ -523,7 +534,7 @@ export async function createLayeredPlanHandler(input, internal = {}) {
     provenance = { kind: PLAN_PROVENANCE_KIND, plan_audit: { source, ...(prompt ? { prompt } : {}), ...(job_id != null ? { job_id } : {}), ...(token != null ? { token } : {}), ...(seed != null ? { seed } : {}), ...(image_sha256 != null ? { image_sha256 } : {}) } };
   }
   let recipe;
-  try { recipe = expandPlan(input.plan); }
+  try { recipe = expandHeroAwarePlan(input.plan, input.hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
   return createLayeredHandler({ ...input, recipe, ...(provenance ? { provenance } : {}) }, internal);
 }

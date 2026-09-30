@@ -102,4 +102,4 @@ export function validateTheme(card, at = 'theme') {
   return errs;
 }
 
-export const themeOf = (theme) => (typeof theme === 'string' ? THEMES[theme] : theme);
+export const themeOf = (theme) => (typeof theme === 'string' ? (Object.hasOwn(THEMES, theme) ? THEMES[theme] : undefined) : theme);

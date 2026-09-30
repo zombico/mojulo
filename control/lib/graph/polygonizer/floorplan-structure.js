@@ -1580,7 +1580,7 @@ function metalFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
   const faces = [];
   const side = run.exteriorSide;
   if (!side) return faces;
-  const cladding = METAL_CLADDING[o.cladding] ? o.cladding : 'standing-seam';
+  const cladding = Object.hasOwn(METAL_CLADDING, o.cladding ?? '') ? o.cladding : 'standing-seam';
   const spec = o.facadeMetal || METAL_CLADDING[cladding]; const mat = resolveMaterial(spec);
   const tHalf = t / 2; const N = run.orientation === 'h' ? [0, side, 0] : [side, 0, 0];
   const P = (a, out, z) => { const off = side * (tHalf + out); return run.orientation === 'h' ? [a, run.at + off, z] : [run.at + off, a, z]; };
