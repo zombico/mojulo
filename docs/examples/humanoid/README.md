@@ -72,24 +72,31 @@ reconciled into it: the body lives in the hero form now, the head here.
   manifest, as the door stores them; a key starting with `$` is a comment). The spec goes through the hero door's own
   steps without a database and refuses with the door's own messages; the card is drawn from the same parity-guarded
   World payload: the head ¾ large, the head from the front, the key side and the rear ¾ 20° down (the gameplay
-  camera), the head on the World backdrop, the bust, the body ¾ and front at 256 px, a silhouette and a 3-value
+  camera), the head on the World backdrop, the bust, the body ¾, front and rear ¾ at 256 px (the body from behind at
+  the gameplay camera) with any held gear (`gear`, drawn under the same parity guard), a silhouette and a 3-value
   render, under the spec's words and what the door read, beside the door's `hero` readout (`readout.json`). `--expr`
   adds the head ¾ at every expression word the worn head takes, `--check-lens` the head ¾ at the review sheets' lens,
-  and `--sheet <config.json>` draws several specs side by side on one lens per row. Into `cast/` under the spike tree
-  (`--out <dir>` elsewhere).
+  and `--sheet <config.json>` draws several specs side by side on one lens per row (the body from the ¾ and from
+  behind, with any held gear). Into `cast/` under the spike tree (`--out <dir>` elsewhere).
 - `cast/`: worked characters as card specs, each with a `$note` saying who the character is and what the spec shows
   off: `heroine` in full dress (one base garment and one signature sash and bow, collars, boots with buckles, a stand
   from pose words, four clips of her own at the door, each `{ seconds, keys }` with a designed duration — `greet` and
-  `victory` 2 s, `idleRelaxed` 4 s, `run` 0.8 s — and a facial performance in its keys' `face` words: the greet waves
-  from her stand in two strokes on the elbow's hinge, the arm held up across the loop, shuts her eyes in a grin on the
-  first stroke and opens into a wider smile, the run holds a determined squint whose mouth pushes on each contact, the
-  victory gathers on the crouch (the brows down, the eyes a touch narrower) and cheers eyes shut with the arms up;
+  `victory` 2 s, `idleRelaxed` 4 s, `run` 0.8 s — and a facial performance in its keys' `face` words: the greet raises
+  the near hand beside her face in its first key (her stand keeps both arms down: a raised hand read as a fist, a
+  fighter; the engine's crossfade takes her from the stand into the greet), waves in two strokes on the elbow's hinge,
+  the arm held up across the loop, shuts her eyes in a grin on the first stroke and opens into a wider smile, the run
+  holds a determined squint whose mouth pushes on each contact, the victory gathers on the crouch (the brows down, the
+  eyes a touch narrower) and cheers eyes shut with the arms up;
   `idleRelaxed` keeps her authored face and blinks once a loop), then `lead`, `rival`, `noble`, `mentor`, `kid`,
   `tough` and `tomboy` (look words and the own layer over them, the graphic face, the hair's form words and lock
   edits, expressions as a word, a list or an object, the character light's shade swatches, streak and ring). The words
   are the manual's (`control/lib/graph/solid-vocab/layered.md`, the Hero door).
   `node ../docs/examples/humanoid/render-articulation.mjs --spec ../docs/examples/humanoid/cast/<name>.json` from
   `control/` draws one.
+- `DESIGNING.md`: an orientation for an agent asked to design (not animate) a hero on the card: the loop, the theme
+  rule (the role and story decide the gear, armour and stand; the head leads), what good looks like, the costume as
+  data, the gear and adornment words on an anime character, the critic and the blind judge that end the loop (with
+  briefs to hand over), the words that surprise, and what to hand back.
 - `view-animations.mjs`: a self-contained page that plays a skinned GLB's clips as an engine does (real skinning and
   morph targets, each clip at its own length, the baked vertex colours unlit; three.js from jsdelivr, the GLBs inlined):
   a model picker, a button per clip, pause, speed, a 1/30 s frame-step, orbit, the cameras `full` (the figure framed over

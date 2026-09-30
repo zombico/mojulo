@@ -896,12 +896,13 @@ branch; each bullet is rewritten as its phase lands.
   Blender's default scene rate, a one-frame drawing can fall between two samples). The readout's `hero.clips` adds each
   clip's `seconds` and the door clips carrying a `face` on the anime head. The worked heroine's clips carry their
   durations (greet and victory 2 s, idleRelaxed 4 s, run 0.8 s) and her performance: a closed-eye grin opening into a
-  wider smile on the greet (twelve keys, one on each of the pack's samples: two strokes from her stand on the elbow's
-  hinge, each eased at both ends, with the arm held up across the loop; the waving side lifts into the first, the head
-  tilts toward the hand and nods a key after it, and the other arm answers sideways), a determined squint pushing on
-  each contact on the run, the brows down on the victory's crouch and an eyes-shut cheer at its peak. A hero without
-  clips is byte-identical but for the anime hero's durations (its packed clips carry `s`, its World page plays them, its
-  GLBs end each clip there); only the mint's next hint gains a sentence on the clips, and a second on the anime head.
+  wider smile on the greet (twelve keys, one on each of the pack's samples: the near hand raised beside her face in
+  the first key, then two strokes on the elbow's hinge, each eased at both ends, with the arm held up across the loop;
+  the waving side lifts into the first stroke, the head tilts toward the hand and nods a key after it, and the other
+  arm answers sideways), a determined squint pushing on each contact on the run, the brows down on the victory's
+  crouch and an eyes-shut cheer at its peak. A hero without clips is byte-identical but for the anime hero's durations
+  (its packed clips carry `s`, its World page plays them, its GLBs end each clip there); only the mint's next hint
+  gains a sentence on the clips, and a second on the anime head.
 - **The playable export.** The Godot world pack (`scripts/export-godot.mjs`, clips on, the default) ships a rigged
   layered figure SKINNED: `model.glb` is the bytes `export_model { clips: '_all', skinned: true }` writes (one mesh, its
   joints, every clip — the anime hero's at their designed durations, every other hero's one second each; `--lit` adds
@@ -968,6 +969,29 @@ branch; each bullet is rewritten as its phase lands.
   capture-contract `WORLD_HIDE_SELECTORS` entry, so World stills (`scene-png.js`, which now reads the root and hide
   selectors from the contract instead of its own copy) and motion frames bake it out; the live page keeps it. A page
   carrying a rigged figure's `preview` gains the one class; every other page is byte-identical.
+- **The card's gear and back.** The character card (`render-articulation.mjs --spec`) draws a hero's held gear
+  (`gear`, mounted and posed as the World resolver bakes it, in its baked fill, and held to the same parity guard as
+  the body, so a resolver that lowered it otherwise would refuse) and the body from behind at the gameplay camera: a
+  `body · rear ¾, 20° down` cell in the card's lower row, and a body rear ¾ row on the side-by-side sheet (`--sheet`),
+  its gear guarded too. The body cells take their scale from the figure with its gear and aim at the figure alone, so
+  a blade held forward never crops the feet. Before, a hero with gear failed the guard on the card and the sheet, and
+  the only rear view was the head's. A hero without gear draws as before but for the new cell (the card is one cell
+  wider, the sheet one row taller).
+- **Designing a hero.** `docs/examples/humanoid/DESIGNING.md` is the design orientation for an agent asked to design
+  (not animate) a character on the card: the loop (a thesis, one idea per render, each judged at the size it must
+  read at); THE THEME RULE (the role and story decide the equipment, a weapon only where the role carries one and at
+  its size and style, armour only where it is worn, the head, face and hair leading, the stand following the role and
+  the temperament); the gear and adornment words on an anime character with the traps a trial of the loop hit (the
+  anime `stylize: 0.7` overriding an inline card's own, loud sample styles, the hip slot on the left only, no scabbard,
+  a swing word standing alone; `tabard` on a strap hanging below the hem but rigid; `facing`, a shell's `rim`, `pin`);
+  and the loop's end, an independent critic that reads the card before the brief and hands back at most three ranked
+  fixes, one fix pass of at most three renders, and a blind judge that picks the card to keep, with briefs to hand
+  over. In the trial the redesigns beat the originals on every character; the critic's biggest catch was a pose out
+  of theme, and its small tuning fixes came out neutral or worse.
+- **The worked heroine's stand.** `cast/heroine.json` stands `relaxed` with the chest opened and the head turned 12°
+  toward the viewer, both arms down: her raised near hand read as a clenched fist, a fighter, to the critic and to both
+  blind judges, against a brief that says she is not one. The greet no longer starts from the stand: its first key
+  raises the hand, and the engine's crossfade takes her from the stand into it. Her clips are unchanged.
 - **Planes and designed shadow.** The cheek plane, the jaw set inside the cheek outline, the gonial angle, the chin, a
   wedge nose; an occlusion bias, a deep second shade, a cast shadow from the fringe, ink widths that vanish at openings and
   thin in valleys, authored interior lines.
