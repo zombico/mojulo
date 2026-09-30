@@ -1611,8 +1611,9 @@ function metalFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
       quad(a - w / 2, 0.03, a - w / 2, 0.03 + h, lo, hi, hex, alongV.map((v) => -v)); quad(a + w / 2, 0.03 + h, a + w / 2, 0.03, lo, hi, hex, alongV); quad(a - w / 2, 0.03 + h, a + w / 2, 0.03 + h, lo, hi, hex);
     }
   }
-  // a corrugated or seamed sheet is rolled vertically: its toolpath runs up the wall unless the spec names one
-  tagFacesWithMaterial(faces, mat, { along: cladding === 'panel' ? 'auto' : [0, 0, 1] });
+  // a corrugated or seamed sheet is rolled vertically: its toolpath runs up the wall unless the spec names one. A panel
+  // wall's first face is its dark open joint, which is not metal (facade-card tags past its `struct` the same way)
+  tagFacesWithMaterial(cladding === 'panel' ? faces.slice(1) : faces, mat, { along: cladding === 'panel' ? 'auto' : [0, 0, 1] });
   return faces;
 }
 
