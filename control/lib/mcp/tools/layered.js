@@ -143,6 +143,17 @@ const headOf = (hero) => hero.head ?? 'landmark';
 const jawedHead = (hero) => headOf(hero) === 'landmark' || !!hero.head?.joints?.jawHinge;
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 
+/** the figure casts that read as a child (figure-cast.js) and the anime look that says so (anime-looks.js `kid`) */
+export const CHILD_CODED_CASTS = Object.freeze(['child', 'chibi']);
+const CHILD_CODED_LOOKS = Object.freeze(['kid']);
+/** why a hero spec is child-coded (its cast, or a look word), or null */
+function childCoding(spec) {
+  if (typeof spec.cast === 'string' && CHILD_CODED_CASTS.includes(spec.cast)) return `the '${spec.cast}' cast`;
+  const looks = spec.look === undefined || spec.look === null ? [] : Array.isArray(spec.look) ? spec.look : [spec.look];
+  const kid = looks.find((w) => CHILD_CODED_LOOKS.includes(w));
+  return kid ? `the '${kid}' look` : null;
+}
+
 /** Error strings for a hero spec (empty = valid). Form only; the numbers' fitness is heroPlan's to judge. */
 export function validateHeroSpec(spec) {
   const errs = [];
@@ -158,6 +169,9 @@ export function validateHeroSpec(spec) {
   if (spec.body !== undefined) {
     if (!spec.body || typeof spec.body !== 'object' || Array.isArray(spec.body)) errs.push(`body: an object of radii in metres (have ${Object.keys(BODY_DEFAULTS).join(', ')}); for PERCENTAGES of the cast use tune`);
     else for (const k of Object.keys(spec.body)) if (!(k in BODY_DEFAULTS)) errs.push(`body.${k}: not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}); a proportion word (${TUNE_KEYS.join(', ')}) belongs in tune`);
+    // a CHILD-CODED figure (a child or chibi figure cast, or the anime 'kid' look) takes no bust, at mint and on every edit
+    const coded = childCoding(spec);
+    if (coded && spec.body && typeof spec.body === 'object' && spec.body.bust !== undefined && spec.body.bust !== 0) errs.push(`body.bust: ${coded} is a child-coded figure and takes no bust; remove body.bust (0 is the only value it takes)`);
   }
   for (const k of ['girth', 'headScale', 'scale']) if (spec[k] !== undefined && !(Number.isFinite(spec[k]) && spec[k] > 0)) errs.push(`${k}: must be a finite number > 0`);
   if (spec.palette !== undefined) {

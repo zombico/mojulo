@@ -357,6 +357,7 @@ describe('update_sketch { readout } — what an edit hands back (Phase 3)', () =
 // ring-plan: the layered kind's PLAN door stores the plan beside the recipe; an edit under /plan
 // re-expands the recipe, an edit under /dials leaves the plan alone; every edit pays the layered gates.
 import { mintSolidHandler } from './mint-solid.js';
+import { validateHeroSpec } from './layered.js';
 import { heroRecord, heroPlanOf, validateHeroSpec } from './layered.js';
 
 const RING_PLAN = {
@@ -464,6 +465,19 @@ describe('update_sketch on a hero minted through the hero door', () => {
     const chibi = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-chibi', spec: { cast: 'chibi', headScale: 1.3, tune: { limbs: 1.2 } } });
     expect(chibi.hero.moved).toEqual({ upperArm: 1.2, forearm: 1.2, thigh: 1.2, calf: 1.2 }); expect(chibi.stats.closed).toBe(true);
   });
+  // the child-coded casts guard: a child or chibi figure cast, or the anime 'kid' look, takes no bust, at mint and on an
+  // edit; the adult casts are unchanged
+  it('a child-coded figure refuses a bust by name, at mint and on an edit', async () => {
+    for (const spec of [{ cast: 'child', body: { bust: 0.05 } }, { cast: 'chibi', body: { bust: 0.01 } }, { cast: 'female', head: 'anime', look: ['kid'], body: { bust: 0.12 } }, { cast: 'female', head: 'anime', look: 'kid', body: { bust: 5 } }]) {
+      await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec })).rejects.toThrow(/body\.bust: the '(child|chibi)' cast is a child-coded figure and takes no bust|body\.bust: the 'kid' look is a child-coded figure and takes no bust/);
+    }
+    expect(validateHeroSpec({ cast: 'child', body: { bust: 0 } })).toEqual([]);                           // 0 is no bust
+    expect(validateHeroSpec({ cast: 'female', head: 'anime', look: ['heroine'], body: { bust: 0.05 } })).toEqual([]);   // an adult look
+    const adult = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-bust', spec: { cast: 'female', register: 'lowpoly', body: { bust: 0.05 } } });
+    expect(adult.ok).toBe(true);
+    await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/cast', value: 'child' }] })).rejects.toThrow(/body\.bust: the 'child' cast is a child-coded figure/);
+    expect(SketchRepository.getByRef('hero-bust').manifest.hero.cast).toBe('female');   // the refused edit stored nothing
+  }, 60000);
 });
 
 // face-tune: the hero door wears the fitted landmark head by default; `face` is the face proportion lab's controls as
