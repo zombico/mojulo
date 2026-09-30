@@ -26,6 +26,7 @@ import { fuselageFootprint } from '../polygonizer/vehicle-fuselage-net.js';
 import { pickCarPaint, pickCarHull } from '../polygonizer/vehicle-swept-net.js';
 import { streetcarTrack, streetcarPlatform, roadRibbons, straightPath } from '../city/roads.js';
 import { cyclistFaces } from '../figures/cyclist-asset.js';
+import { SM } from '../../util/math-scope.js';
 
 // `paint:true` → the placement sampler gives this type a random factory color; every
 // `class:'car'` type also gets a random hull variant (see vehicleAntFaces). Taxi keeps
@@ -121,12 +122,12 @@ export function vehicleAntFaces({ rng = Math.random, context, exclude, cx = 0, c
 function sampleTrack(path, f) {
   const seg = [];
   let total = 0;
-  for (let i = 1; i < path.length; i += 1) { const d = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]); seg.push(d); total += d; }
+  for (let i = 1; i < path.length; i += 1) { const d = SM.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]); seg.push(d); total += d; }
   let target = Math.max(0, Math.min(1, f)) * total;
   for (let i = 0; i < seg.length; i += 1) {
     if (target <= seg[i] || i === seg.length - 1) {
       const t = seg[i] ? target / seg[i] : 0, a = path[i], b = path[i + 1];
-      return { cx: a[0] + (b[0] - a[0]) * t, cy: a[1] + (b[1] - a[1]) * t, heading: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+      return { cx: a[0] + (b[0] - a[0]) * t, cy: a[1] + (b[1] - a[1]) * t, heading: SM.atan2(b[1] - a[1], b[0] - a[0]) };
     }
     target -= seg[i];
   }

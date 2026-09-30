@@ -28,6 +28,7 @@
  * Design: lite-template/integration/0609/plant-primitive.plan.md.
  * Dual reference: taiji.js (the primitive this compiles to).
  */
+import { SM } from '../../util/math-scope.js';
 
 const PROFILES = new Set(['spindle', 'capsule']);
 const FORMS = new Set(['shoot', 'frond', 'flower', 'rosette', 'tree', 'disc', 'grove', 'palm', 'tulip', 'bed']);
@@ -287,10 +288,10 @@ function expandShoot(spec) {
   for (let k = 0; k < p.count; k += 1) {
     const frac = (k + 0.5) / p.count;
     const theta = 2 * Math.PI * p.divergence * k;
-    const s = Math.pow(p.taper, k);
+    const s = SM.pow(p.taper, k);
     const len = p.leafLength * s;
     const wid = p.leafWidth * s;
-    const radial = add(scale(e1, Math.cos(theta)), scale(e2, Math.sin(theta)));
+    const radial = add(scale(e1, SM.cos(theta)), scale(e2, SM.sin(theta)));
     const node = add(p.base, scale(axisU, frac * L));
     const yin = add(node, scale(radial, p.stemRadius));
     const yang = add(add(node, scale(radial, p.stemRadius + len)), scale(axisU, 0.55 * len));
@@ -399,7 +400,7 @@ function expandFlower(spec) {
 
   for (let k = 0; k < p.count; k += 1) {
     const theta = (2 * Math.PI * k) / p.count; // even whorl for a clean flower
-    const radial = add(scale(u, Math.cos(theta)), scale(w, Math.sin(theta)));
+    const radial = add(scale(u, SM.cos(theta)), scale(w, SM.sin(theta)));
     const yin = add(center, scale(radial, innerR));
     const yang = add(center, scale(radial, innerR + p.leafLength));
     // Cup the petal: lift its mid control point along the normal.
@@ -474,14 +475,14 @@ function discPack({ center, normalU, count, radius, dome = 0, length = 0, profil
   for (let j = 0; j < N; j += 1) {
     const f = (j + 0.5) / N;
     const theta = 2 * Math.PI * GOLDEN * j;
-    const radial = add(scale(u, Math.cos(theta)), scale(w, Math.sin(theta)));
+    const radial = add(scale(u, SM.cos(theta)), scale(w, SM.sin(theta)));
     let seat;
     let dir;
     if (length > 0) {
       // Prolate ovoid: axial position from the golden index, radius widest at
       // the equator and tapering to both tips (a pinecone / seed-cone).
       const axial = f * length;
-      const rr = radius * Math.sin(Math.PI * f);
+      const rr = radius * SM.sin(Math.PI * f);
       seat = add(add(center, scale(normalU, axial)), scale(radial, rr));
       dir = normalize(add(radial, scale(normalU, 0.6))); // scales angle up-and-out
     } else {
@@ -514,8 +515,8 @@ function expandRosette(spec) {
   const out = [];
   for (let k = 0; k < p.count; k += 1) {
     const theta = (2 * Math.PI * k) / p.count + 2 * Math.PI * p.divergence * 0; // even fan
-    const radial = add(scale(e1, Math.cos(theta)), scale(e2, Math.sin(theta)));
-    const len = p.leafLength * Math.pow(p.taper, k);
+    const radial = add(scale(e1, SM.cos(theta)), scale(e2, SM.sin(theta)));
+    const len = p.leafLength * SM.pow(p.taper, k);
     // Stand upright with a slight outward tilt; arch gives the curl.
     const outward = 0.28;
     const dir = normalize(add(scale(axisU, 1), scale(radial, outward)));
@@ -564,7 +565,7 @@ function expandTulip(spec) {
   const flare = bloomLen * (0.22 + 0.5 * open);
   for (let k = 0; k < petals; k += 1) {
     const theta = 2 * Math.PI * k / petals;
-    const radial = add(scale(u, Math.cos(theta)), scale(w, Math.sin(theta)));
+    const radial = add(scale(u, SM.cos(theta)), scale(w, SM.sin(theta)));
     const yin = add(bloomBase, scale(radial, p.stemRadius + 0.01));
     const tip = add(add(bloomBase, scale(axisU, bloomLen)), scale(radial, flare * 0.35));
     const center = add(add(midpoint(yin, tip), scale(radial, flare)), scale(axisU, bloomLen * 0.1));
@@ -676,7 +677,7 @@ function expandPalm(spec) {
   for (let f = 0; f < fronds; f += 1) {
     if (out.length >= MAX_TAIJIS_PER_PLANT) break;
     const theta = 2 * Math.PI * (f / fronds);
-    const radial = add(scale(u, Math.cos(theta)), scale(w, Math.sin(theta)));
+    const radial = add(scale(u, SM.cos(theta)), scale(w, SM.sin(theta)));
     const splayUp = upStride > 0 && (f % upStride === 0);
     const dv = droop * (0.82 + 0.36 * hash(f, 1));   // slight per-frond droop variation
     const lv = lift * (0.7 + 0.5 * hash(f, 4));       // per-frond upward splay
@@ -704,8 +705,8 @@ function expandPalm(spec) {
         if (out.length >= MAX_TAIJIS_PER_PLANT) break;
         const frac = blades > 1 ? k / (blades - 1) : 0.5;
         const ang = (frac - 0.5) * fanSpread;
-        const dir = normalize(add(scale(outward, Math.cos(ang)), scale(side, Math.sin(ang))));
-        const len = bladeLen * (0.78 + 0.22 * Math.cos(ang));   // a touch shorter at the fan edges
+        const dir = normalize(add(scale(outward, SM.cos(ang)), scale(side, SM.sin(ang))));
+        const len = bladeLen * (0.78 + 0.22 * SM.cos(ang));   // a touch shorter at the fan edges
         out.push(taiji(petioleTip, add(petioleTip, scale(dir, len)), null, {
           twist: p.leafTwist, radius: p.leafWidth * 0.6, profile: 'spindle',
           crossSections: p.discCS, samples: p.discSamples, style: p.leafStyle,
@@ -741,7 +742,7 @@ function expandPalm(spec) {
     for (let c = 0; c < coconuts; c += 1) {
       if (out.length >= MAX_TAIJIS_PER_PLANT) break;
       const theta = 2 * Math.PI * GOLDEN * c;
-      const radial = add(scale(u, Math.cos(theta)), scale(w, Math.sin(theta)));
+      const radial = add(scale(u, SM.cos(theta)), scale(w, SM.sin(theta)));
       const seat = add(add(crown, scale(radial, p.stemRadius * 0.9)), scale(axisU, -0.35 - 0.22 * (c % 3)));
       const dir = normalize(add(scale(radial, 0.5), scale(axisU, -1)));
       out.push(taiji(seat, add(seat, scale(dir, 0.5)), null, {
@@ -837,8 +838,8 @@ function expandTree(spec) {
     for (let j = 0; j < leafCount; j += 1) {
       if (out.length >= MAX_TAIJIS_PER_PLANT) break;
       const phi = 2 * Math.PI * GOLDEN * j;
-      const radial = add(scale(u, Math.cos(phi)), scale(w, Math.sin(phi)));
-      const leafDir = normalize(add(scale(dir, Math.cos(0.9)), scale(radial, Math.sin(0.9))));
+      const radial = add(scale(u, SM.cos(phi)), scale(w, SM.sin(phi)));
+      const leafDir = normalize(add(scale(dir, SM.cos(0.9)), scale(radial, SM.sin(0.9))));
       // Twig leaves are small adornments and there are many of them — render
       // them at the coarse disc mesh, not the (heavier) main-leaf mesh.
       out.push(taiji(tipPt, add(tipPt, scale(leafDir, p.leafLength)), null, {
@@ -869,9 +870,9 @@ function expandTree(spec) {
         angle = branchAngle * Math.abs(t);
       } else {
         const phi = 2 * Math.PI * GOLDEN * (i + level * 0.5);
-        radial = add(scale(u, Math.cos(phi)), scale(w, Math.sin(phi)));
+        radial = add(scale(u, SM.cos(phi)), scale(w, SM.sin(phi)));
       }
-      let childDir = add(scale(dir, Math.cos(angle)), scale(radial, Math.sin(angle)));
+      let childDir = add(scale(dir, SM.cos(angle)), scale(radial, SM.sin(angle)));
       childDir = normalize(add(childDir, scale(axisU, upBias)));
       grow(tipPt, childDir, len * lengthRatio, radius * radiusRatio, level + 1);
     }
@@ -900,7 +901,7 @@ function emitConiferMass({ out, tipPt, dir, u, w, clusterSize, foliageTiers, p }
     const t = foliageTiers <= 1 ? 0.5 : k / (foliageTiers - 1);
     const center = add(tipPt, scale(dir, -height * (0.12 + 0.72 * t)));
     const theta = 2 * Math.PI * GOLDEN * k;
-    const lateral = normalize(add(scale(u, Math.cos(theta)), scale(w, Math.sin(theta))));
+    const lateral = normalize(add(scale(u, SM.cos(theta)), scale(w, SM.sin(theta))));
     const width = clusterSize * (1.22 - 0.62 * t);
     const yin = add(center, scale(lateral, -width));
     const yang = add(center, scale(lateral, width));
@@ -937,7 +938,7 @@ function emitCanopyMass({ out, tipPt, dir, u, w, clusterSize, foliageTiers, p })
   for (let k = 0; k < lobes; k += 1) {
     if (out.length >= MAX_TAIJIS_PER_PLANT) break;
     const phi = 2 * Math.PI * GOLDEN * k;
-    const radial = normalize(add(scale(u, Math.cos(phi)), scale(w, Math.sin(phi))));
+    const radial = normalize(add(scale(u, SM.cos(phi)), scale(w, SM.sin(phi))));
     // lobe axis: out and slightly DOWN → the overhang. Start a touch out from
     // the crown centre so lobes ring the rim.
     const start = add(tipPt, scale(radial, clusterSize * 0.45));
@@ -971,7 +972,7 @@ function emitWeepingMass({ out, tipPt, dir, u, w, clusterSize, foliageTiers, p }
   for (let k = 0; k < strands; k += 1) {
     if (out.length >= MAX_TAIJIS_PER_PLANT) break;
     const phi = 2 * Math.PI * GOLDEN * k;
-    const radial = normalize(add(scale(u, Math.cos(phi)), scale(w, Math.sin(phi))));
+    const radial = normalize(add(scale(u, SM.cos(phi)), scale(w, SM.sin(phi))));
     const start = add(tipPt, scale(radial, clusterSize * 0.3));
     // fall direction: mostly DOWN (−dir) with a slight outward flare
     const fall = normalize(add(scale(dir, -1.0), scale(radial, 0.45)));
@@ -1026,7 +1027,7 @@ function expandGrove(spec) {
     const jy = (hash(i, 2) - 0.5) * (D / rows) * 0.8 * variation;
     const px = base.x + gx + jx;
     const py = base.y + gy + jy;
-    const gz = base.z + groundAmp * Math.sin(px * 0.35) * Math.cos(py * 0.3);
+    const gz = base.z + groundAmp * SM.sin(px * 0.35) * SM.cos(py * 0.3);
 
     const size = sMin + (sMax - sMin) * hash(i, 3);
     const h = baseHeight * size;
@@ -1107,7 +1108,7 @@ function expandBed(spec) {
     const jy = (hash(i, 2) - 0.5) * (D / rows) * 0.9 * variation;
     const px = base.x + gx + jx;
     const py = base.y + gy + jy;
-    const gz = base.z + groundAmp * Math.sin(px * 0.5) * Math.cos(py * 0.5);
+    const gz = base.z + groundAmp * SM.sin(px * 0.5) * SM.cos(py * 0.5);
     const size = sMin + (sMax - sMin) * hash(i, 3);
     const h = baseHeight * size;
     const vj = (salt, amt) => (hash(i, salt) - 0.5) * 2 * variation * amt;
@@ -1145,7 +1146,7 @@ function estimateBedTaijis(spec) {
 
 // Deterministic, seedless hash → [0,1). Reproducible per (index, salt).
 function hash(i, salt) {
-  const x = Math.sin((i + 1) * (12.9898 + salt * 7.137)) * 43758.5453;
+  const x = SM.sin((i + 1) * (12.9898 + salt * 7.137)) * 43758.5453;
   return x - Math.floor(x);
 }
 function clamp01(n) { return Math.max(0, Math.min(1, n)); }
@@ -1220,7 +1221,7 @@ function cross(a, b) {
     z: a.x * b.y - a.y * b.x,
   };
 }
-function norm(a) { return Math.hypot(a.x, a.y, a.z); }
+function norm(a) { return SM.hypot(a.x, a.y, a.z); }
 function normalize(a) {
   const l = norm(a);
   if (l < 1e-12) return v(0, 0, 1);
@@ -1297,12 +1298,12 @@ function estimateTreeTaijis(spec) {
         // canopy/weeping emit a central cap + a ring of max(4, tiers) lobes/strands
         : ((mode === 'canopy' || mode === 'weeping') ? Math.max(4, tiers) + 1
           : clampInt(spec?.leafCount, 0, 12, 5))));
-  const segments = b <= 1 ? d + 1 : (Math.pow(b, d + 1) - 1) / (b - 1);
+  const segments = b <= 1 ? d + 1 : (SM.pow(b, d + 1) - 1) / (b - 1);
   // Foliage-bearing nodes: the terminal tier plus the deepest foliageLevels−1
   // interior tiers (each tier k below the top has b^(d−k) nodes).
   const fl = clampInt(spec?.foliageLevels, 1, Math.max(d, 1), 1);
   let foliageNodes = 0;
-  for (let k = 0; k < fl; k += 1) foliageNodes += Math.pow(b, Math.max(d - k, 0));
+  for (let k = 0; k < fl; k += 1) foliageNodes += SM.pow(b, Math.max(d - k, 0));
   return Math.round(segments + foliageNodes * lc);
 }
 

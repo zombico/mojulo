@@ -20,13 +20,14 @@
 
 import { norm3, dot3, sub3, centroid, newellNormal, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
+import { SM } from '../../util/math-scope.js';
 
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scl3 = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const mid3 = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 // Rodrigues: rotate v around unit axis k by angle a.
-const rodrigues = (v, k, a) => add3(add3(scl3(v, Math.cos(a)), scl3(cross3(k, v), Math.sin(a))), scl3(k, dot3(k, v) * (1 - Math.cos(a))));
+const rodrigues = (v, k, a) => add3(add3(scl3(v, SM.cos(a)), scl3(cross3(k, v), SM.sin(a))), scl3(k, dot3(k, v) * (1 - SM.cos(a))));
 
 const DEFAULT_SIDES = 16;
 const MAX_FACES_PER_SWEEP = 16384;
@@ -52,9 +53,9 @@ export function transportFrames(P) {
   const U = [norm3(cross3(T[0], ref))];
   for (let i = 1; i < m; i += 1) {
     const ax = cross3(T[i - 1], T[i]);
-    const sMag = Math.hypot(ax[0], ax[1], ax[2]);
+    const sMag = SM.hypot(ax[0], ax[1], ax[2]);
     const c = Math.max(-1, Math.min(1, dot3(T[i - 1], T[i])));
-    let u = sMag < 1e-7 ? U[i - 1] : rodrigues(U[i - 1], scl3(ax, 1 / sMag), Math.atan2(sMag, c));
+    let u = sMag < 1e-7 ? U[i - 1] : rodrigues(U[i - 1], scl3(ax, 1 / sMag), SM.atan2(sMag, c));
     u = norm3(sub3(u, scl3(T[i], dot3(u, T[i]))));
     U.push(u);
   }
@@ -87,7 +88,7 @@ export function sweepToFaces(spec = {}, opts = {}) {
     const ring = [];
     for (let j = 0; j <= sides; j += 1) {
       const th = (j / sides) * 2 * Math.PI;
-      ring.push(add3(p, add3(scl3(U[i], r * Math.cos(th)), scl3(V[i], r * Math.sin(th)))));
+      ring.push(add3(p, add3(scl3(U[i], r * SM.cos(th)), scl3(V[i], r * SM.sin(th)))));
     }
     return ring;
   });
@@ -131,7 +132,7 @@ export function validateSweeps(sweeps, _emittedNodes) {
       // need at least one non-degenerate segment so a tangent exists
       let moved = false;
       for (let k = 1; k < spec.path.length; k += 1) {
-        const d = Math.hypot(spec.path[k][0] - spec.path[k - 1][0], spec.path[k][1] - spec.path[k - 1][1], spec.path[k][2] - spec.path[k - 1][2]);
+        const d = SM.hypot(spec.path[k][0] - spec.path[k - 1][0], spec.path[k][1] - spec.path[k - 1][1], spec.path[k][2] - spec.path[k - 1][2]);
         if (d > 1e-9) { moved = true; break; }
       }
       if (!moved) errors.push(`${at}.path has zero length (all points coincide)`);

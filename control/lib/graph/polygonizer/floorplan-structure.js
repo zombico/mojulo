@@ -49,6 +49,7 @@ import { surfaceTexture, collectFaceTextures } from '../landscape/surface-textur
 import { tessellateForBake } from '../scene/bake-prep.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
 import { AUTHORING_UNITS, metersPerUnitFor } from '../scene/world-units.js';
+import { SM } from '../../util/math-scope.js';
 
 // ── structural glyph alphabet (the wall graph that relates rooms) ────────────
 // The sibling of floorplan-glyphs' ARCHETYPES: those say what's IN a room, these
@@ -593,7 +594,7 @@ function potLightFaces(pots, p, light) {
   const N = [0, 0, -1];
   const trimFill = shadeHex('#cfc8ba', N, light);
   const lensFill = '#fff3d6';                 // unshaded: the lit lens reads as glowing in the unlit tier
-  const ring = (cx, cy, z, r) => Array.from({ length: 8 }, (_, k) => { const a = -k * Math.PI / 4; return [cx + r * Math.cos(a), cy + r * Math.sin(a), z]; });
+  const ring = (cx, cy, z, r) => Array.from({ length: 8 }, (_, k) => { const a = -k * Math.PI / 4; return [cx + r * SM.cos(a), cy + r * SM.sin(a), z]; });
   const common = { doubleSided: true, group: 'shell:ceiling:potlight', normal: N, outNormal: N };
   const faces = [];
   for (const [x, y, z0] of pots) {
@@ -615,7 +616,7 @@ const potLightLamps = (pots, p) => pots.map(([x, y, z]) => ({ pos: [x, y, potLam
  *  as `cornerFills`, so the unlit World shows the pools as baked colour and the textured
  *  boards multiply them. Face order is kept; nothing else is touched. */
 function applyPotLightPools(faces, pots, p, { cell = 1.5 } = {}) {
-  const cosIn = Math.cos(p.innerCone), cosOut = Math.cos(p.outerCone);
+  const cosIn = SM.cos(p.innerCone), cosOut = SM.cos(p.outerCone);
   const smooth = (t) => { const u = Math.max(0, Math.min(1, t)); return u * u * (3 - 2 * u); };
   const lamps = pots.map(([x, y, z]) => [x, y, potLampZ(z, p)]);
   const isFloor = (f) => f && f.group === 'floor:skin' && typeof f.fill === 'string' && f.fill[0] === '#' && f.fill.length === 7 && !f.cornerFills;
@@ -916,7 +917,7 @@ export function placeItemFaces(faces, rec) {
   const src = (faces || []).filter((f) => f && Array.isArray(f.corners) && f.corners.length && !f.helper);
   if (!src.length) return [];
   const turn = ((rec.turn || 0) * Math.PI) / 180;
-  const ct = Math.cos(turn), st = Math.sin(turn);
+  const ct = SM.cos(turn), st = SM.sin(turn);
   let bx0 = Infinity, bx1 = -Infinity, by0 = Infinity, by1 = -Infinity, bz0 = Infinity, bz1 = -Infinity;
   for (const f of src) {
     for (const c of f.corners) {
@@ -929,9 +930,9 @@ export function placeItemFaces(faces, rec) {
   const k = Math.min(w / Math.max(bx1 - bx0, eps), d / Math.max(by1 - by0, eps), rec.height ? rec.height / Math.max(bz1 - bz0, eps) : Infinity);
   const mx = (bx0 + bx1) / 2, my = (by0 + by1) / 2;
   const a = FACING_ANGLE[rec.facing] ?? 0;                // the turn is already in x, y above
-  const ca = Math.cos(a), sa = Math.sin(a);
+  const ca = SM.cos(a), sa = SM.sin(a);
   const [cx, cy] = rec.center;
-  const cn = Math.cos(turn + a), sn = Math.sin(turn + a);
+  const cn = SM.cos(turn + a), sn = SM.sin(turn + a);
   const spin = (n) => (Array.isArray(n) ? [n[0] * cn - n[1] * sn, n[0] * sn + n[1] * cn, n[2]] : n);
   const group = `item:${rec.name}`;
   return src.map((f) => ({
@@ -1330,7 +1331,7 @@ const WALLPAPER_BASE = ['#c7b9a0', '#b8c1be', '#ccb6a6', '#bfc4b2'];
 const WALLPAPER_INK = ['#9a8463', '#8aa0a0', '#a07d68', '#8f9a78'];
 const WOOD_FINISH = { panel: '#8a6b46', stile: '#6f5536', rail: '#9a7a52', base: '#5a4631' };
 // deterministic [0,1) hash from geometry → reproducible finishes (same house = same walls)
-const hashf = (a, b, c) => { const x = Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453; return x - Math.floor(x); };
+const hashf = (a, b, c) => { const x = SM.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453; return x - Math.floor(x); };
 const palettePick = (arr, ...k) => arr[Math.floor(hashf(...k) * arr.length) % arr.length];
 
 /**
@@ -1591,7 +1592,7 @@ function metalFacade(run, s0, s1, zb, zt, baseZ, H, t, light, o) {
     const corners = [P(a0, o0, z0), P(a1, o1, z0), P(a1, o1, z1), P(a0, o0, z1)];
     let n = nOver;
     if (!n) {   // the strip's own normal in plan, turned to face out of the wall
-      const e = [corners[1][0] - corners[0][0], corners[1][1] - corners[0][1], 0]; n = [e[1], -e[0], 0]; const l = Math.hypot(n[0], n[1]) || 1; n = [n[0] / l, n[1] / l, 0];
+      const e = [corners[1][0] - corners[0][0], corners[1][1] - corners[0][1], 0]; n = [e[1], -e[0], 0]; const l = SM.hypot(n[0], n[1]) || 1; n = [n[0] / l, n[1] / l, 0];
       if (n[0] * N[0] + n[1] * N[1] < 0) n = [-n[0], -n[1], 0];
     }
     faces.push({ corners, fill: shadeHexMat(hex, n, mat, { light }), doubleSided: true, outNormal: n, group: 'facade:skin' });
@@ -2319,7 +2320,7 @@ export const STAIR_DEFAULTS = {
 function railBeam(p0, p1, halfW, halfH, tint, light) {
   const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
   const cr = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
-  const nz = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const nz = (v) => { const l = SM.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
   const a = nz(sub(p1, p0));
   const s = nz(cr(a, [0, 0, 1]));              // horizontal, perpendicular to the run
   const u = nz(cr(s, a));                      // cross-section up
@@ -2497,7 +2498,7 @@ function chooseStairCore(plan, fp, { width, runLength, margin, t }) {
     const fitsX = (r.w - inset - t) >= runLength && (r.h - 2 * inset) >= width;
     const fitsY = (r.h - inset - t) >= runLength && (r.w - 2 * inset) >= width;
     if (!fitsX && !fitsY) return;
-    const dist = Math.hypot(r.x + r.w / 2 - cx, r.y + r.h / 2 - cy);
+    const dist = SM.hypot(r.x + r.w / 2 - cx, r.y + r.h / 2 - cy);
     const score = dist - (r.glyph === 'E' ? 8 : 0);   // entry first, then central
     if (!best || score < best.score) best = { r, i, fitsX, score };
   });

@@ -20,6 +20,7 @@ import { workbenchAssetFaces } from '../worlds/workbench.js';
 import { buildPosedFigure } from '../polygonizer/figure-render.js';
 import { GARMENTS } from '../polygonizer/figure-garments.js';
 import { makeLight, shadeHex, dot3, sub3, centroid } from '../polygonizer/vexar.js';
+import { SM } from '../../util/math-scope.js';
 
 const TAU = Math.PI * 2;
 const RED = '#c0392b', STEEL = '#9aa3b0', DARK = '#3a3a3a';
@@ -48,20 +49,20 @@ const tintFor = (id) => SKIN_IDS.some((s) => id.startsWith(s)) ? SKIN : TIGHTS_I
 const newell = (pts) => {
   let nx = 0, ny = 0, nz = 0;
   for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
-  const l = Math.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
+  const l = SM.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
 };
 const stride = (n, max) => Math.max(1, Math.floor(n / max));
 
 // ── the bike (workbench polygomer, cm) ──────────────────────────────────────────
 function spokedWheel(cx, { R = 33, Z = 34, spokes = 8 } = {}) {
-  const ring = (rad, n) => Array.from({ length: n + 1 }, (_, i) => { const a = TAU * i / n; return [cx + rad * Math.cos(a), 0, Z + rad * Math.sin(a)]; });
+  const ring = (rad, n) => Array.from({ length: n + 1 }, (_, i) => { const a = TAU * i / n; return [cx + rad * SM.cos(a), 0, Z + rad * SM.sin(a)]; });
   const sw = [
     { path: ring(R, 22), radius: 2.3, sides: 6, caps: false, tint: '#1b1b1b' },     // tire
     { path: ring(R - 2.6, 22), radius: 1.0, sides: 5, caps: false, tint: STEEL },   // rim
   ];
   for (let k = 0; k < spokes; k++) {
     const a = TAU * k / spokes;
-    sw.push({ path: [[cx, 0, Z], [cx + (R - 3) * Math.cos(a), 0, Z + (R - 3) * Math.sin(a)]], radius: 0.32, sides: 4, caps: false, tint: '#c2c7cf' });
+    sw.push({ path: [[cx, 0, Z], [cx + (R - 3) * SM.cos(a), 0, Z + (R - 3) * SM.sin(a)]], radius: 0.32, sides: 4, caps: false, tint: '#c2c7cf' });
   }
   return {
     lathe: { axisFrom: { x: cx, y: -3, z: Z }, axisTo: { x: cx, y: 3, z: Z }, profile: [{ t: 0, radius: 3.2 }, { t: 1, radius: 3.2 }], tint: STEEL, samples: 8 },
@@ -205,7 +206,7 @@ export function cyclistFaces({ cx = 0, cy = 0, axis = 'x', dir = 1, heading, sca
   const baked = bakeCyclistCm();
   const u = UNIT_PER_CM * scale;
   const th = Number.isFinite(heading) ? heading : headingFor(axis, dir);
-  const ct = Math.cos(th), st = Math.sin(th);
+  const ct = SM.cos(th), st = SM.sin(th);
   return baked.map((f) => ({
     fill: f.fill,
     doubleSided: true,

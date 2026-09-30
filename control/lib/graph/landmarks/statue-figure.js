@@ -18,12 +18,13 @@
  * Deterministic (the figure is rng-free). Heavy: the polygonised figure is ~35k faces.
  */
 import { buildPosedFigure, renderFigureWorldFrames } from '../polygonizer/figure-render.js';
+import { SM } from '../../util/math-scope.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const len = (a) => Math.hypot(a[0], a[1], a[2]) || 1;
+const len = (a) => SM.hypot(a[0], a[1], a[2]) || 1;
 const norm = (a) => scale(a, 1 / len(a));
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const LD = norm([0.42, -0.5, 0.76]);   // matches the figure renderer's baked light, so props shade consistently
@@ -90,7 +91,7 @@ export function buildStatueFigure(pal = {}) {
   const lathe = (base, ax, length, profile, base3) => {
     let u = cross(ax, [0, 0, 1]); if (len(u) < 1e-5) u = cross(ax, [1, 0, 0]); u = norm(u);
     const v = norm(cross(ax, u)), Nr = 20;
-    const ring = (t, r) => { const c = add(base, scale(ax, t * length)); return Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return add(c, add(scale(u, Math.cos(a) * r), scale(v, Math.sin(a) * r))); }); };
+    const ring = (t, r) => { const c = add(base, scale(ax, t * length)); return Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return add(c, add(scale(u, SM.cos(a) * r), scale(v, SM.sin(a) * r))); }); };
     for (let k = 0; k < profile.length - 1; k += 1) { const A = ring(profile[k][0], profile[k][1]), B = ring(profile[k + 1][0], profile[k + 1][1]); for (let i = 0; i < Nr; i += 1) { const j = (i + 1) % Nr; faces.push({ corners: [A[i], A[j], B[j], B[i]], fill: lit([A[i], A[j], B[j]], base3) }); } }
   };
 
@@ -120,15 +121,15 @@ export function buildStatueFigure(pal = {}) {
   // ── radiating crown (sunburst diadem) tilted into the head's plane ──
   let wcx = 0, wcy = 0, wc = 0; for (const f of faces) for (const p of f.corners) { wcx += p[0]; wcy += p[1]; wc++; } wcx /= wc; wcy /= wc;
   let top = null, topz = -Infinity;
-  for (const f of faces) for (const p of f.corners) if (Math.hypot(p[0] - wcx, p[1] - wcy) < 0.18 && p[2] > 1.0 && p[2] > topz) { topz = p[2]; top = p; }
+  for (const f of faces) for (const p of f.corners) if (SM.hypot(p[0] - wcx, p[1] - wcy) < 0.18 && p[2] > 1.0 && p[2] > topz) { topz = p[2]; top = p; }
   if (top) {
-    const tiltA = 0.20, sN = Math.sin(tiltA), cN = Math.cos(tiltA);
+    const tiltA = 0.20, sN = SM.sin(tiltA), cN = SM.cos(tiltA);
     const upC = [0, sN, cN], e1 = [1, 0, 0], e2 = [0, cN, -sN];
     const center = [top[0], top[1] - sN * 0.05, top[2] - cN * 0.055], Rc = 0.095, Nc = 22;
-    const ringAt = (r, h) => Array.from({ length: Nc }, (_, i) => { const a = (i / Nc) * 2 * Math.PI; const d = add(scale(e1, Math.cos(a)), scale(e2, Math.sin(a))); return add(add(center, scale(d, r)), scale(upC, h)); });
+    const ringAt = (r, h) => Array.from({ length: Nc }, (_, i) => { const a = (i / Nc) * 2 * Math.PI; const d = add(scale(e1, SM.cos(a)), scale(e2, SM.sin(a))); return add(add(center, scale(d, r)), scale(upC, h)); });
     const r0 = ringAt(Rc, -0.022), r1 = ringAt(Rc, 0.030);
     for (let i = 0; i < Nc; i += 1) { const j = (i + 1) % Nc; const q = [r0[i], r0[j], r1[j], r1[i]]; faces.push({ corners: q, fill: lit(q, CROWN) }); }
-    for (let i = 0; i < 7; i += 1) { const a = (i / 7) * 2 * Math.PI; const d = add(scale(e1, Math.cos(a)), scale(e2, Math.sin(a))); const t = add(scale(e1, -Math.sin(a)), scale(e2, Math.cos(a))); const base = add(add(center, scale(d, Rc)), scale(upC, 0.02)); const tip = add(add(center, scale(d, Rc * 2.25)), scale(upC, 0.085)); const w = 0.017; const q = [add(base, scale(t, w)), sub(base, scale(t, w)), tip, tip]; faces.push({ corners: q, fill: lit(q, CROWN) }); }
+    for (let i = 0; i < 7; i += 1) { const a = (i / 7) * 2 * Math.PI; const d = add(scale(e1, SM.cos(a)), scale(e2, SM.sin(a))); const t = add(scale(e1, -SM.sin(a)), scale(e2, SM.cos(a))); const base = add(add(center, scale(d, Rc)), scale(upC, 0.02)); const tip = add(add(center, scale(d, Rc * 2.25)), scale(upC, 0.085)); const w = 0.017; const q = [add(base, scale(t, w)), sub(base, scale(t, w)), tip, tip]; faces.push({ corners: q, fill: lit(q, CROWN) }); }
   }
 
   // normalise: feet → z=0, FEET centred at x=y=0, total height → 1 (one uniform factor for the caller)

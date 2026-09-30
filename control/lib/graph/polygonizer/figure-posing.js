@@ -22,11 +22,12 @@
  */
 import { basePositions } from './figure-vajra.js';
 import { dragCyclic } from '../../motion/easing.js';
+import { SM } from '../../util/math-scope.js';
 
 const DEG = 180 / Math.PI;
 const v = (x, y, z) => ({ x, y, z });
 const sub = (a, b) => v(a.x - b.x, a.y - b.y, a.z - b.z);
-const norm = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return v(a.x / l, a.y / l, a.z / l); };
+const norm = (a) => { const l = SM.hypot(a.x, a.y, a.z) || 1; return v(a.x / l, a.y / l, a.z / l); };
 const wrap = (a) => { let r = (a + Math.PI) % (2 * Math.PI); if (r < 0) r += 2 * Math.PI; return r - Math.PI; };
 
 // ── body-frame cardinal directions ───────────────────────────────────────────
@@ -78,20 +79,20 @@ const REST = restDirections(B);
  */
 export function aimSwivel(r0, t) {
   r0 = norm(r0); t = norm(t);
-  const R = Math.hypot(r0.x, r0.z);
-  const psi = Math.atan2(r0.z, r0.x);
+  const R = SM.hypot(r0.x, r0.z);
+  const psi = SM.atan2(r0.z, r0.x);
   const cx = R > 1e-9 ? Math.max(-1, Math.min(1, t.x / R)) : 1;   // bone.x is set by yaw alone
-  const base = Math.acos(cx);
+  const base = SM.acos(cx);
   let best = null;
   for (const yawRaw of [psi + base, psi - base]) {
     const yaw = wrap(yawRaw);
-    const c1 = Math.cos(yaw), s1 = Math.sin(yaw);
+    const c1 = SM.cos(yaw), s1 = SM.sin(yaw);
     const az = -r0.x * s1 + r0.z * c1;                              // bone.z after the yaw
     // pitch (EW) rotates the bone's (y,z) onto the target's; if either is ~0 the
     // bone already lies on the x-axis and pitch is a no-op (avoid atan2(0,0)).
-    const srcYZ = Math.hypot(r0.y, az), tgtYZ = Math.hypot(t.y, t.z);
-    const pitch = (srcYZ < 1e-6 || tgtYZ < 1e-6) ? 0 : wrap(Math.atan2(t.z, t.y) - Math.atan2(az, r0.y));
-    const mag = Math.hypot(yaw, pitch);
+    const srcYZ = SM.hypot(r0.y, az), tgtYZ = SM.hypot(t.y, t.z);
+    const pitch = (srcYZ < 1e-6 || tgtYZ < 1e-6) ? 0 : wrap(SM.atan2(t.z, t.y) - SM.atan2(az, r0.y));
+    const mag = SM.hypot(yaw, pitch);
     if (!best || mag < best.mag) best = { yaw: yaw * DEG, pitch: pitch * DEG, mag };
   }
   return { yaw: best.yaw, pitch: best.pitch };
@@ -238,7 +239,7 @@ export function keyframeMotion(keyposes, { loop = true } = {}) {
 // scales the swing, it does not translate the root. See
 // lite-template/integration/0615/figure-walk.plan.md.
 const TAU_G = 2 * Math.PI;
-const mag3 = (a) => Math.hypot(a.x, a.y, a.z);
+const mag3 = (a) => SM.hypot(a.x, a.y, a.z);
 // thigh + shin (STAND units). `strideLength` and `cross` are absolute GROUND distances, so
 // the hip angle that achieves them depends on how long the leg actually is: a cast
 // (figure-cast.js) changes that, and passing the canonical length for a long-legged figure
@@ -306,23 +307,23 @@ export const WALK_DEFAULTS = {
 export function gait(params = {}, base = null) {
   const p = { ...WALK_DEFAULTS, ...params };
   const LEG = base ? legLenOf(base) : LEG_LEN;
-  const theta = Math.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * LEG)))) * DEG;   // hip swing amplitude
+  const theta = SM.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * LEG)))) * DEG;   // hip swing amplitude
   // crossover adduction amplitude: the medial reach `cross` is a horizontal foot travel, so the
   // hip yaw that achieves it is asin(cross / legLen) — same units→angle solve as the stride pitch.
   // The leg's rest hip-to-foot is ~one leg length below the socket, so this lands the foot `cross`
   // STAND units toward the midline at the peak of its forward stance (cone-clamped with the pitch
   // by articulate's 62° hip limit, so an extreme catwalk stays inside the joint's range).
-  const phi = Math.asin(Math.max(0, Math.min(1, p.cross / LEG))) * DEG;   // hip adduction amplitude
+  const phi = SM.asin(Math.max(0, Math.min(1, p.cross / LEG))) * DEG;   // hip adduction amplitude
   const flareAmp = phi * p.stepFlare;       // swing-phase abduction, scaled to the crossover (0 → off)
   const rollAmp = phi > 0 ? p.stepRoll : 0; // swing-phase external rotation, gated on crossing
-  const swing = (ph) => Math.max(0, Math.sin(TAU_G * ph));     // a one-sided lift over the leg's swing half
+  const swing = (ph) => Math.max(0, SM.sin(TAU_G * ph));     // a one-sided lift over the leg's swing half
   // plantedness: 1 through a foot's stance half, dipping smoothly to 0 mid-swing (so the
   // swing foot lifts and the stance↔stance handoff through double support never snaps).
-  const planted = (ph) => { const u = (((ph % 1) + 1) % 1); return 1 - (u >= 0.5 ? 0.5 * (1 - Math.cos(TAU_G * (u - 0.5) / 0.5)) : 0); };
+  const planted = (ph) => { const u = (((ph % 1) + 1) % 1); return 1 - (u >= 0.5 ? 0.5 * (1 - SM.cos(TAU_G * (u - 0.5) / 0.5)) : 0); };
   return (rawPhase) => {
     const phase = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1;
-    const cyc = Math.cos(TAU_G * phase);                       // +1 = left leg fully forward
-    const sway = Math.sin(TAU_G * (phase - 0.5));              // lists toward the bearing leg
+    const cyc = SM.cos(TAU_G * phase);                       // +1 = left leg fully forward
+    const sway = SM.sin(TAU_G * (phase - 0.5));              // lists toward the bearing leg
     // crossover: each leg adducts toward the midline in step with how FORWARD it is — so the
     // stepping foot scissors across as it plants front-and-centre, then opens back out to hip
     // width on its push-off half. Left adducts with −yaw, right with +yaw (toward centre).
@@ -338,7 +339,7 @@ export function gait(params = {}, base = null) {
     // Balance: both feet anchor the solve; weight lists gently toward the leg that is
     // bearing (vertical at mid-stance) — over the left near phase .25, the right near
     // .75 — bounded by weightShift so the COM never over-commits past the foot.
-    const weight = -p.weightShift * Math.cos(TAU_G * (phase - 0.25));
+    const weight = -p.weightShift * SM.cos(TAU_G * (phase - 0.25));
     return {
       // legs: thigh swings (sagittal), knee bends — more on the swing leg to clear the floor.
       hipL: { pitch: theta * cyc, yaw: crossL + flareL, roll: rollL },
@@ -349,8 +350,8 @@ export function gait(params = {}, base = null) {
       // up over the ball at toe-off (late stance), then relax through swing.
       ankleL: p.ankleRoll * cyc,
       ankleR: -p.ankleRoll * cyc,
-      toeL: p.toeRoll * Math.max(0, Math.sin(TAU_G * (phase - 0.25))),
-      toeR: p.toeRoll * Math.max(0, Math.sin(TAU_G * (phase - 0.75))),
+      toeL: p.toeRoll * Math.max(0, SM.sin(TAU_G * (phase - 0.25))),
+      toeR: p.toeRoll * Math.max(0, SM.sin(TAU_G * (phase - 0.75))),
       // arms counter-swing (left arm forward with the right leg).
       shL: { pitch: -p.armSwing * cyc },
       shR: { pitch: p.armSwing * cyc },
@@ -359,8 +360,8 @@ export function gait(params = {}, base = null) {
       // hands: a relaxed finger curl, the wrist giving with the arm swing (the hand trails the
       // forearm, antiphase L/R) — the wrist's mirror of the foot's ankle/toe roll. No longer stiff.
       fingersL: p.handCurl, fingersR: p.handCurl,
-      wristL: { flex: p.wristGive * Math.sin(TAU_G * phase) },
-      wristR: { flex: -p.wristGive * Math.sin(TAU_G * phase) },
+      wristL: { flex: p.wristGive * SM.sin(TAU_G * phase) },
+      wristR: { flex: -p.wristGive * SM.sin(TAU_G * phase) },
       // pelvis rotates in the transverse plane so the forward leg's hip leads (+ = right hip
       // forward); the shoulder girdle CONTRA-rotates (opposite sign) so the opposite shoulder
       // leads — the contralateral coordination the arm swing rides on. The spine axial drive
@@ -368,7 +369,7 @@ export function gait(params = {}, base = null) {
       pelvis: -p.pelvisRot * cyc,
       shoulders: p.shoulderRot * cyc,
       // trunk: axial counter-rotation + lateral sway + optional forward lean/slouch.
-      spine: { axial: p.spineTwist * Math.sin(TAU_G * phase), lateral: p.hipSway * sway, sagittal: p.lean },
+      spine: { axial: p.spineTwist * SM.sin(TAU_G * phase), lateral: p.hipSway * sway, sagittal: p.lean },
       // neck juts the head forward (headTilt); head yaw counter-holds the gaze against the sway.
       neck: { pitch: -p.headTilt },
       head: { yaw: -p.headLevel * sway },
@@ -419,22 +420,22 @@ export const SPRINT_DEFAULTS = {
 export function sprint(params = {}, base = null) {
   const p = { ...SPRINT_DEFAULTS, ...params };
   const d = Math.max(0.15, Math.min(0.49, p.dutyFactor));     // <0.5 keeps a flight phase
-  const theta = Math.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * (base ? legLenOf(base) : LEG_LEN))))) * DEG;
-  const swing = (ph) => Math.max(0, Math.sin(TAU_G * ph));
+  const theta = SM.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * (base ? legLenOf(base) : LEG_LEN))))) * DEG;
+  const swing = (ph) => Math.max(0, SM.sin(TAU_G * ph));
   return (rawPhase) => {
     const phase = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1;
-    const cyc = Math.cos(TAU_G * phase);                       // +1 = left thigh driving forward/up
-    const sway = Math.sin(TAU_G * (phase - 0.5));
+    const cyc = SM.cos(TAU_G * phase);                       // +1 = left thigh driving forward/up
+    const sway = SM.sin(TAU_G * (phase - 0.5));
     // The sprint is BALLISTIC: pure FK + a smooth 2×-per-stride vertical bob (raised cosine),
     // zero at each foot's contact centre (under the body, phase .25 / .75) and peaking
     // mid-flight — no lateral COM commit (that snapped ±0.12 every step). For real ground
     // contact (not "running on air") each foot is PINNED to the floor over a brief window at
     // its contact centre — touching down on the FOREFOOT (pin without flatten: a sprinter
     // runs on the ball, not flat). support 'none' keeps the body airborne between contacts.
-    const lift = p.flightLift * 0.5 * (1 - Math.cos(2 * TAU_G * (phase - 0.25)));
+    const lift = p.flightLift * 0.5 * (1 - SM.cos(2 * TAU_G * (phase - 0.25)));
     const support = 'none';
     const cHW = Math.max(0.12, d * 0.6);                       // contact half-window
-    const contact = (c) => { let x = Math.abs((((phase - c) % 1) + 1) % 1); x = Math.min(x, 1 - x); return x < cHW ? 0.5 * (1 + Math.cos(Math.PI * x / cHW)) : 0; };
+    const contact = (c) => { let x = Math.abs((((phase - c) % 1) + 1) % 1); x = Math.min(x, 1 - x); return x < cHW ? 0.5 * (1 + SM.cos(Math.PI * x / cHW)) : 0; };
     // Asymmetric drives: the thigh lifts higher on the forward (high-knee) half, and
     // the shoulder drives harder on the backward swing — the sprint signature.
     const hipFwd = (c) => (c > 0 ? c * p.hipDrive : c);          // boost forward thigh flexion
@@ -460,9 +461,9 @@ export function sprint(params = {}, base = null) {
       // (flex at contact, extend through flight), the dominant living motion being the
       // axial counter-rotation against the pelvis. Minimal lateral sway (a narrow line).
       spine: {
-        axial: p.spineTwist * Math.sin(TAU_G * phase),
+        axial: p.spineTwist * SM.sin(TAU_G * phase),
         lateral: p.hipSway * sway,
-        sagittal: p.lean + p.spineGive * Math.cos(2 * TAU_G * (phase - 0.25)),
+        sagittal: p.lean + p.spineGive * SM.cos(2 * TAU_G * (phase - 0.25)),
       },
       head: { yaw: -p.headLevel * sway },
       support,
@@ -558,10 +559,10 @@ export function performance(move, { frames = 30, loop = true, exaggerate = 1, an
     table.forEach((d, i) => {
       const ph = i / frames;
       const sp = d.spine || (d.spine = { sagittal: 0, lateral: 0, axial: 0 });
-      sp.sagittal = (sp.sagittal || 0) - breath * Math.sin(TAU * 2 * ph);   // inhale = slight lift/arch
-      sp.lateral = (sp.lateral || 0) + sway * Math.sin(TAU * ph);            // slow weight-shift
+      sp.sagittal = (sp.sagittal || 0) - breath * SM.sin(TAU * 2 * ph);   // inhale = slight lift/arch
+      sp.lateral = (sp.lateral || 0) + sway * SM.sin(TAU * ph);            // slow weight-shift
       const hd = d.head || (d.head = {});
-      hd.yaw = (hd.yaw || 0) - 7 * sway * Math.sin(TAU * ph);                // head holds level against the sway
+      hd.yaw = (hd.yaw || 0) - 7 * sway * SM.sin(TAU * ph);                // head holds level against the sway
     });
   }
 

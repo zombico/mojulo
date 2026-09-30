@@ -31,6 +31,7 @@
  */
 
 import { buildEndpointResolver } from './line-between.js';
+import { SM } from '../../util/math-scope.js';
 
 const PROFILES = new Set(['spindle', 'capsule']);
 // Matter fill modes for the wave→world print pass (see wave-to-world-paint).
@@ -129,7 +130,7 @@ export function resolveTaijiSpec(spec) {
  */
 function radiusAt(resolved, t) {
   if (resolved.profile === 'capsule') return resolved.radius;
-  return resolved.radius * Math.sin(Math.PI * t);
+  return resolved.radius * SM.sin(Math.PI * t);
 }
 
 /**
@@ -167,8 +168,8 @@ export function makeTaijiField(resolved) {
     const wu = dot3(w, uHat);
     const wv = dot3(w, vHat);
     const phi = 2 * Math.PI * twist * t;
-    const cos = Math.cos(phi);
-    const sin = Math.sin(phi);
+    const cos = SM.cos(phi);
+    const sin = SM.sin(phi);
     // Express w in the rotated (u',v') frame, then run the 2D selector.
     const u0 = wu * cos + wv * sin;
     const v0 = -wu * sin + wv * cos;
@@ -219,8 +220,8 @@ export function sampleTaiji(spec) {
     const tangent = bezierTangent(yin, center, yang, t);
     const R = radiusAt(resolved, t);
     const phi = 2 * Math.PI * twist * t;
-    const cos = Math.cos(phi);
-    const sin = Math.sin(phi);
+    const cos = SM.cos(phi);
+    const sin = SM.sin(phi);
     // Rotated in-plane basis (u', v').
     const uP = add3(scale3(uHat, cos), scale3(vHat, sin));
     const vP = add3(scale3(uHat, -sin), scale3(vHat, cos));
@@ -238,7 +239,7 @@ export function sampleTaiji(spec) {
       const circle = new Array(samples + 1);
       for (let j = 0; j <= samples; j += 1) {
         const theta = (j / samples) * 2 * Math.PI;
-        circle[j] = add3(c, add3(scale3(uHat, R * Math.cos(theta)), scale3(vHat, R * Math.sin(theta))));
+        circle[j] = add3(c, add3(scale3(uHat, R * SM.cos(theta)), scale3(vHat, R * SM.sin(theta))));
       }
       envelope.push({ t, center: c, normal: tangent, polyline: circle });
     }
@@ -288,12 +289,12 @@ export function taijiFibers(spec, opts = {}) {
         const t = i / crossSections;
         const c = bezier3(yin, center, yang, t);
         const phi = 2 * Math.PI * twist * t;
-        const wob = Math.sin(t * Math.PI * 2 + phase) * 0.5 + Math.sin(t * Math.PI * 6 + phase) * 0.2;
+        const wob = SM.sin(t * Math.PI * 2 + phase) * 0.5 + SM.sin(t * Math.PI * 6 + phase) * 0.2;
         const theta = theta0 + phi
-          + (1 - alignment) * 1.3 * Math.sin(t * Math.PI + phase)
+          + (1 - alignment) * 1.3 * SM.sin(t * Math.PI + phase)
           + wob * wobble * (1 - alignment) * 3;
-        const R = (profile === 'capsule' ? radius : radius * Math.sin(Math.PI * t)) * rFrac;
-        poly.push(add3(c, add3(scale3(uHat, R * Math.cos(theta)), scale3(vHat, R * Math.sin(theta)))));
+        const R = (profile === 'capsule' ? radius : radius * SM.sin(Math.PI * t)) * rFrac;
+        poly.push(add3(c, add3(scale3(uHat, R * SM.cos(theta)), scale3(vHat, R * SM.sin(theta)))));
       }
       fibers.push(poly);
     }
@@ -327,12 +328,12 @@ export function taijituDivider(samples) {
   // Upper-left semicircle: center (0, 1/2), angle pi/2 → 3pi/2.
   for (let i = 0; i <= half; i += 1) {
     const a = Math.PI / 2 + (i / half) * Math.PI;
-    pts.push([Math.cos(a) * 0.5, 0.5 + Math.sin(a) * 0.5]);
+    pts.push([SM.cos(a) * 0.5, 0.5 + SM.sin(a) * 0.5]);
   }
   // Lower-right semicircle: center (0, -1/2), angle pi/2 → -pi/2 (skip dup start).
   for (let i = 1; i <= half; i += 1) {
     const a = Math.PI / 2 - (i / half) * Math.PI;
-    pts.push([Math.cos(a) * 0.5, -0.5 + Math.sin(a) * 0.5]);
+    pts.push([SM.cos(a) * 0.5, -0.5 + SM.sin(a) * 0.5]);
   }
   return pts;
 }
@@ -396,9 +397,9 @@ function cross3(a, b) {
     z: a.x * b.y - a.y * b.x,
   };
 }
-function length3(v) { return Math.hypot(v.x, v.y, v.z); }
+function length3(v) { return SM.hypot(v.x, v.y, v.z); }
 function normalize3(v) {
-  const len = Math.hypot(v.x, v.y, v.z);
+  const len = SM.hypot(v.x, v.y, v.z);
   if (len < 1e-12) return { x: 0, y: 0, z: 1 };
   return { x: v.x / len, y: v.y / len, z: v.z / len };
 }

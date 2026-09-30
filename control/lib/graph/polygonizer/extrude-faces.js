@@ -28,6 +28,7 @@
 import { norm3, dot3, sub3, centroid, newellNormal, shadeHexMat, DEFAULT_LIGHT } from './vexar.js';
 import { isConvexRing, earClipRing } from './ring-cap.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
+import { SM } from '../../util/math-scope.js';
 
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -79,7 +80,7 @@ export function roundedRectPath(w, h, r, nc) {
   const quadrant = [];
   for (let k = 0; k < nc; k += 1) {
     const t = (k / nc) * (Math.PI / 2);
-    quadrant.push([Math.cos(t), Math.sin(t)]);
+    quadrant.push([SM.cos(t), SM.sin(t)]);
   }
   const turn = [(c, s) => [c, s], (c, s) => [-s, c], (c, s) => [-c, -s], (c, s) => [s, -c]];
   const centers = [[hw, hh], [-hw, hh], [-hw, -hh], [hw, -hh]];
@@ -99,12 +100,12 @@ export function withPolygonNormals(pts) {
   const M = pts.length;
   const edgeN = pts.map((p, i) => {
     const q = pts[(i + 1) % M];
-    const dx = q.u - p.u, dy = q.v - p.v, l = Math.hypot(dx, dy) || 1;
+    const dx = q.u - p.u, dy = q.v - p.v, l = SM.hypot(dx, dy) || 1;
     return [dy / l, -dx / l];
   });
   return pts.map((p, i) => {
     const a = edgeN[(i - 1 + M) % M], b = edgeN[i];
-    const nu = a[0] + b[0], nv = a[1] + b[1], l = Math.hypot(nu, nv) || 1;
+    const nu = a[0] + b[0], nv = a[1] + b[1], l = SM.hypot(nu, nv) || 1;
     return { u: p.u, v: p.v, nu: nu / l, nv: nv / l };
   });
 }
@@ -135,7 +136,7 @@ export function extrudeToFaces(spec = {}, opts = {}) {
 
   const aF = spec.axisFrom, aT = spec.axisTo;
   const dir = norm3([aT.x - aF.x, aT.y - aF.y, aT.z - aF.z]);
-  const axisLen = Math.hypot(aT.x - aF.x, aT.y - aF.y, aT.z - aF.z) || 1;
+  const axisLen = SM.hypot(aT.x - aF.x, aT.y - aF.y, aT.z - aF.z) || 1;
   const [uH, vH] = perpBasis(dir);
   // profile point {u,v} at param s∈[0,1] along the axis → world [x,y,z]
   const pt = (P, s) => {
@@ -163,7 +164,7 @@ export function extrudeToFaces(spec = {}, opts = {}) {
   let uBase = 0;       // where u = 0 sits on the perimeter (a fraction), so a rect's panel order is stable
   if (wrap) {
     const cum = [0];
-    for (let i = 0; i < M; i += 1) { const p = prof[i], q = prof[(i + 1) % M]; cum.push(cum[i] + Math.hypot(q.u - p.u, q.v - p.v)); }
+    for (let i = 0; i < M; i += 1) { const p = prof[i], q = prof[(i + 1) % M]; cum.push(cum[i] + SM.hypot(q.u - p.u, q.v - p.v)); }
     const total = cum[M] || 1;
     perimU = cum.map((c) => c / total);
     // A sharp rect's path starts at its (+w/2, −h/2) corner, so its walls run +u side, +v front,
@@ -238,7 +239,7 @@ export function extrudeToFaces(spec = {}, opts = {}) {
       let no;
       if (profTo) {
         let raw = newellNormal(corners);
-        if (Math.hypot(raw[0], raw[1], raw[2]) < 1e-9) continue;   // pinched wall: zero area
+        if (SM.hypot(raw[0], raw[1], raw[2]) < 1e-9) continue;   // pinched wall: zero area
         const hint = add3(add3(out3(prof[i]), out3(prof[j])), add3(out3(P1[i]), out3(P1[j])));
         if (dot3(raw, hint) < 0) raw = [-raw[0], -raw[1], -raw[2]];
         no = norm3(raw);
@@ -305,7 +306,7 @@ export function validateExtrudes(extrudes, _emittedNodes) {
       if (!finiteVec(spec[end])) errors.push(`${at}.${end}: required ({x,y,z})`);
     }
     if (finiteVec(spec.axisFrom) && finiteVec(spec.axisTo)
-      && Math.hypot(spec.axisTo.x - spec.axisFrom.x, spec.axisTo.y - spec.axisFrom.y, spec.axisTo.z - spec.axisFrom.z) < 1e-9) {
+      && SM.hypot(spec.axisTo.x - spec.axisFrom.x, spec.axisTo.y - spec.axisFrom.y, spec.axisTo.z - spec.axisFrom.z) < 1e-9) {
       errors.push(`${at}: axisFrom and axisTo must differ (zero-length extrusion)`);
     }
     // shell constraints

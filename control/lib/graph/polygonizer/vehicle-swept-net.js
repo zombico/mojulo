@@ -32,6 +32,7 @@ import { bilerp4 } from './box-net.js';
 import { sampleStickerCard, stickerContext } from './vehicle-fuselage-net.js';
 import { makeLight, shadeHex, shadeHexMat, dot3, sub3, centroid, newellNormal, orientOutward, lodCount } from './vexar.js';
 import { resolveMaterial } from './materials.js';
+import { SM } from '../../util/math-scope.js';
 
 export const VEHICLE_SWEPT_NET_VERSION = 'vehicle-swept-net-v0.1.0';
 export const VEHICLE_SMOOTH_BOX_NET_VERSION = 'vehicle-smooth-box-net-v0.1.0';   // back-compat alias
@@ -394,9 +395,9 @@ export function greenhouse(vRoof, vBelly, uA = 0.235, uC = 0.675) {
   const vc = (vRoof + vBelly) / 2, hh = (vRoof - vBelly) / 2, capU = Math.abs(hh);
   const uAmid = uA + capU, uCmid = uC - capU;
   pts.push({ u: uAmid, v: vRoof }, { u: uCmid, v: vRoof });
-  for (let i = 1; i < N; i += 1) { const a = (Math.PI * i) / N; pts.push({ u: uCmid + capU * Math.sin(a), v: vc + hh * Math.cos(a) }); }
+  for (let i = 1; i < N; i += 1) { const a = (Math.PI * i) / N; pts.push({ u: uCmid + capU * SM.sin(a), v: vc + hh * SM.cos(a) }); }
   pts.push({ u: uCmid, v: vBelly }, { u: uAmid, v: vBelly });
-  for (let i = 1; i < N; i += 1) { const a = (Math.PI * i) / N; pts.push({ u: uAmid - capU * Math.sin(a), v: vc - hh * Math.cos(a) }); }
+  for (let i = 1; i < N; i += 1) { const a = (Math.PI * i) / N; pts.push({ u: uAmid - capU * SM.sin(a), v: vc - hh * SM.cos(a) }); }
   return pts;
 }
 
@@ -780,8 +781,8 @@ export function resolveCarNet(netOrId, paint) {
 // ===========================================================================
 // Geometry: ONE swept superellipse, two families normalize into it
 // ===========================================================================
-function sePow(x, n) { return Math.sign(x) * Math.pow(Math.abs(x), 2 / n); }
-function seXZ(theta, n) { const t = 2 * Math.PI * theta; return [sePow(Math.sin(t), n), -sePow(Math.cos(t), n)]; }
+function sePow(x, n) { return Math.sign(x) * SM.pow(Math.abs(x), 2 / n); }
+function seXZ(theta, n) { const t = 2 * Math.PI * theta; return [sePow(SM.sin(t), n), -sePow(SM.cos(t), n)]; }
 // piecewise-linear lookup over [{ u, [key] }] sorted by u.
 function lerpAt(pts, u, key) {
   for (let i = 1; i < pts.length; i += 1) {
@@ -863,7 +864,7 @@ function buildSweptSceneShapes(form, {
   // emit the whole closed shell so a 3D backend (CSS3D) can show it from any camera.
   const NS = ns ?? lodCount(80, quality, 16), NA = na ?? lodCount(56, quality, 14);
   const project = (w) => { const p = projectPoint(w); return Array.isArray(p) ? { x: p[0], y: p[1] } : p; };
-  const dist = (c) => Math.hypot(c[0] - cameraPosition[0], c[1] - cameraPosition[1], c[2] - cameraPosition[2]);
+  const dist = (c) => SM.hypot(c[0] - cameraPosition[0], c[1] - cameraPosition[1], c[2] - cameraPosition[2]);
   const midHalfW = form.halfWAt(0.5), midHH = (form.zTopAt(0.5) - form.zBotAt(0.5)) / 2;
   const perim = 3.2 * (midHalfW + midHH);
   const ctx = stickerContext(body, form.length, perim);
@@ -887,7 +888,7 @@ function buildSweptSceneShapes(form, {
   const GU = lodCount(30, quality, 12), GV = lodCount(22, quality, 8);
   for (const cap of [{ corners: capQuad(form, place, 0), card: front, n: [0, 1, 0], uEnd: 0 }, { corners: capQuad(form, place, 1), card: rear, n: [0, -1, 0], uEnd: 1 }]) {
     if (cull && dot3(cap.n, sub3(cameraPosition, centroid(cap.corners))) <= 0) continue;
-    const aspect = Math.hypot(...sub3(cap.corners[1], cap.corners[0])) / (Math.hypot(...sub3(cap.corners[3], cap.corners[0])) || 1);
+    const aspect = SM.hypot(...sub3(cap.corners[1], cap.corners[0])) / (SM.hypot(...sub3(cap.corners[3], cap.corners[0])) || 1);
     const cctx = stickerContext(cap.card, aspect, 1);
     // Clip the flat fascia to the MINTED superellipse cross-section so the front/rear
     // face inherits the body silhouette — rounded corners on a low-seN car, near-square
@@ -899,7 +900,7 @@ function buildSweptSceneShapes(form, {
       const wpts = [bilerp4(cap.corners, u0, v0), bilerp4(cap.corners, u1, v0), bilerp4(cap.corners, u1, v1), bilerp4(cap.corners, u0, v1)];
       const cc = centroid(wpts);
       const X = (cc[0] - place.cx) / chw, Z = (cc[2] - czc) / chh;     // cell center in cross-section-normalized coords
-      if (Math.pow(Math.abs(X), form.seN) + Math.pow(Math.abs(Z), form.seN) > CAP_SILHOUETTE_CLIP) continue;
+      if (SM.pow(Math.abs(X), form.seN) + SM.pow(Math.abs(Z), form.seN) > CAP_SILHOUETTE_CLIP) continue;
       faces.push({ wpts, fill: shadeBody(sampleStickerCard(cap.card, (u0 + u1) / 2, (v0 + v1) / 2, cctx), cap.n, cc), role: `${cap.card.id}:${i}.${j}`, dist: dist(cc) });
     }
   }
@@ -910,7 +911,7 @@ function buildSweptSceneShapes(form, {
     const yw = place.noseY - ax.u * form.length, offs = ax.dual ? [ax.r * 0.62, -ax.r * 0.62] : [0];
     for (const sign of [1, -1]) for (const dy of offs) {
       const center = [place.cx + sign * form.halfWAt(ax.u) * 0.98, yw + dy, ax.r], n = [sign, 0, 0];
-      const ring = (rad) => { const p = []; for (let k = 0; k < SEG; k += 1) { const a = (2 * Math.PI * k) / SEG; p.push([center[0], center[1] + rad * Math.cos(a), center[2] + rad * Math.sin(a)]); } return p; };
+      const ring = (rad) => { const p = []; for (let k = 0; k < SEG; k += 1) { const a = (2 * Math.PI * k) / SEG; p.push([center[0], center[1] + rad * SM.cos(a), center[2] + rad * SM.sin(a)]); } return p; };
       const d = dist(center);
       faces.push({ wpts: ring(ax.r), fill: shadeHex('#0c0e12', n, light), role: 'wheel', dist: d + 0.02 });
       faces.push({ wpts: ring(ax.r * 0.42), fill: shadeHex('#aab3bd', n, light), role: 'hub', dist: d });

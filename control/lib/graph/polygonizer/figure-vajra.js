@@ -27,8 +27,11 @@
  * is now just one renderer of this primitive.
  */
 
+import { SM } from '../../util/math-scope.js';
+
 // ─── Vector helpers (exported; the renderer shares them) ───────────────
-export function normalize3(v) { const len = Math.hypot(v.x, v.y, v.z); if (len < 1e-12) return { x: 0, y: 0, z: 0 }; return { x: v.x / len, y: v.y / len, z: v.z / len }; }
+
+export function normalize3(v) { const len = SM.hypot(v.x, v.y, v.z); if (len < 1e-12) return { x: 0, y: 0, z: 0 }; return { x: v.x / len, y: v.y / len, z: v.z / len }; }
 export function sub3(a, b) { return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }; }
 export function cross3(a, b) { return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }; }
 export function dot3(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
@@ -58,7 +61,7 @@ const CLAVICLE_DECLINE = 0;   // degrees below horizontal
 const SHOULDER_HALF = 0.13, SHOULDER_Z = 0.78;
 const DECLINE = CLAVICLE_DECLINE * Math.PI / 180;
 // the acromion's displacement from the level girdle it was authored on — the arm rides it whole
-const ACR_DX = SHOULDER_HALF * (1 - Math.cos(DECLINE)), ACR_DZ = -SHOULDER_HALF * Math.sin(DECLINE);
+const ACR_DX = SHOULDER_HALF * (1 - SM.cos(DECLINE)), ACR_DZ = -SHOULDER_HALF * SM.sin(DECLINE);
 const girdle = (x, y, z) => ({ x: x + Math.sign(x) * -ACR_DX, y, z: z + ACR_DZ });
 const STAND = {
   torsoTop:  { x: 0,      y: 0,       z: SHOULDER_Z },
@@ -190,7 +193,7 @@ const SPINE_SUB = {
 // Axes: 'EW' = about world-x (sagittal, fwd/back); 'NS' = about world-y
 // (frontal plane, arm raise); 'ZN' = about world-z (axial twist).
 export function rotateAbout(pos, pivot, axis, deg) {
-  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const a = deg * Math.PI / 180, c = SM.cos(a), s = SM.sin(a);
   const d = { x: pos.x - pivot.x, y: pos.y - pivot.y, z: pos.z - pivot.z };
   let r;
   if (axis === 'EW')      r = { x: d.x,                 y: d.y * c - d.z * s, z: d.y * s + d.z * c };
@@ -201,7 +204,7 @@ export function rotateAbout(pos, pivot, axis, deg) {
 
 // Rodrigues rotation of point `p` about `pivot` around unit `axis`.
 function rotAxis(p, pivot, axis, deg) {
-  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const a = deg * Math.PI / 180, c = SM.cos(a), s = SM.sin(a);
   const d = sub3(p, pivot);
   const kxd = cross3(axis, d);
   const kd = dot3(axis, d);
@@ -222,7 +225,7 @@ function hingeFold(m, joint, distal, refDir, deg) {
   if (deg === 0) return;                   // zero flex is an exact no-op
   const seg = normalize3(sub3(m[distal], m[joint]));
   const axis = cross3(seg, refDir);
-  const al = Math.hypot(axis.x, axis.y, axis.z);
+  const al = SM.hypot(axis.x, axis.y, axis.z);
   if (al < 1e-6) return;
   m[distal] = rotAxis(m[distal], m[joint], { x: axis.x / al, y: axis.y / al, z: axis.z / al }, deg);
 }
@@ -279,7 +282,7 @@ function rotateSub(m, keys, pivotKey, axis, deg) {
 // Two-axis swivel within a cone: yaw (about NS) + pitch (about EW),
 // magnitude clamped to `limit`.
 function swivelSub(m, keys, pivotKey, yaw, pitch, limit) {
-  const mag = Math.hypot(yaw, pitch);
+  const mag = SM.hypot(yaw, pitch);
   if (mag > limit) { yaw *= limit / mag; pitch *= limit / mag; }
   rotateSub(m, keys, pivotKey, 'NS', yaw);
   rotateSub(m, keys, pivotKey, 'EW', pitch);
@@ -300,7 +303,7 @@ export function articulate(dof = {}, base = null) {
     // Unify the curl: forward-fold and side-bend draw from ONE flexibility
     // budget, so a diagonal bend (down AND to the side) rides a single natural
     // cone instead of summing to a superhuman fold. Twist is its own axis.
-    const r = Math.hypot(sg, la);
+    const r = SM.hypot(sg, la);
     if (r > 1) { sg /= r; la /= r; }
     for (const j of SPINE_ORDER) {
       const cap = SPINE_CAP[j], sub = SPINE_SUB[j];
@@ -416,13 +419,13 @@ const mvec = (M, v) => ({
   z: M[2][0] * v.x + M[2][1] * v.y + M[2][2] * v.z,
 });
 const axisMat = { // matches rotateAbout: EW = about x, NS = about y, ZN = about z
-  EW: (a) => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; },
-  NS: (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; },
-  ZN: (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; },
+  EW: (a) => { const c = SM.cos(a), s = SM.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; },
+  NS: (a) => { const c = SM.cos(a), s = SM.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; },
+  ZN: (a) => { const c = SM.cos(a), s = SM.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; },
 };
 // Rodrigues rotation matrix about unit `axis` (matches rotAxis).
 function rodMat(axis, deg) {
-  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), t = 1 - c;
+  const a = deg * Math.PI / 180, c = SM.cos(a), s = SM.sin(a), t = 1 - c;
   const { x, y, z } = axis;
   return [
     [c + x * x * t, x * y * t - z * s, x * z * t + y * s],
@@ -473,7 +476,7 @@ export function articulateTransforms(dof = {}, base = null, opts = {}) {
   };
   const rot = (keys, pivotKey, axis, deg) => { if (deg) step(keys, m[pivotKey], axisMat[axis](deg * Math.PI / 180)); };
   const swivel = (keys, pivotKey, yaw, pitch, limit) => {
-    const mag = Math.hypot(yaw, pitch);
+    const mag = SM.hypot(yaw, pitch);
     if (mag > limit) { yaw *= limit / mag; pitch *= limit / mag; }
     rot(keys, pivotKey, 'NS', yaw);
     rot(keys, pivotKey, 'EW', pitch);
@@ -482,7 +485,7 @@ export function articulateTransforms(dof = {}, base = null, opts = {}) {
     if (deg === 0) return;
     const seg = normalize3(sub3(m[distal], m[joint]));
     const axis = cross3(seg, refDir);
-    const al = Math.hypot(axis.x, axis.y, axis.z);
+    const al = SM.hypot(axis.x, axis.y, axis.z);
     if (al < 1e-6) return;
     step([distal], m[joint], rodMat({ x: axis.x / al, y: axis.y / al, z: axis.z / al }, deg));
   };
@@ -492,7 +495,7 @@ export function articulateTransforms(dof = {}, base = null, opts = {}) {
     const { sagittal = 0, lateral = 0, axial = 0 } = dof.spine;
     let sg = clamp(sagittal, -1, 1), la = clamp(lateral, -1, 1);
     const ax = clamp(axial, -1, 1);
-    const r = Math.hypot(sg, la);
+    const r = SM.hypot(sg, la);
     if (r > 1) { sg /= r; la /= r; }
     for (const j of SPINE_ORDER) {
       const cap = SPINE_CAP[j];

@@ -17,10 +17,11 @@
  * bends progressively. Neutral spine → S1≡S0 → identity (canonical preserved).
  */
 import { articulate, basePositions } from './figure-vajra.js';
+import { SM } from '../../util/math-scope.js';
 
 const FIGURE_SCALE = 12;   // buildProtoform world scale (STAND × 12); the warp runs in that space
 
-const len = (a) => Math.hypot(a.x, a.y, a.z);
+const len = (a) => SM.hypot(a.x, a.y, a.z);
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
 const mul = (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
@@ -28,7 +29,7 @@ const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
 const norm = (a) => { const l = len(a) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
 function rotAxis(v, k, ang) {
-  const c = Math.cos(ang), s = Math.sin(ang), kxv = cross(k, v), kv = dot(k, v);
+  const c = SM.cos(ang), s = SM.sin(ang), kxv = cross(k, v), kv = dot(k, v);
   return { x: v.x * c + kxv.x * s + k.x * kv * (1 - c), y: v.y * c + kxv.y * s + k.y * kv * (1 - c), z: v.z * c + kxv.z * s + k.z * kv * (1 - c) };
 }
 
@@ -76,7 +77,7 @@ function buildCurve(pts, N = 16) {
   for (let i = 1; i < S.length; i++) {
     const T0 = tang[i - 1], T1 = tang[i], ax = cross(T0, T1), sinA = len(ax);
     let s = frames[i - 1].side;
-    if (sinA > 1e-8) s = rotAxis(s, mul(ax, 1 / sinA), Math.atan2(sinA, dot(T0, T1)));
+    if (sinA > 1e-8) s = rotAxis(s, mul(ax, 1 / sinA), SM.atan2(sinA, dot(T0, T1)));
     s = norm(s);
     frames.push({ side: s, fwd: norm(cross(T1, s)), T: T1 });
   }

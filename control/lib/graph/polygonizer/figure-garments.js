@@ -29,6 +29,7 @@
 
 import { drapeSheet } from './wave-field.js';
 import { buildPatternGarment, validatePatternPiece, validatePatternSpec } from './pattern-garment.js';
+import { SM } from '../../util/math-scope.js';
 
 // cloth colors (vexar-lit like flesh — Lambert over these base hexes)
 const TEE_HEX = '#3f6f93';     // shirt
@@ -60,7 +61,7 @@ function shieldRings(rings, { clearance = 0.18, smooth = 4, minSkin = 0.04 } = {
     const c = rg.center, dirs = [], rad = [];
     for (const q of rg.polyline) {
       const dx = q.x - c.x, dy = q.y - c.y, dz = q.z - c.z;
-      const L = Math.hypot(dx, dy, dz) || 1;
+      const L = SM.hypot(dx, dy, dz) || 1;
       dirs.push([dx / L, dy / L, dz / L]); rad.push(L);
     }
     const rs = smoothLoop(rad, smooth);
@@ -109,9 +110,9 @@ export function inflateRings(rings, thickness, { taperHead = 0, taperTail = 0 } 
       const u = sub(poly[(j + 1) % m], poly[(j - 1 + m) % m]);   // along the ring
       const w = sub(at(inx, j), at(ip, j));                       // along the stack
       let nx = u.y * w.z - u.z * w.y, ny = u.z * w.x - u.x * w.z, nz = u.x * w.y - u.y * w.x;
-      let L = Math.hypot(nx, ny, nz);
+      let L = SM.hypot(nx, ny, nz);
       if (L < 1e-9) {   // degenerate (e.g. the nipple ring) → fall back to radial
-        nx = q.x - c.x; ny = q.y - c.y; nz = q.z - c.z; L = Math.hypot(nx, ny, nz) || 1;
+        nx = q.x - c.x; ny = q.y - c.y; nz = q.z - c.z; L = SM.hypot(nx, ny, nz) || 1;
       }
       nx /= L; ny /= L; nz /= L;
       const dx = q.x - c.x, dy = q.y - c.y, dz = q.z - c.z;       // orient outward
@@ -163,9 +164,9 @@ function hullStacks(stacks, { zBands = 26, sectors = 44, clearance = 0.18, smoot
   // radius field: outermost flesh per (band, sector), measured from the centroid
   const R = Array.from({ length: zBands }, () => new Array(sectors).fill(0));
   for (const q of verts) {
-    const b = band(q.z), dx = q.x - cx[b], dy = q.y - cy[b], r = Math.hypot(dx, dy);
+    const b = band(q.z), dx = q.x - cx[b], dy = q.y - cy[b], r = SM.hypot(dx, dy);
     if (r < 1e-6) continue;
-    let a = Math.atan2(dy, dx); if (a < 0) a += 2 * Math.PI;
+    let a = SM.atan2(dy, dx); if (a < 0) a += 2 * Math.PI;
     const sec = Math.min(sectors - 1, Math.floor(a / (2 * Math.PI) * sectors));
     if (r > R[b][sec]) R[b][sec] = r;
   }
@@ -217,7 +218,7 @@ function hullStacks(stacks, { zBands = 26, sectors = 44, clearance = 0.18, smoot
       }
       // ride the SMOOTHED field only — the raw per-cell max is binning-noisy.
       const r = smz[b][jj] + clr;
-      poly.push({ x: cx[b] + Math.cos(a) * r, y: cy[b] + Math.sin(a) * r, z: zc });
+      poly.push({ x: cx[b] + SM.cos(a) * r, y: cy[b] + SM.sin(a) * r, z: zc });
     }
     rings.push({ center: { x: cx[b], y: cy[b], z: zc }, polyline: poly });
   }
@@ -484,17 +485,17 @@ function sashStacks(body, { side = 'L', width = 0.72, clearance = 0.02, folds = 
   const hipA = ctr('hipCap' + other) || ctr('glute' + other) || { x: -sgn * BW * 0.28 + (xmin + xmax) / 2, z: zmin + (zmax - zmin) * 0.12 };
   // diagonal centerline: bearing shoulder (high) → opposite hip (low)
   const S = { x: shoulder.x, z: Math.min(zmax - (zmax - zmin) * 0.02, shoulder.z + (zmax - zmin) * 0.06) }, Hh = { x: hipA.x, z: hipA.z };
-  const ddx = Hh.x - S.x, ddz = Hh.z - S.z, Ld = Math.hypot(ddx, ddz) || 1, ax = { x: ddx / Ld, z: ddz / Ld }, pp = { x: -ddz / Ld, z: ddx / Ld };
+  const ddx = Hh.x - S.x, ddz = Hh.z - S.z, Ld = SM.hypot(ddx, ddz) || 1, ax = { x: ddx / Ld, z: ddz / Ld }, pp = { x: -ddz / Ld, z: ddx / Ld };
   const Wd = width * BW, ampB = foldAmp * BW, standoff = Math.max(clearance * BW, protr * 0.95 + 0.012 * BW);
   const rings = [];
   for (let k = 0; k <= nu; k++) {
     const u = k / nu, Cx = S.x + ax.x * Ld * u, Cz = S.z + ax.z * Ld * u;
-    const env = 0.55 + 0.45 * Math.sin(Math.PI * u);   // folds gather at the ends, deepen mid-fall
+    const env = 0.55 + 0.45 * SM.sin(Math.PI * u);   // folds gather at the ends, deepen mid-fall
     const poly = [];
     for (let m = 0; m <= nv; m++) {
       const v = m / nv, off = (v - 0.5) * Wd, x = Cx + pp.x * off, z = Cz + pp.z * off;
-      const edge = Math.sin(Math.PI * v);              // 0 at the sash seams → folds vanish into the body there
-      const ridge = ampB * env * edge * 0.5 * (1 - Math.cos(2 * Math.PI * folds * v));  // analytic parallel fold ridges
+      const edge = SM.sin(Math.PI * v);              // 0 at the sash seams → folds vanish into the body there
+      const ridge = ampB * env * edge * 0.5 * (1 - SM.cos(2 * Math.PI * folds * v));  // analytic parallel fold ridges
       poly.push({ x, y: sampleY(x, z) + standoff + ridge, z });   // bridge standoff clears the body → no clip-through; folds sit on the clean drape
     }
     rings.push({ center: { x: Cx, y: -1e3, z: Cz }, polyline: poly });   // far behind → normals face forward
@@ -580,7 +581,7 @@ export function garmentCoverage(body, spec) {
 function drapeTopEdge(body, anchor) {
   const find = (id) => body.find((p) => p.id === id);
   const topRing = (st) => st.rings.reduce((a, b) => (b.center.z > a.center.z ? b : a));   // highest ring
-  const meanR = (rg) => { let s = 0; for (const p of rg.polyline) s += Math.hypot(p.x - rg.center.x, p.y - rg.center.y, p.z - rg.center.z); return s / rg.polyline.length; };
+  const meanR = (rg) => { let s = 0; for (const p of rg.polyline) s += SM.hypot(p.x - rg.center.x, p.y - rg.center.y, p.z - rg.center.z); return s / rg.polyline.length; };
   if (anchor === 'waist') {
     const l = find('hipCapL'), r = find('hipCapR');
     if (!l || !r) return null;
@@ -974,7 +975,7 @@ export const GARMENTS = {
 // test is what proves the coverage is clean before any cloth is filled.
 
 const _sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
-const _len = (a) => Math.hypot(a.x, a.y, a.z);
+const _len = (a) => SM.hypot(a.x, a.y, a.z);
 const _n = (a) => { const l = _len(a) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
 const _dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 const _cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
@@ -999,7 +1000,7 @@ export function radialPlan(stack, { phi = 1.618, samples = 48, maxRings = 7, ter
   const HALF = (Math.PI / 2) * term;   // terminator footprint — `term`<1 pulls the rr=1 ring inward (smaller cap) to clear superposition
   const pts = V.map((v) => {
     const d = _sub(v, C), L = _len(d) || 1;
-    return { v, theta: Math.acos(Math.max(-1, Math.min(1, _dot(d, axis) / L))), az: Math.atan2(_dot(d, w), _dot(d, u)) };
+    return { v, theta: SM.acos(Math.max(-1, Math.min(1, _dot(d, axis) / L))), az: SM.atan2(_dot(d, w), _dot(d, u)) };
   });
   const rrs = []; for (let rr = 1, k = 0; k < maxRings && rr > 0.05; rr /= phi, k++) rrs.push(rr);
   const rings = rrs.map((rr) => {
@@ -1033,7 +1034,7 @@ export function fillRadialPlan(plan, clearance = 0.06) {
 function _claimed(plan, p) {
   const d = _sub(p, plan.center), L = _len(d) || 1;
   if (L > plan.reach * 1.15) return false;
-  return Math.acos(Math.max(-1, Math.min(1, _dot(d, plan.axis) / L))) <= plan.termAngle;
+  return SM.acos(Math.max(-1, Math.min(1, _dot(d, plan.axis) / L))) <= plan.termAngle;
 }
 
 // SUPERPOSITION test (areal): a body point is superimposed if it falls inside BOTH
@@ -1090,7 +1091,7 @@ export function pelvisPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRi
   for (const ax of [cx, cy]) { for (let i = 1; i < nbands; i++) if (!cN[i]) ax[i] = ax[i - 1]; for (let i = nbands - 2; i >= 0; i--) if (!cN[i]) ax[i] = ax[i + 1]; }
   // angular max-radius field (the outer flesh per band × sector)
   const R = Array.from({ length: nbands }, () => Array(sectors).fill(0));
-  for (const q of V) { const b = band(q.z), dx = q.x - cx[b], dy = q.y - cy[b], r = Math.hypot(dx, dy); if (r < 1e-6) continue; let a = Math.atan2(dy, dx); if (a < 0) a += 2 * Math.PI; const sec = Math.min(sectors - 1, Math.floor(a / (2 * Math.PI) * sectors)); if (r > R[b][sec]) R[b][sec] = r; }
+  for (const q of V) { const b = band(q.z), dx = q.x - cx[b], dy = q.y - cy[b], r = SM.hypot(dx, dy); if (r < 1e-6) continue; let a = SM.atan2(dy, dx); if (a < 0) a += 2 * Math.PI; const sec = Math.min(sectors - 1, Math.floor(a / (2 * Math.PI) * sectors)); if (r > R[b][sec]) R[b][sec] = r; }
   for (let b = 0; b < nbands; b++) { const row = R[b]; if (row.every((v) => v === 0)) continue; for (let j = 0; j < sectors; j++) { if (row[j] > 0) continue; for (let d = 1; d <= sectors; d++) { const lo = row[((j - d) % sectors + sectors) % sectors], hi = row[(j + d) % sectors]; if (lo > 0 || hi > 0) { row[j] = Math.max(lo, hi); break; } } } }
   for (let b = 1; b < nbands; b++) if (R[b].every((v) => v === 0)) R[b] = R[b - 1].slice();
   const sm = R.map((row) => smoothLoop(row, smooth));
@@ -1098,7 +1099,7 @@ export function pelvisPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRi
   // isolated trouser basin) or UNIFORM (even bands top→bottom — a dense, continuous
   // "body map" of the whole lower segment, so a raised top has no sparse fraying ring
   // and a redline `band` cut at the waist leaves a clean, gap-free waistband).
-  const ringAt = (b) => { const zc = zMin + (b + 0.5) / nbands * span, ring = []; for (let s = 0; s <= sectors; s++) { const jj = s % sectors, a = (jj / sectors) * 2 * Math.PI, r = sm[b][jj]; ring.push({ x: cx[b] + Math.cos(a) * r, y: cy[b] + Math.sin(a) * r, z: zc }); } return ring; };
+  const ringAt = (b) => { const zc = zMin + (b + 0.5) / nbands * span, ring = []; for (let s = 0; s <= sectors; s++) { const jj = s % sectors, a = (jj / sectors) * 2 * Math.PI, r = sm[b][jj]; ring.push({ x: cx[b] + SM.cos(a) * r, y: cy[b] + SM.sin(a) * r, z: zc }); } return ring; };
   const rings = [];
   if (uniform) {
     for (let k = 0; k < uniformRings; k++) rings.push(ringAt(Math.min(nbands - 1, Math.round((k / (uniformRings - 1)) * (nbands - 1)))));
@@ -1116,7 +1117,7 @@ export function fillPelvisBasin(plan, clearance = 0.08) {
   return plan.rings.map((ring) => {
     const c = ring.reduce((a, v) => ({ x: a.x + v.x, y: a.y + v.y, z: a.z + v.z }), { x: 0, y: 0, z: 0 });
     c.x /= ring.length; c.y /= ring.length; c.z /= ring.length;
-    return { center: c, polyline: ring.map((v) => { const dx = v.x - c.x, dy = v.y - c.y, L = Math.hypot(dx, dy) || 1, k = (L + clearance) / L; return { x: c.x + dx * k, y: c.y + dy * k, z: v.z }; }) };
+    return { center: c, polyline: ring.map((v) => { const dx = v.x - c.x, dy = v.y - c.y, L = SM.hypot(dx, dy) || 1, k = (L + clearance) / L; return { x: c.x + dx * k, y: c.y + dy * k, z: v.z }; }) };
   });
 }
 
@@ -1149,7 +1150,7 @@ export function torsoPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRin
   const cx = cxS.map((s, i) => (cN[i] ? s / cN[i] : 0)), cy = cyS.map((s, i) => (cN[i] ? s / cN[i] : 0));
   for (const ax of [cx, cy]) { for (let i = 1; i < nbands; i++) if (!cN[i]) ax[i] = ax[i - 1]; for (let i = nbands - 2; i >= 0; i--) if (!cN[i]) ax[i] = ax[i + 1]; }
   const R = Array.from({ length: nbands }, () => Array(sectors).fill(0));
-  for (const q of V) { const b = band(q.z), dx = q.x - cx[b], dy = q.y - cy[b], r = Math.hypot(dx, dy); if (r < 1e-6) continue; let a = Math.atan2(dy, dx); if (a < 0) a += 2 * Math.PI; const sec = Math.min(sectors - 1, Math.floor(a / (2 * Math.PI) * sectors)); if (r > R[b][sec]) R[b][sec] = r; }
+  for (const q of V) { const b = band(q.z), dx = q.x - cx[b], dy = q.y - cy[b], r = SM.hypot(dx, dy); if (r < 1e-6) continue; let a = SM.atan2(dy, dx); if (a < 0) a += 2 * Math.PI; const sec = Math.min(sectors - 1, Math.floor(a / (2 * Math.PI) * sectors)); if (r > R[b][sec]) R[b][sec] = r; }
   for (let b = 0; b < nbands; b++) { const row = R[b]; if (row.every((v) => v === 0)) continue; for (let j = 0; j < sectors; j++) { if (row[j] > 0) continue; for (let d = 1; d <= sectors; d++) { const lo = row[((j - d) % sectors + sectors) % sectors], hi = row[(j + d) % sectors]; if (lo > 0 || hi > 0) { row[j] = Math.max(lo, hi); break; } } } }
   for (let b = 1; b < nbands; b++) if (R[b].every((v) => v === 0)) R[b] = R[b - 1].slice();
   const sm0 = R.map((row) => smoothLoop(row, smooth));
@@ -1162,7 +1163,7 @@ export function torsoPlan(body, { phi = 1.618, sectors = 48, nbands = 30, maxRin
     : sm0;
   const buildRing = (b) => {
     const zc = hemZ + (b + 0.5) / nbands * span, ring = [];
-    for (let s = 0; s <= sectors; s++) { const jj = s % sectors, a = (jj / sectors) * 2 * Math.PI, r = sm[b][jj]; ring.push({ x: cx[b] + Math.cos(a) * r, y: cy[b] + Math.sin(a) * r, z: zc }); }
+    for (let s = 0; s <= sectors; s++) { const jj = s % sectors, a = (jj / sectors) * 2 * Math.PI, r = sm[b][jj]; ring.push({ x: cx[b] + SM.cos(a) * r, y: cy[b] + SM.sin(a) * r, z: zc }); }
     return ring;
   };
   const rings = [];
@@ -1200,7 +1201,7 @@ export function fillBasin(plan, { clearance = 0.08, openFront = 0, lapelFrac = 1
       // OPEN FRONT: drop the front-centre sector so the ring is an ARC. Keep the cloth
       // where it sits over a CHEST-MASS component → the gap routes between the breasts/
       // pecs (the cleft) and the panels stay ON them, never cutting across one.
-      const az = (v) => { let a = Math.atan2(v.y - c.y, v.x - c.x); if (a < 0) a += 2 * Math.PI; return a; };
+      const az = (v) => { let a = SM.atan2(v.y - c.y, v.x - c.x); if (a < 0) a += 2 * Math.PI; return a; };
       pts = ring.slice(0, -1).filter((v) => {
         if (angDist(az(v), FRONT) >= of) return true;   // outside the (tapered) front sector → keep
         return frontKeep(v) > 0.4;   // inside: keep only over a chest mass
@@ -1214,7 +1215,7 @@ export function fillBasin(plan, { clearance = 0.08, openFront = 0, lapelFrac = 1
         // garment drapes over, so they SUPPRESS openings. openness = poke-through − cover.
         const op = openParts.length ? superposition(v, openParts, openMargin) : 0;
         const clr = clearance * (1 - Math.max(0, op - cover(v)));
-        const dx = v.x - c.x, dy = v.y - c.y, L = Math.hypot(dx, dy) || 1, k = (L + clr) / L;
+        const dx = v.x - c.x, dy = v.y - c.y, L = SM.hypot(dx, dy) || 1, k = (L + clr) / L;
         return { x: c.x + dx * k, y: c.y + dy * k, z: v.z };
       }),
     };
@@ -1229,7 +1230,7 @@ export function fillBasin(plan, { clearance = 0.08, openFront = 0, lapelFrac = 1
 const _distSeg = (p, a, b) => {
   const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / ((abx * abx + aby * aby + abz * abz) || 1)));
-  return Math.hypot(p.x - (a.x + abx * t), p.y - (a.y + aby * t), p.z - (a.z + abz * t));
+  return SM.hypot(p.x - (a.x + abx * t), p.y - (a.y + aby * t), p.z - (a.z + abz * t));
 };
 export function bodyCapsules(body, ids, { slice = null } = {}) {
   return ids.map((id) => {
@@ -1237,7 +1238,7 @@ export function bodyCapsules(body, ids, { slice = null } = {}) {
     const rs = slice ? sliceRings(st.rings, slice[0], slice[1]) : st.rings;   // e.g. arm[0.25,1] → armhole at the armpit, shoulder stays covered
     if (rs.length < 2) return null;
     const a = rs[0].center, b = rs[rs.length - 1].center;
-    let r = 0, n = 0; for (const rg of rs) { const c = rg.center; for (const p of rg.polyline) { r += Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z); n++; } }
+    let r = 0, n = 0; for (const rg of rs) { const c = rg.center; for (const p of rg.polyline) { r += SM.hypot(p.x - c.x, p.y - c.y, p.z - c.z); n++; } }
     return { id, a, b, r: n ? r / n : 0 };
   }).filter(Boolean);
 }
@@ -1258,7 +1259,7 @@ export function bodySpheres(body, ids) {
     const V = st.rings.flatMap((r) => r.polyline); if (V.length < 4) return null;
     const c = V.reduce((a, v) => ({ x: a.x + v.x, y: a.y + v.y, z: a.z + v.z }), { x: 0, y: 0, z: 0 });
     c.x /= V.length; c.y /= V.length; c.z /= V.length;
-    let r = 0; for (const v of V) r = Math.max(r, Math.hypot(v.x - c.x, v.y - c.y, v.z - c.z));
+    let r = 0; for (const v of V) r = Math.max(r, SM.hypot(v.x - c.x, v.y - c.y, v.z - c.z));
     return { id, a: c, b: c, r };
   }).filter(Boolean);
 }
@@ -1329,7 +1330,7 @@ export function crownFanCap(verts, { samples = 96, maxRings = 16, term = 1.5, co
   if (verts.length < 8) return { rings: [], center: null, R: 0 };
   const center = verts.reduce((a, v) => ({ x: a.x + v.x, y: a.y + v.y, z: a.z + v.z }), { x: 0, y: 0, z: 0 });
   center.x /= verts.length; center.y /= verts.length; center.z /= verts.length;
-  let R = 0; for (const v of verts) R += Math.hypot(v.x - center.x, v.y - center.y, v.z - center.z); R = (R / verts.length) || 0.05;
+  let R = 0; for (const v of verts) R += SM.hypot(v.x - center.x, v.y - center.y, v.z - center.z); R = (R / verts.length) || 0.05;
   const HALF = (Math.PI / 2) * term;
   // angular max-radius field at a COARSE azimuth (fieldSectors ≪ render samples), keeping
   // the OUTERMOST flesh radius per (latitude k × sector) cell, then smoothed and sampled
@@ -1340,10 +1341,10 @@ export function crownFanCap(verts, { samples = 96, maxRings = 16, term = 1.5, co
   if (conform) {
     const RAD = Array.from({ length: maxRings + 1 }, () => new Array(fieldSectors).fill(0));
     for (const v of verts) {
-      const dx = v.x - center.x, dy = v.y - center.y, dz = v.z - center.z, L = Math.hypot(dx, dy, dz); if (L < 1e-6) continue;
-      const theta = Math.acos(Math.max(-1, Math.min(1, dz / L)));      // 0 = crown (up) → HALF = terminator
+      const dx = v.x - center.x, dy = v.y - center.y, dz = v.z - center.z, L = SM.hypot(dx, dy, dz); if (L < 1e-6) continue;
+      const theta = SM.acos(Math.max(-1, Math.min(1, dz / L)));      // 0 = crown (up) → HALF = terminator
       const k = Math.round((1 - Math.min(1, theta / HALF)) * maxRings); if (k < 0 || k > maxRings) continue;
-      let a = Math.atan2(dy, dx); if (a < 0) a += 2 * Math.PI;
+      let a = SM.atan2(dy, dx); if (a < 0) a += 2 * Math.PI;
       const s = Math.min(fieldSectors - 1, Math.floor(a / (2 * Math.PI) * fieldSectors));
       if (L > RAD[k][s]) RAD[k][s] = L;
     }
@@ -1366,8 +1367,8 @@ export function crownFanCap(verts, { samples = 96, maxRings = 16, term = 1.5, co
   const radAt = (k, a) => { if (!field) return R; const f = (a / (2 * Math.PI)) * fieldSectors, i = Math.floor(f) % fieldSectors, t = f - Math.floor(f); return field[k][i] * (1 - t) + field[k][(i + 1) % fieldSectors] * t; };
   const rings = [];
   for (let k = 0; k <= maxRings; k++) {   // k=0 terminator (outermost) → k=max apex (crown)
-    const theta = (1 - k / maxRings) * HALF, ct = Math.cos(theta), st = Math.sin(theta), ring = [];
-    for (let s = 0; s <= samples; s++) { const a = (s / samples) * 2 * Math.PI, r = radAt(k, a); ring.push({ x: center.x + r * st * Math.cos(a), y: center.y + r * st * Math.sin(a), z: center.z + r * ct }); }
+    const theta = (1 - k / maxRings) * HALF, ct = SM.cos(theta), st = SM.sin(theta), ring = [];
+    for (let s = 0; s <= samples; s++) { const a = (s / samples) * 2 * Math.PI, r = radAt(k, a); ring.push({ x: center.x + r * st * SM.cos(a), y: center.y + r * st * SM.sin(a), z: center.z + r * ct }); }
     rings.push(ring);
   }
   return { rings, center, R };
@@ -1387,7 +1388,7 @@ export function buildShoulderCap(body, side, { crownGap = 0.05, seamGap = 0.18, 
     const t = n > 1 ? i / (n - 1) : 1;                 // 0 = terminator (seam) → 1 = crown
     const gap = seamGap + (crownGap - seamGap) * t;     // gravity ramp
     const polyline = ring.map((v) => {
-      const dx = v.x - c.x, dy = v.y - c.y, dz = v.z - c.z, L = Math.hypot(dx, dy, dz) || 1, k = (L + gap) / L;
+      const dx = v.x - c.x, dy = v.y - c.y, dz = v.z - c.z, L = SM.hypot(dx, dy, dz) || 1, k = (L + gap) / L;
       const p = { x: c.x + dx * k, y: c.y + dy * k, z: c.z + dz * k };
       const out = Math.min(1, Math.max(0, (dx * sgnOut) / (cap.R || 1)));   // lateral push (never up)
       p.x += sgnOut * lat * out;
@@ -1424,7 +1425,7 @@ export function cutHits(p, cut) {
   switch (cut.kind) {
     case 'wedge': {   // azimuthal slice about the front — the open front / a vent / a slit
       if (p.z < cut.zLo || p.z > cut.zHi) return false;
-      let a = Math.atan2(p.y - cut.cy, p.x - cut.cx); if (a < 0) a += 2 * Math.PI;
+      let a = SM.atan2(p.y - cut.cy, p.x - cut.cx); if (a < 0) a += 2 * Math.PI;
       const d = Math.abs(a - cut.front) % (2 * Math.PI), ad = Math.min(d, 2 * Math.PI - d);
       const tz = cut.zHi > cut.zLo ? (p.z - cut.zLo) / (cut.zHi - cut.zLo) : 1;   // 0 hem → 1 collar
       const half = cut.taper ? cut.halfAngle * (1 - cut.taper * (1 - tz)) : cut.halfAngle;   // narrows toward the hem if tapered (a lapel)
@@ -1432,7 +1433,7 @@ export function cutHits(p, cut) {
     }
     case 'band':      return p.z >= cut.zLo && p.z <= cut.zHi;                                  // horizontal slab — hem / crop / midriff
     case 'capsule':   return _distSeg(p, cut.a, cut.b) < cut.r;                                 // around a limb centerline — armhole / leg-hole
-    case 'hole':      return Math.hypot(p.x - cut.c.x, p.y - cut.c.y, p.z - cut.c.z) < cut.r;   // round hole — neck / pocket
+    case 'hole':      return SM.hypot(p.x - cut.c.x, p.y - cut.c.y, p.z - cut.c.z) < cut.r;   // round hole — neck / pocket
     case 'halfspace': return (p.x - cut.o.x) * cut.n.x + (p.y - cut.o.y) * cut.n.y + (p.z - cut.o.z) * cut.n.z > 0;   // a straight cut
     case 'all': return true;   // the whole panel — for per-panel MATERIAL, not deletion
     default: return false;
@@ -1463,7 +1464,7 @@ export function resolveCuts(decls, pieces, body = null) {
     if (k === 'crotch') { const z = bodyZ('groin'); return z == null ? zMin : z; }
     return zMin + (zMax - zMin) * k;
   };
-  const meanR = (st) => { let s = 0, m = 0; for (const rg of st.rings) for (const v of rg.polyline) { s += Math.hypot(v.x - rg.center.x, v.y - rg.center.y, v.z - rg.center.z); m++; } return m ? s / m : 0.05; };
+  const meanR = (st) => { let s = 0, m = 0; for (const rg of st.rings) for (const v of rg.polyline) { s += SM.hypot(v.x - rg.center.x, v.y - rg.center.y, v.z - rg.center.z); m++; } return m ? s / m : 0.05; };
   const sliceCenters = (st, t0, t1) => { const k = st.rings.length - 1; return [st.rings[Math.round(t0 * k)].center, st.rings[Math.round(t1 * k)].center]; };
   return (decls || []).map((d) => {
     const on = d.on;   // panel target — preserved on the resolved cut

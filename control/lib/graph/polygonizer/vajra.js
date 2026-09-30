@@ -26,6 +26,7 @@
 
 import { buildEndpointResolver } from './line-between.js';
 import { sampleLathe, slerp3 } from './lathe.js';
+import { SM } from '../../util/math-scope.js';
 
 const BEAD_KEYS = ['proximal', 'center', 'distal'];
 
@@ -206,8 +207,8 @@ function marchRings(resolved, field) {
     const poly = new Array(samples + 1);
     for (let j = 0; j <= samples; j += 1) {
       const theta = (j / samples) * 2 * Math.PI;
-      const cosT = Math.cos(theta);
-      const sinT = Math.sin(theta);
+      const cosT = SM.cos(theta);
+      const sinT = SM.sin(theta);
       const dir = {
         x: cosT * uHat.x + sinT * vHat.x,
         y: cosT * uHat.y + sinT * vHat.y,
@@ -343,7 +344,7 @@ function sphereProfile(maxRadius, segments) {
   const profile = new Array(segments + 1);
   for (let i = 0; i <= segments; i += 1) {
     const t = i / segments;
-    profile[i] = { t, radius: maxRadius * Math.sin(Math.PI * t) };
+    profile[i] = { t, radius: maxRadius * SM.sin(Math.PI * t) };
   }
   return profile;
 }
@@ -438,12 +439,12 @@ function cross3(a, b) {
     z: a.x * b.y - a.y * b.x,
   };
 }
-function length3(v) { return Math.hypot(v.x, v.y, v.z); }
+function length3(v) { return SM.hypot(v.x, v.y, v.z); }
 function lerp3(a, b, t) {
   return { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y), z: a.z + t * (b.z - a.z) };
 }
 function normalize3(v) {
-  const len = Math.hypot(v.x, v.y, v.z);
+  const len = SM.hypot(v.x, v.y, v.z);
   if (len < 1e-12) return { x: 0, y: 0, z: 1 };
   return { x: v.x / len, y: v.y / len, z: v.z / len };
 }

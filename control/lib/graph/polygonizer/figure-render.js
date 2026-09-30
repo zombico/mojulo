@@ -42,6 +42,7 @@ const resolveMsShieldRecipe = (await optionalPackModule(() => import('../mobile-
 import { extrudeToFaces } from './extrude-faces.js';
 import { buildAttachments } from './figure-attach.js';
 import { sweepToFaces } from './sweep-faces.js';
+import { SM } from '../../util/math-scope.js';
 
 const FLESH_HEX = '#c8836a';
 const PROTO_SCALE = 12;                 // buildProtoform world scale (STAND × 12)
@@ -55,7 +56,7 @@ const VIEW_AZ = { frontal: 0, 'three-quarter': 38, lateral: 90, left: -90, back:
 const garmentList = (g) => (g == null ? [] : Array.isArray(g) ? g : [g]);
 const SEAM_HEX = '#1f2127';                                  // the red-line (cloth-edge) seam color
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const unit3 = (a) => { const l = SM.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 // The legs+feet carry ground IK (re-bent knee, planted ankle) the spine warp's
 // height field can't reproduce, so they are built on the BALANCED armature nodes
@@ -411,7 +412,7 @@ function viewAzimuth(view) {
 }
 function makeCamera(view) {
   const a = (viewAzimuth(view) * Math.PI) / 180;
-  const CAM = [FIG_R * Math.sin(a), FIG_R * Math.cos(a), FIG_H];           // az 0 = +y (front)
+  const CAM = [FIG_R * SM.sin(a), FIG_R * SM.cos(a), FIG_H];           // az 0 = +y (front)
   const cam = { kind: 'two-point', viewBox: { width: 1000, height: 1000 }, worldFraming: { cameraPosition: CAM, lookAt: LOOK, horizontalFov: 30, pictureCenter: [500, 500] } };
   // Un-mirror screen-x: projectTwoPoint puts the figure's +x (its right side) on
   // screen-right, but a figure facing us should show its right on OUR left (the
@@ -431,14 +432,14 @@ export function figureWorldCamera(view) {
   const a = (viewAzimuth(view) * Math.PI) / 180;
   return {
     name: 'studio',
-    worldFraming: { cameraPosition: [FIG_R * Math.sin(a), FIG_R * Math.cos(a), FIG_H], lookAt: LOOK, horizontalFov: 30, pictureCenter: [280, 380] },
+    worldFraming: { cameraPosition: [FIG_R * SM.sin(a), FIG_R * SM.cos(a), FIG_H], lookAt: LOOK, horizontalFov: 30, pictureCenter: [280, 380] },
   };
 }
 
 const newell = (pts) => {
   let nx = 0, ny = 0, nz = 0;
   for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
-  const l = Math.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
+  const l = SM.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
 };
 
 // The lowest ring height (in /PROTO_SCALE units) — the figure's ground contact.
@@ -487,7 +488,7 @@ function emitSheetFaces(st, V, light, dist, faces) {
         const fi = i + di, fj = j + dj;
         if (fi >= 0 && fi < Ni - 1 && fj >= 0 && fj < Nj - 1) { const f = FN[fi][fj]; x += f[0]; y += f[1]; z += f[2]; }
       }
-      const l = Math.hypot(x, y, z) || 1; VN[i][j] = [x / l, y / l, z / l];
+      const l = SM.hypot(x, y, z) || 1; VN[i][j] = [x / l, y / l, z / l];
     }
   }
   for (let i = 0; i < Ni - 1; i++) {
@@ -499,7 +500,7 @@ function emitSheetFaces(st, V, light, dist, faces) {
       const wpts = [P[i][j], P[i][j + 1], P[i + 1][j + 1], P[i + 1][j]];
       const vn = [VN[i][j], VN[i][j + 1], VN[i + 1][j + 1], VN[i + 1][j]];
       let nx = 0, ny = 0, nz = 0; for (const v of vn) { nx += v[0]; ny += v[1]; nz += v[2]; }
-      const l = Math.hypot(nx, ny, nz) || 1; let shadeN = [nx / l, ny / l, nz / l];
+      const l = SM.hypot(nx, ny, nz) || 1; let shadeN = [nx / l, ny / l, nz / l];
       if (dot3(shadeN, light.toLight) < 0) shadeN = [-shadeN[0], -shadeN[1], -shadeN[2]];   // two-sided |Lambert|
       let hex = st.hex;
       if (panels) for (const p of panels) if (cutHits(praw, p.region)) hex = p.color;
@@ -516,7 +517,7 @@ const PATTERN_DEPTH_BIAS = 0.25;   // render-world units ≈ 1.5 cm at 170 cm st
 
 function litFaces(stacks, CAM, light = LIGHT, groundZ, { cull = true, recolor = null, skin = null } = {}) {
   const V = worldVertex(stacks, groundZ);
-  const dist = (cen) => Math.hypot(cen[0] - CAM[0], cen[1] - CAM[1], cen[2] - CAM[2]);
+  const dist = (cen) => SM.hypot(cen[0] - CAM[0], cen[1] - CAM[1], cen[2] - CAM[2]);
   // RECIPE-EMITTED UVs (skin-over-mesh.plan.md phase 1): a ring stack already knows its own
   // (u,v) — j around the ring, i along the axis — so a `skin: { texture, lit?, repeat? }` opt-in
   // stamps each closed-tube cell with that cylindrical parameterization + the texture key. The
@@ -749,9 +750,9 @@ function orbitCamera(shown, view, elevDeg, groundZ) {
     if (x > bb.mxx) bb.mxx = x; if (y > bb.mxy) bb.mxy = y; if (z > bb.mxz) bb.mxz = z;
   }
   const center = [(bb.mnx + bb.mxx) / 2, (bb.mny + bb.mxy) / 2, (bb.mnz + bb.mxz) / 2];
-  const radius = 0.5 * Math.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
+  const radius = 0.5 * SM.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
   const az = (viewAzimuth(view) * Math.PI) / 180, el = (elevDeg * Math.PI) / 180, R = radius * 3.2;
-  const CAM = [center[0] + R * Math.cos(el) * Math.sin(az), center[1] + R * Math.cos(el) * Math.cos(az), center[2] + R * Math.sin(el)];
+  const CAM = [center[0] + R * SM.cos(el) * SM.sin(az), center[1] + R * SM.cos(el) * SM.cos(az), center[2] + R * SM.sin(el)];
   // A plain PINHOLE, not the room's two-point projector: two-point keeps verticals vertical
   // (and the room basis is built for a level camera), so from a steep elevation — a top or
   // under view — the faces below the crown are pushed out past the silhouette as spikes. The
@@ -759,7 +760,7 @@ function orbitCamera(shown, view, elevDeg, groundZ) {
   const fwd = unit3([center[0] - CAM[0], center[1] - CAM[1], center[2] - CAM[2]]);
   const rightAx = unit3(Math.abs(fwd[2]) > 0.999 ? cross3(fwd, [0, 1, 0]) : cross3(fwd, [0, 0, 1]));
   const upAx = cross3(rightAx, fwd);
-  const f = 500 / Math.tan((30 * Math.PI / 180) / 2);
+  const f = 500 / SM.tan((30 * Math.PI / 180) / 2);
   const project = (p) => {
     const v = [p[0] - CAM[0], p[1] - CAM[1], p[2] - CAM[2]];
     const d = Math.max(1e-3, v[0] * fwd[0] + v[1] * fwd[1] + v[2] * fwd[2]);
@@ -863,9 +864,9 @@ function animalCamera(stacks, az, elevDeg) {
     for (const rg of st.rings) for (const q of rg.polyline) eat(q);
   }
   const center = [(bb.mnx + bb.mxx) / 2, (bb.mny + bb.mxy) / 2, (bb.mnz + bb.mxz) / 2];
-  const radius = 0.5 * Math.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
+  const radius = 0.5 * SM.hypot(bb.mxx - bb.mnx, bb.mxy - bb.mny, bb.mxz - bb.mnz) || 1;
   const el = (elevDeg * Math.PI) / 180, R = radius * 3.2;
-  const CAM = [center[0] + R * Math.cos(el) * Math.sin(az), center[1] - R * Math.cos(el) * Math.cos(az), center[2] + R * Math.sin(el)];
+  const CAM = [center[0] + R * SM.cos(el) * SM.sin(az), center[1] - R * SM.cos(el) * SM.cos(az), center[2] + R * SM.sin(el)];
   const cam = { kind: 'two-point', viewBox: { width: 1000, height: 1000 }, worldFraming: { cameraPosition: CAM, lookAt: center, horizontalFov: 32, pictureCenter: [500, 500] } };
   const project = (p) => { const r = projectTwoPoint([p[0], p[1], p[2]], cam, ROOM); return [-r[0], r[1]]; };
   return { CAM, project };
@@ -949,12 +950,12 @@ export function animalWorldCamera(faces, view) {
     for (let k = 0; k < 3; k++) { if (p[k] < mn[k]) mn[k] = p[k]; if (p[k] > mx[k]) mx[k] = p[k]; }
   }
   const center = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
-  const R = Math.max(1.5, Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) * 1.6);
+  const R = Math.max(1.5, SM.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) * 1.6);
   const a = ((typeof view === 'number' ? view : (ANIMAL_VIEW_AZ[view] ?? ANIMAL_VIEW_AZ['three-quarter'])) * Math.PI) / 180;
   return {
     name: 'paddock',
     worldFraming: {
-      cameraPosition: [center[0] + R * Math.sin(a), center[1] - R * Math.cos(a), center[2] + R * 0.45],
+      cameraPosition: [center[0] + R * SM.sin(a), center[1] - R * SM.cos(a), center[2] + R * 0.45],
       lookAt: center,
       horizontalFov: 30,
       pictureCenter: [280, 380],
@@ -1009,7 +1010,7 @@ function wavePose(u) {
   const w = clamp01((u - 0.28) / 0.46);                                     // local wave param
   const theta = TAU * (2.2 * w + 3.2 * w * w);                              // phase: frequency RAMPS UP with w
   const amp = smooth(w / 0.10) * (1 - smooth((w - 0.80) / 0.20));           // wave in, then damp to 0 → STOP
-  const wave = (u > 0.28 && u < 0.80) ? Math.sin(theta) * amp : 0;
+  const wave = (u > 0.28 && u < 0.80) ? SM.sin(theta) * amp : 0;
   const L = (a, b) => a + (b - a) * raise;                                  // blend hand-on-hip → raised wave
   // hand-on-hip (akimbo): elbow flared out, deeply bent, forearm rolled in to the hip.
   // raised wave:  upper arm out, forearm rolled UP (fingers up).

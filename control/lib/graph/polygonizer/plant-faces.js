@@ -15,6 +15,7 @@
 import { expandPlant, validatePlants } from './plant.js';
 import { taijiToFaces, pickTint } from './taiji-faces.js';
 import { DEFAULT_LIGHT, hexToRgb } from './vexar.js';
+import { SM } from '../../util/math-scope.js';
 
 // A few foliage greens cycled across a tree's canopy blobs so a single tree's hat
 // reads with depth instead of one flat green (the same trick the box cityTree and
@@ -47,7 +48,7 @@ function isBrownish(hex) {
 function pickBark(spec, palette) {
   if (!palette || !palette.length) return null;
   const p = spec.base || spec.center || { x: 0, y: 0, z: 0 };
-  const s = Math.sin((Number(p.x) || 0) * 12.9898 + (Number(p.y) || 0) * 78.233 + 1) * 43758.5453;
+  const s = SM.sin((Number(p.x) || 0) * 12.9898 + (Number(p.y) || 0) * 78.233 + 1) * 43758.5453;
   const f = s - Math.floor(s);
   return palette[Math.floor(f * palette.length) % palette.length];
 }

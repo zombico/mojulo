@@ -47,13 +47,14 @@ import { isRoundKitShape, roundKitFaces } from '../city/round-kit.js';
 import { roomFurnitureAssetFaces } from '../architecture/room-assets.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { buildRoof } from '../architecture/roof.js';
+import { SM } from '../../util/math-scope.js';
 
 // ── vector helpers ──────────────────────────────────────────────────────────
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const len = (a) => Math.hypot(a[0], a[1], a[2]) || 1;
+const len = (a) => SM.hypot(a[0], a[1], a[2]) || 1;
 const norm = (a) => { const l = len(a); return [a[0] / l, a[1] / l, a[2] / l]; };
 const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const centroid = (pts) => scale(pts.reduce((acc, p) => add(acc, p), [0, 0, 0]), 1 / pts.length);
@@ -101,7 +102,7 @@ export function cameraMatrixFromWorldFraming(worldFraming = {}, viewBox = {}, un
   const f = norm(sub(look, pos));
   const r = norm(cross([0, 0, 1], f));
   const u = cross(f, r);
-  const focal = (W / 2) / Math.tan((fov * Math.PI / 180) / 2);
+  const focal = (W / 2) / SM.tan((fov * Math.PI / 180) / 2);
   const p = scale(pos, unitScale);
   const cols = [
     r[0], -u[0], -f[0], 0,
@@ -128,7 +129,7 @@ export function projectWorldToScreen(worldPt, worldFraming = {}, viewBox = {}) {
   const f = norm(sub(look, pos));
   const r = norm(cross([0, 0, 1], f));
   const u = cross(f, r);
-  const focal = (W / 2) / Math.tan((fov * Math.PI / 180) / 2);
+  const focal = (W / 2) / SM.tan((fov * Math.PI / 180) / 2);
   const center = Array.isArray(worldFraming.pictureCenter) ? worldFraming.pictureCenter : [W / 2, H / 2];
   const V = sub(worldPt, pos);
   const fwd = dot(V, f);
@@ -451,7 +452,7 @@ export function bakeCreaseSeams(boxes = [], {
     if (Ln < 2 * INSET + 1e-4) continue;
     const U = Math.abs(T[2]) < 0.9 ? norm(cross(T, [0, 0, 1])) : norm(cross(T, [1, 0, 0]));
     const Vb = norm(cross(T, U));
-    const dirOf = (idx) => { const th = (idx / K) * 2 * Math.PI; return add(scale(U, Math.cos(th)), scale(Vb, Math.sin(th))); };
+    const dirOf = (idx) => { const th = (idx / K) * 2 * Math.PI; return add(scale(U, SM.cos(th)), scale(Vb, SM.sin(th))); };
     const N = Math.max(2, Math.floor((Ln - 2 * INSET) / STEP));
     let run = null;
     const flush = () => {
@@ -548,7 +549,7 @@ function cardFaces(card, quad, outward, shade) {
         break;
       }
       case 'line': {                              // thin quad along the segment
-        const dx = part.u1 - part.u0, dy = part.v1 - part.v0, l = Math.hypot(dx, dy) || 1;
+        const dx = part.u1 - part.u0, dy = part.v1 - part.v0, l = SM.hypot(dx, dy) || 1;
         const hw = (part.strokeWidth || 1) * 0.004, px = (-dy / l) * hw, py = (dx / l) * hw;
         const c = [W(part.u0 + px, part.v0 + py), W(part.u1 + px, part.v1 + py), W(part.u1 - px, part.v1 - py), W(part.u0 - px, part.v0 - py)];
         out.push({ corners: c, fill: sc(part.stroke || fill, c), doubleSided: true, outNormal: outward }); layer += 1;
@@ -621,8 +622,8 @@ function waveCaveFaces(surf, base, shade, { id, amp, relief = 0.8, rolls = 1.7, 
   const ka = wrapU ? Math.max(3, Math.round(Lu / lobeWavelength)) : rolls;
   const kb = wrapU ? ka + 3 : rolls * 0.6 + 1;
   const rolling = heightField || (wrapU
-    ? (s, t) => 0.5 + 0.5 * (0.6 * Math.sin(TAU * (ka * s + 0.18 * t) + p1) + 0.4 * Math.sin(TAU * (kb * s - 0.12 * t) + p2))
-    : (s, t) => 0.5 + 0.5 * (0.6 * Math.sin(TAU * (ka * s + 0.7 * t) + p1) + 0.4 * Math.sin(TAU * (0.8 * s + kb * t) + p2)));
+    ? (s, t) => 0.5 + 0.5 * (0.6 * SM.sin(TAU * (ka * s + 0.18 * t) + p1) + 0.4 * SM.sin(TAU * (kb * s - 0.12 * t) + p2))
+    : (s, t) => 0.5 + 0.5 * (0.6 * SM.sin(TAU * (ka * s + 0.7 * t) + p1) + 0.4 * SM.sin(TAU * (0.8 * s + kb * t) + p2)));
   // smootherstep edge window → relief eases to 0 over the outer 14% of an axis.
   const edge = (x) => { const e = Math.min(1, Math.max(0, Math.min(x, 1 - x) / 0.14)); return e * e * e * (e * (e * 6 - 15) + 10); };
   const winU = wrapU ? () => 1 : edge;     // a wrapping wall has no left/right edge to stay flush to
@@ -679,7 +680,7 @@ function goldenWallReliefField({ count = 48, sigmaS = 0.045, sigmaT = 0.22, seed
   }
   return (s, t) => {
     let h = 0;
-    for (const c of C) { let ds = s - c.s; ds -= Math.round(ds); const dt = t - c.t; h += c.a * Math.exp(-(ds * ds) / (2 * c.ss * c.ss) - (dt * dt) / (2 * c.st * c.st)); }
+    for (const c of C) { let ds = s - c.s; ds -= Math.round(ds); const dt = t - c.t; h += c.a * SM.exp(-(ds * ds) / (2 * c.ss * c.ss) - (dt * dt) / (2 * c.st * c.st)); }
     return Math.min(1.5, h);
   };
 }
@@ -691,12 +692,12 @@ function goldenDiscReliefField({ R = 10, count = 72, sigma = 1.5, seed = 1 } = {
   const G3 = 1 - PHI_INV, C = [];
   for (let i = 0; i < count; i += 1) {
     const rr = Math.sqrt((i + 0.5) / count) * R, th = i * GOLDEN_ANGLE + seed;
-    C.push({ x: rr * Math.cos(th), y: rr * Math.sin(th), a: 0.55 + 0.45 * (((i + 1) * G3) % 1), inv2: 1 / (2 * (sigma * (0.7 + 0.7 * ((i * 0.71) % 1))) ** 2) });
+    C.push({ x: rr * SM.cos(th), y: rr * SM.sin(th), a: 0.55 + 0.45 * (((i + 1) * G3) % 1), inv2: 1 / (2 * (sigma * (0.7 + 0.7 * ((i * 0.71) % 1))) ** 2) });
   }
   return (s, t) => {
-    const a = 2 * Math.PI * s, r = t * R, x = r * Math.cos(a), y = r * Math.sin(a);
+    const a = 2 * Math.PI * s, r = t * R, x = r * SM.cos(a), y = r * SM.sin(a);
     let h = 0;
-    for (const c of C) { const dx = x - c.x, dy = y - c.y; h += c.a * Math.exp(-(dx * dx + dy * dy) * c.inv2); }
+    for (const c of C) { const dx = x - c.x, dy = y - c.y; h += c.a * SM.exp(-(dx * dx + dy * dy) * c.inv2); }
     return Math.min(1.5, h);
   };
 }
@@ -713,7 +714,7 @@ function goldenDiscReliefField({ R = 10, count = 72, sigma = 1.5, seed = 1 } = {
 function polarDiscFaces({ cx, cy, R, baseZ = 0, heightAt, toward, base, shade, group, rings = 16, segments = 64, overlap = 1.02 } = {}) {
   const TAU = Math.PI * 2;
   const wrap = (k) => (((k % segments) + segments) % segments);
-  const pt = (k, t) => { const tt = Math.max(0, Math.min(1, t)), a = (TAU * wrap(k)) / segments, r = tt * R; return [cx + r * Math.cos(a), cy + r * Math.sin(a), baseZ + heightAt(wrap(k) / segments, tt)]; };
+  const pt = (k, t) => { const tt = Math.max(0, Math.min(1, t)), a = (TAU * wrap(k)) / segments, r = tt * R; return [cx + r * SM.cos(a), cy + r * SM.sin(a), baseZ + heightAt(wrap(k) / segments, tt)]; };
   const apex = [cx, cy, baseZ + heightAt(0, 0)];
   const faces = [];
   const push = (corners, n) => {
@@ -795,7 +796,7 @@ export function extractRoomSceneFaces({ elements = [], roomBasis = {}, presets, 
     for (let i = 0; i < 4; i += 1) {
       const [ax, ay] = ring[i], [bx, by] = ring[(i + 1) % 4];
       const lc = [[ax,ay,b[2]],[bx,by,b[2]],[bx,by,t[2]],[ax,ay,t[2]]];
-      const mx = (ax + bx) / 2 - b[0], my = (ay + by) / 2 - b[1], ml = Math.hypot(mx, my) || 1;   // side faces away from the post axis
+      const mx = (ax + bx) / 2 - b[0], my = (ay + by) / 2 - b[1], ml = SM.hypot(mx, my) || 1;   // side faces away from the post axis
       faces.push({ corners: windToward(lc, camHint), fill: shadeT(LEG_HEX, lc, [b[0],b[1],(b[2]+t[2])/2]), outNormal: [mx / ml, my / ml, 0] });
     }
   };
@@ -931,7 +932,7 @@ export function buildRoundRoomShellFaces({ center = [0, 0], radius = 12, height 
   const roomCenter = [cx, cy, Hz / 2];
   const faces = [];
   const N = segments ?? Math.max(48, Math.round((TAU * R) / 0.8));   // rim resolution for the disc fans / flat wall
-  const rim = (k, z) => { const a = (TAU * k) / N; return [cx + R * Math.cos(a), cy + R * Math.sin(a), z]; };
+  const rim = (k, z) => { const a = (TAU * k) / N; return [cx + R * SM.cos(a), cy + R * SM.sin(a), z]; };
   const golden = relief === 'golden';
   // golden bump fields shared across surfaces so the relief feels like one continuous cavern.
   const discField = golden ? goldenDiscReliefField({ R, count: Math.max(48, Math.round(R * 5)), sigma: Math.max(1, R * 0.13), seed: reliefSeed }) : null;
@@ -947,7 +948,7 @@ export function buildRoundRoomShellFaces({ center = [0, 0], radius = 12, height 
       if (golden) { floorH = (s, t) => fAmp * rimEase(t) * discField(s, t); }
       else {
         const ka = Math.max(4, Math.round(R / 2.4)), kb = ka + 2, kr = 2.3, kr2 = 1.6, sd = floorOptions.seed ?? 1, q1 = sd * 1.7, q2 = sd * 3.1;
-        floorH = (s, t) => fAmp * rimEase(t) * (0.5 + 0.5 * (0.55 * Math.sin(TAU * (ka * s) + kr * TAU * t + q1) + 0.45 * Math.sin(TAU * (kb * s) - kr2 * TAU * t + q2)));
+        floorH = (s, t) => fAmp * rimEase(t) * (0.5 + 0.5 * (0.55 * SM.sin(TAU * (ka * s) + kr * TAU * t + q1) + 0.45 * SM.sin(TAU * (kb * s) - kr2 * TAU * t + q2)));
       }
       faces.push(...polarDiscFaces({ cx, cy, R, baseZ: 0, heightAt: floorH, toward: roomCenter, base: palette.floor, shade, group: 'shell:floor', rings: Math.max(8, Math.round(R / 1.7)), segments: N }));
     } else {
@@ -983,8 +984,8 @@ export function buildRoundRoomShellFaces({ center = [0, 0], radius = 12, height 
   // cylindrical wall: one parametric surface (s = angle, t = height), inward = toward axis.
   const wallSurf = {
     Lu: TAU * R, Lv: Hz, wrapU: true,
-    pointAt: (s, t) => { const a = TAU * s; return [cx + R * Math.cos(a), cy + R * Math.sin(a), t * Hz]; },
-    inwardAt: (s) => { const a = TAU * s; return [-Math.cos(a), -Math.sin(a), 0]; },
+    pointAt: (s, t) => { const a = TAU * s; return [cx + R * SM.cos(a), cy + R * SM.sin(a), t * Hz]; },
+    inwardAt: (s) => { const a = TAU * s; return [-SM.cos(a), -SM.sin(a), 0]; },
   };
   if (wallSurface === 'cave') {
     const wallOpts = { id: 'wall', ...caveOptions };
@@ -998,7 +999,7 @@ export function buildRoundRoomShellFaces({ center = [0, 0], radius = 12, height 
   } else {
     for (let k = 0; k < N; k += 1) {
       const a0 = rim(k, 0), a1 = rim((k + 1) % N, 0), b1 = rim((k + 1) % N, Hz), b0 = rim(k, Hz);
-      const mid = (TAU * (k + 0.5)) / N, n = [-Math.cos(mid), -Math.sin(mid), 0];
+      const mid = (TAU * (k + 0.5)) / N, n = [-SM.cos(mid), -SM.sin(mid), 0];
       faces.push({ corners: [a0, a1, b1, b0], fill: shade(palette.backWall, [a0, a1, b1, b0], n), doubleSided: true, normal: n, group: 'shell:wall' });
     }
   }
@@ -1042,7 +1043,7 @@ export function emitPreserve3dScene({ faces = [], cameras = [], viewBox = { widt
     // corner as vVec would collapse the panel to zero height and drop every end cap.
     // (compare components — the local `len` clamps a zero vector to 1, hiding the duplicate)
     const tri = c.length === 3
-      || (c.length === 4 && Math.hypot(c[3][0] - c[0][0], c[3][1] - c[0][1], c[3][2] - c[0][2]) < 1e-9);
+      || (c.length === 4 && SM.hypot(c[3][0] - c[0][0], c[3][1] - c[0][1], c[3][2] - c[0][2]) < 1e-9);
     const uVec = sub(c[1], c[0]), vVec = sub(tri ? c[2] : c[3], c[0]);
     const wPx = (len(uVec) * unitScale).toFixed(2), hPx = (len(vVec) * unitScale).toFixed(2);
     const bf = f.doubleSided ? 'visible' : 'hidden';
@@ -1465,7 +1466,7 @@ function roofCapFaces(b, cap, L, wall, detail = true) {
   const push = (corners, tint) => {
     const [p0, p1, p2] = corners, u = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], v = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
     let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-    const m = Math.hypot(...n) || 1, c = corners.reduce((acc, q) => [acc[0] + q[0] / corners.length, acc[1] + q[1] / corners.length, acc[2] + q[2] / corners.length], [0, 0, 0]);
+    const m = SM.hypot(...n) || 1, c = corners.reduce((acc, q) => [acc[0] + q[0] / corners.length, acc[1] + q[1] / corners.length, acc[2] + q[2] / corners.length], [0, 0, 0]);
     n = n.map((k) => k / m);
     if (n[0] * (c[0] - centre[0]) + n[1] * (c[1] - centre[1]) + n[2] * (c[2] - centre[2]) < 0) n = n.map((k) => -k);
     faces.push({ corners, normal: n, fill: scaleHex(tint, litFactor(n, L)), doubleSided: true });
@@ -1529,13 +1530,13 @@ function cityBox(r, z0, z1, { top, side, glass, facade, floors, bays }, L, camHi
 // a cylindrical (N-gon prism) skyscraper: vertical side facades + a clipped N-gon roof cap
 function cylinderBuilding(b, facade, floors, L, camHint) {
   const cx = b.x + b.w / 2, cy = b.y + b.d / 2, r = Math.min(b.w, b.d) / 2, N = 14;
-  const ring = (z) => Array.from({ length: N }, (_, i) => { const a = (i / N) * 2 * Math.PI; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r, z]; });
+  const ring = (z) => Array.from({ length: N }, (_, i) => { const a = (i / N) * 2 * Math.PI; return [cx + SM.cos(a) * r, cy + SM.sin(a) * r, z]; });
   const bot = ring(b.z0), top = ring(b.z1), faces = [];
   for (let i = 0; i < N; i++) {
     const j = (i + 1) % N, s = [bot[i], bot[j], top[j], top[i]];
     faces.push(facadeFace(s, facade, litFactor(normalToward(s, camHint), L), floors, 1));
   }
-  const capPts = Array.from({ length: N }, (_, i) => { const a = (i / N) * 2 * Math.PI; return `${(50 + 50 * Math.cos(a)).toFixed(1)}% ${(50 + 50 * Math.sin(a)).toFixed(1)}%`; }).join(', ');
+  const capPts = Array.from({ length: N }, (_, i) => { const a = (i / N) * 2 * Math.PI; return `${(50 + 50 * SM.cos(a)).toFixed(1)}% ${(50 + 50 * SM.sin(a)).toFixed(1)}%`; }).join(', ');
   const cap = [[cx - r, cy - r, b.z1], [cx + r, cy - r, b.z1], [cx + r, cy + r, b.z1], [cx - r, cy + r, b.z1]];
   faces.push({ corners: windToward(cap, [cx, cy, 1e4]), fill: facade.roof ? scaleHex(facade.roof, litFactor([0, 0, 1], L)) : scaleHex(facade.glass, 0.62), clip: `polygon(${capPts})` });
   return faces;
@@ -1573,7 +1574,7 @@ function podiumBuilding(b, facade, L, camHint) {
 // tower-form are chosen deterministically from the footprint position.
 function complexBuilding(b, facade, L, camHint) {
   const h = b.z1 - b.z0, faces = [];
-  const hsh = Math.abs(Math.sin(b.x * 12.9898 + b.y * 78.233) * 43758.5453);
+  const hsh = Math.abs(SM.sin(b.x * 12.9898 + b.y * 78.233) * 43758.5453);
   const r1 = hsh % 1, r2 = (hsh * 7.37) % 1, r3 = (hsh * 3.11) % 1;
   const long = b.w >= b.d ? 'x' : 'y', end = r2 < 0.5, cyl = r3 < 0.55;
   const baseH = Math.max(facade.floorH * 1.7, Math.min(h * 0.30, facade.floorH * 3));
@@ -1723,7 +1724,7 @@ function churchBuilding(b, L, camHint) {
     // five-dome plan). Onion domes are surfaces of revolution, faceted as stacked rings.
     const opal = { wall: '#e7e3d7', roof: '#b7b0a0', domeMain: '#caa63f', domeSide: '#39509a', drum: '#dcd7c8', window: '#33291f', cross: '#d8b94a', ...(b.churchPalette || {}) };
     const cx = b.x + b.w / 2, cy = b.y + b.d / 2, Nr = 10;
-    const ringPts = (r, z, ox = cx, oy = cy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + Math.cos(a) * r, oy + Math.sin(a) * r, z]; });
+    const ringPts = (r, z, ox = cx, oy = cy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + SM.cos(a) * r, oy + SM.sin(a) * r, z]; });
     const band = (lo, hi, tint) => { for (let i = 0; i < Nr; i++) { const j = (i + 1) % Nr; lit([lo[i], lo[j], hi[j], hi[i]], tint); } };
     // onion profile: [heightFrac, radiusFactor] — bulges past 1, tapers to a point
     const ONION = [[0, 1.0], [0.14, 1.14], [0.32, 1.2], [0.5, 1.05], [0.66, 0.74], [0.8, 0.42], [0.92, 0.18], [1.0, 0.0]];
@@ -1755,8 +1756,8 @@ function churchBuilding(b, L, camHint) {
     const rC = cLen * 0.21, drumTop = bodyTop + cLen * 0.58;
     drumCyl(cx, cy, rC, bodyTop, drumTop, opal.drum);
     for (let i = 0; i < Nr; i += 2) {                                  // drum windows
-      const a = (i / Nr) * 2 * Math.PI, px = cx + Math.cos(a) * (rC + 0.02), py = cy + Math.sin(a) * (rC + 0.02);
-      const tx = -Math.sin(a) * 0.06, ty = Math.cos(a) * 0.06, wz0 = bodyTop + cLen * 0.12, wz1 = bodyTop + cLen * 0.48;
+      const a = (i / Nr) * 2 * Math.PI, px = cx + SM.cos(a) * (rC + 0.02), py = cy + SM.sin(a) * (rC + 0.02);
+      const tx = -SM.sin(a) * 0.06, ty = SM.cos(a) * 0.06, wz0 = bodyTop + cLen * 0.12, wz1 = bodyTop + cLen * 0.48;
       const cs = [[px - tx, py - ty, wz0], [px + tx, py + ty, wz0], [px + tx, py + ty, wz1], [px - tx, py - ty, wz1]];
       faces.push({ corners: cs, fill: scaleHex(opal.window, litFactor(normalToward(cs, camHint), L)), doubleSided: true, radius: '0 0 50% 50% / 0 0 30% 30%' });
     }
@@ -1854,8 +1855,8 @@ const MOSQUE_PALETTES = {
 // a crescent-moon clip-path (outer circle minus an offset inner circle), in face-% space
 const CRESCENT_CLIP = (() => {
   const pts = [], N = 14, oc = [0.42, 0.5], oR = 0.46, ic = [0.6, 0.5], iR = 0.4, d2r = Math.PI / 180;
-  for (let i = 0; i <= N; i++) { const a = (60 + 240 * (i / N)) * d2r; pts.push([oc[0] + Math.cos(a) * oR, oc[1] + Math.sin(a) * oR]); }      // outer left arc 60→300
-  for (let i = 0; i <= N; i++) { const a = (300 - 240 * (i / N)) * d2r; pts.push([ic[0] + Math.cos(a) * iR, ic[1] + Math.sin(a) * iR]); }     // inner left arc 300→60 (carves)
+  for (let i = 0; i <= N; i++) { const a = (60 + 240 * (i / N)) * d2r; pts.push([oc[0] + SM.cos(a) * oR, oc[1] + SM.sin(a) * oR]); }      // outer left arc 60→300
+  for (let i = 0; i <= N; i++) { const a = (300 - 240 * (i / N)) * d2r; pts.push([ic[0] + SM.cos(a) * iR, ic[1] + SM.sin(a) * iR]); }     // inner left arc 300→60 (carves)
   return `polygon(${pts.map((p) => `${(p[0] * 100).toFixed(1)}% ${(p[1] * 100).toFixed(1)}%`).join(', ')})`;
 })();
 function mosqueBuilding(b, L, camHint) {
@@ -1876,7 +1877,7 @@ function mosqueBuilding(b, L, camHint) {
     ? { x: aLo, y: cLo, w: aHi - aLo, d: cHi - cLo }
     : { x: cLo, y: aLo, w: cHi - cLo, d: aHi - aLo });
   const z0 = b.z0, cx = b.x + b.w / 2, cy = b.y + b.d / 2, Nr = 12;
-  const ring = (r, z, ox, oy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + Math.cos(a) * r, oy + Math.sin(a) * r, z]; });
+  const ring = (r, z, ox, oy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + SM.cos(a) * r, oy + SM.sin(a) * r, z]; });
   const band = (lo, hi, tint) => { for (let i = 0; i < Nr; i++) { const j = (i + 1) % Nr; lit([lo[i], lo[j], hi[j], hi[i]], tint); } };
   const drum = (ox, oy, r, zl, zh, tint) => band(ring(r, zl, ox, oy), ring(r, zh, ox, oy), tint);
   const DOME = [[0, 1.0], [0.32, 0.99], [0.56, 0.9], [0.76, 0.74], [0.9, 0.46], [1.0, 0.0]];     // rounded, slightly pointed
@@ -1897,7 +1898,7 @@ function mosqueBuilding(b, L, camHint) {
   };
   // a gilded crescent billboard standing on a thin finial, facing the camera
   const crescent = (ox, oy, zb, s, tint) => {
-    const dx = camHint[0] - ox, dy = camHint[1] - oy, l = Math.hypot(dx, dy) || 1, tx = -dy / l * s / 2, ty = dx / l * s / 2;
+    const dx = camHint[0] - ox, dy = camHint[1] - oy, l = SM.hypot(dx, dy) || 1, tx = -dy / l * s / 2, ty = dx / l * s / 2;
     const post = Math.max(0.03, s * 0.12);
     faces.push(...cityBox({ x: ox - post / 2, y: oy - post / 2, w: post, d: post }, zb, zb + s * 0.5, { top: scaleHex(tint, 1.1), side: tint }, L, camHint));
     const c0c = [ox - tx, oy - ty, zb + s * 0.5], c1c = [ox + tx, oy + ty, zb + s * 0.5];
@@ -2019,7 +2020,7 @@ function templeBuilding(b, L, camHint) {
   const a0 = along === 'x' ? b.x : b.y, c0 = along === 'x' ? b.y : b.x, cMid = c0 + cLen / 2;
   const P = (a, c, z) => (along === 'x' ? [a, c, z] : [c, a, z]);
   const z0 = b.z0, cx = b.x + b.w / 2, cy = b.y + b.d / 2, Nr = 14;
-  const ring = (r, z, ox, oy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + Math.cos(a) * r, oy + Math.sin(a) * r, z]; });
+  const ring = (r, z, ox, oy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + SM.cos(a) * r, oy + SM.sin(a) * r, z]; });
   const band = (lo, hi, tint) => { for (let i = 0; i < Nr; i++) { const j = (i + 1) % Nr; lit([lo[i], lo[j], hi[j], hi[i]], tint); } };
   const drum = (ox, oy, r, zl, zh, tint) => band(ring(r, zl, ox, oy), ring(r, zh, ox, oy), tint);
   const revolve = (prof, ox, oy, baseR, baseZ, h, tint) => {
@@ -2151,7 +2152,7 @@ function rotundaBuilding(b, L, camHint) {
   const a0 = along === 'x' ? b.x : b.y, c0 = along === 'x' ? b.y : b.x, cMid = c0 + cLen / 2;
   const P = (a, c, z) => (along === 'x' ? [a, c, z] : [c, a, z]);
   const z0 = b.z0, cx = b.x + b.w / 2, cy = b.y + b.d / 2, fM = Math.min(b.w, b.d), Nr = 16;
-  const ring = (r, z, ox, oy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + Math.cos(a) * r, oy + Math.sin(a) * r, z]; });
+  const ring = (r, z, ox, oy) => Array.from({ length: Nr }, (_, i) => { const a = (i / Nr) * 2 * Math.PI; return [ox + SM.cos(a) * r, oy + SM.sin(a) * r, z]; });
   const band = (lo, hi, tint) => { for (let i = 0; i < Nr; i++) { const j = (i + 1) % Nr; lit([lo[i], lo[j], hi[j], hi[i]], tint); } };
   const drum = (ox, oy, r, zl, zh, tint) => band(ring(r, zl, ox, oy), ring(r, zh, ox, oy), tint);
   const DOME = [[0, 1.0], [0.32, 0.99], [0.56, 0.9], [0.76, 0.74], [0.9, 0.46], [1.0, 0.0]];               // rounded hemisphere
@@ -2168,7 +2169,7 @@ function rotundaBuilding(b, L, camHint) {
   // a ring of N square column shafts on a circle of radius r, from zb to zt
   const colonnade = (r, n, zb, zt, cs, tint) => {
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * 2 * Math.PI, ox = cx + Math.cos(a) * r, oy = cy + Math.sin(a) * r;
+      const a = (i / n) * 2 * Math.PI, ox = cx + SM.cos(a) * r, oy = cy + SM.sin(a) * r;
       faces.push(...cityBox({ x: ox - cs / 2, y: oy - cs / 2, w: cs, d: cs }, zb, zt, { top: scaleHex(tint, 1.07), side: tint }, L, camHint));
     }
   };
@@ -2183,8 +2184,8 @@ function rotundaBuilding(b, L, camHint) {
   const rDrum = fM * 0.40, drumTop = baseTop + fM * 0.85;
   drum(cx, cy, rDrum, baseTop, drumTop, pal.wall);
   for (let i = 0; i < Nr; i += 2) {                                   // attic window slits (upper drum)
-    const a = (i / Nr) * 2 * Math.PI, px = cx + Math.cos(a) * (rDrum + 0.02), py = cy + Math.sin(a) * (rDrum + 0.02);
-    const tx = -Math.sin(a) * 0.06, ty = Math.cos(a) * 0.06, wz0 = baseTop + fM * 0.46, wz1 = baseTop + fM * 0.74;
+    const a = (i / Nr) * 2 * Math.PI, px = cx + SM.cos(a) * (rDrum + 0.02), py = cy + SM.sin(a) * (rDrum + 0.02);
+    const tx = -SM.sin(a) * 0.06, ty = SM.cos(a) * 0.06, wz0 = baseTop + fM * 0.46, wz1 = baseTop + fM * 0.74;
     const cs = [[px - tx, py - ty, wz0], [px + tx, py + ty, wz0], [px + tx, py + ty, wz1], [px - tx, py - ty, wz1]];
     faces.push({ corners: cs, fill: scaleHex(pal.window, litFactor(normalToward(cs, camHint), L)), doubleSided: true, radius: '0 0 50% 50% / 0 0 34% 34%' });
   }
@@ -2300,7 +2301,7 @@ function ribbonFaces(ribbon, L, camHint) {
   const left = [], right = [];
   for (let i = 0; i < path.length; i++) {
     const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
-    let tx = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+    let tx = b[0] - a[0], ty = b[1] - a[1]; const l = SM.hypot(tx, ty) || 1; tx /= l; ty /= l;
     const px = -ty, py = tx;                                  // in-plane perpendicular
     left.push([path[i][0] + px * hw, path[i][1] + py * hw]);
     right.push([path[i][0] - px * hw, path[i][1] - py * hw]);
@@ -2380,7 +2381,7 @@ function curtainwallBuilding(b, L, camHint, textures, opts = {}) {
   for (const e of bars) out.push(...cityBox({ x: e.x, y: e.y, w: e.w, d: e.d }, e.z0, e.z1, { top: scaleHex(frameHex, 1.06), side: frameHex }, L, camHint));
   // textured glass walls (the baked reveal), deduped per grid × lit-glass
   const wall = (o, uVec, vVec, n) => {
-    const bays = facadeBays(facade, Math.hypot(...uVec)), floors = facadeFloors(facade, Math.hypot(...vVec));
+    const bays = facadeBays(facade, SM.hypot(...uVec)), floors = facadeFloors(facade, SM.hypot(...vVec));
     const litGlass = rgbToHex(hexToRgb(glassHex).map((v) => v * litFactor(n, L)));
     const key = `cw_${bays}x${floors}_${litGlass.slice(1)}`;
     if (!textures[key]) textures[key] = revealMullionTexture(bays, floors, litGlass, ao, band);
@@ -2578,7 +2579,7 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
     let fps = boxes.filter((b) => (b.z1 - b.z0) > 0.5).map((b) => {
       const h = b.z1 - b.z0;
       const corners = [[b.x, b.y, b.z0], [b.x + b.w, b.y, b.z0], [b.x + b.w, b.y + b.d, b.z0], [b.x, b.y + b.d, b.z0]];
-      const offset = dir && Math.hypot(dir[0], dir[1]) > 1e-3 ? [dir[0] * h * lenK, dir[1] * h * lenK] : null;
+      const offset = dir && SM.hypot(dir[0], dir[1]) > 1e-3 ? [dir[0] * h * lenK, dir[1] * h * lenK] : null;
       return { corners, height: h, offset };
     });
     if (fps.length > cap) fps = Array.from({ length: cap }, (_, i) => fps[Math.floor(i * (fps.length / cap))]);
@@ -2716,7 +2717,7 @@ export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, t
       ? makeLight({ direction: [terrainLight.x, terrainLight.y, terrainLight.z], ambient: 0.3 + 0.26 * day, diffuse: 0.26 + 0.3 * day })
       : makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
     const vw = manifest.viewBox?.width || 1120;
-    const eyes = cameras.filter((c) => c.worldFraming).map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: vw / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
+    const eyes = cameras.filter((c) => c.worldFraming).map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: vw / (2 * SM.tan((wf.horizontalFov * Math.PI) / 360)) }));
     // one draw budget for the scene's plants: a landscape of a few dozen trees spends it on the cap everywhere
     let left = LANDSCAPE_PLANT_FACES;
     plantTextures = {};

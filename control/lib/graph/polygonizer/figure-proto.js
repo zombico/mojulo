@@ -29,6 +29,7 @@ import { sampleVajra } from './vajra.js';
 import { lerp, chakras } from './vajra-body.js';
 import { DIMORPH } from './figure-rig.js';
 import { headRings, neckGirthFactor, HEAD_KNOB_DEFAULTS } from './figure-head.js';
+import { SM } from '../../util/math-scope.js';
 
 // Canonical config = today's hand-tuned male figure. Per-region knobs are
 // intra-sex multipliers (1 = canonical); sex picks the dimorphic baseline.
@@ -199,7 +200,7 @@ const BUILD = 1.0;
 const BICEP_ADJ = 0.0276 * BUILD;   // anterior upper-arm lobe (+15%)
 const TRICEP_ADJ = 0.022 * BUILD;   // posterior upper-arm lobe
 
-const vnorm = (v) => { const l = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; };
+const vnorm = (v) => { const l = SM.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; };
 const vcross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
 const vsub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 
@@ -210,12 +211,12 @@ export function breastPt(p, sgn, rr, a, { dim, breastScale = 1, chestWidth = 1, 
   const W = 0.082 * dim.ribW * chestWidth, AP = 0.058 * dim.ribW * chestWidth * chestDepth, cyT = 0.012;
   const nz = lerp(p.navel.z, p.neckHub.z, 0.56), betaN = 44 * Math.PI / 180;
   const proj = 0.045 * breastScale * pecProjection, K = 1.9, hZ = 0.85, dBmax = 30 * Math.PI / 180, dZmax = 0.052 * breastScale;
-  const ca = Math.cos(a), sa = Math.sin(a), lower = Math.max(0, -sa), upper = Math.max(0, sa), medial = Math.max(0, -ca), lateral = Math.max(0, ca);
+  const ca = SM.cos(a), sa = SM.sin(a), lower = Math.max(0, -sa), upper = Math.max(0, sa), medial = Math.max(0, -ca), lateral = Math.max(0, ca);
   const denom = 0.45 + 0.34 * lower + 0.26 * upper + 0.30 * medial, kk = K + 0.5 * lower + 0.35 * upper + 0.4 * medial;
-  const fwd = proj * Math.exp(-Math.pow(rr / denom, kk)) * (1 + 0.30 * lower * lateral);
+  const fwd = proj * SM.exp(-SM.pow(rr / denom, kk)) * (1 + 0.30 * lower * lateral);
   const dB = dBmax + 0.25 * medial, beta = betaN + rr * ca * dB;
-  const bx = sgn * W * Math.sin(beta), by = cyT + AP * Math.cos(beta), tip = fwd / proj;
-  return { x: bx + fwd * sgn * Math.sin(beta) - sgn * 0.0143 * tip, y: by + fwd * Math.cos(beta), z: nz + rr * sa * dZmax * hZ - 0.016 * tip };
+  const bx = sgn * W * SM.sin(beta), by = cyT + AP * SM.cos(beta), tip = fwd / proj;
+  return { x: bx + fwd * sgn * SM.sin(beta) - sgn * 0.0143 * tip, y: by + fwd * SM.cos(beta), z: nz + rr * sa * dZmax * hZ - 0.016 * tip };
 }
 
 // Dimorphic proportion layer — scale the shoulder/hip landmark widths (the
@@ -262,9 +263,9 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   const ellipsoidRings = (c, rx, ry, rz, { N = 18, M = 28 } = {}) => {
     const rings = [];
     for (let i = 0; i < N; i++) {
-      const v = Math.PI * (i / (N - 1) - 0.5), cz = c.z + rz * Math.sin(v), rr = Math.cos(v);
+      const v = Math.PI * (i / (N - 1) - 0.5), cz = c.z + rz * SM.sin(v), rr = SM.cos(v);
       const poly = [];
-      for (let j = 0; j <= M; j++) { const a = (j / M) * Math.PI * 2; poly.push(toWorld({ x: c.x + rx * rr * Math.cos(a), y: c.y + ry * rr * Math.sin(a), z: cz })); }
+      for (let j = 0; j <= M; j++) { const a = (j / M) * Math.PI * 2; poly.push(toWorld({ x: c.x + rx * rr * SM.cos(a), y: c.y + ry * rr * SM.sin(a), z: cz })); }
       rings.push({ polyline: poly, center: toWorld({ x: c.x, y: c.y, z: cz }) });
     }
     return rings;
@@ -277,7 +278,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   const boneFrame = (P, Q) => {
     const up = vnorm(vsub(Q, P)), yd = up.y;
     let fwd = vnorm({ x: -up.x * yd, y: 1 - up.y * yd, z: -up.z * yd });
-    if (Math.hypot(fwd.x, fwd.y, fwd.z) < 1e-6) fwd = { x: 0, y: 1, z: 0 };
+    if (SM.hypot(fwd.x, fwd.y, fwd.z) < 1e-6) fwd = { x: 0, y: 1, z: 0 };
     const side = vnorm(vcross(fwd, up));
     return { up, fwd, side };
   };
@@ -296,7 +297,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   // the neck column: sex-aware girth (female thinner) × the neckGirth knob
   const neckRings = (p) => {
     const f = boneFrame(p.neckHub, p.headBase);
-    const len = Math.hypot(p.headBase.x - p.neckHub.x, p.headBase.y - p.neckHub.y, p.headBase.z - p.neckHub.z);
+    const len = SM.hypot(p.headBase.x - p.neckHub.x, p.headBase.y - p.neckHub.y, p.headBase.z - p.neckHub.z);
     const base = onBone(p.neckHub, f, len, 0.01);
     const mid = onBone(p.neckHub, f, len * 0.5, 0.005);
     const root = onBone(p.neckHub, f, 0, 0.0);
@@ -317,11 +318,11 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const T1z = p.neckHub.z + 0.015;
     const pelvZ = p.pelvisHub.z;
     const hipHalf = Math.abs(p.hipL.x);
-    const tilt = 18 * Math.PI / 180, ct = Math.cos(tilt), st = Math.sin(tilt);
+    const tilt = 18 * Math.PI / 180, ct = SM.cos(tilt), st = SM.sin(tilt);
     const W = 0.088 * dim.ribW * P.chestWidth, AP = 0.060 * dim.ribW * P.chestWidth, t0 = 0.5;
-    const g = (x, mu, s) => Math.exp(-Math.pow((x - mu) / s, 2));
+    const g = (x, mu, s) => SM.exp(-SM.pow((x - mu) / s, 2));
     const bez = (a, b, c, d, t) => { const m = 1 - t; return m * m * m * a + 3 * m * m * t * b + 3 * m * t * t * c + t * t * t * d; };
-    const eggProf = (t) => Math.sin(Math.PI * (t < t0 ? lerp(0.30, 0.5, t / t0) : lerp(0.5, 0.80, (t - t0) / (1 - t0))));
+    const eggProf = (t) => SM.sin(Math.PI * (t < t0 ? lerp(0.30, 0.5, t / t0) : lerp(0.5, 0.80, (t - t0) / (1 - t0))));
     const rxTop = W * eggProf(0), apTop = AP * eggProf(0);
     const cyTop = bez(-0.005, -0.06, -0.06, 0.005, 0) + apTop * ct;
     const rxHip = 0.058, apHip = 0.052, cyHip = 0.004;
@@ -375,7 +376,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const ap = ap0 * apK;
       const poly = [];
       for (let j = 0; j <= M; j++) {
-        const a = (j / M) * Math.PI * 2, nx = Math.cos(a), fwd = Math.sin(a);
+        const a = (j / M) * Math.PI * 2, nx = SM.cos(a), fwd = SM.sin(a);
         poly.push(toWorld({ x: rx * nx, y: cy + ap * fwd * ct, z: z - ap * fwd * st }));
       }
       rings.push({ polyline: poly, center: toWorld({ x: 0, y: cy, z }) });
@@ -385,7 +386,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   const coreSideRings = (p, sgn, { N = 30, M = 26 } = {}) => {
     const armpitZ = lerp(p.shoulderL.z, p.navel.z, 0.26);
     const trochZ = p.hipL.z - 0.02;
-    const g = (x, mu, s) => Math.exp(-Math.pow((x - mu) / s, 2));
+    const g = (x, mu, s) => SM.exp(-SM.pow((x - mu) / s, 2));
     const PHI0 = 72 * Math.PI / 180, PHI1 = -88 * Math.PI / 180;
     const rings = [];
     for (let i = 0; i < N; i++) {
@@ -399,9 +400,9 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const poly = [];
       for (let j = 0; j <= M; j++) {
         const f = j / M, phi = lerp(phiFront, PHI1, f);
-        const arcEnv = 0.35 + 0.65 * Math.sin(Math.PI * f);
+        const arcEnv = 0.35 + 0.65 * SM.sin(Math.PI * f);
         const R = rTrunk + vol * 0.034 * arcEnv;
-        poly.push(toWorld({ x: sgn * R * Math.cos(phi), y: cy + R * depth * Math.sin(phi), z }));
+        poly.push(toWorld({ x: sgn * R * SM.cos(phi), y: cy + R * depth * SM.sin(phi), z }));
       }
       rings.push({ polyline: poly, center: toWorld({ x: 0, y: cy, z }) });
     }
@@ -420,9 +421,9 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const poly = [];
       for (let j = 0; j <= M; j++) {
         const u = j / M, base = lerp3(med, lat, u);
-        const top = Math.pow(v, 1.8);
-        const dome = Math.sin(Math.PI * u) * Math.sin(Math.PI * Math.min(0.86, 0.10 + 0.9 * v)) * 0.025 * P.pecProjection;
-        const roll = top * 0.024 * Math.sin(Math.PI * Math.min(1, 0.25 + 0.75 * u));
+        const top = SM.pow(v, 1.8);
+        const dome = SM.sin(Math.PI * u) * SM.sin(Math.PI * Math.min(0.86, 0.10 + 0.9 * v)) * 0.025 * P.pecProjection;
+        const roll = top * 0.024 * SM.sin(Math.PI * Math.min(1, 0.25 + 0.75 * u));
         poly.push(toWorld({ x: base.x, y: base.y + dome * (1 - 0.6 * top) - roll * 0.6, z: base.z + roll * 0.6 }));
       }
       rings.push({ polyline: poly, center: toWorld({ x: 0, y: 0.012, z: (med.z + lat.z) / 2 }) });
@@ -442,7 +443,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const poly = [];
       for (let j = 0; j <= M; j++) {
         const u = j / M, base = lerp3(med, lat, u);
-        const round = Math.sin(Math.PI * Math.min(1, 0.05 + 0.95 * u)) * Math.sin(Math.PI * Math.min(1, 0.08 + 0.92 * v)) * 0.022;
+        const round = SM.sin(Math.PI * Math.min(1, 0.05 + 0.95 * u)) * SM.sin(Math.PI * Math.min(1, 0.08 + 0.92 * v)) * 0.022;
         poly.push(toWorld({ x: base.x, y: base.y - round, z: base.z }));
       }
       rings.push({ polyline: poly, center: toWorld({ x: 0, y: 0.0, z: (med.z + lat.z) / 2 }) });
@@ -466,14 +467,14 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   const pelvisRings = (p, { N = 16, M = 30 } = {}) => {
     const hipHalf = Math.abs(p.hipL.x);
     const floorZ = p.hipL.z - 0.035, rimZ = p.hipL.z + 0.07;
-    const tilt = 20 * Math.PI / 180, ct = Math.cos(tilt), st = Math.sin(tilt);
+    const tilt = 20 * Math.PI / 180, ct = SM.cos(tilt), st = SM.sin(tilt);
     const rings = [];
     for (let i = 0; i < N; i++) {
       const t = i / (N - 1), z = lerp(floorZ, rimZ, t);
       const rx = lerp(hipHalf * 0.92, hipHalf * 0.98, t), apH0 = lerp(0.044, 0.056, t), apH = apH0 * P.pelvisDepth, yBack = lerp(-0.008, -0.024, t);
       const cy = yBack + apH0 * ct, cz = z - apH0 * st;
       const poly = [];
-      for (let j = 0; j <= M; j++) { const a = (j / M) * Math.PI * 2, fwd = Math.sin(a); poly.push(toWorld({ x: rx * Math.cos(a), y: cy + apH * fwd * ct, z: cz - apH * fwd * st })); }
+      for (let j = 0; j <= M; j++) { const a = (j / M) * Math.PI * 2, fwd = SM.sin(a); poly.push(toWorld({ x: rx * SM.cos(a), y: cy + apH * fwd * ct, z: cz - apH * fwd * st })); }
       rings.push({ polyline: poly, center: toWorld({ x: 0, y: cy, z: cz }) });
     }
     return rings;
@@ -496,14 +497,14 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     for (let i = 0; i < N; i++) {
       const t = i / (N - 1);
       const c = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t, z: A.z + (B.z - A.z) * t };
-      const sp = Math.sin(Math.PI * (0.12 + 0.76 * t));
-      const elbow = 1 - 0.36 * Math.pow(t, 2.2);
+      const sp = SM.sin(Math.PI * (0.12 + 0.76 * t));
+      const elbow = 1 - 0.36 * SM.pow(t, 2.2);
       const r = baseR * (0.5 + 0.5 * sp) * elbow * SCALE;
       // Posterior (tricep) lobe is slimmed and its mass reallocated DOWN the arm toward the
       // elbow: the mid-belly bulge is eased (less bulbous from the back) and a low taper
       // (distalFill, peaking near the elbow) carries that volume into the joint so the cap
       // reads as covered, not a separate bead. Anterior (bicep) gets the same gentle easing.
-      const distalFill = Math.exp(-Math.pow((t - 0.86) / 0.18, 2));
+      const distalFill = SM.exp(-SM.pow((t - 0.86) / 0.18, 2));
       const bA = bicep * sp * elbow * SCALE * 0.86 + bicep * SCALE * 0.34 * distalFill;
       const tA = tricep * sp * elbow * SCALE * 0.72 + tricep * SCALE * 0.40 * distalFill;
       // LATERAL breadth. Both lobes above add into `ap` and nothing else, so until this dial
@@ -514,7 +515,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const lr = r * (1 + (P.armWidth - 1) * sp * elbow);
       const poly = [];
       for (let j = 0; j <= M; j++) {
-        const th = (j / M) * Math.PI * 2, lat = Math.cos(th), apc = Math.sin(th);
+        const th = (j / M) * Math.PI * 2, lat = SM.cos(th), apc = SM.sin(th);
         const ry = apc >= 0 ? r + bA : r + tA;
         poly.push({ x: c.x + side.x * lr * lat + ap.x * ry * apc, y: c.y + side.y * lr * lat + ap.y * ry * apc, z: c.z + side.z * lr * lat + ap.z * ry * apc });
       }
@@ -541,8 +542,8 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       // it: the peak was pinned at 0.40 for every dial and every weight, so a forearm that carries
       // low into the wrist and one that bunches up under the elbow were the same forearm. 0 is the
       // canonical mu exactly, so the default is a no-op to the byte.
-      const belly = Math.exp(-Math.pow((t - (0.40 + P.forearmDrop)) / 0.30, 2));
-      const elbowFill = Math.exp(-Math.pow((t - 0.06) / 0.16, 2));
+      const belly = SM.exp(-SM.pow((t - (0.40 + P.forearmDrop)) / 0.30, 2));
+      const elbowFill = SM.exp(-SM.pow((t - 0.06) / 0.16, 2));
       // The wrist's own girth, localized hard at the hand end (t³) so the belly keeps its shape.
       // `wristTaper` is a FLATTENING dial — it squeezes the lateral radius and only moved girth
       // as a side effect — so the thin-wristed ↔ thick-wristed axis had no dial of its own.
@@ -550,10 +551,10 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const r = (0.013 + 0.018 * P.forearm * belly * 0.82 + 0.0085 * P.forearm * elbowFill + 0.011 * t * t) * SCALE
         * (1 + (P.wristGirth - 1) * wristEnd);
       const fr = r * 1.05, br = r * 0.92;
-      const lr = r * (1 - 0.42 * P.wristTaper * Math.pow(t, 2.5));
+      const lr = r * (1 - 0.42 * P.wristTaper * SM.pow(t, 2.5));
       const poly = [];
       for (let j = 0; j <= M; j++) {
-        const th = (j / M) * Math.PI * 2, lat = Math.cos(th), apc = Math.sin(th), ry = apc >= 0 ? fr : br;
+        const th = (j / M) * Math.PI * 2, lat = SM.cos(th), apc = SM.sin(th), ry = apc >= 0 ? fr : br;
         poly.push({ x: c.x + side.x * lr * lat + ap.x * ry * apc, y: c.y + side.y * lr * lat + ap.y * ry * apc, z: c.z + side.z * lr * lat + ap.z * ry * apc });
       }
       rings.push({ polyline: poly, center: c });
@@ -570,10 +571,10 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
   const FOOT_FLOOR = -0.143;
   // Rodrigues rotation of vector v about unit axis k by angle ang.
   const vrot = (v, k, ang) => {
-    const c = Math.cos(ang), s = Math.sin(ang), kv = vcross(k, v), kd = k.x * v.x + k.y * v.y + k.z * v.z;
+    const c = SM.cos(ang), s = SM.sin(ang), kv = vcross(k, v), kd = k.x * v.x + k.y * v.y + k.z * v.z;
     return { x: v.x * c + kv.x * s + k.x * kd * (1 - c), y: v.y * c + kv.y * s + k.y * kd * (1 - c), z: v.z * c + kv.z * s + k.z * kd * (1 - c) };
   };
-  const vlen = (a) => Math.hypot(a.x, a.y, a.z);
+  const vlen = (a) => SM.hypot(a.x, a.y, a.z);
   // The leg as a tube swept along hip→knee→ankle with rings oriented to the LIMB
   // (a rotation-minimizing frame), not horizontal slices — so a raised or bent leg
   // follows its bones instead of collapsing. The frame is parallel-transported from
@@ -586,10 +587,10 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const dz = (K0.z - A.z) * 0.15;
     const K = { x: K0.x, y: K0.y, z: K0.z + dz };
     const B = { x: K.x + (B0.x - K0.x) * LEG_EXT, y: K.y + (B0.y - K0.y) * LEG_EXT, z: K.z + (B0.z - K0.z) * LEG_EXT };
-    const d = (u, v) => Math.hypot(u.x - v.x, u.y - v.y, u.z - v.z);
+    const d = (u, v) => SM.hypot(u.x - v.x, u.y - v.y, u.z - v.z);
     const L3 = (u, v, t) => ({ x: u.x + (v.x - u.x) * t, y: u.y + (v.y - u.y) * t, z: u.z + (v.z - u.z) * t });
     const uK = d(A, K) / (d(A, K) + d(K, B));
-    const g = (x, mu, s) => Math.exp(-Math.pow((x - mu) / s, 2));
+    const g = (x, mu, s) => SM.exp(-SM.pow((x - mu) / s, 2));
     // centres + per-ring tangents along the bent path
     const cs = [], us = [];
     for (let i = 0; i < N; i++) {
@@ -605,7 +606,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     for (let i = 1; i < N; i++) {
       const ax = vcross(tang[i - 1], tang[i]), sn = vlen(ax);
       let s = frames[i - 1].side;
-      if (sn > 1e-8) s = vrot(s, { x: ax.x / sn, y: ax.y / sn, z: ax.z / sn }, Math.atan2(sn, tang[i - 1].x * tang[i].x + tang[i - 1].y * tang[i].y + tang[i - 1].z * tang[i].z));
+      if (sn > 1e-8) s = vrot(s, { x: ax.x / sn, y: ax.y / sn, z: ax.z / sn }, SM.atan2(sn, tang[i - 1].x * tang[i].x + tang[i - 1].y * tang[i].y + tang[i - 1].z * tang[i].z));
       s = vnorm(s);
       frames.push({ side: s, ap: vnorm(vcross(s, tang[i])) });
     }
@@ -641,7 +642,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const medR = (r + med * thigh * TH * SCALE + ham * hamB * 0.45 * TH * SCALE + post * glute * 0.55 * SCALE + calf * calfB * 0.55 * CF * SCALE) * widen;
       const poly = [];
       for (let j = 0; j <= M; j++) {
-        const th = (j / M) * Math.PI * 2, cx = Math.cos(th), sy = Math.sin(th);
+        const th = (j / M) * Math.PI * 2, cx = SM.cos(th), sy = SM.sin(th);
         const xr = cx * sgn > 0 ? latR : medR;
         const yr = sy > 0 ? fr : br;
         poly.push({ x: c.x + side.x * xr * cx + ap.x * yr * sy, y: c.y + side.y * xr * cx + ap.y * yr * sy, z: c.z + side.z * xr * cx + ap.z * yr * sy });
@@ -697,7 +698,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const sh = s < 0 ? p.shoulderL : p.shoulderR, el = s < 0 ? p.elbowL : p.elbowR, wr = s < 0 ? p.wristL : p.wristR;
     const up = vnorm(vsub(sh, el)), dn = vnorm(vsub(wr, el));         // elbow → shoulder, elbow → wrist
     const bis = { x: up.x + dn.x, y: up.y + dn.y, z: up.z + dn.z };   // 0 when straight (up ≈ −dn), grows as it folds
-    const bend = Math.hypot(bis.x, bis.y, bis.z);
+    const bend = SM.hypot(bis.x, bis.y, bis.z);
     const outer = bend > 1e-6 ? { x: -bis.x / bend, y: -bis.y / bend, z: -bis.z / bend } : { x: 0, y: -1, z: 0 };
     const k = 0.011 * bend;                                           // nudge toward the elbow point, only when bent
     const c = { x: el.x + outer.x * k, y: el.y + outer.y * k - 0.004, z: el.z + outer.z * k };
@@ -720,7 +721,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     // near-vertical shank still yields a flat forward foot; a sprint's angled shank
     // carries the foot with it). `f` = forefoot forward, `up` = sole→instep, `side` = lateral.
     const fsub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
-    const fnorm = (v) => { const l = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; };
+    const fnorm = (v) => { const l = SM.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; };
     const fcross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
     const fdot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
     const down = fnorm(fsub(B, Ktop));                       // down the leg column (shank)
@@ -731,7 +732,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const flattenW = Math.max(0, Math.min(1, ff ? (ff.flatten != null ? ff.flatten : ff.plant || 0) : 0));
     const pinW = Math.max(0, Math.min(1, ff ? ff.plant || 0 : 0));
     // Shank-relative forward (⟂ to the lower leg) — what a SWING foot tracks.
-    const c90 = Math.cos(Math.PI / 2), s90 = Math.sin(Math.PI / 2);
+    const c90 = SM.cos(Math.PI / 2), s90 = SM.sin(Math.PI / 2);
     let fS = { x: down.x, y: down.y * c90 - down.z * s90, z: down.y * s90 + down.z * c90 };
     const fSd = fdot(fS, down); fS = fnorm({ x: fS.x - down.x * fSd, y: fS.y - down.y * fSd, z: fS.z - down.z * fSd });
     const upS = { x: -down.x, y: -down.y, z: -down.z };      // sole → instep, along the shank
@@ -747,7 +748,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     // (toe down — toe-off / running on the balls of the feet). Neutral 0 = ⟂ to the shank.
     const flexDeg = Math.max(-50, Math.min(40, ff ? ff.ankle || 0 : 0));
     if (flexDeg) {
-      const ang = -flexDeg * Math.PI / 180, ca = Math.cos(ang), sak = Math.sin(ang);
+      const ang = -flexDeg * Math.PI / 180, ca = SM.cos(ang), sak = SM.sin(ang);
       const rod = (v) => {                                   // Rodrigues rotation of v about `side`
         const kd = side.x * v.x + side.y * v.y + side.z * v.z;
         const kx = { x: side.y * v.z - side.z * v.y, y: side.z * v.x - side.x * v.z, z: side.x * v.y - side.y * v.x };
@@ -776,7 +777,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const toeOff = 0.150 * P.footLength * FOOT, heelOff = -0.050 * FOOT;
     const ballT = 0.60, ballAlong = lerp(heelOff, toeOff, ballT), ballSole = -0.026 * FOOT;
     const toeRad = Math.max(0, Math.min(55, ff ? ff.toe || 0 : 0)) * Math.PI / 180;
-    const ct = Math.cos(toeRad), stt = Math.sin(toeRad);
+    const ct = SM.cos(toeRad), stt = SM.sin(toeRad);
     const bend = (along, lift) => {                          // rotate the forefoot up about the ball
       if (toeRad === 0 || along <= ballAlong) return { along, lift };
       const da = along - ballAlong, dl = lift - ballSole;
@@ -837,9 +838,9 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const poly = [];
       let aSum = 0;
       for (let j = 0; j <= M; j++) {
-        const a = (j / M) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
-        const lift0 = cUp0 + hUp * Math.sign(sa) * Math.pow(Math.abs(sa), round);
-        const widef = Math.sign(ca) * Math.pow(Math.abs(ca), round);        // −1 … +1 across the foot
+        const a = (j / M) * Math.PI * 2, ca = SM.cos(a), sa = SM.sin(a);
+        const lift0 = cUp0 + hUp * Math.sign(sa) * SM.pow(Math.abs(sa), round);
+        const widef = Math.sign(ca) * SM.pow(Math.abs(ca), round);        // −1 … +1 across the foot
         const along1 = along0 - TOE_LEAD * lead * Math.max(0, -widef * sgn);   // the LATERAL half falls back
         if (j < M) aSum += along1;
         const b = bend(along1, lift0);
@@ -862,13 +863,13 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     const el = sgn < 0 ? p.elbowL : p.elbowR, wr0 = sgn < 0 ? p.wristL : p.wristR;
     const wr = { x: el.x + (wr0.x - el.x) * 1.4, y: el.y + (wr0.y - el.y) * 1.4, z: el.z + (wr0.z - el.z) * 1.4 };
     const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
-    const norm = (v) => { const l = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; };
+    const norm = (v) => { const l = SM.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; };
     const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
     const at = (c, u, su, v, sv) => ({ x: c.x + u.x * su + v.x * sv, y: c.y + u.y * su + v.y * sv, z: c.z + u.z * su + v.z * sv });
-    const g = (x, mu, s) => Math.exp(-Math.pow((x - mu) / s, 2));
+    const g = (x, mu, s) => SM.exp(-SM.pow((x - mu) / s, 2));
     // Rodrigues rotation of vector `v` about unit axis `k` by `ang` (radians).
     const rotV = (v, k, ang) => {
-      const c = Math.cos(ang), s = Math.sin(ang), kd = k.x * v.x + k.y * v.y + k.z * v.z;
+      const c = SM.cos(ang), s = SM.sin(ang), kd = k.x * v.x + k.y * v.y + k.z * v.z;
       const kx = { x: k.y * v.z - k.z * v.y, y: k.z * v.x - k.x * v.z, z: k.x * v.y - k.y * v.x };
       return { x: v.x * c + kx.x * s + k.x * kd * (1 - c), y: v.y * c + kx.y * s + k.y * kd * (1 - c), z: v.z * c + kx.z * s + k.z * kd * (1 - c) };
     };
@@ -908,8 +909,8 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
       const ww = (0.016 + 0.020 * g(t, 0.42, 0.40) - 0.012 * t * t) * P.handSize, th = 0.013 * (1 - 0.45 * t) * P.handSize;
       const poly = [];
       for (let j = 0; j <= M; j++) {
-        const a = (j / M) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), rd = 0.7;
-        poly.push(toWorld(at(c, wAx, ww * Math.sign(ca) * Math.pow(Math.abs(ca), rd), tx, th * Math.sign(sa) * Math.pow(Math.abs(sa), rd))));
+        const a = (j / M) * Math.PI * 2, ca = SM.cos(a), sa = SM.sin(a), rd = 0.7;
+        poly.push(toWorld(at(c, wAx, ww * Math.sign(ca) * SM.pow(Math.abs(ca), rd), tx, th * Math.sign(sa) * SM.pow(Math.abs(sa), rd))));
       }
       palm.push({ polyline: poly, center: toWorld(c) });
     }
@@ -923,7 +924,7 @@ export function buildProtoform(positions, proto = {}, legNodes = null, footFlex 
     for (let i = 0; i < NT; i++) {
       const s = i / (NT - 1), cc = { x: tb.x + thDir.x * TL * s, y: tb.y + thDir.y * TL * s, z: tb.z + thDir.z * TL * s }, r = 0.011 * (1 - 0.35 * s) * P.handSize;
       const poly = [];
-      for (let j = 0; j <= 18; j++) { const a = (j / 18) * Math.PI * 2; poly.push(toWorld(at(cc, tU, r * Math.cos(a), tV, r * Math.sin(a)))); }
+      for (let j = 0; j <= 18; j++) { const a = (j / 18) * Math.PI * 2; poly.push(toWorld(at(cc, tU, r * SM.cos(a), tV, r * SM.sin(a)))); }
       thumb.push({ polyline: poly, center: toWorld(cc) });
     }
     out.push(thumb);

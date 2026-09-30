@@ -19,6 +19,7 @@
 import { workbenchAssetFaces } from '../worlds/workbench.js';
 import { buildLeg, buildSlab } from '../architecture/room-parts.js';
 import { shadeHex } from './vexar.js';
+import { SM } from '../../util/math-scope.js';
 
 // ── composition helpers ───────────────────────────────────────────────────────
 /** Concatenate workbench manifest fragments into one { lathes, extrudes, sweeps }. */
@@ -41,7 +42,7 @@ export function assetFaces(frag, { light, translate, scale } = {}) {
 /** A closed circular sweep path (footrails, rings) in the z=cz plane. */
 function ringPath(cx, cy, cz, r, seg = 24) {
   const p = [];
-  for (let i = 0; i <= seg; i += 1) { const a = (i / seg) * Math.PI * 2; p.push([cx + r * Math.cos(a), cy + r * Math.sin(a), cz]); }
+  for (let i = 0; i <= seg; i += 1) { const a = (i / seg) * Math.PI * 2; p.push([cx + r * SM.cos(a), cy + r * SM.sin(a), cz]); }
   return p;
 }
 
@@ -163,7 +164,7 @@ export function buildBackBar({ x = 0, y = 0, z = 0, w = 10, d = 1.2, h = 5, carc
     const sz = shelves[si];
     extrudes.push(buildSlab({ x, y: sy, z0: sz, z1: sz + 0.08, w: w - 0.3, d: d - 0.25, tint: shelf }));   // shelf board
     for (let bx = x - w / 2 + 0.7; bx < x + w / 2 - 0.5; bx += 0.95) {                                     // bottles
-      const bh = 0.55 + Math.abs(Math.sin(bx * 3.1 + si)) * 0.55;
+      const bh = 0.55 + Math.abs(SM.sin(bx * 3.1 + si)) * 0.55;
       lathes.push({
         axisFrom: { x: bx, y: sy, z: sz + 0.08 }, axisTo: { x: bx, y: sy, z: sz + 0.08 + bh },
         profile: [{ t: 0, radius: 0.085 }, { t: 0.68, radius: 0.085 }, { t: 0.8, radius: 0.04 }, { t: 1, radius: 0.04 }],
@@ -215,7 +216,7 @@ export function buildPendantLight({ x = 0, y = 0, ceilingZ = 12, drop = 3.6, sha
 function curtainNormal(p, q, r) {
   const ux = q[0] - p[0], uy = q[1] - p[1], uz = q[2] - p[2], vx = r[0] - p[0], vy = r[1] - p[1], vz = r[2] - p[2];
   const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-  const l = Math.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
+  const l = SM.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
 }
 function loftGrid(grid, tint, light) {
   const faces = [];
@@ -239,7 +240,7 @@ export function buildCurtain({ x = 0, y = 0, span = 5, bottom = 0, top = 9, alon
     // (deep folds), flared hem; the open centre lets the window read.
     const tieT = 0.44, topW = span * 0.34, tieW = span * 0.13, hemW = span * 0.42;
     const widthAt = (t) => (t <= tieT ? topW + (tieW - topW) * (t / tieT) : tieW + (hemW - tieW) * ((t - tieT) / (1 - tieT)));
-    const ampAt = (t) => foldDepth * (0.55 + 1.0 * Math.exp(-((t - tieT) ** 2) / 0.022));   // folds deepen at the tie
+    const ampAt = (t) => foldDepth * (0.55 + 1.0 * SM.exp(-((t - tieT) ** 2) / 0.022));   // folds deepen at the tie
     const panel = (edge, dir) => {
       const grid = [];
       for (let j = 0; j < N; j += 1) {
@@ -247,7 +248,7 @@ export function buildCurtain({ x = 0, y = 0, span = 5, bottom = 0, top = 9, alon
         const row = [];
         for (let i = 0; i <= M; i += 1) {
           const u = i / M, a = edge + dir * u * w;
-          const wave = Math.sin(u * folds * Math.PI * 2) * 0.5 + 0.5;
+          const wave = SM.sin(u * folds * Math.PI * 2) * 0.5 + 0.5;
           row.push(pt(a, faceSign * (0.03 + amp * wave), z));
         }
         grid.push(row);
@@ -258,7 +259,7 @@ export function buildCurtain({ x = 0, y = 0, span = 5, bottom = 0, top = 9, alon
   }
 
   // closed: a full-width drape, gathered at the heading, relaxing toward the hem.
-  const ampAt = (t) => foldDepth * (gather + (1 - gather) * (t ** 0.85));
+  const ampAt = (t) => foldDepth * (gather + (1 - gather) * (SM.pow(t, 0.85)));
   const spanAt = (t) => span * (1 + 0.05 * t);
   const grid = [];
   for (let j = 0; j < N; j += 1) {
@@ -266,7 +267,7 @@ export function buildCurtain({ x = 0, y = 0, span = 5, bottom = 0, top = 9, alon
     const row = [];
     for (let i = 0; i <= M; i += 1) {
       const u = i / M, a = -ws / 2 + u * ws;
-      const wave = Math.sin(u * folds * Math.PI * 2) * 0.5 + 0.5;
+      const wave = SM.sin(u * folds * Math.PI * 2) * 0.5 + 0.5;
       row.push(pt(a, faceSign * (0.03 + amp * wave), z));
     }
     grid.push(row);

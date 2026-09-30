@@ -27,6 +27,7 @@ import {
 } from '../polygonizer/vehicle-swept-net.js';
 import { buildFuselageNetSceneShapes, getFuselageNet } from '../polygonizer/vehicle-fuselage-net.js';
 import { resolveMaterial, materialPbr } from '../polygonizer/materials.js';
+import { SM } from '../../util/math-scope.js';
 
 const GLOBAL_K = 0.35;                                 // 5 m sedan → ~1.75 world units
 const P3 = (w) => ({ x: w[0], y: w[1], z: w[2] });     // identity projector (non-array → kept verbatim, z survives)
@@ -61,7 +62,7 @@ export function sweptFaces({ net = 'sedan', family = 'car', cx = 0, cy = 0, axis
   const paintTags = (role) => (spec && !String(role || '').startsWith('accessory:') ? { spec, pbr } : {});
 
   // local → world: uniform scale (GLOBAL_K·scale) about origin, rotate to heading, translate
-  const k = GLOBAL_K * scale, rot = rotFor(axis, dir, heading), cos = Math.cos(rot), sin = Math.sin(rot);
+  const k = GLOBAL_K * scale, rot = rotFor(axis, dir, heading), cos = SM.cos(rot), sin = SM.sin(rot);
   const W = ([x, y, z]) => { const sx = x * k, sy = y * k; return [cx + (sx * cos - sy * sin), cy + (sx * sin + sy * cos), z * k]; };
 
   const out = [];
@@ -77,7 +78,7 @@ export function sweptFaces({ net = 'sedan', family = 'car', cx = 0, cy = 0, axis
 function wheelCoin(s, W) {
   const ring = s.points.map((p) => [p.x, p.y, p.z]);
   const c = cen(ring);
-  const r = Math.max(...ring.map((p) => Math.hypot(p[1] - c[1], p[2] - c[2])));
+  const r = Math.max(...ring.map((p) => SM.hypot(p[1] - c[1], p[2] - c[2])));
   const outSign = Math.sign(c[0] || 1), width = Math.min(0.26, r * 0.52), inX = c[0] - outSign * width;
   const faces = [], tread = shade(s.fill, 0.82);
   for (let i = 0; i < ring.length; i += 2) {
@@ -93,7 +94,7 @@ function wheelCoin(s, W) {
 function disc(s, W) {
   const pts = s.points.map((p) => [p.x, p.y, p.z]);
   const c = cen(pts);
-  const r = Math.max(...pts.map((p) => Math.hypot(p[1] - c[1], p[2] - c[2])));
+  const r = Math.max(...pts.map((p) => SM.hypot(p[1] - c[1], p[2] - c[2])));
   const x = c[0] + 0.03 * Math.sign(c[0] || 1);
   return { corners: [[x, c[1] - r, c[2] + r], [x, c[1] + r, c[2] + r], [x, c[1] + r, c[2] - r], [x, c[1] - r, c[2] - r]].map(W), fill: s.fill, radius: '50%', doubleSided: true };
 }
@@ -120,7 +121,7 @@ export function fuselageFaces({ net = 'jet', cx = 0, cy = 0, axis = 'y', dir = 1
   const R = descriptor?.proportions?.radius || 0.6;
   const body = { center: [0, 0], axisZ: R, noseY: L / 2, length: L, radius: R };   // centred at origin, length along −y from nose(+y), belly on ground
 
-  const k = GLOBAL_K * scale, rot = rotFor(axis, dir, heading), cos = Math.cos(rot), sin = Math.sin(rot);
+  const k = GLOBAL_K * scale, rot = rotFor(axis, dir, heading), cos = SM.cos(rot), sin = SM.sin(rot);
   const W = ([x, y, z]) => { const sx = x * k, sy = y * k; return [cx + (sx * cos - sy * sin), cy + (sx * sin + sy * cos), z * k]; };
   // inverse-transform the world camera into the model's natural-scale local frame for
   // back-face culling: scale⁻¹ · Rz(−rot) · (cam − origin).

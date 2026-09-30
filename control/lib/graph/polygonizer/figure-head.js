@@ -36,6 +36,7 @@
  * default → the same primitives → the same bytes.
  */
 import { smin, smax, sdRoundCone } from './vajra.js';
+import { SM } from '../../util/math-scope.js';
 
 // Per-region knobs a `proto` may carry (1 = canonical; multipliers on the pole).
 export const HEAD_KNOB_DEFAULTS = Object.freeze({
@@ -85,7 +86,7 @@ const JAW_REST_DEG = -8;
 const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 const mul = (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
-const vlen = (a) => Math.hypot(a.x, a.y, a.z);
+const vlen = (a) => SM.hypot(a.x, a.y, a.z);
 const norm = (a) => { const l = vlen(a) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
 const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -206,7 +207,7 @@ export function buildHeadField({ pole = HEAD_POLE_DEFAULT, knobs = HEAD_KNOB_DEF
   const hinge = L.condyleL;   // any point on the axis; x is irrelevant
   const rotJaw = (p, deg) => {
     if (!deg) return p;
-    const th = (deg * Math.PI) / 180, ct = Math.cos(th), st = Math.sin(th);
+    const th = (deg * Math.PI) / 180, ct = SM.cos(th), st = SM.sin(th);
     const y = p.y - hinge.y, z = p.z - hinge.z;
     return { x: p.x, y: hinge.y + y * ct + z * st, z: hinge.z - y * st + z * ct };
   };
@@ -433,7 +434,7 @@ export function buildHeadField({ pole = HEAD_POLE_DEFAULT, knobs = HEAD_KNOB_DEF
     // the lid wraps the eyeball instead of sitting on a flat plate. Past the globe the sqrt
     // clamps to 0 and the canthi settle at the shell's equator, which is where they belong.
     const lidPt = (uDeg, h) => {
-      const u = (uDeg * Math.PI) / 180, cx = Math.cos(u), sx = Math.sin(u);
+      const u = (uDeg * Math.PI) / 180, cx = SM.cos(u), sx = SM.sin(u);
       const x = EC.x + halfW * cx, z = EC.z + h * sx + tilt * cx;
       const d2 = (x - EC.x) * (x - EC.x) + (z - EC.z) * (z - EC.z);
       return { x, y: EC.y + Math.sqrt(Math.max(0, shell * shell - d2)), z };
@@ -542,13 +543,13 @@ function marchRadius(field, o, dir, bound) {
 export function marchLatitude(field, centre, { N = N_LAT, M = M_AROUND, bound = MARCH_BOUND, frontBias = FRONT_BIAS } = {}) {
   const rings = [];
   for (let i = 0; i < N; i++) {
-    const v = Math.PI / 2 - Math.PI * (i + 0.5) / N, cv = Math.cos(v), sv = Math.sin(v);
+    const v = Math.PI / 2 - Math.PI * (i + 0.5) / N, cv = SM.cos(v), sv = SM.sin(v);
     const poly = [];
     let zsum = 0;
     for (let j = 0; j <= M; j++) {
       const phi = (j / M) * Math.PI * 2;
-      const a = phi - frontBias * Math.sin(phi - Math.PI / 2);   // denser at the face (+y), sparser at the nape
-      const dir = { x: cv * Math.cos(a), y: cv * Math.sin(a), z: sv };
+      const a = phi - frontBias * SM.sin(phi - Math.PI / 2);   // denser at the face (+y), sparser at the nape
+      const dir = { x: cv * SM.cos(a), y: cv * SM.sin(a), z: sv };
       const q = add(centre, mul(dir, marchRadius(field, centre, dir, bound)));
       poly.push(q); zsum += q.z;
     }
@@ -561,7 +562,7 @@ export function marchLatitude(field, centre, { N = N_LAT, M = M_AROUND, bound = 
 function boneFrame(P, Q) {
   const up = norm(sub(Q, P)), yd = up.y;
   let fwd = norm({ x: -up.x * yd, y: 1 - up.y * yd, z: -up.z * yd });
-  if (Math.hypot(fwd.x, fwd.y, fwd.z) < 1e-6) fwd = { x: 0, y: 1, z: 0 };
+  if (SM.hypot(fwd.x, fwd.y, fwd.z) < 1e-6) fwd = { x: 0, y: 1, z: 0 };
   const side = norm(cross(fwd, up));
   return { up, fwd, side };
 }

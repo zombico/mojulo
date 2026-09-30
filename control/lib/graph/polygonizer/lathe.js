@@ -16,6 +16,7 @@
  */
 
 import { buildEndpointResolver } from './line-between.js';
+import { SM } from '../../util/math-scope.js';
 
 /**
  * Validate a list of lathe specs against a walker's emitted nodes.
@@ -135,7 +136,7 @@ export function sampleLathe(spec) {
   const dirX = axisTo.x - axisFrom.x;
   const dirY = axisTo.y - axisFrom.y;
   const dirZ = axisTo.z - axisFrom.z;
-  const axisLen = Math.hypot(dirX, dirY, dirZ);
+  const axisLen = SM.hypot(dirX, dirY, dirZ);
   if (axisLen < 1e-9) {
     throw new Error('sampleLathe: axisFrom and axisTo must differ (zero-length axis)');
   }
@@ -206,10 +207,10 @@ export function sampleLathe(spec) {
         const amp = Number.isFinite(h.amplitude) ? h.amplitude : 0;
         const ph = Number.isFinite(h.phase) ? h.phase : 0;
         if (order === 0 || amp === 0) continue;
-        radius += amp * Math.cos(order * theta + ph);
+        radius += amp * SM.cos(order * theta + ph);
       }
-      const cosT = Math.cos(theta);
-      const sinT = Math.sin(theta);
+      const cosT = SM.cos(theta);
+      const sinT = SM.sin(theta);
       poly[j] = {
         x: center.x + radius * (cosT * uAt.x + sinT * vAt.x),
         y: center.y + radius * (cosT * uAt.y + sinT * vAt.y),
@@ -249,7 +250,7 @@ export function applyLatheDetail(lathes, detail) {
     const a = s?.axisFrom;
     const b = s?.axisTo;
     if (!isFiniteVec(a) || !isFiniteVec(b)) return 0;
-    const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    const len = SM.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
     let maxR = 0;
     if (Array.isArray(s.profile)) {
       for (const p of s.profile) if (Number.isFinite(p?.radius)) maxR = Math.max(maxR, p.radius);
@@ -292,7 +293,7 @@ export function applyLatheDetail(lathes, detail) {
  */
 export function slerp3(a, b, t) {
   const d = Math.max(-1, Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z));
-  const omega = Math.acos(d);
+  const omega = SM.acos(d);
   if (Math.abs(omega) < 1e-6) {
     return normalize3({
       x: a.x + t * (b.x - a.x),
@@ -300,9 +301,9 @@ export function slerp3(a, b, t) {
       z: a.z + t * (b.z - a.z),
     });
   }
-  const so = Math.sin(omega);
-  const w1 = Math.sin((1 - t) * omega) / so;
-  const w2 = Math.sin(t * omega) / so;
+  const so = SM.sin(omega);
+  const w1 = SM.sin((1 - t) * omega) / so;
+  const w2 = SM.sin(t * omega) / so;
   return normalize3({
     x: w1 * a.x + w2 * b.x,
     y: w1 * a.y + w2 * b.y,
@@ -338,7 +339,7 @@ function cross3(a, b) {
 }
 
 function normalize3(v) {
-  const len = Math.hypot(v.x, v.y, v.z);
+  const len = SM.hypot(v.x, v.y, v.z);
   if (len < 1e-12) return { x: 0, y: 0, z: 1 };
   return { x: v.x / len, y: v.y / len, z: v.z / len };
 }

@@ -20,6 +20,7 @@
  */
 import { buildPosedFigure } from '../polygonizer/figure-render.js';
 import { makeLight, shadeHex, dot3, sub3, centroid } from '../polygonizer/vexar.js';
+import { SM } from '../../util/math-scope.js';
 
 // figure-render world transform (matches cyclist-asset.js / figure-render.js).
 const PROTO_SCALE = 12, S = 1.95;
@@ -75,7 +76,7 @@ function regionOf(id) {
 const newell = (pts) => {
   let nx = 0, ny = 0, nz = 0;
   for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
-  const l = Math.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
+  const l = SM.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
 };
 const stride = (n, max) => Math.max(1, Math.floor(n / max));
 
@@ -143,7 +144,7 @@ function bakeGeometry(archetypeKey, poseKey) {
 export function pedestrianFaces({ cx = 0, cy = 0, heading = 0, scale = 1, archetype = 'adultM', pose = 'idleL', palette = PALETTES[0] } = {}) {
   const baked = bakeGeometry(archetype, pose);
   const u = FIG_UNIT * scale;
-  const ct = Math.cos(heading), st = Math.sin(heading);
+  const ct = SM.cos(heading), st = SM.sin(heading);
   return baked.map((f) => ({
     fill: shadeHex(palette[f.region] || palette.shirt, f.normal, FIG_LIGHT),
     doubleSided: true,

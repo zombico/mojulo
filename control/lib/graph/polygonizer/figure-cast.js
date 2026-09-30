@@ -28,6 +28,7 @@
  * which is what lets every existing byte pin hold.
  */
 import { basePositions } from './figure-vajra.js';
+import { SM } from '../../util/math-scope.js';
 
 // ─── Dials ────────────────────────────────────────────────────────────────
 // `scale` dials are multipliers on the canonical rest length / half-span (1 = canonical,
@@ -97,7 +98,7 @@ const CHAIN = Object.freeze([
 // already uses for the dimorphic hip, so the two proportion layers agree.
 const LEG_FOLLOW = 0.45;
 
-const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+const dist3 = (a, b) => SM.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
 // The canonical floor — the rest ankle height every cast re-seats onto.
 const GROUND_Z = basePositions().ankleL.z;
@@ -206,7 +207,7 @@ export function castArmature(cast = {}) {
   //    every cached rest bone direction (figure-posing's REST) stays exactly valid. That is also
   //    what relaxing the trapezius actually does: the acromion drops, the arm comes along.
   if (C.shoulderDrop !== 0) {
-    const th = C.shoulderDrop * Math.PI / 180, ct = Math.cos(th), st = Math.sin(th);
+    const th = C.shoulderDrop * Math.PI / 180, ct = SM.cos(th), st = SM.sin(th);
     for (const s of ['L', 'R']) {
       const sh = m['shoulder' + s], N = m.neckHub;
       const dx = sh.x - N.x, dz = sh.z - N.z, sgn = dx < 0 ? -1 : 1;
