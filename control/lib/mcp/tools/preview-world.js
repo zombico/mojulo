@@ -3,8 +3,11 @@ import { createHash } from 'node:crypto';
 import { registerTool, invokeRegisteredTool } from '../server.js';
 import { SketchRepository } from '../../db/repositories/sketches.js';
 import { appsEnabled, PREVIEW_URI, MAX_PREVIEW_BYTES } from '../apps/preview.js';
+import { pluginProfileActive, pluginProfileNotice } from '../plugin-profile.js';
 
 export async function previewWorldHandler(input, context) {
+  // The Claude plugin build never enables it; its refusal is the profile's neutral one.
+  if (pluginProfileActive()) throw new Error(pluginProfileNotice("'preview_world'"));
   if (!appsEnabled()) throw new Error('MCP Apps preview is disabled; set MOJULO_MCP_APPS=1 on an npm/source server.');
   if (!input || typeof input.ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(input.ref)) throw new Error('A valid stored recipe ref is required.');
   // Re-enter the existing tool gates with the same caller. No alternate export or auth path.

@@ -46,6 +46,10 @@ describe('MCP Apps preview', () => {
     enable(); vi.stubEnv('MOJULO_DISTRIBUTION', 'claude-plugin');
     expect(listTools().some(t => t.name === 'preview_world')).toBe(false);
     expect((await rpc('resources/list')).error.code).toBe(-32601);
+    const called = await rpc('tools/call', { name: 'preview_world', arguments: { ref: 'anything' } });
+    const said = called.result?.content?.[0]?.text ?? called.error?.message ?? '';
+    expect(said).toContain("'preview_world' is not part of the Claude plugin build of mojulo.");
+    expect(said).not.toMatch(/MOJULO_MCP_APPS|npm|source server/);
   });
   it('does not expose preview to a delegated role', async () => {
     enable(); vi.stubEnv('MOJULO_ROLES', 'enabled');

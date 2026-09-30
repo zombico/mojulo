@@ -83,7 +83,21 @@ function checkManifest({ sync }) {
   say(`ui-package/package.json is in step with mojulo ${core.version}`);
 }
 
+// The dashboard build compiles the literal `import('../mobile-suit/…')` seams (lib/graph/content-pack.js),
+// so a checkout holding the operator-local content pack would carry it into mojulo-ui. Build only
+// from a checkout where that tree is the two tracked modules.
+const TRACKED_SUIT = new Set(['ms-ai.js', 'ms-maneuvers.js']);
+function refuseLocalContentPack() {
+  const suit = path.join(CONTROL_DIR, 'lib', 'graph', 'mobile-suit');
+  const extra = existsSync(suit) ? readdirSync(suit).filter((f) => !TRACKED_SUIT.has(f)) : [];
+  if (extra.length) {
+    say(`lib/graph/mobile-suit holds the operator-local content pack (${extra.length} entries beyond the tracked two); mojulo-ui would carry it. Build from a clean checkout.`);
+    process.exit(1);
+  }
+}
+
 function build() {
+  refuseLocalContentPack();
   if (process.env.MOJULO_UI_REUSE_BUILD === '1' && existsSync(path.join(BUILT, 'server.js'))) {
     say('MOJULO_UI_REUSE_BUILD=1: keeping the existing .next/standalone build');
   } else {
