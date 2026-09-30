@@ -62,6 +62,7 @@
     "!lib/**/__snapshots__/**",
     "!lib/**/spike-output/**",
     "!lib/graph/mobile-suit/**",
+    "!lib/mcp/hosts/zz-test-*.json",
     "lib/graph/mobile-suit/ms-ai.js",
     "lib/graph/mobile-suit/ms-maneuvers.js",
     "components/graph/CreationMap.jsx",

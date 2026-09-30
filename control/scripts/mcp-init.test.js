@@ -54,6 +54,7 @@ function runInit(...extraArgs) {
       HOME: home,
       USERPROFILE: home,
       MOJULO_HOME: join(home, '.mojulo'),
+      MOJULO_TEST_HOST_FIXTURES: '1',
       PATH: join(home, 'bin') + delimiter + (process.env.PATH || ''),
     },
   });

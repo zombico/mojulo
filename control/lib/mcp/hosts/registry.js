@@ -130,8 +130,13 @@ function parseProfile(file, raw) {
   };
 }
 
+// scripts/mcp-init.test.js plants a `zz-test-*.json` profile here to prove a host is data. Only a
+// process given MOJULO_TEST_HOST_FIXTURES=1 reads one, so a test running beside it, or a planted file
+// a killed run left behind, never lists a fixture host.
+const readsFixture = (f) => !f.startsWith('zz-test-') || process.env.MOJULO_TEST_HOST_FIXTURES === '1';
+
 function loadCatalog() {
-  const files = readdirSync(HOSTS_DIR).filter((f) => f.endsWith('.json'));
+  const files = readdirSync(HOSTS_DIR).filter((f) => f.endsWith('.json') && readsFixture(f));
   const profiles = [];
   for (const file of files) {
     const profile = parseProfile(file, readFileSync(join(HOSTS_DIR, file), 'utf8'));

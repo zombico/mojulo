@@ -48,3 +48,6 @@ mojulo-*.tgz
 /NOTICE
 /ui-package/LICENSE
 /ui-package/NOTICE
+
+# The fixture host profile scripts/mcp-init.test.js plants for one test (never shipped, never listed).
+lib/mcp/hosts/zz-test-*.json
