@@ -123,12 +123,37 @@ describe('export_model format:bundle', () => {
     }
   }, 120_000);
 
+  // the courier on Claude's Artifact door: the viewer's downloads prompt saves only its allowlist (no glb, no stl), so
+  // those rows point at the zip instead of failing; the static notice (for viewers that block downloads) names no
+  // vendor and is hidden where the downloads capability runs
+  it("the courier's per-file Save follows the viewer's downloads allowlist, and its notice names no vendor", async () => {
+    const r = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'bundle' });
+    const courier = readFileSync(r.courier.path, 'utf8');
+    expect(courier).not.toMatch(/Meta|Muse/);
+    expect(r.courier.note).not.toMatch(/Meta|Muse|Claude|Artifact tool/);   // no host resolved: the generic note
+    const src = [...courier.matchAll(/<script>([\s\S]*?)<\/script>/g)].pop()[1];
+    const page = (claude) => {
+      const el = (id) => ({ id, hidden: false, textContent: '', className: '' }), byId = { local: el('local'), status: el('status'), zip: el('zip') };
+      const rows = r.files.map((f) => ({ name: f.name, disabled: false, textContent: 'Save', title: '', getAttribute: () => f.name }));
+      const document = { getElementById: (id) => byId[id], querySelectorAll: () => rows, addEventListener: () => {} };
+      new Function('window', 'document', 'location', src)(claude ? { claude } : {}, document, { protocol: 'https:' });
+      return { local: byId.local.hidden, rows: Object.fromEntries(rows.map((b) => [b.name, b.disabled ? b.textContent : 'Save'])) };
+    };
+    const hosted = page({ use: async () => ({ save: async () => {} }) });
+    expect(hosted.local).toBe(true);
+    expect(hosted.rows).toEqual({ 'README.md': 'Save', 'model.glb': 'In the zip', 'model.stl': 'In the zip', 'recipe.json': 'Save', 'world.html': 'Save' });
+    const plain = page(null);
+    expect(plain.local).toBe(false);
+    expect(Object.values(plain.rows).every((v) => v === 'Save')).toBe(true);
+  }, 120_000);
+
   it('MOJULO_HOST=muse: the zip rides the courier page, the one type the Library shows', async () => {
     process.env.MOJULO_HOST = 'muse';
     const r = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'bundle' }, { mcpSessionId: 'cli' });
     expect(r.handoff.host).toBe('muse');
     expect(r.handoff.door).toBe('drop-folder');
     expect(r.handoff.next).toMatch(/^copy sk_bundle_folder\.courier\.html into ~\/workspace\/your_files\/; it lands in the operator's Library as one page/);
+    expect(r.courier.note).toMatch(/Here: copy it into ~\/workspace\/your_files\/, and it lands in the operator's Library\.$/);
     const glb = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'glb' }, { mcpSessionId: 'cli' });
     expect(glb.handoff.next).toMatch(/shows only \.html files, so model\.glb would not surface there/);
   }, 120_000);
@@ -157,6 +182,8 @@ describe('export_model format:bundle', () => {
     const zip = await exportModelHandler({ ref: CITY.ref, format: 'bundle' }, ctx);
     expect(zip.handoff.caveats.some((c) => /allowlist/.test(c))).toBe(false);
     expect(zip.handoff.next).toMatch(/^publish sk_bundle_city\.courier\.html with your Artifact tool declaring capabilities \{ downloads: true \}/);
+    expect(zip.courier.note).toMatch(/Here: publish it with your Artifact tool declaring capabilities \{ downloads: true \}; that viewer saves no model\.glb on its own, so the page offers it inside the zip\.$/);
+    expect(zip.courier.note).not.toMatch(/Muse|Library|your_files/);
     expect(zip.handoff.caveats).toEqual([expect.stringMatching(/reclaimed when the session ends/)]);
     // write:false writes nothing and so says nothing about doors
     const dry = await exportModelHandler({ ref: CITY.ref, format: 'glb', write: false }, ctx);
