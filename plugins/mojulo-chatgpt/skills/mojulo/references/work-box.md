@@ -105,11 +105,15 @@ validates the manifest and refuses a duplicate ref; this never replaces a stored
 recipe. If the ref already exists, inspect it with the available Mojulo read tools
 before deciding whether it is the same artifact or a conflict.
 
+The hashes prove the capsule is self-consistent, not who made it. Validating a recipe
+that carries a JavaScript `program` (a `workbench` recipe from the code door) runs that
+program, so restore itself runs it. Before restoring a capsule or recipe received from
+elsewhere, read `capsule.restore.manifest.program` as code.
+
 This is manifest recovery, not a database/asset backup. External textures, image/audio
 bindings, dependent sketch refs and custom recipe-book builders are not embedded.
 Preserve those separately and use the relevant kind's documented workflow if
-`create_sketch` cannot restore it. A recipe carrying a JavaScript `program` is code;
-inspect it as code before rendering a recipe received from elsewhere.
+`create_sketch` cannot restore it.
 
 Re-export with the same arguments. Compare the restored manifest and the relevant
 model bytes/geometry before calling the recovery exact. Mojulo's mint API can normalize

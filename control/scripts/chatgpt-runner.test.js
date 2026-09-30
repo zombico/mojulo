@@ -111,6 +111,12 @@ describe('ChatGPT Work runner', () => {
     expect(() => readCapsule(restoreOpts)).toThrow(/hash mismatch/);
   });
 
+  it('the Work-box guide says restore itself runs a recipe\'s program, so it is read before restoring', () => {
+    const guide = fs.readFileSync(new URL('../../plugins/mojulo-chatgpt/skills/mojulo/references/work-box.md', import.meta.url), 'utf8');
+    expect(guide).toMatch(/so restore itself runs it\. Before restoring a capsule or recipe received from\s+elsewhere, read `capsule\.restore\.manifest\.program` as code\./);
+    expect(guide).not.toMatch(/before rendering a recipe received from elsewhere/);
+  });
+
   it('requires the same development tarball for recovery, even at the same version', () => {
     const dir = workspace();
     const tarball = path.join(dir, 'branch.tgz');
