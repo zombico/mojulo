@@ -6,7 +6,7 @@ import { cutPose, poseReach, stockSection, memberFrame } from './members.js';
 import { movement } from './movement.js';
 import { spanChecks, assemblyOrder } from './checks.js';
 import { lowerFrame, validateFrames, frameStamps } from './frame.js';
-import { resolveTimberTexture, TIMBER_TEXTURE_PREFIX } from './textures.js';
+import { resolveTimberTexture, bakeTimberKey, TIMBER_TEXTURE_PREFIX } from './textures.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { ensureExactKernel, exactFieldFaces } from '../polygonizer/field-exact.js';
 import { setExactFieldRenderer } from '../polygonizer/field-faces.js';
@@ -193,6 +193,24 @@ describe('construction/frame — members cut where they meet', () => {
     expect(url).toMatch(/^data:image\/png;base64,/);
     expect(resolveTimberTexture(key)).toBe(url);
     expect(surfaceTexture('timber:not-base64-json')).toBeNull();
+  });
+
+  it('bakes only a timber key frame.js could mint: a key is recipe text too (a dungeon style, an extrude wrap)', () => {
+    const minted = lowerFrame(kigumi).faces.find((f) => f.texture).texture;
+    const p = JSON.parse(Buffer.from(minted.slice(TIMBER_TEXTURE_PREFIX.length), 'base64url').toString('utf8'));
+    const key = (q) => TIMBER_TEXTURE_PREFIX + Buffer.from(JSON.stringify({ ...p, ...q })).toString('base64url');
+    expect(bakeTimberKey(key({}))).not.toBeNull();
+    const t0 = performance.now();
+    expect(bakeTimberKey(key({ nu: 1025 }))).toBeNull();
+    expect(bakeTimberKey(key({ nv: 12.5 }))).toBeNull();
+    expect(bakeTimberKey(key({ log: { ...p.log, species: 'unobtainium' } }))).toBeNull();   // threw, before
+    expect(bakeTimberKey(key({ log: { ...p.log, age: 1e6 } }))).toBeNull();
+    expect(bakeTimberKey(key({ log: { ...p.log, length: 1e6 } }))).toBeNull();
+    expect(bakeTimberKey(key({ log: { ...p.log, heightGrowth: 1e-4 } }))).toBeNull();
+    expect(bakeTimberKey(key({ o: [0, 0] }))).toBeNull();
+    // last: before, this one held the event loop for minutes and asked for 1.2 GB
+    expect(surfaceTexture(key({ nu: 20000, nv: 20000 }))).toBeNull();
+    expect(performance.now() - t0).toBeLessThan(1000);
   });
 
   it('reports the kigumi bent’s assembly order, and the braced bent’s lock', () => {
