@@ -118,6 +118,8 @@ export const ANIME_HAIR_MOVES = Object.freeze({
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
+/** the largest lock edit (construction units, either way) the door takes: the sweep fields' own bound */
+export const LOCK_EDIT_MAX = 3;
 export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch']);
 const LIFT_KEYS = Object.freeze(['crown', 'temple', 'fringe', 'nape']);
 const SWEEP_BACK_KEYS = Object.freeze(['amount', 'keep', 'rise', 'riseFall', 'controlX', 'controlZ', 'spread', 'tipY', 'tipZ', 'stagger', 'rootY', 'rootZ']);
@@ -268,7 +270,8 @@ export function validateAnimeHair(spec, label = 'hair') {
       else for (const [name, edit] of Object.entries(locks)) {
         if (!ANIME_LOCK_RE.test(name)) { errs.push(`${at}.locks.${name}: not a clump (fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-1-0…2 / crown--1-0…2 on short)`); continue; }
         if (!edit || typeof edit !== 'object' || Array.isArray(edit)) { errs.push(`${at}.locks.${name}: { ${ANIME_LOCK_KEYS.join(', ')} } (control point and tip moves, construction units)`); continue; }
-        for (const [k, v] of Object.entries(edit)) if (!ANIME_LOCK_KEYS.includes(k)) errs.push(`${at}.locks.${name}.${k}: not a lock edit (have ${ANIME_LOCK_KEYS.join(', ')})`); else if (typeof v !== 'number' || !Number.isFinite(v)) errs.push(`${at}.locks.${name}.${k}: must be a finite number`);
+        // a move in construction units, bounded as the sweep fields are (a runaway number is refused by name, not built)
+        for (const [k, v] of Object.entries(edit)) if (!ANIME_LOCK_KEYS.includes(k)) errs.push(`${at}.locks.${name}.${k}: not a lock edit (have ${ANIME_LOCK_KEYS.join(', ')})`); else if (typeof v !== 'number' || !Number.isFinite(v)) errs.push(`${at}.locks.${name}.${k}: must be a finite number`); else if (Math.abs(v) > LOCK_EDIT_MAX) errs.push(`${at}.locks.${name}.${k}: ${v} is past ±${LOCK_EDIT_MAX} construction units (the studio's own edits stay within ±0.2)`);
       }
     }
   }

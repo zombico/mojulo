@@ -195,7 +195,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `taper`; `sweep`, `part` and `ahoge` — one upright curl at the crown, 0 none — offsets) and `locks`: one clump directed by the studio's clump name (`fringe-1`…`7`,
   `left-temple-0`…`2`, `right-temple-0`…`2`, `back-1`…`11`, on short `crown-1-0`…`2` and `crown--1-0`…`2`, `ahoge`) as
   `{ cx, cy, cz, tx, ty, tz }`, its control point and tip moved in the studio's construction units (the head is about 2.2
-  tall; ±0.2 is the studio's range), its root held. `expression`: a pose (`neutral`, `blink`, `smile`, `open`) or the
+  tall; ±0.2 is the studio's range, ±3 the most the door takes), its root held. `expression`: a pose (`neutral`, `blink`, `smile`, `open`) or the
   four amounts `{ blink, smile, open, brow }`; `['smile', { brow: -0.2 }]` adjusts a pose. Lists compose (ratios by
   product, offsets and lock edits by sum, a family or a pose last-wins); the studio's ranges advise, never refuse. In
   the skinned GLB (so in an engine) the expression travels as morph targets on the neutral head, each the difference of
