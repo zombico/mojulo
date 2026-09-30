@@ -108,4 +108,13 @@ describe('planet', () => {
     expect(Math.abs(D - PL.R - f.kernel.planetAt(x / D, y / D, cz / D)[0] - 1.7)).toBeLessThan(0.01);
     expect(validateTerrainWorld({ ...M, planet: { radius: 10 } }).join(' ')).toMatch(/planet must be true or \{ radius \}/);
   });
+  it('scree and placed sketches stand on the sphere the page draws, not on the flat ground; a city is refused', () => {
+    const p = assembleTerrainWorld({ ...P, place: [{ ref: 'sk_x', at: [0, -800], size: 30 }] }, { live: true });
+    // measured along the radius from the planet's centre: the boulder's seat is the sphere's ground, within a centimetre
+    const lift = ([x, y, z]) => { const cz = z + PL.R, D = Math.hypot(x, y, cz); return D - PL.R - f.kernel.planetAt(x / D, y / D, cz / D)[0]; };
+    let n = 0; for (const r of p.repeats) for (const t of r.transforms) { n++; expect(Math.abs(lift([t.pos[0], t.pos[1], t.pos[2] + 0.25 * t.scale * 0.66]))).toBeLessThan(0.01); }
+    expect(n).toBeGreaterThan(20);
+    const [rec] = p.itemRefs; expect(lift([...rec.center, rec.z])).toBeLessThanOrEqual(0.01); expect(lift([...rec.center, rec.z])).toBeGreaterThan(-3);   // the lowest ground under it
+    expect(validateTerrainWorld({ ...P, cities: [{ profile: 'town' }] }).join(' ')).toMatch(/cities is for flat worlds/);
+  });
 });
