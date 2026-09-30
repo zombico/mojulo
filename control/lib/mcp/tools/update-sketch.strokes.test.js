@@ -160,7 +160,7 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve' }] })).rejects.toThrow(/from: '\/strokes\/<id>'/);
     // an outline around a small part of the body is not its silhouette: refused, and no dial moves
     await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'jaw', view: 'frontal', intent: 'silhouette', points: [[0.45, 0.45], [0.55, 0.45], [0.55, 0.5], [0.45, 0.5]] } }] });
-    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/jaw' }] })).rejects.toThrow(/patch\[0\]: silhouette-solve: stroke 'jaw' encloses \d+ % of the solid's outline[\s\S]*contour or a brush stroke/);
+    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/jaw' }] })).rejects.toThrow(/patch\[0\]: silhouette-solve: stroke 'jaw' draws \d+ % of the solid's silhouette area[\s\S]*contour or a brush stroke/);
     // a key the stroke's solver does not read is refused by name, not ignored
     await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: OUTLINE }] });
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s1', height: 0.1 }] })).rejects.toThrow(/a silhouette solve reads from, path, dials, budget — not height/);
@@ -226,6 +226,26 @@ describe('update_sketch on layered rows — stroke work across a regeneration', 
     expect(r.stats.parts.map((p) => p.id)).toContain('stroke.c1R'); expect(r.stats.closed).toBe(true);
   });
 
+  it('a /plan edit that inserts a station drops the strip and the brush by name: the same (s, t) is elsewhere on the body now', async () => {
+    await createLayeredHandler({ recipe: expandPlan(RING_PLAN), plan: RING_PLAN, ref: 'lay-plan-station', strokes: [BRUSH, RIDGE] });
+    await updateSketchHandler({ ref: 'lay-plan-station', patch: [{ op: 'solve', from: '/strokes/b1', radius: 0.4 }, { op: 'solve', from: '/strokes/c1' }] });
+    const made = SketchRepository.getByRef('lay-plan-station').manifest;
+    expect(made.recipe.dials['stroke.b1']).toBeTruthy(); expect(made.recipe.parts['stroke.c1R']).toBeTruthy();
+    // z = 1.1 between the first two: the torso's st1 is now at 1.1, not 1.3, and every index past it shifts up
+    const four = [{ z: 0.9, r: [0.3, 0.22] }, { z: 1.1, r: [0.31, 0.23] }, { z: 1.3, r: [0.32, 0.24] }, { z: 1.7, r: [0.2, 0.16] }];
+    const r = await updateSketchHandler({ ref: 'lay-plan-station', patch: [{ op: 'set', path: '/plan/segments/0/stations', value: four }] });
+    const after = SketchRepository.getByRef('lay-plan-station').manifest;
+    expect(after.recipe.parts.torso.stations).toHaveLength(4);
+    expect(after.recipe.dials['stroke.b1']).toBeUndefined(); expect(after.dials['stroke.b1']).toBeUndefined();
+    expect(Object.keys(after.recipe.parts).filter((n) => n.startsWith('stroke.'))).toEqual([]);
+    expect(after.strokes.map((s) => [s.id, s.solved])).toEqual([['b1', undefined], ['c1', undefined]]);
+    expect(after.strokes.map((s) => s.camera)).toEqual(made.strokes.map((s) => s.camera));   // the drawing itself is kept
+    expect(r.stats.warnings).toEqual([expect.stringMatching(/changed the stations or slots of, the carrier under what strokes b1, c1 made/)]);
+    // a re-solve rebuilds the brush on the new stations
+    const again = await updateSketchHandler({ ref: 'lay-plan-station', patch: [{ op: 'solve', from: '/strokes/b1', radius: 0.4 }] });
+    expect(again.stats.solved[0]).toMatchObject({ dial: 'stroke.b1', carrier: 'torso' }); expect(again.stats.solved[0].pointsMoved).toBeGreaterThan(0);
+  });
+
   it('the review\'s case: on a hero, a /hero/tune edit keeps the brush dial and the strip instead of erasing them', async () => {
     await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-strokes', spec: { cast: 'male', register: 'lowpoly' } });
     const chest = { id: 'b1', view: 'frontal', intent: 'brush', points: [[0.46, 0.3, 1], [0.48, 0.31, 1], [0.5, 0.32, 1], [0.52, 0.33, 1]] };
@@ -252,7 +272,7 @@ describe('update_sketch on layered rows — stroke work across a regeneration', 
     const { manifest, warnings } = carryStrokeWork(prev, next);
     expect(manifest.recipe).toEqual(recipe); expect(manifest.dials).toEqual({ bulk: 1 });
     expect(manifest.strokes.map((s) => s.solved)).toEqual([undefined, undefined, { iou: 0.5 }]);   // a silhouette made nothing to carry
-    expect(warnings).toEqual([expect.stringMatching(/no carrier under what strokes b1, c1 made.*re-solve with \{ op: 'solve', from: '\/strokes\/<id>' \}/)]);
+    expect(warnings).toEqual([expect.stringMatching(/lost, or changed the stations or slots of, the carrier under what strokes b1, c1 made.*re-solve with \{ op: 'solve', from: '\/strokes\/<id>' \}/)]);
     expect(carryStrokeWork(prev, { ...next, strokes: [OUTLINE] }).manifest).toEqual({ ...next, strokes: [OUTLINE] });   // no stroke work, no-op
   });
 });

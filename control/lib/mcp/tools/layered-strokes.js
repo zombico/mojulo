@@ -146,8 +146,11 @@ export function applySolves(manifest, mesh, ops, indexOffset = 0) {
  * A /hero or /plan edit (or a whole replacement of such a row) regenerates the recipe whole (layered.js
  * expandLayeredManifest), which would silently drop the strips and brush dials the stored strokes made. Carry each
  * over from `prev` onto `next` where it still lands: a strip's pin face and a brush's addresses on a layer-1 carrier of
- * the regenerated recipe, at rest. A stroke whose work does not land is left out, its `solved` record cleared, and
- * named in `warnings` (its camera and points are kept: a re-solve rebuilds it on the new form). No stroke work, no-op.
+ * the regenerated recipe, at rest, whose stations and slots are the ones the work was made on. An (s, t) address is a
+ * station index (or `u`) and a slot `t`, so a carrier that gained or lost a station, or changed its slots, would put
+ * the same address somewhere else on the body. A stroke whose work does not land is left out, its `solved` record
+ * cleared, and named in `warnings` (its camera and points are kept: a re-solve rebuilds it on the new form). No
+ * stroke work, no-op.
  */
 export function carryStrokeWork(prev, next) {
   const strokes = Array.isArray(next.strokes) ? next.strokes : [];
@@ -155,7 +158,9 @@ export function carryStrokeWork(prev, next) {
     .filter((m) => m.parts.length || m.dials.length);
   if (!made.length) return { manifest: next, warnings: [] };
   const rest = compileLayered(next.recipe, {}, { details: false, creases: false });
-  const carrier = (name) => (rest.parts[name]?.layer === 1 ? rest.parts[name] : null);
+  // what an (s, t) address means on a carrier (station-loft.js addressPin): its station ids and `u`, its slots and `slotT`
+  const frame = (p) => (p ? JSON.stringify([(p.stations || []).map((st, i) => [st.id, st.u ?? i]), (p.slots || []).map((sl, k) => [sl, p.slotT?.[sl] ?? k])]) : null);
+  const carrier = (name) => (rest.parts[name]?.layer === 1 && frame(prev.recipe.parts?.[name]) === frame(next.recipe.parts?.[name]) ? rest.parts[name] : null);
   const lands = (fn) => { try { return fn(); } catch { return false; } };
   const partLands = (p) => !!p?.pin && !!carrier(p.pin.parent)?.faces?.[p.pin.face];
   const dialLands = (d) => Array.isArray(d?.parts) && d.parts.every(carrier) && (d.entries || []).every((e) => lands(() => !!addressPin(carrier(d.parts[0]), d.parts[0], e.at[0], e.at[1], e.side === 'L' ? 'L' : 'R')));
@@ -167,7 +172,7 @@ export function carryStrokeWork(prev, next) {
   }
   const manifest = { ...next, recipe: { ...next.recipe, parts, dials: spec }, dials: values,
     ...(dropped.length ? { strokes: strokes.map((s) => { if (!dropped.includes(s.id)) return s; const { solved: _s, ...kept } = s; return kept; }) } : {}) };
-  const warnings = dropped.length ? [`the regenerated recipe has no carrier under what stroke${dropped.length > 1 ? 's' : ''} ${dropped.join(', ')} made, so ${dropped.length > 1 ? 'those strips and brushes were' : 'that strip or brush was'} dropped and the \`solved\` record cleared: re-solve with { op: 'solve', from: '/strokes/<id>' } (the stroke's camera and points are kept)`] : [];
+  const warnings = dropped.length ? [`the regenerated recipe lost, or changed the stations or slots of, the carrier under what stroke${dropped.length > 1 ? 's' : ''} ${dropped.join(', ')} made, so ${dropped.length > 1 ? 'those strips and brushes were' : 'that strip or brush was'} dropped and the \`solved\` record cleared: re-solve with { op: 'solve', from: '/strokes/<id>' } (the stroke's camera and points are kept)`] : [];
   return { manifest, warnings };
 }
 
