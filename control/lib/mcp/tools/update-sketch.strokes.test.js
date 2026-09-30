@@ -8,7 +8,10 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createLayeredHandler } from './layered.js';
 import { updateSketchHandler } from './sketches.js';
 import { measureSolidHandler } from './measure-solid.js';
+import { mintSolidHandler } from './mint-solid.js';
+import { carryStrokeWork } from './layered-strokes.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 
 // Stroke affordances S0/S1: a stroke is stored on a layered row as data, given the camera it was drawn against,
 // resolved into the ledger on every edit; a `solve` op turns a silhouette into a dial solve. A row without
@@ -188,5 +191,66 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-order', patch: [{ op: 'set', path: '/dials/lift', value: 0.1 }, { op: 'solve', from: '/strokes/s1' }, { op: 'solve', from: '/strokes/s9' }] }))
       .rejects.toThrow(/patch\[2\]: no stroke 's9'/);
     expect(SketchRepository.getByRef('lay-order').manifest.dials).toEqual({ width: 1, lift: 0 });
+  });
+});
+
+// A /plan or /hero edit regenerates the recipe whole; the strips and brush dials strokes made ride over onto it.
+const RING_PLAN = {
+  schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' },
+  joints: { hip: [0.2, 0, 1], knee: [0.22, 0.1, 0.5], toe: [0.22, 0.3, 0.05] },
+  segments: [
+    { name: 'torso', kind: 'trunk', stations: [{ z: 0.9, r: [0.3, 0.22] }, { z: 1.3, r: [0.32, 0.24] }, { z: 1.7, r: [0.2, 0.16] }], caps: { back: [0, 0, 0.8], tip: [0, 0, 1.8] }, group: 'Torso', tint: '#667', mirror: 'plane' },
+    { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: 0.14, rB: 0.1, group: 'Legs', tint: '#565', mirror: 'name' },
+  ],
+  dials: { bulk: { min: 0.8, max: 1.3, rest: 1, doc: 'x scale of the trunk', op: 'scale', axis: 'x', pivot: 0, parts: ['torso'], blend: { st0: 1, st1: 1, st2: 1, back: 1, tip: 1 } } },
+};
+// lines over the torso from the side: every point lands on it
+const BRUSH = { id: 'b1', view: 'lateral', intent: 'brush', points: [[0.4, 0.3, 1], [0.45, 0.31, 1], [0.5, 0.32, 1], [0.55, 0.33, 1]] };
+const RIDGE = { id: 'c1', view: 'lateral', intent: 'contour', points: [[0.4, 0.35, 0.9], [0.45, 0.36, 0.9], [0.5, 0.37, 0.9], [0.55, 0.38, 0.9]] };
+
+describe('update_sketch on layered rows — stroke work across a regeneration', () => {
+  it('a /plan edit re-expands the recipe and keeps the strip and the brush dial (at its value) the strokes made', async () => {
+    await createLayeredHandler({ recipe: expandPlan(RING_PLAN), plan: RING_PLAN, ref: 'lay-plan-carry', strokes: [BRUSH, RIDGE] });
+    await updateSketchHandler({ ref: 'lay-plan-carry', patch: [{ op: 'solve', from: '/strokes/b1', radius: 0.4 }, { op: 'solve', from: '/strokes/c1' }] });
+    await updateSketchHandler({ ref: 'lay-plan-carry', patch: [{ op: 'set', path: '/dials/stroke.b1', value: 0.5 }] });
+    const made = SketchRepository.getByRef('lay-plan-carry').manifest;
+    expect(made.recipe.dials['stroke.b1']).toBeTruthy(); expect(made.recipe.parts['stroke.c1R']).toBeTruthy();
+    const r = await updateSketchHandler({ ref: 'lay-plan-carry', patch: [{ op: 'set', path: '/plan/segments/0/stations/1/r/0', value: 0.36 }] });
+    const after = SketchRepository.getByRef('lay-plan-carry').manifest;
+    expect(after.recipe.parts.torso).not.toEqual(made.recipe.parts.torso);   // the plan re-expanded
+    expect(after.recipe.dials['stroke.b1']).toEqual(made.recipe.dials['stroke.b1']); expect(after.dials['stroke.b1']).toBe(0.5);
+    expect(after.recipe.parts['stroke.c1R']).toEqual(made.recipe.parts['stroke.c1R']);
+    expect(after.strokes.map((s) => s.solved)).toEqual(made.strokes.map((s) => s.solved)); expect(r.stats.warnings).toBeUndefined();
+    expect(r.stats.parts.map((p) => p.id)).toContain('stroke.c1R'); expect(r.stats.closed).toBe(true);
+  });
+
+  it('the review\'s case: on a hero, a /hero/tune edit keeps the brush dial and the strip instead of erasing them', async () => {
+    await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-strokes', spec: { cast: 'male', register: 'lowpoly' } });
+    const chest = { id: 'b1', view: 'frontal', intent: 'brush', points: [[0.46, 0.3, 1], [0.48, 0.31, 1], [0.5, 0.32, 1], [0.52, 0.33, 1]] };
+    const rib = { id: 'c1', view: 'frontal', intent: 'contour', points: [[0.46, 0.25, 1], [0.48, 0.26, 1], [0.5, 0.27, 1], [0.52, 0.28, 1]] };
+    const solved = await updateSketchHandler({ ref: 'hero-strokes', patch: [{ op: 'set', path: '/strokes', value: [chest, rib] }, { op: 'solve', from: '/strokes/b1' }, { op: 'solve', from: '/strokes/c1' }] });
+    expect(solved.stats.solved.map((x) => x.intent)).toEqual(['brush', 'contour']);
+    const made = SketchRepository.getByRef('hero-strokes').manifest;
+    const r = await updateSketchHandler({ ref: 'hero-strokes', patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.05 }] });
+    expect(r.stats.hero.tune.shoulders).toBe(1.05);
+    const after = SketchRepository.getByRef('hero-strokes').manifest;
+    expect(after.recipe.dials['stroke.b1']).toEqual(made.recipe.dials['stroke.b1']); expect(after.dials['stroke.b1']).toBe(1);
+    for (const n of made.strokes[1].solved.parts) expect(after.recipe.parts[n]).toEqual(made.recipe.parts[n]);
+    expect(after.strokes[0].solved.dial).toBe('stroke.b1');
+    const m = await measureSolidHandler({ ref: 'hero-strokes', volume: false, exposure: false }); expect(m.strokes.b1.solved.pointsMoved).toBeGreaterThan(0);
+  });
+
+  it('work whose carrier the regenerated recipe lacks is dropped by name and its `solved` cleared, never left dangling', () => {
+    const recipe = expandPlan(RING_PLAN);
+    const strip = { layer: 2, closure: 'closed', group: 'Torso', from: 'c1', follow: true, pin: { parent: 'torso', face: 'torso/nowhere.k0.a', weights: [1, 0, 0], tangentEdge: ['a', 'b'], handedness: 1 }, offsets: {}, faces: {}, groups: {} };
+    const brush = { min: -2, max: 2, rest: 1, op: 'brush', parts: ['tail'], entries: [{ at: [0.5, 0.5], side: 'R', r: 0.1, w: 1 }], amp: 0.01, from: 'b1' };
+    const prev = { kind: 'layered', recipe: { ...recipe, parts: { ...recipe.parts, 'stroke.c1R': strip }, dials: { ...recipe.dials, 'stroke.b1': brush } }, dials: { bulk: 1, 'stroke.b1': 1 },
+      strokes: [{ ...BRUSH, solved: { dial: 'stroke.b1' } }, { ...RIDGE, solved: { parts: ['stroke.c1R'] } }, { ...OUTLINE, solved: { iou: 0.5 } }] };
+    const next = { ...prev, recipe, dials: { bulk: 1 } };
+    const { manifest, warnings } = carryStrokeWork(prev, next);
+    expect(manifest.recipe).toEqual(recipe); expect(manifest.dials).toEqual({ bulk: 1 });
+    expect(manifest.strokes.map((s) => s.solved)).toEqual([undefined, undefined, { iou: 0.5 }]);   // a silhouette made nothing to carry
+    expect(warnings).toEqual([expect.stringMatching(/no carrier under what strokes b1, c1 made.*re-solve with \{ op: 'solve', from: '\/strokes\/<id>' \}/)]);
+    expect(carryStrokeWork(prev, { ...next, strokes: [OUTLINE] }).manifest).toEqual({ ...next, strokes: [OUTLINE] });   // no stroke work, no-op
   });
 });

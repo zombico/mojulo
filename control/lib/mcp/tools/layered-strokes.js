@@ -10,14 +10,16 @@
  *     intent picks the solver (today: `silhouette` → the dial solve, silhouette-solve.js), the ops it
  *     produced land in the manifest (`dials`) and the stroke keeps a `solved` summary with the residual;
  *   - `strokesLedger(manifest, mesh)` re-resolves every stroke against the compiled mesh and returns the
- *     compact per-stroke entry the layered ledger carries (`ledger.strokes`), re-stamped on every edit.
+ *     compact per-stroke entry the layered ledger carries (`ledger.strokes`), re-stamped on every edit;
+ *   - `carryStrokeWork(prev, next)` keeps what the strokes made across a hero / plan regeneration, which
+ *     rebuilds the recipe whole.
  * Absent `strokes`, every function is a no-op and the manifest's bytes are untouched.
  */
 import { validateStrokes, cameraRecord, resolveStroke, strokeLedgerEntry, viewOf } from '@/lib/graph/polygonizer/stroke-resolve';
 import { fitSilhouetteDials, solvedRecord, silhouetteResidual } from '@/lib/graph/polygonizer/silhouette-solve';
 import { contourStripParts, partsFrom } from '@/lib/graph/polygonizer/contour-strip';
 import { brushDial, dialsFrom } from '@/lib/graph/polygonizer/brush-map';
-import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
+import { compileLayered, addressPin } from '@/lib/graph/polygonizer/station-loft';
 import { layeredExposure } from '@/lib/graph/polygonizer/station-loft-exposure';
 
 export const SOLVE_OP = 'solve';
@@ -138,6 +140,35 @@ export function applySolves(manifest, mesh, ops, indexOffset = 0) {
     }
   });
   return { manifest: next, solved, dialsChanged: dialsChanged || recipeChanged };
+}
+
+/**
+ * A /hero or /plan edit (or a whole replacement of such a row) regenerates the recipe whole (layered.js
+ * expandLayeredManifest), which would silently drop the strips and brush dials the stored strokes made. Carry each
+ * over from `prev` onto `next` where it still lands: a strip's pin face and a brush's addresses on a layer-1 carrier of
+ * the regenerated recipe, at rest. A stroke whose work does not land is left out, its `solved` record cleared, and
+ * named in `warnings` (its camera and points are kept: a re-solve rebuilds it on the new form). No stroke work, no-op.
+ */
+export function carryStrokeWork(prev, next) {
+  const strokes = Array.isArray(next.strokes) ? next.strokes : [];
+  const made = strokes.map((s) => ({ id: s.id, parts: partsFrom(prev?.recipe || {}, s.id), dials: dialsFrom(prev?.recipe || {}, s.id) }))
+    .filter((m) => m.parts.length || m.dials.length);
+  if (!made.length) return { manifest: next, warnings: [] };
+  const rest = compileLayered(next.recipe, {}, { details: false, creases: false });
+  const carrier = (name) => (rest.parts[name]?.layer === 1 ? rest.parts[name] : null);
+  const lands = (fn) => { try { return fn(); } catch { return false; } };
+  const partLands = (p) => !!p?.pin && !!carrier(p.pin.parent)?.faces?.[p.pin.face];
+  const dialLands = (d) => Array.isArray(d?.parts) && d.parts.every(carrier) && (d.entries || []).every((e) => lands(() => !!addressPin(carrier(d.parts[0]), d.parts[0], e.at[0], e.at[1], e.side === 'L' ? 'L' : 'R')));
+  const parts = { ...next.recipe.parts }, spec = { ...next.recipe.dials }, values = { ...next.dials }; const dropped = [];
+  for (const m of made) {
+    if (!m.parts.every((n) => partLands(prev.recipe.parts[n])) || !m.dials.every((n) => dialLands(prev.recipe.dials[n]))) { dropped.push(m.id); continue; }
+    for (const n of m.parts) parts[n] = prev.recipe.parts[n];
+    for (const n of m.dials) { spec[n] = prev.recipe.dials[n]; values[n] = prev.dials?.[n] ?? spec[n].rest; }
+  }
+  const manifest = { ...next, recipe: { ...next.recipe, parts, dials: spec }, dials: values,
+    ...(dropped.length ? { strokes: strokes.map((s) => { if (!dropped.includes(s.id)) return s; const { solved: _s, ...kept } = s; return kept; }) } : {}) };
+  const warnings = dropped.length ? [`the regenerated recipe has no carrier under what stroke${dropped.length > 1 ? 's' : ''} ${dropped.join(', ')} made, so ${dropped.length > 1 ? 'those strips and brushes were' : 'that strip or brush was'} dropped and the \`solved\` record cleared: re-solve with { op: 'solve', from: '/strokes/<id>' } (the stroke's camera and points are kept)`] : [];
+  return { manifest, warnings };
 }
 
 /** The per-stroke ledger: each stroke re-resolved against this mesh. Undefined when the manifest has no strokes. */
