@@ -357,7 +357,7 @@ describe('update_sketch { readout } — what an edit hands back (Phase 3)', () =
 // ring-plan: the layered kind's PLAN door stores the plan beside the recipe; an edit under /plan
 // re-expands the recipe, an edit under /dials leaves the plan alone; every edit pays the layered gates.
 import { mintSolidHandler } from './mint-solid.js';
-import { validateHeroSpec } from './layered.js';
+import { validateHeroSpec, heroRecord, heroPlanOf, heroReadout } from './layered.js';
 import { heroRecord, heroPlanOf, validateHeroSpec } from './layered.js';
 
 const RING_PLAN = {
@@ -955,3 +955,27 @@ describe.skipIf(!existsSync(FLASK))('an object dressed through the plan door', (
   });
 });
 
+
+// The readout measures the head at the PLAN's own scale (hero-form.js planScale: the cast's scale times the tune's
+// stature, on the proportions worn): a stature-only tune is a uniform shrink, so the metres shrink with it and the
+// heads-tall stays where it was (the anime readout used to read the cast's scale alone, so the kid look read ~18 % large)
+describe('the hero readout at the plan\'s own scale', () => {
+  const read = (spec) => { const hero = heroRecord(spec); return heroReadout(hero, heroPlanOf(hero), null, []); };
+  it('anime: a stature-only tune moves head_m by the stature and leaves headsTall', () => {
+    const a = read({ cast: 'female', head: 'anime', register: 'lowpoly' }), b = read({ cast: 'female', head: 'anime', register: 'lowpoly', tune: { stature: 0.85 } });
+    expect(b.faceMeasures.head_m).toBeCloseTo(a.faceMeasures.head_m * 0.85, 2);
+    expect(Math.abs(b.headsTall - a.headsTall)).toBeLessThan(0.03);
+  }, 60000);
+  it('landmark: the same, on the stature and on the worn cast\'s head scale', () => {
+    const a = read({ cast: 'male' }), b = read({ cast: 'male', tune: { stature: 0.9 } });
+    expect(b.faceMeasures.head_m).toBeCloseTo(a.faceMeasures.head_m * 0.9, 2);
+  }, 60000);
+  // `proportions` was stored on a blank-trunk or include hero and then ignored: it now reaches heroPlan as it does the two
+  // worn heads; absent, the plan is the one before
+  it("the blank trunk takes proportions: 'anime' builds the anime cast, absent keeps the plan", () => {
+    const plain = heroPlanOf(heroRecord({ cast: 'female', head: 'none' })), anime = heroPlanOf(heroRecord({ cast: 'female', head: 'none', proportions: 'anime' }));
+    expect(anime.frame.note).toMatch(/anime proportions/); expect(plain.frame.note).not.toMatch(/anime proportions/);
+    expect(JSON.stringify(anime.segments)).not.toBe(JSON.stringify(plain.segments));
+    expect(JSON.stringify(heroPlanOf(heroRecord({ cast: 'female', head: 'none', proportions: 'hero' })))).toBe(JSON.stringify(plain));
+  });
+});
