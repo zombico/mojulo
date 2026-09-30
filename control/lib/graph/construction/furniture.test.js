@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { hardwarePart, hardwareError, boltLength, boreTerm, partPolys, toolOf } from './hardware.js';
-import { SHEETS, sheetColor, sheetTile, bakeSheetKey, bandFor } from './sheets.js';
+import { SHEETS, sheetColor, sheetTile, bakeSheetKey, bandFor, SHEET_TEXTURE_PREFIX } from './sheets.js';
+import { surfaceTexture } from '../landscape/surface-textures.js';
 import { boxToCentreline } from './members.js';
 import { lowerFrame, validateFrames, frameStamps } from './frame.js';
 import { nestParts, isFurniture } from './furniture-checks.js';
@@ -99,6 +100,28 @@ describe('construction/sheets — boards and their faces', () => {
     const dark = col.filter((v) => v < 170).length;
     expect(dark).toBeGreaterThan(nv * 0.05);                           // glue lines and end-grain plies
     expect(dark).toBeLessThan(nv * 0.8);
+  });
+  it('bakes only a key sheetTile could mint: a key is recipe text too (a dungeon style, an extrude wrap)', () => {
+    const dec = (k) => JSON.parse(Buffer.from(k.slice(SHEET_TEXTURE_PREFIX.length), 'base64url').toString('utf8'));
+    const key = (k, q) => SHEET_TEXTURE_PREFIX + Buffer.from(JSON.stringify({ ...dec(k), ...q })).toString('base64url');
+    for (const m of Object.keys(SHEETS)) for (const side of ['face', 'edge-long', 'edge-end']) for (const seed of [0, 6]) {
+      expect(bakeSheetKey(sheetTile(m, side, { thickMm: 18, seed }).key)).not.toBeNull();
+    }
+    const thick = bakeSheetKey(sheetTile('mdf', 'edge-long', { thickMm: 2000 }).key);   // a 2 m block: its edge pixel grows
+    expect([thick.nu, thick.nv]).toEqual([256, 2048]);
+    const face = sheetTile('plywood', 'face', { thickMm: 18 }).key, edge = sheetTile('osb', 'edge-end', { thickMm: 18 }).key;
+    const t0 = performance.now();
+    expect(bakeSheetKey(key(face, { veneer: 'unobtainium' }))).toBeNull();   // threw, before
+    expect(bakeSheetKey(key(face, { m: 'glass' }))).toBeNull();              // threw, before
+    expect(bakeSheetKey(key(face, { nu: 513 }))).toBeNull();
+    expect(bakeSheetKey(key(face, { seed: 7 }))).toBeNull();
+    expect(bakeSheetKey(key(face, { side: 'rim' }))).toBeNull();
+    expect(bakeSheetKey(key(edge, { nv: 2049 }))).toBeNull();
+    expect(bakeSheetKey(key(edge, { nu: 257 }))).toBeNull();
+    expect(bakeSheetKey(key(edge, { t: 0 }))).toBeNull();
+    // last: before, this one held the event loop for minutes and asked for 1.2 GB
+    expect(surfaceTexture(key(face, { nu: 20000, nv: 20000 }))).toBeNull();
+    expect(performance.now() - t0).toBeLessThan(1000);
   });
 });
 
