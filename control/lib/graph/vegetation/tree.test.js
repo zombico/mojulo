@@ -8,7 +8,7 @@
  * (beech keeps up and stays smooth, oak cracks at a spacing set by its thickness and runs along the stem, sweet
  * chestnut's cracks lean with its spiral grain).
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { grow, measure, ARCHITECTURES } from './grow.js';
 import { ladder } from './ladder.js';
@@ -21,6 +21,12 @@ describe('trees', () => {
   it('grows deterministically', () => {
     const again = grow('massart', { years: 10, seed: 3 });
     expect(JSON.stringify(again.nodes.map((n) => n.pos))).toBe(JSON.stringify(fir.nodes.map((n) => n.pos)));
+  });
+
+  it('reads nothing from the environment and logs nothing while it grows', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {}); const was = process.env.GDEBUG;
+    try { for (let y = 1; y <= 4; y++) { process.env.GDEBUG = String(y); grow('massart', { years: 4, seed: 3 }); } expect(log).not.toHaveBeenCalled(); }
+    finally { log.mockRestore(); if (was === undefined) delete process.env.GDEBUG; else process.env.GDEBUG = was; }
   });
 
   it('keeps lignin and cambium separate: no cambium, no thickening', () => {

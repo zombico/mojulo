@@ -112,7 +112,8 @@ function headTris(G, at, dir, rng, tris, { coarse = false } = {}) {
 
 /**
  * One tuft of a kind, grown to unit height (the tallest of blades and culms is about 1), at a level. → tris.
- * `over` merges over the kind's row (a recipe may retune a kind's form or colours).
+ * `over` merges over the kind's row (a caller may retune a kind's form or colours; a terrain recipe's `grass` does not
+ * carry it).
  */
 export function grassTuft(kind, { seed = 1, level = 'L2', over = null, style = 'natural' } = {}) {
   const G0 = typeof kind === 'string' ? GRASSES[kind] : kind; if (!G0) throw new Error(`unknown grass '${kind}' (one of ${Object.keys(GRASSES).join(', ')})`);

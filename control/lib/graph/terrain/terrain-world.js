@@ -45,6 +45,8 @@ export function validateTerrainWorld(m) {
     });
   }
   if (m && m.cities !== undefined) errs.push(...validateTerrainCities(m.cities));
+  // a city is graded and seated on the flat ground; a planet's curves away under it (hundreds of metres a kilometre out)
+  if (m && m.planet && Array.isArray(m.cities) && m.cities.length) errs.push('terrain.cities is for flat worlds: a city is graded on the flat ground, and a planet\'s ground curves away under it');
   if (m && m.plants !== undefined) errs.push(...validateTerrainPlants(m.plants, m));
   if (m && m.grass !== undefined) errs.push(...validateTerrainGrass(m.grass, m));
   const lod = m && m.lod;
@@ -137,14 +139,17 @@ export function bakeTerrainFaces(field, { spacing = null, patches = [] } = {}) {
   return out;
 }
 
-/** Place records seated on the ground: the lowest ground under the footprint, less `sink`. → world-scene `itemRefs`. */
-export function terrainPlacements(field, place = []) {
+/**
+ * Place records seated on the ground: the lowest ground under the footprint, less `sink`. → world-scene `itemRefs`.
+ * `surf` (x, y) → [x, y, z] is a planet's surface (assembleTerrainWorld), which the record stands on instead.
+ */
+export function terrainPlacements(field, place = [], { surf = null } = {}) {
   return place.map((p, i) => {
     const [w, d] = Array.isArray(p.size) ? p.size : [p.size ?? 20, p.size ?? 20];
     const [x, y] = p.at; let z = Infinity;
-    for (const [u, v] of [[0, 0], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) z = Math.min(z, field.groundAt(x + u * w, y + v * d));
-    const name = typeof p.name === 'string' && p.name ? p.name : `placed-${i}`;
-    return { ref: p.ref, name, center: [x, y], z: z - (p.sink ?? 0), size: [w, d], ...(p.height ? { height: p.height } : {}), facing: p.facing || 'N', ...(Number.isFinite(p.turn) ? { turn: p.turn } : {}) };
+    for (const [u, v] of [[0, 0], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) z = Math.min(z, surf ? surf(x + u * w, y + v * d)[2] : field.groundAt(x + u * w, y + v * d));
+    const name = typeof p.name === 'string' && p.name ? p.name : `placed-${i}`; const c = surf ? surf(x, y) : [x, y];
+    return { ref: p.ref, name, center: [c[0], c[1]], z: z - (p.sink ?? 0), size: [w, d], ...(p.height ? { height: p.height } : {}), facing: p.facing || 'N', ...(Number.isFinite(p.turn) ? { turn: p.turn } : {}) };
   });
 }
 
@@ -208,10 +213,11 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   const sky = s ? { zenith: s.zenith, horizon: s.horizon, day: s.day, stars: s.day < 0.5 ? 0.6 : 0, seed: 1, center: [wx, wy, gz], radius: 290 } : null;
   const bg = s ? rgbHex(s.horizon) : '#9fb6c8';
   // scree from the painting's talus, at world scale: five pooled rock templates stamped once per fragment. The
-  // painting's fragment sizes × span would be 8–50 m blocks; a talus at walking scale is boulders, 0.5–6 m.
+  // painting's fragment sizes × span would be 8–50 m blocks; a talus at walking scale is boulders, 0.5–6 m. On a
+  // planet they stand on the sphere, as the walk does.
   const scree = field.meta.scree.filter((r) => !(field.meta.sea !== null && r.z0 < field.meta.sea) && !((field.kernel.gradeAt(r.x, r.y) || [0, 0])[1] > 0.2));
   const L = field.K.light;
-  const repeats = scree.length ? rockRepeats(rockPool({ rock: field.meta.rock || 'granite', variants: 5, detail: 1, tone: '#' + field.K.ramps.scree.stops[3].map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), seed: 'terrain::scree', light: makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }), group: 'scree' }), scree.map((r) => ({ ...r, z0: field.groundAt(r.x, r.y), size: Math.min(6, Math.max(0.5, r.size * 0.1)) })), { sink: 0.25, group: 'scree' }) : [];
+  const repeats = scree.length ? rockRepeats(rockPool({ rock: field.meta.rock || 'granite', variants: 5, detail: 1, tone: '#' + field.K.ramps.scree.stops[3].map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), seed: 'terrain::scree', light: makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }), group: 'scree' }), scree.map((r) => { const q = PLN ? surf(r.x, r.y) : null; return { ...r, ...(q ? { x: q[0], y: q[1], z0: q[2] } : { z0: field.groundAt(r.x, r.y) }), size: Math.min(6, Math.max(0.5, r.size * 0.1)) }; }), { sink: 0.25, group: 'scree' }) : [];
   // plants (terrain-plants.js): the live page places them around the camera from the plant kernel; exports carry the
   // stand within 600 m of the spawn as repeats
   const plantsSpec = resolveTerrainPlants(manifest.plants); let plantBake = null, plantMeta = null;
@@ -228,7 +234,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
     grassMeta = { climate: Vg.climate, kinds: Vg.species.map((sp) => sp.name), templates: channel.grass.templates.length, triangles: channel.grass.templates.reduce((a, t) => a + t.tris, 0) };
   }
   const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];
-  const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place) : null;
+  const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place, { surf: PLN ? surf : null }) : null;
   return {
     faces: live ? cityFaces : [...bakeTerrainFaces(field, { spacing: field.atlas ? 2 * field.K.levels[0].dx : null, patches: [...(field.patches || []), ...cities.map(({ prep: p }) => p.rect)] }), ...cityFaces], terrain: channel, cameras, sky, bg, title,
     ...(allRepeats.length ? { repeats: allRepeats } : {}),

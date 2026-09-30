@@ -107,6 +107,8 @@ export function validateCrystalShape(s, at = 'crystal') {
     const k = s.cluster; const on = k.on || {};
     if (k.count !== undefined && !(Number.isInteger(k.count) && k.count >= 1 && k.count <= 600)) e.push(`${at}.cluster.count: an integer 1–600`);
     if (k.lengths !== undefined && !(Array.isArray(k.lengths) && k.lengths.length === 2 && k.lengths[0] > 0 && k.lengths[1] >= k.lengths[0])) e.push(`${at}.cluster.lengths: [min, max] world units, 0 < min ≤ max`);
+    if (k.tilt !== undefined && !(Number.isFinite(k.tilt) && k.tilt >= 0 && k.tilt <= 80)) e.push(`${at}.cluster.tilt: degrees 0–80, how far a stone may lean off its bed's normal (22 default)`);
+    if (k.bury !== undefined && !(Number.isFinite(k.bury) && k.bury >= 0 && k.bury <= 1)) e.push(`${at}.cluster.bury: 0–1, the share of a stone's length set into its bed (0.3 default)`);
     if (on.ellipsoid && !(v3(on.ellipsoid.center) && v3(on.ellipsoid.radii) && on.ellipsoid.radii.every((x) => x > 0))) e.push(`${at}.cluster.on.ellipsoid: { center: [x,y,z], radii: [a,b,c], zMax? } — the cavity the stones line`);
     if (on.disc && !(v3(on.disc.center) && Number.isFinite(on.disc.radius) && on.disc.radius > 0)) e.push(`${at}.cluster.on.disc: { center: [x,y,z], radius, normal? } — the bed the stones grow from`);
     if (k.avoid !== undefined && !(Array.isArray(k.avoid) && k.avoid.every((a) => a && v3(a.center) && Number.isFinite(a.radius) && a.radius > 0))) e.push(`${at}.cluster.avoid: [{ center: [x,y,z], radius }] — spots no stone grows in`);

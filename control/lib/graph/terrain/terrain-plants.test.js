@@ -9,6 +9,7 @@
  * ground; the Alps: beech low, silver fir, spruce to the treeline), absent it is exactly the climate's own; the manifest
  * teaches.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { vegetationKernel, PER } from './vegetation-kernel.js';
@@ -110,7 +111,7 @@ describe('composed worlds', () => {
     expect(bam.length).toBeGreaterThan(40); expect(bam.some((p) => p.lean > 20)).toBe(true); expect(bam.some((p) => p.lean < 8)).toBe(true);
     const arid = atlasField({ world: { features: [{ feature: 'river' }], climate: 'arid', seed: 'nile' } }); const Va = plantsConfig(arid), Pa = plantsKernel(arid, Va), [ax, ay] = arid.views.spawn;
     for (const p of plants(Pa.plantsIn(ax - 64, ay - 64, 256))) if (Va.species[p.s].name !== 'reed') expect(Pa.standAt(p.x, p.y).nearWater).toBeGreaterThan(0.5);
-  });
+  }, 120_000);   // composes two worlds: about 10 s alone, past the default under a loaded full suite
 });
 
 describe('a mountain jungle: tropical high ground is forested to its treeline', () => {
@@ -157,6 +158,7 @@ describe('the manifest teaches', () => {
     expect(validateTerrainPlants(true, { ...w, planet: true }).join(' ')).toMatch(/for flat worlds/);
     expect(validateTerrainPlants({ radius: 50 }, w).join(' ')).toMatch(/radius must be 200–3000/);
     expect(validateTerrainPlants({ level: 'L3' }, w).join(' ')).toMatch(/level must be L0, L1 or L2/);
+    expect(validateTerrainPlants({ variants: 1.5 }, w).join(' ')).toMatch(/variants must be an integer 1–4/);
     expect(validateTerrainPlants('yes', w).join(' ')).toMatch(/must be true or/);
     expect(Object.keys(PLANT_CLIMATES).sort()).toEqual(['alpine', 'arid', 'boreal', 'temperate', 'tropical']);
   });
@@ -212,7 +214,7 @@ describe('a region grows its own conifers', () => {
     expect(JSON.stringify(plantsConfig(f, { region: null }))).toBe(JSON.stringify(plantsConfig(f)));
     const trop = atlasField({ world: { features: [{ feature: 'river' }], climate: 'tropical', seed: 'tropic' } });
     expect(JSON.stringify(plantsConfig(trop, { region: 'eurasia' }))).toBe(JSON.stringify(plantsConfig(trop)));   // a climate the region does not name
-  });
+  }, 120_000);   // composes two worlds: about 9 s alone
   it('northern Eurasia: spruce throughout, pine on the ground away from water', () => {
     const f = atlasField({ world: { features: [{ feature: 'lake' }, { feature: 'river' }], climate: 'boreal', seed: 'taiga' } }); const V = plantsConfig(f, { region: 'eurasia' });
     expect(V.species.map((s) => s.name)).toEqual(['spruce', 'pine', 'reed']);
@@ -241,5 +243,11 @@ describe('a region grows its own conifers', () => {
     const w = { world: { features: [{ feature: 'river' }] } };
     expect(validateTerrainPlants({ region: 'eurasia' }, w)).toEqual([]);
     expect(validateTerrainPlants({ region: 'mars' }, w).join(' ')).toMatch(/region must be one of eurasia/);
+  });
+  it('the card promises oak low only in the climates whose rows grow it', () => {
+    const card = readFileSync(new URL('../views/view-vocab/terrain.md', import.meta.url), 'utf8');
+    const oak = (c) => PLANT_REGIONS.eurasia[c].rows.some((r) => r.species === 'oak');
+    expect(oak('temperate')).toBe(true); expect(oak('alpine')).toBe(false);
+    expect(card).toMatch(/temperate oak and beech low \(alpine beech alone\)/); expect(card).not.toMatch(/alpine oak/);
   });
 });

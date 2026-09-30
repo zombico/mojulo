@@ -220,7 +220,6 @@ export function grow(archIn, opts = {}) {
     for (const b of liveBuds) {
       const nMax = at(arch.maxShoot, b.order); const n = Math.min(nMax, Math.floor((b.v || 0) / P.vMin));
       if (!b.apical && year - b.born > arch.budLife) { b.alive = false; continue; }
-      if (process.env.GDEBUG && year === +process.env.GDEBUG) console.log("bud", b.node, b.apical ? "A" : b.relay ? "R" : "L", "o", b.order, "Q", b.Q?.toFixed(2), "v", b.v?.toFixed(2), "n", n);
       if (n < 1) continue;
       b.alive = false; newShoots.push({ b, n });
     }

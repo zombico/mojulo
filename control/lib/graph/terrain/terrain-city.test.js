@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { terrainField, gradedField } from './terrain-field.js';
 import { terrainKernel } from './terrain-kernel.js';
-import { prepareCity, seatCity, validateTerrainCities, cityLight } from './terrain-city.js';
+import { prepareCity, seatCity, validateTerrainCities, cityLight, siteCity, CITY_LIMITS } from './terrain-city.js';
 import { assembleTerrainWorld } from './terrain-world.js';
 import { terrainChannelScript } from '../scene/channels/terrain-lod.js';
 
@@ -138,5 +138,14 @@ describe('validation teaches', () => {
     expect(e({ grade: { max: 0.9 } })).toMatch(/grade.max must be a slope/);
     expect(e({ detail: 3 })).toMatch(/detail must be \{ radius \}/);
     expect(validateTerrainCities('x').join(' ')).toMatch(/must be a list/);
+  });
+  it('bounds the work a world\'s cities ask of the server: how many, how much ground, how wide a search', () => {
+    expect(validateTerrainCities([...Array(CITY_LIMITS.count)].map(() => ({ profile: 'town' })))).toEqual([]);
+    expect(validateTerrainCities([...Array(CITY_LIMITS.count + 1)].map(() => ({ profile: 'town' }))).join(' ')).toMatch(/holds at most 6 cities \(got 7\)/);
+    expect(validateTerrainCities([{ profile: 'metro', size: [2400, 1600] }, { profile: 'metro', size: [2400, 1600] }])).toEqual([]);   // the card's metro, twice
+    expect(validateTerrainCities([{ profile: 'metro', size: [4000, 4000] }]).join(' ')).toMatch(/footprints total 16\.0 km², more than the 8 km²/);
+    const wide = terrainField({ from: HILLS, span: 20000 });
+    expect(() => siteCity(wide, [60, 60])).toThrow(/would test \d+ places, more than the 50000 the search allows; give it an 'at'/);
+    expect(siteCity(wide, [1200, 800]).at).toHaveLength(2);                                                          // a larger city searches a coarser lattice
   });
 });

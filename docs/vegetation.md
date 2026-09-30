@@ -103,7 +103,8 @@ numbers below were checked against the literature, and several first guesses tur
   - flowering culms standing above the blades, headed by a panicle, a plume, a spike or feathered awns.
 
   A kind (`GRASSES`) is a row of numbers over that one builder: blade count, length, width, stiffness, splay, culms,
-  head, colours and a dry share. The reed tuft is the same idea from the culm builder. `over` retunes a kind in a recipe.
+  head, colours and a dry share. The reed tuft is the same idea from the culm builder. `over` retunes a kind in the builder
+  (`grassTuft`, `grassLadder`); a terrain recipe's `grass` does not carry it.
 - **Habit is bamboo's split carried down**, as an analogy: a tussock (intravaginal tillers, packed) or a sward
   (rhizomes or stolons, spreading). A short sward (`lawn`, 6–15 cm) is a third habit, turf: each instance is a plug of
   turf, wider than it is tall, packed into a carpet. A tuft's size on screen is its larger extent, or a plug would take
@@ -220,7 +221,7 @@ per thing a person sees:
   and fir, a quarter of the voxel puffs' faces and closer to the tree's silhouette at 32 px; a pine is clumps, one per
   limb. Voxel puffs on a spire read as topiary.
 - **Where they grow** (`plants.region: 'eurasia'` on a terrain world): boreal spruce throughout and pine on dry ground;
-  temperate and alpine beech and oak low, silver fir with beech in the montane belt (500–1,800 m in the Alps), spruce to
+  temperate beech and oak low (alpine beech alone), silver fir with beech in the montane belt (500–1,800 m in the Alps), spruce to
   the treeline (the subalpine belt with larch and Swiss stone pine at 1,800–2,100 m), pine on dry and poor ground.
 
 ## Rendering rules

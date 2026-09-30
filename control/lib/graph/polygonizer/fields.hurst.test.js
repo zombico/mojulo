@@ -46,5 +46,8 @@ describe('the noise field with hurst', () => {
     expect(errs({ hurst: 3 })).toMatch(/roughness exponent in \[0\.1, 1\.5\]/);
     expect(errs({ hurst: { small: 0.8 } })).toMatch(/crossover/);
     expect(errs({ hurst: 0.8, persistence: 0.6 })).toMatch(/hurst replaces persistence/);
+    expect(errs({ hurst: 0.8, scale: 0 })).toMatch(/scale: must be > 0 with hurst/);   // its octaves had no wavelength: NaN ground
+    expect(errs({ hurst: 0.8, scale: -0.1 })).toMatch(/scale: must be > 0 with hurst/);
+    expect(errs({ scale: 0 })).toBe('');                                                // without hurst, a zero scale is a constant, as before
   });
 });

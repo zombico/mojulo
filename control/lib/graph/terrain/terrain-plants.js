@@ -75,9 +75,9 @@ export const PLANT_CLIMATES = Object.freeze({
  * A region's own conifers for a climate (`plants.region`), replacing that climate's rows; a climate the region does not
  * name keeps its own. Absent, every climate keeps its rows. Moisture is the kernel's: the climate's own, +0.35 near water.
  *   eurasia — Norway spruce, silver fir and Scots pine (conifer.js). Boreal: spruce throughout, pine on the ground away
- *             from water. Temperate and alpine: oak and beech low, silver fir with beech in the montane belt (8–12.5 °C),
- *             spruce from 10 °C to the treeline, and pine on the dry ground at any height (European Atlas of Forest Tree
- *             Species, 2016).
+ *             from water. Temperate: oak and beech low; alpine: beech low. Both: silver fir with beech in the montane
+ *             belt (8–12.5 °C), spruce from 10 °C to the treeline, and pine on the dry ground at any height (European
+ *             Atlas of Forest Tree Species, 2016).
  */
 export const PLANT_REGIONS = Object.freeze({
   eurasia: {
@@ -123,7 +123,7 @@ export function validateTerrainPlants(plants, manifest = {}) {
   if (plants === true) return e;
   const num = (k, lo, hi, what) => { const v = plants[k]; if (v !== undefined && !(Number.isFinite(v) && v >= lo && v <= hi)) e.push(`terrain.plants.${k} must be ${lo}–${hi} (${what})`); };
   num('radius', 200, 3000, 'metres around the camera where plants are drawn; past it the ground\'s own colour carries the woods');
-  num('variants', 1, 4, 'grown variants per species');
+  if (plants.variants !== undefined && !(Number.isInteger(plants.variants) && plants.variants >= 1 && plants.variants <= 4)) e.push('terrain.plants.variants must be an integer 1–4 (grown variants per species)');
   if (plants.level !== undefined && !['L0', 'L1', 'L2'].includes(plants.level)) e.push('terrain.plants.level must be L0, L1 or L2 (the most detail a template carries)');
   if (plants.figs !== undefined && typeof plants.figs !== 'boolean') e.push('terrain.plants.figs must be true or false (a tropical world\'s lowland forest also grows banyans, stranglers and rubber figs)');
   if (plants.region !== undefined && !PLANT_REGIONS[plants.region]) e.push(`terrain.plants.region must be one of ${Object.keys(PLANT_REGIONS).join(', ')} (whose conifers the climate grows; absent, the climate's own)`);

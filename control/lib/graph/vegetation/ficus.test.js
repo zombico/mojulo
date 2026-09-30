@@ -16,6 +16,7 @@ const banyan = grow(FIGS.banyan, { years: SPECIES.banyan.years, seed: 3 });
 
 describe('aerial roots (grow.js, opt-in)', () => {
   it('absent, a plant grows as before and carries no roots', () => {
+    // "as before" is held by plants.char.test.js's pins; this compares the engine with itself: determinism, no key
     const a = grow(ARCHITECTURES.rauh, { years: 8, seed: 2 }); const b = grow({ ...ARCHITECTURES.rauh }, { years: 8, seed: 2 });
     expect(nodesOf(a)).toBe(nodesOf(b)); expect('roots' in a).toBe(false);
   });

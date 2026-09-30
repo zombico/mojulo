@@ -15,9 +15,17 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { registerTool } from '@/lib/mcp/server';
 import { planSolidTurntable, SOLID_SHAPES, SOLID_SURFACES } from '@/lib/graph/worlds/solid-turntable';
+import { CRYSTAL_GEMS, CRYSTAL_CUTS } from '@/lib/graph/polygonizer/crystal-optics';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 export function mintSolidTurntable({ title, shape, color, surface, tilt, spinSeconds, lod, viewBox, gem, cut, size, glow, ref, folderRef } = {}) {
+  // a crystal surface is the crystal shape's own, and a gem or cut is one the crystal knows: refused here, not
+  // rendered as something else (the plan falls back to vexar / quartz / natural for a recipe stored by hand)
+  if (surface === 'crystal' && shape !== 'crystal') {
+    throw new Error(`surface 'crystal' is the crystal shape's own: give shape: 'crystal' (with gem and cut), or a surface of ${SOLID_SURFACES.filter((s) => s !== 'crystal').join(', ')} for a ${SOLID_SHAPES.includes(shape) ? shape : 'sphere'}`);
+  }
+  if (shape === 'crystal' && gem !== undefined && !CRYSTAL_GEMS.includes(gem)) throw new Error(`gem must be one of ${CRYSTAL_GEMS.join(', ')} (got ${JSON.stringify(gem)})`);
+  if (shape === 'crystal' && cut !== undefined && !CRYSTAL_CUTS.includes(cut)) throw new Error(`cut must be one of ${CRYSTAL_CUTS.join(', ')} (got ${JSON.stringify(cut)})`);
   const manifest = {
     kind: 'css3d-turntable',
     shape: SOLID_SHAPES.includes(shape) ? shape : 'sphere',

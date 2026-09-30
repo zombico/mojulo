@@ -24,6 +24,11 @@ describe('mintWorkbench — crystalLight', () => {
     expect(payload.crystalLight).toEqual(crystalLight); expect(payload.events.hud).toHaveLength(1);
     expect(emitThreeWorld(payload)).toContain('stepCrystalLight(t)');
   });
+  it('refuses a HUD row or style the World would refuse, at mint, naming what is wrong', () => {
+    const events = { reactions: [{ on: 'lit', do: 'set', var: 'open', to: 1 }] };
+    expect(() => mintWorkbench({ title: 'bad hud', fields, crystalLight, events: { ...events, hud: [{ kind: 'bogus', slot: 'nowhere' }] } })).toThrow(/events\.hud is invalid[\s\S]*slot must be one of/);
+    expect(() => mintWorkbench({ title: 'bad style', fields, crystalLight, events: { ...events, style: { font: 3 } } })).toThrow(/events\.style is invalid[\s\S]*font must be one of/);
+  });
   it('refuses a rig that does not resolve, naming what is wrong', () => {
     expect(() => mintWorkbench({ title: 'bad', fields, crystalLight: { lamps: [{ at: [0, 0, 0] }] } })).toThrow(/Light rigs[\s\S]*aim/);
   });

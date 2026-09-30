@@ -243,5 +243,8 @@ describe('figure.gd against the kernel', () => {
     // figure_face.gd (FIGURE_FACE_GD) reaches _loop besides
     for (const def of ['func _spawn_walker(', 'func _imported_player(', 'func _anim_name(', 'func _play_loop(', 'func _loop(', 'var score_path']) expect(level, def).toContain(def);
     expect(FIGURE_VIEW_GD.startsWith('extends "res://kernel/level.gd"\n')).toBe(true);
+    // each function's comment block reads whole above it (the crystals block once landed inside the rim's)
+    expect(level).toMatch(/# Look contract \(shader-look phase 4, kernel 0\.2\.3\): score\.look\.figures carries\n# a figure's rim /);
+    expect(level).toMatch(/\n\n# Crystals \(crystal-rig R5\)/);
   });
 });

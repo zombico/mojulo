@@ -39,6 +39,8 @@ export const ATLAS_FEATURES = Object.freeze([...Object.keys(ATLAS_SIZES), 'coast
 export const ATLAS_SIDES = Object.freeze({ N: [0, 1], S: [0, -1], E: [1, 0], W: [-1, 0] });
 const ALONG = { NS: [0, 1], EW: [1, 0], NE: [0.7071, 0.7071], NW: [-0.7071, 0.7071] };
 const LEVEL_N = 256, RATIO = 8, FINEST = 16, MAX_LEVELS = 6, MIN_L = 0.5;
+/** The most features a world composes: each costs seconds of placing and carving, on the server's one thread. */
+export const ATLAS_MAX_FEATURES = 8;
 
 const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const ramp = (a, b, c, d, gamma = 1) => ({ stops: [a, b, c, d].map(rgb), pos: [0, 1 / 3, 2 / 3, 1], gamma });
@@ -77,6 +79,7 @@ export function validateAtlas(w, at = 'terrain.world') {
   if (!w || typeof w !== 'object' || Array.isArray(w)) return [`${at} must be { features: [{ feature, size? }…], climate?, focus?, seed? }`];
   const e = [];
   if (!Array.isArray(w.features) || !w.features.length) e.push(`${at}.features must be a non-empty list: the first is the anchor, and its size sets the world's (${ATLAS_FEATURES.join(', ')})`);
+  else if (w.features.length > ATLAS_MAX_FEATURES) e.push(`${at}.features holds at most ${ATLAS_MAX_FEATURES} features (got ${w.features.length}): each is seconds of composing; name the anchor and what frames it`);
   else {
     if (w.features.every((f) => f && f.feature === 'coast')) e.push(`${at}.features needs one feature besides coasts: a coast is the edge of something`);
     w.features.forEach((f, i) => {
@@ -501,7 +504,7 @@ const MEMO = new Map();
 export function composeAtlas(world) {
   const key = JSON.stringify(world); if (MEMO.has(key)) return MEMO.get(key);
   const errs = validateAtlas(world); if (errs.length) throw new Error(`terrain: ${errs.join('; ')}`);
-  const t0 = Date.now(), C = planFeatures(world), rng = mulberry32(C.rngSeed ^ 0x5bd1e995), clim = ATLAS_CLIMATES[world.climate || 'temperate'];
+  const C = planFeatures(world), rng = mulberry32(C.rngSeed ^ 0x5bd1e995), clim = ATLAS_CLIMATES[world.climate || 'temperate'];
   C.climate = world.climate || 'temperate';
   const declared = C.placed.rivers.map((R) => ({ R, chan: declaredChannel(R, rng) }));
   // the focus: where the anchor is most itself — a great river's lower course, a lake's shore, a range's valley floor
@@ -555,7 +558,7 @@ export function composeAtlas(world) {
     zones: { snow: Math.max(clim.snow, 0.72 * Math.max(0, ...C.placed.ranges.map((r) => r.peak), ...C.placed.volcanoes.map((v) => v.h))), tree: clim.tree }, ramps: clim.ramps,
     light: (() => { const l = [0.5, 0.32, 0.8], m = Math.hypot(...l); return l.map((v) => v / m); })(), lambert: { ambient: 0.36, gain: 0.72 },
   };
-  const out = { K, C, levels, focus, clim, declared, ms: Date.now() - t0 };
+  const out = { K, C, levels, focus, clim, declared };
   MEMO.set(key, out); if (MEMO.size > 4) MEMO.delete(MEMO.keys().next().value);
   return out;
 }
@@ -619,7 +622,7 @@ export function atlasField(spec) {
   let lo = Infinity, hi = -Infinity; for (const lv of P.levels) for (let k = 0; k < lv.z.length; k += 7) { if (lv.z[k] < lo) lo = lv.z[k]; if (lv.z[k] > hi) hi = lv.z[k]; }
   const views = atlasViews(P, kernel);
   return {
-    atlas: { span: S, anchor: { feature: P.C.anchor.feature, ...P.C.anchor.v }, features: P.C.feats.map((f) => ({ feature: f.feature, ...(f.v || { side: f.side || 'S' }) })), levels: P.levels.map((l) => ({ extent: Math.round(l.ext), cell: +l.dx.toFixed(2), rivers: l.traced.length })), focus: P.focus, ms: P.ms, climate: world.climate || 'temperate' },
+    atlas: { span: S, anchor: { feature: P.C.anchor.feature, ...P.C.anchor.v }, features: P.C.feats.map((f) => ({ feature: f.feature, ...(f.v || { side: f.side || 'S' }) })), levels: P.levels.map((l) => ({ extent: Math.round(l.ext), cell: +l.dx.toFixed(2), rivers: l.traced.length })), focus: P.focus, climate: world.climate || 'temperate' },
     K, kernel, kernelSource: atlasKernel.toString(), heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     bounds: { x: [-H, H], y: [-H, H], z: [lo, hi], cell: fin.dx }, siteBounds: { x: [fin.x0, fin.x0 + fin.ext], y: [fin.y0, fin.y0 + fin.ext], z: [lo, hi], cell: fin.dx },
     patches: P.levels.slice(1).map((l) => ({ x0: l.x0, y0: l.y0, w: l.ext, d: l.ext, spacing: 2 * l.dx })),

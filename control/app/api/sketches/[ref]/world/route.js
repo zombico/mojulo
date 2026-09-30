@@ -54,7 +54,17 @@ const WORLD_CACHE_VERSION = 'v1';
 const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream'];
 
 function worldCacheKey(ref, manifest, search) {
-  return renderCacheKey({ ref, manifest, flags: pickFlags(search, WORLD_FLAGS), version: WORLD_CACHE_VERSION });
+  const deps = worldDeps(manifest);
+  return renderCacheKey({ ref, manifest: deps ? { manifest, deps } : manifest, flags: pickFlags(search, WORLD_FLAGS), version: WORLD_CACHE_VERSION });
+}
+// A terrain world resolves `from: { ref }`, `cities[].ref` and `place[].ref` when it renders, so its bake follows
+// those sketches: their manifests join the key (and so the ETag), or an edit to a promoted painting was answered with
+// the old ground. Every other manifest keys as before.
+function worldDeps(manifest) {
+  if (!manifest || manifest.kind !== 'terrain') return null;
+  const listed = (l) => (Array.isArray(l) ? l.map((x) => x && x.ref) : []);
+  const refs = [manifest.from && manifest.from.ref, ...listed(manifest.cities), ...listed(manifest.place)].filter((r) => typeof r === 'string' && r);
+  return refs.length ? refs.map((r) => [r, SketchRepository.getByRef(r)?.manifest ?? null]) : null;
 }
 function worldCacheGet(key) {
   const hit = WORLD_CACHE.get(key);

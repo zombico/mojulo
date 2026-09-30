@@ -25,6 +25,7 @@
 
 import { litFactor, makeLight, shadeHex, lodCount } from '../polygonizer/vexar.js';
 import { planCrystalTurntable, renderCrystalTurntableToHtml, crystalFirstFrame } from './crystal-turntable.js';
+import { escapeHtml } from '../scene/emit-util.js';
 
 // ── vector helpers (lifted from the spike; small + local so the room/city code is untouched)
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -138,7 +139,9 @@ export function planSolidTurntable(recipe = {}) {
       spinSeconds: Number.isFinite(+recipe.spinSeconds) ? Math.max(2, +recipe.spinSeconds) : 12 });
   }
   const shape = SHAPES[recipe.shape] ? recipe.shape : 'sphere';
-  const surface = SOLID_SURFACES.includes(recipe.surface) ? recipe.surface : 'vexar';
+  // 'crystal' is the crystal shape's own surface (planCrystalTurntable); on any other shape it is vexar, as it was
+  // before it was a surface at all
+  const surface = SOLID_SURFACES.includes(recipe.surface) && recipe.surface !== 'crystal' ? recipe.surface : 'vexar';
   const color = /^#[0-9a-fA-F]{6}$/.test(recipe.color || '') ? recipe.color : '#5f86ad';
   const tilt = Number.isFinite(+recipe.tilt) ? +recipe.tilt : 18;
   const spinSeconds = Number.isFinite(+recipe.spinSeconds) ? Math.max(2, +recipe.spinSeconds) : 12;
@@ -249,7 +252,7 @@ export function renderSolidTurntableToHtml(recipe = {}) {
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
+<title>${escapeHtml(title)}</title>
 <style>
   :root{color-scheme:dark}
   body{margin:0;min-height:100vh;background:#0b1220;color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center}

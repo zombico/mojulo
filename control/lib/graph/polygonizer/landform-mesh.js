@@ -40,8 +40,9 @@ function clipAt(poly, zc, keepAbove) {
 /**
  * The state's surface as sliced triangles. → [{ corners: [a, b, c], fill, cornerFills: [a, b, c, c], outNormal, doubleSided }]
  * `stride` samples every stride-th grid node (the last row and column always); `group` is stamped when given.
+ * `maxFaces` stops the slicing with `tooMany` (an Error's message) once it passes that many faces.
  */
-export function slicedTerrainFaces(s, { stride = 1, levels, displace = null, paint, group = null }) {
+export function slicedTerrainFaces(s, { stride = 1, levels, displace = null, paint, group = null, maxFaces = Infinity, tooMany = null }) {
   const out = []; const L = levels; const { nx, ny } = s;
   const firstAbove = (z) => { let a = 0, c = L.length; while (a < c) { const m = (a + c) >> 1; if (L[m] <= z) a = m + 1; else c = m; } return a; };
   const node = (i, j) => [gridX(s, i), gridY(s, j), s.z[j * nx + i]];
@@ -69,6 +70,7 @@ export function slicedTerrainFaces(s, { stride = 1, levels, displace = null, pai
         const face = { corners: c, fill: f0, cornerFills: [f0, f1, f2, f2], outNormal: n, doubleSided: true };
         if (group) face.group = group;
         out.push(face);
+        if (out.length > maxFaces) throw new Error(tooMany || `the sliced surface passes ${maxFaces} faces`);
       }
     }
   };

@@ -57,6 +57,14 @@ describe('landform', () => {
   it('is deterministic', () => {
     expect(JSON.stringify(assemblePaintedLandscapeScene(M))).toBe(JSON.stringify(assemblePaintedLandscapeScene(M)));
   });
+  it('a tall landform in its range meshes: its many faces are not spread into one call', () => {
+    const { faces } = buildTerrainWorldMesh({ ...BASE, landform: [{ op: 'peaks', height: 20 }] });
+    expect(faces.filter((f) => f.corners.length === 3).length).toBeGreaterThan(130000);
+  }, 120_000);
+  it('a landform past the World mesh\'s budget refuses, naming what to change, before it runs out of memory', () => {
+    expect(() => buildTerrainWorldMesh({ ...BASE, landform: [{ op: 'peaks', height: 100 }, { op: 'strata', thickness: 0.02 }] }))
+      .toThrow(/landform: the World's terrain would slice into more than 400000 faces .*lower a peaks height or a scarp's throw, or thicken the strata/);
+  }, 120_000);
   it('the raymarch refuses a baked surface, so the World falls back to the mesh', () => {
     expect(() => composeLandscapeRaymarch(M)).toThrow(/landform/);
     expect(() => composeLandscapeRaymarch({ ...BASE, erosion: true })).toThrow(/erosion/);
