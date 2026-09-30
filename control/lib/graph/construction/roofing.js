@@ -19,6 +19,7 @@ import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.
 import { rgbHex, hexRgb } from './timber.js';
 import { CATALOG } from './catalog.js';
 import { registerTextureResolver, encodePng } from '../landscape/surface-textures.js';
+import * as dmath from '../../util/dmath.js';
 
 function mix(n) { n = Math.imul(n ^ (n >>> 16), 0x7feb352d); n = Math.imul(n ^ (n >>> 15), 0x846ca68b); return (n ^ (n >>> 16)) >>> 0; }
 const hash3 = (a, b, c) => mix((Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + Math.imul(c | 0, 1274126177)) | 0);
@@ -80,7 +81,7 @@ const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const unit3 = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const q6 = (v) => Math.round(v * 1e6) / 1e6;
 
 /**
@@ -92,7 +93,7 @@ export function planeFrame(corners) {
   let best = null;
   for (let i = 0; i < n0; i++) {
     const a = corners[i], b = corners[(i + 1) % n0];
-    if (Math.abs(a[2] - b[2]) > 1e-3 || Math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-3) continue;
+    if (Math.abs(a[2] - b[2]) > 1e-3 || dmath.hypot(b[0] - a[0], b[1] - a[1]) < 1e-3) continue;
     if (!best || a[2] < best.z - 1e-6) best = { i, z: a[2] };
   }
   if (!best) return null;
@@ -136,10 +137,10 @@ export function planeFace(corners, fill, normal, extra = {}) {
 // ── unit shapes, in plane-local (s across, t up, h out), millimetres converted by the caller ──────────────────────────
 /** Profile height (0…1 of `depth`) across a unit (σ 0…1). */
 const PROFILES = {
-  pantile: (x) => (x < 0.62 ? 0.15 - 0.15 * Math.sin((Math.PI * x) / 0.62) : 0.15 + 0.85 * Math.sin((Math.PI * (x - 0.62)) / 0.38)),
-  kawara: (x) => (x < 0.72 ? 0.1 - 0.1 * Math.sin((Math.PI * x) / 0.72) : 0.1 + 0.9 * Math.sin((Math.PI * (x - 0.72)) / 0.28)),
-  pan: (x) => 1 - Math.sin(Math.PI * x),
-  cover: (x) => Math.sin(Math.PI * x),
+  pantile: (x) => (x < 0.62 ? 0.15 - 0.15 * dmath.sin((Math.PI * x) / 0.62) : 0.15 + 0.85 * dmath.sin((Math.PI * (x - 0.62)) / 0.38)),
+  kawara: (x) => (x < 0.72 ? 0.1 - 0.1 * dmath.sin((Math.PI * x) / 0.72) : 0.1 + 0.9 * dmath.sin((Math.PI * (x - 0.72)) / 0.28)),
+  pan: (x) => 1 - dmath.sin(Math.PI * x),
+  cover: (x) => dmath.sin(Math.PI * x),
 };
 
 /**
@@ -181,7 +182,7 @@ function capShell(kind, len, r, base) {
   const segs = 7;
   for (let i = 0; i < segs; i++) {
     const a0 = Math.PI * (i / segs), a1 = Math.PI * ((i + 1) / segs);
-    const p0 = [r * Math.cos(a0), base + r * 0.85 * Math.sin(a0)], p1 = [r * Math.cos(a1), base + r * 0.85 * Math.sin(a1)];
+    const p0 = [r * dmath.cos(a0), base + r * 0.85 * dmath.sin(a0)], p1 = [r * dmath.cos(a1), base + r * 0.85 * dmath.sin(a1)];
     out.push([[0, p0[0], p0[1]], [0, p1[0], p1[1]], [len, p1[0], p1[1]], [len, p0[0], p0[1]]]);
   }
   return out;
@@ -190,7 +191,7 @@ function capShell(kind, len, r, base) {
 /** The largest projected size (px) of `m` metres at any of `pts` (metres) from any eye. */
 function maxPx(m, pts, eyes) {
   let px = 0;
-  for (const e of eyes) for (const q of pts) px = Math.max(px, (m * e.focalPx) / Math.max(0.1, Math.hypot(q[0] - e.pos[0], q[1] - e.pos[1], q[2] - e.pos[2])));
+  for (const e of eyes) for (const q of pts) px = Math.max(px, (m * e.focalPx) / Math.max(0.1, dmath.hypot(q[0] - e.pos[0], q[1] - e.pos[1], q[2] - e.pos[2])));
   return px;
 }
 
@@ -229,7 +230,7 @@ export function bakeCoveringKey(key) {
       const tu = (x / W) * MAP_COLS + off, col = ((Math.floor(tu) % MAP_COLS) + MAP_COLS) % MAP_COLS, fu = tu - Math.floor(tu);
       let k = 1;
       if (d.profile === 'flat') k = fu < 0.03 ? 0.45 : 1;                     // the keyway between units
-      else if (d.profile === 'seam') k = fu < 0.04 ? 1.18 : fu < 0.07 ? 0.62 : 1 - 0.04 * Math.sin(Math.PI * fu);
+      else if (d.profile === 'seam') k = fu < 0.04 ? 1.18 : fu < 0.07 ? 0.62 : 1 - 0.04 * dmath.sin(Math.PI * fu);
       else {
         const pf = d.profile === 'barrel' ? (fu < 0.6 ? PROFILES.pan(fu / 0.6) : 1) : PROFILES[d.profile](fu);
         const dx = 1e-3, pf1 = d.profile === 'barrel' ? (fu < 0.6 ? PROFILES.pan(Math.min(1, fu / 0.6 + dx)) : 1) : PROFILES[d.profile](Math.min(1, fu + dx));
@@ -286,7 +287,7 @@ export function layCovering(planes, covering, o = {}) {
   const underRgb = stage === 'deck' && o.deck ? o.deck.rgb : [58, 56, 54];   // felt, or the deck
   const frames = [];
   // edges two planes share (ridges, hips, valleys); an open edge that is not an eave is a verge, closed at its side
-  const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < 0.05;
+  const near = (p, q) => dmath.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < 0.05;
   const shared = (a, b, self) => planes.some((pl, j) => j !== self && pl.corners.some((c, i) => { const c1 = pl.corners[(i + 1) % pl.corners.length]; return (near(c, a) && near(c1, b)) || (near(c, b) && near(c1, a)); }));
   for (const [pi, pl] of planes.entries()) {
     const F = planeFrame(pl.corners);
@@ -344,7 +345,7 @@ export function layCovering(planes, covering, o = {}) {
     for (let i = 0; i < pl.corners.length; i++) {
       const a = pl.corners[i], b = pl.corners[(i + 1) % pl.corners.length];
       const pa = F.poly[i], pb = F.poly[(i + 1) % F.poly.length];
-      if (Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) < 1e-3 || (pa[1] < 1e-3 && pb[1] < 1e-3) || shared(a, b, pi)) continue;
+      if (dmath.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) < 1e-3 || (pa[1] < 1e-3 && pb[1] < 1e-3) || shared(a, b, pi)) continue;
       let out = unit3(cross(sub(b, a), F.n));
       const mid = mul(add3(a, b), 0.5), cen = pl.corners.reduce((m, c) => add3(m, mul(c, 1 / pl.corners.length)), [0, 0, 0]);
       if (dot(out, sub(mid, cen)) < 0) out = mul(out, -1);
@@ -443,7 +444,7 @@ export function layCovering(planes, covering, o = {}) {
       const cs = pl.corners;
       for (let i = 0; i < cs.length; i++) {
         const a = cs[i], b = cs[(i + 1) % cs.length];
-        if (Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) < 1e-3) continue;
+        if (dmath.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) < 1e-3) continue;
         edges.push({ a, b, F, c: cs.reduce((m, p) => add3(m, mul(p, 1 / cs.length)), [0, 0, 0]) });
       }
     }
@@ -459,7 +460,7 @@ export function layCovering(planes, covering, o = {}) {
     const r = (d.cap === 'noshi' ? 90 : d.cap === 'fold' ? 120 : d.cap === 'flashing' ? 130 : 135) * mmU;
     const base = d.cap === 'flashing' ? d.thick * mmU : (2 * d.thick + (d.depth || 0)) * mmU;
     for (const [li, L] of lines.entries()) {
-      const ex = unit3(sub(L.b, L.a)); const Lh = Math.hypot(L.b[0] - L.a[0], L.b[1] - L.a[1], L.b[2] - L.a[2]);
+      const ex = unit3(sub(L.b, L.a)); const Lh = dmath.hypot(L.b[0] - L.a[0], L.b[1] - L.a[1], L.b[2] - L.a[2]);
       let ez = sub([0, 0, 1], mul(ex, ex[2])); ez = unit3(ez); const ey = cross(ez, ex);
       const Wl = (x, y, z) => add3(add3(add3(L.a, mul(ex, x)), mul(ey, y)), mul(ez, z));
       report.caps.lines++; report.caps.lengthFt += Lh * toFt;

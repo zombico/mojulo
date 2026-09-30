@@ -27,6 +27,7 @@ import { ARCHETYPES } from '../polygonizer/floorplan-glyphs.js';
 import { structurizeHouse, storeyLevels, FLOORPLAN_DEFAULTS } from '../polygonizer/floorplan-structure.js';
 import { roofPlanes, ROOF_STYLES } from '../architecture/roof.js';
 import { coveringOf } from './roofing.js';
+import * as dmath from '../../util/dmath.js';
 
 const FT = 0.3048;
 
@@ -108,15 +109,15 @@ const PLAN_RGB = { 'wall:exterior': [214, 206, 192], 'wall:interior': [232, 228,
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const unit3 = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const m3 = (p) => p.map((v) => v * FT);
 
 /** An open polyline [[y, z]…] thickened by `t` to one side → a closed ring (a thin-walled section). */
 function thicken(pts, t) {
-  const segN = []; for (let i = 0; i + 1 < pts.length; i++) { const dy = pts[i + 1][0] - pts[i][0], dz = pts[i + 1][1] - pts[i][1], l = Math.hypot(dy, dz) || 1; segN.push([-dz / l, dy / l]); }
+  const segN = []; for (let i = 0; i + 1 < pts.length; i++) { const dy = pts[i + 1][0] - pts[i][0], dz = pts[i + 1][1] - pts[i][1], l = dmath.hypot(dy, dz) || 1; segN.push([-dz / l, dy / l]); }
   const inner = pts.map((p, i) => {
     const a = segN[Math.max(0, i - 1)], b = segN[Math.min(segN.length - 1, i)];
-    let n = [a[0] + b[0], a[1] + b[1]]; const l = Math.hypot(n[0], n[1]) || 1; n = [n[0] / l, n[1] / l];
+    let n = [a[0] + b[0], a[1] + b[1]]; const l = dmath.hypot(n[0], n[1]) || 1; n = [n[0] / l, n[1] / l];
     const k = Math.max(0.3, n[0] * b[0] + n[1] * b[1]);
     return [p[0] + (n[0] * t) / k, p[1] + (n[1] * t) / k];
   });
@@ -303,7 +304,7 @@ export function houseToIfc(house, o = {}) {
       });
       // the walls the roof closes over the top storey: each polygon stood in its plane, a wall thick
       (o.roofPlanes.gables || []).forEach((poly, i) => {
-        const ps = poly.filter((p, k) => k === 0 || Math.hypot(p[0] - poly[k - 1][0], p[1] - poly[k - 1][1], p[2] - poly[k - 1][2]) > 1e-6);
+        const ps = poly.filter((p, k) => k === 0 || dmath.hypot(p[0] - poly[k - 1][0], p[1] - poly[k - 1][1], p[2] - poly[k - 1][2]) > 1e-6);
         const e = unit3(sub(ps[1], ps[0])), n0 = unit3(cross(e, [0, 0, 1])), y = cross(n0, e);
         const O = ps[0], sdt = storeyOf(top.index);
         const pts = ps.map((c) => { const r = sub(c, O); return [dot(r, e) * FT, dot(r, y) * FT]; });
@@ -336,7 +337,7 @@ export function houseToIfc(house, o = {}) {
         product(el.ifc, { ...common, at: [a[0], a[1], a[2] - s.elev], axis: F.ex, ref: F.ey, items: [extrude(profile, F.L)] });
       } else if (g.kind === 'wall') {
         const a = m3(g.from), b = m3(g.to);
-        const along = unit3(sub(b, a)), L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const along = unit3(sub(b, a)), L = dmath.hypot(b[0] - a[0], b[1] - a[1]);
         const T = g.thicknessMm / 1000, H = g.height * FT;
         // the wall's local frame: x along it, y across, z up — a box from its start, openings voiding it
         const id = product('IfcWall', { ...common, at: [a[0], a[1], a[2] - s.elev], axis: [0, 0, 1], ref: along, items: [extrude(rect(L, T, L / 2, 0), H)] });
@@ -385,7 +386,7 @@ export function houseToIfc(house, o = {}) {
       const common = { key: el.key, nm: el.key.replace(/^drain:/, ''), type: el.type, objectType: el.objectType || null, storey: el.storey, material: el.material, props };
       let id;
       if (el.sweep && el.sweep.path) {
-        const r = Math.max(...el.sweep.section.map(([a, b]) => Math.hypot(a, b))) * FT;
+        const r = Math.max(...el.sweep.section.map(([a, b]) => dmath.hypot(a, b))) * FT;
         const path = st.add('IFCPOLYLINE', [el.sweep.path.map((p) => pt([p[0] * FT, p[1] * FT, p[2] * FT - s.elev]))]);
         id = product(el.ifc, { ...common, at: [0, 0, 0], items: [st.add('IFCSWEPTDISKSOLID', [path, r, '$', '$', '$'])], kind: 'AdvancedSweptSolid' });
       } else if (el.sweep) {
@@ -394,7 +395,7 @@ export function houseToIfc(house, o = {}) {
         const across = Math.abs(Z[0]) > 0.5 ? [0, 1, 0] : [1, 0, 0];
         const sign = dot(X, across) >= 0 ? 1 : -1;
         const ring = thicken(el.sweep.section.map(([y, z]) => [sign * y * FT, z * FT]), 0.0015);
-        id = product(el.ifc, { ...common, at: [a[0], a[1], a[2] - s.elev], axis: Z, ref: X, items: [extrude(polyProfile(ring), Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]))] });
+        id = product(el.ifc, { ...common, at: [a[0], a[1], a[2] - s.elev], axis: Z, ref: X, items: [extrude(polyProfile(ring), dmath.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]))] });
       } else {
         const gb = boxGeom(el.lo, el.hi, s.elev);
         id = product(el.ifc, { ...common, at: gb.placeAt, items: [gb.solid] });

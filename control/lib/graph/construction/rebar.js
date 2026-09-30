@@ -10,6 +10,7 @@
 // Bars stop at the cover; stirrups sit outside the bars, the bars inside their corners. No hooks or laps are drawn.
 import { barMm, STEEL } from './sections.js';
 import { prismPolys, ngon } from './prims.js';
+import * as dmath from '../../util/dmath.js';
 
 const MM = 0.001;
 
@@ -48,7 +49,7 @@ export function cage(M, spec) {
   const x0 = M.xMin + c, x1 = M.xMax - c;
   const hy = M.W / 2, hz = M.D / 2;
   const polys = []; let mass = 0; let bars = 0, loops = 0;
-  const bar = (from, to, d) => { polys.push(...prismPolys(from, to, ngon([to[0] - from[0], to[1] - from[1], to[2] - from[2]], d / 2, 8))); mass += (Math.PI * d * d / 4) * Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]) * STEEL.density; bars++; };
+  const bar = (from, to, d) => { polys.push(...prismPolys(from, to, ngon([to[0] - from[0], to[1] - from[1], to[2] - from[2]], d / 2, 8))); mass += (Math.PI * d * d / 4) * dmath.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]) * STEEL.density; bars++; };
   const tie = spec.ties ? barMm(spec.ties[0]) * MM : 0;
   // the stirrup's centreline rectangle, and the bars' inset
   const sy = hy - c - tie / 2, sz = hz - c - tie / 2;

@@ -27,6 +27,7 @@
 //   weight, half to each rail. A `kd` sofa arrives as four upholstered sections (`supplied`) that bolt together.
 import { FILLS } from './soft.js';
 import { fabricError } from './fabric.js';
+import * as dmath from '../../util/dmath.js';
 
 const FRAME_UNITS = { mm: 0.001, cm: 0.01, m: 1 };                 // frame.js's units (kept here: frame.js imports this)
 
@@ -249,8 +250,8 @@ function sofa(b, k, mmOf) {
   // the pad behind it
   const tilt = S.backTilt * Math.PI / 180, T = backKind === 'loose' ? 180 : backKind === 'tight' ? 130 : 120;
   const z0b = seatH - 10, z1b = backH - 20, czb = (z0b + z1b) / 2;
-  const cyb = seatD - 10 + (T / 2) * Math.cos(tilt) - (seatH + 100 - czb) * Math.tan(tilt);
-  const ybp = Math.round(cyb + (T / 2) * Math.cos(tilt) + (z1b - czb) * Math.tan(tilt) - 15);
+  const cyb = seatD - 10 + (T / 2) * dmath.cos(tilt) - (seatH + 100 - czb) * dmath.tan(tilt);
+  const ybp = Math.round(cyb + (T / 2) * dmath.cos(tilt) + (z1b - czb) * dmath.tan(tilt) - 15);
   const bp = 90;
   const D = ybp + bp, Db = D - S.pad - S.ply;                       // the base runs to the back panel's face
   const bx0 = aW ? aW - S.pad : S.pad, bx1 = W - bx0;

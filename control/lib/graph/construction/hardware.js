@@ -28,11 +28,12 @@
 // dowel's middle), `axis` the unit direction its shank points into the work. Plain level of detail: heads, shanks and
 // bodies as prisms and frustums, no threads.
 import { prismPolys, frustumPolys, ngon, boxPolys, across } from './prims.js';
+import * as dmath from '../../util/dmath.js';
 
 const MM = 0.001;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
-const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const unit = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 export const HARDWARE_FINISHES = Object.freeze({
   zinc: [196, 200, 206], 'yellow-zinc': [206, 184, 118], 'black-oxide': [58, 60, 64], stainless: [196, 200, 204],

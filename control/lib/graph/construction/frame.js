@@ -56,6 +56,8 @@ import { validateSoft, lowerSoft, FILLS } from './soft.js';
 import { fabricError, resolveFabric, fabricSummary } from './fabric.js';
 import { worldBox } from './furniture-joints.js';
 import { coverLayout, coverSummary, coverStamps } from './covers.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 export const FRAME_UNITS = Object.freeze({ mm: 0.001, cm: 0.01, m: 1, in: 0.0254, ft: 0.3048 });
 export const FIGURE_MODES = Object.freeze(['full', 'coarse', 'flat']);
@@ -79,7 +81,7 @@ function mix(n) { n = Math.imul(n ^ (n >>> 16), 0x7feb352d); n = Math.imul(n ^ (
 const isPt = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 
 /** Validate `frames` → string[]. */
 export function validateFrames(frames) {
@@ -373,7 +375,9 @@ function frameLevel(spec, members, eyes) {
  * `timberFigure: 'flat'` (a lowering option, not the recipe's) tints timber flat while boards and cloth keep their
  * shared tiles — a room full of pieces cannot carry a figure texture per timber face.
  */
-export function lowerFrame(spec0, { light = DEFAULT_LIGHT, eyes = null, instance = false, timberFigure = null } = {}) {
+/** lowerFrame on dmath: every piece a frame lowers through the shared kernel helpers (lathe, sweep, field faces) comes out the same on every platform, whoever calls (util/math-scope.js). */
+export function lowerFrame(spec0, opts) { return withMath(dmath, () => lowerFrameIn(spec0, opts)); }
+function lowerFrameIn(spec0, { light = DEFAULT_LIGHT, eyes = null, instance = false, timberFigure = null } = {}) {
   const spec = withBuild(spec0);
   const unitScale = FRAME_UNITS[spec.unit || 'cm'];
   const all = resolveMembers(spec);
@@ -448,8 +452,8 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT, eyes = null, instance
 
   // ── the report ──
   // supports: a level member is carried where a post (or another level member) meets it; braces are not counted
-  const sin15 = Math.sin((15 * Math.PI) / 180);
-  const carries = (O) => Math.abs(O.F.ex[2]) < sin15 || Math.abs(O.F.ex[2]) > Math.cos((15 * Math.PI) / 180);
+  const sin15 = dmath.sin((15 * Math.PI) / 180);
+  const carries = (O) => Math.abs(O.F.ex[2]) < sin15 || Math.abs(O.F.ex[2]) > dmath.cos((15 * Math.PI) / 180);
   const supports = new Map(members.map((M) => [M.id, []]));
   for (const e of J.edges) {
     if (e.piece || e.bears === false) continue;

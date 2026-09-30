@@ -17,6 +17,7 @@
 // Coordinates are metres in the log's frame: z up the log from the butt, the pith near x = y = 0. Deterministic in the
 // spec: integer hashing only, no Math.random, no clock.
 import { TIMBERS } from './timber.js';
+import * as dmath from '../../util/dmath.js';
 
 // ─── dice: integer lattice hash → floats (the rock-fracture idiom) ──────────────────────────────────────────────────
 function mix(n) { n = Math.imul(n ^ (n >>> 16), 0x7feb352d); n = Math.imul(n ^ (n >>> 15), 0x846ca68b); return (n ^ (n >>> 16)) >>> 0; }
@@ -62,7 +63,7 @@ export function makeLog(spec) {
   // ring widths: juvenile (cambial age) × climate (calendar year)
   const clim = new Float64Array(age + 2);
   for (let y = 0; y < clim.length; y++) clim[y] = 1 + o.climate * (2 * hf(hash3(seed, y, 11), 0) - 1);
-  const juv = (n) => 1 + o.juvenile * Math.exp(-n / 6);
+  const juv = (n) => 1 + o.juvenile * dmath.exp(-n / 6);
   // cumulative radius tables, one per year of height growth: R[i][Y] = the radius at z_i = i·hG after calendar year Y
   const nz = Math.min(age, Math.ceil(length / hG) + 1) + 1;
   const R = [];
@@ -79,8 +80,8 @@ export function makeLog(spec) {
   }
   // each sheath a little out of round, drifting slowly with the year (so the sheaths nest), plus a fixed ovality
   const ph = [hf(hash3(seed, 3, 1), 0), hf(hash3(seed, 3, 2), 0), hf(hash3(seed, 3, 3), 0)].map((v) => v * 2 * Math.PI);
-  const wob = (Y, th) => 1 + o.wobble * (Math.sin(3 * th + 0.23 * Y + ph[0]) * 0.6 + Math.sin(5 * th - 0.31 * Y + ph[1]) * 0.4) + o.ovality * Math.cos(2 * (th - ph[2]));
-  const pithAt = (z) => [o.wander * Math.sin(0.9 * z + ph[0]), o.wander * Math.sin(0.7 * z + ph[1])];
+  const wob = (Y, th) => 1 + o.wobble * (dmath.sin(3 * th + 0.23 * Y + ph[0]) * 0.6 + dmath.sin(5 * th - 0.31 * Y + ph[1]) * 0.4) + o.ovality * dmath.cos(2 * (th - ph[2]));
+  const pithAt = (z) => [o.wander * dmath.sin(0.9 * z + ph[0]), o.wander * dmath.sin(0.7 * z + ph[1])];
 
   // ── branches (knots) ──
   const grade = KNOT_GRADES[o.knots];
@@ -100,7 +101,7 @@ export function makeLog(spec) {
         const hk = hash3(seed, s.key, 40 + k);
         const az = sp.whorled ? az0 + (2 * Math.PI * (k + 0.25 * (hf(hk, 0) - 0.5))) / n : hf(hk, 0) * 2 * Math.PI;
         const el = ((sp.whorled ? 35 : 45) + 20 * (hf(hk, 1) - 0.5)) * (Math.PI / 180);
-        const dir = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)];
+        const dir = [dmath.cos(el) * dmath.cos(az), dmath.cos(el) * dmath.sin(az), dmath.sin(el)];
         const kb = (1.4 + 1.2 * hf(hk, 2)) / 1000;                      // branch radius growth, m/yr
         const years = Math.min(live, age - born);
         const rEnd = Math.min(0.028, kb * years);
@@ -120,7 +121,7 @@ export function makeLog(spec) {
   function trunk(p) {
     const z = Math.max(0, Math.min(length, p[2]));
     const pc = pithAt(z); const dx = p[0] - pc[0], dy = p[1] - pc[1];
-    const rho = Math.hypot(dx, dy), theta = Math.atan2(dy, dx);
+    const rho = dmath.hypot(dx, dy), theta = dmath.atan2(dy, dx);
     const y0 = z / hG;
     const Rz = (Y) => radius(Y, z) * wob(Y, theta);
     const outer = Rz(age);
@@ -148,7 +149,7 @@ export function makeLog(spec) {
       const q = [p[0] - b.origin[0], p[1] - b.origin[1], p[2] - b.origin[2]];
       const s = q[0] * b.dir[0] + q[1] * b.dir[1] + q[2] * b.dir[2];
       if (s < 0 || s > b.sMax) continue;
-      const d = Math.hypot(q[0] - s * b.dir[0], q[1] - s * b.dir[1], q[2] - s * b.dir[2]);
+      const d = dmath.hypot(q[0] - s * b.dir[0], q[1] - s * b.dir[1], q[2] - s * b.dir[2]);
       if (d < b.rEnd) {
         const tb = b.born + d / b.kb;
         if (tb < best.t) { const f = (d / b.kb) % 1; best = { ...tr, el: 'knot', t: tb, f, heart: tr.heart, ringW: b.kb }; }
@@ -162,9 +163,9 @@ export function makeLog(spec) {
   /** The grain frame at p: L along the fibres (the log axis, leaned by the spiral grain), R out from the pith, T round. */
   function frame(p) {
     const pc = pithAt(Math.max(0, Math.min(length, p[2]))); const dx = p[0] - pc[0], dy = p[1] - pc[1];
-    const r = Math.hypot(dx, dy) || 1; const Rv = [dx / r, dy / r, 0]; const Tv = [-Rv[1], Rv[0], 0];
+    const r = dmath.hypot(dx, dy) || 1; const Rv = [dx / r, dy / r, 0]; const Tv = [-Rv[1], Rv[0], 0];
     const g = (o.spiral * Math.PI) / 180;
-    return { L: [Tv[0] * Math.sin(g), Tv[1] * Math.sin(g), Math.cos(g)], R: Rv, T: Tv };
+    return { L: [Tv[0] * dmath.sin(g), Tv[1] * dmath.sin(g), dmath.cos(g)], R: Rv, T: Tv };
   }
 
   return {
@@ -185,6 +186,6 @@ export function ageForRadius(species, rNeeded, zTop, { ringMm, heightGrowth = DE
   const y0 = Math.ceil(zTop / heightGrowth);
   let r = 0, n = 0;
   // mean climate is 1; the wobble and ovality can take ~4% off one side, so size with a margin
-  while (r < rNeeded * 1.06 && n < 2000) { r += w * (1 + DEFAULTS.juvenile * Math.exp(-n / 6)) * (1 - DEFAULTS.climate * 0.5); n++; }
+  while (r < rNeeded * 1.06 && n < 2000) { r += w * (1 + DEFAULTS.juvenile * dmath.exp(-n / 6)) * (1 - DEFAULTS.climate * 0.5); n++; }
   return y0 + n;
 }

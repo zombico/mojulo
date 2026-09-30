@@ -7,6 +7,8 @@
 // A section's local axes match a member's: y across the flanges (width), z along the web (depth, the strong axis).
 // `profile(sec)` gives the cross-section as polygons in (y, z) metres: `outer` (CCW) and, for a hollow section,
 // `inner` — what the frame extrudes along the member.
+import * as dmath from '../../util/dmath.js';
+
 
 export const STEEL = Object.freeze({ E: 200e9, density: 7850, Fy: { S235: 235e6, S275: 275e6, S355: 355e6, A36: 250e6, A992: 345e6 } });
 
@@ -60,7 +62,7 @@ export function sectionProps(name) {
     case 'I': case 'C': {
       const tw = mm(s.tw), tf = mm(s.tf);
       A = 2 * b * tf + (h - 2 * tf) * tw;
-      Ix = (b * h ** 3 - (b - tw) * (h - 2 * tf) ** 3) / 12;
+      Ix = (b * dmath.pow(h, 3) - (b - tw) * dmath.pow(h - 2 * tf, 3)) / 12;
       break;
     }
     case 'L': {
@@ -69,13 +71,13 @@ export function sectionProps(name) {
       // about the horizontal axis through the centroid
       const yA = [h * t, (b - t) * t], yC = [h / 2, t / 2];
       const cy = (yA[0] * yC[0] + yA[1] * yC[1]) / A;
-      Ix = (t * h ** 3) / 12 + yA[0] * (yC[0] - cy) ** 2 + ((b - t) * t ** 3) / 12 + yA[1] * (yC[1] - cy) ** 2;
+      Ix = (t * dmath.pow(h, 3)) / 12 + yA[0] * (yC[0] - cy) ** 2 + ((b - t) * dmath.pow(t, 3)) / 12 + yA[1] * (yC[1] - cy) ** 2;
       c = Math.max(cy, h - cy);                                              // the extreme fibre from the centroid
       break;
     }
-    case 'SHS': { const t = mm(s.t); A = b * h - (b - 2 * t) * (h - 2 * t); Ix = (b * h ** 3 - (b - 2 * t) * (h - 2 * t) ** 3) / 12; break; }
-    case 'CHS': { const t = mm(s.t), D = h, d = D - 2 * t; A = (Math.PI * (D * D - d * d)) / 4; Ix = (Math.PI * (D ** 4 - d ** 4)) / 64; break; }
-    default: { A = b * h; Ix = (b * h ** 3) / 12; }
+    case 'SHS': { const t = mm(s.t); A = b * h - (b - 2 * t) * (h - 2 * t); Ix = (b * dmath.pow(h, 3) - (b - 2 * t) * dmath.pow(h - 2 * t, 3)) / 12; break; }
+    case 'CHS': { const t = mm(s.t), D = h, d = D - 2 * t; A = (Math.PI * (D * D - d * d)) / 4; Ix = (Math.PI * (dmath.pow(D, 4) - dmath.pow(d, 4))) / 64; break; }
+    default: { A = b * h; Ix = (b * dmath.pow(h, 3)) / 12; }
   }
   return { A, I: Ix, S: Ix / c, mass: A * STEEL.density, Fy: STEEL.Fy[s.grade] };
 }
@@ -100,7 +102,7 @@ export function profile(name) {
     case 'L': { const t = mm(s.t); return { outer: [[-hy, -hz], [hy, -hz], [hy, -hz + t], [-hy + t, -hz + t], [-hy + t, hz], [-hy, hz]] }; }
     case 'SHS': { const t = mm(s.t); return { outer: [[-hy, -hz], [hy, -hz], [hy, hz], [-hy, hz]], inner: [[-hy + t, -hz + t], [hy - t, -hz + t], [hy - t, hz - t], [-hy + t, hz - t]] }; }
     case 'CHS': {
-      const t = mm(s.t); const ring = (r) => Array.from({ length: 20 }, (_, i) => { const a = (2 * Math.PI * i) / 20; return [r * Math.cos(a), r * Math.sin(a)]; });
+      const t = mm(s.t); const ring = (r) => Array.from({ length: 20 }, (_, i) => { const a = (2 * Math.PI * i) / 20; return [r * dmath.cos(a), r * dmath.sin(a)]; });
       return { outer: ring(h / 2), inner: ring(h / 2 - t) };
     }
     default: return { outer: [[-hy, -hz], [hy, -hz], [hy, hz], [-hy, hz]] };

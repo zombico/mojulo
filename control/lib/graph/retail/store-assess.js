@@ -4,6 +4,7 @@
 // local frame (feet; y = 0 on the glass line, x = lateral from the left jamb).
 
 import { CELL_ARCHETYPES } from './store-cells.js';
+import * as dmath from '../../util/dmath.js';
 
 export const RETAIL_SPEC = {
   decompression: 5,        // ft inside the door kept free of fixtures
@@ -166,7 +167,7 @@ export function assessStoreConcept(card, store, spec = RETAIL_SPEC) {
   const seats = floor.filter((p) => p.row.decl.seat);
   if (counter && seats.length) {
     const cx = (counter.x0 + counter.x1) / 2, cy = (counter.y0 + counter.y1) / 2;
-    if (!seats.some((s) => Math.hypot((s.x0 + s.x1) / 2 - cx, (s.y0 + s.y1) / 2 - cy) <= spec.seatReach)) pref('seats-near-counter', `no seat within ${spec.seatReach} ft of the counter`);
+    if (!seats.some((s) => dmath.hypot((s.x0 + s.x1) / 2 - cx, (s.y0 + s.y1) / 2 - cy) <= spec.seatReach)) pref('seats-near-counter', `no seat within ${spec.seatReach} ft of the counter`);
   }
 
   const byRegister = { retail: { invariant: F.filter((f) => f.severity === 'invariant').length, preferential: F.filter((f) => f.severity === 'preferential').length } };

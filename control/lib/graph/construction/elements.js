@@ -10,6 +10,7 @@ import { shadeHexMat, DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
 import { rgbHex } from './timber.js';
 import { CATALOG } from './catalog.js';
+import * as dmath from '../../util/dmath.js';
 
 const SHADING = { board: 'plaster', plaster: 'plaster', clay: 'matte', insulation: 'matte', paper: 'matte', timber: 'wood', bamboo: 'wood', block: 'stone', cable: 'matte', raceway: 'matte', box: 'matte', plate: 'matte', panel: 'steel', steel: 'steel' };
 const SIDES = ['+x', '-x', '+y', '-y', '+z', '-z'];
@@ -45,7 +46,7 @@ export function elementFaces(elements, { light = DEFAULT_LIGHT, eyes = null, uni
     if (el.minPx && eyes && eyes.length) {
       // thicken the two thin axes about the centre until the element spans minPx from its nearest eye
       const c = lo.map((v, i) => (v + hi[i]) / 2);
-      let near = Infinity; for (const e of eyes) near = Math.min(near, Math.hypot(c[0] * unit - e.pos[0], c[1] * unit - e.pos[1], c[2] * unit - e.pos[2]) / (e.focalPx || 1000));
+      let near = Infinity; for (const e of eyes) near = Math.min(near, dmath.hypot(c[0] * unit - e.pos[0], c[1] * unit - e.pos[1], c[2] * unit - e.pos[2]) / (e.focalPx || 1000));
       const want = (el.minPx * near) / unit;
       const d = hi.map((v, i) => v - lo[i]); const long = d.indexOf(Math.max(...d));
       lo = lo.slice(); hi = hi.slice();

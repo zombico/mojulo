@@ -15,6 +15,8 @@ import { CAST_ARCHETYPES, buildMannequin } from './store-cast.js';
 import { degradeFitOut } from './store-degrade.js';
 import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
 import { isMetalSurface, metalSurfaceError } from '../materials/metal-surface.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 export const ZONE_ROLES = ['window', 'browse', 'service', 'back'];
 export const FLOOR_STYLES = ['floorboards', 'marble', 'plain'];
@@ -188,7 +190,9 @@ function bakePlacement(p, frame, { baseZ, ceilingZ, merch, seed, idx, tint }) {
  * salesFrame: unitFrame over the usable sales-floor interior. cells: subProgram(...).cells.
  * @returns {{ faces, placements, cellPlacements, cast, report }}
  */
-export function fitOutFromConcept(card, salesFrame, { cells = [], backDoors = [], front = 'S', seed = 1, baseZ = 0, ceilingZ = 12, inset = STORE_DEFAULTS.inset, castBuilder = null, entry = null, through = [], degrade = true } = {}) {
+/** fitOutFromConcept on dmath: a store's fixtures, casts and shell reach the shared lathe, sweep, figure and floor-plan helpers (util/math-scope.js). */
+export function fitOutFromConcept(card, salesFrame, opts) { return withMath(dmath, () => fitOutFromConceptIn(card, salesFrame, opts)); }
+function fitOutFromConceptIn(card, salesFrame, { cells = [], backDoors = [], front = 'S', seed = 1, baseZ = 0, ceilingZ = 12, inset = STORE_DEFAULTS.inset, castBuilder = null, entry = null, through = [], degrade = true } = {}) {
   const faces = [];
   const pal = card.palette.merch;
   let k = 0;
@@ -271,7 +275,9 @@ export function storefrontLocal({ W, s0, s1, e0, e1, top, ceil, sign, trim = '#7
  * One shop on its own lot: unit W×D (ft) with the storefront on the south (y = 0).
  * @returns {{ faces, footprint, structure, sub, fitOut, entry, salesFrame, unitFrame }}
  */
-export function buildStandaloneStore(card, { width = 24, depth = 40, seed = 1, fitOut = true, castBuilder = buildMannequin, ...opts } = {}) {
+/** buildStandaloneStore on dmath: as fitOutFromConcept (util/math-scope.js). */
+export function buildStandaloneStore(card, opts) { return withMath(dmath, () => buildStandaloneStoreIn(card, opts)); }
+function buildStandaloneStoreIn(card, { width = 24, depth = 40, seed = 1, fitOut = true, castBuilder = buildMannequin, ...opts } = {}) {
   const o = { ...STORE_DEFAULTS, ...opts };
   const unitRect = { x0: 0, x1: width, y0: 0, y1: depth };
   const sub = subProgram(unitRect, 'S', card, { rng: mulberry32(seed >>> 0) });

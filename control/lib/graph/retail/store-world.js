@@ -8,6 +8,8 @@
 import { buildStandaloneStore, validateConceptCard } from './store-concept.js';
 import { assessStoreConcept } from './store-assess.js';
 import { resolveCard, SEEDED_CARDS } from './store-cards.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 export const STORE_WORLD_DEFAULTS = { width: 24, depth: 40, seed: 1 };
 
@@ -32,7 +34,9 @@ function storeCameras(s) {
   ];
 }
 
-export function assembleStoreWorldScene(m = {}, opts = {}) {
+/** assembleStoreWorldScene on dmath: the store world reaches the same shared helpers (util/math-scope.js). */
+export function assembleStoreWorldScene(m, opts) { return withMath(dmath, () => assembleStoreWorldSceneIn(m, opts)); }
+function assembleStoreWorldSceneIn(m = {}, opts = {}) {
   const errs = validateStoreManifest(m);
   if (errs.length) throw new Error(errs.join('; '));
   const card = resolveCard(m.card);

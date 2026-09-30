@@ -26,6 +26,7 @@ import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.
 import { memberFrame, toWorld, dirWorld } from './members.js';
 import { rgbHex, hexRgb } from './timber.js';
 import { registerTextureResolver, encodePng } from '../landscape/surface-textures.js';
+import * as dmath from '../../util/dmath.js';
 
 function mix(n) { n = Math.imul(n ^ (n >>> 16), 0x7feb352d); n = Math.imul(n ^ (n >>> 15), 0x846ca68b); return (n ^ (n >>> 16)) >>> 0; }
 const hash3 = (a, b, c) => mix((Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + Math.imul(c | 0, 1274126177)) | 0);
@@ -121,7 +122,7 @@ export function masonryUnits(f, scale) {
     const u = w.unit && typeof w.unit === 'object' ? (customUnitOk(w.unit) ? w.unit : null) : UNITS[w.unit || 'uk'];
     if (!u) continue;
     const j = u.j ?? 10, leaves = Number.isInteger(w.leaves) && w.leaves >= 1 && w.leaves <= 4 ? w.leaves : 1;
-    n += Math.ceil((Math.hypot(w.to[0] - w.from[0], w.to[1] - w.from[1], w.to[2] - w.from[2]) * mm) / (Math.min(u.l, u.w) + j)) * Math.ceil((w.height * mm) / (u.h + j)) * leaves;
+    n += Math.ceil((dmath.hypot(w.to[0] - w.from[0], w.to[1] - w.from[1], w.to[2] - w.from[2]) * mm) / (Math.min(u.l, u.w) + j)) * Math.ceil((w.height * mm) / (u.h + j)) * leaves;
   }
   for (const p of Array.isArray(f.paving) ? f.paving : []) {
     if (!laid(p) || !Array.isArray(p.size) || !p.size.every((v) => v > 0)) continue;
@@ -133,7 +134,7 @@ export function masonryUnits(f, scale) {
     const [l, w] = Array.isArray(s.slate) && within(s.slate[0], ...SLATE_MM) && within(s.slate[1], ...SLATE_MM) ? s.slate : [500, 250];
     const gauge = (l - (within(s.headlap, 0, l - 20) ? s.headlap : 75)) / 2;
     const [a, b] = s.eave;
-    n += Math.ceil((s.run * mm) / Math.cos((s.pitch * Math.PI) / 180) / gauge) * Math.ceil((Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) * mm) / w);
+    n += Math.ceil((s.run * mm) / dmath.cos((s.pitch * Math.PI) / 180) / gauge) * Math.ceil((dmath.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) * mm) / w);
   }
   return n;
 }
@@ -246,7 +247,7 @@ registerTextureResolver(MASONRY_TEXTURE_PREFIX, resolveBondTexture);
 // ── walls ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export const MASONRY_DETAILS = Object.freeze(['auto', 'units', 'surface', 'mass']);
-const linRgb = (c) => c.map((v) => (v / 255) ** 2.2), srgb = (c) => c.map((v) => 255 * v ** (1 / 2.2));
+const linRgb = (c) => c.map((v) => dmath.pow(v / 255, 2.2)), srgb = (c) => c.map((v) => 255 * dmath.pow(v, 1 / 2.2));
 /** The far-read colour of a bonded face: body and mortar mixed in linear light by the mortar's share of the face. */
 const farRead = (body, mortar, u) => { const m = 1 - (u.l * u.h) / ((u.l + u.j) * (u.h + u.j)); const a = linRgb(body), b = linRgb(mortar); return srgb(a.map((v, i) => v * (1 - m) + b[i] * m)); };
 
@@ -259,7 +260,7 @@ function wallLevel(detail, courseM, pts, eyes) {
   if (detail && detail !== 'auto') return detail;
   if (!eyes || !eyes.length) return 'units';
   let px = 0;
-  for (const e of eyes) for (const q of pts) px = Math.max(px, (courseM * e.focalPx) / Math.max(0.1, Math.hypot(q[0] - e.pos[0], q[1] - e.pos[1], q[2] - e.pos[2])));
+  for (const e of eyes) for (const q of pts) px = Math.max(px, (courseM * e.focalPx) / Math.max(0.1, dmath.hypot(q[0] - e.pos[0], q[1] - e.pos[1], q[2] - e.pos[2])));
   return px >= 5 ? 'units' : px >= 1 ? 'surface' : 'mass';
 }
 /** Sample points over a local rectangle (x0..x1 along, z0..z1 up, y at the face), world metres. */
@@ -547,13 +548,13 @@ function laySlates(s, i, { scale, light, seed, eyes }) {
   const headlap = (s.headlap ?? 75) * mm;
   const gauge = (sl - headlap) / 2;
   const e0 = s.eave[0].map((v) => v * scale), e1 = s.eave[1].map((v) => v * scale);
-  const along = [e1[0] - e0[0], e1[1] - e0[1], e1[2] - e0[2]]; const L = Math.hypot(...along); const ea = along.map((v) => v / L);
+  const along = [e1[0] - e0[0], e1[1] - e0[1], e1[2] - e0[2]]; const L = dmath.hypot(...along); const ea = along.map((v) => v / L);
   const side = s.side === -1 ? -1 : 1;
   const inPlan = [-ea[1] * side, ea[0] * side, 0];                              // up-slope direction in plan
   const pr = (s.pitch * Math.PI) / 180;
-  const upSlope = [inPlan[0] * Math.cos(pr), inPlan[1] * Math.cos(pr), Math.sin(pr)];
+  const upSlope = [inPlan[0] * dmath.cos(pr), inPlan[1] * dmath.cos(pr), dmath.sin(pr)];
   const nrm = [ea[1] * upSlope[2] - ea[2] * upSlope[1], ea[2] * upSlope[0] - ea[0] * upSlope[2], ea[0] * upSlope[1] - ea[1] * upSlope[0]].map((v) => v * side);
-  const run = s.run * scale; const slopeLen = run / Math.cos(pr);
+  const run = s.run * scale; const slopeLen = run / dmath.cos(pr);
   const st = STONES[s.stone || 'slate'];
   const mat = resolveMaterial('stone');
   const sd = Number.isInteger(s.seed) ? s.seed : seed * 41 + i;
@@ -592,7 +593,7 @@ function laySlates(s, i, { scale, light, seed, eyes }) {
 /** The largest projected size (px) of a length `m` metres at any of `pts` (world metres) from any eye. */
 function maxPx(m, pts, eyes) {
   let px = 0;
-  for (const e of eyes) for (const q of pts) px = Math.max(px, (m * e.focalPx) / Math.max(0.1, Math.hypot(q[0] - e.pos[0], q[1] - e.pos[1], q[2] - e.pos[2])));
+  for (const e of eyes) for (const q of pts) px = Math.max(px, (m * e.focalPx) / Math.max(0.1, dmath.hypot(q[0] - e.pos[0], q[1] - e.pos[1], q[2] - e.pos[2])));
   return px;
 }
 

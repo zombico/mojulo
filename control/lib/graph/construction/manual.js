@@ -28,6 +28,7 @@ import { weldFaces, wireRuns, projectVertices, triangleGrid, visibleAt } from '.
 import { hatchRuns, hatchPath } from '../scene/hatch-lines.js';
 import { fabricSvg } from './fabric.js';
 import { coverPages } from './covers.js';
+import * as dmath from '../../util/dmath.js';
 
 const PAGE = { w: 210, h: 297 };                    // A4, mm
 const INK = '#000';
@@ -42,7 +43,7 @@ const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 function bounds(faces) {
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }
-  return { lo, hi, c: lo.map((v, k) => (v + hi[k]) / 2), diag: Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) };
+  return { lo, hi, c: lo.map((v, k) => (v + hi[k]) / 2), diag: dmath.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) };
 }
 
 /**
@@ -171,10 +172,10 @@ const joinsAny = (report, m, others) => report.joints.some((j) => (j.a === m && 
 function fitCamera(pts, box, { az = -35, el = 28 } = {}) {
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const p of pts) for (let k = 0; k < 3; k++) { if (p[k] < lo[k]) lo[k] = p[k]; if (p[k] > hi[k]) hi[k] = p[k]; }
-  const c = lo.map((v, k) => (v + hi[k]) / 2); const rad = Math.max(1e-6, Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2);
+  const c = lo.map((v, k) => (v + hi[k]) / 2); const rad = Math.max(1e-6, dmath.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2);
   const a = (az * Math.PI) / 180, e = (el * Math.PI) / 180, dist = 60 * rad;
-  const position = [c[0] + dist * Math.cos(e) * Math.sin(a), c[1] - dist * Math.cos(e) * Math.cos(a), c[2] + dist * Math.sin(e)];
-  const R = [[Math.cos(a), Math.sin(a), 0], [Math.sin(e) * Math.sin(a), -Math.sin(e) * Math.cos(a), -Math.cos(e)], [-Math.cos(e) * Math.sin(a), Math.cos(e) * Math.cos(a), -Math.sin(e)]];
+  const position = [c[0] + dist * dmath.cos(e) * dmath.sin(a), c[1] - dist * dmath.cos(e) * dmath.cos(a), c[2] + dist * dmath.sin(e)];
+  const R = [[dmath.cos(a), dmath.sin(a), 0], [dmath.sin(e) * dmath.sin(a), -dmath.sin(e) * dmath.cos(a), -dmath.cos(e)], [-dmath.cos(e) * dmath.sin(a), dmath.cos(e) * dmath.cos(a), -dmath.sin(e)]];
   const probe = projectVertices(pts, { position, R, f: 1, principal: [0, 0] });
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const p of probe) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
@@ -296,7 +297,7 @@ function stepPage(plan, s, groups, wholeCam, mmPerUnit) {
   for (const t of tags) {
     const q = P(cam, t.at);
     if (t.kind === 'turn') { body += turnArrow(q[0], q[1]); continue; }
-    const dx = q[0] - centre[0], dy = q[1] - centre[1], l = Math.hypot(dx, dy) || 1;
+    const dx = q[0] - centre[0], dy = q[1] - centre[1], l = dmath.hypot(dx, dy) || 1;
     const at = [q[0] + (dx / l) * 16, q[1] + (dy / l) * 16 - 4];
     body += leader(q, at) + circle(at[0], at[1], 4.2, t.n, { size: 4.6 });
     if (t.times > 1) body += text(at[0] + 6, at[1] + 1.8, `×${t.times}`, 5, 'start', 700);
@@ -327,7 +328,7 @@ function detailBubble(plan, s, focus, draw, cam, groups) {
   const fb = bounds(draw.filter((f) => f.group === focus));
   const code = plan.codeOf.get(focus);
   const r = Math.max(fb.diag * 1.4, 1e-6);
-  const near = draw.filter((f) => f.corners.some((c) => Math.hypot(c[0] - fb.c[0], c[1] - fb.c[1], c[2] - fb.c[2]) < 3 * r));
+  const near = draw.filter((f) => f.corners.some((c) => dmath.hypot(c[0] - fb.c[0], c[1] - fb.c[1], c[2] - fb.c[2]) < 3 * r));
   const B = { cx: 158, cy: 222, R: 30 };
   const dcam = fitCamera([sub3(fb.c, [r, r, r]), add(fb.c, [r, r, r])], { x: B.cx - B.R, y: B.cy - B.R, w: 2 * B.R, h: 2 * B.R });
   const id = `d${s.n}`;
@@ -383,7 +384,7 @@ export function hardwareGlyph(part, x, y) {
       break;
     }
     case 'washer': rect(x, y - part.od / 2, part.length, part.od); g.push(`<circle cx="${r2(x + part.length + 3 + part.od / 2)}" cy="${r2(y)}" r="${r2(part.od / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/><circle cx="${r2(x + part.length + 3 + part.od / 2)}" cy="${r2(y)}" r="${r2(part.d / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/>`); break;
-    case 'nut': { const R = part.s / Math.sqrt(3); const cx = x + R; poly(Array.from({ length: 6 }, (_, i) => [cx + R * Math.cos((Math.PI / 3) * i), y + R * Math.sin((Math.PI / 3) * i)])); g.push(`<circle cx="${r2(cx)}" cy="${r2(y)}" r="${r2(part.d / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/>`); break; }
+    case 'nut': { const R = part.s / Math.sqrt(3); const cx = x + R; poly(Array.from({ length: 6 }, (_, i) => [cx + R * dmath.cos((Math.PI / 3) * i), y + R * dmath.sin((Math.PI / 3) * i)])); g.push(`<circle cx="${r2(cx)}" cy="${r2(y)}" r="${r2(part.d / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/>`); break; }
     case 'shelf-pin': rect(x, y - part.d / 2, L, part.d); break;
     case 'bracket': poly([[x, y + part.leg / 2], [x, y - part.leg / 2], [x + part.t, y - part.leg / 2], [x + part.t, y + part.leg / 2 - part.t], [x + part.leg, y + part.leg / 2 - part.t], [x + part.leg, y + part.leg / 2]]); break;
     case 'hanger-bolt': {

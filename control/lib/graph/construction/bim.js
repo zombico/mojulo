@@ -5,6 +5,7 @@
 // openings) down to the parts, and is what an IFC export would write.
 import { ifcGuid } from './elements.js';
 import { CATALOG } from './catalog.js';
+import * as dmath from '../../util/dmath.js';
 
 const MM_PER_FT = 304.8;
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -44,7 +45,7 @@ export function buildConstructionModel({ frames, reports = {}, elements = [], wi
     for (const m of spec.members || []) {
       const [ifc, type] = memberClass(m.id);
       const r = lens.get(m.id);
-      const lengthFt = r ? r.lengthMm / MM_PER_FT : Math.hypot(m.to[0] - m.from[0], m.to[1] - m.from[1], m.to[2] - m.from[2]);
+      const lengthFt = r ? r.lengthMm / MM_PER_FT : dmath.hypot(m.to[0] - m.from[0], m.to[1] - m.from[1], m.to[2] - m.from[2]);
       const key = `${spec.id}:${m.id}`;
       const stockMm = r && r.stockMm ? r.stockMm : null;
       out.push({ guid: ifcGuid(key), key, ifc, type, material: memberMaterial(m, spec), storey: S, quantities: { lengthFt: r1(lengthFt), ...(stockMm ? { sectionMm: stockMm } : {}), ...(r && r.massKg ? { massKg: r.massKg } : {}), ...(m.section ? { section: m.section } : {}) },
@@ -53,7 +54,7 @@ export function buildConstructionModel({ frames, reports = {}, elements = [], wi
     for (const w of spec.walls || []) {
       const key = `${spec.id}:${w.id}`;
       const rw = rep && (rep.walls || []).find((x) => x.id === w.id);
-      out.push({ guid: ifcGuid(key), key, ifc: 'IfcWall', type: 'SOLIDWALL', material: w.unit === 'cmu' ? 'block:cmu' : `brick:${w.body || 'red'}`, storey: S, quantities: { lengthFt: r1(Math.hypot(w.to[0] - w.from[0], w.to[1] - w.from[1])), heightFt: r1(w.height), units: rw ? rw.units : null, openings: (w.openings || []).length },
+      out.push({ guid: ifcGuid(key), key, ifc: 'IfcWall', type: 'SOLIDWALL', material: w.unit === 'cmu' ? 'block:cmu' : `brick:${w.body || 'red'}`, storey: S, quantities: { lengthFt: r1(dmath.hypot(w.to[0] - w.from[0], w.to[1] - w.from[1])), heightFt: r1(w.height), units: rw ? rw.units : null, openings: (w.openings || []).length },
         geom: { kind: 'wall', from: w.from, to: w.to, height: w.height, thicknessMm: rw && rw.thicknessMm ? rw.thicknessMm : 215, openings: (w.openings || []).map((op) => ({ at: op.at, width: op.width, height: op.height, sill: op.sill || 0 })) } });
     }
     for (const j of spec.joints || []) relations.push({ kind: 'connects', joint: j.type, a: `${spec.id}:${j.a}`, ...(j.b ? { b: `${spec.id}:${j.b}` } : {}) });

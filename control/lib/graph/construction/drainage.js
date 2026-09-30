@@ -25,6 +25,7 @@ import { CATALOG, TRADITION_KEYS } from './catalog.js';
 import { planeFace } from './roofing.js';
 import { instanceGroups } from './instancing.js';
 import { ROOF_STYLES } from '../architecture/roof.js';
+import * as dmath from '../../util/dmath.js';
 
 const MM = 1 / 304.8, IN = 1 / 12;
 const q4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -102,13 +103,13 @@ function gutterSection(g) {
   const W = g.width * MM, D = g.depth * MM;
   if (g.profile === 'k-style') return [[0, 0], [0, -D], [W * 0.78, -D], [W * 0.9, -D * 0.72], [W * 0.84, -D * 0.46], [W, -D * 0.22], [W, 0]];
   if (g.profile === 'box') return [[0, 0], [0, -D], [W, -D], [W, 0]];
-  const out = []; for (let i = 0; i <= 8; i++) { const a = Math.PI * (1 - i / 8); out.push([W / 2 + (W / 2) * Math.cos(a), -(W / 2) * Math.sin(a) * (D / (W / 2))]); }
+  const out = []; for (let i = 0; i <= 8; i++) { const a = Math.PI * (1 - i / 8); out.push([W / 2 + (W / 2) * dmath.cos(a), -(W / 2) * dmath.sin(a) * (D / (W / 2))]); }
   return out;
 }
 /** A pipe's section: rectangle corners or an octagon, [y, z] in feet about its axis. */
 function pipeSection(dp) {
   if (dp.shape === 'rect') { const [a, b] = dp.size.map((v) => (v * MM) / 2); return [[-b, -a], [b, -a], [b, a], [-b, a]]; }
-  const r = (dp.size[0] * MM) / 2; const out = []; for (let i = 0; i < 8; i++) { const t = (Math.PI * 2 * i) / 8 + Math.PI / 8; out.push([r * Math.cos(t), r * Math.sin(t)]); }
+  const r = (dp.size[0] * MM) / 2; const out = []; for (let i = 0; i < 8; i++) { const t = (Math.PI * 2 * i) / 8 + Math.PI / 8; out.push([r * dmath.cos(t), r * dmath.sin(t)]); }
   return out;
 }
 
@@ -116,8 +117,8 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const addv = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
-const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const unit3 = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const dist = (a, b) => dmath.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 /** A swept section's frame for a segment a→b: ex along it, ez the world up (or `side` for a vertical run), ey = ez × ex. */
 function sweepFrame(a, b, side = [1, 0, 0]) {
@@ -311,8 +312,8 @@ export function planDrainage(house, drainage, o = {}) {
         const r0 = 30 * MM, r1b = 20 * MM, h = 55 * MM;
         for (let i = 0; i < 8; i++) {
           const t0 = (Math.PI * 2 * i) / 8, t1 = (Math.PI * 2 * (i + 1)) / 8;
-          const c = [[top0[0] + r1b * Math.cos(t0), top0[1] + r1b * Math.sin(t0), z - h], [top0[0] + r1b * Math.cos(t1), top0[1] + r1b * Math.sin(t1), z - h], [top0[0] + r0 * Math.cos(t1), top0[1] + r0 * Math.sin(t1), z], [top0[0] + r0 * Math.cos(t0), top0[1] + r0 * Math.sin(t0), z]];
-          const tm = (t0 + t1) / 2, nn = [Math.cos(tm), Math.sin(tm), 0.2];
+          const c = [[top0[0] + r1b * dmath.cos(t0), top0[1] + r1b * dmath.sin(t0), z - h], [top0[0] + r1b * dmath.cos(t1), top0[1] + r1b * dmath.sin(t1), z - h], [top0[0] + r0 * dmath.cos(t1), top0[1] + r0 * dmath.sin(t1), z], [top0[0] + r0 * dmath.cos(t0), top0[1] + r0 * dmath.sin(t0), z]];
+          const tm = (t0 + t1) / 2, nn = [dmath.cos(tm), dmath.sin(tm), 0.2];
           chainFaces.push(planeFace(c.map((p) => p.map(q4)), shadeHexMat(rgbHex(rgbOf(dp.material)), unit3(nn), matP, { light }), unit3(nn), { group: `${gtag}:cup:${n}` }));
         }
       }
@@ -364,7 +365,7 @@ export function planDrainage(house, drainage, o = {}) {
       return 2 * (R.x1 - R.x0) + (R.y1 - R.y0) + (R.y1 - y);
     };
     const at = (t) => { t = ((t % per) + per) % per; const a = R.x1 - R.x0, b = R.y1 - R.y0; if (t <= a) return [R.x0 + t, R.y0]; if (t <= a + b) return [R.x1, R.y0 + t - a]; if (t <= 2 * a + b) return [R.x1 - (t - a - b), R.y1]; return [R.x0, R.y1 - (t - 2 * a - b)]; };
-    const snap = ([x, y]) => { const cands = [[x, R.y0], [x, R.y1], [R.x0, y], [R.x1, y]].map((p) => [p, Math.hypot(p[0] - x, p[1] - y)]); cands.sort((p, q) => p[1] - q[1]); const p = cands[0][0]; return [Math.min(R.x1, Math.max(R.x0, p[0])), Math.min(R.y1, Math.max(R.y0, p[1]))]; };
+    const snap = ([x, y]) => { const cands = [[x, R.y0], [x, R.y1], [R.x0, y], [R.x1, y]].map((p) => [p, dmath.hypot(p[0] - x, p[1] - y)]); cands.sort((p, q) => p[1] - q[1]); const p = cands[0][0]; return [Math.min(R.x1, Math.max(R.x0, p[0])), Math.min(R.y1, Math.max(R.y0, p[1]))]; };
     const tOut = (R.x1 - R.x0) / 2;                                           // the outfall: the front of the ring, halfway
     const SLOPE = 1 / 80, inv0 = 1.5;
     const runs = [];                                                          // [t0, t1] intervals of the ring in use

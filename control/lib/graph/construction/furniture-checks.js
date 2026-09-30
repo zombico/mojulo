@@ -25,6 +25,7 @@ import { hardwarePart, toolOf } from './hardware.js';
 import { FURNITURE_JOINTS, RIGIDITY, worldBox } from './furniture-joints.js';
 import { toWorld } from './members.js';
 import { seatingReport, seatingStamps } from './seating.js';
+import * as dmath from '../../util/dmath.js';
 
 const G = 9.81;
 const CHILD = { kg: 22.7, pullShare: 1 / 3, reach: 1.2, scopeM: 0.686 };
@@ -62,7 +63,7 @@ function insideMargin(H, q) {
   let m = Infinity;
   for (let i = 0; i < H.length; i++) {
     const a = H[i], b = H[(i + 1) % H.length];
-    const ex = b[0] - a[0], ey = b[1] - a[1], l = Math.hypot(ex, ey) || 1;
+    const ex = b[0] - a[0], ey = b[1] - a[1], l = dmath.hypot(ex, ey) || 1;
     m = Math.min(m, ((q[1] - a[1]) * -ex + (q[0] - a[0]) * ey) / -l);
   }
   return m;

@@ -29,6 +29,7 @@ import { toWorld, toLocal, dirWorld } from './members.js';
 import { prismPolys, ngon, boxPolys } from './prims.js';
 import { FURNITURE_JOINTS, applyFurnitureJoint } from './furniture-joints.js';
 import { hardwarePart, partPolys, boltLength } from './hardware.js';
+import * as dmath from '../../util/dmath.js';
 
 export const JOINT_TYPES = Object.freeze(['mortise-tenon', 'hozo', 'nuki', 'kanawa-tsugi', 'lap', 'notch', 'welded', 'bolted', 'base-plate', ...FURNITURE_JOINTS]);
 
@@ -39,7 +40,7 @@ const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const dirLocal = (F, v) => [dot(v, F.ex), dot(v, F.ey), dot(v, F.ez)];
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -59,7 +60,7 @@ function prism(from, to, corners) {
 /** A rectangle's corners square to an axis: half-sizes hu, hv along unit vectors eu, ev. */
 const rectCorners = (eu, hu, ev, hv) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => add(scl(eu, a * hu), scl(ev, b * hv)));
 /** A regular polygon's corners (radius r) square to an axis, spanned by unit vectors eu, ev. */
-const ringCorners = (eu, ev, r, n = 12) => Array.from({ length: n }, (_, i) => { const t = (2 * Math.PI * i) / n; return add(scl(eu, r * Math.cos(t)), scl(ev, r * Math.sin(t))); });
+const ringCorners = (eu, ev, r, n = 12) => Array.from({ length: n }, (_, i) => { const t = (2 * Math.PI * i) / n; return add(scl(eu, r * dmath.cos(t)), scl(ev, r * dmath.sin(t))); });
 const AXES = { y: [0, 1, 0], z: [0, 0, 1] };
 
 /**
@@ -82,7 +83,7 @@ function lineBox(M, P0, P1) {
 
 /** The end of member a nearer member b's centreline → { end: 'from' | 'to', s: +1 | −1 (the axis sense into b) }. */
 function nearEnd(A, B) {
-  const dist = (p) => { const q = toLocal(B.F, p); const x = Math.max(B.xMin, Math.min(B.xMax, q[0])); return Math.hypot(q[0] - x, q[1], q[2]); };
+  const dist = (p) => { const q = toLocal(B.F, p); const x = Math.max(B.xMin, Math.min(B.xMax, q[0])); return dmath.hypot(q[0] - x, q[1], q[2]); };
   const pFrom = toWorld(A.F, [0, 0, 0]), pTo = toWorld(A.F, [A.L, 0, 0]);
   return dist(pTo) <= dist(pFrom) ? { end: 'to', s: 1 } : { end: 'from', s: -1 };
 }
@@ -164,7 +165,7 @@ function tenon(J, A, B, out, { kind }) {
   out.report.push({ joint: J.label, type: J.type, a: A.id, b: B.id,
     tenon: { thickMm: Math.round(tT * 1000), heightMm: Math.round(hT * 1000), depthMm: Math.round(depth * 1000), through: !!(J.through || (kind === 'hozo' && depth >= through)) },
     ...(pins ? { pins, pinMm: Math.round(pegD * 1000), relishMm: Math.round(relish * 1000), relishOk: relish >= 2 * pegD } : {}),
-    skewDeg: Math.round((Math.acos(Math.min(1, cosI)) * 180) / Math.PI) });
+    skewDeg: Math.round((dmath.acos(Math.min(1, cosI)) * 180) / Math.PI) });
 }
 
 /** a runs through b, wedged. */
@@ -234,7 +235,7 @@ function welded(J, A, B, out) {
   const sh = shoulder(J, A, B, 'welded joint');
   trimShoulder(A, sh);
   out.edges.push({ a: A.id, b: B.id, dirs: [sh.axisW] });
-  out.report.push({ joint: J.label, type: 'welded', a: A.id, b: B.id, skewDeg: Math.round((Math.acos(Math.min(1, sh.cosI)) * 180) / Math.PI) });
+  out.report.push({ joint: J.label, type: 'welded', a: A.id, b: B.id, skewDeg: Math.round((dmath.acos(Math.min(1, sh.cosI)) * 180) / Math.PI) });
 }
 
 /** a ends in a plate bolted to b's face: four bolts, heads and washers on the plate, washers and nuts behind b's flange. */

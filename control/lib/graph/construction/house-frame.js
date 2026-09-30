@@ -33,6 +33,7 @@ import { buildConstructionModel } from './bim.js';
 import { ROOF_STYLES } from '../architecture/roof.js';
 import { layCovering, COVERINGS, validateCovering } from './roofing.js';
 import { validateDrainage } from './drainage.js';
+import * as dmath from '../../util/dmath.js';
 
 export const FRAMING_SYSTEMS = Object.freeze(['platform', 'masonry', 'post-and-beam', 'kigumi', 'steel', 'concrete']);
 export const FRAMING_VIEWS = Object.freeze(['framed', 'cutaway']);
@@ -324,7 +325,7 @@ function roofFrame(F, fp, ze, roof, r, { ceiling = null } = {}) {
   const Pw = (a, c, z) => (longX ? [a, c, z] : [c, a, z]);
   const acm = (wC0 + wC1) / 2, half = (wC1 - wC0) / 2;
   const p = roof.pitch || 0, oh = roof.eave ?? 1;
-  const cos = 1 / Math.hypot(1, p);
+  const cos = 1 / dmath.hypot(1, p);
   const lift = r.d / 2 / cos;                                         // the rafter's centreline over its seat
   const zAt = (dist) => ze + lift + p * dist;                         // dist: plan distance in from the eave wall
   const spec = { ...r.spec, up: [0, 0, 1] };
@@ -391,7 +392,7 @@ function wagoya(F, fp, ze, roof, r, { step, ties, strut, moya }) {
   const [wA0, wA1, wC0, wC1] = longX ? [fp.x0, fp.x1, fp.y0, fp.y1] : [fp.y0, fp.y1, fp.x0, fp.x1];
   const Pw = (a, c, z) => (longX ? [a, c, z] : [c, a, z]);
   const half = (wC1 - wC0) / 2, p = roof.pitch;
-  const cos = 1 / Math.hypot(1, p);
+  const cos = 1 / dmath.hypot(1, p);
   const hip = roof.framedAs === 'hip';
   // the underside of the rafters at plan distance d in from the eave wall
   const under = (d) => ze + p * d;
@@ -741,7 +742,7 @@ export function clipFacesAtX(faces, xc) {
  * footprint over the whole stack), or the cameras it was given. `focalPx` is the image half-width over tan(fov / 2).
  */
 export function houseEyes(fp, zLo, zHi, { cameras = null, width = 1120, unit = 0.3048 } = {}) {
-  const focal = (fov) => (width / 2) / Math.tan(((fov || 60) * Math.PI) / 360);
+  const focal = (fov) => (width / 2) / dmath.tan(((fov || 60) * Math.PI) / 360);
   if (Array.isArray(cameras) && cameras.length) {
     return cameras.filter((c) => c && c.worldFraming && Array.isArray(c.worldFraming.cameraPosition))
       .map((c) => ({ pos: c.worldFraming.cameraPosition.map((v) => v * unit), focalPx: focal(c.worldFraming.horizontalFov) }));

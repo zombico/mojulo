@@ -34,6 +34,7 @@ import { shadeHexMat } from '../polygonizer/vexar.js';
 import { frustumPolys, tubePolys } from './prims.js';
 import { resolveFabric, fabricTile, fabricError } from './fabric.js';
 import { hexRgb, rgbHex } from './timber.js';
+import * as dmath from '../../util/dmath.js';
 
 export const SOFT_KINDS = Object.freeze(['cushion', 'pillow', 'bolster', 'pad', 'custom']);
 export const FILLS = Object.freeze({
@@ -114,7 +115,7 @@ export function softFrame(s, unitScale) {
   // standing up, its thickness faces front (−y): its top face is the one a sitter leans on (and the one tufted)
   if (upright) ez = [0, -1, 0];
   if (dotV(crossV(ex, ey), ez) < 0) ey = ey.map((v) => -v);           // keep it a rotation
-  const t = ((s.tilt || 0) * Math.PI) / 180, ct = Math.cos(t), st = Math.sin(t);
+  const t = ((s.tilt || 0) * Math.PI) / 180, ct = dmath.cos(t), st = dmath.sin(t);
   const rx = (v) => [v[0], v[1] * ct + v[2] * st, -v[1] * st + v[2] * ct];  // a positive tilt leans the top back (+y)
   return { c, axes: [rx(ex), rx(ey), rx(ez)], size: [ext[X], ext[Y], ext[Z]], lo, hi };
 }
@@ -127,8 +128,8 @@ const toLocal = (Fr, w) => { const q = [w[0] - Fr.c[0], w[1] - Fr.c[1], w[2] - F
 function superellipse(a, b, n, k = 40) {
   const pts = [];
   for (let i = 0; i < k; i++) {
-    const t = (2 * Math.PI * i) / k, c = Math.cos(t), s = Math.sin(t);
-    pts.push([Math.round(a * Math.sign(c) * Math.abs(c) ** (2 / n) * 1e5) / 1e5, Math.round(b * Math.sign(s) * Math.abs(s) ** (2 / n) * 1e5) / 1e5]);
+    const t = (2 * Math.PI * i) / k, c = dmath.cos(t), s = dmath.sin(t);
+    pts.push([Math.round(a * Math.sign(c) * dmath.pow(Math.abs(c), 2 / n) * 1e5) / 1e5, Math.round(b * Math.sign(s) * dmath.pow(Math.abs(s), 2 / n) * 1e5) / 1e5]);
   }
   return pts;
 }
@@ -137,7 +138,7 @@ const r5 = (v) => Math.round(v * 1e5) / 1e5;
 /** A rounded rectangle's outline in the XY plane at height z → closed path (m). */
 function roundRectPath(hx, hy, r, z, per = 6) {
   const out = []; const cs = [[hx - r, hy - r, 0], [-(hx - r), hy - r, 1], [-(hx - r), -(hy - r), 2], [hx - r, -(hy - r), 3]];
-  for (const [cx, cy, q] of cs) for (let i = 0; i <= per; i++) { const a = (Math.PI / 2) * (q + i / per); out.push([cx + r * Math.cos(a), cy + r * Math.sin(a), z]); }
+  for (const [cx, cy, q] of cs) for (let i = 0; i <= per; i++) { const a = (Math.PI / 2) * (q + i / per); out.push([cx + r * dmath.cos(a), cy + r * dmath.sin(a), z]); }
   return out;
 }
 
@@ -154,7 +155,7 @@ export function softForm(s, size, unitScale) {
     const ends = w / 2 - rr * (1 - Math.SQRT1_2);
     return {
       terms: [{ id: 'body', op: 'add', shape: { kind: 'extrude', axisFrom: [r5(-w / 2 + rr), 0, 0], axisTo: [r5(w / 2 - rr), 0, 0], profile: { points: superellipse(R - rr, R - rr, 2, 32) } } }, { op: 'round', radius: r5(rr) }],
-      seams: [-1, 1].map((sg) => Array.from({ length: 25 }, (_, i) => { const a = (2 * Math.PI * i) / 24; return [sg * ends, (R - rr * (1 - Math.SQRT1_2)) * Math.cos(a), (R - rr * (1 - Math.SQRT1_2)) * Math.sin(a)]; })),
+      seams: [-1, 1].map((sg) => Array.from({ length: 25 }, (_, i) => { const a = (2 * Math.PI * i) / 24; return [sg * ends, (R - rr * (1 - Math.SQRT1_2)) * dmath.cos(a), (R - rr * (1 - Math.SQRT1_2)) * dmath.sin(a)]; })),
     };
   }
   if (s.kind === 'pillow' || (s.kind === 'cushion' && s.style === 'knife')) {
@@ -222,8 +223,8 @@ function tufting(s, size, surface, u) {
   // pleats: a shallow crease from each button to its neighbours in the next row (the diamond), or along rows and columns
   const pleat = [];
   for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) {
-    const a = at[i], b = at[j]; const d = Math.hypot(...a.p.map((v, k) => v - b.p[k]));
-    const next = T.pattern === 'grid' ? d < 1.05 * Math.min(A * (1 - 2 * margin) / Math.max(1, T.cols - 1), B * (1 - 2 * margin) / Math.max(1, T.rows - 1)) : Math.abs(a.row - b.row) === 1 && d < 1.2 * Math.hypot(A * (1 - 2 * margin) / Math.max(1, T.cols - 1) / 2, B * (1 - 2 * margin) / Math.max(1, T.rows - 1));
+    const a = at[i], b = at[j]; const d = dmath.hypot(...a.p.map((v, k) => v - b.p[k]));
+    const next = T.pattern === 'grid' ? d < 1.05 * Math.min(A * (1 - 2 * margin) / Math.max(1, T.cols - 1), B * (1 - 2 * margin) / Math.max(1, T.rows - 1)) : Math.abs(a.row - b.row) === 1 && d < 1.2 * dmath.hypot(A * (1 - 2 * margin) / Math.max(1, T.cols - 1) / 2, B * (1 - 2 * margin) / Math.max(1, T.rows - 1));
     if (!next) continue;
     const rr = depth * 0.35; const lift = (q) => q.p.map((v, k) => r5(v + q.n[k] * rr * 0.4));
     pleat.push({ op: 'subtract', blend: r5(rr), shape: { kind: 'capsule', a: lift(a), b: lift(b), radius: r5(rr) } });
@@ -284,7 +285,7 @@ export function lowerSoft(s, { unitScale, light, mat, fabric: frameFabric, railr
     // area and the divergence-theorem volume, from the two triangles
     for (const [a, b2, c] of [[W[0], W[1], W[2]], [W[0], W[2], W[3]]]) {
       const cr = crossV([b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
-      area += Math.hypot(...cr) / 2; vol += dotV(a, crossV(b2, c)) / 6;
+      area += dmath.hypot(...cr) / 2; vol += dotV(a, crossV(b2, c)) / 6;
     }
     const face = { corners: W.map((c) => c.map((v) => v * inv)), fill: shadeHexMat(textured ? peakHex : meanHex, q.n, mat, { light }), doubleSided: true, outNormal: q.n, group: s.id };
     if (textured) {

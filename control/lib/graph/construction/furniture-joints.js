@@ -19,6 +19,7 @@ import { hardwarePart, partPolys, boreTerm, bracketHoles, BOLT_LENGTHS } from '.
 import { tubePolys } from './prims.js';
 import { SHEETS } from './sheets.js';
 import { TIMBERS } from './timber.js';
+import * as dmath from '../../util/dmath.js';
 
 const MM = 0.001;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -444,7 +445,7 @@ function cornerJoint(J, A, B, out, kind) {
  * axis): the kernel reads a profile in perpBasisZ(axis) coordinates, so the corners are projected onto it.
  */
 function extrudeTerm(from, to, corners) {
-  const d = sub(to, from); const l = Math.hypot(d[0], d[1], d[2]) || 1; const u = [d[0] / l, d[1] / l, d[2] / l];
+  const d = sub(to, from); const l = dmath.hypot(d[0], d[1], d[2]) || 1; const u = [d[0] / l, d[1] / l, d[2] / l];
   const [e1, e2] = perpBasisZ({ x: u[0], y: u[1], z: u[2] });
   const U = [e1.x, e1.y, e1.z], V = [e2.x, e2.y, e2.z];
   const q = (v) => Math.round(v * 1e5) / 1e5;
@@ -544,8 +545,8 @@ function springsJoint(J, A, B, out) {
     const path = []; let wire = 0;
     for (let j = 0; j <= n; j++) {
       const t = j / n, y = y0 + t * span, env = Math.min(1, Math.min(t, 1 - t) * span / 0.03);   // straight into each clip
-      path.push([x + amp * env * Math.sin((2 * Math.PI * (y - y0)) / period), y, z0 + arc * 4 * t * (1 - t)]);
-      if (j) wire += Math.hypot(...path[j].map((v, q) => v - path[j - 1][q]));
+      path.push([x + amp * env * dmath.sin((2 * Math.PI * (y - y0)) / period), y, z0 + arc * 4 * t * (1 - t)]);
+      if (j) wire += dmath.hypot(...path[j].map((v, q) => v - path[j - 1][q]));
     }
     const id = `${J.label}:spring${i + 1}`;
     out.pieces.push({ id, kind: 'spring', host: F, material: 'hardware', finish: P.finish, code: P.code, massG: Math.round(P.gPerM * wire), polys: tubePolys(path, rw, { sides: 6 }).map((q) => ({ corners: q.corners.map((c) => L(F, c)), n: Ld(F, q.n) })) });

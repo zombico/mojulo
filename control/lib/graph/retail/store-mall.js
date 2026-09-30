@@ -14,6 +14,8 @@ import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 import { unitFrame } from './store-frame.js';
 import { subProgram } from './store-cells.js';
 import { fitOutFromConcept, storefrontLocal, STORE_DEFAULTS } from './store-concept.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 /**
  * cardFor(room, index) → a card or null (null leaves the unit as the plan drew it).
@@ -49,7 +51,9 @@ export function cardPlan(plan, cardFor = () => null, { seed = 1 } = {}) {
 }
 
 /** Storefronts + fit-outs for the bays of cardPlan. Sets `bay.store` (the assessor's input). */
-export function cardBayFaces(bays, o, { seed = 1, castBuilder = null, degrade = true, baseZ = 0 } = {}) {
+/** cardBayFaces on dmath: a mall bay's store is built as a standalone store is (util/math-scope.js). */
+export function cardBayFaces(bays, o, opts) { return withMath(dmath, () => cardBayFacesIn(bays, o, opts)); }
+function cardBayFacesIn(bays, o, { seed = 1, castBuilder = null, degrade = true, baseZ = 0 } = {}) {
   const faces = [];
   const ceil = o.wallHeight;
   for (const b of bays) {

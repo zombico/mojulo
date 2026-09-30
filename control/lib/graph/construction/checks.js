@@ -18,12 +18,13 @@
 import { TIMBERS } from './timber.js';
 import { sectionProps, STEEL } from './sections.js';
 import { SHEETS } from './sheets.js';
+import * as dmath from '../../util/dmath.js';
 
 const CONCRETE = { fc: 30e6, fy: 500e6, density: 2400, E: 4700 * Math.sqrt(30) * 1e6 };
 
 const G = 9.81;
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const deg = (c) => (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
+const deg = (c) => (dmath.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
 
 /**
  * spanChecks(members, supportsOf, { liveKNm, shelfKgM }) → [{ member, spanMm, deflMm, limitMm, ratio, stressMPa,
@@ -37,7 +38,7 @@ const deg = (c) => (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
 export function spanChecks(members, supportsOf, { liveKNm = 0, shelfKgM = null } = {}) {
   const out = [];
   for (const M of members) {
-    if (Math.abs(M.F.ex[2]) > Math.sin((15 * Math.PI) / 180)) continue;   // not level: a post or a brace
+    if (Math.abs(M.F.ex[2]) > dmath.sin((15 * Math.PI) / 180)) continue;   // not level: a post or a brace
     const xs = [...new Set(supportsOf(M.id).map((x) => Math.round(x * 1e4) / 1e4))].sort((a, b) => a - b);
     if (xs.length < 1) continue;
     // the section's depth is the one that stands vertical
@@ -50,17 +51,17 @@ export function spanChecks(members, supportsOf, { liveKNm = 0, shelfKgM = null }
       I = vz ? p.I : p.I * (M.W / M.D) ** 2; S = vz ? p.S : p.S * (M.W / M.D);
       E = STEEL.E; wSelf = p.mass * G; allow = (0.6 * p.Fy) / 1e6;
     } else if (M.material === 'concrete') {
-      I = 0.5 * (b * d ** 3) / 12; S = (b * d * d) / 6; E = CONCRETE.E; wSelf = CONCRETE.density * G * b * d;
+      I = 0.5 * (b * dmath.pow(d, 3)) / 12; S = (b * d * d) / 6; E = CONCRETE.E; wSelf = CONCRETE.density * G * b * d;
       const As = (M.cage ? M.cage.AsMm2 : 0) / 1e6, dEff = M.cage ? M.cage.dEffMm / 1000 : 0.9 * d;
       const a = (As * CONCRETE.fy) / (0.85 * CONCRETE.fc * b);
       capacity = As > 0 ? 0.9 * As * CONCRETE.fy * (dEff - a / 2) : 0;          // N·m
     } else if (SHEETS[M.material]) {
       const row = SHEETS[M.material];
-      I = (b * d ** 3) / 12; S = (b * d * d) / 6; E = row.E * 1e9; wSelf = row.density * G * b * d; allow = row.MOR / 3;
+      I = (b * dmath.pow(d, 3)) / 12; S = (b * d * d) / 6; E = row.E * 1e9; wSelf = row.density * G * b * d; allow = row.MOR / 3;
       if (shelfKgM !== null && vz) { shelf = true; creep = 1 + row.kdef; }     // lying flat: a shelf, not a rail on edge
     } else {
       const sp = TIMBERS[M.species];
-      I = (b * d ** 3) / 12; S = (b * d * d) / 6; E = sp.E * 1e9; wSelf = sp.density * G * b * d; allow = sp.MOR / 3;
+      I = (b * dmath.pow(d, 3)) / 12; S = (b * d * d) / 6; E = sp.E * 1e9; wSelf = sp.density * G * b * d; allow = sp.MOR / 3;
       if (shelfKgM !== null && vz && d < 0.04 && b > d) { shelf = true; creep = 1.6; }
     }
     const load = Number.isFinite(M.shelfKgM) ? M.shelfKgM : shelfKgM;
@@ -72,7 +73,7 @@ export function spanChecks(members, supportsOf, { liveKNm = 0, shelfKgM = null }
     if (hi - xs[xs.length - 1] > 0.05) cases.push({ L: hi - xs[xs.length - 1], kind: 'cantilever' });
     if (!cases.length) continue;
     const worst = cases.map((c) => {
-      const instant = c.kind === 'span' ? (5 * w * c.L ** 4) / (384 * E * I) : (w * c.L ** 4) / (8 * E * I);
+      const instant = c.kind === 'span' ? (5 * w * dmath.pow(c.L, 4)) / (384 * E * I) : (w * dmath.pow(c.L, 4)) / (8 * E * I);
       const defl = creep * instant;
       const limit = c.L / (c.kind === 'span' ? 300 : 150);
       // a shelf: the instant sag against span/600 (twice as strict), the long-term against span/300; judge by the worse
@@ -110,7 +111,7 @@ function bestDir(cs) {
  */
 export function assemblyOrder(ids, edges, { tolerance = 8, connected = false } = {}) {
   if (connected) return disassemblyOrder(ids, edges, { tolerance });
-  const cosTol = Math.cos((tolerance * Math.PI) / 180);
+  const cosTol = dmath.cos((tolerance * Math.PI) / 180);
   const pieces = new Set(edges.filter((e) => e.piece).map((e) => e.a));
   const members = ids.filter((id) => !pieces.has(id));
   // for member m and the placed set: the direction sets it must satisfy (reversed when m is the edge's b)
@@ -124,7 +125,7 @@ export function assemblyOrder(ids, edges, { tolerance = 8, connected = false } =
     return cs;
   };
   const spread = (cs) => bestDir(cs).spread;
-  const tolDeg = (Math.acos(cosTol) * 180) / Math.PI;
+  const tolDeg = (dmath.acos(cosTol) * 180) / Math.PI;
   const n = members.length;
   let lock = null;
   const seen = new Set();

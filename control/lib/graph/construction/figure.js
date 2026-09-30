@@ -15,6 +15,7 @@
 // stack of short ribbons up the log. A plane through the pith cuts them edge-on over long runs (the fleck); a plane
 // across the rings meets them as short lines.
 import { TIMBERS, ratioTo } from './timber.js';
+import * as dmath from '../../util/dmath.js';
 
 function mix(n) { n = Math.imul(n ^ (n >>> 16), 0x7feb352d); n = Math.imul(n ^ (n >>> 15), 0x846ca68b); return (n ^ (n >>> 16)) >>> 0; }
 const hash3 = (a, b, c) => mix((Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + Math.imul(c | 0, 1274126177)) | 0);
@@ -91,7 +92,7 @@ export function rayField(log) {
         const H = (12 + 48 * hf(h, 1)) / 1000; const zz = z + hf(h, 2) * H; const j = Math.floor(zz / H);
         if (hf(hash3(log.seed, kk, 1000 + j), 0) > 0.66) continue;
         const e = 2 * (zz / H - j) - 1; const w = w0 * Math.sqrt(Math.max(0, 1 - e * e));
-        const wave = 0.0012 * Math.sin((2 * Math.PI * s.rho) / (0.018 + 0.02 * hf(h, 3)) + 6.28 * hf(hash3(log.seed, kk, 2000 + j), 1));
+        const wave = 0.0012 * dmath.sin((2 * Math.PI * s.rho) / (0.018 + 0.02 * hf(h, 3)) + 6.28 * hf(hash3(log.seed, kk, 2000 + j), 1));
         const d = s.rho * (s.theta - thK) + wave;
         if (Math.abs(d) < Math.abs(best.d)) best = { d, w };
       }

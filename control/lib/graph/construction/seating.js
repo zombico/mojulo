@@ -16,6 +16,8 @@
 //   · tipping, three scenarios of ours (named as such, not a standard's): a 75 kg sitter perched on the front edge of
 //     an end seat; the same sitter leaning back hard (a 300 N push at the top of the back, their weight on the seat);
 //     and sitting on an arm.
+import * as dmath from '../../util/dmath.js';
+
 const G = 9.81;
 const SITTER = 75;
 const PUSH = 300;
@@ -59,7 +61,7 @@ export function seatingReport({ soft, boxes, J, kg, com, hull, seats: declared }
     const faces = backs.map((L) => ({ L, ...frontAt(L, top + 0.1, Math.min(Math.max(cx, L.frame.lo[0]), L.frame.hi[0])) }));
     const f = faces.reduce((a, b) => (b.y < a.y ? b : a));
     depth = f.y - front;
-    backAngle = 90 + (Math.asin(Math.max(-1, Math.min(1, f.n[2]))) * 180) / Math.PI;
+    backAngle = 90 + (dmath.asin(Math.max(-1, Math.min(1, f.n[2]))) * 180) / Math.PI;
   }
   // arms: soft parts beside the seat standing over it
   const arms = soft.filter((L) => !seatParts.includes(L) && (L.frame.hi[0] <= x0 + 0.005 || L.frame.lo[0] >= x1 - 0.005) && L.frame.hi[2] > top);

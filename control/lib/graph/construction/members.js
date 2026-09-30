@@ -19,6 +19,8 @@
 //   · { offset: [a, b], angle } — the section centre `offset` metres off the pith along the log's x and y, the width
 //     axis turned `angle` degrees from the log's x.
 // Default: boxed-heart for a timber (thin side 75 mm or more, or at least 0.6 of the wide side), flat for a board.
+import * as dmath from '../../util/dmath.js';
+
 
 const MM = 0.001;
 const SUN = 0.030303;   // one sun (寸), metres
@@ -44,7 +46,7 @@ export function stockSection(stock, unitScale) {
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 /**
@@ -82,7 +84,7 @@ export function cutError(cut) {
  */
 export function cutPose(cut, W, D) {
   const name = cut && typeof cut === 'object' ? 'custom' : (cut || (Math.min(W, D) >= 0.075 || Math.min(W, D) / Math.max(W, D) >= 0.6 ? 'boxed-heart' : 'flat'));
-  const rot = (deg) => { const a = (deg * Math.PI) / 180; return { wy: [Math.cos(a), Math.sin(a)], wz: [-Math.sin(a), Math.cos(a)] }; };
+  const rot = (deg) => { const a = (deg * Math.PI) / 180; return { wy: [dmath.cos(a), dmath.sin(a)], wz: [-dmath.sin(a), dmath.cos(a)] }; };
   const thinIsZ = D <= W;   // the thin axis: the wide faces are normal to it
   const T = Math.min(W, D), Wd = Math.max(W, D);
   switch (name) {
@@ -101,7 +103,7 @@ export function cutPose(cut, W, D) {
     }
     case 'rift': {
       const e = Wd / 2 + 0.03; const a = Math.PI / 4;
-      return thinIsZ ? { name, c: [e * Math.cos(a), e * Math.sin(a)], ...rot(0) } : { name, c: [e * Math.cos(a), e * Math.sin(a)], ...rot(90) };
+      return thinIsZ ? { name, c: [e * dmath.cos(a), e * dmath.sin(a)], ...rot(0) } : { name, c: [e * dmath.cos(a), e * dmath.sin(a)], ...rot(90) };
     }
     default: return { name, c: cut.offset.slice(), ...rot(Number.isFinite(cut.angle) ? cut.angle : 0) };
   }
@@ -113,7 +115,7 @@ export function poseReach(pose, W, D) {
   for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
     const x = pose.c[0] + pose.wy[0] * sy * W / 2 + pose.wz[0] * sz * D / 2;
     const y = pose.c[1] + pose.wy[1] * sy * W / 2 + pose.wz[1] * sz * D / 2;
-    r = Math.max(r, Math.hypot(x, y));
+    r = Math.max(r, dmath.hypot(x, y));
   }
   return r;
 }

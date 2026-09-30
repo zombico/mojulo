@@ -1,10 +1,12 @@
 // construction/prims — convex solids as local polygons, for the parts no boolean touches: bolts, plates, bars,
 // stirrups, bricks. { corners, n } in a member's local frame (metres), the shape frame.js dresses into World faces.
+import * as dmath from '../../util/dmath.js';
+
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const unit = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
 /** Two unit vectors square to `d` (any pair; deterministic). */
 export function across(d) {
@@ -42,14 +44,14 @@ export function prismPolys(from, to, ring) {
 export function frustumPolys(from, to, r0, r1, n = 12) {
   const d = unit(sub(to, from));
   const [u, v] = across(d);
-  const at = (c, r, i) => { const a = (2 * Math.PI * (i + 0.5)) / n; return add(c, add(scl(u, r * Math.cos(a)), scl(v, r * Math.sin(a)))); };
+  const at = (c, r, i) => { const a = (2 * Math.PI * (i + 0.5)) / n; return add(c, add(scl(u, r * dmath.cos(a)), scl(v, r * dmath.sin(a)))); };
   const A = Array.from({ length: n }, (_, i) => at(from, r0, i)), B = Array.from({ length: n }, (_, i) => at(to, r1, i));
   const polys = [];
-  const slope = (r0 - r1) / (Math.hypot(sub(to, from)[0], sub(to, from)[1], sub(to, from)[2]) || 1);
+  const slope = (r0 - r1) / (dmath.hypot(sub(to, from)[0], sub(to, from)[1], sub(to, from)[2]) || 1);
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     const mid = (2 * Math.PI * (i + 1)) / n;
-    const out = add(scl(u, Math.cos(mid)), scl(v, Math.sin(mid)));
+    const out = add(scl(u, dmath.cos(mid)), scl(v, dmath.sin(mid)));
     const nrm = unit(add(out, scl(d, slope)));
     // wind so the quad's own normal points out (u × v = d, counter-clockwise seen from `to`)
     if (r0 > 0 && r1 > 0) polys.push({ corners: [A[i], A[j], B[j], B[i]], n: nrm });
@@ -64,7 +66,7 @@ export function frustumPolys(from, to, r0, r1, n = 12) {
 /** A regular n-gon of radius r square to d. */
 export function ngon(d, r, n = 8) {
   const [u, v] = across(unit(d));
-  return Array.from({ length: n }, (_, i) => { const a = (2 * Math.PI * (i + 0.5)) / n; return add(scl(u, r * Math.cos(a)), scl(v, r * Math.sin(a))); });
+  return Array.from({ length: n }, (_, i) => { const a = (2 * Math.PI * (i + 0.5)) / n; return add(scl(u, r * dmath.cos(a)), scl(v, r * dmath.sin(a))); });
 }
 
 /** An axis-aligned box (local) as six quads with outward normals. */
@@ -88,7 +90,7 @@ export function boxPolys(center, size) {
  */
 export function tubePolys(path, r, { sides = 8, closed = false } = {}) {
   const P = path.slice();
-  if (closed && Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1], P[0][2] - P[P.length - 1][2]) < 1e-9) P.pop();
+  if (closed && dmath.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1], P[0][2] - P[P.length - 1][2]) < 1e-9) P.pop();
   const n = P.length; const rings = []; let ref = null;
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   for (let i = 0; i < n; i++) {
@@ -96,7 +98,7 @@ export function tubePolys(path, r, { sides = 8, closed = false } = {}) {
     const tg = unit([b[0] - a[0], b[1] - a[1], b[2] - a[2]]);
     if (!ref) ref = Math.abs(tg[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
     const u = unit(cross(tg, ref)); const v = cross(tg, u); ref = v;           // carry the frame along the path
-    rings.push(Array.from({ length: sides }, (_, k) => { const t = (2 * Math.PI * k) / sides; return add(P[i], add(scl(u, r * Math.cos(t)), scl(v, r * Math.sin(t)))); }));
+    rings.push(Array.from({ length: sides }, (_, k) => { const t = (2 * Math.PI * k) / sides; return add(P[i], add(scl(u, r * dmath.cos(t)), scl(v, r * dmath.sin(t)))); }));
   }
   const polys = [];
   for (let i = 0; i < (closed ? n : n - 1); i++) {

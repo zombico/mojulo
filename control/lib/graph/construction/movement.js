@@ -9,6 +9,7 @@
 //
 // Shrinkage is green → oven-dry (timber.js); moisture below the fibre saturation point scales it linearly.
 import { TIMBERS, FSP } from './timber.js';
+import * as dmath from '../../util/dmath.js';
 
 /**
  * movement(species, pose, W, D, { fromMC?: 'green' | %, toMC?: % }) →
@@ -24,7 +25,7 @@ export function movement(species, pose, W, D, { fromMC = 'green', toMC = 12 } = 
   const at = (y, z) => [pose.c[0] + pose.wy[0] * y + pose.wz[0] * z, pose.c[1] + pose.wy[1] * y + pose.wz[1] * z];
   // strain along a section direction v (a log-plane unit vector) at local (y, z)
   const strain = (y, z, v) => {
-    const q = at(y, z); const r = Math.hypot(q[0], q[1]);
+    const q = at(y, z); const r = dmath.hypot(q[0], q[1]);
     if (r < 1e-6) return (ST + SR) / 2;
     const c = (v[0] * q[0] + v[1] * q[1]) / r;                          // cos of the angle to the radius
     return ST * (1 - c * c) + SR * c * c;

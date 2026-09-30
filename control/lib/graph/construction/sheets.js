@@ -22,6 +22,7 @@ import { registerTextureResolver, encodePng } from '../landscape/surface-texture
 import { FINISHES, hexRgb } from './timber.js';
 import { makeLog } from './log.js';
 import { figureAt, rayField } from './figure.js';
+import * as dmath from '../../util/dmath.js';
 
 export const SHEETS = Object.freeze({
   particleboard: {
@@ -187,13 +188,13 @@ function osbAt(u, v, seed) {
     const h = mix((gu * 83492791) ^ (gv * 2971215073) ^ seed);
     const x0 = (gu + h3(gu, gv, seed)) * cu, y0 = (gv + h3(gv, gu, seed + 3)) * cv;
     const ang = (h3(gu, gv, seed + 5) - 0.5) * 0.7; const len = 60 + 40 * h3(gu, gv, seed + 9), wid = 14 + 10 * h3(gv, gu, seed + 11);
-    const dx = u - x0, dy = v - y0; const c = Math.cos(ang), s = Math.sin(ang);
+    const dx = u - x0, dy = v - y0; const c = dmath.cos(ang), s = dmath.sin(ang);
     const along = dx * c + dy * s, across = -dx * s + dy * c;
     if (Math.abs(along) > len / 2 || Math.abs(across) > wid / 2) continue;
     if (h <= top) continue;
     top = h;
     const tone = 0.82 + 0.26 * ((h % 1000) / 1000 - 0.5);
-    L = tone * (0.94 + 0.06 * Math.sin(across * 3.1 + (h % 7)));   // fibres along the strand
+    L = tone * (0.94 + 0.06 * dmath.sin(across * 3.1 + (h % 7)));   // fibres along the strand
   }
   return [L * 1.02, L, L * 0.95];
 }
@@ -202,8 +203,8 @@ function plyEdgeAt(u, depthMm, ply, longFirst) {
   const k = Math.floor(depthMm / ply), f = depthMm / ply - k;
   if (f < 0.06 || f > 0.94) return [0.62, 0.58, 0.52];              // glue line
   const long = (k % 2 === 0) === longFirst;
-  if (long) { const L = 0.95 + 0.04 * Math.sin(depthMm * 23 + k); return [L, L, L]; }
-  const L = 0.8 + 0.05 * Math.sin(u * 2.3 + k * 1.7);               // end grain: darker, dotted by fibre bundles
+  if (long) { const L = 0.95 + 0.04 * dmath.sin(depthMm * 23 + k); return [L, L, L]; }
+  const L = 0.8 + 0.05 * dmath.sin(u * 2.3 + k * 1.7);               // end grain: darker, dotted by fibre bundles
   return [L, L * 0.98, L * 0.95];
 }
 
@@ -244,8 +245,8 @@ export function bakeSheetKey(key) {
         else {
           const s = v / 1000, R = rot.R0 - (rot.t * s) / (2 * Math.PI * rot.R0), th = s / rot.R0, z = 0.1 + u / 1000;
           const px = p.tile / nu;
-          const q = [R * Math.cos(th), R * Math.sin(th), z];
-          c = figureAt(rot.log, rot.rays, q, [0, 0, px], [-Math.sin(th) * px, Math.cos(th) * px, 0]);
+          const q = [R * dmath.cos(th), R * dmath.sin(th), z];
+          c = figureAt(rot.log, rot.rays, q, [0, 0, px], [-dmath.sin(th) * px, dmath.cos(th) * px, 0]);
         }
       } else {
         const u = fu * EDGE_TILE * 1000, depth = fv * p.t;              // mm along the edge, mm from the bottom face
