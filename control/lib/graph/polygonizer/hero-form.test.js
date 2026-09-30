@@ -2,7 +2,8 @@
 // thickness is radial about the ring's own centre, lengths move joints only, the head scales uniformly, every move on
 // every cast in every register closes and stands. The canonical JSON byte pin lives with the docs (test-hero.mjs).
 import { describe, it, expect } from 'vitest';
-import { heroPlan, HERO_CASTS, HERO_MOVES, HERO_MOVE_NAMES, REGISTERS, TUNE_KEYS, TUNE_GROUPS, TUNE_RANGES, resolveTune, validateTune, tuneWarnings } from './hero-form.js';
+import { heroPlan, HERO_CASTS, HERO_MOVES, HERO_MOVE_NAMES, REGISTERS, TUNE_KEYS, TUNE_GROUPS, TUNE_RANGES, resolveTune, validateTune, tuneWarnings, BODY_DEFAULTS, BUST_MAX_OF_CHEST } from './hero-form.js';
+const castChest = (cast) => HERO_CASTS[cast]?.body?.chest ?? BODY_DEFAULTS.chest;
 import { CAST_PRESET_NAMES } from './figure-cast.js';
 import { expandPlan } from './station-loft-plan.js';
 import { compileLayered, auditLayered } from './station-loft.js';
@@ -107,6 +108,22 @@ describe('lengths move joints only; the soles stay on the ground', () => {
   it('legs 0.85 lowers the crown and keeps the soles', () => {
     const t = heroPlan({ cast: 'female', tune: { legs: 0.85 } });
     expect(crown(t)).toBeLessThan(crown(heroPlan({ cast: 'female' }))); expect(Math.abs(sole(expandPlan(t)))).toBeLessThan(0.02);
+  });
+});
+
+describe('the bust has a ceiling on every cast', () => {
+  // a runaway body.bust (5 m) used to build a mound metres wide; the ceiling is a share of the chest it sits on
+  it('refuses a bust past 0.4 × the chest radius by name, on every cast; at and under it the plan builds', () => {
+    for (const cast of Object.keys(HERO_CASTS)) {
+      const chest = castChest(cast);
+      expect(() => heroPlan({ cast, body: { bust: 5 } })).toThrow(new RegExp(`body\\.bust 5 is past its ceiling: at most 0\\.4 × the chest radius, ${+(0.4 * chest).toFixed(6)} m`));
+      expect(() => heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest * 1.01 } })).toThrow(/body\.bust .* is past its ceiling/);
+      expect(heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
+    }
+    // the ceiling follows a chest override and the anime casts, and a figure cast reads the default chest
+    expect(() => heroPlan({ cast: 'female', body: { chest: 0.25, bust: 0.09 } })).not.toThrow();
+    expect(() => heroPlan({ cast: 'female', proportions: 'anime', body: { bust: 0.09 } })).toThrow(/past its ceiling/);
+    expect(heroPlan({ cast: 'female', body: { bust: 0.05 } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
   });
 });
 

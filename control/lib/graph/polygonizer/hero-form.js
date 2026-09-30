@@ -53,6 +53,9 @@ export const HERO_CASTS = {
  * forearm's ring radius at the elbow and its swell; null takes the arm's, so the two thicknesses are separate controls
  * that agree by default. */
 export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, hipDepth: null, thigh: 0.086, calf: 0.067, arm: 0.061, forearm: null, neck: 0.066, bust: 0 };
+/** the bust's ceiling as a share of the chest radius it sits on: each mound centres 0.42 of the chest out, so at 0.4 it
+ * still stays on the chest; past it the number is a runaway (bust: 5 built a mound metres wide) */
+export const BUST_MAX_OF_CHEST = 0.4;
 
 /** ANIME PROPORTIONS (anime-form): the female and male casts re-proportioned for the anime head, as ratios of the
  * realistic casts, baked into the anime casts below so a tune stays a percentage of THEIR baseline. The head is larger
@@ -189,6 +192,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const g0 = girth * (preset?.girth ?? 1);
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);
   const b = { ...BODY_DEFAULTS, ...(preset?.body || {}), ...body };
+  if (b.bust > BUST_MAX_OF_CHEST * b.chest) throw new Error(`hero.plan: body.bust ${b.bust} is past its ceiling: at most ${BUST_MAX_OF_CHEST} × the chest radius, ${r6(BUST_MAX_OF_CHEST * b.chest)} m for this chest (${b.chest} m)`);
   // the tune's widths and thicknesses multiply the cast's radii. The forearm takes the arm's radius when it names none,
   // and the hip's profile depth derives from the UNTUNED hip, so `hips` widens the pelvis without deepening it (the
   // lab's contract: one control, one axis). Multiplying by 1 is exact in IEEE 754, so an untouched key changes no bytes.

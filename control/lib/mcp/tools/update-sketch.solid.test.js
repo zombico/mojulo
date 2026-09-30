@@ -465,8 +465,8 @@ describe('update_sketch on a hero minted through the hero door', () => {
     expect(chibi.hero.moved).toEqual({ upperArm: 1.2, forearm: 1.2, thigh: 1.2, calf: 1.2 }); expect(chibi.stats.closed).toBe(true);
   });
   // the child-coded casts guard: a child or chibi figure cast, or the anime 'kid' look, takes no bust, at mint and on an
-  // edit; the adult casts are unchanged
-  it('a child-coded figure refuses a bust by name, at mint and on an edit', async () => {
+  // edit; the adult casts take one up to the ceiling every cast has
+  it('a child-coded figure refuses a bust by name, at mint and on an edit; every cast refuses a runaway bust', async () => {
     for (const spec of [{ cast: 'child', body: { bust: 0.05 } }, { cast: 'chibi', body: { bust: 0.01 } }, { cast: 'female', head: 'anime', look: ['kid'], body: { bust: 0.12 } }, { cast: 'female', head: 'anime', look: 'kid', body: { bust: 5 } }]) {
       await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec })).rejects.toThrow(/body\.bust: the '(child|chibi)' cast is a child-coded figure and takes no bust|body\.bust: the 'kid' look is a child-coded figure and takes no bust/);
     }
@@ -476,6 +476,10 @@ describe('update_sketch on a hero minted through the hero door', () => {
     expect(adult.ok).toBe(true);
     await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/cast', value: 'child' }] })).rejects.toThrow(/body\.bust: the 'child' cast is a child-coded figure/);
     expect(SketchRepository.getByRef('hero-bust').manifest.hero.cast).toBe('female');   // the refused edit stored nothing
+    // every cast: a bust past 0.4 × the chest radius is a runaway number, refused by name at mint and on an edit
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', body: { bust: 5 } } })).rejects.toThrow(/body\.bust 5 is past its ceiling: at most 0\.4 × the chest radius, 0\.078 m/);
+    await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/body/bust', value: 0.5 }] })).rejects.toThrow(/body\.bust 0\.5 is past its ceiling/);
+    expect(SketchRepository.getByRef('hero-bust').manifest.hero.body.bust).toBe(0.05);
   }, 60000);
 });
 

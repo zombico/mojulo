@@ -139,8 +139,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `['athletic', { shoulders: 1.05 }]` is broader still. Comfortable ranges (stature / lengths / head 0.85–1.15, shoulders
   0.8–1.25, waist 0.8–1.2, hips / depth 0.85–1.2, thicknesses 0.65–1.5) ADVISE in `warnings`; nothing refuses but an
   unknown control or a ratio that is not a positive number. `body` stays for radii in metres (`waist`, `chest`, `chestDepth`,
-  `hip`, `hipDepth`, `thigh`, `calf`, `arm`, `forearm`, `neck`, `bust`; a child-coded figure, the `child` or `chibi` cast
-  or the anime `kid` look, takes no `bust`); `head` wears a baked include (the blank trunk otherwise).
+  `hip`, `hipDepth`, `thigh`, `calf`, `arm`, `forearm`, `neck`, `bust`; `bust` is at most 0.4 × the `chest` radius, and a
+  child-coded figure, the `child` or `chibi` cast or the anime `kid` look, takes no `bust`); `head` wears a baked include
+  (the blank trunk otherwise).
   The row stores `hero` (cast, register, the RESOLVED tune, the move trail) beside `plan` and `recipe`: patch
   `update_sketch { ref, patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.1 }] }` and the plan and recipe regenerate;
   the readout's `hero` answers in metres (`height_m`, `shoulder_m` across the yoke, `hip_m` across the pelvis) with the tune
