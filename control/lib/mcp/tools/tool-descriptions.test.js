@@ -267,7 +267,10 @@ const DESCRIPTION_ALLOWLIST = {
 // (rel/fix-stroke): update_sketch's patch schema lists the `solve` op its handler runs, with a one-line
 // `from` property, and its description gets back "Re-mint only for a side-by-side variant." and the
 // unaudited-levels note inside its 700-char ceiling. Pin moved by the measured growth, headroom unchanged.
-const PAYLOAD_CEILING = 267_619;
+// Re-pinned 2026-09-29 (267_619 -> 267_588; -31 measured, 267,330 -> 267,299) for the same branch:
+// create_sketch's manifest schema drops `required: ['title', 'viewBox']`, which bound diagrams only (the
+// diagram validator still refuses a diagram without them) and refused an exported world recipe's restore.
+const PAYLOAD_CEILING = 267_588;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
@@ -319,7 +322,7 @@ describe('tools/list description budget — the ratchet', () => {
 
 // A host that validates arguments against the listed inputSchema refuses an op the schema does not declare, so
 // the schema must list every op the handler takes: update_sketch's layered `solve` op (layered-strokes.js).
-describe('update_sketch lists the patch ops its handler runs', () => {
+describe('the sketch tools list schemas that admit what their handlers take', () => {
   // the subset of JSON Schema the patch items use: type, enum, properties, required, additionalProperties
   const accepts = (schema, v) => {
     if (schema.type === 'object') {
@@ -338,6 +341,13 @@ describe('update_sketch lists the patch ops its handler runs', () => {
     expect(accepts(item, { op: 'solve', from: '/strokes/b1', amp: 0.1, radius: 0.4 })).toBe(true);
     expect(accepts(item, { op: 'set', path: '/strokes/-', value: { id: 's1' } })).toBe(true);
     expect(accepts(item, { op: 'merge', path: '/x' })).toBe(false);   // the check itself refuses an undeclared op
+  });
+  it('create_sketch\'s manifest schema admits an exported world recipe; the handler still holds a diagram to title + viewBox', async () => {
+    const manifest = (await listedTools()).find((t) => t.name === 'create_sketch').inputSchema.properties.manifest;
+    expect(accepts(manifest, { kind: 'workbench', lathes: [{ id: 'cup', profile: [[0, 0], [0.04, 0], [0.04, 0.1]] }] })).toBe(true);
+    expect(accepts(manifest, { title: 'Flow', viewBox: { width: 400, height: 200 }, stations: [] })).toBe(true);
+    const { createSketchHandler } = await import('./sketches.js');
+    await expect(createSketchHandler({ title: 'Flow', manifest: { title: 'Flow', stations: [{ id: 'a', kind: 'process', label: 'A' }] } })).rejects.toThrow(/manifest\.viewBox is required/);
   });
   it('the description keeps its iterate-in-place guidance beside the stroke pointer', async () => {
     const d = (await listedTools()).find((t) => t.name === 'update_sketch').description;

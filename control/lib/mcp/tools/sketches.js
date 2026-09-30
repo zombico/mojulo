@@ -233,7 +233,8 @@ export function registerSketchTools() {
               },
             },
           },
-          required: ['title', 'viewBox'],
+          // no `required` here: title + viewBox bind diagrams only, and validateSketchManifest refuses a diagram
+          // without them; an exported world recipe restored through this door carries neither
         },
         preload: {
           oneOf: [
