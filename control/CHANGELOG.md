@@ -12,6 +12,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-30
+
 ### Upgrading from 2.x
 
 - **3.0.0 is the release after 2.1.0.** A 2.2 was prepared and never published; everything it carried
