@@ -31,6 +31,10 @@ describe('construction/facades — the built pieces, placeable', () => {
     expect(sofa.length).toBeLessThan(8000);                              // a whole sofa with every bolt is 27 000
     expect(centroid(sofa.filter((f) => f.group === 'seat-1'))[1]).toBeGreaterThan(centroid(sofa.filter((f) => f.group === 'back-1'))[1]);
     expect(facadeFaces('sofa', { w: 7, d: 3, h: 2.7 })).toBe(sofa);      // the cache
+    // a near size is its own entry, scaled to its own footprint: the same bytes whatever was drawn before it
+    const width = (fs) => bbox(fs.filter((f) => !['tv', 'lamp', 'pull'].includes(f.group))).size[0];
+    facadeFaces('sofa', { w: 7.0004, d: 3, h: 2.7 });
+    expect(width(facadeFaces('sofa', { w: 7.0001, d: 3, h: 2.7 }))).toBeCloseTo(7.0001, 9);
     const console0 = facadeFaces('media-console', { w: 5.5, d: 1.5, h: 1.8 });
     expect(console0.filter((f) => f.group === 'pull').length).toBe(12);   // a pull on each door
     expect(bbox(console0.filter((f) => f.group === 'tv')).lo[2]).toBeCloseTo(1.8, 6);   // standing on its top
