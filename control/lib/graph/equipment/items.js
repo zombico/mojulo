@@ -11,7 +11,8 @@ import { focalStone, recedeRole, focalGrow as growOf, lerp } from './principles.
 import { mulberry32, r3, P, A, circle, mat, mergeInto as merge, push, setStone, feather, ribbon, girdleOf } from './shapes.js';
 
 export const ITEMS = Object.freeze({ staff: { L: 175, R: 1.6 }, bow: { L: 180, W: 3.0, T: 2.2, brace: 16 }, shield: { R: 38, H: 72, T: 1.8 } });
-const GEMLESS_HEADS = ['plain', 'mace', 'ringed'];
+/** the staff heads that carry no stone (every other head cradles one) */
+export const GEMLESS_HEADS = Object.freeze(['plain', 'mace', 'ringed']);
 
 // ---------------------------------------------------------------- staff
 function staff(m, { d, law, roles, gem, lang, minF, focalGrow, rng }) {

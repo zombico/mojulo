@@ -124,6 +124,15 @@ export const VARIANTS = Object.freeze({
   device: ['none', 'chevron', 'rays', 'bands', 'spikes', 'mon', 'wings', 'vine'],
 });
 export const BARK_SPECIES = Object.freeze(['beech', 'oak', 'pine', 'chestnut', 'spruce', 'silverfir', 'pineUpper']);
+/** The counts and multipliers a card or a build may name, bounded so a runaway number is refused by name, not built. */
+export const COUNTS = Object.freeze({ limbs: [1, 8], twigs: [0, 6] });
+const EDGE_COUNTS = Object.freeze({ barbs: [0, 12] });
+const LEAN = Object.freeze({ keys: ['W', 'T', 'L', 'span', 'grip', 'pommel'], min: 0.25, max: 4 });
+/** why a count slot (limbs, twigs) is out of range, or null */
+export function countError(slot, v, p) {
+  const [lo, hi] = COUNTS[slot];
+  return Number.isInteger(v) && v >= lo && v <= hi ? null : `${p}.${slot}: an integer ${lo}–${hi}`;
+}
 const SHELF = (v) => Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && /^#[0-9a-fA-F]{6}$/.test(v[1]);
 const ROLE = (v) => SHELF(v) || (isMetalSurface(v) && !metalSurfaceError(v));
 
@@ -134,9 +143,20 @@ export function validateStyleCard(card, path = 'style') {
   const d = card.dials || {};
   if (d.stylize !== undefined && !(Number.isFinite(d.stylize) && d.stylize >= 0 && d.stylize <= 1)) errs.push(`${path}.dials.stylize: a number 0–1`);
   if (d.mass !== undefined && !(Number.isFinite(d.mass) && d.mass >= 0.5 && d.mass <= 2)) errs.push(`${path}.dials.mass: a number 0.5–2`);
+  if (d.ornament !== undefined && !(Number.isInteger(d.ornament) && d.ornament >= 0 && d.ornament <= 3)) errs.push(`${path}.dials.ornament: an integer 0–3`);
+  // the edge and the lean multiply geometry (barbs are scanned at every blade station, a grip's wire turns grow with its
+  // length), so each is bounded
+  const edge = card.edge || {};
+  for (const k of ['fuller', 'bevel']) if (edge[k] !== undefined && !(Number.isFinite(edge[k]) && edge[k] >= 0 && edge[k] <= 1)) errs.push(`${path}.edge.${k}: a number 0–1`);
+  for (const [k, [lo, hi]] of Object.entries(EDGE_COUNTS)) if (edge[k] !== undefined && !(Number.isInteger(edge[k]) && edge[k] >= lo && edge[k] <= hi)) errs.push(`${path}.edge.${k}: an integer ${lo}–${hi}`);
+  for (const [k, v] of Object.entries(card.lean || {})) {
+    if (!LEAN.keys.includes(k)) errs.push(`${path}.lean.${k}: not a lean — use ${LEAN.keys.join(', ')}`);
+    else if (!(Number.isFinite(v) && v >= LEAN.min && v <= LEAN.max)) errs.push(`${path}.lean.${k}: a multiplier ${LEAN.min}–${LEAN.max}`);
+  }
   const lang = card.language || {};
   const checkSlots = (o, p) => { for (const [slot, v] of Object.entries(o || {})) {
     if (VARIANTS[slot] && !VARIANTS[slot].includes(v)) errs.push(`${p}.${slot}: '${v}' is not one of ${VARIANTS[slot].join(', ')}`);
+    if (COUNTS[slot]) { const e = countError(slot, v, p); if (e) errs.push(e); }
     if (slot === 'bark' && !BARK_SPECIES.includes(v)) errs.push(`${p}.bark: '${v}' is not one of ${BARK_SPECIES.join(', ')}`);
     if ((slot === 'shaft' || slot === 'board') && !ROLE(v)) errs.push(`${p}.${slot}: a role is ['<material>', '#rrggbb']`); } };
   checkSlots(lang, `${path}.language`);
