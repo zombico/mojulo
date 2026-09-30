@@ -94,8 +94,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `figure.gd`) sets the authored face from the mesh extras on ready (Godot ignores the file's default weights) and,
   over a clip whose eyes hold the authored face (`extras.face.ambientOver`), layers `face:ambientBlink` through an
   AnimationTree filtered to the eye shapes; the machine gate's figure probe checks the blend shapes, the face at ready,
-  the face tracks, the durations and the layer. `docs/examples/humanoid/view-animations.mjs` turns the skinned GLB into
-  a page that plays it as an engine does, the face panel included. `scripts/export-wire-svg.mjs --ref <ref> --clip
+  the face tracks, the durations and the layer. In a source checkout (`docs/` is not in the npm package),
+  `docs/examples/humanoid/view-animations.mjs` turns the skinned GLB into a page that plays it as an engine does, the
+  face panel included; that page loads three.js from jsdelivr. `scripts/export-wire-svg.mjs --ref <ref> --clip
   crouch --phase 0.5` draws a posed frame.
   The World page plays the clips in place (`?clip=<name>`, or the selector in the corner; "rest" shows the solid). On
   a hero, a clip named `gesture` is the STAND (below): the World and the static exports show the solid skinned at its

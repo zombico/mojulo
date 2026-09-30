@@ -50,6 +50,17 @@ describe('mint_solid consolidation', () => {
     await expect(getSolidVocabHandler({ id: 'nope' })).rejects.toThrow(/unknown card/);
   });
 
+  // the npm package ships no docs/: a card that points at a repo-only docs script says so, and says what that script's
+  // page fetches (the layered card's animations viewer loads three.js from jsdelivr)
+  it('a card pointing at a repo-only docs script says it is source-checkout only, and what its page fetches', async () => {
+    const { card } = await getSolidVocabHandler({ id: 'layered' });
+    const at = card.body.indexOf('view-animations.mjs');
+    expect(at).toBeGreaterThan(-1);
+    const around = card.body.slice(Math.max(0, at - 200), at + 300).replace(/\s+/g, ' ');
+    expect(around).toMatch(/In a source checkout \(`docs\/` is not in the npm package\)/);
+    expect(around).toMatch(/loads three\.js from jsdelivr/);
+  });
+
   it('every solid-vocab card id matches a mint_solid kind or edit_solid op', async () => {
     const list = await getSolidVocabHandler({});
     const known = new Set([...Object.keys(SOLID_KINDS), ...Object.keys(EDIT_OPS)]);
