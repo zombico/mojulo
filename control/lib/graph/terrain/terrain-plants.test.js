@@ -157,6 +157,7 @@ describe('the manifest teaches', () => {
     expect(validateTerrainPlants(true, { ...w, planet: true }).join(' ')).toMatch(/for flat worlds/);
     expect(validateTerrainPlants({ radius: 50 }, w).join(' ')).toMatch(/radius must be 200–3000/);
     expect(validateTerrainPlants({ level: 'L3' }, w).join(' ')).toMatch(/level must be L0, L1 or L2/);
+    expect(validateTerrainPlants({ variants: 1.5 }, w).join(' ')).toMatch(/variants must be an integer 1–4/);
     expect(validateTerrainPlants('yes', w).join(' ')).toMatch(/must be true or/);
     expect(Object.keys(PLANT_CLIMATES).sort()).toEqual(['alpine', 'arid', 'boreal', 'temperate', 'tropical']);
   });

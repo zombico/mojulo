@@ -97,5 +97,7 @@ describe('terrain: grass is opt-in', () => {
     expect(resolveTerrainGrass({ radius: 40 }).radius).toBe(40);
     expect(resolveTerrainGrass({ style: 'stylized' }).density).toBe(5); expect(resolveTerrainGrass({ style: 'stylized', density: 2 }).density).toBe(2);
     expect(validateTerrainGrass({ style: 'anime' }, { world: {} })[0]).toMatch(/style must be one of natural, stylized/);
+    expect(validateTerrainGrass({ variants: 2.5 }, { world: {} })[0]).toMatch(/variants must be an integer 1–4/);   // a fraction 500'd every live page
+    expect(validateTerrainGrass({ variants: 4 }, { world: {} })).toEqual([]);
   });
 });

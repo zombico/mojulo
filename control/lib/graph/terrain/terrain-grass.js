@@ -68,7 +68,7 @@ export function validateTerrainGrass(grass, manifest = {}) {
   num('near', 2, 40, 'metres within which every tuft stands; past it they thin as the distance squared, the survivors widened');
   num('density', 0.5, 20, 'tufts a square metre of full meadow');
   num('cover', 0, 1, 'how much of the open ground holds grass: its meadows, not a carpet');
-  num('variants', 1, 4, 'grown tufts per kind');
+  if (grass.variants !== undefined && !(Number.isInteger(grass.variants) && grass.variants >= 1 && grass.variants <= 4)) e.push('terrain.grass.variants must be an integer 1–4 (grown tufts per kind)');
   if (grass.style !== undefined && !GRASS_STYLES.includes(grass.style)) e.push(`terrain.grass.style must be one of ${GRASS_STYLES.join(', ')} (stylized: chunky standing blades in a saturated gradient, lit as the ground)`);
   if (grass.kinds !== undefined) {
     const ids = Object.keys(GRASSES);
