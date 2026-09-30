@@ -33,8 +33,8 @@ Prerequisite: **Node.js 22.12+** (`node --version`). Everything below runs throu
 [nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
 No provider key: your agent is the reasoning loop. Verified on macOS (Apple Silicon),
 on native Windows (`init` and a first render, under Claude Code), and on Linux x64 in
-the agent boxes of the Claude app and web, ChatGPT work mode with Codex, Grok chat and Meta Muse,
-each run to a mint and an export; a cold install is also checked on Linux arm64.
+the agent boxes of the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and
+Google AI Studio, each run to a mint and an export; a cold install is also checked on Linux arm64.
 
 ```bash
 # 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
@@ -54,16 +54,17 @@ npx mojulo init
 
 # 2. In an agent session, just ask:
 #      what is this?                      → mojulo orients itself, out loud
-#      make me a coffee mug, 90 mm tall   → a solid; download the .stl
-#      generate a 3D city at night        → a world; open the /scene URL
+#      build an oak table, exploded       → a jointed frame; see how it goes together
+#      build a New York-style city        → a world; walk it at /world
 #      turn that into a game              → a game; export it for Godot
 
 # 3. In your agent's own box with an MCP client (Claude Code on the web, a
-#    Codex cloud task), nobody is at a keyboard — init takes its defaults and
-#    skips the dashboard:
+#    Codex cloud task), nobody is at a keyboard, so init needs --yes (without
+#    it, init only prints its plan) and --no-ui skips the dashboard:
 #      npx -y mojulo init --yes --no-ui
 #    A box with no MCP client (Grok chat, ChatGPT work mode, the Claude app,
-#    Meta Muse) skips init and drives the same registry from the shell:
+#    Meta Muse, Google AI Studio) skips init and drives the same registry from
+#    the shell:
 #      npx mojulo orient                    # read first: the connect preamble, as shell
 #      npx mojulo call forward_context      # the routing index
 #      npx mojulo call <tool> --json '{…}'

@@ -6,7 +6,7 @@
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
 
-Mojulo is a **3D compiler for coding agents**: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read, byte for byte, and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
+Mojulo is a **3D compiler for coding agents**: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read, byte for byte, and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
 
 ## Quickstart
 
@@ -18,7 +18,7 @@ Needs **Node 22.12+** and an MCP-capable coding agent (Claude Code or Codex; Cla
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo`. It starts the same server pinned to one version ([plugins/mojulo](plugins/mojulo/README.md)). The plugin build leaves out the handoff tools for AI image, voice and mesh generators and never downloads a browser, ffmpeg or the search model on its own. Use the plugin or `init` for Claude Code, not both: two registrations run two servers.
 
-The first install is the big one: npx pulls a ~7 MB package that lands, with its dependencies, at about 227 MB on disk plus about 140 MB of npm cache (about 79 MB downloaded; measured for 3.0.0 on one macOS arm64 machine, where a cold start answered in about 4.5 s, nearly all of it npm's install). The biggest pieces are `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat and Meta Muse.
+The first install is the big one: npx pulls a ~7 MB package that lands, with its dependencies, at about 227 MB on disk plus about 140 MB of npm cache (about 79 MB downloaded; measured for 3.0.0 on one macOS arm64 machine, where a cold start answered in about 4.5 s, nearly all of it npm's install). The biggest pieces are `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and Google AI Studio.
 
 <details>
 <summary>Wire it by hand instead</summary>
@@ -53,8 +53,8 @@ other. Two shapes, one install.
 **In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
 Linux box it gives itself:
 
-- The Claude app (macOS, Windows, web, iOS); Grok chat; Meta Muse (iOS, web, macOS app, one session
-  across all three): *Open a Linux box and install the mojulo npm package in it.*
+- The Claude app (macOS, Windows, web, iOS); Grok chat; Google AI Studio; Meta Muse (iOS, web, macOS
+  app, one session across all three): *Open a Linux box and install the mojulo npm package in it.*
 - ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
   it.*
 
@@ -85,6 +85,7 @@ agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not
 | Hermes Agent | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> | | |
 | Grok (Build; chat) | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> Build | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
 | Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="persistent" title="persistent" src="docs/images/tick-green.svg" width="14"> |
+| Google AI Studio | | | <img alt="ephemeral" title="ephemeral" src="docs/images/tick-blue.svg" width="14"> |
 
 Two things are opt-in, and the choice is the same in both places:
 
@@ -99,26 +100,11 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 
 **Upgrading from 2.x?** Read [Upgrading from 2.x](control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.0 on its next start, and 3.0 re-encrypts saved provider keys so 2.x can no longer read them.
 
-## Six things to say to it
+## Five things to say to it
 
 Each one is a sentence to your agent, the tool it reaches for, and the recipe that gets stored. Every example below runs keyless and offline.
 
-### 1. "Make me a coffee mug, 90 mm tall"
-
-The agent calls `mint_solid { kind: 'workbench' }`. This is the whole stored recipe: a lathe for the body, a sweep for the handle, real centimetres.
-
-```json
-{ "units": "cm",
-  "lathes": [ { "axisFrom": { "x": 0, "y": 0, "z": 0 }, "axisTo": { "x": 0, "y": 0, "z": 9 },
-                "profile": [ { "t": 0, "radius": 3.6 }, { "t": 0.15, "radius": 4 }, { "t": 1, "radius": 4 } ],
-                "tint": "#b8342c", "material": "satin" } ],
-  "sweeps": [ { "path": [ [3.8, 0, 2.2], [6.2, 0, 3.2], [6.6, 0, 5.2], [5.4, 0, 7.0], [3.8, 0, 7.4] ],
-                "radius": 0.6, "tint": "#b8342c", "material": "satin" } ] }
-```
-
-It is served shaded and turnable at `/sketches/<ref>`, and the same ref downloads as `model.stl` or `model.3mf` at 90 mm tall, z-up, slicer-ready. "Make the handle thicker" is `update_sketch` setting one `radius`; nothing is re-minted. `measure_solid` reads wall thickness, overhangs and closure off the recipe before you print, and if a slicer is installed the print gate stamps layers, time and filament beside the file. A bore through the body is a `cuts` line naming the body and the sweep that bores it; `exact: true` on that line composes it with Manifold instead of the sampled grid, so the lip is a true circle and a 40 mm disc measures 40, in the viewer, the `.glb` and the print.
-
-### 2. "Write me a Raspberry Pi 4 case tray in OpenSCAD"
+### 1. "Write me a Raspberry Pi 4 case tray in OpenSCAD"
 
 The agent calls `mint_solid { kind: 'scad' }` and the program is the recipe, stored verbatim:
 
@@ -142,7 +128,7 @@ module standoffs() {
 
 with `parts: { tray: 'tray();', standoffs: 'standoffs();' }`. OpenSCAD itself meshes it on every read, in-process as WebAssembly with the Manifold backend, so booleans are exact and every edge is sharp. `color()` is the tint; each named part is a render group a hinge in `movers` can swing. The same ref serves the orbit view, the `.glb`, the engine packs and `model.stl` at 91 × 62 × 14 mm as written; `model.scad` hands the source back unchanged. Change `wall_h` with `update_sketch` and the readout names the one part that moved. For what OpenSCAD cannot say, a blended join, a stroked dent, seeded noise, the source calls `mojulo_field("<id>")` and a field solid from the same recipe is baked in at that spot.
 
-### 3. "Build a 20 by 24 ft living room with a door on the south wall"
+### 2. "Build a 20 by 24 ft living room with a door on the south wall"
 
 That is the GIF at the top. The agent calls `create_sketch { title, manifest: { kind: 'floorplan', … } }` and the stored manifest is this:
 
@@ -155,19 +141,29 @@ That is the GIF at the top. The agent calls `create_sketch { title, manifest: { 
 
 The `L` glyph and the seed furnish it: sofa, two chairs, rug, lamp, windows. "Add pot lights to the ceiling" adds `"potLights": true` and nothing else changes. `"levels": [...]` stacks it into a building with stairs through the slabs. The same recipe walks in the browser at `/world`, exports as a `.glb`, or goes to Blender as an art-pass pack, where a Cycles bake can write traced light back into the mesh's own vertex colours so the lit result runs anywhere at zero runtime cost.
 
-### 4. "Generate a 3D city at night"
+### 3. "Build an oak dining table and show me how it goes together"
 
-The agent calls `compose_world { base: 'city', seed: 42, overrides: { context: { time: 'night', locale: 'east-asia' }, asset: { anchor: 'tower' }, fog: true } }`. The whole city is a pure function of the seed: change it for a new city, keep it and the same city regrows on any machine. Open the `/scene` URL for a dependency-free CSS-3D render, or `/world` to walk it with WASD. Bases besides `city`: a transport hub, a K-12 campus, a torch-lit dungeon, a planetary body, a painted landscape, a walkable Cayley graph of a finite group.
+![An oak dining table in an exploded view: the top lifted clear, the four aprons pulled out of the legs with their tenons showing, and the angle brackets and screws floating where they fasten, on the World page](docs/images/oak-table-exploded.jpg)
+
+The agent calls `mint_solid { kind: 'workbench' }` with one frame, and `build` writes the members and the joints:
+
+```json
+{ "units": "mm",
+  "frames": [ { "id": "table", "unit": "mm", "explode": 90,
+                "build": { "type": "table", "w": 1400, "d": 800, "h": 750, "species": "oak" } } ] }
+```
+
+The legs take the aprons on mortise and tenon, sized so the tenons stop short of each other inside the leg, and the top sits on angle brackets. Every joint is cut through the exact kernel, and the oak is sawn from a synthetic log, so its figure and its movement follow the cut. `explode: 90` pulls each piece 90 mm back along the way it seats; set it to 0 and the table stands assembled. The report is advisory, never a refusal: each member's cut and movement, a span check, the order the pieces go together, tipping, the hardware list and a cut list. The same `frames` entry builds carcasses with doors and drawers, sofas with their upholstery, a kigumi frame, steel and masonry. Gather the piece into a stash and cook `instruction_manual` for its wordless assembly pages, or set `layout: 'kit'` to print it flat as a model kit.
+
+### 4. "Build a New York-style city at real scale"
+
+![An aerial view of a generated New York-style metro: brick walk-ups with wooden water tanks on their roofs, glass and Art Deco towers, and avenues with traffic, from one compose_world call](docs/images/metro-new-york-aerial.jpg)
+
+The agent calls `compose_world { base: 'city', seed: 11, overrides: { profile: 'metro', flavor: 'new-york' } }`. `metro` builds it in proportion at about 0.8 × 0.5 km, and the flavor picks the architecture: brick walk-ups, fire escapes, water tanks and Art Deco setbacks here, or `paris`, `london`, `tokyo` and more. The whole city is a pure function of the seed: change it for a new city, keep it and the same city regrows on any machine. `context: { time: 'night' }` lights it for night, and `asset: { monument: 'eiffel-tower' }` stands a landmark at its real size. Open `/world` to walk it with WASD or jump between its street, aerial and skyline views. Bases besides `city`: a transport hub, a K-12 campus, a torch-lit dungeon, a planetary body, a painted landscape, terrain at real scale, a walkable Cayley graph of a finite group.
 
 ### 5. "Make it walkable, then make it a game, then export it for Godot"
 
 `compose_world { base: 'controllable' }` gives a live world you drive. Adding `game: { mechanics: [...] }` to a world makes it a level: reach the exit, survive twenty seconds, collect the relay core. `create_game` binds levels, a synthesized score and figures into one playable artifact with a typed store (inventory, party, flags) that carries between levels; every level must pass a contract dry-run and a traversal that reached the win condition before the game mints. `export_game { target: 'godot' }` writes a real Godot 4 project you open and extend. Unity and Unreal get the same data pack plus an importer; the worked Unreal example is [docs/examples/unreal-night-run/](docs/examples/unreal-night-run/).
-
-### 6. "Create a snowman with a top hat"
-
-![A terminal prompt — "create a snowman with a top hat" — becomes a bonded part-graph recipe, then the shaded snowman in the dashboard viewer with turnable views and HTML / glb / STL downloads — no API key, no image model](docs/images/snowman-demo.gif)
-
-`mint_solid` as a part graph: three snowballs, a brimmed hat, twig arms, a carrot nose, coal buttons, a scarf, each part placed by relation to its parent rather than by coordinates. Coloration iterates in place on the same ref. Same doors out: HTML viewer, `.glb`, `.stl`.
 
 **Also from a sentence:** a posed human figure or an animal mid-stride, rigged for glTF or VRM; a six-storey building with a set-back penthouse; an ambient loop or a full score synthesized from seeded math with no samples; a room's layout recovered from a photo you show your agent. The full catalog is in [docs/tour.md](docs/tour.md).
 
