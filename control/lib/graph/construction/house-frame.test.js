@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { FRAMING_SYSTEMS, planHouseFraming, validateFraming, clipFacesAtX } from './house-frame.js';
 import { validateFrames } from './frame.js';
@@ -50,6 +51,10 @@ describe('construction/house-frame — the structure under a house', () => {
   it('is absent unless asked for: no framing key, the same faces', () => {
     const plain = house();
     expect(plain.framing).toBeUndefined();
+    // the same faces as before framing existed: hashes captured at 23fd35b
+    const sha = (faces) => createHash('sha256').update(JSON.stringify(faces)).digest('hex').slice(0, 16);
+    expect(sha(plain.faces)).toBe('8ec8e5ab0925809e');
+    expect(sha(house({ roof: undefined }).faces)).toBe('7457b088c1e505d4');
     expect(JSON.stringify(house({ framing: false }).faces)).toBe(JSON.stringify(plain.faces));
   });
 

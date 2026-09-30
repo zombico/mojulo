@@ -1,5 +1,6 @@
 // Roofs, drainage and ceilings: coverings laid as tiles at the render ladder's levels, the maps, gutters and drains by
 // tradition, the steel and concrete houses' hung ceilings, and a framed roof decked, battened and covered by stage.
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { layCovering, COVERINGS, COVERING_KEYS, coveringOf, validateCovering, bakeCoveringKey, coveringKey } from './roofing.js';
 import { planDrainage, roofDrainLines, validateDrainage, DRAINAGE_TRADITIONS } from './drainage.js';
@@ -131,8 +132,11 @@ describe('drainage', () => {
   });
 
   it('adds nothing when absent, and validates', () => {
-    const a = house({ roof: 'mission' }), b = house({ roof: 'mission', drainage: undefined });
-    expect(JSON.stringify(b.faces)).toBe(JSON.stringify(a.faces));
+    // absent, the house is the one it was before roofs were covered and drained: hashes captured at 23fd35b
+    const sha = (faces) => createHash('sha256').update(JSON.stringify(faces)).digest('hex').slice(0, 16);
+    const a = house({ roof: 'mission' });
+    expect(sha(a.faces)).toBe('8ec8e5ab0925809e');
+    expect(sha(house({ roof: 'bungalow', view: 'exterior' }).faces)).toBe('e1fad9e5078d783c');
     expect(a.drainage).toBeUndefined();
     expect(validateDrainage({ tradition: 'martian' })[0]).toMatch(/tradition/);
     expect(validateDrainage({ outlet: 'gully' })).toEqual([]);

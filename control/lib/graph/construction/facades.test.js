@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { facadeFaces, facadeRecipe, FACADE_KINDS } from './facades.js';
 import { roomFurnitureAssetFaces, getRoomFurnitureAsset } from '../architecture/room-assets.js';
@@ -11,6 +12,8 @@ const bbox = (faces) => {
   return { lo, hi, size: lo.map((v, k) => hi[k] - v) };
 };
 const centroid = (faces) => [0, 1, 2].map((k) => faces.reduce((s, f) => s + f.corners[0][k], 0) / faces.length);
+/** Without `furnishing`, a room and a condo are the ones they were before facades: hashes captured at 23fd35b. */
+const sha = (faces) => createHash('sha256').update(JSON.stringify(faces)).digest('hex').slice(0, 16);
 
 describe('construction/facades — the built pieces, placeable', () => {
   it('fits every kind to its footprint, on the floor, with none of its fittings', () => {
@@ -49,7 +52,9 @@ describe('construction/facades — the built pieces, placeable', () => {
     expect(getRoomFurnitureAsset('upholstered-sofa').id).toBe('constructed-sofa');
     const ONE = { width: 24, height: 28, rooms: [{ x: 2, y: 2, w: 20, h: 24, glyph: 'L' }], doors: [{ x: 12, y: 26, room: 0, edge: 'S' }] };
     const assets = (s) => new Set(s.faces.map((f) => f.group).filter((g) => /^asset:/.test(g)).map((g) => g.split(':')[1]));
-    const plain = assets(structurizeFloorplan(ONE, { furnish: true }));
+    const room = structurizeFloorplan(ONE, { furnish: true });
+    expect(sha(room.faces)).toBe('b3cbfe6b82f513bd');
+    const plain = assets(room);
     const built = assets(structurizeFloorplan(ONE, { furnish: true, furnishing: 'constructed' }));
     expect([...plain].some((a) => a.startsWith('constructed-'))).toBe(false);
     for (const a of ['constructed-sofa', 'constructed-armchair', 'constructed-coffee-table', 'constructed-media-console', 'constructed-bookcase']) expect(built.has(a)).toBe(true);
@@ -62,6 +67,7 @@ describe('construction/facades — the built pieces, placeable', () => {
   });
   it('furnishes a condo\'s units with `furnishing: \'constructed\'`, and leaves it alone without', () => {
     const plain = buildFractalCondoFaces({ seed: 7 }).faces;
+    expect(sha(plain)).toBe('97b66d5824337228');
     const built = buildFractalCondoFaces({ seed: 7, furnishing: 'constructed' }).faces;
     expect(plain.some((f) => f.group === 'seat-1')).toBe(false);
     expect(built.some((f) => f.group === 'seat-1')).toBe(true);
