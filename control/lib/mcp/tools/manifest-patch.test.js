@@ -157,4 +157,20 @@ describe('applyManifestPatch — refusals name the op and the reason', () => {
   it('parsePointer unescapes ~1 and ~0', () => {
     expect(parsePointer('/a~1b/c~0d/0', 'p')).toEqual(['a/b', 'c~d', '0']);
   });
+
+  it('a pointer or merge key into the prototype chain is refused and leaves Object.prototype untouched', () => {
+    const ops = [
+      { op: 'set', path: '/__proto__/polluted', value: 'yes' },
+      { op: 'set', path: '/constructor/prototype/polluted', value: 'yes' },
+      { op: 'set', path: '/lathes/0/__proto__/polluted', value: 'yes' },
+      { op: 'set', path: '/__pr~0to__/x', value: 1 }, // not a prototype key once unescaped: reaches nothing
+      { op: 'remove', path: '/__proto__/hasOwnProperty' },
+      JSON.parse('{"op":"set","id":"dial","__proto__":{"polluted":"yes"}}'),
+      { op: 'set', id: 'dial', constructor: { prototype: { polluted: 'yes' } } },
+    ];
+    for (const op of ops) expect(() => applyManifestPatch(base(), [op])).toThrow(/patch\[0\]/);
+    expect(() => applyManifestPatch(base(), [ops[0]])).toThrow(/names '__proto__', which no recipe carries/);
+    expect(({}).polluted).toBeUndefined();
+    expect(typeof Object.prototype.hasOwnProperty).toBe('function');
+  });
 });

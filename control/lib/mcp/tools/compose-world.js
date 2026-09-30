@@ -75,6 +75,7 @@ function deepMerge(base, over) {
   if (!over || typeof over !== 'object' || Array.isArray(over)) return over === undefined ? base : over;
   const out = { ...(base && typeof base === 'object' && !Array.isArray(base) ? base : {}) };
   for (const [k, v] of Object.entries(over)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     out[k] = v && typeof v === 'object' && !Array.isArray(v) ? deepMerge(out[k], v) : v;
   }
   return out;

@@ -36,12 +36,22 @@ export const MONOMER_ARRAYS = Object.freeze(Object.keys(MONOMER_KIND_OF_KEY));
 const isObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isId = (v) => typeof v === 'string' && v.length > 0;
 
+// A recipe never carries these keys; a pointer or merge key naming one would walk into the
+// prototype chain of every object in the server process instead of into the recipe.
+const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+function refuseUnsafeKey(key, where, label) {
+  if (UNSAFE_KEYS.has(key)) throw new Error(`${where}: ${label} names '${key}', which no recipe carries`);
+}
+
 /** RFC 6901: '/a/b~1c/0' → ['a', 'b/c', '0']. The empty pointer (the whole document) is refused. */
 export function parsePointer(path, where) {
   if (typeof path !== 'string' || !path.startsWith('/')) {
     throw new Error(`${where}: \`path\` must be a JSON Pointer starting with '/' (e.g. '/movers/0/states'); to replace the whole document pass \`manifest\``);
   }
-  return path.slice(1).split('/').map((seg) => seg.replace(/~1/g, '/').replace(/~0/g, '~'));
+  const segments = path.slice(1).split('/').map((seg) => seg.replace(/~1/g, '/').replace(/~0/g, '~'));
+  for (const seg of segments) refuseUnsafeKey(seg, where, `\`path\` '${path}'`);
+  return segments;
 }
 
 /** Walk to the parent of the pointer's last segment. Every intermediate must exist. */
@@ -148,6 +158,7 @@ function applySet(doc, op, where, touched) {
     const keys = Object.keys(fields);
     if (!keys.length) throw new Error(`${where}: \`set\` by \`id\` needs at least one key to merge (a key set to null deletes it)`);
     const { key, index, spec } = findById(doc, id, where);
+    for (const k of keys) refuseUnsafeKey(k, where, '`set` by `id`');
     const next = { ...spec };
     for (const k of keys) {
       if (fields[k] === null) delete next[k];
