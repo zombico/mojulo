@@ -38,10 +38,11 @@ describe("compose_world base 'terrain'", () => {
     const painting = mintPaintedLandscape({ title: 'ridge', ...FROM });
     const r = composeWorld({ base: 'terrain', overrides: { from: { ref: painting.ref } } });
     const w = SketchRepository.getByRef(r.ref);
-    const before = (await resolveWorldScene(w, { live: true })).payload.terrain.K.hMin;
+    const top = (K) => K.hMin + K.hStep * 65535;
+    const before = top((await resolveWorldScene(w, { live: true })).payload.terrain.K);
     SketchRepository.update({ ref: painting.ref, manifest: { ...SketchRepository.getByRef(painting.ref).manifest, landform: [{ op: 'scarp', path: [[-16, -6], [16, -9]], throw: 6, side: 'right' }] } });
-    const after = (await resolveWorldScene(SketchRepository.getByRef(r.ref), { live: true })).payload.terrain;
-    expect(after.K.hMin + after.K.hStep * 65535).toBeGreaterThan(before + 2);   // the taller scarp raised the top
+    const after = top((await resolveWorldScene(SketchRepository.getByRef(r.ref), { live: true })).payload.terrain.K);
+    expect(after - before).toBeGreaterThan(2.5);   // the scarp thrown 3 higher raised the top by about that: top against top
   });
   it('a placed sketch stands in the world', async () => {
     SketchRepository.create({ ref: 'sk_terrain_mug', title: 'mug', manifest: MUG });
