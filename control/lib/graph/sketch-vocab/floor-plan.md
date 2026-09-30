@@ -169,14 +169,15 @@ scuppers in its parapet. By `tradition` (default: the framing's, else `north-ame
 downspouts onto splash blocks; British half-round into gullies and a drain run through inspection chambers; Japanese
 copper nokidoi with kusari-doi rain chains to a stone (`downpipe: 'pipe'` for tatedoi); metric box gutters into gullies.
 There are as many outlets as the roof needs at the tradition's design rainfall, and the house's `drainage` report
-checks each one's load. Gutters go up last: a house shown at a construction stage has none.
+checks each one's load. Gutters go up last: a house shown framed or at a construction stage has none.
 
 ## IFC — the house as a building model
 
 `export_model({ ref, format: 'ifc' })` writes a house (with `storeys` or `levels`) as IFC4 for Bonsai, Revit or
 ArchiCAD: storeys, rooms as spaces, walls voided by their openings with the doors and windows in them, slabs and the
 roof. A framed house carries every member as its section along its centreline, its linings, boxes, cable and
-circuits, and its roof as built. Gutters and drains ride a rainwater system. GlobalIds hold across re-exports.
+circuits, and its roof as built. A drained house's gutters and drains ride a rainwater system (a framed house has
+none yet). GlobalIds hold across re-exports.
 
 ## Rendering the result
 

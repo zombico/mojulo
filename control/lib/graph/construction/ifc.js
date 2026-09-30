@@ -375,7 +375,9 @@ export function houseToIfc(house, o = {}) {
   }
 
   // ── drainage: gutters, downpipes and chains, outlets, drains, on one rainwater system ──
-  if (house.drainage && house.drainage.elements && house.drainage.elements.length) {
+  // (a house shown framed or at a construction stage has no gutters yet, so no system)
+  const rainwater = !!(house.drainage && house.drainage.elements && house.drainage.elements.length);
+  if (rainwater) {
     const members = [];
     for (const el of house.drainage.elements) {
       const s = storeyOf(el.storey);
@@ -426,12 +428,12 @@ export function houseToIfc(house, o = {}) {
     'END-ISO-10303-21;',
     '',
   ].join('\n');
-  return { text: out, counts, entities: st.lines.length, framed: !!model };
+  return { text: out, counts, entities: st.lines.length, framed: !!model, rainwater };
 }
 
 /**
- * manifestToIfc(manifest, { ref, title }) → { text, counts, entities, framed } for a house (a floorplan manifest with
- * `levels` or `storeys`), built exactly as the World builds it; null for a single-floor plan.
+ * manifestToIfc(manifest, { ref, title }) → { text, counts, entities, framed, rainwater } for a house (a floorplan
+ * manifest with `levels` or `storeys`), built exactly as the World builds it; null for a single-floor plan.
  */
 export function manifestToIfc(m, { ref = 'mojulo', title = null } = {}) {
   const stacked = Array.isArray(m.levels) && m.levels.length;

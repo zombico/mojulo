@@ -41,6 +41,7 @@ describe('export_model ifc', () => {
     expect(res.elements.IfcWindow).toBeGreaterThan(0);
     expect(res.elements.IfcRoof).toBe(1);
     expect(res.elements.IfcPipeSegment).toBeGreaterThan(0);
+    expect(res.note).toMatch(/the rainwater system/);
     expect(path.basename(res.path)).toBe('model.ifc');
     const text = readFileSync(res.path, 'utf8');
     expect(text.startsWith('ISO-10303-21;')).toBe(true);
@@ -67,6 +68,11 @@ describe('export_model ifc', () => {
     expect(res.elements.IfcBeam).toBeGreaterThan(10);
     expect(res.elements.IfcCableSegment).toBeGreaterThan(0);
     expect(res.elements.IfcDistributionCircuit).toBeGreaterThan(0);
+    // a framed house has no gutters yet (they go up last), so its note promises no rainwater system
+    SketchRepository.create({ ref: 'sk_ifc_framed_drained', title: 'framed', manifest: { ...HOUSE, framing: { system: 'platform', stage: 'rough-in' } } });
+    const drained = await exportModelHandler({ ref: 'sk_ifc_framed_drained', format: 'ifc', write: false });
+    expect(drained.elements.IfcPipeSegment).toBeUndefined();
+    expect(drained.note).not.toMatch(/rainwater/);
   });
 
   it('two houses never share a GlobalId', async () => {

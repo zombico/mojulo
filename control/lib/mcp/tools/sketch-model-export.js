@@ -211,7 +211,7 @@ async function ifcExport(input, context) {
   const result = {
     ok: true, ref, kind, format: 'ifc', bytes: bytes.byteLength, entities: built.entities, elements: built.counts,
     framed: built.framed,
-    note: `IFC4 (STEP), metres, z up: ${built.framed ? "the house's building model — every member as its section along its centreline, linings, boxes and cable as their boxes, circuits as IfcDistributionCircuit" : 'the plan — walls voided by their openings, doors and windows in them, floor slabs, the roof as one slab per plane'}${sketch.manifest.drainage ? ', the rainwater system' : ''}, rooms as IfcSpace, every element with its catalog material and a Mojulo_Element property set naming its key. GlobalIds are stable across re-exports. Opens in Bonsai (Blender), Revit, ArchiCAD and IfcOpenShell; mojulo does not read IFC back.`,
+    note: `IFC4 (STEP), metres, z up: ${built.framed ? "the house's building model — every member as its section along its centreline, linings, boxes and cable as their boxes, circuits as IfcDistributionCircuit" : 'the plan — walls voided by their openings, doors and windows in them, floor slabs, the roof as one slab per plane'}${built.rainwater ? ', the rainwater system' : ''}, rooms as IfcSpace, every element with its catalog material and a Mojulo_Element property set naming its key. GlobalIds are stable across re-exports. Opens in Bonsai (Blender), Revit, ArchiCAD and IfcOpenShell; mojulo does not read IFC back.`,
   };
   if (write) {
     const dir = outcomeDirFor(ref);
