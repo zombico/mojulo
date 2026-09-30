@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { compileLayered } from './station-loft.js';
 import { cameraRecord, strokeCamera } from './stroke-resolve.js';
-import { fitSilhouetteDials, solvableDials, strokeMask, residualOf, solvedRecord, SILHOUETTE_MIN_COVER } from './silhouette-solve.js';
+import { fitSilhouetteDials, solvableDials, strokeMask, residualOf, solvedRecord, SILHOUETTE_MIN_COVER, SILHOUETTE_MIN_SPAN } from './silhouette-solve.js';
 import { projectVertices } from '../scene/wire-svg.js';
 import { rasterDepth, rasterMask } from '../scene/depth-raster.js';
 import { expandPlan } from './station-loft-plan.js';
@@ -91,16 +91,16 @@ describe('silhouette-solve — a drawn outline becomes a dial solve', () => {
   });
 
   it('a silhouette is the WHOLE solid\'s outline: a drawing around part of it is refused; a slimmer whole outline solves', () => {
-    // an outline of the body at 0.4 × its size encloses 16 % of its outline: a local drawing, refused by name
+    // an outline of the body at 0.4 × its size draws 16 % of its silhouette's area: a local drawing, refused by name
     const small = traced('frontal', {}, {}, 0.4);
-    expect(() => fitSilhouetteDials(recipe, {}, small.stroke, { mesh: small.start })).toThrow(/encloses 1\d % of the solid's outline in its view; a silhouette is the outline of the WHOLE solid there \(at least 25 %\) — for a local change \(a jaw, a cheek\) draw a contour or a brush stroke/);
-    // at 0.6 × (36 %) it is a slimmer body: the solve narrows width toward its bound
+    expect(() => fitSilhouetteDials(recipe, {}, small.stroke, { mesh: small.start })).toThrow(/draws 1\d % of the solid's silhouette area in its view \(at least 25 %\); a silhouette is the outline of the WHOLE solid there — for a local change \(a jaw, a cheek\) draw a contour or a brush stroke/);
+    // at 0.6 × (36 % of the area, 61 % of the width) it is a slimmer body: the solve narrows width toward its bound
     const slim = traced('frontal', {}, {}, 0.6);
     const fit = fitSilhouetteDials(recipe, {}, slim.stroke, { mesh: slim.start });
     expect(fit.dials.width).toBeLessThan(0.6); expect(fit.iou).toBeGreaterThan(fit.before);
     // the record keeps what the moved dials were, so a solve can be undone by hand
     const rec = solvedRecord(fit); expect(rec.dialsBefore).toEqual(Object.fromEntries(Object.keys(fit.moved).map((n) => [n, n === 'width' ? 1 : 0])));
-    expect(SILHOUETTE_MIN_COVER).toBe(0.25);
+    expect(SILHOUETTE_MIN_COVER).toBe(0.25); expect(SILHOUETTE_MIN_SPAN).toBe(0.5);
   });
 
   it('the review\'s case: a frontal outline around a hero\'s head alone no longer drives bulk and stance to their bounds', () => {
@@ -110,6 +110,24 @@ describe('silhouette-solve — a drawn outline becomes a dial solve', () => {
     for (let k = 0; k < got.length; k++) if (got[k]) top = Math.min(top, Math.floor(k / res));
     for (let j = top; j < top + 14; j++) for (let i = 0; i < res; i++) if (got[j * res + i]) { x0 = Math.min(x0, i); x1 = Math.max(x1, i); }
     const head = { id: 'jaw', view: 'frontal', intent: 'silhouette', camera, points: [[x0 / res, top / res], [(x1 + 1) / res, top / res], [(x1 + 1) / res, (top + 14) / res], [x0 / res, (top + 14) / res]].map((p) => [...p, 0.5]) };
-    expect(() => fitSilhouetteDials(hero, {}, head, { mesh })).toThrow(/stroke 'jaw' encloses \d+ % of the solid's outline/);
+    expect(() => fitSilhouetteDials(hero, {}, head, { mesh })).toThrow(/stroke 'jaw' draws \d % of the solid's silhouette area/);
+  });
+
+  it('the review\'s second case: a tight outline of a hero\'s upper body passes the area measure and is refused on its span', () => {
+    const hero = expandPlan(heroPlan({ cast: 'male' })); const mesh = compileLayered(hero, {});
+    const camera = cameraRecord(mesh, 'frontal'); const cam = strokeCamera({ view: 'frontal', camera }, mesh); const res = 128;
+    const got = rasterMask(rasterDepth(meshSource(mesh), cam, res)); let top = res, bot = -1;
+    for (let k = 0; k < got.length; k++) if (got[k]) { const j = Math.floor(k / res); top = Math.min(top, j); bot = Math.max(bot, j); }
+    // the body's own left and right edge on every row of its top `frac`: the tightest outline a person could draw there
+    const upper = (frac) => {
+      const end = top + Math.round((bot + 1 - top) * frac); const L = [], R = [];
+      for (let j = top; j < end; j++) { let x0 = res, x1 = -1; for (let i = 0; i < res; i++) if (got[j * res + i]) { x0 = Math.min(x0, i); x1 = Math.max(x1, i); } if (x1 >= 0) { L.push([x0 / res, (j + 0.5) / res]); R.push([(x1 + 1) / res, (j + 0.5) / res]); } }
+      L[0][1] = R[0][1] = top / res; L[L.length - 1][1] = R[R.length - 1][1] = end / res;
+      return { id: 'upper', view: 'frontal', intent: 'silhouette', camera, points: [...L, ...R.reverse()].map((p) => [...p, 0.5]) };
+    };
+    // the top 40 %: over a quarter of the area (it drove stance to its bound before), under half the height
+    expect(() => fitSilhouetteDials(hero, {}, upper(0.4), { mesh })).toThrow(/stroke 'upper' spans 40 % of the solid's height in its view \(at least 50 %\); a silhouette is the outline of the WHOLE solid there/);
+    // the whole body traced the same way solves (and has nothing to move: it is the body)
+    const whole = fitSilhouetteDials(hero, {}, upper(1), { mesh }); expect(whole.moved).toEqual({});
   });
 });

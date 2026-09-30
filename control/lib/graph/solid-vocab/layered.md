@@ -494,11 +494,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   recorded on it, so it keeps its meaning after the form changes — then `{ op: 'solve', from: '/strokes/<id>' }`
   (solve ops come last in a patch, and each takes only the keys its intent reads):
   a **silhouette** solves the continuous shape dials (`scale` / `offset` / `stretch`; `dials: [...]` narrows,
-  `budget` caps the compiles) to match the outline of the WHOLE solid in that view — one drawn around a part of it
-  (a jaw, the head) encloses under a quarter of the solid's outline and is refused: a local change is a contour or a
-  brush — and leaves `solved` on the stroke with `iou`, the **residual** (the pixels the dials could not reach as a
-  share of the drawn area, above 1 when the solid spills past the drawing, and its box), the dials that stopped on a
-  bound — the grammar's edge, where it was drawn — and `dialsBefore`, the moved dials' earlier values; a **contour**
+  `budget` caps the compiles) to match the outline of the WHOLE solid in that view — a drawing under a quarter of the
+  solid's silhouette area, or overlapping under half its height (its width, when wider), is refused (a jaw, the head,
+  the chest up; coarse checks, so trace the whole body); a local change is a contour or a brush — and leaves `solved`
+  on the stroke with `iou`, the
+  **residual** (the pixels the dials could not reach as a share of the drawn area, above 1 when the solid spills past
+  the drawing, and its box), the dials that stopped on a bound — the grammar's edge, where it was drawn — and
+  `dialsBefore`, the moved dials' earlier values; a **contour**
   grows a closed ridge strip along its resolved `(part, s, t)` addresses (`height`, `width`, `group`; `mirror: true`
   on the stroke adds the twin), pinned `follow` so it rides every dial, in the carrier's own tint, judged by exposure
   from its view; a **brush** becomes a `brush` dial (`amp`,
