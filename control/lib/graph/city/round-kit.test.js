@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 // table, the census and the lamp sources read the same numbers) and only gains a shape and its dress.
 vi.setConfig({ testTimeout: 120000 });
 
+import { createHash } from 'node:crypto';
 import { planFractalCity, assembleFractalCityScene, normalizeFractalCityElements } from './fractal-city.js';
 import { roundStreetKit, roundKitFaces, isRoundKitShape } from './round-kit.js';
 import { makeLight } from '../polygonizer/vexar.js';
@@ -28,6 +29,15 @@ describe('round street kit: the element', () => {
     const off = plan('stock:off', STOCK);
     expect(JSON.stringify(planFractalCity(withKit(STOCK, false)).boxes)).toBe(JSON.stringify(off.boxes));
     expect(off.boxes.some((b) => isRoundKitShape(b.shape))).toBe(false);
+  });
+  // GOLDENS from the release tree before the kit and the city's metal (7925d71, the same calls run there): off, the plan
+  // (all but its normalized `elements`, which now names roundKit: false) and the scene keep those bytes
+  const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
+  const RELEASE = { stock: ['ef366fd05f29de7b', 'f0abf9f73aeffdc0'], metro: ['c5723b2790856ae9', '569a4126a4bbe6b2'], canal: ['2208cfcbe452b8aa', 'ff4f5cd9fceafbea'] };
+  for (const [name, spec] of CASES) it(`off, the ${name} plan and scene are the release bytes`, () => {
+    const { elements: _e, ...rest } = plan(`${name}:off`, spec);
+    expect(h(rest)).toBe(RELEASE[name][0]);
+    expect(h(assembleFractalCityScene(spec))).toBe(RELEASE[name][1]);
   });
 });
 
