@@ -314,7 +314,7 @@ plain undressed house:
 
 A style only sets defaults: any knob on the manifest wins (`style: 'brick', brickBodyTint: '#…'`).
 
-**Metal cladding and roofs.** `facadeStyle: 'metal'` clads the exterior in sheet metal: `cladding` is `'standing-seam'` (zinc pans with raised seams, the default), `'corrugated'` (galvanized waves) or `'panel'` (brushed aluminium panels on dark joints); `facadeMetal: { metal, finish?, along?, film? }` swaps the metal. `roof: { style: 'standing-seam' }` is a zinc standing-seam gable, and `roofMetal: { metal, … }` (or `roof: { style, metal }`) puts any pitched roof in sheet metal. The metal-surface vocabulary is on the workbench card; a bad spec is refused at mint.
+**Metal cladding and roofs.** `facadeStyle: 'metal'` clads the exterior in sheet metal: `cladding` is `'standing-seam'` (zinc pans with raised seams, the default), `'corrugated'` (galvanized waves) or `'panel'` (brushed aluminium panels on dark joints); `facadeMetal: { metal, finish?, along?, film? }` swaps the metal. `roof: { style: 'standing-seam' }` is a zinc standing-seam gable, and `roofMetal: { metal, … }` (or `roof: { style, metal }`) puts any pitched roof in sheet metal. The metal-surface vocabulary is on the workbench card; a bad spec is refused at mint, and so is a roof metal with no pitched roof to wear it (a `tofu-deck` flat deck, or no roof at all).
 It turns on `facadeDecor`, `wallDecor`, `floorStyle: 'auto'` and `furnishScale: 'share'` (the
 mesh furniture, which wears the style's palette). Its roof shows in the `exterior` view only; the
 cutaway stays open. An unknown style refuses and names the families.

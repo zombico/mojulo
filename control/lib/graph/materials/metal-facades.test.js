@@ -4,6 +4,8 @@ import { buildFacadeCard, projectCardOntoQuad, facadeReadHex } from '../architec
 import { buildRoof } from '../architecture/roof.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { storefrontLocal, validateConceptCard } from '../retail/store-concept.js';
+import { structurizeFloorplan, METAL_CLADDING } from '../polygonizer/floorplan-structure.js';
+import { mintSketch } from '../../mcp/tools/sketch-mint.js';
 
 const L = makeLight({});
 const wall = [[0, 0, 0], [30, 0, 0], [30, 0, 22], [0, 0, 22]];
@@ -45,6 +47,13 @@ describe('metal roofs (metal-surfaces S5)', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b)); expect(metalOf(a.faces)).toHaveLength(0);
     const c = buildRoof(fp, { style: 'modern-shed', metal: { metal: 'copper', film: { age: 30 } }, light: L }); expect(metalOf(c.faces).length).toBeGreaterThan(0);
   });
+  it('a metal roof on a flat deck is refused at plan time, naming the pitched styles (it used to be dropped without a word)', () => {
+    for (const roof of [{ metal: { metal: 'zinc' } }, { style: 'flat', metal: { metal: 'zinc' } }, { style: 'tofu-deck', metal: { metal: 'copper' } }]) {
+      expect(() => planEdifice(MASS({ material: 'glass', glass: '#88aacc', frame: '#333' }, roof))).toThrow(/mass 'a' roof\.metal: a metal roof needs a pitched style \(bungalow, mission.*'(flat|tofu-deck)' is a flat deck/);
+    }
+    expect(() => planEdifice(MASS({ material: 'glass', glass: '#88aacc', frame: '#333' }, { style: 'tofu-stacked', metal: { metal: 'zinc' } }))).not.toThrow();   // its hip room wears it
+    expect(metalOf(buildRoof(fp, { style: 'tofu-stacked', metal: { metal: 'zinc' }, light: L }).faces).length).toBeGreaterThan(0);
+  });
   it('an edifice roof object carries its metal through', () => {
     const p = assembleEdificeScene(MASS({ material: 'glass', glass: '#88aacc', frame: '#333' }, { style: 'gable', metal: { metal: 'copper' } }));
     expect(p.faces.some((f) => f.metal && JSON.parse(f.metal.s).metal === 'copper')).toBe(true);
@@ -58,5 +67,33 @@ describe('metal storefront trim (metal-surfaces S5)', () => {
     expect(metalOf(storefrontLocal({ ...args, trim: { metal: 'brass', finish: 'brushed' } })).length).toBeGreaterThan(20);
     const card = { id: 'shop', palette: { merch: ['#aa3344'] }, finishes: { trim: { metal: 'brass', finish: 'spangle' } } };
     expect(validateConceptCard(card).some((e) => e.code === 'bad-metal')).toBe(true);
+  });
+});
+
+describe('metal cladding on a floorplan house (metal-surfaces S5)', () => {
+  const skin = (o) => structurizeFloorplan({ seed: 7 }, { style: null, facadeStyle: 'metal', facadeDecor: true, view: 'exterior', ...o }).faces.filter((f) => f.group === 'facade:skin');
+  it('each cladding wears its own metal; a panel\'s dark open joint is not metal (it used to shade as aluminium)', () => {
+    for (const cladding of Object.keys(METAL_CLADDING)) {
+      const faces = skin({ cladding }), tagged = faces.filter((f) => f.metal);
+      expect(tagged.length, cladding).toBeGreaterThan(0);
+      expect(new Set(tagged.map((f) => JSON.parse(f.metal.s).metal)), cladding).toEqual(new Set([METAL_CLADDING[cladding].metal]));
+      const joints = faces.filter((f) => !f.metal);
+      if (cladding === 'panel') { expect(joints.length).toBeGreaterThan(0); for (const f of joints) expect(parseInt(f.fill.slice(1, 3), 16)).toBeLessThan(0x40); }
+      else expect(joints).toHaveLength(0);
+    }
+  });
+  it('facadeMetal overrides the cladding\'s metal', () => {
+    const tagged = skin({ cladding: 'corrugated', facadeMetal: { metal: 'copper', film: { age: 5 } } }).filter((f) => f.metal);
+    expect(tagged.length).toBeGreaterThan(0);
+    expect(tagged.every((f) => JSON.parse(f.metal.s).metal === 'copper')).toBe(true);
+  });
+  it('roofMetal sheets a pitched roof; on a flat deck, or with no roof, the mint refuses it by name', () => {
+    const roofMetal = { metal: 'copper' };
+    expect(structurizeFloorplan({ seed: 7 }, { style: null, roof: 'mission', roofMetal, view: 'exterior' }).faces.filter((f) => f.metal).length).toBeGreaterThan(0);
+    const mint = (m) => () => mintSketch({ title: 'metal roof', manifest: { kind: 'floorplan', title: 'h', seed: 3, ...m } });
+    expect(mint({ style: null, roof: 'tofu-deck', roofMetal })).toThrow(/roofMetal: a metal roof needs a pitched style .*'tofu-deck' is a flat deck/);
+    expect(mint({ style: null, roof: { style: 'tofu-deck', metal: roofMetal } })).toThrow(/roof\.metal: a metal roof needs a pitched style/);
+    expect(mint({ style: null, roofMetal })).toThrow(/roofMetal: this house has no roof to wear it/);
+    expect(mint({ style: null, roof: 'mission', roofMetal: { metal: 'mithril' } })).toThrow(/roofMetal: unknown metal 'mithril'/);
   });
 });

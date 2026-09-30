@@ -55,7 +55,8 @@ import {
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
-import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
@@ -355,6 +356,14 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
     for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
       if (v == null) continue; const e = metalSurfaceError(v); if (e) throw new Error(`Invalid manifest: ${k}: ${e}`);
+    }
+    // a metal roof sheet needs a roof that wears one: the manifest's own roof, else the one its house style draws for
+    // the exterior (floorplan-structure's roofSpec reads them the same way); a flat deck, or no roof, would drop it
+    if (finalized.roofMetal != null || roofMetal != null) {
+      const r = finalized.roof, obj = r && typeof r === 'object';
+      const style = obj ? r.style || 'bungalow' : typeof r === 'string' ? r : r === true ? 'bungalow' : r === undefined ? houseStyleOpts(finalized.style, houseStyleKey(finalized), 'exterior').roof : null;
+      const e = style == null ? 'this house has no roof to wear it (roof is off, and its style draws none) — set roof to a pitched style' : roofMetalError(style, { form: obj ? r.form : null });
+      if (e) throw new Error(`Invalid manifest: ${finalized.roofMetal != null ? 'roofMetal' : 'roof.metal'}: ${e}`);
     }
   }
 
