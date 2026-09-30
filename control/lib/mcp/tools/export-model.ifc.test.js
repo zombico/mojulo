@@ -68,11 +68,20 @@ describe('export_model ifc', () => {
     expect(res.elements.IfcBeam).toBeGreaterThan(10);
     expect(res.elements.IfcCableSegment).toBeGreaterThan(0);
     expect(res.elements.IfcDistributionCircuit).toBeGreaterThan(0);
-    // a framed house has no gutters yet (they go up last), so its note promises no rainwater system
+    // gutters go up last: a framed house past the 'frame' stage has none, so its note promises no rainwater system …
     SketchRepository.create({ ref: 'sk_ifc_framed_drained', title: 'framed', manifest: { ...HOUSE, framing: { system: 'platform', stage: 'rough-in' } } });
     const drained = await exportModelHandler({ ref: 'sk_ifc_framed_drained', format: 'ifc', write: false });
     expect(drained.elements.IfcPipeSegment).toBeUndefined();
     expect(drained.note).not.toMatch(/rainwater/);
+    // … nor one shown as its frame alone (view 'framed', the default); the cutaway at the 'frame' stage has its gutters
+    SketchRepository.create({ ref: 'sk_ifc_frame_view', title: 'framed', manifest: { ...HOUSE, framing: { system: 'platform' } } });
+    const bare = await exportModelHandler({ ref: 'sk_ifc_frame_view', format: 'ifc', write: false });
+    expect(bare.elements.IfcPipeSegment).toBeUndefined();
+    expect(bare.note).not.toMatch(/rainwater/);
+    SketchRepository.create({ ref: 'sk_ifc_cutaway_drained', title: 'framed', manifest: { ...HOUSE, framing: { system: 'platform', view: 'cutaway' } } });
+    const cutaway = await exportModelHandler({ ref: 'sk_ifc_cutaway_drained', format: 'ifc', write: false });
+    expect(cutaway.elements.IfcPipeSegment).toBeGreaterThan(0);
+    expect(cutaway.note).toMatch(/the rainwater system/);
   });
 
   it('two houses never share a GlobalId', async () => {
