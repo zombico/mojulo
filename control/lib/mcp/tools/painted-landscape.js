@@ -130,6 +130,7 @@ export function mintPaintedLandscape({
     worldUrl: `/api/sketches/${enc}/world`,                        // live three.js polygon world
     raymarchUrl: `/api/sketches/${enc}/world?render=raymarch`,     // per-pixel raymarch (terrain/water/sky)
     ...(scene ? { completion: computeSceneCompletion(scene) } : {}),
+    recipe: manifest,                                               // compose_world's override note reads what landed
   };
 }
 

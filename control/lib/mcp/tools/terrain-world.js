@@ -11,7 +11,7 @@ import { validatePaintedLandscape } from '@/lib/graph/polygonizer/painted-landsc
 
 const isRef = (f) => f && typeof f.ref === 'string' && Object.keys(f).length === 1;
 
-export function mintTerrainWorld({ title = 'terrain world', from, world, span, relief, horizon, detail, planet, seed, spawn, lod, place, cities, ref, folderRef } = {}) {
+export function mintTerrainWorld({ title = 'terrain world', from, world, span, relief, horizon, detail, planet, seed, spawn, lod, place, cities, plants, grass, ref, folderRef } = {}) {
   if ((!from || typeof from !== 'object') && (!world || typeof world !== 'object')) {
     throw new Error("terrain: give `from` — the painted landscape the world is made from (an inline recipe { heartbeat, splatch, landform?, … } or { ref: '<painted-landscape sketch>' }) — or `world` — features to compose it from ({ features: [{ feature: 'river', size: 'great' }, …] }). Manual: get_view_vocab({ id: 'terrain' }).");
   }
@@ -29,6 +29,8 @@ export function mintTerrainWorld({ title = 'terrain world', from, world, span, r
     ...(lod !== undefined ? { lod } : {}),
     ...(place !== undefined ? { place } : {}),
     ...(cities !== undefined ? { cities } : {}),
+    ...(plants !== undefined ? { plants } : {}),
+    ...(grass !== undefined ? { grass } : {}),
     ...(title ? { title } : {}),
   };
   const errors = validateTerrainWorld(manifest);
@@ -37,5 +39,6 @@ export function mintTerrainWorld({ title = 'terrain world', from, world, span, r
   if (errors.length) throw new Error(`Invalid terrain manifest:\n - ${errors.join('\n - ')}`);
   const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null });
   const enc = encodeURIComponent(sketch.ref);
-  return { ok: true, ref: sketch.ref, url: `/sketches/${enc}`, worldUrl: `/api/sketches/${enc}/world` };
+  // the recipe comes back as the other bases' do: compose_world's override note reads it to tell what landed
+  return { ok: true, ref: sketch.ref, url: `/sketches/${enc}`, worldUrl: `/api/sketches/${enc}/world`, recipe: manifest };
 }

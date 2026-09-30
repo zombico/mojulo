@@ -57,6 +57,25 @@ describe("compose_world base 'terrain'", () => {
     expect(payload.meta.world.anchor.feature).toBe('lake'); expect(payload.cameras.map((c) => c.name)).toEqual(['ground', 'aerial', 'region', 'world']);
     expect(payload.terrain.K.atlas).toBe(true);
   });
+  it('a composed world carries its plants and grass to the stored recipe and the live page, with no false note', async () => {
+    const plants = { region: 'eurasia', variants: 1, level: 'L0' };
+    const r = composeWorld({ base: 'terrain', overrides: { world: { features: [{ feature: 'lake', size: 'tarn' }], climate: 'alpine' }, plants, grass: true } });
+    expect(r.note).toBeUndefined();
+    const stored = SketchRepository.getByRef(r.ref);
+    expect(stored.manifest.plants).toEqual(plants); expect(stored.manifest.grass).toBe(true);
+    const { payload } = await resolveWorldScene(stored, { live: true });
+    expect(payload.terrain.plants.templates.length).toBeGreaterThan(0); expect(payload.terrain.grass.templates.length).toBeGreaterThan(0);
+    expect(payload.meta.plants.species).toContain('spruce');
+  }, 120_000);
+  it('the override note names only what did not land', () => {
+    const r = composeWorld({ base: 'terrain', overrides: { from: FROM, span: 1600, bogus_knob: 1 } });
+    expect(r.recipe.span).toBe(1600);
+    expect(r.note).toMatch(/not reflected in the stored recipe: bogus_knob —/);
+  });
+  it("a painted landscape's own keys are reflected too: no false note", () => {
+    const r = composeWorld({ base: 'painted-landscape', overrides: { title: 'ridge', ...FROM, rocks: 'granite', erosion: true } });
+    expect(r.recipe.landform).toEqual(FROM.landform); expect(r.note).toBeUndefined();
+  });
   it('a stored fractal city stands on the ground by ref; a canal city refuses', async () => {
     SketchRepository.create({ ref: 'sk_terrain_town', title: 'town', manifest: { kind: 'fractal-city', profile: 'town', seed: 3, region: { x: 0, y: 0, w: 60, d: 40 } } });
     const r = composeWorld({ base: 'terrain', overrides: { from: FROM, cities: [{ ref: 'sk_terrain_town' }] } });
