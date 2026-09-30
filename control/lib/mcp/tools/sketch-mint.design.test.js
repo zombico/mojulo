@@ -26,6 +26,18 @@ describe('design considerations at mint and update', () => {
     expect(fixed.design.findings).toBeUndefined();
   });
 
+  it('suggests a repair that joins the design the house names, keeping its tradition', async () => {
+    const made = await createSketchHandler({ title: 'japanese', ref: 'sk_design_japanese', manifest: { kind: 'floorplan', title: 'japanese', storeys: 2, seed: 4, tier: 'house', design: { tradition: 'japanese' } } });
+    expect(made.design.tradition).toBe('japanese');
+    expect(made.design.ok).toBe(false);
+    expect(made.design.next).toContain("patch: [{ op: 'set', path: '/design/repair', value: true }]");
+    const fixed = await updateSketchHandler({ ref: 'sk_design_japanese', patch: [{ op: 'set', path: '/design/repair', value: true }] });
+    expect(fixed.design.tradition).toBe('japanese');
+    // a house naming no design is told to set one
+    const plain = await createSketchHandler({ title: 'plain', manifest: { kind: 'floorplan', title: 'plain', storeys: 2, seed: 4, tier: 'house' } });
+    expect(plain.design.next).toContain("patch: [{ op: 'set', path: '/design', value: { repair: true } }]");
+  });
+
   it('refuses a framing, drainage, roof covering or furnishing the house does not know, by field, at mint and on an edit', async () => {
     const house = { kind: 'floorplan', title: 'framed', storeys: 2, seed: 1 };
     const mint = (extra) => createSketchHandler({ title: 'framed', manifest: { ...house, ...extra } });

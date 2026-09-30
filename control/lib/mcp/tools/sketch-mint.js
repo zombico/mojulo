@@ -404,6 +404,10 @@ function houseDesignReadout(manifest) {
   try { d = assessHouseManifest(manifest); } catch { return null; }
   if (!d) return null;
   const repairing = manifest.design && manifest.design.repair;
+  // the repair joins the design the house already names (its tradition, a passage), never replaces it
+  const repairPatch = manifest.design && typeof manifest.design === 'object'
+    ? "{ op: 'set', path: '/design/repair', value: true }"
+    : "{ op: 'set', path: '/design', value: { repair: true } }";
   return {
     ok: d.ok,
     tradition: d.tradition,
@@ -411,7 +415,7 @@ function houseDesignReadout(manifest) {
     ...(d.findings.length ? { findings: d.findings.slice(0, 8), ...(d.findings.length > 8 ? { more: d.findings.length - 8 } : {}) } : {}),
     ...(!d.ok ? { next: repairing
       ? 'repair could not make the room within this footprint: widen the house (width/height), try another seed, or author the storey with levels[i].rooms and place the stair with stairs[].'
-      : "design: { repair: true } sizes the upstairs hall and the stair's core to keep the passage — update_sketch({ ref, patch: [{ op: 'set', path: '/design', value: { repair: true } }] }); or author the storey with levels[i].rooms." } : {}),
+      : `design: { repair: true } sizes the upstairs hall and the stair's core to keep the passage — update_sketch({ ref, patch: [${repairPatch}] }); or author the storey with levels[i].rooms.` } : {}),
   };
 }
 
