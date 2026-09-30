@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { atlasFrame, composeAtlas, atlasField, decodeDeep, validateAtlas, ATLAS_SIZES } from './terrain-atlas.js';
+import { atlasFrame, composeAtlas, atlasField, decodeDeep, validateAtlas, clearAtlasMemo, ATLAS_SIZES } from './terrain-atlas.js';
 import { atlasKernel } from './atlas-kernel.js';
 import { assembleTerrainWorld } from './terrain-world.js';
 import { terrainChannelScript } from '../scene/channels/terrain-lod.js';
@@ -94,6 +94,15 @@ describe('the world', () => {
   it('exports get the frame at its coarsest and each finer level as a patch', () => {
     const { faces } = assembleTerrainWorld(M); expect(faces.length).toBeGreaterThan(20000); expect(faces.every((q) => q.group === 'terrain-bake')).toBe(true);
   });
+});
+
+describe('determinism', () => {
+  it('composes the same bytes twice from cold, and the plan reads no clock', () => {
+    const W = { features: [{ feature: 'lake', size: 'tarn' }, { feature: 'coast', side: 'W' }], seed: 'twice' };
+    clearAtlasMemo(); const a = atlasField({ world: W }); clearAtlasMemo(); const b = atlasField({ world: W });
+    expect(b).not.toBe(a); expect(a.atlas).not.toHaveProperty('ms');
+    expect(JSON.stringify(b.pageConfig())).toBe(JSON.stringify(a.pageConfig())); expect(JSON.stringify(b.atlas)).toBe(JSON.stringify(a.atlas));
+  }, 120_000);
 });
 
 describe('validation teaches', () => {

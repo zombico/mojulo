@@ -504,7 +504,7 @@ const MEMO = new Map();
 export function composeAtlas(world) {
   const key = JSON.stringify(world); if (MEMO.has(key)) return MEMO.get(key);
   const errs = validateAtlas(world); if (errs.length) throw new Error(`terrain: ${errs.join('; ')}`);
-  const t0 = Date.now(), C = planFeatures(world), rng = mulberry32(C.rngSeed ^ 0x5bd1e995), clim = ATLAS_CLIMATES[world.climate || 'temperate'];
+  const C = planFeatures(world), rng = mulberry32(C.rngSeed ^ 0x5bd1e995), clim = ATLAS_CLIMATES[world.climate || 'temperate'];
   C.climate = world.climate || 'temperate';
   const declared = C.placed.rivers.map((R) => ({ R, chan: declaredChannel(R, rng) }));
   // the focus: where the anchor is most itself — a great river's lower course, a lake's shore, a range's valley floor
@@ -558,7 +558,7 @@ export function composeAtlas(world) {
     zones: { snow: Math.max(clim.snow, 0.72 * Math.max(0, ...C.placed.ranges.map((r) => r.peak), ...C.placed.volcanoes.map((v) => v.h))), tree: clim.tree }, ramps: clim.ramps,
     light: (() => { const l = [0.5, 0.32, 0.8], m = Math.hypot(...l); return l.map((v) => v / m); })(), lambert: { ambient: 0.36, gain: 0.72 },
   };
-  const out = { K, C, levels, focus, clim, declared, ms: Date.now() - t0 };
+  const out = { K, C, levels, focus, clim, declared };
   MEMO.set(key, out); if (MEMO.size > 4) MEMO.delete(MEMO.keys().next().value);
   return out;
 }
@@ -622,7 +622,7 @@ export function atlasField(spec) {
   let lo = Infinity, hi = -Infinity; for (const lv of P.levels) for (let k = 0; k < lv.z.length; k += 7) { if (lv.z[k] < lo) lo = lv.z[k]; if (lv.z[k] > hi) hi = lv.z[k]; }
   const views = atlasViews(P, kernel);
   return {
-    atlas: { span: S, anchor: { feature: P.C.anchor.feature, ...P.C.anchor.v }, features: P.C.feats.map((f) => ({ feature: f.feature, ...(f.v || { side: f.side || 'S' }) })), levels: P.levels.map((l) => ({ extent: Math.round(l.ext), cell: +l.dx.toFixed(2), rivers: l.traced.length })), focus: P.focus, ms: P.ms, climate: world.climate || 'temperate' },
+    atlas: { span: S, anchor: { feature: P.C.anchor.feature, ...P.C.anchor.v }, features: P.C.feats.map((f) => ({ feature: f.feature, ...(f.v || { side: f.side || 'S' }) })), levels: P.levels.map((l) => ({ extent: Math.round(l.ext), cell: +l.dx.toFixed(2), rivers: l.traced.length })), focus: P.focus, climate: world.climate || 'temperate' },
     K, kernel, kernelSource: atlasKernel.toString(), heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     bounds: { x: [-H, H], y: [-H, H], z: [lo, hi], cell: fin.dx }, siteBounds: { x: [fin.x0, fin.x0 + fin.ext], y: [fin.y0, fin.y0 + fin.ext], z: [lo, hi], cell: fin.dx },
     patches: P.levels.slice(1).map((l) => ({ x0: l.x0, y0: l.y0, w: l.ext, d: l.ext, spacing: 2 * l.dx })),
