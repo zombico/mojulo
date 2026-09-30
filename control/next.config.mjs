@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import createNextIntlPlugin from 'next-intl/plugin';
@@ -48,7 +49,15 @@ const nextConfig = {
     '@puppeteer/browsers',
   ],
   turbopack: { root: __dirname },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
+    // The operator-local content pack (lib/graph/content-pack.js) is reached through literal
+    // `import('../mobile-suit/x.js')` specifiers, so a checkout holding the pack bundles it. Where a pack file
+    // is absent (a clean checkout, CI, the release build) the import is left out instead of failing the
+    // build with "Module not found": at run time it throws "Cannot find module", which content-pack.js reads
+    // as the absent pack it is.
+    config.plugins.push(new webpack.IgnorePlugin({
+      checkResource: (resource, context) => /(^|\/)mobile-suit\//.test(resource) && !existsSync(path.resolve(context, resource)),
+    }));
     // Keep the dev watcher OUT of the substrate's data store. control/data/ is
     // written on nearly every MCP tool call (SQLite WAL, outcome PNGs/WAVs,
     // export trees — 5k+ files and growing) and lives inside the project
