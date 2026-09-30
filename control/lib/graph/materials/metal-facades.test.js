@@ -8,6 +8,8 @@ import { storefrontLocal, validateConceptCard } from '../retail/store-concept.js
 import { structurizeFloorplan, METAL_CLADDING } from '../polygonizer/floorplan-structure.js';
 import { mintSketch } from '../../mcp/tools/sketch-mint.js';
 import { lowerObjectFaces, WORKBENCH_LIGHT } from '../worlds/workbench.js';
+import { emitThreeWorld } from '../scene/scene-three.js';
+import { selectableGroups } from '../scene/view-cube-contract.js';
 
 // GOLDENS from the release tree BEFORE metal surfaces (7925d71, the same calls run there): absent a metal, a roof, a
 // facade card and a material lathe must keep those bytes. sha256(JSON.stringify(out)), first 16 hex digits.
@@ -120,5 +122,27 @@ describe('a material lathe without a metal keeps the release bytes', () => {
   it('shelf names, a hex and a preset object lower as before metal surfaces', () => {
     const lathe = (material) => ({ axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 10 }, profile: [{ t: 0, radius: 3 }, { t: 0.5, radius: 4 }, { t: 1, radius: 0 }], material });
     for (const [k, m] of Object.entries(LATHES)) expect(h(lowerObjectFaces({ kind: 'workbench', lathes: [lathe(m)] }, WORKBENCH_LIGHT)), k).toBe(GOLDEN.lathe[k]);
+  });
+});
+
+describe('the World page packs metal data for the metal alone', () => {
+  // an edifice's facade, roof and trim faces carry no group, so they shared the 'static' mesh with the whole building
+  // and the page packed 8 metal floats for EVERY vertex of it; the city had its own metal group already (round-kit.js)
+  const groupsOf = (html) => JSON.parse(html.match(/const GROUPS = (\[[^\n]*\]);/)[1]);
+  const glass = { material: 'glass', glass: '#88aacc', frame: '#333' };
+  it("an edifice's ungrouped metal rides 'static:metal'; the plain faces keep 'static' with no metal data", () => {
+    const payload = assembleEdificeScene(MASS({ ...glass, rhythm: 'curtain', frameMetal: { metal: 'aluminium', finish: 'blasted' } }, { style: 'gable', metal: { metal: 'copper' } }));
+    const shipped = emitThreeWorld(payload), groups = Object.fromEntries(groupsOf(shipped).map((g) => [g.name, g]));
+    expect(groups.static.metal).toBeUndefined();
+    expect(groups['static:metal'].metal.surfaces.length).toBeGreaterThan(1);
+    const stripped = emitThreeWorld({ ...payload, faces: payload.faces.map(({ metal: _m, ...f }) => f) });
+    expect(shipped.length).toBeLessThan(stripped.length * 1.75);   // was ~2.2× the page without metal
+    expect(selectableGroups({ groups: Object.keys(groups) })).not.toContain('static:metal');
+  });
+  it('no metal on the static group, or metal only, keeps the groups as they were', () => {
+    const plain = assembleEdificeScene(MASS({ ...glass, rhythm: 'curtain' }));
+    expect(groupsOf(emitThreeWorld(plain)).map((g) => g.name)).not.toContain('static:metal');
+    const q = (fill, metal) => ({ corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], fill, ...(metal ? { metal: { s: '{"metal":"steel","finish":"brushed","along":"x","seed":0}', d: 0, ta: 0 } } : {}) });
+    expect(groupsOf(emitThreeWorld({ faces: [q('#888888', true), q('#999999', true)] })).map((g) => g.name)).toEqual(['static']);
   });
 });

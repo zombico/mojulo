@@ -34,6 +34,8 @@ export const MSG_FOCUS = 'world-focus';
  * parents drop it before offering selection.
  */
 export const STATIC_GROUP = 'static';
+/** The static group's metal faces, split off so only they carry the page's per-vertex metal data: static too. */
+export const STATIC_METAL_GROUP = 'static:metal';
 
 /** The strip's order: ¾ leads because it is the best single reading. */
 export const VIEW_PRESETS = ['threeQuarter', 'front', 'side', 'top'];
@@ -64,8 +66,8 @@ export function isViewReadyMessage(data) {
   return Boolean(data) && data.moj === MSG_VIEW_READY;
 }
 
-/** The selectable groups a ready message carries — `static` dropped, order kept. */
+/** The selectable groups a ready message carries — `static` (and its metal) dropped, order kept. */
 export function selectableGroups(data) {
   if (!Array.isArray(data?.groups)) return [];
-  return data.groups.filter((g) => typeof g === 'string' && g && g !== STATIC_GROUP);
+  return data.groups.filter((g) => typeof g === 'string' && g && g !== STATIC_GROUP && g !== STATIC_METAL_GROUP);
 }
