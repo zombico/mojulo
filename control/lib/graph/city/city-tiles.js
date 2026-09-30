@@ -319,7 +319,8 @@ function streamPageLayersIn(recipe, { tile = STREAM_TILE } = {}) {
  *   base    — the tile's share of the assembled grounds + ribbons
  * A texture the streamed page already inlines is named in the parts but not resent.
  */
-export function cityTileBytes(recipe, id, { tile = STREAM_TILE, lod = 'full' } = {}) {
+export function cityTileBytes(recipe, id, o) { return scopedCity(recipe) ? withMath(dmath, () => cityTileBytesIn(recipe, id, o)) : cityTileBytesIn(recipe, id, o); }
+function cityTileBytesIn(recipe, id, { tile = STREAM_TILE, lod = 'full' } = {}) {
   const held = new Set(streamPageLayers(recipe, { tile }).held);
   if (lod === 'base') {
     const base = cityBase(recipe, { tile });
@@ -334,7 +335,8 @@ export function cityTileBytes(recipe, id, { tile = STREAM_TILE, lod = 'full' } =
  * streamed page: streamPageLayers plus `stream`, the page's fetch config. Nothing at full fidelity
  * is inlined.
  */
-export function cityStreamPayload(recipe, { tile, near, cache, url, title = 'mojulo city' } = {}) {
+export function cityStreamPayload(recipe, o) { return scopedCity(recipe) ? withMath(dmath, () => cityStreamPayloadIn(recipe, o)) : cityStreamPayloadIn(recipe, o); }
+function cityStreamPayloadIn(recipe, { tile, near, cache, url, title = 'mojulo city' } = {}) {
   const S = streamSizing(recipe);
   tile ??= S.tile; near ??= S.near; cache ??= S.cache;
   const atm = recipe.sky ?? recipe.scene?.sky ? null : metroAtmosphere(recipe);

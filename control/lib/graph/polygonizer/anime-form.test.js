@@ -1,8 +1,8 @@
 /** The port reproduces the Anime Form Studio: `buildAnime` is the studio's model.js (anime-form.fixture.json records that
  * file's sha256) operation for operation, with its transcendentals from util/dmath.js, and per-part hashes at the
  * fixture's recipes are pinned bit for bit, the same on every CPU and Node version. The studio's own digests, frozen on
- * macOS arm64's native Math, matched the port there before it took dmath; re-freezing them from model.js with Math's
- * transcendentals bound to dmath restores that independent check. */
+ * macOS arm64's native Math, matched the port there before it took dmath. The pins are now the port's own; re-freezing
+ * them from model.js with Math's transcendentals bound to dmath would restore the independent check. */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';

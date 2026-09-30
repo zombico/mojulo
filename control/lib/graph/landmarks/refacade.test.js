@@ -110,9 +110,10 @@ const STOCK = {
 };
 
 describe('metro refacade', () => {
-  it.each(SUBJECTS.map((s) => [s.id, s]))('%s: a stock box keeps its bytes', (id, s) => {
+  it.for(SUBJECTS.map((s) => [s.id, s]))('%s: a stock box keeps its bytes', ([id, s], { skip }) => {
     const want = stockPin(id);
-    if (want) expect(hash(render(s.box))).toBe(want);
+    if (!want) skip();
+    expect(hash(render(s.box))).toBe(want);
   });
 
   const metro = SUBJECTS.filter((s) => hasRefacade(s.box.shape) || s.id === 'tian-tan-buddha');   // one builder for every city

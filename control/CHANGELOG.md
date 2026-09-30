@@ -18,8 +18,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   function everywhere: since Node 24 `Math.pow` and `**` call the platform's C library, and V8's arm64
   builds round `sin`, `cos`, `exp`, `atan2` and the rest differently from x64. dmath is fdlibm written in
   plain double arithmetic, so the vegetation engine, terrain worlds, the anime head and hero, stores,
-  construction, metro and canal cities, the metro refacade and the Tian Tan Buddha now grow the same
-  bytes on x64 and arm64 and on Node 22 and 24. Where they reach older helpers (the figure, lathe, sweep,
+  construction, metro and canal cities, the metro refacade and the Tian Tan Buddha take their math from
+  it, and their pinned outputs are the same bytes on x64 and arm64 and on Node 22 and 24. A few 2.1.0
+  helpers they still reach keep the engine's `Math` (specular shading, sRGB conversion, textures, roads,
+  the metro World's walkers and cars): their last bits can still differ by platform. Where they reach older helpers (the figure, lathe, sweep,
   floor-plan and scene helpers), those read `lib/util/math-scope.js`: the engine's `Math` for a recipe
   minted before 3.0, dmath inside a 3.0 build, so no 2.1.0 output changes.
 - **Pins recorded on one Mac are re-pinned to the dmath bytes.** The plants, anime fixture, anime hero

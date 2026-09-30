@@ -75,7 +75,8 @@ describe('floorplan furnish characterization (legacy paths byte-identical)', () 
   it('generated seed plan, furnish:true', () => {
     const s = structurizeFloorplan({ seed: 7, width: 46, height: 34 }, { furnish: true });
     expect(s.faces.length).toBe(12126);
-    // The kitchen sink's faucet is a 16-sided sweep (sweep-faces.js). // A 2.1.0 output that differs by CPU: V8 rounds sin(9π/8) one way on x64 and the other on arm64, and 2.1.0 builders keep
+    // The kitchen sink's faucet is a 16-sided sweep (sweep-faces.js).
+    // Output of a 2.1.0 generator that differs by CPU: V8 rounds sin(9π/8) one way on x64 and the other on arm64, and 2.1.0 builders keep
     // Math so their bytes do not move (util/math-scope.js); so this pin is per architecture (none recorded elsewhere).
     const PIN = { x64: 'ad42369be44405af4a739ac58c50cbcc23c823ae1595d93f1c02014bf6d35fd8', arm64: '4e11a2645c36277369527b368356109361eefa0ff7945b4770bb985fed63da22' };
     if (PIN[process.arch]) expect(sha(s.faces)).toBe(PIN[process.arch]);

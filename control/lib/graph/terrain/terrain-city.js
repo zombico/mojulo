@@ -33,6 +33,7 @@ import { planFractalCity, pruneFidelity, CITY_METERS_PER_UNIT, normalizeCityBloc
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 export const CITY_PROFILES = Object.freeze(['city', 'town', 'metro']);
 export const CITY_SIZES = Object.freeze({ city: [220, 132], town: [240, 160], metro: [440, 290] });   // metres, the default footprint per profile
@@ -290,7 +291,10 @@ function groundRamp(field) {
   return { stops: s.stops.map((c, i) => grey(c, 0.55, [70, 110, 150, 185][i])), pos: s.pos.slice(), gamma: s.gamma };
 }
 
-export function seatCity(prep, field, { light = null } = {}) {
+/** seatCity on dmath: a terrain world's city (any profile) is 3.0's, so the shared city and scene helpers it reaches answer
+ * the same everywhere (util/math-scope.js). */
+export function seatCity(prep, field, o) { return withMath(dmath, () => seatCityIn(prep, field, o)); }
+function seatCityIn(prep, field, { light = null } = {}) {
   const { rect, mpu } = prep; const plan = planFractalCity(prep.recipe); const graded = field.heightAt;
   // the reserved ground keeps its natural surface: its 'empty' blocks lose the vacant-lot tile the planner lays, and
   // the street kit the planner lets stand on a claimed block (it is plaza to the planner) stays off it

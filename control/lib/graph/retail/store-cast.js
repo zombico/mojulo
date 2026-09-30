@@ -10,6 +10,7 @@
 
 import { renderFigureWorldFrames } from '../polygonizer/figure-render.js';
 import { box } from './store-box.js';
+import { mathKey } from '../../util/math-scope.js';
 
 export const CAST_ARCHETYPES = {
   mannequin: { footprint: 2.2, clearance: 1.5 },
@@ -47,7 +48,7 @@ function formFaces(spec) {
     outfit: spec.outfit || OUTFITS[sex],
     ...(spec.hair ? { hair: spec.hair } : {}),
   };
-  const key = JSON.stringify([manifest, spec.form || null, spec.stature || null]);
+  const key = JSON.stringify([manifest, spec.form || null, spec.stature || null]) + mathKey();
   if (memo.has(key)) return memo.get(key);
   const raw = renderFigureWorldFrames(manifest).frames[0].faces;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;

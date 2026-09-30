@@ -43,8 +43,7 @@ describe('round street kit: the element', () => {
     'darwin-arm64-24': ['ef366fd05f29de7b', 'f0abf9f73aeffdc0'],
   };
   RELEASE.stock = STOCK_RELEASE[`${process.platform}-${process.arch}-${Number(process.versions.node.split('.')[0]) >= 24 ? 24 : 22}`];
-  for (const [name, spec] of CASES) it(`off, the ${name} plan and scene are the release bytes`, () => {
-    if (!RELEASE[name]) return;
+  for (const [name, spec] of CASES) it.skipIf(!RELEASE[name])(`off, the ${name} plan and scene are the release bytes`, () => {
     const { elements: _e, ...rest } = plan(`${name}:off`, spec);
     expect(h(rest)).toBe(RELEASE[name][0]);
     expect(h(assembleFractalCityScene(spec))).toBe(RELEASE[name][1]);

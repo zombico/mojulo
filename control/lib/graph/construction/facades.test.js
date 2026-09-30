@@ -67,7 +67,8 @@ describe('construction/facades — the built pieces, placeable', () => {
   });
   it('furnishes a condo\'s units with `furnishing: \'constructed\'`, and leaves it alone without', () => {
     const plain = buildFractalCondoFaces({ seed: 7 }).faces;
-    // The condo's lobby and unit plants turn on lathe.js. // A 2.1.0 output that differs by CPU: V8 rounds sin(9π/8) one way on x64 and the other on arm64, and 2.1.0 builders keep
+    // The condo's lobby and unit plants turn on lathe.js.
+    // Output of a 2.1.0 generator that differs by CPU: V8 rounds sin(9π/8) one way on x64 and the other on arm64, and 2.1.0 builders keep
     // Math so their bytes do not move (util/math-scope.js); so this pin is per architecture (none recorded elsewhere).
     const PIN = { x64: '01b1bd7f413d0758', arm64: '97b66d5824337228' };
     if (PIN[process.arch]) expect(sha(plain)).toBe(PIN[process.arch]);
