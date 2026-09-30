@@ -405,7 +405,7 @@ describe('the character light on a stand: closed, continuous, the head in its ow
         expect(hi.some((pc) => pc.refs.some((r) => r.mix)), at).toBe(false);
       }
     }
-  });
+  }, 120_000);   // about 11 s alone; the 30 s default times out under a loaded full suite
   it('the terminator is continuous: the two faces across every smooth edge cross it at the same point', () => {
     const { shown, N } = female; const L = ANIME_CHARACTER_LIGHT; const unlit = new Set(L.unlit);
     const V = shown.vertices, F = shown.faces, G = shown.groups, nV = V.length; const edges = new Map();
