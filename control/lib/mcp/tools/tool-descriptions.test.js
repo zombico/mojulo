@@ -263,7 +263,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-09-28 (295_500 -> 267_500; measured 267,031, 148 tools) for the chatbot carve-out
 // (3.0.0): the bot factory's tools left the registry, custom_protocol and the two chat_turn tools
 // with them, and the retained descriptions stopped naming them. Shrink-only from here.
-const PAYLOAD_CEILING = 267_500;
+// Re-pinned 2026-09-29 (267_500 -> 267_619; +119 measured, 267,211 -> 267,330) for the stroke fixes
+// (rel/fix-stroke): update_sketch's patch schema lists the `solve` op its handler runs, with a one-line
+// `from` property, and its description gets back "Re-mint only for a side-by-side variant." and the
+// unaudited-levels note inside its 700-char ceiling. Pin moved by the measured growth, headroom unchanged.
+const PAYLOAD_CEILING = 267_619;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
@@ -310,5 +314,34 @@ describe('tools/list description budget — the ratchet', () => {
   it(`total tools/list payload stays under the pin (${PAYLOAD_CEILING} bytes)`, async () => {
     const payload = JSON.stringify(await listedTools()).length;
     expect(payload).toBeLessThan(PAYLOAD_CEILING);
+  });
+});
+
+// A host that validates arguments against the listed inputSchema refuses an op the schema does not declare, so
+// the schema must list every op the handler takes: update_sketch's layered `solve` op (layered-strokes.js).
+describe('update_sketch lists the patch ops its handler runs', () => {
+  // the subset of JSON Schema the patch items use: type, enum, properties, required, additionalProperties
+  const accepts = (schema, v) => {
+    if (schema.type === 'object') {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+      if ((schema.required || []).some((k) => !(k in v))) return false;
+      return Object.entries(v).every(([k, x]) => (schema.properties?.[k] ? accepts(schema.properties[k], x) : schema.additionalProperties !== false));
+    }
+    if (schema.enum && !schema.enum.includes(v)) return false;
+    return schema.type === undefined || (schema.type === 'string' ? typeof v === 'string' : schema.type === 'number' ? Number.isFinite(v) : true);
+  };
+  it('the patch item schema accepts a solve op and declares its `from`', async () => {
+    const item = (await listedTools()).find((t) => t.name === 'update_sketch').inputSchema.properties.patch.items;
+    expect(item.properties.op.enum).toEqual(['set', 'remove', 'add', 'solve']);
+    expect(item.properties.from).toMatchObject({ type: 'string', description: expect.stringContaining('/strokes/<id>') });
+    expect(accepts(item, { op: 'solve', from: '/strokes/s1' })).toBe(true);
+    expect(accepts(item, { op: 'solve', from: '/strokes/b1', amp: 0.1, radius: 0.4 })).toBe(true);
+    expect(accepts(item, { op: 'set', path: '/strokes/-', value: { id: 's1' } })).toBe(true);
+    expect(accepts(item, { op: 'merge', path: '/x' })).toBe(false);   // the check itself refuses an undeclared op
+  });
+  it('the description keeps its iterate-in-place guidance beside the stroke pointer', async () => {
+    const d = (await listedTools()).find((t) => t.name === 'update_sketch').description;
+    expect(d).toContain('Re-mint only for a side-by-side variant.'); expect(d).toContain('new levels unaudited');
+    expect(d).toContain("`strokes` + op 'solve' (get_solid_vocab layered)");
   });
 });

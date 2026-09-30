@@ -290,7 +290,7 @@ export function registerSketchTools() {
   registerTool(withPluginProfile({
     name: 'update_sketch',
     description:
-      "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate (diagrams as `create_sketch`; world/solid kinds resolve through the world registry; games create_game's structural gate). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`; `readout:'changed'` returns only what moved) over a FULL `manifest` replace. A layered row takes drawn `strokes` and `{ op:'solve', from:'/strokes/<id>' }` (get_solid_vocab layered · Drawing on it).",
+      "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate (diagrams as `create_sketch`; world/solid kinds resolve through the world registry; games create_game's structural gate, new levels unaudited). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`; `readout:'changed'` returns only what moved) over a FULL `manifest` replace. Layered: `strokes` + op 'solve' (get_solid_vocab layered). Re-mint only for a side-by-side variant.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -314,8 +314,9 @@ export function registerSketchTools() {
             type: 'object',
             additionalProperties: true,
             properties: {
-              op: { type: 'string', enum: ['set', 'remove', 'add'] },
+              op: { type: 'string', enum: ['set', 'remove', 'add', 'solve'] },
               id: { type: 'string', description: 'Monomer id to address (set / remove).' },
+              from: { type: 'string', description: "Stroke to solve, '/strokes/<id>' (layered rows; solve ops come last)." },
               path: { type: 'string', description: "JSON Pointer to address (set / remove), e.g. '/movers/0/states'." },
               value: { description: 'The replacement value (set by path).' },
               into: { type: 'string', enum: ['lathes', 'extrudes', 'sweeps', 'lofts', 'fields', 'drapes', 'reliefs', 'shells'], description: 'Monomer array to append to (add).' },
