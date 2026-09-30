@@ -502,7 +502,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
       // strokes (layered-strokes.js): validate, record each new stroke's camera, run the `solve` ops against the
       // compiled mesh (a solve that moved a dial re-plans), then re-resolve every stroke into the ledger
       manifest = prepareStrokes(manifest, planned.mesh);
-      const solves = applySolves(manifest, planned.mesh, solveOps);
+      // the solves are the patch's tail (splitSolveOps), so their refusals name their own patch index
+      const solves = applySolves(manifest, planned.mesh, solveOps, Array.isArray(patch) ? patch.length - solveOps.length : 0);
       manifest = solves.manifest; if (solves.dialsChanged) planned = planLayered(manifest);
       layeredStats = planned.stats;
       const strokeLedger = strokesLedger(manifest, planned.mesh);
@@ -770,11 +771,11 @@ export async function updateSketchHandler(input) {
     if (!existingSketch.manifest || typeof existingSketch.manifest !== 'object') {
       throw new Error(`'${ref}' has no stored manifest to patch — pass \`manifest\``);
     }
-    // a layered row takes `solve` ops too (layered-strokes.js): they run in the layered gate below,
-    // after the generic ops, against the compiled mesh
+    // a layered row takes `solve` ops too (layered-strokes.js): they come last and run in the layered
+    // gate below, after the generic ops, against the compiled mesh
     let rest = patch;
-    if (existingSketch.manifest.kind === 'layered') ({ rest, solves: solveOps } = splitSolveOps(patch));
     try {
+      if (existingSketch.manifest.kind === 'layered') ({ rest, solves: solveOps } = splitSolveOps(patch));
       if (Array.isArray(rest) && !rest.length && solveOps.length) { manifest = structuredClone(existingSketch.manifest); touched = new Set(); }
       else ({ manifest, touched } = applyManifestPatch(existingSketch.manifest, rest));
     } catch (err) {

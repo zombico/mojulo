@@ -23,11 +23,20 @@ import { layeredExposure } from '@/lib/graph/polygonizer/station-loft-exposure';
 export const SOLVE_OP = 'solve';
 const MANUAL = "manual: get_solid_vocab({ id: 'layered' }) (Drawing on it).";
 
-/** Split a patch into the ops the generic applier takes and the `solve` ops this module runs. */
+const isSolve = (o) => !!o && typeof o === 'object' && o.op === SOLVE_OP;
+/**
+ * Split a patch into the ops the generic applier takes and the `solve` ops this module runs. The solves run after
+ * every other op, against the compiled result, so they come last: a set / remove / add written after a solve is
+ * refused rather than silently run before it. The generic ops are then the patch's prefix and the solves its tail,
+ * so both keep their patch indices (applySolves takes the tail's offset).
+ */
 export function splitSolveOps(patch) {
   if (!Array.isArray(patch)) return { rest: patch, solves: [] };
-  const solves = patch.filter((o) => o && typeof o === 'object' && o.op === SOLVE_OP);
-  return { rest: patch.filter((o) => !solves.includes(o)), solves };
+  const first = patch.findIndex(isSolve);
+  if (first < 0) return { rest: patch, solves: [] };
+  const late = patch.findIndex((o, i) => i > first && !isSolve(o));
+  if (late >= 0) throw new Error(`patch[${late}]: a '${patch[late]?.op}' op after a \`solve\` (patch[${first}]) — solve ops run last, against what the other ops made: put them at the end`);
+  return { rest: patch.slice(0, first), solves: patch.slice(first) };
 }
 
 /** Validate `strokes`; record the camera on any stroke without one. Throws with the errors named. */

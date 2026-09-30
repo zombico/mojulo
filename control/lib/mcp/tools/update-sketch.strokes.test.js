@@ -148,4 +148,17 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve' }] })).rejects.toThrow(/from: '\/strokes\/<id>'/);
     expect(SketchRepository.getByRef('lay-refuse').manifest.dials).toEqual({ width: 1, lift: 0 });   // every refusal left the row alone
   });
+
+  it('solve ops come last and every refusal names the op\'s own patch index', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-order', strokes: [OUTLINE] });
+    // a set after a solve would run BEFORE it (solves run in the layered gate, after the generic ops): refused, naming the set
+    await expect(updateSketchHandler({ ref: 'lay-order', patch: [{ op: 'solve', from: '/strokes/s1' }, { op: 'set', path: '/nope/x', value: 1 }] }))
+      .rejects.toThrow(/Invalid patch: patch\[1\]: a 'set' op after a `solve` \(patch\[0\]\)/);
+    // a generic op keeps its index, and a solve after it is numbered in the whole patch, not among the solves
+    await expect(updateSketchHandler({ ref: 'lay-order', patch: [{ op: 'set', path: '/nope/x', value: 1 }, { op: 'solve', from: '/strokes/s1' }] }))
+      .rejects.toThrow(/patch\[0\]: `path` '\/nope\/x'/);
+    await expect(updateSketchHandler({ ref: 'lay-order', patch: [{ op: 'set', path: '/dials/lift', value: 0.1 }, { op: 'solve', from: '/strokes/s1' }, { op: 'solve', from: '/strokes/s9' }] }))
+      .rejects.toThrow(/patch\[2\]: no stroke 's9'/);
+    expect(SketchRepository.getByRef('lay-order').manifest.dials).toEqual({ width: 1, lift: 0 });
+  });
 });
