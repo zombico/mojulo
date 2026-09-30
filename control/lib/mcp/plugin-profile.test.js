@@ -137,7 +137,7 @@ const HIDDEN_IDS = [...new Set([...Object.values(PLUGIN_PROFILE_HIDDEN_ROWS).fla
 const HIDDEN_ID_RE = new RegExp(`(?<![\\w-])(?:${HIDDEN_IDS.join('|')})(?![\\w-]|\\.plan)`, 'g');
 // Wording that points at a loop the profile leaves out, whatever it names: an image generator and
 // what it dreams or paints, the skin seam, the automatic ffmpeg fetch, and the keyed prompt door.
-const CLOSED_LOOP_RE = /image worker|image generator|image model|dream|paint-and-bind|painting renders|lazy-fetch|skin seam|skin\.png|user's key|apiKeyId|via: ?'prompt'|character[- ]sheet/gi;
+const CLOSED_LOOP_RE = /image worker|image generator|image model|image gen|native image|paint worker|dream|paint-and-bind|painting renders|lazy-fetch|skin seam|skin\.png|user's key|apiKeyId|via: ?'prompt'|character[- ]sheet/gi;
 const leaksIn = (text) => [...new Set([
   ...(String(text).match(HIDDEN_RE) ?? []),
   ...(String(text).match(HIDDEN_ID_RE) ?? []),
@@ -338,7 +338,7 @@ describe('orientation surfaces under the profile', () => {
     ['list_catalysts', {}],
     ['recommend_catalysts', {}],
     ['list_adapters', {}],
-    ...['claude-code', 'generic', 'codex', 'grok-build', 'hermes'].map((id) => ['get_adapter', { id }]),
+    ...['claude-code', 'generic', 'codex', 'grok-build', 'hermes', 'chatgpt'].map((id) => ['get_adapter', { id }]),
     ['get_catalyst', { id: 'print-object' }],
     ['get_sketch_vocab', {}],
     ...['panel-depiction-recipes', 'wardrobe-construction', 'motion-comic'].map((id) => ['get_sketch_vocab', { id }]),

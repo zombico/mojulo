@@ -21,8 +21,9 @@ import { join } from 'node:path';
 import { pluginProfileActive, profileEdit } from '../plugin-profile.js';
 
 // Under the Claude plugin profile (../plugin-profile.js) the host cards drop what that build does
-// not have: the CDN page (every card), and the Grok card's paint-worker and native-video moves (no
-// image handoff to bind a painted render back through) and its image-render pack.
+// not have: the CDN page (every card), the Grok card's paint-worker and native-video moves (no
+// image handoff to bind a painted render back through) and its image-render pack, and the ChatGPT
+// card's binding of native image output.
 const PROFILE_ADAPTER_EDITS = {
   // The Claude Code card: that build writes no CDN page, so the web box's handoff is the file.
   'claude-code': {
@@ -36,6 +37,13 @@ const PROFILE_ADAPTER_EDITS = {
   },
   'codex': {
     body: [["; `cdn: true` writes `world.cdn.html`, which loads three.js from the pinned jsdelivr CDN instead.", '.']],
+  },
+  'chatgpt': {
+    summary: [['Preview, file delivery, image generation and scheduling depend', 'Preview, file delivery and scheduling depend']],
+    body: [
+      ['Check which image, file, preview and scheduling tools', 'Check which file, preview and scheduling tools'],
+      [/ Native image output\ncan be bound only if the image tool, Mojulo binding tools and byte transfer are all\navailable\. A reference\/render is derived;/, ' A render is derived;'],
+    ],
   },
   'grok-build': {
     summary: [['native image_gen/image_edit is the paint worker (recipe stays sovereign); ', '']],
