@@ -76,8 +76,8 @@ npx mojulo init
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
-First install is the big one: npx pulls a ~6 MB package plus its dependencies (about 230 MB on
-disk and about 89 MB downloaded, measured for 3.0.0; the dashboard is its own `mojulo-ui` package,
+First install is the big one: npx pulls a ~7 MB package plus its dependencies (about 227 MB on
+disk and about 79 MB downloaded, measured for 3.0.0; the dashboard is its own `mojulo-ui` package,
 fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 

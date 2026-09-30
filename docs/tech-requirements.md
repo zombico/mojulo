@@ -66,10 +66,10 @@ have been excluded since 2.0.6.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **5.8 MB** | `mojulo-3.0.0`; no dashboard build. The 2.2 line measured 6.0 MB. |
-| Unpacked package | **18.6 MB** | The stdio server, the kernels and the vendored three.js (19 MB on the 2.2 line). |
-| What npm installs, the package included | **228 MB** on disk, 179 packages | About 89 MB on the wire (tarballs plus package metadata, the package included) from an empty cache, and about 150 MB left in npm's cache. The 2.2 line, with the document parsers, measured 303 MB, 208 packages and 114 MB the same way. Breakdown below. |
-| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **12.1 MB** tarball, **55.3 MB** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. The 2.2 line, with the bot pages, measured 13.2 MB and 60.0 MB. |
+| npm tarball (what `npx` downloads) | **6.7 MB** | `mojulo-3.0.0`; no dashboard build. The 2.2 line measured 6.0 MB. |
+| Unpacked package | **21.3 MB** | The stdio server, the kernels and the vendored three.js (19 MB on the 2.2 line). |
+| What npm installs, the package included | **227 MB** on disk, 153 packages | About 79 MB on the wire (tarballs plus package metadata, the package included) from an empty cache, and about 140 MB left in npm's cache. The 2.2 line, with the document parsers, measured 303 MB, 208 packages and 114 MB the same way. Breakdown below. |
+| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **12.7 MB** tarball, **57.0 MB** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. The 2.2 line, with the bot pages, measured 13.2 MB and 60.0 MB. |
 | Recall group (`mojulo install recall`) | **~480 MB** runtime + **~130 MB** model | `@huggingface/transformers` with `onnxruntime-node` and `onnxruntime-web` under `~/.mojulo/recall/`, and `Xenova/multilingual-e5-small` (q8 ONNX) under `~/.mojulo/models/`. Gives `semantic_search` vector ranking; runs in-process. Opt-in. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 

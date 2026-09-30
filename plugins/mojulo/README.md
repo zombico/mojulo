@@ -54,11 +54,11 @@ claude mcp remove mojulo -s user
 ## Requirements
 
 - **Node.js 22.12 or newer**, with `npx` on the `PATH` Claude sees.
-- **About 380 MB of disk**: about 230 MB installed (the package, 18.6 MB unpacked, and its
-  dependencies) and about 150 MB of npm cache. The first start downloads about 89 MB, the 5.8 MB
+- **About 370 MB of disk**: about 227 MB installed (the package, 21.3 MB unpacked, and its
+  dependencies) and about 140 MB of npm cache. The first start downloads about 79 MB, the 6.7 MB
   package included. Measured for 3.0.0 on an Apple M1 Max with an empty cache, through a local
   stand-in for the npm registry (the real registry is slower), that first start answered in a median
-  6.6 seconds, nearly all of it npm's install; later starts reuse the cache.
+  4.5 seconds, nearly all of it npm's install; later starts reuse the cache.
 - **For renders** (motion, proving a game level can be finished, a PNG still): a Chrome, Chromium,
   Microsoft Edge or Brave you already have, or `MOJULO_CHROMIUM` naming one. **For MP4**: an ffmpeg
   you already have, or `MOJULO_FFMPEG`. The plugin never downloads either; without one, the tool
@@ -169,7 +169,7 @@ plugin, delete `~/.mojulo/`, and optionally clear the npm cache's `_npx` folder 
 
 ## If the first start times out
 
-Claude Code gives a local server 30 seconds to start, and the first start downloads about 89 MB.
+Claude Code gives a local server 30 seconds to start, and the first start downloads about 79 MB.
 On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm the
 cache once from a terminal with `npx -y mojulo@3.0.0 --help` and reconnect in `/mcp`. If a desktop
 or Cowork session reports `spawn npx ENOENT`, the Node on that session's `PATH` is missing; a system
