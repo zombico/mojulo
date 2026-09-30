@@ -127,6 +127,13 @@ describe('construction/masonry — sustainable to render', () => {
     expect(validateFrames([huge]).join('\n')).toMatch(/frames: about \d+ bricks, tiles and slates to lay one by one, over the 250000 a recipe may lay/);
     expect(performance.now() - t0).toBeLessThan(100);
     expect(validateFrames([{ ...huge, walls: [{ ...huge.walls[0], detail: 'surface' }] }])).toEqual([]);
+    // so is a wall that takes its detail from the frame's ('boxes' draws it as its bond, 'sparse' as a mass) …
+    expect(validateFrames([{ ...huge, detail: 'boxes' }])).toEqual([]);
+    expect(validateFrames([{ ...huge, detail: 'sparse' }])).toEqual([]);
+    expect(lowerFrame({ ...huge, detail: 'boxes' }).report.walls[0].detail).toBe('surface');
+    // … unless it names its own, or the frame's is 'full' (units)
+    expect(validateFrames([{ ...huge, detail: 'boxes', walls: [{ ...huge.walls[0], detail: 'units' }] }]).join('\n')).toMatch(/over the 250000/);
+    expect(validateFrames([{ ...huge, detail: 'full' }]).join('\n')).toMatch(/over the 250000/);
     // the cap counts every frame of the recipe
     const half = { unit: 'cm', walls: [{ from: [0, 0, 0], to: [6000, 0, 0], height: 2000, bond: 'english' }] };
     expect(validateFrames([half])).toEqual([]);

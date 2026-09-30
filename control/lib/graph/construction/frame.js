@@ -50,7 +50,7 @@ import { movement } from './movement.js';
 import { applyJoints, JOINT_TYPES } from './joints.js';
 import { spanChecks, assemblyOrder, assemblyTree, assemblyGroups } from './checks.js';
 import { timberTextureKey } from './textures.js';
-import { validateMasonry, layMasonry, masonryUnits, MAX_MASONRY_UNITS } from './masonry.js';
+import { validateMasonry, layMasonry, masonryUnits, MAX_MASONRY_UNITS, MASONRY_OF_FRAME } from './masonry.js';
 import { instanceGroups } from './instancing.js';
 import { validateSoft, lowerSoft, FILLS } from './soft.js';
 import { fabricError, resolveFabric, fabricSummary } from './fabric.js';
@@ -526,8 +526,7 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT, eyes = null, instance
     faces.length = 0; faces.push(...inst.faces); repeats = inst.repeats.map(({ members: _m, ...r }) => r);
   }
   // masonry: laid after the explode, which moves members only; its detail follows the frame's unless it names its own
-  const MASONRY_OF = { full: 'units', boxes: 'surface', sparse: 'mass' };
-  const inherit = (list) => (Array.isArray(list) && spec.detail && spec.detail !== 'auto' ? list.map((x) => (x && x.detail === undefined ? { ...x, detail: MASONRY_OF[spec.detail] } : x)) : list);
+  const inherit = (list) => (Array.isArray(list) && spec.detail && spec.detail !== 'auto' ? list.map((x) => (x && x.detail === undefined ? { ...x, detail: MASONRY_OF_FRAME[spec.detail] } : x)) : list);
   const laid = layMasonry({ walls: inherit(spec.walls), paving: inherit(spec.paving), slates: inherit(spec.slates) }, { scale: unitScale, light, seed: Number.isInteger(spec.seed) ? spec.seed : 1, eyes, instance });
   for (const x of laid.faces) faces.push(x); for (const x of laid.repeats) repeats.push(x);   // a long wall is more faces than a spread's arguments
   const mm = (v) => Math.round(v * 1000);

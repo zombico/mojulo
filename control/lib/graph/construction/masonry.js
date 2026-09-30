@@ -103,14 +103,19 @@ export function validateMasonry(f, at) {
   return e;
 }
 
+/** The level a frame's `detail` (other than 'auto') gives an entry of its walls, paving and slates that names none. */
+export const MASONRY_OF_FRAME = Object.freeze({ full: 'units', boxes: 'surface', sparse: 'mass' });
+
 /**
  * About how many units a frame's walls, paving and slates lay one by one (a wall a course of its smallest face at a
- * time, a leaf each; a floor its tiles; a roof its slates); an entry drawn as a surface (`detail` 'surface' or 'mass')
- * lays none. `scale` is metres a frame unit. For the cap in validateFrames; an entry validateMasonry refuses counts 0.
+ * time, a leaf each; a floor its tiles; a roof its slates); an entry drawn as a surface (`detail` 'surface' or 'mass',
+ * its own or the frame's) lays none. `scale` is metres a frame unit. For the cap in validateFrames; an entry
+ * validateMasonry refuses counts 0.
  */
 export function masonryUnits(f, scale) {
   const mm = scale * 1000; let n = 0;
-  const laid = (x) => x && (x.detail === undefined || x.detail === 'auto' || x.detail === 'units');
+  const inherited = Object.hasOwn(MASONRY_OF_FRAME, f.detail) ? MASONRY_OF_FRAME[f.detail] : undefined;
+  const laid = (x) => { if (!x) return false; const d = x.detail === undefined ? inherited : x.detail; return d === undefined || d === 'auto' || d === 'units'; };
   for (const w of Array.isArray(f.walls) ? f.walls : []) {
     if (!laid(w) || !isPt(w.from) || !isPt(w.to) || !(w.height > 0)) continue;
     const u = w.unit && typeof w.unit === 'object' ? (customUnitOk(w.unit) ? w.unit : null) : UNITS[w.unit || 'uk'];
