@@ -83,12 +83,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `mojulo install recall` now works from npm and npx. With the runtime already installed and the
     search model missing, it fetches the model instead of reporting nothing to do.
   - A delegate (roles pack) signed in to the dashboard reads and no longer writes (below).
+  - A city minted from now on wears the round street kit (below); stored cities are unchanged, and
+    `elements: { roundKit: false }` keeps the block kit.
 
 ### What 3.0 is
 
 - **A 3D compiler for agents.** Your agent builds objects, walkable worlds and games by conversation
   as small deterministic recipes on your machine, compiled back to the same geometry byte for byte and
-  exported to STL / 3MF, glTF, OpenUSD, self-contained HTML, Godot, Blender, Unity and Unreal. The
+  exported to STL / 3MF, glTF, OpenUSD, IFC4, self-contained HTML, Godot, Blender, Unity and Unreal. The
   bot factory, which never fit that, is gone.
 
 ### Lean install
@@ -191,6 +193,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   prefers connected MCP and otherwise sets up a pinned, workspace-local CLI in the box. Handoff notes
   keep a file on the MCP server apart from a file in the session, and promise no attachment or inline
   preview the session has not shown. Codex is no longer recognized by the bare OpenAI vendor name.
+- **Meta Muse.** A host profile and adapter card for the shell-only agent on its own persistent Linux
+  VM, where `npx mojulo call` is the whole surface and `MOJULO_HOST=muse` names its doors: pages leave
+  through its Artifacts, files through its Library. A bundle export's `<ref>.courier.html` now lists
+  every file of the export with its own Save, so one HTML page delivers any of them. A host profile
+  may name its own page words (`pageVerb`, `pageTool`, `pageOpensIn`), what its page door does with
+  inline scripts (`inlinePage`), and a `drop-folder` file door.
 - **`MOJULO_HOST`** picks the adapter card on the CLI, for `get_adapter`, catalyst composition and
   recommendations, when no client identity says which host is calling. An explicit adapter id or a
   recognized client still wins.
@@ -226,6 +234,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   [Planar detail](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#planar-detail),
   [Planar humanoid](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#planar-humanoid),
   [Read and attach](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#read-and-attach)).
+  The hero also wears the Anime Form Studio's head (`head: 'anime'`) on anime proportions, with
+  fitted hair forms, looks as composable words, a graphic face and neck, a character light with
+  designed shadow shapes, draw layers and clips at the door; its skinned GLB and Godot pack carry the
+  face. Worn armour (plate, samurai lamellar and hard-suits, with themes carried down a suit) and held
+  gear with swings ride the hero door
+  ([layered manual](https://github.com/zombico/mojulo/blob/v3.0.0/control/lib/graph/solid-vocab/layered.md),
+  [designing a hero](https://github.com/zombico/mojulo/blob/v3.0.0/docs/examples/humanoid/DESIGNING.md)).
+- **Arms, metal and gems:** swords, daggers, greatswords, staves, bows and shields composed from a few
+  dials and laws, pattern-welded blades included (`mint_solid` kind `equipment`); metal as a surface
+  any part, facade, roof or trim can wear (a metal, a finish and an oxide film), reflected on the World
+  page and kept in glTF and USD; gems with their optics and exact light prints, and crystals as light
+  operators in worlds, performed in Godot
+  ([equipment manual](https://github.com/zombico/mojulo/blob/v3.0.0/control/lib/graph/solid-vocab/equipment.md),
+  [workbench manual](https://github.com/zombico/mojulo/blob/v3.0.0/control/lib/graph/solid-vocab/workbench.md)).
 - **Cities and worlds:** metro and canal profiles for the fractal city, redrawn landmarks and sacred
   buildings, stores and malls from concept cards, and large cities streamed by tile
   ([City scale](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#city-scale),
@@ -233,17 +255,37 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   [Local city refacade](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#local-city-refacade),
   [Retail concept cards](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#retail-concept-cards),
   [World streaming](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#world-streaming)).
+  New cities wear a round street kit: lamps, poles, bins, bollards, piers, playground frames and
+  rooftop equipment drawn round, a few of them in metal.
 - **Interiors:** houses minted in a style, livable default room sizes, and a furniture audit that
   gives every room a way in
   ([House styles](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#house-styles),
   [Room livability](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#room-livability),
   [Furniture audit](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#furniture-audit)).
+- **Buildings and furniture:** timber from a synthetic log, steel sections, reinforced concrete and
+  masonry, joined by Western and Japanese joinery through the exact kernel and checked, never refused;
+  houses framed, lined and wired by their building tradition, carrying a building model with a
+  takeoff; tile roofs and drainage; houses exported as IFC4 (`export_model` `format: 'ifc'`); house
+  design checks that measure the walkways, with a repair; furniture built from sheet goods and
+  fittings (carcasses, tables, chairs, sofas with upholstery and cloth from a weave draft), checked for
+  sag, racking and tipping, with wordless assembly manuals; and the built pieces placed in rooms and
+  condos ([floor plan manual](https://github.com/zombico/mojulo/blob/v3.0.0/control/lib/graph/sketch-vocab/floor-plan.md),
+  [workbench manual](https://github.com/zombico/mojulo/blob/v3.0.0/control/lib/graph/solid-vocab/workbench.md)).
+- **Terrain and nature:** a painted landscape made real-scale ground you walk, fly and orbit, up to a
+  small planet, or a world composed from features (a river, a range, a lake, a volcano, a coast) sized
+  on real-world bands, with fractal cities sited on its hills; plants grown rather than drawn (trees by
+  their architecture, palms, bamboo, figs and conifers), standing as forests where the ground is
+  painted wood, and grass; rocks built from their minerals, and landforms and erosion on painted
+  landscapes ([terrain manual](https://github.com/zombico/mojulo/blob/v3.0.0/control/lib/graph/views/view-vocab/terrain.md),
+  [vegetation](https://github.com/zombico/mojulo/blob/v3.0.0/docs/vegetation.md)).
 - **Look and drawing:** shading normals from the hull, outlines and rims carried into Godot, Unity
   and Unreal, key-and-fill art direction, and the `layered` kind drawn from its compiled mesh, with
   rigs and clips
   ([Shader look](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#shader-look),
   [Art direction](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#art-direction),
   [Planar drawing](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#planar-drawing)).
+  A line drawn on a `layered` solid becomes a recipe op (a silhouette solves the shape dials, a
+  contour becomes a ridge strip, a brush a dial), with the share of the line it could not hold.
 - **Audio:** stereo and per-hit variation, tuned strings, orchestral scoring and era synths, and
   anthem and roots song styles, all synthesized from formulas and opt-in
   ([Audio fidelity](https://github.com/zombico/mojulo/blob/v3.0.0/control/CHANGELOG-2.x.md#audio-fidelity),
