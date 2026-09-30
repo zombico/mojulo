@@ -54,17 +54,24 @@ export const STONES = Object.freeze({
 });
 
 const isPt = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
+const within = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+// Runaway guards. A custom brick, a tile and a slate have sizes a mason would lay (mm), and the units one recipe's
+// frames lay one by one (every wall, floor and roof drawn as units) are counted before any is laid.
+const UNIT_MM = [10, 1000], TILE_MM = [10, 3000], SLATE_MM = [10, 1500];
+export const MAX_MASONRY_UNITS = 250000;
+const customUnitOk = (u) => ['l', 'w', 'h'].every((k) => within(u[k], ...UNIT_MM)) && (u.j === undefined || within(u.j, 0, 50)) && (u.vary === undefined || within(u.vary, 0, 0.9));
 
 /** Validate `walls`, `paving`, `slates` → string[]. */
 export function validateMasonry(f, at) {
   const e = [];
-  const unitOk = (u) => u === undefined || UNITS[u] || (u && typeof u === 'object' && ['l', 'w', 'h'].every((k) => Number.isFinite(u[k]) && u[k] > 0));
+  const unitOk = (u) => u === undefined || UNITS[u] || (u && typeof u === 'object' && customUnitOk(u));
   (f.walls || []).forEach((w, i) => {
     const t = `${at}.walls[${i}]`;
     if (!w || typeof w !== 'object') { e.push(`${t}: an object { from, to, height, unit?, bond? }`); return; }
     if (!isPt(w.from) || !isPt(w.to)) e.push(`${t}: from and to must be [x, y, z] (the wall's foot, along its centre)`);
     if (!(Number.isFinite(w.height) && w.height > 0)) e.push(`${t}.height: a positive length`);
-    if (!unitOk(w.unit)) e.push(`${t}.unit: one of ${Object.keys(UNITS).join(', ')}, or { l, w, h, j } in mm`);
+    if (!unitOk(w.unit)) e.push(`${t}.unit: one of ${Object.keys(UNITS).join(', ')}, or { l, w, h, j? } in mm (l, w and h ${UNIT_MM[0]}–${UNIT_MM[1]}, the joint j 0–50)`);
+    if (w.leaves !== undefined && !(Number.isInteger(w.leaves) && w.leaves >= 1 && w.leaves <= 4)) e.push(`${t}.leaves: a whole number of leaves, 1–4`);
     if (w.bond !== undefined && !BONDS.includes(w.bond)) e.push(`${t}.bond: one of ${BONDS.join(', ')}`);
     if (w.body !== undefined && !BODIES[w.body] && !hexRgb(w.body)) e.push(`${t}.body: one of ${Object.keys(BODIES).join(', ')}, or '#rrggbb'`);
     if (w.stone !== undefined && !STONES[w.stone]) e.push(`${t}.stone: one of ${Object.keys(STONES).join(', ')}`);
@@ -81,7 +88,7 @@ export function validateMasonry(f, at) {
     if (p && p.stone !== undefined && !STONES[p.stone]) e.push(`${t}.stone: one of ${Object.keys(STONES).join(', ')}`);
     if (p && p.grout !== undefined && !hexRgb(p.grout)) e.push(`${t}.grout: '#rrggbb'`);
     if (p && p.gap !== undefined && !(Number.isFinite(p.gap) && p.gap >= 0 && p.gap <= 30)) e.push(`${t}.gap: mm, 0–30`);
-    if (p && p.tile !== undefined && !(Array.isArray(p.tile) && p.tile.length === 3 && p.tile.every((v) => v > 0))) e.push(`${t}.tile: [length, width, thickness] mm`);
+    if (p && p.tile !== undefined && !(Array.isArray(p.tile) && p.tile.length === 3 && within(p.tile[0], ...TILE_MM) && within(p.tile[1], ...TILE_MM) && p.tile[2] > 0 && p.tile[2] <= 500)) e.push(`${t}.tile: [length, width, thickness] mm (length and width ${TILE_MM[0]}–${TILE_MM[1]}, thickness up to 500)`);
   });
   (f.slates || []).forEach((s, i) => {
     const t = `${at}.slates[${i}]`;
@@ -89,8 +96,41 @@ export function validateMasonry(f, at) {
     if (s && !(Number.isFinite(s.pitch) && s.pitch > 5 && s.pitch < 80)) e.push(`${t}.pitch: degrees, 5–80`);
     if (s && !(Number.isFinite(s.run) && s.run > 0)) e.push(`${t}.run: the horizontal distance up the slope`);
     if (s && s.stone !== undefined && !STONES[s.stone]) e.push(`${t}.stone: one of ${Object.keys(STONES).join(', ')}`);
+    if (s && s.slate !== undefined && !(Array.isArray(s.slate) && s.slate.length === 3 && within(s.slate[0], ...SLATE_MM) && within(s.slate[1], ...SLATE_MM) && s.slate[2] > 0 && s.slate[2] <= 100)) e.push(`${t}.slate: [length, width, thickness] mm (length and width ${SLATE_MM[0]}–${SLATE_MM[1]}, thickness up to 100)`);
+    const sl = s && Array.isArray(s.slate) ? s.slate[0] : 500;
+    if (s && s.headlap !== undefined && !within(s.headlap, 0, sl - 20)) e.push(`${t}.headlap: mm, 0 to the slate's length less 20 (the gauge is half what is left)`);
   });
   return e;
+}
+
+/**
+ * About how many units a frame's walls, paving and slates lay one by one (a wall a course of its smallest face at a
+ * time, a leaf each; a floor its tiles; a roof its slates); an entry drawn as a surface (`detail` 'surface' or 'mass')
+ * lays none. `scale` is metres a frame unit. For the cap in validateFrames; an entry validateMasonry refuses counts 0.
+ */
+export function masonryUnits(f, scale) {
+  const mm = scale * 1000; let n = 0;
+  const laid = (x) => x && (x.detail === undefined || x.detail === 'auto' || x.detail === 'units');
+  for (const w of Array.isArray(f.walls) ? f.walls : []) {
+    if (!laid(w) || !isPt(w.from) || !isPt(w.to) || !(w.height > 0)) continue;
+    const u = w.unit && typeof w.unit === 'object' ? (customUnitOk(w.unit) ? w.unit : null) : UNITS[w.unit || 'uk'];
+    if (!u) continue;
+    const j = u.j ?? 10, leaves = Number.isInteger(w.leaves) && w.leaves >= 1 && w.leaves <= 4 ? w.leaves : 1;
+    n += Math.ceil((Math.hypot(w.to[0] - w.from[0], w.to[1] - w.from[1], w.to[2] - w.from[2]) * mm) / (Math.min(u.l, u.w) + j)) * Math.ceil((w.height * mm) / (u.h + j)) * leaves;
+  }
+  for (const p of Array.isArray(f.paving) ? f.paving : []) {
+    if (!laid(p) || !Array.isArray(p.size) || !p.size.every((v) => v > 0)) continue;
+    const [l, w] = Array.isArray(p.tile) && within(p.tile[0], ...TILE_MM) && within(p.tile[1], ...TILE_MM) ? p.tile : [600, 300];
+    n += Math.ceil((p.size[0] * mm) / l) * Math.ceil((p.size[1] * mm) / w);
+  }
+  for (const s of Array.isArray(f.slates) ? f.slates : []) {
+    if (!laid(s) || !Array.isArray(s.eave) || s.eave.length !== 2 || !s.eave.every(isPt) || !(s.pitch > 5 && s.pitch < 80) || !(s.run > 0)) continue;
+    const [l, w] = Array.isArray(s.slate) && within(s.slate[0], ...SLATE_MM) && within(s.slate[1], ...SLATE_MM) ? s.slate : [500, 250];
+    const gauge = (l - (within(s.headlap, 0, l - 20) ? s.headlap : 75)) / 2;
+    const [a, b] = s.eave;
+    n += Math.ceil((s.run * mm) / Math.cos((s.pitch * Math.PI) / 180) / gauge) * Math.ceil((Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) * mm) / w);
+  }
+  return n;
 }
 
 // ── faces ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -148,6 +188,8 @@ export function bakeBondKey(key) {
   let p; try { p = UNB64(key.slice(MASONRY_TEXTURE_PREFIX.length)); } catch { return null; }
   if (!p || !Array.isArray(p.u) || !Array.isArray(p.c)) return null;
   const [l, w, h, j, vary] = p.u; const u = { l, w, h, j, vary };
+  // a key is recipe text too: only a unit validateMasonry would lay (the tile grows with it) is baked
+  if (!customUnitOk(u)) return null;
   const t = bondTile(p.b, u);
   const W = Math.max(8, Math.round(t.w * PX_MM)), H = Math.max(8, Math.round(t.h * PX_MM));
   const sx = W / t.w, sy = H / t.h;
@@ -558,7 +600,7 @@ export function layMasonry(f, { scale, light = DEFAULT_LIGHT, seed = 1, eyes = n
   const faces = [], repeats = [], report = {};
   const run = (list, fn, key) => {
     if (!Array.isArray(list) || !list.length) return;
-    report[key] = list.map((x, i) => { const r = fn(x, i, { scale, light, seed, eyes, instance }); faces.push(...r.faces); if (r.repeats) repeats.push(...r.repeats); return r.report; });
+    report[key] = list.map((x, i) => { const r = fn(x, i, { scale, light, seed, eyes, instance }); for (const x of r.faces) faces.push(x); if (r.repeats) for (const x of r.repeats) repeats.push(x); return r.report; });
   };
   run(f.walls, layWall, 'walls'); run(f.paving, layPaving, 'paving'); run(f.slates, laySlates, 'slates');
   return { faces, repeats, report };

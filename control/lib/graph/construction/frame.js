@@ -50,7 +50,7 @@ import { movement } from './movement.js';
 import { applyJoints, JOINT_TYPES } from './joints.js';
 import { spanChecks, assemblyOrder, assemblyTree, assemblyGroups } from './checks.js';
 import { timberTextureKey } from './textures.js';
-import { validateMasonry, layMasonry } from './masonry.js';
+import { validateMasonry, layMasonry, masonryUnits, MAX_MASONRY_UNITS } from './masonry.js';
 import { instanceGroups } from './instancing.js';
 import { validateSoft, lowerSoft, FILLS } from './soft.js';
 import { fabricError, resolveFabric, fabricSummary } from './fabric.js';
@@ -85,6 +85,7 @@ const len = (a) => Math.hypot(a[0], a[1], a[2]);
 export function validateFrames(frames) {
   const errors = [];
   if (!Array.isArray(frames)) return errors;
+  let units = 0;
   frames.forEach((f0, i) => {
     const at = `frames[${i}]`;
     if (!f0 || typeof f0 !== 'object') { errors.push(`${at}: must be an object { members, joints? }`); return; }
@@ -104,6 +105,7 @@ export function validateFrames(frames) {
     if (f.detail !== undefined && !FRAME_DETAILS.includes(f.detail)) errors.push(`${at}.detail: one of ${FRAME_DETAILS.join(', ')}`);
     for (const k of ['walls', 'paving', 'slates']) if (f[k] !== undefined && !Array.isArray(f[k])) errors.push(`${at}.${k}: must be an array`);
     errors.push(...validateMasonry(f, at));
+    units += masonryUnits(f, FRAME_UNITS[f.unit || 'cm']);
     if (f.layout !== undefined && f.layout !== 'kit') errors.push(`${at}.layout: 'kit' (every part laid flat to print), or leave it out`);
     if (f.kitGap !== undefined && !(Number.isFinite(f.kitGap) && f.kitGap >= 0)) errors.push(`${at}.kitGap: a distance in the frame's unit, ≥ 0`);
     if (f.shelfLoad !== undefined && !(Number.isFinite(f.shelfLoad) && f.shelfLoad >= 0)) errors.push(`${at}.shelfLoad: kg per metre, a number ≥ 0`);
@@ -169,6 +171,7 @@ export function validateFrames(frames) {
       if (J.a === J.b) errors.push(`${jt}: a and b must differ`);
     });
   });
+  if (units > MAX_MASONRY_UNITS) errors.push(`frames: about ${units} bricks, tiles and slates to lay one by one, over the ${MAX_MASONRY_UNITS} a recipe may lay — bigger units, less wall, floor or roof, or detail: 'surface' on the largest (drawn as its bond, not laid)`);
   return errors;
 }
 
@@ -526,7 +529,7 @@ export function lowerFrame(spec0, { light = DEFAULT_LIGHT, eyes = null, instance
   const MASONRY_OF = { full: 'units', boxes: 'surface', sparse: 'mass' };
   const inherit = (list) => (Array.isArray(list) && spec.detail && spec.detail !== 'auto' ? list.map((x) => (x && x.detail === undefined ? { ...x, detail: MASONRY_OF[spec.detail] } : x)) : list);
   const laid = layMasonry({ walls: inherit(spec.walls), paving: inherit(spec.paving), slates: inherit(spec.slates) }, { scale: unitScale, light, seed: Number.isInteger(spec.seed) ? spec.seed : 1, eyes, instance });
-  faces.push(...laid.faces); repeats.push(...laid.repeats);
+  for (const x of laid.faces) faces.push(x); for (const x of laid.repeats) repeats.push(x);   // a long wall is more faces than a spread's arguments
   const mm = (v) => Math.round(v * 1000);
   const report = {
     members: members.map((M) => {
