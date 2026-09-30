@@ -20,7 +20,7 @@ import { workbenchAssetFaces } from '../worlds/workbench.js';
 import { buildPosedFigure } from '../polygonizer/figure-render.js';
 import { GARMENTS } from '../polygonizer/figure-garments.js';
 import { makeLight, shadeHex, dot3, sub3, centroid } from '../polygonizer/vexar.js';
-import { SM } from '../../util/math-scope.js';
+import { SM, mathKey } from '../../util/math-scope.js';
 
 const TAU = Math.PI * 2;
 const RED = '#c0392b', STEEL = '#9aa3b0', DARK = '#3a3a3a';
@@ -164,12 +164,12 @@ function lowPolyFigureFaces() {
 }
 
 // ── bake (memoized) ─────────────────────────────────────────────────────────────
-let _bakedCm = null;
+const _bakedCm = new Map();   // mathKey() → the baked faces
 
 /** Compose bike + rider into one cm-space face list (z up, +x forward), centred on
  *  the wheelbase, ground at z=0. Memoized — the figure mesh runs once per process. */
 export function bakeCyclistCm() {
-  if (_bakedCm) return _bakedCm;
+  const hit = _bakedCm.get(mathKey()); if (hit) return hit;
   if (!GARMENTS[CYCLIST_KIT_KEY]) GARMENTS[CYCLIST_KIT_KEY] = CYCLIST_KIT;   // register the tailored kit
 
   const bikeFaces = workbenchAssetFaces(bikeManifest(), { scale: 1 });        // cm
@@ -187,8 +187,9 @@ export function bakeCyclistCm() {
     corners: f.corners.map(([x, y, z]) => [(y - fcy) * FS + FX, -(x - fcx) * FS, (z - minZ) * FS + FZ]),
   }));
 
-  _bakedCm = [...bikeFaces, ...seat];
-  return _bakedCm;
+  const baked = [...bikeFaces, ...seat];
+  _bakedCm.set(mathKey(), baked);
+  return baked;
 }
 
 /** Heading (radians about z) for an axis/dir travel pose. +x is the asset's forward. */

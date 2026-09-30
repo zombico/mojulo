@@ -26,11 +26,13 @@
 
 import crypto from 'node:crypto';
 
-import { planFractalCity, fractalCityCameras, metroAtmosphere, DEFAULT_REGION } from './fractal-city.js';
+import { planFractalCity, fractalCityCameras, metroAtmosphere, DEFAULT_REGION, scopedCity } from './fractal-city.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { faceListToMesh, decollideFaces } from '../figures/face-mesh.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 export const STREAM_TILE = 16;            // tile edge, city units (≈ 58 m at 3.66 m/unit)
 export const STREAM_NEAR = 40;            // full-detail radius around the camera focus
@@ -170,7 +172,8 @@ function curtainwalled(boxes, recipe) {
  * to the tile of their corner centroid. Order within a tile follows plan order (deterministic).
  * The recipe must already carry resolved `insets` (the planner is DB-free).
  */
-export function tileCity(recipe, { tile = STREAM_TILE, lod = 'full' } = {}) {
+export function tileCity(recipe, o) { return scopedCity(recipe) ? withMath(dmath, () => tileCityIn(recipe, o)) : tileCityIn(recipe, o); }
+function tileCityIn(recipe, { tile = STREAM_TILE, lod = 'full' } = {}) {
   const level = lod === 'massing' ? 'massing' : 'full';
   const key = `plan|${level}|${tile}|${recipeKey(recipe)}`;
   return memo(key, () => {
@@ -201,7 +204,8 @@ export function tileCity(recipe, { tile = STREAM_TILE, lod = 'full' } = {}) {
  * assembleCityTile(recipe, id, { tile, lod }) → { faces, textures, light }
  * One tile realized through the SAME assembler as the whole city (plain lighting). Empty tile ⇒ [].
  */
-export function assembleCityTile(recipe, id, { tile = STREAM_TILE, lod = 'full' } = {}) {
+export function assembleCityTile(recipe, id, o) { return scopedCity(recipe) ? withMath(dmath, () => assembleCityTileIn(recipe, id, o)) : assembleCityTileIn(recipe, id, o); }
+function assembleCityTileIn(recipe, id, { tile = STREAM_TILE, lod = 'full' } = {}) {
   const tc = tileCity(recipe, { tile, lod });
   const part = tc.tiles.get(id);
   const args = assembleArgs(recipe);
@@ -214,7 +218,8 @@ export function assembleCityTile(recipe, id, { tile = STREAM_TILE, lod = 'full' 
  * Grounds + ribbons assembled ONCE for the whole city (they are few, long and cheap), then their
  * faces partitioned by face centroid so the road layer can stream per tile.
  */
-export function cityBase(recipe, { tile = STREAM_TILE } = {}) {
+export function cityBase(recipe, o) { return scopedCity(recipe) ? withMath(dmath, () => cityBaseIn(recipe, o)) : cityBaseIn(recipe, o); }
+function cityBaseIn(recipe, { tile = STREAM_TILE } = {}) {
   const tc = tileCity(recipe, { tile, lod: 'full' });
   return memo(`base|${tile}|${recipeKey(recipe)}`, () => {
     const scene = assembleBoxCityScene({ ...assembleArgs(recipe), grounds: tc.base.grounds, ribbons: tc.base.ribbons });
@@ -285,7 +290,8 @@ export function unpackTile(buf) {
  * their own render group (`massing:i,j`) so the page can hide one when its full tile lands.
  * Memoized; the tile route reads `textures` too, so a tile never resends a texture the page holds.
  */
-export function streamPageLayers(recipe, { tile = STREAM_TILE } = {}) {
+export function streamPageLayers(recipe, o) { return scopedCity(recipe) ? withMath(dmath, () => streamPageLayersIn(recipe, o)) : streamPageLayersIn(recipe, o); }
+function streamPageLayersIn(recipe, { tile = STREAM_TILE } = {}) {
   const base = cityBase(recipe, { tile });
   const massing = tileCity(recipe, { tile, lod: 'massing' });
   return memo(`page|${tile}|${recipeKey(recipe)}`, () => {

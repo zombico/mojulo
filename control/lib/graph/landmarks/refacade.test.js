@@ -51,6 +51,21 @@ const drawn = (f) => {
 const hash = (faces) => createHash('sha256').update(JSON.stringify(faces)).digest('hex').slice(0, 16);
 
 // Stock bytes, pinned before the refacade existed: a box without `metro` must render exactly these.
+// Most stock builders are 2.1.0's and keep the engine's Math so a minted box keeps its bytes (util/math-scope.js), and some
+// of their bytes already differed by platform in 2.1.0: V8 rounds sin, cos, atan2 and the rest one way on x64 and another
+// on arm64, and statue-of-liberty's pow changed between Node 22 and 24. STOCK holds the bytes recorded on macOS arm64
+// (Node 24); STOCK_X64 the x64 ones where they differ, and ONE_PLATFORM the platform-keyed ones (where no bytes are
+// recorded, the byte check is skipped). tian-tan-buddha is 3.0's, on dmath: the same bytes everywhere.
+const STOCK_X64 = {
+  taj: '6b1cdc35de2ba211', 'cn-tower': 'bbb0364ba83013dc', skytree: 'c6eafdcabb7a2116', colosseum: 'cccc857fd627d2c5',
+  'petronas-towers': '0b39c72dfa4b9e0d', 'mobile-edm-hall': 'db04e6d124e73264', 'cloud-gate': 'a131bb980626b82c',
+  'rizal-monument': 'c5713a60f84646ec', 'rotunda-bulbous': 'd393330db061fb76',
+};
+const ONE_PLATFORM = {
+  'statue-of-liberty': { 'linux-x64-22': '5efce7798570895f', 'linux-x64-24': '80c398ed919b6ba5', 'linux-arm64-22': '721d93f86d8f700d', 'linux-arm64-24': 'c662f9ddf146fc72', 'darwin-arm64-24': 'c662f9ddf146fc72' },
+};
+const PLATFORM = `${process.platform}-${process.arch}-${Number(process.versions.node.split('.')[0]) >= 24 ? 24 : 22}`;
+const stockPin = (id) => (ONE_PLATFORM[id] ? ONE_PLATFORM[id][PLATFORM] : process.arch === 'x64' ? STOCK_X64[id] ?? STOCK[id] : process.arch === 'arm64' ? STOCK[id] : null);
 const STOCK = {
   'taj': '2c93413c09e97f2f',
   'cn-tower': 'f2fff935b4eefe58',
@@ -91,12 +106,13 @@ const STOCK = {
   'rotunda-hemispheric': '6681e517e3b5c073',
   'rotunda-onion': '5faa189a9d631252',
   'rotunda-bulbous': '27145fa19bdb8fd8',
-  'tian-tan-buddha': '4c4f20c3c5d1577b',   // added with the shape: one builder for every city
+  'tian-tan-buddha': 'b58c7c0c31563e0a',   // added with the shape: one builder for every city
 };
 
 describe('metro refacade', () => {
   it.each(SUBJECTS.map((s) => [s.id, s]))('%s: a stock box keeps its bytes', (id, s) => {
-    expect(hash(render(s.box))).toBe(STOCK[id]);
+    const want = stockPin(id);
+    if (want) expect(hash(render(s.box))).toBe(want);
   });
 
   const metro = SUBJECTS.filter((s) => hasRefacade(s.box.shape) || s.id === 'tian-tan-buddha');   // one builder for every city

@@ -12,6 +12,8 @@ import { VENUES } from './refacade-venues.js';
 import { MONUMENTS } from './refacade-monuments.js';
 import { SACRED } from './refacade-sacred.js';
 import { SHRINES } from './refacade-shrines.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 const REFACADE = { ...TOWERS, ...VENUES, ...MONUMENTS, ...SACRED, ...SHRINES };
 const ALIASES = {
@@ -24,7 +26,9 @@ export const refacadeKey = (shape) => ALIASES[shape] || shape;
 export const hasRefacade = (shape) => Object.hasOwn(REFACADE, refacadeKey(shape));
 
 /** The metro builder's faces for `b`, or null when `b` is not metro or its shape has none. */
-export function refacadeBuilding(b, ctx) {
+/** refacadeBuilding on dmath: the shared helpers it reaches answer the same everywhere (util/math-scope.js). */
+export function refacadeBuilding(b, ctx) { return withMath(dmath, () => refacadeBuildingIn(b, ctx)); }
+function refacadeBuildingIn(b, ctx) {
   if (!b || !b.metro) return null;
   const build = REFACADE[refacadeKey(b.shape)];
   return build ? build(b, ctx) : null;

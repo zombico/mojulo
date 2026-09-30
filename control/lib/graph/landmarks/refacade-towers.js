@@ -4,6 +4,7 @@
 // Every dimension comes from the footprint's SHORT side `S` (never from b.z1), and every top stays
 // at or under the stock silhouette (LANDMARK_HEIGHTS × S). Pure functions of the box: no rng.
 import { makeKit, mixHex, planFrame, v3 } from './refacade-kit.js';
+import * as dmath from '../../util/dmath.js';
 
 const { sub, add, mul, cross, norm, len } = v3;
 const TAU = Math.PI * 2;
@@ -65,7 +66,7 @@ function towerTools(kit) {
     const e1 = norm(cross(d, ref)), e2 = norm(cross(d, e1));
     const off = Array.from({ length: sides }, (_, i) => {
       const a = (i / sides) * TAU + Math.PI / sides;
-      return add(mul(e1, Math.cos(a) * w), mul(e2, Math.sin(a) * w));
+      return add(mul(e1, dmath.cos(a) * w), mul(e2, dmath.sin(a) * w));
     });
     for (let i = 0; i < sides; i++) {
       const j = (i + 1) % sides, o = norm(add(off[i], off[j]));
@@ -84,7 +85,7 @@ function towerTools(kit) {
 function ringAt(cx, cy, z, n, r, a0 = 0) {
   return Array.from({ length: n }, (_, i) => {
     const a = a0 + (i / n) * TAU, rr = typeof r === 'function' ? r(a) : r;
-    return [cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, z];
+    return [cx + dmath.cos(a) * rr, cy + dmath.sin(a) * rr, z];
   });
 }
 
@@ -107,12 +108,12 @@ function cnTower(b, { L, camHint }) {
   const yRing = (z, R, rc, tw) => {
     const pts = [];
     for (let k = 0; k < 3; k++) {
-      const a = legA[k], u = [Math.cos(a), Math.sin(a)], t = [-u[1], u[0]];
+      const a = legA[k], u = [dmath.cos(a), dmath.sin(a)], t = [-u[1], u[0]];
       const P = (r, w) => [cx + (u[0] * r + t[0] * w) * S, cy + (u[1] * r + t[1] * w) * S, z];
       const root = Math.min(rc * 1.2, R * 0.8), rm = lerp(root, R, 0.55);
       pts.push(P(root, -tw * 1.3), P(rm, -tw * 1.12), P(R, -tw), P(R, tw), P(rm, tw * 1.12), P(root, tw * 1.3));
       const am = a + Math.PI / 3;
-      pts.push([cx + Math.cos(am) * rc * S, cy + Math.sin(am) * rc * S, z]);
+      pts.push([cx + dmath.cos(am) * rc * S, cy + dmath.sin(am) * rc * S, z]);
     }
     return pts;
   };
@@ -127,7 +128,7 @@ function cnTower(b, { L, camHint }) {
   loft(UPPER.map(([u, R, rc, tw]) => yRing(Z(u), R, rc, tw)), legTint);
   // a flute down each leg face: a dark hairline groove on the tip, following the leg to the pod
   for (let k = 0; k < 3; k++) {
-    const a = legA[k], u = [Math.cos(a), Math.sin(a)];
+    const a = legA[k], u = [dmath.cos(a), dmath.sin(a)];
     for (let s = 0; s < SHAFT.length - 1; s++) {
       const [ua, Ra] = SHAFT[s], [ub, Rb] = SHAFT[s + 1];
       const A = [cx + u[0] * (Ra + 0.002) * S, cy + u[1] * (Ra + 0.002) * S, Z(ua)];
@@ -146,7 +147,7 @@ function cnTower(b, { L, camHint }) {
   lathe(cx, cy, [[q(0.246), pz + q(0.21)], [q(0.226), pz + q(0.262)]], 24, CN.glassLit);
   lathe(cx, cy, [[q(0.226), pz + q(0.262)], [q(0.212), pz + q(0.28)], [q(0.09), pz + q(0.33)]], 24, CN.concrete);
   for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * TAU + Math.PI / 12, c = Math.cos(a), s = Math.sin(a);
+    const a = (i / 12) * TAU + Math.PI / 12, c = dmath.cos(a), s = dmath.sin(a);
     const A = [cx + c * q(0.08), cy + s * q(0.08), pz - q(0.01)], B = [cx + c * q(0.215), cy + s * q(0.215), pz + q(0.072)];
     const C = [cx + c * q(0.215), cy + s * q(0.215), pz + q(0.1)];
     tri(A, B, C, CN.fin);
@@ -220,7 +221,7 @@ function washingtonMonument(b, { L, camHint }) {
   // the ring of flags: white poles with a flag each, all flying the same way
   const NF = 24, rf = S * 0.45, pole = S * 0.34;
   for (let i = 0; i < NF; i++) {
-    const a = (i / NF) * TAU, px = cx + Math.cos(a) * rf, py = cy + Math.sin(a) * rf, pz = z0 + S * 0.012;
+    const a = (i / NF) * TAU, px = cx + dmath.cos(a) * rf, py = cy + dmath.sin(a) * rf, pz = z0 + S * 0.012;
     kit.quad([[px - S * 0.004, py, pz], [px + S * 0.004, py, pz], [px + S * 0.004, py, pz + pole], [px - S * 0.004, py, pz + pole]], WM.pole);
     const fx = S * 0.05, fz = S * 0.034, top = pz + pole - S * 0.006;
     kit.quad([[px, py, top - fz], [px + fx, py, top - fz], [px + fx, py, top], [px, py, top]], WM.flag);
@@ -296,7 +297,7 @@ function deckBox(kit, tools, cx, cy, h, za, zb, side, top, ch = 0) {
   const pts = [];
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * TAU;
-    const c = Math.cos(a), s = Math.sin(a), t = [-s, c];
+    const c = dmath.cos(a), s = dmath.sin(a), t = [-s, c];
     pts.push([cx + c * h + t[0] * (h - ch), cy + s * h + t[1] * (h - ch)]);
     pts.push([cx + c * (h - ch) + t[0] * h, cy + s * (h - ch) + t[1] * h]);
   }
@@ -335,9 +336,9 @@ function eiffelTower(b, { L, camHint }) {
   // the great arches: one per face, springing from the legs up to the first platform's soffit
   const archY = 0.29 * S, us = 0.03, a0 = inP(us) * S + S * 0.01, zs = Z(us), za = Z(0.155), NA = 14, bw = S * 0.035, bd = S * 0.02;
   for (let f = 0; f < 4; f++) {
-    const rot = (x, y, z) => { const c = Math.cos(f * Math.PI / 2), s = Math.sin(f * Math.PI / 2); return [cx + x * c - y * s, cy + x * s + y * c, z]; };
-    const pt = (t, grow, dy) => { const a = Math.PI * t; return rot(-Math.cos(a) * (a0 + grow), -archY + dy, zs + Math.sin(a) * (za - zs + grow)); };
-    const outDir = (() => { const c = Math.cos(f * Math.PI / 2), s = Math.sin(f * Math.PI / 2); return [s, -c, 0]; })();
+    const rot = (x, y, z) => { const c = dmath.cos(f * Math.PI / 2), s = dmath.sin(f * Math.PI / 2); return [cx + x * c - y * s, cy + x * s + y * c, z]; };
+    const pt = (t, grow, dy) => { const a = Math.PI * t; return rot(-dmath.cos(a) * (a0 + grow), -archY + dy, zs + dmath.sin(a) * (za - zs + grow)); };
+    const outDir = (() => { const c = dmath.cos(f * Math.PI / 2), s = dmath.sin(f * Math.PI / 2); return [s, -c, 0]; })();
     for (let i = 0; i < NA; i++) {
       const t0 = i / NA, t1 = (i + 1) / NA;
       kit.quad([pt(t0, 0, -bd), pt(t1, 0, -bd), pt(t1, bw, -bd), pt(t0, bw, -bd)], EIF.memberLit, { dir: outDir });
@@ -446,8 +447,8 @@ function skytree(b, { L, camHint }) {
   const vtx = [-Math.PI / 2, Math.PI / 6, (Math.PI * 5) / 6];
   const tri = (a) => {
     let best = Infinity;
-    for (const v of vtx) { const en = v + Math.PI / 3; let d = Math.atan2(Math.sin(a - en), Math.cos(a - en)); best = Math.min(best, Math.abs(d)); }
-    return Math.min(1, 0.5 / Math.cos(Math.min(best, Math.PI / 3)));
+    for (const v of vtx) { const en = v + Math.PI / 3; let d = dmath.atan2(dmath.sin(a - en), dmath.cos(a - en)); best = Math.min(best, Math.abs(d)); }
+    return Math.min(1, 0.5 / dmath.cos(Math.min(best, Math.PI / 3)));
   };
   const BODY = [[0, 0.42], [0.04, 0.36], [0.1, 0.29], [0.17, 0.23], [0.25, 0.185], [0.33, 0.155], [0.41, 0.135], [0.49, 0.122]];
   const ringU = (u, R) => {
@@ -468,7 +469,7 @@ function skytree(b, { L, camHint }) {
   }
   // the three foot columns at the triangle's corners, white tubes rising into the lattice
   for (const v of vtx) {
-    const P = (u, R) => [cx + Math.cos(v) * R * S * 1.12 * 0.985, cy + Math.sin(v) * R * S * 1.12 * 0.985, Z(u)];
+    const P = (u, R) => [cx + dmath.cos(v) * R * S * 1.12 * 0.985, cy + dmath.sin(v) * R * S * 1.12 * 0.985, Z(u)];
     tools_col(kit, P(0, 0.42), P(0.17, 0.23 * 0.98), S * 0.03, SKY.white);
   }
   lathe(cx, cy, [[S * 0.1, z0], [S * 0.1, z0 + S * 0.02]], 12, SKY.plinth, { capTop: SKY.plinth });
@@ -561,7 +562,7 @@ function empireState(b, { L, camHint }) {
   const m0 = Z(0.805), r = (v) => v * S;
   lathe(cx, cy, [[r(0.07), m0], [r(0.06), m0 + r(0.2)]], 12, ESB.mast);
   for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4, c = Math.cos(a), s = Math.sin(a);
+    const a = i * Math.PI / 2 + Math.PI / 4, c = dmath.cos(a), s = dmath.sin(a);
     kit.quad([[cx + c * r(0.06), cy + s * r(0.06), m0], [cx + c * r(0.1), cy + s * r(0.1), m0], [cx + c * r(0.07), cy + s * r(0.07), m0 + r(0.22)], [cx + c * r(0.05), cy + s * r(0.05), m0 + r(0.22)]], ESB.crownFin);
   }
   lathe(cx, cy, [[r(0.061), m0 + r(0.07)], [r(0.058), m0 + r(0.17)]], 12, ESB.mastGlass);
@@ -591,7 +592,7 @@ function petronas(b, { L, camHint }) {
     for (let k = 0; k < 8; k++) {
       const a = (k / 8) * TAU + Math.PI / 8, st = TAU / 8;
       for (const [f, rr] of [[0, 1], [0.2, 0.8], [0.5, 0.9], [0.8, 0.8]]) {
-        const aa = a + st * f, [x, y] = P(ox + Math.cos(aa) * R * rr * S * scale, oy + Math.sin(aa) * R * rr * S * scale);
+        const aa = a + st * f, [x, y] = P(ox + dmath.cos(aa) * R * rr * S * scale, oy + dmath.sin(aa) * R * rr * S * scale);
         pts.push([x, y, z]);
       }
     }
@@ -691,8 +692,8 @@ function bigBen(b, { L, camHint }) {
     disc(dr * 0.9, BB.dial, S * 0.019);
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * TAU, rr = dr * 0.76, tl = i % 3 === 0 ? dr * 0.13 : dr * 0.08;
-      const sx = mid + Math.sin(a) * rr, sz = dc + Math.cos(a) * rr;
-      const n = w.n, tip = w.at(sx + Math.sin(a) * tl, sz + Math.cos(a) * tl, S * 0.022), base = w.at(sx, sz, S * 0.022);
+      const sx = mid + dmath.sin(a) * rr, sz = dc + dmath.cos(a) * rr;
+      const n = w.n, tip = w.at(sx + dmath.sin(a) * tl, sz + dmath.cos(a) * tl, S * 0.022), base = w.at(sx, sz, S * 0.022);
       towerTools(kit).strip(base, tip, S * 0.012, n, BB.hand, 0);
     }
     towerTools(kit).strip(w.at(mid, dc, S * 0.024), w.at(mid + dr * 0.35, dc + dr * 0.35, S * 0.024), S * 0.018, w.n, BB.hand, 0);

@@ -12,6 +12,8 @@ import { makeKit, v3, decimateFaces } from './refacade-kit.js';
 import { scaleHex } from '../polygonizer/vexar.js';
 import { renderFigureWorldFrames } from '../polygonizer/figure-render.js';
 import { basePositions, articulate } from '../polygonizer/figure-vajra.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath, mathKey } from '../../util/math-scope.js';
 
 const PALETTE = {
   bronze: '#6f6c57', bronzeDark: '#57554a', bronzeLight: '#858268',
@@ -30,8 +32,8 @@ const LOTUS = {
 const ARMS = { shR: { pitch: 20, roll: 50 }, elbowR: 140, shL: { pitch: 15, yaw: -5, roll: 60 }, elbowL: 55 };
 function seatedNodes() {
   const m = articulate(ARMS);
-  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-  const along = (o, d, l) => { const n = Math.hypot(d[0], d[1], d[2]); return { x: o.x + (d[0] / n) * l, y: o.y + (d[1] / n) * l, z: o.z + (d[2] / n) * l }; };
+  const dist = (a, b) => dmath.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+  const along = (o, d, l) => { const n = dmath.hypot(d[0], d[1], d[2]); return { x: o.x + (d[0] / n) * l, y: o.y + (d[1] / n) * l, z: o.z + (d[2] / n) * l }; };
   const thigh = dist(m.hipL, m.kneeL), shin = dist(m.kneeL, m.ankleL);
   m.kneeL = along(m.hipL, LOTUS.thighL, thigh); m.kneeR = along(m.hipR, LOTUS.thighR, thigh);
   m.ankleL = along(m.kneeL, LOTUS.shinL, shin); m.ankleR = along(m.kneeR, LOTUS.shinR, shin);
@@ -44,9 +46,9 @@ function seatedNodes() {
 // material, so the shade is consistent) as a brightness the landmark maps onto bronze. Returned in
 // STAND units about the atlas (headBase), facing +y. Memoised: the figure build is ~1 s.
 const FIGURE_S = 1.95;   // figure-render: STAND → render world
-let HEAD = null;
+const HEADS = new Map();   // mathKey() → the head
 export function buddhaHeadFaces() {
-  if (HEAD) return HEAD;
+  if (HEADS.has(mathKey())) return HEADS.get(mathKey());
   const rest = basePositions();
   const src = renderFigureWorldFrames({}).frames[0].faces;
   // world → STAND: a uniform scale, anchored at the crown (the highest point is the skull's top, the
@@ -60,11 +62,14 @@ export function buddhaHeadFaces() {
   const lum = (h) => { const r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16); return 0.3 * r + 0.59 * g + 0.11 * b; };
   const faces = decimateFaces(head, 140, (f) => lum(f.fill || '#808080'));
   const mean = faces.reduce((acc, f) => acc + f.tag, 0) / (faces.length || 1);
-  HEAD = faces.map((f) => ({ pts: f.pts.map((p) => [p[0] - rest.headBase.x, p[1] - rest.headBase.y, p[2] - rest.headBase.z]), shade: Math.max(0.6, Math.min(1.35, f.tag / (mean || 1))) }));
+  const HEAD = faces.map((f) => ({ pts: f.pts.map((p) => [p[0] - rest.headBase.x, p[1] - rest.headBase.y, p[2] - rest.headBase.z]), shade: Math.max(0.6, Math.min(1.35, f.tag / (mean || 1))) }));
+  HEADS.set(mathKey(), HEAD);
   return HEAD;
 }
 
-export function tianTanBuddhaBuilding(b, { L, camHint }) {
+/** tianTanBuddhaBuilding on dmath: the shared helpers it reaches answer the same everywhere (util/math-scope.js). */
+export function tianTanBuddhaBuilding(b, o) { return withMath(dmath, () => tianTanBuddhaBuildingIn(b, o)); }
+function tianTanBuddhaBuildingIn(b, { L, camHint }) {
   const pal = { ...PALETTE, ...(b.landmarkPalette || {}) };
   const faces = [];
   const K = makeKit({ faces, L, camHint });
@@ -75,7 +80,7 @@ export function tianTanBuddhaBuilding(b, { L, camHint }) {
   const ellipsoid = (c, rx, ry, rz, tint, { nU = 12, nV = 7 } = {}) => {
     const P = (i, j) => {
       const th = (i / nU) * 2 * Math.PI, ph = -Math.PI / 2 + (j / nV) * Math.PI;
-      return [c[0] + Math.cos(ph) * Math.cos(th) * rx, c[1] + Math.cos(ph) * Math.sin(th) * ry, c[2] + Math.sin(ph) * rz];
+      return [c[0] + dmath.cos(ph) * dmath.cos(th) * rx, c[1] + dmath.cos(ph) * dmath.sin(th) * ry, c[2] + dmath.sin(ph) * rz];
     };
     for (let j = 0; j < nV; j++) for (let i = 0; i < nU; i++) {
       const A = P(i, j), B = P(i + 1, j), C = P(i + 1, j + 1), D = P(i, j + 1);
@@ -87,7 +92,7 @@ export function tianTanBuddhaBuilding(b, { L, camHint }) {
   const tube = (A, B, ra, rb, tint, n = 8) => {
     const t = norm(sub(B, A)), ref = Math.abs(t[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
     const p = norm(cross(t, ref)), q = cross(t, p), mid = lerp(A, B, 0.5);
-    const ring = (O, r) => Array.from({ length: n }, (_, i) => { const a = (i / n) * 2 * Math.PI; return add(O, add(mul(p, Math.cos(a) * r), mul(q, Math.sin(a) * r))); });
+    const ring = (O, r) => Array.from({ length: n }, (_, i) => { const a = (i / n) * 2 * Math.PI; return add(O, add(mul(p, dmath.cos(a) * r), mul(q, dmath.sin(a) * r))); });
     const ra0 = ring(A, ra), rb0 = ring(B, rb);
     for (let i = 0; i < n; i++) { const j = (i + 1) % n; K.quad([ra0[i], ra0[j], rb0[j], rb0[i]], tint, mid); }
   };
@@ -109,10 +114,10 @@ export function tianTanBuddhaBuilding(b, { L, camHint }) {
     const railR = r * s * 0.99, railH = s * 0.018, postW = s * 0.006;
     for (let i = 0; i < N; i++) {
       const a = (i / N) * 2 * Math.PI, a1 = ((i + 1) / N) * 2 * Math.PI;
-      if (Math.abs(Math.sin(a) + 1) < 0.02 || Math.abs(Math.sin(a1) + 1) < 0.02 || (Math.sin((a + a1) / 2) < -0.985)) continue;   // the stair's gap at −y
-      const x = cx + Math.cos(a) * railR, y = cy + Math.sin(a) * railR;
+      if (Math.abs(dmath.sin(a) + 1) < 0.02 || Math.abs(dmath.sin(a1) + 1) < 0.02 || (dmath.sin((a + a1) / 2) < -0.985)) continue;   // the stair's gap at −y
+      const x = cx + dmath.cos(a) * railR, y = cy + dmath.sin(a) * railR;
       K.box(x - postW, y - postW, z0 + hi * s, x + postW, y + postW, z0 + hi * s + railH, pal.rail);
-      const P0 = [x, y, z0 + hi * s + railH], P1 = [cx + Math.cos(a1) * railR, cy + Math.sin(a1) * railR, z0 + hi * s + railH];
+      const P0 = [x, y, z0 + hi * s + railH], P1 = [cx + dmath.cos(a1) * railR, cy + dmath.sin(a1) * railR, z0 + hi * s + railH];
       K.quad([P0, P1, [P1[0], P1[1], P1[2] - railH * 0.22], [P0[0], P0[1], P0[2] - railH * 0.22]], pal.rail, [cx, cy, P0[2]]);
     }
   });
@@ -136,7 +141,7 @@ export function tianTanBuddhaBuilding(b, { L, camHint }) {
   const devaR = 0.30 * s, zDeva = 0.15 * s, dh = s * 0.055;
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * 2 * Math.PI;   // every 60° from +x: the nearest two stand 30° off the stair at −y
-    const dx = Math.cos(a), dy = Math.sin(a), px = cx + dx * devaR, py = cy + dy * devaR, z = z0 + zDeva;
+    const dx = dmath.cos(a), dy = dmath.sin(a), px = cx + dx * devaR, py = cy + dy * devaR, z = z0 + zDeva;
     const inward = [-dx, -dy, 0];
     ellipsoid([px, py, z + dh * 0.22], dh * 0.28, dh * 0.28, dh * 0.22, pal.bronzeDark, { nU: 8, nV: 5 });   // kneeling legs and robe
     ellipsoid([px, py, z + dh * 0.58], dh * 0.17, dh * 0.17, dh * 0.26, pal.bronze, { nU: 8, nV: 5 });      // torso
@@ -153,8 +158,8 @@ export function tianTanBuddhaBuilding(b, { L, camHint }) {
     const n = 16, off = ring * (Math.PI / n);
     for (let i = 0; i < n; i++) {
       const a = off + (i / n) * 2 * Math.PI, h = (Math.PI / n) * 0.95;
-      const base = (da) => [cx + Math.cos(a + da) * lr * rIn, cy + Math.sin(a + da) * lr * rIn, z0 + zl + lh * zBase];
-      const tip = [cx + Math.cos(a) * lr * rOut, cy + Math.sin(a) * lr * rOut, z0 + zl + lh * zTip];
+      const base = (da) => [cx + dmath.cos(a + da) * lr * rIn, cy + dmath.sin(a + da) * lr * rIn, z0 + zl + lh * zBase];
+      const tip = [cx + dmath.cos(a) * lr * rOut, cy + dmath.sin(a) * lr * rOut, z0 + zl + lh * zTip];
       K.tri(base(-h), base(h), tip, tint, [cx, cy, z0 + zl + lh * 0.3]);
     }
   }

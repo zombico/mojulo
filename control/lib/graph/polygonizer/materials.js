@@ -18,6 +18,7 @@
  */
 
 import { isMetalSurface, metalSurfaceError, resolveMetalSurface, metalShelfRow } from '../materials/metal-surface.js';
+import { SM } from '../../util/math-scope.js';
 
 export const MATERIALS = {
   // metallic — specular highlight, tinted. `metal: 1` marks the family for the
@@ -149,7 +150,7 @@ export function tagFacesWithMetal(faces, surface, { axis = null, along: fallback
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]); return l > 1e-12 ? [a[0] / l, a[1] / l, a[2] / l] : null; };
+const unit3 = (a) => { const l = SM.hypot(a[0], a[1], a[2]); return l > 1e-12 ? [a[0] / l, a[1] / l, a[2] / l] : null; };
 const AXES = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
 /** A pattern's frame in the part: L through the layers, R along the pattern's run, W across (L × R). */
 function patternFrame(layers, along) {
@@ -170,16 +171,16 @@ export function toolpathAngle(corners, along = 'auto', axis = null) {
   if (along === 'auto') {
     // a clearly elongated face (a bar's side, a tube's strip) runs along its longest edge; anything squarer (a cap, a
     // panel, a fan triangle) takes the part's x, or its y where x is the normal — so coplanar faces agree
-    let best = 0, bi = 0; for (let i = 0; i < corners.length; i++) { const l = Math.hypot(...sub3(corners[(i + 1) % corners.length], corners[i])); if (l > best + 1e-12) { best = l; bi = i; } }
-    let area = 0; for (let i = 1; i + 1 < corners.length; i++) area += Math.hypot(...cross3(sub3(corners[i], corners[0]), sub3(corners[i + 1], corners[0]))) / 2;
+    let best = 0, bi = 0; for (let i = 0; i < corners.length; i++) { const l = SM.hypot(...sub3(corners[(i + 1) % corners.length], corners[i])); if (l > best + 1e-12) { best = l; bi = i; } }
+    let area = 0; for (let i = 1; i + 1 < corners.length; i++) area += SM.hypot(...cross3(sub3(corners[i], corners[0]), sub3(corners[i + 1], corners[0]))) / 2;
     const across = best > 0 ? (corners.length === 3 ? 2 : 1) * area / best : 0;
     t = across > 0 && best / across > 2 ? sub3(corners[(bi + 1) % corners.length], corners[bi]) : (Math.abs(n[0]) > 0.9 ? [0, 1, 0] : [1, 0, 0]);
   }
   else if (along === 'around') { const c = corners.reduce((a, p) => [a[0] + p[0] / corners.length, a[1] + p[1] / corners.length, a[2] + p[2] / corners.length], [0, 0, 0]);
     t = axis ? cross3(axis.dir, sub3(c, axis.at)) : cross3([0, 0, 1], c);
-    if (Math.hypot(...t) < 1e-9) { const a = axis ? axis.dir : [0, 0, 1]; t = cross3(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]); } }
+    if (SM.hypot(...t) < 1e-9) { const a = axis ? axis.dir : [0, 0, 1]; t = cross3(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]); } }
   else t = along === 'x' ? [1, 0, 0] : along === 'y' ? [0, 1, 0] : along === 'z' ? [0, 0, 1] : along;
   // project into the face plane; a tangent along the normal has no in-plane direction → the first edge
   const tp = unit3(sub3(t, n.map((v) => v * dot3(t, n)))); if (!tp) return 0;
-  return Math.atan2(dot3(cross3(e0, tp), n), dot3(e0, tp));
+  return SM.atan2(dot3(cross3(e0, tp), n), dot3(e0, tp));
 }

@@ -20,7 +20,7 @@
  */
 import { buildPosedFigure } from '../polygonizer/figure-render.js';
 import { makeLight, shadeHex, dot3, sub3, centroid } from '../polygonizer/vexar.js';
-import { SM } from '../../util/math-scope.js';
+import { SM, mathKey } from '../../util/math-scope.js';
 
 // figure-render world transform (matches cyclist-asset.js / figure-render.js).
 const PROTO_SCALE = 12, S = 1.95;
@@ -86,7 +86,7 @@ const stride = (n, max) => Math.max(1, Math.floor(n / max));
 // feet at z=0. Stores {corners, region, normal} — colour is deferred to the instance.
 const _geomCache = new Map();
 function bakeGeometry(archetypeKey, poseKey) {
-  const key = `${archetypeKey}:${poseKey}`;
+  const key = `${archetypeKey}:${poseKey}${mathKey()}`;
   const hit = _geomCache.get(key);
   if (hit) return hit;
   const proto = ARCHETYPES[archetypeKey] || ARCHETYPES.adultM;

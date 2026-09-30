@@ -85,6 +85,8 @@ import { pedestrianFaces, IDLE_POSES, STROLL_POSES, PALETTES } from '../figures/
 import { CITY_FLAVORS, normalizeCityFlavor } from './city-flavors.js';
 import { planCanalCity, canalCameras, CANAL } from './canal-city.js';
 import { roundStreetKit, isRoundKitShape } from './round-kit.js';
+import { SM, withMath } from '../../util/math-scope.js';
+import * as dmath from '../../util/dmath.js';
 
 const CITY_ELEMENT_DEFAULTS = {
   buildings: true,
@@ -1322,7 +1324,7 @@ function placeCivicAreas(region, kinds, grid, rng, boxes, grounds, faces, opts, 
   const cands = [];
   for (const fx of [0.2, 0.5, 0.8]) for (const fy of [0.2, 0.5, 0.8]) {
     const x = region.x + region.w * fx, y = region.y + region.d * fy;
-    cands.push({ x, y, key: -Math.hypot(x - cx0, y - cy0) + rng() * 0.6 });
+    cands.push({ x, y, key: -SM.hypot(x - cx0, y - cy0) + rng() * 0.6 });
   }
   cands.sort((a, b) => a.key - b.key);
   let placed = 0;
@@ -1513,10 +1515,10 @@ function placePedestrianGroups(region, grid, people, faces, seed, figureScale = 
     for (let x = region.x + 0.4; x < region.x + region.w - 0.4; x += STEP) {
       const ax = x + (rng() - 0.5) * STEP * 0.6, ay = y + (rng() - 0.5) * STEP * 0.6;   // jitter off the lattice
       if (!onWalk(ax, ay) || rng() > density) continue;
-      if (taken.some(([tx, ty]) => Math.hypot(tx - ax, ty - ay) < MIN_GAP)) continue;
+      if (taken.some(([tx, ty]) => SM.hypot(tx - ax, ty - ay) < MIN_GAP)) continue;
       taken.push([ax, ay]);
       const kind = pickKind();
-      const th = rng() * Math.PI * 2, ct = Math.cos(th), st = Math.sin(th);
+      const th = rng() * Math.PI * 2, ct = SM.cos(th), st = SM.sin(th);
       const adultPose = rng() < 0.5 ? IDLE_POSES : STROLL_POSES;
       if (kind === 'solo') {
         emit(ax, ay, th, rng() < 0.5 ? 'adultM' : 'adultF', adultPose, 1);
@@ -1645,7 +1647,7 @@ const fenceHeight = (style, rng) => STOREY_H * (FENCE_HEIGHTS[style] || 0.34) * 
 // `fence` = { style, h } chosen once per lot so a lot's whole perimeter reads at one height.
 function fenceRun(boxes, x0, y0, x1, y1, rng, fence = {}) {
   const style = fence.style || 'picket', h = fence.h || fenceHeight(style, rng);
-  const len = Math.hypot(x1 - x0, y1 - y0);
+  const len = SM.hypot(x1 - x0, y1 - y0);
   if (len < 0.16) return;
   const horiz = Math.abs(x1 - x0) >= Math.abs(y1 - y0);
   const rail = (th, z1, tint) => horiz
@@ -1758,7 +1760,7 @@ function fillTownPark(block, rng, boxes, grounds, faces, opts, grid) {
   });
   for (let i = 0, nT = 2 + Math.floor(rng() * 3); i < nT; i++) {     // edge trees (kept off the pad)
     const tx = block.x + 0.4 + rng() * (block.w - 0.8), ty = block.y + 0.4 + rng() * (block.d - 0.8);
-    if (Math.hypot(tx - px, ty - py) > pad * 0.75) cityTree(boxes, tx, ty, rng, climate);
+    if (SM.hypot(tx - px, ty - py) > pad * 0.75) cityTree(boxes, tx, ty, rng, climate);
   }
   for (let i = 0; i < 4; i++) cityShrub(boxes, block.x + 0.3 + rng() * (block.w - 0.6), block.y + 0.3 + rng() * (block.d - 0.6), rng);
   parkBench(boxes, block.x + block.w * 0.3, block.y + 0.45, 'x', rng);
@@ -1980,14 +1982,14 @@ function fillBlock(region, reserved, rng, boxes, grounds, faces, opts, grid, car
 // tower on a corner site first. Metro only (fillBlock dispatches), so no stored row reaches it.
 function metroCore(opts, x, y) {
   const F = opts.metroField;
-  return F ? Math.exp(-Math.hypot(x - F.cx, y - F.cy) / F.lambda) : 0;   // 1 at the core → 0 far out
+  return F ? SM.exp(-SM.hypot(x - F.cx, y - F.cy) / F.lambda) : 0;   // 1 at the core → 0 far out
 }
-function gaussian(rng) { const u = Math.max(1e-9, rng()), v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function gaussian(rng) { const u = Math.max(1e-9, rng()), v = rng(); return Math.sqrt(-2 * SM.log(u)) * SM.cos(2 * Math.PI * v); }
 function metroLotHeight(rect, rng, opts) {
   const H = (opts.metroCfg || METRO).height, k = metroCore(opts, rect.x + rect.w / 2, rect.y + rect.d / 2);
   const med = H.edge + (H.core - H.edge) * k, sigma = H.sigmaEdge + (H.sigmaCore - H.sigmaEdge) * k;
   const z = Math.max(-1.8, Math.min(2.4, gaussian(rng)));
-  const h = Math.min(med * Math.exp(sigma * z), H.slender * Math.min(rect.w, rect.d), H.cap ?? Infinity);   // a narrow lot carries no supertall; a flavour may cap the cornice
+  const h = Math.min(med * SM.exp(sigma * z), H.slender * Math.min(rect.w, rect.d), H.cap ?? Infinity);   // a narrow lot carries no supertall; a flavour may cap the cornice
   const floorH = h > 8 ? METRO.floorH.office : METRO.floorH.residential;
   const floors = Math.max(1, Math.round(h / floorH));
   return { h: floors * floorH + 0.12, floors, floorH };                                  // whole floors + a parapet
@@ -2080,7 +2082,7 @@ function drawSkinMaterial(u, w) {
 function metroSkins(boxes, field, seed, flavor = null) {
   const S = { ...METRO_SKIN, ...(flavor && flavor.skin) }, districts = new Map(), counts = { glass: 0, stone: 0, brick: 0 };
   const mix = flavor && flavor.skin && flavor.skin.mix;
-  const coreK = (x, y) => (field ? Math.exp(-Math.hypot(x - field.cx, y - field.cy) / field.lambda) : 0);
+  const coreK = (x, y) => (field ? SM.exp(-SM.hypot(x - field.cx, y - field.cy) / field.lambda) : 0);
   const district = (x, y) => {
     const i = Math.floor(x / S.district), j = Math.floor(y / S.district), key = `${i},${j}`;
     if (!districts.has(key)) {
@@ -2117,7 +2119,7 @@ function metroSkins(boxes, field, seed, flavor = null) {
 function flavorFacade(skin, F, material, floors, short, r) {
   const pick = (xs) => xs[Math.floor(r() * xs.length)];
   if (F.roof && (!F.roof.on || F.roof.on.includes(material)) && floors <= F.roof.maxFloors && r() < F.roof.p) {
-    const rise = F.roof.form === 'hip' ? Math.min(F.roof.rise, Math.tan(0.49) * short / 2) : Math.min(F.roof.rise, short * 0.3);
+    const rise = F.roof.form === 'hip' ? Math.min(F.roof.rise, SM.tan(0.49) * short / 2) : Math.min(F.roof.rise, short * 0.3);
     skin.roofCap = { form: F.roof.form, rise, tint: pick(F.roof.tints), ...(F.roof.chimneys ? { chimneys: true } : {}) };
     skin.rooftopKit = []; skin.crown = 'none';
   }
@@ -2179,7 +2181,7 @@ function runIntervals(strip, cuts) {
 }
 function metroTowerSites(block, along, long, short, rng, opts) {
   const T = (opts.metroCfg || METRO).tower, k = metroCore(opts, block.x + block.w / 2, block.y + block.d / 2);
-  if (!opts.elements.buildings || rng() >= T.p * k ** 1.5) return [];
+  if (!opts.elements.buildings || rng() >= T.p * SM.pow(k, 1.5)) return [];
   const first = metroTowerSite(block, along, long, short, rng, k, null, T);
   if (k < T.secondAt || rng() >= T.second) return [first];
   return [first, metroTowerSite(block, along, long, short, rng, k, first.corner, T)];   // the diagonally opposite corner
@@ -3174,7 +3176,7 @@ function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs
     // (closer than the box's half-width + the walk band) disqualifies the face ahead of road width —
     // cars never enter from inside an intersection; among the clear faces the widest road wins, then
     // the one furthest from a crossing, then the longest hit.
-    const junctionDistAt = (f, lx) => { const [wx, wy] = f.F.pt(lx, FRONTAGE_REACH); return junctions.reduce((m, j) => Math.min(m, Math.hypot(j.x - wx, j.y - wy) - j.streetW / 2), Infinity); };
+    const junctionDistAt = (f, lx) => { const [wx, wy] = f.F.pt(lx, FRONTAGE_REACH); return junctions.reduce((m, j) => Math.min(m, SM.hypot(j.x - wx, j.y - wy) - j.streetW / 2), Infinity); };
     for (const f of fr) {
       const ew = Math.min(3.2, f.F.L * 0.6), lo = Math.max(ew / 2 + 0.2, f.hitLo + ew / 2), hi = Math.min(f.F.L - ew / 2 - 0.2, f.hitHi - ew / 2);
       const cands = lo <= hi ? [f.centre, lo, hi, (lo + hi) / 2].map((c) => Math.max(lo, Math.min(hi, c))) : [f.centre];
@@ -3239,7 +3241,7 @@ function frontagePass(boxes, grounds, faces, grid, roads, junctions, toFrame, bs
         const v = cellAt(grid, wx, wy);
         if (v === -1 || v === CLAIM.ROAD || v === CLAIM.BUILDING || v === CLAIM.LOT || v === CLAIM.CORRIDOR) continue;
         if (cuts.some((c) => wx >= c.x && wx <= c.x + c.w && wy >= c.y && wy <= c.y + c.d)) continue;
-        faces.push(...pedestrianFaces({ cx: wx, cy: wy, heading: Math.atan2(-F.normal[1], -F.normal[0]) + (local() - 0.5) * 0.4, scale: (ctx.metro ? METRO.figure : 1) * (0.94 + local() * 0.12), archetype: local() < 0.5 ? 'adultM' : 'adultF', pose: pick(IDLE_POSES), palette: pick(PALETTES) }).map((face) => ({ ...face, lobbyIdle: true })));
+        faces.push(...pedestrianFaces({ cx: wx, cy: wy, heading: SM.atan2(-F.normal[1], -F.normal[0]) + (local() - 0.5) * 0.4, scale: (ctx.metro ? METRO.figure : 1) * (0.94 + local() * 0.12), archetype: local() < 0.5 ? 'adultM' : 'adultF', pose: pick(IDLE_POSES), palette: pick(PALETTES) }).map((face) => ({ ...face, lobbyIdle: true })));
         stats.lobbyIdles = (stats.lobbyIdles || 0) + 1;
       }
     }
@@ -3454,7 +3456,7 @@ function planCityWalkerLoops(grid, region, seed, opt, boxes, cuts = null) {
   const loops = [], taken = [];
   for (const c of cands) {
     if (loops.length >= want) break;
-    if (taken.some(([tx, ty, tr]) => Math.hypot(tx - c.cx, ty - c.cy) < (tr + Math.max(c.hw, c.hh)) * 0.5)) continue;
+    if (taken.some(([tx, ty, tr]) => SM.hypot(tx - c.cx, ty - c.cy) < (tr + Math.max(c.hw, c.hh)) * 0.5)) continue;
     rng();   // one draw per accepted loop keeps selection seed-varying without perturbing geometry
     loops.push({ path: roundedRingPath(c.cx, c.cy, c.hw, c.hh, Math.min(c.hw, c.hh) * 0.3), style: 'bumble' });
     taken.push([c.cx, c.cy, Math.max(c.hw, c.hh)]);
@@ -3473,7 +3475,7 @@ function roundedRingPath(cx, cy, hw, hh, r) {
     { ox: cx + hw - r, oy: cy - hh + r, a0: 3 * Math.PI / 2 },   // SE
   ];
   for (const c of corners)
-    for (let i = 0; i <= K; i++) { const a = c.a0 + (i / K) * (Math.PI / 2); pts.push([c.ox + r * Math.cos(a), c.oy + r * Math.sin(a), Z]); }
+    for (let i = 0; i <= K; i++) { const a = c.a0 + (i / K) * (Math.PI / 2); pts.push([c.ox + r * SM.cos(a), c.oy + r * SM.sin(a), Z]); }
   pts.push([pts[0][0], pts[0][1], Z]);   // repeat the first point → seamless closed loop
   return pts;
 }
@@ -3618,7 +3620,11 @@ function reseatInsetFaces(faces, plot, R, yaw) {
 // recipe takes the quad-tree planner below exactly as before.
 // `elements.roundKit` rounds the street kit after either planner (city/round-kit.js): each kit box keeps its
 // footprint and gains a round shape, so everything that reads the plan reads the same numbers. Off ⇒ untouched.
-export function planFractalCity(opts = {}) {
+// A metro or canal recipe is 3.0's: it plans and assembles on dmath (util/math-scope.js), so it regrows the same bytes on
+// every machine; a stock recipe keeps the engine's Math, as it did when it was minted.
+export const scopedCity = (opts) => !!opts && (opts.profile === 'metro' || opts.profile === 'canal');
+export function planFractalCity(opts = {}) { return scopedCity(opts) ? withMath(dmath, () => planFractalCityIn(opts)) : planFractalCityIn(opts); }
+function planFractalCityIn(opts = {}) {
   const plan = opts && opts.profile === 'canal' ? planCanalCity({ ...opts, elements: normalizeFractalCityElements(opts.elements) }) : planGridCity(opts);
   if (normalizeFractalCityElements(opts && opts.elements).roundKit) plan.boxes = roundStreetKit(plan.boxes, { profile: opts.profile });
   return plan;
@@ -3645,7 +3651,7 @@ function planGridCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed =
   if (bs !== 1) region = { x: region.x, y: region.y, w: region.w / bs, d: region.d / bs };
   // metro: the block size is METRO.leaf's, not the depth's — the recursion gets at least the tiers its
   // frame needs to reach block size (depth stays a ceiling for the stock city, byte-identical)
-  if (profile === 'metro') depth = Math.max(depth, Math.ceil(Math.log2(Math.max(region.w, region.d) / METRO.leaf)) + 1);
+  if (profile === 'metro') depth = Math.max(depth, Math.ceil(SM.log2(Math.max(region.w, region.d) / METRO.leaf)) + 1);
   const recipeElements = normalizeFractalCityElements(elements);
   if (isEuropeanLocale(locale) && !elementExplicitlyFalse(elements, 'townhouses')) recipeElements.townhouses = true;
   if (profile === 'town' && !elementExplicitlyFalse(elements, 'townhouses')) recipeElements.townhouses = true;   // town mixes detached houses with townhouse rows
@@ -4009,7 +4015,7 @@ export function cityScaleCensus(plan, region = DEFAULT_REGION, mpu = CITY_METERS
   const kitTop = (kind) => { const z = plan.boxes.filter((b) => b.kind === kind).map((b) => b.z1); return z.length ? Math.max(...z) * mpu : null; };
   let coreEdge = null;
   if (plan.core) {
-    const r = (b) => Math.hypot(b.x + b.w / 2 - plan.core.cx, b.y + b.d / 2 - plan.core.cy);
+    const r = (b) => SM.hypot(b.x + b.w / 2 - plan.core.cx, b.y + b.d / 2 - plan.core.cy);
     const core = masses.filter((b) => r(b) <= plan.core.lambda).map(hOf), edge = masses.filter((b) => r(b) >= 2 * plan.core.lambda).map(hOf);
     const cp50 = qs(core, 0.5);
     coreEdge = { coreP50: cp50, edgeP50: qs(edge, 0.5), ratio: edge.length && core.length ? cp50 / qs(edge, 0.5) : null, coreMaxOverP50: core.length ? Math.max(...core) / cp50 : null, coreShare100: core.length ? core.filter((h) => h >= 100).length / core.length : null, coreCount: core.length, edgeCount: edge.length };
@@ -4064,18 +4070,18 @@ function metroCameras(region, lm = null) {
   if (lm) {
     avenue = lm.plaza.y - flank;
     streetPos = [lm.plaza.x - flank - (METRO.street.major + METRO.walk.major) / 2 - 7, avenue - METRO.street.major / 2 - 1];
-    const at = [lm.at[0], avenue + (lm.at[1] - avenue) * 0.5], D = Math.hypot(at[0] - streetPos[0], at[1] - streetPos[1]);
-    streetAt = [...at, eye + D * Math.tan(Math.min(14 / deg, Math.atan((lm.top * 0.3) / D)))];
+    const at = [lm.at[0], avenue + (lm.at[1] - avenue) * 0.5], D = SM.hypot(at[0] - streetPos[0], at[1] - streetPos[1]);
+    streetAt = [...at, eye + D * SM.tan(Math.min(14 / deg, SM.atan((lm.top * 0.3) / D)))];
   }
   // the skyline: the stock stand-off, or for a tall landmark a vantage at the frame's south-west corner
   // (as far back as the city reaches, so no bare ground fills the foreground), the lens widened only
   // as much as holding the tip needs
   let skyPos = [cx - w * 0.25, y - d * 0.1, 12], skyAt = [cx, cy, 16], skyFov = 62;
   if (lm && lm.top > 24) {
-    const z = 12, pos = [x + w * 0.02, y + d * 0.02], D = Math.hypot(lm.at[0] - pos[0], lm.at[1] - pos[1]);
-    const up = Math.atan((lm.top - z) / D), down = Math.atan(z / D), vfov = (up + down) * 1.12;
-    skyPos = [...pos, z]; skyAt = [lm.at[0], lm.at[1], z + D * Math.tan((up - down) / 2)];
-    skyFov = Math.min(90, Math.max(62, 2 * Math.atan(Math.tan(vfov / 2) * aspect) * deg));
+    const z = 12, pos = [x + w * 0.02, y + d * 0.02], D = SM.hypot(lm.at[0] - pos[0], lm.at[1] - pos[1]);
+    const up = SM.atan((lm.top - z) / D), down = SM.atan(z / D), vfov = (up + down) * 1.12;
+    skyPos = [...pos, z]; skyAt = [lm.at[0], lm.at[1], z + D * SM.tan((up - down) / 2)];
+    skyFov = Math.min(90, Math.max(62, 2 * SM.atan(SM.tan(vfov / 2) * aspect) * deg));
   }
   return [
     { name: 'street', worldFraming: { cameraPosition: [...streetPos, eye], lookAt: streetAt, horizontalFov: 72, pictureCenter: pc } },
@@ -4095,7 +4101,7 @@ export function metroAtmosphere(recipe = {}, time = null) {
   const hex = '#' + horizon.map((c) => c.toString(16).padStart(2, '0')).join('');
   return {
     sky: { preset: night ? 'night' : 'day', zenith, horizon, day: night ? 0 : 1, stars: night ? 1 : 0, ...(night ? { moon: true } : {}), seed: recipe.seed ?? 7 },
-    haze: { color: hex, density: 1.98 / (2 * Math.hypot(R.w, R.d)) },
+    haze: { color: hex, density: 1.98 / (2 * SM.hypot(R.w, R.d)) },
   };
 }
 /** The city's preset shots: metro and canal recipes get a human-scale set, every other recipe the stock one. */
@@ -4115,7 +4121,7 @@ const DAY_DIFFUSION = { soft: true, gain: 1.9, softness: 1.05, shadows: true, sh
 function daySun(region) {
   const cx = region.x + region.w / 2, cy = region.y + region.d / 2;
   const sx = region.x + region.w * 1.0, sy = region.y - region.d * 0.55, sz = 36;
-  const dx = cx - sx, dy = cy - sy, dz = -sz, dl = Math.hypot(dx, dy, dz) || 1;
+  const dx = cx - sx, dy = cy - sy, dz = -sz, dl = SM.hypot(dx, dy, dz) || 1;
   return { pos: [sx, sy, sz], dir: [dx / dl, dy / dl, dz / dl], spread: 40, color: [1, 0.95, 0.82], intensity: 2.5, rays: 440, bounces: 1, fixture: false };
 }
 
@@ -4173,7 +4179,8 @@ function extractFurnitureRepeats(boxes) {
   return { boxes: drop.size ? boxes.filter((_, i) => !drop.has(i)) : boxes, groups, skipped };
 }
 
-export function assembleFractalCityScene(opts = {}) {
+export function assembleFractalCityScene(opts = {}) { return scopedCity(opts) ? withMath(dmath, () => assembleFractalCitySceneIn(opts)) : assembleFractalCitySceneIn(opts); }
+function assembleFractalCitySceneIn(opts = {}) {
   const plan = planFractalCity(opts);
   let { boxes, grounds, ribbons, faces } = plan;
   // opt-in real-mullion curtainwall reveal on the plain glass towers (not townhouses/landmarks/

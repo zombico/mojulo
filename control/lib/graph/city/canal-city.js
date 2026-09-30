@@ -29,6 +29,7 @@ import { groundStreet } from './roads.js';
 import { vehicleAntFaces } from '../vehicles/vehicles-css3d.js';
 import { pedestrianFaces, IDLE_POSES, STROLL_POSES, PALETTES } from '../figures/pedestrian-asset.js';
 import { METRO, CITY_METERS_PER_UNIT } from './fractal-city.js';
+import * as dmath from '../../util/dmath.js';
 
 // Every value is in city units at CITY_METERS_PER_UNIT (3.66 m). Bands: the plan's reference sheet.
 export const CANAL = {
@@ -220,7 +221,7 @@ function houseSpec(rng, kind, W, D) {
   }
   const gable = weighted(rng(), CANAL.gables[kind]);
   const pitch = (lerp(...H.pitch, rng()) * Math.PI) / 180;
-  let hr = (W / 2) * Math.tan(pitch);
+  let hr = (W / 2) * dmath.tan(pitch);
   let gh = gable === 'cornice' ? hr : hr / RIDGE_T;
   const room = H.maxTop - z1;
   if (gh > room) { const k = room / gh; gh *= k; hr *= k; }   // a flatter roof, never a taller house than the ring allows

@@ -10,6 +10,7 @@
 // same bytes on every load. The metal-surface spike (lite-template/integration, not tracked) is the derivation.
 import { METAL_NK, OXIDE_NK, LAMBDA0, LAMBDA_STEP, LAMBDA_N } from './metal-optics-data.js';
 import { damascusError, canonDamascus, DAMASCUS_TYPES } from './damascus.js';
+import * as dmath from '../../util/dmath.js';
 
 // ---------- the metals ----------
 // nk: the measured table; oxide: the film it grows; finish: its natural finish. Film laws, per metal:
@@ -57,7 +58,7 @@ export { DAMASCUS_TYPES };
 
 // ---------- colour ----------
 const LAMBDA = Array.from({ length: LAMBDA_N }, (_, i) => LAMBDA0 + LAMBDA_STEP * i);
-const g = (x, mu, s1, s2) => { const t = (x - mu) / (x < mu ? s1 : s2); return Math.exp(-0.5 * t * t); };
+const g = (x, mu, s1, s2) => { const t = (x - mu) / (x < mu ? s1 : s2); return dmath.exp(-0.5 * t * t); };
 const cmf = (l) => [
   1.056 * g(l, 599.8, 37.9, 31.0) + 0.362 * g(l, 442.0, 16.0, 26.7) - 0.065 * g(l, 501.1, 20.4, 26.2),
   0.821 * g(l, 568.8, 46.9, 40.5) + 0.286 * g(l, 530.9, 16.3, 31.1),
@@ -78,15 +79,15 @@ const spectrumRgb = (spec) => toRgb(spec).map((v, k) => Math.min(1, Math.max(0, 
 const cadd = (a, b) => [a[0] + b[0], a[1] + b[1]], csub = (a, b) => [a[0] - b[0], a[1] - b[1]];
 const cmul = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
 const cdiv = (a, b) => { const d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; };
-const csqrt = (a) => { const r = Math.hypot(a[0], a[1]); const re = Math.sqrt((r + a[0]) / 2); let im = Math.sqrt(Math.max(0, (r - a[0]) / 2)); if (a[1] < 0) im = -im; return [re, im]; };
-const cexp = (a) => { const e = Math.exp(a[0]); return [e * Math.cos(a[1]), e * Math.sin(a[1])]; };
+const csqrt = (a) => { const r = dmath.hypot(a[0], a[1]); const re = Math.sqrt((r + a[0]) / 2); let im = Math.sqrt(Math.max(0, (r - a[0]) / 2)); if (a[1] < 0) im = -im; return [re, im]; };
+const cexp = (a) => { const e = dmath.exp(a[0]); return [e * dmath.cos(a[1]), e * dmath.sin(a[1])]; };
 const cosIn = (s0, nj) => { const q = cdiv([s0, 0], nj); return csqrt(csub([1, 0], cmul(q, q))); };
 const rFace = (ni, ci, nj, cj, s) => (s
   ? cdiv(csub(cmul(ni, ci), cmul(nj, cj)), cadd(cmul(ni, ci), cmul(nj, cj)))
   : cdiv(csub(cmul(nj, ci), cmul(ni, cj)), cadd(cmul(nj, ci), cmul(ni, cj))));
 /** Unpolarised reflectance: air / film (ñ1, d nm; d = 0 → none) / metal (ñ2) at wavelength λ, incidence θ. */
 function reflect1(n1, d, n2, lam, theta) {
-  const s0 = Math.sin(theta), n0 = [1, 0], c0 = [Math.cos(theta), 0], c2 = cosIn(s0, n2); let R = 0;
+  const s0 = dmath.sin(theta), n0 = [1, 0], c0 = [dmath.cos(theta), 0], c2 = cosIn(s0, n2); let R = 0;
   for (const s of [true, false]) {
     let r;
     if (!d) r = rFace(n0, c0, n2, c2, s);
@@ -104,7 +105,7 @@ const NK = Object.fromEntries(Object.entries(METAL_NK).map(([k, v]) => [k, nkRow
 const OX = Object.fromEntries(Object.entries(OXIDE_NK).map(([k, v]) => [k, nkRows(v)]));
 /** Linear-sRGB reflectance of a metal (under an oxide of d nm) at incidence cosθ. */
 export function metalRgb(metal, { d = 0, cos = 1 } = {}) {
-  const row = METALS[metal]; const m = NK[row.nk], o = d && row.oxide ? OX[row.oxide] : null; const th = Math.acos(Math.max(0, Math.min(1, cos)));
+  const row = METALS[metal]; const m = NK[row.nk], o = d && row.oxide ? OX[row.oxide] : null; const th = dmath.acos(Math.max(0, Math.min(1, cos)));
   return spectrumRgb(LAMBDA.map((l, i) => reflect1(o ? o[i] : null, o ? d : 0, m[i], l, Math.min(th, Math.PI / 2 - 1e-4))));
 }
 
@@ -127,7 +128,7 @@ export function metalLut(metal) {
 // ---------- films ----------
 const K0 = 273.15, RG = 8.314;
 /** d(T) = √(A·exp(−Q/RT)): the parabolic growth law through the two chart points. */
-function growth([[T1, d1], [T2, d2]], T) { const Q = 2 * RG * Math.log(d2 / d1) / (1 / (T1 + K0) - 1 / (T2 + K0)); const A = d1 * d1 * Math.exp(Q / (RG * (T1 + K0))); return T <= 30 ? 0 : Math.sqrt(A * Math.exp(-Q / (RG * (T + K0)))); }
+function growth([[T1, d1], [T2, d2]], T) { const Q = 2 * RG * dmath.log(d2 / d1) / (1 / (T1 + K0) - 1 / (T2 + K0)); const A = d1 * d1 * dmath.exp(Q / (RG * (T1 + K0))); return T <= 30 ? 0 : Math.sqrt(A * dmath.exp(-Q / (RG * (T + K0)))); }
 /** Copper's tarnish at an age (years): the film, the brown past interference, the verdigris share (up-facing first). */
 export function copperAge(age) {
   const d = 90 * Math.sqrt(Math.max(0, age) / 0.25); const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -164,11 +165,11 @@ export function metalSurfaceError(spec) {
     if (spec.finish != null || spec.film != null) return 'a pattern-welded surface is etched: it takes no finish or film';
   }
   if (spec.finish != null) { const f = own(FINISHES, spec.finish) ? FINISHES[spec.finish] : null; if (!f) return `unknown finish '${spec.finish}' — use one of: ${FINISH_NAMES.join(', ')}`; if (f.only && !f.only.includes(metal)) return `the ${spec.finish} finish belongs to ${f.only.join(', ')}`; }
-  const a = spec.along; if (a != null && !(ALONG.includes(a) || (Array.isArray(a) && a.length === 3 && a.every(Number.isFinite) && Math.hypot(...a) > 0))) return `along is one of ${ALONG.join(', ')}, or a direction [x, y, z]`;
+  const a = spec.along; if (a != null && !(ALONG.includes(a) || (Array.isArray(a) && a.length === 3 && a.every(Number.isFinite) && dmath.hypot(...a) > 0))) return `along is one of ${ALONG.join(', ')}, or a direction [x, y, z]`;
   if (spec.seed != null && !Number.isInteger(spec.seed)) return 'seed is an integer';
   return filmError(metal, spec.film);
 }
-const rgbHex = (lin) => '#' + lin.map((v) => { v = Math.max(0, Math.min(1, v)); const e = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; return Math.round(255 * e).toString(16).padStart(2, '0'); }).join('');
+const rgbHex = (lin) => '#' + lin.map((v) => { v = Math.max(0, Math.min(1, v)); const e = v <= 0.0031308 ? 12.92 * v : 1.055 * dmath.pow(v, 1 / 2.4) - 0.055; return Math.round(255 * e).toString(16).padStart(2, '0'); }).join('');
 const round = (v, k = 4) => +v.toFixed(k);
 /**
  * Resolve a spec to what every consumer reads: the canonical key (the page's and the exporters' identity for it), the
@@ -188,7 +189,7 @@ export function resolveMetalSurface(spec) {
     if (k === 'age') { age = v; d = copperAge(v).d; }
   }
   d = round(Math.min(d, (LUT_D - 1) * LUT_STEP), 2);
-  const F0 = metalRgb(metal), edge = metalRgb(metal, { cos: Math.cos(80 * Math.PI / 180) });
+  const F0 = metalRgb(metal), edge = metalRgb(metal, { cos: dmath.cos(80 * Math.PI / 180) });
   let normal = d ? metalRgb(metal, { d: thermal ? Math.min(d, row.scaleFrom) : d }) : F0;
   if (thermal && d > row.scaleFrom) { const t = Math.min(1, (d - row.scaleFrom) / (1.5 * row.scaleFrom)); normal = normal.map((v) => v * (1 - t) + 0.045 * t); }
   if (age != null) { const a = copperAge(age); const cover = Math.max(a.brown * 0.92, a.green * 0.5); const under = [0.07 * (1 - a.green) + 0.16 * a.green, 0.035 * (1 - a.green) + 0.36 * a.green, 0.022 * (1 - a.green) + 0.28 * a.green]; normal = normal.map((v, k) => v * (1 - cover) + under[k] * cover); }

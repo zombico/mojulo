@@ -33,8 +33,18 @@ describe('round street kit: the element', () => {
   // GOLDENS from the release tree before the kit and the city's metal (7925d71, the same calls run there): off, the plan
   // (all but its normalized `elements`, which now names roundKit: false) and the scene keep those bytes
   const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
-  const RELEASE = { stock: ['ef366fd05f29de7b', 'f0abf9f73aeffdc0'], metro: ['c5723b2790856ae9', '569a4126a4bbe6b2'], canal: ['2208cfcbe452b8aa', 'ff4f5cd9fceafbea'] };
+  // metro and canal are 3.0's and plan on dmath (util/math-scope.js): the same bytes everywhere, re-pinned when they took it.
+  // The stock city is 2.1.0's generator on the engine's Math, whose bytes already differed by CPU, by Node's pow and by the
+  // platform's libm in 2.1.0; a minted stock city keeps them, so its pins are per platform (where none is recorded, skipped).
+  const RELEASE = { metro: ['26b0d6c6b877c6a9', '6b49c70b58c27743'], canal: ['ac25ab8725ed7b8b', 'add9ac7d16bc797e'] };
+  const STOCK_RELEASE = {
+    'linux-x64-22': ['52bf3c17e291ede6', 'cd9f9283aea8d391'], 'linux-x64-24': ['ef366fd05f29de7b', 'fdd2d7f3ccd1267a'],
+    'linux-arm64-22': ['b6a090d979ee8c58', 'c2bc8f80ef756909'], 'linux-arm64-24': ['ef366fd05f29de7b', 'fdd2d7f3ccd1267a'],
+    'darwin-arm64-24': ['ef366fd05f29de7b', 'f0abf9f73aeffdc0'],
+  };
+  RELEASE.stock = STOCK_RELEASE[`${process.platform}-${process.arch}-${Number(process.versions.node.split('.')[0]) >= 24 ? 24 : 22}`];
   for (const [name, spec] of CASES) it(`off, the ${name} plan and scene are the release bytes`, () => {
+    if (!RELEASE[name]) return;
     const { elements: _e, ...rest } = plan(`${name}:off`, spec);
     expect(h(rest)).toBe(RELEASE[name][0]);
     expect(h(assembleFractalCityScene(spec))).toBe(RELEASE[name][1]);

@@ -8,6 +8,7 @@
 import { makeKit, mixHex, v3, decimateFaces } from './refacade-kit.js';
 import { scaleHex } from '../polygonizer/vexar.js';
 import { buildStatueFigure, buildRizalFigure } from './statue-figure.js';
+import * as dmath from '../../util/dmath.js';
 
 const { sub, add, mul, dot, cross, norm, len } = v3;
 const TAU = Math.PI * 2;
@@ -48,7 +49,7 @@ function sheet(K, rows, tint, inside, closed = false) {
 
 /** A wall frame on a local plan segment (p0 → p1, CCW outline so outward is to the right). */
 function facetWall(K, F, p0, p1, z) {
-  const ds = p1[0] - p0[0], dt = p1[1] - p0[1], l = Math.hypot(ds, dt) || 1;
+  const ds = p1[0] - p0[0], dt = p1[1] - p0[1], l = dmath.hypot(ds, dt) || 1;
   const u = F.D(ds / l, dt / l, 0), n = F.D(dt / l, -ds / l, 0);
   return { W: K.wall(F.P(p0[0], p0[1], z), u, [0, 0, 1], n), len: l, n, u };
 }
@@ -74,7 +75,7 @@ function ring(K, F, outer, inner, z, tint, down = false, zi = z) {
   }
 }
 
-const ellipse = (a, b, n, a0 = 0) => Array.from({ length: n }, (_, i) => { const th = a0 + (i / n) * TAU; return [a * Math.cos(th), b * Math.sin(th)]; });
+const ellipse = (a, b, n, a0 = 0) => Array.from({ length: n }, (_, i) => { const th = a0 + (i / n) * TAU; return [a * dmath.cos(th), b * dmath.sin(th)]; });
 
 /** A tube along a polyline of world points with per-point radius, `n` sides (outward from the axis). */
 function tube(K, pts, radii, n, tint, { capEnd = null, capStart = null } = {}) {
@@ -83,7 +84,7 @@ function tube(K, pts, radii, n, tint, { capEnd = null, capStart = null } = {}) {
     const T = norm(sub(pts[Math.min(pts.length - 1, k + 1)], pts[Math.max(0, k - 1)]));
     const ref = Math.abs(T[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1];
     const U = norm(cross(T, ref)), V = norm(cross(T, U)), r = Array.isArray(radii) ? radii[k] : radii;
-    rings.push(Array.from({ length: n }, (_, i) => { const a = (i / n) * TAU; return add(pts[k], add(mul(U, Math.cos(a) * r), mul(V, Math.sin(a) * r))); }));
+    rings.push(Array.from({ length: n }, (_, i) => { const a = (i / n) * TAU; return add(pts[k], add(mul(U, dmath.cos(a) * r), mul(V, dmath.sin(a) * r))); }));
   }
   for (let k = 0; k < rings.length - 1; k++) {
     const mid = v3.lerp(pts[k], pts[k + 1], 0.5);
@@ -100,7 +101,7 @@ function tube(K, pts, radii, n, tint, { capEnd = null, capStart = null } = {}) {
 function disc(K, c, nrm, r, n, tint) {
   const ref = Math.abs(nrm[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1];
   const U = norm(cross(nrm, ref)), V = norm(cross(nrm, U));
-  K.poly(Array.from({ length: n }, (_, i) => { const a = (i / n) * TAU; return add(c, add(mul(U, Math.cos(a) * r), mul(V, Math.sin(a) * r))); }), tint, { dir: nrm });
+  K.poly(Array.from({ length: n }, (_, i) => { const a = (i / n) * TAU; return add(c, add(mul(U, dmath.cos(a) * r), mul(V, dmath.sin(a) * r))); }), tint, { dir: nrm });
 }
 
 // ── Rogers Centre ────────────────────────────────────────────────────────────────────────────
@@ -120,9 +121,9 @@ function rogersCentre(b, { L, camHint }) {
   const nMidAuto = Math.max(1, Math.round((2 * c) / (Math.PI * Re / 14)));
   const stadium = (sc, nEnd = 14, nMid = nMidAuto) => {
     const pts = [], a = Aw * sc, bb = Bw * sc, re = Re * sc, cc = a - re;
-    for (let i = 0; i < nEnd; i++) { const p = -Math.PI / 2 + (i / nEnd) * Math.PI; pts.push([cc + re * Math.cos(p), bb * Math.sin(p)]); }
+    for (let i = 0; i < nEnd; i++) { const p = -Math.PI / 2 + (i / nEnd) * Math.PI; pts.push([cc + re * dmath.cos(p), bb * dmath.sin(p)]); }
     for (let i = 0; i < nMid; i++) pts.push([cc - (2 * cc) * (i / nMid), bb]);
-    for (let i = 0; i < nEnd; i++) { const p = Math.PI / 2 + (i / nEnd) * Math.PI; pts.push([-cc + re * Math.cos(p), bb * Math.sin(p)]); }
+    for (let i = 0; i < nEnd; i++) { const p = Math.PI / 2 + (i / nEnd) * Math.PI; pts.push([-cc + re * dmath.cos(p), bb * dmath.sin(p)]); }
     for (let i = 0; i < nMid; i++) pts.push([-cc + (2 * cc) * (i / nMid), -bb]);
     return pts;
   };
@@ -151,14 +152,14 @@ function rogersCentre(b, { L, camHint }) {
 
   // the roof: panels along s, profile across t; panel 1 = west dome + first barrel (fixed)
   const Br = Bw * 0.97, Rr = Re * 0.97, cr = c * 0.97 + (Aw - Re) * 0.0, nA = 14;
-  const prof = (al) => [Br * Math.sin(al), hR * Math.pow(Math.max(0, Math.cos(al)), 1.1)];      // (t, dz) at α ∈ [-π/2, π/2]
+  const prof = (al) => [Br * dmath.sin(al), hR * dmath.pow(Math.max(0, dmath.cos(al)), 1.1)];      // (t, dz) at α ∈ [-π/2, π/2]
   const s1 = -cr + (2 * cr) * 0.3, s2 = -cr + (2 * cr) * 0.64;
   const PANELS = [{ s0: -cr, s1, off: 0 }, { s0: s1, s1: s2, off: dStep }, { s0: s2, s1: cr, off: dStep * 2 }];
   const alphas = Array.from({ length: nA + 1 }, (_, j) => -Math.PI / 2 + (j / nA) * Math.PI);
   const arc = (s, off) => alphas.map((al) => { const [t, dz] = prof(al); return F.P(s, t, zRim + off + dz); });
   const ribArc = (s, off, w, d, tint) => {
     // an arched rib standing proud of the barrel: a crown strip and its two flanks
-    const pts = alphas.map((al) => { const [t, dz] = prof(al); const nt = Math.sin(al) / Br, nz = Math.cos(al) / hR, l = Math.hypot(nt, nz) || 1; return [t, dz, nt / l, nz / l]; });
+    const pts = alphas.map((al) => { const [t, dz] = prof(al); const nt = dmath.sin(al) / Br, nz = dmath.cos(al) / hR, l = dmath.hypot(nt, nz) || 1; return [t, dz, nt / l, nz / l]; });
     for (let j = 0; j < nA; j++) {
       const [ta, za, nta, nza] = pts[j], [tb, zb, ntb, nzb] = pts[j + 1];
       const A0 = (s) => F.P(s, ta, zRim + off + za), B0 = (s) => F.P(s, tb, zRim + off + zb);
@@ -187,7 +188,7 @@ function rogersCentre(b, { L, camHint }) {
   // the two quarter domes: west (fixed, with panel 1) and east (the rotating panel 4)
   const dome = (sgn, off, ribbed) => {
     const sE = sgn * cr, nK = 9, nP = 16;
-    const pt = (al, ph) => F.P(sE + sgn * Rr * Math.sin(al) * Math.cos(ph), Br * Math.sin(al) * Math.sin(ph), zRim + off + hR * Math.pow(Math.max(0, Math.cos(al)), 1.1));
+    const pt = (al, ph) => F.P(sE + sgn * Rr * dmath.sin(al) * dmath.cos(ph), Br * dmath.sin(al) * dmath.sin(ph), zRim + off + hR * dmath.pow(Math.max(0, dmath.cos(al)), 1.1));
     const rows = Array.from({ length: nK + 1 }, (_, k) => Array.from({ length: nP + 1 }, (_, i) => pt((k / nK) * Math.PI / 2, -Math.PI / 2 + (i / nP) * Math.PI)));
     sheet(K, rows, pal.roof, F.P(sE, 0, zRim));
     if (off > 0) {
@@ -199,9 +200,9 @@ function rogersCentre(b, { L, camHint }) {
       const w = S * 0.006, d = S * 0.006;
       for (let k = 0; k < nK; k++) {
         const ra = (al, dd, side) => {
-          const r = Math.sin(al), dz = Math.pow(Math.max(0, Math.cos(al)), 1.1);
-          const nr = Math.sin(al), nz = Math.cos(al), l = Math.hypot(nr, nz) || 1;
-          const px = Math.cos(ph), py = Math.sin(ph), qx = -py, qy = px;
+          const r = dmath.sin(al), dz = dmath.pow(Math.max(0, dmath.cos(al)), 1.1);
+          const nr = dmath.sin(al), nz = dmath.cos(al), l = dmath.hypot(nr, nz) || 1;
+          const px = dmath.cos(ph), py = dmath.sin(ph), qx = -py, qy = px;
           const s = sE + sgn * (Rr * r + (nr / l) * dd) * px + sgn * qx * side, t = (Br * r + (nr / l) * dd) * py + qy * side;
           return F.P(s, t, zRim + off + hR * dz + (nz / l) * dd);
         };
@@ -241,11 +242,11 @@ function colosseum(b, { L, camHint }) {
   const tierZ = [zBase]; for (const t of TIERS) tierZ.push(tierZ[tierZ.length - 1] + t.h * S);
   tierZ.push(tierZ[3] + attic);                                        // [base, t1, t2, t3, attic top]
   const pts = ellipse(a, bb, N, -Math.PI / 2 - Math.PI / N);           // a joint straddles due south
-  const inPts = pts.map(([s, t]) => { const l = Math.hypot(s / (a * a), t / (bb * bb)) || 1; return [s - (s / (a * a)) / l * wt, t - (t / (bb * bb)) / l * wt]; });
+  const inPts = pts.map(([s, t]) => { const l = dmath.hypot(s / (a * a), t / (bb * bb)) || 1; return [s - (s / (a * a)) / l * wt, t - (t / (bb * bb)) / l * wt]; });
   // the ruin: storeys still standing per bay, by angular distance from due south
   const level = (i) => {
     const m = [(pts[i][0] + pts[(i + 1) % N][0]) / 2, (pts[i][1] + pts[(i + 1) % N][1]) / 2];
-    let d = Math.abs(Math.atan2(m[1] / bb, m[0] / a) + Math.PI / 2); if (d > Math.PI) d = TAU - d;
+    let d = Math.abs(dmath.atan2(m[1] / bb, m[0] / a) + Math.PI / 2); if (d > Math.PI) d = TAU - d;
     const deg = d * 180 / Math.PI;
     return deg < 46 ? 0 : deg < 55 ? 1 : deg < 64 ? 2 : deg < 73 ? 3 : 4;
   };
@@ -289,7 +290,7 @@ function colosseum(b, { L, camHint }) {
     if (lv === 4) {
       // the inner face above the cavea: the top gallery's arches and the attic's windows seen from inside
       const Wi = K.wall(F.P(q1[0], q1[1], S * 0.25), norm(sub(F.P(q0[0], q0[1], 0), F.P(q1[0], q1[1], 0))), [0, 0, 1], norm(sub(F.P(q0[0] * 0.5, q0[1] * 0.5, 0), F.P(q0[0], q0[1], 0))));
-      const li = Math.hypot(q1[0] - q0[0], q1[1] - q0[1]), hi = zTop - S * 0.25, g = tierZ[3] - S * 0.25;
+      const li = dmath.hypot(q1[0] - q0[0], q1[1] - q0[1]), hi = zTop - S * 0.25, g = tierZ[3] - S * 0.25;
       Wi.rect(0, 0, li, hi, pal.travShade);
       if (g > 0) Wi.arch(li * 0.24, li * 0.76, 0, Math.max(0.001, g * 0.9 - li * 0.26), li * 0.06, pal.arch, null, { seg: 4 });
       if (i % 2 === 0) Wi.recess(li * 0.4, g + attic * 0.42, li * 0.6, g + attic * 0.6, li * 0.04, pal.arch, null);
@@ -327,7 +328,7 @@ function colosseum(b, { L, camHint }) {
     const [sa0, sb0, z0] = CAV[r], [sa1, sb1, z1] = CAV[r + 1];
     for (let i = 0; i < N; i++) {
       const th0 = -Math.PI / 2 - Math.PI / N + (i / N) * TAU, th1 = th0 + TAU / N, thm = th0 + (TAU / N) * 0.3;
-      const E = (sa, sb, th, z) => F.P(a * sa * Math.cos(th), bb * sb * Math.sin(th), z * S);
+      const E = (sa, sb, th, z) => F.P(a * sa * dmath.cos(th), bb * sb * dmath.sin(th), z * S);
       const inside = F.P(0, 0, S);
       K.quad([E(sa0, sb0, th0, z0), E(sa0, sb0, thm, z0), E(sa1, sb1, thm, z1), E(sa1, sb1, th0, z1)], pal.brickTop, inside);
       K.quad([E(sa0, sb0, thm, z0 - 0.012), E(sa0, sb0, th1, z0 - 0.012), E(sa1, sb1, th1, z1 - 0.012), E(sa1, sb1, thm, z1 - 0.012)], r % 2 ? pal.brickGap : scaleHex(pal.brickGap, 0.9), inside);
@@ -357,7 +358,7 @@ function colosseum(b, { L, camHint }) {
   const chord = eb * Math.sqrt(1 - (deckS / ea) ** 2);
   const dk = [[deckS, -chord], ...arena.filter(([s]) => s > deckS), [deckS, chord]];
   const dc = [dk.reduce((m, p) => m + p[0], 0) / dk.length, 0];
-  dk.sort((p, q) => Math.atan2(p[1] - dc[1], p[0] - dc[0]) - Math.atan2(q[1] - dc[1], q[0] - dc[0]));
+  dk.sort((p, q) => dmath.atan2(p[1] - dc[1], p[0] - dc[0]) - dmath.atan2(q[1] - dc[1], q[0] - dc[0]));
   K.poly(dk.map(([s, t]) => F.P(s, t, zw * 1.1)), pal.deck, { dir: [0, 0, 1] });
   K.quad([F.P(deckS, -chord, S * 0.012), F.P(deckS, chord, S * 0.012), F.P(deckS, chord, zw * 1.1), F.P(deckS, -chord, zw * 1.1)], scaleHex(pal.deck, 0.8), { dir: F.D(-1, 0, 0) });
   return faces;
@@ -390,7 +391,7 @@ function arenaVenue(b, { L, camHint }) {
   const faces = [], K = makeKit({ faces, L, camHint }), F = frameOf(b), { S } = F;
   const pal = { ...ARENA, ...(b.landmarkPalette || {}) };
   const N = 48, a = F.A * 0.97, bb = F.B * 0.86, t0 = F.B * 0.1;
-  const E = (sc, n = N) => Array.from({ length: n }, (_, i) => { const th = -Math.PI / 2 + (i / n) * TAU; return [a * sc * Math.cos(th), t0 + bb * sc * Math.sin(th)]; });
+  const E = (sc, n = N) => Array.from({ length: n }, (_, i) => { const th = -Math.PI / 2 + (i / n) * TAU; return [a * sc * dmath.cos(th), t0 + bb * sc * dmath.sin(th)]; });
   const C = [0, t0];
   const zPl = S * 0.012, zG = S * 0.12, zSk = S * 0.3, rise = S * 0.17;
   const e100 = E(1), e93 = E(0.93), e97 = E(0.97);
@@ -416,9 +417,9 @@ function arenaVenue(b, { L, camHint }) {
   }
   for (let i = 0; i < N; i += 2) {
     const th = -Math.PI / 2 + (i / N) * TAU, lo = E(0.97)[i], hi = e100[i];
-    const nx = Math.cos(th) / a, ny = Math.sin(th) / bb, nl = Math.hypot(nx, ny), fd = S * 0.024;
+    const nx = dmath.cos(th) / a, ny = dmath.sin(th) / bb, nl = dmath.hypot(nx, ny), fd = S * 0.024;
     const o = [nx / nl * fd, ny / nl * fd];
-    const tg = F.D(-Math.sin(th) * a, Math.cos(th) * bb, 0);
+    const tg = F.D(-dmath.sin(th) * a, dmath.cos(th) * bb, 0);
     K.quad([F.P(lo[0], lo[1], zG), F.P(hi[0], hi[1], zSk), F.P(hi[0] + o[0] * 0.5, hi[1] + o[1] * 0.5, zSk), F.P(lo[0] + o[0], lo[1] + o[1], zG)], pal.fin, { dir: tg });
   }
   // the signage band at the eave, and the name panel over the entry
@@ -434,20 +435,20 @@ function arenaVenue(b, { L, camHint }) {
   band(K, F, E(1.012), zSk - S * 0.006, zSk, pal.eave, C);
   const NK = 7, rows = [];
   for (let k = 0; k <= NK; k++) {
-    const ph = (k / NK) * (Math.PI / 2) * 0.93, sc = 0.95 * Math.cos(ph), z = zSk + rise * Math.sin(ph);
+    const ph = (k / NK) * (Math.PI / 2) * 0.93, sc = 0.95 * dmath.cos(ph), z = zSk + rise * dmath.sin(ph);
     rows.push(E(sc).map(([s, t]) => F.P(s, t, z)));
   }
   sheet(K, rows, pal.roof, F.P(0, t0, zSk), true);
-  const top = rows[NK], scTop = 0.95 * Math.cos((Math.PI / 2) * 0.93), zTop = zSk + rise * Math.sin((Math.PI / 2) * 0.93);
+  const top = rows[NK], scTop = 0.95 * dmath.cos((Math.PI / 2) * 0.93), zTop = zSk + rise * dmath.sin((Math.PI / 2) * 0.93);
   for (let r = 0; r < 16; r++) {
     const i = r * 3, pts = [];
     for (let k = 0; k <= NK; k++) {
-      const ph = (k / NK) * (Math.PI / 2) * 0.93, sc = 0.95 * Math.cos(ph), z = zSk + rise * Math.sin(ph), th = -Math.PI / 2 + (i / N) * TAU;
-      pts.push([a * sc * Math.cos(th), t0 + bb * sc * Math.sin(th), z, th]);
+      const ph = (k / NK) * (Math.PI / 2) * 0.93, sc = 0.95 * dmath.cos(ph), z = zSk + rise * dmath.sin(ph), th = -Math.PI / 2 + (i / N) * TAU;
+      pts.push([a * sc * dmath.cos(th), t0 + bb * sc * dmath.sin(th), z, th]);
     }
     for (let k = 0; k < NK; k++) {
       const [s0, u0, z0, th] = pts[k], [s1, u1, z1] = pts[k + 1], w = S * 0.007, hgt = S * 0.012;
-      const tx = -Math.sin(th), ty = Math.cos(th);
+      const tx = -dmath.sin(th), ty = dmath.cos(th);
       const A0 = F.P(s0 + tx * w, u0 + ty * w, z0), A1 = F.P(s0 - tx * w, u0 - ty * w, z0), R0 = F.P(s0, u0, z0 + hgt);
       const B0 = F.P(s1 + tx * w, u1 + ty * w, z1), B1 = F.P(s1 - tx * w, u1 - ty * w, z1), R1 = F.P(s1, u1, z1 + hgt);
       K.quad([A0, B0, R1, R0], pal.truss, F.P(s0, u0, z0 - S));
@@ -484,11 +485,11 @@ function cloudGate(b, { L, camHint }) {
   const a = F.A * 0.97, bw = F.B * 0.95, H = S * 0.62, zc = 0.45 * H, cUp = H - zc, cLo = zc + 0.16 * H;
   const sA = a * 0.7, hA = 0.38 * H, hO = 0.1 * H;
   const NT = 56, p = 2.4;
-  const plan = (th, rho) => { const c = Math.cos(th), s = Math.sin(th); return [a * rho * Math.sign(c) * Math.pow(Math.abs(c), 2 / p), bw * rho * Math.sign(s) * Math.pow(Math.abs(s), 2 / p)]; };
+  const plan = (th, rho) => { const c = dmath.cos(th), s = dmath.sin(th); return [a * rho * Math.sign(c) * dmath.pow(Math.abs(c), 2 / p), bw * rho * Math.sign(s) * dmath.pow(Math.abs(s), 2 / p)]; };
   const under = (s, t, rho) => {
     let z = Math.max(0, zc - cLo * Math.sqrt(Math.max(0, 1 - rho * rho)));
     if (Math.abs(s) < sA) {
-      const arch = hA * Math.pow(1 - (s / sA) ** 2, 0.7) + hO * Math.exp(-((s / (0.2 * a)) ** 2 + (t / (0.4 * bw)) ** 2));
+      const arch = hA * dmath.pow(1 - (s / sA) ** 2, 0.7) + hO * dmath.exp(-((s / (0.2 * a)) ** 2 + (t / (0.4 * bw)) ** 2));
       z = Math.max(z, Math.min(arch, zc - (1 - rho) * 0.02 * H));
     }
     return z;
@@ -497,14 +498,14 @@ function cloudGate(b, { L, camHint }) {
   const lower = RL.map((rho) => Array.from({ length: NT }, (_, i) => { const th = (i / NT) * TAU, [s, t] = plan(th, rho); return F.P(s, t, under(s, t, rho)); }));
   const UP = 12, upper = [];
   for (let k = 0; k <= UP; k++) {
-    const ph = (k / UP) * Math.PI / 2, rho = Math.pow(Math.cos(ph), 0.85), z = zc + cUp * Math.sin(ph);
+    const ph = (k / UP) * Math.PI / 2, rho = dmath.pow(dmath.cos(ph), 0.85), z = zc + cUp * dmath.sin(ph);
     upper.push(Array.from({ length: NT }, (_, i) => { const th = (i / NT) * TAU, [s, t] = plan(th, rho); return F.P(s, t, z); }));
   }
   // the reflected environment for a viewer standing off the front, a little above the plaza
   const V = F.P(-0.4 * a, -3.4 * F.B, 0.9 * H);
   const env = (r) => {
     const rz = r[2];
-    if (rz > 0.14) return mixHex(pal.skyHi, pal.skyTop, Math.min(1, Math.pow((rz - 0.14) / 0.86, 0.7)));
+    if (rz > 0.14) return mixHex(pal.skyHi, pal.skyTop, Math.min(1, dmath.pow((rz - 0.14) / 0.86, 0.7)));
     if (rz > 0.04) return mixHex(pal.skyline, pal.skyHi, (rz - 0.04) / 0.1);
     if (rz > -0.04) return pal.skyline;
     if (rz > -0.14) return mixHex(pal.skyline, pal.plazaFar, Math.min(1, (-rz - 0.04) / 0.05));
@@ -554,12 +555,12 @@ const GATEWAY = { steelLow: '#8f969b', steelHigh: '#d3d8db', window: '#2c3135', 
 function gatewayArch(b, { L, camHint }) {
   const faces = [], K = makeKit({ faces, L, camHint }), F = frameOf(b), { S, A } = F;
   const pal = { ...GATEWAY, ...(b.landmarkPalette || {}) };
-  const span = Math.min(A * 2 * 0.88, S * 1.95), Hh = span, C = 3.0022, cC = Math.cosh(C);
-  const hAt = (u) => Hh * (cC - Math.cosh(C * u)) / (cC - 1);
+  const span = Math.min(A * 2 * 0.88, S * 1.95), Hh = span, C = 3.0022, cC = dmath.cosh(C);
+  const hAt = (u) => Hh * (cC - dmath.cosh(C * u)) / (cC - 1);
   const sB = 0.086 * span, sT = 0.027 * span;
   const side = (u) => sT + (sB - sT) * (1 - hAt(u) / Hh);
   // sample densely where the legs run steep (uniform in arc length via a warped parameter)
-  const NS = 84, us = Array.from({ length: NS + 1 }, (_, i) => { const x = -1 + (2 * i) / NS; return Math.sign(x) * Math.pow(Math.abs(x), 0.8); });
+  const NS = 84, us = Array.from({ length: NS + 1 }, (_, i) => { const x = -1 + (2 * i) / NS; return Math.sign(x) * dmath.pow(Math.abs(x), 0.8); });
   const ctr = us.map((u) => [u * span / 2, hAt(u)]);
   const bAx = F.D(0, 1, 0);
   const secs = us.map((u, i) => {
@@ -623,7 +624,7 @@ function mobileEdmHall(b, { L, camHint }) {
     const s0 = sg * gap - tw / 2, s1 = sg * gap + tw / 2, so = sg > 0 ? s1 : s0, si = sg > 0 ? s0 : s1;
     // the belt: links along each edge
     for (let e = 0; e < LOOP.length; e++) {
-      const [ta, za] = LOOP[e], [tb, zb] = LOOP[(e + 1) % LOOP.length], nl = Math.max(1, Math.round(Math.hypot(tb - ta, zb - za) / (sd * 0.05)));
+      const [ta, za] = LOOP[e], [tb, zb] = LOOP[(e + 1) % LOOP.length], nl = Math.max(1, Math.round(dmath.hypot(tb - ta, zb - za) / (sd * 0.05)));
       for (let k = 0; k < nl; k++) {
         const t0 = ta + (tb - ta) * k / nl, z0 = za + (zb - za) * k / nl, t1 = ta + (tb - ta) * (k + 1) / nl, z1 = za + (zb - za) * (k + 1) / nl;
         K.quad([F.P(s0, t0, z0), F.P(s1, t0, z0), F.P(s1, t1, z1), F.P(s0, t1, z1)], k % 2 ? pal.belt : pal.link, F.P(sg * gap, lc[0], lc[1]));
@@ -664,7 +665,7 @@ function mobileEdmHall(b, { L, camHint }) {
 
   // the hull: bays of panels between seams, with the stage cut into its front
   const NA = 32, NL = 16, az0 = -Math.PI / 2;                     // azimuth 0 = the front (−t)
-  const sp = (i, k, r = R) => { const az = az0 + (i / NA) * TAU, la = -Math.PI / 2 + (k / NL) * Math.PI; return F.P(Math.cos(az) * Math.cos(la) * r, Math.sin(az) * Math.cos(la) * r, zc - b.z0 + Math.sin(la) * r); };
+  const sp = (i, k, r = R) => { const az = az0 + (i / NA) * TAU, la = -Math.PI / 2 + (k / NL) * Math.PI; return F.P(dmath.cos(az) * dmath.cos(la) * r, dmath.sin(az) * dmath.cos(la) * r, zc - b.z0 + dmath.sin(la) * r); };
   const inStage = (i, k) => (i <= 2 || i >= NA - 3) && k >= 7 && k <= 10;
   const rows = Array.from({ length: NL + 1 }, (_, k) => Array.from({ length: NA }, (_, i) => sp(i, k)));
   sheet(K, rows, (i, k) => (inStage(i, k) ? null : scaleHex(pal.hull, ((Math.floor(((i + 2) % NA) / 4) + Math.floor(k / 2)) % 2) ? 1 : 0.955)), F.P(0, 0, zc - b.z0), true);
@@ -694,9 +695,9 @@ function mobileEdmHall(b, { L, camHint }) {
     fr([sp(i, k, R), sp(i, k + 1, R), sp(i, k + 1, R * 1.03), sp(i, k, R * 1.03)], scaleHex(pal.frame, 0.9));
   }
   const la0 = -Math.PI / 2 + (7 / NL) * Math.PI, la1 = -Math.PI / 2 + (11 / NL) * Math.PI, azE = (3 / NA) * TAU;
-  const zf = zc - b.z0 + Math.sin(la0) * R, zt = zc - b.z0 + Math.sin(la1) * R;
-  const hwB = Math.sin(azE) * Math.cos(la0) * R * 0.99, hwT = Math.sin(azE) * Math.cos(la1) * R * 0.99, hw = hwB;
-  const tFB = -Math.cos(azE) * Math.cos(la0) * R * 0.99, tFT = -Math.cos(azE) * Math.cos(la1) * R * 0.99, tBack = -0.2 * R, tFront = tFB;
+  const zf = zc - b.z0 + dmath.sin(la0) * R, zt = zc - b.z0 + dmath.sin(la1) * R;
+  const hwB = dmath.sin(azE) * dmath.cos(la0) * R * 0.99, hwT = dmath.sin(azE) * dmath.cos(la1) * R * 0.99, hw = hwB;
+  const tFB = -dmath.cos(azE) * dmath.cos(la0) * R * 0.99, tFT = -dmath.cos(azE) * dmath.cos(la1) * R * 0.99, tBack = -0.2 * R, tFront = tFB;
   K.quad([F.P(-hwB, tFB, zf), F.P(hwB, tFB, zf), F.P(hwB, tBack, zf), F.P(-hwB, tBack, zf)], pal.floor, { dir: [0, 0, 1] });
   K.quad([F.P(-hwT, tFT, zt), F.P(hwT, tFT, zt), F.P(hwT, tBack, zt), F.P(-hwT, tBack, zt)], pal.stage, { dir: [0, 0, -1] });
   for (const sg of [-1, 1]) K.quad([F.P(sg * hwB, tFB, zf), F.P(sg * hwB, tBack, zf), F.P(sg * hwT, tBack, zt), F.P(sg * hwT, tFT, zt)], pal.stage, { dir: F.D(-sg, 0, 0) });
@@ -711,14 +712,14 @@ function mobileEdmHall(b, { L, camHint }) {
   // the light rig: four posts to a ring truss of lamps over the crown
   const zR = 1.08 * sd, rr = 0.22 * sd, NR = 12;
   for (let q = 0; q < 4; q++) {
-    const a = Math.PI / 4 + q * Math.PI / 2, x = Math.cos(a) * rr * 0.8, y = Math.sin(a) * rr * 0.8;
+    const a = Math.PI / 4 + q * Math.PI / 2, x = dmath.cos(a) * rr * 0.8, y = dmath.sin(a) * rr * 0.8;
     const zs = zc - b.z0 + Math.sqrt(Math.max(0, R * R - (x * x + y * y))) - 0.01 * sd;
-    tube(K, [F.P(x, y, zs), F.P(Math.cos(a) * rr, Math.sin(a) * rr, zR)], sd * 0.009, 4, pal.rig);
+    tube(K, [F.P(x, y, zs), F.P(dmath.cos(a) * rr, dmath.sin(a) * rr, zR)], sd * 0.009, 4, pal.rig);
   }
-  const rp = Array.from({ length: NR + 1 }, (_, i) => { const a = (i / NR) * TAU; return F.P(Math.cos(a) * rr, Math.sin(a) * rr, zR); });
+  const rp = Array.from({ length: NR + 1 }, (_, i) => { const a = (i / NR) * TAU; return F.P(dmath.cos(a) * rr, dmath.sin(a) * rr, zR); });
   for (let i = 0; i < NR; i++) tube(K, [rp[i], rp[i + 1]], sd * 0.011, 4, pal.rig);
   for (let i = 0; i < NR; i++) {
-    const a = ((i + 0.5) / NR) * TAU, c = F.P(Math.cos(a) * rr * 1.02, Math.sin(a) * rr * 1.02, zR - 0.03 * sd), o = F.D(Math.cos(a), Math.sin(a), -0.6);
+    const a = ((i + 0.5) / NR) * TAU, c = F.P(dmath.cos(a) * rr * 1.02, dmath.sin(a) * rr * 1.02, zR - 0.03 * sd), o = F.D(dmath.cos(a), dmath.sin(a), -0.6);
     tube(K, [c, add(c, mul(norm(o), 0.035 * sd))], [0.012 * sd, 0.016 * sd], 6, pal.rig, { capEnd: pal.lamp });
   }
   return faces;
@@ -767,7 +768,7 @@ function statueOfLiberty(b, { L, camHint }) {
   const pal = { ...LIBERTY, ...(b.landmarkPalette || {}) };
   // Fort Wood: an eleven-point star, a point to the back so the sally port notch faces front
   const R1 = SH * 0.49, R2 = SH * 0.35, zF = 0.035 * H;
-  const star = Array.from({ length: 22 }, (_, i) => { const a = Math.PI / 2 + (i / 22) * TAU, r = i % 2 ? R2 : R1; return [Math.cos(a) * r, Math.sin(a) * r]; });
+  const star = Array.from({ length: 22 }, (_, i) => { const a = Math.PI / 2 + (i / 22) * TAU, r = i % 2 ? R2 : R1; return [dmath.cos(a) * r, dmath.sin(a) * r]; });
   const starTop = star.map(([s, t]) => [s * 0.96, t * 0.96]);
   for (let i = 0; i < 22; i++) {
     const j = (i + 1) % 22;

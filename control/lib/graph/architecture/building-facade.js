@@ -9,6 +9,7 @@
  */
 
 import { scaleHex } from '../polygonizer/vexar.js';
+import { SM } from '../../util/math-scope.js';
 
 // glass family → [glass, mullion/spandrel]
 const FAMILIES = [
@@ -249,10 +250,10 @@ function addRoofItem(out, item, idx, x, y, w, d, z1, round = false) {
     const r = Math.min(0.6, Math.min(w, d) * 0.22), zs = z1 + 0.9, zb = zs + 0.08, zt = zb + 1.25, s = r * 0.62;
     for (const [lx, ly] of [[-s, -s], [s, -s], [s, s], [-s, s]]) out.boxes.push({ x: px + lx - 0.04, y: py + ly - 0.04, w: 0.08, d: 0.08, z0: z1, z1: zs, tint: '#3b3d40', ...R('kit-pole', { round: { taper: 1 } }) });
     out.boxes.push({ x: px - r, y: py - r, w: 2 * r, d: 2 * r, z0: zs, z1: zb, tint: '#3b3d40', ...R('kit-drum') });
-    const ring = (rad, z) => Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * 2 * Math.PI; return [px + Math.cos(a) * rad, py + Math.sin(a) * rad, z]; });
+    const ring = (rad, z) => Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * 2 * Math.PI; return [px + SM.cos(a) * rad, py + SM.sin(a) * rad, z]; });
     const lo = ring(r, zb), hi = ring(r, zt), apex = [px, py, zt + 0.45];
     for (let k = 0; k < 8; k++) {
-      const j = (k + 1) % 8, lit = 0.72 + 0.28 * Math.max(0, Math.cos(((k + 0.5) / 8) * 2 * Math.PI + 2.2));
+      const j = (k + 1) % 8, lit = 0.72 + 0.28 * Math.max(0, SM.cos(((k + 0.5) / 8) * 2 * Math.PI + 2.2));
       out.faces.push({ corners: [lo[k], lo[j], hi[j], hi[k]], fill: scaleHex('#76624b', lit), doubleSided: true });
       out.faces.push({ corners: [hi[k], hi[j], apex], fill: scaleHex('#4a4541', lit), doubleSided: true });
     }

@@ -9,6 +9,7 @@
 // heights), so a 3 × 4 lot and a 9 × 20 lot both read. Pure functions of the box: no rng, no Date.
 import { makeKit, mixHex, v3 } from './refacade-kit.js';
 import { scaleHex } from '../polygonizer/vexar.js';
+import * as dmath from '../../util/dmath.js';
 
 const TAU = Math.PI * 2;
 const { add, sub, mul, centroid } = v3;
@@ -52,9 +53,9 @@ function localKit(F, k) {
     const out = [];
     for (let i = 0; i < n; i++) {
       const ta = t0 + (t1 - t0) * (i / n), tb = t0 + (t1 - t0) * ((i + 1) / n), tm = (ta + tb) / 2;
-      const pa = [a + Math.cos(ta) * r, c + Math.sin(ta) * r], pb = [a + Math.cos(tb) * r, c + Math.sin(tb) * r];
-      const du = [pb[0] - pa[0], pb[1] - pa[1]], l = Math.hypot(du[0], du[1]);
-      out.push({ W: wall(pa[0], pa[1], zb, [du[0] / l, du[1] / l], [Math.cos(tm), Math.sin(tm)]), len: l, t: tm });
+      const pa = [a + dmath.cos(ta) * r, c + dmath.sin(ta) * r], pb = [a + dmath.cos(tb) * r, c + dmath.sin(tb) * r];
+      const du = [pb[0] - pa[0], pb[1] - pa[1]], l = dmath.hypot(du[0], du[1]);
+      out.push({ W: wall(pa[0], pa[1], zb, [du[0] / l, du[1] / l], [dmath.cos(tm), dmath.sin(tm)]), len: l, t: tm });
     }
     return out;
   };
@@ -82,7 +83,7 @@ function localKit(F, k) {
 /** A rose window painted on a wall frame: glass disc, moulded rim, inner ring, spokes, boss. */
 function rose(k, W, sc, tc, R, glass, stone, n = 16) {
   const out = { dir: W.n };
-  const pt = (r, th, d) => W.at(sc + Math.cos(th) * r, tc + Math.sin(th) * r, d);
+  const pt = (r, th, d) => W.at(sc + dmath.cos(th) * r, tc + dmath.sin(th) * r, d);
   const d0 = 0.012, dr = R * 0.07;
   k.poly(Array.from({ length: n }, (_, i) => pt(R * 0.9, (i / n) * TAU, d0)), glass, out);
   const ring = (r0, r1, d, tint) => {
@@ -95,7 +96,7 @@ function rose(k, W, sc, tc, R, glass, stone, n = 16) {
   ring(R * 0.4, R * 0.48, dr * 0.6, stone);
   const hw = R * 0.035;
   for (let i = 0; i < n; i += 2) {
-    const th = (i / n) * TAU + Math.PI / n, cs = Math.cos(th), sn = Math.sin(th);
+    const th = (i / n) * TAU + Math.PI / n, cs = dmath.cos(th), sn = dmath.sin(th);
     const p = (r, s) => W.at(sc + cs * r - sn * s, tc + sn * r + cs * s, dr * 0.5);
     k.quad([p(R * 0.48, -hw), p(R * 0.86, -hw), p(R * 0.86, hw), p(R * 0.48, hw)], stone, out);
   }
@@ -118,7 +119,7 @@ function fitUnder(faces, z0, z1) {
   return faces;
 }
 
-const hash01 = (b) => { const h = Math.abs(Math.sin(b.x * 12.9898 + b.y * 78.233) * 43758.5453); return h - Math.floor(h); };
+const hash01 = (b) => { const h = Math.abs(dmath.sin(b.x * 12.9898 + b.y * 78.233) * 43758.5453); return h - Math.floor(h); };
 
 // ── the Gothic cathedral (basilica) ─────────────────────────────────────────────
 // West front: twin towers (flat Gothic tops with pinnacles, or openwork spires) over three
@@ -214,7 +215,7 @@ function basilica(b, ctx) {
   }
   // radiating piers round the chevet
   for (let i = 1; i < 6; i++) {
-    const t = tA[0] + (tA[1] - tA[0]) * (i / 6), ca = Math.cos(t), sa = Math.sin(t);
+    const t = tA[0] + (tA[1] - tA[0]) * (i / 6), ca = dmath.cos(t), sa = dmath.sin(t);
     const r0 = aisleOut, r1 = aisleOut + pierD * 0.9, pw = cLen * 0.025, pierTop = aisleTop + H * 0.05;
     const pc = (r, s) => [aApse + ca * r - sa * s, sa * r + ca * s];
     const q = [pc(r0, -pw), pc(r1, -pw), pc(r1, pw), pc(r0, pw)].map(([a, c]) => F.P(a, c, 0).slice(0, 2));
@@ -379,8 +380,8 @@ function chapel(b, ctx) {
     const zc = zB0 - tw * 0.36;
     if (j === 0) {
       const cr = tw * 0.24, out = { dir: W.n };
-      k.poly(Array.from({ length: 12 }, (_, i) => W.at(tw / 2 + Math.cos((i / 12) * TAU) * cr, zc + Math.sin((i / 12) * TAU) * cr, 0.02)), scaleHex(pal.roof, 0.85), out);
-      k.poly(Array.from({ length: 12 }, (_, i) => W.at(tw / 2 + Math.cos((i / 12) * TAU) * cr * 0.8, zc + Math.sin((i / 12) * TAU) * cr * 0.8, 0.03)), '#f4f0e4', out);
+      k.poly(Array.from({ length: 12 }, (_, i) => W.at(tw / 2 + dmath.cos((i / 12) * TAU) * cr, zc + dmath.sin((i / 12) * TAU) * cr, 0.02)), scaleHex(pal.roof, 0.85), out);
+      k.poly(Array.from({ length: 12 }, (_, i) => W.at(tw / 2 + dmath.cos((i / 12) * TAU) * cr * 0.8, zc + dmath.sin((i / 12) * TAU) * cr * 0.8, 0.03)), '#f4f0e4', out);
       k.quad([W.at(tw / 2 - cr * 0.04, zc, 0.04), W.at(tw / 2 + cr * 0.04, zc, 0.04), W.at(tw / 2 + cr * 0.04, zc + cr * 0.6, 0.04), W.at(tw / 2 - cr * 0.04, zc + cr * 0.6, 0.04)], '#2a2622', out);
       k.quad([W.at(tw / 2, zc - cr * 0.04, 0.04), W.at(tw / 2 + cr * 0.45, zc - cr * 0.04, 0.04), W.at(tw / 2 + cr * 0.45, zc + cr * 0.04, 0.04), W.at(tw / 2, zc + cr * 0.04, 0.04)], '#2a2622', out);
     } else if (zc - tw * 0.3 > zE * 0.5) {
@@ -459,11 +460,11 @@ function orthodox(b, ctx) {
       const b0 = edges[i], b1 = edges[i + 1], bm = (b0 + b1) / 2, r = (b1 - b0) / 2;
       // zakomar: the half-disc gable over the bay, with a moulded rim
       const n = 8, out = { dir: W.n };
-      const arc = Array.from({ length: n + 1 }, (_, j) => W.at(bm - Math.cos((j / n) * Math.PI) * r, zE + Math.sin((j / n) * Math.PI) * r, 0));
+      const arc = Array.from({ length: n + 1 }, (_, j) => W.at(bm - dmath.cos((j / n) * Math.PI) * r, zE + dmath.sin((j / n) * Math.PI) * r, 0));
       for (let j = 0; j < n; j++) k.tri(arc[j], arc[j + 1], W.at(bm, zE, 0), pal.wall, out);
       for (let j = 0; j < n; j++) {
         const a0 = (j / n) * Math.PI, a1 = ((j + 1) / n) * Math.PI, ri = r * 0.86, d = cLen * 0.012;
-        k.quad([W.at(bm - Math.cos(a0) * ri, zE + Math.sin(a0) * ri, d), W.at(bm - Math.cos(a1) * ri, zE + Math.sin(a1) * ri, d), W.at(bm - Math.cos(a1) * r, zE + Math.sin(a1) * r, d), W.at(bm - Math.cos(a0) * r, zE + Math.sin(a0) * r, d)], pal.trim, out);
+        k.quad([W.at(bm - dmath.cos(a0) * ri, zE + dmath.sin(a0) * ri, d), W.at(bm - dmath.cos(a1) * ri, zE + dmath.sin(a1) * ri, d), W.at(bm - dmath.cos(a1) * r, zE + dmath.sin(a1) * r, d), W.at(bm - dmath.cos(a0) * r, zE + dmath.sin(a0) * r, d)], pal.trim, out);
       }
       // windows: tall round-headed in the bays, a small one in each zakomar
       if (tag === 'E' && i === 1) continue;                            // the apse covers it
@@ -487,7 +488,7 @@ function orthodox(b, ctx) {
     const r = (hi - lo) / 2, mid = (lo + hi) / 2, n = 8;
     for (let j = 0; j < n; j++) {
       const t0 = (j / n) * Math.PI, t1 = ((j + 1) / n) * Math.PI;
-      const q = (t, x) => (along ? F.P(x, mid - Math.cos(t) * r, zE + Math.sin(t) * r) : F.P(mid - Math.cos(t) * r, x, zE + Math.sin(t) * r));
+      const q = (t, x) => (along ? F.P(x, mid - dmath.cos(t) * r, zE + dmath.sin(t) * r) : F.P(mid - dmath.cos(t) * r, x, zE + dmath.sin(t) * r));
       k.quad([q(t0, from), q(t1, from), q(t1, to), q(t0, to)], pal.roof, along ? F.P((from + to) / 2, mid, zE) : F.P(mid, (from + to) / 2, zE));
     }
   };
@@ -514,10 +515,10 @@ function orthodox(b, ctx) {
     const n = 6, out = { dir: W.n };
     for (const bm of [ph / 2, ph * 1.5]) {
       const r = ph / 2;
-      const arc = Array.from({ length: n + 1 }, (_, j) => W.at(bm - Math.cos((j / n) * Math.PI) * r, zP1 + Math.sin((j / n) * Math.PI) * r * 1.2, 0));
+      const arc = Array.from({ length: n + 1 }, (_, j) => W.at(bm - dmath.cos((j / n) * Math.PI) * r, zP1 + dmath.sin((j / n) * Math.PI) * r * 1.2, 0));
       for (let j = 0; j < n; j++) k.tri(arc[j], arc[j + 1], W.at(bm, zP1, 0), pal.wall, out);
-      const arcI = Array.from({ length: n + 1 }, (_, j) => W.at(bm - Math.cos((j / n) * Math.PI) * r * 0.8, zP1 + Math.sin((j / n) * Math.PI) * r * 0.96, cLen * 0.006));
-      for (let j = 0; j < n; j++) k.quad([arcI[j], arcI[j + 1], W.at(bm - Math.cos(((j + 1) / n) * Math.PI) * r, zP1 + Math.sin(((j + 1) / n) * Math.PI) * r * 1.2, cLen * 0.006), W.at(bm - Math.cos((j / n) * Math.PI) * r, zP1 + Math.sin((j / n) * Math.PI) * r * 1.2, cLen * 0.006)], pal.trim, out);
+      const arcI = Array.from({ length: n + 1 }, (_, j) => W.at(bm - dmath.cos((j / n) * Math.PI) * r * 0.8, zP1 + dmath.sin((j / n) * Math.PI) * r * 0.96, cLen * 0.006));
+      for (let j = 0; j < n; j++) k.quad([arcI[j], arcI[j + 1], W.at(bm - dmath.cos(((j + 1) / n) * Math.PI) * r, zP1 + dmath.sin(((j + 1) / n) * Math.PI) * r * 1.2, cLen * 0.006), W.at(bm - dmath.cos((j / n) * Math.PI) * r, zP1 + dmath.sin((j / n) * Math.PI) * r * 1.2, cLen * 0.006)], pal.trim, out);
     }
     W.proud(0, zP1 - H * 0.01, ph * 2, zP1, cLen * 0.008, pal.trim);
   }
@@ -606,7 +607,7 @@ function rotunda(b, ctx) {
   K.lathe(aC, 0, [[rD, zCol0], [rD, zAt]], 20, pal.wall);
   const portHalf = Math.min(cLen * 0.33, rP * 0.9);
   const skip = (t) => {
-    const pa = aC + Math.cos(t) * rP, pc = Math.sin(t) * rP;
+    const pa = aC + dmath.cos(t) * rP, pc = dmath.sin(t) * rP;
     if (wings) return Math.abs(pc) < fM * 0.3 + colR * 2;
     return pa < aC && Math.abs(pc) < portHalf + colR * 3;
   };
@@ -618,7 +619,7 @@ function rotunda(b, ctx) {
   for (let i = 0; i < NC; i++) {
     const t = ((i + 0.5) / NC) * TAU;
     if (skip(t)) continue;
-    const [x, y, z] = F.P(aC + Math.cos(t) * rP, Math.sin(t) * rP, zCol0);
+    const [x, y, z] = F.P(aC + dmath.cos(t) * rP, dmath.sin(t) * rP, zCol0);
     k.column(x, y, colR, z, F.z0 + zCol1, pal.column, { n: 8, capTint: pal.cornice });
   }
   // entablature: architrave + frieze band, a projecting cornice, a roof ring back to the attic
@@ -633,7 +634,7 @@ function rotunda(b, ctx) {
   const domeTint = b.domeTint || (form === 'onion' ? pal.domeOnion : form === 'bulbous' ? pal.domeBulbous : pal.domeStone);
   if (form === 'hemispheric') {
     const dh = fM * 0.33, prof = [];
-    for (let i = 0; i <= 6; i++) { const t = (i / 6) * (Math.PI / 2) * 0.86; prof.push([rDome * Math.cos(t), zDome + dh * Math.sin(t) / Math.sin((Math.PI / 2) * 0.86)]); }
+    for (let i = 0; i <= 6; i++) { const t = (i / 6) * (Math.PI / 2) * 0.86; prof.push([rDome * dmath.cos(t), zDome + dh * dmath.sin(t) / dmath.sin((Math.PI / 2) * 0.86)]); }
     const rTop = prof[6][0];
     K.lathe(aC, 0, prof, 24, (i, kk) => (i % 3 === 0 ? mixHex(domeTint, '#e8ece6', 0.22) : domeTint), { capTop: domeTint });
     // lantern: an open colonnaded drum, a small dome, a ball

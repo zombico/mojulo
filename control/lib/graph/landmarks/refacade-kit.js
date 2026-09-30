@@ -11,6 +11,7 @@
 //     proud panels and arch-headed openings, so a builder spends its lines on the building.
 // Deterministic geometry only: no rng, no Date. Everything is a pure function of its arguments.
 import { litFactor, scaleHex, hexToRgb, rgbToHex } from '../polygonizer/vexar.js';
+import * as dmath from '../../util/dmath.js';
 
 export const v3 = {
   sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
@@ -18,8 +19,8 @@ export const v3 = {
   mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
   dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
   cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
-  len: (a) => Math.hypot(a[0], a[1], a[2]),
-  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+  len: (a) => dmath.hypot(a[0], a[1], a[2]),
+  norm: (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
   lerp: (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t],
   centroid: (pts) => { const s = [0, 0, 0]; for (const p of pts) { s[0] += p[0]; s[1] += p[1]; s[2] += p[2]; } return [s[0] / pts.length, s[1] / pts.length, s[2] / pts.length]; },
 };
@@ -109,7 +110,7 @@ export function makeKit({ faces, L, camHint = [-7, 31, 9] }) {
    */
   function lathe(cx, cy, profile, n, tint, { a0 = 0, a1 = Math.PI * 2, capTop = null, capBottom = null } = {}) {
     const full = Math.abs(a1 - a0 - Math.PI * 2) < 1e-9;
-    const P = (r, z, i) => { const a = a0 + (a1 - a0) * (i / n); return [cx + Math.cos(a) * r, cy + Math.sin(a) * r, z]; };
+    const P = (r, z, i) => { const a = a0 + (a1 - a0) * (i / n); return [cx + dmath.cos(a) * r, cy + dmath.sin(a) * r, z]; };
     for (let k = 0; k < profile.length - 1; k++) {
       const [r0, z0] = profile[k], [r1, z1] = profile[k + 1];
       const axisIn = [cx, cy, (z0 + z1) / 2];
@@ -193,11 +194,11 @@ export function makeKit({ faces, L, camHint = [-7, 31, 9] }) {
       const dd = Math.min(Math.abs(depth), w * 0.3), sh = scaleHex(tint, 0.55);
       const head = (i, inset = 0) => {
         const k = i / seg;
-        if (!pointed) { const a = Math.PI * k; return [sc - Math.cos(a) * (r - inset), tS + Math.sin(a) * (h - inset * (h / r))]; }
+        if (!pointed) { const a = Math.PI * k; return [sc - dmath.cos(a) * (r - inset), tS + dmath.sin(a) * (h - inset * (h / r))]; }
         // two arcs of radius w, struck from the opposite springing points, meet at the apex
         const half = k <= 0.5, q = half ? k * 2 : (1 - k) * 2, ang = q * (Math.PI / 3);
         const ox = half ? s1 : s0, dir = half ? -1 : 1, R = w - inset;
-        return [ox + dir * Math.cos(ang) * R, tS + Math.sin(ang) * R * (h / (w * Math.sin(Math.PI / 3)))];
+        return [ox + dir * dmath.cos(ang) * R, tS + dmath.sin(ang) * R * (h / (w * dmath.sin(Math.PI / 3)))];
       };
       rect(s0, t0, s1, tS, tint, EPS);
       rect(s0, t0, s0 + dd * 0.8, tS, sh, EPS * 1.5);                            // jamb shadow
@@ -251,7 +252,7 @@ export function makeKit({ faces, L, camHint = [-7, 31, 9] }) {
 
 /** Rotate a local-frame builder into place: returns (lx, ly) → [x, y] about (cx, cy) by `yaw`. */
 export function planFrame(cx, cy, yaw = 0) {
-  const c = Math.cos(yaw), s = Math.sin(yaw);
+  const c = dmath.cos(yaw), s = dmath.sin(yaw);
   return (lx, ly) => [cx + lx * c - ly * s, cy + lx * s + ly * c];
 }
 

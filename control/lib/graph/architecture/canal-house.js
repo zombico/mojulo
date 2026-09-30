@@ -17,6 +17,8 @@
 
 // outlines in the gable's own frame: s across the front 0..1, t up from the eaves 0..1. The roof's
 // section at the facade is t = RIDGE_T · (1 − |2s − 1|); every outline covers it (checked in tests).
+import * as dmath from '../../util/dmath.js';
+
 export const RIDGE_T = 0.8;
 const GABLE_PIECES = {
   step: [
@@ -82,7 +84,7 @@ function piece(P, W, H, v, z0, pts, fill, shade, lift = 0) {
 export function canalBridgeFaces(b, shade) {
   const alongX = b.axis === 'x', S = alongX ? b.w : b.d, Wd = alongX ? b.d : b.w;
   const P = (s, c, z) => (alongX ? [b.x + s, b.y + c, z] : [b.x + c, b.y + s, z]);
-  const deck = (s) => b.deck + b.hump * Math.sin((Math.PI * s) / S);
+  const deck = (s) => b.deck + b.hump * dmath.sin((Math.PI * s) / S);
   const arches = (b.arches || []).map((a) => ({ c: a.at * S, h: a.span / 2, rise: a.rise }));
   const under = (s) => {
     for (const a of arches) { const u = (s - a.c) / a.h; if (Math.abs(u) < 1) return b.water + a.rise * Math.sqrt(1 - u * u); }

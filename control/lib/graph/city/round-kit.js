@@ -12,6 +12,7 @@
 // Stylized, not measured: the proportions are the city's own, rounded. No rng, no Date.
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
+import * as dmath from '../../util/dmath.js';
 
 // ---------- the post-pass ----------
 
@@ -98,13 +99,13 @@ const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const unit = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const r4 = (p) => p.map((v) => +v.toFixed(5));
 // an axis frame: `a` the axis, (p, q) the ring plane with p × q = a, so a CCW ring's tangent × a points outward
 const AXES = { z: { a: [0, 0, 1], p: [1, 0, 0], q: [0, 1, 0] }, x: { a: [1, 0, 0], p: [0, 1, 0], q: [0, 0, 1] }, y: { a: [0, 1, 0], p: [0, 0, 1], q: [1, 0, 0] } };
 
 function makeLathe(faces, L) {
-  const at = (c, ax, r, t, ang) => add(add(c, mul(ax.a, t)), add(mul(ax.p, Math.cos(ang) * r), mul(ax.q, Math.sin(ang) * r)));
+  const at = (c, ax, r, t, ang) => add(add(c, mul(ax.a, t)), add(mul(ax.p, dmath.cos(ang) * r), mul(ax.q, dmath.sin(ang) * r)));
   const push = (corners, tint) => {
     const n = unit(cross(sub(corners[2], corners[0]), sub(corners[3], corners[1])));
     faces.push({ corners: corners.map(r4), fill: scaleHex(tint, litFactor(n, L)) });
@@ -129,7 +130,7 @@ function makeLathe(faces, L) {
 }
 
 // the octagon, as a square face's clip (regular: flats on the square's sides)
-const OCT = (() => { const k = ((1 - Math.tan(Math.PI / 8)) / 2 * 100).toFixed(2), m = (100 - +k).toFixed(2);
+const OCT = (() => { const k = ((1 - dmath.tan(Math.PI / 8)) / 2 * 100).toFixed(2), m = (100 - +k).toFixed(2);
   return `polygon(${k}% 0%, ${m}% 0%, 100% ${k}%, 100% ${m}%, ${m}% 100%, ${k}% 100%, 0% ${m}%, 0% ${k}%)`; })();
 
 // The World page packs the metal channel's per-vertex data for EVERY vertex of a mesh group holding one metal face,
@@ -213,7 +214,7 @@ export function roundKitFaces(b, L) {
       const thinX = b.w < b.d, ax = thinX ? AXES.x : AXES.y;
       const s = Math.min(thinX ? b.d : b.w, h) / 2, th = Math.min(thinX ? b.w : b.d, 0.03);
       const c = thinX ? [cx - th / 2, cy, z0 + h / 2] : [cx, cy - th / 2, z0 + h / 2];
-      lathe(c, ax, [[s / Math.cos(Math.PI / 8), 0], [s / Math.cos(Math.PI / 8), th]], 8, scaleHex(b.tint, 0.8), Math.PI / 8);
+      lathe(c, ax, [[s / dmath.cos(Math.PI / 8), 0], [s / dmath.cos(Math.PI / 8), th]], 8, scaleHex(b.tint, 0.8), Math.PI / 8);
       for (const [t, up] of [[0, false], [th, true]]) {
         disc(c, ax, s, t, '#e9e6de', up, OCT);
         disc(c, ax, s * 0.84, up ? t + 0.002 : t - 0.002, b.tint, up, OCT);

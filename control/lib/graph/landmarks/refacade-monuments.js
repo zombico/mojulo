@@ -8,6 +8,7 @@
 // under LANDMARK_HEIGHTS × s. No rng: a ruin or an irregular pattern is a fixed, designed table.
 import { makeKit, mixHex } from './refacade-kit.js';
 import { scaleHex } from '../polygonizer/vexar.js';
+import * as dmath from '../../util/dmath.js';
 
 // ── the local frame ──────────────────────────────────────────────────────────────────────────
 function localKit(b, ctx) {
@@ -51,7 +52,7 @@ function localKit(b, ctx) {
    * yaw) × c (across), from za to zb. `top` shrinks the top face (taper), `lean` = [du, dv] shifts it.
    */
   const obox = (cu, cv, yaw, a, c, za, zb, tint, { top = 1, lean = [0, 0], topTint = null, bottom = false } = {}) => {
-    const cs = Math.cos(yaw), sn = Math.sin(yaw);
+    const cs = dmath.cos(yaw), sn = dmath.sin(yaw);
     const at = (x, y, z, k, dl) => [cu + (x * cs - y * sn) * k + dl[0], cv + (x * sn + y * cs) * k + dl[1], z];
     const lo = [[-a, -c], [a, -c], [a, c], [-a, c]].map(([x, y]) => at(x, y, za, 1, [0, 0]));
     const hi = [[-a, -c], [a, -c], [a, c], [-a, c]].map(([x, y]) => at(x, y, zb, top, lean));
@@ -68,7 +69,7 @@ function localKit(b, ctx) {
  * right seen from outside. `off` pushes the frame out along the normal (a proud panel's own plane).
  */
 function edgeWall(K, p, q, za, centre, off = 0) {
-  const du = q[0] - p[0], dv = q[1] - p[1], l = Math.hypot(du, dv) || 1;
+  const du = q[0] - p[0], dv = q[1] - p[1], l = dmath.hypot(du, dv) || 1;
   let u = [du / l, dv / l, 0], o = p;
   // the outward normal for a left → right walk is u × up = (u_v, -u_u)
   let n = [u[1], -u[0], 0];
@@ -167,7 +168,7 @@ function tajMahal(b, ctx) {
   };
   for (const [u, v] of oct) pinnacle(u, v, zW, s * 0.045, s * 0.007);
   for (let e = 0; e < 8; e += 2) {
-    const A = oct[e], B = oct[e + 1], du = B[0] - A[0], dv = B[1] - A[1], l = Math.hypot(du, dv);
+    const A = oct[e], B = oct[e + 1], du = B[0] - A[0], dv = B[1] - A[1], l = dmath.hypot(du, dv);
     const nu = dv / l, nv = -du / l, sg = ((A[0] + B[0]) / 2 - cu) * nu + ((A[1] + B[1]) / 2 - cv) * nv < 0 ? -1 : 1;
     for (const f of [l / 2 - s * 0.115, l / 2 + s * 0.115]) {
       pinnacle(A[0] + du / l * f + nu * sg * s * 0.012, A[1] + dv / l * f + nv * sg * s * 0.012, zW + s * 0.045, s * 0.04, s * 0.008);
@@ -229,7 +230,7 @@ function greatPyramid(b, ctx) {
   const zb = s * 0.008;
   // main pyramid, pushed west to leave the queens a strip on the east
   const a = s * 0.4, pu = cu - s * 0.07, pv = cv, H0 = 2 * a * 0.636, N = 34, stop = 0.955;
-  const zAt = (k) => H0 * stop * (1 - Math.pow(1 - k / N, 1.22));
+  const zAt = (k) => H0 * stop * (1 - dmath.pow(1 - k / N, 1.22));
   const hwAt = (z) => a * (1 - z / H0);
   const tone = (k) => {
     // a designed rhythm: every fourth course a hair darker, a slow drift lighter toward the top
@@ -295,11 +296,11 @@ function glassPyramid(K, pu, pv, a, zb, H, n, p) {
     const A = c[f], B = c[(f + 1) % 4];
     const e1 = sub(B, A), e2 = sub(T, A);
     let nn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-    const l = Math.hypot(...nn); nn = nn.map((x) => x / l);
+    const l = dmath.hypot(...nn); nn = nn.map((x) => x / l);
     if ((A[0] + B[0]) / 2 * nn[0] + (A[1] + B[1]) / 2 * nn[1] - (pu * nn[0] + pv * nn[1]) < 0) nn = nn.map((x) => -x);
     K.tri(A, B, T, f === 0 ? p.glassSky : p.glass, ctr);
     const bar = (P0, P1, w, tint) => {
-      const d = sub(P1, P0), dl = Math.hypot(...d) || 1;
+      const d = sub(P1, P0), dl = dmath.hypot(...d) || 1;
       const sd = [nn[1] * d[2] - nn[2] * d[1], nn[2] * d[0] - nn[0] * d[2], nn[0] * d[1] - nn[1] * d[0]].map((x) => (x / dl) * w / 2);
       const up = (P, k) => [P[0] + sd[0] * k + nn[0] * w * 0.4, P[1] + sd[1] * k + nn[1] * w * 0.4, P[2] + sd[2] * k + nn[2] * w * 0.4];
       K.quad([up(P0, -1), up(P0, 1), up(P1, 1), up(P1, -1)], tint, ctr);
@@ -464,8 +465,8 @@ const SARSEN_LINTELS = new Set([0, 1, 2, 3, 4, 5, 6, 10, 26, 27, 28, 29]);
 function stonehenge(b, ctx) {
   const K = localKit(b, ctx), { s, Lu, Dv } = K, p = HENGE;
   const cu = s * 0.5 + (Lu - s) * 0.12, cv = Dv / 2;
-  const axis = Math.atan2(0.62, 0.78);   // north-east: toward +u, a little toward +v (either footprint lay)
-  const ax = [Math.cos(axis), Math.sin(axis)];
+  const axis = dmath.atan2(0.62, 0.78);   // north-east: toward +u, a little toward +v (either footprint lay)
+  const ax = [dmath.cos(axis), dmath.sin(axis)];
   // ground: a grass plate over the whole lot
   K.box(0.001, 0.001, 0, Lu - 0.001, Dv - 0.001, s * 0.004, { side: p.grass, top: p.grassTop });
   const zg = s * 0.004;
@@ -477,7 +478,7 @@ function stonehenge(b, ctx) {
     for (let i = 0; i < nB; i++) {
       const a0 = angOf(i), a1 = angOf(i + 1);
       if (Math.abs(rel((a0 + a1) / 2)) < gapA / 2) continue;
-      const P = (r, a) => [cu + Math.cos(a) * r, cv + Math.sin(a) * r, z];
+      const P = (r, a) => [cu + dmath.cos(a) * r, cv + dmath.sin(a) * r, z];
       K.quad([P(r0, a0), P(r0, a1), P(r1, a1), P(r1, a0)], tint, { dir: [0, 0, 1] });
     }
   };
@@ -499,41 +500,41 @@ function stonehenge(b, ctx) {
   const tone = (i) => [p.sarsen, p.sarsenWarm, p.sarsenCool, p.lichen][(i * 7) % 4];
   const N = 30, ang = (i) => axis + (i / N) * Math.PI * 2 * -1 + Math.PI / N;
   for (let i = 0; i < N; i++) {
-    const st = SARSEN_STATE[i], a = ang(i), u = cu + Math.cos(a) * rS, v = cv + Math.sin(a) * rS, yaw = a + Math.PI / 2;
+    const st = SARSEN_STATE[i], a = ang(i), u = cu + dmath.cos(a) * rS, v = cv + dmath.sin(a) * rS, yaw = a + Math.PI / 2;
     if (st === 'S') stone(u, v, yaw, upW / 2, upT / 2, zg, zg + upH * (1 - ((i * 5) % 3) * 0.02), tone(i), { top: 0.88 });
-    else if (st === 'L') stone(u, v, yaw, upW / 2, upT / 2, zg, zg + upH * 0.95, tone(i), { top: 0.88, lean: [Math.cos(a) * s * 0.03, Math.sin(a) * s * 0.03] });
+    else if (st === 'L') stone(u, v, yaw, upW / 2, upT / 2, zg, zg + upH * 0.95, tone(i), { top: 0.88, lean: [dmath.cos(a) * s * 0.03, dmath.sin(a) * s * 0.03] });
     else if (st === 'F') {
       // lying where it fell, across the ring's line, broken in two
       const r2 = rS + upH * 0.3, f = (i % 2 ? 1 : -1);
-      stone(cu + Math.cos(a) * r2, cv + Math.sin(a) * r2, a + Math.PI / 2 + f * 0.5, upH * 0.3, upW / 2, zg, zg + upT * 0.9, tone(i), {});
-      stone(cu + Math.cos(a + f * 0.06) * (r2 + upH * 0.25), cv + Math.sin(a + f * 0.06) * (r2 + upH * 0.25), a + f * 0.9, upH * 0.14, upW * 0.45, zg, zg + upT * 0.8, tone(i + 1), {});
+      stone(cu + dmath.cos(a) * r2, cv + dmath.sin(a) * r2, a + Math.PI / 2 + f * 0.5, upH * 0.3, upW / 2, zg, zg + upT * 0.9, tone(i), {});
+      stone(cu + dmath.cos(a + f * 0.06) * (r2 + upH * 0.25), cv + dmath.sin(a + f * 0.06) * (r2 + upH * 0.25), a + f * 0.9, upH * 0.14, upW * 0.45, zg, zg + upT * 0.8, tone(i + 1), {});
     }
   }
   for (const i of SARSEN_LINTELS) {
     const j = (i + 1) % N;
     if (SARSEN_STATE[i] !== 'S' || SARSEN_STATE[j] !== 'S') continue;
     const a = (ang(i) + ang(j)) / 2, rl = rS;
-    const half = rS * Math.sin(Math.PI / N) + upW * 0.45;
-    stone(cu + Math.cos(a) * rl, cv + Math.sin(a) * rl, a + Math.PI / 2, half, upT * 0.55, zg + upH * 0.96, zg + upH * 0.96 + linH, p.sarsenWarm, {});
+    const half = rS * dmath.sin(Math.PI / N) + upW * 0.45;
+    stone(cu + dmath.cos(a) * rl, cv + dmath.sin(a) * rl, a + Math.PI / 2, half, upT * 0.55, zg + upH * 0.96, zg + upH * 0.96 + linH, p.sarsenWarm, {});
   }
   // the trilithon horseshoe, opening to the axis: [angle off the back, radius, height, state]
   const TRI = [[-1.25, 0.64, 0.84, 'S'], [-0.68, 0.6, 0.94, 'S'], [0, 0.56, 1.12, 'G'], [0.68, 0.6, 0.94, 'S'], [1.25, 0.64, 0.84, 'H']];
   for (const [off, rf, hf, st] of TRI) {
-    const a = axis + Math.PI + off, r = rS * rf, u = cu + Math.cos(a) * r, v = cv + Math.sin(a) * r, t = a + Math.PI / 2;
-    const tu = [Math.cos(t), Math.sin(t)], H = upH * 1.25 * hf, lw = upW * 0.66, gapT = upW * 0.5;
+    const a = axis + Math.PI + off, r = rS * rf, u = cu + dmath.cos(a) * r, v = cv + dmath.sin(a) * r, t = a + Math.PI / 2;
+    const tu = [dmath.cos(t), dmath.sin(t)], H = upH * 1.25 * hf, lw = upW * 0.66, gapT = upW * 0.5;
     const legs = [-1, 1].map((sg) => [u + tu[0] * sg * (lw + gapT / 2), v + tu[1] * sg * (lw + gapT / 2)]);
     if (st === 'S') {
       for (const [lu, lv] of legs) stone(lu, lv, t, lw, upT * 0.7, zg, zg + H, p.sarsen, { top: 0.9 });
       stone(u, v, t, lw * 2 + gapT / 2 + upW * 0.1, upT * 0.62, zg + H, zg + H + linH * 1.2, p.sarsenWarm, {});
     } else if (st === 'G') {
       // the great trilithon: one leaf standing tall and leaning in, the lintel and the other leaf down
-      stone(legs[1][0], legs[1][1], t, lw, upT * 0.7, zg, zg + H, p.sarsenCool, { top: 0.88, lean: [-Math.cos(a) * s * 0.012, -Math.sin(a) * s * 0.012] });
-      stone(u - Math.cos(a) * H * 0.3, v - Math.sin(a) * H * 0.3, a, H * 0.42, lw, zg, zg + upT * 0.8, p.sarsen, {});
-      stone(legs[0][0] + Math.cos(a) * s * 0.02, legs[0][1] + Math.sin(a) * s * 0.02, t + 0.25, lw * 2, upT * 0.6, zg, zg + linH, p.sarsenWarm, {});
+      stone(legs[1][0], legs[1][1], t, lw, upT * 0.7, zg, zg + H, p.sarsenCool, { top: 0.88, lean: [-dmath.cos(a) * s * 0.012, -dmath.sin(a) * s * 0.012] });
+      stone(u - dmath.cos(a) * H * 0.3, v - dmath.sin(a) * H * 0.3, a, H * 0.42, lw, zg, zg + upT * 0.8, p.sarsen, {});
+      stone(legs[0][0] + dmath.cos(a) * s * 0.02, legs[0][1] + dmath.sin(a) * s * 0.02, t + 0.25, lw * 2, upT * 0.6, zg, zg + linH, p.sarsenWarm, {});
     } else {
       // a half-fallen trilithon: one leaf up, its lintel propped against the ground
       stone(legs[0][0], legs[0][1], t, lw, upT * 0.7, zg, zg + H * 0.96, p.sarsen, { top: 0.9 });
-      stone(legs[1][0] - Math.cos(a) * s * 0.03, legs[1][1] - Math.sin(a) * s * 0.03, a + 0.3, H * 0.38, lw, zg, zg + upT * 0.9, p.sarsenCool, {});
+      stone(legs[1][0] - dmath.cos(a) * s * 0.03, legs[1][1] - dmath.sin(a) * s * 0.03, a + 0.3, H * 0.38, lw, zg, zg + upT * 0.9, p.sarsenCool, {});
     }
   }
   // bluestones: an outer circle inside the sarsens and an inner horseshoe (a fixed pattern of stumps)
@@ -542,12 +543,12 @@ function stonehenge(b, ctx) {
   BLUE_C.forEach((f, i) => {
     if (!f) return;
     const a = axis + (i / BLUE_C.length) * Math.PI * 2 + 0.08;
-    stone(cu + Math.cos(a) * rBl, cv + Math.sin(a) * rBl, a + Math.PI / 2, upW * 0.24, upT * 0.3, zg, zg + bh * f, p.blue, { top: 0.8 });
+    stone(cu + dmath.cos(a) * rBl, cv + dmath.sin(a) * rBl, a + Math.PI / 2, upW * 0.24, upT * 0.3, zg, zg + bh * f, p.blue, { top: 0.8 });
   });
   const BLUE_H = [0.9, 1, 0.7, 1, 1.1, 1, 0.8, 1, 0.9];
   BLUE_H.forEach((f, i) => {
-    const a = axis + Math.PI + (i / (BLUE_H.length - 1) - 0.5) * 3.0, r = rS * (0.4 - 0.06 * Math.cos((i / (BLUE_H.length - 1) - 0.5) * 3.0));
-    stone(cu + Math.cos(a) * r, cv + Math.sin(a) * r, a + Math.PI / 2, upW * 0.17, upT * 0.28, zg, zg + bh * 1.2 * f, p.blue, { top: 0.75 });
+    const a = axis + Math.PI + (i / (BLUE_H.length - 1) - 0.5) * 3.0, r = rS * (0.4 - 0.06 * dmath.cos((i / (BLUE_H.length - 1) - 0.5) * 3.0));
+    stone(cu + dmath.cos(a) * r, cv + dmath.sin(a) * r, a + Math.PI / 2, upW * 0.17, upT * 0.28, zg, zg + bh * 1.2 * f, p.blue, { top: 0.75 });
   });
   // altar stone, fallen flat inside the great trilithon
   stone(cu - ax[0] * rS * 0.33, cv - ax[1] * rS * 0.33, axis + Math.PI / 2 + 0.2, upW * 1.4, upW * 0.35, zg, zg + s * 0.008, p.altar, {});
@@ -579,8 +580,8 @@ function hipRoof(K, { u0, u1, vc, dh, zE, zR, up, ext, sag, m = 6, tint, fascia,
   const cor = [[u0, vc - dh], [u1, vc - dh], [u1, vc + dh], [u0, vc + dh]];
   const inside = [uc, vc, zE - dh];
   const eave = (P, Q, t, outN) => {
-    const c = Math.pow(Math.abs(2 * t - 1), 3), sg = Math.sign(2 * t - 1);
-    const du = Q[0] - P[0], dv = Q[1] - P[1], l = Math.hypot(du, dv);
+    const c = dmath.pow(Math.abs(2 * t - 1), 3), sg = Math.sign(2 * t - 1);
+    const du = Q[0] - P[0], dv = Q[1] - P[1], l = dmath.hypot(du, dv);
     return [P[0] + du * t + outN[0] * ext * c + (du / l) * sg * ext * c * 0.6, P[1] + dv * t + outN[1] * ext * c + (dv / l) * sg * ext * c * 0.6, zE + up * c];
   };
   const edges = [[0, 1, [0, -1], r0, r1], [1, 2, [1, 0], r1, r1], [2, 3, [0, 1], r1, r0], [3, 0, [-1, 0], r0, r0]];
@@ -729,7 +730,7 @@ function arcDeTriomphe(b, ctx) {
     for (const [y, ny] of [[tv0, 1], [tv1, -1]]) K.quad([[U(a), Vv(y), Z(0)], [U(c), Vv(y), Z(0)], [U(c), Vv(y), Z(zsT)], [U(a), Vv(y), Z(zsT)]], p.vault, { dir: [0, ny, 0] });
     for (let i = 0; i < seg; i++) {
       const a0 = Math.PI * i / seg, a1 = Math.PI * (i + 1) / seg;
-      const y0 = tv0 + rT - Math.cos(a0) * rT, y1 = tv0 + rT - Math.cos(a1) * rT, h0 = zsT + Math.sin(a0) * rT, h1 = zsT + Math.sin(a1) * rT;
+      const y0 = tv0 + rT - dmath.cos(a0) * rT, y1 = tv0 + rT - dmath.cos(a1) * rT, h0 = zsT + dmath.sin(a0) * rT, h1 = zsT + dmath.sin(a1) * rT;
       K.quad([[U(a), Vv(y0), Z(h0)], [U(c), Vv(y0), Z(h0)], [U(c), Vv(y1), Z(h1)], [U(a), Vv(y1), Z(h1)]], p.vault, [U((a + c) / 2), Vv(tv0 + rT), Z(zsT)]);
     }
     void pin;
@@ -746,14 +747,14 @@ function arcDeTriomphe(b, ctx) {
     const pr = 0.006;
     for (let i = 0; i < gseg; i++) {
       const a0 = Math.PI * i / gseg, a1 = Math.PI * (i + 1) / gseg;
-      const P = (ang, r) => [U(0.5 - Math.cos(ang) * r), Vv(y + ny * pr), Z(zsG + Math.sin(ang) * r)];
+      const P = (ang, r) => [U(0.5 - dmath.cos(ang) * r), Vv(y + ny * pr), Z(zsG + dmath.sin(ang) * r)];
       K.quad([P(a0, rG), P(a1, rG), P(a1, rG + 0.022), P(a0, rG + 0.022)], p.stoneLight, { dir: [0, ny, 0] });
     }
     K.quad([[U(0.485), Vv(y + ny * 0.01), Z(zsG + rG - 0.01)], [U(0.515), Vv(y + ny * 0.01), Z(zsG + rG - 0.01)], [U(0.522), Vv(y + ny * 0.01), Z(zsG + rG + 0.045)], [U(0.478), Vv(y + ny * 0.01), Z(zsG + rG + 0.045)]], p.carve, { dir: [0, ny, 0] });
   }
   for (let i = 0; i < gseg; i++) {
     const a0 = Math.PI * i / gseg, a1 = Math.PI * (i + 1) / gseg;
-    const x0 = 0.5 - Math.cos(a0) * rG, x1 = 0.5 - Math.cos(a1) * rG, h0 = zsG + Math.sin(a0) * rG, h1 = zsG + Math.sin(a1) * rG;
+    const x0 = 0.5 - dmath.cos(a0) * rG, x1 = 0.5 - dmath.cos(a1) * rG, h0 = zsG + dmath.sin(a0) * rG, h1 = zsG + dmath.sin(a1) * rG;
     K.quad([[U(x0), Vv(0), Z(h0)], [U(x1), Vv(0), Z(h1)], [U(x1), Vv(dep), Z(h1)], [U(x0), Vv(dep), Z(h0)]], p.vault, [U(0.5), Vv(dep / 2), Z(zsG)]);
     // coffers: a darker sunk square in each bay of the vault (every other segment, five rows)
     if (i % 2 === 1) for (let r = 0; r < 5; r++) {
@@ -823,7 +824,7 @@ function arcDeTriomphe(b, ctx) {
     // archivolt round the transverse arch
     for (let i = 0; i < seg; i++) {
       const a0 = Math.PI * i / seg, a1 = Math.PI * (i + 1) / seg, o = 0.005 * W;
-      const P = (ang, r) => w.at(len / 2 - Math.cos(ang) * r * W * (nx < 0 ? 1 : 1), (zsT + Math.sin(ang) * r) * W, o);
+      const P = (ang, r) => w.at(len / 2 - dmath.cos(ang) * r * W * (nx < 0 ? 1 : 1), (zsT + dmath.sin(ang) * r) * W, o);
       K.kit.quad([P(a0, rT), P(a1, rT), P(a1, rT + 0.018), P(a0, rT + 0.018)], p.stoneLight, { dir: w.n });
     }
     void x;
@@ -857,7 +858,7 @@ function arcDeTriomphe(b, ctx) {
     const ns = Math.max(3, Math.round(len / (0.1 * W)));
     for (let q = 0; q < ns; q++) {
       const sc = len * (q + 0.5) / ns, sz = 0.975 * W, r = 0.024 * W, pts = [];
-      for (let k = 0; k < 8; k++) { const ang = (k / 8) * Math.PI * 2 + Math.PI / 8; pts.push(w.at(sc + Math.cos(ang) * r, sz + Math.sin(ang) * r, 0.006 * W)); }
+      for (let k = 0; k < 8; k++) { const ang = (k / 8) * Math.PI * 2 + Math.PI / 8; pts.push(w.at(sc + dmath.cos(ang) * r, sz + dmath.sin(ang) * r, 0.006 * W)); }
       K.kit.poly(pts, p.stoneLight, { dir: w.n });
       K.kit.poly(pts.map((P, k) => { const c = w.at(sc, sz, 0.0065 * W); return [c[0] + (P[0] - c[0]) * 0.55, c[1] + (P[1] - c[1]) * 0.55, c[2] + (P[2] - c[2]) * 0.55]; }), p.carve, { dir: w.n });
     }
@@ -1121,7 +1122,7 @@ function griffith(b, ctx) {
   K.lathe(mu, mv, [[s * 0.07, zl], [s * 0.07, zl + s * 0.012], [s * 0.05, zl + s * 0.016]], 16, p.plinth, { capTop: p.plinthTop });
   const zm = zl + s * 0.016;
   for (let q = 0; q < 6; q++) {
-    const a = (q / 6) * Math.PI * 2 + Math.PI / 6, fu = mu + Math.cos(a) * s * 0.036, fv = mv + Math.sin(a) * s * 0.036;
+    const a = (q / 6) * Math.PI * 2 + Math.PI / 6, fu = mu + dmath.cos(a) * s * 0.036, fv = mv + dmath.sin(a) * s * 0.036;
     K.lathe(fu, fv, [[s * 0.009, zm], [s * 0.008, zm + s * 0.03], [s * 0.006, zm + s * 0.036], [s * 0.004, zm + s * 0.042], [0, zm + s * 0.047]], 6, p.monument);
   }
   K.obox(mu, mv, 0, s * 0.022, s * 0.022, zm, zm + s * 0.24, p.monument, { top: 0.72 });
@@ -1166,7 +1167,7 @@ function steepRoof(K, u0, v0, u1, v1, zE, pitch, p, { dormers = 0, hMax = Infini
   // iron cresting on the long top edges, finials at the ends
   const w = s * 0.004;
   for (const [A, B] of [[top[0], top[1]], [top[3], top[2]]]) {
-    if (Math.hypot(B[0] - A[0], B[1] - A[1]) < 1e-6) continue;
+    if (dmath.hypot(B[0] - A[0], B[1] - A[1]) < 1e-6) continue;
     K.box(Math.min(A[0], B[0]), Math.min(A[1], B[1]) - w, zt, Math.max(A[0], B[0]), Math.max(A[1], B[1]) + w, zt + w * 4, p.iron);
   }
   for (const R of [top[0], top[1]]) K.lathe(R[0], R[1], [[w * 1.6, zt], [w * 0.6, zt + w * 5], [0, zt + w * 12]], 4, p.iron);
@@ -1258,7 +1259,7 @@ function parliamentHill(b, ctx) {
     for (const f of [0.36, 0.64]) W1[side].arch(L1 * f - L1 * 0.08, L1 * f + L1 * 0.08, H1 * 0.12, H1 * 0.8, s * 0.008, p.glass, p.trim, { seg: 4, pointed: true });
     // clock face in a gabled surround
     const L2 = W2.len[side], H2 = zC - zS, cr = Math.min(L2 * 0.36, H2 * 0.44), cc = [L2 / 2, H2 * 0.5];
-    const ring = (r, d, tint) => { const pts = []; for (let q = 0; q < 12; q++) { const a = (q / 12) * Math.PI * 2; pts.push(W2[side].at(cc[0] + Math.cos(a) * r, cc[1] + Math.sin(a) * r, d)); } K.kit.poly(pts, tint, { dir: W2[side].n }); };
+    const ring = (r, d, tint) => { const pts = []; for (let q = 0; q < 12; q++) { const a = (q / 12) * Math.PI * 2; pts.push(W2[side].at(cc[0] + dmath.cos(a) * r, cc[1] + dmath.sin(a) * r, d)); } K.kit.poly(pts, tint, { dir: W2[side].n }); };
     ring(cr * 1.12, 0.004 * s, p.clockRing);
     ring(cr, 0.006 * s, p.clock);
     W2[side].rect(cc[0] - cr * 0.04, cc[1], cc[0] + cr * 0.04, cc[1] + cr * 0.78, p.clockRing, 0.008 * s);

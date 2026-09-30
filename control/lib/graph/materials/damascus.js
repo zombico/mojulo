@@ -11,6 +11,8 @@
 // `random` is forging waviness; `ladder` grooves pressed across and ground flat; `raindrop` punched dimples ground flat;
 // `twist` the bar turned about its length and forged flat. `scale` multiplies every length (a stylized blade shows a
 // bolder pattern). Pure and seeded: an integer hash, no dice.
+import * as dmath from '../../util/dmath.js';
+
 
 export const DAMASCUS_TYPES = Object.freeze(['random', 'ladder', 'raindrop', 'twist']);
 const MM = 0.001;
@@ -22,29 +24,29 @@ function vnoise(x, y, s) {
   const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s), c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
-const fbm = (x, y, s, oct = 3) => { let t = 0, a = 0.5, f = 1; for (let i = 0; i < oct; i++) { t += a * vnoise(x * f, y * f, s + i * 17); a *= 0.5; f *= 2; } return t / (1 - Math.pow(0.5, oct)); };
+const fbm = (x, y, s, oct = 3) => { let t = 0, a = 0.5, f = 1; for (let i = 0; i < oct; i++) { t += a * vnoise(x * f, y * f, s + i * 17); a *= 0.5; f *= 2; } return t / (1 - dmath.pow(0.5, oct)); };
 
 /** Resolved field options: the defaults, `folds`, and every length times `scale`. */
 export function damascusOptions({ folds = DAMASCUS_DEFAULTS.folds, scale = 1, seed = 0 } = {}) {
   const o = { ...DAMASCUS_DEFAULTS, folds, seed };
   for (const k of ['stock', 'wave', 'depth', 'rung', 'drop', 'pitch']) o[k] *= scale;
-  o.N = o.L0 * Math.pow(2, folds); o.spacing = o.stock / o.N; o.mm = MM * scale;
+  o.N = o.L0 * dmath.pow(2, folds); o.spacing = o.stock / o.N; o.mm = MM * scale;
   return o;
 }
 
 const DEFORM = {
   random: (x, w, y, o) => o.wave * (fbm(x / (9 * o.mm), w / (5 * o.mm), o.seed) - 0.5) * 2,
-  ladder: (x, w, y, o) => o.depth * Math.pow(0.5 + 0.5 * Math.cos(2 * Math.PI * x / o.rung), 3) + 0.25 * o.wave * (fbm(x / (9 * o.mm), w / (5 * o.mm), o.seed) - 0.5),
+  ladder: (x, w, y, o) => o.depth * dmath.pow(0.5 + 0.5 * dmath.cos(2 * Math.PI * x / o.rung), 3) + 0.25 * o.wave * (fbm(x / (9 * o.mm), w / (5 * o.mm), o.seed) - 0.5),
   raindrop: (x, w, y, o) => {
     const s = o.drop, R = 0.36 * s; let best = 0; const ci = Math.floor(x / s), cj = Math.floor(w / (s * 0.866));
     for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
       const j = cj + dj, i = ci + di; const cx = (i + (j & 1 ? 0.5 : 0) + 0.1 * (hash2(i, j, o.seed) - 0.5)) * s, cz = j * s * 0.866;
-      const r = Math.hypot(x - cx, w - cz) / R; if (r < 1) best = Math.max(best, Math.cos(r * Math.PI / 2) ** 2);
+      const r = dmath.hypot(x - cx, w - cz) / R; if (r < 1) best = Math.max(best, dmath.cos(r * Math.PI / 2) ** 2);
     }
     return o.depth * best + 0.25 * o.wave * (fbm(x / (9 * o.mm), w / (5 * o.mm), o.seed) - 0.5);
   },
   // the square bar turned one turn per pitch about its length (through the blade's centre), then forged flat
-  twist: (x, w, y, o) => { const th = 2 * Math.PI * x / o.pitch; return y * Math.cos(th) + w * o.flat * Math.sin(th) - y; },
+  twist: (x, w, y, o) => { const th = 2 * Math.PI * x / o.pitch; return y * dmath.cos(th) + w * o.flat * dmath.sin(th) - y; },
 };
 
 /** The layer coordinate at a point of the blade (metres). */
@@ -65,7 +67,7 @@ export function damascusError(p) {
   if (p.type != null && !DAMASCUS_TYPES.includes(p.type)) return `pattern.type '${p.type}' is not one of ${DAMASCUS_TYPES.join(', ')}`;
   if (p.folds != null && !(Number.isInteger(p.folds) && p.folds >= 1 && p.folds <= 8)) return 'pattern.folds is a whole number 1–8 (layers = 7 · 2^folds)';
   if (p.scale != null && !(Number.isFinite(p.scale) && p.scale >= 0.25 && p.scale <= 20)) return 'pattern.scale is a number 0.25–20 (every length of the pattern times it)';
-  const l = p.layers; if (l != null && !(['x', 'y', 'z'].includes(l) || (Array.isArray(l) && l.length === 3 && l.every(Number.isFinite) && Math.hypot(...l) > 0))) return 'pattern.layers is the axis through the layers: x, y, z or [x, y, z]';
+  const l = p.layers; if (l != null && !(['x', 'y', 'z'].includes(l) || (Array.isArray(l) && l.length === 3 && l.every(Number.isFinite) && dmath.hypot(...l) > 0))) return 'pattern.layers is the axis through the layers: x, y, z or [x, y, z]';
   return null;
 }
 /** The canonical pattern: every field filled, in a fixed order (part of the surface's key). */

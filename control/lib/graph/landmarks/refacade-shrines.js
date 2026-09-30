@@ -7,6 +7,7 @@
 // approach, and sized from the footprint and the seeded z1 (which the seeder takes from the SHORT
 // side). Pure functions of the box: no rng, no Date.
 import { makeKit, mixHex, v3 } from './refacade-kit.js';
+import * as dmath from '../../util/dmath.js';
 
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -63,7 +64,7 @@ function localKit(b, ctx, opts) {
    * the batter. `top` tints the roof (null skips it).
    */
   const batter = (a0, a1, c0, c1, zb, zt, ins, tint, top = null) => {
-    const h = zt - zb, sl = Math.hypot(ins, h);
+    const h = zt - zb, sl = dmath.hypot(ins, h);
     const cen = [(a0 + a1) / 2, (c0 + c1) / 2, (zb + zt) / 2];
     const B = [[a0, c0], [a1, c0], [a1, c1], [a0, c1]], T = [[a0 + ins, c0 + ins], [a1 - ins, c0 + ins], [a1 - ins, c1 - ins], [a0 + ins, c1 - ins]];
     const sideTint = typeof tint === 'function' ? tint : () => tint;
@@ -133,8 +134,8 @@ function crescentL(G, a, c, zc, r, tint) {
   const N = 8, pts = [];
   for (let k = 0; k <= N; k++) {
     const th = Math.PI + (Math.PI * k) / N;                    // left horn → belly → right horn
-    const t = r * 0.42 * Math.sin((Math.PI * k) / N);
-    pts.push([[a, c + Math.cos(th) * r, zc + Math.sin(th) * r], [a, c + Math.cos(th) * (r - t), zc + Math.sin(th) * (r - t) + t * 0.35]]);
+    const t = r * 0.42 * dmath.sin((Math.PI * k) / N);
+    pts.push([[a, c + dmath.cos(th) * r, zc + dmath.sin(th) * r], [a, c + dmath.cos(th) * (r - t), zc + dmath.sin(th) * (r - t) + t * 0.35]]);
   }
   for (let k = 0; k < N; k++) G.quadL([pts[k][0], pts[k + 1][0], pts[k + 1][1], pts[k][1]], tint, { dir: [-1, 0, 0] });
 }
@@ -739,7 +740,7 @@ function stupa(b, ctx) {
     const end = [ca + da, cH + dc, fz];
     for (let f = 0; f < nF; f++) {
       const t0 = (f + 0.5) / (nF + 1), t1 = t0 + 0.5 / (nF + 1);
-      const sag = (t) => -Math.sin(Math.PI * t) * E * 0.08;
+      const sag = (t) => -dmath.sin(Math.PI * t) * E * 0.08;
       const p0 = v3.lerp(fTop, end, t0), p1 = v3.lerp(fTop, end, t1);
       p0[2] += sag(t0); p1[2] += sag(t1);
       G.quadL([p0, p1, [p1[0], p1[1], p1[2] - fsz * 1.2], [p0[0], p0[1], p0[2] - fsz * 1.2]], pal.flags[(f + li) % 5], null);
@@ -865,10 +866,10 @@ function tibetan(b, ctx) {
   // the dharma wheel between two deer on the front parapet of the red palace
   {
     const wa = (ra0 + ra1) / 2, wc = rc0 + rd * 0.08, wr = Math.min(orn * 0.22, rw * 0.1), wz = zr + wr * 1.15;
-    const N = 12, ring = (r, dz = 0) => Array.from({ length: N }, (_, i) => { const t = (i / N) * TAU; return [wa + Math.cos(t) * r, wc, wz + Math.sin(t) * r + dz]; });
+    const N = 12, ring = (r, dz = 0) => Array.from({ length: N }, (_, i) => { const t = (i / N) * TAU; return [wa + dmath.cos(t) * r, wc, wz + dmath.sin(t) * r + dz]; });
     const R0 = ring(wr), R1 = ring(wr * 0.72);
     for (let i = 0; i < N; i++) { const j = (i + 1) % N; G.quadL([R0[i], R0[j], R1[j], R1[i]], pal.gold, { dir: [0, -1, 0] }); }
-    for (let i = 0; i < 4; i++) { const t = (i / 8) * TAU, cs = Math.cos(t) * wr * 0.72, sn = Math.sin(t) * wr * 0.72, e = wr * 0.06; G.quadL([[wa - cs - e * sn, wc, wz - sn + e * cs], [wa + cs - e * sn, wc, wz + sn + e * cs], [wa + cs + e * sn, wc, wz + sn - e * cs], [wa - cs + e * sn, wc, wz - sn - e * cs]], pal.gold2, { dir: [0, -1, 0] }); }
+    for (let i = 0; i < 4; i++) { const t = (i / 8) * TAU, cs = dmath.cos(t) * wr * 0.72, sn = dmath.sin(t) * wr * 0.72, e = wr * 0.06; G.quadL([[wa - cs - e * sn, wc, wz - sn + e * cs], [wa + cs - e * sn, wc, wz + sn + e * cs], [wa + cs + e * sn, wc, wz + sn - e * cs], [wa - cs + e * sn, wc, wz - sn - e * cs]], pal.gold2, { dir: [0, -1, 0] }); }
     G.boxL(wa - wr * 0.1, wa + wr * 0.1, wc - wr * 0.05, wc + wr * 0.05, zr, wz - wr, pal.gold);
     for (const sd of [-1, 1]) {
       const da = wa + sd * wr * 1.6, dh = wr * 0.9;
