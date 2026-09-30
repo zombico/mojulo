@@ -59,12 +59,32 @@ export function validateStrokes(strokes) {
     if (s.intent === 'silhouette' && Array.isArray(s.points) && s.points.length < 3) errs.push(`${at}: a silhouette needs at least three points`);
     for (const k of ['mirror', 'closed']) if (s[k] !== undefined && typeof s[k] !== 'boolean') errs.push(`${at}.${k}: true or false`);
     if (s.note !== undefined && typeof s.note !== 'string') errs.push(`${at}.note: a string`);
-    if (s.camera !== undefined && !isCameraRecord(s.camera)) errs.push(`${at}.camera: { azimuth, elevation, target: [x, y, z], distance, focalPixels, size } (recorded when the stroke is stored; leave it out)`);
-    if (s.solved !== undefined && !isObj(s.solved)) errs.push(`${at}.solved: written by the solve; leave it out`);
+    if (s.camera !== undefined && !isCameraRecord(s.camera)) errs.push(`${at}.camera: { azimuth, elevation, target: [x, y, z], distance > 0, focalPixels > 0, size > 0 } (recorded when the stroke is stored; leave it out)`);
+    if (s.solved !== undefined) errs.push(...solvedErrors(s.solved, `${at}.solved`));
   });
   return errs;
 }
-const isCameraRecord = (c) => isObj(c) && ['azimuth', 'elevation', 'distance', 'focalPixels', 'size'].every((k) => Number.isFinite(c[k])) && Array.isArray(c.target) && c.target.length === 3 && c.target.every(Number.isFinite);
+const isCameraRecord = (c) => isObj(c) && ['azimuth', 'elevation', 'distance', 'focalPixels', 'size'].every((k) => Number.isFinite(c[k])) && ['distance', 'focalPixels', 'size'].every((k) => c[k] > 0)
+  && Array.isArray(c.target) && c.target.length === 3 && c.target.every(Number.isFinite);
+
+// What a solve leaves on a stroke (silhouette-solve.js solvedRecord; the contour and brush records in layered-strokes.js).
+// The readers index into it (measure_solid joins `bounds`, the World overlay counts `parts`), so a record that did not
+// come from a solve is refused by field here instead of throwing on a later read. Unknown keys pass.
+const SOLVED_NUMBERS = ['iou', 'before', 'compiles', 'stations', 'height', 'width', 'hits', 'misses', 'entries', 'amp', 'radius', 'pointsMoved', 'maxPush'];
+const isStrings = (v) => Array.isArray(v) && v.every((x) => typeof x === 'string');
+const isNumberMap = (v) => isObj(v) && Object.values(v).every(Number.isFinite);
+function solvedErrors(v, at) {
+  const leave = 'written by the solve; leave it out, or re-solve';
+  if (!isObj(v)) return [`${at}: ${leave}`];
+  const errs = [];
+  for (const k of SOLVED_NUMBERS) if (v[k] !== undefined && !Number.isFinite(v[k])) errs.push(`${at}.${k}: a number (${leave})`);
+  for (const k of ['carrier', 'side', 'dial']) if (v[k] !== undefined && typeof v[k] !== 'string') errs.push(`${at}.${k}: a string (${leave})`);
+  for (const k of ['bounds', 'parts']) if (v[k] !== undefined && !isStrings(v[k])) errs.push(`${at}.${k}: a list of strings (${leave})`);
+  for (const k of ['dials', 'dialsBefore']) if (v[k] !== undefined && !isNumberMap(v[k])) errs.push(`${at}.${k}: { <dial>: number } (${leave})`);
+  if (v.residual !== undefined && !(isObj(v.residual) && Number.isFinite(v.residual.share) && (v.residual.bbox === null || (Array.isArray(v.residual.bbox) && v.residual.bbox.length === 4 && v.residual.bbox.every(Number.isFinite))))) errs.push(`${at}.residual: { share: number, bbox: [x0, y0, x1, y1] | null } (${leave})`);
+  if (v.exposure !== undefined && !(isObj(v.exposure) && Object.values(v.exposure).every((e) => e === null || (isObj(e) && Number.isFinite(e.exposed) && typeof e.flag === 'string')))) errs.push(`${at}.exposure: { <part>: { exposed, flag } | null } (${leave})`);
+  return errs;
+}
 
 /** The source the wire CLI draws: the compiled mesh's own vertices and faces, unseated. */
 export const meshSource = (mesh) => ({ vertices: mesh.vertices, faces: mesh.faces });

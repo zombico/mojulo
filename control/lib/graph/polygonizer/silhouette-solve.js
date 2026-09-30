@@ -13,14 +13,26 @@
  * not shape and move only when named.
  *
  * The RESIDUAL is the product: the pixels where the drawn silhouette and the solved one disagree, as a
- * share of the drawn area and a normalized box, plus the dials that ended on a bound (the grammar was
- * short a word there). The mask is returned for a sheet, never persisted.
+ * share of the drawn area (above 1 when the solid spills past the drawing by more than the drawing's own
+ * area) and a normalized box, plus the dials that ended on a bound (the grammar was short a word there).
+ * The mask is returned for a sheet, never persisted.
+ *
+ * A silhouette is the outline of the WHOLE solid in that view. One drawn around a part of it (a jaw, the
+ * head, the upper body) would have the whole-mesh IoU drive body-wide shape dials to their bounds for a
+ * partial overlap. Two measures refuse it (a local change is a contour or a brush stroke): a drawing whose
+ * area is under SILHOUETTE_MIN_COVER of the solid's silhouette area, or whose extent overlaps under
+ * SILHOUETTE_MIN_SPAN of the solid's along its long side. Both are coarse: a partial outline past both
+ * (a figure's top three fifths) still solves.
  */
 import { rasterDepth, rasterMask } from '../scene/depth-raster.js';
 import { compileLayered, resolveLayeredDials } from './station-loft.js';
 import { strokeCamera, meshSource } from './stroke-resolve.js';
 
 export const SHAPE_DIAL_OPS = Object.freeze(['scale', 'offset', 'stretch']);
+/** the least share of the solid's own silhouette AREA (in the stroke's camera, at the start dials) a silhouette must draw */
+export const SILHOUETTE_MIN_COVER = 0.25;
+/** the least share of the solid's silhouette SPAN along its long side (height, or width when wider) the drawing must overlap */
+export const SILHOUETTE_MIN_SPAN = 0.5;
 const r3 = (x) => Math.round(x * 1000) / 1000; const r4 = (x) => Math.round(x * 1e4) / 1e4;
 
 /** The dials a silhouette moves: every continuous shape dial (scale / offset / stretch), or the ones named. */
@@ -42,6 +54,8 @@ export function strokeMask(stroke, res) {
   return mask;
 }
 
+/** a mask's pixel box, [x0, x1) × [y0, y1) */
+const spanOf = (m, res) => { let x0 = res, y0 = res, x1 = -1, y1 = -1; for (let k = 0; k < m.length; k++) if (m[k]) { const i = k % res, j = (k - i) / res; if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; } return { x0, x1: x1 + 1, y0, y1: y1 + 1 }; };
 const iou = (a, b) => { let inter = 0, uni = 0; for (let k = 0; k < a.length; k++) { if (a[k] | b[k]) { uni++; if (a[k] & b[k]) inter++; } } return uni ? inter / uni : 1; };
 /** where two masks disagree: count, share of the target, normalized bbox */
 export function residualOf(target, got, res) {
@@ -67,7 +81,16 @@ export function fitSilhouetteDials(recipe, dials, stroke, { names = null, budget
   let compiles = 0;
   const silhouette = (d) => { compiles++; const m = compiles === 1 && mesh ? mesh : compileLayered(recipe, d); return rasterMask(rasterDepth(meshSource(m), cam, res)); };
   const objective = (d) => 1 - iou(silhouette(d), target);
-  let cur = { ...start }; let best = objective(cur); const before = 1 - best; const trace = [r4(best)];
+  const mask0 = silhouette(start); let sn = 0; for (let k = 0; k < mask0.length; k++) sn += mask0[k];
+  const whole = 'a silhouette is the outline of the WHOLE solid there — for a local change (a jaw, a cheek) draw a contour or a brush stroke';
+  if (tn < SILHOUETTE_MIN_COVER * sn) throw new Error(`silhouette-solve: stroke '${stroke.id}' draws ${Math.floor(100 * tn / sn)} % of the solid's silhouette area in its view (at least ${100 * SILHOUETTE_MIN_COVER} %); ${whole}`);
+  // the area alone passes a drawing around the upper half of a figure: it must also reach along the solid's long side
+  if (sn) {
+    const S = spanOf(mask0, res), D = spanOf(target, res); const tall = S.y1 - S.y0 >= S.x1 - S.x0;
+    const [a0, a1, b0, b1] = tall ? [S.y0, S.y1, D.y0, D.y1] : [S.x0, S.x1, D.x0, D.x1]; const span = Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)) / (a1 - a0);
+    if (span < SILHOUETTE_MIN_SPAN) throw new Error(`silhouette-solve: stroke '${stroke.id}' spans ${Math.floor(100 * span)} % of the solid's ${tall ? 'height' : 'width'} in its view (at least ${100 * SILHOUETTE_MIN_SPAN} %); ${whole}`);
+  }
+  let cur = { ...start }; let best = 1 - iou(mask0, target); const before = 1 - best; const trace = [r4(best)];
   if (solve.length) {
     let step = 0.25;
     while (compiles < budget && step >= 1 / 256) {
@@ -89,7 +112,9 @@ export function fitSilhouetteDials(recipe, dials, stroke, { names = null, budget
   const out = Object.fromEntries(Object.entries(cur).map(([k, v]) => [k, Math.min(spec[k].max, Math.max(spec[k].min, r4(v)))]));
   const moved = solve.filter((n) => out[n] !== start[n]).map((n) => [n, out[n]]);
   const bounds = solve.filter((n) => out[n] === spec[n].min || out[n] === spec[n].max).map((n) => `${n}=${out[n]} (${out[n] === spec[n].min ? 'min' : 'max'})`);
-  return { dials: out, moved: Object.fromEntries(moved), bounds, iou: r3(1 - best), before: r3(before), residual, compiles, trace, res, solved: solve };
+  // the values the moved dials had before, so a solve can be undone by hand (a layered row keeps no revisions)
+  const was = Object.fromEntries(moved.map(([n]) => [n, start[n]]));
+  return { dials: out, moved: Object.fromEntries(moved), was, bounds, iou: r3(1 - best), before: r3(before), residual, compiles, trace, res, solved: solve };
 }
 
 /** The residual of a silhouette stroke against THIS mesh (no solve): what the form reaches now. */
@@ -98,7 +123,7 @@ export function silhouetteResidual(mesh, stroke, { res = 128 } = {}) {
   const r = residualOf(target, got, res); return { iou: r3(iou(got, target)), share: r.share, bbox: r.bbox, mask: r.mask, res };
 }
 
-/** What a solve leaves on the stroke: its summary, the residual without the mask. */
+/** What a solve leaves on the stroke: its summary, the residual without the mask, and the moved dials' earlier values. */
 export function solvedRecord(fit) {
-  return { iou: fit.iou, before: fit.before, residual: { share: fit.residual.share, bbox: fit.residual.bbox }, dials: fit.moved, ...(fit.bounds.length ? { bounds: fit.bounds } : {}), compiles: fit.compiles };
+  return { iou: fit.iou, before: fit.before, residual: { share: fit.residual.share, bbox: fit.residual.bbox }, dials: fit.moved, ...(Object.keys(fit.moved).length ? { dialsBefore: fit.was } : {}), ...(fit.bounds.length ? { bounds: fit.bounds } : {}), compiles: fit.compiles };
 }

@@ -8,7 +8,12 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createLayeredHandler } from './layered.js';
 import { updateSketchHandler } from './sketches.js';
 import { measureSolidHandler } from './measure-solid.js';
+import { mintSolidHandler } from './mint-solid.js';
+import { carryStrokeWork } from './layered-strokes.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
+import { getRoutingCard } from '@/lib/mcp/routing-cards/loader';
+import { FORM_TOOLSETS } from './context.js';
 
 // Stroke affordances S0/S1: a stroke is stored on a layered row as data, given the camera it was drawn against,
 // resolved into the ledger on every edit; a `solve` op turns a silhouette into a dial solve. A row without
@@ -57,6 +62,8 @@ describe('update_sketch on layered rows — strokes', () => {
     const stored = SketchRepository.getByRef('lay-solve').manifest;
     expect(stored.dials).not.toEqual({ width: 1, lift: 0 }); expect(stored.dials).toEqual(expect.objectContaining(S.dials));
     expect(stored.strokes[0].solved).toMatchObject({ iou: S.iou, before: S.before }); expect(stored.ledger.strokes.s1.solved.iou).toBe(S.iou);
+    // the moved dials' earlier values ride the record (a layered row keeps no revisions)
+    expect(stored.strokes[0].solved.dialsBefore).toEqual(Object.fromEntries(Object.keys(S.dials).map((n) => [n, { width: 1, lift: 0 }[n]])));
     // (the layered kind keeps no revision history today — REVISIONED_KINDS is a decision, not a default; the stroke record is the trail)
     // a later dial edit keeps the stroke and its solve, and re-stamps the resolve
     const r2 = await updateSketchHandler({ ref: 'lay-solve', patch: [{ op: 'set', path: '/dials/lift', value: 0.2 }] });
@@ -112,8 +119,13 @@ describe('update_sketch on layered rows — strokes', () => {
     const stored = SketchRepository.getByRef('lay-brush').manifest;
     expect(stored.recipe.dials['stroke.b1']).toMatchObject({ op: 'brush', from: 'b1', parts: ['body'] }); expect(stored.dials['stroke.b1']).toBe(1);
     const off = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'set', path: '/dials/stroke.b1', value: 0 }] }); expect(off.ok).toBe(true);   // turned down by name
-    const again = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'solve', from: '/strokes/b1', mirror: true }] });
-    expect(Object.keys(SketchRepository.getByRef('lay-brush').manifest.recipe.dials).filter((n) => n.startsWith('stroke.'))).toEqual(['stroke.b1']); expect(again.stats.solved[0].entries).toBe(3);
+    // `mirror` is the stroke's field: on the op it would be ignored, so it is refused and points at the stroke
+    await expect(updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'solve', from: '/strokes/b1', mirror: true }] }))
+      .rejects.toThrow(/patch\[0\]: a brush solve reads from, path, amp, radius, direction — not mirror\. `mirror` is the stroke's own field: set \/strokes\/0\/mirror/);
+    // a re-solve with the stroke mirrored replaces the one dial with a twinned one (3 entries a side)
+    const again = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'set', path: '/strokes/0/mirror', value: true }, { op: 'solve', from: '/strokes/b1' }] });
+    expect(Object.keys(SketchRepository.getByRef('lay-brush').manifest.recipe.dials).filter((n) => n.startsWith('stroke.'))).toEqual(['stroke.b1']); expect(again.stats.solved[0].entries).toBe(6);
+    expect(SketchRepository.getByRef('lay-brush').manifest.recipe.dials['stroke.b1'].entries.map((e) => e.side).sort()).toEqual(['L', 'L', 'L', 'R', 'R', 'R']);
     const m = await measureSolidHandler({ ref: 'lay-brush', volume: false, exposure: false }); expect(m.strokes.b1.solved.dial).toBe('stroke.b1');
   });
 
@@ -146,6 +158,135 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s9' }] })).rejects.toThrow(/no stroke 's9'/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/f1' }] })).rejects.toThrow(/silhouette, contour and brush strokes solve today/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve' }] })).rejects.toThrow(/from: '\/strokes\/<id>'/);
+    // an outline around a small part of the body is not its silhouette: refused, and no dial moves
+    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: { id: 'jaw', view: 'frontal', intent: 'silhouette', points: [[0.45, 0.45], [0.55, 0.45], [0.55, 0.5], [0.45, 0.5]] } }] });
+    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/jaw' }] })).rejects.toThrow(/patch\[0\]: silhouette-solve: stroke 'jaw' draws \d+ % of the solid's silhouette area[\s\S]*contour or a brush stroke/);
+    // a key the stroke's solver does not read is refused by name, not ignored
+    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: OUTLINE }] });
+    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s1', height: 0.1 }] })).rejects.toThrow(/a silhouette solve reads from, path, dials, budget — not height/);
     expect(SketchRepository.getByRef('lay-refuse').manifest.dials).toEqual({ width: 1, lift: 0 });   // every refusal left the row alone
+  });
+
+  it('a hand-written `solved` of the wrong shape, or a camera of no size, is refused by field; measure_solid never trips on one', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-shape', strokes: [OUTLINE] });
+    await expect(updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: '/strokes/0/solved', value: { bounds: 'x' } }] }))
+      .rejects.toThrow(/strokes\[0\]\.solved\.bounds: a list of strings \(written by the solve/);
+    await expect(updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: '/strokes/0/solved', value: { iou: '0.9', parts: [1], residual: { share: 0.1 } } }] }))
+      .rejects.toThrow(/solved\.iou: a number[\s\S]*solved\.parts: a list of strings[\s\S]*solved\.residual: \{ share: number, bbox/);
+    for (const k of ['size', 'focalPixels', 'distance']) {
+      await expect(updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: `/strokes/0/camera/${k}`, value: 0 }] })).rejects.toThrow(/strokes\[0\]\.camera: .*distance > 0, focalPixels > 0, size > 0/);
+    }
+    // what a solve wrote passes the same check on every later edit, and the readout reads it
+    await updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'solve', from: '/strokes/s1' }] });
+    expect((await updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: '/dials/lift', value: 0.1 }] })).ok).toBe(true);
+    expect((await measureSolidHandler({ ref: 'lay-shape', volume: false, exposure: false })).strokes.s1.solved.iou).toBeGreaterThan(0);
+  });
+
+  it('solve ops come last and every refusal names the op\'s own patch index', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-order', strokes: [OUTLINE] });
+    // a set after a solve would run BEFORE it (solves run in the layered gate, after the generic ops): refused, naming the set
+    await expect(updateSketchHandler({ ref: 'lay-order', patch: [{ op: 'solve', from: '/strokes/s1' }, { op: 'set', path: '/nope/x', value: 1 }] }))
+      .rejects.toThrow(/Invalid patch: patch\[1\]: a 'set' op after a `solve` \(patch\[0\]\)/);
+    // a generic op keeps its index, and a solve after it is numbered in the whole patch, not among the solves
+    await expect(updateSketchHandler({ ref: 'lay-order', patch: [{ op: 'set', path: '/nope/x', value: 1 }, { op: 'solve', from: '/strokes/s1' }] }))
+      .rejects.toThrow(/patch\[0\]: `path` '\/nope\/x'/);
+    await expect(updateSketchHandler({ ref: 'lay-order', patch: [{ op: 'set', path: '/dials/lift', value: 0.1 }, { op: 'solve', from: '/strokes/s1' }, { op: 'solve', from: '/strokes/s9' }] }))
+      .rejects.toThrow(/patch\[2\]: no stroke 's9'/);
+    expect(SketchRepository.getByRef('lay-order').manifest.dials).toEqual({ width: 1, lift: 0 });
+  });
+});
+
+// A /plan or /hero edit regenerates the recipe whole; the strips and brush dials strokes made ride over onto it.
+const RING_PLAN = {
+  schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' },
+  joints: { hip: [0.2, 0, 1], knee: [0.22, 0.1, 0.5], toe: [0.22, 0.3, 0.05] },
+  segments: [
+    { name: 'torso', kind: 'trunk', stations: [{ z: 0.9, r: [0.3, 0.22] }, { z: 1.3, r: [0.32, 0.24] }, { z: 1.7, r: [0.2, 0.16] }], caps: { back: [0, 0, 0.8], tip: [0, 0, 1.8] }, group: 'Torso', tint: '#667', mirror: 'plane' },
+    { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: 0.14, rB: 0.1, group: 'Legs', tint: '#565', mirror: 'name' },
+  ],
+  dials: { bulk: { min: 0.8, max: 1.3, rest: 1, doc: 'x scale of the trunk', op: 'scale', axis: 'x', pivot: 0, parts: ['torso'], blend: { st0: 1, st1: 1, st2: 1, back: 1, tip: 1 } } },
+};
+// lines over the torso from the side: every point lands on it
+const BRUSH = { id: 'b1', view: 'lateral', intent: 'brush', points: [[0.4, 0.3, 1], [0.45, 0.31, 1], [0.5, 0.32, 1], [0.55, 0.33, 1]] };
+const RIDGE = { id: 'c1', view: 'lateral', intent: 'contour', points: [[0.4, 0.35, 0.9], [0.45, 0.36, 0.9], [0.5, 0.37, 0.9], [0.55, 0.38, 0.9]] };
+
+describe('update_sketch on layered rows — stroke work across a regeneration', () => {
+  it('a /plan edit re-expands the recipe and keeps the strip and the brush dial (at its value) the strokes made', async () => {
+    await createLayeredHandler({ recipe: expandPlan(RING_PLAN), plan: RING_PLAN, ref: 'lay-plan-carry', strokes: [BRUSH, RIDGE] });
+    await updateSketchHandler({ ref: 'lay-plan-carry', patch: [{ op: 'solve', from: '/strokes/b1', radius: 0.4 }, { op: 'solve', from: '/strokes/c1' }] });
+    await updateSketchHandler({ ref: 'lay-plan-carry', patch: [{ op: 'set', path: '/dials/stroke.b1', value: 0.5 }] });
+    const made = SketchRepository.getByRef('lay-plan-carry').manifest;
+    expect(made.recipe.dials['stroke.b1']).toBeTruthy(); expect(made.recipe.parts['stroke.c1R']).toBeTruthy();
+    const r = await updateSketchHandler({ ref: 'lay-plan-carry', patch: [{ op: 'set', path: '/plan/segments/0/stations/1/r/0', value: 0.36 }] });
+    const after = SketchRepository.getByRef('lay-plan-carry').manifest;
+    expect(after.recipe.parts.torso).not.toEqual(made.recipe.parts.torso);   // the plan re-expanded
+    expect(after.recipe.dials['stroke.b1']).toEqual(made.recipe.dials['stroke.b1']); expect(after.dials['stroke.b1']).toBe(0.5);
+    expect(after.recipe.parts['stroke.c1R']).toEqual(made.recipe.parts['stroke.c1R']);
+    expect(after.strokes.map((s) => s.solved)).toEqual(made.strokes.map((s) => s.solved)); expect(r.stats.warnings).toBeUndefined();
+    expect(r.stats.parts.map((p) => p.id)).toContain('stroke.c1R'); expect(r.stats.closed).toBe(true);
+  });
+
+  it('a /plan edit that inserts a station drops the strip and the brush by name: the same (s, t) is elsewhere on the body now', async () => {
+    await createLayeredHandler({ recipe: expandPlan(RING_PLAN), plan: RING_PLAN, ref: 'lay-plan-station', strokes: [BRUSH, RIDGE] });
+    await updateSketchHandler({ ref: 'lay-plan-station', patch: [{ op: 'solve', from: '/strokes/b1', radius: 0.4 }, { op: 'solve', from: '/strokes/c1' }] });
+    const made = SketchRepository.getByRef('lay-plan-station').manifest;
+    expect(made.recipe.dials['stroke.b1']).toBeTruthy(); expect(made.recipe.parts['stroke.c1R']).toBeTruthy();
+    // z = 1.1 between the first two: the torso's st1 is now at 1.1, not 1.3, and every index past it shifts up
+    const four = [{ z: 0.9, r: [0.3, 0.22] }, { z: 1.1, r: [0.31, 0.23] }, { z: 1.3, r: [0.32, 0.24] }, { z: 1.7, r: [0.2, 0.16] }];
+    const r = await updateSketchHandler({ ref: 'lay-plan-station', patch: [{ op: 'set', path: '/plan/segments/0/stations', value: four }] });
+    const after = SketchRepository.getByRef('lay-plan-station').manifest;
+    expect(after.recipe.parts.torso.stations).toHaveLength(4);
+    expect(after.recipe.dials['stroke.b1']).toBeUndefined(); expect(after.dials['stroke.b1']).toBeUndefined();
+    expect(Object.keys(after.recipe.parts).filter((n) => n.startsWith('stroke.'))).toEqual([]);
+    expect(after.strokes.map((s) => [s.id, s.solved])).toEqual([['b1', undefined], ['c1', undefined]]);
+    expect(after.strokes.map((s) => s.camera)).toEqual(made.strokes.map((s) => s.camera));   // the drawing itself is kept
+    expect(r.stats.warnings).toEqual([expect.stringMatching(/changed the stations or slots of, the carrier under what strokes b1, c1 made/)]);
+    // a re-solve rebuilds the brush on the new stations
+    const again = await updateSketchHandler({ ref: 'lay-plan-station', patch: [{ op: 'solve', from: '/strokes/b1', radius: 0.4 }] });
+    expect(again.stats.solved[0]).toMatchObject({ dial: 'stroke.b1', carrier: 'torso' }); expect(again.stats.solved[0].pointsMoved).toBeGreaterThan(0);
+  });
+
+  it('the review\'s case: on a hero, a /hero/tune edit keeps the brush dial and the strip instead of erasing them', async () => {
+    await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-strokes', spec: { cast: 'male', register: 'lowpoly' } });
+    const chest = { id: 'b1', view: 'frontal', intent: 'brush', points: [[0.46, 0.3, 1], [0.48, 0.31, 1], [0.5, 0.32, 1], [0.52, 0.33, 1]] };
+    const rib = { id: 'c1', view: 'frontal', intent: 'contour', points: [[0.46, 0.25, 1], [0.48, 0.26, 1], [0.5, 0.27, 1], [0.52, 0.28, 1]] };
+    const solved = await updateSketchHandler({ ref: 'hero-strokes', patch: [{ op: 'set', path: '/strokes', value: [chest, rib] }, { op: 'solve', from: '/strokes/b1' }, { op: 'solve', from: '/strokes/c1' }] });
+    expect(solved.stats.solved.map((x) => x.intent)).toEqual(['brush', 'contour']);
+    const made = SketchRepository.getByRef('hero-strokes').manifest;
+    const r = await updateSketchHandler({ ref: 'hero-strokes', patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.05 }] });
+    expect(r.stats.hero.tune.shoulders).toBe(1.05);
+    const after = SketchRepository.getByRef('hero-strokes').manifest;
+    expect(after.recipe.dials['stroke.b1']).toEqual(made.recipe.dials['stroke.b1']); expect(after.dials['stroke.b1']).toBe(1);
+    for (const n of made.strokes[1].solved.parts) expect(after.recipe.parts[n]).toEqual(made.recipe.parts[n]);
+    expect(after.strokes[0].solved.dial).toBe('stroke.b1');
+    const m = await measureSolidHandler({ ref: 'hero-strokes', volume: false, exposure: false }); expect(m.strokes.b1.solved.pointsMoved).toBeGreaterThan(0);
+  });
+
+  it('work whose carrier the regenerated recipe lacks is dropped by name and its `solved` cleared, never left dangling', () => {
+    const recipe = expandPlan(RING_PLAN);
+    const strip = { layer: 2, closure: 'closed', group: 'Torso', from: 'c1', follow: true, pin: { parent: 'torso', face: 'torso/nowhere.k0.a', weights: [1, 0, 0], tangentEdge: ['a', 'b'], handedness: 1 }, offsets: {}, faces: {}, groups: {} };
+    const brush = { min: -2, max: 2, rest: 1, op: 'brush', parts: ['tail'], entries: [{ at: [0.5, 0.5], side: 'R', r: 0.1, w: 1 }], amp: 0.01, from: 'b1' };
+    const prev = { kind: 'layered', recipe: { ...recipe, parts: { ...recipe.parts, 'stroke.c1R': strip }, dials: { ...recipe.dials, 'stroke.b1': brush } }, dials: { bulk: 1, 'stroke.b1': 1 },
+      strokes: [{ ...BRUSH, solved: { dial: 'stroke.b1' } }, { ...RIDGE, solved: { parts: ['stroke.c1R'] } }, { ...OUTLINE, solved: { iou: 0.5 } }] };
+    const next = { ...prev, recipe, dials: { bulk: 1 } };
+    const { manifest, warnings } = carryStrokeWork(prev, next);
+    expect(manifest.recipe).toEqual(recipe); expect(manifest.dials).toEqual({ bulk: 1 });
+    expect(manifest.strokes.map((s) => s.solved)).toEqual([undefined, undefined, { iou: 0.5 }]);   // a silhouette made nothing to carry
+    expect(warnings).toEqual([expect.stringMatching(/lost, or changed the stations or slots of, the carrier under what strokes b1, c1 made.*re-solve with \{ op: 'solve', from: '\/strokes\/<id>' \}/)]);
+    expect(carryStrokeWork(prev, { ...next, strokes: [OUTLINE] }).manifest).toEqual({ ...next, strokes: [OUTLINE] });   // no stroke work, no-op
+  });
+});
+
+describe('the stroke route points where the feature lives', () => {
+  it('the card names the World page route that opens drawing, `mirror` as the stroke\'s field, and whole-solid outlines', () => {
+    const card = getRoutingCard('stroke');
+    // the dashboard page does not forward ?draw to its World iframe; the World route reads it itself (stroke-overlay.js)
+    expect(card.body).toContain('`/api/sketches/<ref>/world?draw=<view>`'); expect(card.body).not.toContain('`/sketches/<ref>` World page');
+    expect(card.body).toContain('`mirror: true` on the stroke'); expect(card.body).not.toMatch(/\(`height`, `mirror`\)/);
+    expect(card.body).toContain("the whole solid's outline in that view"); expect(card.when).not.toMatch(/jaw/);
+  });
+  it('the object toolset the card points at carries the stroke ops; the diagram toolset does not', () => {
+    expect(getRoutingCard('stroke').body).toContain("get_creative_toolset({ form: 'object' })");
+    expect(FORM_TOOLSETS.object.body).toContain("{ op:'solve', from:'/strokes/<id>' }"); expect(FORM_TOOLSETS.diagram.body).not.toContain('/strokes/');
   });
 });

@@ -10,24 +10,35 @@
  *     intent picks the solver (today: `silhouette` → the dial solve, silhouette-solve.js), the ops it
  *     produced land in the manifest (`dials`) and the stroke keeps a `solved` summary with the residual;
  *   - `strokesLedger(manifest, mesh)` re-resolves every stroke against the compiled mesh and returns the
- *     compact per-stroke entry the layered ledger carries (`ledger.strokes`), re-stamped on every edit.
+ *     compact per-stroke entry the layered ledger carries (`ledger.strokes`), re-stamped on every edit;
+ *   - `carryStrokeWork(prev, next)` keeps what the strokes made across a hero / plan regeneration, which
+ *     rebuilds the recipe whole.
  * Absent `strokes`, every function is a no-op and the manifest's bytes are untouched.
  */
 import { validateStrokes, cameraRecord, resolveStroke, strokeLedgerEntry, viewOf } from '@/lib/graph/polygonizer/stroke-resolve';
 import { fitSilhouetteDials, solvedRecord, silhouetteResidual } from '@/lib/graph/polygonizer/silhouette-solve';
 import { contourStripParts, partsFrom } from '@/lib/graph/polygonizer/contour-strip';
 import { brushDial, dialsFrom } from '@/lib/graph/polygonizer/brush-map';
-import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
+import { compileLayered, addressPin } from '@/lib/graph/polygonizer/station-loft';
 import { layeredExposure } from '@/lib/graph/polygonizer/station-loft-exposure';
 
 export const SOLVE_OP = 'solve';
 const MANUAL = "manual: get_solid_vocab({ id: 'layered' }) (Drawing on it).";
 
-/** Split a patch into the ops the generic applier takes and the `solve` ops this module runs. */
+const isSolve = (o) => !!o && typeof o === 'object' && o.op === SOLVE_OP;
+/**
+ * Split a patch into the ops the generic applier takes and the `solve` ops this module runs. The solves run after
+ * every other op, against the compiled result, so they come last: a set / remove / add written after a solve is
+ * refused rather than silently run before it. The generic ops are then the patch's prefix and the solves its tail,
+ * so both keep their patch indices (applySolves takes the tail's offset).
+ */
 export function splitSolveOps(patch) {
   if (!Array.isArray(patch)) return { rest: patch, solves: [] };
-  const solves = patch.filter((o) => o && typeof o === 'object' && o.op === SOLVE_OP);
-  return { rest: patch.filter((o) => !solves.includes(o)), solves };
+  const first = patch.findIndex(isSolve);
+  if (first < 0) return { rest: patch, solves: [] };
+  const late = patch.findIndex((o, i) => i > first && !isSolve(o));
+  if (late >= 0) throw new Error(`patch[${late}]: a '${patch[late]?.op}' op after a \`solve\` (patch[${first}]) — solve ops run last, against what the other ops made: put them at the end`);
+  return { rest: patch.slice(0, first), solves: patch.slice(first) };
 }
 
 /** Validate `strokes`; record the camera on any stroke without one. Throws with the errors named. */
@@ -38,6 +49,16 @@ export function prepareStrokes(manifest, mesh) {
   let changed = false;
   const strokes = manifest.strokes.map((s) => { if (s.camera) return s; changed = true; return { ...s, camera: cameraRecord(mesh, s.view) }; });
   return changed ? { ...manifest, strokes } : manifest;
+}
+
+// the keys a solve op reads, by the stroke's intent: any other key would be silently ignored, so it is refused
+// by name (`mirror` above all, which is the STROKE's field, not the op's)
+const SOLVE_KEYS = Object.freeze({ silhouette: ['dials', 'budget'], contour: ['height', 'width', 'group'], brush: ['amp', 'radius', 'direction'] });
+function refuseUnreadKeys(op, i, stroke, at) {
+  const reads = ['op', 'from', 'path', ...(SOLVE_KEYS[stroke.intent] || [])];
+  const extra = Object.keys(op).filter((k) => !reads.includes(k)); if (!extra.length) return;
+  const mirror = extra.includes('mirror') ? ` \`mirror\` is the stroke's own field: set /strokes/${at}/mirror to true, then solve.` : '';
+  throw new Error(`patch[${i}]: a ${stroke.intent} solve reads ${reads.slice(1).join(', ')} — not ${extra.join(', ')}.${mirror} ${MANUAL}`);
 }
 
 const strokeRef = (op, i) => {
@@ -59,10 +80,13 @@ export function applySolves(manifest, mesh, ops, indexOffset = 0) {
     const at = next.strokes.findIndex((s) => s.id === id);
     if (at < 0) throw new Error(`patch[${i}]: no stroke '${id}' (have ${next.strokes.map((s) => s.id).join(', ')})`);
     const stroke = next.strokes[at];
+    if (SOLVE_KEYS[stroke.intent]) refuseUnreadKeys(op, i, stroke, at);
     if (stroke.intent === 'silhouette') {
       const names = Array.isArray(op.dials) ? op.dials : null;
       const budget = Number.isFinite(op.budget) ? Math.max(4, Math.min(400, op.budget)) : undefined;
-      const fit = fitSilhouetteDials(next.recipe, next.dials, stroke, { names, budget, mesh: currentMesh });
+      let fit;
+      try { fit = fitSilhouetteDials(next.recipe, next.dials, stroke, { names, budget, mesh: currentMesh }); }
+      catch (err) { throw new Error(`patch[${i}]: ${err.message}. ${MANUAL}`); }
       if (Object.keys(fit.moved).length) { next.dials = { ...next.dials, ...fit.moved }; dialsChanged = true; currentMesh = null; }
       const record = solvedRecord(fit); next.strokes[at] = { ...stroke, solved: record };
       solved.push({ id, intent: stroke.intent, ...record, trace: fit.trace });
@@ -116,6 +140,40 @@ export function applySolves(manifest, mesh, ops, indexOffset = 0) {
     }
   });
   return { manifest: next, solved, dialsChanged: dialsChanged || recipeChanged };
+}
+
+/**
+ * A /hero or /plan edit (or a whole replacement of such a row) regenerates the recipe whole (layered.js
+ * expandLayeredManifest), which would silently drop the strips and brush dials the stored strokes made. Carry each
+ * over from `prev` onto `next` where it still lands: a strip's pin face and a brush's addresses on a layer-1 carrier of
+ * the regenerated recipe, at rest, whose stations and slots are the ones the work was made on. An (s, t) address is a
+ * station index (or `u`) and a slot `t`, so a carrier that gained or lost a station, or changed its slots, would put
+ * the same address somewhere else on the body. A stroke whose work does not land is left out, its `solved` record
+ * cleared, and named in `warnings` (its camera and points are kept: a re-solve rebuilds it on the new form). No
+ * stroke work, no-op.
+ */
+export function carryStrokeWork(prev, next) {
+  const strokes = Array.isArray(next.strokes) ? next.strokes : [];
+  const made = strokes.map((s) => ({ id: s.id, parts: partsFrom(prev?.recipe || {}, s.id), dials: dialsFrom(prev?.recipe || {}, s.id) }))
+    .filter((m) => m.parts.length || m.dials.length);
+  if (!made.length) return { manifest: next, warnings: [] };
+  const rest = compileLayered(next.recipe, {}, { details: false, creases: false });
+  // what an (s, t) address means on a carrier (station-loft.js addressPin): its station ids and `u`, its slots and `slotT`
+  const frame = (p) => (p ? JSON.stringify([(p.stations || []).map((st, i) => [st.id, st.u ?? i]), (p.slots || []).map((sl, k) => [sl, p.slotT?.[sl] ?? k])]) : null);
+  const carrier = (name) => (rest.parts[name]?.layer === 1 && frame(prev.recipe.parts?.[name]) === frame(next.recipe.parts?.[name]) ? rest.parts[name] : null);
+  const lands = (fn) => { try { return fn(); } catch { return false; } };
+  const partLands = (p) => !!p?.pin && !!carrier(p.pin.parent)?.faces?.[p.pin.face];
+  const dialLands = (d) => Array.isArray(d?.parts) && d.parts.every(carrier) && (d.entries || []).every((e) => lands(() => !!addressPin(carrier(d.parts[0]), d.parts[0], e.at[0], e.at[1], e.side === 'L' ? 'L' : 'R')));
+  const parts = { ...next.recipe.parts }, spec = { ...next.recipe.dials }, values = { ...next.dials }; const dropped = [];
+  for (const m of made) {
+    if (!m.parts.every((n) => partLands(prev.recipe.parts[n])) || !m.dials.every((n) => dialLands(prev.recipe.dials[n]))) { dropped.push(m.id); continue; }
+    for (const n of m.parts) parts[n] = prev.recipe.parts[n];
+    for (const n of m.dials) { spec[n] = prev.recipe.dials[n]; values[n] = prev.dials?.[n] ?? spec[n].rest; }
+  }
+  const manifest = { ...next, recipe: { ...next.recipe, parts, dials: spec }, dials: values,
+    ...(dropped.length ? { strokes: strokes.map((s) => { if (!dropped.includes(s.id)) return s; const { solved: _s, ...kept } = s; return kept; }) } : {}) };
+  const warnings = dropped.length ? [`the regenerated recipe lost, or changed the stations or slots of, the carrier under what stroke${dropped.length > 1 ? 's' : ''} ${dropped.join(', ')} made, so ${dropped.length > 1 ? 'those strips and brushes were' : 'that strip or brush was'} dropped and the \`solved\` record cleared: re-solve with { op: 'solve', from: '/strokes/<id>' } (the stroke's camera and points are kept)`] : [];
+  return { manifest, warnings };
 }
 
 /** The per-stroke ledger: each stroke re-resolved against this mesh. Undefined when the manifest has no strokes. */
