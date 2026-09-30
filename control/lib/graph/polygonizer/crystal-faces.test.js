@@ -15,6 +15,10 @@ describe('the crystal field shape', () => {
     expect(FIELD_SHAPE_KINDS).toContain('crystal');
     expect(validateCrystalShape({ gem: 'jade', size: -1 }).join(' ')).toMatch(/gem: one of quartz.*size: the stone's longest extent.*center: \[x, y, z\]/);
     expect(validateCrystalShape(ruby.shape)).toEqual([]); expect(validateCrystalShape(geodeLining.shape)).toEqual([]);
+    const cl = (k) => validateCrystalShape({ ...geodeLining.shape, cluster: { ...geodeLining.shape.cluster, ...k } }).join(' ');
+    expect(cl({ tilt: 30, bury: 0.5 })).toBe('');
+    expect(cl({ tilt: 'steep' })).toMatch(/cluster\.tilt: degrees 0–80/);   // a string tilt placed stones at NaN
+    expect(cl({ bury: 'deep' })).toMatch(/cluster\.bury: 0–1/);
     expect(validateFieldTerms([ruby], 'fields[0].terms')).toEqual([]);
   });
   it('one stone: exact faces (quads and triangles only), each tagged with its stone', () => {

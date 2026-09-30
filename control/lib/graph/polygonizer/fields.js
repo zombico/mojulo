@@ -210,7 +210,11 @@ export function validateFields(fields, emittedNodes) {
           errors.push(`${here}.${key}: must be a finite number when provided`);
         }
       }
-      if (decl.hurst !== undefined) errors.push(...validateHurst(decl, `${here}.hurst`));
+      if (decl.hurst !== undefined) {
+        errors.push(...validateHurst(decl, `${here}.hurst`));
+        // the law reads each octave's wavelength, 1 / (scale·2^o): a zero or negative scale has none
+        if (decl.scale !== undefined && Number.isFinite(decl.scale) && !(decl.scale > 0)) errors.push(`${here}.scale: must be > 0 with hurst (an octave's wavelength is 1 / (scale·2^o))`);
+      }
       if (decl.octaves !== undefined) {
         if (!Number.isInteger(decl.octaves) || decl.octaves < 1 || decl.octaves > 12) {
           errors.push(`${here}.octaves: must be an integer in [1, 12] when provided`);

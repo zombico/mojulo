@@ -22,6 +22,7 @@ import { LAWS_VERSION } from '@/lib/graph/equipment/expand';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { validateCrystalLight } from '@/lib/graph/scene/crystal-rig';
+import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 
 function normalizeToon(toon) {
   const t = resolveToon(toon);
@@ -33,6 +34,20 @@ function checkedCrystalLight(spec) {
   const errs = validateCrystalLight(spec);
   if (errs.length) throw new Error(`crystalLight is invalid — see get_solid_vocab({ id: 'workbench' }), "Light rigs":\n- ${errs.join('\n- ')}`);
   return spec;
+}
+
+// the HUD rows and style the World refuses when it resolves (world-scene.js), refused here with the same words: the
+// mint does not resolve the World, so a bad row used to mint ok and 500 the world link
+function checkedEvents(ev) {
+  if (Array.isArray(ev.hud) && ev.hud.length) {
+    const h = normalizeHud(ev.hud);
+    if (h.errors.length) throw new Error(`events.hud is invalid — see get_game_vocab({ id: 'hud-guide' }):\n- ${h.errors.join('\n- ')}`);
+  }
+  if (ev.style !== undefined) {
+    const se = validateHudStyle(ev.style, 'events.style');
+    if (se.length) throw new Error(`events.style is invalid — see get_game_vocab({ id: 'hud-style' }):\n- ${se.join('\n- ')}`);
+  }
+  return ev;
 }
 
 export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folderRef } = {}) {
@@ -94,9 +109,9 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     ...(grid === false ? { grid: false } : {}),
     ...(Array.isArray(movers) && movers.length ? { movers } : {}),
     // a light rig over the recipe's crystals (Light rigs on the card), refused here with its errors named; `events`
-    // (its targets' `lit` / `dark`, HUD banners) is checked where the World resolves it, as for any world
+    // (its targets' `lit` / `dark`, HUD banners) has its HUD rows and style checked here, the rest where it runs
     ...(crystalLight != null ? { crystalLight: checkedCrystalLight(crystalLight) } : {}),
-    ...(events && typeof events === 'object' && !Array.isArray(events) ? { events } : {}),
+    ...(events && typeof events === 'object' && !Array.isArray(events) ? { events: checkedEvents(events) } : {}),
     ...(title ? { title } : {}),
   };
 
