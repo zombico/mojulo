@@ -157,6 +157,21 @@ describe('update_sketch on layered rows — strokes', () => {
     expect(SketchRepository.getByRef('lay-refuse').manifest.dials).toEqual({ width: 1, lift: 0 });   // every refusal left the row alone
   });
 
+  it('a hand-written `solved` of the wrong shape, or a camera of no size, is refused by field; measure_solid never trips on one', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-shape', strokes: [OUTLINE] });
+    await expect(updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: '/strokes/0/solved', value: { bounds: 'x' } }] }))
+      .rejects.toThrow(/strokes\[0\]\.solved\.bounds: a list of strings \(written by the solve/);
+    await expect(updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: '/strokes/0/solved', value: { iou: '0.9', parts: [1], residual: { share: 0.1 } } }] }))
+      .rejects.toThrow(/solved\.iou: a number[\s\S]*solved\.parts: a list of strings[\s\S]*solved\.residual: \{ share: number, bbox/);
+    for (const k of ['size', 'focalPixels', 'distance']) {
+      await expect(updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: `/strokes/0/camera/${k}`, value: 0 }] })).rejects.toThrow(/strokes\[0\]\.camera: .*distance > 0, focalPixels > 0, size > 0/);
+    }
+    // what a solve wrote passes the same check on every later edit, and the readout reads it
+    await updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'solve', from: '/strokes/s1' }] });
+    expect((await updateSketchHandler({ ref: 'lay-shape', patch: [{ op: 'set', path: '/dials/lift', value: 0.1 }] })).ok).toBe(true);
+    expect((await measureSolidHandler({ ref: 'lay-shape', volume: false, exposure: false })).strokes.s1.solved.iou).toBeGreaterThan(0);
+  });
+
   it('solve ops come last and every refusal names the op\'s own patch index', async () => {
     await createLayeredHandler({ recipe, ref: 'lay-order', strokes: [OUTLINE] });
     // a set after a solve would run BEFORE it (solves run in the layered gate, after the generic ops): refused, naming the set
