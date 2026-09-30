@@ -89,6 +89,10 @@ export function validateArmorCard(card, at = 'style') {
   const errs = [];
   if (!card || typeof card !== 'object' || Array.isArray(card)) return [`${at}: a sample name (${Object.keys(SEEDED_ARMOR).join(', ')}) or a card { family, dials?, language?, tones?, emissive? }`];
   if (!ARMOR_FAMILIES.includes(card.family)) errs.push(`${at}.family: one of ${ARMOR_FAMILIES.join(', ')}`);
+  const d = card.dials || {};
+  for (const k of ['stylize', 'coverage']) if (d[k] !== undefined && !(Number.isFinite(d[k]) && d[k] >= 0 && d[k] <= 1)) errs.push(`${at}.dials.${k}: a number 0–1`);
+  if (d.mass !== undefined && !(Number.isFinite(d.mass) && d.mass >= 0.5 && d.mass <= 2)) errs.push(`${at}.dials.mass: a number 0.5–2`);
+  if (d.ornament !== undefined && !(Number.isInteger(d.ornament) && d.ornament >= 0 && d.ornament <= 3)) errs.push(`${at}.dials.ornament: an integer 0–3`);
   const L = card.language || {};
   if (card.family === 'plate') {
     if (L.pauldron !== undefined && !PAULDRONS.includes(L.pauldron)) errs.push(`${at}.language.pauldron: one of ${PAULDRONS.join(', ')}`);
