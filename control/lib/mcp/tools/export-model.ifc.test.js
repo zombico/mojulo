@@ -81,7 +81,15 @@ describe('export_model ifc', () => {
     SketchRepository.create({ ref: 'sk_ifc_floor', title: 'floor', manifest: { kind: 'floorplan', seed: 2 } });
     const floor = await exportModelHandler({ ref: 'sk_ifc_floor', format: 'ifc' });
     expect(floor.eligible).toBe(false);
-    expect(floor.reason).toMatch(/storeys: 1/);
+    expect(floor.reason).toMatch(/levels: \[\{ role: 'ground' \}\]/);
+    // the advice works: the one floor as a one-level stack exports
+    SketchRepository.create({ ref: 'sk_ifc_floor_level', title: 'floor', manifest: { kind: 'floorplan', seed: 2, levels: [{ role: 'ground' }] } });
+    const level = await exportModelHandler({ ref: 'sk_ifc_floor_level', format: 'ifc', write: false });
+    expect(level.ok).toBe(true);
+    expect(level.elements.IfcSpace).toBeGreaterThan(0);
+    // storeys: 1 is still a single floor, and says so
+    SketchRepository.create({ ref: 'sk_ifc_floor_one', title: 'floor', manifest: { kind: 'floorplan', seed: 2, storeys: 1 } });
+    expect((await exportModelHandler({ ref: 'sk_ifc_floor_one', format: 'ifc' })).eligible).toBe(false);
     SketchRepository.create({ ref: 'sk_ifc_cyl', title: 'cyl', manifest: { kind: 'workbench', boxes: [{ min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } }] } });
     const cyl = await exportModelHandler({ ref: 'sk_ifc_cyl', format: 'ifc' });
     expect(cyl.eligible).toBe(false);

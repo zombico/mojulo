@@ -203,7 +203,7 @@ async function ifcExport(input, context) {
     return {
       ok: false, eligible: false, ref, kind: kind ?? null, format: 'ifc',
       reason: kind === 'floorplan'
-        ? 'IFC export covers houses built in storeys: give this plan `storeys: 1` (or `levels`) and export again.'
+        ? "IFC export covers houses built in storeys: give this plan `levels: [{ role: 'ground' }]` to keep its one floor (or `storeys: 2` or more) and export again."
         : `IFC export covers houses (the floorplan kind with \`storeys\` or \`levels\`); '${kind}' is not one. For a mesh, \`format: 'glb'\` or \`'usdz'\`.`,
     };
   }
