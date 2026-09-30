@@ -22,9 +22,10 @@ import {
   rejectImageRenderHandler,
 } from '@/lib/mcp/tools/render-handoff.js';
 
-// A minimal valid 1×1 PNG (magic bytes intact) — stands in for the render.
+// A minimal valid 1×1 PNG (grey + alpha; every chunk's CRC and the zlib stream intact, which libvips 8.18
+// checks) — stands in for the render.
 const TINY_PNG_B64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNg+A8AAQIBANEay48AAAAASUVORK5CYII=';
 
 async function mintOutcome() {
   const res = await createSketchHandler({ title: 'Neon street', manifest: cityBlockoutFixture() });
@@ -110,6 +111,17 @@ describe('render handoff — cold drive through the tools', () => {
     await expect(
       submitImageRenderHandler({ request_id: pulled.request_id, image_base64: Buffer.from('<svg/>').toString('base64') }),
     ).rejects.toThrow(/not a PNG/);
+  });
+
+  it('rejects a PNG that does not decode (a truncated or corrupted file) at submit, not at accept', async () => {
+    const ref = await mintOutcome();
+    await requestImageRenderHandler({ ref });
+    const pulled = await pullImageRenderHandler({ ref });
+    // PNG magic and a valid IHDR, then an IDAT whose CRC and zlib stream are broken
+    const corrupt = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    await expect(
+      submitImageRenderHandler({ request_id: pulled.request_id, image_base64: corrupt }),
+    ).rejects.toThrow(/the submitted PNG does not decode .* truncated or corrupted/);
   });
 });
 

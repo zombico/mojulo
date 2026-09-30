@@ -12,6 +12,7 @@
 
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { loadSharp } from '@/lib/sharp-lazy';
 
 function outcomesBaseDir() {
   return process.env.MOJULO_OUTCOMES_DIR || path.join(process.cwd(), 'data', 'outcomes');
@@ -87,4 +88,19 @@ export function boundRenderMap(ref, targets) {
     if (bound) out[target] = bound;
   }
   return out;
+}
+
+/**
+ * The magic bytes say PNG; a render stored now and composited later must also decode (libvips checks
+ * every chunk's CRC and the zlib stream), so a truncated or corrupted file is refused at submit with the
+ * reason instead of at accept with libpng's. With no sharp on this host the magic check is all there is.
+ */
+export async function refuseUndecodablePng(bytes) {
+  let sharp;
+  try { sharp = await loadSharp(); } catch { return; }
+  try {
+    await sharp(bytes).raw().toBuffer();
+  } catch (err) {
+    throw new Error(`the submitted PNG does not decode (${err.message}): the file is truncated or corrupted; submit it again`);
+  }
 }

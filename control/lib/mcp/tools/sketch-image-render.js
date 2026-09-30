@@ -29,7 +29,7 @@ import {
 } from '@/lib/graph/image-outcomes/instructions';
 import { latestBoundSheet, nextSheetPath } from '@/lib/graph/image-outcomes/sheet-store';
 import { buildLocalRenderParams } from '@/lib/graph/image-outcomes/local-render-params';
-import { nextRenderPath, boundRenderMap } from '@/lib/graph/image-outcomes/render-store';
+import { nextRenderPath, boundRenderMap, refuseUndecodablePng } from '@/lib/graph/image-outcomes/render-store';
 
 import { resolveCharacterRefs } from './sketch-mint.js';
 
@@ -237,6 +237,7 @@ export async function bindCharacterSheetHandler(input) {
   if (bytes.length < 8 || !bytes.subarray(0, 4).equals(PNG_MAGIC)) {
     throw new Error('the submitted image is not a PNG (the sheet must be a generated raster, not the SVG scaffold)');
   }
+  await refuseUndecodablePng(bytes);
   const slot = nextSheetPath(sketch.ref);
   await fs.writeFile(slot.path, bytes);
   return {
@@ -286,6 +287,7 @@ export async function bindImageRenderHandler(input) {
   if (bytes.length < 8 || !bytes.subarray(0, 4).equals(PNG_MAGIC)) {
     throw new Error('the submitted image is not a PNG (submit the generated raster, not the SVG scaffold)');
   }
+  await refuseUndecodablePng(bytes);
   const slot = nextRenderPath(sketch.ref, resolvedTarget);
   await fs.writeFile(slot.path, bytes);
   const bound = boundRenderMap(sketch.ref, targets);

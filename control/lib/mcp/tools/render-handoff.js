@@ -34,7 +34,7 @@ import {
 } from '@/lib/graph/image-outcomes/manifest';
 import { meruAuditCelPng, faceHoldAuditPng } from '@/lib/graph/image-outcomes/keyframe-audit';
 import { auditStagePlatePng } from '@/lib/graph/image-outcomes/scene-plate';
-import { nextRenderPath, latestBoundRender } from '@/lib/graph/image-outcomes/render-store';
+import { nextRenderPath, latestBoundRender, refuseUndecodablePng } from '@/lib/graph/image-outcomes/render-store';
 import { getImageRenderPacketHandler } from '@/lib/mcp/tools/sketches';
 import { createHash } from 'node:crypto';
 
@@ -145,6 +145,7 @@ export async function submitImageRenderHandler(input) {
   if (bytes.length < 8 || !bytes.subarray(0, 4).equals(PNG_MAGIC)) {
     throw new Error('the submitted image is not a PNG (submit the generated raster, not the SVG scaffold)');
   }
+  await refuseUndecodablePng(bytes);
   const slot = nextRenderPath(request.ref, request.target);
   await fs.writeFile(slot.path, bytes);
 
