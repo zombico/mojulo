@@ -150,7 +150,9 @@ function filmError(metal, film) {
 
 // ---------- the spec ----------
 export const isMetalSurface = (m) => !!m && typeof m === 'object' && typeof m.metal === 'string';
-const metalKey = (name) => (typeof name === 'string' ? (METALS[name] ? name : METAL_ALIASES[name.trim().toLowerCase()] || null) : null);
+// own keys only: a prototype name ('constructor', 'toString', '__proto__') is not a metal or a finish
+const own = (o, k) => typeof k === 'string' && Object.hasOwn(o, k);
+const metalKey = (name) => (typeof name === 'string' ? (own(METALS, name) ? name : own(METAL_ALIASES, name.trim().toLowerCase()) ? METAL_ALIASES[name.trim().toLowerCase()] : null) : null);
 /** Why a metal-surface spec is invalid (a sentence naming the choices), or null. */
 export function metalSurfaceError(spec) {
   if (!isMetalSurface(spec)) return 'a metal surface is { metal, finish?, along?, film?, pattern?, seed? }';
@@ -161,7 +163,7 @@ export function metalSurfaceError(spec) {
     if (!PATTERN_METALS.includes(metal)) return `pattern-welding folds steels — use ${PATTERN_METALS.join(' or ')}`;
     if (spec.finish != null || spec.film != null) return 'a pattern-welded surface is etched: it takes no finish or film';
   }
-  if (spec.finish != null) { const f = FINISHES[spec.finish]; if (!f) return `unknown finish '${spec.finish}' — use one of: ${FINISH_NAMES.join(', ')}`; if (f.only && !f.only.includes(metal)) return `the ${spec.finish} finish belongs to ${f.only.join(', ')}`; }
+  if (spec.finish != null) { const f = own(FINISHES, spec.finish) ? FINISHES[spec.finish] : null; if (!f) return `unknown finish '${spec.finish}' — use one of: ${FINISH_NAMES.join(', ')}`; if (f.only && !f.only.includes(metal)) return `the ${spec.finish} finish belongs to ${f.only.join(', ')}`; }
   const a = spec.along; if (a != null && !(ALONG.includes(a) || (Array.isArray(a) && a.length === 3 && a.every(Number.isFinite) && Math.hypot(...a) > 0))) return `along is one of ${ALONG.join(', ')}, or a direction [x, y, z]`;
   if (spec.seed != null && !Number.isInteger(spec.seed)) return 'seed is an integer';
   return filmError(metal, spec.film);
