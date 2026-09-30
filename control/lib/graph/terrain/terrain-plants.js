@@ -75,9 +75,9 @@ export const PLANT_CLIMATES = Object.freeze({
  * A region's own conifers for a climate (`plants.region`), replacing that climate's rows; a climate the region does not
  * name keeps its own. Absent, every climate keeps its rows. Moisture is the kernel's: the climate's own, +0.35 near water.
  *   eurasia — Norway spruce, silver fir and Scots pine (conifer.js). Boreal: spruce throughout, pine on the ground away
- *             from water. Temperate and alpine: oak and beech low, silver fir with beech in the montane belt (8–12.5 °C),
- *             spruce from 10 °C to the treeline, and pine on the dry ground at any height (European Atlas of Forest Tree
- *             Species, 2016).
+ *             from water. Temperate: oak and beech low; alpine: beech low. Both: silver fir with beech in the montane
+ *             belt (8–12.5 °C), spruce from 10 °C to the treeline, and pine on the dry ground at any height (European
+ *             Atlas of Forest Tree Species, 2016).
  */
 export const PLANT_REGIONS = Object.freeze({
   eurasia: {

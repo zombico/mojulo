@@ -220,7 +220,7 @@ per thing a person sees:
   and fir, a quarter of the voxel puffs' faces and closer to the tree's silhouette at 32 px; a pine is clumps, one per
   limb. Voxel puffs on a spire read as topiary.
 - **Where they grow** (`plants.region: 'eurasia'` on a terrain world): boreal spruce throughout and pine on dry ground;
-  temperate and alpine beech and oak low, silver fir with beech in the montane belt (500–1,800 m in the Alps), spruce to
+  temperate beech and oak low (alpine beech alone), silver fir with beech in the montane belt (500–1,800 m in the Alps), spruce to
   the treeline (the subalpine belt with larch and Swiss stone pine at 1,800–2,100 m), pine on dry and poor ground.
 
 ## Rendering rules

@@ -9,6 +9,7 @@
  * ground; the Alps: beech low, silver fir, spruce to the treeline), absent it is exactly the climate's own; the manifest
  * teaches.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { vegetationKernel, PER } from './vegetation-kernel.js';
@@ -242,5 +243,11 @@ describe('a region grows its own conifers', () => {
     const w = { world: { features: [{ feature: 'river' }] } };
     expect(validateTerrainPlants({ region: 'eurasia' }, w)).toEqual([]);
     expect(validateTerrainPlants({ region: 'mars' }, w).join(' ')).toMatch(/region must be one of eurasia/);
+  });
+  it('the card promises oak low only in the climates whose rows grow it', () => {
+    const card = readFileSync(new URL('../views/view-vocab/terrain.md', import.meta.url), 'utf8');
+    const oak = (c) => PLANT_REGIONS.eurasia[c].rows.some((r) => r.species === 'oak');
+    expect(oak('temperate')).toBe(true); expect(oak('alpine')).toBe(false);
+    expect(card).toMatch(/temperate oak and beech low \(alpine beech alone\)/); expect(card).not.toMatch(/alpine oak/);
   });
 });
