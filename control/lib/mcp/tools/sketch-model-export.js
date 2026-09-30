@@ -41,7 +41,8 @@ import { unitMillimetres, declaredUnits } from '@/lib/graph/scene/world-units';
 import { assessWorldTier } from '@/lib/graph/worlds/world-contract';
 import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
 import { lazyDependency } from '@/lib/lazy-deps';
-import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
+import { handoffForContext, fitsForContext, resolveHandoffHost } from '@/lib/mcp/hosts/handoff';
+import { getHostProfile, hostHandoff } from '@/lib/mcp/hosts/registry';
 import { pluginProfileActive } from '@/lib/mcp/plugin-profile';
 
 /**
@@ -229,7 +230,7 @@ async function ifcExport(input, context) {
     result.path = file;
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
-    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url });
+    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
   }
   return result;
 }
@@ -304,6 +305,10 @@ async function zipRead(z, entry) {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }`;
 
+// The types a page viewer whose downloads capability runs the courier's Save saves (the Artifact door's allowlist,
+// hosts/claude-code.json): there, a file of any other type is offered only inside the zip. Read once, as data.
+const VIEWER_SAVE_TYPES = Object.freeze([...(getHostProfile('claude-code')?.handoff?.box?.downloadExtensions || ['zip'])]);
+
 function courierPage({ ref, title, zipName, zip, entries }) {
   const b64 = zip.toString('base64');
   const kb = (n) => `${(n / 1024).toFixed(n >= 1024 * 100 ? 0 : 1)} KB`;
@@ -339,7 +344,7 @@ function courierPage({ ref, title, zipName, zip, entries }) {
 </style></head><body><main>
   <h1>${escapeHtmlText(title)}</h1>
   <p>The files of one mojulo export, as they sit in its outcome folder: the self-contained world page, the mesh, the recipe that re-mints it, and a README. Save any one, or all of them as one zip. <code>world.html</code> opens from disk with no server and no network.</p>
-  <p class="local" id="local">If Save does nothing here, this viewer does not let a page start a download (Meta Muse's Library is one): download this page, open the copy on your device, and save from there.</p>
+  <p class="local" id="local">If Save does nothing here, this viewer does not let a page start a download: download this page, open the copy on your device, and save from there.</p>
   <div class="folder"><code>outcomes/${escapeHtmlText(ref)}/</code></div>
   <ul>${rows}</ul>
   <button id="save" type="button" data-save="${escapeHtmlText(zipName)}">Save ${escapeHtmlText(zipName)} (${kb(zip.length)})</button>
@@ -355,6 +360,16 @@ function courierPage({ ref, title, zipName, zip, entries }) {
   var zipBytes = null;
   // Opened from the device itself, Save works: the notice is for in-app viewers, which may not run this at all.
   if (location.protocol === 'file:') document.getElementById('local').hidden = true;
+  // A viewer with a downloads capability saves through its own prompt, so the notice is not for it; that prompt takes
+  // only the types it lists, and a file of any other type (the mesh) rides in the zip, so its row points there.
+  var SAVES = ${JSON.stringify(VIEWER_SAVE_TYPES)};
+  if (window.claude && typeof window.claude.use === 'function') {
+    document.getElementById('local').hidden = true;
+    Array.prototype.forEach.call(document.querySelectorAll('li button[data-save]'), function (b) {
+      var m = /\.([a-z0-9]+)$/i.exec(b.getAttribute('data-save'));
+      if (m && SAVES.indexOf(m[1].toLowerCase()) < 0) { b.disabled = true; b.textContent = 'In the zip'; b.title = 'This viewer saves no .' + m[1] + ' file: save ' + NAME + ' below'; }
+    });
+  }
   function say(text, cls) { status.textContent = text; status.className = cls || ''; }
   function bytes() {
     if (zipBytes) return zipBytes;
@@ -456,7 +471,7 @@ async function bundleExport(input, context) {
     path: courierPath,
     bytes: Buffer.byteLength(courierHtml),
     download_url: `${outcomeUrlFor(ref)}${courierFileName(ref)}`,
-    note: `${courierFileName(ref)} carries the zip inside one page, listing each file with its own Save beside Save-all: for a host whose file door is a page (Claude Code on the web: publish it with the Artifact tool declaring capabilities { downloads: true }; Meta Muse: copy it into your_files/, the one type its Library shows); from file:// every Save is a plain download.`,
+    note: courierNote(ref, context, names),
   };
   const result = {
     ok: true,
@@ -474,6 +489,20 @@ async function bundleExport(input, context) {
   };
   attachHandoff(result, context, { kind: 'file', name: bundleFileName(ref), path: file, dir, bytes: zip.length, download_url, courier: courierFileName(ref) });
   return result;
+}
+
+// The courier's note names THIS host's door and no other host's: generic, plus the resolved host's own words when its
+// file door is a page viewer's downloads prompt or a folder the host carries to the operator.
+function courierNote(ref, context, names) {
+  const box = hostHandoff(resolveHandoffHost(context))?.box || null;
+  const allowed = Array.isArray(box?.downloadExtensions) ? box.downloadExtensions : null;
+  const inZip = allowed ? names.filter((n) => !allowed.includes(n.split('.').pop().toLowerCase())) : [];
+  const here = box?.file === 'artifact-download'
+    ? ` Here: publish it with ${box.pageTool || 'your artifact tool'} declaring capabilities { downloads: true }${inZip.length ? `; that viewer saves no ${inZip.join(' or ')} on its own, so the page offers ${inZip.length > 1 ? 'them' : 'it'} inside the zip` : ''}.`
+    : box?.file === 'drop-folder' && box.dropDir
+      ? ` Here: copy it into ${String(box.dropDir).replace(/\/+$/, '')}/${box.dropLabel ? `, and it lands in ${box.dropLabel}` : ''}.`
+      : '';
+  return `${courierFileName(ref)} carries the zip inside one page, listing each file with its own Save beside Save-all, for a host whose file door is a page; from file:// every Save is a plain download.${here}`;
 }
 
 // Every written export says the next move on THIS host (remote-worker exports P4) and whether
@@ -1079,8 +1108,11 @@ export async function exportModelHandler(input, context = {}) {
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
     // `inlineScripts` is what lets the artifact door raise its CSP caveat: the self-contained
-    // page carries three.js as `data:` modules, which that door refuses at any size.
-    attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url, ...(isHtml && !cdn ? { inlineScripts: true } : {}) });
+    // page carries three.js as `data:` modules, which that door refuses at any size. `bundled`: the
+    // bundle zips this same file (bundleExport: the page, the mesh, a literal kind's STL), so a door
+    // may send the operator to its courier; `recipe` is the recipe.json written beside it.
+    const bundled = (isHtml && !cdn) || format === 'glb' || (format === 'stl' && profile === 'literal');
+    attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url, recipe: 'recipe.json', ...(isHtml && !cdn ? { inlineScripts: true } : {}), ...(bundled ? { bundled: true } : {}) });
     // "Where did my export land?" (grok-headless-affordances P3). The bins now seed
     // MOJULO_OUTCOMES_DIR, so this fires only when a bin ran WITHOUT the resolver's default and
     // the cwd fallback put the file inside the installed package (MOJULO_CONTROL_DIR is the

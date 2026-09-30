@@ -42,6 +42,12 @@ describe('armor build validation', () => {
   it('stamps the current laws when absent', () => {
     expect(kitOf('knight').trace.laws).toBe(ARMOR_LAWS_VERSION);
   });
+  it('the hard-suit samples wear genre colours, not a franchise livery (the palette only: the kits are pinned)', () => {
+    // armored-hero was red plate with a gold faceplate and trim; grim-scifi slate-blue plate with gold trim
+    const hero = armorTones({ type: 'armor', style: 'armored-hero' }), grim = armorTones({ type: 'armor', style: 'grim-scifi' });
+    expect([hero.Plate, hero.Helm, hero.Face, hero.Trim]).toEqual(['#6b7580', '#6b7580', '#c9ced3', '#d9772b']);
+    expect([grim.Plate, grim.Helm, grim.Trim, grim.Lens]).toEqual(['#8c7a5b', '#8c7a5b', '#3d3a36', '#ffb238']);
+  });
   it('suggests the card tones beneath the operator', () => {
     expect(armorTones({ type: 'armor', style: 'aka' }).Lacquer).toBe('#9e2621');
     expect(armorTones('ranger')).toEqual({});

@@ -13,9 +13,9 @@
 // can add a hand-made part beside a built item), exactly where a `program` expands (worlds/workbench-program.js).
 // Absent a build, the manifest passes through by identity. Pure and deterministic: seeded dice, fixed order.
 import { proportion, LAWS_VERSION } from './principles.js';
-import { SEEDED_STYLES, VARIANTS, BARK_SPECIES, validateStyleCard } from './styles.js';
+import { SEEDED_STYLES, VARIANTS, BARK_SPECIES, COUNTS, countError, validateStyleCard } from './styles.js';
 import { SWORDS, buildSword } from './sword.js';
-import { ITEMS, buildItem } from './items.js';
+import { ITEMS, GEMLESS_HEADS, buildItem } from './items.js';
 import { CRYSTAL_GEMS } from '../polygonizer/crystal-optics.js';
 import { r3 } from './shapes.js';
 
@@ -51,6 +51,7 @@ export function validateBuild(build) {
   for (const [slot, v] of Object.entries(build.parts || {})) {
     if (VARIANTS[slot]) { if (!VARIANTS[slot].includes(v)) errs.push(`build.parts.${slot}: '${v}' is not one of ${VARIANTS[slot].join(', ')}`); }
     else if (slot === 'bark') { if (!BARK_SPECIES.includes(v)) errs.push(`build.parts.bark: '${v}' is not one of ${BARK_SPECIES.join(', ')}`); }
+    else if (COUNTS[slot]) { const e = countError(slot, v, 'build.parts'); if (e) errs.push(e); }
     else if (!ITEM_KEYS.includes(slot)) errs.push(`build.parts.${slot}: not a slot — slots are ${[...Object.keys(VARIANTS), ...ITEM_KEYS].join(', ')}`);
   }
   if (build.gem !== undefined && build.gem !== null) {
@@ -61,7 +62,22 @@ export function validateBuild(build) {
   }
   if (build.seed !== undefined && !Number.isInteger(build.seed)) errs.push('build.seed: an integer');
   if (build.laws !== undefined && build.laws !== LAWS_VERSION) errs.push(`build.laws: ${build.laws} is unknown — this kernel carries laws ${LAWS_VERSION}`);
+  if (!errs.length) errs.push(...resolvedErrors(build));
   return errs;
+}
+
+// What only the RESOLVED words can say (the card's language under the build's parts, the card's stone under the
+// build's gem): a staff head that cradles a stone needs one to resolve, and a bow needs a limb to bend.
+function resolvedErrors(build) {
+  const card = cardOf(build.style ?? 'historical'), parts = build.parts || {};
+  const lang = { ...(card.language?.[build.item] || {}), ...parts };
+  if (build.item === 'staff' && lang.head && !GEMLESS_HEADS.includes(lang.head)) {
+    const focus = build.dials?.focus ?? parts.focus ?? lang.focus ?? card.dials?.focus ?? 'none';
+    const gem = build.gem === null ? null : build.gem ?? card.gem ?? null;
+    if (!gem || focus !== 'head') return [`build.parts.head: '${lang.head}' cradles a stone, and none resolves here (${!gem ? `${build.gem === null ? 'gem: null' : `the '${card.id || 'inline'}' card carries no gem`}` : `focus '${focus}'`}) — give it a gem (${CRYSTAL_GEMS.join(', ')}) with focus 'head', or use a head that carries none (${GEMLESS_HEADS.join(', ')})`];
+  }
+  if (build.item === 'bow' && !lang.limb) return [`build.parts.limb: a bow needs a limb — one of ${VARIANTS.limb.join(', ')} (in parts, or the card's language.bow)`];
+  return [];
 }
 
 /** Expand a (valid) build → { monomers, sockets, trace }. Throws with every error when invalid. */
@@ -83,11 +99,14 @@ export function expandEquipment(build) {
   return { monomers: out.monomers, sockets: out.sockets, trace: { item, style: typeof build.style === 'string' ? build.style : card.id || 'inline', dials: d, laws: build.laws ?? LAWS_VERSION, ...out.trace } };
 }
 
-/** The manifest with its build expanded into monomers (merged before its own arrays); identity when absent. */
+/**
+ * The manifest with its build expanded into monomers (merged before its own arrays); identity when absent. The build
+ * leaves the result: it is spent, so a lowerer handed the result does not expand it a second time.
+ */
 export function withEquipment(manifest) {
   if (!hasEquipment(manifest)) return manifest;
   const { monomers } = expandEquipment(manifest.build);
-  const out = { ...manifest };
+  const { build: _spent, ...out } = manifest;
   for (const k of MONOMER_ARRAYS) if (monomers[k]?.length) out[k] = [...monomers[k], ...(Array.isArray(manifest[k]) ? manifest[k] : [])];
   return out;
 }

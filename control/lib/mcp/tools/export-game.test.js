@@ -120,6 +120,11 @@ describe('export_game — world/level games', () => {
     const bank = JSON.parse(readFileSync(path.join(result.dir, groups[0]), 'utf8'));
     expect(Array.isArray(bank)).toBe(true);
     expect(bank[0].pos.length).toBeGreaterThan(0);   // packed vertex buffer
+    // a drop-folder host (muse) cannot carry the folder; its note names the recipe/ this export wrote, not a recipe.json
+    const muse = await exportGameHandler({ ref: 'sk_eg_duo' }, { host: 'muse' });
+    expect(muse.handoff.next).toMatch(/so the folder sk_eg_duo would not surface there/);
+    expect(muse.handoff.caveats).toEqual([expect.stringMatching(/cannot carry a folder, and no courier page carries it: .*hand over its recipe \(recipe\/ in the folder re-mints it/)]);
+    expect(muse.handoff.caveats.join()).not.toMatch(/recipe\.json|bundle/);
   });
 
   it('surfaces resolveGame teaching errors for a game pointing at a missing level', async () => {

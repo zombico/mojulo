@@ -7,6 +7,8 @@ import { heroRecord, heroPlanOf, expandLayeredManifest, validateHeroSpec, heroRe
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 import { ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { derivedShade } from '@/lib/graph/polygonizer/station-loft-shade';
 
 const adornParts = (recipe) => Object.keys(recipe.parts).filter((n) => n.startsWith('adorn.'));
 
@@ -61,5 +63,19 @@ describe('hero door: an armour build on adorn', () => {
     const width = (p) => { const mesh = compileLayered(expandPlan(p), {}); const xs = Object.values(mesh.parts['adorn.torso-do0'].points).map((q) => q[0]); return Math.max(...xs) - Math.min(...xs); };
     // the top row of the dō: at its own standoff as a sawtooth; lifted over every row below it when stacked
     expect(width(wide(false)) - width(wide(true))).toBeGreaterThan(0.03);
+  }, 60000);
+
+  // the static solid's full-bright glow (layeredFaces) reaches the character light's page and the rig pack too: the
+  // clip preview and the skinned GLB used to shade a lens like any plate
+  it('the emissive groups stay full-bright under the character light and in the rig pack', async () => {
+    const hero = heroRecord({ cast: 'male', adorn: { type: 'armor', style: 'armored-hero', dials: { coverage: 0 } } });
+    const m = expandLayeredManifest({ kind: 'layered', hero });
+    expect(m.recipe.emissive).toContain('Lens');
+    const lens = m.recipe.palette.Lens;
+    const lit = (await resolveWorldScene({ ref: 'x', title: 't', manifest: { ...m, toon: { light: { toLight: [0.3, -0.6, 0.75], threshold: 0.3 } } } })).payload;
+    const fills = new Set(lit.faces.map((f) => f.fill));
+    expect(fills.has(lens)).toBe(true); expect(fills.has(derivedShade('Lens', lens))).toBe(false);
+    const figures = async (recipe) => JSON.stringify((await resolveWorldScene({ ref: 'x', title: 't', manifest: { ...m, recipe } })).payload.figures);
+    expect(await figures(m.recipe)).not.toBe(await figures({ ...m.recipe, emissive: [] }));
   }, 60000);
 });

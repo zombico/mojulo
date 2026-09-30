@@ -9,7 +9,8 @@ import { handoffFor, handoffForContext, resolveHandoffHost, resolveHandoffSurfac
 import { rememberClientInfo, _resetClientBindingsForTests } from '@/lib/mcp/client-bindings';
 
 const PAGE = { kind: 'page', name: 'world.html', path: '/box/outcomes/sk_x/world.html', dir: '/box/outcomes/sk_x', bytes: 9_100_000, download_url: '/outcomes/sk_x/world.html' };
-const GLB = { kind: 'file', name: 'model.glb', path: '/box/outcomes/sk_x/model.glb', dir: '/box/outcomes/sk_x', bytes: 3_600_000, download_url: '/outcomes/sk_x/model.glb' };
+// what export_model stamps on its mesh: the bundle zips the same file, and recipe.json is written beside it
+const GLB = { kind: 'file', name: 'model.glb', path: '/box/outcomes/sk_x/model.glb', dir: '/box/outcomes/sk_x', bytes: 3_600_000, download_url: '/outcomes/sk_x/model.glb', bundled: true, recipe: 'recipe.json' };
 const ZIP = { kind: 'file', name: 'sk_x.zip', path: '/box/outcomes/sk_x/sk_x.zip', dir: '/box/outcomes/sk_x', bytes: 6_000_000, download_url: '/outcomes/sk_x/sk_x.zip' };
 
 describe('handoffFor', () => {
@@ -120,7 +121,34 @@ describe('handoffFor', () => {
     expect(g.caveats).toEqual([expect.stringMatching(/format: 'bundle'.*courier\.html, one page that carries every file of the export/)]);
     // a folder has no extension to show and is outside the list too
     const f = handoffFor({ host: 'muse', artifact: { kind: 'folder', name: 'godot', path: '/box/outcomes/sk_x/godot' } });
-    expect(f.next).toMatch(/^the operator's Library shows only \.html files, so godot would not surface there/);
+    expect(f.next).toMatch(/^the operator's Library shows only \.html files, so the folder godot would not surface there/);
+  });
+
+  // the courier carries only what export_model's bundle zips, so a cook's or a game's folder, a single-format
+  // export or a miniature's STL is never sent to the bundle (it used to say index.html was not .html enough, then
+  // point at the bundle); the recipe clause names only what the exporter wrote (the artifacts are the producers' own:
+  // cook.js hands off no recipe, export-game.js its recipe/, sketch-model-export.js the recipe.json beside the file)
+  it('muse + a cook or game folder, a usdz or a miniature STL: named plainly as staying in the box, never sent to the bundle', () => {
+    const cook = handoffFor({ host: 'muse', artifact: { kind: 'folder', name: 'index.html', path: '/box/outcomes/ck_x', dir: '/box/outcomes/ck_x' } });
+    const game = handoffFor({ host: 'muse', artifact: { kind: 'folder', name: 'game.html', path: '/box/outcomes/sk_g/', dir: '/box/outcomes/sk_g/', bytes: 2048, recipe: 'recipe/' } });
+    for (const [n, folder] of [[cook, 'ck_x'], [game, 'sk_g']]) {
+      expect(n.next).toMatch(new RegExp(`^the operator's Library shows only \\.html files, so the folder ${folder} would not surface there; it is at /box/outcomes/${folder}`));
+      expect(n.next).not.toMatch(/index\.html|game\.html/);
+      expect(n.caveats.join()).not.toMatch(/bundle|recipe\.json/);
+    }
+    // a cook writes no recipe, so the note sends the agent to none
+    expect(cook.caveats).toEqual(["the operator's Library cannot carry a folder, and no courier page carries it: tell the operator where it is in the box"]);
+    expect(game.caveats).toEqual(["the operator's Library cannot carry a folder, and no courier page carries it: tell the operator where it is in the box, and hand over its recipe (recipe/ in the folder re-mints it on any host running mojulo)"]);
+    const u = handoffFor({ host: 'muse', artifact: { kind: 'file', name: 'model.usdz', path: '/box/outcomes/sk_x/model.usdz', recipe: 'recipe.json' } });
+    expect(u.next).toMatch(/so model\.usdz would not surface there/);
+    expect(u.caveats).toEqual(["the operator's Library cannot carry a .usdz file, and no courier page carries it: tell the operator where it is in the box, and hand over its recipe (recipe.json beside it re-mints it on any host running mojulo)"]);
+    // a miniature kind's STL is not in the bundle (bundleExport zips model.stl for literal kinds only), so it is not bundled
+    const stl = handoffFor({ host: 'muse', artifact: { kind: 'file', name: 'model.stl', path: '/box/outcomes/sk_x/model.stl', recipe: 'recipe.json' } });
+    expect(stl.next).toMatch(/so model\.stl would not surface there/);
+    expect(stl.caveats).toEqual([expect.stringMatching(/cannot carry a \.stl file, and no courier page carries it: .*recipe\.json beside it/)]);
+    expect(stl.caveats.join()).not.toMatch(/bundle/);
+    const literal = handoffFor({ host: 'muse', artifact: { kind: 'file', name: 'model.stl', path: '/box/outcomes/sk_x/model.stl', recipe: 'recipe.json', bundled: true } });
+    expect(literal.caveats).toEqual([expect.stringMatching(/format: 'bundle'.*courier\.html, one page that carries every file of the export/)]);
   });
 
   it('muse + an .html file: straight into the drop folder; no ceiling known, the VM persists', () => {

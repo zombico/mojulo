@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { expandEquipment, validateBuild, withEquipment, hasEquipment, EQUIPMENT_ITEMS, LAWS_VERSION } from './expand.js';
 import { SEEDED_STYLES, validateStyleCard } from './styles.js';
 import { proportion } from './principles.js';
-import { planWorkbench, lowerObjectFaces, WORKBENCH_LIGHT } from '../worlds/workbench.js';
+import { planWorkbench, lowerObjectFaces, persistedLedger, WORKBENCH_LIGHT } from '../worlds/workbench.js';
+import { validateGear } from '../polygonizer/hero-gear.js';
 import { solidComponentsStable } from '../polygonizer/solid-components.js';
 
 const build = (item, style, extra = {}) => ({ type: 'equipment', item, style, seed: 3, ...extra });
@@ -131,5 +132,46 @@ describe('the recipe surface', () => {
   });
   it('a focus the item cannot take is refused', () => {
     expect(validateBuild(build('staff', 'druid', { dials: { focus: 'pommel' } })).join()).toContain('head, none');
+  });
+  // a stone-cradling head with no stone to cradle, and a bow with no limb, used to validate clean and then throw a raw
+  // TypeError (or build NaN coordinates) in the kernel
+  it('a staff head that cradles a stone is refused by name when none resolves', () => {
+    for (const [extra, why] of [[{ style: 'historical', parts: { head: 'branch' } }, "the 'historical' card carries no gem"], [{ style: 'historical', parts: { head: 'claw' } }, 'carries no gem'],
+      [{ style: 'eastern', parts: { head: 'crescent' } }, 'carries no gem'], [{ style: 'brutal', parts: { head: 'block' } }, 'carries no gem'],
+      [{ style: 'elven', gem: null }, 'gem: null'], [{ style: 'elven', dials: { focus: 'none' } }, "focus 'none'"]]) {
+      const b = { type: 'equipment', item: 'staff', seed: 3, ...extra };
+      const text = validateBuild(b).join('\n');
+      expect(text).toContain('build.parts.head:'); expect(text).toContain(why); expect(text).toContain('plain, mace, ringed');
+      expect(() => expandEquipment(b)).toThrow(/Invalid equipment build/);
+    }
+    // the same heads with a stone still build; the gemless heads never needed one
+    expect(validateBuild(build('staff', 'historical', { parts: { head: 'branch', focus: 'head' }, gem: 'ruby' }))).toEqual([]);
+    expect(validateBuild(build('staff', 'elven', { gem: null, parts: { head: 'mace' } }))).toEqual([]);
+  });
+  it('the hero gear door refuses the same stoneless head instead of throwing mid-plan', () => {
+    expect(validateGear({ right: { item: 'staff', style: 'elven', gem: null } }).join()).toMatch(/^gear\.right: build\.parts\.head: 'branch' cradles a stone/);
+  });
+  it('a bow needs a limb: an inline card without one is refused, not built with NaN', () => {
+    const card = JSON.parse(JSON.stringify(SEEDED_STYLES.elven)); delete card.language.bow;
+    expect(validateBuild(build('bow', card)).join()).toMatch(/build\.parts\.limb: a bow needs a limb — one of longbow, recurve, horn, yumi/);
+    expect(validateBuild(build('bow', card, { parts: { limb: 'yumi' } }))).toEqual([]);
+  });
+  it('counts and multipliers are bounded by name (a runaway number is refused, not built)', () => {
+    expect(validateBuild(build('staff', 'druid', { parts: { limbs: 400, twigs: 400 } }))).toEqual(['build.parts.limbs: an integer 1–8', 'build.parts.twigs: an integer 0–6']);
+    const card = JSON.parse(JSON.stringify(SEEDED_STYLES.brutal));
+    Object.assign(card.edge, { barbs: 200000, fuller: 3 }); Object.assign(card.lean, { grip: 2000, width: 1 }); card.dials.ornament = 9; card.language.staff.limbs = 0;
+    const errs = validateStyleCard(card);
+    for (const want of ['style.edge.barbs: an integer 0–12', 'style.edge.fuller: a number 0–1', 'style.lean.grip: a multiplier 0.25–4', 'style.lean.width: not a lean', 'style.dials.ornament: an integer 0–3', 'style.language.staff.limbs: an integer 1–8']) expect(errs.join('\n')).toContain(want);
+  });
+});
+
+describe('the ledger counts the item once', () => {
+  it('planWorkbench lowers a build once: stats.faces and the persisted ledger match the lowered item', () => {
+    const b = build('sword', 'historical');
+    const once = lowerObjectFaces({ build: b }, WORKBENCH_LIGHT).length;
+    const { stats } = planWorkbench({ kind: 'workbench', units: 'cm', build: b });
+    expect(stats.faces).toBe(once);
+    expect(persistedLedger(stats.ledger).faces).toBe(once);
+    expect('build' in withEquipment({ build: b })).toBe(false);
   });
 });

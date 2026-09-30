@@ -56,9 +56,9 @@ export const MATERIAL_ALIASES = Object.freeze({
 /** materialName(m) → the shelf row a string names (aliases resolved), or null. */
 export function materialName(m) {
   if (typeof m !== 'string') return null;
-  if (MATERIALS[m]) return m;
-  const a = MATERIAL_ALIASES[m.trim().toLowerCase()];
-  return a && MATERIALS[a] ? a : null;
+  if (Object.hasOwn(MATERIALS, m)) return m;   // own keys only: 'constructor' or 'toString' is not a row
+  const k = m.trim().toLowerCase(), a = Object.hasOwn(MATERIAL_ALIASES, k) ? MATERIAL_ALIASES[k] : null;
+  return a && Object.hasOwn(MATERIALS, a) ? a : null;
 }
 
 /**

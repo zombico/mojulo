@@ -41,7 +41,7 @@ import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, co
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
 import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO } from './capture-contract.js';
 import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
-import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS } from './view-cube-contract.js';
+import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP } from './view-cube-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
 import {
@@ -341,11 +341,18 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // DRAW LAYERS (channels/draw-layers.js): a face carrying `layer` ('hair' | 'through' | 'veil', a
   // character-lit figure's) lands in its group split by that layer (drawLayerGroup: `body:hair`…), so
   // each layer is its own mesh and its own outline hull; a face without one keeps its group.
+  // METAL ON THE STATIC GROUP: a metal face with no group of its own (an edifice's facade, a roof sheet, a storefront's
+  // trim, a program's part) rides 'static:metal' when plain static faces share the page, so the per-vertex metal data
+  // (8 floats a vertex, faceListToMesh) is packed for the metal alone, as round-kit.js's KIT_METAL_GROUP does for the
+  // city. A page with no metal face on the static group, or with nothing else on it, keeps its groups: byte-identical.
+  const onStatic = (f) => f && !(f.decal === 'shadow' || f.decal === 'ink' || f.water) && drawLayerGroup(f) === STATIC_GROUP;
+  const metalSplit = expanded.some((f) => onStatic(f) && f.metal) && expanded.some((f) => onStatic(f) && !f.metal);
+  const renderGroup = (f) => (metalSplit && f.metal && drawLayerGroup(f) === STATIC_GROUP ? STATIC_METAL_GROUP : drawLayerGroup(f));
   const inkByGroup = new Map();
   if (toonInk) {
     for (const f of expanded0) {
       if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || f.noInk || f.layer === 'through' || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
-      const k = drawLayerGroup(f);
+      const k = renderGroup(f);
       (inkByGroup.get(k) || inkByGroup.set(k, []).get(k)).push(f);
     }
   }
@@ -353,7 +360,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // translucent water pass below — keep both out of the opaque mesh (shadows would double as flat
   // dark patches; water needs per-vertex alpha the opaque mesh can't carry).
   const layerOf = new Map();
-  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = drawLayerGroup(f); if (k !== (f.group || 'static')) layerOf.set(k, f.layer); (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
+  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = renderGroup(f); if (k !== (f.group || 'static') && k !== STATIC_METAL_GROUP) layerOf.set(k, f.layer); (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
   const groups = [...groupMap].map(([name, fs]) => {
     const gm = faceListToMesh(fs, { decollide: false }); // already de-collided globally above
     const nf = fs.find((f) => Array.isArray(f.normal));

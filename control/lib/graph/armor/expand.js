@@ -42,6 +42,9 @@ export function validateArmor(build) {
   const card = cardOf(style);
   if (build.language !== undefined && card && !validateArmorCard(card).length) errs.push(...validateArmorCard({ ...card, language: { ...card.language, ...build.language } }, 'adorn').filter((e) => e.includes('language')));
   if (build.theme !== undefined) { if (typeof build.theme === 'string') { if (!THEMES[build.theme]) errs.push(`adorn.theme: '${build.theme}' is not a theme (${Object.keys(THEMES).join(', ')}); or pass an inline card`); } else errs.push(...validateTheme(build.theme, 'adorn.theme')); }
+  // a theme's language leans the style's family words: the same choices as the card's own
+  const TL = card && !validateArmorCard(card).length ? themeOf(build.theme)?.language?.[card.family] : undefined;
+  if (TL !== undefined) errs.push(...validateArmorCard({ family: card.family, language: TL }, 'adorn.theme').filter((e) => e.includes('language')).map((e) => e.replace('adorn.theme.language.', `adorn.theme.language.${card.family}.`)));
   if (build.laws !== undefined && build.laws !== ARMOR_LAWS_VERSION) errs.push(`adorn.laws: ${build.laws} is unknown — this kernel carries armour laws ${ARMOR_LAWS_VERSION}`);
   return errs;
 }

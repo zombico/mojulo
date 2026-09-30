@@ -60,9 +60,11 @@ export function fitsBudget(bytes, budget) {
 
 // ── door → sentence ────────────────────────────────────────────────────────
 // `a` is the artifact: { kind: 'page' | 'file' | 'folder', name, path, dir, bytes, download_url,
-// courier?, inlineScripts? } — `courier` names a page that embeds the file and offers it (the
+// courier?, inlineScripts?, bundled?, recipe? } — `courier` names a page that embeds the file and offers it (the
 // bundle writes one); `inlineScripts` marks a page whose scripts are inline `data:` modules,
-// which some page doors refuse or render unreliably (the row's `inlinePage`; see 'artifact').
+// which some page doors refuse or render unreliably (the row's `inlinePage`; see 'artifact');
+// `bundled` marks a file that export_model's bundle also zips (its page, its mesh, a literal kind's
+// print file); `recipe` names what re-mints the artifact, relative to its folder (absent: nothing written does).
 
 // "no server, no network" is only true of the SELF-CONTAINED build (the default page). Every door
 // that tells the operator to open the page from file:// has to say which of the two it is holding.
@@ -168,8 +170,9 @@ function fileSentence(door, row, a, caveats) {
     }
     case 'drop-folder': {
       // A folder in the box that the host itself carries to the operator (Muse: your_files → Library).
-      // `downloadExtensions` lists the types the operator's side actually shows; anything else
-      // (a folder included) rides the bundle's courier page, which carries every file of the export.
+      // `downloadExtensions` lists the types the operator's side actually shows; a world's mesh or print file rides the
+      // bundle's courier page, which carries every file of that export, and anything else (a folder, another format)
+      // is said plainly to stay in the box.
       const dir = String(row.dropDir).replace(/\/+$/, '');
       const where = row.dropLabel || "the operator's side";
       const allowed = Array.isArray(row.downloadExtensions) ? row.downloadExtensions : null;
@@ -179,8 +182,17 @@ function fileSentence(door, row, a, caveats) {
         if (a.courier) {
           return `copy ${a.courier} into ${dir}/; it lands in ${where} as one page (${where} shows only ${only} files) — the operator downloads it and opens it on their device to save ${a.name}${size} or any file of the export`;
         }
-        caveats.push(`\`export_model({ format: 'bundle' })\` writes <ref>.courier.html, one page that carries every file of the export and does show in ${where}`);
-        return `${where} shows only ${only} files, so ${a.name} would not surface there; it is at ${a.path}${size}`;
+        // the bundle's courier carries only what export_model's bundle zips (the exporter marks it `bundled`): a cook's or
+        // a game's folder, a single-format export (usdz, ifc, 3mf, scad) or a miniature's STL is not in it
+        if (a.kind !== 'folder' && a.bundled) {
+          caveats.push(`\`export_model({ format: 'bundle' })\` writes <ref>.courier.html, one page that carries every file of the export and does show in ${where}`);
+          return `${where} shows only ${only} files, so ${a.name} would not surface there; it is at ${a.path}${size}`;
+        }
+        const folder = a.kind === 'folder' ? String(a.dir || a.path || a.name).replace(/[\\/]+$/, '').split(/[\\/]/).pop() : null;
+        // the recipe clause names only what the exporter wrote: recipe.json beside a model, a game's recipe/, none for a cook
+        const recipe = a.recipe ? `, and hand over its recipe (${a.recipe} ${folder ? 'in the folder' : 'beside it'} re-mints it on any host running mojulo)` : '';
+        caveats.push(`${where} cannot carry ${folder ? 'a folder' : `a .${ext || a.name} file`}, and no courier page carries it: tell the operator where it is in the box${recipe}`);
+        return `${where} shows only ${only} files, so ${folder ? `the folder ${folder}` : a.name} would not surface there; it is at ${a.path}${size}`;
       }
       const fit = fitsBudget(a.bytes, row.fileMaxBytes);
       if (!fit.fits) caveats.push(`${a.name} is over this host's file limit by ${fmtBytes(fit.over_by)}`);

@@ -357,7 +357,7 @@ describe('update_sketch { readout } — what an edit hands back (Phase 3)', () =
 // ring-plan: the layered kind's PLAN door stores the plan beside the recipe; an edit under /plan
 // re-expands the recipe, an edit under /dials leaves the plan alone; every edit pays the layered gates.
 import { mintSolidHandler } from './mint-solid.js';
-import { heroRecord, heroPlanOf, validateHeroSpec } from './layered.js';
+import { heroRecord, heroPlanOf, heroReadout, validateHeroSpec } from './layered.js';
 
 const RING_PLAN = {
   schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' },
@@ -464,6 +464,23 @@ describe('update_sketch on a hero minted through the hero door', () => {
     const chibi = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-chibi', spec: { cast: 'chibi', headScale: 1.3, tune: { limbs: 1.2 } } });
     expect(chibi.hero.moved).toEqual({ upperArm: 1.2, forearm: 1.2, thigh: 1.2, calf: 1.2 }); expect(chibi.stats.closed).toBe(true);
   });
+  // the child-coded casts guard: a child or chibi figure cast, or the anime 'kid' look, takes no bust, at mint and on an
+  // edit; the adult casts take one up to the ceiling every cast has
+  it('a child-coded figure refuses a bust by name, at mint and on an edit; every cast refuses a runaway bust', async () => {
+    for (const spec of [{ cast: 'child', body: { bust: 0.05 } }, { cast: 'chibi', body: { bust: 0.01 } }, { cast: 'female', head: 'anime', look: ['kid'], body: { bust: 0.12 } }, { cast: 'female', head: 'anime', look: 'kid', body: { bust: 5 } }]) {
+      await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec })).rejects.toThrow(/body\.bust: the '(child|chibi)' cast is a child-coded figure and takes no bust|body\.bust: the 'kid' look is a child-coded figure and takes no bust/);
+    }
+    expect(validateHeroSpec({ cast: 'child', body: { bust: 0 } })).toEqual([]);                           // 0 is no bust
+    expect(validateHeroSpec({ cast: 'female', head: 'anime', look: ['heroine'], body: { bust: 0.05 } })).toEqual([]);   // an adult look
+    const adult = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-bust', spec: { cast: 'female', register: 'lowpoly', body: { bust: 0.05 } } });
+    expect(adult.ok).toBe(true);
+    await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/cast', value: 'child' }] })).rejects.toThrow(/body\.bust: the 'child' cast is a child-coded figure/);
+    expect(SketchRepository.getByRef('hero-bust').manifest.hero.cast).toBe('female');   // the refused edit stored nothing
+    // every cast: a bust past 0.4 × the chest radius is a runaway number, refused by name at mint and on an edit
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', body: { bust: 5 } } })).rejects.toThrow(/body\.bust 5 is past its ceiling: at most 0\.4 × the chest radius, 0\.078 m/);
+    await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/body/bust', value: 0.5 }] })).rejects.toThrow(/body\.bust 0\.5 is past its ceiling/);
+    expect(SketchRepository.getByRef('hero-bust').manifest.hero.body.bust).toBe(0.05);
+  }, 60000);
 });
 
 // face-tune: the hero door wears the fitted landmark head by default; `face` is the face proportion lab's controls as
@@ -941,3 +958,27 @@ describe.skipIf(!existsSync(FLASK))('an object dressed through the plan door', (
   });
 });
 
+
+// The readout measures the head at the PLAN's own scale (hero-form.js planScale: the cast's scale times the tune's
+// stature, on the proportions worn): a stature-only tune is a uniform shrink, so the metres shrink with it and the
+// heads-tall stays where it was (the anime readout used to read the cast's scale alone, so the kid look read ~18 % large)
+describe('the hero readout at the plan\'s own scale', () => {
+  const read = (spec) => { const hero = heroRecord(spec); return heroReadout(hero, heroPlanOf(hero), null, []); };
+  it('anime: a stature-only tune moves head_m by the stature and leaves headsTall', () => {
+    const a = read({ cast: 'female', head: 'anime', register: 'lowpoly' }), b = read({ cast: 'female', head: 'anime', register: 'lowpoly', tune: { stature: 0.85 } });
+    expect(b.faceMeasures.head_m).toBeCloseTo(a.faceMeasures.head_m * 0.85, 2);
+    expect(Math.abs(b.headsTall - a.headsTall)).toBeLessThan(0.03);
+  }, 60000);
+  it('landmark: the same, on the stature and on the worn cast\'s head scale', () => {
+    const a = read({ cast: 'male' }), b = read({ cast: 'male', tune: { stature: 0.9 } });
+    expect(b.faceMeasures.head_m).toBeCloseTo(a.faceMeasures.head_m * 0.9, 2);
+  }, 60000);
+  // `proportions` was stored on a blank-trunk or include hero and then ignored: it now reaches heroPlan as it does the two
+  // worn heads; absent, the plan is the one before
+  it("the blank trunk takes proportions: 'anime' builds the anime cast, absent keeps the plan", () => {
+    const plain = heroPlanOf(heroRecord({ cast: 'female', head: 'none' })), anime = heroPlanOf(heroRecord({ cast: 'female', head: 'none', proportions: 'anime' }));
+    expect(anime.frame.note).toMatch(/anime proportions/); expect(plain.frame.note).not.toMatch(/anime proportions/);
+    expect(JSON.stringify(anime.segments)).not.toBe(JSON.stringify(plain.segments));
+    expect(JSON.stringify(heroPlanOf(heroRecord({ cast: 'female', head: 'none', proportions: 'hero' })))).toBe(JSON.stringify(plain));
+  });
+});

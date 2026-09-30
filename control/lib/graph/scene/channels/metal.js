@@ -23,9 +23,27 @@ const toLum = (c, L) => { const l = lum(c) || 1; return c.map((v) => +(v * L / l
  * every metal used (rows stacked), and the studio, its dome and ground tinted by the scene's sky when there is one
  * (an atmosphere sky's zenith and horizon, rescaled to the studio's own brightness so a metal stays legible).
  */
+/**
+ * The most distinct surfaces one page shades: each takes four fragment uniform vec4s in the one shared program, and past
+ * the device's limit the program fails to link and every metal face vanishes. WebGL2 guarantees only 224 (low-limit
+ * devices stop there); many desktop GPUs allow 1024, so a page of about 49–250 surfaces shaded exactly there and now
+ * folds too. Past the cap, a surface folds onto a kept one of its own metal (every metal keeps at least one), so the page
+ * shades it a little off rather than not at all; the page says so in MET.folded and __mojMetal.folded. Under the cap,
+ * nothing folds and the inputs are the same bytes.
+ */
+export const MAX_METAL_SURFACES = 48;
+function foldSurfaces(keys, parsed) {
+  if (keys.length <= MAX_METAL_SURFACES) return { kept: keys.map((_, i) => i), to: keys.map((_, i) => i) };
+  const metalOf = parsed.map((s) => s.metal), keep = new Set();
+  for (let i = 0; i < keys.length; i++) if (!metalOf.slice(0, i).includes(metalOf[i])) keep.add(i);   // one of each metal first
+  for (let i = 0; i < keys.length && keep.size < MAX_METAL_SURFACES; i++) keep.add(i);                 // then in key order
+  const kept = [...keep].sort((a, b) => a - b), slot = new Map(kept.map((i, j) => [i, j]));
+  return { kept, to: keys.map((_, i) => (slot.has(i) ? slot.get(i) : slot.get(kept.find((k) => metalOf[k] === metalOf[i])))) };
+}
 export function metalChannelInputs(keys, { sky = null, unit = 1 } = {}) {
   const metals = []; const rowOf = {}; let rows = 0;
-  const S = keys.map((key) => resolveMetalSurface(JSON.parse(key)));
+  const all = keys.map((key) => resolveMetalSurface(JSON.parse(key)));
+  const { kept, to } = foldSurfaces(keys, all), S = kept.map((i) => all[i]);
   for (const s of S) if (!(s.metal in rowOf)) { const n = metalLut(s.metal).length / (LUT_A * 3); rowOf[s.metal] = [rows, n]; rows += n; metals.push(s.metal); }
   const rgba = new Uint8Array(rows * LUT_A * 4); let o = 0;
   for (const m of metals) { const t = metalLut(m); for (let i = 0; i < t.length; i += 3) { rgba[o++] = t[i]; rgba[o++] = t[i + 1]; rgba[o++] = t[i + 2]; rgba[o++] = 255; } }
@@ -36,7 +54,7 @@ export function metalChannelInputs(keys, { sky = null, unit = 1 } = {}) {
   const tinted = sky && Array.isArray(sky.zenith) && sky.zenith.length >= 3 && Array.isArray(sky.horizon) && sky.horizon.length >= 3;
   const zen = tinted ? toLum(sky.zenith.slice(0, 3).map(lin), lum(STUDIO.zen)) : STUDIO.zen, hor = tinted ? toLum(sky.horizon.slice(0, 3).map(lin), lum(STUDIO.hor)) : STUDIO.hor;
   const gnd = tinted ? toLum(hor, lum(STUDIO.gnd)) : STUDIO.gnd;
-  return { index: Object.fromEntries(keys.map((k, i) => [k, i])), unit: Number.isFinite(unit) && unit > 0 ? unit : 1, surfaces, lut: { h: rows, b64: Buffer.from(rgba).toString('base64') }, zen, hor, gnd, box: STUDIO.box, sunE: STUDIO.sunE };
+  return { index: Object.fromEntries(keys.map((k, i) => [k, to[i]])), unit: Number.isFinite(unit) && unit > 0 ? unit : 1, surfaces, lut: { h: rows, b64: Buffer.from(rgba).toString('base64') }, zen, hor, gnd, box: STUDIO.box, sunE: STUDIO.sunE, ...(kept.length < keys.length ? { folded: keys.length - kept.length } : {}) };
 }
 // copper's age as the channel's two cover dials: the brown past interference, and the verdigris share
 function ageCover(age) { const d = 90 * Math.sqrt(Math.max(0, age) / 0.25); const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }; return [+ss(110, 380, d).toFixed(4), +ss(4, 40, age).toFixed(4)]; }
@@ -166,5 +184,5 @@ const __metPatch = (m, grp) => {
   m.material.needsUpdate = true;
 };
 for (const grp of GROUPS) { if (grp.metal && meshes[grp.name]) __metPatch(meshes[grp.name], grp); }
-const __mojMetal = { surfaces: MET.surfaces.length, lutRows: MET.lut.h };`;
+const __mojMetal = { surfaces: MET.surfaces.length, lutRows: MET.lut.h${inputs.folded ? ', folded: MET.folded' : ''} };`;
 }

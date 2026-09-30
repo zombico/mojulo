@@ -67,6 +67,11 @@ export const THEMES = Object.freeze({
 });
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+// the counts a theme names are loops over geometry (ribs, crest spikes, the helm's rings, grille bars, coronet spikes),
+// so each is bounded and a runaway number is refused by name
+const THEME_COUNTS = Object.freeze([['secondary.count', 1, 16], ['crest.count', 1, 16], ['helm.m', 3, 64], ['helm.grille', 0, 8], ['helm.coronet.count', 1, 32]]);
+/** the dials a theme may lean, over the style's and under the build's: the armour build's own ranges */
+export const THEME_DIALS = Object.freeze({ stylize: [0, 1], coverage: [0, 1], mass: [0.5, 2], ornament: [0, 3] });
 
 /** Error strings for an inline theme card (form only). */
 export function validateTheme(card, at = 'theme') {
@@ -81,6 +86,17 @@ export function validateTheme(card, at = 'theme') {
   for (const [a, n] of Object.entries(card.primary?.horns || {})) if (!ANCHORS.includes(a) || ![0, 1, 2].includes(n)) errs.push(`${at}.primary.horns.${a}: an anchor (${ANCHORS.join(', ')}) → 0 | 1 | 2`);
   for (const e of card.glyphs?.on || []) if (!FIELDS.includes(e)) errs.push(`${at}.glyphs.on: among ${FIELDS.join(', ')}`);
   if (card.helm !== undefined && (typeof card.helm !== 'object' || !Number.isFinite(card.helm.pad))) errs.push(`${at}.helm: { pad, n?, visor?, coronet?, … } (the helm signature's words)`);
+  for (const [path, lo, hi] of THEME_COUNTS) {
+    const v = path.split('.').reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), card);
+    if (v !== undefined && !(Number.isInteger(v) && v >= lo && v <= hi)) errs.push(`${at}.${path}: an integer ${lo}–${hi}`);
+  }
+  const d = card.dials;
+  if (d !== undefined && (!d || typeof d !== 'object' || Array.isArray(d))) errs.push(`${at}.dials: { ${Object.keys(THEME_DIALS).join(', ')} }`);
+  else for (const [k, v] of Object.entries(d || {})) {
+    if (!THEME_DIALS[k]) { errs.push(`${at}.dials.${k}: not a dial (${Object.keys(THEME_DIALS).join(', ')})`); continue; }
+    const [lo, hi] = THEME_DIALS[k];
+    if (!(Number.isFinite(v) && v >= lo && v <= hi && (k !== 'ornament' || Number.isInteger(v)))) errs.push(`${at}.dials.${k}: ${k === 'ornament' ? 'an integer' : 'a number'} ${lo}–${hi}`);
+  }
   for (const [g, v] of Object.entries(card.tones || {})) if (!isHex(v)) errs.push(`${at}.tones.${g}: a "#rrggbb" colour`);
   if (card.emissive !== undefined && !(Array.isArray(card.emissive) && card.emissive.every((g) => typeof g === 'string'))) errs.push(`${at}.emissive: a list of group names`);
   return errs;

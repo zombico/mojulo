@@ -24,7 +24,7 @@ import { makeLight, litFactor, withBands, resolveToon } from '../polygonizer/vex
 import { boxFaces } from './condo-entrance.js';
 import { buildFacadeCard, projectCardOntoQuad, facadeMetalError } from './facade-card.js';
 import { metalSurfaceError } from '../materials/metal-surface.js';
-import { buildRoof } from './roof.js';
+import { buildRoof, roofMetalError } from './roof.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { planSuite, buildSuiteFaces } from './suite-layout.js';
@@ -71,7 +71,9 @@ export function planEdifice(recipe) {
     } else {
       throw new Error(`planEdifice: mass '${m.id}' needs an 'at':[x,y] or an 'on':{anchor,side} placement`);
     }
-    const merr = facadeMetalError(m.facade || {}) || (m.roof && typeof m.roof === 'object' && m.roof.metal != null ? (metalSurfaceError(m.roof.metal) ? `roof.metal: ${metalSurfaceError(m.roof.metal)}` : null) : null);
+    const rm = m.roof && typeof m.roof === 'object' && m.roof.metal != null ? m.roof.metal : null;
+    const rmErr = rm && (metalSurfaceError(rm) || roofMetalError(roofStyle(m.roof), { as: m.roof.style ?? 'flat' }));
+    const merr = facadeMetalError(m.facade || {}) || (rmErr ? `roof.metal: ${rmErr}` : null);
     if (merr) throw new Error(`planEdifice: mass '${m.id}' ${merr}`);
     const { w, d } = m.footprint;
     const z1 = Math.max(1, m.floors || 1) * FLOOR_FT;

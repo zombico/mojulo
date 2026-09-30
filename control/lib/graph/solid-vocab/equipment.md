@@ -9,7 +9,7 @@
 }
 ---
 
-Name the item and its direction; the laws do the rest. An equipment item is a workbench whose monomers are EXPANDED from a short `build` on every read: the stored recipe is about a hundred bytes, and one dial restyles it in place. Everything the workbench gives (the World, the studio shots, the closure audit, `.glb` / `.stl` / `.usdz` / `.scad`, the assembler) sees plain monomers.
+Name the item and its direction; the laws do the rest. These are display and game props: geometry for a hero, a scene or a printed replica, with no construction or function beyond the shape. An equipment item is a workbench whose monomers are EXPANDED from a short `build` on every read: the stored recipe is about a hundred bytes, and one dial restyles it in place. Everything the workbench gives (the World, the studio shots, the closure audit, `.glb` / `.stl` / `.usdz` / `.scad`, the assembler) sees plain monomers.
 
 ## Spec
 
@@ -46,15 +46,15 @@ Stored as `{ kind: 'workbench', build: { type: 'equipment', …, laws: 1 } }`. E
 ## Items and their slots (`parts`)
 
 - **Swords** — `blade`: straight · broad · leaf · hero · flamberge · cleaver · sabre · tanto. `guard`: bar · crescent · block · spiked · disc · winged. `pommel`: wheel · block · spike · cap · ring · cage. `grip`: leather · banded · wire · cord.
-- **Staff** — `head`: plain · branch · claw · crescent · block · mace · ringed. `shaftForm`: turned · gnarled. `bark`: oak · beech · pine · chestnut · spruce · silverfir · pineUpper. Branch heads take `limbs`, `twigs`, `leaves`; a crescent takes `wings: true`.
-- **Bow** — `limb`: longbow · recurve · horn · yumi. `tips`: none · leaf · wing · spike · horn.
+- **Staff** — `head`: plain · branch · claw · crescent · block · mace · ringed. `shaftForm`: turned · gnarled. `bark`: oak · beech · pine · chestnut · spruce · silverfir · pineUpper. Branch heads take `limbs` (1–8), `twigs` (0–6), `leaves`; a crescent takes `wings: true`. A branch, claw, crescent or block head cradles a stone, so it needs one to resolve (a `gem` and focus `head`); plain, mace and ringed carry none.
+- **Bow** — `limb`: longbow · recurve · horn · yumi (every bow needs one, from `parts` or its card). `tips`: none · leaf · wing · spike · horn.
 - **Shield** — `outline`: round · heater · kite. `device`: none · chevron · rays · bands · spikes · mon · wings · vine.
 
 Gems: quartz, amethyst, calcite, diamond, ruby, sapphire, tourmaline, opal. A `natural` cut is the raw crystal (a druid's stone); a face-set stone reads best `cabochon` or `brilliant`.
 
 ## Samples, not a catalogue
 
-The eight styles are cards (plain JSON: `dials`, `lean`, `language` per item, `edge`, `roles`, `gem`). A role is a shelf row `['<material>', '#hex']` or a metal surface `{ metal, finish?, film?, pattern? }` (the workbench card's metal-surface line): `{ metal: 'steel', film: { temper: 300 } }` is blued steel, `{ metal: 'bronze', film: { age: 40 } }` verdigris, `{ metal: 'steel', pattern: { kind: 'damascus', type: 'twist' } }` a pattern-welded blade (the eastern sample's). A blade's pattern with no `scale` is sized to the blade by the readability law. Copy one, change it, and pass it as `style` — a new direction is a new card, not code:
+The eight styles are cards (plain JSON: `dials`, `lean` (multipliers 0.25–4 on W, T, L, span, grip, pommel), `language` per item, `edge` (fuller and bevel 0–1, barbs 0–12), `roles`, `gem`). A role is a shelf row `['<material>', '#hex']` or a metal surface `{ metal, finish?, film?, pattern? }` (the workbench card's metal-surface line): `{ metal: 'steel', film: { temper: 300 } }` is blued steel, `{ metal: 'bronze', film: { age: 40 } }` verdigris, `{ metal: 'steel', pattern: { kind: 'damascus', type: 'twist' } }` a pattern-welded blade (the eastern sample's). A blade's pattern with no `scale` is sized to the blade by the readability law. Copy one, change it, and pass it as `style` — a new direction is a new card, not code:
 
 ```
 style: { id: 'frost', dials: { stylize: 0.6, mass: 0.9, focus: 'guard', ornament: 2 },

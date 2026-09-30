@@ -101,7 +101,7 @@ describe('anime-form: the hair form keeps the port pinned', () => {
       for (const [name, hairForm] of Object.entries(NEUTRALS)) expect(digest(buildAnime(r, { ...o, hairForm })), `${kind} ${style} ${coarse ? 'coarse' : 'full'} fit ${fitHair} forms ${forms}: ${name}`).toEqual(ref);
     }
     expect(hairFormOf(NEUTRALS.neutral)).toBeNull(); expect(hairFormOf({ sweepBack: 0.5 })).toEqual({ sweepBack: { amount: 0.5 } }); expect(hairFormOf({ ridge: 0.8, crown: 'grow' })).toEqual({ ridge: 0.8 });
-  });
+  }, 120_000);   // about 8.5 s alone; the 30 s default times out under a loaded full suite
   it('each term alone moves only the hair: its parts, lock curves and guides — never the face', () => {
     const HAIR = ['guides', 'hair', 'locks'];
     const lift = { crown: 0.16, temple: 0.06, front: 0.06, back: 0.05 };

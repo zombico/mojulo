@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { METALS, METAL_NAMES, FINISH_NAMES, metalRgb, metalLut, LUT_D, LUT_A, resolveMetalSurface, metalSurfaceError, metalShelfRow, isMetalSurface, copperAge } from './metal-surface.js';
+import { MATERIALS, resolveMaterial, validateMaterialRef } from '../polygonizer/materials.js';
 
 // linear-sRGB colour name, coarse, for the film-order checks (the spike's classifier)
 const enc = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
@@ -52,6 +53,15 @@ describe('metal surface — the spec', () => {
     expect(metalSurfaceError({ metal: 'steel', along: 'sideways' })).toMatch(/along is one of/);
     expect(metalSurfaceError({ metal: 'steel', colour: 'red' })).toMatch(/not colour/);
     for (const f of FINISH_NAMES) { const only = { spangle: 'zinc', mill: 'steel', hopper: 'bismuth' }[f] || 'stainless'; expect(metalSurfaceError({ metal: only, finish: f })).toBeNull(); }
+    // a prototype name is not a metal, an alias or a finish: it used to validate, then throw (or resolve NaN) at render
+    for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      expect(metalSurfaceError({ metal: name })).toMatch(new RegExp(`unknown metal '${name}'`));
+      expect(metalSurfaceError({ metal: 'steel', finish: name })).toMatch(new RegExp(`unknown finish '${name}'`));
+      expect(validateMaterialRef({ metal: name })).toMatch(/unknown metal/);
+      expect(validateMaterialRef(name)).toMatch(/unknown material/);
+      expect(resolveMaterial({ metal: name })).toBe(MATERIALS.steel);   // the documented fallback, not a TypeError
+      expect(resolveMaterial(name)).toBe(MATERIALS.steel);
+    }
   });
   it('resolves to a canonical key, defaults from the metal, aliases by plain word', () => {
     const a = resolveMetalSurface({ metal: 'aluminum' }); expect(a.metal).toBe('aluminium'); expect(a.finish).toBe(METALS.aluminium.finish);

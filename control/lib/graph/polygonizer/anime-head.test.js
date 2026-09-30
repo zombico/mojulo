@@ -49,6 +49,11 @@ describe('anime head: the words', () => {
     expect(validateAnimeHair('mohawk')[0]).toMatch(/unknown anime family 'mohawk'/);
     expect(validateAnimeHair({ locks: { 'fringe-9': { ty: 1 } } })[0]).toMatch(/not a clump/);
     expect(validateAnimeHair({ locks: { 'back-2': { wobble: 1 } } })[0]).toMatch(/not a lock edit/);
+    // a lock edit is bounded like the sweep fields: 1e308 used to validate and then throw a TypeError in the plan
+    expect(validateAnimeHair({ style: 'bob', locks: { 'fringe-1': { ty: 1e308 } } })).toEqual(["hair.locks.fringe-1.ty: 1e+308 is past ±3 construction units (the studio's own edits stay within ±0.2)"]);
+    expect(validateAnimeHair({ locks: { 'fringe-1': { tx: -3.5 } } })[0]).toMatch(/fringe-1\.tx: -3\.5 is past ±3/);
+    expect(validateAnimeHair({ locks: { 'fringe-1': { tx: -3, ty: 2.9 } } })).toEqual([]);
+    for (const [w, m] of Object.entries(ANIME_HAIR_MOVES)) expect(validateAnimeHair(m.hair ? { ...m.hair } : w), w).toEqual([]);   // every built-in move's edits pass
     expect(animeHairWarnings(resolveAnimeHair(['bob', { locks: { 'crown-1-0': { tx: 0.3 } } }]))).toEqual([expect.stringMatching(/only the short family/), expect.stringMatching(/past the studio's ±0\.2/)]);
     expect(animeLockPart('left-temple-2')).toBe('hairTempleL2'); expect(animeLockPart('crown--1-0')).toBe('hairCrownL0');
   });

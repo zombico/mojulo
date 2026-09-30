@@ -10,6 +10,14 @@ import { validateTerrainWorld } from '@/lib/graph/terrain/terrain-world';
 import { validatePaintedLandscape } from '@/lib/graph/polygonizer/painted-landscape.js';
 
 const isRef = (f) => f && typeof f.ref === 'string' && Object.keys(f).length === 1;
+// FRONTAGE and ROUNDKIT: an inline terrain city is road-aware and wears the round street kit (terrain-city.js
+// prepareCity's defaults). Written into the city at mint so the row itself says so, as a fractal-city mint does
+// (scene-city.js), and a later change to the render default cannot move it. The render merges these same defaults
+// under the city's own words, so the stamp renders the same bytes. A `{ ref }` city is its own row; a list of element
+// words stays as given.
+const stampCity = (c) => (c && typeof c === 'object' && !Array.isArray(c) && c.ref === undefined
+  && (c.elements === undefined || (c.elements && typeof c.elements === 'object' && !Array.isArray(c.elements)))
+  ? { ...c, elements: { frontage: true, roundKit: true, ...(c.elements || {}) } } : c);
 
 export function mintTerrainWorld({ title = 'terrain world', from, world, span, relief, horizon, detail, planet, seed, spawn, lod, place, cities, plants, grass, ref, folderRef } = {}) {
   if ((!from || typeof from !== 'object') && (!world || typeof world !== 'object')) {
@@ -28,7 +36,7 @@ export function mintTerrainWorld({ title = 'terrain world', from, world, span, r
     ...(spawn !== undefined ? { spawn } : {}),
     ...(lod !== undefined ? { lod } : {}),
     ...(place !== undefined ? { place } : {}),
-    ...(cities !== undefined ? { cities } : {}),
+    ...(cities !== undefined ? { cities: Array.isArray(cities) ? cities.map(stampCity) : cities } : {}),
     ...(plants !== undefined ? { plants } : {}),
     ...(grass !== undefined ? { grass } : {}),
     ...(title ? { title } : {}),

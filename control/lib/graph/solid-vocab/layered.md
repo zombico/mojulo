@@ -94,8 +94,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `figure.gd`) sets the authored face from the mesh extras on ready (Godot ignores the file's default weights) and,
   over a clip whose eyes hold the authored face (`extras.face.ambientOver`), layers `face:ambientBlink` through an
   AnimationTree filtered to the eye shapes; the machine gate's figure probe checks the blend shapes, the face at ready,
-  the face tracks, the durations and the layer. `docs/examples/humanoid/view-animations.mjs` turns the skinned GLB into
-  a page that plays it as an engine does, the face panel included. `scripts/export-wire-svg.mjs --ref <ref> --clip
+  the face tracks, the durations and the layer. In a source checkout (`docs/` is not in the npm package),
+  `docs/examples/humanoid/view-animations.mjs` turns the skinned GLB into a page that plays it as an engine does, the
+  face panel included; that page loads three.js from jsdelivr. `scripts/export-wire-svg.mjs --ref <ref> --clip
   crouch --phase 0.5` draws a posed frame.
   The World page plays the clips in place (`?clip=<name>`, or the selector in the corner; "rest" shows the solid). On
   a hero, a clip named `gesture` is the STAND (below): the World and the static exports show the solid skinned at its
@@ -138,7 +139,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `['athletic', { shoulders: 1.05 }]` is broader still. Comfortable ranges (stature / lengths / head 0.85–1.15, shoulders
   0.8–1.25, waist 0.8–1.2, hips / depth 0.85–1.2, thicknesses 0.65–1.5) ADVISE in `warnings`; nothing refuses but an
   unknown control or a ratio that is not a positive number. `body` stays for radii in metres (`waist`, `chest`, `chestDepth`,
-  `hip`, `hipDepth`, `thigh`, `calf`, `arm`, `forearm`, `neck`, `bust`); `head` wears a baked include (the blank trunk otherwise).
+  `hip`, `hipDepth`, `thigh`, `calf`, `arm`, `forearm`, `neck`, `bust`; `bust` is at most 0.4 × the `chest` radius, and a
+  child-coded figure, the `child` or `chibi` cast or the anime `kid` look, takes no `bust`); `head` wears a baked include
+  (the blank trunk otherwise).
   The row stores `hero` (cast, register, the RESOLVED tune, the move trail) beside `plan` and `recipe`: patch
   `update_sketch { ref, patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.1 }] }` and the plan and recipe regenerate;
   the readout's `hero` answers in metres (`height_m`, `shoulder_m` across the yoke, `hip_m` across the pelvis) with the tune
@@ -194,7 +197,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `taper`; `sweep`, `part` and `ahoge` — one upright curl at the crown, 0 none — offsets) and `locks`: one clump directed by the studio's clump name (`fringe-1`…`7`,
   `left-temple-0`…`2`, `right-temple-0`…`2`, `back-1`…`11`, on short `crown-1-0`…`2` and `crown--1-0`…`2`, `ahoge`) as
   `{ cx, cy, cz, tx, ty, tz }`, its control point and tip moved in the studio's construction units (the head is about 2.2
-  tall; ±0.2 is the studio's range), its root held. `expression`: a pose (`neutral`, `blink`, `smile`, `open`) or the
+  tall; ±0.2 is the studio's range, ±3 the most the door takes), its root held. `expression`: a pose (`neutral`, `blink`, `smile`, `open`) or the
   four amounts `{ blink, smile, open, brow }`; `['smile', { brow: -0.2 }]` adjusts a pose. Lists compose (ratios by
   product, offsets and lock edits by sum, a family or a pose last-wins); the studio's ranges advise, never refuse. In
   the skinned GLB (so in an engine) the expression travels as morph targets on the neutral head, each the difference of

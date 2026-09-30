@@ -40,7 +40,7 @@ import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
-import { heroPlan, HERO_CASTS, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, HERO_CASTS, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -143,6 +143,17 @@ const headOf = (hero) => hero.head ?? 'landmark';
 const jawedHead = (hero) => headOf(hero) === 'landmark' || !!hero.head?.joints?.jawHinge;
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 
+/** the figure casts that read as a child (figure-cast.js) and the anime look that says so (anime-looks.js `kid`) */
+export const CHILD_CODED_CASTS = Object.freeze(['child', 'chibi']);
+const CHILD_CODED_LOOKS = Object.freeze(['kid']);
+/** why a hero spec is child-coded (its cast, or a look word), or null */
+function childCoding(spec) {
+  if (typeof spec.cast === 'string' && CHILD_CODED_CASTS.includes(spec.cast)) return `the '${spec.cast}' cast`;
+  const looks = spec.look === undefined || spec.look === null ? [] : Array.isArray(spec.look) ? spec.look : [spec.look];
+  const kid = looks.find((w) => CHILD_CODED_LOOKS.includes(w));
+  return kid ? `the '${kid}' look` : null;
+}
+
 /** Error strings for a hero spec (empty = valid). Form only; the numbers' fitness is heroPlan's to judge. */
 export function validateHeroSpec(spec) {
   const errs = [];
@@ -158,6 +169,9 @@ export function validateHeroSpec(spec) {
   if (spec.body !== undefined) {
     if (!spec.body || typeof spec.body !== 'object' || Array.isArray(spec.body)) errs.push(`body: an object of radii in metres (have ${Object.keys(BODY_DEFAULTS).join(', ')}); for PERCENTAGES of the cast use tune`);
     else for (const k of Object.keys(spec.body)) if (!(k in BODY_DEFAULTS)) errs.push(`body.${k}: not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}); a proportion word (${TUNE_KEYS.join(', ')}) belongs in tune`);
+    // a CHILD-CODED figure (a child or chibi figure cast, or the anime 'kid' look) takes no bust, at mint and on every edit
+    const coded = childCoding(spec);
+    if (coded && spec.body && typeof spec.body === 'object' && spec.body.bust !== undefined && spec.body.bust !== 0) errs.push(`body.bust: ${coded} is a child-coded figure and takes no bust; remove body.bust (0 is the only value it takes)`);
   }
   for (const k of ['girth', 'headScale', 'scale']) if (spec[k] !== undefined && !(Number.isFinite(spec[k]) && spec[k] > 0)) errs.push(`${k}: must be a finite number > 0`);
   if (spec.palette !== undefined) {
@@ -272,8 +286,9 @@ function heroFormPlan(hero) {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
     return humanoidPlan({ preset: hero.cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
-  const plan = heroPlan({ cast: hero.cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head });
-  return dressPlan(plan, { ...dress, operatorPalette: hero.palette ?? {}, scale: (hero.scale ?? HERO_CASTS[hero.cast]?.scale ?? 1) * (hero.tune?.stature ?? 1) });
+  // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
+  const plan = heroPlan({ cast: hero.cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}) });
+  return dressPlan(plan, { ...dress, operatorPalette: hero.palette ?? {}, scale: planScale({ cast: hero.cast, scale: hero.scale, tune: hero.tune, proportions: hero.proportions ?? 'hero' }) });
 }
 /** The dress the hero wears, in the operator's terms: the words (or 'data'), the parts each layer baked, and the
  * adornment ledger — every signature must read and be a real share of its adornment's picture (advice, never a refusal).
@@ -312,9 +327,11 @@ export function faceMeasures(hero, plan) {
   const inc = plan.include?.find((i) => i.name === 'head'); if (!inc) return null;
   // the anime head measures itself (at its worn head scale); the figure's cast scale is applied after
   // (the graphic face's `features` are ratios: carried unscaled)
-  if (hero.head === 'anime') { const k = HERO_CASTS[hero.cast]?.scale ?? 1; return inc.faceMeasures ? Object.fromEntries(Object.entries(inc.faceMeasures).map(([m, v]) => [m, m === 'features' ? v : Math.round(v * k * 1000) / 1000])) : null; }
-  const scale = HERO_CASTS[hero.cast]?.scale ?? 1;   // the worn head is scaled with the figure
-  const headScale = (hero.headScale ?? HERO_CASTS[hero.cast]?.headScale ?? 1) * (hero.tune?.head ?? 1);
+  // the figure's scale is the plan's own (hero-form.js planScale: the cast's scale times the tune's stature, on the
+  // proportions the head wears), so a stature-only tune moves the metres and leaves the heads-tall where it was
+  if (hero.head === 'anime') { const k = planScale({ cast: hero.cast, tune: animeEffective(hero).tune, proportions: hero.proportions ?? 'anime' }); return inc.faceMeasures ? Object.fromEntries(Object.entries(inc.faceMeasures).map(([m, v]) => [m, m === 'features' ? v : Math.round(v * k * 1000) / 1000])) : null; }
+  const props = hero.proportions ?? 'hero', scale = planScale({ cast: hero.cast, tune: hero.tune, proportions: props });   // the worn head is scaled with the figure
+  const headScale = (hero.headScale ?? castOf(hero.cast, props)?.headScale ?? 1) * (hero.tune?.head ?? 1);   // humanoid-plan wornHead
   const a = humanoidAnchors(headPoleOf(hero), hero.face ?? {}), k = scale * headScale, r3 = (x) => Math.round(x * k * 1000) / 1000;
   return { head_m: r3(a.crown[2] - a.menton[2]), cheekbones_m: r3(2 * a.zygionR[0]), jaw_m: r3(2 * a.gonionR[0]), pupils_m: r3(2 * a.eyeR[0]) };
 }

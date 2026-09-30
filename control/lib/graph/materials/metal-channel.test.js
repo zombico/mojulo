@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { resolveMaterial, validateMaterialRef, tagFacesWithMaterial, toolpathAngle, MATERIALS } from '../polygonizer/materials.js';
 import { faceListToMesh } from '../figures/face-mesh.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
-import { metalChannelInputs } from '../scene/channels/metal.js';
+import { metalChannelInputs, MAX_METAL_SURFACES } from '../scene/channels/metal.js';
 
 const quad = (o = [0, 0, 0]) => ({ corners: [[o[0], o[1], o[2]], [o[0] + 2, o[1], o[2]], [o[0] + 2, o[1] + 0.5, o[2]], [o[0], o[1] + 0.5, o[2]]], fill: '#888888' });
 const rotZ = (a) => (p) => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a), p[2]];
@@ -51,6 +51,22 @@ describe('the metal channel on the World page (metal-surfaces S3)', () => {
   it('one lookup row block per metal used: a bare metal 1 row, a film metal 64', () => {
     const ins = metalChannelInputs(['{"metal":"gold","finish":"polished","along":"auto","seed":0}', '{"metal":"titanium","finish":"polished","along":"auto","film":{"anodize":25},"seed":0}']);
     expect(ins.lut.h).toBe(65); expect(ins.surfaces[1].B.slice(0, 2)).toEqual([1, 64]);
+  });
+  // the fragment program declares four vec4 uniforms per distinct surface; past the device's limit it fails to link and
+  // every metal face on the page vanishes, so a page with hundreds of surfaces (a patina age per part) folds past the cap
+  it('caps the distinct surfaces a page shades: past MAX_METAL_SURFACES a surface folds onto a kept one of its own metal', () => {
+    const tagged = (spec, x) => tagFacesWithMaterial([{ ...quad(), corners: quad().corners.map((c) => [c[0] + x, c[1], c[2]]) }], resolveMaterial(spec))[0];
+    const faces = [...Array.from({ length: 400 }, (_, i) => ({ ...tagged({ metal: 'copper', film: { age: 1 + i * 0.1 } }, i), group: 'roof' })), { ...tagged({ metal: 'gold' }, 401), group: 'trim' }];
+    const html = emitThreeWorld({ faces });
+    const sizes = [...html.matchAll(/uniform vec4 uMetA\[(\d+)\]/g)].map((m) => Number(m[1]));
+    expect(sizes).toEqual([MAX_METAL_SURFACES]);
+    const keys = [...new Set(faces.map((f) => f.metal.s))].sort(), ins = metalChannelInputs(keys);
+    expect(ins.surfaces).toHaveLength(MAX_METAL_SURFACES); expect(ins.folded).toBe(keys.length - MAX_METAL_SURFACES);
+    for (const k of keys) { const i = ins.index[k]; expect(i).toBeGreaterThanOrEqual(0); expect(i).toBeLessThan(MAX_METAL_SURFACES); }
+    const gold = keys.find((k) => JSON.parse(k).metal === 'gold'); expect(ins.surfaces[ins.index[gold]].B[1]).toBe(1);   // gold kept its own row (a bare metal: 1 row)
+    // under the cap nothing folds: every key its own slot, in key order, and no `folded` key
+    const few = keys.slice(0, 5), under = metalChannelInputs(few);
+    expect(under.index).toEqual(Object.fromEntries(few.map((k, i) => [k, i]))); expect(under.folded).toBeUndefined();
   });
   it("tints the studio from an atmosphere sky's zenith and horizon, keeping the studio's brightness", () => {
     const k = ['{"metal":"steel","finish":"polished","along":"auto","seed":0}'];

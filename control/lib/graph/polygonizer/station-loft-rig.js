@@ -267,8 +267,8 @@ export function hullShadeNormals(mesh, { quantum = 1e-3, cell = 0.03, except = [
  * only for the layers it holds; the rig preview draws each span with its layer's stencil rule. A part with no layered
  * face keeps its order and carries no `ranges`.
  */
-function characterRigParts(mesh, skin, parts, { light, palette = null, normals = null, pieces = null, hairInk = false }, dz, face = null) {
-  const P0 = pieces || characterLitPieces(mesh, { light, palette, normals, dz });
+function characterRigParts(mesh, skin, parts, { light, palette = null, normals = null, pieces = null, hairInk = false, glows = null }, dz, face = null) {
+  const P0 = pieces || characterLitPieces(mesh, { light, palette, normals, dz, glows });
   const rowAt = faceRowOf(face);
   const colOf = new Map(); const skinOf = new Map(); const boneOf = new Map();
   const vote = (fi) => {   // the plain path's dominant-bone vote over the PARENT face
@@ -354,20 +354,23 @@ function faceRowOf(face) {
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null, face = null, seconds = null, gear = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null, face = null, seconds = null, gear = null, emissive = null } = {}) {
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
   const rowAt = !character ? faceRowOf(face) : null;
   if (rowAt) for (const P of parts) P.mph = [];
+  // the recipe's emissive groups (a lens, a visor slit, a reactor) keep their full colour on the plain path, as the
+  // static solid does (layeredFaces); under the character light they ride the pieces. Absent ⇒ byte-identical.
+  const glow = new Set(Array.isArray(emissive) ? emissive : []);
   if (character) characterRigParts(mesh, skin, parts, character, dz, face);
   else mesh.faces.forEach((tri, fi) => {
     const votes = {}; for (const vi of tri) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
     const bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
     const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: part.tint || '#8a8f96' });
-    const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const shade = 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
+    const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const lit = glow.has(mesh.groups[fi]); const shade = lit ? 1 : 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
     const P = parts[bi]; P.faces++;
-    tri.forEach((vi, k) => { const s = vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
+    tri.forEach((vi, k) => { const s = !lit && vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.

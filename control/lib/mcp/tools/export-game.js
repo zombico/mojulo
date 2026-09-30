@@ -434,7 +434,7 @@ export async function exportGameHandler(input, context = {}) {
       preview_url: `${outcomeUrlFor(ref)}game.html`,
       files, total_bytes: totalBytes,
       note: 'Single-file reducer game — game.html plays anywhere, file:// included.',
-    }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html` });
+    }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
   }
 
   // ── world/level games: resolve once with folder-relative resolvers, then bake each part ──
@@ -564,7 +564,7 @@ export async function exportGameHandler(input, context = {}) {
     } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
-  }, context, { kind: 'folder', name: 'game.html', path: dir, dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html` });
+  }, context, { kind: 'folder', name: 'game.html', path: dir, dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
 }
 
 export function registerExportGameTools() {

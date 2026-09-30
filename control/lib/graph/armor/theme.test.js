@@ -23,6 +23,17 @@ describe('theme cards', () => {
     expect(validateTheme({ primary: { motif: 'skull', group: 'Bone', horns: { knees: 3 } } })[0]).toMatch(/0 \| 1 \| 2/);
     expect(() => suit('lich')).toThrow(/Invalid armour build/);
   });
+  it('bounds every count, dial and word a theme leans (a runaway number is refused by name, not built)', () => {
+    const T = JSON.parse(JSON.stringify(THEMES['death-knight']));
+    Object.assign(T.dials, { stylize: -1000, heft: 1 }); T.secondary.count = 1e5; T.crest.count = 1e5;
+    Object.assign(T.helm, { m: 1e5, grille: 1e5 }); T.helm.coronet.count = 1e5; T.language.plate.pauldron = 'dragon';
+    const text = validateArmor({ type: 'armor', style: 'knight', theme: T }).join('\n');
+    for (const want of ['adorn.theme.secondary.count: an integer 1–16', 'adorn.theme.crest.count: an integer 1–16', 'adorn.theme.helm.m: an integer 3–64',
+      'adorn.theme.helm.grille: an integer 0–8', 'adorn.theme.helm.coronet.count: an integer 1–32', 'adorn.theme.dials.stylize: a number 0–1',
+      'adorn.theme.dials.heft: not a dial', 'adorn.theme.language.plate.pauldron: one of spaulder, bell']) expect(text).toContain(want);
+    expect(() => suit(T)).toThrow(/Invalid armour build/);
+    expect(validateArmor({ type: 'armor', style: { family: 'plate', dials: { stylize: 5, ornament: 7 } } })).toEqual(['adorn.style.dials.stylize: a number 0–1', 'adorn.style.dials.ornament: an integer 0–3']);
+  });
   it('an inline theme is a new direction with no code', () => {
     const { kit, trace } = suit({ primary: { motif: 'skull', group: 'Bone' }, tones: { Bone: '#eeeeee' } });
     expect(trace.theme.id).toBe('inline');

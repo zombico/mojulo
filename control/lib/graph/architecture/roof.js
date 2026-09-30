@@ -408,3 +408,14 @@ export function roofPlanes(footprint, opts = {}) {
 }
 
 export { STYLES as ROOF_STYLES };
+
+/** the styles whose roof wears a metal sheet (every one but the flat deck; the stacked room's hip roof takes it) */
+export const METAL_ROOF_STYLES = Object.freeze(Object.keys(STYLES).filter((k) => STYLES[k].form !== 'flat-deck'));
+/**
+ * Why a metal roof would not show on this roof, or null: a flat deck has no sheet to wear it, so `metal` there would be
+ * dropped without a word. `form` is a recipe's own form over the style's; `as` names the style as the recipe said it.
+ */
+export function roofMetalError(style, { form = null, as = style } = {}) {
+  const f = form || (STYLES[style] || STYLES.bungalow).form;
+  return f === 'flat-deck' ? `a metal roof needs a pitched style (${METAL_ROOF_STYLES.join(', ')}); '${as}' is a flat deck, with no sheet to wear it` : null;
+}

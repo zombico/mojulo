@@ -87,6 +87,18 @@ describe("compose_world base 'terrain'", () => {
     const c = composeWorld({ base: 'terrain', overrides: { from: FROM, cities: [{ ref: 'sk_terrain_canal' }] } });
     await expect(resolveWorldScene(SketchRepository.getByRef(c.ref), { live: true })).rejects.toThrow(/canal city/);
   });
+  it('an inline city carries its frontage and round-kit flags in the row; the stamp renders the same bytes', async () => {
+    const city = { profile: 'town', seed: 3, size: 220 };
+    const r = composeWorld({ base: 'terrain', overrides: { from: FROM, cities: [city, { ...city, seed: 4, elements: { roundKit: false } }, { ref: 'sk_terrain_town' }] } });
+    const stored = SketchRepository.getByRef(r.ref).manifest.cities;
+    expect(stored[0].elements).toEqual({ frontage: true, roundKit: true });
+    expect(stored[1].elements).toEqual({ frontage: true, roundKit: false });   // the caller's own word wins
+    expect(stored[2]).toEqual({ ref: 'sk_terrain_town' });                    // a stored city is its own row
+    const m = SketchRepository.getByRef(r.ref).manifest;
+    const bare = { ...m, cities: [city, { ...city, seed: 4, elements: { roundKit: false } }, { ref: 'sk_terrain_town' }] };
+    const a = await resolveWorldScene({ ref: 'x', title: 't', manifest: m }, { live: true }), b = await resolveWorldScene({ ref: 'x', title: 't', manifest: bare }, { live: true });
+    expect(JSON.stringify(a.payload)).toBe(JSON.stringify(b.payload));
+  }, 120000);
   it('refuses a bad recipe at mint and a dangling ref at resolve', async () => {
     expect(() => composeWorld({ base: 'terrain', overrides: {} })).toThrow(/give `from`.*or `world`/);
     expect(() => composeWorld({ base: 'terrain', overrides: { world: { features: [{ feature: 'sea' }] } } })).toThrow(/feature must be one of/);

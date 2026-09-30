@@ -53,13 +53,14 @@ export const SEEDED_ARMOR = Object.freeze({
     "tones": { "Lacquer": "#1b1b1d", "Odoshi": "#e8e4da", "Kanamono": "#c9a048", "Crest": "#d9b24a", "Top": "#4a3f5e", "Bottom": "#2c2836", "Shoes": "#1e1a1a" }
   },
   // massive power armour: domed pauldrons (the focal one carries an emblem), a bulky moulded cuirass, a power pack,
-  // a helm with glowing lenses and a grille
+  // a helm with glowing lenses and a grille. Field colours (tan plate, dark iron trim, amber lenses), so the sample reads
+  // as the genre, not as any one franchise's livery
   "grim-scifi": {
     "id": "grim-scifi",
     "family": "hardsuit",
     "dials": { "stylize": 0.7, "mass": 1.35, "coverage": 1, "ornament": 2 },
     "language": { "helm": "power", "pauldron": "dome", "chest": "plain", "pack": "power", "segments": 1, "focal": "pauldron", "focalSide": "L" },
-    "tones": { "Plate": "#34465e", "Helm": "#34465e", "Trim": "#b08d45", "Emblem": "#d9d2b8", "Lens": "#ff3b2a", "Suit": "#1b1c1f", "Top": "#1b1c1f", "Bottom": "#1b1c1f", "Shoes": "#161616" },
+    "tones": { "Plate": "#8c7a5b", "Helm": "#8c7a5b", "Trim": "#3d3a36", "Emblem": "#2f2c28", "Lens": "#ffb238", "Suit": "#1b1c1f", "Top": "#1b1c1f", "Bottom": "#1b1c1f", "Shoes": "#161616" },
     "emissive": ["Lens"]
   },
   // minimal trooper plates over a dark bodysuit, a smooth helmet with a T-visor (the helm is the focal)
@@ -71,13 +72,15 @@ export const SEEDED_ARMOR = Object.freeze({
     "tones": { "Plate": "#e8eaed", "Helm": "#eceef0", "Visor": "#15161a", "Trim": "#7d848c", "Suit": "#16171a", "Top": "#16171a", "Bottom": "#16171a", "Shoes": "#121214" },
     "emissive": []
   },
-  // a modular powered suit: full segmented coverage, a faceplate helm with glowing eye slits, a glowing chest reactor
+  // a modular powered suit: full segmented coverage, a faceplate helm with glowing eye slits, a glowing chest reactor.
+  // Industrial colours (slate plate, steel faceplate, safety-orange trim), so the sample reads as the genre, not as any
+  // one franchise's hero
   "armored-hero": {
     "id": "armored-hero",
     "family": "hardsuit",
     "dials": { "stylize": 0.55, "mass": 1.05, "coverage": 1, "ornament": 1 },
     "language": { "helm": "faceplate", "pauldron": "segmented", "chest": "reactor", "pack": "none", "segments": 2, "focal": "reactor" },
-    "tones": { "Plate": "#a31f1d", "Helm": "#a31f1d", "Face": "#d4a53a", "Trim": "#d4a53a", "Lens": "#eef6ff", "Reactor": "#bfe8ff", "Suit": "#2a2a2e", "Top": "#2a2a2e", "Bottom": "#2a2a2e", "Shoes": "#222226" },
+    "tones": { "Plate": "#6b7580", "Helm": "#6b7580", "Face": "#c9ced3", "Trim": "#d9772b", "Lens": "#eef6ff", "Reactor": "#bfe8ff", "Suit": "#2a2a2e", "Top": "#2a2a2e", "Bottom": "#2a2a2e", "Shoes": "#222226" },
     "emissive": ["Lens", "Reactor"]
   },
 });
@@ -89,6 +92,10 @@ export function validateArmorCard(card, at = 'style') {
   const errs = [];
   if (!card || typeof card !== 'object' || Array.isArray(card)) return [`${at}: a sample name (${Object.keys(SEEDED_ARMOR).join(', ')}) or a card { family, dials?, language?, tones?, emissive? }`];
   if (!ARMOR_FAMILIES.includes(card.family)) errs.push(`${at}.family: one of ${ARMOR_FAMILIES.join(', ')}`);
+  const d = card.dials || {};
+  for (const k of ['stylize', 'coverage']) if (d[k] !== undefined && !(Number.isFinite(d[k]) && d[k] >= 0 && d[k] <= 1)) errs.push(`${at}.dials.${k}: a number 0–1`);
+  if (d.mass !== undefined && !(Number.isFinite(d.mass) && d.mass >= 0.5 && d.mass <= 2)) errs.push(`${at}.dials.mass: a number 0.5–2`);
+  if (d.ornament !== undefined && !(Number.isInteger(d.ornament) && d.ornament >= 0 && d.ornament <= 3)) errs.push(`${at}.dials.ornament: an integer 0–3`);
   const L = card.language || {};
   if (card.family === 'plate') {
     if (L.pauldron !== undefined && !PAULDRONS.includes(L.pauldron)) errs.push(`${at}.language.pauldron: one of ${PAULDRONS.join(', ')}`);

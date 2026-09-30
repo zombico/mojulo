@@ -140,6 +140,34 @@ function packedTriangles(fig, clip = null, key = 0) {
   return out;
 }
 
+describe('packLayeredRig — the emissive groups keep their full colour', () => {
+  // the static solid renders a recipe's `emissive` groups full-bright (layeredFaces); the pack used to shade them, so a
+  // lens or a reactor went dim the moment a clip played, and in the skinned GLB
+  const m = sphere({ groupOf: (band) => (band < 3 ? 'Lens' : 'Skin') });
+  const skin = { joints: m.vertices.map(() => [0, 1, 0, 0]), weights: m.vertices.map((v) => [(1 - v[2]) / 2, (1 + v[2]) / 2, 0, 0]), dominant: m.vertices.map((v) => (v[2] > 0 ? 1 : 0)) };
+  const R = { joints: { lo: [0, 0, -1], hi: [0, 0, 1] }, bones: [{ id: 'low', head: 'lo', tail: 'hi' }, { id: 'high', head: 'hi', tail: 'lo' }] };
+  // each packed triangle's colours with its centroid height: the Lens cap is every triangle above z = cos(π/4)
+  const tris = (fig) => fig.parts.flatMap((P) => { if (!P) return []; const p = f32(P.pos), c = u8(P.col);
+    return Array.from({ length: P.faces }, (_, t) => ({ z: (p[9 * t + 2] + p[9 * t + 5] + p[9 * t + 8]) / 3, c: [0, 1, 2].map((k) => [...c.subarray(9 * t + 3 * k, 9 * t + 3 * k + 3)].join(',')) })); });
+  const lensOf = (fig) => tris(fig).filter((t) => t.z > Math.SQRT1_2);
+  it('the plain path: the emissive group\'s corners carry the unshaded tint; absent or empty ⇒ the same pack', () => {
+    const glow = lensOf(packLayeredRig(m, skin, R, { emissive: ['Lens'] }));
+    expect(glow.length).toBe(m.groups.filter((g) => g === 'Lens').length);
+    expect(glow.every((t) => t.c.every((c) => c === lin8('#8a8f96')))).toBe(true);
+    expect(lensOf(packLayeredRig(m, skin, R)).every((t) => t.c.every((c) => c === lin8('#8a8f96')))).toBe(false);
+    expect(packLayeredRig(m, skin, R, { emissive: [] })).toEqual(packLayeredRig(m, skin, R));
+  });
+  it('the character path: the emissive group is one base tone, never split into shade', () => {
+    const light = resolveToonLight({ toLight: [1, 0, 0], threshold: 0.3 });
+    const palette = { Skin: '#d9a77e', Lens: '#bfe8ff' };
+    const normals = m.faces.map((t) => t.map((vi) => unit(m.vertices[vi])));
+    const glow = lensOf(packLayeredRig(m, skin, R, { character: { light, palette, normals, glows: ['Lens'] } }));
+    expect(glow.length).toBeGreaterThanOrEqual(m.groups.filter((g) => g === 'Lens').length);
+    expect(glow.every((t) => t.c.every((c) => c === lin8(palette.Lens)))).toBe(true);
+    expect(lensOf(packLayeredRig(m, skin, R, { character: { light, palette, normals } })).some((t) => t.c.includes(lin8(derivedShade('Lens', palette.Lens))))).toBe(true);
+  });
+});
+
 describe('the anime hero: the rig pack and the ink take the character light by default', () => {
   const world = async (manifest, opts = {}) => (await resolveWorldScene({ ref: 'x', title: 't', manifest }, opts)).payload;
   const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime' }) });
