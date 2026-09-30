@@ -89,6 +89,7 @@ export function validateFrames(frames) {
     const at = `frames[${i}]`;
     if (!f0 || typeof f0 !== 'object') { errors.push(`${at}: must be an object { members, joints? }`); return; }
     if (f0.unit !== undefined && !FRAME_UNITS[f0.unit]) { errors.push(`${at}.unit: must be one of ${Object.keys(FRAME_UNITS).join(', ')}`); return; }
+    if (f0.id !== undefined && !(typeof f0.id === 'string' && f0.id)) errors.push(`${at}.id: a non-empty string (the piece's name, on its manual), or leave it out`);
     const buildErrors = validateBuild(f0.build, `${at}.build`);
     if (buildErrors.length) { errors.push(...buildErrors); return; }
     let f; try { f = withBuild(f0); } catch (e) { errors.push(`${at}.${e.message}`); return; }

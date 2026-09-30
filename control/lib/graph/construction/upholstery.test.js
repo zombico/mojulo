@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { resolveFabric, cellRgb, warpUp, fabricError, fabricTile, bakeFabricKey, fabricSvg, inkTone } from './fabric.js';
 import { lowerSoft, validateSoft, sinkMm } from './soft.js';
-import { coverLayout, partPieces } from './covers.js';
+import { coverLayout, partPieces, coverPages } from './covers.js';
 import { lowerFrame, validateFrames, frameStamps } from './frame.js';
 import { manualPages } from './manual.js';
 import { hatchRuns } from '../scene/hatch-lines.js';
@@ -197,5 +197,11 @@ describe('construction/covers — pieces', () => {
     const lay = coverLayout([c], { fabric: 'linen' });
     expect(lay.seams).toBe(1);                                           // the boxing, longer than the cloth is wide
     expect(lay.placed.every((p) => p.x >= 0 && p.x + p.w <= 1400)).toBe(true);
+  });
+  it('writes a part named in the recipe as text on the cutting page, escaped', () => {
+    const c = soft1({ id: 'seat & <back>', kind: 'cushion', box: { min: [0, 0, 0], max: [600, 580, 140] } });
+    const svg = coverPages(coverLayout([c], { fabric: 'linen' })).join('');
+    expect(svg).toContain('>seat &amp; &lt;back&gt;</text>');
+    expect(svg).not.toContain('<back>');
   });
 });

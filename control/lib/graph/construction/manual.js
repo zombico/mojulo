@@ -33,6 +33,8 @@ const PAGE = { w: 210, h: 297 };                    // A4, mm
 const INK = '#000';
 const WEIGHT = { outline: 0.45, feature: 0.32, plane: 0.18 };
 const r2 = (v) => Math.round(v * 100) / 100;
+/** Text for SVG or HTML content: a piece's name is the recipe's (a frame id, else the sketch title). */
+const xmlText = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 
@@ -222,9 +224,9 @@ function inkRuns(faces, cam, ink = null) {
 }
 
 const P = (cam, p) => { const q = projectVertices([p], cam)[0]; return [q[0], q[1]]; };
-const circle = (x, y, r, label, { size = 4.2, fill = '#fff', sw = 0.35 } = {}) => `<circle cx="${r2(x)}" cy="${r2(y)}" r="${r}" fill="${fill}" stroke="${INK}" stroke-width="${sw}"/><text x="${r2(x)}" y="${r2(y + size * 0.36)}" font-size="${size}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700">${label}</text>`;
+const circle = (x, y, r, label, { size = 4.2, fill = '#fff', sw = 0.35 } = {}) => `<circle cx="${r2(x)}" cy="${r2(y)}" r="${r}" fill="${fill}" stroke="${INK}" stroke-width="${sw}"/><text x="${r2(x)}" y="${r2(y + size * 0.36)}" font-size="${size}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700">${xmlText(label)}</text>`;
 const leader = (a, b) => `<line x1="${r2(a[0])}" y1="${r2(a[1])}" x2="${r2(b[0])}" y2="${r2(b[1])}" stroke="${INK}" stroke-width="0.25"/>`;
-const text = (x, y, s, size = 4, anchor = 'start', weight = 400) => `<text x="${r2(x)}" y="${r2(y)}" font-size="${size}" text-anchor="${anchor}" font-family="Helvetica, Arial, sans-serif" font-weight="${weight}">${s}</text>`;
+const text = (x, y, s, size = 4, anchor = 'start', weight = 400) => `<text x="${r2(x)}" y="${r2(y)}" font-size="${size}" text-anchor="${anchor}" font-family="Helvetica, Arial, sans-serif" font-weight="${weight}">${xmlText(s)}</text>`;
 const page = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE.w}mm" height="${PAGE.h}mm" viewBox="0 0 ${PAGE.w} ${PAGE.h}"><rect width="${PAGE.w}" height="${PAGE.h}" fill="#fff"/>${body}</svg>`;
 const turnArrow = (x, y) => `<path d="M${r2(x - 3)} ${r2(y - 1)}A3.2 3.2 0 1 1 ${r2(x + 1)} ${r2(y + 3)}" fill="none" stroke="${INK}" stroke-width="0.45"/><path d="M${r2(x + 1)} ${r2(y + 3)}l-1.8 -0.4l1.2 -1.6z" fill="${INK}"/>`;
 
@@ -440,7 +442,7 @@ function inventoryPage(plan, groups, mmPerUnit) {
 function coverPage(plan, groups) {
   const all = [...groups.values()].flat();
   const cam = fitCamera(all.flatMap((f) => f.corners), { x: 25, y: 40, w: 160, h: 170 });
-  let body = inkRuns(all, cam, plan.ink) + text(PAGE.w / 2, 26, plan.id.toUpperCase(), 11, 'middle', 700);
+  let body = inkRuns(all, cam, plan.ink) + text(PAGE.w / 2, 26, String(plan.id).toUpperCase(), 11, 'middle', 700);
   const f = plan.low.report.furniture;
   // a piece that arrives in sections (an upholstered sofa) gives its size; a flat-pack one its carton
   if (f) body += text(PAGE.w / 2, 232, `${(plan.sectionOf ? f.sizeMm : f.cartonMm).join(' × ')} mm · ${f.massKg} kg`, 4.5, 'middle');
@@ -504,5 +506,5 @@ function clothPage(plan, c, i) {
 /** The pages as one printable HTML book: A4, one page a sheet, ink on white. */
 export function manualHtml({ plan, pages }) {
   const css = '@page{size:A4;margin:0}body{margin:0;background:#ddd}section{width:210mm;height:297mm;margin:8mm auto;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)}section svg{display:block;width:210mm;height:297mm}@media print{body{background:#fff}section{margin:0;box-shadow:none;break-after:page}}';
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${plan.id}</title><style>${css}</style></head><body>${pages.map((p) => `<section id="${p.name}">${p.svg}</section>`).join('')}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${xmlText(plan.id)}</title><style>${css}</style></head><body>${pages.map((p) => `<section id="${p.name}">${p.svg}</section>`).join('')}</body></html>`;
 }
