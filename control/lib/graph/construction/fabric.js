@@ -68,6 +68,18 @@ function parseOrder(order) {
   return out.reduce((s, r) => s + r.n, 0) <= 1024 ? out : null;
 }
 
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const lcm = (a, b) => (a * b) / gcd(a, b);
+// A tile holds whole repeats of the weave and of each colour order, so its size is their least common multiple: a
+// 1021-thread order in a herringbone-23 is 46966 threads across. The tile is baked as a texture pixel by pixel.
+export const MAX_TILE_CROSSINGS = 1 << 22;     // 2048²: a 1024-thread order in a herringbone-24 is 3072 × 1024
+/** The tile's size in threads, [nx, ny], for parsed orders and weave (a textured thread widens a small tile). */
+function tileThreads(weave, warp, weft, textured) {
+  const threads = (order) => order.reduce((n, r) => n + r.n, 0);
+  const grow = (n) => (textured ? n * Math.ceil(96 / n) : n);
+  return [grow(lcm(threads(warp), weave.rx)), grow(lcm(threads(weft), weave.ry))];
+}
+
 /** Why a fabric spec is malformed, or null. */
 export function fabricError(spec) {
   if (spec === undefined) return null;
@@ -85,11 +97,13 @@ export function fabricError(spec) {
   for (const k of ['slub', 'loops']) if (spec[k] !== undefined && !(Number.isFinite(spec[k]) && spec[k] >= 0 && spec[k] <= 1)) return `fabric.${k}: 0–1`;
   if (spec.pile !== undefined && typeof spec.pile !== 'boolean') return 'fabric.pile: true or false';
   if (spec.rollMm !== undefined && !(Number.isFinite(spec.rollMm) && spec.rollMm >= 600 && spec.rollMm <= 3200)) return 'fabric.rollMm: the cloth\'s width, 600–3200 mm';
+  const pick = (k) => (spec[k] !== undefined ? spec[k] : base[k]);
+  const weft = spec.weft !== undefined ? spec.weft : spec.warp !== undefined ? spec.warp : base.weft !== undefined ? base.weft : base.warp;
+  const [nx, ny] = tileThreads(parseWeave(spec.weave || base.weave || 'plain'), parseOrder(warp), parseOrder(weft), !!(pick('slub') || pick('loops') || pick('pile')));
+  if (nx * ny > MAX_TILE_CROSSINGS) return `fabric: the pattern repeats every ${nx} × ${ny} threads (the colour orders' thread counts against the weave's repeat), over the ${MAX_TILE_CROSSINGS} crossings a tile may hold — shorten an order, or make its thread count a multiple of the weave's repeat`;
   return null;
 }
 
-const gcd = (a, b) => (b ? gcd(b, a % b) : a);
-const lcm = (a, b) => (a * b) / gcd(a, b);
 const expand = (order) => order.flatMap((r) => Array(r.n).fill(r.rgb));
 const sameOrder = (a, b) => a.length === b.length && a.every((r, i) => r.n === b[i].n && r.rgb.every((v, k) => v === b[i].rgb[k]));
 
@@ -106,8 +120,7 @@ export function resolveFabric(spec) {
   const W = expand(warp), F = expand(weft);
   const slub = pick('slub', 0), loops = pick('loops', 0), pile = !!pick('pile', false);
   // a cloth with texture in its threads (slubs, loops, a crushed pile) needs a tile wide enough not to show it repeating
-  const grow = (n) => (slub || loops || pile ? n * Math.ceil(96 / n) : n);
-  const nx = grow(lcm(W.length, weave.rx)), ny = grow(lcm(F.length, weave.ry));
+  const [nx, ny] = tileThreads(weave, warp, weft, !!(slub || loops || pile));
   const R = {
     name: s.preset || 'custom', title: base.title || 'custom cloth', weave, warp: W, weft: F, threadMm, nx, ny,
     pile, slub, loops, martindale: pick('martindale', null), rollMm: pick('rollMm', 1400),

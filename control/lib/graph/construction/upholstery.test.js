@@ -45,6 +45,13 @@ describe('construction/fabric — cloth from a weave draft', () => {
     expect(fabricError({ weave: 'twill-5/5', warp: 'navy' })).toMatch(/fabric.weave/);
     expect(fabricError({ weave: 'twill', warp: ['navy', 0] })).toMatch(/fabric.warp/);
     expect(fabricError({ weave: 'plain', warp: '#224466', rollMm: 5000 })).toMatch(/rollMm/);
+    // a tile is the least common multiple of the weave's repeat and the colour orders: bounded, and said so by name
+    const odd = ['navy', 256, 'cream', 256, 'navy', 256, 'cream', 253];               // 1021 threads, against 46
+    expect(fabricError({ weave: 'herringbone-23', warp: odd })).toMatch(/fabric: the pattern repeats every 46966 × 4084 threads .* over the 4194304 crossings/);
+    expect(resolveFabric({ weave: 'herringbone-23', warp: odd })).toBeNull();
+    const crafted = 'fabric:' + Buffer.from(JSON.stringify({ weave: 'herringbone-23', warp: odd })).toString('base64url');
+    expect(bakeFabricKey(crafted)).toBeNull();                                          // a 575 MB buffer, before
+    expect(fabricError({ weave: 'herringbone-24', warp: ['navy', 256, 'cream', 256, 'navy', 256, 'cream', 256] })).toBeNull();   // 3072 × 1024
     const t = fabricTile({ weave: 'twill-2/1', warp: ['#1d2a44', 6, 'cream', 6] });
     const b = bakeFabricKey(t.key);
     expect([b.nu, b.nv]).toEqual([36, 36]);                              // 12 threads, 3 px a thread
