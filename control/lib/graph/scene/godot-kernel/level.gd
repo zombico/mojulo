@@ -112,7 +112,6 @@ func _fix_materials() -> void:
 				mat.vertex_color_is_srgb = false
 
 
-# Look contract (shader-look phase 4, kernel 0.2.3): score.look.figures carries
 # Crystals (crystal-rig R5): Godot's glTF import drops KHR_materials_transmission / ior / volume, so a clear stone
 # arrives opaque white. score.crystals carries each `<group>:crystal` material's optics; its surfaces get a
 # refraction material of their own: the body colour (white light after 1 cm), more opaque the more coloured, screen-space
@@ -177,6 +176,7 @@ func _build_crystal_light() -> void:
 	node.setup(score["crystalLight"], self)
 
 
+# Look contract (shader-look phase 4, kernel 0.2.3): score.look.figures carries
 # a figure's rim [r, g, b, strength, power] — the one runtime look term the
 # bake cannot carry (hull shading, toon bands and the ink outline arrive baked
 # in the GLB). Realized as a NEXT_PASS rim.gdshader on every surface of the
