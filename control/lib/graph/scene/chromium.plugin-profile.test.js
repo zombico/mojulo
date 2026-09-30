@@ -74,9 +74,15 @@ describe('resolveChromium under the Claude plugin profile', () => {
   });
 
   it('uses an installed browser, or one MOJULO_CHROMIUM names', async () => {
-    h.existing.add('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+    // The resolver probes this OS's well-known paths only (systemCandidates in chromium.js).
+    const chrome = process.platform === 'darwin'
+      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      : process.platform === 'win32'
+        ? `${process.env.PROGRAMFILES || 'C:\\Program Files'}\\Google\\Chrome\\Application\\chrome.exe`
+        : '/usr/bin/google-chrome';
+    h.existing.add(chrome);
     await expect(withChromiumFetch(() => resolveChromium())).resolves.toMatchObject({
-      value: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      value: chrome,
       fetched: null,
     });
     _resetChromiumCache();
