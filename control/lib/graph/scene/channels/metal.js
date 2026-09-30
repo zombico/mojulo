@@ -25,9 +25,11 @@ const toLum = (c, L) => { const l = lum(c) || 1; return c.map((v) => +(v * L / l
  */
 /**
  * The most distinct surfaces one page shades: each takes four fragment uniform vec4s in the one shared program, and past
- * the device's limit (WebGL2 guarantees 224) the program fails to link and every metal face vanishes. Past the cap, a
- * surface folds onto a kept one of its own metal (every metal keeps at least one), so the page shades it a little off
- * rather than not at all. Under the cap, nothing folds and the inputs are the same bytes.
+ * the device's limit the program fails to link and every metal face vanishes. WebGL2 guarantees only 224 (low-limit
+ * devices stop there); many desktop GPUs allow 1024, so a page of about 49–250 surfaces shaded exactly there and now
+ * folds too. Past the cap, a surface folds onto a kept one of its own metal (every metal keeps at least one), so the page
+ * shades it a little off rather than not at all; the page says so in MET.folded and __mojMetal.folded. Under the cap,
+ * nothing folds and the inputs are the same bytes.
  */
 export const MAX_METAL_SURFACES = 48;
 function foldSurfaces(keys, parsed) {
