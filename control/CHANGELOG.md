@@ -12,43 +12,6 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### ChatGPT carpet
-
-- **MCP Apps preview.** Opt-in recipe-bound mesh preview with a versioned
-  UI resource, existing GLB export pipeline, and host bridge refresh. Exported HTML
-  remains the full world experience; no public endpoint or hosting is provisioned.
-
-- **Host contract.** ChatGPT has its own adapter and handoff profile for connected MCP
-  and temporary Work boxes. Codex recognition no longer matches the bare OpenAI vendor name.
-  Transfer notes distinguish server files from session files without promising an attachment
-  or inline preview; unverified delivery details are marked inferred.
-- **Shell orientation.** `MOJULO_HOST` selects the fallback adapter card for `get_adapter`,
-  catalyst composition and recommendations, reusing the Muse approach without changing MCP
-  capability detection. Explicit adapter selection and recognized client identity still win.
-- **Bootstrap/recovery.** A separate ChatGPT skills package prefers connected
-  MCP and supplies a pinned, workspace-local CLI runner for shell-enabled Work boxes.
-  Recovery reuses the recipe and existing mint API; no new renderer or database import path.
-- **Recipe recovery.** `create_sketch` accepts exported world manifests
-  through the same world validation as `update_sketch`, including solid validation and
-  ledger stamping. Duplicate refs still refuse; referenced assets must already exist.
-- **Recovery verification.** The branch-tarball smoke installs into two isolated homes,
-  edits a city, and reproduces its recipe, GLB, HTML and ZIP byte-for-byte after recovery.
-  A development field-test guide keeps ChatGPT delivery and preview checks separate.
-- **Reported Work field test.** A ChatGPT Linux session reported successful branch-tarball
-  installation, city editing and byte-identical recovery. Client downloads and visual
-  previews remain unverified. Bootstrap instructions clarify the required `call` syntax.
-- **Next phases.** Verified ChatGPT file delivery and MCP Apps previews. Public hosting
-  and submission remain separate milestones.
-
-### Content pack seams
-
-- **A clean install starts quietly.** Every process printed two warnings about absent mobile-suit
-  modules, even `mojulo orient`. That content is an operator-local pack that no release carries, so
-  its absence is now silent; a pack that is present but fails to load still says so.
-- **The package never carries a local content pack.** A tarball built from a checkout that had the
-  pack on disk included it. The package file list now leaves it out, and a test fails any tarball
-  that would carry a gitignored file.
-
 ### Upgrading from 2.x
 
 - **3.0.0 is the release after 2.1.0.** A 2.2 was prepared and never published; everything it carried
@@ -58,7 +21,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   open relay on deployed bots (`/api/send-webhook`), SSRF in `upload_document_from_url`, path
   traversal in the Office-document parser, Fly credentials in the machine environment, dashboard DNS
   rebinding and cross-site writes, a revoked delegate's dashboard session that outlives the
-  revocation, and a delegate's dashboard session that holds the operator's authority
+  revocation, a delegate's dashboard session that holds the operator's authority, and an
+  `update_sketch` patch that reaches the prototype chain
   ([SECURITY.md](https://github.com/zombico/mojulo/blob/v3.0.0/SECURITY.md#known-issues-in-2x)). Bots
   already deployed from 2.x run on their own, on that image, until you take them down.
 - **Unpinned installs move to 3.0 on their next start once 3.0.0 is npm `latest`.** A host that runs
@@ -149,6 +113,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   expect the real registry to be slower than the stand-in. npm also keeps the downloaded tarballs in
   its cache, about 150 MB for 3.0.0. 2.1.0's package carried the dashboard build; 3.0.0's dashboard
   is `mojulo-ui` (12.1 MB packed, 55.3 MB unpacked), fetched only when it is opened.
+- **The package never carries a local content pack.** A tarball or `mojulo-ui` build made from a
+  checkout holding the operator-local mobile-suit content pack carried it; the package file list
+  leaves it out, a test fails any tarball carrying a gitignored file, and the dashboard build refuses
+  such a checkout. A clean install no longer prints warnings about that absent pack.
 - **What left the install:** the dashboard build, `@swc/core`, `three`, the dashboard-only libraries,
   `dotenv`, and the chatbot factory's `officeparser` and `pdf2json`. puppeteer-core, archiver and
   react load on first use, so the stdio server boots without them. Details:
@@ -186,6 +154,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   on every write and on the settings API. The roles pack's grants still bind the delegate's MCP key;
   the operator's session is unchanged.
 
+- **A patch cannot reach the prototype chain.** An `update_sketch` patch path through `__proto__` or
+  `constructor/prototype` set or deleted a property on every object in the server process until it
+  restarted. Such a path, or the same key in a set-by-id merge, now refuses by name.
+
 ### Claude plugin and directory readiness
 
 - Every tool carries a `title` and behavior `annotations`, `initialize` negotiates `2025-06-18`,
@@ -204,11 +176,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - the search model arrives only through `install recall`.
 
   Exported World and game pages are always self-contained there: `cdn: true` is ignored, and the
-  result says so. A call to a tool the plugin build leaves out answers in-band. Installs from npm or a
-  checkout are unchanged.
+  result says so. The host adapter cards are served without their image-generator and CDN lines, and
+  the MCP Apps preview is not offered. A call to a tool the plugin build leaves out answers in-band.
+  Installs from npm or a checkout are unchanged.
 - **The plugin listing.** It is rewritten for 3.0 with three example prompts that work in the plugin
   build, a table of what it installs, fetches, runs and writes, a privacy policy link, an "Upgrading
   from 2.x" note, and an icon.
+
+### Hosts
+
+- **ChatGPT.** Its own adapter card (`get_adapter({ id: 'chatgpt' })`) and handoff profile, for
+  connected MCP and for a shell-enabled Work box. A separate ChatGPT skills package
+  ([plugins/mojulo-chatgpt](https://github.com/zombico/mojulo/blob/v3.0.0/plugins/mojulo-chatgpt/README.md))
+  prefers connected MCP and otherwise sets up a pinned, workspace-local CLI in the box. Handoff notes
+  keep a file on the MCP server apart from a file in the session, and promise no attachment or inline
+  preview the session has not shown. Codex is no longer recognized by the bare OpenAI vendor name.
+- **`MOJULO_HOST`** picks the adapter card on the CLI, for `get_adapter`, catalyst composition and
+  recommendations, when no client identity says which host is calling. An explicit adapter id or a
+  recognized client still wins.
+- **Recipe recovery.** `create_sketch` accepts an exported world recipe and passes it through the same
+  validation and ledger stamp as `update_sketch`, so a recipe carried out of a temporary box comes back
+  as it left, a hero with its hand edits. A duplicate ref refuses, and referenced assets must already
+  exist.
+- **MCP Apps preview, opt-in.** With `MOJULO_MCP_APPS=1`, `preview_world` shows an inline mesh
+  snapshot of a stored ref in a host that supports MCP Apps; the exported HTML stays the full world.
+  Nothing is hosted publicly.
 
 ### Dashboard package
 
