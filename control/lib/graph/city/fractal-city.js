@@ -4147,6 +4147,9 @@ function extractFurnitureRepeats(boxes) {
     const b = boxes[i];
     if (!b || typeof b.kind !== 'string' || FURNITURE_SPECIAL_KINDS.has(b.kind)) continue;
     if ((b.shape && !isRoundKitShape(b.shape)) || b.roof || b.curtainwall || b.facade || b.plant || b.class) continue;
+    // a metal kit piece stays expanded: the instanced channel packs no per-vertex metal data, so an instanced aluminium
+    // standard would draw as its flat hex fill instead of reflecting
+    if (b.metal) continue;
     // a round-kit piece is position-independent too (lit by its true normal); its shape and dress join the signature
     const kit = isRoundKitShape(b.shape) ? `|${b.shape}|${JSON.stringify([b.round || null, b.metal || null, b.hood || null])}` : '';
     const sig = `${b.kind}|${b.w.toFixed(6)}|${b.d.toFixed(6)}|${(b.z0 || 0).toFixed(6)}|${b.z1.toFixed(6)}|${b.tint || ''}${kit}`;

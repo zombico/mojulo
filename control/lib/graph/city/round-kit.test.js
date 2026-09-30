@@ -142,6 +142,13 @@ describe('round street kit: instanced furniture', () => {
     expect(inst.faces.length + depicted).toBe(plain.faces.length);
     expect(inst.repeats.some((r) => r.template.some((f) => f.radius === '50%'))).toBe(true);
   });
+  it('a metal kit piece stays expanded, so it keeps its metal shading (the instanced channel carries none)', () => {
+    const SPEC = withKit({ region: { x: 2, y: 2, w: 30, d: 18 }, depth: 2, seed: 1 });
+    const plain = assembleFractalCityScene(SPEC), inst = assembleFractalCityScene({ ...SPEC, instancing: true });
+    expect(inst.repeats.every((r) => r.template.every((f) => !f.metal))).toBe(true);
+    const metal = (sc) => sc.faces.filter((f) => f.metal).length;
+    expect(metal(plain)).toBeGreaterThan(0); expect(metal(inst)).toBe(metal(plain));
+  });
 });
 
 describe('round street kit: round two (playgrounds, wires, rooftops)', () => {
