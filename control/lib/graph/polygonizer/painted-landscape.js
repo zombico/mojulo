@@ -1866,6 +1866,9 @@ export function paintedTerrainState(manifest) {
     domain: { x0: X_MIN, x1: X_MAX, y0: Y_FAR, y1: Y_NEAR }, lambert: { ambient: AMBIENT, gain: LAMBERT_GAIN },
   };
 }
+// the World mesh's budget for a landform: the card's alpine and escarpment scenes slice to 30–45 thousand, peaks of 20
+// to about 190 thousand; a mesh past it is too heavy for the page and would run the server out of memory
+const LANDFORM_MAX_FACES = 400000;
 function landformWorldFaces(state, { palette, light, haze, wl, seedNum, rockName }) {
   const { gx, gy } = state.grad;
   let lo = Infinity, hi = -Infinity; for (const z of state.z) { if (z < lo) lo = z; if (z > hi) hi = z; }
@@ -1909,7 +1912,10 @@ function landformWorldFaces(state, { palette, light, haze, wl, seedNum, rockName
     if (state.strata) d += ledge * (state.strata.layers[bedAt(state, p[0], p[1], p[2])].hard ? 1 : -0.7);
     return [p[0] - (ax / m) * d * w, p[1] - (ay / m) * d * w, p[2]];
   };
-  return slicedTerrainFaces(state, { stride: 2, levels, displace, paint });
+  return slicedTerrainFaces(state, {
+    stride: 2, levels, displace, paint, maxFaces: LANDFORM_MAX_FACES,
+    tooMany: `landform: the World's terrain would slice into more than ${LANDFORM_MAX_FACES} faces (a slice every ${(1.2 * state.dx).toFixed(2)} in height, and one at each bed); lower a peaks height or a scarp's throw, or thicken the strata`,
+  });
 }
 
 // opt-in `erosion`: the base surface baked on a grid over the domain, cut by rivers
@@ -3044,8 +3050,9 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
     }
   }
   const landformRock = sampler.landform ? (sampler.landform.rock || (manifest.rocks ? resolveLandscapeRocks(manifest.rocks).rock : null)) : null;
-  if (slicedLandform) faces.push(...landformWorldFaces(sampler.landform, { palette, light, haze, wl: hasWater ? wl : null, seedNum, rockName: landformRock }));
-  faces.push(...waterFaces);
+  // pushed one by one: a tall landform slices to more faces than a spread's call arguments hold
+  if (slicedLandform) for (const f of landformWorldFaces(sampler.landform, { palette, light, haze, wl: hasWater ? wl : null, seedNum, rockName: landformRock })) faces.push(f);
+  for (const f of waterFaces) faces.push(f);
 
   // ── city doodads: scattered mini-buildings whose massing reads as a town ────
   // Not a surface texture — discrete extruded boxes sitting ON the terrain. A
