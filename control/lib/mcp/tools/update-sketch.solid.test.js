@@ -357,8 +357,7 @@ describe('update_sketch { readout } — what an edit hands back (Phase 3)', () =
 // ring-plan: the layered kind's PLAN door stores the plan beside the recipe; an edit under /plan
 // re-expands the recipe, an edit under /dials leaves the plan alone; every edit pays the layered gates.
 import { mintSolidHandler } from './mint-solid.js';
-import { validateHeroSpec, heroRecord, heroPlanOf, heroReadout } from './layered.js';
-import { heroRecord, heroPlanOf, validateHeroSpec } from './layered.js';
+import { heroRecord, heroPlanOf, heroReadout, validateHeroSpec } from './layered.js';
 
 const RING_PLAN = {
   schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' },
