@@ -22,8 +22,8 @@ import { pluginProfileActive, profileEdit } from '../plugin-profile.js';
 
 // Under the Claude plugin profile (../plugin-profile.js) the host cards drop what that build does
 // not have: the CDN page (every card), the Grok card's paint-worker and native-video moves (no
-// image handoff to bind a painted render back through) and its image-render pack, and the ChatGPT
-// card's binding of native image output.
+// image handoff to bind a painted render back through) and its image-render pack, the ChatGPT
+// card's binding of native image output, and the Muse card's paint worker, CDN page and browser fetch.
 const PROFILE_ADAPTER_EDITS = {
   // The Claude Code card: that build writes no CDN page, so the web box's handoff is the file.
   'claude-code': {
@@ -43,6 +43,18 @@ const PROFILE_ADAPTER_EDITS = {
     body: [
       ['Check which image, file, preview and scheduling tools', 'Check which file, preview and scheduling tools'],
       [/ Native image output\ncan be bound only if the image tool, Mojulo binding tools and byte transfer are all\navailable\. A reference\/render is derived;/, ' A render is derived;'],
+    ],
+  },
+  // The Muse card: the plugin build writes only the self-contained page and never fetches a browser.
+  'muse': {
+    summary: [['; native image gen as the paint worker; cron as the scheduler.', '; cron as the scheduler.']],
+    body: [
+      [' Without the variable, an explicit render downloads Chrome for Testing instead.', ''],
+      [
+        /`export_model` with `format: 'html'` writes one page per call, so call it twice:\n\n- \*\*Default, `world\.html`\*\*: three\.js ships as inline `data:` modules\. No server, no network — the build to check here\. Fragile on some mobile viewers, so not the one to hand over\.\n- \*\*`cdn: true`, `world\.cdn\.html`\*\*:[^\n]*\n/,
+        "`export_model` with `format: 'html'` writes `world.html`: three.js ships as inline `data:` modules, no server and no network, so it is the build to check here. It is fragile on some mobile viewers.\n",
+      ],
+      ['Save `world.cdn.html` with your Artifacts tool', 'Save `world.html` with your Artifacts tool'],
     ],
   },
   'grok-build': {
@@ -192,8 +204,12 @@ export function resolveAdapterId({ host, clientName } = {}) {
   return 'generic';
 }
 
-/** Tool-call adapter fallback for shell hosts, which never send initialize.
- * Keep protocol capability resolution on resolveAdapterId (no process env).
+/**
+ * resolveAdapterId for a TOOL CALL: the same order, then the `MOJULO_HOST`
+ * profile's adapter before the 'generic' fallback. A shell host (the CLI never
+ * sends `initialize`, so there is no clientInfo) gets its own card this way.
+ * An explicit `host: 'generic'` still wins. Kept separate so the server's
+ * clientInfo reads (schema deferral, output cap) never consult the environment.
  */
 export function resolveCallAdapterId({ host, clientName } = {}, env = process.env) {
   const resolved = resolveAdapterId({ host, clientName });

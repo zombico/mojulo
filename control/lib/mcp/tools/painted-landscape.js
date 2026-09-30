@@ -54,6 +54,10 @@ export function mintPaintedLandscape({
   sky,
   forest,
   ground,
+  rocks,
+  plants,
+  erosion,
+  landform,
   elevation,
   walk,
   extent,
@@ -95,6 +99,10 @@ export function mintPaintedLandscape({
     ...(sky !== undefined && sky !== null ? { sky } : {}),
     ...(forest !== undefined && forest !== null ? { forest } : {}),
     ...(ground !== undefined && ground !== null ? { ground } : {}),
+    ...(rocks !== undefined && rocks !== null ? { rocks } : {}),
+    ...(plants !== undefined && plants !== null && plants !== false ? { plants } : {}),
+    ...(erosion !== undefined && erosion !== null && erosion !== false ? { erosion } : {}),
+    ...(landform !== undefined && landform !== null ? { landform } : {}),
     ...(elevation !== undefined && elevation !== null ? { elevation } : {}),
     ...(walk !== undefined && walk !== null ? { walk } : {}),
     ...(extent !== undefined && extent !== null ? { extent } : {}),
@@ -144,6 +152,10 @@ export async function createPaintedLandscapeHandler(input) {
     sky,
     forest,
     ground,
+    rocks,
+    plants,
+    erosion,
+    landform,
     elevation,
     walk,
     extent,
@@ -154,7 +166,7 @@ export async function createPaintedLandscapeHandler(input) {
   } = input;
   return mintPaintedLandscape({
     title, heartbeat, splatch, structures, scene, seed, light,
-    paletteOverrides, heartbeatOverrides, renderStyle, camera, sky, forest, ground, elevation, walk, extent, builds, clouds, ref, folderRef,
+    paletteOverrides, heartbeatOverrides, renderStyle, camera, sky, forest, ground, rocks, plants, erosion, landform, elevation, walk, extent, builds, clouds, ref, folderRef,
   });
 }
 

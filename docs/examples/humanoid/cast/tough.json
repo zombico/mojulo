@@ -1,0 +1,35 @@
+{
+  "name": "tough",
+  "$note": "A sleepy-eyed tough (male) built without a look word: very heavy half-closed lids, a thick low brow block, a flat mouth, a broad jaw and chin, and a high swept-back hair mass; the relaxed stand with the chin down 10 degrees. Shows an expression as an object, a sculpt as a list (two moves, then own values) and a stand as a list (a preset word, then a head pose).",
+  "hero": {
+    "cast": "male",
+    "head": "anime",
+    "expression": { "blink": 0.6, "smile": 0, "open": 0, "brow": -0.2 },
+    "sculpt": ["heavy-lid", "brow-block", { "browGap": 0.6, "browAngle": -18, "mouthWidth": 0.94 }],
+    "face": {
+      "tilt": -0.04,
+      "jaw": 1.1,
+      "chin": 1.15,
+      "cheekVolume": 0.85,
+      "lowerCheekVolume": 0.85,
+      "chinHeight": 1.08
+    },
+    "hair": {
+      "lift": { "crown": 0.24, "temple": 0.05, "fringe": 0.12, "nape": 0.04 },
+      "sweepBack": {
+        "amount": 1,
+        "rise": 2.3,
+        "riseFall": 0.9,
+        "controlX": 1,
+        "spread": 1.12,
+        "controlZ": -0.45,
+        "tipY": 0.85,
+        "tipZ": 0.8
+      },
+      "hairline": { "front": 0.9 },
+      "sweepSides": { "amount": 1, "from": 0, "tipY": 0.55, "tipZ": 0.62 }
+    },
+    "gesture": ["relaxed", { "head": { "pitch": -10 } }]
+  },
+  "palette": { "Hair": "#3a302b" }
+}

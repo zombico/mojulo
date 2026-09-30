@@ -22,6 +22,8 @@
  * cameras — Lambert depends on the face normal vs the world light, not the camera.
  */
 
+import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
+import { plantPool, plantRepeats, groveItems } from '../vegetation/pool.js';
 import { makeLight, litFactor, scaleHex, hexToRgb, rgbToHex, withBands, resolveToon } from '../polygonizer/vexar.js';
 import {
   resolveRoomSurfaces,
@@ -41,6 +43,7 @@ import { safeJson, escapeHtml } from './emit-util.js';
 import { isLandmarkShape, renderLandmarkBuilding } from '../landmarks/index.js';
 import { refacadeBuilding, hasRefacade } from '../landmarks/refacade.js';
 import { isPlantShape, plantBoxToFaces } from '../polygonizer/plant-faces.js';
+import { isRoundKitShape, roundKitFaces } from '../city/round-kit.js';
 import { roomFurnitureAssetFaces } from '../architecture/room-assets.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { buildRoof } from '../architecture/roof.js';
@@ -2398,14 +2401,15 @@ function curtainwallBuilding(b, L, camHint, textures, opts = {}) {
 // carry the same corners and normal as before (byte-identical). `bays` is recomputed off the
 // face's own length for a side face (the storefront pane count follows the face it sits on).
 function buildingExtrasOn(b, f, floors, bays, front) {
+  const opts = b.roundKit ? { round: true } : undefined;   // the round street kit reaches the rooftop kit too
   if (!front || front === '+y') {
-    const ex = buildingExtras({ x: b.x, y: b.y, w: b.w, d: b.d, z0: b.z0, z1: b.z1 }, f, floors, bays);
+    const ex = buildingExtras({ x: b.x, y: b.y, w: b.w, d: b.d, z0: b.z0, z1: b.z1 }, f, floors, bays, opts);
     const yo = b.y + b.d + 0.04;
     ex.decals = ex.decals.map((dc) => ({ ...dc, normal: [0, 1, 0], corners: [[dc.x0, yo, dc.z0], [dc.x1, yo, dc.z0], [dc.x1, yo, dc.z1], [dc.x0, yo, dc.z1]] }));
     return ex;
   }
   const F = faceFrame(b, front);
-  const ex = buildingExtras({ ...F.localBox, z0: b.z0, z1: b.z1 }, f, floors, facadeBays(f, F.L));
+  const ex = buildingExtras({ ...F.localBox, z0: b.z0, z1: b.z1 }, f, floors, facadeBays(f, F.L), opts);
   const toWorld = ([lx, ly, z]) => { const [wx, wy] = F.pt(lx, ly); return [wx, wy, z]; };
   return {
     boxes: ex.boxes.map((e) => ({ ...e, ...F.rect(e.x, e.y, e.w, e.d) })),
@@ -2487,6 +2491,9 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const floors = facadeFloors(facade, b.z1 - b.z0);
       const bays = facadeBays(facade, b.w);
       faces.push(...cityBox(r, b.z0, b.z1, { facade, floors, bays, top: scaleHex(facade.glass, 0.6) }, L, camHint));
+    } else if (isRoundKitShape(b.shape)) {
+      // the round street kit (fractal-city `elements.roundKit`): poles, heads, lenses, bins, bollards
+      faces.push(...roundKitFaces(b, L));
     } else if (b.metro && (b.class === 'religious' || b.class === 'civic') && hasRefacade(b.shape)) {
       // a metro church / mosque / temple / rotunda takes its refacade builder (landmarks/refacade.js)
       faces.push(...refacadeBuilding(b, { L, camHint, cityBox }));
@@ -2539,7 +2546,7 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
       const awareFacade = aware && !entranceFace ? { ...exFacade, noEntrance: true, storefront: false, awning: false }
         : aware && b.entrance ? { ...exFacade, awning: false } : exFacade;
       const extras = buildingExtrasOn(b, awareFacade, floors, bays, entranceFace || '+y');
-      for (const e of extras.boxes) faces.push(...cityBox({ x: e.x, y: e.y, w: e.w, d: e.d }, e.z0, e.z1, { top: scaleHex(e.tint, 1.06), side: e.tint }, L, camHint));
+      for (const e of extras.boxes) faces.push(...(isRoundKitShape(e.shape) ? roundKitFaces(e, L) : cityBox({ x: e.x, y: e.y, w: e.w, d: e.d }, e.z0, e.z1, { top: scaleHex(e.tint, 1.06), side: e.tint }, L, camHint)));
       for (const ef of extras.faces) faces.push(ef);     // tilted equipment (satellite dish)
       for (const dc of extras.decals) faces.push({ corners: dc.corners, fill: scaleHex(dc.fill, litFactor(dc.normal, L)), doubleSided: true });
       if (b.skin && b.skin.roofCap) faces.push(...roofCapFaces(b, b.skin.roofCap, L, facade.material === 'brick' ? facade.glass : facade.frame));
@@ -2648,7 +2655,10 @@ const rgbStr = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
  *
  * Returns null for a non-painted-landscape manifest (the caller decides the fallback).
  */
-export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, title = 'mojulo terrain', city, cityDensity, bridges, farmland } = {}) {
+// faces the grown plants of one painted landscape may draw, summed over their instances (a GPU draws a million with
+// ease; the page's bytes are the templates, a few per species, whatever the budget)
+const LANDSCAPE_PLANT_FACES = 1_000_000;
+export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, title = 'mojulo terrain', city, cityDensity, bridges, farmland, rocksAsFaces = false, landformMesh = 'sliced' } = {}) {
   if (!manifest || manifest.kind !== 'painted-landscape') return null;
   // Aerial-map sticker/structure layers, all opt-in (render option or manifest):
   //   city      — massed mini-buildings (geometry) on buildable flats
@@ -2658,7 +2668,7 @@ export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, t
   const wantFarm = farmland ?? manifest.farmland === true;
   const density = cityDensity ?? manifest.cityDensity ?? 0.6;
   const spans = bridges ?? manifest.bridges ?? [];
-  const { faces, structures, extraFaces, bounds, sky, light: terrainLight, day = 1 } = buildTerrainWorldMesh(manifest, { city: wantCity, cityDensity: density, bridges: spans, farmland: wantFarm });
+  const { faces, structures, extraFaces, bounds, sky, light: terrainLight, day = 1, rocks, scree, plants } = buildTerrainWorldMesh(manifest, { city: wantCity, cityDensity: density, bridges: spans, farmland: wantFarm, landformMesh, plantsAsBoxes: rocksAsFaces });
   const cameras = synthTerrainCameras(bounds);
   // Realize each box-spec. Tree scatter (shape ∈ conifer|tree|…) becomes real branched
   // taiji-plant geometry via plantBoxToFaces; city doodads / bridge piers / rocks extrude as
@@ -2674,17 +2684,63 @@ export function assemblePaintedLandscapeScene(manifest = {}, { unitScale = 22, t
       else faces.push(...cityBox({ x: b.x, y: b.y, w: b.w, d: b.d }, b.z0, b.z1, { top: b.roof, side: b.wall }, L, camHint));
     }
   }
+  // opt-in `rocks`: the boulders arrive as items, realized as a few pooled rock templates
+  // lit by the same terrain light and stamped through `repeats` (World / glb / USD / 3MF instance them). A renderer
+  // without instancing (the CSS scene) asks for the exact far-LOD block per rock instead.
+  let repeats = null;
+  if (rocks && rocks.items.length) {
+    const RL = terrainLight
+      ? makeLight({ direction: [terrainLight.x, terrainLight.y, terrainLight.z], ambient: 0.3 + 0.26 * day, diffuse: 0.26 + 0.3 * day })
+      : makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
+    const pool = rockPool({ rock: rocks.rock, variants: rocks.variants, detail: rocksAsFaces ? 0 : rocks.detail, tone: rocks.tone, seed: rocks.seed, light: RL });
+    const placed = rockRepeats(pool, rocks.items, { sink: rocks.sink });
+    if (rocksAsFaces) faces.push(...expandRepeats(placed)); else repeats = placed;
+  }
+  // landform scree: hundreds of fragments as five pooled templates. Only a renderer that
+  // instances carries them; the CSS scene keeps its face budget for the terrain.
+  if (scree && scree.items.length && !rocksAsFaces) {
+    const SL = terrainLight
+      ? makeLight({ direction: [terrainLight.x, terrainLight.y, terrainLight.z], ambient: 0.3 + 0.26 * day, diffuse: 0.26 + 0.3 * day })
+      : makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
+    const pool = rockPool({ rock: scree.rock, variants: 5, detail: 1, tone: scree.tone, seed: `${scree.seed}::scree`, light: SL, group: 'scree' });
+    repeats = [...(repeats || []), ...rockRepeats(pool, scree.items, { sink: 0.25, group: 'scree' })];
+  }
+  // opt-in `plants`: the scene's trees arrive as items, grown per species (vegetation/pool.js: a few variants × four
+  // levels of detail, baked in the terrain light) and stamped through `repeats`. Each instance takes the level its
+  // height projects to from the nearest of the scene's bookmarks (the survey, the low angle, the aerial), capped at the
+  // spec's `level`, so every bookmark sees the detail it needs. Landscape units are not metres, so palms and culms
+  // scale freely. (The CSS scene asked for boxes: plantsAsBoxes above.)
+  let plantTextures = null;   // the tiles the grown plants wear (a tree's bark), beside their repeats
+  if (plants) {
+    const PL = terrainLight
+      ? makeLight({ direction: [terrainLight.x, terrainLight.y, terrainLight.z], ambient: 0.3 + 0.26 * day, diffuse: 0.26 + 0.3 * day })
+      : makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
+    const vw = manifest.viewBox?.width || 1120;
+    const eyes = cameras.filter((c) => c.worldFraming).map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: vw / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
+    // one draw budget for the scene's plants: a landscape of a few dozen trees spends it on the cap everywhere
+    let left = LANDSCAPE_PLANT_FACES;
+    plantTextures = {};
+    for (const kind of ['cone', 'canopy', 'tuft']) {
+      const listed = plants.items[kind]; const species = plants[kind]; if (!listed || !listed.length || !species) continue;
+      // a bamboo stands as a grove where the painting put one tree: a clump, or a patch of running culms
+      const items = listed.flatMap((it, i) => groveItems(species, it, { groundAt: plants.groundAt, water: plants.water, seed: plants.seed, index: i }));
+      const pool = plantPool({ species, variants: plants.variants, seed: `${plants.seed}::plants::${kind}`, light: PL, maxLevel: plants.level });
+      const placed = plantRepeats(pool, items, { eyes, level: plants.level, budget: Math.max(0, left), sink: 0, clamp: false });
+      left -= placed.stats.drawnFaces; Object.assign(plantTextures, pool.textures);
+      repeats = [...(repeats || []), ...placed.repeats];
+    }
+  }
   // Bridge decks/parapets arrive pre-shaded as raw faces (per-point z → not boxes).
   if (extraFaces && extraFaces.length) faces.push(...extraFaces);
   const viewBox = manifest.viewBox && manifest.viewBox.width
     ? manifest.viewBox
     : { width: 1120, height: 760 };
   const bg = sky ? rgbStr(sky.horizon) : '#0e1014';
-  return { faces, cameras, viewBox, unitScale, title, sky, bg };
+  return { faces, cameras, viewBox, unitScale, title, sky, bg, ...(repeats ? { repeats } : {}), ...(plantTextures && Object.keys(plantTextures).length ? { textures: plantTextures } : {}) };
 }
 
 export function renderPaintedLandscapeToHtml(manifest = {}, opts = {}) {
-  const payload = assemblePaintedLandscapeScene(manifest, opts);
+  const payload = assemblePaintedLandscapeScene(manifest, { ...opts, rocksAsFaces: true, landformMesh: 'grid' });   // the CSS scene cannot instance, and keeps the plain grid
   if (!payload) return null;
   // zenith→horizon gradient backdrop, mirroring the SVG sky (no geometry). Drop the
   // structured `sky` + solid `bg` so this stays the exact bg-only CSS scene as before

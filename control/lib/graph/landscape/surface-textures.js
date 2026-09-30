@@ -1026,6 +1026,16 @@ export function pickFamilyTile(family, index = 0) {
 }
 const cache = {};
 
+// Prefix resolvers: a family whose texture is a function of its KEY (the key encodes every parameter), so it needs no
+// registration per texture and holds no state here — e.g. construction/textures.js's `timber:` figures, one per member
+// face. The resolver owns its own caching. Keys with a registered generator never reach a resolver.
+const RESOLVERS = [];
+/** Resolve every key starting with `prefix` through `resolve(key) → dataURL | null` (idempotent per prefix). */
+export function registerTextureResolver(prefix, resolve) {
+  if (typeof prefix !== 'string' || !prefix || typeof resolve !== 'function') throw new Error('registerTextureResolver(prefix, resolve)');
+  if (!RESOLVERS.some((r) => r.prefix === prefix)) RESOLVERS.push({ prefix, resolve });
+}
+
 /**
  * Resolve a surface-texture key to its `data:image/png` URL (memoized), or null for an
  * unknown key. Used by assembleBoxCityScene to populate the payload `textures` map when a
@@ -1033,7 +1043,10 @@ const cache = {};
  */
 export function surfaceTexture(key) {
   const gen = key && (GENERATORS[key] || RUNTIME_GEN[key]);
-  if (!gen) return null;
+  if (!gen) {
+    const r = typeof key === 'string' ? RESOLVERS.find((x) => key.startsWith(x.prefix)) : null;
+    return r ? r.resolve(key) : null;
+  }
   if (!cache[key]) cache[key] = gen();
   return cache[key];
 }

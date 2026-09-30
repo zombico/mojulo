@@ -1,0 +1,37 @@
+{
+  "name": "noble",
+  "$note": "A sheltered noble girl (female): the hime cut (a blunt fringe, sidelocks at the jaw, a long straight back) grown longer, large gentle down-turned eyes and a small smile. Shows the side locks and the fringe reshaped by lock edits, the side hair swept down, and a pale lavender palette with hand-set shade swatches for the hair and the skin (toon.light.shade).",
+  "hero": {
+    "cast": "female",
+    "head": "anime",
+    "look": ["princess", "hime", "sleek", "tareme", "large-eyes", "smile"],
+    "hair": {
+      "style": "hime",
+      "length": 2.2,
+      "thickness": 0.85,
+      "lift": { "crown": 0.07, "temple": 0.05, "fringe": 0.01, "nape": 0.05 },
+      "locks": {
+        "left-temple-0": { "ty": 1.15 },
+        "right-temple-0": { "ty": 1.15 },
+        "fringe-1": { "cz": 0.06 },
+        "fringe-2": { "cz": 0.06 },
+        "fringe-3": { "cz": 0.06 },
+        "fringe-4": { "cz": 0.06 },
+        "fringe-5": { "cz": 0.06 },
+        "fringe-6": { "cz": 0.06 },
+        "fringe-7": { "cz": 0.06 }
+      },
+      "sweepSides": { "amount": 1, "from": 1, "controlY": 0.35, "tipY": -2.6, "tipZ": 0.75 }
+    },
+    "sculpt": { "pronasale": 0.03, "fissureHeight": 0.95, "browThick": 0.8 }
+  },
+  "palette": {
+    "Hair": "#cfc6e2",
+    "Skin": "#f0cdb4",
+    "Iris": "#5b4a8a",
+    "Top": "#3a3160",
+    "Bottom": "#2b2540",
+    "Shoes": "#1f1b2a"
+  },
+  "toon": { "light": { "shade": { "Hair": "#9d95b8", "Skin": "#ddb3a0" } } }
+}

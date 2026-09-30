@@ -208,6 +208,32 @@ export const EMIT_FIXTURES = [
   // the channels.contract.test.js provides check (channel-registry-formalization amendment).
   ['specular', { faces: [floor(), { ...quad('#8899aa'), spec: [0.8, 24] }], light: { toLight: [0.4, -0.5, 0.75] } }],
 
+  // crystal channel (crystal-shine S4): faces tagged `crystal` gate the live crystal response (and __mojCrystal); the
+  // stone is a small tetrahedron resting on the floor, so its print is traced into the block too.
+  ['crystal', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
+    .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'diamond', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0, 1], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] } }],
+
+  // crystal light (crystal-rig R2): the same stone as a fan under one lamp, a target on the fan (zero bytes without it)
+  ['crystal-light', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
+    .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'diamond', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0, 1], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },
+    crystalLight: { lamps: [{ at: [0, -4, 0.3], aim: [0, 0, 0.25] }], targets: [{ id: 'door', at: [0, 3, 0.25], r: 0.3, want: { color: 'green' } }] } }],
+
+  // metal channel (metal-surfaces S3): faces tagged `metal` gate the live metal response (and __mojMetal): a brushed
+  // stainless panel beside an anodized titanium one, so the lookup texture carries a bare and a film metal
+  ['metal', { faces: [floor(),
+    { ...quad('#a8a39b'), group: 'panel', metal: { s: '{"metal":"stainless","finish":"brushed","along":"x","seed":0}', d: 0, ta: 0 } },
+    { corners: [[2.2, 0, 0], [4, 0, 0], [4, 0, 2], [2.2, 0, 2]], fill: '#2d6db2', group: 'panel', metal: { s: '{"metal":"titanium","finish":"polished","along":"auto","film":{"anodize":25},"seed":0}', d: 49, ta: 0 } }],
+    light: { toLight: [0.4, -0.5, 0.75] } }],
+  // a pattern-welded panel: the billet buffer (metal.p) and the surface's pattern dials ride only on such a face
+  ['metal-damascus', { faces: [floor(),
+    { ...quad('#6f7275'), group: 'blade', metal: { s: '{"metal":"steel","along":"z","pattern":{"kind":"damascus","type":"twist","folds":3,"scale":2,"layers":"y"},"seed":0}', d: 0, ta: 0, p: [[0.003, -0.02, 0], [0.003, 0.02, 0], [0, 0.02, 1], [0, -0.02, 1]] } }],
+    light: { toLight: [0.4, -0.5, 0.75] } }],
+
+  // a crystal a mover turns: its print is re-traced on the page (crystal-rig R4), not baked
+  ['crystal-moving', { faces: [floor(), ...[[[0, 0, 0.6], [0.5, -0.3, 0.1], [-0.5, -0.3, 0.1]], [[0, 0, 0.6], [0, 0.5, 0.1], [0.5, -0.3, 0.1]], [[0, 0, 0.6], [-0.5, -0.3, 0.1], [0, 0.5, 0.1]], [[0.5, -0.3, 0.1], [0, 0.5, 0.1], [-0.5, -0.3, 0.1]]]
+    .map((corners) => ({ corners, fill: '#d0d8e0', group: 'gem', crystal: { gem: 'calcite', stone: 0, c: [0, 0, 0.25], r: 0.55, axis: [0, 0.6, 0.8], cmu: 1 } }))], light: { toLight: [0.4, -0.5, 0.75] },
+    movers: [{ group: 'gem', basePos: [0, 0, 0], turn: { axis: [0, 0, 1], center: [0, 0, 0.25], absolute: true }, states: [0, 1.2] }] }],
+
   ['fog', { faces: [floor()], fog: FOG }],
   // effects[] (U3): stacked raymarch overlays. `effects` alone (live); `fog-effects` co-resident +
   // capture (pins the fog quad + effect quad + the frame() __mojClock overlay-clock pin together).
@@ -240,6 +266,20 @@ export const EMIT_FIXTURES = [
   // even with no static ink group) and the fx ink verbs (an object state + an inkFlash gesture).
   ['toon-ink-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: true } }],
   ['toon-ink-fx', { faces: [floor()], entities: ENTITIES, camera: CAMERA, toon: { ink: { color: '#2a2f3a' } }, fx: { states: { d: { ink: '#ff4040', pulse: true } }, on: { 'hit:*': { gesture: 'inkFlash', color: '#ffffff' } } } }],
+  // the draw layers (channels/draw-layers.js): a character-lit figure's faces carrying `layer` — the render group split
+  // by it, the stencil buffer, the fill rules and the hair hulls' test — beside the silhouette ink. The static page
+  // only: no row of this matrix carries a rig preview (its live clip picker is its own concern), so the preview's
+  // layered parts, per-layer outlines and `body:*` hiding are pinned in channels/rig-preview.test.js
+  ['draw-layers', {
+    faces: [
+      quad('#d9a77e', { group: 'body', outNormal: [0, -1, 0] }),
+      quad('#3b4859', { group: 'body', layer: 'hair', outNormal: [0, -1, 0] }),
+      quad('#3b4859', { group: 'body', layer: 'veil', outNormal: [0, -1, 0] }),
+      quad('#16181c', { group: 'body', layer: 'through', noInk: true, outNormal: [0, -1, 0] }),
+      floor('#445566', { studio: true }),
+    ],
+    toon: { ink: { lines: false, widthAbs: 0.002 } },
+  }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],

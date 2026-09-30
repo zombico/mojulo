@@ -17,7 +17,9 @@
  * Line rules (the reference policy, not universal anatomy): an edge is drawn when it is a
  * boundary, a crease over `creaseDegrees`, a group boundary, a silhouette (facing flips across
  * it) or a declared feature edge. Weight: outline (silhouette) > feature (a face in `features`
- * or a declared feature edge) > plane. Coplanar internal tessellation is suppressed.
+ * or a declared feature edge) > plane. Coplanar internal tessellation is suppressed. Between faces all in
+ * `softGroups` (a cushion's surface net: facets, not creases) a crease needs `softCreaseDegrees`; hatch-lines.js shades
+ * such forms instead.
  *
  * Pure: no DB, no IO, no randomness. Deterministic byte output for identical input.
  */
@@ -89,7 +91,7 @@ export function weldFaces(faces, { groupOf = (f) => f.group ?? f.part ?? f.tint 
  * @param cam from orbitCamera / worldFramingCamera
  * @returns {Array<{edge:[a,b], type, visible, screenT:[t0,t1], xyzT:[t0,t1], xy:[[x,y],[x,y]]}>}
  */
-export function wireRuns(source, cam, { features = [], creaseDegrees = 7 } = {}) {
+export function wireRuns(source, cam, { features = [], creaseDegrees = 7, softGroups = null, softCreaseDegrees = 50 } = {}) {
   const V = source.vertices; const F = source.faces; const G = source.groups || [];
   const featureSet = new Set(features); const featureEdges = new Set((source.featureEdges || []).map(([a, b]) => (a < b ? `${a}|${b}` : `${b}|${a}`)));
   const N = []; const cent = []; const edges = new Map();
@@ -100,13 +102,17 @@ export function wireRuns(source, cam, { features = [], creaseDegrees = 7 } = {})
   }
   const q = projectVertices(V, cam);
   const tris = []; for (const f of F) for (let k = 1; k + 1 < f.length; k++) tris.push([q[f[0]], q[f[k]], q[f[k + 1]]]);
+  const grid = triangleGrid(tris);
   const facing = N.map((n, j) => dot(n, sub(cam.position, cent[j])));
   const cosCrease = Math.cos(creaseDegrees * Math.PI / 180);
+  // a soft form's surface net is facets, not creases: between faces all in soft groups, only a sharper turn is a line
+  const cosSoft = Math.cos(softCreaseDegrees * Math.PI / 180);
   const paths = [];
   for (const [key, fs] of edges) {
     const [a, b] = key.split('|').map(Number);
     const groups = new Set(fs.map((i) => G[i])); const boundary = fs.length === 1;
-    const crease = boundary || fs.slice(1).some((j) => Math.abs(dot(N[fs[0]], N[j])) < cosCrease);
+    const cosC = softGroups && fs.every((j) => softGroups.has(G[j])) ? cosSoft : cosCrease;
+    const crease = boundary || fs.slice(1).some((j) => Math.abs(dot(N[fs[0]], N[j])) < cosC);
     let mn = Infinity; let mx = -Infinity; for (const j of fs) { if (facing[j] < mn) mn = facing[j]; if (facing[j] > mx) mx = facing[j]; }
     const silhouette = boundary || (mn < 0 && 0 < mx);
     const declared = featureEdges.has(key);
@@ -118,7 +124,7 @@ export function wireRuns(source, cam, { features = [], creaseDegrees = 7 } = {})
     const t = new Array(steps); const xy = new Array(steps); const z = new Array(steps); const seen = new Array(steps);
     for (let i = 0; i < steps; i++) {
       t[i] = i * step; xy[i] = [pa[0] + t[i] * (pb[0] - pa[0]), pa[1] + t[i] * (pb[1] - pa[1])]; z[i] = 1 / ((1 - t[i]) / pa[2] + t[i] / pb[2]);
-      seen[i] = visibleAt(xy[i][0], xy[i][1], z[i], tris);
+      seen[i] = visibleAt(xy[i][0], xy[i][1], z[i], grid.at(xy[i][0], xy[i][1]));
     }
     let start = 0;
     for (let j = 1; j <= steps; j++) {
@@ -135,8 +141,33 @@ export function wireRuns(source, cam, { features = [], creaseDegrees = 7 } = {})
   return paths;
 }
 
+/**
+ * A screen-space bucket grid over the projected triangles (cells about six triangles' worth of area, at most 24 units):
+ * each cell lists, in their original order, the triangles
+ * whose bounding box (grown a pixel) touches it. A sample tests only its cell's list — the triangles that can contain
+ * it — so the depth test's answer is the one a test against every triangle gives, at a fraction of the cost.
+ */
+export function triangleGrid(tris, cellPx = null) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of tris) for (const v of p) { if (v[0] < x0) x0 = v[0]; if (v[0] > x1) x1 = v[0]; if (v[1] < y0) y0 = v[1]; if (v[1] > y1) y1 = v[1]; }
+  if (!tris.length) return { at: () => tris };
+  // a cell holds a few triangles on average, whatever the units (pixels, or millimetres on a printed page)
+  if (!(cellPx > 0)) cellPx = Math.min(24, Math.max(1e-6, Math.sqrt(((x1 - x0 + 2) * (y1 - y0 + 2) * 6) / tris.length)));
+  const nx = Math.max(1, Math.min(512, Math.ceil((x1 - x0 + 2) / cellPx))), ny = Math.max(1, Math.min(512, Math.ceil((y1 - y0 + 2) / cellPx)));
+  const cw = (x1 - x0 + 2) / nx, ch = (y1 - y0 + 2) / ny, ox = x0 - 1, oy = y0 - 1;
+  const cells = Array.from({ length: nx * ny }, () => []);
+  const clampX = (v) => Math.max(0, Math.min(nx - 1, v)), clampY = (v) => Math.max(0, Math.min(ny - 1, v));
+  tris.forEach((p) => {
+    const a = clampX(Math.floor((Math.min(p[0][0], p[1][0], p[2][0]) - 1 - ox) / cw)), b = clampX(Math.floor((Math.max(p[0][0], p[1][0], p[2][0]) + 1 - ox) / cw));
+    const c = clampY(Math.floor((Math.min(p[0][1], p[1][1], p[2][1]) - 1 - oy) / ch)), d = clampY(Math.floor((Math.max(p[0][1], p[1][1], p[2][1]) + 1 - oy) / ch));
+    for (let j = c; j <= d; j++) for (let i = a; i <= b; i++) cells[j * nx + i].push(p);
+  });
+  const none = [];
+  return { at: (x, y) => { const i = Math.floor((x - ox) / cw), j = Math.floor((y - oy) / ch); return i < 0 || j < 0 || i >= nx || j >= ny ? none : cells[j * nx + i]; } };
+}
+
 // depth test at one projected sample against every triangle, perspective-correct (harmonic) depth
-function visibleAt(x, y, z, tris) {
+export function visibleAt(x, y, z, tris) {
   let nearest = Infinity;
   for (const p of tris) {
     const den = (p[1][1] - p[2][1]) * (p[0][0] - p[2][0]) + (p[2][0] - p[1][0]) * (p[0][1] - p[2][1]);

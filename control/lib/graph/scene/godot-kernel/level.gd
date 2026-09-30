@@ -72,12 +72,14 @@ func _ready() -> void:
 	eye = float(score.get("eye", 1.7))
 	eye_scale = maxf(0.5, eye / 1.7)
 	_fix_materials()
+	_fix_crystals()
 	_apply_rim()
 	if _fix_lights() > 0:
 		_build_environment()
 	_hide_player_double()
 	_mark_meshless_entities()
 	_build_colliders()
+	_build_crystal_light()
 	_build_cameras()
 	_spawn_walker()
 	_build_rigs()
@@ -111,6 +113,70 @@ func _fix_materials() -> void:
 
 
 # Look contract (shader-look phase 4, kernel 0.2.3): score.look.figures carries
+# Crystals (crystal-rig R5): Godot's glTF import drops KHR_materials_transmission / ior / volume, so a clear stone
+# arrives opaque white. score.crystals carries each `<group>:crystal` material's optics; its surfaces get a
+# refraction material of their own: the body colour (white light after 1 cm), more opaque the more coloured, screen-space
+# refraction scaled by the index, a specular from the index's Fresnel F0, glow as emission. An opal is a dark
+# body under a clearcoat. Absent score.crystals, nothing changes.
+func _fix_crystals() -> void:
+	var table: Dictionary = score.get("crystals", {})
+	if table.is_empty():
+		return
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for s in range(mesh.get_surface_count()):
+			var mat: Material = mi.get_active_material(s)
+			if mat == null or not table.has(mat.resource_name):
+				continue
+			var c: Dictionary = table[mat.resource_name]
+			var m := StandardMaterial3D.new()
+			m.resource_name = mat.resource_name
+			var nd := float(c.get("nD", 1.5))
+			var f0 := pow((nd - 1.0) / (nd + 1.0), 2)
+			if c.get("opal", false):
+				m.albedo_color = Color(0.012, 0.013, 0.018).linear_to_srgb()
+				m.roughness = 0.1
+				m.clearcoat_enabled = true
+				m.clearcoat = 1.0
+				m.clearcoat_roughness = 0.03
+			else:
+				var body: Array = c.get("body", [1, 1, 1])
+				var col := Color(float(body[0]), float(body[1]), float(body[2])).linear_to_srgb()
+				# a clear stone mostly refracts; a coloured one shows its colour: alpha rises with the body's saturation
+				var hi := maxf(col.r, maxf(col.g, col.b))
+				col.a = 0.3 + 0.55 * (1.0 - minf(col.r, minf(col.g, col.b)) / maxf(hi, 1e-3))
+				m.albedo_color = col
+				m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+				m.roughness = 0.02
+				m.metallic_specular = clampf(f0 / 0.08, 0.0, 1.0)
+				m.refraction_enabled = true
+				m.refraction_scale = clampf((nd - 1.0) * 0.08, 0.0, 0.2)
+				m.rim_enabled = true
+				m.rim = 0.2
+				m.rim_tint = 0.5
+				# the level is unlit (baked); a lit crystal in an unlit room reads grey, so its colour also glows faintly
+				m.emission_enabled = true
+				m.emission = Color(float(body[0]), float(body[1]), float(body[2])).linear_to_srgb() * (col.a - 0.25)
+			var glow = c.get("glow")
+			if glow is Array:
+				m.emission_enabled = true
+				m.emission = Color(float(glow[0]), float(glow[1]), float(glow[2]))
+				m.emission_energy_multiplier = 1.5
+			mi.set_surface_override_material(s, m)
+
+
+# The crystal light rig (crystal-rig R5): performed by kernel/crystal_light.gd from score.crystalLight.
+func _build_crystal_light() -> void:
+	if not score.has("crystalLight"):
+		return
+	var node: Node3D = load("res://kernel/crystal_light.gd").new()
+	node.name = "crystal_light"
+	add_child(node)
+	node.setup(score["crystalLight"], self)
+
+
 # a figure's rim [r, g, b, strength, power] — the one runtime look term the
 # bake cannot carry (hull shading, toon bands and the ink outline arrive baked
 # in the GLB). Realized as a NEXT_PASS rim.gdshader on every surface of the

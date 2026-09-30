@@ -84,6 +84,7 @@ import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
 import { pedestrianFaces, IDLE_POSES, STROLL_POSES, PALETTES } from '../figures/pedestrian-asset.js';
 import { CITY_FLAVORS, normalizeCityFlavor } from './city-flavors.js';
 import { planCanalCity, canalCameras, CANAL } from './canal-city.js';
+import { roundStreetKit, isRoundKitShape } from './round-kit.js';
 
 const CITY_ELEMENT_DEFAULTS = {
   buildings: true,
@@ -110,6 +111,7 @@ const CITY_ELEMENT_DEFAULTS = {
   townhouses: false,          // opt-in: attached brownstone / modern-stacked rowhouse rows along block faces
   religiousPlaces: true,      // a CLASS of building (a church): at most one per scene, gated by `locale` (see RELIGIOUS_LOCALE_WEIGHT)
   civicDomes: false,          // opt-in: re-tag a FEW of the largest plain buildings as neoclassical domed rotundas (see seedCivicDomes)
+  roundKit: false,            // the round street kit (city/round-kit.js): poles, heads, lenses, bins, bollards drawn round. Default false so every stored row is byte-identical; mintFractalCity turns it ON for new mints
   frontage: false,            // road-aware masses: entrances on the face that fronts a road, parking entrances on the large ones (frontagePass). Default false so every stored row is byte-identical; mintFractalCity turns it ON for new mints
 };
 
@@ -442,6 +444,10 @@ const CITY_ELEMENT_ALIASES = {
   'road-aware': 'frontage',
   parking_entrances: 'frontage',
   parkingEntrances: 'frontage',
+  round: 'roundKit',
+  rounded: 'roundKit',
+  roundPoles: 'roundKit',
+  roundKit: 'roundKit',
 };
 
 export function normalizeFractalCityElements(elements) {
@@ -3312,7 +3318,7 @@ const LOD_KEEP = {
 // become plain extrusions
 const lodKeepsForm = (b) => b.class === 'landmark' || b.class === 'religious' || b.class === 'civic';
 function replaceInPlace(arr, next) { arr.length = 0; for (const x of next) arr.push(x); }
-function pruneFidelity(level, { boxes, grounds, faces }) {
+export function pruneFidelity(level, { boxes, grounds, faces }) {
   const keep = LOD_KEEP[level];
   if (!keep) return null;
   const before = { boxes: boxes.length, grounds: grounds.length, faces: faces.length };
@@ -3610,9 +3616,12 @@ function reseatInsetFaces(faces, plot, R, yaw) {
 // `profile: 'canal'` is a different LAYOUT, not a proportion tweak: the canal town's primary network
 // is water, so it has its own planner (canal-city.js) and never touches this stream. Every other
 // recipe takes the quad-tree planner below exactly as before.
+// `elements.roundKit` rounds the street kit after either planner (city/round-kit.js): each kit box keeps its
+// footprint and gains a round shape, so everything that reads the plan reads the same numbers. Off ⇒ untouched.
 export function planFractalCity(opts = {}) {
-  if (opts && opts.profile === 'canal') return planCanalCity({ ...opts, elements: normalizeFractalCityElements(opts.elements) });
-  return planGridCity(opts);
+  const plan = opts && opts.profile === 'canal' ? planCanalCity({ ...opts, elements: normalizeFractalCityElements(opts.elements) }) : planGridCity(opts);
+  if (normalizeFractalCityElements(opts && opts.elements).roundKit) plan.boxes = roundStreetKit(plan.boxes, { profile: opts.profile });
+  return plan;
 }
 function planGridCity({ region = { x: 2, y: 2, w: 30, d: 18 }, depth = 2, seed = 1, anchor = null, subAnchors = true, density = 0.58, subAnchorChance = 0.4, elements, locale = null, landmark = null, civicAreas = null, climate = 'temperate', baseScale = 1, profile = 'city', people = null, walkers = null, traffic = null, insets = null, blocks = null, fidelity = 'full', anchorSeat = null, flavor = null } = {}) {
   const rng = mulberry32(seed >>> 0 || 1);
@@ -4137,8 +4146,10 @@ function extractFurnitureRepeats(boxes) {
   for (let i = 0; i < boxes.length; i++) {
     const b = boxes[i];
     if (!b || typeof b.kind !== 'string' || FURNITURE_SPECIAL_KINDS.has(b.kind)) continue;
-    if (b.shape || b.roof || b.curtainwall || b.facade || b.plant || b.class) continue;
-    const sig = `${b.kind}|${b.w.toFixed(6)}|${b.d.toFixed(6)}|${(b.z0 || 0).toFixed(6)}|${b.z1.toFixed(6)}|${b.tint || ''}`;
+    if ((b.shape && !isRoundKitShape(b.shape)) || b.roof || b.curtainwall || b.facade || b.plant || b.class) continue;
+    // a round-kit piece is position-independent too (lit by its true normal); its shape and dress join the signature
+    const kit = isRoundKitShape(b.shape) ? `|${b.shape}|${JSON.stringify([b.round || null, b.metal || null, b.hood || null])}` : '';
+    const sig = `${b.kind}|${b.w.toFixed(6)}|${b.d.toFixed(6)}|${(b.z0 || 0).toFixed(6)}|${b.z1.toFixed(6)}|${b.tint || ''}${kit}`;
     (bySig.get(sig) || bySig.set(sig, []).get(sig)).push(i);
   }
   const drop = new Set();

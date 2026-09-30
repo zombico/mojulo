@@ -18,8 +18,10 @@ import { registerTool } from '@/lib/mcp/server';
 import { planWorkbench, persistedLedger } from '@/lib/graph/worlds/workbench';
 import { resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { lowerAssembly } from '@/lib/graph/polygonizer/workbench-assembly';
+import { LAWS_VERSION } from '@/lib/graph/equipment/expand';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
+import { validateCrystalLight } from '@/lib/graph/scene/crystal-rig';
 
 function normalizeToon(toon) {
   const t = resolveToon(toon);
@@ -27,7 +29,13 @@ function normalizeToon(toon) {
   return t;
 }
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef } = {}) {
+function checkedCrystalLight(spec) {
+  const errs = validateCrystalLight(spec);
+  if (errs.length) throw new Error(`crystalLight is invalid — see get_solid_vocab({ id: 'workbench' }), "Light rigs":\n- ${errs.join('\n- ')}`);
+  return spec;
+}
+
+export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -49,15 +57,20 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
   const hasDrapes = Array.isArray(drapes) && drapes.length > 0;
   const hasReliefs = Array.isArray(reliefs) && reliefs.length > 0;
   const hasShells = Array.isArray(shells) && shells.length > 0;
+  const hasFrames = Array.isArray(frames) && frames.length > 0;
   const hasProgram = program && typeof program === 'object';
-  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasLofts && !hasFields && !hasDrapes && !hasReliefs && !hasShells && !hasProgram) {
-    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells`, or `assembly` (the polygomer) — or a `program` (the code kind).');
+  const hasBuild = build && typeof build === 'object' && !Array.isArray(build);
+  if (!hasLathes && !hasExtrudes && !hasSweeps && !hasLofts && !hasFields && !hasDrapes && !hasReliefs && !hasShells && !hasFrames && !hasProgram && !hasBuild) {
+    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells`, `frames`, or `assembly` (the polygomer) — or a `program` (the code kind) or an equipment `build`.');
   }
   const manifest = {
     kind: 'workbench',
     // the code kind (expressiveness.plan.md E3): the program is a PARAM — it lives in the
     // manifest beside the monomer arrays and expands on every render (memoised)
     ...(hasProgram ? { program: { source: program.source, ...(program.params !== undefined ? { params: program.params } : {}), ...(program.seed !== undefined ? { seed: program.seed } : {}), ...(program.budgetMs !== undefined ? { budgetMs: program.budgetMs } : {}) } } : {}),
+    // an equipment build (equipment/expand.js): the words are the recipe, expanded on every read, stamped with the
+    // version of the laws it was minted under so a later refinement never moves it
+    ...(hasBuild ? { build: { ...build, laws: build.laws ?? LAWS_VERSION } } : {}),
     ...(hasLathes ? { lathes: baseLathes } : {}),
     ...(hasExtrudes ? { extrudes: baseExtrudes } : {}),
     ...(hasSweeps ? { sweeps } : {}),
@@ -66,6 +79,7 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     ...(hasDrapes ? { drapes } : {}),
     ...(hasReliefs ? { reliefs } : {}),
     ...(hasShells ? { shells } : {}),
+    ...(hasFrames ? { frames } : {}),
     // parts-booleans B1: the cut is stored AS a cut (the monomers stay in their arrays); the
     // rewrite to a field happens on every render, so an edit to a bore re-cuts
     ...(Array.isArray(cuts) && cuts.length ? { cuts } : {}),
@@ -79,6 +93,10 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     // patch could store them (the mint dropped both). Absent → byte-identical.
     ...(grid === false ? { grid: false } : {}),
     ...(Array.isArray(movers) && movers.length ? { movers } : {}),
+    // a light rig over the recipe's crystals (Light rigs on the card), refused here with its errors named; `events`
+    // (its targets' `lit` / `dark`, HUD banners) is checked where the World resolves it, as for any world
+    ...(crystalLight != null ? { crystalLight: checkedCrystalLight(crystalLight) } : {}),
+    ...(events && typeof events === 'object' && !Array.isArray(events) ? { events } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -114,16 +132,33 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
  * `budgetMs` is the one limit. Stores a plain `kind:'workbench'` manifest carrying `program`,
  * so every leg (world, scene, skin, export, assembler parts, save_recipe) is inherited.
  */
+// The equipment door: an item named by intent and direction (equipment/expand.js). Stores kind:'workbench' + `build`
+// (the words, stamped with the laws), expanded on every read; explicit monomer arrays beside it are an author's own
+// parts, merged after the build's.
+export async function createEquipmentHandler(input) {
+  if (!input || typeof input !== 'object' || typeof input.item !== 'string') {
+    throw new Error("The equipment kind needs `item` (dagger | sword | greatsword | staff | bow | shield) and a `style` (a sample name or an inline card), with optional `dials` { stylize, mass, focus, ornament }, `parts`, `gem`, `seed`. Read get_solid_vocab({ id: 'equipment' }).");
+  }
+  const { title, item, style, dials, parts, gem, seed, laws, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields } = input;
+  const build = { type: 'equipment', item,
+    ...(style !== undefined ? { style } : {}), ...(dials !== undefined ? { dials } : {}), ...(parts !== undefined ? { parts } : {}),
+    ...(gem !== undefined ? { gem } : {}), ...(seed !== undefined ? { seed } : {}), ...(laws !== undefined ? { laws } : {}) };
+  const named = typeof style === 'string' ? style : style && style.id;
+  await ensureExactKernel();
+  return mintWorkbench({ title: title || [named, item].filter(Boolean).join(' '), lathes, extrudes, sweeps, lofts, fields, build,
+    units: units || 'cm', viewBox, facing, toon, grid, movers, crystalLight, events, ref, folderRef });
+}
+
 export async function createCodeSolidHandler(input) {
   if (!input || typeof input !== 'object' || typeof input.source !== 'string') {
     throw new Error("The code kind needs `source` — the body of a function (params, ctx) that returns a workbench spec ({ lathes | extrudes | sweeps | lofts | fields | drapes | reliefs | shells | assembly }) or a face list ([{ corners, fill?, group? }]). Read get_solid_vocab({ id: 'code' }) for the realm API and worked programs.");
   }
-  const { title, source, params, seed, budgetMs, units, viewBox, facing, grid, movers, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts } = input;
+  const { title, source, params, seed, budgetMs, units, viewBox, facing, grid, movers, crystalLight, events, ref, folder_ref: folderRef, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts } = input;
   await ensureExactKernel(); // an `exact: true` field (from the program or beside it) needs Manifold loaded before the sync lowering
   return mintWorkbench({
     title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, cuts,
     program: { source, params, seed, budgetMs },
-    units, viewBox, facing, grid, movers, ref, folderRef,
+    units, viewBox, facing, grid, movers, crystalLight, events, ref, folderRef,
   });
 }
 
@@ -131,9 +166,9 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folder_ref: folderRef } = input;
-  await ensureExactKernel(); // an `exact: true` field or cut needs Manifold loaded before the sync lowering
-  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, assembly, cuts, program, units, viewBox, facing, toon, grid, movers, ref, folderRef });
+  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folder_ref: folderRef } = input;
+  await ensureExactKernel(); // an `exact: true` field or cut, or a frame's joints, need Manifold loaded before the sync lowering
+  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {

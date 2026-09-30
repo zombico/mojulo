@@ -290,7 +290,7 @@ export function registerSketchTools() {
   registerTool(withPluginProfile({
     name: 'update_sketch',
     description:
-      "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate — diagrams validate like `create_sketch`; world/solid kinds resolve through the world registry; games pay create_game's structural gate (added levels noted unaudited). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`, on the stored manifest; `readout:'changed'` returns only what moved) over `manifest`, a FULL replacement. Re-mint only for a side-by-side variant.",
+      "Revise an existing sketch in place — rename it, patch or replace its manifest — same ref. The ITERATE surface for every sketch-stored recipe: diagrams, worlds, solids/figures, edifices, views, image-outcomes, kind:'game'. Each kind pays its own gate (diagrams as `create_sketch`; world/solid kinds resolve through the world registry; games create_game's structural gate). Beats/voice refuse and point at their domain tools. Prefer `patch` (set/remove/add ops by monomer `id` or JSON Pointer `path`; `readout:'changed'` returns only what moved) over a FULL `manifest` replace. A layered row takes drawn `strokes` and `{ op:'solve', from:'/strokes/<id>' }` (get_solid_vocab layered · Drawing on it).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -550,10 +550,10 @@ export function registerSketchTools() {
         },
         format: {
           type: 'string',
-          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle'],
+          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc'],
           default: 'glb',
           description:
-            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md.",
+            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md. 'ifc': a house (floorplan with storeys) as an IFC4 building model for BIM tools.",
         },
         cdn: {
           type: 'boolean',

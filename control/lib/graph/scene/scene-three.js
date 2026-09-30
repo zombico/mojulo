@@ -50,11 +50,19 @@ import {
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
-  rigPreviewChannelScript,
+  rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
+  strokeOverlayChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
 import { streamChannelScript } from './channels/stream.js';
+import { terrainChannelScript } from './channels/terrain-lod.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
+import { crystalChannelScript } from './channels/crystal.js';
+import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
+import { crystalPrintsFor, crystalLivePrints, crystalGlowPools, crystalSun } from './crystal-prints.js';
+import { crystalLightChannelScript } from './channels/crystal-light.js';
+import { crystalRigFor } from './crystal-rig.js';
+import { shineOptics } from '../polygonizer/crystal-shine.js';
 
 
 // horizontal fov (deg) + aspect → vertical fov (deg) for THREE.PerspectiveCamera
@@ -172,7 +180,9 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, metersPerUnit = null } = {}) {
+  // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
+  if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
@@ -291,6 +301,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
           return [base[0] * a, base[1] * a, base[2] * a];
         })
         : null,
+      // textured template faces (a grown plant's bark or trunk): one { key, pos, uv, col, lit } per texture, drawn by
+      // the textured-instances block below with the same transforms; the key is absent without them
+      ...(Object.keys(gm.textureGroups || {}).length ? { tex: Object.entries(gm.textureGroups).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit })) } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -317,22 +330,30 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     width: Number.isFinite(toonInk.width) ? toonInk.width : 0.008,
     ...(Number.isFinite(toonInk.widthAbs) ? { widthAbs: toonInk.widthAbs } : {}),
     crease: Number.isFinite(toonInk.crease) ? toonInk.crease : 35,
+    // `lines: false` — the silhouette hull alone (no crease or open-boundary segments); absent ⇒ no key, same cfg
+    ...(toonInk.lines === false ? { lines: false } : {}),
   } : null;
   // The ink faces come from the PRE-decollide list (expanded0): decollide lifts coplanar cap
   // triangles by different amounts, so their shared edges would never weld into one hull or
-  // pass the crease census. Same grouping key as the render groups below.
+  // pass the crease census. Same grouping key as the render groups below. A face tagged `noInk`
+  // (a drawn feature on a character-lit figure: an eye lens, a stroke) takes no outline, nor does
+  // a face drawn `through` another (its draw layer, below).
+  // DRAW LAYERS (channels/draw-layers.js): a face carrying `layer` ('hair' | 'through' | 'veil', a
+  // character-lit figure's) lands in its group split by that layer (drawLayerGroup: `body:hair`…), so
+  // each layer is its own mesh and its own outline hull; a face without one keeps its group.
   const inkByGroup = new Map();
   if (toonInk) {
     for (const f of expanded0) {
-      if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
-      const k = f.group || 'static';
+      if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || f.noInk || f.layer === 'through' || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
+      const k = drawLayerGroup(f);
       (inkByGroup.get(k) || inkByGroup.set(k, []).get(k)).push(f);
     }
   }
   // `decal:'shadow'` faces render ONLY in the shadow-decal pass, and `water` faces ONLY in the
   // translucent water pass below — keep both out of the opaque mesh (shadows would double as flat
   // dark patches; water needs per-vertex alpha the opaque mesh can't carry).
-  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = f.group || 'static'; (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
+  const layerOf = new Map();
+  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = drawLayerGroup(f); if (k !== (f.group || 'static')) layerOf.set(k, f.layer); (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
   const groups = [...groupMap].map(([name, fs]) => {
     const gm = faceListToMesh(fs, { decollide: false }); // already de-collided globally above
     const nf = fs.find((f) => Array.isArray(f.normal));
@@ -362,9 +383,15 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const ink = im && im.positions.length ? { pos: b64(im.positions), ...(im.normals ? { nrm: b64(im.normals) } : {}) } : null;
     // per-vertex specular params (faces tagged `spec` by a material) — the key is only present
     // when the group carries them, so material-free scenes serialize byte-identically.
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}) };
+    // per-vertex crystal data (crystal-shine S4) — the key is only present when the group carries a crystal face
+    const cryFace = gm.crys ? fs.find((f) => f && f.crystal) : null;
+    const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
+    // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
+    const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets), ...(gm.metP ? { p: b64(gm.metP) } : {}) } : null;
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}) };
   });
-  const hasTextures = groups.some((g) => g.tex.length);
+  const hasRepeatTextures = packedRepeats.some((r) => r.tex);
+  const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures;
   // Any single-sided (bound-mesh) group? Only then does the render script reference
   // grp.singleSide — so a world without one emits the exact prior `side: THREE.DoubleSide`
   // string and stays byte-identical (the emit char-net holds; the feature is opt-in).
@@ -504,6 +531,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     };
   })() : null;
   const streamBlock = streamCfg ? streamChannelScript(streamCfg) : '';
+  // Terrain world (opt-in): the recipe's ground meshed in the page around the camera.
+  // Absent `terrain` ⇒ '' ⇒ every World byte-identical.
+  const terrainBlock = terrain && typeof terrain.kernel === 'string' && terrain.K ? terrainChannelScript(terrain) : '';
   // Suppressed entirely on GAME LEVELS (payload carries `game`): a level teaches its controls
   // through the shell's pause menu, and the corner hint reads as dev chrome on a play screen.
   const hintText = (walkCfg
@@ -621,6 +651,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // non-casting groups (interiors): a roof/ceiling group that receives but never casts, so it
     // can't blanket the floor in shadow. Key present only when declared ⇒ existing worlds unchanged.
     ...(Array.isArray(castShadows.noCastGroups) && castShadows.noCastGroups.length ? { noCast: castShadows.noCastGroups } : {}),
+    // rock-scale shadows: contact slack and FIT floor in world units, present only when declared (bytes unchanged otherwise)
+    ...(Number.isFinite(castShadows.bias) && castShadows.bias > 0 ? { bias: castShadows.bias } : {}),
+    ...(Number.isFinite(castShadows.fitMin) && castShadows.fitMin > 0 ? { fitMin: castShadows.fitMin } : {}),
   }) : '';
   const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: !!castShadows }) : '';
   // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place
@@ -629,7 +662,20 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const previewList = Object.entries(packedFigures).filter(([, f]) => f && f.rig === true && f.preview && typeof f.preview === 'object').map(([name, f]) => ({ figure: name, ...f.preview }));
   const previewBank = {};
   for (const pv of previewList) { const { preview, ...fig } = packedFigures[pv.figure]; previewBank[pv.figure] = fig; }
-  const rigPreviewBlock = previewList.length ? rigPreviewChannelScript(previewList, previewBank) : '';
+  // DRAW LAYERS (channels/draw-layers.js): a page whose render groups carry a face `layer`, or whose previewed figure's
+  // parts carry `ranges` (the same layers on the rig pack), draws the stencil rules — the layers block, the stencil
+  // buffer, the toon hulls' tests and the preview's layered parts. The hair rule is on when some face or part is hair.
+  // Absent ⇒ every one of them is '' or its old text.
+  const layeredGroups = groups.filter((g) => g.layer);
+  const previewParts = previewList.flatMap((pv) => (previewBank[pv.figure]?.parts || []).filter((p) => p && p.ranges));
+  const layered = layeredGroups.length > 0 || previewParts.length > 0;
+  const layersBlock = layered ? drawLayersScript({ hair: layeredGroups.some((g) => g.layer === 'hair') || previewParts.some((p) => p.ranges.hair), groups: layeredGroups.map((g) => g.name) }) : '';
+  // A preview carrying `ink` (the layered kind's character ink) outlines its moving parts with the toon setup's builders
+  // and hides the static outline with the static solid; the channel only sees the ink cfg then (absent ⇒ same bytes).
+  const rigPreviewBlock = previewList.length ? rigPreviewChannelScript(previewList, previewBank, { ...(toonInkCfg && previewList.some((pv) => pv.ink) ? { toonInk: toonInkCfg } : {}), ...(layered ? { layers: true } : {}) }) : '';
+  // stroke overlay channel (stroke-affordances S3): drawing on a layered solid's page; an input channel that hands
+  // the stroke back as an update_sketch patch. Present only when the layered manifest opts in ⇒ else zero bytes.
+  const strokeOverlayBlock = strokeOverlay && typeof strokeOverlay === 'object' && strokeOverlay.views ? strokeOverlayChannelScript(strokeOverlay) : '';
   // cars channel (the driver-ants sibling of walkers): each car names a baked mesh in `carMeshes` and
   // carries a lane path; only the meshes actually driven are embedded. Absent/empty ⇒ '' ⇒ a car-free
   // world is byte-identical (same discipline as walkers).
@@ -696,12 +742,35 @@ scene.add(__eQuad${i});
   // toon ink (toon-shading Phase 2): the outline block, emitted only when the toon dial asks for
   // ink AND some group packed ink buffers. `width` is a fraction of the largest ink geometry's
   // bounding radius (`widthAbs` = world units instead); `crease` the EdgesGeometry angle.
-  const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg) : '';
+  const toonBlock = toonInk && (groups.some((g) => g.ink) || hasControllable) ? toonInkScript(toonInkCfg, layered ? { layers: true } : undefined) : '';
 
+  // crystal (crystal-shine S4): emitted only when some group carries crystal faces — the live response for those
+  // groups, and each stone's print traced once here (crystal-prints.js). Absent → zero bytes.
+  const cryGroups = groups.filter((g) => g.crystal);
+  const crystalBlock = cryGroups.length ? (() => {
+    const toL = crystalSun(light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight);
+    const gems = Object.fromEntries([...new Set(cryGroups.flatMap((g) => g.crystal.gems))].map((name) => [name, shineOptics(name)]));
+    // a crystal group a mover drives throws its print live (re-traced on the page as it turns); the rest bake here
+    const moving = new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => cryGroups.some((cg) => cg.name === g)));
+    return crystalChannelScript({ toLight: toL, gems, prints: crystalPrintsFor(expanded, toL, undefined, moving.size ? { skip: moving } : {}), pools: crystalGlowPools(expanded), ambient: light && Number.isFinite(light.ambient) ? light.ambient : 0.4,
+      ...(moving.size ? { live: crystalLivePrints(expanded, moving) } : {}) });
+  })() : '';
+  // crystal light (crystal-rig R2): lamps through the page's crystals, each gem an operator, re-solved every frame.
+  // Present only when the payload's `crystalLight` resolves against its faces; groups a mover drives are raycast live
+  // (the static rest is one occluder grid). Absent → zero bytes.
+  const cryRig = crystalLight ? crystalRigFor(expanded, crystalLight) : null;
+  const crystalLightBlock = cryRig ? crystalLightChannelScript({ ...cryRig,
+    dynamic: [...new Set((chLists.movers || []).map((mv) => mv.group).filter((g) => typeof g === 'string' && !cryRig.stones.some((st) => st.group === g)))] }) : '';
+  // metal (metal-surfaces S3): emitted only when some group carries metal faces — one studio, one lookup texture and
+  // one program for every metal surface on the page, the studio's dome tinted by the scene's sky when it has one.
+  // Absent → zero bytes.
+  const metKeys = [...new Set(groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces))].sort();
+  const metalBlock = metKeys.length ? metalChannelScript({ toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight,
+    inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit }) }) : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
-    splats: splatBlock, toon: toonBlock,
+    splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
     fx: fxBlock, spriteSfx: spriteSfxBlock, audio: audioBlock, game: gameBlock,
   };
 
@@ -780,7 +849,7 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 // sit only a few cm in front of their wall. A linear depth buffer starves that gap of
 // precision and the decals z-fight (shimmer). The log buffer restores precision across
 // the range so the proud faces win cleanly from any orbit distance.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''} });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
 const scene = new THREE.Scene();
@@ -854,7 +923,28 @@ for (const r of REPEATS) {
   im.userData.g = r.name;
   scene.add(im); solids.push(im); meshes[r.name] = im;
 }
-
+${hasRepeatTextures ? `// textured template faces (a grown plant's bark, a palm's trunk): per repeat and texture key, one InstancedMesh with
+// the repeat's transforms and tints, drawing texel × the baked light (vertex colours) with the tile repeating
+const REP_TEX = {};
+for (const r of REPEATS) for (const t of (r.tex || [])) {
+  const url = TEXTURES[t.key]; if (!url) continue;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(decodeF32(t.pos), 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(decodeF32(t.uv), 2));
+  if (t.lit) g.setAttribute('color', new THREE.BufferAttribute(decodeF32(t.col), 3));
+  g.computeBoundingSphere();
+  let tex = REP_TEX[t.key];
+  if (!tex) { tex = REP_TEX[t.key] = new THREE.TextureLoader().load(url); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; }
+  const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide }), r.t.length);
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
+  r.t.forEach((q, i) => {
+    Q.setFromAxisAngle(UP, q[3]); P.set(q[0], q[1], q[2]); S.set(q[4], q[4], q[4]); M.compose(P, Q, S); im.setMatrixAt(i, M);
+    if (r.tint) im.setColorAt(i, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
+  });
+  im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  im.userData.g = r.name; scene.add(im); solids.push(im);
+}
+` : ''}
 const camera = new THREE.PerspectiveCamera(CAMS[0].vfov, wrap.clientWidth / wrap.clientHeight, 0.1, 8000);
 camera.up.set(0, 0, 1); // world is z-up
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -1063,12 +1153,12 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${carsBlock}${xrBlock}${streamBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };

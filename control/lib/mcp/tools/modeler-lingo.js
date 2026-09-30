@@ -60,7 +60,7 @@ const LEXICON = [
   },
   {
     id: 'proportion-pass',
-    terms: ['proportions', 'proportion pass', 'body proportions', 'heads tall', 'heads-tall', 'body ratios', 'body type', 'stockier', 'lankier', 'broader shoulders', 'longer legs', 'bigger head', 'silhouette pass', 'face proportions', 'facial proportions', 'broader jaw', 'larger eyes', 'eye spacing', 'longer face', 'hairstyle', 'hair style', 'haircut', 'ponytail', 'bob cut', 'undercut', 'hair length', 'anime hair', 'spiky hair', 'bangs', 'fringe'],
+    terms: ['proportions', 'proportion pass', 'body proportions', 'heads tall', 'heads-tall', 'body ratios', 'body type', 'stockier', 'lankier', 'broader shoulders', 'longer legs', 'bigger head', 'silhouette pass', 'face proportions', 'facial proportions', 'broader jaw', 'larger eyes', 'eye spacing', 'longer face', 'hairstyle', 'hair style', 'haircut', 'ponytail', 'bob cut', 'undercut', 'hair length', 'anime hair', 'anime face', 'anime head', 'anime character', 'manga-style head', 'tsurime', 'tareme', 'upturned eyes', 'droopy eyes', 'peekaboo bangs', 'character preset', 'ahoge', 'antenna hair', 'hime cut', 'princess cut', 'blunt bangs', 'spiky hair', 'bangs', 'fringe'],
     concept: 'Locking a character\'s primary masses — heads-tall, shoulder and hip span, limb length and girth, then the face\'s skull, jaw, eyes, nose and mouth — before any detail, and revisiting them by percentage rather than re-sculpting.',
     support: NATIVE,
     routes: [
@@ -68,6 +68,7 @@ const LEXICON = [
       { tool: 'update_sketch', when: 'tune an existing hero by word — shoulders, waist, hips, depth, torso, neck, legs, head, stature, upperArm, forearm, thigh, calf', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.1 }] } },
       { tool: 'update_sketch', when: 'tune the FACE by word — skullWidth, faceWidth, faceLength, jawWidth, chinProjection, cheek, eyeSpacing, eyeSize, browHeight, noseWidth, noseSize, mouthWidth (moves broad-jaw, large-eyes); expression beside it', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/hero/face/jawWidth', value: 1.18 }] } },
       { tool: 'update_sketch', when: 'the HAIR by word — a library style (animeShort, buzz, crew, taper, undercut, crop, quiff, swept, curtains, animeBob, pixie, bob, angled, layers, long, wavy, ponytail, bun, braid, none) and its controls (volume, fringe, part, fade; length, graduation, wave; tail, tie, braid; lockWidth, taper, bend, asymmetry; corners, sideBulk, topSlope, lineup; definition)', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/hero/hair/style', value: 'ponytail' }, { op: 'set', path: '/hero/hair/length', value: 1.3 }] } },
+      { tool: 'mint_solid', when: 'an ANIME character: the hero wearing the Anime Form Studio head (`head: \'anime\'`) — its face controls as percentages of the design base (eyeHeight, tilt, jaw, chin …), a hair family (bob, short, long) with clump `locks` by name, a pose (blink, smile, open), or a `look` of preset words (heroine, rival, kid …; tsurime / tareme upturned or drooping eyes, peekaboo one bang over the eye)', args: { kind: 'layered', via: 'hero', spec: { cast: 'female', head: 'anime', hair: 'long', expression: 'smile' } } },
       { tool: 'mint_solid', when: 'a proportion CAST on the SVG figure (a picture, not a mesh)', args: { kind: 'figure', spec: { cast: 'heroic' } } },
     ],
     then: [EXPORT],
@@ -150,6 +151,18 @@ const LEXICON = [
     then: [],
     ceiling: 'Static geometry only in v1: displayColor per vertex, PointInstancers for repeats, cameras, entity Xforms with moj: customData. Rig clips are not in USD yet (UsdSkel is roadmap). USD viewers LIGHT the surface — the baked colours read as albedo, not the unlit web look.',
     dcc: "Import the .usdz/.usda; upAxis is Z and metersPerUnit follows the recipe's units, so it lands upright at true scale. Textured groups arrive as UsdPreviewSurface + UsdUVTexture; everything else shows displayColor. Re-light and re-shade there.",
+  },
+  {
+    id: 'bim-ifc',
+    terms: ['ifc', 'bim', 'building information model', 'revit', 'archicad', 'bonsai', 'blenderbim', 'ifc export', 'ifcopenshell'],
+    concept: 'Hand a building to the BIM side as elements with classes, materials and quantities, not as a mesh.',
+    support: NATIVE,
+    routes: [
+      { tool: 'export_model', when: "a house (floorplan with `storeys`): IFC4 — storeys, spaces, walls, openings, slabs, roof; a framed house's members, linings, circuits; its drains", args: { ref: '<sk_ref>', format: 'ifc' } },
+    ],
+    then: [],
+    ceiling: "Houses only. Members extrude along their centrelines without their joinery cut in; linings, boxes and cable are boxes. Export only: mojulo does not read IFC back.",
+    dcc: 'Open the .ifc in Bonsai (Blender), Revit or ArchiCAD. Elements carry a Mojulo_Element property set whose Key names them in the recipe; GlobalIds hold across re-exports.',
   },
   {
     id: 'low-poly',

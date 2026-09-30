@@ -38,9 +38,14 @@
  *   glyph-driven-landscape.spike.gen.test.js   — closed-vocabulary surface
  */
 
+import { validateRockMix, ROCK_PRESET_IDS, rockMeanRgb } from './rock-minerals.js';
+import { erodeHeightfield, gridSampler, validateErosion, EROSION_DEFAULTS } from './terrain-erosion.js';
 import { projectTwoPoint } from './pure-mandala.js';
 import { familyKeys } from '../landscape/surface-textures.js';
-import { buildFieldResolver, validateFields } from './fields.js';
+import { buildFieldResolver, validateFields, valueNoise3D } from './fields.js';
+import { applyLandform, landformGrid, bakeGrid, validateLandform, gridGradient, gridSample, bedAt, LANDFORM_RES } from './landform.js';
+import { slicedTerrainFaces, sliceLevels } from './landform-mesh.js';
+import { SPECIES as PLANT_SPECIES, LEVELS as PLANT_LEVELS } from '../vegetation/species.js';
 import {
   HEARTBEATS as LOADED_HEARTBEATS,
   SPLATCHES as LOADED_SPLATCHES,
@@ -180,6 +185,63 @@ export function resolveSkySpec(sky) {
 
 // ─── Validation (mint-time errors, not render-time) ────────────────────
 
+/**
+ * `rocks`: the scene's boulders become pooled `rock` templates instead of massed boxes.
+ * A rock preset id, or { rock, variants?: 1–8 (6), detail?: 0–4 (2, the rock's octaves; 0 = the exact block),
+ * tone?: 'palette' | 'mineral' ('palette' keeps the painting's colour), sink?: 0–0.6 (0.2, share of height buried) }.
+ * Returns the normalized spec, or null when absent.
+ */
+export function resolveLandscapeRocks(rocks) {
+  if (rocks === undefined || rocks === null) return null;
+  const r = typeof rocks === 'string' ? { rock: rocks } : rocks;
+  return {
+    rock: r.rock ?? 'granite',
+    variants: Number.isInteger(r.variants) ? r.variants : 6,
+    detail: Number.isInteger(r.detail) ? r.detail : 2,
+    tone: r.tone === 'mineral' ? 'mineral' : 'palette',
+    sink: Number.isFinite(r.sink) ? r.sink : 0.2,
+  };
+}
+function validateLandscapeRocks(rocks) {
+  const e = [];
+  if (typeof rocks === 'string') return validateRockMix(rocks, 'rocks');
+  if (typeof rocks !== 'object' || Array.isArray(rocks)) return [`rocks must be a rock preset (${ROCK_PRESET_IDS.join(', ')}) or { rock, variants?, detail?, tone?, sink? } when provided`];
+  if (rocks.rock !== undefined) e.push(...validateRockMix(rocks.rock, 'rocks.rock'));
+  if (rocks.variants !== undefined && !(Number.isInteger(rocks.variants) && rocks.variants >= 1 && rocks.variants <= 8)) e.push('rocks.variants must be an integer 1–8 (pooled templates; more variety, more memory)');
+  if (rocks.detail !== undefined && !(Number.isInteger(rocks.detail) && rocks.detail >= 0 && rocks.detail <= 4)) e.push('rocks.detail must be an integer 0–4 (the rock\'s octaves; 0 is the exact block)');
+  if (rocks.tone !== undefined && rocks.tone !== 'palette' && rocks.tone !== 'mineral') e.push("rocks.tone must be 'palette' (the painting's colour) or 'mineral' (the rock's own)");
+  if (rocks.sink !== undefined && !(Number.isFinite(rocks.sink) && rocks.sink >= 0 && rocks.sink <= 0.6)) e.push('rocks.sink must be a number 0–0.6 (share of a rock\'s height buried)');
+  return e;
+}
+
+/**
+ * `plants`: the scene's trees become grown plants (vegetation/: a self-organizing tree, a palm grown to an age, a
+ * bamboo culm) pooled as `repeats` instead of taiji boxes. A species for the canopy trees, or { canopy?: species
+ * ('oak'), cone?: species ('fir'; or a conifer grown by rule: 'spruce', 'silverfir', 'pine'), tuft?: species (none:
+ * tufts stay clumps), variants?: 1–6 (3), level?: 'L0'–'L3' ('L2', the most detail a template carries) }. A conifer's name
+ * alone names both. docs/vegetation.md has the species and the science.
+ * Returns the normalized spec, or null when absent.
+ */
+export function resolveLandscapePlants(plants) {
+  if (plants === undefined || plants === null || plants === false) return null;
+  const p = plants === true ? {} : typeof plants === 'string' ? { canopy: plants, ...(PLANT_SPECIES[plants]?.arch === 'massart' || PLANT_SPECIES[plants]?.kind === 'conifer' ? { cone: plants } : {}) } : plants;
+  return {
+    canopy: p.canopy ?? 'oak', cone: p.cone ?? 'fir', tuft: p.tuft ?? null,
+    variants: Number.isInteger(p.variants) ? p.variants : 3, level: PLANT_LEVELS.includes(p.level) ? p.level : 'L2',
+  };
+}
+function validateLandscapePlants(plants) {
+  const ids = Object.keys(PLANT_SPECIES); const known = (v, key) => (ids.includes(v) ? [] : [`${key} must be a species: ${ids.join(', ')}`]);
+  if (plants === true || plants === false) return [];
+  if (typeof plants === 'string') return known(plants, 'plants');
+  if (typeof plants !== 'object' || Array.isArray(plants)) return [`plants must be a species (${ids.join(', ')}) or { canopy?, cone?, tuft?, variants?, level? } when provided`];
+  const e = [];
+  for (const k of ['canopy', 'cone', 'tuft']) if (plants[k] !== undefined && plants[k] !== null) e.push(...known(plants[k], `plants.${k}`));
+  if (plants.variants !== undefined && !(Number.isInteger(plants.variants) && plants.variants >= 1 && plants.variants <= 6)) e.push('plants.variants must be an integer 1–6 (grown variants per species; more variety, more memory)');
+  if (plants.level !== undefined && !PLANT_LEVELS.includes(plants.level)) e.push(`plants.level must be one of ${PLANT_LEVELS.join(', ')} (the most detail a template carries)`);
+  return e;
+}
+
 export function validatePaintedLandscape(manifest) {
   const errors = [];
   if (!manifest || typeof manifest !== 'object') {
@@ -268,6 +330,10 @@ export function validatePaintedLandscape(manifest) {
       });
     }
   }
+  if (manifest.rocks !== undefined && manifest.rocks !== null) errors.push(...validateLandscapeRocks(manifest.rocks));
+  if (manifest.plants !== undefined && manifest.plants !== null) errors.push(...validateLandscapePlants(manifest.plants));
+  if (manifest.erosion !== undefined && manifest.erosion !== null && manifest.erosion !== false) errors.push(...validateErosion(manifest.erosion));
+  if (manifest.landform !== undefined && manifest.landform !== null) errors.push(...validateLandform(manifest.landform));
   if (manifest.ground !== undefined && manifest.ground !== null) {
     const g = manifest.ground;
     if (typeof g === 'string') {
@@ -1703,6 +1769,178 @@ function vToY(v) { return Y_NEAR - Y_SPAN * v; }
 // fields.js) so an authored terrain-plan renders painterly here, with
 // Lambert from central-difference slopes.
 function makeSampler(manifest, seed) {
+  const base = makeBaseSampler(manifest, seed);
+  if (manifest.landform) return landformSampler(base, manifest, seed);
+  return manifest.erosion ? erodedSampler(base, manifest, seed) : base;
+}
+
+// opt-in `landform`: the base surface baked on a square-celled grid over the domain, then the
+// operator list (landform.js) in order, `erosion` (if declared) reading the rock's hardness, then the talus ops. Every
+// consumer reads the result, as with erosion; the World also meshes it face-aware from the state (`landform`).
+// Memoised per (surface, erosion, landform) so the still and the World build it once.
+const landformMemo = new Map();
+function landformStateFor(base, manifest, seed) {
+  const erosion = manifest.erosion ? (manifest.erosion === true ? {} : manifest.erosion) : null;
+  const key = JSON.stringify([seed, manifest.heartbeat, manifest.heartbeatOverrides, manifest.elevation, erosion, manifest.landform]);
+  let state = landformMemo.get(key);
+  if (!state) {
+    state = bakeGrid(landformGrid({ x0: X_MIN, x1: X_MAX, y0: Y_FAR, y1: Y_NEAR, res: erosion?.res ?? LANDFORM_RES }), base.heightAt);
+    applyLandform(state, manifest.landform || [], { seed, erosion });
+    state.grad = gridGradient(state);
+    if (landformMemo.size >= 8) landformMemo.delete(landformMemo.keys().next().value);
+    landformMemo.set(key, state);
+  }
+  return state;
+}
+function landformSampler(base, manifest, seed) {
+  const erosion = manifest.erosion ? (manifest.erosion === true ? {} : manifest.erosion) : null;
+  const state = landformStateFor(base, manifest, seed);
+  return {
+    ...base,
+    heightAt: (x, y) => gridSample(state, x, y),
+    lambertAt: (x, y, light) => { const n = normalize3({ x: -gridSample(state, x, y, state.grad.gx), y: -gridSample(state, x, y, state.grad.gy), z: 1 }); return AMBIENT + LAMBERT_GAIN * Math.max(0, dot3(n, light)); },
+    samples: { u: Math.max(base.samples.u, Math.round(state.nx * 0.5)), v: Math.max(base.samples.v, Math.round(state.ny * 0.5)) },
+    eroded: !!erosion,
+    landform: state,
+  };
+}
+
+// The World's landform terrain: the state meshed face-aware (landform-mesh.js, every second grid node, sliced at
+// ~1.2 cells and at every bed), painted in the painting's key. Soil is the palette's light ramp, as on the grid path;
+// rock is the same ramp greyed toward the landscape's stone tone (or a bed's own `tones`), blended in per corner by
+// bareness (slope, and hardness on steep ground); the apron is a paler, greyer stone. Faces are moved along their
+// horizontal normal where the ground is a face: hard beds stand proud, soft beds recess, and a fracture-rough skin
+// follows the fabric (columns streak down, beds run along). Haze, night and moon as the grid path does them.
+const D2R_LF = Math.PI / 180;
+// The landform's stone in the painting's key: the palette's light ramp greyed toward the landscape's stone tone. When a
+// rock is named (a joints op's `rock`, else the `rocks` preset) its mineral colour sets the ramp (basalt dark, quartzite
+// pale), still pulled 20% toward the palette so it sits in the painting. The apron is the same stone, paler and greyer.
+function landformStone(palette, rockName) {
+  const desat = (c, f) => { const g = (c[0] + c[1] + c[2]) / 3; return c.map((v) => v + (g - v) * f); };
+  const ramp = (stops) => ({ ...palette, shadow: stops[0], base: stops[1], mid: stops[2], highlight: stops[3] });
+  const paletteStops = [palette.shadow, palette.base, palette.mid, palette.highlight].map((c) => desat(c, 0.6));
+  let stoneStops;
+  if (rockName) {
+    const m = rockMeanRgb(rockName); const own = [m.map((v) => v * 0.42), m.map((v) => v * 0.72), m, m.map((v) => Math.min(255, v * 1.2))];
+    stoneStops = own.map((c, i) => lerpRgb(c, paletteStops[i], 0.2));
+  } else {
+    const t = palette.base.map((v, i) => (v + palette.mid[i]) / 2); const lum = 0.3 * t[0] + 0.59 * t[1] + 0.11 * t[2]; const tone = t.map((v) => v * 0.5 + lum * 0.5);
+    stoneStops = paletteStops.map((c) => lerpRgb(c, tone, 0.35));
+  }
+  const screeStops = stoneStops.map((c) => lerpRgb(c, desat(c, 1).map((v) => Math.min(255, v * 1.1)), 0.45));
+  return { stoneStops, stone: ramp(stoneStops), scree: ramp(screeStops), screeTone: screeStops[3], ramp };
+}
+/** A bed's ramp: its own `tones` colour, else the stone lightened (hard) or darkened and warmed (soft); memoised. */
+function landformBedRamp(state, palette, { stone, stoneStops, ramp }) {
+  const bedRamps = new Map();
+  return (i) => {
+    if (i < 0 || !state.strata) return stone;
+    let r = bedRamps.get(i); if (r) return r;
+    const L = state.strata.layers[i]; const tones = state.strata.tones;
+    if (tones) { const c = hexToRgb(tones[i % tones.length]); r = ramp([c.map((v) => v * 0.5), c.map((v) => v * 0.78), c, lerpRgb(c, [255, 255, 255], 0.3)]); }
+    else { const h = ((Math.imul(i + 1, 2654435761) >>> 0) / 4294967296); const f = L.hard ? 1.04 + 0.06 * h : 0.86 + 0.06 * h; r = ramp(stoneStops.map((c) => lerpRgb(c.map((v) => Math.min(255, v * f)), palette.shadow, L.hard ? 0 : 0.1))); }
+    bedRamps.set(i, r); return r;
+  };
+}
+
+/**
+ * A painted scene's ground, for the terrain world: the landform grid state its own pipeline
+ * builds (heartbeat or `elevation`, then `landform` and `erosion`; a scene without `landform` gets the plain baked grid),
+ * with its palette, light, water level, and the stone, scree and bed ramps its World mesh paints with.
+ * Heights are in the painting's units over its domain; the terrain field scales them to metres.
+ */
+export function paintedTerrainState(manifest) {
+  const errors = validatePaintedLandscape(manifest);
+  if (errors.length) throw new Error(`Invalid painted-landscape manifest:\n - ${errors.join('\n - ')}`);
+  const seed = manifest.seed || 'default';
+  const base = makeBaseSampler(manifest, seed);
+  const state = landformStateFor(base, manifest, seed);
+  const palette = derivePalette(manifest.splatch, manifest.paletteOverrides);
+  const light = normalize3(manifest.light || base.defaultLight || { x: 0.4, y: 0.6, z: 0.6 });
+  const rockName = state.rock || (manifest.rocks ? resolveLandscapeRocks(manifest.rocks).rock : null);
+  const kit = landformStone(palette, rockName); const bedRamp = landformBedRamp(state, palette, kit);
+  const skySpec = resolveSkySpec(manifest.sky); const sky = !skySpec.disabled ? deriveSky(palette, light) : null;
+  return {
+    state, palette, light, waterLevel: base.waterLevel, rockName, sky,
+    stone: kit.stone, scree: kit.scree, beds: state.strata ? state.strata.layers.map((_, i) => bedRamp(i)) : [],
+    domain: { x0: X_MIN, x1: X_MAX, y0: Y_FAR, y1: Y_NEAR }, lambert: { ambient: AMBIENT, gain: LAMBERT_GAIN },
+  };
+}
+function landformWorldFaces(state, { palette, light, haze, wl, seedNum, rockName }) {
+  const { gx, gy } = state.grad;
+  let lo = Infinity, hi = -Infinity; for (const z of state.z) { if (z < lo) lo = z; if (z > hi) hi = z; }
+  const beds = state.strata && !state.strata.dipped ? state.strata.layers.map((l) => l.b) : [];
+  const levels = sliceLevels(lo, hi, 1.2 * state.dx, beds);
+  const kit = landformStone(palette, rockName); const { scree } = kit;
+  const bedRamp = landformBedRamp(state, palette, kit);
+  const rgbOf = (str) => str.match(/\d+/g).slice(0, 3).map(Number);
+  const tan = (d) => Math.tan(d * D2R_LF); const T22 = tan(22), T30 = tan(30), T34 = tan(34), T45 = tan(45), T48 = tan(48), T52 = tan(52), T70 = tan(70);
+  const smoothLF = (a, b, x) => { const u = Math.max(0, Math.min(1, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+  const paint = (p, mz, n) => {
+    // ground is lit by the grid's smooth normal at the corner (neighbours agree: no two-triangle checkerboard where
+    // the mesh under-samples a small step); rock by the triangle's own normal, so faces stay faceted
+    const cgx = gridSample(state, p[0], p[1], gx), cgy = gridSample(state, p[0], p[1], gy); const g = Math.hypot(cgx, cgy);
+    const cn = normalize3({ x: -cgx, y: -cgy, z: 1 });
+    const lamSmooth = AMBIENT + LAMBERT_GAIN * Math.max(0, dot3(cn, light)), lamFacet = AMBIENT + LAMBERT_GAIN * Math.max(0, n[0] * light.x + n[1] * light.y + n[2] * light.z);
+    const lam = lamSmooth + (lamFacet - lamSmooth) * smoothLF(T34, T52, g);
+    const bed = bedAt(state, p[0], p[1], mz), own = bedAt(state, p[0], p[1], p[2]);   // the slab's bed colours; the corner's own bed decides bareness, so neighbours agree
+    const hard = Math.max(gridSample(state, p[0], p[1], state.hard), own >= 0 && state.strata.layers[own].hard ? 0.9 : 0);
+    const bare = Math.max(smoothLF(T30, T45, g), hard > 0.3 && g > T22 ? smoothLF(T22, T34, g) : 0);
+    let c = lerpRgb(rgbOf(shadeFromLambert(palette, lam)), rgbOf(shadeFromLambert(bedRamp(bed), lam)), bare);
+    const apron = gridSample(state, p[0], p[1], state.apron);
+    if (apron > 0.02) c = lerpRgb(c, rgbOf(shadeFromLambert(scree, lam)), smoothLF(0.02, 0.3, apron) * 0.9);
+    const under = wl !== null && p[2] < wl;
+    let f = `rgb(${clamp255(c[0] * (under ? 0.5 : 1))},${clamp255(c[1] * (under ? 0.5 : 1))},${clamp255(c[2] * (under ? 0.5 : 1))})`;
+    if (haze) {
+      const depthT = Math.max(0, Math.min(1, (Y_NEAR - p[1]) / Y_SPAN));
+      f = applyHaze(f, haze.horizon, haze.strength * depthT);
+      if (haze.day < 1) {
+        f = applyHaze(f, NIGHT_TINT, (1 - haze.day) * 0.6);
+        if (haze.moon && !under) f = applyHaze(f, MOON_LIGHT, haze.moon.strength * Math.max(0, n[0] * haze.moon.dir.x + n[1] * haze.moon.dir.y + n[2] * haze.moon.dir.z));
+      }
+    }
+    return f;
+  };
+  const rough = 0.45 * state.dx, ledge = 0.6 * state.dx; const nseed = seedNum % 100003;
+  const fr = (x, y, z) => { let v = 0, m = 0; for (let o = 0; o < 4; o++) { const a = 2 ** (-o * 0.8), q = 2 ** (o + 1); v += a * valueNoise3D(x * q, y * q, z * q, nseed + o); m += a; } return v / m; };
+  const displace = (p) => {
+    const ax = gridSample(state, p[0], p[1], gx), ay = gridSample(state, p[0], p[1], gy); const m = Math.hypot(ax, ay); const w = smoothLF(T48, T70, m); if (w <= 0) return p;
+    let d = state.fabric === 'columnar' ? rough * fr(p[0] * 1.6, p[1] * 1.6, p[2] * 0.08) : rough * fr(p[0], p[1], p[2] * (state.strata ? 1.8 : 0.6));
+    if (state.strata) d += ledge * (state.strata.layers[bedAt(state, p[0], p[1], p[2])].hard ? 1 : -0.7);
+    return [p[0] - (ax / m) * d * w, p[1] - (ay / m) * d * w, p[2]];
+  };
+  return slicedTerrainFaces(state, { stride: 2, levels, displace, paint });
+}
+
+// opt-in `erosion`: the base surface baked on a grid over the domain, cut by rivers
+// (implicit stream power over the priority-flooded D8 network) and slumped to the talus angle (terrain-erosion.js),
+// then read back bilinearly. Every consumer of the sampler — the still, the World mesh, structures, scatter, the
+// city — reads the eroded surface. Memoised per (surface, erosion) so the SVG and World paths erode once.
+const erosionMemo = new Map();
+function erodedSampler(base, manifest, seed) {
+  const spec = manifest.erosion === true ? {} : manifest.erosion;
+  const key = JSON.stringify([seed, manifest.heartbeat, manifest.heartbeatOverrides, manifest.elevation, spec]);
+  let grid = erosionMemo.get(key);
+  if (!grid) {
+    const ny = spec.res ?? EROSION_DEFAULTS.res; const nx = Math.max(16, Math.round((ny * (X_MAX - X_MIN)) / Y_SPAN));
+    const dx = (X_MAX - X_MIN) / (nx - 1), dy = Y_SPAN / (ny - 1); const z0 = new Float64Array(nx * ny);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) z0[j * nx + i] = base.heightAt(X_MIN + i * dx, Y_FAR + j * dy);
+    const { z } = erodeHeightfield(z0, nx, ny, (dx + dy) / 2, spec);
+    grid = gridSampler(z, nx, ny, X_MIN, X_MAX, Y_FAR, Y_NEAR); grid.nx = nx; grid.ny = ny;
+    if (erosionMemo.size >= 8) erosionMemo.delete(erosionMemo.keys().next().value);
+    erosionMemo.set(key, grid);
+  }
+  return {
+    ...base,
+    heightAt: grid.at,
+    lambertAt: (x, y, light) => { const [gx, gy] = grid.grad(x, y); const n = normalize3({ x: -gx, y: -gy, z: 1 }); return AMBIENT + LAMBERT_GAIN * Math.max(0, dot3(n, light)); },
+    // valleys a few grid cells wide need a mesh that can hold them: sample at ~70% of the erosion grid
+    samples: { u: Math.max(base.samples.u, Math.round(grid.nx * 0.7)), v: Math.max(base.samples.v, Math.round(grid.ny * 0.7)) },
+    eroded: true,
+  };
+}
+
+function makeBaseSampler(manifest, seed) {
   if (manifest.elevation) {
     const { fields, field } = manifest.elevation;
     const evalF = buildFieldResolver(fields, [])(field);
@@ -1812,12 +2050,12 @@ function buildTerrainCells(M, N, sampler, light, palette, camera, roomBasis, haz
   return cells;
 }
 
-function buildStructureFaces(structures, hb, light, palette, camera, roomBasis) {
+function buildStructureFaces(structures, heightAt, light, palette, camera, roomBasis) {
   const out = [];
   for (const s of structures) {
     const xc = (s.x0 + s.x1) / 2;
     const yc = (s.y0 + s.y1) / 2;
-    const zBase = evalHeightAt(xc, yc, hb);
+    const zBase = heightAt(xc, yc);
     const zTop = zBase + s.height;
     const faceSpecs = [
       // top
@@ -2486,7 +2724,7 @@ export function renderPaintedLandscapeToSvg(manifest) {
   const terrain = buildTerrainCells(sampler.samples.u, sampler.samples.v, sampler, light, palette, camera, roomBasis, haze);
   // Structures (architectural box/obelisk faces) are heartbeat-mode only.
   const structureFaces = sampler.mode === 'heartbeat'
-    ? buildStructureFaces(resolveStructures(manifest.structures, seed), sampler.hb, light, palette, camera, roomBasis)
+    ? buildStructureFaces(resolveStructures(manifest.structures, seed), sampler.heightAt, light, palette, camera, roomBasis)
     : [];
   const sceneItems = resolveScene(manifest.scene, seed);
   const scatter = buildScatter(sceneItems, sampler.heightAt, light, palette, camera, roomBasis);
@@ -2509,7 +2747,7 @@ export function renderPaintedLandscapeToSvg(manifest) {
 // distance instead of screen depth (the screen depth doesn't exist until the
 // browser projects). v1 scope: terrain mesh + water sheet — no structures,
 // scatter, forest, or sky adornments yet (those return on the SVG path).
-export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.6, bridges = [], farmland = false } = {}) {
+export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.6, bridges = [], farmland = false, landformMesh = 'sliced', plantsAsBoxes = false } = {}) {
   const errors = validatePaintedLandscape(manifest);
   if (errors.length) {
     throw new Error(`Invalid painted-landscape manifest:\n - ${errors.join('\n - ')}`);
@@ -2689,6 +2927,7 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
 
   const faces = [];
   const waterFaces = [];   // translucent water sheet — appended last so it blends over the bed
+  const slicedLandform = !!sampler.landform && landformMesh === 'sliced';
   for (let j = 0; j < N; j += 1) {
     for (let i = 0; i < M; i += 1) {
       const a = grid[j][i], b = grid[j][i + 1], c = grid[j + 1][i + 1], d = grid[j + 1][i];
@@ -2788,7 +3027,7 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
         const bg = fieldBgAt(xc, yc, lambRaw, depthT, amp);
         if (bg) face = { corners: [a, b, c, d], bg, doubleSided: true };
       }
-      faces.push(face);
+      if (!slicedLandform) faces.push(face);                  // a landform terrain is meshed face-aware below
       // water surface: a flat translucent quad at the waterline. Deeper water →
       // bluer + more opaque (the bed hides); shallows stay clear so the bed shows.
       if (isWater) {
@@ -2804,6 +3043,8 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
       }
     }
   }
+  const landformRock = sampler.landform ? (sampler.landform.rock || (manifest.rocks ? resolveLandscapeRocks(manifest.rocks).rock : null)) : null;
+  if (slicedLandform) faces.push(...landformWorldFaces(sampler.landform, { palette, light, haze, wl: hasWater ? wl : null, seedNum, rockName: landformRock }));
   faces.push(...waterFaces);
 
   // ── city doodads: scattered mini-buildings whose massing reads as a town ────
@@ -2867,13 +3108,27 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
   // (meshed by plantBoxToFaces at assemble time, lit by the scene light). Boulders/tufts
   // stay as small massed boxes. The SVG path draws its own painterly glyphs (resolveScene
   // above) — this is the World's volumetric counterpart, ridden only by the css3d/three seam.
+  const rocksSpec = resolveLandscapeRocks(manifest.rocks);
+  let rockItems = null, rockTone = null;
+  // opt-in `plants`: tree items (and tufts, when asked) become grown plants, realized by the assembler as pools; a
+  // renderer that cannot instance asks for the boxes instead (plantsAsBoxes), and gets exactly the landscape without it
+  const plantsSpec = plantsAsBoxes ? null : resolveLandscapePlants(manifest.plants);
+  const plantItems = plantsSpec && manifest.scene ? { cone: [], canopy: [], tuft: [] } : null;
   if (manifest.scene) {
     const clampHex = (c) => '#' + c.map((v) => clamp255(v).toString(16).padStart(2, '0')).join('');
+    if (rocksSpec) {
+      rockItems = [];
+      // stone in the painting's key: between its base and mid tones, half-desaturated (a shadow tone reads as a hole)
+      const t = palette.base.map((v, i) => (v + palette.mid[i]) / 2); const lum = 0.3 * t[0] + 0.59 * t[1] + 0.11 * t[2];
+      rockTone = rocksSpec.tone === 'palette' ? clampHex(t.map((v) => v * 0.5 + lum * 0.5)) : null;
+    }
     for (const it of resolveScene(manifest.scene, seed)) {
       const z0 = sampler.heightAt(it.x, it.y);
       if (hasWater && z0 < wl + 0.05) continue;                 // no scatter standing in the lake
       const w = Math.max(0.2, it.width), hgt = Math.max(0.3, it.height);
+      if (rockItems && it.kind === 'boulder') { rockItems.push({ x: it.x, y: it.y, z0, size: w }); continue; }   // opt-in: a pooled rock, not a box
       const base = { x: it.x - w / 2, y: it.y - w / 2, w, d: w, z0 };
+      if (plantItems && (it.kind === 'cone' || it.kind === 'canopy' || (it.kind === 'tuft' && plantsSpec.tuft))) { plantItems[it.kind].push({ x: it.x, y: it.y, z0, height: hgt, width: w }); continue; }
       if (it.kind === 'cone' || it.kind === 'canopy') {
         const conifer = it.kind === 'cone';
         structures.push({
@@ -2895,6 +3150,15 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
         });
       }
     }
+  }
+
+  // landform scree (a talus op's `scree`): fragments on the aprons, realized by the assembler as pooled rocks — the
+  // landscape's `rocks` preset when declared, else granite — in the stone tone of the rocks above.
+  let screeItems = null, screeSpec = null;
+  if (sampler.landform && sampler.landform.scree.length) {
+    screeItems = sampler.landform.scree.filter((r) => !(hasWater && r.z0 < wl)).map((r) => ({ ...r }));
+    const tone = landformStone(palette, landformRock).screeTone;      // the apron's own stone, lit: it reads as scree, not holes
+    screeSpec = { rock: landformRock || 'granite', tone: '#' + tone.map((v) => clamp255(v).toString(16).padStart(2, '0')).join('') };
   }
 
   // ── bridges: span structures the city grid can't express ───────────────────
@@ -3117,11 +3381,18 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
         if (Number.isFinite(b.z1)) b.z1 *= ext;
       }
     }
+    if (rockItems) for (const r of rockItems) { r.x *= ext; r.y *= ext; r.z0 *= ext; r.size *= ext; }
+    if (plantItems) for (const list of Object.values(plantItems)) for (const r of list) { r.x *= ext; r.y *= ext; r.z0 *= ext; r.height *= ext; r.width *= ext; }
+    if (screeItems) for (const r of screeItems) { r.x *= ext; r.y *= ext; r.z0 *= ext; r.size *= ext; }
   }
 
   return {
     faces,
     structures,
+    ...(rockItems ? { rocks: { ...rocksSpec, items: rockItems, tone: rockTone, seed } } : {}),
+    // (a grove stands each of its culms on the ground where it lands, and none in the lake)
+    ...(plantItems ? { plants: { ...plantsSpec, items: plantItems, seed, groundAt: (x, y) => sampler.heightAt(x / ext, y / ext) * ext, water: hasWater ? wl * ext : null } } : {}),
+    ...(screeItems && screeItems.length ? { scree: { ...screeSpec, items: screeItems, seed } } : {}),
     extraFaces,
     bounds: { xRange: [X_MIN * ext, X_MAX * ext], yRange: [Y_FAR * ext, Y_NEAR * ext], zRange: [zMin * ext, zMax * ext] },
     // the terrain light vector → the assemble layer lights the structures/plants with it (so a

@@ -22,6 +22,18 @@
  */
 
 import { scaleHex, litFactor, hexToRgb, rgbToHex } from '../polygonizer/vexar.js';
+import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
+import { resolveMetalSurface, metalSurfaceError } from '../materials/metal-surface.js';
+
+// A metal facade's defaults (metal-surfaces S5): brushed aluminium rainscreen panels, panel width in world units
+// (the edifice builds in feet, so ~5 ft cassettes), and the open joint between them.
+export const METAL_FACADE_DEFAULT = Object.freeze({ metal: 'aluminium', finish: 'brushed' });
+const PANEL_W = 5, PANEL_JOINT = 0.08;
+/** Why a facade's metal keys are invalid, or null. `metal` (the panel surface) and `frameMetal` (glass mullions). */
+export function facadeMetalError(facade = {}) {
+  for (const k of ['metal', 'frameMetal']) if (facade[k] != null) { const e = metalSurfaceError(facade[k]); if (e) return `facade.${k}: ${e}`; }
+  return null;
+}
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -57,6 +69,14 @@ const RHYTHM = {
  */
 export function buildFacadeCard(facade, floors, bays) {
   const F = Math.max(2, floors), B = Math.max(1, bays);
+  if (facade.material === 'metal') {
+    // a metal rainscreen: slender piers, fat spandrels split into panels with open joints, glass in the bands between;
+    // rhythm 'solid' clads the whole wall in panels (no windows). The panel faces wear the metal surface.
+    const metal = facade.metal || METAL_FACADE_DEFAULT; const hex = resolveMetalSurface(metal).hex;
+    const pane = scaleHex(facade.glass || '#3b4a58', facade.glassVar ?? 1);
+    return { id: 'facade', surface: 'flat', wrap: null, base: pane, parts: [], material: 'metal', rhythm: facade.rhythm || 'banded',
+      bodyHex: facade.rhythm === 'solid' ? '#1d2126' : pane, frameHex: hex, metal, panel: Number.isFinite(facade.panel) && facade.panel > 0.5 ? facade.panel : PANEL_W, floors: F, bays: B };
+  }
   const u0 = 0.04, u1 = 0.96, v0 = 0.06, v1 = 0.97;
   const stepU = (u1 - u0) / B, stepV = (v1 - v0) / F;
   const brick = facade.material === 'brick';
@@ -81,7 +101,8 @@ export function buildFacadeCard(facade, floors, bays) {
     material: brick ? 'brick' : 'glass',
     rhythm: facade.rhythm || 'grid',
     bodyHex: brick ? BRICK_WINDOW : pane,
-    frameHex: brick ? facade.glass : facade.frame,
+    frameHex: !brick && facade.frameMetal ? resolveMetalSurface(facade.frameMetal).hex : (brick ? facade.glass : facade.frame),
+    ...(!brick && facade.frameMetal ? { frameMetal: facade.frameMetal } : {}),
     floors: F, bays: B,
   };
 }
@@ -106,6 +127,10 @@ const FINBAND_SHARE = 0.69;
 const toLin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const toSrgb = (l) => 255 * (l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055);
 export function facadeReadHex(facade) {
+  if (facade.material === 'metal') {   // panels over most of the wall; the glass bands between (none when solid)
+    const bar = hexToRgb(resolveMetalSurface(facade.metal || METAL_FACADE_DEFAULT).hex), body = hexToRgb(scaleHex(facade.glass || '#3b4a58', facade.glassVar ?? 1));
+    const share = facade.rhythm === 'solid' ? 0.97 : 0.62; return rgbToHex(body.map((v, i) => toSrgb(toLin(v) + (toLin(bar[i]) - toLin(v)) * share)));
+  }
   const brick = facade.material === 'brick';
   const g = SHIRT_GAP[facade.rhythm] || SHIRT_GAP.grid;
   const share = brick ? FINBAND_SHARE : 1 - (1 - g.fu / g.us) * (1 - g.fv / g.vs);
@@ -221,6 +246,37 @@ function realizeFinband(out, B, card, lit, relief, light) {
   }
 }
 
+// Metal rainscreen: slender piers at every bay line (the end piers run past the wall edges to seal the corner), and
+// per floor a fat spandrel band split into panels of `card.panel` width with an open joint — the joint shows the dark
+// recess behind. Rhythm 'solid' stacks panel rows over the whole wall (two rows per floor). Spandrels sit a touch
+// shallower than the piers so the crossings never share a plane.
+function realizeRainscreen(out, B, card, lit, relief, light) {
+  const { Ulen, Vlen } = B;
+  const F = Math.max(2, card.floors || 4), Bn = Math.max(1, card.bays || 3);
+  const cellU = Ulen / Bn, cellV = Vlen / F; const pw = card.panel || PANEL_W, jt = PANEL_JOINT;
+  const panelsAcross = (v0, v1, proud, skip) => {
+    const n = Math.max(1, Math.round(Ulen / pw)), w = Ulen / n;
+    for (let i = 0; i < n; i += 1) pushBar(out, B, i * w + (i ? jt / 2 : 0), (i + 1) * w - (i < n - 1 ? jt / 2 : 0), v0, v1, proud, 'v', card.frameHex, lit, light, skip);
+  };
+  if (card.rhythm === 'solid') {
+    const rows = F * 2, h = Vlen / rows;
+    for (let j = 0; j < rows; j += 1) panelsAcross(j * h + (j ? jt / 2 : 0), (j + 1) * h - (j < rows - 1 ? jt / 2 : 0), relief * 0.85, j === 0 ? -1 : (j === rows - 1 ? 1 : 0));
+  } else {
+    const g = SHIRT_GAP[card.rhythm] || SHIRT_GAP.banded; const band = Math.min(cellV * 0.8, cellV * Math.max(0.36, g.fv + 0.22));
+    for (let j = 0; j <= F; j += 1) {
+      const v0 = Math.max(0, Math.min(j * cellV - band / 2, Vlen - band));
+      panelsAcross(v0, v0 + band, relief * 0.85, j === 0 ? -1 : (j === F ? 1 : 0));
+    }
+  }
+  const mwU = Math.max(0.08, cellU * 0.05);
+  for (let i = 0; i <= Bn; i += 1) {
+    let u0, u1;
+    if (i === 0) { u0 = -relief; u1 = mwU; } else if (i === Bn) { u0 = Ulen - mwU; u1 = Ulen + relief; }
+    else { u0 = Math.max(0, Math.min(i * cellU - mwU / 2, Ulen - mwU)); u1 = u0 + mwU; }
+    pushBar(out, B, u0, u1, 0, Vlen, relief, 'u', card.frameHex, lit, light);
+  }
+}
+
 /**
  * Realize a facade card onto a planar wall quad → flat-colored facets.
  *
@@ -251,7 +307,7 @@ export function projectCardOntoQuad(corners, card, { lit = 1, relief = 0.12, inc
   // face lands on the wall quad: the building's outer footprint stays == the box footprint
   // (the surface-area budget is preserved), and the windows recess INTO the wall instead of
   // bulging the building outward.
-  const maxProud = brick ? relief * 2.4 : relief;
+  const maxProud = brick ? relief * 2.4 : relief;   // (a rainscreen's piers are its proudest layer: relief)
   const n = wallBasis(corners).n;
   const inset = corners.map((p) => [p[0] - n[0] * maxProud, p[1] - n[1] * maxProud, p[2] - n[2] * maxProud]);
   const B = wallBasis(inset);
@@ -259,8 +315,14 @@ export function projectCardOntoQuad(corners, card, { lit = 1, relief = 0.12, inc
   // Paint the ENTIRE recessed face the window/body color; the holey shirt overlays it, so
   // each lattice gap is window — no per-window recess facets needed.
   if (includeBase) out.push({ corners: [inset[0], inset[1], inset[2], inset[3]], fill: scaleHex(card.bodyHex ?? card.base, lit) });
+  const struct = out.length;
   if (brick) realizeFinband(out, B, card, lit, relief, light);
+  else if (card.material === 'metal') realizeRainscreen(out, B, card, lit, relief, light);
   else realizeShirt(out, B, card, lit, relief, light);
+  // metal structure (rainscreen panels, or a glass wall's metal mullions) wears its surface: the page's metal channel
+  // and the exporters read the tag; the flat fills above stay the CSS-3D and far read
+  const metal = card.material === 'metal' ? card.metal : card.frameMetal;
+  if (metal) tagFacesWithMaterial(out.slice(struct), resolveMaterial(metal));
   return out;
 }
 

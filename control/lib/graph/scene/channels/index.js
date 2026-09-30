@@ -8,8 +8,11 @@
 import { audioChannelScript } from './audio.js';
 import { buildupChannelScript } from './buildup.js';
 import { castShadowScript } from './cast-shadows.js';
+import { crystalChannelScript } from './crystal.js';
+import { metalChannelScript } from './metal.js';
 import { cometChannelScript } from './comet.js';
 import { deformChannelScript } from './deform.js';
+import { drawLayersScript } from './draw-layers.js';
 import { fieldChannelScript } from './field.js';
 import { fxChannelScript } from './fx.js';
 import { gameChannelScript } from './game.js';
@@ -190,10 +193,22 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // gated on a non-empty payload.splats (field-splats.js)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojSplats'] },       // the coat's visibility handle + count, for probes
+  { key: 'layers', anchor: 'pre-runtime', script: drawLayersScript,
+    normalizeIn: 'emitThreeWorld',     // gated on a face `layer` (render groups split by it) or a rig part's `ranges`
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojLayers', '__layerFill', '__layerHull'] },   // the toon hulls and the rig preview's parts take its rules
   { key: 'toon', anchor: 'pre-runtime', script: toonInkScript,
     normalizeIn: 'emitThreeWorld',     // gated on payload.toon.ink; ink buffers packed per group
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojInk', '__inkBuild', '__inkGeoNormals', '__inkCentroid'] },   // live handle; builders the controllable rig hook probes (typeof-guarded)
+  { key: 'crystal', anchor: 'pre-runtime', script: crystalChannelScript,
+    normalizeIn: 'emitThreeWorld',     // gated on a group carrying crystal faces; prints traced there (crystal-prints.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojCrystal'] },      // the prints' count, for probes
+  { key: 'metal', anchor: 'pre-runtime', script: metalChannelScript,
+    normalizeIn: 'emitThreeWorld',     // gated on a group carrying metal faces (metal-surfaces S3)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojMetal'] },        // surface and lookup-row counts, for probes
   { key: 'fx', anchor: 'post-step', script: fxChannelScript,
     normalizeIn: 'emitThreeWorld',     // presence decides controllable's exposeBodies
     requiresOptional: ['__BUS', '__mojCtrl'] },   // assigns the scene-three-emitted `let stepFx`
@@ -309,6 +324,7 @@ export { inkDecalScript } from './ink-decal.js';
 export { skyDomeScript } from './sky-dome.js';
 export { waterMeshScript } from './water.js';
 export { toonInkScript } from './toon-ink.js';
+export { drawLayersScript, drawLayerGroup, DRAW_LAYER_KEYS } from './draw-layers.js';
 export { walkModeScript } from './walk.js';
 export { deformChannelScript } from './deform.js';
 export { eventsChannelScript } from './events.js';
@@ -317,5 +333,6 @@ export { fxChannelScript } from './fx.js';
 export { gameChannelScript } from './game.js';
 export { walkersChannelScript } from './walkers.js';
 export { rigPreviewChannelScript } from './rig-preview.js';
+export { strokeOverlayChannelScript } from './stroke-overlay.js';
 export { carsChannelScript } from './cars.js';
 export { castShadowScript } from './cast-shadows.js';

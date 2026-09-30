@@ -40,6 +40,7 @@ import {
 // the diagram surface so existing importers are unchanged. See
 // lib/mcp/kernel-diagram-surface.plan.md.
 import { isFiniteNumber, validateDiagramManifest } from '@/lib/diagram-core';
+import { validateDesign } from '@/lib/graph/polygonizer/floorplan-design';
 import { isBookRenderKind } from '@/lib/graph/views/recipe-book/registry';
 
 export {
@@ -96,6 +97,7 @@ export function validateSketchManifest(manifest) {
         errors.push(`${key} must be an integer >= 1 (got ${JSON.stringify(manifest[key])}); see get_sketch_vocab({ id: 'floor-plan' })`);
       }
     }
+    if (manifest.kind === 'floorplan' && manifest.design !== undefined) errors.push(...validateDesign(manifest.design));
     return { ok: errors.length === 0, errors };
   }
   // Retail world kinds: a shop or a mall fit out from concept cards (retail/store-world.js). Shape
@@ -297,7 +299,7 @@ export const EDUCATION_VIEW_KINDS = [
 // 'controllable' carries no registry walk flag (locomotion is per-entity, from
 // the manifest's rules) but is a LIVE moved-through stage — action worlds and
 // game levels — so it belongs to the world concern.
-export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'store', 'mall', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'controllable'];
+export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'store', 'mall', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'controllable', 'terrain'];
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).

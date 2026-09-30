@@ -311,7 +311,7 @@ Nine kinds in the closed enumerable set, eight scalar and one vector
 | `radial` | scalar | distance-from a center with inner/outer values |
 | `gradient` | scalar | linear interpolation between two points |
 | `wave-surface` | scalar | sum-of-plane-waves over a quad (terrain) |
-| `noise` | scalar | seeded value noise with octave summing (organic) |
+| `noise` | scalar | seeded value noise with octave summing (organic); opt-in `hurst` sets the octave amplitudes by wavelength: one exponent, or `{ small, large, crossover }` for fracture-rough small scales under relief-smooth large ones |
 | `sum` | scalar | weighted sum of other fields (composition) |
 | `curve-projection` | **vector** | closest point on a polyline (snap-to-curve) |
 | `curve-distance` | scalar | world-unit distance from query to a polyline (fade with proximity) |

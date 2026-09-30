@@ -39,6 +39,15 @@ SCOPE — a SINGLE CONVEX solid only: this is the class the live CSS engine rend
 - `lod` — tessellation density for sphere / cylinder: `'draft'` / `'default'` / `'hero'` / `'ultra'` (default `'default'`). Platonic solids are exact regardless.
 - `viewBox` (object) — optional render size `{ width, height }` (default 480×480).
 
+### A gem: `shape: 'crystal'`
+
+`{ shape: 'crystal', gem, cut?, size?, glow? }` spins a real gem: its exact polytope from the mineral's lattice (`gem`: `quartz`, `amethyst`, `calcite`, `diamond`, `ruby`, `sapphire`, `tourmaline`, `opal`; `cut`: `natural` | `brilliant` | `cabochon`), shaded every frame by the crystal response (a glint of a softbox and a small sun, the view refracted per channel through the stone, colour by path, dichroism, ruby's glow, opal's play of colour), with the light it throws (its shadow and caustic) on a floor under it, re-traced as it turns. `size` is the stone in cm (default 1.2: colour follows it); `glow` (0–1) makes any gem shine in its own colour. It renders on one canvas, so a 121-facet brilliant costs its shading, not 121 layers; `color` and `surface` are not read. The World form (`/world`, `export_model`) carries the same stone to three.js (shaded live by the crystal channel) and to the `.glb` as a transmissive material.
+
+```
+{ title: 'ruby', shape: 'crystal', gem: 'ruby', tilt: 24 }
+{ title: 'brilliant', shape: 'crystal', gem: 'diamond', cut: 'brilliant', spin_seconds: 20 }
+```
+
 ## Worked example
 
 A slow-spinning golden dodecahedron read as a coordination polyhedron, tipped a little further toward the camera:

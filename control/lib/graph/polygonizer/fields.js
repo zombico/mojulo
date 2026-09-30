@@ -23,6 +23,30 @@ import { buildEndpointResolver } from './line-between.js';
 
 export const FIELD_KINDS = Object.freeze(['constant', 'radial', 'gradient', 'wave-surface', 'noise', 'sum', 'curve-projection', 'curve-distance', 'terrain-region']);
 
+/**
+ * The `noise` kind's opt-in roughness law (rock-formation.plan.md R3). Octave o has wavelength λ = 1 / (scale·2^o)
+ * world units, and its amplitude follows λ^H: `hurst: H` is one law (the same as persistence 2^-H); `hurst: { small,
+ * large, crossover }` is two, fracture-rough (`small`, ≈ 0.8) below `crossover` world units and relief-smooth
+ * (`large`, ≈ 0.5) above it, continuous at the crossover. The field still normalises by the amplitude sum, so the
+ * total relief is unchanged; only the spectrum's slope moves. The default persistence 0.5 is H = 1.
+ */
+export function hurstAmplitudes(octaves, scale, hurst) {
+  const out = [];
+  for (let o = 0; o < octaves; o += 1) {
+    const lambda = 1 / (scale * 2 ** o);
+    if (typeof hurst === 'number') out.push(lambda ** hurst);
+    else { const c = hurst.crossover; out.push(c * (lambda / c) ** (lambda >= c ? hurst.large : hurst.small)); }
+  }
+  return out;
+}
+function validateHurst(decl, at) {
+  const h = decl.hurst; const inRange = (v) => Number.isFinite(v) && v >= 0.1 && v <= 1.5;
+  if (decl.persistence !== undefined) return [`${at}: hurst replaces persistence (persistence = 2^-H); give one of them`];
+  if (typeof h === 'number') return inRange(h) ? [] : [`${at}: a roughness exponent in [0.1, 1.5] (fractured rock ≈ 0.8, continental relief ≈ 0.5, the default persistence 0.5 is 1)`];
+  if (!h || typeof h !== 'object' || !inRange(h.small) || !inRange(h.large) || !(Number.isFinite(h.crossover) && h.crossover > 0)) return [`${at}: a number, or { small, large, crossover } with exponents in [0.1, 1.5] and crossover a wavelength in world units > 0`];
+  return [];
+}
+
 // Field kinds whose evaluators return a 3D vector ({x,y,z}) rather
 // than a scalar. Consumers must either know to handle the vector form
 // directly (none today) or extract a named component via the
@@ -186,6 +210,7 @@ export function validateFields(fields, emittedNodes) {
           errors.push(`${here}.${key}: must be a finite number when provided`);
         }
       }
+      if (decl.hurst !== undefined) errors.push(...validateHurst(decl, `${here}.hurst`));
       if (decl.octaves !== undefined) {
         if (!Number.isInteger(decl.octaves) || decl.octaves < 1 || decl.octaves > 12) {
           errors.push(`${here}.octaves: must be an integer in [1, 12] when provided`);
@@ -528,14 +553,16 @@ function compileField(decl, resolveEndpoint) {
     const persistence = Number.isFinite(decl.persistence) ? decl.persistence : 0.5;
     const amplitude = Number.isFinite(decl.amplitude) ? decl.amplitude : 1;
     const offset = Number.isFinite(decl.offset) ? decl.offset : 0;
+    const amps = decl.hurst !== undefined ? hurstAmplitudes(octaves, scale, decl.hurst) : null;   // opt-in; absent → the persistence ladder, byte-identical
     return function noiseField(position) {
       let total = 0;
       let amp = 1;
       let freq = 1;
       let maxAmp = 0;
       for (let o = 0; o < octaves; o += 1) {
-        total += valueNoise2D(position.x * scale * freq, position.y * scale * freq, seedHash + o) * amp;
-        maxAmp += amp;
+        const a = amps ? amps[o] : amp;
+        total += valueNoise2D(position.x * scale * freq, position.y * scale * freq, seedHash + o) * a;
+        maxAmp += a;
         amp *= persistence;
         freq *= 2;
       }

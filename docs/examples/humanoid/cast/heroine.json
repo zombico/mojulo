@@ -1,0 +1,556 @@
+{
+  "name": "heroine",
+  "$note": "The lead girl, full body: the heroine look with a soft face, large eyes and a side-parted cut (a longer fall, a crown curl, the fringe eased off the brows), smiling with the mouth a little open; a fitted cream top over navy leggings, a coral sash tied in a bow at the small of the back, tan buckled boots. Shows the dress as data (detail refines the limb and torso rings and adds the collars; adorn the sash, the bow and the boots) and a stand from pose words: relaxed, the chest opened and the head turned toward the viewer, both arms down (a near hand raised beside her face read as a clenched fist, a fighter, which she is not); and four clips of her own at the door (clips: greet, idleRelaxed, run, victory), each key in the rig's pose words, each clip with its designed duration (seconds: greet and victory 2, idleRelaxed 4, run 0.8) and a facial performance in its keys' face words: the greet's first key raises the near hand beside her face (the upper arm out to the side, the elbow below the shoulder, the forearm upright), and an engine's crossfade takes her from the stand into it; it waves from there on the elbow's hinge with the arm held up across the loop (two strokes, each eased at both ends, the forearm swinging in the front plane; the waving side lifting into the first, the head tilting toward the hand and nodding a key after it, the other arm answering sideways, then settling a little onto her standing leg and rising back into that first key), and shuts her eyes in a grin on the first stroke, opening into a wider smile as the hand comes back in, the run holds a determined squint whose mouth pushes on each contact, the victory gathers on the crouch (the brows down, the eyes a touch narrower) and cheers eyes shut with the arms up; idleRelaxed keeps her authored face and blinks once a loop.",
+  "hero": {
+    "cast": "female",
+    "head": "anime",
+    "look": ["heroine", "soft", "large-eyes", "side-parted"],
+    "expression": ["smile", { "open": 0.3 }],
+    "face": { "lower": 0.94, "chinProjection": 1.02 },
+    "sculpt": { "pronasale": 0.03 },
+    "hair": { "length": 1.5, "ahoge": 1, "sweep": -0.35, "part": -0.07, "fringe": 0.85 },
+    "register": "round",
+    "tune": {
+      "legs": 1.04,
+      "shoulders": 1.03,
+      "waist": 0.95,
+      "upperArm": 1.06,
+      "forearm": 1.06,
+      "thigh": 1,
+      "calf": 1.1
+    },
+    "gesture": ["relaxed", { "spine": { "arch": 0.1 }, "head": { "yaw": 12, "pitch": 0 } }],
+    "clips": {
+      "greet": {
+        "seconds": 2,
+        "keys": [
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.1 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -40, "pitch": 17.5, "roll": 90 },
+            "elbowR": 127.5
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.4], "twist": ["right", 0.35], "arch": 0.14 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 9.5 },
+            "head": { "yaw": 15, "pitch": 2 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 8.5, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -42, "pitch": 17.5, "roll": 90 },
+            "elbowR": 120
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.45], "twist": ["right", 0.35], "arch": 0.18 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 11 },
+            "head": { "yaw": 19, "pitch": 3 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 10.5, "pitch": -7.5, "roll": 0 },
+            "elbowL": 13,
+            "shR": { "yaw": -43.5, "pitch": 17.5, "roll": 90 },
+            "elbowR": 92
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.48], "twist": ["right", 0.35], "arch": 0.2 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 12 },
+            "head": { "yaw": 22, "pitch": 1 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 13.5, "pitch": -7, "roll": 2 },
+            "elbowL": 15,
+            "shR": { "yaw": -44, "pitch": 17.5, "roll": 90 },
+            "elbowR": 85.5,
+            "face": ["happy", { "open": 0.4 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.008,
+            "spine": { "sideBend": ["left", 0.47], "twist": ["right", 0.35], "arch": 0.18 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 12, "pitch": -4 },
+            "head": { "yaw": 21, "pitch": -7 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 18,
+            "shL": { "yaw": 16, "pitch": -6.5, "roll": 3 },
+            "elbowL": 18,
+            "shR": { "yaw": -43.5, "pitch": 17.5, "roll": 90 },
+            "elbowR": 92,
+            "face": ["happy", { "open": 0.4 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.02,
+            "spine": { "sideBend": ["left", 0.44], "twist": ["right", 0.35], "arch": 0.15 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 11, "pitch": -3 },
+            "head": { "yaw": 19, "pitch": -4 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 22,
+            "shL": { "yaw": 16, "pitch": -7, "roll": 2 },
+            "elbowL": 17,
+            "shR": { "yaw": -42.5, "pitch": 17.5, "roll": 90 },
+            "elbowR": 120,
+            "face": ["happy", { "open": 0.4 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.028,
+            "spine": { "sideBend": ["left", 0.41], "twist": ["right", 0.35], "arch": 0.13 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 10, "pitch": -1 },
+            "head": { "yaw": 17, "pitch": -1 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 25,
+            "shL": { "yaw": 14, "pitch": -7.5, "roll": 1 },
+            "elbowL": 15,
+            "shR": { "yaw": -41.5, "pitch": 17.5, "roll": 90 },
+            "elbowR": 127.5,
+            "face": ["smile", { "open": 0.6, "brow": -0.3 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.028,
+            "spine": { "sideBend": ["left", 0.4], "twist": ["right", 0.35], "arch": 0.12 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 10 },
+            "head": { "yaw": 16, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 25,
+            "shL": { "yaw": 11.5, "pitch": -8, "roll": 0 },
+            "elbowL": 13,
+            "shR": { "yaw": -41.5, "pitch": 17.5, "roll": 90 },
+            "elbowR": 120.5,
+            "face": ["smile", { "open": 0.6, "brow": -0.3 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.022,
+            "spine": { "sideBend": ["left", 0.41], "twist": ["right", 0.35], "arch": 0.13 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 10.5 },
+            "head": { "yaw": 17, "pitch": 1 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 23,
+            "shL": { "yaw": 10, "pitch": -8, "roll": 0 },
+            "elbowL": 13,
+            "shR": { "yaw": -42, "pitch": 17.5, "roll": 90 },
+            "elbowR": 95.5,
+            "face": ["smile", { "open": 0.6, "brow": -0.3 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.015,
+            "spine": { "sideBend": ["left", 0.42], "twist": ["right", 0.35], "arch": 0.14 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 11 },
+            "head": { "yaw": 18, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 21,
+            "shL": { "yaw": 10.5, "pitch": -8, "roll": 0.5 },
+            "elbowL": 14,
+            "shR": { "yaw": -42, "pitch": 17.5, "roll": 90 },
+            "elbowR": 89.5,
+            "face": ["smile", { "open": 0.6, "brow": -0.3 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.008,
+            "spine": { "sideBend": ["left", 0.41], "twist": ["right", 0.35], "arch": 0.13 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 10.5, "pitch": -2.5 },
+            "head": { "yaw": 17, "pitch": -4 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 18,
+            "shL": { "yaw": 11.5, "pitch": -8, "roll": 0.5 },
+            "elbowL": 14,
+            "shR": { "yaw": -41.5, "pitch": 17.5, "roll": 90 },
+            "elbowR": 95.5,
+            "face": ["smile", { "open": 0.6, "brow": -0.3 }]
+          },
+          {
+            "support": "L",
+            "crouch": 0.003,
+            "spine": { "sideBend": ["left", 0.38], "twist": ["right", 0.35], "arch": 0.11 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 9, "pitch": -1 },
+            "head": { "yaw": 14, "pitch": -1.5 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 16,
+            "shL": { "yaw": 9, "pitch": -8, "roll": 0 },
+            "elbowL": 13,
+            "shR": { "yaw": -40.5, "pitch": 17.5, "roll": 90 },
+            "elbowR": 120.5,
+            "face": ["smile", { "open": 0.6, "brow": -0.3 }]
+          }
+        ]
+      },
+      "idleRelaxed": {
+        "seconds": 4,
+        "keys": [
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.06 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.12 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 2 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.06 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 12, "pitch": 0 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          },
+          {
+            "support": "L",
+            "spine": { "sideBend": ["left", 0.35], "twist": ["right", 0.35], "arch": 0.09 },
+            "pelvis": 8,
+            "shoulders": -6,
+            "neck": { "yaw": 8 },
+            "head": { "yaw": 11, "pitch": -3 },
+            "hipR": { "yaw": 7.3, "pitch": 5, "roll": -20 },
+            "kneeR": 15,
+            "shL": { "yaw": 7, "pitch": -8, "roll": 0 },
+            "elbowL": 12,
+            "shR": { "yaw": -1, "pitch": 12, "roll": 0 },
+            "elbowR": 45
+          }
+        ]
+      },
+      "run": {
+        "seconds": 0.8,
+        "keys": [
+          {
+            "support": "L",
+            "crouch": 0.04,
+            "spine": { "lean": ["forward", 0.25], "twist": ["left", 0.2] },
+            "pelvis": 10,
+            "shoulders": -12,
+            "head": { "pitch": 6 },
+            "legR": { "x": 0.06, "y": 0.75, "z": -0.66 },
+            "kneeR": 100,
+            "armL": { "x": -0.15, "y": 0.7, "z": -0.7 },
+            "elbowL": 100,
+            "armR": { "x": 0.18, "y": -0.6, "z": -0.78 },
+            "elbowR": 80,
+            "face": ["determined", { "open": 0.32, "brow": 0.6 }]
+          },
+          {
+            "crouch": 0.08,
+            "spine": { "lean": ["forward", 0.25] },
+            "head": { "pitch": 6 },
+            "legR": { "x": 0.05, "y": -0.15, "z": -0.99 },
+            "kneeR": 95,
+            "legL": { "x": -0.05, "y": -0.15, "z": -0.99 },
+            "kneeL": 95,
+            "armL": { "x": -0.2, "y": 0.1, "z": -0.97 },
+            "elbowL": 95,
+            "armR": { "x": 0.2, "y": 0.1, "z": -0.97 },
+            "elbowR": 95,
+            "face": ["determined", { "open": 0.2 }]
+          },
+          {
+            "support": "R",
+            "crouch": 0.04,
+            "spine": { "lean": ["forward", 0.25], "twist": ["right", 0.2] },
+            "pelvis": -10,
+            "shoulders": 12,
+            "head": { "pitch": 6 },
+            "legL": { "x": -0.06, "y": 0.75, "z": -0.66 },
+            "kneeL": 100,
+            "armR": { "x": 0.15, "y": 0.7, "z": -0.7 },
+            "elbowR": 100,
+            "armL": { "x": -0.18, "y": -0.6, "z": -0.78 },
+            "elbowL": 80,
+            "face": ["determined", { "open": 0.32, "brow": 0.6 }]
+          },
+          {
+            "crouch": 0.08,
+            "spine": { "lean": ["forward", 0.25] },
+            "head": { "pitch": 6 },
+            "legR": { "x": 0.05, "y": -0.15, "z": -0.99 },
+            "kneeR": 95,
+            "legL": { "x": -0.05, "y": -0.15, "z": -0.99 },
+            "kneeL": 95,
+            "armL": { "x": -0.2, "y": 0.1, "z": -0.97 },
+            "elbowL": 95,
+            "armR": { "x": 0.2, "y": 0.1, "z": -0.97 },
+            "elbowR": 95,
+            "face": ["determined", { "open": 0.2 }]
+          }
+        ]
+      },
+      "victory": {
+        "seconds": 2,
+        "keys": [
+          {
+            "support": "both",
+            "crouch": 0.1,
+            "spine": { "curl": 0.15 },
+            "head": { "pitch": -8 },
+            "shR": { "yaw": -10, "pitch": 30, "roll": 0 },
+            "elbowR": 140,
+            "shL": { "yaw": 10, "pitch": 30, "roll": 0 },
+            "elbowL": 140,
+            "face": { "blink": 0.2, "smile": 0.6, "brow": 0.55 }
+          },
+          {
+            "support": "both",
+            "crouch": 0,
+            "spine": { "arch": 0.25, "sideBend": ["left", 0.15] },
+            "head": { "yaw": -8, "pitch": 12 },
+            "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
+            "elbowR": "slight",
+            "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
+            "elbowL": 90,
+            "face": ["happy", { "open": 0.85, "brow": -0.6 }]
+          },
+          {
+            "support": "both",
+            "crouch": 0.03,
+            "spine": { "arch": 0.2, "sideBend": ["left", 0.15] },
+            "head": { "yaw": -10, "pitch": 10 },
+            "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
+            "elbowR": "slight",
+            "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
+            "elbowL": 90,
+            "face": ["happy", { "open": 0.85, "brow": -0.6 }]
+          },
+          {
+            "support": "both",
+            "crouch": 0,
+            "spine": { "arch": 0.25, "sideBend": ["left", 0.15] },
+            "head": { "yaw": -8, "pitch": 12 },
+            "armR": { "x": 0.3, "y": 0.15, "z": 0.94 },
+            "elbowR": "slight",
+            "armL": { "x": -0.35, "y": 0.1, "z": -0.93 },
+            "elbowL": 90,
+            "face": ["happy", { "open": 0.85, "brow": -0.6 }]
+          }
+        ]
+      }
+    },
+    "detail": {
+      "refine": [
+        {
+          "parts": ["upperArmR", "upperArmL", "foreArmR", "foreArmL", "thighR", "thighL", "shankR", "shankL"],
+          "slots": "halve"
+        },
+        { "parts": ["torso"], "slots": "halve" }
+      ],
+      "collars": [
+        {
+          "id": "cuff.foreArmR",
+          "part": "foreArmR",
+          "at": "st2",
+          "height": 0.22,
+          "width": 0.55,
+          "group": "Cuff"
+        },
+        {
+          "id": "cuff.foreArmL",
+          "part": "foreArmL",
+          "at": "st2",
+          "height": 0.22,
+          "width": 0.55,
+          "group": "Cuff"
+        },
+        {
+          "id": "neckline.torso",
+          "part": "torso",
+          "at": "st3_st4_50",
+          "height": 0.07,
+          "width": 0.4,
+          "group": "Trim"
+        },
+        { "id": "hem.torso", "part": "torso", "at": "st0", "height": 0.08, "width": 1.2, "group": "Bottom" }
+      ]
+    },
+    "adorn": [
+      {
+        "id": "torsoSash",
+        "mode": "band",
+        "part": "torso",
+        "s": [0.05, 0.95],
+        "t": "wrap",
+        "nt": 16,
+        "ns": 3,
+        "mugen": 0.003,
+        "thick": 0.008,
+        "rad": 0.05,
+        "group": "Sash",
+        "signature": {
+          "kind": "plume",
+          "k": "mid",
+          "j": 2,
+          "spread": [-1, 1],
+          "spine": [
+            [0, 0, 0],
+            [0.025, -0.012, 0.025],
+            [0.055, -0.018, 0.045],
+            [0.085, -0.016, 0.04],
+            [0.1, -0.012, 0.012]
+          ],
+          "r": [0.012, 0.02, 0.025, 0.021],
+          "m": 10,
+          "squash": [0.4, 1],
+          "group": "Sash"
+        },
+        "over": ["thighR", "thighL"]
+      },
+      {
+        "id": "torsoBowKnot",
+        "mode": "shell",
+        "part": "torso",
+        "side": "R",
+        "s": [0.25, 0.7],
+        "t": [3.7, 4],
+        "nt": 2,
+        "ns": 2,
+        "mugen": 0.004,
+        "thick": 0.014,
+        "rad": 0.04,
+        "group": "Sash",
+        "signature": {
+          "kind": "plume",
+          "k": 2,
+          "j": 1,
+          "spread": [-1, 1],
+          "spine": [
+            [0, 0, 0],
+            [0.012, -0.006, -0.05],
+            [0.026, -0.008, -0.11],
+            [0.038, -0.006, -0.17],
+            [0.046, -0.002, -0.21]
+          ],
+          "r": [0.012, 0.014, 0.017, 0.021],
+          "m": 10,
+          "squash": [0.35, 1],
+          "group": "Sash"
+        },
+        "over": ["thighR", "thighL"]
+      },
+      {
+        "id": "bootR",
+        "mode": "shell",
+        "part": "shankR",
+        "s": [0.85, 1.85],
+        "t": "wrap",
+        "nt": 12,
+        "ns": 4,
+        "mugen": 0.008,
+        "thick": 0.006,
+        "rad": 0.03,
+        "support": 1.85,
+        "ramp": 0.5,
+        "group": "Boot",
+        "signature": {
+          "kind": "buckle",
+          "side": "R",
+          "t": 1.5,
+          "tol": 0.3,
+          "j": 1,
+          "w": 0.022,
+          "h": 0.018,
+          "bar": 0.006,
+          "standoff": 0.004,
+          "group": "Buckle"
+        }
+      },
+      {
+        "id": "bootL",
+        "mode": "shell",
+        "part": "shankL",
+        "s": [0.85, 1.85],
+        "t": "wrap",
+        "nt": 12,
+        "ns": 4,
+        "mugen": 0.008,
+        "thick": 0.006,
+        "rad": 0.03,
+        "support": 1.85,
+        "ramp": 0.5,
+        "group": "Boot",
+        "signature": {
+          "kind": "buckle",
+          "side": "L",
+          "t": 1.5,
+          "tol": 0.3,
+          "j": 1,
+          "w": 0.022,
+          "h": 0.018,
+          "bar": 0.006,
+          "standoff": 0.004,
+          "group": "Buckle"
+        }
+      }
+    ]
+  },
+  "palette": {
+    "Hair": "#8a4b2e",
+    "Skin": "#f0c8a6",
+    "Top": "#f3ead8",
+    "Bottom": "#2e3a5c",
+    "Shoes": "#96643c",
+    "Boot": "#96643c",
+    "Buckle": "#5b3b22",
+    "Sash": "#d9573f",
+    "Cuff": "#2e3a5c",
+    "Trim": "#2e3a5c"
+  }
+}

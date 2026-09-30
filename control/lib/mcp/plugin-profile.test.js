@@ -338,7 +338,7 @@ describe('orientation surfaces under the profile', () => {
     ['list_catalysts', {}],
     ['recommend_catalysts', {}],
     ['list_adapters', {}],
-    ...['claude-code', 'generic', 'codex', 'grok-build', 'hermes', 'chatgpt'].map((id) => ['get_adapter', { id }]),
+    ...['claude-code', 'generic', 'codex', 'grok-build', 'hermes', 'chatgpt', 'muse'].map((id) => ['get_adapter', { id }]),
     ['get_catalyst', { id: 'print-object' }],
     ['get_sketch_vocab', {}],
     ...['panel-depiction-recipes', 'wardrobe-construction', 'motion-comic'].map((id) => ['get_sketch_vocab', { id }]),

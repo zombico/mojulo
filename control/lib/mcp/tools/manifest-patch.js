@@ -14,7 +14,8 @@
  *   { op: 'set',    id: 'dial', material: 'chrome', profile: [...] }   shallow-merge into the monomer
  *                                                                        (a key set to `null` deletes it)
  *   { op: 'set',    path: '/movers/0/states', value: [0, 0.27] }        replace at an RFC 6901 pointer
- *                                                                        (the last segment is created if absent)
+ *                                                                        (the last segment is created if absent;
+ *                                                                        '/<list>/-' creates a missing top-level list)
  *   { op: 'remove', id: 'g_stop' }  |  { op: 'remove', path: '/reliefs/3' }
  *   { op: 'add',    into: 'lathes', entry: { id: 'usbcap', … } }        append a monomer
  *
@@ -171,6 +172,9 @@ function applySet(doc, op, where, touched) {
   if (value === undefined) throw new Error(`${where}: \`set\` by \`path\` needs a \`value\``);
   if (Object.keys(fields).length) throw new Error(`${where}: \`set\` by \`path\` replaces the value at the pointer — extra keys (${Object.keys(fields).join(', ')}) belong to the \`id\` form`);
   const segments = parsePointer(path, where);
+  // an append ('/<list>/-') into a top-level list the manifest does not carry yet creates the list: the first
+  // stroke on a layered row (`/strokes/-`) needs no prior `set /strokes []`
+  if (segments.length === 2 && segments[1] === '-' && doc[segments[0]] === undefined) doc[segments[0]] = [];
   const { parent, last } = resolveParent(doc, segments, path, where);
   if (Array.isArray(parent)) parent[arrayIndex(parent, last, path, where, true)] = value;
   else if (isObject(parent)) parent[last] = value;

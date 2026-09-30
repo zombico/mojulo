@@ -10,19 +10,24 @@
  *     `from` when a move named it. Stored resolved: a later re-tuning of a move never changes a stored row's meaning.
  *   - `validate(spec, label)`: error strings — an unknown control, an unknown move, a ratio that is not a positive number;
  *   - `warnings(resolved)`: the keys outside their comfortable range, one advisory line each. Nothing refuses on taste
- *     (docs/bicycles.md): a range is where the lab stopped, not a wall. */
+ *     (docs/bicycles.md): a range is where the lab stopped, not a wall.
+ * `offsets`: controls that are AMOUNTS about 0, not ratios about 1 (a lift that may droop, a sweep either way): they
+ * default to 0, compose by SUM, take any finite number, and a 0 is the exact no-op. Keep an offset out of a multi-key
+ * group (a group word gives every key one value; an offset and a ratio do not share one). */
 import { r6 } from './station-loft-plan.js';
 
-export function ratioControls({ label, groups, aggregates = {}, moves = {}, ranges = {}, zero = [] }) {
+export function ratioControls({ label, groups, aggregates = {}, moves = {}, ranges = {}, zero = [], offsets = [] }) {
   // `zero`: controls that may go to 0 (an amount that can be switched off: asymmetry, a hairline's squareness); every
   // other control is a ratio and must stay positive
-  const zeroable = new Set(zero);
+  const zeroable = new Set(zero), additive = new Set(offsets);
   const GROUPS = Object.freeze(Object.fromEntries(Object.entries(groups).map(([g, keys]) => [g, Object.freeze([...keys])])));
   const KEYS = Object.freeze(Object.values(GROUPS).flat());
+  // a group word that is also a control would swallow the control (the group expands first): refuse the vocabulary
+  for (const [g, keys] of Object.entries(GROUPS)) if (keys.length > 1 && KEYS.includes(g)) throw new Error(`${label}: group '${g}' shares its name with a control`);
   const AGGREGATES = Object.freeze({ ...Object.fromEntries(Object.entries(GROUPS).filter(([, keys]) => keys.length > 1)), ...aggregates });
   const AGGREGATE_KEYS = Object.freeze(Object.keys(AGGREGATES));
-  const DEFAULT = Object.freeze(Object.fromEntries(KEYS.map((k) => [k, 1])));
-  const RANGES = Object.freeze(Object.fromEntries(KEYS.map((k) => [k, ranges[k] ?? [0.8, 1.25]])));
+  const DEFAULT = Object.freeze(Object.fromEntries(KEYS.map((k) => [k, additive.has(k) ? 0 : 1])));
+  const RANGES = Object.freeze(Object.fromEntries(KEYS.map((k) => [k, ranges[k] ?? (additive.has(k) ? [-0.1, 0.1] : [0.8, 1.25])])));
   const MOVES = Object.freeze(moves);
   const MOVE_NAMES = Object.freeze(Object.keys(MOVES));
   const known = new Set([...KEYS, ...AGGREGATE_KEYS, 'from']);
@@ -45,7 +50,7 @@ export function ratioControls({ label, groups, aggregates = {}, moves = {}, rang
       const step = {};
       for (const [group, keys] of Object.entries(AGGREGATES)) if (ratios[group] !== undefined) for (const k of keys) step[k] = ratios[group];
       for (const k of KEYS) if (ratios[k] !== undefined) step[k] = ratios[k];
-      for (const [k, v] of Object.entries(step)) out[k] = v === 1 ? out[k] : r6(out[k] * v);
+      for (const [k, v] of Object.entries(step)) out[k] = additive.has(k) ? (v === 0 ? out[k] : r6(out[k] + v)) : v === 1 ? out[k] : r6(out[k] * v);
     }
     return from ? { ...out, from } : out;
   }
@@ -59,6 +64,7 @@ export function ratioControls({ label, groups, aggregates = {}, moves = {}, rang
     for (const [k, v] of Object.entries(spec)) {
       if (!known.has(k)) { errs.push(`${at}.${k}: unknown control (have ${[...KEYS, ...AGGREGATE_KEYS].join(', ')}; moves: ${MOVE_NAMES.join(', ')})`); continue; }
       if (k === 'from') { if (typeof v !== 'string') errs.push(`${at}.from: must be a string`); continue; }
+      if (additive.has(k)) { if (typeof v !== 'number' || !Number.isFinite(v)) errs.push(`${at}.${k}: must be a finite number (an amount either way; 0 = as is)`); continue; }
       if (typeof v !== 'number' || !Number.isFinite(v) || (zeroable.has(k) ? v < 0 : v <= 0)) errs.push(`${at}.${k}: must be a finite number ${zeroable.has(k) ? '>= 0 (0 switches it off; 1 = as is)' : '> 0 (a ratio to the baseline; 1 = as is)'}`);
     }
     return errs;
@@ -76,9 +82,9 @@ export function ratioControls({ label, groups, aggregates = {}, moves = {}, rang
 
   /** the keys that moved, as percentages, the move trail first: the frame note's clause and the readout's `moved` */
   const describe = (resolved) => {
-    const moved = KEYS.filter((k) => resolved[k] !== 1).map((k) => `${k} ${Math.round(resolved[k] * 100)}%`);
+    const moved = KEYS.filter((k) => resolved[k] !== undefined && resolved[k] !== DEFAULT[k]).map((k) => (additive.has(k) ? `${k} ${resolved[k] > 0 ? '+' : ''}${resolved[k]}` : `${k} ${Math.round(resolved[k] * 100)}%`));
     return moved.length ? `${label} ${resolved.from ? `${resolved.from}: ` : ''}${moved.join(', ')}` : '';
   };
 
-  return { label, KEYS, GROUPS, AGGREGATES, AGGREGATE_KEYS, DEFAULT, RANGES, MOVES, MOVE_NAMES, resolve, validate, warnings, describe };
+  return { label, KEYS, GROUPS, AGGREGATES, AGGREGATE_KEYS, DEFAULT, RANGES, MOVES, MOVE_NAMES, OFFSETS: Object.freeze([...additive]), resolve, validate, warnings, describe };
 }

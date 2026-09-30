@@ -22,7 +22,7 @@ const readJson = (preset, file) => JSON.parse(readFileSync(path.join(FIT_DATA_DI
 // Registration into the hero head frame (metres about the atlas), per head: chin to the landmark preset's menton,
 // crown-to-chin height to its, and the head's length centred where its cranium was. The figure's collar, neck and
 // head scale were built around those numbers.
-const REGISTRATION = { female: { menton: -0.042, height: 0.219, midY: 0.014 }, male: { menton: -0.041, height: 0.228, midY: 0.0198 } };
+export const REGISTRATION = { female: { menton: -0.042, height: 0.219, midY: 0.014 }, male: { menton: -0.041, height: 0.228, midY: 0.0198 } };
 const EAR_GROUPS = new Set(['Ear inset', 'Ear attachment']);
 /** One frozen fit: its named points, its sampling triangles (the fit's own corrected triangulation, ears and ear
  * roots left out, the skull's ear openings patched) and its registration. */

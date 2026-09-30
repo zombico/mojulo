@@ -19,6 +19,8 @@ export function exactSupport(terms, at = 'terms') {
       case 'add': case 'subtract': case 'intersect': {
         const k = t.shape && t.shape.kind;
         if (k === 'expr') return { ok: false, at: here, why: 'an `expr` distance expression has no closed-form solid' };
+        if (k === 'crystal') return { ok: false, at: here, why: 'a `crystal` is already exact: it is placed as its own polytope beside the field, not composed into it' };
+        if (k === 'rock') return { ok: false, at: here, why: 'a `rock` is a sampled fracture cascade over a grain field (its far-LOD block is exact as faces: rockBlockFaces)' };
         if (k === 'lathe' && Array.isArray(t.shape.harmonics) && t.shape.harmonics.length) return { ok: false, at: here, why: 'a lathe with `harmonics` is not a surface of revolution' };
         break;
       }
@@ -50,5 +52,10 @@ export function manifestWantsExact(manifest) {
   if (!manifest || typeof manifest !== 'object') return false;
   if (manifest.kind === 'assembler') return Array.isArray(manifest.items) && manifest.items.some((it) => it && manifestWantsExact({ kind: 'workbench', ...it.source }));
   if (manifest.kind === 'scad') return listWantsExact(manifest.fields);
-  return listWantsExact(manifest.fields) || listWantsExact(manifest.cuts) || (manifest.program != null && typeof manifest.program === 'object');
+  return listWantsExact(manifest.fields) || listWantsExact(manifest.cuts) || (manifest.program != null && typeof manifest.program === 'object')
+    // a frame's joints are cut, and a steel member's section shaped, by the kernel (construction/frame.js degrades to
+    // plain boxes without it)
+    || (Array.isArray(manifest.frames) && manifest.frames.some((f) => f && ((Array.isArray(f.joints) && f.joints.length > 0) || (Array.isArray(f.members) && f.members.some((m) => m && m.section !== undefined)))))
+    // a house framed in steel, or in a jointed timber frame (construction/house-frame.js)
+    || (manifest.framing != null && typeof manifest.framing === 'object' && (manifest.framing.system === 'steel' || (['post-and-beam', 'kigumi'].includes(manifest.framing.system) && manifest.framing.joints !== false)));
 }

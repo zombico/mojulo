@@ -12,7 +12,8 @@
  */
 
 import { ARCHETYPES, RELATIONSHIPS } from './floorplan-glyphs.js';
-import { FLOORPLAN_DEFAULTS, structurizeHouse, structurizeFloorplan } from './floorplan-structure.js';
+import { FLOORPLAN_DEFAULTS, structurizeHouse, structurizeFloorplan, storeyLevels } from './floorplan-structure.js';
+import { framingOf } from '../construction/house-frame.js';
 
 const q = (n) => Math.round(n * 100) / 100;             // 2-dp quantize for stable content IDs
 const EPS = 1e-6;
@@ -443,6 +444,26 @@ export function generateBestHouse(input = {}, houseOpts = {}, sel = {}) {
 function floorModel(input, opts) {
   const s = structurizeFloorplan(input, opts);
   return buildElementModel({ wallGraph: s.wallGraph, cells: s.cells, baseZ: s.baseZ }, opts);
+}
+
+/**
+ * The design considerations of a house recipe (a floorplan with `storeys` or `levels`), measured on the plan it
+ * builds (floorplan-design.js): its walkways past the stair and to every door, its stairs, its doors. Null for a
+ * single-floor plan (it keeps scoreHouse). The recipe's own `design` names the rules (default: the framing's
+ * tradition, else North American) and its `repair`; furniture, framing and drainage do not move the plan, so they
+ * are left out of the build.
+ */
+export function assessHouseManifest(manifest = {}) {
+  if (!manifest || manifest.kind !== 'floorplan') return null;
+  const stacked = Array.isArray(manifest.levels) && manifest.levels.length;
+  const stack = stacked ? null : storeyLevels(manifest);
+  if (!stacked && !stack) return null;
+  const { framing, drainage: _d, furnish: _f, ...m } = manifest;
+  const tradition = framing ? framingOf(framing).tradition : null;
+  const own = manifest.design && typeof manifest.design === 'object' ? manifest.design : {};
+  const design = { ...(tradition ? { tradition } : {}), ...own };
+  const house = structurizeHouse(stacked ? m : { ...m, ...stack }, { ...m, design, furnish: false });
+  return house.design;
 }
 
 /** Grade a floorplan manifest (regenerates it exactly as the scene renderer would). */

@@ -24,8 +24,12 @@
  * No three.js import — pure typed-array + Buffer assembly, unit-testable in node.
  */
 
-import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear } from '../figures/face-mesh.js';
-import { inkBake, inkGeoNormals, inkCentroid } from './ink-geometry.js';
+import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
+import { shineOptics } from '../polygonizer/crystal-shine.js';
+import { resolveMetalSurface } from '../materials/metal-surface.js';
+import { crystalRigFor, rigFrozenFrame } from './crystal-rig.js';
+import { inkBake, inkGeoNormals, inkCentroid, inkBuried } from './ink-geometry.js';
+import { drawLayerGroup } from './channels/draw-layers.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, zRotationQuat } from './scene-gltf-level.js';
@@ -74,7 +78,8 @@ const TRIS = [[0, 1, 2], [0, 2, 3]];
 // runtime — no intrinsic period). The exported glTF needs seconds, so we map one full cycle to
 // the runtime's ambient default: the clock rule advances gaitPhase at `rate ?? 1` cycles/second
 // (worlds/controllable/rules-basic.js), i.e. 1 second per cycle. Documented, deterministic, and
-// trivially retimed downstream (Blender scales NLA strips).
+// trivially retimed downstream (Blender scales NLA strips). A clip carrying its DESIGNED DURATION (`s`, the anime hero's:
+// hero-gesture.js heroClipSeconds, station-loft-rig packLayeredRig `seconds`) plays over that instead.
 const RIG_CLIP_SECONDS = 1;
 
 // base64 → typed array, COPYING into a fresh buffer: Buffer.from(base64) allocates from node's
@@ -365,9 +370,10 @@ class GlbBuilder {
   // P3): no unlit extension, so importers light it and the metallic/roughness read shows.
   // COLOR_0 still multiplies baseColor — the baked Lambert rides along as the albedo's shading,
   // the documented trade of exporting a baked world into a lit viewer.
-  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1 } = {}) {
+  pbrMaterial({ metallic = 0, roughness = 0.9, alpha = null, baseColorTexture = null, name, emissive = null, emissiveStrength = 1, baseColor = null } = {}) {
     const pbr = {
-      baseColorFactor: [1, 1, 1, alpha == null ? 1 : alpha],
+      // a metal surface carries its own colour here (its COLOR_0 is white); everything else is white × COLOR_0
+      baseColorFactor: [...(Array.isArray(baseColor) ? baseColor.slice(0, 3) : [1, 1, 1]), alpha == null ? 1 : alpha],
       metallicFactor: metallic,
       roughnessFactor: roughness,
     };
@@ -386,6 +392,29 @@ class GlbBuilder {
         mat.extensions = { ...(mat.extensions || {}), KHR_materials_emissive_strength: { emissiveStrength } };
       }
     }
+    this.json.materials.push(mat);
+    return this.json.materials.length - 1;
+  }
+
+  // A crystal (crystal-shine S6): a clear dielectric carried by the standard extensions an engine's importer reads —
+  // KHR_materials_transmission, _ior, _volume (thickness + the stone's colour after a path), _dispersion (20/V), and
+  // emissive for a glow; an opal is an opaque body with KHR_materials_iridescence instead. Each extension is declared
+  // once, only when a crystal is exported.
+  crystalMaterial({ name, optics, thickness = 1, unitsPerCm = 1 }) {
+    const declare = (ext) => { this.crystalExts ||= new Set(); if (!this.crystalExts.has(ext)) { this.crystalExts.add(ext); this.json.extensionsUsed.push(ext); } };
+    const opal = !!optics.photonic; const ext = {};
+    const mat = { name, doubleSided: false, pbrMetallicRoughness: { baseColorFactor: opal ? [0.012, 0.013, 0.018, 1] : [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: opal ? 0.1 : 0.02 } };
+    if (opal) { declare('KHR_materials_iridescence'); ext.KHR_materials_iridescence = { iridescenceFactor: 1, iridescenceIor: optics.photonic.nEff, iridescenceThicknessMinimum: 200, iridescenceThicknessMaximum: 600 }; }
+    else {
+      declare('KHR_materials_transmission'); declare('KHR_materials_ior'); declare('KHR_materials_volume');
+      const nD = optics.nD, V = optics.abbe;                                    // the D line and the Abbe number, as glTF means them
+      const att = optics.colour.o[2].map((c) => +Math.max(0.002, Math.min(1, c)).toFixed(4));   // white light after 1 cm
+      ext.KHR_materials_transmission = { transmissionFactor: 1 }; ext.KHR_materials_ior = { ior: +nD.toFixed(4) };
+      ext.KHR_materials_volume = { thicknessFactor: +thickness.toFixed(5), attenuationDistance: +unitsPerCm.toFixed(5), attenuationColor: att };
+      const disp = +(20 / V).toFixed(4); if (disp > 0) { declare('KHR_materials_dispersion'); ext.KHR_materials_dispersion = { dispersion: disp }; }
+    }
+    if (optics.glow && optics.glow.strength > 0) mat.emissiveFactor = optics.glow.rgb.map((c) => +(c * Math.min(1, optics.glow.strength)).toFixed(4));
+    mat.extensions = ext;
     this.json.materials.push(mat);
     return this.json.materials.length - 1;
   }
@@ -572,6 +601,22 @@ class GlbBuilder {
     return this.json.accessors.length - 1;
   }
 
+  // One morph target (POSITION deltas) as a SPARSE float VEC3 accessor over `count` vertices: the u32 indices (ascending)
+  // of the vertices that move and their deltas, min/max over the deltas and 0; a target that moves nothing is an accessor
+  // with no data at all (every delta 0). The sparse views carry no buffer-view target (as the IBM).
+  morphAccessor(count, idx, val) {
+    const min = [0, 0, 0], max = [0, 0, 0];
+    for (let k = 0; k < val.length; k++) { const c = k % 3; if (val[k] < min[c]) min[c] = val[k]; if (val[k] > max[c]) max[c] = val[k]; }
+    const acc = { componentType: COMPONENT_FLOAT, count, type: 'VEC3', min, max };
+    if (idx.length) {
+      const iv = this.addView(Buffer.from(idx.buffer, idx.byteOffset, idx.byteLength), null);
+      const vv = this.addView(Buffer.from(val.buffer, val.byteOffset, val.byteLength), null);
+      acc.sparse = { count: idx.length, indices: { bufferView: iv, componentType: COMPONENT_UINT }, values: { bufferView: vv } };
+    }
+    this.json.accessors.push(acc);
+    return this.json.accessors.length - 1;
+  }
+
   /**
    * SKINNED rig export (skin-over-mesh.plan.md phase 4) — the same packed rig
    * as addRigFigure, exported as ONE SkinnedMesh + a glTF `skins` entry
@@ -590,6 +635,13 @@ class GlbBuilder {
    * IBM = T(-restHead), so J·IBM·v = head' + q·(v − restHead) — the runtime
    * formula, now evaluated by the engine per-vertex. At rest J·IBM = I: a
    * no-animation import shows the bake's rest pose byte-exactly.
+   *
+   * THE FACE (anime-face-rig.js; a figure carrying `face` whose parts carry `morph`): POSITION is the
+   * NEUTRAL head (each listed vertex less its rebase), one sparse POSITION target per face target (in
+   * `face.targets` order) on the body primitive, the ink primitive's targets all one zero accessor (its
+   * hull stays baked from the stored face), `mesh.weights` the authored expression (so an engine that
+   * plays nothing shows the approved face) and `mesh.extras` the target names and the face's words.
+   * Without a face every byte is as before.
    */
   addSkinnedRigFigure(name, fig, clipNames, { humanoid = false, ink = null } = {}) {
     const material = this.surfaceMaterial({ name: `fig:${name}` });
@@ -635,6 +687,8 @@ class GlbBuilder {
     // merge every part into one rest-space soup with per-vertex joints/weights
     const pos = [], col = [], jnt = [], wgt = [], idx = [];
     let vertices = 0, triangles = 0;
+    // the face's rows at their global vertex (base + the part's own index): the rebase, then every target
+    const faceT = fig.face && Array.isArray(fig.face.targets) ? fig.face.targets.length : 0, morphAt = [], morphRow = [];
     fig.bones.forEach((bone, bi) => {
       const part = fig.parts[bi];
       if (!part) return;
@@ -667,13 +721,20 @@ class GlbBuilder {
       for (let i = 0; i < d.colors.length; i++) col.push(d.colors[i]);
       if (d.indices) for (let i = 0; i < d.indices.length; i++) idx.push(base + d.indices[i]);
       else for (let i = 0; i < d.vertexCount; i++) idx.push(base + i);
-      if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null });
+      if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null, ...(Number.isInteger(part.inkFaces) ? { inkFaces: part.inkFaces } : {}), ...(part.ranges ? { ranges: part.ranges } : {}) });
+      if (faceT && part.morph) {
+        const mi = b64ToU32(part.morph.i), md = b64ToF32(part.morph.d), W = (1 + faceT) * 3;
+        if (md.length !== mi.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} face rows do not match their vertices`);
+        for (let k = 0; k < mi.length; k++) { morphAt.push(base + mi[k]); morphRow.push(md.subarray(k * W, k * W + W)); }
+      }
       vertices += d.vertexCount;
       triangles += d.triangleCount;
     });
     if (!vertices) return { nodes: 0, animations: 0, vertices: 0, triangles: 0, skinned: false };
 
     const positions = Float32Array.from(pos);
+    // the face: POSITION at the neutral head (the stored face less its rebase); the ink below bakes from `pos`
+    if (morphAt.length) morphAt.forEach((g, k) => { const r = morphRow[k]; for (let c = 0; c < 3; c++) positions[g * 3 + c] = pos[g * 3 + c] - r[c]; });
     const attributes = {
       POSITION: this.floatAccessor(positions, 3, bounds3(positions)),
       COLOR_0: this.floatAccessor(Float32Array.from(col), 3),
@@ -693,19 +754,33 @@ class GlbBuilder {
       const width = Number.isFinite(ink.widthAbs) ? ink.widthAbs : (Number.isFinite(ink.width) ? ink.width : 0.008) * (r || 1);
       const q = Math.max((r || 1) * 1.5e-3, 1e-6);
       const iPos = [], iJnt = [], iWgt = [];
-      for (const P of inkParts) {
-        const ids = P.indices ? Array.from(P.indices) : Array.from({ length: P.count }, (_, i) => i);
-        if (ids.length < 3) continue;
-        const sPos = new Float32Array(ids.length * 3);
-        ids.forEach((li, k) => { const g = (P.base + li) * 3; sPos[k * 3] = pos[g]; sPos[k * 3 + 1] = pos[g + 1]; sPos[k * 3 + 2] = pos[g + 2]; });
-        const nrm = inkGeoNormals(sPos, inkCentroid(sPos));
-        const baked = inkBake(sPos, nrm, { width, crease: Number.isFinite(ink.crease) ? ink.crease : 35, q });
+      const soupOf = (P, ids) => { const sPos = new Float32Array(ids.length * 3); ids.forEach((li, k) => { const g = (P.base + li) * 3; sPos[k * 3] = pos[g]; sPos[k * 3 + 1] = pos[g + 1]; sPos[k * 3 + 2] = pos[g + 2]; }); return sPos; };
+      const bakeIds = (P, ids, skip = null) => {
+        if (ids.length < 3) return;
+        const sPos = soupOf(P, ids);
+        const nrm = P.inkFaces !== undefined ? inkGeoNormals(sPos) : inkGeoNormals(sPos, inkCentroid(sPos));
+        const baked = inkBake(sPos, nrm, { width, crease: Number.isFinite(ink.crease) ? ink.crease : 35, q, ...(ink.lines === false ? { lines: false } : {}), ...(skip ? { skip } : {}) });
         for (let i = 0; i < baked.hullSrc.length; i++) {
           const li = ids[baked.hullSrc[i]]; const g4 = (P.base + li) * 4;
           iPos.push(baked.hullPos[i * 3], baked.hullPos[i * 3 + 1], baked.hullPos[i * 3 + 2]);
           iJnt.push(jnt[g4], jnt[g4 + 1], jnt[g4 + 2], jnt[g4 + 3]);
           iWgt.push(wgt[g4], wgt[g4 + 1], wgt[g4 + 2], wgt[g4 + 3]);
         }
+      };
+      for (const P of inkParts) {
+        // a character-lit part (station-loft-rig `inkFaces`) outlines its first inkFaces faces only (its drawn
+        // features come after them) along its WINDING normals (a layered mesh winds outward): the World rig
+        // preview's rule, so the baked outline and the live one agree. Any other part: the centroid rule, as before.
+        const ids = (P.indices ? Array.from(P.indices) : Array.from({ length: P.count }, (_, i) => i)).slice(0, P.inkFaces !== undefined ? P.inkFaces * 3 : undefined);
+        if (!P.ranges) { bakeIds(P, ids); continue; }
+        // DRAW LAYERS (a part carrying `ranges`, station-loft-rig characterRigParts): its plain, hair and veil spans each
+        // their own hull, as the rig preview outlines them; the bake cannot stencil, so the hair and the veil leave out
+        // the shell of the hair lying inside another hair part (ink-geometry inkBuried, over the two spans together)
+        const R = P.ranges, n = ids.length / 3, hairSpans = [R.hair, R.veil].filter(Boolean).map(([a, b]) => ids.slice(a * 3, b * 3));
+        const flags = inkBuried(soupOf(P, hairSpans.flat()));
+        bakeIds(P, ids.slice(0, Math.min(n, R.hair ? R.hair[0] : n, R.veil ? R.veil[0] : n) * 3));
+        let at = 0;
+        for (const h of hairSpans) { bakeIds(P, h, flags.subarray(at, at + h.length / 3)); at += h.length / 3; }
       }
       if (iPos.length) {
         const ip = Float32Array.from(iPos);
@@ -722,7 +797,31 @@ class GlbBuilder {
         triangles += ip.length / 9;
       }
     }
-    const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims }) - 1;
+    let faceMesh = null;
+    if (morphAt.length) {
+      const n = positions.length / 3;
+      prim.targets = fig.face.targets.map((_, t) => {
+        const ids = [], vals = [];
+        morphAt.forEach((g, k) => { const r = morphRow[k], o = 3 + t * 3; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } });
+        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) };
+      });
+      if (prims[1]) { const zero = this.morphAccessor(this.json.accessors[prims[1].attributes.POSITION].count, new Uint32Array(0), new Float32Array(0)); prims[1].targets = fig.face.targets.map(() => ({ POSITION: zero })); }
+      // the facial tracks (anime-face-tracks.js): a clip's track rides its animation, the ambient blink its own; the
+      // layer plays over the exported clips whose eyes hold the authored face
+      const tracked = fig.face.tracks ? clipNames.filter((c) => fig.clips?.[c]?.k && Array.isArray(fig.clips[c].b)) : [];
+      faceMesh = { weights: [...fig.face.weights], extras: { targetNames: [...fig.face.targets], face: {
+        about: 'morph targets on the neutral head (every expression channel 0), differences of head builds; the default weights are the authored expression; eye closure is drawn at the knots (eyeKnots: the hero\'s own closure among them when it sits between the others), blinkFix<k><L|R> is 1 while that eye is at closure k (k its decimals, two at least)',
+        fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words,
+        sides: "Left is mesh -x (the figure's left), Right mesh +x",
+        brow: 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',
+        ...(fig.face.tracks ? {
+          ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
+          ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],
+          keying: 'each clip carries a STEP weights channel on the mesh node, a drawing per frame at fps keyed half a frame early ((f - 0.5) / fps; the first key at 0, the last at the clip\'s end), the eyes only ever at the knots; ambientClip holds the authored face with seeded blinks, to layer over the ambientOver clips through a filter on the blink targets (blink*); play at 30 fps or more (at 24, Blender\'s default scene rate, a one-frame drawing can fall between two samples)',
+        } : {}),
+      } } };
+    }
+    const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims, ...(faceMesh || {}) }) - 1;
 
     // IBM: identity + translation(−restHead), column-major
     const ibm = new Float32Array(bones.length * 16);
@@ -755,34 +854,48 @@ class GlbBuilder {
     }
 
     let animations = 0;
+    const track = (c) => (faceMesh && fig.face.tracks?.[c] ? { node: meshNode, ...fig.face.tracks[c] } : null);
     for (const clipName of clipNames) {
       const clip = fig.clips && fig.clips[clipName];
       if (!clip || !clip.k || !Array.isArray(clip.b)) continue;
-      this.addRigClip(name, fig, jointNodes, clipName, clip);
+      this.addRigClip(name, fig, jointNodes, clipName, clip, track(clipName));
       animations++;
     }
-    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string') };
+    // the AMBIENT BLINK: a face-only animation (the authored face, seeded blinks) an engine layers over a held clip
+    if (faceMesh && fig.face.ambient) {
+      const samplers = [], channels = [];
+      this.addWeightsChannel(samplers, channels, { node: meshNode, t: fig.face.ambient.t, w: fig.face.ambient.w });
+      if (!this.json.animations) this.json.animations = [];
+      this.json.animations.push({ name: fig.face.ambient.name, samplers, channels });
+      animations++;
+    }
+    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(faceMesh ? { face: true } : {}) };
   }
 
-  // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once? }) → one glTF
+  // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once?, s? }) → one glTF
   // animation: per bone node a rotation channel + a translation channel, all samplers sharing
   // ONE input (times) accessor, LINEAR interpolation (glTF normalizes lerped quaternions —
-  // matching the runtime's nlerp). Timing: RIG_CLIP_SECONDS per cycle. LOOPING clips are baked
+  // matching the runtime's nlerp). Timing: T per cycle — the clip's designed duration `s` when it
+  // carries one, else RIG_CLIP_SECONDS. LOOPING clips are baked
   // at phases k/K (the runtime wraps key K-1 → key 0), so we emit K+1 keys with key 0 repeated
-  // at t = RIG_CLIP_SECONDS to close the cycle — glTF has no loop flag, so a player that loops
+  // at t = T to close the cycle — glTF has no loop flag, so a player that loops
   // the animation gets a seamless cycle and one that plays it once lands back on the start pose.
   // ONE-SHOT clips (clip.once — stagger/topple/getup) are baked 0..1 INCLUSIVE across their K
-  // keys and clamp at the end, so they export as-is: K keys spanning [0, RIG_CLIP_SECONDS].
+  // keys and clamp at the end, so they export as-is: K keys spanning [0, T].
   // Packed quaternion curves may carry sign flips (q and -q depict one rotation but lerp badly —
   // the runtime hemisphere-corrects per sample); exported keys are made hemisphere-continuous
   // per bone instead (negate any key with dot(q_k, q_{k-1}) < 0).
-  addRigClip(figName, fig, boneNodes, clipName, clip) {
+  // FACE (`face` = { node, t, w }: the clip's facial track, anime-face-tracks.js, on the skinned mesh's node): a `weights`
+  // channel with its own input (the drawings' times, the last one the body's last, so both end together) and a STEP
+  // sampler — the face holds each drawing, never tweens it. Absent ⇒ the channels as before.
+  addRigClip(figName, fig, boneNodes, clipName, clip, face = null) {
     const nb = fig.bones.length;
     const K = clip.k;
     const B = clip.b;
     const loop = !clip.once;
     const outKeys = loop ? K + 1 : K;
-    const dt = RIG_CLIP_SECONDS / (loop ? K : Math.max(1, K - 1));
+    const T = clip.s > 0 ? clip.s : RIG_CLIP_SECONDS;
+    const dt = T / (loop ? K : Math.max(1, K - 1));
     const times = new Float32Array(outKeys);
     for (let k = 0; k < outKeys; k++) times[k] = k * dt;
     const input = this.floatAccessor(times, 1, { min: [0], max: [times[outKeys - 1]] }, null);
@@ -808,8 +921,21 @@ class GlbBuilder {
       channels.push({ sampler: trSampler, target: { node, path: 'translation' } });
     }
     if (!channels.length) return;
+    if (face) this.addWeightsChannel(samplers, channels, face, times[outKeys - 1]);
     if (!this.json.animations) this.json.animations = [];
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels });
+  }
+
+  // A facial track ({ node, t, w: [weights per key] }) → a STEP sampler (its own float32 input; the last time `end` when
+  // given) and a `weights` channel on the node, pushed onto an animation's lists.
+  addWeightsChannel(samplers, channels, { node, t, w }, end = null) {
+    const times = Float32Array.from(t);
+    if (end !== null) times[times.length - 1] = end;
+    const out = new Float32Array(w.length * w[0].length);
+    w.forEach((x, k) => out.set(x, k * x.length));
+    const input = this.floatAccessor(times, 1, { min: [times[0]], max: [times[times.length - 1]] }, null);
+    const sampler = samplers.push({ input, output: this.floatAccessor(out, 1, null, null), interpolation: 'STEP' }) - 1;
+    channels.push({ sampler, target: { node, path: 'weights' } });
   }
 
   // One glTF perspective camera + its posed node (interchange.plan.md I4). The node lives
@@ -979,6 +1105,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     width: Number.isFinite(inkDial.width) ? inkDial.width : 0.008,
     ...(Number.isFinite(inkDial.widthAbs) ? { widthAbs: inkDial.widthAbs } : {}),
     crease: Number.isFinite(inkDial.crease) ? inkDial.crease : 35,
+    ...(inkDial.lines === false ? { lines: false } : {}),   // the silhouette hull alone (the channel's cfg)
   } : null;
   const inkSoups = [];
   // one shared single-sided unlit ink material, created lazily on first use (static or skinned leg)
@@ -989,12 +1116,18 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // channel builds from the PRE-decollide list; here the weld quantum (≥ 1.5e-3·r) spans the
     // global decollide nudge, so cap edges still weld into one hull.
     if (inkCfg && !name.startsWith('shell:')) {
-      const inkFs = fs.filter((f) => f && !f.decal && !f.water && !f.studio && !f.wireframe && !f.glow && !f.texture && !(typeof f.alpha === 'number' && f.alpha < 1));
-      if (inkFs.length) {
-        const im = faceListToMesh(inkFs, { decollide: false, withNormals: true });
+      const inkFs = fs.filter((f) => f && !f.decal && !f.water && !f.studio && !f.wireframe && !f.glow && !f.texture && !f.noInk && f.layer !== 'through' && !(typeof f.alpha === 'number' && f.alpha < 1));
+      // DRAW LAYERS (a face `layer`, channels/draw-layers.js): the soup splits by layer as the World's render groups do
+      // (drawLayerGroup: `body`, `body:hair`, `body:veil`), each its own hull node; the hair and the veil are marked for
+      // the buried-shell cull below. A group with no layered face is one soup, as before.
+      const soups = new Map();
+      for (const f of inkFs) { const k = f.layer ? drawLayerGroup({ group: name, layer: f.layer }) : name; (soups.get(k) || soups.set(k, []).get(k)).push(f); }
+      for (const [sname, sfs] of soups) {
+        const im = faceListToMesh(sfs, { decollide: false, withNormals: true });
         // no authored outNormals in the group → the channel's rig-part fallback: winding-derived
         // flat normals oriented away from the soup's centroid (convex closed groups satisfy it)
-        if (im.positions.length) inkSoups.push({ name, positions: im.positions, normals: im.normals || inkGeoNormals(im.positions, inkCentroid(im.positions)) });
+        const hair = sname !== name && (sfs[0].layer === 'hair' || sfs[0].layer === 'veil');
+        if (im.positions.length) inkSoups.push({ name: sname, positions: im.positions, normals: im.normals || inkGeoNormals(im.positions, inkCentroid(im.positions)), ...(hair ? { hair: name } : {}) });
       }
     }
     // Faces tagged `pbr: [metallic, roughness]` (a named material from the shelf) split into
@@ -1002,7 +1135,17 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // pair; everything else keeps the unlit path. No pbr faces → identical export to today.
     const pbrBuckets = new Map();
     const plain = [];
+    // crystal faces (crystal-shine S6): one `<group>:crystal` node per gem variant, a transmissive material; no crystal
+    // faces → this map stays empty and the export is byte-identical
+    const crystalBuckets = new Map();
+    // metal faces (metal-surfaces S6): one `<group>:metal` node per surface, its colour in the material (film
+    // included, at normal incidence), metallic 1 and the finish's roughness; no metal faces → byte-identical
+    const metalBuckets = new Map();
     for (const f of fs) {
+      if (f && f.metal && typeof f.metal.s === 'string' && typeof f.texture !== 'string') { (metalBuckets.get(f.metal.s) || metalBuckets.set(f.metal.s, []).get(f.metal.s)).push(f); continue; }
+      if (f && f.crystal && typeof f.crystal.gem === 'string') {
+        const k = f.crystal.glow ? `${f.crystal.gem}~${f.crystal.glow}` : f.crystal.gem; (crystalBuckets.get(k) || crystalBuckets.set(k, []).get(k)).push(f); continue;
+      }
       // textured faces stay on the texture path (a label wrap outranks its material)
       if (f && Array.isArray(f.pbr) && f.pbr.length >= 2 && typeof f.texture !== 'string') {
         // an emissive face (`emissive: [r,g,b]`, `emissiveStrength`) is its own bucket + material
@@ -1019,6 +1162,22 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     if (gm.positions.length) {
       const mat = b.surfaceMaterial({ alpha: groupAlpha, name });
       tally(b.addNode(name, gm.positions, gm.colors, 3, mat, undefined, gm.normals));
+    }
+    let cryIdx = 0;
+    for (const [key, bucket] of crystalBuckets) {
+      const bm = faceListToMesh(bucket.map(({ crystal, ...f }) => ({ ...f, fill: '#ffffff', cornerFills: undefined, vao: undefined })), { decollide: false, withNormals: true });
+      if (!bm.positions.length) continue;
+      const k = bucket[0].crystal; const nodeName = crystalBuckets.size > 1 ? `${name}:crystal${cryIdx++}` : `${name}:crystal`;
+      const mat = b.crystalMaterial({ name: nodeName, optics: shineOptics(key), thickness: 2 * (k.r || 1), unitsPerCm: 1 / (Number.isFinite(k.cmu) && k.cmu > 0 ? k.cmu : 1) });
+      tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));   // COLOR_0 white: glTF multiplies it into the glass
+    }
+    let metIdx = 0;
+    for (const [key, bucket] of metalBuckets) {
+      const bm = faceListToMesh(bucket.map(({ metal, ...f }) => ({ ...f, fill: '#ffffff', cornerFills: undefined, vao: undefined })), { decollide: false, withNormals: true });
+      if (!bm.positions.length) continue;
+      const surface = resolveMetalSurface(JSON.parse(key)); const nodeName = metalBuckets.size > 1 ? `${name}:metal${metIdx++}` : `${name}:metal`;
+      const mat = b.pbrMaterial({ metallic: 1, roughness: Math.max(0.05, surface.roughness), baseColor: surface.normal.map((v) => +v.toFixed(4)), alpha: groupAlpha, name: nodeName });
+      tally(b.addNode(nodeName, bm.positions, bm.colors, 3, mat, undefined, bm.normals));   // COLOR_0 white: the material carries the metal
     }
     let pbrIdx = 0, emIdx = 0;
     for (const [, bucket] of pbrBuckets) {
@@ -1076,8 +1235,17 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     }
     const inkWidth = inkCfg.widthAbs != null ? inkCfg.widthAbs : inkCfg.width * (r || 1);
     const q = Math.max((r || 1) * 1.5e-3, 1e-6);
+    // the bake cannot stencil (ink-geometry.js header): per group, the hair and the veil soups together leave out the
+    // shell of the hair lying inside another hair part (inkBuried)
+    const skipOf = new Map();
+    for (const base of new Set(inkSoups.filter((s) => s.hair).map((s) => s.hair))) {
+      const own = inkSoups.filter((s) => s.hair === base), cat = new Float32Array(own.reduce((n, s) => n + s.positions.length, 0));
+      let at = 0; for (const s of own) { cat.set(s.positions, at); at += s.positions.length; }
+      const flags = inkBuried(cat); at = 0;
+      for (const s of own) { skipOf.set(s, flags.subarray(at / 9, (at + s.positions.length) / 9)); at += s.positions.length; }
+    }
     for (const s of inkSoups) {
-      const baked = inkBake(s.positions, s.normals, { width: inkWidth, crease: inkCfg.crease, q });
+      const baked = inkBake(s.positions, s.normals, { width: inkWidth, crease: inkCfg.crease, q, ...(inkCfg.lines === false ? { lines: false } : {}), ...(skipOf.has(s) ? { skip: skipOf.get(s) } : {}) });
       if (baked.hullPos.length) tally(b.addNode(`${s.name}:ink`, baked.hullPos, null, 3, inkMat()));
       if (baked.linePos.length) tally(b.addLineNode(`${s.name}:ink-lines`, baked.linePos, inkMat()));
     }
@@ -1127,7 +1295,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // per-instance ambient tint is deliberately NOT mirrored (glTF per-node color would need
   // per-node materials).
   repeatList.forEach((r, i) => {
-    const gm = faceListToMesh(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]);
+    // a textured plant face exports as its plain lit colour (plainFaces): instanced prototypes carry no texture yet
+    const gm = faceListToMesh(plainFaces(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]));
     if (!gm.positions.length) return;
     const name = r.group || `repeat-${i}`;
     const mat = b.unlitMaterial({ name });
@@ -1142,6 +1311,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const animatedFigures = [];
   const skinnedFigures = [];
   const humanoidFigures = [];
+  const faceFigures = [];
+  const clipSeconds = {};   // the exported clips' designed durations (a clip carrying `s`), for the model README
   for (const [name, fig] of rigFigs) {
     const clipNames = clipSel === '_all'
       ? Object.keys(fig.clips || {})
@@ -1156,6 +1327,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     animatedFigures.push(name);
     if (added.skinned) skinnedFigures.push(name);
     if (added.humanoid) humanoidFigures.push(name);
+    if (added.face) faceFigures.push(name);
+    for (const c of clipNames) if (fig.clips?.[c]?.s > 0) clipSeconds[`${name}:${c}`] = fig.clips[c].s;
     animationCount += added.animations;
     vertexCount += added.vertices;
     triangleCount += added.triangles;
@@ -1173,6 +1346,19 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // Positioned lights (`payload.lights`: pot lights today) — KHR_lights_punctual nodes.
   const lightDefs = Array.isArray(payload.lights) ? payload.lights.filter((l) => l && Array.isArray(l.position)) : [];
   for (const l of lightDefs) b.addLightNode({ ...l, translation: l.position });
+  // A crystal light rig (crystal-rig R5) leaves as a frozen frame at t = 0: its beams and pools as one emissive node
+  // per colour (`crystal-light:<colour>`), its brightest glows as point lights. The Godot kernel performs the rig live
+  // from score.json and hides these; every other importer keeps the frame. No rig → zero bytes.
+  const cryRig = payload.crystalLight ? crystalRigFor(expanded, payload.crystalLight) : null;
+  if (cryRig) {
+    const frame = rigFrozenFrame(expanded, cryRig);
+    for (const g of frame.groups) {
+      if (!g.positions.length) continue;
+      const mat = b.pbrMaterial({ name: `crystal-light:${g.name}`, metallic: 0, roughness: 1, alpha: 0.85, emissive: g.color, emissiveStrength: 4 });
+      tally(b.addNode(`crystal-light:${g.name}`, new Float32Array(g.positions), new Float32Array(g.positions.length).fill(1), 3, mat));
+    }
+    frame.lights.forEach((l, i) => b.addLightNode({ name: `crystal-light:glow${i}`, type: 'point', translation: l.p, color: l.color, intensity: +(1.5 + 6 * l.power).toFixed(3) }));
+  }
   // Units: a kind authored in other-than-metres declares `metersPerUnit`; the root scales.
   // Scene extras are plain data outside the node tree, so they are pre-scaled below.
   const mpu = Number(payload.metersPerUnit);
@@ -1225,6 +1411,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     out.animatedFigures = animatedFigures;
     if (skinnedFigures.length) out.skinnedFigures = skinnedFigures;
     if (humanoidFigures.length) out.humanoidFigures = humanoidFigures;
+    if (faceFigures.length) out.faceFigures = faceFigures;
+    if (Object.keys(clipSeconds).length) out.clipSeconds = clipSeconds;
   }
   if (camDefs.length) out.cameraCount = camDefs.length;
   if (lightDefs.length) out.lightCount = lightDefs.length;

@@ -316,7 +316,7 @@ export async function GET(request, { params }) {
       if (sketch.manifest.walk) payload.walk = sketch.manifest.walk;
       if (sketch.manifest.xr) payload.xr = sketch.manifest.xr;
     } else {
-      ({ payload, kind } = await resolveWorldScene(sketch, { view, render, livery }));
+      ({ payload, kind } = await resolveWorldScene(sketch, { view, render, livery, live: true }));
     }
 
     if (!payload) {

@@ -29,6 +29,13 @@ export function castShadowScript(cfg) {
   // floor in the sun's shadow, killing every suit/pillar silhouette (a directional shadow map
   // records the nearest occluder; an overhead ceiling wins for every floor texel). Emitted ONLY
   // when a world declares noCast, so every existing cast-shadow world stays byte-identical.
+  // Rock-scale subjects: the contact slack (1.1 world units) and the FIT floor (60) were
+  // sized for city worlds and swallow a sub-metre caster's shadow. `bias` / `fitMin` override them; the literals are
+  // emitted unchanged when a world declares neither, so every existing cast-shadow world stays byte-identical. A
+  // declared floor also lets the near plane follow a small box (a fixed 0.5 would clip it).
+  const biasLit = Number.isFinite(cfg.bias) && cfg.bias > 0 ? String(cfg.bias) : '1.1';
+  const fitMinLit = Number.isFinite(cfg.fitMin) && cfg.fitMin > 0 ? String(cfg.fitMin) : '60';
+  const nearExpr = Number.isFinite(cfg.fitMin) && cfg.fitMin > 0 ? 'Math.min(0.5, half * 0.05)' : '0.5';
   const noCastGuard = Array.isArray(cfg.noCast) && cfg.noCast.length
     ? `\n  if (m.userData && __CS.noCast.indexOf(m.userData.g) !== -1) m.castShadow = false;   // roof/ceiling receives but never casts`
     : '';
@@ -55,7 +62,7 @@ const __csC = new THREE.Vector3(); let __csR = 0;
     const bs = m.geometry.boundingSphere;
     if (bs) __csR = Math.max(__csR, __csC.distanceTo(bs.center) + bs.radius);
   }
-  __csR = Math.min(Math.max(__csR, 60), 1600);   // degenerate scenes get a floor; huge maps a texel-density cap
+  __csR = Math.min(Math.max(__csR, ${fitMinLit}), 1600);   // degenerate scenes get a floor; huge maps a texel-density cap
 }
 // shared uniform cells — every patched program points at these objects, so one write reaches all.
 // csMat is the LIVE shadow.matrix (same Matrix4 identity; three refreshes it each shadow pass);
@@ -70,9 +77,9 @@ const __csTexelU = { value: 1 / __CS.mapSize };
 function __csFrustum(half) {
   const c = __csL.shadow.camera;
   c.left = -half; c.right = half; c.top = half; c.bottom = -half;
-  c.near = 0.5; c.far = half * 5;
+  c.near = ${nearExpr}; c.far = half * 5;
   c.updateProjectionMatrix();
-  __csBiasU.value = 1.1 / (c.far - c.near);   // ~1.1 world units of contact slack, scale-aware
+  __csBiasU.value = ${biasLit} / (c.far - c.near);   // ~1.1 world units of contact slack, scale-aware
 }
 function __csAim(x, y, z, dist) {
   __csL.target.position.set(x, y, z);

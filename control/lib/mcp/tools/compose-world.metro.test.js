@@ -4,6 +4,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect } from 'vitest';
 import { composeWorld } from './compose-world.js';
+import { mintFractalCity } from './scene-city.js';
 
 // The metro profile rides compose_world's city overrides: stored as `profile: 'metro'`
 // with a downtown frame when none is given; a city without it stores no profile key at all.
@@ -19,6 +20,11 @@ describe('compose_world: the metro profile', () => {
     const r = composeWorld({ base: 'city', seed: 3, overrides: { profile: 'metro', region: { x: 2, y: 2, w: 120, d: 80 }, context: { depth: 9 } } });
     expect(r.recipe.region).toEqual({ x: 2, y: 2, w: 120, d: 80 });
     expect(r.recipe.depth).toBe(6);
+  });
+  it('a new mint wears the round street kit beside frontage; the caller can keep the block kit', () => {
+    expect(composeWorld({ base: 'city', seed: 3 }).recipe.elements).toMatchObject({ frontage: true, roundKit: true });
+    expect(mintFractalCity({ seed: 3, elements: { round: false } }).recipe.elements).toEqual({ round: false, frontage: true });
+    expect(mintFractalCity({ seed: 3, elements: ['roads'] }).recipe.elements).toEqual(['roads', 'frontage', 'roundKit']);
   });
   it('a stock city stores no profile and keeps the 1–3 depth clamp', () => {
     const r = composeWorld({ base: 'city', seed: 3, overrides: { context: { depth: 9 } } });

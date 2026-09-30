@@ -17,6 +17,8 @@ import {
   HANDOFF_PAGE_DOORS,
   HANDOFF_FILE_DOORS,
   HANDOFF_VERIFIED,
+  HANDOFF_INLINE_PAGE,
+  _parseProfileForTests as parseProfile,
 } from './registry.js';
 
 describe('host profile registry', () => {
@@ -29,6 +31,7 @@ describe('host profile registry', () => {
       'hermes',
       'grok-chat',
       'chatgpt',
+      'muse',
     ]);
   });
 
@@ -115,12 +118,37 @@ describe('host profile registry', () => {
     expect(gc.box).toMatchObject({ page: 'file-card', file: 'file-card', ephemeral: true });
     expect(gc.verified).toBe('inferred');
     expect(getHostProfile('grok-chat').wire.format).toBe('manual');
+    // Meta Muse: a shell on a VM that persists, no MCP client. The page door is its Artifacts
+    // tool in its own words, the file door is the folder it carries to the Library, and the
+    // inline page is fragile rather than refused.
+    const mu = hostHandoff('muse');
+    expect(mu.local).toBeUndefined();
+    expect(mu.box).toMatchObject({
+      page: 'artifact', file: 'drop-folder', pageVerb: 'save', inlinePage: 'fragile',
+      dropDir: '~/workspace/your_files', downloadExtensions: ['html'], ephemeral: false, fileMaxBytes: null, pageMaxBytes: null,
+    });
+    expect(mu.verified).toBe('field');
+    expect(getHostProfile('muse').wire.format).toBe('manual');
+    expect(getHostProfile('muse').adapterId).toBe('muse');
+    // Claude's words are on its own row now, not in the code's defaults.
+    expect(cc.box).toMatchObject({ pageTool: 'your Artifact tool', pageOpensIn: 'on claude.ai', inlinePage: 'refused' });
     // Desktop's MCP App door is the flagged P6 spike; until it lands the dashboard is the door.
     expect(hostHandoff('desktop').local.page).toBe('dashboard');
     expect(hostHandoff('desktop').box).toBeUndefined();
     // Unknown host: no table, the caller prints the generic file:// sentence.
     expect(hostHandoff('nonexistent-host')).toBeNull();
     expect(hostHandoff(null)).toBeNull();
+  });
+
+  it('validates the per-door fields a row declares', () => {
+    const profile = (box) => JSON.stringify({
+      id: 'x', wire: { format: 'manual' }, manual: 'm',
+      handoff: { verified: 'inferred', box: { name: 'a box', page: 'artifact', file: 'none', ephemeral: true, ...box } },
+    });
+    expect(() => parseProfile('x.json', profile({ file: 'drop-folder' }))).toThrow(/dropDir is required/);
+    expect(parseProfile('x.json', profile({ file: 'drop-folder', dropDir: '~/out' })).handoff.box.dropDir).toBe('~/out');
+    expect(() => parseProfile('x.json', profile({ inlinePage: 'maybe' }))).toThrow(/inlinePage 'maybe' must be one of refused, fragile/);
+    for (const v of HANDOFF_INLINE_PAGE) expect(() => parseProfile('x.json', profile({ inlinePage: v }))).not.toThrow();
   });
 
   it('fills capability defaults so an undeclared trait never reads as enabled', () => {

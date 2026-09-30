@@ -17,6 +17,8 @@
  * term into N bands. Extend by adding a row — never by forking a shade function.
  */
 
+import { isMetalSurface, metalSurfaceError, resolveMetalSurface, metalShelfRow } from '../materials/metal-surface.js';
+
 export const MATERIALS = {
   // metallic — specular highlight, tinted. `metal: 1` marks the family for the
   // glTF pbrMetallicRoughness mapping (materialPbr below); the shades ignore it.
@@ -59,9 +61,15 @@ export function materialName(m) {
   return a && MATERIALS[a] ? a : null;
 }
 
-/** Resolve a name, a #hex (→ satin tint), or an object { preset?, base?, … overrides }. */
+/**
+ * Resolve a name, a #hex (→ satin tint), an object { preset?, base?, … overrides }, or a metal surface
+ * { metal: '<name>', finish?, along?, film?, seed? } (materials/metal-surface.js: a shelf-shaped row carrying the
+ * resolved surface, so fills shade as before and tagFacesWithMaterial stamps the page's `metal` tag). An invalid metal
+ * surface falls back to steel like any other typo; validateMaterialRef is the loud gate.
+ */
 export function resolveMaterial(m) {
   if (!m) return MATERIALS.steel;
+  if (isMetalSurface(m)) return metalSurfaceError(m) ? MATERIALS.steel : metalShelfRow(resolveMetalSurface(m));
   if (typeof m === 'string') return MATERIALS[materialName(m)] || (m.startsWith('#') ? { ...MATERIALS.satin, base: m } : MATERIALS.steel);
   return { ...(MATERIALS[materialName(m.preset)] || MATERIALS.satin), ...m };
 }
@@ -77,6 +85,7 @@ export function validateMaterialRef(m) {
     if (m.startsWith('#') || materialName(m)) return null;
     return `unknown material '${m}' — use one of: ${MATERIAL_NAMES.join(', ')} (or a '#hex' tint, or { preset, …overrides }; plain words like ${Object.keys(MATERIAL_ALIASES).slice(0, 4).join(' / ')} resolve to a row)`;
   }
+  if (isMetalSurface(m)) { const e = metalSurfaceError(m); return e ? `metal surface: ${e}` : null; }
   if (typeof m === 'object') {
     if (m.preset != null && !materialName(m.preset)) return `unknown material preset '${m.preset}' — use one of: ${MATERIAL_NAMES.join(', ')}`;
     return null;
@@ -102,8 +111,9 @@ export function materialPbr(mat) {
  * is already IN the fills; these carry the view-dependent remainder. No material or
  * no specular → faces untouched (byte-identical downstream).
  */
-export function tagFacesWithMaterial(faces, mat) {
+export function tagFacesWithMaterial(faces, mat, opts = {}) {
   if (!mat || !Array.isArray(faces)) return faces;
+  if (mat.surface) return tagFacesWithMetal(faces, mat.surface, opts);
   const spec = mat.specular > 0 ? [mat.specular, mat.shininess || 16] : null;
   const pbr = materialPbr(mat);
   for (const f of faces) {
@@ -112,4 +122,64 @@ export function tagFacesWithMaterial(faces, mat) {
     if (pbr) f.pbr = pbr;
   }
   return faces;
+}
+
+/**
+ * Metal-surface faces carry `metal: { s, d, ta }` for the World's metal channel (the surface's canonical key, the
+ * film thickness in nm, and the toolpath tangent as an angle from the face's first edge, about its normal) and
+ * `pbr: [1, roughness]` for the exporters. The tangent is stored RELATIVE to the face so it survives every later
+ * pose, scale and mirror of the corners (faceListToMesh rebuilds it from the final corners). No `spec`: the metal
+ * channel draws the whole view-dependent response, and a white Blinn lobe on top would read as plastic again.
+ */
+export function tagFacesWithMetal(faces, surface, { axis = null, along: fallback = null } = {}) {
+  const pbr = [1, Math.max(0.08, surface.roughness)];
+  // a generator may name its natural toolpath (a lathe turns: 'around' its own axis) for a spec that set none
+  const along = surface.alongSet ? surface.along : (fallback || surface.along);
+  const pf = surface.pattern ? patternFrame(surface.pattern.layers, along) : null;
+  for (const f of faces) {
+    if (!f || !Array.isArray(f.corners) || f.corners.length < 3) continue;
+    f.metal = { s: surface.key, d: surface.d, ta: +toolpathAngle(f.corners, along, axis).toFixed(4) };
+    // a pattern-welded surface: each corner's place in the billet — its depth through the layers, its offset across
+    // the blade and its distance along it — in the part's own frame, so the etch rides every later pose
+    if (pf) f.metal.p = f.corners.map((c) => [+dot3(c, pf.L).toFixed(5), +dot3(c, pf.W).toFixed(5), +dot3(c, pf.R).toFixed(5)]);
+    f.pbr = pbr;
+  }
+  return faces;
+}
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const unit3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]); return l > 1e-12 ? [a[0] / l, a[1] / l, a[2] / l] : null; };
+const AXES = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+/** A pattern's frame in the part: L through the layers, R along the pattern's run, W across (L × R). */
+function patternFrame(layers, along) {
+  const L = unit3(AXES[layers] || layers) || [0, 1, 0]; const run = unit3(AXES[along] || (Array.isArray(along) ? along : [0, 0, 1])) || [0, 0, 1];
+  const W = unit3(cross3(L, run)) || unit3(cross3(L, Math.abs(L[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]));
+  return { L, W, R: run };
+}
+/**
+ * The toolpath direction on a face as an angle (radians) from its first edge, measured about the face normal
+ * n = e0 × e1. `along`: 'auto' (an elongated face's longest edge, else the part's x — y where x is the normal), 'x' | 'y' | 'z' or [x, y, z] (in the part's own frame), or
+ * 'around' (circumferential about an axis: `axis = { at, dir }` when the generator knows one — a lathe's own —
+ * else the part's z through its origin: a lathe's turning marks).
+ */
+export function toolpathAngle(corners, along = 'auto', axis = null) {
+  const e0 = unit3(sub3(corners[1], corners[0])); const n = unit3(cross3(sub3(corners[1], corners[0]), sub3(corners[2], corners[0])));
+  if (!e0 || !n) return 0;
+  let t;
+  if (along === 'auto') {
+    // a clearly elongated face (a bar's side, a tube's strip) runs along its longest edge; anything squarer (a cap, a
+    // panel, a fan triangle) takes the part's x, or its y where x is the normal — so coplanar faces agree
+    let best = 0, bi = 0; for (let i = 0; i < corners.length; i++) { const l = Math.hypot(...sub3(corners[(i + 1) % corners.length], corners[i])); if (l > best + 1e-12) { best = l; bi = i; } }
+    let area = 0; for (let i = 1; i + 1 < corners.length; i++) area += Math.hypot(...cross3(sub3(corners[i], corners[0]), sub3(corners[i + 1], corners[0]))) / 2;
+    const across = best > 0 ? (corners.length === 3 ? 2 : 1) * area / best : 0;
+    t = across > 0 && best / across > 2 ? sub3(corners[(bi + 1) % corners.length], corners[bi]) : (Math.abs(n[0]) > 0.9 ? [0, 1, 0] : [1, 0, 0]);
+  }
+  else if (along === 'around') { const c = corners.reduce((a, p) => [a[0] + p[0] / corners.length, a[1] + p[1] / corners.length, a[2] + p[2] / corners.length], [0, 0, 0]);
+    t = axis ? cross3(axis.dir, sub3(c, axis.at)) : cross3([0, 0, 1], c);
+    if (Math.hypot(...t) < 1e-9) { const a = axis ? axis.dir : [0, 0, 1]; t = cross3(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]); } }
+  else t = along === 'x' ? [1, 0, 0] : along === 'y' ? [0, 1, 0] : along === 'z' ? [0, 0, 1] : along;
+  // project into the face plane; a tangent along the normal has no in-plane direction → the first edge
+  const tp = unit3(sub3(t, n.map((v) => v * dot3(t, n)))); if (!tp) return 0;
+  return Math.atan2(dot3(cross3(e0, tp), n), dot3(e0, tp));
 }

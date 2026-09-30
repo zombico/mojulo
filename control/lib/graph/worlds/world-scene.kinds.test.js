@@ -195,10 +195,11 @@ describe('world-scene kinds — side tables pinned as literals', () => {
   it('WALK_KINDS survives the derivation change bit-for-bit', () => {
     // re-pinned 2026-09-27 (retail concept cards): + 'mall', 'store' — two new walkable kinds, added
     // on purpose (the concourse / the shop floor walk like the restaurant); every prior kind unchanged.
+    // re-pinned 2026-09-28 (terrain-world): + 'terrain' — a painted scene at real scale is walked by default.
     expect([...WALK_KINDS].sort()).toEqual([
       'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'koenigsberg', 'mall', 'math-structure',
       'painted-landscape', 'restaurant', 'room', 'school-complex', 'store',
-      'subway-building', 'subway-station', 'transportation-hub',
+      'subway-building', 'subway-station', 'terrain', 'transportation-hub',
     ]);
   });
 

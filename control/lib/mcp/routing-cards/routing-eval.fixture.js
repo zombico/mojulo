@@ -21,9 +21,13 @@ export const FIXTURE = [
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
   ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
+  ['I need a glowing crystal staff for my forest mage', 'mint_solid'],
+  ['give my paladin a shield with a sun on it and make it chunky and stylized', 'mint_solid'],
   ['turn this concept art of an espresso machine into a 3d model piece by piece', 'mint_solid'],
   ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', 'mint_solid'],
   ['build me a little town I can wander around in', 'compose_world'],
+  ['turn my mountain painting into a world I can walk and fly over', 'compose_world'],
+  ['a continent with a huge river running to the sea that I can fly over', 'compose_world'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
@@ -64,6 +68,9 @@ export const FIXTURE = [
   // creature (layered): an invented body with a rig, kept editable by dials
   ['a hulking dragon with a detailed head that I can rig and animate', 'mint_solid'],
   ['invent a swamp monster whose jaw and tail I can keep tweaking', 'mint_solid'],
+  // stroke (layered): a drawn outline / line / brush on an existing creature or hero becomes a recipe op
+  ['I sketched the outline I want for the dragon head, make it match my drawing', 'update_sketch'],
+  ['let me draw a ridge along the brow instead of guessing station numbers', 'update_sketch'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'mint_solid'],
   ['a boxy pixel knight that walks and exports skinned', 'mint_solid'],
@@ -78,6 +85,13 @@ export const FIXTURE = [
   ['give my hero an undercut, then try a ponytail with a longer tail', 'mint_solid'],
   // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
   ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'mint_solid'],
+  // anime form: the Anime Form Studio's head worn by the hero (`head: 'anime'`), its clumps directed by name
+  ['an anime heroine with a long layered cut and one bang swept over her eye', 'mint_solid'],
+  // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
+  ['start from the rival look, then give him droopy eyes and messy hair', 'mint_solid'],
+  // armor (layered hero adorn build): worn armour from a style and dials (armor)
+  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'mint_solid'],
+  ['only armour the shoulders and chest for now, full plate later', 'mint_solid'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

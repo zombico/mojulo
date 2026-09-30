@@ -173,6 +173,47 @@ describe('instruction_manual — cook end-to-end', () => {
     expect(manifest.parts[0].steps[0]).toMatchObject({ number: 1, title: null, has_diagram: true });
   });
 
+  it('lets a constructed piece write its own pages: cover, inventory, one per assembly step', async () => {
+    // a plywood stool: two ends, a stretcher, a seat, confirmats
+    const stool = {
+      id: 'stool', unit: 'mm',
+      members: [
+        { id: 'end-l', box: { min: [0, 0, 0], max: [18, 300, 432] }, material: 'plywood', grain: 'z' },
+        { id: 'end-r', box: { min: [382, 0, 0], max: [400, 300, 432] }, material: 'plywood', grain: 'z' },
+        { id: 'stretcher', box: { min: [18, 141, 200], max: [382, 159, 300] }, material: 'plywood' },
+        { id: 'seat', box: { min: [0, 0, 432], max: [400, 300, 450] }, material: 'plywood' },
+      ],
+      joints: [
+        { type: 'confirmat', a: 'end-l', b: 'seat' }, { type: 'confirmat', a: 'end-r', b: 'seat' },
+        { type: 'confirmat', a: 'stretcher', b: 'end-l', glue: true }, { type: 'confirmat', a: 'stretcher', b: 'end-r', glue: true },
+      ],
+    };
+    const stash = StashRepository.mint({ title: 'stool' });
+    const sk = SketchRepository.create({ title: 'stool', manifest: { kind: 'workbench', units: 'mm', frames: [stool] } });
+    StashRepository.gather({ stashRef: stash.stashRef, type: 'markdown', bodyMd: '# Before you start\n\nTwo people.' });
+    StashRepository.gather({ stashRef: stash.stashRef, type: 'sketch', metadata: { sketch_ref: sk.ref, label: 'stool' } });
+    const result = await cookHandler({ slices: [{ stash_ref: stash.stashRef }], aim: 'stool', publication: { kind: 'instruction_manual' } });
+    const manifest = JSON.parse(await fs.readFile(path.join(result.outcome_dir, 'manifest.json'), 'utf8'));
+    expect(manifest.frame_manuals).toEqual([{ frame: 'stool', sketch_ref: sk.ref, pages: 5, steps: 3, hardware: [{ letter: 'A', code: 'confirmat-7x50', count: 6 }] }]);
+    expect(manifest.step_count).toBe(1);                       // the markdown step; the frame's pages number themselves
+    expect(manifest.files).toEqual(expect.arrayContaining(['stool-cover.svg', 'stool-inventory.svg', 'stool-step-01.svg', 'stool-step-03.svg']));
+    const html = await fs.readFile(path.join(result.outcome_dir, 'index.html'), 'utf8');
+    expect(html.match(/class="frame-page"/g)).toHaveLength(5);
+    expect(html).toContain('viewBox="0 0 210 297"');
+    const inv = await fs.readFile(path.join(result.outcome_dir, 'stool-inventory.svg'), 'utf8');
+    expect(inv).toContain('10 mm · 1:1');
+  });
+
+  it('keeps a constructed piece as one diagram when asked (manual: false)', async () => {
+    const stash = StashRepository.mint({ title: 'panel' });
+    const sk = SketchRepository.create({ title: 'panel', manifest: { kind: 'workbench', frames: [{ id: 'p', unit: 'mm', members: [{ id: 's', box: { min: [0, 0, 0], max: [400, 300, 18] }, material: 'mdf' }] }] } });
+    StashRepository.gather({ stashRef: stash.stashRef, type: 'sketch', metadata: { sketch_ref: sk.ref, label: 'panel', manual: false } });
+    const result = await cookHandler({ slices: [{ stash_ref: stash.stashRef }], aim: 'panel', publication: { kind: 'instruction_manual' } });
+    const manifest = JSON.parse(await fs.readFile(path.join(result.outcome_dir, 'manifest.json'), 'utf8'));
+    expect(manifest.frame_manuals).toBeUndefined();
+    expect(manifest.step_count).toBe(1);
+  });
+
   it('renders a placeholder for dangling sketch refs', async () => {
     const stash = StashRepository.mint({ title: 'dangling' });
     StashRepository.gather({

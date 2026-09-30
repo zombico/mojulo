@@ -13,6 +13,8 @@
 import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
 import { normalizeHud } from '@/lib/graph/game/hud-widgets';
+import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
+import { crystalRigFor, rigForScore } from './crystal-rig.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -152,6 +154,19 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (lookFigures.length) {
     ledger.look_declared = { figures: lookFigures.length, note: 'rim rides score.look.figures; the GLB carries no shader — each engine kernel realizes it (Godot: next_pass rim.gdshader)' };
   }
+  // Crystals (crystal-rig R5): each `<group>:crystal` node's optics as data, since an importer that drops the KHR
+  // transmission family (Godot) cannot recover them from the material; kernel/level.gd gives those surfaces a
+  // refraction material of their own. Absent crystal faces ⇒ no key, byte-identical.
+  const crystals = crystalNodes(payload.faces);
+  if (Object.keys(crystals).length) {
+    ledger.crystals_carried = { count: Object.keys(crystals).length, note: 'crystal nodes carry KHR transmission / ior / volume / dispersion (Blender reads them; Godot drops transmission, so kernel/level.gd applies a refraction material from score.crystals)' };
+  }
+  // A crystal light rig: lamps, stones as operators, targets — performed live by kernel/crystal_light.gd; the GLB's
+  // frozen frame (`crystal-light:*` nodes) is what other importers keep. Absent ⇒ no key.
+  const cryRig = payload.crystalLight ? crystalRigFor(payload.faces || [], payload.crystalLight) : null;
+  if (cryRig) {
+    ledger.crystal_light_performed = { lamps: cryRig.lamps.length, stones: cryRig.stones.filter((st) => st.op).length, targets: cryRig.targets.length, note: 'performed live by kernel/crystal_light.gd (beams re-solved each frame against the level\'s meshes); movers do not travel, so stones stand at rest; the GLB carries a frozen frame at t = 0' };
+  }
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
   // lib/ instead of found at the most expensive gate that happens to be open.
@@ -194,6 +209,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     ...(typeof payload.sky?.preset === 'string' ? { sky: { preset: payload.sky.preset } } : {}),
     // the figure look (rim) as data — see ledger.look_declared. Absent ⇒ no key.
     ...(lookFigures.length ? { look: { figures: Object.fromEntries(lookFigures.map(([n, f]) => [n, { rim: f.rim }])) } } : {}),
+    ...(Object.keys(crystals).length ? { crystals } : {}),
+    ...(cryRig ? { crystalLight: rigForScore(cryRig, unitScale || 1) } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure);
       const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;
@@ -213,4 +230,24 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     soundtrack: payload.audio?.soundtrack?.beatsRef ?? manifest.audio?.soundtrack?.beatsRef ?? null,
     ledger,
   };
+}
+
+/**
+ * The GLB's crystal nodes (scene-gltf names them `<group>:crystal`, or `<group>:crystalN` when a group holds several
+ * gem variants, in order of appearance) → { name: { gem, nD, body, glow, opal } }.
+ */
+function crystalNodes(faces) {
+  const groups = new Map();
+  for (const f of faces || []) {
+    const k = f && f.crystal; if (!k || typeof k.gem !== 'string') continue;
+    const g = typeof f.group === 'string' ? f.group : 'static'; const key = k.glow ? `${k.gem}~${k.glow}` : k.gem;
+    const list = groups.get(g) || groups.set(g, []).get(g); if (!list.includes(key)) list.push(key);
+  }
+  const out = {};
+  for (const [g, keys] of groups) keys.forEach((key, i) => {
+    const o = shineOptics(key); const body = o.colour.o[2].map((c) => +Math.max(0.002, Math.min(1, c)).toFixed(4));
+    out[keys.length > 1 ? `${g}:crystal${i}` : `${g}:crystal`] = { gem: o.gem, nD: +o.nD.toFixed(4), body,
+      glow: o.glow && o.glow.strength > 0 ? o.glow.rgb.map((c) => +(c * Math.min(1, o.glow.strength)).toFixed(4)) : null, opal: !!o.photonic };
+  });
+  return out;
 }

@@ -42,7 +42,7 @@ import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
 import { createFigureHandler, emoteFigureHandler } from '@/lib/mcp/tools/figure';
 import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
-import { createWorkbenchHandler, createCodeSolidHandler } from '@/lib/mcp/tools/workbench';
+import { createWorkbenchHandler, createCodeSolidHandler, createEquipmentHandler } from '@/lib/mcp/tools/workbench';
 import { createScadHandler } from '@/lib/mcp/tools/scad';
 import { createLayeredHandler, createLayeredPlanHandler, createLayeredHeroHandler } from '@/lib/mcp/tools/layered';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
@@ -89,6 +89,9 @@ export const SOLID_KINDS = {
   // The code door (expressiveness.plan.md E3): a program that RETURNS a workbench spec or a
   // face list, run in a no-reach realm with seeded dice. Stores kind:'workbench' + `program`.
   'code': { family: 'object', handler: createCodeSolidHandler },
+  // The equipment door: arms named by intent and direction (item, style, dials) — the laws in lib/graph/equipment
+  // compose them. Stores kind:'workbench' + `build`, expanded on every read, so a dial patch restyles in place.
+  'equipment': { family: 'object', handler: createEquipmentHandler },
   // The OpenSCAD front door: `spec.source` is an OpenSCAD program and IS the recipe, meshed
   // in-process by OpenSCAD (WASM) and served on the workbench studio. Stores kind:'scad'.
   'scad': { family: 'object', handler: createScadHandler },

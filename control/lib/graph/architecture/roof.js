@@ -26,9 +26,13 @@
  *
  * Dependency-free apart from vexar (Lambert shade + hex maths).
  */
-import { litFactor, scaleHex } from '../polygonizer/vexar.js';
+import { litFactor, scaleHex, DEFAULT_LIGHT } from '../polygonizer/vexar.js';
+import { layCovering } from '../construction/roofing.js';
 
 // ── vector helpers ───────────────────────────────────────────────────────────────
+import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
+import { metalSurfaceError } from '../materials/metal-surface.js';
+
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -63,6 +67,9 @@ const STYLES = {
                  palette: { roof: '#3d4248', soffit: '#cfc6bb', fascia: '#aeb4ba', gable: '#c3beb4', ridge: '#2e3338' } },
   butterfly:   { form: 'butterfly', material: null, pitch: 0.45, eave: 0.9, rafters: false,
                  palette: { roof: '#41474d', soffit: '#cfc6bb', fascia: '#aeb4ba', gable: '#c3beb4', ridge: '#2e3338' } },
+  // — metal (metal-surfaces S5): a low gable of standing-seam sheet; `metal` / `seams` override per recipe —
+  'standing-seam': { form: 'gable', material: null, pitch: 0.36, eave: 1.0, rafters: false, metal: { metal: 'zinc', finish: 'blasted' },
+                 palette: { roof: '#8e959b', soffit: '#cfc6bb', fascia: '#9aa1a7', gable: '#c3beb4', ridge: '#7d848a' } },
   // — flat / occupiable —
   'tofu-deck': { form: 'flat-deck', material: null, pitch: 0, eave: 0.3, rafters: false,
                  palette: { deck: '#9a958c', parapet: '#8d887f', cap: '#b5b0a6', rail: '#55524c', pergola: '#7a5f43', planter: '#5a6b4a' } },
@@ -109,12 +116,38 @@ function slopeUV(corners, oi, eaveTo, upTo, tile) {
 // (0→1 eave, 0→3 up); triangles carry caller oi/eaveTo/upTo for the UV basis. pushFace pads + clips
 // for the renderer seam, so UVs are padded to 4 here to match (texture group needs uv.length ≥ 4).
 function pushSkin(faces, corners, baseTint, inner, L, material, oi = 0, eaveTo = 1, upTo = corners.length - 1) {
+  if (SKIN_METAL) return pushMetalSkin(faces, corners, inner, L, corners.length === 4 ? 0 : oi, corners.length === 4 ? 1 : eaveTo, corners.length === 4 ? 3 : upTo);
   let extra = {};
   if (material) {
     const uv = slopeUV(corners, corners.length === 4 ? 0 : oi, corners.length === 4 ? 1 : eaveTo, corners.length === 4 ? 3 : upTo, TILE);
     extra = { texture: material, textureLit: true, uv: uv.length === 3 ? [...uv, uv[2]] : uv };
   }
   pushFace(faces, corners, baseTint, inner, L, extra);
+}
+
+// A metal roof (metal-surfaces S5): while a roof is built with a metal, every slope skin is sheet metal — a flat
+// panel wearing the surface with its toolpath running down the slope (eave → ridge, the way the sheet is rolled), and,
+// with seams, a standing seam every SEAM_PITCH along the eave: a thin upstand fin of the same metal. The fin runs from
+// an eave point to the matching ridge point, so on a hip's trapezoid the seams fan slightly; triangles get none (a hip
+// end is cut from the same sheets). Module state for the one build in progress (buildRoof sets and clears it).
+let SKIN_METAL = null;
+const SEAM_PITCH = 1.5, SEAM_H = 0.14, SEAM_W = 0.07;
+function pushMetalSkin(faces, corners, inner, L, oi, eaveTo, upTo) {
+  const { row, hex, seams } = SKIN_METAL; const start = faces.length;
+  const down = norm(sub(corners[upTo], corners[oi]));
+  pushFace(faces, corners, hex, inner, L);
+  if (seams && corners.length === 4) {
+    const [c0, c1, c2, c3] = corners; const len = Math.hypot(...sub(c1, c0)); const n = Math.floor(len / SEAM_PITCH);
+    let nn = norm(cross(sub(c1, c0), sub(c3, c0))); if (dot(nn, sub(centroid(corners), inner)) < 0) nn = [-nn[0], -nn[1], -nn[2]];
+    const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    const side = norm(sub(c1, c0)); const up = (p, h) => [p[0] + nn[0] * h, p[1] + nn[1] * h, p[2] + nn[2] * h]; const off = (p, k) => [p[0] + side[0] * k, p[1] + side[1] * k, p[2] + side[2] * k];
+    for (let i = 1; i <= n; i += 1) {
+      const t = (i - 0.5) / n; const e = lerp(c0, c1, t), r = lerp(c3, c2, t);
+      for (const k of [-SEAM_W / 2, SEAM_W / 2]) pushFace(faces, [off(e, k), off(r, k), up(off(r, k), SEAM_H), up(off(e, k), SEAM_H)], hex, inner, L);   // the two cheeks
+      pushFace(faces, [up(off(e, -SEAM_W / 2), SEAM_H), up(off(r, -SEAM_W / 2), SEAM_H), up(off(r, SEAM_W / 2), SEAM_H), up(off(e, SEAM_W / 2), SEAM_H)], hex, inner, L);   // the lock
+    }
+  }
+  tagFacesWithMaterial(faces.slice(start), row, { along: down });
 }
 
 // a solid box (6 lit quads) — rafter tails, parapets, posts, rails, set-back room walls
@@ -200,71 +233,77 @@ function pitchedRoof(faces, fp, st, P0, L) {
   const aL = gableFamily ? wA0 : A0, aR = gableFamily ? wA1 : A1;
   const A = P(aL, C0, ze), B = P(aR, C0, ze), C = P(aR, C1, ze), D = P(aL, C1, ze);
   let uniformEave = true;
+  // a covered roof (`covering`) hands its slope planes to the roofer (construction/roofing.js) instead of skinning them,
+  // and its caps replace the ridge strip
+  const skin = st._planes ? (fs, corners) => st._planes.push({ corners, key: `p${st._planes.length}` }) : pushSkin;
+  const ridge = st._planes ? () => {} : pushRidge;
+  // the walls a roof closes (gable ends, a shed's clerestory, a butterfly's V ends): drawn, and handed on with the planes
+  const gable = (corners) => { if (st._gables) st._gables.push(corners); pushFace(faces, corners, gtint, inner, L); };
 
   if (st.form === 'hip' || st.form === 'pyramid') {
     const pyr = st.form === 'pyramid';
     const r0 = pyr ? (A0 + A1) / 2 : A0 + halfShort, r1 = pyr ? (A0 + A1) / 2 : A1 - halfShort;
     const R0 = P(r0, acm, zr), R1 = P(r1, acm, zr);
-    pushSkin(faces, [A, B, R1, R0], tint, inner, L, mat, 0, 1, 3);          // near slope
-    pushSkin(faces, [D, C, R1, R0], tint, inner, L, mat, 0, 1, 3);          // far slope
-    pushSkin(faces, [A, R0, D], tint, inner, L, mat, 0, 2, 1);              // end hips (triangles)
-    pushSkin(faces, [B, C, R1], tint, inner, L, mat, 0, 1, 2);
-    if (!pyr) pushRidge(faces, P, r0, r1, acm, zr, P0.ridge, inner, L);
+    skin(faces, [A, B, R1, R0], tint, inner, L, mat, 0, 1, 3);          // near slope
+    skin(faces, [D, C, R1, R0], tint, inner, L, mat, 0, 1, 3);          // far slope
+    skin(faces, [A, R0, D], tint, inner, L, mat, 0, 2, 1);              // end hips (triangles)
+    skin(faces, [B, C, R1], tint, inner, L, mat, 0, 1, 2);
+    if (!pyr) ridge(faces, P, r0, r1, acm, zr, P0.ridge, inner, L);
   } else if (st.form === 'gable') {
     const R0 = P(aL, acm, zr), R1 = P(aR, acm, zr);
-    pushSkin(faces, [A, B, R1, R0], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [D, C, R1, R0], tint, inner, L, mat, 0, 1, 3);
-    pushFace(faces, [P(wA0, wC0, ze), P(wA0, wC1, ze), P(wA0, acm, zr)], gtint, inner, L);  // gable walls
-    pushFace(faces, [P(wA1, wC0, ze), P(wA1, wC1, ze), P(wA1, acm, zr)], gtint, inner, L);
-    pushRidge(faces, P, aL, aR, acm, zr, P0.ridge, inner, L);
+    skin(faces, [A, B, R1, R0], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [D, C, R1, R0], tint, inner, L, mat, 0, 1, 3);
+    gable([P(wA0, wC0, ze), P(wA0, wC1, ze), P(wA0, acm, zr)]);  // gable walls
+    gable([P(wA1, wC0, ze), P(wA1, wC1, ze), P(wA1, acm, zr)]);
+    ridge(faces, P, aL, aR, acm, zr, P0.ridge, inner, L);
   } else if (st.form === 'gambrel') {
     const knee = st.knee ?? 0.55, kIn = halfShort * knee;
     const zk = ze + kIn * (st.lowerPitch ?? 1.5);
     const zR = zk + (halfShort - kIn) * (st.upperPitch ?? 0.45);
     const nearK0 = C0 + kIn, farK0 = C1 - kIn;
     // near (C0) lower steep + upper shallow
-    pushSkin(faces, [P(aL, C0, ze), P(aR, C0, ze), P(aR, nearK0, zk), P(aL, nearK0, zk)], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [P(aL, nearK0, zk), P(aR, nearK0, zk), P(aR, acm, zR), P(aL, acm, zR)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(aL, C0, ze), P(aR, C0, ze), P(aR, nearK0, zk), P(aL, nearK0, zk)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(aL, nearK0, zk), P(aR, nearK0, zk), P(aR, acm, zR), P(aL, acm, zR)], tint, inner, L, mat, 0, 1, 3);
     // far (C1)
-    pushSkin(faces, [P(aL, C1, ze), P(aR, C1, ze), P(aR, farK0, zk), P(aL, farK0, zk)], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [P(aL, farK0, zk), P(aR, farK0, zk), P(aR, acm, zR), P(aL, acm, zR)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(aL, C1, ze), P(aR, C1, ze), P(aR, farK0, zk), P(aL, farK0, zk)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(aL, farK0, zk), P(aR, farK0, zk), P(aR, acm, zR), P(aL, acm, zR)], tint, inner, L, mat, 0, 1, 3);
     // gambrel gable walls: lower trapezoid (quad) + upper triangle, flush at each end
     for (const aw of [wA0, wA1]) {
-      pushFace(faces, [P(aw, wC0, ze), P(aw, wC1, ze), P(aw, wC1 - kIn, zk), P(aw, wC0 + kIn, zk)], gtint, inner, L);
-      pushFace(faces, [P(aw, wC0 + kIn, zk), P(aw, wC1 - kIn, zk), P(aw, acm, zR)], gtint, inner, L);
+      gable([P(aw, wC0, ze), P(aw, wC1, ze), P(aw, wC1 - kIn, zk), P(aw, wC0 + kIn, zk)]);
+      gable([P(aw, wC0 + kIn, zk), P(aw, wC1 - kIn, zk), P(aw, acm, zR)]);
     }
-    pushRidge(faces, P, aL, aR, acm, zR, P0.ridge, inner, L);
+    ridge(faces, P, aL, aR, acm, zR, P0.ridge, inner, L);
   } else if (st.form === 'mansard') {
     // steep lower band of ABSOLUTE height (≈ one storey) leaning IN to an inset crown, capped by
     // a low flat top — the recognizable "a storey in the roof" French read.
     const zk = ze + (st.mansardRise ?? 9);
     const kIn = halfShort * (st.knee ?? 0.5);                                 // how far the steep face leans in
     const ia0 = A0 + kIn, ia1 = A1 - kIn, ic0 = C0 + kIn, ic1 = C1 - kIn;     // inset crown rect at zk
-    pushSkin(faces, [P(A0, C0, ze), P(A1, C0, ze), P(ia1, ic0, zk), P(ia0, ic0, zk)], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [P(A0, C1, ze), P(A1, C1, ze), P(ia1, ic1, zk), P(ia0, ic1, zk)], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [P(A0, C0, ze), P(A0, C1, ze), P(ia0, ic1, zk), P(ia0, ic0, zk)], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [P(A1, C0, ze), P(A1, C1, ze), P(ia1, ic1, zk), P(ia1, ic0, zk)], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [P(ia0, ic0, zk), P(ia1, ic0, zk), P(ia1, ic1, zk), P(ia0, ic1, zk)], P0.roof, inner, L, mat, 0, 1, 3); // flat crown
+    skin(faces, [P(A0, C0, ze), P(A1, C0, ze), P(ia1, ic0, zk), P(ia0, ic0, zk)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(A0, C1, ze), P(A1, C1, ze), P(ia1, ic1, zk), P(ia0, ic1, zk)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(A0, C0, ze), P(A0, C1, ze), P(ia0, ic1, zk), P(ia0, ic0, zk)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(A1, C0, ze), P(A1, C1, ze), P(ia1, ic1, zk), P(ia1, ic0, zk)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(ia0, ic0, zk), P(ia1, ic0, zk), P(ia1, ic1, zk), P(ia0, ic1, zk)], P0.roof, inner, L, mat, 0, 1, 3); // flat crown
   } else if (st.form === 'saltbox') {
     const bias = st.ridgeBias ?? 0.34, ra = C0 + (C1 - C0) * bias;            // ridge offset toward C0 (front)
-    pushSkin(faces, [P(aL, C0, ze), P(aR, C0, ze), P(aR, ra, zr), P(aL, ra, zr)], tint, inner, L, mat); // short steep front
-    pushSkin(faces, [P(aL, C1, ze), P(aR, C1, ze), P(aR, ra, zr), P(aL, ra, zr)], tint, inner, L, mat); // long shallow rear
-    pushFace(faces, [P(wA0, wC0, ze), P(wA0, wC1, ze), P(wA0, ra, zr)], gtint, inner, L);  // asymmetric gable walls
-    pushFace(faces, [P(wA1, wC0, ze), P(wA1, wC1, ze), P(wA1, ra, zr)], gtint, inner, L);
-    pushRidge(faces, P, aL, aR, ra, zr, P0.ridge, inner, L);
+    skin(faces, [P(aL, C0, ze), P(aR, C0, ze), P(aR, ra, zr), P(aL, ra, zr)], tint, inner, L, mat); // short steep front
+    skin(faces, [P(aL, C1, ze), P(aR, C1, ze), P(aR, ra, zr), P(aL, ra, zr)], tint, inner, L, mat); // long shallow rear
+    gable([P(wA0, wC0, ze), P(wA0, wC1, ze), P(wA0, ra, zr)]);  // asymmetric gable walls
+    gable([P(wA1, wC0, ze), P(wA1, wC1, ze), P(wA1, ra, zr)]);
+    ridge(faces, P, aL, aR, ra, zr, P0.ridge, inner, L);
   } else if (st.form === 'shed') {
     const zh = ze + 2 * halfShort * st.pitch;                                 // high eave at C1
-    pushSkin(faces, [P(A0, C0, ze), P(A1, C0, ze), P(A1, C1, zh), P(A0, C1, zh)], tint, inner, L, mat, 0, 1, 3);
-    pushFace(faces, [P(wA0, wC1, ze), P(wA1, wC1, ze), P(wA1, wC1, zh), P(wA0, wC1, zh)], gtint, inner, L);   // tall clerestory wall
-    pushFace(faces, [P(wA0, wC0, ze), P(wA0, wC1, ze), P(wA0, wC1, zh)], gtint, inner, L);                    // raking end walls
-    pushFace(faces, [P(wA1, wC0, ze), P(wA1, wC1, ze), P(wA1, wC1, zh)], gtint, inner, L);
+    skin(faces, [P(A0, C0, ze), P(A1, C0, ze), P(A1, C1, zh), P(A0, C1, zh)], tint, inner, L, mat, 0, 1, 3);
+    gable([P(wA0, wC1, ze), P(wA1, wC1, ze), P(wA1, wC1, zh), P(wA0, wC1, zh)]);   // tall clerestory wall
+    gable([P(wA0, wC0, ze), P(wA0, wC1, ze), P(wA0, wC1, zh)]);                    // raking end walls
+    gable([P(wA1, wC0, ze), P(wA1, wC1, ze), P(wA1, wC1, zh)]);
     uniformEave = false;
   } else if (st.form === 'butterfly') {
     const zh = ze + halfShort * st.pitch * 2;                                 // high outer eaves, valley at acm
-    pushSkin(faces, [P(A0, C0, zh), P(A1, C0, zh), P(A1, acm, ze), P(A0, acm, ze)], tint, inner, L, mat, 0, 1, 3);
-    pushSkin(faces, [P(A0, C1, zh), P(A1, C1, zh), P(A1, acm, ze), P(A0, acm, ze)], tint, inner, L, mat, 0, 1, 3);
-    pushFace(faces, [P(wA0, wC0, zh), P(wA0, acm, ze), P(wA0, wC1, zh)], gtint, inner, L);   // V end walls
-    pushFace(faces, [P(wA1, wC0, zh), P(wA1, acm, ze), P(wA1, wC1, zh)], gtint, inner, L);
+    skin(faces, [P(A0, C0, zh), P(A1, C0, zh), P(A1, acm, ze), P(A0, acm, ze)], tint, inner, L, mat, 0, 1, 3);
+    skin(faces, [P(A0, C1, zh), P(A1, C1, zh), P(A1, acm, ze), P(A0, acm, ze)], tint, inner, L, mat, 0, 1, 3);
+    gable([P(wA0, wC0, zh), P(wA0, acm, ze), P(wA0, wC1, zh)]);   // V end walls
+    gable([P(wA1, wC0, zh), P(wA1, acm, ze), P(wA1, wC1, zh)]);
     uniformEave = false;
   }
 
@@ -302,9 +341,13 @@ function flatDeck(faces, fp, st, P, L) {
  * @param {object} opts
  *   style    one of STYLES; default 'bungalow'
  *   form|material|pitch|eave|palette|knee|lowerPitch|upperPitch|ridgeBias  per-field overrides
+ *   metal    a metal-surface spec: every slope skin becomes sheet metal (the 'standing-seam' style carries zinc)
+ *   seams    false → plain sheet, no standing seams (default: seams on a metal roof)
  *   light    a vexar light (required for the Lambert bake)
  *   roomHeight  set-back upper-room height for 'stacked-room' (default 9)
- * @returns {{ faces: object[], textureKeys: string[] }}
+ *   covering the roof laid in a covering (construction/roofing.js): true (the style's material as a covering) | a
+ *            covering name | { type, material?, color?, detail? }; `eyes`, `seed`, `instance` pass to the roofer
+ * @returns {{ faces: object[], textureKeys: string[], repeats?, covering? }}
  */
 export function buildRoof(footprint, opts = {}) {
   const base = STYLES[opts.style] || STYLES.bungalow;
@@ -312,6 +355,11 @@ export function buildRoof(footprint, opts = {}) {
   const P = st.palette, L = opts.light;
   if (!L) throw new Error('buildRoof: opts.light is required');
   const faces = [];
+  if (st.covering) st._planes = [];
+  // a metal roof: `metal` (a metal-surface spec; the standing-seam style carries zinc) and `seams` (default on)
+  const metal = st.metal && !metalSurfaceError(st.metal) ? st.metal : null;
+  if (metal) { const row = resolveMaterial(metal); SKIN_METAL = { row, hex: row.base, seams: st.seams !== false }; }
+  try {
 
   if (st.form === 'flat-deck') {
     flatDeck(faces, footprint, st, P, L);
@@ -327,9 +375,36 @@ export function buildRoof(footprint, opts = {}) {
   } else {
     pitchedRoof(faces, footprint, st, P, L);
   }
+  } finally { SKIN_METAL = null; }
 
+  let covered = null;
+  if (st.covering) {
+    covered = layCovering(st._planes, st.covering, { light: L, eyes: opts.eyes, seed: opts.seed ?? 1, instance: opts.instance ?? true, styleTexture: st.material, group: 'roof:covering' });
+    faces.push(...covered.faces);
+  }
   const textureKeys = [...new Set(faces.map((f) => f.texture).filter(Boolean))];
-  return { faces, textureKeys };
+  return covered ? { faces, textureKeys, repeats: covered.repeats, covering: covered.report } : { faces, textureKeys };
+}
+
+/**
+ * The planes a roof is built of, as the roofer receives them ({ corners, key }; a flat deck's slab as one level plane),
+ * without drawing it — what a building model or an IFC file needs of the roof. Same geometry as buildRoof. The array
+ * carries `gables`: the wall polygons the roof closes above the top storey (gable ends and the like).
+ */
+export function roofPlanes(footprint, opts = {}) {
+  const base = STYLES[opts.style] || STYLES.bungalow;
+  const st = { ...base, ...opts, palette: { ...base.palette, ...(opts.palette || {}) }, _planes: [], _gables: [] };
+  const L = opts.light || DEFAULT_LIGHT;
+  const scratch = [];
+  const { x, y, w, d, z } = footprint;
+  const deck = (zz) => st._planes.push({ key: `p${st._planes.length}`, corners: [[x, y, zz], [x + w, y, zz], [x + w, y + d, zz], [x, y + d, zz]], deck: true });
+  if (st.form === 'flat-deck') deck(z + 0.1);
+  else if (st.form === 'stacked-room') {
+    deck(z + 0.1);
+    const inset = Math.min(w, d) * 0.2;
+    pitchedRoof(scratch, { x: x + inset, y: y + inset, w: w - 2 * inset, d: d - 2 * inset, z: z + 1.0 + (opts.roomHeight ?? 9) }, { ...st, form: 'hip' }, st.palette, L);
+  } else pitchedRoof(scratch, footprint, st, st.palette, L);
+  return Object.assign(st._planes, { gables: st._gables });
 }
 
 export { STYLES as ROOF_STYLES };

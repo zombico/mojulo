@@ -23,9 +23,11 @@ const FALLBACK = '#8a8f96';
 /** The seat shift: −(lowest z) when seating, else 0. */
 export function layeredSeat(mesh, seat = true) { if (!seat) return 0; let mn = Infinity; for (const v of mesh.vertices) if (v[2] < mn) mn = v[2]; return Number.isFinite(mn) ? -mn : 0; }
 
-/** The compiled mesh as studio faces `{ corners, fill, group, outNormal }`. */
-export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null } = {}) {
-  const dz = layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
+/** The compiled mesh as studio faces `{ corners, fill, group, outNormal }`. `dz` (default: the mesh's own seat) seats
+ * a posed mesh on its REST floor, so a figure standing in its gesture keeps the ground its planted toes hold. */
+export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null } = {}) {
+  const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
+  const glows = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []);   // emissive groups: full-bright, not shaded
   const faces = [];
   mesh.faces.forEach((tri, i) => {
     const partName = mesh.provenance[tri[0]].part; const part = mesh.parts[partName]; const g = mesh.groups[i];
@@ -34,7 +36,7 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
     const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])); const l = Math.hypot(n[0], n[1], n[2]);
     if (!(l > 1e-14)) return;   // a degenerate triangle has no face
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
-    faces.push({ corners, fill: shadeHex(hex, outNormal, light), group: group || partName, outNormal });
+    faces.push({ corners, fill: glows.has(g) ? hex : shadeHex(hex, outNormal, light), group: group || partName, outNormal });
   });
   return faces;
 }
@@ -61,4 +63,5 @@ export function layeredStats(mesh, recipe = {}, { units = 'm', seat = true } = {
   };
 }
 
-export function persistedLayeredLedger(ledger) { if (!ledger) return undefined; return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed }; }
+/** `strokes` rides only when the manifest carries strokes (layered-strokes.js), so a row without them keeps its bytes. */
+export function persistedLayeredLedger(ledger) { if (!ledger) return undefined; return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed, ...(ledger.strokes ? { strokes: ledger.strokes } : {}) }; }

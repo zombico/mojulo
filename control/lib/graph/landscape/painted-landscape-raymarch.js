@@ -107,6 +107,9 @@ function heightGLSL(hb) {
  * @returns {object} raymarch payload: { frag, customUniforms, cameraStart, target, fov, pixelRatioCap, readout }.
  */
 export function composeLandscapeRaymarch(manifest, opts = {}) {
+  // the shader's H(p) is the heartbeat alone: a baked surface (erosion, landform) has no GLSL twin yet, so refuse and let
+  // the World fall back to the mesh rather than draw the terrain without them
+  if (manifest.landform || manifest.erosion) throw new Error('raymarch: `landform` and `erosion` are baked on a grid the shader cannot read; the mesh World draws them');
   const seed = manifest.seed || 'default';
   const hb = resolveHeartbeat(manifest.heartbeat, seed, manifest.heartbeatOverrides);
   const pal = derivePalette(manifest.splatch, manifest.paletteOverrides);

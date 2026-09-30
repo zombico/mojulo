@@ -235,17 +235,20 @@ function addLoggia(out, x, y, w, d, z0, z1, floors) {
   out.boxes.push({ x: x - 0.05, y: y - 0.05, w: w + 0.1, d: d + 0.1, z0: z1 - 0.07, z1: z1 + 0.02, tint: slab });
 }
 
-// rooftop equipment doodad of a given kind, placed by index to spread them out
-function addRoofItem(out, item, idx, x, y, w, d, z1) {
+// rooftop equipment doodad of a given kind, placed by index to spread them out. `round` (the city's round street kit,
+// city/round-kit.js) names a round form on the pieces that have one — the assembler draws those through the kit;
+// without it every box is exactly as before.
+function addRoofItem(out, item, idx, x, y, w, d, z1, round = false) {
   const spot = [[0.22, 0.28], [0.66, 0.62], [0.42, 0.7], [0.74, 0.24]][idx % 4];
   const px = x + w * spot[0], py = y + d * spot[1];
-  if (item === 'water-tank') out.boxes.push({ x: px - w * 0.14, y: py - d * 0.16, w: w * 0.3, d: d * 0.34, z0: z1, z1: z1 + 0.6, tint: '#7a7d82' });
+  const R = (shape, extra = {}) => (round ? { shape, ...extra } : {});
+  if (item === 'water-tank') out.boxes.push({ x: px - w * 0.14, y: py - d * 0.16, w: w * 0.3, d: d * 0.34, z0: z1, z1: z1 + 0.6, tint: '#7a7d82', ...R('kit-tank') });
   else if (item === 'wood-tank') {
     // New York's wooden water tank (a metro flavour's kit, real size in 3.66 m units): an octagon of
     // staves about 4 m across under a conical cap, on a steel stand. Sides shaded by a fixed key.
     const r = Math.min(0.6, Math.min(w, d) * 0.22), zs = z1 + 0.9, zb = zs + 0.08, zt = zb + 1.25, s = r * 0.62;
-    for (const [lx, ly] of [[-s, -s], [s, -s], [s, s], [-s, s]]) out.boxes.push({ x: px + lx - 0.04, y: py + ly - 0.04, w: 0.08, d: 0.08, z0: z1, z1: zs, tint: '#3b3d40' });
-    out.boxes.push({ x: px - r, y: py - r, w: 2 * r, d: 2 * r, z0: zs, z1: zb, tint: '#3b3d40' });
+    for (const [lx, ly] of [[-s, -s], [s, -s], [s, s], [-s, s]]) out.boxes.push({ x: px + lx - 0.04, y: py + ly - 0.04, w: 0.08, d: 0.08, z0: z1, z1: zs, tint: '#3b3d40', ...R('kit-pole', { round: { taper: 1 } }) });
+    out.boxes.push({ x: px - r, y: py - r, w: 2 * r, d: 2 * r, z0: zs, z1: zb, tint: '#3b3d40', ...R('kit-drum') });
     const ring = (rad, z) => Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * 2 * Math.PI; return [px + Math.cos(a) * rad, py + Math.sin(a) * rad, z]; });
     const lo = ring(r, zb), hi = ring(r, zt), apex = [px, py, zt + 0.45];
     for (let k = 0; k < 8; k++) {
@@ -255,28 +258,28 @@ function addRoofItem(out, item, idx, x, y, w, d, z1) {
     }
   }
   else if (item === 'mechanical') out.boxes.push({ x: px, y: py, w: w * 0.26, d: d * 0.26, z0: z1, z1: z1 + 0.35, tint: '#6b6e73' });
-  else if (item === 'antenna') out.boxes.push({ x: px, y: py, w: 0.1, d: 0.1, z0: z1, z1: z1 + 1.4, tint: '#9aa0a6' });
+  else if (item === 'antenna') out.boxes.push({ x: px, y: py, w: 0.1, d: 0.1, z0: z1, z1: z1 + 1.4, tint: '#9aa0a6', ...R('kit-pole', { round: { taper: 0.45 } }) });
   else if (item === 'smoke-stack') {
-    out.boxes.push({ x: px, y: py, w: 0.26, d: 0.26, z0: z1, z1: z1 + 0.85, tint: '#6a6560' });
-    out.boxes.push({ x: px - 0.04, y: py - 0.04, w: 0.34, d: 0.34, z0: z1 + 0.74, z1: z1 + 0.85, tint: '#565250' });
+    out.boxes.push({ x: px, y: py, w: 0.26, d: 0.26, z0: z1, z1: z1 + 0.85, tint: '#6a6560', ...R('kit-pole', { round: { taper: 0.9 } }) });
+    out.boxes.push({ x: px - 0.04, y: py - 0.04, w: 0.34, d: 0.34, z0: z1 + 0.74, z1: z1 + 0.85, tint: '#565250', ...R('kit-drum', { hood: '#2a2826' }) });   // the rim, its flue dark
   } else if (item === 'cell-tower') {
     const top = z1 + 1.15;                                                                          // much shorter mast
-    out.boxes.push({ x: px, y: py, w: 0.2, d: 0.2, z0: z1, z1: top, tint: '#7c8088' });
+    out.boxes.push({ x: px, y: py, w: 0.2, d: 0.2, z0: z1, z1: top, tint: '#7c8088', ...R('kit-pole', { round: { taper: 0.7, collar: 1.4 } }) });
     for (const [dx, dy] of [[-0.16, 0.04], [0.16, 0.04], [0.04, -0.16]])                            // small panel antennas (rectangles)
       out.boxes.push({ x: px + dx, y: py + dy, w: 0.11, d: 0.06, z0: top - 0.32, z1: top - 0.04, tint: '#b4bac0' });
-    out.boxes.push({ x: px + 0.07, y: py + 0.07, w: 0.05, d: 0.05, z0: top, z1: top + 0.28, tint: '#aab0b6' }); // whip
+    out.boxes.push({ x: px + 0.07, y: py + 0.07, w: 0.05, d: 0.05, z0: top, z1: top + 0.28, tint: '#aab0b6', ...R('kit-pole', { round: { taper: 0.4 } }) }); // whip
   } else if (item === 'satellite-dish') {
     const base = z1 + 0.34;
-    out.boxes.push({ x: px, y: py, w: 0.3, d: 0.3, z0: z1, z1: base, tint: '#8a8f96' });            // stand
+    out.boxes.push({ x: px, y: py, w: 0.3, d: 0.3, z0: z1, z1: base, tint: '#8a8f96', ...R('kit-drum') });            // stand
     const C = [px + 0.15, py + 0.15, base + 0.26], s = 0.42, u = [s, 0, 0], v = [0, -s * 0.6, s * 0.5];
     const cc = (su, sv) => [C[0] + u[0] * su + v[0] * sv, C[1] + u[1] * su + v[1] * sv, C[2] + u[2] * su + v[2] * sv];
-    out.faces.push({ corners: [cc(-1, -1), cc(1, -1), cc(1, 1), cc(-1, 1)], fill: '#c4c9cf', doubleSided: true }); // tilted dish
+    out.faces.push({ corners: [cc(-1, -1), cc(1, -1), cc(1, 1), cc(-1, 1)], fill: '#c4c9cf', doubleSided: true, ...(round ? { radius: '50%', radiusSeg: 3 } : {}) }); // tilted dish
   } else if (item === 'billboard') {
     const bw = Math.max(1.0, w * 0.46), bh = 0.82, depth = 0.12;
     const bx = Math.max(x + 0.15, Math.min(x + w - bw - 0.15, px - bw / 2));
     const by = y + d + 0.08;
-    out.boxes.push({ x: bx + bw * 0.18, y: by, w: 0.08, d: 0.08, z0: z1, z1: z1 + 0.7, tint: '#555a60' });
-    out.boxes.push({ x: bx + bw * 0.78, y: by, w: 0.08, d: 0.08, z0: z1, z1: z1 + 0.7, tint: '#555a60' });
+    out.boxes.push({ x: bx + bw * 0.18, y: by, w: 0.08, d: 0.08, z0: z1, z1: z1 + 0.7, tint: '#555a60', ...R('kit-pole', { round: { taper: 1 } }) });
+    out.boxes.push({ x: bx + bw * 0.78, y: by, w: 0.08, d: 0.08, z0: z1, z1: z1 + 0.7, tint: '#555a60', ...R('kit-pole', { round: { taper: 1 } }) });
     out.boxes.push({ x: bx, y: by, w: bw, d: depth, z0: z1 + 0.54, z1: z1 + 0.54 + bh, tint: '#2f3f59' });
     out.decals.push({ x0: bx + bw * 0.12, x1: bx + bw * 0.88, z0: z1 + 0.77, z1: z1 + 1.08, fill: '#f0d36a' });
   }
@@ -305,7 +308,7 @@ function addFireEscape(out, x, y1, w, d, z0, z1, floors, bays) {
  * rooftop equipment kit. Emitted on the +y (camera-facing) face.
  * @returns {{ boxes:Array, decals:Array, faces:Array }}
  */
-export function buildingExtras(box, f, floors, bays) {
+export function buildingExtras(box, f, floors, bays, { round = false } = {}) {
   const { x, y, w, d, z0, z1 } = box, y1 = y + d;
   const fh = (z1 - z0) / floors, cw = w / bays;
   const out = { boxes: [], decals: [], faces: [] };
@@ -365,7 +368,7 @@ export function buildingExtras(box, f, floors, bays) {
       out.boxes.push({ x: x + w * 0.36, y: y1, w: w * 0.28, d: 0.4, z0: ez1, z1: ez1 + 0.08, tint: '#5a6068' }); // canopy
     }
   }
-  if ((z1 - z0) > 3.2) f.rooftopKit.forEach((item, i) => addRoofItem(out, item, i, x, y, w, d, z1));
+  if ((z1 - z0) > 3.2) f.rooftopKit.forEach((item, i) => addRoofItem(out, item, i, x, y, w, d, z1, round));
   return out;
 }
 

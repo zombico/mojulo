@@ -104,9 +104,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // is the World's outline channel (emitThreeWorld reads `payload.toon`); `bake: true` (with ink)
   // additionally bakes the ink pair into the GLB export as real geometry (facesToGlb reads the same
   // `payload.toon` — shader-look phase 3). Absent → null → every byte identical. Dropped under the
-  // unshaded export: raw albedo has no tones to band.
-  const toon = resolveToon(sketch.manifest.toon ?? scene.toon);
+  // unshaded export: raw albedo has no tones to band. `light` (the layered kind's character light;
+  // `false` opts out) rides the same dial, read for a layered row only.
   const kind = sketch.manifest.kind;
+  const toon = resolveToon(sketch.manifest.toon ?? scene.toon, { light: kind === 'layered' });
 
   // ?livery=<shelf name> (z-series assembler units — the arena hangar's swatch row): repaint
   // the stored unit onto another shelf livery BEFORE assembly. Deterministic (a pure tint
@@ -150,6 +151,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     view: viewOpts.view,
     render: viewOpts.render,
     ref: sketch.ref,
+    // the live /world page (not an export or a still): a kind that meshes itself in the page may skip its bake
+    live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
     // its own default key (WORKBENCH_LIGHT etc.), so the shaded path is byte-identical.
     light: unshaded ? FLAT_LIGHT : undefined,
@@ -157,9 +160,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
     toon: unshaded ? null : toon,
+    // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
+    // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
+    face: viewOpts.face === true,
   };
   const payload = await desc.resolve(manifest, ctx);
-  if (payload && ctx.toon) payload.toon = ctx.toon;   // the World's ink channel reads it; stills ignore it
+  // the World's ink channel reads it; stills ignore it. A resolver that sets its own `toon` keeps it (the layered kind's
+  // character ink — its default outline over the manifest's dial); no other kind sets one, so this is ctx.toon for them.
+  // The character light is the resolver's input, baked into the faces, never a page dial: it stays off the payload.
+  if (payload && ctx.toon && payload.toon === undefined) { const { light: _light, ...dial } = ctx.toon; if (Object.keys(dial).length) payload.toon = dial; }
 
   // opt-in RAYMARCH backend for painted-landscape (?render=raymarch): a per-pixel terrain/water/sky
   // render (painted-landscape-raymarch.js) instead of the polygon mesh. emitThreeWorld dispatches a
@@ -411,6 +420,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // off every opaque mass and figure (static masses, walkers, controllable bodies), light keyed
   // to the payload's baked sun when one exists. Opt-in; absent ⇒ byte-identical.
   if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
+  // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
+  // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
+  if (payload && sketch.manifest.crystalLight) {
+    const { validateCrystalLight } = await import('@/lib/graph/scene/crystal-rig.js');
+    const errs = validateCrystalLight(sketch.manifest.crystalLight);
+    if (errs.length) throw new Error(`crystalLight is invalid — see get_solid_vocab({ id: 'workbench' }), "Light rigs":\n- ${errs.join('\n- ')}`);
+    payload.crystalLight = sketch.manifest.crystalLight;
+  }
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;

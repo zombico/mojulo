@@ -4,7 +4,7 @@
  * sketches.js hosted six unrelated tool families in one 2038-line file; each
  * now owns its own module and sketches.js is the registration surface.
  */
-// Model EXPORT (GLB, the print-purposed STL / 3MF, OpenUSD usda / usdz, OpenSCAD, and the
+// Model EXPORT (GLB, the print-purposed STL / 3MF, OpenUSD usda / usdz, OpenSCAD, IFC, and the
 // self-contained world.html) and the mesh-render bind.
 
 
@@ -22,10 +22,12 @@ import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
 import { EXPR_GRAMMAR_VERSION } from '@/lib/graph/polygonizer/field-expr';
 import { FIELD_DOMAIN_OPS } from '@/lib/graph/polygonizer/field-terms';
 import { expandWorkbenchProgram, hasProgram } from '@/lib/graph/worlds/workbench-program';
+import { withEquipment } from '@/lib/graph/equipment/expand';
 import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
+import { manifestToIfc } from '@/lib/graph/construction/ifc';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
@@ -185,6 +187,49 @@ export const HTML_CDN_NOTE = 'three.js loads from cdn.jsdelivr.net (pinned) — 
   + 'will NOT open from file://. Orbit with the mouse; walk where the HUD offers it. '
   + 'The default (`cdn: false`) writes `world.html`, the self-contained page that opens from disk.';
 
+// ── format: 'ifc' — a house as a building model (IFC4) ─────────────────────────────────────────────────────────
+// The BIM leg: storeys, spaces, walls with their openings, doors and windows, slabs and the roof; a framed house's
+// every member, lining, box, cable and circuit; its gutters and drains. Houses only (the floorplan kind with
+// `storeys` or `levels`); anything else is not eligible, and says so. Same recipe, same bytes.
+async function ifcExport(input, context) {
+  const { ref, write = true } = input;
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const kind = sketch.manifest.kind;
+  const title = sketch.title || sketch.manifest.title || ref;
+  const built = kind === 'floorplan' ? manifestToIfc(sketch.manifest, { ref, title }) : null;
+  if (!built) {
+    return {
+      ok: false, eligible: false, ref, kind: kind ?? null, format: 'ifc',
+      reason: kind === 'floorplan'
+        ? 'IFC export covers houses built in storeys: give this plan `storeys: 1` (or `levels`) and export again.'
+        : `IFC export covers houses (the floorplan kind with \`storeys\` or \`levels\`); '${kind}' is not one. For a mesh, \`format: 'glb'\` or \`'usdz'\`.`,
+    };
+  }
+  const bytes = Buffer.from(built.text, 'utf8');
+  const result = {
+    ok: true, ref, kind, format: 'ifc', bytes: bytes.byteLength, entities: built.entities, elements: built.counts,
+    framed: built.framed,
+    note: `IFC4 (STEP), metres, z up: ${built.framed ? "the house's building model — every member as its section along its centreline, linings, boxes and cable as their boxes, circuits as IfcDistributionCircuit" : 'the plan — walls voided by their openings, doors and windows in them, floor slabs, the roof as one slab per plane'}${sketch.manifest.drainage ? ', the rainwater system' : ''}, rooms as IfcSpace, every element with its catalog material and a Mojulo_Element property set naming its key. GlobalIds are stable across re-exports. Opens in Bonsai (Blender), Revit, ArchiCAD and IfcOpenShell; mojulo does not read IFC back.`,
+  };
+  if (write) {
+    const dir = outcomeDirFor(ref);
+    await fs.mkdir(dir, { recursive: true });
+    const fileName = modelFileName('ifc');
+    const file = path.join(dir, fileName);
+    await fs.writeFile(file, bytes);
+    const hash = createHash('sha256').update(JSON.stringify(sketch.manifest)).digest('hex').slice(0, 16);
+    await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
+    await fs.writeFile(path.join(dir, 'README.md'), buildModelReadme({ sketch, ref, kind, format: 'ifc', hash, exported: { byteLength: bytes.byteLength }, clips: null, fileName }));
+    result.path = file;
+    result.dir = dir;
+    result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
+    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url });
+  }
+  return result;
+}
+
 // ── format: 'bundle' (remote-worker exports P3) ───────────────────────────────────────────────
 // The one file every host's door accepts: a zip — the self-contained page, the mesh, the STL
 // when the kind prints at literal scale (print advisories ride the README), the sovereign
@@ -218,13 +263,50 @@ const courierFileName = (ref) => `${ref}.courier.html`;
 // web the only file door is a PAGE — the artifact host serves no archive or model as a
 // supporting file and blocks page-initiated downloads, but a published page may offer a file
 // it generated through the viewer's `downloads` capability (allowlist carries zip, not glb).
-// So the zip rides inside a tiny page with one Save button. Opened from file:// (no viewer)
-// the same button falls back to a plain download link. Single-theme dark, the world page's
-// own palette, no external resources. Deterministic: a function of the zip bytes.
+// So the zip rides inside a page. Opened from file:// (no viewer) every Save falls back to a
+// plain download link. Single-theme dark, the world page's own palette, no external resources.
+// Deterministic: a function of the zip bytes and the ref.
+//
+// It is also the export's FOLDER page (muse-carpet P5): Meta Muse's Library shows only `.html`,
+// so the page lists the export's files under `outcomes/<ref>/` with one Save each, unpacked in
+// the page from the zip it already carries, beside Save-all for the zip itself. Inside the Library's
+// own viewer a page cannot start a download (operator, 2026-09-28), so a static notice says to
+// download the page and open it on the device; the script hides it when opened from file://.
+
+// The page's zip reader, embedded verbatim and exported so a test runs these exact bytes. It
+// reads the central directory, because archiver streams entries whose local headers carry no
+// sizes; method 8 is inflated by DecompressionStream, method 0 is verbatim.
+export const COURIER_ZIP_READER = `function u16(b, o) { return b[o] | (b[o + 1] << 8); }
+function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
+function zipEntries(z) {
+  var e = z.length - 22;
+  while (e >= 0 && u32(z, e) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('no zip end record');
+  var n = u16(z, e + 10), p = u32(z, e + 16), out = {}, dec = new TextDecoder();
+  for (var i = 0; i < n; i++) {
+    if (u32(z, p) !== 0x02014b50) throw new Error('bad zip directory');
+    var nl = u16(z, p + 28), xl = u16(z, p + 30), cl = u16(z, p + 32), off = u32(z, p + 42);
+    var name = dec.decode(z.subarray(p + 46, p + 46 + nl));
+    out[name] = { method: u16(z, p + 10), csize: u32(z, p + 20), size: u32(z, p + 24), data: off + 30 + u16(z, off + 26) + u16(z, off + 28) };
+    p += 46 + nl + xl + cl;
+  }
+  return out;
+}
+async function zipRead(z, entry) {
+  var raw = z.subarray(entry.data, entry.data + entry.csize);
+  if (entry.method === 0) return raw;
+  if (entry.method !== 8) throw new Error('unsupported zip method ' + entry.method);
+  var stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}`;
+
 function courierPage({ ref, title, zipName, zip, entries }) {
   const b64 = zip.toString('base64');
   const kb = (n) => `${(n / 1024).toFixed(n >= 1024 * 100 ? 0 : 1)} KB`;
-  const rows = entries.map((e) => `<li><span>${escapeHtmlText(e.name)}</span><span class="n">${kb(e.bytes)}</span></li>`).join('');
+  const rows = entries.map((e) => {
+    const name = escapeHtmlText(e.name);
+    return `<li><span>${name}</span><span class="n">${kb(e.bytes)}</span><button type="button" data-save="${name}" aria-label="Save ${name}">Save</button></li>`;
+  }).join('');
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${escapeHtmlText(title)}</title>
@@ -235,21 +317,28 @@ function courierPage({ ref, title, zipName, zip, entries }) {
   main{width:100%;max-width:560px}
   h1{font-size:20px;font-weight:600;margin:0 0 4px;text-wrap:balance}
   p{margin:0 0 16px;color:var(--mute)}
+  .folder{margin:0 0 6px;color:var(--mute);overflow-wrap:anywhere}
   ul{list-style:none;margin:0 0 20px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
-  li{display:flex;justify-content:space-between;gap:16px;padding:8px 12px;border-top:1px solid var(--line)}
+  li{display:flex;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--line)}
   li:first-child{border-top:0}
+  li span:first-child{flex:1;min-width:0;overflow-wrap:anywhere}
   li .n{color:var(--mute);font-variant-numeric:tabular-nums}
   button{font:inherit;font-weight:600;color:#fff;background:var(--btn);border:1px solid var(--line);border-radius:6px;padding:10px 16px;cursor:pointer}
+  li button{font-weight:500;padding:4px 12px}
   button:hover{border-color:var(--fg)}
   button:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+  button:disabled{opacity:.6;cursor:progress}
   #status{margin-top:12px;min-height:1.5em;color:var(--mute)}
   #status.ok{color:var(--ok)} #status.warn{color:var(--warn)}
   small{display:block;margin-top:24px;color:var(--mute)}
+  .local{margin:0 0 16px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:6px;background:var(--panel);color:var(--fg)}
 </style></head><body><main>
   <h1>${escapeHtmlText(title)}</h1>
-  <p>One zip from mojulo: the self-contained world page, the mesh, the recipe that re-mints it, and a README. Save it, unzip it, open <code>world.html</code> from disk.</p>
+  <p>The files of one mojulo export, as they sit in its outcome folder: the self-contained world page, the mesh, the recipe that re-mints it, and a README. Save any one, or all of them as one zip. <code>world.html</code> opens from disk with no server and no network.</p>
+  <p class="local" id="local">If Save does nothing here, this viewer does not let a page start a download (Meta Muse's Library is one): download this page, open the copy on your device, and save from there.</p>
+  <div class="folder"><code>outcomes/${escapeHtmlText(ref)}/</code></div>
   <ul>${rows}</ul>
-  <button id="save" type="button">Save ${escapeHtmlText(zipName)} (${kb(zip.length)})</button>
+  <button id="save" type="button" data-save="${escapeHtmlText(zipName)}">Save ${escapeHtmlText(zipName)} (${kb(zip.length)})</button>
   <div id="status" aria-live="polite"></div>
   <small>Recipe ref <code>${escapeHtmlText(ref)}</code>. The zip is deterministic: the same recipe zips to the same bytes on any host running mojulo.</small>
 </main>
@@ -257,37 +346,52 @@ function courierPage({ ref, title, zipName, zip, entries }) {
 <script>
 (function () {
   var NAME = ${JSON.stringify(zipName)};
+  var MIME = { html: 'text/html', json: 'application/json', md: 'text/markdown', glb: 'model/gltf-binary', stl: 'model/stl', zip: 'application/zip' };
   var status = document.getElementById('status');
-  var btn = document.getElementById('save');
+  var zipBytes = null;
+  // Opened from the device itself, Save works: the notice is for in-app viewers, which may not run this at all.
+  if (location.protocol === 'file:') document.getElementById('local').hidden = true;
   function say(text, cls) { status.textContent = text; status.className = cls || ''; }
   function bytes() {
+    if (zipBytes) return zipBytes;
     var bin = atob(document.getElementById('zip').textContent.trim());
     var u = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-    return u;
+    return (zipBytes = u);
   }
-  function fallback() {
-    var blob = new Blob([bytes()], { type: 'application/zip' });
+  function mime(name) { var m = /\\.([a-z0-9]+)$/i.exec(name); return (m && MIME[m[1].toLowerCase()]) || 'application/octet-stream'; }
+${COURIER_ZIP_READER}
+  function fallback(name, blob) {
     var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = NAME;
+    a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
-    say('Download started — check your downloads folder.', 'ok');
+    say('Download started — check your downloads folder for ' + name + '.', 'ok');
   }
-  btn.addEventListener('click', async function () {
-    btn.disabled = true; say('Preparing…');
+  async function save(name, data) {
+    var blob = new Blob([data], { type: mime(name) });
+    var dl = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('downloads') : null;
+    if (!dl) return fallback(name, blob);
     try {
-      var dl = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('downloads') : null;
-      if (dl) {
-        try {
-          await dl.save({ filename: NAME, data: new Blob([bytes()], { type: 'application/zip' }) });
-          say('Saved.', 'ok');
-        } catch (e) {
-          if (e && e.code === 'declined') say('Not saved — you declined the prompt.');
-          else say('Could not save: ' + ((e && (e.code + ' ' + e.message)) || e), 'warn');
-        }
-      } else {
-        fallback();
-      }
+      await dl.save({ filename: name, data: blob });
+      say('Saved ' + name + '.', 'ok');
+    } catch (e) {
+      if (e && e.code === 'declined') say('Not saved — you declined the prompt.');
+      else say('Could not save ' + name + ': ' + ((e && (e.code + ' ' + e.message)) || e), 'warn');
+    }
+  }
+  document.addEventListener('click', async function (ev) {
+    var btn = ev.target.closest && ev.target.closest('button[data-save]');
+    if (!btn) return;
+    var name = btn.getAttribute('data-save');
+    btn.disabled = true; say('Preparing ' + name + '…');
+    try {
+      if (name === NAME) return await save(NAME, bytes());
+      if (typeof DecompressionStream !== 'function') return say('This browser cannot unpack a single file: save ' + NAME + ' instead.', 'warn');
+      var entry = zipEntries(bytes())[name];
+      if (!entry) throw new Error('not in ' + NAME);
+      await save(name, await zipRead(bytes(), entry));
+    } catch (e) {
+      say('Could not save ' + name + ': ' + ((e && e.message) || e), 'warn');
     } finally { btn.disabled = false; }
   });
 })();
@@ -348,7 +452,7 @@ async function bundleExport(input, context) {
     path: courierPath,
     bytes: Buffer.byteLength(courierHtml),
     download_url: `${outcomeUrlFor(ref)}${courierFileName(ref)}`,
-    note: `${courierFileName(ref)} carries the zip inside one page with a Save button: for a host whose file door is a page (Claude Code on the web: publish it with the Artifact tool declaring capabilities { downloads: true }); from file:// the button is a plain download.`,
+    note: `${courierFileName(ref)} carries the zip inside one page, listing each file with its own Save beside Save-all: for a host whose file door is a page (Claude Code on the web: publish it with the Artifact tool declaring capabilities { downloads: true }; Meta Muse: copy it into your_files/, the one type its Library shows); from file:// every Save is a plain download.`,
   };
   const result = {
     ok: true,
@@ -431,6 +535,16 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     'regenerates this file deterministically — same recipe, same bytes (geometry byte for byte',
     'across platforms; an embedded texture PNG can differ in its compressed bytes, not its pixels).',
     '',
+    ...(format === 'ifc' ? [
+      '## Opening this file (BIM)',
+      '',
+      '- IFC4 in the STEP text form, metres, z up. Bonsai (the Blender BIM add-on), Revit, ArchiCAD and IfcOpenShell open it.',
+      '- The spatial tree is project → site → building → one storey per level; rooms are IfcSpace with their floor area.',
+      '- A framed house carries its building model: members as their sections extruded along their centrelines (steel as its rolled profile), linings, boxes and cable as boxes, circuits as IfcDistributionCircuit grouping what they feed. An unframed house carries its plan: walls voided by their openings, doors and windows filling them, slabs, the roof as one slab per plane.',
+      '- Every element is associated with its catalog material (with a colour) and carries a `Mojulo_Element` property set whose `Key` names it in the recipe\'s model; GlobalIds come from those keys, so a re-export keeps them.',
+      '- Round-trip warning: mojulo does not read IFC back. Edit the recipe and export again.',
+      '',
+    ] : [
     '## Importing this file (Blender / Godot)',
     '',
     ...(format === 'html' ? [`- HTML: \`${fileName}\` is the live World page itself, not a mesh. ${exported?.cdn ? HTML_CDN_NOTE : HTML_FILE_NOTE} For a mesh, \`export_model({ ref, format: 'glb' })\`.`] : []),
@@ -443,10 +557,15 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
       '- `$fn` sets the facet count for curved primitives — raise it for a smoother print. `mm_per_unit` wraps the assembly so the part lands at real millimetres.',
       '- Round-trip warning: mojulo does NOT read `.scad` back. This is a derived snapshot; edit the recipe with `update_sketch`, or take this file as a starting point and own it from there. `color()` is preview-only and will not appear in an STL OpenSCAD renders.',
     ] : []),
-    '- Animations: rig clips are baked at 1 second per cycle (looping clips repeat key 0 as a wrap key) — retime freely in the NLA/AnimationPlayer.',
+    // a clip carrying its designed duration (the anime hero's, hero-gesture.js heroClipSeconds) says it; else the old line
+    exported.clipSeconds
+      ? `- Animations: rig clips play at their designed durations (${Object.entries(exported.clipSeconds).map(([c, s]) => `${c.slice(c.indexOf(':') + 1)} ${s} s`).join(', ')}; looping clips repeat key 0 as a wrap key), the same the World page's clip preview plays — retime freely in the NLA/AnimationPlayer.${exported.faceFigures ? ' Each clip\'s face is a STEP `weights` channel on the skinned mesh (a drawing per frame at 30 fps, keyed half a frame early: play at 30 fps or more — at 24, Blender\'s default scene rate, a one-frame drawing can fall between two samples, so set the scene to 30); the face-only clip named by `mesh.extras.face.ambientClip` (null when the blink is off) holds the authored face with its blinks, to layer over the clips in `ambientOver` through a filter on the blink targets.' : ''}`
+      : '- Animations: rig clips are baked at 1 second per cycle (looping clips repeat key 0 as a wrap key) — retime freely in the NLA/AnimationPlayer.',
+    ...(exported.faceFigures ? ['- Face: the skinned mesh carries the anime head\'s expression as blend shapes — POSITION morph targets on the neutral head, one per expression channel and per lid corrective (their names in `mesh.extras.targetNames`); `mesh.weights` is the authored face (an engine that ignores it, as Godot does, sets it from `mesh.extras.face.words.authored`), and `mesh.extras.face.words` holds every expression word\'s weights. Eye closure is drawn at the knots (`extras.face.eyeKnots`, the hero\'s own closure among them when it sits between the others; each with its corrective at weight 1), never tweened.'] : []),
     '- Level semantics ride glTF `extras` under the `moj:` namespace: `entity:<id>` nodes carry `moj:entity`/`moj:rule`/`moj:body`; the scene carries `moj:spawn`, `moj:colliders` (AABB boxes), and `moj:game` (contract summary). Cameras are mojulo\'s own framings.',
     '- Colours are baked vertex colours on unlit materials — the depiction is the asset; no lighting setup needed.',
     '',
+    ]),
   ].join('\n');
 }
 /**
@@ -507,15 +626,17 @@ export async function exportModelHandler(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc' if provided");
   }
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
   // stay silent for every mesh leg.
   if ('cdn' in input && format !== 'html') throw new Error("`cdn` applies to `format: 'html'` only");
   // bundle is the legs zipped: it always writes (a folder product, like export_game).
   if (format === 'bundle') return bundleExport(input, context);
+  // ifc is the building model, not the World's faces: it reads the house the recipe builds.
+  if (format === 'ifc') return ifcExport(input, context);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
   const isHtml = format === 'html';
   const isUsd = format === 'usda' || format === 'usdz';
@@ -575,7 +696,9 @@ export async function exportModelHandler(input, context = {}) {
 
   // a lit export sources the UNSHADED payload (flat albedo, no mojulo Lambert / AO / material
   // darkening) so the importer's light is the only light on the geometry
-  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, lit ? { unshaded: true } : {});
+  // a skinned export also asks for the anime hero's FACE (its expression channels as morph targets on the skinned mesh;
+  // world-kinds layered, anime-face-rig.js) — every other kind and hero resolves exactly as without it
+  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, { ...(lit ? { unshaded: true } : {}), ...(skinned ? { face: true } : {}) });
   let payload = resolvedPayload;
   let unionResult = null;
   if (union && payload) {
@@ -624,7 +747,7 @@ export async function exportModelHandler(input, context = {}) {
               // lower inside the transpiler. The payload is the fallback for a kind that has
               // no workbench manifest to read (decision 6: nothing refuses the format).
               ? scadExport({
-                manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : sketch.manifest,
+                manifest: hasProgram(sketch.manifest) ? expandWorkbenchProgram(sketch.manifest).manifest : withEquipment(sketch.manifest),
                 payload,
                 title: sketch.title || sketch.manifest.title || ref,
                 ref,
@@ -678,7 +801,7 @@ export async function exportModelHandler(input, context = {}) {
   // not express sharply — every field edge rounds to about one grid cell. mm on the print formats.
   // the code kind (expressiveness.plan.md E3): the ledger reads the EXPANDED manifest (the
   // program's monomers are the ones that shipped) and says what ran, in numbers
-  let ledgerManifest = sketch.manifest;
+  let ledgerManifest = withEquipment(sketch.manifest);
   if (hasProgram(sketch.manifest)) {
     const ex = expandWorkbenchProgram(sketch.manifest);
     ledgerManifest = ex.manifest;
@@ -766,6 +889,9 @@ export async function exportModelHandler(input, context = {}) {
       result.animations = exported.animationCount ?? 0;
       result.animated_figures = exported.animatedFigures ?? [];
       if (exported.skinnedFigures) result.skinned_figures = exported.skinnedFigures;
+      if (exported.faceFigures) result.face_figures = exported.faceFigures;
+      const faceSkipped = skinned && payload?.figures ? Object.values(payload.figures).map((f) => f?.faceSkipped).find(Boolean) : null;
+      if (faceSkipped) result.face_skipped = faceSkipped;
       if (exported.humanoidFigures) {
         result.humanoid_figures = exported.humanoidFigures;
         result.humanoid_note = 'VRM 1.0 bone names on the skin joints (hips / spine / head / left+rightUpperArm…Foot; weightless leaf joints at the wrists and ankles stand in for hands / feet) + the VRMC_vrm extension on the first figure. '

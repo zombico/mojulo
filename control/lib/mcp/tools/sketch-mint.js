@@ -53,14 +53,17 @@ import {
   resolveMotionComicLayout,
   validateMotionComicRefs,
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
-import { improveFloorplanManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
+import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { houseStyleOpts } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
 import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
+import { splitSolveOps, prepareStrokes, applySolves, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
+import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import {
   classifyPromptForCards,
@@ -348,6 +351,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   if (finalized?.kind === 'floorplan') {
     if (finalized.style === undefined) finalized = { ...finalized, style: 'auto' };
     else houseStyleOpts(finalized.style, '', undefined);   // an unknown style refuses, naming the families
+    // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
+    const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
+    for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
+      if (v == null) continue; const e = metalSurfaceError(v); if (e) throw new Error(`Invalid manifest: ${k}: ${e}`);
+    }
   }
 
   const { ok, errors } = validateSketchManifest(finalized);
@@ -368,6 +376,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
 
 function persistSketch({ title, manifest, ref, folderRef, bucket }) {
   const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
+  const design = houseDesignReadout(manifest);
 
   // Most sketches minted here are diagrams/illustrations (cheap on-demand SVG),
   // but a world/scene-kind manifest can arrive via create_sketch / the POST API
@@ -378,6 +387,28 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     ok: true,
     ref: sketch.ref,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
+    ...(design ? { design } : {}),
+  };
+}
+
+/**
+ * A house's design considerations, measured (floorplan-design.js) and read out for the agent: advisory, never a
+ * refusal (the house is the operator's). Only the findings travel, with the rules they were measured against and the
+ * next move; a single-floor plan or any other kind reads nothing. Never throws.
+ */
+function houseDesignReadout(manifest) {
+  let d;
+  try { d = assessHouseManifest(manifest); } catch { return null; }
+  if (!d) return null;
+  const repairing = manifest.design && manifest.design.repair;
+  return {
+    ok: d.ok,
+    tradition: d.tradition,
+    rules: d.rules,
+    ...(d.findings.length ? { findings: d.findings.slice(0, 8), ...(d.findings.length > 8 ? { more: d.findings.length - 8 } : {}) } : {}),
+    ...(!d.ok ? { next: repairing
+      ? 'repair could not make the room within this footprint: widen the house (width/height), try another seed, or author the storey with levels[i].rooms and place the stair with stairs[].'
+      : "design: { repair: true } sizes the upstairs hall and the stair's core to keep the passage — update_sketch({ ref, patch: [{ op: 'set', path: '/design', value: { repair: true } }] }); or author the storey with levels[i].rooms." } : {}),
   };
 }
 
@@ -397,7 +428,7 @@ function isWorldRecipe(manifest) {
 
 // Creation from an exported world recipe pays the same gates as a whole-manifest edit.
 // This does not reinterpret it as authoring knobs or import assets from another filesystem.
-async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full', restore = false }) {
+async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full', restore = false, solveOps = [] }) {
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world
@@ -461,10 +492,21 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
         // otherwise pass silently)
         const heroErrs = validateHeroSpec(manifest.hero); if (heroErrs.length) throw new Error(`hero refused:\n - ${heroErrs.join('\n - ')}`);
         const prev = existingSketch?.manifest;
-        if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the plan was hand-edited under /plan since the hero last generated it; this /hero edit regenerated the plan and replaced those edits (they are in the archived revision)');
+        if (prev?.hero && prev.plan && JSON.stringify(prev.plan) !== JSON.stringify(heroPlanOf(prev.hero))) heroWarnings.push('the stored plan differs from what the hero generates now (hand-edited under /plan, or the hero\'s generator changed since it was stored); this /hero edit regenerated the plan and replaced it (the old one is in the archived revision)');
         manifest = expandLayeredManifest(manifest, { from: 'hero' });
       } else if (manifest.plan && planTouched) manifest = expandLayeredManifest(manifest, { from: 'plan' });
-      const planned = planLayered(manifest); layeredStats = planned.stats;
+      // the character light (`toon.light`) refuses by field on an edit as at mint, instead of being dropped at read
+      const lightErrs = under('/toon') && manifest.toon && typeof manifest.toon === 'object' ? toonLightErrors(manifest.toon.light) : [];
+      if (lightErrs.length) throw new Error(`toon refused:\n - ${lightErrs.join('\n - ')}`);
+      let planned = planLayered(manifest);
+      // strokes (layered-strokes.js): validate, record each new stroke's camera, run the `solve` ops against the
+      // compiled mesh (a solve that moved a dial re-plans), then re-resolve every stroke into the ledger
+      manifest = prepareStrokes(manifest, planned.mesh);
+      const solves = applySolves(manifest, planned.mesh, solveOps);
+      manifest = solves.manifest; if (solves.dialsChanged) planned = planLayered(manifest);
+      layeredStats = planned.stats;
+      const strokeLedger = strokesLedger(manifest, planned.mesh);
+      if (strokeLedger) layeredStats = { ...layeredStats, strokes: strokeLedger, ...(solves.solved.length ? { solved: solves.solved } : {}), ledger: { ...layeredStats.ledger, strokes: strokeLedger } };
       if (manifest.hero) layeredStats = { ...layeredStats, hero: heroReadout(manifest.hero, manifest.plan, layeredStats, heroWarnings, { mesh: planned.mesh, recipe: manifest.recipe }) };
     } catch (err) {
       throw new Error(`Invalid world manifest (kind 'layered'): ${err.message}`);
@@ -722,13 +764,19 @@ export async function updateSketchHandler(input) {
   // below knows the edit arrived as ops; the stored row is the resolved manifest, as always.
   let manifest = manifestInput;
   let touched = new Set();
+  let solveOps = [];
   if (patch !== undefined) {
     if (!existingSketch) throw new Error(`No sketch exists at ref '${ref}'`);
     if (!existingSketch.manifest || typeof existingSketch.manifest !== 'object') {
       throw new Error(`'${ref}' has no stored manifest to patch — pass \`manifest\``);
     }
+    // a layered row takes `solve` ops too (layered-strokes.js): they run in the layered gate below,
+    // after the generic ops, against the compiled mesh
+    let rest = patch;
+    if (existingSketch.manifest.kind === 'layered') ({ rest, solves: solveOps } = splitSolveOps(patch));
     try {
-      ({ manifest, touched } = applyManifestPatch(existingSketch.manifest, patch));
+      if (Array.isArray(rest) && !rest.length && solveOps.length) { manifest = structuredClone(existingSketch.manifest); touched = new Set(); }
+      else ({ manifest, touched } = applyManifestPatch(existingSketch.manifest, rest));
     } catch (err) {
       throw new Error(`Invalid patch: ${err.message}`);
     }
@@ -807,7 +855,7 @@ export async function updateSketchHandler(input) {
     isWorldRecipe(manifest)
   ) {
     ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
-      await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout }));
+      await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout, solveOps }));
   } else if (manifest !== undefined) {
     let expanded;
     try {
@@ -859,10 +907,12 @@ export async function updateSketchHandler(input) {
   }
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
+  const design = nextManifest !== undefined ? houseDesignReadout(nextManifest) : null;
   return {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
+    ...(design ? { design } : {}),
     ...(gameNote ? { note: gameNote } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),
