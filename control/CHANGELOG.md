@@ -160,8 +160,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the operator's session is unchanged.
 
 - **sharp 0.35.5.** The image library moves past high-severity advisories in its bundled libvips and
-  libheif (GHSA-f88m-g3jw-g9cj, GHSA-rgj7-g3m4-5g8c). `npm audit` on a `mojulo-ui` install still lists
-  the sharp 0.34.5 that Next.js 16.2 carries for `next/image`; the dashboard never imports it.
+  libheif (GHSA-f88m-g3jw-g9cj, GHSA-rgj7-g3m4-5g8c), and `mojulo-ui` no longer carries the older copy
+  Next.js keeps for `next/image`, which the dashboard never imports. An image submitted for a render
+  that does not decode is refused at submit.
 - **A patch cannot reach the prototype chain.** An `update_sketch` patch path through `__proto__` or
   `constructor/prototype` set or deleted a property on every object in the server process until it
   restarted. Such a path, or the same key in a set-by-id merge, now refuses by name.

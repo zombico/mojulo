@@ -119,6 +119,10 @@ function stageStandalone() {
     if (!rel.includes('/') && skipAtRoot(rel)) return false;
     if (rel.endsWith('.nft.json') || rel.endsWith('.test.js')) return false;
     if (rel === 'lib/embedder/models') return false;
+    // Next.js carries its own sharp for next/image, which the dashboard never imports. Since core moved to
+    // sharp 0.35 that copy (0.34, with its native binaries, ~16 MB) nests under next/ instead of being the
+    // hoisted one the install provides, so the trace would ship it; leave it out.
+    if (/^node_modules\/next\/node_modules\/(sharp|@img)(\/|$)/.test(rel)) return false;
     const mod = rel.match(/^node_modules\/((?:@[^/]+\/)?[^/]+)$/);
     return !(mod && pruned.has(mod[1]));
   };
