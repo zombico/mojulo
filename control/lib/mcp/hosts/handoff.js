@@ -50,6 +50,8 @@ export function resolveHandoffSurface(context = {}, env = process.env) {
 const MiB = 1024 * 1024;
 const fmtBytes = (n) => (n >= MiB ? `${(n / MiB).toFixed(1)} MiB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
 const extOf = (name) => { const m = /\.([a-z0-9]+)$/i.exec(name || ''); return m ? m[1].toLowerCase() : null; };
+/** the files export_model's bundle zips (sketch-model-export bundleExport), which its courier page carries */
+const BUNDLED = Object.freeze(['world.html', 'model.glb', 'model.stl']);
 
 /** { fits, budget, over_by } for a byte count against a door's ceiling; null budget ⇒ fits. */
 export function fitsBudget(bytes, budget) {
@@ -168,8 +170,9 @@ function fileSentence(door, row, a, caveats) {
     }
     case 'drop-folder': {
       // A folder in the box that the host itself carries to the operator (Muse: your_files → Library).
-      // `downloadExtensions` lists the types the operator's side actually shows; anything else
-      // (a folder included) rides the bundle's courier page, which carries every file of the export.
+      // `downloadExtensions` lists the types the operator's side actually shows; a world's mesh or print file rides the
+      // bundle's courier page, which carries every file of that export, and anything else (a folder, another format)
+      // is said plainly to stay in the box.
       const dir = String(row.dropDir).replace(/\/+$/, '');
       const where = row.dropLabel || "the operator's side";
       const allowed = Array.isArray(row.downloadExtensions) ? row.downloadExtensions : null;
@@ -179,8 +182,15 @@ function fileSentence(door, row, a, caveats) {
         if (a.courier) {
           return `copy ${a.courier} into ${dir}/; it lands in ${where} as one page (${where} shows only ${only} files) — the operator downloads it and opens it on their device to save ${a.name}${size} or any file of the export`;
         }
-        caveats.push(`\`export_model({ format: 'bundle' })\` writes <ref>.courier.html, one page that carries every file of the export and does show in ${where}`);
-        return `${where} shows only ${only} files, so ${a.name} would not surface there; it is at ${a.path}${size}`;
+        // the bundle's courier carries only what export_model's bundle zips (a world's page, mesh and print file):
+        // a cook's or a game's folder, or a single-format export (usdz, ifc, 3mf, scad), is not in it
+        if (a.kind !== 'folder' && BUNDLED.includes(a.name)) {
+          caveats.push(`\`export_model({ format: 'bundle' })\` writes <ref>.courier.html, one page that carries every file of the export and does show in ${where}`);
+          return `${where} shows only ${only} files, so ${a.name} would not surface there; it is at ${a.path}${size}`;
+        }
+        const folder = a.kind === 'folder' ? String(a.dir || a.path || a.name).replace(/[\\/]+$/, '').split(/[\\/]/).pop() : null;
+        caveats.push(`${where} cannot carry ${folder ? 'a folder' : `a .${ext || a.name} file`}, and no courier page carries it: tell the operator where it is in the box, and hand over its recipe (recipe.json re-mints it on any host running mojulo)`);
+        return `${where} shows only ${only} files, so ${folder ? `the folder ${folder}` : a.name} would not surface there; it is at ${a.path}${size}`;
       }
       const fit = fitsBudget(a.bytes, row.fileMaxBytes);
       if (!fit.fits) caveats.push(`${a.name} is over this host's file limit by ${fmtBytes(fit.over_by)}`);

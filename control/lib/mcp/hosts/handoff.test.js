@@ -120,7 +120,23 @@ describe('handoffFor', () => {
     expect(g.caveats).toEqual([expect.stringMatching(/format: 'bundle'.*courier\.html, one page that carries every file of the export/)]);
     // a folder has no extension to show and is outside the list too
     const f = handoffFor({ host: 'muse', artifact: { kind: 'folder', name: 'godot', path: '/box/outcomes/sk_x/godot' } });
-    expect(f.next).toMatch(/^the operator's Library shows only \.html files, so godot would not surface there/);
+    expect(f.next).toMatch(/^the operator's Library shows only \.html files, so the folder godot would not surface there/);
+  });
+
+  // the courier carries only what export_model's bundle zips, so a cook's or a game's folder, or a single-format
+  // export, is never sent to the bundle (it used to say index.html was not .html enough, then point at the bundle)
+  it('muse + a cook or game folder, or a usdz: named plainly as staying in the box, never sent to the bundle', () => {
+    for (const [artifact, folder] of [[{ kind: 'folder', name: 'index.html', path: '/box/outcomes/ck_x', dir: '/box/outcomes/ck_x' }, 'ck_x'],
+      [{ kind: 'folder', name: 'game.html', path: '/box/outcomes/sk_g/', dir: '/box/outcomes/sk_g/', bytes: 2048 }, 'sk_g']]) {
+      const n = handoffFor({ host: 'muse', artifact });
+      expect(n.next).toMatch(new RegExp(`^the operator's Library shows only \\.html files, so the folder ${folder} would not surface there; it is at /box/outcomes/${folder}`));
+      expect(n.next).not.toMatch(/index\.html|game\.html/);
+      expect(n.caveats).toEqual([expect.stringMatching(/cannot carry a folder, and no courier page carries it: .*recipe\.json/)]);
+      expect(n.caveats.join()).not.toMatch(/bundle/);
+    }
+    const u = handoffFor({ host: 'muse', artifact: { kind: 'file', name: 'model.usdz', path: '/box/outcomes/sk_x/model.usdz' } });
+    expect(u.next).toMatch(/so model\.usdz would not surface there/);
+    expect(u.caveats).toEqual([expect.stringMatching(/cannot carry a \.usdz file, and no courier page carries it/)]);
   });
 
   it('muse + an .html file: straight into the drop folder; no ceiling known, the VM persists', () => {
