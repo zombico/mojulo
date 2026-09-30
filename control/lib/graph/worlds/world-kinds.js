@@ -535,7 +535,7 @@ export const WORLD_KINDS = {
       // the rest mesh it skins from (piecesAt), so its bind pose carries the same two tones.
       const character = resolveCharacterLight(m, ctx);
       const normals = character ? layeredShadingNormals(shown, m.recipe, stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) : null;
-      const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh }) : null;
+      const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive }) : null;
       // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
       // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
       // fields win. It rides the payload's own `toon` (world-scene keeps a resolver's toon over the manifest's).
@@ -585,7 +585,7 @@ export const WORLD_KINDS = {
         // and the ambient blink ride the face (anime-face-tracks.js), derived here and never stored.
         const seconds = m.hero?.head === 'anime' ? heroClipSeconds(m.hero, m.recipe.clips) : null;
         if (face?.meta) Object.assign(face.meta, heroFaceTracks(m.hero, m.recipe.clips, seconds, face.authored));
-        const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}) });
+        const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
         const clips = Object.keys(m.recipe.clips).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       }

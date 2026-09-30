@@ -390,9 +390,10 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  * reads it, so its pieces are exactly the two-tone step's. `neckShade`, `hairTop`: the two anime-head rules, on by
  * default exactly when the mesh wears the anime head (a review renderer turns one off to show a figure without it).
  */
-export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh) } = {}) {
+export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
+  const glow = new Set(Array.isArray(glows) ? glows : []);   // the recipe's emissive groups: full-bright, never split (still inked)
   const Lv = light.toLight; const unlit = new Set(light.unlit || []); const thresholds = light.thresholds || {}; const t0 = Number.isFinite(light.threshold) ? light.threshold : 0;
   const neckInShade = !!neckShade, top = hairTop ? HAIR_TOP_PLANES : 0;   // THE NECK OCCLUSION RULE, THE HAIR'S TOP PLANES (see above)
   const VREF = mesh.vertices.map((v, vi) => ({ p: [v[0], v[1], v[2] + dz], vi }));
@@ -444,6 +445,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     const partName = partOf(mesh, fi); const part = mesh.parts[partName]; const g = mesh.groups[fi];
     const hex = pal[g] || part?.tint || FALLBACK;
     if (unlit.has(g)) return { fi, tri, outNormal, partName, fill: hex, mark: true };
+    if (glow.has(g)) return { fi, tri, outNormal, partName, fill: hex };
     const sk = `${g}|${hex}`; let shade = shadeCache.get(sk); if (shade === undefined) shadeCache.set(sk, shade = shadeFill(light, g, hex));
     if (neckInShade && partName === 'neck') return { fi, tri, outNormal, partName, fill: shade };   // the occlusion rule
     const t = Number.isFinite(thresholds[g]) ? thresholds[g] : t0;
@@ -579,7 +581,7 @@ export function piecesAt(pieces, mesh, dz = 0) {
  * built here when absent. `normals`: per-face-corner normals (layeredShadingNormals); computed when absent.
  */
 export function characterLitFaces(mesh, recipe = {}, { light = ANIME_CHARACTER_LIGHT, normals = null, seat = true, group = null, pieces = null, hairInk = false } = {}) {
-  const P = pieces || characterLitPieces(mesh, { light, normals: normals || layeredShadingNormals(mesh, recipe), palette: recipe.palette, dz: layeredSeat(mesh, seat) });
+  const P = pieces || characterLitPieces(mesh, { light, normals: normals || layeredShadingNormals(mesh, recipe), palette: recipe.palette, dz: layeredSeat(mesh, seat), glows: recipe.emissive });
   return P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: c.fill, group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}) }; });
 }
 

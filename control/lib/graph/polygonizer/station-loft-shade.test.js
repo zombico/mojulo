@@ -193,6 +193,29 @@ describe('characterLitFaces — the conforming iso-split', () => {
   });
 });
 
+describe('the emissive groups under the character light (a lens, a visor slit, a reactor)', () => {
+  // the recipe's `emissive` groups render full-bright on the static solid (layeredFaces); the character light used to
+  // step and split them like any lit group
+  const L = resolveToonLight({ toLight: [0, 0, 1], threshold: 0.3 });
+  const palette = { Skin: '#d9a77e', Lens: '#eef6ff' };
+  const m = sphere({ groupOf: (ph) => (ph < Math.PI ? 'Skin' : 'Lens') });
+  const radial = m.faces.map((t) => t.map((vi) => unit(m.vertices[vi])));
+  const cy = (f) => (f.corners[0][1] + f.corners[1][1] + f.corners[2][1]) / 3;   // the Lens half is y < 0
+  it('an emissive group keeps its base colour, never split; the solid stays closed', () => {
+    const glow = characterLitFaces(m, { palette, emissive: ['Lens'] }, { light: L, normals: radial, seat: false });
+    const lensFaces = glow.filter((f) => cy(f) < 0);
+    expect(lensFaces.length).toBeGreaterThanOrEqual(m.groups.filter((g) => g === 'Lens').length);
+    expect(lensFaces.every((f) => f.fill === palette.Lens && !f.noInk)).toBe(true);
+    expect(glow.filter((f) => cy(f) > 0).some((f) => f.fill === derived(palette.Skin, 'Skin'))).toBe(true);   // the rest still steps
+    expect(openEdges(glow)).toBe(0);
+    const A = layeredFaces(m, { palette }, { seat: false }).reduce((t, f) => t + area(f.corners), 0);
+    expect(Math.abs(A - glow.reduce((t, f) => t + area(f.corners), 0)) / A).toBeLessThan(1e-9);
+    const plain = characterLitFaces(m, { palette }, { light: L, normals: radial, seat: false });
+    expect(plain.filter((f) => cy(f) < 0).some((f) => f.fill === derived(palette.Lens, 'Lens'))).toBe(true);   // without it, the lens steps into shade
+    expect(characterLitFaces(m, { palette, emissive: [] }, { light: L, normals: radial, seat: false })).toEqual(plain);   // none ⇒ the same faces
+  });
+});
+
 describe('the highlight — a second conforming iso-split on the lit side', () => {
   // the key on +x, exact radial normals: N·L = x, the step the plane x = 0.40 (the Hair default); a ring whose band is
   // the middle half of the group's height centred at z = 0 (no face part: the group's own extent is the frame), its
