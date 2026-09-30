@@ -634,6 +634,13 @@ export const EmbeddingsRepository = {
         .all();
     }
 
+    // No vector yet for these kinds (a CLI process searching before the recall group's index was built, or
+    // a kind written while the group was absent): answer lexically over the same rows rather than with nothing.
+    if (!rows.some((r) => r.embedding)) {
+      const results = await searchLexical(query, { kindFilter, limit });
+      return withMeta ? { results, degraded: false, mode: 'lexical' } : results;
+    }
+
     // Capability rows are append-with-supersession; filter out anything whose
     // backing row is no longer the current capability for its provider. The
     // join goes through meta_mcp_providers because source_ref keys on

@@ -42,7 +42,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { distribution, mojuloCommand } from '../lib/version/distribution.js';
 import { BOT_FACTORY_MOVED } from '../lib/mcp/bot-factory-moved.js';
@@ -100,8 +100,8 @@ function recallInstalled() {
 async function installRecall() {
   if (recallInstalled()) {
     if (recallModelPresent()) {
-      process.stdout.write('Recall group already installed (the embedding runtime resolves). Nothing to do.\n');
-      return 0;
+      process.stdout.write('Recall group already installed (the embedding runtime resolves).\n');
+      return buildRecallIndex();
     }
     process.stdout.write(`The embedding runtime is installed, but its model is not in ${modelsDir()}.\n`);
     return fetchRecallModel();
@@ -163,10 +163,42 @@ async function fetchRecallModel() {
     );
     return fetched;
   }
+  const indexed = await buildRecallIndex();
+  if (indexed !== 0) return indexed;
   process.stdout.write(
     '\nRecall group installed. semantic_search now ranks by embedding; restart your MCP host to pick it up.\n',
   );
   return 0;
+}
+
+// Embeds the index once, here, so the vectors are in the database before the first search. The server's
+// boot backfill would give them too, but a CLI call is one short-lived process that exits before it
+// finishes: without this, a shell host searched an index with no vectors. Idempotent (rows whose text and
+// model are unchanged are skipped), so a re-run only fills what is missing.
+async function buildRecallIndex() {
+  process.stdout.write('\nIndexing the cards, catalysts and your recipes for vector recall …\n');
+  const url = (...p) => pathToFileURL(path.join(CONTROL_DIR, ...p)).href;
+  const script = [
+    "import { register } from 'node:module';",
+    `register(${JSON.stringify(url('scripts', 'mcp-stdio-loader.mjs'))});`,
+    `const { resolveMojuloPaths } = await import(${JSON.stringify(url('scripts', 'mojulo-paths.mjs'))});`,
+    'resolveMojuloPaths();',
+    `const { reindexAll } = await import(${JSON.stringify(url('lib', 'db', 'repositories', 'embeddings.js'))});`,
+    'const r = await reindexAll();',
+    'process.stdout.write(`Indexed ${r.totalSeen} entries (${r.written} embedded, ${r.skipped} already current${r.failed ? `, ${r.failed} failed` : \'\'}).\\n`);',
+    'process.exit(r.failed ? 1 : 0);',
+  ].join('\n');
+  const code = await run(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: CONTROL_DIR,
+    // the boot backfill getDb() would start stays off: this child is the backfill
+    env: { ...process.env, MOJULO_HOME: mojuloHome(), MOJULO_MODELS_DIR: modelsDir(), MOJULO_SEMANTIC_INDEX_DISABLED: '1', MOJULO_DISABLE_SCENE_WARM: '1' },
+  });
+  if (code !== 0) {
+    process.stderr.write(
+      `\nThe recall group is installed, but indexing did not finish. Run \`${mojuloCommand('install recall')}\` again; semantic_search answers lexically until it does.\n`,
+    );
+  }
+  return code;
 }
 
 function chatbotMarkerLeftover() {
