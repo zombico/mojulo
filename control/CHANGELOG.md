@@ -12,6 +12,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Deterministic math
+
+- **3.0's generators take their transcendentals from `lib/util/dmath.js`.** V8's `Math` is not the same
+  function everywhere: since Node 24 `Math.pow` and `**` call the platform's C library, and V8's arm64
+  builds round `sin`, `cos`, `exp`, `atan2` and the rest differently from x64. dmath is fdlibm written in
+  plain double arithmetic, so the vegetation engine, terrain worlds, the anime head and hero, stores,
+  construction, metro and canal cities, the metro refacade and the Tian Tan Buddha now grow the same
+  bytes on x64 and arm64 and on Node 22 and 24. Where they reach older helpers (the figure, lathe, sweep,
+  floor-plan and scene helpers), those read `lib/util/math-scope.js`: the engine's `Math` for a recipe
+  minted before 3.0, dmath inside a 3.0 build, so no 2.1.0 output changes.
+- **Pins recorded on one Mac are re-pinned to the dmath bytes.** The plants, anime fixture, anime hero
+  World, store, round-kit and Buddha pins move once; the Anime Form Studio fixture is re-frozen from the
+  port on dmath. A few pins of 2.1.0 generators (the stock city, some stock landmarks, a floor plan's
+  kitchen sink, a condo's plants) keep their per-platform bytes, since changing them would change a
+  minted row.
+
 ## [3.0.0] - 2026-09-30
 
 ### Upgrading from 2.x
