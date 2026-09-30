@@ -17,6 +17,7 @@
 import { crystalPolytope, crystalOptics, CRYSTAL_GEMS, CRYSTAL_CUTS } from '../polygonizer/crystal-optics.js';
 import { shineKernel, shineOptics, faceShine } from '../polygonizer/crystal-shine.js';
 import { printKernel, printOptics } from '../polygonizer/crystal-print.js';
+import { escapeHtml } from '../scene/emit-util.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -80,7 +81,7 @@ export function renderCrystalTurntableToHtml(plan, { title, width: W, height: H,
   const persp = Math.round(Math.max(W, H) * 2.2);
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
+<title>${escapeHtml(title)}</title>
 <style>
   :root{color-scheme:dark}
   body{margin:0;min-height:100vh;background:#0b1220;color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center}

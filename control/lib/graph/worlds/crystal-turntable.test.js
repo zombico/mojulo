@@ -26,4 +26,18 @@ describe('the turntable crystal shape', () => {
     expect(assembleSolidTurntableScene({ shape: 'cube' }).faces.some((f) => 'crystal' in f)).toBe(false);
   });
   it('is deterministic', () => { expect(renderSolidTurntableToHtml({ shape: 'crystal', gem: 'opal' })).toBe(renderSolidTurntableToHtml({ shape: 'crystal', gem: 'opal' })); });
+  it('a crystal surface on another shape renders as vexar, byte for byte, as it did before it was a surface', () => {
+    for (const shape of ['cube', 'sphere', 'octahedron']) {
+      expect(planSolidTurntable({ shape, surface: 'crystal' }).surface).toBe('vexar');
+      expect(renderSolidTurntableToHtml({ shape, surface: 'crystal' })).toBe(renderSolidTurntableToHtml({ shape }));
+      expect(JSON.stringify(assembleSolidTurntableScene({ shape, surface: 'crystal' }))).toBe(JSON.stringify(assembleSolidTurntableScene({ shape })));
+    }
+  });
+  it('escapes the title into the page', () => {
+    const title = '</title><script>alert(1)</script>';
+    for (const shape of ['cube', 'crystal']) {
+      const html = renderSolidTurntableToHtml({ shape, title });
+      expect(html).not.toContain('<script>alert(1)'); expect(html).toContain('<title>&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;</title>');
+    }
+  });
 });
