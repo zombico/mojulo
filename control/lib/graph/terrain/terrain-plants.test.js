@@ -110,7 +110,7 @@ describe('composed worlds', () => {
     expect(bam.length).toBeGreaterThan(40); expect(bam.some((p) => p.lean > 20)).toBe(true); expect(bam.some((p) => p.lean < 8)).toBe(true);
     const arid = atlasField({ world: { features: [{ feature: 'river' }], climate: 'arid', seed: 'nile' } }); const Va = plantsConfig(arid), Pa = plantsKernel(arid, Va), [ax, ay] = arid.views.spawn;
     for (const p of plants(Pa.plantsIn(ax - 64, ay - 64, 256))) if (Va.species[p.s].name !== 'reed') expect(Pa.standAt(p.x, p.y).nearWater).toBeGreaterThan(0.5);
-  });
+  }, 120_000);   // composes two worlds: about 10 s alone, past the default under a loaded full suite
 });
 
 describe('a mountain jungle: tropical high ground is forested to its treeline', () => {
@@ -213,7 +213,7 @@ describe('a region grows its own conifers', () => {
     expect(JSON.stringify(plantsConfig(f, { region: null }))).toBe(JSON.stringify(plantsConfig(f)));
     const trop = atlasField({ world: { features: [{ feature: 'river' }], climate: 'tropical', seed: 'tropic' } });
     expect(JSON.stringify(plantsConfig(trop, { region: 'eurasia' }))).toBe(JSON.stringify(plantsConfig(trop)));   // a climate the region does not name
-  });
+  }, 120_000);   // composes two worlds: about 9 s alone
   it('northern Eurasia: spruce throughout, pine on the ground away from water', () => {
     const f = atlasField({ world: { features: [{ feature: 'lake' }, { feature: 'river' }], climate: 'boreal', seed: 'taiga' } }); const V = plantsConfig(f, { region: 'eurasia' });
     expect(V.species.map((s) => s.name)).toEqual(['spruce', 'pine', 'reed']);

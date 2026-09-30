@@ -75,7 +75,7 @@ describe('the grass kernel', () => {
     const kinds = (world) => { const f = atlasField({ world }); const Vf = grassConfig(f, TERRAIN_GRASS_DEFAULTS); const got = new Set(); for (const a of sample(grassKernelOf(f, Vf), f)) for (let q = 0; q < a.length; q += 9) if (a[q + 2] < 500) got.add(Vf.species[a[q + 4]].name); return got; };
     expect(kinds({ features: [{ feature: 'volcano' }], climate: 'tropical', seed: 'kinabalu' }).has('elephant')).toBe(true);
     expect(kinds({ features: [{ feature: 'river' }], climate: 'arid', seed: 'nile' }).has('needlegrass')).toBe(true);
-  });
+  }, 120_000);   // composes two worlds: about 9 s alone
 });
 
 describe('terrain: grass is opt-in', () => {
