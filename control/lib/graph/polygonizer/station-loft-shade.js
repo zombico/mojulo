@@ -42,11 +42,12 @@
  */
 import { hexToRgb, rgbToHex, resolveToon, resolveToonLight } from './vexar.js';
 import { layeredSeat } from './station-loft-faces.js';
+import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a); return l > 1e-300 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 1]; };
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const FALLBACK = '#8a8f96';
@@ -69,19 +70,19 @@ export const DERIVED_SHADE = deepFreeze({ Skin: [0.90, 0.76, 0.76], other: [0.76
 
 // ─── colour by value (CIE L*a*b* / LCh, D65, sRGB) ─────────────────────────
 const D65 = [0.95047, 1, 1.08883];
-const toLin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), toGam = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+const toLin = (c) => (c <= 0.04045 ? c / 12.92 : dmath.pow((c + 0.055) / 1.055, 2.4)), toGam = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * dmath.pow(c, 1 / 2.4) - 0.055);
 /** "#rrggbb" → [L*, C*, h°] */
 function hexLch(hex) {
   const [r, g, b] = hexToRgb(hex).map((v) => toLin(v / 255));
   const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / D65[0], Y = 0.2126 * r + 0.7152 * g + 0.0722 * b, Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / D65[2];
-  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+  const f = (t) => (t > 216 / 24389 ? dmath.cbrt(t) : (24389 / 27 * t + 16) / 116);
   const L = 116 * f(Y) - 16, A = 500 * (f(X) - f(Y)), B = 200 * (f(Y) - f(Z));
-  return [L, Math.hypot(A, B), ((Math.atan2(B, A) * 180 / Math.PI) + 360) % 360];
+  return [L, dmath.hypot(A, B), ((dmath.atan2(B, A) * 180 / Math.PI) + 360) % 360];
 }
 /** [L*, C*, h°] → "#rrggbb" (clamped into sRGB) */
 function lchHex(L, C, hDeg) {
-  const h = hDeg * Math.PI / 180, A = C * Math.cos(h), B = C * Math.sin(h);
-  const fy = (L + 16) / 116, fx = fy + A / 500, fz = fy - B / 200, inv = (t) => (t ** 3 > 216 / 24389 ? t ** 3 : (116 * t - 16) / (24389 / 27));
+  const h = hDeg * Math.PI / 180, A = C * dmath.cos(h), B = C * dmath.sin(h);
+  const fy = (L + 16) / 116, fx = fy + A / 500, fz = fy - B / 200, inv = (t) => (dmath.pow(t, 3) > 216 / 24389 ? dmath.pow(t, 3) : (116 * t - 16) / (24389 / 27));
   const X = inv(fx) * D65[0], Y = inv(fy) * D65[1], Z = inv(fz) * D65[2];
   const rgb = [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.204 * Y + 1.057 * Z];
   return rgbToHex(rgb.map((c) => toGam(Math.max(0, Math.min(1, c))) * 255));
@@ -178,7 +179,7 @@ function weldedNormals(V, F, G, restV, crease, q) {
   }
   const P = ids.size; const bins = new Map();   // groupId·P + positionId → corner ids (3·fi + k)
   for (let fi = 0; fi < nF; fi++) for (let k = 0; k < 3; k++) { const key = fg[fi] * P + pid[F[fi][k]]; let b = bins.get(key); if (!b) bins.set(key, b = []); b.push(3 * fi + k); }
-  const c = Math.cos((crease * Math.PI) / 180); const out = new Array(nF);
+  const c = dmath.cos((crease * Math.PI) / 180); const out = new Array(nF);
   for (let fi = 0; fi < nF; fi++) out[fi] = [null, null, null];
   const par = [], sum = [];
   for (const bin of bins.values()) {
@@ -210,8 +211,8 @@ function weldedNormals(V, F, G, restV, crease, q) {
 function regionWeight(part, p, L) {
   if (part === 'face') {
     let w = 0.5;
-    for (const e of L.eyes) { const d = Math.hypot((p[0] - e.c[0]) / (e.r * 1.35), (p[2] - e.c[2]) / (e.r * 1.1)); w = Math.max(w, clamp01(1 - (d - 1) / 0.6)); }
-    const m = L.mouth; if (m && m.r > 0) { const d = Math.hypot((p[0] - m.c[0]) / (m.r * 1.6), (p[2] - m.c[2]) / m.r); w = Math.max(w, clamp01(1 - (d - 1) / 0.6)); }
+    for (const e of L.eyes) { const d = dmath.hypot((p[0] - e.c[0]) / (e.r * 1.35), (p[2] - e.c[2]) / (e.r * 1.1)); w = Math.max(w, clamp01(1 - (d - 1) / 0.6)); }
+    const m = L.mouth; if (m && m.r > 0) { const d = dmath.hypot((p[0] - m.c[0]) / (m.r * 1.6), (p[2] - m.c[2]) / m.r); w = Math.max(w, clamp01(1 - (d - 1) / 0.6)); }
     return w;
   }
   return /^ear/.test(part) ? 0.3 : 0;   // the ears lean in a little; the neck, the hands and the core keep their weld
@@ -405,7 +406,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (!R || typeof R !== 'object') continue;
     const frame = bandFrame(rest, g); if (!frame) continue;
     const [b0, b1] = R.band, zc = frame.top - frame.H * (b0 + b1) / 2, hw = frame.H * (b1 - b0) / 2;
-    HI.set(g, { R, zc, hw, axis: frame.axis, key: Math.atan2(Lv[0], Lv[1]), parts: R.parts ? HIGHLIGHT_PARTS_RE[R.parts] : null, colours: new Map() });
+    HI.set(g, { R, zc, hw, axis: frame.axis, key: dmath.atan2(Lv[0], Lv[1]), parts: R.parts ? HIGHLIGHT_PARTS_RE[R.parts] : null, colours: new Map() });
   }
   // the highlight's scalar at a corner: N·L `d` and its REST position `p`. The ring's edges come from the position alone —
   // the height across the band, its half-height narrowed by cos(Δ)^(falloff / 2), Δ the turn about the head's axis from
@@ -414,7 +415,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   const hiOf = (H, d, p) => {
     const u = (p[2] - H.zc) / H.hw;
     if (H.R.kind === 'streak') return Math.abs(u) <= 1 ? d - H.R.threshold : -1;
-    const turn = Math.atan2(p[0] - H.axis[0], p[1] - H.axis[1]) - H.key, c = Math.cos(turn), w = c > 0 ? c ** ((H.R.falloff ?? 1) / 2) : 0;
+    const turn = dmath.atan2(p[0] - H.axis[0], p[1] - H.axis[1]) - H.key, c = dmath.cos(turn), w = c > 0 ? dmath.pow(c, (H.R.falloff ?? 1) / 2) : 0;
     return w > 1e-6 ? Math.min(d - H.R.threshold, 1 - (u / w) ** 2) : -1;
   };
   // a crossing on edge u–v at d = t, computed along the canonical direction (lower index first) so both faces of a
@@ -422,7 +423,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   // MERGED with a point already registered within SNAP_M on the same edge (the other face's, across a crease)
   const crossing = (u, v, du, dv, t) => {
     const [a, b, da, db] = u < v ? [u, v, du, dv] : [v, u, dv, du];
-    const s = clamp01((t - da) / (db - da)); const pa = VREF[a].p, pb = VREF[b].p; const el = Math.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
+    const s = clamp01((t - da) / (db - da)); const pa = VREF[a].p, pb = VREF[b].p; const el = dmath.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
     if (s * el <= SNAP_M) return VREF[a]; if ((1 - s) * el <= SNAP_M) return VREF[b];
     const key = a * nV + b; let list = edges.get(key); if (!list) edges.set(key, list = []);
     for (const e of list) if (Math.abs(e.s - s) * el <= SNAP_M) return e;

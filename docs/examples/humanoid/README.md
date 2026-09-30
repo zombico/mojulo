@@ -52,11 +52,11 @@ reconciled into it: the body lives in the hero form now, the head here.
 - The ANIME HEAD is the hero's second head (`humanoidPlan({ head: 'anime' })`; at the door `head: 'anime'`):
   `control/lib/graph/polygonizer/anime-form.js` is the Anime Form Studio's construction ported bit for bit (its recipe
   contract, baselines, apertures, lash and brow ribbons, clump hair with per-clump lock edits; `anime-form.test.js`
-  holds it to hashes frozen from the studio's own code), and `anime-head.js` makes it wearable: the studio's words as
-  composable vocabularies, registered where the landmark head sits, every part closed and pinned to a hidden core on
-  the head bone, no jaw (the mouth opens as an aperture). `render-anime.mjs` draws both design bases × bald / each
-  family / each pose at four views and both hero casts wearing it, with a measurements table, into the gitignored
-  spike tree.
+  pins its per-part hashes, the same on every platform since it takes its math from `util/dmath.js`), and
+  `anime-head.js` makes it wearable: the studio's words as composable vocabularies, registered where the landmark head
+  sits, every part closed and pinned to a hidden core on the head bone, no jaw (the mouth opens as an aperture).
+  `render-anime.mjs` draws both design bases × bald / each family / each pose at four views and both hero casts
+  wearing it, with a measurements table, into the gitignored spike tree.
 - `render-articulation.mjs`: the anime hero as the door mints it (`toon.light`, `sculpt`, the hair bases, the neck
   form, `gesture`; the manual's hero door): a progression from a stored baseline (`--baseline <dir>`, the manifests an
   earlier `--parity` run wrote, with `--predates` naming the bake and page rules it came before) to today's default,

@@ -27,6 +27,7 @@ import { compileLayered } from './station-loft.js';
 import { layeredExposure } from './station-loft-exposure.js';
 import { frameAt, loftParts, ringLoft, sweep, ringAt, projectOnto, address, vec } from './station-loft-detail.js';
 import { dominance, bakePart } from './station-loft-body.js';
+import * as dmath from '../../util/dmath.js';
 
 const { sub, add, mul, dot, cross, unit, mean } = vec;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -40,7 +41,7 @@ export function beneathOf(fig, names, { pokes = /^(spur|spine)/ } = {}) { const 
   for (const [k, p] of Object.entries(fig.parts)) if (!pokes.test(k) && names.some((n) => k.includes(n))) pts.push(...Object.values(p.points));
   return pts; }
 /** height of the beneath hull above an address, along its normal, within a lateral radius */
-export function hullHeight(pts, p, n, rad) { let h = 0; for (const v of pts) { const d = sub(v, p), up = dot(d, n); if (up <= h) continue; const lat = Math.hypot(...sub(d, mul(n, up))); if (lat < rad) h = up; } return h; }
+export function hullHeight(pts, p, n, rad) { let h = 0; for (const v of pts) { const d = sub(v, p), up = dot(d, n); if (up <= h) continue; const lat = dmath.hypot(...sub(d, mul(n, up))); if (lat < rad) h = up; } return h; }
 /** the circumferential sample list: a t window on one half, or the whole wrap (R half out, L half back) */
 function around(P, t, side, nt) { const H = P.slotT ? Math.max(...Object.values(P.slotT)) : P.slots.length / 2;
   if (t === 'wrap') { const r = Array.from({ length: nt }, (_, k) => [H * k / nt, 'R']); const l = Array.from({ length: nt }, (_, k) => [H * (1 - k / nt), 'L']); return { list: [...r, ...l], closed: true }; }
@@ -87,10 +88,10 @@ export function strap(fig, A) { const L1 = fig.mesh.parts; const beneath = benea
  * keep link length), ending in a pendant; links alternate orientation */
 export function clearOf(p, surfaces, out, clear) { for (const S of surfaces) { let hit; try { hit = projectOnto(S, p, out); } catch { continue; } const d = dot(sub(p, hit), out); if (d < clear) p = add(p, mul(out, clear - d)); } return p; }
 export function hang(beneath, anchor, { links, len, clear, r, surfaces = [], out = [0, 1, 0] }) { let P = Array.from({ length: links + 1 }, (_, i) => add(anchor, [0, 0, -len * i]));
-  for (let it = 0; it < 12; it++) { for (let i = 1; i < P.length; i++) { for (const v of beneath) { const d = sub(P[i], v), l = Math.hypot(...d); if (l < clear && l > 1e-9) P[i] = add(v, mul(d, clear / l)); } P[i] = clearOf(P[i], surfaces, out, clear); }
-    for (let i = 1; i < P.length; i++) { const d = sub(P[i], P[i - 1]), l = Math.hypot(...d); P[i] = add(P[i - 1], mul(d, len / l)); } }
+  for (let it = 0; it < 12; it++) { for (let i = 1; i < P.length; i++) { for (const v of beneath) { const d = sub(P[i], v), l = dmath.hypot(...d); if (l < clear && l > 1e-9) P[i] = add(v, mul(d, clear / l)); } P[i] = clearOf(P[i], surfaces, out, clear); }
+    for (let i = 1; i < P.length; i++) { const d = sub(P[i], P[i - 1]), l = dmath.hypot(...d); P[i] = add(P[i - 1], mul(d, len / l)); } }
   const meshes = P.slice(0, -1).map((p, i) => { const c = mean([p, P[i + 1]]), ax = unit(sub(P[i + 1], p)); const side = unit(cross(ax, i % 2 ? [1, 0, 0] : [0, 1, 0]));
-    return ringLoft(Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10; const q = add(c, add(mul(ax, Math.cos(a) * len * 0.55), mul(side, Math.sin(a) * len * 0.3))); const t = unit(add(mul(ax, -Math.sin(a) * 0.55), mul(side, Math.cos(a) * 0.3))); return ringAt(q, t, r, 5); })); });
+    return ringLoft(Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10; const q = add(c, add(mul(ax, dmath.cos(a) * len * 0.55), mul(side, dmath.sin(a) * len * 0.3))); const t = unit(add(mul(ax, -dmath.sin(a) * 0.55), mul(side, dmath.cos(a) * 0.3))); return ringAt(q, t, r, 5); })); });
   return { P, meshes }; }
 /** a flat disc (medallion, boss, buckle plate) facing n: two rings and a raised face */
 export function disc(c, n, r, h, m = 12, rim = 0.8) { const ring = (rr, z) => ringAt(add(c, mul(n, z)), n, rr, m); return loftParts([ring(r, 0), ring(r, h * 0.6), ring(r * rim, h)], sub(c, mul(n, 0.002)), add(c, mul(n, h * 1.15))); }
@@ -117,17 +118,17 @@ function seatOf(g, S) { if (g.pts) { const i = Math.round((S.at ?? 0.5) * (g.pts
 function edgeOf(g, S) { if (g.pts) return g.pts.map((p, i) => ({ p, n: g.ns[i] })); const J = g.outer[0].length, j = S.j === undefined ? J - 1 : S.j < 0 ? J + S.j : S.j;
   return g.outer.map((row, k) => ({ p: row[j], n: g.F[k][j].normal })); }
 /** a closed ellipse ring in a frame: centre `o`, half-widths `a` along `u` and `b` along `v` */
-const ellipse = (o, u, v, a, b, m, ph = 0) => Array.from({ length: m }, (_, i) => { const t = 2 * Math.PI * i / m + ph; return add(o, add(mul(u, a * Math.cos(t)), mul(v, b * Math.sin(t)))); });
+const ellipse = (o, u, v, a, b, m, ph = 0) => Array.from({ length: m }, (_, i) => { const t = 2 * Math.PI * i / m + ph; return add(o, add(mul(u, a * dmath.cos(t)), mul(v, b * dmath.sin(t)))); });
 /** a low-poly cone from `p` along `dir`: `len` long, base radius `r` (the motif spike: crowns, crests, horns) */
 const cone = (p, dir, len, r, m = 5, minR = 0.0015) => sweep([sub(p, mul(dir, r * 0.8)), p, add(p, mul(dir, len * 0.45)), add(p, mul(dir, len))], [r, r * 0.8, Math.max(minR, r * 0.38)], m);
 // the rune glyphs: strokes in a unit box (x across, y up), angular like carved runes
 const GLYPHS = [[[[0, -1], [0, 1]], [[0, 0.2], [0.6, 0.8]]], [[[0, -1], [0, 1]], [[0, 1], [0.6, 0.35]], [[0.6, 0.35], [0, -0.15]]], [[[-0.5, -1], [0, 1]], [[0, 1], [0.5, -1]]],
   [[[0, -1], [0, 1]], [[-0.5, 0.5], [0.5, -0.5]]], [[[0, -1], [0, 1]], [[0, 0.35], [0.5, 0.9]], [[0, 0.35], [-0.5, 0.9]]], [[[-0.4, 1], [0.4, 0.2]], [[0.4, 0.2], [-0.4, -0.55]], [[-0.4, -0.55], [0.4, -1]]]];
-const PROFILES = { even: () => 1, crown: (q) => 0.55 + 0.45 * Math.sin(Math.PI * q), rake: (q) => 0.45 + 0.55 * q, fan: (q) => 1 - 0.5 * Math.abs(2 * q - 1) };
+const PROFILES = { even: () => 1, crown: (q) => 0.55 + 0.45 * dmath.sin(Math.PI * q), rake: (q) => 0.45 + 0.55 * q, fan: (q) => 1 - 0.5 * Math.abs(2 * q - 1) };
 /** a low-poly SKULL facing out of the surface at `c` along `n` (its up the world's up off `n`), `r` its half-width:
  * a cranium and a jaw in `group`, eye sockets and the nose and teeth gap in `socketGroup` (dark, or a glow), and 0–2
  * horns in `hornGroup` (1: one rising from the brow; 2: a pair from the temples) */
-function skullAt(c, n, S) { const r = S.r; let up = sub([0, 0, 1], mul(n, n[2])); if (Math.hypot(...up) < 1e-3) up = [0, 1, 0]; up = unit(up); const lat = unit(cross(up, n));
+function skullAt(c, n, S) { const r = S.r; let up = sub([0, 0, 1], mul(n, n[2])); if (dmath.hypot(...up) < 1e-3) up = [0, 1, 0]; up = unit(up); const lat = unit(cross(up, n));
   const z0 = S.proud ?? 0.35, P = (l, u, d) => add(c, add(add(mul(lat, l * r), mul(up, u * r)), mul(n, d * r))), m = S.m ?? 8;
   const ring = (u, w, d, zc) => ellipse(P(0, u, zc), lat, n, w * r, d * r, m, Math.PI / m);
   const cran = [[-0.5, 0.62, 0.52], [-0.28, 0.8, 0.66], [0.05, 0.94, 0.76], [0.42, 0.94, 0.74], [0.72, 0.78, 0.62], [0.92, 0.46, 0.38]];
@@ -157,7 +158,7 @@ export const SIGNATURES = {
     return ringLoft(path.map(([a, b], i) => { const q = add(add(add(p, mul(lat, a)), mul(up, b)), mul(n, S.standoff ?? 0.01)); const nx = path[(i + 1) % path.length], pv = path[(i - 1 + path.length) % path.length]; const tan = unit(add(mul(lat, nx[0] - pv[0]), mul(up, nx[1] - pv[1]))); return ringAt(q, tan, S.bar, 4, Math.PI / 4); })); },
   /** a torus on a strap's path, tipped by `lean`: { R, r, lean?, standoff?, m?, rm? } */
   ring: (fig, g, _b, S) => { const i = Math.floor(g.pts.length / 2) - 1 + (S.shift ?? 0); const c = g.pts[i]; const n = unit(sub(c, [0, 0, c[2]])); const f = unit(add(n, S.lean ?? [0, 0.4, 0])); const m = S.m ?? 14;
-    return ringLoft(Array.from({ length: m }, (_, k) => { const a = 2 * Math.PI * k / m; const u = unit(cross(f, [0, 0, 1])), v = cross(f, u); const q = add(add(c, mul(f, S.standoff ?? 0.02)), add(mul(u, Math.cos(a) * S.R), mul(v, Math.sin(a) * S.R))); return ringAt(q, unit(add(mul(u, -Math.sin(a)), mul(v, Math.cos(a)))), S.r, S.rm ?? 6); })); },
+    return ringLoft(Array.from({ length: m }, (_, k) => { const a = 2 * Math.PI * k / m; const u = unit(cross(f, [0, 0, 1])), v = cross(f, u); const q = add(add(c, mul(f, S.standoff ?? 0.02)), add(mul(u, dmath.cos(a) * S.R), mul(v, dmath.sin(a) * S.R))); return ringAt(q, unit(add(mul(u, -dmath.sin(a)), mul(v, dmath.cos(a)))), S.r, S.rm ?? 6); })); },
   /** a disc hanging on a chain in front of `surfaces`: { links, len, clear, link, drop, dropClear, face, r, h, m?, rim?, anchor?, out?, surfaces } */
   medallion: (fig, g, beneath, S) => { const [k, j] = gridAt(g, { k: 0, j: 0, ...S }, S.side); const a = g.outer[k][j]; const surfaces = (S.surfaces || []).map((n) => fig.mesh.parts[n]); const out = S.out ?? [0, 1, 0];
     const { P, meshes } = hang(beneath, add(a, S.anchor ?? [0, 0.01, -0.01]), { links: S.links, len: S.len, clear: S.clear, r: S.link, surfaces, out }); const c = clearOf(add(P[P.length - 1], [0, 0, -S.drop]), surfaces, out, S.dropClear);
@@ -180,7 +181,7 @@ export const SIGNATURES = {
   boards: (fig, g, _b, S) => { const O = g.outer, K = O.length, J = O[0].length, jb = S.bottom === 'j0' ? 0 : J - 1, mid = Math.floor(K / 2);
     const front = O[0][jb], back = O[K - 1][jb], n0 = unit(g.F[mid][jb].normal), along = unit(sub(back, front));
     let down = unit(cross(along, n0)); if (down[2] > 0) down = mul(down, -1); let N = unit(cross(down, along)); if (dot(N, n0) < 0) N = mul(N, -1);
-    const c = add(O[mid][jb], mul(N, S.stand ?? 0)), W0 = Math.hypot(...sub(back, front)) * (S.wide ?? 1), step = S.len / S.n, h = step * 1.3, out = [];
+    const c = add(O[mid][jb], mul(N, S.stand ?? 0)), W0 = dmath.hypot(...sub(back, front)) * (S.wide ?? 1), step = S.len / S.n, h = step * 1.3, out = [];
     for (let i = 0; i < S.n; i++) { const W = W0 * (1 + (S.widen ?? 0) * i) / 2, top = add(c, add(mul(down, i * step), mul(N, (S.dm ?? 0) * i)));
       const at = (u, lift) => add(top, add(mul(along, u * W), mul(N, -(S.bow ?? 0) * u * u + lift)));
       const sec = Array.from({ length: 9 }, (_, q) => { const o = at(-1 + q / 4, 0), b = add(o, add(mul(down, h), mul(N, S.tilt))); return [o, add(o, mul(N, S.thick)), add(b, mul(N, S.thick)), b]; });
@@ -193,9 +194,9 @@ export const SIGNATURES = {
    * w, z, r, minR? } — a crescent moon lying horns-up, a pair of horns in a V, or a sun disc facing forward */
   crest: (fig, g, _b, S) => { const c = g.outer[0][g.outer[0].length - 1]; const base = [0, c[1] + S.r * 0.9, c[2] + S.r * 0.7], N = 17, minR = S.minR ?? 0.002;
     const arc = (f) => Array.from({ length: N }, (_, i) => f(i / (N - 1))), flat = { squash: [1, 0.22] };
-    if (S.shape === 'crescent') { const P = arc((u) => { const a = (u - 0.5) * 2.3; return [base[0] + S.w * Math.sin(a), base[1], base[2] + S.z + S.w * 0.55 * (1 - Math.cos(a))]; });
-      return sweep(P, P.map((_, i) => Math.max(minR, S.r * Math.sin(Math.PI * (0.06 + 0.88 * i / (N - 1))) ** 0.8)), 10, flat); }
-    if (S.shape === 'kuwagata') return [1, -1].map((sd) => { const P = arc((u) => [base[0] + sd * (S.r + S.w * 0.55 * u ** 1.3), base[1] + S.r * 1.5 * u, base[2] + S.r * 0.7 + S.z * 3.2 * u]);
+    if (S.shape === 'crescent') { const P = arc((u) => { const a = (u - 0.5) * 2.3; return [base[0] + S.w * dmath.sin(a), base[1], base[2] + S.z + S.w * 0.55 * (1 - dmath.cos(a))]; });
+      return sweep(P, P.map((_, i) => Math.max(minR, S.r * dmath.pow(dmath.sin(Math.PI * (0.06 + 0.88 * i / (N - 1))), 0.8))), 10, flat); }
+    if (S.shape === 'kuwagata') return [1, -1].map((sd) => { const P = arc((u) => [base[0] + sd * (S.r + S.w * 0.55 * dmath.pow(u, 1.3)), base[1] + S.r * 1.5 * u, base[2] + S.r * 0.7 + S.z * 3.2 * u]);
       return sweep(P, P.map((_, i) => Math.max(minR, S.r * 0.8 * (1 - 0.7 * i / (N - 1)))), 10, flat); });
     return disc([base[0], base[1] + S.r * 0.4, base[2] + S.z * 1.6], [0, 1, 0.12], S.w * 0.28, Math.max(minR, S.r * 0.55), 20, 0.85); },
   /** a smooth HELM round the head, sized from the head's own measured bounds (`parts`, default cranium + jaw): a shell
@@ -209,10 +210,10 @@ export const SIGNATURES = {
     const P = (S.parts || ['cranium', 'jaw']).flatMap((n) => Object.values(fig.mesh.parts[n]?.points || {}));
     const lo = [0, 1, 2].map((i) => Math.min(...P.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...P.map((p) => p[i])));
     const cy = (lo[1] + hi[1]) / 2, zB = lo[2] - (S.drop ?? 0.02), zT = hi[2] + S.pad * 0.8, rx0 = (hi[0] - lo[0]) / 2 + S.pad, ry0 = (hi[1] - lo[1]) / 2 + S.pad;
-    const n = S.n ?? 2.4, m = S.m ?? 28, se = (v) => Math.sign(v) * Math.abs(v) ** (2 / n), zEye = lo[2] + (S.eye ?? 0.55) * (hi[2] - lo[2]);
-    const shape = (u) => { const top = u > 0.55 ? Math.sqrt(Math.max(0.02, 1 - ((u - 0.55) / 0.45) ** 2 * (S.crown ?? 0.9))) : 1; return top * (1 + (S.flare ?? 0) * (1 - u) ** 3); };
-    const mz = (u) => (S.muzzle ?? 0) * Math.exp(-(((u - 0.22) / 0.14) ** 2));
-    const at = (u, th, off = 0) => { const k = shape(u), c = Math.cos(th), sn = Math.sin(th); const rx = rx0 * k + off, ry = ry0 * k + off + (sn > 0 ? mz(u) * sn ** 4 : 0);
+    const n = S.n ?? 2.4, m = S.m ?? 28, se = (v) => Math.sign(v) * dmath.pow(Math.abs(v), 2 / n), zEye = lo[2] + (S.eye ?? 0.55) * (hi[2] - lo[2]);
+    const shape = (u) => { const top = u > 0.55 ? Math.sqrt(Math.max(0.02, 1 - ((u - 0.55) / 0.45) ** 2 * (S.crown ?? 0.9))) : 1; return top * (1 + (S.flare ?? 0) * dmath.pow(1 - u, 3)); };
+    const mz = (u) => (S.muzzle ?? 0) * dmath.exp(-(((u - 0.22) / 0.14) ** 2));
+    const at = (u, th, off = 0) => { const k = shape(u), c = dmath.cos(th), sn = dmath.sin(th); const rx = rx0 * k + off, ry = ry0 * k + off + (sn > 0 ? mz(u) * dmath.pow(sn, 4) : 0);
       return [rx * se(c), cy + ry * se(sn), zB + u * (zT - zB)]; };
     const U = Array.from({ length: 14 }, (_, i) => i / 13);
     const shell = loftParts(U.map((u) => Array.from({ length: m }, (_, q) => at(u, 2 * Math.PI * q / m))), [0, cy, zB - 0.002], [0, cy, zT + 0.002]);
@@ -243,7 +244,7 @@ export const SIGNATURES = {
     if (S.coronet) { const C = S.coronet, uc = C.u ?? 0.8, A = C.arc ?? 1, prof = PROFILES[C.profile ?? 'crown'], cg = C.group ?? S.group;
       const F0 = C.centre === 'back' ? F + Math.PI : F, th = (q) => (A >= 1 ? F0 + 2 * Math.PI * q / C.count : F0 - Math.PI * A + 2 * Math.PI * A * (C.count === 1 ? 0.5 : q / (C.count - 1)));
       if (C.band) out.push(bar(Array.from({ length: 29 }, (_, i) => [uc, (A >= 1 ? F0 - Math.PI : F0 - Math.PI * A) + 2 * Math.PI * A * i / 28]), C.band, w * 0.03, cg));
-      for (let q = 0; q < C.count; q++) { const t = th(q), p = at(uc, t, 0), o = unit(sub(at(uc, t, 0.02), p)), f = A >= 1 ? Math.abs(Math.sin((t - F0) / 2)) : (C.count === 1 ? 0.5 : q / (C.count - 1));
+      for (let q = 0; q < C.count; q++) { const t = th(q), p = at(uc, t, 0), o = unit(sub(at(uc, t, 0.02), p)), f = A >= 1 ? Math.abs(dmath.sin((t - F0) / 2)) : (C.count === 1 ? 0.5 : q / (C.count - 1));
         out.push({ ...cone(p, unit(add(mul(o, C.lean ?? 0.35), [0, 0, 1])), C.len * prof(f), C.r, 5), group: cg }); } }
     return out; },
   /** a vented block (a power pack) on the shell's outer skin at its grid centre: { w, h, d, lift?, chamfer?, vents?,
@@ -271,7 +272,7 @@ export const SIGNATURES = {
   ribs: (fig, g, _b, S) => { const O = g.outer, K = O.length, J = O[0].length, out = [];
     const pt = (k, jf) => { const x = Math.max(0, Math.min(J - 1, jf)), j0 = Math.floor(x), j1 = Math.min(J - 1, j0 + 1), f = x - j0; const p = add(mul(O[k][j0], 1 - f), mul(O[k][j1], f)), n = unit(add(mul(g.F[k][j0].normal, 1 - f), mul(g.F[k][j1].normal, f))); return add(p, mul(n, S.lift ?? 0.002)); };
     for (let q = 0; q < S.count; q++) { const jf = (J - 1) * lerp(S.from ?? 0.15, S.to ?? 0.6, S.count === 1 ? 0.5 : q / (S.count - 1));
-      const spine = Array.from({ length: K }, (_, k) => pt(k, jf - (S.droop ?? 0.4) * (k / (K - 1)) ** 1.5));
+      const spine = Array.from({ length: K }, (_, k) => pt(k, jf - (S.droop ?? 0.4) * dmath.pow(k / (K - 1), 1.5)));
       out.push(sweep(spine, spine.slice(0, -1).map((_, i) => S.r * (1 - (S.taper ?? 0.4) * i / (K - 1))), 5, { squash: [1, 0.55] })); }
     return out; },
   /** a FUR roll along an edge: a lumpy tube lifted `lift` off it, with `tufts` short points hanging out and down:

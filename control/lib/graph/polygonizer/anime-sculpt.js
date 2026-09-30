@@ -21,6 +21,7 @@
  */
 import { ratioControls } from './ratio-controls.js';
 import { r6 } from './station-loft-plan.js';
+import * as dmath from '../../util/dmath.js';
 
 const H_STUDIO = 2.2;   // the studio head's height in construction units (crown 1.19 to chin −1.02 at lower 1)
 /** the palpebral fissure's outline as upper / lower lid curves: Y = (1 − |x'|^m)^p, the peak moved to lat k */
@@ -187,7 +188,7 @@ const FEATURE_CARRIAGE = (6 * Math.PI) / 180;
  * `carriage`: the pitch the head was built at (radians, chin up; buildAnime's `pitch`): a head carried otherwise is turned
  * about x to FEATURE_CARRIAGE before it is read (a rigid turn, so the ratios are the face's own); absent or equal, as built. */
 export function sculptFeatures(meshes, pole, { carriage } = {}) {
-  const turn = Number.isFinite(carriage) ? FEATURE_CARRIAGE - carriage : 0, c = Math.cos(turn), sn = Math.sin(turn);
+  const turn = Number.isFinite(carriage) ? FEATURE_CARRIAGE - carriage : 0, c = dmath.cos(turn), sn = dmath.sin(turn);
   const carried = turn ? (p) => [p[0], c * p[1] - sn * p[2], sn * p[1] + c * p[2]] : (p) => p;
   const pts = (m) => m.faces.flatMap((f) => f.map((v) => carried(m.points[v])));
   const face = meshes.face, groupPts = (g) => face.faces.flatMap((f, i) => (face.groups[i] === g ? f.map((v) => carried(face.points[v])) : []));
@@ -218,7 +219,7 @@ export function sculptFeatures(meshes, pole, { carriage } = {}) {
     out.browThick = r3(th[Math.floor(th.length / 2)] / openH);
     out.browGap = r3((min(col(brow, ex, 0.003), 2) - scTop) / openH);
     const x0 = min(brow, 0), x1 = max(brow, 0), low = (xc) => min(col(brow, xc, 0.002), 2);
-    const xa = x0 + 0.2 * (x1 - x0), xb = x0 + 0.6 * (x1 - x0); out.browAngle = r3(Math.atan2(low(xb) - low(xa), xb - xa) * 180 / Math.PI);
+    const xa = x0 + 0.2 * (x1 - x0), xb = x0 + 0.6 * (x1 - x0); out.browAngle = r3(dmath.atan2(low(xb) - low(xa), xb - xa) * 180 / Math.PI);
   }
   if (meshes.lidR) { const lid = pts(meshes.lidR); out.lid = r3(ext(col(lid, ex, 0.0015), 2) / openH); out.lidPast = r3((max(lid, 0) - max(sclera, 0)) / openW); }
   // the ear's centre (its height of H) and its offset from midway between the eye level and the nose tip (the ear spans

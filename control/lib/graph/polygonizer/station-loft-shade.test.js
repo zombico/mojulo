@@ -600,11 +600,14 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // Re-pinned for the ANIME WAVE (hero-form.js ANIME_WAVE: the packed `wave` clip): WAVED holds the payloads; with the
   // form's wave back in its place (formWave) each payload hashes TIMED, and the chain above, still. TIMED and PINS were
   // re-pinned for the form's `wave` keeping its elbow at the shoulder line (hero-form.js): WAVED never moved with it.
+  // Re-pinned for DMATH (the anime head, the hero form and the station-loft modules take their transcendentals from
+  // util/dmath.js, and the shared figure rig runs under withMath): the female chain moved, from values only macOS
+  // arm64 on Node 24 produced; the male chain and the hair-base pins did not.
   it('the anime hero default, pinned (female and male)', async () => {
-    const PINS = [['female', ['6638d7faece840ed', 'c68d9dd2daf9c0a2'], ['97f568810e02d624', '48503d1cf2fbf351'], ['dd03f27f734e5ac1', '7232081e0d783020']],
+    const PINS = [['female', ['ffb8d37bc08d16ba', 'f5deaea4120a546a'], ['4c3754af7646aa9e', '2887b27d6e938552'], ['1fdf3c90d77c935c', '755ab3593db17ff7']],
       ['male', ['15e57c4bc1d8a1f8', '8864f3e9d7b7c517'], ['0673f3eb6d1583e6', '29b93ac1aab62c1b'], ['43893c06763875ef', '7d7cba2a0afad84e']]];
-    const TIMED = { female: ['1f8dfbdcce521acf', '66c1c69f1281f783', '68c433eae5b44629'], male: ['02ff3e82a4b572fd', '12d7111ddfb7c054', 'faeb81c5005442a7'] };
-    const WAVED = { female: ['063cfada165cf26e', '630a37bd22646386', 'ca4dc4c0c5a22cfa'], male: ['64fd9335f413ea62', '772bb0116544418e', '7340f7e2c9471d44'] };
+    const TIMED = { female: ['2585a16cdc02ae53', 'ad90336ddc2cc553', '2ff2e9f55796d955'], male: ['02ff3e82a4b572fd', '12d7111ddfb7c054', 'faeb81c5005442a7'] };
+    const WAVED = { female: ['a0cf31d82d429668', '920af4172d6e2312', '1e426997d5069890'], male: ['64fd9335f413ea62', '772bb0116544418e', '7340f7e2c9471d44'] };
     for (const [cast, pin, rest, studio] of PINS) {
       for (const [i, [spec, [full, undone], label]] of [[{}, pin, cast], [{ gesture: 'rest' }, rest, `${cast} at rest`], [{ sculpt: false }, studio, `${cast} on the studio's face`]].entries()) {
         const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', ...spec }) });

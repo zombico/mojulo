@@ -12,6 +12,7 @@ import { r6 } from './station-loft-plan.js';
 import { fittedAnchors, fittedCage, FACE_EXTRA_DEFAULTS } from './humanoid-head-fit.js';
 import { ratioControls } from './ratio-controls.js';
 import { HAIR_STYLE_NAMES, resolveHair, validateHair, buildHair } from './humanoid-hair.js';
+import * as dmath from '../../util/dmath.js';
 
 const { add, mul, unit } = vec;
 export const HEAD_PRESETS = { male: DIMORPH.male.head, female: DIMORPH.female.head };
@@ -148,7 +149,7 @@ function oval(origin, rx, rz, depth, sides, normal = [0, 1, 0]) {
   const across = unit([normal[1], -normal[0], 0]);
   const ring = (scale, d) => Array.from({ length: sides }, (_, i) => {
     const a = i * 2 * Math.PI / sides;
-    return add(add(origin, mul(normal, d)), add(mul(across, Math.cos(a) * rx * scale), [0, 0, Math.sin(a) * rz * scale]));
+    return add(add(origin, mul(normal, d)), add(mul(across, dmath.cos(a) * rx * scale), [0, 0, dmath.sin(a) * rz * scale]));
   });
   return loftParts([ring(0.88, -0.0015), ring(1, 0), ring(0.98, depth * 0.8)], add(origin, mul(normal, -0.002)), add(origin, mul(normal, depth)));
 }

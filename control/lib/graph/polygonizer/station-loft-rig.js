@@ -31,19 +31,21 @@ import { resolvePose } from './figure-posing.js';
 import { matToQuat, frameQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
 import { characterLitPieces, drawLayer } from './station-loft-shade.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
 export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const len = (v) => Math.hypot(v[0], v[1], v[2]); const unit = (v) => { const l = len(v); if (!(l > 1e-12)) throw new Error('station-loft-rig: degenerate vector'); return mul(v, 1 / l); };
+const len = (v) => dmath.hypot(v[0], v[1], v[2]); const unit = (v) => { const l = len(v); if (!(l > 1e-12)) throw new Error('station-loft-rig: degenerate vector'); return mul(v, 1 / l); };
 const fin3 = (p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
 const AXIS = { x: 0, y: 1, z: 2 };
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 const quatToMat = ([x, y, z, w]) => [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]];
 const mv = (M, v) => [dot(M[0], v), dot(M[1], v), dot(M[2], v)];
-const rotAxis = (p, pivot, ax, deg) => { const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3]; const u = p[i] - pivot[i], v = p[j] - pivot[j]; const q = [...p]; q[i] = pivot[i] + u * c - v * s; q[j] = pivot[j] + u * s + v * c; return q; };
+const rotAxis = (p, pivot, ax, deg) => { const a = deg * Math.PI / 180, c = dmath.cos(a), s = dmath.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3]; const u = p[i] - pivot[i], v = p[j] - pivot[j]; const q = [...p]; q[i] = pivot[i] + u * c - v * s; q[j] = pivot[j] + u * s + v * c; return q; };
 
 /** Validate a rig block; returns { joints: { name: at }, rides: { name: boneId }, bones, boneIndex, chains, legs, reach }. */
 export function validateRig(rig) {
@@ -105,7 +107,7 @@ export function rigNodesAt(R, pose = {}) {
   const rest = R.joints; const nodes = {};
   const vajraSpec = Object.fromEntries(Object.entries(pose).filter(([k]) => !RIG_CHANNELS.includes(k) && !(k in R.chains)));
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
-  const posed = articulate(resolvePose(vajraSpec, core), core);
+  const posed = withMath(dmath, () => articulate(resolvePose(vajraSpec, core), core));   // shared vajra FK on dmath (util/math-scope.js)
   for (const k of VAJRA_CORE) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
   // crouch: the pelvis (and everything the core carries) drops toward planted toes; lift raises the root
   const support = pose.support ?? 'both'; const lift = Number.isFinite(pose.lift) ? pose.lift : 0; const crouch = Math.max(0, Math.min(1, pose.crouch || 0));
@@ -194,7 +196,7 @@ export function skinLayered(mesh, skin, frames) {
 export function layeredClip(keyposes, R, { loop = true } = {}) {
   if (!Array.isArray(keyposes) || !keyposes.length) throw new Error('station-loft-rig: a clip needs keyposes');
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
-  const keys = keyposes.map((k) => { const own = {}; const vajra = {}; for (const [n, v] of Object.entries(k)) if (RIG_CHANNELS.includes(n) || n in R.chains) own[n] = v; else vajra[n] = v; return { ...resolvePose(vajra, core), ...own }; });
+  const keys = keyposes.map((k) => { const own = {}; const vajra = {}; for (const [n, v] of Object.entries(k)) if (RIG_CHANNELS.includes(n) || n in R.chains) own[n] = v; else vajra[n] = v; return { ...withMath(dmath, () => resolvePose(vajra, core)), ...own }; });
   const seq = loop ? [...keys, keys[0]] : keys; const N = seq.length - 1;
   const blend = (a, b, t) => { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const x = a[k], y = b[k]; if (typeof x === 'string' || typeof y === 'string') o[k] = t < 0.5 ? (x ?? y) : (y ?? x); else if ((x && typeof x === 'object') || (y && typeof y === 'object')) o[k] = blend(x || {}, y || {}, t); else o[k] = (x || 0) * (1 - t) + (y || 0) * t; } return o; };
   return (phase) => { if (N === 0) return { ...seq[0] }; const p = Math.max(0, Math.min(0.999999, phase)) * N; const i = Math.floor(p); let t = p - i; t = t * t * (3 - 2 * t); return blend(seq[i], seq[i + 1], t); };

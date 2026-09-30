@@ -51,10 +51,11 @@ import { headFromPlan, resolveExpression, insidePart } from './station-loft-head
 import { bakeLayered } from './station-loft-detail.js';
 import { bakeBody, validateBody } from './station-loft-body.js';
 import { bakeAdorn, validateKit } from './station-loft-adorn.js';
+import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const len = (v) => Math.hypot(...v); const unit = (v) => { const l = len(v); if (!(l > 1e-12)) throw new Error('layered plan: degenerate direction'); return mul(v, 1 / l); };
+const len = (v) => dmath.hypot(...v); const unit = (v) => { const l = len(v); if (!(l > 1e-12)) throw new Error('layered plan: degenerate direction'); return mul(v, 1 / l); };
 const mean = (ps) => mul(ps.reduce(add, [0, 0, 0]), 1 / ps.length);
 export const r6 = (x) => Math.round(x * 1e6) / 1e6 + 0;   // + 0 folds -0
 export const mirrorX = (p) => [-p[0] + 0, p[1], p[2]];
@@ -84,8 +85,8 @@ export function ringPoints(c, d, r, slots, e = 2) {
   d = unit(d); let f = sub([0, 1, 0], mul(d, dot([0, 1, 0], d))); if (len(f) < 1e-6) f = sub([0, 0, 1], mul(d, dot([0, 0, 1], d))); f = unit(f);
   let s = cross(f, d); if (Math.abs(s[0]) < 1e-9) fail('a ring whose axis runs along x has no R side'); if (s[0] < 0) s = mul(s, -1);
   const [rs, rf] = R2(r); const n = slots.length; const pts = {};
-  const sg = (x) => (x < 0 ? -1 : 1); const pw = (x) => sg(x) * Math.abs(x) ** (2 / e);
-  for (let k = 0; k <= n / 2; k++) { const t = 2 * Math.PI * k / n; const F = mul(f, rf * pw(Math.cos(t))), S = mul(s, rs * pw(Math.sin(t))); pts[slots[k]] = add(c, add(F, S)); if (k && k < n / 2) pts[slots[n - k]] = add(c, sub(F, S)); }
+  const sg = (x) => (x < 0 ? -1 : 1); const pw = (x) => sg(x) * dmath.pow(Math.abs(x), 2 / e);
+  for (let k = 0; k <= n / 2; k++) { const t = 2 * Math.PI * k / n; const F = mul(f, rf * pw(dmath.cos(t))), S = mul(s, rs * pw(dmath.sin(t))); pts[slots[k]] = add(c, add(F, S)); if (k && k < n / 2) pts[slots[n - k]] = add(c, sub(F, S)); }
   return pts;
 }
 /** A straight segment from joint A to joint B: three rings ⟂ (B − A) at A, mid and B, the ends overshooting the
@@ -272,7 +273,7 @@ export function expandPlan(plan) {
     const base = compileLayered({ schema: 'layered-v1', frame: plan.frame, dials: {}, parts: l1 }, {}, { details: false, creases: false });
     const mirrorFace = (id) => { const [part, rest] = id.split('/'); return mirrorFaceId(`${mirrorPartName(part)}/${rest}`, parts[part].slots.length); };
     const outward = (pts, tris, centre) => tris.map((t) => { const p = t.map((k) => pts[k]); const n = cross(sub(p[1], p[0]), sub(p[2], p[0])); return dot(n, sub(mean(p), centre)) < 0 ? [t[0], t[2], t[1]] : t; });
-    const ringAround = (c, r, axis, n) => { const a = unit(axis); let u = cross(a, [0, 0, 1]); if (len(u) < 1e-6) u = cross(a, [0, 1, 0]); u = unit(u); const v = cross(a, u); return Array.from({ length: n }, (_, i) => { const t = 2 * Math.PI * i / n; return add(c, mul(add(mul(u, Math.cos(t)), mul(v, Math.sin(t))), r)); }); };
+    const ringAround = (c, r, axis, n) => { const a = unit(axis); let u = cross(a, [0, 0, 1]); if (len(u) < 1e-6) u = cross(a, [0, 1, 0]); u = unit(u); const v = cross(a, u); return Array.from({ length: n }, (_, i) => { const t = 2 * Math.PI * i / n; return add(c, mul(add(mul(u, dmath.cos(t)), mul(v, dmath.sin(t))), r)); }); };
     const detail = (name, { layer, closure, pin, group, tint, points, faces, stretch, loft, rootOf }, mirror) => {
       if (!base.parts[pin.parent]) fail(`detail '${name}' pins to '${pin.parent}', which is not an L1 part`);
       let f; try { f = pinFrame(base.parts[pin.parent], pin); } catch (err) { fail(`detail '${name}': ${err.message}`); }

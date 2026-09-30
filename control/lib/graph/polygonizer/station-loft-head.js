@@ -30,6 +30,7 @@
 import { compileLayered, mirrorFaceId, mirrorPid } from './station-loft.js';
 import { placeSurfaceOffset, surfaceLocalOffset } from './surface-pin.js';
 import { address, clone, collar, cross, dish, frameAt, loftLabels, loftParts, pinToAddress, pinned, refineSlot, refineStation, ringAt, rot, sub, add, mul, unit, sweep, symmetricFrameAt, volumize } from './station-loft-detail.js';
+import * as dmath from '../../util/dmath.js';
 
 export const HEAD_SCHEMA = 'layered-head-v1';
 const fail = (msg) => { throw new Error(`layered head: ${msg}`); };
@@ -81,9 +82,9 @@ function addressMaps({ slots, radius, controls }) { return Object.fromEntries(Ob
 /** a row of teeth: each a small tapered loft rooted on the bone, aimed `down` in the carrier's right frame */
 function teethRow(L1, { part, from, to, t, sizes, down, tag = '' }, side) { const out = {}; const count = sizes.length;
   for (let i = 0; i < count; i++) { const s = from + (to - from) * i / (count - 1); const f = frameAt(L1, part, [s, t], 'R'); const len = sizes[i];
-    const ax = unit(surfaceLocalOffset(f, add(f.origin, add(mul(down, len), [0, -0.2 * len, 0])))); const k = cross([0, 0, 1], ax); const ang = Math.acos(Math.max(-1, Math.min(1, ax[2])));
+    const ax = unit(surfaceLocalOffset(f, add(f.origin, add(mul(down, len), [0, -0.2 * len, 0])))); const k = cross([0, 0, 1], ax); const ang = dmath.acos(Math.max(-1, Math.min(1, ax[2])));
     const m = loftParts([[0, 0, -0.006], [0, 0, len * 0.35], [0, 0, len * 0.7]].map((p, j) => ringAt(p, [0, 0, 1], [0.011, 0.009, 0.005][j] * Math.min(1, len / 0.04 + 0.3), 4, Math.PI / 4)), [0, 0, -0.012], [0, 0, len]);
-    out[`tooth${tag}${part === 'jaw' ? 'L' : 'U'}.${i}`] = pinned(L1, part, [s, t], side, { ...m, points: Object.fromEntries(Object.entries(m.points).map(([q, p]) => [q, Math.hypot(...k) > 1e-9 ? rot(p, unit(k), ang) : p])) }, 'Teeth'); }
+    out[`tooth${tag}${part === 'jaw' ? 'L' : 'U'}.${i}`] = pinned(L1, part, [s, t], side, { ...m, points: Object.fromEntries(Object.entries(m.points).map(([q, p]) => [q, dmath.hypot(...k) > 1e-9 ? rot(p, unit(k), ang) : p])) }, 'Teeth'); }
   return out; }
 
 function ornamentsOf(plan, W) { const list = plan.ornaments || [];

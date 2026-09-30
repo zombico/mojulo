@@ -21,6 +21,7 @@
  * and signature at 1. Hair colour is the palette's `Hair`. No dice anywhere: the asymmetry is a sine of the lock index. */
 import { frameAt, symmetricFrameAt, loftParts, sweep, vec } from './station-loft-detail.js';
 import { ratioControls } from './ratio-controls.js';
+import * as dmath from '../../util/dmath.js';
 
 const { add, mul, unit, sub, mean } = vec;
 
@@ -130,7 +131,7 @@ const slotOf = (k) => ({ t: k <= MID ? k : N - k, side: k <= MID ? 'R' : 'L' });
 /** the front-ness of slot k (1 at the midline front, 0 at the back) */
 const frontOf = (k) => { const { t } = slotOf(k); return Math.max(0, 1 - t / MID); };
 const clampRow = (r) => Math.max(0.2, Math.min(7.9, r));
-const gauss = (d, w) => Math.exp(-((d / w) ** 2));
+const gauss = (d, w) => dmath.exp(-((d / w) ** 2));
 /** the circular slot distance */
 const slotDist = (k, j) => { const d = Math.abs(k - j) % N; return Math.min(d, N - d); };
 /** a control's strength on a style: absolute on a new style (1 = its form), RELATIVE on a pinned legacy style (1 = nothing) */
@@ -176,8 +177,8 @@ function buildCap(carrier, style, c) {
     if (style.flatTop && fraction >= 0.8) L -= style.flatTop * D * (fraction - 0.8) / 0.2;
     if (style.dome && fraction >= 0.6) L -= style.dome * D * (fraction - 0.6) / 0.4;
     if (style.shelf && fraction >= 0.6) L += style.shelf * D;                            // the undercut's top on a shelf
-    if (style.channels && upper > 0) L -= style.channels * dD * (0.5 + 0.5 * Math.cos(t * 2.6)) * upper;   // swept channels (relative: legacy)
-    if (style.ridges && t >= 5 && upper > 0) L += style.ridges * D * (0.5 + 0.5 * Math.cos(t * 2.1)) * upper;   // crown ridges toward the tie
+    if (style.channels && upper > 0) L -= style.channels * dD * (0.5 + 0.5 * dmath.cos(t * 2.6)) * upper;   // swept channels (relative: legacy)
+    if (style.ridges && t >= 5 && upper > 0) L += style.ridges * D * (0.5 + 0.5 * dmath.cos(t * 2.1)) * upper;   // crown ridges toward the tie
     // the barbering form: parietal corners, lower-side bulk, front weight / top slope
     if (style.form) {
       const corner = t >= 5 && t <= 6 && fraction >= 0.25 && fraction <= 0.82 ? 1 : 0;
@@ -216,8 +217,8 @@ function buildFall(carrier, style, c, lowK) {
       const front = frontOf(k), fall = fallOf(k);
       let length = drop * fall;
       if (F.graded) length += F.graded * c.graduation * front * fall;   // the angled bob: the falling strands beside the face longer
-      if (F.layers) length *= 0.85 + 0.15 * Math.cos(k * 1.9) ** 2;
-      const wave = F.wave ? F.wave * c.wave * Math.sin(f * Math.PI * 2.5 + k * 0.4) * f : 0;
+      if (F.layers) length *= 0.85 + 0.15 * dmath.cos(k * 1.9) ** 2;
+      const wave = F.wave ? F.wave * c.wave * dmath.sin(f * Math.PI * 2.5 + k * 0.4) * f : 0;
       const base = add(inner[k].origin, mul(inner[k].normal, 0.003 + 0.008 * f * (0.7 + 0.3 * c.volume)));
       const swing = wave ? [Math.sign(base[0] || 1) * wave, 0, 0] : [0, 0, 0];
       return add(add(base, swing), [0, 0.012 * f * (1 - front), -length * f]);
@@ -243,12 +244,12 @@ function buildTail(carrier, style, c) {
   const len = T.length * c.length, steps = T.kind === 'braid' ? 12 : 6, spine = [];
   for (let j = 0; j <= steps; j++) {
     const s = j / steps;
-    const out = 0.03 + 0.05 * Math.sin(Math.min(1, s * 1.6) * Math.PI / 2) - 0.01 * s;   // back, then down the nape
-    let p = add(add(o, mul(n, out)), [0, 0, -len * s + 0.012 * Math.sin(s * Math.PI)]);
-    if (T.kind === 'braid') p = add(p, [Math.sin(s * Math.PI * 4.5 * c.braid) * R * 0.75, Math.cos(s * Math.PI * 4.5 * c.braid) * R * 0.35, 0]);
+    const out = 0.03 + 0.05 * dmath.sin(Math.min(1, s * 1.6) * Math.PI / 2) - 0.01 * s;   // back, then down the nape
+    let p = add(add(o, mul(n, out)), [0, 0, -len * s + 0.012 * dmath.sin(s * Math.PI)]);
+    if (T.kind === 'braid') p = add(p, [dmath.sin(s * Math.PI * 4.5 * c.braid) * R * 0.75, dmath.cos(s * Math.PI * 4.5 * c.braid) * R * 0.35, 0]);
     spine.push(p);
   }
-  const radii = spine.slice(0, -1).map((_, j) => { const s = j / steps; return T.kind === 'braid' ? R * (1 - 0.6 * s) : R * (0.5 + 0.6 * Math.sin(Math.min(1, s * 1.3) * Math.PI)) + R * 0.2 * (1 - s); });
+  const radii = spine.slice(0, -1).map((_, j) => { const s = j / steps; return T.kind === 'braid' ? R * (1 - 0.6 * s) : R * (0.5 + 0.6 * dmath.sin(Math.min(1, s * 1.3) * Math.PI)) + R * 0.2 * (1 - s); });
   return sweep(spine, radii, T.kind === 'braid' ? 7 : 9);
 }
 
@@ -259,7 +260,7 @@ function buildTail(carrier, style, c) {
 function buildLocks(carrier, style, c, anchors) {
   const K = style.locks, D = c.definition, bob = K.kind === 'bob', meshes = {};
   const at = (row, t, side, lift) => { const f = frameAt(carrier, 'cranium', [clampRow(row), Math.max(0, Math.min(MID, t))], side); return { p: add(f.origin, mul(f.normal, lift)), n: f.normal }; };
-  const asym = (i, amp) => Math.sin(i * 2.4) * amp * c.asymmetry;
+  const asym = (i, amp) => dmath.sin(i * 2.4) * amp * c.asymmetry;
   // every lock is built in the RIGHT half-space and mirrored back for the left, so a left lock is the exact mirror of its
   // right twin whenever their spines are (the sweep's ring orientation alone is not mirror-symmetric)
   const mirrorX = (p) => [-p[0], p[1], p[2]];
@@ -267,7 +268,7 @@ function buildLocks(carrier, style, c, anchors) {
     const flip = side === 'L', R = (p) => (flip ? mirrorX(p) : p);
     const steps = 8, spine = [];
     for (let j = 0; j <= steps; j++) { const t = j / steps, u = 1 - t; spine.push(R(root.map((x, k) => u * u * x + 2 * u * t * control[k] + t * t * tip[k]))); }
-    const radii = spine.slice(0, -1).map((_, j) => { const t = j / steps; return Math.max(0.0015, width * c.lockWidth * (1 + 0.25 * (D - 1)) * (0.9 + 0.1 * Math.sin(Math.PI * t)) * Math.pow(1 - t * t * t, 0.75 * c.taper)); });
+    const radii = spine.slice(0, -1).map((_, j) => { const t = j / steps; return Math.max(0.0015, width * c.lockWidth * (1 + 0.25 * (D - 1)) * (0.9 + 0.1 * dmath.sin(Math.PI * t)) * dmath.pow(1 - t * t * t, 0.75 * c.taper)); });
     const m = sweep(spine, radii, 6, { squash: [1, Math.max(0.2, thick / width)] });
     meshes[name] = flip ? { ...m, points: Object.fromEntries(Object.entries(m.points).map(([k, p]) => [k, mirrorX(p)])), faces: m.faces.map((f) => [...f].reverse()) } : m;
   };
@@ -285,7 +286,7 @@ function buildLocks(carrier, style, c, anchors) {
     const theta = 0.92 + i * (2 * Math.PI - 1.84) / 12, side = theta <= Math.PI ? 'R' : 'L', t = (theta <= Math.PI ? theta : 2 * Math.PI - theta) / Math.PI * MID;
     const noise = asym(i, 0.5);
     const root = at(6.3, t, side, 0.006).p, midF = at(4.6, Math.min(MID, t + noise), side, 0.022);
-    const tipZ = bob ? chinZ + 0.012 - (c.length - 1) * 0.06 + Math.cos(i * 1.7) * 0.008 + asym(i, 0.006) : eyeZ - 0.02 + asym(i, 0.006);
+    const tipZ = bob ? chinZ + 0.012 - (c.length - 1) * 0.06 + dmath.cos(i * 1.7) * 0.008 + asym(i, 0.006) : eyeZ - 0.02 + asym(i, 0.006);
     const outward = bob ? 1.06 : 1.12;
     const tip = [midF.p[0] * outward + midF.n[0] * 0.01 * c.bend, midF.p[1] * (bob ? 1.0 : 1.04) + midF.n[1] * 0.01 * c.bend, tipZ];
     lock(`hairLock${7 + i}`, root, midF.p, tip, bob ? 0.014 : 0.013, 0.005, side);

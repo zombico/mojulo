@@ -17,6 +17,7 @@
 import { expandEquipment, validateBuild, LAWS_VERSION } from '../equipment/expand.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
+import * as dmath from '../../util/dmath.js';
 
 export const GEAR_SLOTS = Object.freeze(['right', 'left', 'back', 'hip']);
 const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm' });
@@ -33,7 +34,7 @@ const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]); return l > 1e-12 ? mul(a, 1 / l) : [0, 0, 1]; };
+const unit = (a) => { const l = dmath.hypot(a[0], a[1], a[2]); return l > 1e-12 ? mul(a, 1 / l) : [0, 0, 1]; };
 const lerp3 = (a, b, t) => add(a, mul(sub(b, a), t));
 const perp = (v, a) => unit(sub(v, mul(a, dot(v, a))));
 // a 3×3 as rows; M·v, Mᵀ·v, A·B; columns → rows
@@ -95,13 +96,13 @@ export function gearMounts(hero, R) {
       } else {
         // the tilt out of the fingers' perpendicular: down for a blade (tip forward-down), up for a haft or a bow; the
         // drop from the hand to the lower end (in the fingers' direction, ≈ down) kept above the floor
-        const below = (dist) => Math.asin(Math.min(1, Math.max(0, (h[2] - FLOOR) / Math.max(1e-6, dist * k)))) * 180 / Math.PI;
+        const below = (dist) => dmath.asin(Math.min(1, Math.max(0, (h[2] - FLOOR) / Math.max(1e-6, dist * k)))) * 180 / Math.PI;
         const g0 = grip.origin[2]; let deg = TILT[hold]; o = grip.origin;
         if (hold === 'blade') deg = Math.min(deg, below((e.sockets.tip?.origin?.[2] ?? len) - g0));
         if (hold === 'bow') deg = Math.min(deg, below(g0 + 2));
-        if (hold === 'haft') o = [0, 0, Math.min(len, (h[2] - FLOOR) / (k * Math.sin(deg * Math.PI / 180)))];   // slide the grip up the shaft
+        if (hold === 'haft') o = [0, 0, Math.min(len, (h[2] - FLOOR) / (k * dmath.sin(deg * Math.PI / 180)))];   // slide the grip up the shaft
         const th = deg * Math.PI / 180, sg = hold === 'blade' ? 1 : -1;
-        const Z = unit(add(mul(f, Math.cos(th)), mul(a, sg * Math.sin(th)))); const X = unit(sub(mul(a, Math.cos(th)), mul(f, sg * Math.sin(th))));
+        const Z = unit(add(mul(f, dmath.cos(th)), mul(a, sg * dmath.sin(th)))); const X = unit(sub(mul(a, dmath.cos(th)), mul(f, sg * dmath.sin(th))));
         M = fromColumns(X, cross(Z, X), Z); t = h; b = `hand${S}`;
       }
     } else if (slot === 'back') {

@@ -1,7 +1,8 @@
 {
- "source": "Anime Form Studio model.js (anime-form-studio-v3)",
+ "source": "anime-form.js (the port of the Anime Form Studio's model.js, anime-form-studio-v3) on lib/util/dmath.js",
  "studioSha256": "99ab4176a7ce0474722836d237544c8d1c7e10baa5e4fda0ea8526ee4989d71d",
- "frozen": "2026-09-28",
+ "frozen": "2026-09-30",
+ "studioFrozen": "2026-09-28: the studio's own model.js on macOS arm64 Node 24.8.0 Math, which the port matched there before it took dmath",
  "cases": [
   {
    "name": "female base",
@@ -56,27 +57,27 @@
    "digest": {
     "skin": {
      "n": 77652,
-     "sha": "27bce5ec95520542a81abd2471ba4e6883e4bb48e55522acf339e79ae9d3e214"
+     "sha": "6b9078ecd6c7f0a710947d5fac1a3e0a1ea996aba9dfcb880334b44f8c17e785"
     },
     "hair": {
      "n": 60480,
-     "sha": "375e8f5e1d825715f7972e0734013e89b40afdb6757e1c2ba57be81e0288fd09"
+     "sha": "720bc0d898e1cdc588687729b4a0baaceb6ae6ed936c031782e9b2b5f5242b06"
     },
     "sclera": {
      "n": 4536,
-     "sha": "a9e0e284c0f0a6fe21d98fab1a91c1dbb8c6dd8ecb1948180e9a804c94522a93"
+     "sha": "b5c38070372483056d5c0c1d9211914ffbd512aa0891503c712c10b491490e57"
     },
     "iris": {
      "n": 3600,
-     "sha": "c8ebb523c18b336983f62ca08f5b43fd3f8989adc410d4c621c7c0ae027e6abc"
+     "sha": "903646dd9a31b39faab102c10c9fdf0eb7a641b22698b742e8f4e0224a71c1e9"
     },
     "pupil": {
      "n": 3600,
-     "sha": "375a34221ba33e74595d0e1e99cf3bd9aa48745491ae153c2de11ae319d47af1"
+     "sha": "e1878eafdf164cb3ea729385cda593caf309884ec7dd00b253d9e78e82cc6fb5"
     },
     "ink": {
      "n": 2880,
-     "sha": "87ce7bc40cd670d5c15dfad202bb21fdb133317f540251e2d20ae99c60c1267f"
+     "sha": "66545495f10ba3232be32ab7e4961d28d4a4a1900920476652bd037dc72149e9"
     },
     "mouth": {
      "n": 360,
@@ -84,15 +85,15 @@
     },
     "cage": {
      "n": 45984,
-     "sha": "eca6633ad5177a276dfe8f029895ff254b3e82b59a7859a4ebb764adb4df3b92"
+     "sha": "901b13ce13352505ceca75d0eeec384d3c6fccc9dd54b728bea3272ba0d201db"
     },
     "guides": {
      "n": 288,
-     "sha": "e31a38ab7b4109f8fe62e4e5a9f855cc534e28d1a58861084ac3dd89ee7fd1f6"
+     "sha": "8ea856ab11e69be57fcaacc44868482b5898f01cf0d791796a33b5728b4ab2f3"
     },
     "locks": {
      "n": 24,
-     "sha": "eca892b8643a1b92bc26e162b450082b3dbfcea14ca6459ffd6c38fd685f0270",
+     "sha": "49a59146fa9b23e2d7fd6128accd19b91e9b96ff9f5bcba919baea29d58f85dc",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
     },
     "headPolygons": {
@@ -154,27 +155,27 @@
    "digest": {
     "skin": {
      "n": 77652,
-     "sha": "dc5335d39ea01753a0fad4ed2748c678bdecae7583f32d39426ca8e599a83c6e"
+     "sha": "dc4343812a8ff8fe38cac9ee3198d0233bc89744edcce1466cf1855a0110c306"
     },
     "hair": {
      "n": 72576,
-     "sha": "dd45775e3cc06a67b14257515199feff1bf8cc6d56302db0fa937ea0d337bfb8"
+     "sha": "4ffd2e5415dc0deec8cd3b6989df5b6f07f26071c40198ca5a668a381008e6a6"
     },
     "sclera": {
      "n": 4536,
-     "sha": "989aa33f7b47451acba7a64a98dc87cb322bb104083f214648ea88c51d20654e"
+     "sha": "d811db3532f536e87759cc82041821212a27f086fd250cd31cb301157e776546"
     },
     "iris": {
      "n": 3600,
-     "sha": "8042ef524a837da00473ff1b43f3e7eecb9ddd295226f5d083f8297bafca1a87"
+     "sha": "177a1c9af2b12d104c8953d821cb1469c5270f021e54ec19bf8088197da481dd"
     },
     "pupil": {
      "n": 3600,
-     "sha": "ca1192e154d62eb98e373ef41f2d99c06195b3a2a3bbb4ee26400dd15a7acca5"
+     "sha": "2e941643c8d9937dbeea366b976a33ff8f6bc5009c1d2afa36c6382e6a28cca1"
     },
     "ink": {
      "n": 2880,
-     "sha": "23af649a9c53325f3a06e63c8839bbc03c6e7885ad0569454464212fc60bd5c5"
+     "sha": "8ad0ccd5c8032b61a04c4de1faa454499a4970f683bf9ccb6a2ba9d681ae2d10"
     },
     "mouth": {
      "n": 360,
@@ -182,15 +183,15 @@
     },
     "cage": {
      "n": 45984,
-     "sha": "14705a0d87c4642c51073e0515a0b2c57bcbca815103f03098feb1171befa478"
+     "sha": "67c1c03433f1105a3765da4bab2884f02bbd844c413fd0b7f564a5c9a5f98e21"
     },
     "guides": {
      "n": 360,
-     "sha": "f5c551602eb34b2517735e43c1227542e301e1fafddc681ce2de8e1d1ed9fb20"
+     "sha": "e22d3e64c827671a1e0cd8c38950216233143de033a31e03228e282caf3815e6"
     },
     "locks": {
      "n": 30,
-     "sha": "4f95d930acfed540f11faf76a76f3b4c8a437dcbee83ab0a1b4a9e9dffca4a2d",
+     "sha": "86898fb5c3fe760872d59d4ace38ed6d7703b5db1a8818e6ccc5fc49518e48b2",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
     },
     "headPolygons": {
@@ -252,15 +253,15 @@
    "digest": {
     "skin": {
      "n": 77652,
-     "sha": "9ef8e8551d6741e023d4846e7f3442f64645dad677a780d3313c2d75ec0f4281"
+     "sha": "cb7b1383fa79bddc764af8b6eb15c4b7a5d1fd2cdafeb9e475717695f243124e"
     },
     "hair": {
      "n": 72576,
-     "sha": "b25912043b7670498ddd9920d5632efb02f56f4733810882a7e2a86f5e9efc9a"
+     "sha": "f51a62883765a1ceffed337f02206606e6020ebc1d3e6bfae8e2d34b23867780"
     },
     "sclera": {
      "n": 4536,
-     "sha": "04c158006e1c1a5bdeef388b0f45ba43a61fd4c2a216dd100e4a94b36f4f384c"
+     "sha": "e78a2a0ff23f45ab1d0365ba93d7809a131d8a8ed8e759296a5da23fbcb7b6db"
     },
     "iris": {
      "n": 0,
@@ -272,7 +273,7 @@
     },
     "ink": {
      "n": 2880,
-     "sha": "beb5ffc3321818598721bec734b8ccb079088694afeb3a7f7eae24c447f93e4c"
+     "sha": "f903d18547bd7701d95db689e91eb0a73a5d1690c4c1db0c1bbd8cc49b49e717"
     },
     "mouth": {
      "n": 360,
@@ -280,15 +281,15 @@
     },
     "cage": {
      "n": 45984,
-     "sha": "38ffe6ffb21a6fbfe056d3cd683e5744d4e83e6a19e2241774cb435d1729949e"
+     "sha": "59e4602ac2d67fce4d80174e60a27514de8a33a60a182fdd83a44065c7a1cdb8"
     },
     "guides": {
      "n": 360,
-     "sha": "258c926871a96b9fbacc214aca2f77ca6c5ec7c4c7e08314c7284c9d5a09de2c"
+     "sha": "2a221bf2b6ef7be6a310d80df8b75f13ba3bf4fa45723534c2f9bc4ea5de120d"
     },
     "locks": {
      "n": 30,
-     "sha": "696ce72ac8a83837537b6bb82133a1db3584d26970db3d0b48209b6ac5dca02a",
+     "sha": "6ea1f2876dc594b282ceabf633b1639c9ba49dc5174622a0a977d8fb74180460",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
     },
     "headPolygons": {
@@ -350,27 +351,27 @@
    "digest": {
     "skin": {
      "n": 77652,
-     "sha": "3db4dd14213c12614293ac04df339de510c6c7a487da9b06ad501c2e24b8c71e"
+     "sha": "06ec7ddaf2a9f96d35aae9e0f078c17bc1bc514b433bc2247d2e928eb3dafd35"
     },
     "hair": {
      "n": 60480,
-     "sha": "9bcdd319ffc94d0126f3fc0530c5c597df853d5ff18ac155089b893298ff909d"
+     "sha": "b3b15a7860566797d49e20d1b99cd674b42d531a5c090541de3a18bcfef3ec97"
     },
     "sclera": {
      "n": 4536,
-     "sha": "a5e1e36c52ed20e4df9206bafb6fdbda52f6f94d5f31654c2035488e4506dcc2"
+     "sha": "b62dd8a47ed1762d8127d29ee5493cd48f9073aee919280ec5a107a765e3022f"
     },
     "iris": {
      "n": 3600,
-     "sha": "57c5d344f53146fa93cf0fd7d5408a50effbd6223f95722b446ff2d1676346c5"
+     "sha": "cd8f6bd6af041cc9d8b61cb6d80a7545f315a58a734a4fbdd1140a1f00ebcd17"
     },
     "pupil": {
      "n": 3600,
-     "sha": "3f4a3d2ac22b022ea61eea10bc11efd53906a18bb2890176d876ba74d5e0c40c"
+     "sha": "9a4a579efebc8245fa725a3c591717a171815f890e7eb872409d6a2505514d8d"
     },
     "ink": {
      "n": 2880,
-     "sha": "cded207795bcfc86051e698a7aabcf36e449057a266513a47bece40292598202"
+     "sha": "07574457eb4dc3a1d439001a77484b63fbda4ee556d94eec45844d3bf16cdc2e"
     },
     "mouth": {
      "n": 360,
@@ -378,15 +379,15 @@
     },
     "cage": {
      "n": 45984,
-     "sha": "7c2019721f41bd72a852e9b59916128b76f58537278850571818dcf199a43a45"
+     "sha": "c071f7590bd927875a90a5ec22f52f375d777a61e8ae6e1a2475fc6b27a7a6ba"
     },
     "guides": {
      "n": 288,
-     "sha": "162a8cf50c7e5e7e8073af85ea28b94fc2c7f123694363bc3e21d5a8de512594"
+     "sha": "c3c73c5644cda259b0a6893cebc97ba8e6298d10f5dd987d2871b9c40bfcc3e7"
     },
     "locks": {
      "n": 24,
-     "sha": "0caf307e5f45c426b1127b46c7224fa9397e9fa866fc9961604707cc6636b4eb",
+     "sha": "61fe788d41c05a2f5988f5b73b6fc3965fc2f004440601040e662247661dca5f",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
     },
     "headPolygons": {
@@ -448,27 +449,27 @@
    "digest": {
     "skin": {
      "n": 77652,
-     "sha": "75483adba9ba7f14e0130f92a6cdb2fcffa5a6fe9f6e1219d1cb5ebec43a4f69"
+     "sha": "b819b3941fae42dda7db0634e7558dcc382698e279be3a76c390cab04da2b898"
     },
     "hair": {
      "n": 60480,
-     "sha": "7f5c72afa2b713f4ebbc010e6c87e706fc4f9f28d09dbc7cd9d9463facbf2e12"
+     "sha": "c16a98dd204c704f2cb6ca286b0399b22a99acda12e7be08eaa8403fd69cf552"
     },
     "sclera": {
      "n": 4536,
-     "sha": "989aa33f7b47451acba7a64a98dc87cb322bb104083f214648ea88c51d20654e"
+     "sha": "d811db3532f536e87759cc82041821212a27f086fd250cd31cb301157e776546"
     },
     "iris": {
      "n": 3600,
-     "sha": "8042ef524a837da00473ff1b43f3e7eecb9ddd295226f5d083f8297bafca1a87"
+     "sha": "177a1c9af2b12d104c8953d821cb1469c5270f021e54ec19bf8088197da481dd"
     },
     "pupil": {
      "n": 3600,
-     "sha": "ca1192e154d62eb98e373ef41f2d99c06195b3a2a3bbb4ee26400dd15a7acca5"
+     "sha": "2e941643c8d9937dbeea366b976a33ff8f6bc5009c1d2afa36c6382e6a28cca1"
     },
     "ink": {
      "n": 2880,
-     "sha": "80c721d4af168706dc590a877c7e54b1ef95a4f8639fba54c95797ef164c67c0"
+     "sha": "28ea07ad8bfb766230620e322617df0f02b5a259ee3063e4b27b36b2c51d5aeb"
     },
     "mouth": {
      "n": 360,
@@ -476,15 +477,15 @@
     },
     "cage": {
      "n": 45984,
-     "sha": "559457a09948a95ab0404cabc8a976f45ad1d62fc10b6eff7d4ee5001c0e4151"
+     "sha": "40c59f906c7e853d869abf7d667be3d7be839470f5670fb86362f716fcc9cd57"
     },
     "guides": {
      "n": 288,
-     "sha": "423f5ce712de950ea266d1f65216d134e9145dfb558a6316de011e725f7ce315"
+     "sha": "67cb459b405dc638a9c060234c97a1d3d8c004d96db532b59b0efe1b41042c83"
     },
     "locks": {
      "n": 24,
-     "sha": "aadf6937a61a4cb755ed130cef57b1a8e2e7afba90dfa00a4afd8e29ee000c49",
+     "sha": "91b47e887357b07fa6e398dd5027804a20c38f60213649b7b99e2af347555d81",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
     },
     "headPolygons": {
@@ -563,27 +564,27 @@
    "digest": {
     "skin": {
      "n": 77652,
-     "sha": "241b21a17197215d6764c6819c602a46928070fb66fa31d4d902ad2faca0170e"
+     "sha": "8f9cba72bbc554ee76e1d53ab48981ee8c56c31cb3ddfd75c33ff255aef043d7"
     },
     "hair": {
      "n": 60480,
-     "sha": "2823f9c00dcc529572eece117c260ce6c265cd5bd29e671ff64fd2334a028cb5"
+     "sha": "47f65a2f0bb86382ba3d8571cd9d6fa16dc2863dd2f2a716ea107adc8a951e8d"
     },
     "sclera": {
      "n": 4536,
-     "sha": "ba855e38e784aa0bfd86b760c63df1e468e36e8ed1a7d8d8625f1902f04c3f34"
+     "sha": "05bafeecb6793a3f248c3441ad256589043cbf28327d594ebcb4762706cd852f"
     },
     "iris": {
      "n": 3600,
-     "sha": "1e00c2549b81b9c2068878fbd4c045f50647b08ac8fa64f57c1736dab2e2d88c"
+     "sha": "5fcc5ea3eeba776608d36e2f8ffc67e298fc94cc06796043ca6415894150feb5"
     },
     "pupil": {
      "n": 3600,
-     "sha": "c5035726b8fbf7e48696a817eed130e4a93ba37c3aa00863b86e5c67c05449bf"
+     "sha": "61b10a56888c935d5fe0da522e8f5eda76898088985dfe6062155b67008c428e"
     },
     "ink": {
      "n": 2880,
-     "sha": "bd9ea28afa00ebddb145e3a145a9e162928ff5f58cee7857e093d0f0aa39987c"
+     "sha": "bd7b6e1b09d65ac3fc900f4332ecba29380ce186907659efb0f18737d3dde1b6"
     },
     "mouth": {
      "n": 360,
@@ -591,15 +592,15 @@
     },
     "cage": {
      "n": 45984,
-     "sha": "300a316f3203bc511fd0849fef4642638c006e9388d8bf954ed1c013440cf612"
+     "sha": "ce8b4ca3ee24c21b00ae9b755b86a7ed84bbe38bb60c1f5bca6efaaca1af7e49"
     },
     "guides": {
      "n": 288,
-     "sha": "6076a775e1c2b48cb72ebcc18d37d6ead5dc61ac63aa5e0ab0d4765eb4e0c2d0"
+     "sha": "080341031284a45bae1ed1dd162bbc5105a53a08e3720f0832be3004e70a1f04"
     },
     "locks": {
      "n": 24,
-     "sha": "1d85bf969c6f219f72c4aa35a5244210f23a1cbde1f59f64db186e800918acbc",
+     "sha": "4e2e9d01ea3d1b79678abc0981e5be8178896437d657dc164688cece844ef70f",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
     },
     "headPolygons": {
@@ -670,27 +671,27 @@
    "digest": {
     "skin": {
      "n": 77652,
-     "sha": "97144140859b5519fd0386c0141d0864a9a3038942f1e300bec0c18b625950a7"
+     "sha": "59f57f8069ac2402bead102161f447455f222c65d72e80a3eedf272f90fd9b36"
     },
     "hair": {
      "n": 72576,
-     "sha": "9c62dd37bc463cbc030244539e3f65a1761174027c3ab7b1edc01007f21c4699"
+     "sha": "cccf7e9e08d2eef994e358c3c049825b2e39e9e0919aa0eb0738861352e583b7"
     },
     "sclera": {
      "n": 4536,
-     "sha": "06c67a4e14373be69940f4937edf1dd9e931f2776e9a92c1e791d2973318dbec"
+     "sha": "05ecc26c94864b4a4f84e956a70aa519c5cb34bb798ebb1ed3c680c18eb47eab"
     },
     "iris": {
      "n": 3600,
-     "sha": "e996a3839b1709205048fad0b38077cde04889a8151a7942bf637355be452aa5"
+     "sha": "6e98c6e8eea1fa5c349880cb7b5b1249463d05f65ecdf8b2bddd4d923d2d7493"
     },
     "pupil": {
      "n": 3600,
-     "sha": "e84efbb93f9aaa66e3f679995031b0409b722b03cea9939b125f4654704aaf7d"
+     "sha": "b01d7173046d4f90245ce53096bbbcf7efb7e74d2105d793cfe436e16d9d8a51"
     },
     "ink": {
      "n": 2880,
-     "sha": "b0180fe8e3b50a31c2f631032fcc49f5382b185e78d486cf93842cc503572127"
+     "sha": "57fae7346ad6b8606817e3f6d38fcc2865012c6c520d3e79bce835f18a3c1450"
     },
     "mouth": {
      "n": 360,
@@ -698,15 +699,15 @@
     },
     "cage": {
      "n": 45984,
-     "sha": "4c7ef4b0534930e5fd24de801514f114f214f959a0f3878a03a0e3f030af7ad0"
+     "sha": "b8b16ef36537b1aa27aae93e5b5927ef46a6082917b4bc08a78f334767152bb4"
     },
     "guides": {
      "n": 360,
-     "sha": "74ddebb453bdcf17b24d521c327b8c6452024f47450a5f249f18597a7fec5d52"
+     "sha": "1fcc93faf87531005c2fa3bb51c8122ed31d22b1bd74edb1a1b3ac4ee8c9088a"
     },
     "locks": {
      "n": 30,
-     "sha": "f7cea0440688df4dc5898d4ab9a40592f9c6e931d54a89f7281baf6c11fc970a",
+     "sha": "d4ff3e567dff3dc9977f31882e72a414377ba449469decb631d3f5f4dacdedbc",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
     },
     "headPolygons": {
@@ -770,27 +771,27 @@
    "digest": {
     "skin": {
      "n": 32652,
-     "sha": "5e4c4420eba6cfa746c5e82a2c7eda5904284fcc51e0f430c2106d962bfe5da7"
+     "sha": "67ef7aeb2bf47f155a8f836c63e1689d036e0722e31e2feb744e537b109ac44c"
     },
     "hair": {
      "n": 60480,
-     "sha": "375e8f5e1d825715f7972e0734013e89b40afdb6757e1c2ba57be81e0288fd09"
+     "sha": "720bc0d898e1cdc588687729b4a0baaceb6ae6ed936c031782e9b2b5f5242b06"
     },
     "sclera": {
      "n": 2268,
-     "sha": "0de7ad04c84c901fbe933e865c3a90214425d71a7bb99ad3672b04170f6f4a27"
+     "sha": "29c3a2753258924e155b5b9583ff6cedb58bca20536cb5d07654997663277013"
     },
     "iris": {
      "n": 3600,
-     "sha": "c8ebb523c18b336983f62ca08f5b43fd3f8989adc410d4c621c7c0ae027e6abc"
+     "sha": "903646dd9a31b39faab102c10c9fdf0eb7a641b22698b742e8f4e0224a71c1e9"
     },
     "pupil": {
      "n": 3600,
-     "sha": "375a34221ba33e74595d0e1e99cf3bd9aa48745491ae153c2de11ae319d47af1"
+     "sha": "e1878eafdf164cb3ea729385cda593caf309884ec7dd00b253d9e78e82cc6fb5"
     },
     "ink": {
      "n": 2880,
-     "sha": "87ce7bc40cd670d5c15dfad202bb21fdb133317f540251e2d20ae99c60c1267f"
+     "sha": "66545495f10ba3232be32ab7e4961d28d4a4a1900920476652bd037dc72149e9"
     },
     "mouth": {
      "n": 144,
@@ -798,20 +799,20 @@
     },
     "cage": {
      "n": 11520,
-     "sha": "e56689a24aceb90a0f4ffc31bb8404373c007aa3c1f190e323a3c8b70b1d46d4"
+     "sha": "9f648eea0bcff1662aa25689d703b9c7c4fbdfae1be289a7463ff2abf3f66383"
     },
     "guides": {
      "n": 288,
-     "sha": "e31a38ab7b4109f8fe62e4e5a9f855cc534e28d1a58861084ac3dd89ee7fd1f6"
+     "sha": "8ea856ab11e69be57fcaacc44868482b5898f01cf0d791796a33b5728b4ab2f3"
     },
     "locks": {
      "n": 24,
-     "sha": "eca892b8643a1b92bc26e162b450082b3dbfcea14ca6459ffd6c38fd685f0270",
+     "sha": "49a59146fa9b23e2d7fd6128accd19b91e9b96ff9f5bcba919baea29d58f85dc",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11"
     },
     "headPolygons": {
      "n": 776,
-     "sha": "81817ab6de4ff5a40ec7aaee30c08ac62ea9bb08f445acc6b754aa52204aafa3"
+     "sha": "e60ecf5f12a8f8e71f1b129888a0f9b1b72c0408b085080625883ed1f4ca4169"
     }
    }
   },
@@ -870,27 +871,27 @@
    "digest": {
     "skin": {
      "n": 32652,
-     "sha": "9ca054de0a57e70194a72d5ef2d2aeda8ff67da498f6bf65b5ce41d182adffff"
+     "sha": "28ae069b2d7badbdb0b401317df1fb187c6e2bef43b043d5cd55dea76edcca95"
     },
     "hair": {
      "n": 72576,
-     "sha": "dd45775e3cc06a67b14257515199feff1bf8cc6d56302db0fa937ea0d337bfb8"
+     "sha": "4ffd2e5415dc0deec8cd3b6989df5b6f07f26071c40198ca5a668a381008e6a6"
     },
     "sclera": {
      "n": 2268,
-     "sha": "1bf85ea108b542d2da73f6ee826646f6439de6296837dfe7ba8f584a78dbf458"
+     "sha": "4489ade482c8668025a4ffc04a989861f9b044a6b7b247cfa7e3212272e239b5"
     },
     "iris": {
      "n": 3600,
-     "sha": "8042ef524a837da00473ff1b43f3e7eecb9ddd295226f5d083f8297bafca1a87"
+     "sha": "177a1c9af2b12d104c8953d821cb1469c5270f021e54ec19bf8088197da481dd"
     },
     "pupil": {
      "n": 3600,
-     "sha": "ca1192e154d62eb98e373ef41f2d99c06195b3a2a3bbb4ee26400dd15a7acca5"
+     "sha": "2e941643c8d9937dbeea366b976a33ff8f6bc5009c1d2afa36c6382e6a28cca1"
     },
     "ink": {
      "n": 2880,
-     "sha": "23af649a9c53325f3a06e63c8839bbc03c6e7885ad0569454464212fc60bd5c5"
+     "sha": "8ad0ccd5c8032b61a04c4de1faa454499a4970f683bf9ccb6a2ba9d681ae2d10"
     },
     "mouth": {
      "n": 144,
@@ -902,11 +903,11 @@
     },
     "guides": {
      "n": 360,
-     "sha": "f5c551602eb34b2517735e43c1227542e301e1fafddc681ce2de8e1d1ed9fb20"
+     "sha": "e22d3e64c827671a1e0cd8c38950216233143de033a31e03228e282caf3815e6"
     },
     "locks": {
      "n": 30,
-     "sha": "4f95d930acfed540f11faf76a76f3b4c8a437dcbee83ab0a1b4a9e9dffca4a2d",
+     "sha": "86898fb5c3fe760872d59d4ace38ed6d7703b5db1a8818e6ccc5fc49518e48b2",
      "names": "fringe-1,fringe-2,fringe-3,fringe-4,fringe-5,fringe-6,fringe-7,left-temple-0,left-temple-1,left-temple-2,right-temple-0,right-temple-1,right-temple-2,back-1,back-2,back-3,back-4,back-5,back-6,back-7,back-8,back-9,back-10,back-11,crown--1-0,crown--1-1,crown--1-2,crown-1-0,crown-1-1,crown-1-2"
     },
     "headPolygons": {

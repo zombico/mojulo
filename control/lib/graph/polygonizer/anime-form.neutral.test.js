@@ -1,6 +1,6 @@
 /** The port stays pinned under mojulo's own options: an absent, empty or explicitly neutral SCULPT (the graphic face) or
  * HAIR FORM (the hair bases) builds the studio's head bit for bit — the same per-part digest as anime-form.test.js, over
- * the same fixture (anime-form.fixture.json, frozen from the studio's model.js) — and each word moves only its own parts.
+ * the same fixture (anime-form.fixture.json, the port of the studio's model.js on dmath) — and each word moves only its own parts.
  * Kept beside the port's own test so that file stays the studio's contract alone. */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

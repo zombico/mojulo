@@ -14,6 +14,7 @@
  */
 import { rasterDepth, viewCamera, LAYERED_VIEWS, DEFAULT_VIEWS } from '../scene/depth-raster.js';
 import { projectVertices } from '../scene/wire-svg.js';
+import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -24,7 +25,7 @@ export const EXPOSURE_FLAGS = { reads: 0.25, faint: 0.05 };
 export function layeredExposure(mesh, { views = DEFAULT_VIEWS, res = 512, elevationDegrees = 10, minLayer = 2 } = {}) {
   const source = { vertices: mesh.vertices, faces: mesh.faces };
   const partOf = mesh.faces.map((tri) => mesh.provenance[tri[0]].part);
-  const area = mesh.faces.map((tri) => { const [a, b, c] = tri.map((i) => mesh.vertices[i]); const n = cross(sub(b, a), sub(c, a)); return Math.hypot(n[0], n[1], n[2]) / 2; });
+  const area = mesh.faces.map((tri) => { const [a, b, c] = tri.map((i) => mesh.vertices[i]); const n = cross(sub(b, a), sub(c, a)); return dmath.hypot(n[0], n[1], n[2]) / 2; });
   const centroid = mesh.faces.map((tri) => { const [a, b, c] = tri.map((i) => mesh.vertices[i]); return [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3]; });
   const pinned = Object.entries(mesh.parts).filter(([, p]) => (p.layer ?? 1) >= minLayer).map(([n]) => n);
   const facesOf = Object.fromEntries(pinned.map((n) => [n, []])); mesh.faces.forEach((_, i) => { if (facesOf[partOf[i]]) facesOf[partOf[i]].push(i); });

@@ -14,6 +14,7 @@ import path from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { r6 } from './station-loft-plan.js';
 import { rasterDepth } from '../scene/depth-raster.js';
+import * as dmath from '../../util/dmath.js';
 
 const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 /** the frozen fits' data dir (`head-fit/<preset>/`), bundler-proof like the vocab cards; tests pin its bytes */
@@ -187,7 +188,7 @@ function solveOn(P, p, axis) { const q = [...p]; q[axis] = 0; q[axis] = (P.d - d
 function planeDeviation(poly, pts) {
   const n = [0, 0, 0], c = [0, 1, 2].map((k) => poly.reduce((s, p) => s + p[k], 0) / poly.length);
   poly.forEach((p, i) => { const q = poly[(i + 1) % poly.length]; n[0] += (p[1] - q[1]) * (p[2] + q[2]); n[1] += (p[2] - q[2]) * (p[0] + q[0]); n[2] += (p[0] - q[0]) * (p[1] + q[1]); });
-  const l = Math.hypot(...n) || 1;
+  const l = dmath.hypot(...n) || 1;
   return Math.max(...pts.map((p) => Math.abs(dot3(n, sub3(p, c))) / l));
 }
 /** Depth-first plane y = a·x + b·z + c through points (least squares); returns the plane's y at (x, z). */
@@ -232,7 +233,7 @@ function cheekPlanes(F, V, P, stack, cfg) {
   const Ci = solveOn(plane3(Ei, Eo, A), crest.inner, 1);
   const along = (a, b, zz) => lerp(a, b, Math.max(0, Math.min(1, (zz - a[2]) / (b[2] - a[2]))));
   // The fitted jawline, front to angle, and a point `u` of the way along it (by length).
-  const line = [Ji, ...(P.jawSweep ? [P.jawSweep] : []), Js], lens = line.slice(1).map((p, i) => Math.hypot(...sub3(p, line[i])));
+  const line = [Ji, ...(P.jawSweep ? [P.jawSweep] : []), Js], lens = line.slice(1).map((p, i) => dmath.hypot(...sub3(p, line[i])));
   const onLine = (u) => { let d = u * lens.reduce((a, b) => a + b, 0); for (let i = 0; i < lens.length; i++) { if (d <= lens[i] || i === lens.length - 1) return lerp(line[i], line[i + 1], Math.min(1, d / lens[i])); d -= lens[i]; } };
   const J0 = onLine(turn), straight = along(A, J0, full.outer[2]);
   const zm = full.side[2], ramus = along(Cs, Js, zm);
@@ -345,9 +346,9 @@ export function fitEvidence(preset) {
 }
 function fitProject(p, c) {
   const [a, b, d] = [c.yawDegrees, c.pitchDegrees, c.rollDegrees].map((x) => x * Math.PI / 180);
-  const X = p[0] * Math.cos(a) + p[1] * Math.sin(a), depth = -p[0] * Math.sin(a) + p[1] * Math.cos(a);
-  const Y = -p[2] * Math.cos(b) + depth * Math.sin(b), k = c.pixelsPerUnit;
-  return [c.translateX + k * (X * Math.cos(d) - Y * Math.sin(d)), c.translateY + k * (X * Math.sin(d) + Y * Math.cos(d)), -k * (depth * Math.cos(b) + p[2] * Math.sin(b))];
+  const X = p[0] * dmath.cos(a) + p[1] * dmath.sin(a), depth = -p[0] * dmath.sin(a) + p[1] * dmath.cos(a);
+  const Y = -p[2] * dmath.cos(b) + depth * dmath.sin(b), k = c.pixelsPerUnit;
+  return [c.translateX + k * (X * dmath.cos(d) - Y * dmath.sin(d)), c.translateY + k * (X * dmath.sin(d) + Y * dmath.cos(d)), -k * (depth * dmath.cos(b) + p[2] * dmath.sin(b))];
 }
 /** A mesh in hero head metres re-expressed so depth-raster's pinhole camera reproduces a fitted orthographic
  * camera: 1e6 px away on the image centre (float32 depth still resolves; under 0.03 px from orthographic). */

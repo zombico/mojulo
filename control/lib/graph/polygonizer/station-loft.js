@@ -32,13 +32,14 @@
  * lowers. The reference recipe is docs/examples/dragon-layered; its species rules live in its seed.
  */
 import { surfacePinFrame, placeSurfaceOffset, surfaceLocalOffset } from './surface-pin.js';
+import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (v) => { const l = Math.hypot(v[0], v[1], v[2]); if (!(l > 1e-12)) throw new Error('station-loft: degenerate vector'); return mul(v, 1 / l); };
+const unit = (v) => { const l = dmath.hypot(v[0], v[1], v[2]); if (!(l > 1e-12)) throw new Error('station-loft: degenerate vector'); return mul(v, 1 / l); };
 const mean = (ps) => mul(ps.reduce(add, [0, 0, 0]), 1 / ps.length);
 const AXIS = { x: 0, y: 1, z: 2 };
 const byName = ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0);
@@ -153,7 +154,7 @@ function applyDial(op, name, d, built, recipe, follow) {
     for (const link of links) {
       const chain = (link.parts || []).map((n) => { const part = built[n]; if (!part) throw new Error(`station-loft: ${op.op} '${name}' names unknown part '${n}'`); return part; });
       const h = built[link.pivot?.split('/')[0]]?.points?.[link.pivot]; if (!h) throw new Error(`station-loft: ${op.op} '${name}' pivot '${link.pivot}' is not a point`);
-      const a = (op.sign ?? 1) * d * (link.weight ?? 1) * Math.PI / 180; const c = Math.cos(a), s = Math.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3]; const hp = [...h];   // the pivot is read once per link: a link may contain its own pivot's part
+      const a = (op.sign ?? 1) * d * (link.weight ?? 1) * Math.PI / 180; const c = dmath.cos(a), s = dmath.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3]; const hp = [...h];   // the pivot is read once per link: a link may contain its own pivot's part
       const riders = (link.parts || []).flatMap((n) => followersOf(follow, n).map((F) => F.part));   // followers turn with their parent
       for (const part of [...chain, ...riders]) for (const [id, p] of Object.entries(part.points)) { const u = p[i] - hp[i], v = p[j] - hp[j]; const q = [...p]; q[i] = hp[i] + u * c - v * s; q[j] = hp[j] + u * s + v * c; part.points[id] = q; }
     }
@@ -171,8 +172,8 @@ function applyDial(op, name, d, built, recipe, follow) {
         if (!Array.isArray(e.at) || e.at.length !== 2) throw new Error(`station-loft: brush '${name}' entry needs at: [s, t]`);
         const r = e.r > 0 ? e.r : 0.02; const f = pinFrame(part, addressPin(part, pn, e.at[0], e.at[1], e.side === 'L' ? 'L' : 'R'));
         const push = mul(f.normal, d * amp * (e.w ?? 1));
-        for (const [id, p] of Object.entries(part.points)) { const dist = Math.hypot(...sub(p, f.origin)); if (dist >= r) continue; const k = (1 - (dist / r) ** 2) ** 2; moved[id] = add(moved[id] || part.points[id], mul(push, k)); }
-        for (const F of followersOf(follow, pn)) { const o = F.face.map((id, k) => mul(part.points[id], F.weights[k])).reduce(add, [0, 0, 0]); const dist = Math.hypot(...sub(o, f.origin)); if (dist >= r) continue; const k = (1 - (dist / r) ** 2) ** 2; for (const [id, p] of Object.entries(F.part.points)) F.part.points[id] = add(p, mul(push, k)); }
+        for (const [id, p] of Object.entries(part.points)) { const dist = dmath.hypot(...sub(p, f.origin)); if (dist >= r) continue; const k = (1 - (dist / r) ** 2) ** 2; moved[id] = add(moved[id] || part.points[id], mul(push, k)); }
+        for (const F of followersOf(follow, pn)) { const o = F.face.map((id, k) => mul(part.points[id], F.weights[k])).reduce(add, [0, 0, 0]); const dist = dmath.hypot(...sub(o, f.origin)); if (dist >= r) continue; const k = (1 - (dist / r) ** 2) ** 2; for (const [id, p] of Object.entries(F.part.points)) F.part.points[id] = add(p, mul(push, k)); }
       }
       for (const [id, p] of Object.entries(moved)) part.points[id] = p;
     });
@@ -252,7 +253,7 @@ export function auditLayered(mesh) {
   for (const [name, p] of Object.entries(mesh.parts)) {
     const edges = new Map(); let degenerate = 0;
     for (const f of Object.values(p.faces || {})) {
-      const [a, b, c] = f.map((k) => p.points[k]); if (Math.hypot(...cross(sub(b, a), sub(c, a))) < 1e-12) degenerate++;
+      const [a, b, c] = f.map((k) => p.points[k]); if (dmath.hypot(...cross(sub(b, a), sub(c, a))) < 1e-12) degenerate++;
       for (let i = 0; i < 3; i++) { const u = f[i], v = f[(i + 1) % 3], key = [u, v].sort().join('|'); const e = edges.get(key) || { count: 0, balance: 0 }; e.count++; e.balance += u < v ? 1 : -1; edges.set(key, e); }
     }
     const boundary = [...edges].filter(([, e]) => e.count === 1).map(([k]) => k).sort(); const expected = (p.boundary || []).map((e) => [...e].sort().join('|')).sort();

@@ -54,6 +54,7 @@ import { REGISTRATION } from './humanoid-head-fit.js';
 import { buildAnime, animeFresh, animeFaceDefs, ANIME_FACE_DEFS, ANIME_HAIR_DEFS, ANIME_EXPRESSION_DEFS, ANIME_HAIR_STYLES as STUDIO_FAMILIES, ANIME_LOCK_RE as STUDIO_LOCK_RE, ANIME_LOCK_KEYS } from './anime-form.js';
 import { rasterDepth, viewCamera } from '../scene/depth-raster.js';
 import { GRAPHIC_BASE, resolveAnimeSculpt, validateAnimeSculpt, sculptBuild, sculptFeatures } from './anime-sculpt.js';
+import * as dmath from '../../util/dmath.js';
 
 /** the hair FAMILIES: the studio's three and mojulo's `hime` (hair-passes) */
 export const ANIME_HAIR_STYLES = Object.freeze([...STUDIO_FAMILIES, 'hime']);
@@ -387,7 +388,7 @@ function zip(m, tol) {
   const verts = [...nbr.keys()], parent = new Map(verts.map((v) => [v, v])), find = (v) => { while (parent.get(v) !== v) v = parent.get(v); return v; };
   for (const a of verts) {
     let best = null, bd = tol;
-    for (const b of verts) { if (b === a || nbr.get(a).has(b)) continue; const d = Math.hypot(...vsub(m.points[a], m.points[b])); if (d <= bd) { bd = d; best = b; } }
+    for (const b of verts) { if (b === a || nbr.get(a).has(b)) continue; const d = dmath.hypot(...vsub(m.points[a], m.points[b])); if (d <= bd) { bd = d; best = b; } }
     if (best !== null) { const ra = find(a), rb = find(best); if (ra !== rb) parent.set(Math.max(ra, rb), Math.min(ra, rb)); }
   }
   const groupsOfRoot = new Map(); for (const v of verts) { const r = find(v); if (!groupsOfRoot.has(r)) groupsOfRoot.set(r, []); groupsOfRoot.get(r).push(v); }
@@ -398,7 +399,7 @@ function zip(m, tol) {
 }
 const vsub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], vadd = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], vmul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const vcross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], vdot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const vunit = (a) => { const l = Math.hypot(...a) || 1; return vmul(a, 1 / l); };
+const vunit = (a) => { const l = dmath.hypot(...a) || 1; return vmul(a, 1 / l); };
 const edgeKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 /** edge-connected components, each re-indexed onto its own points */
 function components(mesh) {
@@ -463,7 +464,7 @@ function coreCarrier(c, r) {
   const Z = [-0.8, -0.5, -0.15, 0.2, 0.55, 0.82];
   const stations = Z.map((z, i) => {
     const k = Math.sqrt(1 - z * z), points = {};
-    CORE_SLOTS.forEach((slot, j) => { const a = j / CORE_SLOTS.length * 2 * Math.PI; points[slot] = [r6(c[0] + Math.sin(a) * r[0] * k), r6(c[1] + Math.cos(a) * r[1] * k), r6(c[2] + z * r[2])]; });
+    CORE_SLOTS.forEach((slot, j) => { const a = j / CORE_SLOTS.length * 2 * Math.PI; points[slot] = [r6(c[0] + dmath.sin(a) * r[0] * k), r6(c[1] + dmath.cos(a) * r[1] * k), r6(c[2] + z * r[2])]; });
     points.front[0] = 0; points.back[0] = 0;
     return { id: `st${i}`, points };
   });
@@ -583,10 +584,10 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   const welded = weld(faceTris, faceLabels);
   meshes.face = zip(welded, 0.003);
   // the SCALP: skin faces above the studio's hairline (measured unpitched), for the coverage ledger
-  const unpitch = (p) => { const c = Math.cos(-model.pitch), sn = Math.sin(-model.pitch), y = p[1] - model.pivot[1], z = p[2] - model.pivot[2]; return [p[0], model.pivot[1] + c * y - sn * z, model.pivot[2] + sn * y + c * z]; };
+  const unpitch = (p) => { const c = dmath.cos(-model.pitch), sn = dmath.sin(-model.pitch), y = p[1] - model.pivot[1], z = p[2] - model.pivot[2]; return [p[0], model.pivot[1] + c * y - sn * z, model.pivot[2] + sn * y + c * z]; };
   // (the hair form's `hairline` raises its front edge, so a swept-back cut's forehead is not counted as scalp)
-  const hairlineY = HAIR_FORM?.hairline ? (a) => 0.10 + (HAIR_FORM.hairline.front - 0.10) * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a)) : (a) => 0.10 + 0.43 * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a));
-  const scalp = meshes.face.faces.flatMap((f, i) => { if (meshes.face.groups[i] !== 'Skin') return []; const c = unpitch(vmul(f.reduce((acc, v) => vadd(acc, meshes.face.points[v]), [0, 0, 0]), 1 / 3)); return c[1] > hairlineY(Math.atan2(c[0], -(c[2] - 0.07))) + 0.02 ? [`f${i}`] : []; });
+  const hairlineY = HAIR_FORM?.hairline ? (a) => 0.10 + (HAIR_FORM.hairline.front - 0.10) * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a)) : (a) => 0.10 + 0.43 * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a));
+  const scalp = meshes.face.faces.flatMap((f, i) => { if (meshes.face.groups[i] !== 'Skin') return []; const c = unpitch(vmul(f.reduce((acc, v) => vadd(acc, meshes.face.points[v]), [0, 0, 0]), 1 / 3)); return c[1] > hairlineY(dmath.atan2(c[0], -(c[2] - 0.07))) + 0.02 ? [`f${i}`] : []; });
   meshes.face.points = meshes.face.points.map(toM);
   meshes.face = outward(orientConsistently(meshes.face), [0, 1, 0]);
   for (const ear of components(meshOf(trisOf(skinFlat, model.ears.start, model.ears.end), null))) { const m = outward(orientConsistently(ear)); m.groups = m.groups.map(() => 'Skin'); meshes[centroid(m)[0] > 0 ? 'earR' : 'earL'] = m; }

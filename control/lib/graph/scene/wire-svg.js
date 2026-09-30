@@ -23,6 +23,7 @@
  *
  * Pure: no DB, no IO, no randomness. Deterministic byte output for identical input.
  */
+import * as dmath from '../../util/dmath.js';
 
 const SAMPLES_PER_PX = 2;          // half-pixel spacing along each projected edge
 const MIN_RUN_PX = 0.7;            // runs shorter than this are dropped
@@ -35,14 +36,14 @@ const TYPE_ORDER = ['plane', 'feature', 'outline'];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+const norm = (v) => { const l = dmath.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 
 /** Orbit camera in the reference convention: az about z (0 = south of the target looking north,
  *  image-right = (cos az, sin az)), el above the horizon, `distance` from `target`, `f` px at `size`. */
 export function orbitCamera({ azimuthDegrees = 150, elevationDegrees = 10, target = [0, 0, 0], distance = 1, focalPixels = 1400, size = 900 } = {}) {
   const a = azimuthDegrees * Math.PI / 180; const e = elevationDegrees * Math.PI / 180;
-  const position = [target[0] + distance * Math.cos(e) * Math.sin(a), target[1] - distance * Math.cos(e) * Math.cos(a), target[2] + distance * Math.sin(e)];
-  const R = [[Math.cos(a), Math.sin(a), 0], [Math.sin(e) * Math.sin(a), -Math.sin(e) * Math.cos(a), -Math.cos(e)], [-Math.cos(e) * Math.sin(a), Math.cos(e) * Math.cos(a), -Math.sin(e)]];
+  const position = [target[0] + distance * dmath.cos(e) * dmath.sin(a), target[1] - distance * dmath.cos(e) * dmath.cos(a), target[2] + distance * dmath.sin(e)];
+  const R = [[dmath.cos(a), dmath.sin(a), 0], [dmath.sin(e) * dmath.sin(a), -dmath.sin(e) * dmath.cos(a), -dmath.cos(e)], [-dmath.cos(e) * dmath.sin(a), dmath.cos(e) * dmath.cos(a), -dmath.sin(e)]];
   return { position, R, f: focalPixels, principal: [size / 2, size / 2], size, meta: { azimuthDegrees, elevationDegrees, target, distance, focalPixels } };
 }
 
@@ -52,8 +53,8 @@ export function worldFramingCamera(cameraPrimitive = {}, { size = 900 } = {}) {
   const position = wf.cameraPosition; const lookAt = wf.lookAt;
   if (!Array.isArray(position) || !Array.isArray(lookAt)) throw new Error('wire-svg: worldFraming needs cameraPosition and lookAt');
   const hfov = Number.isFinite(wf.horizontalFov) ? wf.horizontalFov : 60;
-  const f = W / (2 * Math.tan((hfov * Math.PI / 180) / 2));
-  const forward = norm(sub(lookAt, position)); let right = norm(cross(forward, [0, 0, 1])); if (Math.hypot(...right) < 1e-9) right = [1, 0, 0];
+  const f = W / (2 * dmath.tan((hfov * Math.PI / 180) / 2));
+  const forward = norm(sub(lookAt, position)); let right = norm(cross(forward, [0, 0, 1])); if (dmath.hypot(...right) < 1e-9) right = [1, 0, 0];
   const up = cross(right, forward);
   return { position, R: [right, up.map((x) => -x), forward], f, principal: [W / 2, H / 2], size: Math.max(W, H), meta: { worldFraming: wf, basis: 'physical' } };
 }
@@ -74,7 +75,7 @@ export function projectVertices(vertices, cam) {
 export function weldFaces(faces, { groupOf = (f) => f.group ?? f.part ?? f.tint ?? '' } = {}) {
   const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }
-  const eps = Math.max(1e-9, Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) * 1e-6);
+  const eps = Math.max(1e-9, dmath.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) * 1e-6);
   const key = new Map(); const vertices = []; const tris = []; const groups = [];
   const id = (p) => { const k = `${Math.round(p[0] / eps)},${Math.round(p[1] / eps)},${Math.round(p[2] / eps)}`; let i = key.get(k); if (i === undefined) { i = vertices.length; key.set(k, i); vertices.push([p[0], p[1], p[2]]); } return i; };
   for (const f of faces) {
@@ -104,9 +105,9 @@ export function wireRuns(source, cam, { features = [], creaseDegrees = 7, softGr
   const tris = []; for (const f of F) for (let k = 1; k + 1 < f.length; k++) tris.push([q[f[0]], q[f[k]], q[f[k + 1]]]);
   const grid = triangleGrid(tris);
   const facing = N.map((n, j) => dot(n, sub(cam.position, cent[j])));
-  const cosCrease = Math.cos(creaseDegrees * Math.PI / 180);
+  const cosCrease = dmath.cos(creaseDegrees * Math.PI / 180);
   // a soft form's surface net is facets, not creases: between faces all in soft groups, only a sharper turn is a line
-  const cosSoft = Math.cos(softCreaseDegrees * Math.PI / 180);
+  const cosSoft = dmath.cos(softCreaseDegrees * Math.PI / 180);
   const paths = [];
   for (const [key, fs] of edges) {
     const [a, b] = key.split('|').map(Number);
@@ -119,7 +120,7 @@ export function wireRuns(source, cam, { features = [], creaseDegrees = 7, softGr
     const feature = [...groups].some((g) => featureSet.has(g)) || declared;
     if (!(crease || groups.size > 1 || silhouette || declared)) continue;
     const type = silhouette ? 'outline' : feature ? 'feature' : 'plane';
-    const pa = q[a]; const pb = q[b]; const length = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+    const pa = q[a]; const pb = q[b]; const length = dmath.hypot(pa[0] - pb[0], pa[1] - pb[1]);
     const steps = Math.max(2, Math.trunc(length * SAMPLES_PER_PX) + 1); const step = 1 / (steps - 1);
     const t = new Array(steps); const xy = new Array(steps); const z = new Array(steps); const seen = new Array(steps);
     for (let i = 0; i < steps; i++) {
@@ -130,7 +131,7 @@ export function wireRuns(source, cam, { features = [], creaseDegrees = 7, softGr
     for (let j = 1; j <= steps; j++) {
       if (j === steps || seen[j] !== seen[start]) {
         const end = j - 1;
-        if (end > start && Math.hypot(xy[end][0] - xy[start][0], xy[end][1] - xy[start][1]) > MIN_RUN_PX) {
+        if (end > start && dmath.hypot(xy[end][0] - xy[start][0], xy[end][1] - xy[start][1]) > MIN_RUN_PX) {
           const xyzT = [start, end].map((k) => (t[k] / pb[2]) / ((1 - t[k]) / pa[2] + t[k] / pb[2]));
           paths.push({ edge: [a, b], type, visible: seen[start], screenT: [t[start], t[end]], xyzT, xy: [xy[start], xy[end]] });
         }
@@ -212,7 +213,7 @@ export function frameSource(source, { distanceMultiplier = null, focalPixels = 1
   const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
   for (const v of source.vertices) for (let k = 0; k < 3; k++) { if (v[k] < lo[k]) lo[k] = v[k]; if (v[k] > hi[k]) hi[k] = v[k]; }
   const target = [0, 1, 2].map((k) => (lo[k] + hi[k]) / 2);
-  let radius = 0; for (const v of source.vertices) radius = Math.max(radius, Math.hypot(v[0] - target[0], v[1] - target[1], v[2] - target[2]));
-  const k = Number.isFinite(distanceMultiplier) ? distanceMultiplier : margin / Math.sin(Math.atan(size / (2 * focalPixels)));
+  let radius = 0; for (const v of source.vertices) radius = Math.max(radius, dmath.hypot(v[0] - target[0], v[1] - target[1], v[2] - target[2]));
+  const k = Number.isFinite(distanceMultiplier) ? distanceMultiplier : margin / dmath.sin(dmath.atan(size / (2 * focalPixels)));
   return { target, distance: k * radius, radius, distanceMultiplier: k };
 }

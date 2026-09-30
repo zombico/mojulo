@@ -28,6 +28,7 @@ import { compileLayered, pinFrame } from './station-loft.js';
 import { placeSurfaceOffset, surfaceLocalOffset } from './surface-pin.js';
 import { mulberry32 } from './floorplan-glyphs.js';
 import { address, frameAt, strip, sweep, loftParts, loftLabels, pinned, refineStation, refineSlot, volumize, pinToAddress, symmetricFrameAt, ringAt, freezeParams, clone, vec } from './station-loft-detail.js';
+import * as dmath from '../../util/dmath.js';
 
 const { sub, add, mul, dot, unit, mean } = vec;
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -46,10 +47,10 @@ export function dominance(part) { const b = part.bind; const n = part.stations.l
 const H = (P) => P.slotT ? Math.max(...Object.values(P.slotT)) : P.slots.length / 2;
 const sMax = (P) => { const s = P.stations[P.stations.length - 1]; return s.u ?? P.stations.length - 1; };
 const ringCentre = (L1, p, st) => mean(L1[p].slots.map((sl) => L1[p].points[`${p}/${st}.${sl}`]));
-const radius = (L1, p) => { const P = L1[p], st = P.stations[Math.floor(P.stations.length / 2)].id, c = ringCentre(L1, p, st); return mean(P.slots.map((sl) => [Math.hypot(...sub(P.points[`${p}/${st}.${sl}`], c))]))[0]; };
+const radius = (L1, p) => { const P = L1[p], st = P.stations[Math.floor(P.stations.length / 2)].id, c = ringCentre(L1, p, st); return mean(P.slots.map((sl) => [dmath.hypot(...sub(P.points[`${p}/${st}.${sl}`], c))]))[0]; };
 /** a joint's bend, read from the compiled mesh: angle between the two segments' axes, and the INSIDE (concave) direction */
 export function bend(L1, a, b) { const ax = (p) => { const S = L1[p].stations; return unit(sub(ringCentre(L1, p, S[S.length - 1].id), ringCentre(L1, p, S[0].id))); };
-  const dA = ax(a), dB = ax(b); const ang = Math.acos(clamp(dot(dA, dB), -1, 1)); return { ang, inside: ang > 1e-4 ? unit(sub(dB, dA)) : [0, 0, 0] }; }
+  const dA = ax(a), dB = ax(b); const ang = dmath.acos(clamp(dot(dA, dB), -1, 1)); return { ang, inside: ang > 1e-4 ? unit(sub(dB, dA)) : [0, 0, 0] }; }
 /** the address on part p at station s whose surface faces `dir` best (both ring halves scanned) */
 export function facing(L1, p, s, dir) { const h = H(L1[p]); let best = null; for (const side of ['R', 'L']) for (let t = 0; t <= h + 1e-9; t += h / 12) { const n = frameAt(L1, p, [s, t], side).normal; const d = dot(n, dir); if (!best || d > best.d) best = { d, at: [s, t], side }; } return best; }
 
@@ -87,7 +88,7 @@ function creases(L1, a, b, id, { lift: LIFT = 0.3, width: WIDTH = 0.08, floor = 
   for (const [p, s] of [[a, sMax(L1[a]) - 0.3], [b, 0.3]]) { const h = H(L1[p]), R = radius(L1, p);
     for (const side of ['R', 'L']) for (const [q0, q1] of [[0, h / 2], [h / 2, h]]) { const addrs = [0.15, 0.5, 0.85].map((f) => [s, q0 + (q1 - q0) * f]);
       const face = Math.max(0, dot(frameAt(L1, p, addrs[1], side).normal, inside)); const lift = LIFT * R * Math.max(floor, face * k), w = WIDTH * R;
-      const m = strip(L1, p, addrs, side, (j) => { const tp = Math.sin(Math.PI * (j + 0.5) / 3); return [[-w * tp, -0.002], [0, lift * tp], [w * tp, -0.002], [0, -0.004]]; });
+      const m = strip(L1, p, addrs, side, (j) => { const tp = dmath.sin(Math.PI * (j + 0.5) / 3); return [[-w * tp, -0.002], [0, lift * tp], [w * tp, -0.002], [0, -0.004]]; });
       out[`${id}.${p}.${side}${q0 ? 'b' : 'f'}`] = { ...m, group }; } }
   return out; }
 /** TILES with a RIGID gate: a tile grows only if its whole footprint sits where one bone dominates (≥ rigid) */
@@ -98,11 +99,11 @@ function rigidTiles(L1, name, side, T, idBase, dom, keep = [], RIGID_W = RIGID) 
   for (let j = 0; j < nt; j++) { const off = T.brick && j % 2 ? 0.5 : 0;
     for (let i = 0; i < ns; i++) { if (s0 + (i + off + 1) * ds > s1 + 1e-9) continue; const id = `${idBase}.${i}.${j}`; const rng = mulberry32(hash(id)); const [r1, r2, r3, r4] = [rng(), rng(), rng(), rng()];
       const sc = s0 + (i + off + 0.5 + (T.wobble ?? 0) * (r1 - 0.5)) * ds, tc = t0 + (j + 0.5 + (T.wobble ?? 0) * (r2 - 0.5)) * dt;
-      const ring = Array.from({ length: sides }, (_, k) => { const a = 2 * Math.PI * k / sides + Math.PI / sides; return [cS(sc + Math.cos(a) * ds / 2 * cover), cT(tc + Math.sin(a) * dt / 2 * cover)]; });
+      const ring = Array.from({ length: sides }, (_, k) => { const a = 2 * Math.PI * k / sides + Math.PI / sides; return [cS(sc + dmath.cos(a) * ds / 2 * cover), cT(tc + dmath.sin(a) * dt / 2 * cover)]; });
       const bones = new Set(ring.map(([s]) => dom(s).bone)); if (bones.size > 1 || ring.some(([s]) => dom(s).w < RIGID_W)) { gated++; continue; }   // rigid-on-rigid
       let edge = fade > 0 ? Math.min(1, Math.min(sc - s0, s1 - sc) / (fade * (s1 - s0)), Math.min(tc - t0, t1 - tc) / (fade * (t1 - t0))) : 1;
       const F0 = frameAt(L1, name, [sc, tc], side); const n = F0.normal, c = F0.origin;
-      const room = Math.min(Infinity, ...keep.map((z) => Math.hypot(...sub(c, z.p)) - z.r)); if (room <= 0 || r4 < (T.thin ?? 0) * (1 - Math.min(1, edge))) continue; edge = Math.min(edge, room / 0.02);
+      const room = Math.min(Infinity, ...keep.map((z) => dmath.hypot(...sub(c, z.p)) - z.r)); if (room <= 0 || r4 < (T.thin ?? 0) * (1 - Math.min(1, edge))) continue; edge = Math.min(edge, room / 0.02);
       const O = ring.map((a) => frameAt(L1, name, a, side).origin); const along = unit(sub(frameAt(L1, name, [cS(sc + ds / 4), tc], side).origin, frameAt(L1, name, [cS(sc - ds / 4), tc], side).origin));
       const h = T.height * (1 + (T.jitter ?? 0) * (2 * r3 - 1)) * (0.2 + 0.8 * Math.max(0, edge)); const lean = (T.lean ?? 0) * h;
       const base = O.map((o) => sub(o, mul(n, 0.002))); const top = O.map((o) => add(add(add(c, mul(sub(o, c), 1 - T.inset)), mul(n, h)), mul(along, lean)));
@@ -112,7 +113,7 @@ function rigidTiles(L1, name, side, T, idBase, dom, keep = [], RIGID_W = RIGID) 
 /** COLLAR round station j of a compiled part (rings read from its named points) */
 function collar(L1, p, j, height, width = 0.35) { const P = L1[p]; const ring = (i) => P.slots.map((sl) => P.points[`${p}/${P.stations[i].id}.${sl}`]);
   const R = ring(j), c = mean(R), prev = mean(ring(Math.max(0, j - 1))), next = mean(ring(Math.min(P.stations.length - 1, j + 1)));
-  const ax = unit(sub(next, prev)), half = width * Math.hypot(...sub(next, prev)) / 2; const at = (d, s) => R.map((q) => add(add(c, mul(sub(q, c), s)), mul(ax, d)));
+  const ax = unit(sub(next, prev)), half = width * dmath.hypot(...sub(next, prev)) / 2; const at = (d, s) => R.map((q) => add(add(c, mul(sub(q, c), s)), mul(ax, d)));
   return loftParts([at(-half, 0.97), at(0, 1 + height), at(half, 0.97)], add(c, mul(ax, -half * 1.3)), add(c, mul(ax, half * 1.3))); }
 function dish({ r, rim, floor, m = 10 }, [outer, inner] = ['Pad', 'PadInner']) { const ring = (rr, z) => ringAt([0, 0, z], [0, 0, 1], rr, m);
   const mesh = loftParts([ring(r * 1.08, -0.001), ring(r, rim), ring(r * 0.62, floor)], [0, 0, -0.004], [0, 0, floor * 0.8]); return { ...mesh, faceGroups: loftLabels(mesh, (j) => (j === 0 ? outer : inner), [outer, inner]) }; }

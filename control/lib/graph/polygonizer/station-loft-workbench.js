@@ -13,16 +13,18 @@
  * - Parts without a `loft` (open patches, creases) have no workbench channel: `omitted`.
  * `seat` (default true) drops the whole solid so its lowest point sits on the grid (z = 0).
  */
+import * as dmath from '../../util/dmath.js';
+
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const unit = (v) => { const l = Math.hypot(...v); if (!(l > 1e-12)) throw new Error('station-loft-workbench: degenerate axis'); return mul(v, 1 / l); };
+const unit = (v) => { const l = dmath.hypot(...v); if (!(l > 1e-12)) throw new Error('station-loft-workbench: degenerate axis'); return mul(v, 1 / l); };
 const mean = (ps) => mul(ps.reduce(add, [0, 0, 0]), 1 / ps.length);
 /** loft-faces' straight-axis frame (extrude-faces `perpBasis`): u = z × d, v = d × u. */
 export function loftBasis(d) { if (Math.abs(d[2]) > 0.999) return [[1, 0, 0], [0, 1, 0]]; const u = unit(cross([0, 0, 1], d)); return [u, unit(cross(d, u))]; }
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
 function straightLoft(name, axisFrom, axisTo, rings, { backPinch = null, tipPinch = null, tint } = {}) {
-  const d = unit(sub(axisTo, axisFrom)); const L = Math.hypot(...sub(axisTo, axisFrom)); const [u, v] = loftBasis(d);
+  const d = unit(sub(axisTo, axisFrom)); const L = dmath.hypot(...sub(axisTo, axisFrom)); const [u, v] = loftBasis(d);
   const n = rings[0].length; const stations = []; let maxErr = 0;
   const station = (points) => { const c = mean(points); const t = dot(sub(c, axisFrom), d) / L; const origin = add(axisFrom, mul(d, t * L)); const profile = points.map((p) => { const r = sub(p, origin); maxErr = Math.max(maxErr, Math.abs(dot(r, d))); return [r6(dot(r, u)), r6(dot(r, v))]; }); return { t: r6(t), profile }; };
   if (backPinch) { const r = sub(backPinch, axisFrom); stations.push({ t: 0, profile: Array.from({ length: n }, () => [r6(dot(r, u)), r6(dot(r, v))]) }); maxErr = Math.max(maxErr, Math.abs(dot(r, d))); }
@@ -56,7 +58,7 @@ function l2Loft(name, part) {
     if (Math.abs(h) < 1e-9) return { omitted: 'zero height' };
     return straightLoft(name, from, add(from, mul(n, Math.abs(h))), rings, pinch);
   }
-  if (Math.hypot(...sub(to, from)) < 1e-9) return { omitted: 'zero length' };
+  if (dmath.hypot(...sub(to, from)) < 1e-9) return { omitted: 'zero length' };
   return straightLoft(name, from, to, rings, pinch);
 }
 

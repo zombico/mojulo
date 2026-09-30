@@ -36,6 +36,7 @@
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, layeredClip } from './station-loft-rig.js';
 import { validateAnimeExpression, resolveAnimeExpression } from './anime-head.js';
 import { SWING_WORDS, isSwing } from './hero-swing.js';
+import * as dmath from '../../util/dmath.js';
 
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -316,7 +317,7 @@ export function poseLayered(mesh, recipe, pose, { R = validateRig(recipe.rig), s
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const len = (a) => Math.hypot(a[0], a[1], a[2]);
+const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const RAY = [0.8726, 0.3313, 0.3589];   // a skewed parity ray (no axis-aligned degeneracies; station-loft-head insidePart's)
 function inside(tris, q) {
   let c = 0;

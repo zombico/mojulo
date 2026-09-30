@@ -1,8 +1,9 @@
 /** anime-form.js — the Anime Form Studio's head, PORTED: the sibling of Character Studio (the face, body and hair labs
  * the hero was built on) that designs an original anime face and hair as one parametric construction. Its recipe
  * contract (schema `anime-form-studio-v3`: a male / female design base, face, hair and expression values, per-clump
- * lock edits) and its geometry are the studio's; the arithmetic below is its `model.js` in the same operation order, so
- * the floats match (anime-form.test.js checks per-part hashes frozen from the studio itself).
+ * lock edits) and its geometry are the studio's; the arithmetic below is its `model.js` in the same operation order, with
+ * the transcendentals from util/dmath.js, so the floats are the same on every platform (anime-form.test.js pins per-part
+ * hashes).
  *
  * Studio frame: Y up, forward −Z, construction units (the head is ~2.2 tall). Parts are flat triangle soups: `skin`
  * (face and back shells meeting at a side seam, eye and mouth apertures bridged by rings, ears, the neck context),
@@ -62,6 +63,7 @@
  * { front }` (the front hairline raised), `sweepSides` (the temple clumps swept back over the ear), `fringeGroups` (the
  * bang sections by member clump) and `backNotch` (the back sections' hem). Nothing here is written into the recipe.
  */
+import * as dmath from '../../util/dmath.js';
 
 export const ANIME_SCHEMA = 'anime-form-studio-v3';
 export const ANIME_MALE_BASELINE = Object.freeze({ width: 0.99, lower: 1.03, jaw: 1, cheekVolume: 1.14, lowerCheekVolume: 1.17, chin: 1.3, depth: 1.14, backDepth: 1.14, occiput: 1.18, nape: 0.82, jawAngle: 0.79, jawDepth: 1.19, chinProjection: 1.21, chinHeight: 0.77, nose: 1.44, eyeWidth: 0.87, eyeHeight: 0.85, spacing: 0.98 });
@@ -114,7 +116,7 @@ export function animeReadRecipe(r) {
 
 const mix = (a, b, t) => a + (b - a) * t, clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
-const add = (a, b) => a.map((v, i) => v + b[i]), sub = (a, b) => a.map((v, i) => v - b[i]), mul = (a, s) => a.map((v) => v * s), cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], unit = (a) => mul(a, 1 / (Math.hypot(...a) || 1));
+const add = (a, b) => a.map((v, i) => v + b[i]), sub = (a, b) => a.map((v, i) => v - b[i]), mul = (a, s) => a.map((v) => v * s), cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], unit = (a) => mul(a, 1 / (dmath.hypot(...a) || 1));
 /** a Catmull-Rom-slope Hermite through (y, value) knots, held flat past the last */
 function profile(y, points) {
   for (let i = 1; i < points.length; i++) if (y <= points[i][0]) {
@@ -146,13 +148,13 @@ export function buildAnime(r, options = {}) {
   const EYE = S && (S.fissure || S.lidWeight !== undefined || S.brow || S.lidCover !== undefined) ? eyeShapeOf(S, f) : null;
   const EYE_Y = S?.eyeLevel !== undefined ? S.eyeLevel : 0.055;
   const LENS = options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };   // the lens resolution (a budget, never `coarse`)
-  function tri(part, a, b, c) { if (Math.hypot(...cross(sub(b, a), sub(c, a))) < 1e-10) return; parts[part].push(...a, ...b, ...c); }
+  function tri(part, a, b, c) { if (dmath.hypot(...cross(sub(b, a), sub(c, a))) < 1e-10) return; parts[part].push(...a, ...b, ...c); }
   function quad(part, a, b, c, d, edge = false) { if (options.coarse && capture && part === 'skin') headPolygons.push([a, b, c, d]); tri(part, a, b, c); tri(part, a, c, d); if (edge) cage.push(...a, ...b, ...b, ...c, ...c, ...d, ...d, ...a); }
   function width(y) { return profile(y, [[-1.02, 0.10 * f.chin], [-0.90, 0.27 * f.chin], [-0.64, 0.51 * f.jaw], [-0.30, 0.69 * (1 + 0.25 * (f.jaw - 1))], [0.12, 0.78], [0.45, 0.79], [0.78, 0.69], [1.04, 0.41], [1.16, 0.18], [1.19, 0.009]]) * f.width; }
   function fy(y) { return y < -0.2 ? -0.2 + (y + 0.2) * f.lower : y; }
   // Separate vault/occiput/nape and jaw-to-chin profiles, informed by the fitted head landmarks.
   function surface(u, y, back = false) {
-    let x = u * width(y); const g = (v, c, w) => Math.exp(-(((v - c) / w) ** 2)), arc = Math.pow(Math.max(0, 1 - u * u), 0.45);
+    let x = u * width(y); const g = (v, c, w) => dmath.exp(-(((v - c) / w) ** 2)), arc = dmath.pow(Math.max(0, 1 - u * u), 0.45);
     const seam = profile(y, [[-1.02, -0.43], [-0.90, -0.36], [-0.74, -0.17], [-0.60, -0.035], [-0.30, 0.06], [1.19, 0.06]]);
     const front = profile(y, [[-1.02, 0.025], [-0.90, 0.12], [-0.74, 0.30], [-0.60, 0.45], [-0.30, 0.57], [0.22, 0.59], [0.62, 0.57], [0.92, 0.45], [1.16, 0.18], [1.19, 0.009]]);
     const rear = profile(y, [[-1.02, 0.55], [-0.98, 0.59], [-0.90, 0.58], [-0.74, 0.43], [-0.60, 0.30], [-0.40, 0.30], [-0.20, 0.48], [0.10, 0.68], [0.45, 0.73], [0.65, 0.70], [0.78, 0.64], [0.92, 0.53], [1.04, 0.40], [1.10, 0.30], [1.16, 0.17], [1.19, 0.009]]);
@@ -161,25 +163,25 @@ export function buildAnime(r, options = {}) {
     else if (S?.nose) {
       // the nose placed: the tip (pronasale) at its height with its own projection and width, the dorsum a ridge that
       // starts below the brow (dorsumStart) and ramps down to the tip; the muzzle bump follows the lip line
-      const N = S.nose, ramp = y > N.dorsumStart ? 0 : y > N.pronasale ? Math.pow((N.dorsumStart - y) / (N.dorsumStart - N.pronasale), 1.3) : Math.exp(-(((y - N.pronasale) / 0.05) ** 2));
+      const N = S.nose, ramp = y > N.dorsumStart ? 0 : y > N.pronasale ? dmath.pow((N.dorsumStart - y) / (N.dorsumStart - N.pronasale), 1.3) : dmath.exp(-(((y - N.pronasale) / 0.05) ** 2));
       z -= f.nose * (N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
       z -= 0.025 * g(x, 0, 0.18) * g(y, S.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12);
     }
     else { z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
     // canthusSetback: the lateral canthus set back along the globe (eye-local; faded to zero at the side seam)
-    if (!back && S?.canthusSetback) { const cl = 0.455 * f.spacing + 0.285 * f.eyeWidth * 0.95; z += S.canthusSetback * g(Math.abs(u), cl, 0.13) * g(y, EYE_Y, 0.14) * (1 - Math.pow(Math.abs(u), 8)); }
+    if (!back && S?.canthusSetback) { const cl = 0.455 * f.spacing + 0.285 * f.eyeWidth * 0.95; z += S.canthusSetback * g(Math.abs(u), cl, 0.13) * g(y, EYE_Y, 0.14) * (1 - dmath.pow(Math.abs(u), 8)); }
     // Independent forehead and supraorbital depth; blend to the temple seam.
     if (!back) { const sideFade = Math.max(0, 1 - u * u); z -= 0.28 * ((f.foreheadDepth ?? 1) - 1) * g(y, 0.70, 0.28) * sideFade; z -= 0.22 * ((f.browDepth ?? 1) - 1) * g(y, 0.34, 0.14) * sideFade; }
     // Cheek fullness is local to the front malar region; fades to zero at the side seam.
-    if (!back) { const cheekWeight = g(Math.abs(u), 0.57, 0.24) * g(y, -0.29, 0.22) * (1 - Math.pow(Math.abs(u), 8)); const amount = (f.cheekVolume ?? 1) - 1; x += Math.sign(u) * 0.18 * amount * cheekWeight; z -= 0.25 * amount * cheekWeight; }
+    if (!back) { const cheekWeight = g(Math.abs(u), 0.57, 0.24) * g(y, -0.29, 0.22) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.cheekVolume ?? 1) - 1; x += Math.sign(u) * 0.18 * amount * cheekWeight; z -= 0.25 * amount * cheekWeight; }
     // Soft cheek below the malar area, lateral to the mouth; leaves the centerline and seam fixed.
-    if (!back) { const weight = g(Math.abs(u), 0.64, 0.23) * g(y, -0.56, 0.17) * (1 - Math.pow(Math.abs(u), 8)); const amount = (f.lowerCheekVolume ?? 1) - 1; x += Math.sign(u) * 0.20 * amount * weight; z -= 0.28 * amount * weight; }
+    if (!back) { const weight = g(Math.abs(u), 0.64, 0.23) * g(y, -0.56, 0.17) * (1 - dmath.pow(Math.abs(u), 8)); const amount = (f.lowerCheekVolume ?? 1) - 1; x += Math.sign(u) * 0.20 * amount * weight; z -= 0.28 * amount * weight; }
     // Chin projection blends through the whole lower ring; the rear rises into the jaw corner.
     z -= 0.18 * ((f.chinProjection ?? 1) - 1) * g(y, -0.91, 0.18);
-    const lower = clamp((-0.30 - y) / 0.72), rearWeight = back ? 0.65 + 0.35 * arc : 0.65 * Math.pow(Math.abs(u), 1.5);
-    const lift = 0.20 * Math.sin(Math.PI * lower) * rearWeight * (f.jawAngle ?? 1);
+    const lower = clamp((-0.30 - y) / 0.72), rearWeight = back ? 0.65 + 0.35 * arc : 0.65 * dmath.pow(Math.abs(u), 1.5);
+    const lift = 0.20 * dmath.sin(Math.PI * lower) * rearWeight * (f.jawAngle ?? 1);
     // Local jaw-corner depth, with no displacement at the chin or upper skull.
-    const jawWeight = y > -0.90 && y < -0.30 ? Math.sin(Math.PI * (y + 0.90) / 0.60) ** 2 : 0;
+    const jawWeight = y > -0.90 && y < -0.30 ? dmath.sin(Math.PI * (y + 0.90) / 0.60) ** 2 : 0;
     const jawAmount = (f.jawDepth ?? 1) - 1;
     // Broaden and deepen the rear jaw together rather than merely translating its corner.
     z += 0.70 * jawAmount * jawWeight * rearWeight;
@@ -202,19 +204,19 @@ export function buildAnime(r, options = {}) {
   function eyeUV(side, t, scale = 1) {
     // fissureShape: the outline as the upper / lower lid curves (eyeShapeOf), one outline for the aperture, the dish,
     // the iris clip and the lid band
-    if (S?.fissure) { const center = side * 0.455 * f.spacing, co = Math.cos(t), si = Math.sin(t), lat = co * side, u = center + EYE.a * co * scale, blink = Math.max(0.015, 1 - e.blink), yy = EYE_Y + (si >= 0 ? EYE.bUp * EYE.Yup(lat) : -EYE.bDn * EYE.Ydn(lat)) * scale * blink + f.tilt * (Math.abs(u) - Math.abs(center)); return [u, yy]; }
-    const center = side * 0.455 * f.spacing, co = Math.cos(t), si = Math.sin(t), u = center + 0.285 * f.eyeWidth * co * scale, blink = Math.max(0.015, 1 - e.blink), yy = EYE_Y + (si >= 0 ? 0.155 : 0.108) * f.eyeHeight * si * scale * blink + f.tilt * (Math.abs(u) - Math.abs(center)); return [u, yy];
+    if (S?.fissure) { const center = side * 0.455 * f.spacing, co = dmath.cos(t), si = dmath.sin(t), lat = co * side, u = center + EYE.a * co * scale, blink = Math.max(0.015, 1 - e.blink), yy = EYE_Y + (si >= 0 ? EYE.bUp * EYE.Yup(lat) : -EYE.bDn * EYE.Ydn(lat)) * scale * blink + f.tilt * (Math.abs(u) - Math.abs(center)); return [u, yy]; }
+    const center = side * 0.455 * f.spacing, co = dmath.cos(t), si = dmath.sin(t), u = center + 0.285 * f.eyeWidth * co * scale, blink = Math.max(0.015, 1 - e.blink), yy = EYE_Y + (si >= 0 ? 0.155 : 0.108) * f.eyeHeight * si * scale * blink + f.tilt * (Math.abs(u) - Math.abs(center)); return [u, yy];
   }
   function mouthUV(t, scale = 1) {
     // stomion (the lip line) and mouthWidth (a ratio of the studio's)
-    if (S?.stomion !== undefined || S?.mouthWidth !== undefined) { const co = Math.cos(t), si = Math.sin(t), u = 0.175 * (S.mouthWidth ?? 1) * (1 + 0.12 * e.smile) * co * scale, y = (S.stomion ?? -0.535) + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y]; }
-    const co = Math.cos(t), si = Math.sin(t), u = 0.175 * (1 + 0.12 * e.smile) * co * scale, y = -0.535 + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y];
+    if (S?.stomion !== undefined || S?.mouthWidth !== undefined) { const co = dmath.cos(t), si = dmath.sin(t), u = 0.175 * (S.mouthWidth ?? 1) * (1 + 0.12 * e.smile) * co * scale, y = (S.stomion ?? -0.535) + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y]; }
+    const co = dmath.cos(t), si = dmath.sin(t), u = 0.175 * (1 + 0.12 * e.smile) * co * scale, y = -0.535 + 0.035 * e.smile * co * co * scale + (si > 0 ? 0.055 : 0.11) * e.open * si * scale + 0.007 * si * scale; return [u, y];
   }
   for (const hole of holes) {
     const { x0, x1, y0, y1, side } = hole;
     const outer = [...xs.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
-    const ts = outer.map(([u, y]) => Math.atan2((y - (y0 + y1) / 2) / ((y1 - y0) / 2), (u - (x0 + x1) / 2) / ((x1 - x0) / 2))), uv = (t) => (hole.kind === 'eye' ? eyeUV(side, t) : mouthUV(t)), inner = ts.map(uv), rings = [];
-    for (let k = 0; k <= 3; k++) { const t = k / 3; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); v[2] -= 0.009 * Math.sin(Math.PI * t); return v; })); }
+    const ts = outer.map(([u, y]) => dmath.atan2((y - (y0 + y1) / 2) / ((y1 - y0) / 2), (u - (x0 + x1) / 2) / ((x1 - x0) / 2))), uv = (t) => (hole.kind === 'eye' ? eyeUV(side, t) : mouthUV(t)), inner = ts.map(uv), rings = [];
+    for (let k = 0; k <= 3; k++) { const t = k / 3; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); v[2] -= 0.009 * dmath.sin(Math.PI * t); return v; })); }
     for (let k = 0; k < 3; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
     const centerUV = hole.kind === 'eye' ? eyeUV(side, 0, 0) : mouthUV(0, 0), center = surface(...centerUV); center[2] += hole.kind === 'eye' ? -0.025 : 0.035;
     for (let i = 0; i < outer.length; i++) {
@@ -234,28 +236,28 @@ export function buildAnime(r, options = {}) {
       function eyePoint(u, y) { const p = surface(u, y), rad = S?.fissure ? EYE.norm(side, u - centerU, y - cy - f.tilt * (Math.abs(u) - Math.abs(centerU)), blink) : Math.sqrt(((u - centerU) / (0.285 * f.eyeWidth)) ** 2 + ((y - cy - f.tilt * (Math.abs(u) - Math.abs(centerU))) / ((y >= cy ? 0.155 : 0.108) * f.eyeHeight * blink)) ** 2); p[2] -= 0.024 * Math.max(0, 1 - rad * rad) + 0.004; return p; }
       function irisPatch(part, size) {
         const rings = [], R = LENS.rings, N = LENS.seg;
-        for (let k = 0; k <= R; k++) { const rad = k / R; rings.push(Array.from({ length: N }, (_, i) => { const t = i / N * 2 * Math.PI; let dx = Math.cos(t) * 0.13 * f.iris * size, dy = Math.sin(t) * 0.138 * f.iris * size; const lim = Math.sqrt((dx / (0.285 * f.eyeWidth)) ** 2 + (dy / ((dy >= 0 ? 0.155 : 0.108) * f.eyeHeight * blink)) ** 2), fit = Math.min(1, 0.97 / (lim || 1)); dx *= fit * rad; dy *= fit * rad; const p = eyePoint(centerU + dx, cy + dy + f.tilt * (Math.abs(centerU + dx) - Math.abs(centerU))); p[2] -= part === 'pupil' ? 0.002 : 0; return p; })); }
+        for (let k = 0; k <= R; k++) { const rad = k / R; rings.push(Array.from({ length: N }, (_, i) => { const t = i / N * 2 * Math.PI; let dx = dmath.cos(t) * 0.13 * f.iris * size, dy = dmath.sin(t) * 0.138 * f.iris * size; const lim = Math.sqrt((dx / (0.285 * f.eyeWidth)) ** 2 + (dy / ((dy >= 0 ? 0.155 : 0.108) * f.eyeHeight * blink)) ** 2), fit = Math.min(1, 0.97 / (lim || 1)); dx *= fit * rad; dy *= fit * rad; const p = eyePoint(centerU + dx, cy + dy + f.tilt * (Math.abs(centerU + dx) - Math.abs(centerU))); p[2] -= part === 'pupil' ? 0.002 : 0; return p; })); }
         for (let j = 0; j < R; j++) for (let i = 0; i < N; i++) quad(part, rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % N], rings[j][(i + 1) % N]);
       }
       if (S?.lidCover !== undefined) graphicLenses(side, centerU, cy, blink, eyePoint);
       else if (e.blink < 0.985) { irisPatch('iris', 1); irisPatch('pupil', S?.pupil !== undefined ? S.pupil : 0.31); }
       // Upper lash is modeled thickness; lower rim stays lighter and narrower. (lidWeight: the lid band replaces the lash)
-      for (const upper of S?.lidWeight !== undefined ? [false] : [true, false]) { const N = 32; for (let i = 0; i < N; i++) { const t0 = (upper ? 0 : Math.PI) + i * Math.PI / N, t1 = (upper ? 0 : Math.PI) + (i + 1) * Math.PI / N; const rim = (t) => { const [u, y] = eyeUV(side, t), p = surface(u, y); p[2] -= 0.01; const thick = (upper ? 0.020 : S?.lowerRim !== undefined ? 0.006 * S.lowerRim : 0.006) * Math.pow(Math.max(0.05, Math.sin(t) * (upper ? 1 : -1)), 0.4); return [p, add(p, [0, thick * (upper ? 1 : -1), -0.002])]; }; quad('ink', ...rim(t0), ...rim(t1).reverse()); } }
+      for (const upper of S?.lidWeight !== undefined ? [false] : [true, false]) { const N = 32; for (let i = 0; i < N; i++) { const t0 = (upper ? 0 : Math.PI) + i * Math.PI / N, t1 = (upper ? 0 : Math.PI) + (i + 1) * Math.PI / N; const rim = (t) => { const [u, y] = eyeUV(side, t), p = surface(u, y); p[2] -= 0.01; const thick = (upper ? 0.020 : S?.lowerRim !== undefined ? 0.006 * S.lowerRim : 0.006) * dmath.pow(Math.max(0.05, dmath.sin(t) * (upper ? 1 : -1)), 0.4); return [p, add(p, [0, thick * (upper ? 1 : -1), -0.002])]; }; quad('ink', ...rim(t0), ...rim(t1).reverse()); } }
       if (S?.lidWeight !== undefined) lidBand(side, centerU, cy, blink);
       // Brow ribbon follows the face and can tilt independently from eyelids. (brow: the brow block replaces it)
       if (S?.brow) browBlock(side, centerU, cy);
-      else for (let i = 0; i < 16; i++) { const point = (t, top) => { const u = centerU + (t - 0.5) * 0.46 * f.eyeWidth, y = 0.37 + 0.035 * Math.sin(t * Math.PI) + e.brow * side * (t - 0.5) * 0.12; const p = surface(u, y + (top ? 0.018 : 0)); p[2] -= 0.014; return p; }; quad('ink', point(i / 16, 0), point((i + 1) / 16, 0), point((i + 1) / 16, 1), point(i / 16, 1)); }
+      else for (let i = 0; i < 16; i++) { const point = (t, top) => { const u = centerU + (t - 0.5) * 0.46 * f.eyeWidth, y = 0.37 + 0.035 * dmath.sin(t * Math.PI) + e.brow * side * (t - 0.5) * 0.12; const p = surface(u, y + (top ? 0.018 : 0)); p[2] -= 0.014; return p; }; quad('ink', point(i / 16, 0), point((i + 1) / 16, 0), point((i + 1) / 16, 1), point(i / 16, 1)); }
     }
   }
   // noseLine: a short inner line down the nose's shade side (the side away from the character key), so the nose reads at
   // three-quarter and front at a small projection; sampled on surface(), a thin tapered ribbon
   if (S?.noseLine) {
     const L = S.noseLine, n = 12, tip = S.nose ? S.nose.pronasale : -0.18, pts = [];
-    for (let i = 0; i <= n; i++) { const s = i / n, y = tip + L.top + (L.bottom - L.top) * s, u = L.side * (L.inner + (L.outer - L.inner) * Math.pow(s, L.curve ?? 1.6)); pts.push([u, y]); }
+    for (let i = 0; i <= n; i++) { const s = i / n, y = tip + L.top + (L.bottom - L.top) * s, u = L.side * (L.inner + (L.outer - L.inner) * dmath.pow(s, L.curve ?? 1.6)); pts.push([u, y]); }
     const X = pts.map(([u, y]) => [u * 0.78, y]);
     for (let i = 0; i < n; i++) {
-      const w = (k) => L.width * Math.pow(Math.sin(Math.PI * (0.08 + 0.84 * k / n)), 0.6);
-      const nrm = (k) => { const A = X[Math.max(0, k - 1)], B = X[Math.min(n, k + 1)], tx = B[0] - A[0], ty = B[1] - A[1], l = Math.hypot(tx, ty) || 1; return [-ty / l, tx / l]; };
+      const w = (k) => L.width * dmath.pow(dmath.sin(Math.PI * (0.08 + 0.84 * k / n)), 0.6);
+      const nrm = (k) => { const A = X[Math.max(0, k - 1)], B = X[Math.min(n, k + 1)], tx = B[0] - A[0], ty = B[1] - A[1], l = dmath.hypot(tx, ty) || 1; return [-ty / l, tx / l]; };
       const edge = (k, sgn) => { const [u, y] = pts[k], d = nrm(k), p = surface(u + sgn * d[0] * w(k) / 0.78 / 2, y + sgn * d[1] * w(k) / 2); p[2] -= L.push ?? 0.006; return p; };
       quad('nose', edge(i, -1), edge(i + 1, -1), edge(i + 1, 1), edge(i, 1));
     }
@@ -271,7 +273,7 @@ export function buildAnime(r, options = {}) {
     function disc(part, rx, ry, ox, oy, fwd, seg, rings) {
       const G = [];
       for (let k = 0; k <= rings; k++) G.push(Array.from({ length: seg }, (_, i) => {
-        const t = i / seg * 2 * Math.PI; let bx = ox + Math.cos(t) * rx, by = oy + Math.sin(t) * ry;
+        const t = i / seg * 2 * Math.PI; let bx = ox + dmath.cos(t) * rx, by = oy + dmath.sin(t) * ry;
         const nb = EYE.norm(side, bx, by, shut ? 1 : blink); if (nb > 0.97) { bx *= 0.97 / nb; by *= 0.97 / nb; }   // shut: the open shape, all of it behind the lid
         const s = k / rings, dx = ox + (bx - ox) * s, dy = oy + (by - oy) * s, p = at(dx, dy); p[2] -= fwd;
         if (shut || EYE.norm(side, dx, dy, blink) > 0.975) p[2] += 0.05;   // behind the lid (+z is back in the studio frame)
@@ -294,14 +296,14 @@ export function buildAnime(r, options = {}) {
     const SH = S.lidShut ? (() => { const q = clamp((e.blink - 0.7) / 0.3), k = q * q * (3 - 2 * q); return { weight: 1 - (1 - (S.lidShut.weight ?? 1)) * k, sag: (S.lidShut.sag ?? 0) * 2 * a * WK * k }; })() : null;
     for (let i = 0; i <= NB; i++) { const lat = -1 + 2 * i / NB, m = Math.min(1, (lat + 1) / rSpan), L = outline(lat); if (SH) L[1] -= SH.sag * (1 - lat * lat); Lp.push(L); Tk.push(SH ? S.lidWeight * openP * (r0 + (1 - r0) * m * m * (3 - 2 * m)) * SH.weight : S.lidWeight * openP * (r0 + (1 - r0) * m * m * (3 - 2 * m))); }
     { const Tc = Tk.at(-1), step = (S.lidTail ?? 0) * a * WK / NT; let P = Lp.at(-1);
-      if (step > 0) for (let i = 1; i <= NT; i++) { const s = i / NT, ang = ((S.lidTailAngle ?? 0) + (S.lidFlick ?? 0) * s * s) * Math.PI / 180; P = [P[0] + side * step * Math.cos(ang) / WK, P[1] + step * Math.sin(ang)]; Lp.push(P); Tk.push(Tc * Math.pow(1 - s, S.lidTailTaper ?? 0.8)); } }
+      if (step > 0) for (let i = 1; i <= NT; i++) { const s = i / NT, ang = ((S.lidTailAngle ?? 0) + (S.lidFlick ?? 0) * s * s) * Math.PI / 180; P = [P[0] + side * step * dmath.cos(ang) / WK, P[1] + step * dmath.sin(ang)]; Lp.push(P); Tk.push(Tc * dmath.pow(1 - s, S.lidTailTaper ?? 0.8)); } }
     // the thickness is ONE direction for the whole band (a fixed nib: up, leaning `lidLean` toward the lateral canthus),
     // not the line's normal: where the lid line turns steep at the lateral canthus the band thins by itself and the tail
     // takes it up again, with no rotating offset to fold the corner. The lower edge tucks 8 % under the opening's edge.
     // scleraShut (the sclera's own word, see the dish): shutting, the lower edge tucks (8 + 17 × the shut) % under it, so
     // the slit left between the lids is covered by the band, not shown as a white line (a band that sags below the slit,
     // lidShut.sag, can still leave a thin one above it)
-    const lean = S.lidLean ?? 0.15, dl = Math.hypot(lean, 1), D = [side * lean / dl, 1 / dl];
+    const lean = S.lidLean ?? 0.15, dl = dmath.hypot(lean, 1), D = [side * lean / dl, 1 / dl];
     const TUCK = S.scleraShut !== undefined ? (() => { const q = clamp((e.blink - 0.7) / 0.3); return 0.08 + 0.17 * q * q * (3 - 2 * q); })() : null;
     const rows = 1, G = Lp.map((L, i) => Array.from({ length: rows + 1 }, (_, r) => { const k = TUCK !== null ? (r / rows * (1 + TUCK) - TUCK) * Tk[i] : (r / rows * 1.08 - 0.08) * Tk[i], p = surface(L[0] + D[0] * k / WK, L[1] + D[1] * k); p[2] -= S.lidPush ?? 0.014; return p; }));
     for (let i = 0; i < Lp.length - 1; i++) for (let r = 0; r < rows; r++) quad('lid', G[i][r], G[i + 1][r], G[i + 1][r + 1], G[i][r + 1]);
@@ -311,15 +313,15 @@ export function buildAnime(r, options = {}) {
   // The thickness is vertical (a band normal would lean it on the angle)
   function browBlock(side, centerU, cy) {
     // shutLift: shutting (as the lid band's lidShut) the brow relaxes up by `shutLift` of the opening
-    const B = S.brow, shutQ = B.shutLift ? clamp((e.blink - 0.7) / 0.3) : 0, shutK = shutQ * shutQ * (3 - 2 * shutQ), a = EYE.a, WK = 0.76, openP = EYE.bUp + EYE.bDn, NW = 24, bot = [], bt = [], yb = B.shutLift ? cy + EYE.bUp + (B.gap + B.shutLift * shutK) * openP : cy + EYE.bUp + B.gap * openP, tan = Math.tan(B.angle * Math.PI / 180);
-    const prof = (s) => (B.shape === 'block' ? (s < 0.2 ? 0.75 + 1.25 * s : 1 - (1 - (B.tip ?? 0.35)) * Math.pow((s - 0.2) / 0.8, 1.4)) : Math.pow(Math.sin(Math.PI * (0.06 + 0.88 * s)), 0.7) * (1 - 0.35 * s));
-    for (let i = 0; i <= NW; i++) { const s = i / NW, lu = -B.inner + s * (B.inner + B.outer), u = centerU + side * lu * a; bot.push([u, yb + lu * a * WK * tan + (B.arch ?? 0) * Math.sin(Math.PI * s) + e.brow * (s - 0.5) * 0.12]); bt.push(B.thick * openP * prof(s)); }
+    const B = S.brow, shutQ = B.shutLift ? clamp((e.blink - 0.7) / 0.3) : 0, shutK = shutQ * shutQ * (3 - 2 * shutQ), a = EYE.a, WK = 0.76, openP = EYE.bUp + EYE.bDn, NW = 24, bot = [], bt = [], yb = B.shutLift ? cy + EYE.bUp + (B.gap + B.shutLift * shutK) * openP : cy + EYE.bUp + B.gap * openP, tan = dmath.tan(B.angle * Math.PI / 180);
+    const prof = (s) => (B.shape === 'block' ? (s < 0.2 ? 0.75 + 1.25 * s : 1 - (1 - (B.tip ?? 0.35)) * dmath.pow((s - 0.2) / 0.8, 1.4)) : dmath.pow(dmath.sin(Math.PI * (0.06 + 0.88 * s)), 0.7) * (1 - 0.35 * s));
+    for (let i = 0; i <= NW; i++) { const s = i / NW, lu = -B.inner + s * (B.inner + B.outer), u = centerU + side * lu * a; bot.push([u, yb + lu * a * WK * tan + (B.arch ?? 0) * dmath.sin(Math.PI * s) + e.brow * (s - 0.5) * 0.12]); bt.push(B.thick * openP * prof(s)); }
     const G = bot.map(([u, y], i) => [0, 1].map((r) => { const p = surface(u, y + r * bt[i]); p[2] -= B.push ?? 0.016; return p; }));
     for (let i = 0; i < NW; i++) quad('brow', G[i][0], G[i + 1][0], G[i + 1][1], G[i][1]);
   }
   capture = false;
   // Small ear volumes and an unrigged neck/shoulder context.
-  function ellipsoid(part, c, rad) { const N = 24, M = 16, pt = (i, j) => { const t = 2 * Math.PI * i / N, a = Math.PI * j / M; return [c[0] + rad[0] * Math.sin(a) * Math.cos(t), c[1] + rad[1] * Math.cos(a), c[2] + rad[2] * Math.sin(a) * Math.sin(t)]; }; for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) quad(part, pt(i, j), pt(i + 1, j), pt(i + 1, j + 1), pt(i, j + 1)); }
+  function ellipsoid(part, c, rad) { const N = 24, M = 16, pt = (i, j) => { const t = 2 * Math.PI * i / N, a = Math.PI * j / M; return [c[0] + rad[0] * dmath.sin(a) * dmath.cos(t), c[1] + rad[1] * dmath.cos(a), c[2] + rad[2] * dmath.sin(a) * dmath.sin(t)]; }; for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) quad(part, pt(i, j), pt(i + 1, j), pt(i + 1, j + 1), pt(i, j + 1)); }
   const earsStart = parts.skin.length;
   // ear { lift }: the ear raised `lift` (construction units), so it spans the eye level to the nose tip
   for (const side of [-1, 1]) { ellipsoid('skin', [side * 0.77 * f.width, S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045], [0.10, 0.205, 0.14]); }
@@ -327,7 +329,7 @@ export function buildAnime(r, options = {}) {
   // Separate front/back extent gives the throat and nape a continuous supporting volume.
   const neckStart = parts.skin.length;
   const neckSections = [[-1.67, 1.05, -0.30, 0.46], [-1.49, 0.69, -0.22, 0.38], [-1.36, 0.30, -0.18, 0.32], [-1.15, 0.25, -0.20, 0.32], [-0.94, 0.26, -0.25, 0.34], [-0.76, 0.30, -0.31, 0.36], [-0.57, 0.34, -0.32, 0.37], [-0.38, 0.35, -0.27, 0.40], [-0.18, 0.34, -0.22, 0.43]];
-  const neckRings = neckSections.map(([y, rx, front, rear]) => Array.from({ length: 40 }, (_, i) => { const a = i / 40 * 2 * Math.PI, t = Math.cos(a), center = (front + rear) / 2, radius = (rear - front) / 2; return [Math.sin(a) * rx * f.width, fy(y), center + t * radius]; }));
+  const neckRings = neckSections.map(([y, rx, front, rear]) => Array.from({ length: 40 }, (_, i) => { const a = i / 40 * 2 * Math.PI, t = dmath.cos(a), center = (front + rear) / 2, radius = (rear - front) / 2; return [dmath.sin(a) * rx * f.width, fy(y), center + t * radius]; }));
   for (let j = 0; j < neckRings.length - 1; j++) for (let i = 0; i < 40; i++) quad('skin', neckRings[j][i], neckRings[j][(i + 1) % 40], neckRings[j + 1][(i + 1) % 40], neckRings[j + 1][i]);
 
   const neckEnd = parts.skin.length;
@@ -345,7 +347,7 @@ export function buildAnime(r, options = {}) {
   const SEC = HF?.section === 'ridge' ? RIDGE_SECTION : null;
   const FORMS = options.forms && ['bob', 'long', 'hime'].includes(h.style) ? (HF ? formGroupsOf(h.style, h, HF) : formGroupsOf(h.style, h)) : null;
   function capPoint(a, t) {
-    if (FIT) return FIT.cap(a, t); const bottom = 0.10 + 0.43 * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a)), end = Math.acos(clamp((bottom - 0.2) / 0.99, -1, 1)), q = 0.015 + (end - 0.015) * t; return [Math.sin(q) * Math.sin(a) * 0.87 * vx, 0.2 + Math.cos(q) * 1.01 * vy, 0.07 - Math.sin(q) * Math.cos(a) * 0.83 * depth]; }
+    if (FIT) return FIT.cap(a, t); const bottom = 0.10 + 0.43 * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a)), end = dmath.acos(clamp((bottom - 0.2) / 0.99, -1, 1)), q = 0.015 + (end - 0.015) * t; return [dmath.sin(q) * dmath.sin(a) * 0.87 * vx, 0.2 + dmath.cos(q) * 1.01 * vy, 0.07 - dmath.sin(q) * dmath.cos(a) * 0.83 * depth]; }
   const capStart = parts.hair.length;
   for (let j = 0; j < 14; j++) for (let i = 0; i < 48; i++) quad('hair', capPoint(i / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, (j + 1) / 14), capPoint(i / 48 * 2 * Math.PI, (j + 1) / 14));
   if (FIT) for (let i = 0; i < 48; i++) tri('hair', FIT.crown, capPoint((i + 1) / 48 * 2 * Math.PI, 0), capPoint(i / 48 * 2 * Math.PI, 0));   // the fitted cap closes at the crown
@@ -355,7 +357,7 @@ export function buildAnime(r, options = {}) {
     if (FIT) tip = FIT.drape(tip, 0.006);
     if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // a section's member: skinned below
     const start = parts.hair.length; const rings = [], N = 14, S = 8;
-    for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = Math.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * Math.sin(t * Math.PI)), w = width * h.clump * taper, th = PINCH ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper; if (FIT) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, Math.cos(a) * w), mul(thickDir, Math.sin(a) * th))); return FIT && j > 0 ? FIT.drape(q, 0.004) : q; })); }
+    for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = PINCH ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper; if (FIT) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 ? FIT.drape(q, 0.004) : q; })); }
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
     for (let i = 0; i < S; i++) { tri('hair', root, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
     guides.push(...root, ...control, ...control, ...tip); locks.push({ name, root, control, tip, width, start, count: parts.hair.length - start });
@@ -379,7 +381,7 @@ export function buildAnime(r, options = {}) {
   for (const side of [-1, 1]) for (let j = 0; j < 3; j++) { const z = -0.34 + j * 0.22, x = (0.80 + j * 0.025) * vx, baseY = short ? -0.25 - j * 0.07 : h.style === 'long' ? -1.30 - j * 0.09 : hime ? (j === 0 ? -0.66 : -1.30 - j * 0.09) : -0.80 - j * 0.08; const args = [(side < 0 ? 'left' : 'right') + '-temple-' + j, [side * 0.66 * vx, 0.76 * vy, z], [side * 0.94 * vx, 0.10, z - 0.07], [side * (x + 0.04 * j + h.sweep * 0.15), 0.3 + (baseY - 0.3) * h.length, z + 0.08], 0.14, [side, 0, 0]];
     if (SS && j >= (SS.from ?? 1)) { const A = SS.amount; args[2] = mix3(args[2], [side * 0.98 * vx, SS.controlY ?? 0.62, z + 0.25], A); args[3] = mix3(args[3], [side * (SS.tipX ?? 0.80) * vx, (SS.tipY ?? 0.45) - 0.06 * j, (SS.tipZ ?? 0.80) + 0.08 * j], A); }
     if (hime && j === 0) lock(...args, 0.15); else lock(...args); }
-  for (let i = 0; i < 11; i++) { const a = Math.PI * 0.58 + i / 10 * Math.PI * 0.84, root = capPoint(a, 0.30), c = capPoint(a, 0.85), rear = [Math.sin(a) * 0.86 * vx, 0.12, 0.07 - Math.cos(a) * 0.81 * depth], len = short ? 0.38 : h.style === 'long' || hime ? 1.55 : 1.03, tip = [rear[0] * (short ? 1.12 : 0.93) + h.sweep * 0.18 * Math.sin(a), rear[1] - len * h.length + (i % 3) * 0.055, rear[2] + (short ? 0.07 : 0.025)]; lock('back-' + (i + 1), root, [c[0] * 1.08, 0.35, c[2] * 1.1], tip, 0.18, [Math.sin(a), 0, -Math.cos(a)]); }
+  for (let i = 0; i < 11; i++) { const a = Math.PI * 0.58 + i / 10 * Math.PI * 0.84, root = capPoint(a, 0.30), c = capPoint(a, 0.85), rear = [dmath.sin(a) * 0.86 * vx, 0.12, 0.07 - dmath.cos(a) * 0.81 * depth], len = short ? 0.38 : h.style === 'long' || hime ? 1.55 : 1.03, tip = [rear[0] * (short ? 1.12 : 0.93) + h.sweep * 0.18 * dmath.sin(a), rear[1] - len * h.length + (i % 3) * 0.055, rear[2] + (short ? 0.07 : 0.025)]; lock('back-' + (i + 1), root, [c[0] * 1.08, 0.35, c[2] * 1.1], tip, 0.18, [dmath.sin(a), 0, -dmath.cos(a)]); }
   // crown 'tuck': the short family's six crown accents laid into the flow (the control down, the tip onto the mass);
   // 'none': not grown
   if (short && HF?.crown === 'tuck') for (const side of [-1, 1]) for (let i = 0; i < 3; i++) lock('crown-' + side + '-' + i, [side * 0.13, 0.97, -0.04 + i * 0.13], [side * (0.45 + i * 0.08), 1.27 - 0.17, -0.01 + i * 0.12], [side * (0.74 + i * 0.07) * 0.92, 0.96 + i * 0.07 - 0.1, 0.02 + i * 0.14], 0.12, [0, 1, 0]);
@@ -391,7 +393,7 @@ export function buildAnime(r, options = {}) {
     const members = g.members.map((n) => FORMS.curves[n]).filter(Boolean); if (members.length < 2) continue;
     const curveAt = (m, t) => {
       const c0 = add(add(mul(m.root, (1 - t) ** 2), mul(m.control, 2 * (1 - t) * t)), mul(m.tip, t * t)), tangent = unit(add(mul(sub(m.control, m.root), 1 - t), mul(sub(m.tip, m.control), t)));
-      const across = unit(cross(tangent, m.normal)), thickDir = unit(cross(across, tangent)), taper = Math.pow(Math.max(0.001, 1 - t), 0.60 * m.taperK) * (1 + 0.25 * Math.sin(t * Math.PI));
+      const across = unit(cross(tangent, m.normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * m.taperK) * (1 + 0.25 * dmath.sin(t * Math.PI));
       const w = m.width * h.clump * taper, th = PINCH ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper;
       return { center: FIT ? FIT.drape(c0, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6) : c0, across, thickDir, w, th };
     };
@@ -419,7 +421,7 @@ export function buildAnime(r, options = {}) {
   }
   // Six-degree chin-up resting pose; upper neck follows while shoulders remain anchored.
   const pitch = (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, pivot = [0, fy(-0.38), 0.14];
-  function pitched(p, weight = 1) { const a = pitch * weight, c = Math.cos(a), s = Math.sin(a), y = p[1] - pivot[1], z = p[2] - pivot[2]; return [p[0], pivot[1] + c * y - s * z, pivot[2] + s * y + c * z]; }
+  function pitched(p, weight = 1) { const a = pitch * weight, c = dmath.cos(a), s = dmath.sin(a), y = p[1] - pivot[1], z = p[2] - pivot[2]; return [p[0], pivot[1] + c * y - s * z, pivot[2] + s * y + c * z]; }
   for (const [name, array] of Object.entries(parts)) for (let i = 0; i < array.length; i += 3) { const p = array.slice(i, i + 3), neck = name === 'skin' && i >= neckStart && i < neckEnd; let weight = 1; if (neck) { const t = clamp((p[1] - fy(-1.25)) / (fy(-0.38) - fy(-1.25))); weight = t * t * (3 - 2 * t); } array.splice(i, 3, ...pitched(p, weight)); }
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
@@ -453,11 +455,11 @@ export function sculptOf(sculpt) {
  * the sclera dish, the iris clip and the lid band. `h` scales the opening's height, `hDn` the lower lid's share. */
 function eyeShapeOf(S, f) {
   const F = S.fissure || {}, a = 0.285 * f.eyeWidth, bUp = 0.155 * f.eyeHeight * (F.h ?? 1), bDn = 0.108 * f.eyeHeight * (F.h ?? 1) * (F.hDn ?? 1);
-  const shape = ({ m = 2, p = 0.5, k = 0 } = {}) => (lat) => { const x = lat >= k ? (lat - k) / (1 - k) : (lat - k) / (1 + k); return Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, Math.abs(x)), m)), p); };
+  const shape = ({ m = 2, p = 0.5, k = 0 } = {}) => (lat) => { const x = lat >= k ? (lat - k) / (1 - k) : (lat - k) / (1 + k); return dmath.pow(Math.max(0, 1 - dmath.pow(Math.min(1, Math.abs(x)), m)), p); };
   const Yup = shape(F.upper), Ydn = shape(F.lower);
   const N = 720, tab = [];
-  for (let i = 0; i <= N; i++) { const lat = 1 - 2 * i / N, Y = Yup(lat); tab.push([Math.atan2(Y, lat), Math.hypot(lat, Y)]); }
-  for (let i = 1; i < N; i++) { const lat = -1 + 2 * i / N, Y = Ydn(lat); tab.push([Math.atan2(-Y, lat), Math.hypot(lat, Y)]); }
+  for (let i = 0; i <= N; i++) { const lat = 1 - 2 * i / N, Y = Yup(lat); tab.push([dmath.atan2(Y, lat), dmath.hypot(lat, Y)]); }
+  for (let i = 1; i < N; i++) { const lat = -1 + 2 * i / N, Y = Ydn(lat); tab.push([dmath.atan2(-Y, lat), dmath.hypot(lat, Y)]); }
   tab.sort((A, B) => A[0] - B[0]);
   const rho = (th) => {
     let lo = 0, hi = tab.length - 1;
@@ -465,7 +467,7 @@ function eyeShapeOf(S, f) {
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tab[mid][0] <= th) lo = mid; else hi = mid; }
     const A = tab[lo], B = tab[hi]; return A[1] + (B[1] - A[1]) * (th - A[0]) / ((B[0] - A[0]) || 1);
   };
-  const norm = (side, du, dy, blink = 1) => { const xn = du / a, yn = dy / ((dy >= 0 ? bUp : bDn) * blink); if (xn === 0 && yn === 0) return 0; return Math.hypot(xn, yn) / rho(Math.atan2(yn, xn * side)); };
+  const norm = (side, du, dy, blink = 1) => { const xn = du / a, yn = dy / ((dy >= 0 ? bUp : bDn) * blink); if (xn === 0 && yn === 0) return 0; return dmath.hypot(xn, yn) / rho(dmath.atan2(yn, xn * side)); };
   return { a, bUp, bDn, Yup, Ydn, norm };
 }
 
@@ -473,9 +475,9 @@ function eyeShapeOf(S, f) {
  * centre outside the head's section at its height. `surface` is buildAnime's own (unpitched frame). */
 function hairFit(surface, f, h, HF = null) {
   // the studio's hairline; the hair form's `hairline { front }` raises its front edge (a swept-back cut shows the forehead)
-  const bottom = HF?.hairline ? (a) => 0.10 + (HF.hairline.front - 0.10) * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a)) : (a) => 0.10 + 0.43 * Math.max(0, Math.cos(a)) - 0.48 * Math.max(0, -Math.cos(a));   // the studio's hairline
+  const bottom = HF?.hairline ? (a) => 0.10 + (HF.hairline.front - 0.10) * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a)) : (a) => 0.10 + 0.43 * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a));   // the studio's hairline
   const TOP = 1.185, lift0 = Math.max(0.014, 0.028 + 0.25 * (h.volume - 1));   // a floor: the cap's flat faces sag between samples
-  const at = (a, y) => { const back = Math.cos(a) < 0; return { p: surface(Math.sin(a), y, back), back }; };
+  const at = (a, y) => { const back = dmath.cos(a) < 0; return { p: surface(dmath.sin(a), y, back), back }; };
   // the outward normal: the cross of the surface's two tangents, turned away from the section's centre
   const normalAt = (a, y) => {
     const e = 1e-3, p = at(a, y).p, pa = at(a + e, y).p, py = at(a, Math.min(TOP, y + e)).p, qy = at(a, y - e).p;
@@ -487,7 +489,7 @@ function hairFit(surface, f, h, HF = null) {
   // the hair form's LIFT: the hull off the skull by region, the crown's at the top blending to the rim's (the temples,
   // eased to the fringe in front and the nape behind) at the hairline; the drape below keeps the same lift
   const HL = HF?.lift ?? null;
-  const liftAt = (a, t) => { const c = Math.cos(a), rim = c >= 0 ? HL.temple + (HL.front - HL.temple) * c * c : HL.temple + (HL.back - HL.temple) * c * c, s = clamp(t), w = s * s * (3 - 2 * s); return HL.crown + (rim - HL.crown) * w; };
+  const liftAt = (a, t) => { const c = dmath.cos(a), rim = c >= 0 ? HL.temple + (HL.front - HL.temple) * c * c : HL.temple + (HL.back - HL.temple) * c * c, s = clamp(t), w = s * s * (3 - 2 * s); return HL.crown + (rim - HL.crown) * w; };
   const cap = (a, t) => { const y = TOP + (bottom(a) - TOP) * t, p = at(a, y).p, n = normalAt(a, y), L = HL ? liftAt(a, t) : lift0 * (0.35 + 0.65 * Math.sqrt(1 - t)); return add(p, mul(n, L)); };
   const crownPoint = surface(0, 1.19); const crown = HL ? [crownPoint[0], crownPoint[1] + HL.crown, crownPoint[2]] : [crownPoint[0], crownPoint[1] + lift0, crownPoint[2]];
   // the head's horizontal section at a height, as a polar radius about its centre (both shells sampled). Sections are
@@ -500,7 +502,7 @@ function hairFit(surface, f, h, HF = null) {
     for (let i = 0; i <= M; i++) pts.push(surface(-1 + 2 * i / M, y));
     for (let i = 0; i <= M; i++) pts.push(surface(1 - 2 * i / M, y, true));
     const zc = (surface(0, y)[2] + surface(0, y, true)[2]) / 2;
-    const polar = pts.map((p) => [Math.atan2(p[0], p[2] - zc), Math.hypot(p[0], p[2] - zc)]).sort((A, B) => A[0] - B[0]);
+    const polar = pts.map((p) => [dmath.atan2(p[0], p[2] - zc), dmath.hypot(p[0], p[2] - zc)]).sort((A, B) => A[0] - B[0]);
     const S = { zc, polar }; cache.set(key, S); return S;
   };
   const radiusAt = ({ polar }, phi) => {
@@ -514,9 +516,9 @@ function hairFit(surface, f, h, HF = null) {
   // the crown is kept outside it, pushed out along its ray from the centre
   const DOME = HF?.dome ? (() => {
     const c = [0, 0.35, 0.17], NA = 32, NE = 8, tab = new Float64Array(NA * NE).fill(-1);
-    const bin = (d) => { const a = (Math.atan2(d[0], d[2]) + Math.PI) / (2 * Math.PI) * NA, e = Math.atan2(d[1], Math.hypot(d[0], d[2])) / (Math.PI / 2) * NE; return [a, e]; };
+    const bin = (d) => { const a = (dmath.atan2(d[0], d[2]) + Math.PI) / (2 * Math.PI) * NA, e = dmath.atan2(d[1], dmath.hypot(d[0], d[2])) / (Math.PI / 2) * NE; return [a, e]; };
     for (let i = 0; i <= 40; i++) for (let j = 0; j <= 12; j++) for (const back of [false, true]) {
-      const q = surface(-1 + 2 * i / 40, 0.95 + (TOP - 0.95) * j / 12, back), d = sub(q, c), r = Math.hypot(...d), [a, e] = bin(d);
+      const q = surface(-1 + 2 * i / 40, 0.95 + (TOP - 0.95) * j / 12, back), d = sub(q, c), r = dmath.hypot(...d), [a, e] = bin(d);
       const k = Math.min(NA - 1, Math.floor(a)) * NE + Math.max(0, Math.min(NE - 1, Math.floor(e))); if (r > tab[k]) tab[k] = r;
     }
     // an empty bin takes its column's nearest filled one (toward the pole first), then its row's neighbours
@@ -530,7 +532,7 @@ function hairFit(surface, f, h, HF = null) {
     return { c, radius };
   })() : null;
   const domed = (p, margin) => {
-    if (p[1] < 0.95) return p; const d = sub(p, DOME.c), r = Math.hypot(...d), need = DOME.radius(d) + (HL ? HL.crown : 0) + margin;
+    if (p[1] < 0.95) return p; const d = sub(p, DOME.c), r = dmath.hypot(...d), need = DOME.radius(d) + (HL ? HL.crown : 0) + margin;
     return r >= need ? p : add(DOME.c, mul(d, need / Math.max(r, 1e-9)));
   };
   // a point inside the head (or within `margin` of it) is pushed out along its section's radius (by the lift too, when on)
@@ -539,7 +541,7 @@ function hairFit(surface, f, h, HF = null) {
     const Y = p[1]; if (Y > TOP || Y < -1.0) return p;
     const y = Y >= -0.2 ? Y : Math.max(-1.0, -0.2 + (Y + 0.2) / f.lower);
     const k0 = Math.floor(y * 200), u = y * 200 - k0, A = sectionAtKey(k0), B = sectionAtKey(k0 + 1), zc = A.zc + (B.zc - A.zc) * u;
-    const dz = p[2] - zc, r = Math.hypot(p[0], dz), phi = Math.atan2(p[0], dz), need = HL ? radiusAt(A, phi) + (radiusAt(B, phi) - radiusAt(A, phi)) * u + margin + liftAt(Math.atan2(p[0], -dz), (TOP - Y) / (TOP - bottom(Math.atan2(p[0], -dz)))) : radiusAt(A, phi) + (radiusAt(B, phi) - radiusAt(A, phi)) * u + margin;
+    const dz = p[2] - zc, r = dmath.hypot(p[0], dz), phi = dmath.atan2(p[0], dz), need = HL ? radiusAt(A, phi) + (radiusAt(B, phi) - radiusAt(A, phi)) * u + margin + liftAt(dmath.atan2(p[0], -dz), (TOP - Y) / (TOP - bottom(dmath.atan2(p[0], -dz)))) : radiusAt(A, phi) + (radiusAt(B, phi) - radiusAt(A, phi)) * u + margin;
     if (r >= need) return p;
     const k = need / Math.max(r, 1e-9); return [p[0] * k, Y, zc + dz * k];
   };

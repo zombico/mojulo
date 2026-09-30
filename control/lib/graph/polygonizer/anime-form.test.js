@@ -1,5 +1,8 @@
-/** The port reproduces the Anime Form Studio: per-part hashes of `buildAnime` at the fixture's recipes equal the hashes
- * frozen from the studio's own model.js (anime-form.fixture.json records that file's sha256), bit for bit. */
+/** The port reproduces the Anime Form Studio: `buildAnime` is the studio's model.js (anime-form.fixture.json records that
+ * file's sha256) operation for operation, with its transcendentals from util/dmath.js, and per-part hashes at the
+ * fixture's recipes are pinned bit for bit, the same on every CPU and Node version. The studio's own digests, frozen on
+ * macOS arm64's native Math, matched the port there before it took dmath; re-freezing them from model.js with Math's
+ * transcendentals bound to dmath restores that independent check. */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -19,7 +22,7 @@ function digest(model) {
 
 describe('anime-form: the port is the studio', () => {
   for (const c of FIXTURE.cases) it(c.name, () => { expect(digest(buildAnime(animeReadRecipe(c.recipe), c.options))).toEqual(c.digest); });
-  it('the fixture came from the studio (its source hash is recorded)', () => {
+  it('the fixture names the studio source it ports (its hash is recorded)', () => {
     expect(FIXTURE.studioSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(FIXTURE.cases.length).toBeGreaterThanOrEqual(9);
   });

@@ -25,6 +25,8 @@
 import { PLAN_SCHEMA, r6 } from './station-loft-plan.js';
 import { castArmature, resolveCast, validateCast } from './figure-cast.js';
 import { ratioControls } from './ratio-controls.js';
+import * as dmath from '../../util/dmath.js';
+import { withMath } from '../../util/math-scope.js';
 
 /** vajra rest units → metres: the canonical figure's crown lands at 1.80 m */
 export const SCALE = 1.8;
@@ -154,7 +156,7 @@ export const validateTune = (spec, label = 'tune') => TUNE.validate(spec, label)
 /** Advisory: the resolved keys outside the lab's comfortable range. Never a refusal. */
 export const tuneWarnings = TUNE.warnings;
 
-const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
+const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / dmath.hypot(...v));
 const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
 
 /**
@@ -188,7 +190,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const { from: _castFrom, ...castDials } = resolveCast(preset ? preset.dials : cast);
   const tuneDial = (k, f) => { if (f !== 1) castDials[k] = castDials[k] * f; };
   tuneDial('lumbar', TN.torso); tuneDial('thoracic', TN.torso); tuneDial('neck', TN.neck); tuneDial('thigh', TN.legs); tuneDial('shank', TN.legs); tuneDial('shoulderSpan', TN.shoulders);
-  const m = castArmature(castDials);
+  const m = withMath(dmath, () => castArmature(castDials));   // the shared figure cast, on dmath (util/math-scope.js)
   const g0 = girth * (preset?.girth ?? 1);
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);
   const b = { ...BODY_DEFAULTS, ...(preset?.body || {}), ...body };
@@ -355,7 +357,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 function neckLoft(N, { b, g, zs, hb }) {
   const k = N.girth ?? 1, lean = ((N.lean ?? 0) * Math.PI) / 180;
   const z0 = zs - 0.15 * b.neck, z1 = hb + (N.top ?? 0.2 * b.neck), y0 = N.yBase ?? 0;
-  const at = (t) => { const z = z0 + t * (z1 - z0); return [0, y0 + (z - z0) * Math.tan(lean), z]; };
+  const at = (t) => { const z = z0 + t * (z1 - z0); return [0, y0 + (z - z0) * dmath.tan(lean), z]; };
   const stations = N.rings.map(([t, w, d, dy]) => { const p = at(t); return { at: R(dy ? [0, p[1] + dy, p[2]] : p), r: g([b.neck * k * w, b.neck * k * d]) }; });
   const end = stations.at(-1).at, tip = N.tip ?? [0, 0.35 * b.neck];
   return { name: 'neck', kind: 'loft', stations, caps: { back: R([0, y0, z0 - 0.3 * b.neck]), tip: R([0, end[1] + tip[0], end[2] + tip[1]]) }, slots: N.slots, ...(N.e ? { e: N.e } : {}), group: 'Skin', mirror: 'plane',

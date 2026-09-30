@@ -15,6 +15,7 @@
  */
 import { shadeHex, DEFAULT_LIGHT } from './vexar.js';
 import { auditLayered } from './station-loft.js';
+import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -33,7 +34,7 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
     const partName = mesh.provenance[tri[0]].part; const part = mesh.parts[partName]; const g = mesh.groups[i];
     const hex = palette[g] || part?.tint || FALLBACK;
     const corners = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; });
-    const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])); const l = Math.hypot(n[0], n[1], n[2]);
+    const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])); const l = dmath.hypot(n[0], n[1], n[2]);
     if (!(l > 1e-14)) return;   // a degenerate triangle has no face
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
     faces.push({ corners, fill: glows.has(g) ? hex : shadeHex(hex, outNormal, light), group: group || partName, outNormal });

@@ -14,14 +14,15 @@
 import { compileLayered, pinFrame, mirrorPid, addressPin } from './station-loft.js';
 import { placeSurfaceOffset, surfaceLocalOffset } from './surface-pin.js';
 import { mulberry32 } from './floorplan-glyphs.js';
+import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
 const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
 const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
-const unit = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
+const unit = (v) => { const l = dmath.hypot(...v); return v.map((x) => x / l); };
 const mean = (ps) => mul(ps.reduce(add, [0, 0, 0]), 1 / ps.length);
 const lerp = (a, b, w) => add(mul(a, 1 - w), mul(b, w));
-const rot = (v, k, a) => { const c = Math.cos(a), s = Math.sin(a); return add(add(mul(v, c), mul(cross(k, v), s)), mul(k, dot(k, v) * (1 - c))); };
+const rot = (v, k, a) => { const c = dmath.cos(a), s = dmath.sin(a); return add(add(mul(v, c), mul(cross(k, v), s)), mul(k, dot(k, v) * (1 - c))); };
 const SIDES = ['R', 'L']; const mx = (v, side) => (side === 'L' ? [-v[0], v[1], v[2]] : v);
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
@@ -94,8 +95,8 @@ function loftParts(rings, back, tip) {
 }
 /** per-face labels in loftParts order: band (j,k) → label(j,k); caps → capLabel */
 const loftLabels = (mesh, label, capLabel) => { const [cb, ct] = Array.isArray(capLabel) ? capLabel : [capLabel, capLabel]; const out = []; for (let j = 0; j + 1 < mesh.rings.length; j++) for (let k = 0; k < mesh.m; k++) { const g = label(j, k); out.push(g, g); } for (let k = 0; k < mesh.m; k++) out.push(cb, ct); return out; };
-const ringAt = (c, axis, r, m, phase = 0, squash = [1, 1]) => { const a = unit(axis); let u = cross(a, [0, 0, 1]); if (Math.hypot(...u) < 1e-6) u = cross(a, [1, 0, 0]); u = unit(u); const v = cross(a, u);
-  return Array.from({ length: m }, (_, i) => { const t = 2 * Math.PI * i / m + phase; return add(c, add(mul(u, Math.cos(t) * r * squash[0]), mul(v, Math.sin(t) * r * squash[1]))); }); };
+const ringAt = (c, axis, r, m, phase = 0, squash = [1, 1]) => { const a = unit(axis); let u = cross(a, [0, 0, 1]); if (dmath.hypot(...u) < 1e-6) u = cross(a, [1, 0, 0]); u = unit(u); const v = cross(a, u);
+  return Array.from({ length: m }, (_, i) => { const t = 2 * Math.PI * i / m + phase; return add(c, add(mul(u, dmath.cos(t) * r * squash[0]), mul(v, dmath.sin(t) * r * squash[1]))); }); };
 /** a spine loft in pin-local coords; `curl` spreads a rotation over the stations (the tail-chain rule) */
 function sweep(spine, radii, m, { curl = 0, curlAxis = [1, 0, 0], squash } = {}) {
   const pts = [spine[0]]; for (let j = 1; j < spine.length; j++) pts.push(add(pts[j - 1], rot(sub(spine[j], spine[j - 1]), unit(curlAxis), curl * j / (spine.length - 1))));
@@ -132,7 +133,7 @@ function carriers(recipe, head, x) {
   const sideOf = (id) => (/[RL]$/.test(id) ? id.slice(-1) : 'M');
   for (const [key, c] of Object.entries(head.skin)) for (const side of SIDES) { const v = ctl(x, key, side); if (!v) continue;
     for (const m of c.map) { const part = m.part || 'cranium'; const o = frameAt(bone, part, m.at, side).origin; const dir = mx(unit(m.dir), side);
-      for (const [id, p] of Object.entries(bone[part].points)) { if (sideOf(id) !== side && sideOf(id) !== 'M') continue; const d = Math.hypot(...sub(p, o)); if (d >= m.r) continue;
+      for (const [id, p] of Object.entries(bone[part].points)) { if (sideOf(id) !== side && sideOf(id) !== 'M') continue; const d = dmath.hypot(...sub(p, o)); if (d >= m.r) continue;
         const f = (1 - (d / m.r) ** 2) ** 2; skin[part].points[id] = add(skin[part].points[id], mul(dir, c.amp * m.w * f * v)); } } }
   return { bone, skin };
 }
@@ -158,14 +159,14 @@ function tiles(L1, name, side, T, idBase, { keep = [], rest = L1 } = {}) {
   for (let j = 0; j < nt; j++) { const off = T.brick && j % 2 ? 0.5 : 0;
     for (let i = 0; i < ns; i++) { if (s0 + (i + off + 1) * ds > s1 + 1e-9) continue; const id = `${idBase}.${i}.${j}`; const rng = mulberry32(hash(id)); const [r1, r2, r3, r4] = [rng(), rng(), rng(), rng()];
       const sc = s0 + (i + off + 0.5 + (T.wobble ?? 0) * (r1 - 0.5)) * ds, tc = t0 + (j + 0.5 + (T.wobble ?? 0) * (r2 - 0.5)) * dt;
-      const ring = Array.from({ length: sides }, (_, k) => { const a = 2 * Math.PI * k / sides + Math.PI / sides; return [clampS(sc + Math.cos(a) * ds / 2 * cover), clampT(tc + Math.sin(a) * dt / 2 * cover)]; });
+      const ring = Array.from({ length: sides }, (_, k) => { const a = 2 * Math.PI * k / sides + Math.PI / sides; return [clampS(sc + dmath.cos(a) * ds / 2 * cover), clampT(tc + dmath.sin(a) * dt / 2 * cover)]; });
       const O = ring.map((a) => frameAt(L1, name, a, side).origin); const F0 = frameAt(L1, name, [sc, tc], side); const n = F0.normal, c = F0.origin;
       const along = unit(sub(frameAt(L1, name, [clampS(sc + ds / 4), tc], side).origin, frameAt(L1, name, [clampS(sc - ds / 4), tc], side).origin));
       let edge = fade > 0 ? Math.min(1, Math.min(sc - s0, s1 - sc) / (fade * (s1 - s0)), Math.min(tc - t0, t1 - tc) / (fade * (t1 - t0))) : 1;
       // regions win over tiles: a tile centred inside a keep-out is not grown, one near it fades. `thin` drops
       // tiles toward the window border by seeded chance, so a patch has no hard edge. Both are decided on the
       // REST carrier, so the tile set and heights never depend on the expression.
-      const cR = frameAt(rest, name, [sc, tc], side).origin; const room = Math.min(Infinity, ...keep.map((z) => Math.hypot(...sub(cR, z.p)) - z.r));
+      const cR = frameAt(rest, name, [sc, tc], side).origin; const room = Math.min(Infinity, ...keep.map((z) => dmath.hypot(...sub(cR, z.p)) - z.r));
       if (room <= 0 || r4 < (T.thin ?? 0) * (1 - Math.min(1, Math.max(0, edge)))) continue; edge = Math.min(edge, room / (T.clear ?? 0.012));
       const h = T.height * (1 + (T.jitter ?? 0) * (2 * r3 - 1)) * (0.2 + 0.8 * Math.max(0, edge)); const lean = (T.lean ?? 0) * h;
       const base = O.map((o) => sub(o, mul(n, 0.0015))); const top = O.map((o) => add(add(add(c, mul(sub(o, c), 1 - T.inset)), mul(n, h)), mul(along, lean)));
@@ -187,7 +188,7 @@ function ringLoft(sections) {
 function collar(mesh, j, height, width = 0.3) {
   const ring = (i) => mesh.rings[i].map((id) => mesh.points[id]); const R = ring(j), c = mean(R);
   const prev = mean(ring(Math.max(0, j - 1))), next = mean(ring(Math.min(mesh.rings.length - 1, j + 1)));
-  const ax = unit(sub(next, prev)), half = width * Math.hypot(...sub(next, prev)) / 2;
+  const ax = unit(sub(next, prev)), half = width * dmath.hypot(...sub(next, prev)) / 2;
   const at = (d, s) => R.map((p) => add(add(c, mul(sub(p, c), s)), mul(ax, d)));
   return loftParts([at(-half, 0.97), at(0, 1 + height), at(half, 0.97)], add(c, mul(ax, -half * 1.3)), add(c, mul(ax, half * 1.3)));
 }
@@ -203,7 +204,7 @@ function dish({ r, rim, floor, m = 10, squash = [1, 1] }, place = (p) => p, [out
  * set never depends on the expression. */
 function drivenStrip(L1, side, D, x) {
   const name = D.part || 'cranium'; const k = (D.rest ?? 0.15) + Object.entries(D.drive).reduce((s, [key, w]) => s + w * Math.max(0, ctl(x, key, side)), 0); const m = D.strip.length;
-  const mesh = strip(L1, name, D.strip, side, (j) => { const tp = Math.sin(Math.PI * (j + 0.5) / m); const w = D.w * tp, h = Math.max(0.0005, D.h * k * tp); return [[-w, -0.002], [0, h], [w, -0.002], [0, -0.004]]; });
+  const mesh = strip(L1, name, D.strip, side, (j) => { const tp = dmath.sin(Math.PI * (j + 0.5) / m); const w = D.w * tp, h = Math.max(0.0005, D.h * k * tp); return [[-w, -0.002], [0, h], [w, -0.002], [0, -0.004]]; });
   const mid = D.strip[Math.floor(m / 2)]; return { ...mesh, group: D.group || 'Wrinkles', creases: [], pin: address(L1, name, mid[0], mid[1], side) };
 }
 /** WHISKERS: thin tapering sweeps rooted on the skin (barbels, vibrissae). Each root is an address with an
@@ -237,8 +238,8 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   const E = spec; const mode = E.mode || 'iris', pupil = E.pupil || (mode === 'solid' ? 'none' : 'round');
   const c = [0, 0, 0.002]; const irisA = E.irisAngle ?? (pupil === 'slit' ? 46 : 36), pupilA = E.pupilAngle ?? 15, limbA = irisA + 5;
   const f = frameAt(bone, 'cranium', at, side); const out = {};
-  const polar = [160, 130, 100, 75, 55, limbA, irisA, (irisA + pupilA) / 2, pupilA]; const flatZ = Math.cos(irisA * Math.PI / 180) * R + 0.002;
-  const rings = polar.map((a) => { const r = Math.sin(a * Math.PI / 180) * R; let z = Math.cos(a * Math.PI / 180) * R; if (a < irisA) z = flatZ - (a <= pupilA ? 0.0015 : 0);
+  const polar = [160, 130, 100, 75, 55, limbA, irisA, (irisA + pupilA) / 2, pupilA]; const flatZ = dmath.cos(irisA * Math.PI / 180) * R + 0.002;
+  const rings = polar.map((a) => { const r = dmath.sin(a * Math.PI / 180) * R; let z = dmath.cos(a * Math.PI / 180) * R; if (a < irisA) z = flatZ - (a <= pupilA ? 0.0015 : 0);
     return ringAt(add(c, [0, 0, z]), [0, 0, 1], r, 10, 0, a <= pupilA && pupil === 'slit' ? [1, 0.28] : [1, 1]); });
   const gaze = E.gaze || [0, 0]; const turn = (p) => add(rot(rot(sub(p, c), [0, 1, 0], gaze[0] * Math.PI / 180), [1, 0, 0], -gaze[1] * Math.PI / 180), c);
   const ball = loftParts(rings.map((r) => r.map(turn)), turn(add(c, [0, 0, -R])), turn(add(c, [0, 0, flatZ - 0.0015])));
@@ -247,7 +248,7 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   const tint = (g) => (mode === 'solid' && (g === 'Iris' || g === 'Limbus') ? 'Sclera' : pupil === 'none' && g === 'Pupil' ? (mode === 'solid' ? 'Sclera' : 'Iris') : g);
   const labels = []; for (let j = 0; j + 1 < rings.length; j++) for (let k = 0; k < 10; k++) { const g = tint(band(j, k)); labels.push(g, g); } for (let k = 0; k < 10; k++) labels.push('Sclera', tint('Pupil'));
   out.eye = { ...pinned(bone, 'cranium', at, side, ball, 'Sclera'), faceGroups: labels };
-  if (E.catchlight) { const cc = [-0.35 * Math.sin(24 * Math.PI / 180) * R, 0.8 * Math.sin(24 * Math.PI / 180) * R, c[2] + flatZ + 0.0009];
+  if (E.catchlight) { const cc = [-0.35 * dmath.sin(24 * Math.PI / 180) * R, 0.8 * dmath.sin(24 * Math.PI / 180) * R, c[2] + flatZ + 0.0009];
     const hl = { points: { a: turn(add(cc, [0.0024, 0.0006, 0])), b: turn(add(cc, [-0.0012, 0.0021, 0])), d: turn(add(cc, [-0.0012, -0.0021, 0])), e: turn(add(cc, [0, 0, -0.0012])) }, faces: [['a', 'b', 'd'], ['a', 'e', 'b'], ['b', 'e', 'd'], ['d', 'e', 'a']] };
     if (dot(sub(hl.points.a, hl.points.e), cross(sub(hl.points.b, hl.points.e), sub(hl.points.d, hl.points.e))) < 0) hl.faces = hl.faces.map((q) => [...q].reverse());
     out.catch = pinned(bone, 'cranium', at, side, hl, 'Catchlight'); }
@@ -265,21 +266,21 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   // `clear` is lifted along the eye's axis onto it, a skin vertex onto it plus `minThick`: the lid drapes over
   // the front of the ball. Lifting along the axis keeps x and y, so the aperture and the brow tuck are
   // untouched and the two rules hold together. Points already clear are never moved.
-  const ballR = Math.max(...Object.values(ball.points).map((p) => Math.hypot(...sub(p, c)))), Rc = ballR + (orbit.clear ?? 0.0008);
-  const hold = (p, r) => { const d = sub(p, c); return Math.hypot(...d) >= r ? p : [p[0], p[1], c[2] + Math.sqrt(r * r - d[0] * d[0] - d[1] * d[1])]; };
+  const ballR = Math.max(...Object.values(ball.points).map((p) => dmath.hypot(...sub(p, c)))), Rc = ballR + (orbit.clear ?? 0.0008);
+  const hold = (p, r) => { const d = sub(p, c); return dmath.hypot(...d) >= r ? p : [p[0], p[1], c[2] + Math.sqrt(r * r - d[0] * d[0] - d[1] * d[1])]; };
   const clearOfBall = (sec) => { const H = sec.length / 2; return [...sec.slice(0, H).map((p) => hold(p, Rc + (orbit.minThick ?? 0.001))), ...sec.slice(H).map((p) => hold(p, Rc))]; };
-  for (let j = 0; j < N; j++) { const phi = 2 * Math.PI * j / N, cs = Math.cos(phi), sn = Math.sin(phi), up = sn >= 0;
+  for (let j = 0; j < N; j++) { const phi = 2 * Math.PI * j / N, cs = dmath.cos(phi), sn = dmath.sin(phi), up = sn >= 0;
     const ax = 0.97 * R * cs, ay = (up ? hu : hl) * sn, rl = R + 0.005; const lash = add(c, [ax, ay, Math.sqrt(Math.max(1e-6, rl * rl - ax * ax - ay * ay))]);
     const ox = (R + orbit.reach[0]) * cs; let oy = sn * (R + (up ? orbit.reach[1] : orbit.reach[2]));
     if (up) oy = Math.min(oy, surfaceLocalOffset(f, along(brow, ox))[1] - orbit.tuck);
     const outer = surfaceLocalOffset(f, add(projectOnto(skin.cranium, placeSurfaceOffset(f, [ox, oy, 0.06]), f.normal), mul(f.normal, 0.001)));
-    const rim = add(c, mul(unit(sub(lash, c)), Math.hypot(...sub(lash, c)) + 0.004));
+    const rim = add(c, mul(unit(sub(lash, c)), dmath.hypot(...sub(lash, c)) + 0.004));
     const bulk = up ? orbit.bulk[0] : orbit.bulk[1] * (1 + 0.6 * Math.max(0, bunch));
-    const mids = [0.35, 0.7].map((w) => { let p = add(lerp(rim, outer, w), [0, 0, bulk * Math.sin(Math.PI * w)]); const d = sub(p, c); if (Math.hypot(...d) < R + 0.007) p = add(c, mul(unit(d), R + 0.007)); return p; });
-    const inner = [add(c, mul(unit(sub(lash, c)), Math.hypot(...sub(lash, c)) - TH)), ...[rim, ...mids, outer].map((p) => sub(p, [0, 0, TH]))];
+    const mids = [0.35, 0.7].map((w) => { let p = add(lerp(rim, outer, w), [0, 0, bulk * dmath.sin(Math.PI * w)]); const d = sub(p, c); if (dmath.hypot(...d) < R + 0.007) p = add(c, mul(unit(d), R + 0.007)); return p; });
+    const inner = [add(c, mul(unit(sub(lash, c)), dmath.hypot(...sub(lash, c)) - TH)), ...[rim, ...mids, outer].map((p) => sub(p, [0, 0, TH]))];
     sections.push(clearOfBall([lash, rim, ...mids, outer, ...inner.reverse()])); }
   const ring = ringLoft(sections); const lab = [];
-  for (let j = 0; j < N; j++) { const upper = Math.sin(2 * Math.PI * (j + 0.5) / N) >= 0; for (let k = 0; k < ring.m; k++) { const g = k === 0 || k === ring.m - 1 ? 'LidRim' : upper ? 'Lids' : 'Pad'; lab.push(g, g); } }
+  for (let j = 0; j < N; j++) { const upper = dmath.sin(2 * Math.PI * (j + 0.5) / N) >= 0; for (let k = 0; k < ring.m; k++) { const g = k === 0 || k === ring.m - 1 ? 'LidRim' : upper ? 'Lids' : 'Pad'; lab.push(g, g); } }
   out.surround = { ...pinned(bone, 'cranium', at, side, ring, 'Lids'), faceGroups: lab };
   return out;
 }
@@ -291,8 +292,8 @@ function cheekWeb({ skin, bone, cran, jaw, side, retract, bunch }) {
   const M = 6, rings = [];
   for (let j = 0; j < M; j++) { const u = j / (M - 1); const back = 0.25 * retract * u;
     const fu = frameAt(skin, 'cranium', [cran[0] + (cran[1] - cran[0]) * u - back, cran[2]], side), fl = frameAt(bone, 'jaw', [jaw[0] + (jaw[1] - jaw[0]) * u - back, jaw[2]], side);
-    const n = unit(add(fu.normal, fl.normal)); const bulge = (0.006 + 0.006 * Math.max(0, bunch)) * Math.sin(Math.PI * (0.15 + 0.7 * u));
-    const line = [0, 1 / 3, 2 / 3, 1].map((w) => add(lerp(fu.origin, fl.origin, w), mul(n, 0.002 + bulge * Math.sin(Math.PI * w))));
+    const n = unit(add(fu.normal, fl.normal)); const bulge = (0.006 + 0.006 * Math.max(0, bunch)) * dmath.sin(Math.PI * (0.15 + 0.7 * u));
+    const line = [0, 1 / 3, 2 / 3, 1].map((w) => add(lerp(fu.origin, fl.origin, w), mul(n, 0.002 + bulge * dmath.sin(Math.PI * w))));
     rings.push([...line, ...[...line].reverse().map((p) => sub(p, mul(n, 0.006)))]); }
   const cap = (j, d) => add(mean(rings[j]), mul(unit(sub(mean(rings[j]), mean(rings[j + d]))), 0.003));
   const mesh = loftParts(rings, cap(0, 1), cap(M - 1, -1));
@@ -317,25 +318,25 @@ function tongueRegion(T, { out: ext = 0, curl = 0, sway = 0 }, rest, floor) {
   // frame (held at the chin past the tip); a segment that would dip under it is turned up just enough, and
   // every later segment inherits the turn — lengths are kept, so the chain never stretches to comply.
   const N = rest.length, grow = 1 + 0.3 * ext; const segs = rest.slice(1).map((p, j) => mul(sub(p, rest[j]), grow));
-  const spine = [add(rest[0], mul(unit(segs[0]), T.slide * ext))]; let aC = 0, aS = 0; const seg = Math.hypot(...segs[0]);
+  const spine = [add(rest[0], mul(unit(segs[0]), T.slide * ext))]; let aC = 0, aS = 0; const seg = dmath.hypot(...segs[0]);
   const width = (j) => { const w = j / (N - 1); return T.width * (w < 0.2 ? 0.8 + w : w < 0.7 ? 1 : 1 - (w - 0.7) * (T.tip === 'fork' ? 0.9 : 2.0)); };
   const thick = (j) => T.thickness * (0.6 + 0.4 * (1 - j / (N - 1)));
   // the test is on the RING, not the spine: a swayed or rolled section dips its lower edge below its centre
   let upPrev = [0, 0, 1]; const MARGIN = 0.001; const checked = [];
   // the ring exactly as `section` will build it (same frame, centre and ellipse), so the rule judges drawn vertices
   const ringAtStation = (j, q) => { const t = unit(sub(q, spine[j - 1])); const up = unit(sub(upPrev, mul(t, dot(upPrev, t)))); const lat = unit(cross(up, t)); const W = width(j), H = thick(j);
-    const ctr = add(q, mul(up, H / 2 - T.seat)); return { up, pts: Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10 + Math.PI / 10; const top = Math.sin(a) > 0.8; return add(ctr, add(mul(lat, Math.cos(a) * W / 2), mul(up, Math.sin(a) * H / 2 * (top ? 1 - T.groove : 1)))); }) }; };
+    const ctr = add(q, mul(up, H / 2 - T.seat)); return { up, pts: Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10 + Math.PI / 10; const top = dmath.sin(a) > 0.8; return add(ctr, add(mul(lat, dmath.cos(a) * W / 2), mul(up, dmath.sin(a) * H / 2 * (top ? 1 - T.groove : 1)))); }) }; };
   const ok = (j, q) => !floor || ringAtStation(j, q).pts.every((v) => v[2] - MARGIN >= floor(v[0]));
   for (let j = 1; j < N; j++) { const w = j / (N - 1), g = (0.3 + 1.4 * w) / (N - 1); aC += (curl * T.curlMax - ext * T.droop * w * w) * g; aS += sway * T.swayMax * g;
     const step = (a) => add(spine[j - 1], rot(rot(segs[j - 1], [0, 1, 0], -a), [0, 0, 1], aS)); let q = step(aC);
     if (!ok(j, q) && ok(j, step(aC + Math.PI / 2))) { let lo = 0, hi = Math.PI / 2; for (let it = 0; it < 40; it++) { const mid = (lo + hi) / 2; if (ok(j, step(aC + mid))) hi = mid; else lo = mid; } aC += hi; q = step(aC); }
     upPrev = ringAtStation(j, q).up; checked[j] = upPrev; spine.push(q); }
-  const L = segs.reduce((a, v) => a + Math.hypot(...v), 0);
+  const L = segs.reduce((a, v) => a + dmath.hypot(...v), 0);
   // cross-sections in a transported frame: an ellipse with a shallow groove along the top midline
   // the frames the clearance check used ARE the frames the rings are built in (station 0 faces its first segment)
   const frames = spine.map((p, j) => { const t = unit(j === 0 ? sub(spine[1], spine[0]) : sub(p, spine[j - 1])); const up = j === 0 ? unit(sub([0, 0, 1], mul(t, t[2]))) : checked[j]; return { t, up, lat: unit(cross(up, t)) }; });
   const section = (j, scale = 1) => { const { up: u, lat } = frames[j]; const W = width(j) * scale, H = T.thickness * scale * (0.6 + 0.4 * (1 - j / (N - 1)));
-    const ctr = add(spine[j], mul(u, H / 2 - T.seat)); return Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10 + Math.PI / 10; const top = Math.sin(a) > 0.8; return add(ctr, add(mul(lat, Math.cos(a) * W / 2), mul(u, Math.sin(a) * H / 2 * (top ? 1 - T.groove : 1)))); }); };
+    const ctr = add(spine[j], mul(u, H / 2 - T.seat)); return Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10 + Math.PI / 10; const top = dmath.sin(a) > 0.8; return add(ctr, add(mul(lat, dmath.cos(a) * W / 2), mul(u, dmath.sin(a) * H / 2 * (top ? 1 - T.groove : 1)))); }); };
   const meshes = [];
   if (T.tip !== 'fork') { const last = N - 2; meshes.push(loftParts(spine.slice(0, -1).map((_, j) => section(j)), sub(spine[0], mul(frames[0].t, 0.01)), T.tip === 'point' ? spine[N - 1] : add(spine[last], mul(frames[last].t, seg * 0.5)))); return meshes; }
   // fork: the body stops at (1 − forkDepth); two tapering prongs leave it at ±forkSpread about the local up
@@ -358,7 +359,7 @@ function build(head, x) {
   for (const side of SIDES) {
     // brow: the eye region's upper boundary, a skin strip with raise / arch / furrow handles
     const raise = ctl(x, 'browRaise', side), arch = ctl(x, 'browArch', side), furrow = ctl(x, 'browFurrow', side), bunch = ctl(x, 'cheekBunch', side);
-    const n = Rg.brow.strip.length, mid = (j) => Math.sin(Math.PI * j / (n - 1)), inner = (j) => j / (n - 1);
+    const n = Rg.brow.strip.length, mid = (j) => dmath.sin(Math.PI * j / (n - 1)), inner = (j) => j / (n - 1);
     const browHandle = (j) => [-0.006 * furrow * inner(j), 0.006 * raise + 0.008 * arch * mid(j) - 0.01 * furrow * inner(j), 0.004 * furrow * inner(j)];
     const brow = strip(skin, 'cranium', Rg.brow.strip, side, stripProfile(Rg.brow, (j) => 0.008 * furrow * inner(j)), browHandle);
     parts[`brow${side}`] = { ...brow, group: 'Brow', creases: [] };
@@ -371,13 +372,13 @@ function build(head, x) {
       // built ONCE in the right pin frame's local coordinates (x tangent, y bitangent, z normal; the rim's long axis is
       // world-horizontal, read through that frame), then pinned per side, so the left nostril mirrors the right by name
       const fR = frameAt(skin, 'cranium', Rg.nostril.at, 'R'); const zl = [dot(fR.tangent, [0, 0, 1]), dot(fR.bitangent, [0, 0, 1]), dot(fR.normal, [0, 0, 1])];
-      const o = [-0.014 * sn * (Rg.nostril.slide ?? 1), 0.006 * sn, 0]; const rr = (r) => { let u = cross([0, 0, 1], zl); if (Math.hypot(...u) < 1e-6) u = [1, 0, 0]; u = unit(u); const v = cross([0, 0, 1], u); const R = r * (1 + 0.55 * fl);
-        return Array.from({ length: 6 }, (_, i) => { const t = 2 * Math.PI * i / 6; return add(o, add(mul(u, Math.cos(t) * R * Rg.nostril.squash[0]), mul(v, Math.sin(t) * R * Rg.nostril.squash[1]))); }); };
+      const o = [-0.014 * sn * (Rg.nostril.slide ?? 1), 0.006 * sn, 0]; const rr = (r) => { let u = cross([0, 0, 1], zl); if (dmath.hypot(...u) < 1e-6) u = [1, 0, 0]; u = unit(u); const v = cross([0, 0, 1], u); const R = r * (1 + 0.55 * fl);
+        return Array.from({ length: 6 }, (_, i) => { const t = 2 * Math.PI * i / 6; return add(o, add(mul(u, dmath.cos(t) * R * Rg.nostril.squash[0]), mul(v, dmath.sin(t) * R * Rg.nostril.squash[1]))); }); };
       const local = loftParts([rr(r0 * 0.8).map((p) => sub(p, [0, 0, 0.007])), rr(r0).map((p) => add(p, [0, 0, 0.004 + 0.003 * fl])), rr(r0 * 0.65).map((p) => add(p, [0, 0, 0.006 + 0.003 * fl]))], sub(o, [0, 0, 0.012]), add(o, [0, 0, 0.001]));
       parts[`nostril${side}`] = pinned(skin, 'cranium', Rg.nostril.at, side, local, 'Nostrils'); }
     // fold: a strip whose height is DRIVEN by sneer + cheekBunch
     { const drive = Math.max(0, ctl(x, 'sneer', side)) + 0.7 * Math.max(0, bunch); const m = Rg.fold.strip.length;
-      parts[`fold${side}`] = { group: 'Folds', creases: [], ...strip(skin, 'cranium', Rg.fold.strip, side, (j) => { const tp = Math.sin(Math.PI * (j + 0.5) / m); const w = 0.007 * tp, h = (0.002 + 0.009 * drive) * tp; return [[-w, -0.002], [0, h], [w, -0.002], [0, -0.004]]; }) }; }
+      parts[`fold${side}`] = { group: 'Folds', creases: [], ...strip(skin, 'cranium', Rg.fold.strip, side, (j) => { const tp = dmath.sin(Math.PI * (j + 0.5) / m); const w = 0.007 * tp, h = (0.002 + 0.009 * drive) * tp; return [[-w, -0.002], [0, h], [w, -0.002], [0, -0.004]]; }) }; }
     parts[`web${side}`] = cheekWeb({ skin, bone, cran: Rg.web.cranium, jaw: Rg.web.jaw, side, retract: ctl(x, 'cornerRetract', side), bunch });
     for (const [k, v] of Object.entries(head.ornaments({ bone, skin, rest: rest.bone, side, x, ctl: (key) => ctl(x, key, side) }))) parts[`${k}${side}`] = v;
     (Rg.wrinkles || []).forEach((D, i) => { parts[`wrinkle${i}${side}`] = drivenStrip(skin, side, D, x); });
