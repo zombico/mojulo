@@ -8,6 +8,8 @@ import { CATALOG } from './catalog.js';
 
 const MM_PER_FT = 304.8;
 const r1 = (v) => Math.round(v * 10) / 10;
+/** Names in code-unit order: localeCompare follows the host's collation (cs, sk and lt put 'ch' and 'y' elsewhere). */
+export const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** A frame member's IFC class and predefined type, read from the part it plays (its id's prefix) and its material. */
 const MEMBER_CLASS = {
@@ -76,7 +78,7 @@ export function buildConstructionModel({ frames, reports = {}, elements = [], wi
     cut.set(k, (cut.get(k) || 0) + 1);
   }
   const cutList = [...cut.entries()].map(([k, n]) => { const [material, section, inches] = k.split('|'); return { material, sectionMm: section, lengthIn: Number(inches), count: n }; })
-    .sort((a, b) => (a.material + a.sectionMm).localeCompare(b.material + b.sectionMm) || b.lengthIn - a.lengthIn);
+    .sort((a, b) => byCodeUnit(a.material + a.sectionMm, b.material + b.sectionMm) || b.lengthIn - a.lengthIn);
   const sheets = new Map();
   for (const e of out) {
     const m = CATALOG[e.material];
@@ -104,7 +106,7 @@ export function buildConstructionModel({ frames, reports = {}, elements = [], wi
     schedules: {
       cutList, sheets: sheetSchedule,
       panel: wiring ? wiring.circuits : [],
-      takeoff: [...takeoff.values()].map((t) => ({ ...t, lengthFt: r1(t.lengthFt), areaSqFt: r1(t.areaSqFt) })).sort((a, b) => a.material.localeCompare(b.material)),
+      takeoff: [...takeoff.values()].map((t) => ({ ...t, lengthFt: r1(t.lengthFt), areaSqFt: r1(t.areaSqFt) })).sort((a, b) => byCodeUnit(a.material, b.material)),
     },
     checks,
     summary: { elements: out.length, byClass, relations: relations.length, ...(wiring ? { circuits: wiring.circuits.length, holes: wiring.holes } : {}), failed: checks.filter((c) => c.ok === false).length },

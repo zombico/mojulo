@@ -19,6 +19,7 @@
 // same ids, two houses never share one), and nothing reads a clock — the header's time stamp is fixed.
 import { ifcGuid } from './elements.js';
 import { CATALOG } from './catalog.js';
+import { byCodeUnit } from './bim.js';
 import { SECTIONS } from './sections.js';
 import { memberFrame } from './members.js';
 import { planeFrame } from './roofing.js';
@@ -408,7 +409,7 @@ export function houseToIfc(house, o = {}) {
     if (s.spaces.length) st.add('IFCRELAGGREGATES', [G(`rel:spaces:${i}`), '$', '$', '$', s.id, s.spaces], true);
     if (s.contained.length) st.add('IFCRELCONTAINEDINSPATIALSTRUCTURE', [G(`rel:contains:${i}`), '$', '$', '$', s.contained, s.id], true);
   }
-  for (const [mname, m] of [...materials].sort((a, b) => a[0].localeCompare(b[0]))) {
+  for (const [mname, m] of [...materials].sort((a, b) => byCodeUnit(a[0], b[0]))) {
     if (m.members.length) st.add('IFCRELASSOCIATESMATERIAL', [G(`rel:material:${mname}`), '$', '$', '$', m.members, m.id], true);
   }
 
