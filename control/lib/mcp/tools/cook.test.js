@@ -126,6 +126,18 @@ describe('cook handler — end to end', () => {
     expect(listed.cooks[0].slice_count).toBe(2);
   });
 
+  // a cook writes no recipe (index.html, manifest.json, report.md, its visuals), so a drop-folder host's note sends
+  // the agent to no recipe.json and to no bundle: it names the folder and says it stays in the box
+  it('on a drop-folder host (muse), the note names the cook folder and no recipe file it did not write', async () => {
+    const a = StashRepository.mint({ title: 'Muse notes' });
+    StashRepository.gather({ stashRef: a.stashRef, type: 'text', body: 'folders stay in the box' });
+    const result = await cookHandler({ slices: [{ stash_ref: a.stashRef }], aim: 'Where does a cook land?', report_md: '# R\n\nIt stays.' }, { host: 'muse' });
+    expect(await fs.readdir(result.outcome_dir)).not.toContain('recipe.json');
+    expect(result.handoff.door).toBe('drop-folder');
+    expect(result.handoff.next).toMatch(new RegExp(`so the folder ${result.cook_ref} would not surface there`));
+    expect(result.handoff.caveats).toEqual(["the operator's Library cannot carry a folder, and no courier page carries it: tell the operator where it is in the box"]);
+  });
+
   it('refuses to cook against an unknown stash_ref', async () => {
     await expect(
       cookHandler({

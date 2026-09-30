@@ -156,6 +156,14 @@ describe('export_model format:bundle', () => {
     expect(r.courier.note).toMatch(/Here: copy it into ~\/workspace\/your_files\/, and it lands in the operator's Library\.$/);
     const glb = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'glb' }, { mcpSessionId: 'cli' });
     expect(glb.handoff.next).toMatch(/shows only \.html files, so model\.glb would not surface there/);
+    expect(glb.handoff.caveats).toEqual([expect.stringMatching(/format: 'bundle'.*courier\.html/)]);
+    // the bundle zips model.stl for a literal kind only: a workbench's STL is sent to it, a city's (a miniature) is not
+    const lit = await exportModelHandler({ ref: 'sk_bundle_folder', format: 'stl' }, { mcpSessionId: 'cli' });
+    expect(lit.handoff.caveats).toEqual([expect.stringMatching(/format: 'bundle'.*courier\.html/)]);
+    const mini = await exportModelHandler({ ref: CITY.ref, format: 'stl' }, { mcpSessionId: 'cli' });
+    expect(mini.handoff.next).toMatch(/shows only \.html files, so model\.stl would not surface there/);
+    expect(mini.handoff.caveats).toEqual([expect.stringMatching(/cannot carry a \.stl file, and no courier page carries it: .*recipe\.json beside it re-mints it/)]);
+    expect(existsSync(path.join(mini.dir, 'recipe.json'))).toBe(true);
   }, 120_000);
 
   it('ineligible kinds answer the same { ok:false, eligible:false } as every leg', async () => {

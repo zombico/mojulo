@@ -226,7 +226,7 @@ async function ifcExport(input, context) {
     result.path = file;
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
-    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url });
+    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
   }
   return result;
 }
@@ -1104,8 +1104,11 @@ export async function exportModelHandler(input, context = {}) {
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
     // `inlineScripts` is what lets the artifact door raise its CSP caveat: the self-contained
-    // page carries three.js as `data:` modules, which that door refuses at any size.
-    attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url, ...(isHtml && !cdn ? { inlineScripts: true } : {}) });
+    // page carries three.js as `data:` modules, which that door refuses at any size. `bundled`: the
+    // bundle zips this same file (bundleExport: the page, the mesh, a literal kind's STL), so a door
+    // may send the operator to its courier; `recipe` is the recipe.json written beside it.
+    const bundled = (isHtml && !cdn) || format === 'glb' || (format === 'stl' && profile === 'literal');
+    attachHandoff(result, context, { kind: isHtml ? 'page' : 'file', name: fileName, path: file, dir, bytes: exported.byteLength, download_url: result.download_url, recipe: 'recipe.json', ...(isHtml && !cdn ? { inlineScripts: true } : {}), ...(bundled ? { bundled: true } : {}) });
     // "Where did my export land?" (grok-headless-affordances P3). The bins now seed
     // MOJULO_OUTCOMES_DIR, so this fires only when a bin ran WITHOUT the resolver's default and
     // the cwd fallback put the file inside the installed package (MOJULO_CONTROL_DIR is the
