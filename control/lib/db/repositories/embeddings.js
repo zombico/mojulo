@@ -634,9 +634,10 @@ export const EmbeddingsRepository = {
         .all();
     }
 
-    // No vector yet for these kinds (a CLI process searching before the recall group's index was built, or
-    // a kind written while the group was absent): answer lexically over the same rows rather than with nothing.
-    if (!rows.some((r) => r.embedding)) {
+    // Rows for these kinds but no vector among them yet (a CLI process searching before the recall group's
+    // index was built, or a kind written while the group was absent): answer lexically over the same rows
+    // rather than with nothing. An empty index stays empty here; the boot backfill fills it.
+    if (rows.length && !rows.some((r) => r.embedding)) {
       const results = await searchLexical(query, { kindFilter, limit });
       return withMeta ? { results, degraded: false, mode: 'lexical' } : results;
     }

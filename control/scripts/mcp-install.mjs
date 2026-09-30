@@ -184,8 +184,11 @@ async function buildRecallIndex() {
     `const { resolveMojuloPaths } = await import(${JSON.stringify(url('scripts', 'mojulo-paths.mjs'))});`,
     'resolveMojuloPaths();',
     `const { reindexAll } = await import(${JSON.stringify(url('lib', 'db', 'repositories', 'embeddings.js'))});`,
+    `const { getDb } = await import(${JSON.stringify(url('lib', 'db', 'index.js'))});`,
     'const r = await reindexAll();',
-    'process.stdout.write(`Indexed ${r.totalSeen} entries (${r.written} embedded, ${r.skipped} already current${r.failed ? `, ${r.failed} failed` : \'\'}).\\n`);',
+    "const { n, v } = getDb().prepare('SELECT COUNT(*) AS n, COUNT(embedding) AS v FROM meta_embeddings').get();",
+    'process.stdout.write(`The index holds ${n} entries, ${v} with vectors (${r.written} embedded now).\\n`);',
+    "if (v < n) process.stdout.write('The rest are text only, so semantic_search answers lexically for them; run this again once the model loads.\\n');",
     'process.exit(r.failed ? 1 : 0);',
   ].join('\n');
   const code = await run(process.execPath, ['--input-type=module', '-e', script], {

@@ -1,5 +1,5 @@
 // `mojulo install recall` with the embedding runtime already in place and its model missing: it
-// fetches the model rather than reporting "nothing to do", because the Claude plugin build never
+// fetches the model rather than reporting "nothing to do" (and then builds the index), because the Claude plugin build never
 // fetches the model on its own (lib/embedder/local.js) and names this command as the way to get it.
 // A failed fetch names a remedy that works under each distribution.
 //
@@ -49,7 +49,7 @@ function installRecall(distribution, extra = {}) {
 }
 
 describe('install recall with the runtime present and the model missing', () => {
-  it('fetches the model, then has nothing left to do', { timeout: 120_000 }, () => {
+  it('fetches the model and builds the index; a re-run reports what the index holds', { timeout: 120_000 }, () => {
     const first = installRecall('claude-plugin');
     expect(first.code, first.stderr).toBe(0);
     expect(first.stdout).toMatch(/The embedding runtime is installed, but its model is not in/);
@@ -58,7 +58,10 @@ describe('install recall with the runtime present and the model missing', () => 
 
     const again = installRecall('claude-plugin');
     expect(again.code).toBe(0);
-    expect(again.stdout).toMatch(/already installed .* Nothing to do\./);
+    expect(again.stdout).toMatch(/already installed/);
+    // the index is built (here text only: the stand-in runtime embeds nothing) and says what it holds
+    expect(first.stdout).toMatch(/The index holds \d+ entries, 0 with vectors/);
+    expect(again.stdout).toMatch(/The index holds \d+ entries, \d+ with vectors[\s\S]*answers lexically/);
   });
 
   it('on a failed fetch under the plugin, says to run it again, not that the server will fetch it', { timeout: 120_000 }, () => {
