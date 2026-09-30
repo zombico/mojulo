@@ -112,8 +112,13 @@ describe('update_sketch on layered rows — strokes', () => {
     const stored = SketchRepository.getByRef('lay-brush').manifest;
     expect(stored.recipe.dials['stroke.b1']).toMatchObject({ op: 'brush', from: 'b1', parts: ['body'] }); expect(stored.dials['stroke.b1']).toBe(1);
     const off = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'set', path: '/dials/stroke.b1', value: 0 }] }); expect(off.ok).toBe(true);   // turned down by name
-    const again = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'solve', from: '/strokes/b1', mirror: true }] });
-    expect(Object.keys(SketchRepository.getByRef('lay-brush').manifest.recipe.dials).filter((n) => n.startsWith('stroke.'))).toEqual(['stroke.b1']); expect(again.stats.solved[0].entries).toBe(3);
+    // `mirror` is the stroke's field: on the op it would be ignored, so it is refused and points at the stroke
+    await expect(updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'solve', from: '/strokes/b1', mirror: true }] }))
+      .rejects.toThrow(/patch\[0\]: a brush solve reads from, path, amp, radius, direction — not mirror\. `mirror` is the stroke's own field: set \/strokes\/0\/mirror/);
+    // a re-solve with the stroke mirrored replaces the one dial with a twinned one (3 entries a side)
+    const again = await updateSketchHandler({ ref: 'lay-brush', patch: [{ op: 'set', path: '/strokes/0/mirror', value: true }, { op: 'solve', from: '/strokes/b1' }] });
+    expect(Object.keys(SketchRepository.getByRef('lay-brush').manifest.recipe.dials).filter((n) => n.startsWith('stroke.'))).toEqual(['stroke.b1']); expect(again.stats.solved[0].entries).toBe(6);
+    expect(SketchRepository.getByRef('lay-brush').manifest.recipe.dials['stroke.b1'].entries.map((e) => e.side).sort()).toEqual(['L', 'L', 'L', 'R', 'R', 'R']);
     const m = await measureSolidHandler({ ref: 'lay-brush', volume: false, exposure: false }); expect(m.strokes.b1.solved.dial).toBe('stroke.b1');
   });
 
@@ -146,6 +151,9 @@ describe('update_sketch on layered rows — strokes', () => {
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s9' }] })).rejects.toThrow(/no stroke 's9'/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/f1' }] })).rejects.toThrow(/silhouette, contour and brush strokes solve today/);
     await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve' }] })).rejects.toThrow(/from: '\/strokes\/<id>'/);
+    // a key the stroke's solver does not read is refused by name, not ignored
+    await updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'set', path: '/strokes/-', value: OUTLINE }] });
+    await expect(updateSketchHandler({ ref: 'lay-refuse', patch: [{ op: 'solve', from: '/strokes/s1', height: 0.1 }] })).rejects.toThrow(/a silhouette solve reads from, path, dials, budget — not height/);
     expect(SketchRepository.getByRef('lay-refuse').manifest.dials).toEqual({ width: 1, lift: 0 });   // every refusal left the row alone
   });
 

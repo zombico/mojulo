@@ -49,6 +49,16 @@ export function prepareStrokes(manifest, mesh) {
   return changed ? { ...manifest, strokes } : manifest;
 }
 
+// the keys a solve op reads, by the stroke's intent: any other key would be silently ignored, so it is refused
+// by name (`mirror` above all, which is the STROKE's field, not the op's)
+const SOLVE_KEYS = Object.freeze({ silhouette: ['dials', 'budget'], contour: ['height', 'width', 'group'], brush: ['amp', 'radius', 'direction'] });
+function refuseUnreadKeys(op, i, stroke, at) {
+  const reads = ['op', 'from', 'path', ...(SOLVE_KEYS[stroke.intent] || [])];
+  const extra = Object.keys(op).filter((k) => !reads.includes(k)); if (!extra.length) return;
+  const mirror = extra.includes('mirror') ? ` \`mirror\` is the stroke's own field: set /strokes/${at}/mirror to true, then solve.` : '';
+  throw new Error(`patch[${i}]: a ${stroke.intent} solve reads ${reads.slice(1).join(', ')} — not ${extra.join(', ')}.${mirror} ${MANUAL}`);
+}
+
 const strokeRef = (op, i) => {
   const from = op.from ?? op.path; const m = typeof from === 'string' && from.match(/^\/strokes\/([A-Za-z0-9_.-]+)$/);
   if (!m) throw new Error(`patch[${i}]: \`solve\` needs \`from: '/strokes/<id>'\` — the stroke to solve`);
@@ -68,6 +78,7 @@ export function applySolves(manifest, mesh, ops, indexOffset = 0) {
     const at = next.strokes.findIndex((s) => s.id === id);
     if (at < 0) throw new Error(`patch[${i}]: no stroke '${id}' (have ${next.strokes.map((s) => s.id).join(', ')})`);
     const stroke = next.strokes[at];
+    if (SOLVE_KEYS[stroke.intent]) refuseUnreadKeys(op, i, stroke, at);
     if (stroke.intent === 'silhouette') {
       const names = Array.isArray(op.dials) ? op.dials : null;
       const budget = Number.isFinite(op.budget) ? Math.max(4, Math.min(400, op.budget)) : undefined;
