@@ -453,19 +453,21 @@ describe('mcp-stdio bin without sharp', () => {
     const { version } = JSON.parse(readFileSync(path.join(controlDir, 'package.json'), 'utf8'));
 
     // Two nested data: modules — the --import entry registers the hook; the hook refuses sharp.
-    // The hook announces itself on stderr: with the embedding runtime an opt-in
-    // install group (nothing on the boot path imports sharp any more), the
-    // refusal is no longer guaranteed to fire in-band, so the proof that the
-    // hook was armed is its own line rather than a failed import.
+    // The --import entry announces the hook on stderr: with the embedding runtime an
+    // opt-in install group (nothing on the boot path imports sharp any more), the
+    // refusal is no longer guaranteed to fire in-band, so the proof that the hook
+    // was armed is its own line rather than a failed import. The line is written on
+    // the main thread once register() returns (it returns after the hook module has
+    // loaded); a line from the hooks thread's own initialize() reaches stderr
+    // asynchronously and can be lost when the process exits (Node 24.21 lost it).
     const hookSrc = [
-      'export function initialize() { process.stderr.write("no-sharp test hook armed\\n"); }',
       'export function resolve(specifier, context, next) {',
       "  if (specifier === 'sharp') throw new Error('sharp refused by the no-sharp test hook');",
       '  return next(specifier, context);',
       '}',
     ].join('\n');
     const hookUrl = `data:text/javascript,${encodeURIComponent(hookSrc)}`;
-    const importSrc = `import { register } from 'node:module';\nregister(${JSON.stringify(hookUrl)});`;
+    const importSrc = `import { register } from 'node:module';\nregister(${JSON.stringify(hookUrl)});\nprocess.stderr.write('no-sharp test hook armed\\n');`;
     const importUrl = `data:text/javascript,${encodeURIComponent(importSrc)}`;
 
     // A throwaway MOJULO_HOME so the child touches neither ~/.mojulo nor this
