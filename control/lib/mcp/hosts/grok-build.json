@@ -12,7 +12,7 @@
     "stanza": { "command": "npx", "args": ["-y", "mojulo"] },
     "extras": { "startup_timeout_sec": 120 }
   },
-  "manual": "[mcp_servers.mojulo]\ncommand = \"npx\"\nargs = [\"-y\", \"mojulo\"]\nstartup_timeout_sec = 120   # add to ~/.grok/config.toml (needs Node >=22.12)",
+  "manual": "[mcp_servers.mojulo]\ncommand = \"npx\"\nargs = [\"-y\", \"mojulo\"]\nstartup_timeout_sec = 120   # add to ~/.grok/config.toml (needs Node >=22.14)",
   "capabilities": {
     "defersToolSchemas": false,
     "maxOutputBytes": 20000,

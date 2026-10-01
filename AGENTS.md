@@ -44,13 +44,13 @@ headers = { Authorization = "Bearer <CONTROL_PLANE_MCP_KEY>" }
 startup_timeout_sec = 120
 ```
 
-For a non-repo install, use the tokenless stdio form instead — `command = "npx"`, `args = ["-y", "mojulo"]`, same `startup_timeout_sec` (the first run fetches the package; a default timeout marks the server dead mid-download). Needs Node ≥22.12. `npx mojulo init` writes this stanza for you.
+For a non-repo install, use the tokenless stdio form instead — `command = "npx"`, `args = ["-y", "mojulo"]`, same `startup_timeout_sec` (the first run fetches the package; a default timeout marks the server dead mid-download). Needs Node ≥22.14. `npx mojulo init` writes this stanza for you.
 
 **Two Grok-specific notes.** Your MCP output cap (~20k) is below several mojulo surfaces — never call `get_tool_index`; start at `forward_context` and pull one drawer at a time. And you carry `image_gen`/`image_edit`, so you are your own image worker: mint the scaffold, paint it yourself, bind it back with `bind_image_render`. Studio sessions: `get_adapter` once before the first mint — the card is the rider (form-split, paint-and-bind, `when` line), not only a catalyst-skill writer. Details in [control/lib/mcp/adapters/grok-build.md](control/lib/mcp/adapters/grok-build.md).
 
 ### Hermes
 
-**Use stdio, not HTTP.** The stdio front door (`command = "npx"`, `args = ["-y", "mojulo"]`) is tokenless and host-spawned, so the interactive bearer-token prompt never fires and a dead control plane becomes a spawn failure at session start instead of a mid-task hang. Give it a ≥120s startup timeout; needs Node ≥22.12.
+**Use stdio, not HTTP.** The stdio front door (`command = "npx"`, `args = ["-y", "mojulo"]`) is tokenless and host-spawned, so the interactive bearer-token prompt never fires and a dead control plane becomes a spawn failure at session start instead of a mid-task hang. Give it a ≥120s startup timeout; needs Node ≥22.14.
 
 `npx mojulo init` detects Hermes but does **not** write its config — the file path and format aren't verified, and writing to a guessed path would report success against a file Hermes never reads. It prints the snippet for you to paste. If you can confirm the real path and format from your own runtime, say so: it's a small edit to [control/lib/mcp/hosts/hermes.json](control/lib/mcp/hosts/hermes.json) and it moves Hermes onto the same footing as Claude Code and Codex. Adapter card: [control/lib/mcp/adapters/hermes.md](control/lib/mcp/adapters/hermes.md).
 

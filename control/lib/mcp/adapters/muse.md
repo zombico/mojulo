@@ -2,7 +2,7 @@
 {
   "id": "muse",
   "name": "Meta Muse",
-  "summary": "Shell-driven agent on a persistent Linux VM with npm and node ≥22.12, no MCP client: mints through `npx mojulo call`, checks renders in the VM's own Chromium, hands pages back through Artifacts and files through the Library; native image gen as the paint worker; cron as the scheduler.",
+  "summary": "Shell-driven agent on a persistent Linux VM with npm and node ≥22.14, no MCP client: mints through `npx mojulo call`, checks renders in the VM's own Chromium, hands pages back through Artifacts and files through the Library; native image gen as the paint worker; cron as the scheduler.",
   "version": 1,
   "artifactTarget": "~/workspace/skills/<slug>/SKILL.md",
   "schedulingMechanism": "cron (in-agent scheduler)",

@@ -55,7 +55,7 @@ function readJson(filename) { return JSON.parse(fs.readFileSync(filename, 'utf8'
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export function nodeSupported(version = process.versions.node) {
   const [major, minor] = version.split('.').map(Number);
-  return major > 22 || (major === 22 && minor >= 12);
+  return major > 22 || (major === 22 && minor >= 14);
 }
 function executable(filename) {
   try { return fs.statSync(filename).isFile() && (fs.accessSync(filename, fs.constants.X_OK), true); } catch { return false; }
@@ -111,7 +111,7 @@ function requireReady(opts) {
 }
 
 export function install(opts, spawn = spawnSync) {
-  if (!nodeSupported()) throw new Error('Mojulo requires Node >=22.12');
+  if (!nodeSupported()) throw new Error('Mojulo requires Node >=22.14');
   const loc = locations(opts);
   const source = opts.tarball ? path.resolve(opts.tarball) : `mojulo@${opts.version}`;
   const provenance = opts.tarball

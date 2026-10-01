@@ -27,7 +27,7 @@ attachment limit, browser binary, scheduler, or persistent skill directory assum
    Keep recipes on that server and iterate on the same ref. A connected server's
    filesystem is not the Work box filesystem, even if both tools are available.
 2. Otherwise, if this session exposes a shell-enabled Work box, inspect Node
-   (`node --version`, requires >=22.12), npm and the writable workspace. Reuse an
+   (`node --version`, requires >=22.14), npm and the writable workspace. Reuse an
    installed, suitable Mojulo version or install an explicitly pinned version in
    that workspace. During unreleased development use the supplied branch tarball;
    do not assume a branch's version is already available from npm. Do not run

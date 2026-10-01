@@ -37,7 +37,8 @@ describe('ChatGPT Work runner', () => {
     expect(() => options('/tmp/example', 'exec', ['--', 'init'])).toThrow(/exec requires/);
     expect(() => options('/tmp/example', 'install', ['--package-root', '/existing'])).toThrow(/cannot modify/);
     expect(nodeSupported('22.11.0')).toBe(false);
-    expect(nodeSupported('22.12.0')).toBe(true);
+    expect(nodeSupported('22.13.1')).toBe(false);   // better-sqlite3 crashes below 22.14
+    expect(nodeSupported('22.14.0')).toBe(true);
     expect(nodeSupported('24.0.0')).toBe(true);
   });
 

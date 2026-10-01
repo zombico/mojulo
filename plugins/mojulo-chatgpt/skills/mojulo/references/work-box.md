@@ -3,7 +3,7 @@
 Use only when the current session has shell access and no suitable Mojulo MCP connection.
 Paths below are variables: choose the session's actual writable workspace and locate
 `../scripts/runner.mjs` relative to this reference. Do not assume `/mnt/data` or a
-persistent home. The runner requires Node >=22.12 and npm for installation.
+persistent home. The runner requires Node >=22.14 and npm for installation.
 
 ## Inspect, then reuse or install
 

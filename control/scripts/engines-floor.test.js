@@ -1,5 +1,5 @@
 // A fresh `npx -y mojulo@<v>` resolves every range anew. pdf2json 4.1.0 declared Node >=22.23.2
-// while mojulo promises 22.12, so the cold install smoke checks the installed tree against the
+// while mojulo promises 22.14, so the cold install smoke checks the installed tree against the
 // floor. (Core pinned pdf2json to the 4.0 line until 3.0.0, when it left with the chatbot factory.)
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -24,7 +24,7 @@ const hiddenLock = (packages) =>
 
 describe('engines floor', () => {
   it('reads the floor from the declared range', () => {
-    expect(floorOf('>=22.12.0')).toBe('22.12.0');
+    expect(floorOf('>=22.14.0')).toBe('22.14.0');
     expect(floorOf(pkg.engines.node)).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
@@ -34,14 +34,14 @@ describe('engines floor', () => {
       'node_modules/pdfjs-dist': { version: '5.7.284', engines: { node: '>=20.19.0 || >=22.13.0 || >=24' } },
       'node_modules/x/node_modules/@img/sharp-win32-ia32': { version: '0.35.4', engines: { node: '^20.9.0' }, optional: true },
     });
-    expect(enginesViolations(nm, '22.12.0')).toEqual({
+    expect(enginesViolations(nm, '22.14.0')).toEqual({
       checked: true,
       violations: [{ name: 'pdf2json', version: '4.1.0', range: '>=22.23.2' }],
     });
   });
 
   it('says when it could not check', () => {
-    expect(enginesViolations(nm, '22.12.0').checked).toBe(false);
+    expect(enginesViolations(nm, '22.14.0').checked).toBe(false);
   });
 
   it('neither core nor the dashboard depends on the chatbot factory\'s document parsers', () => {

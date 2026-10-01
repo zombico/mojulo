@@ -12,22 +12,29 @@ concurrency:
 
 jobs:
   test:
-    name: tests / ${{ matrix.os }}
+    name: tests / ${{ matrix.os }} / node ${{ matrix.node }}
     strategy:
       fail-fast: false
+      # The byte pins hold on every CPU and Node major they record (lib/util/dmath.js for 3.0's
+      # generators, per-CPU-and-Node tables for 2.1.0's), so CI runs both architectures, both
+      # Node majors, and the engines floor itself.
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - { os: ubuntu-latest, node: '22.14.0' }   # the engines floor (22.12 and 22.13 crash in better-sqlite3)
+          - { os: ubuntu-latest, node: '22' }
+          - { os: ubuntu-latest, node: '24' }
+          - { os: macos-latest, node: '22' }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
-      # Control requires Node >= 22.12: the mcp-stdio bin enforces that floor
+      # Control requires Node >= 22.14: the mcp-stdio bin enforces that floor
       # (scripts/mcp-stdio.mjs), and node-web-audio-api@2 declares
       # engines >= 22 — as an optionalDependency, npm on Node 20 silently
       # skips it and the beats tests fail with ERR_MODULE_NOT_FOUND.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
 
       - name: Install control
         working-directory: control
@@ -48,7 +55,7 @@ jobs:
 
       # Node 22: control's package.json declares "type": "module", so
       # node --check parses its .js files as ESM — keep the checker on the
-      # same Node line the control plane actually requires (>= 22.12).
+      # same Node line the control plane actually requires (>= 22.14).
       - uses: actions/setup-node@v4
         with:
           node-version: 22

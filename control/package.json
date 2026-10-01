@@ -44,7 +44,7 @@
     "blender"
   ],
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.14.0"
   },
   "bin": {
     "mojulo": "./scripts/mcp-stdio.mjs",

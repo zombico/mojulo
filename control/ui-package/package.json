@@ -20,7 +20,7 @@
     "dashboard"
   ],
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.14.0"
   },
   "bin": {
     "mojulo-dashboard": "bin/mojulo-dashboard.mjs"

@@ -4,7 +4,7 @@
 
 [![npm](https://img.shields.io/npm/v/mojulo)](https://www.npmjs.com/package/mojulo)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
-[![node](https://img.shields.io/badge/node-%E2%89%A522.12-brightgreen)](../control/package.json)
+[![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](../control/package.json)
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](images/lounge-handoff-demo.gif)
 
@@ -111,7 +111,7 @@ Help me install mojulo — a free, local 3D factory you'll drive over MCP.
 Orientation, if you can fetch it: https://mojulo.ai/llms.txt
 (mirror if the site is down: https://github.com/zombico/mojulo)
 
-1. First just check: run `node --version`. Mojulo needs Node 22.12+.
+1. First just check: run `node --version`. Mojulo needs Node 22.14+.
    Tell me what you found before changing anything.
 2. If Node is missing or too old, ask my permission, then install it
    the way this machine expects (brew / winget / nvm / apt).
@@ -127,9 +127,9 @@ Never install anything without asking me first.
 
 Driving it yourself instead? You need two things installed first:
 
-1. **Node.js 22.12 or newer** — mojulo is installed and run through `npx`, which ships
+1. **Node.js 22.14 or newer** — mojulo is installed and run through `npx`, which ships
    with Node. Check with `node --version`; if you don't have it (or it's older than
-   22.12), install it from [nodejs.org](https://nodejs.org) — or ask your coding
+   22.14), install it from [nodejs.org](https://nodejs.org) — or ask your coding
    agent to install it for you.
 2. A **desktop coding agent** (Claude Code/Codex) or a high-end local model —
    mojulo is model-agnostic and runs on whatever model your harness provides.

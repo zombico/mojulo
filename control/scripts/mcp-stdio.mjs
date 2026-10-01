@@ -25,15 +25,15 @@ import { resolveMojuloPaths } from './mojulo-paths.mjs';
 // missing-export error before this message could print. Stderr, not stdout:
 // in server mode stdout is the MCP protocol channel.
 //
-// The floor stays 22.12 for a published-instance reason: package.json now
-// declares `"type": "module"` (so lib/'s ESM `.js` loads without Node's
-// module-syntax detection or its reparse warning), but installs that predate
-// that field rely on detection, which is only on by default from Node
-// >=22.12 / >=23. Keeping the floor means one supported matrix either way.
+// The floor is 22.14: better-sqlite3's prebuilt binaries declare Node-API 10,
+// which Node 22 has from 22.14, and on 22.12 and 22.13 the first database open
+// crashes the process (exit 139) with no message at all. (22.12 is also where
+// module-syntax detection, which installs predating `"type": "module"` rely on,
+// became the default; 22.14 keeps it.)
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
-if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 12)) {
+if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 14)) {
   process.stderr.write(
-    `mojulo needs Node.js 22.12 or newer — this is Node ${process.versions.node}.\n` +
+    `mojulo needs Node.js 22.14 or newer — this is Node ${process.versions.node}.\n` +
       `Install the current LTS from https://nodejs.org (or ask your coding agent\n` +
       (process.env.MOJULO_DISTRIBUTION === 'claude-plugin'
         ? `to install it), then restart your Claude session: the mojulo plugin starts the server again.\n`

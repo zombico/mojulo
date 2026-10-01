@@ -28,7 +28,7 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 
 | Requirement | What exactly | Where it's enforced |
 |---|---|---|
-| **Node.js 22.12 or newer** | Hard floor, checked at startup; older Nodes exit with a message. | `engines` in [control/package.json](../control/package.json); the check in [scripts/mcp-stdio.mjs](../control/scripts/mcp-stdio.mjs) |
+| **Node.js 22.14 or newer** | Hard floor, checked at startup; older Nodes exit with a message. | `engines` in [control/package.json](../control/package.json); the check in [scripts/mcp-stdio.mjs](../control/scripts/mcp-stdio.mjs) |
 | **An MCP host** | Claude Code or Codex get the most out of it; Claude Desktop and other hosts wire by declared profile. | [scripts/mcp-init.mjs](../control/scripts/mcp-init.mjs) |
 | **A desktop OS** | macOS is the development and verification platform. Windows and Linux are handled by the installer and the native binaries below, but the engine gates are not verified there (see [Platform notes](#platform-notes)). | — |
 | **No GPU** | Headless WebGL bakes rasterize on the CPU via SwiftShader. A GPU only matters for optional workers you host yourself (Blender Cycles, ComfyUI). | [lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js) |
@@ -348,8 +348,9 @@ not claim a door at a level its profile does not carry.
 - **Native modules**: `better-sqlite3` uses a prebuilt binary when one exists for your OS, CPU, and
   Node version and otherwise compiles with `node-gyp`, which needs a C++ toolchain. If an install
   fails on an unusual platform, that is the first place to look.
-- **Node version pinning**: the floor is 22.12 because that is where ESM detection defaults
-  changed. There is no upper pin. Node 24 is recorded as verified for the CLI and the kernel
+- **Node version pinning**: the floor is 22.14 because better-sqlite3's prebuilt binaries
+  declare Node-API 10, which Node 22 has from 22.14: on 22.12 and 22.13 the first database
+  open crashes the process (exit 139) with no message. There is no upper pin. Node 24 is recorded as verified for the CLI and the kernel
   (24.15 on Linux x64, the 2026-09-21 sandbox run above; the dev suite runs on 24.8 on macOS).
 
 ---
