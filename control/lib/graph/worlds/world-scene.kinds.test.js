@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveWorldScene, WALK_KINDS } from './world-scene.js';
 import { assessWorldTier } from './world-contract.js';
+import { withPngPixels } from '../../util/png-pixels.fixture.js';
 
 /**
  * Characterization net for the kind → assemble*Scene dispatch (world-scene-registry.plan.md).
@@ -123,7 +124,8 @@ const hashWalk = (v, h) => {
   if (v === null || v === undefined) return mix(h, v === null ? 'null' : 'undef');
   const t = typeof v;
   if (t === 'number') return mix(h, Number.isInteger(v) ? `int:${v};` : 'float;');
-  if (t === 'boolean' || t === 'string') return mix(h, `${t}:${v};`);
+  if (t === 'boolean') return mix(h, `${t}:${v};`);
+  if (t === 'string') return mix(h, `${t}:${withPngPixels(v)};`);   // a texture by its pixels: Node builds compress it differently
   if (t === 'function') return mix(h, 'fn;'); // payloads should not carry functions; hash presence only
   if (Array.isArray(v)) {
     h = mix(h, `[${v.length}`);

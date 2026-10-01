@@ -97,7 +97,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fluid",
   },
   "fractal-city": {
-    "hash": "bd56a44f",
+    "hash": "e831a26c",
     "tier": null,
     "title": "mojulo city",
   },
@@ -122,7 +122,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo lightning storm",
   },
   "mall": {
-    "hash": "b82277be",
+    "hash": "ec9ee422",
     "tier": "T0",
     "title": "mojulo mall",
   },
@@ -212,12 +212,12 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo store",
   },
   "subway-building": {
-    "hash": "fdd5af97",
+    "hash": "e61a8093",
     "tier": "T0",
     "title": "mojulo subway",
   },
   "subway-station": {
-    "hash": "4dec302d",
+    "hash": "176035ea",
     "tier": null,
     "title": "mojulo subway station",
   },
@@ -234,7 +234,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo transformer attention",
   },
   "transportation-hub": {
-    "hash": "22a2629f",
+    "hash": "020f985c",
     "tier": null,
     "title": "mojulo transportation hub",
   },

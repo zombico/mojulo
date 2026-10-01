@@ -56,7 +56,7 @@ describe('compose_world: the metro flavour', () => {
     }
     const open = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => composeWorld({ base: 'city', seed, overrides: { profile: 'metro' } }).recipe.flavor));
     expect(open.size).toBeGreaterThan(3);
-  });
+  }, 60_000);   // about 10 s on a laptop and up to 25 s on a loaded CI runner, against the 30 s default
   it('a stock city stores no flavour even when asked', () => {
     expect('flavor' in composeWorld({ base: 'city', seed: 3, overrides: { flavor: 'paris' } }).recipe).toBe(false);
   });

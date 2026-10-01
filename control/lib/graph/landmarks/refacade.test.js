@@ -53,19 +53,20 @@ const hash = (faces) => createHash('sha256').update(JSON.stringify(faces)).diges
 // Stock bytes, pinned before the refacade existed: a box without `metro` must render exactly these.
 // Most stock builders are 2.1.0's and keep the engine's Math so a minted box keeps its bytes (util/math-scope.js), and some
 // of their bytes already differed by platform in 2.1.0: V8 rounds sin, cos, atan2 and the rest one way on x64 and another
-// on arm64, and statue-of-liberty's pow changed between Node 22 and 24. STOCK holds the bytes recorded on macOS arm64
-// (Node 24); STOCK_X64 the x64 ones where they differ, and ONE_PLATFORM the platform-keyed ones (where no bytes are
-// recorded, the byte check is skipped). tian-tan-buddha is 3.0's, on dmath: the same bytes everywhere.
+// on arm64, and statue-of-liberty's pow changed between Node 22 and 24. STOCK holds the arm64 bytes, STOCK_X64 the x64
+// ones where they differ, and PER_NODE the ones keyed by CPU and Node major: measured the same on Linux and macOS for
+// each, while a runtime nobody measured (Windows, another Node major) skips the byte check. tian-tan-buddha is 3.0's,
+// on dmath: the same bytes everywhere.
 const STOCK_X64 = {
   taj: '6b1cdc35de2ba211', 'cn-tower': 'bbb0364ba83013dc', skytree: 'c6eafdcabb7a2116', colosseum: 'cccc857fd627d2c5',
   'petronas-towers': '0b39c72dfa4b9e0d', 'mobile-edm-hall': 'db04e6d124e73264', 'cloud-gate': 'a131bb980626b82c',
   'rizal-monument': 'c5713a60f84646ec', 'rotunda-bulbous': 'd393330db061fb76',
 };
-const ONE_PLATFORM = {
-  'statue-of-liberty': { 'linux-x64-22': '5efce7798570895f', 'linux-x64-24': '80c398ed919b6ba5', 'linux-arm64-22': '721d93f86d8f700d', 'linux-arm64-24': 'c662f9ddf146fc72', 'darwin-arm64-24': 'c662f9ddf146fc72' },
+const PER_NODE = {
+  'statue-of-liberty': { 'x64-22': '5efce7798570895f', 'x64-24': '80c398ed919b6ba5', 'arm64-22': '721d93f86d8f700d', 'arm64-24': 'c662f9ddf146fc72' },
 };
-const PLATFORM = `${process.platform}-${process.arch}-${Number(process.versions.node.split('.')[0]) >= 24 ? 24 : 22}`;
-const stockPin = (id) => (ONE_PLATFORM[id] ? ONE_PLATFORM[id][PLATFORM] : process.arch === 'x64' ? STOCK_X64[id] ?? STOCK[id] : process.arch === 'arm64' ? STOCK[id] : null);
+const CPU_NODE = process.platform === 'win32' ? null : `${process.arch}-${process.versions.node.split('.')[0]}`;
+const stockPin = (id) => (PER_NODE[id] ? PER_NODE[id][CPU_NODE] : process.arch === 'x64' ? STOCK_X64[id] ?? STOCK[id] : process.arch === 'arm64' ? STOCK[id] : null);
 const STOCK = {
   'taj': '2c93413c09e97f2f',
   'cn-tower': 'f2fff935b4eefe58',

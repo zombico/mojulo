@@ -17,17 +17,19 @@ import { describe, expect, it } from 'vitest';
 import { plantPool } from './pool.js';
 import { assembleTerrainWorld } from '../terrain/terrain-world.js';
 import { makeLight } from '../polygonizer/vexar.js';
+import { withPngPixels } from '../../util/png-pixels.fixture.js';
 
-const h = (v) => createHash('sha256').update(typeof v === 'string' ? v : JSON.stringify(v)).digest('hex').slice(0, 16);
+// a pool's bark and the terrain's textures hash by their pixels: Node builds compress them differently (util/png-pixels.fixture.js)
+const h = (v) => createHash('sha256').update(withPngPixels(typeof v === 'string' ? v : JSON.stringify(v))).digest('hex').slice(0, 16);
 const noSource = (v) => JSON.stringify(v, (k, x) => (typeof x === 'string' && /^function[\s*]/.test(x) ? 'fn' : x));
 const LIGHT = makeLight({ direction: [-0.5, -0.32, -0.8], ambient: 0.56, diffuse: 0.56 });
 
 const POOLS = {
-  oak: ['625e6a0db2b6ce27', '02c0e3e50599282b'],
-  beech: ['c1a57167e93963aa', '3bf8a1438fcb8cbc'],
-  fir: ['9d5ee347655cec4e', '60a0a605bbacdf4a'],
-  schefflera: ['78de85942741b097', '5fbd29de5d48950d'],
-  coconut: ['623478a079a65197', '2eebf6c673ac1140'],
+  oak: ['aaeba7b40f7e2d7b', 'f72a3a618035df7d'],
+  beech: ['2e547c606206ba4d', '3db208a89f423505'],
+  fir: ['3d00f55bdceebc05', 'e79ed8ecca2a42b9'],
+  schefflera: ['9641eaac4024dc5d', 'b3a4934fe6d7151b'],
+  coconut: ['08c549586186bf48', '7ad5dd3327e2e17e'],
   vulgaris: ['13d46384deb36cb6', '4c9668eaa30f053e'],
 };
 
@@ -39,6 +41,6 @@ describe('grown plants keep their bytes', () => {
   it('the terrain page channel, without plants and with them', () => {
     const W = { kind: 'terrain', world: { features: [{ feature: 'lake', size: 'tarn' }], climate: 'alpine', seed: 'golden' } };
     expect(h(noSource(assembleTerrainWorld(W, { live: true }).terrain))).toBe('91ba2043f00b8c5b');
-    expect(h(noSource(assembleTerrainWorld({ ...W, plants: { variants: 1, level: 'L1' } }, { live: true }).terrain))).toBe('4704c5b175ffd28b');
+    expect(h(noSource(assembleTerrainWorld({ ...W, plants: { variants: 1, level: 'L1' } }, { live: true }).terrain))).toBe('8cd9fb472dd4ee00');
   }, 120_000);
 });
