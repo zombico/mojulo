@@ -2,11 +2,11 @@
 
 [![npm](https://img.shields.io/npm/v/mojulo)](https://www.npmjs.com/package/mojulo)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![node](https://img.shields.io/badge/node-%E2%89%A522.12-brightgreen)](control/package.json)
+[![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](control/package.json)
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
 
-Mojulo is a **3D compiler for coding agents**: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read, byte for byte, and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
+Mojulo is a **3D compiler for coding agents**: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio) builds objects, walkable worlds and games by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read (byte for byte on the same platform), and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
 
 ## Quickstart
 
@@ -14,7 +14,7 @@ Mojulo is a **3D compiler for coding agents**: an MCP server that runs wherever 
 npx mojulo init
 ```
 
-Needs **Node 22.12+** and an MCP-capable coding agent (Claude Code or Codex; Claude Desktop works too). `init` finds the hosts on your machine, asks once per host, and opens the dashboard at `http://localhost:3001`. Everything lands in `~/.mojulo/`. Then open a fresh agent session and ask: **"what is this?"**
+Needs **Node 22.14+** and an MCP-capable coding agent (Claude Code or Codex; Claude Desktop works too). `init` finds the hosts on your machine, asks once per host, and opens the dashboard at `http://localhost:3001`. Everything lands in `~/.mojulo/`. Then open a fresh agent session and ask: **"what is this?"**
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo`. It starts the same server pinned to one version ([plugins/mojulo](plugins/mojulo/README.md)). The plugin build leaves out the handoff tools for AI image, voice and mesh generators and never downloads a browser, ffmpeg or the search model on its own. Use the plugin or `init` for Claude Code, not both: two registrations run two servers.
 
@@ -47,8 +47,8 @@ Open the dashboard on its own with `npx -y mojulo-ui`. It is its own npm package
 
 ## Where it runs, three things you can add
 
-Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints byte for byte in the
-other. Two shapes, one install.
+Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints as the same geometry
+in the other. Two shapes, one install.
 
 **In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
 Linux box it gives itself:
@@ -171,7 +171,7 @@ The agent calls `compose_world { base: 'city', seed: 11, overrides: { profile: '
 
 ## Where it goes
 
-One recipe, several targets, all off the same ref: `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl,model.3mf,model.usdz,model.scad}`. Each URL regenerates deterministically on request — geometry byte for byte across platforms; an embedded texture PNG can differ in its compressed bytes while its pixels do not — and every handoff carries a ledger naming what did not travel.
+One recipe, several targets, all off the same ref: `/api/sketches/<ref>/{svg,scene,world,model.glb,model.stl,model.3mf,model.usdz,model.scad}`. Each URL regenerates deterministically on request: byte for byte on the same platform (OS, CPU and Node version), and the same geometry to within floating-point rounding on any other, since V8's `Math` rounds its last bit differently by CPU and Node version (an embedded texture PNG can also differ in its compressed bytes, never in its pixels). Every handoff carries a ledger naming what did not travel.
 
 | Target | What you get | The gate |
 |---|---|---|

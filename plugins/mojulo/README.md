@@ -2,7 +2,7 @@
 
 **Mojulo is a 3D compiler for Claude.** Describe an object, a walkable world or a small game, and
 Claude builds it through mojulo's tools as a deterministic recipe: a few hundred bytes of JSON, or
-an OpenSCAD program, that compiles back to the same geometry byte for byte. You edit and diff the
+an OpenSCAD program, that compiles back to the same geometry every time. You edit and diff the
 recipe like code; every render is derived from it. From the recipe mojulo exports print-ready STL
 and 3MF at true scale, glTF, OpenUSD, a self-contained HTML page you can walk offline, and Godot,
 Blender, Unity and Unreal packs. Everything stays on your machine under `~/.mojulo/`.
@@ -16,7 +16,7 @@ This plugin starts the open-source mojulo MCP server (`npx -y mojulo@3.0.0`) and
 that tells Claude to start from mojulo's routing index. Nothing in this folder runs code of its
 own: no hooks, no scripts. The server is the npm package built from
 [github.com/zombico/mojulo](https://github.com/zombico/mojulo). It works in Claude Code and in
-Cowork sessions on your computer, and needs Node.js 22.12 or newer.
+Cowork sessions on your computer, and needs Node.js 22.14 or newer.
 
 The plugin build of mojulo leaves out the handoff tools for AI image, voice and mesh generators.
 
@@ -53,7 +53,7 @@ claude mcp remove mojulo -s user
 
 ## Requirements
 
-- **Node.js 22.12 or newer**, with `npx` on the `PATH` Claude sees.
+- **Node.js 22.14 or newer**, with `npx` on the `PATH` Claude sees.
 - **About 370 MB of disk**: about 227 MB installed (the package, 21.3 MB unpacked, and its
   dependencies) and about 140 MB of npm cache. The first start downloads about 79 MB, the 6.7 MB
   package included. Measured for 3.0.0 on an Apple M1 Max with an empty cache, through a local

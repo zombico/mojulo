@@ -565,8 +565,9 @@ function buildModelReadme({ sketch, ref, kind, format, hash, exported, clips, pr
     '',
     'On any host running mojulo, `recipe.json` is the world manifest: store it as a',
     `sketch (its \`kind\` names the minting tool) and \`export_model({ ref })\``,
-    'regenerates this file deterministically — same recipe, same bytes (geometry byte for byte',
-    'across platforms; an embedded texture PNG can differ in its compressed bytes, not its pixels).',
+    'regenerates this file deterministically — byte for byte on the same platform (OS, CPU and',
+    'Node version), the same geometry to within floating-point rounding on any other, and an',
+    'embedded texture PNG can differ in its compressed bytes, never in its pixels.',
     '',
     ...(format === 'ifc' ? [
       '## Opening this file (BIM)',

@@ -2,13 +2,13 @@
 
 ![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/lounge-handoff-demo.gif)
 
-Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints byte for byte at home.
+Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
 
 ```bash
 npx mojulo init
 ```
 
-That wires mojulo into the coding agents on this machine (Claude Code, Codex, Claude Desktop — one yes/no each) and opens the dashboard. Node 22.12+. No API key; your agent is the reasoning loop.
+That wires mojulo into the coding agents on this machine (Claude Code, Codex, Claude Desktop — one yes/no each) and opens the dashboard. Node 22.14+. No API key; your agent is the reasoning loop.
 
 You talk to the agent you already run; it does the reasoning, and mojulo is the machine it works in. Build **objects, worlds, and games by conversation.** An object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples. Each rung is a small deterministic **recipe**: readable, seeded to regenerate identically, never a render.
 
@@ -28,7 +28,7 @@ The bins:
 
 ## Quickstart
 
-Prerequisite: **Node.js 22.12+** (`node --version`). Everything below runs through
+Prerequisite: **Node.js 22.14+** (`node --version`). Everything below runs through
 `npx`, which ships with Node — if you don't have it, install it from
 [nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
 No provider key: your agent is the reasoning loop. Verified on macOS (Apple Silicon),
@@ -69,7 +69,7 @@ npx mojulo init
 #      npx mojulo call forward_context      # the routing index
 #      npx mojulo call <tool> --json '{…}'
 #    Ask for format 'bundle' on the way out: one zip, recipe included, that
-#    re-mints byte for byte on your own machine.
+#    re-mints as the same geometry on your own machine.
 
 # 4. Optional add-ons, same choice on your machine or in a box:
 #      npx -y -p mojulo mojulo install recall     # the embedding model behind
@@ -118,8 +118,8 @@ bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
 
 ## Where it runs
 
-Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints byte for byte in the
-other. Two shapes, one install.
+Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints as the same geometry
+in the other. Two shapes, one install.
 
 **In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
 Linux box it gives itself:

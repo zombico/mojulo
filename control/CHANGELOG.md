@@ -12,30 +12,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### Deterministic math
-
-- **3.0's generators take their transcendentals from `lib/util/dmath.js`.** V8's `Math` is not the same
-  function everywhere: since Node 24 `Math.pow` and `**` call the platform's C library, and V8's arm64
-  builds round `sin`, `cos`, `exp`, `atan2` and the rest differently from x64. dmath is fdlibm written in
-  plain double arithmetic, so the vegetation engine, terrain worlds, the anime head and hero, stores,
-  construction, metro and canal cities, the metro refacade and the Tian Tan Buddha take their math from
-  it, and their pinned outputs are the same bytes on x64 and arm64 and on Node 22 and 24. A few 2.1.0
-  helpers they still reach keep the engine's `Math` (specular shading, sRGB conversion, textures, roads,
-  the metro World's walkers and cars): their last bits can still differ by platform. Where they reach older helpers (the figure, lathe, sweep,
-  floor-plan and scene helpers), those read `lib/util/math-scope.js`: the engine's `Math` for a recipe
-  minted before 3.0, dmath inside a 3.0 build, so no 2.1.0 output changes.
-- **Pins recorded on one Mac are re-pinned to the dmath bytes.** The plants, anime fixture, anime hero
-  World, store, round-kit and Buddha pins move once; the Anime Form Studio fixture is re-frozen from the
-  port on dmath. A few pins of 2.1.0 generators (the stock city, some stock landmarks, a floor plan's
-  kitchen sink, a condo's plants) keep their per-platform bytes, since changing them would change a
-  minted row.
-
 ## [3.0.0] - 2026-09-30
 
 ### Upgrading from 2.x
 
 - **3.0.0 is the release after 2.1.0.** A 2.2 was prepared and never published; everything it carried
   is in this release. Removing the chatbot factory is why this is a major version.
+- **Node 22.14 or newer.** 2.x asked for 22.12, but on Node 22.12 and 22.13 the database library
+  (better-sqlite3) crashes the process the first time it opens the database, with no message; 2.1.0
+  crashes the same way. 3.0 checks the version at start-up and says which Node to install.
 - **The 2.x line is unmaintained.** No 2.x release will be patched, and running one is not
   recommended. 2.1.0 and the bot image it deploys (`mojulo-bot` 0.5.1) have known security issues: an
   open relay on deployed bots (`/api/send-webhook`), SSRF in `upload_document_from_url`, path
@@ -112,9 +97,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 ### What 3.0 is
 
 - **A 3D compiler for agents.** Your agent builds objects, walkable worlds and games by conversation
-  as small deterministic recipes on your machine, compiled back to the same geometry byte for byte and
-  exported to STL / 3MF, glTF, OpenUSD, IFC4, self-contained HTML, Godot, Blender, Unity and Unreal. The
-  bot factory, which never fit that, is gone.
+  as small deterministic recipes on your machine, compiled back to the same geometry (byte for byte on
+  the same platform) and exported to STL / 3MF, glTF, OpenUSD, IFC4, self-contained HTML, Godot,
+  Blender, Unity and Unreal. The bot factory, which never fit that, is gone.
+
+### Determinism
+
+- **What "the same geometry" means.** A recipe compiles to the same geometry every time: byte for byte
+  on the same platform (OS, CPU and Node version), and to within floating-point rounding on any other.
+  V8's `Math` is not one function everywhere: its arm64 builds round `sin`, `cos`, `exp`, `atan2` and the
+  rest differently from x64, and since Node 24 `Math.pow` and `**` call the platform's C library. An
+  embedded texture PNG can also differ in its compressed bytes between Node builds (Homebrew's Node links
+  a different zlib), never in its pixels.
+- **3.0's generators go further.** The vegetation engine, terrain worlds, the anime head and hero, stores
+  and construction, metro and canal cities, the metro refacade and the Tian Tan Buddha take their
+  transcendental functions from a deterministic math module (fdlibm in plain double arithmetic), so their
+  pinned outputs are the same bytes on Linux and macOS, x64 and arm64, Node 22 and 24, and CI checks them
+  on every runner. The older helpers they reach switch to it only inside a 3.0 build, so nothing minted
+  with 2.x changes. A few older helpers still use the engine's `Math` (specular shading, sRGB conversion,
+  some textures, roads, the metro World's walkers and cars).
 
 ### Lean install
 
