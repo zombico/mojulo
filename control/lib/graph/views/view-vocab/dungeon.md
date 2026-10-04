@@ -32,6 +32,7 @@ Pass everything via `compose_world`'s `overrides` (identity base — overrides A
   ],
   style?:    { palette?, material?, texture?, tunnel?: { base?, material?, texture? } },
   lighting?: { ambient?, tint?, fireColor?, fireIntensity?, gain?, reflectivity? },
+  fire?:     true | { sources?, embers?, smoke?, light? },
   walk?:     { speed?, minEye?, gravity?, radius?, spawn?, ground?, yaw? } | false,
   viewBox?:  { width, height }
 }
@@ -78,6 +79,10 @@ Spec-level `style` applies to every chamber/tunnel; per-chamber/per-tunnel field
 - `ambient` (default 0.2), `tint` ([r,g,b] multipliers, warm by default).
 - `fireColor` ([r,g,b], default `[1, 0.56, 0.24]`), `fireIntensity` (default 1.7).
 - `gain` (default 1.55), `reflectivity` (default 0.6) — the traced-diffusion bake dials.
+
+## Fire
+
+`fire: true` lights the dungeon with live fire: each chamber's fire becomes a brazier (an iron bowl on three legs, coals glowing), and each tunnel's two lights become torches in brackets on alternate walls. The flames puff and wander, throw embers, smoke against the ceiling, and their flicker plays over the light the bake already put on the walls. `{ sources: [{ kind, at: [x, y, z], size?, phi? }] }` adds fires anywhere (`kind`: `candle`, `torch`, `brazier`, `campfire`); `embers: false` and `smoke: false` leave those out; `light` (1) scales how far the fires light. Live World page only; exports keep the baked light and the point lights they already get.
 
 ## Worked example
 

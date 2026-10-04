@@ -105,6 +105,20 @@ It does not establish:
 - **Radiative transfer.** The flame is optically thin emission. The smoke is single-scattered with a flat multiple-scatter share, and does not shadow.
 - **Cross-host determinism.** `Math.sin`/`exp` are not routed through `dmath`, the same caveat as the wind spike.
 
+## Fire in worlds (production: `lib/graph/fire/`, `scene/channels/fire.js`)
+
+The match stays a spike. What carried into production is the flame as a streakline in the world's air, generalised from one laminar flame to a bed of flamelets. `fire` on any world opts in, and absent it is zero bytes.
+
+- **Kinds:** candle (laminar, steady), torch, brazier, campfire. They differ by size: the bed D and the flame L (Heskestad's height law, read once into `FIRE_KINDS`). Past about 10 cm a fire is turbulent: it wanders on its own eddies and puffs at f ≈ 1.5/√D (Cetegen & Ahmed), about 5 Hz for a torch and 2 Hz for a campfire.
+- **Seekable:** `fireKernel` keeps no state. Flamelets, embers and smoke puffs are all functions of time: embers and puffs are released on fixed schedules and follow analytic paths. World captures, which pin the clock, stay deterministic.
+- **The air:** on a terrain with `wind`, fires take the terrain's own field and clock, so they lean in the gusts the grass bends in. Elsewhere the air is still.
+- **Drawing:** a marched box per flamelet, depth-tested against the walls and tonemapped in its own shader (World pages have no HDR pass). Each fire also gets a halo, its props (torch, brazier, stone ring and logs, candle), glowing coals, ember streaks and smoke puffs.
+- **Light:** every basic material on the page is patched, including terrain chunks as they stream in. A fire already in a world's bake (a dungeon's) flickers the light there. One that isn't (a campfire on a terrain) adds its light, at a share set by the world's daylight: a fire is a thousandth of the sun.
+- **Dungeon:** `fire: true` turns the traced chamber fires into braziers and the tunnel lights into torches on the walls. The baked fixture blobs go; the baked light stays.
+- **Terrain:** `fire.sources` with `[x, y]` are set on the ground there.
+
+`node scripts/spikes/flame/world-pages.mjs /absolute/dir` writes `dungeon-fire.html` and `campfire.html` to walk, and `.capture.html` copies with the capture API (`__mojCapture.frame({ pos, target, t })`; a capture page draws only when asked, so it does not animate or respond to the mouse).
+
 ## Suggested next forms
 
 - **A candle:** a steady wick flame, wax pool. The same kernel with a constant fuel rate and a wick that trims itself.

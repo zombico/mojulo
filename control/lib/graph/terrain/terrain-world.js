@@ -15,6 +15,7 @@ import { validateTerrainCities, prepareCity, seatCity, cityLight } from './terra
 import { validateTerrainGrass, resolveTerrainGrass, grassConfig, grassPageChannel } from './terrain-grass.js';
 import { validateTerrainPlants, resolveTerrainPlants, plantsConfig, plantPools, plantsPageChannel, plantsBake } from './terrain-plants.js';
 import { validateTerrainWind, resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
+import { validateFire } from '../fire/fire.js';
 import { SPECIES } from '../vegetation/species.js';
 import { terrainKernel } from './terrain-kernel.js';
 import { slicedTerrainFaces, sliceLevels } from '../polygonizer/landform-mesh.js';
@@ -53,6 +54,8 @@ export function validateTerrainWorld(m) {
   if (m && m.plants !== undefined) errs.push(...validateTerrainPlants(m.plants, m));
   if (m && m.grass !== undefined) errs.push(...validateTerrainGrass(m.grass, m));
   if (m && m.wind !== undefined) errs.push(...validateTerrainWind(m.wind, m));
+  if (m && m.fire !== undefined) errs.push(...validateFire(m.fire).map((e) => `terrain.${e}`));
+  if (m && m.planet && m.fire && m.fire.sources) errs.push('terrain.fire is for flat worlds: a fire is set on the flat ground');
   const lod = m && m.lod;
   if (lod !== undefined) {
     if (!lod || typeof lod !== 'object') errs.push('terrain.lod must be { minSize?, split?, maxChunks? }');
@@ -245,6 +248,10 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
       bloom: channel.plants ? channel.plants.V.species.map((sp) => (SPECIES[sp.name] && SPECIES[sp.name].bloom ? sp.crown : 0)) : [] });
     windMeta = { speed: windSpec.speed, dir: windSpec.dir, gust: windSpec.gust, flaccidity: windSpec.flaccidity };
   }
+  // fire (fire/fire.js): sources set on the ground here (a 2D `at` takes the ground's height under it); the page's fire
+  // channel draws them, leaning in the wind when the world has one. world-scene.js resolves them with the rest.
+  const fireSources = manifest.fire && typeof manifest.fire === 'object' && Array.isArray(manifest.fire.sources) && !PLN
+    ? manifest.fire.sources.map((s) => ({ kind: s.kind, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], field.groundAt(s.at[0], s.at[1])], size: s.size, phi: s.phi })) : null;
   const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];
   const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place, { surf: PLN ? surf : null }) : null;
   return {
@@ -252,6 +259,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
     ...(allRepeats.length ? { repeats: allRepeats } : {}),
     ...(plantBake && Object.keys(plantBake.textures).length ? { textures: plantBake.textures } : {}),
     ...(itemRefs ? { itemRefs } : {}),
+    ...(fireSources ? { fireSources, fireSourcesAll: true } : {}),
     haze: { color: bg, density: field.atlas ? 1.2 / Math.min(world, 8e4) : 0.9 / world },   // a composed world is seen through the air: tens of kilometres, not its whole width
     walk: { speed: channel.speeds.walk, spawn: [wx, wy, gz + EYE], radius: 0.4, minEye: EYE, gravity: 20, jump: 6 },
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },

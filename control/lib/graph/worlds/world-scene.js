@@ -428,6 +428,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (errs.length) throw new Error(`crystalLight is invalid — see get_solid_vocab({ id: 'workbench' }), "Light rigs":\n- ${errs.join('\n- ')}`);
     payload.crystalLight = sketch.manifest.crystalLight;
   }
+  // fire (flame-depiction): live flames that light the world. A kind that knows where its fires are hands them over as
+  // payload.fireSources (a dungeon's chambers and tunnels; a terrain's sources set on the ground); `fire.sources` with
+  // a 3D `at` add to them anywhere. Opt-in; absent ⇒ byte-identical.
+  if (payload && sketch.manifest.fire) {
+    const { validateFire, resolveFire, firePageChannel } = await import('@/lib/graph/fire/fire.js');
+    const errs = validateFire(sketch.manifest.fire);
+    if (errs.length) throw new Error(`fire is invalid — see get_view_vocab({ id: 'dungeon' }) or ({ id: 'terrain' }), "Fire":\n- ${errs.join('\n- ')}`);
+    const placed = payload.fireSources || [];
+    const r = resolveFire(sketch.manifest.fire, placed, { explicit: !payload.fireSourcesAll });
+    if (r) payload.fire = firePageChannel(r, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
+  }
+  if (payload) { delete payload.fireSources; delete payload.fireSourcesAll; }
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;

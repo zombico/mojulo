@@ -19,7 +19,7 @@ const stampCity = (c) => (c && typeof c === 'object' && !Array.isArray(c) && c.r
   && (c.elements === undefined || (c.elements && typeof c.elements === 'object' && !Array.isArray(c.elements)))
   ? { ...c, elements: { frontage: true, roundKit: true, ...(c.elements || {}) } } : c);
 
-export function mintTerrainWorld({ title = 'terrain world', from, world, span, relief, horizon, detail, planet, seed, spawn, lod, place, cities, plants, grass, wind, ref, folderRef } = {}) {
+export function mintTerrainWorld({ title = 'terrain world', from, world, span, relief, horizon, detail, planet, seed, spawn, lod, place, cities, plants, grass, wind, fire, ref, folderRef } = {}) {
   if ((!from || typeof from !== 'object') && (!world || typeof world !== 'object')) {
     throw new Error("terrain: give `from` — the painted landscape the world is made from (an inline recipe { heartbeat, splatch, landform?, … } or { ref: '<painted-landscape sketch>' }) — or `world` — features to compose it from ({ features: [{ feature: 'river', size: 'great' }, …] }). Manual: get_view_vocab({ id: 'terrain' }).");
   }
@@ -40,6 +40,7 @@ export function mintTerrainWorld({ title = 'terrain world', from, world, span, r
     ...(plants !== undefined ? { plants } : {}),
     ...(grass !== undefined ? { grass } : {}),
     ...(wind !== undefined ? { wind } : {}),
+    ...(fire !== undefined ? { fire } : {}),
     ...(title ? { title } : {}),
   };
   const errors = validateTerrainWorld(manifest);
