@@ -47,6 +47,16 @@ lands.
   and clear of the thighs at every dial. Every piece that stands off the thighs (a fauld, a belt, a kit of the
   operator's) stands off the pelvis too, and thigh plates wrap the share of the thigh they were drawn for. On converged
   legs a hardsuit's inner knee plate turns less far in, clear of the other knee.
+- **The torso.** On the structured core the torso is built on the vajra rib cage: a waist above the hem, the ribs
+  widening to a lifted chest, the male's back widest under the arms and the female's narrower, and the shoulders sloping
+  from the neck under the arm's own cap instead of a box with square corners. The new rings sit between the five the
+  dress addresses, so every torso address (`s` 0 … 4, a collar's station) lands where it did.
+- **The bust.** The adult female hero carries a bust by default on the structured core (a child or chibi cast, or the
+  kid look, never does). It is shaped in her chest's own surface, turned a little outward with the fuller lower pole, so
+  it carries no outline of its own (two separate mounds read as balls on the shirt), and it has a bone each (`bustR`,
+  `bustL`) owning those points, which an engine's spring can drive. A trunk ring may now name its own `u` (the address
+  parameter) and `push` named slots off the ring, and a skin blend may weigh one point (`station.slot`) over its ring.
+  The knight's and the ranger's pauldrons and the jerkin's quilt sit on the new shoulder.
 - **Core measures.** Every hero's readout carries `core`: the waist to hip, where the hip peaks, the seat, how far the
   front falls below the waist, any pouch, the largest step in the outline, and whether the legs converge, with advice
   against bands per body that names the word to move. On the structured core the advice is a warning; on a streamlined

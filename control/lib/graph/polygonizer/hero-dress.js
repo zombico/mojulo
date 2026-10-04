@@ -42,7 +42,8 @@ const overPelvis = (kit, ctx) => (!ctx.pelvis || !Array.isArray(kit) ? kit
   : kit.map((A) => (Array.isArray(A.over) && A.over.some((n) => /^thigh[RL]$/.test(n)) && !A.over.includes('pelvis') && A.part !== 'pelvis' ? { ...A, over: [...A.over, 'pelvis'] } : A)));
 
 /** BODY DATA for the clothed hero */
-export function clothedBody({ Ht, Hl, scale: k }) {
+export function clothedBody({ Ht, Hl, scale: k, pelvis: structured = false }) {
+  const quilt = structured ? [1.3, 2.9] : [1.7, 3.2];   // the structured chest is rounder (less flat front per band): the panel runs longer and stops under the shoulder's turn, so its tiles keep their size
   return {
     refine: [{ parts: both(['upperArmR', 'foreArmR', 'thighR', 'shankR']), slots: 'halve' }, { parts: ['torso'], slots: false }],
     volume: [
@@ -57,8 +58,8 @@ export function clothedBody({ Ht, Hl, scale: k }) {
     creases: { joints: [['upperArmR', 'foreArmR', 'TopFold'], ['upperArmL', 'foreArmL', 'TopFold']], lift: 0.32, width: 0.5, floor: 0.6 },
     // quilted jerkin: a front panel either side of a bare placket and a back panel, the sides left plain under the arms;
     // front → frontR is the chest's front plane in every ring family (t 0 → 1), the back plane is H − 1 → H
-    tiles: [{ id: 'quiltFront', parts: ['torso'], s: [1.7, 3.2], t: [0.22, 0.96], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] },
-      { id: 'quiltBack', parts: ['torso'], s: [1.7, 3.2], t: [Ht - 0.94, Ht - 0.1], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] }],
+    tiles: [{ id: 'quiltFront', parts: ['torso'], s: quilt, t: [0.22, 0.96], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] },
+      { id: 'quiltBack', parts: ['torso'], s: quilt, t: [Ht - 0.94, Ht - 0.1], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] }],
     pads: both(['shankR']).map((p) => ({ id: `patch.${p}`, part: p, s: 0.16, toward: { world: [0, 1, 0] }, r: 0.66, rim: 0.05, floor: 0.08, m: 8, groups: ['PatchSeam', 'Patch'] })),
     rows: [{ part: 'torso', t: 'front', s: [1.75, 3.1], step: 0.3, shape: 'stud', r: 0.011 * k, h: 0.007 * k, m: 8, group: 'Toggle' }],
     collars: [...both(['foreArmR']).map((p) => ({ id: `cuff.${p}`, part: p, at: 'st1_st2_50', height: 0.16, width: 0.5, group: 'Cuff' })),
@@ -67,7 +68,8 @@ export function clothedBody({ Ht, Hl, scale: k }) {
 }
 
 /** the RANGER kit: belt, baldric, archer's bracer on the left, one pauldron on the right (the focal accent) */
-export function rangerKit({ Ht, Hl, scale: k }) {
+export function rangerKit({ Ht, Hl, scale: k, pelvis: structured = false }) {
+  const cap = structured ? [2.55, 3.45] : [2.8, 3.8];   // the structured torso's shoulder ring over the arm's cap, a trapezius ring above (plate.js pauldron)
   return [
     { id: 'belt', mode: 'band', part: 'torso', over: ['thighR', 'thighL'], s: [0.12, 0.44], t: 'wrap', nt: 12, ns: 2, mugen: 0.004 * k, thick: 0.01 * k, rad: 0.05 * k, group: 'Leather',
       signature: { kind: 'buckle', k: 0, j: 1, w: 0.028 * k, h: 0.022 * k, bar: 0.0055 * k, standoff: 0.006 * k, group: 'Iron' } },
@@ -79,7 +81,7 @@ export function rangerKit({ Ht, Hl, scale: k }) {
     // the pauldron caps the shoulder: the torso's slope from the yoke toward the neck, front to back round the side,
     // lifted over the arm's cap beneath it (`over`), snug at the top and flaring at its lower edge. It rides the torso,
     // so the arm moves beneath it: the dragon's rule on a human shoulder
-    { id: 'pauldron', mode: 'shell', part: 'torso', over: ['upperArmR'], side: 'R', s: [2.8, 3.8], t: [0.24 * Ht, 0.76 * Ht], nt: 8, ns: 4, mugen: 0.008 * k, thick: 0.014 * k, rad: 0.05 * k, support: 3.8, ramp: 1.2, group: 'Iron', rigid: true,
+    { id: 'pauldron', mode: 'shell', part: 'torso', over: ['upperArmR'], side: 'R', s: cap, t: [0.24 * Ht, 0.76 * Ht], nt: 8, ns: 4, mugen: 0.008 * k, thick: 0.014 * k, rad: 0.05 * k, support: cap[1], ramp: 1.2, group: 'Iron', rigid: true,
       signature: { kind: 'boss', k: 'mid', j: 1, r: 0.041 * k, h: 0.022 * k, m: 10, rim: 0.5, group: 'Bronze' } },
   ];
 }

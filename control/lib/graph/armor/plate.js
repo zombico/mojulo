@@ -21,7 +21,7 @@ export function edgeTrim(A, { at = 'low', w, thick, group, minF }) {
 
 /** the pauldron as kit entries on `side`. variants: 'spaulder' (an anchor on the torso + lames down the upper arm) or
  * 'bell' (an anchor + one deep skirt shaped on the arm and pinned to the torso). `rank`: 'focal' | 'partner' */
-export function pauldron(variant, dials, { Ht, Hl, k = 1, height = 1.75 }, { side = 'R', groups = {}, eye = [0.8, 0.5, 0.25], rank = 'focal' } = {}) {
+export function pauldron(variant, dials, { Ht, Hl, k = 1, height = 1.75, pelvis: structured = false }, { side = 'R', groups = {}, eye = [0.8, 0.5, 0.25], rank = 'focal' } = {}) {
   const law = { ...armorProportion(dials) }, minF = law.minFeature * height;
   if (rank !== 'focal') { law.focal = 1 + (law.focal - 1) * 0.35; law.standoff *= 0.7; law.flare *= 0.7; }   // law 9: the partner keeps below the focal's rank
   const G = { plate: 'Plate', trim: 'Trim', rivet: 'Rivet', accent: 'Accent', ...groups };
@@ -53,10 +53,12 @@ export function pauldron(variant, dials, { Ht, Hl, k = 1, height = 1.75 }, { sid
     lames = 1;
   }
   // the anchor caps the shoulder from the yoke toward the neck, over the arm and the lames; snug at the top, a modest
+  // flare. On the structured core (ctx.pelvis) the torso's shoulder ring sits over the arm's cap and a trapezius ring
+  // slopes to the neck, so the cap is s 2.7 … 3.45 (the armpit to halfway up the slope), not the old flat yoke's 3.0 … 3.8;
   // flare (a torso window flares SIDEWAYS out of the armpit). The focal's boss faces where the eye comes from (law 6)
   const half = Math.min(0.46, 0.27 * law.focal ** 0.3);
-  const anchor = { id: `torso-pauldron${S}`, mode: 'shell', part: 'torso', over: [arm], side: S, s: [r4(lerp(3.0, 2.85, Math.min(1, law.focal - 1))), 3.8], t: [r4((0.5 - half) * Ht), r4((0.5 + half) * Ht)], nt: 14, ns: 6,
-    mugen: r4(0.006 * k * law.standoff), thick, rad: r4(0.05 * k), support: 3.8, ramp: r4(0.8 + 0.25 * (law.flare - 0.8)), group: G.plate, rigid: true,
+  const anchor = { id: `torso-pauldron${S}`, mode: 'shell', part: 'torso', over: [arm], side: S, s: structured ? [r4(lerp(2.7, 2.55, Math.min(1, law.focal - 1))), 3.45] : [r4(lerp(3.0, 2.85, Math.min(1, law.focal - 1))), 3.8], t: [r4((0.5 - half) * Ht), r4((0.5 + half) * Ht)], nt: 14, ns: 6,
+    mugen: r4(0.006 * k * law.standoff), thick, rad: r4(0.05 * k), support: structured ? 3.45 : 3.8, ramp: r4(0.8 + 0.25 * (law.flare - 0.8)), group: G.plate, rigid: true,
     signature: rank !== 'focal' ? rivetSig(2 + orn, 0)
       : { kind: 'facing', dir: eye, r: r4(0.03 * k * law.focal), h: r4(Math.max(minF, 0.016 * k * law.focal ** 0.7)), m: 14, rim: 0.5, group: G.accent } };
   kit.push(anchor);

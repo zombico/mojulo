@@ -429,14 +429,15 @@ describe('update_sketch on a hero minted through the hero door', () => {
     expect(stored.manifest.plan.style.slots).toBe('ring6'); expect(stored.manifest.recipe.parts.torso).toBeTruthy(); expect(stored.manifest.ledger.closed).toBe(true);
     expect(stored.title).toBe('hero · female · athletic');
     // "broader still": one word, one number; the plan and the recipe follow
-    const yoke = (m) => m.plan.segments.find((s) => s.name === 'torso').stations[3].r[0];
+    const yoke = (m) => m.plan.segments.find((s) => s.name === 'torso').stations.find((st) => st.id === 'st3').r[0];
     const r = await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.3 }] });
     expect(r.ok).toBe(true); expect(r.stats.closed).toBe(true);
     expect(r.stats.hero.tune.shoulders).toBe(1.3); expect(r.stats.hero.measures.shoulder_m).toBeGreaterThan(minted.hero.measures.shoulder_m);
     expect(r.stats.hero.warnings).toEqual([expect.stringMatching(/tune\.shoulders 1\.3 .*\[0\.8, 1\.25\]/)]);   // advice, not a refusal
     const after = SketchRepository.getByRef('hero-tuned');
     expect(yoke(after.manifest)).toBeGreaterThan(yoke(stored.manifest));
-    expect(after.manifest.recipe.parts.torso.stations[3].points).not.toEqual(stored.manifest.recipe.parts.torso.stations[3].points);
+    const st3 = (m) => m.recipe.parts.torso.stations.find((st) => st.id === 'st3').points;
+    expect(st3(after.manifest)).not.toEqual(st3(stored.manifest));
     // a live dial keeps the plan and the hero
     await updateSketchHandler({ ref: 'hero-tuned', patch: [{ op: 'set', path: '/dials/lean', value: 10 }] });
     const dialed = SketchRepository.getByRef('hero-tuned'); expect(dialed.manifest.plan).toEqual(after.manifest.plan); expect(dialed.manifest.dials.lean).toBe(10);

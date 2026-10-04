@@ -77,7 +77,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   { channel: { axis, sign?, links: [{ pivot, joints }] } }, legs: { L|R: { hip, knee, hock, toeBase, toeTip,
   pole } }, reach? }` — rest joints must include the vajra core names (pelvisHub, navel, neckHub, headBase,
   headTop, shoulder/elbow/wrist/hip/knee/ankle L+R). Every L1 part then declares `bind: 'bone' | { bone,
-  blend: { station: { bone: w } } }` (the overshoot ring at a joint shared with the neighbour); a pinned
+  blend: { station: { bone: w }, 'station.slot': { bone: w } } }` (the overshoot ring at a joint shared with the
+  neighbour; a `station.slot` entry weighs that one point over its station's, a form in a ring with its own bone); a pinned
   detail inherits its face. `clips: { name: [keyposes] }` are `resolvePose` words for the core (`armL:
   'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
   `heelL/R` (metatarsus degrees about the toe base, − lifts the heel), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
@@ -106,7 +107,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 
 - **Plan (the compact door).** `mint_solid({ kind: 'layered', via: 'plan', spec: { plan } })` — a RING PLAN
   is what the seeds write by hand: `{ schema: 'layered-plan-v1', frame, joints: { name: [x, y, z] } (the right
-  side), segments: [ { name, kind: 'trunk', stations: [{ z, r, yc?, e? }], caps, mirror: 'plane' } | { name, kind:
+  side), segments: [ { name, kind: 'trunk', stations: [{ z, r, yc?, e?, id?, u?, push? }], caps, mirror: 'plane' } (`u` a station's address
+  parameter, default its index: a shaping ring between two addressed ones takes a fractional `u` and every address keeps its
+  meaning; `push: { slot: [dx, dy, dz] }` moves a right-half or midline slot off the ring, the left mirrored) | { name, kind:
   'segment', from, to, rA, rB, e?, over?, mirror: 'plane' | 'name', bind: { bone, prev?, next? } } | { name, kind:
   'chain', joints, r, over?, bind: { root } } | { name, kind: 'loft', stations: [{ at, r, e? }], caps?, mirror, bind } (explicit stations
   along a polyline, each ring ⟂ its local direction: a thigh from the hip crest) ], details: [{ name, kind: 'claw', base, dir, length, radius, pin,
@@ -289,7 +292,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
   the seat, the hip one curve out from the waist (the female's widest at the trochanter, the male's straight), the front
   receding to the pubis, and the thigh rooted at the hip socket inside it, so it comes out of the pelvis along the groin's
-  diagonal. The readout's `core` measures the midsection on every hero (waist to hip, where the hip peaks, the seat, the
+  diagonal. Its TORSO is built on the vajra rib cage: a waist above the hem, the ribs widening to a lifted chest, the male's
+  back widest under the arms, the shoulder ring over the arm's cap and a trapezius ring sloping to the neck; the new rings
+  sit at fractional `u` between the five the dress addresses, so torso `s` 0 … 4 and a collar's station mean what they did.
+  The adult female carries a BUST by default (`body.bust` from 0.27 of the chest; 0 for none): pushed out of her chest
+  rings, not mounds of its own, with a bone each (`bustR`, `bustL`, riding the torso) owning those points for an engine's
+  spring; a child-coded figure never does. The readout's `core` measures the midsection on every hero (waist to hip, where the hip peaks, the seat, the
   front below the waist, a pouch, a step in the outline, the legs) with advice against bands per body; on the structured
   core that advice is a warning. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
   the knee. Its stands own their base: `relaxed`, `hand-on-hip` and `guard` plant both feet where `stance` and `stagger`
@@ -297,7 +305,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   keys stand on a base of their own. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. Hip armour hangs
   from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` is the hero
   before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
-  legs. (A rig bone's `align` names two joints
+  legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints
   whose line orients it in place of head → tail; it still sits at its head.)
   ANIME PROPORTIONS: a hero wearing the anime head wears an anime body by default (`proportions: 'anime'`; `'hero'` keeps
   the realistic cast): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam

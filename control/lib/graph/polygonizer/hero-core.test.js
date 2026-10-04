@@ -59,10 +59,11 @@ describe('the structured core', () => {
       for (const k of ['pelvisHub', 'navel', 'neckHub', 'hipR', 'shoulderR']) expect(j[k]).toEqual(d[k]);   // above the knee nothing moves
     });
     it(`${label}: the hip ring holds still under a spine curl, and the rig gates pass`, () => {
-      const hipRing = S.mesh.provenance.map((p, i) => (p.part === 'thighR' && /\/st1\./.test(p.id) ? i : -1)).filter((i) => i >= 0);
-      expect(hipRing.length).toBeGreaterThan(0);
-      const posed = (X) => { const fr = boneFrames(X.R, X.R.joints, rigNodesAt(X.R, POSES.curl).nodes); return hipRing.map((i) => { let out = [0, 0, 0]; for (let k = 0; k < 4; k++) { const w = X.skin.weights[i][k]; if (!w) continue; const f = fr[X.skin.joints[i][k]], v = X.mesh.vertices[i], d = [v[0] - f.restHead[0], v[1] - f.restHead[1], v[2] - f.restHead[2]]; out = out.map((o, a) => o + w * (f.head[a] + f.m[a][0] * d[0] + f.m[a][1] * d[1] + f.m[a][2] * d[2])); } return out; }); };
-      const drift = (X) => Math.max(...posed(X).map((p, j) => Math.hypot(...p.map((c, a) => c - X.mesh.vertices[hipRing[j]][a]))));
+      // each figure's own hip ring (the two meshes do not share a vertex layout: the structured torso carries more rings)
+      const ringOf = (X) => X.mesh.provenance.map((p, i) => (p.part === 'thighR' && /\/st1\./.test(p.id) ? i : -1)).filter((i) => i >= 0);
+      expect(ringOf(S).length).toBeGreaterThan(0);
+      const posed = (X) => { const fr = boneFrames(X.R, X.R.joints, rigNodesAt(X.R, POSES.curl).nodes); return ringOf(X).map((i) => { let out = [0, 0, 0]; for (let k = 0; k < 4; k++) { const w = X.skin.weights[i][k]; if (!w) continue; const f = fr[X.skin.joints[i][k]], v = X.mesh.vertices[i], d = [v[0] - f.restHead[0], v[1] - f.restHead[1], v[2] - f.restHead[2]]; out = out.map((o, a) => o + w * (f.head[a] + f.m[a][0] * d[0] + f.m[a][1] * d[1] + f.m[a][2] * d[2])); } return out; }); };
+      const drift = (X) => Math.max(...posed(X).map((p, j) => Math.hypot(...p.map((c, a) => c - X.mesh.vertices[ringOf(X)[j]][a]))));
       expect(drift(S)).toBeLessThan(0.25 * drift(D));             // the thigh's own 0.2 remains; the curl no longer drags the hips
       const a = auditRig(S.mesh, S.skin, S.R, [{}, ...Object.values(POSES)]);
       expect(a.badWeights).toBe(0); expect(a.maxLengthError).toBeLessThan(1e-9); expect(a.maxOrthoError).toBeLessThan(1e-9);
@@ -204,6 +205,69 @@ describe('the dress on the structured core: hip pieces hang from the pelvis', ()
       const S = dressPlan(heroPlan({ cast: 'female', core: 'structured' }), { adorn }), D = dressPlan(heroPlan({ cast: 'female', core: 'streamlined' }), { adorn });
       for (const a of S.adorn.filter((x) => x.over?.some((n) => /^thigh/.test(n)))) expect(a.over).toContain('pelvis');
       for (const a of D.adorn) expect(a.over ?? []).not.toContain('pelvis');
+    }
+  });
+});
+
+describe('the structured torso', () => {
+  const torsoOf = (opts) => heroPlan(opts).segments.find((s) => s.name === 'torso');
+  for (const opts of [{ cast: 'male' }, { cast: 'female' }, { cast: 'male', proportions: 'anime' }, { cast: 'female', proportions: 'anime' }]) {
+    const label = `${opts.cast}${opts.proportions ? ' anime' : ''}`;
+    it(`${label}: the five addressed rings keep u 0 … 4; the shaping rings sit between at fractional u, named as refine would`, () => {
+      const t = torsoOf(opts);
+      expect(t.stations.map((st) => st.id)).toEqual(['st0', 'st1', 'st1_st2_50', 'st2', 'st2_st3_50', 'st3', 'st3_st4_50', 'st4']);
+      expect(t.stations.map((st) => st.u)).toEqual([0, 1, 1.5, 2, 2.5, 3, 3.5, 4]);
+      for (let i = 1; i < t.stations.length; i++) expect(t.stations[i].z).toBeGreaterThan(t.stations[i - 1].z);
+      // the old torso's address at every integer s is the same ring role: the hem, the navel, the chest, the shoulder, the neck
+      const old = torsoOf({ ...opts, core: 'streamlined' });
+      expect(t.stations[0]).toMatchObject({ z: old.stations[0].z }); expect(t.stations[1].z).toBe(old.stations[1].z); expect(t.stations.at(-1).z).toBe(old.stations[4].z);
+    });
+    it(`${label}: the shoulders slope from the neck: the shoulder ring narrower than the old box, the trapezius ring between it and the neck`, () => {
+      const t = torsoOf(opts), old = torsoOf({ ...opts, core: 'streamlined' }), x = (id) => t.stations.find((st) => st.id === id).r[0];
+      expect(x('st3')).toBeLessThan(old.stations[3].r[0]);
+      expect(x('st3_st4_50')).toBeLessThan(x('st3')); expect(x('st3_st4_50')).toBeGreaterThan(x('st4'));
+      expect(x('st1')).toBeLessThan(x('st1_st2_50'));   // the waist under the ribs
+    });
+  }
+  it('the female waist is narrower than her hem and her chest; the male back is widest under the arms', () => {
+    const f = torsoOf({ cast: 'female' }), m = torsoOf({ cast: 'male' }), x = (t, id) => t.stations.find((st) => st.id === id).r[0];
+    expect(x(f, 'st1')).toBeLessThan(x(f, 'st0')); expect(x(f, 'st1')).toBeLessThan(x(f, 'st2'));
+    expect(x(m, 'st2_st3_50')).toBeGreaterThanOrEqual(x(m, 'st2'));
+  });
+  it('a shaping ring takes its skin and every dial blend from its neighbours by u', () => {
+    const p = heroPlan({ cast: 'male' }), t = p.segments.find((s) => s.name === 'torso');
+    expect(t.bind.blend.st1_st2_50).toEqual({ lumbar: 0.25, torso: 0.75 });
+    expect(p.dials.bulk.blend.st2_st3_50).toBe(1);
+  });
+  it('a torso address lands on the same parameter: an adornment at s 2.5 sits between the chest and shoulder rings', () => {
+    const { recipe } = rigged({ cast: 'male' }), P = compileLayered(recipe).parts.torso;
+    expect(P.stations.map((st) => st.u)).toEqual([0, 1, 1.5, 2, 2.5, 3, 3.5, 4]);
+  });
+});
+
+describe('the structured bust', () => {
+  it('the adult female carries it in the chest rings (no mound parts), a bone each owning the pushed slots', () => {
+    const { recipe, mesh, R, skin } = rigged({ cast: 'female' }), t = recipe.parts.torso;
+    expect(Object.keys(recipe.parts).filter((p) => /bust/.test(p))).toEqual([]);
+    expect(R.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['bustR', 'bustL']));
+    const plan = heroPlan({ cast: 'female' }), st2 = plan.segments.find((s) => s.name === 'torso').stations.find((st) => st.id === 'st2');
+    expect(st2.push.frontR[1]).toBeGreaterThan(0.03);   // forward, the most on the chest ring
+    const i = mesh.pointIds.indexOf('torso/st2.frontR'), j = mesh.pointIds.indexOf('torso/st2.frontL'), k = mesh.pointIds.indexOf('torso/st2.front');
+    expect(R.bones[skin.dominant[i]].id).toBe('bustR'); expect(R.bones[skin.dominant[j]].id).toBe('bustL'); expect(R.bones[skin.dominant[k]].id).toBe('torso');
+    expect(t.stations.length).toBe(8);
+    const a = auditRig(mesh, skin, R, [{}, ...Object.values(POSES)]); expect(a.badWeights).toBe(0);
+  });
+  it('the male carries none, an explicit body.bust 0 none, and the streamlined core keeps its mounds', () => {
+    expect(rigged({ cast: 'male' }).R.bones.some((b) => /bust/.test(b.id))).toBe(false);
+    expect(rigged({ cast: 'female', body: { bust: 0 } }).R.bones.some((b) => /bust/.test(b.id))).toBe(false);
+    expect(heroPlan({ cast: 'female', core: 'streamlined' }).segments.some((s) => /bust/.test(s.name))).toBe(false);
+    expect(heroPlan({ cast: 'female', core: 'streamlined', body: { bust: 0.04 } }).segments.some((s) => s.name === 'bustR')).toBe(true);
+  });
+  it('a child-coded figure through the door takes none: the kid look on the female cast, the child and chibi casts', async () => {
+    const { expandLayeredManifest, heroRecord } = await import('../../mcp/tools/layered.js');
+    for (const hero of [{ cast: 'female', head: 'anime', look: ['kid'] }, { cast: 'child' }, { cast: 'chibi' }]) {
+      const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(hero) });
+      expect(m.recipe.rig.bones.some((b) => /bust/.test(b.id ?? '')), JSON.stringify(hero)).toBe(false);
     }
   });
 });

@@ -10,7 +10,7 @@
  *     legs:   { L: { hip, knee, hock, toeBase, toeTip, pole: [x,y,z] }, R: {…} },   // the digitigrade chain
  *     reach?: 'reject' | 'clamp',                                                  // an unreachable planted toe
  *   }
- *   parts.<L1>.bind: '<boneId>' | { bone, blend: { <station|back|tip>: { <boneId>: w, … } } }
+ *   parts.<L1>.bind: '<boneId>' | { bone, blend: { <station|station.slot|back|tip>: { <boneId>: w, … } } }
  * A pinned (L2/L3) part carries NO bind: it inherits its pin face's vertex weights through the pin's own
  * barycentric weights, so a claw belongs to its toe and a tooth to its jaw by construction. Nearest-bone
  * assignment is never used.
@@ -183,7 +183,8 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
     const bind = part.bind; if (bind === undefined || bind === null) throw new Error(`station-loft-rig: part ${prov.part} has no bind`);
     if (typeof bind === 'string') { per[i] = [[boneOf(bind, prov.part), 1]]; continue; }
     if (!bind || typeof bind !== 'object' || typeof bind.bone !== 'string') throw new Error(`station-loft-rig: part ${prov.part}.bind must be a bone id or { bone, blend }`);
-    const st = stationOf(prov.id); const blend = bind.blend?.[st];
+    // a `<station>.<slot>` entry weighs that one point over its station's (a form pushed out of a ring, its own bone)
+    const st = stationOf(prov.id), sl = prov.id.match(/\.([^./]+)$/)?.[1]; const blend = (sl && bind.blend?.[`${st}.${sl}`]) || bind.blend?.[st];
     if (!blend) { per[i] = [[boneOf(bind.bone, prov.part), 1]]; continue; }
     const entries = Object.entries(blend); const sum = entries.reduce((t, [, w]) => t + w, 0);
     if (!entries.length || entries.length > 4 || entries.some(([, w]) => !Number.isFinite(w) || w < 0) || Math.abs(sum - 1) > 1e-9) throw new Error(`station-loft-rig: part ${prov.part} blend at ${st} must be ≤ 4 finite non-negative weights summing to 1`);

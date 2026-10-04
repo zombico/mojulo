@@ -97,9 +97,14 @@ export function segmentPart(A, B, rA, rB, { slots = SLOT_FAMILIES.limb6, e = 2, 
   const st = [[-over[0] * rad(rA), rA], [mid * L, rMid ?? R2(rA).map((x, i) => (x + R2(rB)[i]) / 2)], [L + over[1] * rad(rB), rB]];
   return { slots, stations: st.map(([t, r], i) => ({ id: `st${i}`, points: ringPoints(at(t), d, r, slots, e) })), caps: { back: at(st[0][0] - 0.45 * rad(rA)), tip: at(st[2][0] + 0.45 * rad(rB)) } };
 }
-/** Explicit stations for a midline trunk: [{ z, r: [rx, ry], yc, e }] along +z. */
+/** Explicit stations for a midline trunk: [{ z, r: [rx, ry], yc, e, id?, u? }] along +z. A station may name its `id` and
+ * its address parameter `u` (station-loft.js addressPin): a SHAPING ring between two addressed ones carries a fractional
+ * `u`, so every address on the part keeps its meaning. Without them a station is `st<i>` at u = i. `push` moves named
+ * slots of the right half and the midline by [dx, dy, dz] (m) off the ring (the left half mirrors them): a form in the
+ * surface itself (a bust on the chest rings), with no part of its own to carry an outline. */
 export function trunkPart(stations, caps, slots = SLOT_FAMILIES.ring8, e = 2) {
-  return { slots, stations: stations.map((s, i) => ({ id: `st${i}`, points: ringPoints([0, s.yc ?? 0, s.z], [0, 0, 1], s.r, slots, s.e ?? e) })), caps };
+  const pushed = (pts, push) => { if (push) for (const [sl, d] of Object.entries(push)) pts[sl] = pts[sl].map((x, k) => x + d[k]); return pts; };
+  return { slots, stations: stations.map((s, i) => ({ id: s.id ?? `st${i}`, ...(s.u !== undefined ? { u: s.u } : {}), points: pushed(ringPoints([0, s.yc ?? 0, s.z], [0, 0, 1], s.r, slots, s.e ?? e), s.push) })), caps };
 }
 /** A loft along a polyline of explicit stations: each ring ⟂ the local direction at its centre (the chord between its
  * neighbours), caps pinched beyond the end rings unless given. */
@@ -116,7 +121,7 @@ function finish(part, { group, tint, mirrorPlane }) {
   const n = part.slots.length; const stations = part.stations.map((s) => { const pts = {};
     for (let k = 0; k < n; k++) pts[part.slots[k]] = s.points[part.slots[k]].map(r6);
     if (mirrorPlane === 'x') for (let k = n / 2 + 1; k < n; k++) pts[part.slots[k]] = mirrorX(pts[part.slots[n - k]]);
-    return { id: s.id, points: pts }; });
+    return { id: s.id, ...(s.u !== undefined ? { u: s.u } : {}), points: pts }; });
   return { layer: 1, closure: 'closed', slots: part.slots, stations, caps: { back: part.caps.back.map(r6), tip: part.caps.tip.map(r6) }, ...(group ? { group } : {}), ...(tint ? { tint } : {}) };
 }
 /** The left limb: every point mirrored in x, every slot renamed R ↔ L. */
@@ -186,7 +191,7 @@ export function validatePlan(plan) {
     if (!SEGMENT_KINDS.includes(seg.kind)) fail(`segment '${seg.name}' kind must be one of ${SEGMENT_KINDS.join(' / ')}`);
     if (seg.slots != null && !(typeof seg.slots === 'string' ? seg.slots in families : Array.isArray(seg.slots))) fail(`segment '${seg.name}' slots must name a family (${Object.keys(families).join(', ')}) or list slot names`);
     if (seg.mirror != null && !['plane', 'name'].includes(seg.mirror)) fail(`segment '${seg.name}' mirror must be 'plane', 'name' or absent`);
-    if (seg.kind === 'trunk') { claim(seg.name, 'a trunk'); if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`trunk '${seg.name}' needs at least two stations`); for (const s of seg.stations) if (!Number.isFinite(s.z) || s.r == null) fail(`trunk '${seg.name}': every station needs z and r`); if (!seg.caps || !isVec(seg.caps.back) || !isVec(seg.caps.tip)) fail(`trunk '${seg.name}' needs caps { back, tip }`); if (seg.mirror === 'name') fail(`trunk '${seg.name}' is a midline part; mirror 'name' is for a side part`); }
+    if (seg.kind === 'trunk') { claim(seg.name, 'a trunk'); if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`trunk '${seg.name}' needs at least two stations`); for (const s of seg.stations) if (!Number.isFinite(s.z) || s.r == null) fail(`trunk '${seg.name}': every station needs z and r`); const U = seg.stations.map((s, i) => s.u ?? i), ids = seg.stations.map((s, i) => s.id ?? `st${i}`); if (U.some((u, i) => !Number.isFinite(u) || (i && !(u > U[i - 1])))) fail(`trunk '${seg.name}': station u must be finite and increasing`); if (new Set(ids).size !== ids.length) fail(`trunk '${seg.name}': station ids must be unique`); const fam = (() => { const f = seg.slots ?? plan.style?.slots ?? 'ring8'; return typeof f === 'string' ? families[f] ?? [] : f; })(); for (const st of seg.stations) for (const [sl, d] of Object.entries(st.push ?? {})) { const k = fam.indexOf(sl); if (k < 0 || k > fam.length / 2 || !(Array.isArray(d) && d.length === 3 && d.every(Number.isFinite))) fail(`trunk '${seg.name}': push names a right-half or midline slot of its family with [dx, dy, dz] (got ${sl})`); } if (!seg.caps || !isVec(seg.caps.back) || !isVec(seg.caps.tip)) fail(`trunk '${seg.name}' needs caps { back, tip }`); if (seg.mirror === 'name') fail(`trunk '${seg.name}' is a midline part; mirror 'name' is for a side part`); }
     const midline = (n, seg) => { if (Math.abs(joint(n, seg)[0]) > 1e-9) fail(`segment '${seg.name}' mirrors in the plane, so joint '${n}' must sit on x = 0 (a side part mirrors by 'name')`); };
     if (seg.kind === 'segment') { claim(seg.name, 'a segment'); joint(seg.from, seg); joint(seg.to, seg); if (seg.rA == null || seg.rB == null) fail(`segment '${seg.name}' needs rA and rB`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`segment '${seg.name}' mirrors by name, so its name must end in R or L`); if (seg.mirror === 'plane') { midline(seg.from, seg); midline(seg.to, seg); } }
     if (seg.kind === 'loft') { claim(seg.name, 'a loft'); if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`loft '${seg.name}' needs at least two stations`); for (const s of seg.stations) if (!isVec(s.at) || s.r == null) fail(`loft '${seg.name}': every station needs at [x, y, z] and r`); if (seg.caps && !(isVec(seg.caps.back) && isVec(seg.caps.tip))) fail(`loft '${seg.name}' caps need back and tip`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`loft '${seg.name}' mirrors by name, so its name must end in R or L`); if (seg.mirror === 'plane') for (const s of seg.stations) if (Math.abs(s.at[0]) > 1e-9) fail(`loft '${seg.name}' mirrors in the plane, so every station must sit on x = 0`); }

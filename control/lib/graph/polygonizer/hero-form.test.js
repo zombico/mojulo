@@ -118,12 +118,17 @@ describe('the bust has a ceiling on every cast', () => {
       const chest = castChest(cast);
       expect(() => heroPlan({ cast, body: { bust: 5 } })).toThrow(new RegExp(`body\\.bust 5 is past its ceiling: at most 0\\.4 × the chest radius, ${+(0.4 * chest).toFixed(6)} m`));
       expect(() => heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest * 1.01 } })).toThrow(/body\.bust .* is past its ceiling/);
-      expect(heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
+      // the structured core (the default) shapes the bust in the chest's own rings, with a bone each; the streamlined core
+      // carries it as two mounds
+      const at = heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest } });
+      expect(seg(at, 'torso').stations.find((st) => st.id === 'st2').push).toBeTruthy();
+      expect(at.rig.bones.some((b) => b.perSide?.some((p) => p.id === 'bust$S'))).toBe(true);
+      expect(heroPlan({ cast, core: 'streamlined', body: { bust: BUST_MAX_OF_CHEST * chest } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
     }
     // the ceiling follows a chest override and the anime casts, and a figure cast reads the default chest
     expect(() => heroPlan({ cast: 'female', body: { chest: 0.25, bust: 0.09 } })).not.toThrow();
     expect(() => heroPlan({ cast: 'female', proportions: 'anime', body: { bust: 0.09 } })).toThrow(/past its ceiling/);
-    expect(heroPlan({ cast: 'female', body: { bust: 0.05 } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
+    expect(heroPlan({ cast: 'female', core: 'streamlined', body: { bust: 0.05 } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
   });
 });
 
@@ -147,7 +152,8 @@ describe('widths', () => {
     const base = heroPlan({ cast: 'male' }), t = heroPlan({ cast: 'male', tune: { shoulders: 1.2 } });
     for (const j of ['shoulder', 'elbow', 'wrist', 'knuckles']) expect(t.joints[j][0]).toBeGreaterThan(base.joints[j][0]);
     for (const j of ['hip', 'knee', 'ankle', 'neckHub', 'headBase']) expect(t.joints[j]).toEqual(base.joints[j]);
-    expect(seg(t, 'torso').stations[3].r[0]).toBeGreaterThan(seg(base, 'torso').stations[3].r[0]);
+    const yoke = (p) => seg(p, 'torso').stations.find((st) => st.id === 'st3').r[0];
+    expect(yoke(t)).toBeGreaterThan(yoke(base));
     for (const s of base.segments) if (!['torso', 'upperArmR', 'foreArmR', 'handR'].includes(s.name)) expect(seg(t, s.name)).toEqual(s);
     for (const name of ['upperArmR', 'foreArmR', 'handR']) expect(radii(seg(t, name))).toEqual(radii(seg(base, name)));
   });

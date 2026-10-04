@@ -66,7 +66,8 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   const torso = plan.segments.find(s => s.name === 'torso');
   torso.stations[0].r[1] *= 1.12; // overlap the trouser crest with a continuous shirt hem
   torso.e = Math.max(REGISTERS[register].e, 3);
-  const shoulder = torso.stations[3], collar = torso.stations[4];
+  const station = (id, i) => torso.stations.find((st) => st.id === id) ?? torso.stations[i];   // a structured torso carries shaping rings between
+  const shoulder = station('st3', 3), collar = station('st4', 4);
   const collarRise = 0.025 * (heroCast?.scale ?? 1);
   if (!neckForm?.trap) {   // the trapezius ring (a neck form) places the top ring itself: no collar rise, no widening
     collar.z += collarRise;

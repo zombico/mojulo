@@ -294,7 +294,8 @@ const ANIME_HERO_PALETTE = Object.freeze({ male: Object.freeze({ Hair: '#644634'
 /** the hair base the door applied to an anime hero, resolved: its form, and its cut when worn (`eff.hairCut`) */
 const animeHairBaseOf = (hero, eff) => { const B = ANIME_HAIR_BASE[headPoleOf(hero)]; return resolveAnimeHair([B.form, ...(eff.hairCut ? [eff.hairCut] : [])]); };
 function heroFormPlan(hero) {
-  const common = { register: hero.register, tune: hero.tune, body: hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}) };
+  // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
+  const common = { register: hero.register, tune: hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}) };
   if ((hero.head ?? 'landmark') === 'landmark') {
     return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
@@ -359,7 +360,7 @@ export function heroMeasures(plan, stats) {
   const torso = plan.segments.find((s) => s.name === 'torso'), thigh = plan.segments.find((s) => s.name === 'thighR');
   return {
     height_m: stats?.size?.h ?? null,
-    shoulder_m: torso ? r3(2 * torso.stations[3].r[0]) : null,   // across the yoke ring at the shoulders
+    shoulder_m: torso ? r3(2 * (torso.stations.find((st) => st.id === 'st3') ?? torso.stations[3]).r[0]) : null,   // across the yoke ring at the shoulders
     hip_m: thigh ? r3(2 * (thigh.stations[1].at[0] + thigh.stations[1].r[0])) : null,   // across the pelvis at the hip rings
   };
 }

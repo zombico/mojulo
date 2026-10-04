@@ -61,7 +61,9 @@ function refineSlot(recipe, part, a, b, name, f = 0.5) {
 /** push named slots radially out of each station ring (from the ring centroid), weighted per station */
 function volumize(recipe, part, slotW, stationW, amount) {
   const P = recipe.parts[part];
-  for (const st of P.stations) { const ws = stationW[st.id] ?? 0; if (!ws) continue; const c = mean(P.slots.map((s) => st.points[s]));
+  // a shaping station (fractional u, unnamed in the weights) takes its neighbours' weights by u
+  const wOf = (st) => stationW[st.id] ?? (st.u !== undefined && !Number.isInteger(st.u) ? (stationW[`st${Math.floor(st.u)}`] ?? 0) * (Math.ceil(st.u) - st.u) + (stationW[`st${Math.ceil(st.u)}`] ?? 0) * (st.u - Math.floor(st.u)) : 0);
+  for (const st of P.stations) { const ws = wOf(st); if (!ws) continue; const c = mean(P.slots.map((s) => st.points[s]));
     for (const [slot, wl] of Object.entries(slotW)) for (const nm of slot.endsWith('*') ? [slot.slice(0, -1) + 'R', slot.slice(0, -1) + 'L'] : [slot]) {
       const p = st.points[nm]; st.points[nm] = add(p, mul(unit(sub(p, c)), amount * ws * wl)); } }
 }
