@@ -102,10 +102,10 @@ const DIR_WORDS = ['up', 'down', 'forward', 'back', 'left', 'right', 'outward', 
 const BEND_WORDS = ['straight', 'slight', 'half', 'bent', 'full'];
 const SPINE_WORDS = { curl: 'amount', arch: 'amount', lean: ['forward', 'back'], sideBend: ['left', 'right'], twist: ['left', 'right'] };
 /** Every key a gesture object takes: the vajra core's words and raw swivels, and the rig's stance channels. */
-export const GESTURE_KEYS = ['support', 'crouch', 'spine', 'pelvis', 'hinge', 'shoulders', 'neck', 'head', 'armL', 'armR', 'legL', 'legR', 'shL', 'shR', 'hipL', 'hipR', 'elbowL', 'elbowR', 'kneeL', 'kneeR'];
+export const GESTURE_KEYS = ['support', 'crouch', 'spine', 'pelvis', 'hinge', 'shoulders', 'neck', 'head', 'armL', 'armR', 'legL', 'legR', 'shL', 'shR', 'hipL', 'hipR', 'elbowL', 'elbowR', 'kneeL', 'kneeR', 'stance', 'stagger', 'heelL', 'heelR'];
 /** Every word a door clip's key takes: the stand's, the rig's heel and lift channels, and the jaw chain on a head that
  * has one. */
-export const CLIP_KEYS = [...GESTURE_KEYS, 'heelL', 'heelR', 'lift', 'jaw'];
+export const CLIP_KEYS = [...GESTURE_KEYS, 'lift', 'jaw'];
 /** Words the pose language knows that move nothing on this rig (said by name when refused). */
 const INERT = { wristL: 'the hand is rigid on the forearm (no wrist)', wristR: 'the hand is rigid on the forearm (no wrist)', fingersL: 'the hand has no fingers', fingersR: 'the hand has no fingers', weight: 'the rig has no sideways root shift', twist: "the spine's twist is spine.twist", lift: 'a gesture stands on the floor' };
 const DEEP = new Set(['spine', 'neck', 'head', 'shL', 'shR', 'hipL', 'hipR']);
@@ -118,7 +118,7 @@ function directionErrors(v, label) {
 /** the ranges a gesture's numbers must sit in (degrees, or an amount 0 … 1), and a door clip's heel (degrees), lift
  * (metres, 0 … 1) and jaw (degrees, the jawOpen dial's 0 … 25): wide enough for any pose the rig solves, narrow enough
  * that a stray number (a 720° swivel, a curl of 1e6) is refused by name instead of minting a wild pose */
-const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180, heel: 90, lift: [0, 1], jaw: [0, 25] };
+const RANGE = { girdle: 45, hinge: [-30, 90], look: 90, swivel: 180, heel: 90, lift: [0, 1], jaw: [0, 25], stance: [0.5, 3], stagger: [-1, 1] };
 const inRange = (x, [lo, hi]) => fin(x) && x >= lo && x <= hi;
 const anglesErrors = (v, label, keys, lim) => (isObj(v) && Object.keys(v).length && Object.entries(v).every(([k, x]) => keys.includes(k) && inRange(x, [-lim, lim])) ? [] : [`${label}: { ${keys.join(', ')} } in degrees, each within ±${lim}`]);
 
@@ -151,6 +151,8 @@ function gestureObjectErrors(g, label, clip = null) {
     }
     else if (/^(arm|leg)[LR]$/.test(k)) errs.push(...directionErrors(v, at));
     else if (/^(sh|hip)[LR]$/.test(k)) errs.push(...anglesErrors(v, at, ['yaw', 'pitch', 'roll'], RANGE.swivel));
+    else if (k === 'stance') { if (!inRange(v, RANGE.stance)) errs.push(`${at}: the planted feet's spread, a multiple of the hip joints' own (1: each ankle under its hip), ${RANGE.stance[0]} … ${RANGE.stance[1]}`); }
+    else if (k === 'stagger') { if (!inRange(v, RANGE.stagger)) errs.push(`${at}: + the left foot forward and the right back (a share of the leg's height, split between them), ${RANGE.stagger[0]} … ${RANGE.stagger[1]}`); }
     else if (k === 'heelL' || k === 'heelR') { if (!inRange(v, [-RANGE.heel, RANGE.heel])) errs.push(`${at}: degrees the metatarsus turns about the toe base, within ±${RANGE.heel}`); }
     else if (k === 'lift') { if (!inRange(v, RANGE.lift)) errs.push(`${at}: metres the root rises off the floor, ${RANGE.lift[0]} … ${RANGE.lift[1]} (both feet free)`); }
     else if (k === 'jaw') { if (!clip.jaw) errs.push(`${at}: this head has no jaw bone (the landmark head has one; the anime head's mouth is /hero/expression), so the clip refuses it`); else if (!inRange(v, RANGE.jaw)) errs.push(`${at}: degrees the jaw opens, ${RANGE.jaw[0]} … ${RANGE.jaw[1]} (the jawOpen dial's range)`); }
@@ -211,16 +213,38 @@ export function validateHeroClips(clips, { jaw = false, face = false, expression
 }
 
 /** The preset entry a cast wears: its own when the preset has one (a cast word), else the male. */
+/**
+ * THE STRUCTURED CORE'S STANDS (hero-form.js HERO_CORES): its legs converge at rest (the knee inside the hip), so the
+ * presets' free-leg swivels, tuned on the cast's splayed rest, would cross the free knee in front of the support leg and
+ * draw the ready stance with its feet together. The stand owns its base instead: both feet planted where the STANCE
+ * (spread, a multiple of the hip joints' own) and the STAGGER (+ the left foot forward) put them, the free side's heel
+ * raised so its knee softens, a little crouch to let the heel rise. The preset's body, arms and head are kept; its
+ * free-leg words go.
+ *   relaxed      close-set feet, the free right foot a little forward on a soft knee
+ *   hand-on-hip  its mirror: the free left foot forward
+ *   guard        a fighter's base: feet about twice the hip spread, bladed with the left leading, the rear heel up
+ */
+export const STRUCTURED_STANDS = deepFreeze({
+  relaxed: { free: 'R', legs: { support: 'both', stance: 1.3, stagger: -0.1, heelR: 10, crouch: 0.04 } },
+  'hand-on-hip': { free: 'L', legs: { support: 'both', stance: 1.35, stagger: 0.1, heelL: 10, crouch: 0.04 } },
+  guard: { free: 'R', legs: { support: 'both', stance: 2, stagger: 0.34, heelR: 28, crouch: 0.32 } },
+});
+/** a preset stand's entry with the structured core's base in place of its free leg (STRUCTURED_STANDS) */
+function structuredStand(word, entry) {
+  const S = STRUCTURED_STANDS[word]; if (!S) return entry;
+  const { [`hip${S.free}`]: _h, [`knee${S.free}`]: _k, [`leg${S.free}`]: _l, ...kept } = entry;
+  return { ...kept, ...S.legs, ...(entry.crouch && S.legs.crouch ? { crouch: Math.max(entry.crouch, S.legs.crouch) } : {}) };
+}
 const castEntry = (preset, cast) => (typeof cast === 'string' && Object.hasOwn(preset, cast) ? preset[cast] : preset.male);
 
 /** A gesture → the stand's pose words for `cast`, or null (`rest`, or nothing given). A list resolves left → right:
  * a later entry's keys win, the nested words (spine, neck, head, the raw swivels) merge one level deep. */
-export function resolveGesture(gesture, cast) {
+export function resolveGesture(gesture, cast, { core } = {}) {
   if (gesture === undefined || gesture === null) return null;
   let pose = null;
   for (const it of Array.isArray(gesture) ? gesture : [gesture]) {
     if (it === 'rest') { pose = null; continue; }
-    const add = typeof it === 'string' ? castEntry(GESTURE_PRESETS[it], cast) : it;
+    const add = typeof it === 'string' ? (core === 'structured' ? structuredStand(it, castEntry(GESTURE_PRESETS[it], cast)) : castEntry(GESTURE_PRESETS[it], cast)) : it;
     pose = pose || {};
     for (const [k, v] of Object.entries(add)) pose[k] = DEEP.has(k) && isObj(v) && isObj(pose[k]) ? { ...pose[k], ...v } : v;
   }

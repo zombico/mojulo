@@ -54,6 +54,15 @@ export const HERO_CASTS = {
  * mirror plane only inside the torso (the cleft between them) and read as a circular W from below. `forearm` is the
  * forearm's ring radius at the elbow and its swell; null takes the arm's, so the two thicknesses are separate controls
  * that agree by default. */
+/** The midsection's construction: `streamlined` (the default; the thigh lofts carry the pelvis between them, one `pelvis`
+ * bone from the pelvis hub to the navel) or `structured` (the vajra core: `pelvis` is the basin, turned by the hip line
+ * alone, and a `lumbar` bone carries the pelvis hub to the navel). */
+export const HERO_CORES = ['streamlined', 'structured'];
+const CORE_HEM = Object.freeze({ pelvis: 0.5, lumbar: 0.5 });
+/** the structured core's femur, slanting in from the hip joint to the knee (degrees from vertical, front view): the
+ * female's wider pelvis over a narrower knee slants more; the knee keeps its own radius plus KNEE_CLEAR off the midline */
+const FEMUR_IN = Object.freeze({ female: 8, male: 4 });
+const KNEE_CLEAR = 0.014;
 export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, hipDepth: null, thigh: 0.086, calf: 0.067, arm: 0.061, forearm: null, neck: 0.066, bust: 0 };
 /** the bust's ceiling as a share of the chest radius it sits on: each mound centres 0.42 of the chest out, so at 0.4 it
  * still stays on the chest; past it the number is a runaway (bust: 5 built a mound metres wide) */
@@ -177,9 +186,13 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
+ *   core       the midsection's construction (HERO_CORES): 'streamlined' (the default) or 'structured' (the basin and
+ *              lumbar bones)
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = 'streamlined' } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
+  if (!HERO_CORES.includes(core)) throw new Error(`hero.plan: unknown core '${core}' (have ${HERO_CORES.join(', ')})`);
+  const structured = core === 'structured';
   if (!reg) throw new Error(`hero.plan: unknown register '${register}' (have ${Object.keys(REGISTERS).join(', ')})`);
   if (!['hero', 'anime'].includes(proportions)) throw new Error(`hero.plan: unknown proportions '${proportions}' (have hero, anime)`);
   const preset = castOf(cast, proportions);
@@ -211,6 +224,16 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // ── the joint table (metres): midline hubs and the right side; hands and feet extend the core ──
   const J = { pelvisHub: P('pelvisHub'), navel: P('navel'), neckHub: P('neckHub'), headBase: P('headBase'), headTop: P('headTop'),
     hip: P('hipR'), knee: P('kneeR'), ankle: P('ankleR'), shoulder: P('shoulderR'), elbow: P('elbowR'), wrist: P('wristR') };
+  // the structured core's legs CONVERGE: the femur slants in from the hip joint to the knee (vajra-body.js femoralNeckLines:
+  // "shaft converging to the knee"), so the knee sits inside the hip by the femur's inward angle and never closer to the
+  // midline than its own radius and a clearance; the ankle stands under the knee. The cast's `hipSpan` moves the leg only
+  // 45 % with the hip (figure-cast.js), a rule made for widening hips: narrowed hips (the female's 0.62) leave the knees
+  // wider than the sockets, the thighs splayed out and the crotch a deep V. The streamlined core keeps the cast's legs.
+  if (structured) {
+    const femaleLeg = preset?.silhouette === 'female', drop = J.hip[2] - J.knee[2];
+    const kneeX = r6(Math.max(J.hip[0] - drop * dmath.tan(FEMUR_IN[femaleLeg ? 'female' : 'male'] * Math.PI / 180), b.calf + KNEE_CLEAR));
+    if (kneeX < J.knee[0]) { J.knee = [kneeX, J.knee[1], J.knee[2]]; J.ankle = [kneeX, J.ankle[1], J.ankle[2]]; }
+  }
   // hands and feet: a cast may carry an `extremities` scale (the anime casts' smaller hands and feet; 1 is exact)
   const X = preset?.extremities ?? 1;
   J.toeBase = R(add(J.ankle, [0, 0.085 * X, J.ankle[2] > 0.02 ? 0.02 - J.ankle[2] : 0]));
@@ -230,6 +253,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     st(J.shoulder[2] + 0.021, [shoulderHalf / g0 + armBase * 0.72, 0.104 * D]), st(zs + 0.025, [b.neck * 1.1, b.neck * 0.86]),
   ], caps: { back: R([0, 0, zp + 0.54 * L]), tip: R([0, 0, zs + 0.04]) }, group: 'Top', mirror: 'plane',
     bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, torso: 0.5 }, st4: { torso: 0.6, neck: 0.4 }, tip: { neck: 1 } } } };
+  // the structured core (HERO_CORES): the hem sits at the iliac rim, where the basin meets the lumbar, so it blends the
+  // two; the navel ring blends the lumbar and the chest, as it blended the old pelvis bone (now `lumbar`) and the chest
+  if (structured) Object.assign(torso.bind.blend, { back: { ...CORE_HEM }, st0: { ...CORE_HEM }, st1: { lumbar: 0.5, torso: 0.5 } });
   // a worn head sits at the atlas; if its chin would hang below the collar (a big or chibi head), lift it, jaw anchors too
   // (a head without a jaw part — the anime head opens its mouth as an aperture — says its chin as `chinZ`)
   const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : (head?.chinZ ?? 0);
@@ -276,6 +302,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(b.calf - 0.003), r6(b.calf - 0.001)] },
   ], caps: { back: R([0.3 * hip[0], 0.01, zWaist + 0.003]), tip: R([knee[0], knee[1], knee[2] - 0.025]) }, group: 'Bottom', mirror: 'name',
     bind: { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.8, thighR: 0.2 }, st2: { pelvis: 0.2, thighR: 0.8 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } } };
+  // the thigh's crest meets the hem at the iliac rim and blends as it does; the hip ring and below ride the basin as before
+  if (structured) Object.assign(thigh.bind.blend, { back: { ...CORE_HEM }, st0: { ...CORE_HEM } });
   // the bust: two mounds, right one authored, from inside the chest forward and a little down. Their base rings overlap
   // the mirror plane inside the torso; where they leave the chest they are apart, so the cleft is the gap between two
   // round rings and the underside reads as a W. Rings in the torso's family; the torso bone carries them.
@@ -317,7 +345,12 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
       ...(jawed ? { jawHinge: { at: shifted(head.joints.jawHinge), rides: 'head' }, jawTip: { at: shifted(head.joints.jawTip), rides: 'head' } } : {}) },
     bones: [
-      { id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }, { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
+      ...(structured
+        // the basin turns with the hip line alone (figure-vajra.js articulateTransforms' pelvis rides hipL); the lumbar is
+        // the old pelvis frame, the pelvis hub to the navel, so a spine curl bends it over a still basin
+        ? [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', align: ['hipR', 'hipL'] }, { id: 'lumbar', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]
+        : [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]),
+      { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
       { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, ...(jawed ? [{ id: 'jaw', head: 'jawHinge', tail: 'jawTip' }] : []),
       { perSide: [
         { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S' },

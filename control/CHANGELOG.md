@@ -12,6 +12,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Figure articulation: pelvic
+
+The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike. Opt in
+with `core: 'structured'` at the hero door; every hero without it stays byte-identical. Being built on this branch; each
+bullet is rewritten as its phase lands.
+
+- **The pelvis bone.** Under `core: 'structured'` the `pelvis` bone is the basin: it turns with the hip girdle alone, as
+  the vajra's own pelvis does, so a spine curl or arch bends the lower back over a still pelvis instead of tipping it. A
+  new `lumbar` bone carries what `pelvis` used to (the pelvis hub to the navel); the hem and the top of the thighs blend
+  the two, and a hip-slung blade rides the basin. A rig bone may now take `align`, two joints whose line orients it.
+- **The legs converge.** Under `core: 'structured'` the thigh slants in from the hip to the knee, more on the female, so
+  the knees sit inside the hips and the feet under the knees. The female casts no longer stand with their knees wider
+  than their hips and a deep V between the thighs: their narrowed hips had left the knees behind.
+- **The stand owns its base.** New pose words `stance` (how far apart the planted feet stand, as a multiple of the hip
+  spread) and `stagger` (one foot forward, one back), and `heelL` / `heelR` in a stand. With converged legs the
+  presets plant both feet on a base of their own: the guard wide and bladed with the rear heel up, the relaxed and
+  hand-on-hip stands close-set with a soft free knee, a swing on the guard's base. Without these words a planted foot
+  stands where it always did.
+- **The pelvis mesh.** A pelvic part on the vajra basket: a waist, the iliac crest, the sacrum and glutes, the groin, and
+  the thighs rooted at the hip socket with the trochanter as the outer edge of the hip; on the female one smooth hip curve,
+  widest at the trochanter, with no pouch at the side or the front.
+- **Core measures.** Waist to hip, glute depth and the midline's continuity in the readout, with bands per cast, for the
+  design loop's critic. `render-pelvic-overlay.mjs` draws the vajra core over the hero mesh before and after.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

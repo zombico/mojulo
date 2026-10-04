@@ -40,7 +40,7 @@ import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
-import { heroPlan, planScale, castOf, HERO_CASTS, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, HERO_CASTS, HERO_CORES, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -61,7 +61,7 @@ import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild } from '@/lib/graph/polygonizer/hero-gear';
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { expandEquipment } from '@/lib/graph/equipment/expand';
-import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
+import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, STRUCTURED_STANDS, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
 export function planLayered(manifest) {
@@ -144,7 +144,7 @@ export function normalizeHero(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'gesture', 'sculpt', 'clips', 'blink', 'gear'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core'];
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
@@ -220,6 +220,7 @@ export function validateHeroSpec(spec) {
   errs.push(...validateGear(spec.gear));
   if (isSwing(spec.gesture) && !spec.gear?.[SWING_HAND[spec.gesture]]) errs.push(`gesture '${spec.gesture}' swings the ${SWING_HAND[spec.gesture]} hand's gear: add gear.${SWING_HAND[spec.gesture]} (an item's build words, e.g. { item: '${spec.gesture === 'bash' ? 'shield' : spec.gesture === 'plant' ? 'staff' : 'sword'}' })`);
   if (spec.proportions !== undefined && !['hero', 'anime'].includes(spec.proportions)) errs.push(`proportions: 'anime' (about 6.5 / 7 heads tall: the default with the anime head) or 'hero' (the realistic casts: the default with the landmark head)`);
+  if (spec.core !== undefined && !HERO_CORES.includes(spec.core)) errs.push(`core: 'structured' (the vajra core: a pelvis bone turned by the hip line alone and a lumbar bone, so the lower back bends over a still pelvis) or 'streamlined' (the default)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   if (!wearsHead) for (const k of ['face', 'hair', 'expression', 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
   return errs;
@@ -251,7 +252,7 @@ export function heroRecord(spec) {
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
   }
-  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'core']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // the stand, stored AS GIVEN (a word re-resolves for the cast on every regeneration, so a /hero/cast edit carries the
   // stand to the new body); the anime hero's `relaxed` is a plan-time default (heroGesture), never stored
   if (spec.gesture !== undefined && spec.gesture !== null) hero.gesture = spec.gesture;
@@ -275,9 +276,12 @@ export function heroPlanOf(hero) {
   // the plan as it was
   // a swing word (hero-swing.js): the stand is the swing's ready key and the swing rides as its own looping clip after it
   const own = withHeroClips(heroFormPlan(hero), hero.clips);
-  const swing = heroSwing(hero, { expand: expandEquipment, gearBuild });
+  let swing = heroSwing(hero, { expand: expandEquipment, gearBuild });
+  // the structured core's legs converge at rest, so a swing's planted feet take the guard's base (hero-gesture.js STRUCTURED_STANDS), the heel down,
+  // unless a key sets its own
+  if (swing && hero.core === 'structured') swing = { ...swing, keys: swing.keys.map((k) => ({ ...STRUCTURED_STANDS.guard.legs, heelR: 0, ...k })) };
   if (swing) { const p = withGestureClip(own, swing.keys[0]); return p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p; }
-  return withGestureClip(own, resolveGesture(heroGesture(hero), hero.cast));
+  return withGestureClip(own, resolveGesture(heroGesture(hero), hero.cast, { core: hero.core }));
 }
 /** The anime hero's own colours per design base, under the operator's (its palette wins): the hair base's colour at a
  * mid-dark value, so its lit and shade tones both read under the character light and against the World's dark backdrop
@@ -288,7 +292,7 @@ const ANIME_HERO_PALETTE = Object.freeze({ male: Object.freeze({ Hair: '#644634'
 /** the hair base the door applied to an anime hero, resolved: its form, and its cut when worn (`eff.hairCut`) */
 const animeHairBaseOf = (hero, eff) => { const B = ANIME_HAIR_BASE[headPoleOf(hero)]; return resolveAnimeHair([B.form, ...(eff.hairCut ? [eff.hairCut] : [])]); };
 function heroFormPlan(hero) {
-  const common = { register: hero.register, tune: hero.tune, body: hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale };
+  const common = { register: hero.register, tune: hero.tune, body: hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}) };
   if ((hero.head ?? 'landmark') === 'landmark') {
     return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });

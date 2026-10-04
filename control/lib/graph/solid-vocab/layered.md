@@ -73,14 +73,16 @@ outline never draws over hair (no seam between locks; the line where hair meets 
 World page does it with a stencil buffer, asked for only then; the clip preview does the same on the moving parts. The
 GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of hair lying inside another hair part.
 
-- **Rig (optional).** `rig: { joints: { name: { at, rides? } }, bones: [{ id, head, tail, aux? }], chains:
+- **Rig (optional).** `rig: { joints: { name: { at, rides? } }, bones: [{ id, head, tail, aux?, align? }], chains:
   { channel: { axis, sign?, links: [{ pivot, joints }] } }, legs: { L|R: { hip, knee, hock, toeBase, toeTip,
   pole } }, reach? }` — rest joints must include the vajra core names (pelvisHub, navel, neckHub, headBase,
   headTop, shoulder/elbow/wrist/hip/knee/ankle L+R). Every L1 part then declares `bind: 'bone' | { bone,
   blend: { station: { bone: w } } }` (the overshoot ring at a joint shared with the neighbour); a pinned
   detail inherits its face. `clips: { name: [keyposes] }` are `resolvePose` words for the core (`armL:
   'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
-  `heelL/R` (metatarsus degrees), `lift`, `support`, and every chain channel. Legs solve to PLANTED toes;
+  `heelL/R` (metatarsus degrees, + the heel up), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
+  the hip joints': 1 puts each ankle under its hip), `stagger` (+ the left foot forward, a share of the leg's height),
+  and every chain channel. Legs solve to PLANTED toes (at rest unless `stance` / `stagger` move them);
   an unreachable pose refuses with the numbers (`reach: 'clamp'` to accept a reported error). The mint
   pays the rig gates (valid weights, rest identity, planted drift). `export_model({ format: 'glb', clips:
   '_all', skinned: true })` writes the skinned GLB with authored weights; the Godot world pack
@@ -281,6 +283,15 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `pupilOfIris`. Each outside its base's band advises in `warnings`, naming the word that moves it (not under a look: a
   look is another character); a ratio the head does not allow measuring is null and says so. The table reads the face
   at the studio's carriage, so a `headPitch` word never moves it.
+  THE CORE: `core: 'structured'` builds the midsection on the vajra core: the `pelvis` bone is the basin, turned by the
+  hip line alone, and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or side bend (and the
+  hinge) bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
+  rides the basin. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
+  the knee. Its stands own their base: `relaxed`, `hand-on-hip` and `guard` plant both feet where `stance` and `stagger`
+  put them, the free side's heel up (the guard about twice the hip spread, bladed with the left leading); a swing word's
+  keys take the guard's base. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. `'streamlined'` (the
+  default) keeps one `pelvis` bone from the hub to the navel and the cast's legs. (A rig bone's `align` names two joints
+  whose line orients it in place of head → tail; it still sits at its head.)
   ANIME PROPORTIONS: a hero wearing the anime head wears an anime body by default (`proportions: 'anime'`; `'hero'` keeps
   the realistic cast): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
   at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller hands and feet, the

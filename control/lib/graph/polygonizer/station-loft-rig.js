@@ -35,7 +35,7 @@ import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -58,12 +58,13 @@ export function validateRig(rig) {
     for (const k of ['head', 'tail']) if (!joints[b[k]]) throw new Error(`station-loft-rig: bone ${b.id}.${k} names unknown joint ${b[k]}`);
     if (b.head === b.tail) throw new Error(`station-loft-rig: bone ${b.id} has zero length`);
     if (b.aux && !(Array.isArray(b.aux) && b.aux.length === 2 && b.aux.every((j) => joints[j]))) throw new Error(`station-loft-rig: bone ${b.id}.aux must name two joints`);
-    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}) };
+    if (b.align !== undefined && !(Array.isArray(b.align) && b.align.length === 2 && b.align.every((j) => joints[j]) && b.align[0] !== b.align[1])) throw new Error(`station-loft-rig: bone ${b.id}.align must name two different joints`);
+    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}), ...(b.align ? { align: [...b.align] } : {}) };
   });
   for (const [name, bid] of Object.entries(rides)) if (boneIndex[bid] === undefined) throw new Error(`station-loft-rig: joint ${name} rides unknown bone ${bid}`);
   // riding must resolve: a joint rides a bone whose head and tail are core or ride bones that resolve first
   const placed = new Set(Object.keys(joints).filter((n) => !rides[n])); let progress = true;
-  while (progress) { progress = false; for (const [name, bid] of Object.entries(rides)) { if (placed.has(name)) continue; const b = bones[boneIndex[bid]]; if (placed.has(b.head) && placed.has(b.tail)) { placed.add(name); progress = true; } } }
+  while (progress) { progress = false; for (const [name, bid] of Object.entries(rides)) { if (placed.has(name)) continue; const b = bones[boneIndex[bid]]; if (placed.has(b.head) && placed.has(b.tail) && (b.align || []).every((j) => placed.has(j))) { placed.add(name); progress = true; } } }
   const unresolved = Object.keys(rides).filter((n) => !placed.has(n)); if (unresolved.length) throw new Error(`station-loft-rig: cyclic or dangling rides: ${unresolved.join(', ')}`);
   const chains = {};
   for (const [ch, c] of Object.entries(rig.chains || {})) {
@@ -79,11 +80,13 @@ export function validateRig(rig) {
   return { joints, rides, bones, boneIndex, chains, legs, reach };
 }
 
-/** A bone's rigid frame from rest to posed: q + rotation matrix; `aux` gives a full two-vector alignment. */
+/** A bone's rigid frame from rest to posed: q + rotation matrix; `aux` gives a full two-vector alignment. `align` names
+ * two joints whose line is the primary direction in place of head → tail (a pelvis turned by its hip line alone, whatever
+ * the spine above does to its tail); the bone still sits at its head and its length is still head → tail. */
 function boneFrame(bone, rest, nodes) {
   const d0 = sub(rest[bone.tail], rest[bone.head]), d1 = sub(nodes[bone.tail], nodes[bone.head]);
   const a0 = bone.aux ? sub(rest[bone.aux[1]], rest[bone.aux[0]]) : null, a1 = bone.aux ? sub(nodes[bone.aux[1]], nodes[bone.aux[0]]) : null;
-  const q = frameQuat(d0, a0, d1, a1);
+  const q = bone.align ? frameQuat(sub(rest[bone.align[1]], rest[bone.align[0]]), a0, sub(nodes[bone.align[1]], nodes[bone.align[0]]), a1) : frameQuat(d0, a0, d1, a1);
   return { id: bone.id, q, m: quatToMat(q), head: nodes[bone.head], restHead: rest[bone.head], lengthError: Math.abs(len(d1) - len(d0)) };
 }
 /** Every bone's frame for a posed node map. */
@@ -97,6 +100,19 @@ export function solveTwoBone(root, target, l1, l2, pole) {
   const axis = unit(sub(target, root)); const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d); const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
   let side = sub(pole, mul(axis, dot(pole, axis))); if (len(side) < 1e-9) throw new Error('station-loft-rig: pole is parallel to the limb'); side = unit(side);
   return { ok: true, mid: add(add(root, mul(axis, a)), mul(side, h)), d };
+}
+
+/**
+ * Where a planted foot stands (its toe base and tip): at rest, unless the pose sets the STANCE (the feet's spread, a
+ * multiple of the hip joints' own: 1 puts each ankle under its hip) or the STAGGER (+ the left foot forward and the right
+ * back, each by half this share of the leg's height). The stand owns its base; the rest skeleton owns the anatomy.
+ */
+export function plantedFoot(R, L, pose = {}) {
+  const rest = R.joints, foot = [0, 0, 0];
+  if (Number.isFinite(pose.stance)) foot[0] = Math.sign(rest[L.hock][0] || rest[L.hip][0]) * pose.stance * Math.abs(rest[L.hip][0]) - rest[L.hock][0];
+  if (Number.isFinite(pose.stagger)) foot[1] = (rest[L.hip][0] < 0 ? 0.5 : -0.5) * pose.stagger * (rest[L.hip][2] - rest[L.toeBase][2]);
+  if (foot[0] === 0 && foot[1] === 0) return { toeBase: [...rest[L.toeBase]], toeTip: [...rest[L.toeTip]] };   // no stance word: the rest foot exactly
+  return { toeBase: add(rest[L.toeBase], foot), toeTip: add(rest[L.toeTip], foot) };
 }
 
 /**
@@ -119,7 +135,7 @@ export function rigNodesAt(R, pose = {}) {
     const L = R.legs[S]; const planted = lift === 0 && (support === 'both' || support === S);
     const femur = len(sub(rest[L.knee], rest[L.hip])), tibia = len(sub(rest[L.hock], rest[L.knee])), meta = len(sub(rest[L.toeBase], rest[L.hock]));
     if (planted) {
-      nodes[L.toeBase] = [...rest[L.toeBase]]; nodes[L.toeTip] = [...rest[L.toeTip]];
+      const foot = plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
       const metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, pose[`heel${S}`] || 0);
       let hock = add(nodes[L.toeBase], mul(metaDir, meta)); let metaError = 0;
       let sol = solveTwoBone(nodes[L.hip], hock, femur, tibia, L.pole);
@@ -141,7 +157,7 @@ export function rigNodesAt(R, pose = {}) {
   let pending = Object.keys(R.rides).filter((n) => !nodes[n]); let progress = true;
   while (pending.length && progress) {
     progress = false;
-    for (const name of [...pending]) { const b = R.bones[R.boneIndex[R.rides[name]]]; if (!nodes[b.head] || !nodes[b.tail]) continue; nodes[name] = ride(boneFrame(b, rest, nodes), rest[name]); pending = pending.filter((n) => n !== name); progress = true; }
+    for (const name of [...pending]) { const b = R.bones[R.boneIndex[R.rides[name]]]; if (!nodes[b.head] || !nodes[b.tail] || (b.align || []).some((j) => !nodes[j])) continue; nodes[name] = ride(boneFrame(b, rest, nodes), rest[name]); pending = pending.filter((n) => n !== name); progress = true; }
   }
   if (pending.length) throw new Error(`station-loft-rig: could not place ${pending.join(', ')}`);
   for (const [ch, c] of Object.entries(R.chains)) {
@@ -408,7 +424,8 @@ export function auditRig(mesh, skin, R, poses = [{}]) {
   for (const pose of poses) {
     const { nodes, report } = rigNodesAt(R, pose); const frames = boneFrames(R, rest, nodes);
     for (const f of frames) { out.maxLengthError = Math.max(out.maxLengthError, f.lengthError); for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) out.maxOrthoError = Math.max(out.maxOrthoError, Math.abs(dot(f.m[a], f.m[b]) - (a === b ? 1 : 0))); }
-    for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) out.maxPlantedDrift = Math.max(out.maxPlantedDrift, len(sub(nodes[l.toeBase], rest[l.toeBase])), len(sub(nodes[l.toeTip], rest[l.toeTip])));
+    // a planted toe stays where the pose plants it (plantedFoot: at rest, or where the stance and stagger put it)
+    for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) { const at = plantedFoot(R, l, pose); out.maxPlantedDrift = Math.max(out.maxPlantedDrift, len(sub(nodes[l.toeBase], at.toeBase)), len(sub(nodes[l.toeTip], at.toeTip))); }
     out.poses.push({ pose, legs: report.legs });
   }
   return out;
