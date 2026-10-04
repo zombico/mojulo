@@ -89,7 +89,8 @@ export function clothedBody({ Ht, Hl, scale: k, pelvis: structured = false, dens
 }
 
 /** the swimwear's tone per figure, beneath the operator's `Swim` */
-export const SWIM_TONES = Object.freeze({ male: '#24476b', female: '#a83a4c' });
+// both in the dark value band (L* under 33), apart from the skin and from a mid-toned hair
+export const SWIM_TONES = Object.freeze({ male: '#24476b', female: '#5c1f30' });
 /** the SWIMSUIT cut, per part: which bands are swimwear, by the band's middle in `u` (the station parameter) and in `t`
  * (0 front → 1 back, a share of the ring half, so a cut reads the same in every register). The pelvis and the thigh
  * per core: on the structured core the pelvis is the basin (u 0 the crotch, 4 the iliac rim) and the thigh starts at the

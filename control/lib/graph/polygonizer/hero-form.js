@@ -106,8 +106,11 @@ const BUST_FORM = Object.freeze({ size: 0.27 });
 const CHEST_FORM = Object.freeze({
   pec: Object.freeze({ male: Object.freeze({ x: [0.012, 0.86], lo: -0.03, hi: 0.86, thick: 0.017, top: 0.1 }), female: Object.freeze({ x: [0.05, 0.8], lo: -0.02, hi: 0.7, thick: 0.004, top: 0.1 }) }),
   // the NAVEL: a small upright oval flush in the belly at the navel joint, darker than the skin (`tone` of it), its upper
-  // lip standing `hood` proud (the hooded navel); its own outline draws it. `w` / `h` its half-width and half-height (m)
-  navel: Object.freeze({ w: 0.0065, h: 0.011, hood: 0.002, tone: 0.72 }),
+  // lip standing `hood` proud (the hooded navel); its own outline draws it. `w` / `h` its half-width and half-height (m),
+  // sized and toned to read as a mark at 256 px (the critic: smaller and lighter, it did not show at game scale). `at` its
+  // height, a share of the lumbar run (the pelvis hub → the navel joint): 0.78 sets it about level with the elbow, a little
+  // under the narrowest waist (0.61 … 0.625 of the height); at the joint itself (1) it sat at the waist, too high
+  navel: Object.freeze({ w: 0.009, h: 0.016, hood: 0.003, tone: 0.55, at: 0.78 }),
   bust: Object.freeze({ x: 0.4, z: -0.035, splay: 0 }),
 });
 /** the structured torso and pelvis on the round register take a denser ring, addressed on the register family's own
@@ -472,10 +475,10 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     const pecT = (z) => { const t = (z - zLo) / (zUp - zLo); return Tm * (Pf.top + (1 - Pf.top) * dmath.pow(1 - t, 1.6)); };
     const pecBump = (s) => (0.55 + 0.45 * dmath.sin(Math.PI * Math.min(1, s / 0.66) / 2)) * (s > 0.66 ? 1 - 0.75 * ((s - 0.66) / 0.34) ** 2 : 1);
     const parts = [layer('pectoralR', pecZ, pecSpan, (z, sv) => [0, pecT(z) * pecBump(sv)], pecBind)];
-    // the navel, on the midline at the navel joint: only on a bare belly (`bare`, the swimsuit's), never drawn on a shirt
-    if (bare) { const N = CHEST_FORM.navel, zv = J.navel[2], w = g(N.w), hh = g(N.h);
+    // the navel, on the midline `at` up the lumbar run: only on a bare belly (`bare`, the swimsuit's), never on a shirt
+    if (bare) { const N = CHEST_FORM.navel, zv = zp + N.at * L, w = g(N.w), hh = g(N.h);
       const zs = [-0.85, -0.4, 0.15, 0.6, 0.9].map((k) => r6(zv + k * hh)), span = (z) => { const u = (z - zv) / hh, x = w * Math.sqrt(Math.max(0.05, 1 - u * u)); return [-x, x]; };
-      parts.push(layer('navel', zs, span, (z, sv) => [0, (z > zv ? g(N.hood) * (z - zv) / hh + 0.0004 : 0.0004) * dmath.sin(Math.PI * sv)], 'torso', { group: 'Navel' })); }
+      parts.push(layer('navel', zs, span, (z, sv) => [0, (z > zv ? g(N.hood) * (z - zv) / hh + 0.0004 : 0.0004) * dmath.sin(Math.PI * sv)], structured ? 'lumbar' : 'torso', { group: 'Navel' })); }
     if (rb > 0) {
       // the breast samples its FIELD (breast-field.js) over the chest: the apex `x` out and `z` off the chest ring, every
       // level's span the footprint's, its outside the field's height, turned out by `splay` (dx per unit of height)

@@ -309,7 +309,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   BREAST per side (`bustR` / `bustL`, a bone each riding the torso for an engine's spring), sampled from the BREAST FIELD
   (`breast-field.js`: its height over the chest a function of the chest coordinate about the apex, the footprint and the
   poles' profiles as anatomy words, `breastGates` measuring the poles' split, the fold, the upper line, the lower pole,
-  the margins and the one peak). A bare belly (the swimsuit's, an adult's) carries a navel. The adult female carries a bust by default
+  the margins and the one peak). A bare belly (the swimsuit's, an adult's) carries a navel, about level with the elbow and a little under the narrowest waist. The adult female carries a bust by default
   (`body.bust` from 0.27 of the chest; 0 for none); a child-coded figure never does. The readout's `core` measures the midsection on every hero (waist to hip, where the hip peaks, the seat, the
   front below the waist, a pouch, a step in the outline, the legs) with advice against bands per body; on the structured
   core that advice is a warning. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
