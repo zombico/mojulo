@@ -15,11 +15,12 @@ import { safeJson } from '../emit-util.js';
 //   · A template's meshes are made when a plant first needs it: one InstancedMesh for its plain faces and one per texture
 //     (bark, a palm's trunk) drawn texel × baked light, sharing the instances. At most `cap` plants are live, the
 //     nearest tiles first. Plants are not walk colliders.
-// Absent `plants` ⇒ NOT emitted.
+// Absent `plants` ⇒ NOT emitted. `wind` (the terrain has a wind channel): every part of a template (its plain faces, its
+// bark) bends in window.__mojTerrain.wind by its species' kind, as one cantilever its variant's height; absent ⇒ none of that is emitted.
 // `cfg`: { kernel: source text, V, species: [{ name, kind, variants: [{ h, wax?, lean?, az?, t: { LF, L0, L1?, L2? } }],
 //          tint? }], templates: [{ lo, sc, q, col, tris, tex?: [{ key, q, col, uv, lit }] }], textures, levels, radius, tile,
 //          px: { L2, L1, L0 }, cap, drawTris, budgetMs }
-export function terrainPlantsScript(cfg) {
+export function terrainPlantsScript(cfg, wind = false) {
   const { kernel, ...rest } = cfg;
   return `
 // --- terrain plants (opt-in): the recipe's plants, placed and levelled around the camera ---
@@ -39,12 +40,12 @@ const __pKernel = (${kernel});
     if (uv) g.setAttribute('uv', new THREE.BufferAttribute(dec(uv), 2)); g.computeBoundingSphere(); return g;
   };
   const matPlain = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-  const MESH = new Map();                                   // template id → { parts, im, cap, n, list }
+  const MESH = new Map();                                   // template id → { parts, im, cap, n, list }${wind ? "\n  const OF = []; SP.forEach((sp, si) => sp.variants.forEach((v) => Object.values(v.t).forEach((id) => { OF[id] = [si, v.h]; })));   // template → [species, height], for the wind" : ''}
   function meshOf(id) {
     let m = MESH.get(id); if (m) return m;
     const t = PLANTS.templates[id]; const parts = [{ geo: geoOf(t, t.q, t.col), mat: matPlain }];
     for (const x of (t.tex || [])) { const tx = texOf(x.key); if (tx) parts.push({ geo: geoOf(t, x.q, x.col, x.uv), mat: new THREE.MeshBasicMaterial({ map: tx, vertexColors: !!x.lit, side: THREE.DoubleSide }) }); }
-    m = { parts, im: [], cap: 0, n: 0, list: [] }; MESH.set(id, m); return m;
+${wind ? "    if (TW.wind && OF[id]) for (const p of parts) p.mat = TW.wind.material(p.mat, TW.wind.cfg.plants[OF[id][0]], OF[id][1]);\n" : ''}    m = { parts, im: [], cap: 0, n: 0, list: [] }; MESH.set(id, m); return m;
   }
   function ensure(m, need) {
     if (need <= m.cap) return;

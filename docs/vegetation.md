@@ -146,6 +146,33 @@ numbers below were checked against the literature, and several first guesses tur
   - a big plume (pampas) close up reads as paper, not feathers;
   - exports carry no grass.
 
+
+## Wind: flaccidity (`wind.js`)
+
+- **One field, and a dial on everything it touches.** A terrain's `wind` is one seeded gust field: a mean speed toward
+  a direction, gusts carried downwind at the mean speed (frozen turbulence: a gust here arrives d/speed seconds later
+  d metres downwind), a log profile over the ground and a gust-driven veer. **Flaccidity** φ ∈ [0, 1] is the share of
+  the air's push a thing takes. Everything that existed before wind is φ = 0 and holds still; grass and plants are born
+  at 1. φ is a coupling, not a stiffness: how far a plant bends for what it takes is its own mechanics.
+- **Wind on a stem is still the elastica.** Weight plus a sideways drag R·w is a uniform load in a fixed direction, so
+  the droop solve holds with B scaled by √(1 + R²) and the clamp angle taken from the plane normal to the load.
+  `bendTable` bakes the change of shape from still air over (R, arc, B) and the page reads it as a 3D texture.
+- **R = φ · sail · F[|u|^(1+V) u].**
+  - The sail is drag over weight at 1 m/s.
+  - V is the Vogel exponent: flexible things streamline as they bend, grass about −1 (Vogel 1989; Gosselin & de Langre
+    2011). Without it every blade lies flat by 5 m/s.
+  - F is a damped oscillator at the stem's first frequency, 0.56·√(g/(B L)), with unit gain for a steady wind: a gust
+    overshoots and rings.
+- **A tuft or a tree is one stem its own height** (`WIND_TAKERS`, `grassTaker`):
+  - a tuft sways at half its blades' middle B: a bundle is stiffer than its floppiest blade, and it keeps every kind
+    under Greenhill's number (≈ 7.84), past which an upright stem cannot stand;
+  - a tree's B and sail are set so a 10 m crown moves tens of centimetres at 10 m/s, as field sway records do, not from
+    its weight;
+  - a quiver out of phase between neighbours gives blades and leaves their own life.
+- **Where it runs** (`scene/channels/terrain-wind.js`): a vertex shader on clones of the grass' and plants' materials,
+  per instance root. Absent `wind`, the page is byte-identical. The research spike behind it, with plants, a ribbon and
+  debris on the same field, is `control/scripts/spikes/wind/`.
+
 ## Bamboo: the stack as a lathe (`bamboo.js`)
 
 - **The culm is a profile r(s) swept round a spine.** There is no bark, no rings and no spiral grain.

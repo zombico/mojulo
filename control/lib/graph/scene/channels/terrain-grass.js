@@ -14,10 +14,11 @@ import { safeJson } from '../emit-util.js';
 //   · a clump's lean (the kernel's lean and az) tilts the tuft whole: the light is baked, and the leans are small.
 //   · each tuft's level comes from its size on screen, its larger extent (L2, L1, L0, else LF, at `px`); past `drawTris` triangles in all,
 //     every size is scaled by the largest k that fits.
-// Registers as window.__mojTerrain.grass. Absent `grass` ⇒ NOT emitted.
+// Registers as window.__mojTerrain.grass. Absent `grass` ⇒ NOT emitted. `wind` (the terrain has a wind channel): each
+// template's material comes from window.__mojTerrain.wind, bending in it by its kind; absent ⇒ none of that is emitted.
 // `cfg`: { kernel: source text, V, species: [{ name, variants: [{ h, t: { LF, L0, L1, L2 } }] }], templates: [{ lo, sc, q,
 //          col, tris }], radius, near, tile, px: { L2, L1, L0 }, cap, drawTris, budgetMs }
-export function terrainGrassScript(cfg) {
+export function terrainGrassScript(cfg, wind = false) {
   const { kernel, ...rest } = cfg;
   return `
 {
@@ -30,18 +31,18 @@ const __gKernel = (${kernel});
   const dec = (v) => { const s = atob(v.__b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new self[v.t](u.buffer); };
   const LIN = new Float32Array(256); for (let i = 0; i < 256; i++) { const c = i / 255; LIN[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
   const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-  const MESH = new Map();
+  const MESH = new Map();${wind ? '\n  const SP_OF = []; SP.forEach((sp, si) => sp.variants.forEach((v) => Object.values(v.t).forEach((id) => { SP_OF[id] = si; })));   // template → its kind, for the wind' : ''}
   function meshOf(id) {
     let m = MESH.get(id); if (m) return m; const t = GRASS.templates[id], q = dec(t.q), c8 = dec(t.col);
     const P = new Float32Array(q.length); for (let i = 0; i < q.length; i++) { const k = i % 3; P[i] = t.lo[k] + (q[i] + 32768) * t.sc[k]; }
     const C = new Float32Array(c8.length); for (let i = 0; i < c8.length; i++) C[i] = LIN[c8[i]];
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('color', new THREE.BufferAttribute(C, 3)); g.computeBoundingSphere();
     const mean = [0, 0, 0]; for (let i = 0; i < C.length; i++) mean[i % 3] += C[i]; for (let k = 0; k < 3; k++) mean[k] = Math.max(1e-4, (3 * mean[k]) / C.length);
-    m = { geo: g, im: null, cap: 0, n: 0, list: [], mean }; MESH.set(id, m); return m;
+    m = { geo: g, im: null, cap: 0, n: 0, list: [], mean${wind ? ', mat: TW.wind ? TW.wind.material(mat, TW.wind.cfg.grass[SP_OF[id]], 1) : mat' : ''} }; MESH.set(id, m); return m;
   }
   function ensure(m, need) {
     if (need <= m.cap) return; if (m.im) { scene.remove(m.im); m.im.dispose(); }
-    m.cap = Math.max(need, Math.ceil(m.cap * 1.5), 32); m.im = new THREE.InstancedMesh(m.geo, mat, m.cap); m.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3 * m.cap).fill(1), 3); m.im.count = 0; m.im.frustumCulled = false; m.im.userData.g = 'grass'; scene.add(m.im);
+    m.cap = Math.max(need, Math.ceil(m.cap * 1.5), 32); m.im = new THREE.InstancedMesh(m.geo, ${wind ? 'm.mat' : 'mat'}, m.cap); m.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3 * m.cap).fill(1), 3); m.im.count = 0; m.im.frustumCulled = false; m.im.userData.g = 'grass'; scene.add(m.im);
   }
   const tiles = new Map(), stat = { tiles: 0, live: 0, dropped: 0, levels: { LF: 0, L0: 0, L1: 0, L2: 0 }, buildMs: 0, assignMs: 0 };
   TW.grass = { tiles, meshes: MESH, stat, kernel: GK };
