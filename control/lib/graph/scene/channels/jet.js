@@ -75,7 +75,8 @@ const FRAG_MAIN = `{
   // a water rod is a lens: what is behind it shows through, flipped and squeezed across the rod — offset the lookup
   // across the screen by the normal's sideways tilt
   vec3 nv = (viewMatrix * vec4(N, 0.0)).xyz;
-  vec2 uv = gl_FragCoord.xy / uAqRes - nv.xy * 0.035;
+  // (the tongue is a thin film on rock: what shows through is the rock right under it — barely any offset)
+  vec2 uv = gl_FragCoord.xy / uAqRes - nv.xy * (vJTau < 0.0 ? 0.004 : 0.035);
   vec3 behind = uAqHasDepth > 0.5 ? texture2D(uAqScene, uv).rgb : uHor * 0.6;
   vec3 col = mix(behind * uTint, sky, F) + vec3(1.0, 0.96, 0.88) * pow(max(dot(R, uSun), 0.0), 260.0) * 4.0;
   // the bright line down each edge: grazing light caught inside the rod

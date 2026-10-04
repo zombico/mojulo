@@ -28,7 +28,7 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const r4 = (v) => +(+v).toFixed(4);
 
-const W = 120, H = 150, TX = 80, TY = 100;    // terrain footprint (m) and its face grid
+const W = 120, H = 150, TX = 64, TY = 80;    // terrain footprint (m) and its face grid
 const YC = 12;                                 // the cliff's edge (the lip) runs along y = YC; the river flows −y
 const SUN = [-45, -60, 90];
 
@@ -130,9 +130,10 @@ export function planWaterfallScene(recipe = {}) {
   // The lip and the channel above it get a finer patch (FINE × the grid): at 1.5 m a 5 m channel and its banks are
   // two cells, the banks interpolate straight under the water's edge and the brink reads as a box. The patch spans
   // whole coarse cells; on its border a fine vertex takes the coarse edge's straight line, so no crack opens.
-  const cw = W / TX, ch = H / TY, FINE = 4;
-  const pi0 = Math.floor((W / 2 - (S.channel + 9)) / cw), pi1 = TX - pi0;
-  const pj0 = Math.floor((H / 2 + YC - 6) / ch), pj1 = Math.ceil((H / 2 + YC + app + back + 8) / ch);
+  // (sized to what needs it — the brink, the banks either side, the tongue's run — so the page stays near a river-view's)
+  const cw = W / TX, ch = H / TY, FINE = 3;
+  const pi0 = Math.floor((W / 2 - (S.channel + 5)) / cw), pi1 = TX - pi0;
+  const pj0 = Math.floor((H / 2 + YC - 3) / ch), pj1 = Math.ceil((H / 2 + YC + app + back + 4) / ch);
   const inPatch = (i, j) => i >= pi0 && i < pi1 && j >= pj0 && j < pj1;
   const gx = (i) => -W / 2 + cw * i, gy = (j) => -H / 2 + ch * j;
   const fineZ = (fi, fj) => {
