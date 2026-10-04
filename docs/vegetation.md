@@ -157,6 +157,10 @@ numbers below were checked against the literature, and several first guesses tur
   flowering spur carries several clusters of flowers, so the crown is a cloud where its leaves alone would be sparse.
   `leafLife: 2` keeps the blossom along two years of spurs.
 - **A grove is `plants.kinds`.** It replaces the climate's trees; the cherry's crown ratio spaces it with lawn between.
+- **Many ages (`growth` on a species).** A list of ages, each optionally in a stand, grows one variant at each age. A young tree is not a small old one: girth grows with the rings, and a stand's shade sheds the low limbs, so the crown lifts.
+  - Measured on the cherry: 8 y ≈ 4 m, dbh 6 cm; 21 y ≈ 6 m, dbh 25 cm. In the open it forks at about 0.5 m; in a stand at 1–2.5 m.
+  - A plant picks its age from its height within the species' range, with a little jitter (the pool's `plantRepeats` and the terrain page alike), and is then scaled to that height.
+  - A species without `growth` keeps its variants and its pick.
 - **A hand (`arch.hand`, opt-in).** The engine's shoots run straight between buds. A plant with a hand (`{ sense, twist, helix, turn, zig }`, in degrees) turns each new internode as it grows:
   - **Twist:** about the vertical (a third as much on the trunk), so every limb sweeps round the same way. This is the helix the cell wall winds its cellulose in, left in the form.
   - **Helix:** a lean toward a bearing that turns each internode, so an upright leader winds in a loose corkscrew.
@@ -168,6 +172,11 @@ numbers below were checked against the literature, and several first guesses tur
   - `bloomFlowers(plant)` puts umbels at the ends of the shoots: a bunch at every tip, spurs thinning back over the last 38 cm, and bare wood behind.
   - `flowerGeometry()` builds a flower from its parts: notched petals with a fractal edge, a cup, sepals, stamens and a pedicel. Its levels run from the whole fractal edge down to a five-fan star.
   - Past a few pixels a flower is best drawn as its footprint, one lit disc facing the eye. That is the layer between whole flowers and the crown's clusters.
+- **The disc level in terrain worlds.**
+  - A species in bloom grows its flowers in the pool (`plantPool({ discs: true })`: `bloom` holds each flower's centre, size and colour lit in the world's light; `bare` holds its L1 and L2 wood without the clusters).
+  - The page draws a tree in bloom at L1 or L2 as its bare wood plus one disc per flower: five-lobed, facing the eye, bent by the wind with its tree, and never over about ten pixels.
+  - Discs have their own budget of 1.2M flowers, given to the trees largest on screen first; past it a tree keeps its clusters. At L1 a flower is under a pixel, so every third one is drawn at √3 its size.
+  - A world with no species in bloom carries none of this.
 
 ## Wind: flaccidity (`wind.js`)
 

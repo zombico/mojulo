@@ -49,3 +49,58 @@ describe('a tree in bloom: flowers at the ends of its shoots', () => {
     expect(turn).toBeGreaterThan(Math.abs(t0) + 50);
   }, 60_000);
 });
+
+describe('the disc level: a tree in bloom drawn flower by flower in a terrain world', () => {
+  it('a pool carries flowers and bare wood only for a species in bloom, and only when asked', async () => {
+    const { plantPool } = await import('./pool.js');
+    const asked = plantPool({ species: 'cherry', variants: 1, discs: true }).variants[0], plain = plantPool({ species: 'cherry', variants: 1 }).variants[0];
+    expect(asked.bloom.length % 7).toBe(0); expect(asked.bloom.length / 7).toBeGreaterThan(2000); expect(asked.bare.L2.length).toBeLessThan(asked.levels.L2.length);
+    expect(plain.bloom).toBeUndefined(); expect(plain.bare).toBeUndefined();
+    const oak = (d) => JSON.stringify(plantPool({ species: 'oak', variants: 1, discs: d }).variants[0]);
+    expect(oak(true)).toBe(oak(false));
+    for (let i = 0; i < asked.bloom.length; i += 7) { expect(asked.bloom[i + 3]).toBeGreaterThan(0); expect(asked.bloom[i + 2]).toBeLessThan(1.2); }
+  }, 120_000);
+  it('the page channel carries discs only where a species blooms; the page script parses with and without them', async () => {
+    const { plantsPageChannel } = await import('../terrain/terrain-plants.js');
+    const { plantPool } = await import('./pool.js');
+    const { terrainPlantsScript } = await import('../scene/channels/terrain-plants.js');
+    const V = { species: [{ name: 'cherry' }] }, spec = { level: 'L2', radius: 600 };
+    const withBloom = plantsPageChannel(V, [plantPool({ species: 'cherry', variants: 1, discs: true })], spec);
+    const without = plantsPageChannel({ species: [{ name: 'oak' }] }, [plantPool({ species: 'oak', variants: 1, discs: true })], spec);
+    expect(withBloom.discs).toBeGreaterThan(0); expect(withBloom.species[0].variants[0].fl.n).toBeGreaterThan(2000);
+    expect(withBloom.species[0].variants[0].t.B2).toBeDefined(); expect(withBloom.species[0].variants[0].t.B1).toBeDefined();
+    expect(without.discs).toBeUndefined(); expect(without.species[0].variants[0].fl).toBeUndefined();
+    for (const [cfg, has] of [[withBloom, true], [without, false]]) for (const wind of [false, true]) {
+      const src = terrainPlantsScript(cfg, wind);
+      expect(src.includes('mojulo-disc')).toBe(has);
+      expect(() => new Function('THREE', 'scene', 'camera', src)).not.toThrow();   // eslint-disable-line no-new-func
+    }
+  }, 120_000);
+});
+
+describe('a grove of many ages: trunks differ by growth, not by scale', () => {
+  it('the cherry grows one variant an age: older is thicker, a stand lifts the crown', async () => {
+    const { plantPool, plantRepeats } = await import('./pool.js');
+    const { grow: g, measure } = await import('./grow.js');
+    const pool = plantPool({ species: 'cherry', variants: 2 });
+    expect(pool.variants.length).toBe(S.growth.length);
+    expect(pool.variants.map((v) => v.years)).toEqual(S.growth.map((x) => x.years));
+    const arch = { ...ARCHITECTURES[S.arch], ...S.over, leafLife: S.leafLife }, dbh = S.growth.map((x) => measure(g(arch, { years: x.years, seed: 777, ...(x.stand ? { stand: x.stand } : {}) })).dbh);
+    expect(dbh[dbh.length - 1]).toBeGreaterThan(2.5 * dbh[0]);
+    // the shortest plants take the shortest-grown variant, the tallest the tallest
+    const items = [S.heights[0], S.heights[0], S.heights[1], S.heights[1]].map((height, i) => ({ x: i * 10, y: 0, z0: 0, height }));
+    const rep = plantRepeats(pool, items, { level: 'L0' }).repeats, gh = pool.variants.map((v) => v.grownHeight);
+    const which = (x) => { for (const r of rep) if (r.transforms.some((t) => t.pos[0] === x)) return pool.variants.findIndex((v) => v.levels.L0 === r.template); return -1; };
+    expect(gh[which(0)]).toBeLessThan(gh[which(20)]);
+  }, 180_000);
+  it('the page picks by height only for a species grown at several ages', async () => {
+    const { plantsPageChannel } = await import('../terrain/terrain-plants.js');
+    const { plantPool } = await import('./pool.js');
+    const { terrainPlantsScript } = await import('../scene/channels/terrain-plants.js');
+    const spec = { level: 'L1', radius: 600 }, ch = plantsPageChannel({ species: [{ name: 'cherry' }] }, [plantPool({ species: 'cherry', variants: 2 })], spec);
+    expect(ch.species[0].byH).toEqual(S.heights); expect([...ch.species[0].rank].sort()).toEqual([...S.growth.keys()]);
+    const oak = plantsPageChannel({ species: [{ name: 'oak' }] }, [plantPool({ species: 'oak', variants: 2 })], spec);
+    expect(oak.species[0].byH).toBeUndefined();
+    expect(terrainPlantsScript(ch).includes('sp.byH')).toBe(true); expect(terrainPlantsScript(oak).includes('sp.byH')).toBe(false);
+  }, 180_000);
+});

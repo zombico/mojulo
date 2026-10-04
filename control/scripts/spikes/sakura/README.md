@@ -50,7 +50,7 @@ The related suites (vegetation, terrain, scene channels, views, `compose_world` 
 - The carpet is a share of the pool, not an accumulation.
 - One bloom stage only: no buds, no leaf-out, no season.
 - From the grove edge a few variants still show a central stem.
-- Blossom is drawn as the ladder's cluster blobs, in mojulo's low-poly style; there are no individual flowers.
+- Near trees (L1, L2) draw their blossom flower by flower as discs, within a 1.2M-flower budget. Farther trees, and any past the budget, keep the ladder's cluster blobs. There are no whole flowers in the terrain world; those are the hero grove's.
 - Petals are 4.5 cm, larger than real (about 1.5 cm), so they read at walking distance.
 
 ## Hero grove (`hero-grove.mjs`, `hero-grove.page.js`; the flower is `vegetation/blossom.js`)
@@ -63,6 +63,7 @@ This is the close-up version. It is built from the ground up, the way the lignif
   - laterals zig-zag.
 
   The axes are smoothed between nodes (`arch.smooth`).
+- **Many ages.** The grove's six variants are grown at 7–21 years, two of them in a stand (the crown lifts to 1–2.5 m of clear trunk). Height (4.5–6.5 m) and girth (dbh 5–25 cm) come from growth; placement scales them only ±7%.
 - **Blossom at the tips.** Every live axis ends in a bunch: three umbels at the tip, then spurs that thin back over its last 38 cm, and bare wood behind. An umbel is 3–5 flowers on pedicels.
 - **The flower (`vegetation/blossom.js`, with the placement `bloomFlowers`)** is built from its parts:
   - five notched obovate petals with a fractal edge (midpoint displacement), cupped, pale pink to white, veined;
@@ -115,4 +116,4 @@ The operator's eyes gate is open.
 - The disc level shimmers a little at middle distance.
 - The trees' sway does not bend the shadows of the whole flowers.
 - The far crowns (past 46 m) are still the pool's cluster blobs.
-- The terrain World page does not draw flowers yet (see the plan for the disc level in production).
+- The terrain World page draws the flowers as discs only, not whole flowers.

@@ -134,8 +134,9 @@ const WIND = ${safeJson(cfg)};
     const key = base.uuid + '|' + JSON.stringify(taker) + '|' + H; let m = made.get(key); if (m) return m;
     m = base.clone();
     const own = { uTaker: { value: new THREE.Vector4(taker.B, taker.sail, taker.vogel, taker.zeta) }, uTaker2: { value: new THREE.Vector4(taker.phi, H, taker.flutter, 0) } };
-    m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U, own); sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + DEFS + GLSL).replace('#include <project_vertex>', PROJECT); };
-    m.customProgramCacheKey = () => 'mojulo-wind';
+    // a base may carry its own patch over the bent projection (a disc offset after the wind bends its root): userData.mojPatch
+    m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, U, own); sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + DEFS + GLSL).replace('#include <project_vertex>', PROJECT); if (base.userData.mojPatch) base.userData.mojPatch(sh); };
+    m.customProgramCacheKey = () => 'mojulo-wind' + (base.userData.mojKey || '');
     made.set(key, m); return m;
   }
   const clock = () => (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000;

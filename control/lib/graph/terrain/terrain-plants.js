@@ -179,7 +179,7 @@ export function plantsKernel(field, V = plantsConfig(field)) { return vegetation
 
 /** Each species' pool, grown in the world's light: { [species index]: pool }. */
 export function plantPools(V, spec, light) {
-  return V.species.map((sp) => plantPool({ species: sp.name, variants: spec.variants, seed: `terrain::${sp.name}`, light, maxLevel: spec.level }));
+  return V.species.map((sp) => plantPool({ species: sp.name, variants: spec.variants, seed: `terrain::${sp.name}`, light, maxLevel: spec.level, discs: true }));
 }
 
 const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
@@ -245,11 +245,27 @@ export function plantsPageChannel(V, pools, spec) {
       // a tuft has one level of its own (L0, and above it the same), and a far level like any plant
       const t = { LF: add(farTemplate(facesAt(v, 'L0'))) };
       if (pool.kind === 'tuft') { const id = add(facesAt(v, 'L0')); for (const l of levels) t[l] = id; } else for (const l of levels) t[l] = add(facesAt(v, l));
-      return { h: v.height, ...(v.wax ? { wax: 1 } : {}), ...(v.lean ? { lean: v.lean, az: v.az } : {}), t };
+      // a tree in bloom: at L1 and L2 its bare wood, and its flowers drawn as discs (a species not in bloom carries neither)
+      const fl = v.bloom && levels.includes('L1') ? (levels.includes('L2') && (t.B2 = add(v.bare.L2)), t.B1 = add(v.bare.L1), packFlowers(v.bloom)) : null;
+      return { h: v.height, ...(v.wax ? { wax: 1 } : {}), ...(v.lean ? { lean: v.lean, az: v.az } : {}), t, ...(fl ? { fl } : {}) };
     });
-    return { name: V.species[si].name, kind: pool.kind, variants, ...(pool.kind === 'culm' ? { tint: [...Array(10)].map((_, a) => ageTint(SPECIES[V.species[si].name].bamboo, a)) } : {}) };
+    // a species grown at several ages picks its variant by the plant's height in its range (byH, rank: shortest first)
+    const SG = SPECIES[V.species[si].name], byH = SG && SG.growth ? { byH: SG.heights.slice(), rank: pool.variants.map((v, k) => [v.grownHeight, k]).sort((a, b) => a[0] - b[0]).map((x) => x[1]) } : {};
+    return { name: V.species[si].name, kind: pool.kind, variants, ...byH, ...(pool.kind === 'culm' ? { tint: [...Array(10)].map((_, a) => ageTint(SPECIES[V.species[si].name].bamboo, a)) } : {}) };
   });
-  return { kernel: vegetationKernel.toString(), V, species, templates, textures, levels, radius: spec.radius, tile: 64, px: { L2: 110, L1: 40, L0: 14 }, cap: 60000, drawTris: 2.5e6, budgetMs: 4 };
+  const discs = species.some((sp) => sp.variants.some((v) => v.fl)) ? { discs: 1.2e6 } : {};
+  return { kernel: vegetationKernel.toString(), V, species, templates, textures, levels, radius: spec.radius, tile: 64, px: { L2: 110, L1: 40, L0: 14 }, cap: 60000, drawTris: 2.5e6, budgetMs: 4, ...discs };
+}
+/**
+ * A variant's flowers for the page (pool.js `bloom`: 7 a flower): centres as Int16 over their box, sizes as bytes of
+ * the largest, colours as sRGB bytes. → { n, lo, sc, q, s, smax, c }.
+ */
+function packFlowers(F) {
+  const n = F.length / 7, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; let smax = 0;
+  for (let i = 0; i < n; i++) { for (let k = 0; k < 3; k++) { const v = F[7 * i + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; } smax = Math.max(smax, F[7 * i + 3]); }
+  const sc = hi.map((h, k) => Math.max(1e-9, (h - lo[k]) / 65535)), q = new Int16Array(3 * n), sz = new Uint8Array(n), c = new Uint8Array(3 * n);
+  for (let i = 0; i < n; i++) { for (let k = 0; k < 3; k++) { q[3 * i + k] = Math.round((F[7 * i + k] - lo[k]) / sc[k]) - 32768; c[3 * i + k] = F[7 * i + 4 + k]; } sz[i] = Math.round((255 * F[7 * i + 3]) / smax); }
+  return { n, lo, sc, q: b64(q), s: b64(sz), smax, c: b64(c) };
 }
 
 /** The plants within `radius` of a point, as pool items per species (what the exports stand around the spawn). */

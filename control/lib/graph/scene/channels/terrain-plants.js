@@ -7,7 +7,8 @@ import { safeJson } from '../emit-util.js';
 //   · Tiles of `tile` metres within `radius` of the camera (less the eye's height), nearest first, within `budgetMs` a
 //     frame, in frames where the ground built nothing (the ground refines first; at most three frames' wait); far
 //     tiles are dropped.
-//   · Each plant picks its variant as the pool does (a tree by its pick, a palm or a culm by its height, a first-year culm
+//   · Each plant picks its variant as the pool does (a tree by its pick, one grown at several ages by its height in its
+//     species' range, a palm or a culm by its height, a first-year culm
 //     its wax variant, a culm leaning out of its clump the variant leaning its way) and its level by its size on screen:
 //     L2 ≥ px.L2, L1 ≥ px.L1, L0 ≥ px.L0, else the far level LF. Past `drawTris` triangles in all, every size is scaled by
 //     the largest k that fits (the boundaries move outward together); past that, the farthest go. A culm's age rides as
@@ -15,13 +16,17 @@ import { safeJson } from '../emit-util.js';
 //   · A template's meshes are made when a plant first needs it: one InstancedMesh for its plain faces and one per texture
 //     (bark, a palm's trunk) drawn texel × baked light, sharing the instances. At most `cap` plants are live, the
 //     nearest tiles first. Plants are not walk colliders.
+//   · A tree in bloom (a variant with `fl`, cfg `discs`) at L1 or L2 is its bare wood (template B1, B2) and its flowers, one disc
+//     each (four corners at its centre, offset facing the eye after instancing and after the wind bends it, the five
+//     lobes cut in the fragment, never over about ten pixels across, so a flower at the eye is not a coin; its colour lit when the pool was grown), up to `discs` flowers, the largest on screen
+//     first; past that the tree keeps its clusters. Absent `discs` ⇒ none of that is emitted.
 // Absent `plants` ⇒ NOT emitted. `wind` (the terrain has a wind channel): every part of a template (its plain faces, its
 // bark) bends in window.__mojTerrain.wind by its species' kind, as one cantilever its variant's height; absent ⇒ none of that is emitted.
 // `cfg`: { kernel: source text, V, species: [{ name, kind, variants: [{ h, wax?, lean?, az?, t: { LF, L0, L1?, L2? } }],
 //          tint? }], templates: [{ lo, sc, q, col, tris, tex?: [{ key, q, col, uv, lit }] }], textures, levels, radius, tile,
 //          px: { L2, L1, L0 }, cap, drawTris, budgetMs }
 export function terrainPlantsScript(cfg, wind = false) {
-  const { kernel, ...rest } = cfg;
+  const { kernel, ...rest } = cfg; const D = !!cfg.discs, AGES = cfg.species.some((sp) => sp.byH);
   return `
 // --- terrain plants (opt-in): the recipe's plants, placed and levelled around the camera ---
 const PLANTS = ${safeJson(rest)};
@@ -46,7 +51,29 @@ const __pKernel = (${kernel});
     const t = PLANTS.templates[id]; const parts = [{ geo: geoOf(t, t.q, t.col), mat: matPlain }];
     for (const x of (t.tex || [])) { const tx = texOf(x.key); if (tx) parts.push({ geo: geoOf(t, x.q, x.col, x.uv), mat: new THREE.MeshBasicMaterial({ map: tx, vertexColors: !!x.lit, side: THREE.DoubleSide }) }); }
 ${wind ? "    if (TW.wind && OF[id]) for (const p of parts) p.mat = TW.wind.material(p.mat, TW.wind.cfg.plants[OF[id][0]], OF[id][1]);\n" : ''}    m = { parts, im: [], cap: 0, n: 0, list: [] }; MESH.set(id, m); return m;
-  }
+  }${D ? `
+  // the flowers of a tree in bloom as discs: one mesh a variant, its instances the trees drawn with it
+  const DISC = new Map();
+  const DISC_PATCH = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\nattribute vec2 aCorner; attribute float aSize; varying vec2 vCorner;')
+      .replace('mvPosition = modelViewMatrix * mvPosition;', 'mvPosition = modelViewMatrix * mvPosition;\\n#ifdef USE_INSTANCING\\n{ float dc = -mvPosition.z; mvPosition.xy += aCorner * min(aSize * length(instanceMatrix[0].xyz) * 1.25 * (1.0 + 0.8 * smoothstep(15.0, 45.0, dc)), 0.012 * dc); vCorner = aCorner; }\\n#endif');
+    sh.fragmentShader = 'varying vec2 vCorner;\\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\\n{ float rr = length(vCorner), th = atan(vCorner.y, vCorner.x); if (rr > 0.72 + 0.28 * abs(cos(2.5 * th))) discard; }');
+  };
+  const PLAIN_PROJECT = 'vec4 mvPosition = vec4( transformed, 1.0 );\\n#ifdef USE_INSTANCING\\n\\tmvPosition = instanceMatrix * mvPosition;\\n#endif\\nmvPosition = modelViewMatrix * mvPosition;\\ngl_Position = projectionMatrix * mvPosition;\\n';
+  // at L1 a flower is under a pixel: every third one, √3 the size, covers as much
+  function discOf(v, si, stride) {
+    const key = v.t.LF + ':' + stride; let m = DISC.get(key); if (m) return m;
+    const F = v.fl, n = Math.ceil(F.n / stride), grow = Math.sqrt(stride), q = dec(F.q), sz = dec(F.s), c8 = dec(F.c), pos = new Float32Array(12 * n), col = new Float32Array(12 * n), cor = new Float32Array(8 * n), siz = new Float32Array(4 * n), idx = new Uint32Array(6 * n), C = [-1, -1, 1, -1, 1, 1, -1, 1];
+    for (let i = 0; i < n; i++) {
+      const f = i * stride, x = F.lo[0] + (q[3 * f] + 32768) * F.sc[0], y = F.lo[1] + (q[3 * f + 1] + 32768) * F.sc[1], z = F.lo[2] + (q[3 * f + 2] + 32768) * F.sc[2], r = grow * (sz[f] / 255) * F.smax;
+      for (let k = 0; k < 4; k++) { const o = 4 * i + k; pos[3 * o] = x; pos[3 * o + 1] = y; pos[3 * o + 2] = z; col[3 * o] = LIN[c8[3 * f]]; col[3 * o + 1] = LIN[c8[3 * f + 1]]; col[3 * o + 2] = LIN[c8[3 * f + 2]]; cor[2 * o] = C[2 * k]; cor[2 * o + 1] = C[2 * k + 1]; siz[o] = r; }
+      idx.set([4 * i, 4 * i + 1, 4 * i + 2, 4 * i, 4 * i + 2, 4 * i + 3], 6 * i);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aCorner', new THREE.BufferAttribute(cor, 2)); g.setAttribute('aSize', new THREE.BufferAttribute(siz, 1)); g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeBoundingSphere();
+    let mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }); mat.userData.mojPatch = DISC_PATCH; mat.userData.mojKey = '-disc';
+    mat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', PLAIN_PROJECT); DISC_PATCH(sh); }; mat.customProgramCacheKey = () => 'mojulo-disc';${wind ? "\n    if (TW.wind) mat = TW.wind.material(mat, TW.wind.cfg.plants[si], v.h);" : ''}
+    m = { parts: [{ geo: g, mat }], im: [], cap: 0, n: 0, list: [], flowers: n }; DISC.set(key, m); return m;
+  }` : ''}
   function ensure(m, need) {
     if (need <= m.cap) return;
     for (const im of m.im) { scene.remove(im); im.dispose(); }
@@ -55,7 +82,8 @@ ${wind ? "    if (TW.wind && OF[id]) for (const p of parts) p.mat = TW.wind.mate
   }
   function variantOf(sp, h, pick, age, lean, az) {
     const VS = sp.variants;
-    if (sp.kind === 'tree' || sp.kind === 'tuft') { const v = VS[Math.min(VS.length - 1, Math.floor(pick * VS.length))]; return [v, h / v.h]; }
+${AGES ? `    if (sp.byH) { const t = (h - sp.byH[0]) / (sp.byH[1] - sp.byH[0]) + 0.3 * (pick - 0.5), v = VS[sp.rank[Math.max(0, Math.min(VS.length - 1, Math.floor(t * VS.length)))]]; return [v, h / v.h]; }
+` : ''}    if (sp.kind === 'tree' || sp.kind === 'tuft') { const v = VS[Math.min(VS.length - 1, Math.floor(pick * VS.length))]; return [v, h / v.h]; }
     const young = age >= 0 && age < 1, leaning = sp.kind === 'culm' && !young && lean > 9 && VS.some((v) => v.lean);
     let best = null, bs = Infinity;
     for (const v of VS) {
@@ -90,7 +118,7 @@ ${wind ? "    if (TW.wind && OF[id]) for (const p of parts) p.mat = TW.wind.mate
         const x = a[q], y = a[q + 1], z = a[q + 2], h = a[q + 3], sp = SP[a[q + 4]];
         const d = Math.hypot(x - c.x, y - c.y, z + h / 2 - c.z); if (d > RAD) continue;
         const vs = variantOf(sp, h, a[q + 5], a[q + 6], a[q + 7], a[q + 8]), v = vs[0], s = vs[1], px = (v.h * s * f) / d;
-        all.push({ x, y, z, s, v, px, lv: 'LF', tint: sp.tint && a[q + 6] >= 1 ? sp.tint[Math.min(9, a[q + 6])] : null });
+        all.push({ x, y, z, s, v, px, lv: 'LF',${D ? ' si: a[q + 4],' : ''} tint: sp.tint && a[q + 6] >= 1 ? sp.tint[Math.min(9, a[q + 6])] : null });
       }
     }
     // the levels by size on screen, every size scaled by k: the largest k whose plants fit the draw budget, so the
@@ -102,9 +130,12 @@ ${wind ? "    if (TW.wind && OF[id]) for (const p of parts) p.mat = TW.wind.mate
     for (const e of all) { e.lv = lvOf(e, k); tris += trisOf(e.v, e.lv); }
     // still over with everything far: the farthest go
     if (tris > PLANTS.drawTris) { all.sort((a, b) => b.px - a.px); while (all.length && tris > PLANTS.drawTris) { const e = all.pop(); tris -= trisOf(e.v, e.lv); } }
-    stat.k = k;
-    for (const e of all) { const m = meshOf(e.v.t[e.lv]); m.list[m.n++] = e; stat.levels[e.lv]++; }
-    for (const m of MESH.values()) {
+    stat.k = k;${D ? `
+    // trees in bloom at L1 and L2: their flowers as discs, the largest on screen first, while the flowers fit
+    for (const m of DISC.values()) m.n = 0; let discLeft = PLANTS.discs; stat.discs = 0;
+    for (const e of all.filter((e) => (e.lv === 'L2' || e.lv === 'L1') && e.v.fl).sort((a, b) => b.px - a.px)) { const cost = Math.ceil(e.v.fl.n / (e.lv === 'L2' ? 1 : 3)); if (cost > discLeft) break; discLeft -= cost; stat.discs += cost; e.disc = true; }` : ''}
+    for (const e of all) { const m = meshOf(${D ? "e.disc ? e.v.t['B' + e.lv[1]] : " : ''}e.v.t[e.lv]); m.list[m.n++] = e; stat.levels[e.lv]++;${D ? ' if (e.disc) { const dm = discOf(e.v, e.si, e.lv === "L2" ? 1 : 3); dm.list[dm.n++] = e; }' : ''} }
+    for (const m of ${D ? '[...MESH.values(), ...DISC.values()]' : 'MESH.values()'}) {
       ensure(m, m.n);
       for (let p = 0; p < m.im.length; p++) {
         const im = m.im[p];

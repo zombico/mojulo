@@ -13,7 +13,7 @@
 //     flowers, combs the lawn, and carries the petals (debrisKernel), released from the hero trees' own flowers;
 //   · the light: a low sun with soft shadows, sky light, petals lit as thin sheets (light through them when backlit),
 //     the frame drawn in HDR through bloom, ACES and a sun halo.
-//   node scripts/spikes/sakura/hero-grove.mjs /absolute/out.html [speed m/s = 6] [petals = 6000] [variants = 4]
+//   node scripts/spikes/sakura/hero-grove.mjs /absolute/out.html [speed m/s = 6] [petals = 6000]
 import { writeFileSync, readFileSync } from 'node:fs';
 import { register } from 'node:module';
 register('../../mcp-stdio-loader.mjs', import.meta.url);
@@ -29,8 +29,13 @@ const { flowerGeometry, bloomFlowers, BLOOM_DEFAULTS } = await import('../../../
 const PETAL = BLOOM_DEFAULTS.petal;
 const { add, sub, mul, cross, unit } = vec;
 
-const [out = 'scripts/spikes/sakura/hero-grove.html', speedArg = '6', petalsArg = '6000', variantsArg = '4'] = process.argv.slice(2);
-const K = Number(variantsArg), DEG = Math.PI / 180, t0 = performance.now();
+const [out = 'scripts/spikes/sakura/hero-grove.html', speedArg = '6', petalsArg = '6000'] = process.argv.slice(2);
+// the grove's trees are not one tree scaled: each variant is grown to its own age, some in the open and some in a
+// stand (the neighbours' shade starves the low limbs and the crown lifts), so height, girth and the clear trunk below
+// the first limb come out of growth. Measured on the cherry: 7 y ≈ 4 m, dbh 5 cm; 21 y ≈ 6 m, dbh 20+ cm; an open-grown
+// tree forks at about half a metre, one in a stand at 1–2.5 m. `w`: how often it is planted.
+const AGES = [{ years: 7, stand: 0, w: 1 }, { years: 10, stand: 0, w: 2 }, { years: 12, stand: 0.15, w: 2 }, { years: 14, stand: 0.35, w: 2 }, { years: 17, stand: 0.35, w: 1.5 }, { years: 21, stand: 0, w: 1 }];
+const K = AGES.length, DEG = Math.PI / 180, t0 = performance.now();
 const S = SPECIES.cherry, B = S.bloom;
 const hashSeed = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 const lin = (c) => c.map((v) => Math.pow(Math.max(0, Math.min(1, v / 255)), 2.2));
@@ -93,23 +98,24 @@ const arch = { ...ARCHITECTURES[S.arch], ...S.over, leafLife: S.leafLife };
 const tile = barkTile(S.bark), bark = { minR: 0.03, tile: tile.metres, color: tile.mean, key: tile.key };
 const variants = [];
 for (let k = 0; k < K; k++) {
-  const sd = hashSeed(`hanami::cherry::${k}`) % 100000, p = grow(arch, { years: S.years, seed: sd }), H = measure(p).height;
+  const sd = hashSeed(`hanami::cherry::${k}`) % 100000, p = grow(arch, { years: AGES[k].years, seed: sd, stand: AGES[k].stand }), m = measure(p), H = m.height;
   const lad = ladder(p, H, { leafScale: S.leafScale, bark, fill: B.fill });
   const fl = bloomFlowers(p, { seed: sd ^ 0x9e3779b9 });
   const L2 = bloomTris(lad.L2), L1 = bloomTris(lad.L1);
   variants.push({ H, hero: { wood: packWood(bloomTris(lad.L3.filter((t) => t.kind !== 'leaf'))), leaves: packLeaves(leafTris(p, { scale: 0.85 })), flowers: Buffer.from(fl.buffer).toString('base64'), nFlowers: fl.length / 9 },
     L2: { wood: packWood(L2), leaves: packBlobs(lad.L2) }, L1: { wood: packWood(L1), blobs: packBlobs(L1), leaves: packBlobs(lad.L1) },
     tris: { L3wood: lad.L3.filter((t) => t.kind !== 'leaf').length, L2: lad.L2.length, L1: lad.L1.length } });
-  console.log(`variant ${k}: ${H.toFixed(2)} m, ${fl.length / 9} flowers, tris ${JSON.stringify(variants.at(-1).tris)}`);
+  console.log(`variant ${k}: ${AGES[k].years} y${AGES[k].stand ? ` in a stand ${AGES[k].stand}` : ''}, ${H.toFixed(2)} m, dbh ${(m.dbh * 100).toFixed(1)} cm, ${fl.length / 9} flowers, tris ${JSON.stringify(variants.at(-1).tris)}`);
 }
 
 // ── the grove: an avenue along x, rows of cherries either side ─────────────────────────────────────────────────────
-const trees = [], rr = mulberry32(77);
+const trees = [], rr = mulberry32(77), WSUM = AGES.reduce((a, g) => a + g.w, 0);
+const pickAge = (u) => { let t = u * WSUM; for (let k = 0; k < K; k++) { t -= AGES[k].w; if (t < 0) return k; } return K - 1; };
 for (const side of [-1, 1]) for (let row = 0; row < 6; row++) {
   const y0 = side * (4.4 + row * 6.0);
   for (let x = -42 + (row % 2) * 3.1; x <= 42; x += 6.2) {
     if (rr() < 0.08 * row) continue;
-    const px = x + 1.1 * (rr() - 0.5), py = y0 + 1.1 * (rr() - 0.5), v = Math.floor(rr() * K), s = 0.92 + 0.3 * rr(), yaw = 2 * Math.PI * rr();
+    const px = x + 1.1 * (rr() - 0.5), py = y0 + 1.1 * (rr() - 0.5), v = pickAge(rr()), s = 0.93 + 0.14 * rr(), yaw = 2 * Math.PI * rr();
     trees.push([px, py, groundAt(px, py) - 0.04, yaw, s, v]);
   }
 }
