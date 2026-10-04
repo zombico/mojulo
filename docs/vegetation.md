@@ -157,6 +157,17 @@ numbers below were checked against the literature, and several first guesses tur
   flowering spur carries several clusters of flowers, so the crown is a cloud where its leaves alone would be sparse.
   `leafLife: 2` keeps the blossom along two years of spurs.
 - **A grove is `plants.kinds`.** It replaces the climate's trees; the cherry's crown ratio spaces it with lawn between.
+- **A hand (`arch.hand`, opt-in).** The engine's shoots run straight between buds. A plant with a hand (`{ sense, twist, helix, turn, zig }`, in degrees) turns each new internode as it grows:
+  - **Twist:** about the vertical (a third as much on the trunk), so every limb sweeps round the same way. This is the helix the cell wall winds its cellulose in, left in the form.
+  - **Helix:** a lean toward a bearing that turns each internode, so an upright leader winds in a loose corkscrew.
+  - **Zig:** a sideways zig-zag on laterals.
+
+  Light, tropism and reaction wood still act on the turned shoot. A plant without a hand grows exactly as before: no code runs and no dice are drawn.
+- **Smooth axes (`arch.smooth`, opt-in).** `axisChains` puts a point at every internode's Catmull–Rom midpoint, so a turning limb bends instead of kinking. Each half keeps its internode's node (age, tone). The cherry has both.
+- **Flower by flower (`blossom.js`).** These parts are not emitted by a recipe yet; the hero grove spike uses them.
+  - `bloomFlowers(plant)` puts umbels at the ends of the shoots: a bunch at every tip, spurs thinning back over the last 38 cm, and bare wood behind.
+  - `flowerGeometry()` builds a flower from its parts: notched petals with a fractal edge, a cup, sepals, stamens and a pedicel. Its levels run from the whole fractal edge down to a five-fan star.
+  - Past a few pixels a flower is best drawn as its footprint, one lit disc facing the eye. That is the layer between whole flowers and the crown's clusters.
 
 ## Wind: flaccidity (`wind.js`)
 

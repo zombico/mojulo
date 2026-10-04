@@ -23,7 +23,7 @@ export const SPECIES = Object.freeze({
   // weaker apical control, wider-set limbs), so it forks low into a dome about as wide as it is tall —
   // its leaves are its blossom (`bloom`: the deep, the petal and the lit tone the leaf faces are recoloured between; `fill`
   // the blossom's area over the leaves', a spur carrying several flower clusters), kept two years along the spurs (`leafLife`)
-  cherry: { kind: 'tree', bark: 'beech', arch: 'rauh', over: { apical: [0.5, 0.44], matureAt: 8, setPoint: [0, 52, 64, 74] }, years: 12, leafScale: 1.8, leafLife: 2, heights: [5, 9], bloom: { fill: 3, deep: [222, 150, 178], petal: [246, 200, 214], lit: [255, 236, 242] } },
+  cherry: { kind: 'tree', bark: 'beech', arch: 'rauh', over: { apical: [0.5, 0.44], matureAt: 8, setPoint: [0, 52, 64, 74], hand: { sense: 1, twist: 6, helix: 9, turn: 55, zig: 9 }, smooth: true }, years: 12, leafScale: 1.8, leafLife: 2, heights: [5, 9], bloom: { fill: 3, deep: [222, 150, 178], petal: [246, 200, 214], lit: [255, 236, 242] } },
   coconut: { kind: 'palm', palm: 'coconut', ages: [22, 32, 45], heights: [8, 26] },
   date: { kind: 'palm', palm: 'date', ages: [18, 30, 45], heights: [5, 16] },
   washingtonia: { kind: 'palm', palm: 'washingtonia', ages: [25, 40], heights: [11, 18] },

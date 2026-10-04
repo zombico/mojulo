@@ -129,7 +129,8 @@ describe('a cherry grove', () => {
     const { plantPool } = await import('./pool.js');
     const faces = plantPool({ species: 'cherry', variants: 1 }).variants[0].levels.L2; let pink = 0, green = 0;
     for (const f of faces) { const r = parseInt(f.fill.slice(1, 3), 16), g = parseInt(f.fill.slice(3, 5), 16); if (r > g + 20) pink++; else if (g > r) green++; }
-    expect(pink).toBeGreaterThan(faces.length / 4); expect(green).toBe(0);
+    // the smoothed wood (arch.smooth: a point at every internode's midpoint) is about four faces in five at L2
+    expect(pink).toBeGreaterThan(faces.length / 6); expect(green).toBe(0);
   }, 60_000);
   it('plants.kinds replaces the climate\'s trees; the page gives petals only where a tree blooms', async () => {
     const { validateTerrainPlants } = await import('../terrain/terrain-plants.js');

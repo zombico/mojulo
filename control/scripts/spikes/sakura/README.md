@@ -53,19 +53,18 @@ The related suites (vegetation, terrain, scene channels, views, `compose_world` 
 - Blossom is drawn as the ladder's cluster blobs, in mojulo's low-poly style; there are no individual flowers.
 - Petals are 4.5 cm, larger than real (about 1.5 cm), so they read at walking distance.
 
-## Hero grove (`hero-grove.mjs`, `hero-grove.page.js`, `blossom.mjs`)
+## Hero grove (`hero-grove.mjs`, `hero-grove.page.js`; the flower is `vegetation/blossom.js`)
 
-This is the close-up version. It is built from the ground up, the way the lignification spike built its hero oak, and is a small standalone scene rather than a terrain World page. Nothing in `lib/` changes for it.
+This is the close-up version. It is built from the ground up, the way the lignification spike built its hero oak, and is a small standalone scene rather than a terrain World page. It grows on the production engine and draws its flowers with production `vegetation/blossom.js`.
 
-- **Grown trees.** The trees are grown by the production engine (`cherry` species, K variants), then given a hand. Every internode's offset is turned:
-  - about the vertical, a little more each internode (the same hand on every axis);
-  - into a lean whose bearing winds round, so the leader corkscrews instead of standing as a rod;
-  - with a zig-zag on thin shoots;
-  - with an arch that grows toward a limb's end.
+- **Grown trees.** The trees are grown by the production engine (`cherry` species, K variants). The hand is now part of growth (`arch.hand`, see docs/vegetation.md):
+  - each new internode turns about the vertical, the same way on every axis;
+  - the leader leans toward a bearing that winds round, so it corkscrews;
+  - laterals zig-zag.
 
-  Each internode is then split at its Catmull–Rom midpoint so limbs bend instead of kinking. The node order is kept, so the ladder and the pool read the result unchanged.
+  The axes are smoothed between nodes (`arch.smooth`).
 - **Blossom at the tips.** Every live axis ends in a bunch: three umbels at the tip, then spurs that thin back over its last 38 cm, and bare wood behind. An umbel is 3–5 flowers on pedicels.
-- **The flower (`blossom.mjs`)** is built from its parts:
+- **The flower (`vegetation/blossom.js`, with the placement `bloomFlowers`)** is built from its parts:
   - five notched obovate petals with a fractal edge (midpoint displacement), cupped, pale pink to white, veined;
   - a red cup and sepals, about thirty stamens and the pistil, and a pedicel.
 - **Levels follow the pool's rule** (distance from the eye):
@@ -81,6 +80,20 @@ This is the close-up version. It is built from the ground up, the way the lignif
   - petals lit as thin sheets, so light comes through them when backlit;
   - the frame drawn in HDR, then bloom, ACES, a sun halo, a grade and a vignette.
 
+- **Season dial** (on the page; `SEASON=0..1` sets the start):
+  - Buds are deep pink and closed; flowers open each at its own time.
+  - In petal fall, flowers go one by one, the held petals let go in waves, and the carpet thickens.
+  - At leaf-out, true-size leaves grow from their bases (the far crowns' clusters too) and the carpet browns.
+- **The petal carpet** is a 0.5 m grid of how many petals lie there:
+  - It is laid at the start from the trees: under each crown, drifted downwind, deeper in the ground's hollows and along the path's edges.
+  - It grows where each loose petal lands.
+  - The ground draws it as a petal per 3.5 cm cell with the grid's odds, and as the odds themselves past a few pixels.
+- **Lighting moods** (on the page; `MOOD=` sets the start): afternoon, golden hour (a low orange sun, long shadows, strong bloom), and overcast (soft sky light, faint shadows, no sun disc).
+- **Cost:**
+  - Every flower's shadow is its disc, facing the sun, within 28 m; whole flowers cast none.
+  - The shadow map is 3072² and redrawn every other frame.
+  - Geometry is sent as 16-bit positions, 8-bit normals and 8-bit sRGB colour, which brings the page to 8.5 MB.
+
 Run from `control/`:
 
 ```sh
@@ -93,13 +106,13 @@ The bookmarks are: the avenue, under the canopy, blossom close, into the sun, fr
 - The page is byte-identical across two runs.
 - No page errors.
 - 134 trees and about 1.1M flowers as discs; within 4.5 m, up to about 3,600 whole flowers.
-- Frames rendered back to back in the browser pane: 16 ms (the avenue) to 37 ms (blossom close, inside a crown).
-- About 18 MB of HTML.
+- Frames rendered back to back in the browser pane: about 15–28 ms by view (noisy in the pane; the shadow pass was about 13 ms of it before it ran every other frame).
+- 8.5 MB of HTML.
 
 The operator's eyes gate is open.
 
 **What it does not do:**
-- The hand is a spike-side step after growth. The growth engine has no chirality of its own.
 - The disc level shimmers a little at middle distance.
 - The trees' sway does not bend the shadows of the whole flowers.
-- The page carries the whole wood geometry inline, which is why it is 18 MB.
+- The far crowns (past 46 m) are still the pool's cluster blobs.
+- The terrain World page does not draw flowers yet (see the plan for the disc level in production).
