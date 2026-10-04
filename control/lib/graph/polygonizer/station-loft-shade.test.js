@@ -310,14 +310,23 @@ describe('the character light on the anime hero', () => {
       if (/^(pupil)/.test(part)) expect(fills).toEqual(new Set([P.Pupil]));
       if (/^(brow|lash)/.test(part)) expect(fills).toEqual(new Set([P.Ink]));
     }
-    // the neck occlusion rule: under the anime head the neck is always in shade, one swatch, never split
-    expect(byPart.get('neck')).toEqual(new Set([skinShade]));
+    // the neck occlusion rule: under the anime head the neck is in the head's shade; on the structured core (this hero)
+    // the jaw's, its lower edge a V toward the notch, the neck under it stepped by N·L
+    expect(byPart.get('neck')).toEqual(new Set([skinShade, P.Skin]));
   });
-  it('the neck occlusion rule: every neck face whole and in shade under the anime head; any other mesh steps its neck', () => {
+  it('the neck occlusion rule: under the anime head the neck is in shade (on the structured core above the jaw line, stepped under it); any other mesh steps its neck', () => {
     const neckFaces = mesh.faces.filter((t) => mesh.provenance[t[0]].part === 'neck').length;
-    const pieces = characterLitPieces(mesh, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
+    // without the structured core (no pelvis part): every neck face whole and in shade
+    const lean = { ...mesh, parts: Object.fromEntries(Object.entries(mesh.parts).filter(([k]) => k !== 'pelvis')) };
+    const pieces = characterLitPieces(lean, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
     expect(pieces).toHaveLength(neckFaces); expect(new Set(pieces.map((pc) => pc.fill))).toEqual(new Set([derived(P.Skin, 'Skin')]));
     expect(pieces.every((pc) => pc.refs.every((r) => r.vi !== undefined))).toBe(true);   // no crossing: the parent triangle
+    // the structured core: the jaw's shadow over the neck's top, the neck lit under its lower edge (both tones), and every
+    // piece wholly over the chin in shade
+    const jawed = characterLitPieces(mesh, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
+    expect(new Set(jawed.map((pc) => pc.fill))).toEqual(new Set([P.Skin, derived(P.Skin, 'Skin')]));
+    const chin = Math.min(...mesh.faces.filter((t) => mesh.provenance[t[0]].part === 'face').flat().map((v) => mesh.vertices[v]).filter((p) => p[1] > 0).map((p) => p[2])) + layeredSeat(mesh, true);
+    expect(jawed.filter((pc) => pc.refs.every((r) => r.p[2] > chin + 0.002)).every((pc) => pc.fill === derived(P.Skin, 'Skin'))).toBe(true);
     // a mesh without the anime face (no face shell over a cranium core) steps its part named `neck` as any other part
     const plain = { ...mesh, parts: Object.fromEntries(Object.entries(mesh.parts).filter(([k]) => k !== 'face')) };
     const stepped = characterLitPieces(plain, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
@@ -481,18 +490,19 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // pelvis, TORSO_SCULPT and the seat, the chest layers CHEST_FORM, the hem without the shirt's overlap), and for the
   // pectorals meeting as one domed chest and the breast sampled from its field (breast-field.js), then for the female's
   // breasts closer together, pointing forward, rising out of her upper chest's fill, then for the pair meeting in the
-  // cleft's valley (breast-field.js `cleft`) with the décolletage unfilled and her upper pole a longer ramp; the
-  // streamlined values
+  // cleft's valley (breast-field.js `cleft`) with the décolletage unfilled and her upper pole a longer ramp, then for
+  // the neck rising out of the chest, the trapezius sloping, the deltoid's dome (hero-form.js NECK_ROOT) and, under the
+  // anime head, the neck's shade the jaw's shadow; the streamlined values
   // above unchanged
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['118177aa3572fddd', 'd0efb788d050bace', '701429e03ffb13c0']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['208d63afe14197ca', '1a06c4ff365c3f2a', 'cd5055d2d43208a1']],
-      headNone: [{ cast: 'female', head: 'none' }, ['a76a27ca7914f27e', 'd84ce42691a7e9cc', 'aa0afa85666f8219']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['b9918991e604a429', '9e67a3da25cd4bdb', '01a1e2db8e7b2679']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['404b18f0393fecef', '6cc1a034f9ef0b5c', 'ed11e16aa1980500']],
+      headNone: [{ cast: 'female', head: 'none' }, ['a01d4fbbaa1bca26', 'f96c2da760412486', 'bac2bf097fae3b40']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
     }
-    for (const [cast, pin] of [['female', '95994986d65fbdb2'], ['male', '152031908aedd0f3']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+    for (const [cast, pin] of [['female', '536bad64a6098437'], ['male', '8615c8c002480e3d']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {

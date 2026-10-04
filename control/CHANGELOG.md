@@ -72,6 +72,11 @@ lands.
   cleft), in a `Swim` tone you can name (by default dark, so the swimwear sorts into the dark
   value band apart from the skin and the hair). A plan segment may now carry `bandGroups` (a group
   per band and slot) and `slotT` (each slot's address parameter).
+- **The shoulders and the neck.** On the structured core the neck rises out of the chest: the sternal notch sits under
+  the base of the neck at the back, so the neck shows from the front instead of the chin resting on the shoulders. The
+  male's trapezius slopes from the neck to the shoulder instead of standing as a plateau, and the shoulder rounds over the arm as a deltoid instead of ending in a square corner. Under the
+  anime head the neck's shade is the jaw's shadow, its lower edge a V toward the notch, no longer the whole neck down
+  to its seam on the chest. A segment may name its caps' height (`cap`).
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the

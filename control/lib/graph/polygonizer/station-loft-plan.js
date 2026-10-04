@@ -17,7 +17,7 @@
  *   joints: { <name>: [x, y, z] },                             // authored on the RIGHT (or the midline)
  *   segments: [                                                // L1 parts, in recipe order
  *     { name, kind: 'trunk',   slots?, stations: [{ z, r, yc?, e? }], caps: { back, tip }, group, tint, mirror: 'plane' },
- *     { name, kind: 'segment', from, to, rA, rB, slots?, e?, over?, mid?, rMid?, group, tint, mirror: 'plane' | 'name' | null, bind? },
+ *     { name, kind: 'segment', from, to, rA, rB, slots?, e?, over?, mid?, rMid?, cap?, group, tint, mirror: 'plane' | 'name' | null, bind? },
  *     { name, kind: 'chain',   joints: [names], r: [radii], over: { first, last, inner }, group, tint, mirror: 'plane', bind? },
  *     { name, kind: 'loft',    stations: [{ at: [x, y, z], r, e? }], caps?: { back, tip }, slots?, e?, group, tint, mirror: 'plane' | 'name' | null, bind? },
  *       // explicit stations along a polyline, each ring ⟂ the local direction: a thigh that starts at the hip crest
@@ -92,12 +92,13 @@ export function ringPoints(c, d, r, slots, e = 2) {
   return pts;
 }
 /** A straight segment from joint A to joint B: three rings ⟂ (B − A) at A, mid and B, the ends overshooting the
- * joints by `over` × radius so neighbours fuse across the bend; caps pinched on the axis beyond the end rings. */
-export function segmentPart(A, B, rA, rB, { slots = SLOT_FAMILIES.limb6, e = 2, over = [0.6, 0.6], mid = 0.5, rMid } = {}) {
+ * joints by `over` × radius so neighbours fuse across the bend; caps pinched on the axis beyond the end rings, `cap` ×
+ * radius beyond them ([A end, B end]; 0.45 each by default: a taller cap turns the rim's corner less, a deltoid's dome). */
+export function segmentPart(A, B, rA, rB, { slots = SLOT_FAMILIES.limb6, e = 2, over = [0.6, 0.6], mid = 0.5, rMid, cap = [0.45, 0.45] } = {}) {
   const d = unit(sub(B, A)); const L = len(sub(B, A)); const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
   const at = (t) => add(A, mul(d, t));
   const st = [[-over[0] * rad(rA), rA], [mid * L, rMid ?? R2(rA).map((x, i) => (x + R2(rB)[i]) / 2)], [L + over[1] * rad(rB), rB]];
-  return { slots, stations: st.map(([t, r], i) => ({ id: `st${i}`, points: ringPoints(at(t), d, r, slots, e) })), caps: { back: at(st[0][0] - 0.45 * rad(rA)), tip: at(st[2][0] + 0.45 * rad(rB)) } };
+  return { slots, stations: st.map(([t, r], i) => ({ id: `st${i}`, points: ringPoints(at(t), d, r, slots, e) })), caps: { back: at(st[0][0] - cap[0] * rad(rA)), tip: at(st[2][0] + cap[1] * rad(rB)) } };
 }
 /** Explicit stations for a midline trunk: [{ z, r: [rx, ry], yc, e, id?, u? }] along +z. A station may name its `id` and
  * its address parameter `u` (station-loft.js addressPin): a SHAPING ring between two addressed ones carries a fractional
@@ -240,7 +241,7 @@ export function expandPlan(plan) {
     const look = { group: seg.group, tint: seg.tint, mirrorPlane: seg.mirror === 'plane' ? 'x' : undefined, slotT: seg.slotT, bandGroups: seg.bandGroups, capGroups: seg.capGroups };
     if (seg.kind === 'trunk') place(seg.name, finish(trunkPart(seg.stations, seg.caps, slotsOf(seg, 'slots'), eOf(seg)), look), seg, seg.bind);
     else if (seg.kind === 'segment' || seg.kind === 'loft') {
-      const raw = seg.kind === 'loft' ? loftPart(seg.stations, seg.caps, slotsOf(seg, 'limbSlots'), eOf(seg)) : segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots: slotsOf(seg, 'limbSlots'), e: eOf(seg), over: seg.over, mid: seg.mid, rMid: seg.rMid });
+      const raw = seg.kind === 'loft' ? loftPart(seg.stations, seg.caps, slotsOf(seg, 'limbSlots'), eOf(seg)) : segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots: slotsOf(seg, 'limbSlots'), e: eOf(seg), over: seg.over, mid: seg.mid, rMid: seg.rMid, ...(seg.cap ? { cap: seg.cap } : {}) });
       const right = finish(raw, look); place(seg.name, right, seg, seg.bind);
       if (seg.mirror === 'name') { const left = mirrorPart(right); parts[mirrorPartName(seg.name)] = left; const b = resolveBind(seg.bind, seg.name); if (b !== undefined) left.bind = mirrorBind(b); }
     } else if (seg.kind === 'rings') {

@@ -80,6 +80,11 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   if (!neckForm?.trap) {
     collar.r[0] *= 1.10;
     collar.r[1] *= 1.10;
+    // the structured core's neck root (hero-form.js NECK_ROOT) pushed the collar's front slots down to the sternal notch
+    // and back onto the neck: the rise and the widening above would carry them up and out with the ring, so each pushed
+    // slot takes them back by its share of the front's push (its sides and back rise with the collar)
+    const f = collar.push?.front;
+    if (f && f[2] < 0) for (const d of Object.values(collar.push)) { const w = d[2] / f[2]; if (w > 0) { d[2] = +(d[2] - w * collarRise).toFixed(6); d[1] = +(d[1] - w * collar.r[1] * (0.1 / 1.1)).toFixed(6); } }
   }
   // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
   // forearm upright); every other head keeps the form's wave

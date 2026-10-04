@@ -377,8 +377,13 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  *     and where the two lines cross inside a triangle the point is a `bary` ref shared by the lit and the shade side;
  *   • THE NECK OCCLUSION RULE: on a mesh wearing the anime head (its face shell over a cranium core), every face of the
  *     part `neck` takes the shade swatch, never split — the neck under the head is always in the head's shadow, so the
- *     lit jaw reads against it at any key. Derived here, at read time (nothing stored, no palette group of its own),
- *     so the static faces and the rig pack, which share these pieces, agree;
+ *     lit jaw reads against it at any key. On the structured core (a `pelvis` part), whose neck rises out of the chest
+ *     (hero-form.js NECK_ROOT), the shadow is the JAW'S: a neck corner is in it above its lower edge (NECK_JAW_SHADOW: a
+ *     V from the sides down toward the sternal notch; on the REST mesh, so it stays on the neck as the head turns) and
+ *     under it the neck steps by N·L as any part, its edge a smooth line across the faces
+ *     (whole, its shade's bottom was the neck's seam on the chest: a flat-bottomed block, a dark tube behind). Derived
+ *     here, at read time (nothing stored, no palette group of its own), so the static faces and the rig pack, which
+ *     share these pieces, agree;
  *   • THE HAIR'S TOP PLANES: on the same mesh, a Hair corner's N·L gains HAIR_TOP_PLANES × its normal's upward share
  *     (the planes on top of the mass lit from above too), derived the same way.
  * Colour is `palette[group]` → the part's tint → neutral grey (layeredFaces' lookup); a degenerate triangle (twice its
@@ -391,12 +396,27 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  * reads it, so its pieces are exactly the two-tone step's. `neckShade`, `hairTop`: the two anime-head rules, on by
  * default exactly when the mesh wears the anime head (a review renderer turns one off to show a figure without it).
  */
+/** the jaw's shadow on the structured neck (THE NECK OCCLUSION RULE): its lower edge `front` (m) under the chin at the
+ * front, `side` under it at the sides, between them by the cosine of the turn from the front: a V toward the sternal
+ * notch, as the neck's front muscles carry the shade down to it (a band just under the chin hid behind the jaw: the
+ * neck read lit); `k` the scalar's slope (per m), so the step's crossing falls on the line */
+const NECK_JAW_SHADOW = Object.freeze({ front: 0.06, side: 0.03, k: 40 });
 export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
   const glow = new Set(Array.isArray(glows) ? glows : []);   // the recipe's emissive groups: full-bright, never split (still inked)
   const Lv = light.toLight; const unlit = new Set(light.unlit || []); const thresholds = light.thresholds || {}; const t0 = Number.isFinite(light.threshold) ? light.threshold : 0;
   const neckInShade = !!neckShade, top = hairTop ? HAIR_TOP_PLANES : 0;   // THE NECK OCCLUSION RULE, THE HAIR'S TOP PLANES (see above)
+  // the jaw line on the structured core's neck (rest positions): the neck's axis, the chin (the face shell's lowest
+  // point in front of it), each neck corner's height over the line
+  const jaw = neckInShade && rest.parts?.pelvis ? (() => {
+    const nv = new Set(), fv = []; rest.faces.forEach((t, fi) => { const pn = partOf(rest, fi); if (pn === 'neck') t.forEach((v) => nv.add(v)); else if (pn === 'face') fv.push(...t); });
+    if (!nv.size || !fv.length) return null;
+    let ay = 0; for (const v of nv) ay += rest.vertices[v][1]; ay /= nv.size;
+    let chin = Infinity; for (const v of fv) { const p = rest.vertices[v]; if (p[1] > ay) chin = Math.min(chin, p[2]); }
+    if (!Number.isFinite(chin)) return null;
+    return (vi) => { const p = rest.vertices[vi], fy = p[1] - ay, c = fy / (Math.hypot(p[0], fy) || 1); const J = NECK_JAW_SHADOW; return chin - (J.side + (J.front - J.side) * Math.max(0, c)) - p[2]; };
+  })() : null;
   const VREF = mesh.vertices.map((v, vi) => ({ p: [v[0], v[1], v[2] + dz], vi }));
   const nV = mesh.vertices.length; const edges = new Map();   // min·nV + max → [{ s, p, a, b }] along min → max
   const shadeCache = new Map();
@@ -448,10 +468,13 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (unlit.has(g)) return { fi, tri, outNormal, partName, fill: hex, mark: true };
     if (glow.has(g)) return { fi, tri, outNormal, partName, fill: hex };
     const sk = `${g}|${hex}`; let shade = shadeCache.get(sk); if (shade === undefined) shadeCache.set(sk, shade = shadeFill(light, g, hex));
-    if (neckInShade && partName === 'neck') return { fi, tri, outNormal, partName, fill: shade };   // the occlusion rule
+    const jawNeck = neckInShade && partName === 'neck' && jaw;
+    if (neckInShade && partName === 'neck' && !jaw) return { fi, tri, outNormal, partName, fill: shade };   // the occlusion rule
     const t = Number.isFinite(thresholds[g]) ? thresholds[g] : t0;
     // the top planes' term only where it applies: every other corner keeps N·L as it was (no `+ 0`, which would turn a −0 to +0)
-    const topLift = top && g === 'Hair', d = N[fi].map((c) => (topLift && c[2] > 0 ? dot(c, Lv) + top * c[2] : dot(c, Lv))); const lit = d.map((x) => x > t);
+    const topLift = top && g === 'Hair', d0 = N[fi].map((c) => (topLift && c[2] > 0 ? dot(c, Lv) + top * c[2] : dot(c, Lv)));
+    // the structured neck: in the jaw's shadow above its line, by N·L under it
+    const d = jawNeck ? d0.map((x, j) => Math.min(x, t + NECK_JAW_SHADOW.k * jaw(tri[j]))) : d0; const lit = d.map((x) => x > t);
     const H = HI.get(g); let hi = H && lit.some(Boolean) && !(H.parts && !H.parts.test(partName)) ? H : null, colour = null;
     if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
     let f;

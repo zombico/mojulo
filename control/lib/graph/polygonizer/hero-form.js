@@ -83,8 +83,8 @@ const KNEE_CLEAR = 0.014;
  * the chest ring's (of the cast's); `yc` the chest, armpit, shoulder and trapezius rings' centres (m, + forward); `e` the
  * superellipse of the navel … trapezius rings in a round register (a box register keeps its own) */
 const TORSO_FORM = Object.freeze({
-  female: Object.freeze({ waist: 0.88, rib: 0.55, chest: 0.86, lat: 0.93, yoke: -0.1, capRise: 0.5, trap: 0.5, chestZ: 0.6, depth: [0.092, 0.1, 0.1, 0.085, 0.07], chestDepth: 0.86, yc: [0.01, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
-  male: Object.freeze({ waist: 0.98, rib: 0.5, chest: 0.97, lat: 1, yoke: -0.15, capRise: 0.55, trap: 0.5, chestZ: 0.6, depth: [0.1, 0.108, 0.108, 0.09, 0.072], chestDepth: 1, yc: [0.012, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
+  female: Object.freeze({ waist: 0.88, rib: 0.55, chest: 0.86, lat: 0.93, yoke: -0.1, capRise: 0.43, trap: 0.5, chestZ: 0.6, depth: [0.092, 0.1, 0.1, 0.085, 0.07], chestDepth: 0.86, yc: [0.01, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
+  male: Object.freeze({ waist: 0.98, rib: 0.5, chest: 0.97, lat: 1, yoke: -0.15, capRise: 0.42, trap: 0.5, chestZ: 0.6, depth: [0.1, 0.108, 0.108, 0.09, 0.072], chestDepth: 1, yc: [0.012, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
 });
 /** the structured bust (hero-form BUST): `size` the default bust (`body.bust`, of the cast's chest; the adult female cast
  * only), `splay` the push turned out from straight forward (degrees); `push` per torso ring [id, the midline slot's push,
@@ -191,6 +191,16 @@ export const ANIME_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, 
 /** the cast a word names under a proportion: the anime cast when asked for and there is one, else the hero cast */
 export const castOf = (cast, proportions = 'hero') => (typeof cast === 'string' ? (proportions === 'anime' && ANIME_CASTS[cast]) || HERO_CASTS[cast] : null);
 
+/** THE NECK ROOT on the structured core: the neck rises out of the chest. `notch` the sternal notch under the neck hub
+ * (m: the top ring's front; the canon's T2 against C7, about 2.5 cm), falling off round the ring by `cos^fall` of the
+ * slot's angle (none at the side and back: C7 and the trapezius keep their height), the mid ring held `step` under it,
+ * both kept `step` over the shoulder ring's front (the clavicles' heads), so the notch is no deeper than they allow; `base` the neck loft's base ring under the hub (of the neck radius; 0.15 before, which left the front of
+ * the neck's root to the torso's cap) and `over` the segment neck's overshoot under its hub (0.15 before); `trap` the
+ * male trapezius ring (the anime neck form's at 27 cm wide and 4 cm up held the shoulder line flat 6 cm out from the
+ * neck and stood in front of it), `trapZ` the trapezius mid ring's height share from the shoulder ring to the top ring
+ * (0.5 sagged under the straight line: a shelf, then the neck); `deltoid` the upper arm's top: its ring's overshoot (of
+ * its radius; negative, under the joint) and its cap's height over it (0.03 and 0.45 before: a square corner) */
+const NECK_ROOT = Object.freeze({ notch: 0.02, fall: 2.5, step: 0.007, base: 0.8, over: 0.9, trap: Object.freeze({ z: 0.036, r: [0.092, 0.066], yc: -0.02 }), trapZ: Object.freeze({ female: 0.64, male: 0.5 }), deltoid: Object.freeze({ over: -0.25, cap: 0.75 }) });
 /** THE NECK FORM (`heroPlan({ neckForm })`; the humanoid starter passes a cast's own under the anime head and anime
  * proportions): the neck as a LOFT of explicit rings instead of the three-ring segment, so the column shades round and
  * its back rises into the occiput instead of shelving out behind the lower skull, and the torso's top ring re-placed as
@@ -364,7 +374,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // (a head without a jaw part — the anime head opens its mouth as an aperture — says its chin as `chinZ`)
   const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : (head?.chinZ ?? 0);
   const rise = head ? Math.max(0, zs + 0.07 - (hb + chin)) : 0;
-  const neck = neckForm ? neckLoft(neckForm, { b, g, zs, hb: hb + rise }) : { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [0.15, 0.2], group: 'Skin', mirror: 'plane',
+  // the structured core lowers the neck's root to the sternal notch (NECK_ROOT)
+  const neck = neckForm ? neckLoft(neckForm, { b, g, zs, hb: hb + rise, ...(structured ? { base: NECK_ROOT.base } : {}) }) : { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [structured ? NECK_ROOT.over : 0.15, 0.2], group: 'Skin', mirror: 'plane',
     bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } };
   if (neckForm?.trap) {   // the trapezius ring: the torso's top ring, its top cap and its weights (absolute heights over the hub)
     const T = neckForm.trap, top = torso.stations[4];
@@ -380,6 +391,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     if (dense) Object.assign(torso, { slots: trunkFam, slotT: denseT });
     const SF = SLOT_FAMILIES[trunkFam] ?? trunkFam;
     const dT = Math.max(...SF.map((_, k) => Math.abs(dmath.sin(2 * Math.PI * k / SF.length))));
+    // the trapezius ring (a neck form's) narrower and lower, behind the neck's front (NECK_ROOT.trap)
+    if (neckForm?.trap) { const T = NECK_ROOT.trap, top = torso.stations[4]; top.z = r6(zs + T.z); top.r = g([T.r[0], T.r[1]]); top.yc = r6(T.yc); }
     const [h0, , , , n4] = torso.stations, aR = g(armBase), Sx = shoulderHalf;   // the untuned arm: the yoke is the torso's, `upperArm` thickens only the arm
     const E = (i) => (reg.e <= 3 ? { e: F.e[i] } : {});
     const ring = (id, u, z, X, Y, yc, i) => ({ id, u, z: r6(z), r: [r6(X / dT), r6(Y)], ...(yc ? { yc: r6(yc) } : {}), ...E(i) });
@@ -392,10 +405,22 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       ring('st2', 2, zC, xC, F.chestDepth * g(b.chestDepth), F.yc[0], 2),
       ring('st2_st3_50', 2.5, zA, F.lat * Sx, F.depth[2] * D, F.yc[1], 3),
       ring('st3', 3, zS, xS, F.depth[3] * D, F.yc[2], 4),
-      ring('st3_st4_50', 3.5, (zS + n4.z) / 2, xS + F.trap * (xNeck - xS), F.depth[4] * D, F.yc[3], 5),
+      ring('st3_st4_50', 3.5, zS + NECK_ROOT.trapZ[preset?.silhouette === 'female' ? 'female' : 'male'] * (n4.z - zS), xS + F.trap * (xNeck - xS), F.depth[4] * D, F.yc[3], 5),
       { ...n4, id: 'st4', u: 4 },
     ];
     if (dense) for (const [id, push] of Object.entries(TORSO_SCULPT[preset?.silhouette === 'female' ? 'female' : 'male'])) addPush(torso.stations.find((x) => x.id === id), Object.fromEntries(Object.entries(push).map(([k, d]) => [k, g(d)])));
+    // the NECK ROOT (NECK_ROOT): the three top rings' front slots pushed down to the sternal notch under the hub, falling
+    // off round the ring by the slot's angle; the top ring's front pulled back onto the neck's front, so the neck rises
+    // out of the chest and its root's front is the neck's own surface, not the torso's cap
+    { const N = NECK_ROOT, SFn = SLOT_FAMILIES[trunkFam] ?? trunkFam, zN = zs - N.notch, ids = ['st3_st4_50', 'st4'];
+      // never under the shoulder ring's front (the clavicles' heads): pushed under it, the pair dug a pit between them
+      // whose rim inked a V; the surface rises from the chest into the neck instead
+      const s3 = torso.stations.find((x) => x.id === 'st3'), z3 = s3.z + (s3.push?.front?.[2] ?? 0);
+      const yNeck = (z) => { if (neck.kind !== 'loft') return neck.rA[1]; const L = neck.stations; let k = L.findIndex((st) => st.at[2] > z); if (k <= 0) k = k < 0 ? L.length - 1 : 1; const A = L[k - 1], B = L[k], t = Math.min(1, Math.max(0, (z - A.at[2]) / (B.at[2] - B.at[2] + B.at[2] - A.at[2]))); return A.at[1] + A.r[1] + t * (B.at[1] + B.r[1] - A.at[1] - A.r[1]); };
+      ids.forEach((id, i) => { const st = torso.stations.find((x) => x.id === id); if (!st) return; const zt = Math.max(zN - (ids.length - 1 - i) * N.step, z3 + (i + 1) * N.step); if (st.z <= zt) return;
+        const push = {}; SFn.slice(0, SFn.length / 2 + 1).forEach((sl, k) => { const c = dmath.cos((2 * Math.PI * k) / SFn.length); if (c <= 1e-6) return; const w = dmath.pow(c, N.fall);
+          const dy = id === 'st4' ? w * Math.min(0, yNeck(zt) + 0.002 - ((st.yc ?? 0) + st.r[1] + (st.push?.[sl]?.[1] ?? 0))) : 0; push[sl] = [0, r6(dy), r6(w * (zt - st.z))]; });
+        addPush(st, push); }); }
   }
   const hs = (k, r, yc) => ({ z: r6(hb + k * H), r: r.map((x) => r6(x * H)), ...(yc ? { yc: r6(yc * H) } : {}) });
   const blankHead = { name: 'head', kind: 'trunk', stations: [
@@ -481,7 +506,10 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // sternum, still thick at the sternum (the pair meets there) and thin at the armpit
     const pecT = (z) => { const t = (z - zLo) / (zUp - zLo); return Tm * (Pf.top + (1 - Pf.top) * dmath.pow(1 - t, 1.6)); };
     const pecBump = (s) => (0.55 + 0.45 * dmath.sin(Math.PI * Math.min(1, s / 0.66) / 2)) * (s > 0.66 ? 1 - 0.75 * ((s - 0.66) / 0.34) ** 2 : 1);
-    const parts = [layer('pectoralR', pecZ, pecSpan, (z, sv) => [0, pecT(z) * pecBump(sv)], pecBind)];
+    // its top medial corner thins to nothing over the sternal notch (NECK_ROOT): the pair melts into the notch instead of
+    // standing proud over the hollow (at full thickness there, their corners inked a V)
+    const zTh = zUp - 0.4 * (zUp - zLo), pecIn = (z, sv) => 1 - Math.min(1, Math.max(0, (z - zTh) / (zUp - zTh))) * (1 - Math.min(1, sv / 0.45));
+    const parts = [layer('pectoralR', pecZ, pecSpan, (z, sv) => [0, pecT(z) * pecBump(sv) * pecIn(z, sv)], pecBind)];
     // the navel, on the midline `at` up the lumbar run: only on a bare belly (`bare`, the swimsuit's), never on a shirt
     if (bare) { const N = CHEST_FORM.navel, zv = zp + N.at * L, w = g(N.w), hh = g(N.h);
       const zs = [-0.85, -0.4, 0.15, 0.6, 0.9].map((k) => r6(zv + k * hh)), span = (z) => { const u = (z - zv) / hh, x = w * Math.sqrt(Math.max(0.05, 1 - u * u)); return [-x, x]; };
@@ -586,7 +614,10 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   }
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
-    limb('upperArmR', 'shoulder', 'elbow', g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), [0.03, 0.36], 'Top', 'torso', 'foreArmR'),
+    // the structured core's DELTOID (NECK_ROOT.deltoid): the arm's top ring a little under the joint, its cap taller, so
+    // the shoulder turns over the arm at a cone's slope the torso's shoulder ring covers the top of (the flat cap's rim
+    // was a square corner, the shoulder line flat to the arm's edge, then straight down)
+    limb('upperArmR', 'shoulder', 'elbow', g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR', structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45] } : {}),
     limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
     limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) }),
     thigh,
@@ -676,13 +707,15 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
  * head's base joint (`hb`, lifted with a lifted head), leaning forward; each ring on it at its fraction, sized off the
  * cast's neck radius, the nape ring set back; the base cap under the axis, the top cap off the LAST ring's centre (so
  * a ring past the axis' top carries it, and the cap's fan keeps its winding). */
-function neckLoft(N, { b, g, zs, hb }) {
+function neckLoft(N, { b, g, zs, hb, base = 0.15 }) {
   const k = N.girth ?? 1, lean = ((N.lean ?? 0) * Math.PI) / 180;
-  const z0 = zs - 0.15 * b.neck, z1 = hb + (N.top ?? 0.2 * b.neck), y0 = N.yBase ?? 0;
-  const at = (t) => { const z = z0 + t * (z1 - z0); return [0, y0 + (z - z0) * dmath.tan(lean), z]; };
+  // the rings stand along the run from 0.15 of the neck radius under the hub; a deeper `base` (the structured core's
+  // neck root, NECK_ROOT) moves the base ring alone down to it, the column above unchanged
+  const z0 = zs - 0.15 * b.neck, z1 = hb + (N.top ?? 0.2 * b.neck), y0 = N.yBase ?? 0, zb = zs - base * b.neck;
+  const at = (t) => { const z = t === 0 ? zb : z0 + t * (z1 - z0); return [0, y0 + (z - z0) * dmath.tan(lean), z]; };
   const stations = N.rings.map(([t, w, d, dy]) => { const p = at(t); return { at: R(dy ? [0, p[1] + dy, p[2]] : p), r: g([b.neck * k * w, b.neck * k * d]) }; });
   const end = stations.at(-1).at, tip = N.tip ?? [0, 0.35 * b.neck];
-  return { name: 'neck', kind: 'loft', stations, caps: { back: R([0, y0, z0 - 0.3 * b.neck]), tip: R([0, end[1] + tip[0], end[2] + tip[1]]) }, slots: N.slots, ...(N.e ? { e: N.e } : {}), group: 'Skin', mirror: 'plane',
+  return { name: 'neck', kind: 'loft', stations, caps: { back: R([0, y0, zb - 0.3 * b.neck]), tip: R([0, end[1] + tip[0], end[2] + tip[1]]) }, slots: N.slots, ...(N.e ? { e: N.e } : {}), group: 'Skin', mirror: 'plane',
     bind: { bone: 'neck', blend: JSON.parse(JSON.stringify(N.blend)) } };
 }
 
