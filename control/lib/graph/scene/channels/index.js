@@ -325,6 +325,7 @@ export { skyDomeScript } from './sky-dome.js';
 export { waterMeshScript, liquidMeshScript } from './water.js';
 export { shallowsChannelScript } from './shallows.js';
 export { wetSandScript } from './wet-sand.js';
+export { softGroundScript } from './soft-ground.js';
 export { toonInkScript } from './toon-ink.js';
 export { drawLayersScript, drawLayerGroup, DRAW_LAYER_KEYS } from './draw-layers.js';
 export { walkModeScript } from './walk.js';

@@ -18,7 +18,8 @@
  */
 
 import { withAqua } from '../materials/aqua-look.js';
-import { normalizeDetail } from '../materials/detail-tier.js';
+import { detailAtLeast, normalizeDetail } from '../materials/detail-tier.js';
+import { SOFT_GROUNDS } from '../materials/soft-ground.js';
 import { WS_DARK, shoreMoisture } from '../materials/shore-moisture.js';
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -83,13 +84,20 @@ function bedZ(y) {
 // the static sand WEDGE — a grid of flat-shaded quads. Wet near/below the waterline, dry up the berm;
 // each facet Lambert-lit by the low sun so the slope reads. Gentle seeded ripple keeps it from looking
 // like a ramp (deterministic — a fixed trig field, no dice).
+function sandFrame(s) {
+  const ripple = (x, y) => (0.55 * Math.sin(x * 0.22 + y * 0.05) + 0.4 * Math.sin(y * 0.4 + 1.3)) * s;
+  return { x0: -(WX / 2 + 8) * s, x1: (WX / 2 + 8) * s, y0: (EDGE - TOE) * s, y1: (EDGE + BEACH) * s, zAt: (x, y) => bedZ(y / s) * s + ripple(x, y) };
+}
+// the sand surface's corner heights, the grid buildSand faces: the touch tier's footprint bed sits exactly on it
+function sandSurface(scale) {
+  const { x0, x1, y0, y1, zAt } = sandFrame(scale), z = [];
+  for (let j = 0; j <= SY; j++) for (let i = 0; i <= SX; i++) z.push(+zAt(x0 + (x1 - x0) * (i / SX), y0 + (y1 - y0) * (j / SY)).toFixed(5));
+  return { x0, y0, x1, y1, sx: SX, sy: SY, z };
+}
 function buildSand(scale, { liveWet = null } = {}) {
   const s = scale;
   const sun = norm3(SUN);
-  const x0 = -(WX / 2 + 8) * s, x1 = (WX / 2 + 8) * s;
-  const y0 = (EDGE - TOE) * s, y1 = (EDGE + BEACH) * s;
-  const ripple = (x, y) => (0.55 * Math.sin(x * 0.22 + y * 0.05) + 0.4 * Math.sin(y * 0.4 + 1.3)) * s;
-  const zAt = (x, y) => bedZ(y / s) * s + ripple(x, y);
+  const { x0, x1, y0, y1, zAt } = sandFrame(s);
   const faces = [];
   for (let j = 0; j < SY; j++) {
     for (let i = 0; i < SX; i++) {
@@ -194,10 +202,28 @@ export function assembleBeachScene(recipe = {}, { title } = {}) {
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#bfe0ee';
   const surfaces = withAqua(plan.surfaces, recipe.aqua, 'lagoon', { bg, unit: s });
   const look = surfaces[0].aqua;
+  // TOUCH (detail 'touch' and up): a footprint bed in a window around the walker (channels/soft-ground.js), walk mode
+  // on the berm facing the sea, and the beach's unit declared (1 unit = 1 m at scale 1). Lengths below are metres × s.
+  const touch = liveWet && look && detailAtLeast(detail, 'touch');
+  const D = SOFT_GROUNDS['dry-sand'], M = SOFT_GROUNDS['damp-sand'];
+  const scaleG = (g) => ({ friction: g.friction, staticFriction: g.staticFriction, cohesion: +(g.cohesion * s).toFixed(5) });
+  const touchExtra = touch ? {
+    softGround: {
+      cols: 400, rows: 400, cell: 0.03 * s, quantum: 0.001 * s, depth: 0.3 * s,
+      moisture: { dry: scaleG(D), damp: scaleG(M), fluid: { friction: 0.1, staticFriction: 0.1, cohesion: 0 } },   // sand under running backwash: a slurry, prints level out
+      sink: { dry: D.sink * s, damp: M.sink * s, fluid: 0.04 * s }, stride: 0.38 * s,
+      foot: { offset: 0.11 * s, length: 0.26 * s, width: 0.1 * s, rim: 0.035 * s },
+      color: DRY_SAND, sun: norm3(SUN), swash: plan.sandSwash, zen: look.zen, hor: look.hor, surface: sandSurface(s),
+    },
+    // walk mode faces the scene's centre from its spawn: just inland of it, so you start looking down the beach to the sea
+    walk: { spawn: [0, (EDGE + 24) * s, sandFrame(s).zAt(0, (EDGE + 24) * s) + 1.7 * s], speed: 2.4 * s },
+    metersPerUnit: +(1 / s).toFixed(6),
+  } : {};
   return {
+    ...touchExtra,
     faces: recipe.aqua === false ? plan.faces : [...plan.faces, ...buildSeabed(s)],
     surfaces,
-    ...(liveWet && look ? { wetSand: { group: 'sand', ...plan.sandSwash, zen: look.zen, hor: look.hor, sun: surfaces[0].sun } } : {}),
+    ...(liveWet && look ? { wetSand: { group: 'sand', ...(touch ? { hole: true } : {}), ...plan.sandSwash, zen: look.zen, hor: look.hor, sun: surfaces[0].sun } } : {}),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo ${plan.stats.scenario} beach`,

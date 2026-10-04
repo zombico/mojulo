@@ -51,6 +51,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the highest reach. It is worked out from the swash's own timing, so it costs only a shader and an
   export carries the band as it stands at the first frame. Beaches take `detail`
   (`'still' | 'animated' | 'touch' | 'showpiece'`, default `'animated'`); `'still'` keeps the baked band.
+- **Footprints in the sand (`detail: 'touch'`).** A beach at the touch tier opens in walk mode facing
+  the sea, and the sand around you takes footprints: a bed of loose sand (3 cm cells) follows you as
+  you walk and blends into the beach with no visible edge. Damp sand holds a print's walls, dry sand
+  up the beach slumps them into soft dimples, and the backwash levels any print it runs over. The
+  ground kernel graduated from the soft-ground spike with per-cell moisture, a window that slides
+  with the walker, and slopes measured on the sand alone so loose sand never slides off the beach
+  face; with neither in use it replays the spike byte for byte. The beach declares its unit
+  (1 unit = 1 m at scale 1).
 - **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
   `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
   use `canal`.

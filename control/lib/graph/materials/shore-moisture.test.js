@@ -64,3 +64,22 @@ describe('the detail tier', () => {
     expect(sandFills(live)).toBeLessThanOrEqual(sandFills(still));
   });
 });
+
+describe('the beach touch tier', () => {
+  it('adds a footprint bed on the sand surface, walk mode facing the sea, and the beach unit', () => {
+    const p = assembleBeachScene({ detail: 'touch' }), s2 = assembleBeachScene({ detail: 'touch', scale: 2 });
+    expect(p.metersPerUnit).toBe(1);
+    expect(s2.metersPerUnit).toBe(0.5);
+    expect(s2.softGround.cell).toBeCloseTo(2 * p.softGround.cell, 9);                  // 3 cm cells, in world units
+    const { surface } = p.softGround;
+    expect(surface.z).toHaveLength((surface.sx + 1) * (surface.sy + 1));
+    expect(p.walk.spawn[1]).toBeGreaterThan(surface.y0);
+    expect(p.wetSand.hole).toBe(true);
+    expect(assembleBeachScene({}).softGround).toBeUndefined();
+    expect(assembleBeachScene({ detail: 'touch', aqua: false }).softGround).toBeUndefined();
+    const page = emitThreeWorld({ ...p, inline: false });
+    expect(page).toMatch(/stepSoftGround\(t\);/);
+    expect(page).toMatch(/function buildSandBed/);                                       // the kernel the tests run, inlined
+    expect(emitThreeWorld({ ...assembleBeachScene({}), inline: false })).not.toMatch(/stepSoftGround/);
+  });
+});
