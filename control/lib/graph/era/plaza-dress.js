@@ -161,7 +161,7 @@ export function plazaDress(plan, geom) {
   const key = plan.ref.light.key, toSun = sunDir(key.elevation, key.azimuth ?? 225);
   const portico = D.portico ? plazaPortico(plan, site) : null;
   return {
-    faces: [...fo.stone, ...plazaCutouts(plan, houses), ...(portico ? portico.faces : []), ...(D.obelisks ? plazaObelisks(plan, site).faces : []),
+    faces: [...fo.stone, ...plazaCutouts(plan, houses), ...(portico ? portico.faces : []), ...(D.obelisks ? plazaObelisks(plan, site, geom.ends).faces : []),
       ...(D.quoins ? plazaQuoins(plan, houses, portico) : []), ...(D.skyline ? plazaSkyline(plan, site, toSun) : [])],
     blends: (faces) => plazaBlends(plan, faces, houses),
     after: fo.water,

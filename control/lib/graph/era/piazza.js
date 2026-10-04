@@ -117,7 +117,11 @@ function balustrade(out, a, b, za, zb, D, { posts = [], urnAt = () => false, sta
 /** The PORTICO along its side: stylobate, columns, arcade, roundels, deck and walkway, cornice, stair, balustrades.
  *  Returns { faces, F, U1, foot } (foot: the floor it stands on, for the floor's cut). */
 export function plazaPortico(plan, site) {
-  const D = plan.kit.dress, Po = D.portico, F = wallFrame(site.r, Po.side), out = [], { depth, stylobate: sty, spring: zs, deck } = Po;
+  const D = plan.kit.dress, Po = D.portico, wall = wallFrame(site.r, Po.side), out = [], { depth, stylobate: sty, spring: zs, deck } = Po;
+  // it runs from the side's start (or `end` m clear of it, when the side it meets there is closed too: the houses on
+  // that side keep their fronts) to `end` m short of its far corner
+  const startSide = { '-y': '-x', '+y': '+x', '-x': '+y', '+x': '-y' }[Po.side], u0 = site.r.open.includes(startSide) ? 0 : Po.end;
+  const F = { ...wall, o: [wall.o[0] + wall.U[0] * u0, wall.o[1] + wall.U[1] * u0, 0], len: wall.len - u0 };
   const U1 = F.len - Po.end, cr = Po.column.r, pw = 2 * 1.45 * cr, n = Math.max(1, Math.round((U1 - 0.6) / Po.bay)), col = depth - Po.wall / 2;
   const stone = { ...Po.stone, group: 'stage:portico' }, stucco = { ...Po.stucco, group: 'stage:portico' }, floorS = { ...Po.floor, group: 'stage:walkway' };
   const cols = Array.from({ length: n + 1 }, (_, i) => 0.3 + ((U1 - 0.6) * i) / n);
@@ -168,16 +172,27 @@ export function plazaPortico(plan, site) {
   // what it stands on: the floor under the stylobate, the stair and the landing is cut away
   const corners = [fring(F, 0, U1, 0, depth + 0.12, 0), fring(F, foot, U1, o0, o1, 0)];
   const inside = (q) => corners.some((cs) => { const xs = cs.map((p) => p[0]), ys = cs.map((p) => p[1]); return q[0] >= Math.min(...xs) - 1e-6 && q[0] <= Math.max(...xs) + 1e-6 && q[1] >= Math.min(...ys) - 1e-6 && q[1] <= Math.max(...ys) + 1e-6; });
-  return { faces: out, F, U1, depth, deck, foot, under: (f) => f.corners.every(inside) };
+  return { faces: out, F, wall, u0, U1, depth, deck, foot, under: (f) => f.corners.every(inside) };
 }
 
-/** The OBELISKS: either side of the fountain, across the line from the way in (the open corner) to the centre. */
-export function plazaObelisks(plan, site) {
+/** The OBELISKS: either side of the fountain, across the line from the way in to the centre. The way in is the
+ *  square's first door when it has doors (a closed square is entered by one), else its open corner or open side, else
+ *  the middle of its -y side. */
+export function plazaObelisks(plan, site, ends = []) {
   const O = plan.kit.dress.obelisks, { r, c } = site, out = [];
-  const way = [r.open.includes('+x') ? r.x1 : r.open.includes('-x') ? r.x0 : c[0], r.open.includes('-y') ? r.y0 : r.open.includes('+y') ? r.y1 : c[1]];
+  const opened = r.open.length ? [r.open.includes('+x') ? r.x1 : r.open.includes('-x') ? r.x0 : c[0], r.open.includes('-y') ? r.y0 : r.open.includes('+y') ? r.y1 : c[1]] : [c[0], r.y0];
+  const way = ends.length ? ends[0].sill.slice(0, 2) : opened;
   const v = unit([c[0] - way[0], c[1] - way[1], 0]), perp = Math.hypot(v[0], v[1]) > 0.5 ? [-v[1], v[0]] : [1, 0];
   const granite = { ...O.granite, group: 'stage:obelisk' }, stone = { ...O.stone, group: 'stage:obelisk' }, bronze = { key: null, tint: O.bronze, group: 'stage:bronze' };
-  const spots = [1, -1].map((sg) => [c[0] + perp[0] * O.spread * sg, c[1] + perp[1] * O.spread * sg]);
+  // the pair keeps its symmetry: the spread shrinks (both together) until each pedestal stands clear of the walls and
+  // of a portico's front (a metre clear of it)
+  const half = O.steps[0][0] / 2, Po = plan.kit.dress.portico, P0 = Po ? wallFrame(r, Po.side) : null;
+  const clear = (p) => p[0] - half > r.x0 + 2 && p[0] + half < r.x1 - 2 && p[1] - half > r.y0 + 2 && p[1] + half < r.y1 - 2
+    && (!P0 || (p[0] - P0.o[0]) * P0.N[0] + (p[1] - P0.o[1]) * P0.N[1] - half > Po.depth + 1);
+  const pair = (sp) => [1, -1].map((sg) => [c[0] + perp[0] * sp * sg, c[1] + perp[1] * sp * sg]);
+  let spread = O.spread;
+  while (spread > O.pedestal.w * 2 && !pair(spread).every(clear)) spread = Math.round((spread - 0.1) * 10) / 10;
+  const spots = pair(spread);
   for (const p of spots) {
     let z = 0;
     for (const [w, h] of O.steps) { xbox(out, p, w / 2, z, z + h, stone); z += h; }
@@ -204,10 +219,10 @@ export function plazaQuoins(plan, houses, portico) {
   const Q = plan.kit.dress.quoins, H = plan.kit.house, out = [], stone = { key: plan.kit.tiles.trim.key, scale: plan.kit.tiles.trim.scale, tint: Q.tint, group: 'stage:quoin' };
   const walls = new Map(); for (const h of houses) (walls.get(h.F.o.join()) || walls.set(h.F.o.join(), []).get(h.F.o.join())).push(h);
   for (const list of walls.values()) {
-    const F = list[0].F, onPortico = portico && F.o.join() === portico.F.o.join();
+    const F = list[0].F, onPortico = portico && F.o.join() === portico.wall.o.join();
     const edges = list.map((h, i) => [h.u0, Math.max(h.top, list[i - 1]?.top ?? 0)]).concat([[list[list.length - 1].u1, list[list.length - 1].top]]);
     for (const [u, top] of edges) {
-      const z0 = onPortico && u <= portico.U1 + 0.01 ? portico.deck + 0.05 : H.base.h, z1 = top - H.eave.h, nC = Math.floor((z1 - z0) / Q.h);
+      const z0 = onPortico && u >= portico.u0 - 0.01 && u <= portico.u0 + portico.U1 + 0.01 ? portico.deck + 0.05 : H.base.h, z1 = top - H.eave.h, nC = Math.floor((z1 - z0) / Q.h);
       const lo = u < 0.01 ? 0 : u > F.len - 0.01 ? -1 : -0.5;   // at a wall's end the block runs into the front, else it straddles the edge
       for (let k = 0; k < nC; k++) {
         const w = k % 2 ? Q.short : Q.long, a = u + lo * w, za = z0 + k * Q.h;

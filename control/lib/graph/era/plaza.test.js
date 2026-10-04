@@ -162,7 +162,7 @@ describe('the dressed plaza', () => {
     expect(walk.length).toBeGreaterThan(50);
     expect(Math.max(...walk.flatMap((f) => f.corners.map(off)))).toBeGreaterThan(Po.depth);
     // behind it the first floor opens onto the walkway: no balcony on that side
-    expect(geom.houses.filter((h) => h.F.o.join() === PF.o.join()).every((h) => !h.balcony)).toBe(true);
+    expect(geom.houses.filter((h) => h.F.o.join() === portico.wall.o.join()).every((h) => !h.balcony)).toBe(true);
     // the ceiling is in shade but faces the sunlit square: warmer than a wall turned from the sun, darker than the paving
     const lit = (fs) => fs.flatMap((f) => f.cornerFills.map((h) => hexc(h).map((v, k) => v * tileMean(f.texture)[k])));
     const med = (v) => [...v].sort((a, b) => a - b)[v.length >> 1], warmth = (cs) => med(cs.map((k) => k[0] - k[2]));
@@ -195,7 +195,7 @@ describe('the dressed plaza', () => {
     expect(spots.length).toBe(2);
     const way = [r.x1, r.y0], v = [c[0] - way[0], c[1] - way[1]], side = (p) => Math.sign(v[0] * (p[1] - way[1]) - v[1] * (p[0] - way[0]));
     expect(side(spots[0]) * side(spots[1])).toBe(-1);
-    for (const p of spots) expect(Math.hypot(p[0] - c[0], p[1] - c[1])).toBeCloseTo(O.spread, 4);
+    for (const p of spots) expect(Math.hypot(p[0] - c[0], p[1] - c[1])).toBeCloseTo(Math.hypot(spots[0][0] - c[0], spots[0][1] - c[1]), 4);   // symmetric
     const eave = Math.max(...geom.houses.map((h) => h.top));
     for (const p of spots) {
       const mine = [...ob, ...by('stage:bronze')].filter((f) => f.corners.every((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 2));

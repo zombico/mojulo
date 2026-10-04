@@ -36,6 +36,7 @@ import { makeSunShadow, sunDir } from './sun.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
+import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
 export const STAGE_KITS = ({
@@ -482,8 +483,11 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a face with no tile (the portal's iron) carries its tint only
   const shell = geom.faces.map((f) => (f.texture === null ? (({ texture, textureLit, uv, ...g }) => g)(f) : f));
   // the kit's DRESSING (nave.js, plaza-dress.js): its own faces, blends over the shell, unbaked sheets, bake-only pools
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, geom) : naveDress(plan, geom);
-  const base = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : [])];
+  // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
+  // dressing reads the way in from them
+  const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends }) : naveDress(plan, geom);
+  const base = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const lights = resolveStageLights(plan, seats);
   const key = plan.ref.light.key, daylight = plan.kit.sun && key;
   const sun = daylight ? (() => {
@@ -518,6 +522,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   return {
     faces,
     ...(cutouts.length ? { cutouts } : {}),
+    // the ends by which this map links to others, and its items (doors.js): only when the recipe names them
+    ...(manifest.doors ? { doors: withoutBuild(ends) } : {}),
+    ...(taken ? { items: taken.items } : {}),
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },

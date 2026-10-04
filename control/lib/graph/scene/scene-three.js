@@ -62,6 +62,7 @@ import { crystalChannelScript } from './channels/crystal.js';
 import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
 import { crystalPrintsFor, crystalLivePrints, crystalGlowPools, crystalSun } from './crystal-prints.js';
 import { crystalLightChannelScript } from './channels/crystal-light.js';
+import { doorsChannelScript } from './channels/doors.js';
 import { crystalRigFor } from './crystal-rig.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
 
@@ -181,7 +182,7 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, metersPerUnit = null, cutouts = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, metersPerUnit = null, cutouts = null, doors = null, items = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -528,6 +529,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     bob: wk.bob && Array.isArray(wk.bob.curve) ? wk.bob : null,
   } : null;
   const walkBlock = walkCfg ? walkModeScript(walkCfg, mesh.center) : '';
+  // a stage's door ends and items ride the walk (channels/doors.js); none, or no walk → no block, not one byte
+  const doorList = Array.isArray(doors) ? doors : [], itemList = Array.isArray(items) ? items : [];
+  const doorsBlock = walkBlock && (doorList.length || itemList.length) ? doorsChannelScript(doorList, itemList) : '';
   // WebXR (opt-in, interchange-seams.plan.md seam 7): `xr: true` or { eye, speed, snap(deg) }. The
   // headset supplies the real eye height under 'local-floor'; `eye` is only the fallback offset when
   // no walk ground probe is emitted. Speed rides the walk speed when one exists. Absent ⇒ no block.
@@ -1188,12 +1192,12 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };

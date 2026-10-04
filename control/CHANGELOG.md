@@ -206,6 +206,36 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The recipe's `dirt` scales each cause. Baked ambient occlusion is on for the `stage` kind.
 
+### Stage doors
+
+- A stage recipe can name DOOR ENDS (`doors: [{ id, at, to: { map, door } }]`), resolved by
+  `lib/graph/era/doors.js` from what the kit already knows (a plaza house door, the nave's great portal, a point
+  on a wall). Each end carries a trigger in front of it and a spawn further in, facing into the room. The payload
+  carries `doors` only when the recipe names them.
+- The World page's doors channel (`lib/graph/scene/channels/doors.js`): walking into a trigger asks the parent
+  page to cross (`map-door`); the parent places the walker at an end (`map-enter`). Absent doors, the page is
+  byte-identical.
+- A wall-point end on a closed wall gets a door: an oak leaf in a stone frame, in the middle of its bay, standing
+  proud of the wall's plinth.
+- ITEMS (`items: [{ id, at: [x, y] }]`): a thing on a plinth (a gold key, turning) in its own group. Walking up to
+  it takes it; the page hides it and reports the taking.
+- A LOCKED end (`locked: '<item id>'`) refuses the crossing until the run holds that item; the page says what the
+  door needs.
+- An ATLAS (`lib/graph/era/atlas.js`) joins maps by their door ends. `validateAtlas` checks that:
+  - every end names an end that names it back;
+  - every lock's item is held by some map;
+  - no item is placed twice.
+
+  `emitAtlasShell` hosts one map at a time, crosses on `map-door`, and carries the run's state across: the
+  crossing log, the refusals, visits per map, the items held, and each map's own state. A key taken stays taken
+  when you come back.
+- Played maps are closed rooms. The plaza dressing no longer assumes the open-sided set:
+  - the portico stands clear of a closed side it meets;
+  - the obelisks take the way in from the square's first door, and their symmetric spread shrinks until both
+    pedestals clear the walls and the portico.
+
+  The open set is byte-identical.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x
