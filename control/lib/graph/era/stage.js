@@ -25,7 +25,9 @@ import { SIXTH_GEN_REFERENCES } from './sixth-gen.js';
 import { makeDirt, hash3 } from './dirt.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
-import { archedOpening, engagedColumn, naveVault } from './gothic.js';
+import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
+import { GOTHIC_NAVE } from './style/gothic-nave.js';
+import { naveDress, naveBlends } from './nave.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { assembleNatureScene } from './nature.js';
@@ -74,6 +76,8 @@ STAGE_KITS['gothic-nave'] = Object.freeze({
     light: { color: '#7f98e8', intensity: 0.85, radius: 11, off: 1.6 } },
   vault: { rise: 0.62, seg: 12, rib: { w: 0.42, drop: 0.3 } },
   torch: { every: 2, z: 2.7, out: 0.32, color: '#ffa850', intensity: 1.7, radius: 7.5 },
+  // the dressing (style/gothic-nave.js, era/nave.js): blends, cutouts, shafts and pools, and the great door
+  dress: GOTHIC_NAVE,
 });
 // The PLAZA kit (Sunshine): an open-air square whose sides are house fronts (plaza.js) over a raised pavement step,
 // paved in warm flagstone bays, lit by a hard high sun with baked cast shadows and a blue sky fill.
@@ -161,7 +165,7 @@ export function planStage(m = {}) {
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
 export function buildStageGeometry(plan) {
-  const { kit } = plan, out = [], seats = [], drains = [];
+  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
     return { key: t.family ? `${t.family}-${VARIANTS[variant % 4]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part] };
@@ -170,7 +174,22 @@ export function buildStageGeometry(plan) {
   // pilasters), each bay its own variant; a rectangle of floor is split at the bay lines so no face straddles two
   const ft = kit.tiles.floor;
   const bays = (r) => { const nx = Math.max(1, Math.round((r.x1 - r.x0) / kit.bay)), ny = Math.max(1, Math.round((r.y1 - r.y0) / kit.bay)); return { nx, ny, bx: (r.x1 - r.x0) / nx, by: (r.y1 - r.y0) / ny }; };
+  // a DRESSED floor is laid in zones across the room's long axis instead: irregular flags, a slate kerb, the
+  // hexagonal runner down the middle, a kerb, flags; each zone's tile mapped the floor's way (world x, y)
+  const Fd = kit.dress && kit.dress.floor;
+  const zonedRect = (r, X0, Y0, X1, Y1) => {
+    const alongY = r.y1 - r.y0 >= r.x1 - r.x0, c = alongY ? (r.x0 + r.x1) / 2 : (r.y0 + r.y1) / 2, w = Fd.runner / 2, base = surf('floor'), trimS = surf('trim');
+    const zones = [[-Infinity, c - w - Fd.kerb, Fd.field], [c - w - Fd.kerb, c - w, null], [c - w, c + w, Fd.hex], [c + w, c + w + Fd.kerb, null], [c + w + Fd.kerb, Infinity, Fd.field]];
+    for (const [z0, z1, tile] of zones) {
+      const a0 = Math.max(alongY ? X0 : Y0, z0), a1 = Math.min(alongY ? X1 : Y1, z1); if (a1 - a0 < 1e-6) continue;
+      const sf = tile ? { ...base, key: tile.key, scale: tile.scale } : { ...trimS, tint: Fd.kerbTint, group: 'stage:floor', cell: base.cell };
+      const o = alongY ? [a0, Y0, 0] : [X0, a0, 0], A = alongY ? [1, 0, 0] : [0, 1, 0], B = alongY ? [0, 1, 0] : [1, 0, 0];
+      const la = a1 - a0, lb = alongY ? Y1 - Y0 : X1 - X0;
+      panel(out, o, alongY ? A : B, alongY ? la : lb, alongY ? B : A, alongY ? lb : la, [0, 0, 1], { ...sf, uvOf: (p) => [p[0] / sf.scale, p[1] / sf.scale] }, base.cell);
+    }
+  };
   const floorRect = (r, ri, X0, Y0, X1, Y1) => {
+    if (Fd) return zonedRect(r, X0, Y0, X1, Y1);
     const { nx, ny, bx, by } = bays(r), base = surf('floor');
     for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
       const a0 = Math.max(X0, r.x0 + i * bx), a1 = Math.min(X1, r.x0 + (i + 1) * bx), b0 = Math.max(Y0, r.y0 + j * by), b1 = Math.min(Y1, r.y0 + (j + 1) * by);
@@ -183,12 +202,30 @@ export function buildStageGeometry(plan) {
   const B = plaza ? kit.step.width : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
   // A NAVE wall, bay by bay: an engaged column at each bay line; between them a blind pointed arcade arch, a string
   // course, and a lancet window whose glass glows cool and lights the bay; a bay holding a doorway stays flat.
-  const naveWall = (F, cuts, flatWall, sf, h) => {
-    const col = kit.column, ar = kit.arcade, st = kit.string, ln = kit.lancet, n = Math.max(1, Math.round(F.len / kit.bay));
+  const naveWall = (F, cuts, flatWall, sf, h, side) => {
+    const col = kit.column, ar = kit.arcade, st = kit.string, ln = kit.lancet;
     const glass = { fill: ln.glass, emissive: hexRgb(ln.glass), emissiveStrength: 1.6, group: 'stage:glass' };
+    // the bay lines: even bays, or — on the dressing's portal wall — the great door's bay in the middle, flanked
+    const Pt = kit.dress && kit.dress.portal, isPortal = Pt && Pt.side === side && !cuts.length && F.len > Pt.width + 4;
+    const lines = isPortal ? [0, (F.len - Pt.width) / 2, (F.len + Pt.width) / 2, F.len] : [...Array(Math.max(1, Math.round(F.len / kit.bay)) + 1)].map((_, k, a) => (F.len * k) / (a.length - 1));
+    const n = lines.length - 1;
     for (let k = 0; k < n; k++) {
-      const u0 = (F.len * k) / n, u1 = (F.len * (k + 1)) / n;
+      const u0 = lines[k], u1 = lines[k + 1];
       if (cuts.some(([c0, c1]) => c1 > u0 && c0 < u1)) { flatWall(u0, u1); continue; }
+      if (isPortal && k === 1) {
+        // the scale break: the great door, an oculus in the wall above it
+        const a = u0 + col.r + ar.margin, b = u1 - col.r - ar.margin, zs = h * Pt.spring, H = (b - a) * Pt.rise, top = h - kit.cornice.h;
+        const apex = zs + Math.max(H, (b - a) / 2), O = Pt.oculus, S = Math.min((top - apex - 0.4) / 2, O.R + 0.6), zO = apex + 0.25 + S, mid = (u0 + u1) / 2;
+        portal(out, F, { u0, u1, z0: 0, z1: zO - S, a, b, zs, H, seg: Pt.seg, orders: Pt.orders, step: Pt.step, depth: Pt.depth, hood: Pt.hood, hoodOut: Pt.hoodOut, bands: Pt.bands },
+          { wall: sf.wall, trim: sf.trim, door: { key: Pt.door.key, scale: Pt.door.scale, tint: Pt.door.tint, group: 'stage:door', cell: 1 }, iron: Pt.iron });
+        oculus(out, F, { u: mid, z: zO, R: Math.min(O.R, S - 0.25), S, sides: O.sides, depth: O.depth, ring: O.ring }, sf, glass);
+        panel(out, onWall(F, u0, 0, zO - S), F.U, mid - S - u0, [0, 0, 1], 2 * S, F.N, sf.wall, sf.wall.cell);
+        panel(out, onWall(F, mid + S, 0, zO - S), F.U, u1 - mid - S, [0, 0, 1], 2 * S, F.N, sf.wall, sf.wall.cell);
+        panel(out, onWall(F, u0, 0, zO + S), F.U, u1 - u0, [0, 0, 1], h - zO - S, F.N, sf.wall, sf.wall.cell);
+        seats.push({ at: P(onWall(F, mid, ln.light.off, zO)), n: F.N, color: ln.light.color, intensity: ln.light.intensity, radius: ln.light.radius, fixture: 'window' });
+        dressBays.push({ F, side, k, u0, u1, portal: true, apex });
+        continue;
+      }
       const a = u0 + col.r + ar.margin, b = u1 - col.r - ar.margin, z0 = kit.plinth.h;
       const zs = Math.max(z0 + 1.6, h * ar.spring), H = (b - a) * ar.rise;
       const apex = archedOpening(out, F, { u0, u1, z0, z1: zs + Math.max(H, (b - a) / 2) + st.gap, a, b, zs, H, seg: ar.seg, depth: ar.depth, ring: ar.ring, ringOut: ar.ringOut }, sf);
@@ -197,17 +234,19 @@ export function buildStageGeometry(plan) {
       // the clerestory lancet, if the wall is tall enough to hold one under the cornice
       const mid = (u0 + u1) / 2, la = mid - ln.w / 2, lb = mid + ln.w / 2, sill = zS + st.h + ln.sill, H2 = ln.w * ln.rise;
       const zs2 = h - kit.cornice.h - 0.35 - H2;
-      if (zs2 - sill < 0.8) { panel(out, onWall(F, u0, 0, zS), F.U, u1 - u0, [0, 0, 1], h - zS, F.N, sf.wall, sf.wall.cell); continue; }
+      if (zs2 - sill < 0.8) { panel(out, onWall(F, u0, 0, zS), F.U, u1 - u0, [0, 0, 1], h - zS, F.N, sf.wall, sf.wall.cell); dressBays.push({ F, side, k, u0, u1, a, b, zs, apex, zS }); continue; }
       panel(out, onWall(F, u0, 0, zS), F.U, u1 - u0, [0, 0, 1], sill - zS, F.N, sf.wall, sf.wall.cell);
       archedOpening(out, F, { u0, u1, z0: sill, z1: h, a: la, b: lb, zs: zs2, H: H2, seg: ln.seg, depth: ln.depth, ring: 0.12, ringOut: 0.08 }, sf, { glass });
       seats.push({ at: P(onWall(F, mid, ln.light.off, (sill + zs2 + H2) / 2)), n: F.N, color: ln.light.color, intensity: ln.light.intensity, radius: ln.light.radius, fixture: 'window' });
+      dressBays.push({ F, side, k, u0, u1, a, b, zs, apex, zS, lancet: { mid, z: (sill + zs2 + H2) / 2, w: ln.w, sill, top: zs2 + H2 } });
     }
-    // columns at every bay line, corners included; torches on every other interior one
+    // columns at every bay line, corners included; torches on every other interior one (a portal's flank both)
     for (let k = 0; k <= n; k++) {
-      const u = (F.len * k) / n;
+      const u = lines[k];
       if (cuts.some(([c0, c1]) => u > c0 - kit.door.frame - col.r && u < c1 + kit.door.frame + col.r)) continue;
       engagedColumn(out, F, u, { ...col, z0: kit.plinth.h, top: h - kit.cornice.h, gutterDepth: kit.gutter.depth }, sf.trim);
-      if (k > 0 && k < n && k % kit.torch.every === 1) seats.push({ at: P(onWall(F, u, col.embed + col.r + kit.torch.out, kit.torch.z)), n: F.N });
+      if (k > 0 && k < n && (isPortal || k % kit.torch.every === 1)) seats.push({ at: P(onWall(F, u, col.embed + col.r + kit.torch.out, kit.torch.z)), n: F.N });
+      columns.push({ F, side, u, top: h - kit.cornice.h });
     }
   };
   plan.rooms.forEach((r, ri) => {
@@ -230,7 +269,8 @@ export function buildStageGeometry(plan) {
     }
     if (nave) {
       const alongY = d >= w, ends = (alongY ? ['-y', '+y'] : ['-x', '+x']).filter((e) => !r.open.includes(e));
-      naveVault(out, r, { ...kit.vault, bay: kit.bay, ends }, { ceiling: surf('ceiling', ri), trim: surf('trim'), wall: surf('wall', ri * 4) });
+      const cs = surf('ceiling', ri);
+      naveVault(out, r, { ...kit.vault, bay: kit.bay, ends }, { ceiling: kit.dress ? { ...cs, ...kit.dress.vault } : cs, trim: surf('trim'), wall: surf('wall', ri * 4) });
     } else {
       const cs = surf('ceiling', ri);
       panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, [0, 0, -1], cs, cs.cell);
@@ -246,7 +286,7 @@ export function buildStageGeometry(plan) {
         for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, wallS, cell);
       };
       if (!nave) flatWall(0, F.len);
-      else naveWall(F, cuts, flatWall, { wall: wallS, trim }, h);
+      else naveWall(F, cuts, flatWall, { wall: wallS, trim }, h, s);
       // plinth + cornice runs, broken at doorways (by the frame's width)
       for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, trim, cell);
       wallBox(out, F, 0, F.len, h - kit.cornice.h, h, kit.cornice.out, trim, cell, true);
@@ -311,7 +351,7 @@ export function buildStageGeometry(plan) {
     panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
-  return { faces: out, seats, drains };
+  return { faces: out, seats, drains, bays: dressBays, columns };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -429,8 +469,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
   const plan = planStage(manifest);
-  const { faces: shell, seats, drains } = buildStageGeometry(plan);
-  const raw = [...shell, ...stageRubble(plan, drains)];
+  const geom = buildStageGeometry(plan), { seats, drains } = geom;
+  // a face with no tile (the portal's iron) carries its tint only
+  const shell = geom.faces.map((f) => (f.texture === null ? (({ texture, textureLit, uv, ...g }) => g)(f) : f));
+  // the kit's DRESSING (nave.js): cutouts, the blends over the shell, shafts and the pools they land as
+  const dress = plan.kit.dress ? naveDress(plan, geom) : null;
+  const raw = [...shell, ...stageRubble(plan, drains), ...(dress ? [...dress.cutouts, ...naveBlends(plan, shell)] : [])];
   const lights = resolveStageLights(plan, seats);
   const key = plan.ref.light.key, daylight = plan.kit.sun && key;
   const sun = daylight ? (() => {
@@ -441,7 +485,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
+    : bakeStageLight(raw, dress ? [...lights, ...dress.pools] : lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
   const fixtures = lights.filter((l) => l.fixture === 'torch').flatMap(torchFaces);
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
@@ -456,8 +500,11 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const lookAt = !look ? [(r0.x0 + r0.x1) / 2, r0.y1, 1.8]
     : plan.links[0].wall.endsWith('y') ? [look[0], look[1], 1.8] : [look[1], look[0], 1.8];
   const air = plan.ref.air;
+  const faces = [...lit, ...fixtures, ...(dress ? dress.shafts : [])];
+  const cutouts = [...new Set(faces.filter((f) => typeof f.texture === 'string' && f.texture.startsWith('card:')).map((f) => f.texture))].sort();
   return {
-    faces: [...lit, ...fixtures],
+    faces,
+    ...(cutouts.length ? { cutouts } : {}),
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },

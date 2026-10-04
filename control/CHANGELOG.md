@@ -136,6 +136,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     of instanced tufts, so they take the scene's light and shade. The sun falls through the cards' gaps.
   - The ground is never flat: mounds and hollows at three scales, and a bank either side of the trail. Roots
     surface in pieces instead of running as rails, and the trail's stones are its own rock.
+- The `gothic-nave` kit is dressed to a style card (`lib/graph/era/style/gothic-nave.js`, dressing in
+  `lib/graph/era/nave.js`), with a check for each principle:
+  - Light leads, measured: glass > torchlit stone > the shafts' pools > the open floor > the vault. The vault's
+    stone is darker than the shell's ceiling.
+  - Each clerestory lancet facing the light throws a shaft across the nave as soft translucent sheets. Where it
+    lands, a pool of light is baked into the floor. Pools are not exported as lights and leave no soot.
+  - Two-tile blends by cause: moss (`floor:moss`) rises up the wall bases and fills the gutter. Grime
+    (`floor:grime`, new; `lib/graph/era/floor-tiles.js` now holds the stage's painted tiles) gathers at the floor's edges and is worn off the walking line.
+  - Painted cutouts, each placed for a reason: ivy spills from the string course, cobwebs sit in the angle
+    between column and wall at the plinth and at the arcade's springing, and banners hang in alternate bays
+    from iron rods. No two neighbouring bays are both bare.
+  - A scale break at the focus: the end wall holds a great door (`portal` in `lib/graph/era/gothic.js`) in
+    three stepped orders under a hood moulding, with an oak leaf banded in iron. It rises half again the
+    arcade's height, with an oculus (`oculus`) above it and a torch on each flank.
+  - The ceiling is its own material: the vault's web is plaster painted night-blue with gilt stars
+    (`vault:stars`), flaked where damp has lifted it, between the stone ribs.
+  - The floor is not the walls' grid: a runner of hexagonal tiles (`floor:hex`) down the walking line between
+    slate kerbs, and irregular flags with no two alike (`floor:incertum`, opus incertum) either side.
+  `gothic-stone` and `delfino-plaza` are unchanged.
 - `card` and `crossed` (one painted card, and cards crossed about a vertical axis) move to
   `lib/graph/era/geom.js`, and `dice` is exported from `lib/graph/era/nature.js`, shared by the trail and the
   jungle. The jungle's output is unchanged.
@@ -144,7 +163,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   flickering. This is the era's two-tile vertex blend. Worlds without blend faces are unchanged.
 - Leaf cards (`lib/graph/era/leaf-cards.js`): painted RGBA leaf textures (`card:broadleaf`, `card:fern`,
   `card:spray`, `card:vine`, `card:litter`, `card:roots`, `card:bamboo`, `card:grass`, `card:bough`,
-  `card:meadow`), resolved through the surface-texture registry. New
+  `card:meadow`, `card:ivy`, `card:cobweb`, `card:banner`), resolved through the surface-texture registry. New
   `encodePngRgba` in `lib/graph/landscape/surface-textures.js`.
 - `emitThreeWorld` takes `cutouts`, a list of texture keys whose alpha is cut out (alpha-tested). Those
   surfaces drop their clear texels, including from the depth pass, and are not walk colliders, so foliage

@@ -14,6 +14,10 @@
  *   card:bough      a spruce bough from its base (bottom) to its tip (top): a main shoot, side shoots swept to the tip,
  *                   every shoot a comb of short dark needles, the lower combs hanging; blue-dark, lit at the tips
  *   card:meadow     a meadow tuft: many fine blades from one crown, green into straw, a few seed stalks above
+ * and the cutouts a building wears, painted the same way:
+ *   card:ivy        ivy cascading from the top edge: wandering stems hung with small lobed leaves, ragged at the foot
+ *   card:cobweb     a web strung across a corner (its anchor at the bottom left): radial threads and a spiral, grey
+ *   card:banner     a hanging cloth banner: crimson, a gold border and sigil, folds, a torn and holed foot
  *
  * `cardTexture(key)` → data:image/png (registered as the `card:` texture resolver); `cardMask(key)` → { W, H, a } the
  * alpha the sun bake reads, so light through a canopy card falls in the card's own holes. Deterministic: mulberry32 dice
@@ -196,6 +200,55 @@ const PAINTERS = {
       const x0 = base[0] + (R() - 0.5) * SIZE * 0.3, top = [x0 + (R() - 0.5) * SIZE * 0.25, SIZE * (0.04 + 0.12 * R())];
       stem(cv, [[x0, base[1]], [(x0 + top[0]) / 2, (base[1] + top[1]) / 2], top], 0.9, [150, 140, 92]);
       for (let k = 0; k < 6; k++) leaf(cv, { bx: top[0] + (R() - 0.5) * 3, by: top[1] + k * 5, ang: -Math.PI / 2 + (R() - 0.5) * 0.8, len: 9, wid: 3.4, shape: 'lance', col: [164, 150, 98], dark: 0.1, veins: 1 });
+    }
+  },
+  ivy(cv, R) {
+    // stems wander down from the top edge, each hung with ivy leaves (three to five lobes, dark and glossy)
+    const DARK = [[34, 52, 30], [44, 64, 34], [52, 72, 40], [40, 58, 36]];
+    const ivyLeaf = (x, y, s, col, dark) => {
+      for (const [da, k] of [[0, 1], [-0.9, 0.7], [0.9, 0.7], [-1.7, 0.45], [1.7, 0.45]]) leaf(cv, { bx: x, by: y, ang: Math.PI / 2 + da + (R() - 0.5) * 0.3, len: s * k, wid: s * k * 0.75, shape: 'ovate', col, dark, veins: 3 });
+    };
+    for (let i = 0; i < 15; i++) {
+      const x0 = 10 + R() * (SIZE - 20), len = SIZE * (0.45 + 0.55 * R()), pts = [];
+      for (let k = 0; k <= 16; k++) { const t = k / 16; pts.push([x0 + 14 * Math.sin(t * 5 + i) + 8 * (R() - 0.5), t * len]); }
+      stem(cv, pts, 1.1, [72, 60, 44]);
+      for (let k = 1; k <= 16; k++) { const [x, y] = pts[k], t = k / 16; if (R() < 0.85) ivyLeaf(x + (R() - 0.5) * 14, y, SIZE * (0.05 + 0.04 * R()) * (1 - 0.35 * t), DARK[(R() * 4) | 0], i % 3 === 0 ? 0.5 : 0.15 * R()); }
+    }
+    for (let i = 0; i < 40; i++) ivyLeaf(R() * SIZE, R() * SIZE * 0.3, SIZE * (0.05 + 0.04 * R()), DARK[(R() * 4) | 0], 0.3 * R());   // the mass at the top edge
+  },
+  cobweb(cv, R) {
+    // anchored in the corner at the bottom left (uv 0,0): radial threads fanning across the quarter, a spiral strung on
+    // them, sagging; one torn sector
+    const thread = (x0, y0, x1, y1, a) => {
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
+      for (let k = 0; k <= n; k++) {
+        const x = Math.round(x0 + ((x1 - x0) * k) / n), y = Math.round(y0 + ((y1 - y0) * k) / n);
+        if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) continue;
+        const o = (y * SIZE + x) * 4; cv.px[o] = 196; cv.px[o + 1] = 198; cv.px[o + 2] = 204; cv.px[o + 3] = Math.max(cv.px[o + 3], a);
+      }
+    };
+    const O = [2, SIZE - 3], spokes = 9, torn = 3 + ((R() * 4) | 0), ang = (k) => -((Math.PI / 2) * k) / (spokes - 1);
+    for (let k = 0; k < spokes; k++) { const L = SIZE * (0.92 + 0.06 * R()); thread(O[0], O[1], O[0] + Math.cos(ang(k)) * L, O[1] + Math.sin(ang(k)) * L, 255); }
+    for (let r = 14; r < SIZE * 0.9; r += 9 + R() * 5) for (let k = 0; k + 1 < spokes; k++) {
+      if (k === torn && r > SIZE * 0.35) continue;
+      const sag = (r / SIZE) * 6, a0 = ang(k), a1 = ang(k + 1), m = (a0 + a1) / 2;
+      const p0 = [O[0] + Math.cos(a0) * r, O[1] + Math.sin(a0) * r], p1 = [O[0] + Math.cos(m) * (r - sag), O[1] + Math.sin(m) * (r - sag)], p2 = [O[0] + Math.cos(a1) * r, O[1] + Math.sin(a1) * r];
+      thread(...p0, ...p1, 255); thread(...p1, ...p2, 255);
+    }
+  },
+  banner(cv, R) {
+    // cloth from x 0.2 to 0.8 of the card, hanging from the top: crimson with vertical folds, a gold border, a gold
+    // sigil (a ring round a lozenge), and a swallowtail foot torn and holed
+    const x0 = SIZE * 0.2, x1 = SIZE * 0.8, w = x1 - x0, foot = (x) => { const t = (x - x0) / w; return SIZE * (0.84 + 0.12 * Math.abs(t - 0.5) * 2) + 7 * Math.sin(x * 0.6) * R(); };
+    const holes = [...Array(5)].map(() => [x0 + w * R(), SIZE * (0.55 + 0.4 * R()), 2 + 5 * R()]);
+    for (let y = 0; y < SIZE; y++) for (let x = Math.ceil(x0); x < x1; x++) {
+      if (y > foot(x) || holes.some(([hx, hy, hr]) => Math.hypot(x - hx, y - hy) < hr)) continue;
+      const t = (x - x0) / w, fold = 0.78 + 0.22 * Math.cos(t * Math.PI * 7 + 0.6) * (0.6 + 0.4 * (y / SIZE)), wear = 0.88 + 0.12 * R();
+      const edge = Math.min(x - x0, x1 - x), border = edge > 7 && edge < 14 || (y > 8 && y < 15);
+      const dx = x - SIZE / 2, dy = y - SIZE * 0.42, rr = Math.hypot(dx, dy);
+      const sigil = (rr > 34 && rr < 41) || Math.abs(dx) / 22 + Math.abs(dy) / 34 < 1 && Math.abs(dx) / 22 + Math.abs(dy) / 34 > 0.7;
+      const col = border || sigil ? [176, 138, 62] : [118, 26, 30], k = fold * wear * (y > foot(x) - 6 ? 0.7 : 1);
+      const o = (y * SIZE + x) * 4; cv.px[o] = clamp(col[0] * k); cv.px[o + 1] = clamp(col[1] * k); cv.px[o + 2] = clamp(col[2] * k); cv.px[o + 3] = 255;
     }
   },
   litter(cv, R) {

@@ -8,6 +8,8 @@
  *   archBay(out, F, bay, kit, …)     → one wall bay: a blind arcade arch below, a string course, a lancet above
  *   engagedColumn(out, F, u, …)       → a half-column on the wall at u: base, shaft, capital
  *   naveVault(out, r, axis, kit, …)  → the vault over a room, transverse ribs at each bay, a ridge rib, lunettes
+ *   portal(out, F, …)                → a great door in stepped orders under a hood moulding: a nave's scale break
+ *   oculus(out, F, …)                → a round window with its reveal and ring
  *
  * Every face is a textured quad (geom.js `quad`/`panel`), lit and dirtied by the stage like the rest of the shell.
  */
@@ -173,4 +175,73 @@ export function naveVault(out, r, { rise, seg, bay, rib, ends = [] }, surf) {
     }
   }
   return { sec, alongY, H };
+}
+
+/**
+ * A GREAT PORTAL in wall F over [a, b]: the scale break at a nave's focus. Its arch springs at zs with rise H and
+ * steps back in `orders`: each order is a reveal and soffit `depth` deep, then a flat step `step` wide facing the room,
+ * so the opening narrows and recedes like a cathedral's west door. A hood moulding stands proud round the outer order;
+ * the door leaf (`door` surface) fills the innermost order, banded with iron (`iron` tint). Emits the wall round the
+ * portal over [u0, u1] × [z0, z1] too. → the apex height.
+ */
+export function portal(out, F, { u0, u1, z0, z1, a, b, zs, H, seg = 10, orders = 3, step = 0.3, depth = 0.35, hood = 0.3, hoodOut = 0.18, bands = 3 }, surf) {
+  const wallS = surf.wall, trimS = surf.trim, doorS = surf.door;
+  const outline = (i) => pointedArch(a + i * step, b - i * step, zs, H - i * step, seg);
+  const O0 = outline(0), apex = O0[seg / 2].z;
+  // the wall round the outer order (jambs, the strips over the curve, the band above)
+  panel(out, W(F, u0, z0), F.U, a - u0, Z, apex - z0, F.N, wallS, wallS.cell);
+  panel(out, W(F, b, z0), F.U, u1 - b, Z, apex - z0, F.N, wallS, wallS.cell);
+  for (let i = 0; i < seg; i++) { const p = O0[i], q = O0[i + 1]; quad(out, [W(F, p.u, p.z), W(F, q.u, q.z), W(F, q.u, apex), W(F, p.u, apex)], F.N, wallS, F.U, Z); }
+  if (z1 > apex) panel(out, W(F, u0, apex), F.U, u1 - u0, Z, z1 - apex, F.N, wallS, wallS.cell);
+  // each order: the reveal and soffit along its outline from its depth to the next, then the step face to the next outline
+  for (let o = 0; o < orders; o++) {
+    const O = outline(o), N1 = outline(o + 1), d0 = -o * depth, d1 = -(o + 1) * depth;
+    const jamb = (u, sgn) => quad(out, [W(F, u, z0, d0), W(F, u, zs, d0), W(F, u, zs, d1), W(F, u, z0, d1)], P(mul(F.U, sgn)), trimS, F.N, Z);
+    jamb(O[0].u, 1); jamb(O[seg].u, -1);
+    for (let i = 0; i < seg; i++) {
+      const p = O[i], q = O[i + 1], n = wallN(F, (p.n[0] + q.n[0]) / 2, (p.n[1] + q.n[1]) / 2);
+      quad(out, [W(F, p.u, p.z, d0), W(F, q.u, q.z, d0), W(F, q.u, q.z, d1), W(F, p.u, p.z, d1)], n, trimS, F.U, Z);
+    }
+    // the step: the band between this outline and the next, facing the room, down both jambs and round the head
+    quad(out, [W(F, O[0].u, z0, d1), W(F, N1[0].u, z0, d1), W(F, N1[0].u, zs, d1), W(F, O[0].u, zs, d1)], F.N, trimS, F.U, Z);
+    quad(out, [W(F, N1[seg].u, z0, d1), W(F, O[seg].u, z0, d1), W(F, O[seg].u, zs, d1), W(F, N1[seg].u, zs, d1)], F.N, trimS, F.U, Z);
+    for (let i = 0; i < seg; i++) quad(out, [W(F, O[i].u, O[i].z, d1), W(F, O[i + 1].u, O[i + 1].z, d1), W(F, N1[i + 1].u, N1[i + 1].z, d1), W(F, N1[i].u, N1[i].z, d1)], F.N, trimS, F.U, Z);
+  }
+  // the door leaf in the innermost outline, a little behind its step; iron bands across it
+  const I = outline(orders), dd = -orders * depth - 0.06, back = (u, z) => W(F, u, z, dd);
+  quad(out, [back(I[0].u, z0), back(I[seg].u, z0), back(I[seg].u, zs), back(I[0].u, zs)], F.N, doorS, F.U, Z);
+  for (let i = 0; i < seg; i++) quad(out, [back(I[i].u, zs), back(I[i + 1].u, zs), back(I[i + 1].u, I[i + 1].z), back(I[i].u, I[i].z)], F.N, doorS, F.U, Z);
+  const mid = (I[0].u + I[seg].u) / 2;
+  const iron = { ...doorS, key: null, tint: surf.iron, group: 'stage:iron' };
+  wallBox(out, F, mid - 0.05, mid + 0.05, z0, I[seg / 2].z - 0.3, dd + 0.05, iron, 1, true);   // the meeting stile
+  for (let k = 1; k <= bands; k++) {
+    const z = z0 + ((zs - z0) * k) / (bands + 0.6);
+    wallBox(out, F, I[0].u, I[seg].u, z, z + 0.12, dd + 0.05, iron, 1, true);
+  }
+  // the hood moulding round the outer order, standing proud
+  const Ho = pointedArch(a - hood, b + hood, zs, H + hood, seg);
+  for (let i = 0; i < seg; i++) {
+    const p = O0[i], q = O0[i + 1], po = Ho[i], qo = Ho[i + 1];
+    quad(out, [W(F, p.u, p.z, hoodOut), W(F, q.u, q.z, hoodOut), W(F, qo.u, qo.z, hoodOut), W(F, po.u, po.z, hoodOut)], F.N, trimS, F.U, Z);
+    quad(out, [W(F, p.u, p.z), W(F, q.u, q.z), W(F, q.u, q.z, hoodOut), W(F, p.u, p.z, hoodOut)], wallN(F, (p.n[0] + q.n[0]) / 2, (p.n[1] + q.n[1]) / 2, 0.4), trimS, F.U, Z);
+    quad(out, [W(F, po.u, po.z, hoodOut), W(F, qo.u, qo.z, hoodOut), W(F, qo.u, qo.z), W(F, po.u, po.z)], wallN(F, -(p.n[0] + q.n[0]) / 2, -(p.n[1] + q.n[1]) / 2, 0.4), trimS, F.U, Z);
+  }
+  for (const [x0, x1] of [[a - hood, a], [b, b + hood]]) wallBox(out, F, x0, x1, z0, zs, hoodOut, trimS, trimS.cell);
+  return apex;
+}
+
+/** An OCULUS: a round window of `sides` in wall F centred at (u, z), radius R, its glass `depth` back and a ring
+ *  `ring` wide standing `ringOut` proud. The wall round it (a square u±S, z±S) is emitted too. */
+export function oculus(out, F, { u, z, R, S, sides = 12, depth = 0.4, ring = 0.2, ringOut = 0.12 }, surf, glass) {
+  const wallS = surf.wall, trimS = surf.trim;
+  const pt = (k, r, off = 0) => { const t = (2 * Math.PI * k) / sides; return W(F, u + Math.cos(t) * r, z + Math.sin(t) * r, off); };
+  const corner = (k) => { const t = (2 * Math.PI * k) / sides, c = Math.cos(t), s = Math.sin(t), m = Math.max(Math.abs(c), Math.abs(s)); return W(F, u + (c / m) * S, z + (s / m) * S); };
+  for (let k = 0; k < sides; k++) {
+    quad(out, [pt(k, R), pt(k + 1, R), corner(k + 1), corner(k)], F.N, wallS, F.U, Z);                              // the wall round it
+    const tm = (2 * Math.PI * (k + 0.5)) / sides, n = wallN(F, -Math.cos(tm), -Math.sin(tm));
+    quad(out, [pt(k, R), pt(k + 1, R), pt(k + 1, R, -depth), pt(k, R, -depth)], n, trimS, F.U, Z);                // the reveal
+    quad(out, [pt(k, R, ringOut), pt(k + 1, R, ringOut), pt(k + 1, R + ring, ringOut), pt(k, R + ring, ringOut)], F.N, trimS, F.U, Z);   // the ring's face
+    quad(out, [pt(k, R), pt(k + 1, R), pt(k + 1, R, ringOut), pt(k, R, ringOut)], n, trimS, F.U, Z);
+    out.push({ corners: [W(F, u, z, -depth), pt(k, R, -depth), pt(k + 1, R, -depth), W(F, u, z, -depth)].map(P), normal: F.N, outNormal: F.N, ...glass });
+  }
 }
