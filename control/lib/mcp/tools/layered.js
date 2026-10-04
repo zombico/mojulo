@@ -40,6 +40,7 @@ import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
+import { coreMeasures, coreAdvice } from '@/lib/graph/polygonizer/hero-core-measures';
 import { heroPlan, planScale, castOf, HERO_CASTS, HERO_CORES, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
@@ -452,6 +453,11 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(anime ? [...animeFaceWarnings(animeFace, headPoleOf(hero), { sculpt: eff.sculpt }), ...animeSculptWarnings(eff.sculpt), ...(hero.look?.length ? [] : inc?.faceMeasures?.features?.advice ?? []), ...(hair.style === 'none' ? [] : animeHairWarnings(hair, { words: eff.hairWords })), ...animeExpressionWarnings(animeExpression), ...animeCoverageWarnings(inc?.hairCoverage)] : []), ...extraWarnings];
   const dress = dressReadout(hero, plan, dressMesh, recipe);
   const stand = gestureReadout(hero, mesh, recipe); warnings.push(...gestureWarnings(stand, stats?.layered?.dials));
+  // the midsection measured (hero-core-measures.js) for the design loop's critic; its advice joins the warnings only on
+  // the structured core (the bands are what it opted into), so every other hero's warnings stay as they were
+  const coreM = coreMeasures(plan, mesh), coreBody = castOf(hero.cast, hero.proportions ?? (anime ? 'anime' : 'hero'))?.silhouette === 'female' ? 'female' : 'male';
+  const core = coreM ? { core: hero.core ?? 'streamlined', body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody) } : null;
+  if (core && hero.core === 'structured') warnings.push(...core.advice);
   const clips = clipsReadout(hero, recipe);
   const budget = heroBudget(plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);
@@ -473,6 +479,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     evidence: heroEvidence(hero),
     ...(dress ? { dress } : {}),
     ...(stand ? { gesture: stand } : {}),
+    ...(core ? { core } : {}),
     ...(clips ? { clips } : {}),
     ...(hero.gear && recipe?.rig ? { gear: (() => { const R = validateRig(recipe.rig); const out = gearReadout(gearMounts(hero, R), R); const sw = heroSwing(hero, { expand: expandEquipment, gearBuild });
       // the swing's contact data for a game's hit test (the clip never reads it): the impact's phase, the window, the reach

@@ -816,11 +816,11 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
   });
 });
 
-// the door around the new channels: the non-anime readout's keys (it gains only the budget), the dress ledgers read at
+// the door around the new channels: the non-anime readout's keys (it gains the budget and the midsection's `core`), the dress ledgers read at
 // rest whatever dial the mint turned, and the character light's toon fields — the anime hero's outline opt-out kept at
 // the door, an invalid light refused by field at the door and on a /toon edit.
 describe('the hero door: readouts and the character light fields', () => {
-  it('the non-anime readout keys: the old set plus `budget`', async () => {
+  it('the non-anime readout keys: the old set plus `budget` and `core` (the midsection, hero-core-measures.js)', async () => {
     const keys = {
       landmark: [{ cast: 'male' }, ['cast', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune']],
       none: [{ cast: 'female', head: 'none' }, ['cast', 'evidence', 'head', 'measures', 'moved', 'register', 'tune']],
@@ -828,9 +828,9 @@ describe('the hero door: readouts and the character light fields', () => {
     };
     for (const [k, [spec, before]] of Object.entries(keys)) {
       const out = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: `keys-${k}`, spec });
-      expect(Object.keys(out.hero).sort(), k).toEqual([...before, 'budget'].sort());
+      expect(Object.keys(out.hero).sort(), k).toEqual([...before, 'budget', 'core'].sort());
       const ed = await updateSketchHandler({ ref: `keys-${k}`, patch: [{ op: 'set', path: '/hero/tune/limbs', value: 1.1 }] });
-      expect(Object.keys(ed.stats.hero).sort(), `${k} edit`).toEqual([...before, 'budget'].sort());
+      expect(Object.keys(ed.stats.hero).sort(), `${k} edit`).toEqual([...before, 'budget', 'core'].sort());
     }
   });
   it('a dressed hero minted with a dial: the dress ledgers read the figure at rest, as without the dial', async () => {

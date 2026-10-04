@@ -156,3 +156,27 @@ describe('the pelvis mesh: one hip curve, no pouch, no shelf', () => {
     expect([...bones].sort()).toEqual(['lumbar', 'pelvis']);
   });
 });
+
+describe('core measures: what the critic reads', () => {
+  it('every structured body measures in band; the streamlined female is told what core structured fixes', async () => {
+    const { coreMeasures, coreAdvice } = await import('./hero-core-measures.js');
+    for (const opts of [{ cast: 'male' }, { cast: 'female' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', proportions: 'anime' }]) {
+      const plan = heroPlan({ ...opts, core: 'structured' }), m = coreMeasures(plan, compileLayered(expandPlan(plan)));
+      expect(coreAdvice(m, opts.cast), JSON.stringify({ opts, m })).toEqual([]);
+      expect(m.legs).toBe('converge'); expect(m.pouch_m).toBeLessThan(0.004);
+    }
+    const plan = heroPlan({ cast: 'female', proportions: 'anime' }), m = coreMeasures(plan, compileLayered(expandPlan(plan)));
+    expect(m.legs).toBe('splay'); expect(m.seat_m).toBeLessThan(0.015);
+    const advice = coreAdvice(m, 'female').join('\n');
+    for (const said of ['not at the trochanter', 'the seat is flat', 'the front bulges below the belly', 'the knees stand wider']) expect(advice).toContain(said);
+    expect(advice.match(/core 'structured'/g).length).toBeGreaterThanOrEqual(4);
+  });
+  it('the readout carries the core for every hero; its advice joins the warnings only on the structured core', async () => {
+    const { heroRecord, heroPlanOf, heroReadout } = await import('../../mcp/tools/layered.js');
+    const read = (spec) => { const hero = heroRecord(spec), plan = heroPlanOf(hero), recipe = expandPlan(plan), mesh = compileLayered(recipe); return heroReadout(hero, plan, null, [], { mesh, recipe }); };
+    const old = read({ cast: 'female', head: 'anime' }), now = read({ cast: 'female', head: 'anime', core: 'structured' });
+    expect(old.core.core).toBe('streamlined'); expect(old.core.advice.length).toBeGreaterThan(0);
+    expect((old.warnings || []).some((w) => w.startsWith('core:'))).toBe(false);
+    expect(now.core).toMatchObject({ core: 'structured', body: 'female', legs: 'converge', advice: [] });
+  });
+});

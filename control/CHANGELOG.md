@@ -36,8 +36,11 @@ bullet is rewritten as its phase lands.
   crotch, the thighs meet under it, and the thigh comes out of the pelvis along the groin's diagonal. Gone: the corner
   and pinch at the side of the female hip, the front standing proud of the belly, the shelf at the hem, the step at the
   knee, and the flat seat.
-- **Core measures.** Waist to hip, glute depth and the midline's continuity in the readout, with bands per cast, for the
-  design loop's critic. `render-pelvic-overlay.mjs` draws the vajra core over the hero mesh before and after.
+- **Core measures.** Every hero's readout carries `core`: the waist to hip, where the hip peaks, the seat, how far the
+  front falls below the waist, any pouch, the largest step in the outline, and whether the legs converge, with advice
+  against bands per body that names the word to move. On the structured core the advice is a warning; on other heroes it
+  stays in `core.advice`, so their warnings are unchanged. The design loop's critic reads it. `render-pelvic-overlay.mjs`
+  draws the vajra core over the hero mesh before and after.
 
 ## [3.0.0] - 2026-10-01
 
