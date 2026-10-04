@@ -112,7 +112,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   meaning; `push: { slot: [dx, dy, dz] }` moves a right-half or midline slot off the ring, the left mirrored) | { name, kind:
   'segment', from, to, rA, rB, e?, over?, mirror: 'plane' | 'name', bind: { bone, prev?, next? } } | { name, kind:
   'chain', joints, r, over?, bind: { root } } | { name, kind: 'loft', stations: [{ at, r, e? }], caps?, mirror, bind } (explicit stations
-  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest) ], details: [{ name, kind: 'claw', base, dir, length, radius, pin,
+  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest) | { name, kind: 'rings', slots, stations:
+  [{ id?, points: { slot: [x, y, z] } }], caps, mirror: 'name', bind } (rings given point by point, every slot of the family
+  in loop order: a layer that hugs another part's surface, a muscle over the chest; `ring20` a fine family for one) ]; any segment may name `slotT` (each
+  right-half and midline slot's address parameter, rising from 0: a denser ring addressed on a sparser one's scale),
+  `bandGroups: { '<station>-<station>': [a group per right-half band] }` and `capGroups: { back?, tip? }`; a point's blend
+  `station.slot` mirrors with its slot, details: [{ name, kind: 'claw', base, dir, length, radius, pin,
   stretch?, mirror? }], heads: [{ name, plan, expression?, on: <joint> | shift, bind? }] (a detailed head as DATA, schema
   `layered-head-v1`: station tables, refine ops, skin maps by landmark, eye and regions, ornaments `sweep` /
   `teeth` / `disc`, midline pins; expanded at a preset expression (neutral, pant, flick, surprise, snarl) or
@@ -295,9 +300,17 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   diagonal. Its TORSO is built on the vajra rib cage: a waist above the hem, the ribs widening to a lifted chest, the male's
   back widest under the arms, the shoulder ring over the arm's cap and a trapezius ring sloping to the neck; the new rings
   sit at fractional `u` between the five the dress addresses, so torso `s` 0 … 4 and a collar's station mean what they did.
-  The adult female carries a BUST by default (`body.bust` from 0.27 of the chest; 0 for none): pushed out of her chest
-  rings, not mounds of its own, with a bone each (`bustR`, `bustL`, riding the torso) owning those points for an engine's
-  spring; a child-coded figure never does. The readout's `core` measures the midsection on every hero (waist to hip, where the hip peaks, the seat, the
+  On the round register the torso and pelvis take ring12 addressed on ring8's scale (`slotT`), so every `t` lands where it
+  did, and carry the forms a silhouette is marked by, pushed into their rings: the rectus and the navel's ring, the
+  waist's taper, the lats, the scapulae and the spine groove, the clavicle and the jugular notch, the female's deeper waist
+  and lower back, the seat's two masses and cleft on the pelvis. Over the rib cage lie the CHEST LAYERS, each its own part
+  (`rings`, sampled off the torso so it hugs it): a PECTORAL per side (`pectoralR` / `pectoralL`, the lower border the most
+  proud, the pair meeting at the sternum, the armpit end a share of the arm) and over it, on a figure with a bust, a
+  BREAST per side (`bustR` / `bustL`, a bone each riding the torso for an engine's spring), sampled from the BREAST FIELD
+  (`breast-field.js`: its height over the chest a function of the chest coordinate about the apex, the footprint and the
+  poles' profiles as anatomy words, `breastGates` measuring the poles' split, the fold, the upper line, the lower pole,
+  the margins and the one peak). A bare belly (the swimsuit's, an adult's) carries a navel. The adult female carries a bust by default
+  (`body.bust` from 0.27 of the chest; 0 for none); a child-coded figure never does. The readout's `core` measures the midsection on every hero (waist to hip, where the hip peaks, the seat, the
   front below the waist, a pouch, a step in the outline, the legs) with advice against bands per body; on the structured
   core that advice is a warning. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
   the knee. Its stands own their base: `relaxed`, `hand-on-hip` and `guard` plant both feet where `stance` and `stagger`
@@ -335,7 +348,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a
   jerkin and trousers keep, soft sleeve folds at the elbows, a QUILTED jerkin (front panels either side of a bare placket,
-  a back panel, grown only where the torso bone dominates) with a row of toggles, knee patches, cuffs and leg wraps.
+  a back panel, grown only where the torso bone dominates) with a row of toggles, knee patches, cuffs and leg wraps; the
+  jerkin covers the pectorals (their layers are dropped under it). `detail: 'swimsuit'` shows the body BARE, to see its
+  forms and mark its silhouette: every Top / Bottom / Shoes part is Skin and swimwear is painted on the trunk's own faces
+  (the adult male's trunks, the adult female's two-piece with the breasts as its cups, a child-coded figure's rash vest
+  and trunks), in a `Swim` tone the palette may name. Every piece worn on the torso stands off the chest layers too.
   `adorn: 'ranger'` wears a belt (iron buckle), a baldric across the chest (iron buckle), an archer's bracer on the left
   forearm and ONE pauldron on the right shoulder with a bronze boss (the focal accent), stacked in that order, and suggests
   an earth palette beneath the operator's. Either is also DATA (the plan's `body` / `adorn` blocks below); `'none'` or

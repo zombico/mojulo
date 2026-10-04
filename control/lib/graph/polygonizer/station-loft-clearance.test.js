@@ -43,7 +43,7 @@ describe('the clearance ledger', () => {
   it('names the sinking the rigid dress had: at bulk 1.4 the baldric, the belt and the bracer sink into the body', () => {
     const C = layeredClearance(rigid(dressed));
     expect(C.sinking).toEqual(expect.arrayContaining(['baldric', 'belt', 'bracer']));
-    expect(C.adornments.baldric.worst).toMatchObject({ dial: 'bulk', value: 1.4 }); expect(C.adornments.baldric.worst.share).toBeGreaterThan(0.4);
+    expect(C.adornments.baldric.worst).toMatchObject({ dial: 'bulk', value: 1.4 }); expect(C.adornments.baldric.worst.share).toBeGreaterThan(0.25);   // the dense torso's rounder chest swallows less of it than the octagon's flat front did (> 0.4 there)
     expect(C.adornments.baldric.worst.into[0]).toBe('torso');
   });
   it('with follow the dress clears every bulk extreme; the one limit left is named (the belt over the hips)', () => {

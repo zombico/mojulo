@@ -70,10 +70,12 @@ export const SLOT_FAMILIES = {
   ring10: ['front', 'frontR', 'sideFrontR', 'sideBackR', 'backR', 'back', 'backL', 'sideBackL', 'sideFrontL', 'frontL'],
   ring12: ['front', 'frontR', 'frontSideR', 'sideR', 'backSideR', 'backR', 'back', 'backL', 'backSideL', 'sideL', 'frontSideL', 'frontL'],
   limb6: ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'],
+  // a fine ring for a form sampled point by point (a `rings` part: the breast's lens)
+  ring20: ['front', 'a1R', 'a2R', 'a3R', 'a4R', 'sideR', 'b4R', 'b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'b4L', 'sideL', 'a4L', 'a3L', 'a2L', 'a1L'],
 };
 const STYLE_KEYS = ['slots', 'limbSlots', 'e'];
 export const PLAN_SCHEMA = 'layered-plan-v1';
-const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft'];
+const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft', 'rings'];
 const DETAIL_KINDS = ['claw'];
 
 // ── ring geometry (the seeds' rules, verbatim) ──
@@ -117,19 +119,21 @@ export function loftPart(stations, caps, slots = SLOT_FAMILIES.limb6, e = 2) {
 }
 /** Finish an L1 part: round every coordinate; a midline part (`mirrorPlane: 'x'`) takes its left half from the
  * rounded right half by name, so the figure's mirror symmetry is exact after rounding. */
-function finish(part, { group, tint, mirrorPlane }) {
+function finish(part, { group, tint, mirrorPlane, slotT, bandGroups, capGroups }) {
   const n = part.slots.length; const stations = part.stations.map((s) => { const pts = {};
     for (let k = 0; k < n; k++) pts[part.slots[k]] = s.points[part.slots[k]].map(r6);
     if (mirrorPlane === 'x') for (let k = n / 2 + 1; k < n; k++) pts[part.slots[k]] = mirrorX(pts[part.slots[n - k]]);
     return { id: s.id, ...(s.u !== undefined ? { u: s.u } : {}), points: pts }; });
-  return { layer: 1, closure: 'closed', slots: part.slots, stations, caps: { back: part.caps.back.map(r6), tip: part.caps.tip.map(r6) }, ...(group ? { group } : {}), ...(tint ? { tint } : {}) };
+  return { layer: 1, closure: 'closed', slots: part.slots, stations, caps: { back: part.caps.back.map(r6), tip: part.caps.tip.map(r6) }, ...(group ? { group } : {}), ...(tint ? { tint } : {}),
+    ...(slotT ? { slotT: { ...slotT } } : {}), ...(bandGroups ? { bandGroups: Object.fromEntries(Object.entries(bandGroups).map(([k, v]) => [k, [...v]])) } : {}), ...(capGroups ? { capGroups: { ...capGroups } } : {}) };
 }
 /** The left limb: every point mirrored in x, every slot renamed R ↔ L. */
-function mirrorPart(p) { return { ...p, stations: p.stations.map((s) => ({ id: s.id, points: Object.fromEntries(Object.entries(s.points).map(([k, v]) => [mirrorPid(k), mirrorX(v)])) })), caps: { back: mirrorX(p.caps.back), tip: mirrorX(p.caps.tip) } }; }
+function mirrorPart(p) { return { ...p, ...(p.slotT ? { slotT: Object.fromEntries(Object.entries(p.slotT).map(([k, v]) => [mirrorPid(k), v])) } : {}), stations: p.stations.map((s) => ({ id: s.id, points: Object.fromEntries(Object.entries(s.points).map(([k, v]) => [mirrorPid(k), mirrorX(v)])) })), caps: { back: mirrorX(p.caps.back), tip: mirrorX(p.caps.tip) } }; }
 /** A segment's bind: it belongs to `bone`; the overshoot ring at each joint is shared half and half with the
  * neighbour, and the cap beyond it belongs to the neighbour outright. */
 export const segmentBind = (prev, self, next) => ({ bone: self, blend: { ...(prev ? { back: { [prev]: 1 }, st0: { [prev]: 0.5, [self]: 0.5 } } : {}), ...(next ? { st2: { [self]: 0.5, [next]: 0.5 }, tip: { [next]: 1 } } : {}) } });
-const mirrorBind = (b) => (typeof b === 'string' ? mirrorPartName(b) : { bone: mirrorPartName(b.bone), blend: Object.fromEntries(Object.entries(b.blend).map(([st, w]) => [st, Object.fromEntries(Object.entries(w).map(([bone, x]) => [mirrorPartName(bone), x]))])) });
+// a point's blend (`station.slot`) names the slot, which the left part carries mirrored
+const mirrorBind = (b) => (typeof b === 'string' ? mirrorPartName(b) : { bone: mirrorPartName(b.bone), blend: Object.fromEntries(Object.entries(b.blend).map(([st, w]) => [st.includes('.') ? mirrorPid(st) : st, Object.fromEntries(Object.entries(w).map(([bone, x]) => [mirrorPartName(bone), x]))])) });
 const resolveBind = (bind, self) => (bind == null ? undefined : typeof bind === 'string' ? bind : bind.blend ? bind : bind.bone || bind.prev || bind.next ? segmentBind(bind.prev || null, bind.bone || self, bind.next || null) : fail(`bind of '${self}' must be a bone name, { bone, prev?, next? } or { bone, blend }`));
 
 // ── `$S` templates: a name carrying `$S` stands for its R and L twins ──
@@ -191,10 +195,20 @@ export function validatePlan(plan) {
     if (!SEGMENT_KINDS.includes(seg.kind)) fail(`segment '${seg.name}' kind must be one of ${SEGMENT_KINDS.join(' / ')}`);
     if (seg.slots != null && !(typeof seg.slots === 'string' ? seg.slots in families : Array.isArray(seg.slots))) fail(`segment '${seg.name}' slots must name a family (${Object.keys(families).join(', ')}) or list slot names`);
     if (seg.mirror != null && !['plane', 'name'].includes(seg.mirror)) fail(`segment '${seg.name}' mirror must be 'plane', 'name' or absent`);
+    // a slot's address parameter and a group per band: over the segment's family (its own, else the style's for its kind)
+    if (seg.capGroups != null && !(typeof seg.capGroups === 'object' && !Array.isArray(seg.capGroups) && Object.entries(seg.capGroups).every(([k, v]) => ['back', 'tip'].includes(k) && typeof v === 'string' && v))) fail(`segment '${seg.name}' capGroups is { back?, tip?: a group name }`);
+    if (seg.slotT != null || seg.bandGroups != null) {
+      const f = seg.slots ?? plan.style?.[seg.kind === 'trunk' ? 'slots' : 'limbSlots'] ?? (seg.kind === 'trunk' ? 'ring8' : 'limb6'), fam = typeof f === 'string' ? families[f] ?? [] : f, half = fam.slice(0, fam.length / 2 + 1);
+      if (seg.slotT != null) { const T = half.map((sl) => seg.slotT[sl]); if (typeof seg.slotT !== 'object' || Object.keys(seg.slotT).length !== half.length || T[0] !== 0 || T.some((t, k) => !Number.isFinite(t) || (k && !(t > T[k - 1])))) fail(`segment '${seg.name}' slotT names each right-half and midline slot of its family (${half.join(', ')}) with a parameter rising from 0`); }
+      if (seg.bandGroups != null) { if (typeof seg.bandGroups !== 'object' || Array.isArray(seg.bandGroups)) fail(`segment '${seg.name}' bandGroups is { '<station>-<station>': [a group per right-half band] }`); for (const [k, v] of Object.entries(seg.bandGroups)) if (!/^[^-]+-[^-]+$/.test(k) || !Array.isArray(v) || v.length !== half.length - 1 || !v.every((x) => typeof x === 'string' && x)) fail(`segment '${seg.name}' bandGroups.${k}: a group name for each of the ${half.length - 1} right-half bands`); }
+    }
     if (seg.kind === 'trunk') { claim(seg.name, 'a trunk'); if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`trunk '${seg.name}' needs at least two stations`); for (const s of seg.stations) if (!Number.isFinite(s.z) || s.r == null) fail(`trunk '${seg.name}': every station needs z and r`); const U = seg.stations.map((s, i) => s.u ?? i), ids = seg.stations.map((s, i) => s.id ?? `st${i}`); if (U.some((u, i) => !Number.isFinite(u) || (i && !(u > U[i - 1])))) fail(`trunk '${seg.name}': station u must be finite and increasing`); if (new Set(ids).size !== ids.length) fail(`trunk '${seg.name}': station ids must be unique`); const fam = (() => { const f = seg.slots ?? plan.style?.slots ?? 'ring8'; return typeof f === 'string' ? families[f] ?? [] : f; })(); for (const st of seg.stations) for (const [sl, d] of Object.entries(st.push ?? {})) { const k = fam.indexOf(sl); if (k < 0 || k > fam.length / 2 || !(Array.isArray(d) && d.length === 3 && d.every(Number.isFinite))) fail(`trunk '${seg.name}': push names a right-half or midline slot of its family with [dx, dy, dz] (got ${sl})`); } if (!seg.caps || !isVec(seg.caps.back) || !isVec(seg.caps.tip)) fail(`trunk '${seg.name}' needs caps { back, tip }`); if (seg.mirror === 'name') fail(`trunk '${seg.name}' is a midline part; mirror 'name' is for a side part`); }
     const midline = (n, seg) => { if (Math.abs(joint(n, seg)[0]) > 1e-9) fail(`segment '${seg.name}' mirrors in the plane, so joint '${n}' must sit on x = 0 (a side part mirrors by 'name')`); };
     if (seg.kind === 'segment') { claim(seg.name, 'a segment'); joint(seg.from, seg); joint(seg.to, seg); if (seg.rA == null || seg.rB == null) fail(`segment '${seg.name}' needs rA and rB`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`segment '${seg.name}' mirrors by name, so its name must end in R or L`); if (seg.mirror === 'plane') { midline(seg.from, seg); midline(seg.to, seg); } }
     if (seg.kind === 'loft') { claim(seg.name, 'a loft'); if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`loft '${seg.name}' needs at least two stations`); for (const s of seg.stations) if (!isVec(s.at) || s.r == null) fail(`loft '${seg.name}': every station needs at [x, y, z] and r`); if (seg.caps && !(isVec(seg.caps.back) && isVec(seg.caps.tip))) fail(`loft '${seg.name}' caps need back and tip`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`loft '${seg.name}' mirrors by name, so its name must end in R or L`); if (seg.mirror === 'plane') for (const s of seg.stations) if (Math.abs(s.at[0]) > 1e-9) fail(`loft '${seg.name}' mirrors in the plane, so every station must sit on x = 0`); }
+    // RINGS: a closed loft whose rings are given point by point (every slot of its family, in loop order), for a form
+    // that hugs another part's surface where no ring of radii can (a muscle's layer over the chest)
+    if (seg.kind === 'rings') { claim(seg.name, 'a rings part'); const f = seg.slots ?? plan.style?.slots ?? 'ring8', fam = typeof f === 'string' ? families[f] ?? [] : f; if (!Array.isArray(seg.stations) || seg.stations.length < 2) fail(`rings '${seg.name}' needs at least two stations`); for (const st of seg.stations) for (const sl of fam) if (!isVec(st.points?.[sl])) fail(`rings '${seg.name}': every station gives points for every slot of its family (${fam.join(', ')})`); if (!seg.caps || !isVec(seg.caps.back) || !isVec(seg.caps.tip)) fail(`rings '${seg.name}' needs caps { back, tip }`); if (seg.mirror === 'plane') fail(`rings '${seg.name}' is given point by point; mirror it by 'name'`); if (seg.mirror === 'name' && !/[RL]$/.test(seg.name)) fail(`rings '${seg.name}' mirrors by name, so its name must end in R or L`); }
     if (seg.kind === 'chain') { if (!Array.isArray(seg.joints) || seg.joints.length < 2) fail(`chain '${seg.name}' needs at least two joints`); seg.joints.forEach((j) => joint(j, seg)); if (!Array.isArray(seg.r) || seg.r.length !== seg.joints.length) fail(`chain '${seg.name}' needs one radius per joint`); for (let i = 0; i + 1 < seg.joints.length; i++) claim(`${seg.name}${i}`, 'a chain link'); if (seg.mirror === 'name') fail(`chain '${seg.name}' is a midline part; mirror 'name' is for a side part`); if (seg.mirror === 'plane') seg.joints.forEach((j) => midline(j, seg)); }
   }
   for (const inc of includesOf(plan)) { if (!inc.name || !inc.parts || typeof inc.parts !== 'object') fail('every include needs { name, parts, shift }'); if (!isVec(inc.shift)) fail(`include '${inc.name}' needs shift [x, y, z]`); for (const n of Object.keys(inc.parts)) claim(n, `include '${inc.name}' part`); }
@@ -223,11 +237,14 @@ export function expandPlan(plan) {
   const parts = {};
   const place = (name, part, seg, bind) => { parts[name] = part; const b = resolveBind(bind, name); if (b !== undefined) parts[name].bind = b; };
   for (const seg of plan.segments) {
-    const look = { group: seg.group, tint: seg.tint, mirrorPlane: seg.mirror === 'plane' ? 'x' : undefined };
+    const look = { group: seg.group, tint: seg.tint, mirrorPlane: seg.mirror === 'plane' ? 'x' : undefined, slotT: seg.slotT, bandGroups: seg.bandGroups, capGroups: seg.capGroups };
     if (seg.kind === 'trunk') place(seg.name, finish(trunkPart(seg.stations, seg.caps, slotsOf(seg, 'slots'), eOf(seg)), look), seg, seg.bind);
     else if (seg.kind === 'segment' || seg.kind === 'loft') {
       const raw = seg.kind === 'loft' ? loftPart(seg.stations, seg.caps, slotsOf(seg, 'limbSlots'), eOf(seg)) : segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots: slotsOf(seg, 'limbSlots'), e: eOf(seg), over: seg.over, mid: seg.mid, rMid: seg.rMid });
       const right = finish(raw, look); place(seg.name, right, seg, seg.bind);
+      if (seg.mirror === 'name') { const left = mirrorPart(right); parts[mirrorPartName(seg.name)] = left; const b = resolveBind(seg.bind, seg.name); if (b !== undefined) left.bind = mirrorBind(b); }
+    } else if (seg.kind === 'rings') {
+      const right = finish({ slots: slotsOf(seg, 'slots'), stations: seg.stations.map((st, i) => ({ id: st.id ?? `st${i}`, points: st.points })), caps: seg.caps }, look); place(seg.name, right, seg, seg.bind);
       if (seg.mirror === 'name') { const left = mirrorPart(right); parts[mirrorPartName(seg.name)] = left; const b = resolveBind(seg.bind, seg.name); if (b !== undefined) left.bind = mirrorBind(b); }
     } else if (seg.kind === 'chain') {
       const n = seg.joints.length - 1; const ov = { first: 0.4, last: 0.3, inner: 0.6, ...(seg.over || {}) };

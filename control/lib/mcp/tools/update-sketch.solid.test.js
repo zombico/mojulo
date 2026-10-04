@@ -938,7 +938,7 @@ describe('a hero dressed through the door', () => {
     await expect(updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/adorn', value: 'knight' }] })).rejects.toThrow(/adorn: 'ranger' \| 'none'/);
     await expect(updateSketchHandler({ ref: 'hero-ranger', patch: [{ op: 'set', path: '/hero/palette', value: { Top: 'green' } }] })).rejects.toThrow(/palette\.Top: must be a "#rrggbb" colour/);
     expect(SketchRepository.getByRef('hero-ranger').manifest.hero).toMatchObject({ detail: 'none', adorn: 'none' }); expect(SketchRepository.getByRef('hero-ranger').manifest.hero.palette).toBeUndefined();
-    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { detail: 'armoured' } })).rejects.toThrow(/detail: 'clothed' \| 'none'/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { detail: 'armoured' } })).rejects.toThrow(/detail: 'clothed' \| 'swimsuit' \| 'none'/);
   });
   it("the blank-headed form wears the dress too (head: 'none')", async () => {
     const r = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-bare-ranger', spec: { cast: 'female', register: 'lowpoly', head: 'none', detail: 'clothed', adorn: 'ranger' } });

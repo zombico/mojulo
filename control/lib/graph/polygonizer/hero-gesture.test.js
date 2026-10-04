@@ -237,13 +237,18 @@ describe('the anime wave', () => {
 // re-pinned for the STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs): the records
 // are unchanged (the core is stored only when given), and each hero at core: 'streamlined' gives the plan and recipe
 // before it, byte for byte (the last pair). Re-pinned for the structured TORSO and BUST (hero-form.js TORSO_FORM,
-// BUST_FORM: shaping rings at fractional u, the female's bust in the chest rings with its bones): the streamlined pair unchanged
+// BUST_FORM: shaping rings at fractional u, the female's bust in the chest rings with its bones): the streamlined pair unchanged.
+// Re-pinned for the bare body (hero-form.js DENSE_TRUNK, TORSO_SCULPT, PELVIS_SCULPT, CHEST_FORM: the round register's
+// torso and pelvis on ring12 addressed on ring8's scale, the anatomy pushed into them, the pectorals and breasts their own
+// layers; humanoid-plan: the structured hem without the shirt's overlap): the streamlined pair unchanged. Re-pinned for the
+// pectorals meeting as one domed chest and the breast sampled from its field (breast-field.js, ring20), then for the
+// female's breasts closer together, pointing forward, rising out of her upper chest's fill: the streamlined pair unchanged
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', '3c56c21061b3ed9a', '8762f29c22574b76'], ['3c7bbf346eaac7ec', 'bea115d3e2080dac']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', 'f45f2bdc93fdbe91', '55fa40c50059d40f'], ['19bd030cf5c6b514', '0491e3116c5d971b']],
-  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', 'a6ab8049070b0a09', 'f6cac5ec05cfe505'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '5e2842c95505bb73', 'cc25b724f8580042'], ['406acf0f4215b0e5', '4124db4ac9b3b4a1']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '3eb663cbaa2c21a9', 'f6ec0a76c2843873'], ['73b7f4b40fcd97f1', '1f5bb5d11318a03f']],
+  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'c82c8e0138533e8f', 'c6d58734d04bae2a'], ['3c7bbf346eaac7ec', 'bea115d3e2080dac']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '4bbe7e869fd84809', '300964d39fd6c6bf'], ['19bd030cf5c6b514', '0491e3116c5d971b']],
+  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', 'd3f23aeff08dbcb2', '4232528586910646'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', 'e2fa399b9f0e59b1', '5c4ef2330cf7f4bb'], ['406acf0f4215b0e5', '4124db4ac9b3b4a1']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '444c18eec634a801', '6f192dff85081e6c'], ['73b7f4b40fcd97f1', '1f5bb5d11318a03f']],
 };
 describe('the door: no gesture ⇒ byte-identical', () => {
   for (const [name, [spec, [record, plan, recipe], [oldPlan, oldRecipe]]] of Object.entries(PINS)) {

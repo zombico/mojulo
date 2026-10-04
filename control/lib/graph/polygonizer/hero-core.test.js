@@ -245,19 +245,37 @@ describe('the structured torso', () => {
   });
 });
 
-describe('the structured bust', () => {
-  it('the adult female carries it in the chest rings (no mound parts), a bone each owning the pushed slots', () => {
-    const { recipe, mesh, R, skin } = rigged({ cast: 'female' }), t = recipe.parts.torso;
-    expect(Object.keys(recipe.parts).filter((p) => /bust/.test(p))).toEqual([]);
+describe('the structured chest layers', () => {
+  // the front-most torso surface at (x, z) on the compiled rest mesh
+  const front = (mesh, x, z) => { const V = mesh.vertices; let best = -Infinity;
+    mesh.faces.forEach((f, fi) => { if (!mesh.faceIds[fi].startsWith('torso/')) return; const [a, b, c] = f.slice(0, 3).map((v) => V[v]);
+      const d = (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]); if (Math.abs(d) < 1e-12) return;
+      const u = ((x - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (z - a[2])) / d, v = ((b[0] - a[0]) * (z - a[2]) - (x - a[0]) * (b[2] - a[2])) / d;
+      if (u >= 0 && v >= 0 && u + v <= 1) best = Math.max(best, a[1] + u * (b[1] - a[1]) + v * (c[1] - a[1])); }); return best; };
+  const proud = (mesh, part, st, slot) => { const p = mesh.vertices[mesh.pointIds.indexOf(`${part}/${st}.${slot}`)]; return p[1] - front(mesh, p[0], p[2]); };
+  it('the adult female: a pectoral and over it a breast per side, each its own part sampling the breast field, on its own bone', () => {
+    const { recipe, mesh, R, skin } = rigged({ cast: 'female' });
+    expect(Object.keys(recipe.parts).filter((p) => /^(pectoral|bust)/.test(p)).sort()).toEqual(['bustL', 'bustR', 'pectoralL', 'pectoralR']);
     expect(R.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['bustR', 'bustL']));
-    const plan = heroPlan({ cast: 'female' }), st2 = plan.segments.find((s) => s.name === 'torso').stations.find((st) => st.id === 'st2');
-    expect(st2.push.frontR[1]).toBeGreaterThan(0.03);   // forward, the most on the chest ring
-    const i = mesh.pointIds.indexOf('torso/st2.frontR'), j = mesh.pointIds.indexOf('torso/st2.frontL'), k = mesh.pointIds.indexOf('torso/st2.front');
-    expect(R.bones[skin.dominant[i]].id).toBe('bustR'); expect(R.bones[skin.dominant[j]].id).toBe('bustL'); expect(R.bones[skin.dominant[k]].id).toBe('torso');
-    expect(t.stations.length).toBe(8);
+    expect(proud(mesh, 'bustR', 'st6', 'front')).toBeGreaterThan(0.03);   // the fuller lower pole stands well proud of the chest
+    expect(proud(mesh, 'bustR', 'st6', 'front')).toBeGreaterThan(proud(mesh, 'bustR', 'st13', 'front'));   // more than the upper pole
+    for (const sl of ['sideL', 'b4R', 'back']) expect(proud(mesh, 'bustR', 'st6', sl), sl).toBeLessThan(0);   // its ends and inside are under the surface
+    const dom = (id) => R.bones[skin.dominant[mesh.pointIds.indexOf(id)]].id;
+    expect(dom('bustR/st3.front')).toBe('bustR'); expect(dom('bustL/st3.front')).toBe('bustL');
+    expect(dom('bustR/st3.back')).toBe('torso'); expect(dom('bustL/st3.sideR')).toBe('torso');   // the left part's mirrored slots keep the torso
+    expect(recipe.parts.torso.stations.length).toBe(8);
     const a = auditRig(mesh, skin, R, [{}, ...Object.values(POSES)]); expect(a.badWeights).toBe(0);
   });
-  it('the male carries none, an explicit body.bust 0 none, and the streamlined core keeps its mounds', () => {
+  it('the male: the pectorals alone, their lower border the most proud (the shelf), the armpit end a share of the arm', () => {
+    const { recipe, mesh, R, skin } = rigged({ cast: 'male' }), P = recipe.parts.pectoralR;
+    expect(Object.keys(recipe.parts).filter((p) => /^bust/.test(p))).toEqual([]);
+    const low = proud(mesh, 'pectoralR', 'st1', 'front'), top = proud(mesh, 'pectoralR', `st${P.stations.length - 1}`, 'front');
+    expect(low).toBeGreaterThan(0.01); expect(low).toBeGreaterThan(top);
+    expect(Object.entries(P.bind.blend).some(([k, w]) => /\.backR$/.test(k) && w.upperArmR > 0)).toBe(true);
+    expect(recipe.parts.pectoralL.bind.blend[Object.keys(P.bind.blend).find((k) => /\.backR$/.test(k)).replace(/R$/, 'L')]).toMatchObject({ upperArmL: 0.25 });
+    const a = auditRig(mesh, skin, R, [{}, ...Object.values(POSES)]); expect(a.badWeights).toBe(0);
+  });
+  it('the male carries no breast, an explicit body.bust 0 none, and the streamlined core keeps its mounds', () => {
     expect(rigged({ cast: 'male' }).R.bones.some((b) => /bust/.test(b.id))).toBe(false);
     expect(rigged({ cast: 'female', body: { bust: 0 } }).R.bones.some((b) => /bust/.test(b.id))).toBe(false);
     expect(heroPlan({ cast: 'female', core: 'streamlined' }).segments.some((s) => /bust/.test(s.name))).toBe(false);

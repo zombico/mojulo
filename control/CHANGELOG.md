@@ -51,12 +51,27 @@ lands.
   widening to a lifted chest, the male's back widest under the arms and the female's narrower, and the shoulders sloping
   from the neck under the arm's own cap instead of a box with square corners. The new rings sit between the five the
   dress addresses, so every torso address (`s` 0 … 4, a collar's station) lands where it did.
-- **The bust.** The adult female hero carries a bust by default on the structured core (a child or chibi cast, or the
-  kid look, never does). It is shaped in her chest's own surface, turned a little outward with the fuller lower pole, so
-  it carries no outline of its own (two separate mounds read as balls on the shirt), and it has a bone each (`bustR`,
-  `bustL`) owning those points, which an engine's spring can drive. A trunk ring may now name its own `u` (the address
-  parameter) and `push` named slots off the ring, and a skin blend may weigh one point (`station.slot`) over its ring.
-  The knight's and the ranger's pauldrons and the jerkin's quilt sit on the new shoulder.
+- **The chest layers.** On the structured core a pectoral lies over each side of the rib cage, its own part hugging
+  the chest: the pair meets at the sternum as one domed chest, its lower border standing proud as the shelf and its
+  armpit end moving a little with the arm. The adult female hero carries a bust by default (a child or chibi cast, or
+  the kid look, never does): a breast per side over the pectoral, each its own part and a bone each (`bustR`, `bustL`)
+  an engine's spring can drive. The breast is a studied field over the chest (`breast-field.js`): its footprint and its
+  poles' profiles are a handful of anatomy words, and gates measured on the field hold it to what an artist checks (the
+  upper and lower poles 45 : 55, the fold a wall, the upper pole straight or concave, the lower pole full, the margins
+  melting into the chest, one clean peak). A bare belly carries a navel. A clothed jerkin covers the pectorals, and every piece worn on the torso stands off the layers. A trunk ring
+  may now name its own `u` (the address parameter) and `push` named slots off the ring, a skin blend may weigh one point
+  (`station.slot`) over its ring, a new plan kind `rings` gives a part's rings point by point, and a `ring20` slot
+  family is there for a finely sampled form. The knight's and
+  the ranger's pauldrons and the jerkin's quilt sit on the new shoulder.
+- **The swimsuit view.** New `detail: 'swimsuit'` shows the body bare: every shirt, trouser and shoe colour is skin, and
+  swimwear is painted on the body's own surface (the adult male's trunks, the adult female's two-piece, a child-coded
+  figure's rash vest and trunks), in a `Swim` tone you can name. A plan segment may now carry `bandGroups` (a group
+  per band and slot) and `slotT` (each slot's address parameter).
+- **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
+  addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
+  silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the
+  waist's taper, the shoulder blades and the spine; the female's deeper waist and the curve of the lower back; the seat's
+  two masses on the pelvis. The step at the waist is gone.
 - **Core measures.** Every hero's readout carries `core`: the waist to hip, where the hip peaks, the seat, how far the
   front falls below the waist, any pouch, the largest step in the outline, and whether the legs converge, with advice
   against bands per body that names the word to move. On the structured core the advice is a warning; on a streamlined

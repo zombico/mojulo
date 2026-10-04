@@ -38,13 +38,14 @@ function wornHead({ preset, headPreset, headScale, tune, props }) {
  *   register    'lowpoly' | 'round' | 'chamfer' | 'box' (the body's rings and the head's planes)
  *   hair        a HAIR_STYLES word ('crop', 'swept', 'bob', 'ponytail' … 'none');  expression  an EXPRESSIONS word
  *   headScale   scales the head (its carriers, pin-local detail and jaw anchors together)
- *   detail      BODY DETAIL (hero-dress.js): 'clothed' | 'none' | body data — the dragon's passes with the hero's parameters
+ *   detail      BODY DETAIL (hero-dress.js): 'clothed' | 'swimsuit' | 'none' | body data — the dragon's passes with the hero's
+ *               parameters; `childCoded` (the door's child-coded figure) puts a swimsuit's child in a rash vest
  *   adorn       ADORNMENT (hero-dress.js): 'ranger' | 'none' | a kit — worn over the detail, one signature each
  *   tune        anything the hero form's `resolveTune` takes: percentages of the preset's own baseline (a move word,
  *               { shoulders, waist, hips, depth, torso, neck, legs, head, stature, upperArm, forearm, thigh, calf }, or a list).
  *               `head` here scales the WORN head: it is baked at the tuned scale (the form's own `head` only sizes a blank trunk)
  */
-export function humanoidPlan({ preset = 'male', body = {}, face = {}, register = 'round', girth = 1, headScale, palette = {}, hair, expression = 'neutral', tune, headPreset, detail, adorn, head: headKind = 'landmark', proportions, sculpt, core } = {}) {
+export function humanoidPlan({ preset = 'male', body = {}, face = {}, register = 'round', girth = 1, headScale, palette = {}, hair, expression = 'neutral', tune, headPreset, detail, adorn, head: headKind = 'landmark', proportions, sculpt, core, childCoded = false } = {}) {
   const props = proportions ?? (headKind === 'anime' ? 'anime' : 'hero');
   const worn = wornHead({ preset, headPreset, headScale, tune, props }), { heroCast, pole } = worn;
   if (!heroCast && (typeof preset !== 'string' || validateCast(preset).length)) throw new Error(`humanoid: unknown preset '${preset}' (have ${Object.keys(HERO_CASTS).join(', ')}, or a figure cast)`);
@@ -60,11 +61,13 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   // the anime head on anime proportions wears its cast's NECK FORM (hero-form.js ANIME_NECK_FORMS: the ring loft rising
   // into the occiput, the trapezius ring); every other head and proportion keeps the segment neck
   const neckForm = anime && props === 'anime' && typeof preset === 'string' && Object.hasOwn(ANIME_NECK_FORMS, preset) ? ANIME_NECK_FORMS[preset] : null;
-  const plan = heroPlan({ cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, head, body, tune, ...(props === 'anime' ? { proportions: 'anime' } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}) });
+  const plan = heroPlan({ cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, head, body, tune, ...(props === 'anime' ? { proportions: 'anime' } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !childCoded ? { bare: true } : {}) });
   // Broad shirt panels and a sloping shoulder yoke are specific to this starter.
   // Keep the hero recipe (and previously stored plans) independent of this art direction.
   const torso = plan.segments.find(s => s.name === 'torso');
-  torso.stations[0].r[1] *= 1.12; // overlap the trouser crest with a continuous shirt hem
+  // overlap the trouser crest with a continuous shirt hem; the structured core's pelvis meets the hem itself, and a hem
+  // deeper than it is a step at the waist on the bare body (the palette's seam still marks a shirt)
+  if (!plan.segments.some((s) => s.name === 'pelvis')) torso.stations[0].r[1] *= 1.12;
   torso.e = Math.max(REGISTERS[register].e, 3);
   const station = (id, i) => torso.stations.find((st) => st.id === id) ?? torso.stations[i];   // a structured torso carries shaping rings between
   const shoulder = station('st3', 3), collar = station('st4', 4);
@@ -81,7 +84,7 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
   // forearm upright); every other head keeps the form's wave
   if (anime) plan.clips.wave = JSON.parse(JSON.stringify(ANIME_WAVE));
-  dressPlan(plan, { detail, adorn, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature });
+  dressPlan(plan, { detail, adorn, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child: childCoded } });
   plan.frame.note = anime
     ? `1 unit = 1 m; humanoid ${preset} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
     : `1 unit = 1 m; humanoid ${preset} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;
