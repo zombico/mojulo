@@ -180,3 +180,29 @@ describe('core measures: what the critic reads', () => {
     expect(now.core).toMatchObject({ core: 'structured', body: 'female', legs: 'converge', advice: [] });
   });
 });
+
+describe('the dress on the structured core: hip pieces hang from the pelvis', () => {
+  it('the knight plates the hips from the pelvis and wraps the thigh it is drawn on; the streamlined kit is as before', async () => {
+    const { dressContext } = await import('./hero-dress.js');
+    const { expandArmor } = await import('../armor/expand.js');
+    const build = { type: 'armor', style: 'knight' };
+    const S = heroPlan({ cast: 'male', core: 'structured' }), D = heroPlan({ cast: 'male' });
+    const ks = expandArmor(build, dressContext(S.style, 1, S)).kit, kd = expandArmor(build, dressContext(D.style, 1, D)).kit;
+    expect(kd).toEqual(expandArmor(build, dressContext(D.style, 1)).kit);                       // no pelvis: byte for byte the old kit
+    const id = (k) => k.map((a) => a.id);
+    expect(id(ks)).toEqual(expect.arrayContaining(['pelvis-fauld', 'pelvis-tassetR', 'pelvis-tassetL']));
+    expect(id(ks)).not.toContain('thighR-tasset'); expect(id(kd)).toContain('thighR-tasset');
+    for (const a of ks.filter((x) => /^pelvis-/.test(x.id))) { expect(a.part).toBe('pelvis'); expect(a.pin[3]).toBe('pelvis'); }   // they ride the basin
+    const cuisse = (k) => k.find((a) => a.id === 'thighR-cuisse').t[1];
+    expect(cuisse(ks) / 4).toBeCloseTo(cuisse(kd) / 3, 6);                                         // the same share of the thigh's own ring
+  });
+  it('every piece that stands off the thighs stands off the pelvis too, kits of the operator included', async () => {
+    const { dressPlan } = await import('./hero-dress.js');
+    const mine = [{ id: 'sash', mode: 'band', part: 'torso', over: ['thighR', 'thighL'], s: [0.1, 0.4], t: 'wrap', nt: 12, ns: 2, mugen: 0.004, thick: 0.01, rad: 0.05, group: 'Sash' }];
+    for (const adorn of ['ranger', mine]) {
+      const S = dressPlan(heroPlan({ cast: 'female', core: 'structured' }), { adorn }), D = dressPlan(heroPlan({ cast: 'female' }), { adorn });
+      for (const a of S.adorn.filter((x) => x.over?.some((n) => /^thigh/.test(n)))) expect(a.over).toContain('pelvis');
+      for (const a of D.adorn) expect(a.over ?? []).not.toContain('pelvis');
+    }
+  });
+});

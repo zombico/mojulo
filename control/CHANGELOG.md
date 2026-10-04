@@ -36,6 +36,11 @@ bullet is rewritten as its phase lands.
   crotch, the thighs meet under it, and the thigh comes out of the pelvis along the groin's diagonal. Gone: the corner
   and pinch at the side of the female hip, the front standing proud of the belly, the shelf at the hem, the step at the
   knee, and the flat seat.
+- **The dress follows the pelvis.** On the structured core the hip pieces hang from the pelvis and ride it: a knight's
+  faulds carry on down over the hips under the breastplate and the tassets hang from the crest over the hip, fitted close
+  and clear of the thighs at every dial. Every piece that stands off the thighs (a fauld, a belt, a kit of the
+  operator's) stands off the pelvis too, and thigh plates wrap the share of the thigh they were drawn for. On converged
+  legs a hardsuit's inner knee plate turns less far in, clear of the other knee.
 - **Core measures.** Every hero's readout carries `core`: the waist to hip, where the hip peaks, the seat, how far the
   front falls below the waist, any pouch, the largest step in the outline, and whether the legs converge, with advice
   against bands per body that names the word to move. On the structured core the advice is a warning; on other heroes it

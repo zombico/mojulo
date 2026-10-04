@@ -80,6 +80,8 @@ const WEAR = ['cuirass', 'fauld', 'tasset', 'gorget', 'rerebrace', 'vambrace', '
 /** a plate suit at `dials.coverage` as one kit. opts: focalSide, fnSide, variant ('spaulder' | 'bell') */
 export function plateSuit(dials, ctx, { focalSide = 'R', fnSide = 'L', variant = 'spaulder', groups = {} } = {}) {
   const { Ht, Hl, k = 1, height = 1.75 } = ctx; const c = dials.coverage ?? 0;
+  // the thigh's own ring half (the structured core's thigh takes the trunk's family), and whether a pelvis carries the hips
+  const Hth = ctx.Hth ?? Hl, onPelvis = ctx.pelvis === true;
   const law = armorProportion(dials), minF = law.minFeature * height, orn = dials.ornament ?? 1;
   const G = { plate: 'Plate', trim: 'Trim', rivet: 'Rivet', accent: 'Accent', strap: 'Leather', ...groups };
   const thick = Math.max(minF, 0.0045 * k * law.thick), mug = (m) => r4(m * k * law.standoff);
@@ -99,19 +101,27 @@ export function plateSuit(dials, ctx, { focalSide = 'R', fnSide = 'L', variant =
         signature: { kind: 'buckle', w: r4(0.012 * k), h: r4(0.01 * k), bar: r4(Math.max(minF * 0.5, 0.0025 * k)), standoff: r4(0.003 * k), group: G.rivet } });
       return out; },
     // the pelvis bone's territory is torso s < 1: the fauld rides it
-    fauld: () => [plate({ id: 'torso-fauld', part: 'torso', over: ['thighR', 'thighL'], pin: [0.5, 0, 'R', 'torso'], s: [0.05, 0.95], t: 'wrap', nt: 16, ns: 2, mugen: mug(0.007), support: 1.05, ramp: r4(0.6 * law.flare), signature: rivets(2 + orn, -1) })],
+    fauld: () => [plate({ id: 'torso-fauld', part: 'torso', over: ['thighR', 'thighL'], pin: [0.5, 0, 'R', 'torso'], s: [0.05, 0.95], t: 'wrap', nt: 16, ns: 2, mugen: mug(0.007), support: 1.05, ramp: r4(0.6 * law.flare), signature: rivets(2 + orn, -1) }),
+      // on the structured core the hoops carry on down the pelvis from the hem over the crest (they ride the basin), so
+      // the hips are plated under the breastplate instead of left bare between the fauld and the tassets
+      // (they stop under the torso's own fauld at the crest and stand off the torso too, so a broadened chest closes over them)
+      ...(onPelvis ? [plate({ id: 'pelvis-fauld', mode: 'band', part: 'pelvis', over: ['thighR', 'thighL', 'torso'], pin: [4.2, 0, 'R', 'pelvis'], s: [3.0, 4.7], t: 'wrap', nt: 16, ns: 3, mugen: mug(0.005), support: 4.7, ramp: r4(0.3 * law.flare), signature: rivets(1 + orn, 0) })] : [])],
     gorget: () => [plate({ id: 'neck-gorget', mode: 'band', part: 'neck', over: ['torso'], pin: [3.95, 0, 'R', 'torso'], s: [0.0, 0.6], t: 'wrap', nt: 12, ns: 2, mugen: mug(0.004), support: 0.95, ramp: r4(0.8 * law.flare), signature: rivets(1 + orn, 0) })],
     rerebrace: (S) => [plate({ id: `upperArm${S}-rerebrace`, part: `upperArm${S}`, s: [0.95, 1.75], t: 'wrap', mugen: mug(0.003), signature: rivets(1 + orn, -1) })],
     vambrace: (S) => [plate({ id: `foreArm${S}-vambrace`, part: `foreArm${S}`, s: [0.35, 1.7], t: 'wrap', mugen: mug(0.003), support: 0.35, ramp: r4(0.5 * law.flare), signature: rivets(1 + orn, -1) })],
     couter: (S) => [plate({ id: `upperArm${S}-couter`, part: `upperArm${S}`, over: [`foreArm${S}`], side: S, s: [1.6, 2.0], t: [r4(0.5 * Hl), r4(1.0 * Hl)], nt: 8, ns: 2, mugen: mug(0.005), support: 1.6, ramp: r4(0.6 * law.flare), signature: rivets(1, 0) })],
     gauntlet: (S) => [plate({ id: `hand${S}-gauntlet`, part: `hand${S}`, s: [0.3, 1.3], t: 'wrap', nt: 10, ns: 2, mugen: mug(0.003), signature: rivets(1 + orn, 1) }),
       plate({ id: `foreArm${S}-cuff`, part: `foreArm${S}`, s: [1.45, 1.85], t: 'wrap', nt: 12, ns: 2, mugen: mug(0.006), support: 1.85, ramp: r4(law.flare), signature: rivets(1 + orn, 0) })],
-    tasset: (S) => [plate({ id: `thigh${S}-tasset`, part: `thigh${S}`, side: S, s: [0.1, 1.4], t: [r4(0.02 * Hl), r4(0.62 * Hl)], nt: 8, ns: 2, mugen: mug(0.02), support: 0.1, ramp: r4(0.4 * law.flare), pin: [0.4, r4(0.2 * Ht), S, 'torso'], signature: rivets(1 + orn, -1) })],
+    tasset: (S) => (onPelvis
+      // on the structured core the tasset hangs from the pelvis's crest over the hip to the trochanter, riding the basin
+      // (a spine curl leaves it on the hip), standing off the thigh it covers so a wider stance does not close on it
+      ? [plate({ id: `pelvis-tasset${S}`, part: 'pelvis', over: [`thigh${S}`], side: S, s: [1.1, 3.6], t: [r4(0.1 * Ht), r4(0.62 * Ht)], nt: 8, ns: 3, mugen: mug(0.012), support: 3.6, ramp: r4(0.25 * law.flare), pin: [2.6, r4(0.36 * Ht), S, 'pelvis'], signature: rivets(1 + orn, -1) })]
+      : [plate({ id: `thigh${S}-tasset`, part: `thigh${S}`, side: S, s: [0.1, 1.4], t: [r4(0.02 * Hl), r4(0.62 * Hl)], nt: 8, ns: 2, mugen: mug(0.02), support: 0.1, ramp: r4(0.4 * law.flare), pin: [0.4, r4(0.2 * Ht), S, 'torso'], signature: rivets(1 + orn, -1) })]),
     // law 8: plate stays off where the thighs touch — the cuisse covers the front and outside only
-    cuisse: (S) => [plate({ id: `thigh${S}-cuisse`, part: `thigh${S}`, side: S, s: [1.6, 3.3], t: [0, r4(0.6 * Hl)], nt: 8, ns: 3, mugen: mug(0.004), signature: rivets(1 + orn, -1) }),
-      plate({ id: `thigh${S}-cuisseM`, part: `thigh${S}`, side: other(S), s: [1.6, 3.3], t: [0, r4(0.18 * Hl)], nt: 4, ns: 3, mugen: mug(0.004), signature: rivets(1, -1) })],
-    poleyn: (S) => [plate({ id: `thigh${S}-poleyn`, part: `thigh${S}`, over: [`shank${S}`], side: S, s: [3.45, 4.0], t: [0, r4(0.55 * Hl)], nt: 8, ns: 2, mugen: mug(0.006), support: 3.45, ramp: r4(0.5 * law.flare), signature: rivets(1, -1) }),
-      plate({ id: `thigh${S}-poleynM`, part: `thigh${S}`, over: [`shank${S}`], side: other(S), s: [3.45, 4.0], t: [0, r4(0.4 * Hl)], nt: 6, ns: 2, mugen: mug(0.006), support: 3.45, ramp: r4(0.5 * law.flare), signature: rivets(1, -1) })],
+    cuisse: (S) => [plate({ id: `thigh${S}-cuisse`, part: `thigh${S}`, side: S, s: [1.6, 3.3], t: [0, r4(0.6 * Hth)], nt: 8, ns: 3, mugen: mug(0.004), signature: rivets(1 + orn, -1) }),
+      plate({ id: `thigh${S}-cuisseM`, part: `thigh${S}`, side: other(S), s: [1.6, 3.3], t: [0, r4(0.18 * Hth)], nt: 4, ns: 3, mugen: mug(0.004), signature: rivets(1, -1) })],
+    poleyn: (S) => [plate({ id: `thigh${S}-poleyn`, part: `thigh${S}`, over: [`shank${S}`], side: S, s: [3.45, 4.0], t: [0, r4(0.55 * Hth)], nt: 8, ns: 2, mugen: mug(0.006), support: 3.45, ramp: r4(0.5 * law.flare), signature: rivets(1, -1) }),
+      plate({ id: `thigh${S}-poleynM`, part: `thigh${S}`, over: [`shank${S}`], side: other(S), s: [3.45, 4.0], t: [0, r4(0.4 * Hth)], nt: 6, ns: 2, mugen: mug(0.006), support: 3.45, ramp: r4(0.5 * law.flare), signature: rivets(1, -1) })],
     greave: (S) => [plate({ id: `shank${S}-greave`, part: `shank${S}`, s: [0.2, 1.8], t: 'wrap', nt: 12, ns: 3, mugen: mug(0.004), support: 1.8, ramp: r4(0.4 * law.flare), signature: rivets(1 + orn, -1) })],
     sabaton: (S) => [plate({ id: `foot${S}-sabaton`, part: `foot${S}`, over: [`toes${S}`], s: [0.45, 2.0], t: 'wrap', nt: 10, ns: 3, mugen: mug(0.003), signature: rivets(1 + orn, -1) })],
   };

@@ -26,11 +26,20 @@ export const DETAIL_WORDS = ['clothed', 'none'];
 export const KIT_WORDS = ['ranger', 'none'];
 const both = (xs) => xs.flatMap((n) => (/R$/.test(n) ? [n, n.replace(/R$/, 'L')] : [n]));
 
-/** the register's ring halves: the torso's (`slots`) and the limbs' (`limbSlots`) */
-export function dressContext(style = {}, scale = 1) {
+/** the register's ring halves: the torso's (`slots`) and the limbs' (`limbSlots`). On a plan with the structured core's
+ * pelvis (hero-form.js HERO_CORES) also `pelvis: true` and `Hth`, the thigh's own half (it takes the trunk's ring family
+ * there), so hip pieces hang from the pelvis and a thigh plate wraps the thigh it is drawn on; absent, as before. */
+export function dressContext(style = {}, scale = 1, plan = null) {
   const half = (fam) => (SLOT_FAMILIES[fam] ?? SLOT_FAMILIES.ring8).length / 2;
-  return { Ht: half(style.slots ?? 'ring8'), Hl: half(style.limbSlots ?? 'limb6'), scale };
+  const ctx = { Ht: half(style.slots ?? 'ring8'), Hl: half(style.limbSlots ?? 'limb6'), scale };
+  const segs = plan?.segments || [], thigh = segs.find((s) => s.name === 'thighR');
+  if (segs.some((s) => s.name === 'pelvis')) Object.assign(ctx, { pelvis: true, Hth: thigh?.slots ? half(thigh.slots) : ctx.Hl });
+  return ctx;
 }
+/** On the structured core every piece that stands off the thighs stands off the pelvis between them too (a fauld, a
+ * belt, an operator's own kit): the pelvis is the surface under the hips there. Absent a pelvis, the kit as given. */
+const overPelvis = (kit, ctx) => (!ctx.pelvis || !Array.isArray(kit) ? kit
+  : kit.map((A) => (Array.isArray(A.over) && A.over.some((n) => /^thigh[RL]$/.test(n)) && !A.over.includes('pelvis') && A.part !== 'pelvis' ? { ...A, over: [...A.over, 'pelvis'] } : A)));
 
 /** BODY DATA for the clothed hero */
 export function clothedBody({ Ht, Hl, scale: k }) {
@@ -102,11 +111,11 @@ export function dressPlan(plan, { detail, adorn, operatorPalette = {}, scale = 1
   const wantDetail = detail !== undefined && detail !== 'none', wantAdorn = adorn !== undefined && adorn !== 'none';
   if (!wantDetail && !wantAdorn) return plan;
   const errs = validateDress({ detail, adorn }); if (errs.length) throw new Error(`hero dress: ${errs.join('; ')}`);
-  const ctx = dressContext(plan.style, scale);
+  const ctx = dressContext(plan.style, scale, plan);
   if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
-  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx); plan.adorn = A.kit; if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
-  else if (wantAdorn) plan.adorn = typeof adorn === 'string' ? rangerKit(ctx) : adorn;
+  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx); plan.adorn = overPelvis(A.kit, ctx); if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
+  else if (wantAdorn) plan.adorn = overPelvis(typeof adorn === 'string' ? rangerKit(ctx) : adorn, ctx);
   // the kit's suggestion is already beneath the operator's colours in plan.palette (humanoidPlan builds the head with it)
   const base = { ...plan.palette, ...operatorPalette };
   plan.palette = { ...base, ...dressTones(base), ...operatorPalette };
