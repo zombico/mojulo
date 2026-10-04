@@ -162,7 +162,7 @@ const _surfRigs = SURFACES.map((sf) => {
       }
       geo.setAttribute('aAqUV', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('aAqT', new THREE.BufferAttribute(tg, 2));
     }
-    aqU = __aqPatch(_mat, riv ? { ...sf.aqua, flow: [0, 1] } : sf.aqua, { sun: sf.sun, foamCol: sf.crest, flowUV: !!riv });
+    aqU = __aqPatch(_mat, riv ? { ...sf.aqua, flow: [0, 1] } : sf.aqua, { sun: sf.sun, foamCol: sf.crest, flowUV: !!riv, disturb: !!sf.disturb });
   }`)}
   // opt-in emissive glow (a molten/lava surface lights itself, no sun needed): sf.emissive = [r,g,b] 0..1.
   if (sf.emissive) { _mat.emissive = new THREE.Color(sf.emissive[0], sf.emissive[1], sf.emissive[2]); _mat.emissiveIntensity = sf.emissiveIntensity != null ? sf.emissiveIntensity : 0.7; }

@@ -59,6 +59,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   with the walker, and slopes measured on the sand alone so loose sand never slides off the beach
   face; with neither in use it replays the spike byte for byte. The beach declares its unit
   (1 unit = 1 m at scale 1).
+- **Wading into the surf.** At the touch tier the sea around you answers too: walking in slows you
+  with depth, splashes on entry, and leaves a wake and a cloud of stirred-up sand in the water. The
+  disturbance is simulated in a small window that follows you and rides on top of the existing
+  waves (it reaches the water shader as a texture, so it adds no geometry and no seams). One step
+  routes by depth: on dry or shallow ground it prints the sand, in the surf it prints the sand and
+  stirs the water, and past waist depth only the water answers.
+- **The swash strands its foam.** On every animated beach the foam the uprush carries is left on the
+  sand where the sheet stops: it slides back with the backwash while the water still covers it, stays
+  put once the water leaves, and opens into holes and pops over a few seconds. The backwash's edge
+  carries no foam line of its own.
 - **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
   `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
   use `canal`.

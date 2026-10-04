@@ -11,6 +11,7 @@ export const WS_FILM = 1.6;     // s: the water film drains
 export const WS_DRAIN = 40;     // s: the sand itself dries
 export const WS_CAP = 0.55;     // dampness at the swash's top, decaying up the beach over half the swash range
 export const WS_DARK = 0.4;     // full wetness darkens sand to 60 %
+export const WS_FOAM = 5;       // s: foam stranded by the uprush drains and pops
 
 const TAU = Math.PI * 2;
 const mod = (x, y) => x - y * Math.floor(x / y);
@@ -23,6 +24,14 @@ export function wsDryTime(shore, y, t) {
   const ph = shore.omSwash * t;
   if (Math.sin(ph) > a) return 0;
   return mod(ph - (Math.PI - Math.asin(a)), TAU) / shore.omSwash;
+}
+
+/** Seconds since the uprush last reached row y at time t (1e4 where it never does, or where the sea never leaves).
+ *  The stranded foam ages by this: fresh where the front has just passed, thinning to nothing over a few seconds. */
+export function wsWetAge(shore, y, t) {
+  const a = 1 - (2 * (shore.edgeY - y)) / shore.swashRange;
+  if (a <= -1 || a >= 1) return 1e4;
+  return mod(shore.omSwash * t - Math.asin(a), TAU) / shore.omSwash;
 }
 
 /** { film, dark } in 0..1 for row y at time t. */
@@ -42,5 +51,10 @@ float wsDryTime(float y, float t) {
   float ph = uWsOm * t;
   if (sin(ph) > a) { return 0.0; }
   return wsMod(ph - (3.14159265 - asin(a)), 6.28318531) / uWsOm;
+}
+float wsWetAge(float y, float t) {
+  float a = 1.0 - (2.0 * (uWsEdge - y)) / uWsRange;
+  if (a <= -1.0 || a >= 1.0) { return 1e4; }
+  return wsMod(uWsOm * t - asin(a), 6.28318531) / uWsOm;
 }
 `;

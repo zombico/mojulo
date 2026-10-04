@@ -16,7 +16,7 @@ import { wetSandHelpers } from './wet-sand.js';
 export function softGroundScript(sg) {
   const cfg = {
     cols: sg.cols, rows: sg.rows, cell: sg.cell, quantum: sg.quantum, depth: sg.depth, moisture: sg.moisture, viscosity: sg.viscosity || 1,
-    sink: sg.sink, stride: sg.stride, foot: sg.foot, color: sg.color, sun: sg.sun, swash: sg.swash,
+    sink: sg.sink, stride: sg.stride, foot: sg.foot, color: sg.color, sun: sg.sun, swash: sg.swash, water: sg.water || null,
     surf: { x0: sg.surface.x0, y0: sg.surface.y0, x1: sg.surface.x1, y1: sg.surface.y1, sx: sg.surface.sx, sy: sg.surface.sy, z: b64(new Float32Array(sg.surface.z)) },
   };
   return `${wetSandHelpers({ edgeY: sg.swash.edgeY, swashRange: sg.swash.swashRange, omSwash: sg.swash.omSwash, zen: sg.zen, hor: sg.hor, sun: sg.sun })}
@@ -119,6 +119,78 @@ let stepSoftGround = () => {};
       rowW[r] = w;
     }
   }
+  // ── the surf: a simulated disturbance riding the analytic sea, in its own window around the walker ──────────────────
+  // The sea's surface is the surface channel's closed form (Gerstner, tapered into the shore); this layer adds what a
+  // wader does to it — a wake, an entry splash, stirred-up silt — as a heightfield h stepped with the shallow-water wave
+  // equation (c² = g·D, D the still water over the beach) and handed to the water shader as a texture (slope, foam,
+  // silt). An absorbing border lets the ripples leave and fades the texture to nothing at the window's edge.
+  const WT = SG.water;
+  let surf = null;
+  if (WT) {
+    const WN = WT.n, WC = WT.cell, G = 9.8 * WT.L, SP = WT.speed * WT.speed, NN = WN * WN, BORDER = 10;
+    const h = new Float32Array(NN), v = new Float32Array(NN), foam = new Float32Array(NN), silt = new Float32Array(NN);
+    const c2 = new Float32Array(NN), wet = new Uint8Array(NN), px = new Uint8Array(NN * 4);
+    const tex = new THREE.DataTexture(px, WN, WN, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter;
+    const D = __aqShared.dist; D.uAqDist.value = tex; D.uAqDistGain.value = WT.gain;
+    const S = WT.shore;
+    const taper = (y) => { const k = Math.max(0, Math.min(1, (S.edgeY - y) / S.surfW)); return k * k * (3 - 2 * k); };
+    const bedZ = (x, y) => (y >= F.y0 ? surfZ(x, y) : surfZ(x, F.y0) - (F.y0 - y) * WT.toeSlope);
+    const stillZ = (y) => -(1 - taper(y)) * S.sink;
+    // the sea's own height at (x, y): the surface channel's Gerstner sum, tapered the same way
+    function seaZ(x, y, t) {
+      let z = 0;
+      for (const w of WT.waves) z += w.A * Math.sin(w.k * (w.dx * x + w.dy * y) - w.om * t + w.ph);
+      const tp = taper(y); return z * tp - (1 - tp) * S.sink;
+    }
+    let wo = [0, 0];
+    function fill(i, x, y) {
+      const d = Math.min(2.5 * WT.L, stillZ(y) - bedZ(x, y));
+      wet[i] = d > 0.03 * WT.L ? 1 : 0; c2[i] = wet[i] ? G * SP * d / (WC * WC) : 0;
+    }
+    // place (or slide) the window: kept cells keep their state, new ones start still
+    function place(cx, cy) {
+      const no = [Math.round((cx - (WN - 1) * WC / 2) / WC) * WC, Math.round((cy - (WN - 1) * WC / 2) / WC) * WC];
+      const dc = Math.round((no[0] - wo[0]) / WC), dr = Math.round((no[1] - wo[1]) / WC), first = !surf;
+      for (const A of [h, v, foam, silt]) {
+        const old = A.slice(); A.fill(0);
+        if (!first) for (let r = 0; r < WN; r++) for (let c = 0; c < WN; c++) { const oc = c + dc, or = r + dr; if (oc >= 0 && or >= 0 && oc < WN && or < WN) A[r * WN + c] = old[or * WN + oc]; }
+      }
+      wo = no;
+      for (let r = 0; r < WN; r++) for (let c = 0; c < WN; c++) fill(r * WN + c, wo[0] + c * WC, wo[1] + r * WC);
+      D.uAqDistRect.value.set(wo[0], wo[1], 1 / ((WN - 1) * WC), 1 / ((WN - 1) * WC));
+    }
+    function disturb(x, y, r, amt, f = 0, sl = 0) {
+      const ci = Math.round((x - wo[0]) / WC), cj = Math.round((y - wo[1]) / WC), k = Math.ceil(2 * r / WC);
+      for (let j = Math.max(0, cj - k); j <= Math.min(WN - 1, cj + k); j++) for (let i = Math.max(0, ci - k); i <= Math.min(WN - 1, ci + k); i++) {
+        const q = j * WN + i; if (!wet[q]) continue;
+        const ex = wo[0] + i * WC - x, ey = wo[1] + j * WC - y, g = Math.exp(-(ex * ex + ey * ey) / (r * r));
+        v[q] -= amt * g; if (f) foam[q] = Math.min(1, foam[q] + f * g); if (sl) silt[q] = Math.min(1, silt[q] + sl * g);
+      }
+    }
+    function step(dt) {
+      const ff = Math.exp(-dt / 1.6), fs = Math.exp(-dt / 5);
+      for (let j = 0; j < WN; j++) for (let i = 0; i < WN; i++) {
+        const q = j * WN + i; if (!wet[q]) { v[q] = 0; h[q] = 0; continue; }
+        const hq = h[q], l = i > 0 && wet[q - 1] ? h[q - 1] : hq, rr = i < WN - 1 && wet[q + 1] ? h[q + 1] : hq;
+        const d = j > 0 && wet[q - WN] ? h[q - WN] : hq, u = j < WN - 1 && wet[q + WN] ? h[q + WN] : hq;
+        const edge = Math.min(i, j, WN - 1 - i, WN - 1 - j), sponge = edge < BORDER ? 6 * (1 - edge / BORDER) : 0;
+        v[q] = (v[q] + dt * c2[q] * (l + rr + d + u - 4 * hq)) * (1 - dt * (0.5 + sponge));
+      }
+      for (let q = 0; q < NN; q++) if (wet[q]) { h[q] += dt * v[q]; foam[q] *= ff; silt[q] *= fs; }
+    }
+    function upload() {
+      const inv = 1 / (2 * WC), g = WT.gain;
+      for (let j = 0; j < WN; j++) for (let i = 0; i < WN; i++) {
+        const q = j * WN + i, o = 4 * q, edge = Math.min(i, j, WN - 1 - i, WN - 1 - j), fade = Math.min(1, edge / BORDER);
+        const gx = i > 0 && i < WN - 1 ? (h[q + 1] - h[q - 1]) * inv : 0, gy = j > 0 && j < WN - 1 ? (h[q + WN] - h[q - WN]) * inv : 0;
+        px[o] = Math.round(255 * Math.max(0, Math.min(1, 0.5 + 0.5 * fade * gx / g)));
+        px[o + 1] = Math.round(255 * Math.max(0, Math.min(1, 0.5 + 0.5 * fade * gy / g)));
+        px[o + 2] = Math.round(255 * fade * foam[q]); px[o + 3] = Math.round(255 * fade * silt[q]);
+      }
+      tex.needsUpdate = true;
+    }
+    surf = { place, disturb, step, upload, seaZ, origin: () => wo, span: (WN - 1) * WC, h, wet, base: null, acc: 0, was: 0 };
+  }
   let acc = 0, last = null, walked = 0, side = 1, prev = null;
   stepSoftGround = (t) => {
     const dt = last == null ? 0 : Math.min(0.1, Math.max(0, (t - last) / 1000)); last = t;
@@ -127,17 +199,38 @@ let stepSoftGround = () => {};
     if (!on) prev = null;
     if (!bed && !on) return;
     const p = camera.position, feet = [p.x, p.y];
-    if (!bed) make(feet[0], feet[1]);
+    if (!bed) { make(feet[0], feet[1]); if (surf) surf.place(feet[0], feet[1]); }
     if (on) walkStep(t, dt, p, feet);
     wetRows(t / 1000);
     acc += dt; let n = 0;
-    while (acc >= 1 / 60 && n < 4) { acc -= 1 / 60; n++; bed.step(); }
+    while (acc >= 1 / 60 && n < 4) { acc -= 1 / 60; n++; bed.step(); if (surf) surf.step(1 / 60); }
     const d = bed.takeDirty(); if (d) refresh(d);
+    if (surf && n) surf.upload();
   };
   function walkStep(t, dt, p, feet) {
     // slide the window when the walker passes a quarter of its span from its centre
     const o = bed.origin, cx = o[0] + (C - 1) * cell / 2, cy = o[1] + (R - 1) * cell / 2;
     if (Math.abs(feet[0] - cx) > C * cell / 4 || Math.abs(feet[1] - cy) > R * cell / 4) recentre(feet[0], feet[1]);
+    // the surf: how deep the walker stands in the live sea; wading slows them, splashes on entry, leaves a wake
+    let sub = 0;
+    if (surf) {
+      const so = surf.origin(), half = surf.span / 2;
+      if (Math.abs(feet[0] - so[0] - half) > half / 2 || Math.abs(feet[1] - so[1] - half) > half / 2) surf.place(feet[0], feet[1]);
+      sub = Math.max(0, surf.seaZ(feet[0], feet[1], t / 1000) - (p.z - walkEye));
+      const k = Math.min(1, sub / Math.max(0.2 * WT.L, walkEye * 0.7));
+      if (__sgWalkBase == null) __sgWalkBase = WALK.speed;
+      WALK.speed = __sgWalkBase * (1 - 0.65 * k);
+      if (sub > 0 && prev) {
+        const dx = feet[0] - prev[0], dy = feet[1] - prev[1], d = Math.hypot(dx, dy), spd = dt > 0 ? d / dt : 0;
+        if (surf.was <= 0) surf.disturb(feet[0], feet[1], 0.6 * WT.L, 1.2 * WT.L, 1, 0.6);           // the entry splash
+        if (spd > 0.05 * WT.L) {                                                                       // the wake (a dipole)
+          const ux = dx / d, uy = dy / d, a = Math.min(2.5 * WT.L, spd) * 0.8 * Math.min(1, sub / (0.35 * WT.L)) * dt * 10;
+          surf.disturb(feet[0] + ux * 0.25 * WT.L, feet[1] + uy * 0.25 * WT.L, 0.3 * WT.L, -a);
+          surf.disturb(feet[0] - ux * 0.25 * WT.L, feet[1] - uy * 0.25 * WT.L, 0.3 * WT.L, a, 0.25 * dt * 10, 0.3 * dt * 10);
+        }
+      }
+      surf.was = sub;
+    }
     // plant a foot every half stride: alternate sides of the path, heading = where you walk, rim pushed that way
     if (prev) {
       const dx = feet[0] - prev[0], dy = feet[1] - prev[1], d = Math.hypot(dx, dy);
@@ -147,12 +240,16 @@ let stepSoftGround = () => {};
         const ux = dx / d, uy = dy / d, h = Math.atan2(uy, ux), x = feet[0] - uy * SG.foot.offset * side, y = feet[1] + ux * SG.foot.offset * side;
         const r = Math.round((y - bed.origin[1]) / cell), w = rowW[Math.max(0, Math.min(R - 1, r))];
         const sink = w > 230 ? SG.sink.fluid : w > WET_DAMP * 0.6 ? SG.sink.damp : SG.sink.dry, spd = dt > 0 ? d / dt : 0;
-        if (p.z - walkEye < surfZ(x, y) + SG.foot.length) bed.press({ x, y, heading: h, length: SG.foot.length, width: SG.foot.width, sink, rim: SG.foot.rim, push: [ux * Math.min(2, spd / SG.stride), uy * Math.min(2, spd / SG.stride)] });
+        // touch routing: a foot on dry or shallow ground prints the sand; in the surf it also stirs the water (silt, a
+        // ring); past waist depth the sand is out of reach of the eye — the water alone answers
+        if (surf && sub > 0) surf.disturb(x, y, 0.2 * WT.L, 0.5 * WT.L, 0.3, 0.5);
+        if (sub < 0.9 * WT.L && p.z - walkEye < surfZ(x, y) + SG.foot.length) bed.press({ x, y, heading: h, length: SG.foot.length, width: SG.foot.width, sink, rim: SG.foot.rim, push: [ux * Math.min(2, spd / SG.stride), uy * Math.min(2, spd / SG.stride)] });
       }
     }
     prev = feet;
   }
+  let __sgWalkBase = null;
   // for probes and scripts: the bed (null until the first walk), the static surface, and a way to move the window
-  window.__mojGround = { get bed() { return bed; }, surfZ, recentre: (x, y) => (bed ? recentre(x, y) : make(x, y)) };
+  window.__mojGround = { get bed() { return bed; }, surf, surfZ, recentre: (x, y) => { if (bed) recentre(x, y); else make(x, y); if (surf) surf.place(x, y); } };
 }`;
 }

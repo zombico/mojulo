@@ -1,5 +1,5 @@
 import { safeJson } from '../emit-util.js';
-import { WS_CAP, WS_DARK, WS_DRAIN, WS_FILM, WS_GLSL } from '../../materials/shore-moisture.js';
+import { WS_CAP, WS_DARK, WS_DRAIN, WS_FILM, WS_FOAM, WS_GLSL } from '../../materials/shore-moisture.js';
 
 // In-page script: the beach's sand darkens where the swash has been and shines where it has just left a film
 // (materials/shore-moisture.js). A patch on a material — no new geometry. The film reflects the water's sky (the aqua
@@ -43,11 +43,17 @@ ${baked ? `  // the faces are baked with this moisture at t = 0 (the export's fr
   float wsW = wsFilm * wsOn * clamp(wsPatch + wsFilm * 0.5, 0.0, 1.0);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, wsSky, clamp(wsF * 1.2, 0.0, 0.6) * wsW)
     + vec3(1.0, 0.95, 0.86) * pow(max(dot(wsR, uWsSun), 0.0), 220.0) * 3.0 * wsW;
-  // the sheet's leading edge: a lace of foam riding the run-up
-  float wsFront = uWsEdge - uWsRange * (0.5 - 0.5 * sin(uWsOm * uWsTime));
-  float wsLace = exp(-pow((vWsP.y - wsFront) / 0.7, 2.0)) * step(vWsP.y, wsFront + 0.4) * wsOn
+  // the sheet's leading edge: a lace of foam riding the run-up (the backwash's edge carries none)
+  float wsPh = uWsOm * uWsTime, wsFront = uWsEdge - uWsRange * (0.5 - 0.5 * sin(wsPh));
+  float wsLace = exp(-pow((vWsP.y - wsFront) / 0.7, 2.0)) * step(vWsP.y, wsFront + 0.4) * wsOn * smoothstep(-0.3, 0.3, cos(wsPh))
     * smoothstep(0.42, 0.7, 0.65 * wsNoise(vWsP.xy * vec2(1.6, 3.2) + vec2(0.0, uWsTime * 0.3)) + 0.35 * wsNoise(vWsP.xy * 5.0));
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.93, 0.96, 0.97), wsLace * 0.85);
+  // the foam the front leaves behind: stranded where it passed, carried down by the backwash while the water still
+  // covers it (the pattern rides the sheet, then stops where the sheet leaves it), opening into holes as it pops
+  float wsK = exp(-wsWetAge(vWsP.y, uWsTime) / ${WS_FOAM.toFixed(1)});
+  vec2 wsQ = vec2(vWsP.x, vWsP.y + 0.6 * (uWsEdge - max(wsFront, vWsP.y)));
+  float wsBub = 0.6 * wsNoise(wsQ * vec2(1.4, 2.6) + 7.3) + 0.4 * wsNoise(wsQ * 6.0);
+  float wsTrail = wsOn * sqrt(wsK) * smoothstep(1.0 - 0.55 * wsK, 1.08 - 0.55 * wsK, wsBub);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.93, 0.96, 0.97), max(wsLace * 0.85, wsTrail * 0.75));
 }
 #include <tonemapping_fragment>`;
 

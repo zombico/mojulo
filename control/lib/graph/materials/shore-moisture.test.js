@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DETAIL_TIERS, detailAtLeast, normalizeDetail } from './detail-tier.js';
-import { WS_GLSL, shoreMoisture, wsDryTime } from './shore-moisture.js';
+import { WS_GLSL, shoreMoisture, wsDryTime, wsWetAge } from './shore-moisture.js';
 import { assembleBeachScene } from '../landscape/beach-view.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 
@@ -36,10 +36,22 @@ describe('shore moisture (the wet band that follows the swash)', () => {
 
   it('the shader twin computes the same dry time as the builder', () => {
     const js = WS_GLSL.replace(/float (\w+)\(([^)]*)\)/g, (_, n, args) => `function ${n}(${args.replace(/float /g, '')})`).replace(/float /g, 'let ');
-    const twin = new Function('uWsEdge', 'uWsRange', 'uWsOm', 'y', 't', `const { sin, asin, floor } = Math; ${js}; return wsDryTime(y, t);`);
+    const twin = (fn) => new Function('uWsEdge', 'uWsRange', 'uWsOm', 'y', 't', `const { sin, asin, floor } = Math; ${js}; return ${fn}(y, t);`);
+    const dry = twin('wsDryTime'), age = twin('wsWetAge');
     for (const y of [44, 50, 53.5, 57, 59.5, 63]) for (const t of [0, 1.1, 3.7, 6.2, 9.9, 14.4]) {
-      expect(twin(shore.edgeY, shore.swashRange, shore.omSwash, y, t)).toBeCloseTo(wsDryTime(shore, y, t), 5);
+      expect(dry(shore.edgeY, shore.swashRange, shore.omSwash, y, t)).toBeCloseTo(wsDryTime(shore, y, t), 5);
+      expect(age(shore.edgeY, shore.swashRange, shore.omSwash, y, t)).toBeCloseTo(wsWetAge(shore, y, t), 5);
     }
+  });
+
+  it('ages stranded foam from the moment the uprush reaches a row, and the foam outlasts the water', () => {
+    const y = 55, a = 1 - (2 * (shore.edgeY - y)) / shore.swashRange, arrive = Math.asin(a) / shore.omSwash;
+    expect(wsWetAge(shore, y, arrive + 1e-6)).toBeLessThan(1e-3);                       // fresh as the front passes
+    expect(wsWetAge(shore, y, arrive - 1e-3)).toBeCloseTo(period, 2);                    // oldest just before the next
+    const leave = (Math.PI - Math.asin(a)) / shore.omSwash;                              // the backwash uncovers it
+    expect(wsDryTime(shore, y, leave + 1)).toBeCloseTo(1, 5);
+    expect(wsWetAge(shore, y, leave + 1)).toBeCloseTo(leave + 1 - arrive, 5);            // the foam is older, still there
+    expect(wsWetAge(shore, 70, 2)).toBe(1e4);                                            // never reached: no foam
   });
 });
 
@@ -81,5 +93,11 @@ describe('the beach touch tier', () => {
     expect(page).toMatch(/stepSoftGround\(t\);/);
     expect(page).toMatch(/function buildSandBed/);                                       // the kernel the tests run, inlined
     expect(emitThreeWorld({ ...assembleBeachScene({}), inline: false })).not.toMatch(/stepSoftGround/);
+    // the surf: a disturbance field over the analytic sea, its waves and shore the surface channel's own
+    const w = p.softGround.water;
+    expect(w.waves).toBe(p.surfaces[0].waves);
+    expect(w.shore.edgeY).toBe(p.surfaces[0].shore.edgeY);
+    expect(p.surfaces[0].disturb).toBe(true);
+    expect(assembleBeachScene({}).surfaces[0].disturb).toBeUndefined();
   });
 });

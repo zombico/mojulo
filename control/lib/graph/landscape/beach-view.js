@@ -214,15 +214,21 @@ export function assembleBeachScene(recipe = {}, { title } = {}) {
       sink: { dry: D.sink * s, damp: M.sink * s, fluid: 0.04 * s }, stride: 0.38 * s,
       foot: { offset: 0.11 * s, length: 0.26 * s, width: 0.1 * s, rim: 0.035 * s },
       color: DRY_SAND, sun: norm3(SUN), swash: plan.sandSwash, zen: look.zen, hor: look.hor, surface: sandSurface(s),
+      // the surf the walker wades into: a disturbance field (12 cm cells, 15 m) riding the analytic sea (its waves and
+      // shore taper, the same the surface channel draws), slowed to watchable speed like the shallows sim
+      water: { n: 128, cell: 0.12 * s, L: s, speed: 0.5, gain: 0.5, toeSlope: TOE_DEPTH / TOE, waves: surfaces[0].waves,
+        shore: { edgeY: surfaces[0].shore.edgeY, surfW: surfaces[0].shore.surfW, sink: surfaces[0].shore.sink } },
     },
     // walk mode faces the scene's centre from its spawn: just inland of it, so you start looking down the beach to the sea
     walk: { spawn: [0, (EDGE + 24) * s, sandFrame(s).zAt(0, (EDGE + 24) * s) + 1.7 * s], speed: 2.4 * s },
     metersPerUnit: +(1 / s).toFixed(6),
   } : {};
+  // the touched surface reads the surf's disturbance texture (aqua-glsl AQ_DIST)
+  const surfacesOut = touch ? [{ ...surfaces[0], disturb: true }, ...surfaces.slice(1)] : surfaces;
   return {
     ...touchExtra,
     faces: recipe.aqua === false ? plan.faces : [...plan.faces, ...buildSeabed(s)],
-    surfaces,
+    surfaces: surfacesOut,
     ...(liveWet && look ? { wetSand: { group: 'sand', ...(touch ? { hole: true } : {}), ...plan.sandSwash, zen: look.zen, hor: look.hor, sun: surfaces[0].sun } } : {}),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
