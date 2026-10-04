@@ -76,7 +76,9 @@ lands.
   the base of the neck at the back, so the neck shows from the front instead of the chin resting on the shoulders. The
   male's trapezius slopes from the neck to the shoulder instead of standing as a plateau, and the shoulder rounds over the arm as a deltoid instead of ending in a square corner. Under the
   anime head the neck's shade is the jaw's shadow, its lower edge a V toward the notch, no longer the whole neck down
-  to its seam on the chest. A segment may name its caps' height (`cap`).
+  to its seam on the chest. The upper arm's widest point sits a quarter down it, as the deltoid's does, its top a
+  dome over the joint; the western figure's neck is a round column whose back rises into the head, and the pectoral's
+  top edge rises from the breastbone toward the shoulder as the clavicle does. A segment may name its caps' height (`cap`).
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the

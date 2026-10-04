@@ -98,7 +98,8 @@ const BUST_FORM = Object.freeze({ size: 0.27 });
  * Pectoral: `x` the sternum edge (the two meet at the sternum) and the armpit (of a), `lo` the lower border's height at the sternum (m off the chest
  * ring), level across the chest and rising into the armpit ring at its lateral end, `hi` the top under the clavicle (of the chest → shoulder ring run),
  * `thick` the most it stands proud (m): a dome across the muscle, the fullest low and toward the sternum, fading to its
- * lateral and upper edges (the top a share `top` of it), so the pair reads as one chest and not two plates laid on it.
+ * lateral and upper edges (the top a share `top` of it), so the pair reads as one chest and not two plates laid on it;
+ * its top edge the clavicle's line over the top `clav` of the run, rising `clavRise` (z per unit out) from the sternum.
  * Breast: its apex `z` off the chest ring (m) and the field's `cleft` (bust radii) off the midline, its form the BREAST
  * FIELD (breast-field.js: the footprint, the poles' profiles, the projection and the cleft, gated on the field itself)
  * in bust radii, cut at the midline where the pair meets in a valley, its upper pole a slope from a rib under the
@@ -106,7 +107,7 @@ const BUST_FORM = Object.freeze({ size: 0.27 });
  * pointing straight forward (`splay` 0: the outside's drift out per unit it stands proud; turned out, the pair point
  * apart) */
 const CHEST_FORM = Object.freeze({
-  pec: Object.freeze({ male: Object.freeze({ x: [0.012, 0.86], lo: -0.03, hi: 0.86, thick: 0.017, top: 0.1 }), female: Object.freeze({ x: [0.05, 0.8], lo: -0.02, hi: 0.7, thick: 0.004, top: 0.1 }) }),
+  pec: Object.freeze({ male: Object.freeze({ x: [0.012, 0.86], lo: -0.03, hi: 0.86, thick: 0.017, top: 0.1, clav: 0.3, clavRise: 0.4 }), female: Object.freeze({ x: [0.05, 0.8], lo: -0.02, hi: 0.7, thick: 0.004, top: 0.1, clav: 0.3, clavRise: 0.4 }) }),
   // the NAVEL: a small upright oval flush in the belly at the navel joint, darker than the skin (`tone` of it), its upper
   // lip standing `hood` proud (the hooded navel); its own outline draws it. `w` / `h` its half-width and half-height (m),
   // sized and toned to read as a mark at 256 px (the critic: smaller and lighter, it did not show at game scale). `at` its
@@ -199,8 +200,9 @@ export const castOf = (cast, proportions = 'hero') => (typeof cast === 'string' 
  * male trapezius ring (the anime neck form's at 27 cm wide and 4 cm up held the shoulder line flat 6 cm out from the
  * neck and stood in front of it), `trapZ` the trapezius mid ring's height share from the shoulder ring to the top ring
  * (0.5 sagged under the straight line: a shelf, then the neck); `deltoid` the upper arm's top: its ring's overshoot (of
- * its radius; negative, under the joint) and its cap's height over it (0.03 and 0.45 before: a square corner) */
-const NECK_ROOT = Object.freeze({ notch: 0.02, fall: 2.5, step: 0.007, base: 0.8, over: 0.9, trap: Object.freeze({ z: 0.036, r: [0.092, 0.066], yc: -0.02 }), trapZ: Object.freeze({ female: 0.64, male: 0.5 }), deltoid: Object.freeze({ over: -0.25, cap: 0.75 }) });
+ * its radius; negative, under the joint) and its cap's height over it (0.03 and 0.45 before: a square corner), the
+ * belly's ring `mid` down the arm at its full radius and the top ring `top` of it (the dome) */
+const NECK_ROOT = Object.freeze({ notch: 0.02, fall: 2.5, step: 0.007, base: 0.8, over: 0.9, trap: Object.freeze({ z: 0.036, r: [0.092, 0.066], yc: -0.02 }), trapZ: Object.freeze({ female: 0.64, male: 0.5 }), deltoid: Object.freeze({ over: -0.25, cap: 0.95, mid: 0.28, top: 0.8 }) });
 /** THE NECK FORM (`heroPlan({ neckForm })`; the humanoid starter passes a cast's own under the anime head and anime
  * proportions): the neck as a LOFT of explicit rings instead of the three-ring segment, so the column shades round and
  * its back rises into the occiput instead of shelving out behind the lower skull, and the torso's top ring re-placed as
@@ -226,6 +228,9 @@ const NAPE_LOFT = {
 };
 /** the anime casts' neck forms: the male's column is 1.2 × his cast's neck radius (0.75–0.8 of the face width) with the
  * trapezius ring; the female keeps her own radius (about 0.4 of the face width) and her collar, and takes the same loft */
+/** the structured core's neck for a worn head without a neck form (the landmark head): the nape loft at the cast's own
+ * neck radius (the western male's is already fuller than the anime male's column) */
+const WESTERN_NECK_FORM = deepFreeze({ ...NAPE_LOFT, girth: 1 });
 export const ANIME_NECK_FORMS = deepFreeze({
   male: { ...NAPE_LOFT, girth: 1.2, trap: { z: 0.04, r: [0.135, 0.09], yc: -0.015, tip: 0.078, blend: { torso: 0.85, neck: 0.15 } } },
   female: { ...NAPE_LOFT, girth: 1 },
@@ -374,8 +379,11 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // (a head without a jaw part — the anime head opens its mouth as an aperture — says its chin as `chinZ`)
   const chin = head?.parts?.jaw ? Math.min(...head.parts.jaw.stations.flatMap((st) => Object.values(st.points).map((p) => p[2]))) : (head?.chinZ ?? 0);
   const rise = head ? Math.max(0, zs + 0.07 - (hb + chin)) : 0;
-  // the structured core lowers the neck's root to the sternal notch (NECK_ROOT)
-  const neck = neckForm ? neckLoft(neckForm, { b, g, zs, hb: hb + rise, ...(structured ? { base: NECK_ROOT.base } : {}) }) : { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [structured ? NECK_ROOT.over : 0.15, 0.2], group: 'Skin', mirror: 'plane',
+  // the structured core lowers the neck's root to the sternal notch (NECK_ROOT), and gives a worn head without a neck
+  // form of its own (the landmark head) the NAPE LOFT at its cast's radius: a round column whose back rises into the
+  // occiput (the segment's three rings were a prism of flat sides with a flat cap behind)
+  const neckF = neckForm ?? (structured && head ? WESTERN_NECK_FORM : null);
+  const neck = neckF ? neckLoft(neckF, { b, g, zs, hb: hb + rise, ...(structured ? { base: NECK_ROOT.base } : {}) }) : { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [structured ? NECK_ROOT.over : 0.15, 0.2], group: 'Skin', mirror: 'plane',
     bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } };
   if (neckForm?.trap) {   // the trapezius ring: the torso's top ring, its top cap and its weights (absolute heights over the hub)
     const T = neckForm.trap, top = torso.stations[4];
@@ -500,7 +508,11 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     const Pf = CHEST_FORM.pec[femaleMass ? 'female' : 'male'], [x0, x1] = Pf.x.map((f) => f * a);
     const zLo = C.z + g(Pf.lo), zAx = A.z, zUp = C.z + Pf.hi * (Sh.z - C.z), Tm = g(Pf.thick);
     const pecZ = [0.06, 0.22, 0.4, 0.58, 0.76, 0.94].map((t) => r6(zLo + t * (zUp - zLo)));
-    const pecSpan = (z) => [x0, z < zAx ? x0 + (x1 - x0) * dmath.pow(Math.min(1, (z - zLo) / (zAx - zLo)), 0.35) : x1 - 0.08 * a * (z - zAx) / (zUp - zAx)];
+    // the CLAVICLE: the muscle's top edge rises from the sternum to the shoulder as the clavicle does (its medial top
+    // corner cut along it, `clav` of the run from the lower border to the top, rising `clavRise` per unit out), so the
+    // line its edge draws there is the clavicle's (a level top edge read as a box's)
+    const zCl = zUp - Pf.clav * (zUp - zLo), xIn = (z) => (z > zCl ? x0 + (z - zCl) / Pf.clavRise : x0);
+    const pecSpan = (z) => [xIn(z), z < zAx ? x0 + (x1 - x0) * dmath.pow(Math.min(1, (z - zLo) / (zAx - zLo)), 0.35) : x1 - 0.08 * a * (z - zAx) / (zUp - zAx)];
     const pecBind = { bone: 'torso', blend: Object.fromEntries(pecZ.flatMap((z, i) => (z >= zAx ? ['sideR', 'backR'].map((sl) => [`st${i}.${sl}`, { torso: 0.75, upperArmR: 0.25 }]) : []))) };
     // the dome: up the muscle it rises off the lower border and falls to the top; across it, fullest a third out from the
     // sternum, still thick at the sternum (the pair meets there) and thin at the armpit
@@ -617,7 +629,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // the structured core's DELTOID (NECK_ROOT.deltoid): the arm's top ring a little under the joint, its cap taller, so
     // the shoulder turns over the arm at a cone's slope the torso's shoulder ring covers the top of (the flat cap's rim
     // was a square corner, the shoulder line flat to the arm's edge, then straight down)
-    limb('upperArmR', 'shoulder', 'elbow', g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR', structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45] } : {}),
+    // its belly: the mid ring a quarter down the arm at the arm's full radius, the top ring narrowed under it, so the
+    // arm's top is a dome over the joint and the shoulder's widest point sits where the deltoid's does
+    limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR', structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]) } : {}),
     limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
     limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) }),
     thigh,

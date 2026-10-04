@@ -32,8 +32,10 @@ describe('the neck form: absent ⇒ the plan as it was', () => {
     expect(heroPlan({ cast: 'male', proportions: 'anime', neckForm: null })).toEqual(heroPlan({ cast: 'male', proportions: 'anime' }));
     expect(h(humanoidPlan({ preset: 'male', proportions: 'anime', ...old }))).toBe('a548ad8506b71fba');   // the landmark head on anime proportions
     expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime', ...old })))).toBe('6e8dcaca2f4e56eb');
-    expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero' }))).kind).toBe('segment');
-    expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime' }))).kind).toBe('segment');   // a figure cast has none
+    expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero', ...old }))).kind).toBe('segment');
+    expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime', ...old }))).kind).toBe('segment');   // a figure cast has none
+    // the structured core gives every worn head without a neck form of its own the nape loft at its cast's radius
+    for (const spec of [{ cast: 'male', head: 'anime', proportions: 'hero' }, { cast: 'stout', head: 'anime' }, { cast: 'female' }]) expect(neckOf(heroPlanOf(heroRecord(spec))).kind, JSON.stringify(spec)).toBe('loft');
     for (const cast of ['female', 'male']) {
       const n = neckOf(heroPlanOf(heroRecord({ cast, head: 'anime', register: 'lowpoly' })));
       expect(n.kind, cast).toBe('loft'); expect(n.slots, cast).toBe('ring12'); expect(n.e, cast).toBe(2); expect(n.stations, cast).toHaveLength(ANIME_NECK_FORMS[cast].rings.length);
