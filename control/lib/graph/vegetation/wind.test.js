@@ -63,6 +63,15 @@ describe('debris', () => {
     for (let i = 0; i < r.D.n; i++) { expect(Math.hypot(r.D.x[i], r.D.y[i])).toBeLessThanOrEqual(40.5); expect(r.D.z[i]).toBeGreaterThanOrEqual(0); }
     expect([...run(1, { ...W, speed: 5 }, 10).D.x]).toEqual([...r.D.x]);
   });
+  it('petals come from crowns in bloom: none show without one, a gust releases them, φ = 0 holds them on the tree', () => {
+    const mk = (phi, w = W) => { const F = windField(w), D = debrisKernel({ leaves: 0, dust: 0, petals: 200, radius: 40, phi, seed: 5 }, F.at, flat); D.place(0, 0); return { D, F }; };
+    const count = (D) => { let held = 0, aloft = 0, lying = 0; for (let i = 0; i < D.n; i++) { if (D.held[i]) held++; else if (D.z[i] > D.gz[i] + 0.01) aloft++; else lying++; } return { held, aloft, lying }; };
+    const bare = mk(1); for (let i = 0; i < 300; i++) bare.D.step(1 / 60, i / 60, 0, 0); expect(count(bare.D).held).toBe(200);
+    const tree = [[0, 0, 4.5, 3.5, 2]], g = mk(1); g.D.setSources(tree); expect(count(g.D).lying).toBe(80);   // two in five are the carpet
+    for (let i = 0; i < 600; i++) g.D.step(1 / 60, i / 60, 0, 0); const c = count(g.D); expect(c.aloft + c.lying).toBeGreaterThan(80); expect(c.held).toBeLessThan(120);
+    for (let i = 0; i < g.D.n; i++) expect(g.D.z[i]).toBeGreaterThanOrEqual(0);
+    const still = mk(0); still.D.setSources(tree); for (let i = 0; i < 600; i++) still.D.step(1 / 60, i / 60, 0, 0); expect(count(still.D)).toEqual({ held: 120, aloft: 0, lying: 80 });
+  });
   it('a breeze too light to lift a leaf leaves the leaves', () => { const r = run(1, { ...W, speed: 2, gust: 0.2 }); expect(moved(r, 0)).toBe(0); });
 });
 
@@ -83,7 +92,7 @@ describe('terrain: wind is opt-in', () => {
   it('present, the wind script comes before the grass and plants, which bend in it; it parses; exports carry none', () => {
     const p = assembleTerrainWorld({ ...W, grass: { kinds: ['tussock', 'fescue'] }, plants: true, wind: { speed: 8, flaccidity: { plants: 0.5 } } }, { live: true });
     expect(p.meta.wind).toEqual({ speed: 8, dir: 0, gust: 0.5, flaccidity: { grass: 1, plants: 0.5, debris: 1 } });
-    expect(p.terrain.wind.debris).toEqual({ ...WIND_DEBRIS_DEFAULTS, phi: 1 });
+    expect(p.terrain.wind.debris).toEqual({ ...WIND_DEBRIS_DEFAULTS, phi: 1, petals: 0 });   // nothing here blooms
     expect(p.terrain.wind.grass.map((t) => t.B)).toEqual([5, 1.25]);
     expect(p.terrain.wind.plants.every((t) => t.phi === 0.5)).toBe(true);
     const js = terrainChannelScript(p.terrain);
@@ -103,7 +112,7 @@ describe('terrain: wind is opt-in', () => {
     expect(validateTerrainWind(true, { planet: true })[0]).toMatch(/flat worlds/);
     expect(validateTerrainWind('breezy')[0]).toMatch(/must be true or/);
     expect(resolveTerrainWind({ speed: 3, flaccidity: { grass: 0.4 } })).toEqual({ ...TERRAIN_WIND_DEFAULTS, speed: 3, flaccidity: { grass: 0.4, plants: 1, debris: 1 }, debris: WIND_DEBRIS_DEFAULTS });
-    expect(resolveTerrainWind({ debris: false }).debris).toBeNull(); expect(resolveTerrainWind({ debris: { leaves: 0, dust: 0 } }).debris).toBeNull();
+    expect(resolveTerrainWind({ debris: false }).debris).toBeNull(); expect(resolveTerrainWind({ debris: { leaves: 0, dust: 0, petals: 0 } }).debris).toBeNull();
     expect(validateTerrainWind({ debris: { leaves: 1.5 } })[0]).toMatch(/leaves must be an integer 0–3000/);
     expect(validateTerrainWind({ debris: { pebbles: 3 } })[0]).toMatch(/debris must be true, false or/);
     expect(resolveTerrainWind(false)).toBeNull();
@@ -113,4 +122,22 @@ describe('terrain: wind is opt-in', () => {
     expect(c.dir).toBeCloseTo(Math.PI / 2, 12); expect(c.veer).toBeCloseTo(Math.PI / 6, 12);
     expect(c.plants[0]).toEqual({ ...WIND_TAKERS.palm, phi: 1 }); expect(c.plants[1]).toEqual({ ...WIND_TAKERS.tree, phi: 1 });
   });
+});
+
+describe('a cherry grove', () => {
+  it('the cherry grows in bloom: its crown is blossom, its twigs dark', async () => {
+    const { plantPool } = await import('./pool.js');
+    const faces = plantPool({ species: 'cherry', variants: 1 }).variants[0].levels.L2; let pink = 0, green = 0;
+    for (const f of faces) { const r = parseInt(f.fill.slice(1, 3), 16), g = parseInt(f.fill.slice(3, 5), 16); if (r > g + 20) pink++; else if (g > r) green++; }
+    expect(pink).toBeGreaterThan(faces.length / 4); expect(green).toBe(0);
+  }, 60_000);
+  it('plants.kinds replaces the climate\'s trees; the page gives petals only where a tree blooms', async () => {
+    const { validateTerrainPlants } = await import('../terrain/terrain-plants.js');
+    expect(validateTerrainPlants({ kinds: ['cherry'] }, { world: {} })).toEqual([]);
+    expect(validateTerrainPlants({ kinds: ['sakura'] }, { world: {} })[0]).toMatch(/kinds must be a list of species: .*cherry/);
+    const W = { kind: 'terrain', world: { features: [{ feature: 'river' }], climate: 'temperate', seed: 'vale' } };
+    const p = assembleTerrainWorld({ ...W, plants: { kinds: ['cherry'] }, wind: true }, { live: true });
+    expect(p.meta.plants.species).toEqual(['cherry', 'reed']); expect(p.terrain.wind.debris.bloom).toEqual([1, 0]); expect(p.terrain.wind.debris.petals).toBe(WIND_DEBRIS_DEFAULTS.petals);
+    expect(assembleTerrainWorld({ ...W, plants: true, wind: true }, { live: true }).terrain.wind.debris.petals).toBe(0);
+  }, 180_000);
 });

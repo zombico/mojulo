@@ -25,7 +25,8 @@ import { GRASSES } from './grass.js';
 
 export const TERRAIN_WIND_DEFAULTS = Object.freeze({ speed: 5, dir: 0, gust: 0.5, scale: 8, evolve: 6, veer: 20, seed: 1, flaccidity: Object.freeze({ grass: 1, plants: 1, debris: 1 }) });
 // loose debris around the camera, carried by the same field: fallen leaves and dust (counts), within `radius` metres
-export const WIND_DEBRIS_DEFAULTS = Object.freeze({ leaves: 700, dust: 1200, radius: 30 });
+// petals only show where trees are in bloom (a cherry), so asking for them elsewhere costs nothing to see
+export const WIND_DEBRIS_DEFAULTS = Object.freeze({ leaves: 700, dust: 1200, petals: 2500, radius: 30 });
 const FLACCID = ['grass', 'plants', 'debris'];
 export const WIND_LAGS = 16;          // samples of the response filter, per vertex
 
@@ -53,7 +54,7 @@ export const naturalFrequency = (B, L) => 0.5596 * Math.sqrt(9.81 / (Math.max(B,
 /** `wind` on a terrain manifest: true, or { speed?, dir?, gust?, scale?, evolve?, veer?, seed?, flaccidity?, debris? }. → error strings. */
 export function validateTerrainWind(wind, manifest = {}) {
   if (wind === undefined || wind === null || wind === false) return [];
-  const shape = 'terrain.wind must be true or { speed?, dir?, gust?, scale?, evolve?, veer?, seed?, flaccidity?: { grass?, plants?, debris? }, debris?: false | { leaves?, dust?, radius? } }';
+  const shape = 'terrain.wind must be true or { speed?, dir?, gust?, scale?, evolve?, veer?, seed?, flaccidity?: { grass?, plants?, debris? }, debris?: false | { leaves?, dust?, petals?, radius? } }';
   if (wind !== true && (typeof wind !== 'object' || Array.isArray(wind))) return [shape];
   const e = [];
   if (manifest.planet) e.push('terrain.wind is for flat worlds: its gusts and the plants it bends stand on flat ground');
@@ -73,10 +74,10 @@ export function validateTerrainWind(wind, manifest = {}) {
   }
   const d = wind.debris;
   if (d !== undefined && d !== true && d !== false) {
-    if (!d || typeof d !== 'object' || Array.isArray(d) || Object.keys(d).some((k) => !['leaves', 'dust', 'radius'].includes(k))) e.push('terrain.wind.debris must be true, false or { leaves?, dust?, radius? }');
+    if (!d || typeof d !== 'object' || Array.isArray(d) || Object.keys(d).some((k) => !['leaves', 'dust', 'petals', 'radius'].includes(k))) e.push('terrain.wind.debris must be true, false or { leaves?, dust?, petals?, radius? }');
     else {
       const cnt = (k, hi) => { if (d[k] !== undefined && !(Number.isInteger(d[k]) && d[k] >= 0 && d[k] <= hi)) e.push(`terrain.wind.debris.${k} must be an integer 0–${hi}`); };
-      cnt('leaves', 3000); cnt('dust', 6000);
+      cnt('leaves', 3000); cnt('dust', 6000); cnt('petals', 8000);
       if (d.radius !== undefined && !(Number.isFinite(d.radius) && d.radius >= 10 && d.radius <= 80)) e.push('terrain.wind.debris.radius must be 10–80 (metres around the camera where debris lies)');
     }
   }
@@ -88,7 +89,7 @@ export function resolveTerrainWind(wind) {
   if (wind === undefined || wind === null || wind === false) return null;
   const w = wind === true ? {} : wind;
   const debris = w.debris === false ? null : { ...WIND_DEBRIS_DEFAULTS, ...(w.debris && w.debris !== true ? w.debris : {}) };
-  return { ...TERRAIN_WIND_DEFAULTS, ...w, flaccidity: { ...TERRAIN_WIND_DEFAULTS.flaccidity, ...(w.flaccidity || {}) }, debris: debris && debris.leaves + debris.dust > 0 ? debris : null };
+  return { ...TERRAIN_WIND_DEFAULTS, ...w, flaccidity: { ...TERRAIN_WIND_DEFAULTS.flaccidity, ...(w.flaccidity || {}) }, debris: debris && debris.leaves + debris.dust + debris.petals > 0 ? debris : null };
 }
 
 // ── the field, as one self-contained function ─────────────────────────────────────────────────────────────────
@@ -123,41 +124,78 @@ export function windField(W) {
 
 // ── debris, as one self-contained function ────────────────────────────────────────────────────────────────────
 /**
- * debrisKernel(D, at, groundAt) closes over nothing (the page inlines it). D: { seed, phi, leaves, dust, radius }; at: the
- * field's at(); groundAt(x, y) → the surface z (water counts: a leaf floats). Debris lies within `radius` of the camera.
- * A piece takes φ of the wind: on the ground it lies still until the wind 5 cm up passes its lift (dust 0.6 m/s, a leaf
- * 1.2: about a fifth of the wind at 2 m over grass, so leaves skitter from a moderate breeze), then it is airborne under implicit linear drag toward φ·u with a still-air settling speed, and lands. A piece
- * carried out of the radius comes back in at its mirror through the camera, lying on the ground, so the density holds.
- * → { n, kind (0 leaf, 1 dust), x, y, z, vx, vy, vz, spin, place(cx, cy), step(dt, t, cx, cy) }.
+ * debrisKernel(D, at, groundAt) closes over nothing (the page inlines it). D: { seed, phi, leaves, dust, petals?, radius };
+ * at: the field's at(); groundAt(x, y) → the surface z (water counts: a leaf floats). Debris lies within `radius` of the
+ * camera. A piece takes φ of the wind: on the ground it lies still until the wind 5 cm up passes its lift (dust 0.6 m/s,
+ * a petal 0.7, a leaf 1.2: about a fifth of the wind at 2 m over grass, so leaves skitter from a moderate breeze), then
+ * it is airborne under implicit linear drag toward φ·u with a still-air settling speed, and lands. A piece carried out of
+ * the radius comes back in at its mirror through the camera, lying on the ground, so the density holds.
+ *
+ * Petals come from trees in bloom: `setSources([[x, y, zc, r, hz], …])` names the blossoming crowns near the camera
+ * (centre, horizontal and vertical half-extents). A petal is held on its tree until the wind in a crown passes 3 m/s,
+ * then released at a rate growing with the excess (a gust strips a tree, a lull lets it be); it flutters down slowly
+ * (a petal falls at about half a metre a second, swinging as it goes), lands, lies a while, and is held again: a crown
+ * in bloom always has petals to give. Two in five petals are the carpet under the trees instead: they are never held,
+ * only lifted again by the wind. With no crowns near, petals stay held: nothing shows.
+ * → { n, kind (0 leaf, 1 dust, 2 petal), held, x, y, z, vx, vy, vz, spin, place(cx, cy), setSources(list), step(dt, t, cx, cy) }.
  */
 export function debrisKernel(D, at, groundAt) {
-  const KINDS = [{ tau: 0.3, settle: 0.9, lift: 1.2 }, { tau: 0.04, settle: 0.12, lift: 0.6 }];
+  const KINDS = [{ tau: 0.3, settle: 0.9, lift: 1.2 }, { tau: 0.04, settle: 0.12, lift: 0.6 }, { tau: 0.25, settle: 0.5, lift: 0.7 }];
   let a = (D.seed ^ 0x5bd1e995) | 0; const rnd = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const n = D.leaves + D.dust, R = D.radius, f = () => new Float64Array(n);
-  const S = { n, kind: new Uint8Array(n), x: f(), y: f(), z: f(), gz: f(), vx: f(), vy: f(), vz: f(), spin: f(), du: f(), dv: f() };   // gz: the ground under it, read once a move
-  for (let i = 0; i < n; i++) { S.kind[i] = i < D.leaves ? 0 : 1; const r = R * Math.sqrt(rnd()), q = 2 * Math.PI * rnd(); S.du[i] = r * Math.cos(q); S.dv[i] = r * Math.sin(q); S.spin[i] = 2 * Math.PI * rnd(); }
+  const NP = D.petals || 0, n = D.leaves + D.dust + NP, R = D.radius, f = () => new Float64Array(n), carpetEnd = D.leaves + D.dust + Math.round(0.4 * NP);
+  const S = { n, kind: new Uint8Array(n), held: new Uint8Array(n), x: f(), y: f(), z: f(), gz: f(), vx: f(), vy: f(), vz: f(), spin: f(), du: f(), dv: f(), rest: f() };   // gz: the ground under it, read once a move
+  for (let i = 0; i < n; i++) {
+    S.kind[i] = i < D.leaves ? 0 : i < D.leaves + D.dust ? 1 : 2; const r = R * Math.sqrt(rnd()), q = 2 * Math.PI * rnd();
+    S.du[i] = r * Math.cos(q); S.dv[i] = r * Math.sin(q); S.spin[i] = 2 * Math.PI * rnd(); if (S.kind[i] === 2) S.held[i] = 1;
+  }
+  let crowns = [];
   const lay = (i, x, y) => { S.x[i] = x; S.y[i] = y; S.z[i] = S.gz[i] = groundAt(x, y); S.vx[i] = 0; S.vy[i] = 0; S.vz[i] = 0; };
-  S.place = (cx, cy) => { for (let i = 0; i < n; i++) lay(i, cx + S.du[i], cy + S.dv[i]); };
+  const under = (i) => { const c = crowns[Math.floor(rnd() * crowns.length)], r = 1.3 * c[3] * Math.sqrt(rnd()), q = 2 * Math.PI * rnd(); lay(i, c[0] + r * Math.cos(q), c[1] + r * Math.sin(q)); S.held[i] = 0; };
+  const hold = (i) => { S.held[i] = 1; S.vx[i] = 0; S.vy[i] = 0; S.vz[i] = 0; };
+  S.place = (cx, cy) => { for (let i = 0; i < n; i++) if (S.kind[i] !== 2) lay(i, cx + S.du[i], cy + S.dv[i]); };
+  // a crown's [5] is its height above its own ground, read once
+  S.setSources = (list) => { const first = !crowns.length && list.length; crowns = list.map((c) => [...c, c[2] - groundAt(c[0], c[1])]); if (first) for (let i = D.leaves + D.dust; i < carpetEnd; i++) under(i); };
   S.step = (dt, t, cx, cy) => {
     for (let i = 0; i < n; i++) {
-      let ex = S.x[i] - cx, ey = S.y[i] - cy;
+      const K = S.kind[i], P = KINDS[K];
+      if (S.held[i]) {                                       // a petal on its tree: a gust in a crown lets it go
+        if (!crowns.length || !(D.phi > 0)) continue;
+        const c = crowns[Math.floor(rnd() * crowns.length)], u = at(c[0], c[1], c[5], t), w = D.phi * Math.hypot(u[0], u[1]);
+        if (rnd() < dt * 0.2 * Math.max(0, w - 3)) {
+          const q = 2 * Math.PI * rnd(), r = c[3] * Math.sqrt(rnd());
+          S.x[i] = c[0] + r * Math.cos(q); S.y[i] = c[1] + r * Math.sin(q); S.z[i] = c[2] + c[4] * (2 * rnd() - 1); S.gz[i] = groundAt(S.x[i], S.y[i]);
+          S.vx[i] = 0.3 * D.phi * u[0]; S.vy[i] = 0.3 * D.phi * u[1]; S.vz[i] = 0; S.held[i] = 0;
+        }
+        continue;
+      }
+      const ex = S.x[i] - cx, ey = S.y[i] - cy;
       if (ex * ex + ey * ey > R * R) {                       // out of reach: in again at the mirror, or at its own spot if that is out too
+        if (K === 2) { if (i < carpetEnd && crowns.length) under(i); else hold(i); continue; }
         if (ex * ex + ey * ey < 4 * R * R) lay(i, cx - ex * 0.98, cy - ey * 0.98); else lay(i, cx + S.du[i], cy + S.dv[i]);
         continue;
       }
-      const P = KINDS[S.kind[i]], g = S.z[i] <= S.gz[i] + 1e-6;
+      const g = S.z[i] <= S.gz[i] + 1e-6;
       let ux = 0, uy = 0, uz = 0;
       if (D.phi > 0) { const u = at(S.x[i], S.y[i], Math.max(0.05, S.z[i] - S.gz[i]), t); ux = D.phi * u[0]; uy = D.phi * u[1]; uz = D.phi * u[2]; }
       if (g) {
         const uh = Math.hypot(ux, uy);
         if (uh > P.lift) { S.vz[i] = Math.min(3, 1.5 * (uh - P.lift) + Math.max(0, uz)); S.vx[i] = 0.5 * ux; S.vy[i] = 0.5 * uy; }
-        else { const k = Math.exp(-dt / 0.15); S.vx[i] *= k; S.vy[i] *= k; S.vz[i] = 0; if (Math.abs(S.vx[i]) + Math.abs(S.vy[i]) > 1e-3) { S.x[i] += S.vx[i] * dt; S.y[i] += S.vy[i] * dt; S.z[i] = S.gz[i] = groundAt(S.x[i], S.y[i]); } else { S.vx[i] = 0; S.vy[i] = 0; } continue; }
+        else {
+          const k = Math.exp(-dt / 0.15); S.vx[i] *= k; S.vy[i] *= k; S.vz[i] = 0;
+          if (Math.abs(S.vx[i]) + Math.abs(S.vy[i]) > 1e-3) { S.x[i] += S.vx[i] * dt; S.y[i] += S.vy[i] * dt; S.z[i] = S.gz[i] = groundAt(S.x[i], S.y[i]); } else { S.vx[i] = 0; S.vy[i] = 0; }
+          // a fallen petal lies a while, then is a petal on a tree again (the carpet's stay)
+          if (K === 2 && i >= carpetEnd && (S.rest[i] += dt) > 12 + 18 * ((i * 0.618034) % 1)) { S.rest[i] = 0; hold(i); }
+          continue;
+        }
+      }
+      if (K === 2) {                                         // a petal swings as it falls: a flutter about its path
+        const sp = S.spin[i]; ux += 0.35 * Math.sin(1.7 * sp + i); uy += 0.35 * Math.cos(1.3 * sp + i); uz += 0.25 * Math.sin(2.1 * sp);
       }
       const k = dt / P.tau;
       S.vx[i] = (S.vx[i] + k * ux) / (1 + k); S.vy[i] = (S.vy[i] + k * uy) / (1 + k); S.vz[i] = (S.vz[i] + k * (uz - P.settle)) / (1 + k);
       S.x[i] += S.vx[i] * dt; S.y[i] += S.vy[i] * dt; S.z[i] += S.vz[i] * dt;
       const gz = S.gz[i] = groundAt(S.x[i], S.y[i]);
-      if (S.z[i] <= gz) { S.z[i] = gz; S.vz[i] = 0; S.vx[i] *= 0.5; S.vy[i] *= 0.5; }
+      if (S.z[i] <= gz) { S.z[i] = gz; S.vz[i] = 0; S.vx[i] *= 0.5; S.vy[i] *= 0.5; S.rest[i] = 0; }
       S.spin[i] += dt * (3 + 2 * Math.hypot(S.vx[i], S.vy[i]));
     }
   };
@@ -191,12 +229,14 @@ export function bendTable() {
 
 /**
  * The page's wind: the field, and how each grass kind and plant species takes it.
- * `grassKinds`: the grass channel's species names, in order; `plantKinds`: the plants channel's species kinds, in order.
+ * `grassKinds`: the grass channel's species names, in order; `plantKinds`: the plants channel's species kinds, in order;
+ * `bloom`: per plant species, its crown ratio when it is in bloom (its crowns give petals), else 0.
  */
-export function windPageChannel(spec, { grassKinds = [], plantKinds = [] } = {}) {
+export function windPageChannel(spec, { grassKinds = [], plantKinds = [], bloom = [] } = {}) {
   const t = bendTable(), DEG = Math.PI / 180, phi = spec.flaccidity;
   return {
-    ...(spec.debris ? { debris: { ...spec.debris, phi: phi.debris } } : {}),   // φ 0: it lies where it fell
+    // φ 0: it lies where it fell. bloom: per plant species, its crown ratio if it is in bloom (it gives petals), else 0
+    ...(spec.debris ? { debris: { ...spec.debris, phi: phi.debris, ...(bloom.some((b) => b) ? { bloom } : { petals: 0 }) } } : {}),
     speed: spec.speed, dir: spec.dir * DEG, gust: spec.gust, scale: spec.scale, evolve: spec.evolve, veer: spec.veer * DEG, seed: spec.seed, z0: 0.05, lags: WIND_LAGS,
     grass: grassKinds.map((k) => ({ ...grassTaker(k), phi: phi.grass })),
     plants: plantKinds.map((k) => ({ ...(WIND_TAKERS[k] || WIND_TAKERS.tree), phi: phi.plants })),

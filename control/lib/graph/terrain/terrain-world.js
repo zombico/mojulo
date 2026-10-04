@@ -15,6 +15,7 @@ import { validateTerrainCities, prepareCity, seatCity, cityLight } from './terra
 import { validateTerrainGrass, resolveTerrainGrass, grassConfig, grassPageChannel } from './terrain-grass.js';
 import { validateTerrainPlants, resolveTerrainPlants, plantsConfig, plantPools, plantsPageChannel, plantsBake } from './terrain-plants.js';
 import { validateTerrainWind, resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
+import { SPECIES } from '../vegetation/species.js';
 import { terrainKernel } from './terrain-kernel.js';
 import { slicedTerrainFaces, sliceLevels } from '../polygonizer/landform-mesh.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
@@ -225,7 +226,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   // stand within 600 m of the spawn as repeats
   const plantsSpec = resolveTerrainPlants(manifest.plants); let plantBake = null, plantMeta = null;
   if (plantsSpec) {
-    const V = plantsConfig(field, { figs: !!plantsSpec.figs, region: plantsSpec.region || null }), pools = plantPools(V, plantsSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
+    const V = plantsConfig(field, { figs: !!plantsSpec.figs, region: plantsSpec.region || null, kinds: plantsSpec.kinds || null }), pools = plantPools(V, plantsSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
     if (live) { channel.plants = plantsPageChannel(V, pools, plantsSpec); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), templates: channel.plants.templates.length, triangles: channel.plants.templates.reduce((a, t) => a + t.tris, 0) }; }
     else { plantBake = plantsBake(field, V, pools, { at: [wx, wy], radius: 600 }); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), baked: plantBake.count }; }
   }
@@ -240,7 +241,8 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   // nothing else takes wind. Exports carry none: a still frame of a breeze is only a lean.
   const windSpec = resolveTerrainWind(manifest.wind); let windMeta = null;
   if (windSpec && live && (channel.grass || channel.plants)) {
-    channel.wind = windPageChannel(windSpec, { grassKinds: channel.grass ? channel.grass.species.map((sp) => sp.name) : [], plantKinds: channel.plants ? channel.plants.species.map((sp) => sp.kind) : [] });
+    channel.wind = windPageChannel(windSpec, { grassKinds: channel.grass ? channel.grass.species.map((sp) => sp.name) : [], plantKinds: channel.plants ? channel.plants.species.map((sp) => sp.kind) : [],
+      bloom: channel.plants ? channel.plants.V.species.map((sp) => (SPECIES[sp.name] && SPECIES[sp.name].bloom ? sp.crown : 0)) : [] });
     windMeta = { speed: windSpec.speed, dir: windSpec.dir, gust: windSpec.gust, flaccidity: windSpec.flaccidity };
   }
   const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];

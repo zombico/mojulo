@@ -147,6 +147,17 @@ numbers below were checked against the literature, and several first guesses tur
   - exports carry no grass.
 
 
+## A tree in bloom (`species.js` `cherry`, `bloom`, `over`)
+
+- **Form from the architecture's own numbers.** The cherry is Rauh's upright trunk made decurrent (`over`: apical
+  control 0.50 → 0.44, limbs at 52/64/74°): it forks low into a dome about as wide as it is tall. Weaker control than
+  that grows a shrub; Troll's model grows a leader with tiers.
+- **Bloom is a dress on the leaves.** `bloom` recolours every leaf face between a deep, a petal and a lit pink by its
+  own baked tone, and darkens green shoots to twigs. `bloom.fill` multiplies the clusters' leaf area (`ladder.js`): a
+  flowering spur carries several clusters of flowers, so the crown is a cloud where its leaves alone would be sparse.
+  `leafLife: 2` keeps the blossom along two years of spurs.
+- **A grove is `plants.kinds`.** It replaces the climate's trees; the cherry's crown ratio spaces it with lawn between.
+
 ## Wind: flaccidity (`wind.js`)
 
 - **One field, and a dial on everything it touches.** A terrain's `wind` is one seeded gust field: a mean speed toward
@@ -174,6 +185,10 @@ numbers below were checked against the literature, and several first guesses tur
   camera until the wind 5 cm up (about a fifth of the wind at 2 m over grass) passes their lift, then fly under
   implicit drag toward φ·u, with a still-air settling speed and an updraught that reaches the ground, and land. A piece
   carried out of reach comes back at its mirror through the camera, so the density holds.
+- **Things a plant gives off fly too.** Petals are released from crowns in bloom (`setSources`, from the page's own
+  plant tiles) when the wind in a crown passes 3 m/s, at a rate growing with the excess, flutter down at about half a
+  metre a second, lie a while and are given again; two in five are the carpet under the trees. Where nothing blooms
+  the page carries none.
 - **Where it runs** (`scene/channels/terrain-wind.js`): a vertex shader on clones of the grass' and plants' materials,
   per instance root. Absent `wind`, the page is byte-identical. The research spike behind it, with plants, a ribbon and
   debris on the same field, is `control/scripts/spikes/wind/`.

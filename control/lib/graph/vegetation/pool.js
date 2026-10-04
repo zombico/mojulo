@@ -74,6 +74,14 @@ function cached(key, make) {
   if (CACHE.has(key)) { const v = CACHE.get(key); CACHE.delete(key); CACHE.set(key, v); return v; }
   const v = make(); CACHE.set(key, v); if (CACHE.size > CACHE_MAX) CACHE.delete(CACHE.keys().next().value); return v;
 }
+// a tree in bloom: every leaf face recoloured between the blossom's deep, petal and lit tones by its own leaf tone, with a
+// little per-face scatter (pink to white), so the crown's baked light carries over into the bloom; its young shoots dark
+const bloomLad = (lad, B) => Object.fromEntries(Object.entries(lad).map(([l, tris]) => [l, tris.map((t, i) => {
+  if (t.kind !== 'leaf') return t.c[1] > t.c[0] ? { ...t, c: [0.55 * t.c[0] + 40, 0.45 * t.c[1] + 26, 0.5 * t.c[2] + 30] } : t;   // a green shoot is a dark twig in bloom
+  const lum = (t.c[0] * 0.3 + t.c[1] * 0.59 + t.c[2] * 0.11) / 160, j = ((i * 2654435761) >>> 0) / 4294967296 - 0.5, k = Math.max(0, Math.min(1, lum + 0.35 * j));
+  const c = k < 0.5 ? B.deep.map((v, n) => v + (B.petal[n] - v) * 2 * k) : B.petal.map((v, n) => v + (B.lit[n] - v) * (2 * k - 1));
+  return { ...t, c };
+})]));
 const cut = (lad, maxLevel) => Object.fromEntries(LEVELS.map((l) => [l, LEVELS.indexOf(l) <= LEVELS.indexOf(maxLevel) ? lad[l] : lad[maxLevel]]));
 
 /**
@@ -91,9 +99,9 @@ export function plantPool({ species, variants = 3, seed = 'plants', light = null
     const bark = tile ? { minR: 0.03, tile: tile.metres, color: tile.mean, key: tile.key } : null;
     for (let k = 0; k < variants; k++) {
       const sd = hashSeed(`${seed}::${species}::${k}`) % 100000;
-      const arch = S.fig ? FIGS[S.fig] : S.leafLife ? { ...ARCHITECTURES[S.arch], leafLife: S.leafLife } : S.arch;
-      const grown = cached(`tree:${S.arch}:${S.years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}`, () => { const p = grow(arch, { years: S.years, seed: sd }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark }) }; });
-      const yaw = (k * 2 * Math.PI) / variants; const lad = cut(grown.lad, maxLevel);
+      const arch = S.fig ? FIGS[S.fig] : S.leafLife || S.over ? { ...ARCHITECTURES[S.arch], ...(S.over || {}), ...(S.leafLife ? { leafLife: S.leafLife } : {}) } : S.arch, fill = S.bloom && S.bloom.fill ? { fill: S.bloom.fill } : {};
+      const grown = cached(`tree:${S.arch}:${S.years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}${fill.fill ? `:fill-${fill.fill}` : ''}${S.over ? `:over-${JSON.stringify(S.over)}` : ''}`, () => { const p = grow(arch, { years: S.years, seed: sd }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark, ...fill }) }; });
+      const yaw = (k * 2 * Math.PI) / variants; const lad = cut(S.bloom ? bloomLad(grown.lad, S.bloom) : grown.lad, maxLevel);
       out.variants.push({ height: 1, grownHeight: grown.H, levels: Object.fromEntries(LEVELS.map((l) => [l, trisToFaces(lad[l], { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])) });
     }
   } else if (S.kind === 'conifer') {

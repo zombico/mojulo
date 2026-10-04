@@ -71,19 +71,43 @@ const debrisPage = `  const DB = (${debrisKernel.toString()})({ ...WIND.debris, 
   const LEAF = [[0.78, 0.45, 0.1], [0.85, 0.66, 0.18], [0.62, 0.28, 0.08], [0.7, 0.62, 0.22], [0.5, 0.36, 0.14]].map((c) => new THREE.Color(c[0], c[1], c[2]));
   for (let i = 0; i < WIND.debris.leaves; i++) leaves.setColorAt(i, LEAF[i % LEAF.length]);
   scene.add(leaves);
+  // petals (only where a tree in bloom grows): small pale quads, hidden while held on their tree
+  const NP = WIND.debris.petals || 0, P0 = WIND.debris.leaves + WIND.debris.dust, BLOOM = WIND.debris.bloom || [];
+  const petals = NP ? new THREE.InstancedMesh(new THREE.PlaneGeometry(0.045, 0.034), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), NP) : null;
+  if (petals) {
+    const PETAL = [[1, 0.86, 0.9], [0.98, 0.78, 0.85], [1, 0.93, 0.95], [0.95, 0.7, 0.8]].map((c) => new THREE.Color(c[0], c[1], c[2]));
+    for (let i = 0; i < NP; i++) petals.setColorAt(i, PETAL[i % PETAL.length]);
+    petals.frustumCulled = false; petals.userData.g = 'debris'; scene.add(petals);
+  }
+  // the crowns in bloom near the camera, from the plants' own tiles (x, y, z, height, species, …), every half second
+  let crownsAt = -1e9;
+  function crownsNear(cx, cy) {
+    const P = TW.plants, out = []; if (!P) return out; const R2 = (1.5 * WIND.debris.radius) ** 2;
+    for (const tl of P.tiles.values()) { const a = tl.a; for (let q = 0; q < a.length; q += 9) { const cr = BLOOM[a[q + 4]]; if (!cr) continue; const dx = a[q] - cx, dy = a[q + 1] - cy; if (dx * dx + dy * dy > R2) continue; const h = a[q + 3]; out.push([a[q], a[q + 1], a[q + 2] + 0.62 * h, 0.5 * cr * h, 0.3 * h]); } }
+    return out;
+  }
   const dustPos = new Float32Array(3 * Math.max(1, WIND.debris.dust)), dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
   const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xcdb990, size: 0.05, sizeAttenuation: true, transparent: true, opacity: 0.7, depthWrite: false })); dust.frustumCulled = false; dust.userData.g = 'debris'; scene.add(dust);
   const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), P3 = new THREE.Vector3(), ONE = new THREE.Vector3(1, 1, 1);
   let simT = null; const DT = 1 / 60;
   function stepDebris(t) {
     if (simT === null || t < simT || t - simT > 1) simT = t;   // first frame, a pinned clock moved back, or a long stall: carry on from now
+    if (NP && t - crownsAt > 0.5) { crownsAt = t; DB.setSources(crownsNear(camera.position.x, camera.position.y)); }
     let k = 0; while (simT + DT <= t && k++ < 4) { simT += DT; DB.step(DT, simT, camera.position.x, camera.position.y); }
     for (let i = 0; i < WIND.debris.leaves; i++) {
       const s = DB.spin[i], aloft = DB.vx[i] || DB.vy[i] || DB.vz[i];
       E.set(aloft ? s * 1.3 : 0, aloft ? s * 0.7 : 0, s); Q.setFromEuler(E); M4.compose(P3.set(DB.x[i], DB.y[i], DB.z[i] + 0.01), Q, ONE); leaves.setMatrixAt(i, M4);
     }
     leaves.instanceMatrix.needsUpdate = true;
-    let m = 0; for (let i = WIND.debris.leaves; i < DB.n; i++) if (DB.vz[i] || DB.vx[i] || DB.vy[i]) { dustPos[3 * m] = DB.x[i]; dustPos[3 * m + 1] = DB.y[i]; dustPos[3 * m + 2] = DB.z[i]; m++; }
+    if (petals) {
+      for (let j = 0; j < NP; j++) {
+        const i = P0 + j, s = DB.spin[i];
+        if (DB.held[i]) { M4.makeScale(0, 0, 0); petals.setMatrixAt(j, M4); continue; }
+        E.set(DB.z[i] > DB.gz[i] ? s * 1.9 : 0, DB.z[i] > DB.gz[i] ? s * 1.1 : 0, s); Q.setFromEuler(E); M4.compose(P3.set(DB.x[i], DB.y[i], DB.z[i] + 0.01), Q, ONE); petals.setMatrixAt(j, M4);
+      }
+      petals.instanceMatrix.needsUpdate = true;
+    }
+    let m = 0; for (let i = WIND.debris.leaves; i < P0; i++) if (DB.vz[i] || DB.vx[i] || DB.vy[i]) { dustPos[3 * m] = DB.x[i]; dustPos[3 * m + 1] = DB.y[i]; dustPos[3 * m + 2] = DB.z[i]; m++; }
     dustGeo.setDrawRange(0, m); dustGeo.attributes.position.needsUpdate = true;
   }
 `;

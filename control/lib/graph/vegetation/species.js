@@ -5,7 +5,8 @@ export const LEVELS = ['L0', 'L1', 'L2', 'L3'];
  * The species table: what each name grows. Heights are the placement range a scatter should draw from; `bark` is the
  * fracture preset its trunk wears (`fir`, the self-organizing Massart tree, keeps pine's plates); `leafLife` (years a
  * leaf is kept, over the architecture's own) makes a tree evergreen; `fig` names a fig row (ficus.js), whose architecture
- * carries its roots, lattice or buttresses.
+ * carries its roots, lattice or buttresses; `over` retunes its architecture's numbers; `bloom` dresses its leaf faces as
+ * blossom (a flowering tree in flower).
  */
 export const SPECIES = Object.freeze({
   oak: { kind: 'tree', bark: 'oak', arch: 'rauh', years: 20, leafScale: 1.5, heights: [11, 20] },
@@ -18,6 +19,11 @@ export const SPECIES = Object.freeze({
   banyan: { kind: 'tree', bark: 'beech', arch: 'rauh', fig: 'banyan', years: 22, leafScale: 1.3, heights: [12, 22] },
   strangler: { kind: 'tree', bark: 'beech', arch: 'rauh', fig: 'strangler', years: 24, leafScale: 1.4, heights: [25, 38] },
   rubberfig: { kind: 'tree', bark: 'beech', arch: 'troll', fig: 'rubberfig', years: 24, leafScale: 1.2, heights: [20, 35] },
+  // the flowering cherry (Prunus × yedoensis 'Somei-yoshino') in full bloom: Rauh's upright trunk made decurrent (`over`:
+  // weaker apical control, wider-set limbs), so it forks low into a dome about as wide as it is tall —
+  // its leaves are its blossom (`bloom`: the deep, the petal and the lit tone the leaf faces are recoloured between; `fill`
+  // the blossom's area over the leaves', a spur carrying several flower clusters), kept two years along the spurs (`leafLife`)
+  cherry: { kind: 'tree', bark: 'beech', arch: 'rauh', over: { apical: [0.5, 0.44], matureAt: 8, setPoint: [0, 52, 64, 74] }, years: 12, leafScale: 1.8, leafLife: 2, heights: [5, 9], bloom: { fill: 3, deep: [222, 150, 178], petal: [246, 200, 214], lit: [255, 236, 242] } },
   coconut: { kind: 'palm', palm: 'coconut', ages: [22, 32, 45], heights: [8, 26] },
   date: { kind: 'palm', palm: 'date', ages: [18, 30, 45], heights: [5, 16] },
   washingtonia: { kind: 'palm', palm: 'washingtonia', ages: [25, 40], heights: [11, 18] },
