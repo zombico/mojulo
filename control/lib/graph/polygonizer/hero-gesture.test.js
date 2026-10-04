@@ -242,11 +242,13 @@ describe('the anime wave', () => {
 // torso and pelvis on ring12 addressed on ring8's scale, the anatomy pushed into them, the pectorals and breasts their own
 // layers; humanoid-plan: the structured hem without the shirt's overlap): the streamlined pair unchanged. Re-pinned for the
 // pectorals meeting as one domed chest and the breast sampled from its field (breast-field.js, ring20), then for the
-// female's breasts closer together, pointing forward, rising out of her upper chest's fill: the streamlined pair unchanged
+// female's breasts closer together, pointing forward, rising out of her upper chest's fill, then for the pair meeting in
+// the cleft's valley (breast-field.js `cleft`) with the décolletage unfilled and her upper pole a longer ramp: the
+// streamlined pair unchanged
 const PINS = {
   landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'c82c8e0138533e8f', 'c6d58734d04bae2a'], ['3c7bbf346eaac7ec', 'bea115d3e2080dac']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '4bbe7e869fd84809', '300964d39fd6c6bf'], ['19bd030cf5c6b514', '0491e3116c5d971b']],
-  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', 'd3f23aeff08dbcb2', '4232528586910646'], ['3501097320b96707', 'cd26a720b2420d48']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '5160038f66b2b8be', 'aa8d52ef6c619492'], ['19bd030cf5c6b514', '0491e3116c5d971b']],
+  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '741b0863a1be85b0', '78e726294f609c98'], ['3501097320b96707', 'cd26a720b2420d48']],
   ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', 'e2fa399b9f0e59b1', '5c4ef2330cf7f4bb'], ['406acf0f4215b0e5', '4124db4ac9b3b4a1']],
   chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '444c18eec634a801', '6f192dff85081e6c'], ['73b7f4b40fcd97f1', '1f5bb5d11318a03f']],
 };

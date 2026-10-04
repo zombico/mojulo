@@ -21,4 +21,10 @@ describe('the breast field', () => {
     const G = breastGates(ball); expect(G.margins.pass).toBe(false); expect(G.upperLine.pass).toBe(false);
     const high = { ...BREAST_FIELD, reach: { ...BREAST_FIELD.reach, up: 1.9, down: 0.7 } }; expect(breastGates(high).poles.pass).toBe(false);
   });
+  it('the cleft: the pair meets at the midline in a valley; the margins profile medially falls to the chest before it', () => {
+    expect(breastHeight(BREAST_FIELD.cleft, 0)).toBeGreaterThan(0.2 * BREAST_FIELD.proj);
+    // the medial side with the margins' profile (q 2.8) and reach: flat chest at the midline, the two-mounds read
+    const apart = { ...BREAST_FIELD, reach: { ...BREAST_FIELD.reach, in: 1.15 }, profile: { ...BREAST_FIELD.profile, in: 2.8 } };
+    const G = breastGates(apart); expect(G.cleft.value).toBe(0); expect(G.cleft.pass).toBe(false);
+  });
 });

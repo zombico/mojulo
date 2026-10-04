@@ -97,11 +97,15 @@ export const SWIM_TONES = Object.freeze({ male: '#24476b', female: '#5c1f30' });
  * socket; on the streamlined core the thighs carry the hips (u 0 the crest, 1 the hip ring) */
 const SWIM_CUTS = {
   male: { pelvis: (u, _t, structured) => !structured || u < 5, thigh: (u, _t, structured) => u < (structured ? 1.6 : 2) },
-  // the cups the breast's lower three quarters (`n` its stations): its upper pole stays skin, so where it melts into the
-  // chest skin meets skin and the cup's top edge is a clean level line; on the torso only the strap round the sides and
-  // back (the breast lies over its front there). The briefs run up to the hem (the pelvis's rings below the one it tucks
+  // the cups the breast's bands under its edge station (`n` its stations; hero-form.js CHEST_FORM.bust.edge, 12 of 16): on
+  // a bare figure that station is bent into a SWEETHEART line, high over the apex and dipping toward both ends, so each
+  // cup follows its breast and the pair dips into the cleft (a level edge read the two cups as one band: the critic;
+  // painted by faces across level rings, a curved edge stair-stepped). The upper pole stays skin, so where it melts into
+  // the chest skin meets skin; on the torso the strap round the back and sides, from under the breast's lateral side
+  // (t 0.12: it runs on under the cup, hidden by it, so the top wraps round without a gap of skin; from t 0.3 it broke
+  // off before the cup's end), the breast lying over the torso's front. The briefs run up to the hem (the pelvis's rings below the one it tucks
   // under the torso with), so the line where the torso meets the pelvis is the waistband's edge, never a seam on skin
-  female: { pelvis: (u, _t, structured) => !structured || u < 5, thigh: (u, _t, structured) => !structured && u < 1, torso: (u, t, structured) => u >= 1.5 && u < 2 && (!structured || t > 0.3), bust: (u, _t, _s, n) => u / (n - 1) < 0.72 },
+  female: { pelvis: (u, _t, structured) => !structured || u < 5, thigh: (u, _t, structured) => !structured && u < 1, torso: (u, t, structured) => u >= 1.5 && u < 2 && (!structured || t > 0.12), bust: (u, _t, _s, n) => u < (n - 1) * 0.8 },
   child: { pelvis: (u, _t, structured) => !structured || u < 5, thigh: (u, _t, structured) => u < (structured ? 1 : 2), torso: (u) => u < 3.5 },
 };
 /** The swimsuit on a plan: the body's clothing groups become Skin, the cut's bands `Swim` (figure: { female, child }) */

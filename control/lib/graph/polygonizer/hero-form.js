@@ -99,10 +99,12 @@ const BUST_FORM = Object.freeze({ size: 0.27 });
  * ring), level across the chest and rising into the armpit ring at its lateral end, `hi` the top under the clavicle (of the chest → shoulder ring run),
  * `thick` the most it stands proud (m): a dome across the muscle, the fullest low and toward the sternum, fading to its
  * lateral and upper edges (the top a share `top` of it), so the pair reads as one chest and not two plates laid on it.
- * Breast: its apex `x` out (of a) and `z` off the chest ring (m), its form the BREAST FIELD (breast-field.js: the
- * footprint, the poles' profiles and the projection, gated on the field itself) in bust radii, its medial margin
- * reaching toward the sternum and its upper pole rising out of the upper chest's own fill (TORSO_SCULPT), both pointing
- * straight forward (`splay` 0: the outside's drift out per unit it stands proud; turned out, the pair point apart) */
+ * Breast: its apex `z` off the chest ring (m) and the field's `cleft` (bust radii) off the midline, its form the BREAST
+ * FIELD (breast-field.js: the footprint, the poles' profiles, the projection and the cleft, gated on the field itself)
+ * in bust radii, cut at the midline where the pair meets in a valley, its upper pole a slope from a rib under the
+ * clavicle over the pectoral (TORSO_SCULPT; the triangle between the clavicles and the upper poles stays shallow), both
+ * pointing straight forward (`splay` 0: the outside's drift out per unit it stands proud; turned out, the pair point
+ * apart) */
 const CHEST_FORM = Object.freeze({
   pec: Object.freeze({ male: Object.freeze({ x: [0.012, 0.86], lo: -0.03, hi: 0.86, thick: 0.017, top: 0.1 }), female: Object.freeze({ x: [0.05, 0.8], lo: -0.02, hi: 0.7, thick: 0.004, top: 0.1 }) }),
   // the NAVEL: a small upright oval flush in the belly at the navel joint, darker than the skin (`tone` of it), its upper
@@ -111,7 +113,9 @@ const CHEST_FORM = Object.freeze({
   // height, a share of the lumbar run (the pelvis hub → the navel joint): 0.78 sets it about level with the elbow, a little
   // under the narrowest waist (0.61 … 0.625 of the height); at the joint itself (1) it sat at the waist, too high
   navel: Object.freeze({ w: 0.009, h: 0.016, hood: 0.003, tone: 0.55, at: 0.78 }),
-  bust: Object.freeze({ x: 0.4, z: -0.035, splay: 0 }),
+  // `edge` (a bare figure's): the cup's top edge as the breast's own station `at` (of the sixteen), bent `dip` bust radii
+  // lower at its ends than over the apex, the `fade` stations under it bent less (the swimsuit cut paints under it)
+  bust: Object.freeze({ z: -0.035, splay: 0, edge: Object.freeze({ at: 12, dip: 0.5, fade: 3 }) }),
 });
 /** the structured torso and pelvis on the round register take a denser ring, addressed on the register family's own
  * scale (`slotT`: ring12's slot k at t = k · 4/6), so every t address keeps its angle and the ring half Ht stays the
@@ -136,7 +140,9 @@ const TORSO_SCULPT = Object.freeze({
     st1: { front: [0, 0.002, 0], frontSideR: [-0.005, 0, 0], sideR: [-0.008, 0, 0], backSideR: [-0.003, 0, 0], backR: [0, -0.002, 0], back: [0, 0.01, 0] },
     st1_st2_50: { sideR: [-0.004, 0, 0], backR: [0, -0.002, 0], back: [0, 0.007, 0] },
     st2: { front: [0, 0.004, 0], frontR: [0, 0.006, 0], sideR: [0.002, 0, 0], backR: [0, -0.005, 0], back: [0, 0.005, 0] },
-    st2_st3_50: { front: [0, 0.006, 0], frontR: [0, 0.008, 0], frontSideR: [0, 0.004, 0], backR: [0, -0.006, 0], back: [0, 0.004, 0] },
+    // the upper chest over the upper poles (frontR); its midline unpushed, so the décolletage stays a shallow triangle
+    // between the clavicles and the upper poles (breast-form research: the mass sits lower, the triangle stays open)
+    st2_st3_50: { frontR: [0, 0.008, 0], frontSideR: [0, 0.004, 0], backR: [0, -0.006, 0], back: [0, 0.004, 0] },
     st3: { front: [0, -0.004, 0], frontR: [0, 0.005, 0], backR: [0, -0.004, 0] },
   }),
 });
@@ -455,14 +461,15 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     const LENS = { ring8: { tipIn: 'sideL', out: ['frontL', 'front', 'frontR', 'sideR'], tipOut: 'backR', inner: ['back', 'backL'] },
       ring12: { tipIn: 'sideL', out: ['frontSideL', 'frontL', 'front', 'frontR', 'frontSideR', 'sideR'], tipOut: 'backSideR', inner: ['backR', 'back', 'backL', 'backSideL'] },
       ring20: { tipIn: 'sideL', out: ['a4L', 'a3L', 'a2L', 'a1L', 'front', 'a1R', 'a2R', 'a3R', 'a4R', 'sideR'], tipOut: 'b4R', inner: ['b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'b4L'] } };
-    // a level section: the lens over [xi, xo] at z; `lift(s, x)` the outside's [dx, dy] off the surface (s 0 … 1 across)
-    const section = (z, xi, xo, lift, fam) => { const L = LENS[fam], x = (s) => xi + s * (xo - xi), on = (s) => [x(s), surf(x(s), z), z];
+    // a level section: the lens over [xi, xo] at z; `lift(s, x, z)` the outside's [dx, dy] off the surface (s 0 … 1
+    // across). `z` may be a function of s: a BENT section, its points on the same surfaces at their own heights
+    const section = (z, xi, xo, lift, fam) => { const L = LENS[fam], x = (s) => xi + s * (xo - xi), zAt = typeof z === 'function' ? z : () => z, on = (s) => [x(s), surf(x(s), zAt(s)), zAt(s)];
       const pts = { [L.tipIn]: add(on(0), [0, -SINK, 0]), [L.tipOut]: add(on(1), [0, -SINK, 0]) };
-      L.out.forEach((sl, k) => { const sv = (k + 1) / (L.out.length + 1), [dx, dy] = lift(sv, x(sv)); pts[sl] = add(on(sv), [dx, dy, 0]); });
+      L.out.forEach((sl, k) => { const sv = (k + 1) / (L.out.length + 1), [dx, dy] = lift(sv, x(sv), zAt(sv)); pts[sl] = add(on(sv), [dx, dy, 0]); });
       L.inner.forEach((sl, k) => { pts[sl] = add(on(1 - (k + 1) / (L.inner.length + 1)), [0, -SINK - INSIDE, 0]); });
       return Object.fromEntries(SLOT_FAMILIES[fam].map((sl) => [sl, R(pts[sl])])); };
     const layer = (name, zs, span, lift, bind, look = { group: 'Top', mirror: 'name' }, fam = 'ring8') => ({ name, kind: 'rings', slots: fam, ...look, bind,
-      stations: zs.map((z) => { const [xi, xo] = span(z); return { points: section(z, xi, xo, (sv, x) => lift(z, sv, x), fam) }; }),
+      stations: zs.map((z) => { const [xi, xo] = span(typeof z === 'function' ? z.low : z); return { points: section(z, xi, xo, (sv, x, zz) => lift(zz, sv, x), fam) }; }),
       caps: { back: (() => { const [xi, xo] = span(zs[0]); const x = (xi + xo) / 2; return R([x, surf(x, zs[0]) - SINK, zs[0] - 0.004]); })(), tip: (() => { const z = zs[zs.length - 1], [xi, xo] = span(z), x = (xi + xo) / 2; return R([x, surf(x, z) - SINK, z + 0.004]); })() } });
     const C = S.find((x) => x.id === 'st2'), A = S.find((x) => x.id === 'st2_st3_50') ?? C, Sh = S.find((x) => x.id === 'st3'), a = fronts[S.indexOf(C)].arc.at(-1)[0];
     const Pf = CHEST_FORM.pec[femaleMass ? 'female' : 'male'], [x0, x1] = Pf.x.map((f) => f * a);
@@ -480,14 +487,28 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       const zs = [-0.85, -0.4, 0.15, 0.6, 0.9].map((k) => r6(zv + k * hh)), span = (z) => { const u = (z - zv) / hh, x = w * Math.sqrt(Math.max(0.05, 1 - u * u)); return [-x, x]; };
       parts.push(layer('navel', zs, span, (z, sv) => [0, (z > zv ? g(N.hood) * (z - zv) / hh + 0.0004 : 0.0004) * dmath.sin(Math.PI * sv)], structured ? 'lumbar' : 'torso', { group: 'Navel' })); }
     if (rb > 0) {
-      // the breast samples its FIELD (breast-field.js) over the chest: the apex `x` out and `z` off the chest ring, every
-      // level's span the footprint's, its outside the field's height, turned out by `splay` (dx per unit of height)
-      const B = CHEST_FORM.bust, F = BREAST_FIELD, cx = B.x * a, za = C.z + g(B.z);
+      // the breast samples its FIELD (breast-field.js) over the chest: the apex the field's `cleft` off the midline and
+      // `z` off the chest ring, every level's span the footprint's cut at the midline (the pair meets there in the cleft's
+      // valley, each a little past it), its outside the field's height, turned out by `splay` (dx per unit of height)
+      // each runs CLEFT_PAST (bust radii) past the midline, under its partner (higher there): the pair meets where the
+      // two surfaces cross, the valley, and no two walls lie on the midline (cut there, their coincident faces and inked
+      // hulls flecked the cleft's top in the World)
+      const B = CHEST_FORM.bust, F = BREAST_FIELD, cx = -F.cleft * rb, za = C.z + g(B.z), CLEFT_PAST = 0.25;
       // sixteen levels, closer toward the fold (its wall) and the apex (its rounding)
       const V = [-0.985, -0.95, -0.9, -0.82, -0.7, -0.55, -0.38, -0.2, -0.06, 0.08, 0.24, 0.42, 0.6, 0.76, 0.88, 0.96].map((k) => k * (k < 0 ? F.reach.down : F.reach.up));
-      const bz = V.map((v) => r6(za + v * rb)), vOf = (z) => (z - za) / rb;
-      const bSpan = (z) => { const sp = breastSpan(vOf(z), F) ?? [-0.05, 0.05]; return [cx + sp[0] * rb, cx + sp[1] * rb]; };
-      const bLift = (z, sv, x) => { const hgt = rb * breastHeight((x - cx) / rb, vOf(z), F); return [B.splay * hgt, hgt]; };
+      const vOf = (z) => (z - za) / rb;
+      const bSpan = (z) => { const sp = breastSpan(vOf(z), F) ?? [-0.05, 0.05]; return [cx + Math.max(sp[0], F.cleft - CLEFT_PAST) * rb, cx + Math.max(sp[1], F.cleft + 0.1) * rb]; };
+      // on a bare figure (the swimsuit's) the cup's top edge is a ring of the breast itself (CHEST_FORM.bust.edge): the
+      // station `at` bent into a SWEETHEART line, high over the apex and dipping `dip` (bust radii) toward both ends, the
+      // stations under it bent less (`fade` of them) so no two cross; the surface is the field's wherever its points
+      // fall. Painted by faces, a curved edge on level rings stair-stepped (the critic asked for the cup to follow its
+      // breast and dip into the cleft)
+      const E = bare ? B.edge : null;
+      const bent = (i, z0) => { const w = E ? Math.max(0, 1 - (E.at - i) / E.fade) * (i <= E.at ? 1 : 0) : 0; if (!w) return r6(z0);
+        const [xi, xo] = bSpan(z0 - w * E.dip * rb), sA = (cx - xi) / (xo - xi);   // the apex's column across the station's span
+        const f = (sv) => r6(z0 - w * E.dip * rb * Math.min(1, ((sv - sA) / (sv < sA ? sA : 1 - sA)) ** 2)); f.low = z0 - w * E.dip * rb; return f; };
+      const bz = V.map((v, i) => bent(i, za + v * rb));
+      const bLift = (z, _sv, x) => { const hgt = rb * breastHeight((x - cx) / rb, vOf(z), F); return [B.splay * hgt, hgt]; };
       const own = (i) => ({ ...Object.fromEntries(['sideL', 'b4R', 'b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'b4L'].map((sl) => [`st${i}.${sl}`, { torso: 1 }])), [`st${i}.a4L`]: { torso: 0.4, bustR: 0.6 }, [`st${i}.sideR`]: { torso: 0.4, bustR: 0.6 } });
       const bustBind = { bone: 'bustR', blend: { back: { torso: 1 }, tip: { torso: 1 }, ...Object.assign({}, ...bz.map((_, i) => own(i))) } };
       parts.push(layer('bustR', bz, bSpan, bLift, bustBind, undefined, 'ring20'));

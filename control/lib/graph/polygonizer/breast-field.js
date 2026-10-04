@@ -8,14 +8,21 @@
  * cleft); m(θ) and q(θ), the PROFILE, are the pole's character through the same four directions: m 2 leaves the apex as
  * a dome, m 1 as a straight line (a cone, rounded at the apex itself); q under 1 meets the chest steeply (the lower pole
  * and its fold), q over 1 lands on it concave (the upper pole's slope).
+ * `cleft` is the midline's u from the apex (the fitters' Spread): the apex sits that far off it, and the medial reach runs
+ * past it with its profile still full, so the pair meets at the midline in a valley (the cleavage) instead of falling to
+ * the chest before it, a strip of flat chest between two mounds; each breast's layer is cut at the midline.
  * Every parameter is an anatomy word; the GATES measure what an artist checks, on the field itself.
  * Pure and deterministic (dmath). */
 import * as dmath from '../../util/dmath.js';
 
-/** reaches of the footprint from the apex (bust radii): up, down, out (lateral), in (medial); the profile's `shape` (m)
- * and exponent (`profile`, q) in the same four directions; `round` the apex's rounding (of the reach); `proj` the apex's
- * projection (bust radii) */
-export const BREAST_FIELD = Object.freeze({ reach: Object.freeze({ up: 1.4, down: 1.05, out: 1.25, in: 1.15 }), shape: Object.freeze({ up: 1, down: 2, out: 1.8, in: 1.8 }), profile: Object.freeze({ up: 3, down: 0.55, out: 2.8, in: 2.8 }), round: 0.35, proj: 0.95 });
+/** reaches of the footprint from the apex (bust radii): up, down, out (lateral), in (medial, past the cleft); the
+ * profile's `shape` (m) and exponent (`profile`, q) in the same four directions; `round` the apex's rounding (of the
+ * reach); `proj` the apex's projection; `cleft` the midline's u (bust radii, negative). The medial profile is full
+ * (q 1.3, not the margins' 2.8): with q 2.8 the medial side landed on the chest 6 mm short of the midline and the pair
+ * read as two mounds with flat chest between (the critic and the blind judges). The upper pole a ramp from a rib under
+ * the clavicle (q 2.6, reach 1.37: its middle a quarter higher than at q 3, which started the rise late and read as a
+ * step out of the décolletage), still concave and inside the poles' 45 : 55 and the margins' gates */
+export const BREAST_FIELD = Object.freeze({ reach: Object.freeze({ up: 1.37, down: 1.05, out: 1.25, in: 1.6 }), shape: Object.freeze({ up: 1, down: 2, out: 1.8, in: 1.8 }), profile: Object.freeze({ up: 2.6, down: 0.55, out: 2.8, in: 1.3 }), round: 0.35, proj: 0.95, cleft: -1.2 });
 
 /** a four-direction value round the apex as a smooth function of θ (the Fourier series through up / down / out / in) */
 function around({ up, down, out, in: inn }, th) {
@@ -46,13 +53,15 @@ export function breastSpan(v, F = BREAST_FIELD, n = 720) {
  *   upperLine  the upper pole's bend through its middle (≥ 0: straight or concave, never a dome);
  *   lowerPole  the lower pole's bend through its middle (< 0: convex, full);
  *   fullness   the lower pole's share of the volume (under the apex's level): the weight a breast carries low;
- *   meridian   how far the apex sits off the footprint's centroid across (of the width): on the mound's middle, the
- *              axillary tail notwithstanding (its turn outward is the placement's);
- *   margins    the steepest wall where the upper, medial and lateral margins meet the chest (shallow: they melt into it;
- *              only the fold is a crease — steep all round reads as a ball laid on the chest);
+ *   meridian   how far the apex sits off the footprint's centroid across (of the width; the footprint this side of the
+ *              cleft): on the mound's middle, the axillary tail notwithstanding (its turn outward is the placement's);
+ *   margins    the steepest wall where the upper and lateral margins meet the chest, this side of the cleft (shallow:
+ *              they melt into it; only the fold is a crease — steep all round reads as a ball laid on the chest);
+ *   cleft      the height where the pair meets at the midline, a share of the projection: a valley, not the chest
+ *              (0) and not a shelf (one mass);
  *   winding    the turns the slope's phase makes round the apex on a loop halfway out (the argument principle the
  *              science page counts on its landscapes): exactly 1, one clean peak, no second bump or dimple */
-export const BREAST_BANDS = Object.freeze({ poles: [0.42, 0.5], projection: [0.85, 1.05], fold: [60, 90], upperLine: [-0.02, Infinity], lowerPole: [-Infinity, -0.05], fullness: [0.53, 0.65], meridian: [-0.06, 0.06], margins: [0, 25], winding: [1, 1] });
+export const BREAST_BANDS = Object.freeze({ poles: [0.42, 0.5], projection: [0.85, 1.05], fold: [60, 90], upperLine: [-0.02, Infinity], lowerPole: [-Infinity, -0.05], fullness: [0.53, 0.65], meridian: [-0.06, 0.06], margins: [0, 25], cleft: [0.2, 0.45], winding: [1, 1] });
 export function breastGates(F = BREAST_FIELD) {
   const h = (u, v) => breastHeight(u, v, F), P = F.proj, edge = (dir) => { let s = 0; while (s < 3 && h(0, dir * s) >= 0.05 * P) s += 0.001; return s; };
   const U = edge(1), D = edge(-1);
@@ -64,15 +73,20 @@ export function breastGates(F = BREAST_FIELD) {
   for (let k = 0; k < N; k++) { const t0 = (2 * Math.PI * k) / N, t1 = (2 * Math.PI * (k + 1)) / N, r0 = around(F.reach, t0), r1 = around(F.reach, t1);
     const p = [r0 * dmath.cos(t0), r0 * dmath.sin(t0)], q = [r1 * dmath.cos(t1), r1 * dmath.sin(t1)], a = (p[0] * q[1] - q[0] * p[1]) / 2; A += a; cu += a * (p[0] + q[0]) / 3; cv += a * (p[1] + q[1]) / 3; }
   cu /= A; cv /= A;
-  const width = around(F.reach, 0) + around(F.reach, Math.PI);
-  let vLo = 0, vAll = 0; for (let i = -150; i <= 150; i++) for (let j = -150; j <= 150; j++) { const x = h(i / 100, j / 100); vAll += x; if (j < 0) vLo += x; else if (j === 0) vLo += x / 2; }
+  let width = around(F.reach, 0) + around(F.reach, Math.PI);
+  if (F.cleft != null) {   // the footprint this side of the midline: its centroid across, and its width to the cleft
+    let a = 0, su = 0; for (let i = -170; i <= 170; i++) for (let j = -170; j <= 170; j++) { const u = i / 100; if (u >= F.cleft && h(u, j / 100) > 0) { a++; su += u; } }
+    cu = su / a; width = around(F.reach, 0) - F.cleft;
+  }
+  const cut = F.cleft ?? -Infinity;   // the breast this side of the midline
+  let vLo = 0, vAll = 0; for (let i = -170; i <= 170; i++) for (let j = -170; j <= 170; j++) { if (i / 100 < cut) continue; const x = h(i / 100, j / 100); vAll += x; if (j < 0) vLo += x; else if (j === 0) vLo += x / 2; }
   // the margins' walls: the steepest slope over the outer tenth of the reach, from the lateral through the upper to the
   // medial direction (the lower half is the fold's, gated above, and its ends turning up the sides)
   let margin = 0; for (let k = 0; k <= 24; k++) { const th = (k / 24) * Math.PI, dir = [dmath.cos(th), dmath.sin(th)], R = around(F.reach, th);
-    for (let r = 0.9 * R; r < R - 0.002; r += 0.002) margin = Math.max(margin, (h((r - 0.001) * dir[0], (r - 0.001) * dir[1]) - h((r + 0.001) * dir[0], (r + 0.001) * dir[1])) / 0.002); }
+    for (let r = 0.9 * R; r < R - 0.002 && r * dir[0] > cut; r += 0.002) margin = Math.max(margin, (h((r - 0.001) * dir[0], (r - 0.001) * dir[1]) - h((r + 0.001) * dir[0], (r + 0.001) * dir[1])) / 0.002); }
   // the slope's phase round the apex: its turns over a loop halfway out
   let turn = 0, prev = null; for (let k = 0; k <= 720; k++) { const th = (2 * Math.PI * k) / 720, R = 0.5 * around(F.reach, th), u = R * dmath.cos(th), v = R * dmath.sin(th), e = 1e-4;
     const ph = dmath.atan2(h(u, v + e) - h(u, v - e), h(u + e, v) - h(u - e, v)); if (prev !== null) { let d = ph - prev; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; turn += d; } prev = ph; }
-  const value = { poles: U / (U + D), projection: P, fold: dmath.atan(fold) * 180 / Math.PI, upperLine: bend(0.3 * U, 0.7 * U), lowerPole: bend(-0.7 * D, -0.3 * D), fullness: vLo / vAll, meridian: -cu / width, margins: dmath.atan(margin) * 180 / Math.PI, winding: Math.round(turn / (2 * Math.PI)) };
+  const value = { poles: U / (U + D), projection: P, fold: dmath.atan(fold) * 180 / Math.PI, upperLine: bend(0.3 * U, 0.7 * U), lowerPole: bend(-0.7 * D, -0.3 * D), fullness: vLo / vAll, meridian: -cu / width, margins: dmath.atan(margin) * 180 / Math.PI, cleft: F.cleft == null ? 0.3 : h(F.cleft, 0) / P, winding: Math.round(turn / (2 * Math.PI)) };
   return Object.fromEntries(Object.entries(value).map(([k, x]) => { const [lo, hi] = BREAST_BANDS[k]; return [k, { value: Math.round(x * 1e4) / 1e4, band: BREAST_BANDS[k], pass: x >= lo && x <= hi }]; }));
 }
