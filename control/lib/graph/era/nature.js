@@ -9,16 +9,21 @@
  *   rocks    the talus op's scree placements, a few big boulders beside the trail (each its own variant);
  *   debris   on and beside the trail: roots from nearby trees, a fallen log at the gate, sticks and cones, flush
  *            stone slabs, a puddle;
- *   trees    one family (spruce, its L1 tiers) planted in clusters with gaps, clear of the trail and the cliff;
+ *   trees    one family (spruce) planted in clusters with gaps, clear of the trail and the cliff — with `trees.cards`
+ *            grown (vegetation/conifer.js) and dressed in painted bough cards on the grown wood, else the pool's L1 tiers;
+ *   grass    tufts on the fringe, in meadow clumps, as sedge at the cliff foot — with `grass.cards` painted cutout
+ *            cards lit by the bake, else instanced tufts;
+ *   soil     with `grassBlend`, ONE soil under the ribbon and the near meadow, the grass faded back over it per vertex;
  *   blazes   the accent: posts with a red band along the trail;
  *   ridges   two flat silhouettes beyond the site, mixed toward the fog colour;
  *   marks    nature by cause: moss on shaded and up-facing rock, a wet cliff foot, streaks under ledges, a packed
  *            light trail centre with darker edges, patchy grass.
- * Lit by the stage bake with a sun (cast shadows per vertex, trees included) and a sky fill. Deterministic.
+ * Lit by the stage bake with a sun (cast shadows per vertex, trees included; a card casts only where it is painted) and
+ * a sky fill. Deterministic.
  */
 import { NATURE_TRAIL } from './style/nature-trail.js';
 import { hash3, vnoise } from './dirt.js';
-import { P, hexRgb, rgbHex, r5, quad, box } from './geom.js';
+import { P, hexRgb, rgbHex, r5, quad, box, card, crossed } from './geom.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
@@ -26,8 +31,12 @@ import { plantPool, trisToFaces } from '../vegetation/pool.js';
 import { grassLadder } from '../vegetation/grass.js';
 import { FLAT_LIGHT, makeLight } from '../polygonizer/vexar.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY, bedAt } from '../polygonizer/landform.js';
-import '../polygonizer/bark-skin.js';
-import { composeCloudDeck } from '../effects/effects-clouds.js';   // registers the `bark-<species>` tile resolver the fallen log wears
+import '../polygonizer/bark-skin.js';   // registers the `bark-<species>` tile resolver the fallen log wears
+import { composeCloudDeck } from '../effects/effects-clouds.js';
+import { cardMask } from './leaf-cards.js';
+import { growConifer } from '../vegetation/conifer.js';
+import { axisChains, tubeTris, barkQuads } from '../vegetation/tree-mesh.js';
+import { barkTile } from '../vegetation/tiles.js';
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -37,6 +46,7 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 /** A quad's facet normal (from its diagonals), turned to face `toward`. */
+const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
 const facet = (c, toward) => { const n = unit(cross(sub(c[2], c[0]), sub(c[3], c[1]))); return n[0] * toward[0] + n[1] * toward[1] + n[2] * toward[2] < 0 ? n.map((v) => -v) : n; };
 
 /**
@@ -143,6 +153,54 @@ export function trailFaces(st, site) {
   return out;
 }
 
+/** Dice a quad n×n (bilinear corners and uv): a vertex-lit floor needs vertices where the dapples fall. */
+export function dice(f, n) {
+  const lerp = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t), at = (arr, u, v) => lerp(lerp(arr[0], arr[1], u), lerp(arr[3], arr[2], u), v), out = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const q = [[i / n, j / n], [(i + 1) / n, j / n], [(i + 1) / n, (j + 1) / n], [i / n, (j + 1) / n]];
+    out.push({ ...f, corners: q.map(([u, v]) => P(at(f.corners, u, v))), uv: q.map(([u, v]) => at(f.uv, u, v).map(r5)) });
+  }
+  return out;
+}
+
+/**
+ * ONE SOIL (a style's `grassBlend`): the ribbon — trail and fringe — and the meadow within `ring` of the trail all wear
+ * the trail's soil, mapped the floor's way (world x, y), so no seam shows where the ribbon meets the ground; the grass
+ * comes back over it as a blend (grassBlendFaces). → [ground, ribbon].
+ */
+export function oneSoil(st, site, ground, ribbon) {
+  const T = st.tiles.trail, ring = st.grassBlend.ring, worldUv = (f) => f.corners.map((q) => [r5(q[0] / T.scale), r5(q[1] / T.scale)]);
+  const soil = (f) => ({ ...f, texture: T.key, tint: T.tint, uv: worldUv(f) });
+  return [
+    ground.map((f) => (f.cls === 'grass' && Math.min(...f.corners.map((q) => site.trailDist(q[0], q[1]))) < ring ? soil(f) : f)),
+    ribbon.map(soil),
+  ];
+}
+
+/**
+ * The GRASS BLEND: a copy of every soil face wearing the meadow's grass tile, faded in per corner by cause (the World
+ * page's blend layer, `blend: true`) — worn off where feet go (the trail, wandering at its edge), thinned to bare soil
+ * in patches and under the spruce (needle duff), and whole at the ring, where the meadow tile takes over.
+ */
+export function grassBlendFaces(st, site, faces, trees, seed) {
+  const Gb = st.grassBlend, G = st.tiles.grass, S = seed | 0, out = [];
+  const alpha = (c) => {
+    const hw = site.halfWAt(c[1]), d = site.trailDist(c[0], c[1]);
+    const wander = (vnoise(c[0] * 0.5, c[1] * 0.5, S + 401) - 0.5) * 2 * Gb.wander + (vnoise(c[0] * 2.1, c[1] * 2.1, S + 403) - 0.5) * 0.3;
+    const worn = smooth(hw * Gb.wear[0], hw + site.fringeAt(c[1]) + Gb.wear[1], d + wander);
+    const bare = smooth(Gb.bare[0], Gb.bare[1], 0.7 * vnoise(c[0] * 0.2, c[1] * 0.2, S + 405) + 0.3 * vnoise(c[0] * 0.7, c[1] * 0.7, S + 407));
+    const near = trees.reduce((m, t) => Math.min(m, Math.hypot(t.x - c[0], t.y - c[1])), Infinity), duff = 1 - Gb.duff * smooth(Gb.duffR, 0.8, near);
+    return worn * mix(mix(Gb.floor, 1, bare) * duff, 1, smooth(Gb.ring - 3, Gb.ring, d));
+  };
+  for (const f of faces) {
+    if (f.group !== 'trail:ground' || f.texture !== st.tiles.trail.key) continue;
+    const al = f.corners.map((c) => r5(alpha(c)));
+    if (al.every((a) => a < 0.02)) continue;
+    out.push({ corners: f.corners, normal: f.normal, outNormal: f.normal, texture: G.key, textureLit: true, uv: f.corners.map((q) => [r5(q[0] / G.scale), r5(q[1] / G.scale)]), tint: G.tint, cornerAlpha: al, blend: true, group: 'trail:grassblend' });
+  }
+  return out;
+}
+
 /** Every rock as an item { x, y, z0, size, detail, v, role }: talus at the cliff foot (detail 0: repetition, outside
  *  the radius), boulders beside the trail (detail 1 and each its own variant inside a radius), the gate pair framing the
  *  trail at a gate focus, and pebbles along the trail's edges. */
@@ -222,6 +280,79 @@ function treeFaces(st, site, trees) {
   return out;
 }
 
+// ── the spruce as the era stood it: grown wood, needle cards ──────────────────────
+/** A chain kept at points about `step` apart along it (its first and last always): a grown axis has a node per
+ *  internode, more rings than the eye needs. */
+function thin(ch, step) {
+  const keep = [0]; let run = 0;
+  for (let i = 1; i < ch.pts.length - 1; i++) { run += Math.hypot(...sub(ch.pts[i], ch.pts[i - 1])); if (run >= step) { keep.push(i); run = 0; } }
+  keep.push(ch.pts.length - 1);
+  return { ...ch, pts: keep.map((i) => ch.pts[i]), rs: keep.map((i) => ch.rs[i]) };
+}
+const SPRUCE = new Map();
+/** A grown spruce (vegetation/conifer.js): its trunk and limbs as chains, and its BOUGHS — per limb, where it leaves
+ *  the trunk and how far its needled shoots reach. Memoized per (variant, stand). */
+function grownSpruce(v, stand) {
+  const k = `${v}:${stand}`; if (SPRUCE.has(k)) return SPRUCE.get(k);
+  const p = growConifer('spruce', { seed: 11 + v * 29, stand }), chains = axisChains(p);
+  const limbOf = (n) => { let m = n; while (m.order > 1) m = p.nodes[m.parent]; return m.order === 1 ? m.axis : -1; };
+  const by = new Map(), chainOf = new Map(chains.map((c) => [c.axis, c]));
+  for (const n of p.nodes) {
+    if (n.died || !n.leaves || n.order < 1) continue;
+    const a = limbOf(n); if (a < 0) continue;
+    const b = by.get(a) || by.set(a, { tip: null, far: -1 }).get(a), ch = chainOf.get(a);
+    const base = ch ? ch.pts[0] : n.pos, d = Math.hypot(n.pos[0] - base[0], n.pos[1] - base[1]);
+    if (d > b.far) { b.far = d; b.tip = n.pos; b.base = base; }
+  }
+  const boughs = [...by.values()].filter((b) => b.far > 0.05).map((b) => ({ base: b.base, tip: b.tip }));
+  const g = { H: p.H, trunk: chains.filter((c) => c.order === 0), limbs: chains.filter((c) => c.order === 1), boughs }; SPRUCE.set(k, g); return g;
+}
+
+/**
+ * A SPRUCE: its grown trunk (barked near the trail) and, for its crown, BOUGH CARDS — the limbs binned by height band
+ * and azimuth sector, one pair of cards per cell from where the limbs leave the trunk out to their needles' reach: one
+ * tipped near flat (seen from below and above) and one standing on the bough's line (seen from the side, the walker's
+ * view). Finer cells near the trail, coarser out in the valley; a crossed card at the leader. The light comes through
+ * the cards' painted gaps (the sun bake reads their alpha), so the crown shades itself and dapples the ground.
+ */
+export function spruceFaces(st, site, trees) {
+  const T = st.trees, Cd = T.cards, out = [], tile = barkTile(T.bark || 'spruce');
+  for (const t of trees) {
+    const first = out.length, g = grownSpruce(t.v, Cd.stand), s = t.h / g.H, yaw = 2 * Math.PI * hash3(t.v, Math.round(t.x * 10), Math.round(t.y * 10)), c = Math.cos(yaw), sn = Math.sin(yaw);
+    const z0 = site.ground(t.x, t.y) - 0.15, near = site.trailDist(t.x, t.y) < Cd.near, R = near ? Cd.fine : Cd.coarse;
+    const at = (q) => [t.x + (q[0] * c - q[1] * sn) * s, t.y + (q[0] * sn + q[1] * c) * s, z0 + q[2] * s];
+    const rot = (n) => [n[0] * c - n[1] * sn, n[0] * sn + n[1] * c, n[2]].map(r5);
+    const wood = [];
+    for (const ch of g.trunk) for (const q of near ? barkQuads(thin(ch, Cd.seg / s), { sidesFor: () => 6, tile: tile.metres, color: tile.mean, key: tile.key }) : tubeTris(thin(ch, (2 * Cd.seg) / s), { sidesFor: () => 4, colorFor: () => [96, 78, 62] })) wood.push(q);
+    if (near) for (const ch of g.limbs) if (ch.dMax >= Cd.limbD) for (const q of tubeTris(thin(ch, ch.pts.length), { sidesFor: () => 3, colorFor: () => [88, 72, 56] })) wood.push(q);
+    for (const q of wood) {
+      if (q.q) { const n = rot(q.n); out.push({ corners: q.q.map(at).map(P), normal: n, outNormal: n, texture: q.key, textureLit: true, uv: q.uv.map((u) => u.map((v) => r5(v * s))), tint: T.barkTint, group: 'trail:tree', doubleSided: true }); continue; }
+      const cs = q.p.map(at).map(P), n = unit(cross(sub(cs[1], cs[0]), sub(cs[2], cs[0]))).map(r5);
+      out.push({ corners: [...cs, cs[2]], normal: n, outNormal: n, tint: q.c.map((v, k) => r5((v / 255) * T.barkTint[k])), group: 'trail:tree', doubleSided: true });
+    }
+    // the crown: boughs binned, one card pair per cell
+    const cells = new Map();
+    for (const b of g.boughs) {
+      const az = Math.atan2(b.tip[1] - b.base[1], b.tip[0] - b.base[0]), key = `${Math.floor((b.base[2] * s) / R.band)},${Math.floor(((az + Math.PI) / (2 * Math.PI)) * R.sectors) % R.sectors}`;
+      const m = cells.get(key) || cells.set(key, { base: [0, 0, 0], d: [0, 0, 0], len: 0, n: 0 }).get(key), d = sub(b.tip, b.base), l = Math.hypot(d[0], d[1], d[2]);
+      for (let k = 0; k < 3; k++) { m.base[k] += b.base[k]; m.d[k] += d[k] / l; }
+      m.len = Math.max(m.len, l); m.n++;
+    }
+    [...cells.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).forEach(([, m], i) => {
+      const base = at(m.base.map((v) => v / m.n)), d0 = unit(m.d), dir = unit(rot(d0)), len = m.len * s * R.reach;
+      const side = unit(cross(dir, [0, 0, 1])), fin = unit(cross(side, dir)), tilt = mix(Cd.tilt[0], Cd.tilt[1], hash3(i, t.v, Math.round(t.x * 7)));
+      const flat = side.map((v, k) => v * Math.cos(tilt) + fin[k] * Math.sin(tilt)), j = 0.9 + 0.2 * hash3(i, 3, Math.round(t.y * 7));
+      const tint = Cd.tint.map((v) => v * j), foot = sub(base, dir.map((v) => v * len * 0.08));
+      card(out, foot, flat, dir, len * Cd.width[0], len, 'card:bough', tint, 'trail:bough');
+      card(out, [foot[0], foot[1], foot[2] - len * 0.06], fin, dir, len * Cd.width[1], len, 'card:bough', tint.map((v) => v * 0.94), 'trail:bough');
+    });
+    const top = at([0, 0, g.H]), lead = t.h * Cd.leader;
+    crossed(out, [top[0], top[1], top[2] - lead], yaw, lead * 0.55, lead * 1.05, 'card:bough', Cd.tint, 'trail:bough');
+    for (let i = first; i < out.length; i++) if (out[i].group === 'trail:bough') out[i].ax = [t.x, t.y];   // for the marks: how deep in its crown
+  }
+  return out;
+}
+
 function blazeFaces(st, site) {
   const out = [], B = st.blazes, { D, halfW, trailX, ground } = site;
   const post = { key: null, scale: 1, tint: B.post, group: 'trail:blaze' }, band = { ...post, tint: hexRgb(B.colour) };
@@ -248,8 +379,25 @@ export function ridgeFaces(st, site) {
 /** Nature by cause → `(face, corner) => [r, g, b]` multipliers. */
 export function natureMarks(st, site, sun, seed, trees = [], wet = []) {
   const S = seed | 0, { trailDist, cliffX, valley, apronAt } = site;
+  const Sl = st.soil, Cd = st.trees && st.trees.cards, Gc = st.grass && st.grass.cards;
   return (f, c) => {
     const n = f.normal;
+    if (Sl && f.group === 'trail:ground' && f.texture === st.tiles.trail.key) {
+      // one soil: a value that wanders from the packed centre out to the floor under the grass, duff-dark under spruce
+      const hw = site.halfWAt(c[1]), d = trailDist(c[0], c[1]);
+      const wander = (vnoise(c[0] * 0.55, c[1] * 0.55, S + 411) - 0.5) * 2 * Sl.wander + (vnoise(c[0] * 2.3, c[1] * 2.3, S + 413) - 0.5) * 0.3;
+      const w = smooth(hw * Sl.edge[0], hw + site.fringeAt(c[1]) + Sl.edge[1], d + wander);
+      const packed = 1.1 - 0.22 * Math.min(1, (d / hw) ** 2), patch = 1 - Sl.patch + 2 * Sl.patch * vnoise(c[0] * 0.35, c[1] * 0.35, S + 415);
+      const duff = trees.some((tr) => Math.hypot(tr.x - c[0], tr.y - c[1]) < 4.5) ? [0.86, 0.82, 0.76] : [1, 1, 1];
+      const damp = wet.reduce((m, q) => Math.min(m, mix(0.7, 1, smooth(q.r * 0.7, q.r * 1.8, Math.hypot(q.x - c[0], q.y - c[1])))), 1);
+      return [0, 1, 2].map((k) => mix(packed, Sl.floor[k] * patch, w) * mix(1, duff[k], w) * damp);
+    }
+    if (f.group === 'trail:grassblend') { const v = 0.8 + 0.32 * vnoise(c[0] * 0.3, c[1] * 0.3, S + 71); return [v, v, v]; }   // the meadow's own patches
+    if (Cd && f.group === 'trail:bough') {
+      // deep in the crown the boughs shade each other: dark at the trunk, lit at the tips
+      const v = mix(Cd.inner, 1, smooth(0.3, 2.6, Math.hypot(c[0] - f.ax[0], c[1] - f.ax[1]))); return [v, v, v];
+    }
+    if (Gc && f.group === 'trail:grass') { const v = mix(Gc.foot, 1, smooth(0, 0.45, c[2] - site.ground(c[0], c[1]))); return [v, v, v * 0.96]; }
     if (f.group === 'trail:ground') {
       if (f.cls === 'trail') {
         const t = trailDist(c[0], c[1]) / site.halfWAt(c[1]); let v = 1.1 - 0.22 * t * t;                    // packed centre
@@ -284,10 +432,38 @@ export function natureMarks(st, site, sun, seed, trees = [], wet = []) {
  * shadow falls on its foot, so tufts sit in the shade of trees and boulders.
  */
 export function grassRepeats(st, site, trees, rocks, sun, seed) {
-  const G = st.grass, S = seed | 0, { D, W, trailX, trailDist, halfWAt, fringeAt, cliffX, ground, inRadius } = site;
-  const light = makeLight({ direction: sun.dir.map((v) => -v), ambient: 0.5, diffuse: 0.62 });
+  const G = st.grass, light = makeLight({ direction: sun.dir.map((v) => -v), ambient: 0.5, diffuse: 0.62 });
   // natural tufts, lit as a volume (the stylized ladder read as saturated blocks against the meadow tile)
   const ladders = Object.fromEntries(Object.entries(G.kinds).map(([zone, kind]) => [zone, grassLadder(kind, { seed: 3 })]));
+  const tufts = grassTufts(st, site, trees, rocks, sun, seed).map((t) => ({ ...t, tint: G.tint[t.zone].map((v) => r5(v * (t.lit ? 1 : G.shade))) }));
+  // group into one repeat per (zone, level, variant): the template is that tuft baked at that variant's yaw
+  const groups = new Map();
+  for (const t of tufts) { const k = `${t.zone}:${t.level}:${t.v}`; (groups.get(k) || groups.set(k, []).get(k)).push(t); }
+  return [...groups.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, list]) => {
+    const [zone, level, v] = k.split(':');
+    const template = trisToFaces(ladders[zone][level], { light, yaw: (Number(v) * 2 * Math.PI) / G.variants, group: `trail:grass:${zone}` });
+    return { template, transforms: list.map((t) => ({ pos: t.pos, scale: t.scale, tint: t.tint })), group: `trail:grass:${k}` };
+  });
+}
+
+/**
+ * GRASS AS CARDS (a style's `grass.cards`): each tuft a star of painted cutout cards (leaf-cards.js) — three inside a
+ * focus radius, two outside — lit and shadowed by the stage bake like every face, so a tuft in a tree's shade is in
+ * it (instanced tufts keep the light they were baked in and read lit in the shade).
+ */
+export function grassCards(st, site, tufts, seed) {
+  const G = st.grass, Gc = G.cards, S = seed | 0, out = [];
+  tufts.forEach((t, i) => {
+    const h = t.scale * Gc.height, key = Gc.keys[t.zone];
+    crossed(out, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * Gc.width, h, key, G.tint[t.zone].map((v) => v * (0.9 + 0.2 * hash3(i, 63, S + 163))), 'trail:grass', t.level === 'L1' ? 3 : 2);
+  });
+  return out;
+}
+
+/** Where the tufts stand, each { zone, level, v, pos, scale, lit }: the fringe, meadow clumps, sedge at the cliff foot,
+ *  and a scatter outside the radii. */
+export function grassTufts(st, site, trees, rocks, sun, seed) {
+  const G = st.grass, S = seed | 0, { D, W, trailX, trailDist, halfWAt, fringeAt, cliffX, ground, inRadius } = site;
   const placed = new Map(), cellOf = (x, y) => `${Math.floor(x / G.spacing)},${Math.floor(y / G.spacing)}`;
   const free = (x, y) => {
     if (placed.has(cellOf(x, y))) return false;
@@ -299,8 +475,7 @@ export function grassRepeats(st, site, trees, rocks, sun, seed) {
     if (x < 0 || y < 0 || x > W || y > D || !free(x, y)) return;
     const z = ground(x, y), lit = sun.shadow([x, y, z + 0.25], [0, 0, 1]);
     const h = mix(G.height[0], G.height[1], hash3(i, 31, S + 101)) * (zone === 'cliff' ? 1.2 : 1);
-    const t = G.tint[zone].map((v) => r5(v * (lit ? 1 : G.shade)));
-    tufts.push({ zone, level: inRadius(x, y) ? 'L1' : 'L0', v: i % G.variants, pos: [r5(x), r5(y), r5(z - 0.03)], scale: r5(h * (zone === 'scatter' ? 0.7 : 1)), tint: t });
+    tufts.push({ zone, level: inRadius(x, y) ? 'L1' : 'L0', v: i % G.variants, pos: [r5(x), r5(y), r5(z - 0.03)], scale: r5(h * (zone === 'scatter' ? 0.7 : 1)), lit });
   };
   // the fringe: both edges of the trail, every `fringeEvery` metres, inside the fringe band
   let i = 0;
@@ -330,14 +505,7 @@ export function grassRepeats(st, site, trees, rocks, sun, seed) {
     const x = W * hash3(k, 55, S + 149), y = D * hash3(k, 57, S + 151);
     if (!inRadius(x, y) && trailDist(x, y) > halfWAt(y) + fringeAt(y) + 0.3 && x > cliffX(y) + 1 && site.apronAt(x, y) < st.landform.apronMin) add('scatter', x, y, i++);
   }
-  // group into one repeat per (zone, level, variant): the template is that tuft baked at that variant's yaw
-  const groups = new Map();
-  for (const t of tufts) { const k = `${t.zone}:${t.level}:${t.v}`; (groups.get(k) || groups.set(k, []).get(k)).push(t); }
-  return [...groups.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, list]) => {
-    const [zone, level, v] = k.split(':');
-    const template = trisToFaces(ladders[zone][level], { light, yaw: (Number(v) * 2 * Math.PI) / G.variants, group: `trail:grass:${zone}` });
-    return { template, transforms: list.map((t) => ({ pos: t.pos, scale: t.scale, tint: t.tint })), group: `trail:grass:${k}` };
-  });
+  return tufts;
 }
 
 /** Soft contact-shadow blobs under every boulder and tree (the World's shadow-decal pass), so nothing floats. */
@@ -383,7 +551,9 @@ export function debrisFaces(st, site, trees, seed) {
       for (let k = 0; k <= segs; k++) {
         const f = k / segs, x = t.x + toward * Math.cos(ang) * len * f, y = t.y + Math.sin(ang) * len * f + Math.sin(f * 4 + r) * 0.22;
         const rad = mix(Db.root[1], Db.root[0], f), dive = f > 0.85 ? (f - 0.85) / 0.15 * rad * 1.5 : 0;
-        pts.push([x, y, ground(x, y) + 0.05 - rad * 0.55 - dive]); radii.push(rad);   // mostly buried: a ridge in the soil
+        // with `rootDive`, a root surfaces in pieces along its run and goes under between them
+        const under = Db.rootDive ? (1 - smooth(0.5, 0.62, vnoise(f * len * 2.2, r * 3.1 + ti * 1.7, S + 309))) * rad * Db.rootDive : 0;
+        pts.push([x, y, ground(x, y) + 0.05 - rad * 0.55 - dive - under]); radii.push(rad);   // mostly buried: a ridge in the soil
       }
       tube(out, pts, radii, 5, wood, 'trail:debris');
     }
@@ -457,20 +627,35 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   const site = natureSite(st, seed), trees = treeItems(st, site, seed);
   const rocks = rockItems(st, site, seed);
   const puddles = puddleSpots(st, site);
-  const raw = [...groundFaces(st, site), ...trailFaces(st, site), ...rockFaces(st, rocks), ...treeFaces(st, site, trees), ...blazeFaces(st, site), ...debrisFaces(st, site, trees, seed)];
+  let ground = groundFaces(st, site), ribbon = trailFaces(st, site);
+  if (st.trail.dice > 1) ribbon = ribbon.flatMap((f) => dice(f, st.trail.dice));
+  if (st.grassBlend) [ground, ribbon] = oneSoil(st, site, ground, ribbon);
+  const raw = [...ground, ...ribbon, ...rockFaces(st, rocks), ...(st.trees.cards ? spruceFaces(st, site, trees) : treeFaces(st, site, trees)), ...blazeFaces(st, site), ...debrisFaces(st, site, trees, seed)];
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
-  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow: makeSunShadow(raw, dir, { cell: 0.6 }) };
+  // a card stops the sun only where its painted needles are; grass is no occluder
+  const shadow = makeSunShadow(raw, dir, { cell: 0.6, ...(st.trees.cards ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) });
+  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
+  // grass as cards stands in the bake (after the sun: it grows where it is placed, shaded where the shade falls)
+  if (st.grass.cards) raw.push(...grassCards(st, site, grassTufts(st, site, trees, rocks, sun, seed), seed));
+  // a leaf is lit from either side (it lets the light through): its card faces the sun, and lifts a little on its own
+  const faced = [...raw, ...(st.grassBlend ? grassBlendFaces(st, site, raw, trees, seed) : [])].map((f) => {
+    if (!isCard(f)) return f;
+    const d = f.normal[0] * dir[0] + f.normal[1] * dir[1] + f.normal[2] * dir[2], n = d < 0 ? f.normal.map((v) => -v) : f.normal, lift = 1 + (st.light.leafLift || 0);
+    return { ...f, normal: n, outNormal: n, tint: f.tint.map((v) => v * lift) };
+  });
   const lit = ctx.unshaded
-    ? raw.map(({ tint, cls, ...f }) => ({ ...f, fill: rgbHex(tint) }))
-    : bakeStageLight(raw, [], ambient, natureMarks(st, site, dir, seed, trees, puddles), sun).map(({ cls, detail, ...f }) => f);
-  const grass = grassRepeats(st, site, trees, rocks, sun, seed);
+    ? faced.map(({ tint, cls, ax, ...f }) => ({ ...f, fill: rgbHex(tint) }))
+    : bakeStageLight(faced, [], ambient, natureMarks(st, site, dir, seed, trees, puddles), sun).map(({ cls, detail, ax, ...f }) => f);
   const decals = contactShadows(st, site, trees, rocks);
   const y0 = 2.5, x0 = site.trailX(y0), y1 = 28, x1 = site.trailX(y1);
   const eye = [x0, y0, site.ground(x0, y0) + 1.7];
+  const faces = [...lit, ...decals, ...puddleFaces(st, site, puddles), ...ridgeFaces(st, site)];
+  const cutouts = [...new Set(faces.filter(isCard).map((f) => f.texture))].sort();
   return {
-    faces: [...lit, ...decals, ...puddleFaces(st, site, puddles), ...ridgeFaces(st, site)],
-    repeats: grass,
+    faces,
+    ...(st.grass.cards ? {} : { repeats: grassRepeats(st, site, trees, rocks, sun, seed) }),
+    ...(cutouts.length ? { cutouts } : {}),
     // the sky's weather: mojulo's cloud deck over the mesh, lit by the style's own sun (an overlay layer: the World
     // page draws it, exports carry none)
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),

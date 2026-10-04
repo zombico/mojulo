@@ -22,10 +22,10 @@
  */
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { hash3, vnoise } from './dirt.js';
-import { P, hexRgb, rgbHex, r5 } from './geom.js';
+import { P, hexRgb, rgbHex, r5, card, crossed } from './geom.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
-import { natureSite, groundFaces, trailFaces, rockItems, rockFaces, debrisFaces, natureMarks, contactShadows, puddleSpots, puddleFaces, tube } from './nature.js';
+import { natureSite, groundFaces, trailFaces, dice, rockItems, rockFaces, debrisFaces, natureMarks, contactShadows, puddleSpots, puddleFaces, tube } from './nature.js';
 import { cardMask } from './leaf-cards.js';
 import './floor-tiles.js';   // registers the `floor:` tiles (the moss the blend layer fades in)
 import { grow, measure } from '../vegetation/grow.js';
@@ -46,20 +46,6 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
 
-/**
- * One card: a quad on `base` (its bottom centre) spanning `w` along `along` and `h` along `up`, wearing card `key`
- * (uv 0..1, v up), tinted. `vTiles` repeats the card up its height (a vine strip).
- */
-function card(out, base, along, up, w, h, key, tint, group, vTiles = 1) {
-  const a = along.map((v) => (v * w) / 2), u = up.map((v) => v * h);
-  const cs = [sub(base, a), [base[0] + a[0], base[1] + a[1], base[2] + a[2]], [base[0] + a[0] + u[0], base[1] + a[1] + u[1], base[2] + a[2] + u[2]], [base[0] - a[0] + u[0], base[1] - a[1] + u[1], base[2] - a[2] + u[2]]].map(P);
-  const n = unit(cross(along, up)).map(r5);
-  out.push({ corners: cs, normal: n, outNormal: n, texture: key, textureLit: true, uv: [[0, 0], [1, 0], [1, vTiles], [0, vTiles]].map((q) => q.map(r5)), tint: tint.map(r5), group, doubleSided: true });
-}
-/** Two cards crossed at right angles about a vertical axis (the era's plant). */
-function crossed(out, base, yaw, w, h, key, tint, group) {
-  for (const k of [0, 1]) { const a = yaw + (k * Math.PI) / 2; card(out, base, [Math.cos(a), Math.sin(a), 0], [0, 0, 1], w, h, key, tint, group); }
-}
 /** A crown clump: one card tipped toward flat (seen from below, the canopy) and one standing across it. */
 function clump(out, c, yaw, size, tilt, tint, group) {
   const al = [Math.cos(yaw), Math.sin(yaw), 0], up = unit([-Math.sin(yaw) * Math.cos(tilt), Math.cos(yaw) * Math.cos(tilt), Math.sin(tilt)]);
@@ -341,16 +327,6 @@ function tallGrassFaces(st, site, shadow, seed) {
     const h = mix(Tg.height[0], Tg.height[1], hash3(i, 4, S + 1909));
     crossed(out, [px, py, z - 0.06], Math.PI * hash3(i, 5, S + 1911), h * 0.9, h, 'card:grass', Tg.tint.map((q) => r5(q * (0.85 + 0.3 * hash3(i, 6, S + 1913)))), 'jungle:grass');
     n++;
-  }
-  return out;
-}
-
-/** Dice a quad n×n (bilinear corners and uv): a vertex-lit floor needs vertices where the dapples fall. */
-function dice(f, n) {
-  const lerp = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t), at = (arr, u, v) => lerp(lerp(arr[0], arr[1], u), lerp(arr[3], arr[2], u), v), out = [];
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const q = [[i / n, j / n], [(i + 1) / n, j / n], [(i + 1) / n, (j + 1) / n], [i / n, (j + 1) / n]];
-    out.push({ ...f, corners: q.map(([u, v]) => P(at(f.corners, u, v))), uv: q.map(([u, v]) => at(f.uv, u, v).map(r5)) });
   }
   return out;
 }

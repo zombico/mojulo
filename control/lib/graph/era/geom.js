@@ -77,5 +77,21 @@ export function quad(out, corners, n, surf, A, B, uvs = null) {
   const uv = uvs ? uvs.map((q) => q.map(r5)) : cs.map((p) => (surf.uvOf ? surf.uvOf(p) : [dot(p, A) / surf.scale, dot(p, B) / surf.scale]).map(r5));
   out.push({ corners: cs, normal: n.map(r5), outNormal: n.map(r5), texture: surf.key, textureLit: true, uv, tint: surf.tint, group: surf.group });
 }
+const crossV = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unitV = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+/**
+ * One painted CARD (a cutout: leaf-cards.js): a quad on `base` (its bottom centre) spanning `w` along `along` and `h`
+ * along `up`, wearing card `key` (uv 0..1, v up), tinted. `vTiles` repeats the card up its height (a vine strip).
+ */
+export function card(out, base, along, up, w, h, key, tint, group, vTiles = 1) {
+  const a = along.map((v) => (v * w) / 2), u = up.map((v) => v * h);
+  const cs = [sub(base, a), add(base, a), add(add(base, a), u), add(sub(base, a), u)].map(P);
+  const n = unitV(crossV(along, up)).map(r5);
+  out.push({ corners: cs, normal: n, outNormal: n, texture: key, textureLit: true, uv: [[0, 0], [1, 0], [1, vTiles], [0, vTiles]].map((q) => q.map(r5)), tint: tint.map(r5), group, doubleSided: true });
+}
+/** Cards crossed about a vertical axis (the era's plant): two at right angles, or `n` evenly round. */
+export function crossed(out, base, yaw, w, h, key, tint, group, n = 2) {
+  for (let k = 0; k < n; k++) { const a = yaw + (k * Math.PI) / n; card(out, base, [Math.cos(a), Math.sin(a), 0], [0, 0, 1], w, h, key, tint, group); }
+}
 /** A point on wall frame F: u along it, `off` out into the room, z up. */
 export const onWall = (F, u, off, z) => add(add(add(F.o, mul(F.U, u)), mul(F.N, off)), [0, 0, z]);

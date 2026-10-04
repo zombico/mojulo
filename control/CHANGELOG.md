@@ -126,11 +126,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     larger crack scale, buttress roots on the side away from the trail, and moss.
   - Tall grass is cards of broad blades (`card:grass`), placed where sunlight reaches the floor. It is lit
     and shaded with the rest of the scene, and walked through.
+- The `trail-valley` kit takes three principles back from the jungle, each with a check:
+  - One ground, two tiles. The trail ribbon and the meadow within 9 m of it share one soil, mapped the floor's
+    way, so the ribbon's edge has no seam. The grass returns over it as a blend: worn off the trail, wandering
+    at its edge, thinned under the spruce and in bare patches, and whole where the meadow tile takes over.
+  - Foliage is painted cards. Spruces are grown (`vegetation/conifer.js`): the trunk is barked near the trail,
+    and the crown is bough cards (`card:bough`) placed at the grown limbs. Cards are finer near the trail and
+    coarser further off, and dark toward the trunk. Grass tufts are cards (`card:meadow`, `card:grass`) instead
+    of instanced tufts, so they take the scene's light and shade. The sun falls through the cards' gaps.
+  - The ground is never flat: mounds and hollows at three scales, and a bank either side of the trail. Roots
+    surface in pieces instead of running as rails, and the trail's stones are its own rock.
+- `card` and `crossed` (one painted card, and cards crossed about a vertical axis) move to
+  `lib/graph/era/geom.js`, and `dice` is exported from `lib/graph/era/nature.js`, shared by the trail and the
+  jungle. The jungle's output is unchanged.
 - `emitThreeWorld` draws faces marked `blend: true` in their own translucent pass: a second texture faded in
   per corner by `cornerAlpha`, multiplied by the baked colour, drawn over the surface beneath it without
   flickering. This is the era's two-tile vertex blend. Worlds without blend faces are unchanged.
 - Leaf cards (`lib/graph/era/leaf-cards.js`): painted RGBA leaf textures (`card:broadleaf`, `card:fern`,
-  `card:spray`, `card:vine`, `card:litter`, `card:roots`, `card:bamboo`, `card:grass`), resolved through the surface-texture registry. New
+  `card:spray`, `card:vine`, `card:litter`, `card:roots`, `card:bamboo`, `card:grass`, `card:bough`,
+  `card:meadow`), resolved through the surface-texture registry. New
   `encodePngRgba` in `lib/graph/landscape/surface-textures.js`.
 - `emitThreeWorld` takes `cutouts`, a list of texture keys whose alpha is cut out (alpha-tested). Those
   surfaces drop their clear texels, including from the depth pass, and are not walk colliders, so foliage

@@ -11,6 +11,9 @@
  *   card:roots      a banyan's hanging aerial roots: wavering strands from the top edge, ragged at their ends
  *   card:bamboo     bamboo foliage: drooping twigs hung with narrow lance leaves
  *   card:grass      a clump of tall broad blades from one crown, bowed outward, back blades darker
+ *   card:bough      a spruce bough from its base (bottom) to its tip (top): a main shoot, side shoots swept to the tip,
+ *                   every shoot a comb of short dark needles, the lower combs hanging; blue-dark, lit at the tips
+ *   card:meadow     a meadow tuft: many fine blades from one crown, green into straw, a few seed stalks above
  *
  * `cardTexture(key)` → data:image/png (registered as the `card:` texture resolver); `cardMask(key)` → { W, H, a } the
  * alpha the sun bake reads, so light through a canopy card falls in the card's own holes. Deterministic: mulberry32 dice
@@ -148,6 +151,51 @@ const PAINTERS = {
       const f = i / n, ang = -Math.PI / 2 + (R() - 0.5) * 1.5, len = SIZE * (0.55 + 0.42 * R()), wid = SIZE * (0.04 + 0.025 * R());
       const bx = base[0] + (R() - 0.5) * SIZE * 0.22;
       leaf(cv, { bx, by: base[1], ang, len, wid, shape: 'lance', bend: (ang + Math.PI / 2) * 0.5 + (R() - 0.5) * 0.25, col: [[74, 96, 42], [88, 110, 48], [102, 120, 56], [80, 104, 52]][(R() * 4) | 0], dark: 0.55 * (1 - f), veins: 1 });
+    }
+  },
+  bough(cv, R) {
+    // a needle: a short dark stroke off its shoot, the newer ones (at the shoot's tip) lighter
+    const TONES = [[30, 54, 44], [38, 66, 52], [46, 76, 58], [58, 90, 66]];
+    const needles = (pts, len, dark, hang) => {
+      for (let k = 0; k + 1 < pts.length; k++) {
+        const [px, py] = pts[k], [qx, qy] = pts[k + 1], a = Math.atan2(qy - py, qx - px), t = k / (pts.length - 1);
+        for (const side of [-1, 1]) for (let j = 0; j < 2; j++) {
+          const bx = px + (qx - px) * (j / 2), by = py + (qy - py) * (j / 2), na = a + side * (0.85 + 0.35 * R()) + hang * (Math.PI / 2 - a) * 0.5;
+          leaf(cv, { bx, by, ang: na, len: len * (0.75 + 0.5 * R()) * (1 - 0.35 * t), wid: 2.2, shape: 'lance', col: TONES[Math.min(3, (t * 2.4 + R() * 1.6) | 0)], dark, veins: 1 });
+        }
+      }
+    };
+    const axis = []; const bend = (R() - 0.5) * 30;
+    for (let k = 0; k <= 24; k++) { const t = k / 24; axis.push([SIZE / 2 + bend * t * t + 4 * Math.sin(t * 5), SIZE - 2 - t * (SIZE - 10)]); }
+    // the side shoots, back (dark) first; each sweeps toward the tip and droops a little, shorter toward the tip
+    const shoot = (bx, by, a0, side, L, dark, hang, depth) => {
+      const pts = []; for (let j = 0; j <= 8; j++) { const u = j / 8, a = a0 - side * 0.35 * u; pts.push([bx + Math.cos(a) * L * u, by + Math.sin(a) * L * u + 10 * u * u * (L / SIZE) * 3]); }
+      stem(cv, pts, depth ? 0.7 : 1, [70, 58, 40]);
+      // a side shoot carries its own shoots, alternate, swept the same way (the spruce's flat-topped, hanging sprays)
+      if (!depth) for (let j = 2; j < 8; j += 2) { const [qx, qy] = pts[j], sd = j % 4 ? 1 : -1; shoot(qx, qy, a0 - side * 0.35 * (j / 8) + sd * 0.9, sd, L * 0.38 * (1 - j / 12), dark, hang, 1); }
+      needles(pts, depth ? 10 : 13, dark, hang);
+    };
+    for (const pass of [0, 1]) for (let k = 2; k < 23; k++) {
+      for (const side of [-1, 1]) {
+        if ((k + (side > 0 ? 1 : 0) + pass) % 2) continue;
+        const t = k / 24, [bx, by] = axis[k], L = SIZE * (0.5 - 0.36 * t) * (0.8 + 0.4 * R()), a0 = -Math.PI / 2 + side * (1.0 - 0.25 * t + 0.2 * (R() - 0.5));
+        shoot(bx, by, a0, side, L, pass ? 0.05 : 0.5, 0.6 * (1 - t), 0);
+      }
+    }
+    stem(cv, axis, 1.6, [84, 66, 44]);
+    needles(axis, 12, 0.1, 0);
+  },
+  meadow(cv, R) {
+    // fine blades fanned from one crown, the back ones dark, green going to straw at the tips; seed stalks above
+    const base = [SIZE / 2, SIZE - 2], BL = [[84, 110, 46], [98, 122, 52], [112, 128, 60], [128, 132, 70], [146, 138, 82]];
+    for (let i = 0; i < 70; i++) {
+      const f = i / 70, ang = -Math.PI / 2 + (R() - 0.5) * 1.3, len = SIZE * (0.4 + 0.5 * R()), wid = SIZE * (0.012 + 0.012 * R());
+      leaf(cv, { bx: base[0] + (R() - 0.5) * SIZE * 0.18, by: base[1], ang, len, wid, shape: 'lance', bend: (ang + Math.PI / 2) * 0.6 + (R() - 0.5) * 0.3, col: BL[Math.min(4, (f * 3 + R() * 2.2) | 0)], dark: 0.6 * (1 - f), veins: 1 });
+    }
+    for (let i = 0; i < 4; i++) {
+      const x0 = base[0] + (R() - 0.5) * SIZE * 0.3, top = [x0 + (R() - 0.5) * SIZE * 0.25, SIZE * (0.04 + 0.12 * R())];
+      stem(cv, [[x0, base[1]], [(x0 + top[0]) / 2, (base[1] + top[1]) / 2], top], 0.9, [150, 140, 92]);
+      for (let k = 0; k < 6; k++) leaf(cv, { bx: top[0] + (R() - 0.5) * 3, by: top[1] + k * 5, ang: -Math.PI / 2 + (R() - 0.5) * 0.8, len: 9, wid: 3.4, shape: 'lance', col: [164, 150, 98], dark: 0.1, veins: 1 });
     }
   },
   litter(cv, R) {
