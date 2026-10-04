@@ -32,6 +32,96 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Trees of many ages (`growth` on a species): one variant is grown at each age, some in a stand, so height, girth and clear trunk come from growth rather than scale. Each plant picks its age by its height in the species' range. The cherry has five ages, from 8 to 21 years. Other species are unchanged.
 - Research spike behind it (`scripts/spikes/wind/`): one seeded wind field (gusts carried downwind, log profile, veer) that bends plants and carries debris. Introduces flaccidity φ ∈ [0, 1], the share of the air's push an element takes; everything before is φ = 0 and stays byte-identical. Plant poses reuse the production elastica through a baked table; debris (dust, leaves, twigs) lifts and settles by kind. Standalone interactive preview, no schema, exporter or runtime integration.
 
+### Aqua rendering
+
+- **Water has a look of its own.** A water preset (`ocean`, `lagoon`, `lake`, `river`, `canal`, `pool`,
+  `falls`) shades it on the World page with light-weight maths instead of a flat tint: fine ripples
+  layered over the waves, the sky reflected more strongly the lower you look (water is a mirror at a
+  grazing angle and nearly clear head-on), and a sharp sun glint that softens with distance so far
+  water does not shimmer.
+- **Foam forms where waves fold.** The animated oceans, beaches, rivers and spillways now place
+  whitecaps where the wave surface folds over itself, and draw foam as a lacy pattern of bubbles
+  rather than a white tint. Shore breakers, river banks and the foot of a falling sheet froth the same
+  way.
+- **Rivers flow along their banks.** A river's surface runs in lanes parallel to its banks that turn
+  with every bend; ripples stream downstream along them and foam gathers in lines that drift with the
+  current.
+- **You can see into the water.** Water now fades with depth the way real water does: sand and riverbeds
+  show through the shallows in the water's own clear tint (turquoise for a lagoon, olive for a river), and
+  deep water turns opaque. Where water is thin, against a beach, a bank or a floating buoy, it froths
+  in bands that lap toward the edge. The beach view gains a seabed that falls away offshore so its water
+  shades from shallows to deeps. Open sea with nothing beneath it looks as before.
+- **Water leaves with the scene.** Exported GLBs carry each body of water as its own `water:<kind>` node
+  with a clear-water material (transmission, index of refraction 1.333, and absorption that keeps
+  blue and loses red), which Blender reads. Animated seas, beaches and rivers, which no export carried
+  before, leave as one frozen frame with their foam baked in; the ocean view now exports at all. Godot
+  packs (kernel 0.4.0) shade that water live with a water shader: the seabed seen through the water,
+  bent by the ripples and fading red-first with depth, foam where the water thins, sky reflection and
+  sun glint, and drifting ripples. The waves themselves stand still in an export.
+- **Pools and ponds you can touch (groundwork).** A page can now carry shallow bodies of water whose
+  surface is simulated rather than drawn: still until something disturbs it, with waves that slow in
+  the shallows, bounce off a pool's walls and die out on a pond's bank. Walking in slows you with depth,
+  splashes on entry and leaves a frothing wake; floating toys and leaves bob on the live surface and get
+  pushed aside; rain rings it; a click splashes it. Everything that touches the water goes through one
+  interface, `window.__aqWater` (`query`, `disturb`). The floor is seen through the water, bent by the
+  ripples, with caustics where crests focus the sun. No world kind emits them yet.
+- **Wet sand follows the swash.** On an aqua beach the swash now runs a thin sheet of water up the
+  sand, with a lace of foam on its leading edge, then drains: the sheet shines with the sky and the
+  sun for a second or two, and the sand it leaves stays dark while it dries, with a damp band above
+  the highest reach. It is worked out from the swash's own timing, so it costs only a shader and an
+  export carries the band as it stands at the first frame. Beaches take `detail`
+  (`'still' | 'animated' | 'touch' | 'showpiece'`, default `'animated'`); `'still'` keeps the baked band.
+- **Footprints in the sand (`detail: 'touch'`).** A beach at the touch tier opens in walk mode facing
+  the sea, and the sand around you takes footprints: a bed of loose sand (3 cm cells) follows you as
+  you walk and blends into the beach with no visible edge. Damp sand holds a print's walls, dry sand
+  up the beach slumps them into soft dimples, and the backwash levels any print it runs over. The
+  ground kernel graduated from the soft-ground spike with per-cell moisture, a window that slides
+  with the walker, and slopes measured on the sand alone so loose sand never slides off the beach
+  face; with neither in use it replays the spike byte for byte. The beach declares its unit
+  (1 unit = 1 m at scale 1).
+- **Wading into the surf.** At the touch tier the sea around you answers too: walking in slows you
+  with depth, splashes on entry, and leaves a wake and a cloud of stirred-up sand in the water. The
+  disturbance is simulated in a small window that follows you and rides on top of the existing
+  waves (it reaches the water shader as a texture, so it adds no geometry and no seams). One step
+  routes by depth: on dry or shallow ground it prints the sand, in the surf it prints the sand and
+  stirs the water, and past waist depth only the water answers.
+- **The swash strands its foam.** On every animated beach the foam the uprush carries is left on the
+  sand where the sheet stops: it slides back with the backwash while the water still covers it, stays
+  put once the water leaves, and opens into holes and pops over a few seconds. The backwash's edge
+  carries no foam line of its own.
+- **A faucet and the basin it fills (study).** A falling stream (`jets` on the World page) is drawn on
+  the GPU along its fall: it thins as it speeds up, carries a ripple from the spout that grows until a
+  thin stream breaks into a string of beads, and below a threshold set by the spout's width it drips
+  instead. An aerator turns it white. Where it lands on a dry or barely wet floor it spreads into a
+  hydraulic jump; in standing water it plunges, with a crater, rings and foam that push floating
+  things away. Its basin is a new `basin` kind of shallow water whose level moves: it fills with the
+  plug in, drains through the plug hole with it out, and stops at the overflow, and a duck in it rides
+  up and settles on the floor when it empties. The page has a panel for flow, plug and aerator.
+- **Waterfalls (`create_view` kind `waterfall`).** The same falling water, at landscape scale: a river
+  runs along a plateau, pours off the cliff, falls, and plunges into a pool that drains away as a
+  second river. Three kinds: `veil` (a tall thin ribbon that frays to streaks), `curtain` (a broad,
+  heavy block of water) and `horsetail` (a round spout shot through a slot in the rock). Over the lip
+  the water is glassy and pours at the depth a river takes going over an edge; it whitens as it falls
+  and, past a break-up length set by how much water there is, frays into streaks and fingers and
+  spreads, with mist at its foot. The pool's surface is simulated, so the fall churns it into foam and
+  rings and pushes floating leaves away. A flow slider on the page turns the fall down to a trickle or
+  up to five times its size. Falling water can now be a sheet over a lip as well as a round stream,
+  so any world can place one.
+- **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
+  `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
+  use `canal`.
+- **Glass is untouched.** Windows share the old translucent-water pass; only faces tagged `liquid`
+  take the new look, and pages without water emit the same bytes as before.
+
+### Particle vacuum spike
+
+- Isolated development experiment: frozen wave-manji carriers activated by spatial contact events, with deterministic replay and a standalone interactive preview. No level schema or runtime integration.
+- Wave-ground follow-up: conservative sand depth over sampled wave-field terrain, with 3D surface preview and slope-driven redistribution.
+- Lightweight sand follow-up: bounded occupancy grid, sleeping grains, local support-change wakeups, hopper gate and editable terrain preview.
+- Grain physics follow-up: integer gravity with terminal speed, work–energy Coulomb friction (dynamic μ sets the heap angle instead of the grid's 45°), static friction with avalanche hysteresis, and inelastic impact in the sand kernel; still no library.
+- Sand-bed follow-up: integer depth layer where walking leaves persistent footprints (displaced sand forms a rim biased toward the push) and a pushed crate plows a berm, relaxed by the same static/sliding friction pair; walkable standalone preview, no production channel yet.
+- Soft-ground materials: the same bed with a compaction ratio (snow packs under the boot and bears load, little rim) and viscosity (mud oozes back over seconds); dry sand, damp sand, fresh snow and mud presets in the walkable preview.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

@@ -3045,7 +3045,9 @@ export function buildTerrainWorldMesh(manifest, { city = false, cityDensity = 0.
         // `water: true` tags the sheet so the three.js World renders it in a separate
         // TRANSLUCENT mesh (per-vertex alpha from the rgba fill — shallows clear, deeps
         // opaque). The CSS path already blends the rgba() fill, so it ignores the flag.
-        waterFaces.push({ corners: wq, fill: withAlpha(wc, alpha), doubleSided: true, water: true });
+        // `liquid` names the water kind for the World page's aqua look (ripples, sky reflection, glint);
+        // `aqua: false` on the manifest keeps the plain tinted sheet.
+        waterFaces.push({ corners: wq, fill: withAlpha(wc, alpha), doubleSided: true, water: true, ...(manifest.aqua === false ? {} : { liquid: manifest.aqua || 'lake' }) });
       }
     }
   }

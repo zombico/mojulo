@@ -73,6 +73,7 @@ func _ready() -> void:
 	eye_scale = maxf(0.5, eye / 1.7)
 	_fix_materials()
 	_fix_crystals()
+	_fix_water()
 	_apply_rim()
 	if _fix_lights() > 0:
 		_build_environment()
@@ -164,6 +165,56 @@ func _fix_crystals() -> void:
 				m.emission = Color(float(glow[0]), float(glow[1]), float(glow[2]))
 				m.emission_energy_multiplier = 1.5
 			mi.set_surface_override_material(s, m)
+
+
+# Water (aqua rendering, kernel 0.4.0): Godot's glTF import drops KHR_materials_transmission / ior / volume, so a
+# `water:<kind>` node arrives as an opaque lit sheet. score.water carries each node's look (in metres, mojulo's z-up
+# vectors); its surfaces get kernel/water.gdshader — depth absorption over the refracted screen, shore foam, Fresnel
+# sky, sun glint, drifting ripples. Animated seas arrive as one frozen frame; their ripples move here, the waves do not.
+# Absent score.water, nothing changes.
+func _fix_water() -> void:
+	var table: Dictionary = score.get("water", {})
+	if table.is_empty():
+		return
+	var shader: Shader = load("res://kernel/water.gdshader")
+	if shader == null:
+		return
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for s in range(mesh.get_surface_count()):
+			var mat: Material = mi.get_active_material(s)
+			if mat == null or not table.has(mat.resource_name):
+				continue
+			var w: Dictionary = table[mat.resource_name]
+			var rip: Dictionary = w.get("ripple", {})
+			var sm := ShaderMaterial.new()
+			sm.resource_name = mat.resource_name
+			sm.shader = shader
+			sm.set_shader_parameter("sigma", _vec3(w.get("sigma", [0.45, 0.09, 0.06])))
+			sm.set_shader_parameter("tint", _vec3(w.get("tint", [0.03, 0.27, 0.32])))
+			sm.set_shader_parameter("zenith", _vec3(w.get("zenith", [0.16, 0.3, 0.52])))
+			sm.set_shader_parameter("horizon", _vec3(w.get("horizon", [0.62, 0.7, 0.78])))
+			sm.set_shader_parameter("foam_color", _vec3(w.get("foam", [0.86, 0.92, 0.96])))
+			if w.has("sun"):
+				sm.set_shader_parameter("sun_dir", to_yup(w["sun"]).normalized())
+			sm.set_shader_parameter("roughness", float(w.get("roughness", 0.06)))
+			sm.set_shader_parameter("reflectivity", float(w.get("reflect", 1.0)))
+			sm.set_shader_parameter("ripple_scale", float(rip.get("scale", 0.3)))
+			sm.set_shader_parameter("ripple_slope", float(rip.get("slope", 0.2)))
+			sm.set_shader_parameter("ripple_speed", float(rip.get("speed", 0.5)))
+			var fl: Array = w.get("flow", [0.6, 0.8])
+			sm.set_shader_parameter("flow", Vector2(float(fl[0]), float(fl[1])))
+			# a river streams along its flow; still water lets its ripple layers cross
+			sm.set_shader_parameter("still", 0.0 if w.get("river", false) else 1.0)
+			sm.set_shader_parameter("shore", float(w.get("shore", 1.0)))
+			sm.set_shader_parameter("lit", 1.0 if w.get("frozen", false) else 0.0)
+			mi.set_surface_override_material(s, sm)
+
+
+static func _vec3(a: Array) -> Vector3:
+	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
 # The crystal light rig (crystal-rig R5): performed by kernel/crystal_light.gd from score.crystalLight.

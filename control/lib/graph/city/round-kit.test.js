@@ -35,11 +35,12 @@ describe('round street kit: the element', () => {
   // (all but its normalized `elements`, which now names roundKit: false) and the scene keep those bytes
   // a scene's textures hash by their pixels: Node builds compress them differently (util/png-pixels.fixture.js)
   const h = (x) => createHash('sha256').update(withPngPixels(JSON.stringify(x))).digest('hex').slice(0, 16);
+  // canal re-pinned when its water faces took `liquid: 'canal'` (the aqua look); the kit-off property is unchanged.
   // metro and canal are 3.0's and plan on dmath (util/math-scope.js): the same bytes everywhere, re-pinned when they took it.
   // The stock city is 2.1.0's generator on the engine's Math, whose bytes turn on the CPU and on Node's pow (22 → 24),
   // measured the same on Linux and macOS for each; a minted stock city keeps them, so its pins are per CPU and Node major
   // (a runtime nobody measured, Windows or another major, skips).
-  const RELEASE = { metro: ['26b0d6c6b877c6a9', 'd1de92f4c5babcad'], canal: ['ac25ab8725ed7b8b', '55ca442568a3b7b8'] };
+  const RELEASE = { metro: ['26b0d6c6b877c6a9', 'd1de92f4c5babcad'], canal: ['914b85d5ddf4209d', '5e8a51ad0de1f693'] };
   const STOCK_RELEASE = {
     'x64-22': ['52bf3c17e291ede6', '293e04862bfa91b1'], 'arm64-22': ['b6a090d979ee8c58', 'b6de9f37038d57b1'],
     'x64-24': ['ef366fd05f29de7b', 'bec1fc975276bed8'], 'arm64-24': ['ef366fd05f29de7b', 'bec1fc975276bed8'],

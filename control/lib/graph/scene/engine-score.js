@@ -10,6 +10,7 @@
  * emitter owns its own frame/unit conversion, exactly like facesToGlb owns
  * the y-up root. NOT an engine adapter: no engine names in here.
  */
+import { aquaWaterBodies, aquaScoreEntry } from '../materials/aqua-export.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
 import { normalizeHud } from '@/lib/graph/game/hud-widgets';
@@ -161,6 +162,14 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (Object.keys(crystals).length) {
     ledger.crystals_carried = { count: Object.keys(crystals).length, note: 'crystal nodes carry KHR transmission / ior / volume / dispersion (Blender reads them; Godot drops transmission, so kernel/level.gd applies a refraction material from score.crystals)' };
   }
+  // Water (aqua look): each `water:<kind>` node's look as data — absorption, tint, ripples, shore band, sky — in metres.
+  // The GLB carries transmission / ior / volume for importers that read them (Blender); Godot drops them, so
+  // kernel/level.gd gives those surfaces kernel/water.gdshader from score.water. Absent aqua water ⇒ no key.
+  const waterBodies = aquaWaterBodies(payload);
+  const water = Object.fromEntries(waterBodies.map((w) => [w.name, aquaScoreEntry(w, unitScale || 1)]));
+  if (waterBodies.length) {
+    ledger.water_carried = { count: waterBodies.length, note: 'water nodes carry KHR transmission / ior / volume (Blender reads them); Godot drops transmission, so kernel/level.gd shades them with kernel/water.gdshader from score.water (depth absorption, refraction, Fresnel sky, ripples, shore foam)' + (waterBodies.some((w) => w.frame) ? '; animated seas and rivers leave as one frozen frame (t = 0) — their ripples move in the shader, the waves do not' : '') };
+  }
   // A crystal light rig: lamps, stones as operators, targets — performed live by kernel/crystal_light.gd; the GLB's
   // frozen frame (`crystal-light:*` nodes) is what other importers keep. Absent ⇒ no key.
   const cryRig = payload.crystalLight ? crystalRigFor(payload.faces || [], payload.crystalLight) : null;
@@ -210,6 +219,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // the figure look (rim) as data — see ledger.look_declared. Absent ⇒ no key.
     ...(lookFigures.length ? { look: { figures: Object.fromEntries(lookFigures.map(([n, f]) => [n, { rim: f.rim }])) } } : {}),
     ...(Object.keys(crystals).length ? { crystals } : {}),
+    ...(waterBodies.length ? { water } : {}),
     ...(cryRig ? { crystalLight: rigForScore(cryRig, unitScale || 1) } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure);
