@@ -23,7 +23,7 @@ describe('historic ground: what the town stands on', () => {
     const by = (s) => p.grounds.filter((g) => g.surface === s);
     expect(by('rubble').length).toBeGreaterThan(20);
     expect(by('brick').some((g) => g.kind === 'precinct-floor')).toBe(true);
-    expect(by('brick').filter((g) => g.kind === 'lane').length).toBeGreaterThan(20);
+    expect(by('brick').filter((g) => g.kind === 'quay').length).toBeGreaterThan(20);   // the quays: one strip per bank, nothing laid over them
     expect(by('mud').length).toBeGreaterThan(20);
     expect(p.grounds.find((g) => g.kind === 'ground').surface).toBe('dry-earth');
     expect(p.grounds.filter((g) => g.kind === 'lane' && !g.surface)).toEqual([]);
@@ -62,7 +62,9 @@ describe('historic wall skins: what a wall is made of', () => {
     const f = skinFace(wall(0), 'mudbrick', { us: 10, mpu: 1 });
     expect(f.bg.endsWith(', #a08060')).toBe(true);
     expect(f.skin).toBe('historic-skin-mudbrick-0');
-    expect(skinFace(wall(2.2), 'mudbrick', { us: 10, mpu: 1 }).bg).toBe(f.bg);   // one tile height up: the same courses
+    expect(skinFace(wall(WALL_SKINS.mudbrick[1]), 'mudbrick', { us: 10, mpu: 1 }).bg).toBe(f.bg);   // one tile height up: the same courses
+    expect(f.texture).toBe('hskin-mudbrick');   // the World gets it too, multiplied by the lit colour
+    expect(f.textureLit).toBe(true);
     const roof = { corners: [[0, 0, 3], [1, 0, 3], [1, 1, 3], [0, 1, 3]], fill: '#a08060' };
     expect(skinFace(roof, 'mudbrick', { us: 10, mpu: 1 })).toBe(roof);
   });

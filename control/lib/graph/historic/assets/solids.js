@@ -6,6 +6,7 @@
  * CSS 3D emitter draws), passed to the scene as extra faces.
  *
  *   solid: 'frustum'  — the rect at z0, `top` (a rect) at z1: a battered block, any side leaning
+ *   solid: 'panel'    — one planar face: `pts` (its corners, metres) facing `out`
  *   solid: 'wedge'    — a slope across the rect from z0 up to z1, rising toward `rise` ('x+','x-','y+','y-')
  *   solid: 'palm'     — a date palm standing at the rect's centre, z0 → z1 the trunk: a tapering,
  *                       leaning trunk (`lean`, fraction of height) under a crown of drooping fronds
@@ -109,7 +110,10 @@ function solidFacesBare(b, L) {
   const faces = [];
   const add = (pts, c) => faces.push(...polyFaces(pts, sub(centroid(pts), c), shade));
   const { x, y, w, d, z0, z1 } = b, x1 = x + w, y1 = y + d;
-  if (b.solid === 'frustum') {
+  if (b.solid === 'panel') {
+    // a single planar face, given by its corners and the side it faces (a canal's sloping revetment)
+    faces.push(...polyFaces(b.pts, b.out, shade));
+  } else if (b.solid === 'frustum') {
     const t = b.top || { x, y, w, d }, tx1 = t.x + t.w, ty1 = t.y + t.d;
     const B = [[x, y, z0], [x1, y, z0], [x1, y1, z0], [x, y1, z0]], T = [[t.x, t.y, z1], [tx1, t.y, z1], [tx1, ty1, z1], [t.x, ty1, z1]];
     const c = centroid([...B, ...T]);
@@ -203,6 +207,7 @@ function solidFacesBare(b, L) {
 export function scaleSolid(b, s) {
   const o = { ...b, x: b.x * s, y: b.y * s, w: b.w * s, d: b.d * s, z0: b.z0 * s, z1: b.z1 * s };
   if (b.top) o.top = { x: b.top.x * s, y: b.top.y * s, w: b.top.w * s, d: b.top.d * s };
-  for (const k of ['band', 'lip']) if (b[k]) o[k] = b[k] * s;   // every length scales, or a ring's band outgrows the ring
+  for (const k of ['band', 'lip']) if (b[k]) o[k] = b[k] * s;
+  if (b.pts) o.pts = b.pts.map((p) => p.map((v) => v * s));   // every length scales, or a ring's band outgrows the ring
   return o;
 }

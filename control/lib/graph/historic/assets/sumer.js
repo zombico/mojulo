@@ -290,4 +290,60 @@ export const reedHouse = {
 
 import { SUMER_ART } from './sumer-art.js';
 
-export const SUMER_ASSETS = { ...Object.fromEntries([ziggurat, houseSmall, houseTall, houseCourt, wallRun, wallTower, cityGate, whiteTemple, reedHouse].map((a) => [a.id, a])), ...SUMER_ART };
+/**
+ * The canal bridge: a humped brick bridge over a CORBELLED opening — courses stepping in until a
+ * lintel closes the top, the way Sumerian builders spanned a tomb or a drain — high enough at its
+ * crown for a reed boat's horns to pass under. Stair flights climb to the deck from each quay
+ * between low cheek walls; a parapet runs along both edges of the deck.
+ *
+ * The layout passes where the water is: `slot.span` { y0, y1 } (local, the two banks) and
+ * `slot.waterZ` (the water level, below the quay at 0). Local y runs across the canal; the opening
+ * is a tunnel along x, the boats' way.
+ */
+export const canalBridge = {
+  id: 'canal-bridge', designed: true, patterns: ['canal-through', 'sun-dried-earth'],
+  read: 'a humped brick bridge on a stepped (corbelled) arch, stairs up from both quays',
+  notes: ['opening 7 m wide at the water, sides upright 1.8 m, then six courses stepping in 0.5 m each', 'crown clearance ≈ 4.5 m over the water: a reed boat with its horns passes', 'stairs at 1:2 between cheek walls; parapets 0.9 m'],
+  envelope: { w: [6, 9], d: [30, 34] },
+  /** The opening's half-width at height z (local), for clearance checks: 0 where the bridge is solid. */
+  profile({ y0, y1 }, waterZ) {
+    const { zs, rise, inset, n, half0 } = bridgeDims({ y0, y1 }, waterZ);
+    return (z) => (z < waterZ ? 0 : z < zs ? half0 : z < zs + n * rise ? half0 - (Math.floor((z - zs) / rise) + 1) * inset : 0);
+  },
+  build({ W, D, slot }, { palette: P }) {
+    // alone (a sheet, a blueprint) it spans a 9 m canal centred in its rect, the water 1.5 m down
+    const sp = slot.span || { y0: (D - 9) / 2, y1: (D + 9) / 2 }, wz = slot.waterZ ?? -1.5;
+    const { y0, y1 } = sp, c = (y0 + y1) / 2;
+    const { zs, rise, inset, n, half0, apex, top, deck } = bridgeDims(sp, wz);
+    const brick = scaleHex(P.paving, 0.9), dk = scaleHex(P.paving, 0.8), yA = y0 - 1.2, yB = y1 + 1.2, out = [];
+    // each course in three lengths: the two arch faces in the sun, the tunnel between them in its own
+    // shade, so the opening reads dark from along the canal
+    const shade = scaleHex(brick, 0.5), ring = Math.min(0.9, (W - 0.8) / 3);
+    const span = (ya, yb, z0, z1, kind, tint = brick, through = false) => {
+      if (yb - ya <= 0.01) return;
+      if (!through) { out.push({ kind, x: 0.4, y: ya, w: W - 0.8, d: yb - ya, z0, z1, tint }); return; }
+      out.push({ kind, x: 0.4, y: ya, w: ring, d: yb - ya, z0, z1, tint }, { kind, x: 0.4 + ring, y: ya, w: W - 0.8 - 2 * ring, d: yb - ya, z0, z1, tint: shade }, { kind, x: W - 0.4 - ring, y: ya, w: ring, d: yb - ya, z0, z1, tint });
+    };
+    // the abutments and the opening's upright sides, down into the water
+    span(yA, c - half0, wz - 0.3, zs, 'bridge-pier', brick, true); span(c + half0, yB, wz - 0.3, zs, 'bridge-pier', brick, true);
+    // the corbel: each course reaches a step further over the water
+    for (let k = 0; k < n; k++) { const h = half0 - (k + 1) * inset, z = zs + k * rise; span(yA, c - h, z, z + rise, 'bridge-corbel', brick, true); span(c + h, yB, z, z + rise, 'bridge-corbel', brick, true); }
+    span(yA, yB, apex, top, 'bridge-lintel', brick, true);
+    span(yA, yB, top, deck, 'bridge-deck', P.paving);
+    // parapets along both edges of the deck
+    for (const x of [0, W - 0.4]) out.push({ kind: 'bridge-parapet', x, y: yA, w: 0.4, d: yB - yA, z0: top, z1: deck + 0.9, tint: dk });
+    // stairs up from each quay, 1:2, between cheek walls
+    const run = deck * 2;
+    out.push(...slopedFlight({ x: 0.4, y: yA - run, w: W - 0.8, d: run }, 0, deck, P.stair, 'y+', { cheek: 0.4, cheekTint: dk, riser: 0.3 }));
+    out.push(...slopedFlight({ x: 0.4, y: yB, w: W - 0.8, d: run }, 0, deck, P.stair, 'y-', { cheek: 0.4, cheekTint: dk, riser: 0.3 }));
+    return out;
+  },
+};
+/** The bridge's corbel, sized from the water's width and level (shared by build and profile). */
+export function bridgeDims({ y0, y1 }, waterZ) {
+  const half0 = (y1 - y0) / 2 - 1, zs = waterZ + 1.8, rise = 0.45, inset = 0.5, n = Math.max(3, Math.min(6, Math.floor((half0 - 0.5) / 0.5)));
+  const apex = zs + n * rise, top = apex + 0.45;
+  return { half0, zs, rise, inset, n, apex, top, deck: top + 0.15 };
+}
+
+export const SUMER_ASSETS = { ...Object.fromEntries([ziggurat, houseSmall, houseTall, houseCourt, wallRun, wallTower, cityGate, whiteTemple, reedHouse, canalBridge].map((a) => [a.id, a])), ...SUMER_ART };

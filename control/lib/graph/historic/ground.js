@@ -166,8 +166,8 @@ export function groundTileCss(faces) {
 
 /** Skins, and the tile they repeat at: [width, height] in metres. */
 export const WALL_SKINS = {
-  mudbrick: [2.4, 2.2],      // sun-dried brick in mud mortar, a herringbone band of plano-convex bricks
-  'baked-brick': [2.4, 1.8], // fired brick laid in bitumen: dark joints, a tone to each brick
+  mudbrick: [2.4, 2.4],      // sun-dried brick in mud mortar, reed-mat layers every eighth course, a herringbone course
+  'baked-brick': [2.4, 1.8], // fired brick laid in bitumen: dark joints, a tone to each brick, a stamped course
   'mud-plaster': [4, 9],     // mud render over brick: mottle, rain streaks, a spall, a worn foot (taller than a house, so the foot shows once)
   'lime-plaster': [4, 4],    // gypsum / lime whitewash: a faint mottle and hairline cracks
 };
@@ -180,13 +180,18 @@ function overlay(size) {
   return { W, H, a, add };
 }
 // soft courses of brick: `rows` courses, `per` bricks a course, joints `joint` px wide, each brick a tone
-function courses(o, rng, { rows, per, joint, jointK, toneK, herring = [], wear }) {
+function courses(o, rng, { rows, per, joint, jointK, toneK, herring = [], mats = [], relief = 0, wear }) {
   const { W, H } = o, ch = H / rows, bw = W / per;
-  const tone = Array.from({ length: rows * per * 2 }, () => (rng() - 0.5) * 2 * toneK);
+  const tone = Array.from({ length: rows * per * 2 }, () => { const t = (rng() - 0.5) * 2 * toneK; return rng() < 0.06 ? t - toneK * 1.2 : t; });   // the odd over-fired or wet-struck brick
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const r = Math.floor(y / ch), ly = y - r * ch;
     let k;
-    if (herring.includes(r)) {
+    if (mats.includes(r)) {
+      // a layer of reed matting laid between courses (Ur, the ziggurat core): a dark band, its woven
+      // strands showing as short diagonals, pressed thin at its edges
+      const weave = ((x + ((Math.floor(x / (ch * 0.8)) % 2) ? ly : -ly) * 1.6 + 1000 * ch) % (ch * 0.5)) < ch * 0.18;
+      k = -jointK * 1.15 + (weave ? 0.1 : 0) + (ly < ch * 0.18 || ly > ch * 0.82 ? -0.08 : 0);
+    } else if (herring.includes(r)) {
       // a herringbone course: plano-convex bricks set on edge, leaning one way then the other
       const seg = Math.floor(x / (ch * 0.9)), lean = (Math.floor(seg / 3) % 2 ? 1 : -1), t = ((x + lean * ly + 1000 * ch) % (ch * 0.45));
       k = ly < joint || t < joint * 0.8 ? -jointK : tone[(r * per + seg) % tone.length] * 0.8;
@@ -195,23 +200,30 @@ function courses(o, rng, { rows, per, joint, jointK, toneK, herring = [], wear }
       k = ly < joint || lx < joint ? -jointK : tone[r * per + (i % per)];
       const e = Math.min(ly - joint, lx - joint, ch - ly, bw - lx);
       if (k !== -jointK && e < joint) k -= jointK * 0.25;   // a worn arris
+      // relief: each brick catches the light along its upper arris and shades its own lower edge,
+      // so the coursing reads as horizontal ridges, not a printed grid
+      if (relief && k !== -jointK) k += ly < joint * 2.2 ? relief : ly > ch - joint * 2.2 ? -relief : 0;
     }
     o.a[y * W + x] += k * (wear ? wear(x, y) : 1);
   }
 }
 
 const SKIN_BAKERS = {
+  // bare sun-dried brick: bold courses with relief, a reed-mat layer every eighth course, one
+  // herringbone course of plano-convex bricks between the mats
   mudbrick(o, rng) {
     const n = noise(o.W, 6, rng), m = noise(o.W, 24, rng);
-    courses(o, rng, { rows: 20, per: 6, joint: 2.2, jointK: 0.3, toneK: 0.07, herring: [9, 10], wear: (x, y) => 0.7 + n(x, y * o.W / o.H) * 0.6 });
-    for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (n(x, y * o.W / o.H) - 0.5) * 0.14 + (m(x, y * o.W / o.H) - 0.5) * 0.06; }
+    courses(o, rng, { rows: 24, per: 6, joint: 2.2, jointK: 0.4, toneK: 0.15, mats: [7, 15, 23], herring: [11], relief: 0.1, wear: (x, y) => 0.75 + n(x, y) * 0.5 });
+    for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (n(x, y) - 0.5) * 0.16 + (m(x, y) - 0.5) * 0.06; }
   },
+  // baked brick in bitumen: near-black joints, a strong tone to each brick, a stamped course
   'baked-brick'(o, rng) {
     const m = noise(o.W, 20, rng);
-    courses(o, rng, { rows: 18, per: 7, joint: 2.6, jointK: 0.55, toneK: 0.13 });
-    for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (m(x, y * o.W / o.H) - 0.5) * 0.08; }
-    // a few stamped bricks: the king's name pressed in a panel
-    for (let s = 0; s < 3; s++) { const cx = rng() * o.W, cy = Math.floor(rng() * 18) * (o.H / 18) + o.H / 36; for (let y = -3; y <= 3; y++) for (let x = -7; x <= 7; x++) o.add(cx + x, cy + y, Math.abs(x) === 7 || Math.abs(y) === 3 ? -0.18 : -0.06); }
+    courses(o, rng, { rows: 20, per: 7, joint: 2.6, jointK: 0.6, toneK: 0.2, relief: 0.08 });
+    for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (m(x, y) - 0.5) * 0.08; }
+    // a course of stamped bricks: the king's name pressed in a panel on every other brick
+    const ch = o.H / 20, bw = o.W / 7;
+    for (let i = 0; i < 7; i += 2) { const cx = i * bw + bw * 0.5 + (9 % 2 ? bw / 2 : 0), cy = 9 * ch + ch / 2; for (let y = -3; y <= 3; y++) for (let x = -8; x <= 8; x++) o.add(cx + x, cy + y, Math.abs(x) === 8 || Math.abs(y) === 3 ? -0.22 : -0.07); }
   },
   'mud-plaster'(o, rng) {
     const n = noise(o.W, 5, rng), m = noise(o.W, 22, rng);
@@ -267,6 +279,27 @@ function encodeRgba(rgba, W, H) {
 
 const skinCache = new Map();
 /**
+ * A skin as an opaque texture for the WebGL World, where it is multiplied by the face's lit colour:
+ * the overlay laid on a pale neutral (light marks have headroom above it, dark marks pull down).
+ */
+const NEUTRAL = 228;
+function skinWorldTile(skin) {
+  const key = `${skin}|world`;
+  if (!skinCache.has(key)) {
+    const b = Buffer.from(skinTile(skin, 0).split(',')[1], 'base64'), W = b.readUInt32BE(16), Hh = b.readUInt32BE(20);
+    let i = 8; const idat = [];
+    while (i < b.length) { const L = b.readUInt32BE(i), ty = b.toString('ascii', i + 4, i + 8); if (ty === 'IDAT') idat.push(b.subarray(i + 8, i + 8 + L)); i += 12 + L; }
+    const raw = zlib.inflateSync(Buffer.concat(idat)), rgb = Buffer.alloc(W * Hh * 3);
+    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+      const q = y * (1 + W * 4) + 1 + x * 4, a = raw[q + 3] / 255;
+      for (let ch = 0; ch < 3; ch++) rgb[(y * W + x) * 3 + ch] = clamp(NEUTRAL * (1 - a) + raw[q + ch] * a);
+    }
+    skinCache.set(key, `data:image/png;base64,${encodePng(rgb, W, Hh).toString('base64')}`);
+  }
+  return skinCache.get(key);
+}
+registerTextureResolver('hskin-', (key) => (WALL_SKINS[key.slice(6)] ? skinWorldTile(key.slice(6)) : null));
+/**
  * The overlay PNG for a skin. `turn`: 0 as drawn (x along the wall, y down), 1 flipped (y up),
  * 2 transposed (x down the wall), 3 transposed and flipped — a face's u/v may run either way.
  */
@@ -309,5 +342,8 @@ export function skinFace(f, skin, { us, mpu }) {
   const along = -mod(run, tw) * us, high = -(up ? mod(c[0][2], th) : mod(-c[0][2], th)) * us;
   const [ox, oy, sw, sh] = tr ? [high, along, th * us, tw * us] : [along, high, tw * us, th * us];
   const key = `historic-skin-${skin}-${(tr ? 2 : 0) + (up ? 1 : 0)}`;
-  return { ...f, skin: key, bg: `var(--${key}) ${ox.toFixed(2)}px ${oy.toFixed(2)}px / ${sw.toFixed(2)}px ${sh.toFixed(2)}px repeat, ${f.fill}` };
+  // the WebGL World: the same skin as an opaque texture multiplied by the face's lit colour, mapped
+  // by world position (u along the wall's run, v up the wall) so the courses line up there too
+  const uv = c.map((p) => [(p[0] * H[0] + p[1] * H[1]) / hl / tw, p[2] / th]);
+  return { ...f, skin: key, bg: `var(--${key}) ${ox.toFixed(2)}px ${oy.toFixed(2)}px / ${sw.toFixed(2)}px ${sh.toFixed(2)}px repeat, ${f.fill}`, texture: `hskin-${skin}`, uv, textureLit: true };
 }

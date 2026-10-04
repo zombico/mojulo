@@ -48,6 +48,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   lime whitewash with hairline cracks on the temples and pale houses. Each culture says which mass
   wears which material. The coursing is pinned to world height, so neighbouring faces line up. The
   layer shows in the CSS 3D page only; the WebGL World keeps flat colour for now.
+- The town can be walked. A loose grid of narrow alleys runs between the blocks, so every house
+  fronts a lane and no block is more than two houses deep (before, about a third of the houses had no
+  way in), and each house stands a little in from its lot so neighbours read as separate buildings.
+- The sacred precinct has room: it is larger, kept clear of the wall's towers, and its temples stand
+  by measured clearance from the ziggurat and its long front stair instead of crowding them.
+- The canal is a smooth channel sunk below the town between baked-brick embankments, with one quay
+  strip along each bank and nothing laid over it. Where a main street crosses, a humped brick bridge
+  climbs by stairs over a corbelled opening high enough for a reed boat's horns, and the boats float
+  on the water. A canal view looks along the quay at the middle bridge.
+- Brick walls read as brick in the walkable World as well as the page: bolder courses with relief,
+  the reed-mat layers Sumerian builders laid between courses, a stamped course in the baked brick,
+  and a share of houses left as bare brick instead of mud render.
 
 ## [3.0.0] - 2026-10-01
 

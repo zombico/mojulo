@@ -72,8 +72,22 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   for (const [c, r] of wallCells) for (let dr = -strip - 1; dr <= strip + 1; dr++) for (let dc = -strip - 1; dc <= strip + 1; dc++) if (at(c + dc, r + dr) === C.EMPTY) set(c + dc, r + dr, C.OPEN);
 
   // ── 4. the precinct, off-centre on the far side of the canal ──
-  const pw = Math.round(K.precinct.size[0] / CELL), pd = Math.round(K.precinct.size[1] / CELL);
-  const pc0 = Math.round(cx - pw / 2 + (L() - 0.5) * cols * 0.12), pr0 = Math.max(Math.round(rows * 0.16), Math.round(canalAt(cx) - pd - rows * 0.08));
+  let pw = Math.round(K.precinct.size[0] / CELL), pd = Math.round(K.precinct.size[1] / CELL);
+  const pcStart = Math.round(cx - pw / 2 + (L() - 0.5) * cols * 0.12);
+  let pc0 = pcStart, pr0 = Math.max(Math.round(rows * 0.16), Math.round(canalAt(cx) - pd - rows * 0.08));
+  // keep clear of the wall (its towers reach into the town) and of the canal: nudge the precinct
+  // toward the canal and side to side until its margin holds only open town; a cramped ring gets a
+  // precinct a cell smaller each way until one fits
+  const clearAt = (c0, r0, m = 2) => {
+    for (let r = r0 - m; r < r0 + pd + m; r++) for (let c = c0 - m; c < c0 + pw + m; c++) { const v = at(c, r); if (v === C.WALL || v === C.OUTSIDE || v === -1 || v === C.WATER) return false; }
+    return true;
+  };
+  const r0Start = pr0;
+  fit: for (let shrink = 0; shrink < 8; shrink++, pw--, pd--) {
+    for (let dr = 0; dr < 24; dr++) for (const dc of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 8, -8, 10, -10]) {
+      if (clearAt(pcStart + dc, r0Start + dr)) { pc0 = pcStart + dc; pr0 = r0Start + dr; break fit; }
+    }
+  }
   for (let r = pr0; r < pr0 + pd; r++) for (let c = pc0; c < pc0 + pw; c++) if (at(c, r) !== C.WATER) set(c, r, C.PRECINCT);
   const precinct = { x: pc0 * CELL, y: pr0 * CELL, w: pw * CELL, d: pd * CELL };
   const precinctGate = [pc0 + Math.floor(pw / 2), pr0 + pd];   // the precinct opens toward the canal
@@ -157,8 +171,35 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   grounds.push({ kind: 'precinct-floor', x: precinct.x + pwT, y: precinct.y + pwT, w: precinct.w - 2 * pwT, d: precinct.d - 2 * pwT, z: 1.35, fill: P.precinctFloor, surface: 'brick' });
   // the ziggurat sits back in the precinct, its stair toward the gate (+y); a lesser temple in the court
   const [plw, pld] = PR.platform;
-  slots.push({ asset: 'ziggurat', rect: { x: precinct.x + (precinct.w - plw) / 2, y: precinct.y + precinct.d * 0.12, w: plw, d: pld }, facing: 's', z: 1.2 });
-  slots.push({ asset: 'white-temple', rect: { x: precinct.x + precinct.w * 0.08, y: precinct.y + precinct.d * 0.55, w: precinct.w * 0.22, d: precinct.d * 0.25 }, facing: 'e', z: 1.2 });
+  // placed by clearance, not by fraction: the ziggurat's reach includes its front stair (half its
+  // depth again), and each flanking building keeps `PR.clear` metres of open court from it, so no
+  // stair runs into another building's
+  const zr = { x: precinct.x + (precinct.w - plw) / 2, y: precinct.y + pwT + 4, w: plw, d: pld };
+  slots.push({ asset: 'ziggurat', rect: zr, facing: 's', z: 1.2 });
+  const [tw0, td0] = PR.temple, flankY = zr.y + pld * 0.55, posts = 1.7;
+  slots.push({ asset: 'white-temple', rect: { x: Math.max(precinct.x + pwT + 4, zr.x - PR.clear - posts - tw0), y: flankY, w: tw0, d: td0 }, facing: 'e', z: 1.2 });
+
+  // the block alleys: a loose lattice of narrow lanes, jogging a cell now and then, so no block is
+  // more than two houses deep and every house fronts a lane you can walk down (the organic streets
+  // above stay the town's bones; these are the paths between the houses)
+  if (K.lanes.block) {
+    const [br, bc] = K.lanes.block, BL = stream(seed, 'blocks');
+    const line = (n, len, across, cellAt) => {
+      for (let base = Math.floor(BL() * across) + across; base < n - 1; base += across) {
+        let off = 0;
+        for (let t = 0; t < len; t++) {
+          if (BL() < 0.08) {   // a jog: step over a cell, carving the corner so the alley stays continuous
+            const step = BL() < 0.5 ? 1 : -1;
+            if (Math.abs(off + step) <= 1) { const [c, r] = cellAt(base + off, t); if (at(c, r) === C.EMPTY) { set(c, r, C.LANE); laneCells.push([c, r]); } off += step; }
+          }
+          const [c, r] = cellAt(base + off, t);
+          if (at(c, r) === C.EMPTY) { set(c, r, C.LANE); laneCells.push([c, r]); }
+        }
+      }
+    };
+    line(rows, cols, br, (r, c) => [c, r]);   // east–west alleys
+    line(cols, rows, bc, (c, r) => [c, r]);   // north–south alleys
+  }
 
   // ── 8. houses: pack the remaining inside cells with lots; each lot is a slot facing its lane ──
   const H = K.house, LOT = stream(seed, 'lots');
@@ -175,7 +216,7 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
     // grow right then down while every cell is free
     while (w < tw2 && colFree(c0 + w, r0, d)) w++;
     while (d < td2 && rowFree(c0, r0 + d, w)) d++;
-    if (w * d < 2) { set(c0, r0, C.OPEN); continue; }
+    if (w < 2 || d < 2) { for (let r = r0; r < r0 + d; r++) for (let c = c0; c < c0 + w; c++) set(c, r, C.OPEN); continue; }   // a sliver is no house: leave it open ground
     for (let r = r0; r < r0 + d; r++) for (let c = c0; c < c0 + w; c++) set(c, r, C.HOUSE);
     lots.push({ c0, r0, w, d });
   }
@@ -189,7 +230,8 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
     for (let k = 0; k < w; k++) { side.n += open(c0 + k, r0 - 1); side.s += open(c0 + k, r0 + d); }
     for (let k = 0; k < d; k++) { side.w += open(c0 - 1, r0 + k); side.e += open(c0 + w, r0 + k); }
     const facing = ['s', 'n', 'e', 'w'].reduce((best, f) => (side[f] > side[best] ? f : best), 's');
-    const rect = { x: c0 * CELL, y: r0 * CELL, w: w * CELL, d: d * CELL };
+    // each house stands a little in from its lot line, so neighbours read as separate buildings
+    const g = H.gap || 0, rect = { x: c0 * CELL + g, y: r0 * CELL + g, w: w * CELL - 2 * g, d: d * CELL - 2 * g };
     const asset = Math.min(rect.w, rect.d) >= H.courtyardMin ? 'house-court' : rect.w * rect.d >= 120 ? 'house-tall' : 'house-small';
     slots.push({ asset, rect, facing });
   }
@@ -259,9 +301,10 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   const wtr = slots.find((q) => q.asset === 'white-temple').rect;
   slots.push({ asset: 'door-posts', rect: { x: wtr.x + wtr.w + 0.3, y: wtr.y + wtr.d * 0.5 - 4, w: 1.4, d: 8 }, facing: 'e', z: PZ });
   // worshippers stand in a row before the god, facing the ziggurat
-  slots.push({ asset: 'votive-row', rect: { x: precinct.x + precinct.w * 0.08, y: pfront - 9, w: precinct.w * 0.24, d: 2.6 }, facing: 'n', z: PZ });
+  slots.push({ asset: 'votive-row', rect: { x: precinct.x + pwT + 6, y: pfront - 9, w: Math.min(26, gx - gapW / 2 - 8 - precinct.x - pwT - 6), d: 2.6 }, facing: 'n', z: PZ });
   // the pillar hall, cone mosaic, in the court's other front corner, facing the axis
-  slots.push({ asset: 'pillar-hall', rect: { x: precinct.x + precinct.w * 0.64, y: precinct.y + precinct.d * 0.66, w: precinct.w * 0.3, d: precinct.d * 0.22 }, facing: 'w', z: PZ });
+  const [hw0, hd0] = PR.hall, hx = zig.x + zig.w + PR.clear;
+  slots.push({ asset: 'pillar-hall', rect: { x: hx, y: zig.y + zig.d * 0.55, w: Math.min(hw0, precinct.x + precinct.w - pwT - 4 - hx), d: hd0 }, facing: 'w', z: PZ });
 
   // the temple economy: the courtyard lots nearest the precinct become its granaries
   const nearP = (r) => Math.max(precinct.x - (r.x + r.w), r.x - (precinct.x + precinct.w), precinct.y - (r.y + r.d), r.y - (precinct.y + precinct.d), 0);
@@ -284,12 +327,28 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
     if (dth < 0.35 && kilns.every((k) => Math.hypot(k[0] - p[0], k[1] - p[1]) > 9)) kilns.push(p);
   }
   for (const [x, y] of kilns.slice(0, 5)) slots.push({ asset: 'pottery-kiln', rect: { x, y, w: 4, d: 4 }, facing: faceOut(x, y) === 'n' ? 's' : 'n' });
-  // boats moored in the canal inside the town, along the quays
+  // the bridges: one where each main street crosses the canal, a humped brick bridge whose opening
+  // lets the boats through (its rect reaches up both quays for the stairs)
+  const sinkZ = -(K.canal.sink || 1.5), bridgeXs = [];
+  {
+    const seen = new Set();
+    for (const key of bridgeCells) {
+      if (seen.has(key)) continue;
+      const q = [key], cs = []; seen.add(key);
+      while (q.length) { const [c, r] = q.pop().split(',').map(Number); cs.push(c); for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k2 = `${c + dc},${r + dr}`; if (bridgeCells.has(k2) && !seen.has(k2)) { seen.add(k2); q.push(k2); } } }
+      // a street's width, however many streets meet here (two crossings merged would make a tunnel)
+      const c0 = Math.min(...cs), c1 = Math.max(...cs), w = Math.min(8, Math.max(6, (c1 - c0 + 1) * CELL - 1.2)), x = ((c0 + c1 + 1) * CELL) / 2 - w / 2, xm = x + w / 2;
+      const yN = canalAt(xm / CELL - 0.5) * CELL, yS = yN + cw * CELL, reach = 9;
+      slots.push({ asset: 'canal-bridge', rect: { x, y: yN - reach, w, d: yS - yN + 2 * reach }, facing: 'n', span: { y0: reach, y1: reach + yS - yN }, waterZ: sinkZ });
+      bridgeXs.push([x - 4, x + w + 4]);
+    }
+  }
+  // boats moored in the canal inside the town, along the quays, clear of the bridges, afloat
   for (let c = 4; c < cols - 6; c += 9 + Math.floor(ST() * 8)) {
     const m = Math.round(canalAt(c)), x = c * CELL;
-    if (![0, 1, 2, 3].every((k) => at(c + k, m) === C.WATER) || bridgeCells.has(`${c},${m}`) || !inside(c, m)) continue;
-    const north = ST() < 0.5, y = north ? m * CELL + 0.3 : (m + cw) * CELL - 2.5;
-    slots.push({ asset: 'reed-boat', rect: { x, y, w: 10, d: 2.2 }, facing: north ? 'n' : 's', z: 0.1 });
+    if (![0, 1, 2, 3].every((k) => at(c + k, m) === C.WATER) || bridgeXs.some(([a, b]) => x + 10 > a && x < b) || !inside(c, m)) continue;
+    const yb = canalAt((x + 5) / CELL - 0.5) * CELL, north = ST() < 0.5, y = north ? yb + 0.7 : yb + cw * CELL - 2.9;
+    slots.push({ asset: 'reed-boat', rect: { x, y, w: 10, d: 2.2 }, facing: north ? 'n' : 's', z: sinkZ + 0.05 });
   }
 
   // ── place: every slot built by the culture's kit, on its own dressing stream ──
@@ -302,21 +361,56 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   }
 
   // ── 10. ground: base earth, lanes, water, fields and palm groves outside ──
-  grounds.unshift({ kind: 'ground', x: 0, y: 0, w: cols * CELL, d: rows * CELL, z: 0.01, fill: P.ground, surface: 'dry-earth' });
+  // the canal, read at street level: a smooth channel sunk below the town, its banks walled in baked
+  // brick, one quay strip along each bank (the only surface there: nothing is laid over it). The
+  // grid keeps planning in cells; what is drawn follows the canal's own line.
+  const sink = K.canal.sink || 1.5, waterZ = -sink, bankN = (x) => canalAt(x / CELL - 0.5) * CELL, bankS = (x) => bankN(x) + cw * CELL;
+  const mAt = (c) => Math.round(canalAt(c)), isBank = (c, r) => r === mAt(c) - 1 || r === mAt(c) + cw;
+  const quayed = (c, r) => { const v = at(c, r); return v === C.LANE || v === C.OPEN; };
+  const earthBase = [];
+  for (let c = 0; c < cols; c++) {
+    const x0 = c * CELL, x1 = x0 + CELL, m = mAt(c), n0 = bankN(x0), n1 = bankN(x1), s0 = bankS(x0), s1 = bankS(x1);
+    const ov = 0.3, xa = x0 - ov, xb = x1 + ov, na = bankN(xa), nb = bankN(xb);   // neighbours overlap a hair, or the page shows a seam
+    grounds.push({ kind: 'water', poly: [[xa, na], [xb, nb], [xb, nb + cw * CELL], [xa, na + cw * CELL]], z: waterZ, fill: P.water });
+    // the revetments, battered a little, from the quay edge down below the water
+    const lean = 0.25, foot = waterZ - 0.2;
+    const ra = x0 - 0.12, rb = x1 + 0.12, rn0 = bankN(ra), rn1 = bankN(rb), rs0 = bankS(ra), rs1 = bankS(rb);   // panels overlap a hair
+    boxes.push({ kind: 'revetment', solid: 'panel', pts: [[ra, rn0, 0], [rb, rn1, 0], [rb, rn1 + lean, foot], [ra, rn0 + lean, foot]], out: [0, 1, 0], x: x0, y: Math.min(n0, n1), w: CELL, d: lean, z0: foot, z1: 0, tint: scaleHex(P.paving, 0.82) });
+    boxes.push({ kind: 'revetment', solid: 'panel', pts: [[ra, rs0, 0], [rb, rs1, 0], [rb, rs1 - lean, foot], [ra, rs0 - lean, foot]], out: [0, -1, 0], x: x0, y: Math.min(s0, s1) - lean, w: CELL, d: lean, z0: foot, z1: 0, tint: scaleHex(P.paving, 0.82) });
+    // the bank strips: from the grid line to the smooth bank, a rect and the sliver the meander leaves
+    for (const [r, edge, lo] of [[m - 1, [n0, n1], true], [m + cw, [s0, s1], false]]) {
+      const [surface, fill] = quayed(c, r) ? ['brick', P.paving] : ['dry-earth', P.ground];
+      const gy = lo ? r * CELL : (r + 1) * CELL, inner = lo ? Math.min(...edge) : Math.max(...edge);
+      grounds.push({ kind: 'quay', x: x0 - 0.15, y: Math.min(gy, inner), w: CELL + 0.3, d: Math.abs(inner - gy), z: 0.02, fill, surface });
+      if (Math.abs(edge[0] - edge[1]) > 1e-6) {
+        const tip = (lo ? edge[0] > edge[1] : edge[0] < edge[1]) ? [x0, edge[0]] : [x1, edge[1]];
+        grounds.push({ kind: 'quay-edge', poly: [[x0, inner], [x1, inner], tip], z: 0.02, fill });
+      }
+    }
+    earthBase.push([c, m]);
+  }
+  // the base earth, north and south of the canal band, in runs of columns sharing a canal row
+  for (let i = 0; i < earthBase.length;) {
+    let j = i; while (j < earthBase.length && earthBase[j][1] === earthBase[i][1]) j++;
+    const x = earthBase[i][0] * CELL, w = (j - i) * CELL, m = earthBase[i][1];
+    grounds.unshift({ kind: 'ground', x, y: 0, w, d: (m - 1) * CELL, z: 0.01, fill: P.ground, surface: 'dry-earth' });
+    grounds.unshift({ kind: 'ground', x, y: (m + cw + 1) * CELL, w, d: (rows - m - cw - 1) * CELL, z: 0.01, fill: P.ground, surface: 'dry-earth' });
+    i = j;
+  }
   const laneSurface = { [S.MUD]: ['mud', P.lane], [S.RUBBLE]: ['rubble', P.street], [S.BRICK]: ['brick', P.paving] };
   for (const sv of [S.MUD, S.RUBBLE, S.BRICK]) {
     const [surface, fill] = laneSurface[sv];
-    runs(grid, cols, rows, (v, c, r) => (v === C.LANE || v === C.OPEN) && surf[r * cols + c] === sv, (c, r, n) => grounds.push({ kind: 'lane', x: c * CELL, y: r * CELL, w: n * CELL + 0.15, d: CELL + 0.15, z: 0.02, fill, surface }));   // a hair of overlap closes the seams
+    runs(grid, cols, rows, (v, c, r) => (v === C.LANE || v === C.OPEN) && surf[r * cols + c] === sv && !isBank(c, r), (c, r, n) => grounds.push({ kind: 'lane', x: c * CELL, y: r * CELL, w: n * CELL + 0.15, d: CELL + 0.15, z: 0.02, fill, surface }));   // a hair of overlap closes the seams
   }
-  runs(grid, cols, rows, (v) => v === C.WATER, (c, r, n) => grounds.push({ kind: 'water', x: c * CELL, y: r * CELL, w: n * CELL, d: CELL, z: 0.015, fill: P.water }));
-  for (const key of bridgeCells) { const [c, r] = key.split(',').map(Number); boxes.push({ kind: 'bridge', x: c * CELL, y: r * CELL, w: CELL, d: CELL, z0: 0.3, z1: 0.8, tint: P.bridge }); }
+
   const G = stream(seed, 'groves');
   let palms = 0;
   for (let r = 0; r < rows; r += 4) for (let c = 0; c < cols; c += 4) {
     if (at(c, r) !== C.OUTSIDE) continue;
     const nearWater = Math.abs(r - canalAt(c)) < 14;
     const u = G();
-    if (u < 0.35) grounds.push({ kind: 'field', x: c * CELL, y: r * CELL, w: 4 * CELL, d: 4 * CELL, z: 0.02, fill: pick(P.field, G) });
+    const crossesCanal = [0, 1, 2, 3].some((k) => r + 4 > mAt(c + k) - 2 && r < mAt(c + k) + cw + 2);
+    if (u < 0.35 && !crossesCanal) grounds.push({ kind: 'field', x: c * CELL, y: r * CELL, w: 4 * CELL, d: 4 * CELL, z: 0.02, fill: pick(P.field, G) });
     if (palms < K.groves.max && G() < K.groves.density * (nearWater ? 1.4 : 0.6)) {
       const n = 1 + Math.floor(G() * 2);
       for (let k = 0; k < n; k++) {
@@ -331,14 +425,31 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   // ── the street view: standing in the main street that climbs from the south toward the precinct,
   // some 60–80 m short of its gate, eye height, looking up the street at the ziggurat ──
   const pg = [precinctGate[0] * CELL, precinctGate[1] * CELL];
+  // the lane cell (a main street's rubble first) nearest a point, south of a line
+  const nearestLane = (x, y, south) => {
+    let best = null, bd = Infinity;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (at(c, r) !== C.LANE || r * CELL < south) continue;
+      const d = Math.hypot(c * CELL + CELL / 2 - x, r * CELL + CELL / 2 - y) - (surf[r * cols + c] === S.RUBBLE ? 20 : 0);
+      if (d < bd) { bd = d; best = [c * CELL + CELL / 2, r * CELL + CELL / 2]; }
+    }
+    return best || [x, y];
+  };
   const southern = mainPaths.filter((pth) => pth.length && pth[0][1] * CELL > pg[1] + 30).sort((a, b) => b.length - a.length)[0] || mainPaths.find((pth) => pth.length) || [[precinctGate[0], precinctGate[1] + 20]];
   const half = (K.lanes.main * CELL) / 2;
-  const standAt = southern.map(([c, r]) => [c * CELL + half, r * CELL + half]).find(([x, y]) => Math.hypot(x - pg[0], y - pg[1]) < 80 && y > pg[1] + 25) || [pg[0], pg[1] + 60];
+  const standAt = southern.map(([c, r]) => [c * CELL + half, r * CELL + half])
+    // south of the canal (the street climbs to the bridge and on to the precinct), some 75 m out
+    .filter(([x, y]) => y > canalAt(x / CELL - 0.5) * CELL + cw * CELL + 10 && at(Math.floor(x / CELL), Math.floor(y / CELL)) === C.LANE)
+    .sort((a, b) => Math.abs(Math.hypot(a[0] - pg[0], a[1] - pg[1]) - 75) - Math.abs(Math.hypot(b[0] - pg[0], b[1] - pg[1]) - 75))[0] || nearestLane(pg[0], pg[1] + 75, pg[1] + 25);
+  const midBridge = slots.filter((q) => q.asset === 'canal-bridge').sort((a, b) => Math.abs(a.rect.x - cols * CELL / 2) - Math.abs(b.rect.x - cols * CELL / 2))[0];
   const views = {
     street: { eye: [standAt[0], standAt[1], 1.7], at: [pg[0], precinct.y + precinct.d * 0.35, 9] },
     // just inside the precinct gate, off the sacred axis so the altar does not fill the eye: the altar, the vases and
     // the copper bulls at the stair foot, the stair climbing to the shrine
     precinct: { eye: [pg[0] + 5.2, precinct.y + precinct.d - pwT - 0.6, 1.35 + 1.9], at: [pg[0] - 2, precinct.y + precinct.d * 0.4, 8] },   // between the gate jamb and the stele
+    // from a boat on the canal, some way west of the bridge nearest the town's middle, looking along
+    // the water into its arch (the way the boats go)
+    ...(midBridge ? { canal: { eye: [midBridge.rect.x - 30, canalAt((midBridge.rect.x - 30) / CELL - 0.5) * CELL + cw * CELL / 2, -(K.canal.sink || 1.5) + 1.9], at: [midBridge.rect.x, canalAt(midBridge.rect.x / CELL - 0.5) * CELL + cw * CELL / 2, 0.6] } } : {}),
   };
 
   for (const b of boxes) if (b.skin === undefined) { const skin = skinFor(K, b); if (skin) b.skin = skin; }   // the precinct's own masses
@@ -387,7 +498,7 @@ const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, d
 // px per scene unit. A panel rasterises at its own px size and an eye-level camera magnifies the near
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
@@ -398,6 +509,7 @@ function groundsToScene(grounds, s, us, textured = true) {
   const faces = [];
   for (const g of grounds) {
     const o = { ...g, x: g.x * s, y: g.y * s, w: g.w * s, d: g.d * s, z: g.z * s }, lit = scaleHex(g.fill, litFactor([0, 0, 1], SCENE_LIGHT));
+    if (g.poly) { faces.push({ corners: g.poly.map(([x, y]) => [x * s, y * s, g.z * s]), fill: lit, doubleSided: true }); continue; }
     if (g.surface && textured) faces.push(groundTileFace(o, g.surface, g.fill, lit, { us, mpu: METRES_PER_UNIT }));
     else faces.push({ corners: [[o.x, o.y, o.z], [o.x + o.w, o.y, o.z], [o.x + o.w, o.y + o.d, o.z], [o.x, o.y + o.d, o.z]], fill: lit, doubleSided: true });
   }
@@ -427,7 +539,7 @@ function toScene(masses, s, us = UNIT_SCALE.aerial) {
 }
 
 export function assembleHistoricCityScene(opts = {}) {
-  const view = ['approach', 'street', 'precinct'].includes(opts.view) ? opts.view : 'aerial';
+  const view = ['approach', 'street', 'precinct', 'canal'].includes(opts.view) ? opts.view : 'aerial';
   const plan = planHistoricCity(opts);
   const s = 1 / METRES_PER_UNIT;
   const { boxes, faces } = toScene(plan.boxes, s, UNIT_SCALE[view]);

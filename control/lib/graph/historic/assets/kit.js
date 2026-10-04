@@ -38,7 +38,14 @@ export function placeAsset(asset, slot, ctx) {
   const out = asset.build({ W, D, slot }, ctx);
   const boxes = Array.isArray(out) ? out : out.boxes, grounds = Array.isArray(out) ? [] : out.grounds || [];
   const lift = slot.z || 0;
-  const skinned = (b) => { const skin = b.skin !== undefined ? b.skin : skinFor(ctx && ctx.culture, { ...b, asset: asset.id }); return skin ? { skin } : {}; };
+  // some houses were never rendered (or have lost it): their mud plaster turns to bare brick. Decided
+  // by the lot's position, not the slot's dice, so the choice moves nothing else.
+  const R = ctx && ctx.culture && ctx.culture.skins, bare = R && R.bare && lotHash(slot.rect) < R.bare.share;
+  const skinned = (b) => {
+    let skin = b.skin !== undefined ? b.skin : skinFor(ctx && ctx.culture, { ...b, asset: asset.id });
+    if (bare && skin === R.bare.from) skin = R.bare.skin;
+    return skin ? { skin } : {};
+  };
   return {
     boxes: boxes.map((b) => ({ ...orientBox(b, slot.rect, slot.facing), ...orientSolid(b, slot.facing, (r) => orientBox(r, slot.rect, slot.facing)), z0: b.z0 + lift, z1: b.z1 + lift, asset: asset.id, ...skinned(b) })),
     grounds: grounds.map((g) => ({ ...orientBox(g, slot.rect, slot.facing), z: g.z + lift })),
@@ -57,6 +64,8 @@ export function skinFor(culture, b) {
   const [r, g, bl] = [1, 3, 5].map((i) => parseInt(b.tint.slice(i, i + 2), 16));
   return 0.2126 * r + 0.7152 * g + 0.0722 * bl > 205 ? R.whitewash : skin;
 }
+
+const lotHash = (r) => { let h = 2166136261; for (const v of [r.x, r.y, r.w, r.d]) { h = Math.imul(h ^ Math.round(v * 100), 16777619) >>> 0; h = Math.imul(h ^ (h >>> 13), 2246822507) >>> 0; } return (h >>> 0) / 4294967296; };
 
 // ── shared parts (local frame) ──
 
@@ -108,11 +117,11 @@ export function battered(r, z0, z1, tint, lean, { sides = ['front', 'back', 'lef
   return { kind, solid: 'frustum', ...r, z0, z1, top, tint };
 }
 
-/** A sloped flight: a ramp from z0 up to z1 rising toward `rise`, with step stripes on the slope. */
-export function slopedFlight(r, z0, z1, tint, rise = 'y+', { cheek = 0, cheekTint } = {}) {
+/** A sloped flight: a ramp from z0 up to z1 rising toward `rise`, with step stripes on the slope (a monumental ~0.9 m riser unless `riser` says otherwise). */
+export function slopedFlight(r, z0, z1, tint, rise = 'y+', { cheek = 0, cheekTint, riser: riserH = 0.9 } = {}) {
   const out = [{ kind: 'stair', solid: 'wedge', ...r, z0, z1, rise, tint }];
   // the treads: thin steps riding the slope, so the flight still reads as stairs
-  const along = rise[0] === 'y', up = rise[1] === '+', len = along ? r.d : r.w, n = Math.max(4, Math.round((z1 - z0) / 0.9)), riser = (z1 - z0) / n;
+  const along = rise[0] === 'y', up = rise[1] === '+', len = along ? r.d : r.w, n = Math.max(4, Math.round((z1 - z0) / riserH)), riser = (z1 - z0) / n;
   for (let i = 0; i < n; i++) {
     const t0 = i / n, s0 = up ? t0 * len : len - (t0 + 1 / n) * len, sz = len / n, zt = z0 + (i + 1) * riser;
     out.push({ kind: 'tread', ...(along ? { x: r.x, y: r.y + s0, w: r.w, d: sz } : { x: r.x + s0, y: r.y, w: sz, d: r.d }), z0: Math.max(z0, zt - riser * 1.6), z1: zt, tint: scaleHex(tint, 1.06) });
