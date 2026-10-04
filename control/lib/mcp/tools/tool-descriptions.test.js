@@ -277,7 +277,10 @@ const DESCRIPTION_ALLOWLIST = {
 // format 'ifc' (the enum value and one sentence, about +87 B, building materials) and the hero door's armour, gear
 // and anime words (fantasy equipment, form articulation); create_solid_turntable's surface names that 'crystal'
 // belongs to the crystal shape (+37 B).
-const PAYLOAD_CEILING = 267_588;
+// Re-pinned 2026-10-04 (267_588 -> 267_900; measured 267,877) for flame-depiction: export_model's format 'blender'
+// (the Blender pack the export-blender CLI writes, a world's fire in it for a Cycles still: the enum value, one
+// sentence, and the `fire_t` / `fire_detail` properties).
+const PAYLOAD_CEILING = 267_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
