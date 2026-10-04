@@ -169,6 +169,11 @@ numbers below were checked against the literature, and several first guesses tur
   - a tree's B and sail are set so a 10 m crown moves tens of centimetres at 10 m/s, as field sway records do, not from
     its weight;
   - a quiver out of phase between neighbours gives blades and leaves their own life.
+- **Debris rides the same field** (`windField`, `debrisKernel`: self-contained, so the page inlines the very functions
+  the tests run, and its shader's noise texture is the particles' own read). Fallen leaves and dust lie around the
+  camera until the wind 5 cm up (about a fifth of the wind at 2 m over grass) passes their lift, then fly under
+  implicit drag toward φ·u, with a still-air settling speed and an updraught that reaches the ground, and land. A piece
+  carried out of reach comes back at its mirror through the camera, so the density holds.
 - **Where it runs** (`scene/channels/terrain-wind.js`): a vertex shader on clones of the grass' and plants' materials,
   per instance root. Absent `wind`, the page is byte-identical. The research spike behind it, with plants, a ribbon and
   debris on the same field, is `control/scripts/spikes/wind/`.

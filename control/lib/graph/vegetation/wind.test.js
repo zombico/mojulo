@@ -1,6 +1,6 @@
 // wind — the terrain's opt-in `wind`: validation, the bend table (the elastica under a sideways load), and the page.
 import { describe, it, expect } from 'vitest';
-import { validateTerrainWind, resolveTerrainWind, bendTable, windPageChannel, grassTaker, naturalFrequency, WIND_TAKERS, TERRAIN_WIND_DEFAULTS } from './wind.js';
+import { validateTerrainWind, resolveTerrainWind, bendTable, windPageChannel, grassTaker, naturalFrequency, windField, debrisKernel, WIND_TAKERS, TERRAIN_WIND_DEFAULTS, WIND_DEBRIS_DEFAULTS } from './wind.js';
 import { elastica } from './mechanics.js';
 import { assembleTerrainWorld } from '../terrain/terrain-world.js';
 import { terrainChannelScript } from '../scene/channels/terrain-lod.js';
@@ -29,6 +29,43 @@ describe('the bend table', () => {
   it('the same bytes twice', () => { expect(Buffer.from(bendTable().data.buffer).equals(Buffer.from(T.data.buffer))).toBe(true); });
 });
 
+describe('the field', () => {
+  const W = { speed: 6, dir: 0, gust: 0.8, scale: 8, evolve: 30, veer: 0.35, seed: 3, z0: 0.05 };
+  it('the same seed the same gusts; another seed others; no speed, no wind', () => {
+    expect(windField(W).at(3, 4, 1, 2)).toEqual(windField({ ...W }).at(3, 4, 1, 2));
+    expect(windField(W).at(3, 4, 1, 2)).not.toEqual(windField({ ...W, seed: 4 }).at(3, 4, 1, 2));
+    expect(windField({ ...W, speed: 0 }).at(3, 4, 1, 2)).toEqual([0, 0, 0]);
+  });
+  it('a gust arrives d/speed seconds later d metres downwind (frozen turbulence)', () => {
+    const F = windField(W), dt = 0.05, A = [], B = [];
+    for (let t = 0; t < 60; t += dt) { A.push(Math.hypot(...F.at(0, 0, 2, t))); B.push(Math.hypot(...F.at(12, 0, 2, t))); }
+    const mean = (s) => s.reduce((a, b) => a + b) / s.length, ma = mean(A), mb = mean(B); let best = -Infinity, lag = 0;
+    for (let L = 0; L < 80; L++) { let c = 0; for (let i = 0; i + L < A.length; i++) c += (A[i] - ma) * (B[i + L] - mb); c /= A.length - L; if (c > best) { best = c; lag = L * dt; } }
+    expect(Math.abs(lag - 2)).toBeLessThanOrEqual(0.1);
+  });
+  it('weaker near the ground, and gusty: the speed spreads about the mean', () => {
+    const F = windField(W); let lo = 0, hi = 0, min = Infinity, max = 0;
+    // sample points that do not ride with the gusts (x − speed·t keeps moving)
+    for (let i = 0; i < 400; i++) { const x = i * 7.3, t = i * 0.13; lo += Math.hypot(...F.at(x, 0, 0.1, t).slice(0, 2)); const s = Math.hypot(...F.at(x, 0, 2, t).slice(0, 2)); hi += s; min = Math.min(min, s); max = Math.max(max, s); }
+    expect(lo).toBeLessThan(0.5 * hi); expect(hi / 400).toBeGreaterThan(4); expect(hi / 400).toBeLessThan(8); expect(max - min).toBeGreaterThan(4);
+  });
+});
+
+describe('debris', () => {
+  const W = { speed: 9, dir: 0, gust: 0.6, scale: 8, evolve: 6, veer: 0.35, seed: 3, z0: 0.05 }, flat = () => 0;
+  const run = (phi, w = W, secs = 20) => { const F = windField(w), D = debrisKernel({ leaves: 60, dust: 60, radius: 40, phi, seed: 3 }, F.at, flat); D.place(0, 0); const x0 = D.x.slice(), y0 = D.y.slice(); for (let i = 0; i < secs * 60; i++) D.step(1 / 60, i / 60, 0, 0); return { D, x0, y0 }; };
+  const moved = ({ D, x0, y0 }, k) => { let n = 0; for (let i = 0; i < D.n; i++) if (D.kind[i] === k && (D.x[i] !== x0[i] || D.y[i] !== y0[i])) n++; return n; };
+  it('φ = 0 and still air leave it where it lay', () => {
+    for (const r of [run(0), run(1, { ...W, speed: 0 })]) { expect([...r.D.x]).toEqual([...r.x0]); expect([...r.D.y]).toEqual([...r.y0]); expect([...r.D.z].every((z) => z === 0)).toBe(true); }
+  });
+  it('a gust lifts dust before leaves; all of it stays within reach, on or above the ground, the same twice', () => {
+    const r = run(1, { ...W, speed: 5 }, 10); expect(moved(r, 1)).toBeGreaterThan(moved(r, 0)); expect(moved(r, 0)).toBeGreaterThan(0);
+    for (let i = 0; i < r.D.n; i++) { expect(Math.hypot(r.D.x[i], r.D.y[i])).toBeLessThanOrEqual(40.5); expect(r.D.z[i]).toBeGreaterThanOrEqual(0); }
+    expect([...run(1, { ...W, speed: 5 }, 10).D.x]).toEqual([...r.D.x]);
+  });
+  it('a breeze too light to lift a leaf leaves the leaves', () => { const r = run(1, { ...W, speed: 2, gust: 0.2 }); expect(moved(r, 0)).toBe(0); });
+});
+
 describe('takers', () => {
   it('a grass kind takes its blades\' middle B; trees sway slower than grass', () => {
     expect(grassTaker('tussock').B).toBe(5); expect(grassTaker('fescue').B).toBe(1.25);
@@ -45,12 +82,13 @@ describe('terrain: wind is opt-in', () => {
   }, 60_000);
   it('present, the wind script comes before the grass and plants, which bend in it; it parses; exports carry none', () => {
     const p = assembleTerrainWorld({ ...W, grass: { kinds: ['tussock', 'fescue'] }, plants: true, wind: { speed: 8, flaccidity: { plants: 0.5 } } }, { live: true });
-    expect(p.meta.wind).toEqual({ speed: 8, dir: 0, gust: 0.5, flaccidity: { grass: 1, plants: 0.5 } });
+    expect(p.meta.wind).toEqual({ speed: 8, dir: 0, gust: 0.5, flaccidity: { grass: 1, plants: 0.5, debris: 1 } });
+    expect(p.terrain.wind.debris).toEqual({ ...WIND_DEBRIS_DEFAULTS, phi: 1 });
     expect(p.terrain.wind.grass.map((t) => t.B)).toEqual([5, 1.25]);
     expect(p.terrain.wind.plants.every((t) => t.phi === 0.5)).toBe(true);
     const js = terrainChannelScript(p.terrain);
     expect(js.indexOf('const WIND = ')).toBeGreaterThan(0); expect(js.indexOf('const WIND = ')).toBeLessThan(js.indexOf('const PLANTS = '));
-    expect(js).toContain('SP_OF'); expect(js).toContain('TW.wind.material(p.mat');
+    expect(js).toContain('SP_OF'); expect(js).toContain('TW.wind.material(p.mat'); expect(js).toContain('function debrisKernel');
     expect(() => new Function('THREE', 'scene', 'camera', 'walkColliders', js)).not.toThrow();   // eslint-disable-line no-new-func
     expect(assembleTerrainWorld({ ...W, grass: true, wind: true }, { live: false }).meta.wind).toBeUndefined();
   }, 120_000);
@@ -60,11 +98,14 @@ describe('terrain: wind is opt-in', () => {
   it('validation teaches', () => {
     expect(validateTerrainWind(true)).toEqual([]);
     expect(validateTerrainWind({ speed: 40 })[0]).toMatch(/speed must be 0–30/);
-    expect(validateTerrainWind({ flaccidity: { rocks: 1 } })[0]).toMatch(/flaccidity must be \{ grass\?, plants\? \}/);
+    expect(validateTerrainWind({ flaccidity: { rocks: 1 } })[0]).toMatch(/flaccidity must be \{ grass\?, plants\?, debris\? \}/);
     expect(validateTerrainWind({ flaccidity: { grass: 2 } })[0]).toMatch(/flaccidity.grass must be 0–1/);
     expect(validateTerrainWind(true, { planet: true })[0]).toMatch(/flat worlds/);
     expect(validateTerrainWind('breezy')[0]).toMatch(/must be true or/);
-    expect(resolveTerrainWind({ speed: 3, flaccidity: { grass: 0.4 } })).toEqual({ ...TERRAIN_WIND_DEFAULTS, speed: 3, flaccidity: { grass: 0.4, plants: 1 } });
+    expect(resolveTerrainWind({ speed: 3, flaccidity: { grass: 0.4 } })).toEqual({ ...TERRAIN_WIND_DEFAULTS, speed: 3, flaccidity: { grass: 0.4, plants: 1, debris: 1 }, debris: WIND_DEBRIS_DEFAULTS });
+    expect(resolveTerrainWind({ debris: false }).debris).toBeNull(); expect(resolveTerrainWind({ debris: { leaves: 0, dust: 0 } }).debris).toBeNull();
+    expect(validateTerrainWind({ debris: { leaves: 1.5 } })[0]).toMatch(/leaves must be an integer 0–3000/);
+    expect(validateTerrainWind({ debris: { pebbles: 3 } })[0]).toMatch(/debris must be true, false or/);
     expect(resolveTerrainWind(false)).toBeNull();
   });
   it('the page channel carries degrees as radians and every kind its flaccidity', () => {

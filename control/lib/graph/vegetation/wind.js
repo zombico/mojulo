@@ -23,7 +23,10 @@
 import { elastica } from './mechanics.js';
 import { GRASSES } from './grass.js';
 
-export const TERRAIN_WIND_DEFAULTS = Object.freeze({ speed: 5, dir: 0, gust: 0.5, scale: 8, evolve: 6, veer: 20, seed: 1, flaccidity: Object.freeze({ grass: 1, plants: 1 }) });
+export const TERRAIN_WIND_DEFAULTS = Object.freeze({ speed: 5, dir: 0, gust: 0.5, scale: 8, evolve: 6, veer: 20, seed: 1, flaccidity: Object.freeze({ grass: 1, plants: 1, debris: 1 }) });
+// loose debris around the camera, carried by the same field: fallen leaves and dust (counts), within `radius` metres
+export const WIND_DEBRIS_DEFAULTS = Object.freeze({ leaves: 700, dust: 1200, radius: 30 });
+const FLACCID = ['grass', 'plants', 'debris'];
 export const WIND_LAGS = 16;          // samples of the response filter, per vertex
 
 /**
@@ -47,10 +50,10 @@ export const GRASS_TAKER = Object.freeze({ sail: 0.15, vogel: -0.9, zeta: 0.25, 
 export const grassTaker = (kind) => { const G = GRASSES[kind]; return { B: G ? (G.B[0] + G.B[1]) / 4 : 1.5, ...GRASS_TAKER }; };
 export const naturalFrequency = (B, L) => 0.5596 * Math.sqrt(9.81 / (Math.max(B, 1e-3) * L));
 
-/** `wind` on a terrain manifest: true, or { speed?, dir?, gust?, scale?, evolve?, veer?, seed?, flaccidity? }. → error strings. */
+/** `wind` on a terrain manifest: true, or { speed?, dir?, gust?, scale?, evolve?, veer?, seed?, flaccidity?, debris? }. → error strings. */
 export function validateTerrainWind(wind, manifest = {}) {
   if (wind === undefined || wind === null || wind === false) return [];
-  const shape = 'terrain.wind must be true or { speed?, dir?, gust?, scale?, evolve?, veer?, seed?, flaccidity?: { grass?, plants? } }';
+  const shape = 'terrain.wind must be true or { speed?, dir?, gust?, scale?, evolve?, veer?, seed?, flaccidity?: { grass?, plants?, debris? }, debris?: false | { leaves?, dust?, radius? } }';
   if (wind !== true && (typeof wind !== 'object' || Array.isArray(wind))) return [shape];
   const e = [];
   if (manifest.planet) e.push('terrain.wind is for flat worlds: its gusts and the plants it bends stand on flat ground');
@@ -65,8 +68,17 @@ export function validateTerrainWind(wind, manifest = {}) {
   if (wind.seed !== undefined && !Number.isInteger(wind.seed)) e.push('terrain.wind.seed must be an integer');
   const f = wind.flaccidity;
   if (f !== undefined) {
-    if (!f || typeof f !== 'object' || Array.isArray(f) || Object.keys(f).some((k) => !['grass', 'plants'].includes(k))) e.push('terrain.wind.flaccidity must be { grass?, plants? }');
-    else for (const k of ['grass', 'plants']) if (f[k] !== undefined && !(Number.isFinite(f[k]) && f[k] >= 0 && f[k] <= 1)) e.push(`terrain.wind.flaccidity.${k} must be 0–1 (the share of the wind's push it takes; 0 holds it still)`);
+    if (!f || typeof f !== 'object' || Array.isArray(f) || Object.keys(f).some((k) => !FLACCID.includes(k))) e.push('terrain.wind.flaccidity must be { grass?, plants?, debris? }');
+    else for (const k of FLACCID) if (f[k] !== undefined && !(Number.isFinite(f[k]) && f[k] >= 0 && f[k] <= 1)) e.push(`terrain.wind.flaccidity.${k} must be 0–1 (the share of the wind's push it takes; 0 holds it still)`);
+  }
+  const d = wind.debris;
+  if (d !== undefined && d !== true && d !== false) {
+    if (!d || typeof d !== 'object' || Array.isArray(d) || Object.keys(d).some((k) => !['leaves', 'dust', 'radius'].includes(k))) e.push('terrain.wind.debris must be true, false or { leaves?, dust?, radius? }');
+    else {
+      const cnt = (k, hi) => { if (d[k] !== undefined && !(Number.isInteger(d[k]) && d[k] >= 0 && d[k] <= hi)) e.push(`terrain.wind.debris.${k} must be an integer 0–${hi}`); };
+      cnt('leaves', 3000); cnt('dust', 6000);
+      if (d.radius !== undefined && !(Number.isFinite(d.radius) && d.radius >= 10 && d.radius <= 80)) e.push('terrain.wind.debris.radius must be 10–80 (metres around the camera where debris lies)');
+    }
   }
   return e;
 }
@@ -75,7 +87,81 @@ export function validateTerrainWind(wind, manifest = {}) {
 export function resolveTerrainWind(wind) {
   if (wind === undefined || wind === null || wind === false) return null;
   const w = wind === true ? {} : wind;
-  return { ...TERRAIN_WIND_DEFAULTS, ...w, flaccidity: { ...TERRAIN_WIND_DEFAULTS.flaccidity, ...(w.flaccidity || {}) } };
+  const debris = w.debris === false ? null : { ...WIND_DEBRIS_DEFAULTS, ...(w.debris && w.debris !== true ? w.debris : {}) };
+  return { ...TERRAIN_WIND_DEFAULTS, ...w, flaccidity: { ...TERRAIN_WIND_DEFAULTS.flaccidity, ...(w.flaccidity || {}) }, debris: debris && debris.leaves + debris.dust > 0 ? debris : null };
+}
+
+// ── the field, as one self-contained function ─────────────────────────────────────────────────────────────────
+/**
+ * windField(W) closes over nothing: the server and the tests call it, and the World page inlines its source, so the
+ * page's particles and its vertex shader read the same gusts. W: { speed, dir (rad), gust, scale, evolve, veer (rad),
+ * seed, z0 }. → { N, noise (N·N RGBA bytes: R the gust, G the veer, B the updraught), at(x, y, z, t) → [ux, uy, uz] }.
+ * The noise is read as the GPU reads a linear-filtered, repeating 8-bit texture: texel centres at i + ½.
+ */
+export function windField(W) {
+  let a = W.seed | 0; const rnd = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const N = 64, noise = new Uint8Array(N * N * 4);
+  for (let i = 0; i < N * N; i++) { noise[4 * i] = Math.floor(rnd() * 256); noise[4 * i + 1] = Math.floor(rnd() * 256); noise[4 * i + 2] = Math.floor(rnd() * 256); noise[4 * i + 3] = 255; }
+  const tex = (u, v, ch) => {
+    const x = u - 0.5, y = v - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+    const g = (i, j) => noise[((((y0 + j) % N) + N) % N * N + ((((x0 + i) % N) + N) % N)) * 4 + ch] / 255 * 2 - 1;
+    return (g(0, 0) * (1 - fx) + g(1, 0) * fx) * (1 - fy) + (g(0, 1) * (1 - fx) + g(1, 1) * fx) * fy;
+  };
+  const dx = Math.cos(W.dir), dy = Math.sin(W.dir), L2 = Math.log((2 + W.z0) / W.z0);
+  function at(x, y, z, t) {
+    if (!(W.speed > 0)) return [0, 0, 0];
+    const e = t / W.evolve, qa = (x * dx + y * dy - W.speed * t) / (2 * W.scale), qb = (dx * y - dy * x) / W.scale;
+    const ua = qa + 0.37 * e, va = qb - 0.23 * e, ub = qa * 2.03 - 0.51 * e + 0.5, vb = qb * 2.03 + 0.61 * e + 0.5;
+    const n = (ch) => 0.7 * tex(ua, va, ch) + 0.3 * tex(ub, vb, ch);
+    const prof = Math.log((Math.max(z, 0) + W.z0) / W.z0) / L2, s = W.speed * prof * Math.max(0, 1 + 2 * W.gust * n(0)), th = W.veer * W.gust * n(1);
+    const c = Math.cos(th), si = Math.sin(th);
+    // the updraught: turbulence reaches the ground (half of it at the surface), so a gust can loft a leaf
+    return [s * (dx * c - dy * si), s * (dx * si + dy * c), 0.35 * W.speed * W.gust * (0.5 + 0.5 * Math.min(1, prof)) * n(2)];
+  }
+  return { N, noise, at };
+}
+
+// ── debris, as one self-contained function ────────────────────────────────────────────────────────────────────
+/**
+ * debrisKernel(D, at, groundAt) closes over nothing (the page inlines it). D: { seed, phi, leaves, dust, radius }; at: the
+ * field's at(); groundAt(x, y) → the surface z (water counts: a leaf floats). Debris lies within `radius` of the camera.
+ * A piece takes φ of the wind: on the ground it lies still until the wind 5 cm up passes its lift (dust 0.6 m/s, a leaf
+ * 1.2: about a fifth of the wind at 2 m over grass, so leaves skitter from a moderate breeze), then it is airborne under implicit linear drag toward φ·u with a still-air settling speed, and lands. A piece
+ * carried out of the radius comes back in at its mirror through the camera, lying on the ground, so the density holds.
+ * → { n, kind (0 leaf, 1 dust), x, y, z, vx, vy, vz, spin, place(cx, cy), step(dt, t, cx, cy) }.
+ */
+export function debrisKernel(D, at, groundAt) {
+  const KINDS = [{ tau: 0.3, settle: 0.9, lift: 1.2 }, { tau: 0.04, settle: 0.12, lift: 0.6 }];
+  let a = (D.seed ^ 0x5bd1e995) | 0; const rnd = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const n = D.leaves + D.dust, R = D.radius, f = () => new Float64Array(n);
+  const S = { n, kind: new Uint8Array(n), x: f(), y: f(), z: f(), gz: f(), vx: f(), vy: f(), vz: f(), spin: f(), du: f(), dv: f() };   // gz: the ground under it, read once a move
+  for (let i = 0; i < n; i++) { S.kind[i] = i < D.leaves ? 0 : 1; const r = R * Math.sqrt(rnd()), q = 2 * Math.PI * rnd(); S.du[i] = r * Math.cos(q); S.dv[i] = r * Math.sin(q); S.spin[i] = 2 * Math.PI * rnd(); }
+  const lay = (i, x, y) => { S.x[i] = x; S.y[i] = y; S.z[i] = S.gz[i] = groundAt(x, y); S.vx[i] = 0; S.vy[i] = 0; S.vz[i] = 0; };
+  S.place = (cx, cy) => { for (let i = 0; i < n; i++) lay(i, cx + S.du[i], cy + S.dv[i]); };
+  S.step = (dt, t, cx, cy) => {
+    for (let i = 0; i < n; i++) {
+      let ex = S.x[i] - cx, ey = S.y[i] - cy;
+      if (ex * ex + ey * ey > R * R) {                       // out of reach: in again at the mirror, or at its own spot if that is out too
+        if (ex * ex + ey * ey < 4 * R * R) lay(i, cx - ex * 0.98, cy - ey * 0.98); else lay(i, cx + S.du[i], cy + S.dv[i]);
+        continue;
+      }
+      const P = KINDS[S.kind[i]], g = S.z[i] <= S.gz[i] + 1e-6;
+      let ux = 0, uy = 0, uz = 0;
+      if (D.phi > 0) { const u = at(S.x[i], S.y[i], Math.max(0.05, S.z[i] - S.gz[i]), t); ux = D.phi * u[0]; uy = D.phi * u[1]; uz = D.phi * u[2]; }
+      if (g) {
+        const uh = Math.hypot(ux, uy);
+        if (uh > P.lift) { S.vz[i] = Math.min(3, 1.5 * (uh - P.lift) + Math.max(0, uz)); S.vx[i] = 0.5 * ux; S.vy[i] = 0.5 * uy; }
+        else { const k = Math.exp(-dt / 0.15); S.vx[i] *= k; S.vy[i] *= k; S.vz[i] = 0; if (Math.abs(S.vx[i]) + Math.abs(S.vy[i]) > 1e-3) { S.x[i] += S.vx[i] * dt; S.y[i] += S.vy[i] * dt; S.z[i] = S.gz[i] = groundAt(S.x[i], S.y[i]); } else { S.vx[i] = 0; S.vy[i] = 0; } continue; }
+      }
+      const k = dt / P.tau;
+      S.vx[i] = (S.vx[i] + k * ux) / (1 + k); S.vy[i] = (S.vy[i] + k * uy) / (1 + k); S.vz[i] = (S.vz[i] + k * (uz - P.settle)) / (1 + k);
+      S.x[i] += S.vx[i] * dt; S.y[i] += S.vy[i] * dt; S.z[i] += S.vz[i] * dt;
+      const gz = S.gz[i] = groundAt(S.x[i], S.y[i]);
+      if (S.z[i] <= gz) { S.z[i] = gz; S.vz[i] = 0; S.vx[i] *= 0.5; S.vy[i] *= 0.5; }
+      S.spin[i] += dt * (3 + 2 * Math.hypot(S.vx[i], S.vy[i]));
+    }
+  };
+  return S;
 }
 
 // ── the bend table ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -110,6 +196,7 @@ export function bendTable() {
 export function windPageChannel(spec, { grassKinds = [], plantKinds = [] } = {}) {
   const t = bendTable(), DEG = Math.PI / 180, phi = spec.flaccidity;
   return {
+    ...(spec.debris ? { debris: { ...spec.debris, phi: phi.debris } } : {}),   // φ 0: it lies where it fell
     speed: spec.speed, dir: spec.dir * DEG, gust: spec.gust, scale: spec.scale, evolve: spec.evolve, veer: spec.veer * DEG, seed: spec.seed, z0: 0.05, lags: WIND_LAGS,
     grass: grassKinds.map((k) => ({ ...grassTaker(k), phi: phi.grass })),
     plants: plantKinds.map((k) => ({ ...(WIND_TAKERS[k] || WIND_TAKERS.tree), phi: phi.plants })),
