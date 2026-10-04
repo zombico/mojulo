@@ -18,6 +18,11 @@
  *   card:ivy        ivy cascading from the top edge: wandering stems hung with small lobed leaves, ragged at the foot
  *   card:cobweb     a web strung across a corner (its anchor at the bottom left): radial threads and a spiral, grey
  *   card:banner     a hanging cloth banner: crimson, a gold border and sigil, folds, a torn and holed foot
+ *   card:flowers    a window box's flowers: a mound of leaves with red and pink geranium heads, trailing stems
+ *   card:laundry    washing on a line along the top edge: shirts, sheets and towels in bright cottons, pegged, sagging
+ *   card:awning     a striped canvas awning seen flat: white and blue stripes, a scalloped hem
+ *   card:roofs      a town beyond: a skyline of roofs, chimneys and a bell tower, painted near neutral (its row's colour
+ *                   sets its distance), for the far rows
  *
  * `cardTexture(key)` → data:image/png (registered as the `card:` texture resolver); `cardMask(key)` → { W, H, a } the
  * alpha the sun bake reads, so light through a canopy card falls in the card's own holes. Deterministic: mulberry32 dice
@@ -249,6 +254,65 @@ const PAINTERS = {
       const sigil = (rr > 34 && rr < 41) || Math.abs(dx) / 22 + Math.abs(dy) / 34 < 1 && Math.abs(dx) / 22 + Math.abs(dy) / 34 > 0.7;
       const col = border || sigil ? [176, 138, 62] : [118, 26, 30], k = fold * wear * (y > foot(x) - 6 ? 0.7 : 1);
       const o = (y * SIZE + x) * 4; cv.px[o] = clamp(col[0] * k); cv.px[o + 1] = clamp(col[1] * k); cv.px[o + 2] = clamp(col[2] * k); cv.px[o + 3] = 255;
+    }
+  },
+  flowers(cv, R) {
+    // a leafy mound from the bottom edge, flower heads dotted over its top, a few stems trailing down past the edge
+    const LEAF = [[52, 96, 40], [64, 112, 44], [44, 84, 36]], HEAD = [[214, 40, 44], [236, 84, 104], [246, 128, 150], [198, 30, 52]];
+    for (let i = 0; i < 90; i++) {
+      const x = SIZE * (0.06 + 0.88 * R()), h = SIZE * 0.55 * Math.sin(Math.PI * (x / SIZE)) * (0.5 + 0.5 * R()), y = SIZE - 4 - h * R();
+      leaf(cv, { bx: x, by: y, ang: -Math.PI / 2 + (R() - 0.5) * 2.4, len: SIZE * (0.07 + 0.05 * R()), wid: SIZE * 0.06, shape: 'heart', col: LEAF[(R() * 3) | 0], dark: 0.5 * (1 - i / 90), veins: 3 });
+    }
+    for (let i = 0; i < 26; i++) {
+      const x = SIZE * (0.1 + 0.8 * R()), top = SIZE - 4 - SIZE * 0.55 * Math.sin(Math.PI * (x / SIZE)) * (0.55 + 0.4 * R()), c = HEAD[(R() * 4) | 0];
+      for (let k = 0; k < 9; k++) leaf(cv, { bx: x + (R() - 0.5) * 12, by: top + (R() - 0.5) * 10, ang: R() * 6.3, len: 7, wid: 6, shape: 'ovate', col: c, dark: 0.15 * R(), veins: 1 });
+    }
+  },
+  laundry(cv, R) {
+    // the line sags across the top; garments hang from it, each pegged, each its own cotton
+    const C = [[236, 236, 228], [88, 140, 210], [232, 196, 72], [222, 92, 80], [120, 186, 132], [244, 168, 188]], sag = (x) => 10 + 14 * Math.sin((Math.PI * x) / SIZE);
+    stem(cv, [...Array(17)].map((_, k) => [(k * SIZE) / 16, sag((k * SIZE) / 16)]), 0.8, [70, 64, 58]);
+    let x = 6;
+    while (x < SIZE - 30) {
+      const w = 34 + 30 * R(), kind = R(), col = C[(R() * C.length) | 0], top = sag(x + w / 2) + 1;
+      const h = kind < 0.35 ? w * 1.1 : kind < 0.7 ? 70 + 90 * R() : 40 + 30 * R();
+      for (let y = Math.floor(top); y < top + h && y < SIZE; y++) for (let xx = Math.floor(x); xx < x + w; xx++) {
+        const t = (y - top) / h, u = (xx - x) / w;
+        if (kind < 0.35 && t > 0.28 && (u < 0.2 || u > 0.8)) continue;   // a shirt: sleeves at the shoulders only
+        if (t > 0.97 - 0.05 * Math.sin(u * 9 + x)) continue;
+        const fold = 0.84 + 0.16 * Math.cos(u * Math.PI * 4 + x), o = (y * SIZE + xx) * 4;
+        cv.px[o] = clamp(col[0] * fold); cv.px[o + 1] = clamp(col[1] * fold); cv.px[o + 2] = clamp(col[2] * fold); cv.px[o + 3] = 255;
+      }
+      for (const px of [x + 3, x + w - 5]) stem(cv, [[px, top - 3], [px, top + 5]], 1.4, [150, 112, 70]);   // pegs
+      x += w + 3 + 6 * R();
+    }
+  },
+  awning(cv, R) {
+    // canvas from the top edge down to a scalloped hem; stripes run down it (the card's v), shading toward the hem
+    const hem = (x) => SIZE * 0.78 + 14 * Math.abs(Math.sin((Math.PI * x) / (SIZE / 6)));
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      if (y > hem(x)) continue;
+      const white = Math.floor(x / (SIZE / 12)) % 2 === 0, col = white ? [238, 234, 222] : [46, 104, 178], k = (0.95 - 0.2 * (y / SIZE)) * (0.96 + 0.06 * R());
+      const o = (y * SIZE + x) * 4; cv.px[o] = clamp(col[0] * k); cv.px[o + 1] = clamp(col[1] * k); cv.px[o + 2] = clamp(col[2] * k); cv.px[o + 3] = 255;
+    }
+  },
+  roofs(cv, R) {
+    // one flat tone, a lighter roof-slope band, a skyline of gables, chimneys and one bell tower; the card's foot is solid
+    const sky = new Float32Array(SIZE); let x = 0;
+    while (x < SIZE) {
+      const w = 22 + 36 * R(), h = SIZE * (0.4 + 0.25 * R()), gable = R() < 0.55;
+      for (let i = 0; i < w && x + i < SIZE; i++) { const t = i / w; sky[Math.floor(x + i)] = Math.max(sky[Math.floor(x + i)] || 0, h + (gable ? 26 * (1 - Math.abs(t - 0.5) * 2) : 0)); }
+      if (R() < 0.4) { const c = Math.floor(x + w * (0.2 + 0.6 * R())); for (let i = 0; i < 5 && c + i < SIZE; i++) sky[c + i] = Math.max(sky[c + i], h + 22); }
+      x += w;
+    }
+    // a campanile: a shaft and a pyramid cap, standing over the roofs
+    const bt = Math.floor(SIZE * (0.3 + 0.4 * R()));
+    for (let i = 0; i < 22; i++) sky[bt + i] = SIZE * 0.78 + (11 - Math.abs(i - 10.5)) * 2.2;
+    // the bottom rows stay clear: the tile repeats, so a solid foot would bleed into the card's top edge as a line
+    for (let xx = 0; xx < SIZE; xx++) for (let y = 0; y < SIZE - 3; y++) {
+      const hgt = SIZE - y; if (hgt > sky[xx]) continue;
+      const v = hgt > sky[xx] - 10 ? [214, 170, 156] : [236, 234, 230], o = (y * SIZE + xx) * 4;   // near neutral: the row's colour sets its distance
+      cv.px[o] = v[0]; cv.px[o + 1] = v[1]; cv.px[o + 2] = v[2]; cv.px[o + 3] = 255;
     }
   },
   litter(cv, R) {

@@ -9,6 +9,8 @@
  *   floor:hex    hexagonal stone tiles on a wrapped lattice: each its own tone, bevelled dark at the joint, a few cracked
  *   floor:incertum  opus incertum: irregular flags, no two alike (a wrapped Voronoi of jittered seeds, its joints
  *                wandering), each its own tone and wear, dark mortar, grit
+ *   floor:fan    a fan (segmental-arc) pavement of small warm setts: rows bent into overlapping arcs, each sett its own
+ *                size and tone, sand in the joints
  *   vault:stars  a vault's plastered web painted night-blue with gilt six-point stars, flaked to pale plaster in damp
  *                patches
  *
@@ -56,6 +58,30 @@ const PAINTERS = {
     // jittered seeds: a coarse grid shaken hard, so stones vary in size and shape (non-congruent), then wrapped
     const pts = []; for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) pts.push([(i + 0.15 + 0.7 * R()) * SIZE / 5, (j + 0.15 + 0.7 * R()) * SIZE / 5]);
     cells(rgb, R, pts, { tones: [[142, 132, 116], [126, 120, 110], [156, 144, 126], [116, 110, 102], [136, 128, 120]], joint: 2.8, bevel: 6, crack: 0.08, wobble: 4 });
+  },
+  fan(rgb, R) {
+    // arcs: each fan is a quarter-circle swept from a centre on a staggered grid; a point belongs to the nearest arc
+    // centre above it (the fans overlap like scales); setts are cut along the arc by angle, across it by radius
+    // rows half a fan apart, each offset half a fan: every point lies under some arc within 0.75 of a fan's radius
+    const P0 = SIZE / 2, rows = 9, seeds = [];
+    for (let j = -2; j <= 4; j++) for (let i = -1; i <= 2; i++) seeds.push([(i + (((j % 2) + 2) % 2 ? 0.5 : 0)) * P0, (j * P0) / 2]);
+    const TONES = [[200, 176, 140], [186, 160, 128], [214, 190, 152], [176, 154, 126], [196, 166, 132]];
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      let best = null;
+      for (const [sx, sy] of seeds) {
+        const dx = x - sx, dy = y - sy, r = Math.hypot(dx, dy);
+        if (dy < 0 || r > P0 * 0.78) continue;
+        if (!best || sy > best.sy || (sy === best.sy && r < best.r)) best = { sx, sy, r, a: Math.atan2(dy, dx) };
+      }
+      const o = (y * SIZE + x) * 3;
+      if (!best) { rgb[o] = 80; rgb[o + 1] = 70; rgb[o + 2] = 56; continue; }
+      const ring = best.r / ((0.78 * P0) / rows), ri = Math.floor(ring), fr = ring - ri, arcLen = Math.max(1, Math.round((Math.PI * best.r) / ((0.78 * P0) / rows))), ai = (best.a / Math.PI) * arcLen, fa = ai - Math.floor(ai);
+      const id = ((ri * 131 + Math.floor(ai + ri * 0.37) * 17 + Math.round(best.sx) * 7 + Math.round(best.sy) * 3) >>> 0) % 997;
+      const jointR = fr < 0.12 || fr > 0.94, jointA = fa < 0.1 || fa > 0.94;
+      if (jointR || jointA) { const m = 0.8 + 0.3 * R(); rgb[o] = clamp(132 * m); rgb[o + 1] = clamp(116 * m); rgb[o + 2] = clamp(88 * m); continue; }   // sand in the joints
+      const c = TONES[id % TONES.length], m = (0.86 + 0.0024 * (id % 97)) * (0.94 + 0.1 * R()) * (0.9 + 0.1 * Math.min(1, Math.min(fr, 1 - fr, fa, 1 - fa) * 6));
+      for (let q = 0; q < 3; q++) rgb[o + q] = clamp(c[q] * m);
+    }
   },
   stars(rgb, R) {
     const put = (x, y, c) => { const xi = ((x % SIZE) + SIZE) % SIZE, yi = ((y % SIZE) + SIZE) % SIZE, o = (yi * SIZE + xi) * 3; for (let q = 0; q < 3; q++) rgb[o + q] = clamp(c[q]); };

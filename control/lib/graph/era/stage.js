@@ -27,11 +27,15 @@ import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.j
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
 import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
-import { naveDress, naveBlends } from './nave.js';
+import { naveDress } from './nave.js';
+import { plazaDress } from './plaza-dress.js';
+import { DELFINO_PLAZA } from './style/delfino-plaza.js';
+import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
+import { composeCloudDeck } from '../effects/effects-clouds.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
 export const STAGE_KITS = ({
@@ -107,6 +111,8 @@ STAGE_KITS['delfino-plaza'] = Object.freeze({
     balcony: { chance: 0.45, w: 2.2, out: 0.85, iron: '#3a3430' },
   },
   sky: { fill: 0.55, bounce: [0.95, 0.82, 0.62], bounceGain: 0.22, sunGain: 1.05 },
+  // the dressing (style/delfino-plaza.js, era/plaza-dress.js): the fountain, the fronts' life, blends, the town beyond
+  dress: DELFINO_PLAZA,
 });
 // The TRAIL-VALLEY kit: no architecture — a trail, a cliff and trees built to a style card (nature.js).
 STAGE_KITS['trail-valley'] = Object.freeze({ shell: 'nature', style: 'nature-trail' });
@@ -165,7 +171,7 @@ export function planStage(m = {}) {
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
 export function buildStageGeometry(plan) {
-  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [];
+  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
     return { key: t.family ? `${t.family}-${VARIANTS[variant % 4]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part] };
@@ -189,7 +195,8 @@ export function buildStageGeometry(plan) {
     }
   };
   const floorRect = (r, ri, X0, Y0, X1, Y1) => {
-    if (Fd) return zonedRect(r, X0, Y0, X1, Y1);
+    if (Fd && Fd.runner) return zonedRect(r, X0, Y0, X1, Y1);
+    if (Fd) { const base = surf('floor'), sf = { ...base, key: Fd.field.key, scale: Fd.field.scale }; return panel(out, [X0, Y0, 0], [1, 0, 0], X1 - X0, [0, 1, 0], Y1 - Y0, [0, 0, 1], { ...sf, uvOf: (p) => [p[0] / sf.scale, p[1] / sf.scale] }, base.cell); }
     const { nx, ny, bx, by } = bays(r), base = surf('floor');
     for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
       const a0 = Math.max(X0, r.x0 + i * bx), a1 = Math.min(X1, r.x0 + (i + 1) * bx), b0 = Math.max(Y0, r.y0 + j * by), b1 = Math.min(Y1, r.y0 + (j + 1) * by);
@@ -263,7 +270,9 @@ export function buildStageGeometry(plan) {
         const alongX = s.endsWith('y'), lo = alongX || r.open.includes(startSide) ? 0 : B, hi = alongX || r.open.includes(endSide) ? F.len : F.len - B;
         const stepS = surf('step');
         wallBox(out, F, lo, hi, 0, kit.step.h, kit.step.width, stepS, stepS.cell, true);
-        plazaWall(out, F, { kit, seed: ri * 4 + si + 1, surf });
+        // behind a portico the first floor opens onto its walkway: no balconies there
+        const under = kit.dress?.portico?.side === s ? { ...kit, house: { ...kit.house, balcony: { ...kit.house.balcony, chance: 0 } } } : kit;
+        plazaWall(out, F, { kit: under, seed: ri * 4 + si + 1, surf, record: houses });
       });
       return;
     }
@@ -351,7 +360,7 @@ export function buildStageGeometry(plan) {
     panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
-  return { faces: out, seats, drains, bays: dressBays, columns };
+  return { faces: out, seats, drains, bays: dressBays, columns, houses };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -472,20 +481,24 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const geom = buildStageGeometry(plan), { seats, drains } = geom;
   // a face with no tile (the portal's iron) carries its tint only
   const shell = geom.faces.map((f) => (f.texture === null ? (({ texture, textureLit, uv, ...g }) => g)(f) : f));
-  // the kit's DRESSING (nave.js): cutouts, the blends over the shell, shafts and the pools they land as
-  const dress = plan.kit.dress ? naveDress(plan, geom) : null;
-  const raw = [...shell, ...stageRubble(plan, drains), ...(dress ? [...dress.cutouts, ...naveBlends(plan, shell)] : [])];
+  // the kit's DRESSING (nave.js, plaza-dress.js): its own faces, blends over the shell, unbaked sheets, bake-only pools
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, geom) : naveDress(plan, geom);
+  const base = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : [])];
   const lights = resolveStageLights(plan, seats);
   const key = plan.ref.light.key, daylight = plan.kit.sun && key;
   const sun = daylight ? (() => {
     const dir = sunDir(key.elevation, key.azimuth ?? 225), sk = plan.kit.sky;
+    // a painted card stops the sun only where it is painted (an awning's stripes, washing, flowers)
+    const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
     return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain,
-      shadow: makeSunShadow(raw.filter((f) => f.group !== 'stage:glass'), dir) };
+      shadow: makeSunShadow(base.filter((f) => f.group !== 'stage:glass' && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
+  // the blends come after the sun: they lie on the faces they blend, and must not shade them
+  const raw = dress ? [...base, ...dress.blends(base)] : base;
   const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, dress ? [...lights, ...dress.pools] : lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
+    : bakeStageLight(raw, dress && dress.pools.length ? [...lights, ...dress.pools] : lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
   const fixtures = lights.filter((l) => l.fixture === 'torch').flatMap(torchFaces);
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
@@ -500,7 +513,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const lookAt = !look ? [(r0.x0 + r0.x1) / 2, r0.y1, 1.8]
     : plan.links[0].wall.endsWith('y') ? [look[0], look[1], 1.8] : [look[1], look[0], 1.8];
   const air = plan.ref.air;
-  const faces = [...lit, ...fixtures, ...(dress ? dress.shafts : [])];
+  const faces = [...lit, ...fixtures, ...(dress ? dress.after : [])];
   const cutouts = [...new Set(faces.filter((f) => typeof f.texture === 'string' && f.texture.startsWith('card:')).map((f) => f.texture))].sort();
   return {
     faces,
@@ -516,6 +529,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     glow: { scale: 0.32, opacity: 0.8 },
     // an exterior gets the reference's painted sky dome; an interior declares itself one (engines keep their sun out)
     sky: daylight ? { zenith: air.dome.zenith, horizon: air.dome.horizon, day: 1, stars: 0, seed: 1 } : { preset: 'interior' },
+    // the dressing's weather: the cloud deck over the square, lit by the same sun (an overlay: exports carry none)
+    ...(dress && dress.clouds && sun ? { effects: [composeCloudDeck([], { up: 'z', ...dress.clouds, sun: sun.dir })] } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },
   };

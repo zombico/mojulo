@@ -16,10 +16,11 @@ const Z = [0, 0, 1];
 const hexToTint = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 212);   // over the stucco tile's ~212 base
 
 /**
- * Houses along F. `ctx`: { kit, seed, surf(part, variant, tint?) }. kit.house: { storey, storeys:[min,max], palette,
- * base, door, window, eave, roof, balcony }.
+ * Houses along F. `ctx`: { kit, seed, surf(part, variant, tint?), record? }. kit.house: { storey, storeys:[min,max],
+ * palette, base, door, window, eave, roof, balcony }. `record`, when given, receives each house's openings
+ * ({ F, k, u0, u1, top, door, windows, balcony }) for a dressing to hang things on.
  */
-export function plazaWall(out, F, { kit, seed, surf }) {
+export function plazaWall(out, F, { kit, seed, surf, record = null }) {
   const H = kit.house, n = Math.max(1, Math.round(F.len / kit.bay));
   const heights = [];
   for (let k = 0; k < n; k++) {
@@ -39,7 +40,8 @@ export function plazaWall(out, F, { kit, seed, surf }) {
     const mid = (u0 + u1) / 2, dw = H.door.w / 2;
     archedOpening(out, F, { u0, u1, z0: H.base.h, z1: H.storey, a: mid - dw, b: mid + dw, zs: H.door.h - dw, H: dw * 1.02, seg: 6, depth: H.door.depth, ring: 0.18, ringOut: 0.08 }, { wall: wallS, trim: trimS }, { glass: { fill: H.door.dark, group: 'stage:glass' } });
     // upper storeys: one or two windows each, in sub-bays
-    const perStorey = (u1 - u0) > 5 ? 2 : 1;
+    const perStorey = (u1 - u0) > 5 ? 2 : 1, windows = [];
+    let balcony = false;
     for (let s = 1; s < storeys; s++) {
       const z0 = s * H.storey, z1 = (s + 1) * H.storey, sill = z0 + H.window.sill;
       panel(out, onWall(F, u0, 0, z0), F.U, u1 - u0, Z, H.window.sill, F.N, wallS, wallS.cell);
@@ -49,9 +51,11 @@ export function plazaWall(out, F, { kit, seed, surf }) {
         archedOpening(out, F, { u0: s0, u1: s1, z0: sill, z1, a: c - hw, b: c + hw, zs: sill + H.window.h - (round ? hw : 0), H: round ? hw * 1.02 : 0, seg: 6, depth: H.window.depth, ring: 0.14, ringOut: 0.06 }, { wall: wallS, trim: trimS }, { glass });
         // a sill that projects: it throws a thin shadow down the wall
         wallBox(out, F, c - hw - 0.15, c + hw + 0.15, sill - 0.12, sill, 0.22, trimS, trimS.cell);
+        windows.push({ c, hw, sill, storey: s });
       }
       // a balcony on the first floor of some houses: a slab and a rail of posts
       if (s === 1 && hash3(seed, k, 421) < H.balcony.chance) {
+        balcony = true;
         const b0 = mid - H.balcony.w / 2, b1 = mid + H.balcony.w / 2, bz = z0 + 0.05;
         wallBox(out, F, b0, b1, bz - 0.18, bz, H.balcony.out, trimS, trimS.cell);
         const posts = Math.round(H.balcony.w / 0.35);
@@ -79,6 +83,7 @@ export function plazaWall(out, F, { kit, seed, surf }) {
       quad(out, [onWall(F, u, 0, nb), onWall(F, u, -H.roof.depth, nb), onWall(F, u, -H.roof.depth, top), onWall(F, u, 0, top)], sn, wallS, F.N, Z);
       quad(out, [onWall(F, u, H.eave.out, top), onWall(F, u, -H.roof.depth, top), onWall(F, u, -H.roof.depth, top + H.roof.rise), onWall(F, u, -H.roof.depth, top + H.roof.rise)], sn, wallS, F.N, Z);
     }
+    if (record) record.push({ F, k, u0, u1, top, door: { mid, dw, top: H.door.h }, windows, balcony });
     // the house's stucco streaks hang from under its own eave (dirt.js reads `top`)
     for (let i = first; i < out.length; i++) if (out[i].group === 'stage:wall') out[i].top = top - H.eave.h;
   }

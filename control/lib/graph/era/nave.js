@@ -120,8 +120,12 @@ export function naveBlends(plan, shell) {
   return out;
 }
 
-/** Everything the dressing adds, for the stage to bake and emit. */
+/**
+ * Everything the dressing adds, in the shape the stage composes: `faces` baked with the shell, `blends(faces)` the
+ * blend copies (baked too), `after` drawn unbaked (translucent sheets), `pools` bake-only lights, `cut(face)` shell
+ * faces the dressing replaces, `shadowSkip(face)` faces that cast no sun shadow.
+ */
 export function naveDress(plan, geom) {
-  const cut = naveCutouts(plan, geom.bays, geom.columns), sh = naveShafts(plan, geom.bays);
-  return { cutouts: cut, shafts: sh.faces, pools: sh.pools };
+  const sh = naveShafts(plan, geom.bays);
+  return { faces: naveCutouts(plan, geom.bays, geom.columns), blends: (faces) => naveBlends(plan, faces), after: sh.faces, pools: sh.pools, cut: () => false, shadowSkip: () => false };
 }

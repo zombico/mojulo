@@ -95,3 +95,20 @@ export function crossed(out, base, yaw, w, h, key, tint, group, n = 2) {
 }
 /** A point on wall frame F: u along it, `off` out into the room, z up. */
 export const onWall = (F, u, off, z) => add(add(add(F.o, mul(F.U, u)), mul(F.N, off)), [0, 0, z]);
+/** A lathe round `c` of a profile path [[r, z], …]: quads whose normals follow the path (outward going up the outside,
+ *  inward coming down the inside, up across a top). */
+export function lathe(out, c, prof, sides, surf, group) {
+  let arc = 0;
+  for (let i = 0; i + 1 < prof.length; i++) {
+    const [ra, za] = prof[i], [rb, zb] = prof[i + 1], dr = rb - ra, dz = zb - za, L = Math.hypot(dr, dz) || 1, nr = dz / L, nz = -dr / L;
+    for (let k = 0; k < sides; k++) {
+      const a0 = (2 * Math.PI * k) / sides, a1 = (2 * Math.PI * (k + 1)) / sides, am = (a0 + a1) / 2;
+      const p = (r, z, a) => P([c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r, z]);
+      const n = [Math.cos(am) * nr, Math.sin(am) * nr, nz].map(r5);
+      const u = (a, r) => r5((a * Math.max(r, 0.3)) / surf.scale);
+      out.push({ corners: [p(ra, za, a0), p(ra, za, a1), p(rb, zb, a1), p(rb, zb, a0)], normal: n, outNormal: n, texture: surf.key, textureLit: true,
+        uv: [[u(a0, ra), r5(arc / surf.scale)], [u(a1, ra), r5(arc / surf.scale)], [u(a1, rb), r5((arc + L) / surf.scale)], [u(a0, rb), r5((arc + L) / surf.scale)]], tint: surf.tint, group });
+    }
+    arc += L;
+  }
+}

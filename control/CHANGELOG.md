@@ -155,6 +155,34 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The floor is not the walls' grid: a runner of hexagonal tiles (`floor:hex`) down the walking line between
     slate kerbs, and irregular flags with no two alike (`floor:incertum`, opus incertum) either side.
   `gothic-stone` and `delfino-plaza` are unchanged.
+- The `delfino-plaza` kit is dressed to a style card (`lib/graph/era/style/delfino-plaza.js`, dressing in
+  `lib/graph/era/plaza-dress.js`), with a check for each principle:
+  - Hard sun, measured: sunlit stucco > sunlit paving > the shade (a pale blue, never black) > terracotta.
+  - A fountain at the square's centre: a lathed marble basin, pedestal, bowl and finial, water standing in
+    basin and bowl and falling from the bowl's lip in streams, ringed by sandstone paving.
+  - The floor is fan-pattern setts (`floor:fan`, new): overlapping arcs, no two setts alike.
+  - Blends by cause: sand blown against the house fronts and drifted deepest into the corner, worn off at
+    the doors and along the way in; the ring round the basin dark where it splashes.
+  - Painted cutouts on the fronts: flower boxes under windows, striped awnings over doors whose shade is
+    striped (the sun reads the card), and laundry strung across the corner.
+  - The town goes on: rows of rooftop cards beyond the closed sides, each row carried toward the reference's
+    horizon colour by its distance (aerial perspective after the light, not baked).
+  - No two neighbouring houses dress alike.
+  - A Renaissance order (`lib/graph/era/piazza.js`): a portico of grey-stone columns and round arches along
+    the sunlit side, with blue-and-white roundels in the spandrels. Its roof is a walkway of hexagonal cotto.
+    The shade under it is warm, lit from below by the square (measured: warmer than a wall turned from the
+    sun, darker than the paving). Houses behind it carry no balconies, and their doors no awnings.
+  - Walkways railed in stone: lathed balusters between a plinth and a rail, pedestals on the column lines
+    carrying urns, and a stair of even treads climbing the portico's front to a landing, with a raking rail.
+  - Two red granite obelisks on stepped pedestals, either side of the fountain across the line from the way
+    in, standing over every eave, with bronze balls under the shaft and a cross on the point.
+  - Long-and-short quoins up every house edge.
+  - The sky is a place: a cloud deck (`effects`, the `undershot` deck the trail uses) over the square, and
+    the town's ribbed dome and banded bell tower over the roofs, faded toward the horizon like the rooftop
+    rows. A stage carries `effects` only when its dressing names clouds.
+  `plazaWall` takes an optional `record` that receives each house's door and windows. The nave's dressing and
+  the plaza's share one shape the stage composes. `lathe` moves to `lib/graph/era/geom.js`. `gothic-stone`
+  and `gothic-nave` are unchanged.
 - `card` and `crossed` (one painted card, and cards crossed about a vertical axis) move to
   `lib/graph/era/geom.js`, and `dice` is exported from `lib/graph/era/nature.js`, shared by the trail and the
   jungle. The jungle's output is unchanged.
@@ -163,7 +191,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   flickering. This is the era's two-tile vertex blend. Worlds without blend faces are unchanged.
 - Leaf cards (`lib/graph/era/leaf-cards.js`): painted RGBA leaf textures (`card:broadleaf`, `card:fern`,
   `card:spray`, `card:vine`, `card:litter`, `card:roots`, `card:bamboo`, `card:grass`, `card:bough`,
-  `card:meadow`, `card:ivy`, `card:cobweb`, `card:banner`), resolved through the surface-texture registry. New
+  `card:meadow`, `card:ivy`, `card:cobweb`, `card:banner`, `card:flowers`, `card:laundry`, `card:awning`,
+  `card:roofs`), resolved through the surface-texture registry. New
   `encodePngRgba` in `lib/graph/landscape/surface-textures.js`.
 - `emitThreeWorld` takes `cutouts`, a list of texture keys whose alpha is cut out (alpha-tested). Those
   surfaces drop their clear texels, including from the depth pass, and are not walk colliders, so foliage
