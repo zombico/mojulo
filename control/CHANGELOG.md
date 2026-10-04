@@ -12,6 +12,43 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Historic city
+
+- **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
+  built one period at a time from the first cities of Sumer toward the present. A period is read as a
+  composition of shared visual patterns (sun-dried earth, flat-roofed cubes, courtyard houses, stepped
+  platforms, niched walls, towered ring walls, canals through town), so later cultures reuse them.
+- The town is built in two steps. The layout claims ground and asks for buildings by slot: the
+  ziggurat site, each house lot facing its lane, each wall run, tower and gate facing out. A per-period
+  asset kit builds each slot on its own random stream, so redesigning one building moves nothing else.
+  Each kit asset is designed from a massing sheet dreamed on the optional local image worker, then
+  rebuilt as plain masses; the sheet is a design aid and is never stored. Until an asset is designed, a
+  plain placeholder stands in its slot. The metro city is unchanged.
+- Mud brick leans: walls, towers, tiers and platforms are battered, stairs climb on slopes, and the
+  reed hall is a round vault. The ground is surfaced for street level — beaten mud alleys, rubble and
+  sherd main streets, baked-brick quays, precinct and courts, cracked dry earth outside the wall — and
+  the page opens on a street view or a view from the precinct court as well as from the air. Palms are
+  low-poly date palms, which cut a whole town's page to about a quarter of its size.
+- A town carries its art and its street life. The shared vocabulary gains art (votive figures,
+  stelae, door emblems, guardian beasts, friezes, mosaic skins, ritual vessels, altars) and street
+  structures (wells, kilns, granaries, boats), each noted where it recurs across cultures, and the
+  layout places them by meaning: offerings, guardians and the altar on the sacred axis at the
+  ziggurat's stair, the goddess's reed posts at her doors, stelae inside the precinct gate, worshippers
+  facing the god, wells where lanes meet, kilns under the wall, granaries by the precinct, boats at the
+  quays. Sumer's set includes the cone-mosaic Pillar Hall of Uruk, copper bulls, the Uruk vase and a
+  temple portal with its cattle frieze and lion-headed eagle. Round, domed and hooped forms are new
+  building blocks.
+- Each asset can be drawn as an SVG blueprint from its own parts before it is rendered: front and side
+  elevations, plan, dimensions, a parts table and build notes, so a design is checked in pure geometry
+  first and the drawing never drifts from the model.
+- Walls show what they are made of. A transparent material layer rides over each wall's own lit
+  colour, so sun and shade are kept: bare mud brick with a herringbone course on the city wall and the
+  platforms, baked brick in dark bitumen joints on the ziggurat's casing, mud render on the houses
+  (rain streaks, a fallen patch, the courses showing through where the foot of the wall has worn), and
+  lime whitewash with hairline cracks on the temples and pale houses. Each culture says which mass
+  wears which material. The coursing is pinned to world height, so neighbouring faces line up. The
+  layer shows in the CSS 3D page only; the WebGL World keeps flat colour for now.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x
