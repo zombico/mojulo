@@ -38,6 +38,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   packs (kernel 0.4.0) shade that water live with a water shader: the seabed seen through the water,
   bent by the ripples and fading red-first with depth, foam where the water thins, sky reflection and
   sun glint, and drifting ripples. The waves themselves stand still in an export.
+- **Pools and ponds you can touch (groundwork).** A page can now carry shallow bodies of water whose
+  surface is simulated rather than drawn: still until something disturbs it, with waves that slow in
+  the shallows, bounce off a pool's walls and die out on a pond's bank. Walking in slows you with depth,
+  splashes on entry and leaves a frothing wake; floating toys and leaves bob on the live surface and get
+  pushed aside; rain rings it; a click splashes it. Everything that touches the water goes through one
+  interface, `window.__aqWater` (`query`, `disturb`). The floor is seen through the water, bent by the
+  ripples, with caustics where crests focus the sun. No world kind emits them yet.
 - **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
   `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
   use `canal`.

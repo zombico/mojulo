@@ -22,6 +22,7 @@ uniform float uAqTime; uniform vec3 uAqZen; uniform vec3 uAqHor; uniform vec3 uA
 uniform float uAqRough; uniform float uAqNScale; uniform float uAqNAmp; uniform float uAqNSpeed; uniform vec2 uAqFlow;
 uniform float uAqFroth; uniform float uAqRefl; uniform vec3 uAqFoamCol; uniform float uAqSide;
 uniform vec3 uAqSigma; uniform float uAqShore; uniform vec3 uAqTint; uniform sampler2D uAqDepth; uniform vec2 uAqRes; uniform float uAqLogF; uniform float uAqHasDepth;
+uniform sampler2D uAqScene; uniform float uAqRefr;
 varying vec3 vAqWp; varying vec3 vAqN; varying float vAqFoam;
 #ifdef AQ_FLOW
 varying vec2 vAqUV; varying vec2 vAqT;
@@ -117,9 +118,29 @@ const AQUA_MAIN = `{
     // the water's own colour: thin water scatters its clear tint (turquoise over sand), thick water its body colour;
     // and the red the bed loses first comes back as that tint, so the shallows read blue-green, not grey
     aqBody = mix(aqBody, uAqTint * (0.55 + 0.45 * max(dot(normalize(uAqSun), aqNg), 0.0)), aqT * (1.0 - aqT) * 3.2 + 0.25 * aqT);
+    if (uAqRefr > 0.0) {
+      // refraction (opt-in): read the bed itself from the depth pass's colour, shifted by the surface's tilt (its
+      // horizontal normal, in screen space) and by how much water there is; a shift that lands in front of the water
+      // falls back to straight through. The bed is attenuated per channel, so the water is drawn opaque.
+      vec2 aqUv = gl_FragCoord.xy / uAqRes;
+      vec3 aqTilt = aqN - vec3(0.0, 0.0, aqN.z);
+      vec2 aqRuv = aqUv + (viewMatrix * vec4(aqTilt, 0.0)).xy * uAqRefr * min(aqD, 1.5);
+      vec4 aqVp2 = viewMatrix * vec4(vAqWp, 1.0);
+      float aqRz = texture2D(uAqDepth, aqRuv).x, aqRs = aqRz >= 0.99999 ? 1e7 : exp2(aqRz * uAqLogF) - 1.0;
+      if (aqRs < -aqVp2.z || any(lessThan(aqRuv, vec2(0.0))) || any(greaterThan(aqRuv, vec2(1.0)))) aqRuv = aqUv;
+      vec3 aqBed = texture2D(uAqScene, aqRuv).rgb;
+#ifdef AQ_CAUS
+      // caustics: where the surface curves like a lens it focuses the sun onto the bed (a simulated surface's
+      // curvature, per vertex); fades as the water thickens
+      aqBed *= 1.0 + vAqCaus * exp(-0.35 * aqD);
+#endif
+      vec3 aqCol = (1.0 - aqFr) * (aqTv * aqBed + (1.0 - aqT) * aqBody) + aqFr * uAqFoamCol;
+      gl_FragColor = vec4(aqF * aqR + aqSp + (1.0 - aqF) * aqCol, 1.0);
+    } else {
     float aqA = 1.0 - (1.0 - aqF) * (1.0 - aqFr) * aqT;
     vec3 aqOut = aqF * aqR + aqSp + (1.0 - aqF) * ((1.0 - aqFr) * (1.0 - aqT) * aqBody + aqFr * uAqFoamCol);
     gl_FragColor = vec4(aqOut / max(aqA, 1e-3), aqA);
+    }
   } else {
     gl_FragColor = vec4(mix(mix(aqBody, uAqFoamCol, aqFr), aqR, aqF) + aqSp, mix(gl_FragColor.a, 1.0, max(aqF, aqFr)));
   }
@@ -141,11 +162,11 @@ var __aqGlsl = ${safeJson(AQUA_GLSL)};
 var __aqMain = ${safeJson(AQUA_MAIN)};
 // the depth pass: when a page has water, every on-screen render first draws the scene WITHOUT its water into a
 // depth texture (log depth, as the page renders), which the water reads to know how thick it is. Hooked once.
-var __aqShared = window.__aqShared || (window.__aqShared = { uAqDepth: { value: null }, uAqRes: { value: new THREE.Vector2(1, 1) }, uAqLogF: { value: 1 }, uAqHasDepth: { value: 0 }, meshes: [] });
+var __aqShared = window.__aqShared || (window.__aqShared = { uAqDepth: { value: null }, uAqRes: { value: new THREE.Vector2(1, 1) }, uAqLogF: { value: 1 }, uAqHasDepth: { value: 0 }, uAqScene: { value: null }, meshes: [] });
 if (!window.__aqHooked) {
   window.__aqHooked = true;
   const dt = new THREE.DepthTexture(), rt = new THREE.WebGLRenderTarget(1, 1, { depthTexture: dt }), sz = new THREE.Vector2(), raw = renderer.render.bind(renderer);
-  __aqShared.uAqDepth.value = dt;
+  __aqShared.uAqDepth.value = dt; __aqShared.uAqScene.value = rt.texture;
   renderer.render = (s, c) => {
     if (s === scene && c && c.isPerspectiveCamera && renderer.getRenderTarget() === null && __aqShared.meshes.length) {
       renderer.getDrawingBufferSize(sz);
@@ -164,17 +185,18 @@ var __aqPatch = function (mat, AQ, o) {
   const U = { uAqTime: { value: 0 }, uAqZen: { value: v3(AQ.zen) }, uAqHor: { value: v3(AQ.hor) }, uAqGnd: { value: v3(AQ.gnd) },
     uAqSun: { value: v3(o.sun).normalize() }, uAqSunCol: { value: v3(o.sunCol || [1, 0.95, 0.86]) }, uAqRough: { value: AQ.rough },
     uAqNScale: { value: AQ.nScale }, uAqNAmp: { value: AQ.nAmp }, uAqNSpeed: { value: AQ.nSpeed }, uAqFlow: { value: new THREE.Vector2(AQ.flow[0], AQ.flow[1]) },
-    uAqFroth: { value: AQ.froth }, uAqRefl: { value: AQ.refl }, uAqSide: { value: o.flowUV ? 0 : 1 }, uAqSigma: { value: v3(AQ.sigma) }, uAqTint: { value: v3(AQ.tint) }, uAqShore: { value: AQ.shore }, uAqFoamCol: { value: v3(o.foamCol || [0.9, 0.94, 0.96]) } };
+    uAqFroth: { value: AQ.froth }, uAqRefl: { value: AQ.refl }, uAqSide: { value: o.flowUV ? 0 : 1 }, uAqSigma: { value: v3(AQ.sigma) }, uAqTint: { value: v3(AQ.tint) }, uAqShore: { value: AQ.shore }, uAqRefr: { value: o.refract || 0 }, uAqFoamCol: { value: v3(o.foamCol || [0.9, 0.94, 0.96]) } };
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, rnd) => {
     if (prev) prev(sh, rnd);
-    Object.assign(sh.uniforms, U, { uAqDepth: __aqShared.uAqDepth, uAqRes: __aqShared.uAqRes, uAqLogF: __aqShared.uAqLogF, uAqHasDepth: __aqShared.uAqHasDepth });
+    Object.assign(sh.uniforms, U, { uAqDepth: __aqShared.uAqDepth, uAqRes: __aqShared.uAqRes, uAqLogF: __aqShared.uAqLogF, uAqHasDepth: __aqShared.uAqHasDepth, uAqScene: __aqShared.uAqScene });
     const fl = o.flowUV ? 'attribute vec2 aAqUV;\\nattribute vec2 aAqT;\\nvarying vec2 vAqUV;\\nvarying vec2 vAqT;\\n' : '';
-    sh.vertexShader = 'varying vec3 vAqWp;\\nvarying vec3 vAqN;\\nvarying float vAqFoam;\\n' + fl + (o.up ? '' : 'attribute float aAqFoam;\\n') + sh.vertexShader.replace('#include <begin_vertex>',
-      '#include <begin_vertex>\\nvAqWp = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n' + (o.flowUV ? 'vAqUV = aAqUV;\\nvAqT = aAqT;\\n' : '') + (o.up ? 'vAqN = vec3(0.0, 0.0, 1.0);\\nvAqFoam = 0.0;' : 'vAqN = normalize(mat3(modelMatrix) * objectNormal);\\nvAqFoam = aAqFoam;'));
-    sh.fragmentShader = (o.flowUV ? '#define AQ_FLOW\\n' : '') + __aqGlsl + sh.fragmentShader.replace('#include <tonemapping_fragment>', __aqMain);
+    const cs = o.caustic ? 'attribute float aAqCaus;\\nvarying float vAqCaus;\\n' : '';
+    sh.vertexShader = 'varying vec3 vAqWp;\\nvarying vec3 vAqN;\\nvarying float vAqFoam;\\n' + cs + fl + (o.up ? '' : 'attribute float aAqFoam;\\n') + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\\nvAqWp = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n' + (o.caustic ? 'vAqCaus = aAqCaus;\\n' : '') + (o.flowUV ? 'vAqUV = aAqUV;\\nvAqT = aAqT;\\n' : '') + (o.up ? 'vAqN = vec3(0.0, 0.0, 1.0);\\nvAqFoam = 0.0;' : 'vAqN = normalize(mat3(modelMatrix) * objectNormal);\\nvAqFoam = aAqFoam;'));
+    sh.fragmentShader = (o.flowUV ? '#define AQ_FLOW\\n' : '') + (o.caustic ? '#define AQ_CAUS\\nvarying float vAqCaus;\\n' : '') + __aqGlsl + sh.fragmentShader.replace('#include <tonemapping_fragment>', __aqMain);
   };
-  mat.customProgramCacheKey = () => 'aqua' + (o.up ? 'Up' : 'Foam') + (o.flowUV ? 'Flow' : '');
+  mat.customProgramCacheKey = () => 'aqua' + (o.up ? 'Up' : 'Foam') + (o.flowUV ? 'Flow' : '') + (o.caustic ? 'Caus' : '');
   mat.needsUpdate = true;
   return U;
 };`;

@@ -323,6 +323,7 @@ export { shadowDecalScript } from './shadow-decal.js';
 export { inkDecalScript } from './ink-decal.js';
 export { skyDomeScript } from './sky-dome.js';
 export { waterMeshScript, liquidMeshScript } from './water.js';
+export { shallowsChannelScript } from './shallows.js';
 export { toonInkScript } from './toon-ink.js';
 export { drawLayersScript, drawLayerGroup, DRAW_LAYER_KEYS } from './draw-layers.js';
 export { walkModeScript } from './walk.js';
