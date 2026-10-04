@@ -12,6 +12,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Aqua rendering
+
+- **Water has a look of its own.** A water preset (`ocean`, `lagoon`, `lake`, `river`, `canal`, `pool`,
+  `falls`) shades it on the World page with light-weight maths instead of a flat tint: fine ripples
+  layered over the waves, the sky reflected more strongly the lower you look (water is a mirror at a
+  grazing angle and nearly clear head-on), and a sharp sun glint that softens with distance so far
+  water does not shimmer.
+- **Foam forms where waves fold.** The animated oceans, beaches, rivers and spillways now place
+  whitecaps where the wave surface folds over itself, and draw foam as a lacy pattern of bubbles
+  rather than a white tint. Shore breakers, river banks and the foot of a falling sheet froth the same
+  way.
+- **Rivers flow along their banks.** A river's surface runs in lanes parallel to its banks that turn
+  with every bend; ripples stream downstream along them and foam gathers in lines that drift with the
+  current.
+- **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
+  `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
+  use `canal`.
+- **Glass is untouched.** Windows share the old translucent-water pass; only faces tagged `liquid`
+  take the new look, and pages without water emit the same bytes as before.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

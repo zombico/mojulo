@@ -49,7 +49,7 @@ import {
   controllableChannelScript, eventsChannelScript, fxChannelScript, gameChannelScript,
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
-  specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript,
+  specularChannelScript, splatChannelScript, spriteSfxChannelScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript, liquidMeshScript,
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
   strokeOverlayChannelScript,
 } from './channels/index.js';
@@ -58,6 +58,7 @@ import { streamChannelScript } from './channels/stream.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
 import { DEFAULT_LIGHT } from '../polygonizer/vexar.js';
 import { crystalChannelScript } from './channels/crystal.js';
+import { resolveAquaLook } from '../materials/aqua-look.js';
 import { metalChannelScript, metalChannelInputs } from './channels/metal.js';
 import { crystalPrintsFor, crystalLivePrints, crystalGlowPools, crystalSun } from './crystal-prints.js';
 import { crystalLightChannelScript } from './channels/crystal-light.js';
@@ -211,7 +212,12 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // camera-fed onBeforeRender, and a renderOrder above fog so they composite last. Deterministic
   // under camera bakes because frame() now pins __mojClock (U3). Absent ⇒ no bytes.
   const effectsList = Array.isArray(effects) ? effects.filter((e) => e && typeof e.frag === 'string') : [];
-  const hasOverlay = !!fog || effectsList.length > 0;
+  // a liquid sheet (aqua look) animates its ripples off __mojClock, so camera captures pin it like an overlay
+  // (the first liquid face's kind is the page's look; an unknown kind leaves the faces on the plain sheet)
+  const liquidFace = faces.find((f) => f && f.water && f.liquid);
+  const liquidLook = liquidFace ? resolveAquaLook(liquidFace.liquid, { sky, bg, unit: liquidFace.liquid.unit }) : null;
+  const hasLiquid = !!liquidLook;
+  const hasOverlay = !!fog || effectsList.length > 0 || hasLiquid;
   // Raymarch mode (black-hole-view): a full-screen GR geodesic fragment shader replaces the mesh
   // pipeline entirely. The mesh channels can't bend light; this can. Same /world funnel.
   if (raymarch && raymarch.frag) return emitRaymarchWorld({ ...raymarch, viewBox, title, bg, inline, cdn });
@@ -435,8 +441,13 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const inkBlock = inks.length ? inkDecalScript(inks) : '';
 
   // Translucent water: a separate mesh with per-vertex alpha (shallows clear, deeps opaque).
-  const waterMesh = waterRaw.length ? collectWaterMesh(waterRaw) : null;
-  const waterBlock = waterMesh ? waterMeshScript(waterMesh) : '';
+  // Faces tagged `liquid` (a water kind) split off into their own sheet shaded with the aqua look;
+  // the rest (glass shares the `water` pass) keep the plain sheet. No liquid ⇒ the same bytes as before.
+  const glassRaw = hasLiquid ? waterRaw.filter((f) => !f.liquid) : waterRaw;
+  const waterMesh = glassRaw.length ? collectWaterMesh(glassRaw) : null;
+  const liquidMesh = hasLiquid ? collectWaterMesh(waterRaw.filter((f) => f.liquid)) : null;
+  const waterBlock = (waterMesh ? waterMeshScript(waterMesh) : '')
+    + (liquidMesh ? liquidMeshScript(liquidMesh, liquidLook, light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight) : '');
 
   // Sky dome: a world-fixed gradient sphere (+ night stars + a phase-carved moon) centred on the
   // scene, so ORBITING reveals the gradient/stars/moon from new angles (they move with the world,

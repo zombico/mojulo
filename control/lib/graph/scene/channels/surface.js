@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { aquaPatchScript } from './aqua-glsl.js';
 
 // In-page script: the SURFACE channel. The other channels move discrete things (sprites, bodies,
 // arrows); a surface DEFORMS a continuous mesh over time — an animated ocean. It builds a grid
@@ -10,8 +11,15 @@ import { safeJson } from '../emit-util.js';
 // (sampling the same displacement → the circular orbital water motion). Only emitted with `surfaces`.
 // A surface may also carry a `shore` descriptor (beach-view): the wave height + slope taper to zero as
 // the bed rises to the waterline (shoaling), shallows lighten, and a foam swash line laps up the sand.
+// A surface with an `aqua` look (materials/aqua-look.js) is shaded as water (channels/aqua-glsl.js): its foam
+// stops being a crest-colour lerp and becomes a per-vertex amount the shader draws as bubble lace — on the open
+// sea from the Gerstner Jacobian (whitecaps where the surface pinches together), on a shore from the breaker and
+// swash, on a river from the banks, on a falling sheet from its streaks and plunge. The aqua code is spliced only
+// when some surface carries a look, so pages without one keep their bytes.
 export function surfaceChannelScript(surfaces) {
-  return `
+  const aq = surfaces.some((sf) => sf && sf.aqua);
+  const A = (code) => (aq ? code : '');
+  return `${A(aquaPatchScript())}
 const SURFACES = ${safeJson(surfaces)};
 function _gerstner(waves, x0, y0, t) {
   let px = x0, py = y0, pz = 0, nx = 0, ny = 0, nz = 1;
@@ -22,7 +30,16 @@ function _gerstner(waves, x0, y0, t) {
   }
   return [px, py, pz, nx, ny, nz];
 }
-// wavefield mode (double-slit ripple tank): an incoming plane wave for y < barrierY, then a SUM of
+${A(`// whitecap measure: the Jacobian of the Gerstner horizontal pull (1 = undisturbed, → 0 where the crest pinches)
+function _gjac(waves, x0, y0, t) {
+  let jxx = 0, jyy = 0, jxy = 0;
+  for (let q = 0; q < waves.length; q++) {
+    const w = waves[q], s = Math.sin(w.k * (w.dx * x0 + w.dy * y0) - w.om * t + w.ph), a = w.Q * w.A * w.k * s;
+    jxx -= a * w.dx * w.dx; jyy -= a * w.dy * w.dy; jxy -= a * w.dx * w.dy;
+  }
+  return (1 + jxx) * (1 + jyy) - jxy * jxy;
+}
+`)}// wavefield mode (double-slit ripple tank): an incoming plane wave for y < barrierY, then a SUM of
 // circular waves from point sources (the slits) beyond it — vertical displacement (linear waves, no
 // Gerstner pull) with analytic-gradient normals. Their overlap IS the interference pattern.
 function _wavefield(sf, x0, y0, t) {
@@ -122,7 +139,31 @@ const _surfRigs = SURFACES.map((sf) => {
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.setIndex(index);
-  const _mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.05, side: THREE.DoubleSide });
+  const _mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.05, side: THREE.DoubleSide });${A(`
+  // aqua: the shader carries the glint and reflection, so the standard lobe goes broad; foam is an attribute.
+  let foamA = null, aqU = null;
+  if (sf.aqua) {
+    foamA = new Float32Array(N); geo.setAttribute('aAqFoam', new THREE.BufferAttribute(foamA, 1));
+    _mat.roughness = 0.85; _mat.metalness = 0;
+    // a river's ripples run in its own frame: per vertex, the signed distance across the centreline, the arc length
+    // along it, and the downstream tangent — so the detail and foam bend with the channel and push downstream.
+    if (riv) {
+      const uv = new Float32Array(N * 2), tg = new Float32Array(N * 2), P = riv.pts;
+      for (let v = 0; v < N; v++) {
+        const x0 = base[2 * v], y0 = base[2 * v + 1];
+        let best = 1e9, lat = 0, tx = 0, ty = 1;
+        for (let i = 1; i < P.length; i++) {
+          const a = P[i - 1], b = P[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-6, L = Math.sqrt(L2);
+          let tt = ((x0 - a[0]) * dx + (y0 - a[1]) * dy) / L2; tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+          const ex = x0 - (a[0] + dx * tt), ey = y0 - (a[1] + dy * tt), dd = Math.hypot(ex, ey);
+          if (dd < best) { best = dd; tx = dx / L; ty = dy / L; lat = tx * ey - ty * ex; }
+        }
+        uv[2 * v] = lat; uv[2 * v + 1] = riv.arc[v]; tg[2 * v] = tx; tg[2 * v + 1] = ty;
+      }
+      geo.setAttribute('aAqUV', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('aAqT', new THREE.BufferAttribute(tg, 2));
+    }
+    aqU = __aqPatch(_mat, riv ? { ...sf.aqua, flow: [0, 1] } : sf.aqua, { sun: sf.sun, foamCol: sf.crest, flowUV: !!riv });
+  }`)}
   // opt-in emissive glow (a molten/lava surface lights itself, no sun needed): sf.emissive = [r,g,b] 0..1.
   if (sf.emissive) { _mat.emissive = new THREE.Color(sf.emissive[0], sf.emissive[1], sf.emissive[2]); _mat.emissiveIntensity = sf.emissiveIntensity != null ? sf.emissiveIntensity : 0.7; }
   const mesh = new THREE.Mesh(geo, _mat);
@@ -147,13 +188,14 @@ const _surfRigs = SURFACES.map((sf) => {
     const hud = document.createElement('div'); hud.className = 'moj-readout'; wrap.appendChild(hud);
     gwr = { g: g, m1: mkBody(g.r1, g.c1), m2: mkBody(g.r2, g.c2), rem: rem, hud: hud };
   }
-  return { sf, nx, ny, N, base, pos, nor, col, geo, floats, gwr, riv, spt };
+  return { sf, nx, ny, N, base, pos, nor, col, geo, floats, gwr, riv, spt${A(', foamA, aqU')} };
 });
 stepSurfaces = (ms) => {
   const t = ms / 1000;
   for (const r of _surfRigs) {
     const sf = r.sf, amax = sf.amax || 1, deep = sf.deep, surf = sf.surf, crest = sf.crest;
-    if (sf.gw) {
+${A(`    const fa = r.foamA; if (r.aqU) r.aqU.uAqTime.value = t;
+`)}    if (sf.gw) {
       const g = sf.gw, nxx = r.nx, nyy = r.ny;
       // pass 1: strain heights.
       for (let v = 0; v < r.N; v++) { const x0 = r.base[2 * v], y0 = r.base[2 * v + 1], o = 3 * v; r.pos[o] = x0; r.pos[o + 1] = y0; r.pos[o + 2] = _gwstrain(g, x0, y0, t); }
@@ -205,11 +247,13 @@ stepSurfaces = (ms) => {
         r.nor[o] = 0; r.nor[o + 1] = sp.ny[v]; r.nor[o + 2] = sp.nz[v];
         let cc = _l3(deep, surf, Math.pow(vFrac, 0.8));                     // brightens as it falls
         const streak = 0.5 + 0.5 * Math.sin(ph);
-        cc = _l3(cc, crest, Math.pow(streak, 3) * (0.25 + 0.3 * hu));       // sliding white bands
+${A(`        if (fa) { fa[v] = Math.min(1, Math.pow(streak, 3) * (0.5 + 0.6 * hu) + (vFrac > 0.6 ? (vFrac - 0.6) / 0.4 * 1.1 : 0)); r.col[o] = cc[0]; r.col[o + 1] = cc[1]; r.col[o + 2] = cc[2]; continue; }
+`)}        cc = _l3(cc, crest, Math.pow(streak, 3) * (0.25 + 0.3 * hu));       // sliding white bands
         if (vFrac > 0.72) cc = _l3(cc, crest, (vFrac - 0.72) / 0.28 * 0.85); // the plunge froths
         r.col[o] = cc[0]; r.col[o + 1] = cc[1]; r.col[o + 2] = cc[2];
       }
-      r.geo.attributes.position.needsUpdate = true; r.geo.attributes.normal.needsUpdate = true; r.geo.attributes.color.needsUpdate = true;
+      r.geo.attributes.position.needsUpdate = true; r.geo.attributes.normal.needsUpdate = true; r.geo.attributes.color.needsUpdate = true;${A(`
+      if (fa) r.geo.attributes.aAqFoam.needsUpdate = true;`)}
       continue;
     }
     if (sf.river) {
@@ -222,8 +266,18 @@ stepSurfaces = (ms) => {
       for (let v = 0; v < r.N; v++) {
         const x0 = r.base[2 * v], y0 = r.base[2 * v + 1], o = 3 * v; r.pos[o] = x0; r.pos[o + 1] = y0;
         if (rv.lat[v] >= R.bank) { r.pos[o + 2] = rv.lvl[v] - 40; continue; }   // dry (culled) → sink out of sight
-        const ph = k * rv.arc[v] - om * t, rip = R.amp * (Math.sin(ph) + 0.4 * Math.sin(2.7 * ph + 1.3));
-        r.pos[o + 2] = rv.lvl[v] + _edge(rv.lat[v]) * rip;
+${aq ? `        const ph = k * rv.arc[v] - om * t;
+        let rip = R.amp * (Math.sin(ph) + 0.4 * Math.sin(2.7 * ph + 1.3));
+        // aqua: a river's surface reads in LANES parallel to its banks — the current runs along the channel, so its
+        // texture streams downstream along lines that turn with every bend. Low ridges follow the centreline (a gentle
+        // wander along the arc), swells slide down each lane, and only a faint cross-ripple is left to show the motion.
+        if (r.foamA) {
+          const lane = Math.sin(6.2832 * rv.lat[v] / (R.half * 0.7) + 0.6 * Math.sin(rv.arc[v] * 0.04));
+          const swell = Math.sin(0.5 * ph + 2 * lane);
+          rip = R.amp * (0.55 * lane * (0.65 + 0.35 * swell) + 0.22 * Math.sin(ph));
+        }
+` : `        const ph = k * rv.arc[v] - om * t, rip = R.amp * (Math.sin(ph) + 0.4 * Math.sin(2.7 * ph + 1.3));
+`}        r.pos[o + 2] = rv.lvl[v] + _edge(rv.lat[v]) * rip;
       }
       // pass 2: normals (central differences) + colour (downstream flow streaks + bank foam).
       const dxg = sf.grid.w / (nxx - 1), dyg = sf.grid.d / (nyy - 1);
@@ -238,11 +292,17 @@ stepSurfaces = (ms) => {
         const hf = Math.max(0, Math.min(1, 0.5 + (r.pos[o + 2] - rv.lvl[v]) / (2 * R.amp + 1e-3)));
         let cc = _l3(deep, surf, hf);
         const streak = 0.5 + 0.5 * Math.sin(0.32 * s - om * 0.55 * t);   // bright bands sliding downstream
-        cc = _l3(cc, crest, Math.pow(streak, 3) * 0.32);
+${A(`        if (fa) {
+          // foam gathers in lines along the current (where lanes converge) and rides downstream in clumps
+          const fline = Math.pow(0.5 + 0.5 * Math.sin(3.1416 * rv.lat[v] / (R.half * 0.7) + 1.3 + 0.6 * Math.sin(s * 0.04)), 16);
+          const clump = 0.5 + 0.5 * Math.sin(0.25 * s - om * 0.6 * t + 3 * rv.lat[v] / R.half);
+          fa[v] = Math.min(1, fline * (0.15 + 0.5 * clump * clump) + Math.pow(1 - edge, 3) * 0.9); r.col[o] = cc[0]; r.col[o + 1] = cc[1]; r.col[o + 2] = cc[2]; continue; }
+`)}        cc = _l3(cc, crest, Math.pow(streak, 3) * 0.32);
         cc = _l3(cc, crest, (1 - edge) * 0.55);                          // foam where the water thins on the banks
         r.col[o] = cc[0]; r.col[o + 1] = cc[1]; r.col[o + 2] = cc[2];
       }
-      r.geo.attributes.position.needsUpdate = true; r.geo.attributes.normal.needsUpdate = true; r.geo.attributes.color.needsUpdate = true;
+      r.geo.attributes.position.needsUpdate = true; r.geo.attributes.normal.needsUpdate = true; r.geo.attributes.color.needsUpdate = true;${A(`
+      if (fa) r.geo.attributes.aAqFoam.needsUpdate = true;`)}
       // drifting leaves: floaters advected downstream (arc grows with time), riding the local level.
       for (const fo of r.floats) {
         const a = (((t * (fo.fl.driftSpeed || R.flow || 7) + (fo.fl.drift || 0) * rv.total) % rv.total) + rv.total) % rv.total;
@@ -276,7 +336,18 @@ stepSurfaces = (ms) => {
       r.nor[o] = g[3] * inv; r.nor[o + 1] = g[4] * inv; r.nor[o + 2] = g[5] * inv;
       const hf = Math.max(0, Math.min(1, 0.5 + hw / (2 * amax)));
       let cc = _l3(deep, surf, hf);
-      const foam = Math.max(0, Math.min(1, (hw / amax - 0.5) / 0.5));
+${A(`      if (fa) {
+        // whitecaps where the surface pinches (J below the look's threshold), tapered into the shallows with the waves
+        let fm = sf.sources ? 0 : Math.max(0, Math.min(1, (sf.aqua.foamThr - _gjac(sf.waves, x0, y0, t)) * 3.5)) * sh;
+        if (S) {
+          if (S.shallow) cc = _l3(cc, S.shallow, (1 - sh) * 0.7);
+          const breaker = Math.exp(-Math.pow((y0 - S.edgeY) / (S.foamW * 0.6), 2)) * 0.5;
+          const fb = Math.exp(-Math.pow((y0 - swashEdge) / S.foamW, 2));
+          fm = Math.max(fm, breaker, fb * 0.7);
+        }
+        fa[v] = fm; r.col[o] = cc[0]; r.col[o + 1] = cc[1]; r.col[o + 2] = cc[2]; continue;
+      }
+`)}      const foam = Math.max(0, Math.min(1, (hw / amax - 0.5) / 0.5));
       cc = _l3(cc, crest, foam * 0.85);
       if (S) {
         // shallows lighten toward the beach; whitecaps ride the crest tops so the travelling ripples
@@ -292,7 +363,8 @@ stepSurfaces = (ms) => {
       }
       r.col[o] = cc[0]; r.col[o + 1] = cc[1]; r.col[o + 2] = cc[2];
     }
-    r.geo.attributes.position.needsUpdate = true; r.geo.attributes.normal.needsUpdate = true; r.geo.attributes.color.needsUpdate = true;
+    r.geo.attributes.position.needsUpdate = true; r.geo.attributes.normal.needsUpdate = true; r.geo.attributes.color.needsUpdate = true;${A(`
+    if (fa) r.geo.attributes.aAqFoam.needsUpdate = true;`)}
     for (const fo of r.floats) {
       const g = _gerstner(sf.waves, fo.fl.x, fo.fl.y, t);
       let z = g[2];   // a buoy rides the SAME shore-tapered surface, so it sits right in deep water or shallows.

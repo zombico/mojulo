@@ -21,6 +21,7 @@
  * recipe regenerates the whole valley + flow deterministically (seeded phases + hash noise, no dice).
  */
 
+import { withAqua } from '../materials/aqua-look.js';
 const clampNum = (v, lo, hi, fb) => { const n = +v; return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fb; };
 const hex = (rgb) => '#' + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0')).join('');
 const norm3 = (v) => { const m = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / m, v[1] / m, v[2] / m]; };
@@ -141,7 +142,7 @@ export function assembleRiverScene(recipe = {}, { title } = {}) {
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : (lava ? '#1a1210' : '#cfe6f2');
   return {
     faces: plan.faces,
-    surfaces: plan.surfaces,
+    surfaces: lava ? plan.surfaces : withAqua(plan.surfaces, recipe.aqua, 'river', { bg, unit: s }),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo ${plan.stats.scenario} river`,

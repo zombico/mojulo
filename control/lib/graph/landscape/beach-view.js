@@ -17,6 +17,7 @@
  * Orbit-only object study — no walk, no CSS-3D /scene form.
  */
 
+import { withAqua } from '../materials/aqua-look.js';
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const GOLDEN = 2.399963229728653;   // golden angle (rad) — deterministic phase spread, no Math.random
@@ -159,7 +160,7 @@ export function assembleBeachScene(recipe = {}, { title } = {}) {
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#bfe0ee';
   return {
     faces: plan.faces,
-    surfaces: plan.surfaces,
+    surfaces: withAqua(plan.surfaces, recipe.aqua, 'lagoon', { bg, unit: s }),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo ${plan.stats.scenario} beach`,
