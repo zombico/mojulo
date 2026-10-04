@@ -108,7 +108,7 @@ export function registerCarvedSolidTools() {
         material: { type: ['string', 'object'], description: 'Shading model. Preset name (gold/steel/chrome/bronze/silver/copper/gunmetal | matte/plaster/stone/wood/rubber/plastic/satin | glass/neon/cel), a #rrggbb, or an object { preset?, base?, ambient?, diffuse?, specular?, shininess?, emissive?, cel?, opacity? }.' },
         metal: { type: 'string', description: 'Legacy alias for `material` (a metallic preset or #rrggbb).' },
         inner: { type: ['string', 'object'], description: "Inner luminosity layer (separate from material): 'glow' | 'glow:<preset>' (soft/neon/ember/rim/pulse) | { effect:'glow', preset?, color?, emission?, rim?, bloom?, pulse? }." },
-        fx: { type: ['string', 'object', 'array'], description: "Outer effect(s) routed along the contour: 'flame' | 'flame:engulf' | { effect, preset?, pathing?, ...overrides } | an array of these. Effects: overgrow / electric / ice / flame." },
+        fx: { type: ['string', 'object', 'array'], description: "Outer effect(s) routed along the contour: 'flame' | 'flame:engulf' | { effect, preset?, pathing?, ...overrides } | an array of these. Effects: overgrow / electric / ice / flame (on the logo; fire in a world: compose_world overrides.fire)." },
         camera: { type: 'object', description: '{ yaw (deg), fov (deg) }.', properties: { yaw: { type: 'number' }, fov: { type: 'number' } } },
         background: { type: 'boolean', description: 'Dark grade behind the solid (default true; false → transparent).' },
         animate: { description: 'Motion GIF control. Omit → auto (GIF when the effect animates); false → still only; { frames, fps } → tune.' },

@@ -1,6 +1,7 @@
 import { safeJson } from '../emit-util.js';
 import { terrainPlantsScript } from './terrain-plants.js';
 import { terrainGrassScript } from './terrain-grass.js';
+import { terrainWindScript } from './terrain-wind.js';
 
 // In-page script: the TERRAIN channel (opt-in via emitThreeWorld({ terrain })). The page
 // carries the terrain world's RECIPE — the kernel's source (terrain-kernel.js, inlined as text) and its quantised grids —
@@ -18,7 +19,8 @@ import { terrainGrassScript } from './terrain-grass.js';
 // Near and far follow altitude, haze thins with it, the sky rides with the camera, and high above a planet the sky
 // gives way to space and an atmosphere rim. In fly, WALK.speed grows with height above the ground.
 // Absent `terrain` ⇒ NOT emitted, so every other World stays byte-identical. `plants` (optional) appends the plants'
-// script (terrain-plants.js), which reads this one's kernel through window.__mojTerrain.
+// script (terrain-plants.js), which reads this one's kernel through window.__mojTerrain; `grass` the grass' (terrain-grass.js);
+// `wind` (optional) the wind's (terrain-wind.js), before both, which then bend in it.
 // `cfg`: { kernel: source text, K: the kernel's page config, root: { cx, cy, size }, n, split, minSize, maxChunks,
 //          budgetMs, skirt, hazeHeight, bg, rect | null, water: { z, color, opacity } | null,
 //          speeds: { walk, flyMin, flyPerAlt }, planet: null | { R, sea, space, rim, ocean },
@@ -26,7 +28,7 @@ import { terrainGrassScript } from './terrain-grass.js';
 //          the camera is nearer than the pin's `split` × its size (above the world's own), down to `size`: the ground
 //          under a city's streets and lots stays nearly as fine as they are wherever they can be seen (flat worlds).
 export function terrainChannelScript(cfg) {
-  const { kernel, plants, grass, ...rest } = cfg;   // plants (terrain-plants.js) and grass (terrain-grass.js): scripts of their own, after the ground's
+  const { kernel, plants, grass, wind, ...rest } = cfg;   // plants (terrain-plants.js), grass (terrain-grass.js) and the wind that bends them (terrain-wind.js): scripts of their own, after the ground's
   return `
 // --- terrain world (opt-in): the recipe's ground, meshed around the camera ---
 const TERRAIN = ${safeJson(rest)};
@@ -249,5 +251,5 @@ if (TERRAIN.water && !__tPL) {
   wm.position.set(TERRAIN.root.cx, TERRAIN.root.cy, W.z); wm.renderOrder = 1; scene.add(wm);
 }
 __tTick();
-${plants ? terrainPlantsScript(plants) : ''}${grass ? terrainGrassScript(grass) : ''}`;
+${wind ? terrainWindScript(wind) : ''}${plants ? terrainPlantsScript(plants, !!wind) : ''}${grass ? terrainGrassScript(grass, !!wind) : ''}`;
 }

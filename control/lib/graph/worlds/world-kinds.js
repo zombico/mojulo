@@ -78,6 +78,7 @@ import { assembleFluidScene } from '@/lib/graph/landscape/fluid-view';
 import { assembleOceanScene } from '@/lib/graph/landscape/ocean-view';
 import { assembleBeachScene } from '@/lib/graph/landscape/beach-view';
 import { assembleRiverScene } from '@/lib/graph/landscape/river-view';
+import { assembleWaterfallScene } from '@/lib/graph/landscape/waterfall-view';
 import { assembleGravityWaveScene } from '@/lib/graph/views/science/gravity-wave-view';
 import { assembleParallelTransportScene } from '@/lib/graph/views/science/parallel-transport-view';
 import { assembleWindmillScene } from '@/lib/graph/vehicles/windmill-view';
@@ -340,6 +341,7 @@ export const WORLD_KINDS = {
   'ocean-view': view(assembleOceanScene, 'mojulo ocean'),
   'beach-view': view(assembleBeachScene, 'mojulo beach'),
   'river-view': view(assembleRiverScene, 'mojulo river'),
+  'waterfall-view': view(assembleWaterfallScene, 'mojulo waterfall'),
   'gravity-wave-view': view(assembleGravityWaveScene, 'mojulo gravitational waves'),
   'parallel-transport-view': view(assembleParallelTransportScene, 'mojulo parallel transport'),
   'windmill-view': view(assembleWindmillScene, 'mojulo windmill'),

@@ -146,6 +146,73 @@ numbers below were checked against the literature, and several first guesses tur
   - a big plume (pampas) close up reads as paper, not feathers;
   - exports carry no grass.
 
+
+## A tree in bloom (`species.js` `cherry`, `bloom`, `over`)
+
+- **Form from the architecture's own numbers.** The cherry is Rauh's upright trunk made decurrent (`over`: apical
+  control 0.50 → 0.44, limbs at 52/64/74°): it forks low into a dome about as wide as it is tall. Weaker control than
+  that grows a shrub; Troll's model grows a leader with tiers.
+- **Bloom is a dress on the leaves.** `bloom` recolours every leaf face between a deep, a petal and a lit pink by its
+  own baked tone, and darkens green shoots to twigs. `bloom.fill` multiplies the clusters' leaf area (`ladder.js`): a
+  flowering spur carries several clusters of flowers, so the crown is a cloud where its leaves alone would be sparse.
+  `leafLife: 2` keeps the blossom along two years of spurs.
+- **A grove is `plants.kinds`.** It replaces the climate's trees; the cherry's crown ratio spaces it with lawn between.
+- **Many ages (`growth` on a species).** A list of ages, each optionally in a stand, grows one variant at each age. A young tree is not a small old one: girth grows with the rings, and a stand's shade sheds the low limbs, so the crown lifts.
+  - Measured on the cherry: 8 y ≈ 4 m, dbh 6 cm; 21 y ≈ 6 m, dbh 25 cm. In the open it forks at about 0.5 m; in a stand at 1–2.5 m.
+  - A plant picks its age from its height within the species' range, with a little jitter (the pool's `plantRepeats` and the terrain page alike), and is then scaled to that height.
+  - A species without `growth` keeps its variants and its pick.
+- **A hand (`arch.hand`, opt-in).** The engine's shoots run straight between buds. A plant with a hand (`{ sense, twist, helix, turn, zig }`, in degrees) turns each new internode as it grows:
+  - **Twist:** about the vertical (a third as much on the trunk), so every limb sweeps round the same way. This is the helix the cell wall winds its cellulose in, left in the form.
+  - **Helix:** a lean toward a bearing that turns each internode, so an upright leader winds in a loose corkscrew.
+  - **Zig:** a sideways zig-zag on laterals.
+
+  Light, tropism and reaction wood still act on the turned shoot. A plant without a hand grows exactly as before: no code runs and no dice are drawn.
+- **Smooth axes (`arch.smooth`, opt-in).** `axisChains` puts a point at every internode's Catmull–Rom midpoint, so a turning limb bends instead of kinking. Each half keeps its internode's node (age, tone). The cherry has both.
+- **Flower by flower (`blossom.js`).** These parts are not emitted by a recipe yet; the hero grove spike uses them.
+  - `bloomFlowers(plant)` puts umbels at the ends of the shoots: a bunch at every tip, spurs thinning back over the last 38 cm, and bare wood behind.
+  - `flowerGeometry()` builds a flower from its parts: notched petals with a fractal edge, a cup, sepals, stamens and a pedicel. Its levels run from the whole fractal edge down to a five-fan star.
+  - Past a few pixels a flower is best drawn as its footprint, one lit disc facing the eye. That is the layer between whole flowers and the crown's clusters.
+- **The disc level in terrain worlds.**
+  - A species in bloom grows its flowers in the pool (`plantPool({ discs: true })`: `bloom` holds each flower's centre, size and colour lit in the world's light; `bare` holds its L1 and L2 wood without the clusters).
+  - The page draws a tree in bloom at L1 or L2 as its bare wood plus one disc per flower: five-lobed, facing the eye, bent by the wind with its tree, and never over about ten pixels.
+  - Discs have their own budget of 1.2M flowers, given to the trees largest on screen first; past it a tree keeps its clusters. At L1 a flower is under a pixel, so every third one is drawn at √3 its size.
+  - A world with no species in bloom carries none of this.
+
+## Wind: flaccidity (`wind.js`)
+
+- **One field, and a dial on everything it touches.** A terrain's `wind` is one seeded gust field: a mean speed toward
+  a direction, gusts carried downwind at the mean speed (frozen turbulence: a gust here arrives d/speed seconds later
+  d metres downwind), a log profile over the ground and a gust-driven veer. **Flaccidity** φ ∈ [0, 1] is the share of
+  the air's push a thing takes. Everything that existed before wind is φ = 0 and holds still; grass and plants are born
+  at 1. φ is a coupling, not a stiffness: how far a plant bends for what it takes is its own mechanics.
+- **Wind on a stem is still the elastica.** Weight plus a sideways drag R·w is a uniform load in a fixed direction, so
+  the droop solve holds with B scaled by √(1 + R²) and the clamp angle taken from the plane normal to the load.
+  `bendTable` bakes the change of shape from still air over (R, arc, B) and the page reads it as a 3D texture.
+- **R = φ · sail · F[|u|^(1+V) u].**
+  - The sail is drag over weight at 1 m/s.
+  - V is the Vogel exponent: flexible things streamline as they bend, grass about −1 (Vogel 1989; Gosselin & de Langre
+    2011). Without it every blade lies flat by 5 m/s.
+  - F is a damped oscillator at the stem's first frequency, 0.56·√(g/(B L)), with unit gain for a steady wind: a gust
+    overshoots and rings.
+- **A tuft or a tree is one stem its own height** (`WIND_TAKERS`, `grassTaker`):
+  - a tuft sways at half its blades' middle B: a bundle is stiffer than its floppiest blade, and it keeps every kind
+    under Greenhill's number (≈ 7.84), past which an upright stem cannot stand;
+  - a tree's B and sail are set so a 10 m crown moves tens of centimetres at 10 m/s, as field sway records do, not from
+    its weight;
+  - a quiver out of phase between neighbours gives blades and leaves their own life.
+- **Debris rides the same field** (`windField`, `debrisKernel`: self-contained, so the page inlines the very functions
+  the tests run, and its shader's noise texture is the particles' own read). Fallen leaves and dust lie around the
+  camera until the wind 5 cm up (about a fifth of the wind at 2 m over grass) passes their lift, then fly under
+  implicit drag toward φ·u, with a still-air settling speed and an updraught that reaches the ground, and land. A piece
+  carried out of reach comes back at its mirror through the camera, so the density holds.
+- **Things a plant gives off fly too.** Petals are released from crowns in bloom (`setSources`, from the page's own
+  plant tiles) when the wind in a crown passes 3 m/s, at a rate growing with the excess, flutter down at about half a
+  metre a second, lie a while and are given again; two in five are the carpet under the trees. Where nothing blooms
+  the page carries none.
+- **Where it runs** (`scene/channels/terrain-wind.js`): a vertex shader on clones of the grass' and plants' materials,
+  per instance root. Absent `wind`, the page is byte-identical. The research spike behind it, with plants, a ribbon and
+  debris on the same field, is `control/scripts/spikes/wind/`.
+
 ## Bamboo: the stack as a lathe (`bamboo.js`)
 
 - **The culm is a profile r(s) swept round a spine.** There is no bark, no rings and no spiral grain.

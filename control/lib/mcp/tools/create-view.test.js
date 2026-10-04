@@ -129,7 +129,7 @@ describe('get_view_vocab reader', () => {
 
   it('lists index rows, filterable by family', async () => {
     const all = await getViewVocabHandler({});
-    expect(all.cards.length).toBe(62);   // + terrain (terrain-world, 2026-09-28)
+    expect(all.cards.length).toBe(63);   // + waterfall (the falling-water primitive's view, 2026-10-04)
     const world = await getViewVocabHandler({ family: 'world' });
     expect(world.cards.length).toBe(10);
     expect(world.cards.every((c) => c.entry === 'compose_world')).toBe(true);

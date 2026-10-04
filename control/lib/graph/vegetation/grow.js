@@ -162,6 +162,21 @@ export function grow(archIn, opts = {}) {
   const budsOf = new Map();                    // node id → buds sitting on it (they turn with the wood)
   const pushBud = (b) => { buds.push(b); if (!budsOf.has(b.node)) budsOf.set(b.node, []); budsOf.get(b.node).push(b); };
   const addNode = (n) => { n.id = nodes.length; nodes.push(n); if (n.parent >= 0) { if (!children.has(n.parent)) children.set(n.parent, []); children.get(n.parent).push(n.id); } return n; };
+  // the plant's hand (arch.hand, opt-in: { sense: ±1, twist, helix, turn, zig } in degrees): the helix the cell wall
+  // winds its cellulose in, left in the form. Each internode a shoot lays down is turned about the vertical by `twist`
+  // (a third of it on the trunk), so every limb sweeps round the trunk the same way; leans `helix` toward a bearing that
+  // turns `turn` an internode, so an upright leader winds up in a loose corkscrew (turning about the vertical cannot
+  // touch it); and, on a lateral, kinks `zig` sideways node to node (a Prunus shoot's zig-zag). No dice: a plant
+  // without a hand grows exactly as before.
+  function handed(d, ax, order) {
+    const H = arch.hand, s = H.sense || 1, k = (ax.k = (ax.k || 0) + 1);
+    let v = rot(d, UP, s * (H.twist || 0) * DEG * (order === 0 ? 1 / 3 : 1));
+    const b = s * (H.turn || 0) * DEG * k + ax.id * 2.4, q = [dmath.cos(b), dmath.sin(b), 0], t = cross(v, q);
+    if (len(t) > 1e-6) v = rot(v, unit(t), (H.helix || 0) * DEG * (order === 0 ? 1 : 0.6));
+    const side = cross(UP, v);
+    if (order > 0 && H.zig && len(side) > 1e-6) v = rot(v, unit(side), H.zig * DEG * (k % 2 ? 1 : -1));
+    return unit(v);
+  }
   function setPointDir(d, order, age) {
     let sp = at(arch.setPoint, order);
     if (arch.uprightAge && order === 0 && age >= arch.uprightAge) sp = 0;       // Troll: the older trunk uprights
@@ -239,6 +254,7 @@ export function grow(archIn, opts = {}) {
         const light = lightDir(p0);
         const jitter = [rng() - 0.5, rng() - 0.5, rng() - 0.5];
         d = unit(add(add(add(mul(d, P.wPrev), mul(trop, P.wTrop)), mul(light, P.wLight)), mul(jitter, P.wander)));
+        if (arch.hand) d = handed(d, ax, order_);
         const l = L0 * (0.85 + 0.3 * rng());
         const lv = arch.terminalLeaves ? (i >= n - 2 ? arch.leavesPerNode * 4 : 0) : arch.leavesPerNode;
         const node = addNode({ parent: prev, axis: axisId, order: order_, born: year, pos: add(p0, mul(d, l)), dir: d, len: l, r: P.rPrimary, area: [], leaves: lv, dA: 0 });

@@ -83,6 +83,15 @@ describe('compose_world audio door (all bases)', () => {
     expect(stored.manifest.audio).toEqual({ wind: true, footsteps: true });
   });
 
+  it('fire is kind-generic too: a dungeon\'s `fire: true` lands in the stored manifest; a bad fire refuses the mint', async () => {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches.js');
+    const r = composeWorld({ base: 'dungeon', seed: 3, overrides: { ...DUNGEON, fire: true } });
+    expect(r.recipe.fire).toBe(true);
+    expect(r.note).toBeUndefined();
+    expect(SketchRepository.getByRef(r.ref).manifest.fire).toBe(true);
+    expect(() => composeWorld({ base: 'dungeon', seed: 3, overrides: { ...DUNGEON, fire: { sources: [{ kind: 'pyre', at: [0, 0] }] } } })).toThrow(/overrides\.fire is invalid[\s\S]*kind must be one of/);
+  });
+
   it('non-object audio refuses the mint with a pointer to the vocabulary', () => {
     expect(() =>
       composeWorld({ base: 'dungeon', seed: 3, overrides: { ...DUNGEON, audio: 100 } }),
