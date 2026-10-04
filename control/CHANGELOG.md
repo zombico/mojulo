@@ -31,6 +31,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   deep water turns opaque. Where water is thin, against a beach, a bank or a floating buoy, it froths
   in bands that lap toward the edge. The beach view gains a seabed that falls away offshore so its water
   shades from shallows to deeps. Open sea with nothing beneath it looks as before.
+- **Water leaves with the scene.** Exported GLBs carry each body of water as its own `water:<kind>` node
+  with a clear-water material (transmission, index of refraction 1.333, and absorption that keeps
+  blue and loses red), which Blender reads. Animated seas, beaches and rivers, which no export carried
+  before, leave as one frozen frame with their foam baked in; the ocean view now exports at all. Godot
+  packs (kernel 0.4.0) shade that water live with a water shader: the seabed seen through the water,
+  bent by the ripples and fading red-first with depth, foam where the water thins, sky reflection and
+  sun glint, and drifting ripples. The waves themselves stand still in an export.
 - **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
   `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
   use `canal`.
