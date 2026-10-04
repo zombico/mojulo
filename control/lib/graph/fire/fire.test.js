@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FIRE_KINDS, validateFire, resolveFire, fireKernel, firePageChannel } from './fire.js';
+import { FIRE_KINDS, FIRE_COLORANTS, validateFire, resolveFire, fireKernel, firePageChannel, fireLightColor } from './fire.js';
 import { fireChannelScript } from '../scene/channels/fire.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { assembleDungeonScene } from '../architecture/dungeon-designer.js';
@@ -39,6 +39,31 @@ describe('fire: the recipe', () => {
     expect(resolveFire({ sources: [{ kind: 'torch', at: [1, 1] }] }, [{ kind: 'torch', at: [1, 1, 9] }], { explicit: false }).sources).toHaveLength(1);
     expect(resolveFire(true, [])).toBeNull();
     expect(resolveFire(false)).toBeNull();
+  });
+});
+
+describe('fire: colour, as fireworks are coloured', () => {
+  it('takes a colorant, a mix, or a hex; refuses anything else with the list of salts', () => {
+    expect(validateFire({ color: 'strontium', sources: [{ kind: 'torch', at: [0, 0], color: { copper: 1, barium: 0.5 }, soot: 0.3, smokeColor: '#30c060' }, { kind: 'brazier', at: [1, 1], color: '#8a2be2' }] })).toEqual([]);
+    const e = validateFire({ color: 'neon', sources: [{ kind: 'torch', at: [0, 0], color: { copper: -1 }, soot: 3, smokeColor: 'green' }, { kind: 'torch', at: [0, 0], color: { radium: 1 } }] }).join('\n');
+    expect(e).toMatch(/fire.color must be a colorant \(sodium, strontium, lithium, calcium, barium, boron, copper, potassium\)/);
+    expect(e).toMatch(/color.copper must be a weight/);
+    expect(e).toMatch(/soot must be from 0/);
+    expect(e).toMatch(/smokeColor must be '#rrggbb'/);
+    expect(e).toMatch(/color.radium is not a colorant/);
+  });
+
+  it('a coloured flame burns clean: its lines replace most of the soot, and its light takes their hue', () => {
+    const r = resolveFire({ color: 'barium', sources: [{ kind: 'brazier', at: [0, 0, 1] }, { kind: 'brazier', at: [1, 0, 1], color: 'copper', soot: 0.5 }, { kind: 'brazier', at: [2, 0, 1], color: '#ff00ff' }] });
+    const [g, b, m] = r.sources;
+    expect(g.line).toEqual(FIRE_COLORANTS.barium.map((v) => +(v / Math.max(...FIRE_COLORANTS.barium)).toFixed(4)));
+    expect(g.soot).toBeLessThan(FIRE_KINDS.brazier.soot * 0.2);
+    expect(b.soot).toBeCloseTo(FIRE_KINDS.brazier.soot * 0.5, 6);
+    expect(m.line).toEqual([1, 0, 1]);
+    const green = fireLightColor('barium'), plain = fireLightColor(undefined);
+    expect(green[1]).toBeGreaterThan(green[0]);
+    expect(plain[0]).toBeGreaterThan(plain[1]);
+    expect(resolveFire({ sources: [{ kind: 'torch', at: [0, 0, 1] }] }).sources[0].line).toBeUndefined();
   });
 });
 
@@ -122,6 +147,15 @@ describe('fire: in worlds', () => {
     expect(plain.faces.filter((f) => f.glow).length).toBeGreaterThan(0);
   });
 
+  it('a dungeon lit by coloured fire bakes the fire\'s own hue into its walls; uncoloured, its bake is unchanged', () => {
+    const plain = assembleDungeonScene({ ...DUNGEON, fire: true }), green = assembleDungeonScene({ ...DUNGEON, fire: { color: 'barium' } });
+    expect(JSON.stringify(assembleDungeonScene({ ...DUNGEON, fire: {} }).faces)).toBe(JSON.stringify(plain.faces));
+    expect(JSON.stringify(green.faces)).not.toBe(JSON.stringify(plain.faces));
+    const page = fireChannelScript(firePageChannel(resolveFire({ color: 'barium' }, green.fireSources)));
+    expect(() => new Function('THREE', 'scene', 'camera', 'renderer', `${page};return stepFire;`)).not.toThrow();
+    expect(page).toMatch(/"line":\[0\.32,1,0\.08\]/);
+  });
+
   it('the world route resolves fire for a dungeon and for a terrain (sources set on the ground, leaning in its wind)', async () => {
     const d = await resolveWorldScene({ ref: 'sk_fire_dungeon', title: 'fire', manifest: { kind: 'dungeon', ...DUNGEON, fire: true } });
     expect(d.payload.fire.sources).toHaveLength(4);
@@ -133,5 +167,5 @@ describe('fire: in worlds', () => {
     expect(t.payload.fire.day).toBe(1);
     expect(Math.abs(s.at[2] - FIRE_KINDS.campfire.seat)).toBeGreaterThan(0.5);   // on the ground, not at sea level
     await expect(resolveWorldScene({ ref: 'sk_fire_bad', title: 'x', manifest: { kind: 'dungeon', ...DUNGEON, fire: { sources: [{ kind: 'pyre', at: [0, 0] }] } } })).rejects.toThrow(/kind must be one of/);
-  });
+  }, 120000);   // a live terrain world is a heavy resolve
 });

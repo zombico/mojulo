@@ -251,7 +251,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   // fire (fire/fire.js): sources set on the ground here (a 2D `at` takes the ground's height under it); the page's fire
   // channel draws them, leaning in the wind when the world has one. world-scene.js resolves them with the rest.
   const fireSources = manifest.fire && typeof manifest.fire === 'object' && Array.isArray(manifest.fire.sources) && !PLN
-    ? manifest.fire.sources.map((s) => ({ kind: s.kind, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], field.groundAt(s.at[0], s.at[1])], size: s.size, phi: s.phi })) : null;
+    ? manifest.fire.sources.map((s) => ({ kind: s.kind, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], field.groundAt(s.at[0], s.at[1])], size: s.size, phi: s.phi, color: s.color, soot: s.soot, smokeColor: s.smokeColor })) : null;
   const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];
   const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place, { surf: PLN ? surf : null }) : null;
   return {

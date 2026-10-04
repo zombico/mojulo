@@ -37,6 +37,15 @@ writeFileSync(`${dir}/dungeon-fire.html`, emitThreeWorld({ ...dp, inline: true, 
 writeFileSync(`${dir}/dungeon-fire.capture.html`, emitThreeWorld({ ...dp, inline: true, hud: true, capture: true }));
 console.log('dungeon', dp.fire.sources.map((s) => s.kind).join(' '));
 
+// colour: a dungeon lit green (barium: the walls bake in the fire's own hue), and a flame test in the hub, a ring of
+// braziers one per colorant, a magic purple torch and a torch giving off green signal smoke
+const page = (name, manifest) => { const p = withFire(assembleDungeonScene(manifest, {}), manifest.fire); writeFileSync(`${dir}/${name}.html`, emitThreeWorld({ ...p, inline: true, hud: true })); writeFileSync(`${dir}/${name}.capture.html`, emitThreeWorld({ ...p, inline: true, hud: true, capture: true })); return p; };
+page('dungeon-green', { ...dungeon, fire: { color: 'barium' } });
+const salts = ['sodium', 'calcium', 'strontium', 'lithium', 'potassium', 'copper', 'boron', 'barium'];
+const ring = salts.map((c, k) => ({ kind: 'brazier', at: [4.6 * Math.cos((2 * Math.PI * k) / salts.length), 4.6 * Math.sin((2 * Math.PI * k) / salts.length), 1], color: c, size: 0.7 }));
+const fp = page('flame-test', { ...dungeon, fire: { sources: [...ring, { kind: 'torch', at: [0, -1.2, 1.6], color: '#8a2be2' }, { kind: 'torch', at: [0, 1.2, 1.6], smokeColor: '#2fbf5a' }] } });
+console.log('flame test', fp.fire.sources.filter((s) => s.line).map((s) => s.line.map((v) => v.toFixed(2)).join('/')).join(' '));
+
 // the campfire: a meadow in a breeze, a campfire a few steps from the spawn and four torches around it
 const world = { features: [{ feature: 'river' }], climate: 'temperate', seed: 'campfire' };
 const probe = assembleTerrainWorld({ kind: 'terrain', world }, { live: true });

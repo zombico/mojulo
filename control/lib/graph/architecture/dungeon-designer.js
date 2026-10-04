@@ -27,6 +27,7 @@ import { emitThreeWorld } from '../scene/scene-three.js';
 import { scaleHex, FLAT_LIGHT } from '../polygonizer/vexar.js';
 import { resolveMaterial, tagFacesWithMaterial, validateMaterialRef } from '../polygonizer/materials.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
+import { fireLightColor } from '../fire/fire.js';
 
 export const WALL_STYLES = ['cave', 'flat'];
 export const FLOOR_STYLES = ['wave', 'flat'];
@@ -327,7 +328,9 @@ export function buildDungeonFaces(plan, { lighting = {}, section = false, unshad
   raw = raw.map((f) => ({ ...f, group: 'static' }));
   if (section) { const cut = lighting.sectionY ?? 0; raw = raw.filter((f) => centroidY(f) >= cut - 0.15); }
 
-  const fireColor = lighting.fireColor || [1, 0.56, 0.24], lit = !!live && !unshaded;
+  // a coloured live fire (`fire.color`) bakes its own colour into the walls, so its flicker plays over light of its hue
+  const tinted = live && typeof live === 'object' && live.color !== undefined && !lighting.fireColor;
+  const fireColor = lighting.fireColor || (tinted ? fireLightColor(live.color, 'brazier') : [1, 0.56, 0.24]), lit = !!live && !unshaded;
   const fireI = lighting.fireIntensity ?? 1.7;
   // movement-flow (kernel #4): seat the fire AWAY from the chamber's primary exit so the
   // prop never blocks the desire line out, and lean its throw TOWARD the passage so the lit
@@ -344,7 +347,7 @@ export function buildDungeonFaces(plan, { lighting = {}, section = false, unshad
       spread: section ? 155 : 168, fixtureR: 0.26, glowBlur: 26, glowSpread: 11,
     };
   });
-  const glows = plan.tunnels.flatMap((t) => { const zUp = t.style === 'corridor' ? (t.height || 5) * 0.45 : 0; return [0.35, 0.65].map((a, k) => ({ pos: lit ? torchOnWall(t, a, k) : add(lerp(t.p0, t.p1, a), [0, 0, zUp]), color: [1, 0.62, 0.3], intensity: 1.9, rays: 40, bounces: 1, dir: [0, 0, 1], spread: 175, fixtureR: 0.16, glowBlur: 18, glowSpread: 7 })); });
+  const glows = plan.tunnels.flatMap((t) => { const zUp = t.style === 'corridor' ? (t.height || 5) * 0.45 : 0; return [0.35, 0.65].map((a, k) => ({ pos: lit ? torchOnWall(t, a, k) : add(lerp(t.p0, t.p1, a), [0, 0, zUp]), color: tinted ? fireLightColor(live.color, 'torch') : [1, 0.62, 0.3], intensity: 1.9, rays: 40, bounces: 1, dir: [0, 0, 1], spread: 175, fixtureR: 0.16, glowBlur: 18, glowSpread: 7 })); });
   // live fire (`fire` on the manifest): the chamber fires are braziers and the tunnel glows torches on the walls, drawn
   // live by the page's fire channel — so their baked fixture blobs go, and the bake keeps only their light
   if (lit) for (const s of [...fires, ...glows]) s.fixture = false;
@@ -400,7 +403,7 @@ export function assembleDungeonScene(manifest = {}, ctx = {}) {
   if (!plan.chambers.length) {
     throw new Error('dungeon-designer: spec needs at least one chamber ({ chambers: [{ id, at, radius, … }] })');
   }
-  const { faces, sources } = buildDungeonFaces(plan, { lighting: manifest.lighting || {}, section: false, unshaded: ctx.unshaded === true, live: !!manifest.fire });
+  const { faces, sources } = buildDungeonFaces(plan, { lighting: manifest.lighting || {}, section: false, unshaded: ctx.unshaded === true, live: manifest.fire || false });
   return {
     // the lit handoff: the traced fires ride as point lights, and the cave DECLARES itself an
     // interior (`sky.preset 'interior'`) so an engine rig keeps its sun out of the shell — the

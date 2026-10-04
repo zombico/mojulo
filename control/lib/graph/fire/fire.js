@@ -32,19 +32,52 @@ export const FIRE_KINDS = Object.freeze({
 });
 export const FIRE_MAX_SOURCES = 64;
 
+// COLORANTS, as fireworks are coloured: a metal salt in the flame, its atoms (or the molecules they form in the flame)
+// excited by the heat and giving light at their own lines: sodium's 589 nm doublet (yellow, and it drowns the rest),
+// strontium's SrOH/SrCl bands 600–690 nm (red), lithium 671 nm (crimson), calcium's CaOH (orange), barium's BaCl
+// 505–535 nm (green), boron's BO₂ (green), copper's CuCl 420–460 nm (blue), potassium 766/404 nm (lilac). rgb: the
+// line light as linear display colour. A coloured flame must burn clean: glowing soot is the yellow of an ordinary
+// flame, and it outshines the lines, so a colorant thins the soot unless `soot` says otherwise (pyrotechnic stars
+// carry their own oxidiser and a chlorine donor for exactly this).
+export const FIRE_COLORANTS = Object.freeze({
+  sodium: [1, 0.66, 0.06], strontium: [1, 0.05, 0.06], lithium: [1, 0.03, 0.16], calcium: [1, 0.32, 0.04],
+  barium: [0.32, 1, 0.08], boron: [0.12, 1, 0.22], copper: [0.06, 0.32, 1], potassium: [0.62, 0.32, 1],
+});
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const hexLin = (h) => [1, 3, 5].map((i) => Math.pow(parseInt(h.slice(i, i + 2), 16) / 255, 2.2));
+function colorErrors(c, where) {
+  if (c === undefined) return [];
+  const salts = Object.keys(FIRE_COLORANTS).join(', ');
+  if (typeof c === 'string') return FIRE_COLORANTS[c] || HEX.test(c) ? [] : [`${where} must be a colorant (${salts}), a mix { strontium: 1, copper: 0.5 }, or '#rrggbb'`];
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return [`${where} must be a colorant (${salts}), a mix, or '#rrggbb'`];
+  const e = []; for (const [k, v] of Object.entries(c)) { if (!FIRE_COLORANTS[k]) e.push(`${where}.${k} is not a colorant (${salts})`); else if (!(isNum(v) && v >= 0)) e.push(`${where}.${k} must be a weight ≥ 0`); }
+  if (!e.length && !Object.values(c).some((v) => v > 0)) e.push(`${where} needs at least one weight above 0`);
+  return e;
+}
+// → { line: [r, g, b] (normalised so its brightest channel is 1), k: how much of the flame's light it is, magic }
+function resolveColor(c) {
+  if (c === undefined) return null;
+  if (typeof c === 'string' && HEX.test(c)) { const l = hexLin(c), m = Math.max(...l, 1e-6); return { line: l.map((v) => +(v / m).toFixed(4)), k: 1, magic: true }; }
+  const mix = typeof c === 'string' ? { [c]: 1 } : c; let r = 0, g = 0, b = 0, w = 0;
+  for (const [k, v] of Object.entries(mix)) { const q = FIRE_COLORANTS[k]; r += q[0] * v; g += q[1] * v; b += q[2] * v; w += v; }
+  const m = Math.max(r, g, b, 1e-6); return { line: [r / m, g / m, b / m].map((v) => +v.toFixed(4)), k: 0.85, magic: false };
+}
+
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /**
  * validateFire(fire) → [] when valid, else teaching messages. `fire` is `true` (a world that knows where its fires
  * are: a dungeon's chambers and tunnels) or `{ sources?, embers?, smoke?, light? }` where a source is
- * `{ kind: 'candle'|'torch'|'brazier'|'campfire', at: [x, y] | [x, y, z], size?: 0.25–4, phi?: 0–1 }`.
+ * `{ kind: 'candle'|'torch'|'brazier'|'campfire', at: [x, y] | [x, y, z], size?: 0.25–4, phi?: 0–1, color?, soot?: 0–1,
+ * smokeColor?: '#rrggbb' }`; `color` (a colorant, a mix of them, or '#rrggbb') on the fire sets every source's.
  */
 export function validateFire(fire) {
   if (fire === undefined || fire === null || fire === false) return [];
   if (fire === true) return [];
   if (typeof fire !== 'object' || Array.isArray(fire)) return ['fire must be true or { sources: [{ kind, at }], embers?, smoke?, light? }'];
   const e = [], kinds = Object.keys(FIRE_KINDS).join(', ');
-  for (const k of Object.keys(fire)) if (!['sources', 'embers', 'smoke', 'light'].includes(k)) e.push(`fire.${k} is not a fire option (sources, embers, smoke, light)`);
+  for (const k of Object.keys(fire)) if (!['sources', 'embers', 'smoke', 'light', 'color'].includes(k)) e.push(`fire.${k} is not a fire option (sources, embers, smoke, light, color)`);
+  e.push(...colorErrors(fire.color, 'fire.color'));
   if (fire.sources !== undefined) {
     if (!Array.isArray(fire.sources)) e.push('fire.sources must be a list of { kind, at: [x, y] or [x, y, z] }');
     else {
@@ -55,6 +88,9 @@ export function validateFire(fire) {
         if (!Array.isArray(s.at) || (s.at.length !== 2 && s.at.length !== 3) || !s.at.every(isNum)) e.push(`fire.sources[${i}].at must be [x, y] (on the ground) or [x, y, z]`);
         if (s.size !== undefined && !(isNum(s.size) && s.size >= 0.25 && s.size <= 4)) e.push(`fire.sources[${i}].size must be a number from 0.25 to 4`);
         if (s.phi !== undefined && !(isNum(s.phi) && s.phi >= 0 && s.phi <= 1)) e.push(`fire.sources[${i}].phi must be from 0 (still air) to 1`);
+        e.push(...colorErrors(s.color, `fire.sources[${i}].color`));
+        if (s.soot !== undefined && !(isNum(s.soot) && s.soot >= 0 && s.soot <= 1)) e.push(`fire.sources[${i}].soot must be from 0 (a clean, line-coloured flame) to 1 (all yellow soot)`);
+        if (s.smokeColor !== undefined && !(typeof s.smokeColor === 'string' && HEX.test(s.smokeColor))) e.push(`fire.sources[${i}].smokeColor must be '#rrggbb' (a coloured signal smoke)`);
       });
     }
   }
@@ -72,7 +108,7 @@ export function resolveFire(fire, placed = [], { explicit: withExplicit = true }
   if (!fire) return null;
   const o = fire === true ? {} : fire;
   // a 2D `at` stands on the ground: a world that knows its ground hands these over placed (and says so); elsewhere z = 0
-  const explicit = withExplicit ? (o.sources || []).map((s) => ({ kind: s.kind, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], 0], size: s.size, phi: s.phi })) : [];
+  const explicit = withExplicit ? (o.sources || []).map((s) => ({ kind: s.kind, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], 0], size: s.size, phi: s.phi, color: s.color, soot: s.soot, smokeColor: s.smokeColor })) : [];
   const all = [...placed, ...explicit].slice(0, FIRE_MAX_SOURCES);
   if (!all.length) return null;
   return {
@@ -80,9 +116,12 @@ export function resolveFire(fire, placed = [], { explicit: withExplicit = true }
     sources: all.map((s, i) => {
       const K = FIRE_KINDS[s.kind], k = isNum(s.size) ? s.size : 1;
       // a bigger fire of a kind: its bed scales with size, its flame and light with size^(2/5)·… as Heskestad's do
-      const at = [s.at[0], s.at[1], s.at[2] + (K.seat || 0) * k];
+      const at = [s.at[0], s.at[1], s.at[2] + (K.seat || 0) * k], col = resolveColor(s.color !== undefined ? s.color : o.color);
+      // a coloured flame burns clean unless told: its soot is what is left of an ordinary flame's
+      const soot = isNum(s.soot) ? s.soot : col ? (col.magic ? 0.06 : 0.12) : 1;
       return { kind: s.kind, at: at.map((v) => +v.toFixed(4)), D: K.D * k, L: K.L * Math.pow(k, 0.8), n: K.n, lam: K.lam, light: K.light * Math.pow(k, 1.6),
-        embers: Math.round(K.embers * k), smoke: K.smoke, soot: K.soot, phi: isNum(s.phi) ? s.phi : 1, baked: !!s.baked, seed: (i * 7919 + 17) | 0 };
+        embers: Math.round(K.embers * k), smoke: K.smoke, soot: K.soot * soot, phi: isNum(s.phi) ? s.phi : 1, baked: !!s.baked, seed: (i * 7919 + 17) | 0,
+        ...(col ? { line: col.line, lineK: col.k } : {}), ...(s.smokeColor ? { smokeColor: hexLin(s.smokeColor).map((v) => +v.toFixed(4)) } : {}) };
     }),
   };
 }
@@ -190,6 +229,15 @@ export function fireKernel(F, air) {
     return out;
   }
   return { NP, flames, light, embers, smoke, N: S.length };
+}
+
+/** fireLightColor(color, kind) → the [r, g, b] a fire of that colour lights the world with (what a world's bake should
+ *  use for it): its kind's warm yellow, or as much of the colorant's lines as the clean flame gives. */
+export function fireLightColor(color, kind = 'brazier', soot) {
+  const base = { candle: [1, 0.66, 0.34], torch: [1, 0.55, 0.24], brazier: [1, 0.52, 0.22], campfire: [1, 0.5, 0.2] }[kind] || [1, 0.56, 0.24];
+  const c = resolveColor(color); if (!c) return base;
+  const st = isNum(soot) ? soot : c.magic ? 0.06 : 0.12, k = c.k * (1 - 0.6 * st);
+  return base.map((v, j) => +(v * (1 - k) + c.line[j] * k).toFixed(4));
 }
 
 /** firePageChannel(resolved, { terrainAir, day }) → the page block's cfg. day: the world's daylight 0–1 (a fire lights

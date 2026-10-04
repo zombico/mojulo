@@ -22,7 +22,10 @@ const __fireTW = FIRE.terrainAir ? window.__mojTerrain : null;
 const __fireWind = __fireTW && __fireTW.wind ? __fireTW.wind : null;
 const __fireK = (${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null);
 const __fireN = FIRE.sources.length, __FNP = __fireK.NP;
-const __fireCol = { candle: [1, 0.66, 0.34], torch: [1, 0.55, 0.24], brazier: [1, 0.52, 0.22], campfire: [1, 0.5, 0.2] };
+const __fireKindCol = { candle: [1, 0.66, 0.34], torch: [1, 0.55, 0.24], brazier: [1, 0.52, 0.22], campfire: [1, 0.5, 0.2] };
+// a fire's light: its kind's warm yellow, or as much of its colorant's lines as the flame is coloured (what soot is left
+// still glows yellow)
+const __fireCols = FIRE.sources.map((s) => { const c = __fireKindCol[s.kind]; if (!s.line) return c; const k = s.lineK * (1 - 0.6 * Math.min(1, s.soot)); return [0, 1, 2].map((j) => c[j] * (1 - k) + s.line[j] * k); });
 
 // the light: every MeshBasicMaterial learns the fires (chained onto any patch it already carries)
 const __fireU = { uFireP: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uFireC: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uFireR: { value: new Array(8).fill(1) }, uFireAmb: { value: 0.12 }, uFireDay: { value: FIRE.day || 0 } };
@@ -103,7 +106,7 @@ FIRE.sources.forEach((s, i) => {
 const __fireLDV = '#include <common>\\n#include <logdepthbuf_pars_vertex>\\n', __fireLDF = '#include <logdepthbuf_pars_fragment>\\n';
 const __fireFlameVS = __fireLDV + 'varying vec3 vWorld; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w;\\n#include <logdepthbuf_vertex>\\n}';
 const __fireFlameFS = __fireLDF + \`
-uniform vec3 uSpine[\${__FNP}]; uniform float uRad[\${__FNP}]; uniform vec3 uBoxMin, uBoxMax; uniform float uTime, uGain, uSoot, uEdge, uLam, uRise;
+uniform vec3 uSpine[\${__FNP}]; uniform float uRad[\${__FNP}]; uniform vec3 uBoxMin, uBoxMax; uniform float uTime, uGain, uSoot, uEdge, uLam, uRise, uLineK; uniform vec3 uLine;
 varying vec3 vWorld;
 float fh3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float fn3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -138,7 +141,9 @@ void main() {
     float T = clamp(1.05 - 0.85 * smoothstep(0.35, 1.0, bs) - 0.4 * dd * dd, 0.0, 1.0);
     vec3 sc = sootColor(T) * (0.25 + 0.75 * T * T);
     float sheet = exp(-pow((dd - 0.9) / 0.12, 2.0)) * (1.0 - smoothstep(0.04, 0.3, bs)) * (0.12 + 0.5 * uLam);
-    acc += (soot * sc + sheet * vec3(0.08, 0.18, 1.0) * 0.4) * dt / Rm;
+    // a colorant's lines: its atoms excited where the flame is hot, brightest in the body, fading to the tip
+    float lines = inside * smoothstep(0.02, 0.2, bs) * (1.0 - smoothstep(0.75, 1.02, bs + 0.25 * uEdge * (n - 0.5))) * (0.45 + 0.55 * T) * uLineK;
+    acc += (soot * sc + lines * uLine * 0.45 + sheet * (1.0 - 0.7 * uLineK) * vec3(0.08, 0.18, 1.0) * 0.4) * dt / Rm;
   }
   vec3 c = 1.0 - exp(-acc * uGain);
   gl_FragColor = vec4(pow(c, vec3(1.0 / 2.2)), 1.0);
@@ -149,7 +154,7 @@ const __fireBoxGeo = new THREE.BoxGeometry(1, 1, 1), __fireFlames = [];
 FIRE.sources.forEach((s, i) => {
   for (let k = 0; k < s.n; k++) {
     const U = { uSpine: { value: Array.from({ length: __FNP }, () => new THREE.Vector3()) }, uRad: { value: new Array(__FNP).fill(0) }, uBoxMin: { value: new THREE.Vector3() }, uBoxMax: { value: new THREE.Vector3() },
-      uTime: { value: 0 }, uGain: { value: (s.lam ? 1.4 : 0.85 / (1 + 0.3 * (s.n - 1))) * (1 - 0.45 * (FIRE.day || 0)) }, uSoot: { value: s.soot }, uEdge: { value: s.lam ? 0.08 : 0.45 }, uLam: { value: s.lam ? 1 : 0 }, uRise: { value: Math.sqrt(9.81 * s.L) } };
+      uTime: { value: 0 }, uGain: { value: (s.lam ? 1.4 : 0.85 / (1 + 0.3 * (s.n - 1))) * (1 - 0.45 * (FIRE.day || 0)) }, uSoot: { value: s.soot }, uEdge: { value: s.lam ? 0.08 : 0.45 }, uLam: { value: s.lam ? 1 : 0 }, uRise: { value: Math.sqrt(9.81 * s.L) }, uLineK: { value: s.lineK || 0 }, uLine: { value: new THREE.Vector3(...(s.line || [1, 1, 1])) } };
     const m = new THREE.Mesh(__fireBoxGeo, new THREE.ShaderMaterial({ uniforms: U, vertexShader: __fireFlameVS, fragmentShader: __fireFlameFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     m.frustumCulled = false; m.renderOrder = 7; scene.add(m); __fireFlames.push({ m, U, i, k });
   }
@@ -157,7 +162,7 @@ FIRE.sources.forEach((s, i) => {
 
 // halos (the page has no bloom), embers and smoke
 const __fireHaloTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,190,120,0.9)'); gr.addColorStop(0.25, 'rgba(255,140,60,0.35)'); gr.addColorStop(1, 'rgba(255,100,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-const __fireHalos = FIRE.sources.map((s) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: __fireHaloTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); sp.renderOrder = 8; scene.add(sp); return sp; });
+const __fireHalos = FIRE.sources.map((s, i) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: __fireHaloTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); if (s.line) { const c = __fireCols[i], m = Math.max(...c); sp.material.color.setRGB(c[0] / m, (c[1] / m) * 1.6, (c[2] / m) * 2.5); } sp.renderOrder = 8; scene.add(sp); return sp; });
 const __fireSmokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const __fireQuads = (cap, mat) => {
   const g = new THREE.BufferGeometry(), idx = new Uint32Array(cap * 6);
@@ -190,7 +195,7 @@ const stepFire = (ms) => {
   for (let r = 0; r < 8; r++) {
     const P = __fireU.uFireP.value[r], C = __fireU.uFireC.value[r];
     if (r >= order.length) { P.w = 0; continue; }
-    const i = order[r][0], s = FIRE.sources[i], col = __fireCol[s.kind];
+    const i = order[r][0], s = FIRE.sources[i], col = __fireCols[i];
     P.set(s.at[0], s.at[1], s.at[2] + 0.4 * s.L, (s.baked ? -1 : 1) * s.light * FIRE.light); C.set(col[0], col[1], col[2], flick[i] / FIRE.light || 0);
     __fireU.uFireR.value[r] = (0.7 * s.L + 0.3 * s.D) ** 2 + 0.01;
   }
@@ -231,7 +236,8 @@ const stepFire = (ms) => {
         __fside.subVectors(__fv, __fu).cross(__fu.clone().sub(cam)); if (__fside.lengthSq() < 1e-14) __fside.copy(__fr);
         const w = Math.max(0.003, 0.8 * px * __fv.distanceTo(cam)); __fside.setLength(w);
         P.set([__fu.x - __fside.x, __fu.y - __fside.y, __fu.z - __fside.z, __fu.x + __fside.x, __fu.y + __fside.y, __fu.z + __fside.z, __fv.x - __fside.x, __fv.y - __fside.y, __fv.z - __fside.z, __fv.x + __fside.x, __fv.y + __fside.y, __fv.z + __fside.z], 12 * n);
-        const k = e[o + 6], c = [1.0 * k, (0.3 + 0.5 * k) * k, 0.06 * k * k, 1];
+        // a charcoal ember glows orange to yellow; one carrying a colorant (a firework's star) burns in its colour
+        const k = e[o + 6], L = FIRE.sources[i].line, q = L ? 0.6 * FIRE.sources[i].lineK : 0, c = [(1 - q + q * (L ? L[0] : 0)) * k, ((0.3 + 0.5 * k) * (1 - q) + q * (L ? L[1] : 0)) * k, (0.06 * k * (1 - q) + q * (L ? L[2] : 0)) * k, 1];
         for (let j = 0; j < 4; j++) C.set(c, 16 * n + 4 * j);
         U.set([-1, 0, 1, 0, -1, 1, 1, 1], 8 * n); n++;
       }
@@ -242,10 +248,11 @@ const stepFire = (ms) => {
     __fu.setFromMatrixColumn(camera.matrixWorld, 1);
     for (let i = 0; i < __fireN && n < __fireSmk.cap; i++) {
       if (!live[i]) continue;
-      const s = FIRE.sources[i], sm = __fireK.smoke(i, T), col = __fireCol[s.kind], k = flick[i] / Math.max(FIRE.light, 1e-6), g0 = 0.1 + 0.42 * (FIRE.day || 0);   // smoke is grey by day, dark by night
+      const s = FIRE.sources[i], sm = __fireK.smoke(i, T), col = __fireCols[i], k = flick[i] / Math.max(FIRE.light, 1e-6), g0 = 0.1 + 0.42 * (FIRE.day || 0);   // smoke is grey by day, dark by night
+      const sc = s.smokeColor ? s.smokeColor.map((v) => v * (0.3 + 0.7 * (FIRE.day || 0)) + 0.04) : null;   // a signal smoke is its dye's colour, lit as the day is
       for (let o = 0; o + 4 < sm.length && n < __fireSmk.cap; o += 5) {
         const r = sm[o + 3], cx = sm[o], cy = sm[o + 1], cz = sm[o + 2], warm = Math.min(1, (s.light * k) / ((cz - s.at[2]) ** 2 + 0.5) * 0.08);
-        for (let j = 0; j < 4; j++) { const sx = j % 2 ? 1 : -1, sy = j < 2 ? -1 : 1; P.set([cx + r * (sx * __fr.x + sy * __fu.x), cy + r * (sx * __fr.y + sy * __fu.y), cz + r * (sx * __fr.z + sy * __fu.z)], 12 * n + 3 * j); C.set([g0 + col[0] * warm, g0 + col[1] * warm, g0 * 1.04 + col[2] * warm, sm[o + 4] * 0.55], 16 * n + 4 * j); }
+        for (let j = 0; j < 4; j++) { const sx = j % 2 ? 1 : -1, sy = j < 2 ? -1 : 1; P.set([cx + r * (sx * __fr.x + sy * __fu.x), cy + r * (sx * __fr.y + sy * __fu.y), cz + r * (sx * __fr.z + sy * __fu.z)], 12 * n + 3 * j); C.set(sc ? [sc[0] + col[0] * warm, sc[1] + col[1] * warm, sc[2] + col[2] * warm, Math.min(1, sm[o + 4] * 1.1)] : [g0 + col[0] * warm, g0 + col[1] * warm, g0 * 1.04 + col[2] * warm, sm[o + 4] * 0.55], 16 * n + 4 * j); }
         U.set([0, 0, 1, 0, 0, 1, 1, 1], 8 * n); n++;
       }
     }
