@@ -119,3 +119,40 @@ describe('the stand owns its base: stance and stagger', () => {
     expect(validateGesture({ stance: 1.5, stagger: 0.2, heelR: 10 })).toEqual([]);
   });
 });
+
+describe('the pelvis mesh: one hip curve, no pouch, no shelf', () => {
+  // plane sections of the trunk, pelvis and thighs at rest, from the hem down to the knee
+  const sections = (X) => {
+    const V = X.mesh.vertices, J = X.R.joints, tris = X.mesh.faces.filter((f) => /^(torso|pelvis|thigh[RL])$/.test(X.mesh.provenance[f[0]].part));
+    const at = (z) => { const ps = []; for (const f of tris) for (let i = 1; i + 1 < f.length; i++) { const t = [V[f[0]], V[f[i]], V[f[i + 1]]]; for (let e = 0; e < 3; e++) { const a = t[e], b = t[(e + 1) % 3]; if ((a[2] - z) * (b[2] - z) > 0 || a[2] === b[2]) continue; const u = (z - a[2]) / (b[2] - a[2]); ps.push([a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1])]); } } return ps; };
+    const zp = J.pelvisHub[2], L = J.navel[2] - zp, zHem = zp + 0.63 * L, out = [];
+    for (let z = zHem - 0.005; z > J.kneeR[2] + 0.05; z -= 0.01) { const ps = at(z), mid = ps.filter((p) => Math.abs(p[0]) < 0.012); out.push({ z, w: Math.max(...ps.map((p) => p[0])), front: mid.length ? Math.max(...mid.map((p) => p[1])) : null }); }
+    return { out, zp, zt: zp - 0.26 * L, zc: zp - 0.4 * L };
+  };
+  for (const opts of [{ cast: 'male' }, { cast: 'female' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', proportions: 'anime' }]) {
+    const label = `${opts.cast}${opts.proportions ? ' anime' : ''}`;
+    it(`${label}: one hip curve: the outline rises to a single peak (the female's near the trochanter) and narrows to the knee`, () => {
+      const { out, zp, zt } = sections(rigged({ ...opts, core: 'structured' }));
+      const peak = out.reduce((a, b) => (b.w > a.w ? b : a));
+      if (opts.cast === 'female') { expect(peak.z).toBeLessThan(zp + 0.03); expect(peak.z).toBeGreaterThan(zt - 0.05); }   // the trochanter band, not the hem
+      // the male hip is straight: his hem is as wide as his hips, and the peak may sit there
+      const above = out.filter((s) => s.z > peak.z), below = out.filter((s) => s.z < peak.z);
+      for (let i = 1; i < above.length; i++) expect(above[i].w, `widening at z ${above[i].z.toFixed(3)}`).toBeGreaterThan(above[i - 1].w - 0.004);
+      for (let i = 1; i < below.length; i++) expect(below[i].w, `narrowing at z ${below[i].z.toFixed(3)}`).toBeLessThan(below[i - 1].w + 0.004);
+      const step = Math.max(...out.slice(1).map((s, i) => s.w - out[i].w).map(Math.abs));
+      expect(step).toBeLessThan(0.012);                                                                // no shelf: at most 12 mm a centimetre
+    });
+    it(`${label}: the front below the hem recedes to the crotch (no pouch)`, () => {
+      // down to the crotch: below it the midline sections are the two inner thighs
+      const { out, zc } = sections(rigged({ ...opts, core: 'structured' })), fronts = out.filter((s) => s.front !== null && s.z > zc).map((s) => s.front);
+      for (let i = 1; i < fronts.length; i++) expect(fronts[i]).toBeLessThan(fronts[i - 1] + 0.004);
+      expect(fronts[0] - fronts.at(-1)).toBeGreaterThan(opts.cast === 'female' ? 0.04 : 0.03);
+    });
+  }
+  it('the pelvis is one closed part bound to the basin and the lumbar; the streamlined hero has none', () => {
+    const S = rigged({ cast: 'female', core: 'structured' }), D = rigged({ cast: 'female' });
+    expect(S.recipe.parts.pelvis).toBeDefined(); expect(D.recipe.parts.pelvis).toBeUndefined();
+    const bones = new Set(); S.mesh.provenance.forEach((p, i) => { if (p.part === 'pelvis') S.skin.joints[i].forEach((j, k) => { if (S.skin.weights[i][k] > 0) bones.add(S.R.bones[j].id); }); });
+    expect([...bones].sort()).toEqual(['lumbar', 'pelvis']);
+  });
+});

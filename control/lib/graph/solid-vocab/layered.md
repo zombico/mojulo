@@ -286,7 +286,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   THE CORE: `core: 'structured'` builds the midsection on the vajra core: the `pelvis` bone is the basin, turned by the
   hip line alone, and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or side bend (and the
   hinge) bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
-  rides the basin. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
+  rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
+  the seat, the hip one curve out from the waist (the female's widest at the trochanter, the male's straight), the front
+  receding to the pubis, and the thigh rooted at the hip socket inside it, so it comes out of the pelvis along the groin's
+  diagonal. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
   the knee. Its stands own their base: `relaxed`, `hand-on-hip` and `guard` plant both feet where `stance` and `stagger`
   put them, the free side's heel up (the guard about twice the hip spread, bladed with the left leading); a swing word's
   keys take the guard's base. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. `'streamlined'` (the

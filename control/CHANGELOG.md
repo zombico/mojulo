@@ -30,9 +30,12 @@ bullet is rewritten as its phase lands.
   presets plant both feet on a base of their own: the guard wide and bladed with the rear heel up, the relaxed and
   hand-on-hip stands close-set with a soft free knee, a swing on the guard's base. Without these words a planted foot
   stands where it always did.
-- **The pelvis mesh.** A pelvic part on the vajra basket: a waist, the iliac crest, the sacrum and glutes, the groin, and
-  the thighs rooted at the hip socket with the trochanter as the outer edge of the hip; on the female one smooth hip curve,
-  widest at the trochanter, with no pouch at the side or the front.
+- **The pelvis mesh.** Under `core: 'structured'` a `pelvis` part on the vajra basket runs from the crotch up into the
+  hem, its back the seat, and the thigh is rooted at the hip socket inside it. The hip is one curve out from the waist:
+  the female's widest at the trochanter and narrowing steadily to the knee, the male's straight. The front recedes to the
+  crotch, the thighs meet under it, and the thigh comes out of the pelvis along the groin's diagonal. Gone: the corner
+  and pinch at the side of the female hip, the front standing proud of the belly, the shelf at the hem, the step at the
+  knee, and the flat seat.
 - **Core measures.** Waist to hip, glute depth and the midline's continuity in the readout, with bands per cast, for the
   design loop's critic. `render-pelvic-overlay.mjs` draws the vajra core over the hero mesh before and after.
 

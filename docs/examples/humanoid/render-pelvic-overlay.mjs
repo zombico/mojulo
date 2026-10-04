@@ -142,7 +142,7 @@ function sheet(file, title, rows, legend) {
 // rest), against the vajra body's own half-widths; mid front / mid back are the depths on the midline (|x| < 1.5 cm)
 function measures(F) {
   const { mesh, p, k, J } = F, V = mesh.vertices;
-  const tris = mesh.faces.filter((f) => { const part = mesh.provenance[f[0]].part; return F.recipe.parts[part]?.layer === 1 && /^(torso|thigh[LR])$/.test(part); });
+  const tris = mesh.faces.filter((f) => { const part = mesh.provenance[f[0]].part; return F.recipe.parts[part]?.layer === 1 && /^(torso|pelvis|thigh[LR])$/.test(part); });
   const section = (z) => {
     const pts = [];
     for (const f of tris) for (let i = 1; i + 1 < f.length; i++) {

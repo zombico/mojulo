@@ -63,6 +63,16 @@ const CORE_HEM = Object.freeze({ pelvis: 0.5, lumbar: 0.5 });
  * female's wider pelvis over a narrower knee slants more; the knee keeps its own radius plus KNEE_CLEAR off the midline */
 const FEMUR_IN = Object.freeze({ female: 8, male: 4 });
 const KNEE_CLEAR = 0.014;
+/** the structured pelvis per body (hero-form PELVIS): `flare` the outer edge at the iliac rim, halfway down and at the hip joints as shares
+ * of the way from the waist to the hip's full width (reached at the trochanter); `front` how far the midline front
+ * recedes under the hem at the rim, the joints, the trochanter and the crotch (m: the female's front falls away to the
+ * pubis, the male's holds nearer the belly line); `sacrum` the back's step out over the hem; `crotch` its height under the
+ * hip joints (of the lumbar run); `crotchHalf` / `inner` the basin's half-width at the crotch (of the hip joint's x) and at
+ * the trochanter (of the hip's width); `glute` the seat's step out behind the hem at the hip joints (m) */
+const PELVIS_FORM = Object.freeze({
+  female: Object.freeze({ flare: [0.25, 0.55, 0.8], front: [0.004, 0.022, 0.042, 0.06], sacrum: 0.01, glute: 0.04, crotch: 0.42, crotchHalf: 0.32, inner: 0.5 }),
+  male: Object.freeze({ flare: [0.4, 0.7, 0.88], front: [0.002, 0.012, 0.026, 0.045], sacrum: 0.006, glute: 0.03, crotch: 0.4, crotchHalf: 0.3, inner: 0.52 }),
+});
 export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, hipDepth: null, thigh: 0.086, calf: 0.067, arm: 0.061, forearm: null, neck: 0.066, bust: 0 };
 /** the bust's ceiling as a share of the chest radius it sits on: each mound centres 0.42 of the chest out, so at 0.4 it
  * still stays on the chest; past it the number is a runaway (bust: 5 built a mound metres wide) */
@@ -312,8 +322,62 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     { at: R([xb, yFront - 0.06, zc + 0.01]), r: r6(rb * 1.02) }, { at: R([xb * 1.05, yFront - 0.02, zc]), r: r6(rb) },
     { at: R([xb * 1.1, yFront + 0.02, zc - 0.012]), r: r6(rb * 0.94) }, { at: R([xb * 1.14, yFront + 0.045, zc - 0.024]), r: r6(rb * 0.74) },
   ], caps: { back: R([xb, yFront - 0.075, zc + 0.012]), tip: R([xb * 1.15, yFront + 0.062, zc - 0.032]) }, group: 'Top', mirror: 'name', bind: 'torso' }] : [];
+  // ── the structured core's PELVIS (HERO_CORES): a midline trunk on the vajra basket (vajra-body.js pelvisLines) from the
+  // crotch up into the torso's hem with the seat as its back, and the thigh re-rooted at the hip socket under it with
+  // the trochanter as the hip's outer edge. Heights are the vajra landmarks as shares of the lumbar run L (STAND: the
+  // iliac rim 0.105 over the hip joints, the trochanter 0.04 under them, of a 0.155 run). The hip keeps the cast's width
+  // but peaks at the trochanter, not the joint, and narrows steadily to the knee; the front below the waist recedes to
+  // the pubis (no pouch: the female's more than the male's); the back gains the sacrum and the seat. ──
+  const pelvisParts = [];
+  if (structured) {
+    const P = PELVIS_FORM[femaleMass ? 'female' : 'male'];
+    // the crest ring sits under the hem: the vajra rim (0.68 L) can land above the hero's hem (0.63 L), and a ring above
+    // the waist ring would fold the trunk and shelve the hip out over the hem
+    const zr = Math.min(zp + 0.68 * L, zWaist) - 0.035, zt = zp - 0.26 * L, zc = zp - P.crotch * L;
+    const waist = g(b.waist), F0 = r6(0.01 + g(0.098 * D)), B0 = r6(0.01 - g(0.098 * D));   // the torso hem's own front and back
+    // the cast's hip width as today's thigh DRAWS it (its limb ring has no side point: the widest is √3/2 of the radius),
+    // now at the trochanter; the structured thigh takes the trunk's ring family, side points and all, so it draws it exactly
+    const Wt = hipCenter * hip[0] + (Math.sqrt(3) / 2) * hipRadius;
+    const ring = (z, half, F, B) => ({ z: r6(z), r: [r6(half), r6((F - B) / 2)], yc: r6((F + B) / 2) });
+    // the seat is the basin's own back (no separate lobes: every closed part carries its own ink outline, and two lobes
+    // read as a pouch stuck on); the front recedes to the pubis
+    pelvisParts.push({ name: 'pelvis', kind: 'trunk', stations: [
+      ring(zc, P.crotchHalf * hip[0], F0 - P.front[3], B0 + 0.025),
+      ring(zt, P.inner * Wt, F0 - P.front[2], B0 - 0.55 * P.glute),
+      ring(zp, waist + P.flare[2] * (Wt - waist), F0 - P.front[1], B0 - P.glute),
+      // the flare spreads from the hem to the joints over three rings (a short steep flare lights as a band of its own)
+      ring((zp + zr) / 2, waist + P.flare[1] * (Wt - waist), F0 - (P.front[0] + P.front[1]) / 2, B0 - P.sacrum - 0.45 * P.glute),
+      ring(zr, waist + P.flare[0] * (Wt - waist), F0 - P.front[0], B0 - P.sacrum),
+      ring(zWaist - 0.004, waist, F0, B0),
+      ring(zWaist + 0.02, 0.96 * waist, F0 - 0.004, B0 + 0.004),
+    ], caps: { back: R([0, r6(F0 - P.front[3] - 0.03), zc - 0.014]), tip: R([0, 0.01, zWaist + 0.045]) }, group: 'Bottom', mirror: 'plane',
+      bind: { bone: 'pelvis', blend: { back: { pelvis: 1 }, st4: { pelvis: 0.75, lumbar: 0.25 }, st5: { ...CORE_HEM }, st6: { ...CORE_HEM }, tip: { ...CORE_HEM } } } });
+    // the thigh from the socket. Its upper rings stay INSIDE the basin's front and seat, so it comes out of the pelvis
+    // along the groin's diagonal (high at the hip, low at the crotch) instead of a level seam; at the trochanter it carries
+    // the hip's full width with its inner edge at the midline (the thighs meet under the crotch); below, the outer edge
+    // tapers to the knee and the front comes forward to it. Rings by their front, back, outer and inner edges.
+    const inner0 = 0.003, kneeOut = knee[0] + (Math.sqrt(3) / 2) * b.calf, kneeIn = knee[0] - b.calf + 0.004;
+    const kneeF = knee[1] + b.calf, kneeB = knee[1] - b.calf;
+    const edge = (o, i, F, B, z) => ({ at: R([r6((o + i) / 2), r6((F + B) / 2), r6(z)]), r: [r6((o - i) / 2), r6((F - B) / 2)] });
+    const lerp = (a, c, t) => a + (c - a) * t, zAt = (t) => zt - t * (zt - knee[2]);
+    // the socket ring meets the basin's own edge at the hip joints, so the outline runs on from the pelvis into the
+    // trochanter without a dip between them
+    const atJoint = waist + P.flare[2] * (Wt - waist);
+    const fT = F0 - P.front[2] - 0.004, bT = B0 - 0.55 * P.glute + 0.008;
+    thigh.stations = [
+      edge(atJoint, 0.8 * hip[0] - (atJoint - 0.8 * hip[0]), F0 - P.front[1] - 0.01, B0 - P.glute + 0.015, zp + 0.015),
+      edge(Wt, inner0, fT, bT, zt),
+      edge(lerp(Wt, kneeOut, 0.3), lerp(inner0, kneeIn, 0.09), fT + 0.012, lerp(bT, kneeB, 0.3), zAt(0.3)),
+      edge(lerp(Wt, kneeOut, 0.62), lerp(inner0, kneeIn, 0.38), lerp(fT + 0.012, kneeF, 0.5), lerp(bT, kneeB, 0.62), zAt(0.62)),
+      // the knee ring draws the shin's own width (its limb ring reaches √3/2 of its radius at the side)
+      { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6((Math.sqrt(3) / 2) * (b.calf - 0.003)), r6(b.calf - 0.001)] },
+    ];
+    thigh.slots = reg.slots;
+    thigh.caps = { back: R([0.75 * hip[0], hip[1] * 0.4, zp + 0.04]), tip: R([knee[0], knee[1], knee[2] - 0.025]) };
+    thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
+  }
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
-  const segments = [torso, ...bust, neck, ...(head ? [] : [blankHead]),
+  const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
     limb('upperArmR', 'shoulder', 'elbow', g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), [0.03, 0.36], 'Top', 'torso', 'foreArmR'),
     limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
     limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) }),
@@ -325,7 +389,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
-  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S'], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S'], trunkParts = ['torso', ...(rb > 0 ? ['bust$S'] : [])];
+  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S'], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S', ...(structured ? ['pelvis'] : [])], trunkParts = ['torso', ...(rb > 0 ? ['bust$S'] : [])];
   const jawed = !!head?.joints?.jawHinge;
   const HEAD_SHIFT = [0, 0, r6(hb + rise)];
   const shifted = (p) => R(add(p, HEAD_SHIFT));
