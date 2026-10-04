@@ -18,6 +18,8 @@
  */
 
 import { withAqua } from '../materials/aqua-look.js';
+import { normalizeDetail } from '../materials/detail-tier.js';
+import { WS_DARK, shoreMoisture } from '../materials/shore-moisture.js';
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const GOLDEN = 2.399963229728653;   // golden angle (rad) — deterministic phase spread, no Math.random
@@ -34,7 +36,8 @@ const WX = 130, DY = 118, NX = 84, NY = 92;    // water grid
 const EDGE = DY / 2;                            // still waterline sits at the far edge of the water grid
 const TOE = 22, BEACH = 60, TOE_DEPTH = 12, DUNE_H = 15;   // sand wedge: submerged toe → dry dune
 const SX = 52, SY = 44;                         // sand grid resolution
-const SUN = [70, -55, 85];                      // sun grazing enough that wave slopes catch light/shade
+const SUN = [70, -55, 85];
+const SWASH = 12, OM_SWASH = 0.6, RUNUP = 0.45;           // swash range, lap rate, and how far up the sand it runs                      // sun grazing enough that wave slopes catch light/shade
 
 // sea-state presets: a Gerstner spectrum fanned tightly around the +y (onshore) heading. Wavelengths
 // are kept SHORT relative to the ~150-unit domain so several crests march shoreward at once — the
@@ -80,7 +83,7 @@ function bedZ(y) {
 // the static sand WEDGE — a grid of flat-shaded quads. Wet near/below the waterline, dry up the berm;
 // each facet Lambert-lit by the low sun so the slope reads. Gentle seeded ripple keeps it from looking
 // like a ramp (deterministic — a fixed trig field, no dice).
-function buildSand(scale) {
+function buildSand(scale, { liveWet = null } = {}) {
   const s = scale;
   const sun = norm3(SUN);
   const x0 = -(WX / 2 + 8) * s, x1 = (WX / 2 + 8) * s;
@@ -96,9 +99,13 @@ function buildSand(scale) {
       const n = norm3(cross3(sub3(p10, p00), sub3(p01, p00)));
       const shade = 0.34 + 0.66 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
       const zc = (p00[2] + p10[2] + p11[2] + p01[2]) / 4;
-      const wet = zc < 0 ? 1 : Math.max(0, 1 - zc / (5 * s));   // submerged → wet, up to +5 units dry
+      // submerged → wet, up to +5 units dry. With a live wet band (wet-sand channel) the old height band is off: the
+      // swash's moisture darkens it instead (a height band shows its quads as steps at the waterline)
+      const wet = liveWet ? 0 : zc < 0 ? 1 : Math.max(0, 1 - zc / (5 * s));
+      // a live band bakes the swash's own moisture at t = 0 (what an export carries); the page swaps it for the live one
+      const damp = liveWet ? 1 - WS_DARK * shoreMoisture(liveWet, (ya + yb) / 2, 0).dark : 1;
       const base = [WET_SAND[0] + (DRY_SAND[0] - WET_SAND[0]) * (1 - wet), WET_SAND[1] + (DRY_SAND[1] - WET_SAND[1]) * (1 - wet), WET_SAND[2] + (DRY_SAND[2] - WET_SAND[2]) * (1 - wet)];
-      faces.push({ corners: [p00, p10, p11, p01], fill: hex([base[0] * shade, base[1] * shade, base[2] * shade]), group: 'sand' });
+      faces.push({ corners: [p00, p10, p11, p01], fill: hex([base[0] * shade * damp, base[1] * shade * damp, base[2] * shade * damp]), group: 'sand' });
     }
   }
   return faces;
@@ -128,7 +135,10 @@ function buildSeabed(scale) {
  * geometry (the water grid regenerates in-script from the spectrum); same recipe → identical scene.
  * @returns {{ surfaces, faces, bounds, stats }}
  */
-export function planBeachScene(recipe = {}) {
+export function planBeachScene(recipe = {}, { liveWet = false } = {}) {
+  // the sand's swash: the water's, run RUNUP of its range up the beach face above the still waterline (the water grid's
+  // own swash foam stops at the waterline)
+  const sc = clampNum(recipe.scale, 0.2, 5, 1), sandSwash = liveWet ? { edgeY: (EDGE + SWASH * RUNUP) * sc, swashRange: SWASH * sc, omSwash: OM_SWASH } : null;
   const scenario = SCENARIOS[recipe.scenario] ? recipe.scenario : 'calm';
   const scale = clampNum(recipe.scale, 0.2, 5, 1);
   const amplitude = clampNum(recipe.amplitude, 0.1, 4, 1);
@@ -146,8 +156,8 @@ export function planBeachScene(recipe = {}) {
     shore: {
       edgeY: EDGE * scale,       // still waterline (far edge of the water grid)
       surfW: 52 * scale,         // width of the surf zone over which the swell shoals + the shallows lighten
-      swashRange: 12 * scale,    // how far the foam swash runs up the sand and back
-      omSwash: 0.6,              // swash lap rate (period ≈ 10 s) — the "slowly rippling" beat
+      swashRange: SWASH * scale, // how far the foam swash runs up the sand and back
+      omSwash: OM_SWASH,         // swash lap rate (period ≈ 10 s) — the "slowly rippling" beat
       foamW: 11 * scale,         // foam band width
       sink: 0.9 * scale,         // sit the flat near-shore water just under the sand so the beach wins the seam
       shallow: SHALLOW,
@@ -156,7 +166,8 @@ export function planBeachScene(recipe = {}) {
 
   return {
     surfaces: [surface],
-    faces: buildSand(scale),
+    faces: buildSand(scale, { liveWet: sandSwash }),
+    ...(sandSwash ? { sandSwash } : {}),
     bounds: { center: [0, 0, 0], radius: Math.hypot(w / 2, d / 2) },
     stats: { scenario, components: waves.length, amplitude, maxAmp: amax, periods: waves.map((wv) => +(TAU / wv.om).toFixed(2)) },
   };
@@ -167,7 +178,11 @@ export function planBeachScene(recipe = {}) {
  * beach (watching the swell roll in) + a high aerial. Pale-sky background.
  */
 export function assembleBeachScene(recipe = {}, { title } = {}) {
-  const plan = planBeachScene(recipe);
+  // detail tier (materials/detail-tier.js): 'animated' (default) adds the live wet band to an aqua beach; 'still'
+  // keeps the baked band. Without the aqua look the beach is byte-identical to before tiers existed.
+  const detail = normalizeDetail(recipe.detail, 'animated');
+  const liveWet = recipe.aqua !== false && detail !== 'still';
+  const plan = planBeachScene(recipe, { liveWet });
   const s = clampNum(recipe.scale, 0.2, 5, 1);
   const cameras = [
     // a steep overhead look (~72°) centred on the waterline: from this angle we see the sunlit wave
@@ -177,9 +192,12 @@ export function assembleBeachScene(recipe = {}, { title } = {}) {
     { name: 'seaward', worldFraming: { cameraPosition: [0, (EDGE + BEACH * 0.5) * s, DY * 0.34 * s], lookAt: [0, -DY * 0.18 * s, 0], horizontalFov: 66 } },
   ];
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#bfe0ee';
+  const surfaces = withAqua(plan.surfaces, recipe.aqua, 'lagoon', { bg, unit: s });
+  const look = surfaces[0].aqua;
   return {
     faces: recipe.aqua === false ? plan.faces : [...plan.faces, ...buildSeabed(s)],
-    surfaces: withAqua(plan.surfaces, recipe.aqua, 'lagoon', { bg, unit: s }),
+    surfaces,
+    ...(liveWet && look ? { wetSand: { group: 'sand', ...plan.sandSwash, zen: look.zen, hor: look.hor, sun: surfaces[0].sun } } : {}),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo ${plan.stats.scenario} beach`,

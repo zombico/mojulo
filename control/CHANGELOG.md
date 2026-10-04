@@ -45,6 +45,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   pushed aside; rain rings it; a click splashes it. Everything that touches the water goes through one
   interface, `window.__aqWater` (`query`, `disturb`). The floor is seen through the water, bent by the
   ripples, with caustics where crests focus the sun. No world kind emits them yet.
+- **Wet sand follows the swash.** On an aqua beach the swash now runs a thin sheet of water up the
+  sand, with a lace of foam on its leading edge, then drains: the sheet shines with the sky and the
+  sun for a second or two, and the sand it leaves stays dark while it dries, with a damp band above
+  the highest reach. It is worked out from the swash's own timing, so it costs only a shader and an
+  export carries the band as it stands at the first frame. Beaches take `detail`
+  (`'still' | 'animated' | 'touch' | 'showpiece'`, default `'animated'`); `'still'` keeps the baked band.
 - **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
   `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
   use `canal`.
