@@ -1,0 +1,475 @@
+/**
+ * STAGE — a level built the way sixth-gen levels were: kit pieces on a grid, small painted tiles
+ * multiplied by vertex light, and lights placed by hand. The `stage` world kind.
+ *
+ * Recipe (z-up, metres):
+ *   { kind:'stage', reference:'dmc3', kit:'gothic-stone',
+ *     rooms:[{ id, x, y, w, d, h }],                 // axis-aligned boxes on the kit grid; x,y = min corner
+ *     links:[{ from, to, width?, height? }],         // a doorway where two rooms share a wall
+ *     lights?: 'auto' | [{ at:[x,y,z], color?, intensity?, radius?, fixture? }],
+ *     dirt?: { age, damp, soot, traffic, seed } }    // scales the causes in dirt.js; absent ⇒ DIRT_DEFAULTS
+ *
+ * The level is three layers that never share a material: FLOOR, a JUNCTION band (a recessed gutter in front of
+ * the plinth, rubble fallen into it) and WALL; the kit's pairing sets them apart. Dirt is baked per corner by
+ * cause (dirt.js). The shell is dressed by the KIT card: a plinth and a cornice run every wall, pilasters stand at each
+ * bay and at the corners, ribs cross the ceiling at each bay, a stone frame rings each doorway. Every
+ * surface is split into grid cells so vertex light has corners to land on (the era's trick: a pool of
+ * torchlight needs vertices under it). Each corner carries its own baked colour (`cornerFills`), the
+ * tile multiplies over it (`textureLit`).
+ *
+ * Lights: `'auto'` (the default) seats a torch on every other pilaster. Each light is baked into the
+ * corners, drawn as a sconce with a glowing flame, and leaves as a KHR punctual point light in the GLB.
+ * Deterministic: a pure function of the recipe.
+ */
+import { SIXTH_GEN_REFERENCES } from './sixth-gen.js';
+import { makeDirt, hash3 } from './dirt.js';
+import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
+import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
+import { archedOpening, engagedColumn, naveVault } from './gothic.js';
+import { plazaWall } from './plaza.js';
+import { makeSunShadow, sunDir } from './sun.js';
+import { assembleNatureScene } from './nature.js';
+import { assembleJungleScene } from './jungle.js';
+
+// ── kit cards ────────────────────────────────────────────────────────────────
+export const STAGE_KITS = ({
+  'gothic-stone': Object.freeze({
+    grid: 1, bay: 4, wall: 0.5,   // wall = thickness between neighbouring rooms (each room's interior sits wall/2 inside its box)
+    // light/dirt cells per part: walls and trim finer, so soot plumes and streaks have corners to land on
+    cells: { wall: 0.5, trim: 0.5, floor: 1, ceiling: 1, gutter: 0.5 },
+    plinth: { h: 0.6, out: 0.18 },
+    cornice: { h: 0.45, out: 0.3 },
+    pilaster: { w: 0.7, out: 0.28 },
+    rib: { w: 0.45, drop: 0.4 },
+    door: { width: 2, height: 3.4, frame: 0.35, out: 0.12 },
+    // tiles: a family mixes its four seeded variants (per wall run; per flag on the floor); scale = metres per repeat.
+    // PAIRING: cool bluestone walls in running-bond COURSES over a warm-neutral, darker FLAGSTONE floor of square and
+    // oblong flags — a different material and a different shape. The floor is laid one tile per structural bay, so
+    // its long joints land on the pilasters; dressed slate trim sits between the two in value.
+    tiles: {
+      wall: { family: 'stone-wall-bluestone', scale: 2 },
+      floor: { family: 'flagstone', perBay: true },   // one tile per bay; the variant (its own layout, lost/cracked flags) per bay
+      ceiling: { family: 'stone-wall-bluestone', scale: 2.5 },
+      trim: { key: 'slate', scale: 1.5 },
+      gutter: { key: 'soil-mud', scale: 1.2 },
+    },
+    // material tint under the tile (the tile carries the colour; tint sets the value band each layer lives in)
+    tint: { wall: [0.86, 0.88, 0.94], floor: [0.66, 0.6, 0.53], ceiling: [0.7, 0.72, 0.8], trim: [0.88, 0.88, 0.92], gutter: [0.8, 0.8, 0.78] },
+    // the junction band: a recessed gutter in front of the plinth, and rubble fallen into it
+    gutter: { width: 0.35, depth: 0.08 },
+    rubble: { rock: 'basalt', tone: '#5e626c', variants: 6, perMetre: 0.5, size: [0.22, 0.55] },
+    torch: { every: 2, z: 2.7, out: 0.38, color: '#ffa850', intensity: 1.7, radius: 7.5 },
+  }),
+});
+// The NAVE kit: the same stone, but nothing is a box. Each wall bay is a blind pointed arcade arch below a string course
+// and a lancet window above; engaged columns stand at the bay lines; the ceiling is a tall pointed barrel vault with
+// transverse ribs that continue the columns, a ridge rib, and lunettes filling the end walls.
+STAGE_KITS['gothic-nave'] = Object.freeze({
+  ...STAGE_KITS['gothic-stone'],
+  shell: 'nave',
+  column: { r: 0.34, embed: 0.12, sides: 10, baseH: 0.5 },
+  arcade: { margin: 0.32, spring: 0.36, rise: 1.05, depth: 0.45, ring: 0.26, ringOut: 0.14, seg: 8 },
+  string: { h: 0.28, out: 0.16, gap: 0.55 },
+  lancet: { w: 1.0, rise: 1.6, depth: 0.55, seg: 6, sill: 0.7, glass: '#8fa6e6',
+    light: { color: '#7f98e8', intensity: 0.85, radius: 11, off: 1.6 } },
+  vault: { rise: 0.62, seg: 12, rib: { w: 0.42, drop: 0.3 } },
+  torch: { every: 2, z: 2.7, out: 0.32, color: '#ffa850', intensity: 1.7, radius: 7.5 },
+});
+// The PLAZA kit (Sunshine): an open-air square whose sides are house fronts (plaza.js) over a raised pavement step,
+// paved in warm flagstone bays, lit by a hard high sun with baked cast shadows and a blue sky fill.
+STAGE_KITS['delfino-plaza'] = Object.freeze({
+  ...STAGE_KITS['gothic-stone'],
+  shell: 'plaza', bay: 5, sun: true, rubble: null,
+  cells: { wall: 0.5, trim: 0.5, floor: 0.5, ceiling: 1, gutter: 0.5, base: 0.5, roof: 0.75, step: 0.5 },
+  tiles: {
+    wall: { key: 'stucco', scale: 1.5 },
+    base: { family: 'rock-sandstone', scale: 1.5 },
+    floor: { family: 'flagstone-warm', perBay: true },
+    trim: { key: 'rock-sandstone', scale: 1.2 },
+    roof: { key: 'clay-terracotta', scale: 1.2 },
+    step: { key: 'granite-pink', scale: 1.5 },
+    ceiling: { key: 'stucco', scale: 2 },
+  },
+  tint: { wall: [1, 1, 1], base: [0.92, 0.86, 0.78], floor: [1, 0.96, 0.9], ceiling: [1, 1, 1], trim: [1.08, 1.04, 0.98], roof: [1.05, 1, 0.95], step: [0.98, 0.95, 0.9] },
+  step: { width: 0.9, h: 0.16 },   // the pavement along the house fronts: the junction band of an exterior
+  house: {
+    storey: 3.2, storeys: [2, 4], parapet: 0.7,
+    palette: ['#f2e4c6', '#f4c8a0', '#f6f0e4', '#bcd4e8', '#eab4a4', '#f0d890'],
+    base: { h: 0.7, out: 0.06 },
+    door: { w: 1.4, h: 2.6, depth: 0.4, dark: '#2a1e18' },
+    window: { w: 0.95, h: 1.5, sill: 0.9, depth: 0.3, glass: '#26303c' },
+    eave: { h: 0.35, out: 0.45 },
+    roof: { depth: 2.5, rise: 1.4 },
+    balcony: { chance: 0.45, w: 2.2, out: 0.85, iron: '#3a3430' },
+  },
+  sky: { fill: 0.55, bounce: [0.95, 0.82, 0.62], bounceGain: 0.22, sunGain: 1.05 },
+});
+// The TRAIL-VALLEY kit: no architecture — a trail, a cliff and trees built to a style card (nature.js).
+STAGE_KITS['trail-valley'] = Object.freeze({ shell: 'nature', style: 'nature-trail' });
+// The JUNGLE-TRAIL kit: the late sixth-gen jungle — grown giants, leaf cards, a canopy the light comes through (jungle.js).
+STAGE_KITS['jungle-trail'] = Object.freeze({ shell: 'jungle', style: 'jungle-mgs3' });
+Object.freeze(STAGE_KITS);
+const VARIANTS = ['a', 'b', 'c', 'd'];
+
+// ── plan ─────────────────────────────────────────────────────────────────────
+const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
+
+/** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
+export function planStage(m = {}) {
+  const kitId = m.kit || 'gothic-stone';
+  const kit = STAGE_KITS[kitId];
+  if (!kit) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
+  const refId = m.reference || 'dmc3';
+  const ref = SIXTH_GEN_REFERENCES[refId];
+  if (!ref) throw new Error(`stage: unknown reference '${refId}' (known: ${Object.keys(SIXTH_GEN_REFERENCES).join(', ')})`);
+  if (!Array.isArray(m.rooms) || !m.rooms.length) throw new Error('stage: needs a non-empty `rooms` array ({ id, x, y, w, d, h })');
+  const g = kit.grid, byId = new Map();
+  const rooms = m.rooms.map((r, i) => {
+    const id = r.id ?? `r${i}`;
+    if (byId.has(id)) throw new Error(`stage: duplicate room id '${id}'`);
+    for (const k of ['x', 'y', 'w', 'd', 'h']) if (!Number.isFinite(r[k])) throw new Error(`stage: room '${id}' needs a numeric ${k}`);
+    for (const k of ['x', 'y', 'w', 'd']) if (!onGrid(r[k], g)) throw new Error(`stage: room '${id}' ${k}=${r[k]} is off the ${g} m grid`);
+    if (r.w < 2 * g || r.d < 2 * g || r.h < 2.5) throw new Error(`stage: room '${id}' is too small (w, d ≥ ${2 * g} m, h ≥ 2.5 m)`);
+    const t = kit.wall / 2;   // the interior: the box inset by half a wall
+    // `open`: sides left out (a stage SET seen from the open side while iterating — no third or fourth wall)
+    const open = Array.isArray(r.open) ? r.open.filter((s) => ['-x', '+x', '-y', '+y'].includes(s)) : [];
+    const room = { id, box: [r.x, r.y, r.x + r.w, r.y + r.d], x0: r.x + t, y0: r.y + t, x1: r.x + r.w - t, y1: r.y + r.d - t, h: r.h, open, openings: { '-x': [], '+x': [], '-y': [], '+y': [] } };
+    byId.set(id, room);
+    return room;
+  });
+  const links = (m.links || []).map((l) => {
+    const a = byId.get(l.from), b = byId.get(l.to);
+    if (!a || !b) throw new Error(`stage: link ${l.from} → ${l.to} names an unknown room`);
+    const width = l.width ?? kit.door.width, height = Math.min(l.height ?? kit.door.height, a.h - 0.5, b.h - 0.5);
+    // the shared wall: a's +x is b's −x, etc.; the doorway centres on the overlap
+    let wall = null;
+    const [ax0, ay0, ax1, ay1] = a.box, [bx0, by0, bx1, by1] = b.box;
+    if (ax1 === bx0) wall = { ax: '+x', bx: '-x', at: ax1, lo: Math.max(a.y0, b.y0), hi: Math.min(a.y1, b.y1) };
+    else if (bx1 === ax0) wall = { ax: '-x', bx: '+x', at: ax0, lo: Math.max(a.y0, b.y0), hi: Math.min(a.y1, b.y1) };
+    else if (ay1 === by0) wall = { ax: '+y', bx: '-y', at: ay1, lo: Math.max(a.x0, b.x0), hi: Math.min(a.x1, b.x1) };
+    else if (by1 === ay0) wall = { ax: '-y', bx: '+y', at: ay0, lo: Math.max(a.x0, b.x0), hi: Math.min(a.x1, b.x1) };
+    if (!wall || wall.hi - wall.lo < width + 2 * kit.door.frame) throw new Error(`stage: rooms '${a.id}' and '${b.id}' do not share enough wall for a ${width} m doorway`);
+    const mid = Math.round((wall.lo + wall.hi) / 2 / g) * g;
+    const op = { lo: mid - width / 2, hi: mid + width / 2, top: height };
+    a.openings[wall.ax].push(op); b.openings[wall.bx].push(op);
+    return { from: a.id, to: b.id, wall: wall.ax, at: wall.at, ...op };
+  });
+  for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
+  const first = rooms[0];
+  return { kit, kitId, ref, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto' };
+}
+
+/** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
+export function buildStageGeometry(plan) {
+  const { kit } = plan, out = [], seats = [], drains = [];
+  const surf = (part, variant = 0) => {
+    const t = kit.tiles[part];
+    return { key: t.family ? `${t.family}-${VARIANTS[variant % 4]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part] };
+  };
+  // the floor is paved in BAYS: one flagstone tile spans each structural bay (so its edge joints meet the
+  // pilasters), each bay its own variant; a rectangle of floor is split at the bay lines so no face straddles two
+  const ft = kit.tiles.floor;
+  const bays = (r) => { const nx = Math.max(1, Math.round((r.x1 - r.x0) / kit.bay)), ny = Math.max(1, Math.round((r.y1 - r.y0) / kit.bay)); return { nx, ny, bx: (r.x1 - r.x0) / nx, by: (r.y1 - r.y0) / ny }; };
+  const floorRect = (r, ri, X0, Y0, X1, Y1) => {
+    const { nx, ny, bx, by } = bays(r), base = surf('floor');
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      const a0 = Math.max(X0, r.x0 + i * bx), a1 = Math.min(X1, r.x0 + (i + 1) * bx), b0 = Math.max(Y0, r.y0 + j * by), b1 = Math.min(Y1, r.y0 + (j + 1) * by);
+      if (a1 - a0 < 1e-6 || b1 - b0 < 1e-6) continue;
+      const key = `${ft.family}-${VARIANTS[Math.floor(hash3(ri * 97 + i, j, 103) * 4)]}`;
+      panel(out, [a0, b0, 0], [1, 0, 0], a1 - a0, [0, 1, 0], b1 - b0, [0, 0, 1], { ...base, key, uvOf: (p) => [(p[0] - r.x0) / bx, (p[1] - r.y0) / by] }, base.cell);
+    }
+  };
+  const plaza = kit.shell === 'plaza';
+  const B = plaza ? kit.step.width : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
+  // A NAVE wall, bay by bay: an engaged column at each bay line; between them a blind pointed arcade arch, a string
+  // course, and a lancet window whose glass glows cool and lights the bay; a bay holding a doorway stays flat.
+  const naveWall = (F, cuts, flatWall, sf, h) => {
+    const col = kit.column, ar = kit.arcade, st = kit.string, ln = kit.lancet, n = Math.max(1, Math.round(F.len / kit.bay));
+    const glass = { fill: ln.glass, emissive: hexRgb(ln.glass), emissiveStrength: 1.6, group: 'stage:glass' };
+    for (let k = 0; k < n; k++) {
+      const u0 = (F.len * k) / n, u1 = (F.len * (k + 1)) / n;
+      if (cuts.some(([c0, c1]) => c1 > u0 && c0 < u1)) { flatWall(u0, u1); continue; }
+      const a = u0 + col.r + ar.margin, b = u1 - col.r - ar.margin, z0 = kit.plinth.h;
+      const zs = Math.max(z0 + 1.6, h * ar.spring), H = (b - a) * ar.rise;
+      const apex = archedOpening(out, F, { u0, u1, z0, z1: zs + Math.max(H, (b - a) / 2) + st.gap, a, b, zs, H, seg: ar.seg, depth: ar.depth, ring: ar.ring, ringOut: ar.ringOut }, sf);
+      const zS = apex + st.gap;
+      wallBox(out, F, u0, u1, zS, zS + st.h, st.out, sf.trim, sf.trim.cell, true);   // the string course
+      // the clerestory lancet, if the wall is tall enough to hold one under the cornice
+      const mid = (u0 + u1) / 2, la = mid - ln.w / 2, lb = mid + ln.w / 2, sill = zS + st.h + ln.sill, H2 = ln.w * ln.rise;
+      const zs2 = h - kit.cornice.h - 0.35 - H2;
+      if (zs2 - sill < 0.8) { panel(out, onWall(F, u0, 0, zS), F.U, u1 - u0, [0, 0, 1], h - zS, F.N, sf.wall, sf.wall.cell); continue; }
+      panel(out, onWall(F, u0, 0, zS), F.U, u1 - u0, [0, 0, 1], sill - zS, F.N, sf.wall, sf.wall.cell);
+      archedOpening(out, F, { u0, u1, z0: sill, z1: h, a: la, b: lb, zs: zs2, H: H2, seg: ln.seg, depth: ln.depth, ring: 0.12, ringOut: 0.08 }, sf, { glass });
+      seats.push({ at: P(onWall(F, mid, ln.light.off, (sill + zs2 + H2) / 2)), n: F.N, color: ln.light.color, intensity: ln.light.intensity, radius: ln.light.radius, fixture: 'window' });
+    }
+    // columns at every bay line, corners included; torches on every other interior one
+    for (let k = 0; k <= n; k++) {
+      const u = (F.len * k) / n;
+      if (cuts.some(([c0, c1]) => u > c0 - kit.door.frame - col.r && u < c1 + kit.door.frame + col.r)) continue;
+      engagedColumn(out, F, u, { ...col, z0: kit.plinth.h, top: h - kit.cornice.h, gutterDepth: kit.gutter.depth }, sf.trim);
+      if (k > 0 && k < n && k % kit.torch.every === 1) seats.push({ at: P(onWall(F, u, col.embed + col.r + kit.torch.out, kit.torch.z)), n: F.N });
+    }
+  };
+  plan.rooms.forEach((r, ri) => {
+    const w = r.x1 - r.x0, d = r.y1 - r.y0, h = r.h;
+    // the floor field stops at the junction band (or runs to the edge on an open side)
+    const inset = (side) => (r.open.includes(side) ? 0 : B);
+    floorRect(r, ri, r.x0 + inset('-x'), r.y0 + inset('-y'), r.x1 - inset('+x'), r.y1 - inset('+y'));
+    const nave = kit.shell === 'nave';
+    if (plaza) {
+      // open to the sky: no ceiling; each closed side is a row of house fronts over a raised pavement step
+      ['-y', '+x', '+y', '-x'].forEach((s, si) => {
+        if (r.open.includes(s)) return;
+        const F = wallFrame(r, s), startSide = { '-y': '-x', '+y': '+x', '-x': '+y', '+x': '-y' }[s], endSide = { '-y': '+x', '+y': '-x', '-x': '-y', '+x': '+y' }[s];
+        const alongX = s.endsWith('y'), lo = alongX || r.open.includes(startSide) ? 0 : B, hi = alongX || r.open.includes(endSide) ? F.len : F.len - B;
+        const stepS = surf('step');
+        wallBox(out, F, lo, hi, 0, kit.step.h, kit.step.width, stepS, stepS.cell, true);
+        plazaWall(out, F, { kit, seed: ri * 4 + si + 1, surf });
+      });
+      return;
+    }
+    if (nave) {
+      const alongY = d >= w, ends = (alongY ? ['-y', '+y'] : ['-x', '+x']).filter((e) => !r.open.includes(e));
+      naveVault(out, r, { ...kit.vault, bay: kit.bay, ends }, { ceiling: surf('ceiling', ri), trim: surf('trim'), wall: surf('wall', ri * 4) });
+    } else {
+      const cs = surf('ceiling', ri);
+      panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, [0, 0, -1], cs, cs.cell);
+    }
+    ['-y', '+x', '+y', '-x'].forEach((s, si) => {
+      if (r.open.includes(s)) return;
+      const F = wallFrame(r, s), cuts = r.openings[s].map((op) => [...openingU(F, op), op.top]).sort((p, q) => p[0] - q[0]);
+      const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell;
+      // the wall: full-height solid spans + the lintel over each opening (a nave composes it per bay instead)
+      const flatWall = (u0, u1) => {
+        const inBay = cuts.map(([a, b, top]) => [Math.max(a, u0), Math.min(b, u1), top]).filter(([a, b]) => b > a);
+        for (const [a, b] of solidSpans(u1 - u0, inBay.map(([a, b, top]) => [a - u0, b - u0, top]))) panel(out, add(F.o, mul(F.U, u0 + a)), F.U, b - a, [0, 0, 1], h, F.N, wallS, cell);
+        for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, wallS, cell);
+      };
+      if (!nave) flatWall(0, F.len);
+      else naveWall(F, cuts, flatWall, { wall: wallS, trim }, h);
+      // plinth + cornice runs, broken at doorways (by the frame's width)
+      for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, trim, cell);
+      wallBox(out, F, 0, F.len, h - kit.cornice.h, h, kit.cornice.out, trim, cell, true);
+      // door frames: two jambs + a head, standing a little proud
+      for (const [a, b, top] of cuts) {
+        const fw = kit.door.frame, fo = kit.door.out;
+        wallBox(out, F, a - fw, a, 0, top + fw, fo, trim, cell);
+        wallBox(out, F, b, b + fw, 0, top + fw, fo, trim, cell);
+        wallBox(out, F, a, b, top, top + fw, fo, trim, cell, true);
+      }
+      // the junction band: a gutter in front of the plinth, broken at doorways where the floor runs to the wall.
+      // ±y walls own the corner squares; ±x walls stop short of them.
+      // the wall at this run's start/end (u = 0 / len); a ±x run stops short of a closed ±y wall's corner square
+      const startSide = { '-y': '-x', '+y': '+x', '-x': '+y', '+x': '-y' }[s], endSide = { '-y': '+x', '+y': '-x', '-x': '-y', '+x': '+y' }[s];
+      const alongX = s.endsWith('y'), gs = surf('gutter');
+      const lo = alongX || r.open.includes(startSide) ? 0 : B, hi = alongX || r.open.includes(endSide) ? F.len : F.len - B;
+      const g = kit.gutter, at = (u, off, z) => add(add(add(F.o, mul(F.U, u)), mul(F.N, off)), [0, 0, z]);
+      const spans = solidSpans(F.len, cuts, kit.door.frame).map(([a, b]) => [Math.max(a, lo), Math.min(b, hi)]).filter(([a, b]) => b - a > 1e-6);
+      for (const [a, b] of spans) {
+        panel(out, at(a, kit.plinth.out, -g.depth), F.U, b - a, F.N, g.width, [0, 0, 1], gs, gs.cell);              // trench bed
+        panel(out, at(a, kit.plinth.out, -g.depth), F.U, b - a, [0, 0, 1], g.depth, F.N, gs, gs.cell);             // under the plinth
+        panel(out, at(a, B, -g.depth), F.U, b - a, [0, 0, 1], g.depth, mul(F.N, -1), trim, gs.cell);              // the lip
+        for (const [u, sgn] of [[a, 1], [b, -1]]) if (u > lo + 1e-6 && u < hi - 1e-6) {                          // end caps at a doorway
+          panel(out, at(u, kit.plinth.out, -g.depth), F.N, g.width, [0, 0, 1], g.depth, mul(F.U, sgn), trim, gs.cell);
+        }
+        drains.push({ F, a, b });
+      }
+      // at a doorway the floor runs from the band's edge up to the wall line (the threshold beyond is the reveal)
+      for (const [a, b] of cuts) {
+        const u0 = Math.max(lo, a - kit.door.frame), u1 = Math.min(hi, b + kit.door.frame);
+        const p0 = at(u0, 0, 0), p1 = add(at(u1, 0, 0), mul(F.N, B));
+        floorRect(r, ri, Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]));
+      }
+      // pilasters: every bay along the wall (corners included), skipped where a doorway would be cut
+      const pw = kit.pilaster.w, nBays = Math.max(1, Math.round(F.len / kit.bay));
+      for (let k = 0; k <= nBays && !nave; k++) {
+        const u = (F.len * k) / nBays, a = Math.max(0, u - pw / 2), b = Math.min(F.len, u + pw / 2);
+        if (cuts.some(([c0, c1]) => b > c0 - kit.door.frame && a < c1 + kit.door.frame)) continue;
+        wallBox(out, F, a, b, kit.plinth.h, h - kit.cornice.h, kit.pilaster.out, trim, cell);
+        if (k > 0 && k < nBays && k % kit.torch.every === 1) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
+      }
+    });
+    // ribs across the short span at each bay (a nave's ribs ride its vault)
+    const alongX = w >= d, span = alongX ? w : d, nRib = nave ? 0 : Math.max(1, Math.round(span / kit.bay));
+    for (let k = 1; k < nRib; k++) {
+      const c = (alongX ? r.x0 : r.y0) + (span * k) / nRib, half = kit.rib.w / 2;
+      const mn = alongX ? [c - half, r.y0, h - kit.rib.drop] : [r.x0, c - half, h - kit.rib.drop];
+      const mx = alongX ? [c + half, r.y1, h] : [r.x1, c + half, h];
+      box(out, mn, mx, surf('trim'), kit.cells.trim, ['+z', alongX ? '-y' : '-x', alongX ? '+y' : '+x']);
+    }
+  });
+  // doorway reveals: two jambs, a soffit and a threshold through the wall's thickness
+  const t = kit.wall / 2, trim = surf('trim'), cell = trim.cell;
+  for (const l of plan.links) {
+    const alongX = l.wall.endsWith('y');   // a ±y wall runs along x; the passage crosses y
+    const A = alongX ? [0, 1, 0] : [1, 0, 0], base = l.at - t;
+    const pt = (u, c, z) => (alongX ? [u, c, z] : [c, u, z]);
+    const jn = alongX ? [1, 0, 0] : [0, 1, 0];
+    panel(out, pt(l.lo, base, 0), A, 2 * t, [0, 0, 1], l.top, jn, trim, cell);
+    panel(out, pt(l.hi, base, 0), A, 2 * t, [0, 0, 1], l.top, mul(jn, -1), trim, cell);
+    const S = alongX ? [1, 0, 0] : [0, 1, 0];
+    panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
+    panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
+  }
+  return { faces: out, seats, drains };
+}
+
+// ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
+/** Rubble faces for the gutter runs: clusters seeded per run, each 2–4 stones of a pooled basalt. Untextured; each
+ *  face carries `tint` + `normal` so the stage bake lights it like the shell. */
+export function stageRubble(plan, drains) {
+  const rb = plan.kit.rubble, g = plan.kit.gutter;
+  if (!rb || !drains.length) return [];
+  const pool = rockPool({ rock: rb.rock, variants: rb.variants, detail: 0, tone: rb.tone, seed: 'stage-rubble', group: 'stage:rubble' });
+  const items = [];
+  drains.forEach(({ F, a, b }, di) => {
+    const n = Math.floor((b - a) * rb.perMetre * (0.5 + hash3(di, 0, 211)));
+    for (let c = 0; c < n; c++) {
+      const u0 = a + 0.3 + (b - a - 0.6) * hash3(di, c, 223), stones = 2 + Math.floor(hash3(di, c, 227) * 3);
+      for (let k = 0; k < stones; k++) {
+        const u = u0 + (hash3(di * 31 + c, k, 229) - 0.5) * 0.7;
+        if (u < a + 0.1 || u > b - 0.1) continue;
+        const off = plan.kit.plinth.out + g.width * (0.2 + 0.6 * hash3(di * 31 + c, k, 233));
+        const p = add(add(F.o, mul(F.U, u)), mul(F.N, off));
+        const size = rb.size[0] + (rb.size[1] - rb.size[0]) * hash3(di * 31 + c, k, 239) ** 2;
+        items.push({ x: r5(p[0]), y: r5(p[1]), z0: -g.depth, size: r5(size) });
+      }
+    }
+  });
+  const tint = hexRgb(rb.tone);
+  return expandRepeats(rockRepeats(pool, items, { sink: 0.25, group: 'stage:rubble' }))
+    .map((f) => ({ corners: f.corners.map(P), normal: f.outNormal, outNormal: f.outNormal, tint, group: 'stage:rubble', doubleSided: true }));
+}
+
+// ── light ────────────────────────────────────────────────────────────────────
+function nearestWallNormal(plan, [x, y]) {
+  let best = null;
+  for (const r of plan.rooms) for (const [d, n] of [[x - r.x0, [1, 0, 0]], [r.x1 - x, [-1, 0, 0]], [y - r.y0, [0, 1, 0]], [r.y1 - y, [0, -1, 0]]]) {
+    if (d >= -0.6 && (!best || d < best.d)) best = { d, n };
+  }
+  return best ? best.n : [0, 0, 1];
+}
+/** Resolve the recipe's lights: 'auto' seats a torch on the kit's seats; an array is taken as authored. */
+export function resolveStageLights(plan, seats) {
+  const t = plan.kit.torch;
+  const list = plan.lights === 'auto' ? seats : Array.isArray(plan.lights) ? plan.lights : [];
+  return list.map((l, i) => {
+    if (!Array.isArray(l.at) || l.at.length !== 3 || !l.at.every(Number.isFinite)) throw new Error(`stage: light ${i} needs at:[x,y,z]`);
+    // the wall a light hangs on (its soot lands there): a seat knows it; an authored light takes the nearest wall
+    return { at: P(l.at), n: l.n || nearestWallNormal(plan, l.at), color: l.color || t.color, intensity: l.intensity ?? t.intensity, radius: l.radius ?? t.radius, fixture: l.fixture ?? 'torch' };
+  });
+}
+// the era's vertex colour had headroom (PS2 0x80 = 1.0, up to 2×) but a pool still rolled off before white:
+// linear to KNEE, then an exponential shoulder that approaches 1
+const KNEE = 0.75, NEAR_LIGHT = 1.1;
+const shoulder = (v) => (v <= KNEE ? v : KNEE + (1 - KNEE) * (1 - Math.exp(-(v - KNEE) / (1 - KNEE))));
+/** Bake ambient + every light into each corner: Lambert (half-wrapped, so pools spill round corners) × a smooth radius falloff. */
+export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], sun = null) {
+  const L = lights.map((l) => ({ ...l, rgb: hexRgb(l.color) }));
+  const at = (f, c) => {
+      const lit = [...ambient];
+      if (sun) {
+        // daylight: the sun's Lambert where the shadow test reaches it, plus warm bounce off the ground onto faces that look down or sideways
+        const lam = Math.max(0, dot(f.normal, sun.dir));
+        if (lam > 0) { const reach = sun.shadow(c, f.normal); for (let k = 0; k < 3; k++) lit[k] += sun.rgb[k] * sun.gain * lam * reach; }
+        const down = Math.max(0, 0.5 - 0.5 * f.normal[2]);
+        for (let k = 0; k < 3; k++) lit[k] += sun.bounce[k] * sun.bounceGain * down;
+      }
+      for (const l of L) {
+        const to = sub(l.at, c), dist = Math.hypot(to[0], to[1], to[2]);
+        if (dist >= l.radius) continue;
+        const ndl = dist > 1e-6 ? dot(f.normal, mul(to, 1 / dist)) : 1;
+        // the falloff holds flat inside NEAR_LIGHT: a flame doesn't burn the stone behind it white
+        const lam = Math.max(0, (ndl + 0.25) / 1.25), fall = (1 - Math.max(dist, NEAR_LIGHT) / l.radius) ** 2;
+        for (let k = 0; k < 3; k++) lit[k] += l.rgb[k] * l.intensity * lam * fall;
+      }
+      const grime = dirt(f, c);
+      return lit.map((v, k) => shoulder(v) * f.tint[k] * grime[k]);
+  };
+  return faces.map((f) => {
+    if (!f.tint) return f;   // self-lit (glass): carries its own fill
+    const { tint, top, ...rest } = f;
+    // a quad gets a colour per corner; an n-gon (a rubble stone) is lit once at its centroid
+    if (f.corners.length !== 4) {
+      const c = [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length);
+      return { ...rest, fill: rgbHex(at(f, c)) };
+    }
+    const cols = f.corners.map((c) => at(f, c));
+    const mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / cols.length);
+    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
+  });
+}
+/** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB. */
+function torchFaces(l) {
+  const out = [], [x, y, z] = l.at, plain = { key: null, scale: 1, tint: [1, 1, 1] };
+  const iron = (mn, mx, fill) => {
+    const raw = [];
+    box(raw, mn, mx, plain, 1);
+    for (const { texture, textureLit, uv, tint, ...f } of raw) out.push({ ...f, fill, group: 'stage:fixture' });
+  };
+  iron([x - 0.07, y - 0.07, z - 0.5], [x + 0.07, y + 0.07, z - 0.14], '#2a2420');   // the bracket
+  iron([x - 0.12, y - 0.12, z - 0.14], [x + 0.12, y + 0.12, z - 0.06], '#3a3028');  // the bowl
+  // the flame: per card, a tapered lower quad (bowl → belly) and a pointed upper quad (belly → tip)
+  const fl = l.color, b0 = 0.06, b1 = 0.14, zb = z - 0.06, zm = z + 0.12, zt = z + 0.46;
+  for (const [ax, ay] of [[1, 0], [0, 1]]) {
+    const at = (u, zz) => P([x + ax * u, y + ay * u, zz]), n = [ay, -ax, 0];
+    const common = { normal: n, outNormal: n, group: 'stage:fixture', emissive: hexRgb(fl), emissiveStrength: 4 };
+    out.push({ corners: [at(-b0, zb), at(b0, zb), at(b1, zm), at(-b1, zm)], fill: '#fff0c0', ...common, glow: `0 0 8px 3px ${fl}` });
+    out.push({ corners: [at(-b1, zm), at(b1, zm), at(0.01, zt), at(-0.01, zt)], fill: '#ff9a3c', ...common });
+  }
+  return out;
+}
+
+// ── the world kind ───────────────────────────────────────────────────────────
+const ambientOf = (ref) => hexRgb(ref.light.ambient).map((v) => Math.min(1, v * 1.7));
+
+/** manifest → World payload (the WORLD_KINDS resolver). */
+export function assembleStageScene(manifest = {}, ctx = {}) {
+  const kit = STAGE_KITS[manifest.kit];
+  if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
+  if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
+  const plan = planStage(manifest);
+  const { faces: shell, seats, drains } = buildStageGeometry(plan);
+  const raw = [...shell, ...stageRubble(plan, drains)];
+  const lights = resolveStageLights(plan, seats);
+  const key = plan.ref.light.key, daylight = plan.kit.sun && key;
+  const sun = daylight ? (() => {
+    const dir = sunDir(key.elevation, key.azimuth ?? 225), sk = plan.kit.sky;
+    return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain,
+      shadow: makeSunShadow(raw.filter((f) => f.group !== 'stage:glass'), dir) };
+  })() : null;
+  const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
+  const lit = ctx.unshaded
+    ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
+    : bakeStageLight(raw, lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
+  const fixtures = lights.filter((l) => l.fixture === 'torch').flatMap(torchFaces);
+  const r0 = plan.rooms[0];
+  // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
+  const setCam = r0.open.length ? (() => {
+    const ox = r0.open.includes('+x') ? r0.x1 - 1.2 : r0.open.includes('-x') ? r0.x0 + 1.2 : (r0.x0 + r0.x1) / 2;
+    const oy = r0.open.includes('-y') ? r0.y0 + 1.2 : r0.open.includes('+y') ? r0.y1 - 1.2 : (r0.y0 + r0.y1) / 2;
+    const tx = ox > (r0.x0 + r0.x1) / 2 ? r0.x0 + 1 : r0.x1 - 1, ty = oy > (r0.y0 + r0.y1) / 2 ? r0.y0 + 3 : r0.y1 - 3;
+    const lookZ = plan.kit.shell === 'plaza' ? 4.5 : r0.h * 0.75;
+    return { name: 'set', worldFraming: { cameraPosition: [ox, oy, 1.7], lookAt: [tx, ty, lookZ], horizontalFov: 80, pictureCenter: [560, 390] } };
+  })() : null;
+  const look = plan.links[0] ? [(plan.links[0].lo + plan.links[0].hi) / 2, plan.links[0].at] : null;
+  const lookAt = !look ? [(r0.x0 + r0.x1) / 2, r0.y1, 1.8]
+    : plan.links[0].wall.endsWith('y') ? [look[0], look[1], 1.8] : [look[1], look[0], 1.8];
+  const air = plan.ref.air;
+  return {
+    faces: [...lit, ...fixtures],
+    lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
+    cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }],
+    viewBox: manifest.viewBox || { width: 1120, height: 780 },
+    title: ctx.title || manifest.title || `mojulo stage · ${plan.ref.title}`,
+    bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color,
+    haze: { color: air.fog.color, density: air.fog.density },
+    // the halo is a depth-tested camera-facing sprite: kept inside the torch's clearance from the wall, or the
+    // pilasters around it slice it into bright wedges
+    glow: { scale: 0.32, opacity: 0.8 },
+    // an exterior gets the reference's painted sky dome; an interior declares itself one (engines keep their sun out)
+    sky: daylight ? { zenith: air.dome.zenith, horizon: air.dome.horizon, day: 1, stars: 0, seed: 1 } : { preset: 'interior' },
+    walk: manifest.walk === false ? false
+      : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },
+  };
+}

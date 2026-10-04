@@ -12,6 +12,138 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Sixth-gen composer
+
+- Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a
+  grid, small painted tiles and trim sheets, two-tile vertex blends and hand-placed lights baked into
+  vertex colour. The character stays slightly more detailed than the world through a measured fidelity
+  ratio.
+- Era card and reference moods (Devil May Cry 3, Pokémon Colosseum, Super Mario Sunshine, Metal Gear
+  Solid 3) in `lib/graph/era/sixth-gen.js`.
+- `measureFidelity` (`lib/graph/era/fidelity.js`): renders a z-buffer at the era's 640×448 frame from
+  one camera. It reports triangles, vertices and texels per pixel for the cast and for the world, and
+  the cast-to-world ratio. It is advisory only.
+- New world kind `stage` (`lib/graph/era/stage.js`). It takes rooms on a grid joined by doorways and
+  dresses them from a kit card. The first card, `gothic-stone`, adds plinths, cornices, pilasters,
+  ceiling ribs, door frames and stone tiles. Torches are seated automatically or placed by hand. Each
+  one is baked into the vertex colour of nearby corners, drawn as a sconce with a glowing flame, and
+  exported as a point light in the GLB. The reference's fog becomes distance haze. The stage is walkable.
+- A stage is built in three layers that never share a material: the floor, a band where floor meets wall,
+  and the walls.
+  - The floor is flagstone paving, a different shape from the coursed walls. It is laid one tile per
+    structural bay, so its long joints line up with the pilasters, and each bay uses its own variant.
+  - The band is a recessed gutter in front of the plinth, with basalt rubble from the rock pool fallen
+    into it.
+- New `flagstone` surface tiles (`flagstone`, `flagstone-warm`, `flagstone-slate`, four variants each).
+  Square and oblong flags of mixed sizes sit on a grid, with wandering joints and worn, grimy edges.
+  Some flags are cracked, and the odd one is lost to its gravel bed. Every tile edge is a joint, so
+  each variant can have its own layout.
+- The `gothic-nave` stage kit, with curved geometry in `lib/graph/era/gothic.js`. Pointed arches have
+  real depth: a recess, reveals, a soffit and a moulded ring. Engaged columns are 10-sided. The ceiling is
+  a tall pointed barrel vault with transverse ribs, a ridge rib and filled end walls. Each bay has a blind
+  arcade arch, a string course, and a clerestory lancet whose glass glows and casts cool light. Torches
+  stand on alternate columns.
+- A stage room can leave sides `open`, a set seen from the open side for iterating on one view. The
+  view is then framed from the open corner.
+- First exterior stage kit: `delfino-plaza`, an open-air square (`lib/graph/era/plaza.js`).
+  - Each side is a row of house fronts of different heights, giving a stepped skyline. Each house has its
+    own stucco colour, a stone base band, an arched door, windows with surrounds and projecting sills,
+    sometimes a balcony, and an eave over a pitched terracotta roof.
+  - A raised pavement step runs along the house fronts, and the square is paved in warm flagstone bays.
+- The `delfino-plaza` exterior is lit by a baked sun (`lib/graph/era/sun.js`). Each vertex is tested
+  against the scene for a cast shadow, and faces that look down or sideways get a sky fill and warm
+  ground bounce. It is drawn under the reference's painted sky dome.
+- `trail-valley` stage kit: a nature level built to a style card. The card
+  (`lib/graph/era/style/nature-trail.js`) states the art style as principles and also holds the numbers
+  the builder reads. The builder (`lib/graph/era/nature.js`) makes:
+  - faceted ground, with material chosen by slope;
+  - a trail as a curved ribbon with grass edges;
+  - a cliff of leaning rock bands with ledges, buttresses and gullies, with fallen rocks at its foot;
+  - spruce trees planted in clusters;
+  - red trail-marker posts;
+  - ridges that fade into the fog.
+
+  Moss, wet stains and wear are applied by cause. The scene is lit by the baked sun, and trees cast shadows.
+  Each principle has an automated check, including the brightness order trail > rock > grass > foliage.
+- The trail level is composed by where the eye lands. The style card names focus areas: a trailhead, and a
+  boulder gate at a bend.
+  - Inside a focus area, rocks are chipped (more detailed) and each one is different, grass tufts are
+    fuller and denser, and two boulders frame the trail.
+  - Outside, cheaper rocks and tufts repeat.
+  - The trail's width and grass edges vary along its length, with pebbles along the edges.
+  - Grass is instanced tufts (tussock, meadow, sedge), darkened where shade falls. Every boulder and tree
+    sits on a soft contact shadow.
+- The trail's cliff is now real geology on one heightfield with the valley, using mojulo's landform
+  operators: a scarp, rock beds that form benches, jointed facets and a talus apron. Fallen rock lies where
+  the scree came to rest.
+- Debris on and beside the trail: roots surfacing from nearby trees, a fallen log with bark, sticks and
+  cones, flat stones worn flush, and a puddle with wet soil around it.
+- Walk mode on the trail no longer falls through the ground: the spawn is at eye height above the trail.
+- The trail level's sky has weather: mojulo's cloud deck, lit by the level's sun.
+- `composeCloudDeck` takes `depthClip`. With it, the deck reads the scene's depth and no longer paints over
+  trees, cliffs or buildings that stand in front of it. `emitThreeWorld` gives any effect layer that asks
+  for depth a shared depth pass before each render. Worlds that don't ask are unchanged.
+- `jungle-trail` stage kit: a late sixth-gen jungle in the manner of Metal Gear Solid 3, built to the
+  `jungle-mgs3` style card (`lib/graph/era/style/jungle-mgs3.js`) by `lib/graph/era/jungle.js`. It reuses the
+  trail's ground, trail ribbon, rocks and debris, with a low mossy ravine wall and a mud trail. On it stand:
+  - giant figs grown by mojulo's vegetation engine, kept for their wood (trunk, limbs, buttresses, barked near
+    the trail). Their crowns are leaf cards placed at the grown tree's own leaf clusters;
+  - tree ferns, fern and broadleaf understory, leaf litter on the floor, hanging vines and sagging lianas;
+  - a canopy roof with holes, which opens over the trail;
+  - layered walls of foliage beyond the visible area that fade into the fog.
+
+  Detail is revealed by ring out from the trail: dense and distinct near, sparser and coarser further out,
+  and only the fading walls beyond. Sunlight reaches the floor only through the canopy's holes, as dapples,
+  with soft light shafts standing where it does. A filmic grade pulls every colour toward olive and sepia.
+  Each principle has an automated check, including the brightness order dapples > trail > trunks > foliage
+  > shade.
+- The jungle trail blends into the floor. Trail, edge and floor share one mud tile mapped the same way, so
+  there is no seam. The trail is told apart by brightness and wear instead: a packed, lighter centre that
+  wanders out into the darker, patchier floor. Leaf litter piles along the edges, some lies on the trail,
+  and twigs lie across it.
+- Jungle shade is deeper, while sunlit dapples and shafts stay bright. Leaves carry their own shade: plants
+  darken toward their base, crown clumps toward their undersides, and soft shadows lie under the plants
+  near the trail.
+- Each giant near the trail has its own bark (oak, chestnut or beech) and small ferns and broadleaf plants
+  growing on its big limbs. Moss, pale lichen and dark wet streaks are applied by cause to the trunks and to
+  the tree-fern trunks.
+- The jungle's flora draws on mojulo's tropical plants, and twists:
+  - Giants grow with stronger kinks and a stronger reach toward light, using the vegetation grower's own
+    settings, so their limbs bend toward the canopy's gaps.
+  - A banyan stands at the gate. Its pillar roots land on both sides of the trail, never on it, so the
+    path runs between them. Each pillar wanders, flares at its foot and is braided with a thinner strand.
+    Its hanging roots are curtains of a new root card.
+  - Lianas wind up the trunks.
+  - Clumps of mojulo's clumping bamboo stand on the wet ground at the foot of the ravine wall, with their
+    foliage drawn as a new bamboo card. Culms on the wall side stand upright instead of leaning into the rock.
+- The jungle takes five more principles from Snake Eater's own frames, each with a check:
+  - The floor is two materials blended. A painted moss tile (`floor:moss`, `lib/graph/era/floor-tiles.js`)
+    fades in over the soil at each corner. It is worn off the trail, thick in patches and in shade, and climbs
+    the massive trunks.
+  - The floor undulates. The style card's optional `lumps` adds mounds, hollows and banks either side of the
+    trail, which sits sunk between them. Styles without it are unchanged.
+  - Occasional massive trunks: low-poly boles 2.7–3.4 m across, lumpy and flared. They carry oak bark at a
+    larger crack scale, buttress roots on the side away from the trail, and moss.
+  - Tall grass is cards of broad blades (`card:grass`), placed where sunlight reaches the floor. It is lit
+    and shaded with the rest of the scene, and walked through.
+- `emitThreeWorld` draws faces marked `blend: true` in their own translucent pass: a second texture faded in
+  per corner by `cornerAlpha`, multiplied by the baked colour, drawn over the surface beneath it without
+  flickering. This is the era's two-tile vertex blend. Worlds without blend faces are unchanged.
+- Leaf cards (`lib/graph/era/leaf-cards.js`): painted RGBA leaf textures (`card:broadleaf`, `card:fern`,
+  `card:spray`, `card:vine`, `card:litter`, `card:roots`, `card:bamboo`, `card:grass`), resolved through the surface-texture registry. New
+  `encodePngRgba` in `lib/graph/landscape/surface-textures.js`.
+- `emitThreeWorld` takes `cutouts`, a list of texture keys whose alpha is cut out (alpha-tested). Those
+  surfaces drop their clear texels, including from the depth pass, and are not walk colliders, so foliage
+  is walked through. Worlds that don't pass it are unchanged.
+- `makeSunShadow` takes `maskOf`, so a cutout card blocks the sun only where its texture is opaque.
+- Dirt is baked into the vertex colour by cause (`lib/graph/era/dirt.js`):
+  - soot above torches;
+  - streaks under the cornice;
+  - damp wall bases;
+  - a worn walking path and grimy floor edges.
+
+  The recipe's `dirt` scales each cause. Baked ambient occlusion is on for the `stage` kind.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

@@ -23,6 +23,7 @@ import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-cond
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
+import { assembleStageScene } from '@/lib/graph/era/stage';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
@@ -426,6 +427,14 @@ export const WORLD_KINDS = {
     title: 'mojulo dungeon',
     walk: true,
     resolve: (m, ctx) => assembleDungeonScene(m, { title: ctx.title, unshaded: ctx.unshaded }),
+  },
+  // a level built the sixth-gen way (era/stage.js): grid rooms dressed by a kit card, tiles multiplied
+  // over per-corner baked light, placed torches that also leave as punctual lights. Walkable.
+  stage: {
+    title: 'mojulo stage',
+    walk: true,
+    ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
+    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded }),
   },
   'transportation-hub': {
     title: 'mojulo transportation hub',
