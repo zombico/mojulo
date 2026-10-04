@@ -18,30 +18,31 @@ import { SUMER } from './cultures/sumer.js';
 import { palm } from './patterns.js';
 import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { scaleHex } from '../polygonizer/vexar.js';
-import { placeAsset, localSize, skinFor } from './assets/kit.js';
+import { placeAsset, localSize } from './assets/kit.js';
+import { CELL, C, LAYER, laneZ, stream, pick, claimGrid, runs, alleyLattice, packLots, lotSlot, placeSlots, skinLoose } from './layout-kit.js';
+import { THEBES } from './cultures/thebes.js';
+import { planRiverAxis } from './layouts/thebes.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
 import { groundTileFace, groundTileCss, skinFace } from './ground.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER };
-const CELL = 3;                                   // claim-grid cell, metres
-const C = { EMPTY: 0, WATER: 1, WALL: 2, LANE: 3, PRECINCT: 4, HOUSE: 5, OUTSIDE: 6, OPEN: 7, REED: 8 };
+export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
-function mulberry32(a) {
-  return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+/**
+ * Plan a historic city. Each culture brings its layout (`culture.layout`): 'ring-canal' (a walled ring
+ * cut by a canal, the precinct at the heart — Sumer) or 'river-axis' (a river along the town and a
+ * temple on an axis from its quay — New Kingdom Thebes). Both share ./layout-kit.js.
+ */
+export function planHistoricCity(opts = {}) {
+  const K = HISTORIC_CULTURES[opts.culture || 'sumer'] || SUMER;
+  return K.layout === 'river-axis' ? planRiverAxis({ ...opts, culture: opts.culture || 'sumer' }, K) : planRingCanal(opts);
 }
-function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
-const stream = (seed, tag) => mulberry32(hash(`${seed}|historic|${tag}`));
-const pick = (xs, rng) => xs[Math.floor(rng() * xs.length)];
 
-export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }, assets } = {}) {
+function planRingCanal({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }, assets } = {}) {
   const K = HISTORIC_CULTURES[culture] || SUMER, P = K.palette;
-  const cols = Math.floor(frame.w / CELL), rows = Math.floor(frame.d / CELL);
-  const grid = new Uint8Array(cols * rows);
-  const at = (c, r) => (c >= 0 && r >= 0 && c < cols && r < rows ? grid[r * cols + c] : -1);
-  const set = (c, r, v) => { if (c >= 0 && r >= 0 && c < cols && r < rows) grid[r * cols + c] = v; };
+  const g = claimGrid(frame), { cols, rows, grid, at, set } = g;
   const boxes = [], grounds = [];
 
   // ── 1. the ring: an irregular closed outline (low-frequency radius wobble), everything outside is OUTSIDE ──
@@ -182,59 +183,11 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   // the block alleys: a loose lattice of narrow lanes, jogging a cell now and then, so no block is
   // more than two houses deep and every house fronts a lane you can walk down (the organic streets
   // above stay the town's bones; these are the paths between the houses)
-  if (K.lanes.block) {
-    const [br, bc] = K.lanes.block, BL = stream(seed, 'blocks');
-    const line = (n, len, across, cellAt) => {
-      for (let base = Math.floor(BL() * across) + across; base < n - 1; base += across) {
-        let off = 0;
-        for (let t = 0; t < len; t++) {
-          if (BL() < 0.08) {   // a jog: step over a cell, carving the corner so the alley stays continuous
-            const step = BL() < 0.5 ? 1 : -1;
-            if (Math.abs(off + step) <= 1) { const [c, r] = cellAt(base + off, t); if (at(c, r) === C.EMPTY) { set(c, r, C.LANE); laneCells.push([c, r]); } off += step; }
-          }
-          const [c, r] = cellAt(base + off, t);
-          if (at(c, r) === C.EMPTY) { set(c, r, C.LANE); laneCells.push([c, r]); }
-        }
-      }
-    };
-    line(rows, cols, br, (r, c) => [c, r]);   // east–west alleys
-    line(cols, rows, bc, (c, r) => [c, r]);   // north–south alleys
-  }
+  if (K.lanes.block) alleyLattice(g, K.lanes.block, seed, laneCells);
 
   // ── 8. houses: pack the remaining inside cells with lots; each lot is a slot facing its lane ──
-  const H = K.house, LOT = stream(seed, 'lots');
-  const order = [];
-  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (at(c, r) === C.EMPTY) order.push(c + r * cols);
-  // lots are laid in reading order, so each grows to its full size against its neighbours (a shuffled
-  // order fragments the blocks into slivers); the dice still size every lot
-  const lots = [];
-  for (const idx of order) {
-    const c0 = idx % cols, r0 = Math.floor(idx / cols);
-    if (at(c0, r0) !== C.EMPTY) continue;
-    const tw2 = Math.round((H.size[0] + LOT() * (H.size[1] - H.size[0])) / CELL), td2 = Math.round((H.size[0] + LOT() * (H.size[1] - H.size[0])) / CELL);
-    let w = 1, d = 1;
-    // grow right then down while every cell is free
-    while (w < tw2 && colFree(c0 + w, r0, d)) w++;
-    while (d < td2 && rowFree(c0, r0 + d, w)) d++;
-    if (w < 2 || d < 2) { for (let r = r0; r < r0 + d; r++) for (let c = c0; c < c0 + w; c++) set(c, r, C.OPEN); continue; }   // a sliver is no house: leave it open ground
-    for (let r = r0; r < r0 + d; r++) for (let c = c0; c < c0 + w; c++) set(c, r, C.HOUSE);
-    lots.push({ c0, r0, w, d });
-  }
-  function colFree(c, r, d) { for (let k = 0; k < d; k++) if (at(c, r + k) !== C.EMPTY) return false; return true; }
-  function rowFree(c, r, w) { for (let k = 0; k < w; k++) if (at(c + k, r) !== C.EMPTY) return false; return true; }
-  // a lot faces the side with the most lane along it (the door is on the street); which house it gets
-  // follows from its size alone
-  const open = (c, r) => { const v = at(c, r); return v === C.LANE || v === C.OPEN; };
-  for (const { c0, r0, w, d } of lots) {
-    const side = { n: 0, s: 0, w: 0, e: 0 };
-    for (let k = 0; k < w; k++) { side.n += open(c0 + k, r0 - 1); side.s += open(c0 + k, r0 + d); }
-    for (let k = 0; k < d; k++) { side.w += open(c0 - 1, r0 + k); side.e += open(c0 + w, r0 + k); }
-    const facing = ['s', 'n', 'e', 'w'].reduce((best, f) => (side[f] > side[best] ? f : best), 's');
-    // each house stands a little in from its lot line, so neighbours read as separate buildings
-    const g = H.gap || 0, rect = { x: c0 * CELL + g, y: r0 * CELL + g, w: w * CELL - 2 * g, d: d * CELL - 2 * g };
-    const asset = Math.min(rect.w, rect.d) >= H.courtyardMin ? 'house-court' : rect.w * rect.d >= 120 ? 'house-tall' : 'house-small';
-    slots.push({ asset, rect, facing });
-  }
+  const H = K.house;
+  for (const lot of packLots(g, H.size, seed)) slots.push(lotSlot(g, lot, H.gap || 0, (rect) => (Math.min(rect.w, rect.d) >= H.courtyardMin ? 'house-court' : rect.w * rect.d >= 120 ? 'house-tall' : 'house-small')));
 
   // ── 9. the wall, its towers and gates, as slots facing out of the town (gate cells stay open) ──
   const gateSet = new Set();
@@ -352,13 +305,7 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   }
 
   // ── place: every slot built by the culture's kit, on its own dressing stream ──
-  const kit = assets || K.assets;
-  for (const [i, slot] of slots.entries()) {
-    const A = kit[slot.asset];
-    if (!A) throw new Error(`no asset '${slot.asset}' in the ${culture} kit`);
-    const placed = placeAsset(A, slot, { palette: P, culture: K, rng: stream(seed, `asset|${i}`) });
-    boxes.push(...placed.boxes); grounds.push(...placed.grounds);
-  }
+  placeSlots(slots, assets || K.assets, K, seed, boxes, grounds, culture);
 
   // ── 10. ground: base earth, lanes, water, fields and palm groves outside ──
   // the canal, read at street level: a smooth channel sunk below the town, its banks walled in baked
@@ -370,8 +317,8 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   const earthBase = [];
   for (let c = 0; c < cols; c++) {
     const x0 = c * CELL, x1 = x0 + CELL, m = mAt(c), n0 = bankN(x0), n1 = bankN(x1), s0 = bankS(x0), s1 = bankS(x1);
-    const ov = 0.3, xa = x0 - ov, xb = x1 + ov, na = bankN(xa), nb = bankN(xb);   // neighbours overlap a hair, or the page shows a seam
-    grounds.push({ kind: 'water', poly: [[xa, na], [xb, nb], [xb, nb + cw * CELL], [xa, na + cw * CELL]], z: waterZ, fill: P.water });
+    const ov = c % 2 ? 0.3 : 0, xa = x0 - ov, xb = x1 + ov, na = bankN(xa), nb = bankN(xb);   // odd columns overlap their neighbours a hair (a seam in the page otherwise; all of them would stack in the World)
+    grounds.push({ kind: 'water', poly: [[xa, na], [xb, nb], [xb, nb + cw * CELL], [xa, na + cw * CELL]], z: waterZ + (c % 2 ? LAYER : 0), fill: P.water });
     // the revetments, battered a little, from the quay edge down below the water
     const lean = 0.25, foot = waterZ - 0.2;
     const ra = x0 - 0.12, rb = x1 + 0.12, rn0 = bankN(ra), rn1 = bankN(rb), rs0 = bankS(ra), rs1 = bankS(rb);   // panels overlap a hair
@@ -381,7 +328,7 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
     for (const [r, edge, lo] of [[m - 1, [n0, n1], true], [m + cw, [s0, s1], false]]) {
       const [surface, fill] = quayed(c, r) ? ['brick', P.paving] : ['dry-earth', P.ground];
       const gy = lo ? r * CELL : (r + 1) * CELL, inner = lo ? Math.min(...edge) : Math.max(...edge);
-      grounds.push({ kind: 'quay', x: x0 - 0.15, y: Math.min(gy, inner), w: CELL + 0.3, d: Math.abs(inner - gy), z: 0.02, fill, surface });
+      grounds.push({ kind: 'quay', x: x0 - (c % 2 ? 0.15 : 0), y: Math.min(gy, inner), w: CELL + (c % 2 ? 0.3 : 0), d: Math.abs(inner - gy), z: 0.02 + (c % 2 ? LAYER : 0), fill, surface });
       if (Math.abs(edge[0] - edge[1]) > 1e-6) {
         const tip = (lo ? edge[0] > edge[1] : edge[0] < edge[1]) ? [x0, edge[0]] : [x1, edge[1]];
         grounds.push({ kind: 'quay-edge', poly: [[x0, inner], [x1, inner], tip], z: 0.02, fill });
@@ -400,7 +347,7 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   const laneSurface = { [S.MUD]: ['mud', P.lane], [S.RUBBLE]: ['rubble', P.street], [S.BRICK]: ['brick', P.paving] };
   for (const sv of [S.MUD, S.RUBBLE, S.BRICK]) {
     const [surface, fill] = laneSurface[sv];
-    runs(grid, cols, rows, (v, c, r) => (v === C.LANE || v === C.OPEN) && surf[r * cols + c] === sv && !isBank(c, r), (c, r, n) => grounds.push({ kind: 'lane', x: c * CELL, y: r * CELL, w: n * CELL + 0.15, d: CELL + 0.15, z: 0.02, fill, surface }));   // a hair of overlap closes the seams
+    runs(grid, cols, rows, (v, c, r) => (v === C.LANE || v === C.OPEN) && surf[r * cols + c] === sv && !isBank(c, r), (c, r, n) => grounds.push({ kind: 'lane', x: c * CELL, y: r * CELL - (r % 2 ? 0.08 : 0), w: n * CELL + 0.15, d: CELL + (r % 2 ? 0.16 : 0), z: laneZ(sv, r), fill, surface }));   // a hair of overlap closes the seams — on odd rows only, or the World's de-overlap stacks the rows into a slope
   }
 
   const G = stream(seed, 'groves');
@@ -452,7 +399,7 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
     ...(midBridge ? { canal: { eye: [midBridge.rect.x - 30, canalAt((midBridge.rect.x - 30) / CELL - 0.5) * CELL + cw * CELL / 2, -(K.canal.sink || 1.5) + 1.9], at: [midBridge.rect.x, canalAt(midBridge.rect.x / CELL - 0.5) * CELL + cw * CELL / 2, 0.6] } } : {}),
   };
 
-  for (const b of boxes) if (b.skin === undefined) { const skin = skinFor(K, b); if (skin) b.skin = skin; }   // the precinct's own masses
+  skinLoose(boxes, K);   // the precinct's own masses
   return {
     boxes, grounds, views, frame: { w: cols * CELL, d: rows * CELL },
     slots,
@@ -462,18 +409,6 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
     },
     grid: { cols, rows, cell: CELL, data: grid, codes: C },
   };
-}
-
-// row runs of cells matching `test`, as (c, r, n)
-function runs(grid, cols, rows, test, emit) {
-  for (let r = 0; r < rows; r++) {
-    let start = -1;
-    for (let c = 0; c <= cols; c++) {
-      const ok = c < cols && test(grid[r * cols + c], c, r);
-      if (ok && start < 0) start = c;
-      if (!ok && start >= 0) { emit(start, r, c - start); start = -1; }
-    }
-  }
 }
 
 /**
@@ -498,7 +433,7 @@ const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, d
 // px per scene unit. A panel rasterises at its own px size and an eye-level camera magnifies the near
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
@@ -539,8 +474,8 @@ function toScene(masses, s, us = UNIT_SCALE.aerial) {
 }
 
 export function assembleHistoricCityScene(opts = {}) {
-  const view = ['approach', 'street', 'precinct', 'canal'].includes(opts.view) ? opts.view : 'aerial';
   const plan = planHistoricCity(opts);
+  const view = opts.view === 'approach' || (opts.view && plan.views[opts.view]) ? opts.view : 'aerial';
   const s = 1 / METRES_PER_UNIT;
   const { boxes, faces } = toScene(plan.boxes, s, UNIT_SCALE[view]);
   const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view]), grounds = G.grounds;
@@ -555,7 +490,7 @@ export function assembleHistoricCityScene(opts = {}) {
   // the asked-for view first (it is the one the page opens on)
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
-  const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${plan.stats.culture}`, bg: '#d9cdb4', light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
+  const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
   return { ...scene, stats: plan.stats };
 }
 

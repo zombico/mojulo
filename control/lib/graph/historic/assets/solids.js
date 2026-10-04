@@ -102,8 +102,10 @@ export function solidFaces(b, L, tile) {
 function seal(f) {
   const c = f.corners, edges = c.map((p, i) => Math.hypot(...sub(c[(i + 1) % c.length], p))), short = Math.min(...edges);
   if (short > 0.6 || c.length !== 4) return f;   // fan triangles would spike past the outline
-  const k = 1 + Math.min(0.3, 0.025 / Math.max(short, 1e-3)), m = centroid(c);
-  return { ...f, corners: c.map((p) => [m[0] + (p[0] - m[0]) * k, m[1] + (p[1] - m[1]) * k, m[2] + (p[2] - m[2]) * k]) };
+  // each corner moves a FIXED hair outward from the centre (a proportional grow sent a long thin face —
+  // a cornice strip, a wall top — metres past its ends as spikes)
+  const m = centroid(c), grow = 0.025;
+  return { ...f, corners: c.map((p) => { const v = sub(p, m), l = Math.hypot(...v) || 1; return [p[0] + (v[0] / l) * grow, p[1] + (v[1] / l) * grow, p[2] + (v[2] / l) * grow]; }) };
 }
 function solidFacesBare(b, L) {
   const tint = b.tint || '#a08a6a', shade = (n) => scaleHex(tint, litFactor(n, L));

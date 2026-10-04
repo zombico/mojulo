@@ -60,6 +60,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Brick walls read as brick in the walkable World as well as the page: bolder courses with relief,
   the reed-mat layers Sumerian builders laid between courses, a stamped course in the baked brick,
   and a share of houses left as bare brick instead of mud render.
+- A second culture, New Kingdom Thebes, on the same template: the Nile along the town, the temple
+  of Amun on an axis from its river quay through an avenue of sphinxes, obelisks and colossi, a
+  pylon, a court and a hypostyle hall to the sanctuary, a sacred lake, and an unwalled town of
+  mudbrick houses and villas. Each culture now brings its own layout; the grid, alleys, house lots
+  and slot placement are shared.
 
 ## [3.0.0] - 2026-10-01
 
