@@ -22,8 +22,8 @@ describe('shallow bodies (pools and ponds)', () => {
   it('gives a pond a bowl that meets its bank at the shore', () => {
     const [, pond] = two();
     expect(bedDepth(pond, 10, 2)).toBeCloseTo(pond.deep, 4);
-    expect(bedDepth(pond, 10 + pond.radius * 1.4, 2)).toBeLessThan(0);           // the bank, above the level
-    expect(bedDepth(pond, 10 + pond.radius * 1.4, 2)).toBeGreaterThanOrEqual(-pond.freeboard);
+    expect(bedDepth(pond, 10 + pond.radii[0] * 1.4, 2)).toBeLessThan(0);           // the bank, above the level
+    expect(bedDepth(pond, 10 + pond.radii[0] * 1.4, 2)).toBeGreaterThanOrEqual(-pond.freeboard);
   });
 
   it('answers waterAt with the body, its level and the depth; null on dry ground', () => {
@@ -72,5 +72,15 @@ describe('the shallows channel', () => {
     expect(emitThreeWorld({ faces, shallows: { bodies: [] } })).toBe(plain);
     const page = emitThreeWorld({ faces, shallows: { bodies: two() } });
     expect(page).toMatch(/stepShallows\(t\);/);
+  });
+});
+
+describe('a pond sized to a plot', () => {
+  it('fills a w × d plot: its basin is the plot, the bank meets the ground at the plot edge', () => {
+    const [p] = normalizeShallows([{ kind: 'pond', at: [5, 5], size: [8, 4], seed: 2 }]);
+    const [x0, y0, x1, y1] = basinFootprint(p);
+    expect([x1 - x0, y1 - y0].map((v) => +v.toFixed(3))).toEqual([8, 4]);
+    expect(bedDepth(p, 5, 5)).toBeGreaterThan(0);
+    for (const [x, y] of [[x0, 5], [x1, 5], [5, y0], [5, y1]]) expect(bedDepth(p, x, y)).toBeCloseTo(-p.freeboard, 3);
   });
 });

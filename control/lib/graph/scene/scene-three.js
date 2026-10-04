@@ -450,7 +450,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const liquidMesh = hasLiquid ? collectWaterMesh(waterRaw.filter((f) => f.liquid)) : null;
   const waterBlock = (waterMesh ? waterMeshScript(waterMesh) : '')
     + (liquidMesh ? liquidMeshScript(liquidMesh, liquidLook, light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight) : '');
-  const shallowsBlock = shallowBodies.length ? shallowsChannelScript({ bodies: shallowBodies, floaters: shallows.floaters || [], rain: shallows.rain || 0, toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight, walk: !!walk }) : '';
+  const shallowsBlock = shallowBodies.length ? shallowsChannelScript({ bodies: shallowBodies, floaters: shallows.floaters || [], rain: shallows.rain || 0, metersPerUnit: Number.isFinite(+metersPerUnit) && +metersPerUnit > 0 ? +metersPerUnit : 1, toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight, walk: !!walk }) : '';
 
   // Sky dome: a world-fixed gradient sphere (+ night stars + a phase-carved moon) centred on the
   // scene, so ORBITING reveals the gradient/stars/moon from new angles (they move with the world,
