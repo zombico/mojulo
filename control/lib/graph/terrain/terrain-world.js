@@ -251,7 +251,9 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   // fire (fire/fire.js): sources set on the ground here (a 2D `at` takes the ground's height under it); the page's fire
   // channel draws them, leaning in the wind when the world has one. world-scene.js resolves them with the rest.
   const fireSources = manifest.fire && typeof manifest.fire === 'object' && Array.isArray(manifest.fire.sources) && !PLN
-    ? manifest.fire.sources.map((s) => ({ kind: s.kind, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], field.groundAt(s.at[0], s.at[1])], size: s.size, phi: s.phi, color: s.color, soot: s.soot, smokeColor: s.smokeColor })) : null;
+    ? manifest.fire.sources.map((s) => (s.path ? { ...s, at: s.path.from } : { ...s, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], field.groundAt(s.at[0], s.at[1])] })) : null;
+  const fireSpread = manifest.fire && typeof manifest.fire === 'object' && Array.isArray(manifest.fire.spread) && !PLN
+    ? manifest.fire.spread.map((g) => ({ ...g, at: g.at.length === 3 ? g.at : [g.at[0], g.at[1], field.groundAt(g.at[0], g.at[1])] })) : null;
   const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];
   const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place, { surf: PLN ? surf : null }) : null;
   return {
@@ -260,6 +262,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
     ...(plantBake && Object.keys(plantBake.textures).length ? { textures: plantBake.textures } : {}),
     ...(itemRefs ? { itemRefs } : {}),
     ...(fireSources ? { fireSources, fireSourcesAll: true } : {}),
+    ...(fireSpread ? { fireSpread } : {}),
     haze: { color: bg, density: field.atlas ? 1.2 / Math.min(world, 8e4) : 0.9 / world },   // a composed world is seen through the air: tens of kilometres, not its whole width
     walk: { speed: channel.speeds.walk, spawn: [wx, wy, gz + EYE], radius: 0.4, minEye: EYE, gravity: 20, jump: 6 },
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },

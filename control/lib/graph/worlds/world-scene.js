@@ -436,10 +436,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const errs = validateFire(sketch.manifest.fire);
     if (errs.length) throw new Error(`fire is invalid — see get_view_vocab({ id: 'dungeon' }) or ({ id: 'terrain' }), "Fire":\n- ${errs.join('\n- ')}`);
     const placed = payload.fireSources || [];
-    const r = resolveFire(sketch.manifest.fire, placed, { explicit: !payload.fireSourcesAll });
+    const r = resolveFire(sketch.manifest.fire, placed, { explicit: !payload.fireSourcesAll, spread: payload.fireSpread || null });
     if (r) payload.fire = firePageChannel(r, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
   }
-  if (payload) { delete payload.fireSources; delete payload.fireSourcesAll; }
+  if (payload) { delete payload.fireSources; delete payload.fireSourcesAll; delete payload.fireSpread; }
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;

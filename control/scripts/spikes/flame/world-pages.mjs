@@ -16,9 +16,9 @@ const [dir = 'scripts/spikes/flame'] = process.argv.slice(2);
 mkdirSync(dir, { recursive: true });
 // what world-scene.js does with `fire`
 const withFire = (payload, fire) => {
-  const r = resolveFire(fire, payload.fireSources || [], { explicit: !payload.fireSourcesAll });
+  const r = resolveFire(fire, payload.fireSources || [], { explicit: !payload.fireSourcesAll, spread: payload.fireSpread || null });
   const out = { ...payload, ...(r ? { fire: firePageChannel(r, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 }) } : {}) };
-  delete out.fireSources; delete out.fireSourcesAll; return out;
+  delete out.fireSources; delete out.fireSourcesAll; delete out.fireSpread; return out;
 };
 
 // the dungeon: a hub, two side chambers, a corridor and a tube
@@ -46,6 +46,13 @@ const ring = salts.map((c, k) => ({ kind: 'brazier', at: [4.6 * Math.cos((2 * Ma
 const fp = page('flame-test', { ...dungeon, fire: { sources: [...ring, { kind: 'torch', at: [0, -1.2, 1.6], color: '#8a2be2' }, { kind: 'torch', at: [0, 1.2, 1.6], smokeColor: '#2fbf5a' }] } });
 console.log('flame test', fp.fire.sources.filter((s) => s.line).map((s) => s.line.map((v) => v.toFixed(2)).join('/')).join(' '));
 
+// a fireball trap: a ball of fire down the corridor every few seconds, bursting where it lands; the hub's brazier
+// flares now and then
+page('fireball-trap', { ...dungeon, fire: { sources: [
+  { kind: 'fireball', path: { from: [-4.6, 1.2, 1.5], to: [-14.6, 3.8, -0.7], speed: 13, every: 3.5 } },
+  { kind: 'brazier', at: [2.6, -2.2, 1], flares: { every: 5, strength: 2 } },
+] } });
+
 // the campfire: a meadow in a breeze, a campfire a few steps from the spawn and four torches around it
 const world = { features: [{ feature: 'river' }], climate: 'temperate', seed: 'campfire' };
 const probe = assembleTerrainWorld({ kind: 'terrain', world }, { live: true });
@@ -58,14 +65,20 @@ for (let j = -12; j <= 12; j++) for (let i = -12; i <= 12; i++) {
   if (!(wet > z) && (!best || v < best.v)) best = { v, x, y };
 }
 const cx = best.x, cy = best.y;
-const fire = { sources: [{ kind: 'campfire', at: [cx, cy] }, ...[0, 1, 2, 3].map((k) => ({ kind: 'torch', at: [cx + 3.2 * Math.cos(k * Math.PI / 2 + 0.6), cy + 3.2 * Math.sin(k * Math.PI / 2 + 0.6)] }))] };
+// the campfire kindles over six seconds and flares now and then; a fireball arcs over the meadow
+const fire = { sources: [{ kind: 'campfire', at: [cx, cy], life: { kindle: 6 }, flares: { every: 7, strength: 1.5 } }, ...[0, 1, 2, 3].map((k) => ({ kind: 'torch', at: [cx + 3.2 * Math.cos(k * Math.PI / 2 + 0.6), cy + 3.2 * Math.sin(k * Math.PI / 2 + 0.6)] }))] };
 const manifest = { kind: 'terrain', world, grass: { kinds: ['meadow'], density: 3, cover: 0.7 }, wind: { speed: 3, dir: 30, gust: 0.6, debris: false }, fire };
+const g2 = F0.groundAt(cx + 14, cy + 7), gz0 = F0.groundAt(cx, cy);
+fire.sources.push({ kind: 'fireball', path: { from: [cx - 7, cy - 3, gz0 + 1.6], to: [cx + 14, cy + 7, g2 + 0.3], speed: 11, arc: 4, every: 4 } });
+// a grass fire lit upwind of the camp three seconds in: it runs downwind across the meadow and burns out 45 m on
+fire.spread = [{ at: [cx + 6, cy - 14], start: 3, extent: 45 }];
 const tp = assembleTerrainWorld(manifest, { live: true, title: 'campfire' });
 // a torch stands on its pole: its flame is 1.5 m up
 for (const s of tp.fireSources) if (s.kind === 'torch') s.at = [s.at[0], s.at[1], s.at[2] + 1.5];
 const gz = F0.groundAt(cx, cy);
 tp.cameras = [
   { name: 'by the fire', worldFraming: { cameraPosition: [cx - 3.4, cy - 2.2, gz + 1.5], lookAt: [cx, cy, gz + 0.5], horizontalFov: 70 } },
+  { name: 'grass fire', worldFraming: { cameraPosition: [cx - 10, cy - 22, gz + 6], lookAt: [cx + 10, cy - 6, gz + 1], horizontalFov: 70 } },
   { name: 'downwind', worldFraming: { cameraPosition: [cx + 4.5, cy + 2.8, gz + 1.6], lookAt: [cx, cy, gz + 0.7], horizontalFov: 70 } },
   ...tp.cameras,
 ];

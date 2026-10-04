@@ -28,6 +28,16 @@ describe('fire: the recipe', () => {
     expect(e.join('\n')).toMatch(/phi must be from 0/);
     expect(e.join('\n')).toMatch(/fire.smoke must be true or false/);
     expect(e.join('\n')).toMatch(/fire.heat is not a fire option/);
+    const f = validateFire({ sources: [{ kind: 'fireball', at: [0, 0, 1] }, { kind: 'torch', at: [0, 0, 1], path: { from: [0, 0, 0], to: [1, 0, 0] } }, { kind: 'torch', at: [0, 0, 1], life: { kindle: -1, soon: 1 }, flares: { every: 0.2 } }], spread: [{ at: [0, 0], rate: 3, extent: 1 }, { at: 'here' }] }).join('\n');
+    expect(f).toMatch(/path must be \{ from/);
+    expect(f).toMatch(/path is for a fireball/);
+    expect(f).toMatch(/life.kindle must be seconds/);
+    expect(f).toMatch(/life.soon is not a life stage/);
+    expect(f).toMatch(/flares must be \{ every: seconds ≥ 1/);
+    expect(f).toMatch(/spread\[0\].rate must be 0.01–0.5/);
+    expect(f).toMatch(/spread\[0\].extent must be 5–500/);
+    expect(f).toMatch(/spread\[1\].at must be/);
+    expect(validateFire({ spread: [{ at: [1, 2], start: 3 }], sources: [{ kind: 'fireball', path: { from: [0, 0, 1], to: [5, 0, 1], arc: 2 } }] })).toEqual([]);
     expect(validateFire(5)).toHaveLength(1);
   });
 
@@ -122,9 +132,89 @@ describe('fire: the kernel', () => {
   });
 });
 
+describe('fire: intensity — kindling, flares, dying back, the bellows', () => {
+  const fire = (extra, air = null) => fireKernel(resolveFire({ sources: [{ kind: 'brazier', at: [0, 0, 1], ...extra }] }), air);
+  it('kindles from nothing, dies back to nothing, and the light follows', () => {
+    const K = fire({ life: { start: 1, kindle: 4, out: 20, die: 5 } });
+    expect(K.intensity(0, 0.5)).toBe(0);
+    const up = [1.5, 2.5, 4, 6, 10].map((t) => K.intensity(0, t));
+    expect(up.every((v, i) => i === 0 || v > up[i - 1])).toBe(true);
+    expect(up[4]).toBeGreaterThan(0.95);
+    expect(K.intensity(0, 30)).toBeLessThan(0.01);
+    expect(K.flames(0, 30).every((f) => f === null)).toBe(true);
+    expect(K.light(0, 0.5)).toBe(0);
+  });
+  it('a flare jumps and settles within a couple of seconds; its flames grow with it', () => {
+    const K = fire({ flares: { every: 5, strength: 2 } }); let peak = 0, at = 0;
+    for (let t = 0; t < 10; t += 0.01) { const k = K.intensity(0, t); if (k > peak) { peak = k; at = t; } }
+    expect(peak).toBeGreaterThan(2.5);
+    expect(K.intensity(0, at + 3)).toBeLessThan(1.1);
+    // the fire's own puffing swings a flame ±30% from instant to instant: compare the means over a fifth of a second
+    const tall = (t0) => { let a = 0, n = 0; for (let t = t0; t < t0 + 0.2; t += 0.01) for (const f of K.flames(0, t)) { a += f.L; n++; } return a / n; };
+    expect(tall(at)).toBeGreaterThan(1.3 * tall(at + 3));
+  });
+  it('the wind feeds a fire it does not blow out, a little and up to a point', () => {
+    const still = fire({}).intensity(0, 3), breeze = fire({}, wind(3)).intensity(0, 3), gale = fire({}, wind(30)).intensity(0, 3);
+    expect(breeze).toBeGreaterThan(still);
+    expect(gale).toBeLessThan(1.5);
+  });
+});
+
+describe('fire: fireballs', () => {
+  const ball = (path = {}) => resolveFire({ sources: [{ kind: 'fireball', path: { from: [0, 0, 2], to: [12, 0, 2], speed: 12, every: 3, delay: 0.5, ...path } }] });
+  it('flies from → to on its schedule, and is nowhere between casts', () => {
+    const K = fireKernel(ball(), null);
+    expect(K.centre(0, 0.4)).toBeNull();
+    expect(K.centre(0, 0.5)[0]).toBeCloseTo(0, 6);
+    expect(K.centre(0, 1.0)[0]).toBeCloseTo(6, 6);
+    expect(K.centre(0, 1.5)[0]).toBeCloseTo(12, 6);
+    expect(K.centre(0, 2.6)).toBeNull();
+    expect(K.flames(0, 2.6).every((f) => f === null)).toBe(true);
+    expect(K.centre(0, 3.5)[0]).toBeCloseTo(0, 6);
+  });
+  it('trails its tail behind it (the streakline of where it was), and an arc lifts the middle of its flight', () => {
+    const K = fireKernel(ball(), null), f = K.flames(0, 1.1)[0], n = f.pts.length;
+    expect(f.pts[0]).toBeGreaterThan(f.pts[n - 3] + 0.5);   // head ahead (+x), tail behind
+    expect(fireKernel(ball({ arc: 3 }), null).centre(0, 1.0)[2]).toBeCloseTo(5, 6);
+  });
+  it('bursts where it lands: a swell, a flash, and a shell of sparks', () => {
+    const K = fireKernel(ball(), null);
+    expect(K.intensity(0, 1.52)).toBeGreaterThan(2);
+    const sparks = K.embers(0, 1.6); let out = 0;
+    for (let o = 0; o < sparks.length; o += 7) if (Math.hypot(sparks[o] - 12, sparks[o + 1], sparks[o + 2] - 2) > 0.3) out++;
+    expect(out).toBeGreaterThan(15);
+    expect(Math.max(...K.flames(0, 1.6).map((g) => g.rad[0]))).toBeGreaterThan(2 * Math.max(...K.flames(0, 1.0).map((g) => g.rad[0])));
+  });
+});
+
+describe('fire: grass fires', () => {
+  const grass = (speed, extra = {}, world) => { const r = resolveFire({ spread: [{ at: [0, 0, 0], start: 0, ...extra }] }); r.wind = { speed, dir: 0 }; return fireKernel(r, null, world); };
+  it('in still air spreads as a circle; in wind as an ellipse whose head runs downwind and back creeps upwind', () => {
+    const calm = grass(0).burn(0, 20);
+    expect(calm[2]).toBeCloseTo(calm[3], 6);
+    const w = grass(5).burn(0, 20), head = w[0] + w[2], back = w[0] - w[2];
+    expect(head).toBeGreaterThan(15);
+    expect(back).toBeLessThan(0);
+    expect(head / -back).toBeGreaterThan(5);
+    expect(w[2] / w[3]).toBeGreaterThan(grass(2).burn(0, 20)[2] / grass(2).burn(0, 20)[3]);
+  });
+  it('the head burns tallest (Byram), and the fire burns out once its head has run its extent', () => {
+    const K = grass(5, { extent: 30 }), f = K.flames(0, 15).filter(Boolean);
+    expect(f[0].L).toBeGreaterThan(3 * Math.min(...f.map((g) => g.L)));   // flamelet 0 stands at the head
+    expect(K.burn(0, 60)[2]).toBeCloseTo(K.burn(0, 80)[2], 6);   // the front stops where its head ran its extent
+    expect(K.intensity(0, 80)).toBeLessThan(0.05);
+  });
+  it('stops at water: no flames where the ground will not burn', () => {
+    const wet = grass(5, {}, { groundAt: () => 0, burnable: (x) => x < 3 });
+    const f = wet.flames(0, 15);
+    expect(f[0]).toBeNull();             // the head is in the water
+    expect(f.some(Boolean)).toBe(true);  // the back still burns
+  });
+});
+
 describe('fire: in worlds', () => {
   it('the page script parses; an emitted world carries it only when asked (absent ⇒ zero bytes)', () => {
-    const cfg = firePageChannel(one('torch'), { day: 0.5 });
+    const cfg = firePageChannel(resolveFire({ sources: [{ kind: 'torch', at: [0, 0, 1], flares: { every: 3 } }, { kind: 'fireball', path: { from: [0, 0, 1], to: [9, 0, 1] } }], spread: [{ at: [4, 4] }] }), { day: 0.5, terrainAir: true });
     expect(() => new Function('THREE', 'scene', 'camera', 'renderer', `${fireChannelScript(cfg)};return stepFire;`)).not.toThrow();
     const base = { faces: [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], fill: '#806040' }], cameras: [], inline: true };
     const plain = emitThreeWorld(base);
@@ -163,6 +253,8 @@ describe('fire: in worlds', () => {
     const world = { features: [{ feature: 'river' }], climate: 'temperate', seed: 'campfire' };
     const t = await resolveWorldScene({ ref: 'sk_fire_terrain', title: 'fire', manifest: { kind: 'terrain', world, grass: { kinds: ['meadow'] }, wind: { speed: 3 }, fire: { sources: [{ kind: 'campfire', at: [100, 200] }] } } }, { live: true });
     const s = t.payload.fire.sources[0];
+    const t2 = await resolveWorldScene({ ref: 'sk_fire_terrain2', title: 'fire', manifest: { kind: 'terrain', world, grass: { kinds: ['meadow'] }, wind: { speed: 3 }, fire: { spread: [{ at: [100, 200] }] } } }, { live: true });
+    expect(t2.payload.fire.spread[0].at[2]).toBeCloseTo(s.at[2] - FIRE_KINDS.campfire.seat, 4);
     expect(t.payload.fire.terrainAir).toBe(true);
     expect(t.payload.fire.day).toBe(1);
     expect(Math.abs(s.at[2] - FIRE_KINDS.campfire.seat)).toBeGreaterThan(0.5);   // on the ground, not at sea level
