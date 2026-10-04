@@ -29,6 +29,7 @@ import { resolvePosture } from './engine-score.js';
 import { glbNodeInventory, pickLandmark } from './blender-gate.js';
 import { emitBlenderPack, BLENDER_LEG_VERSION } from './blender-project.js';
 import { metersPerUnitFor, unitsLabel } from './world-units.js';
+import { fireShot, fireShotTime, fireShotFaces, fireAirFor, fireWorldFor } from '../fire/fire-shot.js';
 
 export const BLENDER_BASES = ['lit', 'unlit', 'shaded'];
 
@@ -74,11 +75,49 @@ function collectionsFor(inventory, groups) {
   return Object.fromEntries(Object.keys(out).sort().map((k) => [k, out[k]]));
 }
 
+// The world's fire at one instant (fire/fire-shot.js), as the pack's `fire/` folder: fire.json (lights, props, embers,
+// cameras, and each volume's box) beside one binary per volume — its glowing voxels' x-major indices (uint32 LE) then
+// their values (float32 LE: rgb for a flame, density for smoke). import_mojulo.py writes them to OpenVDB. The fires
+// are read as the live page reads them (an unshaded resolve keeps none: a dungeon's torches stand on its walls only
+// when it is lit), at `fireT` seconds, else at the time the fire reads best.
+async function packFire({ sketch, manifest, payload, shaded, fireT, fireDetail, outDir, writeOut }) {
+  let live = payload;
+  if (!shaded) ({ payload: live } = await resolveWorldScene(sketch, {}));
+  if (!live || !live.fire) return null;
+  const { air, wind } = fireAirFor(manifest, live);
+  const world = live.fire.spread ? fireWorldFor(live) : null;
+  const t = Number.isFinite(fireT) ? fireT : fireShotTime(live.fire);
+  const cameras = (Array.isArray(live.cameras) ? live.cameras : []).filter((c) => c && c.worldFraming && Array.isArray(c.worldFraming.cameraPosition))
+    .map((c) => ({ name: c.name || 'camera', at: c.worldFraming.cameraPosition, look: c.worldFraming.lookAt, fov: c.worldFraming.horizontalFov || 70 }));
+  const shot = fireShot(live.fire, t, { air, wind, world, detail: Number.isFinite(fireDetail) && fireDetail > 0 ? fireDetail : 1, cameras });
+  await fs.mkdir(path.join(outDir, 'fire'), { recursive: true });
+  let n = 0, voxels = 0;
+  const bin = async (g, comps) => {
+    const file = `fire/g${String(n++).padStart(3, '0')}.bin`, k = g.idx.length, buf = Buffer.alloc(4 * k * (1 + comps));
+    for (let i = 0; i < k; i++) buf.writeUInt32LE(g.idx[i], 4 * i);
+    for (let i = 0; i < k * comps; i++) buf.writeFloatLE(g.val[i], 4 * k + 4 * i);
+    await writeOut(file, buf); voxels += k;
+    const { idx, val, ...box } = g; return { ...box, file, n: k };
+  };
+  const fires = [];
+  for (const f of shot.fires) {
+    const flames = []; for (const g of f.flames) flames.push(await bin(g, 3));
+    fires.push({ ...f, flames, smoke: f.smoke && f.smoke.idx.length ? await bin(f.smoke, 1) : null });
+  }
+  const src = live.fire.sources.concat(Array.from({ length: Math.max(0, fires.length - live.fire.sources.length) }, () => null));
+  const out = { t: shot.t, fires: fires.map((f, i) => ({ ...f, L: src[i] ? src[i].L : null, D: src[i] ? src[i].D : null })), embers: shot.embers, prop_colors: shot.prop_colors, cameras: shot.cameras, day: live.fire.day || 0 };
+  // the solid parts (props, coals, embers) are geometry: mojulo's, as a GLB beside the model's
+  const solid = facesToGlb({ faces: fireShotFaces(shot) }, { generator: `mojulo ${sketch.ref || ''} (blender pack, fire)`, lit: true });
+  if (solid) await writeOut('fire/props.glb', solid.bytes);
+  await writeOut('fire/fire.json', `${JSON.stringify({ ...out, props_glb: solid ? 'fire/props.glb' : null })}\n`);
+  return { t: shot.t, fires: fires.length, flamelets: fires.reduce((a, f) => a + f.flames.length, 0), voxels, embers: shot.embers.length / 9, grass: (live.fire.spread || []).length };
+}
+
 /**
- * buildBlenderPack({ ref, outDir, base, posture, log }) → { ref, dir, manifestHash, legVersion,
+ * buildBlenderPack({ ref, outDir, base, posture, fireT, fireDetail, log }) → { ref, dir, manifestHash, legVersion,
  *   pack, glbStats, written, ledger }
  */
-export async function buildBlenderPack({ ref, outDir, base = 'lit', posture = null, log = () => {} }) {
+export async function buildBlenderPack({ ref, outDir, base = 'lit', posture = null, fireT = null, fireDetail = 1, log = () => {} }) {
   if (!BLENDER_BASES.includes(base)) throw new Error(`\`base\` must be one of ${BLENDER_BASES.join(' | ')} (got '${base}')`);
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`sketch '${ref}' not found`);
@@ -139,8 +178,7 @@ export async function buildBlenderPack({ ref, outDir, base = 'lit', posture = nu
     hand_work: { note: 'the art pass is NOT regenerable: when the recipe re-mints past this manifest hash the bound variant is stale — re-mint → re-pack → re-pass' },
   };
 
-  const remint = `node scripts/export-blender.mjs --ref ${ref}${base !== 'lit' ? ` --base ${base}` : ''}`;
-  const emitted = emitBlenderPack({ ref, title, kind: pack.kind, pack, ledger, remint });
+  const remint = `node scripts/export-blender.mjs --ref ${ref}${base !== 'lit' ? ` --base ${base}` : ''}${manifest.fire && Number.isFinite(fireT) ? ` --fire-t ${fireT}` : ''}`;
 
   await fs.mkdir(path.join(outDir, 'recipe'), { recursive: true });
   const written = [];
@@ -150,6 +188,17 @@ export async function buildBlenderPack({ ref, outDir, base = 'lit', posture = nu
     written.push({ file: rel, bytes: Buffer.byteLength(data) });
   };
   await writeOut('model.glb', exported.bytes);
+  // fire (fire/fire-shot.js): only a recipe with `fire` carries a fire/ folder. A re-pack clears the pack's own fire
+  // files first (a fire gone from the recipe must not linger); fire/vdb/ is the importer's, which a saved .blend reads
+  for (const f of await fs.readdir(path.join(outDir, 'fire')).catch(() => [])) {
+    if (/^(g\d+\.bin|fire\.json|props\.glb)$/.test(f)) await fs.rm(path.join(outDir, 'fire', f), { force: true });
+  }
+  const fire = manifest.fire ? await packFire({ sketch, manifest, payload: resolved, shaded: base === 'shaded', fireT, fireDetail, outDir, writeOut }) : null;
+  if (fire) {
+    pack.fire = fire;
+    ledger.fire = { note: `the fire at t = ${fire.t} s, as the World page draws it then: ${fire.fires} fire${fire.fires === 1 ? '' : 's'} as ${fire.flamelets} emission volume${fire.flamelets === 1 ? '' : 's'} (OpenVDB, written by import_mojulo.py), smoke volumes, ${fire.embers} ember streaks, a light each, their props — all in the \`mojulo-fire\` collection, which the gate and the return leave out. A still: re-pack with \`--fire-t <s>\` for another instant${fire.grass ? '; a grass fire\'s burnt ground is the page\'s, not packed' : ''}` };
+  }
+  const emitted = emitBlenderPack({ ref, title, kind: pack.kind, pack, ledger, remint });
   await writeOut('pack.json', `${JSON.stringify(pack, null, 2)}\n`);
   await writeOut(`recipe/${ref}.json`, `${JSON.stringify(manifest, null, 2)}\n`);
   for (const f of emitted.files) await writeOut(f.file, f.text);

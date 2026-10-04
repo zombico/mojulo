@@ -243,6 +243,7 @@ export function registerComposeWorldTools() {
       + "gyms, library/cafeteria, brick/glass facades, athletic fields + parking + vehicles, walkable interiors), "
       + "'dungeon' (torch-lit fantasy cave INTERIOR — organic chambers + sloping tunnels, walkable), "
       + "'terrain' (a painted landscape at real scale: walk, fly, see it whole). "
+      + "Fire in a world (a campfire, torches, a fireball, a grass fire, coloured flame) is `overrides.fire`, the 'Fire' section of the dungeon and terrain cards; prefer it to carved-solid `flame` and sketch fire. "
       + "A house / apartment / cottage / one furnished room is NOT a base: mint it with create_sketch, "
       + "`manifest: { kind: 'floorplan', … }` (walkable, furnished, `storeys: N`; card get_sketch_vocab({ id: 'floor-plan' })). "
       + "Each base's parameter manual + routing phrases live in its view-vocab card — "

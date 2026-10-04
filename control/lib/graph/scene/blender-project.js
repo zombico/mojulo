@@ -53,8 +53,11 @@ Two modes, one script, three transports:
                       the pack (refuses to overwrite an existing .blend unless MOJULO_FORCE=1)
   MOJULO_MODE=verify  open the saved .blend (or import fresh) and report what Blender built
                       -> mojulo-gate.json (the machine gate reads it; advisory)
+  MOJULO_MODE=render  open the saved .blend (or import fresh) and render a Cycles still -> renders/<camera>.png
+                      (--res 3840x2160 --samples 512 --camera <name> --out <png>); a pack with a fire/ folder
+                      realizes its fire too: flames as OpenVDB volumes of light, smoke, embers, a light per fire
 
-  headless:    blender -b --python import_mojulo.py -- --mode run|verify [--blend p] [--gate p] [--force]
+  headless:    blender -b --python import_mojulo.py -- --mode run|verify|render [--blend p] [--gate p] [--force]
   in Blender:  Scripting > Text > Open this file > Run Script      (MOJULO_MODE env; default run)
   blender-mcp: execute_blender_code("import os; os.environ['MOJULO_MODE']='run'; os.environ['MOJULO_PACK']=r'<pack>'; exec(open(r'<pack>/import_mojulo.py').read())")
 
@@ -213,6 +216,303 @@ def frame_camera():
     return cam.name
 
 
+# ---- fire (a pack of a recipe with 'fire': fire/fire.json beside its volumes' voxels) ----
+# The fire at one instant as mojulo's World page draws it then: each flamelet a volume of light (OpenVDB, written here
+# from the pack's voxels), each fire's smoke a density volume, embers as glowing streaks, a light per fire, the props
+# they stand on. All of it lives in the 'mojulo-fire' collection: the gate's report and the return leave it out.
+# Dials (argv or env): --flame / MOJULO_FIRE_FLAME (the flames' glow), --fire-watts / MOJULO_FIRE_WATTS (watts per unit
+# of the page's light), --smoke / MOJULO_FIRE_SMOKE (its thickness), --embers / MOJULO_FIRE_EMBERS (their glow),
+# --flame-contrast / MOJULO_FIRE_CONTRAST (how steeply a flame's glow climbs with its heat: 1 is the page's linear light).
+FIRE_DIR = os.path.join(PACK, 'fire')
+FIRE_COLL = 'mojulo-fire'
+
+
+def _dial(flag, env, default):
+    v = _opt(flag) or os.environ.get(env)
+    return float(v) if v else default
+
+
+def _lin(h):
+    h = h.lstrip('#')
+    c = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+    return [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in c]
+
+
+def _grid(g, name, comps):
+    import numpy as np
+    import openvdb as vdb
+    path = os.path.join(PACK, g['file'])
+    n = g['n']
+    idx = np.fromfile(path, dtype='<u4', count=n)
+    val = np.fromfile(path, dtype='<f4', count=n * comps, offset=4 * n)
+    nx, ny, nz = g['dims']
+    if comps == 3:
+        a = np.zeros((nx * ny * nz, 3), np.float32)
+        a[idx] = val.reshape(n, 3)
+        G = vdb.Vec3SGrid()
+        G.copyFromArray(a.reshape((nx, ny, nz, 3)), (0, 0, 0), (1e-7, 1e-7, 1e-7))
+    else:
+        a = np.zeros(nx * ny * nz, np.float32)
+        a[idx] = val
+        G = vdb.FloatGrid()
+        G.copyFromArray(a.reshape((nx, ny, nz)), (0, 0, 0), 1e-7)
+    G.name = name
+    v = g['voxel']
+    o = g['origin']
+    G.transform = vdb.createLinearTransform(np.array([[v, 0, 0, 0], [0, v, 0, 0], [0, 0, v, 0], [o[0], o[1], o[2], 1]], dtype=float))
+    return G
+
+
+def _volume(name, grid, mat, coll):
+    import openvdb as vdb
+    vdir = os.path.join(FIRE_DIR, 'vdb')
+    os.makedirs(vdir, exist_ok=True)
+    p = os.path.join(vdir, name + '.vdb')
+    vdb.write(p, grids=[grid])
+    vol = bpy.data.volumes.new(name)
+    vol.filepath = p
+    vol.materials.append(mat)
+    o = bpy.data.objects.new(name, vol)
+    coll.objects.link(o)
+    return o
+
+
+def _nodes(name):
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.clear()
+    return m, nt, nt.nodes.new('ShaderNodeOutputMaterial')
+
+
+def _flame_mat(name, gain, contrast, peak):
+    # a flame is light, not stuff: emission per metre (the page's shader, linear), no density. Its brightness is raised
+    # to a power of itself over its fire's brightest (contrast): a flame's glow climbs steeply with its heat, so its hot
+    # body keeps its light and its dim rim falls away, as the page's tonemap makes the body stand clear
+    m, nt, out = _nodes(name)
+    at = nt.nodes.new('ShaderNodeAttribute')
+    at.attribute_name = 'emission'
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    mx1 = nt.nodes.new('ShaderNodeMath')
+    mx1.operation = 'MAXIMUM'
+    mx2 = nt.nodes.new('ShaderNodeMath')
+    mx2.operation = 'MAXIMUM'
+    pw = nt.nodes.new('ShaderNodeMath')
+    pw.operation = 'POWER'
+    pw.inputs[1].default_value = contrast - 1.0
+    nm = nt.nodes.new('ShaderNodeMath')
+    nm.operation = 'DIVIDE'
+    nm.inputs[1].default_value = max(peak, 1e-6)
+    sc = nt.nodes.new('ShaderNodeVectorMath')
+    sc.operation = 'SCALE'
+    em = nt.nodes.new('ShaderNodeEmission')
+    em.inputs['Strength'].default_value = gain
+    L = nt.links
+    L.new(at.outputs['Vector'], sep.inputs[0])
+    L.new(sep.outputs[0], mx1.inputs[0])
+    L.new(sep.outputs[1], mx1.inputs[1])
+    L.new(mx1.outputs[0], mx2.inputs[0])
+    L.new(sep.outputs[2], mx2.inputs[1])
+    L.new(mx2.outputs[0], nm.inputs[0])
+    L.new(nm.outputs[0], pw.inputs[0])
+    L.new(at.outputs['Vector'], sc.inputs[0])
+    L.new(pw.outputs[0], sc.inputs['Scale'])
+    L.new(sc.outputs[0], em.inputs['Color'])
+    L.new(em.outputs['Emission'], out.inputs['Volume'])
+    return m
+
+
+def _smoke_mat(name, col, k):
+    m, nt, out = _nodes(name)
+    pv = nt.nodes.new('ShaderNodeVolumePrincipled')
+    pv.inputs['Color'].default_value = (col[0], col[1], col[2], 1)
+    pv.inputs['Density'].default_value = k
+    pv.inputs['Anisotropy'].default_value = 0.3
+    nt.links.new(pv.outputs['Volume'], out.inputs['Volume'])
+    return m
+
+
+def _glow_mat(name, attr, rgb, strength):
+    m, nt, out = _nodes(name)
+    em = nt.nodes.new('ShaderNodeEmission')
+    em.inputs['Strength'].default_value = strength
+    if attr:
+        at = nt.nodes.new('ShaderNodeAttribute')
+        at.attribute_name = attr
+        nt.links.new(at.outputs['Color'], em.inputs['Color'])
+    else:
+        em.inputs['Color'].default_value = (rgb[0], rgb[1], rgb[2], 1)
+    nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
+    return m
+
+
+def _import_glb_into(rel, coll):
+    # the fire's solid parts are mojulo's geometry, as the model is: imported, never built here
+    before = set(o.name for o in bpy.data.objects)
+    props = {p.identifier for p in bpy.ops.import_scene.gltf.get_rna_type().properties}
+    kw = {'filepath': os.path.join(PACK, rel), 'import_shading': 'NORMALS', 'import_scene_as_collection': False, 'merge_vertices': False}
+    bpy.ops.import_scene.gltf(**{k: v for k, v in kw.items() if k in props})
+    new = [o for o in bpy.data.objects if o.name not in before]
+    for o in new:
+        for old in list(o.users_collection):
+            old.objects.unlink(o)
+        coll.objects.link(o)
+    return new
+
+
+def _camera(name, at, look, fov, coll):
+    import math
+    cd = bpy.data.cameras.new(name)
+    cd.sensor_fit = 'HORIZONTAL'
+    cd.angle = math.radians(fov)
+    cd.clip_start = 0.01
+    cd.clip_end = 5000
+    cam = bpy.data.objects.new(name, cd)
+    cam.location = Vector(at)
+    cam.rotation_euler = (Vector(look) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+    coll.objects.link(cam)
+    return cam
+
+
+def build_fire():
+    path = os.path.join(FIRE_DIR, 'fire.json')
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        S = json.load(f)
+    sc = bpy.context.scene
+    coll = bpy.data.collections.get(FIRE_COLL) or bpy.data.collections.new(FIRE_COLL)
+    if coll.name not in sc.collection.children:
+        sc.collection.children.link(coll)
+    gain, contrast = _dial('--flame', 'MOJULO_FIRE_FLAME', 3.0), _dial('--flame-contrast', 'MOJULO_FIRE_CONTRAST', 2.0)
+    watts = _dial('--fire-watts', 'MOJULO_FIRE_WATTS', 5.0)
+    smoke_k = _dial('--smoke', 'MOJULO_FIRE_SMOKE', 1.0)
+    day = float(S.get('day') or 0)
+    vols = lights = 0
+    hero = None
+    for f in S['fires']:
+        i = f['i']
+        flame = _flame_mat('mojulo-flame-%d' % i, gain, contrast, f.get('peak') or 1.0)
+        for k, g in enumerate(f['flames']):
+            _volume('fire-%d-flame-%d' % (i, k), _grid(g, 'emission', 3), flame, coll)
+            vols += 1
+        if f.get('smoke'):
+            sm = f['smoke']
+            col = list(sm['color'])[:3] if sm.get('color') else [0.1 + 0.42 * day] * 3
+            _volume('fire-%d-smoke' % i, _grid(sm, 'density', 1), _smoke_mat('mojulo-smoke-%d' % i, col, smoke_k), coll)
+            vols += 1
+        L = f.get('light')
+        if L and L['power'] > 0:
+            ld = bpy.data.lights.new('fire-%d-light' % i, 'POINT')
+            mx = max(L['color']) or 1
+            ld.color = tuple(c / mx for c in L['color'])
+            ld.energy = L['power'] * watts
+            ld.shadow_soft_size = L['radius']
+            lo = bpy.data.objects.new('fire-%d-light' % i, ld)
+            lo.location = L['at']
+            coll.objects.link(lo)
+            lights += 1
+            if hero is None or L['power'] > hero['light']['power']:
+                hero = f
+    # props, coals and embers: their GLB; the coals and embers glow in their own colours
+    if S.get('props_glb'):
+        coal = {f['i']: f['coal'] for f in S['fires']}
+        for o in _import_glb_into(S['props_glb'], coll):
+            n = base_name(o.name)
+            if o.type != 'MESH' or not o.data.color_attributes:
+                continue
+            attr = o.data.color_attributes[0].name
+            if n.startswith('fire-embers'):
+                m = _glow_mat('mojulo-embers', attr, None, _dial('--embers', 'MOJULO_FIRE_EMBERS', 30.0))
+            elif n.startswith('fire-coals-'):
+                m = _glow_mat('mojulo-' + n, attr, None, 4.0 * coal.get(int(n.split('-')[2].split(':')[0]), 1.0))
+            else:
+                continue
+            o.data.materials.clear()
+            o.data.materials.append(m)
+    # cameras: the world's own, and one on the brightest fire (from the side its world's nearest camera stands, so a
+    # fire against a wall is seen from the room)
+    for c in S.get('cameras', []):
+        _camera(c['name'], c['at'], c['look'], c['fov'], coll)
+    shot = None
+    if hero:
+        import math
+        c = Vector(hero['centre'])
+        Lh, Dh = hero.get('L') or 0.8, hero.get('D') or 0.5
+        look = c + Vector((0, 0, 0.45 * Lh))
+        away = Vector((-0.62, -0.78, 0.0))
+        near = sorted(S.get('cameras', []), key=lambda k: (Vector(k['at']) - c).length)
+        if near:
+            away = Vector(near[0]['at']) - c
+            away.z = 0
+        if away.length < 1e-6:
+            away = Vector((-0.62, -0.78, 0.0))
+        dist = 2.2 * (Lh + Dh) + 0.25
+        if near:
+            dist = min(dist, max(0.3, (Vector(near[0]['at']) - c).length))
+        at = look + away.normalized() * dist + Vector((0, 0, 0.25 * dist))
+        shot = _camera('Fire', tuple(at), tuple(look), 50, coll)
+        sc.camera = shot
+    # Cycles, AgX; a night unless the world was in daylight
+    sc.render.engine = 'CYCLES'
+    try:
+        sc.view_settings.view_transform = 'AgX'
+    except Exception:
+        pass
+    sc.cycles.volume_max_steps = 1024
+    w = sc.world or bpy.data.worlds.new('mojulo-world')
+    sc.world = w
+    w.use_nodes = True
+    bg = w.node_tree.nodes.get('Background')
+    if bg:
+        sky = [0.002 + 0.5 * day, 0.002 + 0.6 * day, 0.003 + 0.75 * day]
+        bg.inputs['Color'].default_value = (sky[0], sky[1], sky[2], 1)
+        bg.inputs['Strength'].default_value = 1.0
+    log('fire at t =', S['t'], '-', len(S['fires']), 'fires,', vols, 'volumes,', lights, 'lights,', len(S['embers']) // 9, 'embers; camera', shot.name if shot else None)
+    return S
+
+
+def render():
+    if os.path.exists(BLEND):
+        bpy.ops.wm.open_mainfile(filepath=BLEND)
+    else:
+        realize()
+    sc = bpy.context.scene
+    cam = _opt('--camera') or os.environ.get('MOJULO_CAMERA')
+    if cam:
+        if cam not in bpy.data.objects:
+            raise SystemExit('no camera %r - the pack has: %s' % (cam, ', '.join(o.name for o in bpy.data.objects if o.type == 'CAMERA')))
+        sc.camera = bpy.data.objects[cam]
+    sc.render.engine = 'CYCLES'
+    res = (_opt('--res') or os.environ.get('MOJULO_RES') or '1920x1080').lower().split('x')
+    sc.render.resolution_x, sc.render.resolution_y = int(res[0]), int(res[1])
+    sc.render.resolution_percentage = 100
+    sc.cycles.samples = int(_opt('--samples') or os.environ.get('MOJULO_SAMPLES') or 256)
+    sc.cycles.use_denoising = True
+    try:
+        prefs = bpy.context.preferences.addons['cycles'].preferences
+        for kind in ('METAL', 'OPTIX', 'CUDA', 'HIP', 'ONEAPI'):
+            try:
+                prefs.compute_device_type = kind
+                prefs.get_devices()
+                if any(d.type == kind for d in prefs.devices):
+                    for d in prefs.devices:
+                        d.use = True
+                    sc.cycles.device = 'GPU'
+                    break
+            except Exception:
+                continue
+    except Exception as e:
+        log('rendering on the CPU:', e)
+    out = _opt('--out') or os.environ.get('MOJULO_RENDER') or os.path.join(PACK, 'renders', '%s.png' % sc.camera.name)
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    sc.render.filepath = out
+    sc.render.image_settings.file_format = 'PNG'
+    bpy.ops.render.render(write_still=True)
+    log('rendered', out, '-', sc.render.resolution_x, 'x', sc.render.resolution_y, sc.cycles.samples, 'samples on', sc.cycles.device)
+    print('MOJ_RENDER_DONE', out)
+
+
 def realize():
     fresh_scene()
     import_glb()
@@ -220,6 +520,9 @@ def realize():
     set_units()
     set_shading()
     cam = frame_camera()
+    fire = build_fire()
+    if fire:
+        cam = bpy.context.scene.camera.name
     log('realized', REF, '-', len([o for o in bpy.data.objects if o.type == 'MESH']), 'meshes in', len(colls), 'collections; camera', cam)
     return colls
 
@@ -232,14 +535,23 @@ def save_blend():
             sys.exit(3)
         return None
     os.makedirs(os.path.dirname(os.path.abspath(BLEND)), exist_ok=True)
-    bpy.ops.wm.save_as_mainfile(filepath=BLEND, compress=True)
+    # a fire's volumes: found from the pack when the .blend lives in it (as it does), else by their full path
+    fc = bpy.data.collections.get(FIRE_COLL)
+    beside = os.path.dirname(os.path.abspath(BLEND)) == os.path.abspath(PACK)
+    for o in (fc.all_objects if fc else []):
+        if o.type == 'VOLUME':
+            p = os.path.abspath(bpy.path.abspath(o.data.filepath))
+            o.data.filepath = ('//' + os.path.relpath(p, PACK)) if beside else p
+    bpy.ops.wm.save_as_mainfile(filepath=BLEND, compress=True, relative_remap=False)
     log('saved', BLEND)
     print('MOJ_RUN_DONE', BLEND)
     return BLEND
 
 
 def report():
-    objs = list(bpy.data.objects)
+    fc = bpy.data.collections.get(FIRE_COLL)
+    fire = set(o.name for o in fc.all_objects) if fc else set()
+    objs = [o for o in bpy.data.objects if o.name not in fire]
     meshes = [o for o in objs if o.type == 'MESH']
     rows = []
     tris = 0
@@ -276,6 +588,7 @@ def report():
         'collections': sorted(c.name for c in bpy.data.collections),
         'shading': shading, 'unit': {'system': u.system, 'scale_length': round(u.scale_length, 6), 'length_unit': u.length_unit},
         'scene_camera': bpy.context.scene.camera.name if bpy.context.scene.camera else None,
+        **({'fire': {'objects': len(fire), 'volumes': sum(1 for o in fc.all_objects if o.type == 'VOLUME'), 'lights': sum(1 for o in fc.all_objects if o.type == 'LIGHT')}} if fc else {}),
     }
 
 
@@ -298,8 +611,10 @@ if MODE == 'verify':
 elif MODE == 'run':
     realize()
     save_blend()
+elif MODE == 'render':
+    render()
 else:
-    raise SystemExit('import_mojulo.py: MOJULO_MODE must be run or verify (got %r)' % MODE)
+    raise SystemExit('import_mojulo.py: MOJULO_MODE must be run, verify or render (got %r)' % MODE)
 `;
 }
 
@@ -340,6 +655,13 @@ want = {
     'export_hierarchy_flatten_objs': False, 'export_extras': True,
     'export_cameras': False, 'export_lights': False, 'export_animations': False, 'export_skins': False,
 }
+# a pack's fire (the 'mojulo-fire' collection) is not the object: it stays out of the return
+fire = bpy.data.collections.get('mojulo-fire')
+if fire is not None:
+    keep = set(o.name for o in fire.all_objects)
+    for o in bpy.context.view_layer.objects:
+        o.select_set(o.name not in keep)
+    want['use_selection'] = True
 kw = {k: v for k, v in want.items() if k in props}
 bpy.ops.export_scene.gltf(**kw)
 meshes = [o for o in bpy.data.objects if o.type == 'MESH']
@@ -413,6 +735,25 @@ ${guideLedger(ledger)}
 
 /* ----------------------------------------------------------------- README --- */
 
+// a pack of a world with fire: how to take its still
+const fireReadme = (f) => `## Fire — a Cycles still
+
+The world's fire at t = ${f.t} s (${f.fires} fire${f.fires === 1 ? '' : 's'}, ${f.flamelets} flame volume${f.flamelets === 1 ? '' : 's'}), as the World page draws it
+then, in \`fire/\`: \`import_mojulo.py\` writes each flame to OpenVDB as a volume of light, each fire's smoke as a density
+volume, imports the props, coals and embers (\`fire/props.glb\`), lights each fire and sets a \`Fire\` camera on the
+brightest beside the world's own. All of it sits in the \`mojulo-fire\` collection, which the gate and the return leave
+out. Render it:
+
+    <blender> -b --python import_mojulo.py -- --mode render --res 3840x2160 --samples 512
+    <blender> -b --python import_mojulo.py -- --mode render --camera <name> --out still.png
+
+Dials (flag or env): \`--flame\` / MOJULO_FIRE_FLAME (3, the flames' glow), \`--flame-contrast\` / MOJULO_FIRE_CONTRAST
+(2: how steeply the glow climbs with heat; 1 is the page's linear light), \`--fire-watts\` / MOJULO_FIRE_WATTS (5 watts
+per unit of the page's light), \`--smoke\` / MOJULO_FIRE_SMOKE (1), \`--embers\` / MOJULO_FIRE_EMBERS (30). Another
+instant: re-pack with \`--fire-t <seconds>\`; finer flames for a close shot: \`--fire-detail 2\`.
+
+`;
+
 export function blenderReadme({ title, ref, kind, pack, ledger, remint }) {
   return `# ${title} — Blender art pass
 
@@ -455,7 +796,7 @@ The pack files are regenerated IN PLACE on every re-mint; \`${ref}.blend\`, \`re
 3. **Machine, return side** — \`bind_mesh_render\` / \`submit_mesh_render\` decode the returned GLB fully before anything lands on disk (Draco / meshopt refused, quantization tolerated; albedo textures carried, other maps counted) and measure it against this pack's \`pack.json\`: node inventory · bounds · the landmark · scale. A HAND return's drift is stamped as \`contract_drift\` findings, never a refusal — you may have had reasons. A WORKER return that comes back re-scaled is a generator bug and is refused at \`accept_mesh_render\` (the handoff's size gate).
 4. **Eyes, return side** — the FAITHFUL \`/world\` render of the bound variant, section by section. When the two gates disagree, the eyes win.
 
-## blender-mcp (optional transport, never a dependency)
+${pack.fire ? fireReadme(pack.fire) : ''}## blender-mcp (optional transport, never a dependency)
 
 If you run blender-mcp, the three motions are one \`execute_blender_code\` each — the guide's
 T001.01 / T005.01 lines — and \`get_viewport_screenshot\` is the agent's eyes for gate 2. The

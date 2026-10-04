@@ -56,7 +56,10 @@ const DESCRIPTION_ALLOWLIST = {
   // 699 chars (one under the ceiling) and joins the allowlist for that sentence alone.
   // compose_world re-pinned 2026-09-28 (terrain-world): the 'terrain' base clause — a painted landscape made
   // real-scale ground (walk / fly / see whole); its manual lives in the view-vocab card `terrain`, off-payload.
-  compose_world: 1793,
+  // compose_world re-pinned 2026-10-04 (flame-depiction): one sentence routing fire in a world (campfire, torches,
+  // fireball, grass fire) to `overrides.fire` over the older carved-solid `flame` and sketch fire; the manual is
+  // the 'Fire' section of the dungeon and terrain cards, off-payload.
+  compose_world: 1998,
   cook: 2756,
   // create_beats / create_figure / export_beats / get_image_render_packet
   // re-pinned 2026-07-13 to bless visualization-layer branch growth measured

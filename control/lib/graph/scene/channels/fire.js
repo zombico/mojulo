@@ -1,5 +1,5 @@
 import { safeJson } from '../emit-util.js';
-import { fireKernel } from '../../fire/fire.js';
+import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COLORS } from '../../fire/fire.js';
 
 // In-page script: the FIRE channel (opt-in `fire` on any world; fire/fire.js). Only emitted with `fire`.
 //   · the kernel (fireKernel, inlined) gives every fire's flamelets, embers and smoke as functions of time; the air
@@ -18,7 +18,7 @@ import { fireKernel } from '../../fire/fire.js';
 export function fireChannelScript(cfg) {
   return `
 // --- fire (opt-in \`fire\`) ---
-const FIRE = ${safeJson(cfg)};
+const FIRE = ${safeJson(cfg)}, FIRE_KIND_LIGHT = ${safeJson(FIRE_KIND_LIGHT)}, FIRE_PROPS = ${safeJson(cfg.sources.map(firePropParts))};
 const __fireTW = FIRE.terrainAir ? window.__mojTerrain : null;
 const __fireWind = __fireTW && __fireTW.wind ? __fireTW.wind : null;
 // a grass fire spreads in the wind's mean, over the terrain's ground, and stops at its water
@@ -27,10 +27,8 @@ const __fireWorld = __fireTW ? { groundAt: (x, y) => __fireTW.kernel.groundAt(x,
 const __fireK = (${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null, __fireWorld);
 // every fire the kernel draws: the standing ones (FIRE.sources, with their props) and the grass fires' fronts
 const __fireN = __fireK.N, __FNP = __fireK.NP, __fireAll = Array.from({ length: __fireN }, (_, i) => __fireK.src(i));
-const __fireKindCol = { candle: [1, 0.66, 0.34], torch: [1, 0.55, 0.24], brazier: [1, 0.52, 0.22], campfire: [1, 0.5, 0.2], fireball: [1, 0.55, 0.22], grass: [1, 0.48, 0.17] };
-// a fire's light: its kind's warm yellow, or as much of its colorant's lines as the flame is coloured (what soot is left
-// still glows yellow)
-const __fireCols = __fireAll.map((s) => { const c = __fireKindCol[s.kind]; if (!s.line) return c; const k = s.lineK * (1 - 0.6 * Math.min(1, s.soot)); return [0, 1, 2].map((j) => c[j] * (1 - k) + s.line[j] * k); });
+// a fire's light: its kind's warm yellow, or as much of its colorant's lines as the flame is coloured (fire.js fireLightRGB)
+const __fireCols = __fireAll.map((s) => (${fireLightRGB.toString()})(s));
 
 // the light: every MeshBasicMaterial learns the fires (chained onto any patch it already carries)
 const __fireU = { uFireP: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uFireC: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uFireR: { value: new Array(8).fill(1) }, uFireAmb: { value: 0.12 }, uFireDay: { value: FIRE.day || 0 }, uBurnA: { value: Array.from({ length: 4 }, () => new THREE.Vector4()) }, uBurnB: { value: Array.from({ length: 4 }, () => new THREE.Vector4()) } };
@@ -87,33 +85,17 @@ const __fireProps = new THREE.Group(); scene.add(__fireProps);
 const __propMat = (hex) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(hex) }); m.defines = { FIRE_PROP: '' }; __firePatch(m); return m; };
 const __fireCoal = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
 const __fireCoals = [];
-const __fireM = { wood: __propMat(0x3a2414), char: __propMat(0x141010), iron: __propMat(0x2a2a2e), stone: __propMat(0x6e6a64), wax: __propMat(0xe9e2cf), pitch: __propMat(0x1a1410) };
-function __fireCyl(r0, r1, a, b, mat) {
-  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, d.length(), 10), mat);
+const __fireM = Object.fromEntries(Object.entries(${safeJson(FIRE_PROP_COLORS)}).map(([k, hex]) => [k, __propMat(hex)]));
+function __fireCyl(r0, r1, a, b, mat, seg = 10, open = false) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, d.length(), seg, 1, open), mat);
   m.position.copy(A).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); __fireProps.add(m); return m;
 }
-FIRE.sources.forEach((s, i) => {
-  const [x, y, z] = s.at, D = s.D;
-  let a = s.seed | 0; const rnd = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  let coal = null;
-  if (s.kind === 'candle') { __fireCyl(0.011, 0.011, [x, y, z - 0.09], [x, y, z - 0.004], __fireM.wax); __fireCyl(0.0008, 0.0008, [x, y, z - 0.006], [x, y, z + 0.004], __fireM.char); }
-  else if (s.kind === 'torch') {
-    __fireCyl(0.018, 0.022, [x, y, z - 0.6], [x, y, z - 0.08], __fireM.wood);
-    __fireCyl(0.04, 0.032, [x, y, z - 0.1], [x, y, z + 0.01], __fireM.pitch);
-    __fireCyl(0.024, 0.024, [x, y, z - 0.32], [x, y, z - 0.29], __fireM.iron);
-    coal = [x, y, z, 0.05];
-  } else if (s.kind === 'brazier') {
-    const R = D / 2 + 0.05, bowl = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 0.6, 0.16, 18, 1, true), __fireM.iron); bowl.rotation.x = Math.PI / 2; bowl.position.set(x, y, z - 0.08); __fireProps.add(bowl);
-    for (let k = 0; k < 3; k++) { const q = (2 * Math.PI * k) / 3; __fireCyl(0.018, 0.018, [x + R * 0.7 * Math.cos(q), y + R * 0.7 * Math.sin(q), z - 0.12], [x + R * 1.1 * Math.cos(q), y + R * 1.1 * Math.sin(q), z - 1.0], __fireM.iron); }
-    coal = [x, y, z - 0.02, R * 0.85];
-  } else if (s.kind === 'campfire') {
-    const gz = z - 0.1, R = D / 2;
-    for (let k = 0; k < 11; k++) { const q = (2 * Math.PI * (k + 0.3 * rnd())) / 11, st = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09 + 0.05 * rnd(), 0), __fireM.stone); st.scale.set(1.2, 1, 0.6); st.rotation.z = q; st.position.set(x + (R + 0.18) * Math.cos(q), y + (R + 0.18) * Math.sin(q), gz + 0.03); __fireProps.add(st); }
-    for (let k = 0; k < 5; k++) { const q = (2 * Math.PI * (k + 0.4 * rnd())) / 5; __fireCyl(0.06, 0.045, [x + (R + 0.05) * Math.cos(q), y + (R + 0.05) * Math.sin(q), gz + 0.02], [x + 0.08 * Math.cos(q + 2), y + 0.08 * Math.sin(q + 2), gz + 0.45 * s.L], k % 2 ? __fireM.char : __fireM.wood); }
-    coal = [x, y, gz + 0.03, R * 0.9];
-  }
-  if (coal) {
-    const c = new THREE.Mesh(new THREE.CircleGeometry(coal[3], 20), __fireCoal.clone()); c.position.set(coal[0], coal[1], coal[2]); c.material.color.setRGB(0.9, 0.25, 0.04); __fireProps.add(c); __fireCoals.push({ m: c, i });
+// each fire's prop, from its parts (fire.js firePropParts: the Blender pack builds the same)
+FIRE_PROPS.forEach((parts, i) => {
+  for (const p of parts) {
+    if (p.shape === 'cyl') __fireCyl(p.r0, p.r1, p.a, p.b, __fireM[p.mat], p.seg, !!p.open);
+    else if (p.shape === 'stone') { const st = new THREE.Mesh(new THREE.IcosahedronGeometry(p.r, 0), __fireM[p.mat]); st.scale.set(...p.scale); st.rotation.z = p.rotZ; st.position.set(...p.at); __fireProps.add(st); }
+    else if (p.shape === 'coal') { const c = new THREE.Mesh(new THREE.CircleGeometry(p.r, 20), __fireCoal.clone()); c.position.set(...p.at); c.material.color.setRGB(0.9, 0.25, 0.04); __fireProps.add(c); __fireCoals.push({ m: c, i }); }
   }
 });
 

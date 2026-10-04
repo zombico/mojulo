@@ -71,7 +71,7 @@ Outer effect(s) routed along the contour, OUTSIDE the silhouette — a string, a
 - `overgrow` — vine / moss / ivy.
 - `electric` — crackle / arc / storm / filament / snake / prowl / surge.
 - `ice` — encase / shards / rime.
-- `flame` — engulf / lick / blaze.
+- `flame` — engulf / lick / blaze: flames licking a logo or wordmark. For fire in a 3D world — a campfire, torches, a fireball, a grass fire — use `compose_world` `overrides.fire` instead.
 
 ## Camera & frame
 

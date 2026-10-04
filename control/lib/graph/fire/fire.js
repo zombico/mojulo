@@ -421,3 +421,50 @@ export function fireLightColor(color, kind = 'brazier', soot) {
 export function firePageChannel(resolved, { terrainAir = false, day = 0 } = {}) {
   return { ...resolved, terrainAir: !!terrainAir, day: Math.max(0, Math.min(1, +day || 0)) };
 }
+
+/** A fire's own light colour, by kind: what its soot glows (a grass fire's is the reddest, a candle's the yellowest). */
+export const FIRE_KIND_LIGHT = Object.freeze({ candle: [1, 0.66, 0.34], torch: [1, 0.55, 0.24], brazier: [1, 0.52, 0.22], campfire: [1, 0.5, 0.2], fireball: [1, 0.55, 0.22], grass: [1, 0.48, 0.17] });
+
+/** fireLightRGB(s) → the [r, g, b] a resolved source lights with: its kind's warm yellow, or as much of its colorant's
+ *  lines as the flame is coloured (what soot is left still glows yellow). */
+export function fireLightRGB(s) {
+  const c = FIRE_KIND_LIGHT[s.kind] || FIRE_KIND_LIGHT.brazier; if (!s.line) return c;
+  const k = s.lineK * (1 - 0.6 * Math.min(1, s.soot));
+  return [0, 1, 2].map((j) => c[j] * (1 - k) + s.line[j] * k);
+}
+
+/** The props' materials (sRGB hex): what each fire stands on. */
+export const FIRE_PROP_COLORS = Object.freeze({ wood: 0x3a2414, char: 0x141010, iron: 0x2a2a2e, stone: 0x6e6a64, wax: 0xe9e2cf, pitch: 0x1a1410 });
+
+/**
+ * firePropParts(s) → what a resolved source stands on, as parts any renderer builds (the World page in three, a Blender
+ * pack in bpy): a candle; a torch's staff, pitch head and iron band; a brazier's open bowl on three legs; a campfire's
+ * ring of stones and its logs leaning in. Parts:
+ *   { shape: 'cyl', a, b, r0 (at a), r1 (at b), seg, open?, mat }
+ *   { shape: 'stone', at, r, scale: [sx, sy, sz], rotZ, mat }     (an icosahedron, flattened)
+ *   { shape: 'coal', at, r }                                       (a glowing disc, facing up)
+ * A fireball and a grass fire stand on nothing.
+ */
+export function firePropParts(s) {
+  const [x, y, z] = s.at, D = s.D, out = [];
+  let a = s.seed | 0; const rnd = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const cyl = (r0, r1, A, B, mat, seg = 10, open = false) => out.push({ shape: 'cyl', a: A, b: B, r0, r1, seg, ...(open ? { open: true } : {}), mat });
+  if (s.kind === 'candle') { cyl(0.011, 0.011, [x, y, z - 0.09], [x, y, z - 0.004], 'wax'); cyl(0.0008, 0.0008, [x, y, z - 0.006], [x, y, z + 0.004], 'char'); }
+  else if (s.kind === 'torch') {
+    cyl(0.018, 0.022, [x, y, z - 0.6], [x, y, z - 0.08], 'wood');
+    cyl(0.04, 0.032, [x, y, z - 0.1], [x, y, z + 0.01], 'pitch');
+    cyl(0.024, 0.024, [x, y, z - 0.32], [x, y, z - 0.29], 'iron');
+    out.push({ shape: 'coal', at: [x, y, z], r: 0.05 });
+  } else if (s.kind === 'brazier') {
+    const R = D / 2 + 0.05;
+    cyl(R * 0.6, R, [x, y, z - 0.16], [x, y, z], 'iron', 18, true);
+    for (let k = 0; k < 3; k++) { const q = (2 * Math.PI * k) / 3; cyl(0.018, 0.018, [x + R * 0.7 * Math.cos(q), y + R * 0.7 * Math.sin(q), z - 0.12], [x + R * 1.1 * Math.cos(q), y + R * 1.1 * Math.sin(q), z - 1.0], 'iron'); }
+    out.push({ shape: 'coal', at: [x, y, z - 0.02], r: R * 0.85 });
+  } else if (s.kind === 'campfire') {
+    const gz = z - 0.1, R = D / 2;
+    for (let k = 0; k < 11; k++) { const q = (2 * Math.PI * (k + 0.3 * rnd())) / 11; out.push({ shape: 'stone', at: [x + (R + 0.18) * Math.cos(q), y + (R + 0.18) * Math.sin(q), gz + 0.03], r: 0.09 + 0.05 * rnd(), scale: [1.2, 1, 0.6], rotZ: q, mat: 'stone' }); }
+    for (let k = 0; k < 5; k++) { const q = (2 * Math.PI * (k + 0.4 * rnd())) / 5; cyl(0.06, 0.045, [x + (R + 0.05) * Math.cos(q), y + (R + 0.05) * Math.sin(q), gz + 0.02], [x + 0.08 * Math.cos(q + 2), y + 0.08 * Math.sin(q + 2), gz + 0.45 * s.L], k % 2 ? 'char' : 'wood'); }
+    out.push({ shape: 'coal', at: [x, y, gz + 0.03], r: R * 0.9 });
+  }
+  return out;
+}
