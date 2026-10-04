@@ -159,8 +159,8 @@ critiqued and judged blind; see "What the trial found".)
   `hand-on-hip`, `guard`) or pose words (the refusal lists them), composed left to right. Read the readout's `gesture`
   clearance, and judge the three-quarter silhouette at 256 px.
   - The base is the stand's: `stance` (how far apart the planted feet stand, a multiple of the hip spread) and
-    `stagger` (+ the left foot forward) set it, the free side's `heelL` / `heelR` raises a heel. On `core: 'structured'`
-    the legs converge at rest, so a stand that names no base stands with the feet under the knees; the presets carry
+    `stagger` (+ the left foot forward) set it, the free side's `heelL` / `heelR` raises a heel. On the structured core
+    (every hero's default) the legs converge at rest, so a stand that names no base stands with the feet under the knees; the presets carry
     their own (a ready stance wide and bladed, a calm one close-set). A wide base needs a crouch to reach.
   - `relaxed` carries the chin a little down. `{ head: { pitch: 0 } }` brings it level, which reads alert and, at the
     three-quarter, a touch proud.

@@ -689,7 +689,8 @@ describe('the hero door stands the hero in a gesture', () => {
   it('the anime hero stands relaxed; /hero/gesture regenerates by word, by pose words and back to rest; the readout measures it', async () => {
     const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-stand', spec: { cast: 'female', head: 'anime' } });
     expect(minted.ok).toBe(true); expect(minted.stats.closed).toBe(true); expect(minted.stats.layered.rig.clips[0]).toBe('gesture');
-    expect(minted.hero.gesture).toEqual({ word: 'relaxed', support: 'L', clearance: { pairs: {}, worstMm: 0 }, freeSoleMm: { R: 0 } });
+    // the structured core's relaxed stand plants both feet on its own base (hero-gesture.js STRUCTURED_STANDS): no free sole
+    expect(minted.hero.gesture).toEqual({ word: 'relaxed', support: 'both', clearance: { pairs: {}, worstMm: 0 } });
     expect(minted.hero.warnings).toBeUndefined(); expect(minted.next.reason).toMatch(/\/hero\/gesture \(rest, relaxed, hand-on-hip, guard/);
     // the budget: triangles and vertices per palette group, the stored plan and recipe in bytes
     const b = minted.hero.budget; expect(b.triangles).toBe(minted.stats.faces); expect(b.vertices).toBe(minted.stats.vertices);
@@ -700,8 +701,8 @@ describe('the hero door stands the hero in a gesture', () => {
     expect(row().manifest.hero.gesture).toBeUndefined(); expect(Object.keys(row().manifest.recipe.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']);
     // a word: the mirror stance
     const hip = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'hand-on-hip' }] });
-    expect(hip.ok).toBe(true); expect(hip.stats.layered.rig.clips[0]).toBe('gesture'); expect(hip.stats.hero.gesture).toMatchObject({ word: 'hand-on-hip', support: 'R' });
-    expect(row().manifest.recipe.clips.gesture).toHaveLength(1); expect(row().manifest.recipe.clips.gesture[0].support).toBe('R');
+    expect(hip.ok).toBe(true); expect(hip.stats.layered.rig.clips[0]).toBe('gesture'); expect(hip.stats.hero.gesture).toMatchObject({ word: 'hand-on-hip', support: 'both' });
+    expect(row().manifest.recipe.clips.gesture).toHaveLength(1); expect(row().manifest.recipe.clips.gesture[0].support).toBe('both'); expect(row().manifest.recipe.clips.gesture[0].stagger).toBeGreaterThan(0);   // the mirror stance on its own base: the left foot ahead
     // a list: the relaxed stand, chin down (the gesture owns the head's pitch)
     const chin = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: ['relaxed', { head: { pitch: -12 } }] }] });
     expect(chin.stats.hero.gesture.word).toBe('relaxed+data'); expect(row().manifest.recipe.clips.gesture[0].head).toEqual({ yaw: 10, pitch: -12 });
@@ -728,7 +729,9 @@ describe('the hero door stands the hero in a gesture', () => {
     // the male's placed hands on the chibi body: the readout names what sinks and where the free foot went
     const chibi = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-chibi-guard', spec: { cast: 'chibi', head: 'anime', gesture: 'guard' } });
     expect(chibi.ok).toBe(true); expect(chibi.hero.gesture.clearance.worstMm).toBeGreaterThan(5);
-    expect(chibi.hero.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/^gesture 'guard': (hand|foreArm)R sinks [\d.]+ mm into (torso|thighR)/), expect.stringMatching(/^gesture 'guard': the free right foot sinks [\d.]+ mm below the floor/)]));
+    // (the structured core's guard plants both feet, so no free foot sinks: only the arm's placement is advised)
+    expect(chibi.hero.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/^gesture 'guard': (hand|foreArm)R sinks [\d.]+ mm into (torso|thighR)/)]));
+    expect(chibi.hero.warnings.some((w) => /free right foot/.test(w))).toBe(false);
   });
 });
 
@@ -763,7 +766,8 @@ describe("the hero door's clips through update_sketch", () => {
     const before = JSON.stringify(row().manifest);
     await expect(updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/gesture', value: [{}] }] })).rejects.toThrow(/clips\.gesture: the stand's clip/);
     await expect(updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/reach', value: [{ elbowR: 'kinked' }] }] })).rejects.toThrow(/clips\.reach\[0\]\.elbowR: a bend word/);
-    await expect(updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/lunge', value: [{}, { pelvis: 25 }] }] })).rejects.toThrow(/the clip 'lunge' \(hero\.clips\.lunge\[1\]\)/);
+    // (out of reach on the structured core: feet planted three hip spreads apart on straight legs)
+    await expect(updateSketchHandler({ ref: 'hero-clips', patch: [{ op: 'set', path: '/hero/clips/lunge', value: [{}, { stance: 3 }] }] })).rejects.toThrow(/the clip 'lunge' \(hero\.clips\.lunge\[1\]\)/);
     expect(JSON.stringify(row().manifest)).toBe(before);
   });
 });
@@ -910,9 +914,10 @@ describe('a hero dressed through the door', () => {
     expect(minted.hero.dress.parts.detail).toBeGreaterThan(40); expect(minted.hero.dress.parts.adorn).toBeGreaterThanOrEqual(8);
     expect(minted.hero.dress.adornments.map((a) => [a.id, a.verdict])).toEqual([['belt', 'justified'], ['baldric', 'justified'], ['bracer', 'justified'], ['pauldron', 'justified']]);
     // the clearance ledger: the dress FOLLOWS the dials (bulk widens the baldric with the chest), and the one thing it
-    // cannot follow is named: the belt is pinned to the torso and `stance` swings the thighs out under it
+    // cannot follow is named: the belt is pinned to the torso's hem, and on the structured core `bulk` narrows the hem over
+    // the pelvis (a dial blends by station across its parts); on the streamlined core it was `stance` swinging the thighs
     expect(minted.hero.dress.clearance.sinking).toEqual(['belt']); expect(minted.hero.dress.clearance.worst.baldric.at).toBe('rest');
-    expect(minted.hero.warnings).toEqual([expect.stringMatching(/^adornment belt sinks into thighL, thighR at stance 1\.35/)]);
+    expect(minted.hero.warnings).toEqual([expect.stringMatching(/^adornment belt sinks into pelvis at bulk 0\.8/)]);
     expect(minted.hero.dress.legibility.families.find((f) => f.family === 'adorn.pauldron.sig').readsFrom).toBe(64);   // the focal accent reads at the smallest size
     expect(minted.hero.evidence.head).toMatchObject({ fit: 'male', inferred: ['front'], face: 'as fitted' });
     expect(minted.next.reason).toMatch(/\/hero\/adorn \(ranger, none\)/);

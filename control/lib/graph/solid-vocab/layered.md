@@ -80,7 +80,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   blend: { station: { bone: w } } }` (the overshoot ring at a joint shared with the neighbour); a pinned
   detail inherits its face. `clips: { name: [keyposes] }` are `resolvePose` words for the core (`armL:
   'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
-  `heelL/R` (metatarsus degrees, + the heel up), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
+  `heelL/R` (metatarsus degrees about the toe base, − lifts the heel), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
   the hip joints': 1 puts each ankle under its hip), `stagger` (+ the left foot forward, a share of the leg's height),
   and every chain channel. Legs solve to PLANTED toes (at rest unless `stance` / `stagger` move them);
   an unreachable pose refuses with the numbers (`reach: 'clamp'` to accept a reported error). The mint
@@ -283,7 +283,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `pupilOfIris`. Each outside its base's band advises in `warnings`, naming the word that moves it (not under a look: a
   look is another character); a ratio the head does not allow measuring is null and says so. The table reads the face
   at the studio's carriage, so a `headPitch` word never moves it.
-  THE CORE: `core: 'structured'` builds the midsection on the vajra core: the `pelvis` bone is the basin, turned by the
+  THE CORE: every hero's midsection is built on the vajra core (`core: 'structured'`, the default): the `pelvis` bone is the basin, turned by the
   hip line alone, and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or side bend (and the
   hinge) bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
   rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
@@ -294,8 +294,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   core that advice is a warning. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
   the knee. Its stands own their base: `relaxed`, `hand-on-hip` and `guard` plant both feet where `stance` and `stagger`
   put them, the free side's heel up (the guard about twice the hip spread, bladed with the left leading); a swing word's
-  keys take the guard's base. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. `'streamlined'` (the
-  default) keeps one `pelvis` bone from the hub to the navel and the cast's legs. (A rig bone's `align` names two joints
+  keys stand on a base of their own. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. Hip armour hangs
+  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` is the hero
+  before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
+  legs. (A rig bone's `align` names two joints
   whose line orients it in place of head → tail; it still sits at its head.)
   ANIME PROPORTIONS: a hero wearing the anime head wears an anime body by default (`proportions: 'anime'`; `'hero'` keeps
   the realistic cast): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam

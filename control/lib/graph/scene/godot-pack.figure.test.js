@@ -104,7 +104,7 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
     const pack = await buildGodotWorldPack({ ref: 'sk_gf_hero', outDir: outDir('sk_gf_hero') });
     const files = pack.written.map((f) => f.file);
     for (const f of ['model.glb', 'model.glb.import', 'figure.gd', 'level.tscn', 'export_presets.cfg', 'README.md']) expect(files, f).toContain(f);
-    expect(pack.figure).toEqual({ name: 'body', clip: 'idle', clips: ['idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 18 });
+    expect(pack.figure).toEqual({ name: 'body', clip: 'idle', clips: ['idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 19 });   // + the structured core's lumbar bone (18 before it)
 
     // the bytes export_model { format: 'glb', clips: '_all', skinned: true } writes
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('sk_gf_hero'), {});
@@ -122,7 +122,7 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
     expect(readme).toContain('`idle` on a loop under the authored three-quarter view');
     expect(readme).not.toContain('WASD');
     expect(Object.keys(pack.ledger)).toEqual(expect.arrayContaining(['figure_skinned', 'figure_normals']));
-    expect(readme).toContain('- `figure_skinned` — one skinned mesh (18 joints) carrying its 3 clips, one second each');
+    expect(readme).toContain('- `figure_skinned` — one skinned mesh (19 joints) carrying its 3 clips, one second each');
     // the hero stands at rest (no stand), so its idle is not said against a stand
     expect(readme).not.toContain('not the stand');
   }, 60000);
@@ -171,7 +171,7 @@ describe("buildGodotWorldPack — the anime hero's figure", () => {
     SketchRepository.create({ ref: 'sk_gf_anime', title: 'anime hero', manifest: ANIME });
     const pack = await buildGodotWorldPack({ ref: 'sk_gf_anime', outDir: outDir('sk_gf_anime') });
     expect(pack.figure).toEqual({
-      name: 'body', clip: 'idle', clips: ['gesture', 'idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 18,
+      name: 'body', clip: 'idle', clips: ['gesture', 'idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 19,   // + the structured core's lumbar bone (18 before it)
       anime: true, seconds: { gesture: 1, idle: 4, walk: 1, wave: 2 }, face: true, ambientOver: ['body:gesture', 'body:walk', 'body:wave'],
     });
     // the bytes export_model { format: 'glb', clips: '_all', skinned: true } writes: the face asked for

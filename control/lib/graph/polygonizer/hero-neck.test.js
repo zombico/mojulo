@@ -24,12 +24,14 @@ const inside = (tris, q) => { let c = 0; for (const [A, B, C] of tris) { const e
 // (with the old wave restored these pins pass unchanged).
 describe('the neck form: absent ⇒ the plan as it was', () => {
   it('reaches only the anime head on anime proportions; every other path keeps the segment, byte for byte', () => {
-    // pinned from the code before the neck form existed (sha256(JSON.stringify(plan)), first 16 hex digits)
-    expect(h(heroPlan({ cast: 'male', proportions: 'anime' }))).toBe('7df808760df93813');
-    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly' }))).toBe('d5582c1b5d57b926');
+    // pinned from the code before the neck form existed (sha256(JSON.stringify(plan)), first 16 hex digits), on the
+    // streamlined core (the structured core, DEFAULT_CORE, came after and moves the body, not the neck)
+    const old = { core: 'streamlined' };
+    expect(h(heroPlan({ cast: 'male', proportions: 'anime', ...old }))).toBe('7df808760df93813');
+    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly', ...old }))).toBe('d5582c1b5d57b926');
     expect(heroPlan({ cast: 'male', proportions: 'anime', neckForm: null })).toEqual(heroPlan({ cast: 'male', proportions: 'anime' }));
-    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime' }))).toBe('a548ad8506b71fba');   // the landmark head on anime proportions
-    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime' })))).toBe('6e8dcaca2f4e56eb');
+    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime', ...old }))).toBe('a548ad8506b71fba');   // the landmark head on anime proportions
+    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime', ...old })))).toBe('6e8dcaca2f4e56eb');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero' }))).kind).toBe('segment');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime' }))).kind).toBe('segment');   // a figure cast has none
     for (const cast of ['female', 'male']) {

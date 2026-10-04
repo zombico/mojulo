@@ -125,9 +125,13 @@ describe('silhouette-solve — a drawn outline becomes a dial solve', () => {
       L[0][1] = R[0][1] = top / res; L[L.length - 1][1] = R[R.length - 1][1] = end / res;
       return { id: 'upper', view: 'frontal', intent: 'silhouette', camera, points: [...L, ...R.reverse()].map((p) => [...p, 0.5]) };
     };
-    // the top 40 %: over a quarter of the area (it drove stance to its bound before), under half the height
-    expect(() => fitSilhouetteDials(hero, {}, upper(0.4), { mesh })).toThrow(/stroke 'upper' spans 40 % of the solid's height in its view \(at least 50 %\); a silhouette is the outline of the WHOLE solid there/);
-    // the whole body traced the same way solves (and has nothing to move: it is the body)
-    const whole = fitSilhouetteDials(hero, {}, upper(1), { mesh }); expect(whole.moved).toEqual({});
+    // the top 40 %: over a quarter of the area (it drove stance to its bound before), under half the height (39 % on the
+    // structured core's hero, whose rows round one pixel lower)
+    expect(() => fitSilhouetteDials(hero, {}, upper(0.4), { mesh })).toThrow(/stroke 'upper' spans (39|40) % of the solid's height in its view \(at least 50 %\); a silhouette is the outline of the WHOLE solid there/);
+    // the whole body traced the same way solves, and stays at rest within a few per cent: the row trace (each row's left
+    // and right edge) fills the narrow gap between the structured core's converged legs, which the solve closes by widening
+    // the stance a little (on the streamlined core the trace was the body and nothing moved)
+    const whole = fitSilhouetteDials(hero, {}, upper(1), { mesh });
+    for (const [dial, v] of Object.entries(whole.moved)) expect(Math.abs(v - 1), dial).toBeLessThan(0.03);
   });
 });

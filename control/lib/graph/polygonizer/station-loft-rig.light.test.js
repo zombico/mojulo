@@ -294,8 +294,9 @@ describe('the anime hero: the rig pack and the ink take the character light by d
   });
   it('the baked ink cannot stencil: the hair\'s hull splits by layer and leaves out the buried shell (the culling count)', async () => {
     const read = (buf) => { const n = buf.readUInt32LE(12); return JSON.parse(buf.subarray(20, 20 + n).toString()); };
-    // (re-counted for the hair's top planes, which split more of the mass, the dome drape and the male hair base's crest)
-    for (const [cast, buried, hull] of [['female', 745, 6980], ['male', 1466, 8196]]) {
+    // (re-counted for the hair's top planes, which split more of the mass, the dome drape and the male hair base's crest;
+    // both hulls re-counted for the structured core's relaxed stand, a little crouch that moves the hair: 6980, 8196 before)
+    for (const [cast, buried, hull] of [['female', 745, 6984], ['male', 1466, 8200]]) {
       const p = cast === 'female' ? lit : await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }));
       // the hair class (hair and veil faces together, each its own closed part): its buried triangles, the culling count
       const soup = Float32Array.from(p.faces.filter((f) => f.layer === 'hair' || f.layer === 'veil').flatMap((f) => f.corners.flat()));
@@ -332,8 +333,9 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
   });
   it('a landmark hero: the inked page; the skinned GLB with the baked ink', async () => {
     const { emitThreeWorld } = await import('../scene/scene-three.js');
-    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), toon: { ink: true } })))).toBe('1137ac00c4fe7415');
-    const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female' }) }), toon: { ink: { crease: 50 }, bake: true } });
+    // (on the streamlined core: these pins predate the structured core, DEFAULT_CORE, whose payloads station-loft-shade pins)
+    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('1137ac00c4fe7415');
+    const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', core: 'streamlined' }) }), toon: { ink: { crease: 50 }, bake: true } });
     expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('818fd9f23039d014');
   });
 });

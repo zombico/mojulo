@@ -218,17 +218,21 @@ export function validateHeroClips(clips, { jaw = false, face = false, expression
  * presets' free-leg swivels, tuned on the cast's splayed rest, would cross the free knee in front of the support leg and
  * draw the ready stance with its feet together. The stand owns its base instead: both feet planted where the STANCE
  * (spread, a multiple of the hip joints' own) and the STAGGER (+ the left foot forward) put them, the free side's heel
- * raised so its knee softens, a little crouch to let the heel rise. The preset's body, arms and head are kept; its
+ * raised so its knee softens (a heel's degrees turn the metatarsus about the toe base: negative lifts the heel off the floor,
+ * the ball stays down), a little crouch to let the heel rise. The preset's body, arms and head are kept; its
  * free-leg words go.
  *   relaxed      close-set feet, the free right foot a little forward on a soft knee
  *   hand-on-hip  its mirror: the free left foot forward
  *   guard        a fighter's base: feet about twice the hip spread, bladed with the left leading, the rear heel up
  */
 export const STRUCTURED_STANDS = deepFreeze({
-  relaxed: { free: 'R', legs: { support: 'both', stance: 1.3, stagger: -0.1, heelR: 10, crouch: 0.04 } },
-  'hand-on-hip': { free: 'L', legs: { support: 'both', stance: 1.35, stagger: 0.1, heelL: 10, crouch: 0.04 } },
-  guard: { free: 'R', legs: { support: 'both', stance: 2, stagger: 0.34, heelR: 28, crouch: 0.32 } },
+  relaxed: { free: 'R', legs: { support: 'both', stance: 1.3, stagger: -0.1, heelR: -10, crouch: 0.04 } },
+  'hand-on-hip': { free: 'L', legs: { support: 'both', stance: 1.35, stagger: 0.1, heelL: -10, crouch: 0.04 } },
+  guard: { free: 'R', legs: { support: 'both', stance: 2, stagger: 0.34, heelR: -28, crouch: 0.32 } },
 });
+/** a swing's base on the structured core (layered.js heroPlanOf): feet a little wider than the hips and the left ahead, the
+ * knees always soft enough to reach them */
+export const STRUCTURED_SWING_BASE = Object.freeze({ stance: 1.45, stagger: 0.18, crouch: 0.12 });
 /** a preset stand's entry with the structured core's base in place of its free leg (STRUCTURED_STANDS) */
 function structuredStand(word, entry) {
   const S = STRUCTURED_STANDS[word]; if (!S) return entry;

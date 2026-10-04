@@ -124,7 +124,8 @@ describe('the skinned GLB carries the anime face', () => {
     // shoulder line (hero-form.js): with the old wave in the recipe each export writes the bytes before it
     // (98a75b946e0c4ebc / 932c94ffaa0aae60), still.
     const PIN = { landmark: 'f3144ed3673c4685', none: 'ed0ce1b9d476697d' };
-    for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer }]) {
+    // (on the streamlined core: the pins predate the structured core, DEFAULT_CORE, which moves both exports alike)
+    for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer, core: 'streamlined' }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer, core: 'streamlined' }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       const a = await skinnedGlb(m, { face: true }), b = await skinnedGlb(m);
       expect(a.bytes.equals(b.bytes), spec.head ?? 'landmark').toBe(true);

@@ -11,7 +11,7 @@ import { facesToGlb } from './scene-gltf.js';
 import { compareFigure, declaredFigure, godotName, parseFigureLine } from './figure-gate.js';
 import { FACE_TARGETS } from '../polygonizer/anime-face-rig.js';
 
-// the fast hero (no head, lowpoly): an 18-joint skin and the hero's own three clips
+// the fast hero (no head, lowpoly): a 19-joint skin (18 before the structured core's `lumbar` bone) and its own three clips
 const hero = async () => (await resolveWorldScene({ ref: 'fg', title: 'fg', manifest: expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'none', register: 'lowpoly' }) }) }, {})).payload;
 
 // the probe's line, as it printed on the docs heroine's pack (Godot 4.7.2)
@@ -23,9 +23,9 @@ const HEROINE = {
 const FIGURE = { name: 'body', clip: 'idle', view: 1 };
 
 describe('declaredFigure', () => {
-  it('reads the skinned export: one skin of 18 joints, the clips under Godot names; the static export has none', async () => {
+  it('reads the skinned export: one skin of 19 joints, the clips under Godot names; the static export has none', async () => {
     const payload = await hero();
-    expect(declaredFigure(facesToGlb(payload, { clips: '_all', skinned: true }).bytes)).toEqual({ skins: 1, joints: 18, animations: ['body_idle', 'body_walk', 'body_wave'] });
+    expect(declaredFigure(facesToGlb(payload, { clips: '_all', skinned: true }).bytes)).toEqual({ skins: 1, joints: 19, animations: ['body_idle', 'body_walk', 'body_wave'] });   // + lumbar (18 before the structured core)
     expect(declaredFigure(facesToGlb(payload).bytes)).toEqual({ skins: 0, joints: 0, animations: [] });
   }, 60000);
 

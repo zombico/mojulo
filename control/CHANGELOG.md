@@ -14,15 +14,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Figure articulation: pelvic
 
-The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike. Opt in
-with `core: 'structured'` at the hero door; every hero without it stays byte-identical. Being built on this branch; each
-bullet is rewritten as its phase lands.
+The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike, and
+the default for every hero (`core: 'structured'`). Every hero changes: a stored hero regenerates with it. `core:
+'streamlined'` is the hero before it, byte for byte. Being built on this branch; each bullet is rewritten as its phase
+lands.
 
-- **The pelvis bone.** Under `core: 'structured'` the `pelvis` bone is the basin: it turns with the hip girdle alone, as
+- **The default.** Every hero is built on the structured core unless it says `core: 'streamlined'`. The tune keeps its
+  contract on it: `thigh` thickens the thigh about its own rings, `calf` the knee and the shin, `legs` moves the joints
+  and no radius; and the outline is one curve in every register (each ring's radius solved from the width it draws).
+  A swing word's keys stand on a base of their own, reachable on every verb.
+
+- **The pelvis bone.** On the structured core the `pelvis` bone is the basin: it turns with the hip girdle alone, as
   the vajra's own pelvis does, so a spine curl or arch bends the lower back over a still pelvis instead of tipping it. A
   new `lumbar` bone carries what `pelvis` used to (the pelvis hub to the navel); the hem and the top of the thighs blend
   the two, and a hip-slung blade rides the basin. A rig bone may now take `align`, two joints whose line orients it.
-- **The legs converge.** Under `core: 'structured'` the thigh slants in from the hip to the knee, more on the female, so
+- **The legs converge.** On the structured core the thigh slants in from the hip to the knee, more on the female, so
   the knees sit inside the hips and the feet under the knees. The female casts no longer stand with their knees wider
   than their hips and a deep V between the thighs: their narrowed hips had left the knees behind.
 - **The stand owns its base.** New pose words `stance` (how far apart the planted feet stand, as a multiple of the hip
@@ -30,7 +36,7 @@ bullet is rewritten as its phase lands.
   presets plant both feet on a base of their own: the guard wide and bladed with the rear heel up, the relaxed and
   hand-on-hip stands close-set with a soft free knee, a swing on the guard's base. Without these words a planted foot
   stands where it always did.
-- **The pelvis mesh.** Under `core: 'structured'` a `pelvis` part on the vajra basket runs from the crotch up into the
+- **The pelvis mesh.** On the structured core a `pelvis` part on the vajra basket runs from the crotch up into the
   hem, its back the seat, and the thigh is rooted at the hip socket inside it. The hip is one curve out from the waist:
   the female's widest at the trochanter and narrowing steadily to the knee, the male's straight. The front recedes to the
   crotch, the thighs meet under it, and the thigh comes out of the pelvis along the groin's diagonal. Gone: the corner
@@ -43,8 +49,8 @@ bullet is rewritten as its phase lands.
   legs a hardsuit's inner knee plate turns less far in, clear of the other knee.
 - **Core measures.** Every hero's readout carries `core`: the waist to hip, where the hip peaks, the seat, how far the
   front falls below the waist, any pouch, the largest step in the outline, and whether the legs converge, with advice
-  against bands per body that names the word to move. On the structured core the advice is a warning; on other heroes it
-  stays in `core.advice`, so their warnings are unchanged. The design loop's critic reads it. `render-pelvic-overlay.mjs`
+  against bands per body that names the word to move. On the structured core the advice is a warning; on a streamlined
+  hero it stays in `core.advice`. The design loop's critic reads it. `render-pelvic-overlay.mjs`
   draws the vajra core over the hero mesh before and after.
 
 ## [3.0.0] - 2026-10-01

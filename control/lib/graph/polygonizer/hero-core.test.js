@@ -28,9 +28,10 @@ describe('a rig bone can be aligned by two joints', () => {
 });
 
 describe('the default core', () => {
-  it('is streamlined, and naming it changes no bytes on either look', () => {
-    expect(HERO_CORES[0]).toBe('streamlined');
-    for (const opts of [{ cast: 'male' }, { cast: 'female', proportions: 'anime' }]) expect(heroPlan({ ...opts, core: 'streamlined' })).toEqual(heroPlan(opts));
+  it('is structured, and naming it changes no bytes on either look', async () => {
+    const { DEFAULT_CORE } = await import('./hero-form.js');
+    expect(DEFAULT_CORE).toBe('structured'); expect(HERO_CORES).toEqual(['streamlined', 'structured']);
+    for (const opts of [{ cast: 'male' }, { cast: 'female', proportions: 'anime' }]) expect(heroPlan({ ...opts, core: 'structured' })).toEqual(heroPlan(opts));
   });
   it('refuses a core it does not know', () => {
     expect(() => heroPlan({ core: 'bony' })).toThrow(/unknown core 'bony' \(have streamlined, structured\)/);
@@ -40,7 +41,7 @@ describe('the default core', () => {
 describe('the structured core', () => {
   for (const opts of [{ cast: 'male' }, { cast: 'female' }, { cast: 'male', proportions: 'anime' }, { cast: 'female', proportions: 'anime' }]) {
     const label = `${opts.cast}${opts.proportions ? ' anime' : ''}`;
-    const S = rigged({ ...opts, core: 'structured' }), D = rigged(opts);
+    const S = rigged({ ...opts, core: 'structured' }), D = rigged({ ...opts, core: 'streamlined' });
     it(`${label}: the basin turns with the hip line alone; the lumbar carries what the old pelvis did`, () => {
       expect(S.R.bones.slice(0, 3).map((b) => b.id)).toEqual(['pelvis', 'lumbar', 'torso']);
       for (const [name, pose] of Object.entries(POSES)) {
@@ -150,7 +151,7 @@ describe('the pelvis mesh: one hip curve, no pouch, no shelf', () => {
     });
   }
   it('the pelvis is one closed part bound to the basin and the lumbar; the streamlined hero has none', () => {
-    const S = rigged({ cast: 'female', core: 'structured' }), D = rigged({ cast: 'female' });
+    const S = rigged({ cast: 'female', core: 'structured' }), D = rigged({ cast: 'female', core: 'streamlined' });
     expect(S.recipe.parts.pelvis).toBeDefined(); expect(D.recipe.parts.pelvis).toBeUndefined();
     const bones = new Set(); S.mesh.provenance.forEach((p, i) => { if (p.part === 'pelvis') S.skin.joints[i].forEach((j, k) => { if (S.skin.weights[i][k] > 0) bones.add(S.R.bones[j].id); }); });
     expect([...bones].sort()).toEqual(['lumbar', 'pelvis']);
@@ -165,16 +166,16 @@ describe('core measures: what the critic reads', () => {
       expect(coreAdvice(m, opts.cast), JSON.stringify({ opts, m })).toEqual([]);
       expect(m.legs).toBe('converge'); expect(m.pouch_m).toBeLessThan(0.004);
     }
-    const plan = heroPlan({ cast: 'female', proportions: 'anime' }), m = coreMeasures(plan, compileLayered(expandPlan(plan)));
+    const plan = heroPlan({ cast: 'female', proportions: 'anime', core: 'streamlined' }), m = coreMeasures(plan, compileLayered(expandPlan(plan)));
     expect(m.legs).toBe('splay'); expect(m.seat_m).toBeLessThan(0.015);
     const advice = coreAdvice(m, 'female').join('\n');
     for (const said of ['not at the trochanter', 'the seat is flat', 'the front bulges below the belly', 'the knees stand wider']) expect(advice).toContain(said);
     expect(advice.match(/core 'structured'/g).length).toBeGreaterThanOrEqual(4);
   });
-  it('the readout carries the core for every hero; its advice joins the warnings only on the structured core', async () => {
+  it('the readout carries the core for every hero; its advice joins the warnings on the structured core (the default) only', async () => {
     const { heroRecord, heroPlanOf, heroReadout } = await import('../../mcp/tools/layered.js');
     const read = (spec) => { const hero = heroRecord(spec), plan = heroPlanOf(hero), recipe = expandPlan(plan), mesh = compileLayered(recipe); return heroReadout(hero, plan, null, [], { mesh, recipe }); };
-    const old = read({ cast: 'female', head: 'anime' }), now = read({ cast: 'female', head: 'anime', core: 'structured' });
+    const old = read({ cast: 'female', head: 'anime', core: 'streamlined' }), now = read({ cast: 'female', head: 'anime' });
     expect(old.core.core).toBe('streamlined'); expect(old.core.advice.length).toBeGreaterThan(0);
     expect((old.warnings || []).some((w) => w.startsWith('core:'))).toBe(false);
     expect(now.core).toMatchObject({ core: 'structured', body: 'female', legs: 'converge', advice: [] });
@@ -186,7 +187,7 @@ describe('the dress on the structured core: hip pieces hang from the pelvis', ()
     const { dressContext } = await import('./hero-dress.js');
     const { expandArmor } = await import('../armor/expand.js');
     const build = { type: 'armor', style: 'knight' };
-    const S = heroPlan({ cast: 'male', core: 'structured' }), D = heroPlan({ cast: 'male' });
+    const S = heroPlan({ cast: 'male', core: 'structured' }), D = heroPlan({ cast: 'male', core: 'streamlined' });
     const ks = expandArmor(build, dressContext(S.style, 1, S)).kit, kd = expandArmor(build, dressContext(D.style, 1, D)).kit;
     expect(kd).toEqual(expandArmor(build, dressContext(D.style, 1)).kit);                       // no pelvis: byte for byte the old kit
     const id = (k) => k.map((a) => a.id);
@@ -200,7 +201,7 @@ describe('the dress on the structured core: hip pieces hang from the pelvis', ()
     const { dressPlan } = await import('./hero-dress.js');
     const mine = [{ id: 'sash', mode: 'band', part: 'torso', over: ['thighR', 'thighL'], s: [0.1, 0.4], t: 'wrap', nt: 12, ns: 2, mugen: 0.004, thick: 0.01, rad: 0.05, group: 'Sash' }];
     for (const adorn of ['ranger', mine]) {
-      const S = dressPlan(heroPlan({ cast: 'female', core: 'structured' }), { adorn }), D = dressPlan(heroPlan({ cast: 'female' }), { adorn });
+      const S = dressPlan(heroPlan({ cast: 'female', core: 'structured' }), { adorn }), D = dressPlan(heroPlan({ cast: 'female', core: 'streamlined' }), { adorn });
       for (const a of S.adorn.filter((x) => x.over?.some((n) => /^thigh/.test(n)))) expect(a.over).toContain('pelvis');
       for (const a of D.adorn) expect(a.over ?? []).not.toContain('pelvis');
     }
