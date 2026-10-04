@@ -69,6 +69,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   sand where the sheet stops: it slides back with the backwash while the water still covers it, stays
   put once the water leaves, and opens into holes and pops over a few seconds. The backwash's edge
   carries no foam line of its own.
+- **A faucet and the basin it fills (study).** A falling stream (`jets` on the World page) is drawn on
+  the GPU along its fall: it thins as it speeds up, carries a ripple from the spout that grows until a
+  thin stream breaks into a string of beads, and below a threshold set by the spout's width it drips
+  instead. An aerator turns it white. Where it lands on a dry or barely wet floor it spreads into a
+  hydraulic jump; in standing water it plunges, with a crater, rings and foam that push floating
+  things away. Its basin is a new `basin` kind of shallow water whose level moves: it fills with the
+  plug in, drains through the plug hole with it out, and stops at the overflow, and a duck in it rides
+  up and settles on the floor when it empties. The page has a panel for flow, plug and aerator.
+- **Waterfalls (`create_view` kind `waterfall`).** The same falling water, at landscape scale: a river
+  runs along a plateau, pours off the cliff, falls, and plunges into a pool that drains away as a
+  second river. Three kinds: `veil` (a tall thin ribbon that frays to streaks), `curtain` (a broad,
+  heavy block of water) and `horsetail` (a round spout shot through a slot in the rock). Over the lip
+  the water is glassy and pours at the depth a river takes going over an edge; it whitens as it falls
+  and, past a break-up length set by how much water there is, frays into streaks and fingers and
+  spreads, with mist at its foot. The pool's surface is simulated, so the fall churns it into foam and
+  rings and pushes floating leaves away. A flow slider on the page turns the fall down to a trickle or
+  up to five times its size. Falling water can now be a sheet over a lip as well as a round stream,
+  so any world can place one.
 - **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
   `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
   use `canal`.

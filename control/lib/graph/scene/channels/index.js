@@ -324,6 +324,8 @@ export { inkDecalScript } from './ink-decal.js';
 export { skyDomeScript } from './sky-dome.js';
 export { waterMeshScript, liquidMeshScript } from './water.js';
 export { shallowsChannelScript } from './shallows.js';
+export { jetChannelScript } from './jet.js';
+export { aquaPatchScript } from './aqua-glsl.js';
 export { wetSandScript } from './wet-sand.js';
 export { softGroundScript } from './soft-ground.js';
 export { toonInkScript } from './toon-ink.js';

@@ -53,6 +53,7 @@ import { createMoleculeViewHandler } from '@/lib/mcp/tools/molecule-view';
 import { createOceanViewHandler } from '@/lib/mcp/tools/ocean-view';
 import { createBeachViewHandler } from '@/lib/mcp/tools/beach-view';
 import { createRiverViewHandler } from '@/lib/mcp/tools/river-view';
+import { createWaterfallViewHandler } from '@/lib/mcp/tools/waterfall-view';
 import { createOrbitViewHandler } from '@/lib/mcp/tools/orbit-view';
 import { createParallelTransportViewHandler } from '@/lib/mcp/tools/parallel-transport-view';
 import { createPlasmaGlobeViewHandler } from '@/lib/mcp/tools/plasma-globe-view';
@@ -118,6 +119,7 @@ export const VIEW_KINDS = {
   'quadratic': { family: 'math', retired: 'create_quadratic_view', handler: createQuadraticViewHandler },
   'reactor': { family: 'science', retired: 'create_reactor_view', handler: createReactorViewHandler },
   'river': { family: 'science', handler: createRiverViewHandler },   // born inside create_view — no retired alias
+  'waterfall': { family: 'science', handler: createWaterfallViewHandler },   // born inside create_view — no retired alias
   'rocket': { family: 'science', handler: createRocketViewHandler },   // born inside create_view — no retired alias
   'airplane': { family: 'science', handler: createAirplaneViewHandler },   // born inside create_view — no retired alias
   'saturn': { family: 'science', retired: 'create_saturn_view', handler: createSaturnViewHandler },

@@ -11,6 +11,8 @@ import { aquaPatchScript } from './aqua-glsl.js';
 // Everything that touches the water goes through one bus, `window.__aqWater`:
 //   query(x, y)               → { body, level, depth, h, sx, sy } | null    (h: the live surface over the still level)
 //   disturb(x, y, r, amt, f)  push the surface down by a gaussian of radius r (amt in m/s; f adds foam)
+//   setLevel(id, z)           move a body's still level (a basin filling or draining): cells wet and dry with it
+//   bedAt(x, y)               the bed's z under (x, y), wet or dry | null
 // and the channel drives the standard responses itself each frame: the walk camera and controllable bodies wade
 // (slowed by how deep they stand, a wake behind them, a splash on entry, floating once the water is over their
 // chest), floaters bob on the live surface and drift down its slope, and rain rings it.
@@ -36,6 +38,7 @@ let stepShallows = () => {};
     const wet = new Uint8Array(N), c2 = new Float32Array(N), sink = new Float32Array(N);
     const k2 = b.sim.speed * b.sim.speed * G / (dx * dy);
     for (let i = 0; i < N; i++) if (D[i] > 0) { wet[i] = 1; c2[i] = k2 * Math.max(D[i], 0.04 * L); sink[i] = b.sim.wall ? 0 : 0.6 / (D[i] / L + 0.12); }
+    let c2max = 0; for (let i = 0; i < N; i++) c2max = Math.max(c2max, c2[i]);
     const h = new Float32Array(N), v = new Float32Array(N), foam = new Float32Array(N);
     // the sheet: one vertex per cell, a triangle pair wherever a corner is wet (a pond's waterline is where the
     // sheet dips under its bank)
@@ -45,8 +48,9 @@ let stepShallows = () => {};
       const q = j * nx + i, o = 3 * q;
       pos[o] = x0 + i * dx; pos[o + 1] = y0 + j * dy; pos[o + 2] = b.level; nor[o + 2] = 1;
       col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b;
-      if (i < nx - 1 && j < ny - 1 && (wet[q] | wet[q + 1] | wet[q + nx] | wet[q + nx + 1])) idx.push(q, q + 1, q + nx, q + 1, q + nx + 1, q + nx);
     }
+    const tris = () => { idx.length = 0; for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) { const q = j * nx + i; if (wet[q] | wet[q + 1] | wet[q + nx] | wet[q + nx + 1]) idx.push(q, q + 1, q + nx, q + 1, q + nx + 1, q + nx); } };
+    tris();
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
@@ -60,8 +64,30 @@ let stepShallows = () => {};
     m.renderOrder = 1; m.raycast = () => {};            // not footing: walkers and bodies stand on the bed, not the skin
     __aqShared.meshes.push(m); scene.add(m);
     let wetN = 0; for (let i = 0; i < N; i++) wetN += wet[i];
-    return { ...b, area: wetN * dx * dy, nx, ny, x0, y0, dx, dy, N, D, wet, c2, sink, h, v, foam, pos, nor, fa, ca, geo, U };
+    // explicit wave step: stable while c·dt < dx/√2; a small body (a basin's cm cells) takes substeps
+    return { ...b, area: wetN * dx * dy, nx, ny, x0, y0, dx, dy, N, D, wet, c2, sink, h, v, foam, pos, nor, fa, ca, geo, U, k2, tris, idx, mesh: m, sub: Math.max(1, Math.ceil(DT * Math.sqrt(c2max) / 0.5)) };
   });
+  function setLevel(id, z) {
+    const b = B.find((o) => o.id === id); if (!b || !Number.isFinite(z)) return;
+    const dz = z - b.level; if (Math.abs(dz) < 1e-9) return;
+    b.level = z; let flip = false, c2max = 0, wetN = 0;
+    for (let q = 0; q < b.N; q++) {
+      b.D[q] += dz; const w = b.D[q] > 0 ? 1 : 0;
+      if (w !== b.wet[q]) { flip = true; b.wet[q] = w; b.h[q] = 0; b.v[q] = 0; }
+      b.c2[q] = w ? b.k2 * Math.max(b.D[q], 0.04 * L) : 0; if (w && !b.sim.wall) b.sink[q] = 0.6 / (b.D[q] / L + 0.12);
+      c2max = Math.max(c2max, b.c2[q]); wetN += w;
+    }
+    b.sub = Math.max(1, Math.ceil(DT * Math.sqrt(c2max) / 0.5)); b.area = wetN * b.dx * b.dy;
+    if (flip) { b.tris(); b.geo.setIndex(b.idx); }
+  }
+  function bedAt(x, y) {
+    for (const b of B) {
+      const fi = (x - b.x0) / b.dx, fj = (y - b.y0) / b.dy; if (fi < 0 || fj < 0 || fi > b.nx - 1 || fj > b.ny - 1) continue;
+      const i = Math.min(b.nx - 2, Math.floor(fi)), j = Math.min(b.ny - 2, Math.floor(fj)), u = fi - i, w = fj - j, q = j * b.nx + i;
+      return b.level - ((b.D[q] * (1 - u) + b.D[q + 1] * u) * (1 - w) + (b.D[q + b.nx] * (1 - u) + b.D[q + b.nx + 1] * u) * w);
+    }
+    return null;
+  }
 
   function step(b, dt) {
     const { nx, ny, wet, c2, sink, h, v, foam } = b, damp = b.sim.damp, ff = Math.exp(-dt / 1.4);
@@ -73,7 +99,7 @@ let stepShallows = () => {};
       v[q] = (v[q] + dt * c2[q] * (l + r + d + u - 4 * hq)) * (1 - dt * (damp + sink[q]));
     }
     // the linear model knows no bed: a trough can't sink below it, a crest stands at most half the depth
-    for (let q = 0; q < b.N; q++) if (wet[q]) { const hn = h[q] + dt * v[q], lo = -0.85 * b.D[q], hi = 0.5 * b.D[q] + 0.05 * L; h[q] = hn < lo ? lo : hn > hi ? hi : hn; if (hn !== h[q]) v[q] *= 0.5; foam[q] *= ff; }
+    for (let q = 0; q < b.N; q++) if (wet[q]) { const hn = h[q] + dt * v[q], lo = -0.85 * b.D[q], hi = 0.5 * b.D[q] + b.sim.crest * L; h[q] = hn < lo ? lo : hn > hi ? hi : hn; if (hn !== h[q]) v[q] *= 0.5; foam[q] *= ff; }
   }
   function cellOf(b, x, y) {
     const fi = (x - b.x0) / b.dx, fj = (y - b.y0) / b.dy;
@@ -185,11 +211,13 @@ ${walk ? `    // the walk camera wades: slower with depth, and once the water re
     acc += dt; let n = 0;
     while (acc >= DT && n < 6) {
       acc -= DT; n++;
-      for (const b of B) step(b, DT);
+      for (const b of B) for (let k = 0; k < b.sub; k++) step(b, DT / b.sub);
       for (const s of FL) {
-        const q = query(s.x, s.y);
+        const q = query(s.x, s.y), bz = bedAt(s.x, s.y);
+        // no water under it (a basin drained): it settles on the bed and waits
+        if (!q && bz != null) { s.vz = 0; s.vx *= 0.9; s.vy *= 0.9; s.z += (bz + s.r * 0.55 - s.z) * Math.min(1, DT * 6); continue; }
         if (!q) { s.vx *= -0.5; s.vy *= -0.5; s.x += s.vx * DT * 2; s.y += s.vy * DT * 2; continue; }
-        const target = q.level + q.h - s.draft, az = 60 * (target - s.z) - 6 * s.vz;
+        const target = Math.max(q.level + q.h - s.draft, bz != null ? bz + s.r * 0.55 : -Infinity), az = 60 * (target - s.z) - 6 * s.vz;
         s.vz += az * DT; s.z += s.vz * DT;
         s.vx += (-G * q.sx * 0.5 - 0.9 * s.vx) * DT; s.vy += (-G * q.sy * 0.5 - 0.9 * s.vy) * DT;
         const nx = s.x + s.vx * DT, ny = s.y + s.vy * DT, qn = query(nx, ny);
@@ -233,6 +261,6 @@ ${walk ? `    // the walk camera wades: slower with depth, and once the water re
       if (disturb(o.x + d.x * s, o.y + d.y * s, 0.35 * L, 1.6 * L, 0.9)) break;
     }
   });
-  window.__aqWater = { bodies: B.map((b) => ({ id: b.id, kind: b.kind, level: b.level })), query, disturb, floaters: FL, waders: wade, _sim: B };
+  window.__aqWater = { bodies: B.map((b) => ({ id: b.id, kind: b.kind, level: b.level })), query, disturb, setLevel, bedAt, floaters: FL, waders: wade, _sim: B };
 }`;
 }
