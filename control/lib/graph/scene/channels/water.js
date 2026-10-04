@@ -38,6 +38,7 @@ export function liquidMeshScript(wm, look, toLight) {
   const U = __aqPatch(mat, AQ, { sun: ${safeJson(toLight.map((v) => +(+v).toFixed(6)))}, up: true });
   const m = new THREE.Mesh(geo, mat);
   m.renderOrder = 1;
+  __aqShared.meshes.push(m);
   m.onBeforeRender = () => { U.uAqTime.value = (window.__mojClock != null ? window.__mojClock : (typeof performance !== 'undefined' ? performance.now() : 0)) / 1000; };
   scene.add(m);
 }`;

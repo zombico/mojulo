@@ -15,20 +15,22 @@ import * as dmath from '../../util/dmath.js';
 //   froth   bubble-lace frequency relative to nScale (bigger = finer bubbles)
 //   foamThr Jacobian threshold for whitecaps: the surface starts to foam where J < foamThr
 //   refl    reflection gain (a murky canal reflects less of the sky than open sea, not physically — legibly)
-//   sigma   absorption per world unit, r/g/b (Beer–Lambert; water eats red first) — the clarity phase reads it
+//   sigma   absorption per world unit, r/g/b (Beer–Lambert; water eats red first): how fast the bed fades with depth
+//   tint    the colour thin water scatters back (sRGB): clear seas and pools go turquoise, rivers olive
+//   shore   foam band width, world units: water thinner than this (over a beach, against a bank or a post) froths
 export const AQUA_PRESETS = {
-  ocean: { rough: 0.07, nScale: 0.32, nAmp: 0.24, nSpeed: 0.7, flow: [0.6, 0.8], froth: 2.2, foamThr: 0.74, refl: 1, sigma: [0.45, 0.09, 0.06] },
-  lagoon: { rough: 0.05, nScale: 0.45, nAmp: 0.24, nSpeed: 0.5, flow: [0.6, 0.8], froth: 2.6, foamThr: 0.66, refl: 0.9, sigma: [0.3, 0.05, 0.03] },
-  lake: { rough: 0.035, nScale: 0.6, nAmp: 0.1, nSpeed: 0.25, flow: [0.8, 0.6], froth: 2.6, foamThr: 0.72, refl: 1, sigma: [0.5, 0.14, 0.1] },
-  river: { rough: 0.08, nScale: 0.7, nAmp: 0.16, nSpeed: 1.4, flow: [0, 1], froth: 2.4, foamThr: 0.55, refl: 0.5, sigma: [0.9, 0.35, 0.3] },
-  canal: { rough: 0.04, nScale: 0.8, nAmp: 0.08, nSpeed: 0.2, flow: [1, 0], froth: 2.6, foamThr: 0.75, refl: 0.85, sigma: [1.2, 0.6, 0.55] },
-  pool: { rough: 0.03, nScale: 1.2, nAmp: 0.14, nSpeed: 0.45, flow: [0.7, 0.7], froth: 3, foamThr: 0.75, refl: 0.9, sigma: [0.2, 0.03, 0.02] },
-  falls: { rough: 0.12, nScale: 1, nAmp: 0.45, nSpeed: 2.2, flow: [0, -1], froth: 3.2, foamThr: 0.35, refl: 0.5, sigma: [0.6, 0.2, 0.15] },
+  ocean: { rough: 0.07, nScale: 0.32, nAmp: 0.24, nSpeed: 0.7, flow: [0.6, 0.8], froth: 2.2, foamThr: 0.74, refl: 1, sigma: [0.45, 0.09, 0.06], shore: 1.4, tint: '#2f8f9a' },
+  lagoon: { rough: 0.05, nScale: 0.45, nAmp: 0.24, nSpeed: 0.5, flow: [0.6, 0.8], froth: 2.6, foamThr: 0.66, refl: 0.9, sigma: [0.9, 0.16, 0.1], shore: 1.1, tint: '#5fd6c8' },
+  lake: { rough: 0.035, nScale: 0.6, nAmp: 0.1, nSpeed: 0.25, flow: [0.8, 0.6], froth: 2.6, foamThr: 0.72, refl: 1, sigma: [0.5, 0.14, 0.1], shore: 0.6, tint: '#5f8f7a' },
+  river: { rough: 0.08, nScale: 0.7, nAmp: 0.16, nSpeed: 1.4, flow: [0, 1], froth: 2.4, foamThr: 0.55, refl: 0.5, sigma: [0.9, 0.35, 0.3], shore: 0.8, tint: '#7a9a7e' },
+  canal: { rough: 0.04, nScale: 0.8, nAmp: 0.08, nSpeed: 0.2, flow: [1, 0], froth: 2.6, foamThr: 0.75, refl: 0.85, sigma: [1.2, 0.6, 0.55], shore: 0.35, tint: '#5c7462' },
+  pool: { rough: 0.03, nScale: 1.2, nAmp: 0.14, nSpeed: 0.45, flow: [0.7, 0.7], froth: 3, foamThr: 0.75, refl: 0.9, sigma: [0.2, 0.03, 0.02], shore: 0.25, tint: '#7fe3ee' },
+  falls: { rough: 0.12, nScale: 1, nAmp: 0.45, nSpeed: 2.2, flow: [0, -1], froth: 3.2, foamThr: 0.35, refl: 0.5, sigma: [0.6, 0.2, 0.15], shore: 1.2, tint: '#cfe8ea' },
 };
 export const AQUA_KINDS = Object.keys(AQUA_PRESETS);
 
 // override bounds — a recipe may nudge a preset, never break the shader
-const BOUNDS = { rough: [0.01, 0.5], nScale: [0.01, 20], nAmp: [0, 1], nSpeed: [0, 20], froth: [0.5, 8], foamThr: [-1, 1.5], refl: [0, 1.5] };
+const BOUNDS = { shore: [0, 50], rough: [0.01, 0.5], nScale: [0.01, 20], nAmp: [0, 1], nSpeed: [0, 20], froth: [0.5, 8], foamThr: [-1, 1.5], refl: [0, 1.5] };
 // the fallback sky when the scene has none and no background: a bright overcast blue, linear light
 const SKY0 = { zen: [0.16, 0.3, 0.52], hor: [0.62, 0.7, 0.78] };
 
@@ -73,7 +75,7 @@ export function resolveAquaLook(spec, { sky = null, bg = null, unit = 1 } = {}) 
     ...skyOf(sky, bg),
     rough: r4(p.rough), nScale: r4(p.nScale / u), nAmp: r4(p.nAmp), nSpeed: r4(p.nSpeed * u),
     flow: [r4(p.flow[0] / fl), r4(p.flow[1] / fl)], froth: r4(p.froth), foamThr: r4(p.foamThr), refl: r4(p.refl),
-    sigma: p.sigma.map((v) => r4(v / u)),
+    sigma: p.sigma.map((v) => r4(v / u)), shore: r4(p.shore * u), tint: (hexRgb(typeof o.tint === 'string' && hexRgb(o.tint) ? o.tint : p.tint)).map((c) => r4(lin(c))),
   };
 }
 

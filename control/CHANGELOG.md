@@ -26,6 +26,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Rivers flow along their banks.** A river's surface runs in lanes parallel to its banks that turn
   with every bend; ripples stream downstream along them and foam gathers in lines that drift with the
   current.
+- **You can see into the water.** Water now fades with depth the way real water does: sand and riverbeds
+  show through the shallows in the water's own clear tint (turquoise for a lagoon, olive for a river), and
+  deep water turns opaque. Where water is thin, against a beach, a bank or a floating buoy, it froths
+  in bands that lap toward the edge. The beach view gains a seabed that falls away offshore so its water
+  shades from shallows to deeps. Open sea with nothing beneath it looks as before.
 - **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
   `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
   use `canal`.

@@ -167,7 +167,9 @@ const _surfRigs = SURFACES.map((sf) => {
   // opt-in emissive glow (a molten/lava surface lights itself, no sun needed): sf.emissive = [r,g,b] 0..1.
   if (sf.emissive) { _mat.emissive = new THREE.Color(sf.emissive[0], sf.emissive[1], sf.emissive[2]); _mat.emissiveIntensity = sf.emissiveIntensity != null ? sf.emissiveIntensity : 0.7; }
   const mesh = new THREE.Mesh(geo, _mat);
-  scene.add(mesh);
+  scene.add(mesh);${A(`
+  // aqua: see-through by depth (the shader writes its own alpha); kept out of the depth pass it reads
+  if (aqU) { _mat.transparent = true; __aqShared.meshes.push(mesh); }`)}
   // a beach (sf.shore) or river (sf.river) is daylit: a stronger, warmer sun so the moving water catches
   // light/shade and a brighter sky ambient. The open ocean keeps its moody deep-sea key.
   const _day = sf.shore || sf.river;

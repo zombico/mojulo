@@ -43,6 +43,15 @@ describe('resolveAquaLook', () => {
     expect(b.sigma[0]).toBeCloseTo(a.sigma[0] / 2, 3);
   });
 
+  it('carries the clarity numbers: a linear shallow tint, a shore-foam width scaled by the unit, an overridable tint', () => {
+    const L = resolveAquaLook('lagoon'), L2 = resolveAquaLook('lagoon', { unit: 2 });
+    expect(L.tint).toHaveLength(3);
+    expect(L.tint[1]).toBeGreaterThan(L.tint[0]);                 // turquoise: green over red
+    expect(L2.shore).toBeCloseTo(L.shore * 2, 3);
+    expect(resolveAquaLook({ kind: 'lagoon', tint: '#ff0000' }).tint).toEqual([1, 0, 0]);
+    expect(resolveAquaLook({ kind: 'lagoon', tint: 'red' }).tint).toEqual(L.tint);
+  });
+
   it('reflects the scene sky when it has one, else the background, else an overcast default', () => {
     const sky = resolveAquaLook('lake', { sky: { zenith: [40, 80, 140], horizon: [200, 160, 120] } });
     const bg = resolveAquaLook('lake', { bg: '#0a1a2e' });

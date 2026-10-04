@@ -104,6 +104,25 @@ function buildSand(scale) {
   return faces;
 }
 
+// the seabed beyond the sand wedge's toe: the bed keeps falling away offshore (to ~2.4× the toe depth at the far
+// edge), so see-through water fades from turquoise shallows to blue deeps instead of ending at the toe. Only laid
+// down with the aqua look — a beach without it can't see its bed and keeps its bytes.
+function buildSeabed(scale) {
+  const s = scale, sun = norm3(SUN), rows = 10;
+  const x0 = -(WX / 2 + 8) * s, x1 = (WX / 2 + 8) * s, yToe = (EDGE - TOE + 3) * s, yFar = -(DY / 2 + 10) * s;
+  const zToe = bedZ(EDGE - TOE) * s - 0.4 * s, zFar = -TOE_DEPTH * 2.4 * s;
+  const faces = [];
+  for (let j = 0; j < rows; j++) {
+    const ya = yFar + (yToe - yFar) * (j / rows), yb = yFar + (yToe - yFar) * ((j + 1) / rows);
+    const za = zFar + (zToe - zFar) * Math.pow(j / rows, 0.8), zb = zFar + (zToe - zFar) * Math.pow((j + 1) / rows, 0.8);
+    const p00 = [x0, ya, za], p10 = [x1, ya, za], p11 = [x1, yb, zb], p01 = [x0, yb, zb];
+    const n = norm3(cross3(sub3(p10, p00), sub3(p01, p00)));
+    const shade = 0.34 + 0.66 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+    faces.push({ corners: [p00, p10, p11, p01], fill: hex(WET_SAND.map((c) => c * 0.92 * shade)), group: 'seabed' });
+  }
+  return faces;
+}
+
 /**
  * Resolve a recipe into the surface channel payload + the sand wedge. Pure — no DB, no HTML. No stored
  * geometry (the water grid regenerates in-script from the spectrum); same recipe → identical scene.
@@ -159,7 +178,7 @@ export function assembleBeachScene(recipe = {}, { title } = {}) {
   ];
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#bfe0ee';
   return {
-    faces: plan.faces,
+    faces: recipe.aqua === false ? plan.faces : [...plan.faces, ...buildSeabed(s)],
     surfaces: withAqua(plan.surfaces, recipe.aqua, 'lagoon', { bg, unit: s }),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
