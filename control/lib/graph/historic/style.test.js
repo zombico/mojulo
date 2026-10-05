@@ -135,3 +135,48 @@ for (const culture of ['sumer', 'thebes']) {
 
   });
 }
+
+// Qin: the design language is held to its card before any town plan exists (the plan checks join with the layout)
+describe('qin — the style card\'s principles, measured on the kit', () => {
+  const S = HISTORIC_STYLES.qin, K = S.kit, P = S.palette;
+  const sat = (h) => { const c = rgbOf(h), mx = Math.max(...c); return mx ? (mx - Math.min(...c)) / mx : 0; };
+
+  it('principle 1 — one batter for every earth face, about 77° as drawn; courses 6–10 cm', () => {
+    const deg = (Math.atan(K.earth.batter) * 180) / Math.PI;
+    expect(deg).toBeGreaterThan(74);
+    expect(deg).toBeLessThan(80);
+    expect(K.earth.course[0]).toBeGreaterThanOrEqual(0.06);
+    expect(K.earth.course[1]).toBeLessThanOrEqual(0.1);
+    // the city wall's own section stands at the same batter: the base wider than its height allows for two faces
+    expect(K.wall.city.base).toBeGreaterThanOrEqual((2 * K.wall.city.h) / K.earth.batter);
+  });
+
+  it('principle 2 — a column 6–8 diameters tall, on a base wider than itself, with one bracket', () => {
+    for (const h of K.column.h) { expect(h / K.column.d).toBeGreaterThanOrEqual(6); expect(h / K.column.d).toBeLessThanOrEqual(8); }
+    expect(K.column.plinth).toBeGreaterThanOrEqual(K.column.d * 1.4);
+    expect(K.bracket.perColumn).toBe(1);
+  });
+
+  it('principle 3 — straight eaves, a moderate pitch, a deep overhang, eave tiles that fit their rows', () => {
+    expect(K.roof.eaveCurve).toBe(0);
+    expect(K.roof.pitch).toBeGreaterThanOrEqual(25);
+    expect(K.roof.pitch).toBeLessThanOrEqual(35);
+    expect(K.roof.overhang[0] / K.column.h[1]).toBeGreaterThanOrEqual(0.6);
+    expect(K.tile.wadang).toBeLessThan(K.tile.row);
+    expect(K.tile.motifs).toContain(K.tile.motif);
+  });
+
+  it('principle 4 — plaster lighter than the loess; lacquer the strongest colour; a wall in shade cool, never black', () => {
+    expect(value(rgbOf(P.ochrePlaster))).toBeGreaterThan(value(rgbOf(P.loess)) + 0.03);
+    expect(value(rgbOf(P.whitePlaster))).toBeGreaterThan(value(rgbOf(P.ochrePlaster)));
+    for (const [k, h] of Object.entries(P)) if (k !== 'lacquerRed') expect(sat(P.lacquerRed), k).toBeGreaterThan(sat(h));
+    const lit = scale(rgbOf(P.hangtu), UP), inShade = over(lit, rgbOf(S.light.shade.color), S.light.shade.alpha);
+    expect(value(inShade)).toBeGreaterThan(value(lit) * 0.5);
+    expect(inShade[2] / inShade[0]).toBeGreaterThan(lit[2] / lit[0]);
+  });
+
+  it('principle 5 — the sky is a place: bluer overhead than at the horizon', () => {
+    const sky = deriveSky(S.sky.palette, { x: 0, y: 0, z: S.sky.sunElev });
+    expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
+  });
+});

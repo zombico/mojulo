@@ -222,6 +222,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   light. Shadows land on the ground, not yet on walls or lower roofs. The region, farmstead, works and
   asset-sheet scenes are unchanged.
 
+### Historic Qin
+
+- **In progress.** Qin Xianyang and the Lishan works at c. 212 BCE, the first Chinese culture. Qin is the
+  earliest Chinese city that still reads as Chinese (grey tile roofs, red columns, raised earth terraces,
+  walled axial compounds), and early enough that its roofs are honestly straight.
+- Its own record (`lib/graph/historic/record/qin.js`): Xianyang Palace No. 1, Epang's front hall begun,
+  the Lishan mound, enclosures, gates and halls, terracotta Pit 1, the Wei bridge and the Zhengguo Canal.
+  Each entry is cited and dated, with its confidence and the disputes between sources. Settled by the record:
+  - No outer wall at Xianyang has been found, so none is drawn as fact.
+  - Upswept eaves and glazed roof tiles are held with their much later dates.
+  - The Han analogues (the Gaoyi que, pottery tower models, the Sichuan market brick) carry their CE dates,
+    so a Qin scene uses one only by naming it as an analogue.
+- A style card with a design language (`style/qin.js`):
+  - One batter for every earth face, about 77°, with pounded courses of 6–10 cm.
+  - Columns six to eight diameters tall on stone bases, one bracket block each.
+  - Straight hip and gable roofs, with eave-end tiles 16 cm across.
+  - A palette sampled from reference swatches.
+
+  Each principle is checked on the kit before any town plan exists. The reference drawings, and what each
+  one gives the kit, are indexed in `docs/historic/qin/`.
+
 ### Sixth-gen composer
 
 - Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a
