@@ -566,6 +566,18 @@ function boneFrame(P, Q) {
   const side = norm(cross(fwd, up));
   return { up, fwd, side };
 }
+// A head turn (figure-vajra applyHeadTurn): the posed map carries the twist pair only while the
+// neck or head turns; the face then swings about the bone by the angle between them. Absent → `f`.
+function turned(f, at, swing, face) {
+  if (!swing || !face) return f;
+  const perp = (q) => { const v = sub(q, at), k = v.x * f.up.x + v.y * f.up.y + v.z * f.up.z; return { x: v.x - f.up.x * k, y: v.y - f.up.y * k, z: v.z - f.up.z * k }; };
+  const u = perp(swing), v = perp(face), c = cross(u, v);
+  const a = SM.atan2(c.x * f.up.x + c.y * f.up.y + c.z * f.up.z, u.x * v.x + u.y * v.y + u.z * v.z);
+  if (!a) return f;
+  const cs = SM.cos(a), sn = SM.sin(a);
+  const spin = (w) => { const k = cross(f.up, w); return { x: w.x * cs + k.x * sn, y: w.y * cs + k.y * sn, z: w.z * cs + k.z * sn }; };
+  return { up: f.up, fwd: spin(f.fwd), side: spin(f.side) };
+}
 const onBone = (anchor, f, a, fw, sd = 0) => ({
   x: anchor.x + f.up.x * a + f.fwd.x * fw + f.side.x * sd,
   y: anchor.y + f.up.y * a + f.fwd.y * fw + f.side.y * sd,
@@ -583,7 +595,7 @@ export function headRings(p, { hs = 1, dim = null, knobs = HEAD_KNOB_DEFAULTS, f
   const pole = dim && dim.head ? dim.head : HEAD_POLE_DEFAULT;
   const { field, centre } = buildHeadField({ pole, knobs, face });
   const local = marchLatitude(field, centre);
-  const f = boneFrame(p.headBase, p.headTop);
+  const f = turned(boneFrame(p.headBase, p.headTop), p.headBase, p.headFaceSwing, p.headFace);
   const place = (q) => onBone(p.headBase, f, (MENTON_DROP + q.z) * hs, q.y * hs, q.x * hs);
   return local.map((r) => ({ center: place(r.center), polyline: r.polyline.map(place) }));
 }

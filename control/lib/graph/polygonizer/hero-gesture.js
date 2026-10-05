@@ -103,7 +103,7 @@ const DIR_WORDS = ['up', 'down', 'forward', 'back', 'left', 'right', 'outward', 
 const BEND_WORDS = ['straight', 'slight', 'half', 'bent', 'full'];
 const SPINE_WORDS = { curl: 'amount', arch: 'amount', lean: ['forward', 'back'], sideBend: ['left', 'right'], twist: ['left', 'right'] };
 /** Every key a gesture object takes: the vajra core's words and raw swivels, and the rig's stance channels. */
-export const GESTURE_KEYS = ['support', 'crouch', 'spine', 'pelvis', 'hinge', 'shoulders', 'neck', 'head', 'armL', 'armR', 'legL', 'legR', 'shL', 'shR', 'hipL', 'hipR', 'elbowL', 'elbowR', 'kneeL', 'kneeR', 'stance', 'stagger', 'heelL', 'heelR'];
+export const GESTURE_KEYS = ['support', 'crouch', 'spine', 'pelvis', 'hinge', 'shoulders', 'neck', 'head', 'glance', 'armL', 'armR', 'legL', 'legR', 'shL', 'shR', 'hipL', 'hipR', 'elbowL', 'elbowR', 'kneeL', 'kneeR', 'stance', 'stagger', 'heelL', 'heelR'];
 /** Every word a door clip's key takes: the stand's, the rig's heel and lift channels, and the jaw chain on a head that
  * has one. */
 export const CLIP_KEYS = [...GESTURE_KEYS, 'lift', 'jaw'];
@@ -115,6 +115,7 @@ export const HAND_WORDS = Object.keys(HAND_POSES);
 /** Words the pose language knows that move nothing on this rig (said by name when refused). */
 const INERT = { wristL: "the streamlined hand is rigid on the forearm (no wrist; the structured core's has one)", wristR: "the streamlined hand is rigid on the forearm (no wrist; the structured core's has one)", fingersL: "the streamlined hand has no fingers (the structured core's has five)", fingersR: "the streamlined hand has no fingers (the structured core's has five)", weight: 'the rig has no sideways root shift', twist: "the spine's twist is spine.twist", lift: 'a gesture stands on the floor' };
 const DEEP = new Set(['spine', 'neck', 'head', 'shL', 'shR', 'hipL', 'hipR']);
+const GLANCE_WORDS = ['left', 'right', 'ahead'];   // figure-posing's glance words
 
 function directionErrors(v, label) {
   const one = (d) => (typeof d === 'string' ? DIR_WORDS.includes(d) : isObj(d) && ['x', 'y', 'z'].every((k) => d[k] === undefined || fin(d[k])) && ['x', 'y', 'z'].some((k) => fin(d[k]) && d[k] !== 0));
@@ -152,9 +153,10 @@ function gestureObjectErrors(g, label, clip = null, hands = false) {
       }
     } else if (k === 'neck' || k === 'head') {
       // a clip's head and neck may AIM (a direction, as the hero's own `wave` does) as well as turn by angles
-      if (!clip) errs.push(...anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look));
-      else if ((isObj(v) && ['yaw', 'pitch', 'roll'].some((a) => a in v) ? anglesErrors(v, at, ['yaw', 'pitch'], RANGE.look) : directionErrors(v, at)).length) errs.push(`${at}: { yaw, pitch } in degrees${isObj(v) && 'roll' in v ? ' (no roll)' : ''}, each within ±${RANGE.look}, or a direction to aim (${DIR_WORDS.join(' / ')}, a list of them, or { x, y, z })`);
+      if (!clip) errs.push(...anglesErrors(v, at, ['yaw', 'pitch', 'turn'], RANGE.look));
+      else if ((isObj(v) && ['yaw', 'pitch', 'roll', 'turn'].some((a) => a in v) ? anglesErrors(v, at, ['yaw', 'pitch', 'turn'], RANGE.look) : directionErrors(v, at)).length) errs.push(`${at}: { yaw, pitch, turn } in degrees${isObj(v) && 'roll' in v ? ' (no roll; turn is the axial one)' : ''}, each within ±${RANGE.look}, or a direction to aim (${DIR_WORDS.join(' / ')}, a list of them, or { x, y, z })`);
     }
+    else if (k === 'glance') { if (!(inRange(v, [-RANGE.look, RANGE.look]) || GLANCE_WORDS.includes(v))) errs.push(`${at}: ${GLANCE_WORDS.map((w) => `'${w}'`).join(' | ')} or degrees the neck and head turn (+ left), within ±${RANGE.look}`); }
     else if (/^(arm|leg)[LR]$/.test(k)) errs.push(...directionErrors(v, at));
     else if (/^(sh|hip)[LR]$/.test(k)) errs.push(...anglesErrors(v, at, ['yaw', 'pitch', 'roll'], RANGE.swivel));
     else if (k === 'stance') { if (!inRange(v, RANGE.stance)) errs.push(`${at}: the planted feet's spread, a multiple of the hip joints' own (1: each ankle under its hip), ${RANGE.stance[0]} … ${RANGE.stance[1]}`); }

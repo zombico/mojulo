@@ -49,9 +49,9 @@ describe('the gesture words', () => {
     expect(validateGesture({ pelvis: 400 })[0]).toMatch(/pelvis: degrees, within ±45/);
     expect(validateGesture({ shoulders: -60 })[0]).toMatch(/shoulders: degrees, within ±45/);
     expect(validateGesture({ hinge: 400 })[0]).toMatch(/hinge: degrees, -30 … 90/);
-    expect(validateGesture({ head: { pitch: 120 } })[0]).toMatch(/head: \{ yaw, pitch \} in degrees, each within ±90/);
+    expect(validateGesture({ head: { pitch: 120 } })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees, each within ±90/);
     expect(validateGesture({ shL: { yaw: 720, pitch: 0, roll: 0 } })[0]).toMatch(/shL: \{ yaw, pitch, roll \} in degrees, each within ±180/);
-    expect(validateGesture({ head: { roll: 5 } })[0]).toMatch(/head: \{ yaw, pitch \}/);
+    expect(validateGesture({ head: { roll: 5 } })[0]).toMatch(/head: \{ yaw, pitch, turn \}/);
     expect(validateGesture({ armL: 'sideways' })[0]).toMatch(/armL: a direction/);
     expect(validateGesture({ elbowR: 'kinked' })[0]).toMatch(/elbowR: a bend word/);
     expect(validateGesture([])[0]).toMatch(/a gesture word/);
@@ -347,12 +347,12 @@ describe('the door clips', () => {
     expect(validateHeroClips({ tiptoe: [{ heelL: 30, heelR: -20 }] })).toEqual([]);
     expect(validateHeroClips({ tiptoe: [{ heelR: 120 }] })[0]).toMatch(/heelR: degrees the metatarsus turns about the toe base, within ±90/);
     expect(validateHeroClips({ look: [{ head: { x: 0, y: 1, z: 0.2 } }, { head: 'up' }, { neck: { yaw: 20 } }, { head: ['forward', 'down'] }] })).toEqual([]);
-    expect(validateHeroClips({ look: [{ head: 'sideways' }] })[0]).toMatch(/head: \{ yaw, pitch \} in degrees, each within ±90, or a direction to aim/);
-    expect(validateHeroClips({ look: [{ head: { roll: 5 } }] })[0]).toMatch(/head: \{ yaw, pitch \} in degrees \(no roll\), each within ±90, or a direction to aim/);
-    expect(validateHeroClips({ look: [{ neck: { yaw: 120 } }] })[0]).toMatch(/neck: \{ yaw, pitch \} in degrees, each within ±90, or a direction to aim/);
+    expect(validateHeroClips({ look: [{ head: 'sideways' }] })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees, each within ±90, or a direction to aim/);
+    expect(validateHeroClips({ look: [{ head: { roll: 5 } }] })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees \(no roll; turn is the axial one\), each within ±90, or a direction to aim/);
+    expect(validateHeroClips({ look: [{ neck: { yaw: 120 } }] })[0]).toMatch(/neck: \{ yaw, pitch, turn \} in degrees, each within ±90, or a direction to aim/);
     // the stand keeps its own words: no lift, no aimed head
     expect(validateGesture({ lift: 0.2 })[0]).toMatch(/gesture\.lift: a gesture stands on the floor, so the gesture refuses it/);
-    expect(validateGesture({ head: { x: 0, y: 1, z: 0 } })[0]).toMatch(/head: \{ yaw, pitch \} in degrees, each within ±90$/);
+    expect(validateGesture({ head: { x: 0, y: 1, z: 0 } })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees, each within ±90$/);
     // every key of the hero's own clips is in the clip words (the landmark head's idle opens the jaw, its wave aims the head;
     // on the structured core the wave opens the hand, a hand word)
     for (const [spec, jaw] of [[{ cast: 'male' }, true], [{ cast: 'female', head: 'anime' }, false], [{ cast: 'female', head: 'none' }, false], [{ cast: 'male', core: 'streamlined' }, true]]) {

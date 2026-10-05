@@ -34,9 +34,9 @@
  * Pure, deterministic. Frames are flat (absolute rotation + posed head per bone), IBM = T(−restHead), the
  * contract scene-gltf's skinned writer already has.
  */
-import { articulate } from './figure-vajra.js';
+import { articulate, TWIST_REF_NODES, twistPairFor } from './figure-vajra.js';
 import { resolvePose } from './figure-posing.js';
-import { matToQuat, frameQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
+import { matToQuat, frameQuat, twistQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
 import { characterLitPieces, drawLayer } from './station-loft-shade.js';
 import * as dmath from '../../util/dmath.js';
@@ -104,7 +104,7 @@ export function validateRig(rig) {
     if (b.head === b.tail) throw new Error(`station-loft-rig: bone ${b.id} has zero length`);
     if (b.aux && !(Array.isArray(b.aux) && b.aux.length === 2 && b.aux.every((j) => joints[j]))) throw new Error(`station-loft-rig: bone ${b.id}.aux must name two joints`);
     if (b.align !== undefined && !(Array.isArray(b.align) && b.align.length === 2 && b.align.every((j) => joints[j]) && b.align[0] !== b.align[1])) throw new Error(`station-loft-rig: bone ${b.id}.align must name two different joints`);
-    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}), ...(b.align ? { align: [...b.align] } : {}) };
+    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}), ...(b.align ? { align: [...b.align] } : {}), ...(twistPairFor(b.head, b.tail) ? { twist: twistPairFor(b.head, b.tail) } : {}) };   // a bone spanning the neck turns with it
   });
   for (const [name, bid] of Object.entries(rides)) if (boneIndex[bid] === undefined) throw new Error(`station-loft-rig: joint ${name} rides unknown bone ${bid}`);
   // riding must resolve: a joint rides a bone whose head and tail are core or ride bones that resolve first
@@ -154,7 +154,9 @@ export function validateRig(rig) {
 function boneFrame(bone, rest, nodes) {
   const d0 = sub(rest[bone.tail], rest[bone.head]), d1 = sub(nodes[bone.tail], nodes[bone.head]);
   const a0 = bone.aux ? sub(rest[bone.aux[1]], rest[bone.aux[0]]) : null, a1 = bone.aux ? sub(nodes[bone.aux[1]], nodes[bone.aux[0]]) : null;
-  const q = bone.align ? frameQuat(sub(rest[bone.align[1]], rest[bone.align[0]]), a0, sub(nodes[bone.align[1]], nodes[bone.align[0]]), a1) : frameQuat(d0, a0, d1, a1);
+  let q = bone.align ? frameQuat(sub(rest[bone.align[1]], rest[bone.align[0]]), a0, sub(nodes[bone.align[1]], nodes[bone.align[0]]), a1) : frameQuat(d0, a0, d1, a1);
+  // a head turn: the twist pair is in the posed map only while the neck or head turns
+  if (bone.twist && nodes[bone.twist[0]] && nodes[bone.twist[1]]) q = twistQuat(q, d1, nodes[bone.head], nodes[bone.twist[0]], nodes[bone.twist[1]]);
   return { id: bone.id, q, m: quatToMat(q), head: nodes[bone.head], restHead: rest[bone.head], lengthError: Math.abs(len(d1) - len(d0)) };
 }
 /** Every bone's frame for a posed node map. */
@@ -192,12 +194,14 @@ export function rigNodesAt(R, pose = {}) {
   const vajraSpec = Object.fromEntries(Object.entries(pose).filter(([k]) => !RIG_CHANNELS.includes(k) && !(k in R.chains) && !handChannel(R, k)));
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
   const posed = withMath(dmath, () => articulate(resolvePose(vajraSpec, core), core));   // shared vajra FK on dmath (util/math-scope.js)
-  for (const k of VAJRA_CORE) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
+  // the core, and the head turn's twist pairs when the pose turns the neck or head (absent otherwise)
+  const carried = [...VAJRA_CORE, ...TWIST_REF_NODES.filter((k) => posed[k])];
+  for (const k of carried) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
   // crouch: the pelvis (and everything the core carries) drops toward planted toes; lift raises the root
   const support = pose.support ?? 'both'; const lift = Number.isFinite(pose.lift) ? pose.lift : 0; const crouch = Math.max(0, Math.min(1, pose.crouch || 0));
   const legKeys = Object.keys(R.legs); const hipZ = legKeys.length ? Math.min(...legKeys.map((S) => rest[R.legs[S].hip][2])) : 0; const toeZ = legKeys.length ? Math.min(...legKeys.map((S) => rest[R.legs[S].toeBase][2])) : 0;
   const drop = crouch * 0.45 * (hipZ - toeZ);
-  for (const k of VAJRA_CORE) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
+  for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
   const report = { legs: {} };
   for (const S of legKeys) {
     const L = R.legs[S]; const planted = lift === 0 && (support === 'both' || support === S);
