@@ -568,16 +568,28 @@ export function buildAnime(r, options = {}) {
       // a lock leaving the dome over the FACE (the front hairline, within 60° of the front) falls only the layer's
       // `fringe` past it: the fringe is cut shorter than the hair it grows with
       const s0 = path.at(-1), out = unit([ln[0], 0, ln[2]]), lift = Ly.lift ?? 0.1, bend = Ly.bend ?? 0.3, exitAz = onCap(unit(sub(last, C)))[0];
-      if (Ly.fringe != null && Math.abs(exitAz) < 60 && dmath.hypot(ln[0], ln[2]) > 0 && ln[2] < 0) L = Ly.fringe * vary * G;
+      const overFace = Math.abs(exitAz) < 60 && dmath.hypot(ln[0], ln[2]) > 0 && ln[2] < 0;
+      if (Ly.fringe != null && overFace) L = Ly.fringe * vary * G;
       // FLICK (a PETAL's end, −1 … 1): the last of the fall hooks OUT away from the head (> 0) or curls UNDER toward it
       // (< 0), rising a little as it turns — the one place a lock may leave its C; the main fall is shortened by the hook's
       // share so the hem stays where `length` put it
       const fk = Ly.flick ?? 0, Lf = 0.32 * Math.abs(fk) * L, Lm = L - 0.15 * Lf;
       const tip = add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), Lm)), control = add(add(s0, mul(d, 0.5 * Lm)), mul(out, bend * Lm));
-      let dome = 0; for (let i = 1; i < path.length; i++) dome += dmath.hypot(...sub(path[i], path[i - 1]));
+      const all0 = (pts) => { let s = 0; for (let i = 1; i < pts.length; i++) s += dmath.hypot(...sub(pts[i], pts[i - 1])); return s; };
+      let dome = all0(path);
       for (let j = 1; j <= 10; j++) { const t = j / 10; path.push(add(add(mul(s0, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t))); }
       if (fk) { const along = unit(sub(tip, control)), c2 = add(tip, mul(along, 0.35 * Lf)), end = add(add(tip, mul(out, Math.sign(fk) * 1.3 * Lf)), [0, 0.3 * Lf, 0]);
         for (let j = 1; j <= 6; j++) { const t = j / 6; path.push(add(add(mul(tip, (1 - t) ** 2), mul(c2, 2 * (1 - t) * t)), mul(end, t * t))); } }
+      // HEM (a BLUNT CUT: a level line, `hem` construction units below the front hairline): the fall ends where it crosses
+      // that height, so every lock of the layer stops on the same horizontal line (the bowl's flat bangs, a bob's level
+      // ends); a fall too short to reach it is carried straight down to it
+      // (a lock rooted below the line keeps its fall; one that crosses it on the dome is cut there); `fringeHem` is the
+      // line for the locks leaving over the face, as `fringe` is their length: the bangs cut at the brow, the rest at the jaw
+      const hem = overFace && Ly.fringeHem != null ? Ly.fringeHem : Ly.hem;
+      if (hem != null) { const hy = anchorOf([0, 0])[1] - hem;
+        if (path[0][1] > hy) { let k = 1; while (k < path.length && path[k][1] > hy) k++;
+          if (k < path.length) { const a = path[k - 1], b = path[k], t = (a[1] - hy) / (a[1] - b[1] || 1); path.length = k; path.push(mix3(a, b, t)); dome = Math.min(dome, all0(path)); }
+          else { const e = path.at(-1); for (let j = 1; j <= 4; j++) path.push([e[0], e[1] + (hy - e[1]) * j / 4, e[2]]); } } }
       let all = 0; for (let i = 1; i < path.length; i++) all += dmath.hypot(...sub(path[i], path[i - 1]));
       path.depart = all > 0 ? dome / all : 0;
       return path; };
@@ -589,13 +601,15 @@ export function buildAnime(r, options = {}) {
     // when it is not a cap lock), a pointed tip — thin as a peel, its edges cupped in toward the scalp (`cup`), so a few
     // layered peels read as shells lying one over another
     const peelWidth = (dp) => (t) => (t <= dp ? 0.3 + 0.7 * dmath.pow(dmath.sin(Math.PI / 2 * t / (dp || 1)), 0.8) : dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.9));
+    // BLUNT (0 … 1): past where it leaves the head a lock keeps its full width to the cut end instead of tapering to a point
+    const bluntly = (X, prof, dp) => (X.blunt ? (t) => (t <= dp ? prof(t) : prof(t) + X.blunt * (Math.max(prof(dp), 0.9) - prof(t))) : prof);
     const BUILD = {
       peel: (Q) => { const anchor = anchorOf(Q.at), n = unit(sub(anchor, C)), d = unit(Q.dir ?? add(n, [0, -1, 0])), L = (Q.length ?? 0.6) * G, root = sub(anchor, mul(n, 0.04)), tip = add(anchor, mul(d, L)), dp = Q.path ? Q.path.depart : 0.4;
-        piece('peel-' + counts.peel++, root, sprouted(Q, anchor, n, L, bent(root, tip, Q.bend ?? 0.15, n)), tip, (Q.width ?? 0.3) * G, Q.flat ?? 0.16, n, peelWidth(dp), Q.path, Q.path ? (t) => 0.6 + 0.6 * Math.exp(-(((t - dp) / 0.2) ** 2)) : null, Q.cup ?? 0.35); },
+        piece('peel-' + counts.peel++, root, sprouted(Q, anchor, n, L, bent(root, tip, Q.bend ?? 0.15, n)), tip, (Q.width ?? 0.3) * G, Q.flat ?? 0.16, n, bluntly(Q, peelWidth(dp), dp), Q.path, Q.path ? (t) => 0.6 + 0.6 * Math.exp(-(((t - dp) / 0.2) ** 2)) : null, Q.cup ?? 0.35); },
       carrot: (K) => { const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? n), L = (K.length ?? 1) * G, base = (K.base ?? 0.2) * G, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
         piece('carrot-' + counts.carrot++, root, sprouted(K, anchor, n, L, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1])), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK)); },
       banana: (B) => { const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir ?? add(n, [0, -1, 0])), L = (B.length ?? 0.5) * G, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
-        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, B.path ? capWidth(B.path.depart) : (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))), B.path, B.path ? capThick(B.path.depart) : null); },
+        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, B.path ? bluntly(B, capWidth(B.path.depart), B.path.depart) : (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))), B.path, B.path ? capThick(B.path.depart) : null); },
       pepper: (P) => { const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? add(n, [0, -1, 0])), L = (P.length ?? 0.8) * G, w = (P.width ?? 0.07) * G, root = sub(anchor, mul(n, 2.2 * w)), tip = add(anchor, mul(d, L));
         piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], P.path ? capWidth(P.path.depart) : (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8), P.path, P.path ? capThick(P.path.depart) : null); },
     };
@@ -623,7 +637,7 @@ export function buildAnime(r, options = {}) {
         flow = unit(flow); if (Ly.swirl) { const sw = Ly.swirl * Math.PI / 180; flow = sub(mul(flow, dmath.cos(sw)), mul(cross(n, flow), dmath.sin(sw))); }
         const dir = add(add(flow, mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
         const capped = Ly.cap && Ly.shape !== 'carrot' ? capPath(P, flow, at[1], (Ly.length ?? 0.6) * vary * G, Ly, vary) : null;
-        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, cup: Ly.cup, sprout: Ly.sprout ?? 0.8, ...(capped ? { path: capped } : {}) });
+        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, cup: Ly.cup, blunt: Ly.blunt, sprout: Ly.sprout ?? 0.8, ...(capped ? { path: capped } : {}) });
       }
     }
     for (const K of SH?.carrots ?? []) BUILD.carrot(K);

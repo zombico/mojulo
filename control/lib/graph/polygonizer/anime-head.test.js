@@ -402,21 +402,21 @@ describe('anime head: the hair form and the hair bases', () => {
       const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, { ...words, style }] });
       expect(failures(compileLayered(h)), `${preset} ${style} ${JSON.stringify(words).slice(0, 80)}`).toEqual([]);
     }
-  }, 60000);
+  }, 120000);   // the shapes words and characters grew past a minute
 });
 
 describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and the shapes characters (broku, jinto, kairo)', () => {
   const on = (preset, hair) => { const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, ...(Array.isArray(hair) ? hair : [hair])] }); return { h, mesh: compileLayered(h) }; };
   const box = (mesh, re) => { const ps = mesh.pointIds.map((id, i) => (re.test(id.split('/')[0]) ? mesh.vertices[i] : null)).filter(Boolean); return [0, 1, 2].map((k) => [Math.min(...ps.map((p) => p[k])), Math.max(...ps.map((p) => p[k]))]); };
   it('each cut closes on both bases and keeps the scalp covered', () => {
-    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony']) for (const preset of ['female', 'male']) {
+    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony', 'hiraku', 'miwako']) for (const preset of ['female', 'male']) {
       const { h, mesh } = on(preset, cut);
       expect(failures(mesh), `${preset} ${cut}`).toEqual([]);
       expect(Math.max(...Object.values(h.hairCoverage.views)), `${preset} ${cut}`).toBeLessThanOrEqual(0.02);
     }
-  }, 60000);
+  }, 120000);   // the shapes words and characters grew past a minute
   it('the words validate by name: the new form words, their fields and the tail clump', () => {
-    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony'])).toEqual([]);
+    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony', 'hiraku', 'miwako'])).toEqual([]);
     expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
     expect(validateAnimeHair({ locks: { tail: { ty: 0.1 } } })).toEqual([]); expect(animeLockPart('tail')).toBe('hairTail');
     expect(resolveAnimeHair([{ flip: 0.5 }, { flip: { out: 0.2 } }]).flip).toEqual({ amount: 0.5, out: 0.2 });
@@ -533,6 +533,25 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     const low = { ...S, layers: S.layers.map((l) => (l.gather ? { ...l, gather: lowTie(l.gather) } : l)), peels: S.peels.map((p) => ({ ...p, at: lowTie(p.at) })) };
     const sideTop = ({ mesh }) => { const fx = Math.max(...box(mesh, /^face$/)[0].map(Math.abs)); return Math.max(...mesh.vertices.filter((p, i) => /^hairPeel/.test(mesh.pointIds[i]) && Math.abs(p[0]) > fx * 1.25).map((p) => p[2])); };
     expect(sideTop(on('female', 'frieda'))).toBeGreaterThan(sideTop(on('female', ['frieda', { shapes: low }])) + 0.08);
+  });
+  it('hem: a layer cut on a LEVEL line, the bangs on their own (fringeHem); blunt ends keep their width; hiraku and miwako are blunt bobs', () => {
+    const cut = (extra) => on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], whorl: [180, 88], layers: [{ shape: 'banana', az: [-20, 20], el: [80, 80], rows: 1, count: 2, length: 3, fringe: 3, cap: 1, droop: 1.4, ...extra }, { shape: 'banana', az: [85, 95], el: [80, 80], rows: 1, count: 1, length: 3, cap: 1, droop: 1.4, ...extra }] } }]).mesh;
+    const low = (m, re) => Math.min(...m.vertices.filter((p, i) => re.test(m.pointIds[i].split('/')[0])).map((p) => p[2]));
+    // the front and the side end on the same line, wherever they grew; a deeper hem cuts lower
+    const m = cut({ hem: 1, blunt: 1 }); expect(Math.abs(low(m, /^hairBanana[01]$/) - low(m, /^hairBanana2$/))).toBeLessThan(0.008);
+    expect(low(cut({ hem: 1.4, blunt: 1 }), /^hairBanana2$/)).toBeLessThan(low(m, /^hairBanana2$/) - 0.03);
+    // fringeHem: the locks leaving over the face end at the brow, the side at its own hem
+    const f = cut({ hem: 1.4, fringeHem: 0.38, blunt: 1 }); expect(low(f, /^hairBanana[01]$/)).toBeGreaterThan(low(f, /^hairBanana2$/) + 0.08);
+    // blunt: the cut end keeps its width (a pointed lock narrows to nothing)
+    const endWidth = (mm) => { const ps = mm.vertices.filter((p, i) => /^hairBanana2$/.test(mm.pointIds[i].split('/')[0])), z0 = Math.min(...ps.map((p) => p[2])), near = ps.filter((p) => p[2] < z0 + 0.012); return Math.max(...near.map((p) => p[1])) - Math.min(...near.map((p) => p[1])); };
+    expect(endWidth(cut({ hem: 1, blunt: 1 }))).toBeGreaterThan(endWidth(cut({ hem: 1 })) * 1.5);
+    expect(validateAnimeHair({ shapes: { layers: [{ shape: 'banana', hem: 7, blunt: 2 }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.layers[0].hem', 'hair.shapes.layers[0].blunt']);
+    for (const [cut2, preset] of [['hiraku', 'male'], ['miwako', 'female']]) {
+      const { h, mesh } = on(preset, cut2), chin = box(mesh, /^face$/)[2][0];
+      expect([...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot|Peel)\d+$/)?.[1]).filter(Boolean))], cut2).toEqual(['Banana']);
+      expect(animeFaceZoneWarnings(h.hairCoverage), cut2).toEqual([]);
+      expect(box(mesh, /^hairBanana/)[2][0], cut2).toBeGreaterThan(chin - 0.12);   // a bob: nothing below the neck
+    }
   });
   it('cap locks grow from the dome and lie over it: from the crown they come out longer, to the same hem; the fringe is cut shorter', () => {
     const cap = (el, extra = {}) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [80, 280], el: [el, el], rows: 1, count: 6, length: 0.5, cap: 1, ...extra }] } }]).mesh, /^hairBanana/);

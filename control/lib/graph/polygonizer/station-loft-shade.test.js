@@ -704,3 +704,27 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     }
   }, 90000);
 });
+
+// THE STRANDS (toon.light.strands): lines inside the hair's mass in its own tone darkened, never the ink's black
+describe('the strands: lines in the hair\'s own hue, darkened', () => {
+  it('cut darker bands of the same hue into the hair, rising from the hem; absent, the pieces are exactly the light\'s', async () => {
+    const { animeHead, ANIME_HAIR_BASE } = await import('./anime-head.js');
+    const { toonLightErrors, STRAND_DEFAULTS } = await import('./vexar.js');
+    const mesh = compileLayered(animeHead({ preset: 'male', hair: [ANIME_HAIR_BASE.male.form, 'hiraku'] }));
+    const palette = { Hair: '#e8cf7a' }, base = { ...ANIME_CHARACTER_LIGHT, shade: { Hair: '#b58f3e' } };
+    const plain = characterLitPieces(mesh, { light: base, palette }), lined = characterLitPieces(mesh, { light: { ...base, strands: resolveToonLight({ strands: { Hair: true } }).strands }, palette });
+    const hairFills = (P) => new Set(P.filter((p) => mesh.groups[p.fi] === 'Hair').map((p) => p.fill));
+    const added = [...hairFills(lined)].filter((f) => !hairFills(plain).has(f));
+    expect(added.length).toBeGreaterThan(0);
+    // each new tone is a darker one of the hair's own: its hue within a few degrees of the lit or the shade tone's
+    const hsl = (h) => { const [r, g, b] = hexToRgb(h).map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2; const hu = d === 0 ? 0 : mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [hu * 60, l]; };
+    for (const f of added) { const [hu, l] = hsl(f); expect(['#e8cf7a', '#b58f3e'].some((o) => Math.abs(hsl(o)[0] - hu) < 6 && l < hsl(o)[1])).toBe(true); }
+    expect(added.every((f) => f !== '#101015' && f !== '#292e33')).toBe(true);   // never the ink
+    // the light without strands: byte for byte the light it was
+    const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex');
+    expect(h(characterLitPieces(mesh, { light: { ...base }, palette }))).toBe(h(plain));
+    expect(resolveToonLight({ shade: { Hair: '#b58f3e' } }).strands).toBeUndefined();
+    expect(resolveToonLight({ strands: { Hair: { count: 30 } } }).strands.Hair).toEqual({ ...STRAND_DEFAULTS, count: 30, reach: [...STRAND_DEFAULTS.reach] });
+    expect(toonLightErrors({ strands: { Hair: { count: 2, tone: 1.2, dash: 1 } } }).map((e) => e.split(':')[0])).toEqual(['toon.light.strands.Hair.dash', 'toon.light.strands.Hair.count', 'toon.light.strands.Hair.tone']);
+  }, 120000);
+});

@@ -434,6 +434,36 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     const [b0, b1] = R.band, zc = frame.top - frame.H * (b0 + b1) / 2, hw = frame.H * (b1 - b0) / 2;
     HI.set(g, { R, zc, hw, axis: frame.axis, key: dmath.atan2(Lv[0], Lv[1]), parts: R.parts ? HIGHLIGHT_PARTS_RE[R.parts] : null, colours: new Map() });
   }
+  // THE STRANDS by group (toon.light.strands): each line's azimuth about the head's axis (spaced a little unevenly, by a
+  // fixed sine) and its top (staggered across `reach`), read on the rest mesh as the highlight is
+  const ST = new Map();
+  if (light.strands && typeof light.strands === 'object') for (const [g, R] of Object.entries(light.strands)) {
+    if (!R || typeof R !== 'object') continue;
+    const frame = bandFrame(rest, g); if (!frame) continue;
+    const lines = Array.from({ length: R.count }, (_, k) => ({ az: 2 * Math.PI * (k + 0.3 * dmath.sin(k * 2.39996)) / R.count, top: frame.top - frame.H * (R.reach[0] + (R.reach[1] - R.reach[0]) * (0.5 + 0.5 * dmath.sin(k * 1.7 + 0.4))) }));
+    ST.set(g, { R, axis: frame.axis, lines, floor: frame.top - frame.H * R.below });
+  }
+  const wrapPi = (a) => { let x = a % (2 * Math.PI); if (x > Math.PI) x -= 2 * Math.PI; if (x <= -Math.PI) x += 2 * Math.PI; return x; };
+  // a face's strand band, or null: the line nearest its centre's azimuth, cut by three planes on its corners (the arc
+  // either side of the line within half the width, under the line's top), live when no plane holds every corner outside
+  const strandSets = (S, tri) => {
+    const P = tri.map((vi) => rest.vertices[vi]), az = P.map((p) => dmath.atan2(p[0] - S.axis[0], p[1] - S.axis[1])), r = P.map((p) => dmath.hypot(p[0] - S.axis[0], p[1] - S.axis[1]));
+    if (r.some((x) => x < 1e-4)) return null;
+    const c = dmath.atan2(P.reduce((a, p) => a + p[0] - S.axis[0], 0), P.reduce((a, p) => a + p[1] - S.axis[1], 0));
+    let best = null, bd = Infinity; for (const L of S.lines) { const dd = Math.abs(wrapPi(c - L.az)); if (dd < bd) { bd = dd; best = L; } }
+    const arc = az.map((a, j) => r[j] * wrapPi(a - best.az)); if (az.some((a) => Math.abs(wrapPi(a - best.az)) > 1)) return null;
+    const hw = S.R.width / 2, planes = [arc.map((x) => x - hw), arc.map((x) => -x - hw), P.map((p) => p[2] - best.top), P.map((p) => S.floor - p[2])];
+    return planes.every((pl) => pl.some((x) => x <= 0)) ? [planes] : null;
+  };
+  // the own tone darkened as a painter darkens it: the same hue, its lightness times `k`, its saturation lifted (a
+  // straight RGB product greys a warm tone toward olive)
+  const darker = (h, k) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, dd = mx - mn;
+    const s0 = dd === 0 ? 0 : dd / (1 - Math.abs(2 * l - 1)), hu = dd === 0 ? 0 : mx === r ? ((g - b) / dd + 6) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
+    const L = l * k, Sa = Math.min(1, s0 * (1 + 0.2 * (1 - k))), C = (1 - Math.abs(2 * L - 1)) * Sa, X = C * (1 - Math.abs((hu % 2) - 1)), m = L - C / 2;
+    const [r1, g1, b1] = hu < 1 ? [C, X, 0] : hu < 2 ? [X, C, 0] : hu < 3 ? [0, C, X] : hu < 4 ? [0, X, C] : hu < 5 ? [X, 0, C] : [C, 0, X];
+    return `#${[r1, g1, b1].map((x) => Math.round(Math.min(1, Math.max(0, x + m)) * 255).toString(16).padStart(2, '0')).join('')}`;
+  };
   // the highlight's scalar at a corner: N·L `d` and its REST position `p`. The ring's edges come from the position alone —
   // the height across the band, its half-height narrowed by cos(Δ)^(falloff / 2), Δ the turn about the head's axis from
   // the key's azimuth (a crescent, widest facing the key, gone a quarter turn either side) — so an edge runs as a smooth
@@ -504,6 +534,13 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     // the structured neck: in the jaw's shadow above its line, by N·L under it
     const d = jawNeck ? d0.map((x, j) => Math.min(x, t + NECK_JAW_SHADOW.k * jaw(tri[j]))) : d0; const lit = d.map((x) => x > t);
     const H = HI.get(g); let hi = H && lit.some(Boolean) && !(H.parts && !H.parts.test(partName)) ? H : null, colour = null;
+    // the strands: on a face the step leaves whole (all lit or all shade) and the highlight does not light, a band in its
+    // own tone darkened
+    const St = ST.get(g);
+    if (St && lit[0] === lit[1] && lit[1] === lit[2] && !(hi && tri.some((vi, j) => hiOf(H, d[j], rest.vertices[vi]) > 0))) {
+      const sets = strandSets(St, tri);
+      if (sets) { const own = lit[0] ? hex : shade; return { fi, tri, outNormal, partName, panel: { kind: 'strand', sets }, fills: [own, darker(own, St.R.tone)] }; }
+    }
     if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
     let f;
     if (lit[0] === lit[1] && lit[1] === lit[2]) f = { fi, tri, outNormal, partName, fill: lit[0] ? hex : shade };

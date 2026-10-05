@@ -317,6 +317,28 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { at: [180, 46], dir: [0.072, -1, 0.198], length: 3.62, width: 0.3, bend: 0.204 },
         { at: [180, 46], dir: [0.12, -1, 0.23], length: 3.5, width: 0.3, bend: 0.22 },
       ] } } },
+  // HIRAKU — after Hirako Shinji (Bleach): the BOWL BOB, a box of two lines at right angles. Bananas only, every lock a
+  // cap lock grown from a whorl at the very top (so the hair radiates down evenly, a bowl), BLUNT (full width to the cut)
+  // and cut on LEVEL lines (`hem`): the bangs flat at the brow (`fringeHem` for every lock leaving over the face), the
+  // sides and back straight down to the jaw. The perpendicular strand lines that anchor the box are the light's
+  // (`toon.light.strands`: lines in the hair's own tone darkened, never the ink's black)
+  hiraku: { note: 'Hiraku: after Hirako Shinji — a blunt bowl bob of cap bananas from a whorl at the top, the bangs cut level at the brow, the sides and back straight down and cut level at the jaw',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1, whorl: [180, 88],
+      layers: [
+        { shape: 'banana', az: [0, 360], around: [3, 16], rows: 1, count: 6, length: 2.5, fringe: 2.5, hem: 1.3, fringeHem: 0.38, width: 0.3, droop: 1.3, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
+        { shape: 'banana', az: [-55, 55], el: [56, 86], rows: 2, count: 8, length: 2.5, fringe: 2.5, hem: 0.38, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
+        { shape: 'banana', az: [80, 280], el: [8, 86], rows: 3, count: 16, length: 2.5, hem: 1.3, fringeHem: 0.38, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
+      ] } } },
+  // MIWAKO — after Miwa Kasumi (Jujutsu Kaisen), kept simple: Hiraku's construction on the female base, cut at the NECK —
+  // the blunt bangs at the brow, the rest level just above the collar (any lower and the ends meet the collar and kick
+  // out); the sides started a little further back and the bangs cut a little higher for her narrower face
+  miwako: { note: 'Miwako: after Miwa Kasumi, kept simple — a blunt neck-length bob, the bangs cut level at the brow, the rest straight down and cut level just above the collar',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1, whorl: [180, 88],
+      layers: [
+        { shape: 'banana', az: [0, 360], around: [3, 16], rows: 1, count: 6, length: 2.5, fringe: 2.5, hem: 1.7, fringeHem: 0.34, width: 0.3, droop: 1.3, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
+        { shape: 'banana', az: [-55, 55], el: [56, 86], rows: 2, count: 8, length: 2.5, fringe: 2.5, hem: 0.34, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
+        { shape: 'banana', az: [86, 274], el: [8, 86], rows: 3, count: 16, length: 2.5, hem: 1.7, fringeHem: 0.34, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
+      ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
@@ -333,7 +355,7 @@ const SPIKES_KEYS = Object.freeze(['amount', 'reach', 'width', 'up']);
 export const SIDEBURN_FIELDS = Object.freeze({ amount: [0, 1], length: [0, 1.5], width: [0.01, 0.5], forward: [-0.6, 0.6], at: [-30, 30], az: [-30, 40] });
 export const HAIR_SHAPE_FAMILIES = Object.freeze(['carrot', 'banana', 'pepper', 'peel']);
 /** a layer's fields (anime-form `layers`): rows of one family over an azimuth and elevation range */
-export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 6], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.05, 1], swirl: [-90, 90], cap: [0, 1], fringe: [0, 3], cup: [0, 1], flick: [-1, 1] });
+export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 6], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.05, 1], swirl: [-90, 90], cap: [0, 1], fringe: [0, 3], cup: [0, 1], flick: [-1, 1], hem: [-0.5, 6], fringeHem: [-0.5, 6], blunt: [0, 1] });
 /** the SHAPES (anime-form): the clump groups a recipe may take over, and each primitive's fields with their hard limits */
 export const HAIR_SHAPE_GROUPS = Object.freeze(['fringe', 'temple', 'back', 'crown']);
 export const HAIR_SHAPE_FIELDS = Object.freeze({

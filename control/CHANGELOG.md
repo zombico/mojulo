@@ -32,6 +32,10 @@ needed on the anime head. Being built on this branch.
   PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
   a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
   into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
+- **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` (after Hirako Shinji) is a bowl bob, `miwako` (after
+  Miwa Kasumi) a neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
 - **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
   ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining
   yellow past 75 %, advises. The hair word `veil` (0 … 1) is the mystery and allure lever: one eye may go under the

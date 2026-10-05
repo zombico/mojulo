@@ -53,7 +53,12 @@ THIRD tone on the group's lit side, split along a second line: `ring` — N·L a
 a crescent facing the key whose edges follow the position, so they run smooth across a lock, the sheen line; `streak`
 — N·L above `threshold` (0.5) inside the band ([0, 0.4]) only; `parts: 'fringe'` keeps it to the fringe; its colour the
 palette's `<group>Highlight`, else derived: a quarter of the way from the base's L* to white, chroma × 1.15 — always
-lighter, and none on a base above about L* 84, whose lit side keeps one tone; `false` none) `}`.
+lighter, and none on a base above about L* 84, whose lit side keeps one tone; `false` none), `strands: { <group>: {
+count?, width?, reach?, below?, tone? } | true | false }` (LINES INSIDE the group's mass in its OWN tone darkened, never
+the ink's black: `count` (22) lines about the head's vertical axis, each `width` (0.003 m), rising from the group's
+lowest edge to a top staggered across `reach` ([0.15, 0.5] of the head's height below the crown), none below `below`
+(1.15 head heights); the fill the face's lit or shade tone at `tone` (0.6) of its lightness, the hue kept and the
+saturation lifted a little; a face the step splits or the highlight lights keeps its tones; absent, nothing) `}`.
 The anime hero takes its base's hair highlight by default (the ring on the female, a fringe streak on the male) unless
 its light says `highlight`. Each face steps to its lit or shade swatch, and a face the terminator crosses is split
 along it (and its lit side again along the highlight's line), crisp in the World, the static GLB and the rig preview
@@ -376,7 +381,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
   and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block),
-  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs, after Cynthia), `frieda` (after Frieren: split bangs, ribbon sidelocks, the rest GATHERED into twin tails) and `frieda-pony` (one high ponytail), `jona` (layered banana
+  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs, after Cynthia), `frieda` (after Frieren: split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (after Hirako Shinji: a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob after Miwa Kasumi), `jona` (layered banana
   PEELS: leaf-shaped, thin, cupped; the young-Bieber swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, after Videl's short cut); shaped hair never
   cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
   `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,

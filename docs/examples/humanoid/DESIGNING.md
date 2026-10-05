@@ -358,6 +358,16 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   and a little back to fall behind the shoulders. One layer per tie: twin tails are two layers, each half of the head to its own side's tie. What stays loose
   is the face: split bangs off a centre part cut at the brow, and two narrow ribbon sidelocks before the ears (wide,
   they taper to spikes). A pale silver wants a cool blue shade tone to part the peels.
+- **Hiraku and Miwako, blunt cuts (Hirako Shinji, Miwa Kasumi).** The shape is two lines at right angles: a flat bang
+  and straight sides. Three words make it: `hem` cuts a layer's locks on a LEVEL line (construction units below the front
+  hairline: about 0.35–0.4 is the brow, 1.4 the chin, 1.7 just above the collar), `fringeHem` cuts the locks leaving over
+  the face on their own line (else a crown lock falling forward hangs to the jaw over the face), and `blunt` keeps each
+  lock's full width to the cut instead of a point. The whorl at the very top (`[180, 88]`) so the hair radiates down
+  evenly, a bowl; the sides start behind the face (from 80° round), or their front locks curtain the cheek. Long, the
+  ends meet the shoulders and crumple; at the neck they stay a box. The perpendicular lines that ANCHOR the box are the
+  light's `strands`: lines rising from the hem in the hair's own tone darkened — never black, which would read as a
+  drawn outline on top of the shape rather than the hair's own grain. Darken in hue, lightness and a touch of
+  saturation: an RGB product greys a warm blonde toward olive.
 - **Keep a pair apart by the nape.** Jinto is closed and short at the nape and his story is the front; Kairo is open
   and long at the nape and his story is the crown and the tail. Trade nape lengths and both collapse into the same
   spiky hero.
