@@ -283,7 +283,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-05 (267_900 -> 268_200; measured 268,159) for historic entries: get_view_vocab names the
 // encyclopedia entry family (a description clause, the `entry` enum value, the id hint) and create_sketch's
 // manifest property names the `historic` kind and where its starters live. No per-entry text anywhere.
-const PAYLOAD_CEILING = 268_200;
+// Re-pinned 2026-10-05 (268_200 -> 268_400; measured 268,358) merging 1005-figure-consolidation into the release
+// candidate: export_model's `rest` property (the emote bridge's T-pose mold, 'authored' | 'tpose', one sentence) is
+// the growth. Each figure branch was inside its own 267_588 pin; only the sum crossed this one.
+const PAYLOAD_CEILING = 268_400;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
