@@ -33,6 +33,7 @@ import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
 import { labDress } from './lab-dress.js';
+import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, sunDir } from './sun.js';
@@ -150,7 +151,7 @@ STAGE_KITS['research-lab'] = Object.freeze({
     truss: { depth: 0.75, w: 0.3, web: 0.05, flange: 0.05 },
     duct: { at: [0.3, 0.7], r: 0.32, sides: 10, gap: 0.12 },
     tray: { at: 0.5, w: 0.45, side: 0.1, drop: 0.35, cables: [0.03, 0.025, 0.035] },
-    troffer: { rows: [0.25, 0.5, 0.75], len: 1.5, w: 0.36, h: 0.1, drop: 1.6, diffuser: '#eef4ff', color: '#dde8ff', intensity: 1.15, radius: 7.5 },
+    troffer: { rows: [0.25, 0.5, 0.75], len: 1.5, w: 0.36, h: 0.1, drop: 1.6, diffuser: '#eef4ff', color: '#dde8ff', intensity: 1.15, radius: 7.5, deadTint: [0.42, 0.44, 0.46] },
   },
   dress: RESEARCH_LAB,
 });
@@ -213,7 +214,16 @@ export function planStage(m = {}) {
   if (time === 'night' && !(N && kit.sun)) throw new Error(`stage: kit '${kitId}' has no night (its style card carries none)`);
   const nightRef = N ? { ...ref, light: { ...ref.light, ambient: N.light.ambient, key: { color: N.moon.color, elevation: N.moon.elevation, azimuth: N.moon.azimuth } }, air: { ...ref.air, ...N.air } } : ref;
   const nightKit = N ? { ...kit, sky: { ...kit.sky, ...N.sky, sunGain: N.moon.gain } } : kit;
-  return { kit: nightKit, kitId, ref: nightRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}) };
+  // `decay` (decay.js): how hard each event hit and where; a blackout takes the ambient down and thickens the air
+  const Dk = readDecay(m.decay);
+  if (Dk && !(kit.dress && kit.dress.decay)) throw new Error(`stage: kit '${kitId}' can't decay (its style card carries no decay)`);
+  const decay = Dk ? { ...Dk, picks: pickDecay({ kit, rooms }, kit.dress, Dk.seed) } : null;
+  const dRef = decay ? (() => {
+    const Dd = kit.dress.decay.air, b = decay.k.blackout, a = decay.k.abandon;
+    const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
+    return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
+  })() : nightRef;
+  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}) };
 }
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
@@ -307,7 +317,7 @@ export function buildStageGeometry(plan) {
     const w = r.x1 - r.x0, d = r.y1 - r.y0, h = r.h;
     if (kit.shell === 'lab') {
       // a lab is its own floor, walls and roof (lab.js); its bays and structure go to the dressing
-      const L = labRoom(out, r, ri, kit, surf);
+      const L = labRoom(out, r, ri, kit, surf, plan.decay ? { k: plan.decay.k, seed: plan.decay.seed, pick: plan.decay.picks[ri] } : null);
       seats.push(...L.seats); dressBays.push(...L.bays); labs.push({ r, ...L.structure });
       return;
     }
@@ -569,7 +579,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends }) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : naveDress(plan, geom);
   // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;
@@ -577,7 +587,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
-  const lights = [...resolveStageLights(plan, seats), ...(dress && dress.night ? dress.night.lights : [])];
+  const lights = [...resolveStageLights(plan, seats), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
   // live fire (`manifest.fire`): a dressing's braziers stand by its portal and light the room like the torches do
   const live = !!manifest.fire, Fk = live && plan.kit.dress && plan.kit.dress.fire, portalBay = (geom.bays || []).find((b) => b.portal);
   const braziers = Fk && Fk.braziers && portalBay ? [-1, 1].map((sg) => {
@@ -597,7 +607,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
+    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : lights, ambient, makeDirt(plan, lights, dress && dress.dirt ? { ...dress.dirt, ...(manifest.dirt || {}) } : manifest.dirt), sun);
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
@@ -616,6 +626,11 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     : plan.links[0].wall.endsWith('y') ? [look[0], look[1], 1.8] : [look[1], look[0], 1.8];
   const air = plan.ref.air;
   const faces = [...(dress && dress.night ? lit.map(dress.night.relight) : lit), ...fixtures, ...(dress ? dress.after : [])];
+  const Fk2 = plan.kit.dress && plan.kit.dress.decay && plan.kit.dress.decay.flicker;
+  const flickerLamps = !plan.decay || !Fk2 ? [] : [
+    ...geom.seats.filter((l) => l.flicker).map((l) => ({ at: l.at, radius: l.radius, share: Fk2.of, base: 1, mode: l.flicker.mode, seed: l.flicker.seed })),
+    ...(geom.labs || []).flatMap((L) => (L.sparks || []).map((sp) => ({ at: sp.at, radius: sp.radius, share: Fk2.of, base: 0, mode: sp.mode, seed: sp.seed }))),
+  ].slice(0, 8);
   const cutouts = [...new Set(faces.filter((f) => typeof f.texture === 'string' && f.texture.startsWith('card:')).map((f) => f.texture))].sort();
   return {
     faces,
@@ -644,6 +659,10 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(dress && dress.jets && dress.jets.length ? { jets: normalizeJets(dress.jets) } : {}),
     // at night the falling water is seen in the basin's glow and the moon, not the sun (scene/channels/jet.js `lit`)
     ...(plan.night && plan.night.jets && dress && dress.jets && dress.jets.length ? { jetLight: plan.night.jets } : {}),
+    ...(dress && dress.jetLight && dress.jets && dress.jets.length ? { jetLight: dress.jetLight } : {}),
+    // a decayed lab's dying lamps, flickered on the page (scene/channels/stage-flicker.js): baked on and stuttering, or
+    // baked off and sparking
+    ...(flickerLamps.length ? { flicker: { lamps: flickerLamps } } : {}),
     // live wind's hung cloth (scene/channels/stage-sway.js): indoors the wind is the draught through the doors
     ...(windSpec ? { sway: { wind: { speed: +(windSpec.speed * (Sw.draught ?? 1)).toFixed(4), dir: (windSpec.dir * Math.PI) / 180, gust: windSpec.gust, scale: windSpec.scale, evolve: windSpec.evolve,
       veer: (windSpec.veer * Math.PI) / 180, seed: windSpec.seed, z0: Sw.z0 }, groups: Sw.groups } } : {}),

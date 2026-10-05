@@ -80,7 +80,7 @@ export function makeDirt(plan, allLights, knobs = {}) {
     return m;
   };
 
-  return (f, c) => {
+  const inner = (f, c) => {
     const n = f.normal, g = f.group;
     if (g === 'stage:floor') {
       const r = roomAt(c[0], c[1]);
@@ -108,5 +108,29 @@ export function makeDirt(plan, allLights, knobs = {}) {
       return [v * (1 - 0.4 * damp), v * (1 - 0.3 * damp), v * (1 - 0.46 * damp)];
     }
     return [1, 1, 1];
+  };
+  // decay's dirt (decay.js, lab-decay.js), only when asked for: LEAKS — a burst pipe's water down the wall under it,
+  // widening as it falls, rust in it, and the floor wet at its foot; DUST — a film on everything that faces up,
+  // pulling each toward the dust's own colour (so dark things grey over and pale ones dull)
+  if (!k.leaks && !k.dust) return inner;
+  const dustC = k.dustColor || [0.86, 0.82, 0.74];
+  return (f, c) => {
+    const m = inner(f, c), n = f.normal;
+    for (const L of k.leaks || []) {
+      const d = [c[0] - L.at[0], c[1] - L.at[1]], t = [-L.n[1], L.n[0]], dz = L.at[2] - c[2];
+      if (Math.abs(n[2]) < 0.5 && n[0] * L.n[0] + n[1] * L.n[1] > 0.9 && Math.abs(d[0] * L.n[0] + d[1] * L.n[1]) < 0.7 && dz > -0.15) {
+        const lat = Math.abs(d[0] * t[0] + d[1] * t[1]), w = L.w * (0.35 + 0.22 * Math.max(0, dz));
+        const st = L.k * Math.exp(-((lat / w) ** 2)) * (0.55 + 0.45 * vnoise(lat * 7, dz * 0.4, S + 41)) * (dz < 0 ? 1 + dz / 0.15 : 1);
+        for (let q = 0; q < 3; q++) m[q] *= mix(1, 0.62 * L.rust[q], st);
+      } else if (f.group === 'stage:floor') {
+        const foot = Math.hypot(d[0] - L.n[0] * 0.55, d[1] - L.n[1] * 0.55), wet = L.k * 0.3 * (1 - smooth(0.6, 2.2, foot));
+        for (let q = 0; q < 3; q++) m[q] *= 1 - wet;
+      }
+    }
+    if (k.dust && n[2] > 0.6 && f.tint) {
+      const a = 0.5 * k.dust * (f.group === 'stage:floor' ? 0.5 : 1);
+      for (let q = 0; q < 3; q++) m[q] *= mix(1, dustC[q] / Math.max(0.08, f.tint[q]) * 0.55, a);
+    }
+    return m;
   };
 }

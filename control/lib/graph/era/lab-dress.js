@@ -15,6 +15,8 @@
 import './lab-tiles.js';
 import { add, P, r5, hexRgb, panel, box, lathe } from './geom.js';
 import { hash3 } from './dirt.js';
+import { rotAbout } from './lab.js';
+import { abandonThings, emergencyLamps, debrisPile, leakAt, spillAt } from './lab-decay.js';
 
 const Z = [0, 0, 1];
 // lathe's z is absolute: lift a profile to stand on `c[2]`
@@ -24,9 +26,15 @@ const tex = (key, scale, tint, group) => ({ key, scale, tint, group });
 
 // ── moving a thing's faces from its own frame (origin at its foot, +y its front) into the room ──
 function rotZ(p, c, s) { return [p[0] * c - p[1] * s, p[0] * s + p[1] * c, p[2]]; }
-/** Move `faces` built in a thing's frame to `at`, turned `yaw` (radians) about z. */
-export function placeFaces(faces, at, yaw) {
+/** Move `faces` built in a thing's frame to `at`, turned `yaw` (radians) about z; a `tip` ({ axis, a }: a thing
+ *  knocked over) turns it first about its own axis through its foot, then lets it down onto the floor. */
+export function placeFaces(faces, at, yaw, tip = null) {
   const c = Math.cos(yaw), s = Math.sin(yaw);
+  if (tip) {
+    const O = [0, 0, 0], turned = faces.map((f) => ({ ...f, corners: f.corners.map((p) => rotAbout(p, O, tip.axis, tip.a)), normal: rotAbout(f.normal, O, tip.axis, tip.a) }));
+    const low = Math.min(...turned.flatMap((f) => f.corners.map((p) => p[2])));
+    faces = turned.map((f) => ({ ...f, corners: f.corners.map((p) => [p[0], p[1], p[2] - low]) }));
+  }
   return faces.map((f) => {
     const n = rotZ(f.normal, c, s).map(r5);
     return { ...f, corners: f.corners.map((p) => P(add(rotZ(p, c, s), at))), normal: n, outNormal: n };
@@ -59,7 +67,7 @@ const BUILD = {
     const out = [], R = D.rack, w = R.w / 2, d = R.d / 2;
     box(out, [-w, -d, 0], [w, d, R.h], plain(R.body, 'stage:rack'), 1, ['+y']);
     panel(out, [-w + 0.03, d, 0.05], [1, 0, 0], R.w - 0.06, Z, R.h - 0.1, [0, 1, 0], { ...tex('lab:rack', 1, [1, 1, 1], 'stage:rack'), uvOf: (p) => [(p[0] + w) / R.w, (p[2] - 0.05) / (R.h - 0.1)] }, 3);
-    out.push(glowFace([[-w + 0.06, d + 0.004, R.h - 0.12], [w - 0.06, d + 0.004, R.h - 0.12], [w - 0.06, d + 0.004, R.h - 0.09], [-w + 0.06, d + 0.004, R.h - 0.09]], [0, 1, 0], R.led, 'stage:lamp', null, 2));
+    out.push(glowFace([[-w + 0.06, d + 0.004, R.h - 0.12], [w - 0.06, d + 0.004, R.h - 0.12], [w - 0.06, d + 0.004, R.h - 0.09], [-w + 0.06, d + 0.004, R.h - 0.09]], [0, 1, 0], t.led || R.led, 'stage:lamp', null, 2));
     return out;
   },
   lockers(t, D) {
@@ -89,9 +97,18 @@ const BUILD = {
   },
   extinguisher(t, D) {
     const out = [], E = D.extinguisher;
-    latheAt(out, [0, 0.12, E.z], [[0, 0], [0.08, 0], [0.085, 0.05], [0.085, E.h - 0.1], [0.06, E.h - 0.03], [0.02, E.h]], 10, { key: null, scale: 1, tint: E.tint }, 'stage:extinguisher');
-    box(out, [-0.05, 0, E.z + E.h * 0.55], [0.05, 0.04, E.z + E.h * 0.62], plain([0.2, 0.2, 0.22], 'stage:extinguisher'), 1, ['-y']);
+    const ez = t.floor ? 0 : E.z;
+    latheAt(out, [0, 0.12, ez], [[0, 0], [0.08, 0], [0.085, 0.05], [0.085, E.h - 0.1], [0.06, E.h - 0.03], [0.02, E.h]], 10, { key: null, scale: 1, tint: E.tint }, 'stage:extinguisher');
+    if (!t.floor) box(out, [-0.05, 0, ez + E.h * 0.55], [0.05, 0.04, ez + E.h * 0.62], plain([0.2, 0.2, 0.22], 'stage:extinguisher'), 1, ['-y']);
     return out;
+  },
+  // a monitor off its bench (abandon), on the floor; built as a bench's monitor on a bench of no height
+  screen(t, D) { return ITEM.monitor({ x: 0, on: t.on !== false }, { h: 0 }); },
+  // a sheet of paper on the floor, curled a little along its fold
+  sheet(t, D) {
+    const lift = 0.004 + 0.03 * hash3(t.seed, 1, 7201);
+    return [{ corners: [[-0.105, -0.15, 0.003], [0.105, -0.15, 0.003], [0.105, 0, 0.003], [-0.105, 0, 0.003]].map(P), normal: Z, outNormal: Z, texture: null, tint: [0.92, 0.92, 0.88], group: 'stage:paper' },
+      { corners: [[-0.105, 0, 0.003], [0.105, 0, 0.003], [0.105, 0.15, lift], [-0.105, 0.15, lift]].map(P), normal: Z, outNormal: Z, texture: null, tint: [0.92, 0.92, 0.88], group: 'stage:paper' }];
   },
 };
 // the things a bench carries, in the bench's frame (its top at B.h)
@@ -102,9 +119,10 @@ const ITEM = {
     box(out, [x - 0.1, yb - 0.08, z], [x + 0.1, yb + 0.08, z + 0.02], k, 1, ['-z']);
     box(out, [x - 0.02, yb - 0.04, z + 0.02], [x + 0.02, yb - 0.01, z + 0.16], k, 1);
     box(out, [x - sw - 0.02, yb, z + 0.14], [x + sw + 0.02, yb + 0.06, z + 0.16 + 2 * sh + 0.04], k, 1);
-    // the picture: unlit, so it glows at its own brightness
-    const yf = yb + 0.061;
-    out.push({ corners: [[x + sw, yf, z + 0.16], [x - sw, yf, z + 0.16], [x - sw, yf, z + 0.16 + 2 * sh], [x + sw, yf, z + 0.16 + 2 * sh]].map(P), normal: [0, 1, 0], outNormal: [0, 1, 0], texture: 'lab:screen', textureLit: false, uv: [[0, 0], [1, 0], [1, 1], [0, 1]], group: 'stage:screen' });
+    // the picture: unlit, so it glows at its own brightness; a dead screen is black glass, lit by the room
+    const yf = yb + 0.061, sc = [[x + sw, yf, z + 0.16], [x - sw, yf, z + 0.16], [x - sw, yf, z + 0.16 + 2 * sh], [x + sw, yf, z + 0.16 + 2 * sh]].map(P);
+    out.push(it.on === false ? { corners: sc, normal: [0, 1, 0], outNormal: [0, 1, 0], tint: [0.06, 0.07, 0.08], group: 'stage:kit' }
+      : { corners: sc, normal: [0, 1, 0], outNormal: [0, 1, 0], texture: 'lab:screen', textureLit: false, uv: [[0, 0], [1, 0], [1, 1], [0, 1]], group: 'stage:screen' });
     box(out, [x - 0.22, 0.04, z], [x + 0.22, 0.18, z + 0.02], plain([0.2, 0.2, 0.22], 'stage:kit'), 1, ['-z']);   // the keyboard
     return out;
   },
@@ -143,7 +161,7 @@ const ITEM = {
 };
 
 // ── the set piece ──
-function tank(c, D) {
+function tank(c, D, br = null) {
   const out = [], T = D.tank, steel = { key: 'hull-plate-dark', scale: 1.2, tint: T.steel }, at = (z) => [c[0], c[1], z];
   // the dais: two round steps, a hazard ring painted round its foot
   latheAt(out, at(0), [[T.dais[0].r, 0], [T.dais[0].r, T.dais[0].h], [T.dais[1].r, T.dais[0].h], [T.dais[1].r, T.dais[0].h + T.dais[1].h], [0, T.dais[0].h + T.dais[1].h]], T.sides, { key: 'deck-tread', scale: 1.2, tint: T.deck }, 'stage:dais');
@@ -157,16 +175,35 @@ function tank(c, D) {
   latheAt(out, at(z0), [[0, 0], [B.r, 0], [B.r, B.h * 0.7], [B.r * 1.08, B.h * 0.75], [B.r * 1.08, B.h], [T.r + 0.06, B.h]], T.sides, steel, 'stage:tank');
   // the liquid: a glowing column, brighter low down; the glass round it, see-through
   const zg = z0 + B.h, zt = zg + T.h, rl = T.r - 0.06;
-  for (let k = 0; k < T.sides; k++) {
+  // breached (decay): the glass a jagged ring round the foot, the liquid drained to a skim in the base, the glow out
+  const Bk = br ? D.decay.breach : null, jag = (k) => r5(Bk.keep + Bk.jag * hash3(br.seed, k % T.sides, 7301) * (k % 2 ? 1 : 0.35));
+  for (let k = 0; k < T.sides && br; k++) {
+    const a0 = (2 * Math.PI * k) / T.sides, a1 = (2 * Math.PI * (k + 1)) / T.sides, am = (a0 + a1) / 2, n = [Math.cos(am), Math.sin(am), 0].map(r5);
+    const p = (r, a, z) => [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r, z];
+    out.push({ corners: [p(T.r, a0, zg), p(T.r, a1, zg), p(T.r, a1, zg + jag(k + 1)), p(T.r, a0, zg + jag(k))].map(P), normal: n, outNormal: n, fill: Bk.glass, alpha: Bk.alpha, group: 'stage:tankglass' });
+    out.push({ corners: [p(0, a0, zg + 0.04), p(rl, a0, zg + 0.04), p(rl, a1, zg + 0.04), p(0, a1, zg + 0.04)].map(P), normal: Z, outNormal: Z, tint: hexRgb(Bk.color), group: 'stage:tank' });
+  }
+  for (let k = 0; k < T.sides && !br; k++) {
     const a0 = (2 * Math.PI * k) / T.sides, a1 = (2 * Math.PI * (k + 1)) / T.sides, am = (a0 + a1) / 2, n = [Math.cos(am), Math.sin(am), 0].map(r5);
     const p = (r, a, z) => [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r, z];
     out.push({ ...glowFace([p(rl, a0, zg), p(rl, a1, zg), p(rl, a1, zt), p(rl, a0, zt)], n, T.glow, 'stage:liquid', k === 0 ? `0 0 30px 12px ${T.glow}` : null, 2.5), cornerFills: [T.glowLow, T.glowLow, T.glow, T.glow] });
     out.push({ corners: [p(T.r, a0, zg), p(T.r, a1, zg), p(T.r, a1, zt), p(T.r, a0, zt)].map(P), normal: n, outNormal: n, fill: T.glass, alpha: T.alpha, group: 'stage:tankglass' });
   }
-  for (let i = 1; i < T.hoops; i++) { const z = zg + (T.h * i) / T.hoops; latheAt(out, at(z - 0.03), [[T.r + 0.005, 0], [T.r + 0.04, 0], [T.r + 0.04, 0.06], [T.r + 0.005, 0.06]], T.sides, steel, 'stage:tank'); }
+  // the hoops (a breached tank's fell with its glass: one lies on the dais, tilted against the base)
+  if (!br) for (let i = 1; i < T.hoops; i++) { const z = zg + (T.h * i) / T.hoops; latheAt(out, at(z - 0.03), [[T.r + 0.005, 0], [T.r + 0.04, 0], [T.r + 0.04, 0.06], [T.r + 0.005, 0.06]], T.sides, steel, 'stage:tank'); }
+  else {
+    const hoop = []; latheAt(hoop, [0, 0, 0], [[T.r + 0.005, 0], [T.r + 0.04, 0], [T.r + 0.04, 0.06], [T.r + 0.005, 0.06]], T.sides, steel, 'stage:tank');
+    const tw = br.seed * 0.7, ax = [Math.cos(tw), Math.sin(tw), 0], off = [-Math.sin(tw) * (T.r + 0.35), Math.cos(tw) * (T.r + 0.35)];
+    for (const f of hoop) out.push({ ...f, corners: f.corners.map((q) => { const r1 = rotAbout(q, [0, 0, 0], ax, 0.32); return P([c[0] + off[0] + r1[0], c[1] + off[1] + r1[1], z0 + 0.22 + r1[2]]); }), normal: rotAbout(f.normal, [0, 0, 0], ax, 0.32).map(r5) });
+  }
+  // the frame: four struts from the base to the cap, the glass inside them
+  for (let q = 0; q < 4; q++) {
+    const a = Math.PI / 4 + (q * Math.PI) / 2, x = c[0] + Math.cos(a) * (T.r + 0.1), y = c[1] + Math.sin(a) * (T.r + 0.1);
+    box(out, [x - 0.05, y - 0.05, zg], [x + 0.05, y + 0.05, zt], { ...steel, group: 'stage:tank' }, 1, ['-z', '+z']);
+  }
   latheAt(out, at(zt), [[T.r + 0.06, 0], [Cp.r, Cp.h * 0.2], [Cp.r, Cp.h * 0.8], [Cp.r * 0.6, Cp.h], [T.conduit, Cp.h]], T.sides, steel, 'stage:tank');
   latheAt(out, at(zt + Cp.h), [[T.conduit, 0], [T.conduit, D.roof - zt - Cp.h]], 10, steel, 'stage:tank');   // the conduit up to the trusses
-  return { faces: out, light: { at: P(at(zg + T.h * 0.45)), n: [0, 0, 1], color: T.light.color, intensity: T.light.intensity, radius: T.light.radius, fixture: 'tank' }, z0, base: B.r };
+  return { faces: out, light: br ? null : { at: P(at(zg + T.h * 0.45)), n: [0, 0, 1], color: T.light.color, intensity: T.light.intensity, radius: T.light.radius, fixture: 'tank' }, z0, base: B.r };
 }
 
 /** Grated trenches from the dais out to the walls along the room's axes, cables lying from the tank's base to them. */
@@ -248,18 +285,32 @@ function benchItems(dress, seed, B) {
 
 /** Build every record into faces, in place. */
 export function buildThings(things, D) {
-  return things.flatMap((t) => placeFaces(BUILD[t.kind](t, D), t.at, t.yaw));
+  return things.flatMap((t) => placeFaces(BUILD[t.kind](t, D), t.at, t.yaw, t.tip || null));
 }
 
-/** Everything the lab's dressing adds, in the shape the stage composes (see nave.js `naveDress`). */
+/** Everything the lab's dressing adds, in the shape the stage composes (see nave.js `naveDress`). With `decay`
+ *  (decay.js, lab-decay.js) each event changes what is built, by cause; the dressing also hands the stage its extra
+ *  lights (the emergency lamps), its dirt (leaks, dust, age) and its water (spills, the leak's stream). */
 export function labDress(plan, geom) {
-  const D = plan.kit.dress, faces = [], pools = [], things = [];
+  const D = plan.kit.dress, faces = [], pools = [], after = [], jets = [], lights = [], leaks = [], things = [];
+  const Dz = plan.decay ? { k: plan.decay.k, seed: plan.decay.seed } : null, live = !!geom.water;
   for (const [ri, L] of (geom.labs || []).entries()) {
-    const r = L.r, c = [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
-    const tk = tank(c, { ...D, roof: r.h - plan.kit.lab.truss.depth });
+    const r = L.r, c = [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2], pick = Dz ? plan.decay.picks[ri] : null;
+    const tk = tank(c, { ...D, roof: r.h - plan.kit.lab.truss.depth }, Dz && Dz.k.breach > 0 ? Dz : null);
     faces.push(...tk.faces, ...trenches(r, c, D, tk.z0, tk.base));
-    pools.push(tk.light);
-    things.push(...labThings(plan, r, ri, D));
+    if (tk.light) pools.push(tk.light);
+    const placed = labThings(plan, r, ri, D);
+    things.push(...(Dz ? abandonThings(placed, r, ri, D, Dz) : placed));
+    if (!Dz) continue;
+    const roomBays = (geom.bays || []).filter((b) => b.F.o[0] >= r.x0 - 1e-6 && b.F.o[0] <= r.x1 + 1e-6 && b.F.o[1] >= r.y0 - 1e-6 && b.F.o[1] <= r.y1 + 1e-6);
+    if (Dz.k.blackout > 0) { const E = emergencyLamps(roomBays, D, Dz, plan.kit.lab); faces.push(...E.faces); lights.push(...E.lights); }
+    if (L.hole) faces.push(...debrisPile(L.hole, D, Dz, plan.kit, { key: plan.kit.tiles.ceiling.key, scale: plan.kit.tiles.ceiling.scale, tint: plan.kit.tint.ceiling }).faces);
+    if (Dz.k.breach > 0) { const sp = spillAt(c, D, Dz, pick.breach, live); after.push(...sp.faces); faces.push(...sp.shards); }
+    if (Dz.k.leak > 0) {
+      const lk = leakAt(r, roomBays, D, Dz, plan.kit.lab, pick.leak, live);
+      after.push(...lk.faces); if (lk.jet) jets.push(lk.jet);
+      leaks.push({ at: lk.source, n: lk.n, w: lk.width, k: Dz.k.leak, rust: D.decay.leak.rust });
+    }
   }
   const built = buildThings(things, D);
   // each screen lights the bench in front of it a little
@@ -268,5 +319,8 @@ export function labDress(plan, geom) {
     pools.push({ at: P(add(m, f.normal.map((v) => v * 0.25))), n: f.normal, color: D.screenLight.color, intensity: D.screenLight.intensity, radius: D.screenLight.radius, fixture: 'screen' });
   }
   faces.push(...built);
-  return { faces, blends: () => [], after: [], pools, cut: () => false, shadowSkip: () => false, clouds: null, jets: [], things };
+  // the dirt a decayed lab asks of dirt.js: older, less walked, leaks down the walls, dust on what faces up
+  const dirt = Dz ? { age: Math.min(1, 0.7 + 0.3 * Dz.k.abandon), traffic: 0.6 * (1 - Dz.k.abandon), ...(leaks.length ? { leaks } : {}), ...(Dz.k.abandon > 0 ? { dust: Dz.k.abandon, dustColor: D.decay.abandon.dust } : {}) } : null;
+  return { faces, blends: () => [], after, pools, cut: () => false, shadowSkip: () => false, clouds: null, jets, things,
+    ...(lights.length ? { lights } : {}), ...(dirt ? { dirt } : {}), ...(Dz && jets.length ? { jetLight: D.decay.jetLight } : {}) };
 }

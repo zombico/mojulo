@@ -14,7 +14,8 @@
  * Every piece of structure is placed from the room's bays, so the columns, trusses, windows and lights line up. Lights
  * go out as seats (`fixture: 'troffer'`, `'window'`, `'lamp'`), baked by the stage.
  */
-import { add, mul, P, r5, hexRgb, panel, box, wallBox, quad, onWall, solidSpans, openingU } from './geom.js';
+import { add, sub, mul, dot, P, r5, hexRgb, panel, box, wallBox, quad, onWall, solidSpans, openingU } from './geom.js';
+import { hash3 } from './dirt.js';
 import { archedOpening } from './gothic.js';
 
 const Z = [0, 0, 1];
@@ -32,14 +33,38 @@ export function tube(out, a, b, r, sides, surf) {
   }
 }
 
+/** Rotate p about the line through `o` along unit `k` by `a` radians (Rodrigues). */
+export function rotAbout(p, o, k, a) {
+  const v = sub(p, o), c = Math.cos(a), s = Math.sin(a), kv = [k[1] * v[2] - k[2] * v[1], k[2] * v[0] - k[0] * v[2], k[0] * v[1] - k[1] * v[0]], kd = dot(k, v);
+  return add(o, [0, 1, 2].map((i) => v[i] * c + kv[i] * s + k[i] * kd * (1 - c)));
+}
+/** Faces turned about a line (their normals with them). */
+export function turnFaces(faces, o, k, a) {
+  return faces.map((f) => { const n = sub(rotAbout(f.normal, [0, 0, 0], k, a), [0, 0, 0]).map(r5); return { ...f, corners: f.corners.map((p) => P(rotAbout(p, o, k, a))), normal: n, outNormal: n }; });
+}
+/** A tube from a to b in any direction, radius r. */
+export function tubeAB(out, a, b, r, sides, surf) {
+  const d = sub(b, a), len = Math.hypot(...d), u = mul(d, 1 / len), up = Math.abs(u[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1];
+  const e1x = [u[1] * up[2] - u[2] * up[1], u[2] * up[0] - u[0] * up[2], u[0] * up[1] - u[1] * up[0]], l1 = Math.hypot(...e1x), e1 = mul(e1x, 1 / l1);
+  const e2 = [e1[1] * u[2] - e1[2] * u[1], e1[2] * u[0] - e1[0] * u[2], e1[0] * u[1] - e1[1] * u[0]];
+  for (let k = 0; k < sides; k++) {
+    const t0 = (2 * Math.PI * k) / sides, t1 = (2 * Math.PI * (k + 1)) / sides, tm = (t0 + t1) / 2;
+    const off = (t) => add(mul(e1, Math.cos(t) * r), mul(e2, Math.sin(t) * r)), n = add(mul(e1, Math.cos(tm)), mul(e2, Math.sin(tm))).map(r5);
+    quad(out, [add(a, off(t0)), add(a, off(t1)), add(b, off(t1)), add(b, off(t0))], n, surf, null, null, [[(t0 * r) / surf.scale, 0], [(t1 * r) / surf.scale, 0], [(t1 * r) / surf.scale, len / surf.scale], [(t0 * r) / surf.scale, len / surf.scale]]);
+  }
+}
+
 /** A self-lit face (a lamp's diffuser, a status lamp): its own fill, emissive in the GLB, a halo when `glow`. */
 const lit = (corners, n, fill, group, glow = null, strength = 3) => ({ corners: corners.map(P), normal: n, outNormal: n, fill, group, emissive: hexRgb(fill), emissiveStrength: strength, ...(glow ? { glow } : {}) });
 
 /** A troffer hung on two chains: a steel housing, a glowing diffuser under it. `c` its centre, long along `ax`. */
-export function troffer(out, c, ax, T, top, surf) {
+export function troffer(out, c, ax, T, top, surf, dead = false, halo = true) {
   const [x, y, z] = c, L = T.len / 2, W = T.w / 2, hx = ax === 0 ? L : W, hy = ax === 0 ? W : L;
   box(out, [x - hx, y - hy, z], [x + hx, y + hy, z + T.h], surf.housing, 1, []);
-  out.push(lit([[x - hx + 0.03, y - hy + 0.03, z - 0.005], [x - hx + 0.03, y + hy - 0.03, z - 0.005], [x + hx - 0.03, y + hy - 0.03, z - 0.005], [x + hx - 0.03, y - hy + 0.03, z - 0.005]], [0, 0, -1], T.diffuser, 'stage:lamp', `0 0 14px 5px ${T.color}`, 2.5));
+  const dc = [[x - hx + 0.03, y - hy + 0.03, z - 0.005], [x - hx + 0.03, y + hy - 0.03, z - 0.005], [x + hx - 0.03, y + hy - 0.03, z - 0.005], [x + hx - 0.03, y - hy + 0.03, z - 0.005]];
+  // a dead tube: the diffuser a dull grey, lit by the room like anything else
+  out.push(dead ? { corners: dc.map(P), normal: [0, 0, -1], outNormal: [0, 0, -1], tint: T.deadTint, group: 'stage:housing' } : lit(dc, [0, 0, -1], T.diffuser, 'stage:lamp', halo ? `0 0 14px 5px ${T.color}` : null, 2.5));
+  if (top === null) return;
   for (const sg of [-0.7, 0.7]) {
     const cx = x + (ax === 0 ? sg * L : 0), cy = y + (ax === 0 ? 0 : sg * L);
     box(out, [cx - 0.012, cy - 0.012, z + T.h], [cx + 0.012, cy + 0.012, top], surf.chain, 1, ['-z', '+z']);
@@ -49,11 +74,14 @@ export function troffer(out, c, ax, T, top, surf) {
 /**
  * One lab room into `out`. r: the room; kit: the lab kit; surf(part, variant): the stage's surface maker.
  * → seats (lights), bays (the dressing's: { F, side, k, u0, u1, portal? }), and `structure` (the trusses' and ducts'
- * lines, for the dressing to hang things from).
+ * lines, for the dressing to hang things from). `decay` ({ k, pick, seed }: decay.js) breaks the roof over the
+ * collapse's bay, the duct under it and its troffers, puts the blacked-out troffers and clerestory out.
  */
-export function labRoom(out, r, ri, kit, surf) {
+export function labRoom(out, r, ri, kit, surf, decay = null) {
   const seats = [], bays = [], h = r.h, L = kit.lab, Pt = kit.dress && kit.dress.portal;
   const w = r.x1 - r.x0, d = r.y1 - r.y0, alongY = d >= w;
+  // decay (decay.js): the collapse's hole in the roof, over its bay, across part of the span
+  const Dc = kit.dress && kit.dress.decay, hole = decay && decay.k.collapse > 0 ? collapseHole(r, kit, decay) : null;
   // ── the floor: the field, the band round it, the skirting ──
   const fl = surf('floor', ri), band = { ...surf('floor', ri), tint: L.band.tint }, sk = L.skirt, bw = L.band.w;
   const world = (s) => ({ ...s, uvOf: (p) => [p[0] / s.scale, p[1] / s.scale] });
@@ -62,11 +90,18 @@ export function labRoom(out, r, ri, kit, surf) {
     [[r.x0, r.y0 + bw, 0], [1, 0, 0], bw, [0, 1, 0], d - 2 * bw], [[r.x1 - bw, r.y0 + bw, 0], [1, 0, 0], bw, [0, 1, 0], d - 2 * bw]]) panel(out, o, A, a, B, b, Z, world(band), band.cell);
   // ── the deck ──
   const deck = surf('ceiling', ri);
-  panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, [0, 0, -1], deck, deck.cell);
+  if (!hole) panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, [0, 0, -1], deck, deck.cell);
+  else {
+    // the cells over the hole are gone; torn sheets hang from its edges into the room
+    const cells = []; panel(cells, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, [0, 0, -1], deck, deck.cell);
+    out.push(...cells.filter((f) => !hole.has(f.corners.reduce((s, p) => add(s, mul(p, 0.25)), [0, 0, 0]))));
+    tornSheets(out, hole, h, deck, decay.seed);
+  }
   // ── the walls, bay by bay ──
   const sides = ['-y', '+x', '+y', '-x'].filter((s) => !r.open.includes(s));
   const kick = surf('kick'), field = surf('wall', ri), upper = surf('upper'), trim = surf('trim'), col = surf('column');
-  const glass = { fill: L.window.glass, emissive: hexRgb(L.window.glass), emissiveStrength: 1.2, group: 'stage:glass' };
+  const dark = decay ? decay.k.blackout : 0, glassFill = dark > 0 ? Dc.window.glass : L.window.glass;
+  const glass = { fill: glassFill, emissive: hexRgb(glassFill), emissiveStrength: 1.2, group: 'stage:glass' };
   for (const s of sides) {
     const F = wallFrameOf(r, s), cuts = r.openings[s].map((op) => [...openingU(F, op), op.top]).sort((p, q) => p[0] - q[0]);
     const isPortal = Pt && Pt.side === s && !cuts.length && F.len > Pt.width + 4;
@@ -87,7 +122,7 @@ export function labRoom(out, r, ri, kit, surf) {
         const mid = (a + b) / 2, sill = above + Wn.sill;
         panel(out, onWall(F, a, 0, above), F.U, b - a, Z, Wn.sill, F.N, upper, upper.cell);
         archedOpening(out, F, { u0: a, u1: b, z0: sill, z1: h, a: mid - ww / 2, b: mid + ww / 2, zs: sill + Wn.h, H: 0, seg: 1, depth: Wn.depth, ring: Wn.ring, ringOut: Wn.ringOut }, { wall: upper, trim }, { glass });
-        seats.push({ at: P(onWall(F, mid, Wn.light.off, sill + Wn.h / 2)), n: F.N, color: Wn.light.color, intensity: Wn.light.intensity, radius: Wn.light.radius, fixture: 'window' });
+        if (dark < 0.95) seats.push({ at: P(onWall(F, mid, Wn.light.off, sill + Wn.h / 2)), n: F.N, color: Wn.light.color, intensity: dark > 0 ? r5(Wn.light.intensity * (1 - dark)) : Wn.light.intensity, radius: Wn.light.radius, fixture: 'window' });
       } else panel(out, onWall(F, a, 0, above), F.U, b - a, Z, h - above, F.N, upper, upper.cell);
       bays.push({ F, side: s, k, u0, u1, a, b });
     }
@@ -117,7 +152,15 @@ export function labRoom(out, r, ri, kit, surf) {
   const s0 = alongY ? r.x0 : r.y0, l0 = alongY ? r.y0 : r.x0, l1 = alongY ? r.y1 : r.x1;
   const D = L.duct, zD = h - T.depth - D.r - D.gap, ducts = D.at.map((f) => s0 + span * f);
   for (const sd of ducts) {
-    tube(out, at(sd, l0, zD), at(sd, l1, zD), D.r, D.sides, surf('duct'));
+    if (hole && hole.across(sd, D.r)) {
+      // under the hole the duct broke at the bay's trusses: one length hangs from the near truss to the floor, a
+      // stub droops from the far one
+      const [b0, b1] = hole.bay, ds = surf('duct'), drop = Dc.duct;
+      tube(out, at(sd, l0, zD), at(sd, b0, zD), D.r, D.sides, ds);
+      tube(out, at(sd, b1, zD), at(sd, l1, zD), D.r, D.sides, ds);
+      tubeAB(out, at(sd, b0, zD), at(sd + drop.slew, b0 + (b1 - b0) * drop.reach, D.r), D.r, D.sides, ds);
+      tubeAB(out, at(sd, b1, zD), at(sd - drop.slew * 0.3, b1 - drop.stub, zD - drop.stub * 0.9), D.r, D.sides, ds);
+    } else tube(out, at(sd, l0, zD), at(sd, l1, zD), D.r, D.sides, surf('duct'));
     for (const c of trusses) box(out, at(sd - 0.015, c - 0.015, zD + D.r), at(sd + 0.015, c + 0.015, h - T.depth), steel, 1, ['-z', '+z']);   // a hanger at each truss
   }
   const Tr = L.tray, st = s0 + span * Tr.at, zT = h - T.depth - Tr.drop;
@@ -125,16 +168,30 @@ export function labRoom(out, r, ri, kit, surf) {
   for (const sg of [-1, 1]) box(out, at(st + sg * Tr.w / 2 - 0.01, l0, zT), at(st + sg * Tr.w / 2 + 0.01, l1, zT + Tr.side), steel, 1, alongY ? ['-y', '+y'] : ['-x', '+x']);
   Tr.cables.forEach((cr, i) => { const cs = st - Tr.w / 2 + (Tr.w * (i + 1)) / (Tr.cables.length + 1); box(out, at(cs - cr, l0, zT + 0.03), at(cs + cr, l1, zT + 0.03 + 2 * cr), surf('cable'), 2, alongY ? ['-y', '+y'] : ['-x', '+x']); });
   // ── the light: troffers hung between the trusses, in rows down the long span ──
-  const Tf = L.troffer, rows = Tf.rows.map((f) => s0 + span * f), zL = h - T.depth - Tf.drop, mids = [l0, ...trusses, l1];
+  const Tf = L.troffer, rows = Tf.rows.map((f) => s0 + span * f), zL = h - T.depth - Tf.drop, mids = [l0, ...trusses, l1], fallen = [], sparks = [];
   for (let k = 0; k + 1 < mids.length; k++) {
     const lm = (mids[k] + mids[k + 1]) / 2;
-    for (const sr of rows) {
-      const c = at(sr, lm, zL);
-      troffer(out, c, alongY ? 1 : 0, Tf, h - T.depth, { housing: surf('housing'), chain: steel });
-      seats.push({ at: P([c[0], c[1], c[2] - 0.15]), n: [0, 0, -1], color: Tf.color, intensity: Tf.intensity, radius: Tf.radius, fixture: 'troffer' });
+    for (const [j, sr] of rows.entries()) {
+      const c = at(sr, lm, zL), ts = { housing: surf('housing'), chain: steel }, ax = alongY ? 1 : 0;
+      let state = !decay ? 'lit' : hole && hole.has(c) ? (j % 2 ? 'fallen' : 'hanging') : hash3(decay.seed, k * 7 + j, 8201) < 1 - Dc.survive * dark ? 'lit' : 'dead';
+      // a survivor of the blackout may be dying: baked on, it stutters on the page (stage-flicker.js), no halo
+      const dying = state === 'lit' && dark > 0 && hash3(decay.seed, k * 7 + j, 8203) < Dc.flicker.share;
+      if (state === 'lit' || state === 'dead') troffer(out, c, ax, Tf, h - T.depth, ts, state === 'dead', !dying);
+      if (state === 'lit') seats.push({ at: P([c[0], c[1], c[2] - 0.15]), n: [0, 0, -1], color: Tf.color, intensity: Tf.intensity, radius: Tf.radius, fixture: 'troffer', ...(dying ? { flicker: { mode: 'stutter', seed: k * 7 + j + 1 } } : {}) });
+      if (state === 'hanging') {
+        // one chain let go: it swings down from the other, nearly on end
+        const fx = []; troffer(fx, c, ax, { ...Tf, deadTint: Tf.deadTint }, null, ts, true);
+        const end = at(sr, lm - Tf.len * 0.35, zL + Tf.h), axis = alongY ? [1, 0, 0] : [0, -1, 0];
+        out.push(...turnFaces(fx, end, axis, Dc.hang));
+        // shorting as it hangs: a spark now and then (light the bake doesn't have: page only)
+        const tip = rotAbout(at(sr, lm + Tf.len * 0.5, zL), end, axis, Dc.hang);
+        sparks.push({ at: P(tip), radius: Tf.radius * 0.8, mode: 'spark', seed: k * 7 + j + 101 });
+        box(out, [end[0] - 0.012, end[1] - 0.012, end[2]], [end[0] + 0.012, end[1] + 0.012, h - T.depth], steel, 1, ['-z', '+z']);
+      }
+      if (state === 'fallen') fallen.push({ at: [c[0], c[1], 0], ax });
     }
   }
-  return { seats, bays, structure: { trusses, ducts, zD, tray: { at: st, z: zT }, alongY, troffers: zL } };
+  return { seats, bays, structure: { trusses, ducts, zD, tray: { at: st, z: zT }, alongY, troffers: zL, ...(hole ? { hole: { rect: hole.rect, fallen } } : {}), ...(sparks.length ? { sparks } : {}) } };
 }
 
 const wallFrameOf = (r, s) => {
@@ -195,4 +252,31 @@ function blastDoor(out, F, u0, u1, h, Pt, sf, seats) {
   out.push(lit([W(mid - lw, lz, 0.12), W(mid + lw, lz, 0.12), W(mid + lw, lz + 0.18, 0.12), W(mid - lw, lz + 0.18, 0.12)], N, Pt.lamp, 'stage:lamp', `0 0 10px 4px ${Pt.lamp}`, 3));
   wallBox(out, F, mid - lw - 0.04, mid + lw + 0.04, lz - 0.04, lz + 0.22, 0.1, { key: null, scale: 1, tint: [0.3, 0.3, 0.32], group: 'stage:fixture' }, 1);
   seats.push({ at: P(W(mid, lz + 0.1, 0.5)), n: N, color: Pt.lamp, intensity: Pt.lampLight.intensity, radius: Pt.lampLight.radius, fixture: 'lamp' });
+}
+
+/** The collapse's hole: over its bay (between two trusses), across part of the span from one side; `has(p)` tests a
+ *  point under it, `across(s, r)` a line down the run. */
+function collapseHole(r, kit, decay) {
+  const pk = decay.pick.collapse, k = decay.k.collapse, alongY = pk.alongY, run0 = alongY ? r.y0 : r.x0, run = alongY ? r.y1 - r.y0 : r.x1 - r.x0;
+  const s0 = alongY ? r.x0 : r.y0, span = alongY ? r.x1 - r.x0 : r.y1 - r.y0, Dc = kit.dress.decay.hole;
+  const b0 = run0 + (run * pk.bay) / pk.n, b1 = run0 + (run * (pk.bay + 1)) / pk.n;
+  const a0 = s0 + span * Dc.from, a1 = s0 + span * (Dc.from + Dc.span * k), l0 = b0 + Dc.inset, l1 = b1 - Dc.inset;
+  const rect = alongY ? [a0, l0, a1, l1] : [l0, a0, l1, a1];
+  return { rect, bay: [b0, b1], has: (p) => p[0] > rect[0] && p[0] < rect[2] && p[1] > rect[1] && p[1] < rect[3], across: (sv, rr) => sv + rr > a0 && sv - rr < a1, alongY };
+}
+/** Torn deck sheets hanging from the hole's long edges, bent down into the room at seeded angles. */
+function tornSheets(out, hole, h, deck, seed) {
+  const [x0, y0, x1, y1] = hole.rect, along = hole.alongY;
+  const edges = along ? [[[x0, y0], [x0, y1], [1, 0]], [[x1, y0], [x1, y1], [-1, 0]]] : [[[x0, y0], [x1, y0], [0, 1]], [[x0, y1], [x1, y1], [0, -1]]];
+  edges.forEach(([p, q, inward], e) => {
+    const n = 3;
+    for (let i = 0; i < n; i++) {
+      if (hash3(seed, e * 7 + i, 8301) < 0.3) continue;
+      const t0 = (i + 0.1) / n, t1 = (i + 0.9) / n, a = [p[0] + (q[0] - p[0]) * t0, p[1] + (q[1] - p[1]) * t0, h], b = [p[0] + (q[0] - p[0]) * t1, p[1] + (q[1] - p[1]) * t1, h];
+      const len = 0.6 + 0.9 * hash3(seed, e * 7 + i, 8303), ang = 0.9 + 0.5 * hash3(seed, e * 7 + i, 8305);
+      const down = [inward[0] * Math.cos(ang) * len, inward[1] * Math.cos(ang) * len, -Math.sin(ang) * len];
+      const nn = [-inward[0] * Math.sin(ang), -inward[1] * Math.sin(ang), -Math.cos(ang)].map(r5);
+      quad(out, [a, b, add(b, down), add(a, down)], nn, deck, null, null, [[0, 0], [1.2, 0], [1.2, len / deck.scale], [0, len / deck.scale]]);
+    }
+  });
 }

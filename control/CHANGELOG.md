@@ -236,6 +236,34 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The open set is byte-identical.
 
+### Stage decay
+
+- `decay` on a stage whose style card carries one (the lab's): a number 0–1 for every event at that strength, or
+  `{ collapse, leak, breach, blackout, abandon, seed }`, each 0–1. Every event is a cause, and the mess it leaves has
+  a place it came from (era/decay.js picks where, from the rooms and the bays alone):
+  - **collapse**: a bay of the roof came down. The deck is open over it, with torn sheets hanging from the edges.
+    The duct broke at the bay's trusses (one length down to the floor, a stub drooping), one troffer hangs from a
+    single chain and another lies in the debris heaped under the hole.
+  - **leak**: a pipe burst at the service band. Streaks and rust run down the wall under it, there's a puddle at its
+    foot and, with `water`, a thin stream.
+  - **breach**: the tank broke. Its glass is a jagged ring, the liquid is drained to a skim, the glow is out and a
+    hoop lies on the dais. The spill spreads toward the side it split, with shards strewn the same way.
+  - **blackout**: most troffers are dead, the clerestory is dark and the screens are black but for a few on their
+    batteries. Red emergency lamps on the columns are baked red, the ambient is down and the air thicker.
+  - **abandon**: chairs tipped and shoved, monitors face down on the floor, the cart rolled and over, the
+    extinguisher down and glassware broken. Papers are strewn, more of them against the walls. There's dust on
+    everything that faces up, and the walked path has faded.
+- The things are records, so abandonment changes them before they are built (`tip` lets a thing down onto the
+  floor). The dressing hands the stage its extra lights, its dirt (`leaks`, `dust`) and its water. Spills and
+  puddles take the water look with `water`.
+- Dying lamps flicker on the page (scene/channels/stage-flicker.js): some troffers that survive the blackout stutter
+  (baked on, they go off in bursts, taking their pool and their tube with them), and a troffer hanging by one chain
+  sparks (baked off, it flashes now and then). The page scales each lit mesh's baked vertex colour by the lamp's change
+  near it, so exports keep the floor (the bake). Absent `flicker` ⇒ the channel isn't emitted.
+- The tank now has a frame of four struts, so its cap stands on something.
+- The style card's decay principles are machine checks (lab-decay.test.js). The derelict lab is in the page budget.
+  No decay (absent, 0, or every event at 0) is the clean lab, byte for byte. Other stages are byte-identical.
+
 ### Stage lab
 
 - A fourth stage kit and the first modern one: `research-lab`, after a new reference card `doom3` (Doom 3's UAC
