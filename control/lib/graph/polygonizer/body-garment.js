@@ -24,7 +24,17 @@
  * (the toe box, its flat side the sole) reaching back under the instep. Each ring is the SUPERPOSITION of their two
  * sections, the outermost in every direction, and nothing lies below the sole (the lowest point), so the shoe stands
  * flat. `toe` (a share, default 1: the toes' own height, so none shows through) is the toe box's height against the foot's; `heel` (m) lifts the heel cup's top.
- * Each ring takes the bind of the foot's station nearest it. Pure, deterministic.
+ * Each ring takes the bind of the foot's station nearest it.
+ *
+ * `fit: 'skirt'` is a piece of its own too: one hull round all of `part` (the hips and both legs) from the waist (`from`:
+ * an address { part, u | run }) to the hem (`to`), each ring the support of everything at its height in twenty
+ * directions, symmetric, never narrowing below the hips and widening by `flare` (m per m of fall); each point skins as
+ * the pelvis at the waist, and below by the crotch as the leg it lies over (the cloth near a leg follows it, the cloth
+ * between and behind the legs stays with the pelvis). The
+ * cloth has two faces, down the outside, folded at the hem and back up `thick` (m) inside to the hips, so the hem is an edge
+ * and the skirt open beneath. The piece is `<id>_skirt`; its outer rings are st0 (the waist) … st11 (the hem).
+ * `drape` (a copy piece's): held out above, the cloth falls from there, coming in at most `drape` per metre of fall (a
+ * shirt from the bust, not hugging back under it). Pure, deterministic.
  */
 import { hullHeight } from './station-loft-adorn.js';
 import { SLOT_FAMILIES } from './station-loft-plan.js';
@@ -56,10 +66,13 @@ export function validateGarments(G) {
     if (P.flare !== undefined && !(Array.isArray(P.flare) && P.flare.length === 2 && P.flare.every((x) => Number.isFinite(x) && x >= 0))) errs.push(`${at}.flare: [extra ease at the start, at the end] (m)`);
     if (P.over !== undefined && !(Array.isArray(P.over) && P.over.every((n) => typeof n === 'string'))) errs.push(`${at}.over: a list of part names`);
     if (P.rings !== undefined && !(P.rings && typeof P.rings === 'object' && Object.keys(P.rings).every((k) => ['u', 'run'].includes(k)) && Object.values(P.rings).every((v) => Array.isArray(v) && v.every(Number.isFinite)))) errs.push(`${at}.rings: { u?: [stations], run?: [shares] } — rings added inside the window`);
-    if (P.fit !== undefined && P.fit !== 'shoe') errs.push(`${at}.fit: 'shoe' (footwear on a flat sole), or absent (a copy of the part's rings)`);
+    if (P.fit !== undefined && !['shoe', 'skirt'].includes(P.fit)) errs.push(`${at}.fit: 'shoe' (footwear on a flat sole), 'skirt' (a hull round the hips and both legs), or absent (a copy of the part's rings)`);
+    if (P.fit === 'skirt') for (const k of ['from', 'to']) if (!(P[k] && typeof P[k].part === 'string' && (Number.isFinite(P[k].u) || Number.isFinite(P[k].run)))) errs.push(`${at}.${k}: { part, u | run } — the ${k === 'from' ? 'waist' : 'hem'}'s height, an address on a body part`);
+    if (P.drape !== undefined && !(Number.isFinite(P.drape) && P.drape >= 0)) errs.push(`${at}.drape: how far the cloth may fall in per metre it falls below what holds it out (≥ 0; 0 falls straight)`);
     if (P.toe !== undefined && !(Number.isFinite(P.toe) && P.toe > 0)) errs.push(`${at}.toe: the toe box's height as a share of the foot's (> 0)`);
     if (P.heel !== undefined && !(Number.isFinite(P.heel) && P.heel >= 0)) errs.push(`${at}.heel: metres added over the heel cup (≥ 0)`);
-    for (const k of Object.keys(P)) if (!['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings'].includes(k)) errs.push(`${at}.${k}: not a garment field (id, part, u, run, ease, flare, over, group, fit, toe, heel, rings)`);
+    for (const k of Object.keys(P)) if (!['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick'].includes(k)) errs.push(`${at}.${k}: not a garment field (id, part, u, run, ease, flare, over, group, fit, toe, heel, rings, from, to, drape, thick)`);
+    if (P.thick !== undefined && !(Number.isFinite(P.thick) && P.thick > 0)) errs.push(`${at}.thick: a skirt's cloth thickness at the hem (m, > 0)`);
   });
   return errs;
 }
@@ -95,6 +108,10 @@ export function garmentParts(parts, garments, dials = {}) {
   const worn = {};   // body part → the garment parts already on it (the next one stands off them)
   garments.forEach((P, i) => {
     const names = both(P.part).flatMap((n) => { const hit = partsNamed(parts, n); if (!hit.length) throw new Error(`garments[${i}]: '${n}' is not an L1 part`); return hit; });
+    if (P.fit === 'skirt') { const name = `${P.id}_skirt`; parts[name] = skirtPart(parts, names, P, worn);
+      for (const src of names) (worn[src] ??= []).push(name);
+      for (const d of Object.values(dials)) if (Array.isArray(d.parts) && names.some((n) => d.parts.includes(n))) d.parts = [...d.parts, name];
+      return; }
     for (const src of names) {
       if (P.fit === 'shoe') { const name = `${P.id}_${src}`; parts[name] = shoePart(parts, src, P); (worn[src] ??= []).push(name);
         for (const d of Object.values(dials)) if (Array.isArray(d.parts) && d.parts.includes(src)) d.parts = [...d.parts, name];
@@ -114,6 +131,13 @@ export function garmentParts(parts, garments, dials = {}) {
         H = H.map((row, j) => row.map((_, k) => Math.max(...nb(j, k).map(([a, b]) => H[a][b])))); H = H.map((row, j) => row.map((_, k) => mean(nb(j, k).map(([a, b]) => [H[a][b], 0, 0]))[0]));
       }
       const fl = P.flare ?? [0, 0];
+      // DRAPE: cloth held out above (by the bust, the shoulder blades) falls from there instead of hugging back in under
+      // it: from the top ring down, each point stands at least as far out as the one above it, less `drape` per metre
+      // it falls
+      if (P.drape !== undefined) for (let j = n - 2; j >= 0; j--) { const dz = Math.abs(C[j + 1][2] - C[j][2]);
+        for (let k = 0; k < part.slots.length; k++) { const sl = part.slots[k], f = (rings[j].u - ua) / span, e = P.ease + fl[0] * (1 - f) + fl[1] * f, fa = (rings[j + 1].u - ua) / span, ea = P.ease + fl[0] * (1 - fa) + fl[1] * fa;
+          const above = dmath.hypot(...sub(add(rings[j + 1].points[sl], mul(N[j + 1][k], ea + H[j + 1][k])), C[j + 1]).slice(0, 2)), here = dmath.hypot(...sub(rings[j].points[sl], C[j]).slice(0, 2));
+          H[j][k] = Math.max(H[j][k], above - P.drape * dz - here - e); } }
       const stations = rings.map((r, j) => { const f = (r.u - ua) / span, e = P.ease + fl[0] * (1 - f) + fl[1] * f;
         return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], mul(N[j][k], e + H[j][k])).map(r6)])) }; });
       const name = `${P.id}_${src}`;
@@ -200,5 +224,67 @@ function shoePart(parts, src, P) {
     const blend = Object.fromEntries(stations.map((st) => [st.id, blendOf(foot.bind, near(st.a))]));
     piece.bind = { bone: typeof foot.bind === 'string' ? foot.bind : foot.bind.bone, blend: { ...blend, back: blend.st0, tip: blend[`st${N - 1}`] } };
   }
+  return piece;
+}
+
+// ─── skirts: a hull round the hips and both legs ───
+/** the height of an address { part, u | run } on a body part: its ring centre there */
+function heightAt(parts, A) {
+  const part = parts[A.part] ?? parts[`${A.part}R`]; if (!part) throw new Error(`skirt: '${A.part}' is not an L1 part`);
+  const U = part.stations.map((s, k) => s.u ?? k), u0 = U[0], u1 = U[U.length - 1], u = Number.isFinite(A.u) ? A.u : u0 + A.run * (u1 - u0);
+  const z = part.stations.map((st) => mean(Object.values(st.points))[2]); let i = U.findIndex((x) => x >= u - 1e-9); if (i <= 0) return z[Math.max(0, i)];
+  return z[i - 1] + (z[i] - z[i - 1]) * (u - U[i - 1]) / (U[i] - U[i - 1]);
+}
+/** A SKIRT round `names` (the hips and both legs, a list of L1 parts) from the waist (`from`) to the hem (`to`): each
+ * ring at its height is the support of everything there (the body parts, the garments already worn on them) in twenty
+ * directions about the waist's centre, made symmetric, carried out by the ease; below the hips' widest ring it never
+ * narrows (cloth falls, it does not tuck between the legs) and widens by `flare` per metre it falls (an A-line). Each
+ * point skins as the pelvis at the waist, blending down to the leg on its own side by the crotch. */
+function skirtPart(parts, names, P, worn) {
+  const slots = SLOT_FAMILIES.ring20, n = slots.length, e = P.ease, flare = Array.isArray(P.flare) ? P.flare[1] : (P.flare ?? 0);
+  const zw = heightAt(parts, P.from), zh = heightAt(parts, P.to);
+  const beneath = [...names, ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm]);
+  const pts = beneath.flatMap((nm) => [...parts[nm].stations.flatMap((st) => Object.values(st.points)), parts[nm].caps.back, parts[nm].caps.tip]);
+  const waist = pts.filter((p) => Math.abs(p[2] - zw) < 0.04), cy = waist.length ? (Math.min(...waist.map((p) => p[1])) + Math.max(...waist.map((p) => p[1]))) / 2 : 0;
+  const N = 12, dirs = Array.from({ length: n }, (_, k) => [Math.sin(2 * Math.PI * k / n), Math.cos(2 * Math.PI * k / n)]);
+  const zs = Array.from({ length: N }, (_, i) => zw + (zh - zw) * i / (N - 1)), slab = Math.abs(zh - zw) / (N - 1) * 0.75;
+  let prev = null;
+  const R = zs.map((z) => { const q = pts.filter((p) => Math.abs(p[2] - z) <= slab);
+    const r = q.length ? dirs.map(([dx, dy]) => Math.max(0.01, ...q.map((p) => p[0] * dx + (p[1] - cy) * dy))) : prev; prev = r;
+    return r.map((x, k) => Math.max(x, r[(n - k) % n])); });
+  // the hips' widest ring; below it the cloth only falls and flares
+  let hip = 0; R.forEach((r, i) => { if (r.reduce((a, b) => a + b, 0) > R[hip].reduce((a, b) => a + b, 0)) hip = i; });
+  for (let i = hip + 1; i < N; i++) R[i] = R[i].map((x, k) => Math.max(x, R[i - 1][k] + flare * Math.abs(zs[i] - zs[i - 1])));
+  // the crotch: where the legs part (the lowest point of the pelvis, else the thighs' tops)
+  const zc = parts.pelvis ? Math.min(...parts.pelvis.stations.flatMap((st) => Object.values(st.points)).map((p) => p[2])) : zw - 0.12;
+  const pelvisBone = parts.pelvis?.bind?.bone ?? 'pelvis', legBone = (sd) => parts[`thigh${sd}`]?.bind?.bone ?? `thigh${sd}`;
+  // a leg's centre and radius at a height: its thigh's and shank's ring centres, interpolated (null above it)
+  const legRings = (sd) => ['thigh', 'shank'].flatMap((nm) => parts[`${nm}${sd}`]?.stations || []).map((st) => { const P2 = Object.values(st.points), c = mean(P2);
+    return { c, r: Math.max(...P2.map((q) => dmath.hypot(q[0] - c[0], q[1] - c[1]))) }; }).sort((a2, b2) => b2.c[2] - a2.c[2]);
+  const LR = { R: legRings('R'), L: legRings('L') };
+  const legAt = (sd, z) => { const L = LR[sd]; if (!L.length || z > L[0].c[2]) return null; for (let q = 1; q < L.length; q++) if (z >= L[q].c[2]) { const f = (L[q - 1].c[2] - z) / Math.max(1e-9, L[q - 1].c[2] - L[q].c[2]);
+    return { c: L[q - 1].c.map((v, d) => v + (L[q].c[d] - v) * f), r: L[q - 1].r + (L[q].r - L[q - 1].r) * f }; } return L[L.length - 1]; };
+  // the cloth's two faces: down the outside to the hem, folded there, and back up a wall `thick` inside it to the hips,
+  // closed within the body; so the hem is an edge and the skirt is open beneath, never a disc across the legs
+  const thick = P.thick ?? 0.004, ring = (i, inner) => ({ i, inner, z: inner ? zs[i] + (i === N - 1 ? thick : 0) : zs[i] });
+  const walk = [...zs.map((_, i) => ring(i, false)), ...zs.map((_, i) => N - 1 - i).filter((i) => i >= hip).map((i) => ring(i, true))];
+  const stations = [], blend = {};
+  walk.forEach(({ i, inner, z }, j) => { const id = `st${j}`, points = {};
+    slots.forEach((sl, k) => { const [dx, dy] = dirs[k], r = R[i][k] + e - (inner ? thick : 0); const p = [dx * r, cy + dy * r, z]; points[sl] = p.map(r6);
+      // the cloth goes with what it lies nearest: each leg, or the line between them (the pelvis), by the inverse square
+      // of its distance from each at its height (a leg from its surface, the line from the axis, the leg's radius off it).
+      // So the cloth over a knee goes where the knee goes, the cloth between and behind the knees stays with the pelvis,
+      // and a stride swings the skirt rather than flinging it. The legs' share grows from the waist to the crotch.
+      const down = Math.max(0, Math.min(1, (zw - z) / Math.max(1e-6, zw - zc))), LgR = legAt('R', z), LgL = legAt('L', z);
+      const inv = (d) => 1 / Math.max(1e-4, d) ** 2, off = (L) => (L ? Math.max(0.005, dmath.hypot(p[0] - L.c[0], p[1] - L.c[1]) - L.r) : Infinity);
+      const iR = LgR ? inv(off(LgR)) : 0, iL = LgL ? inv(off(LgL)) : 0, iC = inv(Math.max(0.005, dmath.hypot(p[0], p[1] - cy) - (LgR?.r ?? 0.06)));
+      const legs = Math.min(0.95, down * (iR + iL) / (iR + iL + iC)), split = iR + iL > 0 ? iR / (iR + iL) : 0.5;
+      const w = { [pelvisBone]: 1 - legs, [legBone('R')]: legs * split, [legBone('L')]: legs * (1 - split) };
+      const ent = Object.entries(w).filter(([, x]) => x > 1e-6), sum = ent.reduce((t, [, x]) => t + x, 0), out = Object.fromEntries(ent.map(([b, x]) => [b, r6(x / sum)]));
+      const top = ent.sort((a2, b2) => b2[1] - a2[1])[0][0]; out[top] = r6(out[top] + 1 - Object.values(out).reduce((t, x) => t + x, 0)); blend[`${id}.${sl}`] = out; });
+    stations.push({ id, u: j, points }); });
+  const zTop = zs[hip];
+  const piece = { layer: 1, closure: 'closed', garment: true, slots, stations, caps: { back: [0, r6(cy), r6(zw + 0.02)], tip: [0, r6(cy), r6(zTop - 0.02)] }, group: P.group,
+    bind: { bone: pelvisBone, blend: { ...blend, back: { [pelvisBone]: 1 }, tip: { [pelvisBone]: 1 } } } };
   return piece;
 }

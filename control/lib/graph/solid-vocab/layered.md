@@ -403,7 +403,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `focal`. Expanded on every read by its passes: CUT (pieces on landmarks), FIT (ease and hang), LAYER (tucked or worn
   out), CONSTRUCTION (a woven placket), ORNAMENT (from the focal out: collar or rib, buttons, belt; cuffs, hems,
   waistband; seams), TONE (the card's over derived Trim, Placket, Button, Seam, Waistband), LEDGER (the readout's
-  `hero.dress.outfit`: lengths, pieces, edges spent, and warnings for what this body could not wear). Patch
+  `hero.dress.outfit`: lengths, pieces, edges spent, and warnings for what this body could not wear). Skirts and dresses:
+  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full }` is one hull round the hips
+  and both legs (garment `fit: 'skirt'`): each ring the support of everything at its height, never narrowing below the
+  hips, flaring by its cut, two-faced (folded at the hem, so it is open beneath), each point skinned by nearness (the
+  cloth over a leg follows that leg, the cloth between and behind the legs the pelvis); `dress: true` makes the skirt the
+  top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
+  Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
   `adorn: 'ranger'` wears a belt (iron buckle), a baldric across the chest (iron buckle), an archer's bracer on the left
   forearm and ONE pauldron on the right shoulder with a bronze boss (the focal accent), stacked in that order, and suggests

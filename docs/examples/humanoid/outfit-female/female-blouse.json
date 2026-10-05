@@ -1,0 +1,13 @@
+{
+  "name": "female-blouse",
+  "$note": "outfit { style: 'blouse' }: a woven long-sleeved blouse tucked into a pencil skirt at the knee, placket and buttons its focal, a belt and waistband, shoes.",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "blouse"
+    },
+    "gesture": "relaxed"
+  }
+}

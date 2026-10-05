@@ -5,7 +5,9 @@
 // A card:
 //   dials     { stylize, fit, coverage, ornament } — the defaults a build's own `dials` override
 //   language  top:    { family: 'knit' | 'woven', sleeve, hem, collar: true|false } | false (no top)
-//             bottom: { family, leg } | false
+//             bottom: { family, leg } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
+//             full } | false
+//             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
 //             feet:   'boots' | 'shoes' | 'none'
 //             tuck:   true (the top tucked in, the bottom over its tail) | false (worn out over the bottom)
 //             focal:  'collar' | 'placket' | 'belt' (law 5; defaults to the woven top's placket, else the belt)
@@ -32,6 +34,25 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "knit", "sleeve": "none", "hem": "waist" }, "bottom": { "family": "knit", "leg": "short" }, "feet": "shoes", "tuck": false, "focal": "collar" },
     "tones": { "Top": "#e4572e", "Bottom": "#1d2433", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
   },
+  // the female cards: a dress, a blouse and a pencil skirt, athleisure (any card dresses any cast; these are drawn on her)
+  sundress: {
+    "id": "sundress",
+    "dials": { "stylize": 0.25, "fit": 0.45, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "woven", "sleeve": "cap", "hem": "waist" }, "bottom": { "kind": "skirt", "family": "woven", "leg": "knee", "cut": "aline" }, "dress": true, "feet": "shoes", "tuck": true, "focal": "belt" },
+    "tones": { "Top": "#e9b44c", "Shoes": "#8a5a3c", "Leather": "#7a4a2a", "Buckle": "#e8d9a8" }
+  },
+  blouse: {
+    "id": "blouse",
+    "dials": { "stylize": 0.15, "fit": 0.4, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip" }, "bottom": { "kind": "skirt", "family": "woven", "leg": "knee", "cut": "pencil" }, "feet": "shoes", "tuck": true, "focal": "placket" },
+    "tones": { "Top": "#f3ece4", "Bottom": "#2f2a3a", "Shoes": "#1c1714", "Button": "#c9b48a" }
+  },
+  athleisure: {
+    "id": "athleisure",
+    "dials": { "stylize": 0.2, "fit": 0.1, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "none", "hem": "crop" }, "bottom": { "family": "knit", "leg": "long" }, "feet": "shoes", "tuck": false, "focal": "collar" },
+    "tones": { "Top": "#7fb8a4", "Bottom": "#2b2f3a", "Shoes": "#f0f0f0", "Trim": "#f0f0f0" }
+  },
   adventurer: {
     "id": "adventurer",
     "dials": { "stylize": 0.45, "fit": 0.7, "coverage": 1, "ornament": 2 },
@@ -41,7 +62,7 @@ export const SEEDED_OUTFITS = Object.freeze({
 });
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
-const LEG = ['brief', 'short', 'knee', 'capri', 'long'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
+const LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const one = (v, list, at) => (v === undefined || list.includes(v) ? [] : [`${at}: '${v}' — one of ${list.join(', ')}`]);
 
@@ -53,7 +74,11 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.top !== undefined && L.top !== false) { if (typeof L.top !== 'object') errs.push(`${at}.language.top: { family, sleeve, hem, collar? } or false`);
     else errs.push(...one(L.top.family, FAMILY, `${at}.language.top.family`), ...one(L.top.sleeve, SLEEVE, `${at}.language.top.sleeve`), ...one(L.top.hem, HEM, `${at}.language.top.hem`)); }
   if (L.bottom !== undefined && L.bottom !== false) { if (typeof L.bottom !== 'object') errs.push(`${at}.language.bottom: { family, leg } or false`);
+    else if (L.bottom.kind === 'skirt') errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, SKIRT, `${at}.language.bottom.leg`), ...one(L.bottom.cut, CUT, `${at}.language.bottom.cut`));
+    else if (L.bottom.kind !== undefined && L.bottom.kind !== 'trousers') errs.push(`${at}.language.bottom.kind: 'trousers' (the default) or 'skirt'`);
     else errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, LEG, `${at}.language.bottom.leg`)); }
+  if (L.dress !== undefined && typeof L.dress !== 'boolean') errs.push(`${at}.language.dress: true or false`);
+  if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
   errs.push(...one(L.feet, FEET, `${at}.language.feet`), ...one(L.focal, FOCAL, `${at}.language.focal`));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);
   if (card.tones !== undefined && !(card.tones && typeof card.tones === 'object' && Object.values(card.tones).every(isHex))) errs.push(`${at}.tones: { group: '#rrggbb' }`);

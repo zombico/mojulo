@@ -1,0 +1,19 @@
+{
+  "name": "female-midi-guard",
+  "$note": "the sundress with a full midi skirt (language bottom { leg: 'midi', cut: 'full' }) in the guard: the skirt follows the legs.",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "sundress",
+      "language": {
+        "bottom": {
+          "leg": "midi",
+          "cut": "full"
+        }
+      }
+    },
+    "gesture": "guard"
+  }
+}

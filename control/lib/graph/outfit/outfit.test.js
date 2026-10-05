@@ -88,6 +88,45 @@ describe('the passes', () => {
     expect(tr.warnings.join(' ')).toMatch(/no pelvis to belt/);
     expect(tr.warnings.join(' ')).toMatch(/focal: 'belt'/);
   });
+  it('a skirt: one hull round the hips and both legs, holding them at rest, never narrowing below the hips, open beneath', () => {
+    for (const core of ['structured', 'streamlined']) for (const cut of ['pencil', 'aline', 'full']) {
+      const { recipe, mesh } = wear({ cast: 'female', core, outfit: build('blouse', { language: { bottom: { cut } } }) });
+      const S = recipe.parts.skirt_skirt, outer = S.stations.slice(0, 12), rad = (st) => Object.values(st.points).map((p) => Math.hypot(p[0], p[1] - outer[0].points.front[1] + (outer[0].points.front[1] - outer[0].points.back[1]) / 2));
+      // below the hips' widest ring each ring is at least as wide as the one above it, everywhere round
+      const mean = (st) => rad(st).reduce((a, b) => a + b, 0); let hip = 0; outer.forEach((st, i) => { if (mean(st) > mean(outer[hip])) hip = i; });
+      for (let i = hip + 1; i < 12; i++) rad(outer[i]).forEach((r, k) => expect(r, `${core} ${cut} ring ${i}`).toBeGreaterThanOrEqual(rad(outer[i - 1])[k] - 1e-6));
+      // folded at the hem: an inner wall back up, so the skirt is open beneath
+      expect(S.stations.length).toBeGreaterThan(12);
+      // the thighs' points between the waist and the hem lie inside the outer rings (each ring's support, in plan)
+      const zw = outer[0].points.front[2], zh = outer[11].points.front[2];
+      for (const n of ['thighR', 'thighL']) for (const st of recipe.parts[n].stations) for (const p of Object.values(st.points)) {
+        if (p[2] > zw || p[2] < zh) continue; const i = Math.min(11, Math.max(0, Math.round((zw - p[2]) / (zw - zh) * 11)));
+        const ring = Object.values(outer[i].points), cy = (outer[i].points.front[1] + outer[i].points.back[1]) / 2;
+        const ang = Math.atan2(p[0], p[1] - cy), r = Math.hypot(p[0], p[1] - cy), near = ring.reduce((b, q) => { const a2 = Math.atan2(q[0], q[1] - cy); return Math.abs(a2 - ang) < Math.abs(Math.atan2(b[0], b[1] - cy) - ang) ? q : b; });
+        expect(r, `${core} ${cut} ${n}`).toBeLessThanOrEqual(Math.hypot(near[0], near[1] - cy) + 0.02);
+      }
+      expect(Object.entries(auditLayered(mesh)).filter(([, r2]) => !r2.pass).map(([n]) => n)).toEqual([]);
+    }
+  });
+  it('the skirt skins by nearness: its weights sum to one, the cloth over a leg follows that leg, the cloth between them the pelvis', () => {
+    const { recipe } = wear({ cast: 'female', outfit: build('sundress', { language: { bottom: { leg: 'midi' } } }) });
+    const B = recipe.parts.skirt_skirt.bind.blend;
+    for (const [k, w] of Object.entries(B)) expect(Object.values(w).reduce((a, b) => a + b, 0), k).toBeCloseTo(1, 9);
+    expect(B['st9.sideR'].thighR ?? 0).toBeGreaterThan(B['st9.sideR'].pelvis ?? 0);
+    expect(B['st9.back'].pelvis ?? 0).toBeGreaterThan(Math.max(B['st9.back'].thighR ?? 0, B['st9.back'].thighL ?? 0));
+    expect(B['st0.front']).toEqual({ pelvis: 1 });
+  });
+  it('a dress is one garment: the skirt in the top\'s cloth, no waistband, no placket, the belt its focal', () => {
+    const { trace, garments } = expandOutfit(build('sundress'), { have: STRUCT, scale: 1 });
+    expect(trace.dress).toBe(true); expect(garments.find((E) => E.id === 'skirt').group).toBe('Top');
+    expect(trace.edges).toEqual(['belt']);
+    expect(validateOutfitBuild(build('casual', { language: { dress: true } }))[0]).toMatch(/a dress is a top and a skirt/);
+  });
+  it('the top drapes from what holds it out: under the bust the shirt comes in no faster than its drape', () => {
+    const { recipe } = wear({ cast: 'female', outfit: build('blouse') });
+    const T = recipe.parts.top_torso, front = (id) => T.stations.find((s) => s.id === id).points.front[1];
+    expect(front('st1')).toBeGreaterThan(front('st2') - 0.35 * Math.abs(T.stations.find((s) => s.id === 'st2').points.front[2] - T.stations.find((s) => s.id === 'st1').points.front[2]) - 0.01);
+  });
   it('deterministic: the same words, the same recipe', () => {
     const a = JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe);
     expect(JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe)).toBe(a);

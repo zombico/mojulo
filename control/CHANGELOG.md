@@ -56,6 +56,16 @@ faces, and garments with volume built on the adornment loop. Opt-in; no stored h
   - A paint window too narrow for a coarse ring paints the band holding its middle.
   - A cap takes paint only from an entry that covers its part end to end.
   - The card's tones reach the head's include, as an armour kit's do.
+- **Skirts and dresses.** A garment `fit: 'skirt'` is one hull round the hips and both legs, from the waist to a hem on a
+  landmark:
+  - each of its rings is the support of everything at that height, made symmetric;
+  - it never narrows below the hips and widens by its cut (pencil, A-line, full);
+  - it is two-faced, folded at the hem, so it is open beneath and its hem is an edge;
+  - each point is skinned by nearness: the cloth over a leg follows that leg, and the cloth between and behind the legs
+    stays with the pelvis, so a stride swings the skirt and the knees stay inside it.
+
+  Outfit builds take `bottom { kind: 'skirt', leg, cut }` and `dress: true`. Tops drape from the bust and shoulder blades
+  rather than hugging back in under them. New female cards: `sundress`, `blouse` and `athleisure`.
 
 ### Figure articulation: herobot
 
