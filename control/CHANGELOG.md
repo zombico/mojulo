@@ -94,6 +94,12 @@ lands.
   per digit, or a hand word: `relaxed`, `open`, `fist`, `point`, `grip`) now move a structured hero instead of being
   refused; a streamlined hero still refuses them. Fifteen finger bones a hand, named as VRM and Godot name them. A rig
   may now carry `hands`, the wrist and digit chains its posing turns in the hand's own frame.
+- **The arms.** On the structured core the upper arm and the forearm carry their muscles instead of running as two
+  cones: under the deltoid the triceps fills the back of the upper arm and the biceps the front lower down, into an
+  elbow that is wider across than it is deep; the forearm is fullest across just below the elbow and slims into the
+  wrist over its last third. The male's are marked, the female's softer, the anime casts' softer still. Cuffs,
+  bracers and armour land where they did; a streamlined hero is unchanged. A segment may carry shaping rings between
+  its own (`shape`), addressed between its rings so its addresses keep their meaning.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the

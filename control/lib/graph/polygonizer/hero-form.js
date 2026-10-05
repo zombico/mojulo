@@ -22,7 +22,7 @@
  * lab's comfortable exploration limits: `tuneWarnings` advises past them, nothing refuses (docs/bicycles.md).
  *
  * The canonical JSON lives at docs/examples/ring-plans/hero.plan.json, written by hero.plan.mjs (a re-export of this). */
-import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints } from './station-loft-plan.js';
+import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight, breastSpan } from './breast-field.js';
 import { heroHand } from './hero-hand.js';
 import { mirrorPid } from './station-loft.js';
@@ -86,6 +86,21 @@ const KNEE_CLEAR = 0.014;
 const TORSO_FORM = Object.freeze({
   female: Object.freeze({ waist: 0.88, rib: 0.55, chest: 0.86, lat: 0.93, yoke: -0.1, capRise: 0.43, trap: 0.5, chestZ: 0.6, depth: [0.092, 0.1, 0.1, 0.085, 0.07], chestDepth: 0.86, yc: [0.01, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
   male: Object.freeze({ waist: 0.98, rib: 0.5, chest: 0.97, lat: 1, yoke: -0.15, capRise: 0.42, trap: 0.5, chestZ: 0.6, depth: [0.1, 0.108, 0.108, 0.09, 0.072], chestDepth: 1, yc: [0.012, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
+});
+/** the structured arm per body (hero-form ARM): the upper arm's muscles as shaping rings between its own (segmentShape),
+ * so its addresses keep their meaning: `triceps` and `biceps` at `at` of the shoulder → elbow run, `r` (of the
+ * arm's radius, across × through), `yc` the ring's centre forward and `xc` outward (of the arm's radius: the triceps
+ * behind, the biceps in front and toward the body, the inner contour from the front); `elbow` the arm's last ring (wider
+ * across than through, the elbow's two bony points). The forearm's `elbow` ring and `belly` (of the forearm's radius)
+ * wider across than through, its `tendon` ring (where the cuff sits, halfway from the belly to the wrist's ring) fuller than
+ * the cone, so the forearm slims over its last third; `anime` the anime casts' share of every `yc` and `xc` (the
+ * muscles softer) */
+const ARM_FORM = Object.freeze({
+  male: Object.freeze({ triceps: Object.freeze({ at: 0.4, r: [0.86, 1.02], yc: -0.08, xc: 0 }), biceps: Object.freeze({ at: 0.62, r: [0.92, 1], yc: 0.13, xc: -0.06 }), elbow: [0.78, 0.7],
+    forearm: Object.freeze({ elbow: [0.8, 0.76], belly: [0.9, 0.76], tendon: [0.64, 0.6] }) }),
+  female: Object.freeze({ triceps: Object.freeze({ at: 0.4, r: [0.84, 0.98], yc: -0.06, xc: 0.01 }), biceps: Object.freeze({ at: 0.6, r: [0.86, 0.92], yc: 0.06, xc: -0.03 }), elbow: [0.76, 0.7],
+    forearm: Object.freeze({ elbow: [0.78, 0.74], belly: [0.86, 0.74], tendon: [0.6, 0.58] }) }),
+  anime: 0.6,
 });
 /** the structured bust (hero-form BUST): `size` the default bust (`body.bust`, of the cast's chest; the adult female cast
  * only), `splay` the push turned out from straight forward (degrees); `push` per torso ring [id, the midline slot's push,
@@ -646,6 +661,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     thigh.caps = { back: R([r6((Wt + inner0) / 2), hip[1] * 0.4, zp + 0.04]), tip: R([knee[0], knee[1], knee[2] - 0.025]) };
     thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
   }
+  const AF = ARM_FORM[femaleMass ? 'female' : 'male'], soft = proportions === 'anime' ? ARM_FORM.anime : 1;
   const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X, X, girth: g0, female: femaleMass }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
@@ -654,10 +670,15 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // was a square corner, the shoulder line flat to the arm's edge, then straight down)
     // its belly: the mid ring a quarter down the arm at the arm's full radius, the top ring narrowed under it, so the
     // arm's top is a dome over the joint and the shoulder's widest point sits where the deltoid's does
-    limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR', structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]) } : {}),
+    // the structured core's ARM (ARM_FORM): the triceps behind and the biceps in front under the deltoid, into an elbow
+    // wider across than through (the cone ran straight from the deltoid to an elbow deeper than wide)
+    limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), structured ? g(AF.elbow.map((x) => b.arm * x)) : g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR',
+      structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]), shape: ['triceps', 'biceps'].map((k) => ({ at: AF[k].at, r: g(AF[k].r.map((x) => b.arm * x)), yc: g(b.arm * AF[k].yc * soft), xc: g(b.arm * AF[k].xc * soft) })) } : {}),
     // the structured core's forearm ends on the hand's own section at the wrist (hero-hand.js: wide across, narrower
-    // through, × extremities), so it tapers into the hand instead of stepping down onto it
-    limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), hand ? hand.wrist : g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
+    // through, × extremities), so it tapers into the hand instead of stepping down onto it; it is fullest across below
+    // the elbow (ARM_FORM) and slims over its last third from the tendon's ring, at u 1.5 (st1_st2_50, the cuff's)
+    limb('foreArmR', 'elbow', 'wrist', structured ? g(AF.forearm.elbow.map((x) => b.forearm * x)) : g([b.forearm * 0.76, b.forearm * 0.86]), hand ? hand.wrist : g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR',
+      { mid: 0.3, rMid: structured ? g(AF.forearm.belly.map((x) => b.forearm * x)) : g([b.forearm * 0.77, b.forearm * 0.82]), ...(structured ? { shape: [{ at: (0.3 + 1 + 0.2 * Math.max(...hand.wrist) / Math.sqrt(J.wrist.reduce((a, x, k) => a + (x - J.elbow[k]) ** 2, 0))) / 2, r: g(AF.forearm.tendon.map((x) => b.forearm * x)) }] } : {}) }),
     // the structured core's HAND (hero-hand.js): a palm and five digits on the same wrist and knuckles; the streamlined
     // core keeps the mitten
     ...(hand ? hand.segments : [limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) })]),
@@ -696,6 +717,12 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       }
       for (const d of Object.values(dials)) if (d.blend && d.parts?.includes(P.name) && d.blend[st.id] === undefined) d.blend[st.id] = r6((d.blend[`st${i}`] ?? 0) * (1 - t) + (d.blend[`st${i + 1}`] ?? 0) * t);
     }
+  }
+
+  // a segment's shaping rings (segmentShape: the arm's muscles) take every dial's blend from the two rings they lie
+  // between (their skin is the segment's own bone, as the band they split was), so a dial moves them with the limb
+  for (const P of segments.filter((p) => p.kind === 'segment' && p.shape)) for (const sh of segmentShape(J[P.from], J[P.to], P.rA, P.rB, P)) {
+    for (const d of Object.values(dials)) if (d.blend && d.parts?.some((n) => n.replace('$S', 'R') === P.name) && d.blend[sh.id] === undefined) d.blend[sh.id] = r6((d.blend[`st${sh.i}`] ?? 0) * (1 - sh.f) + (d.blend[`st${sh.i + 1}`] ?? 0) * sh.f);
   }
 
   // ── the rig: the vajra core IS the joint table; hands and feet ride or plant ──
@@ -787,7 +814,7 @@ export function scalePlan(plan, s) {
     if (seg.kind === 'trunk') out.stations = seg.stations.map((st) => ({ ...st, z: r6(st.z * s), r: rad(st.r), ...(st.yc != null ? { yc: r6(st.yc * s) } : {}), ...(st.push ? { push: Object.fromEntries(Object.entries(st.push).map(([k, d]) => [k, v(d)])) } : {}) }));
     if (seg.kind === 'loft') out.stations = seg.stations.map((st) => ({ ...st, at: v(st.at), r: rad(st.r) }));
     if (seg.kind === 'rings') out.stations = seg.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([k, p]) => [k, v(p)])) }));
-    if (seg.kind === 'segment') { out.rA = rad(seg.rA); out.rB = rad(seg.rB); if (seg.rMid != null) out.rMid = rad(seg.rMid); }
+    if (seg.kind === 'segment') { out.rA = rad(seg.rA); out.rB = rad(seg.rB); if (seg.rMid != null) out.rMid = rad(seg.rMid); if (seg.shape) out.shape = seg.shape.map((sh) => ({ ...sh, r: rad(sh.r), ...(sh.yc != null ? { yc: r6(sh.yc * s) } : {}), ...(sh.xc != null ? { xc: r6(sh.xc * s) } : {}) })); }
     if (seg.kind === 'chain') out.r = rad(seg.r);
     if (seg.caps) out.caps = { back: v(seg.caps.back), tip: v(seg.caps.tip) };
     return out;

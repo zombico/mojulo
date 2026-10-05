@@ -535,16 +535,17 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // the male's square) and the structured speedo and thong, then for the seat's panels (seat-panels.js: the thong's V
   // and thin string, the speedo's leg line, cut out of the faces) and the female's seat full low, then for the hand
   // (hero-hand.js: a palm and five digits for the mitten, the rig's `hands`), then for the forearm tapering into the hand
-  // at a rounded wrist; the streamlined values above unchanged
+  // at a rounded wrist, then for the arm's muscles (the triceps and biceps rings, the elbow, the forearm slimming to the
+  // wrist); the streamlined values above unchanged
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['9dde2ac382600615', '1bb1801fa641d3cc', '9d74c3fb37eaa738']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['c17da7822bc69717', 'a8b102e4d470028a', 'e0394aa560b48a21']],
-      headNone: [{ cast: 'female', head: 'none' }, ['bad8436014e29eb7', '587f5a535e454d4f', '73dc066777ff80a7']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['76171da62040e6a0', '2c7ce6a1f6530d3a', '3fefe6ffbfa63d35']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['315e6b8137ae8a79', 'ecdfc44170010b24', 'b44d5acdbdf51bf8']],
+      headNone: [{ cast: 'female', head: 'none' }, ['b1e7003698cbfa13', '3c0c538be6067185', '9a4d88f6eb9642cf']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
     }
-    for (const [cast, pin] of [['female', '9bf4cc8850715195'], ['male', '451b64eed67a26f5']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+    for (const [cast, pin] of [['female', '20bc30e6741da370'], ['male', 'f295efe4112360d4']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {
