@@ -447,7 +447,7 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(Object.keys(broku.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
     // kairo's weight is its count: 146 thin strands in four layers (a crown ring sprouting from the whorl), two accents
     // and two sideburns
-    expect(Object.keys(on('male', 'kairo').h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(150);
+    expect(Object.keys(on('male', 'kairo').h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(160);
     // broku: no straight-up spike — every rising carrot leans ≥ 30° off the vertical from the front and from the side
     for (const K of ANIME_HAIR_MOVES.broku.hair.shapes.carrots) { const [x, y, z] = K.dir; if (y <= 0) continue; expect(Math.abs(x) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); expect(Math.abs(z) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); }
   });
@@ -473,6 +473,10 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(on('female', ['long', { sideburns: { amount: 0 } }]).h.parts.hairBanana0).toBeUndefined();
     expect(validateAnimeHair({ sideburns: { length: 2, shape: 'leek', tilt: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.sideburns.length', 'hair.sideburns.shape', 'hair.sideburns.tilt']);
     expect(validateAnimeHair({ shapes: { scale: 3, whorl: [0, 120], layers: [{ shape: 'leek' }, { shape: 'pepper', count: 200, el: [0, 100] }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.scale', 'hair.shapes.whorl', 'hair.shapes.layers[0]', 'hair.shapes.layers[1].el', 'hair.shapes.layers[1].count']);
+    // a rosette about the whorl: the layer anchored by angle from the whorl, closed, covering the crown
+    expect(validateAnimeHair({ shapes: { layers: [{ shape: 'pepper', around: [0, 120] }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.layers[0].around']);
+    const rose = on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', around: [4, 22], rows: 2, count: 12, length: 0.9 }] } }]);
+    expect(failures(rose.mesh)).toEqual([]); expect(box(rose.mesh, /^hairBanana/)[2][1]).toBeGreaterThan(box(rose.mesh, /^face$/)[2][1]);
   });
   it('the shapes: validated by name, built closed, the replaced groups gone and the rest kept', () => {
     expect(validateAnimeHair({ shapes: { replace: ['fringe', 'mane'], peppers: [{ at: [0, 120] }], bananas: [{ at: [0, 10] }], carrots: [{ at: [0, 40], dir: [0, 0, 0], base: 2 }], beans: [] } }).map((e) => e.split(':')[0]))

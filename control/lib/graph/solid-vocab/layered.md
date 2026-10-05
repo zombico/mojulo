@@ -257,7 +257,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `length`, `base`, `sink`, `curve`, `bend`), BANANAS (flat crescents; `length`, `width`, `flat`, `bend`, `dir`
   required) or PEPPERS (chilis, thin strands; `length`, `width`, `bend`) — each piece `at: [azimuth°, elevation°]` on
   the cap and aimed by `dir: [x, y, z]`, or laid in `layers` (`{ shape, az, el, rows, count, length, width, droop,
-  lift, cover, sprout, vary, bend }`) that flow from the `whorl` along the head, bananas and peppers tiling it (`cover`)
+  lift, cover, sprout, vary, bend }`, or `around: [from°, to°]` for a rosette about the whorl) that flow from the
+  `whorl` along the head, bananas and peppers tiling it (`cover`)
   and every piece sprouting along the surface before it arcs out (`sprout`); `scale` grows the style; parts `hairCarrot0`,
   `hairBanana0`, `hairPepper0` …), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
   pieces before the ears in the style's family; the principles and recipes are in docs/examples/humanoid/DESIGNING.md).

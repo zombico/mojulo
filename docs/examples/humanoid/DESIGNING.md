@@ -298,7 +298,8 @@ everything. The principles, one line each:
   scalp never shows; they part only toward their points. Chilis tile by count, not by width.
 - **Sprout, don't push.** A lock leaves its root along the head, flowing from the whorl, and only then arcs out
   (`sprout`); pushed straight out of the skull it reads as a spike through the face. Bangs root up on the crown and
-  flow over the forehead, and a crown ring sprouts from the whorl itself so the top of the head grows hair too.
+  flow over the forehead, and a ROSETTE (`around: [from°, to°]`, rings by angle from the whorl) fans out from the
+  whorl itself so the crown is never bald, from the front, the back or above.
 - **No straight-up spike.** A rising carrot leans at least 30° off the vertical seen from the front and from the side;
   horizontal-ish is fine.
 - **Bend one way.** C-curves, never S.

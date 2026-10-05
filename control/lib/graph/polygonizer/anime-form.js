@@ -474,6 +474,11 @@ export function buildAnime(r, options = {}) {
     // control drawn toward a point half the length down the surface flow (by `sprout`, 0 … 1), so a lock grows out of the
     // mass like a sprout instead of being pushed straight out of the skull (which reads as a spike through the face)
     const WHORL = anchorOf(SH?.whorl ?? [180, 80]);
+    // the whorl's frame, and the cap's [azimuth°, elevation°] address of a direction from the head's centre (the elevation
+    // found along the cap by bisection, since the cap is addressed by its own fraction from the crown)
+    const Wn = unit(sub(WHORL, C)), Wu = unit(cross(Wn, Math.abs(Wn[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), Wv = unit(cross(Wn, Wu));
+    const onCap = (d) => { const az = dmath.atan2(d[0], -d[2]) * 180 / Math.PI, up = dmath.atan2(d[1], dmath.hypot(d[0], d[2])); let lo = 0, hi = 90;
+      for (let it = 0; it < 24; it++) { const mid = (lo + hi) / 2, q = sub(anchorOf([az, mid]), C); if (dmath.atan2(q[1], dmath.hypot(q[0], q[2])) < up) lo = mid; else hi = mid; } return [az, (lo + hi) / 2]; };
     const flowAt = (P, n) => { let f = sub(P, WHORL); f = sub(f, mul(n, dot(f, n))); return dmath.hypot(...f) < 1e-6 ? [0, 0, -1] : unit(f); };
     const sprouted = (X, anchor, n, L, control) => { const k = X.sprout ?? 0; return k > 0 ? mix3(control, add(add(anchor, mul(flowAt(anchor, n), 0.5 * L)), mul(n, 0.05 * L)), k) : control; };
     const BUILD = {
@@ -493,10 +498,14 @@ export function buildAnime(r, options = {}) {
     // their points
     for (const Ly of SH?.layers ?? []) {
       const rows = Ly.rows ?? 2, per = Math.max(1, Math.round((Ly.count ?? 12) / rows)), [a0, a1] = Ly.az ?? [0, 360], [e0, e1] = Ly.el ?? [0, 60], full = Math.abs(a1 - a0) >= 360;
+      // `around: [from°, to°]` places the rows in rings about the WHORL itself (angular distance from it) instead of by
+      // elevation: a ROSETTE, its pieces fanning out from the whorl flat over the crown so the whorl is never bald
+      const ring = Ly.around ? (az, el) => onCap(add(mul(Wn, dmath.cos(el * Math.PI / 180)), mul(add(mul(Wu, dmath.cos(az * Math.PI / 180)), mul(Wv, dmath.sin(az * Math.PI / 180))), dmath.sin(el * Math.PI / 180)))) : null;
+      const [r0, r1] = Ly.around ?? [e0, e1], place = (az, el) => (ring ? ring(az, el) : [az, el]);
       for (let r = 0; r < rows; r++) for (let i = 0; i < per; i++) {
-        const u = (i + (r % 2 ? 0.5 : 0) + (full ? 0 : 0.5)) / (full ? per : per + 0.5), az = a0 + (a1 - a0) * Math.min(1, u), el = rows === 1 ? e0 : e0 + (e1 - e0) * r / (rows - 1), k = r * per + i;
-        const at = [az, el], P = anchorOf(at), n = unit(sub(P, C)), vary = 1 + (Ly.vary ?? 0.25) * dmath.sin(k * 2.39996 + r * 1.3);
-        const spacing = dmath.hypot(...sub(anchorOf([az + (a1 - a0) / (full ? per : per + 0.5), el]), P)), cover = Ly.cover ?? (Ly.shape === 'carrot' ? 0 : 1);
+        const u = (i + (r % 2 ? 0.5 : 0) + (full ? 0 : 0.5)) / (full ? per : per + 0.5), az = a0 + (a1 - a0) * Math.min(1, u), el = rows === 1 ? r0 : r0 + (r1 - r0) * r / (rows - 1), k = r * per + i;
+        const at = place(az, el), P = anchorOf(at), n = unit(sub(P, C)), vary = 1 + (Ly.vary ?? 0.25) * dmath.sin(k * 2.39996 + r * 1.3);
+        const spacing = dmath.hypot(...sub(anchorOf(place(az + (a1 - a0) / (full ? per : per + 0.5), el)), P)), cover = Ly.cover ?? (Ly.shape === 'carrot' ? 0 : 1);
         const width0 = (Ly.width ?? (Ly.shape === 'carrot' ? 0.24 : Ly.shape === 'banana' ? 0.14 : 0.06)) * (0.85 + 0.15 * vary), width = Math.max(width0, (cover * 0.62 * spacing) / G);
         let flow = sub(P, WHORL); flow = sub(flow, mul(n, dot(flow, n))); if (dmath.hypot(...flow) < 1e-6) flow = [0, 0, -1];
         const dir = add(add(unit(flow), mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);

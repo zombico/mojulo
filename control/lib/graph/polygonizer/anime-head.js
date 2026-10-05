@@ -158,7 +158,7 @@ export const ANIME_HAIR_MOVES = Object.freeze({
   jinto: { note: 'Jinto: bananas only — broad locks tiling the head from a smooth crown, parting into points at the jaw, a pointed fringe opening over the face, two accent bananas on top, banana sideburns',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.5, width: 0.14, forward: 0.1 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.12,
       layers: [
-        { shape: 'banana', az: [0, 360], el: [80, 88], rows: 1, count: 7, length: 0.85, width: 0.2, droop: 0.15, lift: 0.1, vary: 0.2, bend: 0.2 },
+        { shape: 'banana', az: [0, 360], around: [4, 22], rows: 2, count: 12, length: 0.95, width: 0.2, droop: 0.1, lift: 0.1, vary: 0.2, bend: 0.2, sprout: 1 },
         { shape: 'banana', az: [0, 360], el: [55, 80], rows: 2, count: 14, length: 1.0, width: 0.2, droop: 0.35, lift: 0.08, vary: 0.2, bend: 0.18 },
         { shape: 'banana', az: [62, 298], el: [8, 42], rows: 2, count: 18, length: 1.35, width: 0.22, droop: 1.1, lift: 0.08, vary: 0.25, bend: 0.16 },
         { shape: 'banana', az: [-58, 58], el: [30, 48], rows: 1, count: 6, length: 0.72, width: 0.2, droop: 0.9, lift: 0.12, vary: 0.3, bend: 0.16 },
@@ -171,7 +171,7 @@ export const ANIME_HAIR_MOVES = Object.freeze({
   kairo: { note: 'Kairo: chili peppers only — the thin version of the banana tiling: many thin strands, every one shouldered to overlap its neighbours (no bald gap), a smooth crown, the strands parting into ragged points at the jaw and the brow, two accent strands on top, thin sideburns',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.55, width: 0.07 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1,
       layers: [
-        { shape: 'pepper', az: [0, 360], el: [78, 88], rows: 2, count: 20, length: 0.75, width: 0.05, droop: 0.15, lift: 0.1, vary: 0.25, bend: 0.16 },
+        { shape: 'pepper', az: [0, 360], around: [3, 24], rows: 3, count: 30, length: 0.85, width: 0.05, droop: 0.1, lift: 0.1, vary: 0.25, bend: 0.16, sprout: 1 },
         { shape: 'pepper', az: [0, 360], el: [55, 76], rows: 3, count: 48, length: 0.95, width: 0.05, droop: 0.35, lift: 0.08, vary: 0.25, bend: 0.14 },
         { shape: 'pepper', az: [60, 300], el: [8, 42], rows: 3, count: 60, length: 1.2, width: 0.05, droop: 1.1, lift: 0.1, vary: 0.3, bend: 0.12 },
         { shape: 'pepper', az: [-58, 58], el: [28, 46], rows: 2, count: 18, length: 0.6, width: 0.045, droop: 0.85, lift: 0.12, vary: 0.35, bend: 0.12 },
@@ -248,9 +248,9 @@ function hairFormErrors(entry, at) {
           if (!Array.isArray(x) || x.length > 8) { errs.push(`${at}.shapes.layers: a list of at most 8 layers`); continue; }
           x.forEach((Ly, i) => {
             const here = `${at}.shapes.layers[${i}]`;
-            if (!isObj(Ly) || !HAIR_SHAPE_FAMILIES.includes(Ly.shape)) { errs.push(`${here}: { shape: ${HAIR_SHAPE_FAMILIES.join(' | ')}, az?: [from°, to°], el?: [from°, to°], ${Object.keys(HAIR_LAYER_FIELDS).join(', ')} }`); return; }
-            for (const g of ['az', 'el']) if (Ly[g] !== undefined && (!Array.isArray(Ly[g]) || Ly[g].length !== 2 || !Ly[g].every(finite) || (g === 'el' && Ly[g].some((e) => e < -30 || e > 90)))) errs.push(`${here}.${g}: [from°, to°]${g === 'el' ? ' (−30 … 90)' : ''}`);
-            for (const [g, y] of Object.entries(Ly)) { if (['shape', 'az', 'el'].includes(g)) continue; const lim = HAIR_LAYER_FIELDS[g]; if (!lim) errs.push(`${here}.${g}: not a layer field (have shape, az, el, ${Object.keys(HAIR_LAYER_FIELDS).join(', ')})`); else num(`shapes.layers[${i}].${g}`, y, lim[0], lim[1]); }
+            if (!isObj(Ly) || !HAIR_SHAPE_FAMILIES.includes(Ly.shape)) { errs.push(`${here}: { shape: ${HAIR_SHAPE_FAMILIES.join(' | ')}, az?: [from°, to°], el?: [from°, to°] | around?: [from°, to°], ${Object.keys(HAIR_LAYER_FIELDS).join(', ')} }`); return; }
+            for (const g of ['az', 'el', 'around']) if (Ly[g] !== undefined && (!Array.isArray(Ly[g]) || Ly[g].length !== 2 || !Ly[g].every(finite) || (g === 'el' && Ly[g].some((e) => e < -30 || e > 90)) || (g === 'around' && Ly[g].some((e) => e < 0 || e > 90)))) errs.push(`${here}.${g}: [from°, to°]${g === 'el' ? ' (−30 … 90)' : g === 'around' ? ' (0 … 90°, the angle from the whorl)' : ''}`);
+            for (const [g, y] of Object.entries(Ly)) { if (['shape', 'az', 'el', 'around'].includes(g)) continue; const lim = HAIR_LAYER_FIELDS[g]; if (!lim) errs.push(`${here}.${g}: not a layer field (have shape, az, el, ${Object.keys(HAIR_LAYER_FIELDS).join(', ')})`); else num(`shapes.layers[${i}].${g}`, y, lim[0], lim[1]); }
           });
           continue;
         }
