@@ -205,21 +205,27 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
 }
 
 /**
- * The ground of a scene cut by a canal along its north: the base earth either side in 4 m columns, the
- * slivers the meander leaves at the banks, the water, and earthen banks sloping down to it. `holes`
- * (rects on the 4 m column grid) are left out of the base south of the canal, for a pit sunk below it.
+ * The ground of a scene cut by a canal: the base earth either side in 4 m columns, the slivers the
+ * meander leaves at the banks, the water, and earthen banks sloping down to it. `holes` (rects on the
+ * 4 m column grid) are left out of the base, for a pit sunk below it or a town that lays its own;
+ * `skip` ([x0, x1]) is a stretch whose water and banks someone else draws (the town's own canal).
  */
-export function canalGround({ W, D, bankN, cw, waterZ, P, holes = [] }) {
+export function canalGround({ W, D, bankN, cw, waterZ, P, holes = [], skip = null }) {
   const base = [], grounds = [], boxes = [], seg = 4;
-  for (let x = 0; x < W; x += seg) {
-    const xa = x - 0.2, xb = Math.min(W, x + seg) + 0.2, na = bankN(xa), nb = bankN(xb);
-    base.push({ kind: 'ground', x, y: 0, w: seg, d: Math.min(na, nb), z: 0.01, fill: P.ground, surface: 'dry-earth', layer: 0 });
-    let y = Math.max(na, nb) + cw;
-    for (const h of holes.filter((q) => q.x < x + seg - 1e-6 && x < q.x + q.w - 1e-6).sort((a, b) => a.y - b.y)) {
+  // a column's base from y0 to y1, less the holes across it
+  const span = (x, y0, y1) => {
+    let y = y0;
+    for (const h of holes.filter((q) => q.x < x + seg - 1e-6 && x < q.x + q.w - 1e-6 && q.y < y1 && q.y + q.d > y0).sort((a, b) => a.y - b.y)) {
       if (h.y > y) base.push({ kind: 'ground', x, y, w: seg, d: h.y - y, z: 0.01, fill: P.ground, surface: 'dry-earth', layer: 0 });
       y = Math.max(y, h.y + h.d);
     }
-    if (y < D) base.push({ kind: 'ground', x, y, w: seg, d: D - y, z: 0.01, fill: P.ground, surface: 'dry-earth', layer: 0 });
+    if (y < y1) base.push({ kind: 'ground', x, y, w: seg, d: y1 - y, z: 0.01, fill: P.ground, surface: 'dry-earth', layer: 0 });
+  };
+  for (let x = 0; x < W; x += seg) {
+    const xa = x - 0.2, xb = Math.min(W, x + seg) + 0.2, na = bankN(xa), nb = bankN(xb);
+    span(x, 0, Math.min(na, nb));
+    span(x, Math.max(na, nb) + cw, D);
+    if (skip && x >= skip[0] - 1e-6 && x + seg <= skip[1] + 1e-6) continue;
     // the slivers the meander leaves between the grid and the bank
     for (const [e0, e1, lo] of [[na, nb, true], [na + cw, nb + cw, false]]) {
       const inner = lo ? Math.min(e0, e1) : Math.max(e0, e1);

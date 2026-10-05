@@ -19,6 +19,7 @@ const S = {
   muhly95: { author: 'J. D. Muhly', title: 'Mining and Metalwork in Ancient Western Asia (Civilizations of the Ancient Near East III)', year: 1995 },
   weeks03: { author: 'L. Weeks', title: 'Early Metallurgy of the Persian Gulf: Technology, Trade and the Bronze Age World', year: 2003 },
   oppenheim: { author: 'A. L. Oppenheim', title: 'The Seafaring Merchants of Ur (JAOS 74)', year: 1954 },
+  postgate92: { author: 'J. N. Postgate', title: 'Early Mesopotamia: Society and Economy at the Dawn of History', year: 1992 },
 };
 
 // ── materials the works add ──
@@ -133,6 +134,19 @@ const FORMS = [
     id: 'craft-quarter', kind: 'form', name: 'works at the town\'s edge, by the water', confidence: 'unverified',
     attested: { from: -3500, to: null, approx: true },
     notes: 'Kilns and smoky crafts kept to the town\'s edge and outskirts, by the canals that brought clay, fuel and goods.', sources: [S.moorey94, S.potts97],
+  },
+  // the city in its land
+  {
+    id: 'kar', kind: 'form', name: 'the harbour district (kar) outside the walls', confidence: 'unverified',
+    attested: { from: -2500, to: null, approx: true },
+    notes: 'Sumerian and later Mesopotamian cities had a kar, a harbour quarter on the water outside or at the edge of the walls, where boats unloaded and merchants kept their stores; Ur had harbours at its north and west.',
+    sources: [S.oppenheim, S.potts97],
+  },
+  {
+    id: 'irrigated-hinterland', kind: 'form', name: 'the town in its irrigated land', confidence: 'unverified',
+    attested: { from: -3500, to: null, approx: true },
+    notes: 'Gardens of date palms on the levees nearest the town, grain fields in strips behind them on the canals, the estates\' farmsteads among the fields, marsh where the water ran out, sheep on the steppe beyond the watered land.',
+    sources: [S.postgate92, S.potts97],
   },
 ];
 

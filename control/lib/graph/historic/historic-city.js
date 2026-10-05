@@ -36,7 +36,12 @@ function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(
 const stream = (seed, tag) => mulberry32(hash(`${seed}|historic|${tag}`));
 const pick = (xs, rng) => xs[Math.floor(rng() * xs.length)];
 
-export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }, assets } = {}) {
+/**
+ * `countryside: false` leaves the ground outside the ring bare (no fields, no palms there): a region
+ * scene (./historic-region.js) dresses it with its own hinterland. The plan's `canal` is the canal's
+ * line, so a region can carry it on past the frame.
+ */
+export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }, assets, countryside = true } = {}) {
   const K = HISTORIC_CULTURES[culture] || SUMER, P = K.palette;
   const cols = Math.floor(frame.w / CELL), rows = Math.floor(frame.d / CELL);
   const grid = new Uint8Array(cols * rows);
@@ -406,7 +411,7 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
   const G = stream(seed, 'groves');
   let palms = 0;
   for (let r = 0; r < rows; r += 4) for (let c = 0; c < cols; c += 4) {
-    if (at(c, r) !== C.OUTSIDE) continue;
+    if (!countryside || at(c, r) !== C.OUTSIDE) continue;
     const nearWater = Math.abs(r - canalAt(c)) < 14;
     const u = G();
     const crossesCanal = [0, 1, 2, 3].some((k) => r + 4 > mAt(c + k) - 2 && r < mAt(c + k) + cw + 2);
@@ -461,7 +466,15 @@ export function planHistoricCity({ seed = 1, culture = 'sumer', frame = { w: 380
       towers: slots.filter((q) => q.asset === 'wall-tower').length, reedHouses: slots.filter((q) => q.asset === 'reed-house').length, gates: gates.length, palms, precinct, laneCells: grid.reduce((n, v) => n + (v === C.LANE ? 1 : 0), 0),
     },
     grid: { cols, rows, cell: CELL, data: grid, codes: C },
+    // the canal's north bank y(x) = row0·cell + amp·cell·sin((x/cell − ½)/cols · 2π · 0.8 + ph), metres; its width
+    canal: { row0: cy0, amp: camp, ph: cph, cols, cell: CELL, width: cw * CELL, sink: K.canal.sink || 1.5 },
   };
+}
+
+/** The town canal's north bank as a function of x (metres, the town's frame), continued past the frame. */
+export function canalBankN(canal) {
+  const { row0, amp, ph, cols, cell } = canal;
+  return (x) => (row0 + amp * Math.sin(((x / cell - 0.5) / cols) * 6.283 * 0.8 + ph)) * cell;
 }
 
 // row runs of cells matching `test`, as (c, r, n)

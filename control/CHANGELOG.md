@@ -105,6 +105,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     landing, the clay pit or the wheelwright's.
 - A slanted panel now turns with its piece, so pieces can carry sloping faces like a pit's cut
   sides. A roof on posts draws its underside.
+- A third scene sets the city in its land. The walled town stands in the middle and its canal runs
+  on past the walls both ways. Around it the land is zoned by what each place needs:
+  - Upstream: the brick and pottery quarter on both banks (clay pits, brick fields and kilns,
+    potters' yards).
+  - Below the town: the harbour (kar), with its quays and boats, merchants' storehouses, bitumen
+    boilers, and the coppersmiths with their charcoal clamps.
+  - Along the levees by the walls: palm gardens.
+  - North and south: strip fields on their channels, with a farmstead in each quarter.
+  - Where the canal runs out: the reed marsh. On the steppe at the edge: sheepfolds.
+  - The page opens from the air, from low over the quarter or the harbour, or at eye level in the
+    fields, at the harbour or by the kilns.
+  - From the air the small things (jars, tools, fence posts) are left out. An eye-level page
+    carries only its own view: it leaves out what is behind the camera and draws the ground only to
+    about 220 m. Drawing a whole land's ground at that detail runs the page out of texture memory.
+- The town can be planned without its own fields and palms outside the walls, and gives the line of
+  its canal, so a larger scene can carry the canal on.
 
 ## [3.0.0] - 2026-10-01
 
