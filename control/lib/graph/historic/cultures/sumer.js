@@ -8,6 +8,10 @@ import { SUMER_ASSETS } from '../assets/sumer.js';
 export const SUMER = {
   label: 'Sumer (Uruk period)',
   years: [-4000, -2350],
+  period: 'Uruk into Early Dynastic',
+  place: 'southern Mesopotamia',
+  region: 'mesopotamia',
+  aliases: ['sumerian', 'uruk', 'eridu', 'ziggurat', 'shumer', 'early dynastic'],   // what people call it (search)
   palette: {
     ground: '#c2ab84',            // dry alluvium
     lane: '#d2bf98',              // beaten mud, paler with traffic

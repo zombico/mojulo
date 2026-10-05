@@ -281,6 +281,29 @@ function ensureLexicalCorpus() {
   return lexicalPopulate;
 }
 
+// An upgrade ships cards the index has never seen: reindexAll only runs on an empty table, and the boot prune
+// only removes what a release retired. So once per process, before the first search, a corpus that reindexAll
+// built (it holds both view-vocab and routing rows) is checked for shipped cards it lacks; any missing → one
+// reindex (hash-skipping: only the new rows are written). A corpus without both kinds is a hand-seeded table,
+// and is left alone; so is an index the operator disabled.
+let shelfFresh = null;
+function ensureShippedCards() {
+  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return Promise.resolve();
+  if (!shelfFresh) {
+    shelfFresh = (async () => {
+      const db = getDb();
+      const rows = db.prepare("SELECT source_kind, source_ref FROM meta_embeddings WHERE source_kind IN ('view_vocab', 'routing')").all();
+      if (!rows.some((r) => r.source_kind === 'view_vocab') || !rows.some((r) => r.source_kind === 'routing')) return;
+      const have = new Set(rows.map((r) => `${r.source_kind}:${r.source_ref}`));
+      const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
+      const { getRoutingCardCatalog } = await import('../../mcp/routing-cards/loader.js');
+      const shipped = [...[...getViewVocabCatalog().values()].filter((c) => c.index !== false).map((c) => `view_vocab:${c.id}`), ...[...getRoutingCardCatalog().keys()].map((id) => `routing:${id}`)];
+      if (shipped.some((k) => !have.has(k))) await reindexAll();
+    })().catch((err) => console.warn(`[meta_embeddings] shipped-card refresh failed: ${err.message}`));
+  }
+  return shelfFresh;
+}
+
 async function searchLexical(query, { kindFilter, limit }) {
   const terms = lexicalTerms(query);
   if (terms.length === 0) return [];
@@ -602,6 +625,7 @@ export const EmbeddingsRepository = {
       for (const k of kinds) assertSourceKind(k);
       kindFilter = kinds;
     }
+    await ensureShippedCards();
 
     let queryVector;
     try {
@@ -1359,6 +1383,7 @@ export async function reindexAll({ verbose = false } = {}) {
   const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
   const viewVocab = getViewVocabCatalog();
   for (const card of viewVocab.values()) {
+    if (card.index === false) continue;   // a generated record card: read on demand, never searched
     items.push({
       sourceKind: 'view_vocab',
       sourceRef: card.id,

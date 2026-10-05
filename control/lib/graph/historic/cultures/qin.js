@@ -8,12 +8,18 @@
  */
 import { QIN_ASSETS } from '../assets/qin.js';
 import { QIN_STYLE } from '../style/qin.js';
+import { QIN_READ_AT } from '../record/qin.js';
 
 const S = QIN_STYLE.palette, WARD = QIN_STYLE.kit.wall.ward;
 
 export const QIN = {
   label: 'Qin Xianyang',
   years: [-350, -206],
+  readAt: QIN_READ_AT,           // c. 212 BCE (../record/qin.js)
+  period: 'Qin',
+  place: 'Xianyang, the Wei valley',
+  region: 'china',
+  aliases: ['xianyang', 'qin shi huang', 'first emperor', 'warring states', 'terracotta army'],   // what people call it (search)
   layout: 'wei-wards',
   palette: {
     ground: S.loess,               // the loess the town stands on

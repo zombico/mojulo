@@ -12,6 +12,11 @@ import { GIZA_ASSETS } from '../assets/giza.js';
 export const GIZA = {
   label: 'Old Kingdom Giza',
   years: [-2600, -2470],
+  readAt: -2515,                 // mid-way through Menkaure's reign (header; Shaw's dates)
+  period: 'Old Kingdom, 4th Dynasty',
+  place: 'the Giza plateau, Egypt',
+  region: 'egypt',
+  aliases: ['pyramid', 'pyramids', 'great pyramid', 'sphinx', 'khufu', 'khafre', 'menkaure', 'pharaoh'],   // what people call it (search)
   layout: 'plateau',
   palette: {
     ground: '#d6bf92',            // the plateau: desert gravel and sand over limestone

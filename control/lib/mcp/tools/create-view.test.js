@@ -129,7 +129,11 @@ describe('get_view_vocab reader', () => {
 
   it('lists index rows, filterable by family', async () => {
     const all = await getViewVocabHandler({});
-    expect(all.cards.length).toBe(63);   // + waterfall (the falling-water primitive's view, 2026-10-04)
+    // the curated cards (+ waterfall, 2026-10-04), plus the encyclopedia entries generated from the historic
+    // culture cards (their record cards are read by id, not listed): those grow with each culture on their own
+    const entries = [...getViewVocabCatalog().values()].filter((c) => c.family === 'entry' && c.index !== false).length;
+    expect(entries).toBeGreaterThan(0);
+    expect(all.cards.length).toBe(63 + entries);
     const world = await getViewVocabHandler({ family: 'world' });
     expect(world.cards.length).toBe(10);
     expect(world.cards.every((c) => c.entry === 'compose_world')).toBe(true);

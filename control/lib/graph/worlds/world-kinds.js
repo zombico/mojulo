@@ -24,6 +24,7 @@ import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-sch
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
+import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
@@ -437,6 +438,13 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
     resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded }),
+  },
+  // a culture at its period (historic/historic-kind.js): the town, its land, a farmstead or the works, on the
+  // World page. The builder's own title ('mojulo historic city · New Kingdom Thebes') unless the row names one.
+  historic: {
+    title: 'mojulo historic',
+    walk: true,
+    resolve: (m, ctx) => assembleHistoricKindScene(m, { title: ctx.title === 'mojulo historic' ? undefined : ctx.title }),
   },
   'transportation-hub': {
     title: 'mojulo transportation hub',

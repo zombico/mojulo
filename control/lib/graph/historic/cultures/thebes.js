@@ -15,6 +15,11 @@ import { EGYPT_ASSETS } from '../assets/egypt.js';
 export const THEBES = {
   label: 'New Kingdom Thebes',
   years: [-1550, -1070],
+  readAt: -1250,                 // the Ramesside town (header)
+  period: 'New Kingdom',
+  place: 'Thebes, Upper Egypt',
+  region: 'egypt',
+  aliases: ['waset', 'luxor', 'karnak', 'ramesside', 'ramesses', 'pharaoh', 'temple of amun'],   // what people call it (search)
   layout: 'river-axis',
   palette: {
     ground: '#c9b48e',            // the desert-edge earth under the town

@@ -92,6 +92,10 @@ export const FIXTURE = [
   // armor (layered hero adorn build): worn armour from a style and dials (armor)
   ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'mint_solid'],
   ['only armour the shoulders and chest for now, full plate later', 'mint_solid'],
+  // historic entries: a real place at its period mints through its encyclopedia entry's starter
+  ['walk me through ancient Thebes', 'create_sketch'],
+  ['what did a Sumerian city look like', 'create_sketch'],
+  ['show me the pyramids of Giza when they were new', 'create_sketch'],
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

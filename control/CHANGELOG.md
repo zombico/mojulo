@@ -339,6 +339,50 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Qin opens on the shared World page (`renderHistoricCityToWorld`) like Lindos: about 15 MB self-contained,
   against about 21 MB for the CSS page.
 
+### Historic entries
+
+- **In progress.** The historic cities reach the agent. Until now they were reachable only from code.
+- New world kind `historic`: `create_sketch({ manifest: { kind: 'historic', culture, scene, seed, … } })` mints
+  a culture at its period as a walkable World:
+  - `scene` is `city` (every culture), or `region`, `farm` or `works` where the culture has one;
+  - an unknown culture or scene is refused with the list of ids;
+  - the cities, regions, farms and works render as they did, byte-identical.
+- Each culture card gains `readAt`, `period` and `place` as data, from its own documented header. Sumer has
+  no read-at year yet: its card spans the Uruk and Early Dynastic periods. The generic polis has no place;
+  it is invented.
+- A caption for every historic scene (`lib/graph/depiction.js` `describeHistoric`), read from the cards.
+  It keeps two questions apart: the PERIOD (when and where) and the DEPICTION (the era's budget plus a look).
+  For example: "New Kingdom Thebes · New Kingdom, c. 1550–1070 BCE (read at c. 1250 BCE) · Thebes, Upper Egypt
+  — drawn sixth-gen, to the thebes style card". A field a card lacks is never guessed.
+- Encyclopedia entries, generated from the culture, record and style cards (`lib/graph/historic/entries.js`)
+  and served as view-vocab cards of a new family `entry`. No tool is added and no tool description names an
+  entry. An agent goes from a cold ask to a world in three calls:
+  1. `semantic_search` finds the entry;
+  2. `get_view_vocab({ id })` reads it;
+  3. `create_sketch` mints one of its starters.
+- What the cards carry:
+  - **An entry** holds the infobox (subject, period, place, depiction, basis, checks), its parts by the ids
+    its generators use, its scenes, and STARTERS: `historic` manifests to copy and change.
+  - **Its record** (`<id>/record`) lists each record entry with its confidence and sources. It is read on
+    demand and kept out of search, so an entry always answers before its sources.
+  - **A region with more than one culture** (Egypt, the Greek world) gets a hub listing its entries in time
+    order.
+  - **BASIS** follows the record: read → ATTESTED, secondary → RECONSTRUCTED, unverified → CONJECTURAL. The
+    town plan is never ATTESTED.
+  - **SCOPE** says up front that each entry is a general depiction of its period, not one year's town, so
+    anachronisms are expected: pieces from across the span side by side, gaps filled from parallels. The
+    hubs and the routing card say the same, and the agent is told to say it when it hands a world over.
+- Culture cards gain `region` and `aliases`: the words people search with (pharaoh, Luxor, ziggurat). The
+  entries are found on the default lexical path, with no embedding model.
+- `semantic_search` takes English terms, as its description already says. The host model translates first.
+- A routing card, `historic`, sends a cold request to the entries. The routing eval gains rows for it.
+- `get_view_vocab` takes the `entry` family. create_sketch's `manifest` property names the `historic` kind.
+  The `tools/list` payload pin moves from 267,900 to 268,200 (measured 268,159).
+- Fix: an upgraded install now indexes cards a release ships. The search index used to be built only when
+  empty, so new cards (these entries, and any routing card added since) stayed unsearchable until a manual
+  reindex. Once per process, before the first search, a corpus built by a reindex is checked for shipped
+  cards it lacks, and one reindex adds them.
+
 ### Sixth-gen composer
 
 - Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a
