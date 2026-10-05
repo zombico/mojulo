@@ -40,6 +40,8 @@ export const REGISTERS = {
   box: { slots: 'ring8', limbSlots: 'ring8', e: 12 },
 };
 export const PALETTE = { Skin: '#d9a77e', Top: '#3d6fa8', Bottom: '#2c3a55', Shoes: '#4a3526' };
+/** a gloved cast's hands (HEROBOT_PROPORTIONS `glove`): the cartoon glove's white, under the operator's `Glove` */
+export const GLOVE_WHITE = '#f3f5f8';
 /** the hero's own cast words, on top of figure-cast's presets: a cast is dials on the vajra rest plus a girth */
 export const HERO_CASTS = {
   // hip spans narrow enough that the thighs meet at the crotch and stay close to the knee (a reference read: the
@@ -195,17 +197,35 @@ export const ANIME_PROPORTIONS = Object.freeze({
 });
 /** a hero cast re-proportioned: the lengths and the shoulder span on its resolved dials, the radii on its body, the head
  * on its head scale (the forearm follows the arm, as on the realistic casts) */
-function animeCast(c, a) {
+function animeCast(c, a, word = 'anime') {
   const { from: _f, ...dials } = resolveCast(c.dials);
   dials.lumbar *= a.torso; dials.thoracic *= a.torso; dials.thigh *= a.legs; dials.shank *= a.legs; dials.neck *= a.neck; dials.shoulderSpan *= a.shoulders;
+  if (a.arms !== undefined) { dials.upperArm *= a.arms; dials.forearm *= a.arms; }
+  if (a.shank !== undefined) dials.shank *= a.shank;
   const b = { ...BODY_DEFAULTS, ...c.body };
   const body = { ...c.body, waist: r6(b.waist * a.waist), arm: r6(b.arm * a.upperArm), thigh: r6(b.thigh * a.thigh), calf: r6(b.calf * a.calf), neck: r6(b.neck * a.neckGirth) };
-  return { ...c, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((c.headScale ?? 1) * a.head), extremities: a.extremities, proportions: 'anime' };
+  return { ...c, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((c.headScale ?? 1) * a.head), extremities: a.extremities, ...(a.hands !== undefined ? { hands: a.hands } : {}), ...(a.puff !== undefined ? { puff: a.puff } : {}), ...(a.glove ? { glove: true } : {}), ...(a.suitNeck ? { suitNeck: true } : {}), proportions: word };
 }
 /** the anime casts (`heroPlan({ proportions: 'anime' })`): the hero casts re-proportioned for the anime head */
 export const ANIME_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, ANIME_PROPORTIONS.female), male: animeCast(HERO_CASTS.male, ANIME_PROPORTIONS.male) });
-/** the cast a word names under a proportion: the anime cast when asked for and there is one, else the hero cast */
-export const castOf = (cast, proportions = 'hero') => (typeof cast === 'string' ? (proportions === 'anime' && ANIME_CASTS[cast]) || HERO_CASTS[cast] : null);
+/** HEROBOT PROPORTIONS: the hero ROBOT's body for the anime head, the toy-hero read of the late
+ * platformer renders (about 4.5 heads tall): a big head, a short torso and short arms over legs a little short, a short
+ * neck, and big hands and feet (`extremities` > 1) for the gauntlets and boots to sit on, the hands bigger still and
+ * puffed (`hands`, `puff`: the cartoon glove's fat, rounded digits) and gloved (`glove`: the palm and digits wear the
+ * palette's `Glove`, white unless named), the neck in the body stocking (`suitNeck`: the palette's `Top`), the shins a little longer (`shank`) for an action hero's stride. An ADULT-limbed body, not the
+ * child-coded `chibi` cast: the skeleton keeps its joints and its girths; the head and the segment lengths move. Ratios of
+ * the realistic casts, as ANIME_PROPORTIONS are; `arms` scales both arm segments' lengths. */
+export const HEROBOT_PROPORTIONS = Object.freeze({
+  female: Object.freeze({ head: 1.64, legs: 0.9, torso: 0.72, neck: 0.62, shoulders: 0.9, waist: 0.93, upperArm: 0.84, thigh: 0.88, calf: 0.9, neckGirth: 0.95, extremities: 1.12, arms: 0.84, shank: 1.14, hands: 1.25, puff: 1.55, glove: true, suitNeck: true }),
+  male: Object.freeze({ head: 1.62, legs: 0.9, torso: 0.74, neck: 0.62, shoulders: 0.92, waist: 0.95, upperArm: 0.86, thigh: 0.9, calf: 0.92, neckGirth: 1.0, extremities: 1.18, arms: 0.84, shank: 1.14, hands: 1.25, puff: 1.55, glove: true, suitNeck: true }),
+});
+/** the herobot casts (`heroPlan({ proportions: 'herobot' })`) */
+export const HEROBOT_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, HEROBOT_PROPORTIONS.female, 'herobot'), male: animeCast(HERO_CASTS.male, HEROBOT_PROPORTIONS.male, 'herobot') });
+/** the proportion words: the realistic casts, the anime casts, the hero robot's */
+export const PROPORTION_WORDS = Object.freeze(['hero', 'anime', 'herobot']);
+const PROPORTION_CASTS = { anime: ANIME_CASTS, herobot: HEROBOT_CASTS };
+/** the cast a word names under a proportion: the anime or herobot cast when asked for and there is one, else the hero cast */
+export const castOf = (cast, proportions = 'hero') => (typeof cast === 'string' ? PROPORTION_CASTS[proportions]?.[cast] || HERO_CASTS[cast] : null);
 
 /** THE NECK ROOT on the structured core: the neck rises out of the chest. `notch` the sternal notch under the neck hub
  * (m: the top ring's front; the canon's T2 against C7, about 2.5 cm), falling off round the ring by `cos^fall` of the
@@ -328,7 +348,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   if (!HERO_CORES.includes(core)) throw new Error(`hero.plan: unknown core '${core}' (have ${HERO_CORES.join(', ')})`);
   const structured = core === 'structured';
   if (!reg) throw new Error(`hero.plan: unknown register '${register}' (have ${Object.keys(REGISTERS).join(', ')})`);
-  if (!['hero', 'anime'].includes(proportions)) throw new Error(`hero.plan: unknown proportions '${proportions}' (have hero, anime)`);
+  if (!PROPORTION_WORDS.includes(proportions)) throw new Error(`hero.plan: unknown proportions '${proportions}' (have ${PROPORTION_WORDS.join(', ')})`);
   const preset = castOf(cast, proportions);
   if (typeof cast === 'string' && !preset) { const errs = validateCast(cast, 'cast'); if (errs.length) throw new Error(`hero.plan: ${errs[0]} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')})`); }
   const tuneErrors = validateTune(tune); if (tuneErrors.length) throw new Error(`hero.plan: ${tuneErrors.join('; ')}`);
@@ -377,7 +397,10 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const X = preset?.extremities ?? 1;
   J.toeBase = R(add(J.ankle, [0, 0.085 * X, J.ankle[2] > 0.02 ? 0.02 - J.ankle[2] : 0]));
   J.toeTip = R(add(J.toeBase, [0, 0.08 * X, -0.005]));
-  J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09 * X)));
+  // the HANDS: a cast may also carry `hands` (their size beyond the extremities) and `puff` (the digits' and the palm's
+  // radial scale: the hero robot's big rounded glove); 1 is exact
+  const handSize = preset?.hands ?? 1, handPuff = preset?.puff ?? 1;
+  J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09 * X * handSize)));
   const joints = Object.fromEntries(Object.entries(J).filter(([k]) => !['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop'].includes(k)));
   Object.assign(joints, { neckHub: J.neckHub, headBase: J.headBase });
 
@@ -405,6 +428,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const neckF = neckForm ?? (structured && head ? WESTERN_NECK_FORM : null);
   const neck = neckF ? neckLoft(neckF, { b, g, zs, hb: hb + rise, ...(structured ? { base: NECK_ROOT.base } : {}) }) : { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [structured ? NECK_ROOT.over : 0.15, 0.2], group: 'Skin', mirror: 'plane',
     bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } };
+  if (preset?.suitNeck) neck.group = 'Top';   // a suited cast's neck (HEROBOT_PROPORTIONS `suitNeck`) wears the body stocking
   if (neckForm?.trap) {   // the trapezius ring: the torso's top ring, its top cap and its weights (absolute heights over the hub)
     const T = neckForm.trap, top = torso.stations[4];
     top.z = r6(zs + T.z); top.r = g([T.r[0], T.r[1]]); if (T.yc != null) top.yc = r6(T.yc);
@@ -646,7 +670,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     thigh.caps = { back: R([r6((Wt + inner0) / 2), hip[1] * 0.4, zp + 0.04]), tip: R([knee[0], knee[1], knee[2] - 0.025]) };
     thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
   }
-  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X, X, girth: g0, female: femaleMass }) : null;
+  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}) }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
     // the structured core's DELTOID (NECK_ROOT.deltoid): the arm's top ring a little under the joint, its cap taller, so
@@ -739,10 +763,10 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   return scalePlan({
     schema: PLAN_SCHEMA,
-    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${preset?.proportions === 'anime' ? ', anime proportions' : ''}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}${tuned(TN)}), soles on z = 0, facing +y` },
+    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${preset?.proportions && preset.proportions !== 'hero' ? `, ${preset.proportions} proportions` : ''}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}${tuned(TN)}), soles on z = 0, facing +y` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot' },
     style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e },
-    joints, segments, include, dials, palette: structured && bare && palette.Skin && !palette.Navel ? { ...palette, Navel: darken(palette.Skin, CHEST_FORM.navel.tone) } : palette, rig, clips,
+    joints, segments, include, dials, palette: { ...(preset?.glove && structured ? { Glove: GLOVE_WHITE } : {}), ...(structured && bare && palette.Skin && !palette.Navel ? { ...palette, Navel: darken(palette.Skin, CHEST_FORM.navel.tone) } : palette) }, rig, clips,
   }, S);
 }
 

@@ -92,11 +92,12 @@ export { HAND_POSES };
 
 /**
  * The right hand of the structured hero: `wrist`, `elbow` (rest, m), `len` the palm's length (the wrist to the middle
- * knuckle: the hand bone's tail, `knuckles`), `X` the cast's extremities, `girth` the plan's radial scale, `female`.
+ * knuckle: the hand bone's tail, `knuckles`), `X` the cast's extremities, `girth` the plan's radial scale, `female`,
+ * `group` the palette group the palm and digits wear (`Skin`; a gloved cast's `Glove`).
  * Returns { segments, joints, bones, hands, wrist }: the six rings parts (mirrored by name), the rig joints and bones
  * (`$S`), the rig's `hands` block for both sides, and the hand's section at the wrist (the forearm's last ring).
  */
-export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false }) {
+export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false, group = 'Skin' }) {
   const F = HAND_FORM[female ? 'female' : 'male'];
   const A = unit(sub(wrist, elbow)), V = unit(sub([0, 1, 0], mul(A, A[1]))), N = unit(cross(V, A));   // along, across (toward the thumb), out of the palm
   const at = (u, v, w) => add(wrist, add(add(mul(A, u), mul(V, v)), mul(N, w)));
@@ -123,7 +124,7 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false }
     if (last) for (const sl of ring8) { const v = dot(sub(pts[sl], wrist), V), side = v < 0 ? P.arc[0] * x * Math.min(1, -v / (hw * gx)) : P.arc[1] * x * Math.min(1, v / (hw * gx)); pts[sl] = R(sub(pts[sl], mul(A, side))); }
     return { id: `st${i}`, points: pts };
   });
-  const palm = { name: 'handR', kind: 'rings', slots: 'ring8', stations: palmStations, caps: { back: R(at(-0.2 * len, 0, 0)), tip: R(at((1 + P.tip) * len - 0.004 * x, 0, -0.002 * x)) }, group: 'Skin', mirror: 'name',
+  const palm = { name: 'handR', kind: 'rings', slots: 'ring8', stations: palmStations, caps: { back: R(at(-0.2 * len, 0, 0)), tip: R(at((1 + P.tip) * len - 0.004 * x, 0, -0.002 * x)) }, group, mirror: 'name',
     bind: { bone: 'handR', blend: { back: { foreArmR: 1 }, st0: { foreArmR: 0.5, handR: 0.5 } } } };
 
   // ── the digits: straight in the hand's frame, then curled by the rest curl as the rig curls them ──
@@ -177,7 +178,7 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false }
     const blend = thumb
       ? { back: { handR: 1 }, st0: { handR: 1 }, st1: { handR: 0.6, [bn(1)]: 0.4 }, st2: { [bn(1)]: 0.5, [bn(2)]: 0.5 }, st3: { [bn(2)]: 0.5, [bn(3)]: 0.5 }, st4: { [bn(3)]: 1 }, tip: { [bn(3)]: 1 } }
       : { back: { handR: 1 }, st0: { handR: 1 }, st1: { handR: 0.5, [bn(1)]: 0.5 }, st2: { [bn(1)]: 0.5, [bn(2)]: 0.5 }, st3: { [bn(2)]: 0.5, [bn(3)]: 0.5 }, st4: { [bn(3)]: 1 }, tip: { [bn(3)]: 1 } };
-    segments.push({ name: `${d}R`, kind: 'rings', slots: 'limb6', stations: rings.map((g, i) => ({ id: `st${i}`, points: g.pts })), caps: { back: R(add(st[0].c, mul(dir, -0.4 * r[0]))), tip: R(tipCap) }, group: 'Skin', mirror: 'name', bind: { bone: bn(1), blend } });
+    segments.push({ name: `${d}R`, kind: 'rings', slots: 'limb6', stations: rings.map((g, i) => ({ id: `st${i}`, points: g.pts })), caps: { back: R(add(st[0].c, mul(dir, -0.4 * r[0]))), tip: R(tipCap) }, group, mirror: 'name', bind: { bone: bn(1), blend } });
     for (let i = 0; i < 3; i++) bones.push({ id: `${d}${i + 1}$S`, head: `${names[i]}$S`, tail: `${names[i + 1]}$S`, aux: thumb ? (i ? ['thumbMcp$S', 'thumbHinge$S'] : ['thumbCmc$S', 'thumbAxis$S']) : ['knuckles$S', 'fingerAxis$S'] });
     digits[d] = { axis, tip: names[3], links: [0, 1, 2].map((k) => ({ pivot: names[k], ...(thumb && k === 0 ? { joints: [...names.slice(1), 'thumbHinge'] } : {}), weight: W[k], ...(ax[k] !== axis ? { axis: R(ax[k]) } : {}) })) };
   }

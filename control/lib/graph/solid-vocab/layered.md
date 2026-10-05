@@ -47,11 +47,12 @@ hair lit at the three-quarter view, with shade shapes under the locks), `shade: 
 the base: skin warm and the rest a cool neutral, about 10–13 L* darker; hair by value — L* × 0.52 but no darker than
 L* 20.5 (about 15 above the World page's dark backdrop, and never within 10 of the lit tone), chroma × 0.75, the hue 20°
 toward violet, so a brown's shade stays brown), `unlit: [groups]` (drawn at their colour: `Iris`, `Pupil`, `Sclera`,
-`Ink`, `Mouth`), `highlight: { <group>: { kind: 'ring' | 'streak', threshold?, band?, falloff?, parts? } | false }` (a
+`Ink`, `Mouth`), `highlight: { <group>: { kind: 'ring' | 'streak' | 'gloss', threshold?, band?, falloff?, parts? } | false }` (a
 THIRD tone on the group's lit side, split along a second line: `ring` — N·L above `threshold` (0.3) inside its `band`
 (a share of the head's height below the skull crown, [0.14, 0.22]) narrowed away from the key's side by `falloff` (1.4):
 a crescent facing the key whose edges follow the position, so they run smooth across a lock, the sheen line; `streak`
-— N·L above `threshold` (0.5) inside the band ([0, 0.4]) only; `parts: 'fringe'` keeps it to the fringe; its colour the
+— N·L above `threshold` (0.5) inside the band ([0, 0.4]) only; `gloss` — N·L above a high `threshold` (0.86) anywhere
+on the group, no band: the moulded-plastic hot spot on each rounded form facing the key (a hero robot's armour); `parts: 'fringe'` keeps it to the fringe; its colour the
 palette's `<group>Highlight`, else derived: a quarter of the way from the base's L* to white, chroma × 1.15 — always
 lighter, and none on a base above about L* 84, whose lit side keeps one tone; `false` none) `}`.
 The anime hero takes its base's hair highlight by default (the ring on the female, a fringe streak on the male) unless
@@ -333,7 +334,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints
   whose line orients it in place of head → tail; it still sits at its head.)
   ANIME PROPORTIONS: a hero wearing the anime head wears an anime body by default (`proportions: 'anime'`; `'hero'` keeps
-  the realistic cast): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
+  the realistic cast; `'herobot'` is the hero ROBOT's toy-hero body, about 4.4 heads tall — a big head, a short torso,
+  short arms and neck, longer shins, big feet and bigger, puffed white cartoon gloves (`Glove`), the neck in the body stocking (`Top`); adult limbs, never
+  child-coded): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
   at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller hands and feet, the
   overall height kept. A `tune` is a percentage of THAT baseline. The readout says `proportions` and `headsTall`. The
   anime casts wear a NECK FORM: the neck a ring loft that leans forward a little and whose back rises through a nape ring
@@ -505,9 +508,32 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
     - `boards` `{ n, len, thick, tilt, stand?, dm?, bow?, widen?, wide?, bottom, cords?, cordR?, cordGroup? }`: flat
       laced rows hung from a piece's edge, with the cords in their own group;
     - `crest` `{ shape, w, z, r }`;
-    - `helm` `{ pad, n?, flare?, muzzle?, crown?, visor?, visorGroup?, faceplate?, grille?, brow?, coronet? }`: a
-      smooth helmet sized to the head;
+    - `helm` `{ pad, n?, flare?, muzzle?, crown?, visor?, visorGroup?, faceplate?, grille?, brow?, coronet?, parts?,
+      window?, ears?, gem?, scale?, horns?, ponytail? }`: a smooth helmet sized to the head (`parts`, default cranium + jaw; `['face', 'earR',
+      'earL']` on the anime head; `scale` grows it about its centre, its window and trim with it). `window` opens the face: `{ brow, w, bottom, nape?, rim?: { group }, jaw?: { drop,
+      curl, wrap } (cheek guards curled under the jaw), back?: { tuck } (the back rounded to the nape), hug? (the lower helm's sides and back rounded in
+      like an egg toward the face, a share of the half-width), v?: { apex,
+      curve?, raise?, group, stripes?: { w?, t?, span?, group? } } (the window's top edge as a raised V from its top corners
+      down to the bridge of the nose, its lines carried over the crown to the nape as embossed stripes; `frame` `{ cheek?:
+      [tip, top], peak?: [rise, d], gem?: { corner: [rise, d], top, bottom } }` grows it into the visor's whole frame: wide
+      cheek bands tapering to the jaw, a brow band, and two horns rising to points beside a diamond `gem` set in its notch) }`; `ears` `{ r?, h?, group, cap?: { group } }` domes at the
+      ears; `horns` `{ u, a, len, r, out?, up?, back?, bend?, squash?, group }` a pair of tapering blades off the temples;
+      `ponytail` `{ u, len, r, n?, spread?, back?, wild?, flick?, group, tie?: { group } }` wild flattened clumps out of the
+      helm's back, scattered by a fixed pattern; `gem` `{ r?, group, shape?: 'diamond', tall?, wide?, fit?: 'v', top?, setting?: { group, w? } }` a jewel on the brow
+      (`diamond` a faceted rhombus stone on a rhombus border plate `w` wider; `fit: 'v'` runs its lower edges parallel to
+      the V's lines and keeps `top` (in r) above where they turn: a kite in the V);
+    - `volume` `{ shape: 'football' | 'cone' | 'bell' | 'slab' | 'bead' | 'plate', girth, peak?, mouth?, taper?, n?, squash?,
+      bias?, extend?, at?, point?, bore?: { group }, lip?: { group, at, w?, out? }, half?: { cut } }` (`half` a flat face `cut` radii
+      below the axis, level along its length: a half-egg foot's sole; a `bead`'s `peak` points to the window's end, or its
+      start with `point: 'start'`: a knee pad pointing up the thigh); `plate` `{ at, profile: [[along, radius]…], span?, facets?, thick? }` an angular plate arched over the carrier's
+      outer side in flat facets: a pauldron over a ball: a free solid round a WRAPPED shell's
+      carrier, sized from the carrier's own axis and radius (`girth` × it) and riding its bone — figure-fluff's girth
+      contrast on the rig (a ball pauldron, a barrel chest plate, briefs, a football forearm, a flared boot cone, a
+      block sole, a thigh rim, a knee pad); its carrying shell only sizes it and is worn as a slender core buried on the carrier's axis;
     - `pack` `{ w, h, d, vents? }`;
+    - `plaque` `{ s, w, c?, lift?, thick?, bevel?, part? }`: a thick trapezoid plate on the carrier between stations `s`
+      [bottom, top], centred on the front (or at ring offset `c`, negative on the L side: a pec plate), its half-width in ring units `w` [bottom, top], lifted `lift` off what lies
+      beneath, its face narrowed to `bevel` (an embossed ab plate under a chest plate);
     - the theme motifs `skull` `{ r, horns?, socketGroup? }`, `spikes` `{ count, len, r, rise?, profile? }`, `ribs`
       `{ count, r }`, `fur` `{ r, tufts? }`, `tabard` `{ len, thick }` (on a strap) and `runes` `{ count, h, w }`.
     An adornment with `stack: false` is never lifted under the ones worn after it. A shell's `rim: { group, at?, w? }`

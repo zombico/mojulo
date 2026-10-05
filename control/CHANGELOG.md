@@ -12,6 +12,49 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Figure articulation: herobot
+
+The hero robot on the hero door: the toy-hero read of the late platformer renders, an original robot on the anime head,
+built from words the door already reads plus a few new ones. Every addition is opt-in, so no stored hero changes. Being
+built on this branch; each bullet is rewritten as its phase lands.
+
+- **`proportions: 'herobot'`.** A third proportion word beside `hero` and `anime`, at about 4.4 heads tall: a big head,
+  a short torso, short arms (a cast may now scale both arm segments' lengths) and a short neck, with big hands and feet
+  for the gauntlets and boots to sit on. Its hands are bigger still, puffed into a cartoon glove's fat, rounded digits and gloved in
+  the palette's `Glove` (white unless named), its neck in the body stocking (`Top`), and its shins a little longer for an
+  action hero's stride (a cast may carry `hands`, `puff`, `glove`, `suitNeck` and `shank`). The body keeps adult limbs and is not child-coded, unlike `chibi`.
+
+- **The `volume` signature.** Figure-fluff's girth contrast on the rig: a free solid round its carrier, sized from the
+  carrier's own measured axis and radius, riding that bone. It takes the fluff shapes (`football`, `cone`, `bell`,
+  `slab`, `bead`), a superellipse section, a `bore` (a muzzle disc), a `lip` (a cuff) and a `half` cut (a flat sole, for a half-egg foot). The robot's ball pauldrons,
+  barrel chest plate, collar, briefs, wide forearms, thigh rims, flared boots, pointed half-egg feet and knee pads are adornment data.
+  A `bead` can point its crest back toward the window's start (`point: 'start'`), so a knee pad on the shank points up. The carrying shell
+  of a volume is a slender core buried on the carrier's axis, so only the volume shows.
+
+- **The `plaque` signature.** A thick trapezoid plate lying on its carrier between two stations, wider at one end,
+  lifted forward off whatever lies beneath, with a bevelled face: an embossed ab plate jutting down under a chest plate. Set off the front by `c`, a pair
+  makes pec plates.
+  Every signature now also reads its adornment's `carrier`.
+
+- **The helm's face window.** The `helm` signature takes a `window` (the face open, the helm wrapping the crown, temples
+  and cheeks) with `brow`, `w`, `bottom`, `nape`, `rim`, cheek guards curled under the jaw (`jaw`: `drop`, `curl`,
+  `wrap`), a back tucked round to the nape (`back`), the lower sides and back rounded in like an egg to hug the face (`hug`), and the window's top edge brought down as a raised V to the bridge of the nose
+  (`v`), whose two lines can carry on as embossed `stripes` over the crown to the nape. A V `frame` grows the V into the visor's whole frame: wide
+  cheek bands tapering to the jaw, a brow band, and two horns rising to points either side of a diamond gem set in its notch. It also takes ear domes
+  (`ears`) and a brow gem (`gem`), round or a faceted `diamond` on a border plate (`fit: 'v'` sets its lower edges parallel to the V). Sized from `parts`, so `['face', 'earR', 'earL']` fits it to the anime head as raw
+  kit data, and `scale` grows the whole helm about its centre. The armour builds' helms still refuse on the anime head.
+
+- **The `gloss` highlight.** A third highlight kind on the character light: N·L above a high threshold anywhere on a
+  group, with no band. This is the moulded-plastic hot spot on each rounded armour form. Like `ring` and `streak`, it
+  is baked and conforming.
+
+- **Horns, a ponytail and plate pauldrons.** The helm takes `horns` (a pair of tapering blades off the temples) and a
+  `ponytail` (wild flattened clumps out of its back, scattered by a fixed pattern, so it stays deterministic). A `volume`
+  takes the `plate` shape: an angular plate arched over the carrier's outer side in flat facets, a pauldron over a ball.
+
+- **Worked casts.** `docs/examples/humanoid/cast/herobot-classic.json` and its rival, `herobot-rival.json`: red and white,
+  horns and a ponytail, and a more angular silhouette from the same adornment kit.
+
 ### Figure articulation: pelvic
 
 The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike, and

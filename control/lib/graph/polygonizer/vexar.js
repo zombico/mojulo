@@ -182,11 +182,13 @@ const TOON_LIGHT_KEYS = ['toLight', 'threshold', 'thresholds', 'shade', 'unlit',
 /** the HIGHLIGHT (a third tone on a group's lit side, split crisply on a second iso-line; station-loft-shade.js): its
  *  kinds and each kind's defaults — `ring`: N·L above `threshold` less `falloff`·u², u the height across the `band` (a
  *  share of the head's height below the skull crown), so a band on the lit side broken where the locks turn away (the
- *  sheen line on the hair); `streak`: N·L above `threshold` inside the band only (a hard window). `parts: 'fringe'` keeps
- *  it to the fringe's locks and sections. */
+ *  sheen line on the hair); `streak`: N·L above `threshold` inside the band only (a hard window); `gloss`: N·L above a
+ *  high `threshold` anywhere on the group, no band (the moulded-plastic hot spot on each rounded form facing the key: the
+ *  hero robot's armour). `parts: 'fringe'` keeps it to the fringe's locks and sections. */
 export const HIGHLIGHT_KINDS = Object.freeze({
   ring: Object.freeze({ threshold: 0.3, band: Object.freeze([0.14, 0.22]), falloff: 1.4 }),
   streak: Object.freeze({ threshold: 0.5, band: Object.freeze([0, 0.4]) }),
+  gloss: Object.freeze({ threshold: 0.86, band: Object.freeze([0, 1]) }),
 });
 const HIGHLIGHT_KEYS = ['kind', 'threshold', 'band', 'falloff', 'parts'];
 const HIGHLIGHT_PARTS = ['fringe'];

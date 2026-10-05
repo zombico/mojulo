@@ -373,7 +373,7 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  *     base too light for a lighter tone keeps one tone). `ring`: s = min(N·L − threshold, 1 − (u / w)²), w = cos(Δ)^(falloff
  *     / 2) with Δ the turn about the head's vertical axis from the key's azimuth (0 past a quarter turn): a crescent whose
  *     edges follow the position, smooth across a lock's facets; `streak`: s = N·L − threshold inside the band (|u| ≤ 1),
- *     else −1. Conforming like
+ *     else −1; `gloss`: s = N·L − threshold everywhere (no band: the plastic hot spot). Conforming like
  *     the step: its crossings on a face's edges (where the lit part of the edge meets s = 0) are registered on the edge,
  *     and where the two lines cross inside a triangle the point is a `bary` ref shared by the lit and the shade side;
  *   • THE NECK OCCLUSION RULE: on a mesh wearing the anime head (its face shell over a cranium core), every face of the
@@ -440,6 +440,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   // arc across a lock, never toothed by its facets' N·L, which only cuts it where N·L falls under the rule's threshold
   const hiOf = (H, d, p) => {
     const u = (p[2] - H.zc) / H.hw;
+    if (H.R.kind === 'gloss') return d - H.R.threshold;
     if (H.R.kind === 'streak') return Math.abs(u) <= 1 ? d - H.R.threshold : -1;
     const turn = dmath.atan2(p[0] - H.axis[0], p[1] - H.axis[1]) - H.key, c = dmath.cos(turn), w = c > 0 ? dmath.pow(c, (H.R.falloff ?? 1) / 2) : 0;
     return w > 1e-6 ? Math.min(d - H.R.threshold, 1 - (u / w) ** 2) : -1;

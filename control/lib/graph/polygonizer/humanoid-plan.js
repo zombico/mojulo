@@ -60,8 +60,8 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   else { const { from: _faceFrom, ...shape } = resolveFace(face); head = humanoidHead({ preset: pole, shape, register, hair: hair ?? 'swept', expression, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours }); }
   // the anime head on anime proportions wears its cast's NECK FORM (hero-form.js ANIME_NECK_FORMS: the ring loft rising
   // into the occiput, the trapezius ring); every other head and proportion keeps the segment neck
-  const neckForm = anime && props === 'anime' && typeof preset === 'string' && Object.hasOwn(ANIME_NECK_FORMS, preset) ? ANIME_NECK_FORMS[preset] : null;
-  const plan = heroPlan({ cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, head, body, tune, ...(props === 'anime' ? { proportions: 'anime' } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !childCoded ? { bare: true } : {}) });
+  const neckForm = anime && props !== 'hero' && typeof preset === 'string' && Object.hasOwn(ANIME_NECK_FORMS, preset) ? ANIME_NECK_FORMS[preset] : null;
+  const plan = heroPlan({ cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, head, body, tune, ...(props !== 'hero' ? { proportions: props } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !childCoded ? { bare: true } : {}) });
   // Broad shirt panels and a sloping shoulder yoke are specific to this starter.
   // Keep the hero recipe (and previously stored plans) independent of this art direction.
   const torso = plan.segments.find(s => s.name === 'torso');
