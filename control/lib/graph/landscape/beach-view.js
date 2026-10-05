@@ -17,6 +17,10 @@
  * Orbit-only object study — no walk, no CSS-3D /scene form.
  */
 
+import { withAqua } from '../materials/aqua-look.js';
+import { detailAtLeast, normalizeDetail } from '../materials/detail-tier.js';
+import { SOFT_GROUNDS } from '../materials/soft-ground.js';
+import { WS_DARK, shoreMoisture } from '../materials/shore-moisture.js';
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const GOLDEN = 2.399963229728653;   // golden angle (rad) — deterministic phase spread, no Math.random
@@ -33,7 +37,8 @@ const WX = 130, DY = 118, NX = 84, NY = 92;    // water grid
 const EDGE = DY / 2;                            // still waterline sits at the far edge of the water grid
 const TOE = 22, BEACH = 60, TOE_DEPTH = 12, DUNE_H = 15;   // sand wedge: submerged toe → dry dune
 const SX = 52, SY = 44;                         // sand grid resolution
-const SUN = [70, -55, 85];                      // sun grazing enough that wave slopes catch light/shade
+const SUN = [70, -55, 85];
+const SWASH = 12, OM_SWASH = 0.6, RUNUP = 0.45;           // swash range, lap rate, and how far up the sand it runs                      // sun grazing enough that wave slopes catch light/shade
 
 // sea-state presets: a Gerstner spectrum fanned tightly around the +y (onshore) heading. Wavelengths
 // are kept SHORT relative to the ~150-unit domain so several crests march shoreward at once — the
@@ -79,13 +84,20 @@ function bedZ(y) {
 // the static sand WEDGE — a grid of flat-shaded quads. Wet near/below the waterline, dry up the berm;
 // each facet Lambert-lit by the low sun so the slope reads. Gentle seeded ripple keeps it from looking
 // like a ramp (deterministic — a fixed trig field, no dice).
-function buildSand(scale) {
+function sandFrame(s) {
+  const ripple = (x, y) => (0.55 * Math.sin(x * 0.22 + y * 0.05) + 0.4 * Math.sin(y * 0.4 + 1.3)) * s;
+  return { x0: -(WX / 2 + 8) * s, x1: (WX / 2 + 8) * s, y0: (EDGE - TOE) * s, y1: (EDGE + BEACH) * s, zAt: (x, y) => bedZ(y / s) * s + ripple(x, y) };
+}
+// the sand surface's corner heights, the grid buildSand faces: the touch tier's footprint bed sits exactly on it
+function sandSurface(scale) {
+  const { x0, x1, y0, y1, zAt } = sandFrame(scale), z = [];
+  for (let j = 0; j <= SY; j++) for (let i = 0; i <= SX; i++) z.push(+zAt(x0 + (x1 - x0) * (i / SX), y0 + (y1 - y0) * (j / SY)).toFixed(5));
+  return { x0, y0, x1, y1, sx: SX, sy: SY, z };
+}
+function buildSand(scale, { liveWet = null } = {}) {
   const s = scale;
   const sun = norm3(SUN);
-  const x0 = -(WX / 2 + 8) * s, x1 = (WX / 2 + 8) * s;
-  const y0 = (EDGE - TOE) * s, y1 = (EDGE + BEACH) * s;
-  const ripple = (x, y) => (0.55 * Math.sin(x * 0.22 + y * 0.05) + 0.4 * Math.sin(y * 0.4 + 1.3)) * s;
-  const zAt = (x, y) => bedZ(y / s) * s + ripple(x, y);
+  const { x0, x1, y0, y1, zAt } = sandFrame(s);
   const faces = [];
   for (let j = 0; j < SY; j++) {
     for (let i = 0; i < SX; i++) {
@@ -95,10 +107,33 @@ function buildSand(scale) {
       const n = norm3(cross3(sub3(p10, p00), sub3(p01, p00)));
       const shade = 0.34 + 0.66 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
       const zc = (p00[2] + p10[2] + p11[2] + p01[2]) / 4;
-      const wet = zc < 0 ? 1 : Math.max(0, 1 - zc / (5 * s));   // submerged → wet, up to +5 units dry
+      // submerged → wet, up to +5 units dry. With a live wet band (wet-sand channel) the old height band is off: the
+      // swash's moisture darkens it instead (a height band shows its quads as steps at the waterline)
+      const wet = liveWet ? 0 : zc < 0 ? 1 : Math.max(0, 1 - zc / (5 * s));
+      // a live band bakes the swash's own moisture at t = 0 (what an export carries); the page swaps it for the live one
+      const damp = liveWet ? 1 - WS_DARK * shoreMoisture(liveWet, (ya + yb) / 2, 0).dark : 1;
       const base = [WET_SAND[0] + (DRY_SAND[0] - WET_SAND[0]) * (1 - wet), WET_SAND[1] + (DRY_SAND[1] - WET_SAND[1]) * (1 - wet), WET_SAND[2] + (DRY_SAND[2] - WET_SAND[2]) * (1 - wet)];
-      faces.push({ corners: [p00, p10, p11, p01], fill: hex([base[0] * shade, base[1] * shade, base[2] * shade]), group: 'sand' });
+      faces.push({ corners: [p00, p10, p11, p01], fill: hex([base[0] * shade * damp, base[1] * shade * damp, base[2] * shade * damp]), group: 'sand' });
     }
+  }
+  return faces;
+}
+
+// the seabed beyond the sand wedge's toe: the bed keeps falling away offshore (to ~2.4× the toe depth at the far
+// edge), so see-through water fades from turquoise shallows to blue deeps instead of ending at the toe. Only laid
+// down with the aqua look — a beach without it can't see its bed and keeps its bytes.
+function buildSeabed(scale) {
+  const s = scale, sun = norm3(SUN), rows = 10;
+  const x0 = -(WX / 2 + 8) * s, x1 = (WX / 2 + 8) * s, yToe = (EDGE - TOE + 3) * s, yFar = -(DY / 2 + 10) * s;
+  const zToe = bedZ(EDGE - TOE) * s - 0.4 * s, zFar = -TOE_DEPTH * 2.4 * s;
+  const faces = [];
+  for (let j = 0; j < rows; j++) {
+    const ya = yFar + (yToe - yFar) * (j / rows), yb = yFar + (yToe - yFar) * ((j + 1) / rows);
+    const za = zFar + (zToe - zFar) * Math.pow(j / rows, 0.8), zb = zFar + (zToe - zFar) * Math.pow((j + 1) / rows, 0.8);
+    const p00 = [x0, ya, za], p10 = [x1, ya, za], p11 = [x1, yb, zb], p01 = [x0, yb, zb];
+    const n = norm3(cross3(sub3(p10, p00), sub3(p01, p00)));
+    const shade = 0.34 + 0.66 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+    faces.push({ corners: [p00, p10, p11, p01], fill: hex(WET_SAND.map((c) => c * 0.92 * shade)), group: 'seabed' });
   }
   return faces;
 }
@@ -108,7 +143,10 @@ function buildSand(scale) {
  * geometry (the water grid regenerates in-script from the spectrum); same recipe → identical scene.
  * @returns {{ surfaces, faces, bounds, stats }}
  */
-export function planBeachScene(recipe = {}) {
+export function planBeachScene(recipe = {}, { liveWet = false } = {}) {
+  // the sand's swash: the water's, run RUNUP of its range up the beach face above the still waterline (the water grid's
+  // own swash foam stops at the waterline)
+  const sc = clampNum(recipe.scale, 0.2, 5, 1), sandSwash = liveWet ? { edgeY: (EDGE + SWASH * RUNUP) * sc, swashRange: SWASH * sc, omSwash: OM_SWASH } : null;
   const scenario = SCENARIOS[recipe.scenario] ? recipe.scenario : 'calm';
   const scale = clampNum(recipe.scale, 0.2, 5, 1);
   const amplitude = clampNum(recipe.amplitude, 0.1, 4, 1);
@@ -126,8 +164,8 @@ export function planBeachScene(recipe = {}) {
     shore: {
       edgeY: EDGE * scale,       // still waterline (far edge of the water grid)
       surfW: 52 * scale,         // width of the surf zone over which the swell shoals + the shallows lighten
-      swashRange: 12 * scale,    // how far the foam swash runs up the sand and back
-      omSwash: 0.6,              // swash lap rate (period ≈ 10 s) — the "slowly rippling" beat
+      swashRange: SWASH * scale, // how far the foam swash runs up the sand and back
+      omSwash: OM_SWASH,         // swash lap rate (period ≈ 10 s) — the "slowly rippling" beat
       foamW: 11 * scale,         // foam band width
       sink: 0.9 * scale,         // sit the flat near-shore water just under the sand so the beach wins the seam
       shallow: SHALLOW,
@@ -136,7 +174,8 @@ export function planBeachScene(recipe = {}) {
 
   return {
     surfaces: [surface],
-    faces: buildSand(scale),
+    faces: buildSand(scale, { liveWet: sandSwash }),
+    ...(sandSwash ? { sandSwash } : {}),
     bounds: { center: [0, 0, 0], radius: Math.hypot(w / 2, d / 2) },
     stats: { scenario, components: waves.length, amplitude, maxAmp: amax, periods: waves.map((wv) => +(TAU / wv.om).toFixed(2)) },
   };
@@ -147,7 +186,11 @@ export function planBeachScene(recipe = {}) {
  * beach (watching the swell roll in) + a high aerial. Pale-sky background.
  */
 export function assembleBeachScene(recipe = {}, { title } = {}) {
-  const plan = planBeachScene(recipe);
+  // detail tier (materials/detail-tier.js): 'animated' (default) adds the live wet band to an aqua beach; 'still'
+  // keeps the baked band. Without the aqua look the beach is byte-identical to before tiers existed.
+  const detail = normalizeDetail(recipe.detail, 'animated');
+  const liveWet = recipe.aqua !== false && detail !== 'still';
+  const plan = planBeachScene(recipe, { liveWet });
   const s = clampNum(recipe.scale, 0.2, 5, 1);
   const cameras = [
     // a steep overhead look (~72°) centred on the waterline: from this angle we see the sunlit wave
@@ -157,9 +200,36 @@ export function assembleBeachScene(recipe = {}, { title } = {}) {
     { name: 'seaward', worldFraming: { cameraPosition: [0, (EDGE + BEACH * 0.5) * s, DY * 0.34 * s], lookAt: [0, -DY * 0.18 * s, 0], horizontalFov: 66 } },
   ];
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#bfe0ee';
+  const surfaces = withAqua(plan.surfaces, recipe.aqua, 'lagoon', { bg, unit: s });
+  const look = surfaces[0].aqua;
+  // TOUCH (detail 'touch' and up): a footprint bed in a window around the walker (channels/soft-ground.js), walk mode
+  // on the berm facing the sea, and the beach's unit declared (1 unit = 1 m at scale 1). Lengths below are metres × s.
+  const touch = liveWet && look && detailAtLeast(detail, 'touch');
+  const D = SOFT_GROUNDS['dry-sand'], M = SOFT_GROUNDS['damp-sand'];
+  const scaleG = (g) => ({ friction: g.friction, staticFriction: g.staticFriction, cohesion: +(g.cohesion * s).toFixed(5) });
+  const touchExtra = touch ? {
+    softGround: {
+      cols: 400, rows: 400, cell: 0.03 * s, quantum: 0.001 * s, depth: 0.3 * s,
+      moisture: { dry: scaleG(D), damp: scaleG(M), fluid: { friction: 0.1, staticFriction: 0.1, cohesion: 0 } },   // sand under running backwash: a slurry, prints level out
+      sink: { dry: D.sink * s, damp: M.sink * s, fluid: 0.04 * s }, stride: 0.38 * s,
+      foot: { offset: 0.11 * s, length: 0.26 * s, width: 0.1 * s, rim: 0.035 * s },
+      color: DRY_SAND, sun: norm3(SUN), swash: plan.sandSwash, zen: look.zen, hor: look.hor, surface: sandSurface(s),
+      // the surf the walker wades into: a disturbance field (12 cm cells, 15 m) riding the analytic sea (its waves and
+      // shore taper, the same the surface channel draws), slowed to watchable speed like the shallows sim
+      water: { n: 128, cell: 0.12 * s, L: s, speed: 0.5, gain: 0.5, toeSlope: TOE_DEPTH / TOE, waves: surfaces[0].waves,
+        shore: { edgeY: surfaces[0].shore.edgeY, surfW: surfaces[0].shore.surfW, sink: surfaces[0].shore.sink } },
+    },
+    // walk mode faces the scene's centre from its spawn: just inland of it, so you start looking down the beach to the sea
+    walk: { spawn: [0, (EDGE + 24) * s, sandFrame(s).zAt(0, (EDGE + 24) * s) + 1.7 * s], speed: 2.4 * s },
+    metersPerUnit: +(1 / s).toFixed(6),
+  } : {};
+  // the touched surface reads the surf's disturbance texture (aqua-glsl AQ_DIST)
+  const surfacesOut = touch ? [{ ...surfaces[0], disturb: true }, ...surfaces.slice(1)] : surfaces;
   return {
-    faces: plan.faces,
-    surfaces: plan.surfaces,
+    ...touchExtra,
+    faces: recipe.aqua === false ? plan.faces : [...plan.faces, ...buildSeabed(s)],
+    surfaces: surfacesOut,
+    ...(liveWet && look ? { wetSand: { group: 'sand', ...(touch ? { hole: true } : {}), ...plan.sandSwash, zen: look.zen, hor: look.hor, sun: surfaces[0].sun } } : {}),
     cameras,
     viewBox: recipe.viewBox && typeof recipe.viewBox === 'object' ? recipe.viewBox : { width: 1120, height: 780 },
     title: title || recipe.title || `mojulo ${plan.stats.scenario} beach`,

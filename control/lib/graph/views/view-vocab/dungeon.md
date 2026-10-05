@@ -5,7 +5,7 @@
   "family": "world",
   "entry": "compose_world",
   "summary": "Mint a torch-lit fantasy INTERIOR from a tiny { chambers, tunnels } graph RECIPE — organic round chambers at elevation joined by sloping tunnels, walkable and .glb-exportable.",
-  "when": "Reach for this on framing like 'make a dungeon / a cave / a cavern network / a crypt / a lair / a torch-lit underground level / a walkable cave system'."
+  "when": "Reach for this on framing like 'make a dungeon / a cave / a cavern network / a crypt / a lair / a torch-lit underground level / a walkable cave system', and for fire in one: 'braziers / wall torches / a fireball trap / green witch-fire' (`fire`)."
 }
 ---
 
@@ -32,6 +32,7 @@ Pass everything via `compose_world`'s `overrides` (identity base — overrides A
   ],
   style?:    { palette?, material?, texture?, tunnel?: { base?, material?, texture? } },
   lighting?: { ambient?, tint?, fireColor?, fireIntensity?, gain?, reflectivity? },
+  fire?:     true | { sources?, embers?, smoke?, light? },
   walk?:     { speed?, minEye?, gravity?, radius?, spawn?, ground?, yaw? } | false,
   viewBox?:  { width, height }
 }
@@ -76,8 +77,12 @@ Spec-level `style` applies to every chamber/tunnel; per-chamber/per-tunnel field
 ## Lighting
 
 - `ambient` (default 0.2), `tint` ([r,g,b] multipliers, warm by default).
-- `fireColor` ([r,g,b], default `[1, 0.56, 0.24]`), `fireIntensity` (default 1.7).
+- `fireColor` ([r,g,b], default `[1, 0.56, 0.24]`), `fireIntensity` (default 1.7). These colour the light baked into the walls; on their own the chamber fires are glows. For flames you can see — braziers, torches on the walls, flicker on the bake — use `fire` (below).
 - `gain` (default 1.55), `reflectivity` (default 0.6) — the traced-diffusion bake dials.
+
+## Fire
+
+`fire: true` lights the dungeon with live fire: each chamber's fire becomes a brazier (an iron bowl on three legs, coals glowing), and each tunnel's two lights become torches in brackets on alternate walls. The flames puff and wander, throw embers, smoke against the ceiling, and their flicker plays over the light the bake already put on the walls. `{ sources: [{ kind, at: [x, y, z], size?, phi? }] }` adds fires anywhere (`kind`: `candle`, `torch`, `brazier`, `campfire`); `embers: false` and `smoke: false` leave those out; `light` (1) scales how far the fires light. `color` colours fire as fireworks are coloured, by a metal salt in the flame: `sodium` yellow, `calcium` orange, `strontium` red, `lithium` crimson, `barium` and `boron` green, `copper` blue, `potassium` lilac, a mix (`{ strontium: 1, copper: 0.5 }`), or `'#rrggbb'` for a fire no salt gives (magic, ghost-light); on `fire` it colours every fire (and the bake takes the hue, so the walls glow in it), on a source just that one. A coloured flame burns clean (`soot`, 0–1, keeps some ordinary yellow); `smokeColor: '#rrggbb'` gives a source a signal smoke. `life` (kindle, die back) and `flares` (a whoosh now and then) make a fire burn up and down; `kind: 'fireball'` with `path: { from, to, speed?, arc?, every?, delay? }` is a trap or a spell: a ball of fire down a corridor every few seconds, trailing its tail and bursting where it lands. Live World page only; exports keep the baked light and the point lights they already get. For a high-resolution still in Blender Cycles, the Blender pack (`export_model({ ref, format: 'blender', fire_t })`, or `node scripts/export-blender.mjs --ref <ref> --fire-t <seconds>` with its machine gate) carries the fire at that instant: each flame as an OpenVDB volume of light, its smoke, embers, a light per fire and its props, and `import_mojulo.py -- --mode render --res 3840x2160` renders it (the pack's README has the dials).
 
 ## Worked example
 

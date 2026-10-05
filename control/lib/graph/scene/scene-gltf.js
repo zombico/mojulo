@@ -24,6 +24,7 @@
  * No three.js import — pure typed-array + Buffer assembly, unit-testable in node.
  */
 
+import { aquaWaterBodies } from '../materials/aqua-export.js';
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
 import { resolveMetalSurface } from '../materials/metal-surface.js';
@@ -415,6 +416,22 @@ class GlbBuilder {
     }
     if (optics.glow && optics.glow.strength > 0) mat.emissiveFactor = optics.glow.rgb.map((c) => +(c * Math.min(1, optics.glow.strength)).toFixed(4));
     mat.extensions = ext;
+    this.json.materials.push(mat);
+    return this.json.materials.length - 1;
+  }
+
+  // Water (aqua look): a clear dielectric the way the standard extensions say it — KHR_materials_transmission, ior 1.333,
+  // and KHR_materials_volume whose attenuation colour is what white light keeps after one attenuation distance of this
+  // water (Beer–Lambert, the distance set so the clearest channel loses 1/e). COLOR_0 (the body / foam colour) tints it.
+  // Lit, double-sided, the preset's roughness. The extensions are declared once, shared with crystals.
+  waterMaterial({ name, look }) {
+    const declare = (ext) => { this.crystalExts ||= new Set(); if (!this.crystalExts.has(ext)) { this.crystalExts.add(ext); this.json.extensionsUsed.push(ext); } };
+    declare('KHR_materials_transmission'); declare('KHR_materials_ior'); declare('KHR_materials_volume');
+    const sMax = Math.max(...look.sigma, 1e-4), dist = 1 / sMax;
+    const att = look.sigma.map((v) => +Math.max(0.002, Math.exp(-v * dist)).toFixed(4));
+    const mat = { name, doubleSided: true, pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: +look.rough.toFixed(4) },
+      extensions: { KHR_materials_transmission: { transmissionFactor: 0.9 }, KHR_materials_ior: { ior: 1.333 },
+        KHR_materials_volume: { thicknessFactor: +(2 * dist).toFixed(4), attenuationDistance: +dist.toFixed(4), attenuationColor: att } } };
     this.json.materials.push(mat);
     return this.json.materials.length - 1;
   }
@@ -1041,7 +1058,10 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const rigFigs = clipSel && figures && typeof figures === 'object'
     ? Object.entries(figures).filter(([, f]) => f && f.rig === true && Array.isArray(f.bones) && Array.isArray(f.parts))
     : [];
-  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length) return null;
+  // water (aqua look): liquid sheets and frozen aqua surfaces leave as their own `water:<kind>` nodes. A scene that is
+  // only an animated sea (the ocean view: no faces) exports when it has an aqua surface; otherwise as before.
+  const waterBodies = aquaWaterBodies(payload);
+  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length && !waterBodies.some((w) => w.frame)) return null;
 
   // A rig may declare `embodies: '<group>'` (interchange.plan.md I2 — the figure kind):
   // the payload's static faces of that group depict the SAME body at rest, so when this
@@ -1252,10 +1272,21 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   }
 
   // Translucent water: per-vertex alpha rides COLOR_0 (VEC4); baseColorFactor stays opaque.
-  const water = waterRaw.length ? collectWaterMesh(waterRaw) : null;
+  const liquidBody = waterBodies.find((w) => w.sheet);
+  const water = waterRaw.length ? collectWaterMesh(liquidBody ? waterRaw.filter((f) => !f.liquid) : waterRaw) : null;
   if (water && water.positions.length) {
     const mat = b.unlitMaterial({ alpha: 1, name: 'water' });
     tally(b.addNode('water', water.positions, water.colors, 4, mat));
+  }
+  for (const body of waterBodies) {
+    const mat = b.waterMaterial({ name: body.name, look: body.look });
+    if (body.sheet) {
+      const m = collectWaterMesh(body.liquidFaces);
+      if (!m) continue;
+      const rgb = new Float32Array(m.vertexCount * 3), up = new Float32Array(m.vertexCount * 3);
+      for (let i = 0; i < m.vertexCount; i++) { rgb[3 * i] = m.colors[4 * i]; rgb[3 * i + 1] = m.colors[4 * i + 1]; rgb[3 * i + 2] = m.colors[4 * i + 2]; up[3 * i + 2] = 1; }
+      tally(b.addNode(body.name, m.positions, rgb, 3, mat, undefined, up));
+    } else tally(b.addNode(body.name, body.frame.positions, body.frame.colors, 3, mat, undefined, body.frame.normals));
   }
 
   // Flat shadow + ink ground decals → one translucent dark mesh (the World's cast/contact pools).

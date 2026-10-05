@@ -58,6 +58,9 @@ const boxOk = (b) => b && ['cx', 'cy', 'cz', 'hx', 'hy', 'hz'].every((k) => Numb
  * @param {number} [opts.maxDist]            how far a ray may reach the deck (undershot 900, full 260).
  * @param {number} [opts.fade=420]           undershot horizon fade distance (alpha × exp(−t / fade)).
  * @param {number} [opts.steps=160] · [opts.traceSteps=120]   full-mode march / occluder trace steps.
+ * @param {boolean} [opts.depthClip=false]   undershot: read the host's scene-depth prepass (`uDepth`) and drop a deck
+ *   sample wherever rasterized geometry stands nearer along the ray (a tree, a cliff seen against the sky). Absent ⇒
+ *   the frag and the layer are byte-identical to before.
  * @param {number} [opts.cell=5] · [opts.margin=3] · [opts.K=12]   full-mode box-field grid.
  * @returns {{ frag: string, customUniforms: object, dataTextures: object, meta: { mode, base, top, count?, overflow? } }}
  */
@@ -65,7 +68,7 @@ export function composeCloudDeck(boxes = [], opts = {}) {
   const {
     up = 'z', mode = 'undershot', base, top, floor = 0, clearance = 12, thickness = 13, coverage = 0.35, sun,
     color = [0.95, 0.95, 0.95], density = 0.42, scale = 0.045, drift = 1, maxDist, fade = 420,
-    steps = 160, traceSteps = 120, cell = 5, margin = 3, K = 12,
+    steps = 160, traceSteps = 120, cell = 5, margin = 3, K = 12, depthClip = false,
   } = opts && typeof opts === 'object' ? opts : {};
 
   if (up !== 'y' && up !== 'z') throw new Error(`composeCloudDeck: up must be 'y' or 'z', got ${JSON.stringify(up)}`);
@@ -115,17 +118,17 @@ float svDeckShape(vec3 p){
   // artifacts on long aerial rays would show for no gain.
   const crossing = list.filter((b) => +b[cU] + +b[hU] > base_);
   if (mode === 'full') return composeFull({ list: crossing, U, up, shapeGlsl, sunGlsl, lo, hi, scale, driftGlsl, maxDist: maxDist ?? 260, steps, traceSteps, cell, margin, K, meta });
-  return composeUndershot({ U, shapeGlsl, sunGlsl, scale, maxDist: maxDist ?? 900, fade, meta });
+  return composeUndershot({ U, shapeGlsl, sunGlsl, scale, maxDist: maxDist ?? 900, fade, meta, depthClip: !!depthClip });
 }
 
 // ---- undershot: the plane deck ---------------------------------------------------------------
-function composeUndershot({ U, shapeGlsl, sunGlsl, scale, maxDist, fade, meta }) {
+function composeUndershot({ U, shapeGlsl, sunGlsl, scale, maxDist, fade, meta, depthClip = false }) {
   // in-plane offset toward the sun for the top-side self-shadow: a quarter of a noise period
   const reach = f(0.25 / scale);
   const frag = `precision highp float;
 uniform vec3 uCamPos; uniform mat3 uCamBasis; uniform vec2 uRes; uniform float uTime; uniform float uFov;
 uniform float uMaxDist; uniform float uFade;
-${VOLUME_NOISE_GLSL}
+${depthClip ? 'uniform sampler2D uDepth; uniform float uNear; uniform float uFar;\n' : ''}${VOLUME_NOISE_GLSL}
 ${VOLUME_PHASE_GLSL}
 ${sunGlsl}
 ${shapeGlsl}
@@ -139,7 +142,14 @@ void main(){
   // inside the band, or looking away from the deck: nothing (the band is published as meta.base/top)
   if ((!below && !above) || (below && dU <= 1e-4) || (above && dU >= -1e-4)) { gl_FragColor = vec4(0.0); return; }
   float t = ((below ? SV_BASE : SV_TOP) - hCam) / dU;
-  if (t > uMaxDist) { gl_FragColor = vec4(0.0); return; }
+  if (t > uMaxDist) { gl_FragColor = vec4(0.0); return; }${depthClip ? `
+  { float dz = texture2D(uDepth, gl_FragCoord.xy / uRes).x;     // the scene stands in front of the deck here: no cloud
+    if (dz < 1.0) {
+      float ndc = dz * 2.0 - 1.0;
+      float viewZ = (2.0 * uNear * uFar) / (uFar + uNear - ndc * (uFar - uNear));
+      vec3 vrFwd = uCamBasis * vec3(0.0, 0.0, 1.0);
+      if (viewZ / max(dot(rd, vrFwd), 1e-4) < t) { gl_FragColor = vec4(0.0); return; }
+    } }` : ''}
   vec3 P = ro + rd * t;
   float shape = svDeckShape(P);
   if (shape < 0.002) { gl_FragColor = vec4(0.0); return; }
@@ -161,7 +171,7 @@ void main(){
   gl_FragColor = vec4(SV_ALBEDO * L * a, a);                   // premultiplied, blended over the mesh
 }
 `;
-  return { frag, customUniforms: { uMaxDist: +maxDist, uFade: +fade }, dataTextures: {}, meta };
+  return { frag, customUniforms: { uMaxDist: +maxDist, uFade: +fade }, dataTextures: {}, meta, ...(depthClip ? { depthClip: true } : {}) };
 }
 
 // ---- full: the volumetric band ---------------------------------------------------------------

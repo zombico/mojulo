@@ -45,6 +45,8 @@ rBrush{
 
 ## Realistic match flame
 
+A match flame drawn in a flat picture. For fire in a 3D world — a campfire, torches, a fireball, a grass fire — use `compose_world` `overrides.fire` instead.
+
 Use `rBrush` with `matter.phase:"fire"`, `envelope.profile:"fat-lick"`,
 `sourceRadius`, combustion color reasoning, `outline:false`, and
 `noisySpaghetti` loads inside the envelope. Fire emits one fat lick with

@@ -23,6 +23,7 @@ import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-cond
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
+import { assembleStageScene } from '@/lib/graph/era/stage';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
@@ -77,6 +78,7 @@ import { assembleFluidScene } from '@/lib/graph/landscape/fluid-view';
 import { assembleOceanScene } from '@/lib/graph/landscape/ocean-view';
 import { assembleBeachScene } from '@/lib/graph/landscape/beach-view';
 import { assembleRiverScene } from '@/lib/graph/landscape/river-view';
+import { assembleWaterfallScene } from '@/lib/graph/landscape/waterfall-view';
 import { assembleGravityWaveScene } from '@/lib/graph/views/science/gravity-wave-view';
 import { assembleParallelTransportScene } from '@/lib/graph/views/science/parallel-transport-view';
 import { assembleWindmillScene } from '@/lib/graph/vehicles/windmill-view';
@@ -339,6 +341,7 @@ export const WORLD_KINDS = {
   'ocean-view': view(assembleOceanScene, 'mojulo ocean'),
   'beach-view': view(assembleBeachScene, 'mojulo beach'),
   'river-view': view(assembleRiverScene, 'mojulo river'),
+  'waterfall-view': view(assembleWaterfallScene, 'mojulo waterfall'),
   'gravity-wave-view': view(assembleGravityWaveScene, 'mojulo gravitational waves'),
   'parallel-transport-view': view(assembleParallelTransportScene, 'mojulo parallel transport'),
   'windmill-view': view(assembleWindmillScene, 'mojulo windmill'),
@@ -426,6 +429,14 @@ export const WORLD_KINDS = {
     title: 'mojulo dungeon',
     walk: true,
     resolve: (m, ctx) => assembleDungeonScene(m, { title: ctx.title, unshaded: ctx.unshaded }),
+  },
+  // a level built the sixth-gen way (era/stage.js): grid rooms dressed by a kit card, tiles multiplied
+  // over per-corner baked light, placed torches that also leave as punctual lights. Walkable.
+  stage: {
+    title: 'mojulo stage',
+    walk: true,
+    ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
+    resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded }),
   },
   'transportation-hub': {
     title: 'mojulo transportation hub',

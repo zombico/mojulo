@@ -28,6 +28,7 @@ import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
 import { manifestToIfc } from '@/lib/graph/construction/ifc';
+import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
@@ -233,6 +234,30 @@ async function ifcExport(input, context) {
     attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
   }
   return result;
+}
+
+// ── format: 'blender' — the Blender pack (blender-pack.js), the same folder `scripts/export-blender.mjs` writes ────
+// model.glb + pack.json + the import / return scripts + the art-pass guide; a world with `fire` adds its fire at
+// `fire_t` seconds (fire/fire-shot.js), which import_mojulo.py builds as Cycles volumes, lights and props. Blender
+// is a worker, never a dependency: this writes the pack and hands back the commands; it launches nothing.
+async function blenderExport(input) {
+  const { ref, fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
+  if (fireT != null && !(Number.isFinite(fireT) && fireT >= 0)) throw new Error('`fire_t` must be a time in seconds (≥ 0)');
+  if (!(Number.isFinite(fireDetail) && fireDetail > 0 && fireDetail <= 4)) throw new Error('`fire_detail` must be a number in (0, 4]');
+  const dir = path.join(outcomeDirFor(ref), 'blender');
+  await fs.mkdir(dir, { recursive: true });
+  const out = await buildBlenderPack({ ref, outDir: dir, fireT, fireDetail });
+  const run = `cd '${dir}' && <blender> -b --python import_mojulo.py -- --mode`;
+  return {
+    ok: true, ref, kind: out.pack.kind, format: 'blender', dir, files: out.written.map((w) => w.file).filter((f) => !/^fire\/g\d+\.bin$/.test(f)),
+    ...(out.pack.fire ? { fire: out.pack.fire } : {}),
+    commands: {
+      blend: `${run} run`,
+      ...(out.pack.fire ? { render: `${run} render --res 3840x2160 --samples 512`, render_camera: `${run} render --camera <name> --out still.png` } : {}),
+      gate: `node scripts/export-blender.mjs --ref ${ref}${out.pack.fire && fireT != null ? ` --fire-t ${fireT}` : ''}`,
+    },
+    note: `A Blender pack (${out.pack.base} base) in ${dir}: open it with import_mojulo.py (ARTPASS-GUIDE.md walks the art pass; the README has the dials).${out.pack.fire ? ` It carries the fire at t = ${out.pack.fire.t} s: the render command makes a Cycles still of it.` : ''} Blender runs on the operator's machine; mojulo did not launch it.`,
+  };
 }
 
 // ── format: 'bundle' (remote-worker exports P3) ───────────────────────────────────────────────
@@ -660,9 +685,9 @@ export async function exportModelHandler(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender' if provided");
   }
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
   // stay silent for every mesh leg.
@@ -671,6 +696,7 @@ export async function exportModelHandler(input, context = {}) {
   if (format === 'bundle') return bundleExport(input, context);
   // ifc is the building model, not the World's faces: it reads the house the recipe builds.
   if (format === 'ifc') return ifcExport(input, context);
+  if (format === 'blender') return blenderExport(input);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
   const isHtml = format === 'html';
   const isUsd = format === 'usda' || format === 'usdz';

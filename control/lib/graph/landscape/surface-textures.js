@@ -60,6 +60,19 @@ export function encodePng(rgb, W, H) {
   return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
 }
 
+/** The same encoder for a tile with alpha (colour type 6, RGBA): a cutout card (era/leaf-cards.js) whose clear texels
+ *  the World page alpha-tests away. `rgba` is a Buffer of W·H·4 bytes. */
+export function encodePngRgba(rgba, W, H) {
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
+  ihdr[8] = 8; ihdr[9] = 6;   // 8-bit, colour type 6 (RGBA)
+  const raw = Buffer.alloc(H * (1 + W * 4));
+  for (let y = 0; y < H; y++) { const o = y * (1 + W * 4); raw[o] = 0; rgba.copy(raw, o + 1, y * W * 4, (y + 1) * W * 4); }
+  const idat = zlib.deflateSync(raw, { level: 9 });
+  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
+}
+
 // ── asphalt: charcoal base + dense crushed aggregate, seamless under RepeatWrapping ──
 // `floor` lifts the blacks (v → floor + v·(1 − floor/255)): the same grain, sun-bleached and aged
 function asphaltPng({ size = 128, seed = 1357, floor = 0 } = {}) {
@@ -565,6 +578,82 @@ const STONE_PALETTES = {
 const stoneWallVariants = (name, palette, dna = STONE_WALL_DNA) => STONE_WALL_SEEDS.map(([suf, seed]) => [`${name}-${suf}`, { ...dna, ...palette, seed }]);
 const STONE_WALL = Object.fromEntries(Object.entries(STONE_PALETTES).flatMap(([name, palette]) => stoneWallVariants(name, palette)));
 
+// ── FLAGSTONE paving (floors): a different SHAPE from the coursed wall masonry. An N×N grid of
+// square base cells merged, per seed, into 2×2 / 2×1 / 1×2 / 1×1 flags (random ashlar), with joints
+// that wobble off the ruler line, edges worn darker where grime settles, the odd cracked flag and the
+// odd flag lost to its gravel bed. Every tile EDGE is a joint, so each variant may have its own layout
+// and still meet its neighbours on a clean line: a floor laid one tile per bay reads as paved in bays.
+// Unlike the wall family, variants differ in LAYOUT, so mix them per tile repeat, not per sub-face.
+function flagstonePng(cfg, { size = 256, seed = 1 } = {}) {
+  const W = size, H = size, n = makeNoise(seed * 13 + 5), rgb = Buffer.alloc(W * H * 3);
+  let s = (seed >>> 0) || 1; const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  const N = cfg.cells ?? 5, mt = cfg.mortarThick ?? 0.05, wob = cfg.wobble ?? 2.2;
+  const stone = cfg.stone ?? [140, 132, 120], mortar = cfg.mortar ?? [58, 54, 48], gravel = cfg.gravel ?? [96, 90, 80];
+  const vary = cfg.vary ?? 22, grain = cfg.grain ?? 12;
+  // lay the flags: raster order, the largest shape that fits wins its dice roll
+  const owner = Array.from({ length: N }, () => new Array(N).fill(-1)), stones = [];
+  const SHAPES = [[2, 2, 0.3], [2, 1, 0.25], [1, 2, 0.25], [1, 1, 1]];
+  for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) {
+    if (owner[cy][cx] >= 0) continue;
+    let w = 1, h = 1;
+    for (const [sw, sh, p] of SHAPES) {
+      const fits = cx + sw <= N && cy + sh <= N && [...Array(sw * sh).keys()].every((i) => owner[cy + ((i / sw) | 0)][cx + (i % sw)] < 0);
+      if (fits && rand() < p) { w = sw; h = sh; break; }
+    }
+    const id = stones.length, r = rand();
+    stones.push({
+      x0: cx, y0: cy, w, h, jit: (rand() - 0.5) * 2 * vary, warm: (rand() - 0.5) * 10,
+      lost: r < (cfg.lost ?? 0.04), cracked: r > 1 - (cfg.cracked ?? 0.2),
+      ca: rand() * Math.PI, co: (rand() - 0.5) * 0.5,   // crack angle + offset through the flag's centre
+    });
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) owner[cy + j][cx + i] = id;
+  }
+  const own = (cx, cy) => (cx < 0 || cy < 0 || cx >= N || cy >= N ? -1 : owner[cy][cx]);
+  const cellPx = W / N, clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const o = (y * W + x) * 3;
+    // wobble the sample point so joints wander; the tile border stays a joint (outside owns −1)
+    const wx = x + (n.fbm(x / W, y / H, 6, 3) - 0.5) * 2 * wob, wy = y + (n.fbm(x / W + 7.3, y / H + 2.1, 6, 3) - 0.5) * 2 * wob;
+    const gx = wx / cellPx, gy = wy / cellPx, cx = Math.floor(gx), cy = Math.floor(gy), fx = gx - cx, fy = gy - cy;
+    const id = own(cx, cy);
+    // distance (in cells) to the nearest side whose neighbour is another flag
+    let d = 1;
+    if (own(cx - 1, cy) !== id) d = Math.min(d, fx);
+    if (own(cx + 1, cy) !== id) d = Math.min(d, 1 - fx);
+    if (own(cx, cy - 1) !== id) d = Math.min(d, fy);
+    if (own(cx, cy + 1) !== id) d = Math.min(d, 1 - fy);
+    if (id < 0 || d < mt) {
+      const mn = (n.fbm(x / W, y / H, 12, 3) - 0.5) * 14;
+      for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(mortar[ch] + mn);
+      continue;
+    }
+    const st = stones[id];
+    if (st.lost) {   // the flag is gone: its gravel bed, coarse and dark at the rim
+      const g = (n.fbm(x / W * 3, y / H * 3, 24, 2) - 0.5) * 60 - (1 - Math.min(1, d / (mt * 4))) * 30;
+      for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(gravel[ch] + g);
+      continue;
+    }
+    const g = (n.fbm(x / W + id * 0.31, y / H + id * 0.17, 9, 4) - 0.5) * grain * 2;
+    const edge = Math.min(1, (d - mt) / (mt * 3));            // worn, grimy rim → clean centre
+    let v = st.jit + g - (1 - edge) * 26;
+    if (st.cracked) {
+      const lx = (gx - st.x0) / st.w - 0.5, ly = (gy - st.y0) / st.h - 0.5;
+      const dist = Math.abs(lx * Math.sin(st.ca) - ly * Math.cos(st.ca) - st.co * 0.5 + (n.fbm(lx + id, ly, 5, 2) - 0.5) * 0.12);
+      if (dist < 0.012) v -= 55; else if (dist < 0.03) v -= 14;
+    }
+    rgb[o] = clamp(stone[0] + v + st.warm); rgb[o + 1] = clamp(stone[1] + v); rgb[o + 2] = clamp(stone[2] + v - st.warm);
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+const FLAGSTONE_DNA = { cells: 5, mortarThick: 0.05, wobble: 2.2, vary: 22, grain: 12, lost: 0.04, cracked: 0.2 };
+const FLAGSTONE_SEEDS = [['a', 17], ['b', 59], ['c', 101], ['d', 163]];
+const FLAGSTONE_PALETTES = {
+  'flagstone':       { stone: [140, 132, 120], mortar: [58, 54, 48], gravel: [96, 90, 80] },    // grey-tan
+  'flagstone-warm':  { stone: [156, 134, 108], mortar: [66, 56, 44], gravel: [104, 92, 76] },   // ochre
+  'flagstone-slate': { stone: [104, 108, 114], mortar: [44, 46, 50], gravel: [82, 84, 86] },    // dark, cool
+};
+const FLAGSTONE = Object.fromEntries(Object.entries(FLAGSTONE_PALETTES).flatMap(([name, pal]) => FLAGSTONE_SEEDS.map(([suf, seed]) => [`${name}-${suf}`, { ...FLAGSTONE_DNA, ...pal, seed }])));
+
 // ── wood-panel paneling (interior walls / wainscot): vertical tongue-and-groove boards.
 // DIRECTIONAL — grain runs UP the board (along the tile's +v), so a wall must map the
 // tile's vertical to world-up. Each board carries its own cathedral grain phase + tone
@@ -895,6 +984,7 @@ const GENERATORS = {
   ...Object.fromEntries(Object.entries(SLATE_RIVEN).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(GRANITE).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(STONE_WALL).map(([k, cfg]) => [k, () => stoneBrickPng(cfg, { size: 256, seed: cfg.seed })])),
+  ...Object.fromEntries(Object.entries(FLAGSTONE).map(([k, cfg]) => [k, () => flagstonePng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(WOOD_PANEL).map(([k, cfg]) => [k, () => woodPanelPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(SOIL).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
   ...Object.fromEntries(Object.entries(ASTEROID).map(([k, cfg]) => [k, () => rockPng(cfg, { size: 256, seed: cfg.seed })])),
@@ -933,6 +1023,7 @@ export const SURFACE_TILING = {
   ...Object.fromEntries(Object.keys(SLATE_RIVEN).map((k) => [k, 'repeat'])),
   ...Object.fromEntries(Object.keys(GRANITE).map((k) => [k, 'repeat'])),
   ...Object.fromEntries(Object.keys(STONE_WALL).map((k) => [k, 'repeat'])),
+  ...Object.fromEntries(Object.keys(FLAGSTONE).map((k) => [k, 'repeat'])),   // per-variant layouts: mix per tile repeat
   // Wood paneling is a DIRECTIONAL repeat (boards run vertically); the wall builder must
   // author per-face UV with the tile's +v along world-up, like the roof tiles do.
   ...Object.fromEntries(Object.keys(WOOD_PANEL).map((k) => [k, 'repeat'])),
@@ -957,6 +1048,7 @@ export const SURFACE_TILING = {
  */
 export const TEXTURE_FAMILIES = {
   ...Object.fromEntries(Object.keys(STONE_PALETTES).map((name) => [name, STONE_WALL_SEEDS.map(([suf]) => `${name}-${suf}`)])),
+  ...Object.fromEntries(Object.keys(FLAGSTONE_PALETTES).map((name) => [name, FLAGSTONE_SEEDS.map(([suf]) => `${name}-${suf}`)])),
   ...Object.fromEntries(Object.keys(WOOD_PANEL_SPECIES).map((name) => [name, WOOD_PANEL_SEEDS.map(([suf]) => `${name}-${suf}`)])),
   'slate-blend': Object.keys(SLATE),   // variegated slate (grey/purple/green) — a real roofing blend
   'rock-sandstone': SANDSTONE_SEEDS.map(([suf]) => `rock-sandstone-${suf}`),   // golden cliff rock, mixed per tile-repeat region
