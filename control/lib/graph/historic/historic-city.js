@@ -29,7 +29,9 @@ import { planWeiWards } from './layouts/qin.js';
 import { LINDOS, POLIS } from './cultures/lindos.js';
 import { planAcropolis } from './layouts/lindos.js';
 import { POMPEII } from './cultures/pompeii.js';
+import { FORUM } from './cultures/forum.js';
 import { planLavaSpur } from './layouts/pompeii.js';
+import { planForum } from './layouts/forum.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
@@ -41,7 +43,7 @@ import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
 import { resolveFire, firePageChannel } from '../fire/fire.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS, qin: QIN, pompeii: POMPEII };
+export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS, qin: QIN, pompeii: POMPEII, forum: FORUM };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
 /**
@@ -59,6 +61,7 @@ export function planHistoricCity(opts = {}) {
   if (K.layout === 'acropolis') return planAcropolis({ ...opts, culture: opts.culture }, K);
   if (K.layout === 'wei-wards') return planWeiWards({ ...opts, culture: opts.culture }, K);
   if (K.layout === 'lava-spur') return planLavaSpur({ ...opts, culture: opts.culture }, K);
+  if (K.layout === 'forum') return planForum({ ...opts, culture: opts.culture }, K);
   return planRingCanal(opts);
 }
 
@@ -469,7 +472,7 @@ export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty. Lindos' views across the
 // water (`sea`, `bay`) look at the rock from afar: 22, or the page drops faces under the load.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48, forum: 48, faun: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48, forum: 48, faun: 48, castor: 48, sacra: 48, rostra: 48, capitol: 48, lacus: 48, julius: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
@@ -546,7 +549,10 @@ export function assembleHistoricCityScene(opts = {}) {
   // a World with live fire (`fire`) burns its flames itself: the painted flame cards stand down there
   const live = world && Array.isArray(plan.fireSources) && plan.fireSources.length > 0;
   const masses = live ? plan.boxes.filter((m) => m.kind !== 'flame') : plan.boxes;
-  const { boxes, faces } = toScene(world && plan.world ? [...masses, ...plan.world.boxes] : masses, s, UNIT_SCALE[view], plan.focus);
+  // repeated parts (a plan's `repeats`): the World draws each template once as instances; the CSS page their light stand-ins
+  const reps = plan.repeats || [];
+  const lows = world ? [] : reps.filter((r) => !r.world).flatMap((r) => r.transforms.flatMap((t) => r.low.map((m) => liftMass(m, t.pos))));
+  const { boxes, faces } = toScene(world && plan.world ? [...masses, ...lows, ...plan.world.boxes] : [...masses, ...lows], s, UNIT_SCALE[view], plan.focus);
   const { shade, sky } = historicLight(plan, opts);
   const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view], true, shade, world), grounds = G.grounds;
   faces.unshift(...G.faces);
@@ -565,7 +571,20 @@ export function assembleHistoricCityScene(opts = {}) {
   const fireSources = live ? plan.fireSources : null;
   // the World's crop (`plan.world.skirt`): kept with the plan's heights until the sky's horizon colour is known
   const skirt = world && plan.world && plan.world.skirt && plan.hAt ? { ...plan.world.skirt, hAt: plan.hAt, frame: plan.frame } : null;
-  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}) };
+  const repeats = world && reps.length ? reps.map((r) => {
+    const T = toScene(r.template, s, UNIT_SCALE[view]);
+    if (T.boxes.length) throw new Error(`repeat '${r.key}': a template is built of solids only`);
+    return { group: r.key, template: T.faces, transforms: r.transforms.map((t) => ({ pos: t.pos.map((v) => v * s) })) };
+  }) : null;
+  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}), ...(repeats ? { repeats } : {}) };
+}
+/** A mass moved by `[dx, dy, dz]` (an instance's stand-in put in place). */
+function liftMass(m, [dx, dy, dz]) {
+  const o = { ...m, x: m.x + dx, y: m.y + dy, z0: m.z0 + dz, z1: m.z1 + dz };
+  if (m.top) o.top = { ...m.top, x: m.top.x + dx, y: m.top.y + dy };
+  if (m.pts) o.pts = m.pts.map(([x, y, z]) => [x + dx, y + dy, z + dz]);
+  for (const k of ['a', 'b']) if (Array.isArray(m[k])) o[k] = [m[k][0] + dx, m[k][1] + dy, m[k][2] + dz];
+  return o;
 }
 
 /**
@@ -583,7 +602,8 @@ export function assembleHistoricWorld(opts = {}) {
   if (skirt) scene.faces.push(...skirtFaces(skirt, 1 / METRES_PER_UNIT, card ? card.horizon : [208, 217, 218]));
   // `fire`: the hearths and kilns burn live (fire/fire.js), lighting the town by day as their own glow
   const lit = fireSources ? resolveFire(true, fireSources, { explicit: false }) : null;
-  return { ...scene, textures: collectFaceTextures(scene.faces, { ...(scene.textures || {}) }), ...(card ? { sky: { zenith: card.zenith.map(Math.round), horizon: card.horizon.map(Math.round), day: 1, stars: 0, seed: 1 } } : {}),
+  // a repeat's template wears its skins too: its textures are collected with the page's own
+  return { ...scene, textures: collectFaceTextures(scene.repeats ? [...scene.faces, ...scene.repeats.flatMap((r) => r.template)] : scene.faces, { ...(scene.textures || {}) }), ...(card ? { sky: { zenith: card.zenith.map(Math.round), horizon: card.horizon.map(Math.round), day: 1, stars: 0, seed: 1 } } : {}),
     ...(lit ? { fire: firePageChannel(lit, { day: card ? 1 : 0, unit: METRES_PER_UNIT }) } : {}) };
 }
 /**

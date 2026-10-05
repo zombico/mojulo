@@ -441,6 +441,62 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - the summer sky.
     The orders module reads its numbers from the card. The design brief, with nine drawing prompts, is in
     `docs/historic/forum/README.md`.
+  - **The site** (`layouts/forum.js`, the `forum` culture): a measured plan, not a generated one. Every monument
+    stands at the record's size and in its facing, all of them placeholders:
+    - the Tabularium's arcade over its blank wall;
+    - Concord's wide cella with its six-column pronaos;
+    - Saturn on its 9 m podium;
+    - the Rostra with two rows of bronze beaks;
+    - the Arch of Tiberius and the Golden Milestone;
+    - the Curia with its porch;
+    - the Basilica Aemilia's two-storey arcade over the Tabernae Novae, and the Basilica Julia's, with their naves and
+      clerestories;
+    - Castor, octastyle peripteral with 8 × 11 columns on its 7 m podium, its tribunal part way up the stair;
+    - Divus Julius on its beaked platform round the altar niche;
+    - the three-bay Arch of Augustus;
+    - the Regia, the round Temple of Vesta with its 20 columns, and the House of the Vestals;
+    - in the square, the Lacus Curtius, and the fig and the olive with Marsyas.
+
+    The plot where the Temple of Vespasian will stand is left open. On the World page the Capitoline rises behind the
+    Tabularium with Vespasian's rebuilt Temple of Jupiter on it, and the Palatine to the south-east. Views: the square
+    from Divus Julius, Castor's corner, the Sacra Via, the Rostra, and the Capitoline brow.
+  - **Instancing.** The 315 columns, entablature runs and arcade bays are 55 templates (`assets/forum.js`), which the
+    World page draws as instances (`repeats`). A part turned to another side is its own template, because templates
+    are baked lit; columns never turn. The CSS page draws a light stand-in for each. The World page is about 7.4 MB.
+  - New shared patterns: basilica, round temple, rostra. The other cultures' pages are byte-identical.
+  - **Roofs, monuments and reliefs**, sourced into the record first (Pliny's *Natural History*, dedicated in 77, says
+    what "still stands"; Velleius; Platner & Ashby):
+    - **Tiled roofs.** Every slope is a bed of tegulae under rows of imbrices, each tile its own shade, with
+      antefixes along the eaves, ridge tiles, and a soffit under the eaves so a roof seen from below closes.
+      Jupiter's temple on the Capitol has gilt-bronze tiles, and Vesta's cone bronze ribs.
+    - **By the Rostra:** Octavian's horseman on the platform; the three Sibyls and the Hercules in a tunic beside
+      it; Duilius's rostral column and Octavian's gilded one with his statue.
+    - **In the square:**
+      - the Lacus Curtius, moved to its place near the west end, with the Curtius relief on its balustrade and a
+        puteal;
+      - the fig, the olive and the vine with Marsyas;
+      - the praetor's timber tribunal;
+      - Surdinus's inscription as written, `L·NAEVIVS·L·F·SVRDINVS·PR`, in bronze letters 30 cm high set into
+        the travertine.
+    - **Round the square:**
+      - the shrine of Ianus Geminus at the Argiletum, its bronze doors shut, as Vespasian left them;
+      - Venus Cloacina's railed round shrine and the Lapis Niger;
+      - Hercules and Mercury at Concord's stair, and the Victory and statues on the Curia;
+      - the kneeling captives in coloured marble and the portrait shields on the Basilica Aemilia's attic;
+      - the bronze Vortumnus at the Vicus Tuscus, and Caesar's cuirassed statue;
+      - the Dioscuri with their horses at the Juturna basin.
+    - **Reliefs and lettering** (new wall skins drawn in `relief-art.js`):
+      - an acanthus scroll on Divus Julius's frieze;
+      - the Basilica Aemilia's Doric frieze of ox skulls and libation bowls;
+      - the Fasti's lists in the Arch of Augustus's side bays;
+      - one band of gilt-bronze capitals across the fronts of Saturn and Divus Julius. These are real Roman
+        letterforms, but the record holds no text for those dedications, so the letters spell nothing.
+    - **Festival dressing (opt-in, `festival: true`).** Livy has the aediles hang shields in the forum only on
+      procession days, so the ordinary day shows none. The option hangs gilded shields on the basilicas' piers and
+      garlands across the temple fronts. Awnings are Republican one-offs (Pliny) and are not drawn.
+    - Fixed: a lifted building now lifts its beams too, so the roofs of temples set on platforms sit on them. The
+      World page collects an instanced template's textures, so friezes and lettering show on it.
+    - The World page is about 11.9 MB, or 12.3 MB with the festival.
 
 ### Sixth-gen composer
 

@@ -13,7 +13,7 @@ export const FORUM_STYLE = Object.freeze({
     'The entablature is about a quarter of the column: architrave, frieze and cornice, the cornice the largest, its modillions spaced to the columns below.',
     'Temples stand on podia, high above the eye, entered by a stair at the front only; columns stand close (one and a half to two and a quarter diameters apart), so a temple front reads as a screen of stone.',
     'Marble is white but never flat: Luna marble brightest, then travertine, tufa, the speckled grey peperino, and the street\'s basalt darkest; gilt bronze and painted lettering are the few colours, and a face turned from the sun is cool, never black.',
-    'The square is open: its travertine floor holds only low monuments (the Lacus Curtius, the fig and Marsyas, the Milliarium); the buildings stand round it, and its long axis runs from the Rostra to Divus Julius.',
+    'The square is open: its middle holds only low monuments (the Lacus Curtius, the fig and Marsyas, the tribunal, letters in the paving); the honorary columns and statues stand at its edges and the buildings round it; its long axis runs from the Rostra to Divus Julius.',
     'The sky is a Roman summer\'s: clear, deep overhead, warm at the horizon over the Palatine.',
   ]),
   // the value order principle 4 measures, brightest first

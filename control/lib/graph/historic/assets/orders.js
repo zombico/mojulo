@@ -209,10 +209,10 @@ export function column(order, { D, H, tint, leaf, fluted, kit = ORDER[order] } =
 /**
  * A run of entablature `span` long (along +x), the architrave face on y = 0, `deep` back. Heights from `D`:
  * the architrave in three fasciae, each stepping out, a crowning moulding; the frieze; the cornice: dentils, the
- * modillions (brackets) on a `pitch`, the corona and the sima. `returns` closes an end ('lo' | 'hi' | both) where the
- * entablature turns a corner, so a run reads as solid stone from the side.
+ * modillions (brackets) on a `pitch`, the corona and the sima. `frieze` names a wall skin for the frieze band (a
+ * carved scroll, a dedication in bronze letters).
  */
-export function entablature(order, { D, span, deep = 1.2 * D, tint, pitch, dentils = true } = {}) {
+export function entablature(order, { D, span, deep = 1.2 * D, tint, pitch, dentils = true, frieze = null } = {}) {
   const kind = 'entablature', out = [];
   const corinthian = order === 'corinthian', ionic = order === 'ionic';
   const ha = (corinthian ? 0.78 : ionic ? 0.7 : 0.6) * D, hf = (corinthian ? 0.72 : ionic ? 0.6 : 0.5) * D;
@@ -222,7 +222,7 @@ export function entablature(order, { D, span, deep = 1.2 * D, tint, pitch, denti
   fasc.forEach((f, i) => { const h = ha * 0.86 * f, o = 0.025 * D * i; out.push(box(kind, 0, -o, span, deep + o, z, z + h, tint)); z += h; });
   out.push(box(kind, 0, -0.09 * D, span, deep + 0.09 * D, z, ha, tint));   // the crowning moulding
   // the frieze, flush with the lowest fascia
-  out.push(box(kind, 0, 0, span, deep, ha, ha + hf, tint));
+  out.push(box(kind, 0, 0, span, deep, ha, ha + hf, tint, frieze ? { skin: frieze } : {}));   // `frieze`: a carved or lettered skin (../ground.js)
   z = ha + hf;
   // the cornice: bed moulding, dentils, the modillion zone, corona, sima
   out.push(box(kind, 0, -0.08 * D, span, deep + 0.08 * D, z, z + 0.1 * D, tint)); z += 0.1 * D;
@@ -246,6 +246,12 @@ export function entablature(order, { D, span, deep = 1.2 * D, tint, pitch, denti
   out.push(box(kind, 0, -pc, span, deep + pc, z, z + 0.2 * D, tint)); z += 0.2 * D;       // the corona
   out.push(box(kind, 0, -pc - 0.04 * D, span, deep + pc + 0.04 * D, z, z + 0.18 * D, tint)); z += 0.18 * D;   // the sima
   return { masses: out, height: z };
+}
+
+/** The entablature's architrave and frieze heights for the order at `D` (where a dedication band lies on the frieze). */
+export function entablatureBands(order, D) {
+  const corinthian = order === 'corinthian', ionic = order === 'ionic';
+  return { ha: (corinthian ? 0.78 : ionic ? 0.7 : 0.6) * D, hf: (corinthian ? 0.72 : ionic ? 0.6 : 0.5) * D };
 }
 
 /** Faces of a template (metres in its own frame) as a mass list for the asset sheet; the counts a builder budgets with. */

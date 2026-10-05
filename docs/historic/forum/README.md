@@ -70,3 +70,15 @@ Each is drawn one way and flagged in the record:
 
 - The orders as parts (`assets/orders.js`): the Attic base, the fluted shaft, the Corinthian, Ionic and Tuscan
   capitals, the entablature run. Each is built once and stands many times as an instance on the World page.
+- The buildings (`assets/forum.js`), all placeholders: the podium temple (prostyle or peripteral, a tribunal where
+  the record gives one), the round temple, the two-storey arcade bay and the basilica round it, the Tabularium, the
+  Rostra, the three-bay and single-bay arches, the Curia, Divus Julius on its platform, plain blocks.
+- The square's furniture and the reliefs (`assets/forum.js` monuments; `relief-art.js` skins): statues, rostral
+  columns, Ianus's shut shrine, Venus Cloacina, the Lapis Niger, the tribunal, Surdinus's paving letters as written, the
+  Curtius relief, the Fasti, the friezes; dedications in real capitals that spell no text (the texts are lost).
+- Roofs: tegulae and imbrices, antefixes, ridge tiles, a soffit under the eaves.
+- `festival: true` dresses the forum for a procession day: gilded shields on the basilicas' piers, garlands on the
+  temple fronts (Livy 9.40.16). An ordinary day shows none.
+- The site (`layouts/forum.js`): a measured plan laid out from the record's sizes. The frame's x runs from the
+  Tabularium (the real north-west) to the Regia (the real south-east). The positions are the sizes set against each
+  other as the plan stands, rounded, not surveyed coordinates, and the ground is level.

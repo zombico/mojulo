@@ -129,6 +129,9 @@ export const PATTERNS = {
   'street-fountain': { family: 'street', read: 'a basin at a street corner fed from a pipe, its spout carved, open to all', seenIn: ['Pompeii', 'Rome', 'Ottoman sebil', 'the village fountain'] },
   'mosaic-floor': { family: 'art', read: 'a floor of small stone cubes laid in patterns, black on white or in colour, a picture panel set in the middle', seenIn: ['Hellenistic Greece (pebble, then tesserae)', 'Pompeii', 'Roman villas everywhere', 'Byzantine churches'] },
   'painted-notice': { family: 'art', read: 'notices painted on the street wall at head height: names and offices in big letters on whitewashed panels', seenIn: ['Pompeii (election notices)', 'Rome', 'the modern poster wall'] },
+  basilica: { family: 'massing', read: 'a long hall beside the square, arcades on two storeys round an aisle, a tall nave lit by a clerestory: the court and the exchange under one roof', seenIn: ['Rome (Julia, Aemilia)', 'Pompeii', 'the early Christian church', 'the market hall'] },
+  'round-temple': { family: 'massing', read: 'a round cella ringed by columns under a conical roof: a hearth\'s house', seenIn: ['Rome (Vesta)', 'Tivoli', 'the tholos at Delphi', 'Bramante\'s Tempietto'] },
+  rostra: { family: 'layout', read: 'a speakers\' platform across the end of a square, faced with trophies, a stair at its back', seenIn: ['Rome (the Rostra)', 'the Pnyx', 'the balcony over the piazza'] },
   'kerbed-street': { family: 'street', read: 'a paved roadway sunk between raised pavements, stepping stones at the crossings', seenIn: ['Pompeii', 'Roman towns', 'the modern street'] },
 };
 

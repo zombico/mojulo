@@ -12,6 +12,7 @@
 import zlib from 'node:zlib';
 import { encodePng, registerTextureResolver } from '../landscape/surface-textures.js';
 import { relief, ell, quad, PIG, sceneRegister, smitingScene, columnScene, caption } from './skin-art.js';
+import { acanthusFrieze, doricFrieze, bronzeLetters, fastiPanel, figureFrieze, riderPanel } from './relief-art.js';
 
 /** Surfaces, and how many metres one tile covers. */
 export const GROUND_SURFACES = { mud: 4, rubble: 3, brick: 2.4, 'dry-earth': 6, 'cone-mosaic': 1.6, flagstone: 6 };   // the mosaic's cones are drawn large: a big read, not a count
@@ -272,15 +273,23 @@ export const WALL_SKINS = {
   'poros-stucco': [6, 4],    // soft poros under a fine lime stucco, false ashlar joints drawn in it: the Greek temple's skin, smooth and pale
   isodomic: [6, 3],          // limestone ashlar in courses of one height, blocks of one length, each course half a block over: the Hellenistic wall
   dipinti: [9, 4.2],         // a Pompeian street front: lime stucco, and painted on it at head height the election notices, red and black letters on whitewashed panels
+  // the Roman forum's carved and lettered surfaces (./relief-art.js): each fits its band (a frieze, an architrave's face)
+  'acanthus-frieze': [4.8, 0.85], // a running acanthus scroll, rosettes in its spirals (Divus Julius's frieze)
+  'doric-frieze': [2.6, 0.9],     // triglyphs and metopes: ox skulls with garlands, libation bowls (the Basilica Aemilia's front)
+  'bronze-letters': [14, 0.9],    // a dedication in gilt-bronze capitals set into the marble (a temple's architrave)
+  'red-letters': [14, 0.9],       // the same cut and painted red (minium)
+  'figure-frieze': [7, 1.1],      // a procession in high relief
+  fasti: [3.2, 3.2],              // the lists of magistrates: columns of incised lines under headings, in a moulded frame
+  'curtius-relief': [1.8, 1.25],  // one framed scene: a rider plunging on a rearing horse (the Lacus Curtius)
 };
 /** Skins laid on a sloped face (a roof) as well as an upright one: the tile's x runs along the eave, its y up the slope. */
 const SKIN_ROOF = new Set(['tile-roof']);
 /** Tile widths in px where 320 is too coarse for the figures drawn on them. */
-const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520 };
+const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520, 'acanthus-frieze': 720, 'doric-frieze': 480, 'bronze-letters': 1600, 'red-letters': 1600, 'figure-frieze': 960, fasti: 520, 'curtius-relief': 420 };
 /** Skins whose tile is one register: a face fits a whole number of them, from its foot to its top. */
-const SKIN_FIT = new Set(['painted-relief', 'dipinti']);
+const SKIN_FIT = new Set(['painted-relief', 'dipinti', 'acanthus-frieze', 'doric-frieze', 'bronze-letters', 'red-letters', 'figure-frieze']);
 /** Skins drawn facing +x (into the temple): a face whose run points away from `toward` wears them mirrored. */
-const SKIN_DIRECTED = new Set(['painted-relief', 'pylon-relief']);
+const SKIN_DIRECTED = new Set(['painted-relief', 'pylon-relief', 'fasti', 'curtius-relief']);
 
 const DARK = [52, 34, 18], LIGHT = [255, 246, 226];
 // an overlay pixel: k > 0 lightens, k < 0 darkens (alpha |k|)
@@ -325,6 +334,8 @@ function courses(o, rng, { rows, per, joint, jointK, toneK, herring = [], mats =
  * Ashlar as the New Kingdom laid it (not the uniform courses of the 25th Dynasty on): courses of uneven height (summing to the tile), each split into blocks of uneven length at
  * offsets that wrap, so the tile repeats seamlessly; fine joints, a tone to each block, bedding streaks.
  */
+/** Marble: the faintest mottle, no joints (a carved band is one block's face, or reads as one). */
+function marbleGround(o, rng) { const n = noise(o.W, 9, rng); for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (n(x, y) - 0.5) * 0.05; } }
 function ashlar(o, rng, { course = [0.12, 0.2], block = [0.18, 0.42], jointK = 0.24, toneK = 0.07, streak = 0.05 } = {}) {
   const { W, H } = o, rows = [];
   let y = 0;
@@ -432,6 +443,13 @@ const SKIN_BAKERS = {
     }
   },
   isodomic(o, rng) { ashlar(o, rng, { course: [1 / 6, 1 / 6], block: [0.24, 0.26], jointK: 0.2, toneK: 0.06, streak: 0.04 }); },
+  'acanthus-frieze'(o, rng) { marbleGround(o, rng); acanthusFrieze(o, rng); },
+  'doric-frieze'(o, rng) { marbleGround(o, rng); doricFrieze(o, rng); },
+  'bronze-letters'(o, rng) { marbleGround(o, rng); bronzeLetters(o, rng); },
+  'red-letters'(o, rng) { marbleGround(o, rng); bronzeLetters(o, rng, { ink: [163, 50, 31] }); },
+  'figure-frieze'(o, rng) { marbleGround(o, rng); figureFrieze(o, rng); },
+  fasti(o, rng) { marbleGround(o, rng); fastiPanel(o, rng); },
+  'curtius-relief'(o, rng) { marbleGround(o, rng); riderPanel(o, rng); },
   // the street front: the stucco's faint mottle, and the notices — whitewashed panels at head height with two or three
   // lines of capitals in red or black (a name, then the office: a big read, not text), the odd one half washed over
   dipinti(o, rng) {
