@@ -35,6 +35,7 @@ import { HISTORIC_STYLES } from './style/index.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
+import { resolveFire, firePageChannel } from '../fire/fire.js';
 
 export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
@@ -534,7 +535,10 @@ export function assembleHistoricCityScene(opts = {}) {
   const view = opts.view === 'approach' || (opts.view && plan.views[opts.view]) ? opts.view : 'aerial';
   const s = 1 / METRES_PER_UNIT, world = !!opts.world;
   // `world`: built for the WebGL World page, which also draws what the plan keeps for it alone (a seabed)
-  const { boxes, faces } = toScene(world && plan.world ? [...plan.boxes, ...plan.world.boxes] : plan.boxes, s, UNIT_SCALE[view], plan.focus);
+  // a World with live fire (`fire`) burns its flames itself: the painted flame cards stand down there
+  const live = world && Array.isArray(plan.fireSources) && plan.fireSources.length > 0;
+  const masses = live ? plan.boxes.filter((m) => m.kind !== 'flame') : plan.boxes;
+  const { boxes, faces } = toScene(world && plan.world ? [...masses, ...plan.world.boxes] : masses, s, UNIT_SCALE[view], plan.focus);
   const { shade, sky } = historicLight(plan, opts);
   const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view], true, shade, world), grounds = G.grounds;
   faces.unshift(...G.faces);
@@ -549,7 +553,9 @@ export function assembleHistoricCityScene(opts = {}) {
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
   const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
-  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}) };
+  // the fires stay in metres: the World's fire channel burns them so and scales them into the scene's units
+  const fireSources = live ? plan.fireSources : null;
+  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}) };
 }
 
 /**
@@ -561,10 +567,13 @@ export function assembleHistoricCityScene(opts = {}) {
  */
 export function assembleHistoricWorld(opts = {}) {
   // the CSS shade map is the page's: the World never reads it, so it is not baked here
-  const scene = assembleHistoricCityScene({ ...opts, world: true, shade: false });
+  const { fireSources, ...scene } = assembleHistoricCityScene({ ...opts, world: true, shade: false });
   const style = HISTORIC_STYLES[scene.stats.culture];
   const card = style && style.sky && style.sky.palette ? deriveSky(style.sky.palette, { x: 0, y: 0, z: style.sky.sunElev }) : null;
-  return { ...scene, textures: collectFaceTextures(scene.faces, { ...(scene.textures || {}) }), ...(card ? { sky: { zenith: card.zenith.map(Math.round), horizon: card.horizon.map(Math.round), day: 1, stars: 0, seed: 1 } } : {}) };
+  // `fire`: the hearths and kilns burn live (fire/fire.js), lighting the town by day as their own glow
+  const lit = fireSources ? resolveFire(true, fireSources, { explicit: false }) : null;
+  return { ...scene, textures: collectFaceTextures(scene.faces, { ...(scene.textures || {}) }), ...(card ? { sky: { zenith: card.zenith.map(Math.round), horizon: card.horizon.map(Math.round), day: 1, stars: 0, seed: 1 } } : {}),
+    ...(lit ? { fire: firePageChannel(lit, { day: card ? 1 : 0, unit: METRES_PER_UNIT }) } : {}) };
 }
 /** A historic city → the World page HTML (self-contained unless `cdn`). */
 export function renderHistoricCityToWorld(opts = {}) {

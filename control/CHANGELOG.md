@@ -269,6 +269,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   offshore, set by each corner's opacity on one translucent sheet whose pieces never overlap. The seabed (about a
   thousand triangles near the shore) is drawn on the World page only. The CSS page keeps its opaque two-tone sea.
   A culture opts in with `water.look`; terrain water takes `liquid`, `alphaAt`, `sheetFill` and `fine`.
+- **Live fire on the World page.** With `fire: true` the potters' kilns and the hearths in the house courts burn
+  live: flames, sparks, smoke and their light on the walls and ground. The painted flame cards stand down there,
+  and the CSS page keeps them. The fire channel takes a new opt-in `unit` (metres per scene unit;
+  `firePageChannel(…, { unit })`). The fires are given and burn in metres, since their buoyancy, smoke and sparks are
+  physical, and the page scales them into the world's units, with their light falling off over the same metres.
+  Without `unit` the fire script is byte-identical.
 - Views: the great harbour from a boat (`bay`), the climb, the stoa's terrace and great stair, the temple court, the cliff from the sea, the
   theatre and a town street. Sumer, Thebes and Giza are byte-identical.
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planHistoricCity, assembleHistoricCityScene, assembleHistoricWorld, historicLight, SCENE_LIGHT } from './historic-city.js';
+import { emitThreeWorld } from '../scene/scene-three.js';
 import { placeAsset } from './assets/kit.js';
 import { LINDOS_ASSETS } from './assets/lindos.js';
 import { LINDOS } from './cultures/lindos.js';
@@ -201,4 +202,26 @@ describe('Lindos on the World page — the water', () => {
     expect(W.sky.zenith[2] - W.sky.zenith[0]).toBeGreaterThan(W.sky.horizon[2] - W.sky.horizon[0]);
     expect(Object.keys(W.textures).length).toBeGreaterThan(5);
   });
+});
+
+describe('Lindos on the World page — fire', () => {
+  const W0 = assembleHistoricWorld({ culture: 'lindos', seed: 7, view: 'town' });
+  it('the kilns and hearths burn live (opt-in): in metres, scaled into the scene, the painted flames standing down', () => {
+    const W = assembleHistoricWorld({ culture: 'lindos', seed: 7, view: 'town', fire: true });
+    // each flame card one face fewer
+    expect(W0.faces.length - W.faces.length).toBe(plan.boxes.filter((b) => b.kind === 'flame').length);
+    expect(W.fire.unit).toBe(3.66);
+    expect(W.fire.sources.length).toBeGreaterThan(10);
+    expect(new Set(W.fire.sources.map((s) => s.kind))).toEqual(new Set(['campfire', 'brazier']));
+    expect(W.fire.sources.every((s) => !s.baked && s.D > 0.3)).toBe(true);   // a fire's own size in metres
+    expect(W.fireSources).toBeUndefined();
+    const html = emitThreeWorld({ ...W, inline: false, cdn: true, hud: false });
+    expect(html).toContain('function __fireUnit(K, k)');
+    expect(html).toContain('stepFire(t)');
+  }, 300000);
+  it('without fire the World has none, and the CSS page keeps its painted flames', () => {
+    expect(W0.fire).toBeUndefined();
+    expect(emitThreeWorld({ ...W0, inline: false, cdn: true, hud: false })).not.toContain('__fireUnit');
+    expect(plan.boxes.some((b) => b.kind === 'flame')).toBe(true);
+  }, 300000);
 });
