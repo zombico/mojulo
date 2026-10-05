@@ -16,18 +16,24 @@ describe('historic entries: generated encyclopedia cards', () => {
       expect(ids).toContain(id);
       expect(ids).toContain(`${id}/record`);
     }
-    expect(hubCards().map((c) => c.id).sort()).toEqual(['egypt', 'greece']);
+    const regions = {};
+    for (const K of Object.values(HISTORIC_CULTURES)) if (K.region) regions[K.region] = (regions[K.region] || 0) + 1;
+    expect(hubCards().map((c) => c.id).sort()).toEqual(Object.keys(regions).filter((r) => regions[r] > 1).sort());
+    expect(hubCards().map((c) => c.id)).toEqual(expect.arrayContaining(['egypt', 'greece']));
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('a new culture card is an entry with no other edit', () => {
-    HISTORIC_CULTURES.testland = { ...HISTORIC_CULTURES.qin, label: 'Testland', region: undefined, aliases: ['testland'] };
+    HISTORIC_CULTURES.testland = { ...HISTORIC_CULTURES.qin, label: 'Testland', region: 'atlantis', aliases: ['testland'], record: null };
     try {
       const c = entryCard('testland');
       expect(c.name).toBe('Testland');
       expect(c.body).toMatch(/no record yet: read every part as CONJECTURAL/);
       expect(historicEntryCards().map((x) => x.id)).toContain('testland');
-    } finally { delete HISTORIC_CULTURES.testland; }
+      // a region with no REGIONS row still gets its hub once a second culture names it
+      HISTORIC_CULTURES.testland2 = { ...HISTORIC_CULTURES.testland, label: 'Testland II' };
+      expect(hubCards().find((h) => h.id === 'atlantis').name).toBe('Atlantis');
+    } finally { delete HISTORIC_CULTURES.testland; delete HISTORIC_CULTURES.testland2; }
   });
 
   it('keeps every entry body within its ceiling, and every record within its own', () => {
@@ -52,8 +58,8 @@ describe('historic entries: generated encyclopedia cards', () => {
 
   it('every part handle resolves to a real skin, pattern or asset', () => {
     for (const [id, K] of Object.entries(HISTORIC_CULTURES)) {
-      const body = entryCard(id).body, line = (k) => body.split('\n').find((l) => l.startsWith(`  ${k} `)).slice(k.length + 3).trim();
-      for (const s of line('skins').split(', ')) expect(WALL_SKINS[s], `${id} skin ${s}`).toBeTruthy();
+      const body = entryCard(id).body, line = (k) => (body.split('\n').find((l) => l.startsWith(`  ${k} `)) || `  ${k} `).slice(k.length + 3).trim();
+      for (const s of line('skins').split(', ').filter(Boolean)) expect(WALL_SKINS[s], `${id} skin ${s}`).toBeTruthy();
       for (const p of line('patterns').split(', ').filter(Boolean)) expect(PATTERNS[p], `${id} pattern ${p}`).toBeTruthy();
       for (const a of line('assets').split(', ').filter(Boolean)) expect(K.assets[a], `${id} asset ${a}`).toBeTruthy();
     }
@@ -84,6 +90,36 @@ describe('historic entries: generated encyclopedia cards', () => {
 
   it('is deterministic', () => {
     expect(JSON.stringify(historicEntryCards())).toBe(JSON.stringify(historicEntryCards()));
+  });
+});
+
+// The card contract: what a culture card must say so its encyclopedia entry is honest and findable. A new city
+// (a branch merging this) fails here with the lines its card still needs, before its entry ships wrong.
+const CONTRACT = {
+  years: (K) => Array.isArray(K.years) && K.years.length === 2 || 'years: [from, to] (negative for BCE)',
+  period: (K) => typeof K.period === 'string' || "period: the period's name ('New Kingdom', 'Early Imperial')",
+  readAt: (K) => 'readAt' in K && (K.readAt === null || Number.isFinite(K.readAt)) || 'readAt: the year it is read at (a record constant), or null when the card spans its period',
+  place: (K) => 'place' in K && (K.place === null || typeof K.place === 'string') || "place: where it is ('Thebes, Upper Egypt'), or null when the place is invented",
+  region: (K) => typeof K.region === 'string' || "region: its region's id ('egypt', 'greece'; a new one gets its own hub)",
+  aliases: (K) => Array.isArray(K.aliases) && K.aliases.length > 0 && K.aliases.every((a) => typeof a === 'string' && a.length >= 3) || 'aliases: the words people search with, 3+ characters each',
+  record: (K) => 'record' in K && (K.record === null || (Array.isArray(K.record.entries) && K.record.sources && typeof K.record.id === 'string')) || 'record: { id, entries, sources } from its record file, or null when it has none',
+};
+
+describe('the culture card contract (what an entry reads)', () => {
+  for (const [id, K] of Object.entries(HISTORIC_CULTURES)) {
+    it(`${id} says everything its entry needs`, () => {
+      const missing = Object.values(CONTRACT).map((check) => check(K)).filter((r) => r !== true);
+      expect(missing, `the ${id} culture card needs:\n  ${missing.join('\n  ')}`).toEqual([]);
+    });
+  }
+
+  it('reads a silent place as not recorded, never as invented', () => {
+    HISTORIC_CULTURES.testland = { ...HISTORIC_CULTURES.qin, label: 'Testland' };
+    delete HISTORIC_CULTURES.testland.place;
+    try {
+      expect(entryCard('testland').body).toMatch(/PLACE {6}place not recorded/);
+      expect(entryCard('polis').body).toMatch(/PLACE {6}invented/);
+    } finally { delete HISTORIC_CULTURES.testland; }
   });
 });
 

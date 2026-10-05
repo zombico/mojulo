@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { describeHistoric, fmtSpan, periodText } from './depiction.js';
+import { describeHistoric, fmtSpan, fmtYear, periodText } from './depiction.js';
 import { HISTORIC_CULTURES } from './historic/historic-city.js';
 
 describe('depiction: the caption a historic scene carries', () => {
@@ -15,7 +15,7 @@ describe('depiction: the caption a historic scene carries', () => {
       expect(d.place, id).toBeTruthy();
       expect(d.depiction.era, id).toBe('sixth-gen');
       expect(d.caption, id).toContain(fmtSpan(card.years));
-      if (Number.isFinite(card.readAt)) expect(d.caption, id).toContain(`read at c. ${-card.readAt} BCE`);
+      if (Number.isFinite(card.readAt)) expect(d.caption, id).toContain(`read at c. ${fmtYear(card.readAt)}`);
     }
   });
 

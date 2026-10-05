@@ -8,6 +8,7 @@
  * plateau above the valley, the three pyramid complexes, causeways down the escarpment to the harbours.
  */
 import { GIZA_ASSETS } from '../assets/giza.js';
+import { GIZA_RECORD, GIZA_SOURCES } from '../record/giza.js';
 
 export const GIZA = {
   label: 'Old Kingdom Giza',
@@ -17,6 +18,7 @@ export const GIZA = {
   place: 'the Giza plateau, Egypt',
   region: 'egypt',
   aliases: ['pyramid', 'pyramids', 'great pyramid', 'sphinx', 'khufu', 'khafre', 'menkaure', 'pharaoh'],   // what people call it (search)
+  record: { id: 'giza', entries: GIZA_RECORD, sources: GIZA_SOURCES },   // the encyclopedia entry's basis
   layout: 'plateau',
   palette: {
     ground: '#d6bf92',            // the plateau: desert gravel and sand over limestone

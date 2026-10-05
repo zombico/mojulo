@@ -10,8 +10,8 @@
  *     New Kingdom Thebes · New Kingdom, c. 1550–1070 BCE (read at c. 1250 BCE) · Thebes, Upper Egypt
  *       — drawn sixth-gen, to the thebes style card
  *
- * Read from the cards, never guessed: a field a card does not carry says `none` (no period) or `invented`
- * (no real place). Pure: the same manifest gives the same text.
+ * Read from the cards, never guessed: no years say `no period`; `place: null` says the place is invented; a card
+ * silent about its place says `place not recorded`. Pure: the same manifest gives the same text.
  */
 import { HISTORIC_CULTURES } from './historic/historic-city.js';
 import { REGION_CULTURES } from './historic/historic-region.js';
@@ -61,10 +61,11 @@ export function describeHistoric(m = {}) {
   const scene = m.scene ?? 'city';
   const subject = historicSubject(m.culture, scene) || card.label;
   const period = periodOf(card);
-  const place = card.place === undefined ? null : card.place;   // null: invented, no real town
+  // `place: null` says the town is invented; a card that says nothing about its place is not guessed at
+  const place = card.place === null ? 'invented' : typeof card.place === 'string' ? card.place : 'place not recorded';
   const style = HISTORIC_STYLES[m.culture] ? m.culture : null;
   const depiction = { era: SIXTH_GEN.id, look: style ? { style } : null };
   const drawn = `drawn ${depiction.era}${style ? `, to the ${style} style card` : ''}`;
-  const caption = `${subject} · ${periodText(period)} · ${place || 'invented place'} — ${drawn}`;
-  return { subject, period, place: place || 'invented', depiction, caption };
+  const caption = `${subject} · ${periodText(period)} · ${place === 'invented' ? 'invented place' : place} — ${drawn}`;
+  return { subject, period, place, depiction, caption };
 }

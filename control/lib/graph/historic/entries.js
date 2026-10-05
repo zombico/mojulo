@@ -10,6 +10,10 @@
  *  - its RECORD (`thebes/record`): every record entry with its confidence and sources, read on demand to
  *    justify a claim. Kept out of search (`index: false`) so an entry always answers before its sources.
  *
+ * Everything is read off the culture card: its `record` (`{ id, entries, sources }`), `region`, `aliases`,
+ * `period`, `place`, `readAt`. A region named here (REGIONS) adds its own search words; one that is not still
+ * gets its hub.
+ *
  * BASIS maps the record's confidence: read → ATTESTED, secondary → RECONSTRUCTED, unverified → CONJECTURAL.
  * Placement and layout are never ATTESTED: the town plan is a reconstruction from parallels. Every entry says up
  * front that it is a GENERAL depiction of its period, not one year's town: anachronisms are expected. Counts are
@@ -20,14 +24,6 @@ import { HISTORIC_SCENES } from './historic-kind.js';
 import { REGION_CULTURES } from './historic-region.js';
 import { FARM_CULTURES } from './farmstead.js';
 import { HISTORIC_STYLES } from './style/index.js';
-import { SUMER_RECORD, SUMER_SOURCES } from './record/sumer.js';
-import { SUMER_FARM_RECORD } from './record/sumer-farm.js';
-import { SUMER_WORKS_RECORD } from './record/sumer-works.js';
-import { EGYPT_RECORD, EGYPT_SOURCES } from './record/egypt.js';
-import { EGYPT_INDUSTRY_RECORD } from './record/egypt-industry.js';
-import { GIZA_RECORD, GIZA_SOURCES } from './record/giza.js';
-import { LINDOS_RECORD, LINDOS_SOURCES } from './record/lindos.js';
-import { QIN_RECORD, QIN_SOURCES } from './record/qin.js';
 import { describeHistoric, fmtSpan, periodText } from '../depiction.js';
 
 /** The regions a culture names (`region`), each with the words people use for it. */
@@ -36,16 +32,7 @@ export const REGIONS = {
   greece: { label: 'The Hellenistic Greek world', aliases: ['greece', 'greek', 'hellenic', 'hellenistic', 'aegean', 'ancient greece'] },
   mesopotamia: { label: 'Mesopotamia', aliases: ['mesopotamia', 'mesopotamian', 'sumer', 'tigris', 'euphrates', 'iraq'] },
   china: { label: 'Ancient China', aliases: ['china', 'chinese', 'qin dynasty', 'wei river'] },
-};
-
-/** Each culture's record: what its town, land, farm and works stand on. A culture without one says so. */
-const RECORDS = {
-  sumer: { id: 'sumer', entries: [...SUMER_RECORD, ...SUMER_FARM_RECORD, ...SUMER_WORKS_RECORD], sources: SUMER_SOURCES },
-  thebes: { id: 'egypt', entries: [...EGYPT_RECORD, ...EGYPT_INDUSTRY_RECORD], sources: EGYPT_SOURCES },
-  giza: { id: 'giza', entries: GIZA_RECORD, sources: GIZA_SOURCES },
-  lindos: { id: 'lindos', entries: LINDOS_RECORD, sources: LINDOS_SOURCES },
-  polis: { id: 'lindos', entries: LINDOS_RECORD, sources: LINDOS_SOURCES },
-  qin: { id: 'qin', entries: QIN_RECORD, sources: QIN_SOURCES },
+  italy: { label: 'Roman Italy', aliases: ['italy', 'roman', 'rome', 'ancient rome', 'roman empire', 'latin'] },
 };
 
 export const BASIS = { read: 'ATTESTED', secondary: 'RECONSTRUCTED', unverified: 'CONJECTURAL' };
@@ -89,7 +76,7 @@ function whenOf(id, K) {
 
 /** One culture's entry card. */
 export function entryCard(id) {
-  const K = HISTORIC_CULTURES[id], d = describeHistoric({ culture: id }), R = RECORDS[id];
+  const K = HISTORIC_CULTURES[id], d = describeHistoric({ culture: id }), R = K.record || null;
   const n = R ? basisCounts(R.entries) : null, style = HISTORIC_STYLES[id];
   const skins = dedupe(Object.values(K.skins?.kinds || {}));
   const scenes = scenesOf(id).map((s) => { const se = seasonsOf(id, s); return se.length ? `${s} (season ${se.join(' | ')})` : s; });
@@ -97,9 +84,9 @@ export function entryCard(id) {
     `# ${d.subject}`, '', d.caption, '',
     `SUBJECT    ${d.subject}`,
     `PERIOD     ${periodText(d.period)}`,
-    `PLACE      ${d.place === 'invented' ? 'invented — no real town' : d.place}`,
+    `PLACE      ${d.place === 'invented' ? 'invented — no real place' : d.place}`,
     `DEPICTION  era ${d.depiction.era} (the hardware budget); look: ${style ? `the ${id} style card` : 'none yet'}`,
-    `SCOPE      a general depiction of the town in its period, not a reconstruction of one year: expect anachronisms (pieces from across the span side by side, gaps filled from parallels). Say so when you hand it over.`,
+    `SCOPE      a general depiction of the place in its period, not a reconstruction of one year: expect anachronisms (pieces from across the span side by side, gaps filled from parallels). Say so when you hand it over.`,
     R ? `BASIS      the ${R.id} record: ${R.entries.length} entries — ${n.read} ATTESTED, ${n.secondary} RECONSTRUCTED, ${n.unverified} CONJECTURAL; ${Object.keys(R.sources).length} sources. The town plan and placement are RECONSTRUCTED from parallels. In full: card '${id}/record'.`
       : 'BASIS      no record yet: read every part as CONJECTURAL.',
     style ? `CHECKS     ${style.principles.length} principles on its style card, each machine-checked; the eyes gate is the operator's.` : 'CHECKS     none yet.',
@@ -108,7 +95,7 @@ export function entryCard(id) {
     `  palette   ${Object.keys(K.palette || {}).length} roles: ${Object.keys(K.palette || {}).slice(0, 12).join(', ')}${Object.keys(K.palette || {}).length > 12 ? ' …' : ''}`,
     `  skins     ${skins.join(', ')}`,
     `  patterns  ${(K.patterns || []).join(', ')}`,
-    `  assets    ${Object.keys(K.assets || {}).join(', ')}`,
+    ...(Object.keys(K.assets || {}).length ? [`  assets    ${Object.keys(K.assets).join(', ')}`] : []),
     '',
     `SCENES     ${scenes.join(' · ')}`,
     '',
@@ -127,7 +114,7 @@ export function entryCard(id) {
 
 /** One culture's record card: every record entry, by basis, with its sources. Read on demand; not searched. */
 export function recordCard(id) {
-  const K = HISTORIC_CULTURES[id], R = RECORDS[id];
+  const K = HISTORIC_CULTURES[id], R = K.record;
   if (!R) return null;
   const by = (c) => R.entries.filter((e) => e.confidence === c);
   const cite = (e) => (e.sources || []).map((s) => `${s.author.split(',')[0]} ${s.year}`).join('; ');
@@ -151,7 +138,7 @@ export function hubCards() {
   const by = {};
   for (const [id, K] of Object.entries(HISTORIC_CULTURES)) if (K.region) (by[K.region] ||= []).push(id);
   return Object.entries(by).filter(([, ids]) => ids.length > 1).map(([region, ids]) => {
-    const Rg = REGIONS[region], sorted = [...ids].sort((a, b) => HISTORIC_CULTURES[a].years[0] - HISTORIC_CULTURES[b].years[0]);
+    const Rg = REGIONS[region] || { label: region[0].toUpperCase() + region.slice(1), aliases: [region] }, sorted = [...ids].sort((a, b) => HISTORIC_CULTURES[a].years[0] - HISTORIC_CULTURES[b].years[0]);
     const span = [Math.min(...ids.map((i) => HISTORIC_CULTURES[i].years[0])), Math.max(...ids.map((i) => HISTORIC_CULTURES[i].years[1]))];
     const body = [`# ${Rg.label}`, '', `Entries in time order (${fmtSpan(span)}). Open the one the ask names; for a general "${region}" ask, offer the choice. Each is a general depiction of its period, with anachronisms to expect.`, '',
       ...sorted.map((i) => `- '${i}': ${describeHistoric({ culture: i }).caption}`), '',
