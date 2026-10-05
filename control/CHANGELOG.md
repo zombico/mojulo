@@ -12,6 +12,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Statue maker
+
+The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
+bronze, cut to a bust, a herm or a torso study, with losses, on a base. Opt-in; a hero without `statue` is
+byte-identical. Being built on this branch; the historic worlds' statue slots and the sphinx come next.
+
+- **The statue build.** `statue: '<card>'` or `{ type: 'statue', style, material, crop, lose, base, dials: { wear } }`
+  (`lib/graph/statue/`), stamped with its laws version like an outfit or armour build. Period cards, plain JSON:
+  `archaic`, `classical`, `hellenistic`, `roman`, `roman-bust`, `egyptian`, `renaissance`. A card's stand, stillness and
+  drapery (an outfit card per silhouette) sit beneath the hero's own words; its hair is set at mint.
+- **Carved.** One material over every group: blank eyes, carved hair, the bare body's zones skin. `marble`,
+  `limestone`, `sandstone`, `granite`, `basalt`, `bronze` (its patina by `wear`, from brown to verdigris), `gilt`, and
+  `painted`: reconstructed polychromy over the card's stone, which the readout always calls conjecture.
+- **Cut.** `crop`: `full`, `bust` (below the chest, through the upper arms), `herm`, `torso` (no head or arms, the
+  thighs cut). `lose`: whole parts with what they carry (`forearmR` takes the hand), each closed in its own cap. No
+  fracture surfaces yet.
+- **On a base.** `block`, `attic`, `drum`, `socle`, `herm` or `none`, in stone, built at read time under the posed figure
+  from the footprint it stands on; the figure is lifted onto it. The base rides every export as its own group.
+- **A surface for the exports.** A layered recipe's `surfaces` (group → a shelf material or a metal surface, `'*'` the
+  rest) tags its faces (`pbr`, a metal's `metal`), so a bronze statue exports metallic to GLB and Godot and the World
+  page's metal channel lights it. Absent, byte-identical.
+- **The readout.** `hero.statue`: the card, period, material, format, the parts lost, the base, wear, `basis:
+  'unverified'` (the cards are drawn from the general record of each type, not from sources read) and the caption
+  derived work carries ("inspired by …").
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,

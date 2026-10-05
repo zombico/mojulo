@@ -445,6 +445,24 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
   Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
+  STATUE. `statue: '<card>'` or `{ type: 'statue', style, material?, crop?, lose?, base?, dials: { wear }? }` carves the
+  hero as sculpture (`lib/graph/statue/`), on the landmark head or `head: 'none'` (the anime head and held gear refuse by
+  name; an armour build is carved with the figure). Period cards, plain JSON: `archaic` (kouros and kore), `classical`
+  (contrapposto, bronze), `hellenistic` (the turning figure), `roman` (the address, tunic and long garment as the toga's
+  stand-in), `roman-bust`, `egyptian` (striding, kilt or sheath), `renaissance`. A card's stand, stillness (idle, walk and
+  wave off) and drapery (an outfit card per silhouette) apply when the hero names none, and its hair at mint. Laws
+  (`principles.js`): ONE MATERIAL over every group (`marble`, `limestone`, `sandstone`, `granite`, `basalt`, `bronze`,
+  `gilt`, `painted`), the eyes blank, the hair a carved mass, the bare body's zones skin; a FORMAT is a cut (`full`;
+  `bust`: below the chest, through the upper arms; `herm`: the bust on a tapering shaft; `torso`: no head, no arms, the
+  thighs cut), each cut a sealed ring; a LOSS is whole parts (`head`, `handR`, `forearmL`, `armR`, `footL`, `shankR`,
+  `legL`, …: the part and what it carries, closed in its own cap; no fracture surface); `painted` is RECONSTRUCTED
+  polychromy over the card's stone and always says so; a statue stands on a BASE (`none`, `block`, `attic`, `drum`,
+  `socle`, `herm`) of stone (a bronze, gilt or painted figure on limestone), built at read time under the posed figure,
+  the figure lifted onto it; `wear` 0–1 dulls stone and ages bronze from its brown patina to verdigris. The faces carry
+  the material's surface (stone `pbr`, a bronze or gilt figure's `metal`) for the World page and the exports. The
+  readout's `hero.statue`: the card, period, material, format, the parts lost, base, wear, `basis` (`unverified`: drawn
+  from the general record of the type) and the `caption` derived work carries ("inspired by …"). Patch `/hero/statue`,
+  `/hero/statue/material`, `/hero/statue/crop`, `/hero/statue/lose`, `/hero/statue/dials/wear`.
   `adorn: 'ranger'` wears a belt (iron buckle), a baldric across the chest (iron buckle), an archer's bracer on the left
   forearm and ONE pauldron on the right shoulder with a bronze boss (the focal accent), stacked in that order, and suggests
   an earth palette beneath the operator's. Either is also DATA (the plan's `body` / `adorn` blocks below); `'none'` or
