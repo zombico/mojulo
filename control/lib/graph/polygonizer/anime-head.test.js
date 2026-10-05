@@ -245,12 +245,12 @@ describe('anime head: the graphic face', () => {
   it("`sculpt: false` is the studio's face: the female's hash from before the graphic face; the male's the same once his rest carriage is carried back", () => {
     // re-pinned for the sideburn patches before the ears (every anime head wears them, the studio's face too); the
     // studio's face keeps the studio's ears
-    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('a1fc320823f17001');
+    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('5887f01567103a49');
     // re-pinned for the male base's rest carriage (ANIME_BASE_ADJUST.male headPitch −0.25: 3° chin up instead of 6°); a
     // headPitch word of 1.25 carries it back, and with the face record it stores set back to the base the head is the
     // hash it gave before the graphic face existed
-    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('aa3192c27ac5923d');
-    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('4c52448d19c26d56');
+    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('4a31b9858f9ef319');
+    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('346efba510b033cf');
   });
   it('the words: ratios about the base and offsets compose; shape words ride beside; the stored layer is sparse; unknown words refused', () => {
     const R = resolveAnimeSculpt(['heavy-lid', { lidWeight: 1.1, browAngle: 4, fissureShape: 'tri' }, { browAngle: 2 }]);

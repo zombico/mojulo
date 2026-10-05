@@ -335,27 +335,6 @@ export function buildAnime(r, options = {}) {
   for (let j = 0; j < neckRings.length - 1; j++) for (let i = 0; i < 40; i++) quad('skin', neckRings[j][i], neckRings[j][(i + 1) % 40], neckRings[j + 1][(i + 1) % 40], neckRings[j + 1][i]);
 
   const neckEnd = parts.skin.length;
-  // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
-  // sheet lying on the skin in FRONT of each ear, from under the hair's edge at the temple down to just above the ear's
-  // middle (clear of the cheek),
-  // its front edge drawing back as it falls (a sideburn's taper), its back edge at the ear's front, so no bare gap shows
-  // between the hair and the ear.
-  // Its own part (`burn`, one run per side); the head wears it in the hair's colour, and a bald head not at all (its
-  // own skin is the face's colour, with no edge for the ink to outline)
-  const burns = [];
-  if (options.sideburnPatch) {
-    parts.burn = [];
-    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yTop = 0.22, yBot = earY + 0.07, I = 6, J = 10;
-    for (const side of [-1, 1]) {
-      const start = parts.burn.length, at = (i, j, off) => { const y = yTop + (yBot - yTop) * j / J, u0 = 0.84 + 0.1 * (j / J) ** 2, u = side * (u0 + (0.955 - u0) * i / I), p = surface(u, y);
-        const n = unit([p[0], 0, p[2] - 0.07]); return add(p, mul(n, off)); };
-      const lo = 0.004, hi = 0.018, Q = (a, b, c, d) => (side > 0 ? quad('burn', a, b, c, d) : quad('burn', d, c, b, a));
-      for (let j = 0; j < J; j++) for (let i = 0; i < I; i++) { Q(at(i, j, hi), at(i, j + 1, hi), at(i + 1, j + 1, hi), at(i + 1, j, hi)); Q(at(i + 1, j, lo), at(i + 1, j + 1, lo), at(i, j + 1, lo), at(i, j, lo)); }
-      for (let j = 0; j < J; j++) { Q(at(0, j, lo), at(0, j + 1, lo), at(0, j + 1, hi), at(0, j, hi)); Q(at(I, j, hi), at(I, j + 1, hi), at(I, j + 1, lo), at(I, j, lo)); }
-      for (let i = 0; i < I; i++) { Q(at(i, 0, lo), at(i, 0, hi), at(i + 1, 0, hi), at(i + 1, 0, lo)); Q(at(i + 1, J, lo), at(i + 1, J, hi), at(i, J, hi), at(i, J, lo)); }
-      burns.push({ side, start, count: parts.burn.length - start });
-    }
-  }
   // Hair cap + individually directed swept solid clumps.
   const vx = h.volume * f.width, vy = h.volume, depth = h.volume, short = h.style === 'short', hime = h.style === 'hime';
   // the HAIR FORM (see the header): a neutral word dropped first, so an absent, empty or all-neutral form runs the studio's
@@ -378,6 +357,30 @@ export function buildAnime(r, options = {}) {
   for (let j = 0; j < 14; j++) for (let i = 0; i < 48; i++) quad('hair', capPoint(i / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, (j + 1) / 14), capPoint(i / 48 * 2 * Math.PI, (j + 1) / 14));
   if (FIT) for (let i = 0; i < 48; i++) tri('hair', FIT.crown, capPoint((i + 1) / 48 * 2 * Math.PI, 0), capPoint(i / 48 * 2 * Math.PI, 0));   // the fitted cap closes at the crown
   const capEnd = parts.hair.length;
+  // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
+  // sheet lying on the skin in FRONT of each ear, from under the scalp's bottom edge (the hairline, column by column) down to just above the ear's
+  // middle (clear of the cheek),
+  // its front edge drawing back as it falls (a sideburn's taper), its back edge at the ear's front, so no bare gap shows
+  // between the hair and the ear.
+  // Its own part (`burn`, one run per side); the head wears it in the hair's colour, and a bald head not at all (its
+  // own skin is the face's colour, with no edge for the ink to outline)
+  const burns = [];
+  if (options.sideburnPatch) {
+    parts.burn = [];
+    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yBot = earY + 0.07, I = 6, J = 10;
+    // its top edge follows the scalp's bottom (the cap's hairline at each column's azimuth) and tucks under it, so no skin
+    // shows between the hair and the patch
+    const top = (u) => { const q = surface(u, 0.2), a = dmath.atan2(q[0], -(q[2] - 0.07)); return capPoint(a, 0.94)[1] + 0.02; };
+    for (const side of [-1, 1]) {
+      const start = parts.burn.length, at = (i, j, off) => { const u0 = 0.84 + 0.1 * (j / J) ** 2, u = side * (u0 + (0.955 - u0) * i / I), yTop = Math.max(top(u), yBot + 0.1), y = yTop + (yBot - yTop) * j / J, p = surface(u, y);
+        const n = unit([p[0], 0, p[2] - 0.07]); return add(p, mul(n, off)); };
+      const lo = 0.004, hi = 0.018, Q = (a, b, c, d) => (side > 0 ? quad('burn', a, b, c, d) : quad('burn', d, c, b, a));
+      for (let j = 0; j < J; j++) for (let i = 0; i < I; i++) { Q(at(i, j, hi), at(i, j + 1, hi), at(i + 1, j + 1, hi), at(i + 1, j, hi)); Q(at(i + 1, j, lo), at(i + 1, j + 1, lo), at(i, j + 1, lo), at(i, j, lo)); }
+      for (let j = 0; j < J; j++) { Q(at(0, j, lo), at(0, j + 1, lo), at(0, j + 1, hi), at(0, j, hi)); Q(at(I, j, hi), at(I, j + 1, hi), at(I, j + 1, lo), at(I, j, lo)); }
+      for (let i = 0; i < I; i++) { Q(at(i, 0, lo), at(i, 0, hi), at(i + 1, 0, hi), at(i + 1, 0, lo)); Q(at(i + 1, J, lo), at(i + 1, J, hi), at(i, J, hi), at(i, J, lo)); }
+      burns.push({ side, start, count: parts.burn.length - start });
+    }
+  }
   function lock(name, root, control, tip, width, normal, taperK = h.taper, thick = 1, cut = false) {
     if (SH_REPLACED(name)) return;   // the shapes took this clump group over
     const edit = r.locks?.[name]; if (edit) { control = add(control, [edit.cx, edit.cy, edit.cz]); tip = add(tip, [edit.tx, edit.ty, edit.tz]); }

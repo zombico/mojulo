@@ -31,7 +31,7 @@ needed on the anime head. Being built on this branch.
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
   PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop.
 - **Sideburn patches.** Every anime head with hair now wears a thin patch in the hair's colour on the skin before each
-  ear, from under the hair's edge to just above the ear's middle, so no bare gap shows between the hair and the ear
+  ear, from under the scalp's bottom edge (it follows the hairline, so no skin shows between) to just above the ear's middle, so no bare gap shows between the hair and the ear
   (`hairSideburnL`, `hairSideburnR`), and the graphic face's ears sit a little closer in to the head. A bald head shows
   its own skin there. The anime heroes' pinned payloads moved
   with it.
