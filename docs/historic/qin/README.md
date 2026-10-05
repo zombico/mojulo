@@ -45,6 +45,14 @@ Every Qin building is one of these, put together from the constants above:
 8. **Stepped earth mound** with work ramps and spoil heaps. *Lishan plan*
 9. **Pit with corridors**: partitions, posts, beams and matting over painted figures. *Army pit*
 
+### Built
+
+The kit (`control/lib/graph/historic/assets/qin.js`) builds pieces 1–6, plus the Wei bridge, the Epang
+building site and trees. The town (`layouts/qin.js`) puts them together.
+
+Pieces 7–9 (the multi-storey tower, the Lishan mound and the army pit) are not built yet. Lishan lies
+about 30 km east of Xianyang, so it would need a scene of its own rather than a place in the town.
+
 ## Palette
 
 Sampled from the swatch sheet. The ochre plaster is pushed warmer and lighter so that it reads against the loess.

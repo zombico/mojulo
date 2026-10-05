@@ -248,7 +248,11 @@ export const WALL_SKINS = {
   granite: [5, 4],           // Aswan red granite, dressed: big blocks, fine joints, the stone's speckle
   'granite-rough': [5, 4],   // red granite left undressed: each block's face still bulging (Menkaure's lower casing)
   bedrock: [10, 8],          // the plateau's own rock carved in place: strata of harder and softer beds, the soft ones weathered back
+  hangtu: [4, 2.4],          // rammed loess (Qin): thin pounded courses, rammer dimples, the board-form lifts and their tie holes
+  'tile-roof': [2, 2],       // a grey tile roof (Qin): half-round cover tiles in rows down the slope over the pan tiles' channels
 };
+/** Skins laid on a sloped face (a roof) as well as an upright one: the tile's x runs along the eave, its y up the slope. */
+const SKIN_ROOF = new Set(['tile-roof']);
 /** Tile widths in px where 320 is too coarse for the figures drawn on them. */
 const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520 };
 /** Skins whose tile is one register: a face fits a whole number of them, from its foot to its top. */
@@ -451,6 +455,45 @@ const SKIN_BAKERS = {
       }
     }
   },
+  // rammed loess: courses ~8 cm pounded one on another (each a tone, a lit upper edge, a dark seam),
+  // rammer dimples ~8 cm across over every course, the board-form lifts every 0.8 m with their board
+  // ends staggered lift to lift and a tie hole now and then along the seam; streaks where rain ran
+  hangtu(o, rng) {
+    const { W, H } = o, px = W / WALL_SKINS.hangtu[0], n = noise(W, 7, rng), m = noise(W, 26, rng);
+    const ch = 0.08 * px, lift = 0.8 * px, board = 2 * px;
+    const tone = Array.from({ length: Math.ceil(H / ch) + 1 }, () => (rng() - 0.5) * 0.12);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const r = Math.floor(y / ch), ly = y - r * ch;
+      let k = tone[r] + (n(x, y) - 0.5) * 0.12 + (m(x, y) - 0.5) * 0.05;
+      if (ly < 1) k -= 0.16; else if (ly < 2.2) k += 0.05;
+      o.a[y * W + x] += k;
+    }
+    for (let k = 0; k < (W * H) / (ch * ch * 1.6); k++) {   // the rammer's dimples
+      const cx = rng() * W, cy = rng() * H, r = ch * 0.45;
+      for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) { const d = Math.hypot(xx, yy) / r; if (d <= 1) o.add(cx + xx, cy + yy, yy < 0 ? -0.07 * (1 - d) : 0.03 * (1 - d)); }
+    }
+    for (let L = 0; L * lift < H; L++) {
+      const y0 = Math.round(L * lift);
+      for (let x = 0; x < W; x++) { o.add(x, y0, -0.3); o.add(x, y0 + 1, -0.16); o.add(x, y0 + 2, 0.06); }
+      const off = ((L % 2) * board) / 2;
+      for (let x = off; x < W + off; x += board) for (let y = y0; y < y0 + lift; y++) { o.add(x, y, -0.12); o.add(x + 1, y, 0.04); }
+      for (let x = off + board / 4; x < W + off; x += board / 2) { if (rng() < 0.5) continue; for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 4; xx++) o.add(x + xx, y0 + 2 + yy, -0.42); }
+    }
+    for (let s = 0; s < 18; s++) { const x0 = rng() * W, len = H * (0.15 + rng() * 0.5), y0 = rng() * H; for (let y = 0; y < len; y++) o.add(x0 + Math.sin(y * 0.07) * 1.2, y0 + y, -0.07 * (1 - y / len)); }
+  },
+  // grey roof tiles: the cover tiles' rounded rows (lit along their crowns, dark in the pan channels
+  // between), each row in tile lengths with a lap line, a tone to each tile
+  'tile-roof'(o, rng) {
+    const { W, H } = o, px = W / WALL_SKINS['tile-roof'][0], row = 0.25 * px, len = 0.4 * px, n = noise(W, 6, rng);
+    const tone = Array.from({ length: 4096 }, () => (rng() - 0.5) * 0.1);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const c = Math.floor(x / row), u = (x - c * row) / row, t = Math.floor((y + (c % 2) * len * 0.5) / len), v = ((y + (c % 2) * len * 0.5) % len) / len;
+      let k;
+      if (u < 0.22 || u > 0.92) k = -0.36;                       // the pan channel between rows
+      else { const a = (u - 0.22) / 0.7; k = 0.16 * Math.cos((a - 0.4) * Math.PI) - 0.06 + tone[(c * 97 + t) % tone.length]; if (v > 0.93) k -= 0.2; }   // the cover tile's crown, its lap
+      o.a[y * W + x] += k + (n(x, y) - 0.5) * 0.08;
+    }
+  },
   'lime-plaster'(o, rng) {
     const n = noise(o.W, 4, rng), m = noise(o.W, 18, rng);
     for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (n(x, y) - 0.5) * 0.12 + (m(x, y) - 0.5) * 0.05 + (rng() - 0.5) * 0.025; }
@@ -534,7 +577,7 @@ export function skinFace(f, skin, { us, mpu, toward }) {
   if (!WALL_SKINS[skin] || c.length !== 4 || typeof f.fill !== 'string' || f.bg) return f;
   const U = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], V = [c[3][0] - c[0][0], c[3][1] - c[0][1], c[3][2] - c[0][2]];
   const nz = Math.abs(U[0] * V[1] - U[1] * V[0]) / (Math.hypot(...U) * Math.hypot(...V) || 1);
-  if (nz > 0.6) return f;   // a roof, a tread: not a wall face
+  if (nz > 0.6 && !SKIN_ROOF.has(skin)) return f;   // a roof, a tread: not a wall face (unless the skin is a roof's)
   const [mw, mh] = WALL_SKINS[skin], tw = mw / mpu;
   let th = mh / mpu, z0 = 0;
   // a register skin fits the face: as many whole registers as its height holds, counted from its foot

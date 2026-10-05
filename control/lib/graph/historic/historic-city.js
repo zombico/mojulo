@@ -24,6 +24,8 @@ import { THEBES } from './cultures/thebes.js';
 import { planRiverAxis } from './layouts/thebes.js';
 import { GIZA } from './cultures/giza.js';
 import { planPlateau } from './layouts/giza.js';
+import { QIN } from './cultures/qin.js';
+import { planWeiWards } from './layouts/qin.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
@@ -31,18 +33,20 @@ import { groundTileFace, groundTileCss, skinFace } from './ground.js';
 import { bakeShade, shadeLayer, shadeCss } from './light.js';
 import { HISTORIC_STYLES } from './style/index.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA };
+export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, qin: QIN };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
 /**
  * Plan a historic city. Each culture brings its layout (`culture.layout`): 'ring-canal' (a walled ring
- * cut by a canal, the precinct at the heart — Sumer) or 'river-axis' (a river along the town and a
- * temple on an axis from its quay — New Kingdom Thebes). Both share ./layout-kit.js.
+ * cut by a canal, the precinct at the heart — Sumer), 'river-axis' (a river along the town and a
+ * temple on an axis from its quay — New Kingdom Thebes), 'plateau' (Giza) or 'wei-wards' (walled wards
+ * on an axis from a palace to a river — Qin Xianyang). All share ./layout-kit.js.
  */
 export function planHistoricCity(opts = {}) {
   const K = HISTORIC_CULTURES[opts.culture || 'sumer'] || SUMER;
   if (K.layout === 'river-axis') return planRiverAxis({ ...opts, culture: opts.culture || 'sumer' }, K);
   if (K.layout === 'plateau') return planPlateau({ ...opts, culture: opts.culture }, K);
+  if (K.layout === 'wei-wards') return planWeiWards({ ...opts, culture: opts.culture }, K);
   return planRingCanal(opts);
 }
 
@@ -452,7 +456,7 @@ export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 
 // px per scene unit. A panel rasterises at its own px size and an eye-level camera magnifies the near
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,

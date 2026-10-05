@@ -242,6 +242,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   Each principle is checked on the kit before any town plan exists. The reference drawings, and what each
   one gives the kit, are indexed in `docs/historic/qin/`.
+- The town (`culture: 'qin'`, layout `wei-wards`): Xianyang on the north bank of the Wei, with no outer
+  wall.
+  - The palace enclosure holds Palace No. 1 on its two-tier terrace, a lesser hall either side, and a
+    pair of que in its south gate.
+  - The axis runs on as a poplar-lined avenue to a timber pile bridge over the river.
+  - Walled wards line the avenue, each with its gate on an east–west avenue and lanes of courtyard houses
+    inside; the row under the palace is the elite's, with higher walls and tiled, hipped halls.
+  - One ward is a walled market with its drum tower (a Han analogue, labelled as one).
+  - Across the river, Epang's front hall is a building site of rising earth sections, plank forms, ramps
+    and spoil.
+  - Loess fields of millet and wheat lie round the town.
+  - Views: palace, gate, avenue, ward, market, bridge, works.
+- The Qin kit (`assets/qin.js`) builds every piece from the card's numbers: hall on terrace, que,
+  rammed-earth wall, ward gate, courtyard house, market, terrace works, bridge and trees.
+  - Roofs are frusta whose top is a ridge line, so they are straight by construction.
+  - Two new wall skins: `hangtu` (pounded courses, rammer dimples, the board-form lifts and tie holes) and
+    `tile-roof` (cover rows over pan channels). The tile skin is the first laid on a sloped face.
+- New shared patterns: rammed earth, tiled roof, timber frame, terrace hall, walled ward, market and bridge.
+- The page is about 21 MB, between Giza's and Thebes'. The other cultures are unchanged.
 
 ### Sixth-gen composer
 
