@@ -66,6 +66,9 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
  * An asset → its blueprint SVG. `parts` are the asset's local-frame masses (front −y, metres), as its
  * build() returns them for a W × D slot.
  */
+/** A part's corner points (world or local metres, as the part is): its silhouette from any side is their hull. */
+export { corners as partCorners };
+
 export function assetBlueprintSvg({ id, read = '', notes = [], W, D, parts }) {
   const all = parts.flatMap(corners);
   const ext = (i) => [Math.min(...all.map((p) => p[i]), 0), Math.max(...all.map((p) => p[i]))];

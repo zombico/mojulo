@@ -200,6 +200,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   World read the town's thin ground layers as one plane and stacked overlapping strips upward (by up
   to 4 m in Sumer's); its layers are now spread far enough apart to stay separate planes.
 
+### Historic light
+
+- **In progress.** A historic town takes the sixth-gen composer's light: the sun is baked once at build
+  time and carried by the page. Each culture has a style card (`lib/graph/historic/style/`) that states
+  how its town should look as principles, plus the numbers the builder reads. Each principle has a
+  machine check (`style.test.js`).
+- Cast shadows on the ground (`lib/graph/historic/light.js`). Every mass stands in an occluder
+  heightfield. Battered walls, ziggurat tiers and pyramids are sliced so their slopes cast their true
+  stepped profile. One sweep along the sun's azimuth then finds the ground in shade. A palm's crown
+  floats and casts a gappy disc from its height.
+- Sky occlusion darkens the foot of every wall and the floor of every narrow alley.
+- The shade is a cool tint at the card's alpha, never black. It is one map for the whole town (about
+  300 KB), laid into every ground face's background at that face's place, so overlapping shadows never
+  darken twice.
+- Measured on the current plans: Sumer's alleys are about a third in shade, against a twentieth of its
+  main streets and a tenth of the precinct court.
+- The page's backdrop is the card's sky, hazy blue overhead and pale with dust at the horizon,
+  replacing the flat beige.
+- `shade: false` leaves both off. The CSS 3D page only: the WebGL World ignores the map and keeps its own
+  light. Shadows land on the ground, not yet on walls or lower roofs. The region, farmstead, works and
+  asset-sheet scenes are unchanged.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

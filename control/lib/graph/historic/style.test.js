@@ -1,0 +1,137 @@
+import { describe, it, expect } from 'vitest';
+import { bakeShade } from './light.js';
+import { HISTORIC_STYLES } from './style/index.js';
+import { planHistoricCity, historicLight, assembleHistoricCityScene, SCENE_LIGHT } from './historic-city.js';
+import { litFactor } from '../polygonizer/vexar.js';
+import { deriveSky } from '../polygonizer/painted-landscape.js';
+
+const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const value = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+const scale = (c, f) => c.map((v) => v * f);
+const over = (base, top, a) => base.map((v, i) => v * (1 - a) + top[i] * a);
+const UP = litFactor([0, 0, 1], SCENE_LIGHT);
+const toSunFlat = (() => { const d = SCENE_LIGHT.dir, h = Math.hypot(d[0], d[1]); return [-d[0] / h, -d[1] / h, 0]; })();
+
+// pixel centres inside a rect, stepped
+function* cells({ x, y, w, d }, step = 0.5) { for (let u = x + step / 2; u < x + w; u += step) for (let v = y + step / 2; v < y + d; v += step) yield [u, v]; }
+const mean = (xs) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
+
+describe('historic style cards', () => {
+  it('every card states its principles, its light and its sky', () => {
+    for (const [id, S] of Object.entries(HISTORIC_STYLES)) {
+      expect(S.id).toBe(id);
+      expect(S.principles.length).toBeGreaterThanOrEqual(4);
+      expect(S.light.shade.color).toMatch(/^#[0-9a-f]{6}$/);
+      expect(S.sky.palette).toBeTruthy();
+    }
+  });
+});
+
+describe('the shade bake (light.js)', () => {
+  const flat = (extra = []) => ({ frame: { w: 60, d: 60 }, grounds: [{ kind: 'ground', x: 0, y: 0, w: 60, d: 60, z: 0.01, fill: '#c0a080' }], masses: extra });
+  const d = SCENE_LIGHT.dir, tanE = -d[2] / Math.hypot(d[0], d[1]);
+
+  it('a box throws its shadow away from the sun, as long as its height over the sun\'s elevation', () => {
+    const B = { kind: 'house', x: 25, y: 25, w: 6, d: 6, z0: 0, z1: 10 };
+    const sh = bakeShade(flat([B]), SCENE_LIGHT);
+    const len = 10 / tanE, cx = 28 + 3 * -toSunFlat[0], cy = 28 + 3 * -toSunFlat[1];   // from the lee face's middle
+    const at = (t) => sh.sun(cx - toSunFlat[0] * t, cy - toSunFlat[1] * t);
+    expect(at(0.5)).toBeGreaterThan(0.9);
+    expect(at(len - 1)).toBeGreaterThan(0.5);
+    expect(at(len + 1)).toBeLessThan(0.1);
+    // sunward of the box the ground is lit
+    expect(sh.sun(28 + toSunFlat[0] * 6, 28 + toSunFlat[1] * 6)).toBeLessThan(0.05);
+  });
+
+  it('a battered mass throws a shorter shadow than a box of its footprint and height (slopes step true)', () => {
+    const box = bakeShade(flat([{ kind: 'mass', x: 20, y: 20, w: 12, d: 12, z0: 0, z1: 10 }]), SCENE_LIGHT);
+    const fr = bakeShade(flat([{ kind: 'mass', solid: 'frustum', x: 20, y: 20, w: 12, d: 12, z0: 0, z1: 10, top: { x: 24, y: 24, w: 4, d: 4 } }]), SCENE_LIGHT);
+    let a = 0, b = 0;
+    for (const [x, y] of cells({ x: 0, y: 0, w: 60, d: 60 })) { if (box.open(x, y)) a += box.sun(x, y) > 0.5; if (fr.open(x, y)) b += fr.sun(x, y) > 0.5; }
+    expect(b).toBeLessThan(a * 0.75);
+    expect(b).toBeGreaterThan(0);
+  });
+
+  it('overlapping shadows never darken twice', () => {
+    const sh = bakeShade(flat([{ kind: 'house', x: 20, y: 20, w: 6, d: 6, z0: 0, z1: 10 }, { kind: 'house', x: 24, y: 22, w: 6, d: 6, z0: 0, z1: 12 }]), SCENE_LIGHT);
+    let max = 0;
+    for (const [x, y] of cells({ x: 0, y: 0, w: 60, d: 60 })) if (sh.open(x, y)) max = Math.max(max, sh.alpha(x, y));
+    expect(max).toBeLessThanOrEqual(1 - (1 - sh.shadeAlpha) * (1 - sh.aoAlpha) + 0.02);
+  });
+
+  it('a palm\'s crown floats: its shadow lands a height out, and the ground between is lighter', () => {
+    const P = { kind: 'palm', solid: 'palm', x: 29.3, y: 29.3, w: 1.4, d: 1.4, z0: 0, z1: 12, lean: [0, 0], fronds: [] };
+    const sh = bakeShade(flat([P]), SCENE_LIGHT), o = [d[0] / -d[2], d[1] / -d[2]];
+    const crown = sh.sun(30 + o[0] * 12, 30 + o[1] * 12), side = [-o[1], o[0]], n = Math.hypot(...side);
+    const between = sh.sun(30 + o[0] * 6 + (side[0] / n) * 2.5, 30 + o[1] * 6 + (side[1] / n) * 2.5);
+    expect(crown).toBeGreaterThan(0.3);
+    expect(between).toBeLessThan(crown);
+  });
+
+  it('is deterministic', () => {
+    const m = flat([{ kind: 'house', x: 20, y: 20, w: 6, d: 6, z0: 0, z1: 10 }]);
+    expect(bakeShade(m, SCENE_LIGHT).url).toBe(bakeShade(m, SCENE_LIGHT).url);
+  });
+});
+
+// each culture with a town plan is held to its own card's principles
+for (const culture of ['sumer', 'thebes']) {
+  describe(`${culture} — the style card's principles, measured`, () => {
+    const S = HISTORIC_STYLES[culture], plan = planHistoricCity({ culture }), { shade } = historicLight(plan);
+    const lanes = plan.grounds.filter((g) => g.kind === 'lane' && !g.poly);
+    const alleys = lanes.filter((g) => g.surface === S.lanes.alley);   // the beaten-mud alleys, not the rubble streets
+    const shadedShare = (rects) => { let n = 0, s = 0; for (const r of rects) for (const [x, y] of cells(r)) if (shade.open(x, y)) { n++; s += shade.sun(x, y) > 0.5; } return s / (n || 1); };
+
+    it('principle 1 — hard sun, measured: whitewash > sunlit lane > lane in shade (cool, never black) > brick turned from the sun', () => {
+      const laneFill = rgbOf(lanes[0].fill), lit = scale(laneFill, UP);
+      // the shade a lane takes where the sun is fully off it (the card's tint at its alpha), with the sky occlusion an alley floor carries
+      const aoAlley = mean(alleys.flatMap((r) => [...cells(r)].filter(([x, y]) => shade.open(x, y)).map(([x, y]) => shade.ao(x, y))));
+      const shadeA = 1 - (1 - S.light.shade.alpha) * (1 - aoAlley * S.light.ao.alpha);
+      const inShade = over(lit, rgbOf(S.light.shade.color), shadeA);
+      const white = plan.boxes.filter((b) => b.skin === 'lime-plaster' || b.skin === 'gypsum-wash').map((b) => value(scale(rgbOf(b.tint || b.fill || '#ffffff'), UP)));
+      const brick = plan.boxes.filter((b) => (b.kind === 'house' || b.kind === 'city-wall') && (b.skin === 'mudbrick' || b.skin === 'nile-brick')).map((b) => value(scale(rgbOf(b.tint || b.fill), SCENE_LIGHT.ambient)));
+      expect(white.length).toBeGreaterThan(0);
+      expect(brick.length).toBeGreaterThan(0);
+      const V = { whitewash: Math.max(...white), lane: value(lit), shade: value(inShade), brick: mean(brick) };
+      for (let i = 0; i + 1 < S.values.length; i++) expect(V[S.values[i]], `${S.values[i]} > ${S.values[i + 1]}`).toBeGreaterThan(V[S.values[i + 1]]);
+      // never black: half the sunlit value at least, and cooler than the sun (more blue for its red)
+      expect(V.shade).toBeGreaterThan(V.lane * 0.5);
+      expect(inShade[2] / inShade[0]).toBeGreaterThan(lit[2] / lit[0]);
+    });
+
+    it('principle 2 — the alleys are slots of shade, far more than the streets; the open court stands in sun', () => {
+      expect(alleys.length).toBeGreaterThan(20);
+      expect(shadedShare(alleys)).toBeGreaterThanOrEqual(S.lanes.alleyShade);
+      const pc = plan.stats.precinct;
+      expect(shadedShare([pc])).toBeLessThanOrEqual(S.lanes.courtShade);
+      expect(shadedShare(alleys)).toBeGreaterThan(shadedShare([pc]));
+      expect(shadedShare(alleys)).toBeGreaterThan(S.lanes.overStreets * shadedShare(lanes.filter((g) => g.surface !== S.lanes.alley)));
+    });
+
+    it('principle 3 — walls stand in their own contact shade: the foot of a house darker than the open court', () => {
+      const houses = plan.boxes.filter((b) => b.kind === 'house' && !b.solid);
+      const foot = [];
+      for (const h of houses) for (const [x, y] of [[h.x + h.w / 2, h.y - 0.4], [h.x + h.w / 2, h.y + h.d + 0.4], [h.x - 0.4, h.y + h.d / 2], [h.x + h.w + 0.4, h.y + h.d / 2]]) if (shade.open(x, y)) foot.push(shade.ao(x, y));
+      const pc = plan.stats.precinct, court = [...cells(pc, 2)].filter(([x, y]) => shade.open(x, y)).map(([x, y]) => shade.ao(x, y)).sort((a, b) => a - b);
+      expect(foot.length).toBeGreaterThan(50);
+      expect(mean(foot)).toBeGreaterThan(court[Math.floor(court.length / 2)] * 1.5);
+    });
+
+    it('principle 4 — shadows reach the page: every ground face carries the one shade map', () => {
+      const scene = assembleHistoricCityScene({ culture, view: 'street' });
+      const grounds = scene.faces.filter((f) => f.shade);
+      expect(grounds.length).toBeGreaterThanOrEqual(plan.grounds.filter((g) => !g.poly).length);   // every ground rect; a skewed poly keeps its flat colour
+      expect(new Set(grounds.map((f) => f.shade)).size).toBe(1);
+      expect(shade.url.length).toBeLessThan(600 * 1024);   // the map is one image for the whole town, under its budget
+      // off by request: no map, no bytes
+      expect(assembleHistoricCityScene({ culture, view: 'street', shade: false }).faces.some((f) => f.shade)).toBe(false);
+    });
+
+    it('principle 5 — the sky is a place: bluer overhead than at the horizon, and behind the page', () => {
+      const sky = deriveSky(S.sky.palette, { x: 0, y: 0, z: S.sky.sunElev });
+      expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
+      expect(assembleHistoricCityScene({ culture, view: 'street' }).sky).toEqual(S.sky);
+    });
+
+  });
+}

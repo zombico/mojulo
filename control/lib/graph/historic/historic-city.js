@@ -28,6 +28,8 @@ import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
 import { groundTileFace, groundTileCss, skinFace } from './ground.js';
+import { bakeShade, shadeLayer, shadeCss } from './light.js';
+import { HISTORIC_STYLES } from './style/index.js';
 
 export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
@@ -456,20 +458,28 @@ const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
  * courts): the ground layers sit millimetres apart, so it is draw order that keeps the canal above the
  * earth. A surfaced ground (mud, rubble, brick, dry earth) is a tiled face; the rest flat colour.
+ * `shade` (a ./light.js bake): its map is laid over every ground face, at the face's place in it.
  */
-export function groundsToScene(grounds, s, us, textured = true) {
+export function groundsToScene(grounds, s, us, textured = true, shade = null) {
   const faces = [];
+  // the shade layer goes over a face whose local axes run +x and +y (a ground rect; a near-square poly)
+  const shaded = (f, x, y) => (shade ? { ...f, shade: shade.key, bg: `${shadeLayer(shade, x, y, s, us)}, ${f.bg || f.fill}` } : f);
   for (const g of grounds) {
     const o = { ...g, x: g.x * s, y: g.y * s, w: g.w * s, d: g.d * s, z: g.z * s }, lit = scaleHex(g.fill, litFactor([0, 0, 1], SCENE_LIGHT));
-    if (g.poly) { faces.push({ corners: g.poly.map(([x, y]) => [x * s, y * s, g.z * s]), fill: lit, doubleSided: true }); continue; }
-    if (g.surface && textured) faces.push(groundTileFace(o, g.surface, g.fill, lit, { us, mpu: METRES_PER_UNIT }));
-    else faces.push({ corners: [[o.x, o.y, o.z], [o.x + o.w, o.y, o.z], [o.x + o.w, o.y + o.d, o.z], [o.x, o.y + o.d, o.z]], fill: lit, doubleSided: true });
+    if (g.poly) {
+      const f = { corners: g.poly.map(([x, y]) => [x * s, y * s, g.z * s]), fill: lit, doubleSided: true }, [a, b, , c] = g.poly;
+      const square = g.poly.length === 4 && b[0] - a[0] > 0 && Math.abs(b[1] - a[1]) < 0.1 * (b[0] - a[0]) && c[1] - a[1] > 0 && Math.abs(c[0] - a[0]) < 0.1 * (c[1] - a[1]);
+      faces.push(square ? shaded(f, a[0], a[1]) : f);
+      continue;
+    }
+    if (g.surface && textured) faces.push(shaded(groundTileFace(o, g.surface, g.fill, lit, { us, mpu: METRES_PER_UNIT }), g.x, g.y));
+    else faces.push(shaded({ corners: [[o.x, o.y, o.z], [o.x + o.w, o.y, o.z], [o.x + o.w, o.y + o.d, o.z], [o.x, o.y + o.d, o.z]], fill: lit, doubleSided: true }, g.x, g.y));
   }
   return { grounds: [], faces };
 }
 /** Emit a historic scene: the box city's page, with the ground tiles defined once at the top. */
 function emitHistoric(scene) {
-  const css = groundTileCss(scene.faces);
+  const css = groundTileCss(scene.faces) + shadeCss(scene.faces);
   const html = emitPreserve3dScene(scene);
   return css ? html.replace('<style>\n', `<style>\n${css}`) : html;
 }
@@ -493,12 +503,23 @@ export function toScene(masses, s, us = UNIT_SCALE.aerial, focus) {
   return { boxes, faces };
 }
 
+/**
+ * The culture's style card dresses the scene's light: its sun baked into a shade map over the ground
+ * (./light.js) and its sky behind the town. `shade: false` (or a culture without a card) leaves both off.
+ */
+export function historicLight(plan, opts = {}) {
+  const style = HISTORIC_STYLES[plan.stats.culture];
+  if (!style || opts.shade === false) return { style: null, shade: null, sky: undefined };
+  return { style, shade: bakeShade({ frame: plan.frame, masses: plan.boxes, grounds: plan.grounds }, SCENE_LIGHT, style.light), sky: style.sky };
+}
+
 export function assembleHistoricCityScene(opts = {}) {
   const plan = planHistoricCity(opts);
   const view = opts.view === 'approach' || (opts.view && plan.views[opts.view]) ? opts.view : 'aerial';
   const s = 1 / METRES_PER_UNIT;
   const { boxes, faces } = toScene(plan.boxes, s, UNIT_SCALE[view], plan.focus);
-  const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view]), grounds = G.grounds;
+  const { shade, sky } = historicLight(plan, opts);
+  const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view], true, shade), grounds = G.grounds;
   faces.unshift(...G.faces);
   const W = plan.frame.w * s, Dd = plan.frame.d * s, pc = plan.stats.precinct;
   const pcx = (pc.x + pc.w / 2) * s, pcy = (pc.y + pc.d / 2) * s;
@@ -510,8 +531,8 @@ export function assembleHistoricCityScene(opts = {}) {
   // the asked-for view first (it is the one the page opens on)
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
-  const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
-  return { ...scene, stats: plan.stats };
+  const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
+  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}) };
 }
 
 /** A plan or asset scene → the CSS 3D page (ground tiles embedded once). */
