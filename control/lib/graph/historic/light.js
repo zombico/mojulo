@@ -97,6 +97,15 @@ function standMasses(G, masses) {
   }
 }
 
+/**
+ * The land itself as an occluder (`terrain` = the plan's `hAt`): a cliff, a terrace wall, a hill throws its
+ * shadow and hems in the sky like a wall does. Its risers and slopes are panels the masses pass leaves out.
+ */
+function standTerrain(G, hAt) {
+  const { res, nx, ny, top } = G;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i, z = hAt((i + 0.5) * res, (j + 0.5) * res); if (z > top[k]) top[k] = z; }
+}
+
 /** The ground each pixel shows (the last ground laid over it wins, as the page draws them). */
 function layGrounds(G, grounds) {
   for (const g of grounds) {
@@ -194,15 +203,17 @@ const SHADES = new Map();   // key → data URL, for the page's CSS
 /**
  * Bake a plan's shade map. `frame` { w, d } metres (the plan's), `masses` and `grounds` the plan's own
  * (metres), `light` the scene light (its `dir` is the sun's travel), `card` a style card's `light`.
+ * `terrain` (optional, the plan's `hAt`) stands the land in the heightfield too: cliffs and terrace walls cast.
  * Returns { key, url, res, nx, ny, w, d, … } and samplers that read the bake back for checks: alpha(x, y),
  * sun(x, y) and ao(x, y) in 0–1, open(x, y) 1 where the ground is not under a mass.
  */
-export function bakeShade({ frame, masses, grounds }, light, card = {}) {
+export function bakeShade({ frame, masses, grounds, terrain }, light, card = {}) {
   const C = { ...SHADE_DEFAULTS, ...card, shade: { ...SHADE_DEFAULTS.shade, ...card.shade }, ao: { ...SHADE_DEFAULTS.ao, ...card.ao }, palm: { ...SHADE_DEFAULTS.palm, ...card.palm } };
   const res = Math.max(0.25, Math.max(frame.w, frame.d) / C.maxPx), nx = Math.ceil(frame.w / res), ny = Math.ceil(frame.d / res);
   const G = { res, nx, ny, top: new Float32Array(nx * ny).fill(-1e9), recv: new Float32Array(nx * ny) };
   layGrounds(G, grounds);
   standMasses(G, masses);
+  if (terrain) standTerrain(G, terrain);
   const d = light.dir, hl = Math.hypot(d[0], d[1]) || 1e-9, tanE = -d[2] / hl, toSun = [-d[0] / hl, -d[1] / hl];
   const S = sweepSun(G, toSun, tanE), aoAt = skyOcclusion(G, C.ao.radius);
   const crowns = palmCrowns(G, masses, [d[0] / -d[2], d[1] / -d[2]], C.palm);

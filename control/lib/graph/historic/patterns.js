@@ -100,6 +100,19 @@ export const PATTERNS = {
   vineyard: { family: 'farm', read: 'vines trained over a pergola of forked posts, a treading vat and its jars at the end', seenIn: ['Egypt', 'the Levant', 'Greece', 'Rome'] },
   apiary: { family: 'farm', read: 'hives stacked in a bank or row, the honey jars by them', seenIn: ['Egypt (pottery cylinders)', 'Greece', 'Rome', 'medieval Europe (skeps)'] },
   'garden-beds': { family: 'farm', read: 'small square beds inside low ridges round a pool or a well, trees for shade', seenIn: ['Egypt', 'Persia (chahar bagh)', 'Rome (hortus)', 'medieval cloister gardens'] },
+  // ── the Greek world (Lindos): the classical vocabulary, and the land it stands on ──
+  'classical-order': { family: 'facade', read: 'columns on a stepped base carrying a beam, a frieze and a low gable: the god\'s house as a frame of posts and lintels', seenIn: ['Greece (Doric, Ionic)', 'Rome', 'the Renaissance', 'Neoclassical capitals'] },
+  'tile-roof': { family: 'massing', read: 'a low-pitched roof of fired clay tiles, red-brown against the stone', seenIn: ['Greece', 'Rome', 'China', 'Mediterranean villages'] },
+  stoa: { family: 'massing', read: 'a long open colonnade with a back wall, a shaded walk on the edge of a public space', seenIn: ['Greece (agora, sanctuary)', 'Rome (porticus)', 'medieval cloisters', 'Bologna arcades'] },
+  propylon: { family: 'massing', read: 'a gateway built as a building: a columned front and a door wall, the threshold of a sanctuary', seenIn: ['Greece (Athens, Lindos)', 'Persia (Gate of All Nations)', 'Rome (arches)', 'Beijing (Meridian Gate)'] },
+  theatre: { family: 'massing', read: 'a bowl of stone seats cut into a hillside round a flat circle, a stage building in front', seenIn: ['Greece', 'Rome (built up on vaults)', 'Petra', 'Anatolia'] },
+  'round-tomb': { family: 'massing', read: 'a drum of ashlar on a headland or by a road: a family\'s tomb that is a landmark', seenIn: ['Hellenistic Rhodes', 'Etruria (tumuli)', 'Rome (Caecilia Metella)', 'Lycia'] },
+  peristyle: { family: 'plan', read: 'a court with a colonnade round it, the rooms opening onto the walk', seenIn: ['Hellenistic Greece', 'Rome (domus)', 'Islamic riad', 'monastic cloister'] },
+  acropolis: { family: 'layout', read: 'the sacred rock above the town: the gods on the summit, the climb to them the town\'s great way', seenIn: ['Greece (Athens, Lindos)', 'Mycenae', 'Zimbabwe (hill complex)', 'Masada'] },
+  'terraced-hillside': { family: 'layout', read: 'a slope built up in dry-stone walls into level steps; streets run along them and stairs climb between', seenIn: ['Greek islands', 'Liguria (Cinque Terre)', 'Inca (Machu Picchu)', 'Yemen', 'the Philippine rice terraces'] },
+  'sea-cliff': { family: 'layout', read: 'the land ends in sheer rock over the water, the town and its shrine on top', seenIn: ['Lindos', 'Santorini', 'Bonifacio', 'Amalfi'] },
+  'rock-relief': { family: 'art', read: 'a picture cut into the living rock beside the way, larger than life', seenIn: ['Lindos (the ship)', 'Persia (Behistun, Naqsh-e Rustam)', 'Hittites (Yazılıkaya)', 'India (Mahabalipuram)'] },
+  'statue-base': { family: 'art', read: 'bronze statues on inscribed stone bases crowding a sanctuary: the gifts of the city\'s great', seenIn: ['Greece (Delphi, Lindos, Olympia)', 'Rome (fora)', 'the modern square'] },
 };
 
 /** A flat-roofed cube with a low parapet lip. */

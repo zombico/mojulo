@@ -15,16 +15,31 @@ import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COL
 //   · the fire LIGHTS the world: every basic material on the page is patched (as terrain chunks stream in too) with
 //     the eight fires nearest the eye: a fire the world's bake already holds (a dungeon's) flickers the light there,
 //     one it does not (a campfire on a terrain) adds its light, falling off as an extended source's, 1/(d² + r²).
+//   · `unit` (metres per scene unit; a world built in its own units, its air still): the fires are given and burn in
+//     metres — the kernel's buoyancy, smoke and sparks are physical — and what they hand the page is scaled into the
+//     world's units, their light by 1/unit² so it falls off over the same metres. Absent ⇒ none of this is emitted.
 export function fireChannelScript(cfg) {
+  const u = Number.isFinite(cfg.unit) && cfg.unit > 0 && cfg.unit !== 1 ? cfg.unit : 0, k = u ? 1 / u : 1;
+  const props = cfg.sources.map(firePropParts).map((parts) => (u ? parts.map((p) => ({ ...p, ...(p.a ? { a: p.a.map((v) => v * k), b: p.b.map((v) => v * k), r0: p.r0 * k, r1: p.r1 * k } : {}), ...(p.at ? { at: p.at.map((v) => v * k) } : {}), ...(p.r ? { r: p.r * k } : {}) })) : parts));
   return `
 // --- fire (opt-in \`fire\`) ---
-const FIRE = ${safeJson(cfg)}, FIRE_KIND_LIGHT = ${safeJson(FIRE_KIND_LIGHT)}, FIRE_PROPS = ${safeJson(cfg.sources.map(firePropParts))};
-const __fireTW = FIRE.terrainAir ? window.__mojTerrain : null;
+const FIRE = ${safeJson(cfg)}, FIRE_KIND_LIGHT = ${safeJson(FIRE_KIND_LIGHT)}, FIRE_PROPS = ${safeJson(props)};
+${u ? `// the fires burn in metres; the page is in the world's units (k = 1/unit)
+function __fireUnit(K, k) {
+  const sc = (a) => a && a.map((v) => v * k), si = (s) => ({ ...s, at: sc(s.at), D: s.D * k, L: s.L * k, light: s.light * k * k });
+  const srcs = Array.from({ length: K.N }, (_, i) => si(K.src(i)));
+  return { ...K, src: (i) => srcs[i], centre: (i, t) => sc(K.centre(i, t)),
+    flames: (i, t) => K.flames(i, t).map((f) => f && { pts: f.pts.map((v) => v * k), rad: f.rad.map((v) => v * k), L: f.L * k }),
+    embers: (i, t) => K.embers(i, t).map((v, j) => (j % 7 === 6 ? v : v * k)),
+    smoke: (i, t) => K.smoke(i, t).map((v, j) => (j % 5 === 4 ? v : v * k)),
+    burn: (i, t) => { const b = K.burn(i, t); return b && b.map((v, j) => (j === 4 || j === 5 || j === 7 ? v : v * k)); } };
+}
+` : ''}const __fireTW = FIRE.terrainAir ? window.__mojTerrain : null;
 const __fireWind = __fireTW && __fireTW.wind ? __fireTW.wind : null;
 // a grass fire spreads in the wind's mean, over the terrain's ground, and stops at its water
 if (__fireWind && FIRE.spread) FIRE.wind = { speed: __fireWind.cfg.speed, dir: __fireWind.cfg.dir };
 const __fireWorld = __fireTW ? { groundAt: (x, y) => __fireTW.kernel.groundAt(x, y), burnable: (x, y) => !(__fireTW.cfg.water && __fireTW.kernel.groundAt(x, y) < __fireTW.cfg.water.z) } : null;
-const __fireK = (${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null, __fireWorld);
+const __fireK = ${u ? '__fireUnit(' : ''}(${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null, __fireWorld)${u ? `, ${k})` : ''};
 // every fire the kernel draws: the standing ones (FIRE.sources, with their props) and the grass fires' fronts
 const __fireN = __fireK.N, __FNP = __fireK.NP, __fireAll = Array.from({ length: __fireN }, (_, i) => __fireK.src(i));
 // a fire's light: its kind's warm yellow, or as much of its colorant's lines as the flame is coloured (fire.js fireLightRGB)
