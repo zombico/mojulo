@@ -15,6 +15,8 @@ import { relief, ell, quad, PIG, sceneRegister, smitingScene, columnScene, capti
 
 /** Surfaces, and how many metres one tile covers. */
 export const GROUND_SURFACES = { mud: 4, rubble: 3, brick: 2.4, 'dry-earth': 6, 'cone-mosaic': 1.6, flagstone: 6 };   // the mosaic's cones are drawn large: a big read, not a count
+// the fields: ard furrows ~0.4 m apart, rows of shoots on them, stubble after the sickle, standing barley
+Object.assign(GROUND_SURFACES, { furrows: 3, sown: 3, stubble: 3, barley: 2, 'drying-bricks': 3 });
 // a skin, not a ground: the cone mosaic of Uruk — clay cones pressed head-out into the wall, their
 // heads dipped red, black or left white, set in zigzags and lozenges. Its tile ignores the base colour.
 
@@ -106,6 +108,56 @@ const BAKERS = {
       const joint = ly < 1.4 || cs.some((c) => Math.abs(x - c) < 1.2);
       const col = joint ? mortar : base.map((v) => v * tone[r * 12 + bi] * (0.95 + n(x, y) * 0.08));
       for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = col[c];
+    }
+    return px;
+  },
+  // ard furrows: ridges running down the tile (along a field's length), each a lit crest and a shaded
+  // trough, clods turned up along them; `shoots` sets a row of green on each crest (a sown field)
+  furrows(base, size, rng, shoots = 0) {
+    const px = new Float64Array(size * size * 3), per = 8, b = size / per, n = noise(size, 6, rng), m = noise(size, 24, rng);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const u = (x % b) / b, ridge = 0.8 + 0.34 * Math.sin(u * Math.PI) - (u > 0.82 ? 0.12 : 0), v = ridge * (0.92 + n(x, y) * 0.12 + (m(x, y) - 0.5) * 0.08);
+      for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = base[c] * v;
+    }
+    for (let k = 0; k < size * 1.2; k++) { const i = Math.floor(rng() * per), cx = Math.floor(i * b + b * (0.3 + rng() * 0.4)), cy = Math.floor(rng() * size); stamp(px, size, cx + 1, cy + 1, 0.8 + rng() * 1.6, base.map((v) => v * 0.62), 0.6); stamp(px, size, cx, cy, 0.8 + rng() * 1.6, base.map((v) => v * 1.12), 0.8); }
+    if (shoots) for (let i = 0; i < per; i++) for (let y = 0; y < size; y += 2 + Math.floor(rng() * 3)) stamp(px, size, Math.floor(i * b + b * 0.5 + (rng() - 0.5) * 3), y, 1.1 + rng() * shoots, [92 + rng() * 30, 128 + rng() * 34, 58 + rng() * 18], 0.9);
+    return px;
+  },
+  sown(base, size, rng) { return BAKERS.furrows(base, size, rng, 1.4); },
+  // stubble: cut straw stalks in rows on pale earth, loose straw and the odd fallen ear between them
+  stubble(base, size, rng) {
+    const px = new Float64Array(size * size * 3), n = noise(size, 6, rng), rows = 12, b = size / rows;
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const v = 0.9 + n(x, y) * 0.16; for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = base[c] * v; }
+    for (let i = 0; i < rows; i++) for (let y = 0; y < size; y += 2) { const x = Math.floor(i * b + b / 2 + (rng() - 0.5) * b * 0.5); stamp(px, size, x + 1, y + 1, 0.9, base.map((v) => v * 0.6), 0.5); stamp(px, size, x, y, 0.9, [214, 190, 120], 0.8); }
+    for (let k = 0; k < size * 0.5; k++) { const x0 = rng() * size, y0 = rng() * size, a = rng() * 6.283, len = 4 + rng() * 9; for (let t = 0; t < len; t++) stamp(px, size, Math.floor(x0 + Math.cos(a) * t), Math.floor(y0 + Math.sin(a) * t), 0.6, [226, 204, 140], 0.7); }
+    return px;
+  },
+  // standing barley from above and aslant: a dense crowd of ears, gold with darker beards, lit and
+  // shaded where the stand bends in the wind
+  barley(base, size, rng) {
+    const px = new Float64Array(size * size * 3), n = noise(size, 4, rng), m = noise(size, 14, rng);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const v = 0.78 + n(x, y) * 0.22 + (m(x, y) - 0.5) * 0.1; for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = base[c] * v * 0.85; }
+    for (let k = 0; k < size * 7; k++) {
+      const cx = Math.floor(rng() * size), cy = Math.floor(rng() * size), tone = 0.95 + rng() * 0.3, lean = (n(cx, cy) - 0.5) * 2;
+      for (let t = 0; t < 5; t++) stamp(px, size, Math.round(cx + lean * t * 0.6), cy - t, 0.9, base.map((v) => v * tone), 0.85);
+      stamp(px, size, Math.round(cx + lean * 3.6), cy - 6, 0.7, base.map((v) => v * 0.7), 0.6);   // the beard
+    }
+    return px;
+  },
+  // a moulding field: fresh bricks laid flat in long rows on sanded earth to dry, a hand's gap between
+  // them and a walkway between rows; the drier ones paler; here and there one turned on its edge
+  'drying-bricks'(base, size, rng) {
+    const px = new Float64Array(size * size * 3), n = noise(size, 6, rng), sand = base.map((v) => v * 1.1);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const v = 0.94 + n(x, y) * 0.1; for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = sand[c] * v; }
+    const rows = 3, rh = size / rows, bw = size / 14, bd = rh * 0.3, clay = base.map((v) => v * 0.74);
+    for (let j = 0; j < rows; j++) for (let k = 0; k < 2; k++) for (let i = 0; i < 14; i++) {
+      const x0 = Math.floor(i * bw + bw * 0.12), y0 = Math.floor(j * rh + rh * 0.08 + k * (bd + rh * 0.04)), dry = 0.9 + rng() * 0.24, edge = rng() < 0.06;
+      const w = edge ? Math.floor(bw * 0.3) : Math.floor(bw * 0.76), d = Math.floor(bd);
+      for (let y = 0; y < d; y++) for (let x = 0; x < w; x++) {
+        const lit = y < 2 || x < 1 ? 1.1 : y > d - 3 ? 0.78 : 1, i3 = (((y0 + y) % size) * size + ((x0 + x) % size)) * 3;
+        for (let c = 0; c < 3; c++) px[i3 + c] = clay[c] * dry * lit * (0.97 + rng() * 0.06);
+      }
+      for (let x = 0; x < w; x++) { const i3 = (((y0 + d) % size) * size + ((x0 + x) % size)) * 3; for (let c = 0; c < 3; c++) px[i3 + c] *= 0.72; }   // its shadow
     }
     return px;
   },

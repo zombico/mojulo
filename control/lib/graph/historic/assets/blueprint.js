@@ -13,6 +13,7 @@
  * Every primitive but the ring is convex, so a part's silhouette in a view is the convex hull of its
  * projected corners; parts are painted back to front. Pure and deterministic.
  */
+import { beamCorners } from './solids.js';
 const r2 = (v) => Math.round(v * 100) / 100;
 
 // the corner points of a part (local metres) — enough to bound its silhouette in any view
@@ -44,6 +45,7 @@ function corners(b) {
     for (const dep of inY ? [x, x1] : [y, y1]) for (let i = 0; i < N; i++) { const a = (i / N) * 6.2832, u = cA + Math.cos(a) * R, z = cz + Math.sin(a) * R; out.push(inY ? [dep, u, z] : [u, dep, z]); }
     return out;
   }
+  if (b.solid === 'beam') return beamCorners(b);
   return boxPts(x, y, w, d, z0, z1);   // palm and anything else: its bounding box
 }
 
@@ -57,7 +59,7 @@ function hull(pts) {
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
 
-const PRIM = (b) => (b.solid ? { frustum: 'battered block', wedge: 'wedge (slope)', drum: b.taper && b.taper !== 1 ? 'tapered drum' : 'drum', dome: 'dome', vault: 'vault', ring: 'ring', palm: 'palm' }[b.solid] || b.solid : 'box');
+const PRIM = (b) => (b.solid ? { frustum: 'battered block', wedge: 'wedge (slope)', drum: b.taper && b.taper !== 1 ? 'tapered drum' : 'drum', dome: 'dome', vault: 'vault', ring: 'ring', palm: 'palm', beam: 'beam' }[b.solid] || b.solid : 'box');
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
 /**

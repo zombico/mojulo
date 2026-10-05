@@ -92,6 +92,97 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   capstones are attested only from the 5th Dynasty on. New views: the building site, and beside the
   Great Pyramid's apex.
 
+### Historic countryside
+
+- **In progress.** A historic city gains sub-scenes for what its people could make and grow, beside
+  what they built: the first is the countryside that fed Sumer. A branch canal leads water through
+  baked-brick sluices into channels on low banks, with long strip fields between them. Off in the
+  fields stands a farmstead: a house round a walled yard (bread oven, reed shade, a ground loom), a
+  blind storehouse filled from roof hatches up an end stair (the barn of a dry country), a stable of
+  piers and mangers, a reed byre with ringed reed posts through its roof and its dairy jars, a
+  reed-fenced sheepfold, a round threshing floor, a tool shed, a shaduf on the canal bank and a palm
+  garden.
+- The tools are the period's own. An ard plough (a seeder with its funnel in the sowing season),
+  clay sickles (Sumer reaped with sickles; the scythe is Iron Age), hoes, mattocks and winnowing
+  shovels, a two-wheeled cart and a four-wheeled wagon on solid three-plank wheels, a threshing
+  sledge, grain heaps sealed in mud, measures, baskets and jars.
+- The scene keeps to a season, because a Sumerian year kept the work apart. At harvest (the default)
+  the barley stands and is being cut, sheaves are stooked and carted and the threshing floor is
+  busy, while a fallow strip is broken with the plain ard. At sowing the seeder plough is in the
+  furrow and the fields are furrowed and sprouting. Fields show as furrows, sown rows, stubble and
+  standing barley. The page opens from the air, in the yard, at the threshing floor, at the edge of
+  the reaping, or by the plough.
+- Tools and buildings only, at rest: people and beasts are left to their own builders, so a plough
+  stands with its yoke on the ground, a cart with its pole down, the pens and stalls empty.
+- Each piece cites its record, every gap reported. A beam (a straight timber at any slope) joins the
+  angled building blocks. Small faces no longer stretch along their length when they are sealed
+  against hairline gaps; before, a long roof edge overshot its building by up to a third, in the
+  town too.
+- A second sub-scene shows the works: how Sumer made its tools and its building stuff, and from
+  what. The plain had clay, reed, water and palm, and no stone, ore or tall timber.
+  - Its quarry is a clay pit sunk into the plain by a canal. Beside it are treading pits with straw
+    for temper, a moulding field of fresh bricks drying in rows (the wooden mould left at the end of
+    the last row), stacked hacks, and an updraft brick kiln with its fuel, ash and baked bricks.
+  - The potters have a shade over the wheel, greenware drying, stacks of bevelled-rim bowls,
+    settling tanks, a wasters heap and the town's beehive kilns.
+  - A landing takes in what the plain lacked: stone, basalt querns and flint, with a knapping
+    floor. Bitumen boilers cook mastic beside it.
+  - The forge is a coppersmiths' yard. Ingots smelted at the mines are melted there in crucibles on
+    bowl hearths blown with reed pipes, then cast in stone moulds and finished at an anvil stone.
+    Charcoal clamps burn beside it.
+  - A wheelwright makes the carts' three-plank wheels.
+  - The reed cutters stack and plait at the marsh.
+  - The page opens from the air, or at eye level in the brickyard, the forge, the potters', the
+    landing, the clay pit or the wheelwright's.
+- A slanted panel now turns with its piece, so pieces can carry sloping faces like a pit's cut
+  sides. A roof on posts draws its underside.
+- A third scene sets the city in its land. The walled town stands in the middle and its canal runs
+  on past the walls both ways. Around it the land is zoned by what each place needs:
+  - Upstream: the brick and pottery quarter on both banks (clay pits, brick fields and kilns,
+    potters' yards).
+  - Below the town: the harbour (kar), with its quays and boats, merchants' storehouses, bitumen
+    boilers, and the coppersmiths with their charcoal clamps.
+  - Along the levees by the walls: palm gardens.
+  - North and south: strip fields on their channels, with a farmstead in each quarter.
+  - Where the canal runs out: the reed marsh. On the steppe at the edge: sheepfolds.
+  - The page opens from the air, from low over the quarter or the harbour, or at eye level in the
+    fields, at the harbour or by the kilns.
+  - From the air the small things (jars, tools, fence posts) are left out. An eye-level page
+    carries only its own view: it leaves out what is behind the camera and draws the ground only to
+    about 220 m. Drawing a whole land's ground at that detail runs the page out of texture memory.
+- The town can be planned without its own fields and palms outside the walls, and gives the line of
+  its canal, so a larger scene can carry the canal on.
+- Egypt gets the same sub-scenes, at the date of the Thebes town (about 1250 BCE): a countryside
+  and its works, built from Egypt's own tools and buildings.
+  - Kept from Sumer: the clay pit, the treading pits, the brick field and the hacks. Egypt made
+    brick the same way and did not fire it, so there is no brick kiln.
+  - The farm ploughs with a horn-yoked ard and broadcasts its seed. It reaps high with flint-toothed
+    wooden sickles, and carries the grain off in rope nets and donkey panniers rather than carts.
+  - The cattle trample the threshing floor inside its kerb. Scribes measure the grain under a shade,
+    and it is stored in a court of domed silos. The A-shaped hoe sits in the tool shed.
+  - Newer things Egypt had: an upright loom, a vineyard on forked-post pergolas with its treading vat,
+    pottery beehives, and checkerboard garden beds by a shaduf pool.
+  - A third season: the inundation, with the basins under water.
+  - The works:
+    - a sandstone quarry face with stepped benches and blocks freed by trenches and wedges;
+    - sledges on wetted sleepers bringing blocks to a masons' yard, where a colossus stands in its
+      scaffold;
+    - a stone quay with a barge carrying a granite block;
+    - a foundry blown by trodden pot bellows, with oxhide ingots;
+    - a glass and faience works;
+    - carpenters sawing a plank lashed to a post;
+    - a chariot shop making spoked wheels;
+    - a boatyard with a plank hull on stocks;
+    - the potters' tall kilns and bread moulds;
+    - papyrus works by the marsh.
+  - The farm opens from the air, in the yard, at the threshing floor, at the reaping, by the plough
+    or over the flooded basins. The works open from the air, or at eye level at the quarry face, on
+    the sledge road, in the masons' yard, the foundry, on the quay, in the boatyard, the glass works,
+    the chariot shop, the brickyard or the potters'.
+  - Each piece cites its record, every gap reported.
+- The farm's eye-level views (Sumer's too) cut the ground finer near the camera, so it no longer
+  drops out in front of the eye.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

@@ -44,7 +44,12 @@ export function planHistoricCity(opts = {}) {
   return planRingCanal(opts);
 }
 
-function planRingCanal({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }, assets } = {}) {
+/**
+ * `countryside: false` leaves the ground outside the ring bare (no fields, no palms there): a region
+ * scene (./historic-region.js) dresses it with its own hinterland. The plan's `canal` is the canal's
+ * line, so a region can carry it on past the frame.
+ */
+function planRingCanal({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }, assets, countryside = true } = {}) {
   const K = HISTORIC_CULTURES[culture] || SUMER, P = K.palette;
   const g = claimGrid(frame), { cols, rows, grid, at, set } = g;
   const boxes = [], grounds = [];
@@ -357,7 +362,7 @@ function planRingCanal({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }
   const G = stream(seed, 'groves');
   let palms = 0;
   for (let r = 0; r < rows; r += 4) for (let c = 0; c < cols; c += 4) {
-    if (at(c, r) !== C.OUTSIDE) continue;
+    if (!countryside || at(c, r) !== C.OUTSIDE) continue;
     const nearWater = Math.abs(r - canalAt(c)) < 14;
     const u = G();
     const crossesCanal = [0, 1, 2, 3].some((k) => r + 4 > mAt(c + k) - 2 && r < mAt(c + k) + cw + 2);
@@ -412,7 +417,15 @@ function planRingCanal({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }
       towers: slots.filter((q) => q.asset === 'wall-tower').length, reedHouses: slots.filter((q) => q.asset === 'reed-house').length, gates: gates.length, palms, precinct, laneCells: grid.reduce((n, v) => n + (v === C.LANE ? 1 : 0), 0),
     },
     grid: { cols, rows, cell: CELL, data: grid, codes: C },
+    // the canal's north bank y(x) = row0·cell + amp·cell·sin((x/cell − ½)/cols · 2π · 0.8 + ph), metres; its width
+    canal: { row0: cy0, amp: camp, ph: cph, cols, cell: CELL, width: cw * CELL, sink: K.canal.sink || 1.5 },
   };
+}
+
+/** The town canal's north bank as a function of x (metres, the town's frame), continued past the frame. */
+export function canalBankN(canal) {
+  const { row0, amp, ph, cols, cell } = canal;
+  return (x) => (row0 + amp * Math.sin(((x / cell - 0.5) / cols) * 6.283 * 0.8 + ph)) * cell;
 }
 
 /**
@@ -433,7 +446,7 @@ export function assetCall(plan, kit) {
 
 /** Plan → a CSS 3D scene (the city scene's assembler), in scene units, with an aerial and a lane-level camera. */
 // the box city's own light, so solids shade like the masses beside them
-const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
+export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
 // px per scene unit. A panel rasterises at its own px size and an eye-level camera magnifies the near
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty.
@@ -444,7 +457,7 @@ const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 
  * courts): the ground layers sit millimetres apart, so it is draw order that keeps the canal above the
  * earth. A surfaced ground (mud, rubble, brick, dry earth) is a tiled face; the rest flat colour.
  */
-function groundsToScene(grounds, s, us, textured = true) {
+export function groundsToScene(grounds, s, us, textured = true) {
   const faces = [];
   for (const g of grounds) {
     const o = { ...g, x: g.x * s, y: g.y * s, w: g.w * s, d: g.d * s, z: g.z * s }, lit = scaleHex(g.fill, litFactor([0, 0, 1], SCENE_LIGHT));
@@ -465,7 +478,7 @@ function emitHistoric(scene) {
  * Metre masses → scene units: plain boxes for the box emitter, angled solids as their own faces.
  * `focus` (metres): what directed skins face — a temple's sanctuary.
  */
-function toScene(masses, s, us = UNIT_SCALE.aerial, focus) {
+export function toScene(masses, s, us = UNIT_SCALE.aerial, focus) {
   const boxes = [], faces = [];
   for (const b of masses) {
     const tile = { us, mpu: METRES_PER_UNIT, toward: focus && [focus[0] * s, focus[1] * s] };
@@ -512,19 +525,23 @@ export function renderHistoricCityToHtml(opts = {}) {
  * One asset alone on a base tile, seen from the front-left and above, like the massing sheet it was
  * read from: the review view for the asset loop (set it beside the sheet).
  */
-export function assembleAssetSheetScene({ asset, culture = 'sumer', size, seed = 1, kit } = {}) {
+export function assembleAssetSheetScene({ asset, culture = 'sumer', size, seed = 1, kit, palette } = {}) {
   const K = HISTORIC_CULTURES[culture] || SUMER;
   const A = kit[asset];
   if (!A) throw new Error(`unknown asset '${asset}'`);
   const [w, d] = size || [(A.envelope.w[0] + A.envelope.w[1]) / 2, (A.envelope.d[0] + A.envelope.d[1]) / 2];
   const pad = Math.max(w, d) * 0.45, tile = { x: 0, y: 0, w: w + 2 * pad, d: d + 2 * pad };
   const slot = { asset, rect: { x: pad, y: pad, w, d }, facing: 's', exposed: true };   // front toward +y, where the camera stands
-  const placed = placeAsset(A, slot, { palette: K.palette, culture: K, rng: stream(seed, `asset|${asset}`) });
+  const placed = placeAsset(A, slot, { palette: palette || K.palette, culture: K, rng: stream(seed, `asset|${asset}`) });
   const s = 1 / METRES_PER_UNIT;
   // small pieces (a stele, a vase) get more pixels per unit, or their facets are a pixel wide
   const us = Math.round(Math.min(150, Math.max(UNIT_SCALE.aerial, UNIT_SCALE.aerial * (50 / Math.max(tile.w, tile.d)))));
   const { boxes, faces } = toScene(placed.boxes, s, us);
-  const G = groundsToScene([{ kind: 'ground', ...tile, z: 0.01, fill: K.palette.ground }, ...placed.grounds], s, us), grounds = G.grounds;
+  // a sunk asset (a pit) shows through a hole in the sheet's ground
+  const r = slot.rect, base = A.sunk
+    ? [{ ...tile, d: r.y }, { ...tile, y: r.y + r.d, d: tile.d - r.y - r.d }, { ...tile, y: r.y, w: r.x, d: r.d }, { ...tile, x: r.x + r.w, y: r.y, w: tile.w - r.x - r.w, d: r.d }]
+    : [tile];
+  const G = groundsToScene([...base.map((t) => ({ kind: 'ground', ...t, z: 0.01, fill: K.palette.ground })), ...placed.grounds], s, us), grounds = G.grounds;
   faces.unshift(...G.faces);
   const top = Math.max(...placed.boxes.map((b) => b.z1));   // frame the tall ones by their height too
   const S = Math.max(tile.w, tile.d, top * 2.4) * s, cx = tile.w * s / 2, cy = tile.d * s / 2;
@@ -536,11 +553,11 @@ export function assembleAssetSheetScene({ asset, culture = 'sumer', size, seed =
  * An asset's blueprint (SVG): its own parts, built for a mid-envelope slot, drawn as pure geometry —
  * the step before the 3D render (see assets/blueprint.js).
  */
-export function assetBlueprint({ asset, culture = 'sumer', size, seed = 1, kit } = {}) {
+export function assetBlueprint({ asset, culture = 'sumer', size, seed = 1, kit, palette } = {}) {
   const K = HISTORIC_CULTURES[culture] || SUMER, A = (kit || K.assets)[asset];
   if (!A) throw new Error(`unknown asset '${asset}'`);
   const [W, D] = size || [(A.envelope.w[0] + A.envelope.w[1]) / 2, (A.envelope.d[0] + A.envelope.d[1]) / 2];
-  const out = A.build({ W, D, slot: { asset, rect: { x: 0, y: 0, w: W, d: D }, facing: 'n', exposed: true } }, { palette: K.palette, culture: K, rng: stream(seed, `asset|${asset}`) });
+  const out = A.build({ W, D, slot: { asset, rect: { x: 0, y: 0, w: W, d: D }, facing: 'n', exposed: true } }, { palette: palette || K.palette, culture: K, rng: stream(seed, `asset|${asset}`) });
   const parts = Array.isArray(out) ? out : out.boxes;
   return assetBlueprintSvg({ id: asset, read: A.read || '', notes: A.notes || [], W, D, parts });
 }
