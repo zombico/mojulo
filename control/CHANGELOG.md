@@ -104,6 +104,11 @@ lands.
   and the inner thigh full high, the inner bulge just above the knee and the knee narrower under it; the calf full at
   the back and lower on the inside, the leg slimming above the ankle. Swimsuit leg lines, wraps and greaves land where
   they did. A loft's station may name its `u` too.
+- **The feet.** A bare structured hero (the swimsuit's) stands on feet instead of shoes: a rounded heel under the
+  Achilles, the two ankle bones, the instep rising to the shin, the arch lifted on the inside, the ball wide on a
+  slant; the big toe its own, apart from the rest (the grip), the other four side by side with the lines between them.
+  The toes bend with the toe bone. Footwear replaces the foot: a hero in shoes, clothes or armour keeps the shoe as it
+  was, and sandals and boots to come take the foot's place on the same joints.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the

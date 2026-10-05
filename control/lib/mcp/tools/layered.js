@@ -421,7 +421,7 @@ export function gestureReadout(hero, mesh, recipe) {
   if (!mesh || !recipe?.rig || !recipe.clips?.[GESTURE_CLIP]) return null;
   const R = validateRig(recipe.rig); const pose = standPose(recipe, R); if (!pose) return null;
   const P = poseLayered(mesh, recipe, pose, { R }); const V = P.mesh.vertices;
-  const sole = (verts, S) => { let lo = Infinity; mesh.vertices.forEach((_, i) => { const part = mesh.provenance[i].part; if (part === `foot${S}` || part === `toes${S}`) lo = Math.min(lo, verts[i][2]); }); return lo; };
+  const sole = (verts, S) => { let lo = Infinity; mesh.vertices.forEach((_, i) => { const part = mesh.provenance[i].part; if (part === `foot${S}` || part === `toes${S}` || /^(hallux|toe\d)[RL]$/.test(part) && part.endsWith(S)) lo = Math.min(lo, verts[i][2]); }); return lo; };
   const free = Object.entries(P.report.legs).filter(([, l]) => !l.planted).map(([S]) => S).sort();
   const freeSoleMm = Object.fromEntries(free.map((S) => [S, Math.round((sole(V, S) - sole(mesh.vertices, S)) * 10000) / 10 + 0]));   // + 0: no −0
   return { word: gestureWord(heroGesture(hero)) ?? 'data', support: pose.support ?? 'both', clearance: gestureClearance(mesh, V), ...(free.length ? { freeSoleMm } : {}) };

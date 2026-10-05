@@ -25,6 +25,7 @@
 import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape, shapeId } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight, breastSpan } from './breast-field.js';
 import { heroHand } from './hero-hand.js';
+import { heroFoot } from './hero-foot.js';
 import { mirrorPid } from './station-loft.js';
 import { castArmature, resolveCast, validateCast } from './figure-cast.js';
 import { ratioControls } from './ratio-controls.js';
@@ -682,6 +683,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     thigh.caps = { back: R([r6((Wt + inner0) / 2), hip[1] * 0.4, zp + 0.04]), tip: R([knee[0], knee[1], knee[2] - 0.025]) };
     thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
   }
+  // the BARE structured hero's feet (hero-foot.js); footwear replaces the foot, so a shod hero keeps the shoe
+  const foot = structured && bare ? heroFoot({ ankle: J.ankle, toeBase: J.toeBase, X, girth: g0, female: femaleMass }) : null;
   const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X, X, girth: g0, female: femaleMass }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
@@ -708,13 +711,14 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)],
       ...(structured ? { shape: [{ at: LF.calf.at, r: LF.calf.r.map((x) => r6(b.calf * x)), yc: r6(b.calf * LF.calf.yc * softL), xc: r6(b.calf * LF.calf.xc * softL) },
         { at: (0.36 + 1 + 0.28 * (b.calf - 0.028) / Math.sqrt(J.ankle.reduce((a, x, k) => a + (x - J.knee[k]) ** 2, 0))) / 2, r: LF.slim.map((x) => r6(b.calf * x)) }] } : {}) }),
-    limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
-    limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) }),
+    // the shoe (footwear replaces the foot: hero-foot.js is the bare structured hero's)
+    ...(foot ? foot.segments : [limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
+      limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) })]),
   ];
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
-  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S', ...(hand ? ['thumb$S', 'index$S', 'middle$S', 'ring$S', 'little$S'] : [])], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S', ...(structured ? ['pelvis'] : [])], trunkParts = ['torso', ...(structured ? ['pectoral$S'] : []), ...(structured && bare ? ['navel'] : []), ...(rb > 0 ? ['bust$S'] : [])];
+  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S', ...(hand ? ['thumb$S', 'index$S', 'middle$S', 'ring$S', 'little$S'] : [])], legParts = ['thigh$S', 'shank$S', ...(foot ? foot.parts : ['foot$S', 'toes$S']), ...(structured ? ['pelvis'] : [])], trunkParts = ['torso', ...(structured ? ['pectoral$S'] : []), ...(structured && bare ? ['navel'] : []), ...(rb > 0 ? ['bust$S'] : [])];
   const jawed = !!head?.joints?.jawHinge;
   const HEAD_SHIFT = [0, 0, r6(hb + rise)];
   const shifted = (p) => R(add(p, HEAD_SHIFT));
