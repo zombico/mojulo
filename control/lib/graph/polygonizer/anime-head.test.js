@@ -245,12 +245,12 @@ describe('anime head: the graphic face', () => {
   it("`sculpt: false` is the studio's face: the female's hash from before the graphic face; the male's the same once his rest carriage is carried back", () => {
     // re-pinned for the sideburn patches before the ears (every anime head wears them, the studio's face too); the
     // studio's face keeps the studio's ears
-    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('5887f01567103a49');
+    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('b7a182a259b4f364');
     // re-pinned for the male base's rest carriage (ANIME_BASE_ADJUST.male headPitch −0.25: 3° chin up instead of 6°); a
     // headPitch word of 1.25 carries it back, and with the face record it stores set back to the base the head is the
     // hash it gave before the graphic face existed
-    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('4a31b9858f9ef319');
-    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('346efba510b033cf');
+    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('322916e2d329cd42');
+    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('f9d53cf15dc82d76');
   });
   it('the words: ratios about the base and offsets compose; shape words ride beside; the stored layer is sparse; unknown words refused', () => {
     const R = resolveAnimeSculpt(['heavy-lid', { lidWeight: 1.1, browAngle: 4, fissureShape: 'tri' }, { browAngle: 2 }]);
@@ -513,7 +513,7 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
         const b = box(mesh, new RegExp(`^hairSideburn${s}$`)), ear = box(mesh, new RegExp(`^ear${s}$`));
         expect(h.parts[`hairSideburn${s}`].group, `${preset} ${hair}`).toBe('Hair');
         expect(b[1][1], `${preset} ${hair} ${s}`).toBeGreaterThan(ear[1][1]);   // reaches further forward than the ear: before it
-        const mid = (ear[2][0] + ear[2][1]) / 2; expect(b[2][0]).toBeGreaterThan(mid); expect(b[2][0]).toBeLessThan(ear[2][1]); expect(b[2][1]).toBeGreaterThan(ear[2][1]);   // from above the ear to just above its middle (clear of the cheek)
+        const span = ear[2][1] - ear[2][0]; expect(Math.abs(b[2][0] - ear[2][0])).toBeLessThan(0.12 * span); expect(b[2][1]).toBeGreaterThan(ear[2][1]);   // from above the ear (up under the hairline) down to the ear's bottom
       }
       expect(failures(mesh)).toEqual([]);
     }

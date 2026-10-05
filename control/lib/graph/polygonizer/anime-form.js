@@ -358,8 +358,7 @@ export function buildAnime(r, options = {}) {
   if (FIT) for (let i = 0; i < 48; i++) tri('hair', FIT.crown, capPoint((i + 1) / 48 * 2 * Math.PI, 0), capPoint(i / 48 * 2 * Math.PI, 0));   // the fitted cap closes at the crown
   const capEnd = parts.hair.length;
   // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
-  // sheet lying on the skin in FRONT of each ear, from under the scalp's bottom edge (the hairline, column by column) down to just above the ear's
-  // middle (clear of the cheek),
+  // sheet lying on the skin in FRONT of each ear, from under the scalp's bottom edge (the hairline, column by column) down to the ear's bottom,
   // its front edge drawing back as it falls (a sideburn's taper), its back edge at the ear's front, so no bare gap shows
   // between the hair and the ear.
   // Its own part (`burn`, one run per side); the head wears it in the hair's colour, and a bald head not at all (its
@@ -367,7 +366,7 @@ export function buildAnime(r, options = {}) {
   const burns = [];
   if (options.sideburnPatch) {
     parts.burn = [];
-    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yBot = earY + 0.07, I = 6, J = 10;
+    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yBot = earY - 0.19, I = 6, J = 12;
     // its top edge follows the scalp's bottom (the cap's hairline at each column's azimuth) and tucks under it, so no skin
     // shows between the hair and the patch
     const top = (u) => { const q = surface(u, 0.2), a = dmath.atan2(q[0], -(q[2] - 0.07)); return capPoint(a, 0.94)[1] + 0.02; };

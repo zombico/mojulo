@@ -312,7 +312,7 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   barely droop, so the dome walk carries them ACROSS the forehead before they fall: the swoop, from a part over his
   left brow. A flat lock keeps off the body by its thickness, not its width, so a peel lies face-down on the neck.
 - **No gap before the ear.** Every anime head with hair wears a thin sideburn patch in the hair's colour on the skin
-  before each ear, its top edge following the hairline and tucked under it and tapering to just above the ear's middle. On a bald head the skin shows
+  before each ear, its top edge following the hairline and tucked under it and tapering to the ear's bottom. On a bald head the skin shows
   there: the face's own colour, with no patch edge for the ink to outline.
 - **Never through the body.** Shaped hair keeps out of the body it is worn on: the hero's own neck and torso rings
   are handed to the head, and a lock that meets them drapes over them (the push carries on down the lock, so it never
