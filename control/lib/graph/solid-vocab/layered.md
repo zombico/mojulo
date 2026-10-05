@@ -257,7 +257,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `length`, `base`, `sink`, `curve`, `bend`), BANANAS (flat crescents; `length`, `width`, `flat`, `bend`, `dir`
   required) or PEPPERS (chilis, thin strands; `length`, `width`, `bend`) — each piece `at: [azimuth°, elevation°]` on
   the cap and aimed by `dir: [x, y, z]`, or laid in `layers` (`{ shape, az, el, rows, count, length, width, droop,
-  lift, cover, sprout, vary, bend, swirl }` (at most 12; `swirl` turns the flow one way by degrees), or `around: [from°, to°]` for a rosette about the whorl) that flow from the
+  lift, cover, sprout, vary, bend, swirl, cap, fringe }` (at most 12; `swirl` turns the flow one way by degrees; `cap: 1`
+  grows each lock along the dome and lets it fall only past the hairline, `length` then measured past it and `fringe`
+  the length of the locks that leave over the face), or `around: [from°, to°]` for a rosette about the whorl) that flow from the
   `whorl` along the head, bananas and peppers tiling it (`cover`)
   and every piece sprouting along the surface before it arcs out (`sprout`); `scale` grows the style; parts `hairCarrot0`,
   `hairBanana0`, `hairPepper0` …), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two

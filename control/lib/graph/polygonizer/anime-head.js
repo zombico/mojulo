@@ -192,18 +192,17 @@ export const ANIME_HAIR_MOVES = Object.freeze({
       peppers: [
         { at: [100, 10], dir: [0.8, -1, 0.2], length: 0.85, width: 0.05, bend: -0.3, sprout: 0.6 },
       ] } } },
-  // JINGO — Jinto's cousin: bananas only, FEW and placed with intent (about twenty, against Jinto's fifty). His face is
-  // long, so the cut balances it the way a stylist would: no height on top (a low, flat crown), the width at the temples
-  // and over the ears, a fringe down to the brow to shorten the forehead, and every lock bowing OUT and turning its end
-  // back IN under the jaw — a rounded shell, the silhouette a soft circle around a long face; one lock on his left curls
-  // under to the cheek
-  jingo: { note: 'Jingo: bananas only, few and placed with intent — a rounded shell for a long face: a low flat crown, full at the temples, a brow-length fringe, every lock bowing out and curling under at the jaw, one lock curling to his left cheek',
+  // JINGO — Jinto's cousin: bananas only, FEW and placed with intent (29, against Jinto's 57), and every lock a CAP lock:
+  // it grows from the dome, lies over it and only falls past the hairline, so the locks from the crown are the LONGEST
+  // (they cross the dome to reach the hem) and fall over the shorter ones beneath, the way long hair grows; the fringe cut
+  // to the brow. His face is long, so no height on top: the crown lies flat and the hem sits at the jaw
+  jingo: { note: 'Jingo: bananas only, few and placed with intent, every lock grown from the dome and lying over it like a cap — the crown locks longest, falling over the sides to the jaw, a fringe cut to the brow, a flat crown for a long face, one lock curling to his left cheek',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.22, width: 0.12 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.16, whorl: [180, 60],
       layers: [
-        { shape: 'banana', az: [0, 360], around: [4, 30], rows: 1, count: 7, length: 1.0, width: 0.32, droop: 0.85, lift: 0, vary: 0.06, bend: 0.3, sprout: 1 },
-        { shape: 'banana', az: [50, 310], el: [34, 34], rows: 1, count: 9, length: 0.95, width: 0.34, droop: 1.0, lift: 0.22, vary: 0.05, bend: 0.4 },
-        { shape: 'banana', az: [125, 235], el: [8, 8], rows: 1, count: 3, length: 0.5, width: 0.36, droop: 1.0, lift: 0.08, vary: 0.05, bend: 0.3 },
-        { shape: 'banana', az: [-55, 50], el: [34, 54], rows: 1, count: 4, length: 0.62, width: 0.34, droop: 0.9, lift: 0.08, vary: 0.1, bend: 0.35, swirl: 20 },
+        { shape: 'banana', az: [0, 360], around: [3, 20], rows: 1, count: 6, length: 0.85, fringe: 0.18, width: 0.3, droop: 0.7, lift: 0.04, vary: 0.06, bend: 0.14, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [70, 290], el: [58, 82], rows: 2, count: 8, length: 0.85, fringe: 0.18, width: 0.32, droop: 0.7, lift: 0.04, vary: 0.06, bend: 0.14, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [-70, 70], el: [62, 84], rows: 2, count: 6, length: 0.2, width: 0.3, droop: 0.6, lift: 0.05, vary: 0.1, bend: 0.15, swirl: 20, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [45, 315], el: [24, 44], rows: 1, count: 6, length: 0.6, fringe: 0.3, width: 0.32, droop: 0.8, lift: 0.02, vary: 0.05, bend: 0.08, flat: 0.25, cap: 1 },
       ],
       bananas: [
         { at: [330, 30], dir: [-0.3, -1, -0.25], length: 0.8, width: 0.3, bend: 0.45, sprout: 0.8 },
@@ -224,7 +223,7 @@ const SPIKES_KEYS = Object.freeze(['amount', 'reach', 'width', 'up']);
 export const SIDEBURN_FIELDS = Object.freeze({ amount: [0, 1], length: [0, 1.5], width: [0.01, 0.5], forward: [-0.6, 0.6], at: [-30, 30], az: [-30, 40] });
 export const HAIR_SHAPE_FAMILIES = Object.freeze(['carrot', 'banana', 'pepper']);
 /** a layer's fields (anime-form `layers`): rows of one family over an azimuth and elevation range */
-export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 3], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.15, 1], swirl: [-90, 90] });
+export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 3], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.15, 1], swirl: [-90, 90], cap: [0, 1], fringe: [0, 3] });
 /** the SHAPES (anime-form): the clump groups a recipe may take over, and each primitive's fields with their hard limits */
 export const HAIR_SHAPE_GROUPS = Object.freeze(['fringe', 'temple', 'back', 'crown']);
 export const HAIR_SHAPE_FIELDS = Object.freeze({

@@ -442,9 +442,9 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     const fam = (h) => [...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot)\d+$/)?.[1]).filter(Boolean))];
     const broku = on('male', 'broku'), crop = on('male', 'short');
     expect(fam(broku.h)).toEqual(['Carrot']); expect(fam(on('male', 'jinto').h)).toEqual(['Banana']); expect(fam(on('male', 'kairo').h)).toEqual(['Pepper']);
-    // jingo: the same family as his cousin, FEW pieces placed with intent (half jinto's count or fewer)
+    // jingo: the same family as his cousin, FEW pieces placed with intent (about half jinto's count)
     const pieces = (h, re) => Object.keys(h.parts).filter((k) => re.test(k)).length;
-    expect(fam(on('male', 'jingo').h)).toEqual(['Banana']); expect(pieces(on('male', 'jingo').h, /^hairBanana\d+$/)).toBeLessThanOrEqual(pieces(on('male', 'jinto').h, /^hairBanana\d+$/) / 2);
+    expect(fam(on('male', 'jingo').h)).toEqual(['Banana']); expect(pieces(on('male', 'jingo').h, /^hairBanana\d+$/)).toBeLessThanOrEqual(pieces(on('male', 'jinto').h, /^hairBanana\d+$/) * 0.55);
     expect(broku.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
     expect(box(broku.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
     expect(Object.keys(broku.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
@@ -458,6 +458,15 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(failures(kairo.mesh)).toEqual([]); expect(failures(jinto.mesh)).toEqual([]);
     // broku: no straight-up spike — every rising carrot leans ≥ 30° off the vertical from the front and from the side
     for (const K of ANIME_HAIR_MOVES.broku.hair.shapes.carrots) { const [x, y, z] = K.dir; if (y <= 0) continue; expect(Math.abs(x) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); expect(Math.abs(z) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); }
+  });
+  it('cap locks grow from the dome and lie over it: from the crown they come out longer, to the same hem; the fringe is cut shorter', () => {
+    const cap = (el, extra = {}) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [80, 280], el: [el, el], rows: 1, count: 6, length: 0.5, cap: 1, ...extra }] } }]).mesh, /^hairBanana/);
+    const high = cap(75), low = cap(30);
+    expect(high[2][1]).toBeGreaterThan(low[2][1] + 0.02);   // rooted higher
+    expect(Math.abs(high[2][0] - low[2][0])).toBeLessThan(0.025);   // the same hem: so longer by the dome it crosses
+    // a lock leaving over the face falls only its fringe
+    const front = (fringe) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [-20, 20], el: [70, 70], rows: 1, count: 3, length: 0.8, cap: 1, ...(fringe != null ? { fringe } : {}) }] } }]).mesh, /^hairBanana/)[2][0];
+    expect(front(0.15)).toBeGreaterThan(front() + 0.03);
   });
   it('the shaped hair never cuts through the body it is worn on: below the chin no hair point is inside the neck or torso', () => {
     const plan = humanoidPlan({ preset: 'male', head: 'anime', hair: 'kairo' }), mesh = compileLayered(expandPlan(plan));

@@ -479,22 +479,29 @@ export function buildAnime(r, options = {}) {
           if (r >= 1) continue; const k = r < 1e-6 ? [0, -1] : [u / r, v / r]; q = [k[0] * (R.rx + m), R.cy + k[1] * (R.ry + m), q[2]]; moved = true; }
         return moved ? fromM(q) : p; };
     }
-    const piece = (name, root, control, tip, width, depthRatio, normal, profile) => {
+    // `path` (a CAP lock: its centre line walked over the dome) replaces the C-curve: resampled evenly along its length,
+    // its flat side facing out from the head at each ring
+    const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null) => {
       const start = parts.hair.length, rings = [];
+      let along = null;
+      if (path) { const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(path[i], path[i - 1])));
+        along = Array.from({ length: N + 1 }, (_, j) => { const want = cum.at(-1) * j / N; let i = 1; while (i < path.length - 1 && cum[i] < want) i++; const t = clamp((want - cum[i - 1]) / (cum[i] - cum[i - 1] || 1)); return mix3(path[i - 1], path[i], t); });
+        root = along[0]; tip = along[N]; control = along[N >> 1]; }
+      const normalAt = (c) => (path ? unit(sub(c, C)) : normal);
       // a stable frame along the curve: the across direction from the piece's normal, falling back when the tangent runs
       // along it, and never flipping between rings (a flip twists the tube into a kink)
       let prev = null;
-      const frame = (tangent) => { let across = cross(tangent, normal); if (dmath.hypot(...across) < 0.25) across = cross(tangent, Math.abs(tangent[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); across = unit(across); if (prev && dot(across, prev) < 0) across = mul(across, -1); prev = across; return [across, unit(cross(across, tangent))]; };
-      const ring = (center, tangent, w) => { const [across, thickDir] = frame(tangent), th = w * depthRatio; return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); }); };
+      const frame = (tangent, nrm) => { let across = cross(tangent, nrm); if (dmath.hypot(...across) < 0.25) across = cross(tangent, Math.abs(tangent[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); across = unit(across); if (prev && dot(across, prev) < 0) across = mul(across, -1); prev = across; return [across, unit(cross(across, tangent))]; };
+      const ring = (center, tangent, w) => { const [across, thickDir] = frame(tangent, normalAt(center)), th = w * depthRatio; return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); }); };
       // the curve's centres, each kept OUT of the body (BODY: never through the neck or over into the shoulders), the
       // tangents then read off the kept centres
       // a lock that meets the body DRAPES over it: the push it takes there carries on down the rest of its length (it
       // never springs back inside, which would kink it)
       let drape = [0, 0, 0];
-      const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * Math.max(1, depthRatio)); drape = add(drape, sub(k, c)); return k; });
+      const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(along ? along[j] : add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * Math.max(1, depthRatio)); drape = add(drape, sub(k, c)); return k; });
       tip = centers[N];
       const tangentAt = (j) => { const d = sub(centers[Math.min(N, j + 1)], centers[Math.max(0, j - 1)]); return dmath.hypot(...d) < 1e-9 ? unit(sub(control, root)) : unit(d); };
-      rings.push(ring(root, unit(sub(control, root)), width * profile(0)));   // the cut base at t 0
+      rings.push(ring(root, path ? unit(sub(centers[1], root)) : unit(sub(control, root)), width * profile(0)));   // the cut base at t 0
       for (let j = 1; j < N; j++) rings.push(ring(centers[j], tangentAt(j), Math.max(0.004, width * profile(j / N))));
       for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
       const base = mul(rings[0].reduce((acc, q) => add(acc, q), [0, 0, 0]), 1 / S);
@@ -515,13 +522,33 @@ export function buildAnime(r, options = {}) {
       for (let it = 0; it < 24; it++) { const mid = (lo + hi) / 2, q = sub(anchorOf([az, mid]), C); if (dmath.atan2(q[1], dmath.hypot(q[0], q[2])) < up) lo = mid; else hi = mid; } return [az, (lo + hi) / 2]; };
     const flowAt = (P, n) => { let f = sub(P, WHORL); f = sub(f, mul(n, dot(f, n))); return dmath.hypot(...f) < 1e-6 ? [0, 0, -1] : unit(f); };
     const sprouted = (X, anchor, n, L, control) => { const k = X.sprout ?? 0; return k > 0 ? mix3(control, add(add(anchor, mul(flowAt(anchor, n), 0.5 * L)), mul(n, 0.05 * L)), k) : control; };
+    // CAP: a lock that treats the dome as a cap — walked from its root ALONG the scalp (flowing from the whorl, gravity
+    // bending it down a little more each step), lying at a height over the scalp set by where it grew (a lock from higher
+    // up lies OVER the ones below it, a shingle), until it passes the hairline or the head's widest (below it the skull turns
+    // in toward the nape, and a lock that kept to it would bunch there); only then it falls free for `length`,
+    // bowing out by `bend` and turning its end back in under itself when `bend` passes `lift` (`fringe` its length when it
+    // leaves over the face). So `length` is how far the
+    // lock falls PAST THE HAIRLINE, and a lock from the crown comes out longer than one from the side by the dome it
+    // crosses: the way long hair grows
+    const capPath = (P, flow, el0, L, Ly, vary = 1) => {
+      const step = 0.03, g = 0.06 * (Ly.droop ?? 0.6), off = (0.012 + 0.03 * el0 / 90) * G, path = [];
+      let p = P, d = flow, last = P, ln = unit(sub(P, C));
+      for (let it = 0; it < 240; it++) { const [az, el] = onCap(unit(sub(p, C))); const sp = anchorOf([az, el]), ns = unit(sub(sp, C)); last = sp; ln = ns; path.push(add(sp, mul(ns, off)));
+        if ((el <= 0.5 || ns[1] < -0.05) && it > 0) break; d = add(d, [0, -g, 0]); d = sub(d, mul(ns, dot(d, ns))); if (dmath.hypot(...d) < 1e-6) d = [0, -1, 0]; d = unit(d); p = add(sp, mul(d, step)); }
+      // a lock leaving the dome over the FACE (the front hairline, within 60° of the front) falls only the layer's
+      // `fringe` past it: the fringe is cut shorter than the hair it grows with
+      const s0 = path.at(-1), out = unit([ln[0], 0, ln[2]]), lift = Ly.lift ?? 0.1, bend = Ly.bend ?? 0.3, exitAz = onCap(unit(sub(last, C)))[0];
+      if (Ly.fringe != null && Math.abs(exitAz) < 60 && dmath.hypot(ln[0], ln[2]) > 0 && ln[2] < 0) L = Ly.fringe * vary * G;
+      const tip = add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), L)), control = add(add(s0, mul(d, 0.5 * L)), mul(out, bend * L));
+      for (let j = 1; j <= 10; j++) { const t = j / 10; path.push(add(add(mul(s0, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t))); }
+      return path; };
     const BUILD = {
       carrot: (K) => { const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? n), L = (K.length ?? 1) * G, base = (K.base ?? 0.2) * G, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
         piece('carrot-' + counts.carrot++, root, sprouted(K, anchor, n, L, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1])), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK)); },
       banana: (B) => { const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir ?? add(n, [0, -1, 0])), L = (B.length ?? 0.5) * G, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
-        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5)))); },
+        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))), B.path); },
       pepper: (P) => { const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? add(n, [0, -1, 0])), L = (P.length ?? 0.8) * G, w = (P.width ?? 0.07) * G, root = sub(anchor, mul(n, 2.2 * w)), tip = add(anchor, mul(d, L));
-        piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8)); },
+        piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8), P.path); },
     };
     const SIZE = { carrot: 'base', banana: 'width', pepper: 'width' };
     // the layers: `rows` rows from el[0] to el[1], `count` pieces over the azimuth range (each row offset half a step),
@@ -546,7 +573,8 @@ export function buildAnime(r, options = {}) {
         // turns ONE way (a fringe swept off its part, a crown that spirals) — never a twin pair
         flow = unit(flow); if (Ly.swirl) { const sw = Ly.swirl * Math.PI / 180; flow = sub(mul(flow, dmath.cos(sw)), mul(cross(n, flow), dmath.sin(sw))); }
         const dir = add(add(flow, mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
-        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, sprout: Ly.sprout ?? 0.8 });
+        const capped = Ly.cap && Ly.shape !== 'carrot' ? capPath(P, flow, at[1], (Ly.length ?? 0.6) * vary * G, Ly, vary) : null;
+        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, sprout: Ly.sprout ?? 0.8, ...(capped ? { path: capped } : {}) });
       }
     }
     for (const K of SH?.carrots ?? []) BUILD.carrot(K);

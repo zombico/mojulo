@@ -291,10 +291,18 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   the tallest and shaggiest zone. The sides step from the ear to the jaw, the nape grows to the collar and flicks out,
   the sideburns are long and wispy, and the middle part is piecey and off centre. Everything swirls one way from the
   whorl, with one long flick at his right jaw. Silhouette: an hourglass from the side.
-- **Jingo, a rounded shell for a long face.** Few pieces placed with intent: 26 bananas against Jinto's fifty. A long
-  face wants no height on top, width at the temples and a fringe to the brow, so the crown is low and flat and every
-  lock bows out and turns its end back in under the jaw. Silhouette: a soft circle around a long face. Fewer, wider
-  pieces read calmer and more graphic; the count is a texture choice, not a coverage one (cover tiles them either way).
+- **Jingo, hair that grows from the dome.** Few pieces placed with intent: 29 bananas against Jinto's 57. Every lock
+  is a CAP lock (below). A long face wants no height on top, so the crown lies flat and the hem sits at the jaw, the
+  fringe cut to the brow. Fewer, wider pieces read calmer and more graphic; the count is a texture choice, not a
+  coverage one (cover tiles them either way).
+- **The dome is a cap; length is measured to the hem.** A first Jingo set each lock's length from its root and aimed
+  it out, so the low side locks came out longest and stood off the head like flaps, longer on the sides than on top.
+  Real hair grows from the whole scalp and crosses the dome: a lock from the crown must be LONGER than one from the side
+  to reach the same hem, and it falls over the shorter ones beneath. A layer's `cap: 1` walks each lock from its root
+  along the scalp (flowing from the whorl, gravity bending it down), lying higher the higher it grew, until it passes
+  the hairline or the head's widest point (below it the skull turns in toward the nape, and a lock that kept to it would
+  bunch into a knot there); only then it falls free for `length`. `fringe` is the shorter length for locks that leave
+  over the face.
 - **Never through the body.** Shaped hair keeps out of the body it is worn on: the hero's own neck and torso rings
   are handed to the head, and a lock that meets them drapes over them (the push carries on down the lock, so it never
   kinks back in). Hair lies close on the neck and stands off the collar and shoulders. A long cut then shows where it
