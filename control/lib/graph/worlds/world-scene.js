@@ -229,6 +229,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const chain = [...(viewOpts._itemChain || []), sketch.ref].filter(Boolean);
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const { fitStatueFaces, lightInto, statueTurn } = await import('@/lib/graph/historic/statues.js');
+    const { statueWords } = await import('@/lib/graph/statue/expand.js');
     const baked = new Map();   // one resolve per statue and turn
     for (const rec of list) {
       const key = `${rec.ref}|${rec.dir}`;
@@ -236,6 +237,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         const src = SketchRepository.getByRef(rec.ref);
         if (!src) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is not a stored sketch`);
         if (chain.includes(src.ref)) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' places itself (${[...chain, src.ref].join(' → ')})`);
+        // an equestrian slot takes a horse and rider, and a horse and rider takes no other slot
+        const mounted = src.manifest?.hero?.statue ? statueWords(src.manifest.hero.statue).stand === 'mounted' : false;
+        if (rec.equestrian && !mounted) throw new Error(`statue on '${rec.at}': an equestrian slot (a rider on a horse) takes a mounted statue — carve ref '${rec.ref}' with /hero/statue/stand 'mounted', or stand it on a standing slot`);
+        if (!rec.equestrian && mounted) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is mounted (horse and rider); stand it on an equestrian slot`);
         const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
         baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
       }

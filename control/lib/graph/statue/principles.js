@@ -94,12 +94,32 @@ export const CROP_BASE = Object.freeze({ full: 'block', bust: 'socle', herm: 'he
 export const STANDS = Object.freeze({
   standing: { note: "the card's stand" },
   seated: { note: 'on a block throne, the thighs level, the hands on the knees; a long skirt cut at the knee' },
+  mounted: { note: "astride a carved horse (an equestrian statue): the legs about the barrel, the right arm raised in address, the left forearm forward at the reins; a long skirt cut at the knee" },
 });
 export const STAND_WORDS = Object.freeze(Object.keys(STANDS));
 export const SEATED_POSE = Object.freeze({
   support: 'none', seat: 28, hipL: { yaw: 0, pitch: 62, roll: 0 }, hipR: { yaw: 0, pitch: 62, roll: 0 }, kneeL: 90, kneeR: 90,
   shR: { yaw: 10, pitch: 15, roll: -30 }, elbowR: 55, shL: { yaw: -10, pitch: 15, roll: 30 }, elbowL: 55,
 });
+/** law 9: the rider astride (the hips spread about the horse's barrel past its half-width, the knees bent, the shins
+ * hanging along its flank; +yaw spreads the left leg, the right mirrored); the right arm in address as the roman card's,
+ * the left forearm carried forward at the reins (no reins carved) */
+export const MOUNTED_POSE = Object.freeze({
+  support: 'none', hipL: { yaw: 30, pitch: 22, roll: 0 }, hipR: { yaw: -30, pitch: 22, roll: 0 }, kneeL: 35, kneeR: 35,
+  armR: ['forward', 'up'], elbowR: 'slight', shL: { yaw: -8, pitch: 25, roll: 0 }, elbowL: 75,
+});
+/** law 10: the MOUNT, carved by the creature filter (creature.js): the creature designer's horse (kind animal, species
+ * 'horse', archetype 'equine') retuned for sculpture — a watertight skin (closed: it prints), a deeper head, sturdier
+ * legs, a lighter rump and a hanging tail — its opts over the species' own; the zoo's horse itself is unchanged */
+export const STATUE_HORSE = Object.freeze(JSON.parse('{"skin": "watertight", "armatureCfg": {"backHeight": 0.62, "trunkLength": 0.5, "backArch": 0, "neckLength": 0.3, "neckAngle": 50, "headPitch": -40, "girthBody": 1.1, "girthFore": 1.45, "girthHind": 1.35, "girthHead": 1.4}, "skullCfg": {"length": 0.36, "width": 0.08, "muzzle": 0.64, "snout": 0.5, "boxy": 0.55, "muzzleDrop": 0.18}, "fleshCfg": {"thorax": 1.9, "belly": 1.9, "bellyDrop": 0.3, "taper": 0.6, "rump": 1.45, "haunch": 0.8, "rumpCap": 1.2}, "tailCfg": {"rootR": 0.03, "bulgeR": 0.042, "bulgeAt": 0.28, "tipR": 0.03, "droop": 72, "length": 0.55, "waveAmp": 0.02}}'));
+/** law 10: the mount's group (it rides with the rider: a slot drops the base, never the horse); the saddle, this share of
+ * the horse's length from the rear on its back's midline, the rider's seat sunk this far into it (the thighs close on
+ * the barrel); the horse scaled about its hooves so its back stands a horse's withers high under a life-size rider (the
+ * creature designer's horse is pony-sized); a mount always stands on an oblong block (a round base under a horse reads as
+ * a turntable) */
+export const MOUNT_GROUP = 'mount';
+export const MOUNT = Object.freeze({ saddleAt: 0.42, sink: 0.04, scale: 1.12 });
+
 /** law 9: the throne under a seated figure: its seat runs under this share of the lap from the buttocks forward (the
  * knees and shins stand clear in front of it), its sides this far past the hips (× the lap's width) */
 export const THRONE = Object.freeze({ lap: 0.62, side: 0.12 });

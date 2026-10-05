@@ -7,7 +7,8 @@
 //     crop      a format word over the card's: full | bust | herm | torso (law 4)
 //     lose      a list of loss words: head, handR, forearmL, armR, footL, shankR, legL, … (law 5)
 //     base      a base word over the card's and the format's (law 7)
-//     stand     standing | seated, over the card's (law 9): seated sits it on a throne, the hands on the knees
+//     stand     standing | seated | mounted, over the card's (law 9): seated sits it on a throne, the hands on the knees;
+//               mounted sets it astride a carved horse (law 10, creature.js)
 //     dials     { wear 0–1 } (law 8)
 //     laws      the version of principles.js the build was minted under (stamped by the hero record; absent → current)
 //
@@ -25,7 +26,7 @@
 //
 // Passes 1 and 2 run on the hero before its plan (`statueHero`); 3 to 5 on the expanded recipe (`statueRecipe`); 6 at
 // read time. Pure and deterministic: no dice, fixed order.
-import { STATUE_LAWS_VERSION, STATUE_MATERIALS, MATERIAL_WORDS, CROP_WORDS, LOSSES, LOSS_WORDS, BASE_WORDS, CROP_BASE, METAL_BASE_MATERIAL, STAND_WORDS, SEATED_POSE, PAINT_TONES, BUST_FROM_U, BUST_ARM_KEEP, TORSO_THIGH_KEEP, NECK_KEEP, BODY_ZONES, weatherTone, bronzeAge } from './principles.js';
+import { STATUE_LAWS_VERSION, STATUE_MATERIALS, MATERIAL_WORDS, CROP_WORDS, LOSSES, LOSS_WORDS, BASE_WORDS, CROP_BASE, METAL_BASE_MATERIAL, STAND_WORDS, SEATED_POSE, MOUNTED_POSE, PAINT_TONES, BUST_FROM_U, BUST_ARM_KEEP, TORSO_THIGH_KEEP, NECK_KEEP, BODY_ZONES, weatherTone, bronzeAge } from './principles.js';
 import { SEEDED_STATUES, STATUE_STYLES } from './styles.js';
 import { validateOutfitCard } from '../outfit/styles.js';
 import { resolveMetalSurface, metalShelfRow } from '../materials/metal-surface.js';
@@ -80,7 +81,8 @@ export function validateStatueBuild(input, hero = {}) {
   if (hero.gear && Object.keys(hero.gear).length) errs.push('statue: held gear is not carved yet; remove gear (an armour build in adorn is carved with the figure)');
   const crop = build.crop ?? cardOf(style)?.crop ?? 'full', stand = build.stand ?? cardOf(style)?.stand ?? 'standing';
   if (stand === 'seated' && hero.gesture !== undefined) errs.push("statue.stand: a seated statue's stand is the seat (the hands on the knees); remove gesture, or stand it ('standing')");
-  if (stand === 'seated' && (crop === 'bust' || crop === 'herm')) errs.push(`statue.stand: a ${crop} has no lap to sit on; stand it ('standing') or crop it 'full' or 'torso'`);
+  if (stand === 'mounted' && hero.gesture !== undefined) errs.push("statue.stand: a mounted statue's stand is the ride (astride, the arm raised); remove gesture, or stand it ('standing')");
+  if (stand !== 'standing' && (crop === 'bust' || crop === 'herm')) errs.push(`statue.stand: a ${crop} has no lap to sit on; stand it ('standing') or crop it 'full' or 'torso'`);
   if ((crop === 'bust' || crop === 'herm') && Array.isArray(build.lose) && build.lose.includes('head')) errs.push(`statue.lose: a ${crop} is a head; it cannot lose it`);
   return errs;
 }
@@ -109,11 +111,11 @@ export function statueHero(hero, { female = false, structured = true } = {}) {
   const { card, crop, stand } = statueWords(hero.statue), out = { ...hero };
   // a bust or a herm is cut above the hips: it stands at rest (a stance would only lean the cut), unless the hero says;
   // a seated figure takes the seat (law 9)
-  const stance = stand === 'seated' ? { ...SEATED_POSE } : crop === 'bust' || crop === 'herm' ? 'rest' : castGesture(card.gesture, female);
+  const stance = stand === 'seated' ? { ...SEATED_POSE } : stand === 'mounted' ? JSON.parse(JSON.stringify(MOUNTED_POSE)) : crop === 'bust' || crop === 'herm' ? 'rest' : castGesture(card.gesture, female);
   if (out.gesture === undefined && stance !== undefined) out.gesture = structured ? stance : dropHands(stance);
   if (out.clips === undefined) out.clips = { idle: false, walk: false, wave: false };
   const drape = card.drape?.[female ? 'female' : 'male'];
-  if (out.outfit === undefined && drape) out.outfit = { type: 'outfit', style: stand === 'seated' ? seatedDrape(drape) : drape };
+  if (out.outfit === undefined && drape) out.outfit = { type: 'outfit', style: stand !== 'standing' ? seatedDrape(drape) : drape };
   return out;
 }
 /** The card's hair for the silhouette (set at mint, when the hero names none), or undefined */
@@ -233,7 +235,7 @@ export function statueRecipe(recipe, plan, input, { female = false } = {}) {
   if (paint) warnings.push('painted: the polychromy is a reconstruction — ancient colour survives in traces; these tones are conjecture (law 6)');
   const build = normalizeStatue(input);
   const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'classical' : card.id || 'inline', period: card.period ?? null, ...(card.years ? { years: card.years } : {}),
-    material, crop, ...(lose.length ? { lose } : {}), lost: lost.map(baseName).filter((n, i, a) => a.indexOf(n) === i), base, ...(stand === 'seated' ? { stand } : {}), wear, basis: card.basis ?? 'unverified', after: card.after ?? [],
+    material, crop, ...(lose.length ? { lose } : {}), lost: lost.map(baseName).filter((n, i, a) => a.indexOf(n) === i), base, ...(stand !== 'standing' ? { stand } : {}), wear, basis: card.basis ?? 'unverified', after: card.after ?? [],
     // the card is drawn from the general record of its type, not from sources read for this kernel: derived work says so
     caption: `inspired by ${(card.after || []).join('; ') || 'the period'}`, laws: build.laws ?? STATUE_LAWS_VERSION, ...(warnings.length ? { warnings } : {}) };
   return { recipe: { ...rest, palette, surfaces: { '*': surface } }, trace };
@@ -243,5 +245,5 @@ export function statueRecipe(recipe, plan, input, { female = false } = {}) {
 export function statueBaseOf(input) {
   const { base, material, wear, stand } = statueWords(input), M = STATUE_MATERIALS[material];
   const stone = M.metal ? METAL_BASE_MATERIAL : material === 'painted' ? 'limestone' : material;
-  return { kind: base, tone: weatherTone(STATUE_MATERIALS[stone].tone, wear), surface: STATUE_MATERIALS[stone].surface, ...(stand === 'seated' ? { seated: true } : {}) };
+  return { kind: base, tone: weatherTone(STATUE_MATERIALS[stone].tone, wear), surface: STATUE_MATERIALS[stone].surface, ...(stand === 'seated' ? { seated: true } : {}), ...(stand === 'mounted' ? { mounted: true, material, wear } : {}) };
 }

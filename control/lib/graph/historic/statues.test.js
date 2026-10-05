@@ -25,10 +25,16 @@ describe('the slots', () => {
     expect(S['sibyls-hercules'].figures).toHaveLength(3);
     expect(S.vortumnus.figures[0].dir).toBeCloseTo(-Math.PI / 2, 6);
     expect(S['octavian-equestrian'].figures[0].equestrian).toBe(true);
+    expect(S['octavian-equestrian'].figures[0].dir).toBeCloseTo(Math.PI / 2, 6);   // the horse's heading (horseman's dir)
     expect(S.ficus.figures[0].h).toBeGreaterThan(1.5);
   });
   it('a statue asset\'s slots are addressed by asset and number', () => {
-    expect(Object.keys(statueSlots(planHistoricCity({ culture: 'pompeii', seed: 1 })))).toEqual(['pp-statue:0', 'pp-statue:1']);
+    const pp = statueSlots(planHistoricCity({ culture: 'pompeii', seed: 1 }));
+    expect(Object.keys(pp).filter((k) => k.startsWith('pp-statue:'))).toEqual(['pp-statue:0', 'pp-statue:1']);
+    // Pompeii's standing equestrian bronzes (an empty base has none): the horse heads along the row, its rider facing in
+    const eq = Object.keys(pp).filter((k) => k.startsWith('pp-equestrian:'));
+    expect(eq.length).toBeGreaterThan(0);
+    for (const k of eq) { expect(pp[k].figures[0].equestrian).toBe(true); expect(Math.abs(Math.cos(pp[k].figures[0].dir))).toBeCloseTo(1, 6); }
     expect(statueSlots(planHistoricCity({ culture: 'lindos', seed: 1 }))['ln-statue:0'].figures[0].dir).toBe(0);
   });
   it("a Theban colossus is a slot: the seated king and his throne come down, his height the king's to the nemes", () => {
@@ -66,9 +72,9 @@ describe('refusals', () => {
     expect(validateStatues([{ ref: 'a', at: 'ficus', scale: 2 }]).join()).toMatch(/scale: not a field/);
     expect(() => historicOptions({ culture: 'sumer', scene: 'region', statues: [{ ref: 'a', at: 'x' }] })).toThrow(/the 'region' scene has none/);
   });
-  it('a slot the city lacks names those it has; an equestrian slot and a missing figure refuse', () => {
+  it('a slot the city lacks names those it has; a missing figure refuses; an equestrian slot records it', () => {
     expect(() => standStatues(forum, [{ ref: 'a', at: 'rostra' }], { culture: 'forum' })).toThrow(/no statue slot 'rostra' — its slots: .*'ficus'/);
-    expect(() => standStatues(forum, [{ ref: 'a', at: 'octavian-equestrian' }])).toThrow(/equestrian/);
+    expect(standStatues(forum, [{ ref: 'a', at: 'octavian-equestrian' }]).statueRefs[0].equestrian).toBe(true);
     expect(() => standStatues(forum, [{ ref: 'a', at: 'ficus', figure: 2 }])).toThrow(/stands 1 figure \(figure 0\)/);
   });
 });
@@ -114,6 +120,17 @@ describe('the World resolves a stored statue onto its slot', () => {
     let lo = Infinity, hi = -Infinity; for (const f of fig) for (const c of f.corners) { lo = Math.min(lo, c[2]); hi = Math.max(hi, c[2]); }
     expect(lo).toBeCloseTo(S.z0 * s, 6); expect(hi - lo).toBeCloseTo(S.h * s, 6);
     expect(fig.every((f) => f.pbr)).toBe(true);   // the marble's surface rides into the city
+  });
+  it('an equestrian slot takes a mounted statue, the stand-in horseman gone; it refuses a standing one, and a mounted one refuses a standing slot', async () => {
+    SketchRepository.create({ ref: 'sk_statue_rider', title: 'rider', manifest: expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', statue: { type: 'statue', style: 'roman', material: 'bronze', stand: 'mounted' } }) }) });
+    const world = async (statues) => (await resolveWorldScene({ ref: 'w', title: 'forum', manifest: { kind: 'historic', culture: 'forum', statues } })).payload;
+    const S = statueSlots(forum)['octavian-equestrian'].figures[0], s = 1 / METRES_PER_UNIT;
+    const p = await world([{ ref: 'sk_statue_rider', at: 'octavian-equestrian' }]);
+    const fig = p.faces.filter((f) => f.group === 'statue:octavian-equestrian:0');
+    let lo = Infinity, hi = -Infinity; for (const f of fig) for (const c of f.corners) { lo = Math.min(lo, c[2]); hi = Math.max(hi, c[2]); }
+    expect(lo).toBeCloseTo(S.z0 * s, 6); expect(hi - lo).toBeCloseTo(S.h * s, 6);
+    await expect(world([{ ref: 'sk_statue_augustus', at: 'octavian-equestrian' }])).rejects.toThrow(/an equestrian slot \(a rider on a horse\) takes a mounted statue/);
+    await expect(world([{ ref: 'sk_statue_rider', at: 'ficus' }])).rejects.toThrow(/is mounted \(horse and rider\); stand it on an equestrian slot/);
   });
   it('an unknown ref refuses by name', async () => {
     await expect(resolveWorldScene({ ref: 'w', title: 'f', manifest: { kind: 'historic', culture: 'forum', statues: [{ ref: 'sk_nope', at: 'ficus' }] } })).rejects.toThrow(/statue on 'ficus': ref 'sk_nope' is not a stored sketch/);

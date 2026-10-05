@@ -32,8 +32,12 @@ function solid(c, sections, n) {
 const sq = (hx, hy = hx) => [hx, hy];
 
 /** the base's solids for `kind`, standing at z 0 with its top at `h` → { solids: [{ sections, n }], h } */
-function profile(kind, { H, fw, fd }) {
+function profile(kind, { H, fw, fd, oblong = false }) {
   const B = BASES[kind], h = B.h * H;
+  // an animal's base runs its length (law 7): the block oblong, its width past the body's, its length the body's; the
+  // mouldings stand out by the same amount on every side
+  if (oblong && kind === 'block') { const sx = Math.max(fw * 1.5, 0.4 * H) / 2, sy = fd * 0.95 / 2, m = Math.min(sx, sy), R = (k) => sq(sx + (k - 1) * m, sy + (k - 1) * m);
+    return { h, solids: [{ n: 4, sections: [{ z: 0, r: R(1.06) }, { z: 0.12 * h, r: R(1.06) }, { z: 0.12 * h, r: R(1) }, { z: 0.82 * h, r: R(1) }, { z: 0.86 * h, r: R(1.05) }, { z: h, r: R(1.05) }] }] }; }
   if (kind === 'block') { const s = Math.max(fw, fd, 0.3 * H) * B.margin / 2;
     return { h, solids: [{ n: 4, sections: [{ z: 0, r: sq(s * 1.06) }, { z: 0.12 * h, r: sq(s * 1.06) }, { z: 0.12 * h, r: sq(s) }, { z: 0.82 * h, r: sq(s) }, { z: 0.86 * h, r: sq(s * 1.05) }, { z: h, r: sq(s * 1.05) }] }] }; }
   if (kind === 'attic') { const s = Math.max(fw, fd, 0.3 * H) * B.margin / 2, p = 0.3 * h, R = s * 0.94;
@@ -81,12 +85,16 @@ function lapOf(faces, at) {
  * LIFTED onto it, its lowest point on the base's top (a posed figure may dip below its rest floor): the caller shifts
  * the figure's faces (and anything seated with them) up by `lift`. `seated` (law 9): a block THRONE stands on the base
  * under the figure's lap (group THRONE_GROUP), its top the lap's underside, the base wide enough for the throne and the
- * feet both.
+ * feet both. `oblong` (an animal): the base runs under the whole body's plan (a block oblong; the others as they are).
  * → { faces, lift } ('none' and not seated ⇒ no faces, lift 0)
  */
-export function statueBaseFaces(figure, { kind, tone, light, group = 'base', tag = null, seated = false }) {
+export function statueBaseFaces(figure, { kind, tone, light, group = 'base', tag = null, seated = false, oblong = false }) {
   if (!figure.length || ((!kind || kind === 'none') && !seated)) return { faces: [], lift: 0 };
   let at = standingOn(figure);
+  if (oblong) {   // the whole body's plan, not only its feet's
+    const b = [Infinity, -Infinity, Infinity, -Infinity]; for (const f of figure) for (const c of f.corners) { b[0] = Math.min(b[0], c[0]); b[1] = Math.max(b[1], c[0]); b[2] = Math.min(b[2], c[1]); b[3] = Math.max(b[3], c[1]); }
+    at = { ...at, fw: b[1] - b[0], fd: b[3] - b[2], c: [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2], oblong: true };
+  }
   const lap = seated ? lapOf(figure, at) : null;
   if (lap) {   // the base under the feet and the throne both
     const x0 = Math.min(at.c[0] - at.fw / 2, lap.c[0] - lap.r[0]), x1 = Math.max(at.c[0] + at.fw / 2, lap.c[0] + lap.r[0]);

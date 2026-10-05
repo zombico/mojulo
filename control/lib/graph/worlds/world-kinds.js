@@ -43,6 +43,7 @@ import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
+import { creatureStatue, mountedStatue, riderSeat } from '@/lib/graph/statue/creature';
 import { resolveMaterial, tagFacesWithMaterial } from '@/lib/graph/polygonizer/materials';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { meshSource } from '@/lib/graph/polygonizer/stroke-resolve';
@@ -593,9 +594,13 @@ export const WORLD_KINDS = {
       // it (the clip preview's pack below by the same lift). Group 'base': a skinned export keeps it beside the figure.
       // No statue ⇒ nothing here, byte-identical.
       const statueBase = m.hero?.statue ? statueBaseOf(m.hero.statue) : null;
-      const based = statueBase ? statueBaseFaces(faces, { kind: statueBase.kind, tone: statueBase.tone, light, seated: statueBase.seated, tag: (fs) => tagFacesWithMaterial(fs, resolveMaterial(statueBase.surface)) }) : null;
+      // A MOUNTED statue (statue/creature.js mountedStatue, law 10): the creature designer's horse carved in the rider's
+      // material, its saddle under the rider, the base under the horse; the rider lifted as on any base.
+      const baseTag = statueBase ? (fs) => tagFacesWithMaterial(fs, resolveMaterial(statueBase.surface)) : null;
+      const based = !statueBase ? null : statueBase.mounted && stand ? mountedStatue(faces, statueBase, { light, tag: baseTag, seat: riderSeat({ R: rig.R, pose: stand, mesh, recipe: m.recipe, dz: restDz }) }) : statueBaseFaces(faces, { kind: statueBase.kind, tone: statueBase.tone, light, seated: statueBase.seated, tag: baseTag });
       const lift = based?.lift ?? 0;
-      if (lift) { for (const f of faces) f.corners = f.corners.map((c) => [c[0], c[1], Math.round((c[2] + lift) * 1e9) / 1e9]); faces.push(...based.faces); }
+      if (lift) for (const f of faces) f.corners = f.corners.map((c) => [c[0], c[1], Math.round((c[2] + lift) * 1e9) / 1e9]);
+      if (based?.faces.length) faces.push(...based.faces);
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark
@@ -673,7 +678,14 @@ export const WORLD_KINDS = {
   // assembleAnimalScene) — orbit/export object study, same posture as figure.
   animal: {
     title: 'mojulo animal',
-    resolve: (m, ctx) => assembleAnimalScene(m, { title: ctx.title, ref: ctx.ref }),
+    // A STATUE (statue/creature.js, opt-in `statue`): the animal carved in one material on an oblong base; its fur splats
+    // and skin textures dropped (stone has no coat). Absent ⇒ the animal as it was.
+    resolve: (m, ctx) => {
+      const scene = assembleAnimalScene(m, { title: ctx.title, ref: ctx.ref });
+      if (!m.statue) return scene;
+      const { splats: _s, textures: _t, ...rest } = scene;
+      return { ...rest, faces: creatureStatue(scene.faces, m.statue, { light: withBands(ctx.light || WORKBENCH_LIGHT, resolveToon(ctx.toon)?.bands) }).faces };
+    },
   },
   'carved-solid': {
     title: 'mojulo carved solid',

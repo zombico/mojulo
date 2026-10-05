@@ -11,7 +11,9 @@
 // in metres: the base top under it, its height, its centre and the way it faced (`dir`, radians, 0 = −y, the forum
 // figure's own convention). The World resolver (worlds/world-scene.js), where the store is, fits the statue's own faces
 // there (`fitStatueFaces`): its base dropped, scaled to the stand-in's height (the size the record draws) or to the
-// entry's `height`, turned to face the same way. An equestrian slot takes no standing statue: it refuses by name.
+// entry's `height`, turned to face the same way. An equestrian slot (a Forum horseman, a Pompeii equestrian base; its
+// record says `equestrian`) takes a mounted statue (`stand: 'mounted'`, horse and rider) and no other; a mounted statue
+// takes no standing slot: the World resolver, which reads the stored statue, refuses either by name.
 // Pure and deterministic.
 import * as dmath from '../../util/dmath.js';
 
@@ -26,7 +28,18 @@ const STATUE_ASSET_KINDS = Object.freeze({
   // a Theban colossus: the king, his nemes, collar and crown, and the throne too (a seated statue brings its own, at its
   // body's proportions); its height the king's to the top of the nemes (a carved statue wears no crown yet)
   'eg-colossus': { kinds: new Set(['statue', 'nemes', 'collar', 'crown', 'throne']), measure: new Set(['statue', 'nemes']) },
+  // Pompeii's equestrian bases: a bronze horse and rider (an empty base has no slot); heading from the body to the neck
+  'pp-equestrian': { kinds: FIGURE_KINDS, equestrian: true },
 });
+/** a boxed horse's heading (`dir`): from its body (the widest box) toward its neck and head (the highest box broad enough
+ * not to be the rider's arm) */
+function boxedHeading(ms) {
+  const boxes = ms.filter((m) => !m.solid), area = (m) => m.w * m.d;
+  const body = boxes.reduce((p, q) => (area(q) > area(p) ? q : p)), neck = boxes.filter((m) => m !== body && Math.min(m.w, m.d) >= 0.2).reduce((p, q) => (!p || top(q) > top(p) ? q : p), null);
+  if (!neck) return 0;
+  const [bx, by] = centre(body), [nx, ny] = centre(neck);
+  return Math.atan2(nx - bx, -(ny - by));
+}
 const STATUE_ASSETS = Object.freeze(Object.keys(STATUE_ASSET_KINDS));
 /** the farthest a mass's centre sits from its own figure's in a row (a worshipper's legs and eyes sit within 0.2 m of
  * its axis; the row's figures stand 1.4 m or more apart) */
@@ -72,7 +85,11 @@ function forumFigures(masses) {
   }
   return figs.filter((f) => f.beams.length).map((f) => {
     const items = [...f.items, ...f.beams], arm = f.beams[0]?.m.a, z0 = Math.min(...items.map(({ m }) => bottom(m))), z1 = Math.max(...items.map(({ m }) => top(m)));
-    return { c: f.c, z0, h: z1 - z0, dir: arm ? Math.atan2(arm[1] - f.c[1], arm[0] - f.c[0]) : 0, idx: items.map(({ i }) => i), equestrian: f.beams.length > 2 };
+    const equestrian = f.beams.length > 2;
+    // a horseman faces the way its horse does: the barrel (the thickest beam) runs from the rump (a) to the chest (b)
+    const barrel = equestrian ? f.beams.reduce((p, q) => (q.m.t > p.m.t ? q : p)).m : null;
+    const dir = barrel ? Math.atan2(barrel.b[0] - barrel.a[0], -(barrel.b[1] - barrel.a[1])) : arm ? Math.atan2(arm[1] - f.c[1], arm[0] - f.c[0]) : 0;
+    return { c: f.c, z0, h: z1 - z0, dir, idx: items.map(({ i }) => i), equestrian };
   });
 }
 
@@ -91,7 +108,7 @@ export function statueSlots(plan) {
     const idx = []; boxes.forEach((m, i) => { if (m.asset === s.asset && A.kinds.has(m.kind) && inRect(centre(m), s.rect)) idx.push(i); });
     if (!idx.length) continue;
     const dir = FACING_DIR[s.facing] ?? 0, span = (I) => { const all = I.map((i) => boxes[i]), ms = A.measure ? all.filter((m) => A.measure.has(m.kind)) : all, z0 = Math.min(...all.map(bottom)); return { z0, h: Math.max(...ms.map(top)) - z0 }; };
-    if (!A.row) { out[`${s.asset}:${k}`] = { figures: [{ c: [s.rect.x + s.rect.w / 2, s.rect.y + s.rect.d / 2], ...span(idx), dir, idx, equestrian: false }] }; continue; }
+    if (!A.row) { out[`${s.asset}:${k}`] = { figures: [{ c: [s.rect.x + s.rect.w / 2, s.rect.y + s.rect.d / 2], ...span(idx), dir: A.equestrian ? boxedHeading(idx.map((i) => boxes[i])) : dir, idx, equestrian: !!A.equestrian }] }; continue; }
     const groups = [];
     for (const i of idx) {
       const c = centre(boxes[i]), g = groups.find((q) => dmath.hypot(q.c[0] - c[0], q.c[1] - c[1]) < ROW_GATHER);
@@ -108,8 +125,8 @@ export function statueSlots(plan) {
 
 /**
  * Stand a manifest's `statues` on the plan's slots → { boxes, statueRefs }: the plan's masses without the stand-ins that
- * were replaced, and a record per statue figure `{ ref, at, figure, pos: [x, y, z], height, dir }` in metres. Throws on
- * a slot the city does not have (naming those it has), a figure it does not stand, or an equestrian slot.
+ * were replaced, and a record per statue figure `{ ref, at, figure, pos: [x, y, z], height, dir, equestrian? }` in metres. Throws on
+ * a slot the city does not have (naming those it has) or a figure it does not stand.
  */
 export function standStatues(plan, statues, { culture } = {}) {
   const slots = statueSlots(plan), drop = new Set(), statueRefs = [];
@@ -119,9 +136,8 @@ export function standStatues(plan, statues, { culture } = {}) {
     if (e.figure !== undefined && !S.figures[e.figure]) throw new Error(`historic: slot '${e.at}' stands ${S.figures.length} figure${S.figures.length === 1 ? '' : 's'} (figure 0${S.figures.length > 1 ? `–${S.figures.length - 1}` : ''})`);
     for (const [k, F] of S.figures.entries()) {
       if (e.figure !== undefined && k !== e.figure) continue;
-      if (F.equestrian) throw new Error(`historic: slot '${e.at}' is an equestrian statue (a rider on a horse); a standing statue does not fit it, and the statue maker carves no horse yet — its standing slots: ${Object.keys(slots).filter((k) => slots[k].figures.some((f) => !f.equestrian)).map((k) => `'${k}'`).join(', ')}`);
       F.idx.forEach((i) => drop.add(i));
-      statueRefs.push({ ref: e.ref, at: e.at, figure: k, pos: [F.c[0], F.c[1], F.z0], height: e.height ?? F.h, dir: F.dir });
+      statueRefs.push({ ref: e.ref, at: e.at, figure: k, pos: [F.c[0], F.c[1], F.z0], height: e.height ?? F.h, dir: F.dir, ...(F.equestrian ? { equestrian: true } : {}) });
     }
   }
   return { boxes: (plan.boxes || []).filter((_, i) => !drop.has(i)), statueRefs };

@@ -5,7 +5,10 @@ import { heroRecord, heroPlanOf, expandLayeredManifest, validateHeroSpec } from 
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { SEEDED_STATUES, STATUE_STYLES } from './styles.js';
 import { validateStatueBuild, validateStatueCard, statueHero, statueWords, statueMaterial, statueBaseOf, STATUE_LAWS_VERSION } from './expand.js';
-import { STATUE_MATERIALS, SEATED_POSE } from './principles.js';
+import { STATUE_MATERIALS, SEATED_POSE, MOUNTED_POSE, MOUNT_GROUP } from './principles.js';
+import { validateCreatureStatue, creatureStatue, saddleOf } from './creature.js';
+import { animalWorldFaces } from '../polygonizer/figure-render.js';
+import { ZOO_BUILDS } from '../polygonizer/figure-animal-build.js';
 import { THRONE_GROUP } from './base.js';
 import { validateOutfitCard } from '../outfit/styles.js';
 
@@ -178,6 +181,43 @@ describe('law 9: seated', () => {
     // the throne's top meets the figure: some corner of the lap lies on it
     expect(fig.some((f) => f.corners.some((c) => Math.abs(c[2] - tHi) < 1e-6))).toBe(true);
     expect(throne.every((f) => f.pbr && f.pbr[0] === 0)).toBe(true);
+  });
+});
+
+describe('law 10: the creature filter and the mount', () => {
+  it('an animal carved: refusals by name, one material over every face, on an oblong base', async () => {
+    expect(validateCreatureStatue({ type: 'statue', material: 'painted' }).join()).toMatch(/painted polychromy has no zones/);
+    expect(validateCreatureStatue({ type: 'statue', crop: 'bust' }).join()).toMatch(/statue.crop: not a field/);
+    expect(validateCreatureStatue('lion').join()).toMatch(/the animal carved as sculpture/);
+    expect(validateCreatureStatue(true)).toEqual([]);
+    const B = ZOO_BUILDS.lion, plain = { kind: 'animal', species: 'lion', archetype: B.archetype, opts: B.opts };
+    const { payload: a } = await resolveWorldScene({ ref: 'l', title: 'l', manifest: plain });
+    const { payload: b } = await resolveWorldScene({ ref: 'l', title: 'l', manifest: { ...plain, statue: { type: 'statue', material: 'bronze' } } });
+    expect(a.faces.some((f) => f.pbr)).toBe(false);   // absent: the animal as it was
+    const base = b.faces.filter((f) => f.group === 'base'), body = b.faces.filter((f) => f.group !== 'base');
+    expect(body.every((f) => f.pbr && f.pbr[0] === 1)).toBe(true); expect(base.every((f) => f.pbr[0] === 0)).toBe(true);
+    const [bLo, bHi] = zRange(base), [fLo] = zRange(body); expect(bLo).toBeCloseTo(0, 6); expect(fLo).toBeCloseTo(bHi, 6);
+    // oblong: the base runs the body's length
+    let y0 = Infinity, y1 = -Infinity, x0 = Infinity, x1 = -Infinity; for (const f of base) for (const c of f.corners) { y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); }
+    expect(y1 - y0).toBeGreaterThan(1.5 * (x1 - x0));
+  });
+  it('mounted: the ride stand, refused with a gesture or on a bust; horse and rider on one base, the rider on the saddle', async () => {
+    expect(validateStatueBuild({ type: 'statue', stand: 'mounted' }, { gesture: 'guard' }).join()).toMatch(/mounted statue's stand is the ride/);
+    expect(validateStatueBuild({ type: 'statue', stand: 'mounted', crop: 'bust' }).join()).toMatch(/a bust has no lap/);
+    const spec = { cast: 'male', statue: { type: 'statue', style: 'roman', stand: 'mounted' } };
+    expect(statueHero(heroRecord(spec)).gesture).toEqual(MOUNTED_POSE);
+    expect(hero(spec).recipe.statue.stand).toBe('mounted');
+    const { faces } = await scene(spec);
+    const horse = faces.filter((f) => f.group === MOUNT_GROUP), base = faces.filter((f) => f.group === 'base'), rider = faces.filter((f) => f.group !== MOUNT_GROUP && f.group !== 'base');
+    expect(horse.length).toBeGreaterThan(1000);
+    const [, bHi] = zRange(base), [hLo] = zRange(horse), [rLo, rHi] = zRange(rider), [, hHi] = zRange(horse);
+    expect(hLo).toBeCloseTo(bHi, 6);                   // the hooves on the base
+    expect(rLo).toBeGreaterThan(bHi + 0.4);            // the rider's feet off the ground, down the flank
+    expect(rHi).toBeGreaterThan(hHi);                  // the rider above the horse's ears
+    expect(horse.every((f) => f.pbr && f.pbr[0] === 0)).toBe(true);   // marble, as the rider
+    // the saddle is on the back, between the rump and the withers
+    const [, sy] = saddleOf(horse); let y0 = Infinity, y1 = -Infinity; for (const f of horse) for (const c of f.corners) { y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
+    expect((sy - y0) / (y1 - y0)).toBeGreaterThan(0.3); expect((sy - y0) / (y1 - y0)).toBeLessThan(0.55);
   });
 });
 

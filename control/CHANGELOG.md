@@ -39,9 +39,9 @@ byte-identical. Being built on this branch; the sphinx comes next.
 - **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
   on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
   Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
-  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes). The stand-in comes down, its base stays, and the statue is
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes, `pp-equestrian:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
   fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
-  slots; an equestrian slot refuses by name and lists the city's standing slots. Absent, the city is byte-identical.
+  slots. Absent, the city is byte-identical.
 - **Sumer's worshippers.** A `sumerian` card: the Early Dynastic votive figure, frontal, the forearms folded and the hands
   clasped at the chest, a flared skirt (the man shaven: no beard is carved yet), limestone; painted, the eyes lapis
   under bitumen brows. Sumer's votive row is a slot (`votive-row:0`), one figure per plinth numbered along the row, so a
@@ -51,6 +51,15 @@ byte-identical. Being built on this branch; the sphinx comes next.
   over the lap isn't carved yet. The rig gains an opt-in `seat` channel that turns the free legs forward past the hip's
   cone; absent, every pose is unchanged. Thebes's seated colossi are slots (`eg-colossus:<n>`): the stand-in king and his
   throne come down, and a seated statue sits there on its own throne. The nemes and the crowns aren't carved yet.
+- **Carved animals.** The `animal` kind takes `statue` (`true`, or `{ type: 'statue', material, base, dials: { wear } }`):
+  the animal in one stone or metal, its fur and skin textures dropped, tagged for the exports, on an oblong base the
+  length of its body. Absent, every animal is byte-identical.
+- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material: the animal
+  kind's horse with a watertight skin, a deeper head, sturdier legs and a hanging tail. The rider sits on the saddle
+  found from its own hip joints, legs down the flanks, the right arm raised in address, both on one oblong block. The
+  equestrian slots take it: the Forum's Octavian horseman and Pompeii's standing equestrian bronzes
+  (`pp-equestrian:<n>`), each facing the way its stand-in's horse did. A standing statue on an equestrian slot, or a
+  mounted one on a standing slot, is refused by name. Entry cards list a slot range with gaps one by one.
 
 ### Historic city
 

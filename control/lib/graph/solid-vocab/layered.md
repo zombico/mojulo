@@ -452,7 +452,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   stand-in), `roman-bust`, `egyptian` (striding, kilt or sheath), `sumerian` (the votive worshipper: the hands clasped at the chest, a flared
   skirt), `renaissance`. `stand: 'seated'` (build or card) sits any card on a block throne built with its base (the
   thighs level, the shins hanging, the hands on the knees; a long skirt cut at the knee; refused with a gesture or on a
-  bust). A card's stand (a word, pose words, or `{ male, female }` of them), stillness (idle, walk and
+  bust); `stand: 'mounted'` sets it astride a horse carved in its material (the animal kind's horse under the statue
+  filter, retuned for sculpture), the right arm in address, both on an oblong block: an equestrian statue. A card's stand (a word, pose words, or `{ male, female }` of them), stillness (idle, walk and
   wave off) and drapery (an outfit card per silhouette) apply when the hero names none, and its hair at mint. Laws
   (`principles.js`): ONE MATERIAL over every group (`marble`, `limestone`, `sandstone`, `granite`, `basalt`, `bronze`,
   `gilt`, `painted`), the eyes blank, the hair a carved mass, the bare body's zones skin; a FORMAT is a cut (`full`;
