@@ -131,16 +131,17 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         'right-temple-0': { ty: 0.48 }, 'right-temple-1': { ty: 0.45 }, 'left-temple-0': { ty: 0.78 } } } },
   // the SHAPES characters (anime-form): male protagonists, each in ONE vegetable family.
   // BROKU — carrots only, after Toriyama: hierarchy and mass from length and base alone (a hero, a court of three, stubby
-  // mass carrots, the back a cascade to the nape point, carrot bangs), scaled up to the head's size
+  // mass carrots, the back a cascade to the nape point, carrot bangs), scaled up to the head's size. NO STRAIGHT-UP
+  // SPIKE: every carrot that rises leans at least 30° off the vertical seen from the front AND from the side
   broku: { note: 'Broku: cut conical carrots only — a tall hero spike off centre, a long level spike to his left, stubby carrots for mass, the back cascading to a point at the nape, carrot bangs and sideburns',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.4, width: 0.13 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.3,
       carrots: [
-        { at: [163, 80], dir: [0.02, 1, 0.45], length: 1.7, base: 0.46, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [163, 80], dir: [-0.62, 0.75, 0.72], length: 1.7, base: 0.46, sink: 0.3, curve: 0.2, bend: 0.1 },
         { at: [80, 50], dir: [1, -0.47, 0.45], length: 0.85, base: 0.34, sink: 0.3, curve: 0.2, bend: 0.1 },
         { at: [280, 42], dir: [-1, 0.05, 0.4], length: 1.5, base: 0.4, sink: 0.3, curve: 0.2, bend: 0.1 },
-        { at: [180, 40], dir: [0.1, 0.3, 1], length: 1.1, base: 0.38, sink: 0.3, curve: 0.2, bend: 0.1 },
-        { at: [40, 70], dir: [0.5, 0.9, 0.1], length: 0.5, base: 0.36, sink: 0.3, curve: 0.2, bend: 0.1 },
-        { at: [320, 72], dir: [-0.5, 0.9, 0.2], length: 0.4, base: 0.34, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [180, 40], dir: [0.25, 0.3, 1], length: 1.1, base: 0.38, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [40, 70], dir: [0.85, 0.5, 0.35], length: 0.5, base: 0.36, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [320, 72], dir: [-0.85, 0.45, 0.45], length: 0.4, base: 0.34, sink: 0.3, curve: 0.2, bend: 0.1 },
         { at: [130, 65], dir: [0.35, -0.65, 0.7], length: 0.75, base: 0.32, sink: 0.3, curve: 0.2, bend: 0.1 },
         { at: [230, 65], dir: [-0.35, -0.65, 0.7], length: 0.65, base: 0.32, sink: 0.3, curve: 0.2, bend: 0.1 },
         { at: [100, 20], dir: [0.9, -0.4, 0.4], length: 0.55, base: 0.38, sink: 0.3, curve: 0.2, bend: 0.1 },
@@ -157,6 +158,7 @@ export const ANIME_HAIR_MOVES = Object.freeze({
   jinto: { note: 'Jinto: bananas only — broad locks tiling the head from a smooth crown, parting into points at the jaw, a pointed fringe opening over the face, two accent bananas on top, banana sideburns',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.5, width: 0.14, forward: 0.1 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.12,
       layers: [
+        { shape: 'banana', az: [0, 360], el: [80, 88], rows: 1, count: 7, length: 0.85, width: 0.2, droop: 0.15, lift: 0.1, vary: 0.2, bend: 0.2 },
         { shape: 'banana', az: [0, 360], el: [55, 80], rows: 2, count: 14, length: 1.0, width: 0.2, droop: 0.35, lift: 0.08, vary: 0.2, bend: 0.18 },
         { shape: 'banana', az: [62, 298], el: [8, 42], rows: 2, count: 18, length: 1.35, width: 0.22, droop: 1.1, lift: 0.08, vary: 0.25, bend: 0.16 },
         { shape: 'banana', az: [-58, 58], el: [30, 48], rows: 1, count: 6, length: 0.72, width: 0.2, droop: 0.9, lift: 0.12, vary: 0.3, bend: 0.16 },
@@ -169,7 +171,8 @@ export const ANIME_HAIR_MOVES = Object.freeze({
   kairo: { note: 'Kairo: chili peppers only — the thin version of the banana tiling: many thin strands, every one shouldered to overlap its neighbours (no bald gap), a smooth crown, the strands parting into ragged points at the jaw and the brow, two accent strands on top, thin sideburns',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.55, width: 0.07 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1,
       layers: [
-        { shape: 'pepper', az: [0, 360], el: [55, 80], rows: 3, count: 48, length: 0.95, width: 0.05, droop: 0.35, lift: 0.08, vary: 0.25, bend: 0.14 },
+        { shape: 'pepper', az: [0, 360], el: [78, 88], rows: 2, count: 20, length: 0.75, width: 0.05, droop: 0.15, lift: 0.1, vary: 0.25, bend: 0.16 },
+        { shape: 'pepper', az: [0, 360], el: [55, 76], rows: 3, count: 48, length: 0.95, width: 0.05, droop: 0.35, lift: 0.08, vary: 0.25, bend: 0.14 },
         { shape: 'pepper', az: [60, 300], el: [8, 42], rows: 3, count: 60, length: 1.2, width: 0.05, droop: 1.1, lift: 0.1, vary: 0.3, bend: 0.12 },
         { shape: 'pepper', az: [-58, 58], el: [28, 46], rows: 2, count: 18, length: 0.6, width: 0.045, droop: 0.85, lift: 0.12, vary: 0.35, bend: 0.12 },
       ],

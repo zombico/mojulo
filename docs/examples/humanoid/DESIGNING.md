@@ -298,7 +298,9 @@ everything. The principles, one line each:
   scalp never shows; they part only toward their points. Chilis tile by count, not by width.
 - **Sprout, don't push.** A lock leaves its root along the head, flowing from the whorl, and only then arcs out
   (`sprout`); pushed straight out of the skull it reads as a spike through the face. Bangs root up on the crown and
-  flow over the forehead.
+  flow over the forehead, and a crown ring sprouts from the whorl itself so the top of the head grows hair too.
+- **No straight-up spike.** A rising carrot leans at least 30° off the vertical seen from the front and from the side;
+  horizontal-ish is fine.
 - **Bend one way.** C-curves, never S.
 - **Clamp and flare.** Under a band, circlet or bandana the shapes press to the skull; above it they flare at once.
 - **The black blob test.** Fill the head black: it reads at 64 px from the front, the side and the back.

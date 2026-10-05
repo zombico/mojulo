@@ -445,8 +445,11 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(broku.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
     expect(box(broku.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
     expect(Object.keys(broku.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
-    // kairo's weight is its count: 126 thin strands in three layers, two accents and two sideburns
-    expect(Object.keys(on('male', 'kairo').h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(130);
+    // kairo's weight is its count: 146 thin strands in four layers (a crown ring sprouting from the whorl), two accents
+    // and two sideburns
+    expect(Object.keys(on('male', 'kairo').h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(150);
+    // broku: no straight-up spike — every rising carrot leans ≥ 30° off the vertical from the front and from the side
+    for (const K of ANIME_HAIR_MOVES.broku.hair.shapes.carrots) { const [x, y, z] = K.dir; if (y <= 0) continue; expect(Math.abs(x) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); expect(Math.abs(z) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); }
   });
   it('the layers flow from the whorl along the head: their tips stay near the skull, never a sea urchin; scale grows the style', () => {
     const lay = (extra = {}) => on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'pepper', az: [60, 300], el: [10, 40], rows: 2, count: 12, length: 0.9, ...extra }] } }]).mesh;
