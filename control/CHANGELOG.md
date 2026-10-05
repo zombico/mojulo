@@ -30,7 +30,8 @@ needed on the anime head. Being built on this branch.
   neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
   PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
-  a lock's end out from the head (or under it), and a layer's `length` now reaches 6.
+  a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
+  into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
 - **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
   ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining
   yellow past 75 %, advises. The hair word `veil` (0 … 1) is the mystery and allure lever: one eye may go under the

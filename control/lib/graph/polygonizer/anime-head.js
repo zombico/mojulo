@@ -271,6 +271,52 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { shape: 'peel', az: [66, 110], el: [30, 62], rows: 1, count: 3, length: 1.1, width: 0.36, droop: 1.2, lift: 0.02, vary: 0.1, bend: 0.1, swirl: 45, cap: 1, flick: 0.12 },
         { shape: 'peel', az: [250, 294], el: [30, 62], rows: 1, count: 3, length: 1.1, width: 0.36, droop: 1.2, lift: 0.02, vary: 0.1, bend: 0.1, swirl: -45, cap: 1, flick: 0.12 },
       ] } } },
+  // FRIEDA — after Frieren, the ice princess: peels, sleek and GATHERED. Split bangs off a centre part cut at the brow, two
+  // long ribbon sidelocks before the ears to the chest, and everything else walked over the scalp INTO the ties (`gather`:
+  // each lock lies sleek and ends at its tie) HIGH on the back of the head, so from the front each tail's top is level
+  // with the top of the head (Frieren's); each tail is five long peels rooted at the tie in a tight fan, leaning a little
+  // out to clear the head and a little back to fall behind the shoulders (aimed back hard, a tail juts out at 45°; fanned
+  // wide, it hangs like wings outside the arms)
+  frieda: { note: 'Frieda: after Frieren — sleek peels, split bangs cut at the brow, two long ribbon sidelocks before the ears, the rest gathered into twin tails tied high, their tops level with the top of the head from the front, hanging behind the shoulders',
+    hair: { style: 'long', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.06, whorl: [180, 70],
+      layers: [
+        { shape: 'peel', az: [6, 50], el: [64, 84], rows: 1, count: 3, length: 0.6, fringe: 0.3, width: 0.3, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.08, swirl: 8, cap: 1 },
+        { shape: 'peel', az: [-50, -6], el: [64, 84], rows: 1, count: 3, length: 0.6, fringe: 0.3, width: 0.3, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.08, swirl: -8, cap: 1 },
+        { shape: 'peel', az: [58, 76], el: [44, 64], rows: 1, count: 1, length: 1.5, width: 0.2, droop: 1.3, lift: 0.02, vary: 0, bend: 0.06, swirl: 15, cap: 1, flick: 0.1 },
+        { shape: 'peel', az: [284, 302], el: [44, 64], rows: 1, count: 1, length: 1.5, width: 0.2, droop: 1.3, lift: 0.02, vary: 0, bend: 0.06, swirl: -15, cap: 1, flick: 0.1 },
+        { shape: 'peel', az: [56, 180], el: [8, 86], gather: [128, 72], rows: 3, count: 10, width: 0.32, lift: 0, vary: 0, cap: 1 },
+        { shape: 'peel', az: [180, 304], el: [8, 86], gather: [232, 72], rows: 3, count: 10, width: 0.32, lift: 0, vary: 0, cap: 1 },
+      ],
+      peels: [
+        { at: [128, 72], dir: [0.2, -1, 0.24], length: 3.5, width: 0.3, bend: 0.14 },
+        { at: [128, 72], dir: [0.225, -1, 0.22], length: 3.65, width: 0.3, bend: 0.16 },
+        { at: [128, 72], dir: [0.25, -1, 0.2], length: 3.8, width: 0.3, bend: 0.18 },
+        { at: [128, 72], dir: [0.275, -1, 0.22], length: 3.65, width: 0.3, bend: 0.2 },
+        { at: [128, 72], dir: [0.3, -1, 0.24], length: 3.5, width: 0.3, bend: 0.22 },
+        { at: [232, 72], dir: [-0.3, -1, 0.24], length: 3.5, width: 0.3, bend: 0.14 },
+        { at: [232, 72], dir: [-0.275, -1, 0.22], length: 3.65, width: 0.3, bend: 0.16 },
+        { at: [232, 72], dir: [-0.25, -1, 0.2], length: 3.8, width: 0.3, bend: 0.18 },
+        { at: [232, 72], dir: [-0.225, -1, 0.22], length: 3.65, width: 0.3, bend: 0.2 },
+        { at: [232, 72], dir: [-0.2, -1, 0.24], length: 3.5, width: 0.3, bend: 0.22 },
+      ] } } },
+  // FRIEDA-PONY — Frieda with ONE high ponytail: the same bangs and sidelocks, the rest gathered to a tie high at the back
+  'frieda-pony': { note: 'Frieda with one high ponytail: split bangs, two long ribbon sidelocks, the rest gathered to a tie high at the back, the tail falling to the waist',
+    hair: { style: 'long', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.06, whorl: [180, 70],
+      layers: [
+        { shape: 'peel', az: [6, 50], el: [64, 84], rows: 1, count: 3, length: 0.6, fringe: 0.3, width: 0.3, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.08, swirl: 8, cap: 1 },
+        { shape: 'peel', az: [-50, -6], el: [64, 84], rows: 1, count: 3, length: 0.6, fringe: 0.3, width: 0.3, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.08, swirl: -8, cap: 1 },
+        { shape: 'peel', az: [58, 76], el: [44, 64], rows: 1, count: 1, length: 1.5, width: 0.2, droop: 1.3, lift: 0.02, vary: 0, bend: 0.06, swirl: 15, cap: 1, flick: 0.1 },
+        { shape: 'peel', az: [284, 302], el: [44, 64], rows: 1, count: 1, length: 1.5, width: 0.2, droop: 1.3, lift: 0.02, vary: 0, bend: 0.06, swirl: -15, cap: 1, flick: 0.1 },
+        { shape: 'peel', az: [56, 304], el: [8, 86], gather: [180, 46], rows: 3, count: 18, width: 0.32, lift: 0, vary: 0, cap: 1 },
+      ],
+      peels: [
+        { at: [180, 46], dir: [-0.12, -1, 0.23], length: 3.5, width: 0.3, bend: 0.14 },
+        { at: [180, 46], dir: [-0.072, -1, 0.198], length: 3.62, width: 0.3, bend: 0.156 },
+        { at: [180, 46], dir: [-0.024, -1, 0.166], length: 3.74, width: 0.3, bend: 0.172 },
+        { at: [180, 46], dir: [0.024, -1, 0.166], length: 3.74, width: 0.3, bend: 0.188 },
+        { at: [180, 46], dir: [0.072, -1, 0.198], length: 3.62, width: 0.3, bend: 0.204 },
+        { at: [180, 46], dir: [0.12, -1, 0.23], length: 3.5, width: 0.3, bend: 0.22 },
+      ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
@@ -291,10 +337,10 @@ export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], l
 /** the SHAPES (anime-form): the clump groups a recipe may take over, and each primitive's fields with their hard limits */
 export const HAIR_SHAPE_GROUPS = Object.freeze(['fringe', 'temple', 'back', 'crown']);
 export const HAIR_SHAPE_FIELDS = Object.freeze({
-  peppers: Object.freeze({ length: [0.05, 3], width: [0.01, 0.3], bend: [-0.6, 0.6], sprout: [0, 1] }),
-  bananas: Object.freeze({ length: [0.05, 3], width: [0.02, 0.6], flat: [0.15, 1], bend: [-0.6, 0.6], sprout: [0, 1] }),
+  peppers: Object.freeze({ length: [0.05, 6], width: [0.01, 0.3], bend: [-0.6, 0.6], sprout: [0, 1] }),
+  bananas: Object.freeze({ length: [0.05, 6], width: [0.02, 0.6], flat: [0.15, 1], bend: [-0.6, 0.6], sprout: [0, 1] }),
   carrots: Object.freeze({ length: [0.05, 3], base: [0.02, 0.6], sink: [0, 1], curve: [0, 1], bend: [-0.5, 0.5], sprout: [0, 1] }),
-  peels: Object.freeze({ length: [0.05, 3], width: [0.02, 0.8], flat: [0.05, 1], cup: [0, 1], bend: [-0.6, 0.6], sprout: [0, 1] }),
+  peels: Object.freeze({ length: [0.05, 6], width: [0.02, 0.8], flat: [0.05, 1], cup: [0, 1], bend: [-0.6, 0.6], sprout: [0, 1] }),
 });
 export const HAIR_SECTIONS = Object.freeze(['round', 'ridge']);
 export const CROWN_ACCENTS = Object.freeze(['grow', 'tuck', 'none']);
@@ -342,8 +388,8 @@ function hairFormErrors(entry, at) {
           x.forEach((Ly, i) => {
             const here = `${at}.shapes.layers[${i}]`;
             if (!isObj(Ly) || !HAIR_SHAPE_FAMILIES.includes(Ly.shape)) { errs.push(`${here}: { shape: ${HAIR_SHAPE_FAMILIES.join(' | ')}, az?: [from°, to°], el?: [from°, to°] | around?: [from°, to°], ${Object.keys(HAIR_LAYER_FIELDS).join(', ')} }`); return; }
-            for (const g of ['az', 'el', 'around']) if (Ly[g] !== undefined && (!Array.isArray(Ly[g]) || Ly[g].length !== 2 || !Ly[g].every(finite) || (g === 'el' && Ly[g].some((e) => e < -30 || e > 90)) || (g === 'around' && Ly[g].some((e) => e < 0 || e > 90)))) errs.push(`${here}.${g}: [from°, to°]${g === 'el' ? ' (−30 … 90)' : g === 'around' ? ' (0 … 90°, the angle from the whorl)' : ''}`);
-            for (const [g, y] of Object.entries(Ly)) { if (['shape', 'az', 'el', 'around'].includes(g)) continue; const lim = HAIR_LAYER_FIELDS[g]; if (!lim) errs.push(`${here}.${g}: not a layer field (have shape, az, el, ${Object.keys(HAIR_LAYER_FIELDS).join(', ')})`); else num(`shapes.layers[${i}].${g}`, y, lim[0], lim[1]); }
+            for (const g of ['az', 'el', 'around', 'gather']) if (Ly[g] !== undefined && (!Array.isArray(Ly[g]) || Ly[g].length !== 2 || !Ly[g].every(finite) || (g === 'el' && Ly[g].some((e) => e < -30 || e > 90)) || (g === 'gather' && (Ly[g][1] < -30 || Ly[g][1] > 90)) || (g === 'around' && Ly[g].some((e) => e < 0 || e > 90)))) errs.push(`${here}.${g}: ${g === 'gather' ? '[az°, el°] (the tie; el −30 … 90)' : `[from°, to°]${g === 'el' ? ' (−30 … 90)' : g === 'around' ? ' (0 … 90°, the angle from the whorl)' : ''}`}`);
+            for (const [g, y] of Object.entries(Ly)) { if (['shape', 'az', 'el', 'around', 'gather'].includes(g)) continue; const lim = HAIR_LAYER_FIELDS[g]; if (!lim) errs.push(`${here}.${g}: not a layer field (have shape, az, el, ${Object.keys(HAIR_LAYER_FIELDS).join(', ')})`); else num(`shapes.layers[${i}].${g}`, y, lim[0], lim[1]); }
           });
           continue;
         }

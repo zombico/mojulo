@@ -349,6 +349,15 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   part (two curtains alone meet in a pointed arch). Flicks gentle on the sides and back (a strong one hooks out sideways
   where a petal meets the shoulder: a flap). The page draws no outline between hair pieces, so same-coloured petals part
   only by their SHADE: give a pale blonde a deeper gold shade tone.
+- **Frieda, gathered hair (Frieren, the ice princess).** A tail is two things: the hair GATHERED into a tie and the
+  tail falling from it. `gather: [az°, el°]` on a layer walks each cap lock over the scalp toward the tie instead of
+  away from the whorl, sleek all the way, and ends it there (no free fall); the tail is a few long peels placed at the
+  tie (`peels`), aimed nearly straight down with a little bow off it — aimed back, a tail juts out at 45° and reads as a
+  handle; fanned wide, the peels hang like wings outside the arms. Frieren's ties sit HIGH on the back of the head, so
+  from the front each tail's top is level with the top of the head: there the tail leans a little out to clear the head
+  and a little back to fall behind the shoulders. One layer per tie: twin tails are two layers, each half of the head to its own side's tie. What stays loose
+  is the face: split bangs off a centre part cut at the brow, and two narrow ribbon sidelocks before the ears (wide,
+  they taper to spikes). A pale silver wants a cool blue shade tone to part the peels.
 - **Keep a pair apart by the nape.** Jinto is closed and short at the nape and his story is the front; Kairo is open
   and long at the nape and his story is the crown and the tail. Trade nape lengths and both collapse into the same
   spiky hero.

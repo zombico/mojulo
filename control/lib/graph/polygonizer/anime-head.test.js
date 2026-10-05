@@ -408,14 +408,14 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
   const on = (preset, hair) => { const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, ...(Array.isArray(hair) ? hair : [hair])] }); return { h, mesh: compileLayered(h) }; };
   const box = (mesh, re) => { const ps = mesh.pointIds.map((id, i) => (re.test(id.split('/')[0]) ? mesh.vertices[i] : null)).filter(Boolean); return [0, 1, 2].map((k) => [Math.min(...ps.map((p) => p[k])), Math.max(...ps.map((p) => p[k]))]); };
   it('each cut closes on both bases and keeps the scalp covered', () => {
-    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia']) for (const preset of ['female', 'male']) {
+    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony']) for (const preset of ['female', 'male']) {
       const { h, mesh } = on(preset, cut);
       expect(failures(mesh), `${preset} ${cut}`).toEqual([]);
       expect(Math.max(...Object.values(h.hairCoverage.views)), `${preset} ${cut}`).toBeLessThanOrEqual(0.02);
     }
   }, 60000);
   it('the words validate by name: the new form words, their fields and the tail clump', () => {
-    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia'])).toEqual([]);
+    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony'])).toEqual([]);
     expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
     expect(validateAnimeHair({ locks: { tail: { ty: 0.1 } } })).toEqual([]); expect(animeLockPart('tail')).toBe('hairTail');
     expect(resolveAnimeHair([{ flip: 0.5 }, { flip: { out: 0.2 } }]).flip).toEqual({ amount: 0.5, out: 0.2 });
@@ -513,6 +513,25 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(fore(sintia)).toBeLessThan(0.28); expect(fore(sintia)).toBeLessThan(fore(selene));
     // the curtain bangs leave both eyes open: no veil asked, no advice
     expect(sintia.h.hair.veil).toBeUndefined(); expect(animeFaceZoneWarnings(sintia.h.hairCoverage)).toEqual([]);
+  });
+  it('gather: a lock walks the scalp into its tie and ends there, never falling past it; frieda wears twin tails, frieda-pony one', () => {
+    const lay = (extra) => box(on('female', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'peel', az: [120, 240], el: [10, 80], rows: 2, count: 8, length: 1.2, cap: 1, ...extra }] } }]).mesh, /^hairPeel/);
+    const free = lay({}), tied = lay({ gather: [180, 40] }), tie = box(on('female', 'short').mesh, /^face$/)[2];
+    expect(tied[2][0]).toBeGreaterThan(free[2][0] + 0.05);   // the free locks fall; the gathered ones stop at the tie
+    expect(tied[2][0]).toBeGreaterThan(tie[0]);   // above the chin: the tie, not a fall
+    expect(validateAnimeHair({ shapes: { layers: [{ shape: 'peel', gather: [180, 95] }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.layers[0].gather']);
+    for (const cut of ['frieda', 'frieda-pony']) {
+      const { h, mesh } = on('female', cut), chin = box(mesh, /^face$/)[2][0];
+      expect([...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot|Peel)\d+$/)?.[1]).filter(Boolean))], cut).toEqual(['Peel']);
+      expect(box(mesh, /^hairPeel/)[2][0], cut).toBeLessThan(chin - 0.12);   // the tails hang well past the chin
+      expect(animeFaceZoneWarnings(h.hairCoverage), cut).toEqual([]);
+    }
+    // frieda's twin tails are tied HIGH (Frieren's): from the front the hair beside the head rises far above where ties
+    // behind the ears would put it
+    const S = ANIME_HAIR_MOVES.frieda.hair.shapes, lowTie = (a) => [a[0] > 180 ? 212 : 148, 24];
+    const low = { ...S, layers: S.layers.map((l) => (l.gather ? { ...l, gather: lowTie(l.gather) } : l)), peels: S.peels.map((p) => ({ ...p, at: lowTie(p.at) })) };
+    const sideTop = ({ mesh }) => { const fx = Math.max(...box(mesh, /^face$/)[0].map(Math.abs)); return Math.max(...mesh.vertices.filter((p, i) => /^hairPeel/.test(mesh.pointIds[i]) && Math.abs(p[0]) > fx * 1.25).map((p) => p[2])); };
+    expect(sideTop(on('female', 'frieda'))).toBeGreaterThan(sideTop(on('female', ['frieda', { shapes: low }])) + 0.08);
   });
   it('cap locks grow from the dome and lie over it: from the crown they come out longer, to the same hem; the fringe is cut shorter', () => {
     const cap = (el, extra = {}) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [80, 280], el: [el, el], rows: 1, count: 6, length: 0.5, cap: 1, ...extra }] } }]).mesh, /^hairBanana/);

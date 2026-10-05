@@ -551,9 +551,15 @@ export function buildAnime(r, options = {}) {
     // leaves over the face). So `length` is how far the
     // lock falls PAST THE HAIRLINE, and a lock from the crown comes out longer than one from the side by the dome it
     // crosses: the way long hair grows
+    // GATHER (`gather: [az°, el°]`, a ponytail's or a twin tail's TIE): the lock walks the scalp TOWARD the tie instead of
+    // away from the whorl, lying sleek all the way, and ends there — no free fall (the tail is its own pieces, rooted at
+    // the tie); it swells as it arrives, the hair bunched into the tie
     const capPath = (P, flow, el0, L, Ly, vary = 1) => {
-      const step = 0.03, g = 0.06 * (Ly.droop ?? 0.6), off = (0.008 + 0.018 * el0 / 90) * G, path = [];
+      const step = 0.03, g = 0.06 * (Ly.droop ?? 0.6), off = (0.008 + 0.018 * el0 / 90) * G, path = [], GP = Ly.gather ? anchorOf(Ly.gather) : null;
       let p = P, d = flow, last = P, ln = unit(sub(P, C));
+      if (GP) { for (let it = 0; it < 240; it++) { const [az, el] = onCap(unit(sub(p, C))), sp = anchorOf([az, el]), ns = unit(sub(sp, C)); path.push(add(sp, mul(ns, off)));
+          let to = sub(GP, sp); if (dmath.hypot(...to) < 2 * step) break; to = sub(to, mul(ns, dot(to, ns))); if (dmath.hypot(...to) < 1e-6) break; p = add(sp, mul(unit(to), step)); }
+        path.push(add(GP, mul(unit(sub(GP, C)), off))); path.depart = 1; return path; }
       for (let it = 0; it < 240; it++) { const [az, el] = onCap(unit(sub(p, C))); const sp = anchorOf([az, el]), ns = unit(sub(sp, C)); last = sp; ln = ns; path.push(add(sp, mul(ns, off)));
         if ((el <= 0.5 || ns[1] < -0.05) && it > 0) break; d = add(d, [0, -g, 0]); d = sub(d, mul(ns, dot(d, ns))); if (dmath.hypot(...d) < 1e-6) d = [0, -1, 0]; d = unit(d); p = add(sp, mul(d, step)); }
       // a lock leaving the dome over the FACE (the front hairline, within 60° of the front) falls only the layer's
