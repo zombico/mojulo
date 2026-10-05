@@ -9,12 +9,14 @@
 //   SURFACE  the faces carry the material's surface for the exports (a bronze in its patina's colour; law 1)
 //   BASE     an oblong plinth under the whole animal (law 7: a quadruped's base runs its length), the animal lifted onto it
 //
-// An equestrian statue's horse is this filter over the creature designer's horse (law 10, `mountedStatue`): a hero statue
-// with `stand: 'mounted'` sits astride it, the World resolver composing the two.
+// An equestrian statue's horse is this filter over the creature designer's horse (law 10, `mountedStatue`: the ring plan
+// of polygonizer/horse-form.js): a hero statue with `stand: 'mounted'` sits astride it, the World resolver composing the two.
 // Pure and deterministic.
-import { STATUE_LAWS_VERSION, STATUE_MATERIALS, MATERIAL_WORDS, BASE_WORDS, METAL_BASE_MATERIAL, STATUE_HORSE, MOUNT_GROUP, MOUNT, weatherTone } from './principles.js';
-import { animalWorldFaces } from '../polygonizer/figure-render.js';
-import { ZOO_BUILDS } from '../polygonizer/figure-animal-build.js';
+import { STATUE_LAWS_VERSION, STATUE_MATERIALS, MATERIAL_WORDS, BASE_WORDS, METAL_BASE_MATERIAL, MOUNT_GROUP, MOUNT, weatherTone } from './principles.js';
+import { horsePlan } from '../polygonizer/horse-form.js';
+import { expandPlan } from '../polygonizer/station-loft-plan.js';
+import { compileLayered } from '../polygonizer/station-loft.js';
+import { layeredFaces } from '../polygonizer/station-loft-faces.js';
 import { rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { statueMaterial } from './expand.js';
 import { statueBaseFaces } from './base.js';
@@ -82,8 +84,11 @@ const r9 = (x) => Math.round(x * 1e9) / 1e9;
 export function saddleOf(faces) {
   const C = faces.flatMap((f) => f.corners); let y0 = Infinity, y1 = -Infinity;
   for (const c of C) { y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
+  // the back's midline top line near the saddle: the highest midline corner within a ring's spacing of it (a plan's rings
+  // stand tens of centimetres apart, a marched skin's a few)
   const y = y0 + MOUNT.saddleAt * (y1 - y0); let top = -Infinity;
-  for (const c of C) if (Math.abs(c[1] - y) < 0.04 && Math.abs(c[0]) < 0.05 && c[2] > top) top = c[2];
+  for (const c of C) if (Math.abs(c[1] - y) < 0.2 && Math.abs(c[0]) < 0.05 && c[2] > top) top = c[2];
+  if (!Number.isFinite(top)) throw new Error('statue: the mount has no back at its saddle to sit the rider on');
   return [0, y, top];
 }
 /** Where a rider sits, from its body (never its clothes, whose hem hangs between the thighs): the midpoint of the posed
@@ -96,11 +101,10 @@ export function riderSeat({ R, pose, mesh, recipe, dz = 0 }) {
   const drop = Number.isFinite(fork) ? restZ - fork : 0;
   return [(hl[0] + hr[0]) / 2, (hl[1] + hr[1]) / 2, (hl[2] + hr[2]) / 2 - drop + dz];
 }
-/** The statue horse's faces (the creature designer's horse, STATUE_HORSE over its species opts), carved in `material` */
+/** The statue horse's faces (horse-form.js's ring plan, compiled and seated on the floor), carved in `material` */
 export function statueHorseFaces({ material = 'marble', wear = 0 } = {}, { light }) {
-  const B = ZOO_BUILDS.horse, { faces } = animalWorldFaces({ archetype: B.archetype, opts: { ...B.opts, ...STATUE_HORSE } }), k = MOUNT.scale;
-  const big = faces.map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]) }));
-  return carveCreatureFaces(big, { type: 'statue', material, dials: { wear } }, { light });
+  const recipe = expandPlan(horsePlan()), faces = layeredFaces(compileLayered(recipe), recipe, { light });
+  return carveCreatureFaces(faces, { type: 'statue', material, dials: { wear } }, { light });
 }
 /**
  * An equestrian statue: the horse carved in the rider's material and moved so its saddle lies under the rider's seat

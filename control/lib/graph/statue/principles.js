@@ -108,17 +108,14 @@ export const MOUNTED_POSE = Object.freeze({
   support: 'none', hipL: { yaw: 30, pitch: 22, roll: 0 }, hipR: { yaw: -30, pitch: 22, roll: 0 }, kneeL: 35, kneeR: 35,
   armR: ['forward', 'up'], elbowR: 'slight', shL: { yaw: -8, pitch: 25, roll: 0 }, elbowL: 75,
 });
-/** law 10: the MOUNT, carved by the creature filter (creature.js): the creature designer's horse (kind animal, species
- * 'horse', archetype 'equine') retuned for sculpture — a watertight skin (closed: it prints), a deeper head, sturdier
- * legs, a lighter rump and a hanging tail — its opts over the species' own; the zoo's horse itself is unchanged */
-export const STATUE_HORSE = Object.freeze(JSON.parse('{"skin": "watertight", "armatureCfg": {"backHeight": 0.62, "trunkLength": 0.5, "backArch": 0, "neckLength": 0.3, "neckAngle": 50, "headPitch": -40, "girthBody": 1.1, "girthFore": 1.45, "girthHind": 1.35, "girthHead": 1.4}, "skullCfg": {"length": 0.36, "width": 0.08, "muzzle": 0.64, "snout": 0.5, "boxy": 0.55, "muzzleDrop": 0.18}, "fleshCfg": {"thorax": 1.9, "belly": 1.9, "bellyDrop": 0.3, "taper": 0.6, "rump": 1.45, "haunch": 0.8, "rumpCap": 1.2}, "tailCfg": {"rootR": 0.03, "bulgeR": 0.042, "bulgeAt": 0.28, "tipR": 0.03, "droop": 72, "length": 0.55, "waveAmp": 0.02}}'));
+/** law 10: the MOUNT: the horse of the creature designer's loop (polygonizer/horse-form.js `horsePlan`, a ring plan for the
+ * layered kind: 1.6 m at the withers, watertight by construction), carved by the creature filter (creature.js) */
 /** law 10: the mount's group (it rides with the rider: a slot drops the base, never the horse); the saddle, this share of
- * the horse's length from the rear on its back's midline, the rider's seat sunk this far into it (the thighs close on
- * the barrel); the horse scaled about its hooves so its back stands a horse's withers high under a life-size rider (the
- * creature designer's horse is pony-sized); a mount always stands on an oblong block (a round base under a horse reads as
- * a turntable) */
+ * the horse's length (tail to muzzle) from the rear on its back's midline, just behind the withers; the rider's seat
+ * sunk this far into it (the thighs close on the barrel); a mount always stands on an oblong block (a round base under a
+ * horse reads as a turntable) */
 export const MOUNT_GROUP = 'mount';
-export const MOUNT = Object.freeze({ saddleAt: 0.42, sink: 0.04, scale: 1.12 });
+export const MOUNT = Object.freeze({ saddleAt: 0.44, sink: 0.04 });
 
 /** law 9: the throne under a seated figure: its seat runs under this share of the lap from the buttocks forward (the
  * knees and shins stand clear in front of it), its sides this far past the hips (× the lap's width) */

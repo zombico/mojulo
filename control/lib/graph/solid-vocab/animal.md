@@ -96,7 +96,8 @@ no zones to paint), the fur splats and skin textures dropped, the faces tagged w
 exports, the animal on an oblong base (`block` by default) the length of its body. Pass `opts: { skin: 'watertight' }`
 for a closed solid: the marched skin is open tubes, so its insides show in stone. Absent, the animal is byte-identical.
 An equestrian statue is a hero statue with `stand: 'mounted'` (the layered kind's STATUE section): its horse is this
-filter over `species: 'horse'`, retuned for sculpture.
+filter over the layered kind's horse ring plan (`docs/examples/ring-plans/horse.plan.json`), which reads truer as a
+horse than `species: 'horse'` does.
 
 ## Honest limits
 

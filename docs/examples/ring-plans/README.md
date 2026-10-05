@@ -8,6 +8,15 @@ deterministically; `mint_solid { kind: 'layered', via: 'plan', spec: { plan } }`
 - `quadruped.plan.json`: a bare hound-sized quadruped (a spine segment between rump and withers, neck,
   head, a three-joint tail, four legs of three segments each, two ears as claw-shaped spikes), three
   dials, no rig. The form the `creature-from-plan` catalyst hands a worker, filled in.
+- `horse.plan.mjs` / `horse.plan.json`: THE HORSE, a light riding horse 1.6 m at the withers, built with the
+  creature-from-plan loop (thesis: a barrel on four straight columns, single hooves, a long deep wedge of a head carried
+  down from the poll, the arched crested neck rising at about fifty degrees). Lofts along the midline for the barrel
+  (`ring12`), the neck, the crest (the mane as a carved mass) and the head, each `frame: 'keep'` so a near-level ring
+  never turns over; a hanging tail chain; upper arm, forearm, cannon, pastern and hoof forward, thigh, gaskin, cannon,
+  pastern and hoof behind (the upper limbs start inside the body); two ears. No dials or rig yet. The form is core
+  (`control/lib/graph/polygonizer/horse-form.js`, `horsePlan({ scale, palette })`: the statue maker's equestrian statues
+  ride it); this file re-exports it and `node docs/examples/ring-plans/horse.plan.mjs` rewrites the JSON, which
+  `horse-form.test.js` pins byte for byte.
 - The rigged biped worked plan is `../dragon-body/seed-recipe.mjs` (it exports `plan`).
 - `hero.plan.mjs` / `hero.plan.json`: the HERO FORM, a human on the vajra rest skeleton. The form itself is core
   (`control/lib/graph/polygonizer/hero-form.js`, so the `mint_solid` hero door ships in the install); this file

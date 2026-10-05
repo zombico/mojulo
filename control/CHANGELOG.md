@@ -54,12 +54,16 @@ byte-identical. Being built on this branch; the sphinx comes next.
 - **Carved animals.** The `animal` kind takes `statue` (`true`, or `{ type: 'statue', material, base, dials: { wear } }`):
   the animal in one stone or metal, its fur and skin textures dropped, tagged for the exports, on an oblong base the
   length of its body. Absent, every animal is byte-identical.
-- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material: the animal
-  kind's horse with a watertight skin, a deeper head, sturdier legs and a hanging tail. The rider sits on the saddle
+- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material. The rider sits on the saddle
   found from its own hip joints, legs down the flanks, the right arm raised in address, both on one oblong block. The
   equestrian slots take it: the Forum's Octavian horseman and Pompeii's standing equestrian bronzes
   (`pp-equestrian:<n>`), each facing the way its stand-in's horse did. A standing statue on an equestrian slot, or a
   mounted one on a standing slot, is refused by name. Entry cards list a slot range with gaps one by one.
+- **A horse in the library.** A horse ring plan for the layered kind, built with the creature-from-plan loop: a barrel
+  body, an arched crested neck, a long wedge head carried down, straight cannons on single hooves, the hind leg angled at
+  stifle and hock, 1.6 m at the withers. It is core (`horsePlan({ scale, palette })`), worked as
+  `docs/examples/ring-plans/horse.plan.json` (mint it with `via: 'plan'`), and it is the equestrian statues' horse.
+  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting; absent, every loft is unchanged.
 
 ### Historic city
 

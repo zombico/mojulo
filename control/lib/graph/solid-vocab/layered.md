@@ -121,7 +121,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   meaning; `push: { slot: [dx, dy, dz] }` moves a right-half or midline slot off the ring, the left mirrored) | { name, kind:
   'segment', from, to, rA, rB, e?, over?, mirror: 'plane' | 'name', bind: { bone, prev?, next? } } | { name, kind:
   'chain', joints, r, over?, bind: { root } } | { name, kind: 'loft', stations: [{ at, r, e? }], caps?, mirror, bind } (explicit stations
-  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest) | { name, kind: 'rings', slots, stations:
+  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest; `frame: 'keep'` holds each ring's front on
+  the side of the last, for a loft running near level along y, a barrel, that would otherwise twist) | { name, kind: 'rings', slots, stations:
   [{ id?, points: { slot: [x, y, z] } }], caps, mirror: 'name', bind } (rings given point by point, every slot of the family
   in loop order: a layer that hugs another part's surface, a muscle over the chest; `ring20` a fine family for one) ]; any segment may name `slotT` (each
   right-half and midline slot's address parameter, rising from 0: a denser ring addressed on a sparser one's scale),
@@ -452,8 +453,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   stand-in), `roman-bust`, `egyptian` (striding, kilt or sheath), `sumerian` (the votive worshipper: the hands clasped at the chest, a flared
   skirt), `renaissance`. `stand: 'seated'` (build or card) sits any card on a block throne built with its base (the
   thighs level, the shins hanging, the hands on the knees; a long skirt cut at the knee; refused with a gesture or on a
-  bust); `stand: 'mounted'` sets it astride a horse carved in its material (the animal kind's horse under the statue
-  filter, retuned for sculpture), the right arm in address, both on an oblong block: an equestrian statue. A card's stand (a word, pose words, or `{ male, female }` of them), stillness (idle, walk and
+  bust); `stand: 'mounted'` sets it astride a horse carved in its material (the horse ring plan, `horsePlan`, under the
+  animal kind's statue filter), the right arm in address, both on an oblong block: an equestrian statue. A card's stand (a word, pose words, or `{ male, female }` of them), stillness (idle, walk and
   wave off) and drapery (an outfit card per silhouette) apply when the hero names none, and its hair at mint. Laws
   (`principles.js`): ONE MATERIAL over every group (`marble`, `limestone`, `sandstone`, `granite`, `basalt`, `bronze`,
   `gilt`, `painted`), the eyes blank, the hair a carved mass, the bare body's zones skin; a FORMAT is a cut (`full`;
@@ -697,7 +698,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   World page (`/api/sketches/<ref>/world?draw=<view>`) that hands the patch to the agent — the page writes nothing.
   Absent, zero bytes.
 
-Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
+Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the HORSE, a light riding horse at 1.6 m, core as
+`polygonizer/horse-form.js` `horsePlan({ scale, palette })`; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
 `creature-from-plan` catalyst carries the spec forms a worker fills; the `create-hero` catalyst is the human loop on the hero form
 (`docs/examples/ring-plans/hero.plan.mjs`, a cast word → the vajra rest joints, a `style` register, the `docs/examples/hero-head/` head worn as an include). Worked recipes: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
 horns, eyes, teeth and crest spikes pinned; seven dials; six casts), `docs/examples/dragon-body/` (the
