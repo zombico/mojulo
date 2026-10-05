@@ -57,8 +57,8 @@ describe('measureFidelity', () => {
 });
 
 describe('the sixth-gen era card', () => {
-  it('names the four reference titles, each with setting, kit, surfaces, light and air', () => {
-    expect(SIXTH_GEN_REFERENCE_IDS).toEqual(['dmc3', 'colosseum', 'sunshine', 'mgs3']);
+  it('names the reference titles, each with setting, kit, surfaces, light and air', () => {
+    expect(SIXTH_GEN_REFERENCE_IDS).toEqual(['dmc3', 'colosseum', 'sunshine', 'mgs3', 'doom3']);
     for (const id of SIXTH_GEN_REFERENCE_IDS) {
       const r = SIXTH_GEN_REFERENCES[id];
       for (const k of ['title', 'setting', 'kit', 'surfaces', 'palette', 'light', 'air']) expect(r[k], `${id}.${k}`).toBeTruthy();

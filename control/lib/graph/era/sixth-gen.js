@@ -2,7 +2,7 @@
  * The SIXTH-GEN era card (PS2 / GameCube / Xbox) and its reference moods — data, not code paths.
  *
  * The era card holds what every sixth-gen stage shares: the frame it was seen at, the texture sizes
- * its surfaces were painted at, and the order of magnitude a character and a level spent. The four
+ * its surfaces were painted at, and the order of magnitude a character and a level spent. The
  * reference cards hold what differs between the titles the composer studies: setting, surfaces, light
  * and air. Numbers are starting points read off the era's hardware and frames by eye, to be tuned at
  * the eyes gate; none is a measured fact about a shipped game.
@@ -61,6 +61,15 @@ export const SIXTH_GEN_REFERENCES = Object.freeze({
     palette: { base: '#5a5e48', accent: '#8a6a3a', warm: '#c8b080' },
     light: { ambient: '#58604c', key: { color: '#e8e0c0', elevation: 40, azimuth: 150 }, placed: ['caged-bulb', 'floodlight'], contrast: 'filmic' },
     air: { fog: { color: '#7a8470', density: 0.03 }, sky: 'jungle-overcast', dome: { zenith: [110, 120, 112], horizon: [168, 176, 160] } },
+  }),
+  doom3: Object.freeze({
+    title: 'Doom 3',
+    setting: 'research lab',
+    kit: 'research-lab',
+    surfaces: ['vinyl-tile', 'steel-panel', 'hazard-stripe', 'grating', 'screen'],
+    palette: { base: '#8a9098', accent: '#e0b030', warm: '#ff3a2a' },
+    light: { ambient: '#3a424e', key: null, placed: ['troffer', 'screen', 'warning-lamp', 'tank'], contrast: 'high' },
+    air: { fog: { color: '#1a1e24', density: 0.015 }, sky: 'interior', dome: { zenith: [16, 18, 22], horizon: [26, 30, 36] } },
   }),
 });
 

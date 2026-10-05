@@ -101,7 +101,7 @@ export function makeDirt(plan, allLights, knobs = {}) {
       const damp = k.damp * (1 - smooth(0, 1.5, z));
       // water from above: streaks hanging from the cornice, each its own length, fading downward
       const u = Math.abs(n[0]) > 0.5 ? c[1] : c[0], plane = Math.round((Math.abs(n[0]) > 0.5 ? c[0] : c[1]) * 2);
-      const top = f.top ?? r.h - kit.cornice.h, len = 1.2 + 2.6 * hash3(Math.floor(u * 1.4), plane, S + 31);   // a house front names its own top
+      const top = f.top ?? r.h - (kit.cornice ? kit.cornice.h : 0), len = 1.2 + 2.6 * hash3(Math.floor(u * 1.4), plane, S + 31);   // a house front names its own top
       const streak = k.age * smooth(0.5, 0.78, vnoise(u * 1.4, plane, S + 37)) * smooth(top - len, top, z);
       const fire = soot(c, n);
       const v = (1 - 0.42 * streak) * fire;

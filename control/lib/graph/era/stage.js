@@ -30,6 +30,9 @@ import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
 import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
+import { RESEARCH_LAB } from './style/research-lab.js';
+import { labRoom } from './lab.js';
+import { labDress } from './lab-dress.js';
 import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, sunDir } from './sun.js';
@@ -117,6 +120,40 @@ STAGE_KITS['delfino-plaza'] = Object.freeze({
   // the dressing (style/delfino-plaza.js, era/plaza-dress.js): the fountain, the fronts' life, blends, the town beyond
   dress: DELFINO_PLAZA,
 });
+// The RESEARCH-LAB kit (Doom 3): a tall lab whose structure shows (lab.js) — steel columns at the bays, panelled
+// walls under a clerestory of observation windows, trusses, ducts and a cable tray under a corrugated deck, troffers
+// hung on chains; a vinyl floor. Its dressing (style/research-lab.js, lab-dress.js): the blast door, the tank, the benches.
+STAGE_KITS['research-lab'] = Object.freeze({
+  shell: 'lab', grid: 1, bay: 4.8, wall: 0.5,
+  door: { width: 2, height: 3, frame: 0.3, out: 0.1 },
+  torch: { color: '#e8f0ff', intensity: 1.2, radius: 8 },
+  rubble: null,
+  cells: { wall: 0.6, trim: 0.6, floor: 0.6, ceiling: 1.2, kick: 0.6, upper: 0.8, column: 0.6, skirt: 1, duct: 1.2, cable: 2, housing: 1 },
+  tiles: {
+    floor: { key: 'lab:vct', scale: 2.4 },
+    wall: { key: 'lab:panel', scale: 1.2 },
+    kick: { key: 'hull-plate-dark', scale: 1.2 },
+    upper: { key: 'concrete-board', scale: 2.4 },
+    trim: { key: 'steel-strut', scale: 1.2 },
+    column: { key: 'steel-column', scale: 1.5 },
+    ceiling: { key: 'lab:deck', scale: 1.6 },
+    duct: { key: 'hull-plate', scale: 1.5 },
+    skirt: { key: null, scale: 1 }, cable: { key: null, scale: 1 }, housing: { key: null, scale: 1 },
+  },
+  tint: { floor: [0.98, 0.99, 1.0], wall: [0.68, 0.7, 0.73], kick: [0.7, 0.72, 0.74], upper: [0.62, 0.64, 0.66], trim: [0.78, 0.8, 0.82], column: [0.66, 0.68, 0.72],
+    ceiling: [0.42, 0.44, 0.46], duct: [0.78, 0.8, 0.82], skirt: [0.16, 0.16, 0.17], cable: [0.1, 0.1, 0.11], housing: [0.78, 0.8, 0.82] },
+  lab: {
+    band: { w: 0.6, tint: [0.62, 0.64, 0.66] }, skirt: { h: 0.12, out: 0.03 },
+    kick: { h: 1.0, out: 0.05 }, field: { top: 3.9 }, service: { h: 0.32, out: 0.24 },
+    column: { w: 0.42, out: 0.32 },
+    window: { w: 3.2, h: 1.5, sill: 0.7, margin: 0.4, depth: 0.3, ring: 0.1, ringOut: 0.05, glass: '#4f6c88', light: { color: '#8fb0d8', intensity: 0.35, radius: 7, off: 1.2 } },
+    truss: { depth: 0.75, w: 0.3, web: 0.05, flange: 0.05 },
+    duct: { at: [0.3, 0.7], r: 0.32, sides: 10, gap: 0.12 },
+    tray: { at: 0.5, w: 0.45, side: 0.1, drop: 0.35, cables: [0.03, 0.025, 0.035] },
+    troffer: { rows: [0.25, 0.5, 0.75], len: 1.5, w: 0.36, h: 0.1, drop: 1.6, diffuser: '#eef4ff', color: '#dde8ff', intensity: 1.15, radius: 7.5 },
+  },
+  dress: RESEARCH_LAB,
+});
 // The TRAIL-VALLEY kit: no architecture — a trail, a cliff and trees built to a style card (nature.js).
 STAGE_KITS['trail-valley'] = Object.freeze({ shell: 'nature', style: 'nature-trail' });
 // The JUNGLE-TRAIL kit: the late sixth-gen jungle — grown giants, leaf cards, a canopy the light comes through (jungle.js).
@@ -181,7 +218,7 @@ export function planStage(m = {}) {
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
 export function buildStageGeometry(plan) {
-  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [];
+  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
     return { key: t.family ? `${t.family}-${VARIANTS[variant % 4]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part] };
@@ -216,7 +253,7 @@ export function buildStageGeometry(plan) {
     }
   };
   const plaza = kit.shell === 'plaza';
-  const B = plaza ? kit.step.width : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
+  const B = plaza ? kit.step.width : kit.shell === 'lab' ? 0 : kit.plinth.out + kit.gutter.width;   // the junction band's depth off the wall
   // A NAVE wall, bay by bay: an engaged column at each bay line; between them a blind pointed arcade arch, a string
   // course, and a lancet window whose glass glows cool and lights the bay; a bay holding a doorway stays flat.
   const naveWall = (F, cuts, flatWall, sf, h, side) => {
@@ -268,6 +305,12 @@ export function buildStageGeometry(plan) {
   };
   plan.rooms.forEach((r, ri) => {
     const w = r.x1 - r.x0, d = r.y1 - r.y0, h = r.h;
+    if (kit.shell === 'lab') {
+      // a lab is its own floor, walls and roof (lab.js); its bays and structure go to the dressing
+      const L = labRoom(out, r, ri, kit, surf);
+      seats.push(...L.seats); dressBays.push(...L.bays); labs.push({ r, ...L.structure });
+      return;
+    }
     // the floor field stops at the junction band (or runs to the edge on an open side)
     const inset = (side) => (r.open.includes(side) ? 0 : B);
     floorRect(r, ri, r.x0 + inset('-x'), r.y0 + inset('-y'), r.x1 - inset('+x'), r.y1 - inset('+y'));
@@ -370,7 +413,7 @@ export function buildStageGeometry(plan) {
     panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
-  return { faces: out, seats, drains, bays: dressBays, columns, houses };
+  return { faces: out, seats, drains, bays: dressBays, columns, houses, ...(labs.length ? { labs } : {}) };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -526,7 +569,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends }) : naveDress(plan, geom);
   // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;

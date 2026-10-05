@@ -236,6 +236,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The open set is byte-identical.
 
+### Stage lab
+
+- A fourth stage kit and the first modern one: `research-lab`, after a new reference card `doom3` (Doom 3's UAC
+  labs). It's a tall closed lab whose structure shows (era/lab.js):
+  - a vinyl tile floor with a darker band and a rubber skirting;
+  - walls of steel I-columns at the bays, a kick band, painted panels, a service shelf and a clerestory of
+    observation windows glowing cool;
+  - a corrugated deck high up with trusses across the short span, two ducts and a cable tray down the long one, and
+    troffers hung on chains between the trusses (the light);
+  - a blast door with chamfered top corners, a hazard-striped surround and a red status lamp.
+- Its painted surfaces are the stage's own `lab:` tiles (era/lab-tiles.js): vinyl tile, steel panel, corrugated deck,
+  grating, hazard stripes, a screen, a server rack's face, a whiteboard.
+- The dressing (era/lab-dress.js, style/research-lab.js):
+  - a containment tank at the centre on a hazard-ringed dais, glowing, with cables down its steps into grated
+    trenches that run to three walls (never across the way in);
+  - benches in two rows, each carrying different things from its neighbours (monitors with lit screens, a
+    microscope, glassware, papers, a toolbox), with chairs pulled out;
+  - server racks, lockers, a whiteboard, an extinguisher and a cart.
+  - Every thing is placed as a record first and built in its own frame after, so a later pass can move, tip or
+    break it.
+- The style card's principles are machine checks (era/lab.test.js), and the lab is in the page budget. Other stages
+  are byte-identical.
+
 ### Stage night
 
 - `time: 'night'` on a stage whose style card carries a night (the plaza's does): the card's moon becomes the bake's
