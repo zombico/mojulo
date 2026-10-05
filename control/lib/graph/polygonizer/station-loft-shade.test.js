@@ -519,9 +519,10 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // the heroes on the streamlined core: these pin the light's absence, and predate the structured core (DEFAULT_CORE),
     // whose own payloads are pinned below. The plain and toon pins re-pinned for smooth shading under the studio light
     // (world-kinds.js, STUDIO_SMOOTH_CREASE: a hero off the anime head carries the key at its corners); the unshaded
-    // export (FLAT_LIGHT) unchanged. The landmark pins, all three, re-pinned for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis)
-    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['a20d0d2adb34ae04', '8bb91f09f75aff4e', '4c85ac62eab0b693']],
-    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['cb1aa580969db578', '55848d460867fb76', 'd5079d1075183390']],
+    // export (FLAT_LIGHT) unchanged. The landmark pins, all three, re-pinned for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis), then for
+    // the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull)
+    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['a57ed7221c368561', 'bc93b0a1aa4fff88', '89b884b7078272d9']],
+    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['a428898a3383402e', 'a28807c6bbd260d2', 'c86dbc99f89d6f66']],
     headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['bb3063a3a7ba1e28', 'd52f97e21ea62132', '0e6eb7d4107141c3']],
   };
   // THE STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs, the stands' own base): the
@@ -544,10 +545,10 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // the ear (head-ear.js: the side shape, a thin plate with the rim, the antihelix and the bowl), the same again; then for
   // smooth shading under the studio light (STUDIO_SMOOTH_CREASE: the key at each face's corners), every hero here, the
   // plain and toon pins, the unshaded one unchanged; then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis): every jawed hero, all three
-  // pins (the rig rides in the recipe and the pack), head-none unchanged
+  // pins (the rig rides in the recipe and the pack), head-none unchanged; then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull): the same
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['a68c915bf270af0a', '24d2ef1410300aba', '802ebdf3d34b2edb']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['30ee35351be32be6', '1940e1d3d324e4ed', '351a957cb50973a9']],
+    const S = { landmarkMale: [{ cast: 'male' }, ['14b1447baccfad73', '2fbb270f54d6c463', 'd36a970c8e01181b']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['c98838e2a805d2d8', '2172a469f9bff055', 'b5b9086ef71717f1']],
       headNone: [{ cast: 'female', head: 'none' }, ['0cffd2cd855cb54f', 'd14954ec5db3cfe3', '9ae3db683a366a18']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });

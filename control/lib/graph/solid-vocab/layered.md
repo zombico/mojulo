@@ -372,6 +372,45 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   trunks), in a `Swim` tone the palette may name. The structured female's seat is fuller and set further back than the male's square, high one, under a lower
   back that curves in; both seats are two masses with a cleft, drawn on bare skin in a second, darker shade, as the
   thong's V in the swimsuit's tones, or as a crease in the speedo. Every piece worn on the torso stands off the chest layers too.
+  SECOND SKIN. `paint` puts skintight garments on the body as colour on its own faces (`body-paint.js`; words in
+  `hero-dress.js` PAINT_WORDS): no geometry, so a garment fits every cast, tune, core and pose and bends with the skin.
+  A word (`tank`, `crop`, `sportsBra`, `tee`, `longSleeve`, `leotard`, `leggings`, `bikeShorts`, `tights`, `catsuit`,
+  `socks`, `gloves`), an entry `{ part, u?, run?, t?, only?, group }` or a list of either, worn in order (a later one paints
+  over; `Skin` cuts back). `part` is an L1 part, a base name both sides; `u` a window in the part's station parameter
+  (torso: 0 hem, 1 navel, 2 chest, 3 shoulder, 4 collar), `run` a share of the part's span (0 its root, 1 its end), `t` a
+  share of the ring half (0 front, 1 back); `only` repaints just the bands in those groups. Words wear the figure's Top,
+  Bottom and Shoes tones and Glove; best over `detail: 'swimsuit'`, whose forms they keep (a word over the hips clears the
+  swimwear beneath). Patch `/hero/paint`.
+  OUTFIT. `outfit` puts on garments WITH VOLUME that follow the body's own geometry (`body-garment.js`; words in
+  `hero-dress.js` OUTFIT_WORDS: `tee`, `shirt`, `trousers`, `shorts`, `boots`). Each piece copies its body part's rings
+  over a window, carried out by its `ease` and lifted over the layers beneath it (the chest's, the garments already on
+  that part), and copies the part's binding station by station: every garment vertex skins as the skin vertex under it,
+  so sleeves and legs bend at the elbow and the knee with the body, every dial that moves the part moves the garment,
+  and a cast, tune or core re-fits it on every read. Worn in order: trousers then a tee is a shirt worn out, a tee then
+  trousers a shirt tucked in. A piece of your own: `{ id, part, u?, run?, ease, flare?: [start, end], over?, group }`
+  (the part `<id>_<body part>`). Footwear is a piece of its own, `fit: 'shoe'` (the `boots` word's foot): two solids fitted
+  to the foot and toes, a ROUND ELLIPSOID over the heel and a FLAT HALF-ELLIPSOID over the forefoot, each the smallest
+  holding its share of their points with the ease, their sections superposed ring by ring and cut on one flat sole
+  (`toe`: the toe box's height as a share, `heel`: metres over the heel cup). Best over `detail: 'swimsuit'`; paint and
+  an outfit combine; under the studio light both shade smoothly as cloth (welded like the skin, a right angle kept
+  sharp). Patch `/hero/outfit`.
+  OUTFIT BUILD. `outfit: { type: 'outfit', style, dials?, language? }` is a styled look built the way an armour build is
+  (`lib/graph/outfit/`): a seeded card (`casual`, `office`, `athlete`, `adventurer`, or an inline card: plain JSON) over
+  laws (`principles.js`: silhouette by fit, cloth falling away to its free hems, hems on landmarks, layers nesting by
+  ease and by one value step, one focal, the edge the ornament field, honest construction for knit and woven, stylize one
+  curve), stamped with the laws version it was minted under. Dials `stylize`, `fit`, `coverage` (lengths step shorter by
+  thirds), `ornament` 0–3; language `top { family, sleeve, hem, collar }`, `bottom { family, leg }`, `feet`, `tuck`,
+  `focal`. Expanded on every read by its passes: CUT (pieces on landmarks), FIT (ease and hang), LAYER (tucked or worn
+  out), CONSTRUCTION (a woven placket), ORNAMENT (from the focal out: collar or rib, buttons, belt; cuffs, hems,
+  waistband; seams), TONE (the card's over derived Trim, Placket, Button, Seam, Waistband), LEDGER (the readout's
+  `hero.dress.outfit`: lengths, pieces, edges spent, and warnings for what this body could not wear). Skirts and dresses:
+  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full }` is one hull round the hips
+  and both legs (garment `fit: 'skirt'`): each ring the support of everything at its height, never narrowing below the
+  hips, flaring by its cut, two-faced (folded at the hem, so it is open beneath), each point skinned by nearness (the
+  cloth over a leg follows that leg, the cloth between and behind the legs the pelvis); `dress: true` makes the skirt the
+  top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
+  Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
+  `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
   `adorn: 'ranger'` wears a belt (iron buckle), a baldric across the chest (iron buckle), an archer's bracer on the left
   forearm and ONE pauldron on the right shoulder with a bronze boss (the focal accent), stacked in that order, and suggests
   an earth palette beneath the operator's. Either is also DATA (the plan's `body` / `adorn` blocks below); `'none'` or

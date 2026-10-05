@@ -1,0 +1,19 @@
+{
+  "name": "outfit-casual",
+  "$note": "Female: trousers, then a tee worn out over them, and boots. Relaxed.",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": [
+      "trousers",
+      "tee",
+      "boots"
+    ],
+    "gesture": "relaxed"
+  },
+  "palette": {
+    "Top": "#e8e2d0",
+    "Bottom": "#33415c",
+    "Shoes": "#6b4a2f"
+  }
+}

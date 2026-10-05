@@ -125,8 +125,8 @@ describe('the skinned GLB carries the anime face', () => {
     // (98a75b946e0c4ebc / 932c94ffaa0aae60), still. The landmark pin re-pinned for the landmark head's forehead (upright,
     // the brow's end on its own landmark), then for the ear (head-ear.js); the head-none pin unchanged. Both re-pinned
     // for smooth shading under the studio light (the pack's corners shaded from the welded normals, STUDIO_SMOOTH_CREASE). The landmark pin
-    // re-pinned again for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis).
-    const PIN = { landmark: '6edfe45b4a5389a1', none: '6bb9c78313af5912' };
+    // re-pinned again for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis), then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull).
+    const PIN = { landmark: '1b56e397719b4acb', none: '6bb9c78313af5912' };
     // (on the streamlined core: the pins predate the structured core, DEFAULT_CORE, which moves both exports alike)
     for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer, core: 'streamlined' }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer, core: 'streamlined' }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });

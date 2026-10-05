@@ -1,0 +1,21 @@
+{
+  "title": "Outfit builds on the female cast",
+  "columns": [
+    {
+      "spec": "female-sundress.json",
+      "summary": "outfit { style: 'sundress' }: a woven dress, cap sleeves, an A-line skirt to the knee (one garment, the skirt a hull round both legs), a thin belt its focal, shoes."
+    },
+    {
+      "spec": "female-blouse.json",
+      "summary": "outfit { style: 'blouse' }: a woven long-sleeved blouse tucked into a pencil skirt at the knee, placket and buttons its focal, a belt and waistband, shoes."
+    },
+    {
+      "spec": "female-athleisure.json",
+      "summary": "outfit { style: 'athleisure' }: a knit crop top and knit leggings, ribbed edges, shoes."
+    },
+    {
+      "spec": "female-midi-guard.json",
+      "summary": "the sundress with a full midi skirt (language bottom { leg: 'midi', cut: 'full' }) in the guard: the skirt follows the legs."
+    }
+  ]
+}

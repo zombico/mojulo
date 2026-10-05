@@ -1,0 +1,13 @@
+{
+  "name": "build-athlete",
+  "$note": "outfit { style: 'athlete' }: a knit tank and knit shorts, shoes; ribbed edges and an elastic waistband, no belt (law 7).",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "athlete"
+    },
+    "gesture": "guard"
+  }
+}

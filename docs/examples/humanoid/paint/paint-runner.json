@@ -1,0 +1,19 @@
+{
+  "name": "paint-runner",
+  "$note": "Male, swimsuit body, a tank over leggings and socks.",
+  "hero": {
+    "cast": "male",
+    "detail": "swimsuit",
+    "paint": [
+      "leggings",
+      "tank",
+      "socks"
+    ],
+    "gesture": "relaxed"
+  },
+  "palette": {
+    "Top": "#d94f30",
+    "Bottom": "#1f2933",
+    "Shoes": "#e8e8e8"
+  }
+}

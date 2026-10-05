@@ -1,0 +1,17 @@
+{
+  "name": "paint-dancer",
+  "$note": "Female, swimsuit body, leotard over tights: second-skin paint (hero-dress.js PAINT_WORDS).",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "paint": [
+      "tights",
+      "leotard"
+    ],
+    "gesture": "relaxed"
+  },
+  "palette": {
+    "Top": "#2b2d42",
+    "Bottom": "#c9a0a8"
+  }
+}

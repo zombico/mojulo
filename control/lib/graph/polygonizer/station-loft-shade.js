@@ -224,8 +224,16 @@ function regionWeight(part, p, L) {
 
 /** The crease a hero under the STUDIO light is shaded smoothly at (world-kinds.js): the skin blends across edges up to
  * 70° (the face one form, the torso and the limbs muscle, not a grid), every other group at 35° (a hair lock, a cloth
- * edge and the swimsuit keep their edges). No head proxy: that belongs to the anime head's step. */
-export const STUDIO_SMOOTH_CREASE = deepFreeze({ Skin: 70, default: 35 });
+ * edge and the swimsuit keep their edges), and CLOTH (`$cloth`: a garment part's faces, body-garment.js, and the faces a
+ * second skin painted, body-paint.js) at 70° like the skin it lies on, so a shirt reads as one draped form and a boot's
+ * sole edge, a right angle, stays sharp. No head proxy: that belongs to the anime head's step. */
+export const STUDIO_SMOOTH_CREASE = deepFreeze({ Skin: 70, $cloth: 70, default: 35 });
+/** The cloth faces of a mesh by its recipe: every face of a part marked `garment`, and on a part marked `painted` (the
+ * groups its paint laid) each face in one of those groups; null when the recipe marks none */
+function clothFaces(mesh, recipe) {
+  const P = recipe.parts || {}; if (!Object.values(P).some((p) => p && (p.garment || p.painted))) return null;
+  return mesh.faces.map((_, fi) => { const p = P[partOf(mesh, fi)]; return !!p && (!!p.garment || (Array.isArray(p.painted) && p.painted.includes(mesh.groups[fi]))); });
+}
 /**
  * Per-face-corner shading normals `[fi][k] → [x, y, z]` (unit length), shaped like `mesh.faces`.
  *   crease   degrees: two faces of one weld bin join the same smooth FAN across an edge they share when their faces
@@ -255,8 +263,13 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
     return own.map((f, fi) => (rigid.has(partOf(mesh, fi)) ? still[fi] : f));
   }
   const V = mesh.vertices, F = mesh.faces, G = mesh.groups;
+  // cloth takes the crease `$cloth` names: its faces weld in groups of their own (a garment's Top apart from a painted
+  // body's Top), each at that crease; a crease without `$cloth`, or a recipe with no cloth, welds as before
+  const cloth = crease && typeof crease === 'object' && Number.isFinite(crease.$cloth) ? clothFaces(mesh, recipe) : null;
+  const GW = cloth ? G.map((g, fi) => (cloth[fi] ? `$cloth:${g}` : g)) : G;
+  const CW = cloth ? { ...crease, ...Object.fromEntries([...new Set(GW.filter((g) => g.startsWith('$cloth:')))].map((g) => [g, crease.$cloth])) } : crease;
   // the weld is topology: keyed on the REST positions, so a posed mesh welds exactly the corners its rest welds
-  const out = weldedNormals(V, F, G, rest.vertices, crease, quantum);
+  const out = weldedNormals(V, F, GW, rest.vertices, CW, quantum);
   if (!proxy) return out;
   const L = headProxyLandmarks(rest); if (!L) return out;
   const C = L.centre, zLo = L.bottom; const wOf = new Map(); const RV = rest.vertices; const posed = rest !== mesh; const NA = L.neck && neckAxis(V, L.neck);

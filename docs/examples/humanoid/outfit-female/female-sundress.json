@@ -1,0 +1,13 @@
+{
+  "name": "female-sundress",
+  "$note": "outfit { style: 'sundress' }: a woven dress, cap sleeves, an A-line skirt to the knee (one garment, the skirt a hull round both legs), a thin belt its focal, shoes.",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "sundress"
+    },
+    "gesture": "relaxed"
+  }
+}

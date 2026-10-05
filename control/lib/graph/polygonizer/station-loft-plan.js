@@ -51,6 +51,8 @@ import { headFromPlan, resolveExpression, insidePart } from './station-loft-head
 import { bakeLayered } from './station-loft-detail.js';
 import { bakeBody, validateBody } from './station-loft-body.js';
 import { bakeAdorn, validateKit } from './station-loft-adorn.js';
+import { paintParts, validatePaint } from './body-paint.js';
+import { garmentParts, validateGarments } from './body-garment.js';
 import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
@@ -248,6 +250,8 @@ export function validatePlan(plan) {
   }
   if (plan.body != null && (typeof plan.body !== 'object' || Array.isArray(plan.body))) fail('body must be an object of detail passes { refine?, volume?, creases?, tiles?, pads?, spurs?, rows?, collars? } (station-loft-body.js)');
   if (plan.adorn != null && !Array.isArray(plan.adorn)) fail('adorn must be a list of adornments [{ id, mode, part, …, signature }] (station-loft-adorn.js)');
+  for (const e of validatePaint(plan.paint)) fail(e);
+  for (const e of validateGarments(plan.garments)) fail(e);
   if (plan.emissive != null && !(Array.isArray(plan.emissive) && plan.emissive.every((g) => typeof g === 'string'))) fail('emissive must be a list of palette group names (they render full-bright: a lens, a visor slit, a reactor)');
   for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !includesOf(plan).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
   return true;
@@ -313,6 +317,11 @@ export function expandPlan(plan) {
       let lo = 0.2, hi = 1; if (!fits(lo)) continue;   // cannot seal by shrinking: left as authored (the seam gate reports it)
       for (let it = 0; it < 24; it++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
       const R = ring(lo); P.slots.forEach((sl, i) => { st.points[sl] = R[i].map(r6); }); } }
+  // garments with volume (body-garment.js): copied from the sealed body rings, beside their body part in every dial
+  if (plan.garments?.length) { for (const k of Object.keys(dials)) dials[k] = { ...dials[k] }; try { garmentParts(parts, plan.garments, dials); } catch (err) { fail(err.message); } }
+  // second-skin paint (body-paint.js) on the expanded rings — a segment's generated rings take it like a loft's, and a
+  // garment's, so an outfit's trims paint its hems and cuffs
+  if (plan.paint?.length) { try { paintParts(parts, plan.paint); } catch (err) { fail(err.message); } }
   const recipe = { schema: 'layered-v1', frame: plan.frame, symmetry: plan.symmetry || { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; side parts: right authored, left mirrored in x with R ↔ L renamed on the part and the slot' }, dials, parts, creases };
   if (palette) recipe.palette = palette;
   if (plan.emissive?.length) recipe.emissive = [...plan.emissive];   // groups that glow: baked full-bright, unshaded

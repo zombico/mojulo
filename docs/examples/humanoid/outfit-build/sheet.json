@@ -1,0 +1,21 @@
+{
+  "title": "Outfit builds",
+  "columns": [
+    {
+      "spec": "build-casual.json",
+      "summary": "outfit { style: 'casual' }: a knit tee worn out over woven trousers, boots; the belt the focal, ornament 2 (ribbed collar, cuffs and hem, a waistband)."
+    },
+    {
+      "spec": "build-office.json",
+      "summary": "outfit { style: 'office' }: a woven long-sleeved shirt with a collar, tucked into trousers, shoes; the collar the focal, ornament 3 (placket and buttons, cuffs, belt, side seams)."
+    },
+    {
+      "spec": "build-athlete.json",
+      "summary": "outfit { style: 'athlete' }: a knit tank and knit shorts, shoes; ribbed edges and an elastic waistband, no belt (law 7)."
+    },
+    {
+      "spec": "build-adventurer.json",
+      "summary": "outfit { style: 'adventurer' }: a woven tunic with \u00be sleeves worn out over trousers, belted over the tunic, boots; stylize 0.45, fit 0.7 (looser, the hems falling away)."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "female-athleisure",
+  "$note": "outfit { style: 'athleisure' }: a knit crop top and knit leggings, ribbed edges, shoes.",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "athleisure"
+    },
+    "gesture": "relaxed"
+  }
+}
