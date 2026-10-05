@@ -200,7 +200,7 @@ function buildCap(carrier, style, c) {
   if (style.sweptFringe && c.length !== 1) { const s = (c.length - 1) * 0.02; border[1][1] += s; border[0][1] += s * 0.6; }
   const rings = [lower, border, sample(0.25, 0.016 * V), mid, sample(0.82, 0.017 * V), top];
   const back = [0, -0.01, 0.10], tip = [-0.018, -0.005, 0.204 + (V - 1) * 0.03];
-  return { mesh: loftParts(rings, back, tip), lowK };
+  return { mesh: loftParts(rings, back, tip, { convex: true }), lowK };   // the outward diagonals: no chord sinks into the skull
 }
 
 /** The FALL: curtains hanging from just inside the cap's border. Every slot falls by its own fraction (the front slots

@@ -171,6 +171,9 @@ lands.
 - **The jaw seam.** A standing hero with the landmark head no longer shows a dark line from the mouth along the jaw to
   the ear when the head is turned: the jaw now turns exactly with the head, so it stays closed against the skull, and it
   still opens at its hinge.
+- **The hair over the temple.** The skull no longer pokes through the hair at the left temple like a horn: the hair's
+  cap is folded outward over the skull on both sides alike, where its left half used to sink between its points. Every
+  cut with a cap changes slightly, the anime cuts' cap under their locks too.
 - **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
   expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
   row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under
