@@ -12,6 +12,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### MIDI orchestra
+
+- **In progress.** The robot band learns styles from studied masters, written as manuals an agent reads
+  before composing, not as presets. The first is **robot rock**: the 16-bit action-game sound of a rock band
+  played by machines. The card `beats-robot-rock` (via `get_beats_vocab` or `semantic_search`) covers:
+  - one fixed band and one room for a whole game, with each stage choosing only what is wet;
+  - a riff-and-bass engine, with the bass answering the lead;
+  - an intensity ladder from stage select to final boss, with a form for each scenario: stage, boss,
+    fortress, select, victory;
+  - an element (water, fire, ice, machine) signalled inside the groove rather than by swapping the band;
+  - an 8-voice discipline.
+- It is white label: the manual names traits, never a franchise or composer.
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
