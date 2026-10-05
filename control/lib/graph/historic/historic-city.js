@@ -457,11 +457,14 @@ function emitHistoric(scene) {
   return css ? html.replace('<style>\n', `<style>\n${css}`) : html;
 }
 
-/** Metre masses → scene units: plain boxes for the box emitter, angled solids as their own faces. */
-function toScene(masses, s, us = UNIT_SCALE.aerial) {
+/**
+ * Metre masses → scene units: plain boxes for the box emitter, angled solids as their own faces.
+ * `focus` (metres): what directed skins face — a temple's sanctuary.
+ */
+function toScene(masses, s, us = UNIT_SCALE.aerial, focus) {
   const boxes = [], faces = [];
   for (const b of masses) {
-    const tile = { us, mpu: METRES_PER_UNIT };
+    const tile = { us, mpu: METRES_PER_UNIT, toward: focus && [focus[0] * s, focus[1] * s] };
     // a skinned box goes the solid way (an unleaning frustum) so its faces can wear the skin
     const m = b.skin && !b.solid ? { ...b, solid: 'frustum', top: { x: b.x, y: b.y, w: b.w, d: b.d } } : b;
     if (m.solid) { const fs = solidFaces(scaleSolid(m, s), SCENE_LIGHT, tile); faces.push(...(b.skin ? fs.map((f) => skinFace(f, b.skin, tile)) : fs)); continue; }
@@ -477,7 +480,7 @@ export function assembleHistoricCityScene(opts = {}) {
   const plan = planHistoricCity(opts);
   const view = opts.view === 'approach' || (opts.view && plan.views[opts.view]) ? opts.view : 'aerial';
   const s = 1 / METRES_PER_UNIT;
-  const { boxes, faces } = toScene(plan.boxes, s, UNIT_SCALE[view]);
+  const { boxes, faces } = toScene(plan.boxes, s, UNIT_SCALE[view], plan.focus);
   const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view]), grounds = G.grounds;
   faces.unshift(...G.faces);
   const W = plan.frame.w * s, Dd = plan.frame.d * s, pc = plan.stats.precinct;

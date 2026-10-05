@@ -144,29 +144,58 @@ export const colossus = {
   },
 };
 
-/** One ram-headed sphinx (criosphinx): a recumbent lion with a ram's head and curled horns, a small king between its paws. Front (−y) = its head. */
+/**
+ * One ram-headed sphinx (criosphinx), as Karnak's avenue has them: a lion lying on a moulded pedestal,
+ * its forelegs reaching forward, a rounded back and haunch, the tail along its flank. It has a ram's
+ * head:
+ *  - a rounded skull and a long nose, sloping down and forward;
+ *  - the striped headcloth falling over the shoulders, its lappets on the chest;
+ *  - the horns curled down round the ears.
+ * A small standing king stands between the paws, under the chin. Front (−y) = its head.
+ */
 function criosphinx(x0, y0, P) {
-  const s = P.sandstone, k = scaleHex(s, 0.94), out = [];
-  out.push(box('pedestal', x0, y0, 2.2, 5.6, 0, 1.0, scaleHex(s, 1.02)));
-  const cx = x0 + 1.1, y = y0 + 0.4, z = 1.0;
-  out.push(box('sphinx', cx - 0.7, y + 1.3, 1.4, 3.6, z, z + 1.3, k));                       // the body, lying
-  out.push(box('sphinx', cx - 0.75, y + 3.6, 1.5, 1.3, z, z + 1.55, k));                     // the haunches
-  for (const o of [-1, 1]) out.push(box('sphinx', cx + o * 0.45 - 0.22, y, 0.44, 1.5, z, z + 0.4, k));   // forelegs and paws
-  out.push(box('sphinx', cx - 0.65, y + 0.8, 1.3, 0.8, z, z + 1.9, k));                      // the chest
-  // the ram's head held high over the chest: a block skull, the long muzzle forward and down, the
-  // headcloth's lappets either side, the horns curling round beside it
-  out.push(box('sphinx', cx - 0.45, y + 0.75, 0.9, 1.0, z + 1.75, z + 2.7, k));
-  out.push({ kind: 'sphinx', solid: 'frustum', x: cx - 0.3, y: y + 0.25, w: 0.6, d: 0.6, z0: z + 1.7, z1: z + 2.45, top: { x: cx - 0.24, y: y + 0.4, w: 0.48, d: 0.45 }, tint: k });
-  for (const o of [-1, 1]) out.push(box('nemes', cx + o * 0.5 - 0.1, y + 0.85, 0.2, 0.7, z + 1.3, z + 2.5, scaleHex(P.blue, 1.4)));
-  for (const o of [-1, 1]) out.push({ kind: 'horn', solid: 'ring', x: cx + o * 0.66 - 0.3, y: y + 1.0, w: 0.6, d: 0.22, z0: z + 2.0, z1: z + 2.6, band: 0.17, tint: scaleHex(k, 0.86), plane: 'y' });
-  out.push(box('sphinx-king', cx - 0.25, y + 0.15, 0.5, 0.45, z, z + 1.25, scaleHex(k, 0.9)));   // the king, small, between the paws
+  const s = P.sandstone, k = scaleHex(s, 0.94), cloth = scaleHex(P.blue, 1.4), horn = scaleHex(k, 0.84), out = [];
+  const cx = x0 + 1.1, y = y0 + 0.25, z = 1.0;
+  // the pedestal: a plinth, the die, a projecting cap
+  out.push(box('pedestal', x0, y0, 2.2, 5.6, 0, 0.2, scaleHex(s, 0.98)), box('pedestal', x0 + 0.1, y0 + 0.1, 2, 5.4, 0.2, 0.86, scaleHex(s, 1.02)), box('pedestal', x0 + 0.05, y0 + 0.05, 2.1, 5.5, 0.86, z, s));
+  // the lion: the back a barrel, the shoulders and the haunch rounded, the hind paws tucked at its sides
+  out.push({ kind: 'sphinx', solid: 'vault', axis: 'y', x: cx - 0.6, y: y + 1.6, w: 1.2, d: 2.4, z0: z, z1: z + 1.25, tint: k });
+  out.push({ kind: 'sphinx', solid: 'dome', sides: 8, x: cx - 0.68, y: y + 0.95, w: 1.36, d: 1.7, z0: z, z1: z + 1.6, tint: k });
+  out.push({ kind: 'sphinx', solid: 'dome', sides: 8, x: cx - 0.74, y: y + 3.3, w: 1.48, d: 1.75, z0: z, z1: z + 1.42, tint: k });
+  for (const o of [-1, 1]) out.push({ kind: 'sphinx', solid: 'frustum', x: cx + o * 0.66 - 0.17, y: y + 3.05, w: 0.34, d: 0.75, z0: z, z1: z + 0.26, top: { x: cx + o * 0.66 - 0.13, y: y + 3.15, w: 0.26, d: 0.55 }, tint: k });
+  out.push({ kind: 'sphinx', solid: 'frustum', x: cx + 0.66, y: y + 2.4, w: 0.13, d: 1.7, z0: z, z1: z + 0.13, top: { x: cx + 0.67, y: y + 2.45, w: 0.1, d: 1.6 }, tint: scaleHex(k, 0.96) });   // the tail along the flank
+  // the forelegs: forearms rising from the paws into the chest; paws rounded at the toes
+  for (const o of [-1, 1]) {
+    out.push({ kind: 'sphinx', solid: 'wedge', rise: 'y+', x: cx + o * 0.42 - 0.2, y: y + 0.35, w: 0.4, d: 1.25, z0: z, z1: z + 0.6, tint: k });
+    out.push({ kind: 'sphinx', solid: 'frustum', x: cx + o * 0.42 - 0.23, y: y, w: 0.46, d: 0.5, z0: z, z1: z + 0.28, top: { x: cx + o * 0.42 - 0.19, y: y + 0.1, w: 0.38, d: 0.36 }, tint: k });
+  }
+  // the chest, leaning back as it rises, under the headcloth that falls over the shoulders
+  out.push({ kind: 'sphinx', solid: 'frustum', x: cx - 0.55, y: y + 0.72, w: 1.1, d: 1, z0: z, z1: z + 1.35, top: { x: cx - 0.46, y: y + 0.9, w: 0.92, d: 0.8 }, tint: k });
+  out.push({ kind: 'sphinx', solid: 'dome', sides: 10, x: cx - 0.7, y: y + 0.85, w: 1.4, d: 1.3, z0: z + 0.9, z1: z + 2.25, tint: scaleHex(k, 0.97) });   // the headcloth's fall over the shoulders
+  for (const o of [-1, 1]) out.push({ kind: 'nemes', solid: 'frustum', x: cx + o * 0.4 - 0.12, y: y + 0.74, w: 0.24, d: 0.16, z0: z + 1.2, z1: z + 2.2, top: { x: cx + o * 0.34 - 0.1, y: y + 0.84, w: 0.2, d: 0.14 }, tint: cloth });
+  // the ram's head: a rounded skull, the long nose sloping down and forward to a rounded muzzle
+  out.push({ kind: 'sphinx', solid: 'frustum', x: cx - 0.3, y: y + 0.5, w: 0.6, d: 0.78, z0: z + 1.75, z1: z + 2.3, top: { x: cx - 0.32, y: y + 0.52, w: 0.64, d: 0.78 }, tint: k });
+  out.push({ kind: 'sphinx', solid: 'dome', sides: 8, x: cx - 0.32, y: y + 0.5, w: 0.64, d: 0.8, z0: z + 2.3, z1: z + 2.72, tint: k });
+  out.push({ kind: 'sphinx', solid: 'frustum', x: cx - 0.17, y: y + 0.08, w: 0.34, d: 0.42, z0: z + 1.74, z1: z + 2.58, top: { x: cx - 0.26, y: y + 0.44, w: 0.52, d: 0.44 }, tint: k });
+  out.push({ kind: 'sphinx', solid: 'dome', sides: 6, x: cx - 0.17, y: y + 0.06, w: 0.34, d: 0.32, z0: z + 1.68, z1: z + 1.88, tint: scaleHex(k, 0.97) });
+  for (const o of [-1, 1]) {
+    out.push(box('sphinx-eye', cx + o * 0.27 - 0.04, y + 0.6, 0.08, 0.12, z + 2.3, z + 2.37, DARK));
+    out.push({ kind: 'sphinx', solid: 'frustum', x: cx + (o > 0 ? 0.34 : -0.66), y: y + 0.82, w: 0.32, d: 0.14, z0: z + 2.06, z1: z + 2.16, top: { x: cx + (o > 0 ? 0.34 : -0.62), y: y + 0.84, w: 0.28, d: 0.1 }, tint: k });   // the ears, drooping out
+    // Amun's horns curling down round the ear: a broad outer coil and the tighter turn within it
+    out.push({ kind: 'horn', solid: 'ring', plane: 'y', x: cx + (o > 0 ? 0.3 : -0.46), y: y + 0.62, w: 0.16, d: 0.72, z0: z + 1.86, z1: z + 2.58, band: 0.17, tint: horn });
+    out.push({ kind: 'horn', solid: 'ring', plane: 'y', x: cx + (o > 0 ? 0.44 : -0.55), y: y + 0.8, w: 0.11, d: 0.36, z0: z + 2.04, z1: z + 2.4, band: 0.12, tint: scaleHex(horn, 0.94) });
+  }
+  // the king between the paws: a standing, close-wrapped figure in the nemes, on its own little base
+  out.push(box('sphinx-king', cx - 0.2, y + 0.08, 0.4, 0.36, z, z + 0.08, scaleHex(k, 0.92)));
+  out.push(drum(cx, y + 0.26, 0.16, z + 0.08, z + 1.08, scaleHex(k, 0.9), { kind: 'sphinx-king', sides: 8, taper: 0.82 }));
+  out.push({ kind: 'nemes', solid: 'frustum', x: cx - 0.13, y: y + 0.18, w: 0.26, d: 0.18, z0: z + 1.0, z1: z + 1.28, top: { x: cx - 0.09, y: y + 0.19, w: 0.18, d: 0.15 }, tint: scaleHex(cloth, 0.85) });
   return out;
 }
 /** A row of criosphinxes along the slot's width, each on its pedestal, heads to the front (the way). */
 export const sphinxRow = {
   id: 'eg-sphinx-row', sheet: 'eg-sphinx', designed: true, patterns: ['guardians', 'processional-axis'],
   read: 'Ram-headed sphinxes in a row, each on its own pedestal, facing the processional way.',
-  notes: ['Each 2.2 × 5.6 m on a 1 m pedestal; ram head and ring horns; a small king between the paws.', 'Spaced every ~4.2 m along the slot.'],
+  notes: ['Each 2.2 × 5.6 m on a moulded 1 m pedestal; a barrel back, rounded shoulders and haunch, forelegs rising into the chest; a ram head with domed skull, sloping nose and coiled horns; a small standing king between the paws.', 'Spaced every ~4.2 m along the slot.'],
   envelope: { w: [20, 60], d: [5.6, 6.2] },
   build({ W }, { palette: P }) {
     const every = 4.2, n = Math.max(1, Math.floor((W + 2) / every)), x0 = (W - (n - 1) * every - 2.2) / 2, out = [];

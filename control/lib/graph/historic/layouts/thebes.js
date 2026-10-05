@@ -203,6 +203,7 @@ export function planRiverAxis({ seed = 1, culture = 'thebes', frame = { w: 440, 
   skinLoose(boxes, K);
   return {
     boxes, grounds, views, frame: { w: Wf, d: Df }, slots,
+    focus: [sanct.x + sanct.w / 2, ay],   // the temple's reliefs face its sanctuary
     stats: {
       culture, houses: slots.filter((q) => q.asset === 'eg-house').length, villas: slots.filter((q) => q.asset === 'eg-villa').length,
       palms, precinct: temenos, axis: { y: ay, quay: qx, pylon: pf, court: court.x, pylon2: pylon2.x, hypostyle: hyp.x, sanctuary: sanct.x },

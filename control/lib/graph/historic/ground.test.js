@@ -68,6 +68,23 @@ describe('historic wall skins: what a wall is made of', () => {
     const roof = { corners: [[0, 0, 3], [1, 0, 3], [1, 1, 3], [0, 1, 3]], fill: '#a08060' };
     expect(skinFace(roof, 'mudbrick', { us: 10, mpu: 1 })).toBe(roof);
   });
+  it('temple reliefs: whole registers up each wall, the scenes facing into the temple', () => {
+    // a wall 9 m tall along +x: three registers of 3 m, counted from its foot
+    const wall = (z0, h) => ({ corners: [[0, 0, z0 + h], [16, 0, z0 + h], [16, 0, z0], [0, 0, z0]], fill: '#cdb48a' });
+    const vs = (f) => f.uv.map((q) => q[1]);
+    const f = skinFace(wall(0.5, 9), 'painted-relief', { us: 10, mpu: 1 });
+    expect(Math.max(...vs(f)) - Math.min(...vs(f))).toBeCloseTo(3);
+    expect(Math.min(...vs(f))).toBeCloseTo(0);
+    // toward a sanctuary at +x the tile stands as drawn; toward −x it is mirrored, in both renderers
+    const fwd = skinFace(wall(0, 6), 'painted-relief', { us: 10, mpu: 1, toward: [100, 0] });
+    const back = skinFace(wall(0, 6), 'painted-relief', { us: 10, mpu: 1, toward: [-100, 0] });
+    expect(fwd.skin).toBe('historic-skin-painted-relief-0');
+    expect(back.skin).toBe('historic-skin-painted-relief-4');
+    expect(back.uv[1][0]).toBeCloseTo(-fwd.uv[1][0]);
+    expect(skinTile('painted-relief', 4)).not.toBe(skinTile('painted-relief', 0));
+    // undirected skins never mirror
+    expect(skinFace(wall(0, 6), 'sandstone', { us: 10, mpu: 1, toward: [-100, 0] }).skin).toBe('historic-skin-sandstone-0');
+  });
   it('Sumer: houses in mud render, the wall in bare brick, the ziggurat cased in baked brick, the pale whitewashed', () => {
     expect(skinFor(SUMER, { kind: 'house', tint: '#b49b76' })).toBe('mud-plaster');
     expect(skinFor(SUMER, { kind: 'house', tint: '#ece6d8' })).toBe('lime-plaster');

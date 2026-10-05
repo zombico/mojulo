@@ -11,6 +11,7 @@
  */
 import zlib from 'node:zlib';
 import { encodePng, registerTextureResolver } from '../landscape/surface-textures.js';
+import { relief, ell, quad, PIG, sceneRegister, smitingScene, columnScene, caption } from './skin-art.js';
 
 /** Surfaces, and how many metres one tile covers. */
 export const GROUND_SURFACES = { mud: 4, rubble: 3, brick: 2.4, 'dry-earth': 6, 'cone-mosaic': 1.6, flagstone: 6 };   // the mosaic's cones are drawn large: a big read, not a count
@@ -187,10 +188,16 @@ export const WALL_SKINS = {
   'gypsum-wash': [4, 4],     // the Egyptian whitewash: gypsum (lime is Ptolemaic) — the same faint mottle and cracks
   'nile-brick': [2.4, 2.4],  // Egyptian mud brick: big dark Nile-mud bricks in plain courses, a header course now and then
   sandstone: [6, 4],         // ashlar: courses of uneven height, blocks of uneven length, fine joints, bedding streaks
-  'painted-relief': [8, 6],  // a temple wall: sandstone ashlar carved in sunk relief — a text band over a register of figures — and painted
-  'painted-bands': [2.4, 3], // a column shaft: drum joints, bands of colour, a row of cartouches
+  'painted-relief': [16, 3.2], // a temple wall: one register of ritual scenes, carved in sunk relief and painted (repeated up the wall)
+  'painted-bands': [2.4, 3], // a column shaft: drum joints, bands of colour, a row of cartouches, the king before Amun
   'pylon-relief': [26, 24],  // a pylon tower's face: ONE colossal scene — the king smiting his enemies before the god — under text columns
 };
+/** Tile widths in px where 320 is too coarse for the figures drawn on them. */
+const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520 };
+/** Skins whose tile is one register: a face fits a whole number of them, from its foot to its top. */
+const SKIN_FIT = new Set(['painted-relief']);
+/** Skins drawn facing +x (into the temple): a face whose run points away from `toward` wears them mirrored. */
+const SKIN_DIRECTED = new Set(['painted-relief', 'pylon-relief']);
 
 const DARK = [52, 34, 18], LIGHT = [255, 246, 226];
 // an overlay pixel: k > 0 lightens, k < 0 darkens (alpha |k|)
@@ -254,56 +261,6 @@ function ashlar(o, rng, { course = [0.12, 0.2], block = [0.18, 0.42], jointK = 0
     }
   }
 }
-// a filled shape on the overlay: `inside(x, y)` over a box; sunk relief cuts its outline in (a shadow
-// on the upper-left edge, light on the lower-right), then the paint lies in the cut
-function relief(o, [x0, y0, x1, y1], inside, col, al, { cut = 0.32 } = {}) {
-  for (let y = Math.floor(y0) - 1; y <= Math.ceil(y1) + 1; y++) for (let x = Math.floor(x0) - 1; x <= Math.ceil(x1) + 1; x++) {
-    if (!inside(x, y)) continue;
-    const edgeUL = !inside(x - 1, y) || !inside(x, y - 1), edgeLR = !inside(x + 1, y) || !inside(x, y + 1);
-    if (edgeUL) o.add(x, y, -cut); else if (edgeLR) o.add(x, y, cut * 0.4);
-    if (col) o.paint(x, y, col, al);
-  }
-}
-const ell = (cx, cy, rx, ry) => (x, y) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
-const quad = (pts) => (x, y) => { let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside; } return inside; };
-const PIG = { blue: [47, 95, 158], red: [168, 68, 46], skin: [150, 78, 48], yellow: [210, 162, 60], white: [236, 230, 214], green: [63, 122, 90], black: [40, 34, 30] };
-// a striding figure in profile, feet on `base`, `h` px tall, facing +x (dir 1) or −x: crown, head, collar,
-// bare torso, white kilt, legs apart — the canon read at a glance
-function figure(o, cx, base, h, dir, { crown = 'tall', al = 0.55, smite = false, kneel = false } = {}) {
-  if (kneel) {   // a bound captive kneeling, smaller, arms behind
-    const u = h / 5, f = (dx) => cx + dir * dx;
-    relief(o, [cx - 1.6 * u, base - 2.2 * u, cx + 1.6 * u, base], quad([[f(-1.2 * u), base], [f(1.4 * u), base], [f(0.6 * u), base - 2.2 * u], [f(-0.6 * u), base - 2.2 * u]]), PIG.skin, al);
-    relief(o, [cx - 1 * u, base - 4 * u, cx + 1 * u, base - 2 * u], quad([[f(-0.6 * u), base - 2.1 * u], [f(0.6 * u), base - 2.1 * u], [f(0.8 * u), base - 3.8 * u], [f(-0.7 * u), base - 3.8 * u]]), PIG.yellow, al);
-    relief(o, [cx - 0.7 * u, base - 4.9 * u, cx + 0.7 * u, base - 3.7 * u], ell(f(0.1 * u), base - 4.3 * u, 0.55 * u, 0.55 * u), PIG.skin, al);
-    return;
-  }
-  const u = h / 8, f = (dx) => cx + dir * dx;
-  const legs = quad([[f(-0.9 * u), base], [f(-0.5 * u), base - 3.6 * u], [f(0.5 * u), base - 3.6 * u], [f(1.6 * u), base], [f(0.9 * u), base], [f(0.1 * u), base - 2.4 * u], [f(-0.3 * u), base]]);
-  relief(o, [cx - 2 * u, base - 4 * u, cx + 2 * u, base], legs, PIG.skin, al);
-  relief(o, [cx - 1.4 * u, base - 4.6 * u, cx + 1.4 * u, base - 2.6 * u], quad([[f(-1.1 * u), base - 2.7 * u], [f(1.3 * u), base - 2.7 * u], [f(0.8 * u), base - 4.4 * u], [f(-0.8 * u), base - 4.4 * u]]), PIG.white, al);   // kilt
-  relief(o, [cx - 1.3 * u, base - 6.6 * u, cx + 1.3 * u, base - 4.3 * u], quad([[f(-0.8 * u), base - 4.4 * u], [f(0.8 * u), base - 4.4 * u], [f(1.2 * u), base - 6.4 * u], [f(-1.1 * u), base - 6.4 * u]]), PIG.skin, al);   // torso
-  relief(o, [cx - 1.2 * u, base - 6.5 * u, cx + 1.2 * u, base - 6.0 * u], ell(cx, base - 6.3 * u, 1.15 * u, 0.32 * u), PIG.blue, al);   // broad collar
-  relief(o, [cx - 0.7 * u, base - 7.4 * u, cx + 0.8 * u, base - 6.5 * u], ell(f(0.1 * u), base - 6.95 * u, 0.55 * u, 0.5 * u), PIG.skin, al);   // head
-  if (crown === 'tall') relief(o, [cx - 0.5 * u, base - 8.6 * u, cx + 0.5 * u, base - 7.2 * u], quad([[f(-0.45 * u), base - 7.2 * u], [f(0.45 * u), base - 7.2 * u], [f(0.25 * u), base - 8.5 * u], [f(-0.15 * u), base - 8.5 * u]]), PIG.white, al);
-  else relief(o, [cx - 0.8 * u, base - 7.9 * u, cx + 0.8 * u, base - 6.9 * u], quad([[f(-0.7 * u), base - 6.6 * u], [f(0.5 * u), base - 7.5 * u], [f(0.6 * u), base - 7.0 * u], [f(-0.6 * u), base - 6.4 * u]]), PIG.blue, al);   // a wig
-  if (smite) {   // the arm raised high behind the head, a mace in the fist; the other arm forward, grasping
-    relief(o, [cx - 2.4 * u, base - 9.4 * u, cx + 2.4 * u, base - 5.6 * u], quad([[f(-0.6 * u), base - 6.2 * u], [f(-0.2 * u), base - 6.5 * u], [f(-1.0 * u), base - 9.0 * u], [f(-1.4 * u), base - 8.8 * u]]), PIG.skin, al);
-    relief(o, [cx - 2.6 * u, base - 10 * u, cx + 0.4 * u, base - 8.4 * u], ell(f(-1.3 * u), base - 9.3 * u, 0.5 * u, 0.42 * u), PIG.white, al);
-    relief(o, [cx - 2 * u, base - 6 * u, cx + 3.2 * u, base - 5 * u], quad([[f(0.6 * u), base - 6.1 * u], [f(3.0 * u), base - 5.4 * u], [f(3.0 * u), base - 5.05 * u], [f(0.6 * u), base - 5.6 * u]]), PIG.skin, al);
-    return;
-  }
-  // the arm reaching forward with an offering
-  relief(o, [cx - 2 * u, base - 6 * u, cx + 2.4 * u, base - 5 * u], quad([[f(0.6 * u), base - 6.1 * u], [f(2.2 * u), base - 5.6 * u], [f(2.2 * u), base - 5.25 * u], [f(0.6 * u), base - 5.6 * u]]), PIG.skin, al);
-}
-// a column of glyphs: small cut signs, some painted, in a framed column `w` px wide
-function glyphColumn(o, x, y0, y1, w, rng, al) {
-  for (let y = y0; y < y1 - w * 0.6; y += w * 0.9) {
-    const t = rng(), cx = x + w / 2, cy = y + w * 0.4, col = t < 0.3 ? PIG.blue : t < 0.5 ? PIG.yellow : t < 0.65 ? PIG.red : PIG.green;
-    const shape = t < 0.25 ? ell(cx, cy, w * 0.32, w * 0.2) : t < 0.5 ? quad([[cx - w * 0.3, cy + w * 0.25], [cx + w * 0.3, cy + w * 0.25], [cx, cy - w * 0.3]]) : t < 0.75 ? quad([[cx - w * 0.32, cy - w * 0.08], [cx + w * 0.32, cy - w * 0.08], [cx + w * 0.32, cy + w * 0.08], [cx - w * 0.32, cy + w * 0.08]]) : ell(cx, cy, w * 0.12, w * 0.3);
-    relief(o, [cx - w / 2, cy - w / 2, cx + w / 2, cy + w / 2], shape, col, al, { cut: 0.28 });
-  }
-  for (const xx of [x, x + w]) for (let y = y0; y < y1; y++) o.add(xx, y, -0.18);
-}
 
 const SKIN_BAKERS = {
   // bare sun-dried brick: bold courses with relief, a reed-mat layer every eighth course, one
@@ -333,37 +290,34 @@ const SKIN_BAKERS = {
   },
   sandstone(o, rng) { ashlar(o, rng); },
   'gypsum-wash'(o, rng) { SKIN_BAKERS['lime-plaster'](o, rng); },
-  // a temple wall: ashlar, a text band (columns of signs) over a register of striding figures, a ground
-  // line and a sky band, carved in sunk relief and painted; the paint weathered, not new
+  // a temple wall: ONE register of scenes (./skin-art.js) on sandstone ashlar, between a ground line and
+  // a border, carved in sunk relief and painted, the paint weathered. A wall wears as many registers as
+  // fit its height (`SKIN_FIT`), every scene facing into the temple (`SKIN_DIRECTED`).
   'painted-relief'(o, rng) {
-    ashlar(o, rng, { course: [0.1, 0.16], block: [0.12, 0.3], jointK: 0.16, toneK: 0.05 });
-    const { W, H } = o, top = H * 0.04, text = H * 0.24, base = H * 0.95;
-    for (let x = 0; x < W; x++) { for (let y = 0; y < top; y++) o.paint(x, y, PIG.blue, 0.5); for (let y = Math.floor(base); y < Math.floor(base + H * 0.02); y++) o.add(x, y, -0.4); for (let y = Math.floor(text); y < Math.floor(text + 2); y++) o.add(x, y, -0.35); }
-    const cw = W / 22; for (let i = 0; i < 22; i++) glyphColumn(o, i * cw, top + 3, text - 2, cw, rng, 0.45);
-    const fh = (base - text) * 0.86, n = 3;
-    for (let i = 0; i < n; i++) figure(o, W * (i + 0.5) / n + (i === 0 ? W * 0.04 : 0), base - 1, fh, i === 0 ? 1 : -1, { crown: i === 0 ? 'tall' : 'wig', al: 0.5 });
+    ashlar(o, rng, { course: [0.12, 0.2], block: [0.04, 0.09], jointK: 0.16, toneK: 0.05 });
+    const { W, H } = o, base = H - 4;
+    for (let x = 0; x < W; x++) { for (let y = base; y < H - 1; y++) o.add(x, y, -0.35); for (let y = 0; y < 2; y++) o.add(x, y, -0.25); }
+    sceneRegister(o, rng, { base, top: 3, al: 0.6 });
   },
-  // a pylon tower: the colossal scene the temple shows the town — the king, three times a man's height,
-  // striding with his mace raised over a knot of kneeling captives, the god facing him; text above
+  // a pylon tower: the colossal scene the temple shows the town (./skin-art.js `smitingScene`) under
+  // columns of text, facing the gate
   'pylon-relief'(o, rng) {
     ashlar(o, rng, { course: [0.04, 0.08], block: [0.05, 0.12], jointK: 0.14, toneK: 0.05 });
-    const { W, H } = o, base = H * 0.93, top = H * 0.03, text = H * 0.3;
+    const { W, H } = o, base = H * 0.93, top = H * 0.03, text = H * 0.22;
     for (let x = 0; x < W; x++) { for (let y = 0; y < top; y++) o.paint(x, y, PIG.blue, 0.5); for (let y = Math.floor(base); y < Math.floor(base + 3); y++) o.add(x, y, -0.4); }
-    const cw = W / 30; for (let i = 0; i < 30; i++) glyphColumn(o, i * cw, top + 2, text, cw, rng, 0.45);
-    figure(o, W * 0.34, base - 1, (base - text) * 0.72, 1, { crown: 'tall', al: 0.55, smite: true });
-    for (let i = 0; i < 4; i++) figure(o, W * (0.5 + i * 0.045), base - 1 - (i % 2) * 3, (base - text) * 0.32, -1, { kneel: true, al: 0.5 });
-    figure(o, W * 0.8, base - 1, (base - text) * 0.8, -1, { crown: 'tall', al: 0.55 });
+    const cw = W / 34; for (let i = 0; i < 34; i++) caption(o, i * cw, top + 2, text, cw, i < 17 ? 1 : -1, rng, 0.5);
+    smitingScene(o, rng, { base: base - 1, textTop: text + 6, al: 0.6 });
   },
-  // a column shaft: drum joints, a yellow band of cartouches between blue and red rings
+  // a column shaft: drum joints, a yellow band of cartouches between blue and red rings, and low on the
+  // shaft the king offering to Amun
   'painted-bands'(o, rng) {
     const { W, H } = o, n = noise(W, 8, rng);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) o.a[y * W + x] += (y % Math.round(H / 3.3) < 1.4 ? -0.24 : 0) + (n(x, y) - 0.5) * 0.06;
     const band = (y0, h, col, al) => { for (let y = Math.floor(y0); y < Math.floor(y0 + h); y++) for (let x = 0; x < W; x++) o.paint(x, y, col, al); };
-    const y = H * 0.18;
+    const y = H * 0.12;
     band(y, H * 0.03, PIG.blue, 0.55); band(y + H * 0.03, H * 0.015, PIG.red, 0.55); band(y + H * 0.045, H * 0.2, PIG.yellow, 0.32); band(y + H * 0.245, H * 0.03, PIG.blue, 0.55);
-    for (let i = 0; i < 4; i++) { const cx = (i + 0.5) * W / 4, cy = y + H * 0.145; relief(o, [cx - W / 10, cy - H * 0.08, cx + W / 10, cy + H * 0.08], ell(cx, cy, W / 11, H * 0.075), PIG.white, 0.35); glyphColumn(o, cx - W / 22, cy - H * 0.06, cy + H * 0.06, W / 11, rng, 0.4); }
-    // a register of figures low on the shaft
-    for (let i = 0; i < 2; i++) figure(o, (i + 0.5) * W / 2, H * 0.92, H * 0.4, i ? -1 : 1, { crown: 'wig', al: 0.45 });
+    for (let i = 0; i < 4; i++) { const cx = (i + 0.5) * W / 4; caption(o, cx - W / 18, y + H * 0.055, y + H * 0.235, W / 9, 1, rng, 0.45, { cart: true }); }
+    columnScene(o, rng, { base: H * 0.95, top: y + H * 0.31, al: 0.55 });
   },
   'mud-plaster'(o, rng) {
     const n = noise(o.W, 5, rng), m = noise(o.W, 22, rng);
@@ -441,21 +395,23 @@ function skinWorldTile(skin) {
 registerTextureResolver('hskin-', (key) => (WALL_SKINS[key.slice(6)] ? skinWorldTile(key.slice(6)) : null));
 /**
  * The overlay PNG for a skin. `turn`: 0 as drawn (x along the wall, y down), 1 flipped (y up),
- * 2 transposed (x down the wall), 3 transposed and flipped — a face's u/v may run either way.
+ * 2 transposed (x down the wall), 3 transposed and flipped — a face's u/v may run either way; plus 4
+ * mirrored along the wall (a directed skin on a wall that runs the other way).
  */
 export function skinTile(skin, turn = 0) {
   const key = `${skin}|${turn}`;
   if (!skinCache.has(key)) {
     const bake = SKIN_BAKERS[skin];
     if (!bake) throw new Error(`unknown wall skin '${skin}'`);
-    const [mw, mh] = WALL_SKINS[skin], W = 320, H = Math.round((W * mh) / mw);
+    const [mw, mh] = WALL_SKINS[skin], W = SKIN_PX[skin] || 320, H = Math.round((W * mh) / mw);
     let seed = 0; for (const c of skin) seed = Math.imul(seed ^ c.charCodeAt(0), 16777619) >>> 0;
     const o = overlay([W, H]); bake(o, rngOf(seed));
-    const tr = turn >= 2, flip = turn % 2 === 1, OW = tr ? H : W, OH = tr ? W : H;
+    const tr = (turn & 2) !== 0, flip = (turn & 1) !== 0, mirror = (turn & 4) !== 0, OW = tr ? H : W, OH = tr ? W : H;
     const px = Buffer.alloc(OW * OH * 4);
     for (let y = 0; y < OH; y++) for (let x = 0; x < OW; x++) {
       let sx = tr ? y : x, sy = tr ? x : y;
       if (flip) sy = H - 1 - sy;
+      if (mirror) sx = W - 1 - sx;
       const j = sy * W + sx, k = Math.max(-0.85, Math.min(0.85, o.a[j])), col = k < 0 ? DARK : LIGHT, i = (y * OW + x) * 4;
       // the relief's light and shade, then its paint over it (alpha "over")
       const ab = Math.abs(k), p = o.pa[j], al = p + ab * (1 - p);
@@ -472,21 +428,29 @@ export function skinTile(skin, turn = 0) {
  * pinned to world height and to the run of the wall so neighbouring faces' courses line up.
  * Upright quads only (a triangle is painted by gradient, a mask would stall the page).
  */
-export function skinFace(f, skin, { us, mpu }) {
+export function skinFace(f, skin, { us, mpu, toward }) {
   const c = f.corners;
   if (!WALL_SKINS[skin] || c.length !== 4 || typeof f.fill !== 'string' || f.bg) return f;
   const U = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], V = [c[3][0] - c[0][0], c[3][1] - c[0][1], c[3][2] - c[0][2]];
   const nz = Math.abs(U[0] * V[1] - U[1] * V[0]) / (Math.hypot(...U) * Math.hypot(...V) || 1);
   if (nz > 0.6) return f;   // a roof, a tread: not a wall face
-  const [mw, mh] = WALL_SKINS[skin], tw = mw / mpu, th = mh / mpu;
+  const [mw, mh] = WALL_SKINS[skin], tw = mw / mpu;
+  let th = mh / mpu, z0 = 0;
+  // a register skin fits the face: as many whole registers as its height holds, counted from its foot
+  if (SKIN_FIT.has(skin)) { const zs = c.map((p) => p[2]), fh = Math.max(...zs) - Math.min(...zs); if (fh > th * 0.5) { th = fh / Math.max(1, Math.round(fh / th)); z0 = Math.min(...zs); } }
   const tr = Math.abs(U[2]) > Math.abs(V[2]), up = (tr ? U[2] : V[2]) > 0, H = tr ? V : U;
-  const hl = Math.hypot(H[0], H[1]) || 1, run = (c[0][0] * H[0] + c[0][1] * H[1]) / hl;
+  const hl = Math.hypot(H[0], H[1]) || 1, runOf = (p) => (p[0] * H[0] + p[1] * H[1]) / hl, run = runOf(c[0]);
+  // a scene skin is centred on its face (a pylon tower shows its one scene whole); courses keep to the world grid
+  const runs = c.map(runOf), anchor = SKIN_DIRECTED.has(skin) ? (Math.min(...runs) + Math.max(...runs) - tw) / 2 : 0;
+  // a directed skin faces into the temple: mirror it where the wall's run points away from `toward`
+  const mx = c.reduce((a, p) => a + p[0], 0) / 4, my = c.reduce((a, p) => a + p[1], 0) / 4;
+  const mirror = !!toward && SKIN_DIRECTED.has(skin) && (toward[0] - mx) * H[0] + (toward[1] - my) * H[1] < 0;
   const mod = (v, m) => ((v % m) + m) % m;
-  const along = -mod(run, tw) * us, high = -(up ? mod(c[0][2], th) : mod(-c[0][2], th)) * us;
+  const along = -mod(run - anchor, tw) * us, high = -(up ? mod(c[0][2] - z0, th) : mod(-(c[0][2] - z0), th)) * us;
   const [ox, oy, sw, sh] = tr ? [high, along, th * us, tw * us] : [along, high, tw * us, th * us];
-  const key = `historic-skin-${skin}-${(tr ? 2 : 0) + (up ? 1 : 0)}`;
+  const key = `historic-skin-${skin}-${(tr ? 2 : 0) + (up ? 1 : 0) + (mirror ? 4 : 0)}`;
   // the WebGL World: the same skin as an opaque texture multiplied by the face's lit colour, mapped
   // by world position (u along the wall's run, v up the wall) so the courses line up there too
-  const uv = c.map((p) => [(p[0] * H[0] + p[1] * H[1]) / hl / tw, p[2] / th]);
+  const uv = c.map((p) => [((mirror ? -1 : 1) * (runOf(p) - anchor)) / tw, (p[2] - z0) / th]);
   return { ...f, skin: key, bg: `var(--${key}) ${ox.toFixed(2)}px ${oy.toFixed(2)}px / ${sw.toFixed(2)}px ${sh.toFixed(2)}px repeat, ${f.fill}`, texture: `hskin-${skin}`, uv, textureLit: true };
 }

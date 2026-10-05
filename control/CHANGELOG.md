@@ -65,6 +65,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   pylon, a court and a hypostyle hall to the sanctuary, a sacred lake, and an unwalled town of
   mudbrick houses and villas. Each culture now brings its own layout; the grid, alleys, house lots
   and slot placement are shared.
+- Thebes' temple walls show figures drawn to the Egyptian canon instead of one repeated group: the
+  king in the blue crown making offerings to Amun, Mut, Khonsu and Ra-Horakhty, each god with their
+  own crown and emblems, in a set of different ritual scenes with hieroglyph captions and
+  cartouches. Each wall gets whole registers of scenes, and every scene faces into the temple; each
+  pylon tower shows one smiting scene, centred, with the god standing by the gate.
+- Thebes' ram-headed sphinxes are modelled in rounded forms instead of blocks: a barrel back,
+  rounded shoulders and haunch, forelegs rising into the chest, a ram's head with a long sloping nose
+  and horns curled round the ears, on a moulded pedestal. Small carved parts on every asset no longer
+  show a jagged fringe at their edges.
 
 ## [3.0.0] - 2026-10-01
 
