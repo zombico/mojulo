@@ -16,6 +16,7 @@ export const SUMER = {
   place: 'southern Mesopotamia',
   region: 'mesopotamia',
   aliases: ['sumerian', 'uruk', 'eridu', 'ziggurat', 'shumer', 'early dynastic'],   // what people call it (search)
+  soundtrack: 'sumer',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   // what its town, land, farm and works stand on (the encyclopedia entry's basis)
   record: { id: 'sumer', entries: [...SUMER_RECORD, ...SUMER_FARM_RECORD, ...SUMER_WORKS_RECORD], sources: SUMER_SOURCES },
   palette: {

@@ -835,8 +835,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // capture runs, so muted bakes stay byte-identical); the /svg + /scene stills ignore it.
   // Presentation, not simulation — it reads sim state and never feeds back. Additive; absent ⇒
   // untouched. NOT flagged nonBakeable: audio has no visual frame, so stills stay full-fidelity.
+  // A kind may name its own defaults first (`desc.audio(manifest) → audio spec`: the historic kind's
+  // `soundtrack: 'default'` is its culture's period music); a kind without one reads the manifest's as written.
   if (payload && sketch.manifest.audio && typeof sketch.manifest.audio === 'object') {
-    const resolvedAudio = resolveWorldAudio(sketch.manifest.audio, { time });
+    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
 

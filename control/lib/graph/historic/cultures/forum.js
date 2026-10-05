@@ -22,6 +22,7 @@ export const FORUM = {
     { from: 'pompeii', kind: 'contemporary', parts: ['skins', 'patterns', 'record'], note: 'the same summer of 79 CE, in a Campanian town' },
   ],
   aliases: ['roman forum', 'imperial rome', 'senate house', 'curia', 'temple of saturn', 'vestal'],   // what people call it (search)
+  soundtrack: 'roman',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: { id: 'forum', entries: FORUM_RECORD, sources: FORUM_SOURCES },   // the encyclopedia entry's basis
   layout: 'forum',
   palette: {

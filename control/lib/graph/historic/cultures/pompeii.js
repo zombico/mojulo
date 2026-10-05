@@ -24,6 +24,7 @@ export const POMPEII = {
   // history (../lineage.js): the orders, colonnades, peristyles and theatres came to Campania from the Greek world
   draws: [{ from: 'lindos', kind: 'inherits', parts: ['patterns'], note: 'the Hellenistic orders, colonnade, peristyle, theatre and tile roof' }],
   aliases: ['pompeian', 'roman town', 'vesuvius', 'campania', 'herculaneum', 'eruption'],   // what people call it (search)
+  soundtrack: 'roman',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: { id: 'pompeii', entries: POMPEII_RECORD, sources: POMPEII_SOURCES },   // the encyclopedia entry's basis
   layout: 'lava-spur',
   palette: {

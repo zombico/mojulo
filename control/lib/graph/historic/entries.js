@@ -28,6 +28,7 @@ import { describeHistoric, fmtSpan, periodText } from '../depiction.js';
 import { REGIONS } from './regions.js';
 import { depthText } from './depth.js';
 import { relationsOf, lineageTree, KINDS } from './lineage.js';
+import { historicSoundtrack, soundtrackMood } from './soundtrack.js';
 import { landOf } from './cultures/index.js';
 
 export { REGIONS };
@@ -57,6 +58,7 @@ function basisCounts(entries) {
 /** The starters: `historic` manifests to copy and change, one per scene the culture has (the land in its last season). */
 function starters(id) {
   const out = [[`the town`, { kind: 'historic', culture: id, scene: 'city' }], [`the town from its approach`, { kind: 'historic', culture: id, scene: 'city', view: 'approach' }]];
+  if (soundtrackMood(id)) out.push(['the town with its period music', { kind: 'historic', culture: id, scene: 'city', audio: { soundtrack: 'default' } }]);
   for (const scene of scenesOf(id).filter((s) => s !== 'city')) {
     const seasons = seasonsOf(id, scene), season = seasons.length > 2 ? seasons[seasons.length - 1] : undefined;
     const label = scene === 'region' ? `its land${season ? ` in ${season}` : ''}` : scene === 'farm' ? 'a farmstead' : 'the works';
@@ -121,6 +123,7 @@ export function entryCard(id) {
     ...(Object.keys(K.assets || {}).length ? [`  assets    ${Object.keys(K.assets).join(', ')}`] : []),
     '',
     `SCENES     ${scenes.join(' · ')}`,
+    ...(soundtrackMood(id) ? [`SOUND      opt-in: "audio": { "soundtrack": "default" } plays "${historicSoundtrack(id).title}" (the seed varies it). Instruments ATTESTED, pitches CONJECTURAL.`] : []),
     '',
     'STARTERS (manifests: copy one, change it, mint it)',
     ...starters(id).map(([label, m]) => `  ${label}: ${JSON.stringify(m)}`),

@@ -25,6 +25,7 @@ export const THEBES = {
   // history (../lineage.js): the Egyptian building tradition a millennium on from Giza's
   draws: [{ from: 'giza', kind: 'continues', parts: ['patterns', 'skins', 'record'], note: 'the same land and building tradition, a millennium later' }],
   aliases: ['waset', 'luxor', 'karnak', 'ramesside', 'ramesses', 'pharaoh', 'temple of amun'],   // what people call it (search)
+  soundtrack: 'egypt',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   // what its town, land, farm and works stand on (the encyclopedia entry's basis)
   record: { id: 'egypt', entries: [...EGYPT_RECORD, ...EGYPT_INDUSTRY_RECORD], sources: EGYPT_SOURCES },
   layout: 'river-axis',

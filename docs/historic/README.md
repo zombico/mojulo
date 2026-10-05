@@ -22,6 +22,7 @@ All under `control/lib/graph/historic/`:
 | The layout: the plan that claims ground and emits slots | `layouts/<id>.js` | `layouts/index.js` |
 | Its region: a label and the words people search with | `regions.js` | a row per region |
 | Farm and works scenes: an estate, the industries | `farmstead.js`, `workshops.js` | the card's `land` |
+| Its period music: a synthesized mood, opt-in on a world (`audio.soundtrack: 'default'`) | `soundtrack.js` (`MOODS`) | the card's `soundtrack` |
 
 Each registry is one line per culture, layout or region, so two cultures built at once merge with a "keep both".
 

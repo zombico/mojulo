@@ -18,6 +18,7 @@ export const GIZA = {
   place: 'the Giza plateau, Egypt',
   region: 'egypt',
   aliases: ['pyramid', 'pyramids', 'great pyramid', 'sphinx', 'khufu', 'khafre', 'menkaure', 'pharaoh'],   // what people call it (search)
+  soundtrack: 'egypt',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: { id: 'giza', entries: GIZA_RECORD, sources: GIZA_SOURCES },   // the encyclopedia entry's basis
   layout: 'plateau',
   palette: {

@@ -20,6 +20,7 @@ export const QIN = {
   place: 'Xianyang, the Wei valley',
   region: 'china',
   aliases: ['xianyang', 'qin shi huang', 'first emperor', 'warring states', 'terracotta army'],   // what people call it (search)
+  soundtrack: 'qin',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: { id: 'qin', entries: QIN_RECORD, sources: QIN_SOURCES },   // the encyclopedia entry's basis
   layout: 'wei-wards',
   palette: {

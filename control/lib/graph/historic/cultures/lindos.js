@@ -46,6 +46,7 @@ export const LINDOS = {
   place: 'Lindos, Rhodes',
   region: 'greece',
   aliases: ['rhodes', 'acropolis', 'athena lindia', 'aegean town'],   // what people call it (search)
+  soundtrack: 'greek',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: { id: 'lindos', entries: LINDOS_RECORD, sources: LINDOS_SOURCES },   // the encyclopedia entry's basis
   layout: 'acropolis',
   palette: PALETTE,

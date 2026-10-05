@@ -442,6 +442,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a source beginning before the culture drawing on it ends, a continuation beginning earlier, a variant on its
   source's layout. Every historic page is byte-identical.
 
+### Environmental sound
+
+- **In progress.** A historic world can carry its period's music: add `"audio": { "soundtrack": "default" }`
+  to a `historic` manifest and the world plays a synthesized bed in its culture's mood
+  (`lib/graph/historic/soundtrack.js`). Each mood is led by a timbre standing in for an instrument the culture
+  played:
+
+  | Mood | Cultures | Lead instruments |
+  |---|---|---|
+  | Sumer | Sumer | a dark lyre pluck and a reed pipe over a drone |
+  | Egypt | Thebes, Giza | a harp ostinato with sistrum shimmer |
+  | Greek | Lindos, the polis | a kithara and a droning aulos over the sea |
+  | Qin | Qin | a zheng with pressed bends, bronze bell chimes |
+  | Roman | Pompeii, the Forum | a water organ, a cithara and a distant horn call |
+
+- The instruments are attested; the scales, tempi and harmony are conjecture, since no ancient performance
+  survives as sound. The world's seed re-rolls the performance, so two towns of one culture sound related but
+  not the same.
+- Without the opt-in a world is silent and unchanged. The other `audio` fields (wind, bindings, cues) still
+  combine with it.
+- A culture names its mood on its card (`soundtrack`). A culture scaffolded from another plays its parent's
+  mood until it has its own, and a new mood is a row in `MOODS`.
+- Each entry gains a SOUND line and a starter with its period music.
+
 ### Historic Rome
 
 - **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is

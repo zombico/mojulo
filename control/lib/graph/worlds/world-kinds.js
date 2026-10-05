@@ -25,6 +25,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
+import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
@@ -445,6 +446,8 @@ export const WORLD_KINDS = {
     title: 'mojulo historic',
     walk: true,
     resolve: (m, ctx) => assembleHistoricKindScene(m, { title: ctx.title === 'mojulo historic' ? undefined : ctx.title }),
+    // `audio.soundtrack: 'default'` is the culture's period music (historic/soundtrack.js); opt-in, absent ⇒ silent
+    audio: (m) => historicAudio(m),
   },
   'transportation-hub': {
     title: 'mojulo transportation hub',
