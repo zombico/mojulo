@@ -54,7 +54,12 @@ a crescent facing the key whose edges follow the position, so they run smooth ac
 — N·L above `threshold` (0.5) inside the band ([0, 0.4]) only; `gloss` — N·L above a high `threshold` (0.86) anywhere
 on the group, no band: the moulded-plastic hot spot on each rounded form facing the key (a hero robot's armour); `parts: 'fringe'` keeps it to the fringe; its colour the
 palette's `<group>Highlight`, else derived: a quarter of the way from the base's L* to white, chroma × 1.15 — always
-lighter, and none on a base above about L* 84, whose lit side keeps one tone; `false` none) `}`.
+lighter, and none on a base above about L* 84, whose lit side keeps one tone; `false` none), `strands: { <group>: {
+count?, width?, reach?, below?, tone? } | true | false }` (LINES INSIDE the group's mass in its OWN tone darkened, never
+the ink's black: `count` (22) lines about the head's vertical axis, each `width` (0.003 m), rising from the group's
+lowest edge to a top staggered across `reach` ([0.15, 0.5] of the head's height below the crown), none below `below`
+(1.15 head heights); the fill the face's lit or shade tone at `tone` (0.6) of its lightness, the hue kept and the
+saturation lifted a little; a face the step splits or the highlight lights keeps its tones; absent, nothing) `}`.
 The anime hero takes its base's hair highlight by default (the ring on the female, a fringe streak on the male) unless
 its light says `highlight`. Each face steps to its lit or shade swatch, and a face the terminator crosses is split
 along it (and its lit side again along the highlight's line), crisp in the World, the static GLB and the rig preview
@@ -231,6 +236,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   hair follows every face control (a deeper face, fuller cheeks, a fuller occiput). `hero.hairCoverage` is the ledger:
   the share of the scalp that still shows from the back, the side, the rear three-quarter and above (0 is covered; the
   studio's own bob showed 28 % from the back on the female base, 47 % on the male); over 5 % advises in `warnings`.
+  Its `face` reads the FACE ZONES from the front and both ¾: RED (each eye's iris; the nose and mouth) and YELLOW (the
+  brows, lids, cheeks and jaw), the share the hair hides of each; the forehead above the brows is free. Hair over a red
+  zone past 15 %, or curtaining the yellow past 75 %, advises. `hair.veil` (0 … 1, absent 0) is the MYSTERY AND ALLURE
+  lever: it lets ONE eye go under the hair (to 75 % at 1) and the yellow to 95 %; the other eye and the mouth never.
+  Advice only: the veil builds nothing.
   HAIR FORMS: the `bob`, `long` and `hime` families are a few consolidated SECTIONS, not a comb of strands — three bang
   sections, a side section each side, three back sections (parts `hairFormFringeL/C/R`, `hairFormSideL/R`,
   `hairFormBackL/C/R`), each one closed shell skinned across its member clumps and ending in ONE point (its hem a V;
@@ -247,8 +257,26 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   over the crown and pointing back; `keep` names fringe clumps that still fall), `hairline: { front }` (the front
   hairline raised; the studio's 0.53; the coverage ledger follows it), `sweepSides` (an amount or `{ amount, from,
   controlY, tipX, tipY, tipZ }`: the temple clumps from `from` swept back over the ear), `fringeGroups` (the bang
-  sections by member clump, e.g. `[[1, 2, 3, 4, 5], [5, 6, 7]]`, parts `hairFormFringeA`, `B`, …) and `backNotch` (the
-  back sections' hem, 1 straight). A word is stored only when given; lists compose it last-wins (an object key by key);
+  sections by member clump, e.g. `[[1, 2, 3, 4, 5], [5, 6, 7]]`, parts `hairFormFringeA`, `B`, …), `backNotch` (the
+  back sections' hem, 1 straight), `fringeNotch` (the bang sections' hem, 1 a blunt fringe), `flip` (an amount or
+  `{ amount, out, rise, hold }`: the side and back ends hang straight, then kick out and up), `spikes` (an amount or
+  `{ amount, reach, width, up }`, the short family: the six crown accents as broad spikes from a fixed fan (front and
+  side), each a CUT CONICAL CARROT (a round cone cut square at a wide base sunk into the mass, tapering to its point), the temples a rounded mass over the ears, the back one convex fall to a point at the nape, the fringe heavy bangs) and `sideTail` (an amount or `{ amount, side: 'left' | 'right', length, width, height }`: the back and
+  that side gathered to a tie low behind the ear, one round clump `tail` (part `hairTail`) forward over the shoulder;
+  each entry gives its `amount`), and `shapes` (`{ replace?: ['fringe', 'temple', 'back', 'crown'], peppers?,
+  bananas?, carrots?, peels?, layers?, scale?, whorl? }`: a hairstyle composed from ONE family — CARROTS (cut conical carrots;
+  `length`, `base`, `sink`, `curve`, `bend`), BANANAS (flat crescents; `length`, `width`, `flat`, `bend`, `dir`
+  required), PEPPERS (chilis, thin strands; `length`, `width`, `bend`) or PEELS (layered banana peels: thin leaves
+  cupped to the scalp; `length`, `width`, `flat`, `cup`, `bend`, `dir` required) — each piece `at: [azimuth°, elevation°]` on
+  the cap and aimed by `dir: [x, y, z]`, or laid in `layers` (`{ shape, az, el, rows, count, length, width, droop,
+  lift, cover, sprout, vary, bend, swirl, cap, fringe }` (at most 12; `swirl` turns the flow one way by degrees; `cap: 1`
+  grows each lock along the dome and lets it fall only past the hairline, `length` then measured past it and `fringe`
+  the length of the locks that leave over the face), or `around: [from°, to°]` for a rosette about the whorl) that flow from the
+  `whorl` along the head, bananas and peppers tiling it (`cover`)
+  and every piece sprouting along the surface before it arcs out (`sprout`); `scale` grows the style; parts `hairCarrot0`,
+  `hairBanana0`, `hairPepper0` …), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
+  pieces before the ears in the style's family; the principles and recipes are in docs/examples/humanoid/DESIGNING.md).
+  A word is stored only when given; lists compose it last-wins (an object key by key);
   `false` is the studio's construction for it; patch `/hero/hair/<word>` (`null` back to the base's).
   THE HAIR BASES: the anime hero's default hair per design base, read when the plan is generated, never stored. A FORM
   under every family — `lift` (male crown 0.12, temples 0.06, fringe 0.06, nape 0.05; female 0.13 / 0.06 / 0.05 / 0.07),
@@ -353,7 +381,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `soft`, `sharp`, `youthful`, `mature`, `button-nose`, `strong-chin`; graphic-face TRAITS `heavy-lid`, `brow-block`,
   `sharp-eyes`, `low-nose` (on the sculpt); hair TRAITS `spiky`, `sleek`, `messy`,
   `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
-  clumps), the hair bases' cuts `swept-back` and `side-parted`, and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
+  clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
+  flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
+  and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block),
+  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs, after Cynthia), `frieda` (after Frieren: split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (after Hirako Shinji: a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob after Miwa Kasumi), `jona` (layered banana
+  PEELS: leaf-shaped, thin, cupped; the young-Bieber swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, after Videl's short cut); shaped hair never
+  cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
+  `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
   sum, a family and a pose last-wins; the own `face` / `sculpt` / `hair` / `expression` / `tune` apply ON TOP (`/hero/hair/length`
   1.1 is ten percent over the look). `look: ['rival', 'tareme']`, then `set /hero/look` to add or peel a word (a list is

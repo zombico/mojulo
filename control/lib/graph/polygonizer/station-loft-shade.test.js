@@ -409,7 +409,7 @@ describe('the character light on the anime hero', () => {
     const partsBy = (fs) => { const o = {}; for (const f of fs) if (f.layer) (o[f.layer] ??= new Set()).add(f.group); return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, [...v].sort()])); };
     expect(partsBy(faces)).toEqual({ through: ['browL', 'browR', 'lidL', 'lidR'], veil: ['hairFormFringeA', 'hairFormFringeB'] });
     const inked = characterLitFaces(mesh, m.recipe, { normals: N, hairInk: true });
-    expect(partsBy(inked)).toEqual({ ...partsBy(faces), hair: ['hairCap', 'hairFormBackC', 'hairFormBackL', 'hairFormBackR', 'hairFormSideL', 'hairFormSideR'] });
+    expect(partsBy(inked)).toEqual({ ...partsBy(faces), hair: ['hairCap', 'hairFormBackC', 'hairFormBackL', 'hairFormBackR', 'hairFormSideL', 'hairFormSideR', 'hairSideburnL', 'hairSideburnR'] });
     // the layer is the whole difference, and only where there is one does the key appear
     const bare = (fs) => fs.map(({ layer: _layer, ...f }) => f);
     expect(bare(inked)).toEqual(bare(faces)); expect(faces.filter((f) => 'layer' in f).every((f) => f.layer)).toBe(true);
@@ -554,7 +554,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
     }
-    for (const [cast, pin] of [['female', '25c76e0ae38c13cc'], ['male', 'bddd3b7393f9e0c2']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+    // the anime heroes re-pinned for the sideburn patches before the ears (every anime head wears them)
+    for (const [cast, pin] of [['female', 'd46e24aeeb3ae642'], ['male', 'ef724304b37b8f24']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {
@@ -585,32 +586,32 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // with the segment neck in its place the hero gives 5327a5ac4e4635a5 / e37584fef73693f7, the values before it.
     // Re-pinned for the female hair base (anime-head ANIME_HAIR_BASE: the lifted, thicker ridge-section form and the
     // side-parted cut) and her hair colour (#3b4859, layered.js ANIME_HERO_PALETTE): the hero as the door made it before
-    // them (beforeHairBase) gives 996d63140c2c8f92 / c70c1f68db57186d, the values before them, still.
+    // them (beforeHairBase) gives d858d1d6cadb027f / 51e4eefea75616cd, the values before them, still.
     // Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js ANIME_HERO_PALETTE, so her shade side parts from
-    // the World's backdrop): with #3b4859 passed as her operator palette she gives 273c66c9558cca14 / 82226dddadb7a263,
+    // the World's backdrop): with #3b4859 passed as her operator palette she gives c16d3acc16734fe0 / 35129cb4f44fbfa9,
     // the values before it, still.
     // Re-pinned for CLIP TIMING (hero-gesture.js heroClipSeconds: every packed clip of the anime hero carries its designed
     // duration `s`, station-loft-rig packLayeredRig `seconds`): `untimed` drops exactly that, and each payload here
     // hashes the value before it, still (f3aec022ea5b2d63 / 437cd1cd36b08c58).
     // Re-pinned for the ANIME WAVE (hero-form.js ANIME_WAVE: the packed `wave` clip): with the form's wave back in its
-    // place (formWave) each payload hashes the value before it, still (397626ea24a83220 / 1c387481453f8328).
+    // place (formWave) each payload hashes the value before it, still (1250a1cbac4236fb / 24463c917185beff).
     // Re-pinned for the hero's `wave` clip keeping its elbow at the shoulder line (hero-form.js): the form's wave that
-    // formWave puts back is that one now, so untimed each payload hashes the values that re-pin gave (ea41b45ae2f53fcd /
-    // 2c05de0b1d383565), still; the anime hero's own payloads never move with it (ANIME_WAVE replaces the form's).
+    // formWave puts back is that one now, so untimed each payload hashes the values that re-pin gave (18dff01520b76f45 /
+    // 38459eab564f0c59), still; the anime hero's own payloads never move with it (ANIME_WAVE replaces the form's).
     // (on the streamlined core: the chain above predates the structured core, DEFAULT_CORE, pinned below)
     const spec = { cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' };
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
     const plainBake = await world(m, { unshaded: true });
-    expect(h(plainBake)).toBe('483d4a95853df858'); expect(h(untimed(plainBake))).toBe('8854b560f6965ca2');
+    expect(h(plainBake)).toBe('8db4752aa0a9aeab'); expect(h(untimed(plainBake))).toBe('30241f05d62c9767');
     const off = await world({ ...m, toon: { light: false } });
-    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('f2e3b5bf99df4b96'); expect(h(untimed(off))).toBe('65ff2977c52b5cca');
+    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('416ac14651e8c972'); expect(h(untimed(off))).toBe('aaeffc4e34d81ef7');
     const plainWas = await world(formWave(m), { unshaded: true }), offWas = await world({ ...formWave(m), toon: { light: false } });
-    expect(h(plainWas)).toBe('397626ea24a83220'); expect(h(untimed(plainWas))).toBe('ea41b45ae2f53fcd');
-    expect(h(offWas)).toBe('1c387481453f8328'); expect(h(untimed(offWas))).toBe('2c05de0b1d383565');
+    expect(h(plainWas)).toBe('1250a1cbac4236fb'); expect(h(untimed(plainWas))).toBe('18dff01520b76f45');
+    expect(h(offWas)).toBe('24463c917185beff'); expect(h(untimed(offWas))).toBe('38459eab564f0c59');
     const was = formWave(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ ...spec, palette: { Hair: '#3b4859' } }) }));
-    expect(h(untimed(await world(was, { unshaded: true })))).toBe('273c66c9558cca14'); expect(h(untimed(await world({ ...was, toon: { light: false } })))).toBe('82226dddadb7a263');
+    expect(h(untimed(await world(was, { unshaded: true })))).toBe('c16d3acc16734fe0'); expect(h(untimed(await world({ ...was, toon: { light: false } })))).toBe('35129cb4f44fbfa9');
     const before = beforeHairBase(spec);
-    expect(h(untimed(await world(before, { unshaded: true })))).toBe('996d63140c2c8f92'); expect(h(untimed(await world({ ...before, toon: { light: false } })))).toBe('c70c1f68db57186d');
+    expect(h(untimed(await world(before, { unshaded: true })))).toBe('d858d1d6cadb027f'); expect(h(untimed(await world({ ...before, toon: { light: false } })))).toBe('51e4eefea75616cd');
     const lit = await world(m);
     expect(h(lit)).not.toBe('c07a8da432d22b96'); expect(lit.faces.length).toBeGreaterThan(off.faces.length);
     // the packed rig figure takes the same pieces (station-loft-rig characterRigParts): the skeleton and the clips
@@ -689,10 +690,10 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // util/dmath.js, and the shared figure rig runs under withMath): the female chain moved, from values only macOS
   // arm64 on Node 24 produced; the male chain and the hair-base pins did not.
   it('the anime hero default, pinned (female and male)', async () => {
-    const PINS = [['female', ['10f2def97e54a4b8', '03a27a4b4cee7fc1'], ['68e6e462e6e265e8', '413db93b76445e9b'], ['1fdf3c90d77c935c', '755ab3593db17ff7']],
-      ['male', ['48a635923983689f', '7da53375826a6df5'], ['d8fafc568738d919', '885354d47e892d02'], ['43893c06763875ef', '7d7cba2a0afad84e']]];
-    const TIMED = { female: ['57f12caf580c7249', 'de34aeaa869105aa', '2ff2e9f55796d955'], male: ['3c626419171ad74f', 'b98668845b17a833', 'faeb81c5005442a7'] };
-    const WAVED = { female: ['fc06d34878f7ed9b', '435ca5c3253eda90', '1e426997d5069890'], male: ['a2357fe57120f308', '2c094b6a75345ad0', '7340f7e2c9471d44'] };
+    const PINS = [['female', ['4d9e3506fe8ecd4d', '4425aa820a6ff4f1'], ['16d72cb5d0b31245', 'f1f9aaf7909c93bc'], ['b5be469aeb43c642', 'c0a0b8eb33cef21e']],
+      ['male', ['fe1794468ac369dc', '294b5f021196b93a'], ['c863c3edaefc7baf', 'b89f1f6f773624df'], ['4a8c17672cdc9881', '05e343aaf95515fa']]];
+    const TIMED = { female: ['5304bc95bf6fe2c2', '6429d8c4145b0878', '8a09e3853580d18b'], male: ['0b7df8ba1694f40e', 'b157c740f33f727b', 'dcbfa51c16de03c7'] };
+    const WAVED = { female: ['104821675e90ff55', '5ba3ff29ca243b58', 'c82035d2398a2ac0'], male: ['b4da4f8b3d42bc38', '6bf25e0552b1b9c1', 'f984ef983fc4bc25'] };
     for (const [cast, pin, rest, studio] of PINS) {
       for (const [i, [spec, [full, undone], label]] of [[{}, pin, cast], [{ gesture: 'rest' }, rest, `${cast} at rest`], [{ sculpt: false }, studio, `${cast} on the studio's face`]].entries()) {
         // (on the streamlined core: the chain predates the structured core, DEFAULT_CORE, pinned below)
@@ -703,9 +704,33 @@ describe('the World payload: absent ⇒ byte-identical', () => {
         expect(h(untimed(payload)), `${label}, untimed`).toBe(full); expect(h(unlayered(untimed(payload))), `${label}, untimed, the layers undone`).toBe(undone);
       }
     }
-    for (const [cast, before] of [['female', '5d20a99016dba17a'], ['male', 'bf9c13532265b41e']]) {
+    for (const [cast, before] of [['female', '842ecd45d655c5b4'], ['male', 'b56f376a90fb600c']]) {
       const m = beforeHairBase({ cast, head: 'anime', core: 'streamlined' });
       expect(h(unlayered(untimed(await world({ ...m, toon: { light: lightBefore } })))), `${cast} before the hair bases, untimed, the layers undone`).toBe(before);
     }
   }, 90000);
+});
+
+// THE STRANDS (toon.light.strands): lines inside the hair's mass in its own tone darkened, never the ink's black
+describe('the strands: lines in the hair\'s own hue, darkened', () => {
+  it('cut darker bands of the same hue into the hair, rising from the hem; absent, the pieces are exactly the light\'s', async () => {
+    const { animeHead, ANIME_HAIR_BASE } = await import('./anime-head.js');
+    const { toonLightErrors, STRAND_DEFAULTS } = await import('./vexar.js');
+    const mesh = compileLayered(animeHead({ preset: 'male', hair: [ANIME_HAIR_BASE.male.form, 'hiraku'] }));
+    const palette = { Hair: '#e8cf7a' }, base = { ...ANIME_CHARACTER_LIGHT, shade: { Hair: '#b58f3e' } };
+    const plain = characterLitPieces(mesh, { light: base, palette }), lined = characterLitPieces(mesh, { light: { ...base, strands: resolveToonLight({ strands: { Hair: true } }).strands }, palette });
+    const hairFills = (P) => new Set(P.filter((p) => mesh.groups[p.fi] === 'Hair').map((p) => p.fill));
+    const added = [...hairFills(lined)].filter((f) => !hairFills(plain).has(f));
+    expect(added.length).toBeGreaterThan(0);
+    // each new tone is a darker one of the hair's own: its hue within a few degrees of the lit or the shade tone's
+    const hsl = (h) => { const [r, g, b] = hexToRgb(h).map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2; const hu = d === 0 ? 0 : mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [hu * 60, l]; };
+    for (const f of added) { const [hu, l] = hsl(f); expect(['#e8cf7a', '#b58f3e'].some((o) => Math.abs(hsl(o)[0] - hu) < 6 && l < hsl(o)[1])).toBe(true); }
+    expect(added.every((f) => f !== '#101015' && f !== '#292e33')).toBe(true);   // never the ink
+    // the light without strands: byte for byte the light it was
+    const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex');
+    expect(h(characterLitPieces(mesh, { light: { ...base }, palette }))).toBe(h(plain));
+    expect(resolveToonLight({ shade: { Hair: '#b58f3e' } }).strands).toBeUndefined();
+    expect(resolveToonLight({ strands: { Hair: { count: 30 } } }).strands.Hair).toEqual({ ...STRAND_DEFAULTS, count: 30, reach: [...STRAND_DEFAULTS.reach] });
+    expect(toonLightErrors({ strands: { Hair: { count: 2, tone: 1.2, dash: 1 } } }).map((e) => e.split(':')[0])).toEqual(['toon.light.strands.Hair.dash', 'toon.light.strands.Hair.count', 'toon.light.strands.Hair.tone']);
+  }, 120000);
 });

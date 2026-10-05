@@ -142,6 +142,45 @@ built on this branch; each bullet is rewritten as its phase lands.
 - **Worked casts.** `docs/examples/humanoid/cast/herobot-classic.json` and its rival, `herobot-rival.json`: red and white,
   horns and a ponytail, and a more angular silhouette from the same adornment kit.
 
+### Figure hair
+
+Four anime cuts from the operator's sketches, as hair words anywhere a hair word goes, and the construction words they
+needed on the anime head. Being built on this branch.
+
+- **The cuts.** `flipped-long` (long, curtain bangs framing the face, the ends kicked out), `blunt-bob` (a level fringe
+  split off centre, the left side falling long), `side-tail` (the side-parted sheet gathered into a low tail over the
+  left shoulder).
+- **The words.** `flip`, `spikes`, `sideTail` (its clump `tail`, part `hairTail`) and `fringeNotch` join the hair form
+  words; each is absent unless given, so every stored hero builds as before.
+- **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
+  that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
+  — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
+  (carrots, after Toriyama), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
+  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas after Videl's short cut. Shaped hair never cuts through the body: the hero's
+  neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
+  along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
+  a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
+  into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
+- **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` (after Hirako Shinji) is a bowl bob, `miwako` (after
+  Miwa Kasumi) a neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
+- **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
+  ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining
+  yellow past 75 %, advises. The hair word `veil` (0 … 1) is the mystery and allure lever: one eye may go under the
+  hair (to 75 %) and the yellow to 95 %; the other eye and the mouth stay restricted. Advice only; nothing it builds.
+- **Sideburn patches.** Every anime head with hair now wears a thin patch in the hair's colour on the skin before each
+  ear, from under the scalp's bottom edge (it follows the hairline, so no skin shows between) to the ear's bottom, so no bare gap shows between the hair and the ear
+  (`hairSideburnL`, `hairSideburnR`), and the graphic face's ears sit a little closer in to the head. A bald head shows
+  its own skin there. The anime heroes' pinned payloads moved
+  with it.
+  A layer's `swirl` turns its flow one way (a fringe swept off its part), and a style takes up to 12 layers.
+  `sideburns` works on any style. The
+  principles and recipes cross-referenced to shonen and JRPG heroes are in `docs/examples/humanoid/DESIGNING.md`.
+- **Fixed.** An anime hero whose hair is a list (`['long', { locks }]`) now wears that family: before, the list was not
+  read as naming one, the base's cut was worn under it and its clump edits were lost.
+
 ### Figure articulation: pelvic
 
 The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike, and

@@ -1,0 +1,7 @@
+{
+  "name": "hiraku",
+  "$note": "A bowl-bob hero (male) after Hirako Shinji: the `hiraku` hair word (blunt cap bananas cut on level lines, the bangs flat at the brow, the sides straight to the jaw) and the light's STRANDS, lines inside the hair in its own tone darkened (toon.light.strands), never the ink's black: the perpendicular lines that anchor the box.",
+  "hero": { "cast": "male", "head": "anime", "hair": "hiraku", "expression": [{ "smile": 0.3 }] },
+  "palette": { "Hair": "#e8cf7a", "Top": "#f0f0f0", "Bottom": "#1e1e24" },
+  "toon": { "light": { "shade": { "Hair": "#b58f3e" }, "strands": { "Hair": true } } }
+}

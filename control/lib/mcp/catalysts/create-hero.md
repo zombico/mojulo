@@ -150,7 +150,9 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             clump directed by its studio name (fringe-1…7, left-/right-temple-0…2, back-1…11, crown
             clumps on short), `/hero/hair/locks/fringe-3` → { ty: -0.05 } moves its tip, root held.
             The hair seats on the head (cap lifted off the skull, clumps hung outside it); read
-            `hero.hairCoverage` (the scalp's share showing per view) and look from behind and above.
+            `hero.hairCoverage` (the scalp's share showing per view; `face`: the share hidden of the red zones — eyes, nose and
+            mouth — and the yellow — brows, lids, cheeks, jaw) and look from behind and above. `hair.veil` (0 … 1) is the
+            mystery lever: how far one eye and the yellow may go under the hair before the advice speaks.
             On bob, long and hime the clumps are consolidated into SECTIONS (a few forms, each one
             point): judge the masses first; `strands: 1` only when separate strands are the point.
             The anime hero wears its HAIR BASE by default: a form under every family (the mass
@@ -158,8 +160,11 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             no family is named, a cut (`swept-back` on the male, `side-parted` on the female; both
             are hair words). Shape the form by word: `/hero/hair/lift` → { crown, temple, fringe,
             nape } (keep volume at 1 beside it), `section`, `ridge`, `flute`, `crownAccents`, and the
-            cut's `sweepBack`, `hairline`, `sweepSides`, `fringeGroups`, `backNotch`; `false` is the
-            studio's construction, `null` the base's. Read `hero.hairCut` and `hairMeasures.top_m`.
+            cut's `sweepBack`, `hairline`, `sweepSides`, `fringeGroups`, `backNotch`, `fringeNotch`,
+            `flip`, `spikes`, `sideTail`, `shapes` (one family per design: carrots, bananas or chili
+            peppers — mass first), `sideburns`; `false` is the studio's construction, `null` the base's.
+            Ready cuts: `flipped-long`, `blunt-bob`, `side-tail`; characters `broku`, `jinto`, `jingo`, `jona`, `kairo`, the heroines `bidel`, `selene`, `sintia`, `frieda`, `frieda-pony`, `miwako`; the bowl bob `hiraku`. Read `hero.hairCut`
+            and `hairMeasures.top_m`.
             The anime head wears ANIME PROPORTIONS (about 6.5 / 7 heads tall, longer legs, slimmer
             limbs, smaller hands and feet); `proportions: 'hero'` keeps the realistic body.
             Hair is a mass before it is tufts. Hair colour is the palette.
