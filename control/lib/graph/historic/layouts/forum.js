@@ -14,7 +14,7 @@
 import { localSize, orientBox } from '../assets/kit.js';
 import { orientSolid } from '../assets/solids.js';
 import { skinLoose } from '../layout-kit.js';
-import { podiumTemple, roundTemple, basilica, tabularium, rostra, augustusArch, singleArch, curia, block, divusJulius, statueBase, figure, horseman, rostralColumn, ianusShrine, cloacina, puteal, juturna, tribunal, pavedLetters } from '../assets/forum.js';
+import { podiumTemple, roundTemple, basilica, openBasilica, tabularium, rostra, augustusArch, singleArch, curia, block, divusJulius, statueBase, figure, horseman, rostralColumn, ianusShrine, cloacina, puteal, juturna, tribunal, pavedLetters } from '../assets/forum.js';
 import { GLYPH } from '../relief-art.js';
 import { FORUM_RECORD } from '../record/forum.js';
 
@@ -33,6 +33,8 @@ export function planForum({ culture = 'forum', festival = false } = {}, K) {
       for (const k of ['a', 'b']) if (Array.isArray(o[k])) o[k] = [o[k][0], o[k][1], o[k][2] + z];
       into.push(o);
     }
+    // a build's own floors (grounds), turned and lifted with it
+    for (const g of r.grounds || []) grounds.push({ ...orientBox(g, rect, facing), z: g.z + z });
     for (const i of r.inst) {
       const p = orientBox({ x: i.x, y: i.y, w: 0, d: 0 }, rect, facing), turn = i.key.startsWith('col:') ? 0 : (i.turn + TURN[facing]) % 4;   // a column is the same from every side
       const key = i.turn === turn ? i.key : i.key.replace(/:\d$/, `:${turn}`);
@@ -91,7 +93,8 @@ export function planForum({ culture = 'forum', festival = false } = {}, K) {
   place('curia', (f) => curia(f, { P, h: CU.h }), { x: 70, y: 2, w: CU.w, d: CU.d }, 's', { record: 'curia-julia' });
   place('basilica-aemilia', (f) => basilica(f, { bays: 18, D: 0.95, aisle: 8, shops: true, frieze: 'doric-frieze', captives: true, festival, P }), { x: 93, y: 2, w: 90, d: 36 }, 's');
   const BJ = rec('basilica-julia').dims;
-  place('basilica-julia', (f) => basilica(f, { bays: BJ.piers.long, D: 1.05, aisle: BJ.aisle, festival, P }), { x: 66, y: 96, w: BJ.w, d: BJ.d }, 'n');
+  // the Basilica Julia opened: walk in off the Sacra Via, up its steps, into the aisles and the coloured-marble nave
+  place('basilica-julia', (f) => openBasilica(f, { bays: BJ.piers.long, ends: BJ.piers.short, D: 1.05, aisle: BJ.aisle, nave: BJ.nave, festival, P }), { x: 66, y: 96.5, w: BJ.w, d: BJ.d }, 'n', { z: 0.9 });
 
   // ── the south-east end: Castor, Divus Julius, the Arch of Augustus, the Regia, Vesta, the House of the Vestals ──
   const CA = rec('temple-castor').dims;
@@ -171,6 +174,10 @@ export function planForum({ culture = 'forum', festival = false } = {}, K) {
     lacus: { eye: [88, 61, 1.7], at: [104, 62, 1.2] },
     // under Divus Julius: its beaked platform, the frieze and the dedication
     julius: { eye: [170, 66, 1.7], at: [196, 63.5, 15] },
+    // inside the Basilica Julia: down the nave over its coloured marble, the arcades and the clerestory
+    basilica: { eye: [80, 120.5, 0.9 + 1.7], at: [150, 120.5, 9] },
+    // in its front aisle by the steps, the gaming boards underfoot
+    aisle: { eye: [100, 101.5, 0.9 + 1.7], at: [112, 104, 0.6] },
     // from the Capitoline's brow behind the Tabularium, over Concord's roof, down the forum
     capitol: { eye: [-6, 40, 40], at: [120, 66, 0] },
   };

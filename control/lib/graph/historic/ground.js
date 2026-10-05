@@ -20,6 +20,9 @@ export const GROUND_SURFACES = { mud: 4, rubble: 3, brick: 2.4, 'dry-earth': 6, 
 Object.assign(GROUND_SURFACES, { furrows: 3, sown: 3, stubble: 3, barley: 2, 'drying-bricks': 3 });
 // the Roman floor (Pompeii): black-and-white tessellatum in panels a metre and a half across, two to a tile
 Object.assign(GROUND_SURFACES, { tessellatum: 3 });
+// the Roman forum's floors: cut coloured marbles in panels (opus sectile, the Basilica Julia's nave), and white marble
+// slabs with gaming boards scratched into them (the Basilica Julia's steps and aisles)
+Object.assign(GROUND_SURFACES, { 'opus-sectile': 8, lusoria: 6 });
 // a skin, not a ground: the cone mosaic of Uruk — clay cones pressed head-out into the wall, their
 // heads dipped red, black or left white, set in zigzags and lozenges. Its tile ignores the base colour.
 
@@ -113,6 +116,41 @@ const BAKERS = {
       const black = frame || inner || lozenge || eye || crosslet;
       const grain = (x % 3 === 0 || y % 3 === 0) ? 0.94 : 1, col = black ? K : base;
       for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = col[c] * grain * (0.96 + n(x, y) * 0.07);
+    }
+    return px;
+  },
+  // opus sectile: panels of cut coloured marble framed in white, two designs in a checkerboard — a giallo antico field
+  // with a pavonazzetto square turned on its corner and an africano roundel; a porta santa field with a cipollino ring
+  // and a giallo disc. Each stone veined. The base colour is ignored: the marbles are their own colours.
+  'opus-sectile'(base, size, rng) {
+    const px = new Float64Array(size * size * 3), n = noise(size, 24, rng), v = noise(size, 7, rng), per = 2, b = size / per;
+    const M = { white: [232, 228, 218], giallo: [205, 164, 82], pav: [222, 208, 214], africano: [92, 62, 60], porta: [182, 118, 110], cip: [168, 186, 160], dark: [70, 66, 64] };
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const i = Math.floor(x / b), j = Math.floor(y / b), lx = x - i * b, ly = y - j * b, cx = lx - b / 2, cy = ly - b / 2, A = (i + j) % 2 === 0;
+      const band = b * 0.07, edge = Math.min(lx, ly, b - lx, b - ly), r = Math.hypot(cx, cy), dia = Math.abs(cx) + Math.abs(cy);
+      let col;
+      if (edge < band) col = edge < band * 0.18 || edge > band * 0.82 ? M.dark : M.white;                    // the white frame, its fillets dark
+      else if (A) col = r < b * 0.16 ? M.africano : dia < b * 0.38 ? (dia > b * 0.35 ? M.white : M.pav) : M.giallo;
+      else col = r < b * 0.13 ? M.giallo : r < b * 0.3 ? (r > b * 0.27 || r < b * 0.16 ? M.white : M.cip) : M.porta;
+      // each stone veined: a soft mottle and a few sinuous veins, the joints faintly dark
+      const vein = Math.abs(Math.sin((x + v(x, y) * 40) * 0.09 + y * 0.03)) < 0.05 ? 0.86 : 1;
+      // polished stone, not paint: each marble drawn a fifth of the way to a warm grey
+      for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = (col[c] * 0.8 + [196, 190, 180][c] * 0.2) * vein * (0.93 + n(x, y) * 0.12);
+    }
+    return px;
+  },
+  // white marble slabs, and scratched into them the gaming boards the loungers left (about 80 in the Basilica Julia):
+  // merels (three nested squares joined at their middles), the rota (a circle of eight spokes), rows of twelve strokes
+  lusoria(base, size, rng) {
+    const px = BAKERS.flagstone(base, size, rng), scratch = (x, y) => { const i = ((Math.round(y) % size + size) % size) * size + ((Math.round(x) % size + size) % size); for (let c = 0; c < 3; c++) px[i * 3 + c] *= 0.62; };
+    const line = (x0, y0, x1, y1) => { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0)); for (let k = 0; k <= n; k++) scratch(x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n); };
+    const m = size / 6;   // px a metre
+    for (let k = 0; k < 3; k++) {
+      const cx = (0.15 + rng() * 0.7) * size, cy = (0.15 + rng() * 0.7) * size, kind = k % 3;
+      if (kind === 0) for (const f of [0.35, 0.23, 0.11]) { const h = f * m; line(cx - h, cy - h, cx + h, cy - h); line(cx + h, cy - h, cx + h, cy + h); line(cx + h, cy + h, cx - h, cy + h); line(cx - h, cy + h, cx - h, cy - h); }
+      if (kind === 0) { line(cx, cy - 0.35 * m, cx, cy - 0.11 * m); line(cx, cy + 0.11 * m, cx, cy + 0.35 * m); line(cx - 0.35 * m, cy, cx - 0.11 * m, cy); line(cx + 0.11 * m, cy, cx + 0.35 * m, cy); }
+      if (kind === 1) { const r = 0.25 * m; for (let a = 0; a < 64; a++) line(cx + r * Math.cos(a / 10.2), cy + r * Math.sin(a / 10.2), cx + r * Math.cos((a + 1) / 10.2), cy + r * Math.sin((a + 1) / 10.2)); for (let a = 0; a < 4; a++) line(cx + r * Math.cos(a * Math.PI / 4), cy + r * Math.sin(a * Math.PI / 4), cx - r * Math.cos(a * Math.PI / 4), cy - r * Math.sin(a * Math.PI / 4)); }
+      if (kind === 2) for (let row = 0; row < 3; row++) for (let i = 0; i < 12; i++) { const x = cx - 0.36 * m + i * 0.065 * m + (i >= 6 ? 0.04 * m : 0), y = cy + (row - 1) * 0.12 * m; line(x, y - 0.04 * m, x, y + 0.04 * m); }
     }
     return px;
   },

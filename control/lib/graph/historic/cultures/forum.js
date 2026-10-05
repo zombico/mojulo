@@ -19,7 +19,7 @@ export const FORUM = {
     stucco: '#e6dccb', brick: S.brick, tile: S.tile, bronze: S.bronze, gilt: S.gilt, minium: S.minium,
     tympanum: '#d9d2c4',          // the pediment's field, a shade under the marble round it (the paint unknown)
     door: '#3b2a1e', shop: '#2f2620', rock: '#8c8068', slope: '#7f8a5a', haze: '#a9b6c0',
-    fig: '#5f6e3a', timber: '#6e5238', black: '#2a2826',
+    fig: '#5f6e3a', timber: '#6e5238', black: '#2a2826', sky: '#cfdde6',   // sky: a window's light seen from inside
     giallo: S.giallo, pavonazzetto: '#d9cfd6', africano: S.africano,   // the captives' coloured marbles (record: aemilia-captives)
   },
   skins: {

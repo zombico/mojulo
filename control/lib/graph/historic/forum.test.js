@@ -82,6 +82,20 @@ describe('historic city: the Forum Romanum at 79 CE (placeholders, measured)', (
     expect(fest.boxes.some((b) => b.kind === 'garland')).toBe(true);
   });
 
+  it('the Basilica Julia is open: a nave of the record\'s 82 × 16 m floored in coloured marble, gaming boards in its aisle, its podium reached by steps', () => {
+    const r = mon('basilica-julia').rect, nave = plan.grounds.filter((g) => g.surface === 'opus-sectile');
+    expect(nave.length).toBe(1);
+    expect([nave[0].w, nave[0].d]).toEqual([82, 16]);
+    expect(nave[0].z).toBeGreaterThan(0.9);                                                      // on the podium
+    expect(plan.grounds.some((g) => g.surface === 'lusoria' && inRect([g.x + g.w / 2, g.y + g.d / 2], r))).toBe(true);
+    // nothing solid stands in the nave below the clerestory: it is a hall to walk in
+    const n = nave[0], inNave = plan.boxes.filter((b) => b.building === 'basilica-julia' && b.z1 > n.z + 0.05 && b.z0 < 10 && b.kind !== 'truss' && overlap(b, { x: n.x + 0.5, y: n.y + 0.5, w: n.w - 1, d: n.d - 1 }));
+    expect(inNave.map((b) => b.kind)).toEqual([]);
+    const steps = plan.boxes.filter((b) => b.building === 'basilica-julia' && b.kind === 'stair');
+    expect(steps.length).toBe(5);
+    expect(Math.max(...steps.map((b) => b.z1 - b.z0))).toBeLessThan(1);
+  });
+
   it('roofs are tiled: imbrices in rows, antefixes at the eaves, a soffit under each slope', () => {
     const roof = plan.boxes.filter((b) => b.building === 'castor');
     expect(roof.filter((b) => b.kind === 'antefix').length).toBeGreaterThan(100);

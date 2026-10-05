@@ -105,13 +105,13 @@ const entHeight = (order, D) => entablature(order, { D, span: 1, deep: 1, tint: 
  * through the pier's depth), the storey's entablature across; `storeys` of them, each order `upper` the one below.
  * The bay's right pier is the next bay's; a run ends with `arcadeEnd`.
  */
-function arcadeBay({ b, pd, D, storeys = 2, upper = 0.85, tint, floor = true, depth = 0, frieze = null }) {
+function arcadeBay({ b, pd, D, storeys = 2, upper = 0.85, tint, floor = true, depth = 0, frieze = null, columns = true }) {
   const out = [], pw = Math.max(1.2, 1.5 * D);
   let z = 0, d = D;
   for (let s = 0; s < storeys; s++) {
     const H = 7 * d, eh = entHeight('tuscan', d), open = b - pw, r = open / 2, spring = Math.max(0.6 * H, H - r - 0.35 * d);
     out.push(sbox('pier', 0, 0, pw, pd, z, z + H, tint));
-    for (const m of column('tuscan', { D: d, H, tint }).masses) out.push(shift(m, pw / 2, 0, z));
+    if (columns) for (const m of column('tuscan', { D: d, H, tint }).masses) out.push(shift(m, pw / 2, 0, z));
     // the arch: stepped spandrels round the curve, the crown block over it to the entablature
     const n = 12;
     for (let k = 1; k <= n; k++) {
@@ -120,9 +120,10 @@ function arcadeBay({ b, pd, D, storeys = 2, upper = 0.85, tint, floor = true, de
     }
     out.push(sbox('arch', pw, 0, open, pd, z + spring + r, z + H, tint));
     // the archivolt and the impost: a band round the opening's face, a moulding at the springing
-    for (let k = 0; k <= 8; k++) { const t = (Math.PI * k) / 8, cx = pw + r + Math.cos(t) * (r + 0.12), cz = spring + Math.sin(t) * (r + 0.12); out.push(sbox('archivolt', cx - 0.18, -0.08, 0.36, 0.1, z + cz - 0.18, z + cz + 0.18, tint)); }
+    if (columns) for (let k = 0; k <= 8; k++) { const t = (Math.PI * k) / 8, cx = pw + r + Math.cos(t) * (r + 0.12), cz = spring + Math.sin(t) * (r + 0.12); out.push(sbox('archivolt', cx - 0.18, -0.08, 0.36, 0.1, z + cz - 0.18, z + cz + 0.18, tint)); }
     out.push(sbox('impost', pw - 0.1, -0.1, 0.1, pd + 0.2, z + spring - 0.25, z + spring, tint), sbox('impost', b, -0.1, 0.1, pd + 0.2, z + spring - 0.25, z + spring, tint));
-    for (const m of entablature('tuscan', { D: d, span: b, deep: pd - 0.1, tint, dentils: false, frieze: s === 0 ? frieze : null }).masses) out.push(shift(m, 0, -d * 0.4, z + H));   // `frieze`: the lower storey's
+    if (columns) for (const m of entablature('tuscan', { D: d, span: b, deep: pd - 0.1, tint, dentils: false, frieze: s === 0 ? frieze : null }).masses) out.push(shift(m, 0, -d * 0.4, z + H));   // `frieze`: the lower storey's
+    else out.push(sbox('band', 0, -0.08, b, pd + 0.16, z + H, z + H + entHeight('tuscan', d), tint));   // an inner arcade: a plain band where the order's entablature runs outside
     z += H + eh;
     // the gallery floor behind the arcade, and the ceiling over the top storey
     if (floor && depth > pd) out.push(sbox('floor', 0, pd, b, depth - pd, z - 0.5, z, tint, { underside: true }));
@@ -134,8 +135,8 @@ const shift = (m, dx, dy, dz) => ({ ...m, x: m.x + dx, y: m.y + dy, z0: m.z0 + d
 export function arcadeHeight(D, storeys = 2, upper = 0.85) { let z = 0, d = D; for (let s = 0; s < storeys; s++) { z += 7 * d + entHeight('tuscan', d); d *= upper; } return z; }
 /** An arcade bay instance at (x, y, z), facing `turn`. */
 export function bayInst(opts, x, y, z, turn) {
-  const { b, pd, D, storeys = 2, upper = 0.85, tint, depth = 0, frieze = null } = opts;
-  const key = `bay:${r2(b)}:${r2(pd)}:${r2(D)}:${storeys}:${upper}:${r2(depth)}:${tint}:${frieze || '-'}:${turn}`;
+  const { b, pd, D, storeys = 2, upper = 0.85, tint, depth = 0, frieze = null, columns = true } = opts;
+  const key = `bay:${r2(b)}:${r2(pd)}:${r2(D)}:${storeys}:${upper}:${r2(depth)}:${tint}:${frieze || '-'}:${columns ? 'o' : 'i'}:${turn}`;
   return {
     key, x, y, z, turn,
     make: () => turnMasses(arcadeBay(opts).masses, turn),
@@ -542,4 +543,62 @@ export function festoon(a, b, sag, P) {
   }
   for (const e of [a, b]) out.push(beam('ribbon', e, [e[0], e[1], e[2] - 0.9], 0.06, P.minium));
   return out;
+}
+
+/**
+ * The Basilica Julia opened (W × D, front −y, standing on its podium of `podium` m; the place lifts it): a flight of steps
+ * along the front; the façade arcade on all four sides; inside, the aisles all round (two deep along the long sides, one
+ * at the ends: P&A's five aisles), the inner pier arcades on two storeys carrying the galleries, the nave rising to its
+ * clerestory windows under a trussed timber roof. Floors as grounds: coloured marble in the nave (opus sectile), white
+ * marble in the aisles, the gaming boards in the front aisle. Record: basilica-julia (101 × 49; nave 82 × 16; aisles 7.5).
+ */
+export function openBasilica({ W, D }, { D: colD, bays, ends = 8, aisle = 7.5, nave = { w: 82, d: 16 }, pd = 1.4, podium = 0.9, festival = false, P, tint = P.luna }) {
+  const out = [], inst = [], grounds = [], h = arcadeHeight(colD), h1 = 7 * colD + entHeight('tuscan', colD), b = W / bays, sb = D / ends;
+  const outer = { b, pd, D: colD, tint, depth: 0 }, outerS = { ...outer, b: sb };
+  // the façade: front and back runs, the two ends
+  for (let i = 0; i < bays; i++) { inst.push(bayInst(outer, i * b, 0, 0, 0)); inst.push(bayInst(outer, (i + 1) * b, D, 0, 2)); }
+  for (let i = 0; i < ends; i++) { inst.push(bayInst(outerS, 0, (i + 1) * sb, 0, 3)); inst.push(bayInst(outerS, W, i * sb, 0, 1)); }
+  for (const [x, y] of [[W - 1.5 * colD, 0], [0, D - pd]]) out.push(sbox('pier', x, y, 1.5 * colD, pd, 0, h, tint));
+  // `festival`: a gilded shield on each front pier, as for a procession
+  if (festival) { const pw = Math.max(1.2, 1.5 * colD), spring1 = Math.max(0.6 * 7 * colD, 7 * colD - (b - pw) / 2 - 0.35 * colD); for (let i = 0; i <= bays; i++) out.push(...clipeus(Math.min(W - pw / 2, i * b + pw / 2), -0.62 * colD, spring1 + 0.4, [0, -1], 0.62, P)); }
+  // the steps up from the street to the podium, along the front, outside the frame
+  out.push(...flight({ x: -1, y: -2.4, w: W + 2, d: 2.4 }, -podium, 0, P.luna, 'y', 5));
+  // the inner arcades: piers and arches on two storeys, no order (the order is the façade's)
+  const nx0 = (W - nave.w) / 2, nx1 = nx0 + nave.w, ny0 = (D - nave.d) / 2, ny1 = ny0 + nave.d, a1 = pd + aisle;
+  const inner = (len) => ({ b: len / Math.max(1, Math.round(len / b)), pd: 1.2, D: colD, tint, depth: 0, columns: false });
+  const run = (x0, y0, len, turn) => { const o = inner(len), n = Math.round(len / o.b); for (let i = 0; i < n; i++) inst.push(bayInst(o, turn === 0 ? x0 + i * o.b : x0, turn === 0 ? y0 : y0 + (i + 1) * o.b, 0, turn)); return o; };
+  // the line between the outer and inner aisles (long sides), and the nave's own arcades (long sides and ends)
+  for (const y of [a1, D - a1 - 1.2]) run(nx0, y, nave.w, 0);
+  for (const y of [ny0 - 1.2, ny1]) run(nx0, y, nave.w, 0);
+  for (const x of [nx0 - 1.2, nx1]) run(x, ny0 - 1.2, nave.d + 2.4, 3);
+  // the galleries' floors over the aisles, and their roofs: the outer ring under the façade's lean-to, the inner aisles
+  // stepping up to the nave wall
+  for (const [x, y, w, d] of [[0, pd, W, aisle], [0, D - pd - aisle, W, aisle], [0, a1, nx0, D - 2 * a1], [nx1, a1, W - nx1, D - 2 * a1], [nx0, a1, nave.w, ny0 - a1], [nx0, ny1, nave.w, D - a1 - ny1]]) {
+    out.push(sbox('floor', x, y, w, d, h1 - 0.5, h1, tint, { underside: true }), sbox('ceiling', x, y, w, d, h - 0.4, h, tint, { underside: true }));
+  }
+  // the nave walls above the arcades: the clerestory, its windows bright with the sky seen through them
+  const nh = h + 9;
+  for (const [y, sg] of [[ny0 - 1.2, -1], [ny1, 1]]) {
+    out.push(box('clerestory', nx0 - 1.2, y, nave.w + 2.4, 1.2, h, nh, tint));
+    for (let x = nx0 + 2; x < nx1 - 2; x += 4.1) for (const yy of [y - 0.06, y + 1.16]) out.push(box('window', x, yy, 2, 0.1, h + 2.5, h + 6.5, yy < y + 0.5 === (sg < 0) ? P.shop : P.sky, { skin: null }));
+  }
+  for (const x of [nx0 - 1.2, nx1]) out.push(box('clerestory', x, ny0 - 1.2, 1.2, nave.d + 2.4, h, nh, tint));
+  // the roofs: the outer lean-tos, and the nave's gable on its trusses
+  for (const pts of [[[-0.6, -0.6, h], [W + 0.6, -0.6, h], [W + 0.6, ny0 - 1.2, h + 2.2], [-0.6, ny0 - 1.2, h + 2.2]], [[-0.6, ny1 + 1.2, h + 2.2], [W + 0.6, ny1 + 1.2, h + 2.2], [W + 0.6, D + 0.6, h], [-0.6, D + 0.6, h]]]) out.push(...tiled(pts, P));
+  const rh = ((nave.d + 2.4) / 2) * Math.tan((16 * Math.PI) / 180), my = (ny0 + ny1) / 2;
+  out.push(...tiled([[nx0 - 2, ny0 - 1.8, nh], [nx1 + 2, ny0 - 1.8, nh], [nx1 + 2, my, nh + rh], [nx0 - 2, my, nh + rh]], P, { ridge: true }));
+  out.push(...tiled([[nx0 - 2, my, nh + rh], [nx1 + 2, my, nh + rh], [nx1 + 2, ny1 + 1.8, nh], [nx0 - 2, ny1 + 1.8, nh]], P));
+  for (const x of [nx0 - 1.2, nx1 + 1.2]) out.push(panel('gable', [[x, ny0 - 1.2, nh], [x, ny1 + 1.2, nh], [x, my, nh + rh]], [x < W / 2 ? -1 : 1, 0, 0], tint), panel('gable', [[x, ny0 - 1.2, nh], [x, my, nh + rh], [x, ny1 + 1.2, nh]], [x < W / 2 ? 1 : -1, 0, 0], tint));
+  for (let x = nx0 + 2; x < nx1; x += 5.5) {
+    // a truss: the tie-beam across the nave, the rafters up to the ridge, the king post
+    out.push(beam('truss', [x, ny0 - 0.6, nh - 0.3], [x, ny1 + 0.6, nh - 0.3], 0.45, P.timber), beam('truss', [x, ny0 - 0.6, nh], [x, my, nh + rh - 0.4], 0.35, P.timber), beam('truss', [x, my, nh + rh - 0.4], [x, ny1 + 0.6, nh], 0.35, P.timber), beam('truss', [x, my, nh - 0.3], [x, my, nh + rh - 0.4], 0.3, P.timber));
+  }
+  // the floors (a hand's breadth over the podium's top, or the far depth test loses them to it): the nave's coloured
+  // marble, the aisles' white marble, the gaming boards in the front aisle
+  grounds.push({ kind: 'floor', x: nx0, y: ny0, w: nave.w, d: nave.d, z: 0.12, fill: P.luna, surface: 'opus-sectile' });
+  grounds.push({ kind: 'floor', x: pd, y: pd, w: W - 2 * pd, d: aisle - 0.01, z: 0.12, fill: P.luna, surface: 'lusoria' });
+  for (const [x, y, w, d] of [[pd, pd + aisle, W - 2 * pd, ny0 - pd - aisle], [pd, ny1, W - 2 * pd, D - pd - ny1], [pd, ny0, nx0 - pd, nave.d], [nx1, ny0, W - pd - nx1, nave.d]]) grounds.push({ kind: 'floor', x, y, w, d, z: 0.12, fill: P.luna, surface: 'flagstone' });
+  // the podium under it all, its face a moulded base along the street
+  out.push(box('podium', -0.3, -0.3, W + 0.6, D + 0.6, -podium, 0, tint));
+  return { boxes: out, inst, grounds, height: nh + rh };
 }

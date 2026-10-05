@@ -497,6 +497,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - Fixed: a lifted building now lifts its beams too, so the roofs of temples set on platforms sit on them. The
       World page collects an instanced template's textures, so friezes and lettering show on it.
     - The World page is about 11.9 MB, or 12.3 MB with the festival.
+  - **The Basilica Julia, opened.** In the forum, as at Rome generally, decorated floors were indoors: the square was
+    travertine. The record gives the Julia a coloured-marble pavement in its central hall and white marble in its
+    aisles, and about 80 game boards scratched into its steps and floor (Platner & Ashby). The basilica is now a hall to
+    walk into:
+    - steps up from the Sacra Via onto its podium;
+    - the façade arcade on all four sides;
+    - aisles all round, two deep along the long sides (the five aisles);
+    - inner pier arcades on two storeys carrying the galleries;
+    - the nave, 82 × 16 m, rising to clerestory windows under a trussed timber roof.
+
+    Two new floor tiles in `ground.js`:
+    - `opus-sectile`: panels of cut, veined marble framed in white, alternating a giallo field round a pavonazzetto
+      lozenge and an africano roundel with a porta santa field round a cipollino ring;
+    - `lusoria`: white marble slabs with merels boards, the eight-spoked wheel and twelve-line boards scratched in.
+
+    A walker crosses from the nave through the arcades to the front aisle on the floor. The page is about 12.6 MB.
 
 ### Sixth-gen composer
 

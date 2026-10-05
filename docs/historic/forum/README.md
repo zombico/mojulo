@@ -76,6 +76,8 @@ Each is drawn one way and flagged in the record:
 - The square's furniture and the reliefs (`assets/forum.js` monuments; `relief-art.js` skins): statues, rostral
   columns, Ianus's shut shrine, Venus Cloacina, the Lapis Niger, the tribunal, Surdinus's paving letters as written, the
   Curtius relief, the Fasti, the friezes; dedications in real capitals that spell no text (the texts are lost).
+- The Basilica Julia opened: steps, the façade arcade, aisles all round (two deep on the long sides), inner arcades
+  on two storeys, the nave under its clerestory and trusses; floors in `opus-sectile` (nave) and `lusoria` (gaming boards).
 - Roofs: tegulae and imbrices, antefixes, ridge tiles, a soffit under the eaves.
 - `festival: true` dresses the forum for a procession day: gilded shields on the basilicas' piers, garlands on the
   temple fronts (Livy 9.40.16). An ordinary day shows none.
