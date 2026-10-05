@@ -25,7 +25,9 @@ needed on the anime head. Being built on this branch.
 - **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
   that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
   — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
-  (carrots, after Toriyama), `jinto` (bananas) and `kairo` (chili peppers). `sideburns` works on any style. The
+  (carrots, after Toriyama), `jinto` (bananas, comma hair) and `kairo` (chili peppers, a wolf cut), the last two after a hairstylist's pass.
+  A layer's `swirl` turns its flow one way (a fringe swept off its part), and a style takes up to 12 layers.
+  `sideburns` works on any style. The
   principles and recipes cross-referenced to shonen and JRPG heroes are in `docs/examples/humanoid/DESIGNING.md`.
 - **Fixed.** An anime hero whose hair is a list (`['long', { locks }]`) now wears that family: before, the list was not
   read as naming one, the base's cut was worn under it and its clump edits were lost.

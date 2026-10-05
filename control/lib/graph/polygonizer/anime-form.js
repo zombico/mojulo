@@ -508,7 +508,10 @@ export function buildAnime(r, options = {}) {
         const spacing = dmath.hypot(...sub(anchorOf(place(az + (a1 - a0) / (full ? per : per + 0.5), el)), P)), cover = Ly.cover ?? (Ly.shape === 'carrot' ? 0 : 1);
         const width0 = (Ly.width ?? (Ly.shape === 'carrot' ? 0.24 : Ly.shape === 'banana' ? 0.14 : 0.06)) * (0.85 + 0.15 * vary), width = Math.max(width0, (cover * 0.62 * spacing) / G);
         let flow = sub(P, WHORL); flow = sub(flow, mul(n, dot(flow, n))); if (dmath.hypot(...flow) < 1e-6) flow = [0, 0, -1];
-        const dir = add(add(unit(flow), mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
+        // `swirl` (degrees) turns the flow about the scalp's normal, clockwise seen from outside the head: the whole layer
+        // turns ONE way (a fringe swept off its part, a crown that spirals) — never a twin pair
+        flow = unit(flow); if (Ly.swirl) { const sw = Ly.swirl * Math.PI / 180; flow = sub(mul(flow, dmath.cos(sw)), mul(cross(n, flow), dmath.sin(sw))); }
+        const dir = add(add(flow, mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
         BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, sprout: Ly.sprout ?? 0.8 });
       }
     }

@@ -257,7 +257,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `length`, `base`, `sink`, `curve`, `bend`), BANANAS (flat crescents; `length`, `width`, `flat`, `bend`, `dir`
   required) or PEPPERS (chilis, thin strands; `length`, `width`, `bend`) — each piece `at: [azimuth°, elevation°]` on
   the cap and aimed by `dir: [x, y, z]`, or laid in `layers` (`{ shape, az, el, rows, count, length, width, droop,
-  lift, cover, sprout, vary, bend }`, or `around: [from°, to°]` for a rosette about the whorl) that flow from the
+  lift, cover, sprout, vary, bend, swirl }` (at most 12; `swirl` turns the flow one way by degrees), or `around: [from°, to°]` for a rosette about the whorl) that flow from the
   `whorl` along the head, bananas and peppers tiling it (`cover`)
   and every piece sprouting along the surface before it arcs out (`sprout`); `scale` grows the style; parts `hairCarrot0`,
   `hairBanana0`, `hairPepper0` …), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
@@ -367,8 +367,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
   clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
-  and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, a layered swept mop)
-  and `kairo` (chili peppers only, a heavy shag of thin strands), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
+  and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block)
+  and `kairo` (chili peppers only, a wolf cut), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
   sum, a family and a pose last-wins; the own `face` / `sculpt` / `hair` / `expression` / `tune` apply ON TOP (`/hero/hair/length`
   1.1 is ten percent over the look). `look: ['rival', 'tareme']`, then `set /hero/look` to add or peel a word (a list is

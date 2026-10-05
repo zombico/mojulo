@@ -153,32 +153,43 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { at: [318, 8], dir: [-0.45, -1, -0.2], length: 0.5, base: 0.17, sink: 0.3, curve: 0.2, bend: 0.1 },
         { at: [50, 8], dir: [0.6, -0.9, -0.1], length: 0.4, base: 0.15, sink: 0.3, curve: 0.2, bend: 0.1 },
       ] } } },
-  // JINTO — bananas only, after the operator's sketch: broad locks that TILE the head (no bald gap), a smooth crown, the
-  // locks parting into points at the jaw and over the brow (the fringe opening over the face), two accent bananas on top
-  jinto: { note: 'Jinto: bananas only — broad locks tiling the head from a smooth crown, parting into points at the jaw, a pointed fringe opening over the face, two accent bananas on top, banana sideburns',
-    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.5, width: 0.14, forward: 0.1 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.12,
+  // JINTO — bananas only, cut as a hairstylist would: COMMA HAIR over a soft two-block. The whorl set back and low so the
+  // crown is a smooth dome (no star, nothing rising), the sides short and laid flat, the nape tapered and rounded above the
+  // collar (no point), and the story in the front: a fringe parted on his left, swept one way to the brow, and one comma
+  // lock curling in over his right cheek
+  jinto: { note: 'Jinto: bananas only — comma hair over a soft two-block: a smooth domed crown, a fringe parted on his left and swept to the brow, one comma lock curling in at his right cheek, flat sides, a short tapered nape, short sideburns',
+    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.3, width: 0.12 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1, whorl: [180, 45],
       layers: [
-        { shape: 'banana', az: [0, 360], around: [4, 22], rows: 2, count: 12, length: 0.95, width: 0.2, droop: 0.1, lift: 0.1, vary: 0.2, bend: 0.2, sprout: 1 },
-        { shape: 'banana', az: [0, 360], el: [55, 80], rows: 2, count: 14, length: 1.0, width: 0.2, droop: 0.35, lift: 0.08, vary: 0.2, bend: 0.18 },
-        { shape: 'banana', az: [62, 298], el: [8, 42], rows: 2, count: 18, length: 1.35, width: 0.22, droop: 1.1, lift: 0.08, vary: 0.25, bend: 0.16 },
-        { shape: 'banana', az: [-58, 58], el: [30, 48], rows: 1, count: 6, length: 0.72, width: 0.2, droop: 0.9, lift: 0.12, vary: 0.3, bend: 0.16 },
+        { shape: 'banana', az: [0, 360], around: [4, 26], rows: 2, count: 12, length: 0.9, width: 0.22, droop: 0.7, lift: 0.1, vary: 0.1, bend: 0.18, sprout: 1 },
+        { shape: 'banana', az: [0, 360], el: [52, 80], rows: 2, count: 14, length: 0.95, width: 0.22, droop: 0.55, lift: 0.04, vary: 0.1, bend: 0.16, swirl: 15 },
+        { shape: 'banana', az: [52, 128], el: [10, 44], rows: 2, count: 6, length: 0.85, width: 0.22, droop: 1.3, lift: 0, vary: 0.1, bend: 0.12 },
+        { shape: 'banana', az: [232, 308], el: [10, 44], rows: 2, count: 6, length: 0.85, width: 0.22, droop: 1.3, lift: 0, vary: 0.1, bend: 0.12 },
+        { shape: 'banana', az: [128, 232], el: [6, 44], rows: 2, count: 10, length: 0.62, width: 0.22, droop: 1.1, lift: 0.02, vary: 0.08, bend: 0.12, cover: 1.5 },
+        { shape: 'banana', az: [-62, 52], el: [30, 50], rows: 1, count: 6, length: 0.6, width: 0.26, droop: 0.8, lift: 0.1, vary: 0.15, bend: 0.2, swirl: 35 },
       ],
       bananas: [
-        { at: [345, 86], dir: [-0.5, 0.8, -0.3], length: 0.45, width: 0.12, bend: 0.3 },
-        { at: [20, 84], dir: [0.85, 0.35, -0.1], length: 0.6, width: 0.13, bend: 0.22 },
+        { at: [15, 26], dir: [0.45, -1, -0.3], length: 0.78, width: 0.22, bend: 0.35, sprout: 0.8 },
       ] } } },
-  // KAIRO — chili peppers only: a heavy shag of many thin strands; the weight is the count, the thinness and the length
-  kairo: { note: 'Kairo: chili peppers only — the thin version of the banana tiling: many thin strands, every one shouldered to overlap its neighbours (no bald gap), a smooth crown, the strands parting into ragged points at the jaw and the brow, two accent strands on top, thin sideburns',
-    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.55, width: 0.07 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1,
+  // KAIRO — chili peppers only, cut as a hairstylist would: a WOLF CUT. Mass before texture (a short base layer fills the
+  // shape, thinner varied strands texture it), the crown the tallest, shaggiest zone, the sides stepped from the ear to the
+  // jaw, the nape grown to the collar and flicking out, long wispy sideburns, a piecey off-centre middle part, all of it
+  // swirling one way from the whorl and one longer flick at his right jaw: the hourglass wolf profile
+  kairo: { note: 'Kairo: chili peppers only — a wolf cut: a tall shaggy crown, the sides stepped from the ear to the jaw, a long wispy nape flicking out at the collar, long sideburns, a piecey off-centre middle part, one long flick at his right jaw',
+    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.75, width: 0.055 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1, whorl: [180, 55],
       layers: [
-        { shape: 'pepper', az: [0, 360], around: [3, 24], rows: 3, count: 30, length: 0.85, width: 0.05, droop: 0.1, lift: 0.1, vary: 0.25, bend: 0.16, sprout: 1 },
-        { shape: 'pepper', az: [0, 360], el: [55, 76], rows: 3, count: 48, length: 0.95, width: 0.05, droop: 0.35, lift: 0.08, vary: 0.25, bend: 0.14 },
-        { shape: 'pepper', az: [60, 300], el: [8, 42], rows: 3, count: 60, length: 1.2, width: 0.05, droop: 1.1, lift: 0.1, vary: 0.3, bend: 0.12 },
-        { shape: 'pepper', az: [-58, 58], el: [28, 46], rows: 2, count: 18, length: 0.6, width: 0.045, droop: 0.85, lift: 0.12, vary: 0.35, bend: 0.12 },
+        { shape: 'pepper', az: [0, 360], el: [18, 62], rows: 3, count: 60, length: 0.45, width: 0.06, droop: 0.6, lift: 0.05, vary: 0.2, bend: 0.12, cover: 1.2, sprout: 1 },
+        { shape: 'pepper', az: [0, 360], around: [3, 26], rows: 3, count: 30, length: 0.7, width: 0.045, droop: 0.4, lift: 0.2, vary: 0.35, bend: 0.16, sprout: 1, swirl: 25 },
+        { shape: 'pepper', az: [0, 360], el: [55, 76], rows: 2, count: 36, length: 0.8, width: 0.042, droop: 0.45, lift: 0.18, vary: 0.35, bend: 0.14, swirl: 25 },
+        { shape: 'pepper', az: [55, 130], el: [24, 46], rows: 2, count: 10, length: 0.55, width: 0.038, droop: 0.9, lift: 0.12, vary: 0.4, bend: 0.12, swirl: 25 },
+        { shape: 'pepper', az: [230, 305], el: [24, 46], rows: 2, count: 10, length: 0.55, width: 0.038, droop: 0.9, lift: 0.12, vary: 0.4, bend: 0.12, swirl: 25 },
+        { shape: 'pepper', az: [55, 130], el: [4, 22], rows: 1, count: 6, length: 0.95, width: 0.038, droop: 1.1, lift: 0.1, vary: 0.35, bend: 0.12, swirl: 25 },
+        { shape: 'pepper', az: [230, 305], el: [4, 22], rows: 1, count: 6, length: 0.95, width: 0.038, droop: 1.1, lift: 0.1, vary: 0.35, bend: 0.12, swirl: 25 },
+        { shape: 'pepper', az: [130, 230], el: [0, 30], rows: 2, count: 22, length: 1.3, width: 0.045, droop: 1.2, lift: 0.3, vary: 0.5, bend: 0.3, swirl: 25 },
+        { shape: 'pepper', az: [-55, -10], el: [28, 46], rows: 1, count: 4, length: 0.5, width: 0.04, droop: 0.6, lift: 0.12, vary: 0.4, bend: 0.12, swirl: -25 },
+        { shape: 'pepper', az: [-6, 55], el: [28, 46], rows: 1, count: 5, length: 0.5, width: 0.04, droop: 0.6, lift: 0.12, vary: 0.4, bend: 0.12, swirl: 20 },
       ],
       peppers: [
-        { at: [350, 84], dir: [-0.45, 0.8, -0.35], length: 0.42, width: 0.07, bend: 0.25 },
-        { at: [15, 82], dir: [0.8, 0.35, -0.1], length: 0.55, width: 0.07, bend: 0.2 },
+        { at: [100, 10], dir: [0.8, -1, 0.2], length: 1.0, width: 0.05, bend: -0.3, sprout: 0.6 },
       ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
@@ -196,7 +207,7 @@ const SPIKES_KEYS = Object.freeze(['amount', 'reach', 'width', 'up']);
 export const SIDEBURN_FIELDS = Object.freeze({ amount: [0, 1], length: [0, 1.5], width: [0.01, 0.5], forward: [-0.6, 0.6], at: [-30, 30], az: [-30, 40] });
 export const HAIR_SHAPE_FAMILIES = Object.freeze(['carrot', 'banana', 'pepper']);
 /** a layer's fields (anime-form `layers`): rows of one family over an azimuth and elevation range */
-export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 3], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.15, 1] });
+export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 3], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.15, 1], swirl: [-90, 90] });
 /** the SHAPES (anime-form): the clump groups a recipe may take over, and each primitive's fields with their hard limits */
 export const HAIR_SHAPE_GROUPS = Object.freeze(['fringe', 'temple', 'back', 'crown']);
 export const HAIR_SHAPE_FIELDS = Object.freeze({
@@ -245,7 +256,7 @@ function hairFormErrors(entry, at) {
         if (f === 'scale') { num('shapes.scale', x, 0.5, 2); continue; }
         if (f === 'whorl') { if (!Array.isArray(x) || x.length !== 2 || !x.every(finite) || x[1] < 0 || x[1] > 90) errs.push(`${at}.shapes.whorl: [azimuth°, elevation°] (the crown point the layers flow from)`); continue; }
         if (f === 'layers') {
-          if (!Array.isArray(x) || x.length > 8) { errs.push(`${at}.shapes.layers: a list of at most 8 layers`); continue; }
+          if (!Array.isArray(x) || x.length > 12) { errs.push(`${at}.shapes.layers: a list of at most 12 layers`); continue; }
           x.forEach((Ly, i) => {
             const here = `${at}.shapes.layers[${i}]`;
             if (!isObj(Ly) || !HAIR_SHAPE_FAMILIES.includes(Ly.shape)) { errs.push(`${here}: { shape: ${HAIR_SHAPE_FAMILIES.join(' | ')}, az?: [from°, to°], el?: [from°, to°] | around?: [from°, to°], ${Object.keys(HAIR_LAYER_FIELDS).join(', ')} }`); return; }

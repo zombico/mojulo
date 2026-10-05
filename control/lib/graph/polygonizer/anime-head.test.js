@@ -445,9 +445,13 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(broku.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
     expect(box(broku.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
     expect(Object.keys(broku.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
-    // kairo's weight is its count: 146 thin strands in four layers (a crown ring sprouting from the whorl), two accents
-    // and two sideburns
-    expect(Object.keys(on('male', 'kairo').h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(160);
+    // kairo's weight is its count: a wolf cut of 189 thin strands in ten layers (a short base for the mass, a rosette and a
+    // crown for the shag, stepped sides, a long nape, a parted fringe), one flick and two sideburns
+    const kairo = on('male', 'kairo'), jinto = on('male', 'jinto');
+    expect(Object.keys(kairo.h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(192);
+    // the pair kept apart by the nape: kairo's grows past jinto's tapered one
+    expect(box(kairo.mesh, /^hairPepper/)[2][0]).toBeLessThan(box(jinto.mesh, /^hairBanana/)[2][0] - 0.03);
+    expect(failures(kairo.mesh)).toEqual([]); expect(failures(jinto.mesh)).toEqual([]);
     // broku: no straight-up spike — every rising carrot leans ≥ 30° off the vertical from the front and from the side
     for (const K of ANIME_HAIR_MOVES.broku.hair.shapes.carrots) { const [x, y, z] = K.dir; if (y <= 0) continue; expect(Math.abs(x) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); expect(Math.abs(z) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); }
   });
@@ -459,6 +463,10 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     // cover: bananas and peppers TILE by default — each widened at its root to overlap its row neighbours
     const rootW = (m) => { const ps = m.pointIds.map((id, i) => (id.startsWith('hairPepper0/') ? m.vertices[i] : null)).filter(Boolean); return Math.max(...ps.map((p) => p[0])) - Math.min(...ps.map((p) => p[0])); };
     expect(rootW(lay({ width: 0.02 }))).toBeGreaterThan(rootW(lay({ width: 0.02, cover: 0 })) * 1.5);
+    // swirl turns a layer's flow one way: a front fringe swept toward the hero's right, never a validated twin past ±90°
+    const fringe = (swirl) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'pepper', az: [-30, 30], el: [30, 46], rows: 1, count: 5, length: 0.6, swirl }] } }]).mesh, /^hairPepper/)[0];
+    expect(fringe(40)[0] + fringe(40)[1]).toBeGreaterThan(fringe(0)[0] + fringe(0)[1] + 0.02);
+    expect(validateAnimeHair({ shapes: { layers: [{ shape: 'pepper', swirl: 120 }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.layers[0].swirl']);
     const big = on('male', ['broku', { shapes: { ...ANIME_HAIR_MOVES.broku.hair.shapes, scale: 1.6 } }]).h, small = on('male', ['broku', { shapes: { ...ANIME_HAIR_MOVES.broku.hair.shapes, scale: 1 } }]).h;
     expect(big.hairMeasures.top_m).toBeGreaterThan(small.hairMeasures.top_m + 0.02);
   });

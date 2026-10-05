@@ -260,8 +260,9 @@ decides whether any of them belongs.
 The anime head's `shapes` hair word composes a hairstyle from ONE family of primitives, each one closed piece placed
 on the cap by `at: [azimuth°, elevation°]` (azimuth 0 the front, 90 the hero's right, 180 the back; elevation 0 the
 hairline, 90 the crown) and aimed by `dir: [x, y, z]` (x the hero's right, y up, z back), or laid in rows by `layers`
-(`{ shape, az, el, rows, count, length, width, droop, lift, cover, sprout, vary, bend }`), which flow from the `whorl`
-along the head.
+(`{ shape, az, el, rows, count, length, width, droop, lift, cover, sprout, vary, bend, swirl }`), which flow from the
+`whorl` along the head (`swirl` turns a layer's flow by degrees, clockwise seen from outside: a fringe swept off its
+part, a crown that spirals one way).
 `replace` names the studio clump groups the recipe takes over (`fringe`, `temple`, `back`, `crown`); `scale` grows the
 whole style against the head (the shonen guide's stylization dial: the more expressive the register, the bigger the
 hair). `sideburns` (`{ length, width, forward, shape?, at?, az? }`) is a hair word of its own and works on any style,
@@ -277,8 +278,21 @@ ONE FAMILY PER DESIGN. The operator's experiment (Broku's carrot layout rebuilt 
 three length and width settings): length variation inside one family does make hierarchy, but each family has a range
 of jobs — a stretched pepper becomes a carrot, a short wide banana goes to mush. So a design picks the family that
 fits the style and varies length, width and count inside it. The characters: `broku` (carrots, after Toriyama),
-`jinto` (bananas, broad locks tiling from a smooth crown), `kairo` (chili peppers, the same tiling in 126 thin
-strands).
+`jinto` (bananas: comma hair over a soft two-block), `kairo` (chili peppers: a wolf cut).
+
+A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name the real cut first, then build it.
+
+- **Jinto, comma hair.** The whorl set back and low (`[180, 45]`) so the crown is a smooth dome. The sides are short
+  and flat, and the nape is tapered and rounded above the collar, never a rat-tail point. The story is in the front:
+  the fringe is parted on his left and swept one way to the brow, with one comma lock curling in over his right cheek.
+  Silhouette: a rounded helmet that nothing breaks.
+- **Kairo, a wolf cut.** A short base layer fills the shape before thinner, varied strands texture it. The crown is
+  the tallest and shaggiest zone. The sides step from the ear to the jaw, the nape grows to the collar and flicks out,
+  the sideburns are long and wispy, and the middle part is piecey and off centre. Everything swirls one way from the
+  whorl, with one long flick at his right jaw. Silhouette: an hourglass from the side.
+- **Keep a pair apart by the nape.** Jinto is closed and short at the nape and his story is the front; Kairo is open
+  and long at the nape and his story is the crown and the tail. Trade nape lengths and both collapse into the same
+  spiky hero.
 
 Build in this order: the mass first (stubby carrots, a crown layer of bananas, rows of chilis) until it carries 60–70 %
 of the silhouette, then the flow back to front, then the outline's accents, the fringe last, an accessory clamping
