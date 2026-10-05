@@ -38,6 +38,7 @@ import { assembleJungleScene } from './jungle.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { normalizeJets } from '../materials/jet.js';
+import { resolveTerrainWind } from '../vegetation/wind.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
 export const STAGE_KITS = ({
@@ -482,6 +483,17 @@ function torchFaces(l, live = false) {
 // ── the world kind ───────────────────────────────────────────────────────────
 const ambientOf = (ref) => hexRgb(ref.light.ambient).map((v) => Math.min(1, v * 1.7));
 
+/** A card cut into nu × nv cells (corners and uv interpolated), so a page can bend it down its length. */
+function splitCard(f, nu, nv) {
+  const [a, b, c, d] = f.corners, lerp = (p, q, t) => p.map((v, k) => v + (q[k] - v) * t), out = [];
+  const at = (s, t) => P(lerp(lerp(a, b, s), lerp(d, c, s), t)), uv = (s, t) => lerp(lerp(f.uv[0], f.uv[1], s), lerp(f.uv[3], f.uv[2], s), t).map(r5);
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) {
+    const s0 = i / nu, s1 = (i + 1) / nu, t0 = j / nv, t1 = (j + 1) / nv;
+    out.push({ ...f, corners: [at(s0, t0), at(s1, t0), at(s1, t1), at(s0, t1)], uv: [uv(s0, t0), uv(s1, t0), uv(s1, t1), uv(s0, t1)] });
+  }
+  return out;
+}
+
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
   const kit = STAGE_KITS[manifest.kit];
@@ -496,7 +508,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
   const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : naveDress(plan, geom);
-  const base = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
+  // a grid first, so they bend down their length and the bake lights each cell
+  const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;
+  const hung = (f) => windSpec && Sw.groups[f.group] && typeof f.texture === 'string' && f.texture.startsWith('card:');
+  const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   const lights = resolveStageLights(plan, seats);
   // live fire (`manifest.fire`): a dressing's braziers stand by its portal and light the room like the torches do
   const live = !!manifest.fire, Fk = live && plan.kit.dress && plan.kit.dress.fire, portalBay = (geom.bays || []).find((b) => b.portal);
@@ -560,6 +577,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // the dressing's weather: the cloud deck over the square, lit by the same sun (an overlay: exports carry none)
     // live water's falling streams (materials/jet.js), drawn on the page; exports carry the painted floor instead
     ...(dress && dress.jets && dress.jets.length ? { jets: normalizeJets(dress.jets) } : {}),
+    // live wind's hung cloth (scene/channels/stage-sway.js): indoors the wind is the draught through the doors
+    ...(windSpec ? { sway: { wind: { speed: +(windSpec.speed * (Sw.draught ?? 1)).toFixed(4), dir: (windSpec.dir * Math.PI) / 180, gust: windSpec.gust, scale: windSpec.scale, evolve: windSpec.evolve,
+      veer: (windSpec.veer * Math.PI) / 180, seed: windSpec.seed, z0: Sw.z0 }, groups: Sw.groups } } : {}),
     ...(dress && dress.clouds && sun ? { effects: [composeCloudDeck([], { up: 'z', ...dress.clouds, sun: sun.dir })] } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

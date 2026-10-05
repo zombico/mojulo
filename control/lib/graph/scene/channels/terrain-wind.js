@@ -18,10 +18,8 @@ import { windField, debrisKernel } from '../../vegetation/wind.js';
 // Absent `wind` ⇒ NOT emitted, and the plants' and grass' scripts are emitted without their wind hooks.
 // `cfg`: { speed, dir, gust, scale, evolve, veer, seed, z0, lags, grass: [taker], plants: [taker], bend: { NR, NS, NB,
 //          R_MAX, B_MAX, data }, debris?: { leaves, dust, radius, phi } }; taker: { B, sail, vogel, zeta, flutter, phi }
-const GLSL = `
-uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWindB; uniform vec4 uBendK; uniform vec4 uTaker; uniform vec4 uTaker2;
-uniform sampler2D uWindNoise; uniform highp sampler3D uWindBend;
-vec2 mojWindAt(vec2 p, float z, float t) {
+// the gust field at a point, as the GPU reads it (uniforms uWindA, uWindB, uWindNoise): shared with the stage's cloth (stage-sway.js)
+export const WIND_AT_GLSL = `vec2 mojWindAt(vec2 p, float z, float t) {
   vec2 d = uWindA.yz; float sp = uWindA.x, e = t / uWindB.y;
   vec2 q = vec2((dot(p, d) - sp * t) / (2.0 * uWindB.x), (d.x * p.y - d.y * p.x) / uWindB.x);
   vec2 n = 0.7 * (texture(uWindNoise, (q + vec2(0.37, -0.23) * e) / 64.0).rg * 2.0 - 1.0)
@@ -30,7 +28,11 @@ vec2 mojWindAt(vec2 p, float z, float t) {
   float s = sp * prof * max(0.0, 1.0 + 2.0 * uWindA.w * n.x), th = uWindB.z * uWindA.w * n.y, c = cos(th), si = sin(th);
   return s * vec2(d.x * c - d.y * si, d.x * si + d.y * c);
 }
-vec3 mojWind(vec3 root, float sc, vec3 local) {
+`;
+const GLSL = `
+uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWindB; uniform vec4 uBendK; uniform vec4 uTaker; uniform vec4 uTaker2;
+uniform sampler2D uWindNoise; uniform highp sampler3D uWindBend;
+` + WIND_AT_GLSL + `vec3 mojWind(vec3 root, float sc, vec3 local) {
   float H = max(uTaker2.y * sc, 0.05), s = clamp(local.z / uTaker2.y, 0.0, 1.0);
   float B = uTaker.x, zeta = uTaker.w, w0 = 6.2831853 * 0.5596 * sqrt(9.81 / (max(B, 1e-3) * H));
   float wd = w0 * sqrt(1.0 - zeta * zeta), W = min(4.0 / (zeta * w0), 4.0);

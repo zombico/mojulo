@@ -40,6 +40,9 @@ export const DELFINO_PLAZA = Object.freeze({
   flowers: { box: [0.22, 0.24], tint: [1, 1, 1], boxTint: [0.74, 0.42, 0.3], h: 0.62, every: 0.6 },
   awning: { out: 1.3, drop: 0.6, over: 0.35, tint: [1, 1, 1] },
   laundry: { lines: 2, z: [5.5, 6.6], tint: [1, 1, 1], drop: 0.9 },
+  // live wind (`wind`): the washing billows on its lines, an awning's valance flaps (the slope is stretched on its frame),
+  // the flowers nod in their boxes
+  sway: { z0: 0.3, grid: [3, 4], groups: { 'stage:laundry': { phi: 1, reach: 0.55, flutter: 0.06, pin: 'top' }, 'stage:awning': { phi: 0.8, reach: 0.14, flutter: 0.03, pin: 'top', free: 0.25 }, 'stage:flowers': { phi: 0.5, reach: 0.07, flutter: 0.015, pin: 'bottom' } } },
   // the rooftop rows: `rows` cards behind each closed side, `gap` m apart, rising and fading toward the horizon
   rooftops: { rows: 3, gap: 9, first: 6, height: [15, 21], fade: [0.35, 0.75], card: 26 },
   // the PORTICO along `side`: `depth` m out from the fronts, from the open end to `end` m short of the far corner, on a

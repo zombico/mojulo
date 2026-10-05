@@ -248,6 +248,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   turned down for a basin a hand deep). The bowl brims over its lip in falling sheets (`jets`) in place of the
   painted strips.
 - Jets whose `controls` are all false carry no flow panel; pages with any other jets are byte-identical.
+- `wind` on a stage (`true` or the terrain's wind object): the dressing's hung cloth swings in the terrain's gust
+  field (the same GLSL, now shared as `WIND_AT_GLSL`; the terrain page is byte-identical). Each style card names the
+  groups that take the wind (`sway`): the plaza's washing billows on its lines, an awning's valance flaps and the
+  flowers nod; in the nave the wind is the draught through the doors (`draught`), and the banners and ivy stir. Those
+  cards are cut into a small grid so they bend down their length; the bake and the sun's shadow stay at rest.
 
 ### Flame depiction
 

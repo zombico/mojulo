@@ -36,6 +36,8 @@ export const GOTHIC_NAVE = Object.freeze({
   // size (a cathedral's sconce torch, not a hand torch); two braziers flank the great portal, `out` m into the nave and
   // `apart` m apart, their light baked into the room as the torches' is (the page then only flickers it)
   fire: { torch: 1.7, braziers: { out: 2.4, apart: 5.6, z: 1.0, size: 1.25, color: '#ff9a48', intensity: 2.4, radius: 8 } },
+  // live wind (`wind`): indoors it is the draught through the doors; the banners stir on their rods, the ivy trembles
+  sway: { draught: 0.5, z0: 0.3, grid: [2, 5], groups: { 'stage:banner': { phi: 1, reach: 0.6, flutter: 0.04, pin: 'top' }, 'stage:ivy': { phi: 0.4, reach: 0.06, flutter: 0.012, pin: 'top' } } },
   shafts: { elevation: 48, azimuth: 14, alpha: [0.03, 0.13], color: '#c8d6f6', grow: 0.9,
     pool: { color: '#c0d0f8', intensity: 2, radius: 2.8, lift: 0.7 } },
   // the blends: moss up the wall bases (alpha falls from `max` at the floor to 0 at `rise[1]` m) and in the gutter;
