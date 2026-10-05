@@ -230,6 +230,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   hair follows every face control (a deeper face, fuller cheeks, a fuller occiput). `hero.hairCoverage` is the ledger:
   the share of the scalp that still shows from the back, the side, the rear three-quarter and above (0 is covered; the
   studio's own bob showed 28 % from the back on the female base, 47 % on the male); over 5 % advises in `warnings`.
+  Its `face` reads the FACE ZONES from the front and both ¾: RED (each eye's iris; the nose and mouth) and YELLOW (the
+  brows, lids, cheeks and jaw), the share the hair hides of each; the forehead above the brows is free. Hair over a red
+  zone past 15 %, or curtaining the yellow past 75 %, advises. `hair.veil` (0 … 1, absent 0) is the MYSTERY AND ALLURE
+  lever: it lets ONE eye go under the hair (to 75 % at 1) and the yellow to 95 %; the other eye and the mouth never.
+  Advice only: the veil builds nothing.
   HAIR FORMS: the `bob`, `long` and `hime` families are a few consolidated SECTIONS, not a comb of strands — three bang
   sections, a side section each side, three back sections (parts `hairFormFringeL/C/R`, `hairFormSideL/R`,
   `hairFormBackL/C/R`), each one closed shell skinned across its member clumps and ending in ONE point (its hem a V;
@@ -371,7 +376,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
   and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block),
-  `jingo` (bananas only, few, grown from the dome like a cap), `jona` (layered banana
+  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs, after Cynthia), `jona` (layered banana
   PEELS: leaf-shaped, thin, cupped; the young-Bieber swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, after Videl's short cut); shaped hair never
   cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
   `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,

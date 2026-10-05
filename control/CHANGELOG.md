@@ -29,7 +29,12 @@ needed on the anime head. Being built on this branch.
   peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas after Videl's short cut. Shaped hair never cuts through the body: the hero's
   neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
-  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop.
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
+  a lock's end out from the head (or under it), and a layer's `length` now reaches 6.
+- **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
+  ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining
+  yellow past 75 %, advises. The hair word `veil` (0 … 1) is the mystery and allure lever: one eye may go under the
+  hair (to 75 %) and the yellow to 95 %; the other eye and the mouth stay restricted. Advice only; nothing it builds.
 - **Sideburn patches.** Every anime head with hair now wears a thin patch in the hair's colour on the skin before each
   ear, from under the hair's edge to the ear's lower third, so no bare gap shows between the hair and the ear
   (`hairSideburnL`, `hairSideburnR`). A bald head shows its own skin there. The anime heroes' pinned payloads moved

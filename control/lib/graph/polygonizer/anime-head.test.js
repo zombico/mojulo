@@ -2,7 +2,7 @@
  * it sits where the landmark head sits; a hero wears it through the rig gates; the landmark path is untouched. */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
-import { animeHead, animeHairCoverage, animeCoverageWarnings, animeRecipe, animeLockPart, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, ANIME_FACE_KEYS, ANIME_POSES, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS, ANIME_HAIR_MOVES, animeHairForm } from './anime-head.js';
+import { animeHead, animeHairCoverage, animeCoverageWarnings, animeRecipe, animeLockPart, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, ANIME_FACE_KEYS, ANIME_POSES, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS, ANIME_HAIR_MOVES, animeHairForm, animeFaceZoneWarnings, faceZoneAllowance } from './anime-head.js';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, GRAPHIC_BASE, FEATURE_BANDS, resolveAnimeSculpt, validateAnimeSculpt, sparseSculpt, sculptBuild, animeSculptWarnings } from './anime-sculpt.js';
 import { resolveToonLight } from './vexar.js';
 import { buildAnime, animeFresh, animeReadRecipe } from './anime-form.js';
@@ -243,13 +243,14 @@ describe('anime head: the graphic face', () => {
   const hash = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
   const faceLists = (h) => Object.fromEntries(Object.entries(h.parts).filter(([, p]) => p.layer === 2).map(([k, p]) => [k, JSON.stringify(p.faces)]));
   it("`sculpt: false` is the studio's face: the female's hash from before the graphic face; the male's the same once his rest carriage is carried back", () => {
-    // re-pinned for the sideburn patches before the ears (every anime head wears them, the studio's face too)
-    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('2bbeac4c5e835818');
+    // re-pinned for the sideburn patches before the ears (every anime head wears them, the studio's face too); re-pinned
+    // for the face zones in the coverage ledger (hairCoverage.face, a readout: without it the head gives 2bbeac4c5e835818)
+    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('12ceed5f20920898');
     // re-pinned for the male base's rest carriage (ANIME_BASE_ADJUST.male headPitch −0.25: 3° chin up instead of 6°); a
     // headPitch word of 1.25 carries it back, and with the face record it stores set back to the base the head is the
     // hash it gave before the graphic face existed
-    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('d0abc5752f4396b3');
-    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('0e8b35275e695090');
+    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('44fecb313695fdab');   // the face zones re-pin: d0abc5752f4396b3 without them
+    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('92cb18336fc444cf');   // the face zones re-pin: 0e8b35275e695090 without them
   });
   it('the words: ratios about the base and offsets compose; shape words ride beside; the stored layer is sparse; unknown words refused', () => {
     const R = resolveAnimeSculpt(['heavy-lid', { lidWeight: 1.1, browAngle: 4, fissureShape: 'tri' }, { browAngle: 2 }]);
@@ -407,14 +408,14 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
   const on = (preset, hair) => { const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, ...(Array.isArray(hair) ? hair : [hair])] }); return { h, mesh: compileLayered(h) }; };
   const box = (mesh, re) => { const ps = mesh.pointIds.map((id, i) => (re.test(id.split('/')[0]) ? mesh.vertices[i] : null)).filter(Boolean); return [0, 1, 2].map((k) => [Math.min(...ps.map((p) => p[k])), Math.max(...ps.map((p) => p[k]))]); };
   it('each cut closes on both bases and keeps the scalp covered', () => {
-    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel']) for (const preset of ['female', 'male']) {
+    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia']) for (const preset of ['female', 'male']) {
       const { h, mesh } = on(preset, cut);
       expect(failures(mesh), `${preset} ${cut}`).toEqual([]);
       expect(Math.max(...Object.values(h.hairCoverage.views)), `${preset} ${cut}`).toBeLessThanOrEqual(0.02);
     }
   }, 60000);
   it('the words validate by name: the new form words, their fields and the tail clump', () => {
-    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel'])).toEqual([]);
+    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia'])).toEqual([]);
     expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
     expect(validateAnimeHair({ locks: { tail: { ty: 0.1 } } })).toEqual([]); expect(animeLockPart('tail')).toBe('hairTail');
     expect(resolveAnimeHair([{ flip: 0.5 }, { flip: { out: 0.2 } }]).flip).toEqual({ amount: 0.5, out: 0.2 });
@@ -474,6 +475,44 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     // the principle: a crown ring rooted ABOVE the whorl's elevation walks forward over the face and covers an eye
     const S = ANIME_HAIR_MOVES.bidel.hair.shapes, high = { ...S, layers: S.layers.map((l, i) => (i === 1 ? { ...l, az: [100, 260], el: [58, 82] } : l)) };
     expect(Math.max(...overEyes(on('female', ['bidel', { shapes: high }]).mesh))).toBeGreaterThan(4);
+  });
+  it('the face zones: red (each eye, the nose and mouth) and yellow (brows, lids, cheeks, jaw) read per view; the veil is the mystery lever', () => {
+    const bidel = on('female', 'bidel').h.hairCoverage.face, jona = on('female', 'jona').h.hairCoverage.face;
+    expect(Object.keys(bidel.views)).toEqual(['front', 'three-quarter', 'three-quarter-left']);
+    expect(bidel.red.share).toBeLessThanOrEqual(0.15); expect(animeFaceZoneWarnings({ face: bidel })).toEqual([]);
+    // jona's swoop veils his right eye: the open face speaks up; a veil lets that ONE eye go, never the other or the mouth
+    expect(jona.views.front.eyeR).toBeGreaterThan(0.4);
+    expect(animeFaceZoneWarnings({ face: jona }).length).toBeGreaterThan(0); expect(animeFaceZoneWarnings({ face: jona }, { veil: 1 })).toEqual([]);
+    const both = { face: { views: { front: { eyeL: 0.5, eyeR: 0.6, center: 0.3, yellow: 0.5 } } } };
+    expect(animeFaceZoneWarnings(both, { veil: 1 }).map((w) => w.match(/of (the [a-z ]+?) from/)[1])).toEqual(['the left eye', 'the nose and mouth']);
+    expect(faceZoneAllowance(0)).toEqual({ red: 0.15, veiled: 0.15, yellow: 0.75 });
+    // the veil is advice only: it never reaches the build, and it validates as a number in [0, 1]
+    expect(animeHairForm(resolveAnimeHair(['jona', { veil: 0.8 }]))).toEqual(animeHairForm(resolveAnimeHair('jona')));
+    expect(validateAnimeHair({ veil: 2 }).map((e) => e.split(':')[0])).toEqual(['hair.veil']);
+  });
+  it('selene: peels only, long and heavy on her right — that side falls lower and the mass below the chin sits right; her veil covers the swoop', () => {
+    const { h, mesh } = on('female', 'selene');
+    expect([...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot|Peel)\d+$/)?.[1]).filter(Boolean))]).toEqual(['Peel']);
+    const hair = mesh.vertices.filter((_, i) => /^hairPeel/.test(mesh.pointIds[i])), low = (f) => Math.min(...hair.filter(f).map((p) => p[2]));
+    expect(low((p) => p[0] > 0.04)).toBeLessThan(low((p) => p[0] < -0.04) - 0.05);
+    const below = hair.filter((p) => p[2] < 0); expect(below.reduce((a, p) => a + p[0], 0) / below.length).toBeGreaterThan(0.025);
+    expect(h.hairCoverage.face.red.zone).toBe('eyeR');
+    expect(animeFaceZoneWarnings(h.hairCoverage)).not.toEqual([]); expect(animeFaceZoneWarnings(h.hairCoverage, { veil: h.hair.veil })).toEqual([]);
+  });
+  it('flick: a petal\'s end hooks out from the head (> 0) or curls under (< 0), the hem held; sintia wears petals kept off the body', () => {
+    const lay = (flick) => box(on('female', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'peel', az: [80, 100], el: [50, 50], rows: 1, count: 1, length: 1.2, cap: 1, ...(flick != null ? { flick } : {}) }] } }]).mesh, /^hairPeel/);
+    const plain = lay(), out = lay(0.8), under = lay(-0.8);
+    expect(out[0][1]).toBeGreaterThan(plain[0][1] + 0.015);   // hooked out to her right
+    expect(under[0][1]).toBeLessThan(plain[0][1] + 0.005);   // curled under, never out
+    expect(Math.abs(out[2][0] - plain[2][0])).toBeLessThan(0.006); expect(Math.abs(under[2][0] - plain[2][0])).toBeLessThan(0.006);   // the hem held
+    expect(validateAnimeHair({ shapes: { layers: [{ shape: 'peel', flick: 1.5 }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.layers[0].flick']);
+    const sintia = on('female', 'sintia'), selene = on('female', 'selene');
+    expect([...new Set(Object.keys(sintia.h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot|Peel)\d+$/)?.[1]).filter(Boolean))]).toEqual(['Peel']);
+    // manageable: below the chin less of her hair hangs before the body than selene's (the petals fall behind the shoulders)
+    const chin = box(sintia.mesh, /^face$/)[2][0], fore = ({ mesh }) => { const ps = mesh.vertices.filter((p, i) => /^hairPeel/.test(mesh.pointIds[i]) && p[2] < chin); return ps.filter((p) => p[1] > 0.03).length / ps.length; };
+    expect(fore(sintia)).toBeLessThan(0.28); expect(fore(sintia)).toBeLessThan(fore(selene));
+    // the curtain bangs leave both eyes open: no veil asked, no advice
+    expect(sintia.h.hair.veil).toBeUndefined(); expect(animeFaceZoneWarnings(sintia.h.hairCoverage)).toEqual([]);
   });
   it('cap locks grow from the dome and lie over it: from the crown they come out longer, to the same hem; the fringe is cut shorter', () => {
     const cap = (el, extra = {}) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [80, 280], el: [el, el], rows: 1, count: 6, length: 0.5, cap: 1, ...extra }] } }]).mesh, /^hairBanana/);

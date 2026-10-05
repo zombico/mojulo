@@ -237,12 +237,46 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { shape: 'banana', az: [228, 292], el: [22, 44], rows: 1, count: 3, length: 0.6, fringe: 0.28, width: 0.32, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.14, flat: 0.25, cap: 1, swirl: -40 },
         { shape: 'banana', az: [132, 228], el: [8, 36], rows: 2, count: 7, length: 0.42, width: 0.26, droop: 1.1, lift: 0.02, vary: 0.15, bend: 0.1, flat: 0.25, cap: 1 },
       ] } } },
+  // SELENE — long hair HEAVY ON ONE SIDE, in layered banana PEELS (Jona's family, grown long): a deep part over her left
+  // brow, the front peels swirled hard to her right so the cap walk carries them ACROSS the forehead (the swoop) and down
+  // the right of her face over the shoulder; the back swirled to her right too, so the mass travels there, its right half
+  // long and its left half short; her left side tucked short behind the ear. The swoop veils her right eye: a MYSTERIOUS
+  // heroine, and she says so — `veil: 0.9` (the face zones' lever), so the restricted-zone advice lets that one eye go
+  selene: { note: 'Selene: layered banana peels, long and heavy on her right — a deep part over her left brow, the swoop across the forehead veiling her right eye, the curtain over her right shoulder, the left side short and tucked behind the ear, the back swept to her right',
+    hair: { style: 'long', crownAccents: 'none', veil: 0.9, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.14, whorl: [185, 66],
+      layers: [
+        { shape: 'peel', az: [0, 360], around: [3, 18], rows: 1, count: 6, length: 1.6, fringe: 0.5, width: 0.42, droop: 1, lift: 0.02, vary: 0.06, bend: 0.14, swirl: 25, cap: 1 },
+        { shape: 'peel', az: [100, 180], el: [40, 64], rows: 2, count: 6, length: 1.8, width: 0.36, droop: 1.1, lift: 0.02, vary: 0.2, bend: 0.16, cap: 1, swirl: -25 },
+        { shape: 'peel', az: [180, 260], el: [40, 64], rows: 2, count: 5, length: 1.3, width: 0.36, droop: 1.1, lift: 0.02, vary: 0.2, bend: 0.16, cap: 1, swirl: -25 },
+        { shape: 'peel', az: [-70, 40], el: [62, 84], rows: 1, count: 4, length: 1.6, fringe: 0.6, width: 0.46, droop: 0.3, lift: 0.04, vary: 0.1, bend: 0.25, swirl: 60, cap: 1 },
+        { shape: 'peel', az: [55, 130], el: [20, 60], rows: 2, count: 6, length: 2.1, width: 0.46, droop: 1.1, lift: 0.03, vary: 0.14, bend: 0.12, swirl: 30, cap: 1 },
+        { shape: 'peel', az: [230, 300], el: [30, 60], rows: 1, count: 3, length: 0.7, width: 0.36, droop: 1.2, lift: 0, vary: 0.06, bend: 0.1, swirl: -70, cap: 1 },
+        { shape: 'peel', az: [130, 180], el: [5, 36], rows: 1, count: 4, length: 1.6, width: 0.34, droop: 1.2, lift: 0, vary: 0.22, bend: 0.1, cap: 1, swirl: -25 },
+        { shape: 'peel', az: [180, 230], el: [5, 36], rows: 1, count: 4, length: 1.1, width: 0.34, droop: 1.2, lift: 0, vary: 0.22, bend: 0.1, cap: 1, swirl: -25 },
+      ] } } },
+  // SINTIA — FLOWER PETALS after the operator's sketch, Cynthia (Pokémon) the guiding light for the elegance, kept
+  // MANAGEABLE: a few big peels, wide through the middle, each end FLICKING gently out to a point (`flick`), to the
+  // shoulder blades and behind the shoulders, never spread over the body. The front is CURTAIN BANGS parted just off
+  // centre, swept down and away over the temples (`swirl` ±50), one short centre petal cut to the brow rounding the
+  // part — no wedge pointing into the face; the sides frame the face to the collarbone, swirled back over the ears
+  sintia: { note: 'Sintia: flower petals, after Cynthia — a few big peel petals to the shoulder blades, each end flicking gently out to a point; curtain bangs parted off centre and swept over the temples, a short centre petal at the brow, the sides framing the face to the collarbone',
+    hair: { style: 'long', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.08, whorl: [185, 66],
+      layers: [
+        { shape: 'peel', az: [0, 360], around: [3, 18], rows: 1, count: 6, length: 1.6, fringe: 0.3, width: 0.4, droop: 1, lift: 0.02, vary: 0.06, bend: 0.12, cap: 1, flick: 0.2 },
+        { shape: 'peel', az: [110, 250], el: [36, 62], rows: 1, count: 7, length: 2, width: 0.4, droop: 1.2, lift: 0.02, vary: 0.18, bend: 0.12, cap: 1, flick: 0.15 },
+        { shape: 'peel', az: [130, 230], el: [8, 34], rows: 1, count: 5, length: 1.7, width: 0.38, droop: 1.3, lift: 0.02, vary: 0.18, bend: 0.08, cap: 1, flick: -0.2 },
+        { shape: 'peel', az: [8, 62], el: [64, 84], rows: 1, count: 2, length: 0.95, width: 0.37, droop: 0.6, lift: 0.02, vary: 0.1, bend: 0.14, swirl: 50, cap: 1, flick: 0.3 },
+        { shape: 'peel', az: [-10, 10], el: [70, 84], rows: 1, count: 1, length: 0.6, fringe: 0.22, width: 0.42, droop: 0.8, lift: 0.02, vary: 0, bend: 0.1, cap: 1, flick: 0.15 },
+        { shape: 'peel', az: [-62, -8], el: [64, 84], rows: 1, count: 2, length: 0.95, width: 0.37, droop: 0.6, lift: 0.02, vary: 0.1, bend: 0.14, swirl: -50, cap: 1, flick: 0.3 },
+        { shape: 'peel', az: [66, 110], el: [30, 62], rows: 1, count: 3, length: 1.1, width: 0.36, droop: 1.2, lift: 0.02, vary: 0.1, bend: 0.1, swirl: 45, cap: 1, flick: 0.12 },
+        { shape: 'peel', az: [250, 294], el: [30, 62], rows: 1, count: 3, length: 1.1, width: 0.36, droop: 1.2, lift: 0.02, vary: 0.1, bend: 0.1, swirl: -45, cap: 1, flick: 0.12 },
+      ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
 /** the largest lock edit (construction units, either way) the door takes: the sweep fields' own bound */
 export const LOCK_EDIT_MAX = 3;
-export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch', 'fringeNotch', 'flip', 'spikes', 'sideTail', 'shapes', 'sideburns']);
+export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch', 'fringeNotch', 'flip', 'spikes', 'sideTail', 'shapes', 'sideburns', 'veil']);
 const LIFT_KEYS = Object.freeze(['crown', 'temple', 'fringe', 'nape']);
 const SWEEP_BACK_KEYS = Object.freeze(['amount', 'keep', 'rise', 'riseFall', 'controlX', 'controlZ', 'spread', 'tipY', 'tipZ', 'stagger', 'rootY', 'rootZ']);
 const SWEEP_SIDES_KEYS = Object.freeze(['amount', 'from', 'controlY', 'tipX', 'tipY', 'tipZ']);
@@ -253,7 +287,7 @@ const SPIKES_KEYS = Object.freeze(['amount', 'reach', 'width', 'up']);
 export const SIDEBURN_FIELDS = Object.freeze({ amount: [0, 1], length: [0, 1.5], width: [0.01, 0.5], forward: [-0.6, 0.6], at: [-30, 30], az: [-30, 40] });
 export const HAIR_SHAPE_FAMILIES = Object.freeze(['carrot', 'banana', 'pepper', 'peel']);
 /** a layer's fields (anime-form `layers`): rows of one family over an azimuth and elevation range */
-export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 3], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.05, 1], swirl: [-90, 90], cap: [0, 1], fringe: [0, 3], cup: [0, 1] });
+export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 6], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.05, 1], swirl: [-90, 90], cap: [0, 1], fringe: [0, 3], cup: [0, 1], flick: [-1, 1] });
 /** the SHAPES (anime-form): the clump groups a recipe may take over, and each primitive's fields with their hard limits */
 export const HAIR_SHAPE_GROUPS = Object.freeze(['fringe', 'temple', 'back', 'crown']);
 export const HAIR_SHAPE_FIELDS = Object.freeze({
@@ -280,6 +314,7 @@ function hairFormErrors(entry, at) {
     else if (k === 'section') { if (!HAIR_SECTIONS.includes(v)) errs.push(`${at}.section: ${HAIR_SECTIONS.join(' | ')}`); }
     else if (k === 'ridge') num(k, v, 0, 2);
     else if (k === 'flute') num(k, v, 0, 1);
+    else if (k === 'veil') num(k, v, 0, 1);
     else if (k === 'crownAccents') { if (!CROWN_ACCENTS.includes(v)) errs.push(`${at}.crownAccents: ${CROWN_ACCENTS.join(' | ')} (the short family's six crown accents)`); }
     else if (k === 'sweepBack' || k === 'sweepSides') {
       if (finite(v)) num(k, v, 0, 1);
@@ -675,8 +710,55 @@ export function animeHairCoverage(parts, scalp, { res = 160 } = {}) {
     views[view] = total ? Math.round(shown / total * 1000) / 1000 : 0;
   }
   const worst = Object.entries(views).sort((a, b) => b[1] - a[1])[0];
-  return { views, worst: { view: worst[0], share: worst[1] } };
+  return { views, worst: { view: worst[0], share: worst[1] }, face: animeHairFaceZones(withHair, bald, { res }) };
 }
+/** the FACE ZONES the hair may fall over, seen from the front and both ¾: RED (restricted) — each eye's iris and the
+ * nose-and-mouth column between the eyes, below them; YELLOW (with intent) — the brows, the lids, the cheeks and the jaw,
+ * where bangs end and long hair frames the face; the forehead above the brows is free. Each zone's share the hair hides */
+export const FACE_ZONE_VIEWS = Object.freeze({ front: [180, 4], 'three-quarter': [150, 6], 'three-quarter-left': [210, 6] });
+const FACE_ZONE_PARTS = /^(face|iris|pupil|lid|lashLow|catch|brow|noseLine)/;
+export function animeHairFaceZones(withHair, bald, { res = 160 } = {}) {
+  const views = {}, r3 = (v) => Math.round(v * 1000) / 1000;
+  for (const [view, [az, el]] of Object.entries(FACE_ZONE_VIEWS)) {
+    const cam = viewCamera(withHair, az, { elevationDegrees: el, size: res }), rb = rasterDepth(bald, cam, res).face, rw = rasterDepth(withHair, cam, res).face;
+    const part = (m, r, i) => (r[i] >= 0 ? m.faceIds[r[i]].split('/')[0] : '');
+    const boxOf = (re) => { let b = null; for (let i = 0; i < rb.length; i++) if (re.test(part(bald, rb, i))) { const x = i % res, y = (i / res) | 0; b = b ? [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)] : [x, y, x, y]; } return b; };
+    const pad = (b, f) => b && [b[0] - (b[2] - b[0]) * f, b[1] - (b[3] - b[1]) * f, b[2] + (b[2] - b[0]) * f, b[3] + (b[3] - b[1]) * f];
+    const inside = (b, x, y) => !!b && x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
+    const eyes = { eyeL: pad(boxOf(/^(iris|pupil|catch)L$/), 0.15), eyeR: pad(boxOf(/^(iris|pupil|catch)R$/), 0.15) };
+    const brows = [boxOf(/^browL$/), boxOf(/^browR$/)].filter(Boolean), browTop = brows.length ? Math.min(...brows.map((b) => b[1])) : 0;
+    const both = Object.values(eyes).filter(Boolean), between = both.length === 2 ? [Math.min(both[0][2], both[1][2]), Math.max(both[0][0], both[1][0])] : null, eyeLow = both.length ? Math.max(...both.map((b) => b[3])) : res;
+    const tot = {}, hid = {};
+    for (let i = 0; i < rb.length; i++) {
+      if (!FACE_ZONE_PARTS.test(part(bald, rb, i))) continue;
+      const x = i % res, y = (i / res) | 0;
+      const zone = inside(eyes.eyeL, x, y) ? 'eyeL' : inside(eyes.eyeR, x, y) ? 'eyeR' : between && x > between[0] && x < between[1] && y > eyeLow ? 'center' : y < browTop ? null : 'yellow';
+      if (!zone) continue;
+      tot[zone] = (tot[zone] ?? 0) + 1; if (part(withHair, rw, i).startsWith('hair')) hid[zone] = (hid[zone] ?? 0) + 1;
+    }
+    views[view] = Object.fromEntries(['eyeL', 'eyeR', 'center', 'yellow'].filter((z) => tot[z]).map((z) => [z, r3((hid[z] ?? 0) / tot[z])]));
+  }
+  const all = Object.entries(views).flatMap(([view, zs]) => Object.entries(zs).map(([zone, share]) => ({ view, zone, share })));
+  const most = (list) => list.sort((a, b) => b.share - a.share)[0] ?? null;
+  return { views, red: most(all.filter((z) => z.zone !== 'yellow')), yellow: most(all.filter((z) => z.zone === 'yellow')) };
+}
+/** the ledger's advice on the face, read against the hair's VEIL (0 … 1, the MYSTERY AND ALLURE lever; absent, 0: an open
+ * face). Hair over a RED zone past 15 % speaks up — but the veil lets ONE eye (the one the hair covers most) go under it,
+ * up to 75 % at 1, the peekaboo of a mysterious heroine; the other eye and the nose and mouth stay restricted at any
+ * veil. A YELLOW zone (brows, lids, cheeks, jaw) curtained past 75 % speaks up, 95 % at a full veil */
+const ZONE_WORDS = { eyeL: 'the left eye', eyeR: 'the right eye', center: 'the nose and mouth' };
+export const faceZoneAllowance = (veil = 0) => ({ red: 0.15, veiled: 0.15 + 0.6 * veil, yellow: 0.75 + 0.2 * veil });
+export const animeFaceZoneWarnings = (cov, { veil = 0 } = {}) => {
+  if (!cov?.face) return [];
+  const A = faceZoneAllowance(veil ?? 0), out = [];
+  const eyeMax = (z) => Math.max(0, ...Object.values(cov.face.views).map((zs) => zs[z] ?? 0)), veiled = eyeMax('eyeL') >= eyeMax('eyeR') ? 'eyeL' : 'eyeR';
+  for (const [view, zs] of Object.entries(cov.face.views)) for (const [zone, share] of Object.entries(zs)) {
+    if (zone === 'yellow') { if (share > A.yellow) out.push(`hair: it curtains ${Math.round(share * 100)} % of the brows, cheeks and jaw from the ${view} (past ${Math.round(A.yellow * 100)} % at veil ${veil}): open the face-framing locks, or raise hair.veil for a deliberately heavy side`); continue; }
+    const allow = zone === veiled ? A.veiled : A.red;
+    if (share > allow) out.push(`hair: it hides ${Math.round(share * 100)} % of ${ZONE_WORDS[zone]} from the ${view} (a restricted zone; ${Math.round(allow * 100)} % at veil ${veil}): shorten the fringe there or swirl the lock away${zone === veiled ? ', or raise hair.veil (the mystery lever) for a deliberate peekaboo' : ' — the veil never opens this one'}`);
+  }
+  return out;
+};
 /** the ledger's advice: a view where more than `threshold` of the scalp shows */
 export const animeCoverageWarnings = (cov, threshold = 0.05) => (cov ? Object.entries(cov.views).filter(([, v]) => v > threshold).map(([view, v]) => `hair: the scalp shows from the ${view} (${Math.round(v * 100)} % of it): raise hair.volume, lengthen the family, or direct a clump over it`) : []);
 

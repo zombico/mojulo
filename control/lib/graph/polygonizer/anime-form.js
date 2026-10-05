@@ -560,9 +560,15 @@ export function buildAnime(r, options = {}) {
       // `fringe` past it: the fringe is cut shorter than the hair it grows with
       const s0 = path.at(-1), out = unit([ln[0], 0, ln[2]]), lift = Ly.lift ?? 0.1, bend = Ly.bend ?? 0.3, exitAz = onCap(unit(sub(last, C)))[0];
       if (Ly.fringe != null && Math.abs(exitAz) < 60 && dmath.hypot(ln[0], ln[2]) > 0 && ln[2] < 0) L = Ly.fringe * vary * G;
-      const tip = add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), L)), control = add(add(s0, mul(d, 0.5 * L)), mul(out, bend * L));
+      // FLICK (a PETAL's end, −1 … 1): the last of the fall hooks OUT away from the head (> 0) or curls UNDER toward it
+      // (< 0), rising a little as it turns — the one place a lock may leave its C; the main fall is shortened by the hook's
+      // share so the hem stays where `length` put it
+      const fk = Ly.flick ?? 0, Lf = 0.32 * Math.abs(fk) * L, Lm = L - 0.15 * Lf;
+      const tip = add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), Lm)), control = add(add(s0, mul(d, 0.5 * Lm)), mul(out, bend * Lm));
       let dome = 0; for (let i = 1; i < path.length; i++) dome += dmath.hypot(...sub(path[i], path[i - 1]));
       for (let j = 1; j <= 10; j++) { const t = j / 10; path.push(add(add(mul(s0, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t))); }
+      if (fk) { const along = unit(sub(tip, control)), c2 = add(tip, mul(along, 0.35 * Lf)), end = add(add(tip, mul(out, Math.sign(fk) * 1.3 * Lf)), [0, 0.3 * Lf, 0]);
+        for (let j = 1; j <= 6; j++) { const t = j / 6; path.push(add(add(mul(tip, (1 - t) ** 2), mul(c2, 2 * (1 - t) * t)), mul(end, t * t))); } }
       let all = 0; for (let i = 1; i < path.length; i++) all += dmath.hypot(...sub(path[i], path[i - 1]));
       path.depart = all > 0 ? dome / all : 0;
       return path; };

@@ -326,6 +326,29 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   root in front of the whorl; the crown ring sits at or below it; and the temples, which a back whorl also sends
   forward, are turned down over the ears by `swirl` (positive on her right, negative on her left). A test pins the
   eyes clear and the high crown ring covering one.
+- **Face zones: red, yellow, free.** Long hair falls past the face, so the head reads where it falls: RED is each
+  eye's iris and the nose and mouth (a face reads through them), YELLOW the brows, lids, cheeks and jaw (where bangs
+  end and long hair frames the face), the forehead above the brows free. `hairCoverage.face` gives the share hidden of
+  each, from the front and both ¾; the advice speaks past 15 % on red and 75 % on yellow.
+- **The veil is the mystery lever.** A peekaboo is a choice, not a mistake: `hair.veil` (0 … 1) lets the one eye the
+  hair covers most go under it (to 75 % at 1) and the yellow to 95 %. The other eye and the mouth never: one eye
+  veiled is allure, both is a hood. Jona's swoop wants about 0.9; Bidel needs none.
+- **Selene, heavy on one side.** Layered peels grown long. Weight on one side is MASS and LENGTH there, not only the
+  swoop: a deep part over her left brow and the front swirled hard right (`swirl: 60`, little droop) so the cap walk
+  carries it across the forehead; the heavy side long over the shoulder; the BACK split at the middle, its right half
+  long and its left short, and swirled to her right (`swirl: -25` on the back sends it right) so the mass below the chin
+  sits right; her left side short (0.7) behind the ear. A first pass with a symmetric back hemmed both sides at the same
+  height: the asymmetry was only in the face. Her `veil: 0.9`: the swoop veils her right eye.
+- **Sintia, flower petals (Cynthia the guiding light).** After the operator's petal sketch: a FEW big peels, wide
+  through the middle, each end hooking OUT to a point (`flick`, −1 … 1: out from the head, or under it below 0; the hem
+  held). The one exception to "bend one way": a petal's end may turn. Elegance is few large shapes, not many strands.
+  A first Sintia went to the waist with a two-petal swoop over one eye, and read as hair laid all over the body with a
+  wedge pointing into the face. MANAGEABLE beats long: to the shoulder blades, the back behind the shoulders (only the
+  face-framing petals come forward, to the collarbone), CURTAIN BANGS parted off centre and swirled away over the temples
+  (±50; ±30 covered the eyes at the ¾, ±55 bared the forehead), and one short centre petal cut to the brow to round the
+  part (two curtains alone meet in a pointed arch). Flicks gentle on the sides and back (a strong one hooks out sideways
+  where a petal meets the shoulder: a flap). The page draws no outline between hair pieces, so same-coloured petals part
+  only by their SHADE: give a pale blonde a deeper gold shade tone.
 - **Keep a pair apart by the nape.** Jinto is closed and short at the nape and his story is the front; Kairo is open
   and long at the nape and his story is the crown and the tail. Trade nape lengths and both collapse into the same
   spiky hero.

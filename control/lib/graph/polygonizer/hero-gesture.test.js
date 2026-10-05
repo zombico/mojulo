@@ -295,14 +295,18 @@ describe('the door: no gesture ⇒ byte-identical', () => {
     const formWave = (x) => ({ ...x, clips: { ...x.clips, wave: FORM_WAVE } });
     // (on the streamlined core: this pins the stand's absence, and the chain above predates the structured core)
     const hr = heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' }); const p = heroPlanOf(hr);
-    // re-pinned for the anime head's sideburn patches before the ears
-    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('2d16d3d0371c8682'); expect(h(expandPlan(p))).toBe('068ab3d85dab16b0');
-    expect(h(formWave(p))).toBe('d0c7e6be96c282ae'); expect(h(expandPlan(formWave(p)))).toBe('94cbe7c5162eeebb');
+    // re-pinned for the anime head's sideburn patches before the ears; the plans re-pinned for the face zones in the
+    // include's coverage ledger (hairCoverage.face, a readout: without it 2d16d3d0371c8682 / d0c7e6be96c282ae, and the
+    // expanded plans, the geometry, unchanged)
+    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('5731fb147634afc8'); expect(h(expandPlan(p))).toBe('068ab3d85dab16b0');
+    expect(h(formWave(p))).toBe('181049f48505e86e'); expect(h(expandPlan(formWave(p)))).toBe('94cbe7c5162eeebb');
     const was = heroPlanOf(heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, palette: { Hair: '#3b4859' }, core: 'streamlined' }));
-    expect(h(formWave(was))).toBe('69de2b0392e32b77'); expect(h(expandPlan(formWave(was)))).toBe('74c007c345d655bb');
+    expect(h(formWave(was))).toBe('ebe70f7172c3484a');   // face zones: 69de2b0392e32b77 without them
+    expect(h(expandPlan(formWave(was)))).toBe('74c007c345d655bb');
     const eff = composeAnime(hr, 'bob');
     const before = humanoidPlan({ preset: 'female', register: hr.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' }, core: 'streamlined' });
-    expect(h(formWave(before))).toBe('e2d7b01dbc704f04'); expect(h(expandPlan(formWave(before)))).toBe('5231f61926a570c8');
+    expect(h(formWave(before))).toBe('be30c3debd3ca00c');   // face zones: e2d7b01dbc704f04 without them
+    expect(h(expandPlan(formWave(before)))).toBe('5231f61926a570c8');
   });
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);
