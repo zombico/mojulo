@@ -109,6 +109,10 @@ lands.
   slant; the big toe its own, apart from the rest (the grip), the other four side by side with the lines between them.
   The toes bend with the toe bone. Footwear replaces the foot: a hero in shoes, clothes or armour keeps the shoe as it
   was, and sandals and boots to come take the foot's place on the same joints.
+- **The western forehead.** The landmark head's forehead rises from the brow instead of leaning back from it, and the
+  brow's outer end stands level with the corner of the eye instead of sinking in behind it, so the far side of the face
+  no longer caves in over the eye in the ¾ and the profile. The hair rides the new forehead. Every hero with the landmark
+  head changes a little above the eyes, the streamlined core's too.
 - **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
   expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
   row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under

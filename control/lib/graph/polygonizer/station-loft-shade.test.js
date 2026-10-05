@@ -518,8 +518,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     planBiped: [() => expandLayeredManifest({ kind: 'layered', plan }), ['a645ae390d3b0fbf', 'a33a830d8af3f744', 'f1b33d48167b8855']],
     // the heroes on the streamlined core: these pin the light's absence, and predate the structured core (DEFAULT_CORE),
     // whose own payloads are pinned below
-    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['50f693843ceb2e44', '5af15b7c932e1e27', 'c499ac73612000db']],
-    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['80ca1bf8963729c4', 'a331848f2c2bd5c4', 'af946a02d6dee4f2']],
+    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['1d6df7214d457166', '3245395932df600e', '786bdead108a3913']],
+    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['08637073dbb3fe01', 'f62e7e0342cb9510', '775d0a1422283520']],
     headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['9284e50464c3a412', '00ab4889f9c168a6', '0e6eb7d4107141c3']],
   };
   // THE STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs, the stands' own base): the
@@ -537,10 +537,11 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // (hero-hand.js: a palm and five digits for the mitten, the rig's `hands`), then for the forearm tapering into the hand
   // at a rounded wrist, then for the arm's muscles (the triceps and biceps rings, the elbow, the forearm slimming to the
   // wrist), then for the legs' (the quadriceps, hamstrings and the ring above the knee, the calf, the slim ankle); the
-  // streamlined values above unchanged
+  // streamlined values above unchanged; then for the landmark head's forehead (humanoid-head-fit.js: upright, the brow's
+  // end on its own landmark), which moved the landmark heroes on both cores, here and above, and not head-none
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['a54fb8f5f7fb7345', 'fb3aa75dba910a15', '5ed152e7de9d30d9']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['6777f1dcaae5e22c', '8721ae3dae0ce190', '8726272326d1025e']],
+    const S = { landmarkMale: [{ cast: 'male' }, ['18c71cc1977608ff', 'dbe34459398b9eac', 'ca1d4b97574c0ea5']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['e565331b62582341', '3a4dd6082395e5ff', '96c352a5c8ecf518']],
       headNone: [{ cast: 'female', head: 'none' }, ['cd4fba2202acc2ec', '348fad58732efa0d', '9ae3db683a366a18']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });

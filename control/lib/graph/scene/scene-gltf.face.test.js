@@ -122,8 +122,9 @@ describe('the skinned GLB carries the anime face', () => {
     // sha256 (first 16 hex) of each skinned GLB as the tree wrote it before the face and the clip timing: pinned, so a
     // change that moved both exports alike still shows. Re-pinned for the hero's `wave` clip keeping its elbow at the
     // shoulder line (hero-form.js): with the old wave in the recipe each export writes the bytes before it
-    // (98a75b946e0c4ebc / 932c94ffaa0aae60), still.
-    const PIN = { landmark: 'f3144ed3673c4685', none: 'ed0ce1b9d476697d' };
+    // (98a75b946e0c4ebc / 932c94ffaa0aae60), still. The landmark pin re-pinned for the landmark head's forehead (upright,
+    // the brow's end on its own landmark); the head-none pin unchanged.
+    const PIN = { landmark: 'a93d5e36cc1d4d81', none: 'ed0ce1b9d476697d' };
     // (on the streamlined core: the pins predate the structured core, DEFAULT_CORE, which moves both exports alike)
     for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer, core: 'streamlined' }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer, core: 'streamlined' }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
