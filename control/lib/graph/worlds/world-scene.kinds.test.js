@@ -199,8 +199,9 @@ describe('world-scene kinds — side tables pinned as literals', () => {
     // on purpose (the concourse / the shop floor walk like the restaurant); every prior kind unchanged.
     // re-pinned 2026-09-28 (terrain-world): + 'terrain' — a painted scene at real scale is walked by default.
     // re-pinned 2026-10-04 (sixth-gen composer): + 'stage' — a kit-built level is walked like the dungeon.
+    // re-pinned 2026-10-05 (historic entries): + 'historic' — a culture's town and land are walked at street level.
     expect([...WALK_KINDS].sort()).toEqual([
-      'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'koenigsberg', 'mall', 'math-structure',
+      'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'historic', 'koenigsberg', 'mall', 'math-structure',
       'painted-landscape', 'restaurant', 'room', 'school-complex', 'stage', 'store',
       'subway-building', 'subway-station', 'terrain', 'transportation-hub',
     ]);

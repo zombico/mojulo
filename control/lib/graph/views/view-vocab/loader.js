@@ -28,6 +28,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../../module-dir.js';
 import { readBookCards } from '../recipe-book/cards.js';
+import { historicEntryCards } from '../../historic/entries.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/views/view-vocab');
 
 // `when` is required for the same reason as sketch-vocab: it's the
@@ -83,6 +84,13 @@ export function getViewVocabCatalog() {
     if (catalog.has(card.id)) {
       throw new Error(`view-vocab: duplicate card id '${card.id}' (${file})`);
     }
+    catalog.set(card.id, card);
+  }
+  // Generated encyclopedia entries (family `entry`): the historic cultures, built from their culture, record
+  // and style cards at load (../../historic/entries.js), never hand-written. A record card (`<id>/record`) carries
+  // `index: false`: read on demand, kept out of search and the index rows, so an entry answers before its sources.
+  for (const card of historicEntryCards()) {
+    if (catalog.has(card.id)) throw new Error(`view-vocab: generated entry '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }
   // Attached recipe-book cards (recipe-book.plan.md) — merged AFTER core so

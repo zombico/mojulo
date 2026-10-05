@@ -10,6 +10,7 @@
  * generic Hellenistic polis (`polis` below): a town under a gentle acropolis hill.
  */
 import { LINDOS_ASSETS } from '../assets/lindos.js';
+import { LINDOS_YEAR, LINDOS_RECORD, LINDOS_SOURCES } from '../record/lindos.js';
 
 const PALETTE = {
   ground: '#b9a684',            // the hillside: thin stony soil over limestone, garrigue
@@ -40,6 +41,12 @@ const PALETTE = {
 export const LINDOS = {
   label: 'Hellenistic Lindos',
   years: [-200, -150],
+  readAt: LINDOS_YEAR,           // c. 180 BCE (../record/lindos.js)
+  period: 'Hellenistic',
+  place: 'Lindos, Rhodes',
+  region: 'greece',
+  aliases: ['rhodes', 'acropolis', 'athena lindia', 'aegean town'],   // what people call it (search)
+  record: { id: 'lindos', entries: LINDOS_RECORD, sources: LINDOS_SOURCES },   // the encyclopedia entry's basis
   layout: 'acropolis',
   palette: PALETTE,
   skins: {
@@ -73,6 +80,9 @@ export const LINDOS = {
 export const POLIS = {
   ...LINDOS,
   label: 'A Hellenistic polis (generic)',
+  place: null,                   // invented: Lindos' kit on a gentle hill, no real town
+  region: 'greece',
+  aliases: ['greek town', 'polis', 'hellenistic city'],
   site: { ...LINDOS.site, cliff: false, summit: 46, upper: 52 },
   landmarks: false,
 };

@@ -280,7 +280,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-04 (267_588 -> 267_900; measured 267,877) for flame-depiction: export_model's format 'blender'
 // (the Blender pack the export-blender CLI writes, a world's fire in it for a Cycles still: the enum value, one
 // sentence, and the `fire_t` / `fire_detail` properties).
-const PAYLOAD_CEILING = 267_900;
+// Re-pinned 2026-10-05 (267_900 -> 268_200; measured 268,159) for historic entries: get_view_vocab names the
+// encyclopedia entry family (a description clause, the `entry` enum value, the id hint) and create_sketch's
+// manifest property names the `historic` kind and where its starters live. No per-entry text anywhere.
+const PAYLOAD_CEILING = 268_200;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

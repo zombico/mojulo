@@ -221,7 +221,7 @@ export async function getViewVocabHandler(input) {
     // error-row drawer miss by the same cut.
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
-  let cards = [...catalog.values()];
+  let cards = [...catalog.values()].filter((c) => c.index !== false);
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,
@@ -264,15 +264,16 @@ export function registerCreateViewTools() {
     name: 'get_view_vocab',
     description:
       'Read a view-vocab card in full — the depiction prose + routing phrases + parameter manual for one '
-      + '`create_view` kind or `compose_world` base (family \'world\'). Pass `id` for one card; omit for the '
+      + '`create_view` kind or `compose_world` base (family \'world\'), or an encyclopedia entry (family '
+      + '\'entry\': a historic culture at its period, with starter manifests). Pass `id` for one card; omit for the '
       + 'index rows { id, name, family, entry, summary, when } (optional `family` filter: science / math / bio / '
-      + "world). Discover cards by intent via semantic_search({ kinds: ['view_vocab'] }); this reader returns "
+      + "world / entry). Discover cards by intent via semantic_search({ kinds: ['view_vocab'] }); this reader returns "
       + 'the full body. Read-only.',
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string', description: 'Card id (= the create_view kind or compose_world base).' },
-        family: { type: 'string', enum: ['science', 'math', 'bio', 'world'], description: 'Optional list filter.' },
+        id: { type: 'string', description: 'Card id (= the create_view kind, compose_world base, or entry id).' },
+        family: { type: 'string', enum: ['science', 'math', 'bio', 'world', 'entry'], description: 'Optional list filter.' },
       },
       required: [],
     },

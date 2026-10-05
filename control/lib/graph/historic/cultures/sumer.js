@@ -4,10 +4,20 @@
  * notes behind it live in ../record/sumer.js.
  */
 import { SUMER_ASSETS } from '../assets/sumer.js';
+import { SUMER_RECORD, SUMER_SOURCES } from '../record/sumer.js';
+import { SUMER_FARM_RECORD } from '../record/sumer-farm.js';
+import { SUMER_WORKS_RECORD } from '../record/sumer-works.js';
 
 export const SUMER = {
   label: 'Sumer (Uruk period)',
   years: [-4000, -2350],
+  readAt: null,                  // not chosen: the card spans its periods (a general depiction)
+  period: 'Uruk into Early Dynastic',
+  place: 'southern Mesopotamia',
+  region: 'mesopotamia',
+  aliases: ['sumerian', 'uruk', 'eridu', 'ziggurat', 'shumer', 'early dynastic'],   // what people call it (search)
+  // what its town, land, farm and works stand on (the encyclopedia entry's basis)
+  record: { id: 'sumer', entries: [...SUMER_RECORD, ...SUMER_FARM_RECORD, ...SUMER_WORKS_RECORD], sources: SUMER_SOURCES },
   palette: {
     ground: '#c2ab84',            // dry alluvium
     lane: '#d2bf98',              // beaten mud, paler with traffic
