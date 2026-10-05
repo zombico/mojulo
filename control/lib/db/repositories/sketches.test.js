@@ -301,3 +301,33 @@ describe('last-touched recency (sketches.updated_at)', () => {
     expect(SketchRepository.recent({ limit: 1 })[0].ref).toBe(first);
   });
 });
+
+// A layered row stores its recipe without the parts it copies whole from the plan's include (manifest-store.js) and
+// every read puts them back: the stored text is smaller, the manifest read is the one written.
+describe('the stored layered manifest', () => {
+  const head = { name: 'head', parts: { face: { layer: 2, offsets: Object.fromEntries(Array.from({ length: 2000 }, (_, i) => [`v${i}`, [i, i / 2, i / 3]])) } } };
+  const layered = (edit = 0) => ({
+    kind: 'layered', plan: { segments: [], include: [head] },
+    recipe: { parts: { torso: { layer: 1, stations: [] }, face: { ...head.parts.face, offsets: { ...head.parts.face.offsets, v0: [edit, 0, 0] } } }, dials: {} },
+  });
+  const storedText = (ref) => getDb().prepare('SELECT manifest_json FROM sketches WHERE ref = ?').get(ref).manifest_json;
+
+  it('stores the include once and reads the whole manifest back, on create and on update', () => {
+    SketchRepository.create({ ref: 'sk_hero', title: 'Hero', manifest: layered() });
+    expect(JSON.parse(storedText('sk_hero')).recipe.parts.face).toEqual({ $include: 'head' });
+    expect(storedText('sk_hero').length).toBeLessThan(JSON.stringify(layered()).length / 1.8);
+    expect(JSON.stringify(SketchRepository.getByRef('sk_hero').manifest)).toBe(JSON.stringify(layered()));
+    // a hand-edited part differs from the include: stored as edited
+    SketchRepository.update({ ref: 'sk_hero', manifest: layered(7) });
+    expect(JSON.parse(storedText('sk_hero')).recipe.parts.face.offsets.v0).toEqual([7, 0, 0]);
+    expect(JSON.stringify(SketchRepository.getByRef('sk_hero').manifest)).toBe(JSON.stringify(layered(7)));
+    expect(SketchRepository.getByRef('sk_hero').bucket).toBe(classifyBucket(layered()));
+  });
+
+  it('a row stored whole before reads as itself and shrinks on its next write', () => {
+    getDb().prepare('INSERT INTO sketches (ref, title, manifest_json, created_at) VALUES (?, ?, ?, unixepoch())').run('sk_old', 'Old', JSON.stringify(layered()));
+    expect(JSON.stringify(SketchRepository.getByRef('sk_old').manifest)).toBe(JSON.stringify(layered()));
+    SketchRepository.update({ ref: 'sk_old', title: 'Old, renamed' });
+    expect(JSON.parse(storedText('sk_old')).recipe.parts.face).toEqual({ $include: 'head' });
+  });
+});

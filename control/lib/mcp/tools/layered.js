@@ -59,6 +59,7 @@ import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
+import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild } from '@/lib/graph/polygonizer/hero-gear';
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { expandEquipment } from '@/lib/graph/equipment/expand';
@@ -403,13 +404,13 @@ export function neckReadout(plan, mesh) {
 
 /** The BUDGET a hero spends (a standing machine metric, advice only): the compiled mesh's triangles and vertices per
  * palette group (a vertex counts in each group whose faces use it), largest first, and the stored plan and recipe in
- * bytes (the row carries both). */
+ * bytes (the row carries both; the recipe as stored, without the parts it copies whole from the plan's include). */
 export function heroBudget(plan, mesh, recipe) {
   if (!mesh) return null;
   const tris = new Map(), verts = new Map();
   mesh.faces.forEach((t, fi) => { const g = mesh.groups[fi] ?? 'none'; tris.set(g, (tris.get(g) || 0) + 1); let s = verts.get(g); if (!s) verts.set(g, s = new Set()); for (const vi of t) s.add(vi); });
   const groups = Object.fromEntries([...tris.keys()].sort((a, b) => tris.get(b) - tris.get(a) || (a < b ? -1 : 1)).map((g) => [g, { triangles: tris.get(g), vertices: verts.get(g).size }]));
-  return { triangles: mesh.faces.length, vertices: mesh.vertices.length, groups, bytes: { plan: plan ? Buffer.byteLength(JSON.stringify(plan)) : 0, recipe: recipe ? Buffer.byteLength(JSON.stringify(recipe)) : 0 } };
+  return { triangles: mesh.faces.length, vertices: mesh.vertices.length, groups, bytes: { plan: plan ? Buffer.byteLength(JSON.stringify(plan)) : 0, recipe: recipe ? Buffer.byteLength(JSON.stringify(plan ? packRecipe(plan, recipe) : recipe)) : 0 } };
 }
 
 /** How far a hand may sink past its rest overlap, and a free sole below or above the floor, before the readout advises. */

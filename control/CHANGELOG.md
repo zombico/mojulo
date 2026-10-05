@@ -109,6 +109,11 @@ lands.
   slant; the big toe its own, apart from the rest (the grip), the other four side by side with the lines between them.
   The toes bend with the toe bone. Footwear replaces the foot: a hero in shoes, clothes or armour keeps the shoe as it
   was, and sandals and boots to come take the foot's place on the same joints.
+- **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
+  expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
+  row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under
+  `/recipe` is stored as edited. A hero row is about 1.2 MB instead of 2.35 MB; a row stored before shrinks on its next
+  edit.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the

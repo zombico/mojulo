@@ -3,7 +3,7 @@ process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { closeDb } from '@/lib/db/index';
+import { closeDb, getDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createFigureHandler } from './figure.js';
 import { createEdificeHandler } from './edifice.js';
@@ -698,7 +698,10 @@ describe('the hero door stands the hero in a gesture', () => {
     expect(Object.keys(b.groups)).toEqual(expect.arrayContaining(['Skin', 'Hair', 'Iris', 'Pupil', 'Sclera', 'Ink', 'Top', 'Bottom', 'Shoes']));
     expect(Object.values(b.groups).reduce((s, g) => s + g.triangles, 0)).toBe(b.triangles);
     const row = () => SketchRepository.getByRef('hero-stand');
-    expect(b.bytes.plan).toBe(Buffer.byteLength(JSON.stringify(row().manifest.plan))); expect(b.bytes.recipe).toBe(Buffer.byteLength(JSON.stringify(row().manifest.recipe)));
+    // the bytes the row stores: the recipe without the head parts it would copy whole from the plan's include
+    const stored = JSON.parse(getDb().prepare('SELECT manifest_json FROM sketches WHERE ref = ?').get('hero-stand').manifest_json);
+    expect(b.bytes.plan).toBe(Buffer.byteLength(JSON.stringify(stored.plan))); expect(b.bytes.recipe).toBe(Buffer.byteLength(JSON.stringify(stored.recipe)));
+    expect(b.bytes.recipe).toBeLessThan(Buffer.byteLength(JSON.stringify(row().manifest.recipe)) - 1e6);
     expect(row().manifest.hero.gesture).toBeUndefined(); expect(Object.keys(row().manifest.recipe.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']);
     // a word: the mirror stance
     const hip = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'hand-on-hip' }] });
