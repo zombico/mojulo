@@ -412,6 +412,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     They are now closed onto the walls, and the halls' gable ends are closed flush in stucco.
 - New shared patterns: mosaic floor, painted notice. The World page is about 19.7 MB. The other cultures' pages are
   still byte-identical.
+- A close-scale study beside the town, in progress: the Forum Romanum on the same summer day of 79, about 240 × 160 m,
+  where the detail goes into the buildings themselves.
+  - **The orders as real parts** (`assets/orders.js`), measured in the column's lower diameter as the Romans wrote
+    them. The Attic base has its plinth, tori and scotia; the shaft is fluted in 24 channels and tapers above its
+    lower third. The Corinthian capital has two rows of acanthus with raised midribs and drooping tips, the
+    caulicoli, corner volutes, inner helices, and the abacus with its flowers. Ionic and Tuscan capitals sit beside
+    it. The entablature segment has three fasciae, the frieze, dentils, modillions, the corona and the sima.
+  - Each part is built once, to stand many times as an instance on the World page, so the detail costs its faces
+    once. A Corinthian column is about 1,200 panels.
+  - **The record** (`record/forum.js`), read at Pompeii's moment with Pompeii's states, mostly from Platner & Ashby,
+    Digital Augustan Rome and the Parco del Colosseo:
+    - Each temple carries its podium and its order with column counts and sizes. The orders are dated methods, so a
+      building can use only an order Rome already had.
+    - In 79 the Temple of Vespasian does not exist yet, since Vespasian was deified only after his death that June.
+      Its plot below the Tabularium stays open.
+    - Vesta and the House of the Vestals stand rebuilt after the fire of 64, and the Capitoline temple after 69.
+    - Anachronisms are held at their real dates: Saturn's late-antique Ionic porch, Diocletian's brick Curia and
+      basilica piers, the Severan Vesta, the Equus Domitiani, the Umbilicus.
+    - The disputes are recorded and the scene takes one side of each: Saturn Corinthian in 79, Concord's porch of
+      six columns, Divus Julius Ionic.
+  - **The style card** (`style/forum.js`), six principles, each measured on the built parts:
+    - each order's height, base, capital and taper in lower diameters;
+    - the entablature about a quarter of the column;
+    - podia with a front stair, and close-set columns;
+    - Luna marble brightest, then travertine, tufa, peperino and basalt;
+    - the long open square;
+    - the summer sky.
+    The orders module reads its numbers from the card. The design brief, with nine drawing prompts, is in
+    `docs/historic/forum/README.md`.
 
 ### Sixth-gen composer
 

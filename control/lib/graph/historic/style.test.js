@@ -228,3 +228,65 @@ describe('pompeii — the style card\'s principles, measured on the kit', () => 
     expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
   });
 });
+
+describe('forum — the style card\'s principles, measured on the built orders', async () => {
+  const { column, entablature } = await import('./assets/orders.js');
+  const S = HISTORIC_STYLES.forum, K = S.kit, P = S.palette;
+  const zTop = (ms) => Math.max(...ms.map((m) => m.z1)), zBot = (ms) => Math.min(...ms.map((m) => m.z0));
+  const reach = (ms, z0, z1) => Math.max(...ms.filter((m) => m.z0 >= z0 - 1e-6 && m.z1 <= z1 + 1e-6).map((m) => Math.max(Math.abs(m.x), Math.abs(m.x + m.w), Math.abs(m.y), Math.abs(m.y + m.d))));
+
+  it('principle 1 — each column is built to its order: height, base, capital and taper in diameters', () => {
+    const D = 1.45;
+    for (const [o, k] of Object.entries(K.order)) {
+      const c = column(o, { D, tint: P.luna });
+      expect(zTop(c.masses) / D, o).toBeCloseTo(k.column, 1);
+      expect(c.base / D, o).toBeCloseTo(k.base, 5);
+      expect((c.top - c.shaftTop) / D, o).toBeCloseTo(k.capital, 5);
+      expect(c.rTop / (D / 2), o).toBeCloseTo(k.taper, 5);
+      expect(zBot(c.masses)).toBe(0);
+    }
+    expect(K.order.corinthian.column).toBeGreaterThanOrEqual(9.5);
+    expect(K.order.ionic.column).toBeLessThan(K.order.corinthian.column);
+    expect(K.order.tuscan.column).toBeLessThan(K.order.ionic.column);
+    expect(K.order.corinthian.taper).toBeGreaterThan(0.8);
+    // the Corinthian capital's abacus reaches past the shaft (the horns over the leaves)
+    const c = column('corinthian', { D, tint: P.luna });
+    expect(reach(c.masses, c.shaftTop, c.top)).toBeGreaterThan(0.7 * D);
+  });
+
+  it('principle 2 — the entablature is about a quarter of the column, its modillions spaced to the columns', () => {
+    const D = 1.45;
+    for (const [o, [lo, hi]] of Object.entries(K.entablature)) {
+      const e = entablature(o, { D, span: 4, tint: P.luna }), H = K.order[o].column * D;
+      expect(e.height / H, o).toBeGreaterThanOrEqual(lo);
+      expect(e.height / H, o).toBeLessThanOrEqual(hi);
+    }
+    // the Corinthian modillions: one per pitch, so two columns' worth of span has more than two
+    const e = entablature('corinthian', { D, span: 3.2 * D * 2, tint: P.luna });
+    expect(e.masses.filter((m) => m.y < -0.5 * D && m.z0 > 1.5 * D).length).toBeGreaterThan(4);
+  });
+
+  it('principle 3 — temples on podia with a front stair; columns close (1.5–2.25 D clear)', () => {
+    expect(K.podium.h[0]).toBeGreaterThanOrEqual(3);
+    expect(K.podium.stair).toBe('front');
+    expect(K.spacing[0]).toBe(1.5);
+    expect(K.spacing[1]).toBeLessThanOrEqual(2.25);
+  });
+
+  it('principle 4 — Luna marble > travertine > tufa > peperino > basalt; gilt brighter than bronze; shade cool, never black', () => {
+    for (let i = 0; i + 1 < S.values.length; i++) expect(value(rgbOf(P[S.values[i]])), `${S.values[i]} > ${S.values[i + 1]}`).toBeGreaterThan(value(rgbOf(P[S.values[i + 1]])));
+    expect(value(rgbOf(P.gilt))).toBeGreaterThan(value(rgbOf(P.bronze)));
+    const lit = scale(rgbOf(P.luna), UP), inShade = over(lit, rgbOf(S.light.shade.color), S.light.shade.alpha);
+    expect(value(inShade)).toBeGreaterThan(value(lit) * 0.5);
+    expect(inShade[2] / inShade[0]).toBeGreaterThan(lit[2] / lit[0]);
+  });
+
+  it('principle 5 — the square is long and open: its length over two and a half times its width', () => {
+    expect(K.square.d / K.square.w).toBeGreaterThan(2.5);
+  });
+
+  it('principle 6 — the sky is a place: bluer overhead than at the horizon', () => {
+    const sky = deriveSky(S.sky.palette, { x: 0, y: 0, z: S.sky.sunElev });
+    expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
+  });
+});
