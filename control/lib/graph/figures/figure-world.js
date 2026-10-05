@@ -83,7 +83,7 @@ export function wearAtlas(manifest, ref, faces) {
 
 export function assembleFigureScene(manifest = {}, ctx = {}) {
   manifest = atlasAwareManifest(manifest);
-  const { restFaces, restNodes, nodeFrames } = figureRigSamples(manifest, FIGURE_RIG_KEYS);
+  const { restFaces, restNodes, nodeFrames } = figureRigSamples(manifest, FIGURE_RIG_KEYS, ctx.tpose ? { tpose: true } : undefined);
   const rig = bakeRigFigure({
     nodesAt: () => restNodes,            // rest solve — clip frames arrive pre-solved
     facesAt: () => restFaces,
@@ -91,6 +91,7 @@ export function assembleFigureScene(manifest = {}, ctx = {}) {
     targetH: null,                       // figure-render output is already world-scaled
   });
   rig.embodies = 'body';                 // the static face group below IS this body at rest
+  if (ctx.tpose) rig.tpose = { rebuilt: true };   // rested in the T-pose already (the export's mold skips it)
   // backdrop follows the /svg setup resolution (renderFigureWorldFrames' convention:
   // a transparent still falls back to the dark world stage).
   const setupBg = manifest.background === false ? 'none' : (resolveFigureSetup(manifest.setup)?.bg ?? '#eef1f4');

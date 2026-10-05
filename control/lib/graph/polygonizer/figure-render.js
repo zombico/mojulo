@@ -18,6 +18,7 @@
  */
 import { articulate, basePositions } from './figure-vajra.js';
 import { castArmature } from './figure-cast.js';
+import { tposeArmature } from './figure-tpose.js';
 import { projectTwoPoint } from './pure-mandala.js';
 import { makeLight, shadeHex, litFactor, dot3, sub3, centroid, withBands, resolveToon } from './vexar.js';
 import { PROTO_DEFAULT, buildProtoform } from './figure-proto.js';
@@ -213,13 +214,14 @@ function buildHeldShield(nodes, hold) {
 }
 
 export function buildPosedFigure(pose = {}, proto = {}, garment = null, opts = {}) {
-  const { fluffs = null, hold = null, attachments = null, hair = null, cast = null, fluffQuality = 1, weld = null } = opts || {};
+  const { fluffs = null, hold = null, attachments = null, hair = null, cast = null, fluffQuality = 1, weld = null, rest: restOverride = null } = opts || {};
   const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, face = null, ...limbs } = pose || {};
   // THE CAST (figure-cast.js): the rest armature this figure is built on. Every kinematic pass
   // below takes it — FK, the balance IK's bone lengths, the spine warp's S0 and the arm's anchor
   // height — so proportions are satisfied at the vajra level and the flesh just follows. null =
   // the canonical armature, and every pass is bit-identical to what it did before casts existed.
-  const base = cast ? castArmature(cast) : null;
+  // `rest` (figure-tpose.js): a whole rest map in place of the cast's, the T-pose export's armature; absent ⇒ as before
+  const base = restOverride || (cast ? castArmature(cast) : null);
   const rest = base || basePositions();
   const full = articulate(pose, base);    // spine + limbs (pure FK, feet float)
   const balanced = balancedArmature(pose, full, base);
@@ -1147,12 +1149,18 @@ export function renderFigureFrames(manifest = {}, frames = 30) {
  * flesh is built on (the spine warp's smooth deformation is NOT reproduced — rigid parts
  * approximate it; see rig-bake.js).
  */
-export function figureRigSamples(manifest = {}, keys = 8) {
+export function figureRigSamples(manifest = {}, keys = 8, { tpose = false } = {}) {
   const setup = resolveSetup(manifest);
   const { CAM } = makeCamera(manifest.view);
   const move = motionFn(manifest.motion || 'walk', keys, manifestBase(manifest));
   const restPose = manifest.pose || {};
-  const restStacks = recolorFlesh(buildPosedFigure(restPose, manifest.proto, manifestGarment(manifest), manifestBody(manifest)), setup.fleshHex);
+  // the T-pose export (docs/emote-bridge.md §3.6): the REST is rebuilt on the T armature (the flesh is procedural, so it
+  // is built there, not skinned there); the clip frames below are the authored motion as ever, so the bake measures
+  // them from the T rest and they play the same. Absent ⇒ byte-identical.
+  const tBase = tpose ? tposeArmature(manifestBase(manifest)) : null;
+  const restStacks = recolorFlesh(tBase
+    ? buildPosedFigure({}, manifest.proto, manifestGarment(manifest), { ...manifestBody(manifest), rest: tBase })
+    : buildPosedFigure(restPose, manifest.proto, manifestGarment(manifest), manifestBody(manifest)), setup.fleshHex);
   const groundZ = stackMinZ(restStacks);
   const V = worldVertex(restStacks, groundZ);
   // manifest.skin (skin-over-mesh.plan.md phase 1): recipe-emitted cylindrical UVs on the
@@ -1177,7 +1185,7 @@ export function figureRigSamples(manifest = {}, keys = 8) {
     const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
     return plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut });
   };
-  const restNodes = mapNodes(solve(restPose));
+  const restNodes = mapNodes(tBase ? balancedArmature({}, articulate({}, tBase), tBase) : solve(restPose));
   const nodeFrames = Array.from({ length: keys }, (_, i) =>
     mapNodes(solve({ ...restPose, ...(move ? move(i / keys) : {}) })));
   return { restFaces, restNodes, nodeFrames };

@@ -634,7 +634,7 @@ export const WORLD_KINDS = {
   // vehicle-instance / manji-tree).
   figure: {
     title: 'mojulo figure',
-    resolve: (m, ctx) => assembleFigureScene(m, { title: ctx.title, ref: ctx.ref }),
+    resolve: (m, ctx) => assembleFigureScene(m, { title: ctx.title, ref: ctx.ref, ...(ctx.tpose ? { tpose: true } : {}) }),
   },
   // The animal study's World form (skin-over-mesh: figure-world
   // assembleAnimalScene) — orbit/export object study, same posture as figure.

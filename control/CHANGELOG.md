@@ -12,11 +12,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### Emote bridge: head turn
+### Emote bridge
 
-The neck and head turn about their own axis, the axial rotation the figure never had, the first step toward playing
-common-parlance emotes and humanoid clip libraries on the vajra figure ([docs/emote-bridge.md](../docs/emote-bridge.md)).
-Opt-in: with no turn every figure, hero and export is byte-identical. Being built on this branch; each bullet is
+Steps toward playing common-parlance emotes and humanoid clip libraries on mojulo's figures
+([docs/emote-bridge.md](../docs/emote-bridge.md)): the head turn the figure never had, and a T-pose rest for the engines.
+Both are opt-in: without them every figure, hero and export is byte-identical. Being built on this branch; each bullet is
 rewritten as its phase lands.
 
 - **`turn` on the neck and head.** `neck: { turn }` and `head: { turn }` (degrees, + the face to the figure's left;
@@ -26,6 +26,10 @@ rewritten as its phase lands.
   bones (and the jaw, face and hair that ride them), and the packed rig's head, so it bakes into the GLB and Godot
   clips. The joint graph does not move.
 - **`headshake` turns the head.** The emote is a real "no" now, instead of a torso twist under a head tilt.
+- **The T-pose mold.** `export_model { skinned: true, humanoid: true, rest: 'tpose' }` re-rests a humanoid figure or
+  hero in the VRM T-pose the engines retarget from (arms straight out, palms down, legs straight, feet and head as
+  they were), with every clip re-expressed on it so it plays the same motion. No recipe changes; without `rest` the
+  export is byte-identical.
 
 ### Figure articulation: herobot
 

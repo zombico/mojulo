@@ -16,6 +16,8 @@ import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
+import { tposeRig } from '@/lib/graph/figures/rig-tpose';
+import { isHumanoidRig } from '@/lib/graph/polygonizer/figure-humanoid-map';
 import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
@@ -649,7 +651,7 @@ export async function exportModelHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false, cdn: cdnInput = false } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, rest = 'authored', union = false, lit = false, printer: printerInput = null, strict = false, cdn: cdnInput = false } = input;
   // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only the self-contained page: a page
   // it exports never loads anything from a third-party host. `cdn: true` is ignored there, and said so.
   const pluginBuild = pluginProfileActive();
@@ -709,6 +711,9 @@ export async function exportModelHandler(input, context = {}) {
   // VRMC_vrm extension. Rides the skinned path (names belong to skin joints).
   if (humanoid !== false && humanoid !== true) throw new Error('`humanoid` must be a boolean if provided');
   if (humanoid && !skinned) throw new Error("`humanoid: true` needs `skinned: true` (and a `clips` selection) — the VRM names belong to the skin joints");
+  // the T-pose mold (docs/emote-bridge.md §3.6): re-rest each humanoid figure in the VRM T-pose the engines retarget from
+  if (rest !== 'authored' && rest !== 'tpose') throw new Error("`rest` is 'authored' (the figure's own stand, the default) or 'tpose'");
+  if (rest === 'tpose' && !humanoid) throw new Error("`rest: 'tpose'` needs `humanoid: true` (and `skinned: true`) — the T-pose is the VRM humanoid's rest");
   // union (interchange-seams.plan.md seam 4a): a true CSG union of the printable shells via
   // Manifold before the print file is written — one solid with a measured volume instead of
   // overlapping shells the slicer must repair. Opt-in; absent the package it reports and ships plain.
@@ -732,8 +737,20 @@ export async function exportModelHandler(input, context = {}) {
   // darkening) so the importer's light is the only light on the geometry
   // a skinned export also asks for the anime hero's FACE (its expression channels as morph targets on the skinned mesh;
   // world-kinds layered, anime-face-rig.js) — every other kind and hero resolves exactly as without it
-  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, { ...(lit ? { unshaded: true } : {}), ...(skinned ? { face: true } : {}) });
+  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, { ...(lit ? { unshaded: true } : {}), ...(skinned ? { face: true } : {}), ...(rest === 'tpose' ? { tpose: true } : {}) });
   let payload = resolvedPayload;
+  let tposed = null;
+  if (rest === 'tpose' && payload?.figures) {
+    tposed = { figures: [], skipped: [] };
+    const figures = {};
+    for (const [name, fig] of Object.entries(payload.figures)) {
+      // a flat figure arrives rebuilt in T (figure-world); any other humanoid pack takes the mold
+      if (fig?.rig === true && fig.tpose) { figures[name] = fig; tposed.figures.push(name); }
+      else if (fig?.rig === true && Array.isArray(fig.bones) && isHumanoidRig(fig.bones)) { figures[name] = tposeRig(fig); tposed.figures.push(name); }
+      else { figures[name] = fig; if (fig?.rig === true) tposed.skipped.push(name); }
+    }
+    payload = { ...payload, figures };
+  }
   let unionResult = null;
   if (union && payload) {
     const shells = printableShells(payload);
@@ -929,7 +946,10 @@ export async function exportModelHandler(input, context = {}) {
       if (exported.humanoidFigures) {
         result.humanoid_figures = exported.humanoidFigures;
         result.humanoid_note = 'VRM 1.0 bone names on the skin joints (hips / spine / head / left+rightUpperArm…Foot; weightless leaf joints at the wrists and ankles stand in for hands / feet) + the VRMC_vrm extension on the first figure. '
-          + 'Honest limits: the skeleton is FLAT (absolute rotations, no parent chain) and the rest pose is the figure\'s stand, not a T-pose — VRM-aware tools address the bones by name today; a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).';
+          + (tposed
+            ? 'The rest pose is the VRM T-pose (rest: \'tpose\'): arms straight out, palms down, legs straight, the feet, trunk and head as authored, fingers in their rest curl; every clip is re-expressed on it and plays the same motion. Honest limit: the skeleton is FLAT (absolute rotations, no parent chain) — a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).'
+            : 'Honest limits: the skeleton is FLAT (absolute rotations, no parent chain) and the rest pose is the figure\'s stand, not a T-pose (rest: \'tpose\' re-rests it) — VRM-aware tools address the bones by name today; a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).');
+        if (tposed) { result.tpose_figures = tposed.figures; if (tposed.skipped.length) result.tpose_skipped = tposed.skipped; }
       }
     }
     if (exported.lit) {

@@ -163,6 +163,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
+    // the T-pose export (rest: 'tpose'): the flat figure rebuilds its rest on the T armature; nothing else reads it
+    tpose: viewOpts.tpose === true,
   };
   const payload = await desc.resolve(manifest, ctx);
   // the World's ink channel reads it; stills ignore it. A resolver that sets its own `toon` keeps it (the layered kind's

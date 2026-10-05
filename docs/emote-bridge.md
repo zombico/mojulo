@@ -38,6 +38,7 @@ in) does not exist. That half is the spike's real subject.
 1. **The rest is an A-pose, and the exported skeleton is flat.** Unity Humanoid and
    strict VRM validators expect parent-local rotations from a T-pose. Today our
    names make the figure *addressable*, but outside clips cannot simply play on it.
+   **Decision: the T-pose mold (§3.6)** re-rests the exported figure in a T-pose.
 2. **The head has no axial turn.** `head.yaw` is a lateral tilt, and `headshake`
    fakes "no" with a spine twist. A large share of real emote clips (look-around,
    headshake, taunt) carry neck/head Y-rotation. **Decision: add it.** The design is
@@ -60,9 +61,9 @@ in) does not exist. That half is the spike's real subject.
    the 32 non-test modules that import figure-vajra (animals, landmarks, garments,
    world poses). **Decision: keep the vajra spine as is.** The retargeter
    distributes or collapses rotations instead.
-5. **Name collision.** `HERO_BONE_TO_VRM` maps both `lumbar` and `torso` to
-   `spine`. On the structured core, `torso` should be `chest`. This is small, but
-   an importer would hit it immediately.
+5. **Name collision: already handled.** `HERO_BONE_TO_VRM` maps both `lumbar` and
+   `torso` to `spine`, but `humanoidBonesFor` names the `torso` `chest` whenever a
+   `lumbar` carries the spine.
 6. **The biped has no hands or feet**, only weightless leaf joints. Finger tracks
    from Mixamo or VRMA can only land on the hero rig.
 
@@ -305,6 +306,65 @@ LIMITS.neckTurn = 35; LIMITS.headTurn = 45;   // ≈ 80° total, a real cervical
 three-quarter (`docs/examples/humanoid/view-animations.mjs`), plus the new
 `headshake`.
 
+### 3.6 The T-pose mold
+
+**What it is.** An export-time step that takes any humanoid mojulo character and re-rests it in the
+VRM T-pose that Godot, Unity/VRChat and VRM tooling retarget from. It is not a new character,
+and no recipe changes. It has two paths, chosen by how the character's mesh is made:
+
+- **Skinned meshes (the hero, and any other humanoid pack): the packed mold**
+  ([rig-tpose.js](../control/lib/graph/figures/rig-tpose.js)). It runs on the **packed rig**
+  (`packLayeredRig`, `bakeRigFigure`), so it serves any humanoid kind, including future ones. The
+  mesh is moved to T by its own skin weights.
+- **The flat figure: a rebuild** ([figure-tpose.js](../control/lib/graph/polygonizer/figure-tpose.js)).
+  Its flesh is procedural and packed as rigid per-bone parts. Skinning those 80° tears the shoulder:
+  the deltoid and lat pieces bound to the arm swing out as flaps, and blending the trunk in pulls the
+  chest into spikes. So `figure-world` instead builds the rest on a T armature (the same landmarks
+  and bone lengths, the arms placed straight along ±x and the legs straight down). The clip frames
+  are the authored motion as ever, and the bake measures them from the T rest, so they play the
+  same with no re-expression.
+
+**Inputs and outputs.** In: a packed rig with `bones: [{ id, head, tail }]`, parts (rigid, or
+skinned with `jnt`/`wgt`) and clips (per key, per bone, a world rotation from rest plus the posed head).
+Out: the same shape, with:
+- **A T-pose rest.** Each bone keeps its length. Its new head comes by FK from its parent's T frame.
+- **Mesh parts moved to T.** Rigid parts move rigidly; skinned parts move by their own weights.
+- **Clips re-expressed on the new rest.** `q' = q · qT⁻¹`, and posed heads are unchanged, so every
+  clip plays the same motion. This is exact for rigid vertices; blended vertices re-bind the usual
+  way any T-pose rebind does.
+- **The per-bone offset `qT`**, the A↔T delta that importers and the keyframe lane need.
+
+**Bone roles, by VRM name** (`humanoidBonesFor`):
+
+| Role | Bones | In the T-pose |
+|---|---|---|
+| aim sideways | upper arm, lower arm, hand | Straight along the figure's ±x (left −x). The shortest arc from a hanging arm turns the palms down, as VRM wants. The lower arm's aim also removes the elbow flex and the carrying angle, which the posing API cannot (the elbow only folds forward). |
+| aim down | upper leg, lower leg | Straight down. |
+| keep world | hips, spine, chest, neck, head, foot, toes | The rest orientation, moved only by FK, so the feet stay flat and the head stays where the face rig expects it. |
+| ride | fingers, thumb, jaw, eyes, unnamed bones (bust) | Rigid with the parent: fingers keep their rest curl. |
+
+Parents come from the VRM humanoid tree (the nearest present ancestor). Unnamed bones take the
+bone whose segment is nearest their head.
+
+**Where it plugs in.** `export_model { …, skinned: true, humanoid: true, rest: 'tpose' }` resolves the
+sketch with `tpose` (the flat figure rebuilds), then runs the packed mold on every other humanoid
+figure before the GLB is written. A non-humanoid rig is left as authored, and the result says so.
+
+**What it does not do (yet).** The exported skeleton stays flat, with absolute joint rotations.
+Re-rooting into a parent-local hierarchy is the next step (phase 4), and the mold's T rest makes it
+trivial: every local rotation is the identity at rest.
+
+**Gates.**
+- *Machine:*
+  - Arms and legs on their axes within ε.
+  - Bone lengths unchanged.
+  - Every clip's posed rigid vertices unchanged by the mold (to float precision).
+  - A mold with every `qT` = identity is a no-op.
+  - `rest` absent leaves the GLB byte-identical.
+- *Eyes:* a flat figure, the lead hero and the herobot in T. Watch the shoulders and armpits, the
+  herobot's pauldrons, and long hair over the arms. On the first pass, the flat figure skinned into T
+  tore at the shoulder, which is why it is rebuilt instead.
+
 ---
 
 ## 4. The common-parlance emote vocabulary
@@ -353,17 +413,22 @@ clip through `docs/examples/humanoid/view-animations.mjs`).
    Author `salute thumbs_up facepalm laugh cry look_around` as keyframes. Make
    `emote_figure` accept aliases.
    *Gate:* every alias resolves and every emote articulates (extend `figure-emotes.test.js`).
-3. **Vajra T-pose and rest offsets.** Compute the T-pose from `STAND`, plus the
-   per-bone A↔T delta. Fix the `lumbar/torso → spine` collision (`torso → chest`).
-   *Gate:* round-trip T→A→T is identity within ε.
-4. **Export to the ecosystem.** Bake `EMOTES` as named clips with VRM bone names
-   on skinned export. Emit a Godot `BoneMap` `.tres` and an `AnimationLibrary`.
+3. **The T-pose mold (§3.6).** An export-time re-rest of any humanoid packed rig into a VRM
+   T-pose, carrying the per-bone A↔T offset. `export_model { rest: 'tpose' }`.
+   *Gates:* see §3.6.
+4. **Export to the ecosystem.** Re-root the skinned skeleton into a parent-local hierarchy (on
+   the mold's T rest, every local rotation is the identity). Bake `EMOTES` as named clips with VRM
+   bone names. Emit a Godot `BoneMap` `.tres` (names only: the rest is already a T-pose, so
+   Godot's "Fix Silhouette" is not needed) and an `AnimationLibrary`. A strict VRM 1.0 export, and
+   `.vrma` clips of our emotes, become possible.
    Optionally emit `.vrma`. Write an Emotecraft JSON exporter (6-part projection).
    *Gate:* a Godot project plays a mojulo `bow` on a stock Godot humanoid, and a
    Quaternius clip plays on the mojulo figure through Godot's own retargeter.
    This is the cheapest end-to-end proof, because Godot does the retarget.
 5. **BVH import (CMU).** Text format, no dependencies. Run the adapter, the hub,
-   then Lane A to dof keyframes.
+   then Lane A to dof keyframes. With the mold, a T-pose source's local rotations land on our
+   T rest almost directly (Lane B is mostly a rename). Lane A turns them into dof through the
+   mold's stored `qT` instead of guessing a rest.
    *Gate:* a CMU wave solves to keyframes, and the residual joint error is reported.
 6. **glTF/VRMA import.** Extend `scene-gltf-read.js` to read animations and skins.
    Add an MCP door, e.g. `bind_motion_clip { ref, path, clip, source, lane }`.
