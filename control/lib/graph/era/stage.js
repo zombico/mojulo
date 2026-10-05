@@ -39,6 +39,7 @@ import { plazaWall } from './plaza.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
+import { assembleIsekaiScene } from './isekai.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { normalizeJets } from '../materials/jet.js';
@@ -159,6 +160,9 @@ STAGE_KITS['research-lab'] = Object.freeze({
 STAGE_KITS['trail-valley'] = Object.freeze({ shell: 'nature', style: 'nature-trail' });
 // The JUNGLE-TRAIL kit: the late sixth-gen jungle — grown giants, leaf cards, a canopy the light comes through (jungle.js).
 STAGE_KITS['jungle-trail'] = Object.freeze({ shell: 'jungle', style: 'jungle-mgs3' });
+// The ISEKAI-MEADOW kit: the current era's open-field anime look from sixth-gen parts — a locked palette, pixel-locked
+// rocks and cliffs, hats (isekai.js).
+STAGE_KITS['isekai-meadow'] = Object.freeze({ shell: 'isekai', style: 'isekai-meadow' });
 Object.freeze(STAGE_KITS);
 const VARIANTS = ['a', 'b', 'c', 'd'];
 
@@ -571,6 +575,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const kit = STAGE_KITS[manifest.kit];
   if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
+  if (kit && kit.shell === 'isekai') return assembleIsekaiScene({ style: kit.style, ...manifest }, ctx);
   const plan = planStage(manifest);
   const geom = buildStageGeometry(plan), { seats, drains } = geom;
   // a face with no tile (the portal's iron) carries its tint only

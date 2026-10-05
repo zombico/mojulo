@@ -206,6 +206,34 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The recipe's `dirt` scales each cause. Baked ambient occlusion is on for the `stage` kind.
 
+### Stage isekai
+
+- A new stage kit, `isekai-meadow`, for the open-field anime look of current-era games. Its reference cards are
+  Genshin Impact and Breath of the Wild (`lib/graph/era/current-gen.js`). It is built only from sixth-gen parts:
+  - painted 256-px tiles;
+  - baked vertex light;
+  - cutout cards.
+- A PALETTE LOCK (`lib/graph/era/palette.js`): the style card names ramps of colour stops. Every baked colour on a
+  locked group is projected onto its ramp, so shading moves a colour along its ramp and never off it.
+- PIXEL-LOCKED rocks and cliffs:
+  - The tiles (`lib/graph/era/isekai-tiles.js`, the `isekai:` resolver) are painted only in their ramp's stops.
+  - They are drawn unlit, and the light lives in the choice of tile: each facet takes a lit or a shade tile by the
+    sun and its cast shadow. That gives two-tone cel bands with no new renderer.
+  - The cliffs are the landform's own geology drawn with strata tiles.
+  - The rocks are new chunky boulders, lofted from an irregular footprint to a flat top.
+- HATS: a boulder's top wears a grass cap with a ragged fringe hanging round its rim, and every cliff lip gets the
+  same fringe hanging over the face.
+- Trees are crowns of overlapping round masses on a short trunk, with one hero tree where the eye lands. Grass is
+  crossed blade cards, pixel-locked, and within reach of the trail it stands as one continuous field of blades.
+- DEPTH BY PAINTED LAYERS:
+  - Far ranges stand as rings round the site, each its own colour from the far ramp, with a peaked skyline.
+  - The nearest layer is a skirt of land from the site's own edge up to its skyline, banded from grass to the
+    hills' colour.
+  - The haze is thin, so each layer keeps its colour.
+- THE PAINTED SKY: heaped cumulus cards stand behind the ranges, pixel-locked to a cloud ramp and lit in crescents.
+  The sun sits on the dome where the bake's sun is.
+- Other stage kits are byte-identical.
+
 ### Stage doors
 
 - A stage recipe can name DOOR ENDS (`doors: [{ id, at, to: { map, door } }]`), resolved by
