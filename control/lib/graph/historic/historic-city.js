@@ -559,7 +559,9 @@ export function assembleHistoricCityScene(opts = {}) {
   const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
   // the fires stay in metres: the World's fire channel burns them so and scales them into the scene's units
   const fireSources = live ? plan.fireSources : null;
-  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}) };
+  // the World's crop (`plan.world.skirt`): kept with the plan's heights until the sky's horizon colour is known
+  const skirt = world && plan.world && plan.world.skirt && plan.hAt ? { ...plan.world.skirt, hAt: plan.hAt, frame: plan.frame } : null;
+  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}) };
 }
 
 /**
@@ -571,13 +573,37 @@ export function assembleHistoricCityScene(opts = {}) {
  */
 export function assembleHistoricWorld(opts = {}) {
   // the CSS shade map is the page's: the World never reads it, so it is not baked here
-  const { fireSources, ...scene } = assembleHistoricCityScene({ ...opts, world: true, shade: false });
+  const { fireSources, skirt, ...scene } = assembleHistoricCityScene({ ...opts, world: true, shade: false });
   const style = HISTORIC_STYLES[scene.stats.culture];
   const card = style && style.sky && style.sky.palette ? deriveSky(style.sky.palette, { x: 0, y: 0, z: style.sky.sunElev }) : null;
+  if (skirt) scene.faces.push(...skirtFaces(skirt, 1 / METRES_PER_UNIT, card ? card.horizon : [208, 217, 218]));
   // `fire`: the hearths and kilns burn live (fire/fire.js), lighting the town by day as their own glow
   const lit = fireSources ? resolveFire(true, fireSources, { explicit: false }) : null;
   return { ...scene, textures: collectFaceTextures(scene.faces, { ...(scene.textures || {}) }), ...(card ? { sky: { zenith: card.zenith.map(Math.round), horizon: card.horizon.map(Math.round), day: 1, stars: 0, seed: 1 } } : {}),
     ...(lit ? { fire: firePageChannel(lit, { day: card ? 1 : 0, unit: METRES_PER_UNIT }) } : {}) };
+}
+/**
+ * The World's crop: the land just past the frame, `width` m of it in `cell` squares, its heights the frame edge's
+ * carried straight out (a bluff or a river runs on), each corner's colour fading from the ground's (or the water's,
+ * below `waterZ`) to the sky's horizon by its distance from the frame. Past it the picture is sky and haze, so the
+ * town stays the focus however the World is turned. Metres in, scene units out.
+ */
+function skirtFaces({ width, cell, waterZ = -Infinity, fill, water, hAt, frame }, s, horizon) {
+  const lit = litFactor([0, 0, 1], SCENE_LIGHT), base = [scaleHex(fill, lit), scaleHex(water || fill, lit)].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+  const hex = (c) => `#${c.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('')}`;
+  const clamp = (v, hi) => Math.min(hi - 0.01, Math.max(0.01, v)), out = [];
+  const corner = (x, y) => {
+    const z = hAt(clamp(x, frame.w), clamp(y, frame.d)), wet = z < waterZ, d = Math.hypot(Math.max(0, -x, x - frame.w), Math.max(0, -y, y - frame.d));
+    const t = Math.min(1, d / width) ** 0.7, c = base[wet ? 1 : 0];
+    return { p: [x * s, y * s, (wet ? waterZ : z) * s], fill: hex(c.map((v, i) => v + (horizon[i] - v) * t)), far: d >= width };
+  };
+  for (let y = -width; y < frame.d + width; y += cell) for (let x = -width; x < frame.w + width; x += cell) {
+    if (x >= 0 && y >= 0 && x + cell <= frame.w && y + cell <= frame.d) continue;   // the frame draws its own ground
+    const c = [corner(x, y), corner(x + cell, y), corner(x + cell, y + cell), corner(x, y + cell)];
+    if (c.every((q) => q.far)) continue;
+    out.push({ corners: c.map((q) => q.p), fill: c[0].fill, cornerFills: c.map((q) => q.fill), doubleSided: true });
+  }
+  return out;
 }
 /** A historic city → the World page HTML (self-contained unless `cdn`). */
 export function renderHistoricCityToWorld(opts = {}) {

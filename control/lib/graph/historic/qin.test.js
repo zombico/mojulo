@@ -120,6 +120,9 @@ describe('historic city: Qin Xianyang', () => {
     expect(plan.world.boxes.some((b) => b.kind === 'riverbed')).toBe(true);
     expect(plan.world.boxes.filter((b) => b.kind === 'horizon').length).toBeGreaterThan(100);
     expect(plan.boxes.some((b) => b.kind === 'horizon' || b.kind === 'riverbed')).toBe(false);
+    // the World is cropped to the town: the land runs a short way past the frame and fades out
+    expect(plan.world.skirt.width).toBeGreaterThan(0);
+    expect(plan.world.skirt.width).toBeLessThan(plan.frame.w);
   });
 
   it('builds a scene with a camera for each of its views, opening on the one asked for, under a sky from its card', () => {

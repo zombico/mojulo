@@ -218,8 +218,10 @@ export function planWeiWards({ seed = 1, culture = 'qin', frame = { w: 600, d: 6
   skinLoose(boxes, K);
   return {
     boxes, grounds, views, frame: { w: Wf, d: Df }, slots, hAt,
-    // what only the World page draws: the riverbed under the water, and the land beyond the frame out to the hills
-    world: { boxes: [...riverbed, ...qinHorizon({ Wf, Df, H, edge: TB.edge, rv, bank, waterZ, P, seed })] },
+    // what only the World page draws: the riverbed under the water, the hills on the horizon,
+    // and the land just past the frame (`skirt`), its heights carried out from the frame's edge, fading into the haze:
+    // the town the picture's focus
+    world: { boxes: [...riverbed, ...qinHills({ Wf, Df, H, P, seed })], skirt: { width: 260, cell: 20, waterZ, fill: P.ground, water: P.water } },
     stats: {
       culture, houses, gardens, trees, wards: wards.filter((w) => !w.market).length, eliteWards: wards.filter((w) => w.elite).length,
       precinct: pal, palace: pal, hall: hall1, que: queR, market: { x: mk.x, y: mk.y, w: mk.w, d: mk.d }, works, river: rv, axis: ax,
@@ -231,39 +233,24 @@ export function planWeiWards({ seed = 1, culture = 'qin', frame = { w: 600, d: 6
 }
 
 /**
- * Beyond the frame, for the World page only: the tableland and its bluff, the plain and the river run on a
- * few kilometres, to the Qinling in the south and the northern hills. The hills are scaled down and brought
- * in (the Qinling stands some 40 km off) so they sit low on the horizon at about their real angle. Flat
- * hazy colours, no textures. Metres, like the plan.
+ * The hills on the horizon, for the World page only: the Qinling in the south, the northern hills. Scaled down and
+ * brought in (the Qinling stands some 40 km off) so they sit low on the horizon at about their real angle, rising
+ * out of the haze the land past the frame fades into (the skirt, ../historic-city.js). Metres, like the plan.
  */
-function qinHorizon({ Wf, Df, H, edge, rv, bank, waterZ, P, seed }) {
+function qinHills({ Wf, Df, H, P, seed }) {
   const out = [], X0 = -6000, X1 = Wf + 6000, Y0 = -5000, Y1 = Df + 5000, U = stream(seed, 'horizon');
   const quad = (pts, outv, tint) => {
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), zs = pts.map((p) => p[2]);
     out.push({ kind: 'horizon', solid: 'panel', pts, out: outv, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), d: Math.max(...ys) - Math.min(...ys), z0: Math.min(...zs), z1: Math.max(...zs), tint });
   };
-  const flat = (x0, y0, x1, y1, z, tint) => quad([[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], [0, 0, 1], tint);
-  const up = scaleHex(P.plainFar, 1.02);
-  flat(X0, Y0, X1, 0, H, up);                                      // the tableland north of the frame
-  for (const [a, b] of [[X0, 0], [Wf, X1]]) {
-    flat(a, 0, b, edge, H, up);                                    // …and either side of it
-    quad([[a, edge, 0], [b, edge, 0], [b, edge, H], [a, edge, H]], [0, 1, 0], P.cliff);   // the bluff, sheer
-    flat(a, edge, b, rv.y0 - bank, 0, P.plainFar);                 // the plain to the river
-    quad([[a, rv.y0 - bank, 0], [b, rv.y0 - bank, 0], [b, rv.y0, waterZ], [a, rv.y0, waterZ]], [0, 1, 0.6], P.bank);
-    flat(a, rv.y0, b, rv.y1, waterZ, P.water);                     // the river
-    quad([[a, rv.y1, waterZ], [b, rv.y1, waterZ], [b, rv.y1 + bank, 0], [a, rv.y1 + bank, 0]], [0, -1, 0.6], P.bank);
-    flat(a, rv.y1 + bank, b, Df, 0, P.plainFar);
-  }
-  flat(X0, Df, X1, Y1, 0, P.plainFar);                             // the plain south to the hills
   // a ridge: a row of vertical panels along y, its crest a sum of waves
   const ridge = (y, base, lo, hi, tint, outv) => {
     const ph = [U() * 6, U() * 6, U() * 6], n = 48, crest = (x) => lo + (hi - lo) * (0.5 + 0.25 * Math.sin(x / 1900 + ph[0]) + 0.17 * Math.sin(x / 710 + ph[1]) + 0.08 * Math.sin(x / 260 + ph[2]));
     for (let i = 0; i < n; i++) {
       const a = X0 - 2000 + ((X1 - X0 + 4000) * i) / n, b = X0 - 2000 + ((X1 - X0 + 4000) * (i + 1)) / n;
-      quad([[a, y, base], [b, y, base], [b, y, base + crest(b)], [a, y, base + crest(a)]], outv, tint);
+      quad([[a, y, base - 40], [b, y, base - 40], [b, y, base + crest(b)], [a, y, base + crest(a)]], outv, tint);
     }
   };
-  // each ridge stands on the edge of the ground, so no gap shows under it
   ridge(Y1, 0, 220, 420, P.hazeFar, [0, -1, 0]);                   // the Qinling
   ridge(Y1 - 2000, 0, 40, 120, P.haze, [0, -1, 0]);                // its foothills
   ridge(Y0, H, 50, 140, P.hazeFar, [0, 1, 0]);                     // the northern hills

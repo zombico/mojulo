@@ -328,9 +328,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   World page.
   - It is braided round sandbars. Each bar stands out of the bed with a low lip, so the mesher traces its
     outline on the true contour instead of stepping it to the grid.
-- On the World page only (`plan.world`), the plain, the tableland and the river run on beyond the frame, to a
-  hazy Qinling in the south and the northern hills. The hills are brought in and scaled so they sit at about
-  their real angle on the horizon.
+- The World page is cropped to the town. A layout can ask for a skirt (`plan.world.skirt`): the land runs a short
+  way past the frame, its heights carried out from the frame's edge, each corner fading to the sky's horizon
+  colour with its distance. Past it there is only sky, so the town stays the focus however the World is turned.
+  Qin's runs 260 m. Cultures without a skirt are unchanged.
+  - Beyond it, on the World page only, a hazy Qinling in the south and the northern hills. They are brought in
+    and scaled so they sit at about their real angle on the horizon.
 - The height of the bluff and the line of the river are drawn, not measured. Both are in the record as
   unverified (`xianyang-tableland`, `wei-braided`); the Wei has since moved north over the old town.
 - Qin opens on the shared World page (`renderHistoricCityToWorld`) like Lindos: about 15 MB self-contained,
