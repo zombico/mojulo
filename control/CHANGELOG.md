@@ -121,6 +121,36 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     about 220 m. Drawing a whole land's ground at that detail runs the page out of texture memory.
 - The town can be planned without its own fields and palms outside the walls, and gives the line of
   its canal, so a larger scene can carry the canal on.
+- Egypt gets the same sub-scenes, at the date of the Thebes town (about 1250 BCE): a countryside
+  and its works, built from Egypt's own tools and buildings.
+  - Kept from Sumer: the clay pit, the treading pits, the brick field and the hacks. Egypt made
+    brick the same way and did not fire it, so there is no brick kiln.
+  - The farm ploughs with a horn-yoked ard and broadcasts its seed. It reaps high with flint-toothed
+    wooden sickles, and carries the grain off in rope nets and donkey panniers rather than carts.
+  - The cattle trample the threshing floor inside its kerb. Scribes measure the grain under a shade,
+    and it is stored in a court of domed silos. The A-shaped hoe sits in the tool shed.
+  - Newer things Egypt had: an upright loom, a vineyard on forked-post pergolas with its treading vat,
+    pottery beehives, and checkerboard garden beds by a shaduf pool.
+  - A third season: the inundation, with the basins under water.
+  - The works:
+    - a sandstone quarry face with stepped benches and blocks freed by trenches and wedges;
+    - sledges on wetted sleepers bringing blocks to a masons' yard, where a colossus stands in its
+      scaffold;
+    - a stone quay with a barge carrying a granite block;
+    - a foundry blown by trodden pot bellows, with oxhide ingots;
+    - a glass and faience works;
+    - carpenters sawing a plank lashed to a post;
+    - a chariot shop making spoked wheels;
+    - a boatyard with a plank hull on stocks;
+    - the potters' tall kilns and bread moulds;
+    - papyrus works by the marsh.
+  - The farm opens from the air, in the yard, at the threshing floor, at the reaping, by the plough
+    or over the flooded basins. The works open from the air, or at eye level at the quarry face, on
+    the sledge road, in the masons' yard, the foundry, on the quay, in the boatyard, the glass works,
+    the chariot shop, the brickyard or the potters'.
+  - Each piece cites its record, every gap reported.
+- The farm's eye-level views (Sumer's too) cut the ground finer near the camera, so it no longer
+  drops out in front of the eye.
 
 ## [3.0.0] - 2026-10-01
 

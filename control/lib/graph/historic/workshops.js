@@ -14,12 +14,21 @@
  *   - the wheelwright making the carts' solid wheels.
  * People and beasts are left out, as in the farmstead.
  *
+ * Egypt (New Kingdom, by the Nile) had what the plain lacked: the river runs along the north, and at
+ * its east end a sandstone cliff is cut back into a quarry. A sledge road runs from the quarry past the
+ * masons' yard to the stone quay with its barge, and the boatyard and the papyrus marsh lie up the bank.
+ * Inland are the brick field (the Sumerian pieces in Nile mud, never fired), the potters with their tall
+ * kilns, the carpenters and the chariot makers, and the bronze foundry with its pot bellows beside the
+ * new glass works.
+ *
  * Same contract as the town and the farmstead: the layout emits SLOTS, the culture's kit builds each
  * one on its own dressing stream. Plans in metres. Pure and deterministic.
  */
 import { SUMER } from './cultures/sumer.js';
 import { SUMER_FARM_ASSETS } from './assets/sumer-farm.js';
 import { SUMER_WORKS_ASSETS } from './assets/sumer-works.js';
+import { EGYPT_COUNTRY } from './cultures/egypt-country.js';
+import { EGYPT_WORKS_ASSETS } from './assets/egypt-works.js';
 import { FARM_CULTURES, canalGround, tileGround, standingCrop } from './farmstead.js';
 import { palm } from './patterns.js';
 import { placeAsset, skinFor } from './assets/kit.js';
@@ -61,10 +70,36 @@ export const WORKS_CULTURES = {
     },
     canal: { width: 12, sink: 1.0 },
   },
+  egypt: {
+    culture: EGYPT_COUNTRY,
+    label: 'the works of New Kingdom Thebes',
+    // the Sumerian brick pieces and the charcoal clamp, in Nile colours; everything else Egypt's own
+    assets: Object.fromEntries([...['clay-pit', 'clay-mixing', 'brick-field', 'brick-hacks', 'charcoal-clamp'].map((id) => [id, SUMER_WORKS_ASSETS[id]]), ...Object.entries(EGYPT_WORKS_ASSETS)]),
+    palette: {
+      ...EGYPT_COUNTRY.palette,
+      clay: '#6e5a46',                          // wet Nile silt
+      greenware: '#8f7a62',
+      sherd: '#a5603e',                         // fired Nile silt: red-brown
+      charcoal: '#2f2b28', ember: '#d0612e', molten: '#f0a040', crucible: '#8f877c', slag: '#4d4743', ash: '#a7a29a',
+      metal: '#b98a4e',                         // bronze
+      flint: '#8a8376',
+      basalt: '#55534f',
+      chips: '#d9c49a',
+      glass: '#2f5fae',                         // cobalt blue
+      faience: '#3fa3a0',                       // copper turquoise
+      quartz: '#ece8de',
+      reedStand: '#6f8f4a',                     // standing papyrus
+    },
+    canal: { width: 30, sink: 1.6 },            // a Nile channel along the north
+    layout: 'egypt',
+  },
 };
 
-export function planWorks({ seed = 1, culture = 'sumer', frame = { w: 180, d: 100 }, assets } = {}) {
-  const C = WORKS_CULTURES[culture] || WORKS_CULTURES.sumer, K = C.culture, P = C.palette, kit = assets || C.assets;
+export function planWorks({ seed = 1, culture = 'sumer', frame, assets } = {}) {
+  const C = WORKS_CULTURES[culture] || WORKS_CULTURES.sumer;
+  if (C.layout === 'egypt') return planEgyptWorks({ seed, culture, frame: frame || { w: 232, d: 112 }, assets });
+  frame = frame || { w: 180, d: 100 };
+  const K = C.culture, P = C.palette, kit = assets || C.assets;
   const L = stream(seed, 'layout'), slots = [], boxes = [], grounds = [];
   const W = frame.w, D = frame.d, J = (a = 1) => (L() - 0.5) * 2 * a;
 
@@ -163,6 +198,120 @@ export function planWorks({ seed = 1, culture = 'sumer', frame = { w: 180, d: 10
   };
 
   return { boxes, grounds, views, slots, frame: { w: W, d: D }, stats: { culture, slots: slots.length, assets: [...new Set(slots.map((q) => q.asset))] } };
+}
+
+/**
+ * Egypt's works: the Nile along the north; the quarry cliff at its east end; the sledge road west from
+ * it past the masons to the stone quay; the boatyard and the papyrus marsh up the bank; brick, pots,
+ * timber, bronze and glass inland.
+ */
+function planEgyptWorks({ seed, culture, frame, assets }) {
+  const C = WORKS_CULTURES[culture], K = C.culture, P = C.palette, kit = assets || C.assets;
+  const L = stream(seed, 'layout'), slots = [], boxes = [], grounds = [];
+  const W = frame.w, D = frame.d, J = (a = 1) => (L() - 0.5) * 2 * a;
+  const place = (asset, rect, facing, o = {}) => { slots.push({ asset, rect, facing, ...o }); return rect; };
+
+  // ── 1. the river along the north, the levee track along its south bank ──
+  const cw = C.canal.width, waterZ = -C.canal.sink, c0 = 4 + L() * 3, amp = 1.0 + L() * 1.0, ph = L() * 6.283;
+  const bankN = (x) => c0 + amp * Math.sin((x / W) * 6.283 * 0.5 + ph), bankS = (x) => bankN(x) + cw;
+  const southMax = Math.max(...Array.from({ length: 28 }, (_, i) => bankS((i / 27) * W)));
+  const marshW = 34, track = { x: marshW, y: southMax + 1, d: 5 }, top = track.y + track.d + 2;
+
+  // ── 2. the papyrus marsh at the west end, the papyrus works at its edge ──
+  grounds.push({ kind: 'marsh', x: 0, y: southMax - 4, w: marshW, d: D - southMax + 4, z: 0.02, fill: P.marsh, surface: 'mud', layer: 1 });
+  for (const [x, y, w, d] of [[1, southMax - 3, 14, 12], [17, southMax - 3, 14, 7], [2, southMax + 12, 11, 16], [18, southMax + 32, 12, 10], [3, southMax + 44, 26, 12]]) {
+    const R = stream(seed, `papyrus|${x}`);
+    for (let cy = y; cy < y + d - 1; cy += 2.8) for (let cx = x; cx < x + w - 1; cx += 2.8) {
+      if (R() < 0.2) continue;
+      const h = 2.4 + R() * 1.6, sw = 1.8 + R() * 1.6, sd = 1.8 + R() * 1.6;
+      standingCrop({ x: cx + R() * 0.6, y: cy + R() * 0.6, w: Math.min(sw, x + w - cx), d: Math.min(sd, y + d - cy) }, h, P, boxes, grounds, scaleHex(P.reedStand, 0.9 + R() * 0.2), 'reed-stand', 0.9);
+      if (R() < 0.5) boxes.push({ kind: 'umbel', solid: 'dome', sides: 6, x: cx + 0.4, y: cy + 0.4, w: 0.9, d: 0.9, z0: h - 0.05, z1: h + 0.4, tint: scaleHex(P.papyrus, 1.25), plant: true });   // the umbels over the stand
+    }
+  }
+  place('eg-papyrus-works', { x: 16 + J(), y: southMax + 16, w: 12, d: 7 }, 'n');
+
+  // ── 3. along the bank: the clay pit, the boatyard, the stone quay with its barge ──
+  const pit = place('clay-pit', { x: 40, y: top + 1, w: 20, d: 11 }, 'n');   // sunk: on the 4 m column grid
+  place('clay-mixing', { x: pit.x + pit.w + 2, y: top + 2, w: 11, d: 7 }, 'n');
+  const by = Math.max(bankS(64), bankS(88)) + 0.3, yard = place('eg-boatyard', { x: 62, y: by, w: 26, d: Math.min(10, top - by - 0.5) }, 'n');
+  const qx = 98 + J(), qw = 22, qy = bankS(qx + qw / 2) + 0.2;
+  const quay = place('eg-stone-quay', { x: qx, y: qy, w: qw, d: 9 }, 'n', { waterZ });
+  place('eg-stone-barge', { x: qx + 1, y: bankS(qx + 11) - 5.6, w: 20, d: 5 }, 'n', { z: waterZ - 0.45 });
+
+  // ── 4. the quarry cliff at the east end, by the water; the sledge road west from its face to the quay ──
+  const quarry = place('eg-quarry', { x: W - 30, y: southMax - 3, w: 24, d: 36 }, 'w');
+  const road = { x: qx + qw - 3, y: top + 1, w: quarry.x - (qx + qw - 3), d: 5 };
+  grounds.push({ kind: 'sledge-road', ...road, z: 0.026, fill: scaleHex(P.mud, 0.95), surface: 'mud', layer: 2 });
+  for (const x of [road.x + road.w * 0.3, road.x + road.w * 0.68]) place('eg-stone-sledge', { x: x + J(), y: road.y + 0.7, w: 10, d: 3.6 }, 'w');
+  const masons = place('eg-masons-yard', { x: qx + qw + 4, y: road.y + road.d + 2, w: 20, d: 14 }, 'n');
+
+  // ── 5. inland: the brick field and hacks, the potters and their kilns, the carpenters and chariot makers ──
+  const field = place('brick-field', { x: 40, y: pit.y + pit.d + 4, w: 30, d: 16 }, 'n');
+  place('brick-hacks', { x: field.x + field.w + 2, y: field.y, w: 12, d: 7 }, 'w');
+  place('brick-hacks', { x: field.x + field.w + 2, y: field.y + 8.5, w: 12, d: 7 }, 'w');
+  const pot = place('eg-potters-yard', { x: 76 + J(), y: top + 2, w: 16, d: 12 }, 's');
+  place('eg-pottery-kiln', { x: pot.x + pot.w + 1.5, y: pot.y, w: 4.6, d: 4.6 }, 's');
+  place('eg-pottery-kiln', { x: pot.x + pot.w + 1.5, y: pot.y + 6.4, w: 4.6, d: 4.6 }, 's');
+  const carp = place('eg-carpenters', { x: 88 + J(), y: field.y + 1, w: 15, d: 11 }, 'n');
+  const char = place('eg-chariot-shop', { x: carp.x + carp.w + 3, y: field.y + 1, w: 15, d: 11 }, 'n');
+
+  // ── 6. the fire trades east of the masons: the foundry with its charcoal clamps, the glass works ──
+  const forge = place('eg-bronze-foundry', { x: masons.x + masons.w + 4 + J(), y: road.y + road.d + 2, w: 15, d: 12.5 }, 's');
+  for (const [k, dy] of [[0, 0], [1, 6.5]]) place('charcoal-clamp', { x: forge.x + forge.w + 2, y: forge.y + dy, w: 5.5, d: 5.5 }, 'n', { opened: k === 1 });
+  const glass = place('eg-glass-works', { x: forge.x + 2, y: forge.y + forge.d + 3, w: 12, d: 10 }, 'n');
+
+  // ── 7. tracks: the levee track (stopping at the cliff), a cross track, lanes ──
+  const crossY = Math.max(field.y + field.d, masons.y + masons.d, glass.y + glass.d) + 3;
+  grounds.push({ kind: 'track', x: track.x, y: track.y, w: quarry.x - 2 - track.x, d: track.d, z: 0.02, fill: P.lane, surface: 'mud', layer: 1 });
+  grounds.push({ kind: 'track', x: marshW, y: crossY, w: quarry.x - marshW, d: 5, z: 0.025, fill: P.lane, surface: 'mud', layer: 2 });
+  for (const x of [pit.x + pit.w + 14, char.x + char.w + 2]) grounds.push({ kind: 'track', x, y: track.y + track.d, w: 3.4, d: crossY - track.y - track.d, z: 0.025, fill: P.lane, surface: 'mud', layer: 2 });
+  const floor = (x, y, w, d) => grounds.push({ kind: 'work-floor', x, y, w, d, z: 0.015, fill: scaleHex(P.lane, 0.96), surface: 'mud', layer: 1 });
+  floor(road.x, road.y + road.d, quarry.x - road.x, crossY - road.y - road.d);
+  floor(pot.x - 2, top - 1, char.x + char.w - pot.x + 2, crossY - top + 1);
+  grounds.push({ kind: 'track', x: W * 0.5, y: crossY + 5, w: 5, d: D - crossY - 5, z: 0.025, fill: P.lane, surface: 'mud', layer: 2 });   // south to the town
+
+  // ── 8. palms along the levee and in the open ground south ──
+  const G = stream(seed, 'groves'), taken = slots.map((q) => q.rect);
+  const free = (x, y, m = 3) => !taken.some((r) => x > r.x - m && x < r.x + r.w + m && y > r.y - m && y < r.y + r.d + m);
+  for (let x = marshW + 2; x < quarry.x - 4; x += 10 + G() * 8) if (free(x, track.y - 1, 4)) boxes.push(palm(x, track.y - 0.6, G));
+  for (let k = 0; k < 16; k++) { const x = marshW + 6 + G() * (W - marshW - 12), y = crossY + 8 + G() * (D - crossY - 12); if (free(x, y) && Math.abs(x - W * 0.5 - 2.5) > 6) boxes.push(palm(x, y, G)); }
+
+  finishWorks({ seed, culture, K, P, kit, slots, boxes, grounds, W, D, bankN, cw, waterZ });
+
+  // ── 9. views ──
+  const s0 = slots.find((q) => q.asset === 'eg-stone-sledge').rect;
+  const views = {
+    // on the quarry floor, looking up at the benches being cut
+    quarry: { eye: [quarry.x - 14, quarry.y + quarry.d * 0.7, 1.7], at: [quarry.x + 8, quarry.y + quarry.d * 0.45, 4.0] },
+    // on the sledge road, the block coming toward the camera with the cliff behind it
+    haul: { eye: [s0.x - 7, road.y + road.d + 1.2, 1.7], at: [s0.x + 6, road.y + 2.5, 1.0] },
+    masons: { eye: [masons.x + masons.w * 0.15, masons.y - 3, 1.7], at: [masons.x + masons.w * 0.5, masons.y + masons.d * 0.6, 2.6] },
+    // in the foundry's gate (it faces south), looking in at the hearth and the bellows
+    foundry: { eye: [forge.x + forge.w / 2 - 1.0, forge.y + forge.d - 1.0, 1.7], at: [forge.x + forge.w - 3.2, forge.y + 7.3, 0.3] },
+    // on the quay, looking along it to the barge
+    quay: { eye: [quay.x + quay.w + 1, quay.y + 6, 2.0], at: [quay.x + 6, quay.y - 3, 1.0] },
+    boatyard: { eye: [yard.x + yard.w + 3, yard.y + yard.d + 1, 2.0], at: [yard.x + yard.w * 0.5, yard.y + yard.d * 0.45, 1.2] },
+    glass: { eye: [glass.x + glass.w / 2, glass.y - 4, 1.7], at: [glass.x + glass.w / 2, glass.y + 5, 0.6] },
+    chariots: { eye: [char.x + char.w * 0.3, char.y - 4, 1.7], at: [char.x + char.w * 0.4, char.y + 5, 0.6] },
+    brickyard: { eye: [field.x + field.w * 0.55, field.y + field.d + 2.5, 1.7], at: [field.x + field.w + 6, field.y + 4, 1.2] },
+    potters: { eye: [pot.x + 3, pot.y + pot.d + 1.5, 1.8], at: [pot.x + 11, pot.y + 4, 1.0] },
+  };
+  return { boxes, grounds, views, slots, frame: { w: W, d: D }, stats: { culture, slots: slots.length, assets: [...new Set(slots.map((q) => q.asset))] } };
+}
+
+/** The shared last steps of a works plan: build every slot from the kit, then lay the ground round the water. */
+function finishWorks({ seed, culture, K, P, kit, slots, boxes, grounds, W, D, bankN, cw, waterZ }) {
+  for (const [i, slot] of slots.entries()) {
+    const A = kit[slot.asset];
+    if (!A) throw new Error(`no asset '${slot.asset}' in the ${culture} works kit`);
+    const placed = placeAsset(A, slot, { palette: P, culture: K, rng: stream(seed, `asset|${i}`) });
+    boxes.push(...placed.boxes); grounds.push(...placed.grounds.map((g) => ({ ...g, layer: g.layer ?? 4 })));
+  }
+  for (const b of boxes) if (b.skin === undefined) { const skin = skinFor(K, b); if (skin) b.skin = skin; }
+  const G0 = canalGround({ W, D, bankN, cw, waterZ, P, holes: slots.filter((q) => kit[q.asset].sunk).map((q) => q.rect) });
+  grounds.push(...G0.grounds); boxes.push(...G0.boxes);
+  grounds.unshift(...G0.base);
+  grounds.sort((a, b) => (a.layer ?? 4) - (b.layer ?? 4));
 }
 
 const UNIT_SCALE = { aerial: 22 };

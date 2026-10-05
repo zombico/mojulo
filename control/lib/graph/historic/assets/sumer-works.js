@@ -490,3 +490,6 @@ export const reedStore = {
 };
 
 export const SUMER_WORKS_ASSETS = Object.fromEntries([clayPit, clayMixing, brickField, brickHacks, brickKiln, pottersYard, copperWorkshop, charcoalClamp, wheelwright, stoneLanding, bitumenWorks, reedStore].map((a) => [a.id, a]));
+
+// the small parts the Egyptian works kit (./egypt-works.js) builds with too
+export { panel, rim, bundle, fire };

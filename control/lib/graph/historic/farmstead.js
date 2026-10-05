@@ -14,10 +14,16 @@
  * `season`: 'harvest' (the default — late spring: barley standing and being reaped, sheaves stooked
  * and carted, the threshing floor busy, a fallow strip broken with the ard for the next year) or
  * 'sowing' (autumn: the seeder plough in the furrow, fields furrowed and sprouting, the floor swept bare).
- * The two are kept apart because a Sumerian year kept them apart.
+ * The two are kept apart because a Sumerian year kept them apart. Egypt adds 'flood' (akhet, the
+ * inundation: the basins under water, the floor swept and the granary shut).
+ *
+ * A culture names the pieces that fill each part of the farm (`roles`): where Sumer has a cart and a
+ * wagon, Egypt has the donkeys' loads and the scribes who count the grain.
  */
 import { SUMER } from './cultures/sumer.js';
 import { SUMER_FARM_ASSETS } from './assets/sumer-farm.js';
+import { EGYPT_COUNTRY } from './cultures/egypt-country.js';
+import { EGYPT_FARM_ASSETS } from './assets/egypt-farm.js';
 import { palm } from './patterns.js';
 import { placeAsset, skinFor } from './assets/kit.js';
 import { toScene, groundsToScene, emitHistoric, METRES_PER_UNIT, SCENE_LIGHT } from './historic-city.js';
@@ -52,7 +58,30 @@ export const FARM_CULTURES = {
     canal: { width: 10, sink: 1.0 },            // the branch canal the estate draws from; water 1 m under its banks
     fields: { channels: 6, pitch: 34, bank: 1.2, channel: 1.4 },   // field channels across the canal's line, their spacing (m)
   },
+  egypt: {
+    culture: EGYPT_COUNTRY,
+    label: 'an estate of Amun on the Theban flood plain',
+    assets: { stook: SUMER_FARM_ASSETS.stook, ...EGYPT_FARM_ASSETS },
+    palette: EGYPT_COUNTRY.palette,
+    canal: { width: 12, sink: 1.4 },            // a feeder canal off the Nile, deeper: it must still run when the river falls
+    fields: { channels: 6, pitch: 34, bank: 1.4, channel: 1.4 },   // basin dykes with their channels
+    roles: {
+      plough: 'eg-ard', harvest: 'eg-harvest-edge', cart: 'eg-grain-packs', wagon: 'eg-scribes-shade', store: 'eg-silo-court', stable: 'eg-stable', byre: 'eg-cattle-shed',
+      floor: 'eg-threshing-floor', fold: 'eg-fold', house: 'eg-farmhouse', shed: 'eg-tool-shed', shaduf: 'eg-pillar-shaduf', sluice: 'eg-sluice',
+    },
+    highCut: 0.45,                              // Egypt reaped under the ear: the straw stands this high after the sickle
+    seasons: {
+      // shemu: the grain cut high and carried off on donkeys, the flax pulled; no ploughing until the water has come and gone
+      harvest: [{ crop: 'ripe', reapers: true }, { crop: 'stubble', stooks: true, cart: true }, { crop: 'flax' }, { crop: 'ripe' }, { crop: 'stubble', stooks: true }],
+      // peret: the water gone, the seed broadcast on the wet silt and ploughed or trodden in
+      sowing: [{ crop: 'furrows', plough: 'seeder' }, { crop: 'sown' }, { crop: 'mud' }, { crop: 'sown' }, { crop: 'furrows' }],
+      // akhet: the basins under the flood
+      flood: [{ crop: 'flood' }, { crop: 'flood' }, { crop: 'flood' }, { crop: 'flood' }, { crop: 'flood' }],
+    },
+    garden: true,                               // the garden south of the fold: beds and pool, vines and press, the bees
+  },
 };
+const ROLES = { plough: 'plough', harvest: 'harvest-edge', cart: 'farm-cart', wagon: 'wagon', store: 'storehouse', stable: 'stable', byre: 'reed-byre', floor: 'threshing-floor', fold: 'sheepfold', house: 'farmhouse', shed: 'tool-shed', shaduf: 'shaduf', sluice: 'sluice' };
 
 /**
  * The fields at the work of a season: one entry per strip, in order west to east (the layout shuffles
@@ -64,7 +93,7 @@ const SEASON_FIELDS = {
 };
 
 export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest', frame = { w: 270, d: 196 }, assets } = {}) {
-  const F = FARM_CULTURES[culture] || FARM_CULTURES.sumer, K = F.culture, P = F.palette, kit = assets || F.assets;
+  const F = FARM_CULTURES[culture] || FARM_CULTURES.sumer, K = F.culture, P = F.palette, kit = assets || F.assets, R = { ...ROLES, ...F.roles };
   const L = stream(seed, 'layout'), slots = [], boxes = [], grounds = [];
   const W = frame.w, D = frame.d;
 
@@ -82,9 +111,9 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
     const c = FS.channel, b = FS.bank, y0 = bankS(x) - 0.6;
     for (const o of [-1, 1]) boxes.push({ kind: 'channel-bank', solid: 'frustum', x: o < 0 ? x - c / 2 - b : x + c / 2, y: y0 + 2, w: b, d: fieldBot - y0 - 2, z0: 0, z1: 0.4, top: { x: o < 0 ? x - c / 2 - b * 0.5 : x + c / 2, y: y0 + 2, w: b * 0.5, d: fieldBot - y0 - 2 }, tint: scaleHex(P.ground, 0.92) });
     grounds.push({ kind: 'channel', x: x - c / 2, y: y0, w: c, d: fieldBot - y0, z: 0.3, fill: scaleHex(P.water, 1.08), layer: 3 });
-    slots.push({ asset: 'sluice', rect: { x: x - 2, y: y0 + 0.2, w: 4, d: 1.8 }, facing: 'n' });
+    slots.push({ asset: R.sluice, rect: { x: x - 2, y: y0 + 0.2, w: 4, d: 1.8 }, facing: 'n' });
   }
-  const order = [...SEASON_FIELDS[season] || SEASON_FIELDS.harvest];
+  const SF = F.seasons || SEASON_FIELDS, order = [...SF[season] || SF.harvest];
   const FL = stream(seed, 'fields');
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(FL() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   const fields = [];
@@ -93,17 +122,21 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
     fields.push({ ...order[k], rect: { x: x0, y: fieldTop, w: x1 - x0, d: fieldBot - fieldTop } });
   }
   const DR = stream(seed, 'work');
-  const crop = { furrows: ['furrows', P.tilled], sown: ['sown', P.tilled], stubble: ['stubble', P.fallow], fallow: ['dry-earth', P.fallow] };
+  const crop = { furrows: ['furrows', P.tilled], sown: ['sown', P.tilled], stubble: ['stubble', P.fallow], fallow: ['dry-earth', P.fallow], mud: ['mud', scaleHex(P.tilled, 0.9)] };
+  // where the straw is left standing after a high cut, the stubble is a low stand of it
+  const stubble = (r) => (F.highCut ? standingCrop(r, F.highCut, P, boxes, grounds, P.straw, 'stubble', 0.82) : grounds.push({ kind: 'field', ...r, z: 0.02, fill: P.fallow, surface: 'stubble', layer: 1 }));
   for (const f of fields) {
     const r = f.rect;
+    if (f.crop === 'flood') { grounds.push({ kind: 'flood', ...r, z: 0.18, fill: P.flood, layer: 1 }); continue; }
+    if (f.crop === 'flax') { standingCrop(r, 0.85, P, boxes, grounds, P.flax, 'flax'); continue; }
     if (f.crop === 'ripe') {
       // standing barley, waist high: a lit top and sides; where the reaping has reached, the cut part is stubble
       const cut = f.reapers ? r.y + r.d * (0.3 + DR() * 0.2) : r.y;
-      if (cut > r.y) grounds.push({ kind: 'field', x: r.x, y: r.y, w: r.w, d: cut - r.y, z: 0.02, fill: P.fallow, surface: 'stubble', layer: 1 });
+      if (cut > r.y) stubble({ x: r.x, y: r.y, w: r.w, d: cut - r.y });
       standingCrop({ x: r.x, y: cut, w: r.w, d: r.y + r.d - cut }, 0.95, P, boxes, grounds);
       if (f.reapers) {
         const gw = Math.min(16, r.w - 4), gx = r.x + 2 + DR() * (r.w - gw - 4);
-        slots.push({ asset: 'harvest-edge', rect: { x: gx, y: cut - 6, w: gw, d: 6 }, facing: 's' });
+        slots.push({ asset: R.harvest, rect: { x: gx, y: cut - 6, w: gw, d: 6 }, facing: 's' });
         for (let y = r.y + 4; y < cut - 9; y += 7) for (let x = r.x + 3; x < r.x + r.w - 3; x += 7 + DR() * 2) slots.push({ asset: 'stook', rect: { x: x + DR(), y: y + DR(), w: 1.7, d: 1.7 }, facing: 'n' });
       }
       continue;
@@ -114,16 +147,17 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
       done = r.w * (0.35 + DR() * 0.3);
       grounds.push({ kind: 'field', x: r.x, y: r.y, w: done, d: r.d, z: 0.02, fill: P.tilled, surface: 'furrows', layer: 1 });
       grounds.push({ kind: 'field', x: r.x + done, y: r.y, w: r.w - done, d: r.d, z: 0.02, fill: P.fallow, surface: 'dry-earth', layer: 1 });
-    } else {
+    } else if (f.crop === 'stubble') stubble(r);
+    else {
       const [surface, fill] = crop[f.crop];
       grounds.push({ kind: 'field', ...r, z: 0.02, fill, surface, layer: 1 });
     }
     if (f.plough) {
       const px = f.crop === 'fallow' ? r.x + done : r.x + r.w * (0.3 + DR() * 0.4), py = r.y + r.d * (0.3 + DR() * 0.35);
-      slots.push({ asset: 'plough', rect: { x: px - 1.6, y: py, w: 3.2, d: 9 }, facing: 'n', seeder: f.plough === 'seeder' });
+      slots.push({ asset: R.plough, rect: { x: px - 1.6, y: py, w: 3.2, d: 9 }, facing: 'n', seeder: f.plough === 'seeder' });
     }
     if (f.stooks) for (let y = r.y + 5; y < r.y + r.d - 5; y += 8) for (let x = r.x + 3; x < r.x + r.w - 3; x += 8 + DR() * 2) if (!(f.cart && x > r.x + r.w / 2 - 4 && x < r.x + r.w / 2 + 4)) slots.push({ asset: 'stook', rect: { x: x + DR(), y: y + DR(), w: 1.7, d: 1.7 }, facing: 'n' });
-    if (f.cart) slots.push({ asset: 'farm-cart', rect: { x: r.x + r.w / 2 - 1.3, y: r.y + r.d * 0.45, w: 2.6, d: 7.4 }, facing: 'n' });
+    if (f.cart) slots.push({ asset: R.cart, rect: { x: r.x + r.w / 2 - 1.3, y: r.y + r.d * 0.45, w: 2.6, d: 7.4 }, facing: 'n' });
   }
 
   // ── 3. the farmstead, off in the fields to the east: the yard in the middle, the buildings round it ──
@@ -131,18 +165,19 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
   const yard = { x: fx + 14, y: fieldTop + 20, w: 32, d: 30 };
   grounds.push({ kind: 'yard', ...yard, z: 0.03, fill: P.lane, surface: 'mud', layer: 2 });
   const place = (asset, rect, facing, o = {}) => { slots.push({ asset, rect, facing, ...o }); return rect; };
+  const seasonal = F.seasons ? { season } : {};   // a culture with its own seasons tells its stores and floor which
   // the house on the north side of the yard, its gate toward it; the tool shed beside it
-  const house = place('farmhouse', { x: yard.x + 1.5 + J(), y: fieldTop + 1, w: 20, d: 17 }, 's');
-  place('tool-shed', { x: house.x - 9, y: fieldTop + 13, w: 6, d: 3.6 }, 's');
+  const house = place(R.house, { x: yard.x + 1.5 + J(), y: fieldTop + 1, w: 20, d: 17 }, 's');
+  place(R.shed, { x: house.x - 9, y: fieldTop + 13, w: 6, d: 3.6 }, 's');
   // the storehouse on the west side, its door to the yard; the wagon waits by it
-  const store = place('storehouse', { x: fx + 2, y: yard.y + 2 + J(), w: 8, d: 14 }, 'e');
-  place('wagon', { x: store.x + store.w + 2.5, y: store.y + store.d + 3, w: 2.1, d: 3.8 }, 'n');
+  const store = place(R.store, { x: fx + 2, y: yard.y + 2 + J(), w: 8, d: 14 }, 'e', seasonal);
+  place(R.wagon, { x: store.x + store.w + 2.5, y: store.y + store.d + 3, w: 2.1, d: 3.8 }, 'n');
   // the stable and the byre on the east side, facing in
-  const stableR = place('stable', { x: yard.x + yard.w - 1, y: yard.y + 1 + J(), w: 7, d: 16 }, 'w');
-  place('reed-byre', { x: stableR.x - 3, y: stableR.y + stableR.d + 4, w: 17, d: 8.5 }, 'w');
+  const stableR = place(R.stable, { x: yard.x + yard.w - 1, y: yard.y + 1 + J(), w: 7, d: 16 }, 'w');
+  place(R.byre, { x: stableR.x - 3, y: stableR.y + stableR.d + 4, w: 17, d: 8.5 }, 'w');
   // the threshing floor south-west of the yard, between the fields and the store; the sheepfold south-east
-  const floor = place('threshing-floor', { x: fx + 2, y: yard.y + yard.d + 4, w: 21, d: 21 }, 'n');
-  place('sheepfold', { x: yard.x + yard.w - 12, y: yard.y + yard.d + 14, w: 16, d: 12 }, 'n');
+  const floor = place(R.floor, { x: fx + 2, y: yard.y + yard.d + 4, w: 21, d: 21 }, 'n', seasonal);
+  place(R.fold, { x: yard.x + yard.w - 12, y: yard.y + yard.d + 14, w: 16, d: 12 }, 'n');
   // the farm track: south out of the yard toward the town, and up to the levee
   const tx = yard.x + yard.w * 0.45;
   grounds.push({ kind: 'track', x: tx, y: yard.y + yard.d, w: 5, d: D - yard.y - yard.d, z: 0.025, fill: P.lane, surface: 'mud', layer: 2 });
@@ -150,12 +185,19 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
   grounds.push({ kind: 'track', x: floor.x + floor.w, y: floor.y + floor.d / 2 - 2.5, w: tx - floor.x - floor.w, d: 5, z: 0.025, fill: P.lane, surface: 'mud', layer: 2 });
   // the shaduf on the canal bank north of the house, lifting into a basin by the track
   const sx = tx + 9;
-  place('shaduf', { x: sx, y: bankS(sx + 1.6) + 0.4, w: 3.2, d: 5 }, 'n', { waterZ });
-  // a garden of palms south of the sheepfold, beds under them
+  place(R.shaduf, { x: sx, y: bankS(sx + 1.6) + 0.4, w: 3.2, d: 5 }, 'n', { waterZ });
+  // a garden of palms south of the sheepfold, beds under them (a culture's own garden pieces first)
   const G = stream(seed, 'groves');
-  const gy0 = yard.y + yard.d + 30, gx0 = floor.x + floor.w + 8;
+  const gy0 = yard.y + yard.d + 30, gx0 = floor.x + floor.w + 8, kept = [];
+  if (F.garden) {
+    const gx = tx + 5, gw = W - 4 - gx;
+    kept.push(place('eg-vineyard', { x: gx, y: gy0 - 3, w: Math.min(22, gw), d: 15 }, 'n'));
+    kept.push(place('eg-apiary', { x: gx, y: gy0 + 13, w: 6, d: 3.4 }, 'n'));
+    kept.push(place('eg-garden', { x: gx + 8, y: gy0 + 13, w: Math.min(22, gw - 8), d: 20 }, 'n'));
+  }
   for (let y = gy0; y < D - 6; y += 8) for (let x = gx0; x < W - 6; x += 8) {
     if (x < tx + 8 && x + 6 > tx - 2) continue;
+    if (kept.some((k) => x + 6 > k.x - 2 && x - 3 < k.x + k.w + 2 && y + 6 > k.y - 2 && y - 3 < k.y + k.d + 2)) continue;
     if (G() < 0.6) grounds.push({ kind: 'garden', x: x - 2.5, y: y - 2.5, w: 5, d: 5, z: 0.03, fill: P.garden, surface: 'sown', layer: 2 });
     boxes.push(palm(x + G() * 3, y + G() * 3, G));
   }
@@ -184,7 +226,7 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
 
   // ── 6. views ──
   const fieldOf = (pred) => fields.find(pred);
-  const reap = slots.find((q) => q.asset === 'harvest-edge'), team = slots.find((q) => q.asset === 'plough');
+  const reap = slots.find((q) => q.asset === R.harvest), team = slots.find((q) => q.asset === R.plough);
   const views = {
     // in the farmyard, by the wagon, looking south-east across the yard at the byre and the floor
     yard: { eye: [yard.x + 5, yard.y + 6, 1.7], at: [stableR.x, stableR.y + stableR.d + 6, 1.8] },
@@ -197,6 +239,7 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
     views.field = { eye: [f.x - 1, reap.rect.y - 4, 2.0], at: [reap.rect.x + reap.rect.w * 0.6, reap.rect.y + reap.rect.d, 0.7] };
   }
   if (team) views.plough = { eye: [team.rect.x - 7, team.rect.y - 9, 1.7], at: [team.rect.x + 1.6, team.rect.y + 4, 1.0] };
+  if (fields.some((f) => f.crop === 'flood')) { const f = fields[1].rect; views.basin = { eye: [f.x + f.w * 0.3, track.y + 2.5, 2.2], at: [f.x + f.w * 0.6, f.y + f.d * 0.6, 0] }; }   // from the levee over the flooded basins
 
   return {
     boxes, grounds: tiled, views, slots, frame: { w: W, d: D },
@@ -261,7 +304,7 @@ export function standingCrop(r, h, P, boxes, grounds, fill = P.grain, kind = 'cr
 }
 
 // px per scene unit, as the town: the eye-level views raster finer
-const UNIT_SCALE = { aerial: 22, yard: 48, threshing: 48, field: 48, plough: 48 };
+const UNIT_SCALE = { aerial: 22, yard: 48, threshing: 48, field: 48, plough: 48, basin: 48 };
 
 /** Plan → a CSS 3D scene with an aerial camera and the eye-level views, the asked-for view first. */
 export function assembleFarmsteadScene(opts = {}) {
@@ -269,7 +312,11 @@ export function assembleFarmsteadScene(opts = {}) {
   const view = plan.views[opts.view] ? opts.view : 'aerial';
   const s = 1 / METRES_PER_UNIT, us = UNIT_SCALE[view];
   const { boxes, faces } = toScene(plan.boxes, s, us);
-  const G = groundsToScene(plan.grounds, s, us);
+  // within 30 m of an eye-level camera the 12 m tiles still reach behind it and drop: there they go as 4 m tiles
+  // (and right under the eye, 1.5 m tiles)
+  const eye = plan.views[view]?.eye, d2 = (g) => Math.max(g.x - eye[0], eye[0] - g.x - g.w, 0) ** 2 + Math.max(g.y - eye[1], eye[1] - g.y - g.d, 0) ** 2;
+  const retile = (g) => (g.poly ? [g] : d2(g) < 900 ? tileGround(g, 4).flatMap((q) => (d2(q) < 64 ? tileGround(q, 1.5) : [q])) : [g]);
+  const G = groundsToScene(eye ? plan.grounds.flatMap(retile) : plan.grounds, s, us);
   faces.unshift(...G.faces);
   const W = plan.frame.w * s, Dd = plan.frame.d * s;
   const cameras = [{ name: 'aerial', worldFraming: { cameraPosition: [W * 0.55, Dd * 1.3, Math.max(W, Dd) * 0.5], lookAt: [W * 0.55, Dd * 0.45, 0], horizontalFov: 62, pictureCenter: [560, 390] } }];

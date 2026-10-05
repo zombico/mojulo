@@ -80,6 +80,12 @@ export const PATTERNS = {
   'stone-landing': { family: 'works', read: 'a quay where what the land lacks comes in by water: stone, timber, metal', seenIn: ['Sumer', 'Egypt (Aswan granite)', 'Venice', 'Amsterdam'] },
   'bitumen-works': { family: 'works', read: 'bitumen cooked with sand and straw into a mastic for mortar, caulking and waterproofing', seenIn: ['Sumer', 'Elam', 'the Indus (Mohenjo-daro)'] },
   'reed-working': { family: 'works', read: 'reed cut, bundled, dried in stooks, plaited into mats and twisted into rope', seenIn: ['Sumer and the Iraqi marshes', 'Egypt (papyrus)', 'Lake Titicaca (totora)'] },
+  quarry: { family: 'works', read: 'a rock face cut back in benches, blocks freed by trenches and wedges, rubble below, sledges or carts to the water', seenIn: ['Egypt (Silsila, Aswan, Tura)', 'Greece (Pentelikon)', 'Rome (Carrara)', 'Inca (Kachiqhata)'] },
+  'glass-working': { family: 'works', read: 'a round furnace, small crucibles of coloured glass, ingots, the sand and ash it is made from', seenIn: ['Egypt (Amarna, Qantir)', 'Mesopotamia', 'Rome', 'Venice (Murano)'] },
+  // the farm's newer pieces: what a richer estate kept beside its grain
+  vineyard: { family: 'farm', read: 'vines trained over a pergola of forked posts, a treading vat and its jars at the end', seenIn: ['Egypt', 'the Levant', 'Greece', 'Rome'] },
+  apiary: { family: 'farm', read: 'hives stacked in a bank or row, the honey jars by them', seenIn: ['Egypt (pottery cylinders)', 'Greece', 'Rome', 'medieval Europe (skeps)'] },
+  'garden-beds': { family: 'farm', read: 'small square beds inside low ridges round a pool or a well, trees for shade', seenIn: ['Egypt', 'Persia (chahar bagh)', 'Rome (hortus)', 'medieval cloister gardens'] },
 };
 
 /** A flat-roofed cube with a low parapet lip. */
