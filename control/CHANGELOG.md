@@ -89,7 +89,7 @@ lands.
 - **The hands.** On the structured core the hand is a palm and five digits instead of a mitten, on the regular and
   the anime hero alike (the anime casts' hands smaller, the same shape): the palm flat across the back with the thumb's
   and the little finger's pads in front, the knuckles on an arc, the fingers in a relaxed curl that deepens toward the
-  little finger, the thumb opposed. The hand hangs facing the thigh. The wrist is a joint and the fingers bend: the
+  little finger, the thumb opposed. The hand hangs facing the thigh, the forearm tapering into it at a rounded wrist. The wrist is a joint and the fingers bend: the
   pose words `wristL` / `wristR` (flex, or `{ flex, deviation, twist }`) and `fingersL` / `fingersR` (a curl, a curl
   per digit, or a hand word: `relaxed`, `open`, `fist`, `point`, `grip`) now move a structured hero instead of being
   refused; a streamlined hero still refuses them. Fifteen finger bones a hand, named as VRM and Godot name them. A rig

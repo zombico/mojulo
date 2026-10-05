@@ -655,7 +655,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // its belly: the mid ring a quarter down the arm at the arm's full radius, the top ring narrowed under it, so the
     // arm's top is a dome over the joint and the shoulder's widest point sits where the deltoid's does
     limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR', structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]) } : {}),
-    limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
+    // the structured core's forearm ends on the hand's own section at the wrist (hero-hand.js: wide across, narrower
+    // through, × extremities), so it tapers into the hand instead of stepping down onto it
+    limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), hand ? hand.wrist : g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
     // the structured core's HAND (hero-hand.js): a palm and five digits on the same wrist and knuckles; the streamlined
     // core keeps the mitten
     ...(hand ? hand.segments : [limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) })]),

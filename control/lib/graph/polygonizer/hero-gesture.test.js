@@ -257,13 +257,14 @@ describe('the anime wave', () => {
 // clavicle, then for the seat (the female's deeper with a cleft under a curved lower back, the male's square; hero-form.js
 // PELVIS_SCULPT) and the structured speedo and thong, then for the female's seat full low (its fold) and the thong's
 // string cut out of the faces (no ring band: seat-panels.js THONG), then for the hand (hero-hand.js: a palm and five
-// digits, the rig's `hands`, fifteen finger bones a hand, the wave's open palm): the streamlined pair unchanged
+// digits, the rig's `hands`, fifteen finger bones a hand, the wave's open palm), then for the forearm tapering into the
+// hand at a rounded wrist: the streamlined pair unchanged
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'b6a2a314567da895', 'd0f8e28ca8c5f418'], ['3c7bbf346eaac7ec', 'bea115d3e2080dac']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '073b366a2f74ea62', '898b63b1fefe00b0'], ['19bd030cf5c6b514', '0491e3116c5d971b']],
-  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '93c754f617854ee8', '7b246f8d2c345227'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '4c3b2772c9ff8060', 'fdaa9385ac908b6d'], ['406acf0f4215b0e5', '4124db4ac9b3b4a1']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '4ecc055ecefe4a1a', '03bceb39972a15e6'], ['73b7f4b40fcd97f1', '1f5bb5d11318a03f']],
+  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'e5c2028344ba79b0', '4f022b4a50122953'], ['3c7bbf346eaac7ec', 'bea115d3e2080dac']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '486fed9617e3eb2b', '9110fb8b6fa7cd96'], ['19bd030cf5c6b514', '0491e3116c5d971b']],
+  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', 'ece7a5455488e603', 'f30c08c1646d3d0e'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', 'f885c916912c8f48', '4a99bee36ddf98aa'], ['406acf0f4215b0e5', '4124db4ac9b3b4a1']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', 'e45501887027eb23', '5ca85cd55d5e70ac'], ['73b7f4b40fcd97f1', '1f5bb5d11318a03f']],
 };
 describe('the door: no gesture ⇒ byte-identical', () => {
   for (const [name, [spec, [record, plan, recipe], [oldPlan, oldRecipe]]] of Object.entries(PINS)) {

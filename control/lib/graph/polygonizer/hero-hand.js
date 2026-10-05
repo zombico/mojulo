@@ -59,7 +59,7 @@ export const CURL_LINKS = Object.freeze({ finger: Object.freeze([0.95, 1.1, 0.73
  */
 export const HAND_FORM = Object.freeze({
   male: Object.freeze({
-    palm: Object.freeze({ rings: [[-0.08, 0.026, 0.014, 0.014], [0.18, 0.031, 0.013, 0.016], [0.55, 0.037, 0.012, 0.012], [0.93, 0.04, 0.011, 0.011]], thenar: [0.004, 0.008], hypothenar: 0.005, arc: [0.012, 0.005], tip: 0.06 }),
+    palm: Object.freeze({ rings: [[-0.08, 0.026, 0.017, 0.017], [0.18, 0.031, 0.015, 0.017], [0.55, 0.037, 0.012, 0.012], [0.93, 0.04, 0.011, 0.011]], thenar: [0.004, 0.008], hypothenar: 0.005, arc: [0.012, 0.005], tip: 0.06 }),
     fingers: Object.freeze({
       index: { u: 0.97, v: 0.027, fan: 1, len: [0.032, 0.02, 0.016], r: [0.0106, 0.0095, 0.0081, 0.0079], rest: 10 },
       middle: { u: 1, v: 0.009, fan: 0, len: [0.038, 0.024, 0.018], r: [0.011, 0.0099, 0.0084, 0.0081], rest: 15 },
@@ -70,7 +70,7 @@ export const HAND_FORM = Object.freeze({
     thumb: Object.freeze({ u: 0.2, v: 0.019, w: 0.011, dir: [0.9, 0.36, 0.2], len: [0.045, 0.032, 0.027], r: [0.014, 0.0123, 0.011, 0.0108], rest: 8, flexTo: [0.15, -0.95, 0.25], oppose: [-0.1, -0.1, -0.99] }),
   }),
   female: Object.freeze({
-    palm: Object.freeze({ rings: [[-0.08, 0.023, 0.012, 0.012], [0.18, 0.027, 0.011, 0.014], [0.55, 0.033, 0.0105, 0.0105], [0.93, 0.036, 0.0095, 0.0095]], thenar: [0.0035, 0.007], hypothenar: 0.0045, arc: [0.012, 0.005], tip: 0.06 }),
+    palm: Object.freeze({ rings: [[-0.08, 0.023, 0.015, 0.015], [0.18, 0.027, 0.013, 0.015], [0.55, 0.033, 0.0105, 0.0105], [0.93, 0.036, 0.0095, 0.0095]], thenar: [0.0035, 0.007], hypothenar: 0.0045, arc: [0.012, 0.005], tip: 0.06 }),
     fingers: Object.freeze({
       index: { u: 0.97, v: 0.024, fan: 1, len: [0.032, 0.02, 0.016], r: [0.0094, 0.0083, 0.0068, 0.0064], rest: 10 },
       middle: { u: 1, v: 0.008, fan: 0, len: [0.038, 0.024, 0.018], r: [0.0097, 0.0086, 0.0072, 0.0067], rest: 15 },
@@ -93,8 +93,8 @@ export { HAND_POSES };
 /**
  * The right hand of the structured hero: `wrist`, `elbow` (rest, m), `len` the palm's length (the wrist to the middle
  * knuckle: the hand bone's tail, `knuckles`), `X` the cast's extremities, `girth` the plan's radial scale, `female`.
- * Returns { segments, joints, bones, hands }: the six rings parts (mirrored by name), the rig joints and bones (`$S`),
- * and the rig's `hands` block for both sides.
+ * Returns { segments, joints, bones, hands, wrist }: the six rings parts (mirrored by name), the rig joints and bones
+ * (`$S`), the rig's `hands` block for both sides, and the hand's section at the wrist (the forearm's last ring).
  */
 export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false }) {
   const F = HAND_FORM[female ? 'female' : 'male'];
@@ -117,7 +117,8 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false }
     const push = {
       ...(i === 1 || i === 2 ? { backR: mul(N, P.thenar[i - 1] * gx), backL: mul(N, (i === 1 ? P.hypothenar : P.hypothenar * 0.6) * gx) } : {}),
     };
-    const pts = ringAt(at(u * len, 0, 0), A, back, hw * gx, hb * gx, hf * gx, ring8, 2.6, push);
+    // the wrist's two rings round (e 2: the forearm's oval runs on into them), the palm's flatter across (e 2.6)
+    const pts = ringAt(at(u * len, 0, 0), A, back, hw * gx, hb * gx, hf * gx, ring8, i < 2 ? 2 : 2.6, push);
     // the knuckle arc: the last ring's ends fall short of the middle knuckle, the little finger's more
     if (last) for (const sl of ring8) { const v = dot(sub(pts[sl], wrist), V), side = v < 0 ? P.arc[0] * x * Math.min(1, -v / (hw * gx)) : P.arc[1] * x * Math.min(1, v / (hw * gx)); pts[sl] = R(sub(pts[sl], mul(A, side))); }
     return { id: `st${i}`, points: pts };
@@ -188,5 +189,10 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false }
     return { carrier: `foreArm${S}`, wrist: `wrist${S}`, axes: Object.fromEntries(Object.entries(axes).map(([k, v]) => [k, ax(v)])),
       digits: Object.fromEntries(Object.entries(digits).map(([d, g]) => [d, { axis: ax(g.axis), tip: `${g.tip}${S}`, links: g.links.map((l) => ({ pivot: `${l.pivot}${S}`, ...(l.joints ? { joints: l.joints.map((j) => `${j}${S}`) } : {}), weight: l.weight, ...(l.axis ? { axis: ax(l.axis) } : {}) })) }])) };
   };
-  return { segments, joints, bones, hands: { R: side('R'), L: side('L') } };
+  // the hand's section at the wrist joint (its first two rings met there): the forearm's last ring takes it, [through the
+  // hand, across it] in a limb ring's [R side, front] (at rest the hand's across is the front), so the forearm tapers into
+  // the hand with no step
+  const [r0, r1] = P.rings, t = -r0[0] / (r1[0] - r0[0]), mix = (k) => r0[k] + (r1[k] - r0[k]) * t;
+  const section = [r6(((mix(2) + mix(3)) / 2) * gx), r6(mix(1) * gx)];
+  return { segments, joints, bones, hands: { R: side('R'), L: side('L') }, wrist: section };
 }
