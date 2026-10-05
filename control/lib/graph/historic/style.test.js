@@ -180,3 +180,51 @@ describe('qin — the style card\'s principles, measured on the kit', () => {
     expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
   });
 });
+
+// Pompeii: the design language is held to its card before any town plan exists (the plan checks join with the layout)
+describe('pompeii — the style card\'s principles, measured on the kit', () => {
+  const S = HISTORIC_STYLES.pompeii, K = S.kit, P = S.palette;
+  const hue = (h) => { const [r, g, b] = rgbOf(h).map((v) => v / 255), mx = Math.max(r, g, b), d = mx - Math.min(r, g, b); if (!d) return 0; const x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (x * 60 + 360) % 360; };
+
+  it('principle 1 — the podium lifts the temple above the eye, with its one stair at the front', () => {
+    expect(K.podium.h[0]).toBeGreaterThan(1.7);
+    expect(K.podium.stair).toBe('front');
+    expect(K.roof.pediment).toBe('temple');
+  });
+
+  it('principle 2 — stucco > limestone > tufa > lava; the socle under the field; a wall in shade cool, never black', () => {
+    for (let i = 0; i + 1 < S.values.length; i++) expect(value(rgbOf(P[S.values[i]])), `${S.values[i]} > ${S.values[i + 1]}`).toBeGreaterThan(value(rgbOf(P[S.values[i + 1]])));
+    for (const field of ['stucco', 'yellow']) expect(value(rgbOf(P[field]))).toBeGreaterThan(value(rgbOf(P.red)));
+    expect(K.wall.socle[1]).toBeLessThan(K.wall.storey[0] / 2);
+    const lit = scale(rgbOf(P.tufa), UP), inShade = over(lit, rgbOf(S.light.shade.color), S.light.shade.alpha);
+    expect(value(inShade)).toBeGreaterThan(value(lit) * 0.5);
+    expect(inShade[2] / inShade[0]).toBeGreaterThan(lit[2] / lit[0]);
+  });
+
+  it('principle 3 — low red roofs: a shallow pitch, a short eave, terracotta hue', () => {
+    expect(K.roof.pitch).toBeGreaterThanOrEqual(15);
+    expect(K.roof.pitch).toBeLessThanOrEqual(25);
+    expect(K.roof.overhang[1]).toBeLessThan(1);
+    expect(hue(P.tile)).toBeGreaterThan(5);
+    expect(hue(P.tile)).toBeLessThan(30);
+  });
+
+  it('principle 4 — stepping stones no higher than the kerb, with gaps a cart\'s wheels pass through', () => {
+    expect(K.street.stone.h).toBeLessThanOrEqual(K.street.kerb[1]);
+    expect(K.street.kerb[0]).toBeGreaterThanOrEqual(0.3);
+    // two stones a gauge apart centre to centre leave a gap wider than a wheel on either side of the middle stone
+    expect(K.street.gauge - K.street.stone.w).toBeGreaterThan(K.street.wheel * 2);
+  });
+
+  it('principle 5 — Tuscan and Doric about seven diameters, Corinthian about ten; the upper order shorter', () => {
+    for (const o of ['tuscan', 'doric']) { expect(K.order[o]).toBeGreaterThanOrEqual(6.5); expect(K.order[o]).toBeLessThanOrEqual(7.5); }
+    expect(K.order.corinthian).toBeGreaterThanOrEqual(9.5);
+    expect(K.order.ionic).toBeGreaterThan(K.order.doric);
+    expect(K.order.upper).toBeLessThan(1);
+  });
+
+  it('principle 6 — the sky is a place: bluer overhead than at the horizon', () => {
+    const sky = deriveSky(S.sky.palette, { x: 0, y: 0, z: S.sky.sunElev });
+    expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
+  });
+});

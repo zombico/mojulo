@@ -339,6 +339,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Qin opens on the shared World page (`renderHistoricCityToWorld`) like Lindos: about 15 MB self-contained,
   against about 21 MB for the CSS page.
 
+### Historic Rome
+
+- **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is
+  the best-attested Roman town, town-sized like Lindos and Xianyang, and it gives a fixed moment to read at.
+  - The scene covers the western half: the forum, the old town, the theatres on the south bluff, the Stabian
+    Baths, Via dell'Abbondanza to Via Stabiana, and the Porta Marina climb. That is about Qin's frame, so its
+    page budget is known. The amphitheatre, about 1 km east, waits for a later phase.
+- Its own record (`lib/graph/historic/record/pompeii.js`): the forum and its temples, halls and porticoes, the
+  theatres, the baths, the houses, shops and bakeries, the walls and gates, the water, and the tombs outside
+  Porta Ercolano. Each entry is cited and dated, with its confidence and the disputes between sources.
+  Settled by the record:
+  - Every building carries its state at 79 CE (standing, repaired, damaged, under repair, unfinished, relic).
+    Seventeen years after the earthquake of 62 the town is mid-repair, and a scene draws it that way: the
+    Capitolium awaits restoration, the Temple of Venus and the Central Baths are unfinished, and only the
+    Temple of Isis was wholly rebuilt.
+  - Marble is a veneer on a few buildings, much of it stripped or unfinished. The town is tufa, limestone,
+    concrete and painted stucco.
+  - Vesuvius is one broad mountain, flat-topped and in vines. The eruption and the modern cone are held from 80,
+    so a 79 read excludes them; so are the excavated ruins, the 1943 bomb damage and the post-war rebuilds.
+- A style card (`style/pompeii.js`) with six principles, each checked on the kit:
+  - the podium temple rules the forum;
+  - painted walls, never white;
+  - low red roofs;
+  - the street as a channel of lava between kerbs, with stepping stones;
+  - the orders' proportions;
+  - a Campanian sky.
+
+  Its roof pitch, kerb and stepping-stone sizes are design numbers, since the sources read give none. Its
+  palette is estimated until the reference swatches exist.
+- A design brief for the reference drawings (`docs/historic/pompeii/README.md`), in the house style of Qin's,
+  with the kit constants and the gaps the record leaves. The drawings themselves are not made yet.
+
 ### Sixth-gen composer
 
 - Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a
