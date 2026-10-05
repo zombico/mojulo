@@ -286,27 +286,29 @@ describe('the door: no gesture ⇒ byte-identical', () => {
     // neck form (hero-form.js ANIME_NECK_FORMS: the neck a ring loft): the humanoid starter with the segment neck in its
     // place gives d56790646999f85a / efd7142540e4b892, the values before it, still. Re-pinned for the female HAIR BASE
     // (anime-head ANIME_HAIR_BASE, applied by the door: the lifted, thicker ridge-section form and the side-parted cut)
-    // and her hair colour (#3b4859): the starter with the studio's hair and the one palette gives e2d7b01dbc704f04 /
-    // 5231f61926a570c8, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
+    // and her hair colour (#3b4859): the starter with the studio's hair and the one palette gives 99901cc75bc4b118 /
+    // 5324bb28a14e1beb, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
     // ANIME_HERO_PALETTE, so her shade side parts from the World's backdrop): with #3b4859 passed as the operator's palette
-    // the door gives 69de2b0392e32b77 / 74c007c345d655bb, the values before it, still. Re-pinned for the ANIME WAVE
+    // the door gives d62dc077b37bcc0b / db43f836a119990e, the values before it, still. Re-pinned for the ANIME WAVE
     // (hero-form.js ANIME_WAVE, put over the form's `wave` by the humanoid starter under the anime head): each plan with
     // the form's wave back in its place gives the values before it, still
     const formWave = (x) => ({ ...x, clips: { ...x.clips, wave: FORM_WAVE } });
     // (on the streamlined core: this pins the stand's absence, and the chain above predates the structured core)
     const hr = heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' }); const p = heroPlanOf(hr);
     // re-pinned for the anime head's sideburn patches before the ears; the plans re-pinned for the face zones in the
-    // include's coverage ledger (hairCoverage.face, a readout: without it 2d16d3d0371c8682 / d0c7e6be96c282ae, and the
-    // expanded plans, the geometry, unchanged)
-    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('5731fb147634afc8'); expect(h(expandPlan(p))).toBe('068ab3d85dab16b0');
-    expect(h(formWave(p))).toBe('181049f48505e86e'); expect(h(expandPlan(formWave(p)))).toBe('94cbe7c5162eeebb');
+    // include's coverage ledger (hairCoverage.face, a readout: without it the hash in each comment; the expanded plans,
+    // the geometry, unchanged)
+    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('f7647ea5154b4342');   // 6c2aa5de57be0ba4
+    expect(h(expandPlan(p))).toBe('ba2e23db4967a273');
+    expect(h(formWave(p))).toBe('9f8ce30aba3ba23b');   // 802fd641d842ddbc
+    expect(h(expandPlan(formWave(p)))).toBe('52dd5f4339a07eec');
     const was = heroPlanOf(heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, palette: { Hair: '#3b4859' }, core: 'streamlined' }));
-    expect(h(formWave(was))).toBe('ebe70f7172c3484a');   // face zones: 69de2b0392e32b77 without them
-    expect(h(expandPlan(formWave(was)))).toBe('74c007c345d655bb');
+    expect(h(formWave(was))).toBe('f9a42b22dfc18797');   // d62dc077b37bcc0b
+    expect(h(expandPlan(formWave(was)))).toBe('db43f836a119990e');
     const eff = composeAnime(hr, 'bob');
     const before = humanoidPlan({ preset: 'female', register: hr.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' }, core: 'streamlined' });
-    expect(h(formWave(before))).toBe('be30c3debd3ca00c');   // face zones: e2d7b01dbc704f04 without them
-    expect(h(expandPlan(formWave(before)))).toBe('5231f61926a570c8');
+    expect(h(formWave(before))).toBe('73cf9822ce4c750b');   // 99901cc75bc4b118
+    expect(h(expandPlan(formWave(before)))).toBe('5324bb28a14e1beb');
   });
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);

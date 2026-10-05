@@ -37,8 +37,9 @@ needed on the anime head. Being built on this branch.
   yellow past 75 %, advises. The hair word `veil` (0 … 1) is the mystery and allure lever: one eye may go under the
   hair (to 75 %) and the yellow to 95 %; the other eye and the mouth stay restricted. Advice only; nothing it builds.
 - **Sideburn patches.** Every anime head with hair now wears a thin patch in the hair's colour on the skin before each
-  ear, from under the hair's edge to the ear's lower third, so no bare gap shows between the hair and the ear
-  (`hairSideburnL`, `hairSideburnR`). A bald head shows its own skin there. The anime heroes' pinned payloads moved
+  ear, from under the scalp's bottom edge (it follows the hairline, so no skin shows between) to the ear's bottom, so no bare gap shows between the hair and the ear
+  (`hairSideburnL`, `hairSideburnR`), and the graphic face's ears sit a little closer in to the head. A bald head shows
+  its own skin there. The anime heroes' pinned payloads moved
   with it.
   A layer's `swirl` turns its flow one way (a fringe swept off its part), and a style takes up to 12 layers.
   `sideburns` works on any style. The
