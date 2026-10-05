@@ -303,6 +303,9 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   the hairline or the head's widest point (below it the skull turns in toward the nape, and a lock that kept to it would
   bunch into a knot there); only then it falls free for `length`. `fringe` is the shorter length for locks that leave
   over the face.
+- **Volume at the widest.** Where the hair leaves the head is where it is most voluminous: a cap lock lies thin and
+  flat on the dome, sleek to the scalp, and swells to its full width and thickness at its departure, bowing out by its
+  `bend` before it tapers. A lumpy dome is the volume in the wrong place.
 - **Never through the body.** Shaped hair keeps out of the body it is worn on: the hero's own neck and torso rings
   are handed to the head, and a lock that meets them drapes over them (the push carries on down the lock, so it never
   kinks back in). Hair lies close on the neck and stands off the collar and shoulders. A long cut then shows where it

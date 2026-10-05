@@ -481,7 +481,7 @@ export function buildAnime(r, options = {}) {
     }
     // `path` (a CAP lock: its centre line walked over the dome) replaces the C-curve: resampled evenly along its length,
     // its flat side facing out from the head at each ring
-    const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null) => {
+    const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null, thick = null) => {
       const start = parts.hair.length, rings = [];
       let along = null;
       if (path) { const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(path[i], path[i - 1])));
@@ -492,7 +492,7 @@ export function buildAnime(r, options = {}) {
       // along it, and never flipping between rings (a flip twists the tube into a kink)
       let prev = null;
       const frame = (tangent, nrm) => { let across = cross(tangent, nrm); if (dmath.hypot(...across) < 0.25) across = cross(tangent, Math.abs(tangent[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); across = unit(across); if (prev && dot(across, prev) < 0) across = mul(across, -1); prev = across; return [across, unit(cross(across, tangent))]; };
-      const ring = (center, tangent, w) => { const [across, thickDir] = frame(tangent, normalAt(center)), th = w * depthRatio; return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); }); };
+      const ring = (center, tangent, w, t = 0) => { const [across, thickDir] = frame(tangent, normalAt(center)), th = w * depthRatio * (thick ? thick(t) : 1); return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); }); };
       // the curve's centres, each kept OUT of the body (BODY: never through the neck or over into the shoulders), the
       // tangents then read off the kept centres
       // a lock that meets the body DRAPES over it: the push it takes there carries on down the rest of its length (it
@@ -501,8 +501,8 @@ export function buildAnime(r, options = {}) {
       const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(along ? along[j] : add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * Math.max(1, depthRatio)); drape = add(drape, sub(k, c)); return k; });
       tip = centers[N];
       const tangentAt = (j) => { const d = sub(centers[Math.min(N, j + 1)], centers[Math.max(0, j - 1)]); return dmath.hypot(...d) < 1e-9 ? unit(sub(control, root)) : unit(d); };
-      rings.push(ring(root, path ? unit(sub(centers[1], root)) : unit(sub(control, root)), width * profile(0)));   // the cut base at t 0
-      for (let j = 1; j < N; j++) rings.push(ring(centers[j], tangentAt(j), Math.max(0.004, width * profile(j / N))));
+      rings.push(ring(root, path ? unit(sub(centers[1], root)) : unit(sub(control, root)), width * profile(0), 0));   // the cut base at t 0
+      for (let j = 1; j < N; j++) rings.push(ring(centers[j], tangentAt(j), Math.max(0.004, width * profile(j / N)), j / N));
       for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
       const base = mul(rings[0].reduce((acc, q) => add(acc, q), [0, 0, 0]), 1 / S);
       for (let i = 0; i < S; i++) { tri('hair', base, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
@@ -531,7 +531,7 @@ export function buildAnime(r, options = {}) {
     // lock falls PAST THE HAIRLINE, and a lock from the crown comes out longer than one from the side by the dome it
     // crosses: the way long hair grows
     const capPath = (P, flow, el0, L, Ly, vary = 1) => {
-      const step = 0.03, g = 0.06 * (Ly.droop ?? 0.6), off = (0.012 + 0.03 * el0 / 90) * G, path = [];
+      const step = 0.03, g = 0.06 * (Ly.droop ?? 0.6), off = (0.008 + 0.018 * el0 / 90) * G, path = [];
       let p = P, d = flow, last = P, ln = unit(sub(P, C));
       for (let it = 0; it < 240; it++) { const [az, el] = onCap(unit(sub(p, C))); const sp = anchorOf([az, el]), ns = unit(sub(sp, C)); last = sp; ln = ns; path.push(add(sp, mul(ns, off)));
         if ((el <= 0.5 || ns[1] < -0.05) && it > 0) break; d = add(d, [0, -g, 0]); d = sub(d, mul(ns, dot(d, ns))); if (dmath.hypot(...d) < 1e-6) d = [0, -1, 0]; d = unit(d); p = add(sp, mul(d, step)); }
@@ -540,15 +540,22 @@ export function buildAnime(r, options = {}) {
       const s0 = path.at(-1), out = unit([ln[0], 0, ln[2]]), lift = Ly.lift ?? 0.1, bend = Ly.bend ?? 0.3, exitAz = onCap(unit(sub(last, C)))[0];
       if (Ly.fringe != null && Math.abs(exitAz) < 60 && dmath.hypot(ln[0], ln[2]) > 0 && ln[2] < 0) L = Ly.fringe * vary * G;
       const tip = add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), L)), control = add(add(s0, mul(d, 0.5 * L)), mul(out, bend * L));
+      let dome = 0; for (let i = 1; i < path.length; i++) dome += dmath.hypot(...sub(path[i], path[i - 1]));
       for (let j = 1; j <= 10; j++) { const t = j / 10; path.push(add(add(mul(s0, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t))); }
+      let all = 0; for (let i = 1; i < path.length; i++) all += dmath.hypot(...sub(path[i], path[i - 1]));
+      path.depart = all > 0 ? dome / all : 0;
       return path; };
+    // a cap lock's VOLUME sits where it leaves the head (its widest, the most voluminous hair): on the dome it lies thin
+    // and flat, sleek to the scalp; at the departure it swells to its full width and thickness, then tapers to its end
+    const capWidth = (dp) => (t) => { const bump = Math.exp(-(((t - dp) / 0.2) ** 2)); return (t <= dp ? 0.65 + 0.5 * bump : bump * 0.55 + 0.6 * dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.85)) * (t <= dp ? 1 : dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.35)); };
+    const capThick = (dp) => (t) => 0.3 + 1.6 * Math.exp(-(((t - dp) / 0.18) ** 2));
     const BUILD = {
       carrot: (K) => { const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? n), L = (K.length ?? 1) * G, base = (K.base ?? 0.2) * G, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
         piece('carrot-' + counts.carrot++, root, sprouted(K, anchor, n, L, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1])), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK)); },
       banana: (B) => { const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir ?? add(n, [0, -1, 0])), L = (B.length ?? 0.5) * G, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
-        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))), B.path); },
+        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, B.path ? capWidth(B.path.depart) : (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))), B.path, B.path ? capThick(B.path.depart) : null); },
       pepper: (P) => { const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? add(n, [0, -1, 0])), L = (P.length ?? 0.8) * G, w = (P.width ?? 0.07) * G, root = sub(anchor, mul(n, 2.2 * w)), tip = add(anchor, mul(d, L));
-        piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8), P.path); },
+        piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], P.path ? capWidth(P.path.depart) : (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8), P.path, P.path ? capThick(P.path.depart) : null); },
     };
     const SIZE = { carrot: 'base', banana: 'width', pepper: 'width' };
     // the layers: `rows` rows from el[0] to el[1], `count` pieces over the azimuth range (each row offset half a step),

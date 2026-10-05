@@ -199,8 +199,8 @@ export const ANIME_HAIR_MOVES = Object.freeze({
   jingo: { note: 'Jingo: bananas only, few and placed with intent, every lock grown from the dome and lying over it like a cap — the crown locks longest, falling over the sides to the jaw, a fringe cut to the brow, a flat crown for a long face, one lock curling to his left cheek',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.22, width: 0.12 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.16, whorl: [180, 60],
       layers: [
-        { shape: 'banana', az: [0, 360], around: [3, 20], rows: 1, count: 6, length: 0.85, fringe: 0.18, width: 0.3, droop: 0.7, lift: 0.04, vary: 0.06, bend: 0.14, flat: 0.25, cap: 1 },
-        { shape: 'banana', az: [70, 290], el: [58, 82], rows: 2, count: 8, length: 0.85, fringe: 0.18, width: 0.32, droop: 0.7, lift: 0.04, vary: 0.06, bend: 0.14, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [0, 360], around: [3, 20], rows: 1, count: 6, length: 0.85, fringe: 0.18, width: 0.3, droop: 0.7, lift: 0.04, vary: 0.06, bend: 0.26, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [70, 290], el: [58, 82], rows: 2, count: 8, length: 0.85, fringe: 0.18, width: 0.32, droop: 0.7, lift: 0.04, vary: 0.06, bend: 0.26, flat: 0.25, cap: 1 },
         { shape: 'banana', az: [-70, 70], el: [62, 84], rows: 2, count: 6, length: 0.2, width: 0.3, droop: 0.6, lift: 0.05, vary: 0.1, bend: 0.15, swirl: 20, flat: 0.25, cap: 1 },
         { shape: 'banana', az: [45, 315], el: [24, 44], rows: 1, count: 6, length: 0.6, fringe: 0.3, width: 0.32, droop: 0.8, lift: 0.02, vary: 0.05, bend: 0.08, flat: 0.25, cap: 1 },
       ],

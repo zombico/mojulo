@@ -467,6 +467,11 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     // a lock leaving over the face falls only its fringe
     const front = (fringe) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [-20, 20], el: [70, 70], rows: 1, count: 3, length: 0.8, cap: 1, ...(fringe != null ? { fringe } : {}) }] } }]).mesh, /^hairBanana/)[2][0];
     expect(front(0.15)).toBeGreaterThan(front() + 0.03);
+    // the volume sits where the locks leave the head (its widest), not on the dome: the hair stands furthest out there
+    const m = on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [0, 360], el: [70, 70], rows: 1, count: 8, length: 0.5, cap: 1 }] } }]).mesh;
+    const ps = m.vertices.filter((_, i) => /^hairBanana/.test(m.pointIds[i])), zs = ps.map((p) => p[2]), [z0, z1] = [Math.min(...zs), Math.max(...zs)];
+    const widest = ps.reduce((a, p) => (Math.hypot(p[0], p[1]) > Math.hypot(a[0], a[1]) ? p : a));
+    expect(widest[2]).toBeLessThan(z1 - 0.35 * (z1 - z0));
   });
   it('the shaped hair never cuts through the body it is worn on: below the chin no hair point is inside the neck or torso', () => {
     const plan = humanoidPlan({ preset: 'male', head: 'anime', hair: 'kairo' }), mesh = compileLayered(expandPlan(plan));
