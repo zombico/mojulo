@@ -350,11 +350,15 @@ export function buildAnime(r, options = {}) {
   const FORMS = options.forms && ['bob', 'long', 'hime'].includes(h.style) ? (HF ? formGroupsOf(h.style, h, HF) : formGroupsOf(h.style, h)) : null;
   function capPoint(a, t) {
     if (FIT) return FIT.cap(a, t); const bottom = 0.10 + 0.43 * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a)), end = dmath.acos(clamp((bottom - 0.2) / 0.99, -1, 1)), q = 0.015 + (end - 0.015) * t; return [dmath.sin(q) * dmath.sin(a) * 0.87 * vx, 0.2 + dmath.cos(q) * 1.01 * vy, 0.07 - dmath.sin(q) * dmath.cos(a) * 0.83 * depth]; }
+  // the SHAPES (see shapePieces below): which studio clump groups a recipe takes over
+  const SH = HF?.shapes ?? null, SH_GROUPS = { fringe: /^fringe-/, temple: /-temple-/, back: /^back-/, crown: /^crown-/ };
+  const SH_REPLACED = (name) => !!SH?.replace && SH.replace.some((g) => SH_GROUPS[g]?.test(name));
   const capStart = parts.hair.length;
   for (let j = 0; j < 14; j++) for (let i = 0; i < 48; i++) quad('hair', capPoint(i / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, (j + 1) / 14), capPoint(i / 48 * 2 * Math.PI, (j + 1) / 14));
   if (FIT) for (let i = 0; i < 48; i++) tri('hair', FIT.crown, capPoint((i + 1) / 48 * 2 * Math.PI, 0), capPoint(i / 48 * 2 * Math.PI, 0));   // the fitted cap closes at the crown
   const capEnd = parts.hair.length;
   function lock(name, root, control, tip, width, normal, taperK = h.taper, thick = 1, cut = false) {
+    if (SH_REPLACED(name)) return;   // the shapes took this clump group over
     const edit = r.locks?.[name]; if (edit) { control = add(control, [edit.cx, edit.cy, edit.cz]); tip = add(tip, [edit.tx, edit.ty, edit.tz]); }
     if (FIT && !cut) tip = FIT.drape(tip, 0.006);
     if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // (a member is never a thick clump)   // a section's member: skinned below
@@ -433,6 +437,46 @@ export function buildAnime(r, options = {}) {
   }
   // mojulo: an ahoge — one upright curl at the crown, rising forward and curling back (an amount; the studio has none)
   if (h.ahoge > 0) { const A = h.ahoge; lock('ahoge', [0.02, 1.15, -0.10], [0.03, 1.15 + 0.55 * A, -0.36 - 0.1 * A], [0.07, 1.15 + 0.30 * A, 0.04], 0.075, [1, 0, 0]); }
+  // mojulo: the SHAPES — a composable hair of three primitives, built mass first (peppers), then flow (bananas), then the
+  // accents (carrots), each placed on the cap by `at: [azimuth°, elevation°]` (azimuth 0 the front, 90 the hero's right,
+  // 180 the back; elevation 0 the hairline, 90 the crown) and aimed by `dir` (construction units: x the hero's right, y up,
+  // z back). Every piece is ONE closed tube along a C-curve (`bend`, never an S) with its own width profile:
+  //   PEPPER  the mass: a round, bellied lobe, its root sunk deep inside the head, a short blunt tip (`size`, `girth`);
+  //   BANANA  the flow: a flat crescent widest a third of the way out, laid along the mass (`length`, `width`, `flat`);
+  //   CARROT  the accent: a CUT CONICAL CARROT, round, its square-cut base sunk into the mass, never pinched or draped;
+  //           `curve` draws its sides in (0 a cone, toward 1 a thorn).
+  if (SH) {
+    const C = [0, 0.25, 0.07], S = 12, N = 16;
+    const anchorOf = (at) => capPoint(at[0] * Math.PI / 180, clamp(1 - at[1] / 90, 0, 1));
+    const piece = (name, root, control, tip, width, depthRatio, normal, profile) => {
+      const start = parts.hair.length, rings = [];
+      for (let j = 1; j < N; j++) { const t = j / N, center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), w = Math.max(0.004, width * profile(t)), th = w * depthRatio;
+        rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); })); }
+      // the root's own ring: the cut base at t 0 (the carrot's square cut; the pepper's and banana's root inside the mass)
+      const t0 = unit(sub(control, root)), a0 = unit(cross(t0, normal)), d0 = unit(cross(a0, t0)), w0 = width * profile(0);
+      rings.unshift(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(root, add(mul(a0, dmath.cos(a) * w0), mul(d0, dmath.sin(a) * w0 * depthRatio))); }));
+      for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
+      const base = mul(rings[0].reduce((acc, q) => add(acc, q), [0, 0, 0]), 1 / S);
+      for (let i = 0; i < S; i++) { tri('hair', base, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
+      guides.push(...root, ...control, ...control, ...tip); locks.push({ name, root, control, tip, width, start, count: parts.hair.length - start });
+    };
+    // a C-curve: the control off the chord's middle toward `toward`, by `bend` of the length
+    const bent = (root, tip, bend, toward) => { const mid = mul(add(root, tip), 0.5), chord = sub(tip, root), L = dmath.hypot(...chord), k = unit(chord), off = sub(toward, mul(k, dot(toward, k))); return add(mid, mul(dmath.hypot(...off) > 1e-9 ? unit(off) : [0, 0, 0], bend * L)); };
+    (SH.peppers ?? []).forEach((P, k) => {
+      const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? n), size = P.size ?? 0.6, root = sub(anchor, mul(n, 0.45 * size)), tip = add(anchor, mul(d, size));
+      piece('pepper-' + k, root, bent(root, tip, P.bend ?? 0.08, [0, -1, 0.4]), tip, (P.girth ?? 0.5) * size, P.squash ?? 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0],
+        (t) => (0.62 + 0.38 * dmath.sin(Math.PI * Math.min(1, t * 1.15))) * dmath.pow(Math.max(0, 1 - t ** 3), 0.5));
+    });
+    (SH.bananas ?? []).forEach((B, k) => {
+      const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir), L = B.length ?? 0.5, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
+      piece('banana-' + k, root, bent(root, tip, B.bend ?? 0.15, n), tip, B.width ?? 0.16, B.flat ?? 0.45, n,
+        (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))));
+    });
+    (SH.carrots ?? []).forEach((K, k) => {
+      const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? sub(anchor, C)), L = K.length ?? 1, base = K.base ?? 0.2, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
+      piece('carrot-' + k, root, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1]), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK));
+    });
+  }
   // mojulo: the consolidated sections, skinned across their members' curves
   if (FORMS) for (const g of FORMS.groups) {
     const members = g.members.map((n) => FORMS.curves[n]).filter(Boolean); if (members.length < 2) continue;

@@ -19,10 +19,14 @@ needed on the anime head. Being built on this branch.
 
 - **The cuts.** `flipped-long` (long, curtain bangs framing the face, the ends kicked out), `blunt-bob` (a level fringe
   split off centre, the left side falling long), `side-tail` (the side-parted sheet gathered into a low tail over the
-  left shoulder) and, for the male, `wild-spikes` (after Toriyama's spiky heroes: six broad spikes off the crown, the back falling in one
-  curve to a point at the nape, heavy bangs hanging over the brow).
+  left shoulder) and, for the male, `wild-spikes` (after Toriyama's spiky heroes: a swept-back mass, seven thorn
+  spikes on its outline, heavy bangs, the back falling to a point at the nape).
 - **The words.** `flip`, `spikes`, `sideTail` (its clump `tail`, part `hairTail`) and `fringeNotch` join the hair form
   words; each is absent unless given, so every stored hero builds as before.
+- **Hair as shapes.** `shapes` composes a hairstyle from three primitives placed on the cap — peppers (the mass),
+  bananas (the flow) and carrots (cut conical carrots, the spikes) — and may take over the studio's clump groups.
+  `wild-spikes` is rebuilt on it, mass first. The principles and recipes cross-referenced to shonen and JRPG heroes are
+  in `docs/examples/humanoid/DESIGNING.md`.
 - **Fixed.** An anime hero whose hair is a list (`['long', { locks }]`) now wears that family: before, the list was not
   read as naming one, the base's cut was worn under it and its clump edits were lost.
 

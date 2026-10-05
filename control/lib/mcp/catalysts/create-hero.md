@@ -159,7 +159,8 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             are hair words). Shape the form by word: `/hero/hair/lift` → { crown, temple, fringe,
             nape } (keep volume at 1 beside it), `section`, `ridge`, `flute`, `crownAccents`, and the
             cut's `sweepBack`, `hairline`, `sweepSides`, `fringeGroups`, `backNotch`, `fringeNotch`,
-            `flip`, `spikes`, `sideTail`; `false` is the studio's construction, `null` the base's.
+            `flip`, `spikes`, `sideTail`, `shapes` (peppers for mass, bananas for flow, carrots for
+            spikes — mass first); `false` is the studio's construction, `null` the base's.
             Ready cuts: `flipped-long`, `blunt-bob`, `side-tail`, `wild-spikes`. Read `hero.hairCut`
             and `hairMeasures.top_m`.
             The anime head wears ANIME PROPORTIONS (about 6.5 / 7 heads tall, longer legs, slimmer

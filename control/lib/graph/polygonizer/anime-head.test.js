@@ -438,10 +438,22 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail, wild-
     expect(box(mesh, /^hairFormSideL$/)[2][0]).toBeGreaterThan(box(plain, /^hairFormSideL$/)[2][0] + 0.05);
     expect(box(on('female', ['side-tail', { sideTail: { amount: 1, side: 'right' } }]).mesh, /^hairTail$/)[0][0]).toBeGreaterThan(0);
   });
-  it('wild-spikes: broad spikes standing well above and out from the short crop', () => {
+  it('wild-spikes: a swept mass and thorn spikes standing well above and out from the short crop', () => {
     const spikes = on('male', 'wild-spikes'), crop = on('male', 'short');
     expect(spikes.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
     expect(box(spikes.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
-    expect(spikes.h.parts.hairCrownL0).toBeDefined();   // the crown accents grow under the cut
+    // the first shapes recipe: peppers, bananas and carrots in place of the studio's clumps
+    expect(Object.keys(spikes.h.parts).filter((k) => /^hair(Pepper|Banana|Carrot)\d+$/.test(k)).length).toBe(19);
+    expect(Object.keys(spikes.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
+  });
+  it('the shapes: validated by name, built closed, the replaced groups gone and the rest kept', () => {
+    expect(validateAnimeHair({ shapes: { replace: ['fringe', 'mane'], peppers: [{ at: [0, 120] }], bananas: [{ at: [0, 10] }], carrots: [{ at: [0, 40], dir: [0, 0, 0], base: 2 }], beans: [] } }).map((e) => e.split(':')[0]))
+      .toEqual(['hair.shapes.replace', 'hair.shapes.peppers[0].at', 'hair.shapes.bananas[0].dir', 'hair.shapes.carrots[0].dir', 'hair.shapes.carrots[0].base', 'hair.shapes.beans']);
+    const one = on('male', ['short', { shapes: { replace: ['crown'], peppers: [{ at: [180, 60] }], bananas: [{ at: [0, 5], dir: [0, -1, -0.2] }], carrots: [{ at: [90, 50], dir: [1, 0.3, 0.3] }] } }]);
+    expect(failures(one.mesh)).toEqual([]);
+    expect(['hairPepper0', 'hairBanana0', 'hairCarrot0', 'hairFringe1', 'hairBack1'].every((k) => one.h.parts[k])).toBe(true);
+    expect(one.h.parts.hairCrownL0).toBeUndefined(); expect(animeLockPart('carrot-12')).toBe('hairCarrot12');
+    // a carrot reaches along its direction; a pepper stands off the head
+    expect(box(one.mesh, /^hairCarrot0$/)[0][1]).toBeGreaterThan(box(one.mesh, /^face$/)[0][1] + 0.05);
   });
 });

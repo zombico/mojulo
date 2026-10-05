@@ -252,7 +252,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `{ amount, reach, width, up }`, the short family: the six crown accents as broad spikes from a fixed fan (front and
   side), each a CUT CONICAL CARROT (a round cone cut square at a wide base sunk into the mass, tapering to its point), the temples a rounded mass over the ears, the back one convex fall to a point at the nape, the fringe heavy bangs) and `sideTail` (an amount or `{ amount, side: 'left' | 'right', length, width, height }`: the back and
   that side gathered to a tie low behind the ear, one round clump `tail` (part `hairTail`) forward over the shoulder;
-  each entry gives its `amount`). A word is stored only when given; lists compose it last-wins (an object key by key);
+  each entry gives its `amount`), and `shapes` (`{ replace?: ['fringe', 'temple', 'back', 'crown'], peppers?,
+  bananas?, carrots? }`: a hairstyle composed from PEPPERS (the mass: a bellied lobe sunk in the head; `size`, `girth`,
+  `squash`, `bend`), BANANAS (the flow: a flat crescent; `length`, `width`, `flat`, `bend`, its `dir` required) and
+  CARROTS (the accents: cut conical carrots; `length`, `base`, `sink`, `curve`, `bend`), each piece `at: [azimuth°,
+  elevation°]` on the cap and aimed by `dir: [x, y, z]`; parts `hairPepper0`, `hairBanana0`, `hairCarrot0` …; the
+  principles and cross-referenced recipes are in docs/examples/humanoid/DESIGNING.md). A word is stored only when given; lists compose it last-wins (an object key by key);
   `false` is the studio's construction for it; patch `/hero/hair/<word>` (`null` back to the base's).
   THE HAIR BASES: the anime hero's default hair per design base, read when the plan is generated, never stored. A FORM
   under every family — `lift` (male crown 0.12, temples 0.06, fringe 0.06, nape 0.05; female 0.13 / 0.06 / 0.05 / 0.07),
@@ -357,8 +362,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
   clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
-  and `wild-spikes` (Toriyama-style: six broad spikes off the crown, the back falling to a point at the nape,
-  heavy bangs over the brow), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
+  and `wild-spikes` (Toriyama-style, the first `shapes` recipe: a swept-back mass, seven thorn spikes on its
+  outline, heavy bangs, the back falling to a point at the nape), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
   sum, a family and a pose last-wins; the own `face` / `sculpt` / `hair` / `expression` / `tune` apply ON TOP (`/hero/hair/length`
   1.1 is ten percent over the look). `look: ['rival', 'tareme']`, then `set /hero/look` to add or peel a word (a list is
