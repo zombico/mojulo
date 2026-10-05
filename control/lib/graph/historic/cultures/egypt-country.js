@@ -1,49 +1,23 @@
 /**
- * New Kingdom Egypt's countryside and works (read at c. 1250 BCE, the Thebes town's date): the colours
- * and the wall skins the farm (../farmstead.js) and the works (../workshops.js) build in. A stand-in for
- * the Thebes culture (cultures/thebes.js on the historic-city line), whose palette it follows; once the
- * two lines are joined the sub-scenes take THEBES and this file keeps only what the town lacks.
+ * New Kingdom Egypt's countryside and works (read at c. 1250 BCE, the Thebes town's date): the Thebes
+ * culture (./thebes.js) with what the town lacks, the colours of the farm (../farmstead.js) and the works
+ * (../workshops.js) and the skins of their buildings. The town's own colours and skins win where both
+ * name a thing, so a farm and the town beside it are the same Nile mud and the same gypsum wash.
  *
  * Kept to what the period had: Nile mud brick, sun-dried and never fired (fired brick is Roman in
  * Egypt); no lime (the wash is gypsum, so no pale tint here reads as lime plaster).
  */
+import { THEBES } from './thebes.js';
+
 export const EGYPT_COUNTRY = {
-  label: 'New Kingdom Egypt',
-  years: [-1550, -1070],
+  ...THEBES,
   palette: {
-    ground: '#c3ab84',            // the dry edge of the flood plain
-    lane: '#b9a07c',              // beaten Nile mud, paler with traffic
-    street: '#c2ab84',
-    paving: '#d6c29a',            // sandstone flags
-    court: '#cdb892',
-    field: ['#6f8f45', '#86a050', '#9aab5c', '#b8b06a'],
-    water: '#4f7f86',             // the Nile, silty green-blue
+    // the countryside
     flood: '#6f8174',             // the inundation over the basins: grey-green, thick with silt
     marsh: '#6f8a4c',
-    bank: '#7d6a50',
-    reed: '#c8ad62',
     papyrus: '#6f8f4a',           // standing papyrus, its umbels a brighter green
-    mud: '#7a6650',
-    earth: ['#8a7458', '#7f6a52', '#94806a', '#857058'],   // Nile mud brick: darker and greyer than Sumer's
-    whitewash: ['#ece6d8', '#e6dfcf'],
-    wall: '#7a6650',
-    platform: '#cdb48a',
-    stair: '#a89272',
-    precinctFloor: '#d6c29a',
-    sandstone: '#cdb48a',         // Gebel el-Silsila
-    limestone: '#ddd3bd',
-    granite: '#8a5f55',           // Aswan red granite
-    dolerite: '#3f3d3a',          // the pounders that dressed it
-    gold: '#d8b04a',
-    blue: '#2f5f9e',              // Egyptian blue
-    red: '#a8442e',               // red ochre: the masons' lines
-    yellow: '#d2a23c',
-    green: '#3f7a5a',
-    stone: '#cdb48a',
-    copper: '#a8653a',            // pots and jars take this tint, as in Sumer: fired Nile silt reads alike
+    dolerite: '#3f3d3a',          // the pounders that dressed the granite
     bronze: '#b98a4e',
-    patina: '#6e8c77', alabaster: '#e9e2cf', lapis: '#2f4f8f', mosaic: ['#a8442e', '#2b2724', '#efe9dc'],
-    // the countryside
     wood: '#7a6448',              // acacia, sycamore, palm
     timber: '#8a5a3a',            // imported conifer ("cedar"): the boats, the chariots, the big doors
     cloth: '#efe6d0',             // linen
@@ -61,14 +35,10 @@ export const EGYPT_COUNTRY = {
     fodder: '#7f9c4a',            // clover (berseem)
     hive: '#9b7656',
     sycamore: '#56703d',
+    ...THEBES.palette,
   },
-  // Nile brick reads as mudbrick here; the historic-city line's 'nile-brick' and 'gypsum-wash' skins take
-  // over after the join
   skins: {
-    kinds: {
-      house: 'mud-plaster', 'house-parapet': 'mud-plaster', 'house-roof': 'mud-plaster', 'court-wall': 'mud-plaster',
-      silo: 'mud-plaster', 'yard-wall': 'mudbrick', 'stable-wall': 'mud-plaster', 'fold-wall': 'mudbrick', kiln: 'mud-plaster',
-    },
+    ...THEBES.skins,
+    kinds: { 'court-wall': 'nile-brick', 'stable-wall': 'mud-plaster', 'fold-wall': 'nile-brick', kiln: 'mud-plaster', ...THEBES.skins.kinds },
   },
-  assets: {},
 };

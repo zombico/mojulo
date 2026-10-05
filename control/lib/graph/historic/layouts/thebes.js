@@ -17,13 +17,18 @@
 import { palm } from '../patterns.js';
 import { CELL, C, LAYER, laneZ, stream, pick, claimGrid, runs, alleyLattice, packLots, lotSlot, placeSlots, skinLoose } from '../layout-kit.js';
 
+/** The river's water's edge (x, metres in the town's frame) as a function of y, continued past the frame. */
+export function riverBankX({ width, amp, period, ph }) {
+  return (y) => width + amp * Math.sin((y / period) * 6.283 * 0.7 + ph);
+}
+
 export function planRiverAxis({ seed = 1, culture = 'thebes', frame = { w: 440, d: 330 }, assets } = {}, K) {
   const P = K.palette, g = claimGrid(frame), { cols, rows, grid, at, set } = g, Wf = cols * CELL, Df = rows * CELL;
   const boxes = [], grounds = [], slots = [], L = stream(seed, 'layout');
 
   // ── 1. the river: the bank meanders gently down the west edge; west of it is water ──
   const R = K.river, sink = R.sink, waterZ = -sink, ph = L() * 6.283;
-  const bankAt = (y) => R.width + 7 * Math.sin((y / Df) * 6.283 * 0.7 + ph);   // x of the water's edge
+  const river = { width: R.width, amp: 7, period: Df, ph, bank: R.bank, sink }, bankAt = riverBankX(river);   // x of the water's edge
   const topAt = (y) => bankAt(y) + R.bank;                                     // x where the sloping bank meets the plain
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const x = (c + 0.5) * CELL, y = (r + 0.5) * CELL;
@@ -204,6 +209,7 @@ export function planRiverAxis({ seed = 1, culture = 'thebes', frame = { w: 440, 
   return {
     boxes, grounds, views, frame: { w: Wf, d: Df }, slots,
     focus: [sanct.x + sanct.w / 2, ay],   // the temple's reliefs face its sanctuary
+    river,                                // the Nile's line, so a region can carry it on past the frame
     stats: {
       culture, houses: slots.filter((q) => q.asset === 'eg-house').length, villas: slots.filter((q) => q.asset === 'eg-villa').length,
       palms, precinct: temenos, axis: { y: ay, quay: qx, pylon: pf, court: court.x, pylon2: pylon2.x, hypostyle: hyp.x, sanctuary: sanct.x },

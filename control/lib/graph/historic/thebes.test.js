@@ -47,6 +47,7 @@ describe('historic city: New Kingdom Thebes', () => {
 });
 
 import { decollideFaces } from '../figures/face-mesh.js';
+import { assembleRegionScene } from './historic-region.js';
 describe('historic city: the ground stays on the ground in the World', () => {
   it('the de-overlap pass lifts no ground face more than a hair (overlapping strips must not chain)', () => {
     for (const culture of ['sumer', 'thebes', 'giza']) {
@@ -56,4 +57,12 @@ describe('historic city: the ground stays on the ground in the World', () => {
       expect(Math.max(...lifted), culture).toBeLessThan(0.06);
     }
   });
+  it('and in the region scenes, whose size makes the de-overlap\'s "same plane" coarser', () => {
+    for (const culture of ['sumer', 'thebes']) {
+      const s = assembleRegionScene({ seed: 7, culture });
+      const ground = s.faces.filter((f) => f.corners.length === 4 && f.corners.every((c) => Math.abs(c[2]) < 0.05));
+      const lifted = decollideFaces(ground).map((f) => Math.max(...f.corners.map((c) => c[2])));
+      expect(Math.max(...lifted), culture).toBeLessThan(0.06);
+    }
+  }, 60000);
 });

@@ -182,6 +182,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Each piece cites its record, every gap reported.
 - The farm's eye-level views (Sumer's too) cut the ground finer near the camera, so it no longer
   drops out in front of the eye.
+- Egypt's farm and works now use the Thebes town's own colours and wall skins, so a farm and the town
+  beside it are the same Nile mud and the same gypsum wash.
+- Thebes in its land: the town on the Nile's east bank, about 780 × 640 m of country around it.
+  - The river runs on north and south past the town.
+  - Downstream (north): the harbour, with stone quays, a barge and ships, a boatyard and granaries.
+  - Upstream (south): the works, set by what each needs. The clay pits are at the water, with brick
+    fields behind them. A stone quay and the masons' yard take the sandstone barged down from the
+    quarries; then come the potters, carpenters, chariot makers, the foundry and the glass works.
+  - East of the town: basins between their dykes, with the estates among them, out to the edge of the
+    low desert. Shadufs and palms line the bank.
+  - Three seasons: in the flood, the basins lie under water.
+  - It opens from the air, in the fields, on a harbour quay, in the works, from a boat on the Nile,
+    or in any of the town's own views.
+- A region of an unknown culture is an error rather than a Sumerian town.
+- The region's ground stays on the ground in the walkable World. A region is large enough that the
+  World read the town's thin ground layers as one plane and stacked overlapping strips upward (by up
+  to 4 m in Sumer's); its layers are now spread far enough apart to stay separate planes.
 
 ## [3.0.0] - 2026-10-01
 

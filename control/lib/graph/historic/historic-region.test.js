@@ -75,3 +75,50 @@ describe('historic city hooks for the region', () => {
     }
   });
 });
+
+describe('historic region: Thebes in its land', () => {
+  const p = planRegion({ seed: 7, culture: 'thebes' }), T = p.town;
+  const at = (asset) => p.slots.filter((s) => s.asset === asset).map((s) => s.rect);
+  it('is deterministic, and an unknown culture is an error rather than a Sumerian town', () => {
+    expect(hash(planRegion({ seed: 7, culture: 'thebes' }))).toBe(hash(p));
+    expect(() => planRegion({ seed: 7, culture: 'giza' })).toThrow(/no region/);
+  });
+  it('carries the Nile on past the town: water west of the bank the whole length of the frame', () => {
+    const water = p.grounds.filter((g) => g.kind === 'water' && !g.poly);
+    for (const y of [10, T.y - 20, T.y + T.d + 20, p.frame.d - 10]) expect(water.some((g) => g.x <= 1 && g.y <= y && g.y + g.d >= y && g.z < -2), `y ${y}`).toBe(true);
+    expect(p.boxes.filter((b) => b.asset === 'eg-pylon').length).toBeGreaterThan(0);
+  });
+  it('zones its land: the works upstream (south), the harbour downstream (north), estates among the basins', () => {
+    for (const a of ['clay-pit', 'brick-field', 'eg-masons-yard', 'eg-potters-yard', 'eg-bronze-foundry', 'eg-glass-works']) {
+      expect(at(a).length, a).toBeGreaterThan(0);
+      for (const r of at(a)) expect(r.y > T.y + T.d, a).toBe(true);
+    }
+    for (const a of ['eg-boatyard', 'granary']) {
+      expect(at(a).length, a).toBeGreaterThan(0);
+      for (const r of at(a)) expect(r.y + r.d < T.y, a).toBe(true);
+    }
+    expect(at('eg-stone-quay').filter((r) => r.y + r.d < T.y).length).toBeGreaterThanOrEqual(2);
+    expect(p.stats.farms).toBeGreaterThanOrEqual(3);
+    expect(p.grounds.filter((g) => g.kind === 'crop' || g.kind === 'field' || g.kind === 'flax').length).toBeGreaterThan(60);
+  });
+  it('keeps every piece on the frame, apart, off the town\'s frame and (but for quays and boats) off the river', () => {
+    const rs = p.slots.map((s) => s.rect), wet = new Set(['eg-stone-quay', 'eg-stone-barge', 'eg-nile-ship']);
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i], a = p.slots[i].asset;
+      expect(r.x >= 0 && r.y >= 0 && r.x + r.w <= p.frame.w && r.y + r.d <= p.frame.d, a).toBe(true);
+      expect(overlaps(r, T), a).toBe(false);
+      for (let j = i + 1; j < rs.length; j++) expect(overlaps(r, rs[j]), `${a} × ${p.slots[j].asset}`).toBe(false);
+      if (!wet.has(a)) expect(p.grounds.some((g) => g.kind === 'water' && !g.poly && g.z < -2 && overlaps(g, r)), a).toBe(false);   // the river, not a pit's own puddle
+    }
+  });
+  it('every season builds; the flood puts the basins under water', () => {
+    const f = planRegion({ seed: 7, culture: 'thebes', season: 'flood' });
+    expect(f.grounds.filter((g) => g.kind === 'flood').length).toBeGreaterThan(60);
+    expect(f.grounds.some((g) => g.kind === 'crop')).toBe(false);
+  });
+  it('opens on each of its views, one camera a page', () => {
+    const air = assembleRegionScene({ seed: 7, culture: 'thebes' });
+    expect(air.cameras.map((c) => c.name)).toEqual(expect.arrayContaining(['aerial', 'fields', 'harbour', 'works', 'nile', 'quarter-air', 'harbour-air', 'town-avenue']));
+    for (const view of ['fields', 'harbour', 'works', 'nile']) expect(assembleRegionScene({ seed: 7, culture: 'thebes', view }).cameras.map((c) => c.name)).toEqual([view]);
+  });
+});
