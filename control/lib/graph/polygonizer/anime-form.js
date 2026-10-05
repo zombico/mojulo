@@ -61,7 +61,9 @@
  * `flute` (a spine per member lock); the short family's crown accents (`crown: 'tuck' | 'none'`); and the cut's
  * words: `sweepBack` (the fringe re-aimed to rise off the hairline over the crown and point back), `hairline
  * { front }` (the front hairline raised), `sweepSides` (the temple clumps swept back over the ear), `fringeGroups` (the
- * bang sections by member clump) and `backNotch` (the back sections' hem). Nothing here is written into the recipe.
+ * bang sections by member clump), `backNotch` (the back sections' hem), `fringeNotch` (the bang sections' hem), `flip` (the side
+ * and back ends kicked out), `spikes` (the short family's clumps as broad radiating spikes) and `sideTail` (the back gathered to a tie behind one ear, one round tail over the shoulder,
+ * its clump `tail`). Nothing here is written into the recipe.
  */
 import * as dmath from '../../util/dmath.js';
 
@@ -352,12 +354,12 @@ export function buildAnime(r, options = {}) {
   for (let j = 0; j < 14; j++) for (let i = 0; i < 48; i++) quad('hair', capPoint(i / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, (j + 1) / 14), capPoint(i / 48 * 2 * Math.PI, (j + 1) / 14));
   if (FIT) for (let i = 0; i < 48; i++) tri('hair', FIT.crown, capPoint((i + 1) / 48 * 2 * Math.PI, 0), capPoint(i / 48 * 2 * Math.PI, 0));   // the fitted cap closes at the crown
   const capEnd = parts.hair.length;
-  function lock(name, root, control, tip, width, normal, taperK = h.taper) {
+  function lock(name, root, control, tip, width, normal, taperK = h.taper, thick = 1, cut = false) {
     const edit = r.locks?.[name]; if (edit) { control = add(control, [edit.cx, edit.cy, edit.cz]); tip = add(tip, [edit.tx, edit.ty, edit.tz]); }
-    if (FIT) tip = FIT.drape(tip, 0.006);
-    if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // a section's member: skinned below
+    if (FIT && !cut) tip = FIT.drape(tip, 0.006);
+    if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // (a member is never a thick clump)   // a section's member: skinned below
     const start = parts.hair.length; const rings = [], N = 14, S = 8;
-    for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = PINCH ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper; if (FIT) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 ? FIT.drape(q, 0.004) : q; })); }
+    for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = (PINCH && !cut ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper) * thick; if (FIT && !cut) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC && !cut ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 && !cut ? FIT.drape(q, 0.004) : q; })); }
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
     for (let i = 0; i < S; i++) { tri('hair', root, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
     guides.push(...root, ...control, ...control, ...tip); locks.push({ name, root, control, tip, width, start, count: parts.hair.length - start });
@@ -370,22 +372,65 @@ export function buildAnime(r, options = {}) {
   // so its section never flips over the arc
   const SB = HF?.sweepBack ?? null, SS = HF?.sweepSides ?? null;
   const mix3 = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
+  // spikes { amount, reach, width, up } (the short family): the crown accents, the temple and the back clumps re-aimed as
+  // SPIKES radiating from the head's centre — each tip pushed out along its own direction from the centre (tilted `up`) by
+  // `reach`, the clump `width` times wider at its root and thicker, so the spikes read as broad wedges, not needles. Only
+  // the six crown accents become spikes (so the silhouette is a few big spikes, not a fringe of points; SPIKE_FAN); the
+  // temple clumps close a rounded, blunt mass over the ears and the back falls in one convex curve to a single point at
+  // the nape; the fringe becomes heavy bangs (BANGS: a long one hanging over the centre, shorter ones beside it angled
+  // out), authored, never dice
+  const SP = short ? HF?.spikes ?? null : null, SPO = [0, 0.2, 0.07];
+  const spiked = (root, control, tip, width, reach = 1, dir = null, up = SP?.up ?? 0.35) => { if (!SP) return [control, tip, width]; const A = SP.amount, d = dir ? unit(dir) : unit(add(unit(sub(tip, SPO)), [0, up, 0])), t2 = add(tip, mul(d, (SP.reach ?? 0.85) * reach * A)); return [mix3(control, mix3(root, t2, 0.42), 0.6 * A), t2, width * (1 + ((SP.width ?? 2.2) - 1) * A)]; };
+  // the six crown spikes as the operator's sketch draws them (front: a tall one just off the centre, one long one level
+  // out to the left, smaller ones between and below; side: one leaning back, one sweeping forward over the face):
+  // [degrees off the vertical, reach, width, lean, base, sink] per side (the hero's left, then right), from the top down.
+  // CUT CONICAL CARROTS (the operator's word for this style): every spike is a cone cut square at its base and sunk into
+  // the mass, round in section (as thick as it is wide), tapering to its point. `base` widens the cut base (across and
+  // in depth) while the taper quickens by as much, so the spike's angle, lean and tip — its front and side profile — hold;
+  // `sink` lowers the whole carrot into the mass. A carrot is never pinched at its root (the lift's pinch is for clumps
+  // emerging from the cap), never draped (its base belongs inside the mass) and round in section, seated deep in the mass,
+  // so its full base meets the hair and it never floats.
+  const SPIKE_FAN = [[[34, 0.8, 1.0, -0.45, 1, 0], [80, 1.55, 1.35, 0.15, 1, 0], [124, 0.6, 0.85, 0.35, 1, 0]], [[8, 1.65, 1.5, 0.38, 1, 0], [60, 1.05, 1.2, -0.3, 1, 0], [110, 0.85, 1.0, 0.25, 1, 0]]];
+  const BANGS = [[-0.3, 0.12, 0.02], [-0.24, -0.04, -0.02], [-0.1, -0.18, -0.06], [0.03, -0.3, -0.07], [0.12, -0.14, -0.06], [0.28, 0, -0.02], [0.3, 0.12, 0.02]];
   for (let i = 0; i < fringe.length; i++) { const [x, y0, w] = fringe[i], y = hime ? 0.34 : y0, root = [(x * 0.52 + h.part) * vx, 0.94 * vy, -0.40 * depth], control = [(x * 0.94 + h.part * 0.5) * vx, 0.62 * vy, -0.86 * depth], tip = [(x + h.sweep * 0.22 + (short ? Math.sign(x) * 0.045 : 0)) * vx, 0.62 - (0.62 - y) * h.fringe + (short ? 0.08 : 0), -0.71 * depth];
     if (SB && !(SB.keep || []).includes('fringe-' + (i + 1))) {
       const A = SB.amount, sp = SB.spread ?? 1.05, dy = (y - 0.25) * (SB.stagger ?? 1.2), nrm = A >= 0.5 ? [0, 1, 0] : [0, 0, -1];
       const sRoot = mix3(root, [(x * 0.60 + h.part) * vx, SB.rootY ?? 0.86, SB.rootZ ?? -0.40], A), sControl = mix3(control, [(x * (SB.controlX ?? 0.80) + h.part * 0.5) * vx, (SB.rise ?? 1.80) - (SB.riseFall ?? 0) * x * x, SB.controlZ ?? 0.02], A), sTip = mix3(tip, [(x * sp + h.sweep * 0.22) * vx, (SB.tipY ?? 1.02) - dy * 0.5, (SB.tipZ ?? 0.88) + dy], A);
       if (hime) lock('fringe-' + (i + 1), sRoot, sControl, sTip, w, nrm, 0.15); else lock('fringe-' + (i + 1), sRoot, sControl, sTip, w, nrm);
-    } else if (hime) lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1], 0.15); else lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1]); }
+    } else if (SP) { const A = SP.amount, b = BANGS[i], up = b[1] > 0.5, t2 = add(tip, mul(b, A)); lock('fringe-' + (i + 1), root, up ? mix3(control, [t2[0] * 0.7, 0.95, -0.7 * depth], A) : control, t2, w * (1 + (up ? 0.6 : 0.35) * A), [0, 0, -1], h.taper, 1 + 0.7 * A); }
+    else if (hime) lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1], 0.15); else lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1]); }
+  // flip { amount, out, rise, hold }: the side and back clumps hang straight longer (the control drawn `hold` of the way
+  // down to the tip's height) and their tips kick OUT from the head's axis by `out` and up by `rise` (the flipped-out ends)
+  const FP = HF?.flip ?? null;
+  const flipped = (control, tip) => { if (!FP) return [control, tip]; const A = FP.amount, d = unit([tip[0], 0, tip[2] - 0.07]); return [[control[0], mix(control[1], tip[1], (FP.hold ?? 0.7) * A), control[2]], add(tip, add(mul(d, (FP.out ?? 0.34) * A), [0, (FP.rise ?? 0.2) * A, 0]))]; };
+  // sideTail { amount, side, length, width, height }: the back clumps and the tail side's two rear temple clumps GATHERED to
+  // a tie low behind one ear (`side` the hero's left or right, `height` its rise), and one round TAIL hanging from the tie
+  // forward over the shoulder; the far side's temple clumps still frame the face
+  const ST = HF?.sideTail ?? null, tailS = ST ? (ST.side === 'right' ? 1 : -1) : 0;
+  const tie = ST ? [tailS * 0.66 * vx, -0.42 + (ST.height ?? 0), 0.42 * depth] : null;
+  const gathered = (control, tip, k) => { if (!ST) return [control, tip]; const A = ST.amount, at = add(tie, [0, 0.05 * Math.sin(k * 1.7), -0.05 * Math.cos(k * 1.3)]); return [mix3(control, mul(add(control, at), 0.5), 0.55 * A), mix3(tip, at, A)]; };
   // sweepSides { amount, from, controlY, tipX, tipY, tipZ }: the temple clumps from index `from` swept back over the ear
   // (the swept-back cut's sides); the ones before it still fall as temple locks
   for (const side of [-1, 1]) for (let j = 0; j < 3; j++) { const z = -0.34 + j * 0.22, x = (0.80 + j * 0.025) * vx, baseY = short ? -0.25 - j * 0.07 : h.style === 'long' ? -1.30 - j * 0.09 : hime ? (j === 0 ? -0.66 : -1.30 - j * 0.09) : -0.80 - j * 0.08; const args = [(side < 0 ? 'left' : 'right') + '-temple-' + j, [side * 0.66 * vx, 0.76 * vy, z], [side * 0.94 * vx, 0.10, z - 0.07], [side * (x + 0.04 * j + h.sweep * 0.15), 0.3 + (baseY - 0.3) * h.length, z + 0.08], 0.14, [side, 0, 0]];
     if (SS && j >= (SS.from ?? 1)) { const A = SS.amount; args[2] = mix3(args[2], [side * 0.98 * vx, SS.controlY ?? 0.62, z + 0.25], A); args[3] = mix3(args[3], [side * (SS.tipX ?? 0.80) * vx, (SS.tipY ?? 0.45) - 0.06 * j, (SS.tipZ ?? 0.80) + 0.08 * j], A); }
+    if (ST && side === tailS && j >= 1) [args[2], args[3]] = gathered(args[2], args[3], j); else if (FP) [args[2], args[3]] = flipped(args[2], args[3]); else if (SP) { const A = SP.amount; args[3] = mix3(args[3], add(args[3], [side * 0.12, 0.12, 0.04]), A); args[4] *= 1 + 0.6 * A; args.push(0.12, 1 + 0.9 * A); }   // the sides a rounded mass over the ear
     if (hime && j === 0) lock(...args, 0.15); else lock(...args); }
-  for (let i = 0; i < 11; i++) { const a = Math.PI * 0.58 + i / 10 * Math.PI * 0.84, root = capPoint(a, 0.30), c = capPoint(a, 0.85), rear = [dmath.sin(a) * 0.86 * vx, 0.12, 0.07 - dmath.cos(a) * 0.81 * depth], len = short ? 0.38 : h.style === 'long' || hime ? 1.55 : 1.03, tip = [rear[0] * (short ? 1.12 : 0.93) + h.sweep * 0.18 * dmath.sin(a), rear[1] - len * h.length + (i % 3) * 0.055, rear[2] + (short ? 0.07 : 0.025)]; lock('back-' + (i + 1), root, [c[0] * 1.08, 0.35, c[2] * 1.1], tip, 0.18, [dmath.sin(a), 0, -dmath.cos(a)]); }
+  for (let i = 0; i < 11; i++) { let a = Math.PI * 0.58 + i / 10 * Math.PI * 0.84, root = capPoint(a, 0.30), c = capPoint(a, 0.85), rear = [dmath.sin(a) * 0.86 * vx, 0.12, 0.07 - dmath.cos(a) * 0.81 * depth], len = short ? 0.38 : h.style === 'long' || hime ? 1.55 : 1.03, tip = [rear[0] * (short ? 1.12 : 0.93) + h.sweep * 0.18 * dmath.sin(a), rear[1] - len * h.length + (i % 3) * 0.055, rear[2] + (short ? 0.07 : 0.025)]; let control = [c[0] * 1.08, 0.35, c[2] * 1.1]; let width = 0.18; if (ST) [control, tip] = gathered(control, tip, i + 3); else if (FP) [control, tip] = flipped(control, tip); else if (SP) { const A = SP.amount, mid = 1 - Math.abs(i - 5) / 5, out = [dmath.sin(a), 0, -dmath.cos(a)]; tip = mix3(tip, [rear[0] * (0.25 + 0.7 * (1 - mid)), rear[1] - len * h.length - 0.06 - 0.6 * dmath.pow(mid, 1.3), rear[2] - 0.06], A); control = mix3(control, add(add(control, mul(out, 0.3)), [0, -0.3, 0]), A); width *= 1 + 0.7 * A; }   // the back FALLS in one convex curve, its hem drawn to a single point at the nape
+    if (SP) lock('back-' + (i + 1), root, control, tip, width, [dmath.sin(a), 0, -dmath.cos(a)], 0.12 + 0.8 * (1 - Math.abs(i - 5) / 5), 1 + 0.9 * SP.amount); else lock('back-' + (i + 1), root, control, tip, width, [dmath.sin(a), 0, -dmath.cos(a)]); }
+  // the side tail: one round clump from the tie, forward over the shoulder and down (`length` and `width` ratios)
+  if (ST) { const A = ST.amount, L = (ST.length ?? 1) * h.length, W = (ST.width ?? 1) * 0.32;
+    lock('tail', add(tie, [-tailS * 0.06, 0.10, -0.04]), add(tie, [tailS * 0.30, -0.55 * L, -0.30 * A]), add(tie, [tailS * 0.16, -1.45 * L, -0.62 * A]), W, [0, 0, -1], h.taper, 5); }
   // crown 'tuck': the short family's six crown accents laid into the flow (the control down, the tip onto the mass);
   // 'none': not grown
   if (short && HF?.crown === 'tuck') for (const side of [-1, 1]) for (let i = 0; i < 3; i++) lock('crown-' + side + '-' + i, [side * 0.13, 0.97, -0.04 + i * 0.13], [side * (0.45 + i * 0.08), 1.27 - 0.17, -0.01 + i * 0.12], [side * (0.74 + i * 0.07) * 0.92, 0.96 + i * 0.07 - 0.1, 0.02 + i * 0.14], 0.12, [0, 1, 0]);
-  else if (short && HF?.crown !== 'none') for (const side of [-1, 1]) for (let i = 0; i < 3; i++) lock('crown-' + side + '-' + i, [side * 0.13, 0.97, -0.04 + i * 0.13], [side * (0.45 + i * 0.08), 1.27, -0.01 + i * 0.12], [side * (0.74 + i * 0.07), 0.96 + i * 0.07, 0.02 + i * 0.14], 0.12, [0, 1, 0]);
+  else if (short && HF?.crown !== 'none') for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const root0 = [side * 0.13, 0.97, -0.04 + i * 0.13], control0 = [side * (0.45 + i * 0.08), 1.27, -0.01 + i * 0.12], tip0 = [side * (0.74 + i * 0.07), 0.96 + i * 0.07, 0.02 + i * 0.14];
+    if (!SP) { lock('crown-' + side + '-' + i, root0, control0, tip0, 0.12, [0, 1, 0]); continue; }
+    // the spike from the table: its angle off the vertical in the face's plane, its reach, its width, its lean (+ back, − forward)
+    const A = SP.amount, [deg, reach, wide, lean, base, sink] = SPIKE_FAN[side > 0 ? 1 : 0][i], fan = deg * Math.PI / 180, d = unit([side * dmath.sin(fan), dmath.cos(fan), lean]);
+    const root = add(add(SPO, mul(d, 0.56 * vy)), [0, -sink * A, 0]), tip = mix3(tip0, add(root, mul(d, 0.25 + (SP.reach ?? 0.85) * reach * A)), A), control = mix3(control0, add(mix3(root, tip, 0.45), [0, 0.1, 0]), A);
+    const B = 1 + (base - 1) * A, W = 0.12 * (1 + ((SP.width ?? 2.2) * wide - 1) * A) * B; lock('crown-' + side + '-' + i, root, control, tip, W, [0, 0, -1], h.taper * (1 + 1.4 * (B - 1)), mix(1, W * h.clump / (0.040 * h.thickness), A), true);   // round: as deep as it is wide
+  }
   // mojulo: an ahoge — one upright curl at the crown, rising forward and curling back (an amount; the studio has none)
   if (h.ahoge > 0) { const A = h.ahoge; lock('ahoge', [0.02, 1.15, -0.10], [0.03, 1.15 + 0.55 * A, -0.36 - 0.1 * A], [0.07, 1.15 + 0.30 * A, 0.04], 0.075, [1, 0, 0]); }
   // mojulo: the consolidated sections, skinned across their members' curves
@@ -559,6 +604,7 @@ function formGroupsOf(style, h, HF = null) {
   const fringeSections = HF?.fringeGroups ? HF.fringeGroups.map((m, i) => ({ name: `formFringe${'ABCDEFG'[i]}`, members: m.map(F), notch: fringeNotch }))
     : [{ name: 'formFringeL', members: [1, 2, 3].map(F), notch: fringeNotch }, { name: 'formFringeC', members: [3, 4, 5].map(F), notch: fringeNotch }, { name: 'formFringeR', members: [5, 6, 7].map(F), notch: fringeNotch }];
   const backNotch = HF?.backNotch !== undefined ? HF.backNotch : notch;
+  if (HF?.fringeNotch !== undefined) for (const g of fringeSections) g.notch = HF.fringeNotch;
   const groups = [
     ...fringeSections,
     { name: 'formBackR', members: [1, 2, 3, 4].map(B), notch: backNotch }, { name: 'formBackC', members: [4, 5, 6, 7, 8].map(B), notch: backNotch }, { name: 'formBackL', members: [8, 9, 10, 11].map(B), notch: backNotch },
@@ -584,7 +630,7 @@ export function hairFormOf(hairForm) {
     let v = v0;
     if (v === undefined || v === null || v === false) continue;
     if (k in HAIR_FORM_NEUTRAL && v === HAIR_FORM_NEUTRAL[k]) continue;
-    if (k === 'sweepBack' || k === 'sweepSides') { v = typeof v === 'number' ? { amount: v } : v; if (!v.amount) continue; }
+    if (k === 'sweepBack' || k === 'sweepSides' || k === 'flip' || k === 'sideTail' || k === 'spikes') { v = typeof v === 'number' ? { amount: v } : v; if (!v.amount) continue; }
     if (k === 'hairline' && (v.front === undefined || v.front === 0.53)) continue;
     out[k] = v;
   }

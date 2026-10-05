@@ -100,12 +100,14 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const L = hero.lookResolved ?? null;
   const { from: _f, ...face } = resolveAnimeFace([L?.face, hero.face].filter(Boolean));
   const own = hero.hair === 'none' ? 'none' : hero.hair;
-  const layers = own === 'none' ? [] : [L?.hair, own].filter((x) => x !== undefined && x !== null);
+  // a layer may itself be a list (a family word and its controls): its entries join the layers in order, so its family is
+  // read as named and its controls and lock edits compose like any other entry's
+  const layers = own === 'none' ? [] : [L?.hair, own].flatMap((x) => (Array.isArray(x) ? x : [x])).filter((x) => x !== undefined && x !== null);
   const named = !!hairBase && own !== 'none' && resolveAnimeHair(layers).style !== null;
   const base = hairBase && own !== 'none' ? [hairBase.form, ...(named ? [] : [hairBase.cut])] : [];
   const hair = own === 'none' ? 'none' : resolveAnimeHair([...base, ...layers]);
   if (hair !== 'none' && hair.style === null) hair.style = defaultStyle;
-  const hairWords = own === 'none' ? null : resolveAnimeHair([...base, L?.hair].filter((x) => x !== undefined && x !== null)), hairCut = hairBase && own !== 'none' && !named ? hairBase.cut : null;
+  const hairWords = own === 'none' ? null : resolveAnimeHair([...base, ...(Array.isArray(L?.hair) ? L.hair : [L?.hair])].filter((x) => x !== undefined && x !== null)), hairCut = hairBase && own !== 'none' && !named ? hairBase.cut : null;
   const expression = hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral');
   const { from: _t, ...tune } = resolveTune([L?.tune, hero.tune].filter(Boolean));
   const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([L?.sculpt, hero.sculpt].filter((x) => x !== undefined && x !== null));

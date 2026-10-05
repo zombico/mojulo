@@ -358,7 +358,7 @@ describe('anime head: the hair form and the hair bases', () => {
   it('the words: an absent or all-neutral form builds the head it built before them, part for part', () => {
     for (const preset of ['female', 'male']) {
       const ref = animeHead({ preset, hair: 'bob' });
-      for (const extra of [{}, { lift: false, section: 'round', crownAccents: 'grow', ridge: 0, flute: 0, sweepBack: 0, sweepSides: false, hairline: false, fringeGroups: false, backNotch: false }]) {
+      for (const extra of [{}, { lift: false, section: 'round', crownAccents: 'grow', ridge: 0, flute: 0, sweepBack: 0, sweepSides: false, hairline: false, fringeGroups: false, backNotch: false, fringeNotch: false, flip: 0, spikes: { amount: 0 }, sideTail: false }]) {
         const h = animeHead({ preset, hair: { style: 'bob', ...extra } });
         expect(JSON.stringify(h.parts), preset).toBe(JSON.stringify(ref.parts)); expect(h.hairCoverage).toEqual(ref.hairCoverage);
         // the whole head include is the same but for its `hair` record, which echoes the words as given (the operator's
@@ -391,10 +391,57 @@ describe('anime head: the hair form and the hair bases', () => {
       ['short', { lift: { crown: 0.3, temple: 0.14, fringe: 0.12, nape: 0.14 } }], ['short', { lift: { crown: 0, temple: 0, fringe: 0, nape: 0 } }], ['short', { section: 'ridge', crownAccents: 'tuck' }],
       ['short', { sweepBack: { amount: 0.5 } }], ['short', ANIME_HAIR_MOVES['swept-back'].hair], ['short', { sweepSides: { amount: 1, from: 0 } }], ['short', { hairline: { front: 1 } }],
       ['long', { ridge: 2, flute: 1 }], ['long', { fringeGroups: [[1, 2, 3, 4, 5, 6, 7]], backNotch: 1 }], ['bob', { fringeGroups: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]], backNotch: 0.5 }], ['long', ANIME_HAIR_MOVES['side-parted'].hair],
+      ['long', { flip: { amount: 1, out: 1, rise: 1, hold: 1 } }], ['bob', { flip: 0.5, fringeNotch: 1 }], ['short', { spikes: { amount: 1, reach: 3, width: 3, up: 1 } }], ['short', { spikes: 0.4, crownAccents: 'tuck' }],
+      ['long', { sideTail: { amount: 1, side: 'right', length: 2, width: 2, height: 1 } }], ['bob', { sideTail: { amount: 0.5, side: 'left', length: 0.3, width: 0.3, height: -1 } }],
+      ...['flipped-long', 'blunt-bob', 'side-tail', 'wild-spikes'].map((w) => [ANIME_HAIR_MOVES[w].hair.style, ANIME_HAIR_MOVES[w].hair]),
     ];
     for (const preset of ['female', 'male']) for (const [style, words] of ends) {
       const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, { ...words, style }] });
       expect(failures(compileLayered(h)), `${preset} ${style} ${JSON.stringify(words).slice(0, 80)}`).toEqual([]);
     }
   }, 60000);
+});
+
+describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail, wild-spikes)', () => {
+  const on = (preset, hair) => { const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, ...(Array.isArray(hair) ? hair : [hair])] }); return { h, mesh: compileLayered(h) }; };
+  const box = (mesh, re) => { const ps = mesh.pointIds.map((id, i) => (re.test(id.split('/')[0]) ? mesh.vertices[i] : null)).filter(Boolean); return [0, 1, 2].map((k) => [Math.min(...ps.map((p) => p[k])), Math.max(...ps.map((p) => p[k]))]); };
+  it('each cut closes on both bases and keeps the scalp covered', () => {
+    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'wild-spikes']) for (const preset of ['female', 'male']) {
+      const { h, mesh } = on(preset, cut);
+      expect(failures(mesh), `${preset} ${cut}`).toEqual([]);
+      expect(Math.max(...Object.values(h.hairCoverage.views)), `${preset} ${cut}`).toBeLessThanOrEqual(0.02);
+    }
+  }, 60000);
+  it('the words validate by name: the new form words, their fields and the tail clump', () => {
+    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'wild-spikes'])).toEqual([]);
+    expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
+    expect(validateAnimeHair({ locks: { tail: { ty: 0.1 } } })).toEqual([]); expect(animeLockPart('tail')).toBe('hairTail');
+    expect(resolveAnimeHair([{ flip: 0.5 }, { flip: { out: 0.2 } }]).flip).toEqual({ amount: 0.5, out: 0.2 });
+  });
+  it('flipped-long: the side and back ends kicked out past the plain long sheet', () => {
+    const flip = on('female', 'flipped-long').mesh, plain = on('female', ['flipped-long', { flip: false }]).mesh;
+    const reach = (m) => Math.max(...box(m, /^hairFormSide[LR]$/)[0].map(Math.abs));
+    expect(reach(flip)).toBeGreaterThan(reach(plain) + 0.03);
+  });
+  it('blunt-bob: a level fringe; the left side falls past the jaw, the right stays at it', () => {
+    const { mesh } = on('female', 'blunt-bob');
+    const [a, b] = [box(mesh, /^hairFormFringeA$/)[2][0], box(mesh, /^hairFormFringeB$/)[2][0]];
+    expect(Math.abs(a - b)).toBeLessThan(0.006);
+    expect(box(mesh, /^hairFormSideL$/)[2][0]).toBeLessThan(box(mesh, /^hairFormSideR$/)[2][0] - 0.06);
+  });
+  it('side-tail: one round tail hanging on the left below the chin; the left side gathered into it', () => {
+    const { h, mesh } = on('female', 'side-tail'), plain = on('female', 'side-parted').mesh;
+    expect(h.parts.hairTail).toBeDefined(); expect(on('female', 'side-parted').h.parts.hairTail).toBeUndefined();
+    const tail = box(mesh, /^hairTail$/), chin = box(mesh, /^face$/)[2][0];
+    expect(tail[0][1]).toBeLessThan(0); expect(tail[2][0]).toBeLessThan(chin - 0.1);
+    expect(tail[0][1] - tail[0][0]).toBeGreaterThan(0.06);   // round, not a ribbon, from the front
+    expect(box(mesh, /^hairFormSideL$/)[2][0]).toBeGreaterThan(box(plain, /^hairFormSideL$/)[2][0] + 0.05);
+    expect(box(on('female', ['side-tail', { sideTail: { amount: 1, side: 'right' } }]).mesh, /^hairTail$/)[0][0]).toBeGreaterThan(0);
+  });
+  it('wild-spikes: broad spikes standing well above and out from the short crop', () => {
+    const spikes = on('male', 'wild-spikes'), crop = on('male', 'short');
+    expect(spikes.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
+    expect(box(spikes.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
+    expect(spikes.h.parts.hairCrownL0).toBeDefined();   // the crown accents grow under the cut
+  });
 });

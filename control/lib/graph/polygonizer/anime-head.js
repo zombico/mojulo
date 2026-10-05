@@ -37,7 +37,7 @@
  * { crown, temple, fringe, nape }`, construction units; the roots then emerge from the cap), the lock SECTION (`round`,
  * the studio's 8-gon, or `ridge`, a roof with a spine), a section's `ridge` and `flute` (spines along a consolidated
  * section and per member lock), the short family's `crownAccents` (`grow` | `tuck` | `none`), and the cut's words
- * (`sweepBack`, `hairline { front }`, `sweepSides`, `fringeGroups`, `backNotch`). They ride on the hair beside its
+ * (`sweepBack`, `hairline { front }`, `sweepSides`, `fringeGroups`, `backNotch`, `fringeNotch`, `flip`, `spikes`, `sideTail`). They ride on the hair beside its
  * controls, SPARSE (a word is there only when given; `false` sets it to the studio's construction, over a base), compose
  * across a list last-wins (an object word key by key), are passed to the build as an option and are never written into
  * the studio recipe; the scalp's hairline follows `hairline`. The HAIR BASES (`ANIME_HAIR_BASE`, the anime hero's default
@@ -59,8 +59,8 @@ import * as dmath from '../../util/dmath.js';
 
 /** the hair FAMILIES: the studio's three and mojulo's `hime` (hair-passes) */
 export const ANIME_HAIR_STYLES = Object.freeze([...STUDIO_FAMILIES, 'hime']);
-/** the clumps a lock edit may name: the studio's, and the `ahoge` */
-export const ANIME_LOCK_RE = new RegExp(`${STUDIO_LOCK_RE.source.slice(0, -2)}|ahoge)$`);
+/** the clumps a lock edit may name: the studio's, the `ahoge` and the side `tail` */
+export const ANIME_LOCK_RE = new RegExp(`${STUDIO_LOCK_RE.source.slice(0, -2)}|ahoge|tail)$`);
 
 // ─── the vocabulary ───────────────────────────────────────────────────────
 const rangesOf = (defs) => Object.fromEntries(defs.map(([k, , lo, hi]) => [k, [lo, hi]]));
@@ -117,15 +117,32 @@ export const ANIME_HAIR_MOVES = Object.freeze({
     hair: { style: 'long', part: 0.15, length: 1.2, fringeGroups: [[1, 2, 3, 4, 5], [5, 6, 7]], backNotch: 0.9, ridge: 0.8, flute: 0.35,
       locks: { 'fringe-1': { tx: -0.2, ty: 0.05 }, 'fringe-2': { tx: -0.24, ty: 0.02 }, 'fringe-3': { tx: -0.28, ty: 0.18 }, 'fringe-4': { tx: -0.3, ty: 0.14 }, 'fringe-5': { tx: -0.28, ty: 0.26 }, 'fringe-6': { tx: -0.1, ty: 0.24 }, 'fringe-7': { ty: 0.3 },
         'left-temple-0': { ty: 0.78 }, 'right-temple-0': { ty: 0.78 }, 'left-temple-1': { ty: 0.45 }, 'right-temple-1': { ty: 0.45 } } } },
+  // the operator's sketches (2026-10-05): three female cuts and one male, each a family with its form words and clump edits
+  'flipped-long': { note: 'long and parted at the middle, curtain bangs opening over the brow and framing the face to the cheek, the side and back ends kicked out and up',
+    hair: { style: 'long', length: 1.25, fringeGroups: [[1, 2, 3], [5, 6, 7]], flip: { amount: 1, out: 0.6, rise: 0.45, hold: 0.9 },
+      locks: { 'fringe-1': { tx: -0.18, ty: -0.5 }, 'fringe-2': { tx: -0.26, ty: -0.32 }, 'fringe-3': { tx: -0.3, ty: -0.05 }, 'fringe-4': { ty: 0.22 }, 'fringe-5': { tx: 0.3, ty: -0.05 }, 'fringe-6': { tx: 0.26, ty: -0.32 }, 'fringe-7': { tx: 0.18, ty: -0.5 } } } },
+  'blunt-bob': { note: 'a bob under a blunt, level fringe split off centre, the right side at the jaw and the left side falling long past it',
+    hair: { style: 'bob', fringeGroups: [[1, 2, 3, 4], [5, 6, 7]], fringeNotch: 1,
+      locks: { 'fringe-2': { ty: -0.05 }, 'fringe-3': { ty: 0.13 }, 'fringe-4': { ty: -0.03 }, 'fringe-5': { ty: 0.08 }, 'fringe-6': { ty: -0.07 }, 'fringe-7': { ty: 0.02 },
+        'left-temple-0': { tx: -0.05, ty: -0.8 }, 'left-temple-1': { tx: -0.08, ty: -0.85 }, 'left-temple-2': { tx: -0.1, ty: -0.8 } } } },
+  'side-tail': { note: 'the side-parted sheet gathered into a low tail behind the left ear, hanging forward over the shoulder; the bangs swept across, a long sidelock framing the right of the face',
+    hair: { style: 'long', part: 0.15, length: 1.2, fringeGroups: [[1, 2, 3, 4, 5], [5, 6, 7]], backNotch: 0.9, ridge: 0.8, flute: 0.35, sideTail: { amount: 1, side: 'left', width: 1.4, length: 1.15 },
+      locks: { 'fringe-1': { tx: -0.2, ty: 0.05 }, 'fringe-2': { tx: -0.24, ty: 0.02 }, 'fringe-3': { tx: -0.28, ty: 0.18 }, 'fringe-4': { tx: -0.3, ty: 0.14 }, 'fringe-5': { tx: -0.28, ty: 0.26 }, 'fringe-6': { tx: -0.1, ty: 0.24 }, 'fringe-7': { ty: 0.3 },
+        'right-temple-0': { ty: 0.48 }, 'right-temple-1': { ty: 0.45 }, 'left-temple-0': { ty: 0.78 } } } },
+  'wild-spikes': { note: 'after Toriyama\'s spiky heroes: six broad spikes off the crown as the operator drew them (a tall one off the centre leaning back, one long one level out to the left, one sweeping forward over the face), the back falling in one convex curve to a point at the nape, heavy bangs over the brow',
+    hair: { style: 'short', taper: 1.3, crownAccents: 'grow', spikes: { amount: 1, reach: 1.2, width: 2.6, up: 0.6 }, locks: { 'fringe-1': { ty: 0.1 }, 'fringe-7': { ty: 0.1 } } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
 /** the largest lock edit (construction units, either way) the door takes: the sweep fields' own bound */
 export const LOCK_EDIT_MAX = 3;
-export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch']);
+export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch', 'fringeNotch', 'flip', 'spikes', 'sideTail']);
 const LIFT_KEYS = Object.freeze(['crown', 'temple', 'fringe', 'nape']);
 const SWEEP_BACK_KEYS = Object.freeze(['amount', 'keep', 'rise', 'riseFall', 'controlX', 'controlZ', 'spread', 'tipY', 'tipZ', 'stagger', 'rootY', 'rootZ']);
 const SWEEP_SIDES_KEYS = Object.freeze(['amount', 'from', 'controlY', 'tipX', 'tipY', 'tipZ']);
+const FLIP_KEYS = Object.freeze(['amount', 'out', 'rise', 'hold']);
+const SIDE_TAIL_KEYS = Object.freeze(['amount', 'side', 'length', 'width', 'height']);
+const SPIKES_KEYS = Object.freeze(['amount', 'reach', 'width', 'up']);
 export const HAIR_SECTIONS = Object.freeze(['round', 'ridge']);
 export const CROWN_ACCENTS = Object.freeze(['grow', 'tuck', 'none']);
 /** the lift's comfortable range per region (construction units): about 3–12 % of the head's height at the crown, less
@@ -160,14 +177,26 @@ function hairFormErrors(entry, at) {
       const ok = Array.isArray(v) && v.length >= 1 && v.length <= 7 && v.every((g) => Array.isArray(g) && g.length >= 2 && g.every((n, i) => Number.isInteger(n) && n >= 1 && n <= 7 && (i === 0 || n === g[i - 1] + 1)));
       if (!ok) errs.push(`${at}.fringeGroups: a list of bang sections, each two or more neighbouring fringe clumps in order (e.g. [[1, 2, 3, 4, 5], [5, 6, 7]]), or false`);
     }
-    else if (k === 'backNotch') { if (!finite(v) || v <= 0 || v > 1) errs.push(`${at}.backNotch: the back sections' hem, a number in (0, 1] (1 is cut straight), or false`); }
+    else if (k === 'backNotch' || k === 'fringeNotch') { if (!finite(v) || v <= 0 || v > 1) errs.push(`${at}.${k}: the ${k === 'backNotch' ? 'back' : 'bang'} sections' hem, a number in (0, 1] (1 is cut straight), or false`); }
+    else if (k === 'flip' || k === 'sideTail' || k === 'spikes') {
+      const keys = k === 'flip' ? FLIP_KEYS : k === 'spikes' ? SPIKES_KEYS : SIDE_TAIL_KEYS;
+      if (finite(v)) num(k, v, 0, 1);
+      else if (!fields(k, v, keys, (f, x) => {
+        if (f === 'amount') num(`${k}.amount`, x, 0, 1);
+        else if (f === 'side') { if (x !== 'left' && x !== 'right') errs.push(`${at}.sideTail.side: 'left' | 'right' (the hero's side the tail hangs on)`); }
+        else if (f === 'length' || (f === 'width' && k === 'sideTail')) num(`${k}.${f}`, x, 0.3, 2);
+        else if (f === 'width' || f === 'reach') num(`${k}.${f}`, x, 0, 3);
+        else num(`${k}.${f}`, x, -1, 1);
+      })) errs.push(`${at}.${k}: an amount in [0, 1], { ${keys.join(', ')} }, or false`);
+      else if (!('amount' in v)) errs.push(`${at}.${k}: needs its amount (0 … 1)`);
+    }
   }
   return errs;
 }
 /** a word composed over what the layers before said: an object word merged key by key (an amount becomes `{ amount }`),
  * anything else last-wins */
 function composeFormWord(k, cur, v) {
-  const obj = (x) => ((k === 'sweepBack' || k === 'sweepSides') && finite(x) ? { amount: x } : x);
+  const obj = (x) => (['sweepBack', 'sweepSides', 'flip', 'spikes', 'sideTail'].includes(k) && finite(x) ? { amount: x } : x);
   const a = obj(cur), b = obj(v);
   return isObj(a) && isObj(b) ? { ...a, ...b } : b;
 }
@@ -192,11 +221,12 @@ export function animeHairForm(H) {
   if (on('ridge')) out.ridge = H.ridge;
   if (on('flute')) out.flute = H.flute;
   if (on('crownAccents') && H.crownAccents !== 'grow') out.crown = H.crownAccents;
-  for (const k of ['sweepBack', 'sweepSides']) if (on(k)) { const v = finite(H[k]) ? { amount: H[k] } : H[k]; if (v.amount) out[k] = v; }
+  for (const k of ['sweepBack', 'sweepSides', 'flip', 'spikes', 'sideTail']) if (on(k)) { const v = finite(H[k]) ? { amount: H[k] } : H[k]; if (v.amount) out[k] = v; }
   if (out.lift) out.dome = true;
   if (on('hairline')) out.hairline = { front: H.hairline.front };
   if (on('fringeGroups')) out.fringeGroups = H.fringeGroups;
   if (on('backNotch')) out.backNotch = H.backNotch;
+  if (on('fringeNotch')) out.fringeNotch = H.fringeNotch;
   return Object.keys(out).length ? out : null;
 }
 /** the studio's expression poses (its buttons) as words, and hero-looks' more; an object of amounts after a word
@@ -270,7 +300,7 @@ export function validateAnimeHair(spec, label = 'hair') {
     if (locks !== undefined) {
       if (!locks || typeof locks !== 'object' || Array.isArray(locks)) errs.push(`${at}.locks: an object of clump name → { ${ANIME_LOCK_KEYS.join(', ')} } (construction units)`);
       else for (const [name, edit] of Object.entries(locks)) {
-        if (!ANIME_LOCK_RE.test(name)) { errs.push(`${at}.locks.${name}: not a clump (fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-1-0…2 / crown--1-0…2 on short)`); continue; }
+        if (!ANIME_LOCK_RE.test(name)) { errs.push(`${at}.locks.${name}: not a clump (fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-1-0…2 / crown--1-0…2 on short, ahoge, tail with a sideTail)`); continue; }
         if (!edit || typeof edit !== 'object' || Array.isArray(edit)) { errs.push(`${at}.locks.${name}: { ${ANIME_LOCK_KEYS.join(', ')} } (control point and tip moves, construction units)`); continue; }
         // a move in construction units, bounded as the sweep fields are (a runaway number is refused by name, not built)
         for (const [k, v] of Object.entries(edit)) if (!ANIME_LOCK_KEYS.includes(k)) errs.push(`${at}.locks.${name}.${k}: not a lock edit (have ${ANIME_LOCK_KEYS.join(', ')})`); else if (typeof v !== 'number' || !Number.isFinite(v)) errs.push(`${at}.locks.${name}.${k}: must be a finite number`); else if (Math.abs(v) > LOCK_EDIT_MAX) errs.push(`${at}.locks.${name}.${k}: ${v} is past ±${LOCK_EDIT_MAX} construction units (the studio's own edits stay within ±0.2)`);
@@ -505,6 +535,7 @@ const LOCK_PART = (name) => {
   m = name.match(/^back-(\d+)$/); if (m) return `hairBack${m[1]}`;
   m = name.match(/^crown-(-?1)-(\d)$/); if (m) return `hairCrown${m[1] === '-1' ? 'L' : 'R'}${m[2]}`;
   if (name === 'ahoge') return 'hairAhoge';
+  if (name === 'tail') return 'hairTail';
   if (/^form[A-Z]/.test(name)) return `hair${name[0].toUpperCase()}${name.slice(1)}`;   // a consolidated section: formBackC → hairFormBackC
   throw new Error(`anime head: unknown clump '${name}'`);
 };

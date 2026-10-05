@@ -63,6 +63,9 @@ describe('looks: composition', () => {
     // the form's words give way to the operator's; bald wears nothing
     expect(at(own({ lift: false, section: 'round' })).hair).toMatchObject({ lift: false, section: 'round' });
     expect(at({ face: {}, hair: 'none' }).hair).toBe('none'); expect(at({ face: {}, hair: 'none' }).hairCut).toBeNull();
+    // an own layer stored as a LIST (a family word and its edits, as the door stores a manifest's words) names its family
+    const listed = at({ face: {}, hair: ['long', { locks: { 'left-temple-0': { ty: 0.5 } } }] });
+    expect(listed.hairCut).toBeNull(); expect(listed.hair).toMatchObject({ style: 'long', part: 0, thickness: 1.4 }); expect(listed.hair.locks).toEqual({ 'left-temple-0': { ty: 0.5 } });
     // without a base: exactly the composition before it
     expect(composeAnime(own(), 'bob').hair).toEqual({ ...resolveAnimeHair([{ style: null, locks: {} }]), style: 'bob' }); expect(composeAnime(own(), 'bob').hairCut).toBeNull();
     // the words' own values never advise (the cut's lock edits past ±0.2 are the word's); the operator's past them do

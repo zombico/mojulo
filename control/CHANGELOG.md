@@ -12,6 +12,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Figure hair
+
+Four anime cuts from the operator's sketches, as hair words anywhere a hair word goes, and the construction words they
+needed on the anime head. Being built on this branch.
+
+- **The cuts.** `flipped-long` (long, curtain bangs framing the face, the ends kicked out), `blunt-bob` (a level fringe
+  split off centre, the left side falling long), `side-tail` (the side-parted sheet gathered into a low tail over the
+  left shoulder) and, for the male, `wild-spikes` (after Toriyama's spiky heroes: six broad spikes off the crown, the back falling in one
+  curve to a point at the nape, heavy bangs hanging over the brow).
+- **The words.** `flip`, `spikes`, `sideTail` (its clump `tail`, part `hairTail`) and `fringeNotch` join the hair form
+  words; each is absent unless given, so every stored hero builds as before.
+- **Fixed.** An anime hero whose hair is a list (`['long', { locks }]`) now wears that family: before, the list was not
+  read as naming one, the base's cut was worn under it and its clump edits were lost.
+
 ### Figure articulation: pelvic
 
 The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike, and
