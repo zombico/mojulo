@@ -234,6 +234,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   The sun sits on the dome where the bake's sun is.
 - Other stage kits are byte-identical.
 
+### Stage live grass
+
+- `wind` on an isekai recipe turns on a LIVE FIELD of grass on the World page (`lib/graph/scene/channels/stage-grass.js`).
+  - Grown stylized blades stand within 30 m of the walker, placed in the page from grids the stage ships: heights, a
+    grass mask that keeps them off the trail, rocks, trunks and the cliff, and the sun's shade.
+  - They thin with distance and bend in the terrain's gust field.
+- The palette lock holds through the motion. Each blade's colour is looked up from a nearest-filtered ramp texture of
+  the grass stops by its height and its lit or shade window, so only palette stops reach the screen.
+- A gust above the mean steps the upper blade up the ramp: the gust is seen as a bright band rolling across the field.
+- Blades near the walker bend away from it.
+- The static blade cards stay as the floor and as the band beyond 30 m. Inside the field's reach they dissolve, dithered
+  across its edge.
+- The tree crowns sway in the same gust field, weighted by height above the ground.
+- Absent `wind`, the payload is byte-identical.
+
 ### Stage doors
 
 - A stage recipe can name DOOR ENDS (`doors: [{ id, at, to: { map, door } }]`), resolved by

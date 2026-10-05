@@ -68,12 +68,18 @@ export const ISEKAI_MEADOW = Object.freeze({
     tint: { fringe: [1, 1, 1], meadow: [1, 1, 1], cliff: [1, 1, 1], scatter: [1, 1, 1] }, shade: 1,
     cards: { height: 1, width: 1.1 },
     // the FIELD: a sea of blades within `reach` m of the trail's edge (wandering), a tuft every `every` m
-    field: { reach: 7, every: 0.62, height: [0.55, 1.0] },
+    field: { reach: 7, every: 0.7, height: [0.55, 1.0] },
   },
   // TREES: `height` × the tree's height is the crown's heart, `radius` × it the crown's reach; a top mass and a ring of
   // `masses` round it; `trunk` × height the trunk's radius at its foot
   trees: { variants: 3, clusters: 5, perCluster: [1, 4], spread: 5, heights: [6, 10], clearTrail: 3.5, clearCliff: 5, crown: { height: 0.62, radius: 0.34, masses: [5, 7], squash: 0.82, trunk: 0.045 },
     hero: { y: 47, side: 1, off: 7, h: 14, masses: [8, 9] } },
+  // LIVE GRASS (with `wind`, scene/channels/stage-grass.js): grown stylized blades round the walker to `radius` m, every
+  // tuft within `near`, thinning past it; a gust above the mean steps a blade `sheen` stops up its ramp; the walker
+  // parts the grass within `part.r` m. The crowns sway: a pendulum push φ·u|u| (`phi`) over `reach`, a leaf `flutter`,
+  // weighted from `from` to `full` m above the ground
+  live: { win: { lit: [1, 3], shade: [0, 2] }, kind: 'meadow', variants: 3, radius: 30, near: 7, tile: 8, density: 5, height: [0.45, 0.9], px: { L2: 55, L1: 16 }, drawTris: 700000, sheen: 1, part: { r: 1.1, k: 0.5 },
+    crowns: { phi: 0.5, reach: 1, flutter: 0.05, from: 1.2, full: 6 } },
   contact: { rock: 0.35, tree: 0.3 },
   light: { key: { color: '#fff2d0', elevation: 42, azimuth: 60 }, ambient: '#86aede', fill: 0.62, bounce: [0.7, 0.8, 0.5], bounceGain: 0.12, sunGain: 1.15 },
   // the haze is thin (FogExp2: a layer 300 m out keeps four fifths of its own colour): the layers make the depth

@@ -149,3 +149,55 @@ describe('the isekai meadow', () => {
     expect(html.length).toBeLessThan(STAGE_PAGE_BUDGET);
   });
 });
+
+describe('the isekai meadow, live (`wind`)', () => {
+  const W = assembleStageScene({ ...M, wind: true }), LG = W.liveGrass;
+  const dec = (v) => { const b = Buffer.from(v.__b64, 'base64'); return new globalThis[v.t](b.buffer, b.byteOffset, b.byteLength / globalThis[v.t].BYTES_PER_ELEMENT); };
+  const mask = dec(LG.grid.m), CX = LG.grid.nx - 1;
+  const cell = (x, y) => mask[Math.floor((y - LG.grid.y0) / LG.grid.cell) * CX + Math.floor((x - LG.grid.x0) / LG.grid.cell)];
+
+  it('is opt-in: without wind the payload carries no live grass and the page no channel', () => {
+    expect('liveGrass' in p).toBe(false);
+    const page = (q) => emitThreeWorld({ ...q, textures: collectFaceTextures(q.faces), inline: true });
+    expect(page(p)).not.toContain('stage live grass');
+    const on = page(W);
+    expect(on).toContain('stage live grass');
+    expect(on).toContain('terrain wind');
+    expect(on.length).toBeLessThan(STAGE_PAGE_BUDGET);
+    // the static floor is the same with or without the wind
+    expect(JSON.stringify(W.faces)).toBe(JSON.stringify(p.faces));
+  });
+
+  it('ships the ground: heights over the landform grid, and a mask that keeps grass off the trail, the rocks, the trunks and the cliff', () => {
+    expect(dec(LG.grid.z).length).toBe(LG.grid.nx * LG.grid.ny);
+    expect(mask.length).toBe(CX * (LG.grid.ny - 1));
+    let grass = 0, lit = 0; for (const v of mask) { if (v & 1) grass++; if (v & 2) lit++; }
+    expect(grass / mask.length).toBeGreaterThan(0.3);
+    expect(lit).toBeGreaterThan(0); expect(lit).toBeLessThan(grass);   // some shade, mostly sun
+    for (let y = 2; y < site.D - 2; y += 3) expect(cell(site.trailX(y), y) & 1).toBe(0);
+    for (const r of rockItems(st, site, 1).filter((r) => r.role !== 'pebble')) expect(cell(r.x, r.y) & 1).toBe(0);
+    const cliff = p.faces.filter((f) => f.group === 'isekai:cliff').map(centroid);
+    for (const c of cliff.slice(0, 200)) expect(cell(c[0], c[1]) & 1).toBe(0);
+    // and the grass grows well clear of them
+    expect(cell(site.trailX(20) + 6, 20) & 1).toBe(1);
+  });
+
+  it('is pixel-locked through the motion: each instance draws inside a window of the grass ramp, and the colour is the stop', () => {
+    expect(LG.ramp).toEqual(st.palette.grass);
+    for (const w of [LG.win.lit, LG.win.shade]) { expect(w[0]).toBeGreaterThanOrEqual(0); expect(w[1]).toBeLessThan(LG.ramp.length); expect(w[1]).toBeGreaterThan(w[0]); }
+    expect(LG.win.lit[1]).toBeGreaterThan(LG.win.shade[1]);
+    expect(LG.sheen).toBeGreaterThan(0);
+    expect(LG.radius).toBe(30);
+    // the templates carry positions only: no colour rides with a blade
+    for (const t of LG.templates) { expect(t.col).toBeUndefined(); expect(t.H).toBeGreaterThan(0.5); }
+    expect(LG.variants.every((v) => ['L2', 'L1', 'L0'].every((l) => Number.isInteger(v[l])))).toBe(true);
+  });
+
+  it('sways the crowns and the wood in the same wind, and dissolves the static cards inside the field', () => {
+    expect(LG.crowns.groups).toEqual(['isekai:crown', 'isekai:wood']);
+    expect(LG.cards).toEqual(['isekai:grass']);
+    expect(LG.wind.grass.length).toBe(1);
+    expect(LG.taker.phi).toBeGreaterThan(0);
+    expect(LG.wind.debris).toBeUndefined();   // no leaves blowing through a pixel-locked palette
+  });
+});

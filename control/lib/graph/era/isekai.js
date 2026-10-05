@@ -28,6 +28,8 @@ import { blobTris } from '../vegetation/tree-mesh.js';
 import { lockFaces } from './palette.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
+import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
+import { grassLadder } from '../vegetation/grass.js';
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -232,6 +234,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
     glow: false,
     pack: true,
+    ...(manifest.wind ? { liveGrass: liveGrassConfig(st, site, rocks, trees, shadow, manifest.wind, seed) } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
   };
 }
@@ -282,6 +285,51 @@ export function layerFaces(st, site, dir = [0, 0, 1]) {
     }
   });
   return out;
+}
+
+const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
+/**
+ * The LIVE GRASS the World page stands round the walker with `wind` (scene/channels/stage-grass.js): the ground as the
+ * landform grid's heights, and per cell a mask — bit 0: grass may stand (not the cliff, the scree apron, the trail's
+ * packed ribbon, a rock's footprint or a trunk); bit 1: the sun reaches it — the stylized meadow's grown tufts (positions
+ * only: the colour is the ramp's, by height), the grass ramp and its lit and shade windows, the wind and its grass taker,
+ * and the crowns that sway.
+ */
+export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1) {
+  const L = st.live, g = site.grid, nx = g.nx, ny = g.ny, x0 = gridX(g, 0), y0 = gridY(g, 0), cell = gridX(g, 1) - x0;
+  let lo = Infinity, hi = -Infinity; for (const z of g.z) { lo = Math.min(lo, z); hi = Math.max(hi, z); }
+  const zsc = Math.max(1e-6, (hi - lo) / 65535), zq = Int16Array.from(g.z, (z) => Math.round((z - lo) / zsc) - 32768);
+  const m = new Uint8Array((nx - 1) * (ny - 1)), node = (i, j) => [gridX(g, i), gridY(g, j), g.z[j * nx + i]];
+  for (let j = 0; j + 1 < ny; j++) for (let i = 0; i + 1 < nx; i++) {
+    const cs = [node(i, j), node(i + 1, j), node(i + 1, j + 1), node(i, j + 1)], c = mean(cs), n = facet(cs, [0, 0, 1]);
+    if (c[0] > site.W || n[2] < st.slope.rock) continue;
+    if ((g.apron[j * nx + i] + g.apron[(j + 1) * nx + i + 1]) / 2 > st.landform.apronMin) continue;
+    if (site.trailDist(c[0], c[1]) < site.halfWAt(c[1]) + 0.1) continue;
+    if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - c[0], r.y - c[1]) < r.size * st.rubble.unit * 0.5 + 0.15)) continue;
+    if (trees.some((t) => Math.hypot(t.x - c[0], t.y - c[1]) < 0.45)) continue;
+    m[j * (nx - 1) + i] = 1 | (shadow([c[0], c[1], c[2] + 0.3], [0, 0, 1]) > 0 ? 2 : 0);
+  }
+  // the grown tufts, positions only, quantized; a variant's levels index into the templates
+  const templates = [], variants = [];
+  for (let v = 0; v < L.variants; v++) {
+    const lad = grassLadder(L.kind, { seed: 17 + 31 * v, style: 'stylized' }), yaw = (v * 2 * Math.PI) / L.variants, cy = Math.cos(yaw), sy = Math.sin(yaw), ids = {};
+    for (const lv of ['L2', 'L1', 'L0']) {
+      const P = lad[lv].flatMap((t) => t.p.flatMap((q) => [q[0] * cy - q[1] * sy, q[0] * sy + q[1] * cy, q[2]]));
+      const plo = [0, 1, 2].map((k) => Math.min(...P.filter((_, i) => i % 3 === k))), phi = [0, 1, 2].map((k) => Math.max(...P.filter((_, i) => i % 3 === k)));
+      const sc = plo.map((l, k) => Math.max(1e-9, (phi[k] - l) / 65535));
+      templates.push({ lo: plo.map(r5), sc, q: b64(Int16Array.from(P, (x, i) => Math.round((x - plo[i % 3]) / sc[i % 3]) - 32768)), H: r5(phi[2]), tris: lad[lv].length });
+      ids[lv] = templates.length - 1;
+    }
+    variants.push(ids);
+  }
+  const spec = resolveTerrainWind(wind === true ? { debris: false } : { ...wind, debris: false });
+  const W = windPageChannel(spec, { grassKinds: [L.kind] }), T = st.tiles.blades;
+  return {
+    grid: { x0: r5(x0), y0: r5(y0), cell: r5(cell), nx, ny, zlo: r5(lo), zsc, z: b64(zq), m: b64(m) },
+    ramp: st.palette.grass, win: L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] },
+    templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: L.density, height: L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
+    sheen: L.sheen, part: L.part, taker: W.grass[0], cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns } : null, wind: W,
+  };
 }
 
 /**
