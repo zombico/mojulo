@@ -373,7 +373,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block),
   `jingo` (bananas only, few, grown from the dome like a cap), `jona` (layered banana
   PEELS: leaf-shaped, thin, cupped; the young-Bieber swoop) and `kairo` (chili peppers only, a wolf cut); shaped hair never
-  cuts through the body it is worn on, and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
+  cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
+  `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
   sum, a family and a pose last-wins; the own `face` / `sculpt` / `hair` / `expression` / `tune` apply ON TOP (`/hero/hair/length`
   1.1 is ten percent over the look). `look: ['rival', 'tareme']`, then `set /hero/look` to add or peel a word (a list is

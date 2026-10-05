@@ -335,6 +335,26 @@ export function buildAnime(r, options = {}) {
   for (let j = 0; j < neckRings.length - 1; j++) for (let i = 0; i < 40; i++) quad('skin', neckRings[j][i], neckRings[j][(i + 1) % 40], neckRings[j + 1][(i + 1) % 40], neckRings[j + 1][i]);
 
   const neckEnd = parts.skin.length;
+  // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
+  // sheet lying on the skin in FRONT of each ear, from under the hair's edge at the temple down to the ear's lower third,
+  // its front edge drawing back as it falls (a sideburn's taper), its back edge at the ear's front, so no bare gap shows
+  // between the hair and the ear.
+  // Its own part (`burn`, one run per side); the head wears it in the hair's colour, and a bald head not at all (its
+  // own skin is the face's colour, with no edge for the ink to outline)
+  const burns = [];
+  if (options.sideburnPatch) {
+    parts.burn = [];
+    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yTop = 0.22, yBot = earY - 0.06, I = 6, J = 10;
+    for (const side of [-1, 1]) {
+      const start = parts.burn.length, at = (i, j, off) => { const y = yTop + (yBot - yTop) * j / J, u0 = 0.84 + 0.1 * (j / J) ** 2, u = side * (u0 + (0.955 - u0) * i / I), p = surface(u, y);
+        const n = unit([p[0], 0, p[2] - 0.07]); return add(p, mul(n, off)); };
+      const lo = 0.004, hi = 0.018, Q = (a, b, c, d) => (side > 0 ? quad('burn', a, b, c, d) : quad('burn', d, c, b, a));
+      for (let j = 0; j < J; j++) for (let i = 0; i < I; i++) { Q(at(i, j, hi), at(i, j + 1, hi), at(i + 1, j + 1, hi), at(i + 1, j, hi)); Q(at(i + 1, j, lo), at(i + 1, j + 1, lo), at(i, j + 1, lo), at(i, j, lo)); }
+      for (let j = 0; j < J; j++) { Q(at(0, j, lo), at(0, j + 1, lo), at(0, j + 1, hi), at(0, j, hi)); Q(at(I, j, hi), at(I, j + 1, hi), at(I, j + 1, lo), at(I, j, lo)); }
+      for (let i = 0; i < I; i++) { Q(at(i, 0, lo), at(i, 0, hi), at(i + 1, 0, hi), at(i + 1, 0, lo)); Q(at(i + 1, J, lo), at(i + 1, J, hi), at(i, J, hi), at(i, J, lo)); }
+      burns.push({ side, start, count: parts.burn.length - start });
+    }
+  }
   // Hair cap + individually directed swept solid clumps.
   const vx = h.volume * f.width, vy = h.volume, depth = h.volume, short = h.style === 'short', hime = h.style === 'hime';
   // the HAIR FORM (see the header): a neutral word dropped first, so an absent, empty or all-neutral form runs the studio's
@@ -641,7 +661,7 @@ export function buildAnime(r, options = {}) {
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
   for (const lk of locks) for (const key of ['root', 'control', 'tip']) lk[key] = pitched(lk[key]);
-  return { headPolygons, parts, cage, guides, locks, recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
+  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
 }
 
 /** The SCULPT's neutral values (buildAnime's own units): a word equal to its neutral is dropped before the build, so an

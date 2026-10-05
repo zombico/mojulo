@@ -752,7 +752,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
   // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
   const HAIR_FORM = bald ? null : animeHairForm(H);
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}) });
+  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;
@@ -804,6 +804,9 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
     if (model.parts.catch?.length) lens('catch', 'Sclera', 0.001 * S);
   }
   if (!bald) {
+    // the sideburn patches before the ears (anime-form `sideburnPatch`), in the hair's colour; a bald head shows its own
+    // skin there (the face's colour, with no patch edge for the ink to outline)
+    for (const b of model.burns ?? []) { if (!b.count) continue; const m = outward(orientConsistently(meshOf(trisOf(model.parts.burn, b.start, b.start + b.count), null))); m.groups = m.groups.map(() => 'Hair'); meshes[b.side > 0 ? 'hairSideburnR' : 'hairSideburnL'] = m; }
     const cap = orientConsistently(meshOf(trisOf(model.parts.hair, model.cap.start, model.cap.end), null)); cap.groups = cap.groups.map(() => 'Hair');
     outward(cap, [0, 0, 1]); meshes.hairCap = solidify(cap, 0.03 * S);
     for (const lk of model.locks) { if (!lk.count) continue; const m = outward(orientConsistently(meshOf(trisOf(model.parts.hair, lk.start, lk.start + lk.count), null))); m.groups = m.groups.map(() => 'Hair'); meshes[LOCK_PART(lk.name)] = m; }

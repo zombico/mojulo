@@ -30,6 +30,10 @@ needed on the anime head. Being built on this branch.
   neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
   PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop.
+- **Sideburn patches.** Every anime head with hair now wears a thin patch in the hair's colour on the skin before each
+  ear, from under the hair's edge to the ear's lower third, so no bare gap shows between the hair and the ear
+  (`hairSideburnL`, `hairSideburnR`). A bald head shows its own skin there. The anime heroes' pinned payloads moved
+  with it.
   A layer's `swirl` turns its flow one way (a fringe swept off its part), and a style takes up to 12 layers.
   `sideburns` works on any style. The
   principles and recipes cross-referenced to shonen and JRPG heroes are in `docs/examples/humanoid/DESIGNING.md`.
