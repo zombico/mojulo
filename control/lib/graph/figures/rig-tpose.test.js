@@ -112,10 +112,10 @@ describe('the T-pose mold', () => {
     expect(() => tposeFrames([{ id: 'spine', head: [0, 0, 1], tail: [1, 0, 1] }])).toThrow(/not a humanoid rig/);
   });
 
-  it('the skinned GLB of a moulded figure parses: the same clips, and the engine skeleton adds the hand and foot leaves and the clavicles as bones', () => {
+  it('the skinned GLB of a moulded figure parses: the same clips, and the engine skeleton adds the hand and foot leaves, the trunk joints and the clavicles as bones', () => {
     const a = parseGlb(facesToGlb({ faces: [], figures: { f: flat } }, { clips: '_all', skinned: true, humanoid: true }).bytes);
     const b = parseGlb(facesToGlb({ faces: [], figures: { f: tposeRig(flat) } }, { clips: '_all', skinned: true, humanoid: true }).bytes);
-    expect(b.json.skins[0].joints.length).toBe(a.json.skins[0].joints.length + humanoidBonesFor(flat.bones).leaves.length + 2);   // and the two clavicles
+    expect(b.json.skins[0].joints.length).toBe(a.json.skins[0].joints.length + humanoidBonesFor(flat.bones).leaves.length + 4);   // and the chest, upper chest and two clavicles
     expect(b.json.animations.map((x) => x.name)).toEqual(a.json.animations.map((x) => x.name));
   });
 

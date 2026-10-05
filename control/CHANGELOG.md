@@ -33,7 +33,9 @@ rewritten as its phase lands.
   export is byte-identical.
 - **An engine skeleton, and Godot.** With `rest: 'tpose'` the skinned humanoid is written the way the engines read one:
   joints nested on the VRM humanoid tree (the biped's hand and foot leaves, and a clavicle each side, as weightless bones:
-  an engine's humanoid profile hangs the arm off a shoulder with a large rest turn), each parent-local, in
+  an engine's humanoid profile hangs the arm off a shoulder with a large rest turn; and the chest and upper chest a rig
+  lacks, split out of its torso bone with the torso's skin spread along them, so a retargeted chest turn bends the
+  flesh), each parent-local, in
   the VRM space (y up, facing +z, the figure's left on +x), every rest rotation the identity. Beside the GLB come a
   Godot `BoneMap` per figure and the `.import` naming it (place the folder at `res://mojulo/<ref>/`): on import Godot
   renames the bones to its humanoid profile and the skeleton becomes `%GeneralSkeleton`, so the project's humanoid

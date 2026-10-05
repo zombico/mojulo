@@ -367,9 +367,18 @@ source:
 - the flat figure within 21° (the arms), and the trunk within 12°;
 - the legs within 4.6° on both.
 
-The remainder follows the trunk: the source has spine, chest, upper chest and neck, the hero lacks
-the upper chest, and the flat figure has one spine bone. Weightless trunk joints like the
-clavicles would close more of it.
+The remainder followed the trunk: the source has spine, chest, upper chest and neck, the hero lacks
+the upper chest, and the flat figure has one spine bone.
+
+**The trunk joints** (`withTrunkJoints`) close it. The top trunk bone is *split*: chest and upper
+chest joints are placed along it, and its skin is spread over the chain with piecewise-linear
+weights by height. A retargeted chest or upper-chest turn then bends the torso's flesh along with
+the arms and head instead of shearing against it. The joints ride the split bone in every key, so
+mojulo's own clips are unchanged. With them, `Dance_Loop` lands:
+- arms within 1.0° on the flat figure, the hero, and the heroine (a full anime hero minted at the
+  door and exported by the real `export_model { rest: 'tpose' }`);
+- trunk within 5–8° (the flat figure still has no neck);
+- legs within 4.6°.
 
 **Godot.** Beside the GLB, `export_model` writes a `BoneMap` per figure (`godot-humanoid.js`: the
 profile names are the VRM names capitalised; Godot names a joint `<figure>:<vrm>` as the bone

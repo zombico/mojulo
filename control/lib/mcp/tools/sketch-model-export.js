@@ -16,7 +16,7 @@ import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { tposeRig, withClavicles } from '@/lib/graph/figures/rig-tpose';
+import { tposeRig, withProfileJoints } from '@/lib/graph/figures/rig-tpose';
 import { isHumanoidRig, humanoidBonesFor } from '@/lib/graph/polygonizer/figure-humanoid-map';
 import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport } from '@/lib/graph/scene/godot-humanoid';
 import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
@@ -1122,7 +1122,7 @@ export async function exportModelHandler(input, context = {}) {
     if (format === 'glb' && tposed?.figures.length && payload?.figures) {
       const godotDir = `mojulo/${ref}`, written = [];
       for (const f of tposed.figures) {
-        const { names, leaves } = humanoidBonesFor(withClavicles(payload.figures[f]).bones);   // the engine skeleton's bones, its clavicles among them
+        const { names, leaves } = humanoidBonesFor(withProfileJoints(payload.figures[f]).bones);   // the engine skeleton's bones, its inserted joints among them
         await fs.writeFile(path.join(dir, godotBoneMapFile(f)), godotBoneMapTres(f, [...names.values(), ...leaves.map((l) => l.vrm)]));
         written.push(godotBoneMapFile(f));
       }

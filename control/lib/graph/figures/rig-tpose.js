@@ -235,3 +235,74 @@ export function withClavicles(fig) {
   }));
   return { ...fig, bones: [...fig.bones, ...added.map((a) => ({ ...a, head: a.head.map(r4), tail: a.tail.map(r4) }))], parts: [...fig.parts, ...added.map(() => null)], clips };
 }
+
+/**
+ * The engine skeleton's TRUNK joints: a rig whose trunk is coarser than the profile's (the flat figure's one `spine`
+ * bone; the hero's `chest` with no upper chest) has its top trunk bone SPLIT — joints `trunkChest` / `trunkUpperChest`
+ * (VRM chest / upperChest) placed along it, the bone's skin spread over the chain by where each vertex lies along the
+ * segment (piecewise-linear hats; a rigid part gains its weights here), so a retargeted chest or upper-chest turn bends
+ * the torso's flesh with the arms and head instead of shearing it. The new joints ride the split bone in every clip key,
+ * so the pack's own motion is unchanged. Appended at the end (skin indices stay valid). No-op when the profile's trunk
+ * is all there.
+ */
+export function withTrunkJoints(fig) {
+  const { names } = humanoidBonesFor(fig.bones);
+  const by = new Map([...names].map(([i, v]) => [v, i]));
+  if (by.has('upperChest')) return fig;
+  const top = by.get('chest') ?? by.get('spine');
+  if (top === undefined) return fig;
+  const B = fig.bones[top], seg = sub(B.tail, B.head), L2 = dot(seg, seg) || 1;
+  const cuts = by.has('chest') ? [['trunkUpperChest', 0.5]] : [['trunkChest', 1 / 3], ['trunkUpperChest', 2 / 3]];
+  const nb = fig.bones.length, nb2 = nb + cuts.length;
+  const at = (f) => add(B.head, seg.map((c) => c * f));
+  const added = cuts.map(([id, f]) => ({ id, head: at(f).map(r4), tail: [...B.tail] }));
+  // the chain the bone's skin spreads over: [the bone at 0, each cut at its share]
+  const chain = [[top, 0], ...cuts.map(([, f], j) => [nb + j, f])];
+  const hats = (v) => {
+    const u = Math.max(0, Math.min(1, dot(sub(v, B.head), seg) / L2));
+    for (let j = chain.length - 1; j >= 0; j--) {
+      if (u < chain[j][1]) continue;
+      if (j === chain.length - 1) return [[chain[j][0], 1]];
+      const t = (u - chain[j][1]) / (chain[j + 1][1] - chain[j][1]);
+      return [[chain[j][0], 1 - t], [chain[j + 1][0], t]];
+    }
+    return [[top, 1]];
+  };
+  const b64u8 = (arr) => Buffer.from(Uint8Array.from(arr).buffer).toString('base64');
+  const parts = fig.parts.map((P, pi) => {
+    if (!P) return P;
+    const pos = f32(P.pos), n = pos.length / 3;
+    const jnt = P.jnt ? u8(P.jnt) : null, wgt = P.wgt ? f32(P.wgt) : null;
+    if (!jnt && pi !== top) return P;              // a rigid part of another bone: the exporter's capsule weights, as ever
+    let touched = false;
+    const J = new Array(4 * n).fill(0), W = new Array(4 * n).fill(0);
+    for (let k = 0; k < n; k++) {
+      const v = [pos[3 * k], pos[3 * k + 1], pos[3 * k + 2]];
+      const inf = jnt ? [0, 1, 2, 3].map((s) => [jnt[4 * k + s], wgt[4 * k + s]]).filter(([, w]) => w > 0) : [[pi, 1]];
+      const out = [];
+      for (const [j, w] of inf) { if (j === top) { touched = true; for (const [c, h] of hats(v)) if (h > 0) out.push([c, w * h]); } else out.push([j, w]); }
+      out.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+      const keep = out.slice(0, 4), sum = keep.reduce((a, [, w]) => a + w, 0) || 1;
+      keep.forEach(([j, w], s) => { J[4 * k + s] = j; W[4 * k + s] = w / sum; });
+    }
+    return touched ? { ...P, jnt: b64u8(J), wgt: b64f32(W) } : P;
+  });
+  const clips = Object.fromEntries(Object.entries(fig.clips || {}).map(([name, c]) => {
+    const b = new Array(c.k * nb2 * 7);
+    for (let k = 0; k < c.k; k++) {
+      for (let i = 0; i < nb * 7; i++) b[k * nb2 * 7 + i] = c.b[k * nb * 7 + i];
+      const po = (k * nb + top) * 7, q = [c.b[po], c.b[po + 1], c.b[po + 2], c.b[po + 3]], h = [c.b[po + 4], c.b[po + 5], c.b[po + 6]];
+      added.forEach((a, j) => {
+        const o = (k * nb2 + nb + j) * 7, d = qrot(q, sub(a.head, B.head));
+        b[o] = q[0]; b[o + 1] = q[1]; b[o + 2] = q[2]; b[o + 3] = q[3];
+        b[o + 4] = r4(h[0] + d[0]); b[o + 5] = r4(h[1] + d[1]); b[o + 6] = r4(h[2] + d[2]);
+      });
+    }
+    return [name, { ...c, b }];
+  }));
+  return { ...fig, bones: [...fig.bones, ...added], parts: [...parts, ...added.map(() => null)], clips };
+}
+
+/** Every joint the engine skeleton adds to meet the humanoid profile: the trunk joints, then the clavicles (which then
+ * hang off the upper chest). */
+export const withProfileJoints = (fig) => withClavicles(withTrunkJoints(fig));

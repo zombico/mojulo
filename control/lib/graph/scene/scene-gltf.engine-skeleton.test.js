@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { facesToGlb } from './scene-gltf.js';
 import { parseGlb } from './scene-gltf-read.js';
 import { assembleFigureScene } from '../figures/figure-world.js';
-import { tposeRig, vrmSpacePack, humanoidParents, withClavicles } from '../figures/rig-tpose.js';
+import { tposeRig, vrmSpacePack, humanoidParents, withClavicles, withTrunkJoints, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -26,7 +26,7 @@ const flatT = Object.values(assembleFigureScene({ motion: { emote: 'bow' } }, { 
 
 function checkEngineSkeleton(packed) {
   const { json, bin } = parseGlb(facesToGlb({ faces: [], figures: { f: packed } }, { clips: '_all', skinned: true, humanoid: true }).bytes);
-  const fig = withClavicles(packed);   // the engine skeleton's bones: the pack's and its weightless clavicles
+  const fig = withProfileJoints(packed);   // the engine skeleton's bones: the pack's, its trunk joints and its clavicles
   const skin = json.skins[0], joints = skin.joints, parents = humanoidParents(fig.bones), V = vrmSpacePack(fig);
   const parentNode = new Map();
   json.nodes.forEach((n, i) => (n.children || []).forEach((c) => parentNode.set(c, i)));
@@ -95,6 +95,23 @@ describe('the engine skeleton', () => {
     expect(humanoidParents(C.bones)[by.leftUpperArm]).toBe(by.leftShoulder);
     expect(C.bones[by.leftShoulder].tail).toEqual(C.bones[by.leftUpperArm].head);
     expect(withClavicles(C)).toBe(C);
+  });
+
+  it('the trunk joints: the flat figure\'s spine split into spine, chest and upper chest; its own motion unchanged', () => {
+    const T = withTrunkJoints(flatT), { names } = humanoidBonesFor(T.bones), by = Object.fromEntries([...names].map(([i, v]) => [v, i]));
+    expect(T.bones.length).toBe(flatT.bones.length + 2);
+    expect(humanoidParents(T.bones)[by.upperChest]).toBe(by.chest);
+    expect(humanoidParents(T.bones)[by.head]).toBe(by.upperChest);
+    expect(humanoidParents(withProfileJoints(flatT).bones)[by.upperChest + 1]).toBe(by.upperChest);   // a clavicle hangs off it
+    // the torso part now carries weights over the chain, each vertex summing to 1, the chest and upper chest among them
+    const P = T.parts[by.spine], j = Uint8Array.from(Buffer.from(P.jnt, 'base64')), w = new Float32Array(Uint8Array.from(Buffer.from(P.wgt, 'base64')).buffer);
+    const used = new Set();
+    for (let k = 0; k < j.length / 4; k++) { let s = 0; for (let a = 0; a < 4; a++) { s += w[4 * k + a]; if (w[4 * k + a] > 0) used.add(j[4 * k + a]); } expect(s).toBeCloseTo(1, 5); }
+    expect([...used].sort()).toEqual([by.spine, by.chest, by.upperChest].sort());
+    // the new joints ride the spine: in every key of the pack's own clip they carry its rotation
+    const nb = T.bones.length, c = Object.values(T.clips)[0];
+    for (let k = 0; k < c.k; k++) for (const v of [by.chest, by.upperChest]) expect(c.b.slice((k * nb + v) * 7, (k * nb + v) * 7 + 4)).toEqual(c.b.slice((k * nb + by.spine) * 7, (k * nb + by.spine) * 7 + 4));
+    expect(withTrunkJoints(T)).toBe(T);
   });
 
   it('a pack without the T-pose keeps the flat skeleton, byte for byte as before', () => {

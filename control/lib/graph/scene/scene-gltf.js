@@ -33,7 +33,7 @@ import { drawLayerGroup } from './channels/draw-layers.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, zRotationQuat } from './scene-gltf-level.js';
-import { vrmSpacePack, humanoidParents, withClavicles } from '../figures/rig-tpose.js';
+import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 
 const COMPONENT_FLOAT = 5126;
@@ -1364,7 +1364,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // toon.bake reaches skinned figures as a second, skin-bound ink primitive (rigid FK figures are
     // left un-inked: their World outline is the live channel's; a bake for them can follow demand)
     // the T-pose export's figures (a `tpose` pack, humanoid) go out as an ENGINE SKELETON: nested, in the VRM space
-    const engine = skinned && humanoid && fig.tpose ? (() => { const f = withClavicles(fig); return { fig: vrmSpacePack(f), parents: humanoidParents(f.bones) }; })() : null;
+    const engine = skinned && humanoid && fig.tpose ? (() => { const f = withProfileJoints(fig); return { fig: vrmSpacePack(f), parents: humanoidParents(f.bones) }; })() : null;
     const added = skinned ? b.addSkinnedRigFigure(name, engine ? engine.fig : fig, clipNames, { humanoid, ink: inkCfg ? { ...inkCfg, material: inkMat } : null, ...(engine ? { parents: engine.parents } : {}) }) : b.addRigFigure(name, fig, clipNames);
     if (!added.nodes) continue;
     animatedFigures.push(name);
