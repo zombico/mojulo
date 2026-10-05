@@ -113,6 +113,12 @@ lands.
   brow's outer end stands level with the corner of the eye instead of sinking in behind it, so the far side of the face
   no longer caves in over the eye in the ¾ and the profile. The hair rides the new forehead. Every hero with the landmark
   head changes a little above the eyes, the streamlined core's too.
+- **The ear.** The ear is an ear, not an egg, on the landmark and the anime head alike. From the side the broad top
+  runs into a nearly straight back edge and down on a diagonal into a broad lobe, the front open where the rim ends, the
+  ear leaning back. It is a thin plate, like a leaf, joined to the head at its front and angled off it toward its back.
+  On the landmark ear the rim is raised, the antihelix rises inside it and the bowl dips behind, in the darker inner
+  tone, so the light shows its depth; the anime ear is a simpler rim, fold and bowl, drawn by its outline. The anime
+  head's studio-exact face (`sculpt: false`) keeps its own ear.
 - **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
   expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
   row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under
