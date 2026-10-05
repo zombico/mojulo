@@ -12,6 +12,7 @@ const page = (p, o = {}) => emitThreeWorld({ ...p, ...o, textures: collectFaceTe
 describe('the stage page budget', () => {
   it.each([
     ['the closed plaza with water, wind, a door and the key', { ...PLAZA, water: true, wind: true, doors: [{ id: 'church', at: { house: 1, side: '-x' }, to: { map: 'nave', door: 'west' } }], items: [{ id: 'key', at: [6, 13] }] }],
+    ['the closed plaza at night with water and wind', { ...PLAZA, time: 'night', water: true, wind: true }],
     ['the nave with fire, wind and its doors', { ...NAVE, fire: true, wind: true, doors: [{ id: 'west', at: { portal: true }, to: { map: 'plaza', door: 'church' } }] }],
   ])('%s opens under the budget', (_, m) => {
     const p = assembleStageScene(m);

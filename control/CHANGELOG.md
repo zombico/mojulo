@@ -236,6 +236,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The open set is byte-identical.
 
+### Stage night
+
+- `time: 'night'` on a stage whose style card carries a night (the plaza's does): the card's moon becomes the bake's
+  key (cool and low, casting the obelisks' long shadows) under a deep blue ambient, and the reference's air and dome
+  give way to the night's. The sky shows stars and a phase-carved moon placed on the dome where the moonlight comes
+  from, and the cloud deck is lit by the moon. The town beyond is dimmed.
+- The placed light makes the picture (era/plaza-night.js): lanterns on iron brackets by most doors, lanterns hung in
+  the portico's bays, a glow under the fountain's water, and some windows lit warm with their light spilled on the
+  sill. All of it is baked like the nave's torches; the lanterns' panes glow and carry a halo.
+- The style card's night has its own principles, each a machine check (plaza-night.test.js). `time: 'day'`, or no
+  `time`, is the plaza as before, byte for byte; a kit without a night refuses one.
+- Jets take an opt-in `lit` colour for the light their white water is seen in (`jetLight` on the page). The night
+  fountain uses it so its falling sheets aren't daylight-white. Jets without it emit as before.
+
 ### Stage page budget
 
 - A stage's World page now costs about 5 MB to open with every element on (the plaza was 8.7 MB), under a budget

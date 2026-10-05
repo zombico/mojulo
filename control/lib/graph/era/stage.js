@@ -169,7 +169,14 @@ export function planStage(m = {}) {
   });
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
   const first = rooms[0];
-  return { kit, kitId, ref, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto' };
+  // `time: 'night'`: the style card's night takes the reference's light and air; its moon is the key (the bake's sun)
+  const time = m.time ?? 'day';
+  if (time !== 'day' && time !== 'night') throw new Error(`stage: time must be 'day' or 'night', got ${JSON.stringify(time)}`);
+  const N = time === 'night' ? kit.dress && kit.dress.night : null;
+  if (time === 'night' && !(N && kit.sun)) throw new Error(`stage: kit '${kitId}' has no night (its style card carries none)`);
+  const nightRef = N ? { ...ref, light: { ...ref.light, ambient: N.light.ambient, key: { color: N.moon.color, elevation: N.moon.elevation, azimuth: N.moon.azimuth } }, air: { ...ref.air, ...N.air } } : ref;
+  const nightKit = N ? { ...kit, sky: { ...kit.sky, ...N.sky, sunGain: N.moon.gain } } : kit;
+  return { kit: nightKit, kitId, ref: nightRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}) };
 }
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
@@ -483,6 +490,14 @@ function torchFaces(l, live = false) {
 // ── the world kind ───────────────────────────────────────────────────────────
 const ambientOf = (ref) => hexRgb(ref.light.ambient).map((v) => Math.min(1, v * 1.7));
 
+/** The night sky: stars, and the moon placed on the dome where the bake's moonlight comes from (the dome's front sky
+ *  spans azimuths −180°…0°: u 0…1; h is elevation over 90°). */
+function nightSky(N, air) {
+  const az = ((((N.moon.azimuth % 360) + 540) % 360) - 180) * (Math.PI / 180);
+  return { zenith: air.dome.zenith, horizon: air.dome.horizon, day: 0, stars: N.stars, seed: 1,
+    moon: { u: +((az + Math.PI / 2) / Math.PI + 0.5).toFixed(4), h: +(N.moon.elevation / 90).toFixed(4), phase: N.moon.phase, size: N.moon.size } };
+}
+
 /** A stage's World page, every element on, stays under this (bytes, inline three.js included): what a level may cost to
  *  open, checked by stage-budget.test.js. */
 export const STAGE_PAGE_BUDGET = 7 * 1024 * 1024;
@@ -518,7 +533,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const hung = (f) => windSpec && Sw.groups[f.group] && typeof f.texture === 'string' && f.texture.startsWith('card:');
   const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
-  const lights = resolveStageLights(plan, seats);
+  // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
+  const lights = [...resolveStageLights(plan, seats), ...(dress && dress.night ? dress.night.lights : [])];
   // live fire (`manifest.fire`): a dressing's braziers stand by its portal and light the room like the torches do
   const live = !!manifest.fire, Fk = live && plan.kit.dress && plan.kit.dress.fire, portalBay = (geom.bays || []).find((b) => b.portal);
   const braziers = Fk && Fk.braziers && portalBay ? [-1, 1].map((sg) => {
@@ -556,7 +572,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const lookAt = !look ? [(r0.x0 + r0.x1) / 2, r0.y1, 1.8]
     : plan.links[0].wall.endsWith('y') ? [look[0], look[1], 1.8] : [look[1], look[0], 1.8];
   const air = plan.ref.air;
-  const faces = [...lit, ...fixtures, ...(dress ? dress.after : [])];
+  const faces = [...(dress && dress.night ? lit.map(dress.night.relight) : lit), ...fixtures, ...(dress ? dress.after : [])];
   const cutouts = [...new Set(faces.filter((f) => typeof f.texture === 'string' && f.texture.startsWith('card:')).map((f) => f.texture))].sort();
   return {
     faces,
@@ -579,10 +595,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // pilasters around it slice it into bright wedges
     glow: { scale: 0.32, opacity: 0.8 },
     // an exterior gets the reference's painted sky dome; an interior declares itself one (engines keep their sun out)
-    sky: daylight ? { zenith: air.dome.zenith, horizon: air.dome.horizon, day: 1, stars: 0, seed: 1 } : { preset: 'interior' },
+    sky: plan.night ? nightSky(plan.night, air) : daylight ? { zenith: air.dome.zenith, horizon: air.dome.horizon, day: 1, stars: 0, seed: 1 } : { preset: 'interior' },
     // the dressing's weather: the cloud deck over the square, lit by the same sun (an overlay: exports carry none)
     // live water's falling streams (materials/jet.js), drawn on the page; exports carry the painted floor instead
     ...(dress && dress.jets && dress.jets.length ? { jets: normalizeJets(dress.jets) } : {}),
+    // at night the falling water is seen in the basin's glow and the moon, not the sun (scene/channels/jet.js `lit`)
+    ...(plan.night && plan.night.jets && dress && dress.jets && dress.jets.length ? { jetLight: plan.night.jets } : {}),
     // live wind's hung cloth (scene/channels/stage-sway.js): indoors the wind is the draught through the doors
     ...(windSpec ? { sway: { wind: { speed: +(windSpec.speed * (Sw.draught ?? 1)).toFixed(4), dir: (windSpec.dir * Math.PI) / 180, gust: windSpec.gust, scale: windSpec.scale, evolve: windSpec.evolve,
       veer: (windSpec.veer * Math.PI) / 180, seed: windSpec.seed, z0: Sw.z0 }, groups: Sw.groups } } : {}),

@@ -172,7 +172,7 @@ export function plazaPortico(plan, site) {
   // what it stands on: the floor under the stylobate, the stair and the landing is cut away
   const corners = [fring(F, 0, U1, 0, depth + 0.12, 0), fring(F, foot, U1, o0, o1, 0)];
   const inside = (q) => corners.some((cs) => { const xs = cs.map((p) => p[0]), ys = cs.map((p) => p[1]); return q[0] >= Math.min(...xs) - 1e-6 && q[0] <= Math.max(...xs) + 1e-6 && q[1] >= Math.min(...ys) - 1e-6 && q[1] <= Math.max(...ys) + 1e-6; });
-  return { faces: out, F, wall, u0, U1, depth, deck, foot, under: (f) => f.corners.every(inside) };
+  return { faces: out, F, wall, u0, U1, depth, deck, foot, cols, ceiling: deck - Po.slab, under: (f) => f.corners.every(inside) };
 }
 
 /** The OBELISKS: either side of the fountain, across the line from the way in to the centre. The way in is the
@@ -237,7 +237,7 @@ export function plazaQuoins(plan, houses, portico) {
 export function plazaSkyline(plan, site, toSun) {
   const Sk = plan.kit.dress.skyline, { r } = site, horizon = plan.ref.air.dome.horizon.map((v) => v / 255), out = [];
   const tone = (f, rgb, fade) => {
-    const lam = Math.max(0, dot(f.normal, toSun)), light = 0.6 + 0.48 * lam;
+    const lam = Math.max(0, dot(f.normal, toSun)), light = (0.6 + 0.48 * lam) * (plan.night ? plan.night.far : 1);
     const { texture, textureLit, uv, tint, rib, ...g } = f;
     const c = rgb.map((v, k) => v * light + (horizon[k] - v * light) * fade);
     return { ...g, fill: `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0')).join('')}`, group: 'stage:skyline' };

@@ -122,7 +122,18 @@ const JUMP_MAIN = `{
 }
 #include <tonemapping_fragment>`;
 
-export function jetChannelScript({ jets, toLight = [0.4, 0.3, 0.8], sky = null, hud = true }) {
+// `lit` (opt-in, [r, g, b]): the light the white water and its glint are seen in, when it is not the sun's (a fountain
+// at night, lit by its basin and the moon). Absent ⇒ the shaders are emitted as they always were.
+function litShaders(lit) {
+  const L = `vec3(${lit.map((v) => (+v).toFixed(4)).join(', ')})`;
+  return {
+    frag: FRAG + `const vec3 JLIT = ${L};\n`,
+    main: FRAG_MAIN.replace('vec3 white = vec3(0.92, 0.95, 0.97)', 'vec3 white = JLIT * vec3(0.92, 0.95, 0.97)').replace('+ vec3(1.0, 0.96, 0.88) * pow(', '+ JLIT * vec3(1.0, 0.96, 0.88) * pow('),
+    jump: JUMP_MAIN.replace('vec3(0.95, 0.97, 0.98), ring)', `${L} * vec3(0.95, 0.97, 0.98), ring)`),
+  };
+}
+export function jetChannelScript({ jets, toLight = [0.4, 0.3, 0.8], sky = null, hud = true, lit = null }) {
+  const LS = Array.isArray(lit) && lit.length === 3 ? litShaders(lit) : null;
   const zen = sky && sky.zenith ? sky.zenith.map((c) => (c / 255) ** 2.2) : [0.25, 0.42, 0.68];
   const hor = sky && sky.horizon ? sky.horizon.map((c) => (c / 255) ** 2.2) : [0.7, 0.78, 0.84];
   return `
@@ -131,7 +142,7 @@ let stepJets = () => {};
 {
 ${FNS}
   const JETS = ${safeJson(jets)}, SUN = new THREE.Vector3(...${safeJson(toLight)}).normalize(), ZEN = new THREE.Vector3(...${safeJson(zen)}), HOR = new THREE.Vector3(...${safeJson(hor)});
-  const VERT = ${safeJson(VERT)}, VERT_MAIN = ${safeJson(VERT_MAIN)}, FRAG = ${safeJson(FRAG)}, FRAG_MAIN = ${safeJson(FRAG_MAIN)}, JUMP_FRAG = ${safeJson(JUMP_FRAG)}, JUMP_MAIN = ${safeJson(JUMP_MAIN)};
+  const VERT = ${safeJson(VERT)}, VERT_MAIN = ${safeJson(VERT_MAIN)}, FRAG = ${safeJson(LS ? LS.frag : FRAG)}, FRAG_MAIN = ${safeJson(LS ? LS.main : FRAG_MAIN)}, JUMP_FRAG = ${safeJson(JUMP_FRAG)}, JUMP_MAIN = ${safeJson(LS ? LS.jump : JUMP_MAIN)};
   const RINGS = ${RINGS}, SEGS = ${SEGS}, COLS = ${COLS}, APP = ${APP}, DT = 1 / 120;
   let seed = 0x0fa0ce7;
   const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

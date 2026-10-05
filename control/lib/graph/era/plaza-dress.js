@@ -13,6 +13,7 @@
 import { hash3, vnoise, walkLine } from './dirt.js';
 import { P, r5, card as cardRaw, box, wallFrame, lathe } from './geom.js';
 import { sunDir } from './sun.js';
+import { plazaNight } from './plaza-night.js';
 import { plazaPortico, plazaObelisks, plazaQuoins, plazaSkyline } from './piazza.js';
 import './leaf-cards.js';
 import './floor-tiles.js';
@@ -129,7 +130,7 @@ export function plazaCutouts(plan, houses) {
   const key = plan.ref.light.key, E = (key.elevation * Math.PI) / 180, Az = ((key.azimuth ?? 225) * Math.PI) / 180, toSun = [Math.cos(E) * Math.cos(Az), Math.cos(E) * Math.sin(Az)];
   const hexOf = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0')).join('')}`;
   for (const s of closed) {
-    const F = wallFrame(r, s), light = F.N[0] * toSun[0] + F.N[1] * toSun[1] > 0 ? 1 : 0.68;
+    const F = wallFrame(r, s), light = (F.N[0] * toSun[0] + F.N[1] * toSun[1] > 0 ? 1 : 0.68) * (plan.night ? plan.night.far : 1);
     for (let row = 0; row < Rt.rows; row++) {
       const t = row / Math.max(1, Rt.rows - 1), dist = Rt.first + row * Rt.gap, hgt = mix(Rt.height[0], Rt.height[1], t), fade = mix(Rt.fade[0], Rt.fade[1], t);
       const fill = hexOf(WARM.map((w, k) => mix(w * light, horizon[k] / PAINT[k], fade)));
@@ -174,9 +175,11 @@ export function plazaDress(plan, geom) {
   const D = plan.kit.dress, site = plazaSite(plan), fo = plazaFountain(plan, { live: !!geom.water }), houses = geom.houses || [];
   const key = plan.ref.light.key, toSun = sunDir(key.elevation, key.azimuth ?? 225);
   const portico = D.portico ? plazaPortico(plan, site) : null;
+  // at night (`time: 'night'`): lanterns, the basin's glow, lit windows (plaza-night.js)
+  const night = plan.night ? plazaNight(plan, houses, portico, site) : null;
   return {
     faces: [...fo.stone, ...plazaCutouts(plan, houses), ...(portico ? portico.faces : []), ...(D.obelisks ? plazaObelisks(plan, site, geom.ends).faces : []),
-      ...(D.quoins ? plazaQuoins(plan, houses, portico) : []), ...(D.skyline ? plazaSkyline(plan, site, toSun) : [])],
+      ...(D.quoins ? plazaQuoins(plan, houses, portico) : []), ...(D.skyline ? plazaSkyline(plan, site, toSun) : []), ...(night ? night.faces : [])],
     blends: (faces) => plazaBlends(plan, faces, houses),
     after: fo.water,
     pools: [],
@@ -184,7 +187,8 @@ export function plazaDress(plan, geom) {
     cut: (f) => fo.cut(f) || (!!portico && (f.group === 'stage:floor' || f.group === 'stage:step') && portico.under(f)),
     // the far rows and the skyline stand beyond the houses: they shade nothing in the square
     shadowSkip: (f) => f.group === 'stage:far' || f.group === 'stage:skyline',
-    clouds: D.clouds || null,
+    clouds: D.clouds ? (night ? { ...D.clouds, ...plan.night.clouds } : D.clouds) : null,
+    ...(night ? { night } : {}),
     jets: fo.jets,
   };
 }

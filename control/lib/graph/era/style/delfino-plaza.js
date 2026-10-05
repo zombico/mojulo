@@ -74,6 +74,31 @@ export const DELFINO_PLAZA = Object.freeze({
     dome: { at: [-12, 46], drum: { R: 7.5, z: 11, h: 7, color: [0.95, 0.9, 0.8] }, R: 7.8, pointed: 1.55, ribs: 8, sides: 48, lantern: { r: 1.1, h: 4.2 }, color: [0.8, 0.42, 0.28], rib: [0.97, 0.95, 0.9], fade: 0.42 },
     campanile: { at: [-20, 28], w: 4.2, z: 6, h: 24, belfry: 4.4, spire: 6.5, color: [0.84, 0.58, 0.44], band: [0.92, 0.74, 0.6], roof: [0.74, 0.36, 0.24], dark: [0.14, 0.14, 0.18], fade: 0.3 },
   },
+  // NIGHT (`time: 'night'`, era/plaza-night.js): the moon is the key (low, cool, its shadows the obelisks' long
+  // ones; `u`/`h` place it on the dome where the bake's light comes from), a deep blue ambient so the shade is never
+  // black, stars, the cloud deck lit by the moon; the town beyond dimmed to `far`. The placed light makes the picture:
+  // lanterns by the doors (`share` of them, `beside` the door, `z` over its head, `out` from the wall), lanterns hung
+  // in every `every`th portico bay `drop` under the vault, the basin lit from under the water, `lit` of the windows
+  // lit warm with their light spilled on the sill.
+  night: {
+    principles: Object.freeze([
+      'The moon is the key and it is cool: moonlit stucco is a pale blue-grey, the shade a deep blue, never black.',
+      'Pools of warm light are where the eye lands: the paving under a lantern is the brightest floor in the square, and the dark between the pools is part of the picture.',
+      'The set piece still holds the focus: the fountain glows from under its water.',
+      'The houses are lived in: some windows lit warm, not all, and no two neighbours alike.',
+      'The sky is a place at night too: stars and the moon over the dome and the bell tower, the clouds lit from above.',
+    ]),
+    moon: { color: '#a4b8e6', elevation: 38, azimuth: 300, gain: 0.55, phase: 0.85, size: 1.4 },
+    light: { ambient: '#2c3c66' },
+    sky: { fill: 0.75, bounce: [0.22, 0.24, 0.32], bounceGain: 0.06 },
+    air: { fog: { color: '#121a2e', density: 0.006 }, dome: { zenith: [6, 10, 26], horizon: [30, 42, 74] } },
+    stars: 0.85, far: 0.34, jets: [0.3, 0.42, 0.52],
+    clouds: { color: [0.3, 0.34, 0.48], coverage: 0.24, density: 0.22 },
+    lantern: { color: '#ffb25a', intensity: 2.2, radius: 7.5, glass: '#ffd890', share: 0.8, beside: 0.5, z: 0.5, out: 0.42, size: [0.26, 0.4] },
+    portico: { every: 2, out: 1.6, drop: 0.55, intensity: 1.8, radius: 7 },
+    fountain: { color: '#8fd6f0', intensity: 1.1, radius: 6, z: 0.62 },
+    windows: { lit: 0.4, color: '#ffcf80', glow: '#f2b060', intensity: 0.55, radius: 3.2, out: 0.5 },
+  },
   // the SKY: mojulo's cloud deck (effects/effects-clouds.js, `undershot`) — fair-weather cumulus, bright, thin
   clouds: { mode: 'undershot', base: 85, thickness: 28, coverage: 0.3, scale: 0.0085, density: 0.3, drift: 0.6, fade: 640, color: [1.7, 1.66, 1.6], depthClip: true },
 });
