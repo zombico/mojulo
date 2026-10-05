@@ -16,8 +16,9 @@ import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { tposeRig } from '@/lib/graph/figures/rig-tpose';
-import { isHumanoidRig } from '@/lib/graph/polygonizer/figure-humanoid-map';
+import { tposeRig, withClavicles } from '@/lib/graph/figures/rig-tpose';
+import { isHumanoidRig, humanoidBonesFor } from '@/lib/graph/polygonizer/figure-humanoid-map';
+import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport } from '@/lib/graph/scene/godot-humanoid';
 import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
@@ -947,7 +948,7 @@ export async function exportModelHandler(input, context = {}) {
         result.humanoid_figures = exported.humanoidFigures;
         result.humanoid_note = 'VRM 1.0 bone names on the skin joints (hips / spine / head / left+rightUpperArm…Foot; weightless leaf joints at the wrists and ankles stand in for hands / feet) + the VRMC_vrm extension on the first figure. '
           + (tposed
-            ? 'The rest pose is the VRM T-pose (rest: \'tpose\'): arms straight out, palms down, legs straight, the feet, trunk and head as authored, fingers in their rest curl; every clip is re-expressed on it and plays the same motion. Honest limit: the skeleton is FLAT (absolute rotations, no parent chain) — a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).'
+            ? 'The rest pose is the VRM T-pose (rest: \'tpose\'): arms straight out, palms down, legs straight, the feet, trunk and head as authored, fingers in their rest curl; every clip is re-expressed on it and plays the same motion. The skeleton is an ENGINE skeleton: joints nested on the VRM humanoid tree (the wrist / ankle leaves weightless bones), parent-local, in the VRM space (y up, facing +z, the figure\'s left on +x), every rest rotation the identity; Godot sidecars beside the GLB (see `godot`).'
             : 'Honest limits: the skeleton is FLAT (absolute rotations, no parent chain) and the rest pose is the figure\'s stand, not a T-pose (rest: \'tpose\' re-rests it) — VRM-aware tools address the bones by name today; a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).');
         if (tposed) { result.tpose_figures = tposed.figures; if (tposed.skipped.length) result.tpose_skipped = tposed.skipped; }
       }
@@ -1115,6 +1116,19 @@ export async function exportModelHandler(input, context = {}) {
       const scPath = path.join(dir, sc.name);
       await fs.mkdir(path.dirname(scPath), { recursive: true });
       await fs.writeFile(scPath, sc.bytes);
+    }
+    // the T-pose humanoid's Godot side (godot-humanoid.js): a BoneMap per figure and the GLB's `.import` naming them, so
+    // Godot's retargeter maps the skeleton onto its humanoid profile on import. They name each other by res:// path.
+    if (format === 'glb' && tposed?.figures.length && payload?.figures) {
+      const godotDir = `mojulo/${ref}`, written = [];
+      for (const f of tposed.figures) {
+        const { names, leaves } = humanoidBonesFor(withClavicles(payload.figures[f]).bones);   // the engine skeleton's bones, its clavicles among them
+        await fs.writeFile(path.join(dir, godotBoneMapFile(f)), godotBoneMapTres(f, [...names.values(), ...leaves.map((l) => l.vrm)]));
+        written.push(godotBoneMapFile(f));
+      }
+      await fs.writeFile(path.join(dir, `${fileName}.import`), godotHumanoidImport(tposed.figures, godotDir));
+      written.push(`${fileName}.import`);
+      result.godot = { files: written, place_at: `res://${godotDir}/`, note: `Copy this folder into a Godot 4 project at res://${godotDir}/ (the .import names its BoneMap there). On import Godot renames the bones to its humanoid profile and the skeleton becomes %GeneralSkeleton, so any humanoid animation the project owns plays on it, and its clips on any humanoid.` };
     }
     const hash = createHash('sha256').update(JSON.stringify(sketch.manifest)).digest('hex').slice(0, 16);
     await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);

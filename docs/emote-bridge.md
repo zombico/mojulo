@@ -350,9 +350,38 @@ bone whose segment is nearest their head.
 sketch with `tpose` (the flat figure rebuilds), then runs the packed mold on every other humanoid
 figure before the GLB is written. A non-humanoid rig is left as authored, and the result says so.
 
-**What it does not do (yet).** The exported skeleton stays flat, with absolute joint rotations.
-Re-rooting into a parent-local hierarchy is the next step (phase 4), and the mold's T rest makes it
-trivial: every local rotation is the identity at rest.
+**The engine skeleton (phase 4).** With `rest: 'tpose'`, the skinned writer nests the joints on the
+VRM tree (`humanoidParents`), parent-local, and writes the pack in the VRM space (`vrmSpacePack`:
+y up, facing +z, the figure's left on +x). The wrapper cancels the root's z-up → y-up, so the
+skeleton space an engine builds (Godot's `Skeleton3D` lives in the joints' parent space) *is* that
+space. The biped's hand and foot leaves become weightless bones, and so does a clavicle each side
+(`withClavicles`). Godot's profile hangs the upper arm off `LeftShoulder`, whose rest is about a
+quarter-turn, so a skeleton without one bent every arm track from a rig that has it. The
+Quaternius `Dance_Loop` landed 100–120° off on our arms until the clavicles went in. Clips are
+written parent-local (`localClip`, keys normalized first).
+
+**A library clip on our figures** (Quaternius Universal Animation Library, the free CC0 version,
+hand-mapped to the profile with a `BoneMap`). With the clavicles, `Dance_Loop`'s segments track the
+source:
+- the hero within 10° (the arms), and the trunk within 9°;
+- the flat figure within 21° (the arms), and the trunk within 12°;
+- the legs within 4.6° on both.
+
+The remainder follows the trunk: the source has spine, chest, upper chest and neck, the hero lacks
+the upper chest, and the flat figure has one spine bone. Weightless trunk joints like the
+clavicles would close more of it.
+
+**Godot.** Beside the GLB, `export_model` writes a `BoneMap` per figure (`godot-humanoid.js`: the
+profile names are the VRM names capitalised; Godot names a joint `<figure>:<vrm>` as the bone
+`<figure>_<vrm>`) and the GLB's `.import` naming it on `mojulo/<figure>/Skeleton3D`. Because an
+`.import` names a resource by `res://` path, the folder goes at `res://mojulo/<ref>/`. On import,
+Godot renames the bones to its profile, makes the skeleton `%GeneralSkeleton`, rewrites the rests to
+the profile's axes, and drops all position tracks except the hips'.
+[godot-retarget.mjs](examples/humanoid/godot-retarget.mjs) is the gate. Godot 4.7 headless plays the
+flat figure's `bow` (15 bones) on the anime hero's skeleton (49 bones):
+- the hero moves 82.5° from its rest;
+- its limbs and trunk track the figure's within 3.3° at every sampled frame;
+- the remainder is the trunk: one spine bone against spine, chest and neck.
 
 **Gates.**
 - *Machine:*

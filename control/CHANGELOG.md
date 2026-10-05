@@ -15,7 +15,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 ### Emote bridge
 
 Steps toward playing common-parlance emotes and humanoid clip libraries on mojulo's figures
-([docs/emote-bridge.md](../docs/emote-bridge.md)): the head turn the figure never had, and a T-pose rest for the engines.
+([docs/emote-bridge.md](../docs/emote-bridge.md)): the head turn the figure never had, a T-pose rest and an engine skeleton
+for the engines, and Godot's retargeter set up on import.
 Both are opt-in: without them every figure, hero and export is byte-identical. Being built on this branch; each bullet is
 rewritten as its phase lands.
 
@@ -30,6 +31,14 @@ rewritten as its phase lands.
   hero in the VRM T-pose the engines retarget from (arms straight out, palms down, legs straight, feet and head as
   they were), with every clip re-expressed on it so it plays the same motion. No recipe changes; without `rest` the
   export is byte-identical.
+- **An engine skeleton, and Godot.** With `rest: 'tpose'` the skinned humanoid is written the way the engines read one:
+  joints nested on the VRM humanoid tree (the biped's hand and foot leaves, and a clavicle each side, as weightless bones:
+  an engine's humanoid profile hangs the arm off a shoulder with a large rest turn), each parent-local, in
+  the VRM space (y up, facing +z, the figure's left on +x), every rest rotation the identity. Beside the GLB come a
+  Godot `BoneMap` per figure and the `.import` naming it (place the folder at `res://mojulo/<ref>/`): on import Godot
+  renames the bones to its humanoid profile and the skeleton becomes `%GeneralSkeleton`, so the project's humanoid
+  animations play on the figure and its clips on any humanoid. `docs/examples/humanoid/godot-retarget.mjs` is the gate:
+  a real Godot plays the flat figure's bow on a hero's skeleton.
 
 ### Figure articulation: herobot
 

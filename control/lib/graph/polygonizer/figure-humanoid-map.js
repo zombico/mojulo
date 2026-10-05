@@ -61,6 +61,10 @@ export const HERO_BONE_TO_VRM = Object.freeze({
   ])),
 });
 
+// the weightless clavicles the engine skeleton inserts (rig-tpose withClavicles) on either rig: an engine's humanoid
+// profile hangs the upper arm off a shoulder bone with a large rest turn, so a skeleton without one bends every arm clip
+export const CLAVICLE_TO_VRM = Object.freeze({ clavicleL: 'leftShoulder', clavicleR: 'rightShoulder' });
+
 // leaf bones VRM requires that mojulo carries only as a segment TAIL: emitted as
 // weightless joints at that tail (parent = the bone whose tail they sit on)
 export const LEAF_TO_VRM = Object.freeze({
@@ -117,7 +121,7 @@ export function humanoidBonesFor(bones = []) {
   const hero = bones.some((b) => b.id === 'upperArmR' || b.id === 'upperArmL');
   const lumbar = hero && bones.some((b) => b.id === 'lumbar');
   bones.forEach((b, i) => {
-    const vrm = hero ? (lumbar && b.id === 'torso' ? 'chest' : HERO_BONE_TO_VRM[b.id]) : BONE_TO_VRM[b.id];
+    const vrm = CLAVICLE_TO_VRM[b.id] ?? (hero ? (lumbar && b.id === 'torso' ? 'chest' : HERO_BONE_TO_VRM[b.id]) : BONE_TO_VRM[b.id]);
     if (vrm) { names.set(i, vrm); have.add(vrm); }
     const leaf = LEAF_TO_VRM[b.id];
     if (leaf && Array.isArray(b.tail) && b.tail.length === 3) {
