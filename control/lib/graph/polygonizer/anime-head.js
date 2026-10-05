@@ -207,6 +207,23 @@ export const ANIME_HAIR_MOVES = Object.freeze({
       bananas: [
         { at: [330, 30], dir: [-0.3, -1, -0.25], length: 0.8, width: 0.3, bend: 0.45, sprout: 0.8 },
       ] } } },
+  // the SHAPES heroines: the same principles on the female base. BIDEL — bananas only, after Videl's short cut (Toriyama):
+  // Jingo's cap locks grown from the dome, cut for her. A rounded crown; jagged bangs cut to the brow, the eyes clear; the
+  // temples swirled DOWN over the ears (from a whorl behind they would walk forward over the eyes); the sides at the
+  // ear's lobe; a short choppy nape of points. NOTHING ROOTED IN FRONT OF THE WHORL but the fringe and the rosette: a cap
+  // lock rooted above the whorl's elevation walks forward over the face, so the crown ring sits at or below it
+  bidel: { note: 'Bidel: bananas only, after Videl\'s short cut — a rounded crown of cap locks, jagged bangs cut to the brow with the eyes clear, the temples swept down over the ears, the sides at the lobe, a short choppy nape of points',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.15, whorl: [180, 62],
+      layers: [
+        { shape: 'banana', az: [0, 360], around: [3, 20], rows: 1, count: 6, length: 0.8, fringe: 0.2, width: 0.3, droop: 0.7, lift: 0.06, vary: 0.08, bend: 0.24, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [95, 265], el: [40, 62], rows: 2, count: 8, length: 0.68, width: 0.3, droop: 0.7, lift: 0.06, vary: 0.15, bend: 0.22, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [-60, 60], el: [62, 84], rows: 2, count: 7, length: 0.5, fringe: 0.26, width: 0.28, droop: 0.6, lift: 0.05, vary: 0.22, bend: 0.12, flat: 0.25, cap: 1 },
+        { shape: 'banana', az: [62, 100], el: [56, 80], rows: 2, count: 3, length: 0.5, width: 0.3, droop: 0.7, lift: 0.05, vary: 0.1, bend: 0.15, flat: 0.25, cap: 1, swirl: 60 },
+        { shape: 'banana', az: [260, 298], el: [56, 80], rows: 2, count: 3, length: 0.5, width: 0.3, droop: 0.7, lift: 0.05, vary: 0.1, bend: 0.15, flat: 0.25, cap: 1, swirl: -60 },
+        { shape: 'banana', az: [68, 132], el: [22, 44], rows: 1, count: 3, length: 0.6, fringe: 0.28, width: 0.32, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.14, flat: 0.25, cap: 1, swirl: 40 },
+        { shape: 'banana', az: [228, 292], el: [22, 44], rows: 1, count: 3, length: 0.6, fringe: 0.28, width: 0.32, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.14, flat: 0.25, cap: 1, swirl: -40 },
+        { shape: 'banana', az: [132, 228], el: [8, 36], rows: 2, count: 7, length: 0.42, width: 0.26, droop: 1.1, lift: 0.02, vary: 0.15, bend: 0.1, flat: 0.25, cap: 1 },
+      ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */

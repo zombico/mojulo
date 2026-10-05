@@ -279,7 +279,7 @@ three length and width settings): length variation inside one family does make h
 of jobs — a stretched pepper becomes a carrot, a short wide banana goes to mush. So a design picks the family that
 fits the style and varies length, width and count inside it. The characters: `broku` (carrots, after Toriyama),
 `jinto` (bananas: comma hair over a soft two-block), `jingo` (his cousin: bananas, few and rounded, for a long face),
-`kairo` (chili peppers: a wolf cut).
+`kairo` (chili peppers: a wolf cut), and the first heroine, `bidel` (bananas: Videl's short cut).
 
 A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name the real cut first, then build it.
 
@@ -310,6 +310,14 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   are handed to the head, and a lock that meets them drapes over them (the push carries on down the lock, so it never
   kinks back in). Hair lies close on the neck and stands off the collar and shoulders. A long cut then shows where it
   really falls: Kairo's nape was shortened to end at the collar instead of pouring over his shoulders.
+- **Bidel, the principles on a heroine.** Not Broku's spikes on a girl: Videl's short cut (Toriyama), built as Jingo is,
+  from cap bananas, with the volume and the hem cut for her. A rounded crown, jagged bangs cut to the brow with the
+  EYES CLEAR, the temples swept down over the ears, the sides at the lobe, a short choppy nape of points. What she
+  taught: with the whorl behind the crown, every cap lock rooted ABOVE the whorl's elevation walks FORWARD over the dome
+  and falls over the face, however far back its azimuth. So only the fringe (cut short by `fringe`) and the rosette
+  root in front of the whorl; the crown ring sits at or below it; and the temples, which a back whorl also sends
+  forward, are turned down over the ears by `swirl` (positive on her right, negative on her left). A test pins the
+  eyes clear and the high crown ring covering one.
 - **Keep a pair apart by the nape.** Jinto is closed and short at the nape and his story is the front; Kairo is open
   and long at the nape and his story is the crown and the tail. Trade nape lengths and both collapse into the same
   spiky hero.

@@ -406,14 +406,14 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
   const on = (preset, hair) => { const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, ...(Array.isArray(hair) ? hair : [hair])] }); return { h, mesh: compileLayered(h) }; };
   const box = (mesh, re) => { const ps = mesh.pointIds.map((id, i) => (re.test(id.split('/')[0]) ? mesh.vertices[i] : null)).filter(Boolean); return [0, 1, 2].map((k) => [Math.min(...ps.map((p) => p[k])), Math.max(...ps.map((p) => p[k]))]); };
   it('each cut closes on both bases and keeps the scalp covered', () => {
-    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo']) for (const preset of ['female', 'male']) {
+    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel']) for (const preset of ['female', 'male']) {
       const { h, mesh } = on(preset, cut);
       expect(failures(mesh), `${preset} ${cut}`).toEqual([]);
       expect(Math.max(...Object.values(h.hairCoverage.views)), `${preset} ${cut}`).toBeLessThanOrEqual(0.02);
     }
   }, 60000);
   it('the words validate by name: the new form words, their fields and the tail clump', () => {
-    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo'])).toEqual([]);
+    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel'])).toEqual([]);
     expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
     expect(validateAnimeHair({ locks: { tail: { ty: 0.1 } } })).toEqual([]); expect(animeLockPart('tail')).toBe('hairTail');
     expect(resolveAnimeHair([{ flip: 0.5 }, { flip: { out: 0.2 } }]).flip).toEqual({ amount: 0.5, out: 0.2 });
@@ -458,6 +458,17 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(failures(kairo.mesh)).toEqual([]); expect(failures(jinto.mesh)).toEqual([]);
     // broku: no straight-up spike — every rising carrot leans ≥ 30° off the vertical from the front and from the side
     for (const K of ANIME_HAIR_MOVES.broku.hair.shapes.carrots) { const [x, y, z] = K.dir; if (y <= 0) continue; expect(Math.abs(x) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); expect(Math.abs(z) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); }
+  });
+  it('bidel, the first heroine: bananas only, cap locks, and her eyes clear — nothing but the fringe and the rosette rooted in front of the whorl', () => {
+    const fam = (h) => [...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot)\d+$/)?.[1]).filter(Boolean))];
+    // hair points in front of an iris, inside its box seen from the front
+    const overEyes = (m) => ['L', 'R'].map((s) => { const b = box(m, new RegExp(`^iris${s}$`)); return m.vertices.filter((p, i) => /^hair/.test(m.pointIds[i]) && p[0] >= b[0][0] && p[0] <= b[0][1] && p[2] >= b[2][0] && p[2] <= b[2][1] && p[1] > b[1][0]).length; });
+    const bidel = on('female', 'bidel');
+    expect(fam(bidel.h)).toEqual(['Banana']);
+    expect(Math.max(...overEyes(bidel.mesh))).toBeLessThanOrEqual(2);
+    // the principle: a crown ring rooted ABOVE the whorl's elevation walks forward over the face and covers an eye
+    const S = ANIME_HAIR_MOVES.bidel.hair.shapes, high = { ...S, layers: S.layers.map((l, i) => (i === 1 ? { ...l, az: [100, 260], el: [58, 82] } : l)) };
+    expect(Math.max(...overEyes(on('female', ['bidel', { shapes: high }]).mesh))).toBeGreaterThan(4);
   });
   it('cap locks grow from the dome and lie over it: from the crown they come out longer, to the same hem; the fringe is cut shorter', () => {
     const cap = (el, extra = {}) => box(on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'banana', az: [80, 280], el: [el, el], rows: 1, count: 6, length: 0.5, cap: 1, ...extra }] } }]).mesh, /^hairBanana/);
