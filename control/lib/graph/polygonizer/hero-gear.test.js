@@ -39,7 +39,8 @@ describe('the mounts', () => {
   const J = R.joints;
   it('a sword\'s grip sits in the right fist, true size, the tip forward and down, above the floor', () => {
     const g = G.right; expect(g.bone).toBe('handR');
-    expect(segDist(gearRestPoint(g, g.sockets.grip.origin), J.wristR, J.knucklesR)).toBeLessThan(0.02);
+    // in the curled fingers (hero-gear.js gripCentre: the circle the hand's `grip` closes on), in front of the palm's line
+    expect(segDist(gearRestPoint(g, g.sockets.grip.origin), J.wristR, J.knucklesR)).toBeLessThan(0.03);
     expect(g.length).toBeGreaterThan(0.9); expect(g.length).toBeLessThan(1.05);   // a 98 cm sword
     const tip = gearRestPoint(g, g.sockets.tip.origin), grip = gearRestPoint(g, g.sockets.grip.origin);
     expect(tip[1] - grip[1]).toBeGreaterThan(0.4);   // forward (+y)
@@ -93,6 +94,13 @@ describe('the World page and the pack', () => {
     expect(b.faces.length).toBeGreaterThan(a.faces.length + 100);
     const [g] = gearMounts(armed.hero, armed.R); const extra = gearPackParts([g], { light: WORKBENCH_LIGHT })[0].tris.length;
     const hand = g.boneIndex; expect(b.figures.body.parts[hand].faces - (a.figures.body.parts[hand]?.faces || 0)).toBe(extra);
-    expect(JSON.stringify(a.figures.body.clips)).toBe(JSON.stringify(b.figures.body.clips));   // the clips do not move
+    // the clips move only where the hand closes on the grip (layered.js gripHands: the right hand's digits take `grip`
+    // in every key); every other bone keeps its frames, key for key (seven numbers a bone a key: its turn and its head)
+    const ids = armed.R.bones.map((x) => x.id), grips = (id) => /^(thumb|index|middle|ring|little)\dR$/.test(id);
+    for (const [name, c] of Object.entries(a.figures.body.clips)) {
+      const d = b.figures.body.clips[name]; expect(d.k).toBe(c.k);
+      for (let i = 0; i < c.b.length; i++) if (!grips(ids[Math.floor(i / 7) % ids.length])) expect(d.b[i], `${name} ${ids[Math.floor(i / 7) % ids.length]}`).toBe(c.b[i]);
+      expect(d.b.some((x, i) => x !== c.b[i])).toBe(true);
+    }
   });
 });

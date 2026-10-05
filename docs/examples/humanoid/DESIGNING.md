@@ -158,6 +158,10 @@ critiqued and judged blind; see "What the trial found".)
 - **The stand is part of the design,** and it follows the role (the theme rule). Use a preset (`relaxed`,
   `hand-on-hip`, `guard`) or pose words (the refusal lists them), composed left to right. Read the readout's `gesture`
   clearance, and judge the three-quarter silhouette at 256 px.
+  - The base is the stand's: `stance` (how far apart the planted feet stand, a multiple of the hip spread) and
+    `stagger` (+ the left foot forward) set it, the free side's `heelL` / `heelR` raises a heel. On the structured core
+    (every hero's default) the legs converge at rest, so a stand that names no base stands with the feet under the knees; the presets carry
+    their own (a ready stance wide and bladed, a calm one close-set). A wide base needs a crouch to reach.
   - `relaxed` carries the chin a little down. `{ head: { pitch: 0 } }` brings it level, which reads alert and, at the
     three-quarter, a touch proud.
   - The head's carriage changes the mouth: a wide smile under `relaxed` can read as a one-sided smirk at the
@@ -286,6 +290,11 @@ The designer is too close to the card to read it as a player will, so the loop e
     and the judge preferred the card before the fix.
   - Big reads first: the theme, the pose, the signature. Tuning fixes (a colour, a spine curve, a dial) are optional.
   - Name a limit rather than ask for a fix the words cannot make (a swinging coat, a hand on a hilt, a scabbard).
+  - Read the midsection from the readout's `core` as well as the body cells: the waist to hip, where the hip peaks, the
+    seat, the front below the waist, a pouch, a step in the outline, the legs. Its `advice` names the word that moves
+    each (on a streamlined hero most of them are `core: 'structured'`). A hip that peaks at the joint, a flat seat, a
+    front that bulges below the belly and splayed knees are what made the female figures read wrong before the
+    structured core.
 - **One fix pass.** Take the fixes in at most three renders, then stop.
 - **The blind judge** is the acceptance check: an agent that knows neither card's history. Hand it two cards as X and Y,
   swapping the order from one comparison to the next and keeping the key yourself; it judges each criterion from what
@@ -320,7 +329,8 @@ good looks like"; and the brief at <brief file>, which you open only after step 
 3. Theme and pose: the equipment and costume belong to the role, at its size and style, with no drift toward
    a genre the brief did not ask for; the stand says the temperament; gear is held as this person would.
 4. The principles: the silhouette and its one accent; the face at 256 px; three values; one base garment and
-   one signature with the one saturated accent; the gameplay camera; hair as masses; the head leads.
+   one signature with the one saturated accent; the gameplay camera; hair as masses; the head leads; the
+   midsection (the body cells, and the readout's `core` and its advice: the hip, the seat, the front, the legs).
 5. Before against after, per criterion: better, same or worse, with the cell that shows it.
 6. Defects you can see, each with its cell.
 Hand back, in markdown under 600 words: First read; Verdict (SHIP | ONE MORE PASS | REGRESSED, one line why);

@@ -18,6 +18,7 @@ import { expandEquipment, validateBuild, LAWS_VERSION } from '../equipment/expan
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
 import * as dmath from '../../util/dmath.js';
+import { rigNodesAt } from './station-loft-rig.js';
 
 export const GEAR_SLOTS = Object.freeze(['right', 'left', 'back', 'hip']);
 const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm' });
@@ -37,6 +38,15 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const unit = (a) => { const l = dmath.hypot(a[0], a[1], a[2]); return l > 1e-12 ? mul(a, 1 / l) : [0, 0, 1]; };
 const lerp3 = (a, b, t) => add(a, mul(sub(b, a), t));
 const perp = (v, a) => unit(sub(v, mul(a, dot(v, a))));
+/** the centre of the circle through three points */
+const circumcentre = (a, b, c) => { const ab = sub(b, a), ac = sub(c, a), n = cross(ab, ac), n2 = dot(n, n); return add(a, mul(add(mul(cross(ac, n), dot(ab, ab)), mul(cross(n, ab), dot(ac, ac))), 1 / (2 * n2))); };
+/** where a hand with digits (the rig's `hands`) holds a grip: the centre its middle finger curls round in the `grip` hand
+ * word (its knuckle, middle and last joints on a circle), at rest; null for a mitten */
+function gripCentre(R, S) {
+  if (!R.hands?.[S] || !R.joints[`middleMcp${S}`]) return null;
+  const n = rigNodesAt(R, { [`fingers${S}`]: 'grip' }).nodes;
+  return circumcentre(n[`middleMcp${S}`], n[`middlePip${S}`], n[`middleDip${S}`]);
+}
 // a 3×3 as rows; M·v, Mᵀ·v, A·B; columns → rows
 const mv = (m, v) => [dot(m[0], v), dot(m[1], v), dot(m[2], v)];
 const mtv = (m, v) => [m[0][0] * v[0] + m[1][0] * v[1] + m[2][0] * v[2], m[0][1] * v[0] + m[1][1] * v[1] + m[2][1] * v[2], m[0][2] * v[0] + m[1][2] * v[1] + m[2][2] * v[2]];
@@ -88,7 +98,8 @@ export function gearMounts(hero, R) {
     if (slot === 'right' || slot === 'left') {
       const S = slot === 'right' ? 'R' : 'L';
       const w = J[`wrist${S}`], kn = J[`knuckles${S}`], el = J[`elbow${S}`];
-      const a = unit(sub(kn, w)); const f = perp([0, 1, 0], a); const h = lerp3(w, kn, 0.55);
+      // through the fist: a mitten's middle, or the hand's own grip (the circle its fingers close on)
+      const a = unit(sub(kn, w)); const f = perp([0, 1, 0], a); const h = gripCentre(R, S) ?? lerp3(w, kn, 0.55);
       if (hold === 'forearm') {
         const u = unit(sub(el, w)); const out0 = perp([S === 'R' ? 1 : -1, 0, 0], u);
         const Z = u, Y = mul(out0, -1), X = cross(Y, Z);   // the face (item −y) outward, the height up the forearm

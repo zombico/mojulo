@@ -42,6 +42,7 @@
  */
 import { hexToRgb, rgbToHex, resolveToon, resolveToonLight } from './vexar.js';
 import { layeredSeat } from './station-loft-faces.js';
+import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -179,11 +180,14 @@ function weldedNormals(V, F, G, restV, crease, q) {
   }
   const P = ids.size; const bins = new Map();   // groupId·P + positionId → corner ids (3·fi + k)
   for (let fi = 0; fi < nF; fi++) for (let k = 0; k < 3; k++) { const key = fg[fi] * P + pid[F[fi][k]]; let b = bins.get(key); if (!b) bins.set(key, b = []); b.push(3 * fi + k); }
-  const c = dmath.cos((crease * Math.PI) / 180); const out = new Array(nF);
+  // the crease per group: a number for every group, or `{ [group]: degrees, default }` (35 where neither names it)
+  const cosOf = (deg) => dmath.cos((deg * Math.PI) / 180), cAll = typeof crease === 'number' ? cosOf(crease) : null;
+  const cG = new Float64Array(gids.size); for (const [g, id] of gids) cG[id] = cAll ?? cosOf(Number.isFinite(crease[g]) ? crease[g] : Number.isFinite(crease.default) ? crease.default : 35);
+  const out = new Array(nF);
   for (let fi = 0; fi < nF; fi++) out[fi] = [null, null, null];
   const par = [], sum = [];
-  for (const bin of bins.values()) {
-    const m = bin.length; par.length = m; for (let i = 0; i < m; i++) par[i] = i;
+  for (const [key, bin] of bins) {
+    const m = bin.length, c = cG[Math.floor(key / P)]; par.length = m; for (let i = 0; i < m; i++) par[i] = i;
     const find = (i) => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
     for (let i = 0; i < m; i++) for (let j = i + 1; j < m; j++) {
       const fi = (bin[i] / 3) | 0, fj = (bin[j] / 3) | 0; let join = fi === fj;
@@ -218,10 +222,15 @@ function regionWeight(part, p, L) {
   return /^ear/.test(part) ? 0.3 : 0;   // the ears lean in a little; the neck, the hands and the core keep their weld
 }
 
+/** The crease a hero under the STUDIO light is shaded smoothly at (world-kinds.js): the skin blends across edges up to
+ * 70° (the face one form, the torso and the limbs muscle, not a grid), every other group at 35° (a hair lock, a cloth
+ * edge and the swimsuit keep their edges). No head proxy: that belongs to the anime head's step. */
+export const STUDIO_SMOOTH_CREASE = deepFreeze({ Skin: 70, default: 35 });
 /**
  * Per-face-corner shading normals `[fi][k] → [x, y, z]` (unit length), shaped like `mesh.faces`.
  *   crease   degrees: two faces of one weld bin join the same smooth FAN across an edge they share when their faces
- *            turn less than this (default 35: dot > 0.82, the limit the anime head's source smooths at); each corner
+ *            turn less than this (default 35: dot > 0.82, the limit the anime head's source smooths at), or per palette
+ *            group `{ [group]: degrees, default }` (a group neither names takes 35); each corner
  *            takes its fan's area-weighted sum, so the two faces across a smooth edge read the SAME normal at both of
  *            its ends (the step then crosses that edge at one point) and a crease edge stays sharp
  *   quantum  the weld's position quantum in metres (default 1e-4)
@@ -372,13 +381,18 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  *     base too light for a lighter tone keeps one tone). `ring`: s = min(N·L − threshold, 1 − (u / w)²), w = cos(Δ)^(falloff
  *     / 2) with Δ the turn about the head's vertical axis from the key's azimuth (0 past a quarter turn): a crescent whose
  *     edges follow the position, smooth across a lock's facets; `streak`: s = N·L − threshold inside the band (|u| ≤ 1),
- *     else −1. Conforming like
+ *     else −1; `gloss`: s = N·L − threshold everywhere (no band: the plastic hot spot). Conforming like
  *     the step: its crossings on a face's edges (where the lit part of the edge meets s = 0) are registered on the edge,
  *     and where the two lines cross inside a triangle the point is a `bary` ref shared by the lit and the shade side;
  *   • THE NECK OCCLUSION RULE: on a mesh wearing the anime head (its face shell over a cranium core), every face of the
  *     part `neck` takes the shade swatch, never split — the neck under the head is always in the head's shadow, so the
- *     lit jaw reads against it at any key. Derived here, at read time (nothing stored, no palette group of its own),
- *     so the static faces and the rig pack, which share these pieces, agree;
+ *     lit jaw reads against it at any key. On the structured core (a `pelvis` part), whose neck rises out of the chest
+ *     (hero-form.js NECK_ROOT), the shadow is the JAW'S: a neck corner is in it above its lower edge (NECK_JAW_SHADOW: a
+ *     V from the sides down toward the sternal notch; on the REST mesh, so it stays on the neck as the head turns) and
+ *     under it the neck steps by N·L as any part, its edge a smooth line across the faces
+ *     (whole, its shade's bottom was the neck's seam on the chest: a flat-bottomed block, a dark tube behind). Derived
+ *     here, at read time (nothing stored, no palette group of its own), so the static faces and the rig pack, which
+ *     share these pieces, agree;
  *   • THE HAIR'S TOP PLANES: on the same mesh, a Hair corner's N·L gains HAIR_TOP_PLANES × its normal's upward share
  *     (the planes on top of the mass lit from above too), derived the same way.
  * Colour is `palette[group]` → the part's tint → neutral grey (layeredFaces' lookup); a degenerate triangle (twice its
@@ -391,12 +405,32 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  * reads it, so its pieces are exactly the two-tone step's. `neckShade`, `hairTop`: the two anime-head rules, on by
  * default exactly when the mesh wears the anime head (a review renderer turns one off to show a figure without it).
  */
+/** the jaw's shadow on the structured neck (THE NECK OCCLUSION RULE): its lower edge `front` (m) under the chin at the
+ * front, `side` under it at the sides, between them by the cosine of the turn from the front: a V toward the sternal
+ * notch, as the neck's front muscles carry the shade down to it (a band just under the chin hid behind the jaw: the
+ * neck read lit); `k` the scalar's slope (per m), so the step's crossing falls on the line */
+const NECK_JAW_SHADOW = Object.freeze({ front: 0.06, side: 0.03, k: 40 });
 export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
   const glow = new Set(Array.isArray(glows) ? glows : []);   // the recipe's emissive groups: full-bright, never split (still inked)
   const Lv = light.toLight; const unlit = new Set(light.unlit || []); const thresholds = light.thresholds || {}; const t0 = Number.isFinite(light.threshold) ? light.threshold : 0;
   const neckInShade = !!neckShade, top = hairTop ? HAIR_TOP_PLANES : 0;   // THE NECK OCCLUSION RULE, THE HAIR'S TOP PLANES (see above)
+  // the jaw line on the structured core's neck (rest positions): the neck's axis, the chin (the face shell's lowest
+  // point in front of it), each neck corner's height over the line
+  const jaw = neckInShade && rest.parts?.pelvis ? (() => {
+    const nv = new Set(), fv = []; rest.faces.forEach((t, fi) => { const pn = partOf(rest, fi); if (pn === 'neck') t.forEach((v) => nv.add(v)); else if (pn === 'face') fv.push(...t); });
+    if (!nv.size || !fv.length) return null;
+    let ay = 0; for (const v of nv) ay += rest.vertices[v][1]; ay /= nv.size;
+    let chin = Infinity; for (const v of fv) { const p = rest.vertices[v]; if (p[1] > ay) chin = Math.min(chin, p[2]); }
+    if (!Number.isFinite(chin)) return null;
+    return (vi) => { const p = rest.vertices[vi], fy = p[1] - ay, c = fy / (Math.hypot(p[0], fy) || 1); const J = NECK_JAW_SHADOW; return chin - (J.side + (J.front - J.side) * Math.max(0, c)) - p[2]; };
+  })() : null;
+  // the seat's panels (seat-panels.js, rest positions): the thong's back and the speedo's leg line in the swimsuit's
+  // tones, its crease and the bare seat's cleft in a darker shade
+  const panels = seatPanels(rest);
+  // the swimsuit's tones: the first Swim face's fill and shade
+  const swim = panels ? (() => { const fi = mesh.groups.indexOf('Swim'); if (fi < 0) return null; const h = pal.Swim || mesh.parts[partOf(mesh, fi)]?.tint || FALLBACK; return { hex: h, shade: shadeFill(light, 'Swim', h) }; })() : null;
   const VREF = mesh.vertices.map((v, vi) => ({ p: [v[0], v[1], v[2] + dz], vi }));
   const nV = mesh.vertices.length; const edges = new Map();   // min·nV + max → [{ s, p, a, b }] along min → max
   const shadeCache = new Map();
@@ -414,6 +448,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   // arc across a lock, never toothed by its facets' N·L, which only cuts it where N·L falls under the rule's threshold
   const hiOf = (H, d, p) => {
     const u = (p[2] - H.zc) / H.hw;
+    if (H.R.kind === 'gloss') return d - H.R.threshold;
     if (H.R.kind === 'streak') return Math.abs(u) <= 1 ? d - H.R.threshold : -1;
     const turn = dmath.atan2(p[0] - H.axis[0], p[1] - H.axis[1]) - H.key, c = dmath.cos(turn), w = c > 0 ? dmath.pow(c, (H.R.falloff ?? 1) / 2) : 0;
     return w > 1e-6 ? Math.min(d - H.R.threshold, 1 - (u / w) ** 2) : -1;
@@ -423,7 +458,11 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   // MERGED with a point already registered within SNAP_M on the same edge (the other face's, across a crease)
   const crossing = (u, v, du, dv, t) => {
     const [a, b, da, db] = u < v ? [u, v, du, dv] : [v, u, dv, du];
-    const s = clamp01((t - da) / (db - da)); const pa = VREF[a].p, pb = VREF[b].p; const el = dmath.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
+    return edgeAt(a, b, clamp01((t - da) / (db - da)));
+  };
+  // the point at `s` along edge a → b (a < b): an end, a point already registered there, or a new one
+  const edgeAt = (a, b, s) => {
+    const pa = VREF[a].p, pb = VREF[b].p; const el = dmath.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
     if (s * el <= SNAP_M) return VREF[a]; if ((1 - s) * el <= SNAP_M) return VREF[b];
     const key = a * nV + b; let list = edges.get(key); if (!list) edges.set(key, list = []);
     for (const e of list) if (Math.abs(e.s - s) * el <= SNAP_M) return e;
@@ -435,6 +474,12 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (r.bary) return tri.map((vi) => r.bary.find(([x]) => x === vi)?.[1] ?? 0);
     if (r.vi !== undefined) return tri.map((vi) => (vi === r.vi ? 1 : 0));
     return tri.map((vi) => (vi === r.a ? 1 - r.s : vi === r.b ? r.s : 0));
+  };
+  // a point with a barycentric weight exactly 0 lies on the face's edge between the other two corners: its ref there
+  const onEdge = (tri, w) => {
+    const z = w.indexOf(0); if (z < 0) return null;
+    const i = (z + 1) % 3, j = (z + 2) % 3, [a, b, sb] = tri[i] < tri[j] ? [tri[i], tri[j], w[j]] : [tri[j], tri[i], w[i]];
+    return edgeAt(a, b, sb);
   };
   // pass 1: per face, its fill or its split (the crossing points registered on their edges); a highlit group's lit side
   // also registers its highlight crossings and, when its line crosses the step's, the point where they meet
@@ -448,10 +493,25 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (unlit.has(g)) return { fi, tri, outNormal, partName, fill: hex, mark: true };
     if (glow.has(g)) return { fi, tri, outNormal, partName, fill: hex };
     const sk = `${g}|${hex}`; let shade = shadeCache.get(sk); if (shade === undefined) shadeCache.set(sk, shade = shadeFill(light, g, hex));
-    if (neckInShade && partName === 'neck') return { fi, tri, outNormal, partName, fill: shade };   // the occlusion rule
+    const jawNeck = neckInShade && partName === 'neck' && jaw;
+    if (neckInShade && partName === 'neck' && !jaw) return { fi, tri, outNormal, partName, fill: shade };   // the occlusion rule
     const t = Number.isFinite(thresholds[g]) ? thresholds[g] : t0;
+    // the seat's panels: their cells (the swimsuit's tones, or the crease's or the cleft's darker shade) cut off the
+    // face's own tone (its corners' N·L by majority); the points on its edges registered, so its neighbours conform
+    const pan = panels && panels.at(fi, g);
+    if (pan) {
+      const cells = clipCells(tri.map((vi, j) => ({ w: [0, 1, 2].map((k) => (k === j ? 1 : 0)) })), pan.sets, (w) => { onEdge(tri, w); return { w }; });
+      if (cells.some((c) => c.inside)) {
+        const litMost = N[fi].filter((n) => dot(n, Lv) > t).length >= 2, own = litMost ? hex : shade;
+        const deeper = (h) => `#${[1, 3, 5].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * SEAT_CLEFT.tone).toString(16).padStart(2, '0')).join('')}`;
+        const dark = pan.kind === 'swim' ? (swim ? (litMost ? swim.hex : swim.shade) : own) : deeper(shade);
+        return { fi, tri, outNormal, partName, panel: pan, fills: [own, dark] };
+      }
+    }
     // the top planes' term only where it applies: every other corner keeps N·L as it was (no `+ 0`, which would turn a −0 to +0)
-    const topLift = top && g === 'Hair', d = N[fi].map((c) => (topLift && c[2] > 0 ? dot(c, Lv) + top * c[2] : dot(c, Lv))); const lit = d.map((x) => x > t);
+    const topLift = top && g === 'Hair', d0 = N[fi].map((c) => (topLift && c[2] > 0 ? dot(c, Lv) + top * c[2] : dot(c, Lv)));
+    // the structured neck: in the jaw's shadow above its line, by N·L under it
+    const d = jawNeck ? d0.map((x, j) => Math.min(x, t + NECK_JAW_SHADOW.k * jaw(tri[j]))) : d0; const lit = d.map((x) => x > t);
     const H = HI.get(g); let hi = H && lit.some(Boolean) && !(H.parts && !H.parts.test(partName)) ? H : null, colour = null;
     if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
     let f;
@@ -516,6 +576,16 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   };
   for (const f of perFace) {
     if (!f) continue;
+    if (f.panel) {
+      // the panel's cells on the face's whole ring (its neighbours' points included), each convex
+      const pts = ringOf(f.tri, 0).map((r) => ({ w: baryOf(f.tri, r), r }));
+      const cells = clipCells(pts, f.panel.sets, (w) => ({ w, r: onEdge(f.tri, w) ?? (() => { const bary = f.tri.map((vi, k) => [vi, w[k]]); return { p: baryPoint(mesh.vertices, bary, dz), bary }; })() }));
+      for (const { ring, inside } of cells) {
+        const R = ring.map((x) => x.r).filter((r, k, A) => r !== A[(k + 1) % A.length]);
+        if (R.length >= 3 && ringArea2(R, f.outNormal) > AREA2) emit(R.length === 3 ? [R] : triangulate(R, f.outNormal), f.fills[inside ? 1 : 0], f);
+      }
+      continue;
+    }
     if (f.fills === undefined) {
       const R = ringOf(f.tri, 0);
       if (f.hi) litRing(R, f);

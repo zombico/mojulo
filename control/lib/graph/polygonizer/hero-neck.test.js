@@ -24,14 +24,18 @@ const inside = (tris, q) => { let c = 0; for (const [A, B, C] of tris) { const e
 // (with the old wave restored these pins pass unchanged).
 describe('the neck form: absent ⇒ the plan as it was', () => {
   it('reaches only the anime head on anime proportions; every other path keeps the segment, byte for byte', () => {
-    // pinned from the code before the neck form existed (sha256(JSON.stringify(plan)), first 16 hex digits)
-    expect(h(heroPlan({ cast: 'male', proportions: 'anime' }))).toBe('7df808760df93813');
-    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly' }))).toBe('d5582c1b5d57b926');
+    // pinned from the code before the neck form existed (sha256(JSON.stringify(plan)), first 16 hex digits), on the
+    // streamlined core (the structured core, DEFAULT_CORE, came after and moves the body, not the neck)
+    const old = { core: 'streamlined' };
+    expect(h(heroPlan({ cast: 'male', proportions: 'anime', ...old }))).toBe('7df808760df93813');
+    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly', ...old }))).toBe('d5582c1b5d57b926');
     expect(heroPlan({ cast: 'male', proportions: 'anime', neckForm: null })).toEqual(heroPlan({ cast: 'male', proportions: 'anime' }));
-    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime' }))).toBe('a548ad8506b71fba');   // the landmark head on anime proportions
-    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime' })))).toBe('6e8dcaca2f4e56eb');
-    expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero' }))).kind).toBe('segment');
-    expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime' }))).kind).toBe('segment');   // a figure cast has none
+    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime', ...old }))).toBe('741e70ef0fbed08c');   // the landmark head on anime proportions (re-pinned: the fitted forehead upright, the brow's end on its landmark; the ear, head-ear.js; the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis))
+    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime', ...old })))).toBe('4a7d63bc45effbe9');
+    expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero', ...old }))).kind).toBe('segment');
+    expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime', ...old }))).kind).toBe('segment');   // a figure cast has none
+    // the structured core gives every worn head without a neck form of its own the nape loft at its cast's radius
+    for (const spec of [{ cast: 'male', head: 'anime', proportions: 'hero' }, { cast: 'stout', head: 'anime' }, { cast: 'female' }]) expect(neckOf(heroPlanOf(heroRecord(spec))).kind, JSON.stringify(spec)).toBe('loft');
     for (const cast of ['female', 'male']) {
       const n = neckOf(heroPlanOf(heroRecord({ cast, head: 'anime', register: 'lowpoly' })));
       expect(n.kind, cast).toBe('loft'); expect(n.slots, cast).toBe('ring12'); expect(n.e, cast).toBe(2); expect(n.stations, cast).toHaveLength(ANIME_NECK_FORMS[cast].rings.length);
@@ -39,9 +43,14 @@ describe('the neck form: absent ⇒ the plan as it was', () => {
   });
   it('the trapezius ring replaces the male collar (no collar rise, no widening); the female keeps her collar', () => {
     const top = (spec) => { const t = heroPlanOf(heroRecord(spec)).segments.find((s) => s.name === 'torso'); return { st: t.stations.at(-1), tip: t.caps.tip, blend: t.bind.blend.st4 }; };
-    const m = top({ cast: 'male', head: 'anime' }), T = ANIME_NECK_FORMS.male.trap;
-    const zs = heroPlanOf(heroRecord({ cast: 'male', head: 'anime' })).joints.neckHub[2];
+    // the streamlined core wears the form's trapezius ring as it is
+    const m = top({ cast: 'male', head: 'anime', core: 'streamlined' }), T = ANIME_NECK_FORMS.male.trap;
+    const zs = heroPlanOf(heroRecord({ cast: 'male', head: 'anime', core: 'streamlined' })).joints.neckHub[2];
     expect(m.st.r).toEqual(T.r); expect(m.st.yc).toBe(T.yc); expect(m.st.z).toBeCloseTo(zs + T.z, 6); expect(m.tip[2]).toBeCloseTo(zs + T.tip, 6); expect(m.blend).toEqual(T.blend);
+    // the structured core's neck root narrows and lowers it (the form's held the shoulder line flat out from the neck),
+    // its cap and weights the form's
+    const s = top({ cast: 'male', head: 'anime' }), zS = heroPlanOf(heroRecord({ cast: 'male', head: 'anime' })).joints.neckHub[2];
+    expect(s.st.r[0]).toBeLessThan(0.75 * T.r[0]); expect(s.st.z).toBeLessThan(zS + T.z); expect(s.tip[2]).toBeCloseTo(zS + T.tip, 6); expect(s.blend).toEqual(T.blend);
     expect(ANIME_NECK_FORMS.female.trap).toBeUndefined();
     const f = top({ cast: 'female', head: 'anime' }); expect(f.st.yc).toBeUndefined(); expect(f.blend).toEqual({ torso: 0.6, neck: 0.4 });
   });

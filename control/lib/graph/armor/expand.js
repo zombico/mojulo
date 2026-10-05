@@ -50,14 +50,14 @@ export function validateArmor(build) {
 }
 
 /** Expand a (valid) build → { kit, tones, emissive, trace }. `ctx`: { Ht, Hl, scale } from hero-dress.dressContext. */
-export function expandArmor(build, { Ht, Hl, scale = 1 } = {}) {
+export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth } = {}) {
   const errs = validateArmor(build);
   if (errs.length) throw new Error(`Invalid armour build:\n- ${errs.join('\n- ')}`);
   const card = cardOf(build.style ?? 'knight'), T = build.theme === undefined ? null : themeOf(build.theme);
   // precedence: the style's card, then the theme's lean, then the build's own words
   const dials = { stylize: 0, mass: 1, coverage: 1, ornament: 1, ...card.dials, ...(T?.dials || {}), ...build.dials };
   const lang = { ...(card.language || {}), ...(T?.language?.[card.family] || {}), ...(build.language || {}) };
-  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale };
+  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale, ...(pelvis ? { pelvis: true, Hth } : {}) };
   let out = card.family === 'lamellar' ? lamellarSuit(dials, ctx, { crest: lang.crest ?? 'crescent' })
     : card.family === 'hardsuit' ? hardSuit(dials, ctx, lang)
       : plateSuit(dials, ctx, { variant: lang.pauldron ?? 'spaulder', focalSide: lang.focalSide ?? 'R', fnSide: lang.fnSide ?? 'L' });

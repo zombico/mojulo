@@ -87,6 +87,8 @@ export const FIT_INERT_KNOBS = ['earSize', 'eyeSize', 'neckGirth'];
 
 function deformed(F, knobs, jaw = 0) {
   const half = Object.fromEntries(Object.entries(F.BASE).filter(([k]) => !k.endsWith('L')).map(([k, p]) => [k.replace(/R$/, ''), [...p]]));
+  // the forehead upright (FIT_FOREHEAD), under the knobs: `foreheadSlope` leans it from there
+  for (const [n, w] of [['forehead', 1], ['frontal', 1], ['foreheadSide', FIT_FOREHEAD.side]]) half[n][1] += FIT_FOREHEAD.forward * w;
   for (const [name, move] of Object.entries(KNOB_MOVES)) if (knobs[name] !== undefined && knobs[name] !== 1) move(knobs[name], half);
   // The jaw angle's width is the jawline coordinate the references constrain least (no front view sees the angle);
   // widening it on the fitted surface itself lets the fit's lower-side face follow it.
@@ -174,6 +176,11 @@ export const FIT_CHEEK = { on: true, lead: 0.03, turn: 0.25, fullness: 0.07, jaw
  * jaw-angle widening came from the female's front-view widths; the male's three-quarter view sees his jaw angle. */
 export const FIT_TUNING = { female: {}, male: { jaw: 0 } };
 const cheekOf = (preset) => ({ ...FIT_CHEEK, ...FIT_TUNING[preset] });
+/** The FOREHEAD. The fit has no point between the glabella and the hairline (`forehead`, `frontal`, `foreheadSide`),
+ * so the forehead is one plane leaning back from the brow (≈ 21° on the male) and the temple further: a receding,
+ * sunken forehead in the ¾ and the profile. `forward` moves the hairline points forward on the fitted surface before
+ * it is sampled (fit units, ≈ 0.11 m each: 0.1 ≈ 11 mm), the temple's `side` of that. */
+export const FIT_FOREHEAD = { forward: 0.2, side: 0.6 };
 // Stack rows (jawline, chin front, chin fold, cranium mouth … glabella): the cheek's corner rows, its fullness row,
 // and the rows between.
 const JAW = 0, FULL = 4, CREST = 6, EYE = 7, UPPER = [5], LOWER = [1, 2, 3], MOUTH = 3;
@@ -279,6 +286,9 @@ export function fittedCage(preset, knobs, slots) {
     const xs = row.x ? row.x.map((x) => (typeof x === 'string' ? P[x][0] : x)) : row.frac.map((f) => f * W);
     const half = { front: castY(F, V, 0, z, true), side: [W, side[1], z], rear: castY(F, V, 0.8 * W, z, false), back: castY(F, V, 0, z, false) };
     FRONT.forEach((k, i) => { half[k] = castY(F, V, xs[i], z, true); });
+    // a named slot is never read behind its own landmark: at the brow's outer end the ray at the row's height slips past
+    // the ridge onto the temple behind it (3.4 cm back on the male), which caved the brow in over the far eye
+    if (row.x) FRONT.forEach((k, i) => { const n = row.x[i]; if (typeof n === 'string' && P[n][1] > half[k][1]) { half[k] = [half[k][0], P[n][1], z]; } });
     const named = new Set(row.x ? FRONT.filter((k, i) => typeof row.x[i] === 'string') : []);
     return { z, half, named, holdDepth: !!row.holdDepth, own: row.own ?? HALF.length };
   });

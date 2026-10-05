@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ANIME_CHARACTER_LIGHT, ANIME_HAIR_HIGHLIGHT, derivedShade, derivedHighlight, resolveCharacterLight, layeredShadingNormals, characterLitFaces, characterLitPieces, piecesAt, drawLayer } from './station-loft-shade.js';
 import { layeredFaces, layeredSeat } from './station-loft-faces.js';
 import { compileLayered } from './station-loft.js';
+import { THONG } from './seat-panels.js';
 import { validateRig, bindLayered } from './station-loft-rig.js';
 import { standPose, poseLayered, rigidParts } from './hero-gesture.js';
 import { FLAT_LIGHT, resolveToon, resolveToonLight, hexToRgb, rgbToHex } from './vexar.js';
@@ -310,18 +311,64 @@ describe('the character light on the anime hero', () => {
       if (/^(pupil)/.test(part)) expect(fills).toEqual(new Set([P.Pupil]));
       if (/^(brow|lash)/.test(part)) expect(fills).toEqual(new Set([P.Ink]));
     }
-    // the neck occlusion rule: under the anime head the neck is always in shade, one swatch, never split
-    expect(byPart.get('neck')).toEqual(new Set([skinShade]));
+    // the neck occlusion rule: under the anime head the neck is in the head's shade; on the structured core (this hero)
+    // the jaw's, its lower edge a V toward the notch, the neck under it stepped by N·L
+    expect(byPart.get('neck')).toEqual(new Set([skinShade, P.Skin]));
   });
-  it('the neck occlusion rule: every neck face whole and in shade under the anime head; any other mesh steps its neck', () => {
+  it('the neck occlusion rule: under the anime head the neck is in shade (on the structured core above the jaw line, stepped under it); any other mesh steps its neck', () => {
     const neckFaces = mesh.faces.filter((t) => mesh.provenance[t[0]].part === 'neck').length;
-    const pieces = characterLitPieces(mesh, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
+    // without the structured core (no pelvis part): every neck face whole and in shade
+    const lean = { ...mesh, parts: Object.fromEntries(Object.entries(mesh.parts).filter(([k]) => k !== 'pelvis')) };
+    const pieces = characterLitPieces(lean, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
     expect(pieces).toHaveLength(neckFaces); expect(new Set(pieces.map((pc) => pc.fill))).toEqual(new Set([derived(P.Skin, 'Skin')]));
     expect(pieces.every((pc) => pc.refs.every((r) => r.vi !== undefined))).toBe(true);   // no crossing: the parent triangle
+    // the structured core: the jaw's shadow over the neck's top, the neck lit under its lower edge (both tones), and every
+    // piece wholly over the chin in shade
+    const jawed = characterLitPieces(mesh, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
+    expect(new Set(jawed.map((pc) => pc.fill))).toEqual(new Set([P.Skin, derived(P.Skin, 'Skin')]));
+    const chin = Math.min(...mesh.faces.filter((t) => mesh.provenance[t[0]].part === 'face').flat().map((v) => mesh.vertices[v]).filter((p) => p[1] > 0).map((p) => p[2])) + layeredSeat(mesh, true);
+    expect(jawed.filter((pc) => pc.refs.every((r) => r.p[2] > chin + 0.002)).every((pc) => pc.fill === derived(P.Skin, 'Skin'))).toBe(true);
     // a mesh without the anime face (no face shell over a cranium core) steps its part named `neck` as any other part
     const plain = { ...mesh, parts: Object.fromEntries(Object.entries(mesh.parts).filter(([k]) => k !== 'face')) };
     const stepped = characterLitPieces(plain, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
     expect(new Set(stepped.map((pc) => pc.fill))).toEqual(new Set([P.Skin, derived(P.Skin, 'Skin')]));
+  });
+  it("the seat's panels: the structured female's thong (a V narrowing into the cleft, a thin string rising over the hip), the male's speedo (its crease, its leg line rounded on the thigh), under the character light and the studio's", () => {
+    const build = (hero) => { const m = expandLayeredManifest({ kind: 'layered', hero }); return compileLayered(m.recipe, m.dials || {}, m.channels || {}); };
+    const piecesOf = (me, extra = {}) => characterLitPieces(me, { normals: layeredShadingNormals(me), dz: layeredSeat(me, true), ...extra });
+    const SW = '#336699', P = { Swim: SW }, swimTones = new Set([SW, derived(SW, 'Swim')]);
+    // the female: on her seat's skin, pieces in the swimsuit's tones; under the string (the V) every one behind, within
+    // the V's top half-width of the midline, narrower low than high (the V narrows into the cleft)
+    const fm = build({ cast: 'female', head: 'anime', detail: 'swimsuit' }), f = piecesOf(fm, { palette: P }).filter((pc) => pc.part === 'pelvis');
+    const str = f.filter((pc) => fm.groups[pc.fi] === 'Skin' && swimTones.has(pc.fill)); expect(str.length).toBeGreaterThan(0);
+    const pts = str.flatMap((pc) => pc.refs.map((r) => r.p)), side = pts.filter((p) => Math.abs(p[0]) > 0.13), mid = pts.filter((p) => Math.abs(p[0]) < 0.02);
+    const zTopMid = Math.max(...mid.map((p) => p[2])), vee = pts.filter((p) => p[2] < zTopMid - THONG.string - 1e-6);
+    expect(vee.every((p) => Math.abs(p[0]) < THONG.vee + 0.002 && p[1] < 0.01)).toBe(true);
+    const zs = vee.map((p) => p[2]), z0 = Math.min(...zs), z1 = Math.max(...zs), widthIn = (a, b) => Math.max(...vee.filter((p) => p[2] >= a && p[2] <= b).map((p) => Math.abs(p[0])));
+    expect(widthIn(z0, z0 + 0.25 * (z1 - z0))).toBeLessThan(widthIn(z1 - 0.25 * (z1 - z0), z1));
+    // the string at the hip: thin (its own height, not the ring's) and higher than at the back
+    expect(side.length).toBeGreaterThan(0);
+    expect(Math.max(...side.map((p) => p[2])) - Math.min(...side.map((p) => p[2]))).toBeLessThan(THONG.string + 0.012);
+    expect(Math.max(...side.map((p) => p[2]))).toBeGreaterThan(zTopMid + 0.005);
+    // the studio light draws the thong too: pelvis faces in the swimsuit's colour (blue over red) behind, off the Swim group's own
+    const sf = layeredFaces(fm, { palette: { Swim: SW, Skin: '#ffffff' } }).filter((x) => x.group === 'pelvis'), blue = (x) => { const [r, , b] = [1, 3, 5].map((i) => parseInt(x.fill.slice(i, i + 2), 16)); return b > r + 20; };
+    expect(sf.length).toBeGreaterThan(fm.faces.filter((t) => fm.provenance[t[0]].part === 'pelvis').length);
+    expect(sf.some((x) => blue(x) && x.corners.every((c) => c[1] < 0 && Math.abs(c[0]) < 0.03))).toBe(true);
+    // the male: his speedo's pieces take a third tone, darker than its shade, down the midline behind (the crease)
+    const mm = build({ cast: 'male', head: 'anime', detail: 'swimsuit' }), all = piecesOf(mm, { palette: P }), m = all.filter((pc) => pc.part === 'pelvis');
+    const crease = m.filter((pc) => mm.groups[pc.fi] === 'Swim' && !swimTones.has(pc.fill));
+    expect(crease.length).toBeGreaterThan(0);
+    expect(crease.every((pc) => pc.refs.every((r) => Math.abs(r.p[0]) < 0.04 && r.p[1] < 0.01))).toBe(true);
+    // the skin of his lower back over the speedo's waistband keeps the skin's two tones (no wedge, no V)
+    const skinTones = new Set(m.filter((pc) => mm.groups[pc.fi] === 'Skin').map((pc) => pc.fill)); expect(skinTones.size).toBeLessThanOrEqual(2);
+    for (const t of swimTones) expect(skinTones.has(t)).toBe(false);
+    // the speedo's leg line on his thigh: the thigh's skin in the swimsuit's tones, lowest behind, higher at the outer side
+    const leg = all.filter((pc) => pc.part === 'thighR' && mm.groups[pc.fi] === 'Skin' && swimTones.has(pc.fill)).flatMap((pc) => pc.refs.map((r) => r.p)); expect(leg.length).toBeGreaterThan(0);
+    const ax = leg.reduce((a, p) => a + p[0], 0) / leg.length, low = (q) => Math.min(...leg.filter(q).map((p) => p[2]));
+    expect(low((p) => p[1] < -0.04 && Math.abs(p[0] - ax) < 0.03)).toBeLessThan(low((p) => p[0] > ax + 0.05) - 0.02);
+    // the streamlined core has no pelvis part, so no panel (and no pelvis pieces at all)
+    const s0 = piecesOf(build({ cast: 'female', head: 'anime', detail: 'swimsuit', core: 'streamlined' }), { palette: P }).filter((pc) => pc.part === 'pelvis');
+    expect(s0).toHaveLength(0);
   });
   it("the hair's top planes: under the anime head a hair corner's N·L gains 0.8 of its normal's upward share; nothing else moves, and no other mesh takes it", () => {
     const dz = layeredSeat(mesh, true), on = characterLitPieces(mesh, { normals: N, palette: P, dz }), off = characterLitPieces(mesh, { normals: N, palette: P, dz, hairTop: false });
@@ -469,10 +516,45 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   };
   const PINS = {
     planBiped: [() => expandLayeredManifest({ kind: 'layered', plan }), ['a645ae390d3b0fbf', 'a33a830d8af3f744', 'f1b33d48167b8855']],
-    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) }), ['50f693843ceb2e44', '5af15b7c932e1e27', 'c499ac73612000db']],
-    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly' }) }), ['80ca1bf8963729c4', 'a331848f2c2bd5c4', 'af946a02d6dee4f2']],
-    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none' }) }), ['9284e50464c3a412', '00ab4889f9c168a6', '0e6eb7d4107141c3']],
+    // the heroes on the streamlined core: these pin the light's absence, and predate the structured core (DEFAULT_CORE),
+    // whose own payloads are pinned below. The plain and toon pins re-pinned for smooth shading under the studio light
+    // (world-kinds.js, STUDIO_SMOOTH_CREASE: a hero off the anime head carries the key at its corners); the unshaded
+    // export (FLAT_LIGHT) unchanged. The landmark pins, all three, re-pinned for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis)
+    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['a20d0d2adb34ae04', '8bb91f09f75aff4e', '4c85ac62eab0b693']],
+    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['cb1aa580969db578', '55848d460867fb76', 'd5079d1075183390']],
+    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['bb3063a3a7ba1e28', 'd52f97e21ea62132', '0e6eb7d4107141c3']],
   };
+  // THE STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs, the stands' own base): the
+  // default heroes' payloads, pinned; each one at core: 'streamlined' is the value pinned beside it above, still. Re-pinned
+  // for the structured torso and bust (hero-form.js TORSO_FORM, BUST_FORM), and for the bare body (the dense torso and
+  // pelvis, TORSO_SCULPT and the seat, the chest layers CHEST_FORM, the hem without the shirt's overlap), and for the
+  // pectorals meeting as one domed chest and the breast sampled from its field (breast-field.js), then for the female's
+  // breasts closer together, pointing forward, rising out of her upper chest's fill, then for the pair meeting in the
+  // cleft's valley (breast-field.js `cleft`) with the décolletage unfilled and her upper pole a longer ramp, then for
+  // the neck rising out of the chest, the trapezius sloping, the deltoid's dome (hero-form.js NECK_ROOT) and, under the
+  // anime head, the neck's shade the jaw's shadow, then for the deltoid's belly, the landmark head's nape loft and the
+  // pectoral's top along the clavicle, then for the seat (the female's deeper, its cleft in the second shade: SEAT_CLEFT;
+  // the male's square) and the structured speedo and thong, then for the seat's panels (seat-panels.js: the thong's V
+  // and thin string, the speedo's leg line, cut out of the faces) and the female's seat full low, then for the hand
+  // (hero-hand.js: a palm and five digits for the mitten, the rig's `hands`), then for the forearm tapering into the hand
+  // at a rounded wrist, then for the arm's muscles (the triceps and biceps rings, the elbow, the forearm slimming to the
+  // wrist), then for the legs' (the quadriceps, hamstrings and the ring above the knee, the calf, the slim ankle); the
+  // streamlined values above unchanged; then for the landmark head's forehead (humanoid-head-fit.js: upright, the brow's
+  // end on its own landmark), which moved the landmark heroes on both cores, here and above, and not head-none; then for
+  // the ear (head-ear.js: the side shape, a thin plate with the rim, the antihelix and the bowl), the same again; then for
+  // smooth shading under the studio light (STUDIO_SMOOTH_CREASE: the key at each face's corners), every hero here, the
+  // plain and toon pins, the unshaded one unchanged; then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis): every jawed hero, all three
+  // pins (the rig rides in the recipe and the pack), head-none unchanged
+  it('the structured core (the default): the heroes\' payloads, pinned', async () => {
+    const S = { landmarkMale: [{ cast: 'male' }, ['a68c915bf270af0a', '24d2ef1410300aba', '802ebdf3d34b2edb']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['30ee35351be32be6', '1940e1d3d324e4ed', '351a957cb50973a9']],
+      headNone: [{ cast: 'female', head: 'none' }, ['0cffd2cd855cb54f', 'd14954ec5db3cfe3', '9ae3db683a366a18']] };
+    for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
+      const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
+      expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
+    }
+    for (const [cast, pin] of [['female', '25c76e0ae38c13cc'], ['male', 'bddd3b7393f9e0c2']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+  }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {
       const m = make();
@@ -488,7 +570,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // with the form's own wave, which the anime wave (hero-form.js ANIME_WAVE) replaced after them.
   const beforeHairBase = (spec) => {
     const hero = heroRecord(spec), eff = composeAnime(hero, animeDefaultStyle(hero.cast));
-    const plan = withGestureClip(humanoidPlan({ preset: hero.cast, register: hero.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' } }), resolveGesture(heroGesture(hero), hero.cast));
+    const plan = withGestureClip(humanoidPlan({ preset: hero.cast, register: hero.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' }, ...(hero.core ? { core: hero.core } : {}) }), resolveGesture(heroGesture(hero), hero.cast, { core: hero.core }));
     return expandLayeredManifest({ kind: 'layered', hero, plan: { ...plan, clips: { ...plan.clips, wave: FORM_WAVE } } }, { from: 'plan' });
   };
   const lightBefore = { thresholds: { Hair: 0.25 }, shade: { Hair: rgbToHex(hexToRgb('#644634').map((v, k) => v * [0.62, 0.62, 0.76][k])) }, highlight: false };
@@ -514,7 +596,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // Re-pinned for the hero's `wave` clip keeping its elbow at the shoulder line (hero-form.js): the form's wave that
     // formWave puts back is that one now, so untimed each payload hashes the values that re-pin gave (ea41b45ae2f53fcd /
     // 2c05de0b1d383565), still; the anime hero's own payloads never move with it (ANIME_WAVE replaces the form's).
-    const spec = { cast: 'female', head: 'anime', gesture: 'rest', sculpt: false };
+    // (on the streamlined core: the chain above predates the structured core, DEFAULT_CORE, pinned below)
+    const spec = { cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' };
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
     const plainBake = await world(m, { unshaded: true });
     expect(h(plainBake)).toBe('483d4a95853df858'); expect(h(untimed(plainBake))).toBe('8854b560f6965ca2');
@@ -572,7 +655,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // the graphic base (anime-sculpt GRAPHIC_BASE: the ear raised to span the eye level to the nose tip, the female's nose
   // line longer and hooked); the layers undone, the six values above are the ones before these. The hero before the hair
   // bases, lit as before them, takes the top planes, the ear and the nose line too (bf934d9e455fe93d / fa28e13ac632c3f8;
-  // daac23168b144fc8 / 2afb8fb5408bc04f before them).
+  // daac23168b144fc8 / 2afb8fb5408bc04f before them). Re-pinned for the ear (head-ear.js: the side shape and the plate
+  // on the graphic face): the hero before the hair bases was bf934d9e455fe93d / fa28e13ac632c3f8 before it.
   // the hair's value design on the World's own faces: at the three-quarter view (the camera 45° off the front on the key's
   // side, 4° up, over the head), 65–85 % of the hair a viewer sees is on the lit side (its base tone or its highlight),
   // with designed shade shapes under the locks; the highlight a small share of the lit hair
@@ -604,21 +688,22 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // util/dmath.js, and the shared figure rig runs under withMath): the female chain moved, from values only macOS
   // arm64 on Node 24 produced; the male chain and the hair-base pins did not.
   it('the anime hero default, pinned (female and male)', async () => {
-    const PINS = [['female', ['ffb8d37bc08d16ba', 'f5deaea4120a546a'], ['4c3754af7646aa9e', '2887b27d6e938552'], ['1fdf3c90d77c935c', '755ab3593db17ff7']],
-      ['male', ['15e57c4bc1d8a1f8', '8864f3e9d7b7c517'], ['0673f3eb6d1583e6', '29b93ac1aab62c1b'], ['43893c06763875ef', '7d7cba2a0afad84e']]];
-    const TIMED = { female: ['2585a16cdc02ae53', 'ad90336ddc2cc553', '2ff2e9f55796d955'], male: ['02ff3e82a4b572fd', '12d7111ddfb7c054', 'faeb81c5005442a7'] };
-    const WAVED = { female: ['a0cf31d82d429668', '920af4172d6e2312', '1e426997d5069890'], male: ['64fd9335f413ea62', '772bb0116544418e', '7340f7e2c9471d44'] };
+    const PINS = [['female', ['10f2def97e54a4b8', '03a27a4b4cee7fc1'], ['68e6e462e6e265e8', '413db93b76445e9b'], ['1fdf3c90d77c935c', '755ab3593db17ff7']],
+      ['male', ['48a635923983689f', '7da53375826a6df5'], ['d8fafc568738d919', '885354d47e892d02'], ['43893c06763875ef', '7d7cba2a0afad84e']]];
+    const TIMED = { female: ['57f12caf580c7249', 'de34aeaa869105aa', '2ff2e9f55796d955'], male: ['3c626419171ad74f', 'b98668845b17a833', 'faeb81c5005442a7'] };
+    const WAVED = { female: ['fc06d34878f7ed9b', '435ca5c3253eda90', '1e426997d5069890'], male: ['a2357fe57120f308', '2c094b6a75345ad0', '7340f7e2c9471d44'] };
     for (const [cast, pin, rest, studio] of PINS) {
       for (const [i, [spec, [full, undone], label]] of [[{}, pin, cast], [{ gesture: 'rest' }, rest, `${cast} at rest`], [{ sculpt: false }, studio, `${cast} on the studio's face`]].entries()) {
-        const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', ...spec }) });
+        // (on the streamlined core: the chain predates the structured core, DEFAULT_CORE, pinned below)
+        const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', ...spec, core: 'streamlined' }) });
         expect(h(await world(m)), `${label}, waved`).toBe(WAVED[cast][i]);
         const payload = await world(formWave(m));
         expect(h(payload), label).toBe(TIMED[cast][i]);
         expect(h(untimed(payload)), `${label}, untimed`).toBe(full); expect(h(unlayered(untimed(payload))), `${label}, untimed, the layers undone`).toBe(undone);
       }
     }
-    for (const [cast, before] of [['female', 'bf934d9e455fe93d'], ['male', 'fa28e13ac632c3f8']]) {
-      const m = beforeHairBase({ cast, head: 'anime' });
+    for (const [cast, before] of [['female', '5d20a99016dba17a'], ['male', 'bf9c13532265b41e']]) {
+      const m = beforeHairBase({ cast, head: 'anime', core: 'streamlined' });
       expect(h(unlayered(untimed(await world({ ...m, toon: { light: lightBefore } })))), `${cast} before the hair bases, untimed, the layers undone`).toBe(before);
     }
   }, 90000);
