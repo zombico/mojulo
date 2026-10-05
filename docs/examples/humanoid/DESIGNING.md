@@ -278,7 +278,8 @@ ONE FAMILY PER DESIGN. The operator's experiment (Broku's carrot layout rebuilt 
 three length and width settings): length variation inside one family does make hierarchy, but each family has a range
 of jobs — a stretched pepper becomes a carrot, a short wide banana goes to mush. So a design picks the family that
 fits the style and varies length, width and count inside it. The characters: `broku` (carrots, after Toriyama),
-`jinto` (bananas: comma hair over a soft two-block), `kairo` (chili peppers: a wolf cut).
+`jinto` (bananas: comma hair over a soft two-block), `jingo` (his cousin: bananas, few and rounded, for a long face),
+`kairo` (chili peppers: a wolf cut).
 
 A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name the real cut first, then build it.
 
@@ -290,6 +291,14 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   the tallest and shaggiest zone. The sides step from the ear to the jaw, the nape grows to the collar and flicks out,
   the sideburns are long and wispy, and the middle part is piecey and off centre. Everything swirls one way from the
   whorl, with one long flick at his right jaw. Silhouette: an hourglass from the side.
+- **Jingo, a rounded shell for a long face.** Few pieces placed with intent: 26 bananas against Jinto's fifty. A long
+  face wants no height on top, width at the temples and a fringe to the brow, so the crown is low and flat and every
+  lock bows out and turns its end back in under the jaw. Silhouette: a soft circle around a long face. Fewer, wider
+  pieces read calmer and more graphic; the count is a texture choice, not a coverage one (cover tiles them either way).
+- **Never through the body.** Shaped hair keeps out of the body it is worn on: the hero's own neck and torso rings
+  are handed to the head, and a lock that meets them drapes over them (the push carries on down the lock, so it never
+  kinks back in). Hair lies close on the neck and stands off the collar and shoulders. A long cut then shows where it
+  really falls: Kairo's nape was shortened to end at the collar instead of pouring over his shoulders.
 - **Keep a pair apart by the nape.** Jinto is closed and short at the nape and his story is the front; Kairo is open
   and long at the nape and his story is the crown and the tail. Trade nape lengths and both collapse into the same
   spiky hero.

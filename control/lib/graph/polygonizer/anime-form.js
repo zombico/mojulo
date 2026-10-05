@@ -453,6 +453,32 @@ export function buildAnime(r, options = {}) {
   if (SH || BURNS) {
     const C = [0, 0.25, 0.07], S = 12, N = 16, G = SH?.scale ?? 1;
     const anchorOf = (at) => capPoint(at[0] * Math.PI / 180, clamp(1 - at[1] / 90, 0, 1));
+    // BODY: hair never cuts through the body. With `options.body` (anime-head: the hero's own neck and torso rings in the
+    // head's frame, metres about the atlas before the head's scale, and the pole's registration) a point is carried into
+    // that frame the way anime-head registers the head (the pitch, then the registration's scale and offsets) and, inside
+    // a ring short of the clearance, pushed straight out across it (a superellipse, as the body's rings are); without it,
+    // the studio's own neck sections stand in for the body. `pad` is the piece's half-thickness there
+    const headPitch = (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, nPivot = [0, fy(-0.38), 0.14];
+    const turn = (p, a) => { const c = dmath.cos(a), sn = dmath.sin(a), y = p[1] - nPivot[1], z = p[2] - nPivot[2]; return [p[0], nPivot[1] + c * y - sn * z, nPivot[2] + sn * y + c * z]; };
+    const neckAt = (y) => { const ys = neckSections.map((q) => fy(q[0])), k = y <= ys[0] ? 0 : y >= ys.at(-1) ? ys.length - 2 : ys.findIndex((v, i) => v <= y && y <= ys[i + 1]), t = clamp((y - ys[k]) / (ys[k + 1] - ys[k] || 1)), a = neckSections[k], b = neckSections[k + 1];
+      const rx = mix(a[1], b[1], t) * f.width, front = mix(a[2], b[2], t), rear = mix(a[3], b[3], t), tt = clamp((y - fy(-1.25)) / (fy(-0.38) - fy(-1.25))), lag = headPitch * (1 - tt * tt * (3 - 2 * tt));
+      return { rx, rz: (rear - front) / 2, cz: (front + rear) / 2 - lag * (y - nPivot[1]) }; };
+    let BODY = (p, pad) => { if (p[1] > fy(-0.30)) return p; const e = neckAt(p[1]), m = 0.03 + pad, u = p[0] / (e.rx + m), v = (p[2] - e.cz) / (e.rz + m), r = dmath.hypot(u, v); if (r >= 1) return p; const k = r < 1e-6 ? [0, 1] : [u / r, v / r]; return [k[0] * (e.rx + m), p[1], e.cz + k[1] * (e.rz + m)]; };
+    if (options.body) {
+      // the registration anime-head will apply: the pitched face's extent → the pole's height, menton and depth centre
+      let yLo = Infinity, yHi = -Infinity, zLo = Infinity, zHi = -Infinity;
+      for (let i = 0; i < earsStart; i += 3) { const q = turn(parts.skin.slice(i, i + 3), headPitch); yLo = Math.min(yLo, q[1]); yHi = Math.max(yHi, q[1]); zLo = Math.min(zLo, q[2]); zHi = Math.max(zHi, q[2]); }
+      const { registration: RG, rings } = options.body, Sc = RG.height / (yHi - yLo), TZ = RG.menton - Sc * yLo, TY = RG.midY - Sc * (-zLo + -zHi) / 2;
+      const toM = (p) => { const q = turn(p, headPitch); return [q[0] * Sc, -q[2] * Sc + TY, q[1] * Sc + TZ]; }, fromM = (m) => turn([m[0] / Sc, (m[2] - TZ) / Sc, -(m[1] - TY) / Sc], -headPitch);
+      // each body part a stack of rings bottom → top: { z, cy, rx, ry, e } (its `clear` the clearance, metres), read between
+      // its rings at a height
+      const ringAt = (stack, z) => { if (z < stack[0].z || z > stack.at(-1).z) return null; const k = Math.max(0, stack.findIndex((q, i) => i < stack.length - 1 && q.z <= z && z <= stack[i + 1].z)), a = stack[k], b = stack[k + 1] ?? a, t = clamp((z - a.z) / (b.z - a.z || 1));
+        return { cy: mix(a.cy, b.cy, t), rx: mix(a.rx, b.rx, t), ry: mix(a.ry, b.ry, t), e: mix(a.e ?? 2, b.e ?? 2, t) }; };
+      BODY = (p, pad) => { let q = toM(p), moved = false;
+        for (const stack of rings) { const m = (stack.clear ?? 0.004) + pad * Sc; const R = ringAt(stack, q[2]); if (!R) continue; const u = q[0] / (R.rx + m), v = (q[1] - R.cy) / (R.ry + m), r = (Math.abs(u) ** R.e + Math.abs(v) ** R.e) ** (1 / R.e);
+          if (r >= 1) continue; const k = r < 1e-6 ? [0, -1] : [u / r, v / r]; q = [k[0] * (R.rx + m), R.cy + k[1] * (R.ry + m), q[2]]; moved = true; }
+        return moved ? fromM(q) : p; };
+    }
     const piece = (name, root, control, tip, width, depthRatio, normal, profile) => {
       const start = parts.hair.length, rings = [];
       // a stable frame along the curve: the across direction from the piece's normal, falling back when the tangent runs
@@ -460,8 +486,16 @@ export function buildAnime(r, options = {}) {
       let prev = null;
       const frame = (tangent) => { let across = cross(tangent, normal); if (dmath.hypot(...across) < 0.25) across = cross(tangent, Math.abs(tangent[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); across = unit(across); if (prev && dot(across, prev) < 0) across = mul(across, -1); prev = across; return [across, unit(cross(across, tangent))]; };
       const ring = (center, tangent, w) => { const [across, thickDir] = frame(tangent), th = w * depthRatio; return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); }); };
+      // the curve's centres, each kept OUT of the body (BODY: never through the neck or over into the shoulders), the
+      // tangents then read off the kept centres
+      // a lock that meets the body DRAPES over it: the push it takes there carries on down the rest of its length (it
+      // never springs back inside, which would kink it)
+      let drape = [0, 0, 0];
+      const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * Math.max(1, depthRatio)); drape = add(drape, sub(k, c)); return k; });
+      tip = centers[N];
+      const tangentAt = (j) => { const d = sub(centers[Math.min(N, j + 1)], centers[Math.max(0, j - 1)]); return dmath.hypot(...d) < 1e-9 ? unit(sub(control, root)) : unit(d); };
       rings.push(ring(root, unit(sub(control, root)), width * profile(0)));   // the cut base at t 0
-      for (let j = 1; j < N; j++) { const t = j / N, center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))); rings.push(ring(center, tangent, Math.max(0.004, width * profile(t)))); }
+      for (let j = 1; j < N; j++) rings.push(ring(centers[j], tangentAt(j), Math.max(0.004, width * profile(j / N))));
       for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
       const base = mul(rings[0].reduce((acc, q) => add(acc, q), [0, 0, 0]), 1 / S);
       for (let i = 0; i < S; i++) { tri('hair', base, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }

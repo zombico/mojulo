@@ -442,18 +442,33 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     const fam = (h) => [...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot)\d+$/)?.[1]).filter(Boolean))];
     const broku = on('male', 'broku'), crop = on('male', 'short');
     expect(fam(broku.h)).toEqual(['Carrot']); expect(fam(on('male', 'jinto').h)).toEqual(['Banana']); expect(fam(on('male', 'kairo').h)).toEqual(['Pepper']);
+    // jingo: the same family as his cousin, FEW pieces placed with intent (half jinto's count or fewer)
+    const pieces = (h, re) => Object.keys(h.parts).filter((k) => re.test(k)).length;
+    expect(fam(on('male', 'jingo').h)).toEqual(['Banana']); expect(pieces(on('male', 'jingo').h, /^hairBanana\d+$/)).toBeLessThanOrEqual(pieces(on('male', 'jinto').h, /^hairBanana\d+$/) / 2);
     expect(broku.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
     expect(box(broku.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
     expect(Object.keys(broku.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
-    // kairo's weight is its count: a wolf cut of 189 thin strands in ten layers (a short base for the mass, a rosette and a
-    // crown for the shag, stepped sides, a long nape, a parted fringe), one flick and two sideburns
+    // kairo's weight is its count: a wolf cut of 205 thin strands in eleven layers (a short base for the mass, a rosette, a
+    // rising front top and a crown for the shag, stepped sides, the nape to the collar, a parted fringe), one flick and two
+    // sideburns
     const kairo = on('male', 'kairo'), jinto = on('male', 'jinto');
-    expect(Object.keys(kairo.h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(192);
+    expect(Object.keys(kairo.h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(208);
     // the pair kept apart by the nape: kairo's grows past jinto's tapered one
     expect(box(kairo.mesh, /^hairPepper/)[2][0]).toBeLessThan(box(jinto.mesh, /^hairBanana/)[2][0] - 0.03);
     expect(failures(kairo.mesh)).toEqual([]); expect(failures(jinto.mesh)).toEqual([]);
     // broku: no straight-up spike — every rising carrot leans ≥ 30° off the vertical from the front and from the side
     for (const K of ANIME_HAIR_MOVES.broku.hair.shapes.carrots) { const [x, y, z] = K.dir; if (y <= 0) continue; expect(Math.abs(x) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); expect(Math.abs(z) / y, JSON.stringify(K.at)).toBeGreaterThanOrEqual(Math.tan(Math.PI / 6)); }
+  });
+  it('the shaped hair never cuts through the body it is worn on: below the chin no hair point is inside the neck or torso', () => {
+    const plan = humanoidPlan({ preset: 'male', head: 'anime', hair: 'kairo' }), mesh = compileLayered(expandPlan(plan));
+    const part = (i) => mesh.pointIds[i].split('/')[0], chin = Math.min(...mesh.vertices.filter((_, i) => part(i) === 'face').map((v) => v[2]));
+    const tris = mesh.faces.filter((f) => ['torso', 'neck'].includes(part(f[0]))).flatMap((f) => f.slice(1, -1).map((_, k) => [f[0], f[k + 1], f[k + 2]].map((i) => mesh.vertices[i])));
+    // inside by ray parity (a ray along +x, nudged off the axes)
+    const crosses = (o, [a, b, c]) => { const e1 = [0, 1, 2].map((k) => b[k] - a[k]), e2 = [0, 1, 2].map((k) => c[k] - a[k]), d = [1, 1e-4, 2e-4], cr = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], dt = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+      const p = cr(d, e2), det = dt(e1, p); if (Math.abs(det) < 1e-12) return false; const t0 = [0, 1, 2].map((k) => o[k] - a[k]), u = dt(t0, p) / det; if (u < 0 || u > 1) return false; const q = cr(t0, e1), v = dt(d, q) / det; return v >= 0 && u + v <= 1 && dt(e2, q) / det > 0; };
+    const low = mesh.vertices.filter((v, i) => /^hairPepper/.test(part(i)) && v[2] < chin);
+    expect(low.length).toBeGreaterThan(50);
+    expect(low.filter((v) => tris.filter((t) => crosses(v, t)).length % 2 === 1).length).toBe(0);
   });
   it('the layers flow from the whorl along the head: their tips stay near the skull, never a sea urchin; scale grows the style', () => {
     const lay = (extra = {}) => on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'pepper', az: [60, 300], el: [10, 40], rows: 2, count: 12, length: 0.9, ...extra }] } }]).mesh;

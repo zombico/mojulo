@@ -179,17 +179,34 @@ export const ANIME_HAIR_MOVES = Object.freeze({
       layers: [
         { shape: 'pepper', az: [0, 360], el: [18, 62], rows: 3, count: 60, length: 0.45, width: 0.06, droop: 0.6, lift: 0.05, vary: 0.2, bend: 0.12, cover: 1.2, sprout: 1 },
         { shape: 'pepper', az: [0, 360], around: [3, 26], rows: 3, count: 30, length: 0.7, width: 0.045, droop: 0.4, lift: 0.2, vary: 0.35, bend: 0.16, sprout: 1, swirl: 25 },
+        { shape: 'pepper', az: [-75, 75], el: [62, 84], rows: 2, count: 16, length: 0.7, width: 0.042, droop: 0.1, lift: 0.45, vary: 0.35, bend: 0.14, sprout: 0.6, swirl: 25 },
         { shape: 'pepper', az: [0, 360], el: [55, 76], rows: 2, count: 36, length: 0.8, width: 0.042, droop: 0.45, lift: 0.18, vary: 0.35, bend: 0.14, swirl: 25 },
         { shape: 'pepper', az: [55, 130], el: [24, 46], rows: 2, count: 10, length: 0.55, width: 0.038, droop: 0.9, lift: 0.12, vary: 0.4, bend: 0.12, swirl: 25 },
         { shape: 'pepper', az: [230, 305], el: [24, 46], rows: 2, count: 10, length: 0.55, width: 0.038, droop: 0.9, lift: 0.12, vary: 0.4, bend: 0.12, swirl: 25 },
-        { shape: 'pepper', az: [55, 130], el: [4, 22], rows: 1, count: 6, length: 0.95, width: 0.038, droop: 1.1, lift: 0.1, vary: 0.35, bend: 0.12, swirl: 25 },
-        { shape: 'pepper', az: [230, 305], el: [4, 22], rows: 1, count: 6, length: 0.95, width: 0.038, droop: 1.1, lift: 0.1, vary: 0.35, bend: 0.12, swirl: 25 },
-        { shape: 'pepper', az: [130, 230], el: [0, 30], rows: 2, count: 22, length: 1.3, width: 0.045, droop: 1.2, lift: 0.3, vary: 0.5, bend: 0.3, swirl: 25 },
+        { shape: 'pepper', az: [55, 130], el: [4, 22], rows: 1, count: 6, length: 0.8, width: 0.038, droop: 1.1, lift: 0.1, vary: 0.35, bend: 0.12, swirl: 25 },
+        { shape: 'pepper', az: [230, 305], el: [4, 22], rows: 1, count: 6, length: 0.8, width: 0.038, droop: 1.1, lift: 0.1, vary: 0.35, bend: 0.12, swirl: 25 },
+        { shape: 'pepper', az: [130, 230], el: [0, 30], rows: 2, count: 22, length: 0.85, width: 0.045, droop: 1.0, lift: 0.35, vary: 0.5, bend: 0.3, swirl: 25 },
         { shape: 'pepper', az: [-55, -10], el: [28, 46], rows: 1, count: 4, length: 0.5, width: 0.04, droop: 0.6, lift: 0.12, vary: 0.4, bend: 0.12, swirl: -25 },
         { shape: 'pepper', az: [-6, 55], el: [28, 46], rows: 1, count: 5, length: 0.5, width: 0.04, droop: 0.6, lift: 0.12, vary: 0.4, bend: 0.12, swirl: 20 },
       ],
       peppers: [
-        { at: [100, 10], dir: [0.8, -1, 0.2], length: 1.0, width: 0.05, bend: -0.3, sprout: 0.6 },
+        { at: [100, 10], dir: [0.8, -1, 0.2], length: 0.85, width: 0.05, bend: -0.3, sprout: 0.6 },
+      ] } } },
+  // JINGO — Jinto's cousin: bananas only, FEW and placed with intent (about twenty, against Jinto's fifty). His face is
+  // long, so the cut balances it the way a stylist would: no height on top (a low, flat crown), the width at the temples
+  // and over the ears, a fringe down to the brow to shorten the forehead, and every lock bowing OUT and turning its end
+  // back IN under the jaw — a rounded shell, the silhouette a soft circle around a long face; one lock on his left curls
+  // under to the cheek
+  jingo: { note: 'Jingo: bananas only, few and placed with intent — a rounded shell for a long face: a low flat crown, full at the temples, a brow-length fringe, every lock bowing out and curling under at the jaw, one lock curling to his left cheek',
+    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.22, width: 0.12 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.16, whorl: [180, 60],
+      layers: [
+        { shape: 'banana', az: [0, 360], around: [4, 30], rows: 1, count: 7, length: 1.0, width: 0.32, droop: 0.85, lift: 0, vary: 0.06, bend: 0.3, sprout: 1 },
+        { shape: 'banana', az: [50, 310], el: [34, 34], rows: 1, count: 9, length: 0.95, width: 0.34, droop: 1.0, lift: 0.22, vary: 0.05, bend: 0.4 },
+        { shape: 'banana', az: [125, 235], el: [8, 8], rows: 1, count: 3, length: 0.5, width: 0.36, droop: 1.0, lift: 0.08, vary: 0.05, bend: 0.3 },
+        { shape: 'banana', az: [-55, 50], el: [34, 54], rows: 1, count: 4, length: 0.62, width: 0.34, droop: 0.9, lift: 0.08, vary: 0.1, bend: 0.35, swirl: 20 },
+      ],
+      bananas: [
+        { at: [330, 30], dir: [-0.3, -1, -0.25], length: 0.8, width: 0.3, bend: 0.45, sprout: 0.8 },
       ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
@@ -708,7 +725,7 @@ function animeEar(studio, register, pivot, pitch) {
   const ids = Object.keys(e.points), at = Object.fromEntries(ids.map((id, i) => [id, i]));
   return { points: ids.map((id) => back(e.points[id])), faces: e.faces.map((f) => f.map((id) => at[id])), groups: e.groups };
 }
-export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null } = {}) {
+export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('anime head: scale must be positive');
   const bald = hair === 'none';
@@ -722,7 +739,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
   // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
   const HAIR_FORM = bald ? null : animeHairForm(H);
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}) });
+  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}) });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;

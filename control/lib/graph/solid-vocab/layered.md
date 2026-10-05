@@ -367,8 +367,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
   clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
-  and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block)
-  and `kairo` (chili peppers only, a wolf cut), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
+  and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block),
+  `jingo` (bananas only, few and rounded, for a long face) and `kairo` (chili peppers only, a wolf cut); shaped hair never
+  cuts through the body it is worn on, and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
   sum, a family and a pose last-wins; the own `face` / `sculpt` / `hair` / `expression` / `tune` apply ON TOP (`/hero/hair/length`
   1.1 is ten percent over the look). `look: ['rival', 'tareme']`, then `set /hero/look` to add or peel a word (a list is

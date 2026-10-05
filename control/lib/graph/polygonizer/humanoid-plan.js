@@ -56,12 +56,42 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   const colours = { ...PALETTE, ...kitPalette(adorn), ...palette };   // a kit's suggested colours, beneath the operator's
   const resolvedHeadScale = worn.scale;
   let head;
-  if (anime) head = animeHead({ preset: pole, face, hair, expression, register, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, sculpt });
+  // the anime head's shaped hair keeps out of the body it is worn on: the body's neck and torso rings, read off the same
+  // plan without a head (the head sits at the atlas, so the rings are taken about it, in the head's unscaled metres)
+  const neckForm = anime && props === 'anime' && typeof preset === 'string' && Object.hasOwn(ANIME_NECK_FORMS, preset) ? ANIME_NECK_FORMS[preset] : null;
+  const planArgs = { cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, body, tune, ...(props === 'anime' ? { proportions: 'anime' } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !childCoded ? { bare: true } : {}) };
+  if (anime) head = animeHead({ preset: pole, face, hair, expression, register, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, sculpt, body: hair && hair !== 'none' ? bodyRingsAboutAtlas(heroPlan({ ...planArgs, head: null }), resolvedHeadScale) : null });
   else { const { from: _faceFrom, ...shape } = resolveFace(face); head = humanoidHead({ preset: pole, shape, register, hair: hair ?? 'swept', expression, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours }); }
   // the anime head on anime proportions wears its cast's NECK FORM (hero-form.js ANIME_NECK_FORMS: the ring loft rising
   // into the occiput, the trapezius ring); every other head and proportion keeps the segment neck
-  const neckForm = anime && props === 'anime' && typeof preset === 'string' && Object.hasOwn(ANIME_NECK_FORMS, preset) ? ANIME_NECK_FORMS[preset] : null;
-  const plan = heroPlan({ cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, head, body, tune, ...(props === 'anime' ? { proportions: 'anime' } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !childCoded ? { bare: true } : {}) });
+  const plan = heroPlan({ ...planArgs, head });
+  starterTorso(plan, { register, neckForm, heroCast });
+  // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
+  // forearm upright); every other head keeps the form's wave. A hand with digits opens and turns its palm to the front
+  if (anime) plan.clips.wave = plan.rig?.hands ? withWaveHand(JSON.parse(JSON.stringify(ANIME_WAVE)), WAVE_TWIST.anime) : JSON.parse(JSON.stringify(ANIME_WAVE));
+  dressPlan(plan, { detail, adorn, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child: childCoded } });
+  plan.frame.note = anime
+    ? `1 unit = 1 m; humanoid ${preset} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
+    : `1 unit = 1 m; humanoid ${preset} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;
+  return plan;
+}
+
+/** The anime head's parts `only` (a list of names) at another `expression`, as humanoidPlan with these options (`opts`, its
+ * own: preset, face, register, sculpt, tune, headScale, headPreset, proportions) would wear them — bald and unfitted (the
+ * expression parts are the same with the hair on), at the worn head's scale and then under the plan's own scale
+ * (hero-form scalePlan) — so a part equals the recipe's part of that name. The face rig's head builds
+ * (anime-face-rig.js). */
+export function animeHeadAt(opts, expression, only) {
+  const props = opts.proportions ?? 'anime';
+  const { pole, scale } = wornHead({ preset: opts.preset, headPreset: opts.headPreset, headScale: opts.headScale, tune: opts.tune, props });
+  const { parts } = animeHead({ preset: pole, face: opts.face ?? {}, register: opts.register ?? 'round', scale, sculpt: opts.sculpt, expression, hair: 'none', hairFit: false, only });
+  const S = planScale({ cast: opts.preset, tune: opts.tune, proportions: props });
+  return S === 1 ? parts : Object.fromEntries(Object.entries(parts).map(([n, p]) => [n, scaleIncludePart(p, S)]));
+}
+
+/** the starter's own shirt torso over the hero plan's (broad panels, a sloping shoulder yoke, the collar's rise): applied to
+ * the worn plan and to the head-less plan the anime head's hair keeps out of */
+function starterTorso(plan, { register, neckForm, heroCast }) {
   // Broad shirt panels and a sloping shoulder yoke are specific to this starter.
   // Keep the hero recipe (and previously stored plans) independent of this art direction.
   const torso = plan.segments.find(s => s.name === 'torso');
@@ -86,25 +116,16 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
     const f = collar.push?.front;
     if (f && f[2] < 0) for (const d of Object.values(collar.push)) { const w = d[2] / f[2]; if (w > 0) { d[2] = +(d[2] - w * collarRise).toFixed(6); d[1] = +(d[1] - w * collar.r[1] * (0.1 / 1.1)).toFixed(6); } }
   }
-  // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
-  // forearm upright); every other head keeps the form's wave. A hand with digits opens and turns its palm to the front
-  if (anime) plan.clips.wave = plan.rig?.hands ? withWaveHand(JSON.parse(JSON.stringify(ANIME_WAVE)), WAVE_TWIST.anime) : JSON.parse(JSON.stringify(ANIME_WAVE));
-  dressPlan(plan, { detail, adorn, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child: childCoded } });
-  plan.frame.note = anime
-    ? `1 unit = 1 m; humanoid ${preset} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
-    : `1 unit = 1 m; humanoid ${preset} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;
-  return plan;
 }
 
-/** The anime head's parts `only` (a list of names) at another `expression`, as humanoidPlan with these options (`opts`, its
- * own: preset, face, register, sculpt, tune, headScale, headPreset, proportions) would wear them — bald and unfitted (the
- * expression parts are the same with the hair on), at the worn head's scale and then under the plan's own scale
- * (hero-form scalePlan) — so a part equals the recipe's part of that name. The face rig's head builds
- * (anime-face-rig.js). */
-export function animeHeadAt(opts, expression, only) {
-  const props = opts.proportions ?? 'anime';
-  const { pole, scale } = wornHead({ preset: opts.preset, headPreset: opts.headPreset, headScale: opts.headScale, tune: opts.tune, props });
-  const { parts } = animeHead({ preset: pole, face: opts.face ?? {}, register: opts.register ?? 'round', scale, sculpt: opts.sculpt, expression, hair: 'none', hairFit: false, only });
-  const S = planScale({ cast: opts.preset, tune: opts.tune, proportions: props });
-  return S === 1 ? parts : Object.fromEntries(Object.entries(parts).map(([n, p]) => [n, scaleIncludePart(p, S)]));
+/** the body's NECK and TORSO as ring stacks (bottom → top: { z, cy, rx, ry, e }) about the head's atlas, in the head's
+ * unscaled metres: what the anime head's shaped hair keeps out of; each stack's `clear` its clearance (hair lies close
+ * on the neck, the shirt's collar and shoulders stand it off) */
+function bodyRingsAboutAtlas(plan, scale) {
+  const hb = plan.joints.headBase[2], k = 1 / scale, ring = (z, cy, r, e) => ({ z: (z - hb) * k, cy: cy * k, rx: r[0] * k, ry: r[1] * k, e: e ?? 2 });
+  const torso = plan.segments.find((q) => q.name === 'torso'), neck = plan.segments.find((q) => q.name === 'neck'), out = [];
+  if (torso?.stations) { const st = [...torso.stations].sort((a, b) => a.z - b.z), top = st.at(-1), tip = torso.caps?.tip?.[2];
+    out.push(Object.assign([...st.map((q) => ring(q.z, q.yc ?? 0, q.r, q.e ?? torso.e)), ...(tip > top.z ? [ring(tip, top.yc ?? 0, [top.r[0] * 0.45, top.r[1] * 0.45], top.e ?? torso.e)] : [])], { clear: 0.012 })); }
+  if (neck?.kind === 'loft') out.push(Object.assign([...neck.stations].sort((a, b) => a.at[2] - b.at[2]).map((q) => ring(q.at[2], q.at[1], q.r, neck.e)), { clear: 0.002 }));
+  return out;
 }

@@ -161,7 +161,7 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             cut's `sweepBack`, `hairline`, `sweepSides`, `fringeGroups`, `backNotch`, `fringeNotch`,
             `flip`, `spikes`, `sideTail`, `shapes` (one family per design: carrots, bananas or chili
             peppers — mass first), `sideburns`; `false` is the studio's construction, `null` the base's.
-            Ready cuts: `flipped-long`, `blunt-bob`, `side-tail`; characters `broku`, `jinto`, `kairo`. Read `hero.hairCut`
+            Ready cuts: `flipped-long`, `blunt-bob`, `side-tail`; characters `broku`, `jinto`, `jingo`, `kairo`. Read `hero.hairCut`
             and `hairMeasures.top_m`.
             The anime head wears ANIME PROPORTIONS (about 6.5 / 7 heads tall, longer legs, slimmer
             limbs, smaller hands and feet); `proportions: 'hero'` keeps the realistic body.
