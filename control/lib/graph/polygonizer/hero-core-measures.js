@@ -58,7 +58,9 @@ export function coreMeasures(plan, mesh) {
 /** The bands per body: [low, high] (null: no bound on that side). The female's hip peaks at the trochanter, a waist
  * clearly narrower than it, a seat and a front that falls away; the male's hip is straight. */
 export const CORE_BANDS = Object.freeze({
-  female: Object.freeze({ waistToHip: [0.66, 0.84], hipPeak: [-0.45, -0.1], seat_m: [0.015, 0.05], frontDrop_m: [0.035, null], pouch_m: [null, 0.004], shelf_m: [null, 0.012] }),
+  // the female's seat to 6.5 cm: hers stands further out than the male's, under a lower back that curves in over it
+  // (hero-form.js PELVIS_SCULPT; a deeper seat is what tells her from behind)
+  female: Object.freeze({ waistToHip: [0.66, 0.84], hipPeak: [-0.45, -0.1], seat_m: [0.015, 0.065], frontDrop_m: [0.035, null], pouch_m: [null, 0.004], shelf_m: [null, 0.012] }),
   male: Object.freeze({ waistToHip: [0.88, 1.06], hipPeak: [null, null], seat_m: [0.01, 0.045], frontDrop_m: [0.02, null], pouch_m: [null, 0.004], shelf_m: [null, 0.012] }),
 });
 const WHY = {

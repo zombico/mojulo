@@ -332,6 +332,33 @@ describe('the character light on the anime hero', () => {
     const stepped = characterLitPieces(plain, { normals: N, palette: P, dz: layeredSeat(mesh, true) }).filter((pc) => pc.part === 'neck');
     expect(new Set(stepped.map((pc) => pc.fill))).toEqual(new Set([P.Skin, derived(P.Skin, 'Skin')]));
   });
+  it("the seat's cleft: down the structured female's bare seat the thong's V back in the swimsuit's tones; down the male's speedo its crease in a darker tone, none on the skin over it", () => {
+    const piecesOf = (hero, extra = {}) => {
+      const m = expandLayeredManifest({ kind: 'layered', hero }), me = compileLayered(m.recipe, m.dials || {}, m.channels || {});
+      return { me, pcs: characterLitPieces(me, { normals: layeredShadingNormals(me), dz: layeredSeat(me, true), ...extra }).filter((pc) => pc.part === 'pelvis') };
+    };
+    const SW = '#336699', P = { Swim: SW }, swimTones = new Set([SW, derived(SW, 'Swim')]);
+    // the female: on her seat's skin, pieces in the swimsuit's tones, every one behind, within the V's top half-width
+    // of the midline, and narrower low than high (the V narrows into the cleft)
+    const { me: fm, pcs: f } = piecesOf({ cast: 'female', head: 'anime', detail: 'swimsuit' }, { palette: P });
+    const str = f.filter((pc) => fm.groups[pc.fi] === 'Skin' && swimTones.has(pc.fill));
+    expect(str.length).toBeGreaterThan(0);
+    expect(str.every((pc) => pc.refs.every((r) => Math.abs(r.p[0]) < 0.085 && r.p[1] < 0.01))).toBe(true);
+    const pts = str.flatMap((pc) => pc.refs.map((r) => r.p)), zs = pts.map((p) => p[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
+    const widthIn = (a, b) => Math.max(...pts.filter((p) => p[2] >= a && p[2] <= b).map((p) => Math.abs(p[0])));
+    expect(widthIn(z0, z0 + 0.25 * (z1 - z0))).toBeLessThan(widthIn(z1 - 0.25 * (z1 - z0), z1));
+    // the male: his speedo's pieces take a third tone, darker than its shade, down the midline behind (the crease)
+    const { me: mm, pcs: m } = piecesOf({ cast: 'male', head: 'anime', detail: 'swimsuit' }, { palette: P });
+    const crease = m.filter((pc) => mm.groups[pc.fi] === 'Swim' && !swimTones.has(pc.fill));
+    expect(crease.length).toBeGreaterThan(0);
+    expect(crease.every((pc) => pc.refs.every((r) => Math.abs(r.p[0]) < 0.04 && r.p[1] < 0.01))).toBe(true);
+    // and the skin of his lower back over the speedo's waistband keeps the skin's two tones (no wedge, no V)
+    const skinTones = new Set(m.filter((pc) => mm.groups[pc.fi] === 'Skin').map((pc) => pc.fill)); expect(skinTones.size).toBeLessThanOrEqual(2);
+    for (const t of swimTones) expect(skinTones.has(t)).toBe(false);
+    // the streamlined core has no pelvis part, so no wedge (and no pelvis pieces at all)
+    const { pcs: s0 } = piecesOf({ cast: 'female', head: 'anime', detail: 'swimsuit', core: 'streamlined' }, { palette: P });
+    expect(s0).toHaveLength(0);
+  });
   it("the hair's top planes: under the anime head a hair corner's N·L gains 0.8 of its normal's upward share; nothing else moves, and no other mesh takes it", () => {
     const dz = layeredSeat(mesh, true), on = characterLitPieces(mesh, { normals: N, palette: P, dz }), off = characterLitPieces(mesh, { normals: N, palette: P, dz, hairTop: false });
     expect(on.filter((pc) => !/^hair/.test(pc.part))).toEqual(off.filter((pc) => !/^hair/.test(pc.part)));
@@ -493,17 +520,17 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // cleft's valley (breast-field.js `cleft`) with the décolletage unfilled and her upper pole a longer ramp, then for
   // the neck rising out of the chest, the trapezius sloping, the deltoid's dome (hero-form.js NECK_ROOT) and, under the
   // anime head, the neck's shade the jaw's shadow, then for the deltoid's belly, the landmark head's nape loft and the
-  // pectoral's top along the clavicle; the streamlined values
-  // above unchanged
+  // pectoral's top along the clavicle, then for the seat (the female's deeper, its cleft in the second shade: SEAT_CLEFT;
+  // the male's square) and the structured speedo and thong; the streamlined values above unchanged
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['3de5a191156e8c8f', '7188477986dec5bc', '8db4ba692fa12829']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['d229159d8f792796', '8a6b2dd5a106f98f', '406ce0c3afc6e6fe']],
-      headNone: [{ cast: 'female', head: 'none' }, ['2b02a49dfdf164f8', 'f0ad74bee59695cf', '7d9190a8826949f1']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['a1172acfe0230d19', 'bbb62e50b62dfdf8', '99b61134baaeab7b']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['bf0e9eeee2b5c02e', 'edc482d8e43fdbd5', 'b4b6a1db37899d50']],
+      headNone: [{ cast: 'female', head: 'none' }, ['d750b3c26a9e5e0e', '1d453cedd71da863', 'df4dbf456e70268c']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
     }
-    for (const [cast, pin] of [['female', '439034554aaa8645'], ['male', '9e371d3248212e31']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+    for (const [cast, pin] of [['female', '23c5aa11b03b3d21'], ['male', '091f502e3ecd00b5']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {

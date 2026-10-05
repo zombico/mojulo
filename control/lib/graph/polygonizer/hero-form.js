@@ -138,8 +138,9 @@ const TORSO_SCULPT = Object.freeze({
     st3: { front: [0, -0.006, 0], frontR: [0, 0.004, 0], backR: [0, -0.006, 0], back: [0, 0.003, 0] },
   }),
   female: Object.freeze({
-    st1: { front: [0, 0.002, 0], frontSideR: [-0.005, 0, 0], sideR: [-0.008, 0, 0], backSideR: [-0.003, 0, 0], backR: [0, -0.002, 0], back: [0, 0.01, 0] },
-    st1_st2_50: { sideR: [-0.004, 0, 0], backR: [0, -0.002, 0], back: [0, 0.007, 0] },
+    st0: { back: [0, 0.016, 0], backR: [0, 0.013, 0], backSideR: [0, 0.006, 0] },   // the lumbar hollow over the seat (PELVIS_SCULPT)
+    st1: { front: [0, 0.002, 0], frontSideR: [-0.005, 0, 0], sideR: [-0.008, 0, 0], backSideR: [-0.003, 0.006, 0], backR: [0, 0.012, 0], back: [0, 0.02, 0] },
+    st1_st2_50: { sideR: [-0.004, 0, 0], backR: [0, 0.004, 0], back: [0, 0.011, 0] },
     st2: { front: [0, 0.004, 0], frontR: [0, 0.006, 0], sideR: [0.002, 0, 0], backR: [0, -0.005, 0], back: [0, 0.005, 0] },
     // the upper chest over the upper poles (frontR); its midline unpushed, so the décolletage stays a shallow triangle
     // between the clavicles and the upper poles (breast-form research: the mass sits lower, the triangle stays open)
@@ -151,16 +152,26 @@ const TORSO_SCULPT = Object.freeze({
  * (the midline back in), the sacrum's flat above (pelvis stations by id: st1 the trochanter ring, st2 the hip joints,
  * st3 halfway up the flare) */
 const PELVIS_SCULPT = Object.freeze({
-  male: Object.freeze({ st1: { back: [0, 0.01, 0], backR: [0, -0.004, 0], backSideR: [0, -0.003, 0] }, st2: { back: [0, 0.01, 0], backR: [0, -0.005, 0], backSideR: [0, -0.003, 0] }, st3: { back: [0, 0.004, 0] } }),
-  female: Object.freeze({ st1: { back: [0, 0.012, 0], backR: [0, -0.006, 0], backSideR: [0, -0.004, 0] }, st2: { back: [0, 0.013, 0], backR: [0, -0.008, 0], backSideR: [0, -0.004, 0] }, st3: { back: [0, 0.006, 0], backR: [0, -0.002, 0] } }),
+  // the male's square: two masses out behind, high (fullest at the hip joints and halfway up the flare, not low as the
+  // female's) with a cleft between them (cut past SEAT_CLEFT's depth, so its crease draws), the side drawn in behind
+  // the trochanter (its hollow), and no lumbar hollow over them: his back runs straight into the seat
+  male: Object.freeze({ st1: { back: [0, 0.014, 0], backR: [0, -0.005, 0], backSideR: [-0.006, 0.002, 0] }, st2: { back: [0, 0.022, 0], backR: [0, -0.01, 0], backSideR: [-0.004, -0.002, 0] }, st3: { back: [0, 0.016, 0], backR: [0, -0.008, 0], backSideR: [0, -0.003, 0] }, st4: { back: [0, 0.005, 0] } }),
+  // the female's heart: the masses out behind and wider low (the trochanter ring's back side out), a deep cleft between
+  // them (the midline in 2.5–3 cm, so the two halves face apart and a side key lights one and shades the other: the ink
+  // draws no cleft), the lower back
+  // drawn forward over them (the lumbar hollow: the waist and hem rings' backs in), so the profile is an S
+  female: Object.freeze({ st0: { back: [0, 0.006, 0] }, st1: { back: [0, 0.024, 0], backR: [0, -0.006, 0], backSideR: [0.004, -0.006, 0] }, st2: { back: [0, 0.028, 0], backR: [0, -0.012, 0], backSideR: [0.002, -0.008, 0] }, st3: { back: [0, 0.02, 0], backR: [0, -0.019, 0], backSideR: [0, -0.009, 0] }, st4: { back: [0, 0.008, 0] },
+    st5: { back: [0, 0.016, 0], backR: [0, 0.013, 0], backSideR: [0, 0.006, 0] }, st6: { back: [0, 0.016, 0], backR: [0, 0.013, 0], backSideR: [0, 0.006, 0] } }),
 });
 /** '#rrggbb' toward black by f */
 const darken = (hex, f) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * f).toString(16).padStart(2, '0')).join('')}`;
 /** add pushes (slot → [dx, dy, dz]) onto a station's own */
 const addPush = (st, push) => { if (!push) return; st.push = { ...(st.push || {}) }; for (const [sl, d] of Object.entries(push)) st.push[sl] = (st.push[sl] || [0, 0, 0]).map((x, k) => r6(x + d[k])); };
+/** the seat depth (m) the thigh's back follows, at most (PELVIS_FORM glute) */
+const SEAT_THIGH = 0.03;
 const PELVIS_FORM = Object.freeze({
-  female: Object.freeze({ flare: [0.25, 0.55, 0.8], front: [0.004, 0.022, 0.042, 0.06], sacrum: 0.01, glute: 0.04, crotch: 0.42, crotchHalf: 0.32, inner: 0.5 }),
-  male: Object.freeze({ flare: [0.4, 0.7, 0.88], front: [0.002, 0.012, 0.026, 0.045], sacrum: 0.006, glute: 0.03, crotch: 0.4, crotchHalf: 0.3, inner: 0.52 }),
+  female: Object.freeze({ flare: [0.25, 0.55, 0.8], front: [0.004, 0.022, 0.042, 0.06], sacrum: 0.01, glute: 0.055, crotch: 0.38, crotchHalf: 0.32, inner: 0.5 }),
+  male: Object.freeze({ flare: [0.4, 0.7, 0.88], front: [0.002, 0.012, 0.026, 0.045], sacrum: 0.006, glute: 0.032, crotch: 0.4, crotchHalf: 0.3, inner: 0.52 }),
 });
 export const BODY_DEFAULTS = { waist: 0.175, chest: 0.22, chestDepth: 0.115, hip: 0.105, hipDepth: null, thigh: 0.086, calf: 0.067, arm: 0.061, forearm: null, neck: 0.066, bust: 0 };
 /** the bust's ceiling as a share of the chest radius it sits on: each mound centres 0.42 of the chest out, so at 0.4 it
@@ -609,11 +620,13 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // the socket ring meets the basin's own edge at the hip joints, so the outline runs on from the pelvis into the
     // trochanter without a dip between them
     const atJoint = flareAt(P.flare[2]);
-    const fT = F0 - P.front[2] - 0.004, bT = B0 - 0.55 * P.glute + 0.008;
+    // the thigh's back stays at a seat 3 cm deep (SEAT_THIGH): a deeper seat (the female's) stands out behind it, so the
+    // thigh comes out under the seat instead of poking through its lower edge
+    const gT = Math.min(P.glute, SEAT_THIGH), fT = F0 - P.front[2] - 0.004, bT = B0 - 0.55 * gT + 0.008;
     thigh.stations = [
       // the socket ring stands straight over the trochanter ring (the same centre), so the first span is vertical and its
       // rings do not tilt: a tilted ring's side point drops, and on a short body (a chibi) the hip dipped under the joint
-      edge(atJoint, Wt + inner0 - atJoint, F0 - P.front[1] - 0.01, B0 - P.glute + 0.015, zp + 0.015),
+      edge(atJoint, Wt + inner0 - atJoint, F0 - P.front[1] - 0.01, B0 - gT + 0.015, zp + 0.015),
       edge(Wt, inner0, fT, bT, zt),
       edge(lerp(Wt, kneeOut, 0.3), lerp(inner0, kneeIn, 0.09), fT + 0.012, lerp(bT, kneeB, 0.3), zAt(0.3), kT),
       edge(lerp(Wt, kneeOut, 0.62), lerp(inner0, kneeIn, 0.38), lerp(fT + 0.012, kneeF, 0.5), lerp(bT, kneeB, 0.62), zAt(0.62), kT),

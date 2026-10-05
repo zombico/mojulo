@@ -67,7 +67,7 @@ lands.
   family is there for a finely sampled form. The knight's and
   the ranger's pauldrons and the jerkin's quilt sit on the new shoulder.
 - **The swimsuit view.** New `detail: 'swimsuit'` shows the body bare: every shirt, trouser and shoe colour is skin, and
-  swimwear is painted on the body's own surface (the adult male's trunks, the adult female's two-piece, a child-coded
+  swimwear is painted on the body's own surface (the adult male's trunks, the adult female's two-piece — on the structured core a speedo and a thong — a child-coded
   figure's rash vest and trunks; the female's cups follow her breasts with a sweetheart top edge that dips into the
   cleft), in a `Swim` tone you can name (by default dark, so the swimwear sorts into the dark
   value band apart from the skin and the hair). A plan segment may now carry `bandGroups` (a group
@@ -79,6 +79,12 @@ lands.
   to its seam on the chest. The upper arm's widest point sits a quarter down it, as the deltoid's does, its top a
   dome over the joint; the western figure's neck is a round column whose back rises into the head, and the pectoral's
   top edge rises from the breastbone toward the shoulder as the clavicle does. A segment may name its caps' height (`cap`).
+- **The seat.** On the structured core the female's seat is her own shape, not the male's a size up: fuller and
+  set further back, fullest halfway down it, its two halves parted by a deep cleft (drawn on bare skin in a darker
+  second shade), under a lower back that curves in over it; the male's is square and high, his back running
+  straight down into it, two masses with a cleft between them. On the structured core the swimsuit is a speedo for
+  the male (low and level, no leg, the cleft a crease in it) and a thong for the female (a front triangle, a string at
+  the hip and a V at the back narrowing into her cleft, her seat bare), so the two seats show.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the
