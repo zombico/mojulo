@@ -29,6 +29,19 @@ describe('smooth shading under the studio light', () => {
     mesh.faces.forEach((_, fi) => { if (mesh.groups[fi] !== 'Skin') expect(A[fi]).toEqual(B[fi]); });
   });
 
+  it('cloth shades smoothly: a garment\'s faces and a second skin\'s weld at $cloth, the rest as before; no cloth, no change', () => {
+    const at = (mm, M, crease) => layeredShadingNormals(M, mm.recipe, { crease, proxy: false });
+    const distinct = (M, N, pick) => { const s = new Set(); M.faces.forEach((t, fi) => { if (pick(fi)) t.forEach((vi, k) => s.add(`${key(M.vertices[vi])}|${key(N[fi][k])}`)); }); return s.size; };
+    const dressed = hero({ cast: 'female', detail: 'swimsuit', outfit: ['trousers', 'tee', 'boots'], paint: 'gloves' }), M = meshOf(dressed);
+    const part = (fi) => M.provenance[M.faces[fi][0]].part, garment = (fi) => /_/.test(part(fi)), glove = (fi) => M.groups[fi] === 'Glove';
+    const on = at(dressed, M, STUDIO_SMOOTH_CREASE), off = at(dressed, M, { Skin: 70, default: 35 });
+    expect(distinct(M, on, garment)).toBeLessThan(distinct(M, off, garment) * 0.8);
+    expect(distinct(M, on, glove)).toBeLessThan(distinct(M, off, glove));
+    M.faces.forEach((_, fi) => { if (!garment(fi) && !glove(fi)) expect(on[fi]).toEqual(off[fi]); });
+    // a hero with no cloth: the studio crease welds exactly as the skin-and-default crease did
+    expect(at(m, mesh, STUDIO_SMOOTH_CREASE)).toEqual(at(m, mesh, { Skin: 70, default: 35 }));
+  });
+
   it('layeredFaces with normals: every face keeps its fill and gains its corners\' key; the swimsuit\'s cells too', () => {
     const N = layeredShadingNormals(mesh, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false });
     const flat = layeredFaces(mesh, m.recipe, { light: WORKBENCH_LIGHT }), smooth = layeredFaces(mesh, m.recipe, { light: WORKBENCH_LIGHT, normals: N });

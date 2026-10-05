@@ -1,0 +1,21 @@
+{
+  "title": "Second-skin paint",
+  "columns": [
+    {
+      "spec": "paint-dancer.json",
+      "summary": "Female, swimsuit body, leotard over tights: second-skin paint (hero-dress.js PAINT_WORDS)."
+    },
+    {
+      "spec": "paint-runner.json",
+      "summary": "Male, swimsuit body, a tank over leggings and socks."
+    },
+    {
+      "spec": "paint-cyclist.json",
+      "summary": "Female, swimsuit body, long sleeves over bike shorts, gloves."
+    },
+    {
+      "spec": "paint-diver.json",
+      "summary": "Male, swimsuit body, a catsuit with gloves and socks: the whole second skin."
+    }
+  ]
+}

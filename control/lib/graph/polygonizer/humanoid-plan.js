@@ -8,6 +8,7 @@ import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune, castOf, AN
 import { humanoidHead, HAIR_STYLES, EXPRESSIONS, FACE_VERSION, FACE, resolveFace, validateFace, HEAD_PRESETS } from './humanoid-head.js';
 import { validateCast } from './figure-cast.js';
 import { dressPlan, kitPalette } from './hero-dress.js';
+import { outfitTones } from '../outfit/expand.js';
 import { animeHead, ANIME_FACE, validateAnimeFace, resolveAnimeFace } from './anime-head.js';
 
 export const BODY_PRESETS = Object.fromEntries(Object.entries(HERO_CASTS).map(([k, c]) => [k, { ...BODY_DEFAULTS, ...c.body }]));
@@ -41,11 +42,13 @@ function wornHead({ preset, headPreset, headScale, tune, props }) {
  *   detail      BODY DETAIL (hero-dress.js): 'clothed' | 'swimsuit' | 'none' | body data — the dragon's passes with the hero's
  *               parameters; `childCoded` (the door's child-coded figure) puts a swimsuit's child in a rash vest
  *   adorn       ADORNMENT (hero-dress.js): 'ranger' | 'none' | a kit — worn over the detail, one signature each
+ *   outfit      GARMENTS WITH VOLUME (hero-dress.js OUTFIT_WORDS, body-garment.js): a word, a piece or a list — the body's shape, bending with it
+ *   paint       SECOND SKIN (hero-dress.js PAINT_WORDS, body-paint.js): a word, an entry or a list — painted on the body's faces
  *   tune        anything the hero form's `resolveTune` takes: percentages of the preset's own baseline (a move word,
  *               { shoulders, waist, hips, depth, torso, neck, legs, head, stature, upperArm, forearm, thigh, calf }, or a list).
  *               `head` here scales the WORN head: it is baked at the tuned scale (the form's own `head` only sizes a blank trunk)
  */
-export function humanoidPlan({ preset = 'male', body = {}, face = {}, register = 'round', girth = 1, headScale, palette = {}, hair, expression = 'neutral', tune, headPreset, detail, adorn, head: headKind = 'landmark', proportions, sculpt, core, childCoded = false } = {}) {
+export function humanoidPlan({ preset = 'male', body = {}, face = {}, register = 'round', girth = 1, headScale, palette = {}, hair, expression = 'neutral', tune, headPreset, detail, adorn, paint, outfit, head: headKind = 'landmark', proportions, sculpt, core, childCoded = false } = {}) {
   const props = proportions ?? (headKind === 'anime' ? 'anime' : 'hero');
   const worn = wornHead({ preset, headPreset, headScale, tune, props }), { heroCast, pole } = worn;
   if (!heroCast && (typeof preset !== 'string' || validateCast(preset).length)) throw new Error(`humanoid: unknown preset '${preset}' (have ${Object.keys(HERO_CASTS).join(', ')}, or a figure cast)`);
@@ -53,7 +56,7 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   if (!['landmark', 'anime'].includes(headKind)) throw new Error(`humanoid: unknown head '${headKind}' (have landmark, anime)`);
   const anime = headKind === 'anime';
   const faceErrors = anime ? validateAnimeFace(face) : validateFace(face); if (faceErrors.length) throw new Error(`humanoid: ${faceErrors.join('; ')}`);
-  const colours = { ...PALETTE, ...kitPalette(adorn), ...palette };   // a kit's suggested colours, beneath the operator's
+  const colours = { ...PALETTE, ...kitPalette(adorn), ...outfitTones(outfit), ...palette };   // a kit's and an outfit build's suggested colours, beneath the operator's (the head bakes them into its include)
   const resolvedHeadScale = worn.scale;
   let head;
   if (anime) head = animeHead({ preset: pole, face, hair, expression, register, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, sculpt });
@@ -89,7 +92,7 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
   // forearm upright); every other head keeps the form's wave. A hand with digits opens and turns its palm to the front
   if (anime) plan.clips.wave = plan.rig?.hands ? withWaveHand(JSON.parse(JSON.stringify(ANIME_WAVE)), WAVE_TWIST.anime) : JSON.parse(JSON.stringify(ANIME_WAVE));
-  dressPlan(plan, { detail, adorn, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child: childCoded } });
+  dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child: childCoded } });
   plan.frame.note = anime
     ? `1 unit = 1 m; humanoid ${preset} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
     : `1 unit = 1 m; humanoid ${preset} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;

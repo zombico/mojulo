@@ -12,6 +12,51 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Figure adornment: clothes that fit
+
+Clothes for the hero that fit the body they are worn on, in two tiers: second-skin garments painted on the body's own
+faces, and garments with volume built on the adornment loop. Opt-in; no stored hero changes. Being built on this branch.
+
+- **Second skin.** The hero door's `paint`: a word (`tank`, `crop`, `sportsBra`, `tee`, `longSleeve`, `leotard`,
+  `leggings`, `bikeShorts`, `tights`, `catsuit`, `socks`, `gloves`), an entry `{ part, u?, run?, t?, only?, group }` or a
+  list, worn in order over the detail. The swimsuit's band rule as declared data on the expanded rings (the plan
+  grammar's `paint` block), so a segment's generated rings take it like a loft's; colour only, every ring point the
+  bare body's, so it fits every cast, tune, core and pose. Words name only the parts the body has (the structured
+  core's pelvis and toes, a breast), and one over the hips clears the swimwear beneath. Absent, zero bytes.
+- **Outfits that follow the body.** The hero door's `outfit`: garments with volume (`tee`, `shirt`, `trousers`, `shorts`,
+  `boots`, or a piece `{ id, part, u?, run?, ease, flare?, over?, group }`), built as new L1 parts copied from the body
+  part's rings over a window, carried out by an ease that scales with the cast and lifted over the layers beneath (the
+  chest's, earlier garments: worn in order, so a shirt can be worn out or tucked in). Each copies its body part's bind
+  station by station, so every garment vertex skins exactly as the skin under it and bends at the elbow and knee; every
+  dial naming the body part names its garment. The plan grammar's `garments` block. Absent, zero bytes.
+- **Flat footwear.** A piece's `fit: 'shoe'` (the boots' foot) is built, not copied: a round ellipsoid over the heel and
+  a flat half-ellipsoid over the forefoot, each fitted to hold the foot's and toes' points with the ease, their sections
+  superposed ring by ring and cut on one flat sole, so a boot stands flat with a round heel cup and a low toe box over
+  any foot; each ring binds as the foot's nearest station.
+- **Cloth shades smoothly.** Under the studio light, cloth welds its corner normals at 70°, as the skin does
+  (`STUDIO_SMOOTH_CREASE.$cloth`). Cloth is every face of a garment part (marked `garment`) and the faces a second skin
+  painted (a part's `painted` groups). So a shirt reads as one draped form, while a right angle such as a boot's sole
+  edge stays sharp. Other groups keep 35°, and a hero without cloth welds exactly as before.
+- **Outfit builds.** `outfit: { type: 'outfit', style, dials?, language? }`: a styled look built the way an armour build
+  is (`lib/graph/outfit/`), from laws, dials (`stylize`, `fit`, `coverage`, `ornament`), seeded JSON cards (`casual`,
+  `office`, `athlete`, `adventurer`) and language words for lengths on landmarks, family (knit or woven), tuck and focal.
+  It is expanded on every read in fixed passes:
+  - **CUT:** the pieces.
+  - **FIT:** ease and hang toward the free hems.
+  - **LAYER:** tucked or worn out.
+  - **CONSTRUCTION:** a woven placket.
+  - **ORNAMENT:** from the focal out — a collar or a knit rib band, buttons as body-detail rows on the shirt, a belt as an
+    adornment on the trousers; then cuffs, hems and the waistband painted on the garment parts; then the seams.
+  - **TONE.**
+  - **LEDGER:** the dress readout, with warnings, never refusals.
+
+  The laws version is stamped on the hero record. Supporting changes:
+  - A garment piece may add `rings` where its edges are finished, so a trim is as narrow as it is drawn.
+  - Paint runs after the garments, so it reaches them.
+  - A paint window too narrow for a coarse ring paints the band holding its middle.
+  - A cap takes paint only from an entry that covers its part end to end.
+  - The card's tones reach the head's include, as an armour kit's do.
+
 ### Figure articulation: herobot
 
 The hero robot on the hero door: the toy-hero read of the late platformer renders, an original robot on the anime head,

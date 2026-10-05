@@ -1,0 +1,19 @@
+{
+  "name": "outfit-tucked",
+  "$note": "Male: a long-sleeved shirt tucked into trousers (shirt first, trousers over its hem), boots.",
+  "hero": {
+    "cast": "male",
+    "detail": "swimsuit",
+    "outfit": [
+      "shirt",
+      "trousers",
+      "boots"
+    ],
+    "gesture": "relaxed"
+  },
+  "palette": {
+    "Top": "#9fb7d4",
+    "Bottom": "#3b3b3b",
+    "Shoes": "#2a1d14"
+  }
+}
