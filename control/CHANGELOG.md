@@ -278,6 +278,67 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Views: the great harbour from a boat (`bay`), the climb, the stoa's terrace and great stair, the temple court, the cliff from the sea, the
   theatre and a town street. Sumer, Thebes and Giza are byte-identical.
 
+### Historic Qin
+
+- **In progress.** Qin Xianyang and the Lishan works at c. 212 BCE, the first Chinese culture. Qin is the
+  earliest Chinese city that still reads as Chinese (grey tile roofs, red columns, raised earth terraces,
+  walled axial compounds), and early enough that its roofs are honestly straight.
+- Its own record (`lib/graph/historic/record/qin.js`): Xianyang Palace No. 1, Epang's front hall begun,
+  the Lishan mound, enclosures, gates and halls, terracotta Pit 1, the Wei bridge and the Zhengguo Canal.
+  Each entry is cited and dated, with its confidence and the disputes between sources. Settled by the record:
+  - No outer wall at Xianyang has been found, so none is drawn as fact.
+  - Upswept eaves and glazed roof tiles are held with their much later dates.
+  - The Han analogues (the Gaoyi que, pottery tower models, the Sichuan market brick) carry their CE dates,
+    so a Qin scene uses one only by naming it as an analogue.
+- A style card with a design language (`style/qin.js`):
+  - One batter for every earth face, about 77°, with pounded courses of 6–10 cm.
+  - Columns six to eight diameters tall on stone bases, one bracket block each.
+  - Straight hip and gable roofs, with eave-end tiles 16 cm across.
+  - A palette sampled from reference swatches.
+
+  Each principle is checked on the kit before any town plan exists. The reference drawings, and what each
+  one gives the kit, are indexed in `docs/historic/qin/`.
+- The town (`culture: 'qin'`, layout `wei-wards`): Xianyang on the north bank of the Wei, with no outer
+  wall.
+  - The palace enclosure holds Palace No. 1 on its two-tier terrace, a lesser hall either side, and a
+    pair of que in its south gate.
+  - The axis runs on as a poplar-lined avenue to a timber pile bridge over the river.
+  - Walled wards line the avenue, each with its gate on an east–west avenue and lanes of courtyard houses
+    inside; the row under the palace is the elite's, with higher walls and tiled, hipped halls.
+  - One ward is a walled market with its drum tower (a Han analogue, labelled as one).
+  - Across the river, Epang's front hall is a building site of rising earth sections, plank forms, ramps
+    and spoil.
+  - Loess fields of millet and wheat lie round the town.
+  - Views: palace, gate, avenue, ward, market, bridge, works.
+- The Qin kit (`assets/qin.js`) builds every piece from the card's numbers: hall on terrace, que,
+  rammed-earth wall, ward gate, courtyard house, market, terrace works, bridge and trees.
+  - Roofs are frusta whose top is a ridge line, so they are straight by construction.
+  - Two new wall skins: `hangtu` (pounded courses, rammer dimples, the board-form lifts and tie holes) and
+    `tile-roof` (cover rows over pan channels). The tile skin is the first laid on a sloped face.
+- New shared patterns: rammed earth, tiled roof, timber frame, terrace hall, walled ward, market and bridge.
+- The page is about 21 MB, between Giza's and Thebes'. The other cultures are unchanged.
+- The Qin ground in two steps, on the shared terrain mesher (`terrain.js`) as Lindos' is: the layout gives one
+  height function and the mesher stands the steps up.
+  - The palace stands on the lip of the Xianyang tableland, 10 m up. The bluff beneath it is sheer loess,
+    ragged except under the palace, and cut by two gullies whose floors climb to the tableland.
+  - The wards lie on the plain below. The axis climbs the bluff to the que as a rammed-earth causeway.
+  - A new `bluff` view looks along the edge.
+- The Wei through the same water channel as Lindos' sea. It uses the native `river` look, silty and flowing
+  east, near opaque over the channel and clearer over the bars' shoulders, with a riverbed under it on the
+  World page.
+  - It is braided round sandbars. Each bar stands out of the bed with a low lip, so the mesher traces its
+    outline on the true contour instead of stepping it to the grid.
+- The World page is cropped to the town. A layout can ask for a skirt (`plan.world.skirt`): the land runs a short
+  way past the frame, its heights carried out from the frame's edge, each corner fading to the sky's horizon
+  colour with its distance. Past it there is only sky, so the town stays the focus however the World is turned.
+  Qin's runs 260 m. Cultures without a skirt are unchanged.
+  - Beyond it, on the World page only, a hazy Qinling in the south and the northern hills. They are brought in
+    and scaled so they sit at about their real angle on the horizon.
+- The height of the bluff and the line of the river are drawn, not measured. Both are in the record as
+  unverified (`xianyang-tableland`, `wei-braided`); the Wei has since moved north over the old town.
+- Qin opens on the shared World page (`renderHistoricCityToWorld`) like Lindos: about 15 MB self-contained,
+  against about 21 MB for the CSS page.
+
 ### Sixth-gen composer
 
 - Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a

@@ -19,6 +19,8 @@ export const PATTERNS = {
   'fired-brick': { family: 'surface', read: 'harder, redder brick for water and prestige', seenIn: ['Sumer (rare)', 'Indus', 'Rome', 'Song China', 'Hanseatic'] },
   reed: { family: 'surface', read: 'bundled reed and mat: straw-gold, arched or woven', seenIn: ['Sumer', 'Marsh Arabs', 'Lake Titicaca'] },
   'stone-ashlar': { family: 'surface', read: 'dressed stone blocks in courses: the god\'s house in stone while the town stays in brick', seenIn: ['Egypt', 'Greece', 'Rome', 'Inca', 'Angkor', 'medieval Europe'] },
+  'rammed-earth': { family: 'surface', read: 'loess pounded in board forms, thin courses showing: terraces, gate towers and walls of one earth', seenIn: ['Qin and Han China', 'Longshan China', 'Morocco (pisé)', 'Tibet', 'the Himalaya'] },
+  'tiled-roof': { family: 'surface', read: 'a heavy roof of grey fired tiles, cover rows over pan channels, round tile ends along the eave', seenIn: ['Qin and Han China', 'Korea', 'Japan', 'Greece (pan and cover)', 'Rome (tegula and imbrex)'] },
   'painted-relief': { family: 'surface', read: 'walls carved in registers of figures and text, the carving painted in strong flat colour', seenIn: ['Egypt', 'Assyria', 'Persepolis', 'the Maya', 'Angkor (unpainted)'] },
 
   // ── massing ──
@@ -29,6 +31,8 @@ export const PATTERNS = {
   colonnade: { family: 'massing', read: 'a row of columns carrying a roof along the side of an open court', seenIn: ['Egypt', 'Greece (stoa)', 'Rome', 'Islamic courtyard mosque'] },
   pyramid: { family: 'massing', read: 'a royal tomb raised as a mountain of stone: four smooth faces rising to a point, a court and wall round it, a temple at its foot', seenIn: ['Egypt (Giza)', 'Nubia (Meroë)', 'Mesoamerica (stepped)', 'Rome (Cestius)'] },
   mastaba: { family: 'massing', read: 'a low flat-topped bench of a tomb with sloping sides, laid out with its neighbours in streets', seenIn: ['Egypt (Giza, Saqqara)'] },
+  'timber-frame': { family: 'massing', read: 'posts on stone bases carrying beams and a deep eave on bracket blocks, plaster between the posts', seenIn: ['China', 'Korea', 'Japan', 'medieval Europe (half-timber)'] },
+  'terrace-hall': { family: 'massing', read: 'a timber hall lifted on a stepped earth platform, stairs on its axis, rooms and galleries round the lower tiers', seenIn: ['Qin and Han China (gaotai)', 'Persia (Persepolis)', 'Mesoamerica'] },
   hypostyle: { family: 'massing', read: 'a hall roofed on a forest of columns, a taller nave down the middle lit by a clerestory', seenIn: ['Egypt', 'Persia (apadana)', 'Córdoba mosque', 'Greek telesterion'] },
   terrace: { family: 'massing', read: 'a raised, walled platform that lifts the sacred quarter above the town', seenIn: ['Sumer', 'Indus (citadel)', 'Mesoamerica', 'Greece (acropolis)'] },
 
@@ -40,6 +44,7 @@ export const PATTERNS = {
   'courtyard-house': { family: 'plan', read: 'rooms in a ring around an open court', seenIn: ['Sumer', 'Indus', 'Rome', 'Islamic world', 'China (siheyuan)', 'Spain'] },
 
   // ── layout ──
+  'walled-ward': { family: 'layout', read: 'the town in walled blocks (li), each with its gate on the street and lanes inside: closed at night', seenIn: ['Qin and Han China', 'Tang Chang\'an', 'Heian-kyō'] },
   'organic-lanes': { family: 'layout', read: 'dense blocks cut by meandering lanes and dead-end alleys', seenIn: ['Sumer', 'Islamic medina', 'medieval Europe', 'old Delhi'] },
   'sacred-precinct': { family: 'layout', read: 'a walled temple quarter at the heart, larger than everything around it', seenIn: ['Sumer', 'Egypt', 'Mesoamerica', 'Angkor', 'medieval cathedral close'] },
   'towered-wall': { family: 'layout', read: 'a thick ring wall with towers at intervals and gates where roads leave', seenIn: ['Sumer', 'Assyria', 'China', 'Rome', 'medieval Europe'] },
@@ -66,6 +71,8 @@ export const PATTERNS = {
   kiln: { family: 'street', read: 'domed kilns at the town edge where the smoke goes, pots stacked by them', seenIn: ['Sumer', 'Indus', 'Greece (Kerameikos)', 'China'] },
   granary: { family: 'street', read: 'domed or long storehouses in a walled yard, the store of a temple or a ruler', seenIn: ['Sumer', 'Egypt', 'Indus (Harappa)', 'Inca (qollqa)'] },
   shaduf: { family: 'street', read: 'a counterweighted lifting pole at the water\'s edge, raising buckets to the fields', seenIn: ['Egypt', 'Mesopotamia', 'India', 'medieval Europe (well sweep)'] },
+  market: { family: 'street', read: 'a walled market square: rows of stalls under roofs and awnings, a drum tower in the middle to open and close it', seenIn: ['Han China', 'Tang Chang\'an', 'the Islamic suq', 'the Roman macellum'] },
+  bridge: { family: 'street', read: 'a long timber bridge on rows of piles across a river, the road carried straight over', seenIn: ['Qin and Han China (Wei bridges)', 'Rome (Pons Sublicius)', 'medieval Europe'] },
   boat: { family: 'street', read: 'boats moored at the quay, the shape of the local hull', seenIn: ['Sumer (reed boats)', 'Egypt', 'Venice', 'Suzhou'] },
 
   // ── farm: what feeds the town — the countryside's tools at work and the buildings raised away from

@@ -24,6 +24,8 @@ import { THEBES } from './cultures/thebes.js';
 import { planRiverAxis } from './layouts/thebes.js';
 import { GIZA } from './cultures/giza.js';
 import { planPlateau } from './layouts/giza.js';
+import { QIN } from './cultures/qin.js';
+import { planWeiWards } from './layouts/qin.js';
 import { LINDOS, POLIS } from './cultures/lindos.js';
 import { planAcropolis } from './layouts/lindos.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
@@ -37,20 +39,22 @@ import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
 import { resolveFire, firePageChannel } from '../fire/fire.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS };
+export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS, qin: QIN };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
 /**
  * Plan a historic city. Each culture brings its layout (`culture.layout`): 'ring-canal' (a walled ring
- * cut by a canal, the precinct at the heart — Sumer) or 'river-axis' (a river along the town and a
- * temple on an axis from its quay — New Kingdom Thebes), 'plateau' (Giza) or 'acropolis' (a sanctuary on a
- * rock over a terraced town — Lindos on its sea cliff, or the generic `polis` on a gentle hill). All share ./layout-kit.js.
+ * cut by a canal, the precinct at the heart — Sumer), 'river-axis' (a river along the town and a
+ * temple on an axis from its quay — New Kingdom Thebes), 'plateau' (Giza), 'acropolis' (a sanctuary on a
+ * rock over a terraced town — Lindos on its sea cliff, or the generic `polis` on a gentle hill) or 'wei-wards'
+ * (walled wards on an axis from a palace to a river — Qin Xianyang). All share ./layout-kit.js.
  */
 export function planHistoricCity(opts = {}) {
   const K = HISTORIC_CULTURES[opts.culture || 'sumer'] || SUMER;
   if (K.layout === 'river-axis') return planRiverAxis({ ...opts, culture: opts.culture || 'sumer' }, K);
   if (K.layout === 'plateau') return planPlateau({ ...opts, culture: opts.culture }, K);
   if (K.layout === 'acropolis') return planAcropolis({ ...opts, culture: opts.culture }, K);
+  if (K.layout === 'wei-wards') return planWeiWards({ ...opts, culture: opts.culture }, K);
   return planRingCanal(opts);
 }
 
@@ -461,7 +465,7 @@ export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty. Lindos' views across the
 // water (`sea`, `bay`) look at the rock from afar: 22, or the page drops faces under the load.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
@@ -555,7 +559,9 @@ export function assembleHistoricCityScene(opts = {}) {
   const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
   // the fires stay in metres: the World's fire channel burns them so and scales them into the scene's units
   const fireSources = live ? plan.fireSources : null;
-  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}) };
+  // the World's crop (`plan.world.skirt`): kept with the plan's heights until the sky's horizon colour is known
+  const skirt = world && plan.world && plan.world.skirt && plan.hAt ? { ...plan.world.skirt, hAt: plan.hAt, frame: plan.frame } : null;
+  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}) };
 }
 
 /**
@@ -567,13 +573,37 @@ export function assembleHistoricCityScene(opts = {}) {
  */
 export function assembleHistoricWorld(opts = {}) {
   // the CSS shade map is the page's: the World never reads it, so it is not baked here
-  const { fireSources, ...scene } = assembleHistoricCityScene({ ...opts, world: true, shade: false });
+  const { fireSources, skirt, ...scene } = assembleHistoricCityScene({ ...opts, world: true, shade: false });
   const style = HISTORIC_STYLES[scene.stats.culture];
   const card = style && style.sky && style.sky.palette ? deriveSky(style.sky.palette, { x: 0, y: 0, z: style.sky.sunElev }) : null;
+  if (skirt) scene.faces.push(...skirtFaces(skirt, 1 / METRES_PER_UNIT, card ? card.horizon : [208, 217, 218]));
   // `fire`: the hearths and kilns burn live (fire/fire.js), lighting the town by day as their own glow
   const lit = fireSources ? resolveFire(true, fireSources, { explicit: false }) : null;
   return { ...scene, textures: collectFaceTextures(scene.faces, { ...(scene.textures || {}) }), ...(card ? { sky: { zenith: card.zenith.map(Math.round), horizon: card.horizon.map(Math.round), day: 1, stars: 0, seed: 1 } } : {}),
     ...(lit ? { fire: firePageChannel(lit, { day: card ? 1 : 0, unit: METRES_PER_UNIT }) } : {}) };
+}
+/**
+ * The World's crop: the land just past the frame, `width` m of it in `cell` squares, its heights the frame edge's
+ * carried straight out (a bluff or a river runs on), each corner's colour fading from the ground's (or the water's,
+ * below `waterZ`) to the sky's horizon by its distance from the frame. Past it the picture is sky and haze, so the
+ * town stays the focus however the World is turned. Metres in, scene units out.
+ */
+function skirtFaces({ width, cell, waterZ = -Infinity, fill, water, hAt, frame }, s, horizon) {
+  const lit = litFactor([0, 0, 1], SCENE_LIGHT), base = [scaleHex(fill, lit), scaleHex(water || fill, lit)].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+  const hex = (c) => `#${c.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('')}`;
+  const clamp = (v, hi) => Math.min(hi - 0.01, Math.max(0.01, v)), out = [];
+  const corner = (x, y) => {
+    const z = hAt(clamp(x, frame.w), clamp(y, frame.d)), wet = z < waterZ, d = Math.hypot(Math.max(0, -x, x - frame.w), Math.max(0, -y, y - frame.d));
+    const t = Math.min(1, d / width) ** 0.7, c = base[wet ? 1 : 0];
+    return { p: [x * s, y * s, (wet ? waterZ : z) * s], fill: hex(c.map((v, i) => v + (horizon[i] - v) * t)), far: d >= width };
+  };
+  for (let y = -width; y < frame.d + width; y += cell) for (let x = -width; x < frame.w + width; x += cell) {
+    if (x >= 0 && y >= 0 && x + cell <= frame.w && y + cell <= frame.d) continue;   // the frame draws its own ground
+    const c = [corner(x, y), corner(x + cell, y), corner(x + cell, y + cell), corner(x, y + cell)];
+    if (c.every((q) => q.far)) continue;
+    out.push({ corners: c.map((q) => q.p), fill: c[0].fill, cornerFills: c.map((q) => q.fill), doubleSided: true });
+  }
+  return out;
 }
 /** A historic city → the World page HTML (self-contained unless `cdn`). */
 export function renderHistoricCityToWorld(opts = {}) {
