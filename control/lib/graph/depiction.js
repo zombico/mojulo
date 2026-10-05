@@ -19,8 +19,8 @@ import { FARM_CULTURES } from './historic/farmstead.js';
 import { WORKS_CULTURES } from './historic/workshops.js';
 import { HISTORIC_STYLES } from './historic/style/index.js';
 import { SIXTH_GEN } from './era/sixth-gen.js';
+import { landOf } from './historic/cultures/index.js';
 
-const LAND = { sumer: 'sumer', thebes: 'egypt' };
 
 /** A year as the caption says it: 1250 BCE, 212 BCE, 1066 CE. */
 export function fmtYear(y) { return y < 0 ? `${-y} BCE` : `${y} CE`; }
@@ -46,8 +46,8 @@ export function periodText(p) {
 /** What a historic scene shows: the town is the culture; its land, farm and works are their own cards' subjects. */
 function historicSubject(culture, scene) {
   if (scene === 'region') return REGION_CULTURES[culture]?.label;
-  if (scene === 'farm') return FARM_CULTURES[LAND[culture]]?.label;
-  if (scene === 'works') return WORKS_CULTURES[LAND[culture]]?.label;
+  if (scene === 'farm') return FARM_CULTURES[landOf(culture)]?.label;
+  if (scene === 'works') return WORKS_CULTURES[landOf(culture)]?.label;
   return HISTORIC_CULTURES[culture].label;
 }
 

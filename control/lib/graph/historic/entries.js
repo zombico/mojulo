@@ -25,15 +25,12 @@ import { REGION_CULTURES } from './historic-region.js';
 import { FARM_CULTURES } from './farmstead.js';
 import { HISTORIC_STYLES } from './style/index.js';
 import { describeHistoric, fmtSpan, periodText } from '../depiction.js';
+import { REGIONS } from './regions.js';
+import { depthText } from './depth.js';
+import { landOf } from './cultures/index.js';
 
-/** The regions a culture names (`region`), each with the words people use for it. */
-export const REGIONS = {
-  egypt: { label: 'Ancient Egypt', aliases: ['egypt', 'egyptian', 'pharaonic', 'nile', 'kemet', 'ancient egypt'] },
-  greece: { label: 'The Hellenistic Greek world', aliases: ['greece', 'greek', 'hellenic', 'hellenistic', 'aegean', 'ancient greece'] },
-  mesopotamia: { label: 'Mesopotamia', aliases: ['mesopotamia', 'mesopotamian', 'sumer', 'tigris', 'euphrates', 'iraq'] },
-  china: { label: 'Ancient China', aliases: ['china', 'chinese', 'qin dynasty', 'wei river'] },
-  italy: { label: 'Roman Italy', aliases: ['italy', 'roman', 'rome', 'ancient rome', 'roman empire', 'latin'] },
-};
+export { REGIONS };
+
 
 export const BASIS = { read: 'ATTESTED', secondary: 'RECONSTRUCTED', unverified: 'CONJECTURAL' };
 const BASIS_ORDER = ['read', 'secondary', 'unverified'];
@@ -47,7 +44,7 @@ const dedupe = (a) => [...new Set(a)];
 const words = (id) => id.replace(/^[a-z]{2}-/, '').replace(/-/g, ' ');   // eg-sphinx-row → sphinx row
 const scenesOf = (id) => Object.keys(HISTORIC_SCENES).filter((s) => HISTORIC_SCENES[s].cultures.includes(id));
 const seasonsOf = (id, scene) => (scene === 'region' ? Object.keys(REGION_CULTURES[id]?.crops || {})
-  : scene === 'farm' ? Object.keys(FARM_CULTURES[id === 'thebes' ? 'egypt' : id]?.seasons || { harvest: 1, sowing: 1 }) : []);
+  : scene === 'farm' ? Object.keys(FARM_CULTURES[landOf(id)]?.seasons || { harvest: 1, sowing: 1 }) : []);
 
 /** The record's share by basis: `{ read: n, secondary: n, unverified: n }`. */
 function basisCounts(entries) {
@@ -86,6 +83,7 @@ export function entryCard(id) {
     `PERIOD     ${periodText(d.period)}`,
     `PLACE      ${d.place === 'invented' ? 'invented — no real place' : d.place}`,
     `DEPICTION  era ${d.depiction.era} (the hardware budget); look: ${style ? `the ${id} style card` : 'none yet'}`,
+    `DEPTH      ${depthText(id)} (0 a card on another culture's work … 3 its own place)`,
     `SCOPE      a general depiction of the place in its period, not a reconstruction of one year: expect anachronisms (pieces from across the span side by side, gaps filled from parallels). Say so when you hand it over.`,
     R ? `BASIS      the ${R.id} record: ${R.entries.length} entries — ${n.read} ATTESTED, ${n.secondary} RECONSTRUCTED, ${n.unverified} CONJECTURAL; ${Object.keys(R.sources).length} sources. The town plan and placement are RECONSTRUCTED from parallels. In full: card '${id}/record'.`
       : 'BASIS      no record yet: read every part as CONJECTURAL.',
@@ -117,7 +115,9 @@ export function recordCard(id) {
   const K = HISTORIC_CULTURES[id], R = K.record;
   if (!R) return null;
   const by = (c) => R.entries.filter((e) => e.confidence === c);
-  const cite = (e) => (e.sources || []).map((s) => `${s.author.split(',')[0]} ${s.year}`).join('; ');
+  // the first author of a list, never half a parenthesis ('various (sxlib, Wikipedia)' → 'various')
+  const who = (a) => { const first = a.split(',')[0]; return first.includes('(') && !first.includes(')') ? first.slice(0, first.indexOf('(')).trim() : first; };
+  const cite = (e) => (e.sources || []).map((s) => `${who(s.author)} ${s.year}`).join('; ');
   const lines = [`# ${K.label}: the record (${R.id})`, '', `What the entry stands on: ${R.entries.length} entries, each with its confidence and sources.`];
   for (const c of BASIS_ORDER) {
     const es = by(c);

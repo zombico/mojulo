@@ -12,9 +12,10 @@ const starterLines = (body) => body.split('\n').filter((l) => /^ {2}[^:]+: \{"ki
 describe('historic entries: generated encyclopedia cards', () => {
   it('gives every culture an entry and a record, and a hub to every region with more than one', () => {
     const ids = historicEntryCards().map((c) => c.id);
-    for (const id of Object.keys(HISTORIC_CULTURES)) {
+    for (const [id, K] of Object.entries(HISTORIC_CULTURES)) {
       expect(ids).toContain(id);
-      expect(ids).toContain(`${id}/record`);
+      if (K.record) expect(ids).toContain(`${id}/record`);
+      else expect(ids).not.toContain(`${id}/record`);   // a culture at depth 0 has no record yet, so no record card
     }
     const regions = {};
     for (const K of Object.values(HISTORIC_CULTURES)) if (K.region) regions[K.region] = (regions[K.region] || 0) + 1;
@@ -86,6 +87,15 @@ describe('historic entries: generated encyclopedia cards', () => {
     expect(entryCard('sumer').when).toContain('"ziggurat"');
     expect(entryCard('sumer').when).toContain('"mesopotamia"');
     for (const r of Object.values(REGIONS)) expect(r.aliases.every((a) => a.length >= 3)).toBe(true);   // the lexical index reads 3+ characters
+  });
+
+  it('cites whole author names, never half a parenthesis', () => {
+    for (const c of historicEntryCards().filter((x) => x.id.endsWith('/record'))) {
+      for (const l of c.body.split('\n').filter((x) => x.startsWith('- '))) {
+        const cites = l.slice(l.indexOf(' — ') + 3);
+        expect((cites.match(/\(/g) || []).length, `${c.id}: ${l}`).toBe((cites.match(/\)/g) || []).length);
+      }
+    }
   });
 
   it('is deterministic', () => {

@@ -12,6 +12,7 @@
  * the ids on offer (a builder alone falls back to Sumer, which a recipe must never do silently).
  */
 import { HISTORIC_CULTURES, assembleHistoricWorld, planHistoricCity } from './historic-city.js';
+import { landOf } from './cultures/index.js';
 import { REGION_CULTURES, assembleRegionScene, planRegion } from './historic-region.js';
 import { FARM_CULTURES, assembleFarmsteadScene, planFarmstead } from './farmstead.js';
 import { WORKS_CULTURES, assembleWorksScene, planWorks } from './workshops.js';
@@ -19,9 +20,9 @@ import { HISTORIC_STYLES } from './style/index.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
 
-// the farm and works builders key their cultures by the land, the town by its place
-const LAND = { sumer: 'sumer', thebes: 'egypt' };
-const SEASONS = { region: (c) => Object.keys(REGION_CULTURES[c].crops), farm: (c) => Object.keys(FARM_CULTURES[LAND[c]].seasons || { harvest: 1, sowing: 1 }) };
+// the farm and works builders key their cultures by the land (`landOf`: a card's `land`, else its id)
+const SEASONS = { region: (c) => Object.keys(REGION_CULTURES[c].crops), farm: (c) => Object.keys(FARM_CULTURES[landOf(c)].seasons || { harvest: 1, sowing: 1 }) };
+const having = (table) => Object.keys(HISTORIC_CULTURES).filter((c) => table[landOf(c)]);
 
 /**
  * Each scene: which cultures have it, its plan (for the views it offers) and its World payload.
@@ -29,24 +30,24 @@ const SEASONS = { region: (c) => Object.keys(REGION_CULTURES[c].crops), farm: (c
  */
 export const HISTORIC_SCENES = {
   city: {
-    cultures: Object.keys(HISTORIC_CULTURES),
+    get cultures() { return Object.keys(HISTORIC_CULTURES); },
     plan: (o) => planHistoricCity(o),
     world: (o) => assembleHistoricWorld(o),
   },
   region: {
-    cultures: Object.keys(REGION_CULTURES),
+    get cultures() { return Object.keys(REGION_CULTURES).filter((c) => HISTORIC_CULTURES[c]); },
     plan: (o) => planRegion(o),
     world: (o) => toWorld(assembleRegionScene(o), o.culture),
   },
   farm: {
-    cultures: Object.keys(LAND).filter((c) => FARM_CULTURES[LAND[c]]),
-    plan: (o) => planFarmstead({ ...o, culture: LAND[o.culture] }),
-    world: (o) => toWorld(assembleFarmsteadScene({ ...o, culture: LAND[o.culture] }), o.culture),
+    get cultures() { return having(FARM_CULTURES); },
+    plan: (o) => planFarmstead({ ...o, culture: landOf(o.culture) }),
+    world: (o) => toWorld(assembleFarmsteadScene({ ...o, culture: landOf(o.culture) }), o.culture),
   },
   works: {
-    cultures: Object.keys(LAND).filter((c) => WORKS_CULTURES[LAND[c]]),
-    plan: (o) => planWorks({ ...o, culture: LAND[o.culture] }),
-    world: (o) => toWorld(assembleWorksScene({ ...o, culture: LAND[o.culture] }), o.culture),
+    get cultures() { return having(WORKS_CULTURES); },
+    plan: (o) => planWorks({ ...o, culture: landOf(o.culture) }),
+    world: (o) => toWorld(assembleWorksScene({ ...o, culture: landOf(o.culture) }), o.culture),
   },
 };
 

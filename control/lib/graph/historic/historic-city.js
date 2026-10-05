@@ -20,18 +20,8 @@ import { assembleBoxCityScene, emitPreserve3dScene } from '../scene/scene-css3d.
 import { scaleHex } from '../polygonizer/vexar.js';
 import { placeAsset, localSize } from './assets/kit.js';
 import { CELL, C, LAYER, laneZ, stream, pick, claimGrid, runs, alleyLattice, packLots, lotSlot, placeSlots, skinLoose } from './layout-kit.js';
-import { THEBES } from './cultures/thebes.js';
-import { planRiverAxis } from './layouts/thebes.js';
-import { GIZA } from './cultures/giza.js';
-import { planPlateau } from './layouts/giza.js';
-import { QIN } from './cultures/qin.js';
-import { planWeiWards } from './layouts/qin.js';
-import { LINDOS, POLIS } from './cultures/lindos.js';
-import { planAcropolis } from './layouts/lindos.js';
-import { POMPEII } from './cultures/pompeii.js';
-import { FORUM } from './cultures/forum.js';
-import { planLavaSpur } from './layouts/pompeii.js';
-import { planForum } from './layouts/forum.js';
+import { HISTORIC_CULTURES } from './cultures/index.js';
+import { LAYOUTS } from './layouts/index.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
@@ -43,26 +33,21 @@ import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
 import { resolveFire, firePageChannel } from '../fire/fire.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS, qin: QIN, pompeii: POMPEII, forum: FORUM };
+export { HISTORIC_CULTURES };   // the registry: ./cultures/index.js
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
 /**
- * Plan a historic city. Each culture brings its layout (`culture.layout`): 'ring-canal' (a walled ring
- * cut by a canal, the precinct at the heart — Sumer), 'river-axis' (a river along the town and a
- * temple on an axis from its quay — New Kingdom Thebes), 'plateau' (Giza), 'acropolis' (a sanctuary on a
- * rock over a terraced town — Lindos on its sea cliff, or the generic `polis` on a gentle hill), 'wei-wards'
- * (walled wards on an axis from a palace to a river — Qin Xianyang) or 'lava-spur' (a forum town on a lava
- * spur — the western half of Pompeii). All share ./layout-kit.js.
+ * Plan a historic city. Each culture brings its layout (`culture.layout`, an id in ./layouts/index.js), which reads
+ * the culture's card; with none it is Sumer's 'ring-canal' (a walled ring cut by a canal, the precinct at the heart,
+ * below). An unknown culture falls back to Sumer (the builders' old behaviour; the `historic` kind refuses one
+ * first); an unknown layout id is refused. All share ./layout-kit.js.
  */
 export function planHistoricCity(opts = {}) {
   const K = HISTORIC_CULTURES[opts.culture || 'sumer'] || SUMER;
-  if (K.layout === 'river-axis') return planRiverAxis({ ...opts, culture: opts.culture || 'sumer' }, K);
-  if (K.layout === 'plateau') return planPlateau({ ...opts, culture: opts.culture }, K);
-  if (K.layout === 'acropolis') return planAcropolis({ ...opts, culture: opts.culture }, K);
-  if (K.layout === 'wei-wards') return planWeiWards({ ...opts, culture: opts.culture }, K);
-  if (K.layout === 'lava-spur') return planLavaSpur({ ...opts, culture: opts.culture }, K);
-  if (K.layout === 'forum') return planForum({ ...opts, culture: opts.culture }, K);
-  return planRingCanal(opts);
+  if (!K.layout || K.layout === 'ring-canal') return planRingCanal(opts);
+  const plan = LAYOUTS[K.layout];
+  if (!plan) throw new Error(`historic: unknown layout '${K.layout}' — one of 'ring-canal', ${Object.keys(LAYOUTS).map((l) => `'${l}'`).join(', ')}`);
+  return plan({ ...opts, culture: opts.culture }, K);
 }
 
 /**
@@ -544,6 +529,8 @@ export function historicLight(plan, opts = {}) {
 export function assembleHistoricCityScene(opts = {}) {
   const plan = planHistoricCity(opts);
   const view = opts.view === 'approach' || (opts.view && plan.views[opts.view]) ? opts.view : 'aerial';
+  // px per scene unit for the view: the table's, or eye level for a view it does not name (a new culture's own views)
+  const US = UNIT_SCALE[view] ?? 48;
   const s = 1 / METRES_PER_UNIT, world = !!opts.world;
   // `world`: built for the WebGL World page, which also draws what the plan keeps for it alone (a seabed)
   // a World with live fire (`fire`) burns its flames itself: the painted flame cards stand down there
@@ -552,9 +539,9 @@ export function assembleHistoricCityScene(opts = {}) {
   // repeated parts (a plan's `repeats`): the World draws each template once as instances; the CSS page their light stand-ins
   const reps = plan.repeats || [];
   const lows = world ? [] : reps.filter((r) => !r.world).flatMap((r) => r.transforms.flatMap((t) => r.low.map((m) => liftMass(m, t.pos))));
-  const { boxes, faces } = toScene(world && plan.world ? [...masses, ...lows, ...plan.world.boxes] : [...masses, ...lows], s, UNIT_SCALE[view], plan.focus);
+  const { boxes, faces } = toScene(world && plan.world ? [...masses, ...lows, ...plan.world.boxes] : [...masses, ...lows], s, US, plan.focus);
   const { shade, sky } = historicLight(plan, opts);
-  const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view], true, shade, world), grounds = G.grounds;
+  const G = groundsToScene(plan.grounds, s, US, true, shade, world), grounds = G.grounds;
   faces.unshift(...G.faces);
   const W = plan.frame.w * s, Dd = plan.frame.d * s, pc = plan.stats.precinct;
   const pcx = (pc.x + pc.w / 2) * s, pcy = (pc.y + pc.d / 2) * s;
@@ -566,13 +553,13 @@ export function assembleHistoricCityScene(opts = {}) {
   // the asked-for view first (it is the one the page opens on)
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
-  const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
+  const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: US });
   // the fires stay in metres: the World's fire channel burns them so and scales them into the scene's units
   const fireSources = live ? plan.fireSources : null;
   // the World's crop (`plan.world.skirt`): kept with the plan's heights until the sky's horizon colour is known
   const skirt = world && plan.world && plan.world.skirt && plan.hAt ? { ...plan.world.skirt, hAt: plan.hAt, frame: plan.frame } : null;
   const repeats = world && reps.length ? reps.map((r) => {
-    const T = toScene(r.template, s, UNIT_SCALE[view]);
+    const T = toScene(r.template, s, US);
     if (T.boxes.length) throw new Error(`repeat '${r.key}': a template is built of solids only`);
     return { group: r.key, template: T.faces, transforms: r.transforms.map((t) => ({ pos: t.pos.map((v) => v * s) })) };
   }) : null;

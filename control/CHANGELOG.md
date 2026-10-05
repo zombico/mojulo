@@ -389,6 +389,36 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   empty, so new cards (these entries, and any routing card added since) stayed unsearchable until a manual
   reindex. Once per process, before the first search, a corpus built by a reindex is checked for shipped
   cards it lacks, and one reindex adds them.
+- Fix: record cards cite a group author whole ("various", not "various (sxlib").
+
+### Historic on-ramp
+
+- **In progress.** Adding a culture is a card, a registry line and a scaffold, at any depth:
+  - depth 0: a card on another culture's layout and kit, in its own colours;
+  - depth 1: plus its record and style card;
+  - depth 2: plus its own assets;
+  - depth 3: plus its own layout.
+- Registries, one line per culture or layout: `historic/cultures/index.js`, `historic/layouts/index.js` and
+  `historic/regions.js`, beside `historic/style/index.js`. `planHistoricCity` dispatches from the layout table
+  and refuses an unknown layout id. A view the scale table does not name renders at eye level instead of an
+  undefined scale. Every page is byte-identical.
+- Each culture's depth is found, never claimed (`historic/depth.js`): what it shares with a culture
+  registered before it, by identity. Its entry says it on a DEPTH line, for example "0 of 3: its own style
+  card; record, assets and layout from lindos" for the polis.
+- A card's `land` names its farm and works scenes, replacing a table written into three files. The scene lists
+  follow the registry.
+- `scripts/new-culture.mjs <id> --like <culture> …` scaffolds a culture at depth 0:
+  - it writes a card spread from an existing culture, with every contract line filled or null, `record: null`
+    and `land: null`;
+  - it adds the registry line and `docs/historic/<id>/README.md`;
+  - the culture renders, mints and is an entry on the first run;
+  - `--dry` prints without writing; bad input is refused with what is on offer.
+- A culture checklist test (`historic/cultures.test.js`): every layout is registered, every style card has
+  its culture, every entry states its depth, every layout takes a card spread under a new id, and the
+  scaffold is checked dry.
+- The guide, `docs/historic/README.md`, covers the parts of a culture and their registries, the depths with
+  the asset loop, new regions, the gates, and landing a culture on the trunk. A project skill,
+  `/historic-culture`, runs it in order.
 
 ### Historic Rome
 

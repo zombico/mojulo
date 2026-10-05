@@ -138,6 +138,8 @@ Pointers only; each target carries its own design notes.
   (the `scad` kind, OpenSCAD-in-WASM) and [scene/scene-scad.js](control/lib/graph/scene/scene-scad.js) (the transpiler).
 - Recipe book: [views/recipe-book/](control/lib/graph/views/recipe-book/). Vocab cards: `*-vocab/` dirs.
 - Retail: [retail/](control/lib/graph/retail/) (concept cards → the `store` / `mall` kinds; a new store is a card, not code).
+- Historic cultures: [historic/](control/lib/graph/historic/) (a real place at its period → the `historic` kind and its
+  encyclopedia entry); adding or deepening one: [docs/historic/README.md](docs/historic/README.md), `/historic-culture`.
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
