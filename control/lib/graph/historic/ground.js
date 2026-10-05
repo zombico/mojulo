@@ -248,6 +248,9 @@ export const WALL_SKINS = {
   granite: [5, 4],           // Aswan red granite, dressed: big blocks, fine joints, the stone's speckle
   'granite-rough': [5, 4],   // red granite left undressed: each block's face still bulging (Menkaure's lower casing)
   bedrock: [10, 8],          // the plateau's own rock carved in place: strata of harder and softer beds, the soft ones weathered back
+  drystone: [4, 3],          // a terrace wall of field stones laid dry: rounded and angular stones of every size, dark gaps, no courses
+  'poros-stucco': [6, 4],    // soft poros under a fine lime stucco, false ashlar joints drawn in it: the Greek temple's skin, smooth and pale
+  isodomic: [6, 3],          // limestone ashlar in courses of one height, blocks of one length, each course half a block over: the Hellenistic wall
 };
 /** Tile widths in px where 320 is too coarse for the figures drawn on them. */
 const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520 };
@@ -383,6 +386,29 @@ const SKIN_BAKERS = {
     for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (n(x, y) - 0.5) * 0.06 + 0.03; }
   },
   // the local limestone, rough: wide dark joints, a tone to each block, pitted faces
+  drystone(o, rng) {
+    // field stones packed dry: each a soft lit lump with a dark rim; the gaps between them dark
+    const { W, H } = o;
+    for (let k = 0; k < W * H; k++) o.a[k] -= 0.3;
+    for (let n = 0; n < (W * H) / 260; n++) {
+      const cx = rng() * W, cy = rng() * H, rx = 6 + rng() * 14, ry = rx * (0.5 + rng() * 0.4), tone = (rng() - 0.5) * 0.16;
+      for (let y = -Math.ceil(ry); y <= ry; y++) for (let x = -Math.ceil(rx); x <= rx; x++) {
+        const d = Math.hypot(x / rx, y / ry); if (d > 1) continue;
+        const i = ((((cy + y) | 0) % H + H) % H) * W + ((((cx + x) | 0) % W + W) % W);
+        o.a[i] = Math.max(o.a[i], tone + (d > 0.82 ? -0.18 : y < 0 ? 0.06 * (1 - d) : -0.04 * d));
+      }
+    }
+  },
+  'poros-stucco'(o, rng) {
+    // the stucco: a faint mottle; the false joints drawn into it, fine and regular, a course to every half-metre and a bit
+    SKIN_BAKERS['lime-plaster'](o, rng);
+    const { W, H } = o, ch = H / 6, bw = W / 5;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const r = Math.floor(y / ch), sx = (x + (r % 2 ? bw / 2 : 0)) % W;
+      if (y - r * ch < 1 || sx % bw < 1) o.a[y * W + x] -= 0.1;
+    }
+  },
+  isodomic(o, rng) { ashlar(o, rng, { course: [1 / 6, 1 / 6], block: [0.24, 0.26], jointK: 0.2, toneK: 0.06, streak: 0.04 }); },
   'giza-core'(o, rng) {
     ashlar(o, rng, { course: [0.16, 0.26], block: [0.14, 0.3], jointK: 0.32, toneK: 0.1, streak: 0.06 });
     for (let k = 0; k < o.a.length / 40; k++) o.add(rng() * o.W, rng() * o.H, -0.12 - rng() * 0.12);

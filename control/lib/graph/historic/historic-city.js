@@ -24,6 +24,8 @@ import { THEBES } from './cultures/thebes.js';
 import { planRiverAxis } from './layouts/thebes.js';
 import { GIZA } from './cultures/giza.js';
 import { planPlateau } from './layouts/giza.js';
+import { LINDOS, POLIS } from './cultures/lindos.js';
+import { planAcropolis } from './layouts/lindos.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
@@ -31,18 +33,20 @@ import { groundTileFace, groundTileCss, skinFace } from './ground.js';
 import { bakeShade, shadeLayer, shadeCss } from './light.js';
 import { HISTORIC_STYLES } from './style/index.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA };
+export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
 /**
  * Plan a historic city. Each culture brings its layout (`culture.layout`): 'ring-canal' (a walled ring
  * cut by a canal, the precinct at the heart — Sumer) or 'river-axis' (a river along the town and a
- * temple on an axis from its quay — New Kingdom Thebes). Both share ./layout-kit.js.
+ * temple on an axis from its quay — New Kingdom Thebes), 'plateau' (Giza) or 'acropolis' (a sanctuary on a
+ * rock over a terraced town — Lindos on its sea cliff, or the generic `polis` on a gentle hill). All share ./layout-kit.js.
  */
 export function planHistoricCity(opts = {}) {
   const K = HISTORIC_CULTURES[opts.culture || 'sumer'] || SUMER;
   if (K.layout === 'river-axis') return planRiverAxis({ ...opts, culture: opts.culture || 'sumer' }, K);
   if (K.layout === 'plateau') return planPlateau({ ...opts, culture: opts.culture }, K);
+  if (K.layout === 'acropolis') return planAcropolis({ ...opts, culture: opts.culture }, K);
   return planRingCanal(opts);
 }
 
@@ -451,8 +455,9 @@ export function assetCall(plan, kit) {
 export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
 // px per scene unit. A panel rasterises at its own px size and an eye-level camera magnifies the near
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
-// at 48. From the air every panel is on screen at once and the box city's 22 is plenty.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48 };
+// at 48. From the air every panel is on screen at once and the box city's 22 is plenty. Lindos' views across the
+// water (`sea`, `bay`) look at the rock from afar: 22, or the page drops faces under the load.
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
@@ -510,7 +515,9 @@ export function toScene(masses, s, us = UNIT_SCALE.aerial, focus) {
 export function historicLight(plan, opts = {}) {
   const style = HISTORIC_STYLES[plan.stats.culture];
   if (!style || opts.shade === false) return { style: null, shade: null, sky: undefined };
-  return { style, shade: bakeShade({ frame: plan.frame, masses: plan.boxes, grounds: plan.grounds }, SCENE_LIGHT, style.light), sky: style.sky };
+  // a card that says `light.terrain` stands the land in the bake too (its cliffs cast onto the sea)
+  const terrain = style.light.terrain && plan.hAt ? plan.hAt : undefined;
+  return { style, shade: bakeShade({ frame: plan.frame, masses: plan.boxes, grounds: plan.grounds, terrain }, SCENE_LIGHT, style.light), sky: style.sky };
 }
 
 export function assembleHistoricCityScene(opts = {}) {

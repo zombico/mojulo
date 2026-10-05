@@ -222,6 +222,42 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   light. Shadows land on the ground, not yet on walls or lower roofs. The region, farmstead, works and
   asset-sheet scenes are unchanged.
 
+### Historic Hellenic
+
+- **In progress.** The first Greek city: Hellenistic Lindos on Rhodes, c. 180 BCE (`culture: 'lindos'`), and the
+  first town on a sea cliff. The sanctuary of Athena stands on a rock 116 m over the water. Below it the town lies on
+  the saddle between the great harbour and St Paul's bay. The picture is cropped to what the eye reads (the rock,
+  the town, the two bays), not the whole district.
+- Its record (`lib/graph/historic/record/lindos.js`) cites the temple (21.65 × 7.75 m, four Doric columns at each
+  end), the propylaia, the 87 m stoa with its 42 columns and 21 m stair, the theatre and Pythokritos' ship relief. It
+  lists what the scene must not show: the Knights' castle, the white cubic village, whitewash, the 1930s
+  restorations, the Lindian Chronicle. Athena's sacrifices were fireless, so her altar never burns. Heights the
+  record lacks are marked as conjecture in the kit.
+- Rock is made, not drawn (`lib/graph/historic/rock.js`). The layout gives the rock its shape, and the landform
+  operators weather it: strata bench and band the faces, joints break them into blocks, talus sheds scree at their
+  feet. It is meshed in slices at the bed planes, so the cliff reads in bands. Only steep ground is weathered. The
+  summit the temple stands on, the climb, the stair, the theatre and the town keep their exact levels.
+- Ground that is not flat, for any culture (`lib/graph/historic/terrain.js`). A layout's height function may jump.
+  Where it does, the step stands as a vertical face on the true contour, found by bisection: a cliff (bare rock) or,
+  under 4 m, a dry-stone terrace wall. The town is built on terraces 3 m apart, with a street at the foot of every
+  terrace wall and stairs climbing between them.
+- The land casts. A style card can stand the land in the light bake (`light.terrain`), so the cliffs throw their
+  shade on the sea. Lindos' card states six principles, each with a machine check: the value order of stucco,
+  plaster, rock and cliff; the cliffs' shade on the water; the climb rising station by station, with nothing higher
+  than the goddess; terrace walls no taller than a storey; turquoise shallows and a deep sea; fire in the town,
+  never on the altar.
+- A kit of the Doric order shared by every building: column, entablature with triglyphs, pediment, tile roof. It
+  builds the temple, propylaia, stoa, great stair, theatre, courtyard houses on stone socles, the ship relief, statues,
+  towers, kilns, a round tomb, warships and boats. Each was designed from a massing sheet dreamed on the local image
+  worker. New patterns: classical order, tile roof, stoa, propylon, theatre, round tomb, peristyle, acropolis,
+  terraced hillside, sea cliff, rock relief, statue base. New wall skins: dry stone, stuccoed poros, isodomic ashlar.
+- Fire is opt-in (`fire: true`). The plan hands over its house hearths and potters' kilns as fire sources, in the
+  fire channel's kinds. Without it the plan carries none.
+- The generic Hellenistic polis (`culture: 'polis'`) is the same plan on a gentle hill, with no cliff and no open
+  sea, so other Greek towns can start from it.
+- Views: the great harbour from a boat (`bay`), the climb, the stoa's terrace and great stair, the temple court, the cliff from the sea, the
+  theatre and a town street. Sumer, Thebes and Giza are byte-identical.
+
 ### Sixth-gen composer
 
 - Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a
