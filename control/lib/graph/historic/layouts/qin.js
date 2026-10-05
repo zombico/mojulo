@@ -20,11 +20,11 @@
  */
 import { tree, house } from '../assets/qin.js';
 import { scaleHex } from '../../polygonizer/vexar.js';
+import { terrainMesh } from '../terrain.js';
 import { CELL, C, LAYER, laneZ, stream, pick, claimGrid, runs, alleyLattice, packLots, lotSlot, placeSlots, skinLoose } from '../layout-kit.js';
 
 const TC = 20;                       // ground cell, metres
 const HOUSE_MIN = house.envelope.w[0];   // the smallest lot a house is built on
-const TERRAIN_LAYER = 10 * LAYER;    // alternate 20 m ground rows sit this far apart (see layouts/giza.js)
 
 export function planWeiWards({ seed = 1, culture = 'qin', frame = { w: 600, d: 600 }, assets } = {}, K) {
   const P = K.palette, g = claimGrid(frame), { cols, rows, grid, at, set } = g, Wf = cols * CELL, Df = rows * CELL;
@@ -54,27 +54,42 @@ export function planWeiWards({ seed = 1, culture = 'qin', frame = { w: 600, d: 6
   grounds.push({ kind: 'court', x: pal.x + pw.base, y: pal.y + pw.base, w: pal.w - 2 * pw.base, d: pal.d - 2 * pw.base, z: H + 0.03, fill: P.court, surface: 'mud' });
   grounds.push({ kind: 'walk', x: ax - 6, y: hall1.y + hall1.d, w: 12, d: queR.y - hall1.y - hall1.d, z: H + 0.05, fill: P.paving, surface: 'brick' });
 
-  // ── 3. the bluff: the tableland's edge, its top a little ragged except under the palace, two gullies cut
-  //    back into it; then the streets: the axial avenue (climbing the bluff as a causeway), the east–west
-  //    avenue, the riverside road ──
+  // ── 3. the ground's height (../terrain.js meshes it): the tableland, its edge a sheer loess bluff, ragged except
+  //    under the palace, two gullies cut back into it; the plain; the Wei's banks and its bed, braided round
+  //    sandbars that break the surface. Then the streets: the axial avenue (climbing the bluff as a causeway),
+  //    the east–west avenue, the riverside road ──
   const A = K.avenue, rowN = { y0: 192, y1: 276 }, ew = { y0: 276, y1: 294 }, rowS = { y0: 294, y1: 384 }, road = { y0: 384, y1: 396 };
-  const TB = K.tableland, BX = 10, Bq = stream(seed, 'bluff'), top = [], foot = [];
-  for (let i = 0; i * BX <= Wf; i++) {
-    const x = i * BX, lip = x >= pal.x - 12 && x <= pal.x + pal.w + 12, t = lip ? TB.edge : TB.edge - 6 + Bq() * 7;
-    top.push(t); foot.push(Math.min(rowN.y0 - 0.5, t + TB.foot[0] + Bq() * (TB.foot[1] - TB.foot[0])));
-  }
-  const gullies = [{ x: 40, w: 20, head: 100 }, { x: 520, w: 20, head: 120 }].filter((q) => q.x + q.w < Wf);
-  for (const q of gullies) for (let x = q.x; x <= q.x + q.w; x += BX) foot[x / BX] = rowN.y0 - 1;
+  const TB = K.tableland, BX = 10, Bq = stream(seed, 'bluff'), top = [];
+  for (let i = 0; i * BX <= Wf; i++) { const x = i * BX; top.push(x >= pal.x - 12 && x <= pal.x + pal.w + 12 ? TB.edge : TB.edge - 6 + Bq() * 7); }
+  const gullies = [{ x: 40, w: 20, head: 100 }, { x: 520, w: 20, head: 120 }].filter((q) => q.x + q.w < Wf), mouth = rowN.y0 - 1;
   const lerpAt = (arr, x) => { const i = Math.min(arr.length - 2, Math.max(0, Math.floor(x / BX))), t = x / BX - i; return arr[i] + (arr[i + 1] - arr[i]) * t; };
   const gullyAt = (x) => gullies.find((q) => x > q.x && x < q.x + q.w);
-  const ramp = { x: ax - A / 2, y0: TB.edge, y1: ew.y0 }, rampZ = (y) => H * Math.min(1, Math.max(0, (ramp.y1 - y) / (ramp.y1 - ramp.y0)));
-  // the ground height under a point: the causeway, the tableland, a gully floor, or the plain
-  const zAt = (x, y) => {
-    if (x >= ramp.x && x <= ramp.x + A && y > ramp.y0 && y < ramp.y1) return rampZ(y);
-    const q = gullyAt(x);
-    if (q && y > q.head) return y >= rowN.y0 - 1 ? 0 : H * (rowN.y0 - 1 - y) / (rowN.y0 - 1 - q.head);
-    return y <= lerpAt(top, x) ? H : 0;
+  // the bars: long lenses in midstream, clear of the bridge, their crests a little above the water
+  const Bv = stream(seed, 'bars'), bars = [];
+  for (let k = 0; k < 40 && bars.length < R.bars; k++) {
+    const len = 30 + Bv() * 80, wid = 6 + Bv() * 12, cx = Bv() * Wf, cy = rv.y0 + 8 + wid / 2 + Bv() * (rv.y1 - rv.y0 - 16 - wid);
+    if (Math.abs(cx - ax) < len / 2 + 14 || bars.some((b) => Math.abs(b.cx - cx) < (b.len + len) / 2 + 6 && Math.abs(b.cy - cy) < (b.wid + wid) / 2 + 6)) continue;
+    bars.push({ cx, cy, len, wid });
+  }
+  // the bed: deepest mid-channel, sloping up the banks to the plain. A bar stands out of it with a low lip, so the
+  // terrain mesher traces its outline on the true contour (a gentle shoulder would be stepped to the grid)
+  const bedAt = (x, y) => {
+    const t = (y - rv.y0) / (rv.y1 - rv.y0);
+    let z = waterZ - 0.5 - 1.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, t)));
+    for (const b of bars) { const e = ((x - b.cx) / (b.len / 2)) ** 2 + ((y - b.cy) / (b.wid / 2)) ** 2; if (e < 1) z = Math.max(z, waterZ + 0.12 + 0.25 * Math.sqrt(1 - e)); }
+    return z;
   };
+  const hAt = (x, y) => {
+    if (y > rv.y0 - bank && y < rv.y0) return (waterZ - 0.5) * (y - rv.y0 + bank) / bank;          // the north bank
+    if (y > rv.y1 && y < rv.y1 + bank) return (waterZ - 0.5) * (rv.y1 + bank - y) / bank;          // the south bank
+    if (y >= rv.y0 && y <= rv.y1) return bedAt(x, y);
+    const q = gullyAt(x);
+    if (q && y > q.head) return y >= mouth ? 0 : H * (mouth - y) / (mouth - q.head);              // a gully floor
+    return y <= lerpAt(top, x) ? H : 0;                                                          // the tableland or the plain
+  };
+  const ramp = { x: ax - A / 2, y0: TB.edge, y1: ew.y0 }, rampZ = (y) => H * Math.min(1, Math.max(0, (ramp.y1 - y) / (ramp.y1 - ramp.y0)));
+  // what stands on a point: the causeway, or the ground
+  const zAt = (x, y) => (x >= ramp.x && x <= ramp.x + A && y > ramp.y0 && y < ramp.y1 ? rampZ(y) : hAt(x, y));
   const street = (x, y, w, d) => fill({ x, y, w, d }, C.LANE, (v) => v === C.OUTSIDE);
   street(ax - A / 2, rowN.y0, A, road.y1 - rowN.y0);
   street(0, ew.y0, Wf, ew.y1 - ew.y0);
@@ -164,86 +179,30 @@ export function planWeiWards({ seed = 1, culture = 'qin', frame = { w: 600, d: 6
     works: { eye: [works.x - 6, works.y - 4, 1.7], at: [works.x + 90, works.y + 30, 3] },
   };
 
-  // ── 8. ground: the tableland and its bluff, the plain, the river and its banks and bars, the lanes, the fields ──
+  // ── 8. ground: the terrain (the tableland, the bluff and gullies, the plain, the banks, the bars) and the Wei over
+  //    it, under its river look on the World page; the causeway; the lanes; the fields ──
   const isRiver = (y) => y > rv.y0 - bank && y < rv.y1 + bank;
-  // the tableland stops a row short of its edge (or at a gully's head), the plain starts a row past the bluff's
-  // foot; the strips between are polygons following the ragged line
-  const cut = [];
-  for (let c = 0; c * TC < Wf; c++) {
-    const x0 = c * TC, x1 = Math.min(Wf, x0 + TC), xs3 = [x0, (x0 + x1) / 2, x1], q = gullies.find((g) => g.x === x0);
-    const tc = q ? q.head : Math.floor(Math.min(...xs3.map((x) => lerpAt(top, x))) / TC) * TC, fc = Math.ceil(Math.max(...xs3.map((x) => lerpAt(foot, x))) / TC) * TC;
-    cut.push({ tc, fc });
-    if (!q) grounds.unshift({ kind: 'ground', poly: [[x0, tc], [x1, tc], ...[...xs3].reverse().map((x) => [x, lerpAt(top, x)])], z: H + 0.01, fill: P.ground });
-    grounds.unshift({ kind: 'ground', poly: [...xs3.map((x) => [x, lerpAt(foot, x)]), [x1, fc], [x0, fc]], z: 0.01, fill: P.ground });
-  }
-  for (let r = 0; r * TC < Df; r++) {
-    const y0 = r * TC, y1 = Math.min(Df, y0 + TC), odd = r % 2;
-    for (let c = 0; c * TC < Wf; c++) {
-      const x0 = c * TC, x1 = Math.min(Wf, x0 + TC), up = y1 <= cut[c].tc;
-      if (!up && y0 < cut[c].fc) continue;
-      // the river band's edge rows are trimmed to the bank
-      const ya = isRiver(y0 + 0.01) ? Math.max(y0, rv.y1 + bank) : y0, yb = isRiver(y1 - 0.01) ? Math.min(y1, rv.y0 - bank) : y1;
-      if (yb <= ya) continue;
-      grounds.unshift({ kind: 'ground', x: x0, y: ya - (odd ? 0.06 : 0), w: x1 - x0, d: yb - ya + (odd ? 0.12 : 0), z: (up ? H : 0) + 0.01 + (odd ? TERRAIN_LAYER : 0), fill: P.ground, surface: 'mud' });
-    }
-  }
-  // the bluff face, in 10 m runs (two triangles each: its top and foot are ragged); none behind the causeway
-  const face = (pts, out, tint, kind = 'bluff') => {
-    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), zs = pts.map((p) => p[2]);
-    boxes.push({ kind, solid: 'panel', pts, out, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), d: Math.max(...ys) - Math.min(...ys), z0: Math.min(...zs), z1: Math.max(...zs), tint });
-  };
-  for (let i = 0; i + 1 < top.length; i++) {
-    const x0 = i * BX, x1 = x0 + BX;
-    if (gullyAt((x0 + x1) / 2) || (x0 >= ramp.x && x1 <= ramp.x + A)) continue;
-    const tint = scaleHex(P.cliff, 0.94 + 0.1 * Bq());
-    face([[x0, top[i], H], [x1, top[i + 1], H], [x1, foot[i + 1], 0]], [0, 1, 0.45], tint);
-    face([[x0, top[i], H], [x1, foot[i + 1], 0], [x0, foot[i], 0]], [0, 1, 0.45], tint);
-  }
-  // a gully: a floor climbing from the plain to the tableland at its head, between sloping sides
-  for (const q of gullies) {
-    const fl = q.x + q.w / 2 - 3, fr = q.x + q.w / 2 + 3, yF = rowN.y0 - 1, tl = lerpAt(top, q.x), tr = lerpAt(top, q.x + q.w);
-    boxes.push({ kind: 'gully', solid: 'wedge', x: fl, y: q.head, w: fr - fl, d: yF - q.head, z0: 0, z1: H, rise: 'y-', tint: P.lane });
-    for (const [e, f, t, o] of [[q.x, fl, tl, [1, 0, 0.5]], [q.x + q.w, fr, tr, [-1, 0, 0.5]]]) {
-      face([[e, q.head, H], [f, q.head, H], [f, yF, 0]], o, P.cliff);
-      face([[e, q.head, H], [f, yF, 0], [e, t, H]], o, scaleHex(P.cliff, 0.96));
-      face([[e, t, H], [f, yF, 0], [e, yF, 0]], [o[0], 1, 0.4], scaleHex(P.cliff, 0.92));
+  const Wt = K.water || {};
+  const T0 = terrainMesh({
+    hAt, frame: { w: Wf, d: Df }, eyes: Object.values(views).map((v) => v.eye), cell: 20, eyeRadius: 40,
+    surfaceAt: (x, y, z) => (isRiver(y) ? { fill: z > waterZ ? P.sand : P.wetSand } : gullyAt(x) && z > 0.05 && z < H - 0.05 ? { fill: P.lane, surface: 'mud' } : { fill: P.ground, surface: 'mud' }),
+    riserTint: (h) => (h >= 4 ? P.cliff : P.wetSand),
+    // the Wei is silty: clear only over the bars' shoulders, near opaque over the channel
+    water: { z: waterZ, fill: P.water, ...(Wt.look ? { liquid: { ...Wt.look, unit: 1 / 3.66 }, sheetFill: P.water, alphaAt: (x, y) => Math.max(0.55, Math.min(0.95, 0.55 + 0.3 * (waterZ - bedAt(x, y)))), fine: (x, y) => bars.some((b) => Math.abs(x - b.cx) < b.len / 2 + 15 && Math.abs(y - b.cy) < b.wid / 2 + 15), fineSize: 5 } : {}) },
+  });
+  grounds.unshift(...T0.grounds);
+  boxes.push(...T0.boxes);
+  // the riverbed under the water, for the World page (the CSS page draws the river opaque and leaves it out)
+  const riverbed = [];
+  if (Wt.look) for (let y = rv.y0 - bank; y < rv.y1 + bank; y += 5) for (let x = 0; x < Wf; x += 10) {
+    const c = [[x, y], [x + 10, y], [x + 10, y + 5], [x, y + 5]].map(([a, b]) => [a, b, Math.min(hAt(a, b), waterZ - 0.05)]);
+    for (const tri of [[c[0], c[1], c[2]], [c[0], c[2], c[3]]]) {
+      const zs = tri.map((p) => p[2]);
+      riverbed.push({ kind: 'riverbed', solid: 'panel', pts: tri, out: [0, 0, 1], x, y, w: 10, d: 5, z0: Math.min(...zs), z1: Math.max(...zs), tint: Wt.bed || P.wetSand, skin: null });
     }
   }
   // the axis climbs the bluff as a causeway of rammed earth, from the east–west avenue up to the que
   boxes.push({ kind: 'causeway', solid: 'wedge', x: ramp.x, y: ramp.y0, w: A, d: ramp.y1 - ramp.y0, z0: 0, z1: H, rise: 'y-', tint: P.lane, skin: 'hangtu' });
-  for (let y = rv.y0; y < rv.y1; y += TC) for (let x = 0; x < Wf; x += TC) {
-    const ri = Math.round(y / TC), ov = ri % 2 ? 0.25 : 0;
-    grounds.push({ kind: 'water', x: x - ov, y: y - ov, w: Math.min(TC, Wf - x) + 2 * ov, d: Math.min(TC, rv.y1 - y) + 2 * ov, z: waterZ + (ri % 2 ? TERRAIN_LAYER : 0), fill: P.water });
-  }
-  // the Wei braided: sandbars in midstream, each in a fringe of wet sand, and mud flats along the north bank
-  const Bv = stream(seed, 'bars'), bars = [];
-  for (let k = 0; k < 40 && bars.length < R.bars; k++) {
-    const len = 30 + Bv() * 80, wid = 5 + Bv() * 11, cx = Bv() * Wf, cy = rv.y0 + 8 + wid / 2 + Bv() * (rv.y1 - rv.y0 - 16 - wid);
-    if (Math.abs(cx - ax) < len / 2 + 14 || bars.some((b) => Math.abs(b.cx - cx) < (b.len + len) / 2 + 6 && Math.abs(b.cy - cy) < (b.wid + wid) / 2 + 6)) continue;
-    bars.push({ cx, cy, len, wid });
-  }
-  const lens = (b, grow) => {
-    const n = 9, upper = [], lower = [];
-    for (let i = 0; i <= n; i++) {
-      const t = i / n, x = Math.min(Wf, Math.max(0, b.cx - b.len / 2 - grow + (b.len + 2 * grow) * t)), hw = (b.wid / 2 + grow) * Math.pow(Math.sin(Math.PI * t), 0.6);
-      upper.push([x, b.cy - hw * (0.8 + 0.4 * ((i * 7) % 3) / 2)]); lower.push([x, b.cy + hw]);
-    }
-    return [...upper, ...lower.reverse()];
-  };
-  for (const b of bars) {
-    grounds.push({ kind: 'bar', poly: lens(b, 2.2), z: waterZ + 0.12, fill: P.wetSand });
-    grounds.push({ kind: 'bar', poly: lens(b, 0), z: waterZ + 0.3, fill: P.sand });
-  }
-  for (let x = 0; x < Wf; x += TC) {
-    if (Math.abs(x + TC / 2 - ax) < 16) continue;
-    const a = 2 + Bv() * 6, b2 = 2 + Bv() * 6;
-    grounds.push({ kind: 'flat', poly: [[x, rv.y0 - 0.5], [x + TC, rv.y0 - 0.5], [x + TC, rv.y0 + b2], [x, rv.y0 + a]], z: waterZ + 0.1, fill: P.wetSand });
-  }
-  for (let x = 0; x < Wf; x += TC) {
-    const x1 = Math.min(Wf, x + TC);
-    boxes.push({ kind: 'bank', solid: 'panel', pts: [[x, rv.y0 - bank, 0.02], [x1, rv.y0 - bank, 0.02], [x1, rv.y0 + 0.3, waterZ - 0.2], [x, rv.y0 + 0.3, waterZ - 0.2]], out: [0, 1, 0.6], x, y: rv.y0 - bank, w: x1 - x, d: bank + 0.3, z0: waterZ - 0.2, z1: 0.02, tint: P.bank });
-    boxes.push({ kind: 'bank', solid: 'panel', pts: [[x, rv.y1 - 0.3, waterZ - 0.2], [x1, rv.y1 - 0.3, waterZ - 0.2], [x1, rv.y1 + bank, 0.02], [x, rv.y1 + bank, 0.02]], out: [0, -1, 0.6], x, y: rv.y1 - 0.3, w: x1 - x, d: bank + 0.3, z0: waterZ - 0.2, z1: 0.02, tint: P.bank });
-  }
   runs(grid, cols, rows, (v) => v === C.LANE || v === C.OPEN, (c, r, n) => grounds.push({ kind: 'lane', x: c * CELL, y: r * CELL - (r % 2 ? 0.08 : 0), w: n * CELL + 0.15, d: CELL + (r % 2 ? 0.16 : 0), z: laneZ(0, r), fill: P.lane, surface: 'mud' }));
   // fields on the loess outside the town: north of the wards either side of the palace, and across the river
   const F = stream(seed, 'fields'), busy = [pal, ...wards, works, { x: ax - 12, y: rv.y1, w: 24, d: Df - rv.y1 }];
@@ -258,11 +217,13 @@ export function planWeiWards({ seed = 1, culture = 'qin', frame = { w: 600, d: 6
 
   skinLoose(boxes, K);
   return {
-    boxes, grounds, views, frame: { w: Wf, d: Df }, slots, horizon: qinHorizon({ Wf, Df, H, edge: TB.edge, foot: rowN.y0, rv, bank, waterZ, P, seed }),
+    boxes, grounds, views, frame: { w: Wf, d: Df }, slots, hAt,
+    // what only the World page draws: the riverbed under the water, and the land beyond the frame out to the hills
+    world: { boxes: [...riverbed, ...qinHorizon({ Wf, Df, H, edge: TB.edge, rv, bank, waterZ, P, seed })] },
     stats: {
       culture, houses, gardens, trees, wards: wards.filter((w) => !w.market).length, eliteWards: wards.filter((w) => w.elite).length,
       precinct: pal, palace: pal, hall: hall1, que: queR, market: { x: mk.x, y: mk.y, w: mk.w, d: mk.d }, works, river: rv, axis: ax,
-      tableland: { h: H, edge: TB.edge }, gullies: gullies.length, bars: bars.length, causeway: { ...ramp, w: A },
+      tableland: { h: H, edge: TB.edge }, gullies: gullies.length, bars: bars.map((b) => ({ ...b })), causeway: { ...ramp, w: A }, terrain: T0.stats,
       laneCells: grid.reduce((n, v) => n + (v === C.LANE ? 1 : 0), 0),
     },
     grid: { cols, rows, cell: CELL, data: grid, codes: C },
@@ -275,7 +236,7 @@ export function planWeiWards({ seed = 1, culture = 'qin', frame = { w: 600, d: 6
  * in (the Qinling stands some 40 km off) so they sit low on the horizon at about their real angle. Flat
  * hazy colours, no textures. Metres, like the plan.
  */
-function qinHorizon({ Wf, Df, H, edge, foot, rv, bank, waterZ, P, seed }) {
+function qinHorizon({ Wf, Df, H, edge, rv, bank, waterZ, P, seed }) {
   const out = [], X0 = -6000, X1 = Wf + 6000, Y0 = -5000, Y1 = Df + 5000, U = stream(seed, 'horizon');
   const quad = (pts, outv, tint) => {
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), zs = pts.map((p) => p[2]);
@@ -286,8 +247,8 @@ function qinHorizon({ Wf, Df, H, edge, foot, rv, bank, waterZ, P, seed }) {
   flat(X0, Y0, X1, 0, H, up);                                      // the tableland north of the frame
   for (const [a, b] of [[X0, 0], [Wf, X1]]) {
     flat(a, 0, b, edge, H, up);                                    // …and either side of it
-    quad([[a, edge, H], [b, edge, H], [b, foot, 0], [a, foot, 0]], [0, 1, 0.45], P.cliff);   // the bluff
-    flat(a, foot, b, rv.y0 - bank, 0, P.plainFar);                 // the plain to the river
+    quad([[a, edge, 0], [b, edge, 0], [b, edge, H], [a, edge, H]], [0, 1, 0], P.cliff);   // the bluff, sheer
+    flat(a, edge, b, rv.y0 - bank, 0, P.plainFar);                 // the plain to the river
     quad([[a, rv.y0 - bank, 0], [b, rv.y0 - bank, 0], [b, rv.y0, waterZ], [a, rv.y0, waterZ]], [0, 1, 0.6], P.bank);
     flat(a, rv.y0, b, rv.y1, waterZ, P.water);                     // the river
     quad([[a, rv.y1, waterZ], [b, rv.y1, waterZ], [b, rv.y1 + bank, 0], [a, rv.y1 + bank, 0]], [0, -1, 0.6], P.bank);

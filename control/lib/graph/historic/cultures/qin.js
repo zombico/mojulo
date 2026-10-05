@@ -48,10 +48,12 @@ export const QIN = {
   avenue: 20,
   river: { width: 80, sink: 2, bars: 9 },
   // the Xianyang tableland: the palaces on its lip, the wards on the plain below. The height is a guess
-  // (record: xianyang-tableland); the bluff top runs at `edge`, its foot `foot` metres further south
-  tableland: { h: 10, edge: 184, foot: [6, 8.5] },
+  // (record: xianyang-tableland); the bluff, sheer loess, runs at `edge`
+  tableland: { h: 10, edge: 184 },
   house: { size: [12, 18], elite: [16, 24], gap: 0.4 },
   lanes: { block: [8, 11] },
+  // the Wei on the World page: the native river look, silty and flowing east; its bed seen only at the edges
+  water: { look: { kind: 'river', tint: '#8c9a78', flow: [1, 0] }, bed: '#9c8f74' },
   trees: { max: 220 },
   assets: QIN_ASSETS,
 };

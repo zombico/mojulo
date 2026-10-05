@@ -418,8 +418,9 @@ export function fireLightColor(color, kind = 'brazier', soot) {
 
 /** firePageChannel(resolved, { terrainAir, day }) → the page block's cfg. day: the world's daylight 0–1 (a fire lights
  *  a night, barely a noon). */
-export function firePageChannel(resolved, { terrainAir = false, day = 0 } = {}) {
-  return { ...resolved, terrainAir: !!terrainAir, day: Math.max(0, Math.min(1, +day || 0)) };
+export function firePageChannel(resolved, { terrainAir = false, day = 0, unit = null } = {}) {
+  // `unit`: metres per scene unit, for a world built in its own units (scene/channels/fire.js scales the fires into it)
+  return { ...resolved, terrainAir: !!terrainAir, day: Math.max(0, Math.min(1, +day || 0)), ...(Number.isFinite(unit) && unit > 0 && unit !== 1 ? { unit } : {}) };
 }
 
 /** A fire's own light colour, by kind: what its soot glows (a grass fire's is the reddest, a candle's the yellowest). */

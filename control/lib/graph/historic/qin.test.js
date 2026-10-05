@@ -98,20 +98,28 @@ describe('historic city: Qin Xianyang', () => {
     expect(cw.x + cw.w / 2).toBeCloseTo(s.axis, 6);
     expect([cw.y, cw.z1, cw.z0]).toEqual([s.tableland.edge, H, 0]);
     expect(cw.y).toBeGreaterThanOrEqual(s.que.y + s.que.d);
-    // the bluff and its gullies; sandbars inside the river, clear of the bridge
-    expect(plan.boxes.filter((b) => b.kind === 'bluff').length).toBeGreaterThan(50);
-    expect(plan.boxes.filter((b) => b.kind === 'gully').length).toBe(s.gullies);
-    const bars = plan.grounds.filter((g) => g.kind === 'bar');
-    expect(bars.length).toBe(2 * s.bars);
-    for (const g of bars) for (const [x, y] of g.poly) { expect(y).toBeGreaterThan(s.river.y0); expect(y).toBeLessThan(s.river.y1); expect(Math.abs(x - s.axis)).toBeGreaterThan(8); }
+    // the bluff stands as cliff on the shared terrain mesher; the gullies cut it; the bars break the Wei's surface
+    expect(s.terrain.cliffs).toBeGreaterThan(30);
+    const cliffs = plan.boxes.filter((b) => b.kind === 'cliff');
+    expect(Math.max(...cliffs.map((b) => b.z1 - b.z0))).toBeGreaterThanOrEqual(H);
+    for (const q of [50, 530]) expect(plan.hAt(q, 150)).toBeGreaterThan(0), expect(plan.hAt(q, 150)).toBeLessThan(H);   // a gully floor, part way up
+    const waterZ = -QIN.river.sink;
+    expect(s.bars.length).toBe(QIN.river.bars);
+    for (const b of s.bars) { expect(plan.hAt(b.cx, b.cy)).toBeGreaterThan(waterZ); expect(b.cy).toBeGreaterThan(s.river.y0); expect(b.cy).toBeLessThan(s.river.y1); expect(Math.abs(b.cx - s.axis)).toBeGreaterThan(14); }
+    expect(plan.hAt(s.axis, (s.river.y0 + s.river.y1) / 2)).toBeLessThan(waterZ - 1);
+    // the water carries the river look for the World page
+    const water = plan.grounds.filter((g) => g.kind === 'water');
+    expect(water.length).toBeGreaterThan(0);
+    for (const g of water) expect(g.liquid.kind).toBe('river');
     // views stand on the ground they look from, never under it
     expect(plan.views.palace.eye[2]).toBeGreaterThan(H);
     expect(plan.views.gate.eye[2]).toBeGreaterThan(H * 0.8);
     // both terrain claims are in the record, marked unverified
     for (const id of ['xianyang-tableland', 'wei-braided']) expect(QIN_RECORD.find((e) => e.id === id).confidence).toBe('unverified');
-    // the land beyond the frame is for the World only
-    expect(plan.horizon.length).toBeGreaterThan(100);
-    expect(plan.boxes.some((b) => b.kind === 'horizon')).toBe(false);
+    // the riverbed and the land beyond the frame are for the World only
+    expect(plan.world.boxes.some((b) => b.kind === 'riverbed')).toBe(true);
+    expect(plan.world.boxes.filter((b) => b.kind === 'horizon').length).toBeGreaterThan(100);
+    expect(plan.boxes.some((b) => b.kind === 'horizon' || b.kind === 'riverbed')).toBe(false);
   });
 
   it('builds a scene with a camera for each of its views, opening on the one asked for, under a sky from its card', () => {

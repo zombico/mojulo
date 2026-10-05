@@ -222,6 +222,62 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   light. Shadows land on the ground, not yet on walls or lower roofs. The region, farmstead, works and
   asset-sheet scenes are unchanged.
 
+### Historic Hellenic
+
+- **In progress.** The first Greek city: Hellenistic Lindos on Rhodes, c. 180 BCE (`culture: 'lindos'`), and the
+  first town on a sea cliff. The sanctuary of Athena stands on a rock 116 m over the water. Below it the town lies on
+  the saddle between the great harbour and St Paul's bay. The picture is cropped to what the eye reads (the rock,
+  the town, the two bays), not the whole district.
+- Its record (`lib/graph/historic/record/lindos.js`) cites the temple (21.65 × 7.75 m, four Doric columns at each
+  end), the propylaia, the 87 m stoa with its 42 columns and 21 m stair, the theatre and Pythokritos' ship relief. It
+  lists what the scene must not show: the Knights' castle, the white cubic village, whitewash, the 1930s
+  restorations, the Lindian Chronicle. Athena's sacrifices were fireless, so her altar never burns. Heights the
+  record lacks are marked as conjecture in the kit.
+- Rock is made, not drawn (`lib/graph/historic/rock.js`). The layout gives the rock its shape, and the landform
+  operators weather it: strata bench and band the faces, joints break them into blocks, talus sheds scree at their
+  feet. It is meshed in slices at the bed planes, so the cliff reads in bands. Only steep ground is weathered. The
+  summit the temple stands on, the climb, the stair, the theatre and the town keep their exact levels.
+- Ground that is not flat, for any culture (`lib/graph/historic/terrain.js`). A layout's height function may jump.
+  Where it does, the step stands as a vertical face on the true contour, found by bisection: a cliff (bare rock) or,
+  under 4 m, a dry-stone terrace wall. The town is built on terraces 3 m apart, with a street at the foot of every
+  terrace wall and stairs climbing between them.
+- The land casts. A style card can stand the land in the light bake (`light.terrain`), so the cliffs throw their
+  shade on the sea. Lindos' card states six principles, each with a machine check: the value order of stucco,
+  plaster, rock and cliff; the cliffs' shade on the water; the climb rising station by station, with nothing higher
+  than the goddess; terrace walls no taller than a storey; turquoise shallows and a deep sea; fire in the town,
+  never on the altar.
+- A kit of the Doric order shared by every building: column, entablature with triglyphs, pediment, tile roof. It
+  builds the temple, propylaia, stoa, great stair, theatre, courtyard houses on stone socles, the ship relief, statues,
+  towers, kilns, a round tomb, warships and boats. Each was designed from a massing sheet dreamed on the local image
+  worker. New patterns: classical order, tile roof, stoa, propylon, theatre, round tomb, peristyle, acropolis,
+  terraced hillside, sea cliff, rock relief, statue base. New wall skins: dry stone, stuccoed poros, isodomic ashlar.
+- Fire is opt-in (`fire: true`). The plan hands over its house hearths and potters' kilns as fire sources, in the
+  fire channel's kinds. Without it the plan carries none.
+- The generic Hellenistic polis (`culture: 'polis'`) is the same plan on a gentle hill, with no cliff and no open
+  sea, so other Greek towns can start from it.
+- **Historic cities on the WebGL World page** (`assembleHistoricWorld`, `renderHistoricCityToWorld`). The CSS 3D
+  page draws each face as its own HTML element, and Chrome starts dropping faces when a town's eye-level views pass
+  about ten thousand of them. On the World page the same faces are a few draw calls. Lindos loads in under a
+  second and holds 60 fps in every view, at about 7.9 MB against 12.4 MB for the CSS page. The World page takes
+  the scene as it is, its ground tiles and wall skins resolved to textures and the style card's sky as its sky
+  dome. The CSS shade map is not baked for it (the World never reads it). The CSS page stays the light aerial
+  preview.
+- **Water you can see into.** On the World page the Lindos sea takes the native water look (`lagoon`): ripples,
+  the sky reflected more strongly at a grazing angle, a sun glint, and froth where the water thins against the
+  shore. Its depth comes from a seabed that shelves gently off the beaches and drops away under the cliffs, worked
+  out from the distance to the shore. The water is clear turquoise over the sand in the shallows and opaque blue
+  offshore, set by each corner's opacity on one translucent sheet whose pieces never overlap. The seabed (about a
+  thousand triangles near the shore) is drawn on the World page only. The CSS page keeps its opaque two-tone sea.
+  A culture opts in with `water.look`; terrain water takes `liquid`, `alphaAt`, `sheetFill` and `fine`.
+- **Live fire on the World page.** With `fire: true` the potters' kilns and the hearths in the house courts burn
+  live: flames, sparks, smoke and their light on the walls and ground. The painted flame cards stand down there,
+  and the CSS page keeps them. The fire channel takes a new opt-in `unit` (metres per scene unit;
+  `firePageChannel(…, { unit })`). The fires are given and burn in metres, since their buoyancy, smoke and sparks are
+  physical, and the page scales them into the world's units, with their light falling off over the same metres.
+  Without `unit` the fire script is byte-identical.
+- Views: the great harbour from a boat (`bay`), the climb, the stoa's terrace and great stair, the temple court, the cliff from the sea, the
+  theatre and a town street. Sumer, Thebes and Giza are byte-identical.
+
 ### Historic Qin
 
 - **In progress.** Qin Xianyang and the Lishan works at c. 212 BCE, the first Chinese culture. Qin is the
@@ -261,23 +317,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `tile-roof` (cover rows over pan channels). The tile skin is the first laid on a sloped face.
 - New shared patterns: rammed earth, tiled roof, timber frame, terrace hall, walled ward, market and bridge.
 - The page is about 21 MB, between Giza's and Thebes'. The other cultures are unchanged.
-- A rotatable export for any historic scene (`historic-world.js`). A whole town is too many faces for the
-  CSS 3D page to move smoothly, so the same scene can also go out as a WebGL World page (orbit, zoom, the
-  named views as buttons) or as a GLB.
-  - The skins already carried uvs for the World. What was missing was the texture map: faces added outside
-    the box-city builder never had their texture keys resolved, so skinned walls and roofs drew blank.
-  - The Qin town as a World page is about 12 MB; as a GLB, about 7.7 MB.
-  - A polygon face (more than four corners) is split into triangles for the World, since its mesh takes
-    triangles and quads only. Before this, such a face was cut down to its first four corners.
-- The Qin ground in two steps. The palace stands on the lip of the Xianyang tableland, 10 m up. The bluff
-  beneath it is ragged and cut by two gullies. The wards lie on the plain below, and the axis climbs the
-  bluff to the que as a rammed-earth causeway. A new `bluff` view looks along the edge.
-  - The Wei is braided round sandbars, with mud flats along its north bank.
-  - On the World page only, the plain, the tableland and the river run on beyond the frame, to a hazy
-    Qinling in the south and the northern hills. The hills are brought in and scaled so they sit at about
-    their real angle on the horizon.
-  - The height of the bluff and the line of the river are drawn, not measured. Both are in the record as
-    unverified (`xianyang-tableland`, `wei-braided`); the Wei has since moved north over the old town.
+- The Qin ground in two steps, on the shared terrain mesher (`terrain.js`) as Lindos' is: the layout gives one
+  height function and the mesher stands the steps up.
+  - The palace stands on the lip of the Xianyang tableland, 10 m up. The bluff beneath it is sheer loess,
+    ragged except under the palace, and cut by two gullies whose floors climb to the tableland.
+  - The wards lie on the plain below. The axis climbs the bluff to the que as a rammed-earth causeway.
+  - A new `bluff` view looks along the edge.
+- The Wei through the same water channel as Lindos' sea. It uses the native `river` look, silty and flowing
+  east, near opaque over the channel and clearer over the bars' shoulders, with a riverbed under it on the
+  World page.
+  - It is braided round sandbars. Each bar stands out of the bed with a low lip, so the mesher traces its
+    outline on the true contour instead of stepping it to the grid.
+- On the World page only (`plan.world`), the plain, the tableland and the river run on beyond the frame, to a
+  hazy Qinling in the south and the northern hills. The hills are brought in and scaled so they sit at about
+  their real angle on the horizon.
+- The height of the bluff and the line of the river are drawn, not measured. Both are in the record as
+  unverified (`xianyang-tableland`, `wei-braided`); the Wei has since moved north over the old town.
+- Qin opens on the shared World page (`renderHistoricCityToWorld`) like Lindos: about 15 MB self-contained,
+  against about 21 MB for the CSS page.
 
 ### Sixth-gen composer
 
