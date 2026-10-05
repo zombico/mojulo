@@ -379,6 +379,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `place` (or null when invented), `region`, `aliases` and `record` (or null). A new culture that lacks a line
   fails with the list of lines its card still needs. A card that says nothing about its place reads "place not
   recorded", never "invented". A region with no row of its own still gets its hub.
+- Pompeii and the Forum Romanum (79 CE) are entries too, with their records and a Roman Italy hub: "pompeii",
+  "vesuvius", "the roman forum" and "ancient rome" find them.
 - `semantic_search` takes English terms, as its description already says. The host model translates first.
 - A routing card, `historic`, sends a cold request to the entries. The routing eval gains rows for it.
 - `get_view_vocab` takes the `entry` family. create_sketch's `manifest` property names the `historic` kind.

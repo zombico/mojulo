@@ -10,12 +10,19 @@
  */
 import { POMPEII_ASSETS } from '../assets/pompeii.js';
 import { POMPEII_STYLE } from '../style/pompeii.js';
+import { POMPEII_READ_AT, POMPEII_RECORD, POMPEII_SOURCES } from '../record/pompeii.js';
 
 const S = POMPEII_STYLE.palette;
 
 export const POMPEII = {
   label: 'Pompeii, 79 CE',
   years: [62, 79],
+  readAt: POMPEII_READ_AT,       // a summer morning of 79 CE, before the eruption (../record/pompeii.js)
+  period: 'Early Imperial (Flavian)',
+  place: 'Pompeii, Campania',
+  region: 'italy',
+  aliases: ['pompeian', 'roman town', 'vesuvius', 'campania', 'herculaneum', 'eruption'],   // what people call it (search)
+  record: { id: 'pompeii', entries: POMPEII_RECORD, sources: POMPEII_SOURCES },   // the encyclopedia entry's basis
   layout: 'lava-spur',
   palette: {
     ground: '#a99b7c',             // the spur's beaten earth and ash soil

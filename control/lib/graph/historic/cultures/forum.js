@@ -5,12 +5,19 @@
  * ('forum') at measured positions, not generated. Colours from the style card (../style/forum.js).
  */
 import { FORUM_STYLE } from '../style/forum.js';
+import { FORUM_READ_AT, FORUM_RECORD, FORUM_SOURCES } from '../record/forum.js';
 
 const S = FORUM_STYLE.palette;
 
 export const FORUM = {
   label: 'Forum Romanum, 79 CE',
   years: [64, 79],
+  readAt: FORUM_READ_AT,         // a summer day of 79 CE, Titus's first weeks (../record/forum.js)
+  period: 'Early Imperial (Flavian)',
+  place: 'Rome, the Forum Romanum',
+  region: 'italy',
+  aliases: ['roman forum', 'imperial rome', 'senate house', 'curia', 'temple of saturn', 'vestal'],   // what people call it (search)
+  record: { id: 'forum', entries: FORUM_RECORD, sources: FORUM_SOURCES },   // the encyclopedia entry's basis
   layout: 'forum',
   palette: {
     ground: '#b9ad92',             // the beaten ground behind the buildings

@@ -24,7 +24,7 @@ import { EmbeddingsRepository, reindexAll } from '../../db/repositories/embeddin
 import { semanticSearchHandler } from '../../mcp/tools/semantic-search.js';
 import { getViewVocabCatalog } from '../views/view-vocab/loader.js';
 
-const ENTRY_OF = { egypt: ['egypt', 'thebes', 'giza'], thebes: ['thebes', 'egypt'], giza: ['giza', 'egypt'], sumer: ['sumer'], lindos: ['lindos', 'greece'], qin: ['qin'] };
+const ENTRY_OF = { egypt: ['egypt', 'thebes', 'giza'], thebes: ['thebes', 'egypt'], giza: ['giza', 'egypt'], sumer: ['sumer'], lindos: ['lindos', 'greece'], qin: ['qin'], pompeii: ['pompeii', 'italy'], forum: ['forum', 'italy'], rome: ['forum', 'pompeii', 'italy'] };
 
 beforeAll(async () => {
   closeDb();
@@ -43,6 +43,8 @@ describe('finding an entry by the words people type (lexical, no model)', () => 
     ['egypt inspired level', ENTRY_OF.egypt], ['ancient thebes', ENTRY_OF.thebes], ['luxor karnak', ENTRY_OF.thebes],
     ['pyramids and the sphinx', ENTRY_OF.giza], ['ziggurat', ENTRY_OF.sumer], ['sumerian city', ENTRY_OF.sumer],
     ['mesopotamia', ENTRY_OF.sumer], ['a greek town on rhodes', ENTRY_OF.lindos], ['qin xianyang', ENTRY_OF.qin],
+    ['pompeii before the eruption', ENTRY_OF.pompeii], ['vesuvius', ENTRY_OF.pompeii], ['the roman forum', ENTRY_OF.forum],
+    ['ancient rome', ENTRY_OF.rome], ['a roman town', ENTRY_OF.rome],
   ];
   for (const [q, want] of cases) {
     it(`"${q}" finds ${want[0]} in the top 3`, async () => {
