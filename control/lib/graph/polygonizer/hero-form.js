@@ -22,9 +22,10 @@
  * lab's comfortable exploration limits: `tuneWarnings` advises past them, nothing refuses (docs/bicycles.md).
  *
  * The canonical JSON lives at docs/examples/ring-plans/hero.plan.json, written by hero.plan.mjs (a re-export of this). */
-import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints } from './station-loft-plan.js';
+import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape, shapeId } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight, breastSpan } from './breast-field.js';
 import { heroHand } from './hero-hand.js';
+import { heroFoot } from './hero-foot.js';
 import { mirrorPid } from './station-loft.js';
 import { castArmature, resolveCast, validateCast } from './figure-cast.js';
 import { ratioControls } from './ratio-controls.js';
@@ -88,6 +89,32 @@ const KNEE_CLEAR = 0.014;
 const TORSO_FORM = Object.freeze({
   female: Object.freeze({ waist: 0.88, rib: 0.55, chest: 0.86, lat: 0.93, yoke: -0.1, capRise: 0.43, trap: 0.5, chestZ: 0.6, depth: [0.092, 0.1, 0.1, 0.085, 0.07], chestDepth: 0.86, yc: [0.01, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
   male: Object.freeze({ waist: 0.98, rib: 0.5, chest: 0.97, lat: 1, yoke: -0.15, capRise: 0.42, trap: 0.5, chestZ: 0.6, depth: [0.1, 0.108, 0.108, 0.09, 0.072], chestDepth: 1, yc: [0.012, 0, -0.008, -0.012], e: [2.3, 2.4, 2.5, 2.6, 2.4, 2.2] }),
+});
+/** the structured arm per body (hero-form ARM): the upper arm's muscles as shaping rings between its own (segmentShape),
+ * so its addresses keep their meaning: `triceps` and `biceps` at `at` of the shoulder → elbow run, `r` (of the
+ * arm's radius, across × through), `yc` the ring's centre forward and `xc` outward (of the arm's radius: the triceps
+ * behind, the biceps in front and toward the body, the inner contour from the front); `elbow` the arm's last ring (wider
+ * across than through, the elbow's two bony points). The forearm's `elbow` ring and `belly` (of the forearm's radius)
+ * wider across than through, its `tendon` ring (where the cuff sits, halfway from the belly to the wrist's ring) fuller than
+ * the cone, so the forearm slims over its last third; `anime` the anime casts' share of every `yc` and `xc` (the
+ * muscles softer) */
+const ARM_FORM = Object.freeze({
+  male: Object.freeze({ triceps: Object.freeze({ at: 0.4, r: [0.86, 1.02], yc: -0.08, xc: 0 }), biceps: Object.freeze({ at: 0.62, r: [0.92, 1], yc: 0.13, xc: -0.06 }), elbow: [0.78, 0.7],
+    forearm: Object.freeze({ elbow: [0.8, 0.76], belly: [0.9, 0.76], tendon: [0.64, 0.6] }) }),
+  female: Object.freeze({ triceps: Object.freeze({ at: 0.4, r: [0.84, 0.98], yc: -0.06, xc: 0.01 }), biceps: Object.freeze({ at: 0.6, r: [0.86, 0.92], yc: 0.06, xc: -0.03 }), elbow: [0.76, 0.7],
+    forearm: Object.freeze({ elbow: [0.78, 0.74], belly: [0.86, 0.74], tendon: [0.6, 0.58] }) }),
+  anime: 0.6,
+});
+/** the structured leg per body (hero-form LEG), as ARM_FORM: the thigh's `quad` (the front at its two middle rings
+ * pushed forward) and `ham` (the back at the upper one pushed back), and a ring above the knee at u `knee.u` whose inner
+ * edge bulges by `knee.inner` (vastus medialis) and whose front draws in by `knee.front` toward the kneecap, all of the
+ * thigh's radius; the shank's `calf` ring (at `at` of knee → ankle, `r` of the calf's radius, `yc` / `xc` its centre
+ * back and toward the body: the inner calf lower and fuller) and its `slim` ring at u 1.5 (st1_st2_50, where a wrap
+ * sits), thinner than the cone, so the leg slims above the ankle; `anime` the anime casts' share of every offset */
+const LEG_FORM = Object.freeze({
+  male: Object.freeze({ quad: 0.14, ham: 0.08, knee: Object.freeze({ u: 3.55, inner: 0.12, front: 0.05 }), calf: Object.freeze({ at: 0.2, r: [1, 1.02], yc: -0.1, xc: -0.05 }), slim: [0.72, 0.7] }),
+  female: Object.freeze({ quad: 0.08, ham: 0.05, knee: Object.freeze({ u: 3.55, inner: 0.09, front: 0.04 }), calf: Object.freeze({ at: 0.2, r: [0.98, 1], yc: -0.06, xc: -0.03 }), slim: [0.74, 0.72] }),
+  anime: 0.6,
 });
 /** the structured bust (hero-form BUST): `size` the default bust (`body.bust`, of the cast's chest; the adult female cast
  * only), `splay` the push turned out from straight forward (degrees); `push` per torso ring [id, the midline slot's push,
@@ -365,7 +392,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the tune's widths and thicknesses multiply the cast's radii. The forearm takes the arm's radius when it names none,
   // and the hip's profile depth derives from the UNTUNED hip, so `hips` widens the pelvis without deepening it (the
   // lab's contract: one control, one axis). Multiplying by 1 is exact in IEEE 754, so an untouched key changes no bytes.
-  const forearmBase = b.forearm ?? b.arm, armBase = b.arm;
+  const forearmBase = b.forearm ?? b.arm, armBase = b.arm, thighBase = b.thigh;   // the thigh's muscles sit on the untuned thigh: a thickness stays radial
   const hipDepthBase = b.hipDepth ?? b.hip + 0.013;
   b.waist *= TN.waist; b.hip *= TN.hips; b.chestDepth *= TN.depth; b.arm *= TN.upperArm; b.forearm = forearmBase * TN.forearm; b.thigh *= TN.thigh; b.calf *= TN.calf;
   const D = TN.depth;
@@ -483,6 +510,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the waist) down past the hip to the knee, so the two thighs together read as the hips; arms and shanks carry a
   // mid-station swell; overshoots are small where the trunk already covers the joint ──
   const hip = J.hip, knee = J.knee; const dz = zp - knee[2], femaleMass = preset?.silhouette === 'female';
+  const AF = ARM_FORM[femaleMass ? 'female' : 'male'], soft = proportions === 'anime' ? ARM_FORM.anime : 1;
+  const LF = LEG_FORM[femaleMass ? 'female' : 'male'], softL = proportions === 'anime' ? LEG_FORM.anime : 1;
   const hipCenter = femaleMass ? 0.58 : 0.62, upperCenter = femaleMass ? 0.68 : 0.72;
   const midCenter = femaleMass ? 0.58 : 0.5;
   const hipRadius = Math.max(b.hip, hipCenter * hip[0] + 0.004);
@@ -656,20 +685,30 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // the thigh's back stays at a seat 3 cm deep (SEAT_THIGH): a deeper seat (the female's) stands out behind it, so the
     // thigh comes out under the seat instead of poking through its lower edge
     const gT = Math.min(P.glute, SEAT_THIGH), fT = F0 - P.front[2] - 0.004, bT = B0 - 0.55 * gT + 0.008;
+    // the thigh's muscles (LEG_FORM): the quadriceps' front over the two middle rings, the hamstrings' back on the upper
+    // one, and a ring above the knee, its inner edge out (vastus medialis) and its front drawn in to the kneecap
+    const LQ = LF.quad * thighBase * softL, LH = LF.ham * thighBase * softL;
+    const kneeRing = { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(dL * (b.calf - 0.003) / dT), r6(b.calf - 0.001)] };
+    const midRing = edge(lerp(Wt, kneeOut, 0.62), lerp(inner0, kneeIn, 0.38), lerp(fT + 0.012, kneeF, 0.5) + LQ, lerp(bT, kneeB, 0.62), zAt(0.62), kT);
+    const aboveKnee = () => { const t = LF.knee.u - 3, vi = LF.knee.inner * thighBase * softL, vf = LF.knee.front * thighBase * softL, mixA = (k) => midRing.at[k] + (kneeRing.at[k] - midRing.at[k]) * t;
+      const r = [0, 1].map((k) => midRing.r[k] + (kneeRing.r[k] - midRing.r[k]) * t);
+      return { at: R([mixA(0) - vi / 2, mixA(1) - vf / 2, mixA(2)]), r: [r6(r[0] + vi / (2 * dT)), r6(r[1] - vf / 2)], u: LF.knee.u }; };
     thigh.stations = [
       // the socket ring stands straight over the trochanter ring (the same centre), so the first span is vertical and its
       // rings do not tilt: a tilted ring's side point drops, and on a short body (a chibi) the hip dipped under the joint
       edge(atJoint, Wt + inner0 - atJoint, F0 - P.front[1] - 0.01, B0 - gT + 0.015, zp + 0.015),
       edge(Wt, inner0, fT, bT, zt),
-      edge(lerp(Wt, kneeOut, 0.3), lerp(inner0, kneeIn, 0.09), fT + 0.012, lerp(bT, kneeB, 0.3), zAt(0.3), kT),
-      edge(lerp(Wt, kneeOut, 0.62), lerp(inner0, kneeIn, 0.38), lerp(fT + 0.012, kneeF, 0.5), lerp(bT, kneeB, 0.62), zAt(0.62), kT),
+      edge(lerp(Wt, kneeOut, 0.3), lerp(inner0, kneeIn, 0.09), fT + 0.012 + LQ, lerp(bT, kneeB, 0.3) - LH, zAt(0.3), kT),
+      midRing, aboveKnee(),
       // the knee ring draws the shin's own width (the shin is a limb ring: dL of its radius at the side)
-      { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(dL * (b.calf - 0.003) / dT), r6(b.calf - 0.001)] },
+      kneeRing,
     ];
     thigh.slots = reg.slots;
     thigh.caps = { back: R([r6((Wt + inner0) / 2), hip[1] * 0.4, zp + 0.04]), tip: R([knee[0], knee[1], knee[2] - 0.025]) };
     thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
   }
+  // the BARE structured hero's feet (hero-foot.js); footwear replaces the foot, so a shod hero keeps the shoe
+  const foot = structured && bare ? heroFoot({ ankle: J.ankle, toeBase: J.toeBase, X, girth: g0, female: femaleMass }) : null;
   const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}) }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
@@ -678,22 +717,32 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // was a square corner, the shoulder line flat to the arm's edge, then straight down)
     // its belly: the mid ring a quarter down the arm at the arm's full radius, the top ring narrowed under it, so the
     // arm's top is a dome over the joint and the shoulder's widest point sits where the deltoid's does
-    limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR', structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]) } : {}),
+    // the structured core's ARM (ARM_FORM): the triceps behind and the biceps in front under the deltoid, into an elbow
+    // wider across than through (the cone ran straight from the deltoid to an elbow deeper than wide)
+    limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), structured ? g(AF.elbow.map((x) => b.arm * x)) : g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR',
+      structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]), shape: ['triceps', 'biceps'].map((k) => ({ at: AF[k].at, r: g(AF[k].r.map((x) => b.arm * x)), yc: g(b.arm * AF[k].yc * soft), xc: g(b.arm * AF[k].xc * soft) })) } : {}),
     // the structured core's forearm ends on the hand's own section at the wrist (hero-hand.js: wide across, narrower
-    // through, × extremities), so it tapers into the hand instead of stepping down onto it
-    limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), hand ? hand.wrist : g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
+    // through, × extremities), so it tapers into the hand instead of stepping down onto it; it is fullest across below
+    // the elbow (ARM_FORM) and slims over its last third from the tendon's ring, at u 1.5 (st1_st2_50, the cuff's)
+    limb('foreArmR', 'elbow', 'wrist', structured ? g(AF.forearm.elbow.map((x) => b.forearm * x)) : g([b.forearm * 0.76, b.forearm * 0.86]), hand ? hand.wrist : g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR',
+      { mid: 0.3, rMid: structured ? g(AF.forearm.belly.map((x) => b.forearm * x)) : g([b.forearm * 0.77, b.forearm * 0.82]), ...(structured ? { shape: [{ at: (0.3 + 1 + 0.2 * Math.max(...hand.wrist) / Math.sqrt(J.wrist.reduce((a, x, k) => a + (x - J.elbow[k]) ** 2, 0))) / 2, r: g(AF.forearm.tendon.map((x) => b.forearm * x)) }] } : {}) }),
     // the structured core's HAND (hero-hand.js): a palm and five digits on the same wrist and knuckles; the streamlined
     // core keeps the mitten
     ...(hand ? hand.segments : [limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) })]),
     thigh,
-    limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)] }),
-    limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
-    limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) }),
+    // the structured core's calf (LEG_FORM): full at the back and lower on the inside, slimming above the ankle from the
+    // ring at u 1.5 (st1_st2_50, a wrap's)
+    limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)],
+      ...(structured ? { shape: [{ at: LF.calf.at, r: LF.calf.r.map((x) => r6(b.calf * x)), yc: r6(b.calf * LF.calf.yc * softL), xc: r6(b.calf * LF.calf.xc * softL) },
+        { at: (0.36 + 1 + 0.28 * (b.calf - 0.028) / Math.sqrt(J.ankle.reduce((a, x, k) => a + (x - J.knee[k]) ** 2, 0))) / 2, r: LF.slim.map((x) => r6(b.calf * x)) }] } : {}) }),
+    // the shoe (footwear replaces the foot: hero-foot.js is the bare structured hero's)
+    ...(foot ? foot.segments : [limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
+      limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) })]),
   ];
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
-  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S', ...(hand ? ['thumb$S', 'index$S', 'middle$S', 'ring$S', 'little$S'] : [])], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S', ...(structured ? ['pelvis'] : [])], trunkParts = ['torso', ...(structured ? ['pectoral$S'] : []), ...(structured && bare ? ['navel'] : []), ...(rb > 0 ? ['bust$S'] : [])];
+  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S', ...(hand ? ['thumb$S', 'index$S', 'middle$S', 'ring$S', 'little$S'] : [])], legParts = ['thigh$S', 'shank$S', ...(foot ? foot.parts : ['foot$S', 'toes$S']), ...(structured ? ['pelvis'] : [])], trunkParts = ['torso', ...(structured ? ['pectoral$S'] : []), ...(structured && bare ? ['navel'] : []), ...(rb > 0 ? ['bust$S'] : [])];
   const jawed = !!head?.joints?.jawHinge;
   const HEAD_SHIFT = [0, 0, r6(hb + rise)];
   const shifted = (p) => R(add(p, HEAD_SHIFT));
@@ -708,18 +757,25 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   // a shaping ring (fractional u) takes its skin and every dial's blend from its addressed neighbours by u, the rule the
   // body refine pass uses for the rings it inserts (station-loft-body.js extendBinds, extendBlends)
-  for (const P of segments.filter((p) => p.kind === 'trunk' && p.stations.some((st) => st.u !== undefined && !Number.isInteger(st.u)))) {
+  // (a loft's shaping station is named by its u: loftPart)
+  for (const P of segments.filter((p) => (p.kind === 'trunk' || p.kind === 'loft') && p.stations.some((st) => st.u !== undefined && !Number.isInteger(st.u)))) {
     const at = (blend, i, own) => blend[`st${i}`] ?? own;
     const lerpW = (lo, hi, t) => { const w = {}; for (const k of [...new Set([...Object.keys(lo), ...Object.keys(hi)])].sort()) { const v = r6((lo[k] ?? 0) * (1 - t) + (hi[k] ?? 0) * t); if (v > 0) w[k] = v; } return w; };
     for (const st of P.stations) {
       if (st.u === undefined || Number.isInteger(st.u)) continue;
-      const i = Math.floor(st.u), t = st.u - i;
-      if (P.bind && typeof P.bind === 'object' && P.bind.blend && P.bind.blend[st.id] === undefined) {
+      const i = Math.floor(st.u), t = st.u - i, id = st.id ?? shapeId(st.u);
+      if (P.bind && typeof P.bind === 'object' && P.bind.blend && P.bind.blend[id] === undefined) {
         const w = lerpW(at(P.bind.blend, i, { [P.bind.bone]: 1 }), at(P.bind.blend, i + 1, { [P.bind.bone]: 1 }), t);
-        if (!(Object.keys(w).length === 1 && w[P.bind.bone] === 1)) P.bind.blend[st.id] = w;
+        if (!(Object.keys(w).length === 1 && w[P.bind.bone] === 1)) P.bind.blend[id] = w;
       }
-      for (const d of Object.values(dials)) if (d.blend && d.parts?.includes(P.name) && d.blend[st.id] === undefined) d.blend[st.id] = r6((d.blend[`st${i}`] ?? 0) * (1 - t) + (d.blend[`st${i + 1}`] ?? 0) * t);
+      for (const d of Object.values(dials)) if (d.blend && d.parts?.some((n) => n.replace('$S', 'R') === P.name) && d.blend[id] === undefined) d.blend[id] = r6((d.blend[`st${i}`] ?? 0) * (1 - t) + (d.blend[`st${i + 1}`] ?? 0) * t);
     }
+  }
+
+  // a segment's shaping rings (segmentShape: the arm's muscles) take every dial's blend from the two rings they lie
+  // between (their skin is the segment's own bone, as the band they split was), so a dial moves them with the limb
+  for (const P of segments.filter((p) => p.kind === 'segment' && p.shape)) for (const sh of segmentShape(J[P.from], J[P.to], P.rA, P.rB, P)) {
+    for (const d of Object.values(dials)) if (d.blend && d.parts?.some((n) => n.replace('$S', 'R') === P.name) && d.blend[sh.id] === undefined) d.blend[sh.id] = r6((d.blend[`st${sh.i}`] ?? 0) * (1 - sh.f) + (d.blend[`st${sh.i + 1}`] ?? 0) * sh.f);
   }
 
   // ── the rig: the vajra core IS the joint table; hands and feet ride or plant ──
@@ -811,7 +867,7 @@ export function scalePlan(plan, s) {
     if (seg.kind === 'trunk') out.stations = seg.stations.map((st) => ({ ...st, z: r6(st.z * s), r: rad(st.r), ...(st.yc != null ? { yc: r6(st.yc * s) } : {}), ...(st.push ? { push: Object.fromEntries(Object.entries(st.push).map(([k, d]) => [k, v(d)])) } : {}) }));
     if (seg.kind === 'loft') out.stations = seg.stations.map((st) => ({ ...st, at: v(st.at), r: rad(st.r) }));
     if (seg.kind === 'rings') out.stations = seg.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([k, p]) => [k, v(p)])) }));
-    if (seg.kind === 'segment') { out.rA = rad(seg.rA); out.rB = rad(seg.rB); if (seg.rMid != null) out.rMid = rad(seg.rMid); }
+    if (seg.kind === 'segment') { out.rA = rad(seg.rA); out.rB = rad(seg.rB); if (seg.rMid != null) out.rMid = rad(seg.rMid); if (seg.shape) out.shape = seg.shape.map((sh) => ({ ...sh, r: rad(sh.r), ...(sh.yc != null ? { yc: r6(sh.yc * s) } : {}), ...(sh.xc != null ? { xc: r6(sh.xc * s) } : {}) })); }
     if (seg.kind === 'chain') out.r = rad(seg.r);
     if (seg.caps) out.caps = { back: v(seg.caps.back), tip: v(seg.caps.tip) };
     return out;

@@ -63,7 +63,10 @@ describe('the rules the passes hold themselves to', () => {
   it('refinement extends the SKIN weights: a refined joint station is the blend of its neighbours', () => {
     const { recipe } = figure('male', 'round'); const b = recipe.parts.upperArmR.bind.blend;
     expect(b.st0_st1_50).toEqual({ torso: 0.25, upperArmR: 0.75 });
-    expect(b.st1_st2_50).toEqual({ foreArmR: 0.25, upperArmR: 0.75 });
+    // on the structured arm st2's neighbour is the biceps' shaping ring (hero-form ARM_FORM: st1_st2_<k>), which takes
+    // the elbow's share by its u (refined: by u too); the ring refined between it and st2 is the blend of the two
+    const biceps = Object.keys(b).filter((id) => /^st1_st2_\d+$/.test(id)).at(-1), ref = b[`${biceps}_st2_50`];
+    expect(ref.foreArmR).toBeCloseTo((b[biceps].foreArmR + 0.5) / 2, 5); expect(ref.foreArmR + ref.upperArmR).toBeCloseTo(1, 5);
     expect(dominance(src.parts.torso)(2.5)).toEqual({ w: 1, bone: 'torso' });
   });
   it('the refined ring keeps its cyclic order on both halves (the left half mirrors the right)', () => {

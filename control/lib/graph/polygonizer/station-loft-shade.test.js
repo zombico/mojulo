@@ -518,8 +518,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     planBiped: [() => expandLayeredManifest({ kind: 'layered', plan }), ['a645ae390d3b0fbf', 'a33a830d8af3f744', 'f1b33d48167b8855']],
     // the heroes on the streamlined core: these pin the light's absence, and predate the structured core (DEFAULT_CORE),
     // whose own payloads are pinned below
-    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['50f693843ceb2e44', '5af15b7c932e1e27', 'c499ac73612000db']],
-    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['80ca1bf8963729c4', 'a331848f2c2bd5c4', 'af946a02d6dee4f2']],
+    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['038d874eb7e25531', 'd46166164693ee83', '62e8cc4802f7246b']],
+    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['742d107945f4ed80', 'f08d7b40de5747ed', '66c8b94203f01100']],
     headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['9284e50464c3a412', '00ab4889f9c168a6', '0e6eb7d4107141c3']],
   };
   // THE STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs, the stands' own base): the
@@ -535,16 +535,20 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // the male's square) and the structured speedo and thong, then for the seat's panels (seat-panels.js: the thong's V
   // and thin string, the speedo's leg line, cut out of the faces) and the female's seat full low, then for the hand
   // (hero-hand.js: a palm and five digits for the mitten, the rig's `hands`), then for the forearm tapering into the hand
-  // at a rounded wrist; the streamlined values above unchanged
+  // at a rounded wrist, then for the arm's muscles (the triceps and biceps rings, the elbow, the forearm slimming to the
+  // wrist), then for the legs' (the quadriceps, hamstrings and the ring above the knee, the calf, the slim ankle); the
+  // streamlined values above unchanged; then for the landmark head's forehead (humanoid-head-fit.js: upright, the brow's
+  // end on its own landmark), which moved the landmark heroes on both cores, here and above, and not head-none; then for
+  // the ear (head-ear.js: the side shape, a thin plate with the rim, the antihelix and the bowl), the same again
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['9dde2ac382600615', '1bb1801fa641d3cc', '9d74c3fb37eaa738']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['c17da7822bc69717', 'a8b102e4d470028a', 'e0394aa560b48a21']],
-      headNone: [{ cast: 'female', head: 'none' }, ['bad8436014e29eb7', '587f5a535e454d4f', '73dc066777ff80a7']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['6f1815e8a41af811', 'dfd989f884686faa', 'e2597cea61949623']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['418ca843eb94d93b', 'b871cd6c35fe7357', '22e36b460eefffe4']],
+      headNone: [{ cast: 'female', head: 'none' }, ['cd4fba2202acc2ec', '348fad58732efa0d', '9ae3db683a366a18']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
     }
-    for (const [cast, pin] of [['female', '9bf4cc8850715195'], ['male', '451b64eed67a26f5']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+    for (const [cast, pin] of [['female', '25c76e0ae38c13cc'], ['male', 'bddd3b7393f9e0c2']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {
@@ -646,7 +650,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // the graphic base (anime-sculpt GRAPHIC_BASE: the ear raised to span the eye level to the nose tip, the female's nose
   // line longer and hooked); the layers undone, the six values above are the ones before these. The hero before the hair
   // bases, lit as before them, takes the top planes, the ear and the nose line too (bf934d9e455fe93d / fa28e13ac632c3f8;
-  // daac23168b144fc8 / 2afb8fb5408bc04f before them).
+  // daac23168b144fc8 / 2afb8fb5408bc04f before them). Re-pinned for the ear (head-ear.js: the side shape and the plate
+  // on the graphic face): the hero before the hair bases was bf934d9e455fe93d / fa28e13ac632c3f8 before it.
   // the hair's value design on the World's own faces: at the three-quarter view (the camera 45° off the front on the key's
   // side, 4° up, over the head), 65–85 % of the hair a viewer sees is on the lit side (its base tone or its highlight),
   // with designed shade shapes under the locks; the highlight a small share of the lit hair
@@ -678,10 +683,10 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // util/dmath.js, and the shared figure rig runs under withMath): the female chain moved, from values only macOS
   // arm64 on Node 24 produced; the male chain and the hair-base pins did not.
   it('the anime hero default, pinned (female and male)', async () => {
-    const PINS = [['female', ['ffb8d37bc08d16ba', 'f5deaea4120a546a'], ['4c3754af7646aa9e', '2887b27d6e938552'], ['1fdf3c90d77c935c', '755ab3593db17ff7']],
-      ['male', ['15e57c4bc1d8a1f8', '8864f3e9d7b7c517'], ['0673f3eb6d1583e6', '29b93ac1aab62c1b'], ['43893c06763875ef', '7d7cba2a0afad84e']]];
-    const TIMED = { female: ['2585a16cdc02ae53', 'ad90336ddc2cc553', '2ff2e9f55796d955'], male: ['02ff3e82a4b572fd', '12d7111ddfb7c054', 'faeb81c5005442a7'] };
-    const WAVED = { female: ['a0cf31d82d429668', '920af4172d6e2312', '1e426997d5069890'], male: ['64fd9335f413ea62', '772bb0116544418e', '7340f7e2c9471d44'] };
+    const PINS = [['female', ['10f2def97e54a4b8', '03a27a4b4cee7fc1'], ['68e6e462e6e265e8', '413db93b76445e9b'], ['1fdf3c90d77c935c', '755ab3593db17ff7']],
+      ['male', ['48a635923983689f', '7da53375826a6df5'], ['d8fafc568738d919', '885354d47e892d02'], ['43893c06763875ef', '7d7cba2a0afad84e']]];
+    const TIMED = { female: ['57f12caf580c7249', 'de34aeaa869105aa', '2ff2e9f55796d955'], male: ['3c626419171ad74f', 'b98668845b17a833', 'faeb81c5005442a7'] };
+    const WAVED = { female: ['fc06d34878f7ed9b', '435ca5c3253eda90', '1e426997d5069890'], male: ['a2357fe57120f308', '2c094b6a75345ad0', '7340f7e2c9471d44'] };
     for (const [cast, pin, rest, studio] of PINS) {
       for (const [i, [spec, [full, undone], label]] of [[{}, pin, cast], [{ gesture: 'rest' }, rest, `${cast} at rest`], [{ sculpt: false }, studio, `${cast} on the studio's face`]].entries()) {
         // (on the streamlined core: the chain predates the structured core, DEFAULT_CORE, pinned below)
@@ -692,7 +697,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
         expect(h(untimed(payload)), `${label}, untimed`).toBe(full); expect(h(unlayered(untimed(payload))), `${label}, untimed, the layers undone`).toBe(undone);
       }
     }
-    for (const [cast, before] of [['female', 'bf934d9e455fe93d'], ['male', 'fa28e13ac632c3f8']]) {
+    for (const [cast, before] of [['female', '5d20a99016dba17a'], ['male', 'bf9c13532265b41e']]) {
       const m = beforeHairBase({ cast, head: 'anime', core: 'streamlined' });
       expect(h(unlayered(untimed(await world({ ...m, toon: { light: lightBefore } })))), `${cast} before the hair bases, untimed, the layers undone`).toBe(before);
     }

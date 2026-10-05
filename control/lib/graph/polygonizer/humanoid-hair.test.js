@@ -28,19 +28,21 @@ const withoutHair = (head) => Object.fromEntries(Object.entries(head.parts).filt
 const locksOf = (head) => Object.keys(head.parts).filter((k) => k.startsWith('hairLock'));
 
 // the bytes `hairMass` grew on 2026-09-26, before the library: the same three styles at every control 1 must be these
+// (re-pinned 2026-10-05: the cap rides the head, and the fitted forehead now stands upright and the brow's end reads its
+// own landmark, so every cap's points moved with the surface; the library's styles still grow these three at control 1)
 const LEGACY = {
-  'male/crop/round': 'e737200d57a586a27fdca89ce06ecb73ea0dc11daa67f3e6ea0760af50fe7195',
-  'male/crop/lowpoly': 'e737200d57a586a27fdca89ce06ecb73ea0dc11daa67f3e6ea0760af50fe7195',
-  'male/swept/round': '48e8e5d55b44a8da5e5f54735f296e26ac11b82a90735ba318d3867b92fbe4c7',
-  'male/swept/lowpoly': '48e8e5d55b44a8da5e5f54735f296e26ac11b82a90735ba318d3867b92fbe4c7',
-  'male/bob/round': '7978bacfe674e919e6a5c19cd1089459a6ef66f0b4ccde76f4644074f1802ce9',
-  'male/bob/lowpoly': '7978bacfe674e919e6a5c19cd1089459a6ef66f0b4ccde76f4644074f1802ce9',
-  'female/crop/round': 'ca2e64c673e2cfd42fe8f4d8c4a441a557b08d51c70e69763137d3764a02b246',
-  'female/crop/lowpoly': 'ca2e64c673e2cfd42fe8f4d8c4a441a557b08d51c70e69763137d3764a02b246',
-  'female/swept/round': '0d17745228d2ba9e512a3c4bef01c5c80943d757d10f3b4143e45522d7919715',
-  'female/swept/lowpoly': '0d17745228d2ba9e512a3c4bef01c5c80943d757d10f3b4143e45522d7919715',
-  'female/bob/round': '1cd4ccfd520970de645d2b36aea9a6f1f73b41a2ac913ee93bd4279289341d23',
-  'female/bob/lowpoly': '1cd4ccfd520970de645d2b36aea9a6f1f73b41a2ac913ee93bd4279289341d23',
+  'male/crop/round': '9228e0341211cabc2a6aca426dca1d38aacfae480117d715045c418d9fef24e8',
+  'male/crop/lowpoly': '9228e0341211cabc2a6aca426dca1d38aacfae480117d715045c418d9fef24e8',
+  'male/swept/round': '96a040ec74da273384fb1bd9e0b67e37de693d43d2536dfb69fc52b1798c8d52',
+  'male/swept/lowpoly': '96a040ec74da273384fb1bd9e0b67e37de693d43d2536dfb69fc52b1798c8d52',
+  'male/bob/round': '0dc36d902f33977056e9fce5ac4cac26936016b1f1f00f6b10b803ff67d78851',
+  'male/bob/lowpoly': '0dc36d902f33977056e9fce5ac4cac26936016b1f1f00f6b10b803ff67d78851',
+  'female/crop/round': '287c22bf92d47e9eaa6dc24ef7c03647838394364a56b01a6d3dfe0f24aaec9e',
+  'female/crop/lowpoly': '287c22bf92d47e9eaa6dc24ef7c03647838394364a56b01a6d3dfe0f24aaec9e',
+  'female/swept/round': '9065cbb6e03bee7ff54423a0930ece2384684f0d5a70f8048bea97888d0963d9',
+  'female/swept/lowpoly': '9065cbb6e03bee7ff54423a0930ece2384684f0d5a70f8048bea97888d0963d9',
+  'female/bob/round': 'b2bd884473475e4b472c8619a4e31bacb6393d9f29925a700340da5d7a52770f',
+  'female/bob/lowpoly': 'b2bd884473475e4b472c8619a4e31bacb6393d9f29925a700340da5d7a52770f',
 };
 
 describe('the legacy pin: crop, swept and bob are the bytes the head grew before the library', () => {

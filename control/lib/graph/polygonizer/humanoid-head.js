@@ -12,6 +12,7 @@ import { r6 } from './station-loft-plan.js';
 import { fittedAnchors, fittedCage, FACE_EXTRA_DEFAULTS } from './humanoid-head-fit.js';
 import { ratioControls } from './ratio-controls.js';
 import { HAIR_STYLE_NAMES, resolveHair, validateHair, buildHair } from './humanoid-hair.js';
+import { earMesh } from './head-ear.js';
 import * as dmath from '../../util/dmath.js';
 
 const { add, mul, unit } = vec;
@@ -269,9 +270,9 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     for (const p of Object.values(brow.points)) p[2] += ex.browRaise + ex.browTilt * (Math.abs(p[0]) / 0.065 - 0.6);
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
-    parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, oval(add(ef.origin, [0.003 * sign, 0, -0.004]), 0.016, 0.027, 0.014, 8, [sign, 0, 0]), 'Skin');
-    parts[`earInner${side}`] = detail(carrier, 'cranium', earAt, side,
-      oval(add(ef.origin, [0.0175 * sign, -0.001, -0.002]), 0.009, 0.017, 0.0005, 6, [sign, 0, 0]), 'EarInner');
+    // the ear (head-ear.js): its side shape and the volume inside, the bowl in the darker EarInner
+    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054, width: 0.97, style: 'western', lift: 0.2, inner: 'EarInner', sparse: register === 'lowpoly' });
+    parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, ear, 'Skin', ear.groups);
     // Tuck each nostril into the underside band between the flat tip and the ala.
     const nostrilAt = [1.38, 2.55], nf = frameAt(carrier, 'cranium', nostrilAt, side);
     parts[`nostril${side}`] = detail(carrier, 'cranium', nostrilAt, side,

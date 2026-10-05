@@ -8,6 +8,7 @@ import {
   sketchRenderMode,
 } from '../../graph/sketch/sketch-manifest.js';
 import { factsFromManifest, summaryKeepsManifest } from '../../graph/sketch/sketch-summary.js';
+import { packManifest, unpackManifest } from '../../graph/sketch/manifest-store.js';
 import { currentSpaceId } from '../../roles/scope.js';
 import { refExistsRefusal } from '../../errors/tool-refusal.js';
 
@@ -33,9 +34,11 @@ function shortRef() {
   return `sk_${n.toString(36).padStart(10, '0').slice(-10)}`;
 }
 
+// A row stores its manifest packed (manifest-store.js: a layered recipe's copy of the plan's head is not stored twice)
+// and every read unpacks it, so callers only ever see the whole manifest.
 function parseManifest(json) {
   try {
-    return JSON.parse(json);
+    return unpackManifest(JSON.parse(json));
   } catch {
     return null;
   }
@@ -235,7 +238,7 @@ export const SketchRepository = {
         `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, kind, bucket_derived, workshop_space_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())`,
       ).run(
-        finalRef, title, JSON.stringify(manifest), folderRef || null, bucket || null,
+        finalRef, title, JSON.stringify(packManifest(manifest)), folderRef || null, bucket || null,
         derived.kind, derived.bucketDerived, currentSpaceId(),
       );
     } catch (err) {
@@ -290,7 +293,7 @@ export const SketchRepository = {
           }
         WHERE ref = ?${scope.sql}`,
     ).run(
-      nextTitle, JSON.stringify(nextManifest), nextFolderRef, nextBucket,
+      nextTitle, JSON.stringify(packManifest(nextManifest)), nextFolderRef, nextBucket,
       derived.kind, derived.bucketDerived, ref, ...scope.params,
     );
     return this.getByRef(ref);

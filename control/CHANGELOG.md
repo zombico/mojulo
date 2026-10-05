@@ -137,6 +137,36 @@ lands.
   per digit, or a hand word: `relaxed`, `open`, `fist`, `point`, `grip`) now move a structured hero instead of being
   refused; a streamlined hero still refuses them. Fifteen finger bones a hand, named as VRM and Godot name them. A rig
   may now carry `hands`, the wrist and digit chains its posing turns in the hand's own frame.
+- **The arms.** On the structured core the upper arm and the forearm carry their muscles instead of running as two
+  cones: under the deltoid the triceps fills the back of the upper arm and the biceps the front lower down, into an
+  elbow that is wider across than it is deep; the forearm is fullest across just below the elbow and slims into the
+  wrist over its last third. The male's are marked, the female's softer, the anime casts' softer still. Cuffs,
+  bracers and armour land where they did; a streamlined hero is unchanged. A segment may carry shaping rings between
+  its own (`shape`), addressed between its rings so its addresses keep their meaning.
+- **The legs.** The same on the structured legs: the thigh's front fuller over its upper half, the hamstrings behind
+  and the inner thigh full high, the inner bulge just above the knee and the knee narrower under it; the calf full at
+  the back and lower on the inside, the leg slimming above the ankle. Swimsuit leg lines, wraps and greaves land where
+  they did. A loft's station may name its `u` too.
+- **The feet.** A bare structured hero (the swimsuit's) stands on feet instead of shoes: a rounded heel under the
+  Achilles, the two ankle bones, the instep rising to the shin, the arch lifted on the inside, the ball wide on a
+  slant; the big toe its own, apart from the rest (the grip), the other four side by side with the lines between them.
+  The toes bend with the toe bone. Footwear replaces the foot: a hero in shoes, clothes or armour keeps the shoe as it
+  was, and sandals and boots to come take the foot's place on the same joints.
+- **The western forehead.** The landmark head's forehead rises from the brow instead of leaning back from it, and the
+  brow's outer end stands level with the corner of the eye instead of sinking in behind it, so the far side of the face
+  no longer caves in over the eye in the ¾ and the profile. The hair rides the new forehead. Every hero with the landmark
+  head changes a little above the eyes, the streamlined core's too.
+- **The ear.** The ear is an ear, not an egg, on the landmark and the anime head alike. From the side the broad top
+  runs into a nearly straight back edge and down on a diagonal into a broad lobe, the front open where the rim ends, the
+  ear leaning back. It is a thin plate, like a leaf, joined to the head at its front and angled off it toward its back.
+  On the landmark ear the rim is raised, the antihelix rises inside it and the bowl dips behind, in the darker inner
+  tone, so the light shows its depth; the anime ear is a simpler rim, fold and bowl, drawn by its outline. The anime
+  head's studio-exact face (`sculpt: false`) keeps its own ear.
+- **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
+  expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
+  row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under
+  `/recipe` is stored as edited. A hero row is about 1.2 MB instead of 2.35 MB; a row stored before shrinks on its next
+  edit.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the
