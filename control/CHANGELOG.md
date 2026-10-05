@@ -168,6 +168,9 @@ lands.
   edges that turn up to 70°; hair, cloth and the swimsuit keep their edges. The clip preview shades the same way. The
   anime hero is unchanged (its two tones already follow a smoothed surface), and so is every layered sketch that is not
   a hero.
+- **The jaw seam.** A standing hero with the landmark head no longer shows a dark line from the mouth along the jaw to
+  the ear when the head is turned: the jaw now turns exactly with the head, so it stays closed against the skull, and it
+  still opens at its hinge.
 - **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
   expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
   row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under

@@ -263,13 +263,14 @@ describe('the anime wave', () => {
 // the streamlined pair unchanged; then for the landmark head's forehead (humanoid-head-fit.js: upright, the brow's end on
 // its own landmark), which moved both pairs of every landmark-headed hero, the streamlined ones too (the head is the
 // cores' own), and left the head-none pair as it was; then for the ear (head-ear.js: the side shape, a thin plate with the
-// rim, the antihelix and the bowl), the same heroes again
+// rim, the antihelix and the bowl), the same heroes again; then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis): the rig rides in every jawed
+// (landmark-headed) recipe, so the same heroes again, the head-none pair as it was
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'dbe6b7d0e4db2a56', 'e83eae4f1cf7679c'], ['3682fbc6a6624a66', '7ae6b8a6e5dbbdca']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '1330f69a8209fbfb', '8a39a87f9759a233'], ['617136c781ba725f', '47ea20cbd2cac815']],
+  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'f171c351d2ca84e6', 'ae59615546c0908d'], ['c4f6838e1e661291', 'e8941f509fbe2ffb']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', 'eda051d09e80626b', '64215539c5e283bf'], ['0756dc913ab1e293', '8f68afead5cdc3db']],
   headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '5c17fc992bb86cd1', 'd5d63ac50bb70cbb'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '76a14be7c3c7c456', 'cd1940c1903f00d4'], ['d670f7bb7f6dd3d8', 'd23c83ced817dc56']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', 'ec7335e7064339bf', '1d0d175cb16be916'], ['5d5cd08a323ac42f', '0197ee7c05d0a755']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', 'f72229a298971be1', 'e7944d7edee04631'], ['8d29c71b3281cbea', '474431868d4898c8']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '743e1b8c093d0dd3', '1e93e986ce9f3ce0'], ['8bc69cc3a30b8d03', '935df9570be21137']],
 };
 describe('the door: no gesture ⇒ byte-identical', () => {
   for (const [name, [spec, [record, plan, recipe], [oldPlan, oldRecipe]]] of Object.entries(PINS)) {

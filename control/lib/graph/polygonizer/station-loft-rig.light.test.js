@@ -335,9 +335,10 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
     const { emitThreeWorld } = await import('../scene/scene-three.js');
     // (on the streamlined core: these pins predate the structured core, DEFAULT_CORE, whose payloads station-loft-shade pins;
     // re-pinned for the landmark head's forehead: upright, the brow's end on its own landmark; then for the ear, head-ear.js;
-    // then for smooth shading under the studio light, STUDIO_SMOOTH_CREASE: the faces' and the pack's corners)
-    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('d2accfb049f4e850');
+    // then for smooth shading under the studio light, STUDIO_SMOOTH_CREASE: the faces' and the pack's corners;
+    // then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis))
+    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('99c81e84c21add19');
     const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', core: 'streamlined' }) }), toon: { ink: { crease: 50 }, bake: true } });
-    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('beac3fe06817239f');
+    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('c3a33d50e8eb26b8');
   });
 });

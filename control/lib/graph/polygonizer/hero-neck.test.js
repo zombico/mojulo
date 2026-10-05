@@ -30,8 +30,8 @@ describe('the neck form: absent ⇒ the plan as it was', () => {
     expect(h(heroPlan({ cast: 'male', proportions: 'anime', ...old }))).toBe('7df808760df93813');
     expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly', ...old }))).toBe('d5582c1b5d57b926');
     expect(heroPlan({ cast: 'male', proportions: 'anime', neckForm: null })).toEqual(heroPlan({ cast: 'male', proportions: 'anime' }));
-    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime', ...old }))).toBe('58e5163c9e2a49b1');   // the landmark head on anime proportions (re-pinned: the fitted forehead upright, the brow's end on its landmark; the ear, head-ear.js)
-    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime', ...old })))).toBe('6dcf4344c4d1fc5c');
+    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime', ...old }))).toBe('741e70ef0fbed08c');   // the landmark head on anime proportions (re-pinned: the fitted forehead upright, the brow's end on its landmark; the ear, head-ear.js; the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis))
+    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime', ...old })))).toBe('4a7d63bc45effbe9');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero', ...old }))).kind).toBe('segment');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime', ...old }))).kind).toBe('segment');   // a figure cast has none
     // the structured core gives every worn head without a neck form of its own the nape loft at its cast's radius

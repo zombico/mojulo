@@ -791,7 +791,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
         ? [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', align: ['hipR', 'hipL'] }, { id: 'lumbar', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]
         : [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]),
       { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
-      { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, ...(jawed ? [{ id: 'jaw', head: 'jawHinge', tail: 'jawTip' }] : []),
+      // the jaw's frame takes the head's axis as its second direction, so it is the head's exactly (plus the hinge): read
+      // from its two joints alone, a turn of the head about its own axis reached it otherwise and opened the jaw seam
+      { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, ...(jawed ? [{ id: 'jaw', head: 'jawHinge', tail: 'jawTip', aux: ['headBase', 'headTop'] }] : []),
       { perSide: [
         { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S', ...(hand ? { aux: ['littleMcp$S', 'indexMcp$S'] } : {}) }, ...(hand ? hand.bones : []),
         ...(bustJoints.bustRoot$S ? [{ id: 'bust$S', head: 'bustRoot$S', tail: 'bustTip$S' }] : []),
