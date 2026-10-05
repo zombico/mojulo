@@ -12,11 +12,17 @@
 import zlib from 'node:zlib';
 import { encodePng, registerTextureResolver } from '../landscape/surface-textures.js';
 import { relief, ell, quad, PIG, sceneRegister, smitingScene, columnScene, caption } from './skin-art.js';
+import { acanthusFrieze, doricFrieze, bronzeLetters, fastiPanel, figureFrieze, riderPanel } from './relief-art.js';
 
 /** Surfaces, and how many metres one tile covers. */
 export const GROUND_SURFACES = { mud: 4, rubble: 3, brick: 2.4, 'dry-earth': 6, 'cone-mosaic': 1.6, flagstone: 6 };   // the mosaic's cones are drawn large: a big read, not a count
 // the fields: ard furrows ~0.4 m apart, rows of shoots on them, stubble after the sickle, standing barley
 Object.assign(GROUND_SURFACES, { furrows: 3, sown: 3, stubble: 3, barley: 2, 'drying-bricks': 3 });
+// the Roman floor (Pompeii): black-and-white tessellatum in panels a metre and a half across, two to a tile
+Object.assign(GROUND_SURFACES, { tessellatum: 3 });
+// the Roman forum's floors: cut coloured marbles in panels (opus sectile, the Basilica Julia's nave), and white marble
+// slabs with gaming boards scratched into them (the Basilica Julia's steps and aisles)
+Object.assign(GROUND_SURFACES, { 'opus-sectile': 8, lusoria: 6 });
 // a skin, not a ground: the cone mosaic of Uruk — clay cones pressed head-out into the wall, their
 // heads dipped red, black or left white, set in zigzags and lozenges. Its tile ignores the base colour.
 
@@ -94,6 +100,57 @@ const BAKERS = {
       const col = zig ? K : lz <= 1 ? K : lz <= 3 ? R : v === 4 ? R : Wt;
       const cx = Math.floor(i * b + b / 2), cy = Math.floor(j * b + b / 2);
       stamp(px, size, cx, cy, b * 0.48, col.map((c) => c * (0.93 + rng() * 0.12)), 1);
+    }
+    return px;
+  },
+  // black-and-white tessellatum (Pompeii): white tesserae with a black lattice of square panels, each holding a
+  // black lozenge round a white one and a crosslet at its corners; the tesserae drawn as a faint grain. Drawn
+  // bold, a big read; the base colour is the white
+  tessellatum(base, size, rng) {
+    const px = new Float64Array(size * size * 3), K = [38, 35, 33], per = 2, b = size / per, t = Math.max(2, Math.round(size / 96)), n = noise(size, 64, rng);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const lx = x % b, ly = y % b, cx = Math.abs(lx - b / 2), cy = Math.abs(ly - b / 2), dia = cx + cy;
+      const frame = lx < t * 2 || ly < t * 2, e = b / 2 - t * 5, inner = (Math.abs(cx - e) < t * 0.8 && cy < e) || (Math.abs(cy - e) < t * 0.8 && cx < e);   // a fillet inside the frame
+      const lozenge = dia < b * 0.3 && dia > b * 0.17, eye = dia < b * 0.07;
+      const crosslet = (Math.abs(lx - t * 9) < t * 0.8 && Math.abs(ly - t * 9) < t * 3) || (Math.abs(ly - t * 9) < t * 0.8 && Math.abs(lx - t * 9) < t * 3);
+      const black = frame || inner || lozenge || eye || crosslet;
+      const grain = (x % 3 === 0 || y % 3 === 0) ? 0.94 : 1, col = black ? K : base;
+      for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = col[c] * grain * (0.96 + n(x, y) * 0.07);
+    }
+    return px;
+  },
+  // opus sectile: panels of cut coloured marble framed in white, two designs in a checkerboard — a giallo antico field
+  // with a pavonazzetto square turned on its corner and an africano roundel; a porta santa field with a cipollino ring
+  // and a giallo disc. Each stone veined. The base colour is ignored: the marbles are their own colours.
+  'opus-sectile'(base, size, rng) {
+    const px = new Float64Array(size * size * 3), n = noise(size, 24, rng), v = noise(size, 7, rng), per = 2, b = size / per;
+    const M = { white: [232, 228, 218], giallo: [205, 164, 82], pav: [222, 208, 214], africano: [92, 62, 60], porta: [182, 118, 110], cip: [168, 186, 160], dark: [70, 66, 64] };
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const i = Math.floor(x / b), j = Math.floor(y / b), lx = x - i * b, ly = y - j * b, cx = lx - b / 2, cy = ly - b / 2, A = (i + j) % 2 === 0;
+      const band = b * 0.07, edge = Math.min(lx, ly, b - lx, b - ly), r = Math.hypot(cx, cy), dia = Math.abs(cx) + Math.abs(cy);
+      let col;
+      if (edge < band) col = edge < band * 0.18 || edge > band * 0.82 ? M.dark : M.white;                    // the white frame, its fillets dark
+      else if (A) col = r < b * 0.16 ? M.africano : dia < b * 0.38 ? (dia > b * 0.35 ? M.white : M.pav) : M.giallo;
+      else col = r < b * 0.13 ? M.giallo : r < b * 0.3 ? (r > b * 0.27 || r < b * 0.16 ? M.white : M.cip) : M.porta;
+      // each stone veined: a soft mottle and a few sinuous veins, the joints faintly dark
+      const vein = Math.abs(Math.sin((x + v(x, y) * 40) * 0.09 + y * 0.03)) < 0.05 ? 0.86 : 1;
+      // polished stone, not paint: each marble drawn a fifth of the way to a warm grey
+      for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = (col[c] * 0.8 + [196, 190, 180][c] * 0.2) * vein * (0.93 + n(x, y) * 0.12);
+    }
+    return px;
+  },
+  // white marble slabs, and scratched into them the gaming boards the loungers left (about 80 in the Basilica Julia):
+  // merels (three nested squares joined at their middles), the rota (a circle of eight spokes), rows of twelve strokes
+  lusoria(base, size, rng) {
+    const px = BAKERS.flagstone(base, size, rng), scratch = (x, y) => { const i = ((Math.round(y) % size + size) % size) * size + ((Math.round(x) % size + size) % size); for (let c = 0; c < 3; c++) px[i * 3 + c] *= 0.62; };
+    const line = (x0, y0, x1, y1) => { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0)); for (let k = 0; k <= n; k++) scratch(x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n); };
+    const m = size / 6;   // px a metre
+    for (let k = 0; k < 3; k++) {
+      const cx = (0.15 + rng() * 0.7) * size, cy = (0.15 + rng() * 0.7) * size, kind = k % 3;
+      if (kind === 0) for (const f of [0.35, 0.23, 0.11]) { const h = f * m; line(cx - h, cy - h, cx + h, cy - h); line(cx + h, cy - h, cx + h, cy + h); line(cx + h, cy + h, cx - h, cy + h); line(cx - h, cy + h, cx - h, cy - h); }
+      if (kind === 0) { line(cx, cy - 0.35 * m, cx, cy - 0.11 * m); line(cx, cy + 0.11 * m, cx, cy + 0.35 * m); line(cx - 0.35 * m, cy, cx - 0.11 * m, cy); line(cx + 0.11 * m, cy, cx + 0.35 * m, cy); }
+      if (kind === 1) { const r = 0.25 * m; for (let a = 0; a < 64; a++) line(cx + r * Math.cos(a / 10.2), cy + r * Math.sin(a / 10.2), cx + r * Math.cos((a + 1) / 10.2), cy + r * Math.sin((a + 1) / 10.2)); for (let a = 0; a < 4; a++) line(cx + r * Math.cos(a * Math.PI / 4), cy + r * Math.sin(a * Math.PI / 4), cx - r * Math.cos(a * Math.PI / 4), cy - r * Math.sin(a * Math.PI / 4)); }
+      if (kind === 2) for (let row = 0; row < 3; row++) for (let i = 0; i < 12; i++) { const x = cx - 0.36 * m + i * 0.065 * m + (i >= 6 ? 0.04 * m : 0), y = cy + (row - 1) * 0.12 * m; line(x, y - 0.04 * m, x, y + 0.04 * m); }
     }
     return px;
   },
@@ -253,15 +310,24 @@ export const WALL_SKINS = {
   drystone: [4, 3],          // a terrace wall of field stones laid dry: rounded and angular stones of every size, dark gaps, no courses
   'poros-stucco': [6, 4],    // soft poros under a fine lime stucco, false ashlar joints drawn in it: the Greek temple's skin, smooth and pale
   isodomic: [6, 3],          // limestone ashlar in courses of one height, blocks of one length, each course half a block over: the Hellenistic wall
+  dipinti: [9, 4.2],         // a Pompeian street front: lime stucco, and painted on it at head height the election notices, red and black letters on whitewashed panels
+  // the Roman forum's carved and lettered surfaces (./relief-art.js): each fits its band (a frieze, an architrave's face)
+  'acanthus-frieze': [4.8, 0.85], // a running acanthus scroll, rosettes in its spirals (Divus Julius's frieze)
+  'doric-frieze': [2.6, 0.9],     // triglyphs and metopes: ox skulls with garlands, libation bowls (the Basilica Aemilia's front)
+  'bronze-letters': [14, 0.9],    // a dedication in gilt-bronze capitals set into the marble (a temple's architrave)
+  'red-letters': [14, 0.9],       // the same cut and painted red (minium)
+  'figure-frieze': [7, 1.1],      // a procession in high relief
+  fasti: [3.2, 3.2],              // the lists of magistrates: columns of incised lines under headings, in a moulded frame
+  'curtius-relief': [1.8, 1.25],  // one framed scene: a rider plunging on a rearing horse (the Lacus Curtius)
 };
 /** Skins laid on a sloped face (a roof) as well as an upright one: the tile's x runs along the eave, its y up the slope. */
 const SKIN_ROOF = new Set(['tile-roof']);
 /** Tile widths in px where 320 is too coarse for the figures drawn on them. */
-const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520 };
+const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520, 'acanthus-frieze': 720, 'doric-frieze': 480, 'bronze-letters': 1600, 'red-letters': 1600, 'figure-frieze': 960, fasti: 520, 'curtius-relief': 420 };
 /** Skins whose tile is one register: a face fits a whole number of them, from its foot to its top. */
-const SKIN_FIT = new Set(['painted-relief']);
+const SKIN_FIT = new Set(['painted-relief', 'dipinti', 'acanthus-frieze', 'doric-frieze', 'bronze-letters', 'red-letters', 'figure-frieze']);
 /** Skins drawn facing +x (into the temple): a face whose run points away from `toward` wears them mirrored. */
-const SKIN_DIRECTED = new Set(['painted-relief', 'pylon-relief']);
+const SKIN_DIRECTED = new Set(['painted-relief', 'pylon-relief', 'fasti', 'curtius-relief']);
 
 const DARK = [52, 34, 18], LIGHT = [255, 246, 226];
 // an overlay pixel: k > 0 lightens, k < 0 darkens (alpha |k|)
@@ -306,6 +372,8 @@ function courses(o, rng, { rows, per, joint, jointK, toneK, herring = [], mats =
  * Ashlar as the New Kingdom laid it (not the uniform courses of the 25th Dynasty on): courses of uneven height (summing to the tile), each split into blocks of uneven length at
  * offsets that wrap, so the tile repeats seamlessly; fine joints, a tone to each block, bedding streaks.
  */
+/** Marble: the faintest mottle, no joints (a carved band is one block's face, or reads as one). */
+function marbleGround(o, rng) { const n = noise(o.W, 9, rng); for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (n(x, y) - 0.5) * 0.05; } }
 function ashlar(o, rng, { course = [0.12, 0.2], block = [0.18, 0.42], jointK = 0.24, toneK = 0.07, streak = 0.05 } = {}) {
   const { W, H } = o, rows = [];
   let y = 0;
@@ -413,6 +481,41 @@ const SKIN_BAKERS = {
     }
   },
   isodomic(o, rng) { ashlar(o, rng, { course: [1 / 6, 1 / 6], block: [0.24, 0.26], jointK: 0.2, toneK: 0.06, streak: 0.04 }); },
+  'acanthus-frieze'(o, rng) { marbleGround(o, rng); acanthusFrieze(o, rng); },
+  'doric-frieze'(o, rng) { marbleGround(o, rng); doricFrieze(o, rng); },
+  'bronze-letters'(o, rng) { marbleGround(o, rng); bronzeLetters(o, rng); },
+  'red-letters'(o, rng) { marbleGround(o, rng); bronzeLetters(o, rng, { ink: [163, 50, 31] }); },
+  'figure-frieze'(o, rng) { marbleGround(o, rng); figureFrieze(o, rng); },
+  fasti(o, rng) { marbleGround(o, rng); fastiPanel(o, rng); },
+  'curtius-relief'(o, rng) { marbleGround(o, rng); riderPanel(o, rng); },
+  // the street front: the stucco's faint mottle, and the notices — whitewashed panels at head height with two or three
+  // lines of capitals in red or black (a name, then the office: a big read, not text), the odd one half washed over
+  dipinti(o, rng) {
+    SKIN_BAKERS['lime-plaster'](o, rng);
+    const { W, H } = o, m = W / 9, at = (z) => H * (1 - z / 4.2);   // px per metre; a height (m above the foot) → px
+    const RED = [150, 40, 30], BLACK = [36, 32, 30], WASH = [240, 236, 226];
+    for (let x0 = 0.4 * m; x0 < W - 1.2 * m; ) {
+      const w = (1.6 + rng() * 1.4) * m, z0 = 1.5 + rng() * 0.3, h = 0.55 + rng() * 0.45, faded = rng() < 0.2, ink = rng() < 0.75 ? RED : BLACK;
+      if (x0 + w > W - 0.2 * m) break;
+      for (let y = Math.floor(at(z0 + h)); y < at(z0); y++) for (let x = Math.floor(x0); x < x0 + w; x++) o.paint(x, y, WASH, faded ? 0.35 : 0.8);
+      const lines = h > 0.8 ? 3 : 2, lh = (h * m) / (lines + 0.6);
+      for (let l = 0; l < lines; l++) {
+        const top = at(z0 + h) + lh * (0.35 + l), cap = lh * (l === 0 ? 0.75 : 0.55);   // the name's line the tallest
+        for (let x = x0 + 0.1 * m; x < x0 + w - 0.12 * m; ) {
+          const lw = cap * (0.45 + rng() * 0.35), stroke = Math.max(1, cap * 0.16), kind = rng();
+          // a capital as strokes: an upright, and a bar, a diagonal or a bowl
+          for (let y = 0; y < cap; y++) for (let k = 0; k < stroke; k++) {
+            o.paint(x + k, top + y, ink, faded ? 0.3 : 0.9);
+            if (kind < 0.35) o.paint(x + (lw * y) / cap + k, top + y, ink, faded ? 0.3 : 0.9);
+            else if (kind < 0.6 && (y < stroke || y > cap - stroke)) for (let u = 0; u < lw; u++) o.paint(x + u, top + y, ink, faded ? 0.3 : 0.9);
+            else if (kind < 0.8 && y < cap / 2) o.paint(x + lw * Math.sin((Math.PI * y) / (cap / 2)) + k, top + y, ink, faded ? 0.3 : 0.9);
+          }
+          x += lw + cap * (rng() < 0.15 ? 0.9 : 0.25);   // now and then a word space
+        }
+      }
+      x0 += w + (0.8 + rng() * 1.6) * m;
+    }
+  },
   'giza-core'(o, rng) {
     ashlar(o, rng, { course: [0.16, 0.26], block: [0.14, 0.3], jointK: 0.32, toneK: 0.1, streak: 0.06 });
     for (let k = 0; k < o.a.length / 40; k++) o.add(rng() * o.W, rng() * o.H, -0.12 - rng() * 0.12);

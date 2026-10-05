@@ -388,6 +388,192 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   reindex. Once per process, before the first search, a corpus built by a reindex is checked for shipped
   cards it lacks, and one reindex adds them.
 
+### Historic Rome
+
+- **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is
+  the best-attested Roman town, town-sized like Lindos and Xianyang, and it gives a fixed moment to read at.
+  - The scene covers the western half: the forum, the old town, the theatres on the south bluff, the Stabian
+    Baths, Via dell'Abbondanza to Via Stabiana, and the Porta Marina climb. That is about Qin's frame, so its
+    page budget is known. The amphitheatre, about 1 km east, waits for a later phase.
+- Its own record (`lib/graph/historic/record/pompeii.js`): the forum and its temples, halls and porticoes, the
+  theatres, the baths, the houses, shops and bakeries, the walls and gates, the water, and the tombs outside
+  Porta Ercolano. Each entry is cited and dated, with its confidence and the disputes between sources.
+  Settled by the record:
+  - Every building carries its state at 79 CE (standing, repaired, damaged, under repair, unfinished, relic).
+    Seventeen years after the earthquake of 62 the town is mid-repair, and a scene draws it that way: the
+    Capitolium awaits restoration, the Temple of Venus and the Central Baths are unfinished, and only the
+    Temple of Isis was wholly rebuilt.
+  - Marble is a veneer on a few buildings, much of it stripped or unfinished. The town is tufa, limestone,
+    concrete and painted stucco.
+  - Vesuvius is one broad mountain, flat-topped and in vines. The eruption and the modern cone are held from 80,
+    so a 79 read excludes them; so are the excavated ruins, the 1943 bomb damage and the post-war rebuilds.
+- A style card (`style/pompeii.js`) with six principles, each checked on the kit:
+  - the podium temple rules the forum;
+  - painted walls, never white;
+  - low red roofs;
+  - the street as a channel of lava between kerbs, with stepping stones;
+  - the orders' proportions;
+  - a Campanian sky.
+
+  Its roof pitch, kerb and stepping-stone sizes are design numbers, since the sources read give none. Its
+  palette is estimated until the reference swatches exist.
+- A design brief for the reference drawings (`docs/historic/pompeii/README.md`), in the house style of Qin's,
+  with the kit constants and the gaps the record leaves. The drawings themselves are not made yet.
+- The town laid out before its pieces are designed (culture `pompeii`, layout `lava-spur`). Every building is a
+  placeholder until it is designed, so the asset call lists all of them as still to design and gives the drawing
+  brief real sizes.
+  - The forum at the record's 143 × 38 m: the Capitolium on its podium at the north end between two arches,
+    porticoes on three sides, and the halls round it where they stood.
+  - Via dell'Abbondanza at its recorded widths, with the other named streets. Every street runs as lava paving
+    sunk between kerbed pavements.
+  - The Stabian Baths, the theatre quarter on the south bluff, and the Temple of Venus inside Porta Marina.
+  - About 700 houses, those on the main streets with shops, and fountains at the main crossings.
+  - The spur over the plain, with the Porta Marina ramp; Vesuvius and the Monti Lattari on the World page's
+    horizon.
+  - Each monument's slot carries its state from the record: the Capitolium stands roofless, and Venus, the
+    Apollo repairs and the travertine colonnade have scaffolding.
+- The placeholders are massing blocks in the card's numbers, plus pieces borrowed as they stand from Lindos
+  (the courtyard house less its porch, the wall, towers, the theatre, statues). The World page is about 15 MB,
+  Qin's size.
+- New shared patterns: podium temple, forum, atrium house, taberna, arch, street fountain, kerbed street. The
+  other cultures' pages are byte-identical.
+- The town's art, sourced into the record first (Mau's *Pompeii, Its Life and Art*, the Naples museum, Pompeii in
+  Pictures):
+  - **Floors and pools.** About two houses in five have a black-and-white mosaic floor in the atrium (a new ground
+    tile, `tessellatum`), and every atrium has its marble-rimmed impluvium.
+  - **The House of the Faun.** About 3,000 m², with two atria, the bronze Dancing Faun (0.71 m) in the first one's
+    pool, and the Alexander Mosaic (5.82 × 3.13 m) in its four colours on the exedra floor between the two gardens.
+  - **Painted fronts.** House fronts in cream, yellow or red stucco, a red field on a black socle. Lots on the main
+    streets now face them and open shops on them. Their walls carry the election notices: a new wall skin,
+    `dipinti`, with red and black capitals on whitewashed panels at head height.
+  - **The forum's statues.** A row of equestrian bases down the west side and four colossal bases across the south
+    end. No forum statue survives and they were probably stored after 62, so most bases stand empty; the two
+    statues drawn are conjecture.
+  - **Burning altars.** Before the Temples of Apollo, Vespasian (newly placed) and Isis. Roman sacrifice was burnt,
+    the opposite of Athena Lindia's fireless rite; with `fire: true` the World page burns them live.
+- A second pass at Porta Marina and the roofs:
+  - **The gate.** Its two passages are barrel-vaulted under round arches, ringed in paler stone, with a parapet on top.
+    The climb to it is as wide as the gate: a cart ramp up to the wide passage and a stepped footway up to the narrow
+    one, between cheek walls, and a paved space inside. The middle cheek wall fills the full width of the pier between
+    the passages, and a stone footing carries the gate's front where it stands out past the spur's edge. A walker can
+    go from the foot of the ramp through the gate into town without falling.
+  - **The roofs.** The borrowed Lindos house roofs rise above the wall top to their outer edge, so they seemed to float.
+    They are now closed onto the walls, and the halls' gable ends are closed flush in stucco.
+- New shared patterns: mosaic floor, painted notice. The World page is about 19.7 MB. The other cultures' pages are
+  still byte-identical.
+- A close-scale study beside the town, in progress: the Forum Romanum on the same summer day of 79, about 240 × 160 m,
+  where the detail goes into the buildings themselves.
+  - **The orders as real parts** (`assets/orders.js`), measured in the column's lower diameter as the Romans wrote
+    them. The Attic base has its plinth, tori and scotia; the shaft is fluted in 24 channels and tapers above its
+    lower third. The Corinthian capital has two rows of acanthus with raised midribs and drooping tips, the
+    caulicoli, corner volutes, inner helices, and the abacus with its flowers. Ionic and Tuscan capitals sit beside
+    it. The entablature segment has three fasciae, the frieze, dentils, modillions, the corona and the sima.
+  - Each part is built once, to stand many times as an instance on the World page, so the detail costs its faces
+    once. A Corinthian column is about 1,200 panels.
+  - **The record** (`record/forum.js`), read at Pompeii's moment with Pompeii's states, mostly from Platner & Ashby,
+    Digital Augustan Rome and the Parco del Colosseo:
+    - Each temple carries its podium and its order with column counts and sizes. The orders are dated methods, so a
+      building can use only an order Rome already had.
+    - In 79 the Temple of Vespasian does not exist yet, since Vespasian was deified only after his death that June.
+      Its plot below the Tabularium stays open.
+    - Vesta and the House of the Vestals stand rebuilt after the fire of 64, and the Capitoline temple after 69.
+    - Anachronisms are held at their real dates: Saturn's late-antique Ionic porch, Diocletian's brick Curia and
+      basilica piers, the Severan Vesta, the Equus Domitiani, the Umbilicus.
+    - The disputes are recorded and the scene takes one side of each: Saturn Corinthian in 79, Concord's porch of
+      six columns, Divus Julius Ionic.
+  - **The style card** (`style/forum.js`), six principles, each measured on the built parts:
+    - each order's height, base, capital and taper in lower diameters;
+    - the entablature about a quarter of the column;
+    - podia with a front stair, and close-set columns;
+    - Luna marble brightest, then travertine, tufa, peperino and basalt;
+    - the long open square;
+    - the summer sky.
+    The orders module reads its numbers from the card. The design brief, with nine drawing prompts, is in
+    `docs/historic/forum/README.md`.
+  - **The site** (`layouts/forum.js`, the `forum` culture): a measured plan, not a generated one. Every monument
+    stands at the record's size and in its facing, all of them placeholders:
+    - the Tabularium's arcade over its blank wall;
+    - Concord's wide cella with its six-column pronaos;
+    - Saturn on its 9 m podium;
+    - the Rostra with two rows of bronze beaks;
+    - the Arch of Tiberius and the Golden Milestone;
+    - the Curia with its porch;
+    - the Basilica Aemilia's two-storey arcade over the Tabernae Novae, and the Basilica Julia's, with their naves and
+      clerestories;
+    - Castor, octastyle peripteral with 8 × 11 columns on its 7 m podium, its tribunal part way up the stair;
+    - Divus Julius on its beaked platform round the altar niche;
+    - the three-bay Arch of Augustus;
+    - the Regia, the round Temple of Vesta with its 20 columns, and the House of the Vestals;
+    - in the square, the Lacus Curtius, and the fig and the olive with Marsyas.
+
+    The plot where the Temple of Vespasian will stand is left open. On the World page the Capitoline rises behind the
+    Tabularium with Vespasian's rebuilt Temple of Jupiter on it, and the Palatine to the south-east. Views: the square
+    from Divus Julius, Castor's corner, the Sacra Via, the Rostra, and the Capitoline brow.
+  - **Instancing.** The 315 columns, entablature runs and arcade bays are 55 templates (`assets/forum.js`), which the
+    World page draws as instances (`repeats`). A part turned to another side is its own template, because templates
+    are baked lit; columns never turn. The CSS page draws a light stand-in for each. The World page is about 7.4 MB.
+  - New shared patterns: basilica, round temple, rostra. The other cultures' pages are byte-identical.
+  - **Roofs, monuments and reliefs**, sourced into the record first (Pliny's *Natural History*, dedicated in 77, says
+    what "still stands"; Velleius; Platner & Ashby):
+    - **Tiled roofs.** Every slope is a bed of tegulae under rows of imbrices, each tile its own shade, with
+      antefixes along the eaves, ridge tiles, and a soffit under the eaves so a roof seen from below closes.
+      Jupiter's temple on the Capitol has gilt-bronze tiles, and Vesta's cone bronze ribs.
+    - **By the Rostra:** Octavian's horseman on the platform; the three Sibyls and the Hercules in a tunic beside
+      it; Duilius's rostral column and Octavian's gilded one with his statue.
+    - **In the square:**
+      - the Lacus Curtius, moved to its place near the west end, with the Curtius relief on its balustrade and a
+        puteal;
+      - the fig, the olive and the vine with Marsyas;
+      - the praetor's timber tribunal;
+      - Surdinus's inscription as written, `L·NAEVIVS·L·F·SVRDINVS·PR`, in bronze letters 30 cm high set into
+        the travertine.
+    - **Round the square:**
+      - the shrine of Ianus Geminus at the Argiletum, its bronze doors shut, as Vespasian left them;
+      - Venus Cloacina's railed round shrine and the Lapis Niger;
+      - Hercules and Mercury at Concord's stair, and the Victory and statues on the Curia;
+      - the kneeling captives in coloured marble and the portrait shields on the Basilica Aemilia's attic;
+      - the bronze Vortumnus at the Vicus Tuscus, and Caesar's cuirassed statue;
+      - the Dioscuri with their horses at the Juturna basin.
+    - **Reliefs and lettering** (new wall skins drawn in `relief-art.js`):
+      - an acanthus scroll on Divus Julius's frieze;
+      - the Basilica Aemilia's Doric frieze of ox skulls and libation bowls;
+      - the Fasti's lists in the Arch of Augustus's side bays;
+      - one band of gilt-bronze capitals across the fronts of Saturn and Divus Julius. These are real Roman
+        letterforms, but the record holds no text for those dedications, so the letters spell nothing.
+    - **Festival dressing (opt-in, `festival: true`).** Livy has the aediles hang shields in the forum only on
+      procession days, so the ordinary day shows none. The option hangs gilded shields on the basilicas' piers and
+      garlands across the temple fronts. Awnings are Republican one-offs (Pliny) and are not drawn.
+    - Fixed: a lifted building now lifts its beams too, so the roofs of temples set on platforms sit on them. The
+      World page collects an instanced template's textures, so friezes and lettering show on it.
+    - The World page is about 11.9 MB, or 12.3 MB with the festival.
+  - **The Basilica Julia, opened.** In the forum, as at Rome generally, decorated floors were indoors: the square was
+    travertine. The record gives the Julia a coloured-marble pavement in its central hall and white marble in its
+    aisles, and about 80 game boards scratched into its steps and floor (Platner & Ashby). The basilica is now a hall to
+    walk into:
+    - steps up from the Sacra Via onto its podium;
+    - the façade arcade on all four sides;
+    - aisles all round, two deep along the long sides (the five aisles);
+    - inner pier arcades on two storeys carrying the galleries;
+    - the nave, 82 × 16 m, rising to clerestory windows under a trussed timber roof.
+
+    Two new floor tiles in `ground.js`:
+    - `opus-sectile`: panels of cut, veined marble framed in white, alternating a giallo field round a pavonazzetto
+      lozenge and an africano roundel with a porta santa field round a cipollino ring;
+    - `lusoria`: white marble slabs with merels boards, the eight-spoked wheel and twelve-line boards scratched in.
+
+    A walker crosses from the nave through the arcades to the front aisle on the floor. The page is about 12.6 MB.
+  - **The Temple of Castor, as Platner & Ashby describe it, and opened.**
+    - **The stairs, corrected.** The platform's front is a sheer face, a speakers' platform with a balustrade, and is
+      reached by "two narrow staircases, at the ends and not in front". The broad flight of eleven steps runs from the
+      platform up to the porch.
+    - **The podium's vaults:** chambers in its flanks behind bronze grilles, the banks and strongrooms of the fiscus and
+      of private depositors.
+    - **The cella:** at the record's 16 × 19.7 m, its bronze doors swung back. Inside are the Tiberian black-and-white
+      mosaic floor (later replaced by coloured marble, date unknown: recorded as a dispute), smaller columns of giallo
+      antico along the walls (Italian Wikipedia), and a coffered ceiling. The twins' cult statues stand on a base at
+      the back; their form is unverified.
+    - A walker goes from the porch through the doorway down the cella on its floor. The page is about 13.2 MB.
+
 ### Sixth-gen composer
 
 - Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a

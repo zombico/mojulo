@@ -180,3 +180,113 @@ describe('qin — the style card\'s principles, measured on the kit', () => {
     expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
   });
 });
+
+// Pompeii: the design language is held to its card before any town plan exists (the plan checks join with the layout)
+describe('pompeii — the style card\'s principles, measured on the kit', () => {
+  const S = HISTORIC_STYLES.pompeii, K = S.kit, P = S.palette;
+  const hue = (h) => { const [r, g, b] = rgbOf(h).map((v) => v / 255), mx = Math.max(r, g, b), d = mx - Math.min(r, g, b); if (!d) return 0; const x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (x * 60 + 360) % 360; };
+
+  it('principle 1 — the podium lifts the temple above the eye, with its one stair at the front', () => {
+    expect(K.podium.h[0]).toBeGreaterThan(1.7);
+    expect(K.podium.stair).toBe('front');
+    expect(K.roof.pediment).toBe('temple');
+  });
+
+  it('principle 2 — stucco > limestone > tufa > lava; the socle under the field; a wall in shade cool, never black', () => {
+    for (let i = 0; i + 1 < S.values.length; i++) expect(value(rgbOf(P[S.values[i]])), `${S.values[i]} > ${S.values[i + 1]}`).toBeGreaterThan(value(rgbOf(P[S.values[i + 1]])));
+    for (const field of ['stucco', 'yellow']) expect(value(rgbOf(P[field]))).toBeGreaterThan(value(rgbOf(P.red)));
+    expect(K.wall.socle[1]).toBeLessThan(K.wall.storey[0] / 2);
+    const lit = scale(rgbOf(P.tufa), UP), inShade = over(lit, rgbOf(S.light.shade.color), S.light.shade.alpha);
+    expect(value(inShade)).toBeGreaterThan(value(lit) * 0.5);
+    expect(inShade[2] / inShade[0]).toBeGreaterThan(lit[2] / lit[0]);
+  });
+
+  it('principle 3 — low red roofs: a shallow pitch, a short eave, terracotta hue', () => {
+    expect(K.roof.pitch).toBeGreaterThanOrEqual(15);
+    expect(K.roof.pitch).toBeLessThanOrEqual(25);
+    expect(K.roof.overhang[1]).toBeLessThan(1);
+    expect(hue(P.tile)).toBeGreaterThan(5);
+    expect(hue(P.tile)).toBeLessThan(30);
+  });
+
+  it('principle 4 — stepping stones no higher than the kerb, with gaps a cart\'s wheels pass through', () => {
+    expect(K.street.stone.h).toBeLessThanOrEqual(K.street.kerb[1]);
+    expect(K.street.kerb[0]).toBeGreaterThanOrEqual(0.3);
+    // two stones a gauge apart centre to centre leave a gap wider than a wheel on either side of the middle stone
+    expect(K.street.gauge - K.street.stone.w).toBeGreaterThan(K.street.wheel * 2);
+  });
+
+  it('principle 5 — Tuscan and Doric about seven diameters, Corinthian about ten; the upper order shorter', () => {
+    for (const o of ['tuscan', 'doric']) { expect(K.order[o]).toBeGreaterThanOrEqual(6.5); expect(K.order[o]).toBeLessThanOrEqual(7.5); }
+    expect(K.order.corinthian).toBeGreaterThanOrEqual(9.5);
+    expect(K.order.ionic).toBeGreaterThan(K.order.doric);
+    expect(K.order.upper).toBeLessThan(1);
+  });
+
+  it('principle 6 — the sky is a place: bluer overhead than at the horizon', () => {
+    const sky = deriveSky(S.sky.palette, { x: 0, y: 0, z: S.sky.sunElev });
+    expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
+  });
+});
+
+describe('forum — the style card\'s principles, measured on the built orders', async () => {
+  const { column, entablature } = await import('./assets/orders.js');
+  const S = HISTORIC_STYLES.forum, K = S.kit, P = S.palette;
+  const zTop = (ms) => Math.max(...ms.map((m) => m.z1)), zBot = (ms) => Math.min(...ms.map((m) => m.z0));
+  const reach = (ms, z0, z1) => Math.max(...ms.filter((m) => m.z0 >= z0 - 1e-6 && m.z1 <= z1 + 1e-6).map((m) => Math.max(Math.abs(m.x), Math.abs(m.x + m.w), Math.abs(m.y), Math.abs(m.y + m.d))));
+
+  it('principle 1 — each column is built to its order: height, base, capital and taper in diameters', () => {
+    const D = 1.45;
+    for (const [o, k] of Object.entries(K.order)) {
+      const c = column(o, { D, tint: P.luna });
+      expect(zTop(c.masses) / D, o).toBeCloseTo(k.column, 1);
+      expect(c.base / D, o).toBeCloseTo(k.base, 5);
+      expect((c.top - c.shaftTop) / D, o).toBeCloseTo(k.capital, 5);
+      expect(c.rTop / (D / 2), o).toBeCloseTo(k.taper, 5);
+      expect(zBot(c.masses)).toBe(0);
+    }
+    expect(K.order.corinthian.column).toBeGreaterThanOrEqual(9.5);
+    expect(K.order.ionic.column).toBeLessThan(K.order.corinthian.column);
+    expect(K.order.tuscan.column).toBeLessThan(K.order.ionic.column);
+    expect(K.order.corinthian.taper).toBeGreaterThan(0.8);
+    // the Corinthian capital's abacus reaches past the shaft (the horns over the leaves)
+    const c = column('corinthian', { D, tint: P.luna });
+    expect(reach(c.masses, c.shaftTop, c.top)).toBeGreaterThan(0.7 * D);
+  });
+
+  it('principle 2 — the entablature is about a quarter of the column, its modillions spaced to the columns', () => {
+    const D = 1.45;
+    for (const [o, [lo, hi]] of Object.entries(K.entablature)) {
+      const e = entablature(o, { D, span: 4, tint: P.luna }), H = K.order[o].column * D;
+      expect(e.height / H, o).toBeGreaterThanOrEqual(lo);
+      expect(e.height / H, o).toBeLessThanOrEqual(hi);
+    }
+    // the Corinthian modillions: one per pitch, so two columns' worth of span has more than two
+    const e = entablature('corinthian', { D, span: 3.2 * D * 2, tint: P.luna });
+    expect(e.masses.filter((m) => m.y < -0.5 * D && m.z0 > 1.5 * D).length).toBeGreaterThan(4);
+  });
+
+  it('principle 3 — temples on podia with a front stair; columns close (1.5–2.25 D clear)', () => {
+    expect(K.podium.h[0]).toBeGreaterThanOrEqual(3);
+    expect(K.podium.stair).toBe('front');
+    expect(K.spacing[0]).toBe(1.5);
+    expect(K.spacing[1]).toBeLessThanOrEqual(2.25);
+  });
+
+  it('principle 4 — Luna marble > travertine > tufa > peperino > basalt; gilt brighter than bronze; shade cool, never black', () => {
+    for (let i = 0; i + 1 < S.values.length; i++) expect(value(rgbOf(P[S.values[i]])), `${S.values[i]} > ${S.values[i + 1]}`).toBeGreaterThan(value(rgbOf(P[S.values[i + 1]])));
+    expect(value(rgbOf(P.gilt))).toBeGreaterThan(value(rgbOf(P.bronze)));
+    const lit = scale(rgbOf(P.luna), UP), inShade = over(lit, rgbOf(S.light.shade.color), S.light.shade.alpha);
+    expect(value(inShade)).toBeGreaterThan(value(lit) * 0.5);
+    expect(inShade[2] / inShade[0]).toBeGreaterThan(lit[2] / lit[0]);
+  });
+
+  it('principle 5 — the square is long and open: its length over two and a half times its width', () => {
+    expect(K.square.d / K.square.w).toBeGreaterThan(2.5);
+  });
+
+  it('principle 6 — the sky is a place: bluer overhead than at the horizon', () => {
+    const sky = deriveSky(S.sky.palette, { x: 0, y: 0, z: S.sky.sunElev });
+    expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
+  });
+});
