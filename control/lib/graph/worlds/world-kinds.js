@@ -35,7 +35,7 @@ import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
-import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt } from '@/lib/graph/polygonizer/station-loft-shade';
+import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from '@/lib/graph/polygonizer/station-loft-rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -558,6 +558,14 @@ export const WORLD_KINDS = {
       const character = resolveCharacterLight(m, ctx);
       const normals = character ? layeredShadingNormals(shown, m.recipe, stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) : null;
       const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive }) : null;
+      // SMOOTH under the studio light (a hero without the character light and the anime head: the landmark head, no head;
+      // an anime hero with the light turned off keeps the old bake): the faces carry
+      // the key at their corners from the welded normals (STUDIO_SMOOTH_CREASE: the skin at 70°, the rest at 35°), so the
+      // face reads as one form and the body as muscle instead of facets; the rig pack shades its corners from the same
+      // weld on the rest mesh. Standing, the parts riding the head bone are shaded in the head's own frame (their rest
+      // normals, as the character light does and as the pack carries them), so a tilted head keeps the shading it has at
+      // rest. Any other layered row, and a flat (unshaded) export, keeps one shade per face.
+      const smooth = !character && m.hero && m.hero.head !== 'anime' && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
       // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
       // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
       // fields win. It rides the payload's own `toon` (world-scene keeps a resolver's toon over the manifest's).
@@ -570,7 +578,7 @@ export const WORLD_KINDS = {
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces, group: rigged ? 'body' : null, hairInk: !!ink })
-        : layeredFaces(shown, m.recipe, { light, seat, group: rigged ? 'body' : null, ...(stand ? { dz: restDz } : {}) });
+        : layeredFaces(shown, m.recipe, { light, seat, group: rigged ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
@@ -607,7 +615,7 @@ export const WORLD_KINDS = {
         // and the ambient blink ride the face (anime-face-tracks.js), derived here and never stored.
         const seconds = m.hero?.head === 'anime' ? heroClipSeconds(m.hero, m.recipe.clips) : null;
         if (face?.meta) Object.assign(face.meta, heroFaceTracks(m.hero, m.recipe.clips, seconds, face.authored));
-        const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
+        const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
         const clips = Object.keys(m.recipe.clips).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       }
@@ -648,7 +656,7 @@ export const WORLD_KINDS = {
   // vehicle-instance / manji-tree).
   figure: {
     title: 'mojulo figure',
-    resolve: (m, ctx) => assembleFigureScene(m, { title: ctx.title, ref: ctx.ref }),
+    resolve: (m, ctx) => assembleFigureScene(m, { title: ctx.title, ref: ctx.ref, ...(ctx.tpose ? { tpose: true } : {}) }),
   },
   // The animal study's World form (skin-over-mesh: figure-world
   // assembleAnimalScene) — orbit/export object study, same posture as figure.

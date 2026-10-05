@@ -178,15 +178,25 @@ export const CHARACTER_LIGHT_UNLIT = Object.freeze(['Iris', 'Pupil', 'Sclera', '
 /** per-group thresholds by default: hair steps higher, so the locks read as a few lit shapes rather than one lit dome
  *  (at 0.40 about three quarters of the hair is lit at the three-quarter view, with shade shapes under the locks) */
 const CHARACTER_THRESHOLDS = Object.freeze({ Hair: 0.40 });
-const TOON_LIGHT_KEYS = ['toLight', 'threshold', 'thresholds', 'shade', 'unlit', 'highlight'];
+const TOON_LIGHT_KEYS = ['toLight', 'threshold', 'thresholds', 'shade', 'unlit', 'highlight', 'strands'];
+/** the STRANDS (station-loft-shade.js): lines drawn INSIDE a group's mass in its own tone darkened — never the ink's
+ *  black — anchoring the shape: `count` lines about the head's vertical axis (spaced a little unevenly), each `width` (m)
+ *  wide, rising from the group's lowest edge (a bob's hem) to a height staggered across `reach` (shares of the head's
+ *  height below the skull crown; 0 is the crown itself, where the lines meet like strands at the whorl), filled with the
+ *  face's own tone (lit or shade) darkened by `tone`; no line below `below` head heights under the crown (draped over the
+ *  shoulders the hair no longer hangs about the head's axis, and a line there would scribble across it). A face the light's step splits, or the highlight lights, keeps its tones */
+export const STRAND_DEFAULTS = Object.freeze({ count: 22, width: 0.003, reach: Object.freeze([0.15, 0.5]), below: 1.15, tone: 0.6 });
+const STRAND_KEYS = Object.keys(STRAND_DEFAULTS);
 /** the HIGHLIGHT (a third tone on a group's lit side, split crisply on a second iso-line; station-loft-shade.js): its
  *  kinds and each kind's defaults — `ring`: N·L above `threshold` less `falloff`·u², u the height across the `band` (a
  *  share of the head's height below the skull crown), so a band on the lit side broken where the locks turn away (the
- *  sheen line on the hair); `streak`: N·L above `threshold` inside the band only (a hard window). `parts: 'fringe'` keeps
- *  it to the fringe's locks and sections. */
+ *  sheen line on the hair); `streak`: N·L above `threshold` inside the band only (a hard window); `gloss`: N·L above a
+ *  high `threshold` anywhere on the group, no band (the moulded-plastic hot spot on each rounded form facing the key: the
+ *  hero robot's armour). `parts: 'fringe'` keeps it to the fringe's locks and sections. */
 export const HIGHLIGHT_KINDS = Object.freeze({
   ring: Object.freeze({ threshold: 0.3, band: Object.freeze([0.14, 0.22]), falloff: 1.4 }),
   streak: Object.freeze({ threshold: 0.5, band: Object.freeze([0, 0.4]) }),
+  gloss: Object.freeze({ threshold: 0.86, band: Object.freeze([0, 1]) }),
 });
 const HIGHLIGHT_KEYS = ['kind', 'threshold', 'band', 'falloff', 'parts'];
 const HIGHLIGHT_PARTS = ['fringe'];
@@ -227,6 +237,20 @@ export function toonLightErrors(l) {
       if (h.parts !== undefined && !HIGHLIGHT_PARTS.includes(h.parts)) errs.push(`${at}.parts: ${HIGHLIGHT_PARTS.join(' | ')} (absent: every part of the group)`);
     }
   }
+  if (l.strands !== undefined && l.strands !== false) {
+    if (!isPlain(l.strands)) errs.push('toon.light.strands: { <palette group>: { count?, width?, reach?, below?, tone? } | true | false }, or false (none)');
+    else for (const [g, s] of Object.entries(l.strands)) {
+      if (s === false || s === true) continue;
+      const at = `toon.light.strands.${g}`;
+      if (!isPlain(s)) { errs.push(`${at}: { count?, width?, reach?, tone? }, true (the defaults) or false`); continue; }
+      for (const k of Object.keys(s)) if (!STRAND_KEYS.includes(k)) errs.push(`${at}.${k}: not a strands field (have ${STRAND_KEYS.join(', ')})`);
+      if (s.count !== undefined && !(Number.isInteger(s.count) && s.count >= 3 && s.count <= 96)) errs.push(`${at}.count: an integer in [3, 96] (lines about the head)`);
+      if (s.width !== undefined && !(Number.isFinite(s.width) && s.width > 0 && s.width <= 0.02)) errs.push(`${at}.width: a number in (0, 0.02] (m)`);
+      if (s.reach !== undefined && !(Array.isArray(s.reach) && s.reach.length === 2 && s.reach.every((x) => Number.isFinite(x) && x >= 0 && x <= 2) && s.reach[1] >= s.reach[0])) errs.push(`${at}.reach: [from, to], shares of the head's height below the skull crown, 0 ≤ from ≤ to ≤ 2`);
+      if (s.below !== undefined && !(Number.isFinite(s.below) && s.below > 0 && s.below <= 6)) errs.push(`${at}.below: a number in (0, 6] (head heights under the crown)`);
+      if (s.tone !== undefined && !(Number.isFinite(s.tone) && s.tone > 0 && s.tone < 1)) errs.push(`${at}.tone: a number in (0, 1) (the own tone's darkening)`);
+    }
+  }
   return errs;
 }
 /** An authored highlight map normalized: each group's rule over its kind's defaults (`band` copied); `false` rides
@@ -239,7 +263,7 @@ function resolveHighlight(h) {
 /** An authored `toon.light` normalized: `true` → the default light; a valid object → the defaults with its fields
  *  on top (`toLight` unit length; `thresholds` merged over the Hair default; `unlit` replaces the default list; a
  *  `highlight` over its kinds' defaults, present only when authored); anything else (absent, `false`, invalid) → null.
- *  The result is a fresh object: `{ toLight, threshold, thresholds, shade, unlit, highlight? }`. */
+ *  The result is a fresh object: `{ toLight, threshold, thresholds, shade, unlit, highlight?, strands? }`. */
 export function resolveToonLight(l) {
   if (l !== true && !isPlain(l)) return null;
   if (toonLightErrors(l).length) return null;
@@ -251,6 +275,7 @@ export function resolveToonLight(l) {
     shade: { ...(o.shade || {}) },
     unlit: [...(o.unlit ?? CHARACTER_LIGHT_UNLIT)],
     ...(o.highlight !== undefined ? { highlight: resolveHighlight(o.highlight) } : {}),
+    ...(o.strands !== undefined && o.strands !== false ? { strands: Object.fromEntries(Object.entries(o.strands).filter(([, s]) => s !== false).map(([g, s]) => [g, { ...STRAND_DEFAULTS, ...(s === true ? {} : s), reach: [...((s === true ? null : s.reach) ?? STRAND_DEFAULTS.reach)] }])) } : {}),
   };
 }
 

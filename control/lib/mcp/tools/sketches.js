@@ -535,6 +535,12 @@ export function registerSketchTools() {
           default: false,
           description: 'With `skinned`: VRM 1.0 bone names + VRMC_vrm extension (biped rigs).',
         },
+        rest: {
+          type: 'string',
+          enum: ['authored', 'tpose'],
+          default: 'authored',
+          description: "With `humanoid`: 'tpose' re-rests each figure in the VRM T-pose engines retarget from; clips play unchanged.",
+        },
         union: {
           type: 'boolean',
           default: false,

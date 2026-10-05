@@ -61,7 +61,9 @@
  * `flute` (a spine per member lock); the short family's crown accents (`crown: 'tuck' | 'none'`); and the cut's
  * words: `sweepBack` (the fringe re-aimed to rise off the hairline over the crown and point back), `hairline
  * { front }` (the front hairline raised), `sweepSides` (the temple clumps swept back over the ear), `fringeGroups` (the
- * bang sections by member clump) and `backNotch` (the back sections' hem). Nothing here is written into the recipe.
+ * bang sections by member clump), `backNotch` (the back sections' hem), `fringeNotch` (the bang sections' hem), `flip` (the side
+ * and back ends kicked out), `spikes` (the short family's clumps as broad radiating spikes) and `sideTail` (the back gathered to a tie behind one ear, one round tail over the shoulder,
+ * its clump `tail`). Nothing here is written into the recipe.
  */
 import * as dmath from '../../util/dmath.js';
 
@@ -348,16 +350,43 @@ export function buildAnime(r, options = {}) {
   const FORMS = options.forms && ['bob', 'long', 'hime'].includes(h.style) ? (HF ? formGroupsOf(h.style, h, HF) : formGroupsOf(h.style, h)) : null;
   function capPoint(a, t) {
     if (FIT) return FIT.cap(a, t); const bottom = 0.10 + 0.43 * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a)), end = dmath.acos(clamp((bottom - 0.2) / 0.99, -1, 1)), q = 0.015 + (end - 0.015) * t; return [dmath.sin(q) * dmath.sin(a) * 0.87 * vx, 0.2 + dmath.cos(q) * 1.01 * vy, 0.07 - dmath.sin(q) * dmath.cos(a) * 0.83 * depth]; }
+  // the SHAPES (see shapePieces below): which studio clump groups a recipe takes over
+  const SH = HF?.shapes ?? null, SH_GROUPS = { fringe: /^fringe-/, temple: /-temple-/, back: /^back-/, crown: /^crown-/ };
+  const SH_REPLACED = (name) => !!SH?.replace && SH.replace.some((g) => SH_GROUPS[g]?.test(name));
   const capStart = parts.hair.length;
   for (let j = 0; j < 14; j++) for (let i = 0; i < 48; i++) quad('hair', capPoint(i / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, (j + 1) / 14), capPoint(i / 48 * 2 * Math.PI, (j + 1) / 14));
   if (FIT) for (let i = 0; i < 48; i++) tri('hair', FIT.crown, capPoint((i + 1) / 48 * 2 * Math.PI, 0), capPoint(i / 48 * 2 * Math.PI, 0));   // the fitted cap closes at the crown
   const capEnd = parts.hair.length;
-  function lock(name, root, control, tip, width, normal, taperK = h.taper) {
+  // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
+  // sheet lying on the skin in FRONT of each ear, from under the scalp's bottom edge (the hairline, column by column) down to the ear's bottom,
+  // its front edge drawing back as it falls (a sideburn's taper), its back edge at the ear's front, so no bare gap shows
+  // between the hair and the ear.
+  // Its own part (`burn`, one run per side); the head wears it in the hair's colour, and a bald head not at all (its
+  // own skin is the face's colour, with no edge for the ink to outline)
+  const burns = [];
+  if (options.sideburnPatch) {
+    parts.burn = [];
+    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yBot = earY - 0.19, I = 6, J = 12;
+    // its top edge follows the scalp's bottom (the cap's hairline at each column's azimuth) and tucks under it, so no skin
+    // shows between the hair and the patch
+    const top = (u) => { const q = surface(u, 0.2), a = dmath.atan2(q[0], -(q[2] - 0.07)); return capPoint(a, 0.94)[1] + 0.02; };
+    for (const side of [-1, 1]) {
+      const start = parts.burn.length, at = (i, j, off) => { const u0 = 0.84 + 0.1 * (j / J) ** 2, u = side * (u0 + (0.955 - u0) * i / I), yTop = Math.max(top(u), yBot + 0.1), y = yTop + (yBot - yTop) * j / J, p = surface(u, y);
+        const n = unit([p[0], 0, p[2] - 0.07]); return add(p, mul(n, off)); };
+      const lo = 0.004, hi = 0.018, Q = (a, b, c, d) => (side > 0 ? quad('burn', a, b, c, d) : quad('burn', d, c, b, a));
+      for (let j = 0; j < J; j++) for (let i = 0; i < I; i++) { Q(at(i, j, hi), at(i, j + 1, hi), at(i + 1, j + 1, hi), at(i + 1, j, hi)); Q(at(i + 1, j, lo), at(i + 1, j + 1, lo), at(i, j + 1, lo), at(i, j, lo)); }
+      for (let j = 0; j < J; j++) { Q(at(0, j, lo), at(0, j + 1, lo), at(0, j + 1, hi), at(0, j, hi)); Q(at(I, j, hi), at(I, j + 1, hi), at(I, j + 1, lo), at(I, j, lo)); }
+      for (let i = 0; i < I; i++) { Q(at(i, 0, lo), at(i, 0, hi), at(i + 1, 0, hi), at(i + 1, 0, lo)); Q(at(i + 1, J, lo), at(i + 1, J, hi), at(i, J, hi), at(i, J, lo)); }
+      burns.push({ side, start, count: parts.burn.length - start });
+    }
+  }
+  function lock(name, root, control, tip, width, normal, taperK = h.taper, thick = 1, cut = false) {
+    if (SH_REPLACED(name)) return;   // the shapes took this clump group over
     const edit = r.locks?.[name]; if (edit) { control = add(control, [edit.cx, edit.cy, edit.cz]); tip = add(tip, [edit.tx, edit.ty, edit.tz]); }
-    if (FIT) tip = FIT.drape(tip, 0.006);
-    if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // a section's member: skinned below
+    if (FIT && !cut) tip = FIT.drape(tip, 0.006);
+    if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // (a member is never a thick clump)   // a section's member: skinned below
     const start = parts.hair.length; const rings = [], N = 14, S = 8;
-    for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = PINCH ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper; if (FIT) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 ? FIT.drape(q, 0.004) : q; })); }
+    for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = (PINCH && !cut ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper) * thick; if (FIT && !cut) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC && !cut ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 && !cut ? FIT.drape(q, 0.004) : q; })); }
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
     for (let i = 0; i < S; i++) { tri('hair', root, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
     guides.push(...root, ...control, ...control, ...tip); locks.push({ name, root, control, tip, width, start, count: parts.hair.length - start });
@@ -370,24 +399,259 @@ export function buildAnime(r, options = {}) {
   // so its section never flips over the arc
   const SB = HF?.sweepBack ?? null, SS = HF?.sweepSides ?? null;
   const mix3 = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
+  // spikes { amount, reach, width, up } (the short family): the crown accents, the temple and the back clumps re-aimed as
+  // SPIKES radiating from the head's centre — each tip pushed out along its own direction from the centre (tilted `up`) by
+  // `reach`, the clump `width` times wider at its root and thicker, so the spikes read as broad wedges, not needles. Only
+  // the six crown accents become spikes (so the silhouette is a few big spikes, not a fringe of points; SPIKE_FAN); the
+  // temple clumps close a rounded, blunt mass over the ears and the back falls in one convex curve to a single point at
+  // the nape; the fringe becomes heavy bangs (BANGS: a long one hanging over the centre, shorter ones beside it angled
+  // out), authored, never dice
+  const SP = short ? HF?.spikes ?? null : null, SPO = [0, 0.2, 0.07];
+  const spiked = (root, control, tip, width, reach = 1, dir = null, up = SP?.up ?? 0.35) => { if (!SP) return [control, tip, width]; const A = SP.amount, d = dir ? unit(dir) : unit(add(unit(sub(tip, SPO)), [0, up, 0])), t2 = add(tip, mul(d, (SP.reach ?? 0.85) * reach * A)); return [mix3(control, mix3(root, t2, 0.42), 0.6 * A), t2, width * (1 + ((SP.width ?? 2.2) - 1) * A)]; };
+  // the six crown spikes as the operator's sketch draws them (front: a tall one just off the centre, one long one level
+  // out to the left, smaller ones between and below; side: one leaning back, one sweeping forward over the face):
+  // [degrees off the vertical, reach, width, lean, base, sink] per side (the hero's left, then right), from the top down.
+  // CUT CONICAL CARROTS (the operator's word for this style): every spike is a cone cut square at its base and sunk into
+  // the mass, round in section (as thick as it is wide), tapering to its point. `base` widens the cut base (across and
+  // in depth) while the taper quickens by as much, so the spike's angle, lean and tip — its front and side profile — hold;
+  // `sink` lowers the whole carrot into the mass. A carrot is never pinched at its root (the lift's pinch is for clumps
+  // emerging from the cap), never draped (its base belongs inside the mass) and round in section, seated deep in the mass,
+  // so its full base meets the hair and it never floats.
+  const SPIKE_FAN = [[[34, 0.8, 1.0, -0.45, 1, 0], [80, 1.55, 1.35, 0.15, 1, 0], [124, 0.6, 0.85, 0.35, 1, 0]], [[8, 1.65, 1.5, 0.38, 1, 0], [60, 1.05, 1.2, -0.3, 1, 0], [110, 0.85, 1.0, 0.25, 1, 0]]];
+  const BANGS = [[-0.3, 0.12, 0.02], [-0.24, -0.04, -0.02], [-0.1, -0.18, -0.06], [0.03, -0.3, -0.07], [0.12, -0.14, -0.06], [0.28, 0, -0.02], [0.3, 0.12, 0.02]];
   for (let i = 0; i < fringe.length; i++) { const [x, y0, w] = fringe[i], y = hime ? 0.34 : y0, root = [(x * 0.52 + h.part) * vx, 0.94 * vy, -0.40 * depth], control = [(x * 0.94 + h.part * 0.5) * vx, 0.62 * vy, -0.86 * depth], tip = [(x + h.sweep * 0.22 + (short ? Math.sign(x) * 0.045 : 0)) * vx, 0.62 - (0.62 - y) * h.fringe + (short ? 0.08 : 0), -0.71 * depth];
     if (SB && !(SB.keep || []).includes('fringe-' + (i + 1))) {
       const A = SB.amount, sp = SB.spread ?? 1.05, dy = (y - 0.25) * (SB.stagger ?? 1.2), nrm = A >= 0.5 ? [0, 1, 0] : [0, 0, -1];
       const sRoot = mix3(root, [(x * 0.60 + h.part) * vx, SB.rootY ?? 0.86, SB.rootZ ?? -0.40], A), sControl = mix3(control, [(x * (SB.controlX ?? 0.80) + h.part * 0.5) * vx, (SB.rise ?? 1.80) - (SB.riseFall ?? 0) * x * x, SB.controlZ ?? 0.02], A), sTip = mix3(tip, [(x * sp + h.sweep * 0.22) * vx, (SB.tipY ?? 1.02) - dy * 0.5, (SB.tipZ ?? 0.88) + dy], A);
       if (hime) lock('fringe-' + (i + 1), sRoot, sControl, sTip, w, nrm, 0.15); else lock('fringe-' + (i + 1), sRoot, sControl, sTip, w, nrm);
-    } else if (hime) lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1], 0.15); else lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1]); }
+    } else if (SP) { const A = SP.amount, b = BANGS[i], up = b[1] > 0.5, t2 = add(tip, mul(b, A)); lock('fringe-' + (i + 1), root, up ? mix3(control, [t2[0] * 0.7, 0.95, -0.7 * depth], A) : control, t2, w * (1 + (up ? 0.6 : 0.35) * A), [0, 0, -1], h.taper, 1 + 0.7 * A); }
+    else if (hime) lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1], 0.15); else lock('fringe-' + (i + 1), root, control, tip, w, [0, 0, -1]); }
+  // flip { amount, out, rise, hold }: the side and back clumps hang straight longer (the control drawn `hold` of the way
+  // down to the tip's height) and their tips kick OUT from the head's axis by `out` and up by `rise` (the flipped-out ends)
+  const FP = HF?.flip ?? null;
+  const flipped = (control, tip) => { if (!FP) return [control, tip]; const A = FP.amount, d = unit([tip[0], 0, tip[2] - 0.07]); return [[control[0], mix(control[1], tip[1], (FP.hold ?? 0.7) * A), control[2]], add(tip, add(mul(d, (FP.out ?? 0.34) * A), [0, (FP.rise ?? 0.2) * A, 0]))]; };
+  // sideTail { amount, side, length, width, height }: the back clumps and the tail side's two rear temple clumps GATHERED to
+  // a tie low behind one ear (`side` the hero's left or right, `height` its rise), and one round TAIL hanging from the tie
+  // forward over the shoulder; the far side's temple clumps still frame the face
+  const ST = HF?.sideTail ?? null, tailS = ST ? (ST.side === 'right' ? 1 : -1) : 0;
+  const tie = ST ? [tailS * 0.66 * vx, -0.42 + (ST.height ?? 0), 0.42 * depth] : null;
+  const gathered = (control, tip, k) => { if (!ST) return [control, tip]; const A = ST.amount, at = add(tie, [0, 0.05 * Math.sin(k * 1.7), -0.05 * Math.cos(k * 1.3)]); return [mix3(control, mul(add(control, at), 0.5), 0.55 * A), mix3(tip, at, A)]; };
   // sweepSides { amount, from, controlY, tipX, tipY, tipZ }: the temple clumps from index `from` swept back over the ear
   // (the swept-back cut's sides); the ones before it still fall as temple locks
   for (const side of [-1, 1]) for (let j = 0; j < 3; j++) { const z = -0.34 + j * 0.22, x = (0.80 + j * 0.025) * vx, baseY = short ? -0.25 - j * 0.07 : h.style === 'long' ? -1.30 - j * 0.09 : hime ? (j === 0 ? -0.66 : -1.30 - j * 0.09) : -0.80 - j * 0.08; const args = [(side < 0 ? 'left' : 'right') + '-temple-' + j, [side * 0.66 * vx, 0.76 * vy, z], [side * 0.94 * vx, 0.10, z - 0.07], [side * (x + 0.04 * j + h.sweep * 0.15), 0.3 + (baseY - 0.3) * h.length, z + 0.08], 0.14, [side, 0, 0]];
     if (SS && j >= (SS.from ?? 1)) { const A = SS.amount; args[2] = mix3(args[2], [side * 0.98 * vx, SS.controlY ?? 0.62, z + 0.25], A); args[3] = mix3(args[3], [side * (SS.tipX ?? 0.80) * vx, (SS.tipY ?? 0.45) - 0.06 * j, (SS.tipZ ?? 0.80) + 0.08 * j], A); }
+    if (ST && side === tailS && j >= 1) [args[2], args[3]] = gathered(args[2], args[3], j); else if (FP) [args[2], args[3]] = flipped(args[2], args[3]); else if (SP) { const A = SP.amount; args[3] = mix3(args[3], add(args[3], [side * 0.12, 0.12, 0.04]), A); args[4] *= 1 + 0.6 * A; args.push(0.12, 1 + 0.9 * A); }   // the sides a rounded mass over the ear
     if (hime && j === 0) lock(...args, 0.15); else lock(...args); }
-  for (let i = 0; i < 11; i++) { const a = Math.PI * 0.58 + i / 10 * Math.PI * 0.84, root = capPoint(a, 0.30), c = capPoint(a, 0.85), rear = [dmath.sin(a) * 0.86 * vx, 0.12, 0.07 - dmath.cos(a) * 0.81 * depth], len = short ? 0.38 : h.style === 'long' || hime ? 1.55 : 1.03, tip = [rear[0] * (short ? 1.12 : 0.93) + h.sweep * 0.18 * dmath.sin(a), rear[1] - len * h.length + (i % 3) * 0.055, rear[2] + (short ? 0.07 : 0.025)]; lock('back-' + (i + 1), root, [c[0] * 1.08, 0.35, c[2] * 1.1], tip, 0.18, [dmath.sin(a), 0, -dmath.cos(a)]); }
+  for (let i = 0; i < 11; i++) { let a = Math.PI * 0.58 + i / 10 * Math.PI * 0.84, root = capPoint(a, 0.30), c = capPoint(a, 0.85), rear = [dmath.sin(a) * 0.86 * vx, 0.12, 0.07 - dmath.cos(a) * 0.81 * depth], len = short ? 0.38 : h.style === 'long' || hime ? 1.55 : 1.03, tip = [rear[0] * (short ? 1.12 : 0.93) + h.sweep * 0.18 * dmath.sin(a), rear[1] - len * h.length + (i % 3) * 0.055, rear[2] + (short ? 0.07 : 0.025)]; let control = [c[0] * 1.08, 0.35, c[2] * 1.1]; let width = 0.18; if (ST) [control, tip] = gathered(control, tip, i + 3); else if (FP) [control, tip] = flipped(control, tip); else if (SP) { const A = SP.amount, mid = 1 - Math.abs(i - 5) / 5, out = [dmath.sin(a), 0, -dmath.cos(a)]; tip = mix3(tip, [rear[0] * (0.25 + 0.7 * (1 - mid)), rear[1] - len * h.length - 0.06 - 0.6 * dmath.pow(mid, 1.3), rear[2] - 0.06], A); control = mix3(control, add(add(control, mul(out, 0.3)), [0, -0.3, 0]), A); width *= 1 + 0.7 * A; }   // the back FALLS in one convex curve, its hem drawn to a single point at the nape
+    if (SP) lock('back-' + (i + 1), root, control, tip, width, [dmath.sin(a), 0, -dmath.cos(a)], 0.12 + 0.8 * (1 - Math.abs(i - 5) / 5), 1 + 0.9 * SP.amount); else lock('back-' + (i + 1), root, control, tip, width, [dmath.sin(a), 0, -dmath.cos(a)]); }
+  // the side tail: one round clump from the tie, forward over the shoulder and down (`length` and `width` ratios)
+  if (ST) { const A = ST.amount, L = (ST.length ?? 1) * h.length, W = (ST.width ?? 1) * 0.32;
+    lock('tail', add(tie, [-tailS * 0.06, 0.10, -0.04]), add(tie, [tailS * 0.30, -0.55 * L, -0.30 * A]), add(tie, [tailS * 0.16, -1.45 * L, -0.62 * A]), W, [0, 0, -1], h.taper, 5); }
   // crown 'tuck': the short family's six crown accents laid into the flow (the control down, the tip onto the mass);
   // 'none': not grown
   if (short && HF?.crown === 'tuck') for (const side of [-1, 1]) for (let i = 0; i < 3; i++) lock('crown-' + side + '-' + i, [side * 0.13, 0.97, -0.04 + i * 0.13], [side * (0.45 + i * 0.08), 1.27 - 0.17, -0.01 + i * 0.12], [side * (0.74 + i * 0.07) * 0.92, 0.96 + i * 0.07 - 0.1, 0.02 + i * 0.14], 0.12, [0, 1, 0]);
-  else if (short && HF?.crown !== 'none') for (const side of [-1, 1]) for (let i = 0; i < 3; i++) lock('crown-' + side + '-' + i, [side * 0.13, 0.97, -0.04 + i * 0.13], [side * (0.45 + i * 0.08), 1.27, -0.01 + i * 0.12], [side * (0.74 + i * 0.07), 0.96 + i * 0.07, 0.02 + i * 0.14], 0.12, [0, 1, 0]);
+  else if (short && HF?.crown !== 'none') for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const root0 = [side * 0.13, 0.97, -0.04 + i * 0.13], control0 = [side * (0.45 + i * 0.08), 1.27, -0.01 + i * 0.12], tip0 = [side * (0.74 + i * 0.07), 0.96 + i * 0.07, 0.02 + i * 0.14];
+    if (!SP) { lock('crown-' + side + '-' + i, root0, control0, tip0, 0.12, [0, 1, 0]); continue; }
+    // the spike from the table: its angle off the vertical in the face's plane, its reach, its width, its lean (+ back, − forward)
+    const A = SP.amount, [deg, reach, wide, lean, base, sink] = SPIKE_FAN[side > 0 ? 1 : 0][i], fan = deg * Math.PI / 180, d = unit([side * dmath.sin(fan), dmath.cos(fan), lean]);
+    const root = add(add(SPO, mul(d, 0.56 * vy)), [0, -sink * A, 0]), tip = mix3(tip0, add(root, mul(d, 0.25 + (SP.reach ?? 0.85) * reach * A)), A), control = mix3(control0, add(mix3(root, tip, 0.45), [0, 0.1, 0]), A);
+    const B = 1 + (base - 1) * A, W = 0.12 * (1 + ((SP.width ?? 2.2) * wide - 1) * A) * B; lock('crown-' + side + '-' + i, root, control, tip, W, [0, 0, -1], h.taper * (1 + 1.4 * (B - 1)), mix(1, W * h.clump / (0.040 * h.thickness), A), true);   // round: as deep as it is wide
+  }
   // mojulo: an ahoge — one upright curl at the crown, rising forward and curling back (an amount; the studio has none)
   if (h.ahoge > 0) { const A = h.ahoge; lock('ahoge', [0.02, 1.15, -0.10], [0.03, 1.15 + 0.55 * A, -0.36 - 0.1 * A], [0.07, 1.15 + 0.30 * A, 0.04], 0.075, [1, 0, 0]); }
+  // mojulo: the SHAPES — a hairstyle composed from ONE family of primitives (a design picks its family), each piece placed
+  // on the cap by `at: [azimuth°, elevation°]` (azimuth 0 the front, 90 the hero's right, 180 the back; elevation 0 the
+  // hairline, 90 the crown) and aimed by `dir` (construction units: x the hero's right, y up, z back). Every piece is ONE
+  // closed tube along a C-curve (`bend`, never an S) with its family's width profile:
+  //   CARROT  a CUT CONICAL CARROT: round, its square-cut base sunk into the mass, never pinched or draped; `curve` draws
+  //           its sides in (0 a cone, toward 1 a thorn). Short and wide it is mass; long it is a spike.
+  //   BANANA  a flat crescent widest a third of the way out, laid along the mass (`flat` its depth to width).
+  //   PEPPER  a CHILI: thin and long, a small shoulder at the stem, a slender taper to its point; one is a strand group,
+  //           the weight comes from how many are layered and how thin and long they are.
+  // `layers` lays rows of one family over an azimuth and elevation range (deterministic length variation, never dice);
+  // `scale` grows the whole style against the head; `sideburns` (a hair word of its own, any style) are two pieces in the
+  // style's family (a banana on a studio style).
+  const BURNS = HF?.sideburns ?? null;
+  if (SH || BURNS) {
+    const C = [0, 0.25, 0.07], S = 12, N = 16, G = SH?.scale ?? 1;
+    const anchorOf = (at) => capPoint(at[0] * Math.PI / 180, clamp(1 - at[1] / 90, 0, 1));
+    // BODY: hair never cuts through the body. With `options.body` (anime-head: the hero's own neck and torso rings in the
+    // head's frame, metres about the atlas before the head's scale, and the pole's registration) a point is carried into
+    // that frame the way anime-head registers the head (the pitch, then the registration's scale and offsets) and, inside
+    // a ring short of the clearance, pushed straight out across it (a superellipse, as the body's rings are); without it,
+    // the studio's own neck sections stand in for the body. `pad` is the piece's half-thickness there
+    const headPitch = (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, nPivot = [0, fy(-0.38), 0.14];
+    const turn = (p, a) => { const c = dmath.cos(a), sn = dmath.sin(a), y = p[1] - nPivot[1], z = p[2] - nPivot[2]; return [p[0], nPivot[1] + c * y - sn * z, nPivot[2] + sn * y + c * z]; };
+    const neckAt = (y) => { const ys = neckSections.map((q) => fy(q[0])), k = y <= ys[0] ? 0 : y >= ys.at(-1) ? ys.length - 2 : ys.findIndex((v, i) => v <= y && y <= ys[i + 1]), t = clamp((y - ys[k]) / (ys[k + 1] - ys[k] || 1)), a = neckSections[k], b = neckSections[k + 1];
+      const rx = mix(a[1], b[1], t) * f.width, front = mix(a[2], b[2], t), rear = mix(a[3], b[3], t), tt = clamp((y - fy(-1.25)) / (fy(-0.38) - fy(-1.25))), lag = headPitch * (1 - tt * tt * (3 - 2 * tt));
+      return { rx, rz: (rear - front) / 2, cz: (front + rear) / 2 - lag * (y - nPivot[1]) }; };
+    let BODY = (p, pad) => { if (p[1] > fy(-0.30)) return p; const e = neckAt(p[1]), m = 0.03 + pad, u = p[0] / (e.rx + m), v = (p[2] - e.cz) / (e.rz + m), r = dmath.hypot(u, v); if (r >= 1) return p; const k = r < 1e-6 ? [0, 1] : [u / r, v / r]; return [k[0] * (e.rx + m), p[1], e.cz + k[1] * (e.rz + m)]; };
+    if (options.body) {
+      // the registration anime-head will apply: the pitched face's extent → the pole's height, menton and depth centre
+      let yLo = Infinity, yHi = -Infinity, zLo = Infinity, zHi = -Infinity;
+      for (let i = 0; i < earsStart; i += 3) { const q = turn(parts.skin.slice(i, i + 3), headPitch); yLo = Math.min(yLo, q[1]); yHi = Math.max(yHi, q[1]); zLo = Math.min(zLo, q[2]); zHi = Math.max(zHi, q[2]); }
+      const { registration: RG, rings } = options.body, Sc = RG.height / (yHi - yLo), TZ = RG.menton - Sc * yLo, TY = RG.midY - Sc * (-zLo + -zHi) / 2;
+      const toM = (p) => { const q = turn(p, headPitch); return [q[0] * Sc, -q[2] * Sc + TY, q[1] * Sc + TZ]; }, fromM = (m) => turn([m[0] / Sc, (m[2] - TZ) / Sc, -(m[1] - TY) / Sc], -headPitch);
+      // each body part a stack of rings bottom → top: { z, cy, rx, ry, e } (its `clear` the clearance, metres), read between
+      // its rings at a height
+      const ringAt = (stack, z) => { if (z < stack[0].z || z > stack.at(-1).z) return null; const k = Math.max(0, stack.findIndex((q, i) => i < stack.length - 1 && q.z <= z && z <= stack[i + 1].z)), a = stack[k], b = stack[k + 1] ?? a, t = clamp((z - a.z) / (b.z - a.z || 1));
+        return { cy: mix(a.cy, b.cy, t), rx: mix(a.rx, b.rx, t), ry: mix(a.ry, b.ry, t), e: mix(a.e ?? 2, b.e ?? 2, t) }; };
+      BODY = (p, pad) => { let q = toM(p), moved = false;
+        for (const stack of rings) { const m = (stack.clear ?? 0.004) + pad * Sc; const R = ringAt(stack, q[2]); if (!R) continue; const u = q[0] / (R.rx + m), v = (q[1] - R.cy) / (R.ry + m), r = (Math.abs(u) ** R.e + Math.abs(v) ** R.e) ** (1 / R.e);
+          if (r >= 1) continue; const k = r < 1e-6 ? [0, -1] : [u / r, v / r]; q = [k[0] * (R.rx + m), R.cy + k[1] * (R.ry + m), q[2]]; moved = true; }
+        return moved ? fromM(q) : p; };
+    }
+    // `path` (a CAP lock: its centre line walked over the dome) replaces the C-curve: resampled evenly along its length,
+    // its flat side facing out from the head at each ring
+    const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null, thick = null, cup = 0) => {
+      const start = parts.hair.length, rings = [];
+      let along = null;
+      if (path) { const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(path[i], path[i - 1])));
+        along = Array.from({ length: N + 1 }, (_, j) => { const want = cum.at(-1) * j / N; let i = 1; while (i < path.length - 1 && cum[i] < want) i++; const t = clamp((want - cum[i - 1]) / (cum[i] - cum[i - 1] || 1)); return mix3(path[i - 1], path[i], t); });
+        root = along[0]; tip = along[N]; control = along[N >> 1]; }
+      const normalAt = (c) => (path ? unit(sub(c, C)) : normal);
+      // a stable frame along the curve: the across direction from the piece's normal, falling back when the tangent runs
+      // along it, and never flipping between rings (a flip twists the tube into a kink)
+      let prev = null;
+      const frame = (tangent, nrm) => { let across = cross(tangent, nrm); if (dmath.hypot(...across) < 0.25) across = cross(tangent, Math.abs(tangent[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); across = unit(across); if (prev && dot(across, prev) < 0) across = mul(across, -1); prev = across; return [across, unit(cross(across, tangent))]; };
+      const ring = (center, tangent, w, t = 0) => { const nrm = normalAt(center), [across, thickDir] = frame(tangent, nrm), th = w * depthRatio * (thick ? thick(t) : 1), inward = dot(thickDir, nrm) >= 0 ? -1 : 1; return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th + inward * cup * w * dmath.cos(a) ** 2))); }); };   // `cup`: the edges curled in toward the scalp (a peel), whichever way the frame's thickness runs
+      // the curve's centres, each kept OUT of the body (BODY: never through the neck or over into the shoulders), the
+      // tangents then read off the kept centres
+      // a lock that meets the body DRAPES over it: the push it takes there carries on down the rest of its length (it
+      // never springs back inside, which would kink it); the clearance is its THICKNESS (a flat lock lies face-down on
+      // the body)
+      let drape = [0, 0, 0];
+      const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(along ? along[j] : add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * depthRatio * (thick ? thick(t) : 1)); drape = add(drape, sub(k, c)); return k; });
+      tip = centers[N];
+      const tangentAt = (j) => { const d = sub(centers[Math.min(N, j + 1)], centers[Math.max(0, j - 1)]); return dmath.hypot(...d) < 1e-9 ? unit(sub(control, root)) : unit(d); };
+      rings.push(ring(root, path ? unit(sub(centers[1], root)) : unit(sub(control, root)), width * profile(0), 0));   // the cut base at t 0
+      for (let j = 1; j < N; j++) rings.push(ring(centers[j], tangentAt(j), Math.max(0.004, width * profile(j / N)), j / N));
+      for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
+      const base = mul(rings[0].reduce((acc, q) => add(acc, q), [0, 0, 0]), 1 / S);
+      for (let i = 0; i < S; i++) { tri('hair', base, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
+      guides.push(...root, ...control, ...control, ...tip); locks.push({ name, root, control, tip, width, start, count: parts.hair.length - start });
+    };
+    // a C-curve: the control off the chord's middle toward `toward`, by `bend` of the length
+    const bent = (root, tip, bend, toward) => { const mid = mul(add(root, tip), 0.5), chord = sub(tip, root), L = dmath.hypot(...chord), k = unit(chord), off = sub(toward, mul(k, dot(toward, k))); return add(mid, mul(dmath.hypot(...off) > 1e-9 ? unit(off) : [0, 0, 0], bend * L)); };
+    const counts = { carrot: 0, banana: 0, pepper: 0, peel: 0 };
+    // SPROUT: a piece leaves its root ALONG the head, flowing away from the whorl, and only then arcs out to its tip — the
+    // control drawn toward a point half the length down the surface flow (by `sprout`, 0 … 1), so a lock grows out of the
+    // mass like a sprout instead of being pushed straight out of the skull (which reads as a spike through the face)
+    const WHORL = anchorOf(SH?.whorl ?? [180, 80]);
+    // the whorl's frame, and the cap's [azimuth°, elevation°] address of a direction from the head's centre (the elevation
+    // found along the cap by bisection, since the cap is addressed by its own fraction from the crown)
+    const Wn = unit(sub(WHORL, C)), Wu = unit(cross(Wn, Math.abs(Wn[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), Wv = unit(cross(Wn, Wu));
+    const onCap = (d) => { const az = dmath.atan2(d[0], -d[2]) * 180 / Math.PI, up = dmath.atan2(d[1], dmath.hypot(d[0], d[2])); let lo = 0, hi = 90;
+      for (let it = 0; it < 24; it++) { const mid = (lo + hi) / 2, q = sub(anchorOf([az, mid]), C); if (dmath.atan2(q[1], dmath.hypot(q[0], q[2])) < up) lo = mid; else hi = mid; } return [az, (lo + hi) / 2]; };
+    const flowAt = (P, n) => { let f = sub(P, WHORL); f = sub(f, mul(n, dot(f, n))); return dmath.hypot(...f) < 1e-6 ? [0, 0, -1] : unit(f); };
+    const sprouted = (X, anchor, n, L, control) => { const k = X.sprout ?? 0; return k > 0 ? mix3(control, add(add(anchor, mul(flowAt(anchor, n), 0.5 * L)), mul(n, 0.05 * L)), k) : control; };
+    // CAP: a lock that treats the dome as a cap — walked from its root ALONG the scalp (flowing from the whorl, gravity
+    // bending it down a little more each step), lying at a height over the scalp set by where it grew (a lock from higher
+    // up lies OVER the ones below it, a shingle), until it passes the hairline or the head's widest (below it the skull turns
+    // in toward the nape, and a lock that kept to it would bunch there); only then it falls free for `length`,
+    // bowing out by `bend` and turning its end back in under itself when `bend` passes `lift` (`fringe` its length when it
+    // leaves over the face). So `length` is how far the
+    // lock falls PAST THE HAIRLINE, and a lock from the crown comes out longer than one from the side by the dome it
+    // crosses: the way long hair grows
+    // GATHER (`gather: [az°, el°]`, a ponytail's or a twin tail's TIE): the lock walks the scalp TOWARD the tie instead of
+    // away from the whorl, lying sleek all the way, and ends there — no free fall (the tail is its own pieces, rooted at
+    // the tie); it swells as it arrives, the hair bunched into the tie
+    const capPath = (P, flow, el0, L, Ly, vary = 1) => {
+      const step = 0.03, g = 0.06 * (Ly.droop ?? 0.6), off = (0.008 + 0.018 * el0 / 90) * G, path = [], GP = Ly.gather ? anchorOf(Ly.gather) : null;
+      let p = P, d = flow, last = P, ln = unit(sub(P, C));
+      if (GP) { for (let it = 0; it < 240; it++) { const [az, el] = onCap(unit(sub(p, C))), sp = anchorOf([az, el]), ns = unit(sub(sp, C)); path.push(add(sp, mul(ns, off)));
+          let to = sub(GP, sp); if (dmath.hypot(...to) < 2 * step) break; to = sub(to, mul(ns, dot(to, ns))); if (dmath.hypot(...to) < 1e-6) break; p = add(sp, mul(unit(to), step)); }
+        path.push(add(GP, mul(unit(sub(GP, C)), off))); path.depart = 1; return path; }
+      for (let it = 0; it < 240; it++) { const [az, el] = onCap(unit(sub(p, C))); const sp = anchorOf([az, el]), ns = unit(sub(sp, C)); last = sp; ln = ns; path.push(add(sp, mul(ns, off)));
+        if ((el <= 0.5 || ns[1] < -0.05) && it > 0) break; d = add(d, [0, -g, 0]); d = sub(d, mul(ns, dot(d, ns))); if (dmath.hypot(...d) < 1e-6) d = [0, -1, 0]; d = unit(d); p = add(sp, mul(d, step)); }
+      // a lock leaving the dome over the FACE (the front hairline, within 60° of the front) falls only the layer's
+      // `fringe` past it: the fringe is cut shorter than the hair it grows with
+      const s0 = path.at(-1), out = unit([ln[0], 0, ln[2]]), lift = Ly.lift ?? 0.1, bend = Ly.bend ?? 0.3, exitAz = onCap(unit(sub(last, C)))[0];
+      const overFace = Math.abs(exitAz) < 60 && dmath.hypot(ln[0], ln[2]) > 0 && ln[2] < 0;
+      if (Ly.fringe != null && overFace) L = Ly.fringe * vary * G;
+      // FLICK (a PETAL's end, −1 … 1): the last of the fall hooks OUT away from the head (> 0) or curls UNDER toward it
+      // (< 0), rising a little as it turns — the one place a lock may leave its C; the main fall is shortened by the hook's
+      // share so the hem stays where `length` put it
+      const fk = Ly.flick ?? 0, Lf = 0.32 * Math.abs(fk) * L, Lm = L - 0.15 * Lf;
+      const tip = add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), Lm)), control = add(add(s0, mul(d, 0.5 * Lm)), mul(out, bend * Lm));
+      const all0 = (pts) => { let s = 0; for (let i = 1; i < pts.length; i++) s += dmath.hypot(...sub(pts[i], pts[i - 1])); return s; };
+      let dome = all0(path);
+      for (let j = 1; j <= 10; j++) { const t = j / 10; path.push(add(add(mul(s0, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t))); }
+      if (fk) { const along = unit(sub(tip, control)), c2 = add(tip, mul(along, 0.35 * Lf)), end = add(add(tip, mul(out, Math.sign(fk) * 1.3 * Lf)), [0, 0.3 * Lf, 0]);
+        for (let j = 1; j <= 6; j++) { const t = j / 6; path.push(add(add(mul(tip, (1 - t) ** 2), mul(c2, 2 * (1 - t) * t)), mul(end, t * t))); } }
+      // HEM (a BLUNT CUT: a level line, `hem` construction units below the front hairline): the fall ends where it crosses
+      // that height, so every lock of the layer stops on the same horizontal line (the bowl's flat bangs, a bob's level
+      // ends); a fall too short to reach it is carried straight down to it
+      // (a lock rooted below the line keeps its fall; one that crosses it on the dome is cut there); `fringeHem` is the
+      // line for the locks leaving over the face, as `fringe` is their length: the bangs cut at the brow, the rest at the jaw
+      const hem = overFace && Ly.fringeHem != null ? Ly.fringeHem : Ly.hem;
+      if (hem != null) { const hy = anchorOf([0, 0])[1] - hem;
+        if (path[0][1] > hy) { let k = 1; while (k < path.length && path[k][1] > hy) k++;
+          if (k < path.length) { const a = path[k - 1], b = path[k], t = (a[1] - hy) / (a[1] - b[1] || 1); path.length = k; path.push(mix3(a, b, t)); dome = Math.min(dome, all0(path)); }
+          else { const e = path.at(-1); for (let j = 1; j <= 4; j++) path.push([e[0], e[1] + (hy - e[1]) * j / 4, e[2]]); } } }
+      let all = 0; for (let i = 1; i < path.length; i++) all += dmath.hypot(...sub(path[i], path[i - 1]));
+      path.depart = all > 0 ? dome / all : 0;
+      return path; };
+    // a cap lock's VOLUME sits where it leaves the head (its widest, the most voluminous hair): on the dome it lies thin
+    // and flat, sleek to the scalp; at the departure it swells to its full width and thickness, then tapers to its end
+    const capWidth = (dp) => (t) => { const bump = Math.exp(-(((t - dp) / 0.2) ** 2)); return (t <= dp ? 0.65 + 0.5 * bump : bump * 0.55 + 0.6 * dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.85)) * (t <= dp ? 1 : dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.35)); };
+    const capThick = (dp) => (t) => 0.3 + 1.6 * Math.exp(-(((t - dp) / 0.18) ** 2));
+    // a PEEL (a layered banana peel): a LEAF — a narrow stem at its root, widest where it leaves the head (or 40 % out
+    // when it is not a cap lock), a pointed tip — thin as a peel, its edges cupped in toward the scalp (`cup`), so a few
+    // layered peels read as shells lying one over another
+    const peelWidth = (dp) => (t) => (t <= dp ? 0.3 + 0.7 * dmath.pow(dmath.sin(Math.PI / 2 * t / (dp || 1)), 0.8) : dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.9));
+    // BLUNT (0 … 1): past where it leaves the head a lock keeps its full width to the cut end instead of tapering to a point
+    const bluntly = (X, prof, dp) => (X.blunt ? (t) => (t <= dp ? prof(t) : prof(t) + X.blunt * (Math.max(prof(dp), 0.9) - prof(t))) : prof);
+    const BUILD = {
+      peel: (Q) => { const anchor = anchorOf(Q.at), n = unit(sub(anchor, C)), d = unit(Q.dir ?? add(n, [0, -1, 0])), L = (Q.length ?? 0.6) * G, root = sub(anchor, mul(n, 0.04)), tip = add(anchor, mul(d, L)), dp = Q.path ? Q.path.depart : 0.4;
+        piece('peel-' + counts.peel++, root, sprouted(Q, anchor, n, L, bent(root, tip, Q.bend ?? 0.15, n)), tip, (Q.width ?? 0.3) * G, Q.flat ?? 0.16, n, bluntly(Q, peelWidth(dp), dp), Q.path, Q.path ? (t) => 0.6 + 0.6 * Math.exp(-(((t - dp) / 0.2) ** 2)) : null, Q.cup ?? 0.35); },
+      carrot: (K) => { const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? n), L = (K.length ?? 1) * G, base = (K.base ?? 0.2) * G, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
+        piece('carrot-' + counts.carrot++, root, sprouted(K, anchor, n, L, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1])), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK)); },
+      banana: (B) => { const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir ?? add(n, [0, -1, 0])), L = (B.length ?? 0.5) * G, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
+        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, B.path ? bluntly(B, capWidth(B.path.depart), B.path.depart) : (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))), B.path, B.path ? capThick(B.path.depart) : null); },
+      pepper: (P) => { const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? add(n, [0, -1, 0])), L = (P.length ?? 0.8) * G, w = (P.width ?? 0.07) * G, root = sub(anchor, mul(n, 2.2 * w)), tip = add(anchor, mul(d, L));
+        piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], P.path ? capWidth(P.path.depart) : (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8), P.path, P.path ? capThick(P.path.depart) : null); },
+    };
+    const SIZE = { carrot: 'base', banana: 'width', pepper: 'width', peel: 'width' };
+    // the layers: `rows` rows from el[0] to el[1], `count` pieces over the azimuth range (each row offset half a step),
+    // lengths varied by `vary` on a sine of the index; each FLOWS from the whorl (`whorl: [az°, el°]`, the crown set back by
+    // default) along the head's surface — lifted off it by `lift`, drooped by `droop` — so a layer lies like hair, it
+    // never stands out like a sea urchin. `cover` (on by default for bananas and peppers: the locks TILE) widens each piece at its root to overlap its
+    // row neighbours by that much, so a layer TILES the head and never leaves a bald gap; the pieces part only toward
+    // their points
+    for (const Ly of SH?.layers ?? []) {
+      const rows = Ly.rows ?? 2, per = Math.max(1, Math.round((Ly.count ?? 12) / rows)), [a0, a1] = Ly.az ?? [0, 360], [e0, e1] = Ly.el ?? [0, 60], full = Math.abs(a1 - a0) >= 360;
+      // `around: [from°, to°]` places the rows in rings about the WHORL itself (angular distance from it) instead of by
+      // elevation: a ROSETTE, its pieces fanning out from the whorl flat over the crown so the whorl is never bald
+      const ring = Ly.around ? (az, el) => onCap(add(mul(Wn, dmath.cos(el * Math.PI / 180)), mul(add(mul(Wu, dmath.cos(az * Math.PI / 180)), mul(Wv, dmath.sin(az * Math.PI / 180))), dmath.sin(el * Math.PI / 180)))) : null;
+      const [r0, r1] = Ly.around ?? [e0, e1], place = (az, el) => (ring ? ring(az, el) : [az, el]);
+      for (let r = 0; r < rows; r++) for (let i = 0; i < per; i++) {
+        const u = (i + (r % 2 ? 0.5 : 0) + (full ? 0 : 0.5)) / (full ? per : per + 0.5), az = a0 + (a1 - a0) * Math.min(1, u), el = rows === 1 ? r0 : r0 + (r1 - r0) * r / (rows - 1), k = r * per + i;
+        const at = place(az, el), P = anchorOf(at), n = unit(sub(P, C)), vary = 1 + (Ly.vary ?? 0.25) * dmath.sin(k * 2.39996 + r * 1.3);
+        const spacing = dmath.hypot(...sub(anchorOf(place(az + (a1 - a0) / (full ? per : per + 0.5), el)), P)), cover = Ly.cover ?? (Ly.shape === 'carrot' ? 0 : 1);
+        const width0 = (Ly.width ?? (Ly.shape === 'carrot' ? 0.24 : Ly.shape === 'banana' ? 0.14 : Ly.shape === 'peel' ? 0.3 : 0.06)) * (0.85 + 0.15 * vary), width = Math.max(width0, (cover * 0.62 * spacing) / G);
+        let flow = sub(P, WHORL); flow = sub(flow, mul(n, dot(flow, n))); if (dmath.hypot(...flow) < 1e-6) flow = [0, 0, -1];
+        // `swirl` (degrees) turns the flow about the scalp's normal, clockwise seen from outside the head: the whole layer
+        // turns ONE way (a fringe swept off its part, a crown that spirals) — never a twin pair
+        flow = unit(flow); if (Ly.swirl) { const sw = Ly.swirl * Math.PI / 180; flow = sub(mul(flow, dmath.cos(sw)), mul(cross(n, flow), dmath.sin(sw))); }
+        const dir = add(add(flow, mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
+        const capped = Ly.cap && Ly.shape !== 'carrot' ? capPath(P, flow, at[1], (Ly.length ?? 0.6) * vary * G, Ly, vary) : null;
+        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, cup: Ly.cup, blunt: Ly.blunt, sprout: Ly.sprout ?? 0.8, ...(capped ? { path: capped } : {}) });
+      }
+    }
+    for (const K of SH?.carrots ?? []) BUILD.carrot(K);
+    for (const B of SH?.bananas ?? []) BUILD.banana(B);
+    for (const P of SH?.peppers ?? []) BUILD.pepper(P);
+    for (const Q of SH?.peels ?? []) BUILD.peel(Q);
+    // the sideburns: two pieces before the ears, in the style's own family; `length`, `width`, `forward` (the tip toward the
+    // cheek), `at` (the elevation, below the hairline by default), `az` (degrees in front of the ear's azimuth)
+    if (BURNS) {
+      const family = BURNS.shape ?? (SH ? (SH.carrots?.length ? 'carrot' : SH.bananas?.length ? 'banana' : SH.peppers?.length ? 'pepper' : SH.peels?.length ? 'peel' : SH.layers?.[0]?.shape) : null) ?? 'banana';
+      const A = BURNS.amount ?? 1, L = (BURNS.length ?? 0.4) * A;
+      if (L > 0) for (const side of [1, -1]) BUILD[family]({ at: [side > 0 ? 90 - (BURNS.az ?? 10) : 270 + (BURNS.az ?? 10), BURNS.at ?? -10], dir: [side * 0.12, -1, 0.1 - (BURNS.forward ?? 0)], length: L / G, [SIZE[family]]: (BURNS.width ?? (family === 'pepper' ? 0.07 : 0.14)) / G, cup: 0.2, bend: 0.08, curve: 0.2, sink: 0.3, flat: 0.5 });
+    }
+  }
   // mojulo: the consolidated sections, skinned across their members' curves
   if (FORMS) for (const g of FORMS.groups) {
     const members = g.members.map((n) => FORMS.curves[n]).filter(Boolean); if (members.length < 2) continue;
@@ -426,7 +690,7 @@ export function buildAnime(r, options = {}) {
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
   for (const lk of locks) for (const key of ['root', 'control', 'tip']) lk[key] = pitched(lk[key]);
-  return { headPolygons, parts, cage, guides, locks, recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
+  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
 }
 
 /** The SCULPT's neutral values (buildAnime's own units): a word equal to its neutral is dropped before the build, so an
@@ -559,6 +823,7 @@ function formGroupsOf(style, h, HF = null) {
   const fringeSections = HF?.fringeGroups ? HF.fringeGroups.map((m, i) => ({ name: `formFringe${'ABCDEFG'[i]}`, members: m.map(F), notch: fringeNotch }))
     : [{ name: 'formFringeL', members: [1, 2, 3].map(F), notch: fringeNotch }, { name: 'formFringeC', members: [3, 4, 5].map(F), notch: fringeNotch }, { name: 'formFringeR', members: [5, 6, 7].map(F), notch: fringeNotch }];
   const backNotch = HF?.backNotch !== undefined ? HF.backNotch : notch;
+  if (HF?.fringeNotch !== undefined) for (const g of fringeSections) g.notch = HF.fringeNotch;
   const groups = [
     ...fringeSections,
     { name: 'formBackR', members: [1, 2, 3, 4].map(B), notch: backNotch }, { name: 'formBackC', members: [4, 5, 6, 7, 8].map(B), notch: backNotch }, { name: 'formBackL', members: [8, 9, 10, 11].map(B), notch: backNotch },
@@ -584,7 +849,7 @@ export function hairFormOf(hairForm) {
     let v = v0;
     if (v === undefined || v === null || v === false) continue;
     if (k in HAIR_FORM_NEUTRAL && v === HAIR_FORM_NEUTRAL[k]) continue;
-    if (k === 'sweepBack' || k === 'sweepSides') { v = typeof v === 'number' ? { amount: v } : v; if (!v.amount) continue; }
+    if (k === 'sweepBack' || k === 'sweepSides' || k === 'flip' || k === 'sideTail' || k === 'spikes' || k === 'sideburns') { v = typeof v === 'number' ? { amount: v } : v; if (!v.amount && k !== 'sideburns') continue; if (k === 'sideburns' && (v.amount === 0 || v.length === 0)) continue; }
     if (k === 'hairline' && (v.front === undefined || v.front === 0.53)) continue;
     out[k] = v;
   }

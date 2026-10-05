@@ -61,7 +61,9 @@ function refineSlot(recipe, part, a, b, name, f = 0.5) {
 /** push named slots radially out of each station ring (from the ring centroid), weighted per station */
 function volumize(recipe, part, slotW, stationW, amount) {
   const P = recipe.parts[part];
-  for (const st of P.stations) { const ws = stationW[st.id] ?? 0; if (!ws) continue; const c = mean(P.slots.map((s) => st.points[s]));
+  // a shaping station (fractional u, unnamed in the weights) takes its neighbours' weights by u
+  const wOf = (st) => stationW[st.id] ?? (st.u !== undefined && !Number.isInteger(st.u) ? (stationW[`st${Math.floor(st.u)}`] ?? 0) * (Math.ceil(st.u) - st.u) + (stationW[`st${Math.ceil(st.u)}`] ?? 0) * (st.u - Math.floor(st.u)) : 0);
+  for (const st of P.stations) { const ws = wOf(st); if (!ws) continue; const c = mean(P.slots.map((s) => st.points[s]));
     for (const [slot, wl] of Object.entries(slotW)) for (const nm of slot.endsWith('*') ? [slot.slice(0, -1) + 'R', slot.slice(0, -1) + 'L'] : [slot]) {
       const p = st.points[nm]; st.points[nm] = add(p, mul(unit(sub(p, c)), amount * ws * wl)); } }
 }
@@ -84,11 +86,24 @@ function pinToAddress(part, pin) {
 }
 
 // ── closed lofts ──
-function loftParts(rings, back, tip) {
+// `convex`: each band quad split along the diagonal that folds it OUTWARD (the fourth corner on the inner side of the
+// first triangle's plane, inner judged from the loft's centre), so a shell lofted over a rounded surface (the hair cap
+// over the skull) never sinks a chord into it, and mirrored halves split alike. Absent: every quad on the same
+// diagonal, as before.
+function loftParts(rings, back, tip, { convex = false } = {}) {
   const m = rings[0].length, pts = {}, faces = [];
   rings.forEach((r, j) => r.forEach((p, k) => (pts[`st${j}.s${k}`] = p))); pts.back = back; pts.tip = tip;
   const id = (j, k) => `st${j}.s${k % m}`;
-  for (let j = 0; j + 1 < rings.length; j++) for (let k = 0; k < m; k++) faces.push([id(j, k), id(j, k + 1), id(j + 1, k + 1)], [id(j, k), id(j + 1, k + 1), id(j + 1, k)]);
+  const o = convex ? mean(Object.values(pts)) : null;
+  const outward = (a, b, c, d) => {   // the split a–c folds outward: d on the inner side of the plane (a, b, c)
+    const P = [a, b, c, d].map((x) => pts[x]), n = cross(sub(P[1], P[0]), sub(P[2], P[0])), q = mul(P.reduce(add, [0, 0, 0]), 0.25);
+    const s = dot(n, sub(q, o)) < 0 ? -1 : 1; return s * dot(n, sub(P[3], P[0])) <= 0;
+  };
+  for (let j = 0; j + 1 < rings.length; j++) for (let k = 0; k < m; k++) {
+    const a = id(j, k), b = id(j, k + 1), c = id(j + 1, k + 1), d = id(j + 1, k);
+    if (convex && !outward(a, b, c, d)) faces.push([a, b, d], [b, c, d]);
+    else faces.push([a, b, c], [a, c, d]);
+  }
   const L = rings.length - 1; for (let k = 0; k < m; k++) faces.push([id(0, k + 1), id(0, k), 'back'], [id(L, k), id(L, k + 1), 'tip']);
   const c = mean(Object.values(pts)); const vol = faces.reduce((s, f) => s + dot(sub(pts[f[0]], c), cross(sub(pts[f[1]], c), sub(pts[f[2]], c))), 0);
   return { points: pts, faces: vol < 0 ? faces.map((f) => [...f].reverse()) : faces, rings: rings.map((r, j) => r.map((_, k) => id(j, k))), m };

@@ -1,0 +1,19 @@
+{
+  "name": "outfit-casual-guard",
+  "$note": "The same outfit in the guard: elbows and knees bent, the garments bend with them.",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": [
+      "trousers",
+      "tee",
+      "boots"
+    ],
+    "gesture": "guard"
+  },
+  "palette": {
+    "Top": "#e8e2d0",
+    "Bottom": "#33415c",
+    "Shoes": "#6b4a2f"
+  }
+}

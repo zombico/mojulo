@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { humanoidHead, humanoidAnchors, FACE, FACE_KEYS, FACE_GROUPS, FACE_RANGES, FACE_MOVES, FACE_MOVE_NAMES, HEAD_SHAPE_DEFAULTS, resolveFace, validateFace, faceWarnings } from './humanoid-head.js';
-import { FACE_EXTRA_DEFAULTS, FIT_PRESETS, FIT_DATA_DIR } from './humanoid-head-fit.js';
+import { FACE_EXTRA_DEFAULTS, FIT_PRESETS, FIT_DATA_DIR, fittedCage } from './humanoid-head-fit.js';
 import { humanoidPlan } from './humanoid-plan.js';
 import { expandPlan } from './station-loft-plan.js';
 import { compileLayered, auditLayered } from './station-loft.js';
@@ -131,4 +131,18 @@ describe('what each new control means', () => {
       expect(faced.frame.note).toMatch(/face broad-jaw\+large-eyes: faceLength 110%, eyeSpacing 105%, eyeSize 115%, jawWidth 118%, chinProjection 108%/);
     });
   }
+});
+
+// The forehead and the brow's end (humanoid-head-fit.js FIT_FOREHEAD and the named slots): the fit's forehead leaned back
+// ≈ 21° from the brow, and the brow row read its outer point 3.4 cm behind the brow's own end, so the head caved in over
+// the far eye in the ¾.
+describe('the forehead and the brow', () => {
+  const SLOTS = ['front', 'bridgeR', 'noseR', 'alaR', 'innerR', 'outerR', 'sideR', 'rearR', 'back', 'rearL', 'sideL', 'outerL', 'innerL', 'alaL', 'noseL', 'bridgeL'];
+  const EYE = 4, BROW = 5, FOREHEAD = 6;
+  for (const preset of PRESETS) it(`${preset}: the brow's end stands level with the eye's corner, the forehead rises from the brow`, () => {
+    const c = fittedCage(preset, {}, SLOTS).cranium;
+    expect(c[BROW].outerR[1]).toBeGreaterThan(c[EYE].outerR[1] - 0.008);   // was 3.7 cm behind; now 2.5 (male) and 4.4 mm (female)
+    const lean = Math.atan2(c[BROW].front[1] - c[FOREHEAD].front[1], c[FOREHEAD].front[2] - c[BROW].front[2]) * 180 / Math.PI;
+    expect(lean).toBeLessThan(12);   // was ≈ 21° on the male; now 5.4° (male), −0.5° (female)
+  });
 });

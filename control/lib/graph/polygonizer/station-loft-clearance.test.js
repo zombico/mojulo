@@ -43,13 +43,18 @@ describe('the clearance ledger', () => {
   it('names the sinking the rigid dress had: at bulk 1.4 the baldric, the belt and the bracer sink into the body', () => {
     const C = layeredClearance(rigid(dressed));
     expect(C.sinking).toEqual(expect.arrayContaining(['baldric', 'belt', 'bracer']));
-    expect(C.adornments.baldric.worst).toMatchObject({ dial: 'bulk', value: 1.4 }); expect(C.adornments.baldric.worst.share).toBeGreaterThan(0.4);
+    expect(C.adornments.baldric.worst).toMatchObject({ dial: 'bulk', value: 1.4 }); expect(C.adornments.baldric.worst.share).toBeGreaterThan(0.25);   // the dense torso's rounder chest swallows less of it than the octagon's flat front did (> 0.4 there)
     expect(C.adornments.baldric.worst.into[0]).toBe('torso');
   });
-  it('with follow the dress clears every bulk extreme; the one limit left is named (the belt over the thighs at stance)', () => {
+  it('with follow the dress clears every bulk extreme; the one limit left is named (the belt over the hips)', () => {
     const C = layeredClearance(dressed);
     for (const id of ['baldric', 'bracer', 'pauldron']) expect(C.adornments[id].worst.share, id).toBeLessThanOrEqual(0.02);
-    expect(C.sinking).toEqual(['belt']); expect(C.adornments.belt.worst).toMatchObject({ dial: 'stance', value: 1.35, into: ['thighL', 'thighR'] });
+    // on the structured core (DEFAULT_CORE) the belt's worst is `bulk` at its narrow end, over the pelvis: the dial narrows
+    // the torso and its hem, not the pelvis under them (a dial blends by station across all its parts). Before it, the
+    // worst was `stance` 1.35 into the thighs, still the streamlined core's
+    expect(C.sinking).toEqual(['belt']); expect(C.adornments.belt.worst).toMatchObject({ dial: 'bulk', value: 0.8 }); expect(C.adornments.belt.worst.into).toContain('pelvis');
+    const old = layeredClearance(expandPlan(humanoidPlan({ preset: 'male', register: 'round', hair: 'crop', detail: 'clothed', adorn: 'ranger', core: 'streamlined' })));
+    expect(old.adornments.belt.worst).toMatchObject({ dial: 'stance', value: 1.35, into: ['thighL', 'thighR'] });
     expect(C.configs).toBe(1 + 2 * Object.values(dressed.dials).length);
   });
 });

@@ -95,7 +95,8 @@ const { ANIME_POSES } = await lib('graph/polygonizer/anime-head.js');
 const { EXPRESSIONS: LANDMARK_EXPRESSIONS } = await lib('graph/polygonizer/humanoid-head.js');
 const { resolveWorldScene } = await lib('graph/worlds/world-scene.js');
 const { compileLayered } = await lib('graph/polygonizer/station-loft.js');
-const { layeredSeat, persistedLayeredLedger } = await lib('graph/polygonizer/station-loft-faces.js');
+const { layeredSeat, persistedLayeredLedger, swimCells } = await lib('graph/polygonizer/station-loft-faces.js');
+const { seatPanels } = await lib('graph/polygonizer/seat-panels.js');
 const { validateRig, bindLayered, rigNodesAt, boneFrames } = await lib('graph/polygonizer/station-loft-rig.js');
 const { standPose, poseLayered, rigidParts, GESTURE_WORDS } = await lib('graph/polygonizer/hero-gesture.js');
 const { resolveCharacterLight, layeredShadingNormals, characterLitPieces, ANIME_CHARACTER_LIGHT, derivedHighlight, drawLayer } = await lib('graph/polygonizer/station-loft-shade.js');
@@ -148,11 +149,15 @@ function resolverFaces(m, { occlusion = true, hairTop = true } = {}) {
         lit: p.mark ? null : p.fill === base || (!!light.highlight?.[g] && !!base && p.fill === (pal[`${g}Highlight`] || derivedHighlight(base))) };
     }), ...gear] };
   }
-  const faces = [];
+  // the studio faces, a face the swimsuit's seat panel cuts as its cells (layeredFaces' own cut: swimCells on the rest panels)
+  const faces = [], panels = seatPanels(mesh);
   shown.faces.forEach((tri, fi) => {
     const corners = tri.map((vi) => { const v = shown.vertices[vi]; return [v[0], v[1], v[2] + dz]; });
-    const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0]));
-    if (Math.hypot(n[0], n[1], n[2]) > 1e-14) faces.push({ corners, fill: null, group: shown.groups[fi], part: shown.provenance[tri[0]].part, lit: null });
+    const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])), part = shown.provenance[tri[0]].part;
+    if (!(Math.hypot(n[0], n[1], n[2]) > 1e-14)) return;
+    const cut = swimCells(corners, panels && panels.at(fi, shown.groups[fi]));
+    if (cut) for (const c of cut) faces.push({ corners: c.corners, fill: null, group: c.inside ? 'Swim' : shown.groups[fi], part, lit: null });
+    else faces.push({ corners, fill: null, group: shown.groups[fi], part, lit: null });
   });
   return { mesh, light: null, gear: gear.length, faces: [...faces, ...gear] };
 }

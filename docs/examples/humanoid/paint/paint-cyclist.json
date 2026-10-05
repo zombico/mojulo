@@ -1,0 +1,18 @@
+{
+  "name": "paint-cyclist",
+  "$note": "Female, swimsuit body, long sleeves over bike shorts, gloves.",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "paint": [
+      "longSleeve",
+      "bikeShorts",
+      "gloves"
+    ],
+    "gesture": "relaxed"
+  },
+  "palette": {
+    "Top": "#2f6db5",
+    "Bottom": "#18202b"
+  }
+}

@@ -28,6 +28,7 @@
  */
 
 import { faceListToMesh } from './face-mesh.js';
+import { twistPairFor } from '../polygonizer/figure-vajra.js';
 
 // ── quaternion + vec helpers (plain arrays) ──────────────────────────────────
 const vsub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -92,6 +93,26 @@ export function frameQuat(dir0, aux0, dir1, aux1) {
   // M = B1 · B0ᵀ  (columns are images of world axes)
   const col = (i) => [0, 1, 2].map((r) => B1[0][r] * B0[0][i] + B1[1][r] * B0[1][i] + B1[2][r] * B0[2][i]);
   return matToQuat([col(0), col(1), col(2)]);
+}
+
+// a bone's TWIST about its own posed axis: the frame `q` (from frameQuat) post-rotated about unit-ish
+// `dir1` by the signed angle carrying (swing − at) onto (turned − at), both taken ⊥ the axis. The pair
+// is figure-vajra's TWIST_REFS (a head turn); reading the angle between two posed points keeps it
+// exact under any rigid / uniform-scale world transform. (exported for station-loft-rig.js)
+export function twistQuat(q, dir1, at, swing, turned) {
+  const z = vnorm(dir1);
+  const perp = (p) => { const v = vsub(p, at), k = vdot(v, z); return [v[0] - z[0] * k, v[1] - z[1] * k, v[2] - z[2] * k]; };
+  const u = perp(swing), v = perp(turned);
+  const a = Math.atan2(vdot(z, vcross(u, v)), vdot(u, v));
+  if (!a) return q;
+  const s = Math.sin(a / 2), w = Math.cos(a / 2), t = [z[0] * s, z[1] * s, z[2] * s, w];
+  // t ⊗ q (Hamilton, [x,y,z,w])
+  return [
+    t[3] * q[0] + t[0] * q[3] + t[1] * q[2] - t[2] * q[1],
+    t[3] * q[1] - t[0] * q[2] + t[1] * q[3] + t[2] * q[0],
+    t[3] * q[2] + t[0] * q[1] - t[1] * q[0] + t[2] * q[3],
+    t[3] * q[3] - t[0] * q[0] - t[1] * q[1] - t[2] * q[2],
+  ];
 }
 
 // squared point-to-segment distance
@@ -279,7 +300,10 @@ export function bakeRigFigure({ nodesAt, facesAt, clips = {}, keys = 8, targetH 
   const boneFrame = (bone, nodes) => {
     const dir0 = vsub(restNodes[bone.tail], restNodes[bone.head]);
     const dir1 = vsub(nodes[bone.tail], nodes[bone.head]);
-    const q = frameQuat(dir0, auxVec(restNodes, bone.aux), dir1, auxVec(nodes, bone.aux));
+    let q = frameQuat(dir0, auxVec(restNodes, bone.aux), dir1, auxVec(nodes, bone.aux));
+    // a bone spanning the neck turns with it: its twist pair is in the posed map only while the neck or head turns
+    const tw = twistPairFor(bone.head, bone.tail);
+    if (tw && nodes[tw[0]] && nodes[tw[1]]) q = twistQuat(q, dir1, nodes[bone.head], nodes[tw[0]], nodes[tw[1]]);
     return [...q.map(r4), ...nodes[bone.head].map(r4)];
   };
   const packedClips = {};

@@ -1,0 +1,13 @@
+{
+  "name": "build-adventurer",
+  "$note": "outfit { style: 'adventurer' }: a woven tunic with \u00be sleeves worn out over trousers, belted over the tunic, boots; stylize 0.45, fit 0.7 (looser, the hems falling away).",
+  "hero": {
+    "cast": "male",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "adventurer"
+    },
+    "gesture": "guard"
+  }
+}

@@ -118,12 +118,17 @@ describe('the bust has a ceiling on every cast', () => {
       const chest = castChest(cast);
       expect(() => heroPlan({ cast, body: { bust: 5 } })).toThrow(new RegExp(`body\\.bust 5 is past its ceiling: at most 0\\.4 × the chest radius, ${+(0.4 * chest).toFixed(6)} m`));
       expect(() => heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest * 1.01 } })).toThrow(/body\.bust .* is past its ceiling/);
-      expect(heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
+      // the structured core (the default) shapes the bust in the chest's own rings, with a bone each; the streamlined core
+      // carries it as two mounds
+      const at = heroPlan({ cast, body: { bust: BUST_MAX_OF_CHEST * chest } });
+      expect(seg(at, 'torso').stations.find((st) => st.id === 'st2').push).toBeTruthy();
+      expect(at.rig.bones.some((b) => b.perSide?.some((p) => p.id === 'bust$S'))).toBe(true);
+      expect(heroPlan({ cast, core: 'streamlined', body: { bust: BUST_MAX_OF_CHEST * chest } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
     }
     // the ceiling follows a chest override and the anime casts, and a figure cast reads the default chest
     expect(() => heroPlan({ cast: 'female', body: { chest: 0.25, bust: 0.09 } })).not.toThrow();
     expect(() => heroPlan({ cast: 'female', proportions: 'anime', body: { bust: 0.09 } })).toThrow(/past its ceiling/);
-    expect(heroPlan({ cast: 'female', body: { bust: 0.05 } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
+    expect(heroPlan({ cast: 'female', core: 'streamlined', body: { bust: 0.05 } }).segments.some((sg) => sg.name === 'bustR')).toBe(true);
   });
 });
 
@@ -147,28 +152,53 @@ describe('widths', () => {
     const base = heroPlan({ cast: 'male' }), t = heroPlan({ cast: 'male', tune: { shoulders: 1.2 } });
     for (const j of ['shoulder', 'elbow', 'wrist', 'knuckles']) expect(t.joints[j][0]).toBeGreaterThan(base.joints[j][0]);
     for (const j of ['hip', 'knee', 'ankle', 'neckHub', 'headBase']) expect(t.joints[j]).toEqual(base.joints[j]);
-    expect(seg(t, 'torso').stations[3].r[0]).toBeGreaterThan(seg(base, 'torso').stations[3].r[0]);
-    for (const s of base.segments) if (!['torso', 'upperArmR', 'foreArmR', 'handR'].includes(s.name)) expect(seg(t, s.name)).toEqual(s);
-    for (const name of ['upperArmR', 'foreArmR', 'handR']) expect(radii(seg(t, name))).toEqual(radii(seg(base, name)));
+    const yoke = (p) => seg(p, 'torso').stations.find((st) => st.id === 'st3').r[0];
+    expect(yoke(t)).toBeGreaterThan(yoke(base));
+    // the chest layers are sampled off the torso's rings (hero-form.js CHEST_FORM), so they follow the yoke
+    // the hand (hero-hand.js: a palm and five digits, point by point) moves out with the wrist, its shape unchanged
+    const HAND = ['handR', 'thumbR', 'indexR', 'middleR', 'ringR', 'littleR'];
+    for (const s of base.segments) if (!['torso', 'pectoralR', 'bustR', 'upperArmR', 'foreArmR', ...HAND].includes(s.name)) expect(seg(t, s.name)).toEqual(s);
+    for (const name of ['upperArmR', 'foreArmR']) expect(radii(seg(t, name))).toEqual(radii(seg(base, name)));
+    const shifted = (s) => s.stations.map((st) => Object.values(st.points).map((p) => p.map((x, k) => x - st.points.front[k])));
+    for (const name of HAND) shifted(seg(t, name)).flat(2).forEach((x, i) => expect(x).toBeCloseTo(shifted(seg(base, name)).flat(2)[i], 3));
   });
-  it('waist narrows the trunk\'s lower rings and the thigh crest; hips widens the pelvis without deepening it; depth deepens without widening', () => {
-    const base = heroPlan({ cast: 'female' });
-    const w = heroPlan({ cast: 'female', tune: { waist: 0.85 } });
+  it('streamlined: waist narrows the trunk\'s lower rings and the thigh crest; hips widens the pelvis without deepening it; depth deepens without widening', () => {
+    const S = { cast: 'female', core: 'streamlined' }, base = heroPlan(S);
+    const w = heroPlan({ ...S, tune: { waist: 0.85 } });
     expect(w.joints).toEqual(base.joints);
     expect(seg(w, 'torso').stations[0].r[0]).toBeLessThan(seg(base, 'torso').stations[0].r[0]); expect(seg(w, 'torso').stations[0].r[1]).toBe(seg(base, 'torso').stations[0].r[1]);
     expect(seg(w, 'thighR').stations[0].r[0]).toBeLessThan(seg(base, 'thighR').stations[0].r[0]);
     for (const s of base.segments) if (!['torso', 'thighR'].includes(s.name)) expect(seg(w, s.name)).toEqual(s);
-    const h = heroPlan({ cast: 'female', tune: { hips: 1.2 } });
+    const h = heroPlan({ ...S, tune: { hips: 1.2 } });
     expect(h.joints).toEqual(base.joints);
     expect(seg(h, 'thighR').stations[1].r[0]).toBeGreaterThan(seg(base, 'thighR').stations[1].r[0]); expect(seg(h, 'thighR').stations[1].r[1]).toBe(seg(base, 'thighR').stations[1].r[1]);
     for (const s of base.segments) if (s.name !== 'thighR') expect(seg(h, s.name)).toEqual(s);
-    const d = heroPlan({ cast: 'female', tune: { depth: 1.2 } });
+    const d = heroPlan({ ...S, tune: { depth: 1.2 } });
     expect(d.joints).toEqual(base.joints);
     seg(base, 'torso').stations.slice(0, 4).forEach((st, i) => { expect(seg(d, 'torso').stations[i].r[0]).toBe(st.r[0]); expect(seg(d, 'torso').stations[i].r[1]).toBeCloseTo(st.r[1] * 1.2, 5); });
     expect(seg(d, 'torso').stations[4]).toEqual(seg(base, 'torso').stations[4]);
     expect(seg(d, 'thighR').stations[1].r[1]).toBeCloseTo(seg(base, 'thighR').stations[1].r[1] * 1.2, 5); expect(seg(d, 'thighR').stations[1].r[0]).toBe(seg(base, 'thighR').stations[1].r[0]);
     for (const s of base.segments) if (!['torso', 'thighR'].includes(s.name)) expect(seg(d, s.name)).toEqual(s);
+  });  it('structured (the default): waist narrows the hem, the pelvis\'s top and the socket ring; hips widens the pelvis and the trochanter, never deepening; depth deepens, never widening', () => {
+    const base = heroPlan({ cast: 'female' }), others = (t, names) => { for (const s of base.segments) if (!names.includes(s.name)) expect(seg(t, s.name), s.name).toEqual(s); };
+    const w = heroPlan({ cast: 'female', tune: { waist: 0.85 } });
+    expect(w.joints).toEqual(base.joints);
+    expect(seg(w, 'torso').stations[0].r[0]).toBeLessThan(seg(base, 'torso').stations[0].r[0]); expect(seg(w, 'torso').stations[0].r[1]).toBe(seg(base, 'torso').stations[0].r[1]);
+    expect(seg(w, 'pelvis').stations[5].r[0]).toBeLessThan(seg(base, 'pelvis').stations[5].r[0]);
+    expect(seg(w, 'thighR').stations[0].r[0]).toBeLessThan(seg(base, 'thighR').stations[0].r[0]);
+    others(w, ['torso', 'pectoralR', 'bustR', 'pelvis', 'thighR']);   // the chest layers follow the torso they are sampled off
+    const h = heroPlan({ cast: 'female', tune: { hips: 1.2 } });
+    expect(h.joints).toEqual(base.joints);
+    expect(seg(h, 'thighR').stations[1].r[0]).toBeGreaterThan(seg(base, 'thighR').stations[1].r[0]); expect(seg(h, 'pelvis').stations[2].r[0]).toBeGreaterThan(seg(base, 'pelvis').stations[2].r[0]);
+    for (const n of ['pelvis', 'thighR']) seg(base, n).stations.forEach((st, i) => expect(seg(h, n).stations[i].r[1], `${n} st${i} depth`).toBe(st.r[1]));
+    others(h, ['pelvis', 'thighR']);
+    const d = heroPlan({ cast: 'female', tune: { depth: 1.2 } });
+    expect(d.joints).toEqual(base.joints);
+    seg(base, 'torso').stations.slice(0, 4).forEach((st, i) => { expect(seg(d, 'torso').stations[i].r[0]).toBe(st.r[0]); expect(seg(d, 'torso').stations[i].r[1]).toBeCloseTo(st.r[1] * 1.2, 5); });
+    for (const n of ['pelvis', 'thighR']) seg(base, n).stations.slice(0, 4).forEach((st, i) => { expect(seg(d, n).stations[i].r[0], `${n} st${i} width`).toBe(st.r[0]); expect(seg(d, n).stations[i].r[1]).toBeGreaterThan(st.r[1]); });
+    others(d, ['torso', 'pectoralR', 'bustR', 'pelvis', 'thighR']);
   });
+
 });
 
 describe('every move on every hero cast in every register closes at rest and at every dial extreme, soles on the ground', () => {

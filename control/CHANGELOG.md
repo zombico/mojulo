@@ -1164,6 +1164,310 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Sand-bed follow-up: integer depth layer where walking leaves persistent footprints (displaced sand forms a rim biased toward the push) and a pushed crate plows a berm, relaxed by the same static/sliding friction pair; walkable standalone preview, no production channel yet.
 - Soft-ground materials: the same bed with a compaction ratio (snow packs under the boot and bears load, little rim) and viscosity (mud oozes back over seconds); dry sand, damp sand, fresh snow and mud presets in the walkable preview.
 
+### Emote bridge
+
+Steps toward playing common-parlance emotes and humanoid clip libraries on mojulo's figures
+([docs/emote-bridge.md](../docs/emote-bridge.md)): the head turn the figure never had, a T-pose rest and an engine skeleton
+for the engines, and Godot's retargeter set up on import.
+Both are opt-in: without them every figure, hero and export is byte-identical. Being built on this branch; each bullet is
+rewritten as its phase lands.
+
+- **`turn` on the neck and head.** `neck: { turn }` and `head: { turn }` (degrees, + the face to the figure's left;
+  35° and 45° caps) turn the skull about the neck line, so a nodded head's nod turns with the face. `glance: 'left' |
+  'right' | 'ahead' | degrees` splits a glance across the two, and the hero's gestures and clips take it too.
+- **Turned bones.** A turn reaches the frames that have an orientation: rigid armor heads, the hero's neck and head
+  bones (and the jaw, face and hair that ride them), and the packed rig's head, so it bakes into the GLB and Godot
+  clips. The joint graph does not move.
+- **`headshake` turns the head.** The emote is a real "no" now, instead of a torso twist under a head tilt.
+- **The T-pose mold.** `export_model { skinned: true, humanoid: true, rest: 'tpose' }` re-rests a humanoid figure or
+  hero in the VRM T-pose the engines retarget from (arms straight out, palms down, legs straight, feet and head as
+  they were), with every clip re-expressed on it so it plays the same motion. No recipe changes; without `rest` the
+  export is byte-identical.
+- **An engine skeleton, and Godot.** With `rest: 'tpose'` the skinned humanoid is written the way the engines read one:
+  joints nested on the VRM humanoid tree (the biped's hand and foot leaves, and a clavicle each side, as weightless bones:
+  an engine's humanoid profile hangs the arm off a shoulder with a large rest turn; and the chest and upper chest a rig
+  lacks, split out of its torso bone with the torso's skin spread along them, so a retargeted chest turn bends the
+  flesh), each parent-local, in
+  the VRM space (y up, facing +z, the figure's left on +x), every rest rotation the identity. Beside the GLB come a
+  Godot `BoneMap` per figure, a post-import script giving its surfaces their vertex colour (Godot imports a
+  vertex-coloured GLB white), and the `.import` naming both (place the folder at `res://mojulo/<ref>/`); the engine
+  figure is a scene-level node beside the z-up root, since Godot's rest fixer resets a skeleton's ancestors. On import Godot
+  renames the bones to its humanoid profile and the skeleton becomes `%GeneralSkeleton`, so the project's humanoid
+  animations play on the figure and its clips on any humanoid. `docs/examples/humanoid/godot-retarget.mjs` is the gate:
+  a real Godot plays the flat figure's bow on a hero's skeleton.
+
+### Figure adornment: clothes that fit
+
+Clothes for the hero that fit the body they are worn on, in two tiers: second-skin garments painted on the body's own
+faces, and garments with volume built on the adornment loop. Opt-in; no stored hero changes. Being built on this branch.
+
+- **Second skin.** The hero door's `paint`: a word (`tank`, `crop`, `sportsBra`, `tee`, `longSleeve`, `leotard`,
+  `leggings`, `bikeShorts`, `tights`, `catsuit`, `socks`, `gloves`), an entry `{ part, u?, run?, t?, only?, group }` or a
+  list, worn in order over the detail. The swimsuit's band rule as declared data on the expanded rings (the plan
+  grammar's `paint` block), so a segment's generated rings take it like a loft's; colour only, every ring point the
+  bare body's, so it fits every cast, tune, core and pose. Words name only the parts the body has (the structured
+  core's pelvis and toes, a breast), and one over the hips clears the swimwear beneath. Absent, zero bytes.
+- **Outfits that follow the body.** The hero door's `outfit`: garments with volume (`tee`, `shirt`, `trousers`, `shorts`,
+  `boots`, or a piece `{ id, part, u?, run?, ease, flare?, over?, group }`), built as new L1 parts copied from the body
+  part's rings over a window, carried out by an ease that scales with the cast and lifted over the layers beneath (the
+  chest's, earlier garments: worn in order, so a shirt can be worn out or tucked in). Each copies its body part's bind
+  station by station, so every garment vertex skins exactly as the skin under it and bends at the elbow and knee; every
+  dial naming the body part names its garment. The plan grammar's `garments` block. Absent, zero bytes.
+- **Flat footwear.** A piece's `fit: 'shoe'` (the boots' foot) is built, not copied: a round ellipsoid over the heel and
+  a flat half-ellipsoid over the forefoot, each fitted to hold the foot's and toes' points with the ease, their sections
+  superposed ring by ring and cut on one flat sole, so a boot stands flat with a round heel cup and a low toe box over
+  any foot; each ring binds as the foot's nearest station.
+- **Cloth shades smoothly.** Under the studio light, cloth welds its corner normals at 70°, as the skin does
+  (`STUDIO_SMOOTH_CREASE.$cloth`). Cloth is every face of a garment part (marked `garment`) and the faces a second skin
+  painted (a part's `painted` groups). So a shirt reads as one draped form, while a right angle such as a boot's sole
+  edge stays sharp. Other groups keep 35°, and a hero without cloth welds exactly as before.
+- **Outfit builds.** `outfit: { type: 'outfit', style, dials?, language? }`: a styled look built the way an armour build
+  is (`lib/graph/outfit/`), from laws, dials (`stylize`, `fit`, `coverage`, `ornament`), seeded JSON cards (`casual`,
+  `office`, `athlete`, `adventurer`) and language words for lengths on landmarks, family (knit or woven), tuck and focal.
+  It is expanded on every read in fixed passes:
+  - **CUT:** the pieces.
+  - **FIT:** ease and hang toward the free hems.
+  - **LAYER:** tucked or worn out.
+  - **CONSTRUCTION:** a woven placket.
+  - **ORNAMENT:** from the focal out — a collar or a knit rib band, buttons as body-detail rows on the shirt, a belt as an
+    adornment on the trousers; then cuffs, hems and the waistband painted on the garment parts; then the seams.
+  - **TONE.**
+  - **LEDGER:** the dress readout, with warnings, never refusals.
+
+  The laws version is stamped on the hero record. Supporting changes:
+  - A garment piece may add `rings` where its edges are finished, so a trim is as narrow as it is drawn.
+  - Paint runs after the garments, so it reaches them.
+  - A paint window too narrow for a coarse ring paints the band holding its middle.
+  - A cap takes paint only from an entry that covers its part end to end.
+  - The card's tones reach the head's include, as an armour kit's do.
+- **Skirts and dresses.** A garment `fit: 'skirt'` is one hull round the hips and both legs, from the waist to a hem on a
+  landmark:
+  - each of its rings is the support of everything at that height, made symmetric;
+  - it never narrows below the hips and widens by its cut (pencil, A-line, full);
+  - it is two-faced, folded at the hem, so it is open beneath and its hem is an edge;
+  - each point is skinned by nearness: the cloth over a leg follows that leg, and the cloth between and behind the legs
+    stays with the pelvis, so a stride swings the skirt and the knees stay inside it.
+
+  Outfit builds take `bottom { kind: 'skirt', leg, cut }` and `dress: true`. Tops drape from the bust and shoulder blades
+  rather than hugging back in under them. New female cards: `sundress`, `blouse` and `athleisure`.
+
+### Figure articulation: herobot
+
+The hero robot on the hero door: the toy-hero read of the late platformer renders, an original robot on the anime head,
+built from words the door already reads plus a few new ones. Every addition is opt-in, so no stored hero changes. Being
+built on this branch; each bullet is rewritten as its phase lands.
+
+- **`proportions: 'herobot'`.** A third proportion word beside `hero` and `anime`, at about 4.4 heads tall: a big head,
+  a short torso, short arms (a cast may now scale both arm segments' lengths) and a short neck, with big hands and feet
+  for the gauntlets and boots to sit on. Its hands are bigger still, puffed into a cartoon glove's fat, rounded digits and gloved in
+  the palette's `Glove` (white unless named), its neck in the body stocking (`Top`), and its shins a little longer for an
+  action hero's stride (a cast may carry `hands`, `puff`, `glove`, `suitNeck` and `shank`). The body keeps adult limbs and is not child-coded, unlike `chibi`.
+
+- **The `volume` signature.** Figure-fluff's girth contrast on the rig: a free solid round its carrier, sized from the
+  carrier's own measured axis and radius, riding that bone. It takes the fluff shapes (`football`, `cone`, `bell`,
+  `slab`, `bead`), a superellipse section, a `bore` (a muzzle disc), a `lip` (a cuff) and a `half` cut (a flat sole, for a half-egg foot). The robot's ball pauldrons,
+  barrel chest plate, collar, briefs, wide forearms, thigh rims, flared boots, pointed half-egg feet and knee pads are adornment data.
+  A `bead` can point its crest back toward the window's start (`point: 'start'`), so a knee pad on the shank points up. The carrying shell
+  of a volume is a slender core buried on the carrier's axis, so only the volume shows.
+
+- **The `plaque` signature.** A thick trapezoid plate lying on its carrier between two stations, wider at one end,
+  lifted forward off whatever lies beneath, with a bevelled face: an embossed ab plate jutting down under a chest plate. Set off the front by `c`, a pair
+  makes pec plates.
+  Every signature now also reads its adornment's `carrier`.
+
+- **The helm's face window.** The `helm` signature takes a `window` (the face open, the helm wrapping the crown, temples
+  and cheeks) with `brow`, `w`, `bottom`, `nape`, `rim`, cheek guards curled under the jaw (`jaw`: `drop`, `curl`,
+  `wrap`), a back tucked round to the nape (`back`), the lower sides and back rounded in like an egg to hug the face (`hug`), and the window's top edge brought down as a raised V to the bridge of the nose
+  (`v`), whose two lines can carry on as embossed `stripes` over the crown to the nape. A V `frame` grows the V into the visor's whole frame: wide
+  cheek bands tapering to the jaw, a brow band, and two horns rising to points either side of a diamond gem set in its notch. It also takes ear domes
+  (`ears`) and a brow gem (`gem`), round or a faceted `diamond` on a border plate (`fit: 'v'` sets its lower edges parallel to the V). Sized from `parts`, so `['face', 'earR', 'earL']` fits it to the anime head as raw
+  kit data, and `scale` grows the whole helm about its centre. The armour builds' helms still refuse on the anime head.
+
+- **The `gloss` highlight.** A third highlight kind on the character light: N·L above a high threshold anywhere on a
+  group, with no band. This is the moulded-plastic hot spot on each rounded armour form. Like `ring` and `streak`, it
+  is baked and conforming.
+
+- **Horns, a ponytail and plate pauldrons.** The helm takes `horns` (a pair of tapering blades off the temples) and a
+  `ponytail` (wild flattened clumps out of its back, scattered by a fixed pattern, so it stays deterministic). A `volume`
+  takes the `plate` shape: an angular plate arched over the carrier's outer side in flat facets, a pauldron over a ball.
+
+- **Worked casts.** `docs/examples/humanoid/cast/herobot-classic.json` and its rival, `herobot-rival.json`: red and white,
+  horns and a ponytail, and a more angular silhouette from the same adornment kit.
+
+### Figure hair
+
+Four anime cuts from the operator's sketches, as hair words anywhere a hair word goes, and the construction words they
+needed on the anime head. Being built on this branch.
+
+- **The cuts.** `flipped-long` (long, curtain bangs framing the face, the ends kicked out), `blunt-bob` (a level fringe
+  split off centre, the left side falling long), `side-tail` (the side-parted sheet gathered into a low tail over the
+  left shoulder).
+- **The words.** `flip`, `spikes`, `sideTail` (its clump `tail`, part `hairTail`) and `fringeNotch` join the hair form
+  words; each is absent unless given, so every stored hero builds as before.
+- **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
+  that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
+  — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
+  (carrots, after Toriyama), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
+  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas after Videl's short cut. Shaped hair never cuts through the body: the hero's
+  neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
+  along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
+  a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
+  into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
+- **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` (after Hirako Shinji) is a bowl bob, `miwako` (after
+  Miwa Kasumi) a neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
+- **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
+  ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining
+  yellow past 75 %, advises. The hair word `veil` (0 … 1) is the mystery and allure lever: one eye may go under the
+  hair (to 75 %) and the yellow to 95 %; the other eye and the mouth stay restricted. Advice only; nothing it builds.
+- **Sideburn patches.** Every anime head with hair now wears a thin patch in the hair's colour on the skin before each
+  ear, from under the scalp's bottom edge (it follows the hairline, so no skin shows between) to the ear's bottom, so no bare gap shows between the hair and the ear
+  (`hairSideburnL`, `hairSideburnR`), and the graphic face's ears sit a little closer in to the head. A bald head shows
+  its own skin there. The anime heroes' pinned payloads moved
+  with it.
+  A layer's `swirl` turns its flow one way (a fringe swept off its part), and a style takes up to 12 layers.
+  `sideburns` works on any style. The
+  principles and recipes cross-referenced to shonen and JRPG heroes are in `docs/examples/humanoid/DESIGNING.md`.
+- **Fixed.** An anime hero whose hair is a list (`['long', { locks }]`) now wears that family: before, the list was not
+  read as naming one, the base's cut was worn under it and its clump edits were lost.
+
+### Figure articulation: pelvic
+
+The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike, and
+the default for every hero (`core: 'structured'`). Every hero changes: a stored hero regenerates with it. `core:
+'streamlined'` is the hero before it, byte for byte. Being built on this branch; each bullet is rewritten as its phase
+lands.
+
+- **The default.** Every hero is built on the structured core unless it says `core: 'streamlined'`. The tune keeps its
+  contract on it: `thigh` thickens the thigh about its own rings, `calf` the knee and the shin, `legs` moves the joints
+  and no radius; and the outline is one curve in every register (each ring's radius solved from the width it draws).
+  A swing word's keys stand on a base of their own, reachable on every verb.
+
+- **The pelvis bone.** On the structured core the `pelvis` bone is the basin: it turns with the hip girdle alone, as
+  the vajra's own pelvis does, so a spine curl or arch bends the lower back over a still pelvis instead of tipping it. A
+  new `lumbar` bone carries what `pelvis` used to (the pelvis hub to the navel); the hem and the top of the thighs blend
+  the two, and a hip-slung blade rides the basin. A rig bone may now take `align`, two joints whose line orients it.
+- **The legs converge.** On the structured core the thigh slants in from the hip to the knee, more on the female, so
+  the knees sit inside the hips and the feet under the knees. The female casts no longer stand with their knees wider
+  than their hips and a deep V between the thighs: their narrowed hips had left the knees behind.
+- **The stand owns its base.** New pose words `stance` (how far apart the planted feet stand, as a multiple of the hip
+  spread) and `stagger` (one foot forward, one back), and `heelL` / `heelR` in a stand. With converged legs the
+  presets plant both feet on a base of their own: the guard wide and bladed with the rear heel up, the relaxed and
+  hand-on-hip stands close-set with a soft free knee, a swing on the guard's base. Without these words a planted foot
+  stands where it always did.
+- **The pelvis mesh.** On the structured core a `pelvis` part on the vajra basket runs from the crotch up into the
+  hem, its back the seat, and the thigh is rooted at the hip socket inside it. The hip is one curve out from the waist:
+  the female's widest at the trochanter and narrowing steadily to the knee, the male's straight. The front recedes to the
+  crotch, the thighs meet under it, and the thigh comes out of the pelvis along the groin's diagonal. Gone: the corner
+  and pinch at the side of the female hip, the front standing proud of the belly, the shelf at the hem, the step at the
+  knee, and the flat seat.
+- **The dress follows the pelvis.** On the structured core the hip pieces hang from the pelvis and ride it: a knight's
+  faulds carry on down over the hips under the breastplate and the tassets hang from the crest over the hip, fitted close
+  and clear of the thighs at every dial. Every piece that stands off the thighs (a fauld, a belt, a kit of the
+  operator's) stands off the pelvis too, and thigh plates wrap the share of the thigh they were drawn for. On converged
+  legs a hardsuit's inner knee plate turns less far in, clear of the other knee.
+- **The torso.** On the structured core the torso is built on the vajra rib cage: a waist above the hem, the ribs
+  widening to a lifted chest, the male's back widest under the arms and the female's narrower, and the shoulders sloping
+  from the neck under the arm's own cap instead of a box with square corners. The new rings sit between the five the
+  dress addresses, so every torso address (`s` 0 … 4, a collar's station) lands where it did.
+- **The chest layers.** On the structured core a pectoral lies over each side of the rib cage, its own part hugging
+  the chest: the pair meets at the sternum as one domed chest, its lower border standing proud as the shelf and its
+  armpit end moving a little with the arm. The adult female hero carries a bust by default (a child or chibi cast, or
+  the kid look, never does): a breast per side over the pectoral, each its own part and a bone each (`bustR`, `bustL`)
+  an engine's spring can drive. The breast is a studied field over the chest (`breast-field.js`): its footprint and its
+  poles' profiles are a handful of anatomy words, and gates measured on the field hold it to what an artist checks (the
+  upper and lower poles 45 : 55, the fold a wall, the upper pole straight or concave, the lower pole full, the margins
+  melting into the chest, one clean peak). The pair meets at the midline in a cleavage valley (the field's `cleft`, a
+  share of the projection there), not two mounds with flat chest between them, and the triangle between the clavicles
+  and the upper poles stays shallow. A bare belly carries a navel, set where the canon puts it: about level with the elbow, a little under the
+  narrowest waist. A clothed jerkin covers the pectorals, and every piece worn on the torso stands off the layers. A trunk ring
+  may now name its own `u` (the address parameter) and `push` named slots off the ring, a skin blend may weigh one point
+  (`station.slot`) over its ring, a new plan kind `rings` gives a part's rings point by point, and a `ring20` slot
+  family is there for a finely sampled form. The knight's and
+  the ranger's pauldrons and the jerkin's quilt sit on the new shoulder.
+- **The swimsuit view.** New `detail: 'swimsuit'` shows the body bare: every shirt, trouser and shoe colour is skin, and
+  swimwear is painted on the body's own surface (the adult male's trunks, the adult female's two-piece — on the structured core a speedo and a thong — a child-coded
+  figure's rash vest and trunks; the female's cups follow her breasts with a sweetheart top edge that dips into the
+  cleft), in a `Swim` tone you can name (by default dark, so the swimwear sorts into the dark
+  value band apart from the skin and the hair). A plan segment may now carry `bandGroups` (a group
+  per band and slot) and `slotT` (each slot's address parameter).
+- **The shoulders and the neck.** On the structured core the neck rises out of the chest: the sternal notch sits under
+  the base of the neck at the back, so the neck shows from the front instead of the chin resting on the shoulders. The
+  male's trapezius slopes from the neck to the shoulder instead of standing as a plateau, and the shoulder rounds over the arm as a deltoid instead of ending in a square corner. Under the
+  anime head the neck's shade is the jaw's shadow, its lower edge a V toward the notch, no longer the whole neck down
+  to its seam on the chest. The upper arm's widest point sits a quarter down it, as the deltoid's does, its top a
+  dome over the joint; the western figure's neck is a round column whose back rises into the head, and the pectoral's
+  top edge rises from the breastbone toward the shoulder as the clavicle does. A segment may name its caps' height (`cap`).
+- **The seat.** On the structured core the female's seat is her own shape, not the male's a size up: fuller and
+  set further back, fullest halfway down it, its two halves parted by a deep cleft (drawn on bare skin in a darker
+  second shade), under a lower back that curves in over it; the male's is square and high, his back running
+  straight down into it, two masses with a cleft between them. On the structured core the swimsuit is a speedo for
+  the male (low and level, no leg, a clean leg line, the cleft a crease in it) and a thong for the female (a front
+  triangle, a thin string rising over the hip and a V at the back narrowing into her cleft, her seat bare), so the two
+  seats show; the thong's back is drawn under the studio light as well as the character light.
+- **The hands.** On the structured core the hand is a palm and five digits instead of a mitten, on the regular and
+  the anime hero alike (the anime casts' hands smaller, the same shape): the palm flat across the back with the thumb's
+  and the little finger's pads in front, the knuckles on an arc, the fingers in a relaxed curl that deepens toward the
+  little finger, the thumb opposed. The hand hangs facing the thigh, the forearm tapering into it at a rounded wrist. The wrist is a joint and the fingers bend: the
+  pose words `wristL` / `wristR` (flex, or `{ flex, deviation, twist }`) and `fingersL` / `fingersR` (a curl, a curl
+  per digit, or a hand word: `relaxed`, `open`, `fist`, `point`, `grip`) now move a structured hero instead of being
+  refused; a streamlined hero still refuses them. Fifteen finger bones a hand, named as VRM and Godot name them. A rig
+  may now carry `hands`, the wrist and digit chains its posing turns in the hand's own frame.
+- **The arms.** On the structured core the upper arm and the forearm carry their muscles instead of running as two
+  cones: under the deltoid the triceps fills the back of the upper arm and the biceps the front lower down, into an
+  elbow that is wider across than it is deep; the forearm is fullest across just below the elbow and slims into the
+  wrist over its last third. The male's are marked, the female's softer, the anime casts' softer still. Cuffs,
+  bracers and armour land where they did; a streamlined hero is unchanged. A segment may carry shaping rings between
+  its own (`shape`), addressed between its rings so its addresses keep their meaning.
+- **The legs.** The same on the structured legs: the thigh's front fuller over its upper half, the hamstrings behind
+  and the inner thigh full high, the inner bulge just above the knee and the knee narrower under it; the calf full at
+  the back and lower on the inside, the leg slimming above the ankle. Swimsuit leg lines, wraps and greaves land where
+  they did. A loft's station may name its `u` too.
+- **The feet.** A bare structured hero (the swimsuit's) stands on feet instead of shoes: a rounded heel under the
+  Achilles, the two ankle bones, the instep rising to the shin, the arch lifted on the inside, the ball wide on a
+  slant; the big toe its own, apart from the rest (the grip), the other four side by side with the lines between them.
+  The toes bend with the toe bone. Footwear replaces the foot: a hero in shoes, clothes or armour keeps the shoe as it
+  was, and sandals and boots to come take the foot's place on the same joints.
+- **The western forehead.** The landmark head's forehead rises from the brow instead of leaning back from it, and the
+  brow's outer end stands level with the corner of the eye instead of sinking in behind it, so the far side of the face
+  no longer caves in over the eye in the ¾ and the profile. The hair rides the new forehead. Every hero with the landmark
+  head changes a little above the eyes, the streamlined core's too.
+- **The ear.** The ear is an ear, not an egg, on the landmark and the anime head alike. From the side the broad top
+  runs into a nearly straight back edge and down on a diagonal into a broad lobe, the front open where the rim ends, the
+  ear leaning back. It is a thin plate, like a leaf, joined to the head at its front and angled off it toward its back.
+  On the landmark ear the rim is raised, the antihelix rises inside it and the bowl dips behind, in the darker inner
+  tone, so the light shows its depth; the anime ear is a simpler rim, fold and bowl, drawn by its outline. The anime
+  head's studio-exact face (`sculpt: false`) keeps its own ear.
+- **Smooth shading on the western hero.** A hero under the studio light (the landmark head, or no head) is shaded
+  smoothly instead of one flat tone per triangle: the face reads as one form instead of facets over the nose and the
+  cheeks, and the chest, the belly, the back and the limbs read as muscle instead of a grid. The skin blends across
+  edges that turn up to 70°; hair, cloth and the swimsuit keep their edges. The clip preview shades the same way. The
+  anime hero is unchanged (its two tones already follow a smoothed surface), and so is every layered sketch that is not
+  a hero.
+- **The jaw seam.** A standing hero with the landmark head no longer shows a dark line from the mouth along the jaw to
+  the ear when the head is turned: the jaw now turns exactly with the head, so it stays closed against the skull, and it
+  still opens at its hinge.
+- **The hair over the temple.** The skull no longer pokes through the hair at the left temple like a horn: the hair's
+  cap is folded outward over the skull on both sides alike, where its left half used to sink between its points. Every
+  cut with a cap changes slightly, the anime cuts' cap under their locks too.
+- **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
+  expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
+  row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under
+  `/recipe` is stored as edited. A hero row is about 1.2 MB instead of 2.35 MB; a row stored before shrinks on its next
+  edit.
+- **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
+  addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
+  silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the
+  waist's taper, the shoulder blades and the spine; the female's deeper waist and the curve of the lower back; the seat's
+  two masses on the pelvis. The step at the waist is gone.
+- **Core measures.** Every hero's readout carries `core`: the waist to hip, where the hip peaks, the seat, how far the
+  front falls below the waist, any pouch, the largest step in the outline, and whether the legs converge, with advice
+  against bands per body that names the word to move. On the structured core the advice is a warning; on a streamlined
+  hero it stays in `core.advice`. The design loop's critic reads it. `render-pelvic-overlay.mjs`
+  draws the vajra core over the hero mesh before and after.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

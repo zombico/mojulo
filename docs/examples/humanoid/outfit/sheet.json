@@ -1,0 +1,21 @@
+{
+  "title": "Outfits that follow the body",
+  "columns": [
+    {
+      "spec": "outfit-casual.json",
+      "summary": "Female: trousers, then a tee worn out over them, and boots. Relaxed."
+    },
+    {
+      "spec": "outfit-casual-guard.json",
+      "summary": "The same outfit in the guard: elbows and knees bent, the garments bend with them."
+    },
+    {
+      "spec": "outfit-tucked.json",
+      "summary": "Male: a long-sleeved shirt tucked into trousers (shirt first, trousers over its hem), boots."
+    },
+    {
+      "spec": "outfit-heavy.json",
+      "summary": "Male, tuned broad and heavy (shoulders, waist, limbs up): a tee and shorts re-fit the body; guard."
+    }
+  ]
+}
