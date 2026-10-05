@@ -335,6 +335,26 @@ export function buildAnime(r, options = {}) {
   for (let j = 0; j < neckRings.length - 1; j++) for (let i = 0; i < 40; i++) quad('skin', neckRings[j][i], neckRings[j][(i + 1) % 40], neckRings[j + 1][(i + 1) % 40], neckRings[j + 1][i]);
 
   const neckEnd = parts.skin.length;
+  // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
+  // sheet lying on the skin in FRONT of each ear, from under the hair's edge at the temple down to the ear's lower third,
+  // its front edge drawing back as it falls (a sideburn's taper), its back edge at the ear's front, so no bare gap shows
+  // between the hair and the ear.
+  // Its own part (`burn`, one run per side); the head wears it in the hair's colour, and a bald head not at all (its
+  // own skin is the face's colour, with no edge for the ink to outline)
+  const burns = [];
+  if (options.sideburnPatch) {
+    parts.burn = [];
+    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yTop = 0.22, yBot = earY - 0.06, I = 6, J = 10;
+    for (const side of [-1, 1]) {
+      const start = parts.burn.length, at = (i, j, off) => { const y = yTop + (yBot - yTop) * j / J, u0 = 0.84 + 0.1 * (j / J) ** 2, u = side * (u0 + (0.955 - u0) * i / I), p = surface(u, y);
+        const n = unit([p[0], 0, p[2] - 0.07]); return add(p, mul(n, off)); };
+      const lo = 0.004, hi = 0.018, Q = (a, b, c, d) => (side > 0 ? quad('burn', a, b, c, d) : quad('burn', d, c, b, a));
+      for (let j = 0; j < J; j++) for (let i = 0; i < I; i++) { Q(at(i, j, hi), at(i, j + 1, hi), at(i + 1, j + 1, hi), at(i + 1, j, hi)); Q(at(i + 1, j, lo), at(i + 1, j + 1, lo), at(i, j + 1, lo), at(i, j, lo)); }
+      for (let j = 0; j < J; j++) { Q(at(0, j, lo), at(0, j + 1, lo), at(0, j + 1, hi), at(0, j, hi)); Q(at(I, j, hi), at(I, j + 1, hi), at(I, j + 1, lo), at(I, j, lo)); }
+      for (let i = 0; i < I; i++) { Q(at(i, 0, lo), at(i, 0, hi), at(i + 1, 0, hi), at(i + 1, 0, lo)); Q(at(i + 1, J, lo), at(i + 1, J, hi), at(i, J, hi), at(i, J, lo)); }
+      burns.push({ side, start, count: parts.burn.length - start });
+    }
+  }
   // Hair cap + individually directed swept solid clumps.
   const vx = h.volume * f.width, vy = h.volume, depth = h.volume, short = h.style === 'short', hime = h.style === 'hime';
   // the HAIR FORM (see the header): a neutral word dropped first, so an absent, empty or all-neutral form runs the studio's
@@ -481,7 +501,7 @@ export function buildAnime(r, options = {}) {
     }
     // `path` (a CAP lock: its centre line walked over the dome) replaces the C-curve: resampled evenly along its length,
     // its flat side facing out from the head at each ring
-    const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null, thick = null) => {
+    const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null, thick = null, cup = 0) => {
       const start = parts.hair.length, rings = [];
       let along = null;
       if (path) { const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(path[i], path[i - 1])));
@@ -492,13 +512,14 @@ export function buildAnime(r, options = {}) {
       // along it, and never flipping between rings (a flip twists the tube into a kink)
       let prev = null;
       const frame = (tangent, nrm) => { let across = cross(tangent, nrm); if (dmath.hypot(...across) < 0.25) across = cross(tangent, Math.abs(tangent[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); across = unit(across); if (prev && dot(across, prev) < 0) across = mul(across, -1); prev = across; return [across, unit(cross(across, tangent))]; };
-      const ring = (center, tangent, w, t = 0) => { const [across, thickDir] = frame(tangent, normalAt(center)), th = w * depthRatio * (thick ? thick(t) : 1); return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); }); };
+      const ring = (center, tangent, w, t = 0) => { const nrm = normalAt(center), [across, thickDir] = frame(tangent, nrm), th = w * depthRatio * (thick ? thick(t) : 1), inward = dot(thickDir, nrm) >= 0 ? -1 : 1; return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th + inward * cup * w * dmath.cos(a) ** 2))); }); };   // `cup`: the edges curled in toward the scalp (a peel), whichever way the frame's thickness runs
       // the curve's centres, each kept OUT of the body (BODY: never through the neck or over into the shoulders), the
       // tangents then read off the kept centres
       // a lock that meets the body DRAPES over it: the push it takes there carries on down the rest of its length (it
-      // never springs back inside, which would kink it)
+      // never springs back inside, which would kink it); the clearance is its THICKNESS (a flat lock lies face-down on
+      // the body)
       let drape = [0, 0, 0];
-      const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(along ? along[j] : add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * Math.max(1, depthRatio)); drape = add(drape, sub(k, c)); return k; });
+      const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(along ? along[j] : add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * depthRatio * (thick ? thick(t) : 1)); drape = add(drape, sub(k, c)); return k; });
       tip = centers[N];
       const tangentAt = (j) => { const d = sub(centers[Math.min(N, j + 1)], centers[Math.max(0, j - 1)]); return dmath.hypot(...d) < 1e-9 ? unit(sub(control, root)) : unit(d); };
       rings.push(ring(root, path ? unit(sub(centers[1], root)) : unit(sub(control, root)), width * profile(0), 0));   // the cut base at t 0
@@ -510,7 +531,7 @@ export function buildAnime(r, options = {}) {
     };
     // a C-curve: the control off the chord's middle toward `toward`, by `bend` of the length
     const bent = (root, tip, bend, toward) => { const mid = mul(add(root, tip), 0.5), chord = sub(tip, root), L = dmath.hypot(...chord), k = unit(chord), off = sub(toward, mul(k, dot(toward, k))); return add(mid, mul(dmath.hypot(...off) > 1e-9 ? unit(off) : [0, 0, 0], bend * L)); };
-    const counts = { carrot: 0, banana: 0, pepper: 0 };
+    const counts = { carrot: 0, banana: 0, pepper: 0, peel: 0 };
     // SPROUT: a piece leaves its root ALONG the head, flowing away from the whorl, and only then arcs out to its tip — the
     // control drawn toward a point half the length down the surface flow (by `sprout`, 0 … 1), so a lock grows out of the
     // mass like a sprout instead of being pushed straight out of the skull (which reads as a spike through the face)
@@ -549,7 +570,13 @@ export function buildAnime(r, options = {}) {
     // and flat, sleek to the scalp; at the departure it swells to its full width and thickness, then tapers to its end
     const capWidth = (dp) => (t) => { const bump = Math.exp(-(((t - dp) / 0.2) ** 2)); return (t <= dp ? 0.65 + 0.5 * bump : bump * 0.55 + 0.6 * dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.85)) * (t <= dp ? 1 : dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.35)); };
     const capThick = (dp) => (t) => 0.3 + 1.6 * Math.exp(-(((t - dp) / 0.18) ** 2));
+    // a PEEL (a layered banana peel): a LEAF — a narrow stem at its root, widest where it leaves the head (or 40 % out
+    // when it is not a cap lock), a pointed tip — thin as a peel, its edges cupped in toward the scalp (`cup`), so a few
+    // layered peels read as shells lying one over another
+    const peelWidth = (dp) => (t) => (t <= dp ? 0.3 + 0.7 * dmath.pow(dmath.sin(Math.PI / 2 * t / (dp || 1)), 0.8) : dmath.pow(Math.max(0, 1 - (t - dp) / (1 - dp || 1)), 0.9));
     const BUILD = {
+      peel: (Q) => { const anchor = anchorOf(Q.at), n = unit(sub(anchor, C)), d = unit(Q.dir ?? add(n, [0, -1, 0])), L = (Q.length ?? 0.6) * G, root = sub(anchor, mul(n, 0.04)), tip = add(anchor, mul(d, L)), dp = Q.path ? Q.path.depart : 0.4;
+        piece('peel-' + counts.peel++, root, sprouted(Q, anchor, n, L, bent(root, tip, Q.bend ?? 0.15, n)), tip, (Q.width ?? 0.3) * G, Q.flat ?? 0.16, n, peelWidth(dp), Q.path, Q.path ? (t) => 0.6 + 0.6 * Math.exp(-(((t - dp) / 0.2) ** 2)) : null, Q.cup ?? 0.35); },
       carrot: (K) => { const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? n), L = (K.length ?? 1) * G, base = (K.base ?? 0.2) * G, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
         piece('carrot-' + counts.carrot++, root, sprouted(K, anchor, n, L, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1])), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK)); },
       banana: (B) => { const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir ?? add(n, [0, -1, 0])), L = (B.length ?? 0.5) * G, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
@@ -557,7 +584,7 @@ export function buildAnime(r, options = {}) {
       pepper: (P) => { const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? add(n, [0, -1, 0])), L = (P.length ?? 0.8) * G, w = (P.width ?? 0.07) * G, root = sub(anchor, mul(n, 2.2 * w)), tip = add(anchor, mul(d, L));
         piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], P.path ? capWidth(P.path.depart) : (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8), P.path, P.path ? capThick(P.path.depart) : null); },
     };
-    const SIZE = { carrot: 'base', banana: 'width', pepper: 'width' };
+    const SIZE = { carrot: 'base', banana: 'width', pepper: 'width', peel: 'width' };
     // the layers: `rows` rows from el[0] to el[1], `count` pieces over the azimuth range (each row offset half a step),
     // lengths varied by `vary` on a sine of the index; each FLOWS from the whorl (`whorl: [az°, el°]`, the crown set back by
     // default) along the head's surface — lifted off it by `lift`, drooped by `droop` — so a layer lies like hair, it
@@ -574,25 +601,26 @@ export function buildAnime(r, options = {}) {
         const u = (i + (r % 2 ? 0.5 : 0) + (full ? 0 : 0.5)) / (full ? per : per + 0.5), az = a0 + (a1 - a0) * Math.min(1, u), el = rows === 1 ? r0 : r0 + (r1 - r0) * r / (rows - 1), k = r * per + i;
         const at = place(az, el), P = anchorOf(at), n = unit(sub(P, C)), vary = 1 + (Ly.vary ?? 0.25) * dmath.sin(k * 2.39996 + r * 1.3);
         const spacing = dmath.hypot(...sub(anchorOf(place(az + (a1 - a0) / (full ? per : per + 0.5), el)), P)), cover = Ly.cover ?? (Ly.shape === 'carrot' ? 0 : 1);
-        const width0 = (Ly.width ?? (Ly.shape === 'carrot' ? 0.24 : Ly.shape === 'banana' ? 0.14 : 0.06)) * (0.85 + 0.15 * vary), width = Math.max(width0, (cover * 0.62 * spacing) / G);
+        const width0 = (Ly.width ?? (Ly.shape === 'carrot' ? 0.24 : Ly.shape === 'banana' ? 0.14 : Ly.shape === 'peel' ? 0.3 : 0.06)) * (0.85 + 0.15 * vary), width = Math.max(width0, (cover * 0.62 * spacing) / G);
         let flow = sub(P, WHORL); flow = sub(flow, mul(n, dot(flow, n))); if (dmath.hypot(...flow) < 1e-6) flow = [0, 0, -1];
         // `swirl` (degrees) turns the flow about the scalp's normal, clockwise seen from outside the head: the whole layer
         // turns ONE way (a fringe swept off its part, a crown that spirals) — never a twin pair
         flow = unit(flow); if (Ly.swirl) { const sw = Ly.swirl * Math.PI / 180; flow = sub(mul(flow, dmath.cos(sw)), mul(cross(n, flow), dmath.sin(sw))); }
         const dir = add(add(flow, mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
         const capped = Ly.cap && Ly.shape !== 'carrot' ? capPath(P, flow, at[1], (Ly.length ?? 0.6) * vary * G, Ly, vary) : null;
-        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, sprout: Ly.sprout ?? 0.8, ...(capped ? { path: capped } : {}) });
+        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, cup: Ly.cup, sprout: Ly.sprout ?? 0.8, ...(capped ? { path: capped } : {}) });
       }
     }
     for (const K of SH?.carrots ?? []) BUILD.carrot(K);
     for (const B of SH?.bananas ?? []) BUILD.banana(B);
     for (const P of SH?.peppers ?? []) BUILD.pepper(P);
+    for (const Q of SH?.peels ?? []) BUILD.peel(Q);
     // the sideburns: two pieces before the ears, in the style's own family; `length`, `width`, `forward` (the tip toward the
     // cheek), `at` (the elevation, below the hairline by default), `az` (degrees in front of the ear's azimuth)
     if (BURNS) {
-      const family = BURNS.shape ?? (SH ? (SH.carrots?.length ? 'carrot' : SH.bananas?.length ? 'banana' : SH.peppers?.length ? 'pepper' : SH.layers?.[0]?.shape) : null) ?? 'banana';
+      const family = BURNS.shape ?? (SH ? (SH.carrots?.length ? 'carrot' : SH.bananas?.length ? 'banana' : SH.peppers?.length ? 'pepper' : SH.peels?.length ? 'peel' : SH.layers?.[0]?.shape) : null) ?? 'banana';
       const A = BURNS.amount ?? 1, L = (BURNS.length ?? 0.4) * A;
-      if (L > 0) for (const side of [1, -1]) BUILD[family]({ at: [side > 0 ? 90 - (BURNS.az ?? 10) : 270 + (BURNS.az ?? 10), BURNS.at ?? -10], dir: [side * 0.12, -1, 0.1 - (BURNS.forward ?? 0)], length: L / G, [SIZE[family]]: (BURNS.width ?? (family === 'pepper' ? 0.07 : 0.14)) / G, bend: 0.08, curve: 0.2, sink: 0.3, flat: 0.5 });
+      if (L > 0) for (const side of [1, -1]) BUILD[family]({ at: [side > 0 ? 90 - (BURNS.az ?? 10) : 270 + (BURNS.az ?? 10), BURNS.at ?? -10], dir: [side * 0.12, -1, 0.1 - (BURNS.forward ?? 0)], length: L / G, [SIZE[family]]: (BURNS.width ?? (family === 'pepper' ? 0.07 : 0.14)) / G, cup: 0.2, bend: 0.08, curve: 0.2, sink: 0.3, flat: 0.5 });
     }
   }
   // mojulo: the consolidated sections, skinned across their members' curves
@@ -633,7 +661,7 @@ export function buildAnime(r, options = {}) {
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
   for (const lk of locks) for (const key of ['root', 'control', 'tip']) lk[key] = pitched(lk[key]);
-  return { headPolygons, parts, cage, guides, locks, recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
+  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
 }
 
 /** The SCULPT's neutral values (buildAnime's own units): a word equal to its neutral is dropped before the build, so an

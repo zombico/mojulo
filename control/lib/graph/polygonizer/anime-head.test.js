@@ -194,11 +194,11 @@ describe('anime head: the hair fit (hair-passes)', () => {
 describe('anime head: the hair forms', () => {
   const hairParts = (h) => Object.keys(h.parts).filter((k) => k.startsWith('hair')).sort();
   it('the female families are a few sections, not a comb of strands; `strands: 1` is the studio\'s clumps', () => {
-    const forms = ['hairCap', 'hairFormBackC', 'hairFormBackL', 'hairFormBackR', 'hairFormFringeC', 'hairFormFringeL', 'hairFormFringeR', 'hairFormSideL', 'hairFormSideR'];
+    const forms = ['hairCap', 'hairFormBackC', 'hairFormBackL', 'hairFormBackR', 'hairFormFringeC', 'hairFormFringeL', 'hairFormFringeR', 'hairFormSideL', 'hairFormSideR', 'hairSideburnL', 'hairSideburnR'];
     for (const fam of ['bob', 'long']) expect(hairParts(animeHead({ preset: 'female', hair: fam }))).toEqual(forms);
     expect(hairParts(animeHead({ preset: 'female', hair: 'hime' }))).toEqual([...forms, 'hairTempleL0', 'hairTempleR0'].sort());   // the hime's squared front sidelocks
-    expect(hairParts(animeHead({ preset: 'female', hair: ['bob', { strands: 1 }] })).length).toBe(25);
-    expect(hairParts(animeHead({ preset: 'male', hair: 'short' })).length).toBe(31);   // the short family stays spiky strands
+    expect(hairParts(animeHead({ preset: 'female', hair: ['bob', { strands: 1 }] })).length).toBe(27);   // the two sideburn patches (a pair) on top of the studio's clumps and the cap
+    expect(hairParts(animeHead({ preset: 'male', hair: 'short' })).length).toBe(33);   // the short family stays spiky strands (and the two sideburn patches)
   });
   it('a clump\'s lock edit moves only the sections it belongs to', () => {
     const a = animeHead({ preset: 'female', hair: 'long' }), b = animeHead({ preset: 'female', hair: ['long', { locks: { 'fringe-3': { ty: -0.1, tx: 0.05 } } }] });
@@ -243,12 +243,13 @@ describe('anime head: the graphic face', () => {
   const hash = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
   const faceLists = (h) => Object.fromEntries(Object.entries(h.parts).filter(([, p]) => p.layer === 2).map(([k, p]) => [k, JSON.stringify(p.faces)]));
   it("`sculpt: false` is the studio's face: the female's hash from before the graphic face; the male's the same once his rest carriage is carried back", () => {
-    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('d54c4a169430908e');
+    // re-pinned for the sideburn patches before the ears (every anime head wears them, the studio's face too)
+    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('2bbeac4c5e835818');
     // re-pinned for the male base's rest carriage (ANIME_BASE_ADJUST.male headPitch −0.25: 3° chin up instead of 6°); a
     // headPitch word of 1.25 carries it back, and with the face record it stores set back to the base the head is the
     // hash it gave before the graphic face existed
-    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('85f729246f5d520b');
-    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('c33aae77c545dec5');
+    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('d0abc5752f4396b3');
+    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('0e8b35275e695090');
   });
   it('the words: ratios about the base and offsets compose; shape words ride beside; the stored layer is sparse; unknown words refused', () => {
     const R = resolveAnimeSculpt(['heavy-lid', { lidWeight: 1.1, browAngle: 4, fissureShape: 'tri' }, { browAngle: 2 }]);
@@ -417,7 +418,7 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
     expect(validateAnimeHair({ locks: { tail: { ty: 0.1 } } })).toEqual([]); expect(animeLockPart('tail')).toBe('hairTail');
     expect(resolveAnimeHair([{ flip: 0.5 }, { flip: { out: 0.2 } }]).flip).toEqual({ amount: 0.5, out: 0.2 });
-  });
+  }, 180000);   // many full builds: room under a parallel run
   it('flipped-long: the side and back ends kicked out past the plain long sheet', () => {
     const flip = on('female', 'flipped-long').mesh, plain = on('female', ['flipped-long', { flip: false }]).mesh;
     const reach = (m) => Math.max(...box(m, /^hairFormSide[LR]$/)[0].map(Math.abs));
@@ -444,6 +445,10 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(fam(broku.h)).toEqual(['Carrot']); expect(fam(on('male', 'jinto').h)).toEqual(['Banana']); expect(fam(on('male', 'kairo').h)).toEqual(['Pepper']);
     // jingo: the same family as his cousin, FEW pieces placed with intent (about half jinto's count)
     const pieces = (h, re) => Object.keys(h.parts).filter((k) => re.test(k)).length;
+    // jona: layered banana PEELS, a few of them
+    const famP = (h) => [...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot|Peel)\d+$/)?.[1]).filter(Boolean))];
+    const jona = on('male', 'jona'); expect(famP(jona.h)).toEqual(['Peel']); expect(pieces(jona.h, /^hairPeel\d+$/)).toBeLessThanOrEqual(24); expect(failures(jona.mesh)).toEqual([]);
+    expect(validateAnimeHair({ shapes: { peels: [{ at: [0, 60] }], layers: [{ shape: 'peel', cup: 2 }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.peels[0].dir', 'hair.shapes.layers[0].cup']);
     expect(fam(on('male', 'jingo').h)).toEqual(['Banana']); expect(pieces(on('male', 'jingo').h, /^hairBanana\d+$/)).toBeLessThanOrEqual(pieces(on('male', 'jinto').h, /^hairBanana\d+$/) * 0.55);
     expect(broku.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
     expect(box(broku.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
@@ -509,6 +514,19 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(validateAnimeHair({ shapes: { layers: [{ shape: 'pepper', swirl: 120 }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.layers[0].swirl']);
     const big = on('male', ['broku', { shapes: { ...ANIME_HAIR_MOVES.broku.hair.shapes, scale: 1.6 } }]).h, small = on('male', ['broku', { shapes: { ...ANIME_HAIR_MOVES.broku.hair.shapes, scale: 1 } }]).h;
     expect(big.hairMeasures.top_m).toBeGreaterThan(small.hairMeasures.top_m + 0.02);
+  });
+  it('the sideburn patches: every anime head with hair covers the skin before each ear, in the hair colour; a bald head shows its skin', () => {
+    for (const [preset, hair] of [['male', 'short'], ['female', 'long'], ['male', 'jona']]) {
+      const { h, mesh } = on(preset, hair);
+      for (const s of ['L', 'R']) {
+        const b = box(mesh, new RegExp(`^hairSideburn${s}$`)), ear = box(mesh, new RegExp(`^ear${s}$`));
+        expect(h.parts[`hairSideburn${s}`].group, `${preset} ${hair}`).toBe('Hair');
+        expect(b[1][1], `${preset} ${hair} ${s}`).toBeGreaterThan(ear[1][1]);   // reaches further forward than the ear: before it
+        expect(b[2][0]).toBeLessThan((ear[2][0] + ear[2][1]) / 2); expect(b[2][1]).toBeGreaterThan(ear[2][1]);   // from above the ear to below its middle
+      }
+      expect(failures(mesh)).toEqual([]);
+    }
+    expect(Object.keys(animeHead({ preset: 'male', hair: 'none' }).parts).some((k) => /Sideburn/.test(k))).toBe(false);
   });
   it('the sideburns: on any style, before the ears, in the family of the style; the shape and amount by word', () => {
     const plain = on('female', 'long'), burns = on('female', ['long', { sideburns: { length: 0.5 } }]);

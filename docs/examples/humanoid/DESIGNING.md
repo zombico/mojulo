@@ -272,6 +272,7 @@ in the style's family.
 |---|---|---|---|
 | CARROT | points AND mass: the only family that holds a spiky design alone (short and wide reads as mass, long as a spike) | a CUT CONICAL CARROT: round, its square-cut base sunk into the mass, never pinched or draped | `length`, `base`, `sink`, `curve` (0 a cone, toward 1 a thorn), `bend` |
 | BANANA | locks: broad tapered locks that TILE the head from a smooth crown and part into points at their ends (the operator's sketch) | a flat crescent widest a third of the way out, laid along the mass | `length`, `width`, `flat`, `bend`, `sprout` |
+| PEEL | sheets: a LAYERED BANANA PEEL, a few of them laid one over another (the young-Bieber / farm-boy-Skywalker swoop) | a leaf: a narrow stem, widest where it leaves the head, a pointed tip; thin, its edges cupped to the scalp | `length`, `width`, `flat`, `cup`, `bend`, `sprout` |
 | PEPPER | strands: a CHILI, the thin version of the banana's tiling; the weight is how many are layered and how thin and long | a small shoulder at the stem, a slender taper to its point | `length`, `width`, `bend`, `sprout` |
 
 ONE FAMILY PER DESIGN. The operator's experiment (Broku's carrot layout rebuilt as bananas and as bellied peppers at
@@ -306,6 +307,13 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
 - **Volume at the widest.** Where the hair leaves the head is where it is most voluminous: a cap lock lies thin and
   flat on the dome, sleek to the scalp, and swells to its full width and thickness at its departure, bowing out by its
   `bend` before it tapers. A lumpy dome is the volume in the wrong place.
+- **Jona, layered banana peels.** Twenty leaf-shaped peels, every one a cap lock. The crown's peels fall over the sides
+  and back into a rounded mop over the ears and collar; the front's are turned hard toward his right (`swirl: 60`) and
+  barely droop, so the dome walk carries them ACROSS the forehead before they fall: the swoop, from a part over his
+  left brow. A flat lock keeps off the body by its thickness, not its width, so a peel lies face-down on the neck.
+- **No gap before the ear.** Every anime head with hair wears a thin sideburn patch in the hair's colour on the skin
+  before each ear, tucked under the hair's edge and tapering to the ear's lower third. On a bald head the skin shows
+  there: the face's own colour, with no patch edge for the ink to outline.
 - **Never through the body.** Shaped hair keeps out of the body it is worn on: the hero's own neck and torso rings
   are handed to the head, and a lock that meets them drapes over them (the push carries on down the lock, so it never
   kinks back in). Hair lies close on the neck and stands off the collar and shoulders. A long cut then shows where it
