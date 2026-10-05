@@ -241,6 +241,10 @@ class GlbBuilder {
     this.bin = [];
     this.binLen = 0;
     this.children = []; // node indices parented under the y-up root
+    // engine-skeleton figures (the T-pose humanoid): scene-level nodes OUTSIDE the root, already in the y-up VRM space.
+    // An engine's humanoid import (Godot's rest fixer) bakes the skeleton's ancestors into it and resets them, which would
+    // strip the root's z-up → y-up from every sibling (the floor, the cameras) if the figure hung under it.
+    this.sceneRoots = [];
     this.json = {
       asset: { version: '2.0', generator },
       extensionsUsed: [],
@@ -875,9 +879,9 @@ class GlbBuilder {
 
     const meshNode = this.json.nodes.push({ name: `${name}:body`, mesh: meshIdx, skin: skinIdx }) - 1;
     const wrapIdx = this.json.nodes.push(parents
-      ? { name, rotation: [-ZUP_TO_YUP[0], -ZUP_TO_YUP[1], -ZUP_TO_YUP[2], ZUP_TO_YUP[3]], children: [...jointNodes.filter((_, bi) => parents[bi] < 0), meshNode] }
+      ? { name, children: [...jointNodes.filter((_, bi) => parents[bi] < 0), meshNode] }
       : { name, children: [...jointNodes, ...leafNodes, meshNode] }) - 1;
-    this.children.push(wrapIdx);
+    if (parents) this.sceneRoots.push(wrapIdx); else this.children.push(wrapIdx);
     this.rigWrappers.set(name, wrapIdx);
     if (hb && !this.vrmDeclared) {
       // one avatar per VRM file: the first humanoid figure owns the extension
@@ -1022,6 +1026,11 @@ class GlbBuilder {
     // every importer receives metres with no per-engine code.
     const rootIdx = this.json.nodes.push({ name: 'mojulo', rotation: ZUP_TO_YUP, ...(this.rootScale ? { scale: this.rootScale, extras: { 'moj:metersPerUnit': this.rootScale[0] } } : {}), children: this.children }) - 1;
     this.json.scenes[0].nodes = [rootIdx];
+    for (const w of this.sceneRoots) {
+      // a scene-level engine figure takes the root's unit scale, if any (its rotation it already has, in its data)
+      if (this.rootScale) this.json.nodes[w].scale = [...this.rootScale];
+      this.json.scenes[0].nodes.push(w);
+    }
 
     // Drop empty optional arrays so the glTF validates cleanly.
     for (const key of ['images', 'samplers', 'textures', 'materials', 'extensionsUsed']) {
@@ -1377,7 +1386,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     triangleCount += added.triangles;
   }
 
-  if (!b.children.length) return null; // expansion produced nothing exportable
+  if (!b.children.length && !b.sceneRoots.length) return null; // expansion produced nothing exportable
 
   // ── level-as-layout semantics (interchange.plan.md I4) — default-on ──────────────────────
   // A GLB is a derived snapshot regenerated on demand, so enriching the export needs no opt-in:
@@ -1445,7 +1454,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     bytes,
     byteLength: bytes.length,
     lit: !!lit,
-    nodeCount: b.children.length,
+    nodeCount: b.children.length + b.sceneRoots.length,
     vertexCount,
     triangleCount,
   };

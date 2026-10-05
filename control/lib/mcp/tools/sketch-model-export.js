@@ -18,7 +18,7 @@ import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import { tposeRig, withProfileJoints } from '@/lib/graph/figures/rig-tpose';
 import { isHumanoidRig, humanoidBonesFor } from '@/lib/graph/polygonizer/figure-humanoid-map';
-import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport } from '@/lib/graph/scene/godot-humanoid';
+import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport, GODOT_POST_IMPORT_FILE, GODOT_POST_IMPORT_GD } from '@/lib/graph/scene/godot-humanoid';
 import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
@@ -1126,9 +1126,10 @@ export async function exportModelHandler(input, context = {}) {
         await fs.writeFile(path.join(dir, godotBoneMapFile(f)), godotBoneMapTres(f, [...names.values(), ...leaves.map((l) => l.vrm)]));
         written.push(godotBoneMapFile(f));
       }
+      await fs.writeFile(path.join(dir, GODOT_POST_IMPORT_FILE), GODOT_POST_IMPORT_GD);
       await fs.writeFile(path.join(dir, `${fileName}.import`), godotHumanoidImport(tposed.figures, godotDir));
-      written.push(`${fileName}.import`);
-      result.godot = { files: written, place_at: `res://${godotDir}/`, note: `Copy this folder into a Godot 4 project at res://${godotDir}/ (the .import names its BoneMap there). On import Godot renames the bones to its humanoid profile and the skeleton becomes %GeneralSkeleton, so any humanoid animation the project owns plays on it, and its clips on any humanoid.` };
+      written.push(GODOT_POST_IMPORT_FILE, `${fileName}.import`);
+      result.godot = { files: written, place_at: `res://${godotDir}/`, note: `Copy this folder into a Godot 4 project at res://${godotDir}/ (the .import names its BoneMap there). On import Godot renames the bones to its humanoid profile and the skeleton becomes %GeneralSkeleton, so any humanoid animation the project owns plays on it, and its clips on any humanoid; mojulo_import.gd gives its surfaces their vertex colour (Godot imports a vertex-coloured GLB white otherwise).` };
     }
     const hash = createHash('sha256').update(JSON.stringify(sketch.manifest)).digest('hex').slice(0, 16);
     await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);

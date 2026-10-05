@@ -25,7 +25,7 @@ const godot = process.env.MOJULO_GODOT || 'godot';
 if (spawnSync(godot, ['--version']).status !== 0) { console.error(`no Godot at '${godot}' (set MOJULO_GODOT)`); process.exit(2); }
 
 const { facesToGlb } = await import('../../../control/lib/graph/scene/scene-gltf.js');
-const { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport } = await import('../../../control/lib/graph/scene/godot-humanoid.js');
+const { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport, GODOT_POST_IMPORT_FILE, GODOT_POST_IMPORT_GD } = await import('../../../control/lib/graph/scene/godot-humanoid.js');
 const { tposeRig, withProfileJoints } = await import('../../../control/lib/graph/figures/rig-tpose.js');
 const { assembleFigureScene } = await import('../../../control/lib/graph/figures/figure-world.js');
 const { humanoidBonesFor } = await import('../../../control/lib/graph/polygonizer/figure-humanoid-map.js');
@@ -41,6 +41,7 @@ function place(dir, figName, fig) {
   writeFileSync(join(at, 'model.glb'), facesToGlb({ faces: [], figures: { [figName]: fig } }, { clips: '_all', skinned: true, humanoid: true }).bytes);
   const { names, leaves } = humanoidBonesFor(withProfileJoints(fig).bones);
   writeFileSync(join(at, godotBoneMapFile(figName)), godotBoneMapTres(figName, [...names.values(), ...leaves.map((l) => l.vrm)]));
+  writeFileSync(join(at, GODOT_POST_IMPORT_FILE), GODOT_POST_IMPORT_GD);
   writeFileSync(join(at, 'model.glb.import'), godotHumanoidImport([figName], dir));
 }
 place('mojulo/source', 'figure', Object.values(assembleFigureScene({ motion: { emote } }, { tpose: true }).figures)[0]);

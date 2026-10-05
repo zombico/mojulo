@@ -30,11 +30,14 @@ function checkEngineSkeleton(packed) {
   const skin = json.skins[0], joints = skin.joints, parents = humanoidParents(fig.bones), V = vrmSpacePack(fig);
   const parentNode = new Map();
   json.nodes.forEach((n, i) => (n.children || []).forEach((c) => parentNode.set(c, i)));
-  // nested on the VRM tree; the roots (the hips) under the wrapper, which cancels the root's z-up → y-up
+  // nested on the VRM tree; the roots (the hips) under the wrapper
   joints.forEach((node, bi) => { if (parents[bi] >= 0) expect(parentNode.get(node)).toBe(joints[parents[bi]]); });
-  const wrap = json.nodes[parentNode.get(joints[parents.indexOf(-1)])], root = json.nodes[parentNode.get(json.nodes.indexOf(wrap))];
-  const net = qmul(root.rotation, wrap.rotation);
-  expect(qangle(net, [0, 0, 0, 1])).toBeLessThan(1e-4);
+  // the wrapper is a SCENE-level node beside the z-up root (an engine's rest fixer resets a skeleton's ancestors), with
+  // no transform: its data is already in the y-up VRM space
+  const wrapIdx = parentNode.get(joints[parents.indexOf(-1)]), wrap = json.nodes[wrapIdx];
+  expect(json.scenes[0].nodes).toContain(wrapIdx);
+  expect(parentNode.has(wrapIdx)).toBe(false);
+  expect(wrap.rotation).toBeUndefined();
   // the T rest: no joint rotation; offsets that sum to the VRM-space heads
   const restHead = (bi) => (bi < 0 ? [0, 0, 0] : (() => { const p = restHead(parents[bi]), t = json.nodes[joints[bi]].translation; return [p[0] + t[0], p[1] + t[1], p[2] + t[2]]; })());
   fig.bones.forEach((_, bi) => {

@@ -380,6 +380,17 @@ mojulo's own clips are unchanged. With them, `Dance_Loop` lands:
 - trunk within 5–8° (the flat figure still has no neck);
 - legs within 4.6°.
 
+**Two import traps, both fixed in the export.**
+- Godot's rest fixer bakes a skeleton's ancestor nodes into it and resets them. With the figure
+  under mojulo's z-up root, that stripped the root's rotation from every sibling: the World floor
+  stood on edge as a 20 m wall, and the World cameras tipped over. So the engine figure is a
+  scene-level node, beside the root, with no transform of its own.
+- Godot imports a vertex-coloured GLB white (no `vertex_color_use_as_albedo`). So a post-import
+  script, `mojulo_import.gd`, ships beside the GLB and applies the kernel's G0 material contract.
+
+A GLB's own cameras can become the current camera in a scene that adds them first; a viewer should
+set its own camera current.
+
 **Godot.** Beside the GLB, `export_model` writes a `BoneMap` per figure (`godot-humanoid.js`: the
 profile names are the VRM names capitalised; Godot names a joint `<figure>:<vrm>` as the bone
 `<figure>_<vrm>`) and the GLB's `.import` naming it on `mojulo/<figure>/Skeleton3D`. Because an

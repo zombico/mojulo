@@ -2,7 +2,7 @@
 // (The live gate, a real Godot importing them and retargeting a clip, is docs/examples/humanoid/godot-retarget.mjs.)
 import { describe, expect, it } from 'vitest';
 
-import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport } from './godot-humanoid.js';
+import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport, GODOT_POST_IMPORT_GD } from './godot-humanoid.js';
 
 describe('the Godot humanoid sidecars', () => {
   it('a BoneMap maps the profile names (the VRM names, capitalised) onto the bones as Godot names them', () => {
@@ -18,7 +18,14 @@ describe('the Godot humanoid sidecars', () => {
   it('the .import names each figure\'s BoneMap on its skeleton, at the res:// folder', () => {
     const t = godotHumanoidImport(['body'], 'mojulo/sk_abc');
     expect(t).toContain('importer="scene"');
-    expect(t).toContain('"PATH:mojulo/body/Skeleton3D": {\n"retarget/bone_map": Resource("res://mojulo/sk_abc/body.bonemap.tres")\n}');
+    expect(t).toContain('"PATH:body/Skeleton3D": {\n"retarget/bone_map": Resource("res://mojulo/sk_abc/body.bonemap.tres")\n}');
     expect(godotBoneMapFile('body')).toBe('body.bonemap.tres');
+    expect(t).toContain('import_script/path="res://mojulo/sk_abc/mojulo_import.gd"');
+  });
+
+  it('the post-import script gives every surface its vertex colour (linear) as albedo', () => {
+    expect(GODOT_POST_IMPORT_GD).toMatch(/^@tool\nextends EditorScenePostImport/);
+    expect(GODOT_POST_IMPORT_GD).toContain('mat.vertex_color_use_as_albedo = true');
+    expect(GODOT_POST_IMPORT_GD).toContain('mat.vertex_color_is_srgb = false');
   });
 });

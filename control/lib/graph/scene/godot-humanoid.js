@@ -5,7 +5,7 @@
  * any humanoid clip a Godot project owns play on the figure (and the figure's on any humanoid). Text only, no Godot.
  *
  * Names as Godot's glTF importer makes them (naming v2): a joint `<figure>:<vrmBone>` becomes the bone
- * `<figure>_<vrmBone>`, under the node `mojulo/<figure>/Skeleton3D`. The profile's bone names are the VRM ones,
+ * `<figure>_<vrmBone>`, under the node `<figure>/Skeleton3D` (an engine figure is a scene-level node, beside `mojulo`). The profile's bone names are the VRM ones,
  * capitalised (hips → Hips, leftUpperArm → LeftUpperArm, leftThumbMetacarpal → LeftThumbMetacarpal).
  * An `.import` names its BoneMap by a res:// path, so the files assume the folder sits at `res://<dir>/` (`dir`).
  */
@@ -28,9 +28,32 @@ ${lines.join('\n')}
 /** The BoneMap file name for a figure, beside the GLB. */
 export const godotBoneMapFile = (figure) => `${figure}.bonemap.tres`;
 
-/** The GLB's `.import`: the scene importer with each figure's BoneMap on its skeleton (Godot fills in the rest). */
+/** The post-import script beside the GLB: Godot's glTF import does not set `vertex_color_use_as_albedo`, so a mojulo
+ * GLB (its colour is per vertex, COLOR_0, linear) would import white — the kernel's G0 material contract (level.gd
+ * _fix_materials), applied at import instead of at run, since a lone GLB has no kernel. */
+export const GODOT_POST_IMPORT_FILE = 'mojulo_import.gd';
+export const GODOT_POST_IMPORT_GD = `@tool
+extends EditorScenePostImport
+# mojulo post-import (godot-humanoid.js): every surface takes its vertex colour (COLOR_0, linear) as albedo — Godot's
+# glTF import leaves it white otherwise. The same contract as the mojulo kernel's level.gd _fix_materials.
+
+func _post_import(scene):
+	for mi in scene.find_children("*", "MeshInstance3D", true, false):
+		var mesh = mi.mesh
+		if mesh == null:
+			continue
+		for s in range(mesh.get_surface_count()):
+			var mat = mesh.surface_get_material(s)
+			if mat is StandardMaterial3D:
+				mat.vertex_color_use_as_albedo = true
+				mat.vertex_color_is_srgb = false
+	return scene
+`;
+
+/** The GLB's `.import`: the scene importer with the post-import script and each figure's BoneMap on its skeleton (Godot
+ * fills in the rest). */
 export function godotHumanoidImport(figures, dir) {
-  const nodes = figures.map((f) => `"PATH:mojulo/${f}/Skeleton3D": {\n"retarget/bone_map": Resource("res://${dir}/${godotBoneMapFile(f)}")\n}`).join(',\n');
+  const nodes = figures.map((f) => `"PATH:${f}/Skeleton3D": {\n"retarget/bone_map": Resource("res://${dir}/${godotBoneMapFile(f)}")\n}`).join(',\n');
   return `[remap]
 
 importer="scene"
@@ -39,6 +62,7 @@ type="PackedScene"
 
 [params]
 
+import_script/path="res://${dir}/${GODOT_POST_IMPORT_FILE}"
 _subresources={
 "nodes": {
 ${nodes}

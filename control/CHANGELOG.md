@@ -37,7 +37,9 @@ rewritten as its phase lands.
   lacks, split out of its torso bone with the torso's skin spread along them, so a retargeted chest turn bends the
   flesh), each parent-local, in
   the VRM space (y up, facing +z, the figure's left on +x), every rest rotation the identity. Beside the GLB come a
-  Godot `BoneMap` per figure and the `.import` naming it (place the folder at `res://mojulo/<ref>/`): on import Godot
+  Godot `BoneMap` per figure, a post-import script giving its surfaces their vertex colour (Godot imports a
+  vertex-coloured GLB white), and the `.import` naming both (place the folder at `res://mojulo/<ref>/`); the engine
+  figure is a scene-level node beside the z-up root, since Godot's rest fixer resets a skeleton's ancestors. On import Godot
   renames the bones to its humanoid profile and the skeleton becomes `%GeneralSkeleton`, so the project's humanoid
   animations play on the figure and its clips on any humanoid. `docs/examples/humanoid/godot-retarget.mjs` is the gate:
   a real Godot plays the flat figure's bow on a hero's skeleton.
