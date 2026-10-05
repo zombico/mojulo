@@ -132,6 +132,7 @@ describe('silhouette-solve — a drawn outline becomes a dial solve', () => {
     // and right edge) fills the narrow gap between the structured core's converged legs, which the solve closes by widening
     // the stance a little (on the streamlined core the trace was the body and nothing moved)
     const whole = fitSilhouetteDials(hero, {}, upper(1), { mesh });
-    for (const [dial, v] of Object.entries(whole.moved)) expect(Math.abs(v - 1), dial).toBeLessThan(0.03);
+    // (3.5 %: the hands' digits hang a little wider than the mitten did, and the stance takes 3.01 % to close the gap)
+    for (const [dial, v] of Object.entries(whole.moved)) expect(Math.abs(v - 1), dial).toBeLessThan(0.035);
   });
 });

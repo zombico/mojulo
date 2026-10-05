@@ -155,8 +155,12 @@ describe('widths', () => {
     const yoke = (p) => seg(p, 'torso').stations.find((st) => st.id === 'st3').r[0];
     expect(yoke(t)).toBeGreaterThan(yoke(base));
     // the chest layers are sampled off the torso's rings (hero-form.js CHEST_FORM), so they follow the yoke
-    for (const s of base.segments) if (!['torso', 'pectoralR', 'bustR', 'upperArmR', 'foreArmR', 'handR'].includes(s.name)) expect(seg(t, s.name)).toEqual(s);
-    for (const name of ['upperArmR', 'foreArmR', 'handR']) expect(radii(seg(t, name))).toEqual(radii(seg(base, name)));
+    // the hand (hero-hand.js: a palm and five digits, point by point) moves out with the wrist, its shape unchanged
+    const HAND = ['handR', 'thumbR', 'indexR', 'middleR', 'ringR', 'littleR'];
+    for (const s of base.segments) if (!['torso', 'pectoralR', 'bustR', 'upperArmR', 'foreArmR', ...HAND].includes(s.name)) expect(seg(t, s.name)).toEqual(s);
+    for (const name of ['upperArmR', 'foreArmR']) expect(radii(seg(t, name))).toEqual(radii(seg(base, name)));
+    const shifted = (s) => s.stations.map((st) => Object.values(st.points).map((p) => p.map((x, k) => x - st.points.front[k])));
+    for (const name of HAND) shifted(seg(t, name)).flat(2).forEach((x, i) => expect(x).toBeCloseTo(shifted(seg(base, name)).flat(2)[i], 3));
   });
   it('streamlined: waist narrows the trunk\'s lower rings and the thigh crest; hips widens the pelvis without deepening it; depth deepens without widening', () => {
     const S = { cast: 'female', core: 'streamlined' }, base = heroPlan(S);

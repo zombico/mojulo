@@ -24,6 +24,7 @@
  * The canonical JSON lives at docs/examples/ring-plans/hero.plan.json, written by hero.plan.mjs (a re-export of this). */
 import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight, breastSpan } from './breast-field.js';
+import { heroHand } from './hero-hand.js';
 import { mirrorPid } from './station-loft.js';
 import { castArmature, resolveCast, validateCast } from './figure-cast.js';
 import { ratioControls } from './ratio-controls.js';
@@ -265,6 +266,11 @@ function deepFreeze(o) { for (const v of Object.values(o)) if (v && typeof v ===
 const WAVE_ARM = { shR: { yaw: -53, pitch: 20, roll: 90 }, head: { yaw: 8, pitch: 0 } };
 const WAVE_IN = { elbowL: 'slight', elbowR: 120, ...WAVE_ARM }, WAVE_OUT = { elbowL: 'slight', elbowR: 85, ...WAVE_ARM };
 export const ANIME_WAVE = deepFreeze(JSON.parse(JSON.stringify([{ elbowL: 'slight', elbowR: 'slight' }, WAVE_IN, WAVE_OUT, WAVE_IN, WAVE_OUT, WAVE_IN])));
+/** THE WAVING HAND on a hand with a wrist and digits (hero-hand.js): the fingers open and the palm turned to the front by
+ * the wrist's twist, a twist per raised key (the forearm's arc frame turns between keys, so each key has its own; found
+ * by a search over the rig for the palm most nearly facing +y): ANIME_WAVE's five raised keys, the form's three */
+export const WAVE_TWIST = Object.freeze({ anime: Object.freeze([-90, -90, -90, -90, -90]), form: Object.freeze([-90, -50, 70]) });
+export const withWaveHand = (keys, twists) => keys.map((k, i) => (i && twists[i - 1] != null ? { ...k, wristR: { twist: twists[i - 1] }, fingersR: 'open' } : k));
 
 // ─── The tune ─────────────────────────────────────────────────────────────
 // the thirteen body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses),
@@ -640,6 +646,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     thigh.caps = { back: R([r6((Wt + inner0) / 2), hip[1] * 0.4, zp + 0.04]), tip: R([knee[0], knee[1], knee[2] - 0.025]) };
     thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
   }
+  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X, X, girth: g0, female: femaleMass }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
     // the structured core's DELTOID (NECK_ROOT.deltoid): the arm's top ring a little under the joint, its cap taller, so
@@ -649,7 +656,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // arm's top is a dome over the joint and the shoulder's widest point sits where the deltoid's does
     limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR', structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]) } : {}),
     limb('foreArmR', 'elbow', 'wrist', g([b.forearm * 0.76, b.forearm * 0.86]), g([0.029, 0.03]), [0.36, 0.2], 'Top', 'upperArmR', 'handR', { mid: 0.3, rMid: g([b.forearm * 0.77, b.forearm * 0.82]) }),
-    limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) }),
+    // the structured core's HAND (hero-hand.js): a palm and five digits on the same wrist and knuckles; the streamlined
+    // core keeps the mitten
+    ...(hand ? hand.segments : [limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) })]),
     thigh,
     limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)] }),
     limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
@@ -658,7 +667,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
-  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S'], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S', ...(structured ? ['pelvis'] : [])], trunkParts = ['torso', ...(structured ? ['pectoral$S'] : []), ...(structured && bare ? ['navel'] : []), ...(rb > 0 ? ['bust$S'] : [])];
+  const armParts = ['upperArm$S', 'foreArm$S', 'hand$S', ...(hand ? ['thumb$S', 'index$S', 'middle$S', 'ring$S', 'little$S'] : [])], legParts = ['thigh$S', 'shank$S', 'foot$S', 'toes$S', ...(structured ? ['pelvis'] : [])], trunkParts = ['torso', ...(structured ? ['pectoral$S'] : []), ...(structured && bare ? ['navel'] : []), ...(rb > 0 ? ['bust$S'] : [])];
   const jawed = !!head?.joints?.jawHinge;
   const HEAD_SHIFT = [0, 0, r6(hb + rise)];
   const shifted = (p) => R(add(p, HEAD_SHIFT));
@@ -692,7 +701,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     joints: { pelvisHub: { at: J.pelvisHub }, navel: { at: J.navel }, neckHub: { at: J.neckHub }, headBase: { at: J.headBase }, headTop: { at: J.headTop },
       hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.ankle }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
-      ...(jawed ? { jawHinge: { at: shifted(head.joints.jawHinge), rides: 'head' }, jawTip: { at: shifted(head.joints.jawTip), rides: 'head' } } : {}), ...bustJoints },
+      ...(jawed ? { jawHinge: { at: shifted(head.joints.jawHinge), rides: 'head' }, jawTip: { at: shifted(head.joints.jawTip), rides: 'head' } } : {}), ...bustJoints, ...(hand ? hand.joints : {}) },
     bones: [
       ...(structured
         // the basin turns with the hip line alone (figure-vajra.js articulateTransforms' pelvis rides hipL); the lumbar is
@@ -702,7 +711,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
       { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, ...(jawed ? [{ id: 'jaw', head: 'jawHinge', tail: 'jawTip' }] : []),
       { perSide: [
-        { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S' },
+        { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S', ...(hand ? { aux: ['littleMcp$S', 'indexMcp$S'] } : {}) }, ...(hand ? hand.bones : []),
         ...(bustJoints.bustRoot$S ? [{ id: 'bust$S', head: 'bustRoot$S', tail: 'bustTip$S' }] : []),
         { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shank$S', head: 'knee$S', tail: 'ankle$S' }, { id: 'foot$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
       ] },
@@ -710,6 +719,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     ...(jawed ? { chains: { jaw: { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] } } } : {}),
     legs: Object.fromEntries(['R', 'L'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
     reach: 'reject',
+    ...(hand ? { hands: hand.hands } : {}),
   };
 
   // ── clips: pose words for the core; a walk in place (one foot planted, the other swings) ──
@@ -723,6 +733,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // the hand waving by the elbow opening and closing (raw swivels, searched on the rig: elbow ≤ the shoulder line)
     wave: [READY, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 100, head: { x: 0.1, y: 0.95, z: 0.3 } }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 78 }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 118 }],
   };
+  if (hand) clips.wave = withWaveHand(clips.wave, WAVE_TWIST.form);
 
   return scalePlan({
     schema: PLAN_SCHEMA,

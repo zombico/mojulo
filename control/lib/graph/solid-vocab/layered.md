@@ -83,7 +83,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
   `heelL/R` (metatarsus degrees about the toe base, − lifts the heel), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
   the hip joints': 1 puts each ankle under its hip), `stagger` (+ the left foot forward, a share of the leg's height),
-  and every chain channel. Legs solve to PLANTED toes (at rest unless `stance` / `stagger` move them);
+  and every chain channel. A rig's `hands: { R, L }` (carrier bone, wrist joint, `axes: { flex, deviation, twist }`, the
+  hand's joints, per digit a hinge `axis` and `links: [{ pivot, joints, weight, axis? }]`, `poses`) turns those joints
+  in the hand's rest frame before they ride the carrier: the channels `wristR` / `wristL` (flex degrees, or `{ flex,
+  deviation, twist }`) and `fingersR` / `fingersL` (curl degrees, `{ <digit>: deg }` or a word of `poses`). Legs solve to PLANTED toes (at rest unless `stance` / `stagger` move them);
   an unreachable pose refuses with the numbers (`reach: 'clamp'` to accept a reported error). The mint
   pays the rig gates (valid weights, rest identity, planted drift). `export_model({ format: 'glb', clips:
   '_all', skinned: true })` writes the skinned GLB with authored weights; the Godot world pack
@@ -318,7 +321,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   core that advice is a warning. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
   the knee. Its stands own their base: `relaxed`, `hand-on-hip` and `guard` plant both feet where `stance` and `stagger`
   put them, the free side's heel up (the guard about twice the hip spread, bladed with the left leading); a swing word's
-  keys stand on a base of their own. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. Hip armour hangs
+  keys stand on a base of their own. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. Its HAND is a palm
+  and five digits (the anime casts' smaller, the same shape) hanging relaxed toward the thigh, with fifteen finger bones a
+  hand under their VRM names; a gesture or clip key may say `wristL` / `wristR` (flex ±70, or `{ flex, deviation ±30,
+  twist ±90 }`; + the back of the hand up, toward the thumb, palm down) and `fingersL` / `fingersR` (`relaxed`, `open`,
+  `fist`, `point`, `grip`, degrees of curl −25 … 100 over the relaxed hand, or `{ thumb, index, middle, ring, little }`);
+  the guard closes the fists, a hand holding gear grips it in every key, the wave opens the hand palm to the front. A
+  streamlined hero keeps its mitten and refuses those words. Hip armour hangs
   from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` is the hero
   before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
   legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints

@@ -25,7 +25,7 @@ const FIGURE = { name: 'body', clip: 'idle', view: 1 };
 describe('declaredFigure', () => {
   it('reads the skinned export: one skin of 19 joints, the clips under Godot names; the static export has none', async () => {
     const payload = await hero();
-    expect(declaredFigure(facesToGlb(payload, { clips: '_all', skinned: true }).bytes)).toEqual({ skins: 1, joints: 19, animations: ['body_idle', 'body_walk', 'body_wave'] });   // + lumbar (18 before the structured core)
+    expect(declaredFigure(facesToGlb(payload, { clips: '_all', skinned: true }).bytes)).toEqual({ skins: 1, joints: 49, animations: ['body_idle', 'body_walk', 'body_wave'] });   // + lumbar (18 before the structured core), + the hands' thirty finger bones
     expect(declaredFigure(facesToGlb(payload).bytes)).toEqual({ skins: 0, joints: 0, animations: [] });
   }, 60000);
 

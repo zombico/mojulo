@@ -713,7 +713,7 @@ describe('the hero door stands the hero in a gesture', () => {
     await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/dials/lean', value: 0 }] });
     // refused by name; the row untouched
     await expect(updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'strut' }] })).rejects.toThrow(/gesture: unknown gesture word 'strut'/);
-    await expect(updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: { wristR: { flex: 30 } } }] })).rejects.toThrow(/gesture\.wristR: the hand is rigid on the forearm/);
+    await expect(updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: { wristR: { flex: 90 } } }] })).rejects.toThrow(/gesture\.wristR: degrees of flex \(\+ the back of the hand up\), within ±70/);
     expect(row().manifest.hero.gesture).toEqual(['relaxed', { head: { pitch: -12 } }]);
     // back to rest: no stand clip, no stand readout
     const rest = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'rest' }] });

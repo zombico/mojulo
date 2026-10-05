@@ -4,7 +4,7 @@
  * expressions displacing the flesh, hair from the library), then the DRESS (hero-dress.js: body detail and adornment).
  * Hair, palette and expression are independent of the proportions. The shirt-panel refinement lives here; shared anatomy
  * lives in the hero form or the head. */
-import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune, castOf, ANIME_NECK_FORMS, ANIME_WAVE, planScale, scaleIncludePart } from './hero-form.js';
+import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune, castOf, ANIME_NECK_FORMS, ANIME_WAVE, WAVE_TWIST, withWaveHand, planScale, scaleIncludePart } from './hero-form.js';
 import { humanoidHead, HAIR_STYLES, EXPRESSIONS, FACE_VERSION, FACE, resolveFace, validateFace, HEAD_PRESETS } from './humanoid-head.js';
 import { validateCast } from './figure-cast.js';
 import { dressPlan, kitPalette } from './hero-dress.js';
@@ -87,8 +87,8 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
     if (f && f[2] < 0) for (const d of Object.values(collar.push)) { const w = d[2] / f[2]; if (w > 0) { d[2] = +(d[2] - w * collarRise).toFixed(6); d[1] = +(d[1] - w * collar.r[1] * (0.1 / 1.1)).toFixed(6); } }
   }
   // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
-  // forearm upright); every other head keeps the form's wave
-  if (anime) plan.clips.wave = JSON.parse(JSON.stringify(ANIME_WAVE));
+  // forearm upright); every other head keeps the form's wave. A hand with digits opens and turns its palm to the front
+  if (anime) plan.clips.wave = plan.rig?.hands ? withWaveHand(JSON.parse(JSON.stringify(ANIME_WAVE)), WAVE_TWIST.anime) : JSON.parse(JSON.stringify(ANIME_WAVE));
   dressPlan(plan, { detail, adorn, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child: childCoded } });
   plan.frame.note = anime
     ? `1 unit = 1 m; humanoid ${preset} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`

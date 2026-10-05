@@ -209,11 +209,13 @@ export function validateHeroSpec(spec) {
     if (spec.headPreset !== undefined && !HEAD_PRESETS[spec.headPreset]) errs.push(`headPreset: one of ${Object.keys(HEAD_PRESETS).join(', ')} (the head's pole and fit; defaults to the cast when it is male / female, else male)`);
   }
   errs.push(...validateDress({ detail: spec.detail, adorn: spec.adorn }));
-  errs.push(...validateGesture(spec.gesture));
+  // the hand's words (wrist, fingers) on a hero whose hand has them: the structured core
+  const hands = (spec.core ?? DEFAULT_CORE) === 'structured';
+  errs.push(...validateGesture(spec.gesture, 'gesture', { hands }));
   // the door's clips: the stand's pose words and the clip words; `jaw` only on a head with a jaw bone (jawedHead); a key's
   // `face` and a clip's `seconds` only on the anime head (a key's `face` elsewhere points at /hero/expression on the
   // landmark head, the one other head that takes it)
-  errs.push(...validateHeroClips(spec.clips, { jaw: jawedHead(spec), face: spec.head === 'anime', expression: spec.head === undefined || spec.head === 'landmark' }));
+  errs.push(...validateHeroClips(spec.clips, { jaw: jawedHead(spec), face: spec.head === 'anime', expression: spec.head === undefined || spec.head === 'landmark', hands }));
   if (spec.blink !== undefined && spec.blink !== null) {
     if (spec.head !== 'anime') errs.push(`blink: the ambient blink is the anime head's (head: 'anime')`);
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the anime hero\'s ambient blink off (true is the default and not stored)');
@@ -282,8 +284,16 @@ export function heroPlanOf(hero) {
   // narrower than the guard's, because a swing's keys crouch little and a straight leg cannot reach a wide foot; every key
   // sinks at least that far
   if (swing && (hero.core ?? DEFAULT_CORE) === 'structured') swing = { ...swing, keys: swing.keys.map((k) => ({ ...STRUCTURED_SWING_BASE, ...k, crouch: Math.max(k.crouch ?? 0, STRUCTURED_SWING_BASE.crouch) })) };
-  if (swing) { const p = withGestureClip(own, swing.keys[0]); return p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p; }
-  return withGestureClip(own, resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE }));
+  if (swing) { const p = withGestureClip(own, swing.keys[0]); return gripHands(p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p, hero); }
+  return gripHands(withGestureClip(own, resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE })), hero);
+}
+/** A hand that holds gear (gear.right / gear.left: a blade's or a staff's grip, a shield's back grip) closes round it:
+ * every clip key that says nothing of that hand's fingers takes the `grip` hand word, on a rig whose hands have digits
+ * (the structured core); any other plan untouched. */
+function gripHands(plan, hero) {
+  const held = ['right', 'left'].filter((s) => hero.gear?.[s]).map((s) => `fingers${s === 'right' ? 'R' : 'L'}`);
+  if (!held.length || !plan?.rig?.hands || !plan.clips) return plan;
+  return { ...plan, clips: Object.fromEntries(Object.entries(plan.clips).map(([name, keys]) => [name, keys.map((k) => ({ ...Object.fromEntries(held.filter((f) => k[f] === undefined).map((f) => [f, 'grip'])), ...k }))])) };
 }
 /** The anime hero's own colours per design base, under the operator's (its palette wins): the hair base's colour at a
  * mid-dark value, so its lit and shade tones both read under the character light and against the World's dark backdrop

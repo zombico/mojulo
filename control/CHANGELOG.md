@@ -86,6 +86,14 @@ lands.
   the male (low and level, no leg, a clean leg line, the cleft a crease in it) and a thong for the female (a front
   triangle, a thin string rising over the hip and a V at the back narrowing into her cleft, her seat bare), so the two
   seats show; the thong's back is drawn under the studio light as well as the character light.
+- **The hands.** On the structured core the hand is a palm and five digits instead of a mitten, on the regular and
+  the anime hero alike (the anime casts' hands smaller, the same shape): the palm flat across the back with the thumb's
+  and the little finger's pads in front, the knuckles on an arc, the fingers in a relaxed curl that deepens toward the
+  little finger, the thumb opposed. The hand hangs facing the thigh. The wrist is a joint and the fingers bend: the
+  pose words `wristL` / `wristR` (flex, or `{ flex, deviation, twist }`) and `fingersL` / `fingersR` (a curl, a curl
+  per digit, or a hand word: `relaxed`, `open`, `fist`, `point`, `grip`) now move a structured hero instead of being
+  refused; a streamlined hero still refuses them. Fifteen finger bones a hand, named as VRM and Godot name them. A rig
+  may now carry `hands`, the wrist and digit chains its posing turns in the hand's own frame.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the
