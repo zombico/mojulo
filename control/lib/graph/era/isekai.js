@@ -18,7 +18,7 @@
  *   layers    the far ridges painted from the far ramp; a thin haze; the sky dome from the sky ramp; a high cloud deck
  * Deterministic: integer-hash dice, pooled plants from fixed seeds.
  */
-import { ISEKAI_STYLES } from './isekai-tiles.js';
+import { ISEKAI_STYLES, isekaiMask } from './isekai-tiles.js';
 import { hash3, vnoise } from './dirt.js';
 import { P, r5, hexRgb, rgbHex, crossed } from './geom.js';
 import { makeSunShadow, sunDir } from './sun.js';
@@ -154,13 +154,24 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   const rocks = rockItems(st, site, seed), boulders = rocks.map((it) => ({ it, ...boulderFaces(st, it, seed) }));
-  const trees = treeItems(st, site, seed);
+  // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
+  const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
+  const trees = bamboo ? bambooItems(st, site, seed) : treeItems(st, site, seed);
   // the HERO: one big tree where the eye lands, its crown fuller than the rest
-  const Hr = st.trees.hero;
-  if (Hr) { const x = site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off); trees.push({ x: r5(x), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true }); }
-  const wood = treeFaces(st, site, trees);
-  const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood];
-  const shadow = makeSunShadow(solid, dir, { cell: 0.6 });
+  // a sakura grove has HEROES (several, framed, the grove's trees kept clear of them); the meadow one
+  const Hr = st.trees.hero, sakura = form === 'blossom' && st.trees.sakura;
+  if (sakura) {
+    const Hs = st.trees.heroes.map((H) => ({ x: r5(site.trailX(H.y) + H.side * (site.halfWAt(H.y) + H.off)), y: H.y, h: H.h, v: 0, cluster: -1, hero: true }));
+    for (let i = trees.length - 1; i >= 0; i--) if (Hs.some((H) => Math.hypot(H.x - trees[i].x, H.y - trees[i].y) < st.trees.heroClear)) trees.splice(i, 1);
+    trees.push(...Hs);
+  } else if (Hr) { const x = site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off); trees.push({ x: r5(x), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true }); }
+  const grove = bamboo ? bambooFaces(st, site, trees) : null;
+  const sak = sakura ? sakuraFaces(st, site, trees) : null;
+  const wood = bamboo || sak ? [] : treeFaces(st, site, trees);
+  const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
+  // a spray (or a sprig) stops the sun only where its leaves (its flowers) are painted: the floor under it is dappled
+  const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
+  const shadow = makeSunShadow(solid, dir, cardMask ? { cell: 0.6, maskOf: (f) => (f.cel === cardMask ? isekaiMask(isekaiKeyOf(st, cardMask, true)) : null) } : { cell: 0.6 });
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
   const reach = (p, n) => Math.max(0, dot(n, dir)) * shadow(addv(p, mul(n, 0.05)), n);
   const lit = (p, n) => reach(p, n) >= st.cel;
@@ -185,6 +196,24 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     fringes[fringes.length - 1].lit = lit(mean([l.a, l.b]), [0, 0, 1]) && dot(l.out, dir) > -0.35;
   }
   for (const f of fringes) { const { lit: L, key: _k, ...rest } = f; cel.push({ ...rest, texture: isekaiKeyOf(st, 'fringe', L), fill: stopFill(st, 'fringe', L) }); }
+  if (grove) {
+    for (const f of grove.culms) draw(f, 'culm', lit(mean(f.corners), f.normal));
+    // a spray's band: the sun at its heart (a card is lit from either side; its painted gaps let light through)
+    for (const f of grove.sprays) draw(f, 'spray', shadow(addv(mean(f.corners), [0, 0, 0.05]), [0, 0, 1]) > 0);
+  }
+  if (sak) {
+    // the grown sakura: bark by the sun on each facet; a clump's skin by its SPHERICAL normal (the clump's and the
+    // crown's, blended — the crown lit as a few big shapes); a sprig by the same normal at its heart
+    for (const f of sak.wood) draw(f, 'bark', lit(mean(f.corners), f.normal));
+    // (the sun is asked from out past the skin by `probe` × the clump's radius: clumps overlap, and a point on one
+    // skin lies inside its neighbours)
+    // and blossom is thin: it takes the light at its own, lower `cel` (the sun wraps round a clump)
+    const { probe: pr, cel: bc } = st.trees.sakura;
+    for (const f of sak.clumps) { const { sn, r, ...rest } = f; draw(rest, 'bloom', reach(addv(mean(f.corners), mul(sn, pr * r)), sn) >= bc); }
+    for (const f of sak.sprigs) { const { sn, at, r, ...rest } = f; draw(rest, 'sprig', reach(addv(at, mul(sn, pr * r)), sn) >= bc); }
+  }
+  // PETALS: litter under each sakura, flat cutout cards, the band by the shade each lies in
+  if (st.trees.petals) for (const f of petalFaces(st, site, trees)) draw(f, 'petals', shadow(addv(mean(f.corners), [0, 0, 0.3]), [0, 0, 1]) > 0);
   // grass: crossed blade cards, the band by the shadow at the root
   const tufts = grassTufts(st, site, trees, rocks, sun, seed), G = st.grass.cards;
   tufts.forEach((t, i) => {
@@ -215,20 +244,26 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ridges = layerFaces(st, site, dir);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
   const faces = lockFaces([...baked, ...cel, ...ridges], (f) => (st.lock[f.group] ? st.palette[st.lock[f.group]] : null));
-  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus)-/.test(f.texture || '')).map((f) => f.texture))].sort();
+  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // ── the frame ──
-  const y0 = 2.5, x0 = site.trailX(y0), y1 = 28, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];
-  const ly = 22, lx = site.cliffX(ly) - 1.6, lip = [lx, ly, site.ground(lx, ly) + 1.7];
-  const sky = st.palette.sky;
+  const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
+  const y0 = 2.5, x0 = site.trailX(y0), y1 = Fr.look, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];
+  const ly = Fr.top.y, lx = site.cliffX(ly) - 1.6, lip = [lx, ly, site.ground(lx, ly) + 1.7];
+  const sky = st.palette.sky, Fh = Fr.hero, heroCam = [];
+  if (Fh && sak) {
+    // the HERO frame: from the trail short of the hero, up into its crown
+    const t = trees.filter((q) => q.hero)[Fh.tree], hy = t.y - Fh.back, hx = site.trailX(hy), at = [hx, hy, site.ground(hx, hy) + Fh.eye];
+    heroCam.push({ name: 'hero', worldFraming: { cameraPosition: at.map(r5), lookAt: [t.crownAt[0], t.crownAt[1], t.crownAt[2] - 0.2 * t.crownR].map(r5), horizontalFov: Fh.fov, pictureCenter: [560, 390] } });
+  }
   return {
     faces,
     cutouts,
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
     lights: [],
     cameras: [manifest.camera || { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } },
-      { name: 'cliff-top', worldFraming: { cameraPosition: lip.map(r5), lookAt: [site.W * 0.75, 48, site.ground(site.W * 0.75, 48)].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }],
+      { name: 'cliff-top', worldFraming: { cameraPosition: lip.map(r5), lookAt: [site.W * 0.75, Fr.top.lookY, site.ground(site.W * 0.75, Fr.top.lookY)].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }, ...heroCam],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
-    title: ctx.title || manifest.title || 'mojulo stage · isekai meadow',
+    title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
@@ -328,8 +363,46 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1) 
     grid: { x0: r5(x0), y0: r5(y0), cell: r5(cell), nx, ny, zlo: r5(lo), zsc, z: b64(zq), m: b64(m) },
     ramp: st.palette.grass, win: L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] },
     templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: L.density, height: L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
-    sheen: L.sheen, part: L.part, taker: W.grass[0], cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns } : null, wind: W,
+    sheen: L.sheen, part: L.part, taker: W.grass[0],
+    // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
+    ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns } : null, wind: W,
   };
+}
+
+/**
+ * The sakura's live PETALS (stage-grass.js): the falling ones' sources (a crown's centre and radius), the blossom ramp
+ * and the petal tile's lit and shade windows of it, the sun; with a `carpet`, a grid over the landform's cells — the low
+ * six bits the petals' density there (by the nearest crown's spread × the carpet's `reach`: the wind carries them past
+ * the crown; heaped in PILES — drifts, the trail's edges, the trunks' feet — and thin on open grass; none on the cliff,
+ * the apron or a rock), bit 6 the sun reaching it.
+ */
+function petalConfig(st, site, rocks, trees, shadow, Pt, seed = 1) {
+  const T = st.tiles.petals, dir = sunDir(st.light.key.elevation, st.light.key.azimuth), { carpet, ...rest } = Pt;
+  const out = { ...rest, sources: trees.filter((t) => t.crownAt).map((t) => [...t.crownAt, t.crownR]), ramp: st.palette.blossom,
+    win: { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] }, sun: dir.map(r5) };
+  if (!carpet) return out;
+  const g = site.grid, nx = g.nx, ny = g.ny, m = new Uint8Array((nx - 1) * (ny - 1)), node = (i, j) => [gridX(g, i), gridY(g, j), g.z[j * nx + i]], reach = carpet.reach;
+  for (let j = 0; j + 1 < ny; j++) for (let i = 0; i + 1 < nx; i++) {
+    const cs = [node(i, j), node(i + 1, j), node(i + 1, j + 1), node(i, j + 1)], c = mean(cs), n = facet(cs, [0, 0, 1]);
+    if (c[0] > site.W || n[2] < st.slope.rock || (g.apron[j * nx + i] + g.apron[(j + 1) * nx + i + 1]) / 2 > st.landform.apronMin) continue;
+    if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - c[0], r.y - c[1]) < r.size * st.rubble.unit * 0.5 + 0.1)) continue;
+    let w = 0, base = 0;
+    for (const t of trees) if (t.spread) {
+      const r = Math.hypot(t.x - c[0], t.y - c[1]), d = r / (t.spread * reach);
+      if (d < 1) w = Math.max(w, Math.sqrt(1 - d * d));
+      if (r < carpet.base) base = 1;
+    }
+    // PILES, not a sheet: petals gather in drifts (a patch noise), along the trail's edges and round the trunks' feet;
+    // on open grass only a `grass` share of them (the grass stays the ground's read), on the trodden middle of the trail
+    // a `trodden` share
+    const off = site.trailDist(c[0], c[1]) - site.halfWAt(c[1]), edge = Math.abs(off) < carpet.edge ? 1 : 0;
+    const pile = smooth(carpet.drift[0], carpet.drift[1], vnoise(c[0] * carpet.drift[2], c[1] * carpet.drift[2], (seed | 0) + 1231));
+    w *= Math.max(pile, edge, base) * (off > carpet.edge ? carpet.grass : off < -carpet.edge ? carpet.trodden : 1);
+    const q = Math.round(w * 63);
+    if (q) m[j * (nx - 1) + i] = q | (shadow([c[0], c[1], c[2] + 0.3], [0, 0, 1]) > 0 ? 64 : 0);
+  }
+  out.carpet = { ...carpet, m: b64(m) };
+  return out;
 }
 
 /**
@@ -353,29 +426,191 @@ export function cumulusFaces(st, site, dir) {
 }
 
 /**
+ * BAMBOO: where the culms stand — clump centres by rejection (clear of the path, the bank and each other), then
+ * `perCluster` culms within `spread` of each, at least `gap` apart. → [{ x, y, h, v, cluster }] (the trees' shape).
+ */
+export function bambooItems(st, site, seed) {
+  const T = st.trees, S = seed | 0, { W, D, trailDist, cliffX, apronAt, halfWAt } = site, centres = [], out = [];
+  const ok = (x, y, clear) => x > cliffX(y) + T.clearCliff && x < W - 0.5 && y > 0.5 && y < D - 0.5 && trailDist(x, y) > halfWAt(y) + clear && apronAt(x, y) < 0.02;
+  for (let i = 0; i < 600 && centres.length < T.clusters; i++) {
+    const x = W * hash3(i, 1, S + 1051), y = D * hash3(i, 2, S + 1053);
+    if (ok(x, y, T.clearTrail + T.spread) && centres.every((c) => Math.hypot(c[0] - x, c[1] - y) > T.spread * 3)) centres.push([x, y]);
+  }
+  centres.forEach(([cx, cy], ci) => {
+    const want = T.perCluster[0] + Math.floor(hash3(ci, 3, S + 1057) * (T.perCluster[1] - T.perCluster[0] + 1));
+    for (let k = 0, tries = 0; k < want && tries < 80; tries++) {
+      const a = 2 * Math.PI * hash3(ci * 113 + tries, 4, S + 1059), r = T.spread * Math.sqrt(hash3(ci * 113 + tries, 5, S + 1061)), x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      if (!ok(x, y, T.clearTrail) || out.some((t) => Math.hypot(t.x - x, t.y - y) < T.gap)) continue;
+      out.push({ x: r5(x), y: r5(y), h: r5(mix(T.heights[0], T.heights[1], hash3(ci * 113 + tries, 6, S + 1063))), v: k % T.variants, cluster: ci }); k++;
+    }
+  });
+  return out;
+}
+
+/**
+ * BAMBOO, drawn: each culm a `sides`-faceted tube leaning a little out of its clump and bowed at the top, in segments
+ * a node long (the `culm` tile, u round the pole, v up one internode: the node ring falls at every node); SPRAYS of
+ * leaves as cutout cards fanned from its upper part, out and drooping. → { culms, sprays } (cel 'culm' / 'spray').
+ */
+export function bambooFaces(st, site, items) {
+  const T = st.trees, Cu = T.culm, Sp = T.spray, culms = [], sprays = [];
+  const centre = new Map(); for (const t of items) { const c = centre.get(t.cluster) || centre.set(t.cluster, [0, 0, 0]).get(t.cluster); c[0] += t.x; c[1] += t.y; c[2]++; }
+  items.forEach((t, ti) => {
+    const k = Math.round(t.x * 31 + t.y * 17) + ti * 7, z0 = site.ground(t.x, t.y) - 0.1, r = mix(Cu.r[0], Cu.r[1], hash3(k, 1, 1101)) * (t.h / T.heights[1]) ** 0.5;
+    const cc = centre.get(t.cluster), away = unit([t.x - cc[0] / cc[2] + 1e-3, t.y - cc[1] / cc[2], 0]), lean = Math.tan(((Cu.lean * hash3(k, 2, 1103)) * Math.PI) / 180);
+    const segs = Math.max(4, Math.round(t.h / (Cu.node * 4))), axis = (f) => [t.x + away[0] * (lean * t.h * f + Cu.bow * f * f), t.y + away[1] * (lean * t.h * f + Cu.bow * f * f), z0 + t.h * f];
+    const ring = (f, i) => { const p = axis(f), a = (2 * Math.PI * i) / Cu.sides, rr = r * (1 - 0.35 * f); return P([p[0] + Math.cos(a) * rr, p[1] + Math.sin(a) * rr, p[2]]); };
+    for (let sgi = 0; sgi < segs; sgi++) for (let i = 0; i < Cu.sides; i++) {
+      const f0 = sgi / segs, f1 = (sgi + 1) / segs, cs = [ring(f0, i), ring(f0, i + 1), ring(f1, i + 1), ring(f1, i)];
+      const nn = facet(cs, sub(mean(cs), axis((f0 + f1) / 2))), v0 = (t.h * f0) / Cu.node, v1 = (t.h * f1) / Cu.node;
+      culms.push({ corners: cs, normal: nn.map(r5), outNormal: nn.map(r5), cel: 'culm', uv: [[i / Cu.sides, v0], [(i + 1) / Cu.sides, v0], [(i + 1) / Cu.sides, v1], [i / Cu.sides, v1]].map((q) => q.map(r5)), group: 'isekai:culm' });
+    }
+    // the sprays: from `from` of the height up, each a card from the culm out and down, turned round the pole
+    for (let q = 0; q < Sp.per; q++) {
+      const f = mix(Sp.from, 0.97, q / Math.max(1, Sp.per - 1)), at = axis(f), a = 2 * Math.PI * (hash3(k, 10 + q, 1107) + q * 0.382), len = mix(Sp.len[0], Sp.len[1], hash3(k, 30 + q, 1109)) * (1 - 0.3 * f);
+      const out = [Math.cos(a), Math.sin(a), 0], up = unit([out[0], out[1], -Sp.droop + 0.4 * (1 - f)]), along = unit(cross(up, [0, 0, 1])), w = len * Sp.width;
+      const A = mul(along, w / 2), U = mul(up, len), cs = [sub(at, A), addv(at, A), addv(addv(at, A), U), addv(sub(at, A), U)].map(P), nn = unit(cross(along, up)).map(r5);
+      sprays.push({ corners: cs, normal: nn, outNormal: nn, cel: 'spray', uv: [[0, 0], [1, 0], [1, 1], [0, 1]], group: 'isekai:spray', doubleSided: true });
+    }
+  });
+  return { culms, sprays };
+}
+
+/** PETALS: litter under each sakura — flat cutout cards lying on the ground within `reach` × its crown's radius. */
+export function petalFaces(st, site, trees) {
+  const T = st.trees, Pt = T.petals, out = [];
+  trees.forEach((t, ti) => {
+    const R = (t.spread || T.crown.radius * t.h) * Pt.reach, n = Math.round(Pt.per * (t.hero ? 1.6 : 1));
+    for (let q = 0; q < n; q++) {
+      const k = ti * 97 + q, a = 2 * Math.PI * hash3(k, 1, 1201), d = R * Math.sqrt(hash3(k, 2, 1203)), x = t.x + Math.cos(a) * d, y = t.y + Math.sin(a) * d;
+      if (site.trailDist(x, y) < site.halfWAt(y) * 0.6 && hash3(k, 5, 1209) < 0.6) continue;   // fewer on the packed path
+      const s = mix(Pt.size[0], Pt.size[1], hash3(k, 3, 1205)) / 2, rot = Math.PI * hash3(k, 4, 1207);
+      const cs = [0, 1, 2, 3].map((c) => { const b = rot + (c * Math.PI) / 2 + Math.PI / 4, px = x + Math.cos(b) * s * Math.SQRT2, py = y + Math.sin(b) * s * Math.SQRT2; return P([px, py, site.ground(px, py) + 0.03]); });
+      out.push({ corners: cs, normal: [0, 0, 1], outNormal: [0, 0, 1], cel: 'petals', uv: [[0, 0], [1, 0], [1, 1], [0, 1]], group: 'isekai:petals' });
+    }
+  });
+  return out;
+}
+
+/**
+ * A SAKURA, GROWN: a trunk that leans and forks into limbs, each splitting into branches to the tier's depth (the card's
+ * `trees.sakura.hero` / `.grove`), every branch a tapering limb tube pixel-locked in the `bark` tile (u round it, v
+ * along it), rising less by each generation and the tips turning down — the wide, flat-topped spread of a sakura.
+ * Blossom CLUMPS at the tips and along the last generation: small round masses skinned in the `bloom` tile (a planar
+ * projection per facet), each carrying `sn`, its spherical normal (the clump's blended with the crown's), and wearing
+ * crossed `sprig` cutout cards that break its silhouette. Records each tree's `crownAt`, `crownR` and `spread`.
+ * → { wood, clumps, sprigs } (cel 'bark' / 'bloom' / 'sprig').
+ */
+export function sakuraFaces(st, site, trees) {
+  const T = st.trees, C = T.crown, wood = [], clumps = [], sprigs = [], sc = st.tiles.bark.scale, bs = st.tiles.bloom.scale;
+  trees.forEach((t, ti) => {
+    const Ti = T.sakura[t.hero ? 'hero' : 'grove'], h = t.h, k = Math.round(t.x * 17 + t.y * 5) + ti * 131, H = (a, b) => hash3(k, a, b);
+    const z0 = site.ground(t.x, t.y) - 0.15, ta = 2 * Math.PI * H(8, 991), lean = (C.lean * mix(0.4, 1, H(7, 983)) * Math.PI) / 180;
+    const tdir = [Math.sin(lean) * Math.cos(ta), Math.sin(lean) * Math.sin(ta), Math.cos(lean)], r0 = C.trunk * h, base = [t.x, t.y, z0];
+    const fork = addv(base, mul(tdir, h * C.fork)), mid = addv(addv(base, mul(tdir, h * C.fork * 0.5)), [(H(3, 947) - 0.5) * 0.06 * h, (H(4, 953) - 0.5) * 0.06 * h, 0]);
+    limb(wood, [base, mid, fork], [r0 * 1.3, r0, r0 * 0.88], 7, sc);
+    const tips = [], blobs = [], joints = []; let id = 0;
+    const grow = (p, az, gen, r, len) => {
+      const my = id++, el = ((Ti.rise[gen] + (hash3(k, 200 + my, 1001) - 0.5) * 16) * Math.PI) / 180, d = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)];
+      const last = gen === Ti.depth - 1, end = addv(addv(p, mul(d, len)), [0, 0, last ? -Ti.droop * len : 0]), m = addv(addv(p, mul(d, len * 0.5)), [0, 0, len * 0.07]);
+      const r1 = Math.max(0.025, r * 0.6);
+      limb(wood, [p, m, end], [r, r * 0.8, r1], gen < 1 ? 6 : gen < 2 ? 5 : 4, sc);
+      if (last) { tips.push({ at: end, mid: m, d, my }); return; }
+      if (gen >= Ti.depth - 1 - (Ti.joints || 0)) joints.push({ at: end, cr: mix(Ti.clump[0], Ti.clump[1], hash3(k, 2000 + my, 1019)) });
+      const n = Ti.split[0] + Math.floor(hash3(k, 400 + my, 1003) * (Ti.split[1] - Ti.split[0] + 1));
+      for (let c = 0; c < n; c++) {
+        const caz = az + (c - (n - 1) / 2) * mix(0.5, 0.8, hash3(k, 600 + my * 7 + c, 1005)) + (hash3(k, 800 + my * 7 + c, 1007) - 0.5) * 0.3;
+        grow(end, caz, gen + 1, r1 * (n > 1 ? 0.85 : 1), h * Ti.ratio[gen + 1] * mix(0.8, 1.15, hash3(k, 1000 + my * 7 + c, 1009)));
+      }
+    };
+    const nl = C.limbs[0] + Math.floor(H(9, 997) * (C.limbs[1] - C.limbs[0] + 1));
+    for (let c = 0; c < nl; c++) grow(fork, ta + (2 * Math.PI * (c + 0.3 * (H(20 + c, 1011) - 0.5))) / nl, 0, r0 * 0.8, h * Ti.ratio[0] * mix(0.85, 1.15, H(30 + c, 1013)));
+    // the clumps: at every tip, a head and its trailing heads; one along the twig, by chance; at every fork of the
+    // tier's `joints` generations, one more (the crown filled in from inside)
+    for (const j of joints) blobs.push({ at: addv(j.at, [0, 0, j.cr * 0.3]), r: j.cr });
+    for (const tp of tips) {
+      const q = (a) => hash3(k, 3000 + tp.my * 11 + a, 1021), cr = mix(Ti.clump[0], Ti.clump[1], q(0));
+      blobs.push({ at: addv(tp.at, [0, 0, cr * 0.3]), r: cr });
+      for (let j = 1; j < Ti.perTip; j++) blobs.push({ at: addv(addv(tp.at, mul(tp.d, -cr * 0.75 * j)), [(q(j) - 0.5) * cr, (q(j + 5) - 0.5) * cr, cr * (0.15 + 0.3 * q(j + 9))]), r: cr * mix(0.65, 0.85, q(j + 13)) });
+      if (q(20) < Ti.along) blobs.push({ at: addv(tp.mid, [0, 0, cr * 0.4]), r: cr * 0.8 });
+    }
+    const cc = mean(blobs.map((b) => b.at));
+    t.crownAt = cc.map(r5); t.crownR = r5(Math.sqrt(blobs.reduce((s, b) => s + (b.at[0] - cc[0]) ** 2 + (b.at[1] - cc[1]) ** 2, 0) / blobs.length) + Ti.clump[1]);
+    t.spread = r5(Math.max(...blobs.map((b) => Math.hypot(b.at[0] - t.x, b.at[1] - t.y))));
+    blobs.forEach((b, bi) => {
+      const q = (a) => hash3(k, 5000 + bi * 7 + a, 1031), rr = [b.r * mix(0.9, 1.15, q(1)), b.r * mix(0.9, 1.15, q(2)), b.r * 0.8];
+      for (const tri of blobTris(b.at, rr, null, { detail: Ti.detail })) {
+        const cs = tri.p.map(P), m = mean(cs), no = unit(sub(m, b.at)), sn = unit(addv(no, mul(unit(sub(m, cc)), 0.8))).map(r5), nn = facetN(cs, no);
+        // the skin's tile by a BOX projection on the clump's normal (neighbouring facets share it, so the flowers run on
+        // across them); a textured face is a quad: the triangle's last corner doubled, as a boulder's cap
+        const ax = Math.abs(no[0]) >= Math.abs(no[1]) && Math.abs(no[0]) >= Math.abs(no[2]) ? 0 : Math.abs(no[1]) >= Math.abs(no[2]) ? 1 : 2;
+        const uv = cs.map((c) => (ax === 0 ? [c[1], c[2]] : ax === 1 ? [c[0], c[2]] : [c[0], c[1]]).map((v) => r5(v / bs)));
+        clumps.push({ corners: [...cs, cs[2]], normal: nn, outNormal: nn, sn, r: b.r, uv: [...uv, uv[2]], group: 'isekai:blossom' });
+      }
+      // the sprigs: crossed upright cards straddling the clump's skin, out and up from it
+      for (let j = 0; j < Ti.sprigs; j++) {
+        const u = unit(addv([q(10 + j) - 0.5, q(20 + j) - 0.5, q(30 + j) * 0.8 - 0.15], mul(unit(sub(b.at, cc)), 0.5))), at = addv(b.at, [u[0] * b.r, u[1] * b.r, u[2] * b.r * 0.8]), s = b.r * Ti.sprig;
+        const sn = unit(addv(u, mul(unit(sub(at, cc)), 1.3))).map(r5), yaw = Math.PI * q(40 + j), foot = sub(at, [0, 0, s * 0.45]);
+        for (const a of [yaw, yaw + Math.PI / 2]) {
+          const A = [Math.cos(a) * s * 0.5, Math.sin(a) * s * 0.5, 0], U = [0, 0, s], nn = [r5(-Math.sin(a)), r5(Math.cos(a)), 0];
+          sprigs.push({ corners: [sub(foot, A), addv(foot, A), addv(addv(foot, A), U), addv(sub(foot, A), U)].map(P), normal: nn, outNormal: nn, sn, at: at.map(r5), r: b.r, cel: 'sprig', uv: [[0, 0], [1, 0], [1, 1], [0, 1]], group: 'isekai:sprig', doubleSided: true });
+        }
+      }
+    });
+  });
+  return { wood, clumps, sprigs };
+}
+/** A LIMB: a tapering tube through `pts` with `radii`, `sides` facets, its bark tile u round it and v along it. */
+function limb(out, pts, radii, sides, scale) {
+  let v0 = 0;
+  for (let k = 0; k + 1 < pts.length; k++) {
+    const a = pts[k], b = pts[k + 1], d = unit(sub(b, a)), up = Math.abs(d[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1], len = Math.hypot(...sub(b, a));
+    const u = unit(cross(d, up)), v = cross(u, d), ku = Math.max(1, Math.round((2 * Math.PI * radii[k]) / scale)), v1 = v0 + len / scale;
+    const ring = (p, r, i) => { const th = (2 * Math.PI * i) / sides; return P([p[0] + (u[0] * Math.cos(th) + v[0] * Math.sin(th)) * r, p[1] + (u[1] * Math.cos(th) + v[1] * Math.sin(th)) * r, p[2] + (u[2] * Math.cos(th) + v[2] * Math.sin(th)) * r]); };
+    for (let i = 0; i < sides; i++) {
+      const tm = (2 * Math.PI * (i + 0.5)) / sides, n = unit([u[0] * Math.cos(tm) + v[0] * Math.sin(tm), u[1] * Math.cos(tm) + v[1] * Math.sin(tm), u[2] * Math.cos(tm) + v[2] * Math.sin(tm)]).map(r5);
+      out.push({ corners: [ring(a, radii[k], i), ring(a, radii[k], i + 1), ring(b, radii[k + 1], i + 1), ring(b, radii[k + 1], i)], normal: n, outNormal: n, cel: 'bark',
+        uv: [[(i / sides) * ku, v0], [((i + 1) / sides) * ku, v0], [((i + 1) / sides) * ku, v1], [(i / sides) * ku, v1]].map((q) => q.map(r5)), group: 'isekai:wood', doubleSided: true });
+    }
+    v0 = v1;
+  }
+}
+
+/**
  * A TREE as the current era draws one: a CROWN of overlapping round masses (the blob primitive, vegetation/tree-mesh.js)
  * heaped on a short trunk — one mass on top, a ring of them round its shoulders, each squashed a little — so the crown
  * reads as one cloud-shaped form lit as a few big shapes. Wood and crown are their own groups for the lock.
  */
 function treeFaces(st, site, trees) {
-  const T = st.trees, C = T.crown, out = [];
+  const T = st.trees, C = T.crown, out = [], blossom = T.form === 'blossom', crownGroup = blossom ? 'isekai:blossom' : 'isekai:crown', crownTint = blossom ? st.tint.blossom : st.tint.crown;
   trees.forEach((t, ti) => {
     const z0 = site.ground(t.x, t.y) - 0.15, h = t.h, k = Math.round(t.x * 17 + t.y * 5) + ti * 131;
     const Rc = C.radius * h, c = [t.x + (hash3(k, 1, 941) - 0.5) * 0.3, t.y + (hash3(k, 2, 943) - 0.5) * 0.3, z0 + C.height * h];
     // the trunk, bending a little, into the crown's heart; two limbs up into the shoulder masses
-    const bend = [(hash3(k, 3, 947) - 0.5) * 0.08 * h, (hash3(k, 4, 953) - 0.5) * 0.08 * h];
+    // a sakura leans (its crown carried off to one side over a trunk that tips toward it); the meadow's stand
+    const tip = blossom ? Math.tan(((C.lean || 0) * Math.PI) / 180) * h * mix(0.4, 1, hash3(k, 7, 983)) : 0, ta = 2 * Math.PI * hash3(k, 8, 991);
+    if (tip) { c[0] += Math.cos(ta) * tip; c[1] += Math.sin(ta) * tip; }
+    const bend = [(hash3(k, 3, 947) - 0.5) * 0.08 * h + Math.cos(ta) * tip * 0.5, (hash3(k, 4, 953) - 0.5) * 0.08 * h + Math.sin(ta) * tip * 0.5];
     const trunk = [0, 0.35, 0.7, 1].map((f) => [t.x + bend[0] * f * f + (c[0] - t.x) * f, t.y + bend[1] * f * f + (c[1] - t.y) * f, z0 + (c[2] - z0) * f]);
     tube(out, trunk, [C.trunk * h, C.trunk * h * 0.8, C.trunk * h * 0.62, C.trunk * h * 0.5], 6, st.tint.wood, 'isekai:wood');
     const Ms = t.hero ? st.trees.hero.masses : C.masses, n = Ms[0] + Math.floor(hash3(k, 5, 957) * (Ms[1] - Ms[0] + 1)), yaw = 2 * Math.PI * hash3(k, 6, 959);
     const masses = [{ at: [c[0], c[1], c[2] + 0.38 * Rc], r: 0.6 * Rc }];
+    t.crownAt = c.map(r5); t.crownR = r5(Rc);   // where the crown hangs (the live channel's petals fall from it)
     for (let i = 0; i < n; i++) {
       const a = yaw + (2 * Math.PI * (i + 0.3 * hash3(k, 10 + i, 961))) / n, e = mix(-0.25, 0.45, hash3(k, 30 + i, 967)), d = Rc * mix(0.55, 0.72, hash3(k, 50 + i, 971));
       masses.push({ at: [c[0] + Math.cos(a) * Math.cos(e) * d, c[1] + Math.sin(a) * Math.cos(e) * d, c[2] + Math.sin(e) * d * 0.8], r: Rc * mix(0.4, 0.55, hash3(k, 70 + i, 977)) });
     }
-    masses.slice(1, 3).forEach((m) => tube(out, [trunk[1], [mix(trunk[1][0], m.at[0], 0.8), mix(trunk[1][1], m.at[1], 0.8), mix(trunk[1][2], m.at[2], 0.8)]], [C.trunk * h * 0.5, C.trunk * h * 0.25], 5, st.tint.wood, 'isekai:wood'));
+    // limbs into the shoulder masses: a sakura forks lower and into more of them, each limb bending up at its elbow
+    const nl = blossom ? C.limbs[0] + Math.floor(hash3(k, 9, 997) * (C.limbs[1] - C.limbs[0] + 1)) : 2, from = blossom ? trunk[0].map((v, q) => mix(v, c[q], C.fork)) : trunk[1];
+    masses.slice(1, 1 + nl).forEach((m) => {
+      const to = [mix(from[0], m.at[0], 0.8), mix(from[1], m.at[1], 0.8), mix(from[2], m.at[2], 0.8)];
+      if (!blossom) { tube(out, [trunk[1], to], [C.trunk * h * 0.5, C.trunk * h * 0.25], 5, st.tint.wood, 'isekai:wood'); return; }
+      const elbow = [mix(from[0], to[0], 0.6), mix(from[1], to[1], 0.6), mix(from[2], to[2], 0.35)];
+      tube(out, [from, elbow, to], [C.trunk * h * 0.6, C.trunk * h * 0.42, C.trunk * h * 0.22], 5, st.tint.wood, 'isekai:wood');
+    });
     for (const m of masses) for (const tri of blobTris(m.at, [m.r, m.r, m.r * C.squash], null, { detail: 1 })) {
       const cs = tri.p.map(P), nn = facetN(cs, sub(mean(cs), m.at));
-      out.push({ corners: cs, normal: nn, outNormal: nn, tint: st.tint.crown, group: 'isekai:crown' });
+      out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint, group: crownGroup });
     }
   });
   return out;

@@ -10,6 +10,18 @@
  *   hat      a grass cap seen from above: patches in three levels, short blade ticks lit and dark
  *   fringe   (RGBA) a ragged grass edge hanging from the top row: a solid band, then blades of many lengths
  *   blades   (RGBA) a tuft of broad blades from one crown, the tips the lightest level
+ *   culm     a bamboo pole unrolled: u round it, v up one internode — vertical stripes, and the node at the foot of the
+ *            tile: a dark line under a pale ring
+ *   spray    (RGBA) a bamboo leaf spray: a twig from the foot of the card, lance leaves fanned from it and drooping,
+ *            each lit along its upper edge
+ *   petals   (RGBA) fallen sakura petals seen from above: notched petals, the base a step deeper and one edge curled into
+ *            shade, heaped in drifts and strewn between them, and a few whole five-petal flowers
+ *   bark     a sakura limb unrolled (u round it, v along it): plum-grey, with the horizontal LENTICEL bands of cherry
+ *            bark — a pale dash over a dark line — and a few dark girdle cracks
+ *   bloom    a blossom clump's skin: five-petal flowers packed edge to edge, each petal notched, the gaps between
+ *            them a level down and the centres the darkest
+ *   sprig    (RGBA) a cluster of flowers with a ragged edge: the cards that break a clump's
+ *            silhouette into flowers
  *   cumulus  (RGBA) a heaped cloud on a flat base: puffs along the base, cauliflower heads on top, each lit from
  *            above in three levels with the darkest along the base
  *
@@ -19,10 +31,12 @@
 import { encodePng, encodePngRgba, registerTextureResolver } from '../landscape/surface-textures.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
+import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
+import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 
-export const ISEKAI_STYLES = Object.freeze({ 'isekai-meadow': ISEKAI_MEADOW });
+export const ISEKAI_STYLES = Object.freeze({ 'isekai-meadow': ISEKAI_MEADOW, 'isekai-bamboo': ISEKAI_BAMBOO, 'isekai-sakura': ISEKAI_SAKURA });
 const SIZE = 256;
-const CUTOUT = new Set(['fringe', 'blades', 'cumulus']);
+const CUTOUT = new Set(['fringe', 'blades', 'cumulus', 'spray', 'petals', 'sprig']);
 const wrap = (v) => ((v % SIZE) + SIZE) % SIZE;
 const seedOf = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 // a smooth seamless value noise at `cells` per side
@@ -34,6 +48,31 @@ function noise(R, cells) {
     const s = (t) => t * t * (3 - 2 * t);
     return (at(i, j) * (1 - s(fu)) + at(i + 1, j) * s(fu)) * (1 - s(fv)) + (at(i, j + 1) * (1 - s(fu)) + at(i + 1, j + 1) * s(fu)) * s(fv);
   };
+}
+
+// A SAKURA PETAL into `lv` (and `a`): obovate from its base at (cx, cy) along `ang`, `len` px, the notch at its tip,
+// the base a level below `l`, the edge on side `curl` a level below too (rolled into shade); wraps when `a` is null.
+function petalShape(lv, a, cx, cy, ang, len, l, curl) {
+  const ca = Math.cos(ang), sa = Math.sin(ang), W = len * 0.36;
+  for (let s = 0; s <= len; s++) {
+    const f = s / len, half = W * Math.pow(Math.sin(Math.PI * Math.min(1, 0.12 + f * 0.82)), 0.6), notch = f > 0.84 ? ((f - 0.84) / 0.16) * half * 0.55 : -1;
+    for (let q = -Math.ceil(half); q <= Math.ceil(half); q++) {
+      if (Math.abs(q) > half || Math.abs(q) < notch) continue;
+      let X = Math.round(cx + ca * s - sa * q), Y = Math.round(cy + sa * s + ca * q);
+      if (!a) { X = wrap(X); Y = wrap(Y); } else if (X < 0 || X >= SIZE || Y < 0 || Y >= SIZE) continue;
+      if (a) a[Y * SIZE + X] = 1;
+      lv[Y * SIZE + X] = f < 0.22 || q * curl > half * 0.6 ? Math.max(0, l - 1) : l;
+    }
+  }
+}
+// a five-petal FLOWER: petals from its centre, the centre a dot of the darkest level
+function flower(lv, a, cx, cy, r, a0, l, wrapIt) {
+  for (let p = 0; p < 5; p++) petalShape(lv, wrapIt ? null : a, cx, cy, a0 + (p * 2 * Math.PI) / 5, r, l, p % 2 ? 1 : -1);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    let X = Math.round(cx) + dx, Y = Math.round(cy) + dy;
+    if (wrapIt || !a) { X = wrap(X); Y = wrap(Y); } else if (X < 0 || X >= SIZE || Y < 0 || Y >= SIZE) continue;
+    if (a) a[Y * SIZE + X] = 1; lv[Y * SIZE + X] = 0;
+  }
 }
 
 // each painter fills `lv` (a level per texel, 0..n-1) and, for a cutout, `a` (0 / 1)
@@ -128,6 +167,86 @@ const PAINTERS = {
       // pulled away from it, so the bands curve round each puff as the era's painters drew them
       const r = own[2], lit = Math.hypot(x - (own[0] - 0.3 * r), y - (own[1] - 0.42 * r)) < 0.86 * r, dark = Math.hypot(x - (own[0] - 0.1 * r), y - (own[1] - 0.2 * r)) > 0.98 * r;
       lv[y * SIZE + x] = base - y < SIZE * 0.05 ? 0 : lit ? top : dark ? Math.max(0, top - 2) : Math.max(0, top - 1);
+    }
+  },
+  // a bamboo pole unrolled (u round it, v up one internode; image y = 0 is the top): stripes, and the node at the foot
+  culm(lv, n, R) {
+    const top = n - 1, stripes = Array.from({ length: 9 }, () => [R() * SIZE, 3 + R() * 10, R() < 0.5 ? top : Math.max(0, top - 2)]);
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      let l = Math.max(0, top - 1);
+      for (const [cx, w, sl] of stripes) { const d = Math.min(Math.abs(x - cx), SIZE - Math.abs(x - cx)); if (d < w / 2) l = sl; }
+      if (y >= SIZE - 7) l = 0;                         // the node's dark line
+      else if (y >= SIZE - 22) l = top;                 // the pale ring above it
+      else if (y < 10) l = Math.max(0, top - 2);        // the sheath's shadow under the next node
+      lv[y * SIZE + x] = l;
+    }
+  },
+  // a spray (image y = SIZE − 1 is the foot, where it leaves the culm): a twig up the card, lance leaves fanned and drooping
+  spray(lv, n, R, a) {
+    const top = n - 1; a.fill(0);
+    const twig = (t) => [SIZE / 2 + Math.sin(t * 2.2) * 18, SIZE - 1 - t * SIZE * 0.82];
+    for (let t = 0; t < 1; t += 0.004) { const [x, y] = twig(t); for (let dx = -1; dx <= 1; dx++) { const X = Math.round(x) + dx, Y = Math.round(y); if (X >= 0 && X < SIZE && Y >= 0) { a[Y * SIZE + X] = 1; lv[Y * SIZE + X] = 0; } } }
+    for (let k = 0; k < 28; k++) {
+      const t = 0.12 + 0.86 * (k / 27), [bx, by] = twig(t), side = k % 2 ? 1 : -1, ang = side * (0.5 + 0.7 * R()) + Math.PI / 2 + (R() - 0.5) * 0.3;   // out and down
+      const len = SIZE * (0.24 + 0.18 * R()), w = len * (0.15 + 0.05 * R());
+      for (let s = 0; s < len; s++) {
+        const f = s / len, half = w * Math.sin(Math.PI * Math.min(1, f * 1.15)) * (1 - f * 0.3), droop = f * f * len * 0.35;
+        const cx = bx + Math.cos(ang) * s, cy = by + Math.sin(ang) * s * 0.55 + droop;
+        for (let q = -Math.ceil(half); q <= Math.ceil(half); q++) {
+          const X = Math.round(cx - Math.sin(ang) * q), Y = Math.round(cy + Math.cos(ang) * q * 0.55);
+          if (X < 0 || X >= SIZE || Y < 0 || Y >= SIZE) continue;
+          a[Y * SIZE + X] = 1; lv[Y * SIZE + X] = q * side < -half * 0.2 ? top : Math.abs(q) < 0.7 ? Math.max(0, top - 2) : Math.max(0, top - 1);
+        }
+      }
+    }
+  },
+  // fallen petals from above: drifts of notched petals, singles between them, a few whole flowers
+  petals(lv, n, R, a) {
+    const top = n - 1; a.fill(0);
+    const drifts = Array.from({ length: 4 }, () => [30 + R() * (SIZE - 60), 30 + R() * (SIZE - 60), 26 + R() * 34]);
+    for (let k = 0; k < 150; k++) {
+      let x, y;
+      if (k < 110) { const d = drifts[k % drifts.length], ang = R() * 6.28, r = d[2] * Math.sqrt(R()); x = d[0] + Math.cos(ang) * r; y = d[1] + Math.sin(ang) * r; }
+      else { x = 10 + R() * (SIZE - 20); y = 10 + R() * (SIZE - 20); }
+      petalShape(lv, a, x, y, R() * 6.28, 11 + R() * 8, R() < 0.6 ? top : Math.max(0, top - 1), R() < 0.5 ? 1 : -1);
+    }
+    for (let k = 0; k < 4; k++) flower(lv, a, 24 + R() * (SIZE - 48), 24 + R() * (SIZE - 48), 12 + R() * 4, R() * 6.28, top);
+  },
+  // cherry bark unrolled (u round the limb, v along it): a mottled ground, lenticel bands, a few girdle cracks
+  bark(lv, n, R) {
+    const top = n - 1, mot = noise(R, 6), mot2 = noise(R, 13);
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      const v = 0.65 * mot(x, y) + 0.35 * mot2(x, y);
+      lv[y * SIZE + x] = v > 0.3 ? Math.max(0, top - 1) : 0;
+    }
+    for (let k = 0; k < 70; k++) {   // lenticels: a short horizontal pale dash over a dark line
+      const x0 = R() * SIZE, y0 = Math.round(R() * SIZE), len = 8 + R() * 22;
+      for (let t = 0; t < len; t++) { const X = wrap(Math.round(x0 + t)); lv[wrap(y0) * SIZE + X] = top; lv[wrap(y0 + 1) * SIZE + X] = top; lv[wrap(y0 + 2) * SIZE + X] = 0; }
+    }
+    for (let k = 0; k < 3; k++) {   // girdle cracks: a dark ring round the limb, wavering
+      const y0 = R() * SIZE, wav = noise(R, 5);
+      for (let x = 0; x < SIZE; x++) { const Y = wrap(Math.round(y0 + (wav(x, 0) - 0.5) * 6)); lv[Y * SIZE + x] = 0; lv[wrap(Y + 1) * SIZE + x] = 0; }
+    }
+  },
+  // packed flowers: the gaps the middle level, each flower five notched petals, the centres the darkest
+  bloom(lv, n, R) {
+    const top = n - 1; lv.fill(Math.max(0, top - 1));
+    const cells = 6, step = SIZE / cells;
+    for (let j = 0; j < cells; j++) for (let i = 0; i < cells; i++) {
+      const cx = (i + 0.5 + (R() - 0.5) * 0.5 + (j % 2) * 0.5) * step, cy = (j + 0.5 + (R() - 0.5) * 0.5) * step;
+      flower(lv, null, cx, cy, step * (0.5 + 0.12 * R()), R() * 6.28, R() < 0.7 ? top : Math.max(0, top - 1), true);
+    }
+    for (let k = 0; k < 40; k++) { const cx = R() * SIZE, cy = R() * SIZE; flower(lv, null, cx, cy, step * (0.3 + 0.1 * R()), R() * 6.28, top, true); }
+  },
+  // a sprig: a ragged round cluster of flowers
+  sprig(lv, n, R, a) {
+    const top = n - 1; a.fill(0);
+    const cx = SIZE / 2, cy = SIZE * 0.44, Rr = SIZE * 0.4, fl = [];
+    for (let k = 0; k < 34; k++) { const ang = R() * 6.28, r = Rr * Math.sqrt(R()) * (0.8 + 0.2 * Math.sin(ang * 3 + R())); fl.push([cx + Math.cos(ang) * r, cy + Math.sin(ang) * r * 0.9, 13 + R() * 9]); }
+    fl.sort((p, q) => p[1] - q[1]);   // the lower flowers over the upper ones: the cluster read from below
+    for (const [x, y, r] of fl) {
+      const lit = (x - cx) * -0.6 + (y - cy) * -0.8 > -Rr * 0.25;
+      flower(lv, a, x, y, r, R() * 6.28, lit ? top : Math.max(0, top - 1), false);
     }
   },
   // a tuft: blades from a crown at the bottom centre, fanned, tips lit (image y = 0 is the top)

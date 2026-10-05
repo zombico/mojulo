@@ -234,6 +234,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   The sun sits on the dome where the bake's sun is.
 - Other stage kits are byte-identical.
 
+### Stage isekai groves
+
+- Two smaller isekai levels in the same art style. Every isekai level is a style card, and the builder reads it:
+  - **`isekai-bamboo`:** clumps of bamboo culms. Each culm is a pole pixel-locked in a striped `culm` tile with pale
+    node rings, two-toned by the sun. Cutout leaf sprays fan from the upper culm, and the sun bake reads their alpha,
+    so the floor is dappled.
+  - **`isekai-sakura`:** sakura trees. Dark leaning trunks fork into limbs under crowns of round masses locked to a
+    pink blossom ramp, with petal litter on the ground beneath.
+- New pixel-locked tiles: `culm`, `spray` and `petals`. The meadow is unchanged.
+- With `wind`:
+  - both groves take the live grass;
+  - crowns, culms and sprays sway;
+  - the sakura's petals fall, carried by the same gust field.
+
+### Stage isekai sakura pass
+
+- The sakura grove's trees are grown, not heaped: a branching skeleton (trunk, limbs, branches, twigs) with blossom
+  clumps at its tips.
+  - **Hero trees:** two framed sakura at full depth, with a `hero` camera under one crown's edge.
+  - **The rest:** the same tree at a lower depth, so the limbs show in the gaps of the crown.
+  - New pixel-locked tiles: `bark` (the sakura's horizontal lenticel bands), `bloom` (packed five-petal flowers on
+    each clump) and `sprig` (cutout flower clusters that break each clump's silhouette).
+- The petal litter is repainted as notched sakura petals in drifts.
+- With `wind`:
+  - live 3-D petals lie round the walker, pixel-locked like the grass and stirred by gusts. They gather in piles (drifts,
+    the path's edges, the feet of the trunks) and stay thin on open grass, so the grass stays the main read;
+  - falling petals take the same notched, cupped shape and tumble.
+- The meadow and the bamboo grove are unchanged.
+
 ### Stage live grass
 
 - `wind` on an isekai recipe turns on a LIVE FIELD of grass on the World page (`lib/graph/scene/channels/stage-grass.js`).

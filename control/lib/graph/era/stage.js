@@ -163,6 +163,9 @@ STAGE_KITS['jungle-trail'] = Object.freeze({ shell: 'jungle', style: 'jungle-mgs
 // The ISEKAI-MEADOW kit: the current era's open-field anime look from sixth-gen parts — a locked palette, pixel-locked
 // rocks and cliffs, hats (isekai.js).
 STAGE_KITS['isekai-meadow'] = Object.freeze({ shell: 'isekai', style: 'isekai-meadow' });
+// The isekai GROVES: smaller levels in the same look — a bamboo grove, a sakura grove.
+STAGE_KITS['isekai-bamboo'] = Object.freeze({ shell: 'isekai', style: 'isekai-bamboo' });
+STAGE_KITS['isekai-sakura'] = Object.freeze({ shell: 'isekai', style: 'isekai-sakura' });
 Object.freeze(STAGE_KITS);
 const VARIANTS = ['a', 'b', 'c', 'd'];
 
