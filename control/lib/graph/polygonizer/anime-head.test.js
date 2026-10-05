@@ -243,13 +243,14 @@ describe('anime head: the graphic face', () => {
   const hash = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
   const faceLists = (h) => Object.fromEntries(Object.entries(h.parts).filter(([, p]) => p.layer === 2).map(([k, p]) => [k, JSON.stringify(p.faces)]));
   it("`sculpt: false` is the studio's face: the female's hash from before the graphic face; the male's the same once his rest carriage is carried back", () => {
-    // re-pinned for the sideburn patches before the ears (every anime head wears them, the studio's face too)
-    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('2bbeac4c5e835818');
+    // re-pinned for the sideburn patches before the ears (every anime head wears them, the studio's face too); the
+    // studio's face keeps the studio's ears
+    expect(hash(animeHead({ preset: 'female', sculpt: false }))).toBe('a1fc320823f17001');
     // re-pinned for the male base's rest carriage (ANIME_BASE_ADJUST.male headPitch −0.25: 3° chin up instead of 6°); a
     // headPitch word of 1.25 carries it back, and with the face record it stores set back to the base the head is the
     // hash it gave before the graphic face existed
-    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('d0abc5752f4396b3');
-    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('0e8b35275e695090');
+    expect(hash(animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false }))).toBe('aa3192c27ac5923d');
+    expect(hash({ ...animeHead({ preset: 'male', register: 'lowpoly', expression: 'smile', sculpt: false, face: { headPitch: 1.25 } }), face: resolveAnimeFace({}) })).toBe('4c52448d19c26d56');
   });
   it('the words: ratios about the base and offsets compose; shape words ride beside; the stored layer is sparse; unknown words refused', () => {
     const R = resolveAnimeSculpt(['heavy-lid', { lidWeight: 1.1, browAngle: 4, fissureShape: 'tri' }, { browAngle: 2 }]);
@@ -505,13 +506,14 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(big.hairMeasures.top_m).toBeGreaterThan(small.hairMeasures.top_m + 0.02);
   });
   it('the sideburn patches: every anime head with hair covers the skin before each ear, in the hair colour; a bald head shows its skin', () => {
+    // (the graphic face's ears sit EAR_INSET closer in than the studio's: snug against the patch)
     for (const [preset, hair] of [['male', 'short'], ['female', 'long'], ['male', 'jona']]) {
       const { h, mesh } = on(preset, hair);
       for (const s of ['L', 'R']) {
         const b = box(mesh, new RegExp(`^hairSideburn${s}$`)), ear = box(mesh, new RegExp(`^ear${s}$`));
         expect(h.parts[`hairSideburn${s}`].group, `${preset} ${hair}`).toBe('Hair');
         expect(b[1][1], `${preset} ${hair} ${s}`).toBeGreaterThan(ear[1][1]);   // reaches further forward than the ear: before it
-        expect(b[2][0]).toBeLessThan((ear[2][0] + ear[2][1]) / 2); expect(b[2][1]).toBeGreaterThan(ear[2][1]);   // from above the ear to below its middle
+        const mid = (ear[2][0] + ear[2][1]) / 2; expect(b[2][0]).toBeGreaterThan(mid); expect(b[2][0]).toBeLessThan(ear[2][1]); expect(b[2][1]).toBeGreaterThan(ear[2][1]);   // from above the ear to just above its middle (clear of the cheek)
       }
       expect(failures(mesh)).toEqual([]);
     }

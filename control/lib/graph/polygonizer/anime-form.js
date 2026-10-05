@@ -336,7 +336,8 @@ export function buildAnime(r, options = {}) {
 
   const neckEnd = parts.skin.length;
   // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
-  // sheet lying on the skin in FRONT of each ear, from under the hair's edge at the temple down to the ear's lower third,
+  // sheet lying on the skin in FRONT of each ear, from under the hair's edge at the temple down to just above the ear's
+  // middle (clear of the cheek),
   // its front edge drawing back as it falls (a sideburn's taper), its back edge at the ear's front, so no bare gap shows
   // between the hair and the ear.
   // Its own part (`burn`, one run per side); the head wears it in the hair's colour, and a bald head not at all (its
@@ -344,7 +345,7 @@ export function buildAnime(r, options = {}) {
   const burns = [];
   if (options.sideburnPatch) {
     parts.burn = [];
-    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yTop = 0.22, yBot = earY - 0.06, I = 6, J = 10;
+    const earY = S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), yTop = 0.22, yBot = earY + 0.07, I = 6, J = 10;
     for (const side of [-1, 1]) {
       const start = parts.burn.length, at = (i, j, off) => { const y = yTop + (yBot - yTop) * j / J, u0 = 0.84 + 0.1 * (j / J) ** 2, u = side * (u0 + (0.955 - u0) * i / I), p = surface(u, y);
         const n = unit([p[0], 0, p[2] - 0.07]); return add(p, mul(n, off)); };

@@ -728,13 +728,16 @@ function scaleParts(parts, scale) {
  * read at the studio's carriage (the head's pitch undone about its pivot) and pitched back with the head, so the ear turns
  * with it: its root at the ellipsoid's centre (on the head's surface), its height and depth the ellipsoid's. The
  * studio-exact face (`sculpt: false`) keeps the ellipsoid. */
+const EAR_INSET = 0.09;   // of the ear's height
 function animeEar(studio, register, pivot, pitch) {
   // the studio's pitch about x in hero metres (studio y up → hero z, studio z back → hero −y): (y, z) turned by `a`
   const turn = (a) => { const c = dmath.cos(a), sn = dmath.sin(a); return (p) => { const y = p[1] - pivot[1], z = p[2] - pivot[2]; return [p[0], pivot[1] + c * y - sn * z, pivot[2] + sn * y + c * z]; }; };
   const flat = studio.points.map(turn(-pitch)), back = turn(pitch);
   const lo = [0, 1, 2].map((k) => Math.min(...flat.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...flat.map((p) => p[k])));
   const side = lo[0] + hi[0] > 0 ? 1 : -1, height = hi[2] - lo[2];
-  const e = earMesh({ origin: [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], side, height, width: (hi[1] - lo[1]) / (height * 0.61), style: 'anime', sparse: register === 'lowpoly' });
+  // EAR_INSET: the graphic face's ear set a little closer in to the head than the studio's (its root sunk into the skull),
+  // so it sits snug against the sideburn and the side of the face
+  const e = earMesh({ origin: [(lo[0] + hi[0]) / 2 - side * EAR_INSET * height, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], side, height, width: (hi[1] - lo[1]) / (height * 0.61), style: 'anime', sparse: register === 'lowpoly' });
   const ids = Object.keys(e.points), at = Object.fromEntries(ids.map((id, i) => [id, i]));
   return { points: ids.map((id) => back(e.points[id])), faces: e.faces.map((f) => f.map((id) => at[id])), groups: e.groups };
 }
