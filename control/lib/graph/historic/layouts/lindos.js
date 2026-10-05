@@ -47,6 +47,38 @@ const WIN = { x: 360, y: 130, w: 500, d: 500 };
 const distEdge = (P, x, y) => { let d = Infinity; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [ax, ay] = P[j], [bx, by] = P[i], vx = bx - ax, vy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy))); d = Math.min(d, Math.hypot(x - ax - vx * t, y - ay - vy * t)); } return d; };
 const inRect = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.d;
 
+/**
+ * The sea's depth over a w × d frame: the distance to the shore by a two-pass chamfer on a `res` m grid, and the
+ * height of that nearest shore. A beach shelves gently (0.4 m + 8 cm a metre); a shore over 8 m high is a cliff and
+ * the bed falls away under it (3 m + 18 cm a metre). → { dist(x, y), depth(x, y), bed({ near, cell, tint, waterZ }) }.
+ */
+function seaDepth(isSea, hAt, w, d, res) {
+  const nx = Math.ceil(w / res) + 1, ny = Math.ceil(d / res) + 1, N = nx * ny;
+  const dist = new Float64Array(N).fill(1e9), shore = new Float64Array(N);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) if (!isSea(i * res, j * res)) { dist[j * nx + i] = 0; shore[j * nx + i] = hAt(i * res, j * res); }
+  const D1 = res, D2 = res * Math.SQRT2;
+  const relax = (k, q, c) => { if (dist[q] + c < dist[k]) { dist[k] = dist[q] + c; shore[k] = shore[q]; } };
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (i > 0) relax(k, k - 1, D1); if (j > 0) { relax(k, k - nx, D1); if (i > 0) relax(k, k - nx - 1, D2); if (i < nx - 1) relax(k, k - nx + 1, D2); } }
+  for (let j = ny - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i; if (i < nx - 1) relax(k, k + 1, D1); if (j < ny - 1) { relax(k, k + nx, D1); if (i < nx - 1) relax(k, k + nx + 1, D2); if (i > 0) relax(k, k + nx - 1, D2); } }
+  const at = (A) => (x, y) => { const u = Math.max(0, Math.min(nx - 1.001, x / res)), v = Math.max(0, Math.min(ny - 1.001, y / res)), i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j, k = j * nx + i; return (A[k] * (1 - fu) + A[k + 1] * fu) * (1 - fv) + (A[k + nx] * (1 - fu) + A[k + nx + 1] * fu) * fv; };
+  const distAt = at(dist), shoreAt = at(shore);
+  const depth = (x, y) => { const r = distAt(x, y); return r <= 0 ? 0 : shoreAt(x, y) > 8 ? Math.min(14, 3 + 0.18 * r) : Math.min(12, 0.4 + 0.08 * r); };
+  const bed = ({ near, cell, tint, waterZ }) => {
+    const out = [], z = (x, y) => (isSea(x, y) ? waterZ - depth(x, y) : waterZ - 0.15);
+    for (let y = 0; y < d; y += cell) for (let x = 0; x < w; x += cell) {
+      const cs = [[x, y], [x + cell, y], [x + cell, y + cell], [x, y + cell]];
+      if (!cs.some(([a, b]) => isSea(a, b)) || distAt(x + cell / 2, y + cell / 2) > near) continue;
+      const p = cs.map(([a, b]) => [a, b, z(a, b)]), shade = scaleHex(tint, 0.96 + 0.08 * ((((x * 7 + y * 13) / cell) % 5) / 5));
+      for (const tri of [[p[0], p[1], p[2]], [p[0], p[2], p[3]]]) {
+        const xs = tri.map((q) => q[0]), ys = tri.map((q) => q[1]), zs = tri.map((q) => q[2]);
+        out.push({ kind: 'seabed', solid: 'panel', pts: tri, out: [0, 0, 1], x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), d: Math.max(...ys) - Math.min(...ys), z0: Math.min(...zs), z1: Math.max(...zs), tint: shade, skin: null });
+      }
+    }
+    return out;
+  };
+  return { dist: distAt, depth, bed };
+}
+
 export function planAcropolis({ seed = 1, culture = 'lindos', assets, fire = false } = {}, K) {
   const P = K.palette, ST = K.site, cliff = ST.cliff !== false, landmarks = K.landmarks !== false;
   const g = claimGrid(FRAME), { cols, rows, grid, at, set } = g;
@@ -291,13 +323,20 @@ export function planAcropolis({ seed = 1, culture = 'lindos', assets, fire = fal
     ],
   });
   boxes.push(...R.faces(limestonePaint({ rock: P.rock, cliff: P.cliff, scree: P.scree })));
+  // the sea's depth: from the shore on a 5 m grid (a two-pass chamfer distance), shelving gently off a beach and
+  // dropping steeply under a cliff (the nearest land's height says which). It sets the water's opacity on the World
+  // page and the seabed seen through it; the CSS page keeps its flat shallows and deeps.
+  const sea = seaDepth((x, y) => isSea(x + ox, y + oy), R.hAt, WIN.w, WIN.d, 5);
+  const Wt = K.water || {};
   const T0 = terrainMesh({
     hAt: R.hAt, skip: R.skip, frame: { w: WIN.w, d: WIN.d }, eyes: Object.values(views).map((v) => v.eye), cell: 20, eyeRadius: 40,
     // the open land in flat colour (a big read: the streets, courts and fields carry the texture): sand at the shore, rock up high
     surfaceAt: (x, y, zz) => ({ fill: zz < 2.2 && !inPoly(SUMMIT, x + ox, y + oy) ? P.sand : inPoly(SUMMIT, x + ox, y + oy) || zz > 60 ? P.rock : P.ground }),
     riserTint: (h) => (h >= 4 ? P.cliff : scaleHex(P.socle, 0.95)),
-    water: { z: waterZ, fill: P.sea, fillAt: seaFill },
+    water: { z: waterZ, fill: P.sea, fillAt: seaFill, ...(Wt.look ? { liquid: { ...Wt.look, unit: 1 / 3.66 }, sheetFill: P.sea, alphaAt: (x, y) => Math.max(0.3, Math.min(0.96, 0.3 + 0.075 * sea.depth(x, y))), fine: (x, y) => sea.dist(x, y) < 70, fineSize: 10 } : {}) },
   });
+  // the seabed under the near-shore water, for the World page (the CSS page draws the sea opaque and leaves it out)
+  const seabed = Wt.look ? sea.bed({ near: 80, cell: 10, tint: Wt.bed || P.sand, waterZ }) : [];
   grounds.unshift(...T0.grounds);
   boxes.push(...T0.boxes);
 
@@ -312,6 +351,8 @@ export function planAcropolis({ seed = 1, culture = 'lindos', assets, fire = fal
     },
     hAt: R.hAt, isSea: (x, y) => isSea(x + ox, y + oy), rock: { cells: R.grid ? R.inRock : null }, summitPoly: SUMMIT.map(mv), temple: mvRect(templeR), altar: slots.find((s) => s.asset === 'ln-altar').rect, theatre: mvRect(theatreR),
     ...(fire ? { fireSources } : {}),
+    // what only the World page draws: the seabed under the clear shallows
+    world: { boxes: seabed },
     fires: fireSources.length,
     // the claim grid stays on the site's map: `origin` is where the picture's (0, 0) stands on it
     grid: { cols, rows, cell: CELL, data: grid, codes: C, origin: [ox, oy] },

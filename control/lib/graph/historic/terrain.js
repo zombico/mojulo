@@ -26,6 +26,9 @@ const DEFAULTS = { cell: 10, minCell: 2.5, step: 0.5, cliff: 4, eyeRadius: 60, e
  * `riserTint(height, x, y)` the colour of a riser's face; `water` { z, fill } (optional: the sea);
  * `eyes` [[x, y], …] views whose ground is cut fine (a big face reaching behind an eye is dropped whole);
  * `skip(x0, y0, size)` true for a cell another mesher draws (./rock.js). The sea is laid over skipped cells too.
+ * `water` { z, fill, fillAt?, liquid?, alphaAt?, sheetFill?, fine?, fineSize? }: the sea's level and colour; `liquid`
+ * its look on the World page (../materials/aqua-look.js), `alphaAt(x, y)` its opacity there and `sheetFill` its one
+ * body colour there (its depth does what `fillAt`'s two tones do on the page); `fine(x, y)` where to cut it small.
  * Returns { grounds, boxes, stats }.
  */
 export function terrainMesh({ hAt, frame, surfaceAt, riserTint, water = null, eyes = [], skip = null, ...opts }) {
@@ -141,21 +144,30 @@ export function terrainMesh({ hAt, frame, surfaceAt, riserTint, water = null, ey
   // it by place: the shallows), at most `waterRun` m long; odd rows overlap their neighbours, a layer up
   if (water) {
     const fillAt = water.fillAt || (() => water.fill), wr = O.waterRun || O.runMax;
+    // a piece of sea: tagged with its look for the World's water shader (`liquid`) and, with `alphaAt`, its
+    // opacity at each corner (clear over a shallow bed, opaque over deep water) — the page's flat fill is unchanged
+    // `ov` the hair of overlap that closes the CSS page's seams; a translucent sheet would darken twice where pieces
+    // overlap, so a piece with a look keeps its exact rect too (`sheet`), which the World draws instead
+    const piece = (x, y, w, d, z, fill, ov = 0) => {
+      const g = { kind: 'water', x: x - ov, y: y - ov, w: w + 2 * ov, d: d + 2 * ov, z, fill };
+      if (water.liquid) { g.liquid = water.liquid; g.sheet = { x, y, w, d, z: wz, fill: water.sheetFill || fill }; }
+      if (water.alphaAt) g.cornerAlpha = [[x, y], [x + w, y], [x + w, y + d], [x, y + d]].map(([a, b]) => +water.alphaAt(a, b).toFixed(3));
+      grounds.push(g); stats.water++;
+    };
+    const cut = (x, y, s, d, size, fill) => { for (let yy = y; yy < y + d - 1e-6; yy += size) for (let xx = x; xx < x + s - 1e-6; xx += size) piece(xx, yy, Math.min(size, x + s - xx), Math.min(size, y + d - yy), wz + layerOf(xx, yy), fill, 0.15); };
     for (let r = 0; r < rows; r++) {
       const y = r * O.cell, d = Math.min(O.cell, frame.d - y), ov = r % 2 ? 0.25 : 0;
       let run = null;
-      const flush = () => { if (run) { grounds.push({ kind: 'water', x: run.x - ov, y: y - ov, w: run.w + 2 * ov, d: d + 2 * ov, z: wz + (r % 2 ? O.layer : 0), fill: run.fill }); stats.water++; } run = null; };
+      const flush = () => { if (run) piece(run.x, y, run.w, d, wz + (r % 2 ? O.layer : 0), run.fill, ov); run = null; };
       for (let c = 0; c < cols; c++) {
         const x = c * O.cell, s = Math.min(O.cell, frame.w - x);
         const dips = [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.5]].some(([u, v]) => hAt(Math.min(frame.w, x + u * s), Math.min(frame.d, y + v * d)) < wz);
         if (!dips) { flush(); continue; }
         const fill = fillAt(x + s / 2, y + d / 2);
-        // round an eye the sea is cut fine too (a big face reaching behind the eye is dropped whole)
-        if (eyes.some(([ex, ey]) => Math.hypot(x + s / 2 - ex, y + d / 2 - ey) < O.eyeRadius + s)) {
-          flush();
-          for (let yy = y; yy < y + d - 1e-6; yy += O.eyeSquare * 2) for (let xx = x; xx < x + s - 1e-6; xx += O.eyeSquare * 2) { grounds.push({ kind: 'water', x: xx - 0.15, y: yy - 0.15, w: Math.min(O.eyeSquare * 2, x + s - xx) + 0.3, d: Math.min(O.eyeSquare * 2, y + d - yy) + 0.3, z: wz + layerOf(xx, yy), fill }); stats.water++; }
-          continue;
-        }
+        // round an eye the sea is cut fine too (a big face reaching behind the eye is dropped whole); where the
+        // water's depth changes (`water.fine`) it is cut fine so its corners can carry the change
+        if (eyes.some(([ex, ey]) => Math.hypot(x + s / 2 - ex, y + d / 2 - ey) < O.eyeRadius + s)) { flush(); cut(x, y, s, d, O.eyeSquare * 2, fill); continue; }
+        if (water.fine && water.fine(x + s / 2, y + d / 2)) { flush(); cut(x, y, s, d, water.fineSize || 10, fill); continue; }
         if (run && run.fill === fill && run.w + s <= wr) run.w += s; else { flush(); run = { x, w: s, fill }; }
       }
       flush();

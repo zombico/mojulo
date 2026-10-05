@@ -60,6 +60,8 @@ export const LINDOS = {
   stair: { w: 21, steps: 35 },                       // 21 m wide, 35 steps (record)
   theatre: { rows: 26, w: 56, d: 40 },               // 19 + 7 rows (record); diameter conjecture
   house: { size: [9, 15], gap: 0.4 },
+  // the sea on the World page: clear Aegean water (the native aqua look), turquoise where it is thin over sand
+  water: { look: { kind: 'lagoon', tint: '#3fb0bd', nAmp: 0.2, shore: 0.8 }, bed: '#c9b48a' },
   groves: { density: 0.35, max: 160 },
   assets: LINDOS_ASSETS,
 };

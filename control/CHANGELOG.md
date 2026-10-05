@@ -255,6 +255,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fire channel's kinds. Without it the plan carries none.
 - The generic Hellenistic polis (`culture: 'polis'`) is the same plan on a gentle hill, with no cliff and no open
   sea, so other Greek towns can start from it.
+- **Historic cities on the WebGL World page** (`assembleHistoricWorld`, `renderHistoricCityToWorld`). The CSS 3D
+  page draws each face as its own HTML element, and Chrome starts dropping faces when a town's eye-level views pass
+  about ten thousand of them. On the World page the same faces are a few draw calls. Lindos loads in under a
+  second and holds 60 fps in every view, at about 7.9 MB against 12.4 MB for the CSS page. The World page takes
+  the scene as it is, its ground tiles and wall skins resolved to textures and the style card's sky as its sky
+  dome. The CSS shade map is not baked for it (the World never reads it). The CSS page stays the light aerial
+  preview.
+- **Water you can see into.** On the World page the Lindos sea takes the native water look (`lagoon`): ripples,
+  the sky reflected more strongly at a grazing angle, a sun glint, and froth where the water thins against the
+  shore. Its depth comes from a seabed that shelves gently off the beaches and drops away under the cliffs, worked
+  out from the distance to the shore. The water is clear turquoise over the sand in the shallows and opaque blue
+  offshore, set by each corner's opacity on one translucent sheet whose pieces never overlap. The seabed (about a
+  thousand triangles near the shore) is drawn on the World page only. The CSS page keeps its opaque two-tone sea.
+  A culture opts in with `water.look`; terrain water takes `liquid`, `alphaAt`, `sheetFill` and `fine`.
 - Views: the great harbour from a boat (`bay`), the climb, the stoa's terrace and great stair, the temple court, the cliff from the sea, the
   theatre and a town street. Sumer, Thebes and Giza are byte-identical.
 

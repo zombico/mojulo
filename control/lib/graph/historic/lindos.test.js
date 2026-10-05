@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planHistoricCity, assembleHistoricCityScene, historicLight, SCENE_LIGHT } from './historic-city.js';
+import { planHistoricCity, assembleHistoricCityScene, assembleHistoricWorld, historicLight, SCENE_LIGHT } from './historic-city.js';
 import { placeAsset } from './assets/kit.js';
 import { LINDOS_ASSETS } from './assets/lindos.js';
 import { LINDOS } from './cultures/lindos.js';
@@ -174,4 +174,31 @@ describe('Lindos and the generic polis — scenes', () => {
     expect(Math.max(...p.boxes.filter((b) => b.kind === 'cliff').map((b) => b.z1 - b.z0), 0)).toBeLessThan(25);
     expect(assembleHistoricCityScene({ culture: 'polis', seed: 7, view: 'town' }).cameras[0].name).toBe('town');
   }, 120000);
+});
+
+describe('Lindos on the World page — the water', () => {
+  const W = assembleHistoricWorld({ culture: 'lindos', seed: 7, view: 'bay' });
+  const sheet = W.faces.filter((f) => f.water && f.liquid);
+  it('the sea is one sheet under the native water look, clear over the shallows and opaque offshore', () => {
+    expect(sheet.length).toBeGreaterThan(50);
+    expect(new Set(sheet.map((f) => f.liquid.kind))).toEqual(new Set(['lagoon']));
+    expect(new Set(sheet.map((f) => f.fill)).size).toBe(1);   // one body colour: the depth does the rest
+    const a = sheet.flatMap((f) => f.cornerAlpha);
+    expect(Math.min(...a)).toBeGreaterThanOrEqual(0.3); expect(Math.max(...a)).toBeLessThanOrEqual(0.96);
+    expect(Math.min(...a)).toBeLessThan(0.45); expect(Math.max(...a)).toBeGreaterThan(0.9);
+    // the sheet's pieces never overlap (a translucent overlap darkens twice) and lie at one level
+    const zs = new Set(sheet.flatMap((f) => f.corners.map((c) => c[2].toFixed(6))));
+    expect(zs.size).toBe(1);
+  });
+  it('a seabed shows through the shallows on the World page only; the CSS page keeps its opaque two-tone sea', () => {
+    const css = assembleHistoricCityScene({ culture: 'lindos', seed: 7, view: 'bay', shade: false });
+    expect(css.faces.some((f) => f.liquid)).toBe(false);
+    expect(W.faces.length - css.faces.length).toBeGreaterThan(300);
+    expect(plan.world.boxes.every((b) => b.kind === 'seabed' && b.z1 < 0)).toBe(true);
+  });
+  it('the World reflects the card\'s sky and carries its textures', () => {
+    expect(W.sky.zenith).toHaveLength(3); expect(W.sky.horizon).toHaveLength(3);
+    expect(W.sky.zenith[2] - W.sky.zenith[0]).toBeGreaterThan(W.sky.horizon[2] - W.sky.horizon[0]);
+    expect(Object.keys(W.textures).length).toBeGreaterThan(5);
+  });
 });

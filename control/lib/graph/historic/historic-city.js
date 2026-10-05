@@ -32,6 +32,9 @@ import { makeLight, litFactor } from '../polygonizer/vexar.js';
 import { groundTileFace, groundTileCss, skinFace } from './ground.js';
 import { bakeShade, shadeLayer, shadeCss } from './light.js';
 import { HISTORIC_STYLES } from './style/index.js';
+import { emitThreeWorld } from '../scene/scene-three.js';
+import { collectFaceTextures } from '../landscape/surface-textures.js';
+import { deriveSky } from '../polygonizer/painted-landscape.js';
 
 export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
@@ -465,7 +468,7 @@ const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 
  * earth. A surfaced ground (mud, rubble, brick, dry earth) is a tiled face; the rest flat colour.
  * `shade` (a ./light.js bake): its map is laid over every ground face, at the face's place in it.
  */
-export function groundsToScene(grounds, s, us, textured = true, shade = null) {
+export function groundsToScene(grounds, s, us, textured = true, shade = null, world = false) {
   const faces = [];
   // the shade layer goes over a face whose local axes run +x and +y (a ground rect; a near-square poly)
   const shaded = (f, x, y) => (shade ? { ...f, shade: shade.key, bg: `${shadeLayer(shade, x, y, s, us)}, ${f.bg || f.fill}` } : f);
@@ -478,6 +481,12 @@ export function groundsToScene(grounds, s, us, textured = true, shade = null) {
       continue;
     }
     if (g.surface && textured) faces.push(shaded(groundTileFace(o, g.surface, g.fill, lit, { us, mpu: METRES_PER_UNIT }), g.x, g.y));
+    // water with a look (`liquid`), for the World page: its water shader and the opacity at each corner
+    else if (world && g.liquid) {
+      // one sheet: each piece at its exact rect and one level (overlaps would darken twice through translucent water)
+      const q = g.sheet ? { x: g.sheet.x * s, y: g.sheet.y * s, w: g.sheet.w * s, d: g.sheet.d * s, z: g.sheet.z * s } : o;
+      faces.push({ corners: [[q.x, q.y, q.z], [q.x + q.w, q.y, q.z], [q.x + q.w, q.y + q.d, q.z], [q.x, q.y + q.d, q.z]], fill: (g.sheet && g.sheet.fill) || g.fill, water: true, liquid: g.liquid, ...(g.cornerAlpha ? { cornerAlpha: g.cornerAlpha } : {}), doubleSided: true });
+    }
     else faces.push(shaded({ corners: [[o.x, o.y, o.z], [o.x + o.w, o.y, o.z], [o.x + o.w, o.y + o.d, o.z], [o.x, o.y + o.d, o.z]], fill: lit, doubleSided: true }, g.x, g.y));
   }
   return { grounds: [], faces };
@@ -523,10 +532,11 @@ export function historicLight(plan, opts = {}) {
 export function assembleHistoricCityScene(opts = {}) {
   const plan = planHistoricCity(opts);
   const view = opts.view === 'approach' || (opts.view && plan.views[opts.view]) ? opts.view : 'aerial';
-  const s = 1 / METRES_PER_UNIT;
-  const { boxes, faces } = toScene(plan.boxes, s, UNIT_SCALE[view], plan.focus);
+  const s = 1 / METRES_PER_UNIT, world = !!opts.world;
+  // `world`: built for the WebGL World page, which also draws what the plan keeps for it alone (a seabed)
+  const { boxes, faces } = toScene(world && plan.world ? [...plan.boxes, ...plan.world.boxes] : plan.boxes, s, UNIT_SCALE[view], plan.focus);
   const { shade, sky } = historicLight(plan, opts);
-  const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view], true, shade), grounds = G.grounds;
+  const G = groundsToScene(plan.grounds, s, UNIT_SCALE[view], true, shade, world), grounds = G.grounds;
   faces.unshift(...G.faces);
   const W = plan.frame.w * s, Dd = plan.frame.d * s, pc = plan.stats.precinct;
   const pcx = (pc.x + pc.w / 2) * s, pcy = (pc.y + pc.d / 2) * s;
@@ -540,6 +550,26 @@ export function assembleHistoricCityScene(opts = {}) {
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
   const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
   return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}) };
+}
+
+/**
+ * A historic city for the WebGL World page (scene/scene-three.js `emitThreeWorld`): the same scene, with the
+ * World's own needs met — the ground tiles and wall skins resolved into its texture map, the style card's sky as
+ * the World's zenith/horizon dome (the water reflects it), the sea under its water look where the culture gives
+ * one, and what the plan keeps for the World alone (a seabed under clear shallows). The World ignores the CSS
+ * shade map: its light is its own. Opens on `view` like the page.
+ */
+export function assembleHistoricWorld(opts = {}) {
+  // the CSS shade map is the page's: the World never reads it, so it is not baked here
+  const scene = assembleHistoricCityScene({ ...opts, world: true, shade: false });
+  const style = HISTORIC_STYLES[scene.stats.culture];
+  const card = style && style.sky && style.sky.palette ? deriveSky(style.sky.palette, { x: 0, y: 0, z: style.sky.sunElev }) : null;
+  return { ...scene, textures: collectFaceTextures(scene.faces, { ...(scene.textures || {}) }), ...(card ? { sky: { zenith: card.zenith.map(Math.round), horizon: card.horizon.map(Math.round), day: 1, stars: 0, seed: 1 } } : {}) };
+}
+/** A historic city → the World page HTML (self-contained unless `cdn`). */
+export function renderHistoricCityToWorld(opts = {}) {
+  const { cdn = false, walk = false, ...rest } = opts;
+  return emitThreeWorld({ ...assembleHistoricWorld(rest), inline: !cdn, cdn, walk, hud: false });
 }
 
 /** A plan or asset scene → the CSS 3D page (ground tiles embedded once). */
