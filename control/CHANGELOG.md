@@ -236,6 +236,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The open set is byte-identical.
 
+### Stage page budget
+
+- A stage's World page now costs about 5 MB to open with every element on (the plaza was 8.7 MB), under a budget
+  (`STAGE_PAGE_BUDGET`, 7 MB) a test holds each stage to.
+- `pack` on `emitThreeWorld` (opt-in; a stage's payload sets it): each textured sub-mesh is welded, so corners equal
+  in position, uv and colour are shared through an index, and its baked colour goes as 8-bit sRGB decoded back to
+  linear in the page. Renders differ by at most 2 levels in 255. Without `pack` every page is byte-identical.
+
 ### Stage elements
 
 - Sixth-gen is a floor, not a ceiling: a stage takes the merged fire and water elements as opt-ins, and without them

@@ -185,7 +185,25 @@ export function decollideExceptBound(faces) {
   return out;
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, sway = null } = {}) {
+// `pack` (opt-in, a stage's page): a textured sub-mesh welded — corners equal in position, uv and colour shared through an
+// index (a quad sends 4 vertices, not 6) — and its baked colour sent as 8-bit sRGB, decoded in-page back to linear
+// (the display is 8-bit sRGB, so the picture is the same). Absent ⇒ every page is byte-identical.
+const toSrgb8 = (c) => { const v = Math.min(1, Math.max(0, c)); return Math.round((v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255); };
+function packTex(g) {
+  const n = g.positions.length / 3, seen = new Map(), pos = [], uv = [], col = [], idx = [];
+  for (let i = 0; i < n; i++) {
+    const p = [g.positions[3 * i], g.positions[3 * i + 1], g.positions[3 * i + 2]], q = [g.uvs[2 * i], g.uvs[2 * i + 1]];
+    const c = [toSrgb8(g.colors[3 * i]), toSrgb8(g.colors[3 * i + 1]), toSrgb8(g.colors[3 * i + 2])];
+    const k = `${Math.fround(p[0])},${Math.fround(p[1])},${Math.fround(p[2])},${Math.fround(q[0])},${Math.fround(q[1])},${c}`;
+    let v = seen.get(k);
+    if (v === undefined) { v = pos.length / 3; seen.set(k, v); pos.push(...p); uv.push(...q); col.push(...c); }
+    idx.push(v);
+  }
+  const wide = pos.length / 3 > 65535;
+  return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
+}
+
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, sway = null, pack = false } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -388,7 +406,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const wireframe = fs.some((f) => f.wireframe);
     // textured sub-groups (label wraps): one { key, pos, uv } per texture, rendered as a
     // MeshBasicMaterial({ map }). Empty for every existing scene → no behavior change.
-    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit, ...(g.specs ? { spec: b64(g.specs) } : {}) }));
+    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => (pack && !g.specs ? { key, ...packTex(g), lit: !!g.lit } : { key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit, ...(g.specs ? { spec: b64(g.specs) } : {}) }));
     // per-group translucency (cellular-view jelly + organelles): a face-level `alpha` < 1 turns
     // the whole group into a transparent mesh. null/absent → opaque, unchanged for every existing
     // scene. Stays a real group mesh (raycastable for picks, togglable to wireframe).
@@ -907,7 +925,7 @@ const BG = ${safeJson(bg)};
 const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
 function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }
-function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
 
 const wrap = document.getElementById('wrap'), canvas = document.getElementById('c'), hud = document.getElementById('hud');
 // logarithmicDepthBuffer: the world camera spans near 0.05 → far 8000 (close interiors
@@ -949,12 +967,13 @@ for (const grp of GROUPS) {
     const url = TEXTURES[t.key]; if (!url) continue;
     const tg = new THREE.BufferGeometry();
     tg.setAttribute('position', new THREE.BufferAttribute(decodeF32(t.pos), 3));
-    tg.setAttribute('uv', new THREE.BufferAttribute(decodeF32(t.uv), 2));
+    tg.setAttribute('uv', new THREE.BufferAttribute(decodeF32(t.uv), 2));${pack ? `
+    if (t.c8) { const c8 = decodeU8(t.c8), lin = new Float32Array(c8.length); for (let i = 0; i < c8.length; i++) lin[i] = __SRGB_LIN[c8[i]]; t.col = null; tg.setAttribute('color', new THREE.BufferAttribute(lin, 3)); const ib = decodeU8(t.idx); tg.setIndex(new THREE.BufferAttribute(t.wide ? new Uint32Array(ib.buffer) : new Uint16Array(ib.buffer), 1)); }` : ''}
     // MULTIPLY-lit textures (textureLit faces, e.g. asphalt roads/ground) carry the baked
     // per-vertex colour so the GPU does texel * bakedLight. lit ONLY controls that multiply;
     // biaxial RepeatWrapping is set for every textured face so a small tile repeats across a
     // large quad on both axes (label wraps keep V in [0,1], so wrapT is a no-op for them).
-    if (t.lit) tg.setAttribute('color', new THREE.BufferAttribute(decodeF32(t.col), 3));
+    if (t.lit${pack ? ' && t.col' : ''}) tg.setAttribute('color', new THREE.BufferAttribute(decodeF32(t.col), 3));
     tg.computeBoundingSphere();
     const tex = new THREE.TextureLoader().load(url);
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;

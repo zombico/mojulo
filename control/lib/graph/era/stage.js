@@ -483,6 +483,10 @@ function torchFaces(l, live = false) {
 // ── the world kind ───────────────────────────────────────────────────────────
 const ambientOf = (ref) => hexRgb(ref.light.ambient).map((v) => Math.min(1, v * 1.7));
 
+/** A stage's World page, every element on, stays under this (bytes, inline three.js included): what a level may cost to
+ *  open, checked by stage-budget.test.js. */
+export const STAGE_PAGE_BUDGET = 7 * 1024 * 1024;
+
 /** A card cut into nu × nv cells (corners and uv interpolated), so a page can bend it down its length. */
 function splitCard(f, nu, nv) {
   const [a, b, c, d] = f.corners, lerp = (p, q, t) => p.map((v, k) => v + (q[k] - v) * t), out = [];
@@ -557,6 +561,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   return {
     faces,
     ...(cutouts.length ? { cutouts } : {}),
+    // the page sends its textured geometry welded, its baked colour in 8 bits (scene-three.js `pack`): half the bytes
+    pack: true,
     // the ends by which this map links to others, and its items (doors.js): only when the recipe names them
     ...(manifest.doors ? { doors: withoutBuild(ends) } : {}),
     ...(taken ? { items: taken.items } : {}),
