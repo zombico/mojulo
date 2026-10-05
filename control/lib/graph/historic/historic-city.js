@@ -22,12 +22,14 @@ import { placeAsset, localSize } from './assets/kit.js';
 import { CELL, C, LAYER, laneZ, stream, pick, claimGrid, runs, alleyLattice, packLots, lotSlot, placeSlots, skinLoose } from './layout-kit.js';
 import { THEBES } from './cultures/thebes.js';
 import { planRiverAxis } from './layouts/thebes.js';
+import { GIZA } from './cultures/giza.js';
+import { planPlateau } from './layouts/giza.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
 import { groundTileFace, groundTileCss, skinFace } from './ground.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES };
+export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
 /**
@@ -37,7 +39,9 @@ export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a st
  */
 export function planHistoricCity(opts = {}) {
   const K = HISTORIC_CULTURES[opts.culture || 'sumer'] || SUMER;
-  return K.layout === 'river-axis' ? planRiverAxis({ ...opts, culture: opts.culture || 'sumer' }, K) : planRingCanal(opts);
+  if (K.layout === 'river-axis') return planRiverAxis({ ...opts, culture: opts.culture || 'sumer' }, K);
+  if (K.layout === 'plateau') return planPlateau({ ...opts, culture: opts.culture }, K);
+  return planRingCanal(opts);
 }
 
 function planRingCanal({ seed = 1, culture = 'sumer', frame = { w: 380, d: 290 }, assets } = {}) {
@@ -433,7 +437,7 @@ const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, d
 // px per scene unit. A panel rasterises at its own px size and an eye-level camera magnifies the near
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,

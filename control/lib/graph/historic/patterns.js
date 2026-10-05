@@ -27,6 +27,8 @@ export const PATTERNS = {
   'pylon-gate': { family: 'massing', read: 'a monumental gate between two battered towers, taller than anything around it', seenIn: ['Egypt', 'Hittite gates', 'Chinese que', 'Gothic west fronts'] },
   obelisk: { family: 'massing', read: 'a single tapering needle of stone with a pointed cap, paired before a gate', seenIn: ['Egypt', 'Aksum (stelae)', 'Rome (re-erected)', 'Washington'] },
   colonnade: { family: 'massing', read: 'a row of columns carrying a roof along the side of an open court', seenIn: ['Egypt', 'Greece (stoa)', 'Rome', 'Islamic courtyard mosque'] },
+  pyramid: { family: 'massing', read: 'a royal tomb raised as a mountain of stone: four smooth faces rising to a point, a court and wall round it, a temple at its foot', seenIn: ['Egypt (Giza)', 'Nubia (Meroë)', 'Mesoamerica (stepped)', 'Rome (Cestius)'] },
+  mastaba: { family: 'massing', read: 'a low flat-topped bench of a tomb with sloping sides, laid out with its neighbours in streets', seenIn: ['Egypt (Giza, Saqqara)'] },
   hypostyle: { family: 'massing', read: 'a hall roofed on a forest of columns, a taller nave down the middle lit by a clerestory', seenIn: ['Egypt', 'Persia (apadana)', 'Córdoba mosque', 'Greek telesterion'] },
   terrace: { family: 'massing', read: 'a raised, walled platform that lifts the sacred quarter above the town', seenIn: ['Sumer', 'Indus (citadel)', 'Mesoamerica', 'Greece (acropolis)'] },
 
@@ -44,6 +46,7 @@ export const PATTERNS = {
   'canal-through': { family: 'layout', read: 'a water street through the town, quays along it', seenIn: ['Sumer (Uruk)', 'Tenochtitlan', 'Venice', 'Amsterdam', 'Suzhou'] },
   'processional-axis': { family: 'layout', read: 'one straight sacred way through gate after gate, narrowing and darkening toward the god', seenIn: ['Egypt', 'Mesoamerica (Teotihuacan)', 'Beijing (central axis)', 'Rome (fora)'] },
   'river-front': { family: 'layout', read: 'the town strung along a great river, a quay where the god\'s barque lands', seenIn: ['Egypt', 'Mesopotamia', 'Varanasi (ghats)', 'medieval river towns'] },
+  'royal-necropolis': { family: 'layout', read: 'a city of the dead on the desert edge: the king\'s tomb, its temples linked by a causeway down to the valley, the courtiers\' tombs in streets round it', seenIn: ['Egypt (Giza)', 'China (Ming tombs)', 'Etruria (Cerveteri)'] },
   'sacred-lake': { family: 'layout', read: 'a stone-lined pool inside the temple enclosure, stairs down into it', seenIn: ['Egypt', 'India (temple tanks)', 'Angkor (barays)'] },
   'grove-fringe': { family: 'layout', read: 'gardens and tree groves pressing against the walls', seenIn: ['Sumer (date palm)', 'Egypt', 'Persia', 'Andalusia'] },
 

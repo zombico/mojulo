@@ -46,8 +46,12 @@ export function placeAsset(asset, slot, ctx) {
     if (bare && skin === R.bare.from) skin = R.bare.skin;
     return skin ? { skin } : {};
   };
+  // a panel's corners are points in the asset's frame: turned and lifted like everything else, its `out` turned with them
+  const pt = ([u, v, z]) => { const r = orientBox({ x: u, y: v, w: 0, d: 0 }, slot.rect, slot.facing); return [r.x, r.y, z + lift]; };
+  const dir = ([a, b, c]) => ({ n: [a, b, c], s: [-a, -b, c], e: [-b, a, c], w: [b, -a, c] })[slot.facing || 'n'];
+  const panel = (b) => (b.solid === 'panel' && b.pts ? { pts: b.pts.map(pt), out: dir(b.out) } : {});
   return {
-    boxes: boxes.map((b) => ({ ...orientBox(b, slot.rect, slot.facing), ...orientSolid(b, slot.facing, (r) => orientBox(r, slot.rect, slot.facing)), z0: b.z0 + lift, z1: b.z1 + lift, asset: asset.id, ...skinned(b) })),
+    boxes: boxes.map((b) => ({ ...orientBox(b, slot.rect, slot.facing), ...orientSolid(b, slot.facing, (r) => orientBox(r, slot.rect, slot.facing)), ...panel(b), z0: b.z0 + lift, z1: b.z1 + lift, asset: asset.id, ...skinned(b) })),
     grounds: grounds.map((g) => ({ ...orientBox(g, slot.rect, slot.facing), z: g.z + lift })),
   };
 }

@@ -74,6 +74,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   rounded shoulders and haunch, forelegs rising into the chest, a ram's head with a long sloping nose
   and horns curled round the ears, on a moulded pedestal. Small carved parts on every asset no longer
   show a jagged fringe at their edges.
+- A third culture, Old Kingdom Giza (c. 2515 BCE, under Menkaure), shows the pyramids as they looked
+  new: cased smooth in white limestone to the apex, Khafre's foot in red granite, Menkaure's lower
+  casing in undressed granite. Each pyramid stands on its court with a mortuary temple on its east
+  face, and a causeway runs down to a valley temple on a harbour. The site also has:
+  - the Great Sphinx in its quarry, with no beard yet, and its temple before it;
+  - Khufu's queens' pyramids and boat pits;
+  - mastaba tombs laid out in streets;
+  - the Wall of the Crow and the workers' town of galleries, bakeries and houses;
+  - ships bringing stone along the canal.
+  It is the first site on a raised plateau: the ground falls from the desert down an escarpment to the
+  floodplain, and slanted faces now turn and lift with their asset.
+- Giza at work: Khufu's and Khafre's satellite pyramids, and Menkaure's temples as a building site with
+  stacked blocks, a mud-brick ramp and loaded sledges. The main quarry stands south of Khafre, stepped
+  down from its rim, and Tura limestone sits stacked on the quays. Each capstone is plain limestone, as
+  the one found at Giza is; `pyramidion: 'electrum'` gilds them as a labelled conjecture, since gilded
+  capstones are attested only from the 5th Dynasty on. New views: the building site, and beside the
+  Great Pyramid's apex.
 
 ## [3.0.0] - 2026-10-01
 

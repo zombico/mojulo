@@ -191,6 +191,11 @@ export const WALL_SKINS = {
   'painted-relief': [16, 3.2], // a temple wall: one register of ritual scenes, carved in sunk relief and painted (repeated up the wall)
   'painted-bands': [2.4, 3], // a column shaft: drum joints, bands of colour, a row of cartouches, the king before Amun
   'pylon-relief': [26, 24],  // a pylon tower's face: ONE colossal scene — the king smiting his enemies before the god — under text columns
+  'tura-casing': [8, 6],     // fine white Tura limestone, dressed smooth: hairline joints, a faint sheen and mottle (a pyramid's casing new)
+  'giza-core': [6, 4],       // the local yellow limestone in rough courses: big blocks, wide joints, chipped faces
+  granite: [5, 4],           // Aswan red granite, dressed: big blocks, fine joints, the stone's speckle
+  'granite-rough': [5, 4],   // red granite left undressed: each block's face still bulging (Menkaure's lower casing)
+  bedrock: [10, 8],          // the plateau's own rock carved in place: strata of harder and softer beds, the soft ones weathered back
 };
 /** Tile widths in px where 320 is too coarse for the figures drawn on them. */
 const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520 };
@@ -318,6 +323,50 @@ const SKIN_BAKERS = {
     band(y, H * 0.03, PIG.blue, 0.55); band(y + H * 0.03, H * 0.015, PIG.red, 0.55); band(y + H * 0.045, H * 0.2, PIG.yellow, 0.32); band(y + H * 0.245, H * 0.03, PIG.blue, 0.55);
     for (let i = 0; i < 4; i++) { const cx = (i + 0.5) * W / 4; caption(o, cx - W / 18, y + H * 0.055, y + H * 0.235, W / 9, 1, rng, 0.45, { cart: true }); }
     columnScene(o, rng, { base: H * 0.95, top: y + H * 0.31, al: 0.55 });
+  },
+  // Tura casing: blocks of a metre or so, their joints barely a hairline; a soft mottle and a sheen
+  'tura-casing'(o, rng) {
+    ashlar(o, rng, { course: [0.13, 0.19], block: [0.1, 0.2], jointK: 0.07, toneK: 0.025, streak: 0 });
+    const n = noise(o.W, 5, rng);
+    for (let i = 0; i < o.a.length; i++) { const x = i % o.W, y = (i / o.W) | 0; o.a[i] += (n(x, y) - 0.5) * 0.06 + 0.03; }
+  },
+  // the local limestone, rough: wide dark joints, a tone to each block, pitted faces
+  'giza-core'(o, rng) {
+    ashlar(o, rng, { course: [0.16, 0.26], block: [0.14, 0.3], jointK: 0.32, toneK: 0.1, streak: 0.06 });
+    for (let k = 0; k < o.a.length / 40; k++) o.add(rng() * o.W, rng() * o.H, -0.12 - rng() * 0.12);
+  },
+  // granite: dressed blocks, and the speckle of its crystals (dark mica, pale feldspar)
+  granite(o, rng) {
+    ashlar(o, rng, { course: [0.2, 0.32], block: [0.2, 0.42], jointK: 0.2, toneK: 0.05, streak: 0 });
+    for (let i = 0; i < o.a.length; i++) { const r = rng(); o.a[i] += r < 0.08 ? -0.22 : r > 0.94 ? 0.16 : 0; }
+  },
+  // undressed granite: the same blocks, each face bulging — light on its upper part, shade toward its foot
+  'granite-rough'(o, rng) {
+    const { W, H } = o, rows = 4, ch = H / rows;
+    for (let r = 0; r < rows; r++) {
+      const cuts = [0]; while (cuts.at(-1) < W) cuts.push(cuts.at(-1) + W * (0.18 + rng() * 0.2));
+      cuts[cuts.length - 1] = W;
+      for (let i = 0; i < cuts.length - 1; i++) for (let y = Math.floor(r * ch); y < Math.floor((r + 1) * ch); y++) for (let x = Math.floor(cuts[i]); x < cuts[i + 1]; x++) {
+        const u = (x - cuts[i]) / (cuts[i + 1] - cuts[i]), v = (y - r * ch) / ch, edge = Math.min(u, 1 - u, v, 1 - v);
+        o.a[y * W + x] += edge < 0.04 ? -0.32 : (0.5 - v) * 0.22 - (1 - Math.min(1, edge * 6)) * 0.12;
+      }
+    }
+    for (let i = 0; i < o.a.length; i++) { const r = rng(); o.a[i] += r < 0.08 ? -0.2 : r > 0.94 ? 0.14 : 0; }
+  },
+  // bedrock: horizontal beds of uneven thickness, the soft ones weathered back into dark grooves, a
+  // crack running down through them now and then
+  bedrock(o, rng) {
+    const { W, H } = o, n = noise(W, 8, rng);
+    let y = 0;
+    while (y < H) {
+      const h = Math.max(4, Math.round(H * (0.05 + rng() * 0.12))), soft = rng() < 0.45, tone = (rng() - 0.5) * 0.16;
+      for (let yy = y; yy < Math.min(H, y + h); yy++) for (let x = 0; x < W; x++) {
+        const t = (yy - y) / h;
+        o.a[yy * W + x] += tone + (n(x, yy) - 0.5) * 0.1 + (soft ? -0.16 + (t > 0.7 ? -0.12 : 0) : (t < 0.12 ? 0.1 : 0));
+      }
+      y += h;
+    }
+    for (let k = 0; k < 5; k++) { let x = rng() * W; for (let yy = 0; yy < H; yy++) { o.add(x, yy, -0.25); x += (rng() - 0.5) * 1.6; } }
   },
   'mud-plaster'(o, rng) {
     const n = noise(o.W, 5, rng), m = noise(o.W, 22, rng);
