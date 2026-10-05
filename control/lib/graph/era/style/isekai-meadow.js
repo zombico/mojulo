@@ -39,6 +39,8 @@ export const ISEKAI_MEADOW = Object.freeze({
     hat: { ramp: 'grass', lit: [2, 3, 4], shade: [0, 1, 2], scale: 1.6 },
     fringe: { ramp: 'grass', lit: [1, 2, 3, 4], shade: [0, 1, 2] },
     blades: { ramp: 'grass', lit: [1, 2, 3, 4], shade: [0, 1, 2] },
+    rim: { ramp: 'soil', lit: [1, 2, 3], shade: [0, 1, 2], match: true },
+    creep: { ramp: 'grass', lit: [1, 2, 3], shade: [0, 1, 2], match: true },
     cumulus: { ramp: 'cloud', lit: [1, 2, 3], shade: [0, 1, 2] },
   },
   // the cel band: a facet is LIT when the sun's Lambert × its cast shadow reaches this
@@ -52,6 +54,11 @@ export const ISEKAI_MEADOW = Object.freeze({
   // ── the site (natureSite reads these, as it does the trail's) ──
   site: { w: 44, d: 72, cell: 1 },
   focus: [{ name: 'trailhead', y: 7, r: 11 }, { name: 'boulder-gate', y: 31, r: 10, gate: true }],
+  // the TRAIL BLEND (nature.js trailRims): along each edge, a band `width` m out (the `rim` tile: the soil bleeding into
+  // the grass) and its mirror in (the `creep` tile: the grass over the trail), one ragged boundary between them; the
+  // width wanders ± `wander` of itself at `freq` a metre; strips every `step` m, a tile every `scale` m along the trail,
+  // `lift` m over the ground (over the ribbon's 5 cm)
+  trailBlend: { width: 0.32, wander: 0.3, freq: 0.3, step: 0.75, scale: 1.6, lift: { bleed: 0.054, over: 0.057 } },
   trail: { width: 2.2, fringe: 0.8, sway: [6, 0.07, 3, 0.17], x: 0.5, widthVary: 0.22, fringeVary: 0.55, dice: 1 },
   lumps: { octaves: [[0.5, 0.06], [0.18, 0.2], [0.05, 0.7]], banks: { h: 0.25, w: 2.4 } },
   cliff: { x: 2.5, talus: 3 },

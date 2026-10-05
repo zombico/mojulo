@@ -3,7 +3,7 @@ import { assembleStageScene, STAGE_PAGE_BUDGET } from './stage.js';
 import { isekaiGround, boulderFaces, layerFaces, cumulusFaces } from './isekai.js';
 import { isekaiTexels, isekaiKey, ISEKAI_STYLES } from './isekai-tiles.js';
 import { rampDistance } from './palette.js';
-import { natureSite, rockItems } from './nature.js';
+import { natureSite, rockItems, trailRims } from './nature.js';
 import { hexRgb } from './geom.js';
 import { CURRENT_GEN_REFERENCES, CURRENT_GEN_REFERENCE_IDS } from './current-gen.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
@@ -199,5 +199,54 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(LG.wind.grass.length).toBe(1);
     expect(LG.taker.phi).toBeGreaterThan(0);
     expect(LG.wind.debris).toBeUndefined();   // no leaves blowing through a pixel-locked palette
+  });
+});
+
+describe('the trail blend (nature.js trailRims, the isekai rim and creep)', () => {
+  const st = ISEKAI_MEADOW, site = natureSite(st, 1), strips = trailRims(st, site, 1), p = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow' });
+  const B = st.trailBlend;
+
+  it('lays two mirrored bands along both edges: the bleed out from the edge, the over in from it, within the wandering width', () => {
+    for (const side of [-1, 1]) for (const band of ['bleed', 'over']) expect(strips.some((s) => s.side === side && s.band === band)).toBe(true);
+    for (const s of strips) for (const c of s.corners) {
+      const off = site.trailDist(c[0], c[1]) - site.halfWAt(c[1]), w = B.width * (1 + B.wander) + 0.05;
+      if (s.band === 'bleed') expect(off).toBeGreaterThan(-0.05); else expect(off).toBeLessThan(0.05);
+      expect(Math.abs(off)).toBeLessThan(w);
+    }
+    // the width wanders: the edge never runs straight
+    const widths = strips.filter((s) => s.side === 1 && s.band === 'bleed').map((s) => Math.hypot(s.corners[3][0] - s.corners[0][0], s.corners[3][1] - s.corners[0][1]));
+    expect(Math.max(...widths) - Math.min(...widths)).toBeGreaterThan(B.width * 0.25);
+    // the two bands of a side share their width at every station: mirrored about the edge
+    const of = (band) => strips.filter((s) => s.side === -1 && s.band === band).map((s) => Math.hypot(s.corners[3][0] - s.corners[0][0], s.corners[3][1] - s.corners[0][1]));
+    of('bleed').forEach((w, i) => expect(w).toBeCloseTo(of('over')[i], 3));
+  });
+
+  it('is pixel-locked: the rim in soil stops, the creep in grass stops, transparency only as whole cut-out texels', () => {
+    for (const tile of ['rim', 'creep']) for (const b of ['lit', 'shade']) {
+      const key = `isekai:${st.id}:${tile}-${b}`, K = isekaiKey(key), t = isekaiTexels(key), ok = new Set(K.stops.map((s) => s.join(',')));
+      expect(K.stops).toEqual(st.tiles[tile][b].map((i) => st.palette[st.tiles[tile].ramp][i]));
+      let on = 0; for (let i = 0; i < t.W * t.H; i++) { expect([0, 255]).toContain(t.a[i]); if (t.a[i]) { on++; expect(ok.has(`${t.rgb[i * 3]},${t.rgb[i * 3 + 1]},${t.rgb[i * 3 + 2]}`)).toBe(true); } }
+      // cover thins away from the edge (image bottom): the rows nearest the edge hold more than the far ones
+      const rowCover = (y0, y1) => { let n = 0; for (let y = y0; y < y1; y++) for (let x = 0; x < t.W; x++) n += t.a[y * t.W + x] ? 1 : 0; return n; };
+      expect(rowCover(t.H - 32, t.H)).toBeGreaterThan(rowCover(0, 32) * 3);
+    }
+    // ONE boundary: at the edge row, the rim's soil and the creep's grass are near complements, column by column
+    const rim = isekaiTexels(`isekai:${st.id}:rim-lit`), creep = isekaiTexels(`isekai:${st.id}:creep-lit`), y = rim.H - 1;
+    const soilCols = (t) => Array.from({ length: t.W }, (_, x) => { let n = 0; for (let k = 0; k < 8; k++) n += t.a[(y - k) * t.W + x] ? 1 : 0; return n / 8; });
+    const r = soilCols(rim), c = soilCols(creep);
+    let agree = 0; for (let x = 0; x < rim.W; x++) if ((r[x] > 0.5) !== (c[x] > 0.5)) agree++;
+    expect(agree / rim.W).toBeGreaterThan(0.75);
+    // every texture the stage names resolves (a band the key parser misreads would draw untextured)
+    const keys = [...new Set(p.faces.map((f) => f.texture).filter(Boolean))];
+    for (const k of keys) expect(isekaiKey(k), k).not.toBeNull();
+    // the rim and creep take the stop nearest the lane they carry on: their keys name a stop, and their texels check out
+    const rims = p.faces.filter((f) => /:(rim|creep)-/.test(f.texture || ''));
+    for (const k of new Set(rims.map((f) => f.texture))) { expect(k).toMatch(/:(rim|creep)-s\d$/); const K = isekaiKey(k), t = isekaiTexels(k), ok = new Set(K.stops.map((q) => q.join(','))); for (let i = 0; i < t.W * t.H; i++) if (t.a[i]) expect(ok.has(`${t.rgb[i * 3]},${t.rgb[i * 3 + 1]},${t.rgb[i * 3 + 2]}`)).toBe(true); }
+    expect(rims.length).toBe(strips.length);
+    expect(rims.every((f) => p.cutouts.includes(f.texture) && !f.textureLit && !f.tint)).toBe(true);
+  });
+
+  it('is opt-in: a card without `trailBlend` lays no strips', () => {
+    expect(assembleStageScene({ kind: 'stage', kit: 'trail-valley' }).faces.some((f) => /:(rim|creep)-/.test(f.texture || ''))).toBe(false);
   });
 });

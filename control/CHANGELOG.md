@@ -263,6 +263,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - falling petals take the same notched, cupped shape and tumble.
 - The meadow and the bamboo grove are unchanged.
 
+### Stage trail blend
+
+- A trail no longer sits on the ground as a separate ribbon. The outdoor trail primitive has a blended rim along both
+  edges: a narrow band out from the edge and its mirror in. In the band, the trail's soil and the outer ground meet
+  along one ragged boundary that wanders both ways about the edge, so soil bleeds into the grass in some places and
+  grass creeps over the trail in others.
+- The isekai levels draw the rim in two new pixel-locked cutout tiles, `rim` and `creep`, painted from one shared noise
+  field so the two sides meet. The boundary frays in a stipple of palette colours, so the colour lock holds. Each strip
+  takes the palette stop nearest the baked colour of the lane it continues, so the blend matches the light on both
+  sides. The meadow, bamboo and sakura trails all take it.
+- The jungle takes it too, through the same primitive's shared edge (`trailEdgeCover`): one wandering boundary between
+  the trail and the floor. The moss now gives out along that line, and the trail's packed-soil wear follows it too,
+  so moss and mud meet along one edge instead of fading on two separate noises.
+- The nature trail, which has its own grass blend, is unchanged.
+
 ### Stage live grass
 
 - `wind` on an isekai recipe turns on a LIVE FIELD of grass on the World page (`lib/graph/scene/channels/stage-grass.js`).

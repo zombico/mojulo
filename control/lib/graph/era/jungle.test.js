@@ -3,6 +3,7 @@ import zlib from 'node:zlib';
 import { assembleJungleScene, jungleLayers } from './jungle.js';
 import { assembleStageScene } from './stage.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
+import { natureSite, trailEdgeCover } from './nature.js';
 import { CARD_KEYS, cardMask, cardCover, cardTexture } from './leaf-cards.js';
 import { makeSunShadow } from './sun.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
@@ -218,5 +219,27 @@ describe('the jungle-trail stage', () => {
   it('walk: the spawn stands at eye height over the trail', () => {
     const [x, y, z] = scene.walk.spawn;
     expect(z - site.ground(x, y)).toBeCloseTo(1.7, 1);
+  });
+});
+
+describe('the jungle trail blend (nature.js trailEdgeCover)', () => {
+  const st = JUNGLE_MGS3, site = natureSite(st, 1), edge = trailEdgeCover(st, site, 1), p = assembleStageScene({ kind: 'stage', kit: 'jungle-trail' });
+  it('is one edge, wandering both ways about the trail: bare well inside, covered well outside, and the line moves', () => {
+    const B = st.trailBlend, reach = B.width * B.shift + B.fray;
+    let crossIn = 0, crossOut = 0;
+    for (let y = 2; y < site.D - 2; y += 0.5) for (const side of [-1, 1]) {
+      // out along the trail's own normal, as the ribbon is laid
+      const sl = (site.trailX(y + 0.01) - site.trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1), n = [1 / l, -sl / l];
+      const at = (s) => { const r = side * (site.halfWAt(y) + s); return edge(site.trailX(y) + n[0] * r, y + n[1] * r); };
+      expect(at(-reach - 0.1)).toBeLessThan(0.01); expect(at(reach + 0.1)).toBeGreaterThan(0.99);
+      if (at(-0.2) > 0.5) crossIn++; if (at(0.2) < 0.5) crossOut++;
+    }
+    expect(crossIn).toBeGreaterThan(5); expect(crossOut).toBeGreaterThan(5);   // the ground reaches over the trail in places, the soil out in others
+  });
+  it('fades the moss by it: no moss well inside the edge', () => {
+    const B = st.trailBlend, reach = B.width * B.shift + B.fray;
+    const moss = p.faces.filter((f) => f.group === 'jungle:moss' && f.cornerAlpha);
+    expect(moss.length).toBeGreaterThan(100);
+    for (const f of moss) f.corners.forEach((c, i) => { if (site.trailDist(c[0], c[1]) < site.halfWAt(c[1]) - reach - 0.05) expect(f.cornerAlpha[i]).toBe(0); });
   });
 });

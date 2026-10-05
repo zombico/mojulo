@@ -22,6 +22,11 @@
  *            them a level down and the centres the darkest
  *   sprig    (RGBA) a cluster of flowers with a ragged edge: the cards that break a clump's
  *            silhouette into flowers
+ *   rim      (RGBA) a trail's rim bleeding into the ground beside it (image y = SIZE − 1 is the trail's edge): the soil
+ *            past the edge, up to one wandering boundary, frayed across it in a stipple (whole texel blocks against
+ *            random thresholds), a little lit grit
+ *   creep    (RGBA) the ground creeping back over a trail (image y = SIZE − 1 is the edge): the grass short of the same
+ *            boundary — the rim's and the creep's noise is one field (edgeField) — and a few blades out over the soil
  *   cumulus  (RGBA) a heaped cloud on a flat base: puffs along the base, cauliflower heads on top, each lit from
  *            above in three levels with the darkest along the base
  *
@@ -36,7 +41,15 @@ import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 
 export const ISEKAI_STYLES = Object.freeze({ 'isekai-meadow': ISEKAI_MEADOW, 'isekai-bamboo': ISEKAI_BAMBOO, 'isekai-sakura': ISEKAI_SAKURA });
 const SIZE = 256;
-const CUTOUT = new Set(['fringe', 'blades', 'cumulus', 'spray', 'petals', 'sprig']);
+const CUTOUT = new Set(['fringe', 'blades', 'cumulus', 'spray', 'petals', 'sprig', 'rim', 'creep']);
+// A STIPPLE: a cutout's TRANSPARENCY as whole texel blocks kept or dropped against a random threshold each (seamless:
+// the block grid divides the tile), so the colours stay the ramp's stops however thin the cover. Random, not ordered:
+// an ordered dither reads as a printed pattern.
+const STIPPLE = 4;
+function stipple(R) {
+  const n = SIZE / STIPPLE, th = Array.from({ length: n * n }, () => R());
+  return (x, y) => th[(Math.floor(y / STIPPLE) % n) * n + (Math.floor(x / STIPPLE) % n)];
+}
 const wrap = (v) => ((v % SIZE) + SIZE) % SIZE;
 const seedOf = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 // a smooth seamless value noise at `cells` per side
@@ -73,6 +86,22 @@ function flower(lv, a, cx, cy, r, a0, l, wrapIt) {
     if (wrapIt || !a) { X = wrap(X); Y = wrap(Y); } else if (X < 0 || X >= SIZE || Y < 0 || Y >= SIZE) continue;
     if (a) a[Y * SIZE + X] = 1; lv[Y * SIZE + X] = 0;
   }
+}
+
+// THE EDGE FIELD of a style's trail blend, shared by the rim and the creep: across the edge, s runs from −1 (the far
+// side of the creep, toward the trail's middle) through 0 (the edge) to 1 (the far side of the rim, out in the grass).
+// The boundary between soil and grass is one line, b(x), wandering both ways about the edge; across a narrow fray of it
+// the soil gives out in a stipple. soil(x, s): is the texel soil? Same dice for both tiles, so their noise is one.
+const EDGES = new Map();
+function edgeField(id) {
+  if (EDGES.has(id)) return EDGES.get(id);
+  const R = mulberry32(seedOf(`isekai:${id}:edge`)), n1 = noise(R, 5), n2 = noise(R, 13), n3 = noise(R, 9), st = stipple(R), FRAY = 0.22;
+  const at = (x) => (0.7 * n1(x, 0) + 0.3 * n2(x, 41) - 0.5) * 2.6;
+  const soil = (x, s) => {
+    const y = wrap(Math.round(SIZE - s * SIZE * 0.5)), d = s - at(x) - (n3(x, y) - 0.5) * 0.5;
+    return 0.5 - d / FRAY > st(x, y);
+  };
+  const E = { at, soil }; EDGES.set(id, E); return E;
 }
 
 // each painter fills `lv` (a level per texel, 0..n-1) and, for a cutout, `a` (0 / 1)
@@ -249,6 +278,30 @@ const PAINTERS = {
       flower(lv, a, x, y, r, R() * 6.28, lit ? top : Math.max(0, top - 1), false);
     }
   },
+  // the rim and the creep are ONE boundary seen from its two sides (edgeField): the rim draws the soil past the edge,
+  // the creep the grass short of it
+  rim(lv, n, R, a, K) {
+    const top = n - 1, E = edgeField(K.st.id), grit = noise(R, 23); a.fill(0);
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      const t = (SIZE - 1 - y) / SIZE; if (!E.soil(x, t)) continue;
+      a[y * SIZE + x] = 1; lv[y * SIZE + x] = grit(x, y) > 0.9 ? top : Math.max(0, top - 1);
+    }
+  },
+  creep(lv, n, R, a, K) {
+    const top = n - 1, E = edgeField(K.st.id), patch = noise(R, 12); a.fill(0);
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      const t = (SIZE - 1 - y) / SIZE; if (E.soil(x, -t)) continue;
+      a[y * SIZE + x] = 1; lv[y * SIZE + x] = patch(x, y) > 0.8 ? top : Math.max(0, top - 1);
+    }
+    for (let k = 0; k < 60; k++) {   // blades from the grass out over the soil, tips lit
+      const x0 = R() * SIZE, b = E.at(x0); if (b > -0.05) continue;
+      const len = SIZE * (0.05 + 0.12 * R()), w = 3 + R() * 3, lean = (R() - 0.5) * 0.8, y0 = SIZE - 1 + b * SIZE;
+      for (let q = 0; q < len; q++) {
+        const f = q / len, half = (w / 2) * (1 - f), cx = x0 + lean * q, Y = Math.round(y0 + q); if (Y < 0 || Y >= SIZE) continue;
+        for (let x = Math.floor(cx - half); x <= Math.ceil(cx + half); x++) { const X = wrap(x); a[Y * SIZE + X] = 1; lv[Y * SIZE + X] = f > 0.6 ? top : Math.max(0, top - 1); }
+      }
+    }
+  },
   // a tuft: blades from a crown at the bottom centre, fanned, tips lit (image y = 0 is the top)
   blades(lv, n, R, a) {
     const top = n - 1;
@@ -267,12 +320,15 @@ const PAINTERS = {
   },
 };
 
-/** Parse `isekai:<style>:<tile>-<band>` → { st, tile, band, stops } (the stops the tile may use), or null. */
+/** Parse `isekai:<style>:<tile>-<band>` → { st, tile, band, stops } (the stops the tile may use), or null. A band is
+ *  `lit` / `shade` (the card's windows), or `s<k>` for a tile that MATCHES what it lies on (`match: true`): its body in
+ *  stop k of the ramp, its flecks in the stop above. */
 export function isekaiKey(key) {
-  const m = /^isekai:([a-z0-9-]+):([a-z]+)-(lit|shade)$/.exec(key || ''); if (!m) return null;
+  const m = /^isekai:([a-z0-9-]+):([a-z]+)-(lit|shade|s\d)$/.exec(key || ''); if (!m) return null;
   const st = ISEKAI_STYLES[m[1]], T = st && st.tiles[m[2]];
   if (!T || !PAINTERS[m[2]]) return null;
   const ramp = st.palette[T.ramp];
+  if (/^s\d$/.test(m[3])) { const k = Number(m[3].slice(1)); if (!T.match || k >= ramp.length) return null; return { st, tile: m[2], band: m[3], cutout: CUTOUT.has(m[2]), stops: [ramp[k], ramp[k], ramp[Math.min(k + 1, ramp.length - 1)]] }; }
   return { st, tile: m[2], band: m[3], cutout: CUTOUT.has(m[2]), stops: T[m[3]].map((i) => ramp[i]) };
 }
 
@@ -281,9 +337,9 @@ const TEXELS = new Map();
 export function isekaiTexels(key) {
   if (TEXELS.has(key)) return TEXELS.get(key);
   const K = isekaiKey(key); if (!K) return null;
-  const R = mulberry32(seedOf(key.replace(/-(lit|shade)$/, ''))), lv = new Uint8Array(SIZE * SIZE), al = K.cutout ? new Uint8Array(SIZE * SIZE) : null;
+  const R = mulberry32(seedOf(key.replace(/-(lit|shade|s\d)$/, ''))), lv = new Uint8Array(SIZE * SIZE), al = K.cutout ? new Uint8Array(SIZE * SIZE) : null;
   // the same dice for both bands of a tile: its lit and shade tiles are one drawing in two windows of the ramp
-  PAINTERS[K.tile](lv, K.stops.length, R, al);
+  PAINTERS[K.tile](lv, K.stops.length, R, al, K);
   const rgb = new Uint8Array(SIZE * SIZE * 3), a = al ? new Uint8Array(SIZE * SIZE) : null;
   for (let i = 0; i < SIZE * SIZE; i++) { const s = K.stops[Math.min(K.stops.length - 1, lv[i])]; rgb[i * 3] = s[0]; rgb[i * 3 + 1] = s[1]; rgb[i * 3 + 2] = s[2]; if (a) a[i] = al[i] ? 255 : 0; }
   const t = { W: SIZE, H: SIZE, rgb, a }; TEXELS.set(key, t); return t;

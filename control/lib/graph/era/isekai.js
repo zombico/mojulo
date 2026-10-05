@@ -23,7 +23,7 @@ import { hash3, vnoise } from './dirt.js';
 import { P, r5, hexRgb, rgbHex, crossed } from './geom.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
-import { natureSite, trailFaces, rockItems, treeItems, grassTufts, tube } from './nature.js';
+import { natureSite, trailFaces, trailRims, rockItems, treeItems, grassTufts, tube } from './nature.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
 import { lockFaces } from './palette.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
@@ -241,10 +241,26 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   const plain = [...ground.faces.filter((f) => !f.cel), ...ribbon, ...wood];
   const baked = bakeStageLight(plain, [], ambient, isekaiMarks(st, site, S), sun).map(({ cls, ...f }) => f);
+  // the TRAIL BLEND: the soil's rim out over the grass and the grass's creep in over the trail, each in the stop nearest
+  // the baked colour of the lane it carries on — the trail's along the edge for the rim, the fringe's for the creep —
+  // so the blend is the two materials meeting, not a third laid between them
+  if (st.trailBlend) {
+    const rb = baked.slice(ground.faces.filter((f) => !f.cel).length).slice(0, ribbon.length), strips = trailRims(st, site, seed);
+    if (strips.length !== ribbon.length) throw new Error('isekai: the trail blend steps with the ribbon (trailBlend.step 0.75)');
+    // per station the ribbon is [fringe −, trail −, trail +, fringe +] and the strips [bleed −, over −, bleed +, over +];
+    // a lane's corners on the edge: the inner pair of a fringe, the outer pair of a trail lane
+    const from = [[1, [0, 3]], [0, [1, 2]], [2, [1, 2]], [3, [0, 3]]];
+    strips.forEach(({ band, side: _s, mid: _m, ...f }, i) => {
+      const [lane, edge] = from[i % 4], L = rb[i - (i % 4) + lane], tile = band === 'bleed' ? 'rim' : 'creep', ramp = st.palette[st.tiles[tile].ramp];
+      const cs = L.cornerFills ? edge.map((c) => hexRgb(L.cornerFills[c])) : [hexRgb(L.fill)], rgb = mean(cs.map((c) => [...c])).map((v) => v * 255);
+      const k = ramp.reduce((b, s, j) => (Math.hypot(...s.map((v, q) => v - rgb[q])) < Math.hypot(...ramp[b].map((v, q) => v - rgb[q])) ? j : b), 0);
+      cel.push({ ...f, texture: `isekai:${st.id}:${tile}-s${k}`, fill: rgbHex(ramp[k].map((v) => v / 255)), group: band === 'bleed' ? 'isekai:trail' : 'isekai:ground', doubleSided: true });
+    });
+  }
   const ridges = layerFaces(st, site, dir);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
   const faces = lockFaces([...baked, ...cel, ...ridges], (f) => (st.lock[f.group] ? st.palette[st.lock[f.group]] : null));
-  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig)-/.test(f.texture || '')).map((f) => f.texture))].sort();
+  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // ── the frame ──
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
   const y0 = 2.5, x0 = site.trailX(y0), y1 = Fr.look, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];
