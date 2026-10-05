@@ -444,6 +444,10 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
     expect(fam(broku.h)).toEqual(['Carrot']); expect(fam(on('male', 'jinto').h)).toEqual(['Banana']); expect(fam(on('male', 'kairo').h)).toEqual(['Pepper']);
     // jingo: the same family as his cousin, FEW pieces placed with intent (about half jinto's count)
     const pieces = (h, re) => Object.keys(h.parts).filter((k) => re.test(k)).length;
+    // jona: layered banana PEELS, a few of them
+    const famP = (h) => [...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot|Peel)\d+$/)?.[1]).filter(Boolean))];
+    const jona = on('male', 'jona'); expect(famP(jona.h)).toEqual(['Peel']); expect(pieces(jona.h, /^hairPeel\d+$/)).toBeLessThanOrEqual(24); expect(failures(jona.mesh)).toEqual([]);
+    expect(validateAnimeHair({ shapes: { peels: [{ at: [0, 60] }], layers: [{ shape: 'peel', cup: 2 }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.peels[0].dir', 'hair.shapes.layers[0].cup']);
     expect(fam(on('male', 'jingo').h)).toEqual(['Banana']); expect(pieces(on('male', 'jingo').h, /^hairBanana\d+$/)).toBeLessThanOrEqual(pieces(on('male', 'jinto').h, /^hairBanana\d+$/) * 0.55);
     expect(broku.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
     expect(box(broku.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
