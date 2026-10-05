@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-grooves", "name": "Grooves and fills: whole drum parts in one line", "summary": "A drum-kit part in a beats-composition takes `groove` instead of events: a named style (eight-beat, sixteen-beat, four-floor, half-time, trance-drive, rock-drive, double-time-chorus, blast, shuffle, shuffle-boogie, train, two-beat, slow-twelve-eight) over a bar range, with seeded fills (tom run, snare 16ths, flam build, 32nd roll, kick-snare unison, triplet) every 2/4/8 bars or before each section, and a crash on section downbeats. One entry per section. Written events override a bar from their first hit. Stored compact, expanded at render.", "when": "a rock beat for the whole song, drums with fills, a tom fill into the chorus, a crash on the downbeat, a driving 8-beat, a 16-beat groove, four on the floor, a half-time breakdown, a double-time chorus, a trance kick with offbeat hats, a blast beat, write 90 bars of drums, an anime rock drum part, a drummer that plays the sections, a blues shuffle, a Texas shuffle, a swing feel, triplet feel, a country train beat, brushes, a two-beat country groove, a slow blues in 12/8, a triplet fill" }
+{ "id": "beats-grooves", "name": "Grooves and fills: whole drum parts in one line", "summary": "A drum-kit part in a beats-composition takes `groove` instead of events: a named style (eight-beat, sixteen-beat, four-floor, half-time, trance-drive, rock-drive, double-time-chorus, blast, shuffle, shuffle-boogie, train, two-beat, slow-twelve-eight, march, processional, travel) over a bar range, with seeded fills (tom run, snare 16ths, flam build, 32nd roll, kick-snare unison, triplet, and the snare rudiments paradiddle, drag, five-stroke, long roll) every 2/4/8 bars or before each section, and a crash on section downbeats. One entry per section. Written events override a bar from their first hit. Stored compact, expanded at render.", "when": "a rock beat for the whole song, drums with fills, a tom fill into the chorus, a crash on the downbeat, a driving 8-beat, a 16-beat groove, four on the floor, a half-time breakdown, a double-time chorus, a trance kick with offbeat hats, a blast beat, write 90 bars of drums, an anime rock drum part, a drummer that plays the sections, a blues shuffle, a Texas shuffle, a swing feel, triplet feel, a country train beat, brushes, a two-beat country groove, a slow blues in 12/8, a triplet fill, a military march, a marching snare cadence, a processional, a funeral or coronation tread, battle drums, a paradiddle, drags, a five-stroke roll, a long snare roll into a section, quiet percussion for a world map or open country" }
 ---
 
 Writing ninety bars of drums as literal events is huge and tedious. A kit part
@@ -55,6 +55,9 @@ C3/A2/F2 toms).
 | `train` | the country train beat: snare (brushes) on every 16th, accents on 2 and 4, kick on 1 and 3 |
 | `two-beat` | the country two-beat: kick on 1 and 3, cross-stick on 2 and 4, light hats. Pairs with a root-fifth bass |
 | `slow-twelve-eight` | the slow blues: needs `meter: '12/8'`; ride on all twelve eighths, backbeat on the 2nd and 4th dotted beats |
+| `march` | the quick-step (130–160 bpm): bass drum on every beat, 1 and 3 leaning; the snare's dotted cadence with pickups into 3 and the next bar. Kick, snare and crash only, so `orchestral-perc` plays it as written |
+| `processional` | the slow tread (70–90 bpm): bass drum on 1 (3 softer), snare on 2 and 4 with a two-stroke pickup into the next bar |
+| `travel` | almost nothing: a soft bass drum on 1 (the half bar softer), a triangle on 1. Open country and the world map; works in 6/8. A kit without a triangle plays only the bass drum |
 
 ## The shuffle
 
@@ -80,11 +83,21 @@ shuffle family's fill). The shuffle grooves pick from triplet, tom run and snare
 16ths; the 12/8 groove from unison 8ths, tom run and snare 16ths; the straight
 grooves from the first five.
 
+The snare rudiments: `paradiddle` (RLRR LRLL over the last two beats, the
+first of each four accented), `drag` (two grace strokes into each eighth),
+`five-stroke` (two doubles into an accent on beat 4) and `long-roll` (32nds
+swelling over the WHOLE bar: the roll into a new section or a battle's start).
+The march grooves pick from drag, paradiddle and five-stroke; `long-roll` is
+only played when `fill` names it.
+
 ## Pairs well with
 
 - The `rock-drummer` feel: kick and snare laid back, hats accented, toms
   flammed.
 - `acoustic-kit` for the train and the two-beat.
+- `orchestral-perc` (concert bass drum, wire snare, suspended cymbal) for
+  `march` and `processional`. Timpani are a pitched part beside it (card
+  `beats-orchestra`).
 - `stadium-kit` for arena rock, `drum-kit-90s-rock` for the tight 90s sound
   on a plate, and `drum-machine-909` for trance and house.
 - A chord chart (card `beats-harmony`) for the rest of the band.

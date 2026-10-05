@@ -247,11 +247,19 @@ export const RHYTHMS = {
   gallop: [0.9, 0, 0.6, 0.6, 0.8, 0, 0.6, 0.6, 0.86, 0, 0.6, 0.6, 0.8, 0, 0.6, 0.6],
   push: [0.9, 0, 0, 0.7, 0, 0, 0.8, 0, 0, 0, 0.75, 0, 0, 0, 0.7, 0],
   backbeat: [0, 0, 0, 0, 0.85, 0, 0, 0, 0, 0, 0, 0, 0.88, 0, 0, 0],
+  // march figures: long-short per beat (the dotted eighth and its sixteenth), and per half bar.
+  dotted: [0.88, 0, 0, 0.6, 0.8, 0, 0, 0.6, 0.86, 0, 0, 0.6, 0.8, 0, 0, 0.6],
+  'dotted-quarter': [0.88, 0, 0, 0, 0, 0, 0.65, 0, 0.84, 0, 0, 0, 0, 0, 0.65, 0],
+  // the 6/8 travelling lilt: quarter-eighth, quarter-eighth (twelve sixteenths: one 6/8 bar).
+  lilt: [0.8, 0, 0, 0, 0.5, 0, 0.7, 0, 0, 0, 0.5, 0],
 };
-export const CHORD_VOICE_MODES = ['chord', 'strum', 'block', 'upper', 'power', 'root', 'octaves', 'arp', 'root-fifth', 'walk', 'boogie', 'boogie-walk', 'roll', 'pompe', 'rasgueado', 'pima'];
+export const CHORD_VOICE_MODES = ['chord', 'strum', 'block', 'upper', 'power', 'root', 'octaves', 'arp', 'root-fifth', 'walk', 'boogie', 'boogie-walk', 'roll', 'pompe', 'rasgueado', 'pima', 'pedal', 'pedal-5', 'drone'];
 // the roots modes' own rhythm when the part sets none, and their register.
-const MODE_RHYTHM = { 'root-fifth': 'half', walk: 'quarter', boogie: '8ths', 'boogie-walk': '8ths', roll: '8ths', pompe: 'quarter', rasgueado: 'quarter', pima: '8ths' };
-const BASS_MODES = ['root', 'octaves', 'root-fifth', 'walk', 'boogie-walk'];
+const MODE_RHYTHM = { 'root-fifth': 'half', walk: 'quarter', boogie: '8ths', 'boogie-walk': '8ths', roll: '8ths', pompe: 'quarter', rasgueado: 'quarter', pima: '8ths', pedal: 'whole', 'pedal-5': 'whole', drone: 'whole' };
+const BASS_MODES = ['root', 'octaves', 'root-fifth', 'walk', 'boogie-walk', 'pedal', 'pedal-5', 'drone'];
+// a pedal holds the key's tonic (or its fifth) whatever the chord above it does;
+// the drone holds both (the open fifth: a bagpipe's drones, a hurdy-gurdy).
+const PEDAL_OF = { pedal: [0], 'pedal-5': [7], drone: [0, 7] };
 const BASS_LO = 28, BASS_HI = 55; // E1 … G3: where a walking line lives
 const SCALE = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
 // the pitch classes a line may step through: the key's scale, or chromatic without a key.
@@ -382,6 +390,7 @@ function voicePart(p, chart, clock, key, seed = 1) {
         push(q, [seq[i % seq.length]], d, i % seq.length === 0 ? vel : vel * 0.8);
         return;
       }
+      if (mode in PEDAL_OF) { const t = rootMidi(parseKey(key).tonic, octave); push(q, PEDAL_OF[mode].map((x) => t + x), d); return; }
       let notes;
       if (mode === 'root') notes = [rootN];
       else if (mode === 'octaves') notes = [rootN + (octI++ % 2 ? 12 : 0)];
@@ -418,15 +427,18 @@ function lowerChordEvent(ev, key, state) {
 // from a small vocabulary, so the same seed plays the same fills. Explicit
 // events in a bar win from their first onset on (a written fill replaces the
 // generated one). Notes a kit lacks fall back (ride → hat, crash → open hat).
-export const GROOVE_STYLES = ['eight-beat', 'sixteen-beat', 'four-floor', 'half-time', 'trance-drive', 'rock-drive', 'double-time-chorus', 'blast', 'shuffle', 'shuffle-boogie', 'train', 'two-beat', 'slow-twelve-eight'];
-export const FILL_KINDS = ['tom-run', 'snare-16ths', 'flam-build', 'roll-32', 'unison-8ths', 'triplet'];
+export const GROOVE_STYLES = ['eight-beat', 'sixteen-beat', 'four-floor', 'half-time', 'trance-drive', 'rock-drive', 'double-time-chorus', 'blast', 'shuffle', 'shuffle-boogie', 'train', 'two-beat', 'slow-twelve-eight', 'march', 'processional', 'travel'];
+export const FILL_KINDS = ['tom-run', 'snare-16ths', 'flam-build', 'roll-32', 'unison-8ths', 'triplet', 'paradiddle', 'drag', 'five-stroke', 'long-roll'];
 // the seeded fill pools: the straight grooves keep the original five (their
 // stored rows pick the same fills); the shuffle and 12/8 families get their own.
 export const SHUFFLE_STYLES = ['shuffle', 'shuffle-boogie'];
-const FILL_POOL = { straight: FILL_KINDS.slice(0, 5), shuffle: ['triplet', 'tom-run', 'snare-16ths'], twelve: ['unison-8ths', 'tom-run', 'snare-16ths'] };
-const poolOf = (style) => (SHUFFLE_STYLES.includes(style) ? FILL_POOL.shuffle : style === 'slow-twelve-eight' ? FILL_POOL.twelve : FILL_POOL.straight);
+// the march family fills with snare rudiments (long-roll only when asked for: it takes the whole bar).
+const MARCH_STYLES = ['march', 'processional'];
+const FILL_POOL = { straight: FILL_KINDS.slice(0, 5), shuffle: ['triplet', 'tom-run', 'snare-16ths'], twelve: ['unison-8ths', 'tom-run', 'snare-16ths'], march: ['drag', 'paradiddle', 'five-stroke'] };
+const poolOf = (style) => (SHUFFLE_STYLES.includes(style) ? FILL_POOL.shuffle : style === 'slow-twelve-eight' ? FILL_POOL.twelve : MARCH_STYLES.includes(style) ? FILL_POOL.march : FILL_POOL.straight);
 const FILLS_EVERY = ['every-2', 'every-4', 'every-8', 'section', 'none'];
 const CRASH_AT = ['section', 'fills', 'both', 'none'];
+const TRI = 81;
 const K = 36, S = 38, X = 37, H = 42, P = 44, O = 46, C = 49, R = 51, T1 = 48, T2 = 45, T3 = 41;
 const at8 = [0, 2, 4, 6, 8, 10, 12, 14], at16 = [...Array(16).keys()], beats = [0, 4, 8, 12], offs = [2, 6, 10, 14];
 // step → [note, velocity] per style (one 4/4 bar of sixteenths).
@@ -449,6 +461,17 @@ const STYLE = {
   'two-beat': () => [...at8.map((i) => [i, H, i % 4 ? 0.3 : 0.45]), [0, K, 0.92], [8, K, 0.86], [4, X, 0.8], [12, X, 0.82]],
   // 12/8: the ride on every eighth (every second sixteenth), the dotted beats
   // accented, kick on 1 and 3, the backbeat on 2 and 4 (steps 6 and 18).
+  // the march: bass drum on every beat (1 and 3 leaning), the snare's dotted
+  // cadence with a pickup into 3 and into the next bar. Only kick, snare and
+  // crash: orchestral-perc (concert bass drum, wire snare) plays it as written.
+  march: () => [[0, K, 0.95], [4, K, 0.6], [8, K, 0.88], [12, K, 0.6], [0, S, 0.72], [3, S, 0.5], [4, S, 0.9], [6, S, 0.45], [7, S, 0.5], [8, S, 0.72], [11, S, 0.5], [12, S, 0.92], [14, S, 0.48], [15, S, 0.55]],
+  // the processional: a slow tread, bass drum on 1 (and 3, softer), the snare
+  // on 2 and 4 with a two-stroke pickup into the next bar.
+  processional: () => [[0, K, 0.95], [8, K, 0.72], [4, S, 0.6], [12, S, 0.82], [14, S, 0.38], [15, S, 0.48]],
+  // travel: almost nothing. A soft bass drum on 1 (the half bar softer still)
+  // and a triangle on 1: open-country music keeps its percussion out of the way.
+  // A kit without a triangle plays only the bass drum.
+  travel: (steps) => [[0, K, 0.45], [Math.floor(steps / 2), K, 0.3], [0, TRI, 0.32]],
   'slow-twelve-eight': (steps) => [...Array(Math.floor(steps / 2)).keys()].map((k) => [k * 2, R, k % 3 ? 0.42 : 0.68]).concat([[0, K, 0.95], [12, K, 0.86], [10, K, 0.4], [6, S, 0.9], [18, S, 0.92]]),
 };
 // fill kinds: [step, note, velocity] over the fill span (from `from` to 16).
@@ -467,10 +490,17 @@ function fillHits(kind, from, swung) {
   else if (kind === 'snare-16ths') for (let k = 0; k < n; k++) out.push([from + k, S, 0.45 + (0.55 * k) / Math.max(1, n - 1)]);
   else if (kind === 'flam-build') for (let k = 0; k < n; k += 2) { out.push([from + k - 0.12, S, 0.35]); out.push([from + k, S, 0.7 + (0.3 * k) / Math.max(1, n - 1)]); }
   else if (kind === 'roll-32') for (let k = 0; k < n * 2; k++) out.push([from + k / 2, S, 0.3 + (0.7 * k) / Math.max(1, n * 2 - 1)]);
+  // snare rudiments: the paradiddle (RLRR LRLL, the first of each four
+  // accented), drags (two grace strokes into each eighth), the five-stroke roll
+  // (two doubles into an accent) and the long roll (32nds swelling over the bar).
+  else if (kind === 'paradiddle') for (let k = 0; k < n; k++) out.push([from + k, S, (k % 4 ? 0.4 : 0.82) + (0.15 * k) / Math.max(1, n - 1)]);
+  else if (kind === 'drag') for (let k = 0; k < n; k += 2) { out.push([from + k - 0.16, S, 0.28]); out.push([from + k - 0.08, S, 0.3]); out.push([from + k, S, 0.68 + (0.3 * k) / Math.max(1, n - 1)]); }
+  else if (kind === 'five-stroke') { [0, 0.5, 1, 1.5].forEach((x, k) => out.push([from + x, S, 0.38 + 0.04 * k])); out.push([from + 2, S, 0.95]); }
+  else if (kind === 'long-roll') for (let k = 0; k < n * 2; k++) out.push([from + k / 2, S, 0.22 + (0.73 * k) / Math.max(1, n * 2 - 1)]);
   else if (kind === 'unison-8ths') for (let k = 0; k < n; k += 2) { out.push([from + k, K, 0.9]); out.push([from + k, S, 0.8 + (0.2 * k) / Math.max(1, n - 1)]); }
   return out;
 }
-const FILL_FROM = { 'tom-run': 8, 'snare-16ths': 12, 'flam-build': 8, 'roll-32': 12, 'unison-8ths': 8, triplet: 8 };
+const FILL_FROM = { 'tom-run': 8, 'snare-16ths': 12, 'flam-build': 8, 'roll-32': 12, 'unison-8ths': 8, triplet: 8, paradiddle: 8, drag: 8, 'five-stroke': 12, 'long-roll': 0 };
 const FALLBACK = { 51: 42, 49: 46, 46: 42, 44: 42, 43: 41, 47: 45, 50: 48, 52: 49, 55: 49, 57: 49, 37: 38 };
 // `only` / `drop` pick pieces by family (a kick part to duck by, the rest on another part).
 export const GROOVE_PIECES = ['kick', 'snare', 'hat', 'ride', 'crash', 'tom'];
@@ -696,6 +726,7 @@ export function checkAuthoring(m, errors) {
       checkEventChords(p.events, `${w}.events`, key, errors);
       if (p.chordVoice !== undefined) {
         if (p.chordVoice !== true && !CHORD_VOICE_MODES.includes(p.chordVoice)) errors.push(`${w}.chordVoice must be one of: ${CHORD_VOICE_MODES.join(', ')} (or true = chord)`);
+        if (p.chordVoice in PEDAL_OF && !parseKey(key)) errors.push(`${w}.chordVoice '${p.chordVoice}' holds the key's ${{ pedal: 'tonic', 'pedal-5': 'fifth', drone: 'tonic and fifth' }[p.chordVoice]} under the chart: set the recipe's \`key\` (e.g. key: 'Cm')`);
         if (m.progression === undefined) errors.push(`${w}.chordVoice reads the chart: add a manifest-level progression (e.g. ['Am', 'F', 'C', 'G'] or [{ chords: 'vi IV I V', repeat: 4 }])`);
         if (p.rhythm !== undefined && !(typeof p.rhythm === 'string' ? RHYTHMS[p.rhythm] : Array.isArray(p.rhythm) && p.rhythm.length && p.rhythm.every((v) => v === true || v === false || (Number.isFinite(v) && v >= 0 && v <= 1)))) errors.push(`${w}.rhythm must be a name (${Object.keys(RHYTHMS).join(', ')}) or velocities per sixteenth, wrapping`);
         if (p.hold !== undefined && !(Number.isFinite(p.hold) && p.hold > 0 && p.hold <= 1)) errors.push(`${w}.hold must be in (0, 1] (how much of the gap to the next hit a hit holds; \`gate\` stays the trance gate)`);
@@ -1006,6 +1037,34 @@ export const BANDS = {
     double: false,
     roles: { drums: [[0], 0.12, -3], bass: [[0], 0.05, -2], rhythm: [[-0.3, 0.3], 0.18, -3], lead: [[0.1], 0.22, 0], strings: [[0.4, -0.4], 0.25, -4], keys: [[-0.35], 0.2, -5], fx: [[0], 0.2, -3] },
   },
+  // orchestral styles: one shared hall, the sustained sections wet, the
+  // percussion and the bass dry (the hall stays clear under a tight voice count).
+  'orchestra-battle': {
+    room: { model: 'room2', decay: 2.2, predelay: 0.016, damp: 0.42 },
+    double: false,
+    roles: { strings: [[-0.55, 0.55, -0.25, 0.25], 0.26, -2], brass: [[0.3, -0.3, 0.15], 0.2, -2], woodwind: [[-0.15, 0.15], 0.22, -5], timpani: [[-0.25], 0.1, -2], drums: [[0.1], 0.06, 0], bass: [[0], 0.04, -1], keys: [[0.4, -0.4], 0.22, -6], lead: [[0], 0.18, 0], pad: [[0], 0.3, -8], hit: [[0], 0.22, -3], vocal: [[0], 0.24, -1], fx: [[0], 0.2, -3] },
+  },
+  // open country (the world map, the plains, travel): a soft, wide hall; the
+  // woodwind lead forward and fairly dry, the strings a quiet distant pad,
+  // everything else well back.
+  'orchestra-pastoral': {
+    room: { model: 'room2', decay: 2.6, predelay: 0.02, damp: 0.5 },
+    double: false,
+    roles: { woodwind: [[0.1, -0.2, 0.25], 0.2, 0], strings: [[-0.45, 0.45, -0.2, 0.2], 0.36, -7], brass: [[0.3, -0.3], 0.3, -6], timpani: [[-0.25], 0.14, -6], drums: [[0.05], 0.1, -8], bass: [[0], 0.1, -4], keys: [[0.35, -0.35], 0.26, -5], lead: [[0], 0.2, 0], pad: [[0], 0.4, -9], hit: [[0], 0.3, -6], vocal: [[0], 0.26, -2], fx: [[0], 0.3, -6] },
+  },
+  // adventurous fields (the road gets dangerous): between pastoral and battle.
+  // The brass closer than pastoral, the strings a moving middle, the percussion
+  // light and dry, one medium hall.
+  'orchestra-field': {
+    room: { model: 'room2', decay: 2.4, predelay: 0.018, damp: 0.45 },
+    double: false,
+    roles: { woodwind: [[0.1, -0.2, 0.25], 0.22, 0], brass: [[0.3, -0.3, 0.15], 0.24, -2], strings: [[-0.45, 0.45, -0.2, 0.2], 0.3, -4], timpani: [[-0.25], 0.12, -3], drums: [[0.1], 0.08, -4], bass: [[0], 0.06, -2], keys: [[0.35, -0.35], 0.24, -5], lead: [[0], 0.2, 0], pad: [[0], 0.34, -8], hit: [[0], 0.24, -4], vocal: [[0], 0.24, -1], fx: [[0], 0.24, -4] },
+  },
+  'orchestra-processional': {
+    room: { model: 'room2', decay: 3.4, predelay: 0.028, damp: 0.32 },
+    double: false,
+    roles: { strings: [[-0.5, 0.5, -0.2, 0.2], 0.34, -3], brass: [[0.3, -0.3, 0.15], 0.28, -2], woodwind: [[-0.15, 0.15], 0.3, -5], timpani: [[-0.25], 0.16, -2], drums: [[0.1], 0.12, 0], bass: [[0], 0.08, -1], keys: [[0.4, -0.4], 0.3, -6], lead: [[0], 0.26, 0], pad: [[0], 0.38, -8], hit: [[0], 0.3, -3], vocal: [[0], 0.32, -1], fx: [[0], 0.28, -3] },
+  },
 };
 const ROLE_RE = [
   ['rhythm', /^guitar(Amp|DropChug|Electric|Muted|Clean|Nylon|Classical|Flamenco|Gypsy)$/], ['lead', /^(guitarLead|guitarTwang|pedalSteel|harmonica)$/],
@@ -1013,6 +1072,8 @@ const ROLE_RE = [
   ['keys', /^(banjo|piano|pianoGrand|rhodes|fmKeys|celesta|glockenspiel|musicBox|vibraphone|harpsichord|clav|organ|fmOrgan|marimba|xylophone|fmBell|tubularBells|crotales)/],
   ['brass', /^(trumpet|trombone|frenchHorn|tuba|fmBrass)/], ['strings', /^(violin|viola|cello|contrabass|polyStrings|stringMachine|harp|erhu)/],
   ['synth', /^(supersawLead|hoover|chipLead|sawStab|trancePluck|raveStab|fmBass)/], ['pad', /^pad/],
+  // the bassoon stays a bass (it matched /^bass/ before woodwinds had a role).
+  ['woodwind', /^(flute|piccolo|clarinet|oboe)/], ['timpani', /^timpani/],
 ];
 export function roleOf(p) {
   if (isCuePart(p)) return 'fx';

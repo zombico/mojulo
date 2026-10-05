@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-harmony", "name": "Harmony: chord symbols, numerals, a chord chart, key changes", "summary": "Write harmony the way pop and rock are written: chord symbols ('Am7', 'F/G', 'E5'), Roman numerals in a key ('IV', 'bVII', 'V/V'), voicings (close, open, spread, power, guitar) with nearest voice leading, a composition-level chord chart that parts voice on a rhythm (chords, power chords, root bass, octave bass, arpeggios, a boom-chick or walking bass, the blues boogie, a banjo roll, the gypsy-jazz pompe, flamenco rasgueado, classical p-i-m-a), and `modulate` for the final-chorus key change. Stored compact, expanded at render.", "when": "a 12-bar blues, a walking bass, a boom-chick country bass, a walk-up, a boogie rhythm guitar, a banjo roll, the gypsy jazz pompe rhythm, flamenco rasgueado strums, a classical guitar arpeggio, a chord progression, a chord chart, play these chords, Am F C G, I V vi IV, the royal road progression, IV V iii vi, a minor-key i bVI bVII, a ii V i, voice leading, power chords, a strummed rhythm guitar part, a bass that follows the chords, octave bass, an arpeggio over the changes, a key change for the last chorus, modulate up a half step, transpose everything but the drums" }
+{ "id": "beats-harmony", "name": "Harmony: chord symbols, numerals, a chord chart, key changes", "summary": "Write harmony the way pop and rock are written: chord symbols ('Am7', 'F/G', 'E5'), Roman numerals in a key ('IV', 'bVII', 'V/V'), voicings (close, open, spread, power, guitar) with nearest voice leading, a composition-level chord chart that parts voice on a rhythm (chords, power chords, root bass, octave bass, arpeggios, a boom-chick or walking bass, the blues boogie, a banjo roll, the gypsy-jazz pompe, flamenco rasgueado, classical p-i-m-a, a pedal or an open-fifth drone held under the chart), battle and march harmony (the Phrygian bII, loop-seam cadences, modes ranked by tension), and `modulate` for the final-chorus key change. Stored compact, expanded at render.", "when": "a 12-bar blues, a walking bass, a boom-chick country bass, a walk-up, a boogie rhythm guitar, a banjo roll, the gypsy jazz pompe rhythm, flamenco rasgueado strums, a classical guitar arpeggio, a chord progression, a chord chart, play these chords, Am F C G, I V vi IV, the royal road progression, IV V iii vi, a minor-key i bVI bVII, a ii V i, voice leading, power chords, a strummed rhythm guitar part, a bass that follows the chords, octave bass, an arpeggio over the changes, a key change for the last chorus, modulate up a half step, transpose everything but the drums, a pedal point, a tonic pedal, a drone bass under moving chords, the Phrygian danger chord, bII, a battle theme that loops without resolving, a tactics or RPG battle, a march in a minor key, which mode for tension, a key change between sections, a drone, a bagpipe-like open fifth, a 6/8 lilt, pastoral or open-country harmony, Mixolydian" }
 ---
 
 Harmony in a `beats-composition` is written as chords, not note lists. Every
@@ -94,10 +94,20 @@ A part with `chordVoice` plays the chart:
     default 4) with the last one held. Guitar voicing.
   - `pima`: classical arpeggio in 8ths. The thumb on the bass, then the
     fingers up the chord and back (p-i-m-a-m-i).
+  - `pedal`: the KEY's tonic held in the bass whatever the chord above it
+    does, re-struck on the rhythm (default `whole`; `hold: 1` ties it).
+    `pedal-5` holds the key's fifth; `drone` holds both, the open fifth (the
+    bagpipe's drones). All need `key` and follow `modulate`.
+    Put the chords on another part: the upper chords move as inversions over
+    a bass that never leaves home.
 - **Other fields:**
   - `rhythm`: a name, or velocities per sixteenth that wrap. The names are
     `whole`, `half`, `quarter`, `8ths`, `16ths`, `offbeat`, `gallop`,
-    `push` and `backbeat` (2 and 4: the country chick, the bluegrass chop).
+    `push`, `backbeat` (2 and 4: the country chick, the bluegrass chop),
+    `dotted` (the dotted eighth and its sixteenth on every beat: the march and
+    the fanfare), `dotted-quarter` (long-short on every half bar) and `lilt`
+    (quarter-eighth, quarter-eighth: the 6/8 travelling figure; it is twelve
+    sixteenths long, so use it in 6/8).
   - `hold`: how much of the gap to the next hit a hit holds (default 0.92).
     A row `gate` is still the trance gate, and `duck` still pumps.
   - `art`: an articulation on every hit (`'pm'` chugs, `'staccato'` stabs).
@@ -149,6 +159,30 @@ from `at` on. Entries add up.
 | the country three-chord | I I IV IV · V V I I (or I IV I V) | honky-tonk and bluegrass; the V7 turnaround home |
 | the gypsy minor swing | i6 i6 iv6 iv6 · V7 V7 i6 i6 | minor 6ths and a dominant: the hot-club vamp |
 | the Andalusian cadence | iv–bIII–bII–I (in a Phrygian key: Am G F E) | flamenco; the major I is the home chord |
+| the Phrygian danger | i–bII–i | the threat chord: a half step above home. Battle and ambush |
+| the tonic pedal | i–iv–bII–i over `pedal` | the bass never leaves home, so the loop never ends; strain without arrival |
+| the open seam | …–bVII–i, …–bVI–bVII–i or …–bII–i | a battle loop's last bars: home without a V–i full stop, so the restart is not heard |
+| the third shift | a section in i, the next a major third up (Cm → Em / G#m) | new energy without a new theme |
+| the open road | I–bVII–IV–I (Mixolydian) over a `drone` | travelling, unhurried, never quite resolving: the world map |
+| the quiet menu | I–IV–ii–bVII7 | a gentle Mixolydian colour, busy but calm (a save screen at ~89 bpm) |
+| the plagal sway | I–IV–I or i–IV (Dorian) | rest without a full stop: open country, a village |
+| the tonic flip | i–I–bVII–bVI–iv | the minor home flashes major: adventure with a shadow (a plains battle) |
+| the Aeolian march | i–bVII–bVI–bVII | no leading tone, so it walks on forever: a column on the move |
+| the victory flash | a minor loop, then I (major) on the last chord | a bright stinger after a dark battle |
+
+## Battle and march harmony (principles)
+
+From battle music written for long, looping fights on a tight voice budget:
+- **Tension by mode**, darkest first: Locrian (rage) > Phrygian (danger) >
+  Aeolian (struggle) > Dorian (noble ambiguity) > Lydian (heroic wonder).
+  Pick the mode from the scene, then the progression from the mode.
+- **A loop must not end.** Keep V–i out of the loop's last bars; land on
+  bVII–i, bVI–bVII–i or bII–i, or hold a `pedal` under the turnaround.
+- **Renew, don't repeat.** Move the next section a major third or a fifth
+  (`modulate`), and change the meter with it (6/8 → 5/4, `meters`) before
+  writing a new theme.
+- **Long loops.** A battle theme that repeats for minutes wants 2.5–4 minutes
+  of material before it loops, or a rotation of several themes.
 
 Pair a chart with a groove (card `beats-grooves`) and the whole backing track
 is a few lines. See `beats-composition` for style recipes by trait.
