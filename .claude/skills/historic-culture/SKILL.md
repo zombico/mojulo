@@ -22,15 +22,19 @@ or `get_view_vocab({ id: '<id>' })` through the MCP). The next step is the next 
 ## 2. A new culture: depth 0
 
 1. Settle with the operator: the place, the period and a read-at year (or none: a general depiction of the
-   span), the region (a new row in `lib/graph/historic/regions.js` if it is a new part of the world), and which
-   existing layout has the town's SHAPE (the guide's table).
+   span), the region (a new row in `lib/graph/historic/regions.js` if it is a new part of the world), which
+   existing layout has the town's SHAPE (the guide's table), and its LINEAGE: which registered cultures it
+   continues, inherits from, took forms from by contact, or varies (`get_view_vocab({ id: 'historic-lineage' })`
+   or `lib/graph/historic/lineage.js`). Propose them; the operator corrects.
 2. Dry run, then write:
    ```bash
    node scripts/new-culture.mjs <id> --like <culture> --label "…" --years <from>,<to> --period "…" \
-     --place "…" --region <region> --aliases "…" --dry
+     --place "…" --region <region> --aliases "…" --draws <culture>:<kind>,… --dry
    ```
 3. Run the gates (step 1). Mint it: `create_sketch({ title, manifest: { kind: 'historic', culture: '<id>' } })`.
 4. Tell the operator plainly: at depth 0 it is the parent's town in the parent's colours; the palette is next.
+   Read its README's brief with them: what each relation offers, and the record entries that are parallels to verify
+   (the first sources for its own record at depth 1).
 
 ## 3. Deepen
 

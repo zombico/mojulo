@@ -25,6 +25,29 @@ All under `control/lib/graph/historic/`:
 
 Each registry is one line per culture, layout or region, so two cultures built at once merge with a "keep both".
 
+## Lineage: start from what history carried into it
+
+Cultures draw on cultures. A culture card's `draws` names the earlier cultures it builds on and what each relation
+carries (`lineage.js`); the encyclopedia shows it on each entry (LINEAGE) and as the tree (`historic-lineage`).
+
+| Kind | Means | Its record carries |
+|---|---|---|
+| `continues` | the same land, a later period (Ptolemaic Thebes ← New Kingdom Thebes) | materials, methods, buildings, the town's form |
+| `inherits` | a tradition carried to another place (Byzantium ← Rome) | materials and methods |
+| `contact` | forms taken across cultures, by trade or rule (Hellenistic Egypt ← Greece) | materials and methods |
+| `contemporary` | the same culture at the same time, elsewhere (the Forum ↔ Pompeii) | materials and methods |
+| `variant` | a generic or sibling version (the polis ← Lindos) | everything |
+
+A relation's `parts` are what it carries: `palette`, `skins`, `patterns`, `assets`, `layout`, `record`. Before
+scaffolding a culture, name its relations: `--draws thebes:continues,lindos:contact` writes them on the card, joins
+the patterns they carry, and writes a BRIEF into its README: from each source, the patterns, skins, assets and the
+record entries in use at the new culture's year. Those record entries are the source's own: a PARALLEL to verify,
+never the new culture's basis until its own record cites them.
+
+Relations are history, held to it by `lineage.test.js`: a source is registered, never the culture itself, never an
+ancestor of itself; it begins before the culture drawing on it ends; a continuation begins earlier; a variant shares
+its layout. What a culture shares in code is its depth, a separate thing.
+
 ## Depth: enter shallow, deepen in order
 
 | Depth | It has | It borrows | Its entry says |
@@ -43,7 +66,8 @@ spread from Lindos) may keep its parent's record; a new culture never inherits a
 ```bash
 cd control
 node scripts/new-culture.mjs <id> --like <culture> --label "<label>" --years <from>,<to> --period "<name>" \
-  (--place "<where>" | --invented) --region <region> --aliases "<word>,<word>" [--read-at <year>] [--dry]
+  (--place "<where>" | --invented) --region <region> --aliases "<word>,<word>" [--read-at <year>] \
+  [--draws <culture>:<kind>[:<part>+<part>],…] [--dry]
 ```
 
 Pick `--like` by the SHAPE of the town (its layout), not its look. The palette is what changes first:
@@ -112,12 +136,13 @@ grows in `patterns.js` (a pattern seen across cultures, recorded once) and wall 
 Machine, before a culture lands:
 
 ```bash
-npx vitest run lib/graph/historic/cultures.test.js lib/graph/historic/entries.test.js lib/graph/historic/<id>.test.js
+npx vitest run lib/graph/historic/cultures.test.js lib/graph/historic/entries.test.js lib/graph/historic/lineage.test.js lib/graph/historic/<id>.test.js
 ```
 
 - The card contract (`entries.test.js`) lists any line a card still needs: `years`, `period`, `readAt` (or
   null), `place` (or null when invented), `region`, `aliases`, `record` (or null).
 - The checklist (`cultures.test.js`): layout registered, style card owned, depth on the entry.
+- The lineage (`lineage.test.js`): relations registered, in time, without cycles.
 - Every other culture's pages byte-identical before and after (CSS and World): a shared change is a promise
   over already-minted recipes.
 

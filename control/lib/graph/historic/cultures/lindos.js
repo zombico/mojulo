@@ -83,6 +83,8 @@ export const POLIS = {
   place: null,                   // invented: Lindos' kit on a gentle hill, no real town
   region: 'greece',
   aliases: ['greek town', 'polis', 'hellenistic city'],
+  // history (../lineage.js): the generic town of Lindos' world, on its layout and kit
+  draws: [{ from: 'lindos', kind: 'variant', parts: ['palette', 'skins', 'patterns', 'assets', 'layout', 'record'], note: 'a generic Hellenistic town on Lindos\' layout and kit' }],
   site: { ...LINDOS.site, cliff: false, summit: 46, upper: 52 },
   landmarks: false,
 };

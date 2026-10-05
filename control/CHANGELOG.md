@@ -420,6 +420,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the asset loop, new regions, the gates, and landing a culture on the trunk. A project skill,
   `/historic-culture`, runs it in order.
 
+### Historic lineage
+
+- **In progress.** Cultures draw on cultures. A culture card's `draws` names the earlier cultures it continues,
+  inherits from, took forms from by contact, or varies, and what each relation carries (palette, skins,
+  patterns, assets, layout, record).
+- `historic/lineage.js` reads the tree off the cards. Its brief lists what a new culture can draw on at its
+  year: patterns, skins and assets, and the record entries in use then. Drawn record entries stay the source's:
+  each is a parallel to verify, never the new culture's own basis.
+- What a record carries depends on the kind of relation. A tradition travels as its materials and methods
+  (`inherits`, `contact`, `contemporary`); a culture's particular buildings and town form pass only on the same
+  ground (`continues`) or to a version of the same town (`variant`).
+- The relations now recorded: Thebes continues Giza; the polis is a variant of Lindos; Pompeii and the Forum
+  inherit the Hellenistic orders from Lindos; the Forum is Pompeii's contemporary.
+- Each entry gains a LINEAGE line, and a `historic-lineage` card in the encyclopedia holds the tree.
+- `scripts/new-culture.mjs --draws <culture>:<kind>[:<parts>]` writes the relations on the new card, joins
+  the patterns they carry, and writes the brief into its README. Dry runs for a Ptolemaic Thebes
+  (continues Thebes, contact with Lindos) and a Byzantine Constantinople (inherits from the Forum and Lindos)
+  each list what to start from.
+- `historic/lineage.test.js` holds relations to history: every source registered, no culture its own ancestor,
+  a source beginning before the culture drawing on it ends, a continuation beginning earlier, a variant on its
+  source's layout. Every historic page is byte-identical.
+
 ### Historic Rome
 
 - **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is

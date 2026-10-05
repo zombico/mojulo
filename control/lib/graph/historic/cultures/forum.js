@@ -16,6 +16,11 @@ export const FORUM = {
   period: 'Early Imperial (Flavian)',
   place: 'Rome, the Forum Romanum',
   region: 'italy',
+  // history (../lineage.js): the orders from the Greek world; Pompeii is the same moment in a country town
+  draws: [
+    { from: 'lindos', kind: 'inherits', parts: ['patterns'], note: 'the Hellenistic orders and the colonnade' },
+    { from: 'pompeii', kind: 'contemporary', parts: ['skins', 'patterns', 'record'], note: 'the same summer of 79 CE, in a Campanian town' },
+  ],
   aliases: ['roman forum', 'imperial rome', 'senate house', 'curia', 'temple of saturn', 'vestal'],   // what people call it (search)
   record: { id: 'forum', entries: FORUM_RECORD, sources: FORUM_SOURCES },   // the encyclopedia entry's basis
   layout: 'forum',

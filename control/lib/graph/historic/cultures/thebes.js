@@ -22,6 +22,8 @@ export const THEBES = {
   place: 'Thebes, Upper Egypt',
   region: 'egypt',
   land: 'egypt',                  // its farm and works: New Kingdom Egypt's (../farmstead.js, ../workshops.js)
+  // history (../lineage.js): the Egyptian building tradition a millennium on from Giza's
+  draws: [{ from: 'giza', kind: 'continues', parts: ['patterns', 'skins', 'record'], note: 'the same land and building tradition, a millennium later' }],
   aliases: ['waset', 'luxor', 'karnak', 'ramesside', 'ramesses', 'pharaoh', 'temple of amun'],   // what people call it (search)
   // what its town, land, farm and works stand on (the encyclopedia entry's basis)
   record: { id: 'egypt', entries: [...EGYPT_RECORD, ...EGYPT_INDUSTRY_RECORD], sources: EGYPT_SOURCES },

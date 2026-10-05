@@ -27,6 +27,7 @@ import { HISTORIC_STYLES } from './style/index.js';
 import { describeHistoric, fmtSpan, periodText } from '../depiction.js';
 import { REGIONS } from './regions.js';
 import { depthText } from './depth.js';
+import { relationsOf, lineageTree, KINDS } from './lineage.js';
 import { landOf } from './cultures/index.js';
 
 export { REGIONS };
@@ -71,6 +72,29 @@ function whenOf(id, K) {
     ...(K.patterns || []).map(words), 'historic city', 'ancient town', 'inspired level']).map((w) => `"${w}"`).join(', ');
 }
 
+/** The entry's LINEAGE line: what it draws on and what draws on it ("continues giza; drawn on by —"). */
+function lineageText(id) {
+  const { drawsOn, drawnOnBy } = relationsOf(id);
+  const on = drawsOn.map((r) => `${r.kind} ${r.from}`).join(', ') || 'draws on no culture here';
+  const by = drawnOnBy.map((r) => `${r.by} (${r.kind})`).join(', ') || '—';
+  return `${on}; drawn on by ${by}. The tree: card 'historic-lineage'.`;
+}
+
+/** The lineage card: every relation between the cultures, by kind, with what it carries. Found by search. */
+export function lineageCard() {
+  const edges = lineageTree(), C = HISTORIC_CULTURES;
+  const lines = ['# The lineage of the historic cultures', '',
+    'How the cultures draw on each other through history. A new culture names its relations and starts from what they carry (the scaffold writes a brief of it); a drawn record entry is a parallel to verify, never the new culture\'s basis.', '',
+    'Kinds:', ...Object.entries(KINDS).map(([k, v]) => `- ${k}: ${v}`), '', 'Relations (later ← earlier):'];
+  for (const e of edges) lines.push(`- ${e.to} ← ${e.from} (${e.kind}: ${e.parts.join(', ')})${e.note ? ` — ${e.note}` : ''}`);
+  const roots = Object.keys(C).filter((id) => !(C[id].draws || []).length);
+  lines.push('', `Roots (draw on no culture here): ${roots.join(', ')}.`);
+  return { id: 'historic-lineage', name: 'The lineage of the historic cultures', family: 'entry', entry: 'create_sketch', generated: true,
+    summary: 'How the historic cultures draw on each other: continues, inherits, contact, contemporary, variant.',
+    when: '"lineage", "influence", "what came before", "built on", "successor", "descended from", "culture tree", "start a new civilization from"',
+    body: lines.join('\n') };
+}
+
 /** One culture's entry card. */
 export function entryCard(id) {
   const K = HISTORIC_CULTURES[id], d = describeHistoric({ culture: id }), R = K.record || null;
@@ -84,6 +108,7 @@ export function entryCard(id) {
     `PLACE      ${d.place === 'invented' ? 'invented — no real place' : d.place}`,
     `DEPICTION  era ${d.depiction.era} (the hardware budget); look: ${style ? `the ${id} style card` : 'none yet'}`,
     `DEPTH      ${depthText(id)} (0 a card on another culture's work … 3 its own place)`,
+    `LINEAGE    ${lineageText(id)}`,
     `SCOPE      a general depiction of the place in its period, not a reconstruction of one year: expect anachronisms (pieces from across the span side by side, gaps filled from parallels). Say so when you hand it over.`,
     R ? `BASIS      the ${R.id} record: ${R.entries.length} entries — ${n.read} ATTESTED, ${n.secondary} RECONSTRUCTED, ${n.unverified} CONJECTURAL; ${Object.keys(R.sources).length} sources. The town plan and placement are RECONSTRUCTED from parallels. In full: card '${id}/record'.`
       : 'BASIS      no record yet: read every part as CONJECTURAL.',
@@ -151,7 +176,7 @@ export function hubCards() {
 
 /** Every generated card: the hubs, then each culture's entry and its record. */
 export function historicEntryCards() {
-  const out = [...hubCards()];
+  const out = [...hubCards(), lineageCard()];
   for (const id of Object.keys(HISTORIC_CULTURES)) {
     out.push(entryCard(id));
     const r = recordCard(id);

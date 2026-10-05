@@ -7,12 +7,18 @@
  *
  *   node scripts/new-culture.mjs <id> --like <culture> --label "<label>" --years <from>,<to>
  *        --period "<name>" [--read-at <year>] (--place "<where>" | --invented) --region <region>
- *        --aliases "<word>,<word>,…" [--dry]
+ *        --aliases "<word>,<word>,…" [--draws <culture>:<kind>[:<part>+<part>],…] [--dry]
+ *
+ * `--draws` names the cultures it draws on through history (kinds: continues, inherits, contact, contemporary,
+ * variant; parts default by kind). They are written on the card (`draws`), the patterns they carry join the card's,
+ * and the README gets the BRIEF: what each offers at its year, the record entries as parallels to verify.
  *
  * Years are negative for BCE. `--dry` prints what it would write and changes nothing. Run from control/.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { register } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 const HIST = 'lib/graph/historic', INDEX = join(HIST, 'cultures/index.js');
 const die = (m) => { console.error(`new-culture: ${m}`); process.exit(1); };
@@ -59,7 +65,29 @@ const aliases = String(args.aliases).split(',').map((a) => a.trim()).filter(Bool
 if (!aliases.length || aliases.some((a) => a.length < 3)) die('--aliases: comma-separated search words, 3+ characters each');
 if (!/^[a-z][a-z0-9-]*$/.test(args.region)) die('--region is an id: lowercase letters, digits, hyphens');
 
+// the relations: <culture>:<kind>[:<part>+<part>], parts by kind unless named
+const DEFAULT_PARTS = { continues: ['patterns', 'skins', 'record'], inherits: ['patterns'], contact: ['patterns'], contemporary: ['skins', 'patterns', 'record'], variant: ['palette', 'skins', 'patterns', 'assets', 'layout', 'record'] };
+const PART_IDS = ['palette', 'skins', 'patterns', 'assets', 'layout', 'record'];
+const draws = (args.draws ? String(args.draws).split(',') : []).map((d) => {
+  const [from, kind, parts] = d.trim().split(':');
+  if (!reg[from]) die(`--draws: '${from}' is not a culture (one of ${Object.keys(reg).join(', ')})`);
+  if (!DEFAULT_PARTS[kind]) die(`--draws ${from}: the kind is one of ${Object.keys(DEFAULT_PARTS).join(', ')}`);
+  const p = parts ? parts.split('+') : DEFAULT_PARTS[kind];
+  for (const x of p) if (!PART_IDS.includes(x)) die(`--draws ${from}: part '${x}' is not one of ${PART_IDS.join(', ')}`);
+  return { from, kind, parts: p };
+});
+
 const CONST = id.toUpperCase().replace(/-/g, '_'), base = reg[like];
+// one import per source file, each constant once (the base and the cultures drawn on)
+const byFile = new Map();
+for (const c of [base.constant, ...draws.map((d) => reg[d.from].constant)]) {
+  const f = Object.values(reg).find((r) => r.constant === c).file;
+  if (!byFile.has(f)) byFile.set(f, []);
+  if (!byFile.get(f).includes(c)) byFile.get(f).push(c);
+}
+const importLines = Array.from(byFile, ([f, cs]) => `import { ${cs.join(', ')} } from './${f}.js';`).join('\n');
+const patternSources = [...new Set([base.constant, ...draws.filter((d) => d.parts.includes('patterns')).map((d) => reg[d.from].constant)])];
+const key = /-/.test(id) ? q(id) : id;
 const cardFile = join(HIST, `cultures/${id}.js`);
 if (existsSync(cardFile)) die(`${cardFile} exists`);
 
@@ -71,7 +99,7 @@ const card = `/**
  *  - depth 2: its own assets through the asset loop (assets/${id}.js, then \`assets\` here);
  *  - depth 3: its own layout (layouts/${id}.js, registered in layouts/index.js, then \`layout\` here).
  */
-import { ${base.constant} } from './${base.file}.js';
+${importLines}
 
 export const ${CONST} = {
   ...${base.constant},
@@ -84,7 +112,12 @@ export const ${CONST} = {
   aliases: [${aliases.map(q).join(', ')}],   // what people call it (search)
   record: null,                    // none yet: its entry claims nothing as attested until record/${id}.js lands
   land: null,                      // no farm or works scenes until its own (\`land\`: an id in farmstead.js / workshops.js)
-  palette: { ...${base.constant}.palette },   // ${like}'s colours until this culture's own are set
+  palette: { ...${base.constant}.palette },   // ${like}'s colours until this culture's own are set${draws.length ? `
+  // history (../lineage.js): what it draws on; the brief of what each offers is in its README
+  draws: [
+${draws.map((d) => `    { from: ${q(d.from)}, kind: ${q(d.kind)}, parts: [${d.parts.map(q).join(', ')}] },`).join('\n')}
+  ],` : ''}${draws.some((d) => d.parts.includes('patterns')) ? `
+  patterns: [...new Set([${patternSources.map((c) => `...${c}.patterns`).join(', ')}])],` : ''}
 };
 `;
 
@@ -93,8 +126,16 @@ const lines = src.split('\n');
 const lastImport = lines.map((l, i) => (/^import .* from '\.\/[\w-]+\.js';$/.test(l) ? i : -1)).filter((i) => i >= 0).pop();
 lines.splice(lastImport + 1, 0, `import { ${CONST} } from './${id}.js';`);
 const close = lines.findIndex((l, i) => i > lines.findIndex((x) => x.startsWith('export const HISTORIC_CULTURES')) && l === '};');
-lines.splice(close, 0, `  ${/-/.test(id) ? q(id) : id}: ${CONST},`);
+lines.splice(close, 0, `  ${key}: ${CONST},`);
 const index = lines.join('\n');
+
+// the brief, read through lib/graph/historic/lineage.js for this draft (its year, its relations)
+let brief = '';
+if (draws.length) {
+  register(pathToFileURL(resolve('scripts/mcp-stdio-loader.mjs')));
+  const { briefText } = await import(pathToFileURL(resolve(HIST, 'lineage.js')).href);
+  brief = briefText({ years, readAt, draws });
+}
 
 const readmeDir = join('..', 'docs/historic', id), readme = join(readmeDir, 'README.md');
 const doc = `# ${args.label}
@@ -110,13 +151,21 @@ on the release-candidate trunk: [../README.md](../README.md).
 3. Depth 2: its own assets, through the asset loop.
 4. Depth 3: its own layout.
 
-## References
+${brief ? `## Draws on (the brief)
+
+What history carried into it, at its year: start from these rather than from nothing. The record entries are the
+source cultures' own: for this culture each is a parallel to verify, and none is its basis until its own record
+cites it.
+
+${brief}
+
+` : ''}## References
 
 (The reference images and what each gives the kit, indexed as they arrive.)
 `;
 
 if (args.dry) {
-  console.log(`--- ${cardFile}\n${card}\n--- ${INDEX} (new lines)\nimport { ${CONST} } from './${id}.js';\n  ${id}: ${CONST},\n--- ${readme}\n${doc}`);
+  console.log(`--- ${cardFile}\n${card}\n--- ${INDEX} (new lines)\nimport { ${CONST} } from './${id}.js';\n  ${key}: ${CONST},\n--- ${readme}\n${doc}`);
   process.exit(0);
 }
 writeFileSync(cardFile, card);
