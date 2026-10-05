@@ -86,10 +86,38 @@ describe('historic city: Qin Xianyang', () => {
     for (const r of plan.boxes.filter((b) => (b.kind === 'roof' || b.kind === 'thatch') && b.solid === 'frustum')) expect(r.top).toBeTruthy();
   });
 
+  it('stands the palace on the tableland and the wards on the plain, the axis climbing the bluff, the Wei braided', () => {
+    const s = plan.stats, H = s.tableland.h;
+    // every palace piece sits on the tableland; every ward piece on the plain below the bluff
+    const inPal = (r) => r.x >= s.palace.x - 0.5 && r.x + r.w <= s.palace.x + s.palace.w + 0.5 && r.y + r.d <= s.palace.y + s.palace.d + 0.5;
+    for (const q of plan.slots.filter((q) => inPal(q.rect))) expect(q.z, q.asset).toBe(H);
+    for (const q of plan.slots.filter((q) => q.asset === 'qn-house' || q.asset === 'qn-ward-gate')) { expect(q.z).toBe(0); expect(q.rect.y).toBeGreaterThan(s.tableland.edge); }
+    expect(Math.min(...plan.boxes.filter((b) => b.asset === 'qn-hall').map((b) => b.z0))).toBeGreaterThanOrEqual(H - 1e-9);
+    // the causeway on the axis, from the que down to the east–west avenue
+    const cw = plan.boxes.find((b) => b.kind === 'causeway');
+    expect(cw.x + cw.w / 2).toBeCloseTo(s.axis, 6);
+    expect([cw.y, cw.z1, cw.z0]).toEqual([s.tableland.edge, H, 0]);
+    expect(cw.y).toBeGreaterThanOrEqual(s.que.y + s.que.d);
+    // the bluff and its gullies; sandbars inside the river, clear of the bridge
+    expect(plan.boxes.filter((b) => b.kind === 'bluff').length).toBeGreaterThan(50);
+    expect(plan.boxes.filter((b) => b.kind === 'gully').length).toBe(s.gullies);
+    const bars = plan.grounds.filter((g) => g.kind === 'bar');
+    expect(bars.length).toBe(2 * s.bars);
+    for (const g of bars) for (const [x, y] of g.poly) { expect(y).toBeGreaterThan(s.river.y0); expect(y).toBeLessThan(s.river.y1); expect(Math.abs(x - s.axis)).toBeGreaterThan(8); }
+    // views stand on the ground they look from, never under it
+    expect(plan.views.palace.eye[2]).toBeGreaterThan(H);
+    expect(plan.views.gate.eye[2]).toBeGreaterThan(H * 0.8);
+    // both terrain claims are in the record, marked unverified
+    for (const id of ['xianyang-tableland', 'wei-braided']) expect(QIN_RECORD.find((e) => e.id === id).confidence).toBe('unverified');
+    // the land beyond the frame is for the World only
+    expect(plan.horizon.length).toBeGreaterThan(100);
+    expect(plan.boxes.some((b) => b.kind === 'horizon')).toBe(false);
+  });
+
   it('builds a scene with a camera for each of its views, opening on the one asked for, under a sky from its card', () => {
     const s = assembleHistoricCityScene({ seed: 7, culture: 'qin', view: 'ward' });   // one build: a whole town is ~68k faces
     expect(s.cameras[0].name).toBe('ward');
-    expect(s.cameras.map((c) => c.name)).toEqual(expect.arrayContaining(['palace', 'gate', 'avenue', 'ward', 'market', 'bridge', 'works']));
+    expect(s.cameras.map((c) => c.name)).toEqual(expect.arrayContaining(['palace', 'gate', 'avenue', 'ward', 'market', 'bridge', 'works', 'bluff']));
     expect(s.sky).toEqual(QIN_STYLE.sky);
   }, 60000);
 

@@ -261,6 +261,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `tile-roof` (cover rows over pan channels). The tile skin is the first laid on a sloped face.
 - New shared patterns: rammed earth, tiled roof, timber frame, terrace hall, walled ward, market and bridge.
 - The page is about 21 MB, between Giza's and Thebes'. The other cultures are unchanged.
+- A rotatable export for any historic scene (`historic-world.js`). A whole town is too many faces for the
+  CSS 3D page to move smoothly, so the same scene can also go out as a WebGL World page (orbit, zoom, the
+  named views as buttons) or as a GLB.
+  - The skins already carried uvs for the World. What was missing was the texture map: faces added outside
+    the box-city builder never had their texture keys resolved, so skinned walls and roofs drew blank.
+  - The Qin town as a World page is about 12 MB; as a GLB, about 7.7 MB.
+  - A polygon face (more than four corners) is split into triangles for the World, since its mesh takes
+    triangles and quads only. Before this, such a face was cut down to its first four corners.
+- The Qin ground in two steps. The palace stands on the lip of the Xianyang tableland, 10 m up. The bluff
+  beneath it is ragged and cut by two gullies. The wards lie on the plain below, and the axis climbs the
+  bluff to the que as a rammed-earth causeway. A new `bluff` view looks along the edge.
+  - The Wei is braided round sandbars, with mud flats along its north bank.
+  - On the World page only, the plain, the tableland and the river run on beyond the frame, to a hazy
+    Qinling in the south and the northern hills. The hills are brought in and scaled so they sit at about
+    their real angle on the horizon.
+  - The height of the bluff and the line of the river are drawn, not measured. Both are in the record as
+    unverified (`xianyang-tableland`, `wei-braided`); the Wei has since moved north over the old town.
 
 ### Sixth-gen composer
 

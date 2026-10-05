@@ -23,6 +23,9 @@ export const QIN = {
     paving: '#8f8a80',             // grey fired paving brick (record: paving-brick)
     field: [S.millet, S.wheat, '#a9a35a', '#8f9a55'],
     water: S.river, bank: '#a88c66',
+    sand: '#cdb894', wetSand: '#a99a7e',  // the Wei's bars and flats
+    cliff: '#c6a378',              // the bare loess of the bluff and the gullies
+    haze: '#aab4b2', hazeFar: '#bfc8c8', plainFar: '#cdbb99',   // the distant hills and plain, through the air
     hangtu: S.hangtu, loess: S.loess,
     plaster: S.ochrePlaster, whitePlaster: S.whitePlaster,
     tile: S.tile, red: S.lacquerRed, black: S.lacquerBlack,
@@ -43,7 +46,10 @@ export const QIN = {
   palace: { w: 260, d: 160, wall: { h: 6, base: 4 } },
   ward: { w: 84, d: 86, street: 6, wall: { common: { h: WARD.common, base: 2 }, elite: { h: WARD.elite, base: 3 } } },
   avenue: 20,
-  river: { width: 80, sink: 2 },
+  river: { width: 80, sink: 2, bars: 9 },
+  // the Xianyang tableland: the palaces on its lip, the wards on the plain below. The height is a guess
+  // (record: xianyang-tableland); the bluff top runs at `edge`, its foot `foot` metres further south
+  tableland: { h: 10, edge: 184, foot: [6, 8.5] },
   house: { size: [12, 18], elite: [16, 24], gap: 0.4 },
   lanes: { block: [8, 11] },
   trees: { max: 220 },

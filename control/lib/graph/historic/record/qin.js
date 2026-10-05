@@ -282,6 +282,18 @@ const FORMS = [
     sources: [S.zhXianyangSite, S.zhXianyangPalace, S.enXianyangPalace],
   },
   {
+    id: 'xianyang-tableland', kind: 'form', name: 'the palaces on the lip of the Xianyang tableland, the town on the plain below', confidence: 'unverified',
+    attested: { from: -350, to: -206 },
+    notes: 'The palace sites lie on the loess tableland north of the Wei (see xianyang-capital: the higher ground). The scene\'s 10 m bluff, its ragged line, its two gullies and the causeway climbing it on the axis are drawn to read as that step, not measured: no height or edge line has been read.',
+    sources: [S.zhXianyangSite, S.enXianyangPalace],
+  },
+  {
+    id: 'wei-braided', kind: 'form', name: 'the Wei: a wide, sandy, braided river, since moved north over the old town', confidence: 'unverified',
+    attested: { from: -350, to: null, approx: true },
+    notes: 'The standard account has the Wei migrating north and eroding the southern part of the Qin town, so any Qin river line is a reconstruction. Sandbars and flats are drawn as the river\'s usual low-water look, not from a survey of 212 BCE.',
+    sources: [S.zhXianyangSite],
+  },
+  {
     id: 'mausoleum-axis', kind: 'form', name: 'mausoleum plan: long N–S enclosures, the mound in the south, halls in the north, four axial gates', confidence: 'unverified',
     attested: { from: -246, to: null, approx: true },
     notes: 'See lishan-enclosures, lishan-sleeping-hall, lishan-triple-que. The plan laid out from these dimensions, not from the reference drawing (drawn near-square).',

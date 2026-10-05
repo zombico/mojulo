@@ -456,7 +456,7 @@ export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 
 // px per scene unit. A panel rasterises at its own px size and an eye-level camera magnifies the near
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
@@ -536,7 +536,9 @@ export function assembleHistoricCityScene(opts = {}) {
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
   const scene = assembleBoxCityScene({ boxes, grounds, faces, cameras, title: `mojulo historic city · ${(HISTORIC_CULTURES[plan.stats.culture] || SUMER).label}`, bg: '#d9cdb4', sky, light: SCENE_LIGHT, unitScale: UNIT_SCALE[view] });
-  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}) };
+  // the land beyond the frame (a layout's `horizon`): kept off the CSS page, the World page draws it (./historic-world.js)
+  const horizon = plan.horizon ? toScene(plan.horizon, s, UNIT_SCALE[view]).faces : null;
+  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(horizon ? { horizon } : {}) };
 }
 
 /** A plan or asset scene → the CSS 3D page (ground tiles embedded once). */
