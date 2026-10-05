@@ -7,6 +7,7 @@
 //     crop      a format word over the card's: full | bust | herm | torso (law 4)
 //     lose      a list of loss words: head, handR, forearmL, armR, footL, shankR, legL, … (law 5)
 //     base      a base word over the card's and the format's (law 7)
+//     stand     standing | seated, over the card's (law 9): seated sits it on a throne, the hands on the knees
 //     dials     { wear 0–1 } (law 8)
 //     laws      the version of principles.js the build was minted under (stamped by the hero record; absent → current)
 //
@@ -24,7 +25,7 @@
 //
 // Passes 1 and 2 run on the hero before its plan (`statueHero`); 3 to 5 on the expanded recipe (`statueRecipe`); 6 at
 // read time. Pure and deterministic: no dice, fixed order.
-import { STATUE_LAWS_VERSION, STATUE_MATERIALS, MATERIAL_WORDS, CROP_WORDS, LOSSES, LOSS_WORDS, BASE_WORDS, CROP_BASE, METAL_BASE_MATERIAL, PAINT_TONES, BUST_FROM_U, BUST_ARM_KEEP, TORSO_THIGH_KEEP, NECK_KEEP, BODY_ZONES, weatherTone, bronzeAge } from './principles.js';
+import { STATUE_LAWS_VERSION, STATUE_MATERIALS, MATERIAL_WORDS, CROP_WORDS, LOSSES, LOSS_WORDS, BASE_WORDS, CROP_BASE, METAL_BASE_MATERIAL, STAND_WORDS, SEATED_POSE, PAINT_TONES, BUST_FROM_U, BUST_ARM_KEEP, TORSO_THIGH_KEEP, NECK_KEEP, BODY_ZONES, weatherTone, bronzeAge } from './principles.js';
 import { SEEDED_STATUES, STATUE_STYLES } from './styles.js';
 import { validateOutfitCard } from '../outfit/styles.js';
 import { resolveMetalSurface, metalShelfRow } from '../materials/metal-surface.js';
@@ -34,7 +35,7 @@ export const isStatueBuild = (s) => !!(s && typeof s === 'object' && !Array.isAr
 /** a style word is the build of that card */
 export const normalizeStatue = (s) => (typeof s === 'string' ? { type: 'statue', style: s } : s);
 const cardOf = (style) => (typeof style === 'string' ? SEEDED_STATUES[style] : style);
-const BUILD_FIELDS = ['type', 'style', 'material', 'crop', 'lose', 'base', 'dials', 'laws'];
+const BUILD_FIELDS = ['type', 'style', 'material', 'crop', 'lose', 'base', 'stand', 'dials', 'laws'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 
@@ -45,6 +46,7 @@ export function validateStatueCard(card, at = 'statue.style') {
   if (card.material !== undefined && !MATERIAL_WORDS.includes(card.material)) errs.push(`${at}.material: one of ${MATERIAL_WORDS.join(', ')}`);
   if (card.crop !== undefined && !CROP_WORDS.includes(card.crop)) errs.push(`${at}.crop: one of ${CROP_WORDS.join(', ')}`);
   if (card.base !== undefined && !BASE_WORDS.includes(card.base)) errs.push(`${at}.base: one of ${BASE_WORDS.join(', ')}`);
+  if (card.stand !== undefined && !STAND_WORDS.includes(card.stand)) errs.push(`${at}.stand: one of ${STAND_WORDS.join(', ')}`);
   for (const k of ['hair', 'drape']) if (card[k] !== undefined && !(isObj(card[k]) && Object.keys(card[k]).every((s) => s === 'male' || s === 'female'))) errs.push(`${at}.${k}: { male, female }`);
   for (const s of ['male', 'female']) { const d = card.drape?.[s]; if (d !== undefined && d !== null) errs.push(...validateOutfitCard(d, `${at}.drape.${s}`)); }
   if (card.paint !== undefined) { const sets = isObj(card.paint) && (card.paint.male || card.paint.female) ? [card.paint.male, card.paint.female].filter(Boolean) : [card.paint];
@@ -62,6 +64,7 @@ export function validateStatueBuild(input, hero = {}) {
   if (build.material !== undefined && !MATERIAL_WORDS.includes(build.material)) errs.push(`statue.material: one of ${MATERIAL_WORDS.join(', ')}`);
   if (build.crop !== undefined && !CROP_WORDS.includes(build.crop)) errs.push(`statue.crop: one of ${CROP_WORDS.join(', ')}`);
   if (build.base !== undefined && !BASE_WORDS.includes(build.base)) errs.push(`statue.base: one of ${BASE_WORDS.join(', ')}`);
+  if (build.stand !== undefined && !STAND_WORDS.includes(build.stand)) errs.push(`statue.stand: one of ${STAND_WORDS.join(', ')}`);
   if (build.lose !== undefined) {
     if (!Array.isArray(build.lose)) errs.push(`statue.lose: a list of loss words (${LOSS_WORDS.join(', ')})`);
     else for (const w of build.lose) if (!LOSS_WORDS.includes(w)) errs.push(`statue.lose: '${w}' is not a loss word (${LOSS_WORDS.join(', ')})`);
@@ -75,7 +78,9 @@ export function validateStatueBuild(input, hero = {}) {
   // the bodies a statue is carved from: the landmark head (blank eyes, carved hair) or the blank trunk
   if (hero.head === 'anime') errs.push("statue: the anime head's graphic face is not carved yet; wear head 'landmark' (the default) or 'none'");
   if (hero.gear && Object.keys(hero.gear).length) errs.push('statue: held gear is not carved yet; remove gear (an armour build in adorn is carved with the figure)');
-  const crop = build.crop ?? cardOf(style)?.crop ?? 'full';
+  const crop = build.crop ?? cardOf(style)?.crop ?? 'full', stand = build.stand ?? cardOf(style)?.stand ?? 'standing';
+  if (stand === 'seated' && hero.gesture !== undefined) errs.push("statue.stand: a seated statue's stand is the seat (the hands on the knees); remove gesture, or stand it ('standing')");
+  if (stand === 'seated' && (crop === 'bust' || crop === 'herm')) errs.push(`statue.stand: a ${crop} has no lap to sit on; stand it ('standing') or crop it 'full' or 'torso'`);
   if ((crop === 'bust' || crop === 'herm') && Array.isArray(build.lose) && build.lose.includes('head')) errs.push(`statue.lose: a ${crop} is a head; it cannot lose it`);
   return errs;
 }
@@ -85,23 +90,30 @@ export function statueWords(input) {
   const build = normalizeStatue(input), card = cardOf(build.style ?? 'classical');
   const crop = build.crop ?? card.crop ?? 'full', material = build.material ?? card.material ?? 'marble';
   const base = build.base ?? (build.crop !== undefined ? CROP_BASE[crop] : card.base ?? CROP_BASE[crop]);
-  return { card, crop, material, base, lose: [...(build.lose ?? [])], wear: build.dials?.wear ?? 0 };
+  return { card, crop, material, base, stand: build.stand ?? card.stand ?? 'standing', lose: [...(build.lose ?? [])], wear: build.dials?.wear ?? 0 };
 }
 
 // ── 1 POSE + 2 DRAPE ────────────────────────────────────────────────────────
 const HAND_KEYS = ['wristL', 'wristR', 'fingersL', 'fingersR'];
+/** a seated figure's drapery (law 9): a skirt longer than the knee is cut at the knee — a skirt is a tube about the
+ * hips, and a long one would stand open in front of the lap (a drape over the lap is not carved yet) */
+const LONG_SKIRT = new Set(['midi', 'maxi']);
+const seatedDrape = (d) => (d?.language?.bottom?.kind === 'skirt' && LONG_SKIRT.has(d.language.bottom.leg) ? { ...d, language: { ...d.language, bottom: { ...d.language.bottom, leg: 'knee' } } } : d);
+/** a card's stand for the cast: its own, or the { male, female } entry */
+const castGesture = (g, female) => (isObj(g) && Object.keys(g).length && Object.keys(g).every((k) => k === 'male' || k === 'female') ? g[female ? 'female' : 'male'] : g);
 const dropHands = (g) => (Array.isArray(g) ? g.map(dropHands) : isObj(g) ? Object.fromEntries(Object.entries(g).filter(([k]) => !HAND_KEYS.includes(k))) : g);
 /** The hero with the card's stand, stillness and drapery beneath its own words (`structured`: its hand has digits, so
  * the card's hand words stand; on the streamlined mitten they are dropped). Absent statue ⇒ the hero itself. */
 export function statueHero(hero, { female = false, structured = true } = {}) {
   if (!hero?.statue) return hero;
-  const { card, crop } = statueWords(hero.statue), out = { ...hero };
-  // a bust or a herm is cut above the hips: it stands at rest (a stance would only lean the cut), unless the hero says
-  const stance = crop === 'bust' || crop === 'herm' ? 'rest' : card.gesture;
+  const { card, crop, stand } = statueWords(hero.statue), out = { ...hero };
+  // a bust or a herm is cut above the hips: it stands at rest (a stance would only lean the cut), unless the hero says;
+  // a seated figure takes the seat (law 9)
+  const stance = stand === 'seated' ? { ...SEATED_POSE } : crop === 'bust' || crop === 'herm' ? 'rest' : castGesture(card.gesture, female);
   if (out.gesture === undefined && stance !== undefined) out.gesture = structured ? stance : dropHands(stance);
   if (out.clips === undefined) out.clips = { idle: false, walk: false, wave: false };
   const drape = card.drape?.[female ? 'female' : 'male'];
-  if (out.outfit === undefined && drape) out.outfit = { type: 'outfit', style: drape };
+  if (out.outfit === undefined && drape) out.outfit = { type: 'outfit', style: stand === 'seated' ? seatedDrape(drape) : drape };
   return out;
 }
 /** The card's hair for the silhouette (set at mint, when the hero names none), or undefined */
@@ -213,7 +225,7 @@ export function statueMaterial(material, { wear = 0, card = {}, female = false }
 /** Passes 3–5 on an expanded hero recipe: the cut, the carve and the surface, and the ledger. `plan`: the plan the recipe
  * expanded from (the torso's stations, the head's parts). → { recipe, trace } */
 export function statueRecipe(recipe, plan, input, { female = false } = {}) {
-  const { card, crop, material, base, lose, wear } = statueWords(input), warnings = [];
+  const { card, crop, material, base, stand, lose, wear } = statueWords(input), warnings = [];
   const { recipe: cutParts, lost } = cutRecipe(recipe, plan, crop, lose), cut = { ...cutParts, parts: bodyAsSkin(cutParts.parts) };
   const { tone, surface, paint } = statueMaterial(material, { wear, card, female });
   const palette = Object.fromEntries(groupsOf(cut).map((g) => [g, paint?.[g] ?? tone]));
@@ -221,7 +233,7 @@ export function statueRecipe(recipe, plan, input, { female = false } = {}) {
   if (paint) warnings.push('painted: the polychromy is a reconstruction — ancient colour survives in traces; these tones are conjecture (law 6)');
   const build = normalizeStatue(input);
   const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'classical' : card.id || 'inline', period: card.period ?? null, ...(card.years ? { years: card.years } : {}),
-    material, crop, ...(lose.length ? { lose } : {}), lost: lost.map(baseName).filter((n, i, a) => a.indexOf(n) === i), base, wear, basis: card.basis ?? 'unverified', after: card.after ?? [],
+    material, crop, ...(lose.length ? { lose } : {}), lost: lost.map(baseName).filter((n, i, a) => a.indexOf(n) === i), base, ...(stand === 'seated' ? { stand } : {}), wear, basis: card.basis ?? 'unverified', after: card.after ?? [],
     // the card is drawn from the general record of its type, not from sources read for this kernel: derived work says so
     caption: `inspired by ${(card.after || []).join('; ') || 'the period'}`, laws: build.laws ?? STATUE_LAWS_VERSION, ...(warnings.length ? { warnings } : {}) };
   return { recipe: { ...rest, palette, surfaces: { '*': surface } }, trace };
@@ -229,7 +241,7 @@ export function statueRecipe(recipe, plan, input, { female = false } = {}) {
 
 /** The base the read path builds (base.js): its word, and its stone (a metal figure stands on limestone, law 7) */
 export function statueBaseOf(input) {
-  const { base, material, wear } = statueWords(input), M = STATUE_MATERIALS[material];
+  const { base, material, wear, stand } = statueWords(input), M = STATUE_MATERIALS[material];
   const stone = M.metal ? METAL_BASE_MATERIAL : material === 'painted' ? 'limestone' : material;
-  return { kind: base, tone: weatherTone(STATUE_MATERIALS[stone].tone, wear), surface: STATUE_MATERIALS[stone].surface };
+  return { kind: base, tone: weatherTone(STATUE_MATERIALS[stone].tone, wear), surface: STATUE_MATERIALS[stone].surface, ...(stand === 'seated' ? { seated: true } : {}) };
 }

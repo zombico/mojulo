@@ -129,8 +129,8 @@ names render at eye level unless the scale table in `historic-city.js` says othe
 ## Statues on a city's slots
 
 A city's statue slots are the places its layout already set a statue: a Forum monument built with the forum asset's
-`figure()` (its masses carry `building: <id>`), or a statue asset's slot (`ln-statue`, `pp-statue`), addressed
-`<asset>:<n>`. A `historic` manifest's `statues: [{ ref, at, figure?, height? }]` stands a stored statue (a hero carved
+`figure()` (its masses carry `building: <id>`), or a statue asset's slot (`ln-statue`, `pp-statue`, Sumer's `votive-row`: one figure
+per plinth; Thebes's `eg-colossus`: a seated king, his throne coming down with him), addressed `<asset>:<n>`. A `historic` manifest's `statues: [{ ref, at, figure?, height? }]` stands a stored statue (a hero carved
 with `/hero/statue`, `lib/graph/statue/`) on a slot in the World: the stand-in figure's masses come down, its base
 stays, and the World resolver fits the statue's own faces there at the stand-in's height and facing, baked under the
 city's sun (`historic/statues.js`). The entry card's `STATUES` line lists the slots. For a new culture's statues to take

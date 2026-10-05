@@ -593,7 +593,7 @@ export const WORLD_KINDS = {
       // it (the clip preview's pack below by the same lift). Group 'base': a skinned export keeps it beside the figure.
       // No statue ⇒ nothing here, byte-identical.
       const statueBase = m.hero?.statue ? statueBaseOf(m.hero.statue) : null;
-      const based = statueBase ? statueBaseFaces(faces, { kind: statueBase.kind, tone: statueBase.tone, light, tag: (fs) => tagFacesWithMaterial(fs, resolveMaterial(statueBase.surface)) }) : null;
+      const based = statueBase ? statueBaseFaces(faces, { kind: statueBase.kind, tone: statueBase.tone, light, seated: statueBase.seated, tag: (fs) => tagFacesWithMaterial(fs, resolveMaterial(statueBase.surface)) }) : null;
       const lift = based?.lift ?? 0;
       if (lift) { for (const f of faces) f.corners = f.corners.map((c) => [c[0], c[1], Math.round((c[2] + lift) * 1e9) / 1e9]); faces.push(...based.faces); }
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });

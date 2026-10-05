@@ -86,6 +86,24 @@ export const BASES = Object.freeze({
 export const BASE_WORDS = Object.freeze(Object.keys(BASES));
 /** law 7: the base a format stands on when neither card nor build names one */
 export const CROP_BASE = Object.freeze({ full: 'block', bust: 'socle', herm: 'herm', torso: 'block' });
+/** law 9: the stands. `standing`: the card's own gesture. `seated`: the figure sits on a THRONE built with its base
+ * (base.js): the legs free of the floor (the seat carries them), the thighs level (the rig's `seat` channel turns them
+ * past the hip's anatomical cone), the shins hanging, the hands flat on the knees. The arm channels were found offline by
+ * a search over the rig's own channels on both casts (the hand on the thigh above the knee, clear of it), as the gesture
+ * presets were; the left arm mirrors the right (yaw and roll negated). */
+export const STANDS = Object.freeze({
+  standing: { note: "the card's stand" },
+  seated: { note: 'on a block throne, the thighs level, the hands on the knees; a long skirt cut at the knee' },
+});
+export const STAND_WORDS = Object.freeze(Object.keys(STANDS));
+export const SEATED_POSE = Object.freeze({
+  support: 'none', seat: 28, hipL: { yaw: 0, pitch: 62, roll: 0 }, hipR: { yaw: 0, pitch: 62, roll: 0 }, kneeL: 90, kneeR: 90,
+  shR: { yaw: 10, pitch: 15, roll: -30 }, elbowR: 55, shL: { yaw: -10, pitch: 15, roll: 30 }, elbowL: 55,
+});
+/** law 9: the throne under a seated figure: its seat runs under this share of the lap from the buttocks forward (the
+ * knees and shins stand clear in front of it), its sides this far past the hips (× the lap's width) */
+export const THRONE = Object.freeze({ lap: 0.62, side: 0.12 });
+
 /** law 7: a metal figure's base is stone */
 export const METAL_BASE_MATERIAL = 'limestone';
 

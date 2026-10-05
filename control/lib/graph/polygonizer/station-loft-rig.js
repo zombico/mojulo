@@ -20,7 +20,8 @@
  *
  * Pose: `resolvePose` words / raw dof for the vajra core (LIMITS apply), plus this module's channels:
  *   crouch ∈ [0,1] (pelvis drop, toes planted), lift (metres, airborne), support: 'both'|'L'|'R'|'none',
- *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), and every rig chain channel.
+ *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), seat (degrees, 0 … 60: the free legs
+ *   turned further forward about the hips, a seated statue's thighs level), and every rig chain channel.
  * HANDS: a hand's joints ride its carrier bone (the forearm), but from points first turned in the REST frame: each digit's
  * links about its hinge axis by the digit's curl × the link's weight (a link's turn carrying the later links' own axes) (`fingers<S>`: degrees, + closing, or { <digit>:
  * deg }, or a word of `poses`; a number curls the thumb at half), then the whole hand about the wrist joint
@@ -43,7 +44,7 @@ import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -219,7 +220,10 @@ export function rigNodesAt(R, pose = {}) {
       nodes[L.hock] = hock; nodes[L.knee] = sol.mid;
       report.legs[S] = { planted: true, reach: metaError > 0 ? 'clamped' : 'ok', metaError: r4(metaError) };
     } else {
-      // airborne: the core's own leg pose stands; the toes ride the shin
+      // airborne: the core's own leg pose stands; the toes ride the shin. `seat` (a seated statue's: the base carries
+      // it) turns the free leg further forward about its hip, past the swivel's anatomical cone, so the thigh lies level
+      const seat = Number.isFinite(pose.seat) ? Math.max(0, Math.min(60, pose.seat)) : 0;
+      if (seat) for (const j of [L.knee, L.hock]) nodes[j] = rotAxis(nodes[j], nodes[L.hip], 0, seat);
       const shin = boneFrame({ id: 'shin', head: L.knee, tail: L.hock }, rest, nodes);
       nodes[L.toeBase] = ride(shin, rest[L.toeBase]); nodes[L.toeTip] = ride(shin, rest[L.toeTip]);
       report.legs[S] = { planted: false, reach: 'free', metaError: 0 };

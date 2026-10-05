@@ -5,7 +5,8 @@ import { heroRecord, heroPlanOf, expandLayeredManifest, validateHeroSpec } from 
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { SEEDED_STATUES, STATUE_STYLES } from './styles.js';
 import { validateStatueBuild, validateStatueCard, statueHero, statueWords, statueMaterial, statueBaseOf, STATUE_LAWS_VERSION } from './expand.js';
-import { STATUE_MATERIALS } from './principles.js';
+import { STATUE_MATERIALS, SEATED_POSE } from './principles.js';
+import { THRONE_GROUP } from './base.js';
 import { validateOutfitCard } from '../outfit/styles.js';
 
 const hero = (spec) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
@@ -147,6 +148,36 @@ describe('pass 4: carve, paint and wear', () => {
     expect(statueMaterial('bronze', { wear: 1 }).surface).toMatchObject({ preset: 'bronze', base: statueMaterial('bronze', { wear: 1 }).tone });
     expect(statueMaterial('bronze').tone).not.toBe(statueMaterial('bronze', { wear: 1 }).tone);
     expect(statueBaseOf('classical')).toMatchObject({ kind: 'block', tone: STATUE_MATERIALS.limestone.tone });
+  });
+});
+
+describe('law 9: seated', () => {
+  const seated = (spec = {}) => ({ cast: 'male', statue: { type: 'statue', style: 'egyptian', stand: 'seated' }, ...spec });
+  it('refuses a gesture, a bust and an unknown stand by name', () => {
+    expect(validateStatueBuild({ type: 'statue', stand: 'kneeling' }).join()).toMatch(/statue.stand: one of standing, seated/);
+    expect(validateStatueBuild({ type: 'statue', stand: 'seated' }, { gesture: 'relaxed' }).join()).toMatch(/seated statue's stand is the seat/);
+    expect(validateStatueBuild({ type: 'statue', stand: 'seated', crop: 'bust' }).join()).toMatch(/a bust has no lap/);
+    expect(validateStatueCard({ stand: 'lying' }).join()).toMatch(/stand: one of standing, seated/);
+  });
+  it('sits the figure: the seated stand, its legs free, a long skirt cut at the knee', () => {
+    const h = statueHero(heroRecord(seated()));
+    expect(h.gesture).toEqual(SEATED_POSE);
+    const f = statueHero(heroRecord({ cast: 'female', statue: { type: 'statue', style: 'egyptian', stand: 'seated' } }), { female: true });
+    expect(SEEDED_STATUES.egyptian.drape.female.language.bottom.leg).toBe('maxi');
+    expect(f.outfit.style.language.bottom.leg).toBe('knee');
+    expect(hero(seated()).recipe.statue.stand).toBe('seated');
+    expect('stand' in hero({ cast: 'male', statue: 'egyptian' }).recipe.statue).toBe(false);   // standing: the trace as it was
+  });
+  it('on a throne on its base: the feet on the base top, the lap on the throne, the throne riding with the figure', async () => {
+    const { faces } = await scene(seated());
+    const base = faces.filter((f) => f.group === 'base'), throne = faces.filter((f) => f.group === THRONE_GROUP), fig = faces.filter((f) => f.group !== 'base' && f.group !== THRONE_GROUP);
+    expect(throne.length).toBeGreaterThan(0);
+    const [, bHi] = zRange(base), [tLo, tHi] = zRange(throne), [fLo, fHi] = zRange(fig);
+    expect(fLo).toBeCloseTo(bHi, 6); expect(tLo).toBeCloseTo(bHi, 6);
+    expect(tHi - tLo).toBeGreaterThan(0.15 * (fHi - fLo)); expect(tHi - tLo).toBeLessThan(0.45 * (fHi - fLo));
+    // the throne's top meets the figure: some corner of the lap lies on it
+    expect(fig.some((f) => f.corners.some((c) => Math.abs(c[2] - tHi) < 1e-6))).toBe(true);
+    expect(throne.every((f) => f.pbr && f.pbr[0] === 0)).toBe(true);
   });
 });
 

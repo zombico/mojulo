@@ -9,7 +9,8 @@
 //   basis     'unverified': the cards are drawn from the general record of the type, not from sources read for this
 //             kernel (historic/record.js's word; the readout carries it)
 //   material  a material word (principles.js STATUE_MATERIALS); crop a format word; base a base word
-//   gesture   the stand (hero-gesture.js): a word, pose words, or a list of them, applied when the hero names none
+//   gesture   the stand (hero-gesture.js): a word, pose words, or a list of them, applied when the hero names none; or
+//             { male, female } of them, when each body needs its own channel values (a placed hand: the rig has no IK)
 //   hair      { male, female }: a landmark hair word or { style, …controls }, set at mint when the hero names none
 //   drape     { male, female }: an outfit card (outfit/styles.js's shape: the drapery as garments) or null (nude),
 //             worn when the hero names no outfit
@@ -80,6 +81,22 @@ export const SEEDED_STATUES = Object.freeze({
     },
     "paint": { "male": { "Skin": "#9a5b3a", "Hair": "#1b1a1a", "HairAlt": "#1b1a1a", "Bottom": "#efe9dc", "Top": "#efe9dc" }, "female": { "Skin": "#d9b07a", "Hair": "#1b1a1a", "HairAlt": "#1b1a1a", "Bottom": "#efe9dc", "Top": "#efe9dc" } },
     "note": "frontal, the left foot forward, the arms at the sides; a wig, a kilt or a sheath; painted, the men red-brown and the women yellow"
+  },
+  sumerian: {
+    "id": "sumerian", "period": "Early Dynastic Sumerian", "years": [-2900, -2350], "place": "Mesopotamia (the Diyala, Mari, Nippur)",
+    "after": ["the Tell Asmar hoard of votive figures", "Ebih-Il, superintendent of Mari"], "basis": "unverified",
+    "material": "limestone", "crop": "full", "base": "block",
+    "gesture": {
+      "male": { "shR": { "yaw": 0, "pitch": -4, "roll": -45 }, "elbowR": 92, "shL": { "yaw": 0, "pitch": -4, "roll": 45 }, "elbowL": 92 },
+      "female": { "shR": { "yaw": -2, "pitch": -12, "roll": -40 }, "elbowR": 96, "shL": { "yaw": 2, "pitch": -12, "roll": 40 }, "elbowL": 96 }
+    },
+    "hair": { "male": "none", "female": "bun" },
+    "drape": {
+      "male": linen({ "top": false, "bottom": { "kind": "skirt", "family": "woven", "leg": "midi", "cut": "aline" } }, { stylize: 0, fit: 0.3, coverage: 1, ornament: 0 }),
+      "female": linen({ "top": { "family": "woven", "sleeve": "none", "hem": "hip" }, "bottom": { "kind": "skirt", "family": "woven", "leg": "maxi", "cut": "aline" }, "dress": true }, { stylize: 0, fit: 0.3, coverage: 1, ornament: 0 })
+    },
+    "paint": { "Skin": "#d9cbb0", "Top": "#d9cbb0", "Bottom": "#d9cbb0", "Hair": "#1b1a1a", "HairAlt": "#1b1a1a", "Brow": "#1b1a1a", "Iris": "#2b4a8c", "Pupil": "#0f1014", "Lip": "#c4b49a", "Mouth": "#a8987e" },
+    "note": "the worshipper standing before the god: frontal, feet together, the forearms folded and the hands clasped at the chest; a flared skirt, the man shaven (no beard carved yet), the eyes inlaid shell and lapis under bitumen brows"
   },
   renaissance: {
     "id": "renaissance", "period": "Italian Renaissance", "years": [1490, 1560], "place": "Florence and Rome",

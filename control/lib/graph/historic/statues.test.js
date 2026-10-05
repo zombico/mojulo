@@ -31,6 +31,30 @@ describe('the slots', () => {
     expect(Object.keys(statueSlots(planHistoricCity({ culture: 'pompeii', seed: 1 })))).toEqual(['pp-statue:0', 'pp-statue:1']);
     expect(statueSlots(planHistoricCity({ culture: 'lindos', seed: 1 }))['ln-statue:0'].figures[0].dir).toBe(0);
   });
+  it("a Theban colossus is a slot: the seated king and his throne come down, his height the king's to the nemes", () => {
+    const plan = planHistoricCity({ culture: 'thebes', seed: 1 }), S = statueSlots(plan);
+    expect(Object.keys(S).filter((k) => k.startsWith('eg-colossus:'))).toEqual(['eg-colossus:0', 'eg-colossus:1']);
+    const F = S['eg-colossus:0'].figures[0];
+    expect(F.dir).toBeCloseTo(-Math.PI / 2, 9); expect(F.h).toBeGreaterThan(8);
+    const kinds = new Set(F.idx.map((i) => plan.boxes[i].kind));
+    expect([...kinds].sort()).toEqual(['collar', 'crown', 'nemes', 'statue', 'throne']);
+    const { boxes } = standStatues(plan, [{ ref: 'a', at: 'eg-colossus:0' }]);
+    expect(boxes.some((m) => m.asset === 'eg-colossus' && m.kind === 'pedestal')).toBe(true);
+  });
+  it('a votive row stands one figure per plinth, numbered along the row, the eyes with their figure', () => {
+    const plan = planHistoricCity({ culture: 'sumer', seed: 1 }), S = statueSlots(plan)['votive-row:0'];
+    const n = plan.boxes.filter((m) => m.asset === 'votive-row' && m.kind === 'statue-plinth').length;
+    expect(S.figures).toHaveLength(n); expect(n).toBeGreaterThanOrEqual(3);
+    for (const [k, F] of S.figures.entries()) {
+      expect(F.dir).toBe(0); expect(F.h).toBeGreaterThan(1.4); expect(F.h).toBeLessThan(2.2);
+      expect(F.idx.filter((i) => plan.boxes[i].kind === 'statue-eye')).toHaveLength(4);
+      if (k) expect(F.c[0]).toBeGreaterThan(S.figures[k - 1].c[0] + 1.2);
+    }
+    // standing one takes down its masses alone; its plinth and the bench stay
+    const { boxes } = standStatues(plan, [{ ref: 'a', at: 'votive-row:0', figure: 1 }]);
+    expect(plan.boxes.length - boxes.length).toBe(S.figures[1].idx.length);
+    expect(boxes.filter((m) => m.asset === 'votive-row' && m.kind === 'statue-plinth')).toHaveLength(n);
+  });
 });
 
 describe('refusals', () => {

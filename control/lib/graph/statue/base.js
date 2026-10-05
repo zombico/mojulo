@@ -3,10 +3,12 @@
 // prints with the figure (`export_model { union: true }` merges them). Proportioned to the figure: its height H and the
 // footprint it stands on (the feet, or a bust's cut). Pure and deterministic.
 import { shadeHex } from '../polygonizer/vexar.js';
-import { BASES } from './principles.js';
+import { BASES, THRONE } from './principles.js';
 import * as dmath from '../../util/dmath.js';
 
 const ROUND = 32;
+/** the throne's group: it rides with the figure (a slot in a city drops the statue's base, never its seat) */
+export const THRONE_GROUP = 'throne';
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -58,22 +60,48 @@ export function standingOn(faces, band = 0.03) {
   return { H: hi - lo, lo, fw: b[1] - b[0], fd: b[3] - b[2], c: [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2] };
 }
 
+/** A seated figure's lap (law 9): the corners between its shins' tops and its waist; the seat runs from the buttocks
+ * (the lap's back) forward under THRONE.lap of it, so the knees and the hanging shins stand clear; its top is the
+ * lowest point of the figure over the seat (the thighs' and the buttocks' underside), its sides past the hips. → the
+ * seat's centre, half-widths and top, in the figure's own frame */
+function lapOf(faces, at) {
+  const z0 = at.lo + 0.15 * at.H, z1 = at.lo + 0.5 * at.H, band = [];
+  for (const f of faces) for (const c of f.corners) if (c[2] >= z0 && c[2] <= z1) band.push(c);
+  if (!band.length) return null;
+  let back = Infinity, front = -Infinity; for (const c of band) { back = Math.min(back, c[1]); front = Math.max(front, c[1]); }
+  const edge = back + THRONE.lap * (front - back), b = [Infinity, -Infinity]; let top = Infinity;
+  for (const c of band) if (c[1] <= edge) { b[0] = Math.min(b[0], c[0]); b[1] = Math.max(b[1], c[0]); top = Math.min(top, c[2]); }
+  const hx = (b[1] - b[0]) / 2 * (1 + THRONE.side);
+  return { c: [(b[0] + b[1]) / 2, (back + edge) / 2], r: sq(hx, (edge - back) / 2), top };
+}
+
 /**
  * The base under a figure's faces: `kind` (principles.js BASES), its stone `tone`, the `surface` its faces carry
  * (tagged by `tag`, polygonizer/materials.js's), lit by `light`. The base stands on the floor (z 0) and the figure is
  * LIFTED onto it, its lowest point on the base's top (a posed figure may dip below its rest floor): the caller shifts
- * the figure's faces (and anything seated with them) up by `lift`. → { faces, lift } ('none' ⇒ no faces, lift 0)
+ * the figure's faces (and anything seated with them) up by `lift`. `seated` (law 9): a block THRONE stands on the base
+ * under the figure's lap (group THRONE_GROUP), its top the lap's underside, the base wide enough for the throne and the
+ * feet both.
+ * → { faces, lift } ('none' and not seated ⇒ no faces, lift 0)
  */
-export function statueBaseFaces(figure, { kind, tone, light, group = 'base', tag = null }) {
-  if (!kind || kind === 'none' || !figure.length) return { faces: [], lift: 0 };
-  const at = standingOn(figure), { h, solids } = profile(kind, at);
+export function statueBaseFaces(figure, { kind, tone, light, group = 'base', tag = null, seated = false }) {
+  if (!figure.length || ((!kind || kind === 'none') && !seated)) return { faces: [], lift: 0 };
+  let at = standingOn(figure);
+  const lap = seated ? lapOf(figure, at) : null;
+  if (lap) {   // the base under the feet and the throne both
+    const x0 = Math.min(at.c[0] - at.fw / 2, lap.c[0] - lap.r[0]), x1 = Math.max(at.c[0] + at.fw / 2, lap.c[0] + lap.r[0]);
+    const y0 = Math.min(at.c[1] - at.fd / 2, lap.c[1] - lap.r[1]), y1 = Math.max(at.c[1] + at.fd / 2, lap.c[1] + lap.r[1]);
+    at = { ...at, fw: x1 - x0, fd: y1 - y0, c: [(x0 + x1) / 2, (y0 + y1) / 2] };
+  }
+  const { h, solids } = kind && kind !== 'none' ? profile(kind, at) : { h: 0, solids: [] }, lift = h - at.lo, parts = solids.map((s) => ({ c: at.c, ...s }));
+  if (lap) parts.push({ c: lap.c, n: 4, sections: [{ z: h, r: lap.r }, { z: lap.top + lift, r: lap.r }], group: THRONE_GROUP });
   const faces = [];
-  for (const s of solids) for (const t of solid(at.c, s.sections, s.n)) {
+  for (const s of parts) for (const t of solid(s.c, s.sections, s.n)) {
     const corners = t.map((p) => p.map(r6)), n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])), l = dmath.hypot(n[0], n[1], n[2]);
     if (!(l > 1e-14)) continue;   // a section stacked on one of the same size makes no side
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
-    faces.push({ corners, fill: shadeHex(tone, outNormal, light), group, outNormal });
+    faces.push({ corners, fill: shadeHex(tone, outNormal, light), group: s.group ?? group, outNormal });
   }
   if (tag) tag(faces);
-  return { faces, lift: r6(h - at.lo) };
+  return { faces, lift: r6(lift) };
 }

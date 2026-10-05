@@ -139,7 +139,7 @@ export function entryCard(id) {
     ...(Object.keys(K.assets || {}).length ? [`  assets    ${Object.keys(K.assets).join(', ')}`] : []),
     '',
     `SCENES     ${scenes.join(' · ')}`,
-    ...(statueSlotText(id) ? [`STATUES    opt-in, the World: "statues": [{ "ref": "<a stored statue: a hero with /hero/statue>", "at": "<slot>", "figure"?, "height"? }] stands it on a slot's base in place of the stand-in: ${statueSlotText(id)}.`] : []),
+    ...(statueSlotText(id) ? [`STATUES    opt-in, the World: "statues": [{ "ref": "<a stored /hero/statue sketch>", "at": "<slot>", "figure"?, "height"? }] replaces a slot's stand-in: ${statueSlotText(id)}.`] : []),
     ...(soundtrackMood(id) ? [`SOUND      opt-in: "audio": { "soundtrack": "default" } plays "${historicSoundtrack(id).title}" (the seed varies it). Instruments ATTESTED, pitches CONJECTURAL.`] : []),
     '',
     'STARTERS (manifests: copy one, change it, mint it)',

@@ -3,8 +3,9 @@
 //
 // A slot is a place the layout already set a statue: a Forum monument (`mark(id, …)`: its masses carry `building: id`,
 // each stand-in figure the forum asset's `figure()`: a robe and head turned as lathes, one arm a beam) or a statue asset's
-// slot (`ln-statue`, Pompeii's borrowed `pp-statue`: a base and a bronze), addressed `<asset>:<n>`, its nth slot. A slot
-// may stand several figures (the Sibyls stand three): `figure` picks one, else every figure in it takes the statue.
+// slot (`ln-statue`, Pompeii's borrowed `pp-statue`: a base and a bronze; Sumer's `votive-row`: a bench of worshippers,
+// each on its plinth; Thebes's `eg-colossus`: a seated king, his throne coming down with him), addressed `<asset>:<n>`, its nth slot. A slot may stand several figures (the Sibyls stand three,
+// a votive row one per plinth): `figure` picks one, else every figure in it takes the statue.
 //
 // Standing a statue on a slot removes the stand-in figure's masses (its base stays) and records where the figure stood
 // in metres: the base top under it, its height, its centre and the way it faced (`dir`, radians, 0 = −y, the forum
@@ -16,8 +17,20 @@ import * as dmath from '../../util/dmath.js';
 
 /** the masses a stand-in figure is made of (its base's are 'base') */
 const FIGURE_KINDS = new Set(['statue', 'bronze']);
-/** the statue assets whose slots take a statue */
-const STATUE_ASSETS = Object.freeze(['ln-statue', 'pp-statue']);
+/** the statue assets whose slots take a statue: the kinds its stand-in figures are made of, and `row` when one slot
+ * stands a row of them (each figure its own cluster, numbered along the row: by x, then y) */
+const STATUE_ASSET_KINDS = Object.freeze({
+  'ln-statue': { kinds: FIGURE_KINDS },
+  'pp-statue': { kinds: FIGURE_KINDS },
+  'votive-row': { kinds: new Set(['statue', 'statue-eye']), row: true },
+  // a Theban colossus: the king, his nemes, collar and crown, and the throne too (a seated statue brings its own, at its
+  // body's proportions); its height the king's to the top of the nemes (a carved statue wears no crown yet)
+  'eg-colossus': { kinds: new Set(['statue', 'nemes', 'collar', 'crown', 'throne']), measure: new Set(['statue', 'nemes']) },
+});
+const STATUE_ASSETS = Object.freeze(Object.keys(STATUE_ASSET_KINDS));
+/** the farthest a mass's centre sits from its own figure's in a row (a worshipper's legs and eyes sit within 0.2 m of
+ * its axis; the row's figures stand 1.4 m or more apart) */
+const ROW_GATHER = 0.5;
 /** a slot facing letter as the figure's `dir` */
 const FACING_DIR = Object.freeze({ n: 0, e: Math.PI / 2, s: Math.PI, w: -Math.PI / 2 });
 const ENTRY_FIELDS = ['ref', 'at', 'figure', 'height'];
@@ -72,12 +85,23 @@ export function statueSlots(plan) {
   for (const [id, ms] of byBuilding) { const figures = forumFigures(ms); if (figures.length) out[id] = { figures }; }
   const n = {};
   for (const s of plan.slots || []) {
-    if (!STATUE_ASSETS.includes(s.asset)) continue;
+    const A = STATUE_ASSET_KINDS[s.asset];
+    if (!A) continue;
     const k = n[s.asset] = (n[s.asset] ?? -1) + 1;
-    const idx = []; boxes.forEach((m, i) => { if (m.asset === s.asset && FIGURE_KINDS.has(m.kind) && inRect(centre(m), s.rect)) idx.push(i); });
+    const idx = []; boxes.forEach((m, i) => { if (m.asset === s.asset && A.kinds.has(m.kind) && inRect(centre(m), s.rect)) idx.push(i); });
     if (!idx.length) continue;
-    const ms = idx.map((i) => boxes[i]), z0 = Math.min(...ms.map(bottom)), z1 = Math.max(...ms.map(top));
-    out[`${s.asset}:${k}`] = { figures: [{ c: [s.rect.x + s.rect.w / 2, s.rect.y + s.rect.d / 2], z0, h: z1 - z0, dir: FACING_DIR[s.facing] ?? 0, idx, equestrian: false }] };
+    const dir = FACING_DIR[s.facing] ?? 0, span = (I) => { const all = I.map((i) => boxes[i]), ms = A.measure ? all.filter((m) => A.measure.has(m.kind)) : all, z0 = Math.min(...all.map(bottom)); return { z0, h: Math.max(...ms.map(top)) - z0 }; };
+    if (!A.row) { out[`${s.asset}:${k}`] = { figures: [{ c: [s.rect.x + s.rect.w / 2, s.rect.y + s.rect.d / 2], ...span(idx), dir, idx, equestrian: false }] }; continue; }
+    const groups = [];
+    for (const i of idx) {
+      const c = centre(boxes[i]), g = groups.find((q) => dmath.hypot(q.c[0] - c[0], q.c[1] - c[1]) < ROW_GATHER);
+      if (g) g.idx.push(i); else groups.push({ c, idx: [i] });
+    }
+    const figures = groups.map((g) => {
+      const ms = g.idx.map((i) => boxes[i]), x0 = Math.min(...ms.map((m) => m.x)), x1 = Math.max(...ms.map((m) => m.x + m.w)), y0 = Math.min(...ms.map((m) => m.y)), y1 = Math.max(...ms.map((m) => m.y + m.d));
+      return { c: [(x0 + x1) / 2, (y0 + y1) / 2], ...span(g.idx), dir, idx: g.idx, equestrian: false };
+    }).sort((a, b) => a.c[0] - b.c[0] || a.c[1] - b.c[1]);
+    out[`${s.asset}:${k}`] = { figures };
   }
   return out;
 }
@@ -95,7 +119,7 @@ export function standStatues(plan, statues, { culture } = {}) {
     if (e.figure !== undefined && !S.figures[e.figure]) throw new Error(`historic: slot '${e.at}' stands ${S.figures.length} figure${S.figures.length === 1 ? '' : 's'} (figure 0${S.figures.length > 1 ? `–${S.figures.length - 1}` : ''})`);
     for (const [k, F] of S.figures.entries()) {
       if (e.figure !== undefined && k !== e.figure) continue;
-      if (F.equestrian) throw new Error(`historic: slot '${e.at}' is an equestrian statue; a standing statue does not fit it yet`);
+      if (F.equestrian) throw new Error(`historic: slot '${e.at}' is an equestrian statue (a rider on a horse); a standing statue does not fit it, and the statue maker carves no horse yet — its standing slots: ${Object.keys(slots).filter((k) => slots[k].figures.some((f) => !f.equestrian)).map((k) => `'${k}'`).join(', ')}`);
       F.idx.forEach((i) => drop.add(i));
       statueRefs.push({ ref: e.ref, at: e.at, figure: k, pos: [F.c[0], F.c[1], F.z0], height: e.height ?? F.h, dir: F.dir });
     }

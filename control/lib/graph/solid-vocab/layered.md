@@ -449,7 +449,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   hero as sculpture (`lib/graph/statue/`), on the landmark head or `head: 'none'` (the anime head and held gear refuse by
   name; an armour build is carved with the figure). Period cards, plain JSON: `archaic` (kouros and kore), `classical`
   (contrapposto, bronze), `hellenistic` (the turning figure), `roman` (the address, tunic and long garment as the toga's
-  stand-in), `roman-bust`, `egyptian` (striding, kilt or sheath), `renaissance`. A card's stand, stillness (idle, walk and
+  stand-in), `roman-bust`, `egyptian` (striding, kilt or sheath), `sumerian` (the votive worshipper: the hands clasped at the chest, a flared
+  skirt), `renaissance`. `stand: 'seated'` (build or card) sits any card on a block throne built with its base (the
+  thighs level, the shins hanging, the hands on the knees; a long skirt cut at the knee; refused with a gesture or on a
+  bust). A card's stand (a word, pose words, or `{ male, female }` of them), stillness (idle, walk and
   wave off) and drapery (an outfit card per silhouette) apply when the hero names none, and its hair at mint. Laws
   (`principles.js`): ONE MATERIAL over every group (`marble`, `limestone`, `sandstone`, `granite`, `basalt`, `bronze`,
   `gilt`, `painted`), the eyes blank, the hair a carved mass, the bare body's zones skin; a FORMAT is a cut (`full`;

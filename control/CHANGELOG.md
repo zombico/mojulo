@@ -39,9 +39,18 @@ byte-identical. Being built on this branch; the sphinx comes next.
 - **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
   on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
   Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
-  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes). The stand-in comes down, its base stays, and the statue is
   fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
-  slots; an equestrian slot refuses by name. Absent, the city is byte-identical.
+  slots; an equestrian slot refuses by name and lists the city's standing slots. Absent, the city is byte-identical.
+- **Sumer's worshippers.** A `sumerian` card: the Early Dynastic votive figure, frontal, the forearms folded and the hands
+  clasped at the chest, a flared skirt (the man shaven: no beard is carved yet), limestone; painted, the eyes lapis
+  under bitumen brows. Sumer's votive row is a slot (`votive-row:0`), one figure per plinth numbered along the row, so a
+  carved worshipper can stand among the others.
+- **Seated statues.** `stand: 'seated'` on a statue build (or a card) sits the figure on a block throne built with its
+  base: the thighs level, the shins hanging, the hands flat on the knees. A long skirt is cut at the knee, since a drape
+  over the lap isn't carved yet. The rig gains an opt-in `seat` channel that turns the free legs forward past the hip's
+  cone; absent, every pose is unchanged. Thebes's seated colossi are slots (`eg-colossus:<n>`): the stand-in king and his
+  throne come down, and a seated statue sits there on its own throne. The nemes and the crowns aren't carved yet.
 
 ### Historic city
 

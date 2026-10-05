@@ -30,6 +30,8 @@ const PINS = {
   'roman-bust·female': 'aef4fac3f8ab6e78:a9cc5cc74e885286',
   'egyptian·male': '74fa0bedf9053d2e:7d832eef78722566',
   'egyptian·female': '1f2a14bf429ea9b9:8de1d1afaaf27469',
+  'sumerian·male': '86b64a958db08d5f:6563b57f937dc075',
+  'sumerian·female': '081fc4a4e142f1ac:1628c693a174dc82',
   'renaissance·male': '1cb4aa7f6dfdade2:f4f03da16e45fadd',
   'renaissance·female': '612eaa085da05235:4b6d4490fd3c97cd',
   'classical:bust': '2771a28a3d0eb507:a034cb7a70043ed9',
