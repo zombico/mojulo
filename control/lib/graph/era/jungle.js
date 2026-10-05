@@ -25,7 +25,7 @@ import { hash3, vnoise } from './dirt.js';
 import { P, hexRgb, rgbHex, r5, card, crossed } from './geom.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
-import { natureSite, groundFaces, trailFaces, dice, rockItems, rockFaces, debrisFaces, natureMarks, contactShadows, puddleSpots, puddleFaces, tube } from './nature.js';
+import { natureSite, groundFaces, trailFaces, trailEdgeCover, dice, rockItems, rockFaces, debrisFaces, natureMarks, contactShadows, puddleSpots, puddleFaces, tube } from './nature.js';
 import { cardMask } from './leaf-cards.js';
 import './floor-tiles.js';   // registers the `floor:` tiles (the moss the blend layer fades in)
 import { grow, measure } from '../vegetation/grow.js';
@@ -238,10 +238,13 @@ function colossusFaces(st, site, items, seed) {
 function mossFaces(st, site, faces, shadow, dir, seed) {
   const M = st.moss, S = seed | 0, out = [];
   if (!M) return out;
+  // with a `trailBlend`, the moss gives out along the trail's one edge (nature.js trailEdgeCover), the line the soil's
+  // wear follows too (jungleMarks)
+  const edge = st.trailBlend ? trailEdgeCover(st, site, seed) : null;
   const floorAlpha = (c) => {
     const hw = site.halfWAt(c[1]), d = site.trailDist(c[0], c[1]); if (d > M.ring) return 0;
-    const wander = (vnoise(c[0] * 0.5, c[1] * 0.5, S + 2101) - 0.5) * 1.4;
-    const worn = smooth(hw * M.wear[0], hw + site.fringeAt(c[1]) + M.wear[1], d + wander);
+    const wander = edge ? 0 : (vnoise(c[0] * 0.5, c[1] * 0.5, S + 2101) - 0.5) * 1.4;
+    const worn = edge ? edge(c[0], c[1]) : smooth(hw * M.wear[0], hw + site.fringeAt(c[1]) + M.wear[1], d + wander);
     const patch = smooth(M.patch[0], M.patch[1], 0.7 * vnoise(c[0] * 0.17, c[1] * 0.17, S + 2103) + 0.3 * vnoise(c[0] * 0.6, c[1] * 0.6, S + 2105));
     const shade = shadow(c, [0, 0, 1]) ? 0.7 : 1;
     return M.max * worn * (0.18 + 0.82 * patch) * shade;
@@ -504,14 +507,14 @@ function gradeFaces(faces, g) {
 /** Jungle by cause, over the nature builder's marks: moss up the giants' bases, darker wood in the shade. */
 function jungleMarks(st, site, dir, seed, giants, wet) {
   const base = natureMarks(st, site, dir, seed, giants.map((g) => ({ x: g.x, y: g.y, h: g.h })), wet), S = seed | 0;
-  const Bl = st.blend, Wm = st.woodMarks, Ls = st.leafShade, cardMid = new Map();
+  const Bl = st.blend, Wm = st.woodMarks, Ls = st.leafShade, cardMid = new Map(), edge = st.trailBlend ? trailEdgeCover(st, site, seed) : null;
   const midZ = (f) => { let m = cardMid.get(f); if (m === undefined) { m = f.corners.reduce((a, q) => a + q[2], 0) / f.corners.length; cardMid.set(f, m); } return m; };
   return (f, c) => {
     if (f.group === 'trail:ground' && f.texture === st.tiles.trail.key) {
       // the trail blended into the floor: one soil, a value that wanders from the packed centre out to the patchy floor
       const hw = site.halfWAt(c[1]), d = site.trailDist(c[0], c[1]);
       const wander = (vnoise(c[0] * 0.55, c[1] * 0.55, S + 1211) - 0.5) * 2 * Bl.wander + (vnoise(c[0] * 2.3, c[1] * 2.3, S + 1213) - 0.5) * 0.35;
-      const w = smooth(hw * Bl.edge[0], hw + site.fringeAt(c[1]) + Bl.edge[1], d + wander);
+      const w = edge ? edge(c[0], c[1]) : smooth(hw * Bl.edge[0], hw + site.fringeAt(c[1]) + Bl.edge[1], d + wander);
       const packed = 1 + 0.18 * Math.max(0, 1 - (d / hw) ** 2), patch = 1 - Bl.patch + 2 * Bl.patch * vnoise(c[0] * 0.35, c[1] * 0.35, S + 1215);
       const damp = wet.reduce((m, q) => Math.min(m, mix(0.68, 1, smooth(q.r * 0.7, q.r * 1.9, Math.hypot(q.x - c[0], q.y - c[1])))), 1);
       return [0, 1, 2].map((k) => mix(packed, Bl.floor[k] * patch, w) * damp);

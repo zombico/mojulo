@@ -131,14 +131,13 @@ export function groundFaces(st, site) {
  * two lanes, and a grass fringe either side, laid a little above the ground, stations every `step` metres.
  */
 export function trailFaces(st, site) {
-  const out = [], { D, halfWAt, fringeAt, trailX, ground } = site, T = st.tiles, step = 0.75;
+  const out = [], { D, halfWAt, fringeAt } = site, T = st.tiles, step = 0.75;
   const surf = (k) => ({ key: T[k].key, scale: T[k].scale, tint: T[k].tint, group: 'trail:ground' });
   // lanes as fractions: [−edge−fringe, −edge], [−edge, 0], [0, edge], [edge, edge+fringe] at each station's own widths
   // one lift for every lane: the ground under the trail is cut away, so lanes at different heights would open a crack
   const lanes = [[-1, -2, 'fringe', 0.05], [-2, 0, 'trail', 0.05], [0, 2, 'trail', 0.05], [2, 1, 'fringe', 0.05]];
   const offAt = (code, y) => (code === 0 ? 0 : code === -2 ? -halfWAt(y) : code === 2 ? halfWAt(y) : code === -1 ? -halfWAt(y) - fringeAt(y) : halfWAt(y) + fringeAt(y));
-  const station = (y) => { const sl = (trailX(y + 0.01) - trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1); return { c: [trailX(y), y], n: [1 / l, -sl / l] }; };
-  const at = (S, off, lift) => { const x = S.c[0] + S.n[0] * off, y = S.c[1] + S.n[1] * off; return [x, y, ground(x, y) + lift]; };
+  const { station, at } = ribbonFrame(site);
   let s0 = 0;
   for (let y = 0; y < D; y += step) {
     const A = station(y), B = station(Math.min(D, y + step)), s1 = s0 + Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1]);
@@ -151,6 +150,53 @@ export function trailFaces(st, site) {
     s0 = s1;
   }
   return out;
+}
+
+// the ribbon's frame: a station's centre and its normal across the trail, and a point `off` across it `lift` over the ground
+function ribbonFrame(site) {
+  const { trailX, ground } = site;
+  const station = (y) => { const sl = (trailX(y + 0.01) - trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1); return { c: [trailX(y), y], n: [1 / l, -sl / l] }; };
+  const at = (S, off, lift) => { const x = S.c[0] + S.n[0] * off, y = S.c[1] + S.n[1] * off; return [x, y, ground(x, y) + lift]; };
+  return { station, at };
+}
+
+/**
+ * The TRAIL'S RIMS (a style's `trailBlend`): strips along both edges of the trail at the ribbon's stations, a hair over
+ * it, so the trail is worn into the ground rather than laid on it. Per edge, two bands mirrored about it, each `width`
+ * m: the BLEED out from the edge (the trail's material reaching into the ground beside it) and the OVER in from it (the
+ * outer material creeping back over the trail). The width wanders along the trail by `wander` (a share of it), one
+ * noise a side, the same for its two bands — so a material painted as one field across the edge (s = −v over it, +v
+ * out from it) meets itself there. uv: u along the arc in `scale` m tiles, v across (0 at the edge, 1 at the band's far
+ * side). The material is the caller's. → [{ corners, normal, uv, band, side, mid }].
+ */
+export function trailRims(st, site, seed = 1) {
+  const R = st.trailBlend, { D, halfWAt } = site, { station, at } = ribbonFrame(site), S = seed | 0, step = R.step, out = [];
+  const width = (side, y) => R.width * (1 + R.wander * 2 * (vnoise(y * R.freq, (side + 2) * 5, S + 1301) - 0.5));
+  let s0 = 0;
+  for (let y = 0; y < D; y += step) {
+    const A = station(y), B = station(Math.min(D, y + step)), s1 = s0 + Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1]);
+    for (const side of [-1, 1]) for (const band of ['bleed', 'over']) {
+      const dir = band === 'bleed' ? side : -side, lift = R.lift[band];
+      const a0 = side * halfWAt(A.c[1]), b0 = side * halfWAt(B.c[1]), a1 = a0 + dir * width(side, A.c[1]), b1 = b0 + dir * width(side, B.c[1]);
+      const cs = [at(A, a0, lift), at(B, b0, lift), at(B, b1, lift), at(A, a1, lift)].map(P), n = facet(cs, [0, 0, 1]);
+      const u0 = r5(s0 / R.scale), u1 = r5(s1 / R.scale);
+      out.push({ corners: cs, normal: n.map(r5), outNormal: n.map(r5), uv: [[u0, 0], [u1, 0], [u1, 1], [u0, 1]], band, side, mid: at(A, (a0 + a1) / 2, lift).map(r5) });
+    }
+    s0 = s1;
+  }
+  return out;
+}
+
+/**
+ * The TRAIL'S EDGE as one field (a textured kit's `trailBlend`): the outer ground's cover at (x, y), 0 on the trail and
+ * 1 out on the ground, a smooth step `fray` m wide about ONE boundary that wanders `shift` × `width` both ways about the
+ * trail's edge, each side on its own noise along the trail (at `freq` a metre). A kit fades every layer that tells the
+ * trail from the ground by it — so the soil's wear and the ground's cover meet along the same line.
+ */
+export function trailEdgeCover(st, site, seed = 1) {
+  const R = st.trailBlend, S = seed | 0;
+  const b = (y, side) => R.width * R.shift * (2 * vnoise(y * R.freq, (side + 2) * 7, S + 1311) - 1);
+  return (x, y) => { const side = x < site.trailX(y) ? -1 : 1, s = site.trailDist(x, y) - site.halfWAt(y), e = b(y, side); return smooth(e - R.fray, e + R.fray, s); };
 }
 
 /** Dice a quad n×n (bilinear corners and uv): a vertex-lit floor needs vertices where the dapples fall. */

@@ -88,6 +88,10 @@ export const JUNGLE_MGS3 = Object.freeze({
   // the MOSS blend (Snake Eater's floor): a moss tile faded in over the soil per vertex — worn off the trail, thick
   // in patches and in shade, out to `ring` metres from the trail; on the massive trunks it climbs the base and the
   // shaded side. Alpha is the blend weight.
+  // the TRAIL BLEND (nature.js trailEdgeCover): ONE edge between the trail and the floor, which both the soil's wear
+  // and the moss follow — wandering `shift` × `width` m both ways about the trail's edge (at `freq` a metre), softened
+  // over `fray` m
+  trailBlend: { width: 0.7, shift: 0.75, fray: 0.3, freq: 0.45 },
   moss: { key: 'floor:moss', scale: 1.3, tint: [1.3, 1.36, 1.06], ring: 10, max: 0.95, patch: [0.22, 0.5], wear: [0.3, 0.4], trunk: 0.95 },
   // the occasional MASSIVE TRUNK: a bole `R` metres in radius rising through the canopy — few faces, the bark tile at
   // a larger crack scale, lumpy, flared, buttressed away from the trail. At stations `y`, on `side`, `gap` past the

@@ -533,6 +533,93 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The recipe's `dirt` scales each cause. Baked ambient occlusion is on for the `stage` kind.
 
+### Stage isekai
+
+- A new stage kit, `isekai-meadow`, for the open-field anime look of current-era games. Its reference cards are
+  Genshin Impact and Breath of the Wild (`lib/graph/era/current-gen.js`). It is built only from sixth-gen parts:
+  - painted 256-px tiles;
+  - baked vertex light;
+  - cutout cards.
+- A PALETTE LOCK (`lib/graph/era/palette.js`): the style card names ramps of colour stops. Every baked colour on a
+  locked group is projected onto its ramp, so shading moves a colour along its ramp and never off it.
+- PIXEL-LOCKED rocks and cliffs:
+  - The tiles (`lib/graph/era/isekai-tiles.js`, the `isekai:` resolver) are painted only in their ramp's stops.
+  - They are drawn unlit, and the light lives in the choice of tile: each facet takes a lit or a shade tile by the
+    sun and its cast shadow. That gives two-tone cel bands with no new renderer.
+  - The cliffs are the landform's own geology drawn with strata tiles.
+  - The rocks are new chunky boulders, lofted from an irregular footprint to a flat top.
+- HATS: a boulder's top wears a grass cap with a ragged fringe hanging round its rim, and every cliff lip gets the
+  same fringe hanging over the face.
+- Trees are crowns of overlapping round masses on a short trunk, with one hero tree where the eye lands. Grass is
+  crossed blade cards, pixel-locked, and within reach of the trail it stands as one continuous field of blades.
+- DEPTH BY PAINTED LAYERS:
+  - Far ranges stand as rings round the site, each its own colour from the far ramp, with a peaked skyline.
+  - The nearest layer is a skirt of land from the site's own edge up to its skyline, banded from grass to the
+    hills' colour.
+  - The haze is thin, so each layer keeps its colour.
+- THE PAINTED SKY: heaped cumulus cards stand behind the ranges, pixel-locked to a cloud ramp and lit in crescents.
+  The sun sits on the dome where the bake's sun is.
+- Other stage kits are byte-identical.
+
+### Stage isekai groves
+
+- Two smaller isekai levels in the same art style. Every isekai level is a style card, and the builder reads it:
+  - **`isekai-bamboo`:** clumps of bamboo culms. Each culm is a pole pixel-locked in a striped `culm` tile with pale
+    node rings, two-toned by the sun. Cutout leaf sprays fan from the upper culm, and the sun bake reads their alpha,
+    so the floor is dappled.
+  - **`isekai-sakura`:** sakura trees. Dark leaning trunks fork into limbs under crowns of round masses locked to a
+    pink blossom ramp, with petal litter on the ground beneath.
+- New pixel-locked tiles: `culm`, `spray` and `petals`. The meadow is unchanged.
+- With `wind`:
+  - both groves take the live grass;
+  - crowns, culms and sprays sway;
+  - the sakura's petals fall, carried by the same gust field.
+
+### Stage isekai sakura pass
+
+- The sakura grove's trees are grown, not heaped: a branching skeleton (trunk, limbs, branches, twigs) with blossom
+  clumps at its tips.
+  - **Hero trees:** two framed sakura at full depth, with a `hero` camera under one crown's edge.
+  - **The rest:** the same tree at a lower depth, so the limbs show in the gaps of the crown.
+  - New pixel-locked tiles: `bark` (the sakura's horizontal lenticel bands), `bloom` (packed five-petal flowers on
+    each clump) and `sprig` (cutout flower clusters that break each clump's silhouette).
+- The petal litter is repainted as notched sakura petals in drifts.
+- With `wind`:
+  - live 3-D petals lie round the walker, pixel-locked like the grass and stirred by gusts. They gather in piles (drifts,
+    the path's edges, the feet of the trunks) and stay thin on open grass, so the grass stays the main read;
+  - falling petals take the same notched, cupped shape and tumble.
+- The meadow and the bamboo grove are unchanged.
+
+### Stage trail blend
+
+- A trail no longer sits on the ground as a separate ribbon. The outdoor trail primitive has a blended rim along both
+  edges: a narrow band out from the edge and its mirror in. In the band, the trail's soil and the outer ground meet
+  along one ragged boundary that wanders both ways about the edge, so soil bleeds into the grass in some places and
+  grass creeps over the trail in others.
+- The isekai levels draw the rim in two new pixel-locked cutout tiles, `rim` and `creep`, painted from one shared noise
+  field so the two sides meet. The boundary frays in a stipple of palette colours, so the colour lock holds. Each strip
+  takes the palette stop nearest the baked colour of the lane it continues, so the blend matches the light on both
+  sides. The meadow, bamboo and sakura trails all take it.
+- The jungle takes it too, through the same primitive's shared edge (`trailEdgeCover`): one wandering boundary between
+  the trail and the floor. The moss now gives out along that line, and the trail's packed-soil wear follows it too,
+  so moss and mud meet along one edge instead of fading on two separate noises.
+- The nature trail, which has its own grass blend, is unchanged.
+
+### Stage live grass
+
+- `wind` on an isekai recipe turns on a LIVE FIELD of grass on the World page (`lib/graph/scene/channels/stage-grass.js`).
+  - Grown stylized blades stand within 30 m of the walker, placed in the page from grids the stage ships: heights, a
+    grass mask that keeps them off the trail, rocks, trunks and the cliff, and the sun's shade.
+  - They thin with distance and bend in the terrain's gust field.
+- The palette lock holds through the motion. Each blade's colour is looked up from a nearest-filtered ramp texture of
+  the grass stops by its height and its lit or shade window, so only palette stops reach the screen.
+- A gust above the mean steps the upper blade up the ramp: the gust is seen as a bright band rolling across the field.
+- Blades near the walker bend away from it.
+- The static blade cards stay as the floor and as the band beyond 30 m. Inside the field's reach they dissolve, dithered
+  across its edge.
+- The tree crowns sway in the same gust field, weighted by height above the ground.
+- Absent `wind`, the payload is byte-identical.
+
 ### Stage doors
 
 - A stage recipe can name DOOR ENDS (`doors: [{ id, at, to: { map, door } }]`), resolved by
