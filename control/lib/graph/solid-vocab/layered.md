@@ -253,9 +253,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   side), each a CUT CONICAL CARROT (a round cone cut square at a wide base sunk into the mass, tapering to its point), the temples a rounded mass over the ears, the back one convex fall to a point at the nape, the fringe heavy bangs) and `sideTail` (an amount or `{ amount, side: 'left' | 'right', length, width, height }`: the back and
   that side gathered to a tie low behind the ear, one round clump `tail` (part `hairTail`) forward over the shoulder;
   each entry gives its `amount`), and `shapes` (`{ replace?: ['fringe', 'temple', 'back', 'crown'], peppers?,
-  bananas?, carrots?, layers?, scale?, whorl? }`: a hairstyle composed from ONE family — CARROTS (cut conical carrots;
+  bananas?, carrots?, peels?, layers?, scale?, whorl? }`: a hairstyle composed from ONE family — CARROTS (cut conical carrots;
   `length`, `base`, `sink`, `curve`, `bend`), BANANAS (flat crescents; `length`, `width`, `flat`, `bend`, `dir`
-  required) or PEPPERS (chilis, thin strands; `length`, `width`, `bend`) — each piece `at: [azimuth°, elevation°]` on
+  required), PEPPERS (chilis, thin strands; `length`, `width`, `bend`) or PEELS (layered banana peels: thin leaves
+  cupped to the scalp; `length`, `width`, `flat`, `cup`, `bend`, `dir` required) — each piece `at: [azimuth°, elevation°]` on
   the cap and aimed by `dir: [x, y, z]`, or laid in `layers` (`{ shape, az, el, rows, count, length, width, droop,
   lift, cover, sprout, vary, bend, swirl, cap, fringe }` (at most 12; `swirl` turns the flow one way by degrees; `cap: 1`
   grows each lock along the dome and lets it fall only past the hairline, `length` then measured past it and `fringe`
