@@ -15,6 +15,7 @@
  */
 import { shadeHex, DEFAULT_LIGHT } from './vexar.js';
 import { auditLayered } from './station-loft.js';
+import { seatPanels, clipCells } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -24,12 +25,25 @@ const FALLBACK = '#8a8f96';
 /** The seat shift: −(lowest z) when seating, else 0. */
 export function layeredSeat(mesh, seat = true) { if (!seat) return 0; let mn = Infinity; for (const v of mesh.vertices) if (v[2] < mn) mn = v[2]; return Number.isFinite(mn) ? -mn : 0; }
 
+/** A face's swimsuit cut (a `swim` panel of seat-panels.js on its `corners`) as triangles `{ corners, inside }` (each
+ * convex cell a fan), or null when the panel is not the swimsuit's or misses the face */
+export function swimCells(corners, pan) {
+  if (pan?.kind !== 'swim') return null;
+  const cells = clipCells(corners.map((p, j) => ({ w: [0, 1, 2].map((k) => (k === j ? 1 : 0)), p })), pan.sets, (w) => ({ w, p: [0, 1, 2].map((c) => w[0] * corners[0][c] + w[1] * corners[1][c] + w[2] * corners[2][c]) }));
+  if (!cells.some((c) => c.inside)) return null;
+  const out = []; for (const { ring, inside } of cells) for (let k = 1; k + 1 < ring.length; k++) out.push({ corners: [ring[0].p, ring[k].p, ring[k + 1].p], inside });
+  return out;
+}
+
 /** The compiled mesh as studio faces `{ corners, fill, group, outNormal }`. `dz` (default: the mesh's own seat) seats
- * a posed mesh on its REST floor, so a figure standing in its gesture keeps the ground its planted toes hold. */
-export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null } = {}) {
+ * a posed mesh on its REST floor, so a figure standing in its gesture keeps the ground its planted toes hold. The
+ * swimsuit's lines on the structured core's seat (seat-panels.js: the thong's back, the speedo's leg line) are cut out
+ * of their faces by the REST mesh `rest` (same topology; the mesh itself when absent), so a figure under the studio
+ * light wears the swimsuit the character light draws. */
+export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh } = {}) {
   const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
   const glows = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []);   // emissive groups: full-bright, not shaded
-  const faces = [];
+  const faces = [], panels = seatPanels(rest);
   mesh.faces.forEach((tri, i) => {
     const partName = mesh.provenance[tri[0]].part; const part = mesh.parts[partName]; const g = mesh.groups[i];
     const hex = palette[g] || part?.tint || FALLBACK;
@@ -37,6 +51,13 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
     const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])); const l = dmath.hypot(n[0], n[1], n[2]);
     if (!(l > 1e-14)) return;   // a degenerate triangle has no face
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
+    const cut = swimCells(corners, panels && panels.at(i, g));
+    if (cut) {
+      // the swimsuit's cells in its own colour, the rest in the face's
+      const fills = [shadeHex(hex, outNormal, light), shadeHex(palette.Swim || hex, outNormal, light)];
+      for (const c of cut) faces.push({ corners: c.corners, fill: fills[c.inside ? 1 : 0], group: group || partName, outNormal });
+      return;
+    }
     faces.push({ corners, fill: glows.has(g) ? hex : shadeHex(hex, outNormal, light), group: group || partName, outNormal });
   });
   return faces;

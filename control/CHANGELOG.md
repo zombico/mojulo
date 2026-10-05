@@ -83,8 +83,9 @@ lands.
   set further back, fullest halfway down it, its two halves parted by a deep cleft (drawn on bare skin in a darker
   second shade), under a lower back that curves in over it; the male's is square and high, his back running
   straight down into it, two masses with a cleft between them. On the structured core the swimsuit is a speedo for
-  the male (low and level, no leg, the cleft a crease in it) and a thong for the female (a front triangle, a string at
-  the hip and a V at the back narrowing into her cleft, her seat bare), so the two seats show.
+  the male (low and level, no leg, a clean leg line, the cleft a crease in it) and a thong for the female (a front
+  triangle, a thin string rising over the hip and a V at the back narrowing into her cleft, her seat bare), so the two
+  seats show; the thong's back is drawn under the studio light as well as the character light.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the

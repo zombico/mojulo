@@ -42,6 +42,7 @@
  */
 import { hexToRgb, rgbToHex, resolveToon, resolveToonLight } from './vexar.js';
 import { layeredSeat } from './station-loft-faces.js';
+import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -401,15 +402,6 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  * notch, as the neck's front muscles carry the shade down to it (a band just under the chin hid behind the jaw: the
  * neck read lit); `k` the scalar's slope (per m), so the step's crossing falls on the line */
 const NECK_JAW_SHADOW = Object.freeze({ front: 0.06, side: 0.03, k: 40 });
-/** THE SEAT'S CLEFT on the structured core (a `pelvis` part): a wedge down the cleft, `w` (m) either side of the midline
- * behind the pelvis's axis, from the crotch up to `top` of the crotch-to-fullest span over the seat's fullest height,
- * only where the cleft is cut `depth` (m) or deeper. On the skin of a bare seat (never the lower back over a speedo) it is the second shadow tone (the anime 2影, kept for
- * the deepest recess: the shade darkened by `tone`), or, on a figure in swimwear (a `Swim` group), the thong's back in
- * the swimsuit's own tones: a V panel from `vee` (m) either side at the top, under the hip string, narrowing to `w` at
- * the crotch, into the cleft; on the swimsuit itself, its crease (`w`, up to `crease` of the span) in its shade
- * darkened by `tone`. The ink draws the silhouette only and from behind the back is one tone, so without it the two halves read
- * as one */
-const SEAT_CLEFT = Object.freeze({ w: 0.009, vee: 0.075, top: 0.95, crease: 0.45, tone: 0.72, depth: 0.015 });
 export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
@@ -426,25 +418,11 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (!Number.isFinite(chin)) return null;
     return (vi) => { const p = rest.vertices[vi], fy = p[1] - ay, c = fy / (Math.hypot(p[0], fy) || 1); const J = NECK_JAW_SHADOW; return chin - (J.side + (J.front - J.side) * Math.max(0, c)) - p[2]; };
   })() : null;
-  // the seat's cleft (rest positions): the pelvis's axis, the crotch, the seat's fullest height; each corner's scalar,
-  // under 0 inside the wedge
-  const cleft = rest.parts?.pelvis ? (() => {
-    const pv = new Set(); rest.faces.forEach((t, fi) => { if (partOf(rest, fi) === 'pelvis') t.forEach((v) => pv.add(v)); });
-    if (!pv.size) return null;
-    let ay = 0, zc = Infinity, yb = Infinity, zm = 0, ym = Infinity; for (const v of pv) { const p = rest.vertices[v]; ay += p[1]; zc = Math.min(zc, p[2]); if (p[1] < yb) { yb = p[1]; zm = p[2]; } if (Math.abs(p[0]) < 1e-4) ym = Math.min(ym, p[1]); }
-    ay /= pv.size; const zt = zm + SEAT_CLEFT.top * (zm - zc);
-    // only a cleft cut deep (the midline's back that far in from the seat's fullest): a shallow one is drawn by nothing
-    if (!(zm > zc) || !(ym - yb >= SEAT_CLEFT.depth)) return null;
-    // `vee`: the thong's back panel, its half-width growing from `w` at the crotch to `vee` at the top (under the string)
-    // the crease on the swimsuit stops at `crease` of the span, under the waistband (the thong's string over it takes none)
-    const zk = zm + SEAT_CLEFT.crease * (zm - zc);
-    // the seat bare (skin under its fullest height, behind): only then does the wedge fall on skin (over a speedo's
-    // waistband the skin of the lower back takes none)
-    let bare = false; rest.faces.forEach((t, fi) => { if (!bare && partOf(rest, fi) === 'pelvis' && rest.groups[fi] === 'Skin' && t.every((v) => rest.vertices[v][2] < zm && rest.vertices[v][1] < ay)) bare = true; });
-    return (vi, vee = false, onSwim = false) => { if (!bare && !onSwim) return 1; const p = rest.vertices[vi]; const w = vee ? SEAT_CLEFT.w + (SEAT_CLEFT.vee - SEAT_CLEFT.w) * clamp01((p[2] - zc) / (zt - zc)) : SEAT_CLEFT.w; return p[1] >= ay ? 1 : Math.max(Math.abs(p[0]) - w, p[2] - (onSwim ? zk : zt), zc - p[2]); };
-  })() : null;
-  // the swimsuit's tones (its string down the cleft): the first Swim face's fill and shade
-  const swim = cleft ? (() => { const fi = mesh.groups.indexOf('Swim'); if (fi < 0) return null; const h = pal.Swim || mesh.parts[partOf(mesh, fi)]?.tint || FALLBACK; return { hex: h, shade: shadeFill(light, 'Swim', h) }; })() : null;
+  // the seat's panels (seat-panels.js, rest positions): the thong's back and the speedo's leg line in the swimsuit's
+  // tones, its crease and the bare seat's cleft in a darker shade
+  const panels = seatPanels(rest);
+  // the swimsuit's tones: the first Swim face's fill and shade
+  const swim = panels ? (() => { const fi = mesh.groups.indexOf('Swim'); if (fi < 0) return null; const h = pal.Swim || mesh.parts[partOf(mesh, fi)]?.tint || FALLBACK; return { hex: h, shade: shadeFill(light, 'Swim', h) }; })() : null;
   const VREF = mesh.vertices.map((v, vi) => ({ p: [v[0], v[1], v[2] + dz], vi }));
   const nV = mesh.vertices.length; const edges = new Map();   // min·nV + max → [{ s, p, a, b }] along min → max
   const shadeCache = new Map();
@@ -471,7 +449,11 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   // MERGED with a point already registered within SNAP_M on the same edge (the other face's, across a crease)
   const crossing = (u, v, du, dv, t) => {
     const [a, b, da, db] = u < v ? [u, v, du, dv] : [v, u, dv, du];
-    const s = clamp01((t - da) / (db - da)); const pa = VREF[a].p, pb = VREF[b].p; const el = dmath.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
+    return edgeAt(a, b, clamp01((t - da) / (db - da)));
+  };
+  // the point at `s` along edge a → b (a < b): an end, a point already registered there, or a new one
+  const edgeAt = (a, b, s) => {
+    const pa = VREF[a].p, pb = VREF[b].p; const el = dmath.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
     if (s * el <= SNAP_M) return VREF[a]; if ((1 - s) * el <= SNAP_M) return VREF[b];
     const key = a * nV + b; let list = edges.get(key); if (!list) edges.set(key, list = []);
     for (const e of list) if (Math.abs(e.s - s) * el <= SNAP_M) return e;
@@ -483,6 +465,12 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (r.bary) return tri.map((vi) => r.bary.find(([x]) => x === vi)?.[1] ?? 0);
     if (r.vi !== undefined) return tri.map((vi) => (vi === r.vi ? 1 : 0));
     return tri.map((vi) => (vi === r.a ? 1 - r.s : vi === r.b ? r.s : 0));
+  };
+  // a point with a barycentric weight exactly 0 lies on the face's edge between the other two corners: its ref there
+  const onEdge = (tri, w) => {
+    const z = w.indexOf(0); if (z < 0) return null;
+    const i = (z + 1) % 3, j = (z + 2) % 3, [a, b, sb] = tri[i] < tri[j] ? [tri[i], tri[j], w[j]] : [tri[j], tri[i], w[i]];
+    return edgeAt(a, b, sb);
   };
   // pass 1: per face, its fill or its split (the crossing points registered on their edges); a highlit group's lit side
   // also registers its highlight crossings and, when its line crosses the step's, the point where they meet
@@ -499,17 +487,16 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     const jawNeck = neckInShade && partName === 'neck' && jaw;
     if (neckInShade && partName === 'neck' && !jaw) return { fi, tri, outNormal, partName, fill: shade };   // the occlusion rule
     const t = Number.isFinite(thresholds[g]) ? thresholds[g] : t0;
-    // the seat's cleft: its wedge (the second shadow tone, the string or the crease) split off the face's own tone (its
-    // corners' N·L by majority)
-    if (cleft && partName === 'pelvis' && (g === 'Skin' || g === 'Swim')) {
-      const c = tri.map((vi) => cleft(vi, g === 'Skin' && !!swim, g === 'Swim')), inC = c.map((x) => x < 0);
-      if (inC.some(Boolean)) {
+    // the seat's panels: their cells (the swimsuit's tones, or the crease's or the cleft's darker shade) cut off the
+    // face's own tone (its corners' N·L by majority); the points on its edges registered, so its neighbours conform
+    const pan = panels && panels.at(fi, g);
+    if (pan) {
+      const cells = clipCells(tri.map((vi, j) => ({ w: [0, 1, 2].map((k) => (k === j ? 1 : 0)) })), pan.sets, (w) => { onEdge(tri, w); return { w }; });
+      if (cells.some((c) => c.inside)) {
         const litMost = N[fi].filter((n) => dot(n, Lv) > t).length >= 2, own = litMost ? hex : shade;
         const deeper = (h) => `#${[1, 3, 5].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * SEAT_CLEFT.tone).toString(16).padStart(2, '0')).join('')}`;
-        const dark = g === 'Skin' && swim ? (litMost ? swim.hex : swim.shade) : deeper(shade);
-        if (inC.every(Boolean)) return { fi, tri, outNormal, partName, fill: dark };
-        const k = inC[0] === inC[1] ? 2 : inC[0] === inC[2] ? 1 : 0, A = tri[k], B = tri[(k + 1) % 3], C = tri[(k + 2) % 3];
-        return { fi, tri, outNormal, partName, k, lit: inC.map((x) => !x), P: crossing(A, B, c[k], c[(k + 1) % 3], 0), Q: crossing(A, C, c[k], c[(k + 2) % 3], 0), fills: inC[k] ? [dark, own] : [own, dark] };
+        const dark = pan.kind === 'swim' ? (swim ? (litMost ? swim.hex : swim.shade) : own) : deeper(shade);
+        return { fi, tri, outNormal, partName, panel: pan, fills: [own, dark] };
       }
     }
     // the top planes' term only where it applies: every other corner keeps N·L as it was (no `+ 0`, which would turn a −0 to +0)
@@ -580,6 +567,16 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   };
   for (const f of perFace) {
     if (!f) continue;
+    if (f.panel) {
+      // the panel's cells on the face's whole ring (its neighbours' points included), each convex
+      const pts = ringOf(f.tri, 0).map((r) => ({ w: baryOf(f.tri, r), r }));
+      const cells = clipCells(pts, f.panel.sets, (w) => ({ w, r: onEdge(f.tri, w) ?? (() => { const bary = f.tri.map((vi, k) => [vi, w[k]]); return { p: baryPoint(mesh.vertices, bary, dz), bary }; })() }));
+      for (const { ring, inside } of cells) {
+        const R = ring.map((x) => x.r).filter((r, k, A) => r !== A[(k + 1) % A.length]);
+        if (R.length >= 3 && ringArea2(R, f.outNormal) > AREA2) emit(R.length === 3 ? [R] : triangulate(R, f.outNormal), f.fills[inside ? 1 : 0], f);
+      }
+      continue;
+    }
     if (f.fills === undefined) {
       const R = ringOf(f.tri, 0);
       if (f.hi) litRing(R, f);

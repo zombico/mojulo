@@ -160,8 +160,11 @@ const PELVIS_SCULPT = Object.freeze({
   // them (the midline in 2.5–3 cm, so the two halves face apart and a side key lights one and shades the other: the ink
   // draws no cleft), the lower back
   // drawn forward over them (the lumbar hollow: the waist and hem rings' backs in), so the profile is an S
-  female: Object.freeze({ st0: { back: [0, 0.006, 0] }, st1: { back: [0, 0.024, 0], backR: [0, -0.006, 0], backSideR: [0.004, -0.006, 0] }, st2: { back: [0, 0.028, 0], backR: [0, -0.012, 0], backSideR: [0.002, -0.008, 0] }, st3: { back: [0, 0.02, 0], backR: [0, -0.019, 0], backSideR: [0, -0.009, 0] }, st4: { back: [0, 0.008, 0] },
-    st5: { back: [0, 0.016, 0], backR: [0, 0.013, 0], backSideR: [0, 0.006, 0] }, st6: { back: [0, 0.016, 0], backR: [0, 0.013, 0], backSideR: [0, 0.006, 0] } }),
+  // the fullness low (the trochanter ring's back out further, halfway up the flare less), so the fullest point sits at
+  // mid-seat and the seat turns under into the thigh (its fold), and the hem ring's back in less than the waist's, so
+  // the lower back curves out into the seat instead of running flat to a corner under the waistband (critic round 6)
+  female: Object.freeze({ st0: { back: [0, 0.006, 0] }, st1: { back: [0, 0.024, 0], backR: [0, -0.012, 0], backSideR: [0.004, -0.009, 0] }, st2: { back: [0, 0.028, 0], backR: [0, -0.012, 0], backSideR: [0.002, -0.008, 0] }, st3: { back: [0, 0.02, 0], backR: [0, -0.015, 0], backSideR: [0, -0.007, 0] }, st4: { back: [0, 0.008, 0] },
+    st5: { back: [0, 0.011, 0], backR: [0, 0.009, 0], backSideR: [0, 0.004, 0] }, st6: { back: [0, 0.014, 0], backR: [0, 0.011, 0], backSideR: [0, 0.005, 0] } }),
 });
 /** '#rrggbb' toward black by f */
 const darken = (hex, f) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * f).toString(16).padStart(2, '0')).join('')}`;

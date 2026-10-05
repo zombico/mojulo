@@ -96,8 +96,10 @@ export const SWIM_TONES = Object.freeze({ male: '#24476b', female: '#5c1f30' });
  * per core: on the structured core the pelvis is the basin (u 0 the crotch, 4 the iliac rim) and the thigh starts at the
  * socket; on the streamlined core the thighs carry the hips (u 0 the crest, 1 the hip ring) */
 const SWIM_CUTS = {
-  // the structured male's SPEEDO: low and level (up to the ring halfway from the hip joints to the iliac crest), no leg,
-  // so the seat's square and the hip's side read bare (the trunks hid both)
+  // the structured male's SPEEDO: low and level (up to the ring halfway from the hip joints to the iliac crest), so the
+  // seat's square and the hip's side read bare (the trunks hid both); its leg line on the thigh's top is cut out of the
+  // faces (seat-panels.js SPEEDO_LEG: the thighs' backs are the lower seat, and a speedo ending on the pelvis's rings
+  // showed their skin through its lower edge in notches)
   male: { pelvis: (u, _t, structured) => !structured || u < 3, thigh: (u, _t, structured) => !structured && u < 2 },
   // the cups the breast's bands under its edge station (`n` its stations; hero-form.js CHEST_FORM.bust.edge, 12 of 16): on
   // a bare figure that station is bent into a SWEETHEART line, high over the apex and dipping toward both ends, so each
@@ -107,10 +109,11 @@ const SWIM_CUTS = {
   // (t 0.12: it runs on under the cup, hidden by it, so the top wraps round without a gap of skin; from t 0.3 it broke
   // off before the cup's end), the breast lying over the torso's front. The briefs run up to the hem (the pelvis's rings below the one it tucks
   // under the torso with), so the line where the torso meets the pelvis is the waistband's edge, never a seam on skin
-  // the structured female's THONG: a front triangle narrowing to the crotch and a string round at the iliac crest; the
-  // V at the back, narrowing into the cleft, is the shader's (station-loft-shade.js SEAT_CLEFT: painted by faces on the
-  // twelve-point ring it is a block), so the seat reads bare and distinct from the male's (the briefs hid its shape)
-  female: { pelvis: (u, t, structured) => !structured || (u < 4 && (t < (u < 1 ? 0.2 : 0.35) || u > 3)), thigh: (u, _t, structured) => !structured && u < 1, torso: (u, t, structured) => u >= 1.5 && u < 2 && (!structured || t > 0.12), bust: (u, _t, _s, n) => u < (n - 1) * 0.8 },
+  // the structured female's THONG: a front triangle narrowing to the crotch, up to the iliac crest; the string round the
+  // hip and the V at the back, narrowing into the cleft, are cut out of the faces (seat-panels.js THONG: painted by faces
+  // on the twelve-point ring the V is a block and the string a band the ring's height), so the seat reads bare and
+  // distinct from the male's (the briefs hid its shape)
+  female: { pelvis: (u, t, structured) => !structured || (u < 4 && t < (u < 1 ? 0.2 : 0.35)), thigh: (u, _t, structured) => !structured && u < 1, torso: (u, t, structured) => u >= 1.5 && u < 2 && (!structured || t > 0.12), bust: (u, _t, _s, n) => u < (n - 1) * 0.8 },
   child: { pelvis: (u, _t, structured) => !structured || u < 5, thigh: (u, _t, structured) => u < (structured ? 1 : 2), torso: (u) => u < 3.5 },
 };
 /** The swimsuit on a plan: the body's clothing groups become Skin, the cut's bands `Swim` (figure: { female, child }) */

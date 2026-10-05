@@ -354,9 +354,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   a back panel, grown only where the torso bone dominates) with a row of toggles, knee patches, cuffs and leg wraps; the
   jerkin covers the pectorals (their layers are dropped under it). `detail: 'swimsuit'` shows the body BARE, to see its
   forms and mark its silhouette: every Top / Bottom / Shoes part is Skin and swimwear is painted on the trunk's own faces
-  (the adult male's trunks, the adult female's two-piece with the breasts as its cups — on the structured core a speedo,
-  and a thong whose back is a V narrowing into the cleft — a child-coded figure's rash vest and trunks), in a `Swim` tone the palette
-  may name. The structured female's seat is fuller and set further back than the male's square, high one, under a lower
+  (the adult male's trunks, the adult female's two-piece with the breasts as its cups — on the structured core a speedo
+  with a leg line rounded up the thigh, and a thong with a thin string rising over the hip and a V back narrowing into
+  the cleft, lines cut across the faces so the studio light draws them too — a child-coded figure's rash vest and
+  trunks), in a `Swim` tone the palette may name. The structured female's seat is fuller and set further back than the male's square, high one, under a lower
   back that curves in; both seats are two masses with a cleft, drawn on bare skin in a second, darker shade, as the
   thong's V in the swimsuit's tones, or as a crease in the speedo. Every piece worn on the torso stands off the chest layers too.
   `adorn: 'ranger'` wears a belt (iron buckle), a baldric across the chest (iron buckle), an archer's bracer on the left
