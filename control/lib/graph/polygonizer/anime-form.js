@@ -437,24 +437,31 @@ export function buildAnime(r, options = {}) {
   }
   // mojulo: an ahoge — one upright curl at the crown, rising forward and curling back (an amount; the studio has none)
   if (h.ahoge > 0) { const A = h.ahoge; lock('ahoge', [0.02, 1.15, -0.10], [0.03, 1.15 + 0.55 * A, -0.36 - 0.1 * A], [0.07, 1.15 + 0.30 * A, 0.04], 0.075, [1, 0, 0]); }
-  // mojulo: the SHAPES — a composable hair of three primitives, built mass first (peppers), then flow (bananas), then the
-  // accents (carrots), each placed on the cap by `at: [azimuth°, elevation°]` (azimuth 0 the front, 90 the hero's right,
-  // 180 the back; elevation 0 the hairline, 90 the crown) and aimed by `dir` (construction units: x the hero's right, y up,
-  // z back). Every piece is ONE closed tube along a C-curve (`bend`, never an S) with its own width profile:
-  //   PEPPER  the mass: a round, bellied lobe, its root sunk deep inside the head, a short blunt tip (`size`, `girth`);
-  //   BANANA  the flow: a flat crescent widest a third of the way out, laid along the mass (`length`, `width`, `flat`);
-  //   CARROT  the accent: a CUT CONICAL CARROT, round, its square-cut base sunk into the mass, never pinched or draped;
-  //           `curve` draws its sides in (0 a cone, toward 1 a thorn).
-  if (SH) {
-    const C = [0, 0.25, 0.07], S = 12, N = 16;
+  // mojulo: the SHAPES — a hairstyle composed from ONE family of primitives (a design picks its family), each piece placed
+  // on the cap by `at: [azimuth°, elevation°]` (azimuth 0 the front, 90 the hero's right, 180 the back; elevation 0 the
+  // hairline, 90 the crown) and aimed by `dir` (construction units: x the hero's right, y up, z back). Every piece is ONE
+  // closed tube along a C-curve (`bend`, never an S) with its family's width profile:
+  //   CARROT  a CUT CONICAL CARROT: round, its square-cut base sunk into the mass, never pinched or draped; `curve` draws
+  //           its sides in (0 a cone, toward 1 a thorn). Short and wide it is mass; long it is a spike.
+  //   BANANA  a flat crescent widest a third of the way out, laid along the mass (`flat` its depth to width).
+  //   PEPPER  a CHILI: thin and long, a small shoulder at the stem, a slender taper to its point; one is a strand group,
+  //           the weight comes from how many are layered and how thin and long they are.
+  // `layers` lays rows of one family over an azimuth and elevation range (deterministic length variation, never dice);
+  // `scale` grows the whole style against the head; `sideburns` (a hair word of its own, any style) are two pieces in the
+  // style's family (a banana on a studio style).
+  const BURNS = HF?.sideburns ?? null;
+  if (SH || BURNS) {
+    const C = [0, 0.25, 0.07], S = 12, N = 16, G = SH?.scale ?? 1;
     const anchorOf = (at) => capPoint(at[0] * Math.PI / 180, clamp(1 - at[1] / 90, 0, 1));
     const piece = (name, root, control, tip, width, depthRatio, normal, profile) => {
       const start = parts.hair.length, rings = [];
-      for (let j = 1; j < N; j++) { const t = j / N, center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), w = Math.max(0.004, width * profile(t)), th = w * depthRatio;
-        rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); })); }
-      // the root's own ring: the cut base at t 0 (the carrot's square cut; the pepper's and banana's root inside the mass)
-      const t0 = unit(sub(control, root)), a0 = unit(cross(t0, normal)), d0 = unit(cross(a0, t0)), w0 = width * profile(0);
-      rings.unshift(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(root, add(mul(a0, dmath.cos(a) * w0), mul(d0, dmath.sin(a) * w0 * depthRatio))); }));
+      // a stable frame along the curve: the across direction from the piece's normal, falling back when the tangent runs
+      // along it, and never flipping between rings (a flip twists the tube into a kink)
+      let prev = null;
+      const frame = (tangent) => { let across = cross(tangent, normal); if (dmath.hypot(...across) < 0.25) across = cross(tangent, Math.abs(tangent[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]); across = unit(across); if (prev && dot(across, prev) < 0) across = mul(across, -1); prev = across; return [across, unit(cross(across, tangent))]; };
+      const ring = (center, tangent, w) => { const [across, thickDir] = frame(tangent), th = w * depthRatio; return Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI; return add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); }); };
+      rings.push(ring(root, unit(sub(control, root)), width * profile(0)));   // the cut base at t 0
+      for (let j = 1; j < N; j++) { const t = j / N, center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))); rings.push(ring(center, tangent, Math.max(0.004, width * profile(t)))); }
       for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
       const base = mul(rings[0].reduce((acc, q) => add(acc, q), [0, 0, 0]), 1 / S);
       for (let i = 0; i < S; i++) { tri('hair', base, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
@@ -462,20 +469,50 @@ export function buildAnime(r, options = {}) {
     };
     // a C-curve: the control off the chord's middle toward `toward`, by `bend` of the length
     const bent = (root, tip, bend, toward) => { const mid = mul(add(root, tip), 0.5), chord = sub(tip, root), L = dmath.hypot(...chord), k = unit(chord), off = sub(toward, mul(k, dot(toward, k))); return add(mid, mul(dmath.hypot(...off) > 1e-9 ? unit(off) : [0, 0, 0], bend * L)); };
-    (SH.peppers ?? []).forEach((P, k) => {
-      const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? n), size = P.size ?? 0.6, root = sub(anchor, mul(n, 0.45 * size)), tip = add(anchor, mul(d, size));
-      piece('pepper-' + k, root, bent(root, tip, P.bend ?? 0.08, [0, -1, 0.4]), tip, (P.girth ?? 0.5) * size, P.squash ?? 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0],
-        (t) => (0.62 + 0.38 * dmath.sin(Math.PI * Math.min(1, t * 1.15))) * dmath.pow(Math.max(0, 1 - t ** 3), 0.5));
-    });
-    (SH.bananas ?? []).forEach((B, k) => {
-      const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir), L = B.length ?? 0.5, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
-      piece('banana-' + k, root, bent(root, tip, B.bend ?? 0.15, n), tip, B.width ?? 0.16, B.flat ?? 0.45, n,
-        (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5))));
-    });
-    (SH.carrots ?? []).forEach((K, k) => {
-      const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? sub(anchor, C)), L = K.length ?? 1, base = K.base ?? 0.2, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
-      piece('carrot-' + k, root, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1]), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK));
-    });
+    const counts = { carrot: 0, banana: 0, pepper: 0 };
+    // SPROUT: a piece leaves its root ALONG the head, flowing away from the whorl, and only then arcs out to its tip — the
+    // control drawn toward a point half the length down the surface flow (by `sprout`, 0 … 1), so a lock grows out of the
+    // mass like a sprout instead of being pushed straight out of the skull (which reads as a spike through the face)
+    const WHORL = anchorOf(SH?.whorl ?? [180, 80]);
+    const flowAt = (P, n) => { let f = sub(P, WHORL); f = sub(f, mul(n, dot(f, n))); return dmath.hypot(...f) < 1e-6 ? [0, 0, -1] : unit(f); };
+    const sprouted = (X, anchor, n, L, control) => { const k = X.sprout ?? 0; return k > 0 ? mix3(control, add(add(anchor, mul(flowAt(anchor, n), 0.5 * L)), mul(n, 0.05 * L)), k) : control; };
+    const BUILD = {
+      carrot: (K) => { const anchor = anchorOf(K.at), n = unit(sub(anchor, C)), d = unit(K.dir ?? n), L = (K.length ?? 1) * G, base = (K.base ?? 0.2) * G, root = sub(anchor, mul(n, (K.sink ?? 0.5) * base * 2)), tip = add(anchor, mul(d, L)), curveK = 1 + 1.4 * (K.curve ?? 0.3);
+        piece('carrot-' + counts.carrot++, root, sprouted(K, anchor, n, L, bent(root, tip, K.bend ?? 0.1, [0, -0.5, 1])), tip, base, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => dmath.pow(Math.max(0, 1 - t), curveK)); },
+      banana: (B) => { const anchor = anchorOf(B.at), n = unit(sub(anchor, C)), d = unit(B.dir ?? add(n, [0, -1, 0])), L = (B.length ?? 0.5) * G, root = sub(anchor, mul(n, 0.06)), tip = add(anchor, mul(d, L));
+        piece('banana-' + counts.banana++, root, sprouted(B, anchor, n, L, bent(root, tip, B.bend ?? 0.15, n)), tip, (B.width ?? 0.16) * G, B.flat ?? 0.45, n, (t) => dmath.pow(Math.max(0, 1 - t), 0.85) * (0.7 + 0.3 * dmath.sin(Math.PI * Math.min(1, t * 1.5)))); },
+      pepper: (P) => { const anchor = anchorOf(P.at), n = unit(sub(anchor, C)), d = unit(P.dir ?? add(n, [0, -1, 0])), L = (P.length ?? 0.8) * G, w = (P.width ?? 0.07) * G, root = sub(anchor, mul(n, 2.2 * w)), tip = add(anchor, mul(d, L));
+        piece('pepper-' + counts.pepper++, root, sprouted(P, anchor, n, L, bent(root, tip, P.bend ?? 0.12, add(n, [0, 0.3, 0]))), tip, w, 1, Math.abs(d[1]) > 0.9 ? [0, 0, -1] : [0, 1, 0], (t) => Math.min(1, 0.72 + 3.5 * t) * dmath.pow(Math.max(0, 1 - t), 0.8)); },
+    };
+    const SIZE = { carrot: 'base', banana: 'width', pepper: 'width' };
+    // the layers: `rows` rows from el[0] to el[1], `count` pieces over the azimuth range (each row offset half a step),
+    // lengths varied by `vary` on a sine of the index; each FLOWS from the whorl (`whorl: [az°, el°]`, the crown set back by
+    // default) along the head's surface — lifted off it by `lift`, drooped by `droop` — so a layer lies like hair, it
+    // never stands out like a sea urchin. `cover` (on by default for bananas and peppers: the locks TILE) widens each piece at its root to overlap its
+    // row neighbours by that much, so a layer TILES the head and never leaves a bald gap; the pieces part only toward
+    // their points
+    for (const Ly of SH?.layers ?? []) {
+      const rows = Ly.rows ?? 2, per = Math.max(1, Math.round((Ly.count ?? 12) / rows)), [a0, a1] = Ly.az ?? [0, 360], [e0, e1] = Ly.el ?? [0, 60], full = Math.abs(a1 - a0) >= 360;
+      for (let r = 0; r < rows; r++) for (let i = 0; i < per; i++) {
+        const u = (i + (r % 2 ? 0.5 : 0) + (full ? 0 : 0.5)) / (full ? per : per + 0.5), az = a0 + (a1 - a0) * Math.min(1, u), el = rows === 1 ? e0 : e0 + (e1 - e0) * r / (rows - 1), k = r * per + i;
+        const at = [az, el], P = anchorOf(at), n = unit(sub(P, C)), vary = 1 + (Ly.vary ?? 0.25) * dmath.sin(k * 2.39996 + r * 1.3);
+        const spacing = dmath.hypot(...sub(anchorOf([az + (a1 - a0) / (full ? per : per + 0.5), el]), P)), cover = Ly.cover ?? (Ly.shape === 'carrot' ? 0 : 1);
+        const width0 = (Ly.width ?? (Ly.shape === 'carrot' ? 0.24 : Ly.shape === 'banana' ? 0.14 : 0.06)) * (0.85 + 0.15 * vary), width = Math.max(width0, (cover * 0.62 * spacing) / G);
+        let flow = sub(P, WHORL); flow = sub(flow, mul(n, dot(flow, n))); if (dmath.hypot(...flow) < 1e-6) flow = [0, 0, -1];
+        const dir = add(add(unit(flow), mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
+        BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, sprout: Ly.sprout ?? 0.8 });
+      }
+    }
+    for (const K of SH?.carrots ?? []) BUILD.carrot(K);
+    for (const B of SH?.bananas ?? []) BUILD.banana(B);
+    for (const P of SH?.peppers ?? []) BUILD.pepper(P);
+    // the sideburns: two pieces before the ears, in the style's own family; `length`, `width`, `forward` (the tip toward the
+    // cheek), `at` (the elevation, below the hairline by default), `az` (degrees in front of the ear's azimuth)
+    if (BURNS) {
+      const family = BURNS.shape ?? (SH ? (SH.carrots?.length ? 'carrot' : SH.bananas?.length ? 'banana' : SH.peppers?.length ? 'pepper' : SH.layers?.[0]?.shape) : null) ?? 'banana';
+      const A = BURNS.amount ?? 1, L = (BURNS.length ?? 0.4) * A;
+      if (L > 0) for (const side of [1, -1]) BUILD[family]({ at: [side > 0 ? 90 - (BURNS.az ?? 10) : 270 + (BURNS.az ?? 10), BURNS.at ?? -10], dir: [side * 0.12, -1, 0.1 - (BURNS.forward ?? 0)], length: L / G, [SIZE[family]]: (BURNS.width ?? (family === 'pepper' ? 0.07 : 0.14)) / G, bend: 0.08, curve: 0.2, sink: 0.3, flat: 0.5 });
+    }
   }
   // mojulo: the consolidated sections, skinned across their members' curves
   if (FORMS) for (const g of FORMS.groups) {
@@ -674,7 +711,7 @@ export function hairFormOf(hairForm) {
     let v = v0;
     if (v === undefined || v === null || v === false) continue;
     if (k in HAIR_FORM_NEUTRAL && v === HAIR_FORM_NEUTRAL[k]) continue;
-    if (k === 'sweepBack' || k === 'sweepSides' || k === 'flip' || k === 'sideTail' || k === 'spikes') { v = typeof v === 'number' ? { amount: v } : v; if (!v.amount) continue; }
+    if (k === 'sweepBack' || k === 'sweepSides' || k === 'flip' || k === 'sideTail' || k === 'spikes' || k === 'sideburns') { v = typeof v === 'number' ? { amount: v } : v; if (!v.amount && k !== 'sideburns') continue; if (k === 'sideburns' && (v.amount === 0 || v.length === 0)) continue; }
     if (k === 'hairline' && (v.front === undefined || v.front === 0.53)) continue;
     out[k] = v;
   }

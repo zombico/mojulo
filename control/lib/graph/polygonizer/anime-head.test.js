@@ -393,7 +393,7 @@ describe('anime head: the hair form and the hair bases', () => {
       ['long', { ridge: 2, flute: 1 }], ['long', { fringeGroups: [[1, 2, 3, 4, 5, 6, 7]], backNotch: 1 }], ['bob', { fringeGroups: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]], backNotch: 0.5 }], ['long', ANIME_HAIR_MOVES['side-parted'].hair],
       ['long', { flip: { amount: 1, out: 1, rise: 1, hold: 1 } }], ['bob', { flip: 0.5, fringeNotch: 1 }], ['short', { spikes: { amount: 1, reach: 3, width: 3, up: 1 } }], ['short', { spikes: 0.4, crownAccents: 'tuck' }],
       ['long', { sideTail: { amount: 1, side: 'right', length: 2, width: 2, height: 1 } }], ['bob', { sideTail: { amount: 0.5, side: 'left', length: 0.3, width: 0.3, height: -1 } }],
-      ...['flipped-long', 'blunt-bob', 'side-tail', 'wild-spikes'].map((w) => [ANIME_HAIR_MOVES[w].hair.style, ANIME_HAIR_MOVES[w].hair]),
+      ...['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo'].map((w) => [ANIME_HAIR_MOVES[w].hair.style, ANIME_HAIR_MOVES[w].hair]),
     ];
     for (const preset of ['female', 'male']) for (const [style, words] of ends) {
       const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, { ...words, style }] });
@@ -402,18 +402,18 @@ describe('anime head: the hair form and the hair bases', () => {
   }, 60000);
 });
 
-describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail, wild-spikes)', () => {
+describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and the shapes characters (broku, jinto, kairo)', () => {
   const on = (preset, hair) => { const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, ...(Array.isArray(hair) ? hair : [hair])] }); return { h, mesh: compileLayered(h) }; };
   const box = (mesh, re) => { const ps = mesh.pointIds.map((id, i) => (re.test(id.split('/')[0]) ? mesh.vertices[i] : null)).filter(Boolean); return [0, 1, 2].map((k) => [Math.min(...ps.map((p) => p[k])), Math.max(...ps.map((p) => p[k]))]); };
   it('each cut closes on both bases and keeps the scalp covered', () => {
-    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'wild-spikes']) for (const preset of ['female', 'male']) {
+    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo']) for (const preset of ['female', 'male']) {
       const { h, mesh } = on(preset, cut);
       expect(failures(mesh), `${preset} ${cut}`).toEqual([]);
       expect(Math.max(...Object.values(h.hairCoverage.views)), `${preset} ${cut}`).toBeLessThanOrEqual(0.02);
     }
   }, 60000);
   it('the words validate by name: the new form words, their fields and the tail clump', () => {
-    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'wild-spikes'])).toEqual([]);
+    expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo'])).toEqual([]);
     expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
     expect(validateAnimeHair({ locks: { tail: { ty: 0.1 } } })).toEqual([]); expect(animeLockPart('tail')).toBe('hairTail');
     expect(resolveAnimeHair([{ flip: 0.5 }, { flip: { out: 0.2 } }]).flip).toEqual({ amount: 0.5, out: 0.2 });
@@ -438,18 +438,43 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail, wild-
     expect(box(mesh, /^hairFormSideL$/)[2][0]).toBeGreaterThan(box(plain, /^hairFormSideL$/)[2][0] + 0.05);
     expect(box(on('female', ['side-tail', { sideTail: { amount: 1, side: 'right' } }]).mesh, /^hairTail$/)[0][0]).toBeGreaterThan(0);
   });
-  it('wild-spikes: a swept mass and thorn spikes standing well above and out from the short crop', () => {
-    const spikes = on('male', 'wild-spikes'), crop = on('male', 'short');
-    expect(spikes.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
-    expect(box(spikes.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
-    // the first shapes recipe: peppers, bananas and carrots in place of the studio's clumps
-    expect(Object.keys(spikes.h.parts).filter((k) => /^hair(Pepper|Banana|Carrot)\d+$/.test(k)).length).toBe(19);
-    expect(Object.keys(spikes.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
+  it('the characters: each in ONE family — broku carrots, jinto bananas, kairo chili peppers; broku stands well above the crop', () => {
+    const fam = (h) => [...new Set(Object.keys(h.parts).map((k) => k.match(/^hair(Pepper|Banana|Carrot)\d+$/)?.[1]).filter(Boolean))];
+    const broku = on('male', 'broku'), crop = on('male', 'short');
+    expect(fam(broku.h)).toEqual(['Carrot']); expect(fam(on('male', 'jinto').h)).toEqual(['Banana']); expect(fam(on('male', 'kairo').h)).toEqual(['Pepper']);
+    expect(broku.h.hairMeasures.top_m).toBeGreaterThan(crop.h.hairMeasures.top_m + 0.08);
+    expect(box(broku.mesh, /^hair/)[0][1]).toBeGreaterThan(box(crop.mesh, /^hair/)[0][1] + 0.05);
+    expect(Object.keys(broku.h.parts).some((k) => /^hair(Fringe|Temple|Back|Crown)/.test(k))).toBe(false);
+    // kairo's weight is its count: 126 thin strands in three layers, two accents and two sideburns
+    expect(Object.keys(on('male', 'kairo').h.parts).filter((k) => /^hairPepper\d+$/.test(k)).length).toBe(130);
+  });
+  it('the layers flow from the whorl along the head: their tips stay near the skull, never a sea urchin; scale grows the style', () => {
+    const lay = (extra = {}) => on('male', ['short', { shapes: { replace: ['fringe', 'temple', 'back', 'crown'], layers: [{ shape: 'pepper', az: [60, 300], el: [10, 40], rows: 2, count: 12, length: 0.9, ...extra }] } }]).mesh;
+    const reach = (m) => Math.max(...box(m, /^hairPepper/)[0].map(Math.abs));
+    expect(failures(lay())).toEqual([]);
+    expect(reach(lay())).toBeLessThan(reach(lay({ lift: 1.5, droop: 0 })) - 0.02);
+    // cover: bananas and peppers TILE by default — each widened at its root to overlap its row neighbours
+    const rootW = (m) => { const ps = m.pointIds.map((id, i) => (id.startsWith('hairPepper0/') ? m.vertices[i] : null)).filter(Boolean); return Math.max(...ps.map((p) => p[0])) - Math.min(...ps.map((p) => p[0])); };
+    expect(rootW(lay({ width: 0.02 }))).toBeGreaterThan(rootW(lay({ width: 0.02, cover: 0 })) * 1.5);
+    const big = on('male', ['broku', { shapes: { ...ANIME_HAIR_MOVES.broku.hair.shapes, scale: 1.6 } }]).h, small = on('male', ['broku', { shapes: { ...ANIME_HAIR_MOVES.broku.hair.shapes, scale: 1 } }]).h;
+    expect(big.hairMeasures.top_m).toBeGreaterThan(small.hairMeasures.top_m + 0.02);
+  });
+  it('the sideburns: on any style, before the ears, in the family of the style; the shape and amount by word', () => {
+    const plain = on('female', 'long'), burns = on('female', ['long', { sideburns: { length: 0.5 } }]);
+    expect(Object.keys(plain.h.parts).filter((k) => /^hairBanana/.test(k))).toEqual([]);
+    expect(['hairBanana0', 'hairBanana1'].every((k) => burns.h.parts[k])).toBe(true);
+    expect(failures(burns.mesh)).toEqual([]);
+    const [r, l] = [box(burns.mesh, /^hairBanana0$/), box(burns.mesh, /^hairBanana1$/)], ear = box(burns.mesh, /^earR$/);
+    expect(r[0][0]).toBeGreaterThan(0); expect(l[0][1]).toBeLessThan(0); expect(r[1][1]).toBeGreaterThan(ear[1][0]);   // either side, in front of the ear
+    expect(on('female', ['long', { sideburns: { length: 0.5, shape: 'carrot' } }]).h.parts.hairCarrot0).toBeDefined();
+    expect(on('female', ['long', { sideburns: { amount: 0 } }]).h.parts.hairBanana0).toBeUndefined();
+    expect(validateAnimeHair({ sideburns: { length: 2, shape: 'leek', tilt: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.sideburns.length', 'hair.sideburns.shape', 'hair.sideburns.tilt']);
+    expect(validateAnimeHair({ shapes: { scale: 3, whorl: [0, 120], layers: [{ shape: 'leek' }, { shape: 'pepper', count: 200, el: [0, 100] }] } }).map((e) => e.split(':')[0])).toEqual(['hair.shapes.scale', 'hair.shapes.whorl', 'hair.shapes.layers[0]', 'hair.shapes.layers[1].el', 'hair.shapes.layers[1].count']);
   });
   it('the shapes: validated by name, built closed, the replaced groups gone and the rest kept', () => {
     expect(validateAnimeHair({ shapes: { replace: ['fringe', 'mane'], peppers: [{ at: [0, 120] }], bananas: [{ at: [0, 10] }], carrots: [{ at: [0, 40], dir: [0, 0, 0], base: 2 }], beans: [] } }).map((e) => e.split(':')[0]))
       .toEqual(['hair.shapes.replace', 'hair.shapes.peppers[0].at', 'hair.shapes.bananas[0].dir', 'hair.shapes.carrots[0].dir', 'hair.shapes.carrots[0].base', 'hair.shapes.beans']);
-    const one = on('male', ['short', { shapes: { replace: ['crown'], peppers: [{ at: [180, 60] }], bananas: [{ at: [0, 5], dir: [0, -1, -0.2] }], carrots: [{ at: [90, 50], dir: [1, 0.3, 0.3] }] } }]);
+    const one = on('male', ['short', { shapes: { replace: ['crown'], peppers: [{ at: [180, 60], length: 0.7, width: 0.08 }], bananas: [{ at: [0, 5], dir: [0, -1, -0.2] }], carrots: [{ at: [90, 50], dir: [1, 0.3, 0.3] }] } }]);
     expect(failures(one.mesh)).toEqual([]);
     expect(['hairPepper0', 'hairBanana0', 'hairCarrot0', 'hairFringe1', 'hairBack1'].every((k) => one.h.parts[k])).toBe(true);
     expect(one.h.parts.hairCrownL0).toBeUndefined(); expect(animeLockPart('carrot-12')).toBe('hairCarrot12');

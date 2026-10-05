@@ -255,39 +255,60 @@ decides whether any of them belongs.
   rides the torso, not the turned head. `rigid: true` changes nothing on the mesh; it makes the dress ledger name the
   bone the adornment rides (its `bone`). The pin is what moves it.
 
-## Hair as shapes: peppers, bananas and carrots
+## Hair as shapes: carrots, bananas and peppers
 
-The anime head's `shapes` hair word composes a hairstyle from three primitives, each one closed piece placed on the cap
-by `at: [azimuth°, elevation°]` (azimuth 0 the front, 90 the hero's right, 180 the back; elevation 0 the hairline, 90
-the crown) and aimed by `dir: [x, y, z]` (x the hero's right, y up, z back). `replace` names the studio clump groups the
-recipe takes over (`fringe`, `temple`, `back`, `crown`). `wild-spikes` is the worked recipe.
+The anime head's `shapes` hair word composes a hairstyle from ONE family of primitives, each one closed piece placed
+on the cap by `at: [azimuth°, elevation°]` (azimuth 0 the front, 90 the hero's right, 180 the back; elevation 0 the
+hairline, 90 the crown) and aimed by `dir: [x, y, z]` (x the hero's right, y up, z back), or laid in rows by `layers`
+(`{ shape, az, el, rows, count, length, width, droop, lift, cover, sprout, vary, bend }`), which flow from the `whorl`
+along the head.
+`replace` names the studio clump groups the recipe takes over (`fringe`, `temple`, `back`, `crown`); `scale` grows the
+whole style against the head (the shonen guide's stylization dial: the more expressive the register, the bigger the
+hair). `sideburns` (`{ length, width, forward, shape?, at?, az? }`) is a hair word of its own and works on any style,
+in the style's family.
 
-| Primitive | Role | Shape | Fields |
+| Family | What it carries | Shape | Fields |
 |---|---|---|---|
-| PEPPER | the mass, the silhouette's envelope | a round, bellied lobe, its root sunk deep in the head, a short blunt tip; neighbours overlap a third to a half | `size`, `girth`, `squash`, `bend` |
-| BANANA | the flow: bangs, sideburns, swept locks, tails | a flat crescent widest a third of the way out, laid along the mass | `length`, `width`, `flat`, `bend` |
-| CARROT | the accents on the outline | a CUT CONICAL CARROT: round, its square-cut base sunk into the mass, never pinched or draped | `length`, `base`, `sink`, `curve` (0 a cone, toward 1 a thorn), `bend` |
+| CARROT | points AND mass: the only family that holds a spiky design alone (short and wide reads as mass, long as a spike) | a CUT CONICAL CARROT: round, its square-cut base sunk into the mass, never pinched or draped | `length`, `base`, `sink`, `curve` (0 a cone, toward 1 a thorn), `bend` |
+| BANANA | locks: broad tapered locks that TILE the head from a smooth crown and part into points at their ends (the operator's sketch) | a flat crescent widest a third of the way out, laid along the mass | `length`, `width`, `flat`, `bend`, `sprout` |
+| PEPPER | strands: a CHILI, the thin version of the banana's tiling; the weight is how many are layered and how thin and long | a small shoulder at the stem, a slender taper to its point | `length`, `width`, `bend`, `sprout` |
 
-Build in this order: peppers until the mass carries 60–70 % of the silhouette, then bananas back to front, then
-carrots on the outline, the fringe bananas last, an accessory clamping everything. The principles, one line each:
+ONE FAMILY PER DESIGN. The operator's experiment (Broku's carrot layout rebuilt as bananas and as bellied peppers at
+three length and width settings): length variation inside one family does make hierarchy, but each family has a range
+of jobs — a stretched pepper becomes a carrot, a short wide banana goes to mush. So a design picks the family that
+fits the style and varies length, width and count inside it. The characters: `broku` (carrots, after Toriyama),
+`jinto` (bananas, broad locks tiling from a smooth crown), `kairo` (chili peppers, the same tiling in 126 thin
+strands).
+
+Build in this order: the mass first (stubby carrots, a crown layer of bananas, rows of chilis) until it carries 60–70 %
+of the silhouette, then the flow back to front, then the outline's accents, the fringe last, an accessory clamping
+everything. The principles, one line each:
 
 - **Cut conical carrots.** A spike is a round cone cut at a wide base and sunk into the mass; it never floats on a neck.
-- **Mass before spikes.** The envelope is peppers; spikes ride its outline, they do not make it.
+- **One family.** A design is carrots, bananas or peppers; it varies length, width and count, it does not mix.
+- **Mass before spikes.** Build the envelope first; spikes ride its outline, they do not make it.
 - **One whorl.** One hidden origin, behind and off the crown; every piece's direction follows out of it — the front
-  forward and down, the sides and back back and down.
+  forward and down, the sides and back back and down. Layers flow along the head from it, never straight out (a sea
+  urchin).
 - **Hero and court.** One dominant piece, two or three secondary, the rest small (about 1 : 0.6 : 0.35); odd counts.
 - **No twins.** Neighbours never share a size, an angle or a length; the two sides differ in at least two of them.
 - **Shallow valleys.** A notch between spikes is never deeper than 40 % of the spike; the cap never shows between them.
 - **Shingles.** Every base is hidden under the next layer: front over back, upper over lower.
+- **Tile, never bald.** Bananas and chilis are shouldered at the root to overlap their row neighbours (`cover`), so the
+  scalp never shows; they part only toward their points. Chilis tile by count, not by width.
+- **Sprout, don't push.** A lock leaves its root along the head, flowing from the whorl, and only then arcs out
+  (`sprout`); pushed straight out of the skull it reads as a spike through the face. Bangs root up on the crown and
+  flow over the forehead.
 - **Bend one way.** C-curves, never S.
 - **Clamp and flare.** Under a band, circlet or bandana the shapes press to the skull; above it they flare at once.
 - **The black blob test.** Fill the head black: it reads at 64 px from the front, the side and the back.
 
-Cross-referenced recipes (counts are a starting point, not a pin):
+Cross-referenced recipes (how each hero decomposes; under the one-family rule a design keeps the family that carries
+most of it — Goku, Crono and the Dragon Quest III hero carrots, Natsu and the Dragon Quest XI hero bananas):
 
 | Hero | Peppers | Bananas | Carrots | Clamp |
 |---|---|---|---|---|
-| Goku (Toriyama; `wild-spikes`) | crown up and back, two sides, back to a nape point, two over the ears | four heavy bangs (the long one off centre), two sideburns | seven thorns, swept 30–60° back in profile: one hero, one long level spike, a court | none |
+| Goku (Toriyama; `broku` is its carrots-only design) | crown up and back, two sides, back to a nape point, two over the ears | four heavy bangs (the long one off centre), two sideburns | seven thorns, swept 30–60° back in profile: one hero, one long level spike, a court | none |
 | Crono (Chrono Trigger) | one tall teardrop above the band, leaning back | two short bangs over the band; the band's tails | five or six up and back from a whorl behind the band | headband |
 | Natsu (Fairy Tail) | a modest crown | five jagged bangs to the brow, flicks at the ears | ten to fourteen short, stubby ones out and down, a flat hierarchy | none |
 | Dragon Quest III hero | the back, into three nape points | — | three short over the circlet, five or six up and back above it | circlet |

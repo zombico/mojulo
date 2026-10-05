@@ -37,7 +37,7 @@
  * { crown, temple, fringe, nape }`, construction units; the roots then emerge from the cap), the lock SECTION (`round`,
  * the studio's 8-gon, or `ridge`, a roof with a spine), a section's `ridge` and `flute` (spines along a consolidated
  * section and per member lock), the short family's `crownAccents` (`grow` | `tuck` | `none`), and the cut's words
- * (`sweepBack`, `hairline { front }`, `sweepSides`, `fringeGroups`, `backNotch`, `fringeNotch`, `flip`, `spikes`, `sideTail`, `shapes`). They ride on the hair beside its
+ * (`sweepBack`, `hairline { front }`, `sweepSides`, `fringeGroups`, `backNotch`, `fringeNotch`, `flip`, `spikes`, `sideTail`, `shapes`, `sideburns`). They ride on the hair beside its
  * controls, SPARSE (a word is there only when given; `false` sets it to the studio's construction, over a base), compose
  * across a list last-wins (an object word key by key), are passed to the build as an option and are never written into
  * the studio recipe; the scalp's hairline follows `hairline`. The HAIR BASES (`ANIME_HAIR_BASE`, the anime hero's default
@@ -129,55 +129,77 @@ export const ANIME_HAIR_MOVES = Object.freeze({
     hair: { style: 'long', part: 0.15, length: 1.2, fringeGroups: [[1, 2, 3, 4, 5], [5, 6, 7]], backNotch: 0.9, ridge: 0.8, flute: 0.35, sideTail: { amount: 1, side: 'left', width: 1.4, length: 1.15 },
       locks: { 'fringe-1': { tx: -0.2, ty: 0.05 }, 'fringe-2': { tx: -0.24, ty: 0.02 }, 'fringe-3': { tx: -0.28, ty: 0.18 }, 'fringe-4': { tx: -0.3, ty: 0.14 }, 'fringe-5': { tx: -0.28, ty: 0.26 }, 'fringe-6': { tx: -0.1, ty: 0.24 }, 'fringe-7': { ty: 0.3 },
         'right-temple-0': { ty: 0.48 }, 'right-temple-1': { ty: 0.45 }, 'left-temple-0': { ty: 0.78 } } } },
-  // the first SHAPES recipe (anime-form): mass first — five peppers stand the hair a skull's half-width off the head and
-  // sweep it up and back, the back one hooking down to the nape point; then seven thorn carrots on the outline as the
-  // operator drew it (a tall hero spike, one long one level out to the left, the rest a court of smaller ones, all swept
-  // back in profile); then the fringe as four heavy bananas (the long one just left of centre) and two sideburns
-  'wild-spikes': { note: 'after Toriyama\'s spiky heroes: a big swept-back mass, seven thorn spikes on its outline (a tall hero spike, one long one level out to the left), heavy bangs over the brow, the back falling to a point at the nape',
-    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'],
-      peppers: [
-        { at: [180, 70], dir: [0, 0.6, 0.8], size: 1.15, girth: 0.6, squash: 0.85 },
-        { at: [110, 50], dir: [0.7, 0.45, 0.55], size: 0.95, girth: 0.5, squash: 0.8 },
-        { at: [250, 50], dir: [-0.7, 0.4, 0.6], size: 0.95, girth: 0.5, squash: 0.8 },
-        { at: [180, 25], dir: [0, -0.6, 0.8], size: 0.95, girth: 0.52, squash: 0.8, bend: 0.1 },
-        { at: [100, 15], dir: [0.45, -0.45, 0.77], size: 0.7, girth: 0.42, squash: 0.75 },
-        { at: [260, 15], dir: [-0.45, -0.45, 0.77], size: 0.7, girth: 0.42, squash: 0.75 },
-      ],
+  // the SHAPES characters (anime-form): male protagonists, each in ONE vegetable family.
+  // BROKU — carrots only, after Toriyama: hierarchy and mass from length and base alone (a hero, a court of three, stubby
+  // mass carrots, the back a cascade to the nape point, carrot bangs), scaled up to the head's size
+  broku: { note: 'Broku: cut conical carrots only — a tall hero spike off centre, a long level spike to his left, stubby carrots for mass, the back cascading to a point at the nape, carrot bangs and sideburns',
+    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.4, width: 0.13 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.3,
       carrots: [
-        { at: [175, 78], dir: [-0.18, 1, 0.5], length: 1.75, base: 0.5, sink: 0.25, curve: 0.18, bend: 0.1 },
-        { at: [72, 58], dir: [0.85, 0.6, 0.5], length: 1.25, base: 0.4, sink: 0.25, curve: 0.15, bend: 0.12 },
-        { at: [90, 30], dir: [1, -0.22, 0.55], length: 1.1, base: 0.36, sink: 0.25, curve: 0.15, bend: 0.12 },
-        { at: [280, 45], dir: [-1, 0.1, 0.42], length: 1.9, base: 0.48, sink: 0.25, curve: 0.18, bend: 0.1 },
-        { at: [300, 66], dir: [-0.55, 0.85, 0.6], length: 0.95, base: 0.32, sink: 0.25, curve: 0.15 },
-        { at: [262, 20], dir: [-0.9, -0.45, 0.4], length: 0.85, base: 0.3, sink: 0.25, curve: 0.15 },
-        { at: [180, 45], dir: [0.12, 0.35, 1], length: 1.25, base: 0.42, sink: 0.25, curve: 0.15, bend: 0.12 },
+        { at: [163, 80], dir: [0.02, 1, 0.45], length: 1.7, base: 0.46, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [80, 50], dir: [1, -0.47, 0.45], length: 0.85, base: 0.34, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [280, 42], dir: [-1, 0.05, 0.4], length: 1.5, base: 0.4, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [180, 40], dir: [0.1, 0.3, 1], length: 1.1, base: 0.38, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [40, 70], dir: [0.5, 0.9, 0.1], length: 0.5, base: 0.36, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [320, 72], dir: [-0.5, 0.9, 0.2], length: 0.4, base: 0.34, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [130, 65], dir: [0.35, -0.65, 0.7], length: 0.75, base: 0.32, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [230, 65], dir: [-0.35, -0.65, 0.7], length: 0.65, base: 0.32, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [100, 20], dir: [0.9, -0.4, 0.4], length: 0.55, base: 0.38, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [150, 15], dir: [0.3, -0.8, 0.55], length: 0.6, base: 0.3, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [210, 15], dir: [-0.3, -0.8, 0.55], length: 0.5, base: 0.3, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [180, 5], dir: [0, -1, 0.25], length: 0.85, base: 0.32, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [345, 5], dir: [-0.1, -1, -0.35], length: 0.75, base: 0.2, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [20, 6], dir: [0.3, -1, -0.3], length: 0.55, base: 0.18, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [318, 8], dir: [-0.45, -1, -0.2], length: 0.5, base: 0.17, sink: 0.3, curve: 0.2, bend: 0.1 },
+        { at: [50, 8], dir: [0.6, -0.9, -0.1], length: 0.4, base: 0.15, sink: 0.3, curve: 0.2, bend: 0.1 },
+      ] } } },
+  // JINTO — bananas only, after the operator's sketch: broad locks that TILE the head (no bald gap), a smooth crown, the
+  // locks parting into points at the jaw and over the brow (the fringe opening over the face), two accent bananas on top
+  jinto: { note: 'Jinto: bananas only — broad locks tiling the head from a smooth crown, parting into points at the jaw, a pointed fringe opening over the face, two accent bananas on top, banana sideburns',
+    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.5, width: 0.14, forward: 0.1 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.12,
+      layers: [
+        { shape: 'banana', az: [0, 360], el: [55, 80], rows: 2, count: 14, length: 1.0, width: 0.2, droop: 0.35, lift: 0.08, vary: 0.2, bend: 0.18 },
+        { shape: 'banana', az: [62, 298], el: [8, 42], rows: 2, count: 18, length: 1.35, width: 0.22, droop: 1.1, lift: 0.08, vary: 0.25, bend: 0.16 },
+        { shape: 'banana', az: [-58, 58], el: [30, 48], rows: 1, count: 6, length: 0.72, width: 0.2, droop: 0.9, lift: 0.12, vary: 0.3, bend: 0.16 },
       ],
       bananas: [
-        { at: [348, 4], dir: [-0.12, -1, -0.3], length: 0.78, width: 0.22, bend: 0.18 },
-        { at: [22, 6], dir: [0.3, -1, -0.25], length: 0.55, width: 0.19, bend: 0.15 },
-        { at: [318, 8], dir: [-0.45, -1, -0.15], length: 0.5, width: 0.18, bend: 0.15 },
-        { at: [52, 8], dir: [0.6, -0.9, -0.05], length: 0.42, width: 0.16, bend: 0.12 },
-        { at: [102, -8], dir: [0.1, -1, 0.15], length: 0.36, width: 0.14, bend: 0.1 },
-        { at: [258, -8], dir: [-0.1, -1, 0.15], length: 0.36, width: 0.14, bend: 0.1 },
+        { at: [345, 86], dir: [-0.5, 0.8, -0.3], length: 0.45, width: 0.12, bend: 0.3 },
+        { at: [20, 84], dir: [0.85, 0.35, -0.1], length: 0.6, width: 0.13, bend: 0.22 },
+      ] } } },
+  // KAIRO — chili peppers only: a heavy shag of many thin strands; the weight is the count, the thinness and the length
+  kairo: { note: 'Kairo: chili peppers only — the thin version of the banana tiling: many thin strands, every one shouldered to overlap its neighbours (no bald gap), a smooth crown, the strands parting into ragged points at the jaw and the brow, two accent strands on top, thin sideburns',
+    hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.55, width: 0.07 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1,
+      layers: [
+        { shape: 'pepper', az: [0, 360], el: [55, 80], rows: 3, count: 48, length: 0.95, width: 0.05, droop: 0.35, lift: 0.08, vary: 0.25, bend: 0.14 },
+        { shape: 'pepper', az: [60, 300], el: [8, 42], rows: 3, count: 60, length: 1.2, width: 0.05, droop: 1.1, lift: 0.1, vary: 0.3, bend: 0.12 },
+        { shape: 'pepper', az: [-58, 58], el: [28, 46], rows: 2, count: 18, length: 0.6, width: 0.045, droop: 0.85, lift: 0.12, vary: 0.35, bend: 0.12 },
+      ],
+      peppers: [
+        { at: [350, 84], dir: [-0.45, 0.8, -0.35], length: 0.42, width: 0.07, bend: 0.25 },
+        { at: [15, 82], dir: [0.8, 0.35, -0.1], length: 0.55, width: 0.07, bend: 0.2 },
       ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
 /** the largest lock edit (construction units, either way) the door takes: the sweep fields' own bound */
 export const LOCK_EDIT_MAX = 3;
-export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch', 'fringeNotch', 'flip', 'spikes', 'sideTail', 'shapes']);
+export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch', 'fringeNotch', 'flip', 'spikes', 'sideTail', 'shapes', 'sideburns']);
 const LIFT_KEYS = Object.freeze(['crown', 'temple', 'fringe', 'nape']);
 const SWEEP_BACK_KEYS = Object.freeze(['amount', 'keep', 'rise', 'riseFall', 'controlX', 'controlZ', 'spread', 'tipY', 'tipZ', 'stagger', 'rootY', 'rootZ']);
 const SWEEP_SIDES_KEYS = Object.freeze(['amount', 'from', 'controlY', 'tipX', 'tipY', 'tipZ']);
 const FLIP_KEYS = Object.freeze(['amount', 'out', 'rise', 'hold']);
 const SIDE_TAIL_KEYS = Object.freeze(['amount', 'side', 'length', 'width', 'height']);
 const SPIKES_KEYS = Object.freeze(['amount', 'reach', 'width', 'up']);
+/** the sideburns (any style): their fields and limits; `shape` a family (the style's own by default) */
+export const SIDEBURN_FIELDS = Object.freeze({ amount: [0, 1], length: [0, 1.5], width: [0.01, 0.5], forward: [-0.6, 0.6], at: [-30, 30], az: [-30, 40] });
+export const HAIR_SHAPE_FAMILIES = Object.freeze(['carrot', 'banana', 'pepper']);
+/** a layer's fields (anime-form `layers`): rows of one family over an azimuth and elevation range */
+export const HAIR_LAYER_FIELDS = Object.freeze({ count: [1, 80], rows: [1, 8], length: [0.05, 3], width: [0.01, 0.6], droop: [-1, 2], lift: [-0.5, 1.5], cover: [0, 2], sprout: [0, 1], vary: [0, 0.8], bend: [-0.6, 0.6], curve: [0, 1], sink: [0, 1], flat: [0.15, 1] });
 /** the SHAPES (anime-form): the clump groups a recipe may take over, and each primitive's fields with their hard limits */
 export const HAIR_SHAPE_GROUPS = Object.freeze(['fringe', 'temple', 'back', 'crown']);
 export const HAIR_SHAPE_FIELDS = Object.freeze({
-  peppers: Object.freeze({ size: [0.05, 2], girth: [0.1, 1.5], squash: [0.3, 1.5], bend: [-0.5, 0.5] }),
-  bananas: Object.freeze({ length: [0.05, 3], width: [0.02, 0.6], flat: [0.15, 1], bend: [-0.6, 0.6] }),
-  carrots: Object.freeze({ length: [0.05, 3], base: [0.02, 0.6], sink: [0, 1], curve: [0, 1], bend: [-0.5, 0.5] }),
+  peppers: Object.freeze({ length: [0.05, 3], width: [0.01, 0.3], bend: [-0.6, 0.6], sprout: [0, 1] }),
+  bananas: Object.freeze({ length: [0.05, 3], width: [0.02, 0.6], flat: [0.15, 1], bend: [-0.6, 0.6], sprout: [0, 1] }),
+  carrots: Object.freeze({ length: [0.05, 3], base: [0.02, 0.6], sink: [0, 1], curve: [0, 1], bend: [-0.5, 0.5], sprout: [0, 1] }),
 });
 export const HAIR_SECTIONS = Object.freeze(['round', 'ridge']);
 export const CROWN_ACCENTS = Object.freeze(['grow', 'tuck', 'none']);
@@ -217,8 +239,20 @@ function hairFormErrors(entry, at) {
       if (!isObj(v)) { errs.push(`${at}.shapes: { replace?: [${HAIR_SHAPE_GROUPS.join(', ')}], peppers?, bananas?, carrots? } (lists of pieces), or false`); continue; }
       for (const [f, x] of Object.entries(v)) {
         if (f === 'replace') { if (!Array.isArray(x) || !x.every((g) => HAIR_SHAPE_GROUPS.includes(g))) errs.push(`${at}.shapes.replace: a list of the clump groups taken over (${HAIR_SHAPE_GROUPS.join(', ')})`); continue; }
+        if (f === 'scale') { num('shapes.scale', x, 0.5, 2); continue; }
+        if (f === 'whorl') { if (!Array.isArray(x) || x.length !== 2 || !x.every(finite) || x[1] < 0 || x[1] > 90) errs.push(`${at}.shapes.whorl: [azimuth°, elevation°] (the crown point the layers flow from)`); continue; }
+        if (f === 'layers') {
+          if (!Array.isArray(x) || x.length > 8) { errs.push(`${at}.shapes.layers: a list of at most 8 layers`); continue; }
+          x.forEach((Ly, i) => {
+            const here = `${at}.shapes.layers[${i}]`;
+            if (!isObj(Ly) || !HAIR_SHAPE_FAMILIES.includes(Ly.shape)) { errs.push(`${here}: { shape: ${HAIR_SHAPE_FAMILIES.join(' | ')}, az?: [from°, to°], el?: [from°, to°], ${Object.keys(HAIR_LAYER_FIELDS).join(', ')} }`); return; }
+            for (const g of ['az', 'el']) if (Ly[g] !== undefined && (!Array.isArray(Ly[g]) || Ly[g].length !== 2 || !Ly[g].every(finite) || (g === 'el' && Ly[g].some((e) => e < -30 || e > 90)))) errs.push(`${here}.${g}: [from°, to°]${g === 'el' ? ' (−30 … 90)' : ''}`);
+            for (const [g, y] of Object.entries(Ly)) { if (['shape', 'az', 'el'].includes(g)) continue; const lim = HAIR_LAYER_FIELDS[g]; if (!lim) errs.push(`${here}.${g}: not a layer field (have shape, az, el, ${Object.keys(HAIR_LAYER_FIELDS).join(', ')})`); else num(`shapes.layers[${i}].${g}`, y, lim[0], lim[1]); }
+          });
+          continue;
+        }
         const fields = HAIR_SHAPE_FIELDS[f];
-        if (!fields) { errs.push(`${at}.shapes.${f}: not a shapes field (have replace, ${Object.keys(HAIR_SHAPE_FIELDS).join(', ')})`); continue; }
+        if (!fields) { errs.push(`${at}.shapes.${f}: not a shapes field (have replace, scale, whorl, layers, ${Object.keys(HAIR_SHAPE_FIELDS).join(', ')})`); continue; }
         if (!Array.isArray(x) || x.length > 24) { errs.push(`${at}.shapes.${f}: a list of at most 24 pieces`); continue; }
         x.forEach((P, i) => {
           const here = `${at}.shapes.${f}[${i}]`;
@@ -229,6 +263,11 @@ function hairFormErrors(entry, at) {
           for (const [g, y] of Object.entries(P)) { if (g === 'at' || g === 'dir') continue; const lim = fields[g]; if (!lim) errs.push(`${here}.${g}: not a ${f.slice(0, -1)} field (have at, dir, ${Object.keys(fields).join(', ')})`); else num(`shapes.${f}[${i}].${g}`, y, lim[0], lim[1]); }
         });
       }
+    }
+    else if (k === 'sideburns') {
+      if (finite(v)) num(k, v, 0, 1);
+      else if (!isObj(v)) errs.push(`${at}.sideburns: an amount in [0, 1], { shape?: ${HAIR_SHAPE_FAMILIES.join(' | ')}, ${Object.keys(SIDEBURN_FIELDS).join(', ')} }, or false`);
+      else for (const [g, y] of Object.entries(v)) { if (g === 'shape') { if (!HAIR_SHAPE_FAMILIES.includes(y)) errs.push(`${at}.sideburns.shape: ${HAIR_SHAPE_FAMILIES.join(' | ')}`); continue; } const lim = SIDEBURN_FIELDS[g]; if (!lim) errs.push(`${at}.sideburns.${g}: not a sideburns field (have shape, ${Object.keys(SIDEBURN_FIELDS).join(', ')})`); else num(`sideburns.${g}`, y, lim[0], lim[1]); }
     }
     else if (k === 'backNotch' || k === 'fringeNotch') { if (!finite(v) || v <= 0 || v > 1) errs.push(`${at}.${k}: the ${k === 'backNotch' ? 'back' : 'bang'} sections' hem, a number in (0, 1] (1 is cut straight), or false`); }
     else if (k === 'flip' || k === 'sideTail' || k === 'spikes') {
@@ -249,7 +288,7 @@ function hairFormErrors(entry, at) {
 /** a word composed over what the layers before said: an object word merged key by key (an amount becomes `{ amount }`),
  * anything else last-wins */
 function composeFormWord(k, cur, v) {
-  const obj = (x) => (['sweepBack', 'sweepSides', 'flip', 'spikes', 'sideTail'].includes(k) && finite(x) ? { amount: x } : x);
+  const obj = (x) => (['sweepBack', 'sweepSides', 'flip', 'spikes', 'sideTail', 'sideburns'].includes(k) && finite(x) ? { amount: x } : x);
   const a = obj(cur), b = obj(v);
   return isObj(a) && isObj(b) ? { ...a, ...b } : b;
 }
@@ -281,6 +320,7 @@ export function animeHairForm(H) {
   if (on('backNotch')) out.backNotch = H.backNotch;
   if (on('fringeNotch')) out.fringeNotch = H.fringeNotch;
   if (on('shapes')) out.shapes = H.shapes;
+  if (on('sideburns')) out.sideburns = finite(H.sideburns) ? { amount: H.sideburns } : H.sideburns;
   return Object.keys(out).length ? out : null;
 }
 /** the studio's expression poses (its buttons) as words, and hero-looks' more; an object of amounts after a word
