@@ -513,6 +513,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - `lusoria`: white marble slabs with merels boards, the eight-spoked wheel and twelve-line boards scratched in.
 
     A walker crosses from the nave through the arcades to the front aisle on the floor. The page is about 12.6 MB.
+  - **The Temple of Castor, as Platner & Ashby describe it, and opened.**
+    - **The stairs, corrected.** The platform's front is a sheer face, a speakers' platform with a balustrade, and is
+      reached by "two narrow staircases, at the ends and not in front". The broad flight of eleven steps runs from the
+      platform up to the porch.
+    - **The podium's vaults:** chambers in its flanks behind bronze grilles, the banks and strongrooms of the fiscus and
+      of private depositors.
+    - **The cella:** at the record's 16 × 19.7 m, its bronze doors swung back. Inside are the Tiberian black-and-white
+      mosaic floor (later replaced by coloured marble, date unknown: recorded as a dispute), smaller columns of giallo
+      antico along the walls (Italian Wikipedia), and a coffered ceiling. The twins' cult statues stand on a base at
+      the back; their form is unverified.
+    - A walker goes from the porch through the doorway down the cella on its floor. The page is about 13.2 MB.
 
 ### Sixth-gen composer
 

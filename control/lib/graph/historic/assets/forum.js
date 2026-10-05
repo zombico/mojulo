@@ -156,13 +156,20 @@ export function bayInst(opts, x, y, z, turn) {
  * raking cornices and the acroteria.
  */
 export function podiumTemple({ W, D }, o) {
-  const { ph, order, colD, colH, front, flank = 2, peripteral = false, flankN = 0, tribunal = 0, cella = true, z = 0, P, tint = P.luna, roofPitch = 13, roofTint = P.tile, frieze = null, dedication = null, festival = false } = o;
-  const out = [], inst = [], e = colD * 1.05, rTop = (colD / 2) * 0.85;
+  const { ph, order, colD, colH, front, flank = 2, peripteral = false, flankN = 0, tribunal = 0, cella = true, z = 0, P, tint = P.luna, roofPitch = 13, roofTint = P.tile, frieze = null, dedication = null, festival = false, sideStairs = false, vaults = false, open = null } = o;
+  const out = [], inst = [], grounds = [], e = colD * 1.05, rTop = (colD / 2) * 0.85;
   // the stair cut into the front between cheek walls, 0.3 m risers on 0.36 m treads; with a tribunal, a first flight
   // to it, the platform, a second flight to the stylobate
   const run = (h) => Math.ceil(h / 0.3) * 0.36, sw = W - 2 * e + colD * 1.4, sx = (W - sw) / 2;
   const t1 = tribunal ? run(tribunal) : 0, t2 = run(ph - tribunal), pl = tribunal ? Math.max(2.5, 0.08 * D) : 0, sd = Math.min(D * 0.35, t1 + pl + t2);
-  if (tribunal) {
+  if (tribunal && sideStairs) {
+    // Castor's: the platform's front a sheer face (a speakers' platform), "two narrow staircases, at the ends and not
+    // in front" up to it (P&A), a balustrade along its edge
+    const nw = 2.6;
+    for (const x of [sx, W - sx - nw]) out.push(...stairUp({ x, y: 0, w: nw, d: t1 }, z, z + tribunal, tint));
+    out.push(box('tribunal', sx + nw, 0, sw - 2 * nw, t1 + pl, z, z + tribunal, tint), box('tribunal', sx, t1, sw, pl, z, z + tribunal, tint));
+    out.push(sbox('balustrade', sx + nw, 0, sw - 2 * nw, 0.35, z + tribunal, z + tribunal + 1.05, tint));
+  } else if (tribunal) {
     out.push(...stairUp({ x: sx, y: 0, w: sw, d: t1 }, z, z + tribunal, tint));
     out.push(box('tribunal', sx, t1, sw, pl, z, z + tribunal, tint));
   }
@@ -172,6 +179,12 @@ export function podiumTemple({ W, D }, o) {
   for (const [inset, z0, z1] of [[-0.25, 0, 0.7], [0, 0.7, ph - 0.55], [-0.2, ph - 0.55, ph]]) {
     mould(inset, sd + inset, W - 2 * inset, D - sd - 2 * inset, z0, z1);
     if (sx > 0.6) for (const cx of [inset, W - sx]) mould(cx, inset, sx - inset, sd - inset, z0, z1);
+  }
+  // `vaults`: the chambers in the podium's flanks, opening outward behind metal grilles (Castor's banks and strongrooms)
+  if (vaults) for (const [x, sg] of [[-0.42, -1], [W + 0.3, 1]]) for (let y = sd + 2.2; y + 2.6 < D - 1.5; y += 4.4) {
+    out.push(sbox('vault', x, y, 0.12, 2.6, z + 0.7, z + 3.2, P.door));
+    for (let k = 0; k <= 6; k++) out.push(sbox('grille', x + (sg < 0 ? -0.06 : 0.06), y + k * 0.43, 0.06, 0.06, z + 0.7, z + 3.2, P.bronze));
+    for (const zz of [1.5, 2.4]) out.push(sbox('grille', x + (sg < 0 ? -0.06 : 0.06), y, 0.06, 2.6, z + zz, z + zz + 0.06, P.bronze));
   }
   // the columns
   const zs = z + ph, x0 = e, x1 = W - e, pitch = (x1 - x0) / (front - 1), fy = sd + e;
@@ -195,8 +208,32 @@ export function podiumTemple({ W, D }, o) {
   if (cella) {
     const cx0 = peripteral ? x0 + pitch * 0.9 : x0 - colD * 0.4, cx1 = peripteral ? x1 - pitch * 0.9 : x1 + colD * 0.4;
     const cy0 = peripteral ? fy + Math.max(pitch * 2, (backY - fy) * 0.28) : fy + (flank + 0.5) * pitch, cy1 = peripteral ? backY - pitch * 0.9 : backY + colD * 0.4;
-    out.push(box('cella', cx0, cy0, cx1 - cx0, cy1 - cy0, zs, top, tint));
-    out.push(box('door', W / 2 - pitch * 0.4, cy0 - 0.06, pitch * 0.8, 0.1, zs, zs + colH * 0.58, P.door, { skin: null }));
+    if (!open) {
+      out.push(box('cella', cx0, cy0, cx1 - cx0, cy1 - cy0, zs, top, tint));
+      out.push(box('door', W / 2 - pitch * 0.4, cy0 - 0.06, pitch * 0.8, 0.1, zs, zs + colH * 0.58, P.door, { skin: null }));
+    } else {
+      // the cella opened: at the record's size (`open.cella`), its walls with the doorway, the bronze leaves swung back,
+      // the floor, the smaller order along its side walls, the coffered ceiling
+      const c = open.cella || { w: cx1 - cx0, d: cy1 - cy0 }, qx0 = W / 2 - c.w / 2, qx1 = W / 2 + c.w / 2, qy1 = cy1, qy0 = cy1 - c.d, t = 1.2;
+      const dw = Math.min(5, c.w * 0.3), dh = colH * 0.62, mx = W / 2;
+      out.push(box('cella', qx0, qy0, t, c.d, zs, top, tint), box('cella', qx1 - t, qy0, t, c.d, zs, top, tint), box('cella', qx0, qy1 - t, c.w, t, zs, top, tint));
+      out.push(box('cella', qx0 + t, qy0, mx - dw / 2 - qx0 - t, t, zs, top, tint), box('cella', mx + dw / 2, qy0, qx1 - t - mx - dw / 2, t, zs, top, tint), box('cella', mx - dw / 2, qy0, dw, t, zs + dh, top, tint));
+      for (const sg of [-1, 1]) out.push(sbox('door-leaf', mx + sg * dw / 2 - (sg > 0 ? 0.14 : 0), qy0 + t, 0.14, dw / 2, zs, zs + dh, P.bronze));
+      grounds.push({ kind: 'floor', x: qx0 + t, y: qy0 + t, w: c.w - 2 * t, d: c.d - 2 * t, z: zs + 0.12, fill: P.luna, surface: open.floor || 'tessellatum' });
+      if (open.inner) {
+        const { D: iD, H: iH, n, tint: it } = open.inner, iy0 = qy0 + t + 2.4, iy1 = qy1 - t - 1.4;
+        for (let k = 0; k < n; k++) for (const x of [qx0 + t + 1.1, qx1 - t - 1.1]) inst.push(colInst('corinthian', iD, iH, it, x, iy0 + ((iy1 - iy0) * k) / (n - 1), zs + 0.12));
+        for (const x of [qx0 + t, qx1 - t - 1.7]) out.push(sbox('inner-cornice', x, qy0 + t, 1.7, c.d - 2 * t, zs + 0.12 + iH, zs + 0.12 + iH + 0.7, tint));
+      }
+      // `open.statues`: the cult statues on a base against the back wall
+      if (open.statues) { const by = qy1 - t - 1.6; out.push(...statueBase(mx, by, 5, 1.8, 1.6, P.luna).map((m) => ({ ...m, z0: m.z0 + zs + 0.12, z1: m.z1 + zs + 0.12 }))); for (const sg of [-1, 1]) out.push(...figure(mx + sg * 1.2, by, zs + 1.72, 3.4, open.statues, { dir: Math.PI, raised: sg > 0 })); }
+      // the coffered ceiling, seen from below: the panel and a grid of beams
+      out.push(sbox('ceiling', qx0 + t, qy0 + t, c.w - 2 * t, c.d - 2 * t, top - 0.5, top, tint, { underside: true }));
+      for (let x = qx0 + t + 1.9; x < qx1 - t - 0.5; x += 1.9) out.push(sbox('coffer', x - 0.15, qy0 + t, 0.3, c.d - 2 * t, top - 0.85, top - 0.5, tint, { underside: true }));
+      for (let y = qy0 + t + 1.9; y < qy1 - t - 0.5; y += 1.9) out.push(sbox('coffer', qx0 + t, y - 0.15, c.w - 2 * t, 0.3, top - 0.85, top - 0.5, tint, { underside: true }));
+      // the pronaos floor, white marble, from the front columns to the doorway
+      grounds.push({ kind: 'floor', x: x0 - rTop, y: fy - rTop, w: x1 - x0 + 2 * rTop, d: qy0 - fy + rTop, z: zs + 0.12, fill: P.luna, surface: 'flagstone' });
+    }
   }
   // the entablature on all four sides, over the column lines: front and back runs from column to column, the sides likewise
   const eh = entHeight(order, colD), deep = colD * 1.2;
@@ -232,7 +269,7 @@ export function podiumTemple({ W, D }, o) {
     out.push(sbox('acroterion', mx - 0.5 * colD, y - sgn * 0.4 * colD - 0.5 * colD, colD, colD, ez + rh, ez + rh + 1.6 * colD, P.gilt));
     for (const ax of [rx0 + 0.3, rx1 - 0.3 - 0.8 * colD]) out.push(sbox('acroterion', ax, y - sgn * 0.4 * colD - 0.4 * colD, 0.8 * colD, 0.8 * colD, ez, ez + 1.2 * colD, P.gilt));
   }
-  return { boxes: out, inst, height: ez + rh };
+  return { boxes: out, inst, grounds, height: ez + rh };
 }
 /** A stair rising toward +y across the rect from z0 to z1, 0.3 m risers. */
 function stairUp(r, z0, z1, tint) { return flight(r, z0, z1, tint, 'y', Math.max(1, Math.round((z1 - z0) / 0.3))); }

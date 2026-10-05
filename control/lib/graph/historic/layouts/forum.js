@@ -98,7 +98,7 @@ export function planForum({ culture = 'forum', festival = false } = {}, K) {
 
   // ── the south-east end: Castor, Divus Julius, the Arch of Augustus, the Regia, Vesta, the House of the Vestals ──
   const CA = rec('temple-castor').dims;
-  place('castor', (f) => podiumTemple(f, { ph: CA.podium.h, tribunal: CA.tribunal, order: 'corinthian', colD: CA.columns.D, colH: CA.columns.h, front: CA.columns.front, peripteral: true, flankN: CA.columns.flank, festival, P }), { x: 172, y: 95.5, w: CA.podium.d, d: CA.podium.w }, 'w', { record: 'temple-castor' });
+  place('castor', (f) => podiumTemple(f, { ph: CA.podium.h, tribunal: CA.tribunal, order: 'corinthian', colD: CA.columns.D, colH: CA.columns.h, front: CA.columns.front, peripteral: true, flankN: CA.columns.flank, festival, sideStairs: true, vaults: true, open: { cella: CA.cella, floor: 'tessellatum', inner: { D: 0.62, H: 6.2, n: 4, tint: P.giallo }, statues: P.bronze }, P }), { x: 172, y: 95.5, w: CA.podium.d, d: CA.podium.w }, 'w', { record: 'temple-castor' });
   place('divus-julius', (f) => divusJulius(f, { P, festival }), { x: 192, y: 50, w: 30, d: 27 }, 'w', { record: 'temple-divus-julius' });
   place('arch-augustus', (f) => augustusArch(f, { P }), { x: 200, y: 77.5, w: 3.6, d: 17.75 }, 'w');
   place('regia', (f) => block(f, { h: 7.5, tint: P.luna, P }), { x: 226, y: 70, w: 22, d: 8 }, 's');
@@ -176,6 +176,8 @@ export function planForum({ culture = 'forum', festival = false } = {}, K) {
     julius: { eye: [170, 66, 1.7], at: [196, 63.5, 15] },
     // inside the Basilica Julia: down the nave over its coloured marble, the arcades and the clerestory
     basilica: { eye: [80, 120.5, 0.9 + 1.7], at: [150, 120.5, 9] },
+    // inside Castor's cella: the black-and-white mosaic, the giallo columns, the coffers (record: castor-cella)
+    cella: { eye: [199.2, 111.5, 7 + 0.12 + 1.7], at: [214, 111.5, 6.5] },
     // in its front aisle by the steps, the gaming boards underfoot
     aisle: { eye: [100, 101.5, 0.9 + 1.7], at: [112, 104, 0.6] },
     // from the Capitoline's brow behind the Tabularium, over Concord's roof, down the forum

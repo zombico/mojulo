@@ -65,6 +65,7 @@ Each is drawn one way and flagged in the record:
 - **The Arch of Augustus:** one three-bay arch south of Divus Julius.
 - **The Basilica Aemilia:** about 90 m long.
 - **Vesta's order:** Corinthian, on the Severan temple's numbers.
+- **Castor's cella floor in 79:** the Tiberian black-and-white mosaic, not the later coloured marble (when it changed is unknown).
 
 ## Built
 
@@ -78,6 +79,8 @@ Each is drawn one way and flagged in the record:
   Curtius relief, the Fasti, the friezes; dedications in real capitals that spell no text (the texts are lost).
 - The Basilica Julia opened: steps, the façade arcade, aisles all round (two deep on the long sides), inner arcades
   on two storeys, the nave under its clerestory and trusses; floors in `opus-sectile` (nave) and `lusoria` (gaming boards).
+- Castor per P&A: side stairs to its platform, the vaults' grilles; its cella opened (16 × 19.7 m) on its black-and-white
+  mosaic, the giallo order inside, coffers, the cult statues (unverified).
 - Roofs: tegulae and imbrices, antefixes, ridge tiles, a soffit under the eaves.
 - `festival: true` dresses the forum for a procession day: gilded shields on the basilicas' piers, garlands on the
   temple fronts (Livy 9.40.16). An ordinary day shows none.

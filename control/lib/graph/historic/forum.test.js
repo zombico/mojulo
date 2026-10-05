@@ -43,7 +43,7 @@ describe('historic city: the Forum Romanum at 79 CE (placeholders, measured)', (
     const c = column('corinthian', { D: 1.45, H: 14.8, tint: '#ffffff' });
     expect(c.top).toBe(14.8);
     // the columns stand on the podium, 7 m up
-    for (const t of colsIn(r)) expect(t.pos[2]).toBeCloseTo(7, 5);
+    for (const t of cols.flatMap((q) => q.transforms).filter((t) => inRect(t.pos, r))) expect(t.pos[2]).toBeCloseTo(7, 5);
   });
 
   it('Saturn, Concord and Divus Julius are hexastyle; Vesta has twenty columns in a ring', () => {
@@ -94,6 +94,18 @@ describe('historic city: the Forum Romanum at 79 CE (placeholders, measured)', (
     const steps = plan.boxes.filter((b) => b.building === 'basilica-julia' && b.kind === 'stair');
     expect(steps.length).toBe(5);
     expect(Math.max(...steps.map((b) => b.z1 - b.z0))).toBeLessThan(1);
+  });
+
+  it('Castor as P&A give it: the platform\'s face sheer, two narrow stairs at its ends, vaults behind grilles; its cella open at 16 × 19.7 m on its mosaic', () => {
+    const c = plan.boxes.filter((b) => b.building === 'castor');
+    expect(c.filter((b) => b.kind === 'vault').length).toBeGreaterThan(10);
+    expect(c.some((b) => b.kind === 'balustrade')).toBe(true);
+    const floor = plan.grounds.filter((g) => g.surface === 'tessellatum' && inRect([g.x + g.w / 2, g.y + g.d / 2], mon('castor').rect));
+    expect(floor.length).toBe(1);
+    expect([floor[0].w, floor[0].d].sort((a, b) => a - b).map((v) => Math.round(v + 2.4))).toEqual([16, 20]);   // the cella less its walls
+    expect(floor[0].z).toBeCloseTo(7.12, 5);
+    expect(plan.repeats.some((r) => r.key.startsWith('col:corinthian:0.62:6.2'))).toBe(true);                  // the giallo order inside
+    expect(c.filter((b) => b.kind === 'door-leaf').length).toBe(2);
   });
 
   it('roofs are tiled: imbrices in rows, antefixes at the eaves, a soffit under each slope', () => {
