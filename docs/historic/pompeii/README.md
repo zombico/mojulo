@@ -89,3 +89,22 @@ outside this frame, so `pompeii-tombs.webp` can wait.
 
 The positions follow the town plan's order, not a survey. The streets are drawn orthogonal, and the bluff's
 height (18 m) is drawn, since the record has none. The World page is about 15 MB.
+
+## Art
+
+Sourced into the record first (`record/pompeii.js`), then placed by meaning, as every culture's art is:
+
+| Piece | Where | Record |
+|---|---|---|
+| Black-and-white mosaic floors (ground tile `tessellatum`: a black lattice of panels, lozenges, crosslets) | the atria of about two houses in five, and the House of the Faun's exedra | `tesserae` |
+| Impluvium: a marble-rimmed pool | every atrium, under the roof's opening | `atrium-house` |
+| The Dancing Faun, bronze, 0.71 m | the impluvium of the House of the Faun's Tuscan atrium (its pedestal is conjecture: Mau found it lying on the floor) | `dancing-faun` |
+| The Alexander Mosaic, 5.82 × 3.13 m, four colours | the exedra floor between the House of the Faun's two gardens, drawn as a 16 × 9 grid of its masses | `alexander-mosaic` |
+| Election notices (wall skin `dipinti`: red and black capitals on whitewash, 1.5–2.6 m up) | the walls of the houses with shops on the main streets | `election-notices` |
+| House fronts in cream, yellow or red; a red field on a black socle | every house | `painted-fronts` (unverified: the kit's reading) |
+| Equestrian statues and empty bases | down the forum's west side; four colossal bases, empty, across its south end | `forum-statue-bases` |
+| Altars, burning | before the Temples of Apollo, Vespasian and Isis | `altar-apollo`, `altar-vespasian`, `altar-isis`, `burnt-sacrifice` |
+
+Recorded but not placed yet: the CAVE CANEM mosaic at the House of the Tragic Poet; the bronze Apollo and Diana and
+the sundial in the Temple of Apollo's court; the crossroads shrines with their painted serpents; the shop of
+Verecundus's painted front.

@@ -469,7 +469,7 @@ export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty. Lindos' views across the
 // water (`sea`, `bay`) look at the rock from afar: 22, or the page drops faces under the load.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48, forum: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48, forum: 48, faun: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,

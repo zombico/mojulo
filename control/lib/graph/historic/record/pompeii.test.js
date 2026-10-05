@@ -46,4 +46,13 @@ describe('stage 1 record: Pompeii', () => {
     expect(at(80, 'form')).not.toContain('vesuvius-before');
     expect(at(1950, 'type')).toContain('maiuri-rebuilds');
   });
+  it('records the art: the Alexander Mosaic and the faun in the House of the Faun, the notices, the bases, the burnt altars', () => {
+    const y = POMPEII_READ_AT;
+    expect(at(y, 'type')).toEqual(expect.arrayContaining(['alexander-mosaic', 'dancing-faun', 'forum-statue-bases', 'altar-apollo', 'altar-vespasian', 'altar-isis', 'temple-vespasian']));
+    expect(at(y, 'form')).toContain('election-notices');
+    expect(byId('alexander-mosaic').dims).toEqual({ w: 5.82, d: 3.13 });
+    for (const id of ['altar-apollo', 'altar-vespasian', 'altar-isis']) expect(byId(id).methods).toContain('burnt-sacrifice');
+    expect(byId('burnt-sacrifice').notes).toMatch(/fire/);
+    expect(at(-120, 'type')).not.toContain('alexander-mosaic');
+  });
 });

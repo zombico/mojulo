@@ -97,4 +97,36 @@ describe('historic city: Pompeii, the western half (placeholders)', () => {
     expect(w.sky).toBeTruthy();
     expect(plan.world.boxes.some((b) => b.kind === 'horizon' && b.y < -4000 && b.z1 > 500)).toBe(true);
   });
+
+  it('the art: mosaic floors and pools in the atria, the House of the Faun with its faun and the Alexander Mosaic', () => {
+    const courts = plan.grounds.filter((g) => g.kind === 'court' && g.surface === 'tessellatum');
+    expect(courts.length).toBeGreaterThan(150);
+    expect(plan.boxes.filter((b) => b.kind === 'impluvium').length).toBeGreaterThan(300);
+    const faun = slotsOf('pp-faun-house');
+    expect(faun.length).toBe(1);
+    expect(faun[0].rect.w * faun[0].rect.d).toBeGreaterThan(2800);   // about 3,000 m² (record)
+    const built = placeAsset(POMPEII_ASSETS['pp-faun-house'], faun[0], { palette: POMPEII.palette, culture: POMPEII, rng: () => 0.5 }).boxes;
+    const mosaic = built.filter((b) => b.kind === 'mosaic'), xs = mosaic.flatMap((b) => b.pts.map((p) => p[0])), ys = mosaic.flatMap((b) => b.pts.map((p) => p[1]));
+    expect(mosaic.length).toBe(16 * 9);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(5.82, 1);   // 5.82 × 3.13 m (record: alexander-mosaic)
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(3.13, 1);
+    const faunZ = built.filter((b) => b.kind === 'bronze');
+    expect(Math.max(...faunZ.map((b) => b.z1)) - Math.min(...faunZ.map((b) => b.z0))).toBeLessThan(0.9);   // 0.71 m and its raised arms
+  });
+
+  it('the election notices on the main streets\' shop fronts; the forum\'s bases mostly empty; the altars burning', () => {
+    const fronts = plan.boxes.filter((b) => b.asset === 'pp-shop-house' && b.kind === 'house');
+    expect(fronts.length).toBeGreaterThan(50);
+    expect(fronts.every((b) => b.skin === 'dipinti')).toBe(true);
+    expect(plan.boxes.filter((b) => b.asset === 'pp-house' && b.kind === 'house').every((b) => b.skin === 'lime-plaster')).toBe(true);
+    const eq = slotsOf('pp-equestrian');
+    expect(eq.length).toBe(POMPEII.forum.equestrian.bases + 4);
+    expect(eq.filter((q) => !q.empty).length).toBe(POMPEII.forum.equestrian.standing.length);
+    const altars = slotsOf('pp-altar');
+    expect(altars.map((q) => q.record).sort()).toEqual(['altar-apollo', 'altar-isis', 'altar-vespasian']);
+    expect(plan.fireSources).toBeUndefined();   // fire is opt-in
+    const lit = planHistoricCity({ seed: 7, culture: 'pompeii', fire: true });
+    expect(lit.fireSources.length).toBe(3);
+    expect(JSON.stringify(lit.slots)).toBe(JSON.stringify(plan.slots));   // fire moves nothing
+  });
 });

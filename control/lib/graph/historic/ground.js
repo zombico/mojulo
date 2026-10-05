@@ -17,6 +17,8 @@ import { relief, ell, quad, PIG, sceneRegister, smitingScene, columnScene, capti
 export const GROUND_SURFACES = { mud: 4, rubble: 3, brick: 2.4, 'dry-earth': 6, 'cone-mosaic': 1.6, flagstone: 6 };   // the mosaic's cones are drawn large: a big read, not a count
 // the fields: ard furrows ~0.4 m apart, rows of shoots on them, stubble after the sickle, standing barley
 Object.assign(GROUND_SURFACES, { furrows: 3, sown: 3, stubble: 3, barley: 2, 'drying-bricks': 3 });
+// the Roman floor (Pompeii): black-and-white tessellatum in panels a metre and a half across, two to a tile
+Object.assign(GROUND_SURFACES, { tessellatum: 3 });
 // a skin, not a ground: the cone mosaic of Uruk — clay cones pressed head-out into the wall, their
 // heads dipped red, black or left white, set in zigzags and lozenges. Its tile ignores the base colour.
 
@@ -94,6 +96,22 @@ const BAKERS = {
       const col = zig ? K : lz <= 1 ? K : lz <= 3 ? R : v === 4 ? R : Wt;
       const cx = Math.floor(i * b + b / 2), cy = Math.floor(j * b + b / 2);
       stamp(px, size, cx, cy, b * 0.48, col.map((c) => c * (0.93 + rng() * 0.12)), 1);
+    }
+    return px;
+  },
+  // black-and-white tessellatum (Pompeii): white tesserae with a black lattice of square panels, each holding a
+  // black lozenge round a white one and a crosslet at its corners; the tesserae drawn as a faint grain. Drawn
+  // bold, a big read; the base colour is the white
+  tessellatum(base, size, rng) {
+    const px = new Float64Array(size * size * 3), K = [38, 35, 33], per = 2, b = size / per, t = Math.max(2, Math.round(size / 96)), n = noise(size, 64, rng);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const lx = x % b, ly = y % b, cx = Math.abs(lx - b / 2), cy = Math.abs(ly - b / 2), dia = cx + cy;
+      const frame = lx < t * 2 || ly < t * 2, e = b / 2 - t * 5, inner = (Math.abs(cx - e) < t * 0.8 && cy < e) || (Math.abs(cy - e) < t * 0.8 && cx < e);   // a fillet inside the frame
+      const lozenge = dia < b * 0.3 && dia > b * 0.17, eye = dia < b * 0.07;
+      const crosslet = (Math.abs(lx - t * 9) < t * 0.8 && Math.abs(ly - t * 9) < t * 3) || (Math.abs(ly - t * 9) < t * 0.8 && Math.abs(lx - t * 9) < t * 3);
+      const black = frame || inner || lozenge || eye || crosslet;
+      const grain = (x % 3 === 0 || y % 3 === 0) ? 0.94 : 1, col = black ? K : base;
+      for (let c = 0; c < 3; c++) px[(y * size + x) * 3 + c] = col[c] * grain * (0.96 + n(x, y) * 0.07);
     }
     return px;
   },
@@ -253,13 +271,14 @@ export const WALL_SKINS = {
   drystone: [4, 3],          // a terrace wall of field stones laid dry: rounded and angular stones of every size, dark gaps, no courses
   'poros-stucco': [6, 4],    // soft poros under a fine lime stucco, false ashlar joints drawn in it: the Greek temple's skin, smooth and pale
   isodomic: [6, 3],          // limestone ashlar in courses of one height, blocks of one length, each course half a block over: the Hellenistic wall
+  dipinti: [9, 4.2],         // a Pompeian street front: lime stucco, and painted on it at head height the election notices, red and black letters on whitewashed panels
 };
 /** Skins laid on a sloped face (a roof) as well as an upright one: the tile's x runs along the eave, its y up the slope. */
 const SKIN_ROOF = new Set(['tile-roof']);
 /** Tile widths in px where 320 is too coarse for the figures drawn on them. */
 const SKIN_PX = { 'painted-relief': 640, 'pylon-relief': 520 };
 /** Skins whose tile is one register: a face fits a whole number of them, from its foot to its top. */
-const SKIN_FIT = new Set(['painted-relief']);
+const SKIN_FIT = new Set(['painted-relief', 'dipinti']);
 /** Skins drawn facing +x (into the temple): a face whose run points away from `toward` wears them mirrored. */
 const SKIN_DIRECTED = new Set(['painted-relief', 'pylon-relief']);
 
@@ -413,6 +432,34 @@ const SKIN_BAKERS = {
     }
   },
   isodomic(o, rng) { ashlar(o, rng, { course: [1 / 6, 1 / 6], block: [0.24, 0.26], jointK: 0.2, toneK: 0.06, streak: 0.04 }); },
+  // the street front: the stucco's faint mottle, and the notices — whitewashed panels at head height with two or three
+  // lines of capitals in red or black (a name, then the office: a big read, not text), the odd one half washed over
+  dipinti(o, rng) {
+    SKIN_BAKERS['lime-plaster'](o, rng);
+    const { W, H } = o, m = W / 9, at = (z) => H * (1 - z / 4.2);   // px per metre; a height (m above the foot) → px
+    const RED = [150, 40, 30], BLACK = [36, 32, 30], WASH = [240, 236, 226];
+    for (let x0 = 0.4 * m; x0 < W - 1.2 * m; ) {
+      const w = (1.6 + rng() * 1.4) * m, z0 = 1.5 + rng() * 0.3, h = 0.55 + rng() * 0.45, faded = rng() < 0.2, ink = rng() < 0.75 ? RED : BLACK;
+      if (x0 + w > W - 0.2 * m) break;
+      for (let y = Math.floor(at(z0 + h)); y < at(z0); y++) for (let x = Math.floor(x0); x < x0 + w; x++) o.paint(x, y, WASH, faded ? 0.35 : 0.8);
+      const lines = h > 0.8 ? 3 : 2, lh = (h * m) / (lines + 0.6);
+      for (let l = 0; l < lines; l++) {
+        const top = at(z0 + h) + lh * (0.35 + l), cap = lh * (l === 0 ? 0.75 : 0.55);   // the name's line the tallest
+        for (let x = x0 + 0.1 * m; x < x0 + w - 0.12 * m; ) {
+          const lw = cap * (0.45 + rng() * 0.35), stroke = Math.max(1, cap * 0.16), kind = rng();
+          // a capital as strokes: an upright, and a bar, a diagonal or a bowl
+          for (let y = 0; y < cap; y++) for (let k = 0; k < stroke; k++) {
+            o.paint(x + k, top + y, ink, faded ? 0.3 : 0.9);
+            if (kind < 0.35) o.paint(x + (lw * y) / cap + k, top + y, ink, faded ? 0.3 : 0.9);
+            else if (kind < 0.6 && (y < stroke || y > cap - stroke)) for (let u = 0; u < lw; u++) o.paint(x + u, top + y, ink, faded ? 0.3 : 0.9);
+            else if (kind < 0.8 && y < cap / 2) o.paint(x + lw * Math.sin((Math.PI * y) / (cap / 2)) + k, top + y, ink, faded ? 0.3 : 0.9);
+          }
+          x += lw + cap * (rng() < 0.15 ? 0.9 : 0.25);   // now and then a word space
+        }
+      }
+      x0 += w + (0.8 + rng() * 1.6) * m;
+    }
+  },
   'giza-core'(o, rng) {
     ashlar(o, rng, { course: [0.16, 0.26], block: [0.14, 0.3], jointK: 0.32, toneK: 0.1, streak: 0.06 });
     for (let k = 0; k < o.a.length / 40; k++) o.add(rng() * o.W, rng() * o.H, -0.12 - rng() * 0.12);

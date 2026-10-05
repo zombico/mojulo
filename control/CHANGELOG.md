@@ -388,6 +388,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Qin's size.
 - New shared patterns: podium temple, forum, atrium house, taberna, arch, street fountain, kerbed street. The
   other cultures' pages are byte-identical.
+- The town's art, sourced into the record first (Mau's *Pompeii, Its Life and Art*, the Naples museum, Pompeii in
+  Pictures):
+  - **Floors and pools.** About two houses in five have a black-and-white mosaic floor in the atrium (a new ground
+    tile, `tessellatum`), and every atrium has its marble-rimmed impluvium.
+  - **The House of the Faun.** About 3,000 m², with two atria, the bronze Dancing Faun (0.71 m) in the first one's
+    pool, and the Alexander Mosaic (5.82 × 3.13 m) in its four colours on the exedra floor between the two gardens.
+  - **Painted fronts.** House fronts in cream, yellow or red stucco, a red field on a black socle. Lots on the main
+    streets now face them and open shops on them. Their walls carry the election notices: a new wall skin,
+    `dipinti`, with red and black capitals on whitewashed panels at head height.
+  - **The forum's statues.** A row of equestrian bases down the west side and four colossal bases across the south
+    end. No forum statue survives and they were probably stored after 62, so most bases stand empty; the two
+    statues drawn are conjecture.
+  - **Burning altars.** Before the Temples of Apollo, Vespasian (newly placed) and Isis. Roman sacrifice was burnt,
+    the opposite of Athena Lindia's fireless rite; with `fire: true` the World page burns them live.
+- A second pass at Porta Marina and the roofs:
+  - **The gate.** Its two passages are barrel-vaulted under round arches, ringed in paler stone, with a parapet on top.
+    The climb to it is as wide as the gate: a cart ramp up to the wide passage and a stepped footway up to the narrow
+    one, between cheek walls, and a paved space inside. The middle cheek wall fills the full width of the pier between
+    the passages, and a stone footing carries the gate's front where it stands out past the spur's edge. A walker can
+    go from the foot of the ramp through the gate into town without falling.
+  - **The roofs.** The borrowed Lindos house roofs rise above the wall top to their outer edge, so they seemed to float.
+    They are now closed onto the walls, and the halls' gable ends are closed flush in stucco.
+- New shared patterns: mosaic floor, painted notice. The World page is about 19.7 MB. The other cultures' pages are
+  still byte-identical.
 
 ### Sixth-gen composer
 

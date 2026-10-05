@@ -127,6 +127,8 @@ export const PATTERNS = {
   taberna: { family: 'street', read: 'a one-room shop open full width to the street, shuttered at night, a counter at its front', seenIn: ['Rome', 'Pompeii (thermopolia)', 'the medieval bottega', 'the souk'] },
   arch: { family: 'massing', read: 'a round arch on piers: a gate, an arcade, or an honorary monument carrying a statue', seenIn: ['Rome', 'Roman colonies', 'Islamic arcades', 'the Arc de Triomphe'] },
   'street-fountain': { family: 'street', read: 'a basin at a street corner fed from a pipe, its spout carved, open to all', seenIn: ['Pompeii', 'Rome', 'Ottoman sebil', 'the village fountain'] },
+  'mosaic-floor': { family: 'art', read: 'a floor of small stone cubes laid in patterns, black on white or in colour, a picture panel set in the middle', seenIn: ['Hellenistic Greece (pebble, then tesserae)', 'Pompeii', 'Roman villas everywhere', 'Byzantine churches'] },
+  'painted-notice': { family: 'art', read: 'notices painted on the street wall at head height: names and offices in big letters on whitewashed panels', seenIn: ['Pompeii (election notices)', 'Rome', 'the modern poster wall'] },
   'kerbed-street': { family: 'street', read: 'a paved roadway sunk between raised pavements, stepping stones at the crossings', seenIn: ['Pompeii', 'Roman towns', 'the modern street'] },
 };
 

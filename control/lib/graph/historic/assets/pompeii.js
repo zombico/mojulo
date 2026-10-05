@@ -9,7 +9,7 @@
  * roofless (a relic lower still); unfinished stands roofless at part height with scaffolding; under repair keeps its roof, with
  * scaffolding on its front.
  */
-import { house as lnHouse, wallRun, tower as lnTower, theatre as lnTheatre, statueBase, gableRoof } from './lindos.js';
+import { house as lnHouse, wallRun, tower as lnTower, theatre as lnTheatre, statueBase, gableRoof, flame } from './lindos.js';
 import { slopedFlight } from './kit.js';
 import { POMPEII_STYLE } from '../style/pompeii.js';
 import { scaleHex } from '../../polygonizer/vexar.js';
@@ -71,7 +71,8 @@ export const hall = {
   envelope: { w: [10, 70], d: [10, 70] },
   build({ W, D, slot }, { palette: P }) {
     const S = stateOf(slot.state), h = (slot.h || 9) * S.h, out = [box('hall-wall', 0, 0, W, D, 0, h, P.stucco), box('socle', -0.05, -0.06, W + 0.1, 0.12, 0, KIT.wall.socle[1], P.red), box('door', W / 2 - 1.5, -0.08, 3, 0.06, 0, Math.min(h - 1, 5), P.door)];
-    if (S.roof) out.push(...gableRoof({ x: 0, y: 0, w: W, d: D }, h, KIT.roof.pitch, P, { axis: W >= D ? 'x' : 'y', pediments: false, eave: 0.6 }));
+    // the gable ends closed flush in the wall's stucco (a plain gable, no cornice: not a temple's pediment)
+    if (S.roof) out.push(...gableRoof({ x: 0, y: 0, w: W, d: D }, h, KIT.roof.pitch, P, { axis: W >= D ? 'x' : 'y', pediments: true, eave: 0.6 }).map((b) => (b.kind === 'pediment' ? { ...b, kind: 'gable' } : b)));
     if (slot.dome) { const r = Math.min(W, D) * 0.18; out.push(drum('hall-wall', W * 0.75, D * 0.5, r, h, h + 1, P.stucco, { sides: 12 }), { kind: 'dome', solid: 'dome', sides: 12, x: W * 0.75 - r, y: D * 0.5 - r, w: 2 * r, d: 2 * r, z0: h + 1, z1: h + 1 + r, tint: P.stucco }); }
     if (S.scaffold) out.push(...scaffold(W, h, P));
     return out;
@@ -130,16 +131,31 @@ export const arch = {
   },
 };
 
+/** The gate's two passages across its width W (local x, front −y): the narrow one for walkers, then the wide one for carts. */
+export function gatePassages(W) { const a = 2.5, b = 4.5, x1 = W * 0.2, x2 = x1 + a + (W - a - b - 2 * x1); return [[x1, x1 + a], [x2, x2 + b]]; }
+
 /** A town gate: the wall thickened round two vaulted passages, a narrow one for walkers and a wide one for carts (Porta Marina). */
 export const gate = {
   id: 'pp-gate', sheet: null, designed: false, patterns: ['towered-wall', 'arch'],
-  read: 'A deep gate block in the wall, two vaulted passages side by side: a narrow one for walkers, a wide one for carts and animals.',
-  notes: ['Placeholder: passages 2.5 and 4.5 m (snippet, record: porta-marina); block 9 m high.'],
+  read: 'A deep gate block in the wall, two barrel-vaulted passages side by side under round arches: a narrow one for walkers, a wide one for carts and animals.',
+  notes: ['Passages 2.5 and 4.5 m (snippet, record: porta-marina); block 10 m high with a parapet.', 'The vaults as a stepped semicircle run through the block\'s depth (six steps a side): the arch read from outside, the tunnel inside.'],
   envelope: { w: [14, 22], d: [10, 20] },
   build({ W, D }, { palette: P }) {
-    const a = 2.5, b = 4.5, x1 = W * 0.2, x2 = x1 + a + (W - a - b - 2 * x1), h = 9, out = [];
-    out.push(box('gate', 0, 0, x1, D, 0, h, P.tufa), box('gate', x1 + a, 0, x2 - x1 - a, D, 0, h, P.tufa), box('gate', x2 + b, 0, W - x2 - b, D, 0, h, P.tufa));
-    out.push(box('gate', x1, 0, a, D, 3.4, h, P.tufa), box('gate', x2, 0, b, D, 4.6, h, P.tufa));
+    const [[x1, xa], [x2, xb]] = gatePassages(W), h = 10, out = [];
+    out.push(box('gate', 0, 0, x1, D, 0, h, P.tufa), box('gate', xa, 0, x2 - xa, D, 0, h, P.tufa), box('gate', xb, 0, W - xb, D, 0, h, P.tufa));
+    for (const [u0, u1, spring] of [[x1, xa, 2.6], [x2, xb, 3.4]]) {
+      const r = (u1 - u0) / 2, crown = spring + r, n = 6;
+      // the spandrels stepped round the arch's curve, each step as deep as the block: the barrel vault's read
+      for (let k = 1; k <= n; k++) {
+        const z0 = spring + (r * (k - 1)) / n, z1 = spring + (r * k) / n, hw = Math.sqrt(Math.max(0, r * r - (z1 - spring) ** 2)), fillW = r - hw;
+        if (fillW > 0.01) out.push(box('gate', u0, 0, fillW, D, z0, z1, P.tufa), box('gate', u1 - fillW, 0, fillW, D, z0, z1, P.tufa));
+      }
+      out.push(box('gate', u0, 0, u1 - u0, D, crown, h, P.tufa));
+      // the archivolt: a ring of paler stone round the front of the arch
+      for (let k = 0; k <= 8; k++) { const t = (Math.PI * k) / 8, cx = (u0 + u1) / 2 + Math.cos(t) * (r + 0.2), cz = spring + Math.sin(t) * (r + 0.2); out.push(box('archivolt', cx - 0.28, -0.12, 0.56, 0.14, cz - 0.28, cz + 0.28, P.limestone)); }
+    }
+    // the parapet along the top, its merlons a low wall-walk's screen
+    for (let x = 0; x < W - 0.5; x += 1.6) out.push(box('gate', x, 0, 0.9, 0.8, h, h + 0.9, P.tufa));
     return out;
   },
 };
@@ -157,18 +173,71 @@ export const fountain = {
 
 // ── borrowed as they stand ──
 
-/** The atrium house's placeholder: the Lindos courtyard house — rooms round a court, the roofs falling inward, which is the atrium's compluvium read. */
+/** Move built parts by (dx, dy): boxes, panels' corners, beams' ends. */
+const shift = (bs, dx, dy) => bs.map((b) => ({ ...b, x: b.x + dx, y: b.y + dy, ...(b.pts ? { pts: b.pts.map(([x, y, z]) => [x + dx, y + dy, z]) } : {}), ...(b.a ? { a: [b.a[0] + dx, b.a[1] + dy, b.a[2]], b: [b.b[0] + dx, b.b[1] + dy, b.b[2]] } : {}) }));
+const tri = (kind, pts, out, tint) => { const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]), zs = pts.map((q) => q[2]); return { kind, solid: 'panel', pts, out, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(0.01, Math.max(...xs) - Math.min(...xs)), d: Math.max(0.01, Math.max(...ys) - Math.min(...ys)), z0: Math.min(...zs), z1: Math.max(...zs), tint }; };
+// the Lindos house's numbers its roofs are built on (./lindos.js house): range depth, eave height, the roof's rise to its
+// outer edge, the eave's reach, a small house's gable pitch
+const LN = { rd: 3.2, h: 4.2, rise: 0.8, eave: 0.25, gable: 16 };
+/**
+ * Close the borrowed house's roofs onto its walls: its ranges' roofs rise 0.8 m above the wall top to their outer edge,
+ * and a small house's gable ends are open, so from the street the roofs float. A strip of wall along each outer edge
+ * up under the roof, and a triangle in each open end.
+ */
+function closeRoofs(boxes, W, D) {
+  const walls = boxes.filter((b) => b.kind === 'house'), tone = walls[0].tint, out = [], { rd, h, rise, eave: e } = LN;
+  if (Math.min(W, D) < 9) {
+    const hr = ((W >= D ? D : W) / 2 + e) * Math.tan((LN.gable * Math.PI) / 180);
+    if (W >= D) for (const [x, n] of [[0, -1], [W, 1]]) out.push(tri('house', [[x, 0, h], [x, D, h], [x, D / 2, h + hr]], [n, 0, 0], tone));
+    else for (const [y, n] of [[0, -1], [D, 1]]) out.push(tri('house', [[0, y, h], [W, y, h], [W / 2, y, h + hr]], [0, n, 0], tone));
+    return out;
+  }
+  const hb = Math.max(...walls.map((b) => b.z1)), at = (z0, t) => z0 + rise * (1 - (t + e) / (rd + e));   // the roof's height t m in from the outer wall
+  const strip = 0.3, top = (z0) => at(z0, strip) - 0.02;
+  out.push(box('house', 0, 0, W, strip, h, top(h), tone), box('house', 0, D - strip, W, strip, hb, top(hb), tone));
+  out.push(box('house', 0, rd, strip, D - 2 * rd, h, top(h), tone), box('house', W - strip, rd, strip, D - 2 * rd, h, top(h), tone));
+  for (const [x, n] of [[0, -1], [W, 1]]) {
+    out.push(tri('house', [[x, 0, h], [x, 0, at(h, 0)], [x, rd, h]], [n, 0, 0], tone), tri('house', [[x, D, hb], [x, D, at(hb, 0)], [x, D - rd, hb]], [n, 0, 0], tone));
+  }
+  // the side ranges' ends, where they meet the front and back ranges
+  for (const [x0, x1] of [[0, rd], [W, W - rd]]) for (const [y, n] of [[rd, 1], [D - rd, -1]]) out.push(tri('house', [[x0, y, h], [x0, y, at(h, 0)], [x1, y, h]], [0, n, 0], tone));
+  return out;
+}
+const flat = (kind, x, y, w, d, z, tint) => ({ kind, solid: 'panel', pts: [[x, y, z], [x + w, y, z], [x + w, y + d, z], [x, y + d, z]], out: [0, 0, 1], x, y, w, d, z0: z, z1: z, tint });
+// the house fronts' colours: most a warm cream stucco, some yellow, a few red (the street fronts' fields; record: painted-plaster)
+const FRONTS = [['plaster', 0.6], ['yellow', 0.25], ['red', 0.15]];
+
+/**
+ * The atrium house's placeholder: the Lindos courtyard house — rooms round a court, the roofs falling inward,
+ * which is the atrium's compluvium read — with the atrium's own things added: the impluvium, a marble-rimmed
+ * pool under the roof's opening, and in some houses a black-and-white mosaic floor. Its front a cream, yellow
+ * or red stucco.
+ */
 export const house = borrowed(lnHouse, 'pp-house', {
-  read: 'Placeholder: rooms round an open court with roofs falling inward to it (the compluvium read), plastered walls on a dark socle, one door to the street.',
-  notes: ['Borrowed from Lindos (ln-house) until pompeii-atrium-house.webp is read off: fauces, atrium with impluvium, tablinum, peristyle behind.', 'Less the Greek house\'s pastas (the three columns before its back range): an atrium has none, and they were half the town\'s faces.'],
-  build(args, ctx) { const out = lnHouse.build(args, ctx); return { ...out, boxes: out.boxes.filter((b) => !PASTAS.has(b.kind)) }; },
+  patterns: ['atrium-house', 'courtyard-house', 'blank-wall', 'tile-roof', 'mosaic-floor'],
+  read: 'Placeholder: rooms round an open court with roofs falling inward to it (the compluvium read), a pool in the court under the opening, plastered walls in cream, yellow or red on a dark socle, one door to the street.',
+  notes: ['Borrowed from Lindos (ln-house) until pompeii-atrium-house.webp is read off: fauces, atrium with impluvium, tablinum, peristyle behind.', 'Less the Greek house\'s pastas (the three columns before its back range): an atrium has none, and they were half the town\'s faces.', 'Impluvium a third of the court each way, its rim 0.25 m; a mosaic floor in about two houses in five (`mosaic` slot overrides).'],
+  build(args, ctx) {
+    const P = ctx.palette, rng = ctx.rng, roll = rng(), field = FRONTS.find((f, i) => roll < FRONTS.slice(0, i + 1).reduce((a, q) => a + q[1], 0))[0];
+    const out = lnHouse.build(args, { ...ctx, palette: { ...P, plaster: P[field], socle: field === 'red' ? P.black : P.socle } });   // a red field stands on a black socle
+    const mosaic = args.slot.mosaic ?? rng() < 0.4, boxes = out.boxes.filter((b) => !PASTAS.has(b.kind)), grounds = [];
+    boxes.push(...closeRoofs(boxes, args.W, args.D));
+    for (const g of out.grounds) {
+      if (g.kind !== 'court') { grounds.push(g); continue; }
+      grounds.push(mosaic ? { ...g, surface: 'tessellatum', fill: P.mosaic } : g);
+      const iw = g.w / 3, id = g.d / 3, ix = g.x + iw, iy = g.y + id;
+      boxes.push(box('impluvium', ix, iy, iw, id, 0, 0.25, P.marble));
+      grounds.push({ kind: 'water', x: ix + 0.15, y: iy + 0.15, w: iw - 0.3, d: id - 0.3, z: 0.26, fill: P.water });
+    }
+    return { boxes, grounds };
+  },
 });
 
-/** A house with shops in its street front: the Lindos house with open shop bays either side of its door. */
+/** A house with shops in its street front: the atrium house with open shop bays either side of its door, and the election notices painted on its front. */
 export const shopHouse = {
-  ...house, id: 'pp-shop-house', patterns: ['courtyard-house', 'taberna', 'tile-roof'],
-  read: 'Placeholder: the courtyard house with its street rooms opened as shops: wide dark bays either side of the door.',
-  notes: ['Bays 2.8 m wide, 3.2 m high, one per 5 m of frontage (no Pompeian shopfront module in the record yet).', 'Next: pompeii-street.webp.'],
+  ...house, id: 'pp-shop-house', patterns: ['atrium-house', 'taberna', 'tile-roof', 'painted-notice'],
+  read: 'Placeholder: the atrium house with its street rooms opened as shops: wide dark bays either side of the door, election notices painted at head height.',
+  notes: ['Bays 2.8 m wide, 3.2 m high, one per 5 m of frontage (no Pompeian shopfront module in the record yet).', 'Its walls wear the `dipinti` skin: notices in red and black on whitewashed panels, 1.5–2.6 m up.', 'Next: pompeii-street.webp.'],
   build(args, ctx) {
     const out = house.build(args, ctx), { W } = args, P = ctx.palette, n = Math.max(1, Math.floor(W / 5));
     const bays = [];
@@ -177,9 +246,114 @@ export const shopHouse = {
   },
 };
 
+// ── art ──
+
+/**
+ * The Dancing Faun: a bronze satyr about 0.7 m tall, dancing with both arms raised, on a pedestal in the
+ * impluvium of the House of the Faun's Tuscan atrium (record: dancing-faun). Built at (cx, cy) on the floor; its
+ * pedestal is conjecture (Mau: found lying on the atrium floor, the pedestal not identified).
+ */
+export function dancingFaun(cx, cy, P) {
+  const b = P.bronze, z = 0.75, h = 0.71;
+  return [box('pedestal', cx - 0.3, cy - 0.3, 0.6, 0.6, 0, z, P.marble),
+    drum('bronze', cx - 0.06, cy, 0.05, z, z + h * 0.45, b, { sides: 5 }), drum('bronze', cx + 0.07, cy + 0.02, 0.05, z, z + h * 0.42, b, { sides: 5 }),
+    drum('bronze', cx, cy, 0.09, z + h * 0.42, z + h * 0.8, b, { sides: 6, taper: 1.2 }),
+    { kind: 'bronze', solid: 'dome', sides: 6, x: cx - 0.06, y: cy - 0.06, w: 0.12, d: 0.12, z0: z + h * 0.8, z1: z + h * 0.95, tint: b },
+    box('bronze', cx - 0.2, cy - 0.025, 0.05, 0.05, z + h * 0.72, z + h * 1.05, b), box('bronze', cx + 0.15, cy - 0.025, 0.05, 0.05, z + h * 0.74, z + h * 1.08, b)];
+}
+
+// the Alexander Mosaic as a big read: a 16 × 9 grid of its masses (border, the ochre ground, Alexander's horse at the
+// left under the dead tree, Darius's chariot and horses at the right under a thicket of spears)
+const ALEXANDER = [
+  'kkkkkkkkkkkkkkkk',
+  'kgdooooo/o/o/o/k',
+  'kgdoobooo/o/o/ok',
+  'kodobbwoobbrddok',
+  'kobbbwboobbrrdok',
+  'kobbbbooobbbddok',
+  'kodobdooodbdbdok',
+  'kooooooooooooook',
+  'kkkkkkkkkkkkkkkk',
+];
+// its four colours (record: alexander-mosaic): white, yellow, red and blue-black, mixed for the browns
+const ALEX_COL = { k: '#23242a', o: '#c9a86a', g: '#4a4c52', d: '#33302e', b: '#8a4a2c', w: '#e8e0cc', r: '#9b2f22', '/': '#23242a' };
+/** The Alexander Mosaic laid flat at (x, y), 5.82 × 3.13 m (record: alexander-mosaic), its top edge toward −y. */
+export function alexanderMosaic(x, y, z = 0.07) {
+  const W = 5.82, D = 3.13, cw = W / 16, cd = D / 9, out = [];
+  ALEXANDER.forEach((row, j) => [...row].forEach((ch, i) => out.push(flat('mosaic', x + i * cw, y + j * cd, cw + 0.01, cd + 0.01, z, ALEX_COL[ch]))));
+  return out;
+}
+
+/**
+ * The House of the Faun, the largest house in the town (about 3,000 m², record: house-of-the-faun): two atria on
+ * the street, the first with the Dancing Faun in its impluvium; a first peristyle; the exedra between the two
+ * peristyles with the Alexander Mosaic on its floor; the great second peristyle behind.
+ */
+export const faunHouse = {
+  id: 'pp-faun-house', sheet: null, designed: false, patterns: ['atrium-house', 'peristyle', 'mosaic-floor', 'statue-base', 'tile-roof'],
+  read: 'Placeholder: a great house on its street: two atria side by side, the bronze faun dancing in the first one\'s pool, a colonnaded garden behind, an open exedra with the Alexander Mosaic on its floor, a second, larger colonnaded garden at the back.',
+  notes: ['The atria 35% of the depth, the first peristyle 25%, the exedra 6 m, the second peristyle the rest (proportions conjecture; the plan sheet will set them).', 'The exedra stands roofless here so the mosaic shows from the air.'],
+  envelope: { w: [30, 40], d: [75, 95] },
+  build({ W, D, slot }, ctx) {
+    const P = ctx.palette, fd = Math.round(D * 0.35), p1 = Math.round(D * 0.25), ex = 6, out = [], grounds = [];
+    const atrium = (x, w, faun) => {
+      const a = house.build({ W: w, D: fd, slot: { mosaic: true } }, { ...ctx, rng: () => 0.1 });
+      out.push(...shift(a.boxes, x, 0)); grounds.push(...shift(a.grounds, x, 0));
+      const c = a.grounds.find((g) => g.kind === 'court');
+      if (faun && c) out.push(...dancingFaun(x + c.x + c.w / 2, c.y + c.d / 2, P));
+    };
+    atrium(0, W * 0.56, true); atrium(W * 0.56, W * 0.44, false);
+    // each garden open on its side toward the exedra (the exedra opens to them between columns)
+    const peri = (y, d, open) => { const c = court.build({ W, D: d, slot: { open } }, ctx); out.push(...shift(c.boxes, 0, y)); grounds.push(...shift(c.grounds, 0, y)); };
+    peri(fd, p1, 's');
+    const ey = fd + p1;
+    out.push(box('hall-wall', 0, ey, 2, ex, 0, 5, P.stucco), box('hall-wall', W - 2, ey, 2, ex, 0, 5, P.stucco));
+    grounds.push({ kind: 'court', x: 2, y: ey, w: W - 4, d: ex, z: 0.05, fill: P.mosaic, surface: 'tessellatum' });
+    out.push(...alexanderMosaic(W / 2 - 2.91, ey + (ex - 3.13) / 2));
+    peri(ey + ex, D - ey - ex, 'n');
+    return { boxes: out, grounds };
+  },
+};
+
+/**
+ * An equestrian statue on its base, or the base alone (`empty`): the forum's bases outnumber its statues, which
+ * were not set back up after 62 (record: forum-square).
+ */
+export const equestrian = {
+  id: 'pp-equestrian', sheet: null, designed: false, patterns: ['statue-base', 'colossus'],
+  read: 'A tall stuccoed base; on it a bronze horseman, the horse walking, the rider\'s arm raised — or the base standing empty.',
+  notes: ['Base 1.8 m high (conjecture); horse and rider about life size and a quarter.'],
+  envelope: { w: [3, 4], d: [1.2, 1.8] },
+  build({ W, D, slot }, { palette: P }) {
+    const zb = 1.8, out = [box('base', 0, 0, W, D, 0, 0.3, P.tufa), box('base', 0.12, 0.12, W - 0.24, D - 0.24, 0.3, zb - 0.2, P.stucco), box('base', 0, 0, W, D, zb - 0.2, zb, P.tufa)];
+    if (slot.empty) return out;
+    const b = P.bronze, cx = W / 2, cy = D / 2, L = Math.min(2.6, W * 0.75);
+    for (const [dx, dy] of [[-0.4, -0.25], [-0.4, 0.25], [0.4, -0.25], [0.4, 0.25]]) out.push(box('bronze', cx + dx * L - 0.06, cy + dy - 0.06, 0.12, 0.12, zb, zb + 1.05, b));
+    out.push(box('bronze', cx - L / 2, cy - 0.32, L, 0.64, zb + 1.0, zb + 1.65, b));                       // the body
+    out.push(box('bronze', cx + L / 2 - 0.15, cy - 0.16, 0.45, 0.32, zb + 1.5, zb + 2.25, b));             // the neck and head
+    out.push(drum('bronze', cx - 0.05, cy, 0.22, zb + 1.65, zb + 2.5, b, { sides: 6, taper: 0.85 }));     // the rider
+    out.push({ kind: 'bronze', solid: 'dome', sides: 6, x: cx - 0.16, y: cy - 0.16, w: 0.32, d: 0.32, z0: zb + 2.5, z1: zb + 2.85, tint: b });
+    out.push(box('bronze', cx + 0.1, cy - 0.05, 0.1, 0.1, zb + 2.3, zb + 2.95, b));                        // the raised arm
+    return out;
+  },
+};
+
+/** An altar before a temple: a stone block on a step, its top burning with the sacrifice (`fire` slot). Roman sacrifice was burnt (record: burnt-sacrifice). */
+export const altar = {
+  id: 'pp-altar', sheet: null, designed: false, patterns: ['altar'],
+  read: 'A rectangular stone altar on a low step, moulded at top and foot; a fire burning on it.',
+  notes: ['Block 1.1 m high on a 0.25 m step (sizes conjecture; the Apollo altar is travertine faced with marble).', '`fire` (slot): a flame on its top; the fire channel takes it on the World page.'],
+  envelope: { w: [1.6, 4], d: [1.2, 3] },
+  build({ W, D, slot }, { palette: P }) {
+    const out = [box('crepis', 0, 0, W, D, 0, 0.25, P.tufa), box('altar', 0.25, 0.25, W - 0.5, D - 0.5, 0.25, 1.35, P.limestone), box('altar', 0.15, 0.15, W - 0.3, D - 0.3, 1.35, 1.5, P.limestone)];
+    if (slot.fire) out.push(...flame(W / 2, D / 2, 1.5, 0.9));
+    return out;
+  },
+};
+
 export const wall = borrowed(wallRun, 'pp-wall', { notes: ['Borrowed from Lindos (ln-wall): 7 m of ashlar. The Pompeii walls are 2–3 m thick, mostly relic by 79 (record: walls-quadratum).'] });
 export const tower = borrowed(lnTower, 'pp-tower', { notes: ['Borrowed from Lindos (ln-tower). Count and places conjecture (record: wall-towers, disputed).'] });
 export const theatre = borrowed(lnTheatre, 'pp-theatre', { notes: ['Borrowed from Lindos (ln-theatre). The Large Theatre: about 5,000 seats, its diameter not found (record: large-theatre).', 'Next: pompeii-theatre.webp — a Roman semicircle and a scaenae frons.'] });
 export const statue = borrowed(statueBase, 'pp-statue', { notes: ['Borrowed from Lindos (ln-statue). The forum\'s statues were not re-erected after 62 (record: forum-square): few, on their bases.'] });
 
-export const POMPEII_ASSETS = Object.fromEntries([podiumTemple, hall, portico, court, arch, gate, fountain, house, shopHouse, wall, tower, theatre, statue].map((a) => [a.id, a]));
+export const POMPEII_ASSETS = Object.fromEntries([podiumTemple, hall, portico, court, arch, gate, fountain, house, shopHouse, faunHouse, equestrian, altar, wall, tower, theatre, statue].map((a) => [a.id, a]));
