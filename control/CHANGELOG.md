@@ -23,7 +23,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     fortress, select, victory;
   - an element (water, fire, ice, machine) signalled inside the groove rather than by swapping the band;
   - an 8-voice discipline.
-- It is white label: the manual names traits, never a franchise or composer.
+- Every manual is white label: it names traits, never a franchise or composer.
+- The second style manual, **field orchestra**, covers the 32-bit strategy-RPG score: an orchestra written for a
+  few voices that still reads as orchestral. The card `beats-field-orchestra` covers:
+  - an energy ladder (idyllic, adventurous, processional, battle), with a form and a mix for each step;
+  - layers that enter one at a time;
+  - one shared hall, with the sustained sections wet and the percussion dry;
+  - the orchestra played as a band;
+  - loops that never close V–i;
+  - instrument families as dramatic tags.
+- New authoring vocabulary. All of it is opt-in; recipes without it expand and render byte-identical:
+  - rhythms `dotted`, `dotted-quarter` and the 6/8 `lilt`;
+  - voicings `pedal`, `pedal-5` and `drone` (the key's tonic, fifth or open fifth held under any chart);
+  - grooves `march`, `processional` and `travel`;
+  - snare-rudiment fills `paradiddle`, `drag`, `five-stroke` and `long-roll`;
+  - woodwind and timpani band roles;
+  - bands `orchestra-pastoral`, `orchestra-field`, `orchestra-processional` and `orchestra-battle`.
+- Harmony gains:
+  - the Phrygian bII as the danger chord;
+  - the tonic pedal;
+  - loop-seam cadences;
+  - the tonic flip;
+  - the Aeolian march;
+  - modes ranked by tension;
+  - key shifts by a third or a fifth between sections.
+- The worked set, `lib/graph/beats/field-moods.js`: idyllic `plains`, `desert`, `village` and `forest`; adventurous
+  `highlands`, `expedition` and `wayfarer`. Each row carries an `energy`. Not yet wired to a world or a tool.
+  Machine gates in `field-moods.test.js` hold each energy to its budget:
+  - one colour alone at the opening;
+  - parts and leads per bar;
+  - no V–i at the seam;
+  - a dynamics ceiling;
+  - adventurous moods keep moving.
 
 ### Historic city
 
