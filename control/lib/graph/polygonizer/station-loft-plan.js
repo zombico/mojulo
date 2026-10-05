@@ -91,6 +91,8 @@ export function ringPoints(c, d, r, slots, e = 2) {
   for (let k = 0; k <= n / 2; k++) { const t = 2 * Math.PI * k / n; const F = mul(f, rf * pw(dmath.cos(t))), S = mul(s, rs * pw(dmath.sin(t))); pts[slots[k]] = add(c, add(F, S)); if (k && k < n / 2) pts[slots[n - k]] = add(c, sub(F, S)); }
   return pts;
 }
+/** a shaping ring's name at address `u`, as the body refine pass names the ring it inserts there (`st1_st2_35`) */
+export const shapeId = (u) => { const i = Math.floor(u); return `st${i}_st${i + 1}_${Math.round((u - i) * 100)}`; };
 /** A segment's SHAPING rings placed: each `{ at, … }` of `shape` (a fraction of A → B) between the two of its own rings
  * it lies within (st0 overshoots A, st1 at `mid`, st2 overshoots B), named as a refine names the ring it inserts there
  * (`st1_st2_35`: 35 % of the way from st1 to st2) and addressed at that `u`, so a dial's blend and the skin reach it by
@@ -100,7 +102,7 @@ export function segmentShape(A, B, rA, rB, { over = [0.6, 0.6], mid = 0.5, shape
   const T = [-over[0] * rad(rA), mid * L, L + over[1] * rad(rB)];
   return shape.map((s) => { const t = s.at * L, i = t < T[1] ? 0 : 1, f = (t - T[i]) / (T[i + 1] - T[i]);
     if (!(t > T[0] && t < T[2]) || t === T[1]) fail(`a segment's shaping ring at ${s.at} must lie between its end rings, off its mid ring`);
-    return { ...s, t, i, f, u: i + f, id: `st${i}_st${i + 1}_${Math.round(f * 100)}` }; });
+    return { ...s, t, i, f, u: i + f, id: shapeId(i + f) }; });
 }
 /** A straight segment from joint A to joint B: three rings ⟂ (B − A) at A, mid and B, the ends overshooting the
  * joints by `over` × radius so neighbours fuse across the bend; caps pinched on the axis beyond the end rings, `cap` ×
@@ -129,11 +131,16 @@ export function trunkPart(stations, caps, slots = SLOT_FAMILIES.ring8, e = 2) {
   return { slots, stations: stations.map((s, i) => ({ id: s.id ?? `st${i}`, ...(s.u !== undefined ? { u: s.u } : {}), points: pushed(ringPoints([0, s.yc ?? 0, s.z], [0, 0, 1], s.r, slots, s.e ?? e), s.push) })), caps };
 }
 /** A loft along a polyline of explicit stations: each ring ⟂ the local direction at its centre (the chord between its
- * neighbours), caps pinched beyond the end rings unless given. */
+ * neighbours), caps pinched beyond the end rings unless given. A SHAPING station carries a fractional `u` and is named
+ * as a refine names the ring it inserts there (`st3_st4_55`); the others stay `st<k>` at u = k, so every address on
+ * the part keeps its meaning. */
 export function loftPart(stations, caps, slots = SLOT_FAMILIES.limb6, e = 2) {
   const C = stations.map((s) => s.at); const n = C.length; const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
   const dirAt = (i) => unit(sub(C[Math.min(i + 1, n - 1)], C[Math.max(i - 1, 0)]));
-  const sts = stations.map((s, i) => ({ id: `st${i}`, points: ringPoints(s.at, dirAt(i), s.r, slots, s.e ?? e) }));
+  const shaped = stations.some((s) => s.u !== undefined); let k = 0;
+  const idOf = (s) => { if (s.u === undefined) return { id: `st${k}`, ...(shaped ? { u: k++ } : (k++, {})) };
+    return { id: shapeId(s.u), u: s.u }; };
+  const sts = stations.map((s, i) => ({ ...idOf(s), points: ringPoints(s.at, dirAt(i), s.r, slots, s.e ?? e) }));
   const back = caps?.back ?? add(C[0], mul(dirAt(0), -0.45 * rad(stations[0].r))), tip = caps?.tip ?? add(C[n - 1], mul(dirAt(n - 1), 0.45 * rad(stations[n - 1].r)));
   return { slots, stations: sts, caps: { back, tip } };
 }

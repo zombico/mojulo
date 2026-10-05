@@ -100,6 +100,10 @@ lands.
   wrist over its last third. The male's are marked, the female's softer, the anime casts' softer still. Cuffs,
   bracers and armour land where they did; a streamlined hero is unchanged. A segment may carry shaping rings between
   its own (`shape`), addressed between its rings so its addresses keep their meaning.
+- **The legs.** The same on the structured legs: the thigh's front fuller over its upper half, the hamstrings behind
+  and the inner thigh full high, the inner bulge just above the knee and the knee narrower under it; the calf full at
+  the back and lower on the inside, the leg slimming above the ankle. Swimsuit leg lines, wraps and greaves land where
+  they did. A loft's station may name its `u` too.
 - **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
   addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
   silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the

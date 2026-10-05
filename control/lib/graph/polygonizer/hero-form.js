@@ -22,7 +22,7 @@
  * lab's comfortable exploration limits: `tuneWarnings` advises past them, nothing refuses (docs/bicycles.md).
  *
  * The canonical JSON lives at docs/examples/ring-plans/hero.plan.json, written by hero.plan.mjs (a re-export of this). */
-import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape } from './station-loft-plan.js';
+import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape, shapeId } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight, breastSpan } from './breast-field.js';
 import { heroHand } from './hero-hand.js';
 import { mirrorPid } from './station-loft.js';
@@ -100,6 +100,17 @@ const ARM_FORM = Object.freeze({
     forearm: Object.freeze({ elbow: [0.8, 0.76], belly: [0.9, 0.76], tendon: [0.64, 0.6] }) }),
   female: Object.freeze({ triceps: Object.freeze({ at: 0.4, r: [0.84, 0.98], yc: -0.06, xc: 0.01 }), biceps: Object.freeze({ at: 0.6, r: [0.86, 0.92], yc: 0.06, xc: -0.03 }), elbow: [0.76, 0.7],
     forearm: Object.freeze({ elbow: [0.78, 0.74], belly: [0.86, 0.74], tendon: [0.6, 0.58] }) }),
+  anime: 0.6,
+});
+/** the structured leg per body (hero-form LEG), as ARM_FORM: the thigh's `quad` (the front at its two middle rings
+ * pushed forward) and `ham` (the back at the upper one pushed back), and a ring above the knee at u `knee.u` whose inner
+ * edge bulges by `knee.inner` (vastus medialis) and whose front draws in by `knee.front` toward the kneecap, all of the
+ * thigh's radius; the shank's `calf` ring (at `at` of knee → ankle, `r` of the calf's radius, `yc` / `xc` its centre
+ * back and toward the body: the inner calf lower and fuller) and its `slim` ring at u 1.5 (st1_st2_50, where a wrap
+ * sits), thinner than the cone, so the leg slims above the ankle; `anime` the anime casts' share of every offset */
+const LEG_FORM = Object.freeze({
+  male: Object.freeze({ quad: 0.14, ham: 0.08, knee: Object.freeze({ u: 3.55, inner: 0.12, front: 0.05 }), calf: Object.freeze({ at: 0.2, r: [1, 1.02], yc: -0.1, xc: -0.05 }), slim: [0.72, 0.7] }),
+  female: Object.freeze({ quad: 0.08, ham: 0.05, knee: Object.freeze({ u: 3.55, inner: 0.09, front: 0.04 }), calf: Object.freeze({ at: 0.2, r: [0.98, 1], yc: -0.06, xc: -0.03 }), slim: [0.74, 0.72] }),
   anime: 0.6,
 });
 /** the structured bust (hero-form BUST): `size` the default bust (`body.bust`, of the cast's chest; the adult female cast
@@ -360,7 +371,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the tune's widths and thicknesses multiply the cast's radii. The forearm takes the arm's radius when it names none,
   // and the hip's profile depth derives from the UNTUNED hip, so `hips` widens the pelvis without deepening it (the
   // lab's contract: one control, one axis). Multiplying by 1 is exact in IEEE 754, so an untouched key changes no bytes.
-  const forearmBase = b.forearm ?? b.arm, armBase = b.arm;
+  const forearmBase = b.forearm ?? b.arm, armBase = b.arm, thighBase = b.thigh;   // the thigh's muscles sit on the untuned thigh: a thickness stays radial
   const hipDepthBase = b.hipDepth ?? b.hip + 0.013;
   b.waist *= TN.waist; b.hip *= TN.hips; b.chestDepth *= TN.depth; b.arm *= TN.upperArm; b.forearm = forearmBase * TN.forearm; b.thigh *= TN.thigh; b.calf *= TN.calf;
   const D = TN.depth;
@@ -474,6 +485,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the waist) down past the hip to the knee, so the two thighs together read as the hips; arms and shanks carry a
   // mid-station swell; overshoots are small where the trunk already covers the joint ──
   const hip = J.hip, knee = J.knee; const dz = zp - knee[2], femaleMass = preset?.silhouette === 'female';
+  const AF = ARM_FORM[femaleMass ? 'female' : 'male'], soft = proportions === 'anime' ? ARM_FORM.anime : 1;
+  const LF = LEG_FORM[femaleMass ? 'female' : 'male'], softL = proportions === 'anime' ? LEG_FORM.anime : 1;
   const hipCenter = femaleMass ? 0.58 : 0.62, upperCenter = femaleMass ? 0.68 : 0.72;
   const midCenter = femaleMass ? 0.58 : 0.5;
   const hipRadius = Math.max(b.hip, hipCenter * hip[0] + 0.004);
@@ -647,21 +660,28 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // the thigh's back stays at a seat 3 cm deep (SEAT_THIGH): a deeper seat (the female's) stands out behind it, so the
     // thigh comes out under the seat instead of poking through its lower edge
     const gT = Math.min(P.glute, SEAT_THIGH), fT = F0 - P.front[2] - 0.004, bT = B0 - 0.55 * gT + 0.008;
+    // the thigh's muscles (LEG_FORM): the quadriceps' front over the two middle rings, the hamstrings' back on the upper
+    // one, and a ring above the knee, its inner edge out (vastus medialis) and its front drawn in to the kneecap
+    const LQ = LF.quad * thighBase * softL, LH = LF.ham * thighBase * softL;
+    const kneeRing = { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(dL * (b.calf - 0.003) / dT), r6(b.calf - 0.001)] };
+    const midRing = edge(lerp(Wt, kneeOut, 0.62), lerp(inner0, kneeIn, 0.38), lerp(fT + 0.012, kneeF, 0.5) + LQ, lerp(bT, kneeB, 0.62), zAt(0.62), kT);
+    const aboveKnee = () => { const t = LF.knee.u - 3, vi = LF.knee.inner * thighBase * softL, vf = LF.knee.front * thighBase * softL, mixA = (k) => midRing.at[k] + (kneeRing.at[k] - midRing.at[k]) * t;
+      const r = [0, 1].map((k) => midRing.r[k] + (kneeRing.r[k] - midRing.r[k]) * t);
+      return { at: R([mixA(0) - vi / 2, mixA(1) - vf / 2, mixA(2)]), r: [r6(r[0] + vi / (2 * dT)), r6(r[1] - vf / 2)], u: LF.knee.u }; };
     thigh.stations = [
       // the socket ring stands straight over the trochanter ring (the same centre), so the first span is vertical and its
       // rings do not tilt: a tilted ring's side point drops, and on a short body (a chibi) the hip dipped under the joint
       edge(atJoint, Wt + inner0 - atJoint, F0 - P.front[1] - 0.01, B0 - gT + 0.015, zp + 0.015),
       edge(Wt, inner0, fT, bT, zt),
-      edge(lerp(Wt, kneeOut, 0.3), lerp(inner0, kneeIn, 0.09), fT + 0.012, lerp(bT, kneeB, 0.3), zAt(0.3), kT),
-      edge(lerp(Wt, kneeOut, 0.62), lerp(inner0, kneeIn, 0.38), lerp(fT + 0.012, kneeF, 0.5), lerp(bT, kneeB, 0.62), zAt(0.62), kT),
+      edge(lerp(Wt, kneeOut, 0.3), lerp(inner0, kneeIn, 0.09), fT + 0.012 + LQ, lerp(bT, kneeB, 0.3) - LH, zAt(0.3), kT),
+      midRing, aboveKnee(),
       // the knee ring draws the shin's own width (the shin is a limb ring: dL of its radius at the side)
-      { at: R([knee[0], knee[1], knee[2] - 0.018]), r: [r6(dL * (b.calf - 0.003) / dT), r6(b.calf - 0.001)] },
+      kneeRing,
     ];
     thigh.slots = reg.slots;
     thigh.caps = { back: R([r6((Wt + inner0) / 2), hip[1] * 0.4, zp + 0.04]), tip: R([knee[0], knee[1], knee[2] - 0.025]) };
     thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
   }
-  const AF = ARM_FORM[femaleMass ? 'female' : 'male'], soft = proportions === 'anime' ? ARM_FORM.anime : 1;
   const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X, X, girth: g0, female: femaleMass }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
@@ -683,7 +703,11 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // core keeps the mitten
     ...(hand ? hand.segments : [limb('handR', 'wrist', 'knuckles', g([0.035 * X, 0.025 * X]), g([0.037 * X, 0.023 * X]), [0.25, 0.1], 'Skin', 'foreArmR', null, { e: Math.max(reg.e, 3) })]),
     thigh,
-    limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)] }),
+    // the structured core's calf (LEG_FORM): full at the back and lower on the inside, slimming above the ankle from the
+    // ring at u 1.5 (st1_st2_50, a wrap's)
+    limb('shankR', 'knee', 'ankle', [r6(b.calf - 0.004), r6(b.calf - 0.002)], r6(b.calf - 0.028), [0.32, 0.28], 'Bottom', 'thighR', 'footR', { mid: 0.36, rMid: [r6(b.calf), r6(b.calf + 0.002)],
+      ...(structured ? { shape: [{ at: LF.calf.at, r: LF.calf.r.map((x) => r6(b.calf * x)), yc: r6(b.calf * LF.calf.yc * softL), xc: r6(b.calf * LF.calf.xc * softL) },
+        { at: (0.36 + 1 + 0.28 * (b.calf - 0.028) / Math.sqrt(J.ankle.reduce((a, x, k) => a + (x - J.knee[k]) ** 2, 0))) / 2, r: LF.slim.map((x) => r6(b.calf * x)) }] } : {}) }),
     limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
     limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) }),
   ];
@@ -705,17 +729,18 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   // a shaping ring (fractional u) takes its skin and every dial's blend from its addressed neighbours by u, the rule the
   // body refine pass uses for the rings it inserts (station-loft-body.js extendBinds, extendBlends)
-  for (const P of segments.filter((p) => p.kind === 'trunk' && p.stations.some((st) => st.u !== undefined && !Number.isInteger(st.u)))) {
+  // (a loft's shaping station is named by its u: loftPart)
+  for (const P of segments.filter((p) => (p.kind === 'trunk' || p.kind === 'loft') && p.stations.some((st) => st.u !== undefined && !Number.isInteger(st.u)))) {
     const at = (blend, i, own) => blend[`st${i}`] ?? own;
     const lerpW = (lo, hi, t) => { const w = {}; for (const k of [...new Set([...Object.keys(lo), ...Object.keys(hi)])].sort()) { const v = r6((lo[k] ?? 0) * (1 - t) + (hi[k] ?? 0) * t); if (v > 0) w[k] = v; } return w; };
     for (const st of P.stations) {
       if (st.u === undefined || Number.isInteger(st.u)) continue;
-      const i = Math.floor(st.u), t = st.u - i;
-      if (P.bind && typeof P.bind === 'object' && P.bind.blend && P.bind.blend[st.id] === undefined) {
+      const i = Math.floor(st.u), t = st.u - i, id = st.id ?? shapeId(st.u);
+      if (P.bind && typeof P.bind === 'object' && P.bind.blend && P.bind.blend[id] === undefined) {
         const w = lerpW(at(P.bind.blend, i, { [P.bind.bone]: 1 }), at(P.bind.blend, i + 1, { [P.bind.bone]: 1 }), t);
-        if (!(Object.keys(w).length === 1 && w[P.bind.bone] === 1)) P.bind.blend[st.id] = w;
+        if (!(Object.keys(w).length === 1 && w[P.bind.bone] === 1)) P.bind.blend[id] = w;
       }
-      for (const d of Object.values(dials)) if (d.blend && d.parts?.includes(P.name) && d.blend[st.id] === undefined) d.blend[st.id] = r6((d.blend[`st${i}`] ?? 0) * (1 - t) + (d.blend[`st${i + 1}`] ?? 0) * t);
+      for (const d of Object.values(dials)) if (d.blend && d.parts?.some((n) => n.replace('$S', 'R') === P.name) && d.blend[id] === undefined) d.blend[id] = r6((d.blend[`st${i}`] ?? 0) * (1 - t) + (d.blend[`st${i + 1}`] ?? 0) * t);
     }
   }
 
