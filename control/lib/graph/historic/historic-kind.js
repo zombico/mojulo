@@ -19,6 +19,7 @@ import { WORKS_CULTURES, assembleWorksScene, planWorks } from './workshops.js';
 import { HISTORIC_STYLES } from './style/index.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
+import { validateStatues } from './statues.js';
 
 // the farm and works builders key their cultures by the land (`landOf`: a card's `land`, else its id)
 const SEASONS = { region: (c) => Object.keys(REGION_CULTURES[c].crops), farm: (c) => Object.keys(FARM_CULTURES[landOf(c)].seasons || { harvest: 1, sowing: 1 }) };
@@ -84,6 +85,12 @@ export function historicOptions(m = {}) {
     const views = historicViews({ scene, ...opts });
     if (!views.includes(m.view)) throw new Error(`historic: ${culture} ${scene} has no view '${m.view}' — one of ${list(views)}`);
     opts.view = m.view;
+  }
+  // `statues` (historic/statues.js): stored statues stood on the city's statue slots, in the World; absent ⇒ none
+  if (m.statues !== undefined) {
+    const errs = validateStatues(m.statues); if (errs.length) throw new Error(`historic: ${errs.join('; ')}`);
+    if (scene !== 'city') throw new Error(`historic: statues stand on a city's statue slots; the '${scene}' scene has none`);
+    if (m.statues.length) opts.statues = m.statues;
   }
   return { scene, opts };
 }

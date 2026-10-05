@@ -155,7 +155,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
     // its own default key (WORKBENCH_LIGHT etc.), so the shaded path is byte-identical.
-    light: unshaded ? FLAT_LIGHT : undefined,
+    light: unshaded ? FLAT_LIGHT : viewOpts.light,
     // Kinds that shade their OWN faces (fractal-city) read this to emit RAW ALBEDO for a clean
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
@@ -216,6 +216,30 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (!payload.textures?.[k]) (payload.textures ??= {})[k] = url;
       }
       payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...placed];
+    }
+  }
+
+  // statue refs (historic/statues.js): a historic city's statue slots name stored statues; the city removed the stand-ins
+  // and recorded where each figure stands (metres, its turn, its height). The ref resolves HERE, where the store is: its
+  // World faces baked under the city's sun turned into its own frame (`light`), its base dropped, fitted onto the slot's
+  // base (fitStatueFaces). A ref that places itself refuses, like an unknown one. No statueRefs ⇒ untouched.
+  if (payload && payload.statueRefs) {
+    const { unit, light, list } = payload.statueRefs;
+    delete payload.statueRefs;
+    const chain = [...(viewOpts._itemChain || []), sketch.ref].filter(Boolean);
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { fitStatueFaces, lightInto, statueTurn } = await import('@/lib/graph/historic/statues.js');
+    const baked = new Map();   // one resolve per statue and turn
+    for (const rec of list) {
+      const key = `${rec.ref}|${rec.dir}`;
+      if (!baked.has(key)) {
+        const src = SketchRepository.getByRef(rec.ref);
+        if (!src) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is not a stored sketch`);
+        if (chain.includes(src.ref)) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' places itself (${[...chain, src.ref].join(' → ')})`);
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...fitStatueFaces(baked.get(key), rec, { s: 1 / unit, group: `statue:${rec.at}:${rec.figure}` })];
     }
   }
 

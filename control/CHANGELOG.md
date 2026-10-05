@@ -16,7 +16,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
 bronze, cut to a bust, a herm or a torso study, with losses, on a base. Opt-in; a hero without `statue` is
-byte-identical. Being built on this branch; the historic worlds' statue slots and the sphinx come next.
+byte-identical. Being built on this branch; the sphinx comes next.
 
 - **The statue build.** `statue: '<card>'` or `{ type: 'statue', style, material, crop, lose, base, dials: { wear } }`
   (`lib/graph/statue/`), stamped with its laws version like an outfit or armour build. Period cards, plain JSON:
@@ -31,11 +31,17 @@ byte-identical. Being built on this branch; the historic worlds' statue slots an
 - **On a base.** `block`, `attic`, `drum`, `socle`, `herm` or `none`, in stone, built at read time under the posed figure
   from the footprint it stands on; the figure is lifted onto it. The base rides every export as its own group.
 - **A surface for the exports.** A layered recipe's `surfaces` (group → a shelf material or a metal surface, `'*'` the
-  rest) tags its faces (`pbr`, a metal's `metal`), so a bronze statue exports metallic to GLB and Godot and the World
-  page's metal channel lights it. Absent, byte-identical.
+  rest) tags its faces (`spec` and `pbr`; a metal surface's `metal`), so a bronze statue exports metallic, in its
+  patina's colour, to GLB and Godot. Absent, byte-identical.
 - **The readout.** `hero.statue`: the card, period, material, format, the parts lost, the base, wear, `basis:
   'unverified'` (the cards are drawn from the general record of each type, not from sources read) and the caption
   derived work carries ("inspired by …").
+- **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
+  on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
+  Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
+  fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
+  slots; an equestrian slot refuses by name. Absent, the city is byte-identical.
 
 ### Historic city
 

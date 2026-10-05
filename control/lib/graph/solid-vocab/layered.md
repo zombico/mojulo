@@ -459,7 +459,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   polychromy over the card's stone and always says so; a statue stands on a BASE (`none`, `block`, `attic`, `drum`,
   `socle`, `herm`) of stone (a bronze, gilt or painted figure on limestone), built at read time under the posed figure,
   the figure lifted onto it; `wear` 0–1 dulls stone and ages bronze from its brown patina to verdigris. The faces carry
-  the material's surface (stone `pbr`, a bronze or gilt figure's `metal`) for the World page and the exports. The
+  the material's surface (`spec` and `pbr`: stone matte, a bronze or gilt figure metallic in its patina's or gilding's
+  colour) for the World page and the exports. The
   readout's `hero.statue`: the card, period, material, format, the parts lost, base, wear, `basis` (`unverified`: drawn
   from the general record of the type) and the `caption` derived work carries ("inspired by …"). Patch `/hero/statue`,
   `/hero/statue/material`, `/hero/statue/crop`, `/hero/statue/lose`, `/hero/statue/dials/wear`.

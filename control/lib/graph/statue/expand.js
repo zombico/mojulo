@@ -17,7 +17,7 @@
 //   4 CARVE    the bare body's zones become skin; every group of every part takes the material: blank eyes, carved
 //              hair (laws 1, 2, 3), or the painted
 //              tones (law 6); wear dulls it (law 8)
-//   5 SURFACE  the faces carry the material's surface for the exports: stone, or the metal with its patina (law 1)
+//   5 SURFACE  the faces carry the material's surface for the exports: stone, or a metal in its patina's colour (law 1)
 //   6 BASE     the base the World page and the exports stand it on, built at read time under the posed figure (base.js)
 //   7 LEDGER   the trace: the card, period, material, format, the parts lost, the base, wear, basis, the caption
 //              derived work carries ("inspired by …"), and warnings
@@ -200,10 +200,11 @@ export function statueMaterial(material, { wear = 0, card = {}, female = false }
   // law 6: paint lies over the card's own stone (an Egyptian card's limestone or granite), else over marble
   const ground = STATUE_MATERIALS[card.material], M = material === 'painted' && ground && !ground.metal && !ground.paint ? { ...ground, paint: true } : STATUE_MATERIALS[material];
   if (M.metal) {
-    // a cast bronze's surface is chased and patinated, not polished (metal-surface.js FINISHES: blasted); gilding is
-    // burnished (the metal's own polished finish)
-    const surface = { metal: M.metal, ...(M.metal === 'bronze' ? { finish: 'blasted', film: { age: bronzeAge(wear) } } : {}) };
-    return { tone: metalShelfRow(resolveMetalSurface(surface)).base, surface, paint: null };
+    // the colour is the metal surface's at its age (metal-surface.js: a bronze's patina from brown to verdigris by wear,
+    // gilding the gold's own); the faces carry it as a shelf metal of that colour (metallic, a patina's roughness, a
+    // burnished gilding's shine) rather than the live metal channel, whose film reads as interference colour, not patina
+    const tone = metalShelfRow(resolveMetalSurface({ metal: M.metal, ...(M.metal === 'bronze' ? { film: { age: bronzeAge(wear) } } : {}) })).base;
+    return { tone, surface: { preset: M.metal === 'bronze' ? 'bronze' : 'gold', base: tone, specular: M.metal === 'bronze' ? 0.35 : 0.6 }, paint: null };
   }
   const own = card.paint && (card.paint.male || card.paint.female) ? card.paint[female ? 'female' : 'male'] : card.paint;
   return { tone: weatherTone(M.tone, wear), surface: M.surface, paint: M.paint ? Object.fromEntries(Object.entries({ ...PAINT_TONES, ...(own || {}) }).map(([g, h]) => [g, weatherTone(h, wear)])) : null };

@@ -5,7 +5,7 @@ import { heroRecord, heroPlanOf, expandLayeredManifest, validateHeroSpec } from 
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { SEEDED_STATUES, STATUE_STYLES } from './styles.js';
 import { validateStatueBuild, validateStatueCard, statueHero, statueWords, statueMaterial, statueBaseOf, STATUE_LAWS_VERSION } from './expand.js';
-import { STATUE_MATERIALS, bronzeAge } from './principles.js';
+import { STATUE_MATERIALS } from './principles.js';
 import { validateOutfitCard } from '../outfit/styles.js';
 
 const hero = (spec) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
@@ -90,9 +90,10 @@ describe('every card carves, surfaces and stands on its base', () => {
       // law 1: one tone over every group
       const { tone } = statueMaterial(words.material, { card: words.card, female: cast === 'female' });
       expect(new Set(Object.values(m.recipe.palette))).toEqual(new Set([tone]));
-      // every face carries its surface; a metal its metal tag
+      // every face carries its surface: metallic on a metal figure, stone elsewhere (and the base always stone)
       expect(faces.every((f) => f.pbr)).toBe(true);
-      expect(fig.every((f) => !!f.metal === !!STATUE_MATERIALS[words.material].metal)).toBe(true);
+      expect(fig.every((f) => (f.pbr[0] === 1) === !!STATUE_MATERIALS[words.material].metal)).toBe(true);
+      expect(base.every((f) => f.pbr[0] === 0)).toBe(true);
       // law 7: on its base, the base on the floor and the figure's lowest point on the base's top
       expect(base.length).toBeGreaterThan(0);
       const [bLo, bHi] = zRange(base), [fLo] = zRange(fig);
@@ -143,7 +144,7 @@ describe('pass 4: carve, paint and wear', () => {
   it('wear dulls stone and ages bronze to verdigris; a bronze stands on limestone', () => {
     const fresh = statueMaterial('marble'), worn = statueMaterial('marble', { wear: 1 });
     expect(worn.tone).not.toBe(fresh.tone);
-    expect(statueMaterial('bronze', { wear: 1 }).surface.film.age).toBe(bronzeAge(1));
+    expect(statueMaterial('bronze', { wear: 1 }).surface).toMatchObject({ preset: 'bronze', base: statueMaterial('bronze', { wear: 1 }).tone });
     expect(statueMaterial('bronze').tone).not.toBe(statueMaterial('bronze', { wear: 1 }).tone);
     expect(statueBaseOf('classical')).toMatchObject({ kind: 'block', tone: STATUE_MATERIALS.limestone.tone });
   });
