@@ -61,6 +61,51 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the reed-mat layers Sumerian builders laid between courses, a stamped course in the baked brick,
   and a share of houses left as bare brick instead of mud render.
 
+### Historic countryside
+
+- **In progress.** A historic city gains sub-scenes for what its people could make and grow, beside
+  what they built: the first is the countryside that fed Sumer. A branch canal leads water through
+  baked-brick sluices into channels on low banks, with long strip fields between them. Off in the
+  fields stands a farmstead: a house round a walled yard (bread oven, reed shade, a ground loom), a
+  blind storehouse filled from roof hatches up an end stair (the barn of a dry country), a stable of
+  piers and mangers, a reed byre with ringed reed posts through its roof and its dairy jars, a
+  reed-fenced sheepfold, a round threshing floor, a tool shed, a shaduf on the canal bank and a palm
+  garden.
+- The tools are the period's own. An ard plough (a seeder with its funnel in the sowing season),
+  clay sickles (Sumer reaped with sickles; the scythe is Iron Age), hoes, mattocks and winnowing
+  shovels, a two-wheeled cart and a four-wheeled wagon on solid three-plank wheels, a threshing
+  sledge, grain heaps sealed in mud, measures, baskets and jars.
+- The scene keeps to a season, because a Sumerian year kept the work apart. At harvest (the default)
+  the barley stands and is being cut, sheaves are stooked and carted and the threshing floor is
+  busy, while a fallow strip is broken with the plain ard. At sowing the seeder plough is in the
+  furrow and the fields are furrowed and sprouting. Fields show as furrows, sown rows, stubble and
+  standing barley. The page opens from the air, in the yard, at the threshing floor, at the edge of
+  the reaping, or by the plough.
+- Tools and buildings only, at rest: people and beasts are left to their own builders, so a plough
+  stands with its yoke on the ground, a cart with its pole down, the pens and stalls empty.
+- Each piece cites its record, every gap reported. A beam (a straight timber at any slope) joins the
+  angled building blocks. Small faces no longer stretch along their length when they are sealed
+  against hairline gaps; before, a long roof edge overshot its building by up to a third, in the
+  town too.
+- A second sub-scene shows the works: how Sumer made its tools and its building stuff, and from
+  what. The plain had clay, reed, water and palm, and no stone, ore or tall timber.
+  - Its quarry is a clay pit sunk into the plain by a canal. Beside it are treading pits with straw
+    for temper, a moulding field of fresh bricks drying in rows (the wooden mould left at the end of
+    the last row), stacked hacks, and an updraft brick kiln with its fuel, ash and baked bricks.
+  - The potters have a shade over the wheel, greenware drying, stacks of bevelled-rim bowls,
+    settling tanks, a wasters heap and the town's beehive kilns.
+  - A landing takes in what the plain lacked: stone, basalt querns and flint, with a knapping
+    floor. Bitumen boilers cook mastic beside it.
+  - The forge is a coppersmiths' yard. Ingots smelted at the mines are melted there in crucibles on
+    bowl hearths blown with reed pipes, then cast in stone moulds and finished at an anvil stone.
+    Charcoal clamps burn beside it.
+  - A wheelwright makes the carts' three-plank wheels.
+  - The reed cutters stack and plait at the marsh.
+  - The page opens from the air, or at eye level in the brickyard, the forge, the potters', the
+    landing, the clay pit or the wheelwright's.
+- A slanted panel now turns with its piece, so pieces can carry sloping faces like a pit's cut
+  sides. A roof on posts draws its underside.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

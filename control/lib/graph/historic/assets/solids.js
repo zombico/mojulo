@@ -5,7 +5,8 @@
  * `solid` and these turn it into lit, outward-wound faces (parallelograms and triangles — what the
  * CSS 3D emitter draws), passed to the scene as extra faces.
  *
- *   solid: 'frustum'  — the rect at z0, `top` (a rect) at z1: a battered block, any side leaning
+ *   solid: 'frustum'  — the rect at z0, `top` (a rect) at z1: a battered block, any side leaning;
+ *                       `underside: true` draws its bottom too (a roof seen from under it)
  *   solid: 'panel'    — one planar face: `pts` (its corners, metres) facing `out`
  *   solid: 'wedge'    — a slope across the rect from z0 up to z1, rising toward `rise` ('x+','x-','y+','y-')
  *   solid: 'palm'     — a date palm standing at the rect's centre, z0 → z1 the trunk: a tapering,
@@ -22,6 +23,9 @@
  *   solid: 'vault'    — a barrel over the rect, axis along `axis` ('x' | 'y'): walls to z0, the
  *                       round crown to z1; `open` ('lo' | 'hi' | null) leaves one end dark and open;
  *                       `caps: false` draws no ends at all (a thin ring standing proud of a vault)
+ *   solid: 'beam'     — a straight timber at any slope: `a` → `b` (end points [x, y, z]), a square
+ *                       section `t` thick with one side kept level (a plough pole, a cart shaft, a
+ *                       shaduf's sweep); its rect and z0/z1 are the bounding box of the ends
  *
  * Geometry is in whatever unit the mass is in; `solidFaces` works in scene units.
  */
@@ -46,6 +50,13 @@ export function orientSolid(b, facing = 'n', orientRect) {
   if (b.axis) o.axis = facing === 'e' || facing === 'w' ? (b.axis === 'x' ? 'y' : 'x') : b.axis;
   if (b.solid === 'ring') o.plane = (facing === 'e' || facing === 'w') === (b.plane === 'y') ? 'x' : 'y';
   if (b.open) o.open = b.axis === 'y' ? OPEN_END[facing](b.open) : b.open;   // only the y-axis vault's ends swap
+  if (b.solid === 'beam') for (const k of ['a', 'b']) { const r = orientRect({ x: b[k][0], y: b[k][1], w: 0, d: 0 }); o[k] = [r.x, r.y, b[k][2]]; }
+  if (b.solid === 'panel') {
+    // a panel's corners go through the slot's turn like a beam's ends; its outward direction turns with it
+    o.pts = b.pts.map(([x, y, z]) => { const r = orientRect({ x, y, w: 0, d: 0 }); return [r.x, r.y, z]; });
+    const [dx, dy, dz] = b.out;
+    o.out = { n: [dx, dy, dz], s: [-dx, -dy, dz], e: [-dy, dx, dz], w: [dy, -dx, dz] }[facing];
+  }
   return o;
 }
 
@@ -102,8 +113,17 @@ export function solidFaces(b, L, tile) {
 function seal(f) {
   const c = f.corners, edges = c.map((p, i) => Math.hypot(...sub(c[(i + 1) % c.length], p))), short = Math.min(...edges);
   if (short > 0.6 || c.length !== 4) return f;   // fan triangles would spike past the outline
-  const k = 1 + Math.min(0.3, 0.025 / Math.max(short, 1e-3)), m = centroid(c);
-  return { ...f, corners: c.map((p) => [m[0] + (p[0] - m[0]) * k, m[1] + (p[1] - m[1]) * k, m[2] + (p[2] - m[2]) * k]) };
+  // grow by the same small amount along each edge (≈ 0.0125 u a side, at most 15% of that edge):
+  // scaling about the centre would stretch a long thin face (a roof's edge) far past its ends
+  const u = sub(c[1], c[0]), v = sub(c[3], c[0]), lu = Math.hypot(...u) || 1, lv = Math.hypot(...v) || 1;
+  const gu = Math.min(0.15 * lu, 0.0125) / lu, gv = Math.min(0.15 * lv, 0.0125) / lv, sgn = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  return { ...f, corners: c.map((p, i) => [0, 1, 2].map((k) => p[k] + sgn[i][0] * u[k] * gu + sgn[i][1] * v[k] * gv)) };
+}
+/** A beam's eight corners: the two end squares, one side of each kept level. */
+export function beamCorners({ a, b, t }) {
+  const u = norm(sub(b, a)), side = Math.hypot(u[0], u[1]) < 1e-6 ? [1, 0, 0] : norm(cross(u, [0, 0, 1])), up = cross(side, u), h = t / 2;
+  const at = (p, i, j) => [p[0] + side[0] * h * i + up[0] * h * j, p[1] + side[1] * h * i + up[1] * h * j, p[2] + side[2] * h * i + up[2] * h * j];
+  return [a, b].flatMap((p) => [at(p, -1, -1), at(p, 1, -1), at(p, 1, 1), at(p, -1, 1)]);
 }
 function solidFacesBare(b, L) {
   const tint = b.tint || '#a08a6a', shade = (n) => scaleHex(tint, litFactor(n, L));
@@ -113,11 +133,15 @@ function solidFacesBare(b, L) {
   if (b.solid === 'panel') {
     // a single planar face, given by its corners and the side it faces (a canal's sloping revetment)
     faces.push(...polyFaces(b.pts, b.out, shade));
+  } else if (b.solid === 'beam') {
+    const K = beamCorners(b), c = centroid(K);
+    for (const q of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) add(q.map((i) => K[i]), c);
   } else if (b.solid === 'frustum') {
     const t = b.top || { x, y, w, d }, tx1 = t.x + t.w, ty1 = t.y + t.d;
     const B = [[x, y, z0], [x1, y, z0], [x1, y1, z0], [x, y1, z0]], T = [[t.x, t.y, z1], [tx1, t.y, z1], [tx1, ty1, z1], [t.x, ty1, z1]];
     const c = centroid([...B, ...T]);
     add(T, c);
+    if (b.underside) add(B, c);   // a mass seen from below (a mat roof on posts)
     for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; add([B[i], B[j], T[j], T[i]], c); }
   } else if (b.solid === 'wedge') {
     // the high edge is at the `rise` side; the low edge sits at z0
@@ -207,7 +231,8 @@ function solidFacesBare(b, L) {
 export function scaleSolid(b, s) {
   const o = { ...b, x: b.x * s, y: b.y * s, w: b.w * s, d: b.d * s, z0: b.z0 * s, z1: b.z1 * s };
   if (b.top) o.top = { x: b.top.x * s, y: b.top.y * s, w: b.top.w * s, d: b.top.d * s };
-  for (const k of ['band', 'lip']) if (b[k]) o[k] = b[k] * s;
+  for (const k of ['band', 'lip', 't']) if (b[k]) o[k] = b[k] * s;
+  for (const k of ['a', 'b']) if (Array.isArray(b[k])) o[k] = b[k].map((v) => v * s);
   if (b.pts) o.pts = b.pts.map((p) => p.map((v) => v * s));   // every length scales, or a ring's band outgrows the ring
   return o;
 }

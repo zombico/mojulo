@@ -47,8 +47,8 @@ export function placeAsset(asset, slot, ctx) {
     return skin ? { skin } : {};
   };
   return {
-    boxes: boxes.map((b) => ({ ...orientBox(b, slot.rect, slot.facing), ...orientSolid(b, slot.facing, (r) => orientBox(r, slot.rect, slot.facing)), z0: b.z0 + lift, z1: b.z1 + lift, asset: asset.id, ...skinned(b) })),
-    grounds: grounds.map((g) => ({ ...orientBox(g, slot.rect, slot.facing), z: g.z + lift })),
+    boxes: boxes.map((b) => lifted({ ...orientBox(b, slot.rect, slot.facing), ...orientSolid(b, slot.facing, (r) => orientBox(r, slot.rect, slot.facing)), z0: b.z0 + lift, z1: b.z1 + lift, asset: asset.id, ...skinned(b) }, lift)),
+    grounds: grounds.map((g) => ({ ...orientBox(g, slot.rect, slot.facing), ...(g.poly ? { poly: g.poly.map(([x, y]) => { const r = orientBox({ x, y, w: 0, d: 0 }, slot.rect, slot.facing); return [r.x, r.y]; }) } : {}), z: g.z + lift })),
   };
 }
 
@@ -65,6 +65,13 @@ export function skinFor(culture, b) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * bl > 205 ? R.whitewash : skin;
 }
 
+// a beam's end points and a panel's corners ride up with the slot like its z0/z1
+const lifted = (b, lift) => {
+  if (!lift) return b;
+  if (b.solid === 'beam') return { ...b, a: [b.a[0], b.a[1], b.a[2] + lift], b: [b.b[0], b.b[1], b.b[2] + lift] };
+  if (b.solid === 'panel') return { ...b, pts: b.pts.map(([x, y, z]) => [x, y, z + lift]) };
+  return b;
+};
 const lotHash = (r) => { let h = 2166136261; for (const v of [r.x, r.y, r.w, r.d]) { h = Math.imul(h ^ Math.round(v * 100), 16777619) >>> 0; h = Math.imul(h ^ (h >>> 13), 2246822507) >>> 0; } return (h >>> 0) / 4294967296; };
 
 // ── shared parts (local frame) ──
@@ -133,4 +140,9 @@ export function slopedFlight(r, z0, z1, tint, rise = 'y+', { cheek = 0, cheekTin
     for (const o of [lo, hi]) out.push({ kind: 'stair-cheek', solid: 'wedge', ...c(o), z0, z1: z1 + Math.min(0.5, (z1 - z0) * 0.12), rise, tint: cheekTint || tint });   // a little proud, in proportion
   }
   return out;
+}
+
+/** A straight timber from a to b ([x, y, z], local metres), t thick: the beam solid with its bounding box. */
+export function beam(kind, a, b, t, tint, o = {}) {
+  return { kind, solid: 'beam', a, b, t, x: Math.min(a[0], b[0]) - t / 2, y: Math.min(a[1], b[1]) - t / 2, w: Math.abs(a[0] - b[0]) + t, d: Math.abs(a[1] - b[1]) + t, z0: Math.min(a[2], b[2]) - t / 2, z1: Math.max(a[2], b[2]) + t / 2, tint, ...o };
 }

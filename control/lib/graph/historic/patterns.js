@@ -53,6 +53,33 @@ export const PATTERNS = {
   kiln: { family: 'street', read: 'domed kilns at the town edge where the smoke goes, pots stacked by them', seenIn: ['Sumer', 'Indus', 'Greece (Kerameikos)', 'China'] },
   granary: { family: 'street', read: 'domed or long storehouses in a walled yard, the store of a temple or a ruler', seenIn: ['Sumer', 'Egypt', 'Indus (Harappa)', 'Inca (qollqa)'] },
   boat: { family: 'street', read: 'boats moored at the quay, the shape of the local hull', seenIn: ['Sumer (reed boats)', 'Egypt', 'Venice', 'Suzhou'] },
+
+  // ── farm: what feeds the town — the countryside's tools at work and the buildings raised away from
+  // the walls, placed by the work (the plough in the fallow, reapers at the standing crop's edge, the
+  // threshing floor between the fields and the store) ──
+  'strip-fields': { family: 'farm', read: 'long narrow fields running back from a canal or river, each watered from a channel at its head', seenIn: ['Sumer', 'Egypt (basin fields)', 'medieval Europe (open strips)', 'Song China'] },
+  irrigation: { family: 'farm', read: 'channels on low banks leading water off the canal, sluices at their heads', seenIn: ['Sumer', 'Egypt', 'Indus', 'Peru (Chimú)', 'Persia (qanat-fed)'] },
+  shaduf: { family: 'farm', read: 'a counterweighted lifting pole at the water\'s edge, raising buckets to the fields', seenIn: ['Mesopotamia (Akkad)', 'Egypt', 'India', 'medieval Europe (well sweep)'] },
+  'plough-team': { family: 'farm', read: 'a yoked pair of oxen drawing a plough, the ploughman bent on the handles', seenIn: ['Sumer (seeder plough)', 'Egypt', 'Rome', 'medieval Europe', 'China'] },
+  harvest: { family: 'farm', read: 'reapers bent into the standing crop, sheaves behind them, stooks drying', seenIn: ['Sumer (clay sickles)', 'Egypt', 'Rome', 'medieval Europe (scythe, later)'] },
+  cart: { family: 'farm', read: 'a cart or wagon on solid or spoked wheels, drawn by oxen, donkeys or horses', seenIn: ['Sumer (solid wheels)', 'Indus', 'Rome', 'medieval Europe', 'China'] },
+  'threshing-floor': { family: 'farm', read: 'a round of beaten earth where the sheaves are trodden or sledged, heaps of grain and chaff beside it', seenIn: ['Sumer', 'Egypt', 'Greece', 'the Levant', 'medieval Iberia'] },
+  byre: { family: 'farm', read: 'a byre for the cattle, a pen before it, milking at its door', seenIn: ['Sumer (reed byre)', 'Egypt', 'Iron Age Europe (longhouse)', 'Alps'] },
+  sheepfold: { family: 'farm', read: 'a fenced fold for the flock with a small shelter, the shepherd at its gate', seenIn: ['Sumer', 'the Levant', 'Greece', 'Britain'] },
+  stable: { family: 'farm', read: 'a long shed of stalls for the draught beasts, mangers along its back', seenIn: ['Sumer (donkeys)', 'Egypt', 'Rome', 'medieval Europe'] },
+  storehouse: { family: 'farm', read: 'a blind, sealed store for the harvest — the barn of a dry country — filled from its roof or door', seenIn: ['Sumer', 'Egypt', 'Indus', 'medieval Europe (tithe barn)'] },
+  farmstead: { family: 'farm', read: 'a house and its yard in the fields: an oven, a shade, the household\'s crafts', seenIn: ['Sumer', 'Egypt', 'Rome (villa rustica)', 'medieval Europe'] },
+  'tool-store': { family: 'farm', read: 'a shed of the farm\'s tools: hoes, sickles, shovels, the spare plough', seenIn: ['Sumer', 'Egypt', 'Rome', 'medieval Europe'] },  // works: where the tools and the building stuff are made, and from what
+  'clay-pit': { family: 'works', read: 'a pit dug for clay by the water, its sides cut back, baskets carrying it out', seenIn: ['Sumer', 'Egypt', 'Indus', 'medieval brickfields'] },
+  'brick-moulding': { family: 'works', read: 'clay and straw struck in a wooden mould, the bricks dried in rows, turned on edge, stacked in hacks', seenIn: ['Sumer', 'Egypt (Rekhmire)', 'Indus', 'the modern Middle East'] },
+  'brick-kiln': { family: 'works', read: 'an updraft kiln of brick, fire tunnels below, the setting of green brick above', seenIn: ['Sumer', 'Indus', 'Rome', 'China'] },
+  potters: { family: 'works', read: 'a shade over the wheel, pots drying in rows, settling tanks, a wasters heap, the kilns beside', seenIn: ['Sumer', 'Egypt', 'Greece (Kerameikos)', 'China'] },
+  'metal-casting': { family: 'works', read: 'bowl hearths blown with pipes or bellows, crucibles, moulds, an anvil, charcoal and slag', seenIn: ['Sumer (blowpipes)', 'Egypt (Rekhmire)', 'Shang China', 'Benin'] },
+  'charcoal-burning': { family: 'works', read: 'wood stacked and earthed over to char slowly, the clamp raked open black', seenIn: ['the Near East', 'Rome', 'medieval Europe', 'Japan'] },
+  joinery: { family: 'works', read: 'logs, sawn planks, a bench with adze, saw and drill; a wheel or a boat taking shape', seenIn: ['Sumer', 'Egypt', 'Rome', 'medieval Europe'] },
+  'stone-landing': { family: 'works', read: 'a quay where what the land lacks comes in by water: stone, timber, metal', seenIn: ['Sumer', 'Egypt (Aswan granite)', 'Venice', 'Amsterdam'] },
+  'bitumen-works': { family: 'works', read: 'bitumen cooked with sand and straw into a mastic for mortar, caulking and waterproofing', seenIn: ['Sumer', 'Elam', 'the Indus (Mohenjo-daro)'] },
+  'reed-working': { family: 'works', read: 'reed cut, bundled, dried in stooks, plaited into mats and twisted into rope', seenIn: ['Sumer and the Iraqi marshes', 'Egypt (papyrus)', 'Lake Titicaca (totora)'] },
 };
 
 /** A flat-roofed cube with a low parapet lip. */
