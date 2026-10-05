@@ -32,6 +32,10 @@ export const GOTHIC_NAVE = Object.freeze({
   // shafts through the lancets of the walls that face the sun: the light travels at `azimuth`° from +x toward +y, falling
   // `elevation`° below the horizontal;
   // each lands as a pool: a light baked into the corners there (never exported, never soot)
+  // live FIRE (only with the recipe's `fire`: the fire channel, fire/fire.js): the torches burn at `torch` × a torch's
+  // size (a cathedral's sconce torch, not a hand torch); two braziers flank the great portal, `out` m into the nave and
+  // `apart` m apart, their light baked into the room as the torches' is (the page then only flickers it)
+  fire: { torch: 1.7, braziers: { out: 2.4, apart: 5.6, z: 1.0, size: 1.25, color: '#ff9a48', intensity: 2.4, radius: 8 } },
   shafts: { elevation: 48, azimuth: 14, alpha: [0.03, 0.13], color: '#c8d6f6', grow: 0.9,
     pool: { color: '#c0d0f8', intensity: 2, radius: 2.8, lift: 0.7 } },
   // the blends: moss up the wall bases (alpha falls from `max` at the floor to 0 at `rise[1]` m) and in the gutter;

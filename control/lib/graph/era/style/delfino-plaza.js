@@ -26,7 +26,7 @@ export const DELFINO_PLAZA = Object.freeze({
   // `bowl.R` round at `bowl.z`; a finial to `top`; the stone `stone`; water spilling from the bowl's lip to the basin
   fountain: {
     R: 3.0, rim: 0.6, lip: 0.32, water: 0.46, pedestal: 0.42, bowl: { R: 1.45, z: 2.5, depth: 0.42 }, top: 4.1, sides: 24,
-    stone: { key: 'marble-carrara', scale: 1.4, tint: [0.98, 0.95, 0.88] }, pool: '#4f9cc4', spill: { color: '#e4f2fa', alpha: [0.1, 0.5], streams: 16, width: 0.28 },
+    stone: { key: 'marble-carrara', scale: 1.4, tint: [0.98, 0.95, 0.88] }, pool: '#4f9cc4', look: { kind: 'lagoon', tint: '#3aa8c8', shore: 0.04 }, jets: { count: 12, width: 0.5, flow: 0.9 }, spill: { color: '#e4f2fa', alpha: [0.1, 0.5], streams: 16, width: 0.28 },
     ring: { width: 1.6, key: 'rock-sandstone', scale: 1.6, tint: [0.94, 0.9, 0.84] },
   },
   floor: { field: { key: 'floor:fan', scale: 2.6 } },

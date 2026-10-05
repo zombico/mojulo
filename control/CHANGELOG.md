@@ -236,6 +236,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The open set is byte-identical.
 
+### Stage elements
+
+- Sixth-gen is a floor, not a ceiling: a stage takes the merged fire and water elements as opt-ins, and without them
+  it is byte-identical (the baked torches, the painted spill).
+- `fire` on a stage (`true` or the fire object): its torches go to the fire channel as fires its bake already holds,
+  so the page only flickers their light. The stage keeps an iron arm and a collar on the wall and leaves the staff
+  and the flame to the channel. The nave's style card sizes its torches up (`fire.torch`) and stands two braziers by
+  the great portal, their light baked into the room like the torches'.
+- `water` on a stage: the plaza fountain's basin and bowl take the water look (a tinted `lagoon`, its shore foam
+  turned down for a basin a hand deep). The bowl brims over its lip in falling sheets (`jets`) in place of the
+  painted strips.
+- Jets whose `controls` are all false carry no flow panel; pages with any other jets are byte-identical.
+
 ### Flame depiction
 
 - Fire in worlds (`fire`, opt-in on any world): campfires, braziers, torches and candles drawn as live flames that puff at their own rate, lean in the wind and throw embers and smoke, and whose flicker lights the world around them. `fire: true` on a dungeon lights its chambers with braziers and its tunnels with torches; `fire: { sources }` places fires anywhere, on the ground in terrain worlds. Absent ⇒ byte-identical.

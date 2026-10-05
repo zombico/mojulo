@@ -16,6 +16,7 @@ import { NECK_GLSL, basinStep, fallAeration, jetAt, jetGrowth, jetHitTime, jetNe
 //   the basin   its depth h obeys basinStep (inflow, the drain or the plug, the overflow), pushed to the body by
 //               `__aqWater.setLevel` — the duck rides it up and settles as it drains
 // A small HUD drives each jet's flow, plug and aerator; `window.__mojJet.set(id, { flow, plug, aerated })` does too.
+// A page whose jets all say `controls: false` (a fountain in a level, not a study) carries no HUD.
 const FNS = [jetProfile, sheetProfile, fallAeration, jetAt, jetGrowth, jetOmega, jetNeck, jetHitTime, jumpRadius, basinStep].map((f) => f.toString()).join('\n');
 const RINGS = 640, SEGS = 12, COLS = 40, APP = 48;    // APP: a sheet's approach rings (the tongue over the brink)
 
@@ -346,7 +347,7 @@ ${FNS}
 
   // the HUD: flow on a log slider (0 = off, then 0.0003 → 0.3 L/s), the plug, the aerator
   let hudSync = () => {};
-${hud ? `  if (J.length) {
+${hud && jets.some((j) => j.controls !== false) ? `  if (J.length) {
     const s0 = J[0], box = document.createElement('div');
     box.style.cssText = 'position:absolute;left:12px;bottom:34px;z-index:5;background:rgba(20,24,30,.78);color:#e8eef2;font:12px system-ui;padding:10px 12px;border-radius:8px;display:flex;flex-direction:column;gap:6px;min-width:230px';
     box.innerHTML = '<label>flow <span data-k="q"></span><input data-k="flow" type="range" min="0" max="100" value="0" style="width:100%"></label><div style="display:flex;gap:6px"><button data-k="plug"></button><button data-k="aer"></button></div><div data-k="st" style="opacity:.75;font-variant-numeric:tabular-nums"></div>';

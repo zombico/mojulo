@@ -38,7 +38,7 @@ function annulus(out, c, r0, r1, z, sides, face) {
 }
 
 /** The fountain: stone (lathed and ringed, baked like the shell) and water (self-lit translucent sheets, drawn after). */
-export function plazaFountain(plan) {
+export function plazaFountain(plan, { live = false } = {}) {
   const Fo = plan.kit.dress.fountain, { c } = plazaSite(plan), stone = [], water = [], S = Fo.sides, st = { ...Fo.stone };
   const inner = Fo.R - Fo.lip, B = Fo.bowl, br = B.R - 0.14;
   // one path round the solid: up the basin's outside, over its rim, down into it, across its floor, up the pedestal,
@@ -50,8 +50,22 @@ export function plazaFountain(plan) {
   const Rg = Fo.ring;
   annulus(stone, c, Fo.R, Fo.R + Rg.width, 0.012, S * 2, (a0, a1, r0, r1) => ({ texture: Rg.key, textureLit: true, uv: [[a0 * r0, r0], [a0 * r1, r1], [a1 * r1, r1], [a1 * r0, r0]].map((q) => q.map((v) => r5(v / Rg.scale))), tint: Rg.tint, group: 'stage:ring' }));
   // the water: standing in the basin and the bowl, and spilling from the bowl's lip as a falling sheet
-  const pool = (r0, r1, z) => annulus(water, c, r0, r1, z, S, () => ({ water: true, fill: Fo.pool, cornerAlpha: [0.86, 0.86, 0.86, 0.86], group: 'stage:water' }));
+  // standing water takes the aqua look when the card names one (materials/aqua-look.js): ripples, the sky in it at a
+  // grazing angle, the basin's floor seen through it; the falling streams stay plain sheets
+  // with live water (the recipe's `water`) standing water takes the aqua look (materials/aqua-look.js: ripples, the sky
+  // in it at a grazing angle, the basin's floor seen through it) and the spill falls as jets (materials/jet.js) drawn
+  // on the page; without it, the floor: plain sheets, and the spill painted as translucent strips
+  const pool = (r0, r1, z) => annulus(water, c, r0, r1, z, S, () => ({ water: true, ...(live && Fo.look ? { liquid: Fo.look } : {}), fill: Fo.pool, cornerAlpha: [0.86, 0.86, 0.86, 0.86], group: 'stage:water' }));
   pool(Fo.pedestal + 0.02, inner, Fo.water); pool(0.18, br, B.z - 0.1);
+  const cut = (f) => f.group === 'stage:floor' && f.corners.every((q) => Math.hypot(q[0] - c[0], q[1] - c[1]) < Fo.R - 0.05);
+  if (live && Fo.jets) {
+    // the bowl brims over its lip in sheets, one per stretch of lip, each pouring outward and falling to the basin
+    const Jt = Fo.jets, jets = Array.from({ length: Jt.count }, (_, k) => {
+      const a = (2 * Math.PI * (k + 0.5)) / Jt.count, o = [Math.cos(a), Math.sin(a)];
+      return { id: `spill${k}`, shape: 'sheet', width: Jt.width, at: P([c[0] + o[0] * (B.R + 0.04), c[1] + o[1] * (B.R + 0.04), B.z - 0.01]), dir: [r5(o[0]), r5(o[1]), 0], flow: Jt.flow, fall: B.z - Fo.water + 0.2, mist: false, controls: false };
+    });
+    return { stone, water, cut, jets };
+  }
   // the spill falls in streams from the lip (a whole sheet reads as glass), each arcing out and down to the pool
   const fall = [[B.R + 0.05, B.z - 0.02], [B.R + 0.22, B.z - 0.6], [B.R + 0.42, Fo.water]], Sp = Fo.spill;
   for (let i = 0; i + 1 < fall.length; i++) for (let k = 0; k < Sp.streams; k++) {
@@ -59,7 +73,7 @@ export function plazaFountain(plan) {
     const al = [Sp.alpha[1], Sp.alpha[1] * 0.75, Sp.alpha[0]];
     water.push({ corners: [p(fall[i], a0), p(fall[i], a1), p(fall[i + 1], a1), p(fall[i + 1], a0)], normal: [0, 0, 1], water: true, fill: Sp.color, cornerAlpha: [al[i], al[i], al[i + 1], al[i + 1]].map(r5), group: 'stage:water' });
   }
-  return { stone, water, cut: (f) => f.group === 'stage:floor' && f.corners.every((q) => Math.hypot(q[0] - c[0], q[1] - c[1]) < Fo.R - 0.05) };
+  return { stone, water, cut, jets: [] };
 }
 
 /** The fronts' dressing (flower boxes, awnings), the corner's laundry and the far rooftops. */
@@ -157,7 +171,7 @@ export function plazaBlends(plan, faces, houses) {
 
 /** Everything the plaza's dressing adds, in the shape the stage composes (see nave.js `naveDress`). */
 export function plazaDress(plan, geom) {
-  const D = plan.kit.dress, site = plazaSite(plan), fo = plazaFountain(plan), houses = geom.houses || [];
+  const D = plan.kit.dress, site = plazaSite(plan), fo = plazaFountain(plan, { live: !!geom.water }), houses = geom.houses || [];
   const key = plan.ref.light.key, toSun = sunDir(key.elevation, key.azimuth ?? 225);
   const portico = D.portico ? plazaPortico(plan, site) : null;
   return {
@@ -171,5 +185,6 @@ export function plazaDress(plan, geom) {
     // the far rows and the skyline stand beyond the houses: they shade nothing in the square
     shadowSkip: (f) => f.group === 'stage:far' || f.group === 'stage:skyline',
     clouds: D.clouds || null,
+    jets: fo.jets,
   };
 }

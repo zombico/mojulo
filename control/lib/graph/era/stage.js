@@ -37,6 +37,7 @@ import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
+import { normalizeJets } from '../materials/jet.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
 export const STAGE_KITS = ({
@@ -449,14 +450,22 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
-/** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB. */
-function torchFaces(l) {
+/** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
+ *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
+ *  a collar the staff stands in. */
+function torchFaces(l, live = false) {
   const out = [], [x, y, z] = l.at, plain = { key: null, scale: 1, tint: [1, 1, 1] };
   const iron = (mn, mx, fill) => {
     const raw = [];
     box(raw, mn, mx, plain, 1);
     for (const { texture, textureLit, uv, tint, ...f } of raw) out.push({ ...f, fill, group: 'stage:fixture' });
   };
+  if (live) {
+    const [nx, ny] = l.n, w = [x - nx * 0.32, y - ny * 0.32];
+    iron([Math.min(x, w[0]) - 0.025, Math.min(y, w[1]) - 0.025, z - 0.36], [Math.max(x, w[0]) + 0.025, Math.max(y, w[1]) + 0.025, z - 0.31], '#2a2420');   // the arm
+    iron([x - 0.045, y - 0.045, z - 0.4], [x + 0.045, y + 0.045, z - 0.28], '#3a3028');   // the collar
+    return out;
+  }
   iron([x - 0.07, y - 0.07, z - 0.5], [x + 0.07, y + 0.07, z - 0.14], '#2a2420');   // the bracket
   iron([x - 0.12, y - 0.12, z - 0.14], [x + 0.12, y + 0.12, z - 0.06], '#3a3028');  // the bowl
   // the flame: per card, a tapered lower quad (bowl → belly) and a pointed upper quad (belly → tip)
@@ -486,9 +495,15 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends }) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : naveDress(plan, geom);
   const base = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const lights = resolveStageLights(plan, seats);
+  // live fire (`manifest.fire`): a dressing's braziers stand by its portal and light the room like the torches do
+  const live = !!manifest.fire, Fk = live && plan.kit.dress && plan.kit.dress.fire, portalBay = (geom.bays || []).find((b) => b.portal);
+  const braziers = Fk && Fk.braziers && portalBay ? [-1, 1].map((sg) => {
+    const Bz = Fk.braziers, u = (portalBay.u0 + portalBay.u1) / 2 + (sg * Bz.apart) / 2;
+    return { at: P(onWall(portalBay.F, u, Bz.out, Bz.z)), n: portalBay.F.N, color: Bz.color, intensity: Bz.intensity, radius: Bz.radius, fixture: 'brazier', size: Bz.size };
+  }) : [];
   const key = plan.ref.light.key, daylight = plan.kit.sun && key;
   const sun = daylight ? (() => {
     const dir = sunDir(key.elevation, key.azimuth ?? 225), sk = plan.kit.sky;
@@ -502,8 +517,11 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, dress && dress.pools.length ? [...lights, ...dress.pools] : lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
-  const fixtures = lights.filter((l) => l.fixture === 'torch').flatMap(torchFaces);
+    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : lights, ambient, makeDirt(plan, lights, manifest.dirt), sun);
+  // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
+  // only flickers their light; the stage keeps their iron and leaves the flames to the channel
+  const torches = lights.filter((l) => l.fixture === 'torch');
+  const fixtures = torches.flatMap((l) => torchFaces(l, live));
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
   const setCam = r0.open.length ? (() => {
@@ -525,6 +543,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // the ends by which this map links to others, and its items (doors.js): only when the recipe names them
     ...(manifest.doors ? { doors: withoutBuild(ends) } : {}),
     ...(taken ? { items: taken.items } : {}),
+    // the fires this map knows (the World route resolves `manifest.fire` against them: fire/fire.js resolveFire)
+    ...(live ? { fireSources: [...torches.map((l) => ({ kind: 'torch', at: P([l.at[0], l.at[1], l.at[2] - 0.04]), ...(Fk && Fk.torch ? { size: Fk.torch } : {}), baked: true })),
+      ...braziers.map((b) => ({ kind: 'brazier', at: b.at, size: b.size, baked: true }))] } : {}),
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
@@ -537,6 +558,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // an exterior gets the reference's painted sky dome; an interior declares itself one (engines keep their sun out)
     sky: daylight ? { zenith: air.dome.zenith, horizon: air.dome.horizon, day: 1, stars: 0, seed: 1 } : { preset: 'interior' },
     // the dressing's weather: the cloud deck over the square, lit by the same sun (an overlay: exports carry none)
+    // live water's falling streams (materials/jet.js), drawn on the page; exports carry the painted floor instead
+    ...(dress && dress.jets && dress.jets.length ? { jets: normalizeJets(dress.jets) } : {}),
     ...(dress && dress.clouds && sun ? { effects: [composeCloudDeck([], { up: 'z', ...dress.clouds, sun: sun.dir })] } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

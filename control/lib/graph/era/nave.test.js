@@ -130,3 +130,39 @@ describe('the dressed nave', () => {
     expect(floor.some((f) => f.texture && f.texture.startsWith('flagstone'))).toBe(false);
   });
 });
+
+// ── live fire (the fire channel, fire/fire.js) in a closed nave ──────────────
+import { resolveFire, firePageChannel } from '../fire/fire.js';
+describe('the nave with live fire', () => {
+  const CLOSED = { kind: 'stage', reference: 'dmc3', kit: 'gothic-nave', rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 24, h: 13 }] };
+  const plain = assembleStageScene(CLOSED), live = assembleStageScene({ ...CLOSED, fire: true });
+  const flames = (s) => s.faces.filter((f) => f.group === 'stage:fixture' && f.emissive);
+  // the torches: two crossed cards of two quads each in the plain nave; the payload's lights also hold its windows' light
+  const torchCount = flames(plain).length / 4;
+  it('without `fire` the nave hands over no fires and keeps its flame cards', () => {
+    expect('fireSources' in plain).toBe(false);
+    expect(torchCount).toBeGreaterThan(4);
+  });
+  it('with `fire` every torch goes to the page as a baked fire at its bracket, and no flame card is left', () => {
+    const torches = live.fireSources.filter((s) => s.kind === 'torch');
+    expect(torches.length).toBe(torchCount);
+    for (const l of live.lights.filter((q) => torches.some((t) => Math.hypot(t.at[0] - q.position[0], t.at[1] - q.position[1]) < 1e-6))) expect(torches.some((t) => Math.hypot(t.at[0] - l.position[0], t.at[1] - l.position[1]) < 1e-6 && Math.abs(t.at[2] - (l.position[2] - 0.04)) < 1e-6)).toBe(true);
+    expect(live.fireSources.every((s) => s.baked)).toBe(true);
+    expect(torches.every((t) => t.size === GOTHIC_NAVE.fire.torch)).toBe(true);
+    expect(flames(live).length).toBe(0);
+  });
+  it('two braziers flank the great portal, inside the nave, and their light is baked into the floor before it', () => {
+    const br = live.fireSources.filter((s) => s.kind === 'brazier'), bay = buildStageGeometry(planStage(CLOSED)).bays.find((b) => b.portal);
+    expect(br.length).toBe(2);
+    const mid = [bay.F.o[0] + bay.F.U[0] * (bay.u0 + bay.u1) / 2, bay.F.o[1] + bay.F.U[1] * (bay.u0 + bay.u1) / 2];
+    const off = (p) => (p[0] - mid[0]) * bay.F.N[0] + (p[1] - mid[1]) * bay.F.N[1], along = (p) => (p[0] - mid[0]) * bay.F.U[0] + (p[1] - mid[1]) * bay.F.U[1];
+    for (const b of br) expect(off(b.at)).toBeCloseTo(GOTHIC_NAVE.fire.braziers.out, 5);
+    expect(along(br[0].at) + along(br[1].at)).toBeCloseTo(0, 5);
+    // the floor right in front of a brazier is warmer lit than the same floor without live fire
+    const near = (s) => s.faces.filter((f) => f.group === 'stage:floor' && !f.blend && f.cornerFills && f.corners.some((q) => Math.hypot(q[0] - br[0].at[0], q[1] - br[0].at[1]) < 1));
+    const bright = (fs) => fs.flatMap((f) => f.cornerFills.map((h) => [1, 3, 5].reduce((a, i) => a + parseInt(h.slice(i, i + 2), 16), 0))).reduce((a, b) => a + b, 0);
+    expect(bright(near(live))).toBeGreaterThan(bright(near(plain)) * 1.1);
+    const page = firePageChannel(resolveFire(true, live.fireSources), { day: 0 });
+    expect(page.sources.length).toBe(torchCount + 2);
+  });
+});

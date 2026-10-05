@@ -226,3 +226,37 @@ describe('the dressed plaza', () => {
     expect(assembleStageScene({ kind: 'stage', reference: 'dmc3', kit: 'gothic-stone', rooms: [{ id: 'a', x: 0, y: 0, w: 8, d: 8, h: 5 }] }).effects).toBeUndefined();
   });
 });
+
+import { emitThreeWorld } from '../scene/scene-three.js';
+// ── live water (aqua look, jets: materials/aqua-look.js, materials/jet.js) ───
+describe('the plaza with live water', () => {
+  const plain = assembleStageScene(PLAZA_SET), live = assembleStageScene({ ...PLAZA_SET, water: true });
+  const F = DELFINO_PLAZA.fountain, c = plazaSite(planStage(PLAZA_SET)).c;
+  const water = (s) => s.faces.filter((f) => f.group === 'stage:water');
+  it('without `water` the fountain keeps its floor: plain pools, painted spill strips, no jets', () => {
+    expect('jets' in plain).toBe(false);
+    expect(water(plain).some((f) => f.liquid)).toBe(false);
+    expect(water(plain).filter((f) => f.fill === F.spill.color).length).toBe(F.spill.streams * 2);
+  });
+  it('with `water` the basin and bowl take the water look and the spill falls as sheets from the bowl\'s lip', () => {
+    const pools = water(live).filter((f) => f.fill === F.pool);
+    expect(pools.length).toBeGreaterThan(0);
+    expect(pools.every((f) => f.liquid && f.liquid.kind === F.look.kind)).toBe(true);
+    expect(water(live).some((f) => f.fill === F.spill.color)).toBe(false);   // the painted strips give way to the jets
+    expect(live.jets.length).toBe(F.jets.count);
+    for (const j of live.jets) {
+      expect(j.shape).toBe('sheet');
+      expect(Math.hypot(j.at[0] - c[0], j.at[1] - c[1])).toBeCloseTo(F.bowl.R + 0.04, 4);   // on the bowl's lip
+      expect(j.at[2]).toBeCloseTo(F.bowl.z - 0.01, 4);
+      // it pours outward, away from the fountain's axis
+      expect(j.dir[0] * (j.at[0] - c[0]) + j.dir[1] * (j.at[1] - c[1])).toBeGreaterThan(0);
+      expect(j.controls).toBe(false);
+    }
+  });
+  it('a page whose jets say controls: false carries no flow panel; a study\'s jets keep theirs', () => {
+    const box = [{ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], normal: [0, 0, 1], fill: '#888888' }];
+    const jet = { id: 'j', at: [2, 2, 2], dir: [0, 0, -1], radius: 0.005, flow: 0.06, aerated: false, K: 5, into: null, L: 1 };
+    expect(emitThreeWorld({ faces: box, jets: [jet] })).toContain('data-k="flow"');
+    expect(emitThreeWorld({ faces: box, jets: [{ ...jet, controls: false }] })).not.toContain('data-k="flow"');
+  });
+});
