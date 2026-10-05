@@ -162,6 +162,12 @@ lands.
   On the landmark ear the rim is raised, the antihelix rises inside it and the bowl dips behind, in the darker inner
   tone, so the light shows its depth; the anime ear is a simpler rim, fold and bowl, drawn by its outline. The anime
   head's studio-exact face (`sculpt: false`) keeps its own ear.
+- **Smooth shading on the western hero.** A hero under the studio light (the landmark head, or no head) is shaded
+  smoothly instead of one flat tone per triangle: the face reads as one form instead of facets over the nose and the
+  cheeks, and the chest, the belly, the back and the limbs read as muscle instead of a grid. The skin blends across
+  edges that turn up to 70°; hair, cloth and the swimsuit keep their edges. The clip preview shades the same way. The
+  anime hero is unchanged (its two tones already follow a smoothed surface), and so is every layered sketch that is not
+  a hero.
 - **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
   expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
   row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under

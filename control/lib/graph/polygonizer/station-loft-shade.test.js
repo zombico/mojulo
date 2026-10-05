@@ -517,10 +517,12 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   const PINS = {
     planBiped: [() => expandLayeredManifest({ kind: 'layered', plan }), ['a645ae390d3b0fbf', 'a33a830d8af3f744', 'f1b33d48167b8855']],
     // the heroes on the streamlined core: these pin the light's absence, and predate the structured core (DEFAULT_CORE),
-    // whose own payloads are pinned below
-    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['038d874eb7e25531', 'd46166164693ee83', '62e8cc4802f7246b']],
-    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['742d107945f4ed80', 'f08d7b40de5747ed', '66c8b94203f01100']],
-    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['9284e50464c3a412', '00ab4889f9c168a6', '0e6eb7d4107141c3']],
+    // whose own payloads are pinned below. The plain and toon pins re-pinned for smooth shading under the studio light
+    // (world-kinds.js, STUDIO_SMOOTH_CREASE: a hero off the anime head carries the key at its corners); the unshaded
+    // export (FLAT_LIGHT) unchanged
+    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['e03ec07b36ab1e14', '3f18857c99d9334b', '62e8cc4802f7246b']],
+    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['2acf3dc8df4bf726', '9368f5decfda6249', '66c8b94203f01100']],
+    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['bb3063a3a7ba1e28', 'd52f97e21ea62132', '0e6eb7d4107141c3']],
   };
   // THE STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs, the stands' own base): the
   // default heroes' payloads, pinned; each one at core: 'streamlined' is the value pinned beside it above, still. Re-pinned
@@ -539,11 +541,13 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // wrist), then for the legs' (the quadriceps, hamstrings and the ring above the knee, the calf, the slim ankle); the
   // streamlined values above unchanged; then for the landmark head's forehead (humanoid-head-fit.js: upright, the brow's
   // end on its own landmark), which moved the landmark heroes on both cores, here and above, and not head-none; then for
-  // the ear (head-ear.js: the side shape, a thin plate with the rim, the antihelix and the bowl), the same again
+  // the ear (head-ear.js: the side shape, a thin plate with the rim, the antihelix and the bowl), the same again; then for
+  // smooth shading under the studio light (STUDIO_SMOOTH_CREASE: the key at each face's corners), every hero here, the
+  // plain and toon pins, the unshaded one unchanged
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['6f1815e8a41af811', 'dfd989f884686faa', 'e2597cea61949623']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['418ca843eb94d93b', 'b871cd6c35fe7357', '22e36b460eefffe4']],
-      headNone: [{ cast: 'female', head: 'none' }, ['cd4fba2202acc2ec', '348fad58732efa0d', '9ae3db683a366a18']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['e77db141f9c0c08c', '6b67bc48fbebe387', 'e2597cea61949623']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['4f30f7e459cbc1a9', '2018c3cf008d8723', '22e36b460eefffe4']],
+      headNone: [{ cast: 'female', head: 'none' }, ['0cffd2cd855cb54f', 'd14954ec5db3cfe3', '9ae3db683a366a18']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);

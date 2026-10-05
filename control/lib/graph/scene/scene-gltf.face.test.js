@@ -123,8 +123,9 @@ describe('the skinned GLB carries the anime face', () => {
     // change that moved both exports alike still shows. Re-pinned for the hero's `wave` clip keeping its elbow at the
     // shoulder line (hero-form.js): with the old wave in the recipe each export writes the bytes before it
     // (98a75b946e0c4ebc / 932c94ffaa0aae60), still. The landmark pin re-pinned for the landmark head's forehead (upright,
-    // the brow's end on its own landmark), then for the ear (head-ear.js); the head-none pin unchanged.
-    const PIN = { landmark: '81930107cedb526f', none: 'ed0ce1b9d476697d' };
+    // the brow's end on its own landmark), then for the ear (head-ear.js); the head-none pin unchanged. Both re-pinned
+    // for smooth shading under the studio light (the pack's corners shaded from the welded normals, STUDIO_SMOOTH_CREASE).
+    const PIN = { landmark: '90a429bbe23e86ef', none: '6bb9c78313af5912' };
     // (on the streamlined core: the pins predate the structured core, DEFAULT_CORE, which moves both exports alike)
     for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer, core: 'streamlined' }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer, core: 'streamlined' }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });

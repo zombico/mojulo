@@ -180,11 +180,14 @@ function weldedNormals(V, F, G, restV, crease, q) {
   }
   const P = ids.size; const bins = new Map();   // groupId·P + positionId → corner ids (3·fi + k)
   for (let fi = 0; fi < nF; fi++) for (let k = 0; k < 3; k++) { const key = fg[fi] * P + pid[F[fi][k]]; let b = bins.get(key); if (!b) bins.set(key, b = []); b.push(3 * fi + k); }
-  const c = dmath.cos((crease * Math.PI) / 180); const out = new Array(nF);
+  // the crease per group: a number for every group, or `{ [group]: degrees, default }` (35 where neither names it)
+  const cosOf = (deg) => dmath.cos((deg * Math.PI) / 180), cAll = typeof crease === 'number' ? cosOf(crease) : null;
+  const cG = new Float64Array(gids.size); for (const [g, id] of gids) cG[id] = cAll ?? cosOf(Number.isFinite(crease[g]) ? crease[g] : Number.isFinite(crease.default) ? crease.default : 35);
+  const out = new Array(nF);
   for (let fi = 0; fi < nF; fi++) out[fi] = [null, null, null];
   const par = [], sum = [];
-  for (const bin of bins.values()) {
-    const m = bin.length; par.length = m; for (let i = 0; i < m; i++) par[i] = i;
+  for (const [key, bin] of bins) {
+    const m = bin.length, c = cG[Math.floor(key / P)]; par.length = m; for (let i = 0; i < m; i++) par[i] = i;
     const find = (i) => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
     for (let i = 0; i < m; i++) for (let j = i + 1; j < m; j++) {
       const fi = (bin[i] / 3) | 0, fj = (bin[j] / 3) | 0; let join = fi === fj;
@@ -219,10 +222,15 @@ function regionWeight(part, p, L) {
   return /^ear/.test(part) ? 0.3 : 0;   // the ears lean in a little; the neck, the hands and the core keep their weld
 }
 
+/** The crease a hero under the STUDIO light is shaded smoothly at (world-kinds.js): the skin blends across edges up to
+ * 70° (the face one form, the torso and the limbs muscle, not a grid), every other group at 35° (a hair lock, a cloth
+ * edge and the swimsuit keep their edges). No head proxy: that belongs to the anime head's step. */
+export const STUDIO_SMOOTH_CREASE = deepFreeze({ Skin: 70, default: 35 });
 /**
  * Per-face-corner shading normals `[fi][k] → [x, y, z]` (unit length), shaped like `mesh.faces`.
  *   crease   degrees: two faces of one weld bin join the same smooth FAN across an edge they share when their faces
- *            turn less than this (default 35: dot > 0.82, the limit the anime head's source smooths at); each corner
+ *            turn less than this (default 35: dot > 0.82, the limit the anime head's source smooths at), or per palette
+ *            group `{ [group]: degrees, default }` (a group neither names takes 35); each corner
  *            takes its fan's area-weighted sum, so the two faces across a smooth edge read the SAME normal at both of
  *            its ends (the step then crosses that edge at one point) and a crease edge stays sharp
  *   quantum  the weld's position quantum in metres (default 1e-4)
