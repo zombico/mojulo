@@ -370,6 +370,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   palette is estimated until the reference swatches exist.
 - A design brief for the reference drawings (`docs/historic/pompeii/README.md`), in the house style of Qin's,
   with the kit constants and the gaps the record leaves. The drawings themselves are not made yet.
+- The town laid out before its pieces are designed (culture `pompeii`, layout `lava-spur`). Every building is a
+  placeholder until it is designed, so the asset call lists all of them as still to design and gives the drawing
+  brief real sizes.
+  - The forum at the record's 143 × 38 m: the Capitolium on its podium at the north end between two arches,
+    porticoes on three sides, and the halls round it where they stood.
+  - Via dell'Abbondanza at its recorded widths, with the other named streets. Every street runs as lava paving
+    sunk between kerbed pavements.
+  - The Stabian Baths, the theatre quarter on the south bluff, and the Temple of Venus inside Porta Marina.
+  - About 700 houses, those on the main streets with shops, and fountains at the main crossings.
+  - The spur over the plain, with the Porta Marina ramp; Vesuvius and the Monti Lattari on the World page's
+    horizon.
+  - Each monument's slot carries its state from the record: the Capitolium stands roofless, and Venus, the
+    Apollo repairs and the travertine colonnade have scaffolding.
+- The placeholders are massing blocks in the card's numbers, plus pieces borrowed as they stand from Lindos
+  (the courtyard house less its porch, the wall, towers, the theatre, statues). The World page is about 15 MB,
+  Qin's size.
+- New shared patterns: podium temple, forum, atrium house, taberna, arch, street fountain, kerbed street. The
+  other cultures' pages are byte-identical.
 
 ### Sixth-gen composer
 

@@ -120,6 +120,14 @@ export const PATTERNS = {
   'sea-cliff': { family: 'layout', read: 'the land ends in sheer rock over the water, the town and its shrine on top', seenIn: ['Lindos', 'Santorini', 'Bonifacio', 'Amalfi'] },
   'rock-relief': { family: 'art', read: 'a picture cut into the living rock beside the way, larger than life', seenIn: ['Lindos (the ship)', 'Persia (Behistun, Naqsh-e Rustam)', 'Hittites (Yazılıkaya)', 'India (Mahabalipuram)'] },
   'statue-base': { family: 'art', read: 'bronze statues on inscribed stone bases crowding a sanctuary: the gifts of the city\'s great', seenIn: ['Greece (Delphi, Lindos, Olympia)', 'Rome (fora)', 'the modern square'] },
+  // ── the Roman town (Pompeii) ──
+  'podium-temple': { family: 'massing', read: 'a temple raised on a high podium, entered by one stair at the front only, a deep porch facing down a square', seenIn: ['Etruria', 'Rome (Capitolium, Maison Carrée)', 'Roman colonies', 'Neoclassical churches'] },
+  forum: { family: 'layout', read: 'a long paved square ringed by porticoes, the chief temple at one end, the halls of law, market and council round it', seenIn: ['Rome', 'Pompeii', 'every Roman colony', 'the Italian piazza'] },
+  'atrium-house': { family: 'plan', read: 'a blank street front with shops in it, a narrow entry to a top-lit hall with a pool under its opening, a colonnaded garden behind', seenIn: ['Pompeii', 'Herculaneum', 'Roman Italy', 'Roman North Africa'] },
+  taberna: { family: 'street', read: 'a one-room shop open full width to the street, shuttered at night, a counter at its front', seenIn: ['Rome', 'Pompeii (thermopolia)', 'the medieval bottega', 'the souk'] },
+  arch: { family: 'massing', read: 'a round arch on piers: a gate, an arcade, or an honorary monument carrying a statue', seenIn: ['Rome', 'Roman colonies', 'Islamic arcades', 'the Arc de Triomphe'] },
+  'street-fountain': { family: 'street', read: 'a basin at a street corner fed from a pipe, its spout carved, open to all', seenIn: ['Pompeii', 'Rome', 'Ottoman sebil', 'the village fountain'] },
+  'kerbed-street': { family: 'street', read: 'a paved roadway sunk between raised pavements, stepping stones at the crossings', seenIn: ['Pompeii', 'Roman towns', 'the modern street'] },
 };
 
 /** A flat-roofed cube with a low parapet lip. */

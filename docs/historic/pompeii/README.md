@@ -68,3 +68,24 @@ The gaps a later pass should close:
 - the forum portico heights, and the widths of Via Stabiana and Via Marina;
 - the bluff's height and the insula count;
 - any statement of Pompeian roof pitch or tile size.
+
+## Built
+
+The town is laid out before its pieces are designed, so the drawing brief can be checked against what it needs
+(`control/lib/graph/historic/layouts/pompeii.js`, culture `pompeii`, layout `lava-spur`). Every piece is a
+placeholder in the kit (`assets/pompeii.js`, all `designed: false`):
+- **Massing blocks** in the card's numbers: podium temple, public hall, two-storey forum portico, colonnaded
+  court, arch, gate, fountain.
+- **Borrowed as they stand from Lindos:** the courtyard house (less its Greek porch) as the atrium house's
+  stand-in, the wall, towers, the theatre, statues.
+
+A building's state at 79 shows on its block. Damaged and relic stand roofless; unfinished stands part-built with
+scaffolding; under repair keeps its roof and has scaffolding.
+
+The asset call (`assetCall`) says what the town asks for: one Capitolium, three other podium temples, three
+forum porticoes, about a dozen halls, three courts, about 700 houses with shops on the main streets, two gates,
+and the pieces borrowed from Lindos. The sheets above cover them all. The tombs and the Villa of the Mysteries are
+outside this frame, so `pompeii-tombs.webp` can wait.
+
+The positions follow the town plan's order, not a survey. The streets are drawn orthogonal, and the bluff's
+height (18 m) is drawn, since the record has none. The World page is about 15 MB.

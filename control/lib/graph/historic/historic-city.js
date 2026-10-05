@@ -28,6 +28,8 @@ import { QIN } from './cultures/qin.js';
 import { planWeiWards } from './layouts/qin.js';
 import { LINDOS, POLIS } from './cultures/lindos.js';
 import { planAcropolis } from './layouts/lindos.js';
+import { POMPEII } from './cultures/pompeii.js';
+import { planLavaSpur } from './layouts/pompeii.js';
 import { solidFaces, scaleSolid } from './assets/solids.js';
 import { assetBlueprintSvg } from './assets/blueprint.js';
 import { makeLight, litFactor } from '../polygonizer/vexar.js';
@@ -39,15 +41,16 @@ import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
 import { resolveFire, firePageChannel } from '../fire/fire.js';
 
-export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS, qin: QIN };
+export const HISTORIC_CULTURES = { sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, polis: POLIS, qin: QIN, pompeii: POMPEII };
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
 
 /**
  * Plan a historic city. Each culture brings its layout (`culture.layout`): 'ring-canal' (a walled ring
  * cut by a canal, the precinct at the heart — Sumer), 'river-axis' (a river along the town and a
  * temple on an axis from its quay — New Kingdom Thebes), 'plateau' (Giza), 'acropolis' (a sanctuary on a
- * rock over a terraced town — Lindos on its sea cliff, or the generic `polis` on a gentle hill) or 'wei-wards'
- * (walled wards on an axis from a palace to a river — Qin Xianyang). All share ./layout-kit.js.
+ * rock over a terraced town — Lindos on its sea cliff, or the generic `polis` on a gentle hill), 'wei-wards'
+ * (walled wards on an axis from a palace to a river — Qin Xianyang) or 'lava-spur' (a forum town on a lava
+ * spur — the western half of Pompeii). All share ./layout-kit.js.
  */
 export function planHistoricCity(opts = {}) {
   const K = HISTORIC_CULTURES[opts.culture || 'sumer'] || SUMER;
@@ -55,6 +58,7 @@ export function planHistoricCity(opts = {}) {
   if (K.layout === 'plateau') return planPlateau({ ...opts, culture: opts.culture }, K);
   if (K.layout === 'acropolis') return planAcropolis({ ...opts, culture: opts.culture }, K);
   if (K.layout === 'wei-wards') return planWeiWards({ ...opts, culture: opts.culture }, K);
+  if (K.layout === 'lava-spur') return planLavaSpur({ ...opts, culture: opts.culture }, K);
   return planRingCanal(opts);
 }
 
@@ -465,7 +469,7 @@ export const SCENE_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 
 // ground many times, so at the box city's 22 the paving smears to a blur — the eye-level views raster
 // at 48. From the air every panel is on screen at once and the box city's 22 is plenty. Lindos' views across the
 // water (`sea`, `bay`) look at the rock from afar: 22, or the page drops faces under the load.
-const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48 };
+const UNIT_SCALE = { aerial: 22, approach: 22, street: 48, precinct: 48, canal: 48, avenue: 48, temple: 48, river: 48, valley: 48, pyramid: 48, cemetery: 48, town: 48, harbour: 48, works: 48, summit: 48, climb: 48, stoa: 48, sea: 22, bay: 22, theatre: 48, palace: 48, gate: 48, ward: 48, market: 48, bridge: 48, bluff: 48, forum: 48 };
 
 /**
  * Metre grounds → scene faces, kept in their stacking order (base earth, then fields, water, lanes,
