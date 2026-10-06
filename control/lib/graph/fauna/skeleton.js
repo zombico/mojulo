@@ -203,7 +203,10 @@ export function faunaSkeleton(id) {
   // (the torso never rides the neck); a one-side decoration rides the limb whose tube it sits in, else the axis
   const carved = !tailParts.length && tail.length;
   const region = (name) => (TRUNK.test(name) ? [...spine, ...(carved ? tail : [])] : NECK.test(name) ? (neck.length ? neck : [spine[spine.length - 1]])
-    : TAIL.test(name) ? (tail.length ? tail : [spine[0]]) : [...axial]);
+    : TAIL.test(name) ? (tail.length ? tail : [spine[0]])
+    // any other axis part (a kangaroo's trunk, a hump, a crest) rides the body, not the tail, unless it is the tail's
+    // (a horse's tailHair), so a swinging tail never drags the body with it
+    : /tail/i.test(name) || carved ? [...axial] : axial.filter((b) => !/^tail\d+$/.test(b.id)));
   const nearestIn = (set) => (q) => set.reduce((b, c) => (segDist(q, c.head, c.tail) < segDist(q, b.head, b.tail) ? c : b)).id;
   const limbTube = rows.map((r) => {
     const part = parts.find((q) => q.name === r[0]), rad = (v) => (Array.isArray(v) ? Math.max(...v) : v || 0);

@@ -15,8 +15,10 @@
  *           the stride a foot is down (> .5 walking, < .5 a flight phase); `stride` is stride length / hip height;
  *           `fr` the speed band as Froude number v²/(g·h) — gaits change at about the same Fr whatever the size
  *           (Alexander & Jayes 1983), so one table drives a fox and an elephant. Wave gaits carry wave numbers.
- *  - axial  how the body rides the stride: `flex` (up-and-down spine flexion, 0..1), `lateral` (sideways bend,
- *           0..1), `wave` ('none' | 'standing' | 'travelling'), `roll` / `yaw` (girdle rotation, 0..1), `head`
+ *  - axial  how the body rides the stride: `flex` (the back rounding as the legs gather and stretching as they
+ *           extend, 0..1), `yaw` (each girdle turning with its leading leg, seen from above, 0..1), `lateral` (how
+ *           far the trunk bends between the girdles beyond that: the sprawlers' standing wave, 0..1), `wave` ('none' |
+ *           'standing' | 'travelling'), `roll` (the girdles' roll, 0..1; not yet posed), `head`
  *           ('steady' | 'nod' | 'thrust' | 'sway' | 'reach'), `tail` (a TAILS word: 'none' | 'still' | 'trail' |
  *           'counter' | 'prop' | 'drive').
  *  - species `{ <id>: { gaits?, axial?, spine?, note? } }`: merged over the family; a gait set to null is removed.
@@ -74,11 +76,41 @@ export const GAITS = Object.freeze({
  */
 export const TAILS = Object.freeze({
   none:    { line: null, gain: 0 },
-  still:   { line: 'held still (too short or stiff to swing)', gain: 0 },
-  trail:   { line: 'trails loose, swinging late, the tip whipping', gain: 0.35, lag: 0.3, whip: 1.2 },
-  counter: { line: 'a counterweight: swings against the legs to cancel the body\'s spin', gain: 1, lag: 0.06, whip: 0.2 },
-  prop:    { line: 'a fifth leg: planted to vault the body, a counterweight in the hop', gain: 1, lag: 0.06, whip: 0.2 },
+  still:   { line: 'held still', gain: 0 },
+  trail:   { line: 'sways with the hips at a walk and trot, braced at the gallop, swinging late', gain: 0.35, lag: 0.3, whip: 1.2 },
+  counter: { line: 'swung against the legs as a counterweight, cancelling the body\'s spin', gain: 1, lag: 0.06, whip: 0.2 },
+  prop:    { line: 'planted as a fifth leg to vault the body; a counterweight in the hop', gain: 1, lag: 0.06, whip: 0.2 },
   drive:   { line: 'drives the swim; trails on land', gain: 0.35, lag: 0.3, whip: 1.2 },
+  flag:    { line: 'flagged up as a white alarm signal when it bounds away; hangs at a walk', gain: 0 },
+});
+
+/**
+ * What a tail is MADE of: how much of its drawn girth is mass (its inertia, mass × length², is what balances), how
+ * freely it swings on its own, and whether the air lifts it at speed. A long light tail balances by length, not mass
+ * (a squirrel's is ~3% of its body: Fukushima et al. 2021); a long-tailed climber's balances most (Mincer & Russo
+ * 2020: arboreal mammals evolve longer tails; Young et al. 2021, monkeys; Walker et al. 1998, cats).
+ *  - `core`    the share of the drawn cross-section that is mass (a bushy tail is mostly hair);
+ *  - `zeta`    damping as a pendulum (muscle braces a fleshy tail; a hair switch swings freely);
+ *  - `passive` the share of the tail free to swing when the body shakes its root (muscle braces a fleshy tail);
+ *  - `whip` / `lag` how that swing grows and travels toward the tip;
+ *  - `stream`  whether it lifts and streams behind at speed (drag on hair).
+ */
+export const TAIL_BUILDS = Object.freeze({
+  flesh:   { words: 'a muscled tail', core: 1, zeta: 0.6, passive: 0.3, whip: 0.3, lag: 0.08, stream: false },
+  fur:     { words: 'a light bushy tail', core: 0.12, zeta: 0.3, passive: 1, whip: 1.4, lag: 0.35, stream: true },
+  hair:    { words: 'a hair switch on a short dock', core: 1, zeta: 0.15, passive: 1, whip: 1, lag: 0.25, stream: true },
+  stub:    { words: 'a short tail', core: 1, zeta: 1, passive: 0, whip: 0, lag: 0, stream: false },
+  feather: { words: 'a feathered tail', core: 0.05, zeta: 1, passive: 0, whip: 0, lag: 0, stream: false },
+});
+
+/** Each family's tail build (a species may say otherwise in its `axial.tailBuild`). */
+export const TAIL_BUILD_OF = Object.freeze({
+  canine: 'fur', procyonid: 'fur',
+  feline: 'flesh', mustelid: 'flesh', rodent: 'flesh', monotreme: 'flesh', macropod: 'flesh', crocodilian: 'flesh',
+  squamate: 'flesh', theropod: 'flesh', sauropod: 'flesh', hadrosaur: 'flesh', thyreophoran: 'flesh', ceratopsian: 'flesh',
+  teleost: 'flesh', chondrichthyan: 'flesh', plesiosaur: 'flesh',
+  equine: 'hair', bovid: 'hair', pachyderm: 'hair', giraffid: 'hair',
+  cervid: 'stub', ursine: 'stub', leporid: 'stub', suid: 'stub', testudine: 'stub', pterosaur: 'stub', avian: 'feather',
 });
 
 const q = (LH, LF, RH, RF) => ({ LH, LF, RH, RF });
@@ -176,7 +208,8 @@ function orderGaits(gaits) {
 /** A species' locomotion, given its family id. */
 export function locomotionFor(family, id) {
   const e = LOCOMOTION[family]; if (!e) return null;
-  return mergeLocomotion(e, e.species?.[id]);
+  const L = mergeLocomotion(e, e.species?.[id]);
+  return { ...L, axial: { ...L.axial, tailBuild: L.axial.tailBuild ?? TAIL_BUILD_OF[family] ?? 'stub' } };
 }
 
 /** The plain gait words a species has, slowest first: what an encyclopedia entry lists. */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GAITS, PATTERNS, RIGS, LOCOMOTION, TAILS, locomotionFor, gaitWords } from './index.js';
+import { GAITS, PATTERNS, RIGS, LOCOMOTION, TAILS, TAIL_BUILDS, locomotionFor, gaitWords } from './index.js';
 import { FAMILIES, FAMILY_SPECIES } from '../families.js';
 import { speciesPlan } from '../species.js';
 import { animalEntryCards } from '../entries.js';
@@ -28,6 +28,8 @@ describe('locomotion: the vocabulary', () => {
       if (T.gain) expect(unit(T.lag) && T.whip >= 0, k).toBe(true);
     }
     expect(locomotionFor('macropod', 'kangaroo').axial.tail).toBe('prop');
+    for (const [k, B] of Object.entries(TAIL_BUILDS)) expect(B.core > 0 && B.core <= 1 && B.zeta > 0 && unit(B.passive) && typeof B.words === 'string', k).toBe(true);
+    for (const [id, s] of Object.entries(FAMILY_SPECIES)) expect(TAIL_BUILDS[locomotionFor(s.family, id).axial.tailBuild], id).toBeDefined();
   });
 
   it('wave patterns carry their numbers', () => {
@@ -104,8 +106,8 @@ describe('locomotion: what it touches', () => {
     const byId = new Map(animalEntryCards().map((c) => [c.id, c]));
     for (const [id, s] of Object.entries(FAMILY_SPECIES)) {
       expect(byId.get(`animal/${id}`).body, id).toContain(`MOVES    ${gaitWords(s.family, id).join(', ')}`);
-      const tail = TAILS[locomotionFor(s.family, id).axial.tail].line;
-      if (tail) expect(byId.get(`animal/${id}`).body, id).toContain(`TAIL     ${tail}`);
+      const A = locomotionFor(s.family, id).axial, use = TAILS[A.tail].line;
+      if (use) expect(byId.get(`animal/${id}`).body, id).toContain(`TAIL     ${TAIL_BUILDS[A.tailBuild].words}: ${use}`);
     }
   });
 

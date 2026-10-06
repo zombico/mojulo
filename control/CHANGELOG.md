@@ -553,6 +553,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   trails on land and rests while fins row. A heavy tail answers with a smaller swing (it shrinks as the tail outgrows
   the hip height). The kangaroo's tail is now `prop` and the crocodile's `counter`; every species card carries a
   `TAIL` line saying what the tail does.
+- A tail's motion now follows from what it is made of and how long it is, measured from the model. `TAIL_BUILDS`
+  (flesh, fur, hair switch, stub, feather) say how much of the drawn girth is mass, how freely it swings and whether
+  air lifts it; each family has one (the squirrel's is fur). From the plan: the tail's inertia over the body's and
+  over each leg pair's, and its swinging length (a horse's hair included). A counterweight answers the legs' angular
+  momentum by their inertia over the tail's (a T. rex's heavy legs sway its tail; a squirrel's light legs barely
+  move its), a share of it in steady straight gaits (turns and leaps use the rest). A trailing tail sways with the
+  hips at a walk and trot and is braced at the gallop (Wada et al. 1993, dogs). On top, every free tail is a
+  pendulum shaken at its root by the hips' sway and the body's real bob: a long hair switch swings late and wide, a
+  bushy brush shaken fast stays put while the body bounds beneath it, and hair and fur stream up at speed. The
+  white-tailed deer flags its tail in flight (`flag`); the moose holds its still. A body part that is not a tail no
+  longer binds to tail bones (the kangaroo's trunk rode `tail0`). Cards read `TAIL  <build>: <use>`.
+- The spine follows the footfalls instead of a fixed wave. From above, each girdle turns with its own pair's leading
+  leg (`axial.yaw`, which the solver had ignored: the shoulder or hip swings forward with its leg, lengthening the
+  stride), and the trunk bends between the two (`axial.lateral`, the sprawlers' standing wave, now locked to which
+  feet are down): opposite turns in a trot bow it into a C that flips each step, the same turn in a pace bends
+  nothing, and most of the girdles' common turn is cancelled so the trunk swings about its middle. From the side the
+  back rounds as the legs gather (hind feet forward, forefeet back) and stretches as they extend (`axial.flex`): hard
+  in a gallop and a bound, slight in a trot, none in a pronk. The planted feet still hold (the legs absorb the
+  girdles' turn); every snake and fish wave is unchanged.
 
 ### Environmental sound
 

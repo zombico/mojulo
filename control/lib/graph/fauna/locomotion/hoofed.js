@@ -52,12 +52,13 @@ export const FAMILIES = {
       gallop: { pattern: 'transverseGallop', duty: 0.25, stride: 3.6, fr: [1.5, 10] },
       bound:  { pattern: 'bound', duty: 0.25, stride: 3.8, fr: [1.5, 10], leap: true },
     },
-    axial: { ...STIFF, flex: 0.35 },
+    // the white-tailed deer's tail: raised as an alarm flag in flight (Hirth & McCullough 1977, alarm signals in ungulates)
+    axial: { ...STIFF, flex: 0.35, tail: 'flag' },
     note: 'deer flee in long springing bounds over cover; the white tail flags up',
     source: 'Hildebrand 1977',
     species: {
       // the moose: a long-legged trotter that rarely gallops and does not bound
-      moose: { gaits: { bound: null }, note: 'a high-stepping trot over brush and snow is its working fast gait' },
+      moose: { gaits: { bound: null }, axial: { tail: 'still' }, note: 'a high-stepping trot over brush and snow is its working fast gait' },
     },
   },
   bovid: {

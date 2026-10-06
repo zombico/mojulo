@@ -17,7 +17,7 @@
  */
 import { SPECIES, stanceOf } from './species.js';
 import { FAMILY_ABOUT, FAMILY_WANTED } from './families.js';
-import { locomotionFor, TAILS } from './locomotion/index.js';
+import { locomotionFor, TAILS, TAIL_BUILDS } from './locomotion/index.js';
 
 /** The rosters the encyclopedia reads. */
 export const ROSTERS = [
@@ -96,8 +96,9 @@ const starterText = (R, id) => `{ "kind": "animal", "spec": ${JSON.stringify(R.s
 /** The MOVES rows: the gaits in plain words, slowest first, and how the animal moves them. */
 function movesLines(R, id) {
   const M = R.movesOf?.(id); if (!M) return [];
-  const tail = TAILS[M.axial?.tail]?.line;   // what the tail does for the body, when it has one
-  return [`MOVES    ${Object.keys(M.gaits).join(', ')}`, ...(M.note ? [`         ${M.note}`] : []), ...(tail ? [`TAIL     ${tail}`] : [])];
+  // what the tail is made of and what it does for the body, when it has one
+  const use = TAILS[M.axial?.tail]?.line, build = TAIL_BUILDS[M.axial?.tailBuild]?.words;
+  return [`MOVES    ${Object.keys(M.gaits).join(', ')}`, ...(M.note ? [`         ${M.note}`] : []), ...(use ? [`TAIL     ${build ? `${build}: ` : ''}${use}`] : [])];
 }
 
 /** One species' entry card. */

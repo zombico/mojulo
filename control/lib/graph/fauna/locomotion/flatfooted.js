@@ -55,7 +55,7 @@ export const FAMILIES = {
         axial: { flex: 0.3, roll: 0.3, tail: 'drive' },
         note: 'waddles slowly on land; swims with the webbed hind feet, the flat tail as a rudder',
       },
-      squirrel: { gaits: { bound: { pattern: 'bound', duty: 0.25 } }, axial: { tail: 'counter' },
+      squirrel: { gaits: { bound: { pattern: 'bound', duty: 0.25 } }, axial: { tail: 'counter', tailBuild: 'fur' },
         note: 'bounds in quick arcs with pauses, the bushy tail flicking for balance' },
     },
   },

@@ -41,19 +41,47 @@ describe('fauna gaits', () => {
     }
   });
 
-  it('a tail balances by what the legs do: calm in a trot, swaying against a stride, swinging against a hop', () => {
-    const sweep = (id, g, axis) => { const ctx = prepare(id), tip = ctx.S.bones.filter((b) => /^tail\d+$/.test(b.id)).at(-1).id;
-      const v = Array.from({ length: N }, (_, i) => poseGait(id, g, i / N, ctx).bones[tip].tail[axis]); return Math.max(...v) - Math.min(...v); };
-    expect(sweep('wolf', 'trot', 0)).toBeLessThan(1e-6);            // the diagonal pairs cancel: no side-to-side spin
-    expect(sweep('tRex', 'walk', 0)).toBeGreaterThan(0.3);          // a biped's stride swings the hips: the tail sways
-    expect(sweep('kangaroo', 'hop', 2)).toBeGreaterThan(sweep('kangaroo', 'hop', 0) + 0.1);   // a hop pitches: up and down
-    // the tail swings against the rump it hangs from (a counterweight)
-    const ctx = prepare('cheetah'), root = ctx.S.bones.find((b) => b.id === 'tail0'), rump = root.parent;
+  it('a tail balances by what the legs do and what it is made of', () => {
+    const tip = (id, g) => { const ctx = prepare(id), b = ctx.S.bones.filter((x) => /^tail\d+$/.test(x.id)).at(-1).id;
+      return Array.from({ length: N }, (_, i) => poseGait(id, g, i / N, ctx).bones[b].tail); };
+    const sweep = (id, g, axis) => { const v = tip(id, g).map((p) => p[axis]); return Math.max(...v) - Math.min(...v); };
+    // a dog's tail sways with the hips at a walk and trot and is braced at the gallop (Wada et al. 1993)
+    expect(sweep('dog', 'trot', 0)).toBeGreaterThan(0.03);
+    expect(sweep('dog', 'gallop', 0)).toBeLessThan(sweep('dog', 'trot', 0) / 4);
+    // a biped's stride swings the hips: the counterweight sways; a hop pitches: up and down
+    expect(sweep('tRex', 'walk', 0)).toBeGreaterThan(0.15);           // (the pelvis turns with the stride too, taking a share)
+    expect(sweep('kangaroo', 'hop', 2)).toBeGreaterThan(sweep('kangaroo', 'hop', 0) + 0.1);
+    // the cheetah's counterweight swings against the rump it hangs from
+    const ctx = prepare('cheetah'), rump = ctx.byId.tail0.parent;
     const pitch = (p) => Math.atan2(p.tail[2] - p.head[2], Math.hypot(p.tail[0] - p.head[0], p.tail[1] - p.head[1]));
     const F = Array.from({ length: N }, (_, i) => poseGait('cheetah', 'gallop', i / N, ctx));
     const a = F.map((f) => pitch(f.bones[rump])), b = F.map((f) => pitch(f.bones.tail0));
     const ma = a.reduce((s, x) => s + x) / N, mb = b.reduce((s, x) => s + x) / N;
     expect(a.reduce((s, x, i) => s + (x - ma) * (b[i] - mb), 0)).toBeLessThan(0);
+    // a white-tailed deer flags its tail up in flight, and lets it hang at a walk
+    const high = (g) => Math.max(...tip('deer', g).map((p) => p[2]));
+    expect(high('bound')).toBeGreaterThan(high('walk') + 0.05);
+  });
+
+  it('the tail\'s physics come from the model: a bushy tail is light, a hair switch is long', () => {
+    expect(prepare('squirrel').tail.rho).toBeLessThan(1);                    // 3% of the body, long: light but effective
+    expect(prepare('horse').tail.swingLength).toBeGreaterThan(0.8);          // the hair hangs past the dock
+    expect(prepare('kangaroo').tail.legs.H).toBeGreaterThan(prepare('kangaroo').tail.legs.F * 5);   // hops on the hind pair
+  });
+
+  it('the spine follows the footfalls: from above a C in a trot, none in a pace; from the side rounded in a gallop, straight in a pronk', () => {
+    // the trunk's sideways bend: the heading change from the first spine bone to the last, over a stride
+    const bend = (id, g) => { const ctx = prepare(id), sp = ctx.S.bones.filter((b) => /^spine\d+$/.test(b.id)), a = sp[0].id, b = sp.at(-1).id;
+      const yaw = (p) => Math.atan2(p.tail[0] - p.head[0], p.tail[1] - p.head[1]);
+      return Math.max(...Array.from({ length: N }, (_, i) => { const f = poseGait(id, g, i / N, ctx).bones; return Math.abs(yaw(f[b]) - yaw(f[a])); })); };
+    const arch = (id, g) => { const ctx = prepare(id), sp = ctx.S.bones.filter((b) => /^spine\d+$/.test(b.id)), a = sp[0].id, b = sp.at(-1).id;
+      const pitch = (p) => Math.atan2(p.tail[2] - p.head[2], Math.hypot(p.tail[0] - p.head[0], p.tail[1] - p.head[1]));
+      return Math.max(...Array.from({ length: N }, (_, i) => { const f = poseGait(id, g, i / N, ctx).bones; return Math.abs(pitch(f[b]) - pitch(f[a])); })); };
+    expect(bend('crocodile', 'walk')).toBeGreaterThan(0.3);          // a sprawler's standing wave
+    expect(bend('wolf', 'trot')).toBeGreaterThan(0.05);              // a mammal's small C
+    expect(bend('camel', 'pace')).toBeLessThan(1e-9);                // both girdles turn together: no bend
+    expect(arch('cheetah', 'gallop')).toBeGreaterThan(0.5);          // the spring of the gallop
+    expect(arch('gazelle', 'pronk')).toBeLessThan(1e-9);             // all four feet together: a straight back
   });
 
   it('a propping tail is planted while its foot is down (the kangaroo\'s slow walk)', () => {
