@@ -140,3 +140,8 @@ species.ankylosaurus.extraSegments = [
   ...[0, 1, 2, 3, 4].map((i) => spike(`side${i}`, 0.15 - i * 0.01)),
 ];
 delete species.ankylosaurus.ankyBack;
+
+export const about = {
+  stegosaurus: { common: 'stegosaurus', aliases: ['stego'], sci: 'Stegosaurus stenops', size: '~9 m long, hips ~2.6 m, ~4 m to the plate tips', source: 'Gilmore 1914; Maidment et al. 2015 (NHMUK specimen)' },
+  ankylosaurus: { common: 'ankylosaurus', aliases: ['ankylosaur', 'club tail dinosaur'], sci: 'Ankylosaurus magniventris', size: '6–8 m long, ~1.7 m tall', source: 'Arbour & Mallon 2017, FACETS 2: 764' },
+};

@@ -101,3 +101,8 @@ export const species = {
 species.diplodocus.extraSegments = [
   { name: 'tailLoft', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true, stations: loftOf(species.diplodocus.tailStations), caps: species.diplodocus.tailCaps },
 ];
+
+export const about = {
+  brachiosaurus: { common: 'brachiosaurus', aliases: ['giraffatitan'], sci: 'Brachiosaurus altithorax', size: '~22 m long, ~6 m at the shoulder, ~12–13 m to the head', source: 'Taylor 2009, J. Vert. Paleontol. 29: 787–806' },
+  diplodocus: { common: 'diplodocus', aliases: ['brontosaurus', 'apatosaurus', 'long neck dinosaur'], sci: 'Diplodocus carnegii', size: '~26 m long, ~3.5–4 m at the hip', source: 'Hatcher 1901 (CM 84); Paul 2016, Princeton Field Guide' },
+};

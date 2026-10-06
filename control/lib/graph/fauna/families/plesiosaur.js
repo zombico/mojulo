@@ -96,3 +96,7 @@ export const species = {
   // kept v4 (blind judges, both orders: A v4 over v2 65/60%; B v4 over v1 60/62%)
   elasmosaurus: { family: 'plesiosaur', name: 'an Elasmosaurus', scale: 1 },
 };
+
+export const about = {
+  elasmosaurus: { common: 'elasmosaurus', aliases: ['plesiosaur', 'plesiosaurus'], sci: 'Elasmosaurus platyurus', size: '~10.3 m long, the neck ~7 m', source: 'Sachs, Kear & Everhart 2013, PLoS ONE 8: e70877' },
+};

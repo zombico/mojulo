@@ -121,3 +121,7 @@ export const species = {
   // kept v4 (blind judges, both orders: A v4 over v3 75/70%; B v4 over v1 72/68%)
   pteranodon: { family: 'pterosaur', name: 'a Pteranodon', scale: 1 },
 };
+
+export const about = {
+  pteranodon: { common: 'pteranodon', aliases: ['pterodactyl', 'pterosaur'], sci: 'Pteranodon longiceps', size: 'wingspan ~5.6 m (largest ~6.25 m); skull with crest 1.5–1.8 m', source: 'Bennett 2001, Palaeontographica A 260' },
+};

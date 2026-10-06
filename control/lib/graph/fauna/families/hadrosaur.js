@@ -82,3 +82,7 @@ export const species = {
     ],
   },
 };
+
+export const about = {
+  parasaurolophus: { common: 'parasaurolophus', aliases: ['duck-billed dinosaur', 'duckbill dinosaur', 'hadrosaurus'], sci: 'Parasaurolophus walkeri', size: '~9.5 m long, ~2.6 m at the hips', source: 'Parks 1922 (ROM 768); Paul 2016, Princeton Field Guide' },
+};

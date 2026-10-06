@@ -194,3 +194,8 @@ export const species = {
   },
 };
 
+
+export const about = {
+  tRex: { common: 't. rex', aliases: ['tyrannosaurus', 'tyrannosaurus rex', 't rex', 'trex', 'dinosaur'], sci: 'Tyrannosaurus rex', size: '~12 m long, ~4.4 m over the hips, 8–9 t', source: 'Hutchinson et al. 2011, PLoS ONE 6: e26037' },
+  velociraptor: { common: 'velociraptor', aliases: ['raptor'], sci: 'Velociraptor mongoliensis', size: '~2.0 m long, ~0.5 m at the hip, 15–20 kg', source: 'Paul 2016, The Princeton Field Guide to Dinosaurs, 2nd ed.' },
+};

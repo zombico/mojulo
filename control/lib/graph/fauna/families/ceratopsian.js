@@ -90,3 +90,7 @@ export const species = {
     ],
   },
 };
+
+export const about = {
+  triceratops: { common: 'triceratops', aliases: ['three horned dinosaur'], sci: 'Triceratops horridus', size: '8–9 m long, ~3 m at the hips', source: 'Scannella & Horner 2010; Paul 2016, Princeton Field Guide' },
+};
