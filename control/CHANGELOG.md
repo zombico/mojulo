@@ -77,6 +77,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a live loop carries it, and a `smpl` loop chunk marks the loop for samplers and game engines. The Godot pack
   renders every music bed this way, so a level or menu loops without the old gap of silence. Off by default;
   renders without it are byte-identical.
+- More than fields. The same generator now writes the rest of a game's non-battle music, each mood a set of
+  leanings inside the same principles:
+  - towns and interiors: `town`, `tavern` (folk instruments in any game), `shop`, `chapel`;
+  - `night`;
+  - `ceremony`, a stately procession with a brass lead (a new `processional` energy in the gates);
+  - story cues: `prayer`, `sorrow`, `tension` (before a fight, not the fight), `betrayal`, `triumph`.
+  Every mood carries its role (field, travel, town, interior, story), and the suggestion knows the new places.
+  The existing moods are unchanged, note for note.
 
 ### Historic city
 

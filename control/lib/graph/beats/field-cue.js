@@ -81,25 +81,31 @@ export function fieldCue(parsed, { fallbackSeed } = {}) {
 }
 
 // ── the suggestion: read a world and name the mood that fits it ────────────────
-// First match wins; the words are checked against the world's base, kind, theme and title.
+// First match wins (interiors before the land they sit in); the words are checked against the world's base, kind,
+// theme and title. The mood's own row says its role.
 const LEANINGS = [
-  { mood: 'desert', role: 'field', words: /desert|dune|sand|arid|oasis|canyon|mesa|mars|badland|steppe/, why: 'dry open ground: a plucked colour, a drone, no pad' },
-  { mood: 'forest', role: 'field', words: /forest|wood|grove|jungle|swamp|marsh|glade|thicket|garden|tree/, why: 'under a canopy: slower, a modal turn, a little sparkle' },
-  { mood: 'village', role: 'town', words: /village|hamlet|town|farm|market|inn|tavern|historic|harbo|cottage|homestead|plaza/, why: 'people live here: a homely chart over a walking bass' },
-  { mood: 'highlands', role: 'field', words: /mountain|peak|highland|cliff|ridge|alpine|glacier|snow|crag|summit|volcan/, why: 'height and weather: a brass call over moving strings' },
-  { mood: 'expedition', role: 'field', words: /ruin|cave|dungeon|crypt|tomb|expedition|frontier|wild|colony|planet|moon|asteroid|abandoned/, why: 'unknown ground: a minor march, kept quiet enough to explore over' },
-  { mood: 'wayfarer', role: 'travel', words: /road|journey|travel|caravan|port|ship|sail|river|coast|bridge|train|railway/, why: 'on the move: a bright walking tune' },
-  { mood: 'plains', role: 'field', words: /plain|meadow|field|grass|hill|valley|prairie|countryside|pasture|landscape|terrain|island|lake/, why: 'open country: one colour alone, a drone, a lead answered' },
+  { mood: 'chapel', words: /chapel|church|temple|shrine|cathedral|monastery|abbey|sanctum/, why: 'a holy room: slow, plagal, a pedal and a distant pad' },
+  { mood: 'tavern', words: /tavern|inn\b|pub\b|alehouse|saloon|restaurant|kitchen/, why: 'a warm room: a folk lilt over a walking bass' },
+  { mood: 'shop', words: /shop|store|merchant|bazaar|mall|smithy|forge/, why: 'a short, light loop that waits with you' },
+  { mood: 'desert', words: /desert|dune|sand|arid|oasis|canyon|mesa|mars|badland|steppe/, why: 'dry open ground: a plucked colour, a drone, no pad' },
+  { mood: 'forest', words: /forest|wood|grove|jungle|swamp|marsh|glade|thicket|garden|tree/, why: 'under a canopy: slower, a modal turn, a little sparkle' },
+  { mood: 'town', words: /town|plaza|square|market|harbo|port town|bazaar/, why: 'a busy square: a walking bass and a light kit' },
+  { mood: 'village', words: /village|hamlet|farm|historic|cottage|homestead/, why: 'people live here: a homely chart over a walking bass' },
+  { mood: 'highlands', words: /mountain|peak|highland|cliff|ridge|alpine|glacier|snow|crag|summit|volcan/, why: 'height and weather: a brass call over moving strings' },
+  { mood: 'expedition', words: /ruin|cave|dungeon|crypt|tomb|expedition|frontier|wild|colony|planet|moon|asteroid|abandoned/, why: 'unknown ground: a minor march, kept quiet enough to explore over' },
+  { mood: 'wayfarer', words: /road|journey|travel|caravan|port|ship|sail|river|coast|bridge|train|railway/, why: 'on the move: a bright walking tune' },
+  { mood: 'plains', words: /plain|meadow|field|grass|hill|valley|prairie|countryside|pasture|landscape|terrain|island|lake/, why: 'open country: one colour alone, a drone, a lead answered' },
 ];
 // bases that are outdoors or level-like enough that plains is a fair default when no word matches
 const OUTDOOR = new Set(['terrain', 'painted-landscape', 'controllable', 'action', 'dungeon', 'historic', 'koenigsberg', 'manji-tree', 'animal']);
-// built-up or abstract places: field music is the wrong voice there (town and interior cues come later)
-const URBAN = new Set(['city', 'fractal-city', 'transport-hub', 'transportation-hub', 'school', 'math', 'math-structure', 'planetary', 'subway-station', 'subway-building', 'floorplan', 'restaurant', 'store', 'mall']);
-const ENERGY_ALSO = { idyllic: ['highlands', 'wayfarer'], adventurous: ['plains', 'forest'] };
+// built-up or abstract places: field music is the wrong voice there
+const URBAN = new Set(['city', 'fractal-city', 'transport-hub', 'transportation-hub', 'school', 'math', 'math-structure', 'planetary', 'subway-station', 'subway-building', 'floorplan']);
+// the near alternatives, by the picked mood's role and energy
+const ALSO = { field: { idyllic: ['highlands', 'wayfarer'], adventurous: ['plains', 'forest'] }, travel: ['plains', 'highlands'], town: ['village', 'town', 'tavern'], interior: ['tavern', 'shop', 'chapel'] };
 
 /**
  * suggestFieldScore({ base, kind, theme, title, time }) → { mood, energy, role, why, also, audio } | null.
- * Null when nothing about the world calls for field music (a city block, a math structure): stay quiet then.
+ * Null when nothing about the world calls for this music (a city block, a math structure): stay quiet then.
  */
 export function suggestFieldScore({ base, kind, theme, title, time } = {}) {
   if (URBAN.has(base || kind)) return null;
@@ -109,11 +115,13 @@ export function suggestFieldScore({ base, kind, theme, title, time } = {}) {
   if (!pick) return null;
   let { mood } = pick;
   let why = pick.why;
-  if (time === 'night' && SCORE_MOODS[mood].energy === 'idyllic' && mood !== 'village') { mood = 'forest'; why = 'night: the slowest, most hushed field mood'; }
-  const energy = SCORE_MOODS[mood].energy;
+  // out of doors after dark, a quiet field becomes the night
+  if (time === 'night' && SCORE_MOODS[mood].role === 'field' && SCORE_MOODS[mood].energy === 'idyllic') { mood = 'night'; why = 'night: the slowest, most hushed field mood, a drone and a glint'; }
+  const { energy, role } = SCORE_MOODS[mood];
+  const near = Array.isArray(ALSO[role]) ? ALSO[role] : ALSO[role][energy];
   return {
-    mood, energy, role: pick.role, why,
-    also: ENERGY_ALSO[energy].filter((m) => m !== mood),
+    mood, energy, role, why,
+    also: near.filter((m) => m !== mood).slice(0, 2),
     audio: { soundtrack: `field:${mood}` },
   };
 }

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { fieldScore, scoreIdentity, SCORE_MOODS, PALETTES } from './field-score.js';
@@ -37,12 +38,24 @@ describe('field score: the principles hold for every seed', () => {
   });
 });
 
+describe('field score: a new mood never moves an old one', () => {
+  // the seven field moods, 60 seeds × 3 identities, hashed when the cue families joined (2026-10-06). New moods add
+  // rows and leanings; they must not change a note of these. A legitimate change to them re-pins with a reason.
+  it('plains … wayfarer are byte-identical to their pin', () => {
+    const h = createHash('sha256');
+    for (const mood of ['plains', 'desert', 'village', 'forest', 'highlands', 'expedition', 'wayfarer'])
+      for (let s = 0; s < 60; s++) for (const id of [undefined, 7, 9001]) h.update(JSON.stringify(fieldScore(mood, { seed: s * 7919 + 3, identity: id })));
+    expect(h.digest('hex')).toBe('026d068355749d75bc7bc1fbb80ff3ee656559377165cf97aa2727bf76ab8a91');
+  });
+});
+
 describe('field score: different seeds do not sound alike', () => {
   it('per mood over 60 seeds: every melody differs, most keys and tempos appear, several charts and ensembles', () => {
     for (const mood of MOODS) {
       const ms = SEEDS.map((seed) => fieldScore(mood, { seed }));
       const distinct = (f) => new Set(ms.map(f)).size;
-      expect(distinct((m) => leadOf(m).events.slice(0, 8).map((e) => e[1]).join(',')), mood).toBe(60);
+      // a melody is the whole lead line, pitches in their rhythm (two cues in one key over one chart may open alike)
+      expect(distinct((m) => leadOf(m).events.map((e) => `${e[0]}:${e[1]}`).join(',')), mood).toBe(60);
       expect(distinct((m) => m.key), mood).toBeGreaterThanOrEqual(10);
       expect(distinct((m) => m.bpm), mood).toBeGreaterThanOrEqual(15);
       expect(distinct((m) => m.progression[0].chords.split(' ').slice(0, 8).join(' ')), mood).toBeGreaterThanOrEqual(3);
@@ -63,8 +76,11 @@ describe('field score: one game sounds like one score', () => {
     for (const idSeed of [11, 222, 3333, 44444]) {
       const id = scoreIdentity(idSeed);
       const cues = MOODS.map((mood) => [mood, fieldScore(mood, { seed: 900 + idSeed, identity: id })]);
-      const palette = new Set(Object.values(PALETTES[id.flavour]).flat().concat('tuba', 'glockenspiel', 'timpani', 'contrabass', 'upright-bass', 'fm-bass'));
+      const basePalette = new Set(Object.values(PALETTES[id.flavour]).flat().concat('tuba', 'glockenspiel', 'timpani', 'contrabass', 'upright-bass', 'fm-bass'));
       for (const [mood, m] of cues) {
+        // a mood may name its own palette (the tavern's folk) or ostinato instrument: those join the game's voices
+        const M = SCORE_MOODS[mood], own = new Set([...(M.palette ? Object.values(PALETTES[M.palette]).flat() : []), ...(M.motion ? [M.motion] : []), ...(M.kit ? [M.kit] : [])]);
+        const palette = new Set([...basePalette, ...own]);
         expect(m.key.replace(/m$/, ''), mood).toBe(['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'][id.tonic]);
         for (const p of m.parts) expect(palette.has(p.instrument), `${mood}: ${p.instrument} in ${id.flavour}`).toBe(true);
         if (!SCORE_MOODS[mood].dry) expect(m.room, mood).toEqual(id.room);

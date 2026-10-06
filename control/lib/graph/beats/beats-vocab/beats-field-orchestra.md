@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-field-orchestra", "name": "Field orchestra: the 32-bit strategy-RPG score", "summary": "A style manual for game music in the 32-bit strategy-RPG idiom: an orchestra written for a few voices that still reads as orchestral. An energy ladder from idyllic open country through adventurous fields to processional, march and battle, with a form and a mix for each step; one shared hall with the sustained sections wet and the percussion dry; layers that enter one at a time; the orchestra played as a band (low brass as kick, strings as hi-hat); loops that never close V–i; instrument families as dramatic tags. Composed with beats-composition; no new kind.", "when": "a strategy RPG or tactics game soundtrack, world map music, travelling across open country, the plains, a calm field theme, a pastoral woodwind melody, a village or shop theme, a forest or chapel theme, a dusty desert road in 6/8, adventurous field music, exploring dangerous country, the road gets dangerous, a field battle that is not a boss fight, an orchestral battle theme that loops for minutes, a military march, a processional, a fanfare, a brass call, a timpani pickup, music for prayer, an ambush, a betrayal, a sacred or demonic scene, an orchestra that drives like a rock band, a whole game's field and battle music that should sound like one score" }
+{ "id": "beats-field-orchestra", "name": "Field orchestra: the 32-bit strategy-RPG score", "summary": "A style manual for game music in the 32-bit strategy-RPG idiom: an orchestra written for a few voices that still reads as orchestral. An energy ladder from idyllic open country through adventurous fields to processional, march and battle, with a form and a mix for each step; one shared hall with the sustained sections wet and the percussion dry; layers that enter one at a time; the orchestra played as a band (low brass as kick, strings as hi-hat); loops that never close V–i; instrument families as dramatic tags. Composed with beats-composition; no new kind.", "when": "a strategy RPG or tactics game soundtrack, world map music, travelling across open country, the plains, a calm field theme, a pastoral woodwind melody, a village or shop theme, a forest or chapel theme, a dusty desert road in 6/8, adventurous field music, exploring dangerous country, the road gets dangerous, a field battle that is not a boss fight, an orchestral battle theme that loops for minutes, a military march, a processional, a fanfare, a brass call, a timpani pickup, music for prayer, a tavern or inn, night, sorrow, tension before a fight, a triumph outside battle, an ambush, a betrayal, a sacred or demonic scene, an orchestra that drives like a rock band, a whole game's field and battle music that should sound like one score" }
 ---
 
 An orchestra written for a few voices: the sound of 32-bit strategy RPGs. It
@@ -86,7 +86,7 @@ to game, or every game sounds alike.
 - The set below is one roll each, a worked example, not a template.
 
 **Calling it.** You don't have to roll the dice by hand. The generator takes
-a mood (plains, desert, village, forest, highlands, expedition, wayfarer):
+a mood (the field moods, the towns and interiors, the story cues below):
 - A world: `audio: { soundtrack: 'field:plains' }`. `compose_world` stores
   a fresh `seed` in the recipe (as `{ score: { mood, seed } }`): keep it to
   keep the tune, delete it to reroll.
@@ -100,6 +100,34 @@ a mood (plains, desert, village, forest, highlands, expedition, wayfarer):
 When `compose_world` mints a world with no music, its reply carries a
 `music` suggestion: the mood that fits the place, why, and the `audio` line
 to add. Offer it; the operator decides.
+
+## More than fields
+
+The same principles write the rest of a game's music outside battle. Each
+mood is a set of leanings the dice roll within; the game identity stays the
+same.
+
+| Mood | Energy | Role | The leanings |
+|---|---|---|---|
+| plains, desert, forest | idyllic | field | open country, as above |
+| night | idyllic | field | the slowest tempo, lydian or aeolian, a drone and a glint, no kit |
+| highlands, expedition | adventurous | field | as above |
+| wayfarer | adventurous | travel | a bright walking tune |
+| village | idyllic | town | a homely chart over a walking bass |
+| town | idyllic | town | a busy square: walking bass, festive or plagal, a light kit |
+| tavern | idyllic | interior | a quick 6/8 or 3/4 reel on folk instruments in any game |
+| shop | idyllic | interior | short and light: intro, A, B, A, no kit |
+| chapel | idyllic | interior | slow and plagal over a pedal, the pad always there |
+| ceremony | processional | story | stately 4/4, a brass lead, processional drums, no key change |
+| prayer | idyllic | story | a slow plagal chorale, the pad always there |
+| sorrow | idyllic | story | a slow aeolian lament over a drone |
+| tension | adventurous | story | before the fight: a low staccato cello ostinato, phrygian or tritone, no kit |
+| betrayal | adventurous | story | a phrygian shock that lifts a semitone mid-cue |
+| triumph | processional | story | a triumph outside battle: brass lead, processional drums, a lift and home |
+
+The `processional` energy has adventurous space (five parts, two leads,
+forte) without the motion floor: a procession walks. Battle itself is not
+here.
 
 ## A set, worked
 

@@ -504,7 +504,7 @@ export function registerBeatsTools() {
           type: 'object',
           description: 'A generated field cue instead of params; seed (tune) and game (identity) rolled fresh if omitted.',
           properties: {
-            mood: { type: 'string', enum: Object.keys(SCORE_MOODS) },
+            mood: { type: 'string', description: 'plains, town, chapel, night, tension … (beats-field-orchestra)' },
             seed: { type: 'integer' },
             game: { type: 'integer' },
             role: { type: 'string', enum: FIELD_ROLES },

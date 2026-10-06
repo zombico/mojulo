@@ -136,7 +136,12 @@ describe('suggestFieldScore', () => {
     expect(suggestFieldScore({ base: 'controllable', title: 'Mountain pass' }).mood).toBe('highlands');
     expect(suggestFieldScore({ base: 'dungeon' }).mood).toBe('expedition');
     expect(suggestFieldScore({ base: 'historic', title: 'the old town' }).role).toBe('town');
-    expect(suggestFieldScore({ base: 'terrain', time: 'night' }).mood).toBe('forest');
+    expect(suggestFieldScore({ base: 'terrain', time: 'night' }).mood).toBe('night');
+    expect(suggestFieldScore({ base: 'historic', title: 'the old town', time: 'night' }).mood).toBe('town');
+    expect(suggestFieldScore({ base: 'dungeon', title: 'Sunken chapel' })).toMatchObject({ mood: 'chapel', role: 'interior' });
+    expect(suggestFieldScore({ base: 'restaurant' }).mood).toBe('tavern');
+    expect(suggestFieldScore({ base: 'store' }).mood).toBe('shop');
+    expect(suggestFieldScore({ base: 'controllable', title: 'The Gilded Tavern' }).also).toEqual(['shop', 'chapel']);
     expect(suggestFieldScore({ base: 'math' })).toBeNull();
   });
 });

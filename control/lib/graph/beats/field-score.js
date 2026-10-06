@@ -73,19 +73,39 @@ const FAMILIES = {
   'dorian-drive': { mode: 'dorian', charts: [['i', 'IV', 'bVII', 'IV'], ['i', 'bIII', 'IV', 'bVII']] },
   'minor-rise': { mode: 'aeolian', charts: [['i', 'bVI', 'bIII', 'bVII']] },
   'festive-mixo': { mode: 'mixolydian', charts: [['I', 'bVII', 'IV', 'I'], ['I', 'IV', 'bVII', 'I']] },
+  chorale: { mode: 'ionian', charts: [['I', 'IV', 'vi', 'IV'], ['I', 'vi', 'ii', 'IV'], ['I', 'iii', 'IV', 'I']] },
+  lament: { mode: 'aeolian', charts: [['i', 'iv', 'bVI', 'bVII'], ['i', 'bVI', 'iv', 'iv'], ['i', 'bIII', 'iv', 'bVI']] },
+  shock: { mode: 'phrygian', charts: [['i', 'bII', 'bV', 'bII'], ['i', 'bV', 'i', 'bII']] },
+  'brass-hymn': { mode: 'ionian', charts: [['I', 'IV', 'I', 'bVII'], ['I', 'bVI', 'bVII', 'I']] },
 };
 
 // ── the moods: each a set of leanings the dice roll within ────────────────────
+// role: the cue's dramatic job (field, travel, town, interior, story). The optional leanings a newer mood adds:
+// tempo (its own band per meter), form (its own group order), palette (instruments from that flavour in any game),
+// motion (the ostinato instrument), kit (the percussion, e.g. a procession's orchestral drums), brassLead, padAlways. A row without them plays as it always has.
 export const SCORE_MOODS = {
-  plains: { energy: 'idyllic', families: ['open-road', 'plagal-sway', 'lydian-wonder'], meters: ['6/8', '6/8', '4/4', '3/4'], ground: ['drone', 'pedal'], perc: ['travel', 'none'] },
-  desert: { energy: 'idyllic', families: ['tritone-road', 'aeolian-calm', 'dorian-vamp'], meters: ['6/8', '3/4'], ground: ['pedal', 'drone'], perc: ['travel', 'none'], dry: true, noPad: true },
-  village: { energy: 'idyllic', families: ['quiet-menu', 'plagal-sway', 'open-road'], meters: ['4/4', '3/4'], ground: ['root-fifth'], perc: ['none', 'travel'] },
-  forest: { energy: 'idyllic', families: ['dorian-vamp', 'lydian-wonder', 'aeolian-calm'], meters: ['4/4', '3/4', '6/8'], ground: ['pedal', 'drone'], perc: ['none'], slow: true, sparkle: true },
-  highlands: { energy: 'adventurous', families: ['tonic-flip', 'phrygian-ridge', 'dorian-drive'], meters: ['4/4'], ground: ['root'], perc: ['travel', 'processional'], gear: [0, 5] },
-  expedition: { energy: 'adventurous', families: ['aeolian-march', 'minor-rise', 'tonic-flip'], meters: ['4/4', '6/8'], ground: ['root'], perc: ['processional', 'march'], gear: [4, 3] },
-  wayfarer: { energy: 'adventurous', families: ['festive-mixo', 'open-road', 'dorian-drive'], meters: ['4/4', '6/8'], ground: ['root-fifth'], perc: ['march'], gear: [7, 5] },
+  plains: { energy: 'idyllic', role: 'field', families: ['open-road', 'plagal-sway', 'lydian-wonder'], meters: ['6/8', '6/8', '4/4', '3/4'], ground: ['drone', 'pedal'], perc: ['travel', 'none'] },
+  desert: { energy: 'idyllic', role: 'field', families: ['tritone-road', 'aeolian-calm', 'dorian-vamp'], meters: ['6/8', '3/4'], ground: ['pedal', 'drone'], perc: ['travel', 'none'], dry: true, noPad: true },
+  village: { energy: 'idyllic', role: 'town', families: ['quiet-menu', 'plagal-sway', 'open-road'], meters: ['4/4', '3/4'], ground: ['root-fifth'], perc: ['none', 'travel'] },
+  forest: { energy: 'idyllic', role: 'field', families: ['dorian-vamp', 'lydian-wonder', 'aeolian-calm'], meters: ['4/4', '3/4', '6/8'], ground: ['pedal', 'drone'], perc: ['none'], slow: true, sparkle: true },
+  highlands: { energy: 'adventurous', role: 'field', families: ['tonic-flip', 'phrygian-ridge', 'dorian-drive'], meters: ['4/4'], ground: ['root'], perc: ['travel', 'processional'], gear: [0, 5] },
+  expedition: { energy: 'adventurous', role: 'field', families: ['aeolian-march', 'minor-rise', 'tonic-flip'], meters: ['4/4', '6/8'], ground: ['root'], perc: ['processional', 'march'], gear: [4, 3] },
+  wayfarer: { energy: 'adventurous', role: 'travel', families: ['festive-mixo', 'open-road', 'dorian-drive'], meters: ['4/4', '6/8'], ground: ['root-fifth'], perc: ['march'], gear: [7, 5] },
+  // towns and interiors
+  town: { energy: 'idyllic', role: 'town', families: ['festive-mixo', 'plagal-sway', 'open-road'], meters: ['4/4', '6/8'], ground: ['root-fifth'], perc: ['travel'] },
+  tavern: { energy: 'idyllic', role: 'interior', families: ['dorian-vamp', 'festive-mixo'], meters: ['6/8', '3/4'], ground: ['root-fifth'], perc: ['travel', 'none'], palette: 'folk', tempo: { '6/8': [96, 116], '3/4': [104, 124] } },
+  shop: { energy: 'idyllic', role: 'interior', families: ['quiet-menu', 'plagal-sway'], meters: ['4/4', '3/4'], ground: ['root-fifth'], perc: ['none'], form: ['intro', 'A', 'B', 'A'] },
+  chapel: { energy: 'idyllic', role: 'interior', families: ['chorale', 'plagal-sway'], meters: ['3/4', '4/4'], ground: ['pedal'], perc: ['none'], slow: true, padAlways: true },
+  night: { energy: 'idyllic', role: 'field', families: ['lydian-wonder', 'aeolian-calm', 'dorian-vamp'], meters: ['3/4', '6/8', '4/4'], ground: ['drone'], perc: ['none'], slow: true, sparkle: true, tempo: { '4/4': [66, 80], '3/4': [72, 88], '6/8': [66, 80] } },
+  ceremony: { energy: 'processional', role: 'story', families: ['chorale', 'plagal-sway', 'brass-hymn'], meters: ['4/4'], ground: ['root'], perc: ['processional'], gear: [0], brassLead: true, kit: 'orchestral-perc' },
+  // story cues
+  prayer: { energy: 'idyllic', role: 'story', families: ['chorale', 'plagal-sway'], meters: ['4/4', '3/4'], ground: ['pedal'], perc: ['none'], slow: true, padAlways: true, tempo: { '4/4': [66, 80], '3/4': [72, 88] } },
+  sorrow: { energy: 'idyllic', role: 'story', families: ['lament', 'aeolian-calm'], meters: ['4/4', '3/4'], ground: ['drone', 'pedal'], perc: ['none'], slow: true, padAlways: true, tempo: { '4/4': [66, 80], '3/4': [72, 88] } },
+  tension: { energy: 'adventurous', role: 'story', families: ['phrygian-ridge', 'tritone-road'], meters: ['4/4', '6/8'], ground: ['pedal'], perc: ['none'], gear: [0], motion: 'cello', tempo: { '4/4': [100, 112], '6/8': [104, 116] } },
+  betrayal: { energy: 'adventurous', role: 'story', families: ['shock', 'phrygian-ridge'], meters: ['4/4'], ground: ['root'], perc: ['none'], gear: [1], motion: 'cello' },
+  triumph: { energy: 'processional', role: 'story', families: ['festive-mixo', 'brass-hymn'], meters: ['4/4'], ground: ['root'], perc: ['processional', 'march'], gear: [2, 5], brassLead: true, kit: 'orchestral-perc' },
 };
-const TEMPO = { idyllic: { '4/4': [76, 100], '3/4': [84, 108], '6/8': [78, 96] }, adventurous: { '4/4': [100, 124], '6/8': [104, 128] } };
+const TEMPO = { idyllic: { '4/4': [76, 100], '3/4': [84, 108], '6/8': [78, 96] }, adventurous: { '4/4': [100, 124], '6/8': [104, 128] }, processional: { '4/4': [80, 96] } };
 const BAR_Q = { '4/4': 4, '3/4': 3, '6/8': 3 };
 const STEPS = { '4/4': 16, '3/4': 12, '6/8': 12 };
 const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -159,9 +179,25 @@ function melodyBar({ cell, chordPcs, scale, prev, lo, hi, R, vel, strongEvery })
   return { notes: out, last: p };
 }
 
+// a mood that names a palette (the tavern's folk) or an ostinato instrument plays the identity's tonic, hall and
+// motif on those voices, rolled from their own seed so the identity's own rolls stay as they are.
+function voicesOf(id, M) {
+  if (!M.palette && !M.motion && !M.kit) return id;
+  const v = { ...id };
+  if (M.palette && M.palette !== id.flavour) {
+    const P = PALETTES[M.palette], Rp = rngOf('reflavour', id.seed, M.palette);
+    Object.assign(v, { flavour: M.palette, colour: Rp.pick(P.colour), ground: Rp.pick(P.ground), leads: Rp.shuffle(P.lead).slice(0, 2), brass: Rp.pick(P.brass), pad: Rp.pick(P.pad), motion: Rp.pick(P.motion), kit: Rp.pick(P.kit) });
+  }
+  if (M.motion) v.motion = M.motion;
+  if (M.kit) v.kit = M.kit;
+  return v;
+}
+
 /**
  * A field cue as a beats-composition recipe.
- *   mood      one of SCORE_MOODS (plains, desert, village, forest, highlands, expedition, wayfarer)
+ *   mood      one of SCORE_MOODS: fields (plains, desert, forest, night, highlands, expedition, wayfarer),
+ *             towns and interiors (village, town, tavern, shop, chapel), ceremony, and story cues (prayer, sorrow,
+ *             tension, betrayal, triumph)
  *   seed      the cue's seed (a non-negative integer; fresh per cue)
  *   identity  the game's scoreIdentity (or its seed); omitted, the cue takes one from its own seed
  */
@@ -170,15 +206,16 @@ export function fieldScore(mood, { seed, identity } = {}) {
   if (!M) throw new Error(`fieldScore: no mood '${mood}' — the moods: ${Object.keys(SCORE_MOODS).join(', ')}`);
   if (!Number.isInteger(seed) || seed < 0) throw new Error('fieldScore: seed must be a non-negative integer (pick a fresh one per cue)');
   const id = identity == null ? scoreIdentity(seed) : Number.isInteger(identity) ? scoreIdentity(identity) : identity;
+  const I = voicesOf(id, M);
   const R = rngOf('cue', mood, seed, id.seed);
-  const adv = M.energy === 'adventurous';
+  const adv = M.energy === 'adventurous' || M.energy === 'processional';
 
   // the harmonic frame
   const family = FAMILIES[R.pick(M.families)];
   const chartBase = R.pick(family.charts);
   const mode = MODE[family.mode];
   const meter = R.pick(M.meters);
-  const [t0, t1] = TEMPO[M.energy][meter];
+  const [t0, t1] = (M.tempo && M.tempo[meter]) || TEMPO[M.energy][meter];
   const bpm = M.slow ? R.range(t0 - 6, t0 + 8) : R.range(t0, t1);
   const barQ = BAR_Q[meter], steps = STEPS[meter];
   const key = NOTE_NAMES[id.tonic] + (mode.minor ? 'm' : '');
@@ -186,24 +223,24 @@ export function fieldScore(mood, { seed, identity } = {}) {
   const gear = adv ? R.pick(M.gear) : 0;
 
   // the form: four-bar groups. idyllic: intro, A, B, A (, B), space; adventurous: intro, A, B, A' (geared), B', A'' (home, doubled).
-  const groups = adv ? ['intro', 'A', 'B', 'A', 'B', 'A'] : R.chance(0.5) ? ['intro', 'A', 'B', 'A', 'space'] : ['intro', 'A', 'B', 'A', 'B', 'space'];
+  const groups = M.form ? M.form.slice() : adv ? ['intro', 'A', 'B', 'A', 'B', 'A'] : R.chance(0.5) ? ['intro', 'A', 'B', 'A', 'space'] : ['intro', 'A', 'B', 'A', 'B', 'space'];
   const bars = groups.length * 4;
   const chart = []; while (chart.length < bars) chart.push(...chartBase);
   chart.length = bars;
   const chordAt = (b) => parseChord(chart[b], key);
 
   // the instruments (the identity's palette; a mood swaps in what it needs)
-  const P = PALETTES[id.flavour];
-  let colour = id.colour;
+  const P = PALETTES[I.flavour];
+  let colour = I.colour;
   if (mood === 'desert' && !PLUCKED.test(colour)) colour = P.colour.find((x) => PLUCKED.test(x)) || colour;
-  const [leadA0, leadB0] = id.leads;
-  const leadA = adv && R.chance(0.5) ? id.brass : leadA0;
-  const leadB = leadA === id.brass ? leadA0 : leadB0;
+  const [leadA0, leadB0] = I.leads;
+  const leadA = adv && (R.chance(0.5) || M.brassLead) ? I.brass : leadA0;
+  const leadB = leadA === I.brass ? leadA0 : leadB0;
   const parts = [];
 
   // colour / motion: alone for the first two bars
   if (adv) {
-    const inst = id.motion;
+    const inst = I.motion;
     const eighths = Array.from({ length: steps }, (_, i) => (i % 2 ? 0 : i % (steps === 16 ? 4 : 6) === 0 ? 0.9 : 0.7));
     if (/cello/.test(inst)) parts.push({ name: 'motion', instrument: inst, chordVoice: 'octaves', rhythm: eighths, art: 'staccato', vel: 0.55, octave: 2 });
     else if (PLUCKED.test(inst) || MALLET.test(inst) || KEYS.test(inst)) parts.push({ name: 'motion', instrument: inst, chordVoice: 'arp', arp: R.pick(['up', 'updown']), rhythm: eighths, vel: 0.55, octave: 3 });
@@ -219,8 +256,8 @@ export function fieldScore(mood, { seed, identity } = {}) {
   const gStyle = R.pick(M.ground);
   // a walking bass needs a bass (a cello cannot reach its low fifths); low brass may take an adventurous root.
   const BASS = { folk: 'upright-bass', 'synth-era': 'fm-bass' };
-  const gInst = gStyle === 'root-fifth' ? BASS[id.flavour] || 'contrabass'
-    : adv && gStyle === 'root' && !BASS[id.flavour] && R.chance(0.5) ? 'tuba' : id.ground;
+  const gInst = gStyle === 'root-fifth' ? BASS[I.flavour] || 'contrabass'
+    : adv && gStyle === 'root' && !BASS[I.flavour] && R.chance(0.5) ? 'tuba' : I.ground;
   const ground = { name: 'ground', instrument: gInst, bars: [2, bars] };
   if (gStyle === 'drone' || gStyle === 'pedal') Object.assign(ground, { chordVoice: SUSTAIN_GROUND.test(gInst) ? 'pedal' : gStyle, hold: 1, vel: 0.32, octave: /contrabass|upright|fm-bass/.test(gInst) ? 1 : 2 });
   else if (gStyle === 'root-fifth') Object.assign(ground, { chordVoice: 'root-fifth', art: /contrabass|upright|cello/.test(gInst) ? 'pizz' : undefined, vel: 0.5, ...(meter === '4/4' ? {} : { rhythm: steps === 12 ? [0.85, 0, 0, 0, 0, 0, 0.7, 0, 0, 0, 0, 0] : 'half' }) });
@@ -268,7 +305,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
   // adventurous: the last A doubled an octave down by a second voice, when it fits its range
   if (adv) {
     const last = (groups.length - 1) * 4 * barQ;
-    const dInst = leadA === id.brass ? leadA0 : id.brass;
+    const dInst = leadA === I.brass ? leadA0 : I.brass;
     const [dlo, dhi] = rangeOf(dInst);
     const final = leadEvents.A.filter((e) => e[0] >= last - 1e-9);
     for (const off of [-12, 0]) {
@@ -278,10 +315,10 @@ export function fieldScore(mood, { seed, identity } = {}) {
   }
 
   // pad: distant upper notes in the B groups, swelling in and out (idyllic; never in a dry mood)
-  if (!M.noPad && R.chance(adv ? 0.5 : 0.75)) {
+  if (!M.noPad && (R.chance(adv ? 0.5 : 0.75) || M.padAlways)) {
     const bs = groups.map((g, gi) => (g === 'B' ? gi : -1)).filter((x) => x >= 0);
     const segs = bs.map((gi) => [gi * 4, gi * 4 + 4]);
-    parts.push({ name: 'pad', instrument: id.pad, chordVoice: 'upper', rhythm: 'whole', hold: 0.9, vel: 0.4, octave: 4, bars: segs,
+    parts.push({ name: 'pad', instrument: I.pad, chordVoice: 'upper', rhythm: 'whole', hold: 0.9, vel: 0.4, octave: 4, bars: segs,
       dynamics: segs.flatMap(([a, z]) => [{ at: `${a}:0:0`, to: 'pp' }, { at: `${a + 1}:0:0`, to: 'p', over: '2:0:0' }, { at: `${z - 1}:0:0`, to: 'pp', over: '1:0:0' }]) });
   }
 
@@ -320,12 +357,12 @@ export function fieldScore(mood, { seed, identity } = {}) {
     const groove = adv
       ? [{ style, bars: [4, 11], vel }, { style, bars: [11, 12], fills: 'section', fill: 'long-roll', vel }, { style, bars: [12, 19], vel }, { style, bars: [19, 20], fills: 'section', fill: 'long-roll', vel }, { style, bars: [20, end], vel }]
       : [{ style, bars: [4, end], vel }];
-    parts.push({ name: 'perc', instrument: id.kit, groove });
+    parts.push({ name: 'perc', instrument: I.kit, groove });
   }
 
   const m = {
     kind: 'beats-composition', title: `${mood[0].toUpperCase()}${mood.slice(1)} ${seed}`, bpm, meter, seed, key,
-    band: adv ? 'orchestra-field' : 'orchestra-pastoral',
+    band: M.energy === 'processional' ? 'orchestra-processional' : adv ? 'orchestra-field' : 'orchestra-pastoral',
     room: M.dry ? { model: 'room2', decay: r3(Math.min(1.5, id.room.decay)), predelay: id.room.predelay, damp: 0.6 } : id.room,
     progression: [{ chords: chart.join(' ') }],
     parts,

@@ -1,7 +1,7 @@
 /**
  * field-gates — the field-orchestra principles as machine checks over a beats-composition.
  *
- *   fieldGates(manifest, 'idyllic' | 'adventurous') → [] when every principle holds, else one line per breach
+ *   fieldGates(manifest, 'idyllic' | 'adventurous' | 'processional') → [] when every principle holds, else one line per breach
  *
  * Advisory, like every gate here: it reports and never refuses. It checks the principles a machine can see
  * (card `beats-field-orchestra`): one colour alone at the opening, the parts and leads sounding together inside
@@ -14,6 +14,8 @@ import { expandBeatsManifest, kitOf, parseChord } from './beats-authoring.js';
 export const FIELD_BUDGETS = {
   idyllic: { parts: 4, leads: 1, vel: 0.65 },
   adventurous: { parts: 5, leads: 2, vel: 0.8, notesPerSecond: 3 },
+  // a stately procession (ceremony, a triumph outside combat): the adventurous space, no motion floor.
+  processional: { parts: 5, leads: 2, vel: 0.8 },
 };
 const NOT_LEADS = /^(timpani|glockenspiel|crotales)$/;
 const barLenOf = (m) => { const r = /^(\d+)\/(\d+)$/.exec(m.meter || '4/4'); return r ? (4 * r[1]) / r[2] : 4; };
