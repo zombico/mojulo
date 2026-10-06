@@ -548,7 +548,7 @@ export const WORLD_KINDS = {
       const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
       const rigged = !!(m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length);
       // a minted animal with MOTION (fauna/rig.js): its species' skeleton and gaits, packed below as the rig figure
-      const motioned = !rigged && !!m.recipe?.motion?.gaits?.length;
+      const motioned = !rigged && !!(m.recipe?.motion?.gaits?.length || m.recipe?.motion?.behaviors?.length);
       const light = withBands(ctx.light || WORKBENCH_LIGHT, resolveToon(ctx.toon)?.bands); const seat = m.seat !== false;
       // The STAND (hero-gesture.js): a HERO (a hero-door row, `m.hero`) whose rigged recipe carries the one-key `gesture`
       // clip shows its static solid skinned at that key (bindLayered → rigNodesAt → boneFrames → skinLayered), seated on
@@ -649,8 +649,9 @@ export const WORLD_KINDS = {
         const clips = Object.keys(m.recipe.clips).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {
-        // the animal's gaits: the mesh bound to the species' skeleton, each gait a clip from the gait solver (in place,
-        // one stride, its own duration), packed like a rigged recipe's so the preview, the GLB and Godot play it
+        // the animal's gaits and behaviors: the mesh bound to the species' skeleton, each gait a clip from the gait solver
+        // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a
+        // rigged recipe's so the preview, the GLB and Godot play it
         const B = faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
         const pack = packFaunaRig(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}) });
         scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };

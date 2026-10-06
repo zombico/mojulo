@@ -32,7 +32,8 @@ import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
 import { SPECIES as FAUNA, speciesPlan, stanceOf } from '@/lib/graph/fauna/species';
-import { withMotion, motionGaits } from '@/lib/graph/fauna/rig';
+import { withMotion, motionGaits, motionBehaviors, checkBehaviors } from '@/lib/graph/fauna/rig';
+import { BEHAVIORS, resolveBehavior } from '@/lib/graph/fauna/behavior/index';
 import { resolveAnimalName } from '@/lib/graph/fauna/entries';
 import { FAMILIES } from '@/lib/graph/fauna/families';
 import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
@@ -59,19 +60,28 @@ export function makerPlan(maker, params) {
 const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(ZOO_BUILDS)])];
 
 /**
- * `motion` → `{ gaits, keys }` or null: `true` / 'all' (every gait the species has), a gait word or a list of them,
- * or `{ gaits?, keys? }`. Throws a teaching error naming the species' gaits.
+ * `motion` → `{ gaits, keys }` (plus `behaviors` and `variants` when any are named) or null: `true` / 'all' (every
+ * gait the species has), a word or a list of them (gait words and behavior words, `['walk', 'relax']`), or
+ * `{ gaits?, behaviors?, variants?, keys? }` (`behaviors: 'all'` for every behavior the species can be posed doing;
+ * `gaits` defaults to every gait only when no behavior is named). Throws a teaching error naming what it can do.
  */
 export function motionSpec(species, motion) {
   if (motion === undefined || motion === null || motion === false) return null;
-  const have = motionGaits(species), say = `'${species}' moves: ${have.join(', ')}`;
-  const o = motion === true || motion === 'all' ? {} : typeof motion === 'string' || Array.isArray(motion) ? { gaits: [motion].flat() } : motion;
-  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait word, a list of them, or { gaits, keys } — ${say}`);
-  const gaits = o.gaits === undefined ? have : [o.gaits].flat();
+  const have = motionGaits(species), does = motionBehaviors(species);
+  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}`;
+  const words = typeof motion === 'string' && motion !== 'all' ? [motion] : Array.isArray(motion) ? motion : null;
+  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter((w) => !BEHAVIORS[w]), behaviors: words.filter((w) => BEHAVIORS[w]) } : motion;
+  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait or behavior word, a list of them, or { gaits, behaviors, keys } — ${say}`);
+  const behaviors = o.behaviors === 'all' ? does : o.behaviors === undefined ? [] : [o.behaviors].flat();
+  const gaits = o.gaits === undefined ? (behaviors.length ? [] : have) : [o.gaits].flat();
   for (const g of gaits) if (!have.includes(g)) throw new Error(`no gait '${g}' — ${say}`);
+  const variants = o.variants ?? {};
+  if (typeof variants !== 'object' || Array.isArray(variants)) throw new Error('`motion.variants` is { <behavior>: <strategy> }');
+  try { checkBehaviors(species, behaviors, variants); } catch (err) { throw new Error(`${err.message} — ${say}`); }
+  if (!gaits.length && !behaviors.length) throw new Error(`\`motion\` names no clip — ${say}`);
   const keys = o.keys ?? 24;
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
-  return { gaits, keys };
+  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}) };
 }
 
 // Deep-merge the caller's `opts` over a species recipe's own, one level into each
@@ -169,10 +179,10 @@ export async function createAnimalHandler(input) {
     // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
     const motion = motionSpec(species, input.motion);
     const res = await createLayeredPlanHandler({
-      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys) : speciesPlan(species), plan_audit: { source: 'agent' }, ...carved,
+      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys, motion) : speciesPlan(species), plan_audit: { source: 'agent' }, ...carved,
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(motion ? { motion: { gaits: motion.gaits } } : {}) };
+    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(species, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is

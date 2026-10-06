@@ -6,18 +6,25 @@
  *  - a `bind` on every plan segment (a limb segment to its bone, its joint rings shared with the bones either side; an
  *    axis loft station by station, each blended with the next bone along its region as it nears that bone's end;
  *    a one-side decoration to its bone), and `heads[0].bind` (the skull and jaw ride `head`);
- *  - `motion: { species, gaits, keys }`, which expandPlan carries onto the recipe.
- * Without `motion` the plan is untouched: every species builds byte-identically.
+ *  - `motion: { species, gaits, keys }`, which expandPlan carries onto the recipe; with behaviors (./behavior/), also
+ *    `behaviors: [<word>]` and, where one is done another way from its repertoire, `variants: { <word>: <strategy> }`.
+ * Without `motion` the plan is untouched: every species builds byte-identically; a motion without behaviors carries
+ * neither key.
  *
  * At read time `packFaunaRig` packs the mesh through packLayeredRig (no clips, a stand-in rig of the skeleton's bones,
  * so the humanoid path is untouched) and appends a clip per gait from gait.js: per key per bone the absolute rest →
  * posed quaternion and the posed head, seated like the rest. Each clip carries its stride's duration (`s`), from the
- * speed the stride implies, so a walk plays at a walk's pace. In place: the World's walkers move the body.
+ * speed the stride implies, so a walk plays at a walk's pace. In place: the World's walkers move the body. A behavior
+ * packs the same way, a clip named for its word (`relax`, `sleep`): one loop of the pose its strategy resolves to, from
+ * behavior/pose.js, lasting as long as its loop's motion takes on a body that size (`behaviorSeconds`). A floating
+ * behavior's surface is the ground's level.
  */
 import { faunaSkeleton } from './skeleton.js';
 import { gaitFrames, prepare } from './gait.js';
 import { locomotionFor } from './locomotion/index.js';
 import { SPECIES, speciesPlan } from './species.js';
+import { BEHAVIORS, resolveBehavior, repertoire } from './behavior/index.js';
+import { posable, behaviorFrames, prepare as preparePose } from './behavior/pose.js';
 import { packLayeredRig } from '../polygonizer/station-loft-rig.js';
 
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
@@ -85,15 +92,43 @@ export function faunaBinds(id) {
 /** The gaits a species can be minted with, and the default (all of them). */
 export const motionGaits = (id) => Object.keys(locomotionFor(SPECIES[id].family, id).gaits);
 
-/** A copy of `plan` (the species' own) bound to its skeleton and carrying `motion`. Throws on a gait it does not have. */
-export function withMotion(plan, id, gaits = motionGaits(id), keys = 24) {
+/** The behaviors a species can be minted with: those whose strategy is posed (behavior/pose.js `posable`). */
+export const motionBehaviors = (id) => Object.keys(BEHAVIORS).filter((b) => posable(id, b).ok);
+
+/**
+ * Check a motion's behaviors (and their `variants`) against what the species can do; throws naming them. A variant is a
+ * strategy id from the behavior's repertoire, and must be posed too.
+ */
+export function checkBehaviors(id, behaviors = [], variants = {}) {
+  const have = motionBehaviors(id);
+  for (const b of behaviors) {
+    if (!BEHAVIORS[b]) throw new Error(`no behavior '${b}' (the behaviors: ${Object.keys(BEHAVIORS).join(', ')})`);
+    if (!have.includes(b)) throw new Error(`'${id}' ${b} is not posed yet (it can: ${have.join(', ') || 'none yet'})`);
+  }
+  for (const [b, v] of Object.entries(variants || {})) {
+    if (!behaviors.includes(b)) throw new Error(`a variant for '${b}', which the motion does not carry`);
+    const ways = repertoire(id, b).map((r) => r.strategy);
+    if (!ways.includes(v)) throw new Error(`'${id}' does not ${b} by '${v}' (its ways: ${ways.join(', ')})`);
+    if (!posable(id, b, { variant: v }).ok) throw new Error(`'${id}' ${b} by '${v}' is not posed yet`);
+  }
+}
+
+/**
+ * A copy of `plan` (the species' own) bound to its skeleton and carrying `motion`. Throws on a gait it does not have,
+ * or a behavior it cannot be posed doing. `extra`: `{ behaviors, variants }`.
+ */
+export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behaviors = [], variants = {} } = {}) {
   const have = motionGaits(id);
   for (const g of gaits) if (!have.includes(g)) throw new Error(`'${id}' has no gait '${g}' (it can: ${have.join(', ')})`);
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('motion keys must be an integer in [4, 96]');
+  checkBehaviors(id, behaviors, variants);
+  if (!gaits.length && !behaviors.length) throw new Error('motion carries no clip: name a gait or a behavior');
   const B = faunaBinds(id), out = structuredClone(plan);
   for (const s of out.segments) if (B.segments[s.name] !== undefined) s.bind = B.segments[s.name];
   if (out.heads?.length) out.heads[0] = { ...out.heads[0], bind: B.head };
   out.motion = { species: id, gaits: [...gaits], keys };
+  if (behaviors.length) out.motion.behaviors = [...behaviors];
+  if (Object.keys(variants || {}).length) out.motion.variants = { ...variants };
   return out;
 }
 
@@ -118,24 +153,45 @@ export function strideSeconds(id, gait) {
 }
 
 /**
+ * How long one loop of a behavior lasts, seconds: its loop motion's own period (a breath, a chew, a scan round), slower
+ * on a bigger body (physiological time runs about as the square root of size here, from a half-metre hip, clamped to
+ * 0.6–1.8×). Swimming on lasts its swim stride.
+ */
+const LOOP_SECONDS = { breathe: 3, stare: 3, chew: 2, crop: 1.5, strip: 2, peck: 1.2, scan: 4, tongue: 2, fins: 2, snap: 1.5, sway: 3, nibble: 1.5, gnaw: 2, root: 2, tear: 1.5, gape: 2 };
+export function behaviorSeconds(id, behavior, { variant } = {}) {
+  const r = resolveBehavior(id, behavior, { variant });
+  if (r.support === 'cruise') {
+    const gaits = motionGaits(id);
+    return strideSeconds(id, gaits.includes('swim') ? 'swim' : gaits.includes('fly') ? 'fly' : gaits[0]);
+  }
+  const size = Math.max(0.6, Math.min(1.8, Math.sqrt(preparePose(id).h / 0.5)));
+  return r4((LOOP_SECONDS[r.loop] ?? 3) * size);
+}
+
+/**
  * Pack a minted animal's mesh and gait clips as a rig figure (the shape packLayeredRig returns): `motion` is the
  * recipe's `{ species, gaits, keys }`, `skin` bindLayered's result over `faunaBones`, `opts` packLayeredRig's
  * (dz, normals, light, …).
  */
 export function packFaunaRig(mesh, skin, motion, opts = {}) {
-  const { species: id, gaits, keys = 24 } = motion, dz = opts.dz || 0;
+  const { species: id, gaits = [], behaviors = [], variants = {}, keys = 24 } = motion, dz = opts.dz || 0;
   const S = faunaSkeleton(id);
   const stand = { joints: {}, bones: S.bones.map((b) => ({ id: b.id, head: `${b.id}:h`, tail: `${b.id}:t` })) };
   for (const b of S.bones) { stand.joints[`${b.id}:h`] = b.head; stand.joints[`${b.id}:t`] = b.tail; }
   const pack = packLayeredRig(mesh, skin, stand, { ...opts, clips: {} });
   const clips = {};
-  for (const g of gaits) {
+  const packed = (frames) => {
     const flat = [];
-    for (const f of gaitFrames(id, g, keys)) for (const b of S.bones) {
+    for (const f of frames) for (const b of S.bones) {
       const p = f.bones[b.id];
       flat.push(...quatOfRows(p.m).map(r4), r4(p.head[0]), r4(p.head[1]), r4(p.head[2] + dz));
     }
-    clips[g] = { k: keys, b: flat, s: strideSeconds(id, g) };
+    return flat;
+  };
+  for (const g of gaits) clips[g] = { k: keys, b: packed(gaitFrames(id, g, keys)), s: strideSeconds(id, g) };
+  for (const w of behaviors) {
+    const variant = variants?.[w];
+    clips[w] = { k: keys, b: packed(behaviorFrames(id, w, keys, { variant })), s: behaviorSeconds(id, w, { variant }) };
   }
   return { ...pack, clips };
 }

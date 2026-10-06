@@ -7,23 +7,28 @@
  * Three cards per need, so the agent reads only as deep as the ask:
  *  - the INDEX (`animals`): every animal by the name people say, and the asked-for ones not built yet;
  *  - a HUB per family (`animal/feline`): its species, and its WANTED rows with the built species that stands in;
- *  - an ENTRY per species (`animal/houseCat`): subject, size, stance, how it moves, basis, the STARTER spec, its kin.
+ *  - an ENTRY per species (`animal/houseCat`): subject, size, stance, how it moves, what it does, basis, the STARTER
+ *    spec, its kin.
  *
  * A ROSTER is `{ id, species, about, wanted, familyOf, stanceOf, spec, movesOf? }`: `species` by id (each with a
  * `name`), `about` by id (`{ common, aliases, sci, size, source }`), `wanted` by id (`{ family, near, aliases, note }`),
- * `spec(id)` the `animal` kind spec that mints it, `movesOf(id)` its locomotion (`{ gaits, note }`, ./locomotion/).
+ * `spec(id)` the `animal` kind spec that mints it, `movesOf(id)` its locomotion (`{ gaits, note }`, ./locomotion/),
+ * `doesOf(id)` its behaviors (`{ <behavior>: <strategy> }`, the posed ones, ./behavior/).
  * Add a roster to ROSTERS and its animals join the cards, the name resolver (`resolveAnimalName`) and the contract
  * test (entries.test.js). Counts are computed here, never typed.
  */
 import { SPECIES, stanceOf } from './species.js';
 import { FAMILY_ABOUT, FAMILY_WANTED } from './families.js';
 import { locomotionFor, TAILS, TAIL_BUILDS } from './locomotion/index.js';
+import { BEHAVIORS } from './behavior/index.js';
+import { posable } from './behavior/pose.js';
 
 /** The rosters the encyclopedia reads. */
 export const ROSTERS = [
   { id: 'fauna', species: SPECIES, about: FAMILY_ABOUT, wanted: FAMILY_WANTED,
     familyOf: (id) => SPECIES[id].family, stanceOf, spec: (id) => ({ species: id }),
-    movesOf: (id) => locomotionFor(SPECIES[id].family, id) },
+    movesOf: (id) => locomotionFor(SPECIES[id].family, id),
+    doesOf: (id) => Object.fromEntries(Object.keys(BEHAVIORS).map((b) => [b, posable(id, b)]).filter(([, p]) => p.ok).map(([b, p]) => [b, p.strategy])) },
 ];
 
 /** The bytes a species entry's body may take: an infobox and a starter, never a manual. */
@@ -101,6 +106,12 @@ function movesLines(R, id) {
   return [`MOVES    ${Object.keys(M.gaits).join(', ')}`, ...(M.note ? [`         ${M.note}`] : []), ...(use ? [`TAIL     ${build ? `${build}: ` : ''}${use}`] : [])];
 }
 
+/** The DOES row: each behavior it can be minted doing (a `motion` word) and, in brackets, the way it does it. */
+function doesLines(R, id) {
+  const D = R.doesOf?.(id); if (!D || !Object.keys(D).length) return [];
+  return [`DOES     ${Object.entries(D).map(([b, s]) => `${b} (${s})`).join(', ')}`];
+}
+
 /** One species' entry card. */
 export function speciesCard(R, id) {
   const S = R.species[id], A = R.about[id] || {}, family = R.familyOf(id);
@@ -114,6 +125,7 @@ export function speciesCard(R, id) {
     `SIZE     ${A.size || 'not recorded'} (true scale, metres)`,
     `STANCE   ${R.stanceOf(id) || '—'}`,
     ...movesLines(R, id),
+    ...doesLines(R, id),
     `BASIS    ${A.source ? `the size from ${A.source}; the build is fit to it (closed, attached, size gates).` : 'no source recorded.'} How it reads is the operator's eyes gate.`,
     '',
     'STARTER  (copy it, give it a title, mint it)',

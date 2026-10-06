@@ -35,6 +35,13 @@ wave, the head and tail. The World page previews the clips; `export_model { clip
 skinned GLB with them, and the Godot pack plays the first. Without `motion` the solid is still. Wings flap in a `fly`
 gait but the wing surface rides its root bone rigidly for now.
 
+BEHAVIORS ride the same field: `relax`, `alert`, `eat`, `sleep`, each one loop in place, named for its word and done
+the species' own way (the `DOES` line of its entry card: a sheep relaxes lying folded and chewing the cud, a horse
+dozes on its feet, a raccoon sits up, an otter eats floating on its back). Mix them with gaits (`['walk', 'relax']`),
+or `{ behaviors: 'all' }` for every one it does; naming behaviors and no gaits carries no gait. Another way from its
+repertoire: `{ behaviors: ['relax'], variants: { relax: 'curl' } }`. A floating behavior's water surface is the
+ground's level. A behavior the species is not posed doing yet is refused, naming the ones it is.
+
 ## The maker door — a NEW fish or snake from parameters
 
 Bodies that parameterize to many animals have species-free MAKERS (`lib/graph/fauna/makers/`). `spec: { maker, params }` builds a watertight ring plan from the maker's params over its family table and mints it like a `species` (kind `layered`, tune with `/plan/...`). Every param is optional (defaults: a generic salmon-shaped fish / shark / ~2 m snake); object params merge one level over the default's. Units are metres.
@@ -74,7 +81,7 @@ mint_solid({ kind: 'animal', title: 'Anaconda', spec: { maker: 'serpent', params
 spec: {
   maker?:     'fish'|'serpent', params?: { …maker params, see the maker door },
   species?:   <a species id or a common name — the roster is the 'animals' card>,
-  motion?:    true | <gait word> | [<gait words>] | { gaits?, keys? },   // species only: animate its gaits
+  motion?:    true | <word> | [<gait and behavior words>] | { gaits?, behaviors?, variants?, keys? },   // species only
   archetype?: 'rodent'|'canine'|'feline'|'stumpy'|'equine'|'gazelle'|'sauropod'|
               'theropod'|'raptor'|'avian'|'ursine'|'raccoon',
   opts?:      { …figure-body knobs for the archetype door — see below },

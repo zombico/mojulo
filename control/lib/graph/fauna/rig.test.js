@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { withMotion, faunaBones, packFaunaRig, quatOfRows, motionGaits, strideSeconds } from './rig.js';
+import { withMotion, faunaBones, packFaunaRig, quatOfRows, motionGaits, strideSeconds, motionBehaviors, behaviorSeconds } from './rig.js';
+import { behaviorFrames } from './behavior/pose.js';
+import { BEHAVIORS } from './behavior/index.js';
 import { gaitFrames } from './gait.js';
 import { SPECIES, speciesPlan } from './species.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
@@ -58,6 +60,45 @@ describe('fauna rig', () => {
     const posedToe = gaitFrames(id, 'trot', 12)[key].bones.hindPawR.tail;
     expect(bi).toBeGreaterThan(0);
     expect(len(sub(p, posedToe))).toBeLessThan(len(sub(mesh.vertices[vi], toe.tail)) + 0.02);
+  });
+
+  it('a behavior packs as a clip named for its word, one loop of its pose; a motion without one carries no key', () => {
+    const id = 'sheep', { mesh, skin } = minted(id), nb = faunaBones(id).bones.length;
+    const plan = withMotion(speciesPlan(id), id, ['walk'], 12, { behaviors: ['relax', 'eat'] });
+    expect(plan.motion).toEqual({ species: id, gaits: ['walk'], keys: 12, behaviors: ['relax', 'eat'] });
+    expect(withMotion(speciesPlan(id), id, ['walk']).motion).toEqual({ species: id, gaits: ['walk'], keys: 24 });   // as before
+    const pack = packFaunaRig(mesh, skin, plan.motion);
+    expect(Object.keys(pack.clips)).toEqual(['walk', 'relax', 'eat']);
+    const clip = pack.clips.relax, f = behaviorFrames(id, 'relax', 12)[5], j = faunaBones(id).boneIndex.head, o = (5 * nb + j) * 7;
+    expect(clip.k).toBe(12); expect(clip.b.length).toBe(12 * nb * 7);
+    expect(clip.b.slice(o + 4, o + 7).map((v, a) => Math.abs(v - f.bones.head.head[a]))).toSatisfy((d) => d.every((x) => x < 1e-4));
+    expect(clip.s).toBe(behaviorSeconds(id, 'relax'));
+  });
+
+  it('a variant packs its other way; a behavior or variant it cannot do is refused, naming what it can', () => {
+    const id = 'raccoon', { mesh, skin } = minted(id);
+    const sit = packFaunaRig(mesh, skin, { species: id, behaviors: ['relax'], keys: 4 }).clips.relax;
+    const curl = packFaunaRig(mesh, skin, { species: id, behaviors: ['relax'], variants: { relax: 'curl' }, keys: 4 }).clips.relax;
+    expect(curl.b).not.toEqual(sit.b);
+    expect(() => withMotion(speciesPlan('fruitBat'), 'fruitBat', [], 24, { behaviors: ['sleep'] })).toThrow(/not posed yet/);
+    expect(() => withMotion(speciesPlan(id), id, [], 24, { behaviors: ['dance'] })).toThrow(/relax, alert, eat, sleep/);
+    expect(() => withMotion(speciesPlan(id), id, [], 24, { behaviors: ['relax'], variants: { relax: 'perch' } })).toThrow(/its ways: sit-up, curl/);
+    expect(() => withMotion(speciesPlan(id), id, [], 24)).toThrow(/no clip/);
+  });
+
+  it('every species can be minted with every behavior it is posed doing; no behavior word is a gait word', () => {
+    let n = 0;
+    for (const id of Object.keys(SPECIES)) {
+      for (const g of motionGaits(id)) expect(BEHAVIORS[g], `${id} gait '${g}'`).toBeUndefined();
+      const bs = motionBehaviors(id); n += bs.length;
+      if (bs.length) expect(withMotion(speciesPlan(id), id, [], 4, { behaviors: bs }).motion.behaviors, id).toEqual(bs);
+      for (const b of bs) expect(behaviorSeconds(id, b), `${id} ${b}`).toBeGreaterThan(0.4);
+    }
+    expect(n).toBeGreaterThan(290);
+  }, 60_000);
+
+  it('a loop lasts its motion: a big body breathes slower', () => {
+    expect(behaviorSeconds('elephant', 'relax')).toBeGreaterThan(behaviorSeconds('squirrel', 'relax'));
   });
 
   it('a stride lasts what its speed says: a walk slower than a gallop, an elephant slower than a fox', () => {

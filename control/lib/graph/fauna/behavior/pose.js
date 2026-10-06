@@ -584,7 +584,15 @@ function clearWings(ctx, W, H) {
 function tailTurns(ctx, r, t, turn) {
   const { tail } = ctx, n = tail.length; if (!n) return;
   switch (r.tail) {
-    case 'wrap': tail.forEach((b) => turn(b.id, rotZ(CURL.tail / n))); break;
+    // wrapped round the curl: a tail carried high (a cat's) is first laid down level from its root, then swept round
+    case 'wrap': {
+      const a = tail[0].head, z = tail[n - 1].tail, rise = Math.atan2(z[2] - a[2], Math.hypot(z[0] - a[0], z[1] - a[1]));
+      // the sweep goes about the body's vertical, read through the lay-down (the bones' own rest frames would spin a
+      // tail that rose straight up about itself)
+      const L = rotX(Math.max(0, rise)), up = mv(transpose(L), [0, 0, 1]);
+      turn(tail[0].id, L);
+      tail.forEach((b) => turn(b.id, axisAngle(up, CURL.tail / n))); break;
+    }
     case 'flag': turn(tail[0].id, rotX(-75 * DEG)); break;
     case 'twitch': { const tip = tail[n - 1]; turn(tip.id, rotZ(18 * DEG * Math.sin(2 * TAU * t))); break; }
     case 'rattle': tail.slice(Math.floor(n / 2)).forEach((b) => turn(b.id, mm(rotX(-35 * DEG), rotZ(4 * DEG * Math.sin(8 * TAU * t))))); break;

@@ -16,8 +16,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 What an animal does, said once for every animal and resolved per species to how its body does it. `relax` is one
 word: a sheep lies with its legs folded under and chews the cud, a horse dozes on its feet with a hind hoof cocked, a
-cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. No tool changed, and every
-species builds byte-identically.
+cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. A minted animal carries them as
+animation clips beside its gaits. Every species builds byte-identically, and an animal minted without behaviors is
+unchanged.
 
 - **Behaviors.** `relax`, `alert`, `eat` and `sleep`, each a loop or a hold, in `lib/graph/fauna/behavior/`.
 - **Strategies.** Each behavior's ways of doing it, written in mechanism words a solver poses (what holds the body
@@ -59,6 +60,14 @@ species builds byte-identically.
   relaxes sitting up or curled, a bear sitting up or sprawled. The catch-alls (lying folded, standing at ease) are
   left out when anything more its own qualifies. `resolveBehavior`, `poseBehavior` and `behaviorFrames` take
   `{ variant }` to pick another from the repertoire.
+- **Behaviors as clips.** An animal's `motion` takes behavior words beside gait words (`['walk', 'relax']`,
+  `{ behaviors: 'all' }`, `{ behaviors: ['relax'], variants: { relax: 'curl' } }`). Each behavior packs as one looping
+  clip named for its word, through the same rig as the gaits, so the World previews it and the skinned GLB and the
+  Godot pack carry it. A loop lasts as long as its motion takes (a breath, a chew, a scan round), slower on a bigger
+  body. A behavior the species is not posed doing, or a way not in its repertoire, is refused with what it can do.
+  Each species' entry card gains a `DOES` line: the behaviors it can be minted with and the way it does each.
+- **A tail carried high wraps.** A curled cat's tail, which rests pointing up, is laid level before it wraps round
+  the curl (it stood straight up).
 - **The stick strip takes a behavior.** `scripts/fauna-gait-strip.mjs sheep relax` draws the loop it resolves to;
   `--variant curl` draws another way from the repertoire.
 - **Shared solver pieces.** The leg chain and its two-link solve (`fauna/limb.js`) and the vector kit (`fauna/vec.js`)
