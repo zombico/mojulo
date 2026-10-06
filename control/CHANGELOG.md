@@ -442,6 +442,37 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a source beginning before the culture drawing on it ends, a continuation beginning earlier, a variant on its
   source's layout. Every historic page is byte-identical.
 
+### Animal entries
+
+- The animal roster reaches search the way the historic cultures do. Each species gets an encyclopedia entry,
+  generated from the roster (`lib/graph/fauna/entries.js`) and served as a solid-vocab card. No tool is added,
+  and no tool description names an animal.
+  - **The index** (`animals`) lists every animal by the name people say, plus the animals people ask for that
+    aren't built yet, each with the built species that stands in.
+  - **A hub per family** (`animal/feline`) lists its species and its NOT YET rows.
+  - **An entry per species** (`animal/houseCat`) gives the subject, size, stance and basis, the STARTER spec to
+    mint, and its kin.
+- Each family module gains `about` (`common`, `aliases`, `sci`, `size`, `source`, moved out of the thesis
+  comments into data) and `wanted` (`near`, `aliases`, `note`). The facts never reach a plan: every species
+  builds byte-identically.
+- `mint_solid` kind `animal` takes the name people say: `species: 'cat'` mints `houseCat`, and the result's
+  `resolved_from` says so. Plurals and articles resolve too ('a penguin', 'wolves'). An asked-for animal
+  that isn't built yet ('koala') is refused with its stand-in named. An unknown word points at the roster.
+- A species minted as a ring plan reports its real stance (`four legs`, `two legs (a bird)`, `swims`,
+  `legless`, …), not `quadruped` for all of them.
+- A roster contract test holds what an entry reads:
+  - every species has an `about` row;
+  - every `wanted` row names a built stand-in and isn't built itself;
+  - no name is claimed by two animals.
+  A new roster (the arthropods) joins by adding itself to `ROSTERS`.
+- The `get_solid_vocab` bare listing stays one row per kind and op: the generated entries are left out, and
+  the `animal` card points at their index. The unknown-card error lists the hand-written cards and names the
+  entries.
+- The `animal` manual and routing card no longer list the old species ids or say `opts` work on a species.
+  They point at the `animals` card.
+- Fix: an upgraded install now indexes new solid-vocab cards too. The shipped-card check used to look at
+  view-vocab and routing cards only.
+
 ### Environmental sound
 
 - **In progress.** A historic world can carry its period's music: add `"audio": { "soundtrack": "default" }`

@@ -157,3 +157,19 @@ export const species = {
     ],
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  buck: { common: 'buck', aliases: ['stag', 'white-tailed buck', 'antlered deer'], sci: 'Odocoileus virginianus', size: '0.95 m at the withers', source: 'Smithsonian / ADW figures' },
+  deer: { common: 'deer', aliases: ['doe', 'white-tailed deer', 'whitetail'], sci: 'Odocoileus virginianus', size: '0.80 m at the withers (adult female)', source: 'ADW / Smithsonian figures' },
+  moose: { common: 'moose', aliases: ['bull moose'], sci: 'Alces alces', size: '1.90 m at the withers (bull)', source: 'ADW / Alaska Dept. of Fish & Game' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  reindeer: { near: 'buck', aliases: ['caribou'], note: 'a stockier deer, a pale neck mane, tall swept antlers with a brow shovel' },
+  elk: { near: 'buck', aliases: ['wapiti'], note: 'a big deer with a dark neck and a pale rump, long sweeping antlers' },
+};

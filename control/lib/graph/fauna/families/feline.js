@@ -246,3 +246,22 @@ export const species = {
     };
   })(),
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  lion: { common: 'lion', aliases: ['african lion'], sci: 'Panthera leo', size: '1.20 m at the shoulder (adult male)', source: 'Haas, Hayssen & Krausman 2005, Mammalian Species 762' },
+  cougar: { common: 'cougar', aliases: ['puma', 'mountain lion', 'catamount'], sci: 'Puma concolor', size: '0.70 m at the shoulder', source: 'Nowell & Jackson 1996, Wild Cats (IUCN)' },
+  houseCat: { common: 'cat', aliases: ['house cat', 'domestic cat', 'kitty', 'kitten', 'tabby'], sci: 'Felis catus', size: '0.25 m at the shoulder; head-body ~0.46 m', source: 'Sunquist & Sunquist 2002, Wild Cats of the World' },
+  tiger: { common: 'tiger', aliases: ['bengal tiger'], sci: 'Panthera tigris tigris', size: '~1.0 m at the shoulder (adult male)', source: 'Mazák 1981, Mammalian Species 152' },
+  leopard: { common: 'leopard', aliases: ['panther'], sci: 'Panthera pardus', size: '~0.65 m at the shoulder', source: 'Nowell & Jackson 1996, Wild Cats (IUCN)' },
+  cheetah: { common: 'cheetah', aliases: [], sci: 'Acinonyx jubatus', size: '~0.80 m at the shoulder', source: 'Krausman & Morales 2005, Mammalian Species 771' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  jaguar: { near: 'leopard', aliases: [], note: 'stockier than the leopard, a bigger head, rosettes with a centre spot' },
+  lynx: { near: 'cougar', aliases: ['bobcat'], note: 'a short bobbed tail, ear tufts, a facial ruff' },
+};

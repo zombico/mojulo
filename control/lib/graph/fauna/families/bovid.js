@@ -333,3 +333,23 @@ export const species = {
     headOrnaments: [],
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  bull: { common: 'bull', aliases: ['ox', 'steer', 'beef cattle'], sci: 'Bos taurus', size: '1.45 m at the withers', source: 'breed-society frame-score tables' },
+  gazelle: { common: 'gazelle', aliases: ['thomson\'s gazelle', 'antelope'], sci: 'Eudorcas thomsonii', size: '0.62 m at the withers', source: 'ADW / Kingdon' },
+  ram: { common: 'bighorn ram', aliases: ['bighorn', 'bighorn sheep', 'mountain sheep'], sci: 'Ovis canadensis', size: '0.95 m at the withers', source: 'ADW / NPS' },
+  sheep: { common: 'sheep', aliases: ['lamb', 'ewe'], sci: 'Ovis aries', size: '0.75 m at the withers (a Suffolk ewe)', source: 'breed-society standards' },
+  goat: { common: 'goat', aliases: ['billy goat', 'nanny goat'], sci: 'Capra hircus', size: '0.70 m at the withers', source: 'ADW / FAO breed descriptions' },
+  bison: { common: 'bison', aliases: ['buffalo', 'american bison', 'american buffalo'], sci: 'Bison bison', size: '1.80 m at the withers (bull)', source: 'NPS Yellowstone / ADW' },
+  dairyCow: { common: 'cow', aliases: ['dairy cow', 'holstein', 'milk cow', 'cattle'], sci: 'Bos taurus', size: '1.45 m at the withers (a Holstein)', source: 'Holstein Association USA' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  yak: { near: 'bison', aliases: [], note: 'a long shaggy skirt of hair to the ground, a hump, upswept horns' },
+  waterBuffalo: { near: 'bull', aliases: ['water buffalo', 'carabao'], note: 'wide swept-back crescent horns, a dark grey hide' },
+};

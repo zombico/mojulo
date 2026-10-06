@@ -138,3 +138,21 @@ export const species = {
   }),
 };
 
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  salmon: { common: 'salmon', aliases: ['atlantic salmon', 'fish'], sci: 'Salmo salar', size: '~0.75 m long', source: 'Wikipedia, "Atlantic salmon" (adults typically 71–76 cm)' },
+  clownfish: { common: 'clownfish', aliases: ['clown fish', 'anemonefish'], sci: 'Amphiprion ocellaris', size: '~0.11 m long', source: 'Wikipedia, Amphiprion ocellaris' },
+  goldfish: { common: 'goldfish', aliases: ['gold fish'], sci: 'Carassius auratus', size: '~0.20 m long', source: 'FishBase' },
+  angelfish: { common: 'angelfish', aliases: ['angel fish'], sci: 'Pterophyllum scalare', size: '~0.15 m long, ~0.20 m tall', source: 'Wikipedia, Pterophyllum scalare' },
+  morayEel: { common: 'moray eel', aliases: ['moray', 'eel'], sci: 'Gymnothorax funebris', size: '~1.8 m long', source: 'FishBase' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  tuna: { near: 'salmon', aliases: [], note: 'a deep torpedo, a sickle tail, finlets before the tail' },
+  pufferfish: { near: 'goldfish', aliases: ['puffer', 'blowfish'], note: 'a round inflated spiny ball' },
+};

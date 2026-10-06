@@ -197,3 +197,19 @@ export const species = {
     };
   })(),
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  brownBear: { common: 'bear', aliases: ['brown bear', 'grizzly', 'grizzly bear', 'kodiak bear'], sci: 'Ursus arctos', size: '~1.0 m at the withers; head-body ~2.0 m', source: 'published brown bear figures' },
+  wombat: { common: 'wombat', aliases: ['common wombat'], sci: 'Vombatus ursinus', size: '~0.37 m at the shoulder; head-body ~1.0 m', source: 'published common wombat figures' },
+  polarBear: { common: 'polar bear', aliases: ['ice bear', 'white bear'], sci: 'Ursus maritimus', size: '~1.3 m at the shoulder (adult male)', source: 'DeMaster & Stirling 1981, Mammalian Species 145' },
+  giantPanda: { common: 'panda', aliases: ['giant panda', 'panda bear'], sci: 'Ailuropoda melanoleuca', size: '~0.70 m at the shoulder', source: 'Chorn & Hoffmann 1978, Mammalian Species 110' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  koala: { near: 'wombat', aliases: ['koala bear'], note: 'round tufted ears, a big leathery nose, sits upright in a fork' },
+};

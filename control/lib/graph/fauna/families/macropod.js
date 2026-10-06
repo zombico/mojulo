@@ -96,3 +96,16 @@ export const species = {
     headScale: 0.95, muzzleW: 1.1, muzzleLen: 0.8,
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  kangaroo: { common: 'kangaroo', aliases: ['red kangaroo', 'roo'], sci: 'Macropus rufus', size: '~1.6 m standing to the head top (adult male)', source: 'Australian Museum / Dawson 2012, Kangaroos' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  wallaby: { near: 'kangaroo', aliases: [], note: 'a kangaroo at half the size, a darker face' },
+};

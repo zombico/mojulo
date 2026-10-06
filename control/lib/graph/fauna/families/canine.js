@@ -159,3 +159,19 @@ export const species = {
     bulk: 0.9, legBulk: 0.8, tailBush: 1.2,
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  wolf: { common: 'wolf', aliases: ['grey wolf', 'gray wolf', 'timber wolf'], sci: 'Canis lupus', size: '0.80 m at the withers', source: 'published grey wolf figures' },
+  dog: { common: 'dog', aliases: ['puppy', 'pup', 'doggy', 'labrador', 'labrador retriever', 'retriever', 'hound'], sci: 'Canis familiaris', size: '0.58 m at the withers (a Labrador)', source: 'AKC Labrador Retriever standard' },
+  fox: { common: 'fox', aliases: ['red fox'], sci: 'Vulpes vulpes', size: '0.40 m at the shoulder; head-body 0.6–0.9 m', source: 'published red fox figures' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  coyote: { near: 'wolf', aliases: [], note: 'a smaller, leaner wolf with big ears and a narrow muzzle' },
+  hyena: { near: 'wolf', aliases: ['spotted hyena', 'hyaena'], note: 'sloping back from high shoulders, a heavy head, round ears, spots' },
+};
