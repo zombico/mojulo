@@ -21,6 +21,8 @@ export const FIXTURE = [
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
   ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
+  ['what bearings and screws should my printed spool holder use, list what I need to buy', 'mint_solid'],
+  ['design this lamp so it can be built from hardware store parts', 'mint_solid'],
   ['I need a glowing crystal staff for my forest mage', 'mint_solid'],
   ['give my paladin a shield with a sun on it and make it chunky and stylized', 'mint_solid'],
   ['turn this concept art of an espresso machine into a 3d model piece by piece', 'mint_solid'],

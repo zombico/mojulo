@@ -15,8 +15,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 ### Fabricator
 
 A fabrication need is said once, by the job a part does, and resolved from the shelf of standard parts first and from
-scratch last: the cluster every new object draws from. Data and resolver only: nothing is built or posed, no tool
-reaches it yet, and every existing kind builds byte-identically.
+scratch last: the cluster every new object draws from. Every existing kind builds byte-identically; a scad row minted without the door is unchanged.
 
 - **Function words** (`fasten`, `thread`, `locate`, `hinge`, `slide`, `spin`, `drive`, `transmit`, `retain`, `seal`,
   `catch`, `mount`, `enclose`, `store`, `frame`) resolve to a strategy: parts taken by a route (buy, fit the standard
@@ -31,6 +30,16 @@ reaches it yet, and every existing kind builds byte-identically.
   or fitted by the interface its owner publishes, named only to say what fits, never reproduced. A refused strategy
   is reported, and the resolver moves on (a three-prong camera mount resolves to a bought adapter).
 - **Coverage:** of the probe needs, three quarters resolve from the shelf; the rest name the gap they wait for.
+- **The fabricate door:** `mint_solid({ kind: 'scad', via: 'fabricate', spec: { needs } })`. Without a `source` it
+  mints nothing and hands back the plan: the strategy per need and why, one bill of materials summed across needs,
+  the `mj_*` cuts to place, the notices. With the `source` it mints an ordinary scad row with the plan frozen beside
+  it as `fabricate`, and `stats.fabrication.unplaced` names any planned cut the source never calls (advisory). No new
+  tool: one clause in `mint_solid`'s `via` schema, the scad card's "Fabricate" section and a `fabricate-parts` routing
+  card.
+- **Kept apart from the assembler.** The assembler places finished workbench parts in a scene; the fabricator says
+  which real hardware does a job. The routing cards contrast the two, and the assembler, handed a scad row, now says
+  that a scad object assembles inside its own source (`parts`, `mechanism`, the plan's `bom`) instead of only that
+  it is not a workbench.
 
 ### Test cull
 

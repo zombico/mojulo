@@ -8,13 +8,14 @@
  * `movers` hinge can swing one; `color()` is the tint. Edit in place with `update_sketch`
  * (`/source`, `/parts/<name>`, `/movers`); `export_model format:'scad'` returns the source. A
  * `mechanism` (joints, couplings, one drive) is solved at mint; the World plays it, measure_solid sweeps it.
+ * `via: 'fabricate'` (./fabricate.js) resolves the object's needs to standard parts first.
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planScad, persistedScadLedger, DEFAULT_UNITS } from '@/lib/graph/scad/scad-render';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
-export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ref, folderRef } = {}) {
+export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, fabricate, ref, folderRef } = {}) {
   if (typeof source !== 'string') {
     throw new Error("The scad kind needs `source` — an OpenSCAD program (mm, z up; `color()` is the tint; with `parts: { name: 'module();' }` each part is a render group a `movers` hinge can swing). Read get_solid_vocab({ id: 'scad' }) for the contract.");
   }
@@ -30,6 +31,8 @@ export async function mintScad({ title, source, parts, fields, units, fn, viewBo
     ...(grid === false ? { grid: false } : {}),
     ...(Array.isArray(movers) && movers.length ? { movers } : {}),
     ...(mechanism !== undefined ? { mechanism } : {}),
+    // via 'fabricate': the needs and the plan they resolved to, frozen beside the source (lib/mcp/tools/fabricate.js).
+    ...(fabricate !== undefined ? { fabricate } : {}),
     ...(title ? { title } : {}),
   };
   // Render once here to validate (the fence, the parts contract, OpenSCAD's own errors) and to
