@@ -109,6 +109,7 @@
     "pack:ui": "cd ui-package && npm pack --pack-destination ..",
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "test": "vitest run",
+    "test:critical": "vitest run --config vitest.critical.config.js",
     "test:book": "node --test 'book/**/*.test.js' && node book/tools/validate.js",
     "smoke:tarball": "node scripts/smoke-cold-install.mjs"
   },

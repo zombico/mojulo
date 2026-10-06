@@ -79,6 +79,7 @@ npm install
 npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
 npm run build                # --webpack too: Turbopack ignores next.config's webpack rules and fails on an absent pack or recall runtime
 npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
+npm run test:critical        # the contracts only (MCP surface, pins, guards, db, scripts), no geometry-heavy suites
 node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
