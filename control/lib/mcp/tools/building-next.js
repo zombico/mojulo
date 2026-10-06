@@ -10,9 +10,11 @@
 // The card that teaches each step. One map, so splitting the house card per
 // step changes only this.
 export const RUNG_CARDS = Object.freeze({
-  dwelling: 'floor-plan',
-  construction: 'floor-plan',
-  bim: 'floor-plan',
+  layout: 'house-layout',
+  dwelling: 'house-dwelling',
+  storeys: 'house-storeys',
+  construction: 'house-construction',
+  bim: 'house-bim',
 });
 
 export const BUILDING_KINDS = Object.freeze(['floorplan']);
@@ -31,7 +33,7 @@ export function buildingNext(manifest) {
     next.push({ add: 'furnishing', card: RUNG_CARDS.dwelling });
   }
   if (!present(m.storeys) && !present(m.floors) && !(Array.isArray(m.levels) && m.levels.length)) {
-    next.push({ add: 'storeys', card: RUNG_CARDS.dwelling });
+    next.push({ add: 'storeys', card: RUNG_CARDS.storeys });
   }
   if (!present(m.framing)) {
     next.push({ add: 'framing', card: RUNG_CARDS.construction });

@@ -96,7 +96,7 @@ export function validateSketchManifest(manifest) {
       if (manifest.kind !== 'floorplan') {
         errors.push(`kind '${manifest.kind}' has no ${key} — only a floorplan stacks (storeys / levels[])`);
       } else if (!Number.isInteger(manifest[key]) || manifest[key] < 1) {
-        errors.push(`${key} must be an integer >= 1 (got ${JSON.stringify(manifest[key])}); see get_sketch_vocab({ id: 'floor-plan' })`);
+        errors.push(`${key} must be an integer >= 1 (got ${JSON.stringify(manifest[key])}); see get_sketch_vocab({ id: 'house-storeys' })`);
       }
     }
     if (manifest.kind === 'floorplan' && manifest.design !== undefined) errors.push(...validateDesign(manifest.design));

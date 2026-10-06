@@ -14,7 +14,7 @@ import { BUILDING_KINDS, buildingNext } from '@/lib/mcp/tools/building-next';
 
 export function mintBuilding({ title, manifest, ref, folderRef } = {}) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
-    throw new Error("mint_building requires { title, manifest }: a floorplan manifest (seed, or rooms[], or storeys / levels[]). Card: get_sketch_vocab({ id: 'floor-plan' }).");
+    throw new Error("mint_building requires { title, manifest }: a floorplan manifest (seed, or rooms[], or storeys / levels[]). Card: get_sketch_vocab({ id: 'house-layout' }).");
   }
   // `kind` and the manifest's own `title` may be left out: each is added in front, in the order
   // the card writes them, only when absent — so a manifest create_sketch accepts is stored exactly
@@ -51,7 +51,7 @@ export function registerBuildingTools() {
         manifest: {
           type: 'object',
           additionalProperties: true,
-          description: "The floorplan recipe; kind 'floorplan' and its title may be left out. Card: floor-plan.",
+          description: "The floorplan recipe; kind 'floorplan' and its title may be left out. Card: house-layout.",
         },
         ref: { type: 'string', description: 'Optional stable ref (1-64 chars of [A-Za-z0-9_-]); default `sk_<10-char>`. Errors if taken.' },
         folder_ref: { type: 'string', description: 'Optional `fld_<…>` folder to drop the house into.' },

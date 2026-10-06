@@ -35,7 +35,7 @@ describe('validateSketchManifest — floorplan storeys shorthand', () => {
       const v = validateSketchManifest({ kind: 'floorplan', title: 'h', seed: 7, storeys: bad });
       expect(v.ok, `storeys ${JSON.stringify(bad)}`).toBe(false);
       expect(v.errors.join('\n')).toMatch(/storeys must be an integer >= 1/);
-      expect(v.errors.join('\n')).toMatch(/floor-plan/);
+      expect(v.errors.join('\n')).toMatch(/house-storeys/);
     }
   });
 

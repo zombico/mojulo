@@ -22,8 +22,13 @@ house) and spread it over three packs. Being built on this branch.
   and stores the same row. `create_sketch` with `kind: 'floorplan'` still works.
 - **`next` in the result.** A minted or updated building names the steps it can take from here (furnishing,
   storeys, framing, roof, drainage, the IFC export) and the card for each, computed from what the recipe already
-  has. `mint_building`, `create_sketch` and `update_sketch` all return it for a house. Never stored. The cards are
-  the `floor-plan` card for now.
+  has. `mint_building`, `create_sketch` and `update_sketch` all return it for a house. Never stored.
+- **One card per step.** The 23.2 KB `floor-plan` card is split by step: `house-layout` (4.1 KB: seed, footprint,
+  rooms and glyphs, one-room plans, views), `house-dwelling` (8.4 KB: furnishing, your own items, finishes, light,
+  styles), `house-storeys` (3.4 KB: storeys, levels, the walkway check), `house-construction` (6.5 KB: framing,
+  roof covering, drainage) and `house-bim` (1.6 KB: IFC and glTF export). `floor-plan` is now a 1.6 KB index of
+  them, so existing references still land. A layout-only house reads 4.1 KB instead of 23.6; a framed house as IFC
+  reads 15.6 KB. Every JSON example in the six cards is a whole manifest, and a test mints each one.
 - **The door fills two fields.** `kind: 'floorplan'` and the manifest's `title` may be left out; each is added in
   front only when absent, so a manifest `create_sketch` accepts is stored exactly as `create_sketch` stores it.
 - **A building form and pack.** `get_creative_toolset({ form: 'building' })` and `pack_building` (with

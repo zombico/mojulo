@@ -82,3 +82,25 @@ describe('next — the steps open from here', () => {
     expect(flow.next).toBeUndefined();
   }, 120_000);
 });
+
+describe('the house cards — every example mints', () => {
+  const CARDS = ['floor-plan', 'house-layout', 'house-dwelling', 'house-storeys', 'house-construction', 'house-bim'];
+
+  it('next only names house cards that exist', async () => {
+    const { getSketchVocabCard: getSketchVocab } = await import('@/lib/graph/sketch-vocab/loader');
+    for (const id of new Set(Object.values(RUNG_CARDS))) expect(getSketchVocab(id), id).toBeTruthy();
+  });
+
+  for (const id of CARDS) {
+    it(`${id}: its JSON examples parse and mint through mint_building`, async () => {
+      const { getSketchVocabCard: getSketchVocab } = await import('@/lib/graph/sketch-vocab/loader');
+      const card = getSketchVocab(id);
+      expect(card, id).toBeTruthy();
+      const blocks = [...card.body.matchAll(/```json\n([\s\S]*?)```/g)].map((m) => m[1]);
+      blocks.forEach((src, i) => {
+        const manifest = JSON.parse(src);
+        expect(() => mintBuilding({ title: `${id} ${i}`, manifest }), `${id} example ${i}`).not.toThrow();
+      });
+    }, 300_000);
+  }
+});
