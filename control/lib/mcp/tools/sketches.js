@@ -558,11 +558,13 @@ export function registerSketchTools() {
         },
         format: {
           type: 'string',
-          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender'],
+          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', 'dxf', 'svg'],
           default: 'glb',
           description:
-            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md. 'ifc': a house (floorplan with storeys) as an IFC4 building model for BIM tools. 'blender': a Blender pack (import + art-pass scripts); a world with `fire` carries it at `fire_t` for a Cycles still.",
+            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md. 'ifc': a house (floorplan with storeys) as an IFC4 building model for BIM tools. 'blender': a Blender pack (import + art-pass scripts); a world with `fire` carries it at `fire_t` for a Cycles still. 'dxf'/'svg': a scad row as a flat drawing for a laser or CNC (a 2D program as written, a `slice_z` cut, or the outline).",
         },
+        slice_z: { type: 'number', description: 'dxf/svg only: cut the scad solid at this height; omit for a 2D program as written, else the outline.' },
+        part: { type: 'string', description: "dxf/svg only: which of the scad row's `parts` to draw." },
         fire_t: { type: 'number', description: "blender only: the instant (s) of a world's `fire` to pack; omit for when it reads best." },
         fire_detail: { type: 'number', description: 'blender only: finer flame voxels (1 default, 2 for a close shot).' },
         cdn: {

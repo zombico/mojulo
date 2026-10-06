@@ -34,6 +34,23 @@ card promised, and both silent failures now warn. A source that calls no `mj_` n
   - Exact fillets and chamfers, edge by edge.
   - Molded shells with draft, bosses and ribs.
   - NACA sections lofted into blades.
+- **Standards.** Library v2 adds the dimensions agents get wrong from memory. Every table is from the published
+  standard and the card says to check the supplier's sheet:
+  - NEMA 11/14/17/23 motor mounts, with a stand-in motor.
+  - Bearing seats for 623–6204, 688 and LM8/10/12UU.
+  - DIN 6885 keyways, DIN 471/472 circlip grooves, and D-flat motor bores.
+  - O-ring glands for face, piston and rod.
+  - Raspberry Pi and Arduino standoff patterns, VESA patterns, T-slot extrusion, and Gridfinity bins.
+- **Composition.** Parts are placed by how they meet. `mj_gear_meshed` puts a gear in mesh at any angle, and
+  `mj_bolt_and_nut` threads the nut on in phase. `mj_enclosure` derives the base, the lid lip, the screw posts and
+  the countersinks from one set of numbers. A top-level `$mj_fit_add` shifts every fit for a printer. Each fit is
+  tested both ways: clean in place, and colliding when nudged.
+- **Outputs.**
+  - `mj_sheet` folds a chain of flanges. `mj_sheet_flat` unrolls it by bend allowance.
+  - `export_model` gains `format: 'dxf' | 'svg'` for scad rows: a 2D program as written, a `slice_z` cut, or the
+    outline, with `part` for a row that has several.
+  - `mj_fit_coupon` prints a pin and a hole for every fit.
+  - `translate_modeler_lingo` gains a `sheet metal` entry.
 - **Silent failures are said.** Two cases now warn: a `text()` call (this OpenSCAD build has no fonts, so glyphs render
   as nothing), and a `polyhedron()` that OpenSCAD's kernel takes apart as non-manifold.
 - **The routes say so.** The `scad` card has a library section. `translate_modeler_lingo` `precision cad` and

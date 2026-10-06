@@ -290,7 +290,10 @@ const DESCRIPTION_ALLOWLIST = {
 // `score: { mood, seed?, game?, role? }` (the mood and role enums, one sentence each in the description and the
 // property). The description itself shrank to stay under its 1150 allowlist (dropped a stale "new work" line).
 // Re-pinned 2026-10-06 (268_800 -> 268_900) for loop points: export_beats' `loop` property (one sentence).
-const PAYLOAD_CEILING = 268_900;
+// Re-pinned 2026-10-06 (268_900 -> 269_300; measured 269,246) for the industrial study's drawing leg: export_model's
+// 'dxf' / 'svg' formats (two enum values and one sentence) and the `slice_z` / `part` properties that cut a scad row
+// into a flat drawing. The mechanical library itself is off-payload (the scad card).
+const PAYLOAD_CEILING = 269_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

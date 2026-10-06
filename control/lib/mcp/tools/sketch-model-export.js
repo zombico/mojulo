@@ -31,6 +31,7 @@ import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
+import { renderScad2d, SCAD_2D_FORMATS } from '@/lib/graph/scad/scad-render';
 import { manifestToIfc } from '@/lib/graph/construction/ifc';
 import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
@@ -244,6 +245,44 @@ async function ifcExport(input, context) {
 // model.glb + pack.json + the import / return scripts + the art-pass guide; a world with `fire` adds its fire at
 // `fire_t` seconds (fire/fire-shot.js), which import_mojulo.py builds as Cycles volumes, lights and props. Blender
 // is a worker, never a dependency: this writes the pack and hands back the commands; it launches nothing.
+// ── format: 'dxf' | 'svg' — a flat part as a drawing (a scad row) ──────────────────────────────────────────────────
+// The laser / CNC / waterjet leg: OpenSCAD's own 2D export of a scad row, exact and in its units. A 2D program
+// (a sheet's flat pattern) draws as written; `slice_z` cuts the solid at a height; otherwise its outline from above.
+async function scad2dExport(input, context) {
+  const { ref, write = true, format, slice_z: sliceZ, part } = input;
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const kind = sketch.manifest.kind;
+  if (kind !== 'scad') {
+    return {
+      ok: false, eligible: false, ref, kind: kind ?? null, format,
+      reason: `A ${format.toUpperCase()} drawing is cut from a \`scad\` row (a plate, a flat pattern, a gasket); '${kind}' is not one. \`format: 'scad'\` transpiles a workbench recipe into one you can mint and draw.`,
+    };
+  }
+  if (sliceZ != null && !Number.isFinite(sliceZ)) throw new Error('`slice_z` must be a number (a height in the row\'s units)');
+  const drawn = await renderScad2d(sketch.manifest, { format, slice_z: sliceZ, part });
+  const how = { 'as-written': 'the program is 2D, drawn as written', slice: `the solid cut at z = ${sliceZ}`, outline: "the solid's outline seen from above (pass `slice_z` to cut it at a height instead)" }[drawn.mode];
+  const result = {
+    ok: true, ref, kind, format, mode: drawn.mode, bytes: drawn.bytes.byteLength, entities: drawn.entities, units: drawn.units,
+    ...(drawn.size ? { size: drawn.size } : {}), ...(part != null ? { part } : {}),
+    note: `${format.toUpperCase()} from OpenSCAD's exact 2D export: ${how}. ${drawn.entities} closed ${format === 'dxf' ? 'polyline' : 'path'}${drawn.entities === 1 ? '' : 's'}, in ${drawn.units} (DXF carries no unit: set the importer to ${drawn.units}).`,
+  };
+  if (write) {
+    const dir = outcomeDirFor(ref);
+    await fs.mkdir(dir, { recursive: true });
+    const fileName = `drawing${part != null ? `-${part}` : ''}.${format}`;
+    const file = path.join(dir, fileName);
+    await fs.writeFile(file, drawn.bytes);
+    await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
+    result.path = file;
+    result.dir = dir;
+    result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
+    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: drawn.bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
+  }
+  return result;
+}
+
 async function blenderExport(input) {
   const { ref, fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
   if (fireT != null && !(Number.isFinite(fireT) && fireT >= 0)) throw new Error('`fire_t` must be a time in seconds (≥ 0)');
@@ -707,10 +746,11 @@ async function exportModel(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', ...SCAD_2D_FORMATS];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', 'dxf', 'svg' if provided");
   }
+  if (('slice_z' in input || 'part' in input) && !SCAD_2D_FORMATS.includes(format)) throw new Error("`slice_z` and `part` apply to `format: 'dxf' | 'svg'` only");
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
   // stay silent for every mesh leg.
   if ('cdn' in input && format !== 'html') throw new Error("`cdn` applies to `format: 'html'` only");
@@ -719,6 +759,8 @@ async function exportModel(input, context = {}) {
   // ifc is the building model, not the World's faces: it reads the house the recipe builds.
   if (format === 'ifc') return ifcExport(input, context);
   if (format === 'blender') return blenderExport(input);
+  // dxf / svg are a flat part's drawing, cut by OpenSCAD from a scad row — not the World's faces.
+  if (SCAD_2D_FORMATS.includes(format)) return scad2dExport(input, context);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
   const isHtml = format === 'html';
   const isUsd = format === 'usda' || format === 'usdz';

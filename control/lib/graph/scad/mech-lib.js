@@ -20,12 +20,12 @@
  * one) swept on a sheared grid, so the flanks are exact planes between rows and the seam closes.
  */
 
-export const MECH_LIB_VERSION = 1;
+export const MECH_LIB_VERSION = 2;
 
 /** Does a (comment-stripped) source call the library? An identifier starting `mj_` is the trigger. */
 export const usesMechLib = (bare) => /(^|[^A-Za-z0-9_])mj_[A-Za-z0-9_]/.test(String(bare));
 
-export const MECH_LIB_SOURCE = String.raw`// ── mojulo mechanical library v1 (prepended by mojulo; call mj_* — edit your source, not this) ──
+export const MECH_LIB_SOURCE = String.raw`// ── mojulo mechanical library v2 (prepended by mojulo; call mj_* — edit your source, not this) ──
 // ISO metric coarse: [name, d, pitch, hex AF (ISO 4032/4017), hex head k, nut m, socket dk, socket k,
 //   hex key, countersunk dk (ISO 10642), clearance close/normal/loose (ISO 273), heat-set hole]
 MJ_ISO = [
@@ -49,7 +49,9 @@ function mj_iso_d(size) = mj_iso(size)[1];
 function mj_iso_pitch(size) = mj_iso(size)[2];
 function mj_clearance(size, fit = "normal") = mj_iso(size)[fit == "close" ? 10 : fit == "loose" ? 12 : 11];
 // A printed fit: diametral clearance added to a nominal size (FDM defaults; SLA/SLS wants about half).
-function mj_fit(fit = "slip") = fit == "press" ? 0 : fit == "tight" ? 0.1 : fit == "slip" ? 0.2 : fit == "loose" ? 0.4 : fit == "running" ? 0.3 : assert(false, str("mj_fit: press | tight | slip | running | loose, not ", fit));
+// A top-level $mj_fit_add (mm, from your mj_fit_coupon print) shifts every fit at once for this printer.
+function mj__fit_base(fit) = fit == "press" ? 0 : fit == "tight" ? 0.1 : fit == "slip" ? 0.2 : fit == "loose" ? 0.4 : fit == "running" ? 0.3 : assert(false, str("mj_fit: press | tight | slip | running | loose, not ", fit));
+function mj_fit(fit = "slip") = mj__fit_base(fit) + (is_undef($mj_fit_add) ? 0 : $mj_fit_add);
 // OpenSCAD inscribes its circles, so a printed bore comes out undersize by the facet sagitta:
 // mj_hole circumscribes, so the FLATS of the polygon sit on the asked diameter.
 function mj__n(d) = $fn > 0 ? max(3, $fn) : max(16, ceil(d * PI / 0.5));
@@ -337,6 +339,229 @@ function mj_naca4(m, p, t, c = 1, n = 16) =
 // lying in the y-z plane, pitched about the radial axis by twist, chord centred at a quarter chord.
 module mj_blade(stations, n = 16) {
   mj_loft([for (s = stations) let(sec = mj_naca4(s[3][0], s[3][1], s[3][2], s[1], n)) [for (q = sec) let(u = q[0] - s[1] / 4, v = q[1]) [s[0], u * cos(s[2]) - v * sin(s[2]), u * sin(s[2]) + v * cos(s[2])]]]);
+}
+
+// ══ v2: standards ══════════════════════════════════════════════════════════════════════════════
+// Every table is from the published standard; check your supplier's sheet before production.
+
+// Stepper motor faces (NEMA ICS 16): [name, body square, hole spacing, pilot d, pilot h, screw, shaft d, shaft len]
+MJ_NEMA = [
+  [11, 28.2, 23.0, 22.0, 2.0, "M2.5", 5, 20],
+  [14, 35.2, 26.0, 22.0, 2.0, "M3",   5, 20],
+  [17, 42.3, 31.0, 22.0, 2.0, "M3",   5, 24],
+  [23, 56.4, 47.14, 38.1, 1.6, "M5",  6.35, 21]
+];
+function mj_nema(n) = let(r = [for (e = MJ_NEMA) if (e[0] == n) e]) assert(len(r) == 1, str("mj_nema: one of 11 14 17 23, not ", n)) r[0];
+// The cutter for a motor face mounted against a plate: pilot clearance and the four screw holes, from z = 0 down.
+module mj_nema_mount(n, depth, fit = "slip") {
+  e = mj_nema(n);
+  mj_hole(e[3], depth, fit);
+  for (x = [-1, 1], y = [-1, 1]) translate([x * e[2] / 2, y * e[2] / 2, 0]) mj_clearance_hole(e[5], depth);
+}
+// A stand-in motor (for an assembly view): face on z = 0, body down, D-flat shaft up.
+module mj_nema_motor(n, length = 40) {
+  e = mj_nema(n);
+  translate([-e[1] / 2, -e[1] / 2, -length]) mj_chamfer_box([e[1], e[1], length], 2.5);
+  cylinder(d = e[3], h = e[4], $fn = 64);
+  difference() { cylinder(d = e[6], h = e[4] + e[7], $fn = 32); translate([e[6] / 2 - 0.5, -e[6], e[4] + 2]) cube([e[6], 2 * e[6], e[7]]); }
+}
+
+// Rolling bearings: [code, bore, od, width]
+MJ_BEARINGS = [
+  ["623", 3, 10, 4], ["624", 4, 13, 5], ["625", 5, 16, 5], ["626", 6, 19, 6], ["608", 8, 22, 7], ["688", 8, 16, 5],
+  ["6000", 10, 26, 8], ["6001", 12, 28, 8], ["6002", 15, 32, 9], ["6200", 10, 30, 9], ["6201", 12, 32, 10],
+  ["6202", 15, 35, 11], ["6203", 17, 40, 12], ["6204", 20, 47, 14],
+  ["LM8UU", 8, 15, 24], ["LM10UU", 10, 19, 29], ["LM12UU", 12, 21, 30]
+];
+function mj_bearing_dims(code) = let(r = [for (e = MJ_BEARINGS) if (e[0] == code) e]) assert(len(r) == 1, str("mj_bearing: no bearing ", code)) r[0];
+// The seat for a bearing's outer race, from z = 0 down by its width; shoulder = a smaller bore below it that
+// stops the race but clears the inner ring (through = how far that bore runs on).
+module mj_bearing_seat(code, fit = "press", shoulder = true, through = 0) {
+  e = mj_bearing_dims(code);
+  mj_hole(e[2], e[3], fit);
+  if (shoulder) translate([0, 0, -e[3]]) mj_hole((e[1] + e[2]) / 2 + 1, through > 0 ? through : 1, "press", 0.01);
+}
+// A stand-in bearing on z = 0 (rings and a seal face; not a print-in-place part — see the study's bearing).
+module mj_bearing(code) {
+  e = mj_bearing_dims(code);
+  difference() { cylinder(d = e[2], h = e[3], $fn = 64); translate([0, 0, -1]) cylinder(d = e[1], h = e[3] + 2, $fn = 48);
+    for (z = [-0.01, e[3] - 0.3]) translate([0, 0, z]) difference() { cylinder(d = e[2] - (e[2] - e[1]) * 0.2, h = 0.31, $fn = 64); cylinder(d = e[1] + (e[2] - e[1]) * 0.2, h = 1, $fn = 48); } }
+}
+
+// Parallel keys, DIN 6885 A: [shaft from, shaft to, width b, height h, shaft depth t1, hub depth t2]
+MJ_KEYS = [[6, 8, 2, 2, 1.2, 1.0], [8, 10, 3, 3, 1.8, 1.4], [10, 12, 4, 4, 2.5, 1.8], [12, 17, 5, 5, 3.0, 2.3],
+  [17, 22, 6, 6, 3.5, 2.8], [22, 30, 8, 7, 4.0, 3.3], [30, 38, 10, 8, 5.0, 3.3], [38, 44, 12, 8, 5.0, 3.3],
+  [44, 50, 14, 9, 5.5, 3.8], [50, 58, 16, 10, 6.0, 4.3]];
+function mj_key(d) = let(r = [for (e = MJ_KEYS) if (d > e[0] && d <= e[1]) e]) assert(len(r) == 1, str("mj_key: DIN 6885 covers shafts over 6 to 58 mm, not ", d)) r[0];
+// Cut from a shaft on z (keyseat on +x), length along z from z = 0 up.
+module mj_keyway_shaft(d, length) { k = mj_key(d); translate([d / 2 - k[4], -k[2] / 2, 0]) cube([k[4] + 1, k[2], length]); }
+// Cut from a hub: the bore (with its fit) plus the keyway on +x, from z = 0 down by length.
+module mj_keyway_hub(d, length, fit = "slip") { k = mj_key(d); mj_hole(d, length, fit); translate([0, -k[2] / 2 - 0.05, -length]) cube([d / 2 + k[5] + 0.1, k[2] + 0.1, length + 1]); }
+
+// Retaining rings: DIN 471 (on a shaft) [d, groove d, groove width]; DIN 472 (in a bore) the same.
+MJ_CIRCLIP_SHAFT = [[8, 7.6, 0.9], [10, 9.6, 1.1], [12, 11.5, 1.1], [15, 14.3, 1.1], [17, 16.2, 1.1], [20, 19.0, 1.3], [25, 23.9, 1.3], [30, 28.6, 1.6]];
+MJ_CIRCLIP_BORE = [[22, 23.0, 1.1], [26, 27.2, 1.3], [28, 29.4, 1.3], [32, 33.7, 1.3], [35, 37.0, 1.6], [40, 42.5, 1.85], [47, 49.5, 1.85]];
+function mj__circlip(t, d, what) = let(r = [for (e = t) if (e[0] == d) e]) assert(len(r) == 1, str("mj_circlip_groove: no ", what, " size ", d)) r[0];
+// A groove cutter at height z: kind "shaft" (DIN 471) or "bore" (DIN 472), width +0.1 for the print.
+module mj_circlip_groove(d, z, kind = "shaft") {
+  e = kind == "shaft" ? mj__circlip(MJ_CIRCLIP_SHAFT, d, "DIN 471 shaft") : mj__circlip(MJ_CIRCLIP_BORE, d, "DIN 472 bore");
+  translate([0, 0, z]) linear_extrude(e[2] + 0.1) difference() {
+    circle(d = kind == "shaft" ? d + 2 : e[1], $fn = 96); circle(d = kind == "shaft" ? e[1] : d - 2, $fn = 96); }
+}
+// A D-flat bore for a motor shaft (5 mm motors: flat 0.5), from z = 0 down.
+module mj_d_bore(d = 5, depth = 10, flat = 0.5, fit = "slip") {
+  dd = d + mj_fit(fit);
+  difference() { mj_hole(d, depth, fit); translate([dd / 2 - flat, -dd, -depth - 1]) cube([dd, 2 * dd, depth + 3]); }
+}
+
+// O-ring glands by the usual static rule (about 25 % squeeze, groove 1.4 × the cross-section wide):
+// "face" (a ring groove in a flange, d = the O-ring's inside diameter), "piston" (a groove round a piston of
+// diameter d), "rod" (a groove inside a bore that a rod of diameter d runs in). From z = 0 down (face) or
+// centred on z = 0 (piston, rod). Confirm the gland against the O-ring maker's handbook.
+function mj_oring_gland(cs, squeeze = 0.25) = [cs * (1 - squeeze), cs * 1.4];
+module mj_oring_groove(d, cs, type = "face", squeeze = 0.25) {
+  g = mj_oring_gland(cs, squeeze); dep = g[0]; w = g[1];
+  if (type == "face") translate([0, 0, -dep]) linear_extrude(dep + 0.5) difference() { circle(d = d + 2 * w, $fn = 128); circle(d = d, $fn = 128); }
+  else if (type == "piston") translate([0, 0, -w / 2]) linear_extrude(w) difference() { circle(d = d + 2, $fn = 128); circle(d = d - 2 * dep, $fn = 128); }
+  else if (type == "rod") translate([0, 0, -w / 2]) linear_extrude(w) difference() { circle(d = d + 2 * dep, $fn = 128); circle(d = d - 2, $fn = 128); }
+  else assert(false, str("mj_oring_groove: face | piston | rod, not ", type));
+}
+
+// Boards: [name, [w, d], holes [[x, y]…] from the board's lower-left corner, screw]
+MJ_BOARDS = [
+  ["rpi3", [85, 56], [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]], "M2.5"],
+  ["rpi4", [85, 56], [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]], "M2.5"],
+  ["rpi5", [85, 56], [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]], "M2.5"],
+  ["rpi-zero", [65, 30], [[3.5, 3.5], [61.5, 3.5], [3.5, 26.5], [61.5, 26.5]], "M2.5"],
+  ["arduino-uno", [68.6, 53.3], [[13.97, 2.54], [15.24, 50.8], [66.04, 7.62], [66.04, 35.56]], "M3"],
+  ["arduino-mega", [101.6, 53.3], [[13.97, 2.54], [15.24, 50.8], [66.04, 7.62], [66.04, 35.56], [90.17, 50.8], [96.52, 2.54]], "M3"]
+];
+function mj_board(name) = let(r = [for (e = MJ_BOARDS) if (e[0] == name) e]) assert(len(r) == 1, str("mj_board: one of rpi3 rpi4 rpi5 rpi-zero arduino-uno arduino-mega, not ", name)) r[0];
+function mj_board_holes(name) = mj_board(name)[2];
+// Standoffs for a board, its lower-left corner at the origin, standing on z = 0, h tall; insert = heat-set pilots.
+module mj_board_standoffs(name, h = 5, insert = false) {
+  b = mj_board(name); s = b[3]; od = mj_iso_d(s) * 2.4;
+  for (p = b[2]) translate([p[0], p[1], 0]) difference() { cylinder(d = od, h = h, $fn = 32);
+    translate([0, 0, h]) if (insert) mj_heatset_hole(s, h - 0.8); else mj_tapped_hole(s, h - 0.6, 0.15, 0.01); }
+}
+// VESA mounting patterns (75 and 100: M4; 200: M6), centred, from z = 0 down.
+module mj_vesa(size, depth) { s = size == 200 ? "M6" : "M4"; assert(size == 75 || size == 100 || size == 200, "mj_vesa: 75 | 100 | 200");
+  for (x = [-1, 1], y = [-1, 1]) translate([x * size / 2, y * size / 2, 0]) mj_clearance_hole(s, depth); }
+
+// T-slot extrusion (20/30/40 series, slot 6/8/8): the profile is generic; vendors differ inside the slot,
+// the outside, the slot opening and the core bore are the standard part. Along z from 0, centred.
+function mj_tslot_dims(size) = size == 20 ? [20, 6.2, 4.2] : size == 30 ? [30, 8.2, 6.8] : size == 40 ? [40, 8.2, 6.8] : assert(false, "mj_tslot: 20 | 30 | 40");
+module mj_tslot(size, length) {
+  t = mj_tslot_dims(size); s = t[0]; slot = t[1]; lip = s * 0.09; inner = slot * 1.8;
+  linear_extrude(length) difference() {
+    offset(r = s * 0.075, $fn = 24) offset(delta = -s * 0.075) square(s, center = true);
+    circle(d = t[2], $fn = 32);
+    for (a = [0 : 90 : 270]) rotate(a) union() {
+      translate([s / 2 - lip / 2, 0]) square([lip + 0.02, slot], center = true);
+      translate([s / 2 - lip - s * 0.15, 0]) polygon([[s * 0.15, -inner / 2], [s * 0.15, inner / 2], [-s * 0.08, slot * 0.3], [-s * 0.08, -slot * 0.3]]);
+    }
+  }
+}
+
+// Gridfinity: a bin of ux × uy grid units (42 mm) and uz height units (7 mm), the published base profile
+// (0.8 at 45°, 1.8 upright, 2.15 at 45°, 0.25 clearance), 1.2 mm walls, optional 6 × 2 magnet pockets.
+// No stacking lip in this version.
+module mj_gridfinity_bin(ux = 1, uy = 1, uz = 3, magnets = false, wall = 1.2) {
+  u = 42; c = 0.25; H = 7 * uz; R = 3.75;
+  module mj__grr(w, d, r, h) translate([-w / 2, -d / 2, 0]) hull() for (x = [r, w - r], y = [r, d - r]) translate([x, y, 0]) cylinder(r = r, h = h, $fn = 32);
+  difference() {
+    union() {
+      for (i = [0 : ux - 1], j = [0 : uy - 1]) translate([(i - (ux - 1) / 2) * u, (j - (uy - 1) / 2) * u, 0]) {
+        hull() { mj__grr(u - 2 * c - 2 * 2.95, u - 2 * c - 2 * 2.95, 0.8, 0.01); translate([0, 0, 0.8]) mj__grr(u - 2 * c - 2 * 2.15, u - 2 * c - 2 * 2.15, 1.6, 0.01); }
+        translate([0, 0, 0.8]) mj__grr(u - 2 * c - 2 * 2.15, u - 2 * c - 2 * 2.15, 1.6, 1.8);
+        hull() { translate([0, 0, 2.6]) mj__grr(u - 2 * c - 2 * 2.15, u - 2 * c - 2 * 2.15, 1.6, 0.01); translate([0, 0, 4.75]) mj__grr(u - 2 * c, u - 2 * c, R, 0.01); }
+      }
+      translate([0, 0, 4.75]) mj__grr(ux * u - 2 * c, uy * u - 2 * c, R, H - 4.75);
+    }
+    translate([0, 0, 4.75 + 1.2]) mj__grr(ux * u - 2 * c - 2 * wall, uy * u - 2 * c - 2 * wall, R - wall, H);
+    if (magnets) for (i = [0 : ux - 1], j = [0 : uy - 1], x = [-13, 13], y = [-13, 13]) translate([(i - (ux - 1) / 2) * u + x, (j - (uy - 1) / 2) * u + y, -0.01]) cylinder(d = 6.5, h = 2.4, $fn = 32);
+  }
+}
+
+// ══ v2: composition ════════════════════════════════════════════════════════════════════════════
+// Gear 2 (z2 teeth) placed in mesh with gear 1 (z1 teeth, at the origin, unturned) at an angle round it, and
+// turned so a tooth meets a space. Holds for any angle and tooth counts (checked by intersection).
+function mj_gear_mesh_turn(z1, z2, angle) = angle * (1 + z1 / z2) + (z2 % 2 == 0 ? 180 / z2 : 0);
+module mj_gear_meshed(mod, z1, z2, angle = 0) rotate(angle) translate([mj_gear_center(mod, z1, z2), 0, 0]) rotate(mj_gear_mesh_turn(z1, z2, angle) - angle) children();
+// A bolt with its nut threaded on in phase, the nut's underside at nut_z above the head (rounded down onto
+// the thread). The two are separate solids: the gap between them is the thread clearance.
+function mj__nut_phase_z(size, head, z) = let(e = mj_iso(size), hk = head == "hex" ? e[4] : head == "socket" ? e[7] : head == "button" ? 0.55 * e[1] : 0, p = e[2], z0 = hk - 0.01 + 1)
+  z0 + floor((z - z0) / p) * p;
+module mj_bolt_and_nut(size, length, nut_z, head = "hex") { mj_bolt(size, length, head); translate([0, 0, mj__nut_phase_z(size, head, nut_z)]) mj_nut(size); }
+
+// A matched enclosure: base, lid, alignment lip, screw posts and the lid's holes all derived from one set of
+// numbers, so they cannot disagree. inner = the clear cavity [x, y, z]. part: "base" | "lid" (printed lip up,
+// beside nothing) | "both" (lid set beside the base) | "assembled" (lid on top, for a fit check).
+// board = a mj_board name for standoffs on the floor, centred.
+function mj_enclosure_posts(inner, screw = "M3") = let(od = mj_iso_d(screw) * 2.6, x = inner[0] / 2 - od / 2, y = inner[1] / 2 - od / 2) [[-x, -y], [x, -y], [-x, y], [x, y]];
+module mj_enclosure(inner, wall = 2, floor = 2, r = 3, screw = "M3", lid_t = 2, lip = 3, fit = "slip", part = "both", board = "", standoff = 5, insert = true) {
+  L = inner[0] + 2 * wall; W = inner[1] + 2 * wall; H = floor + inner[2];
+  od = mj_iso_d(screw) * 2.6; posts = mj_enclosure_posts(inner, screw); cl = mj_fit(fit) / 2;
+  module mj__eplate(l, w, rr, h) translate([-l / 2, -w / 2, 0]) mj_rounded_plate([l, w, h], rr);
+  module mj__ebase() difference() {
+    union() {
+      difference() { mj__eplate(L, W, r, H); translate([0, 0, floor]) mj__eplate(inner[0], inner[1], max(0.5, r - wall), H); }
+      for (p = posts) translate([p[0], p[1], 0]) cylinder(d = od, h = H - lip - 0.3, $fn = 40);
+      if (board != "") let(b = mj_board(board)) translate([-b[1][0] / 2, -b[1][1] / 2, floor - 0.01]) mj_board_standoffs(board, standoff, insert);
+    }
+    for (p = posts) translate([p[0], p[1], H - lip - 0.3]) if (insert && mj_iso(screw)[13] > 0) mj_heatset_hole(screw, H - lip - 0.3 - floor); else mj_tapped_hole(screw, H - lip - 0.3 - floor);
+  }
+  module mj__elid() difference() {
+    union() { mj__eplate(L, W, r, lid_t);
+      translate([0, 0, lid_t - 0.01]) difference() { mj__eplate(inner[0] - 2 * cl, inner[1] - 2 * cl, max(0.5, r - wall - cl), lip);
+        translate([0, 0, -1]) mj__eplate(inner[0] - 2 * cl - 2 * 1.6, inner[1] - 2 * cl - 2 * 1.6, max(0.5, r - wall - 1.6), lip + 2);
+        for (p = posts) translate([p[0], p[1], -1]) cylinder(d = od + 2 * cl + 0.4, h = lip + 2, $fn = 40); } }
+    for (p = posts) translate([p[0], p[1], 0]) mirror([0, 0, 1]) translate([0, 0, -lid_t]) mj_countersink(screw, lid_t + 1);
+  }
+  if (part == "base") mj__ebase();
+  else if (part == "lid") mj__elid();
+  else if (part == "both") { mj__ebase(); translate([L + 10, 0, 0]) mj__elid(); }
+  else if (part == "assembled") { mj__ebase(); translate([0, 0, H + lid_t]) mirror([0, 0, 1]) mj__elid(); }
+  else assert(false, "mj_enclosure: part is base | lid | both | assembled");
+}
+
+// ══ v2: outputs ════════════════════════════════════════════════════════════════════════════════
+// Sheet metal: thickness t, inside bend radius r, K-factor k, width w; flanges = [[length, bend°], …], each
+// flange's straight length followed by the bend into the next (+ up, − down; the last bend is ignored).
+// The bent part lies along +x from the origin, the first flange on z = 0, width along +y.
+function mj_sheet_ba(t, r, k, a) = PI * abs(a) / 180 * (r + k * t);
+function mj_sheet_flat_length(t, r, k, flanges) = let(n = len(flanges)) mj__sum([for (i = [0 : n - 1]) flanges[i][0] + (i < n - 1 ? mj_sheet_ba(t, r, k, flanges[i][1]) : 0)]);
+function mj__sum(v, i = 0) = i >= len(v) ? 0 : v[i] + mj__sum(v, i + 1);
+module mj__sheet_chain(t, r, w, f, i) {
+  if (i < len(f)) {
+    L = f[i][0]; a = i < len(f) - 1 ? f[i][1] : 0;
+    cube([L, w, t]);
+    if (a != 0) translate([L, 0, 0]) {
+      c = a > 0 ? t + r : -r;   // the bend centre: above the sheet bending up, below it bending down
+      translate([0, 0, c]) rotate([-90, 0, 0]) rotate([0, 0, a > 0 ? 90 - a : -90]) rotate_extrude(angle = abs(a), $fn = 64) translate([r, 0]) square([t, w]);
+      translate([0, 0, c]) rotate([0, -a, 0]) translate([0, 0, -c]) mj__sheet_chain(t, r, w, f, i + 1);
+    } else translate([L, 0, 0]) mj__sheet_chain(t, r, w, f, i + 1);
+  }
+}
+module mj_sheet(t, r, w, flanges, k = 0.44) mj__sheet_chain(t, r, w, flanges, 0);
+// The flat pattern (2D, for DXF): a strip of the flat length; bend_lines = true scores each bend's centre line
+// as a 0.2 mm slot, for a laser to etch or a brake operator to read.
+module mj_sheet_flat(t, r, w, flanges, k = 0.44, bend_lines = false) {
+  n = len(flanges);
+  difference() { square([mj_sheet_flat_length(t, r, k, flanges), w]);
+    if (bend_lines) for (i = [0 : n - 2]) let(x = mj__sum([for (j = [0 : i]) flanges[j][0]]) + mj__sum([for (j = [0 : i]) j < i ? mj_sheet_ba(t, r, k, flanges[j][1]) : mj_sheet_ba(t, r, k, flanges[j][1]) / 2]))
+      translate([x - 0.1, -1]) square([0.2, w + 2]); }
+}
+
+// A fit-test coupon: one plate of holes and a strip of pins of nominal diameter d, one per fit, marked by
+// notches (1 = press … 5 = loose; this build has no fonts). Print it, try each pin in each hole, and set
+// $mj_fit_add to the difference you need. Plate on z = 0, the pins beside it.
+module mj_fit_coupon(d = 8, h = 5) {
+  fits = ["press", "tight", "slip", "running", "loose"]; s = d + 6;
+  difference() { cube([s * 5, s, h]);
+    for (i = [0 : 4]) { translate([s * i + s / 2, s / 2, h]) mj_hole(d, h + 1, fits[i]);
+      for (n = [0 : i]) translate([s * i + 2 + n * 1.6, -0.01, h - 1]) cube([0.8, 1.2, 1.1]); } }
+  for (i = [0 : 4]) translate([s * i + s / 2, s * 1.8, 0]) { cylinder(d = d, h = h * 2, $fn = 64); for (n = [0 : i]) translate([-d / 2 - 2, -d / 2 + n * 1.6, 0]) cube([2.01, 0.8, 1]); }
 }
 // ── end of the mojulo mechanical library ──
 `;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planScad, loadOpenscad, mechPrelude, persistedScadLedger } from './scad-render.js';
+import { planScad, loadOpenscad, mechPrelude, persistedScadLedger, renderScad2d, renderScadParts } from './scad-render.js';
 import { MECH_LIB_SOURCE, MECH_LIB_VERSION, usesMechLib } from './mech-lib.js';
 
 const hasWasm = await loadOpenscad() != null;
@@ -78,3 +78,93 @@ describe('mech-lib — silent failures are said (skipped when the WASM is not in
     expect(warnings.join(' ')).toMatch(/not a closed 2-manifold/);
   });
 }, 60000);
+
+// v2 — the controls matter as much as the fits: each assembly nudged out of place must collide, so a
+// CLEAN is a fit and not two parts that never met.
+const collides = async (source) => !(await fits(source));
+
+describe('mech-lib v2 — standards fit what they mount (skipped when the WASM is not installed)', () => {
+  wasm('a NEMA 17 motor seats in its mount plate, and collides 1 mm off centre', async () => {
+    const plate = 'difference(){ translate([-25,-25,0]) cube([50,50,5]); translate([0,0,5]) mj_nema_mount(17, 6); }';
+    expect(await fits(`intersection(){ ${plate} mj_nema_motor(17, 40); }`)).toBe(true);
+    expect(await collides(`intersection(){ ${plate} translate([1,0,0]) mj_nema_motor(17, 40); }`)).toBe(true);
+  });
+  wasm('a 608 sits in its seat; an oversize ring does not', async () => {
+    const seat = 'difference(){ translate([-15,-15,0]) cube([30,30,10]); translate([0,0,10]) mj_bearing_seat("608", through=4); }';
+    expect(await fits(`intersection(){ ${seat} translate([0,0,3]) mj_bearing("608"); }`)).toBe(true);
+    expect(await collides(`intersection(){ ${seat} translate([0,0,3]) cylinder(d=22.3,h=7,$fn=64); }`)).toBe(true);
+  });
+  wasm('a keyed hub slides onto its keyed shaft (DIN 6885)', async () => {
+    expect(await fits('intersection(){ difference(){ cylinder(d=30,h=12,$fn=64); translate([0,0,12]) mj_keyway_hub(12.5, 12); } difference(){ translate([0,0,-5]) cylinder(d=12.5,h=22,$fn=64); mj_keyway_shaft(12.5, 20); } }')).toBe(true);
+  });
+  wasm('the standards render closed at their nominal sizes', async () => {
+    const size = async (src) => (await planScad({ source: src })).stats.size;
+    expect(await size('mj_tslot(20, 50);')).toEqual({ w: 20, d: 20, h: 50 });
+    expect(await size('mj_gridfinity_bin(2, 1, 3, magnets=true);')).toEqual({ w: 83.5, d: 41.5, h: 21 });
+    expect(await size('cube([85,56,1.6]); mj_board_standoffs("rpi4", 5);')).toEqual({ w: 85, d: 56, h: 5 });
+    await expect(planScad({ source: 'mj_nema_mount(18, 5);' })).rejects.toThrow(/one of 11 14 17 23/);
+    await expect(planScad({ source: 'mj_keyway_shaft(70, 5);' })).rejects.toThrow(/DIN 6885/);
+  });
+}, 120000);
+
+describe('mech-lib v2 — composition (skipped when the WASM is not installed)', () => {
+  wasm('mj_gear_meshed meshes at any angle and tooth count, and collides when turned half a tooth', async () => {
+    for (const [z1, z2, a] of [[20, 13, 0], [20, 13, 70], [15, 22, 33], [15, 22, 200]]) {
+      expect(await fits(`intersection(){ mj_spur_gear(1, ${z1}, 5); mj_gear_meshed(1, ${z1}, ${z2}, ${a}) mj_spur_gear(1, ${z2}, 5); }`)).toBe(true);
+    }
+    expect(await collides('intersection(){ mj_spur_gear(1, 20, 5); mj_gear_meshed(1, 20, 13, 0) rotate(180/13) mj_spur_gear(1, 13, 5); }')).toBe(true);
+  });
+  wasm('mj_bolt_and_nut puts the nut in phase', async () => {
+    expect(await fits('intersection(){ mj_bolt("M6", 30); translate([0,0,mj__nut_phase_z("M6","hex",12)]) mj_nut("M6"); }')).toBe(true);
+    expect(await collides('intersection(){ mj_bolt("M6", 30); translate([0,0,mj__nut_phase_z("M6","hex",12)+0.5]) mj_nut("M6"); }')).toBe(true);
+  });
+  wasm('the enclosure lid closes on its base, and collides 1 mm off', async () => {
+    const pair = (dx, dz) => `intersection(){ mj_enclosure([60,40,25], board="rpi-zero", part="base"); translate([${dx},0,${29 + dz}]) mirror([0,0,1]) mj_enclosure([60,40,25], board="rpi-zero", part="lid"); }`;
+    expect(await fits(pair(0, 0))).toBe(true);
+    expect(await collides(pair(1, 0))).toBe(true);
+    expect(await collides(pair(0, -0.5))).toBe(true);
+  });
+  wasm('$mj_fit_add widens every fit by its amount', async () => {
+    const w = async (add) => (await planScad({ source: `$mj_fit_add = ${add}; translate([0,0,6]) mj_hole(10, 6, "slip");` })).stats.size.w;
+    expect(await w(0)).toBe(10.2);
+    expect(await w(0.4)).toBe(10.6);
+  });
+}, 120000);
+
+describe('mech-lib v2 — outputs (skipped when the WASM is not installed)', () => {
+  // connected components by shared vertices: a bend that misses its flanges leaves the part in pieces
+  const bodies = async (source) => {
+    const recs = (await renderScadParts({ source })).parts[0].records;
+    const up = new Map(); const find = (k) => { while (up.get(k) !== k) { up.set(k, up.get(up.get(k))); k = up.get(k); } return k; };
+    const key = (c) => c.map((v) => v.toFixed(4)).join(',');
+    for (const r of recs) { const ks = r.corners.map(key); for (const k of ks) if (!up.has(k)) up.set(k, k); for (const k of ks.slice(1)) up.set(find(k), find(ks[0])); }
+    return new Set([...up.keys()].map(find)).size;
+  };
+  wasm('every bend joins its flanges: a bent part is one body', async () => {
+    expect(await bodies('cube(1); translate([3,0,0]) cube(1);')).toBe(2); // the counter's control
+    expect(await bodies('mj_sheet(1.5, 1.5, 30, [[20, 90], [30, 90], [20, 0]]);')).toBe(1);
+    expect(await bodies('mj_sheet(2, 3, 20, [[30, 45], [20, -120], [15, 0]]);')).toBe(1);
+  });
+  wasm('a Z bracket bends to its size and its flat pattern is the bend-allowance length', async () => {
+    const f = '[[20, 90], [30, -90], [20, 0]]';
+    expect((await planScad({ source: `mj_sheet(1.5, 1.5, 25, ${f});` })).stats.size).toEqual({ w: 44.5, d: 25, h: 36 });
+    // 70 of flanges + 2 × π/2 × (r + k·t) = 70 + 2 × 3.393
+    const flat = await renderScad2d({ source: `mj_sheet_flat(1.5, 1.5, 25, ${f});` }, { format: 'svg' });
+    expect(flat.mode).toBe('as-written');
+    expect(flat.size.w).toBeCloseTo(77, 0);
+  });
+  wasm('a plate draws as a DXF: a slice keeps every hole, a missed plane says so, a parts row needs a part', async () => {
+    const plate = { source: 'difference(){ translate([-25,-25,0]) cube([50,50,5]); translate([0,0,5]) mj_nema_mount(17, 6); }' };
+    const cut = await renderScad2d(plate, { format: 'dxf', slice_z: 2.5 });
+    expect(cut.mode).toBe('slice');
+    expect(cut.entities).toBe(6); // the edge, the pilot and four screw holes
+    expect((await renderScad2d(plate, { format: 'dxf' })).mode).toBe('outline');
+    await expect(renderScad2d(plate, { format: 'svg', slice_z: 50 })).rejects.toThrow(/plane misses the part/);
+    await expect(renderScad2d({ source: 'module a() cube(5);', parts: { a: 'a();' } }, { format: 'svg' })).rejects.toThrow(/name one with `part`/);
+  });
+  wasm('the fit coupon renders a hole and a pin for every fit', async () => {
+    const { stats } = await planScad({ source: 'mj_fit_coupon(8);' });
+    expect(stats.ledger.closed).toBe(true);
+    expect(stats.size.w).toBe(70);
+  });
+}, 120000);

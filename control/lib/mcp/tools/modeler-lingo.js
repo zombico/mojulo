@@ -280,6 +280,20 @@ const LEXICON = [
     dcc: 'Author a toleranced or threaded part in a B-rep CAD tool — text-to-cad (build123d over OpenCascade; STEP-first, with its own printability and slicer skills), FreeCAD, Onshape, Fusion — and bring the tessellated GLB home with `bind_mesh_render`. Mojulo then places it in a world, ships it to an engine, or prints it beside its own parts; the .step stays the source of the part, the recipe the source of everything around it.',
   },
   {
+    id: 'sheet-metal',
+    terms: ['sheet metal', 'flat pattern', 'bend allowance', 'k-factor', 'k factor', 'press brake', 'dxf', 'laser cut', 'laser cutting', 'cnc router', 'waterjet', 'cut file', '2d drawing', 'flange bend'],
+    concept: 'A part folded from flat stock, or cut from it: the bent shape and the flat outline a laser, router or brake works from.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'mint_solid', when: "the BENT part and its FLAT PATTERN: the `scad` kind's `mj_sheet(t, r, w, [[length, bend°], …], k)` folds a chain of flanges; `mj_sheet_flat(…)` is the same chain unrolled by bend allowance (K-factor 0.44 by default).", args: { kind: 'scad', spec: { source: 'mj_sheet_flat(1.5, 1.5, 25, [[20, 90], [30, -90], [20, 0]], bend_lines = true);' } } },
+    ],
+    then: [
+      { tool: 'export_model', when: "the cut file: `format: 'dxf'` (or `'svg'`) draws a scad row flat — a 2D program as written, `slice_z` to cut a plate at a height with every hole at true size, otherwise the outline.", args: { ref: '<sk_ref>', format: 'dxf' } },
+    ],
+    ceiling: 'Straight bends in a single chain, one width, set by a K-factor you choose: no reliefs, hems, louvres or forming tools, and no holes placed on the flat pattern for you. The DXF carries closed outlines only (no layers, no dimensions).',
+    dcc: 'For reliefs, hems, multi-flange parts and a tool library, a sheet-metal CAD workbench (FreeCAD SheetMetal, Onshape, SolidWorks); bring the part home with `bind_mesh_render`.',
+  },
+  {
     id: 'baking',
     terms: ['bake', 'baking', 'normal map', 'normal bake', 'ao bake', 'ambient occlusion', 'high to low', 'high-to-low', 'cage bake', 'curvature map'],
     concept: 'Transferring detail/lighting from a high-poly (or scene) onto maps for a low-poly.',
