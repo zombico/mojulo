@@ -22,8 +22,9 @@
  */
 import { humanoidHead } from './humanoid-head.js';
 
-/** the groups' colours (painted limestone: an ochre body and face, the nemes in yellow and blue) */
-export const SPHINX_PALETTE = Object.freeze({ Lion: '#c9a26b', Nemes: '#d8b45a', Lappet: '#3b5d8f', Uraeus: '#c99a3a', Skin: '#b9784a' });
+/** the groups' colours (painted limestone: an ochre body and face, the nemes in yellow striped blue; carved, the blue
+ * stripes are grooves, `…Groove`, a shade darker than the stone: statue/creature.js) */
+export const SPHINX_PALETTE = Object.freeze({ Lion: '#c9a26b', Nemes: '#d8b45a', NemesGroove: '#3b5d8f', Uraeus: '#c99a3a', Skin: '#b9784a' });
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
 /** the Great Sphinx's head, chin to crown under the nemes (G metres: 13.4 to 19.2): the unit the head scales the body by */
@@ -40,11 +41,12 @@ const BODY = [
   { at: [0, 51, 5.3], r: [7.6, 5.3] },     // the back (top 10.6)
   { at: [0, 39, 5.5], r: [7.3, 5.5] },     // the middle (top 11)
   { at: [0, 28, 6.4], r: [8.0, 6.4] },     // the shoulders (top 12.8)
-  { at: [0, 19.5, 6.3], r: [7.4, 6.3] },   // the chest
-  { at: [0, 15, 5.6], r: [6.0, 5.6] },     // the breast
-  { at: [0, 12.6, 5.3], r: [4.9, 4.9] },   // rounding forward between the forelegs
-  { at: [0, 11.2, 4.8], r: [3.4, 3.8] },
+  { at: [0, 19.5, 6.3], r: [7.4, 6.3] },             // the chest
+  { at: [0, 18.3, 6.2], r: [7.0, 6.2], e: 2.7 },      // the breast squaring off
+  { at: [0, 17.5, 6.0], r: [6.6, 5.9], e: 2.9 },      // its front: broad and flat, as a man's chest, set back under the face
 ];
+/** the body's caps: the rump's round, and the breast's flat front set back behind the face (15.4 G), the lappets before it */
+const BODY_CAPS = { back: [0, 75.2, 4.6], tip: [0, 17.1, 6.0] };
 /** the neck from the chest up under the head (hidden by the nemes; it carries the head's weight in the form) */
 const NECK = [{ at: [0, 21, 10.5], r: [3.6, 3.2] }, { at: [0, 18.8, 13.6], r: [3.0, 2.8] }];
 /** a foreleg (the RIGHT; mirrored): from the elbow under the shoulder, forward along the ground to the paw */
@@ -84,26 +86,31 @@ export function sphinxPlan({ preset = 'male', scale = 1, palette = {} } = {}) {
   // the face's place: its chin at 13.4 G, its front (the nose) at 15.4 G from the paws, on the midline
   const front = A([0, 15.4, 13.4]), shift = [r4(-(lo[0] + hi[0]) / 2), r4(front[1] - hi[1]), r4(front[2] - lo[2])];
   const hw = (hi[0] - lo[0]) / 2, top = hi[2] + shift[2], chin = lo[2] + shift[2], faceY = hi[1] + shift[1], backY = lo[1] + shift[1], midY = (faceY + backY) / 2;
-  const loft = (name, stations, group, { slots = 'ring8', mirror = 'plane', e = 2.2 } = {}) => ({ name, kind: 'loft', stations: stations.map((s) => ({ at: s.at, r: s.r })), slots, e, frame: 'keep', group, tint: P[group], mirror });
-  const G = (list) => list.map((s) => ({ at: A(s.at), r: R(s.r) }));
+  const loft = (name, stations, group, { slots = 'ring8', mirror = 'plane', e = 2.2 } = {}) => ({ name, kind: 'loft', stations: stations.map((s) => ({ at: s.at, r: s.r, ...(s.e ? { e: s.e } : {}) })), slots, e, frame: 'keep', group, tint: P[group], mirror });
+  const G = (list) => list.map((s) => ({ at: A(s.at), r: R(s.r), ...(s.e ? { e: s.e } : {}) }));
   const m = (x) => r4(x);
-  // the nemes, from the head's bounds (metres): a cap over the crown, the wings, the lappets, the queue
-  const cap = [
-    { at: [0, m(backY - 0.01 * h), m(top - 0.18 * h)], r: [m(hw * 1.08), m(0.26 * h)] },
-    { at: [0, m(midY), m(top - 0.14 * h)], r: [m(hw * 1.14), m(0.26 * h)] },
-    { at: [0, m(faceY - 0.18 * h), m(top - 0.14 * h)], r: [m(hw * 1.1), m(0.22 * h)] },
+  // THE NEMES, from the head's bounds (metres), as the headcloth is: not a cap set on the head but a WRAP. Its opening
+  // is tilted, its top forward on the brow band across the forehead and its sides back behind the cheeks, so the face
+  // looks out of it; it sweeps back over the crown and down to the queue, striped in grooves radiating from the brow;
+  // behind the face it folds out each side like a cobra's hood, the wings flaring from the temples to past the
+  // shoulders, striped across; the lappets fall in front of the shoulders, striped across.
+  const N = 'Nemes', NG = 'NemesGroove';
+  const hood = [
+    { at: [0, m(faceY - 0.3 * h), m(chin + 0.52 * h)], r: [m(hw * 1.12), m(0.6 * h)] },
+    { at: [0, m(faceY - 0.55 * h), m(chin + 0.62 * h)], r: [m(hw * 1.18), m(0.62 * h)] },
+    { at: [0, m(backY + 0.05 * h), m(chin + 0.55 * h)], r: [m(hw * 1.1), m(0.58 * h)] },
+    { at: [0, m(backY - 0.12 * h), m(chin + 0.25 * h)], r: [m(hw * 0.8), m(0.45 * h)] },
   ];
-  // the wings flare from the temples to past the shoulders: the nemes' trapezoid seen from the front
-  const wing = [
-    { at: [m(hw * 1.04), m(midY), m(top - 0.3 * h)], r: [m(0.06 * h), m(0.42 * h)] },
-    { at: [m(hw * 1.5), m(midY - 0.02 * h), m(chin + 0.1 * h)], r: [m(0.06 * h), m(0.45 * h)] },
-    { at: [m(hw * 2.25), m(midY - 0.08 * h), m(chin - 0.42 * h)], r: [m(0.07 * h), m(0.5 * h)] },
-  ];
-  const lappet = [
-    { at: [m(hw * 1.15), m(faceY - 0.32 * h), m(chin + 0.05 * h)], r: [m(0.13 * h), m(0.05 * h)] },
-    { at: [m(hw * 1.05), m(faceY - 0.26 * h), m(chin - 0.45 * h)], r: [m(0.13 * h), m(0.05 * h)] },
-    { at: [m(hw * 0.95), m(faceY - 0.22 * h), m(chin - 0.85 * h)], r: [m(0.12 * h), m(0.045 * h)] },
-  ];
+  // the opening's cap a hair in front of its ring (a shallow face, inside the head, so the face covers it)
+  const o0 = hood[0].at, o1 = hood[1].at, od = Math.hypot(o1[1] - o0[1], o1[2] - o0[2]);
+  const hoodCaps = { back: [0, m(o0[1] - (o1[1] - o0[1]) / od * 0.03 * h), m(o0[2] - (o1[2] - o0[2]) / od * 0.03 * h)], tip: [0, m(backY - 0.25 * h), m(chin + 0.1 * h)] };
+  const radiate = Object.fromEntries([0, 1, 2].map((i) => [`st${i}-st${i + 1}`, [N, NG, N, NG, N, NG]]));   // ring12: six bands a side
+  const WING_N = 9, wing = Array.from({ length: WING_N }, (_, i) => { const t = i / (WING_N - 1);
+    return { at: [m(hw * (1.05 + 0.95 * t ** 1.3)), m(faceY - 0.42 * h - 0.1 * h * t), m(chin + 0.75 * h - 1.25 * h * t)], r: [m((0.1 + 0.28 * t) * h), m(0.05 * h)] }; });
+  const across = (n, half) => Object.fromEntries(Array.from({ length: n - 1 }, (_, i) => [`st${i}-st${i + 1}`, Array(half).fill(i % 2 ? NG : N)]));
+  const LAP_N = 7, lappet = Array.from({ length: LAP_N }, (_, i) => { const t = i / (LAP_N - 1);
+    // straight down the flat front of the breast, just under the face
+    return { at: [m(hw * (1.08 - 0.12 * t)), m(faceY - 0.1 * h + 0.12 * h * t), m(chin - 0.02 * h - 0.95 * h * t)], r: [m(0.13 * h), m(0.045 * h)] }; });
   const queue = [
     { at: [0, m(backY - 0.02 * h), m(top - 0.45 * h)], r: [m(0.18 * h), m(0.09 * h)] },
     { at: [0, m(backY - 0.08 * h), m(chin - 0.45 * h)], r: [m(0.14 * h), m(0.07 * h)] },
@@ -118,14 +125,14 @@ export function sphinxPlan({ preset = 'male', scale = 1, palette = {} } = {}) {
     frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a recumbent sphinx after the Great Sphinx's proportions, its face life-size × ${scale}, facing +y` },
     joints: {},
     segments: [
-      loft('body', G(BODY), 'Lion', { slots: 'ring12' }),
+      { ...loft('body', G(BODY), 'Lion', { slots: 'ring12' }), caps: { back: A(BODY_CAPS.back), tip: A(BODY_CAPS.tip) } },
       loft('neck', G(NECK), 'Lion'),
       loft('forelegR', G(FORELEG), 'Lion', { mirror: 'name' }),
       loft('hindlegR', G(HINDLEG), 'Lion', { mirror: 'name' }),
       loft('tail', G(TAIL), 'Lion', { mirror: null, slots: 'ring6' }),
-      loft('nemesCap', cap, 'Nemes', { slots: 'ring10' }),
-      loft('nemesR', wing, 'Nemes', { mirror: 'name', e: 2.6 }),
-      loft('lappetR', lappet, 'Lappet', { mirror: 'name', e: 2.6 }),
+      { ...loft('nemesHood', hood, 'Nemes', { slots: 'ring12', e: 2.6 }), caps: hoodCaps, bandGroups: radiate },
+      { ...loft('nemesR', wing, 'Nemes', { mirror: 'name', e: 2.8 }), bandGroups: across(WING_N, 4) },
+      { ...loft('lappetR', lappet, 'Nemes', { mirror: 'name', e: 2.8 }), bandGroups: across(LAP_N, 4) },
       loft('queue', queue, 'Nemes'),
       loft('uraeus', uraeus, 'Uraeus', { slots: 'ring6' }),
     ],
@@ -142,7 +149,7 @@ export function sphinxPlan({ preset = 'male', scale = 1, palette = {} } = {}) {
 // Drawn in metres off the paws' front (`ya`, backward) and mirrored by name; the frame as the sphinx's.
 
 /** the groups' colours (sandstone, a darker horn, the headcloth's blue lappets) */
-export const CRIOSPHINX_PALETTE = Object.freeze({ Lion: '#c7a77a', Horn: '#a98d66', Nemes: '#c2a273', Lappet: '#46679a', King: '#b89a6e' });
+export const CRIOSPHINX_PALETTE = Object.freeze({ Lion: '#c7a77a', Horn: '#a98d66', Nemes: '#c2a273', NemesGroove: '#46679a', King: '#b89a6e' });
 /** an avenue sphinx's length, the paws' front to the rump (m): `ya` runs from 0 there */
 const CRIO_L = 5.0;
 const CRIO = {
@@ -151,7 +158,7 @@ const CRIO = {
   head: [[0, 1.28, 2.36, 0.29, 0.31], [0, 0.98, 2.42, 0.31, 0.3], [0, 0.58, 2.22, 0.2, 0.25], [0, 0.24, 1.96, 0.15, 0.17], [0, 0.08, 1.8, 0.12, 0.12]],
   horn: [[0.17, 1.02, 2.62, 0.12, 0.12], [0.35, 1.24, 2.5, 0.115, 0.115], [0.44, 1.2, 2.16, 0.1, 0.1], [0.42, 0.86, 1.98, 0.085, 0.085], [0.39, 0.7, 2.17, 0.065, 0.065], [0.36, 0.8, 2.3, 0.04, 0.04]],
   ear: [[0.29, 0.86, 2.16, 0.04, 0.08], [0.5, 0.86, 2.1, 0.03, 0.05]],
-  lappet: [[0.36, 0.8, 2.12, 0.11, 0.05], [0.35, 0.76, 1.7, 0.11, 0.05], [0.33, 0.74, 1.26, 0.1, 0.045]],
+  lappet: [[0.36, 0.8, 2.12, 0.11, 0.05], [0.358, 0.79, 1.97, 0.11, 0.05], [0.355, 0.78, 1.82, 0.11, 0.05], [0.352, 0.77, 1.66, 0.105, 0.05], [0.345, 0.76, 1.5, 0.1, 0.048], [0.338, 0.75, 1.38, 0.1, 0.046], [0.33, 0.74, 1.26, 0.1, 0.045]],
   foreleg: [[0.42, 1.4, 0.32, 0.2, 0.3], [0.42, 0.7, 0.24, 0.19, 0.22], [0.42, 0.18, 0.15, 0.22, 0.14]],
   hindleg: [[0.62, 4.1, 0.5, 0.18, 0.36], [0.66, 3.45, 0.18, 0.16, 0.16], [0.66, 3.15, 0.12, 0.15, 0.12]],
   tail: [[0.3, 4.95, 0.35, 0.07, 0.07], [0.6, 4.72, 0.12, 0.065, 0.06], [0.72, 4.1, 0.07, 0.055, 0.05], [0.73, 3.2, 0.07, 0.05, 0.045], [0.72, 2.5, 0.07, 0.045, 0.04]],
@@ -169,11 +176,12 @@ export function criosphinxPlan({ scale = 1, palette = {} } = {}) {
     joints: {},
     segments: [
       loft('body', CRIO.body, 'Lion', { slots: 'ring12' }),
-      loft('fall', CRIO.fall, 'Nemes', { slots: 'ring10' }),
+      // the headcloth striped as the nemes is: grooves radiating over the shoulders, the lappets striped across
+      { ...loft('fall', CRIO.fall, 'Nemes', { slots: 'ring10' }), bandGroups: { 'st0-st1': ['Nemes', 'NemesGroove', 'Nemes', 'NemesGroove', 'Nemes'], 'st1-st2': ['Nemes', 'NemesGroove', 'Nemes', 'NemesGroove', 'Nemes'] } },
       loft('head', CRIO.head, 'Lion', { slots: 'ring10' }),
       loft('hornR', CRIO.horn, 'Horn', { mirror: 'name', slots: 'ring6' }),
       loft('earR', CRIO.ear, 'Lion', { mirror: 'name', slots: 'ring6', e: 2.4 }),
-      loft('lappetR', CRIO.lappet, 'Lappet', { mirror: 'name', e: 2.6 }),
+      { ...loft('lappetR', CRIO.lappet, 'Nemes', { mirror: 'name', e: 2.6 }), bandGroups: Object.fromEntries(CRIO.lappet.slice(1).map((_, i) => [`st${i}-st${i + 1}`, Array(4).fill(i % 2 ? 'NemesGroove' : 'Nemes')])) },
       loft('forelegR', CRIO.foreleg, 'Lion', { mirror: 'name' }),
       loft('hindlegR', CRIO.hindleg, 'Lion', { mirror: 'name' }),
       loft('tail', CRIO.tail, 'Lion', { mirror: null, slots: 'ring6' }),

@@ -139,7 +139,23 @@
    "frame": "keep",
    "group": "Nemes",
    "tint": "#c2a273",
-   "mirror": "plane"
+   "mirror": "plane",
+   "bandGroups": {
+    "st0-st1": [
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove",
+     "Nemes"
+    ],
+    "st1-st2": [
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove",
+     "Nemes"
+    ]
+   }
   },
   {
    "name": "head",
@@ -337,13 +353,57 @@
     },
     {
      "at": [
-      0.35,
-      1.74,
-      1.7
+      0.358,
+      1.71,
+      1.97
      ],
      "r": [
       0.11,
       0.05
+     ]
+    },
+    {
+     "at": [
+      0.355,
+      1.72,
+      1.82
+     ],
+     "r": [
+      0.11,
+      0.05
+     ]
+    },
+    {
+     "at": [
+      0.352,
+      1.73,
+      1.66
+     ],
+     "r": [
+      0.105,
+      0.05
+     ]
+    },
+    {
+     "at": [
+      0.345,
+      1.74,
+      1.5
+     ],
+     "r": [
+      0.1,
+      0.048
+     ]
+    },
+    {
+     "at": [
+      0.338,
+      1.75,
+      1.38
+     ],
+     "r": [
+      0.1,
+      0.046
      ]
     },
     {
@@ -361,9 +421,47 @@
    "slots": "ring8",
    "e": 2.6,
    "frame": "keep",
-   "group": "Lappet",
-   "tint": "#46679a",
-   "mirror": "name"
+   "group": "Nemes",
+   "tint": "#c2a273",
+   "mirror": "name",
+   "bandGroups": {
+    "st0-st1": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st1-st2": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ],
+    "st2-st3": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st3-st4": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ],
+    "st4-st5": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st5-st6": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ]
+   }
   },
   {
    "name": "forelegR",
@@ -627,7 +725,7 @@
   "Lion": "#c7a77a",
   "Horn": "#a98d66",
   "Nemes": "#c2a273",
-  "Lappet": "#46679a",
+  "NemesGroove": "#46679a",
   "King": "#b89a6e"
  }
 }

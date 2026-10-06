@@ -17,8 +17,16 @@ describe('the sphinx', () => {
   it('expands deterministically, every part closes, and it wears the carved head in a nemes, beardless', () => {
     expect(JSON.stringify(expandPlan(sphinxPlan()))).toBe(JSON.stringify(recipe));
     expect(Object.entries(auditLayered(mesh)).filter(([, r]) => !r.pass).map(([n]) => n)).toEqual([]);
-    for (const p of ['body', 'forelegR', 'forelegL', 'hindlegR', 'tail', 'nemesCap', 'nemesR', 'nemesL', 'lappetR', 'queue', 'uraeus', 'cranium', 'jaw', 'eyeR', 'noseR'].filter((n) => n !== 'noseR')) expect(recipe.parts[p], p).toBeTruthy();
+    for (const p of ['body', 'forelegR', 'forelegL', 'hindlegR', 'tail', 'nemesHood', 'nemesR', 'nemesL', 'lappetR', 'queue', 'uraeus', 'cranium', 'jaw', 'eyeR', 'noseR'].filter((n) => n !== 'noseR')) expect(recipe.parts[p], p).toBeTruthy();
     expect(Object.keys(recipe.parts).some((n) => /beard|hair/i.test(n))).toBe(false);
+  });
+  it('the nemes is a striped wrap: its opening tilted (the brow band forward), stripes radiating over the hood and across the wings and lappets', () => {
+    const P = recipe.parts, hood = P.nemesHood, st0 = hood.stations[0].points;
+    expect(st0.front[1]).toBeGreaterThan(st0.back[1]);   // the ring's top (front slot) stands ahead of its bottom
+    expect(Object.values(hood.bandGroups).every((g) => g.join() === 'Nemes,NemesGroove,Nemes,NemesGroove,Nemes,NemesGroove')).toBe(true);
+    for (const n of ['nemesR', 'lappetR']) { const G = Object.values(P[n].bandGroups).map((g) => g[0]); expect(G.filter((g) => g === 'NemesGroove').length).toBeGreaterThanOrEqual(3); expect(G[0]).not.toBe(G[1]); }
+    const wing = box(mesh, ['nemesR']), head = box(mesh, ['cranium']);
+    expect(wing.hi[0]).toBeGreaterThan(1.7 * head.hi[0]);   // folded out past the shoulders, a cobra's hood
   });
   it("lies as Giza's does: long and low, the forelegs reaching forward, the head over the breast, the belly on the floor", () => {
     const all = box(mesh), body = box(mesh, ['body']), head = box(mesh, ['cranium', 'jaw']), fore = box(mesh, ['forelegR']);

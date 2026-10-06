@@ -43,7 +43,7 @@ import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
-import { creatureStatue, mountedStatue, riderSeat, validateCreatureStatue } from '@/lib/graph/statue/creature';
+import { creatureStatue, mountedStatue, riderSeat, validateCreatureStatue, carveCreatureRecipe, creatureBaseOf } from '@/lib/graph/statue/creature';
 import { resolveMaterial, tagFacesWithMaterial } from '@/lib/graph/polygonizer/materials';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { meshSource } from '@/lib/graph/polygonizer/stroke-resolve';
@@ -537,6 +537,11 @@ export const WORLD_KINDS = {
   layered: {
     title: 'mojulo layered solid',
     resolve: async (m, ctx) => {
+      // A CREATURE carved (statue/creature.js, opt-in `statue` on a plan that is not a hero: the creature designer's
+      // sphinx, horse, bull): every palette group the material (a `…Groove` group a shade darker: a carved channel), the
+      // surfaces tagged; its base below. Absent ⇒ byte-identical.
+      const creature = !m.hero && m.statue ? m.statue : null;
+      if (creature) { const errs = validateCreatureStatue(creature); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); m = { ...m, recipe: carveCreatureRecipe(m.recipe, creature) }; }
       // The compiled mesh IS the solid: every closed part exact, whatever its shape (station-loft-faces.js),
       // on the workbench studio through the same faces seam the scad kind rides.
       const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
@@ -603,7 +608,9 @@ export const WORLD_KINDS = {
       if (based?.faces.length) faces.push(...based.faces);
       // A CREATURE carved (statue/creature.js, opt-in `statue` on a plan that is not a hero: the creature designer's
       // sphinx, horse, dragon): one material over every face, an oblong base under it. Absent ⇒ byte-identical.
-      if (!m.hero && m.statue) { const errs = validateCreatureStatue(m.statue); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); const carved = creatureStatue(faces, m.statue, { light }).faces; faces.length = 0; faces.push(...carved); }
+      if (creature) { const B = creatureBaseOf(creature), on = statueBaseFaces(faces, { kind: B.kind, tone: B.tone, light, oblong: true, tag: (fs) => tagFacesWithMaterial(fs, resolveMaterial(B.surface)) });
+        if (on.lift) for (const f of faces) f.corners = f.corners.map((c) => [c[0], c[1], Math.round((c[2] + on.lift) * 1e9) / 1e9]);
+        faces.push(...on.faces); }
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark

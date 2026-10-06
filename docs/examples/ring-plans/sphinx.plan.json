@@ -80,35 +80,26 @@
     {
      "at": [
       0,
-      0.8096,
-      0.2159
+      0.6824,
+      0.239
      ],
      "r": [
-      0.2313,
-      0.2159
-     ]
+      0.2699,
+      0.239
+     ],
+     "e": 2.7
     },
     {
      "at": [
       0,
-      0.9021,
-      0.2043
+      0.7132,
+      0.2313
      ],
      "r": [
-      0.1889,
-      0.1889
-     ]
-    },
-    {
-     "at": [
-      0,
-      0.9561,
-      0.185
+      0.2544,
+      0.2275
      ],
-     "r": [
-      0.1311,
-      0.1465
-     ]
+     "e": 2.9
     }
    ],
    "slots": "ring12",
@@ -116,7 +107,19 @@
    "frame": "keep",
    "group": "Lion",
    "tint": "#c9a26b",
-   "mirror": "plane"
+   "mirror": "plane",
+   "caps": {
+    "back": [
+     0,
+     -1.5112,
+     0.1773
+    ],
+    "tip": [
+     0,
+     0.7286,
+     0.2313
+    ]
+   }
   },
   {
    "name": "neck",
@@ -321,49 +324,98 @@
    "mirror": null
   },
   {
-   "name": "nemesCap",
+   "name": "nemesHood",
    "kind": "loft",
    "stations": [
     {
      "at": [
       0,
-      0.6041,
-      0.7
+      0.7271,
+      0.6329
      ],
      "r": [
-      0.0832,
-      0.0581
+      0.0863,
+      0.1342
      ]
     },
     {
      "at": [
       0,
-      0.7003,
-      0.7089
+      0.6712,
+      0.6552
      ],
      "r": [
-      0.0878,
-      0.0581
+      0.0909,
+      0.1386
      ]
     },
     {
      "at": [
       0,
-      0.754,
-      0.7089
+      0.6175,
+      0.6396
      ],
      "r": [
       0.0847,
-      0.0492
+      0.1297
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.5795,
+      0.5725
+     ],
+     "r": [
+      0.0616,
+      0.1006
      ]
     }
    ],
-   "slots": "ring10",
-   "e": 2.2,
+   "slots": "ring12",
+   "e": 2.6,
    "frame": "keep",
    "group": "Nemes",
    "tint": "#d8b45a",
-   "mirror": "plane"
+   "mirror": "plane",
+   "caps": {
+    "back": [
+     0,
+     0.7333,
+     0.6304
+    ],
+    "tip": [
+     0,
+     0.5504,
+     0.539
+    ]
+   },
+   "bandGroups": {
+    "st0-st1": [
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove"
+    ],
+    "st1-st2": [
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove"
+    ],
+    "st2-st3": [
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove",
+     "Nemes",
+     "NemesGroove"
+    ]
+   }
   },
   {
    "name": "nemesR",
@@ -371,44 +423,160 @@
    "stations": [
     {
      "at": [
-      0.0801,
+      0.0809,
       0.7003,
-      0.6731
+      0.6843
      ],
      "r": [
-      0.0134,
-      0.0939
+      0.0224,
+      0.0112
      ]
     },
     {
      "at": [
-      0.1155,
-      0.6958,
-      0.539
+      0.0858,
+      0.6975,
+      0.6494
      ],
      "r": [
-      0.0134,
-      0.1006
+      0.0302,
+      0.0112
      ]
     },
     {
      "at": [
-      0.1733,
-      0.6824,
-      0.4227
+      0.0929,
+      0.6947,
+      0.6144
      ],
      "r": [
-      0.0157,
-      0.1118
+      0.038,
+      0.0112
+     ]
+    },
+    {
+     "at": [
+      0.1013,
+      0.6919,
+      0.5795
+     ],
+     "r": [
+      0.0458,
+      0.0112
+     ]
+    },
+    {
+     "at": [
+      0.1106,
+      0.6891,
+      0.5445
+     ],
+     "r": [
+      0.0537,
+      0.0112
+     ]
+    },
+    {
+     "at": [
+      0.1206,
+      0.6863,
+      0.5096
+     ],
+     "r": [
+      0.0615,
+      0.0112
+     ]
+    },
+    {
+     "at": [
+      0.1312,
+      0.6835,
+      0.4747
+     ],
+     "r": [
+      0.0693,
+      0.0112
+     ]
+    },
+    {
+     "at": [
+      0.1424,
+      0.6807,
+      0.4397
+     ],
+     "r": [
+      0.0771,
+      0.0112
+     ]
+    },
+    {
+     "at": [
+      0.154,
+      0.6779,
+      0.4048
+     ],
+     "r": [
+      0.085,
+      0.0112
      ]
     }
    ],
    "slots": "ring8",
-   "e": 2.6,
+   "e": 2.8,
    "frame": "keep",
    "group": "Nemes",
    "tint": "#d8b45a",
-   "mirror": "name"
+   "mirror": "name",
+   "bandGroups": {
+    "st0-st1": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st1-st2": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ],
+    "st2-st3": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st3-st4": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ],
+    "st4-st5": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st5-st6": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ],
+    "st6-st7": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st7-st8": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ]
+   }
   },
   {
    "name": "lappetR",
@@ -416,44 +584,126 @@
    "stations": [
     {
      "at": [
-      0.0886,
-      0.7227,
-      0.5278
+      0.0832,
+      0.7718,
+      0.5121
      ],
      "r": [
       0.0291,
-      0.0112
+      0.0101
      ]
     },
     {
      "at": [
-      0.0809,
-      0.7361,
-      0.416
+      0.0816,
+      0.7763,
+      0.4767
      ],
      "r": [
       0.0291,
-      0.0112
+      0.0101
      ]
     },
     {
      "at": [
-      0.0732,
-      0.745,
-      0.3265
+      0.0801,
+      0.7808,
+      0.4413
      ],
      "r": [
-      0.0268,
+      0.0291,
+      0.0101
+     ]
+    },
+    {
+     "at": [
+      0.0786,
+      0.7853,
+      0.4059
+     ],
+     "r": [
+      0.0291,
+      0.0101
+     ]
+    },
+    {
+     "at": [
+      0.077,
+      0.7897,
+      0.3705
+     ],
+     "r": [
+      0.0291,
+      0.0101
+     ]
+    },
+    {
+     "at": [
+      0.0755,
+      0.7942,
+      0.3351
+     ],
+     "r": [
+      0.0291,
+      0.0101
+     ]
+    },
+    {
+     "at": [
+      0.0739,
+      0.7987,
+      0.2997
+     ],
+     "r": [
+      0.0291,
       0.0101
      ]
     }
    ],
    "slots": "ring8",
-   "e": 2.6,
+   "e": 2.8,
    "frame": "keep",
-   "group": "Lappet",
-   "tint": "#3b5d8f",
-   "mirror": "name"
+   "group": "Nemes",
+   "tint": "#d8b45a",
+   "mirror": "name",
+   "bandGroups": {
+    "st0-st1": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st1-st2": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ],
+    "st2-st3": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st3-st4": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ],
+    "st4-st5": [
+     "Nemes",
+     "Nemes",
+     "Nemes",
+     "Nemes"
+    ],
+    "st5-st6": [
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove",
+     "NemesGroove"
+    ]
+   }
   },
   {
    "name": "queue",
@@ -12191,7 +12441,7 @@
   "Nostrils": "#6d543f",
   "Lion": "#c9a26b",
   "Nemes": "#d8b45a",
-  "Lappet": "#3b5d8f",
+  "NemesGroove": "#3b5d8f",
   "Uraeus": "#c99a3a"
  }
 }

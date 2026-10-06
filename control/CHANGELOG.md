@@ -67,8 +67,11 @@ byte-identical. Being built on this branch; the sphinx comes next.
   collapsing); absent, every loft is unchanged.
 - **A sphinx in the library.** A sphinx ring plan, built the same way: a lion lying on its belly in the Great Sphinx's own
   proportions, forelegs reaching forward, hind legs folded, the tail along the right flank, wearing the hero's carved
-  landmark head (no hair, no beard) in a nemes (the cap, wings flaring to the shoulders, lappets on the chest, the
-  queue) with the uraeus. Core as `sphinxPlan({ preset, scale, palette })`, worked as
+  landmark head (no hair, no beard) in a nemes with the uraeus. The nemes is a striped wrap, not a cap: its opening
+  tilted so the brow band crosses the forehead and the face looks out of it, its stripes radiating back over the crown;
+  behind the face it folds out each side like a cobra's hood, the wings flaring past the shoulders, striped across, and
+  the lappets hang striped down a breast that is broad and flat, as a man's chest, set back under the face. Carved, the stripes are grooves: a palette group named `…Groove` takes the
+  stone a shade darker. The criosphinx's headcloth is striped the same way. Core as `sphinxPlan({ preset, scale, palette })`, worked as
   `docs/examples/ring-plans/sphinx.plan.json`.
 - **Carved creatures and library forms.** Any layered plan that is not a hero takes `statue` (the creature filter: one
   material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:

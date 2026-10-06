@@ -6,7 +6,9 @@ import { resolveWorldScene } from '../worlds/world-scene.js';
 import { SEEDED_STATUES, STATUE_STYLES } from './styles.js';
 import { validateStatueBuild, validateStatueCard, statueHero, statueWords, statueMaterial, statueBaseOf, STATUE_LAWS_VERSION } from './expand.js';
 import { STATUE_MATERIALS, SEATED_POSE, MOUNTED_POSE, MOUNT_GROUP } from './principles.js';
-import { validateCreatureStatue, creatureStatue, saddleOf } from './creature.js';
+import { validateCreatureStatue, creatureStatue, saddleOf, carveCreatureRecipe, GROOVE_SHADE } from './creature.js';
+import { sphinxPlan } from '../polygonizer/sphinx-form.js';
+import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { animalWorldFaces } from '../polygonizer/figure-render.js';
 import { ZOO_BUILDS } from '../polygonizer/figure-animal-build.js';
 import { THRONE_GROUP } from './base.js';
@@ -200,6 +202,13 @@ describe('law 10: the creature filter and the mount', () => {
     // oblong: the base runs the body's length
     let y0 = Infinity, y1 = -Infinity, x0 = Infinity, x1 = -Infinity; for (const f of base) for (const c of f.corners) { y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); }
     expect(y1 - y0).toBeGreaterThan(1.5 * (x1 - x0));
+  });
+  it('a carved plan: every group the stone, a groove a shade darker, the surfaces tagged', () => {
+    const R = carveCreatureRecipe(expandPlan(sphinxPlan()), { type: 'statue', material: 'limestone' });
+    const tone = R.palette.Lion;
+    expect(R.palette.Nemes).toBe(tone); expect(R.palette.Skin).toBe(tone); expect(R.palette.NemesGroove).not.toBe(tone);
+    expect(Object.values(R.palette).filter((c) => c !== tone)).toEqual([R.palette.NemesGroove]);
+    expect(R.surfaces['*']).toBeTruthy(); expect(GROOVE_SHADE).toBeLessThan(1);
   });
   it('mounted: the ride stand, refused with a gesture or on a bust; horse and rider on one base, the rider on the saddle', async () => {
     expect(validateStatueBuild({ type: 'statue', stand: 'mounted' }, { gesture: 'guard' }).join()).toMatch(/mounted statue's stand is the ride/);

@@ -20,7 +20,7 @@ import { layeredFaces } from '../polygonizer/station-loft-faces.js';
 import { rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { statueMaterial } from './expand.js';
 import { statueBaseFaces } from './base.js';
-import { shadeHex } from '../polygonizer/vexar.js';
+import { shadeHex, scaleHex } from '../polygonizer/vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
 
 const FIELDS = ['type', 'material', 'base', 'dials', 'laws'];
@@ -58,6 +58,21 @@ export function carveCreatureFaces(faces, input, { light }) {
   const out = faces.map(({ fill, cornerFills: _c, texture: _t, uv: _u, textureLit: _l, island: _i, ...f }) => ({ ...f, fill: Array.isArray(f.outNormal) ? shadeHex(tone, f.outNormal, light) : tone }));
   tagFacesWithMaterial(out, resolveMaterial(surface));
   return out;
+}
+
+/** a palette group carved as a GROOVE (a channel cut in the stone: the nemes' stripes): its name ends `Groove` */
+export const isGrooveGroup = (g) => /Groove$/.test(g);
+/** the shade a groove takes of the material (its channel in shadow) */
+export const GROOVE_SHADE = 0.8;
+/** CARVE + SURFACE on a layered recipe (a creature designer's plan): every palette group the material's tone, a groove a
+ * shade darker; the surfaces `{ '*': the material's }` → a new recipe */
+export function carveCreatureRecipe(recipe, input) {
+  const { material, wear } = creatureStatueWords(input), { tone, surface } = statueMaterial(material, { wear });
+  const groups = new Set(Object.keys(recipe.palette || {}));
+  for (const p of Object.values(recipe.parts || {})) { groups.add(p.group ?? 'Body'); for (const v of Object.values(p.groups || {})) groups.add(v); for (const v of Object.values(p.bandGroups || {})) for (const g of v) if (g) groups.add(g); for (const v of Object.values(p.capGroups || {})) if (v) groups.add(v); }
+  const palette = Object.fromEntries([...groups].sort().map((g) => [g, isGrooveGroup(g) ? scaleHex(tone, GROOVE_SHADE) : tone]));
+  const { emissive: _glow, ...rest } = recipe;
+  return { ...rest, palette, surfaces: { '*': surface } };
 }
 
 /** BASE: the base's word and stone (a metal animal stands on limestone, law 7) */
