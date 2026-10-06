@@ -103,6 +103,8 @@ export const family = {
 
 // the species of this family: each the numbers over the family's tables that make it that animal
 export const species = {
+  // kept v15 (blind judges, both orders: v15 (shorter, wider muzzle, small nostrils, head raised) over v12 60%/60%;
+  // vs v1 split 1-1 (85% for v15, 75% for v1))
   // DOMESTIC BULL (Bos taurus, a beef breed, Hereford colours) — the bovid family's worked species. Thesis: a massive
   // deep rectangular trunk with a near-level back on short sturdy legs, cloven hooves · a heavy neck with a hanging
   // dewlap · a broad short face sloping down from a wide flat poll to a broad muzzle · HORNS out and forward from the
@@ -110,7 +112,7 @@ export const species = {
   // ~1.40–1.50 m hip/withers height, breed-society frame-score tables).
   bull: {
     family: 'bovid', name: 'a domestic bull',
-    legBulk: 1.5, bulk: 1.08, headScale: 1.2, muzzleW: 1.15, muzzleLen: 0.8,
+    legBulk: 1.5, bulk: 1.08, headScale: 1.2, muzzleW: 1.6, muzzleLen: 0.42, noseR: [0.02, 0.015], headPitch: 2,
     earR: [0.05, 0.085, 0.08, 0.035], earH: 1.5,
     headOrnaments: [
       { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.10, -0.10, 0.11], [0.20, -0.10, 0.12], [0.28, -0.07, 0.13], [0.33, 0.0, 0.15], [0.34, 0.07, 0.18]], radii: [0.045, 0.038, 0.03, 0.02, 0.008], m: 8, group: 'Horn' },
@@ -159,6 +161,7 @@ export const species = {
       { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.02, -0.04, 0.10], [0.06, -0.12, 0.22], [0.09, -0.20, 0.34], [0.10, -0.20, 0.46], [0.08, -0.12, 0.56], [0.07, -0.06, 0.60]], radii: [0.022, 0.019, 0.016, 0.012, 0.008, 0.004], m: 8, group: 'Horn' },
     ],
   },
+  // kept v4 (upgrade pass 2026-10-06: v6 (spiral flare, stronger Roman nose, heavier barrel) vs v4 split 1-1 → tie keeps v4)
   // BIGHORN RAM (Ovis canadensis) — Thesis: a stocky deep barrel on short sturdy legs, cloven hooves · a thick neck,
   // a Roman-nosed (convex) face · ONE signature: massive horns curling back, down and forward round the ear in a
   // spiral · a short tail, a pale rump and muzzle · 0.95 m at the withers (published 0.9–1.05 m ram shoulder height;
@@ -251,6 +254,7 @@ export const species = {
     ],
   },
 
+  // kept v1 (blind judges, both orders: v4 (hump moved forward, head raised, wider front) vs v1 split 1-1 → tie keeps v1)
   // AMERICAN BISON (Bison bison, bull) — Thesis: a front-heavy wedge: a MASSIVE shoulder hump high over the forelegs,
   // the back line falling steeply to a small narrow rump, on short legs, cloven hooves · the huge head carried LOW,
   // below the back line, broad-faced with a beard · ONE/TWO signatures: the hump, and the SHAGGY dark forequarters
@@ -293,15 +297,16 @@ export const species = {
     ],
   },
 
+  // kept v5 (blind judges, both orders: v5 (patched coat via markings, bigger ears, leaner neck) over v1, 85% / 85%)
   // HOLSTEIN DAIRY COW (Bos taurus, Holstein-Friesian) — Thesis: a big ANGULAR wedge-shaped frame: a level back,
   // the hip bones (hooks) and pin bones jutting at the rump, a lean neck, little flesh over the ribs, on long clean
   // legs, cloven hooves · a polled lean head · ONE/TWO signatures: the large UDDER with four teats between the hind
-  // legs, and the black-and-white coat (no markings channel in build.js: the coat is black with white belly, legs,
-  // face blaze and tail switch, not patches) · 1.45 m at the withers (published mature Holstein cow ~1.45–1.50 m;
+  // legs, and the black-and-white PATCHED coat (white ground, black patches on the trunk and neck via markings, white
+  // belly and legs) · 1.45 m at the withers (published mature Holstein cow ~1.45–1.50 m;
   // Holstein Association USA / Oklahoma State Breeds of Livestock).
   dairyCow: {
     family: 'bovid', name: 'a Holstein dairy cow', scale: 1,
-    colors: { coat: '#1a1818', sock: '#f2efe8', ash: '#1a1818', ashAlt: '#222020', snout: '#f2efe8', brow: '#111010', belly: '#f2efe8', tip: '#f2efe8', hoof: '#3a3430', nose: '#c89a94', mane: '#e8b0a8' },
+    colors: { coat: '#f2efe8', sock: '#f2efe8', ash: '#1a1818', ashAlt: '#222020', snout: '#f2efe8', brow: '#111010', belly: '#f2efe8', tip: '#f2efe8', hoof: '#3a3430', nose: '#c89a94', mane: '#e8b0a8' },
     joints: {
       neckBase: [0, 0.55, 1.14], neckTop: [0, 1.02, 1.24],
       hookR: [0.24, -0.62, 1.40], hookR2: [0.27, -0.62, 1.36], pinR: [0.09, -1.02, 1.30], pinR2: [0.10, -1.08, 1.27],
@@ -317,8 +322,16 @@ export const species = {
       { at: [0, 0.62, 1.04], r: [0.25, 0.36] },
     ],
     torsoCaps: { back: [0, -1.10, 1.10], tip: [0, 0.78, 1.0] },
-    neckRA: [0.20, 0.30], neckRB: [0.15, 0.20], neckRMid: [0.16, 0.24],
+    neckRA: [0.18, 0.27], neckRB: [0.13, 0.17], neckRMid: [0.14, 0.20],
     legBulk: 1.0, headScale: 0.95, muzzleW: 1.0, muzzleLen: 0.95,
+    earR: [0.045, 0.07, 0.065, 0.028], earH: 1.3,
+    // the Holstein coat (markings channel): big irregular black patches over a white ground on the trunk and neck,
+    // the belly and the legs left white
+    markDensity: { torso: 2, neck: 2 },
+    markings: [
+      { on: 'torso', kind: 'patch', run: [0.02, 0.98], t: [0, 0.62], grid: [3, 2], size: [0.75, 0.9], brick: true, jitter: 0.7, seed: 5, group: 'Patch', color: '#1a1818' },
+      { on: 'neck', kind: 'band', run: [0.35, 1], t: [0, 0.7], group: 'Patch', color: '#1a1818' },
+    ],
     // the face white (a blaze down the front of the face), the poll and cheeks black
     craniumBandGroups: Object.fromEntries(['st2-st3', 'st3-st4', 'st4-st5', 'st5-st6'].map((b) => [b, ['Snout', 'Snout', 'Skull', 'Cheek', 'Jowl', 'Palate']])),
     extraSegments: [

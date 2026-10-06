@@ -41,6 +41,10 @@ export const family = {
 };
 // a species: its own body from the maker (its colours over the family's eye / mouth colours)
 const make = (o) => { const p = cartilageFish(o); return { ...p, colors: p.colors }; };
+// a species' own pass over the maker's legs (the maker is shared): `set` rewrites a leg's radii / group by name,
+// `add` appends legs (and their joints). Absent: the plan is the maker's, byte for byte.
+const tune = (p, { set = {}, add = [], joints = {} } = {}) => ({ ...p, joints: { ...p.joints, ...joints },
+  legs: [...p.legs.map((l) => (set[l[0]] ? set[l[0]](l.slice()) : l)), ...add] });
 
 export const species = {
   // GREAT WHITE SHARK (Carcharodon carcharias). Thesis: a heavy FUSIFORM torpedo, deepest just behind the
@@ -53,9 +57,11 @@ export const species = {
   // the head (~25% of body length) with the eyes at its tips · a slimmer torpedo than the white · a very TALL,
   // sickle-curved first dorsal · a long upper caudal lobe with a short lower lobe · grey-bronze back, pale belly ·
   // ~3.5 m total length (Wikipedia / Florida Museum: adults typically 3.5 m, up to 6.1 m).
+  // kept v11 (upgrade pass 1006, blind judges both orders vs v7: v11 55% · v11 65%): thicker tapered cephalofoil,
+  // eye knobs at the tips big enough to read
   hammerhead: {
     family: 'chondrichthyan', name: 'a great hammerhead', scale: 0.74,
-    ...make({ ...GREAT_WHITE, head: 'hammer',
+    ...tune(make({ ...GREAT_WHITE, head: 'hammer',
       profile: [[-1.65, 0.15, 0.13], [-1.20, 0.25, 0.30], [-0.50, 0.42, 0.57], [0.20, 0.47, 0.63], [0.85, 0.41, 0.52], [1.20, 0.33, 0.36]].map(([y, w, h]) => [y, w * 0.8, h * 0.8]),
       snout: { len: 0.15, w: 1.2, scale: 1.9, kz: 0.7 }, neck: { ...GREAT_WHITE.neck, rA: [0.29, 0.32], rB: [0.23, 0.23] },
       // the eyes are the cephalofoil tips (hhEye): the skull's own eye shrinks out of sight; the mouth an underslung
@@ -65,12 +71,17 @@ export const species = {
       dorsal: { at: 0.40, base: 0.72, height: 0.86, sweep: 0.66, thick: 0.04 },
       caudal: { upper: { span: 1.15, angle: 34, chord: 0.16, thick: 0.05 }, lower: { ratio: 0.5, angle: 52, chord: 0.14 } },
       pectoral: { ...GREAT_WHITE.pectoral, drop: 0.30, chord: 0.28, tipChord: 0.07, span: 0.7 },
-      pattern: { back: '#7a7a72', belly: '#e8e6dc', from: 0.6 } }),
+      pattern: { back: '#7a7a72', belly: '#e8e6dc', from: 0.6 } }), {
+      // a THICKER blade in profile, and eye knobs at the tips big enough to read
+      set: { cephInR: (l) => (l[3] = [0.075, l[3][1]], l[4] = [0.065, l[4][1]], l), cephOutR: (l) => (l[3] = [0.065, l[3][1]], l[4] = [0.04, l[4][1]], l),
+        hhEyeR: (l) => (l[3] = 0.07, l[4] = 0.06, l) } }),
   },
   // GIANT OCEANIC MANTA RAY (Mobula birostris). Thesis: a FLAT DIAMOND disc much wider than long, the pectoral
   // WINGS tapering to swept-back pointed tips · two CEPHALIC LOBES projecting forward either side of a wide terminal
   // mouth, eyes on the sides of the head · a thin whip tail about as long as the disc, a small dorsal at its base ·
   // black back, white belly · ~4.5 m disc width (Wikipedia / Marshall et al. 2009: commonly 4.5 m, up to 7 m).
+  // kept v3 (upgrade pass 1006: v7 [thicker disc, flat horn paddles, belly underlayer under the wings] split the
+  // blind judges vs v3, A v3 60% · B v7 70% — a tie keeps the version with fewer changes)
   mantaRay: {
     family: 'chondrichthyan', name: 'a giant manta ray', scale: 1,
     ...make({ head: 'disc',

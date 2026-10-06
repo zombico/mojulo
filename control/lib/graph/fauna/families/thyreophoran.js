@@ -94,28 +94,29 @@ export const species = {
   // rows of OSTEODERMS over the back, SIDE SPIKES along the flanks · a wide short triangular head with HORNS at its
   // back corners · a stiff tail ending in a heavy bony CLUB · ~6–8 m long, ~1.7 m tall (Arbour & Mallon 2017,
   // FACETS 2:764: 6.0–7.9 m).
+  // kept v6 (blind judges, both orders: v6 over v3 55%/60%, v6 over v1 65%/70%)
   ankylosaurus: {
     family: 'thyreophoran', name: 'an ankylosaurus', scale: 1,
     colors: { coat: '#6a5a40', sock: '#5a4c36', ash: '#9a8a68', horn: '#4a3e2c', hoof: '#3a3024' },
     joints: {
       neckBase: [0, 1.30, 1.10], neckTop: [0, 1.95, 1.02],
-      shoulder: [0.62, 1.00, 1.00], elbow: [0.78, 0.92, 0.62], carpus: [0.74, 1.05, 0.26], forePaw: [0.74, 1.07, 0.16], foreToe: [0.74, 1.22, 0.14],
-      hip: [0.62, -0.95, 1.08], stifle: [0.76, -0.70, 0.64], hock: [0.72, -1.02, 0.28], hindPaw: [0.72, -1.00, 0.17], hindToe: [0.72, -0.82, 0.15],
+      shoulder: [0.76, 1.00, 1.00], elbow: [0.92, 0.92, 0.62], carpus: [0.88, 1.05, 0.26], forePaw: [0.88, 1.07, 0.16], foreToe: [0.88, 1.22, 0.14],
+      hip: [0.76, -0.95, 1.08], stifle: [0.90, -0.70, 0.64], hock: [0.86, -1.02, 0.28], hindPaw: [0.86, -1.00, 0.17], hindToe: [0.86, -0.82, 0.15],
       // side spikes: out of the flank edge, pointing out and a little back and down
-      ...Object.fromEntries([1.0, 0.45, -0.1, -0.65, -1.2].flatMap((y, i) => [[`side${i}BaseR`, [0.82, y, 1.30]], [`side${i}TipR`, [1.40, y - 0.18, 1.18]]])),
+      ...Object.fromEntries([1.05, 0.65, 0.25, -0.15, -0.55, -0.95, -1.35].flatMap((y, i) => [[`side${i}BaseR`, [1.05, y, 1.30]], [`side${i}TipR`, [1.65, y - 0.18, 1.18]]])),
     },
     torsoUp: true,
     torso: [
-      { at: [0, -1.55, 1.15], r: [0.55, 0.38], top: 0.08 },
-      { at: [0, -1.10, 1.18], r: [0.85, 0.48], top: 0.12 },
-      { at: [0, -0.30, 1.20], r: [0.98, 0.52], top: 0.14 },
-      { at: [0, 0.50, 1.18], r: [0.95, 0.50], top: 0.12 },
-      { at: [0, 1.05, 1.12], r: [0.75, 0.44], top: 0.08 },
+      { at: [0, -1.55, 1.15], r: [0.74, 0.38], top: 0.08 },
+      { at: [0, -1.10, 1.18], r: [1.14, 0.48], top: 0.12 },
+      { at: [0, -0.30, 1.20], r: [1.30, 0.52], top: 0.14 },
+      { at: [0, 0.50, 1.18], r: [1.26, 0.50], top: 0.12 },
+      { at: [0, 1.05, 1.12], r: [1.0, 0.44], top: 0.08 },
       { at: [0, 1.40, 1.08], r: [0.48, 0.34], top: 0.04 },
     ],
     torsoCaps: { back: [0, -1.80, 1.15], tip: [0, 1.60, 1.08] },
     neckRA: [0.34, 0.28], neckRB: [0.20, 0.17], neckRMid: [0.25, 0.21],
-    tailStations: [[-1.6, 1.18, [0.45, 0.32]], [-2.4, 1.05, [0.32, 0.24]], [-3.3, 0.92, [0.19, 0.15]], [-4.2, 0.82, [0.11, 0.09]], [-4.7, 0.78, [0.09, 0.08]]],
+    tailStations: [[-1.6, 1.18, [0.66, 0.42]], [-2.4, 1.05, [0.46, 0.32]], [-3.3, 0.92, [0.27, 0.2]], [-4.2, 0.82, [0.11, 0.09]], [-4.7, 0.78, [0.09, 0.08]]],
     tailCaps: { back: [0, -1.4, 1.2], tip: [0, -4.85, 0.78] },
     legs: legRows(0.24, 0.19, 0.17, 0.22),
     // a wide short head (~0.6 m long, ~0.7 m wide): the testudine rows widened, the muzzle cut short
@@ -135,9 +136,9 @@ export const species = {
 species.ankylosaurus.extraSegments = [
   { name: 'tailLoft', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true, stations: loftOf(species.ankylosaurus.tailStations), caps: species.ankylosaurus.tailCaps },
   // the tail CLUB: a wide flat bony knob of paired osteoderms round the tail tip
-  { name: 'club', kind: 'loft', slots: 'ring12', group: 'Horn', mirror: 'plane', up: true, stations: loftOf([[-4.45, 0.80, [0.12, 0.10]], [-4.65, 0.80, [0.34, 0.17]], [-4.95, 0.80, [0.36, 0.18]], [-5.20, 0.80, [0.18, 0.12]]]),
-    caps: { back: [0, -4.35, 0.80], tip: [0, -5.32, 0.80] } },
-  ...[0, 1, 2, 3, 4].map((i) => spike(`side${i}`, 0.15 - i * 0.01)),
+  { name: 'club', kind: 'loft', slots: 'ring12', group: 'Horn', mirror: 'plane', up: true, stations: loftOf([[-4.40, 0.80, [0.13, 0.11]], [-4.62, 0.80, [0.55, 0.25]], [-4.98, 0.80, [0.58, 0.26]], [-5.26, 0.80, [0.28, 0.16]]]),
+    caps: { back: [0, -4.30, 0.80], tip: [0, -5.38, 0.80] } },
+  ...[0, 1, 2, 3, 4, 5, 6].map((i) => spike(`side${i}`, 0.15 - i * 0.008)),
 ];
 delete species.ankylosaurus.ankyBack;
 

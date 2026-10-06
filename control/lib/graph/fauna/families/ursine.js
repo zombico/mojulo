@@ -110,6 +110,7 @@ export const species = {
   // a hand off the ground · very short stout legs on plantigrade feet · a broad, flat-topped, blunt head on almost no
   // neck, small round ears · NO visible tail · head-body ≈1.0 m, shoulder ≈0.37 m (published: length 0.8–1.3 m,
   // height ≈0.36 m). Tables in bear-size units, `scale` 0.4 brings it to true size.
+  // kept v4 (2026-10-06 rerun: v6 [rounder ears, bigger blunter head, square rump] vs v4 split 1-1, vs v1 split 1-1 — order bias, tie keeps v4)
   wombat: {
     eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'ursine', name: 'a common wombat', scale: 0.4,

@@ -53,12 +53,12 @@ describe('fauna skeleton', () => {
     }
   });
 
-  it('binds by region and by tube: the torso never rides the neck; a stripe rides its leg, a teat the body', () => {
+  it('binds by region and by tube: the torso never rides the neck; a toe pad rides its foot, a teat the body', () => {
     for (const id of Object.keys(SPECIES)) {
       const t = faunaSkeleton(id).bind.torso;
       if (t?.stations) for (const b of t.stations) expect(b, `${id} torso`).toMatch(/^(spine|tail)\d+$/);
     }
-    expect(faunaSkeleton('zebra').bind.foreArmBand0R).toBe('foreArmR');
+    expect(faunaSkeleton('camel').bind.hindToeOutR).toBe('hindHoofR');
     expect(faunaSkeleton('dairyCow').bind.teatR).toMatch(/^(spine|tail)\d+$/);
     expect(faunaSkeleton('camel').bind.neckUp.stations.at(-1)).toBe('neck2');   // the lofted neck rises to the head
   });
