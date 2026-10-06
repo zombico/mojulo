@@ -578,6 +578,7 @@ async function registerAllTools() {
   const { registerVisualReferenceTools } = await import('@/lib/mcp/tools/visual-reference');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
+  const { registerBuildingTools } = await import('@/lib/mcp/tools/building');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
@@ -735,6 +736,9 @@ async function registerAllTools() {
   // absent install can still mint a flowchart/chart. Shares lib/diagram-core with
   // create_sketch. See kernel-diagram-surface.plan.md.
   registerDiagramTools();
+  // mint_building — one door for the house (layout → dwelling → construction → BIM); mints
+  // through the same mintSketch as create_sketch kind 'floorplan', so both store the same row.
+  registerBuildingTools();
   // The render handoff (render-handoff.plan.md) — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).

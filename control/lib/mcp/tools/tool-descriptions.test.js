@@ -304,7 +304,9 @@ const DESCRIPTION_ALLOWLIST = {
 // `artifact_materialization` type and the `bot` brief scope still work but are no longer listed.
 // Merged into the release candidate 2026-10-06 (255_100 -> 237_700; measured 237,662): the create_sketch diet,
 // the cook diet and the contextmap trim together.
-const PAYLOAD_CEILING = 237_700;
+// Merged with the building ladder 2026-10-06 (237_700 -> 238_700; measured 237,662 -> 238,593): mint_building's
+// entry, less the house redirects it let create_sketch, mint_solid and compose_world drop.
+const PAYLOAD_CEILING = 238_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

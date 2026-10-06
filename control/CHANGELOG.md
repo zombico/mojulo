@@ -58,6 +58,34 @@ opens to a menu, and a member's manual is read when the agent picks it. Dispatch
 - **CLI.** `mojulo <pack_id> --manual <name>[,<name>]` reads manuals from a shell; `mojulo <pack_id>` opens the
   menu.
 
+### Building ladder
+
+A house is one recipe that gains depth: a layout, then a dwelling (furnished, storeys), then its construction
+(framing, roof, drainage), then a BIM model. The surface taught all of it at once (one 23.6 KB card, read for any
+house) and spread it over three packs. Being built on this branch.
+
+- **`mint_building`.** One door for the house: it takes the floorplan manifest `create_sketch` takes, unchanged,
+  and stores the same row. `create_sketch` with `kind: 'floorplan'` still works.
+- **`next` in the result.** A minted or updated building names the steps it can take from here (furnishing,
+  storeys, framing, roof, drainage, the IFC export) and the card for each, computed from what the recipe already
+  has. `mint_building`, `create_sketch` and `update_sketch` all return it for a house. Never stored.
+- **One card per step.** The 23.2 KB `floor-plan` card is split by step: `house-layout` (4.1 KB: seed, footprint,
+  rooms and glyphs, one-room plans, views), `house-dwelling` (8.4 KB: furnishing, your own items, finishes, light,
+  styles), `house-storeys` (3.4 KB: storeys, levels, the walkway check), `house-construction` (6.5 KB: framing,
+  roof covering, drainage) and `house-bim` (1.6 KB: IFC and glTF export). `floor-plan` is now a 1.6 KB index of
+  them, so existing references still land. A layout-only house reads 4.1 KB instead of 23.6; a framed house as IFC
+  reads 15.6 KB. Every JSON example in the six cards is a whole manifest, and a test mints each one.
+- **The door fills two fields.** `kind: 'floorplan'` and the manifest's `title` may be left out; each is added in
+  front only when absent, so a manifest `create_sketch` accepts is stored exactly as `create_sketch` stores it.
+- **A building form and pack.** `get_creative_toolset({ form: 'building' })` and `pack_building` (with
+  `update_sketch`, `get_sketch_vocab` and `export_model` shared in). The studio's HOUSE row and the `house`
+  routing card point at `mint_building`.
+- **Redirects removed.** `pack_diagram`, `pack_object`, `pack_world`, `create_sketch`, `mint_solid`,
+  `compose_world` and the world drawer no longer describe how to mint a house; they say it is `mint_building`.
+- **Ratchet.** One more pack and one more tool cost more than the redirects saved: the packs-mode listing pin
+  rises by 577 bytes (33,263 to 33,840 over the pack menu; pin 33,900) and the flat pin by 931 (237,662 to
+  238,593; pin 238,700).
+
 ### create_sketch diet
 
 `create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now

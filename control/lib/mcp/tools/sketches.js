@@ -89,9 +89,9 @@ export function registerSketchTools() {
   registerTool(withPluginProfile({
     name: 'create_sketch',
     description:
-      "Mint a sketch → `{ ok, ref, url }` (hand the URL off via the host). `manifest.kind`: `floorplan` (a walkable furnished HOUSE / apartment / room; card `floor-plan`), `store` / `mall` / `restaurant`, `historic`" +
+      "Mint a sketch → `{ ok, ref, url }` (hand the URL off via the host). `manifest.kind`: `store` / `mall` / `restaurant`, `historic`" +
       PAINTED_KINDS_CLAUSE +
-      ". `manifest.recipe`: a scene/figure illustration family (knobs via sketch_what_possible). Else hand-built `marks[]` / `stations[]` + `edges[]`; a plain flow or data chart is lighter via mint_diagram. Also restores an exported world recipe. Read the card first: get_sketch_vocab({ id }) or semantic_search({ kinds: ['sketch_vocab'] }). Iterate with update_sketch.",
+      ". `manifest.recipe`: a scene/figure illustration family (knobs via sketch_what_possible). Else hand-built `marks[]` / `stations[]` + `edges[]`; a plain flow or data chart is lighter via mint_diagram; a house is mint_building. Also restores an exported world recipe. Read the card first: get_sketch_vocab({ id }) or semantic_search({ kinds: ['sketch_vocab'] }). Iterate with update_sketch.",
     inputSchema: {
       type: 'object',
       properties: {

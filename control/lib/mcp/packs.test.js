@@ -50,7 +50,9 @@ import { join } from 'node:path';
 // chat_turn tools and chatbots. Shrink-only from here.
 // Re-pinned 2026-10-06 (34_000 -> 33_400; measured 33,671 -> 33,263) for the pack menu: the shared pack
 // input schema gained `manual` and paid for it by shortening the `tool` / `args` wording.
-const PACKS_PAYLOAD_CEILING = 33_400;
+// Merged with the building ladder 2026-10-06 (33_400 -> 33_900; measured 33,263 -> 33,840): pack_building's
+// entry, less the house redirects it let three pack descriptions drop.
+const PACKS_PAYLOAD_CEILING = 33_900;
 
 let server;
 let listTools;
