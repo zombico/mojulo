@@ -39,3 +39,7 @@ const MODULES = Object.fromEntries(Object.entries({ canine, feline, equine, cerv
 export const FAMILIES = Object.freeze(Object.fromEntries(Object.entries(MODULES).map(([k, m]) => [k, m.family])));
 /** Every species of every family, keyed by id, each tagged with its family. */
 export const FAMILY_SPECIES = Object.freeze(Object.fromEntries(Object.entries(MODULES).flatMap(([k, m]) => Object.entries(m.species || {}).map(([id, s]) => [id, { family: k, ...s }]))));
+/** What people call each species and what it stands on (`about`, by species id): the search cards' facts, never the plan's. */
+export const FAMILY_ABOUT = Object.freeze(Object.fromEntries(Object.entries(MODULES).flatMap(([, m]) => Object.entries(m.about || {}))));
+/** Asked-for animals each family would build but does not yet, by id, each tagged with its family: `near` stands in. */
+export const FAMILY_WANTED = Object.freeze(Object.fromEntries(Object.entries(MODULES).flatMap(([k, m]) => Object.entries(m.wanted || {}).map(([id, w]) => [id, { family: k, ...w }]))));

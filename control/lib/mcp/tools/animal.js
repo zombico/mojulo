@@ -31,7 +31,8 @@ import { renderAnimalToSvg, ANIMAL_VIEWS } from '@/lib/graph/polygonizer/figure-
 import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
-import { SPECIES as FAUNA, speciesPlan } from '@/lib/graph/fauna/species';
+import { SPECIES as FAUNA, speciesPlan, stanceOf } from '@/lib/graph/fauna/species';
+import { resolveAnimalName } from '@/lib/graph/fauna/entries';
 import { FAMILIES } from '@/lib/graph/fauna/families';
 import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
 import { fish } from '@/lib/graph/fauna/makers/fish';
@@ -71,7 +72,8 @@ function mergeOpts(base, over) {
 
 export async function createAnimalHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('the animal kind requires { title }');
-  const { species, archetype, view, elev, crop, background, ref, folder_ref: folderRef, maker } = input;
+  const { archetype, view, elev, crop, background, ref, folder_ref: folderRef, maker } = input;
+  let { species } = input;
   let { params } = input;
   const title = input.title;
   // Defensive transport parse: some MCP clients deliver object-valued params as
@@ -94,8 +96,16 @@ export async function createAnimalHandler(input) {
     });
     return { ...res, maker, stance: maker === 'fish' ? 'swim' : 'legless' };
   }
+  // A species may be asked for by the name people say ('cat', 'grizzly', 'a penguin'): resolved to its id through the
+  // animal entries' name index (lib/graph/fauna/entries.js), and the result says what it resolved from.
+  let resolvedFrom = null;
   if (species !== undefined && species !== null && !SPECIES.includes(species)) {
-    throw new Error(`\`species\` must be one of ${SPECIES.join(', ')} — or omit it and pass \`archetype\` for the bare body`);
+    const r = resolveAnimalName(species);
+    if (r?.wanted) {
+      throw new Error(`no '${r.wanted}' species yet (${r.note}). The nearest built species is '${r.near}': mint it and say it stands in, or build an invented body as the \`layered\` kind. The roster: get_solid_vocab({ id: 'animals' })`);
+    }
+    if (!r) throw new Error(`\`species\` must be one of ${SPECIES.join(', ')} (or a common name for one: get_solid_vocab({ id: 'animals' })) — or omit it and pass \`archetype\` for the bare body`);
+    resolvedFrom = species; species = r.id;
   }
   if (archetype !== undefined && archetype !== null && !ARCHETYPES.includes(archetype)) {
     throw new Error(`\`archetype\` must be one of ${ARCHETYPES.join(', ')}`);
@@ -130,7 +140,7 @@ export async function createAnimalHandler(input) {
       title, plan: speciesPlan(species), plan_audit: { source: 'agent' },
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, stance: 'quadruped' };
+    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is

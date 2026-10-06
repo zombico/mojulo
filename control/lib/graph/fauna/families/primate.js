@@ -96,3 +96,20 @@ export const species = {
     headScale: 1.15, eyeR: 0.014, bulk: 1.1, legBulk: 1.3,
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  chimpanzee: { common: 'chimpanzee', aliases: ['chimp', 'ape'], sci: 'Pan troglodytes', size: '~0.80 m at the shoulder on all fours', source: 'Smithsonian National Zoo / ADW' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  capuchin: { near: 'chimpanzee', aliases: ['monkey', 'macaque'], note: 'a small tailed monkey on all fours, a long tail' },
+  gorilla: { near: 'chimpanzee', aliases: ['silverback'], note: 'huge knuckle-walking bulk, a sagittal crest, a silver saddle' },
+  orangutan: { near: 'chimpanzee', aliases: [], note: 'long red hair, very long arms, cheek pads on the male' },
+  lemur: { near: 'chimpanzee', aliases: ['ring-tailed lemur'], note: 'a fox face, big eyes, a long black-and-white ringed tail' },
+  sloth: { near: 'chimpanzee', aliases: [], note: 'reads only hanging upside down from a branch: a pose, not a new body' },
+};

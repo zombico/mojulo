@@ -103,3 +103,16 @@ export const species = {
     family: 'leporid', name: 'a European rabbit', scale: 1, muzzleLen: 0.85,
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  rabbit: { common: 'rabbit', aliases: ['bunny', 'bunny rabbit', 'european rabbit'], sci: 'Oryctolagus cuniculus', size: '~0.20 m to the top of the hunched back; head-body 0.34–0.50 m', source: 'ADW, Oryctolagus cuniculus' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  hare: { near: 'rabbit', aliases: ['jackrabbit'], note: 'longer legs and longer black-tipped ears than the rabbit' },
+};

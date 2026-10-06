@@ -109,3 +109,16 @@ export const species = {
     family: 'crocodilian', name: 'a Nile crocodile', scale: 1, legBulk: 1.3,
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  crocodile: { common: 'crocodile', aliases: ['croc', 'nile crocodile'], sci: 'Crocodylus niloticus', size: '~4 m total; ~0.45 m to the top of the back', source: 'Britannica / IUCN Crocodile Specialist Group' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  alligator: { near: 'crocodile', aliases: ['gator', 'caiman'], note: 'a broad rounded U snout, darker, the lower teeth hidden' },
+};

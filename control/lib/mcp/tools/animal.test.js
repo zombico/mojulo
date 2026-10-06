@@ -120,6 +120,21 @@ describe("mint_solid kind 'animal' — the maker door", () => {
     expect(SketchRepository.getByRef('an_mk_snake').manifest.kind).toBe('layered');
   });
 
+  it('mints a species by the name people say, and says what it resolved from', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'Kitty', ref: 'an_named_cat', spec: { species: 'a kitten' } });
+    expect(res.species).toBe('houseCat');
+    expect(res.resolved_from).toBe('a kitten');
+    expect(res.stance).toBe('four legs');
+    const exact = await mintSolidHandler({ kind: 'animal', title: 'Cat', ref: 'an_exact_cat', spec: { species: 'houseCat' } });
+    expect(exact.resolved_from).toBeUndefined();
+    expect((await mintSolidHandler({ kind: 'animal', title: 'Duck', ref: 'an_named_duck', spec: { species: 'duck' } })).stance).toBe('two legs (a bird)');
+  });
+
+  it('an asked-for animal not built yet names its stand-in; an unknown word points at the roster', async () => {
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'koala' } })).rejects.toThrow(/no 'koala' species yet[\s\S]*'wombat'/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'unicorn' } })).rejects.toThrow(/id: 'animals'/);
+  });
+
   it('bad params error helpfully, pointing at the card', async () => {
     const bad = (spec) => expect(mintSolidHandler({ kind: 'animal', title: 'x', spec })).rejects.toThrow(/get_solid_vocab/);
     await bad({ maker: 'bird' });

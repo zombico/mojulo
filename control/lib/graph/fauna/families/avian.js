@@ -535,3 +535,32 @@ export const species = {
         LesserA: '#cf1f27', LesserB: '#c41c24', LesserC: '#d42630', LesserTip: '#cf1f27' } },
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  vulture: { common: 'vulture', aliases: ['griffon vulture'], sci: 'Gyps fulvus', size: '~1.0 m standing; span 2.3–2.8 m', source: 'Wikipedia / BirdLife' },
+  baldEagle: { common: 'eagle', aliases: ['bald eagle', 'american eagle'], sci: 'Haliaeetus leucocephalus', size: 'length 0.70–1.02 m, span 1.8–2.3 m; perched ~0.80 m', source: 'Wikipedia, "Bald eagle"' },
+  greatHornedOwl: { common: 'owl', aliases: ['great horned owl', 'hoot owl'], sci: 'Bubo virginianus', size: 'length 0.43–0.64 m; perched ~0.52 m', source: 'Wikipedia, "Great horned owl"' },
+  chicken: { common: 'chicken', aliases: ['hen', 'fowl', 'poultry'], sci: 'Gallus gallus domesticus', size: '~0.40 m to the top of the comb', source: 'poultry breed standards' },
+  mallard: { common: 'duck', aliases: ['mallard', 'drake', 'wild duck'], sci: 'Anas platyrhynchos', size: 'length 0.50–0.65 m; standing ~0.30 m', source: 'Wikipedia, "Mallard"' },
+  emperorPenguin: { common: 'penguin', aliases: ['emperor penguin'], sci: 'Aptenodytes forsteri', size: '~1.10 m standing', source: 'Wikipedia, "Emperor penguin"' },
+  macaw: { common: 'parrot', aliases: ['macaw', 'scarlet macaw'], sci: 'Ara macao', size: 'length 0.81–0.96 m, over half of it tail; perched ~0.40 m', source: 'Wikipedia, "Scarlet macaw"' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  flamingo: { near: 'mallard', aliases: ['pink flamingo'], note: 'very long thin legs and an S neck, a bent pink bill' },
+  ostrich: { near: 'chicken', aliases: ['emu'], note: 'a huge flightless bird, a long bare neck, two-toed long legs' },
+  rooster: { near: 'chicken', aliases: ['cock', 'cockerel'], note: 'the hen with a tall comb, long wattles and arching sickle tail feathers' },
+  turkey: { near: 'chicken', aliases: [], note: 'a big fanned tail, a bare head with a red snood and wattle' },
+  peacock: { near: 'chicken', aliases: ['peafowl', 'peahen'], note: 'a blue neck, a head crest, a long eyed train' },
+  swan: { near: 'mallard', aliases: [], note: 'a long S neck, all white, an orange bill' },
+  goose: { near: 'mallard', aliases: [], note: 'a bigger duck with a longer neck' },
+  pigeon: { near: 'chicken', aliases: ['dove'], note: 'a small plump grey bird, a small head, an iridescent neck' },
+  crow: { near: 'baldEagle', aliases: ['raven'], note: 'an all-black perched bird, a heavy straight bill' },
+  toucan: { near: 'macaw', aliases: [], note: 'a huge bright banana bill, a black body, a white throat' },
+  hummingbird: { near: 'macaw', aliases: [], note: 'tiny, a needle bill, wings a blur' },
+};

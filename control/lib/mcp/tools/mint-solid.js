@@ -231,12 +231,13 @@ export async function getSolidVocabHandler(input) {
     const card = catalog.get(id);
     if (!card) {
       throw new Error(
-        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].filter(served).join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
+        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.values()].filter((c) => !c.generated && served(c.id)).map((c) => c.id).join(', ')}, and the animal entries ('animals' lists them: 'animal/<species>', 'animal/<family>'). Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
       );
     }
     return { ok: true, card: profiledCard('solid_vocab', card), _telemetrySignal: { id_requested: true, found: true } };
   }
-  let cards = [...catalog.values()].filter((c) => served(c.id)).map((c) => profiledCard('solid_vocab', c));
+  // one row per kind and op: the generated animal entries stay out (the `animal` card points at their index, `animals`)
+  let cards = [...catalog.values()].filter((c) => served(c.id) && !c.generated).map((c) => profiledCard('solid_vocab', c));
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,

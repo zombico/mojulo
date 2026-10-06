@@ -245,3 +245,19 @@ export const species = {
     };
   })(),
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  horse: { common: 'horse', aliases: ['pony', 'stallion', 'mare', 'foal', 'steed'], sci: 'Equus ferus caballus', size: '1.57 m at the withers (15.5 hands)', source: 'riding horse heights, 15–16 hh' },
+  camel: { common: 'camel', aliases: ['dromedary', 'arabian camel'], sci: 'Camelus dromedarius', size: '1.86 m at the withers, hump top ~2.1 m', source: 'published dromedary figures' },
+  zebra: { common: 'zebra', aliases: ['plains zebra'], sci: 'Equus quagga', size: '1.33 m at the withers', source: 'Estes 1991, The Behavior Guide to African Mammals' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  donkey: { near: 'horse', aliases: ['burro', 'ass', 'mule'], note: 'long ears, an upright mane, a tufted tail, a smaller frame' },
+  llama: { near: 'camel', aliases: ['alpaca'], note: 'a long upright neck, no hump, banana ears, a woolly coat' },
+};

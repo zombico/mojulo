@@ -17,12 +17,12 @@ For a stylized, invented, non-anatomical creature (a part-graph of bars and lath
 
 ## The two doors
 
-The difference is the BODY MODEL, not the species list. Both accept `opts` on top, so a species is a STARTING POINT, not a fixed thing.
+The difference is the BODY MODEL.
 
-- **`species`** — a dressed recipe on the HERO path: one welded single skin (a marched signed-distance field, so limbs melt into the body with concave fillets) plus a welded skull, dressed with coat / countershading / markings / face / tail. This is what you want when the ask names a real animal.
-- **`archetype`** — the bare body on the cheap OVERLAP path: each bone, joint and skull is its own ring-stack shell, depth-sorted. Reads as a clear silhouette in a fraction of the time, but shows seams and carries a separate loose jaw. The lineup / fast-iteration door.
+- **`species`** — a built real animal: a watertight RING PLAN from its family's tables (`lib/graph/fauna/`), minted as kind `layered` with the plan stored beside the recipe. Tune it in place with `/plan/...` patches or `/dials/<name>`; figure-body `opts` do not apply to it. This is what you want when the ask names a real animal. **The roster is the `animals` card** (every species by the name people say, and the asked-for animals not built yet with the species that stands in); each species has an entry card `animal/<id>` (its size, stance, source and starter spec) and each family a hub `animal/<family>`. A common name mints too (`'cat'`, `'grizzly'`, `'a penguin'`): the result's `resolved_from` says what it was resolved from. An asked-for animal not built yet is refused with its stand-in named.
+- **`archetype`** — the bare body on the cheap OVERLAP path: each bone, joint and skull is its own ring-stack shell, depth-sorted, with `opts` knobs on top. Reads as a clear silhouette in a fraction of the time, but shows seams and carries a separate loose jaw. The lineup / fast-iteration door, and the only door for dinosaurs today (`theropod` / `raptor` / `sauropod`).
 
-Pass `species` alone, `archetype` alone, or both (an explicit archetype overrides the species' own — e.g. a wolf recipe's coat and face on the `ursine` frame).
+Pass `species` alone or `archetype` alone. Both together keeps the older hand-tuned figure body for the legacy species ids (an explicit archetype overrides the species' own frame).
 
 ## The maker door — a NEW fish or snake from parameters
 
@@ -62,11 +62,10 @@ mint_solid({ kind: 'animal', title: 'Anaconda', spec: { maker: 'serpent', params
 ```
 spec: {
   maker?:     'fish'|'serpent', params?: { …maker params, see the maker door },
-  species?:   'wolf'|'fox'|'camel'|'kangaroo'|'redPanda'|'deer'|'buck'|'gazelle'|
-              'lion'|'cougar'|'hippo'|'rhino'|'horse'|'ram'|'bull'|'wombat',
+  species?:   <a species id or a common name — the roster is the 'animals' card>,
   archetype?: 'rodent'|'canine'|'feline'|'stumpy'|'equine'|'gazelle'|'sauropod'|
               'theropod'|'raptor'|'avian'|'ursine'|'raccoon',
-  opts?:      { …build knobs, merged over the species' own — see below },
+  opts?:      { …figure-body knobs for the archetype door — see below },
   view?:      'frontal'|'three-quarter'|'lateral'|'left'|'back' | <azimuth°>,
   elev?:      <camera elevation°, -89…89; default 12>,
   crop?:      'head',          // a face study close-up instead of the whole animal
@@ -95,9 +94,9 @@ Each is a proportion set (back height, trunk length, neck, limb angulation, girt
 
 Bipeds (`theropod` / `raptor` / `avian`) stand on the two hind feet and have their feet placed under the centre of mass; everything else stands on all four.
 
-### opts — the build knobs
+### opts — the build knobs (archetype door)
 
-Merged one level deep over the species' own, so `{ skullCfg: { length: 0.3 } }` retunes ONE knob instead of replacing the species' whole skull.
+Merged one level deep over the archetype's (or a legacy species recipe's) own, so `{ skullCfg: { length: 0.3 } }` retunes ONE knob instead of replacing the species' whole skull.
 
 - `skin` — the welded single skin + welded skull (the hero path). Three values, and the choice decides whether the animal can PRINT:
   - `true` — the MARCHED skin: the field ray-marched per axis into open ring tubes. Fast, and what a `species` sets by default. Render-only (see Honest limits).

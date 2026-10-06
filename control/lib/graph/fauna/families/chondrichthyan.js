@@ -85,3 +85,18 @@ export const species = {
       gills: 0, pattern: { back: '#1e2124', belly: '#eeece6', from: 0.45, extra: { mouth: '#5a5050' } } }),
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  greatWhiteShark: { common: 'shark', aliases: ['great white', 'great white shark', 'white shark'], sci: 'Carcharodon carcharias', size: '~4.5 m long', source: 'Florida Museum' },
+  hammerhead: { common: 'hammerhead shark', aliases: ['hammerhead', 'great hammerhead'], sci: 'Sphyrna mokarran', size: '~3.5 m long', source: 'Florida Museum' },
+  mantaRay: { common: 'manta ray', aliases: ['manta', 'ray'], sci: 'Mobula birostris', size: '~4.5 m disc width', source: 'Marshall et al. 2009' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  stingray: { near: 'mantaRay', aliases: [], note: 'a round flat disc, a long barbed whip tail, no head lobes' },
+};

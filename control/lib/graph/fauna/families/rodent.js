@@ -156,3 +156,22 @@ export const species = {
     ],
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  beaver: { common: 'beaver', aliases: [], sci: 'Castor canadensis', size: '~0.30 m at the shoulder; head-body 0.74–0.90 m', source: 'ADW / Smithsonian NMNH' },
+  squirrel: { common: 'squirrel', aliases: ['grey squirrel', 'gray squirrel'], sci: 'Sciurus carolinensis', size: '~0.12 m to the top of the back; head-body 0.23–0.30 m', source: 'ADW, Sciurus carolinensis' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  mouse: { near: 'squirrel', aliases: ['mice', 'house mouse', 'field mouse'], note: 'tiny, big round ears, a long thin bare tail' },
+  rat: { near: 'squirrel', aliases: ['brown rat'], note: 'a bigger mouse: a pointed snout, a long scaly tail' },
+  hamster: { near: 'squirrel', aliases: [], note: 'a round ball of a body, no visible tail, cheek pouches' },
+  guineaPig: { near: 'squirrel', aliases: ['guinea pig', 'cavy'], note: 'a tailless loaf body, short legs, a blunt head' },
+  hedgehog: { near: 'squirrel', aliases: [], note: 'a round body under a coat of spines, a pointed snout' },
+  porcupine: { near: 'beaver', aliases: [], note: 'a heavy body under long quills' },
+};

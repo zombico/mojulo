@@ -184,3 +184,24 @@ export const species = {
   }),
 };
 
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  monitorLizard: { common: 'komodo dragon', aliases: ['komodo', 'monitor lizard', 'monitor', 'lizard'], sci: 'Varanus komodoensis', size: '~2.6 m total; ~0.4 m to the top of the back', source: 'Wikipedia / Smithsonian NZP' },
+  snake: { common: 'python', aliases: ['burmese python'], sci: 'Python bivittatus', size: '~3.7 m long', source: 'Reed & Rodda 2009 (USGS)' },
+  kingCobra: { common: 'king cobra', aliases: ['cobra'], sci: 'Ophiophagus hannah', size: '~3.6 m long', source: 'Wikipedia, "King cobra"' },
+  rattlesnake: { common: 'rattlesnake', aliases: ['rattler', 'diamondback', 'western diamondback'], sci: 'Crotalus atrox', size: '~1.2 m long', source: 'Wikipedia, "Western diamondback rattlesnake"' },
+  greenMamba: { common: 'green mamba', aliases: ['mamba'], sci: 'Dendroaspis viridis', size: '~2.0 m long', source: 'Wikipedia, "Western green mamba"' },
+  seaSerpent: { common: 'sea serpent', aliases: ['sea monster', 'leviathan'], sci: 'mythic', size: '~40 m long (an invented scale)', source: 'after Olaus Magnus 1555' },
+  anaconda: { common: 'anaconda', aliases: ['green anaconda'], sci: 'Eunectes murinus', size: '~5 m long', source: 'Rivas 2000' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  gecko: { near: 'monitorLizard', aliases: [], note: 'a small flat lizard with big eyes and toe pads' },
+  iguana: { near: 'monitorLizard', aliases: ['green iguana'], note: 'a dewlap, a spiny back crest, a long banded tail' },
+  chameleon: { near: 'monitorLizard', aliases: [], note: 'a casque head, turret eyes, a coiled tail, a tall flat body' },
+};

@@ -130,3 +130,17 @@ species.wildBoar = {
     { kind: 'sweep', name: 'tusk', at: [4.2, 4.6], space: 'head', spine: [[0.03, 0.17, -0.08], [0.05, 0.19, -0.06], [0.06, 0.20, -0.03], [0.055, 0.19, -0.005]], radii: [0.013, 0.011, 0.008, 0.002], m: 8, group: 'Teeth' },
   ],
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  pig: { common: 'pig', aliases: ['hog', 'swine', 'piglet'], sci: 'Sus scrofa domesticus', size: '0.80 m at the withers (a Large White)', source: 'breed-society / FAO breed descriptions' },
+  wildBoar: { common: 'wild boar', aliases: ['boar', 'wild pig', 'razorback'], sci: 'Sus scrofa', size: '0.85 m at the shoulder', source: 'ADW, Sus scrofa' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  warthog: { near: 'wildBoar', aliases: [], note: 'a flat wide face with facial warts and big curved tusks, a thin tail held up' },
+};
