@@ -32,6 +32,7 @@ import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
 import { SPECIES as FAUNA, speciesPlan, stanceOf } from '@/lib/graph/fauna/species';
+import { withMotion, motionGaits } from '@/lib/graph/fauna/rig';
 import { resolveAnimalName } from '@/lib/graph/fauna/entries';
 import { FAMILIES } from '@/lib/graph/fauna/families';
 import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
@@ -55,6 +56,22 @@ export function makerPlan(maker, params) {
 }
 
 const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(ZOO_BUILDS)])];
+
+/**
+ * `motion` → `{ gaits, keys }` or null: `true` / 'all' (every gait the species has), a gait word or a list of them,
+ * or `{ gaits?, keys? }`. Throws a teaching error naming the species' gaits.
+ */
+export function motionSpec(species, motion) {
+  if (motion === undefined || motion === null || motion === false) return null;
+  const have = motionGaits(species), say = `'${species}' moves: ${have.join(', ')}`;
+  const o = motion === true || motion === 'all' ? {} : typeof motion === 'string' || Array.isArray(motion) ? { gaits: [motion].flat() } : motion;
+  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait word, a list of them, or { gaits, keys } — ${say}`);
+  const gaits = o.gaits === undefined ? have : [o.gaits].flat();
+  for (const g of gaits) if (!have.includes(g)) throw new Error(`no gait '${g}' — ${say}`);
+  const keys = o.keys ?? 24;
+  if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
+  return { gaits, keys };
+}
 
 // Deep-merge the caller's `opts` over a species recipe's own, one level into each
 // cfg block — so `{ skullCfg: { length: 0.3 } }` retunes ONE knob instead of
@@ -85,6 +102,9 @@ export async function createAnimalHandler(input) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {
     throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
+  }
+  if (input.motion !== undefined && input.motion !== null && input.motion !== false && (maker || archetype)) {
+    throw new Error('`motion` animates a `species` (its skeleton and gaits); a maker body or an archetype has none yet');
   }
   if (maker !== undefined && maker !== null) {
     if (species || archetype) throw new Error('pass `maker` (+ `params`) OR `species` OR `archetype`, not several');
@@ -136,11 +156,14 @@ export async function createAnimalHandler(input) {
     if (opts !== undefined && opts !== null) {
       throw new Error(`\`opts\` are figure-body knobs; '${species}' is a ring plan now — mint it, then tune with update_sketch on '/plan/...' or '/dials/<name>'`);
     }
+    // MOTION (opt-in, fauna/rig.js): the plan bound to the species' skeleton, carrying its gaits as clips the World
+    // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
+    const motion = motionSpec(species, input.motion);
     const res = await createLayeredPlanHandler({
-      title, plan: speciesPlan(species), plan_audit: { source: 'agent' },
+      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys) : speciesPlan(species), plan_audit: { source: 'agent' },
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species) };
+    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(motion ? { motion: { gaits: motion.gaits } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is

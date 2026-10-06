@@ -1,0 +1,37 @@
+import { describe, it, expect } from 'vitest';
+import { motionSpec } from '@/lib/mcp/tools/animal';
+import { planLayered } from '@/lib/mcp/tools/layered';
+import { speciesPlan } from '@/lib/graph/fauna/species';
+import { withMotion } from '@/lib/graph/fauna/rig';
+import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
+
+// `motion` on a species mint: read as its gaits, refused with the species' own list, gated at mint.
+describe('animal motion', () => {
+  it('reads true, a word, a list and { gaits, keys }', () => {
+    expect(motionSpec('wolf', undefined)).toBeNull();
+    expect(motionSpec('wolf', false)).toBeNull();
+    expect(motionSpec('wolf', true)).toEqual({ gaits: ['walk', 'trot', 'gallop'], keys: 24 });
+    expect(motionSpec('wolf', 'all')).toEqual({ gaits: ['walk', 'trot', 'gallop'], keys: 24 });
+    expect(motionSpec('wolf', 'trot')).toEqual({ gaits: ['trot'], keys: 24 });
+    expect(motionSpec('elephant', ['walk', 'amble'])).toEqual({ gaits: ['walk', 'amble'], keys: 24 });
+    expect(motionSpec('snake', { gaits: 'slither', keys: 12 })).toEqual({ gaits: ['slither'], keys: 12 });
+  });
+
+  it("refuses a gait the species does not have, naming the ones it does", () => {
+    expect(() => motionSpec('elephant', 'gallop')).toThrow(/'elephant' moves: walk, amble/);
+    expect(() => motionSpec('wolf', { keys: 2 })).toThrow(/keys/);
+  });
+
+  it('the mint gate binds the species and reports its rig', () => {
+    const plan = withMotion(speciesPlan('horse'), 'horse', ['walk', 'gallop']);
+    const { stats } = planLayered({ kind: 'layered', plan, recipe: expandPlan(plan) });
+    expect(stats.layered.rig).toMatchObject({ species: 'horse', clips: ['walk', 'gallop'] });
+    expect(stats.layered.rig.bones).toBeGreaterThan(20);
+    expect(stats.layered.rig.blendedVertices).toBeGreaterThan(0);
+  });
+
+  it('a still species carries no rig', () => {
+    const plan = speciesPlan('horse');
+    expect(planLayered({ kind: 'layered', plan, recipe: expandPlan(plan) }).stats.layered.rig).toBeUndefined();
+  });
+});

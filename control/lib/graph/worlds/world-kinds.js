@@ -38,6 +38,7 @@ import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from '@/lib/graph/polygonizer/station-loft-rig';
+import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
@@ -537,6 +538,8 @@ export const WORLD_KINDS = {
       // on the workbench studio through the same faces seam the scad kind rides.
       const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
       const rigged = !!(m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length);
+      // a minted animal with MOTION (fauna/rig.js): its species' skeleton and gaits, packed below as the rig figure
+      const motioned = !rigged && !!m.recipe?.motion?.gaits?.length;
       const light = withBands(ctx.light || WORKBENCH_LIGHT, resolveToon(ctx.toon)?.bands); const seat = m.seat !== false;
       // The STAND (hero-gesture.js): a HERO (a hero-door row, `m.hero`) whose rigged recipe carries the one-key `gesture`
       // clip shows its static solid skinned at that key (bindLayered → rigNodesAt → boneFrames → skinLayered), seated on
@@ -578,8 +581,8 @@ export const WORLD_KINDS = {
       // stencil rules (channels/draw-layers.js); the rig pack orders its parts the same way (`ranges`). A mesh with no
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
       const faces = character
-        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged ? 'body' : null, hairInk: !!ink })
-        : layeredFaces(shown, m.recipe, { light, seat, group: rigged ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}) });
+        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink })
+        : layeredFaces(shown, m.recipe, { light, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
@@ -619,6 +622,12 @@ export const WORLD_KINDS = {
         const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
         const clips = Object.keys(m.recipe.clips).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
+      } else if (motioned) {
+        // the animal's gaits: the mesh bound to the species' skeleton, each gait a clip from the gait solver (in place,
+        // one stride, its own duration), packed like a rigged recipe's so the preview, the GLB and Godot play it
+        const B = faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
+        const pack = packFaunaRig(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}) });
+        scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It
       // carries the wire's framing of the UNSEATED mesh (what a stroke resolves against) and the seat, the stored

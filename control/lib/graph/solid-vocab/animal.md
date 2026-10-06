@@ -24,6 +24,17 @@ The difference is the BODY MODEL.
 
 Pass `species` alone or `archetype` alone. Both together keeps the older hand-tuned figure body for the legacy species ids (an explicit archetype overrides the species' own frame).
 
+## Motion — a species that moves
+
+`motion` (species only) binds the minted solid to its species' skeleton and carries its GAITS as animation clips:
+`true` for every gait the species has, a word or a list for some (`'trot'`, `['walk', 'gallop']`), `{ keys }` for
+frames per stride (default 24). The words are the `MOVES` line of the species' entry card; an unknown one is refused
+with the species' own list. Each clip is one stride in place, at its own pace (a walk slower than a gallop, an elephant
+slower than a fox), from the family's biomechanics: footfall order, how long each foot is down, the spine's flex or
+wave, the head and tail. The World page previews the clips; `export_model { clips: '_all', skinned: true }` writes a
+skinned GLB with them, and the Godot pack plays the first. Without `motion` the solid is still. Wings flap in a `fly`
+gait but the wing surface rides its root bone rigidly for now.
+
 ## The maker door — a NEW fish or snake from parameters
 
 Bodies that parameterize to many animals have species-free MAKERS (`lib/graph/fauna/makers/`). `spec: { maker, params }` builds a watertight ring plan from the maker's params over its family table and mints it like a `species` (kind `layered`, tune with `/plan/...`). Every param is optional (defaults: a generic salmon-shaped fish / shark / ~2 m snake); object params merge one level over the default's. Units are metres.
@@ -63,6 +74,7 @@ mint_solid({ kind: 'animal', title: 'Anaconda', spec: { maker: 'serpent', params
 spec: {
   maker?:     'fish'|'serpent', params?: { …maker params, see the maker door },
   species?:   <a species id or a common name — the roster is the 'animals' card>,
+  motion?:    true | <gait word> | [<gait words>] | { gaits?, keys? },   // species only: animate its gaits
   archetype?: 'rodent'|'canine'|'feline'|'stumpy'|'equine'|'gazelle'|'sauropod'|
               'theropod'|'raptor'|'avian'|'ursine'|'raccoon',
   opts?:      { …figure-body knobs for the archetype door — see below },

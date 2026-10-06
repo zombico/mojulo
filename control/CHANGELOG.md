@@ -511,6 +511,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   stick GIF (side view over top view) for the eyes gate; a machine gate checks every gait of every species
   poses rigid bones and that planted feet stay down for their duty factor.
 - The snakes' spine count rises to 20 trunk and 4 tail bones: two body waves need them.
+- The skeleton gains the wing bones `wing.js` builds (the arm chain with `wing.humerus` / `wing.radius` /
+  `wing.hand` roles, and the digits), and a penguin's flippers as fin bones. A `fly` gait rebuilds the wing at
+  each instant's fold (spread on the downstroke, half folded coming up) and rolls it about the body's long axis;
+  `glide` holds it spread. Strokes beat only their own limb group (wings, pectoral fins, flippers, paddles).
+- **Animals move.** `mint_solid { kind: 'animal', spec: { species, motion } }` binds the minted solid to the
+  species' skeleton and carries its gaits as clips. `motion` is `true` (every gait), a gait word or a list, or
+  `{ gaits, keys }`; an unknown gait is refused with the species' own list. Without `motion` the plan is the
+  species' own, byte-identical.
+  - The plan gets a `bind` on every segment (a limb's joint rings shared with the bones either side, a body
+    station blended toward the next bone as it nears that bone's end) and on the head, plus a `motion` record
+    that expandPlan carries to the recipe.
+  - The mint gate binds every vertex and checks the weights; the stats report the bones and the clips.
+  - At read time `packFaunaRig` (`lib/graph/fauna/rig.js`) packs the mesh through `packLayeredRig` with a stand-in
+    rig of the skeleton's bones and no clips (the humanoid path is untouched), then appends one clip per gait from
+    the gait solver: the absolute rotation and posed head of every bone at every key, and the stride's own
+    duration. The World page previews the clips, the skinned GLB carries them (`export_model { clips: '_all',
+    skinned: true }`), and the Godot pack plays the first.
+  - The worn wing still rides its root bone rigidly; weighting its surface from wing.js's own bindings is next.
 
 ### Environmental sound
 

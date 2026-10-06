@@ -35,6 +35,7 @@
  *   adorn?: [ { id, mode: 'shell' | 'band' | 'strap', part, …, signature: { kind, … } } ],   // ADORNMENT (station-loft-adorn.js):
  *                                                              //   worn over the detailed figure, baked as pinned L3 parts
  *   creases?, palette?, rig?, clips?,                          // rig joints / bones may carry `$S` and `perSide` blocks
+ *   motion?,                                                   // a fauna species' gaits (fauna/rig.js), carried to the recipe
  * }
  *
  * `mirror: 'plane'` — a midline part: the right half is authored, the left half is its mirror by slot name.
@@ -384,5 +385,7 @@ export function expandPlan(plan) {
     recipe.rig = { ...R, joints, bones, ...(R.chains ? { chains } : {}) };
   }
   if (plan.clips) recipe.clips = plan.clips;
+  // motion (opt-in, fauna/rig.js): a minted animal's gaits, packed at read time from its skeleton; absent ⇒ byte-identical
+  if (plan.motion) recipe.motion = plan.motion;
   return recipe;
 }

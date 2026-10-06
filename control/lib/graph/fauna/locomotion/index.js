@@ -103,7 +103,7 @@ export const PATTERNS = Object.freeze({
   flipperFlight: { kind: 'stroke', limbs: 'flippers', phase: 0.5, note: 'four flippers fly underwater; hind half a beat behind the fore' },
   forelimbRow:   { kind: 'stroke', limbs: 'fore', phase: 0.5, note: 'the fore paddles row alternately' },
   frogKick:      { kind: 'stroke', limbs: 'hind', phase: 0, note: 'both hind legs kick together' },
-  wingRow:       { kind: 'stroke', limbs: 'wings', phase: 0, note: 'the flipper-wings beat together underwater' },
+  wingRow:       { kind: 'stroke', limbs: 'flipper', phase: 0, note: 'the flipper-wings beat together underwater' },
   paddle:        { kind: 'stroke', limbs: 'hind', phase: 0.5, note: 'the webbed hind feet paddle alternately' },
   wingbeat:      { kind: 'stroke', limbs: 'wings', phase: 0, note: 'downstroke spread, upstroke folded' },
   soar:          { kind: 'stroke', limbs: 'wings', phase: 0, still: true, note: 'wings held spread' },

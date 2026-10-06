@@ -22,17 +22,22 @@
  * nearest of its OWN region's bones (torso stations ride the spine, never the neck), and a joint-to-joint axis part
  * gets its two ends; other midline parts (a mane, a fin, plates) ride the whole axis; head parts ride `head`.
  *
- * Pure and deterministic. Wings (the bones wing.js builds and wearWings discards) join in the rig step.
+ * WINGS: the arm and digit bones wing.js builds (and wearWings bakes away), placed at the worn fold and size; the arm
+ * chain carries `wing.humerus` / `wing.radius` / `wing.hand`. The worn wing mesh rides its root bone until the rig
+ * step weights it from wing.js's own bindings.
+ *
+ * Pure and deterministic.
  */
 import { speciesParams, speciesPlan, SPECIES } from './species.js';
 import { locomotionFor } from './locomotion/index.js';
+import { buildWing } from './wing.js';
 
 const TRUNK = /^(torso|coils|body\d*)$/;
 const NECK = /^(neck|neckDown|neckUp|longNeck)$/;
 const TAIL = /^(tail|tailTip|tailRinged|tailPaddle|tailBush|tailFlat|tailWhip|tailStiff|tailLoft|tailTaper|dock|scut)$/;
 const ROLES = { fore: ['humerus', 'radius', 'metacarpus', 'digit', 'ungual', 'ungual2'], hind: ['femur', 'tibia', 'metatarsus', 'digit', 'ungual', 'ungual2'] };
 const LIMB_ROOTS = { shoulder: 'fore', foreRoot: 'fore', hip: 'hind', hindRoot: 'hind' };
-const FIN = /^(pectoral|pelvic)R$/;
+const FIN = /^(pectoral|pelvic|flipper)R$/;
 const TAIL_CARVE = 0.25;   // a tail carved from the trunk takes its rear quarter (bodies that are all axis: snakes, fish)
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -170,6 +175,22 @@ export function faunaSkeleton(id) {
     bones.push({ id: p.name, parent: nearestAxial(c[0]).id, head: c[0], tail: c[c.length - 1] });
   }
 
+  // WINGS: the arm and digit bones wing.js builds (and wearWings bakes away), at the fold and size the model wears;
+  // the arm chain carries wing roles, the digits hang on it
+  const WR = ['humerus', 'radius', 'hand'];
+  if (P.wings) {
+    const Wp = { scale: P.scale || 1, ...P.wings }, at = J[Wp.at || 'wingRoot'];
+    if (at) {
+      const wb = buildWing(Wp.wing, [0, 0, 0], Wp.fold ?? 1, 'R').bones, place = (q) => add(at, mul(q, Wp.scale));
+      const arm = Wp.wing.arm.map((a) => a.id);
+      for (const b of wb) {
+        const k = arm.indexOf(b.id);
+        bones.push({ id: `${b.id}R`, parent: k === 0 ? nearestAxial(at).id : `${b.parent}R`, head: place(b.head), tail: place(b.tail),
+          ...(k >= 0 ? { role: `wing.${WR[Math.min(k, WR.length - 1)]}` } : {}) });
+      }
+    }
+  }
+
   // the left side
   const right = bones.filter((b) => b.id.endsWith('R') && !axial.includes(b));
   for (const b of right) {
@@ -190,8 +211,10 @@ export function faunaSkeleton(id) {
   });
   const ids = new Set(bones.map((b) => b.id));
   const bind = {};
+  const wingRoot = P.wings ? `${P.wings.wing.arm[0].id}R` : null;
   for (const p of parts) {
     if (ids.has(p.name)) { bind[p.name] = p.name; continue; }
+    if (p.name === 'wingCoreR' && ids.has(wingRoot)) { bind[p.name] = wingRoot; continue; }   // the worn wing's hidden root
     const c = centres(p, J);
     if (p.mirror === 'name') {
       const mid = mul(c.reduce(add, [0, 0, 0]), 1 / c.length);

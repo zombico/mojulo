@@ -59,6 +59,7 @@ import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as h
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
+import { faunaBones, motionGaits } from '@/lib/graph/fauna/rig';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild } from '@/lib/graph/polygonizer/hero-gear';
@@ -100,6 +101,19 @@ export function planLayered(manifest) {
       if (a.badWeights || a.restIdentity > 1e-9 || a.maxPlantedDrift > 1e-9) throw new Error(`bad weights ${a.badWeights}, rest identity ${a.restIdentity}, planted drift ${a.maxPlantedDrift}`);
       rig = { bones: R.bones.length, blendedVertices: a.blended, clips: Object.keys(clips), maxLengthError: a.maxLengthError, legs: a.poses.map((p) => p.legs) };
     } catch (err) { throw new Error(`layered rig: ${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
+  }
+  // a minted animal's MOTION (fauna/rig.js) pays its gates here too: every vertex bound to the species' skeleton with
+  // valid weights, every gait one the species has (its clips are packed from the gait solver at read time)
+  if (manifest.recipe.motion && !manifest.recipe.rig) {
+    try {
+      const M = manifest.recipe.motion, B = faunaBones(M.species);
+      if (!B) throw new Error(`unknown species '${M.species}'`);
+      const have = motionGaits(M.species); for (const g of M.gaits || []) if (!have.includes(g)) throw new Error(`'${M.species}' has no gait '${g}' (it can: ${have.join(', ')})`);
+      const skin = bindLayered(mesh, manifest.recipe, B);
+      let bad = 0; skin.weights.forEach((w) => { if (Math.abs(w.reduce((a, b) => a + b, 0) - 1) > 1e-9 || w.some((x) => !(x >= 0))) bad++; });
+      if (bad) throw new Error(`${bad} vertices with bad weights`);
+      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || [])], species: M.species };
+    } catch (err) { throw new Error(`animal motion: ${err.message} — the species' gaits: get_solid_vocab({ id: 'animals' }).`); }
   }
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };
 }
