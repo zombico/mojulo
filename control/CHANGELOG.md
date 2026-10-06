@@ -487,9 +487,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     a kilt, and the sheath; the Sumerian fleece skirt under a shawl; the Qin long dark robe, and the labourer's
     jacket over hemp trousers.
   - New work poses: `stoop`, `hoe`, `carry`.
+- Beasts of burden (`lib/graph/historic/beasts.js`), on unless `beasts: false`:
+  - In the fields, plough teams: two oxen abreast under a yoke at the neck, the ploughman behind.
+  - On the open streets, pack donkeys and mules with panniers, and horses, each led by a driver at its head.
+  - Each culture works its own herd: oxen and donkeys from Sumer to Egypt, mules among the Greeks and Romans,
+    horses and oxen for Qin.
+  - Each beast was designed with the creature creator (`mint_solid` kind `animal`, iterated with `update_sketch`)
+    and is carried as the recipe that sketch stores. The ox is the bull gelded to a heavier draught body, short
+    horns and a pale coat; the donkey and the mule are new, from the horse; the horse and the camel are the
+    species. The camel is drawn by no culture here, since it came after these periods.
+  - `lib/graph/figures/beast-asset.js` bakes a recipe low-poly (about 400 faces against about 9,000). It uses the
+    animal kind's overlap body, keeps the coat and its pale belly, and drops the eye and nose dots.
+  - Beasts come after the people on their own seeded stream, so turning them off moves no one. Each needs footing
+    under all four hooves, clear of the people.
+- The people and the beasts are shaded smooth (`lib/graph/figures/smooth-corners.js`). Each corner takes the
+  normal averaged over the faces that share it in its own part (a limb, the trunk, the skirt), and the World page
+  shades by corner (`cornerFills`), so the low-poly forms read as rounded rather than faceted. The silhouette and
+  the face count are unchanged, and a colour edge (a hem, a sleeve, a belly) stays crisp. The pedestrian takes it
+  as `smooth`, off by default, so the fractal city's people are unchanged.
 - A figure stands on a kerb or a step and refuses a spot taken by anything taller.
 - Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
-- Not yet: people in the `region`, `farm` and `works` scenes, beasts of burden, and instanced drawing. Pompeii
+- Not yet: people and beasts in the `region`, `farm` and `works` scenes, carts and wagons, and instanced
+  drawing. Pompeii
   with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
   it has no people.
 

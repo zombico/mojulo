@@ -567,7 +567,7 @@ export function assembleHistoricCityScene(opts = {}) {
     if (T.boxes.length) throw new Error(`repeat '${r.key}': a template is built of solids only`);
     return { group: r.key, template: T.faces, transforms: r.transforms.map((t) => ({ pos: t.pos.map((v) => v * s) })) };
   }) : null;
-  const stats = folk ? { ...plan.stats, people: { citizens: folk.citizens, hands: folk.hands } } : plan.stats;
+  const stats = folk ? { ...plan.stats, people: { citizens: folk.citizens, hands: folk.hands, beasts: folk.beasts, drivers: folk.drivers } } : plan.stats;
   return { ...scene, stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}), ...(repeats ? { repeats } : {}) };
 }
 /** A mass moved by `[dx, dy, dz]` (an instance's stand-in put in place). */

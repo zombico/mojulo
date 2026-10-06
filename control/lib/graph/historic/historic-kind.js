@@ -4,7 +4,7 @@
  *   { kind: 'historic', culture: 'thebes', scene: 'city' | 'region' | 'farm' | 'works', seed?, season?, view?, people? }
  *
  * `people` (the city only): its citizens and field hands, static figures for scale (./miniatures.js) — true, or
- * { density 0–1, citizens: false, hands: false }.
+ * { density 0–1, citizens: false, hands: false, beasts: false }, with the beasts of burden (./beasts.js).
  *
  * The scenes are the builders that already exist (the town, the town in its land, a farmstead, the works),
  * each taken to the World page as the town is (`assembleHistoricWorld`): the faces' tiles resolved into the
@@ -86,7 +86,7 @@ export function historicOptions(m = {}) {
   if (m.people !== undefined && m.people !== false) {
     if (scene !== 'city') throw new Error(`historic: people stand in the 'city' scene only (not '${scene}')`);
     const p = m.people;
-    if (p !== true && (typeof p !== 'object' || p === null || Array.isArray(p))) throw new Error('historic: people is true or { density, citizens, hands }');
+    if (p !== true && (typeof p !== 'object' || p === null || Array.isArray(p))) throw new Error('historic: people is true or { density, citizens, hands, beasts }');
     if (typeof p === 'object' && p.density !== undefined && !(Number.isFinite(p.density) && p.density >= 0 && p.density <= 1)) throw new Error('historic: people.density is a number from 0 to 1');
     opts.people = p;
   }

@@ -12,7 +12,10 @@
  * Plans in metres; faces out in scene units.
  */
 import { pedestrianFaces, IDLE_POSES, STROLL_POSES } from '../figures/pedestrian-asset.js';
+import { beastFaces } from '../figures/beast-asset.js';
+import { scaleHex } from '../polygonizer/vexar.js';
 import { stream, pick } from './layout-kit.js';
+import { BEASTS, HERDS } from './beasts.js';
 import { SM } from '../../util/math-scope.js';
 
 // ── dress: per culture, the skins and the garments its people wear ────────────────────────────────────────────────
@@ -108,10 +111,15 @@ function footings(plan, cell, hAt) {
  * false }. Citizens stand on the lanes and open ground inside and in the plan's square (`stats.square`, where the
  * town gathers), thicker where the ground is open (a square, a main street) than in a back alley: solo, a pair, a
  * household. Field hands work in gangs of two to four in the plan's fields, facing one way along the row.
- * Returns { faces, citizens, hands }.
+ *
+ * Beasts of burden (./beasts.js, unless `beasts: false`) come after the people, on their own stream, so they never
+ * move one: a plough team in a field (two oxen abreast under a yoke, the ploughman behind), and on the open streets a
+ * pack animal with its panniers led by a driver at its head. Each beast stands only where all four hooves find
+ * footing clear of the people already there. Returns { faces, citizens, hands, beasts, drivers, herd } (`drivers`: the
+ * ploughmen and the drivers who go with the beasts; `herd`: where each beast stands, in metres).
  */
 export function miniatureFaces(plan, people, s, seed = 1) {
-  const out = { faces: [], citizens: 0, hands: 0 };
+  const out = { faces: [], citizens: 0, hands: 0, beasts: 0, drivers: 0, herd: [] };
   const G = plan.grid;
   if (!people || !G) return out;
   const o = typeof people === 'object' ? people : {};
@@ -120,23 +128,25 @@ export function miniatureFaces(plan, people, s, seed = 1) {
   const hAt = plan.hAt || (() => 0), footing = footings(plan, cell, hAt);
   const R = stream(seed, 'people');
   const k = s / unitHeight();
-  const stand = (x, y, z, heading, archetype, pose, garment) => {
-    const scale = MAN * k * (0.95 + R() * 0.1);
-    for (const f of pedestrianFaces({ cx: x * s, cy: y * s, heading, scale, archetype, pose, palette: palette(garment, pick(D.skin, R)), lod: 'mini', cut: garment.cut }))
+  const spots = [];   // where each person stands (the beasts keep clear of them)
+  const stand = (x, y, z, heading, archetype, pose, garment, rng = R) => {
+    const scale = MAN * k * (0.95 + rng() * 0.1);
+    for (const f of pedestrianFaces({ cx: x * s, cy: y * s, heading, scale, archetype, pose, palette: palette(garment, pick(D.skin, rng)), lod: 'mini', cut: garment.cut, smooth: true }))
       out.faces.push({ ...f, corners: f.corners.map(([a, b, c]) => [a, b, c + (z + 0.1) * s]) });
+    spots.push([x, y]);
   };
   const code = (c, r) => (c >= 0 && r >= 0 && c < cols && r < rows ? data[r * cols + c] : -1);
+  const walkCode = new Set([C.LANE, C.OPEN]), sq = plan.stats.square;
+  const inSquare = (c, r) => !!sq && (c + 0.5) * cell > sq.x && (c + 0.5) * cell < sq.x + sq.w && (r + 0.5) * cell > sq.y && (r + 0.5) * cell < sq.y + sq.d;
+  const walk = (c, r) => walkCode.has(code(c, r)) || inSquare(c, r);
+  const at = (x, y) => walk(Math.floor(x / cell), Math.floor(y / cell));
+  // openness: the walkable share of the 5 × 5 cells round a cell (an alley ~0.2, a main street ~0.4, a square 1)
+  const open = (c, r) => { let n = 0; for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) if (walk(c + dc, r + dr)) n++; return n / 25; };
   // flat ground: no step of more than a hand within a pace either way (keeps hands off a bluff's face)
   const flat = (x, y) => { const z = hAt(x, y); return [[1, 0], [-1, 0], [0, 1], [0, -1]].every(([dx, dy]) => Math.abs(hAt(x + dx, y + dy) - z) < 0.15); };
 
   // ── citizens: on the lanes, the open ground and the square, by how open the ground round them is ──
   if (o.citizens !== false) {
-    const walkCode = new Set([C.LANE, C.OPEN]), sq = plan.stats.square;
-    const inSquare = (c, r) => !!sq && (c + 0.5) * cell > sq.x && (c + 0.5) * cell < sq.x + sq.w && (r + 0.5) * cell > sq.y && (r + 0.5) * cell < sq.y + sq.d;
-    const walk = (c, r) => walkCode.has(code(c, r)) || inSquare(c, r);
-    const at = (x, y) => walk(Math.floor(x / cell), Math.floor(y / cell));
-    // openness: the walkable share of the 5 × 5 cells round a cell (an alley ~0.2, a main street ~0.4, a square 1)
-    const open = (c, r) => { let n = 0; for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) if (walk(c + dc, r + dr)) n++; return n / 25; };
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       if (!walk(c, r)) continue;
       const w = open(c, r);
@@ -185,6 +195,72 @@ export function miniatureFaces(plan, people, s, seed = 1) {
         stand(px, py, Math.max(z, q.z), th + (R() - 0.5) * 0.4, R() < 0.8 ? 'adultM' : 'adultF', pick(WORK_POSES, R), pick(D.hand, R));
         out.hands++;
       }
+    }
+  }
+
+  // ── beasts of burden: plough teams in the fields, pack animals on the open streets ──
+  const H = HERDS[plan.stats.culture];
+  if (o.beasts !== false && H) {
+    const B = stream(seed, 'beasts'), cap = Math.round(120 * density);
+    const clear = (x, y, r) => !spots.some(([px, py]) => SM.hypot(px - x, py - y) < r);
+    // a beast's footing: all four hooves on ground that takes them (`ok`), level within a hand, clear of people
+    const hooves = (kind, x, y, th, ok) => {
+      const h = BEASTS[kind].height, L = h * 0.42, Wd = h * 0.16, ct = SM.cos(th), st = SM.sin(th), zs = [];
+      for (const [a, b] of [[L, Wd], [L, -Wd], [-L, Wd], [-L, -Wd]]) {
+        const px = x + a * ct - b * st, py = y + a * st + b * ct;
+        if (!ok(px, py)) return null;
+        const z = footing(px, py);
+        if (z === null) return null;
+        zs.push(z);
+      }
+      return Math.max(...zs) - Math.min(...zs) < 0.15 && clear(x, y, h * 0.7) ? Math.max(...zs) : null;
+    };
+    const beast = (kind, x, y, z, th) => {
+      const b = BEASTS[kind], scl = s * (0.94 + B() * 0.12);
+      for (const f of beastFaces({ key: kind, recipe: b.recipe, height: b.height, cx: x * s, cy: y * s, cz: (z + 0.02) * s, heading: th, scale: scl })) out.faces.push(f);
+      spots.push([x, y]); out.beasts++; out.herd.push({ kind, x, y, z, heading: th });
+      return scl / s;
+    };
+    // a plain box (a yoke beam, a pannier): its centre (x, y), along `th`, `len` × `wid` × z0..z1 metres
+    const box = (x, y, th, len, wid, z0, z1, hex) => {
+      const ct = SM.cos(th), st = SM.sin(th), P = (a, b, z) => [(x + a * ct - b * st) * s, (y + a * st + b * ct) * s, z * s];
+      const a = len / 2, b = wid / 2, q = [[-a, -b], [a, -b], [a, b], [-a, b]];
+      out.faces.push({ corners: q.map(([u, v]) => P(u, v, z1)), fill: scaleHex(hex, 1.0), doubleSided: true });
+      for (let i = 0; i < 4; i++) { const [u0, v0] = q[i], [u1, v1] = q[(i + 1) % 4]; out.faces.push({ corners: [P(u0, v0, z0), P(u1, v1, z0), P(u1, v1, z1), P(u0, v0, z1)], fill: scaleHex(hex, i % 2 ? 0.78 : 0.62), doubleSided: true }); }
+    };
+
+    // plough teams: two oxen abreast along the furrow under a yoke at the neck, the ploughman behind leaning on the stilts
+    const team = H.field.includes('ox') ? 'ox' : null;
+    const fields = team ? plan.grounds.filter((q) => q.kind === 'field' && q.w > 9 && q.d > 9) : [];
+    for (let i = fields.length - 1; i > 0; i--) { const j = Math.floor(B() * (i + 1)); [fields[i], fields[j]] = [fields[j], fields[i]]; }
+    for (const q of fields) {
+      if (out.beasts >= cap / 2) break;
+      if (B() > 0.1 * density) continue;
+      const th = B() < 0.5 ? 0 : Math.PI / 2, ct = SM.cos(th), st = SM.sin(th), x = q.x + q.w / 2, y = q.y + q.d / 2, half = 0.8;
+      const inField = (px, py) => px > q.x && px < q.x + q.w && py > q.y && py < q.y + q.d && flat(px, py);
+      const za = hooves('ox', x - st * half, y + ct * half, th, inField), zb = hooves('ox', x + st * half, y - ct * half, th, inField);
+      if (za === null || zb === null) continue;
+      const z = Math.max(za, zb, q.z), h = BEASTS.ox.height;
+      beast('ox', x - st * half, y + ct * half, z, th);
+      beast('ox', x + st * half, y - ct * half, z, th);
+      box(x + ct * h * 0.56, y + st * h * 0.56, th + Math.PI / 2, half * 2 + 0.7, 0.14, z + h * 0.74, z + h * 0.83, '#6a4a2c');   // the yoke across both necks
+      const px = x - ct * h * 1.75, py = y - st * h * 1.75;
+      if (inField(px, py)) { const zp = footing(px, py); if (zp !== null) { stand(px, py, Math.max(zp, q.z), th, 'adultM', 'hoe', pick(D.hand, B), B); out.drivers++; } }
+    }
+
+    // pack animals: on open streets (not the alleys), along the street, the driver at the head on the near side
+    for (let r = 0; r < rows && out.beasts < cap; r++) for (let c = 0; c < cols; c++) {
+      if (!walk(c, r) || open(c, r) < 0.32 || B() > 0.01 * density) continue;
+      const kind = pick(H.town, B), runsX = walk(c - 2, r) && walk(c + 2, r), runsY = walk(c, r - 2) && walk(c, r + 2);
+      if (!runsX && !runsY) continue;
+      const th = (runsX && (!runsY || B() < 0.5) ? 0 : Math.PI / 2) + (B() < 0.5 ? Math.PI : 0), ct = SM.cos(th), st = SM.sin(th);
+      const x = (c + 0.5) * cell, y = (r + 0.5) * cell, z = hooves(kind, x, y, th, at);
+      if (z === null) continue;
+      const g = beast(kind, x, y, z, th), h = BEASTS[kind].height * g;
+      if (kind === 'donkey' || kind === 'mule') for (const side of [-1, 1])   // the panniers, slung either side of the back
+        box(x - ct * h * 0.05 - st * side * h * 0.2, y - st * h * 0.05 + ct * side * h * 0.2, th, h * 0.4, h * 0.14, z + h * 0.42, z + h * 0.68, side < 0 ? '#9a7a4a' : '#8a6c40');
+      const dx = x + ct * h * 0.55 - st * h * 0.45, dy = y + st * h * 0.55 + ct * h * 0.45, zd = at(dx, dy) ? footing(dx, dy) : null;
+      if (zd !== null) { stand(dx, dy, zd, th, 'adultM', pick(STROLL_POSES, B), pick(D.hand, B), B); out.drivers++; }
     }
   }
   return out;

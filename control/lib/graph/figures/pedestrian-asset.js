@@ -21,6 +21,7 @@
 import { buildPosedFigure } from '../polygonizer/figure-render.js';
 import { makeLight, shadeHex, dot3, sub3, centroid } from '../polygonizer/vexar.js';
 import { SM, mathKey } from '../../util/math-scope.js';
+import { smoothCorners } from './smooth-corners.js';
 
 // figure-render world transform (matches cyclist-asset.js / figure-render.js).
 const PROTO_SCALE = 12, S = 1.95;
@@ -139,7 +140,7 @@ function skirtFaces(stacks, V, cut) {
       const j = (i + 1) % SIDES, wpts = [A[i], A[j], B[j], B[i]];
       let nrm = newell(wpts);
       if (dot3(nrm, sub3(centroid(wpts), axis)) < 0) nrm = [-nrm[0], -nrm[1], -nrm[2]];
-      out.push({ corners: wpts, region: 'shirt', part: 'skirt', normal: nrm });
+      out.push({ corners: wpts, region: 'shirt', part: 'skirt', normal: nrm, group: 'skirt' });
     }
   }
   return { faces: out, hem };
@@ -194,16 +195,18 @@ function bakeGeometry(archetypeKey, poseKey, lod = 'city', cutKey = null) {
         let n = newell(wpts); const cen = centroid(wpts);
         if (dot3(n, sub3(cen, cw)) < 0) n = [-n[0], -n[1], -n[2]];
         for (const [x, y] of wpts) { if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y; }
-        raw.push({ corners: wpts, region, part, normal: n });
+        raw.push({ corners: wpts, region, part, normal: n, group: st.id });
       }
     }
   }
   if (skirt) for (const f of skirt.faces) { for (const [x, y] of f.corners) { if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y; } raw.push(f); }
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-  const baked = raw.map((f) => ({
+  const vn = smoothCorners(raw);   // the corner normals, for a `smooth` instance
+  const baked = raw.map((f, i) => ({
     region: f.region,
     part: f.part,
     normal: f.normal,
+    vn: vn[i],
     corners: f.corners.map(([x, y, z]) => [x - cx, y - cy, z]),   // centre x/y, feet already at z≈0
   }));
   _geomCache.set(key, baked);
@@ -217,18 +220,23 @@ function bakeGeometry(archetypeKey, poseKey, lod = 'city', cutKey = null) {
  * cyclist uses; imperceptible at city scale.
  * @returns {Array<{corners:number[][], fill:string, doubleSided:boolean}>}
  */
-export function pedestrianFaces({ cx = 0, cy = 0, heading = 0, scale = 1, archetype = 'adultM', pose = 'idleL', palette = PALETTES[0], lod = 'city', cut = null } = {}) {
+export function pedestrianFaces({ cx = 0, cy = 0, heading = 0, scale = 1, archetype = 'adultM', pose = 'idleL', palette = PALETTES[0], lod = 'city', cut = null, smooth = false } = {}) {
   const baked = bakeGeometry(archetype, pose, lod, cut);
   const u = FIG_UNIT * scale;
   const ct = SM.cos(heading), st = SM.sin(heading);
-  return baked.map((f) => ({
+  return baked.map((f) => {
     // a palette may dress the thigh and shin apart, the forearm (a long sleeve) and the skirt of a `cut`; one that does
     // not dresses the leg as `pants`, the forearm as skin and the skirt as the shirt
-    fill: shadeHex((f.part && palette[f.part]) || palette[f.region] || palette.shirt, f.normal, FIG_LIGHT),
+    const hex = (f.part && palette[f.part]) || palette[f.region] || palette.shirt;
+    return {
+    fill: shadeHex(hex, f.normal, FIG_LIGHT),
+    // `smooth`: each corner shaded by its averaged normal (./smooth-corners.js), so the form reads rounded, not faceted
+    ...(smooth ? { cornerFills: f.vn.map((n) => shadeHex(hex, n, FIG_LIGHT)) } : {}),
     doubleSided: true,
     corners: f.corners.map(([x, y, z]) => {
       const px = x * u, py = y * u;
       return [cx + px * ct - py * st, cy + px * st + py * ct, z * u];
     }),
-  }));
+    };
+  });
 }

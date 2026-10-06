@@ -5,6 +5,8 @@ import { historicOptions } from './historic-kind.js';
 import { miniatureFaces, DRESS } from './miniatures.js';
 import { HISTORIC_CULTURES } from './cultures/index.js';
 import { pedestrianFaces, CUTS } from '../figures/pedestrian-asset.js';
+import { beastFaces } from '../figures/beast-asset.js';
+import { BEASTS, HERDS } from './beasts.js';
 
 const s = 1 / METRES_PER_UNIT;
 const hash = (x) => createHash('sha1').update(JSON.stringify(x)).digest('hex');
@@ -57,6 +59,35 @@ describe('historic miniatures', () => {
     const bare = pedestrianFaces({ lod: 'mini', pose: 'stoop' }), robe = pedestrianFaces({ lod: 'mini', pose: 'stoop', cut: 'ankle', palette: { skin: '#000000', shirt: '#111111', skirt: '#ffffff', pants: '#000000', shoe: '#000000' } });
     expect(robe.some((f) => f.fill !== '#000000' && parseInt(f.fill.slice(1, 3), 16) > 0x60)).toBe(true);   // the skirt, lit
     expect(robe.length).toBeLessThan(bare.length + 30);
+  });
+
+  it('stands beasts of burden from the culture\'s herd, and taking them away moves no one', () => {
+    const on = miniatureFaces(plan, true, s, 1), off = miniatureFaces(plan, { beasts: false }, s, 1);
+    expect(on.beasts).toBeGreaterThan(10);
+    expect(off.beasts).toBe(0);
+    const herd = new Set([...HERDS.pompeii.field, ...HERDS.pompeii.town]);
+    for (const b of on.herd) expect(herd.has(b.kind), b.kind).toBe(true);
+    expect(on.herd.some((b) => b.kind === 'ox')).toBe(true);
+    // the people come first and the beasts on their own stream: everyone stands where they stood without them
+    expect(hash(on.faces.slice(0, off.faces.length))).toBe(hash(off.faces));
+  });
+
+  it('shades the miniatures smooth (per-corner colour), and the city\'s pedestrians stay flat', () => {
+    expect(pedestrianFaces({}).some((f) => f.cornerFills)).toBe(false);
+    const soft = pedestrianFaces({ lod: 'mini', cut: 'knee', smooth: true });
+    expect(soft.every((f) => f.cornerFills && f.cornerFills.length === 4)).toBe(true);
+    expect(soft.some((f) => new Set(f.cornerFills).size > 1)).toBe(true);   // the corners differ across a face
+    expect(miniatureFaces(plan, { density: 0.05, beasts: false }, s).faces.every((f) => f.cornerFills)).toBe(true);   // (a yoke or a pannier is a plain box)
+  });
+
+  it('bakes each creature-creator recipe low-poly, standing at its height', () => {
+    for (const [k, b] of Object.entries(BEASTS)) {
+      const f = beastFaces({ key: k, recipe: b.recipe, height: b.height });
+      expect(f.length, k).toBeLessThan(500);
+      const zs = f.flatMap((q) => q.corners.map((c) => c[2]));
+      expect(Math.min(...zs), k).toBeCloseTo(0, 1);
+      expect(Math.max(...zs), k).toBeCloseTo(b.height, 1);
+    }
   });
 
   it('the historic kind takes people on the city only, checked', () => {
