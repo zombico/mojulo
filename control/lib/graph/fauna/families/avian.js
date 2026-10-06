@@ -242,8 +242,8 @@ export const species = {
     family: 'avian', name: 'a chicken (hen)', torsoUp: true, scale: 1,
     colors: { coat: '#8a4a24', sock: '#e0b23a', ash: '#a85f30', ashAlt: '#9a5428', belly: '#8a4a24', ears: '#c8302a', snout: '#e0b23a',
       brow: '#8a4a24', iris: '#d98a1e', sclera: '#d98a1e', nose: '#e0b23a', tip: '#5e3018', hoof: '#c9a14a', mane: '#a85f30',
-      lids: '#c8302a', pad: '#c8302a', folds: '#c8302a' },
-    headPalette: { Comb: '#c8202a', LidRim: '#c8302a' },
+      lids: '#8a4a24', pad: '#c8302a', folds: '#c8302a' },
+    headPalette: { Comb: '#c8202a', LidRim: '#c8302a', Nostrils: '#e0b23a' },
     joints: { neckBase: [0, 0.09, 0.29], neckTop: [0, 0.11, 0.36], wingRoot: [0.08, 0.04, 0.27],
       hip: [0.05, -0.02, 0.17], knee: [0.06, 0.04, 0.11], ankle: [0.05, 0.0, 0.025],
       toeF: [0.05, 0.075, 0.008], toeI: [0.02, 0.06, 0.008], toeO: [0.085, 0.055, 0.008], toeB: [0.05, -0.035, 0.008],
@@ -291,7 +291,11 @@ export const species = {
       ['st3', 0.076, { gum: -0.015, gumR: [0.003, -0.015], jaw: [0.003, -0.017], bottom: -0.018 }],
     ],
     jawCaps: { back: [0, 0.02, -0.025], tip: [0, 0.08, -0.016] },
-    headScale: 0.6, eyeAt: [2.3, 2.3], eyeR: 0.01,
+    // the eye back on the side of the head (mid-skull, behind the bill base); no mammal nose pad, a bill-coloured nostril
+    headScale: 0.6, eyeAt: [1.4, 2.4], eyeR: 0.012, nose: false,
+    // the brow raised clear of the moved-back eye (it clamped the upper lid shut over it)
+    browStrip: [[0.9, 1.6], [1.15, 1.6], [1.4, 1.6], [1.65, 1.65], [1.9, 1.8]],
+    eyeStyle: 'set', eyeSet: { sink: 0.3, open: [0.85, 0.75], pupil: 30 },
     // the COMB: three flat lobes standing on the crown midline; the WATTLES: two lobes hanging under the bill base
     headOrnaments: [
       ...[[0.6, 0.018], [1.4, 0.024], [2.2, 0.021], [2.9, 0.014]].map(([r, h], i) => ({ kind: 'sweep', name: `comb${i}`, at: [r, 0], space: 'local',
@@ -314,9 +318,9 @@ export const species = {
   mallard: {
     family: 'avian', name: 'a mallard (drake)', scale: 1,
     colors: { coat: '#9c9a94', sock: '#e8842a', ash: '#1f5a3a', ashAlt: '#1f5a3a', belly: '#b9b6ae', ears: '#1f5a3a', snout: '#d8be3a',
-      brow: '#1f5a3a', iris: '#3a2412', sclera: '#3a2412', nose: '#d8be3a', tip: '#1a1a1a', hoof: '#c86a20', mane: '#1f5a3a',
+      brow: '#1f5a3a', iris: '#7a4a1e', sclera: '#7a4a1e', nose: '#d8be3a', tip: '#1a1a1a', hoof: '#c86a20', mane: '#1f5a3a',
       lids: '#1f5a3a', pad: '#1f5a3a', folds: '#1f5a3a', skull: '#1f5a3a' },
-    headPalette: { Skull: '#1f5a3a', Jaw: '#d8be3a', LidRim: '#1f5a3a' },
+    headPalette: { Skull: '#1f5a3a', Jaw: '#d8be3a', LidRim: '#1f5a3a', Nostrils: '#d8be3a' },
     joints: { neckBase: [0, 0.12, 0.18], neckTop: [0, 0.145, 0.245], wingRoot: [0.07, 0.08, 0.20],
       hip: [0.05, -0.04, 0.10], knee: [0.06, 0.0, 0.07], ankle: [0.05, -0.01, 0.02],
       toeF: [0.05, 0.065, 0.005], toeI: [0.015, 0.05, 0.005], toeO: [0.09, 0.045, 0.005], toeB: [0.05, -0.025, 0.01],
@@ -365,9 +369,15 @@ export const species = {
       ['st3', 0.086, { gum: -0.008, gumR: [0.009, -0.008], jaw: [0.008, -0.009], bottom: -0.01 }],
     ],
     jawCaps: { back: [0, 0.02, -0.014], tip: [0, 0.09, -0.009] },
-    headScale: 1, nape: [0, -0.03, -0.01], eyeAt: [1.8, 2.3], eyeR: 0.005,
-    browStrip: [[1.0, 1.95], [1.25, 1.95], [1.5, 2.0], [1.75, 2.1], [2.0, 2.25]],
+    headScale: 1, nape: [0, -0.03, -0.01], eyeAt: [1.2, 2.4], eyeR: 0.009, nose: false,
+    eyeStyle: 'set', eyeSet: { sink: 0.2, open: [0.85, 0.75], pupil: 30 },
+    browStrip: [[0.9, 1.6], [1.15, 1.6], [1.4, 1.6], [1.65, 1.65], [1.9, 1.8]],
     nostrilAt: [3.6, 1.2], noseAt: [3.6, 1.2], noseR: [0.002, 0.002],
+    // the drake's WHITE NECK RING low on the green neck and the CHESTNUT BREAST on the trunk front
+    markings: [
+      { on: 'neck', kind: 'band', run: [0.2, 0.32], group: 'Collar', color: '#f2f0ea' },
+      { on: 'torso', kind: 'band', run: [0.78, 1], t: [0.3, 1], group: 'Breast', color: '#6b3a26', caps: ['tip'] },
+    ],
     bodyTiles: [],
     wings: { coreFit: true, pitch: 4,
       wing: featherWing({ arm: [0.08, 0.12, 0.08], secondaries: 12, secLen: 0.15, primLen: 0.17, primReach: 0.03, slotFrom: 0.95, slotBy: 0.1, width: 0.04,
