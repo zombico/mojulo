@@ -433,7 +433,7 @@ function couplingEta(c) {
 }
 
 // best product of efficiencies from the drive to every part, over couplings and `on` (riding costs nothing)
-function pathEfficiency(model) {
+export function pathEfficiency(model) {
   const edges = [];
   for (const c of model.couplings) { const e = couplingEta(c); edges.push([c.a, c.b, e], [c.b, c.a, e]); if (c.rod) edges.push([c.a, c.rod, e], [c.b, c.rod, e]); }
   for (const j of Object.values(model.joints)) if (j.on) edges.push([j.on, j.name, 1], [j.name, j.on, 1]);

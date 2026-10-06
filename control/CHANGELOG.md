@@ -125,6 +125,28 @@ manifest without `mechanism` is byte-identical.
   `mechanism-motion` entry: kinematics, linkages, gear trains and interference checks route to `mechanism`, and
   dynamics, contact forces and stress hand off to a multibody or FEA tool.
 
+### Industrial dynamics
+
+A mechanism with a material now carries real weight, inertia and friction, and the loads it computes go to the
+rigidity sensor. The motion report then reads the whole machine's strength, not one part's. Without the new fields
+the output is byte-identical.
+
+- **Mass from the mesh.** Each part's volume, centre of mass and inertia tensor are computed exactly from its closed
+  mesh, then multiplied by the material's density and an optional print fill share. A stated `mass` overrides it.
+- **Dynamics by energy.** The drive effort through the cycle includes:
+  - the inertia of every moving body at the drive speed
+  - gravity on every rising part
+  - a start-up term for a stated `spinup` time
+  - the speed fluctuation under a mean torque, with the flywheel inertia that holds 5 %
+  - the shaking force on the frame
+- **Joint forces and friction.** For a tree-shaped mechanism, mojulo computes the force through every gear mesh, rod,
+  screw and pin from the power downstream of it. Pin friction (μ·R·r) and slide friction (μ·N) are added to the drive,
+  and a plastic bushing's PV is checked against a typical limit.
+- **Into strength.** With a material, every rod is checked as a pinned strut and every gear by Lewis, each at its peak
+  load, and the worst part is named.
+- **Flags.** Load cycles over a stated duty, a self-locking screw holding a load on a material that creeps, unbalance,
+  a NEMA motor's typical torque against the peak and start-up effort, and back-driving.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

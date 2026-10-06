@@ -110,7 +110,37 @@ mechanism: {
   - With a stated drive: what each joint can deliver at its worst point.
   - A lead screw's efficiency from its lead angle (μ 0.2), and whether it self-locks.
   - Every pair of parts intersected across the cycle, listing the steps that collide, the overlap volume and its position. A bounding-box miss costs no render. A clear pair costs one. Threads are slow, so lower `steps`.
-- **Stated assumptions:** parts are rigid, with no inertia and no deflection, and loads oppose the motion. Default efficiencies are gear 0.98, ring 0.97, belt 0.96, rack 0.95 and ratio 0.9; pins are frictionless. A worm or bevel pair is a `ratio` with its own `efficiency`. **Strength is not assessed:** a part that moves clear can still break.
+- **Stated assumptions:** parts are rigid with no deflection, and loads oppose the motion. Default efficiencies are gear 0.98, ring 0.97, belt 0.96, rack 0.95 and ratio 0.9; pins are frictionless unless sized (below). A worm or bevel pair is a `ratio` with its own `efficiency`.
+
+**Weight, inertia, friction and strength.** Name a material and the motion report gains a `dynamics` block. Absent every field below, it is unchanged.
+
+```
+mechanism: { …,
+  material: 'petg',                                         // the strength table's name, for every part
+  bodies: { frame: { mass: 0 }, motor: { mass: 0.28 }, arm: { material: 'al-6061', fill: 0.4 } },   // kg; fill = a print's solid share
+  joints: { crank: { …, pin_r: 3, pin_len: 4.5 } },          // a pin's journal: friction μ·R·r, and PV on its bushing
+  couplings: [{ type: 'link', …, pin_r: 2.5 }],             // the rod's own pins
+  friction: { pin: 0.15, slide: 0.2 },                     // {} for the defaults; absent → frictionless
+  drive: { …, spinup: 0.3, motor: 'nema17-40' },           // seconds to full speed; a stepper's typical torque
+  duty: { hours: 200 },
+  loads: [{ part: 'nut', force: 300, sustained: true }],   // held for good (creep)
+}
+```
+
+- **Mass:** each part's mesh is integrated exactly (volume, centroid, inertia tensor) × density × fill. A stated `mass` wins. Give a frame `mass: 0` if you do not want it counted, and a stand-in motor its real mass.
+- **The effort** is a signed torque (or force) through the cycle. It is the sum of the loads, inertia at the drive speed (½J′ω²), gravity (−z), and friction, each through its path efficiency. Also reported:
+  - the peak and where it falls
+  - start-up (J·α over `spinup`)
+  - the margin against `drive.torque`
+  - the speed fluctuation under a mean torque, with the flywheel inertia that holds it to 5 %
+  - the frame's shaking force
+- **Forces** apply to a tree of couplings only; parts riding a carrier, or a looped train, are named as indeterminate:
+  - the force through each rod (compression and tension peaks), a gear mesh's tangential force, a rack's or screw's thrust
+  - each joint's radial and thrust peaks
+  - a sized pin's friction torque and PV, against a rule-of-thumb limit for its material
+- **Strength:** every rod is checked as a pinned strut at its peak compression, and every gear by Lewis at its peak torque, by the rigidity sensor (a repeated load for a loop). The worst part is named. `strength.build` on the row sets the print direction.
+- **Flags:** load cycles over `duty.hours`; back-driving (the mechanism drives the motor); a self-locking screw holding a `sustained` load on a material that creeps; unbalance of a turning part; a motor whose usable torque (half its typical holding torque) is below the peak or start-up effort; a bushing over its PV.
+- **Not covered:** deflection inside the mechanism, natural frequencies, impacts at clearances, fatigue life, heat. A rod's mass is lumped to its pins for its force, and friction is first order.
 
 ## Will it hold? — the rigidity sensor
 

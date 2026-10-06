@@ -295,7 +295,7 @@ const LEXICON = [
   },
   {
     id: 'mechanism-motion',
-    terms: ['kinematics', 'motion study', 'motion simulation', 'mechanism', 'linkage', 'four-bar', 'four bar linkage', 'slider-crank', 'slider crank', 'gear train', 'gearbox ratio', 'interference check', 'collision check', 'range of motion', 'lead screw', 'drive torque', 'mechanical advantage'],
+    terms: ['kinematics', 'motion study', 'motion simulation', 'mechanism', 'linkage', 'four-bar', 'four bar linkage', 'slider-crank', 'slider crank', 'gear train', 'gearbox ratio', 'interference check', 'collision check', 'range of motion', 'lead screw', 'drive torque', 'mechanical advantage', 'inertia', 'flywheel', 'friction', 'motor sizing', 'stepper torque', 'shaking force'],
     concept: 'Parts joined so they move together: what each part does through the cycle, whether anything collides, and what it takes to drive it.',
     support: PARTIAL,
     routes: [
@@ -304,7 +304,7 @@ const LEXICON = [
     then: [
       { tool: 'measure_solid', when: '`motion: true`: every pair of parts intersected across the cycle (where they collide and by how much), each joint\'s range, ratio and speed, the drive torque by virtual work against a stated rating, and a lead screw\'s efficiency and self-locking', args: { ref: '<sk_ref>', motion: true } },
     ],
-    ceiling: 'Rigid-body kinematics plus virtual-work forces through stated efficiencies: no inertia or dynamics, no friction model past the efficiencies, no cams or intermittent drives, one drive per mechanism, and NO strength — a part that moves clear can still bend or break. The .glb carries the rest pose, not the motion.',
+    ceiling: 'Rigid bodies: with a `material`, mass from the mesh, inertia, gravity, first-order pin and slide friction, the force through each rod, gear and screw of a tree-shaped train, and the rods and gears checked by the rigidity sensor at their peak loads. No deflection inside the mechanism, natural frequencies, impacts, fatigue life or heat; no cams or intermittent drives; one drive per mechanism. The .glb carries the rest pose, not the motion.',
     dcc: 'Dynamics, contact forces and stress live in a multibody or FEA tool (Simscape, Adams, FreeCAD FEM, Fusion simulation); export the parts with `export_model` and rebuild the joints there.',
   },
   {

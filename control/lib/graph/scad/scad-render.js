@@ -44,6 +44,7 @@ import { facesToPolyhedron } from '../scene/scene-scad.js';
 import { optionalHelperHint } from '../../version/distribution.js';
 import { MECH_LIB_SOURCE, MECH_LIB_VERSION, usesMechLib } from './mech-lib.js';
 import { validateMechanism, solveMechanism, mechanismReport, sweepCollisions, DEFAULT_STEPS } from './mechanism.js';
+import { validateDynamics, wantsDynamics, analyseDynamics } from './dynamics.js';
 
 export const SCAD_KIND = 'scad';
 export const MAX_SOURCE_BYTES = 64 * 1024;
@@ -510,7 +511,7 @@ export async function planScad(manifest = {}) {
   // an embedded `fields` entry with `exact: true` bakes through Manifold (async to load, sync to bake)
   if (manifestWantsExact(manifest)) await ensureExactKernel();
   const partNames = manifest.parts && typeof manifest.parts === 'object' && !Array.isArray(manifest.parts) ? Object.keys(manifest.parts) : null;
-  const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts), ...validateScadFields(manifest.fields), ...validateMechanism(manifest.mechanism, partNames)];
+  const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts), ...validateScadFields(manifest.fields), ...validateMechanism(manifest.mechanism, partNames), ...validateDynamics(manifest.mechanism, partNames)];
   if (!errors.length && Array.isArray(manifest.fields)) {
     for (const f of manifest.fields) {
       const a = auditManifold(fieldToFaces(f, {}));
@@ -615,7 +616,15 @@ export async function measureScadMotion(manifest, { steps } = {}) {
     partNames: Object.keys(manifest.parts), statements: manifest.parts, bounds,
     steps: steps ?? manifest.mechanism.steps ?? DEFAULT_STEPS, ignore: manifest.mechanism.ignore || [], render,
   });
-  return { ...report, collisions: { ...collisions, ms: Math.round(performance.now() - t0) } };
+  // weight, inertia, friction and the parts' strength under the cycle's loads — only when the mechanism names a
+  // material, bodies, friction, a start-up, a motor or a duty (absent all of them the report is unchanged)
+  let dynamics;
+  if (wantsDynamics(manifest.mechanism)) {
+    const partTris = Object.fromEntries(r.parts.map((p) => [p.name, p.records.map((x) => x.corners)]));
+    const mmPer = { mm: 1, cm: 10, m: 1000, in: 25.4 }[units] ?? 1;
+    dynamics = analyseDynamics(solved, report, { partTris, scale: mmPer, build: manifest.strength?.build ?? null });
+  }
+  return { ...report, ...(dynamics ? { dynamics } : {}), collisions: { ...collisions, ms: Math.round(performance.now() - t0) } };
 }
 
 /** The deterministic subset of the ledger stored on the manifest (no timings). */

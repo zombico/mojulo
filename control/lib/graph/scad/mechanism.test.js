@@ -203,6 +203,17 @@ describe('mechanism — through OpenSCAD', () => {
     expect(bad[0].first_at).toBeLessThan(180);
     expect(bad[0].worst.drive).toBe(180);
   }, 120000);
+  wasm('dynamics only on request: no material, no `dynamics` key; with one, mass from the real meshes and the rod checked', async () => {
+    expect((await measureScadMotion(SLIDER(false))).dynamics).toBeUndefined();
+    const m = SLIDER(false);
+    m.mechanism = { ...m.mechanism, material: 'petg', bodies: { frame: { mass: 0 } }, drive: { part: 'crank', speed: 300 }, loads: [{ part: 'piston', force: 80 }] };
+    const d = (await measureScadMotion(m)).dynamics;
+    expect(d.bodies.frame.mass_g).toBe(0);
+    expect(d.bodies.rod.mass_g).toBeGreaterThan(1);   // a 40 mm PETG rod, 10 × 3 with two eyes: about 1.6 g
+    expect(d.bodies.rod.mass_g).toBeLessThan(2.5);
+    expect(d.forces.couplings[0].compression_peak).toBeGreaterThan(80);   // the 80 N load plus the piston's inertia
+    expect(d.strength.readings[0]).toEqual(expect.objectContaining({ part: 'rod', element: 'strut' }));
+  }, 120000);
   wasm('a gear pair driven through mesh sweeps clear; the wrong ratio collides at the mesh', async () => {
     const good = await measureScadMotion(GEARS(30));
     expect(good.collisions.pairs).toEqual([expect.objectContaining({ a: 'a', b: 'b', clear: true })]);

@@ -110,7 +110,12 @@ export async function measureSolidHandler(input) {
       const hits = (motion.collisions?.pairs || []).filter((p) => p.clear === false);
       for (const h of hits) warnings = [...(warnings || []), `motion: '${h.a}' and '${h.b}' collide at ${h.steps_colliding} of ${h.of} steps, first at drive ${h.first_at}${motion.collisions.drive_unit}, worst ${h.worst.volume} ${units || 'units'}³ near [${(h.worst.at || []).join(', ')}]`];
       if (motion.lock) warnings = [...(warnings || []), `motion: the mechanism locks at drive ${motion.lock.drive}${motion.lock.unit}`];
-      if (motion.effort?.margin && !motion.effort.margin.ok) warnings = [...(warnings || []), `motion: the drive needs ${motion.effort.margin.required} ${motion.effort.unit} at its worst point (drive ${motion.effort.at_drive}${motion.effort.at_unit}) and has ${motion.effort.margin.rating}`];
+      const dyn = motion.dynamics;
+      const eff = dyn?.effort || motion.effort;   // with dynamics, the effort that counts inertia, gravity and friction
+      if (eff?.margin && !eff.margin.ok) warnings = [...(warnings || []), `motion: the drive needs ${eff.margin.required} ${eff.unit} at its worst point (drive ${eff.at_drive}${eff.at_unit}${dyn?.startup ? ', start-up included' : ''}) and has ${eff.margin.rating}`];
+      for (const f of dyn?.flags || []) if (['motor', 'wear', 'creep', 'back-driving'].includes(f.kind) && f.ok !== true) warnings = [...(warnings || []), `motion: ${f.note}`];
+      const sw = dyn?.strength?.worst;
+      if (sw && !sw.verdict.startsWith('meets')) warnings = [...(warnings || []), `motion: ${dyn.strength.line}`];
     }
   }
 
