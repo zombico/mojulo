@@ -28,6 +28,7 @@
  */
 
 // ── sources ──────────────────────────────────────────────────────────────────────────────────────────
+import { ROMAN_DRESS } from './dress-roman.js';
 const W = (title, via = 'read') => ({ author: 'Wikipedia', title, year: 2026, url: `https://en.wikipedia.org/wiki/${title.replace(/ /g, '_')}`, via });
 const WI = (title, via = 'read') => ({ author: 'Wikipedia (it)', title, year: 2026, url: `https://it.wikipedia.org/wiki/${title.replace(/ /g, '_')}`, via });
 const PIP = (title, path) => ({ author: 'Pompeii in Pictures', title, year: 2026, url: `https://pompeiiinpictures.com/pompeiiinpictures/${path}`, via: 'read' });
@@ -326,5 +327,5 @@ const FORMS = [
   { id: 'bomb-damage-1943', kind: 'form', name: 'the 1943 bomb damage (Porta Marina and elsewhere)', confidence: 'read', attested: { from: 1943, to: null, approx: true }, sources: [S.pipMarina] },
 ];
 
-export const POMPEII_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS];
+export const POMPEII_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS, ...ROMAN_DRESS];
 export const POMPEII_SOURCES = S;

@@ -26,6 +26,7 @@
  */
 
 // ── sources ──────────────────────────────────────────────────────────────────────────────────────────
+import { OLD_KINGDOM_DRESS } from './dress-egypt.js';
 const S = {
   harrell: { author: 'J. A. Harrell', title: 'Building Stones (UCLA Encyclopedia of Egyptology)', year: 2012, url: 'https://escholarship.org/uc/item/3fd124g0' },
   lehnerHarbors: { author: 'M. Lehner', title: 'On the Waterfront: Canals and Harbors in the Time of Giza Pyramid-Building (AERAGRAM 15-1&2)', year: 2014, url: 'https://aeraweb.org/wp-content/uploads/2022/08/aeragram15_1-2.pdf' },
@@ -500,5 +501,5 @@ const FORMS = [
   },
 ];
 
-export const GIZA_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS];
+export const GIZA_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS, ...OLD_KINGDOM_DRESS];
 export const GIZA_SOURCES = S;

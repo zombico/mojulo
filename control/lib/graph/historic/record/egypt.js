@@ -17,6 +17,7 @@
  */
 
 // ── sources ──────────────────────────────────────────────────────────────────────────────────────────
+import { NEW_KINGDOM_DRESS } from './dress-egypt.js';
 const S = {
   emeryArch: { author: 'V. L. Emery', title: 'Mud-Brick Architecture (UCLA Encyclopedia of Egyptology)', year: 2011, url: 'https://escholarship.org/uc/item/4983w678' },
   emeryBrick: { author: 'V. L. Emery', title: 'Mud-Brick (UCLA Encyclopedia of Egyptology)', year: 2011, url: 'https://escholarship.org/uc/item/7v84d6rh' },
@@ -487,5 +488,5 @@ const FORMS = [
   },
 ];
 
-export const EGYPT_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS];
+export const EGYPT_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS, ...NEW_KINGDOM_DRESS];
 export const EGYPT_SOURCES = S;

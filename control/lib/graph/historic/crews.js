@@ -228,7 +228,7 @@ export function crewFaces(plan, people, s, seed = 1, kit = folkKit(plan, s)) {
       }
     }
   }
-  return { faces: out.faces, boxes, stats: { citizens: out.citizens, hands: out.hands, crew: out.crew, beasts: out.beasts, drivers: out.drivers }, herd: out.herd };
+  return { faces: out.faces, boxes, stats: { citizens: out.citizens, hands: out.hands, crew: out.crew, beasts: out.beasts, drivers: out.drivers, ...(out.dress ? { dress: out.dress } : {}) }, herd: out.herd };
 }
 
 /**
@@ -238,7 +238,7 @@ export function crewFaces(plan, people, s, seed = 1, kit = folkKit(plan, s)) {
  */
 export function sceneFolk(plan, people, s, seed = 1, { teams = true } = {}) {
   if (!people) return null;
-  const kit = folkKit(plan, s, plan.grid ? plan.grid.cell : 3);
+  const kit = folkKit(plan, s, plan.grid ? plan.grid.cell : 3, peopleOptions(people).year);
   miniatureFaces(plan, people, s, seed, { teams, kit });
   return crewFaces(plan, people, s, seed, kit);
 }

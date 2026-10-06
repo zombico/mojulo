@@ -16,6 +16,7 @@ import { beastFaces } from '../figures/beast-asset.js';
 import { scaleHex } from '../polygonizer/vexar.js';
 import { stream, pick } from './layout-kit.js';
 import { BEASTS, HERDS } from './beasts.js';
+import { wardrobeAt } from './dress.js';
 import { SM } from '../../util/math-scope.js';
 
 // ── dress: per culture, the skins and the garments its people wear ────────────────────────────────────────────────
@@ -63,7 +64,8 @@ const QIN = {
   woman: [garb('#6a3a34', 'ankle', { sleeve: true, shoe: '#1c1a18' }), garb('#3e3a44', 'ankle', { sleeve: true, shoe: '#1c1a18' })],
   hand: [garb('#a89a7a', 'knee', { sleeve: true, legs: '#8a7c60', shoe: '#2a2620' }), garb('#968a6c', 'knee', { legs: '#7a6e56' })],
 };
-// keyed by culture, and by the land the farm and works scenes name (`egypt`: the Theban country)
+// keyed by culture, and by the land the farm and works scenes name (`egypt`: the Theban country). The SKIN is read
+// here always; the garments only where no record dresses a wearer at the year (./dress.js `wardrobeAt`)
 export const DRESS = { pompeii: ROMAN, forum: ROMAN, lindos: GREEK, polis: GREEK, thebes: EGYPT, giza: EGYPT, egypt: EGYPT, sumer: SUMER, qin: QIN };
 
 /** A garment on a skin → a pedestrian palette: the shirt and skirt, a sleeve or a bare forearm, legs or bare shins. */
@@ -138,9 +140,13 @@ function footings(plan, cell, hAt) {
  * the faces (scene units) and the counts; `spots` is where everyone stands, in metres. A culture without a wardrobe
  * dresses Roman; one without a herd has no beasts.
  */
-export function folkKit(plan, s, cell = 3) {
+export function folkKit(plan, s, cell = 3, year = null) {
   const out = { faces: [], citizens: 0, hands: 0, beasts: 0, drivers: 0, crew: 0, herd: [] };
-  const D = DRESS[plan.stats.culture] || ROMAN, H = HERDS[plan.stats.culture] || null;
+  // the wardrobe at the year (the card's own year unless `people.year` asks another): the record's garments, the
+  // table's where no record dresses a wearer then; the skins always the table's
+  const T = DRESS[plan.stats.culture] || ROMAN, Wd = wardrobeAt(plan.stats.culture, year), H = HERDS[plan.stats.culture] || null;
+  const D = { skin: T.skin, man: Wd.man.length ? Wd.man : T.man, woman: Wd.woman.length ? Wd.woman : T.woman, hand: Wd.hand.length ? Wd.hand : T.hand };
+  out.dress = { year: Wd.year, from: Wd.from };
   // the ground's height: the plan's terrain where it has one (a town on its spur); elsewhere (null from the terrain,
   // or none) the top of the flat grounds the scene lays there (a pit's floor sunk below the yard)
   const lay = plan.hAt ? null : groundHeights(plan.grounds || []);
@@ -211,7 +217,7 @@ export function miniatureFaces(plan, people, s, seed = 1, { teams = true, kit = 
   const G = plan.grid;
   if (!people) return { faces: [], citizens: 0, hands: 0, beasts: 0, drivers: 0, herd: [] };
   const o = peopleOptions(people), density = o.density;
-  const F = kit || folkKit(plan, s, G ? G.cell : 3), { out, D, H, footing, flat, hooves, stand, beast, box } = F;
+  const F = kit || folkKit(plan, s, G ? G.cell : 3, o.year), { out, D, H, footing, flat, hooves, stand, beast, box } = F;
   const R = stream(seed, 'people');
   const [ox, oy] = (G && G.origin) || [0, 0];
   const { cols = 0, rows = 0, cell = 3, data = [], codes: C = {} } = G || {};

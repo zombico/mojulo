@@ -18,11 +18,15 @@
  *   method   { attested, materials: [material ids], notes? }
  *   type     { built: span, materials: [ids], methods?: [ids], dims?: {…} (m), notes? }
  *   form     { attested, notes? }
+ *   dress    { attested, wearer: 'man' | 'woman' | 'hand', cut: 'knee' | 'shin' | 'ankle', looks: [{ shirt, skirt?,
+ *              sleeve?, legs?, shoe?, weight? }] (colours #rrggbb), notes? } — a garment and who wore it (./dress.js)
  *
  * checkRecord is the machine gate over a record: it advises (returns findings), never refuses.
  */
 
-export const ENTRY_KINDS = ['material', 'method', 'type', 'form'];
+export const ENTRY_KINDS = ['material', 'method', 'type', 'form', 'dress'];
+export const DRESS_WEARERS = ['man', 'woman', 'hand'];
+export const DRESS_CUTS = ['knee', 'shin', 'ankle'];
 export const CONFIDENCE = ['read', 'secondary', 'unverified'];
 export const MATERIAL_ROLES = ['wall', 'mortar', 'roof', 'structure', 'finish', 'waterproofing', 'paving', 'foundation', 'ornament', 'drainage'];
 
@@ -54,6 +58,17 @@ export function checkRecord(entries) {
       if (!Array.isArray(e.role) || !e.role.length) add('error', e.id, 'no structural role');
       else for (const r of e.role) if (!MATERIAL_ROLES.includes(r)) add('warn', e.id, `unknown role '${r}'`);
       for (const c of e.colour || []) if (!HEX.test(c)) add('error', e.id, `colour '${c}' is not #rrggbb`);
+    }
+    if (e.kind === 'dress') {
+      if (!DRESS_WEARERS.includes(e.wearer)) add('error', e.id, `wearer must be one of ${DRESS_WEARERS.join(', ')}`);
+      if (!DRESS_CUTS.includes(e.cut)) add('error', e.id, `cut must be one of ${DRESS_CUTS.join(', ')}`);
+      if (!Array.isArray(e.looks) || !e.looks.length) add('error', e.id, 'no looks');
+      for (const l of e.looks || []) {
+        // nobody is bare to the waist: every look covers the torso (its `shirt`)
+        if (!l || !HEX.test(l.shirt || '')) { add('error', e.id, 'a look without a #rrggbb shirt'); continue; }
+        for (const k of ['skirt', 'legs', 'shoe']) if (l[k] !== undefined && !HEX.test(l[k])) add('error', e.id, `${k} '${l[k]}' is not #rrggbb`);
+        if (l.weight !== undefined && !(Number.isInteger(l.weight) && l.weight >= 1)) add('error', e.id, 'a look weight is a whole number from 1');
+      }
     }
     // what a method or type uses must exist, and be attested by the year it was first used / built
     for (const ref of [...(e.materials || []), ...(e.methods || [])]) {

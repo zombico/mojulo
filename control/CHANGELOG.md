@@ -529,6 +529,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
   guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
   layout has no slots, has none yet.
+- Dress changes with the era. Clothing is now part of each culture's record, as dated and cited `dress` entries
+  next to its materials and building types (`lib/graph/historic/dress.js`). Each entry is one garment: who wore
+  it (the man or the woman of the street, or the labourer), its span, its hem, sleeves or trousers, and a few
+  colourways. The people wear what was in use at the culture's year, and `people.year` asks for another year:
+  the buildings stay as they are, and the people dress as that year's people did.
+  - A culture with nothing recorded for a year dresses as the culture it draws its dress from (the new `dress`
+    part of a lineage relation): the Forum from Pompeii, the polis from Lindos, Thebes before the New Kingdom
+    from Giza, and Pompeii, before its Roman entries begin, from the Greek tradition.
+  - `checkRecord` checks a dress entry like any other: its wearer, its hem, its colours, and that every look
+    covers the torso.
 - A figure stands on a kerb or a step and refuses a spot taken by anything taller.
 - Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
 - Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),

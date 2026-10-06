@@ -10,6 +10,7 @@
  */
 
 // ── sources ──────────────────────────────────────────────────────────────────────────────────────────
+import { SUMER_DRESS } from './dress-sumer.js';
 const S = {
   delougaz: { author: 'P. Delougaz', title: 'Plano-Convex Bricks and the Methods of Their Employment (SAOC 7)', year: 1933, url: 'https://isac.uchicago.edu/research/publications/saoc/saoc-7-plano-convex-bricks-and-methods-their-employment-ii-treatment-clay' },
   woolley: { author: 'C. L. Woolley', title: 'The Ziggurat of Ur (Museum Journal, Penn Museum)', year: 1924, url: 'https://www.penn.museum/sites/journal/1235/' },
@@ -310,5 +311,5 @@ const FORMS = [
   },
 ];
 
-export const SUMER_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS];
+export const SUMER_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS, ...SUMER_DRESS];
 export const SUMER_SOURCES = S;
