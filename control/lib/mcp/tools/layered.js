@@ -49,6 +49,8 @@ import { validateCast, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-
 import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
+import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
+import { MATERIAL_WORDS as STATUE_MATERIAL_WORDS, CROP_WORDS as STATUE_CROP_WORDS, BASE_WORDS as STATUE_BASE_WORDS } from '@/lib/graph/statue/principles';
 import { justify } from '@/lib/graph/polygonizer/station-loft-adorn';
 import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
 import { layeredLegibility } from '@/lib/graph/polygonizer/station-loft-legibility';
@@ -119,6 +121,15 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
 /** expandPlan, except that an armour's head piece (a helm, a kabuto, a theme's helm) on the anime head refuses by
  * name: the piece is addressed on the landmark cranium, which the anime head does not carry. */
 function expandHeroAwarePlan(plan, hero) {
+  // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
+  if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
+  return expandAware(plan, hero);
+}
+function statueRecipeOf(recipe, plan, hero) {
+  const { recipe: carved, trace } = statueRecipe(recipe, plan, hero.statue, { female: femaleOf(hero) });
+  return { ...carved, statue: trace };
+}
+function expandAware(plan, hero) {
   try { return expandPlan(plan); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
@@ -147,7 +158,7 @@ export function normalizeHero(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue'];
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
@@ -156,6 +167,8 @@ const headOf = (hero) => hero.head ?? 'landmark';
  * (hero-form.js decides the chain the same way) */
 const jawedHead = (hero) => headOf(hero) === 'landmark' || !!hero.head?.joints?.jawHinge;
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+/** a hero whose cast reads female (a statue card drapes and paints by silhouette) */
+const femaleOf = (hero) => castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female';
 
 /** the figure casts that read as a child (figure-cast.js) and the anime look that says so (anime-looks.js `kid`) */
 export const CHILD_CODED_CASTS = Object.freeze(['child', 'chibi']);
@@ -225,6 +238,7 @@ export function validateHeroSpec(spec) {
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the anime hero\'s ambient blink off (true is the default and not stored)');
   }
   errs.push(...validateGear(spec.gear));
+  if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
   if (isSwing(spec.gesture) && !spec.gear?.[SWING_HAND[spec.gesture]]) errs.push(`gesture '${spec.gesture}' swings the ${SWING_HAND[spec.gesture]} hand's gear: add gear.${SWING_HAND[spec.gesture]} (an item's build words, e.g. { item: '${spec.gesture === 'bash' ? 'shield' : spec.gesture === 'plant' ? 'staff' : 'sword'}' })`);
   if (spec.proportions !== undefined && !PROPORTION_WORDS.includes(spec.proportions)) errs.push(`proportions: 'anime' (about 6.5 / 7 heads tall: the default with the anime head), 'hero' (the realistic casts: the default with the landmark head) or 'herobot' (the hero robot's toy-hero body, about 4.5 heads tall: a big head, short arms and torso, big hands and feet)`);
   if (spec.core !== undefined && !HERO_CORES.includes(spec.core)) errs.push(`core: 'structured' (the default: the vajra core, a pelvis bone turned by the hip line alone and a lumbar bone, the pelvis part, converged legs) or 'streamlined' (the hero before it)`);
@@ -272,6 +286,13 @@ export function heroRecord(spec) {
   // an armour build is stamped with the laws it was minted under, so a later refinement never moves a stored suit
   if (isArmorBuild(hero.adorn) && hero.adorn.laws === undefined) hero.adorn = { ...hero.adorn, laws: ARMOR_LAWS_VERSION };
   if (isOutfitBuild(hero.outfit) && hero.outfit.laws === undefined) hero.outfit = { ...hero.outfit, laws: OUTFIT_LAWS_VERSION };
+  // a statue build (statue/expand.js): a style word stored as its build, stamped with the laws; the card's hair set at
+  // mint when the hero names none (the hair is stored resolved, so a later card edit leaves it: patch /hero/hair)
+  if (spec.statue !== undefined && spec.statue !== null) {
+    const s = normalizeStatue(spec.statue); hero.statue = s.laws === undefined ? { ...s, laws: STATUE_LAWS_VERSION } : s;
+    const hair = hero.head === 'landmark' && spec.hair === undefined ? statueHair(hero.statue, { female: femaleOf(hero) }) : undefined;
+    if (hair !== undefined) hero.hair = resolveHair(hair);
+  }
   return hero;
 }
 
@@ -279,6 +300,8 @@ export function heroRecord(spec) {
  * form with a blank trunk (`head: 'none'`) or a baked include; the door's clips (`clips`) merged over its own, and the
  * stand (`gesture`) as its first clip. */
 export function heroPlanOf(hero) {
+  // a statue's card stands, stills and drapes the hero beneath its own words (statue/expand.js passes 1 and 2)
+  hero = statueHero(hero, { female: femaleOf(hero), structured: (hero.core ?? DEFAULT_CORE) === 'structured' });
   // the door's clips merge over the form's own (hero-gesture.js withHeroClips); the stand rides as a one-key `gesture`
   // clip listed first; the anime hero's default is read here, so a /hero/head switch takes it on or drops it; neither ⇒
   // the plan as it was
@@ -467,7 +490,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const animeFace = anime ? eff.face : null, animeExpression = anime ? eff.expression : null, tune = anime ? eff.tune : hero.tune;
   // the anime head's feature spacing is advised against its base's bands (anime-sculpt.js FEATURE_BANDS) unless a look
   // names another character; the table itself rides faceMeasures either way
-  const warnings = [...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
+  const warnings = [...(recipe?.statue?.warnings ?? []), ...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
     ...(anime ? [...animeFaceWarnings(animeFace, headPoleOf(hero), { sculpt: eff.sculpt }), ...animeSculptWarnings(eff.sculpt), ...(hero.look?.length ? [] : inc?.faceMeasures?.features?.advice ?? []), ...(hair.style === 'none' ? [] : animeHairWarnings(hair, { words: eff.hairWords })), ...animeExpressionWarnings(animeExpression), ...animeCoverageWarnings(inc?.hairCoverage), ...animeFaceZoneWarnings(inc?.hairCoverage, { veil: hair.veil })] : []), ...extraWarnings];
   const dress = dressReadout(hero, plan, dressMesh, recipe);
   const stand = gestureReadout(hero, mesh, recipe); warnings.push(...gestureWarnings(stand, stats?.layered?.dials));
@@ -496,6 +519,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...(landmark ? { face: hero.face, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: movedOf(hero.face), hair, hairMoved: movedOf(Object.fromEntries(Object.entries(hair).filter(([k]) => k !== 'style'))), hairMeasures: inc?.hairMeasures ?? null, expression: hero.expression, faceMeasures: faceMeasures(hero, plan) } : {}),
     evidence: heroEvidence(hero),
     ...(dress ? { dress } : {}),
+    ...(recipe?.statue ? { statue: recipe.statue } : {}),
     ...(stand ? { gesture: stand } : {}),
     ...(core ? { core } : {}),
     ...(clips ? { clips } : {}),
@@ -519,7 +543,7 @@ export async function createLayeredHeroHandler(input) {
   let planned = null;   // the mint's own compiled figure: the readout's stand and budget read it
   const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${hero.cast}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` }, { onPlanned: (p) => { planned = p; } });
   const face = hero.head === 'anime' ? ` The anime head by word: /hero/face/<control> (${ANIME_FACE_KEYS.join(', ')}; 1 = the base, tilt an offset); the hair: /hero/hair/style (${ANIME_HAIR_STYLES.join(', ')}), /hero/hair/<control> (${ANIME_HAIR_KEYS.join(', ')}) and /hero/hair/locks/<clump> ({ cx, cy, cz, tx, ty, tz }: fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-±1-0…2 on short); the hair's form /hero/hair/<word> (${ANIME_HAIR_FORM_WORDS.join(', ')}; lift { crown, temple, fringe, nape } in construction units; false the studio's construction, null back to the base's); the hair base (the cut worn while no family is named: ${Object.entries(ANIME_HAIR_BASE).map(([pole, b]) => `${b.cut} on the ${pole}`).join(', ')}, its form under every family); /hero/expression (${Object.keys(ANIME_POSES).join(', ')} or { blink, smile, open, brow }). The graphic face: /hero/sculpt (an object of ${ANIME_SCULPT_KEYS.join(', ')}, ${Object.keys(SCULPT_SHAPE_KEYS).join(', ')}; 1 = the base, positions and angles offsets; moves ${ANIME_SCULPT.MOVE_NAMES.join(', ')}; false for the studio's face), then /hero/sculpt/<word>. A LOOK composes presets by word: set /hero/look to a list (archetypes ${LOOK_TABLES.archetype.join(', ')}; face traits ${LOOK_TABLES.face.join(', ')}; graphic-face traits ${LOOK_TABLES.sculpt.join(', ')}; hair traits and families ${LOOK_TABLES.hair.join(', ')}; poses); the controls above apply on top of it.` : hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
-  const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}), /hero/outfit (garments that follow the body: an outfit build { type: 'outfit', style, dials }, restyled by /hero/outfit/dials/<stylize | fit | coverage | ornament> and /hero/outfit/style; or ${Object.keys(OUTFIT_WORDS).join(', ')}, or a list), /hero/paint (second skin: ${Object.keys(PAINT_WORDS).join(', ')}, or a list) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials, theme? }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament>, /hero/adorn/style and /hero/adorn/theme. The stand: /hero/gesture (${GESTURE_WORDS.join(', ')}, or pose words ${GESTURE_KEYS.join(', ')}). Clips: set /hero/clips to { <name>: [keys] } (each key an object of the stand's pose words; the head and neck may aim; heelL, heelR, lift, support: 'none'${jawedHead(hero) ? ', jaw' : ''}), then /hero/clips/<name> (remove drops a door clip); a name the figure plays (${Object.keys(plan.clips || {}).filter((c) => c !== GESTURE_CLIP).join(', ')}) replaces that clip, false removes one of the hero's own.${hero.head === 'anime' ? ` On the anime head a key may carry face (an expression word, { blink, smile, open, brow } or a list), a clip may be { seconds, keys } (its designed duration; the clips play ${Object.entries(heroClipSeconds(hero, plan.clips) || {}).filter(([c]) => c !== GESTURE_CLIP).map(([c, s]) => `${c} ${s} s`).join(', ')}), and /hero/blink false turns the ambient blink off.` : ''}`;
+  const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}), /hero/outfit (garments that follow the body: an outfit build { type: 'outfit', style, dials }, restyled by /hero/outfit/dials/<stylize | fit | coverage | ornament> and /hero/outfit/style; or ${Object.keys(OUTFIT_WORDS).join(', ')}, or a list), /hero/paint (second skin: ${Object.keys(PAINT_WORDS).join(', ')}, or a list) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials, theme? }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament>, /hero/adorn/style and /hero/adorn/theme. The stand: /hero/gesture (${GESTURE_WORDS.join(', ')}, or pose words ${GESTURE_KEYS.join(', ')}). Clips: set /hero/clips to { <name>: [keys] } (each key an object of the stand's pose words; the head and neck may aim; heelL, heelR, lift, support: 'none'${jawedHead(hero) ? ', jaw' : ''}), then /hero/clips/<name> (remove drops a door clip); a name the figure plays (${Object.keys(plan.clips || {}).filter((c) => c !== GESTURE_CLIP).join(', ')}) replaces that clip, false removes one of the hero's own.${hero.head === 'anime' ? ` On the anime head a key may carry face (an expression word, { blink, smile, open, brow } or a list), a clip may be { seconds, keys } (its designed duration; the clips play ${Object.entries(heroClipSeconds(hero, plan.clips) || {}).filter(([c]) => c !== GESTURE_CLIP).map(([c, s]) => `${c} ${s} s`).join(', ')}), and /hero/blink false turns the ambient blink off.` : ''} A statue: /hero/statue (a period card: ${STATUE_STYLES.join(', ')}; or { type: 'statue', style, material: ${STATUE_MATERIAL_WORDS.join(' | ')}, crop: ${STATUE_CROP_WORDS.join(' | ')}, lose: [head, armR, forearmL, …], base: ${STATUE_BASE_WORDS.join(' | ')}, dials: { wear } }).`;
   // the dress ledgers read the figure at REST (every dial at its rest, no channels), as the door always measured them;
   // the mint's own mesh is that figure unless the mint turned a dial or carried a channel
   const dressed = hero.detail !== undefined || hero.adorn !== undefined;

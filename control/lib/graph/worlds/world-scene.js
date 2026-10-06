@@ -155,7 +155,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
     // its own default key (WORKBENCH_LIGHT etc.), so the shaded path is byte-identical.
-    light: unshaded ? FLAT_LIGHT : undefined,
+    light: unshaded ? FLAT_LIGHT : viewOpts.light,
     // Kinds that shade their OWN faces (fractal-city) read this to emit RAW ALBEDO for a clean
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
@@ -216,6 +216,49 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (!payload.textures?.[k]) (payload.textures ??= {})[k] = url;
       }
       payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...placed];
+    }
+  }
+
+  // statue refs (historic/statues.js): a historic city's statue slots name stored statues; the city removed the stand-ins
+  // and recorded where each figure stands (metres, its turn, its height). The ref resolves HERE, where the store is: its
+  // World faces baked under the city's sun turned into its own frame (`light`), its base dropped, fitted onto the slot's
+  // base (fitStatueFaces). A ref that places itself refuses, like an unknown one. No statueRefs ⇒ untouched.
+  if (payload && payload.statueRefs) {
+    const { unit, light, list } = payload.statueRefs;
+    delete payload.statueRefs;
+    const chain = [...(viewOpts._itemChain || []), sketch.ref].filter(Boolean);
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { fitStatueFaces, lightInto, statueTurn } = await import('@/lib/graph/historic/statues.js');
+    const { statueWords } = await import('@/lib/graph/statue/expand.js');
+    const baked = new Map();   // one resolve per statue and turn
+    for (const rec of list) {
+      const key = `${rec.ref ?? (rec.hero ? `hero:${JSON.stringify(rec.hero)}` : `form:${rec.form}:${rec.material ?? ''}`)}|${rec.dir}`;
+      if (!baked.has(key) && rec.form) {   // a library form (statue/forms.js): no store
+        const { statueFormManifest } = await import('@/lib/graph/statue/forms.js');
+        const inner = await resolveWorldScene({ ref: `form-${rec.form}`, title: rec.form, manifest: statueFormManifest(rec.form, { material: rec.material }) }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        if (rec.equestrian) throw new Error(`statue on '${rec.at}': an equestrian slot takes a mounted statue, not the ${rec.form}`);
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      if (!baked.has(key) && rec.hero) {   // an inline hero statue (statues: 'carved', or an entry's `hero`): no store
+        const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+        const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero) });
+        const mounted = statueWords(manifest.hero.statue).stand === 'mounted';
+        if (!!rec.equestrian !== mounted) throw new Error(`statue on '${rec.at}': ${rec.equestrian ? 'an equestrian slot takes a mounted statue (statue.stand \'mounted\')' : 'a mounted statue stands on an equestrian slot'}`);
+        const inner = await resolveWorldScene({ ref: `hero-${rec.at}`, title: rec.at, manifest }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      if (!baked.has(key)) {
+        const src = SketchRepository.getByRef(rec.ref);
+        if (!src) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is not a stored sketch`);
+        if (chain.includes(src.ref)) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' places itself (${[...chain, src.ref].join(' → ')})`);
+        // an equestrian slot takes a horse and rider, and a horse and rider takes no other slot
+        const mounted = src.manifest?.hero?.statue ? statueWords(src.manifest.hero.statue).stand === 'mounted' : false;
+        if (rec.equestrian && !mounted) throw new Error(`statue on '${rec.at}': an equestrian slot (a rider on a horse) takes a mounted statue — carve ref '${rec.ref}' with /hero/statue/stand 'mounted', or stand it on a standing slot`);
+        if (!rec.equestrian && mounted) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is mounted (horse and rider); stand it on an equestrian slot`);
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...fitStatueFaces(baked.get(key), rec, { s: 1 / unit, group: `statue:${rec.at}:${rec.figure}` })];
     }
   }
 

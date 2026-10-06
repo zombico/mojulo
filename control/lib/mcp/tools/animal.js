@@ -31,6 +31,7 @@ import { renderAnimalToSvg, ANIMAL_VIEWS } from '@/lib/graph/polygonizer/figure-
 import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
+import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
 const SPECIES = Object.keys(ZOO_BUILDS);
@@ -51,7 +52,7 @@ function mergeOpts(base, over) {
 
 export async function createAnimalHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('the animal kind requires { title }');
-  const { title, species, archetype, view, elev, crop, background, ref, folder_ref: folderRef } = input;
+  const { title, species, archetype, view, elev, crop, background, statue, ref, folder_ref: folderRef } = input;
   // Defensive transport parse: some MCP clients deliver object-valued params as
   // JSON strings (same guard as createFigureHandler).
   let { opts } = input;
@@ -83,6 +84,8 @@ export async function createAnimalHandler(input) {
   if (crop !== undefined && crop !== null && crop !== 'head') {
     throw new Error("`crop` must be 'head' (a face study) or omitted (the whole animal)");
   }
+  const statueErrs = validateCreatureStatue(statue);
+  if (statueErrs.length) throw new Error(`animal: ${statueErrs.join('; ')}`);
   if (folderRef !== undefined && folderRef !== null) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
   }
@@ -104,6 +107,7 @@ export async function createAnimalHandler(input) {
     ...(elev !== undefined && elev !== null ? { elev } : {}),
     ...(crop ? { crop } : {}),
     ...(background !== undefined ? { background } : {}),
+    ...(statue !== undefined ? { statue } : {}),
     title,
   };
 

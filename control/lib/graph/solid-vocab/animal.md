@@ -38,6 +38,7 @@ spec: {
   view?:      'frontal'|'three-quarter'|'lateral'|'left'|'back' | <azimuth°>,
   elev?:      <camera elevation°, -89…89; default 12>,
   crop?:      'head',          // a face study close-up instead of the whole animal
+  statue?:    true | { type: 'statue', material?, base?, dials?: { wear } },   // carved as sculpture (below)
   background?: <boolean>
 }
 ```
@@ -86,6 +87,17 @@ Merged one level deep over the species' own, so `{ skullCfg: { length: 0.3 } }` 
 `view` is the camera azimuth: `frontal` (head-on, 180°), `three-quarter` (130°, the default), `lateral` (90°, the silhouette read), `left`, `back`, or a raw number. `elev` is the camera elevation in degrees (default 12 — slightly above). `crop: 'head'` renders a FACE STUDY: only the head-region parts, framed close.
 
 A silhouette reads truest at `lateral`; the face reads truest at `frontal` or `three-quarter` with `crop: 'head'`. Render more than one before judging a species — a head that reads well at one azimuth can be wrong from another.
+
+### statue — the animal carved
+
+`statue` lays the statue maker's filter over the World form: one material over every face (`marble` by default,
+`limestone`, `sandstone`, `granite`, `basalt`, `bronze` with its patina by `wear`, `gilt`; `painted` refuses: a coat has
+no zones to paint), the fur splats and skin textures dropped, the faces tagged with the material's surface for the
+exports, the animal on an oblong base (`block` by default) the length of its body. Pass `opts: { skin: 'watertight' }`
+for a closed solid: the marched skin is open tubes, so its insides show in stone. Absent, the animal is byte-identical.
+An equestrian statue is a hero statue with `stand: 'mounted'` (the layered kind's STATUE section): its horse is this
+filter over the layered kind's horse ring plan (`docs/examples/ring-plans/horse.plan.json`), which reads truer as a
+horse than `species: 'horse'` does.
 
 ## Honest limits
 

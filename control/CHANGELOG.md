@@ -12,6 +12,83 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Statue maker
+
+The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
+bronze, cut to a bust, a herm or a torso study, with losses, on a base. Opt-in; a hero without `statue` is
+byte-identical. Being built on this branch; the sphinx comes next.
+
+- **The statue build.** `statue: '<card>'` or `{ type: 'statue', style, material, crop, lose, base, dials: { wear } }`
+  (`lib/graph/statue/`), stamped with its laws version like an outfit or armour build. Period cards, plain JSON:
+  `archaic`, `classical`, `hellenistic`, `roman`, `roman-bust`, `egyptian`, `renaissance`. A card's stand, stillness and
+  drapery (an outfit card per silhouette) sit beneath the hero's own words; its hair is set at mint.
+- **Carved.** One material over every group: blank eyes, carved hair, the bare body's zones skin. `marble`,
+  `limestone`, `sandstone`, `granite`, `basalt`, `bronze` (its patina by `wear`, from brown to verdigris), `gilt`, and
+  `painted`: reconstructed polychromy over the card's stone, which the readout always calls conjecture.
+- **Cut.** `crop`: `full`, `bust` (below the chest, through the upper arms), `herm`, `torso` (no head or arms, the
+  thighs cut). `lose`: whole parts with what they carry (`forearmR` takes the hand), each closed in its own cap. No
+  fracture surfaces yet.
+- **On a base.** `block`, `attic`, `drum`, `socle`, `herm` or `none`, in stone, built at read time under the posed figure
+  from the footprint it stands on; the figure is lifted onto it. The base rides every export as its own group.
+- **A surface for the exports.** A layered recipe's `surfaces` (group → a shelf material or a metal surface, `'*'` the
+  rest) tags its faces (`spec` and `pbr`; a metal surface's `metal`), so a bronze statue exports metallic, in its
+  patina's colour, to GLB and Godot. Absent, byte-identical.
+- **The readout.** `hero.statue`: the card, period, material, format, the parts lost, the base, wear, `basis:
+  'unverified'` (the cards are drawn from the general record of each type, not from sources read) and the caption
+  derived work carries ("inspired by …").
+- **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
+  on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
+  Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes, `pp-equestrian:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
+  fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
+  slots. Absent, the city is byte-identical.
+- **Sumer's worshippers.** A `sumerian` card: the Early Dynastic votive figure, frontal, the forearms folded and the hands
+  clasped at the chest, a flared skirt (the man shaven: no beard is carved yet), limestone; painted, the eyes lapis
+  under bitumen brows. Sumer's votive row is a slot (`votive-row:0`), one figure per plinth numbered along the row, so a
+  carved worshipper can stand among the others.
+- **Seated statues.** `stand: 'seated'` on a statue build (or a card) sits the figure on a block throne built with its
+  base: the thighs level, the shins hanging, the hands flat on the knees. A long skirt is cut at the knee, since a drape
+  over the lap isn't carved yet. The rig gains an opt-in `seat` channel that turns the free legs forward past the hip's
+  cone; absent, every pose is unchanged. Thebes's seated colossi are slots (`eg-colossus:<n>`): the stand-in king and his
+  throne come down, and a seated statue sits there on its own throne. The nemes and the crowns aren't carved yet.
+- **Carved animals.** The `animal` kind takes `statue` (`true`, or `{ type: 'statue', material, base, dials: { wear } }`):
+  the animal in one stone or metal, its fur and skin textures dropped, tagged for the exports, on an oblong base the
+  length of its body. Absent, every animal is byte-identical.
+- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material. The rider sits on the saddle
+  found from its own hip joints, legs down the flanks, the right arm raised in address, both on one oblong block. The
+  equestrian slots take it: the Forum's Octavian horseman and Pompeii's standing equestrian bronzes
+  (`pp-equestrian:<n>`), each facing the way its stand-in's horse did. A standing statue on an equestrian slot, or a
+  mounted one on a standing slot, is refused by name. Entry cards list a slot range with gaps one by one.
+- **A horse in the library.** A horse ring plan for the layered kind, built with the creature-from-plan loop: a barrel
+  body, an arched crested neck, a long wedge head carried down, straight cannons on single hooves, the hind leg angled at
+  stifle and hock, 1.6 m at the withers. It is core (`horsePlan({ scale, palette })`), worked as
+  `docs/examples/ring-plans/horse.plan.json` (mint it with `via: 'plan'`), and it is the equestrian statues' horse.
+  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting (and a run along a flank from
+  collapsing); absent, every loft is unchanged.
+- **A sphinx in the library.** A sphinx ring plan, built the same way: a lion lying on its belly in the Great Sphinx's own
+  proportions, forelegs reaching forward, hind legs folded, the tail along the right flank, wearing the hero's carved
+  landmark head (no hair, no beard) in a nemes with the uraeus. The nemes is a striped wrap, not a cap: its opening
+  tilted so the brow band crosses the forehead and the face looks out of it, its stripes radiating back over the crown;
+  behind the face it folds out each side like a cobra's hood, the wings flaring past the shoulders, striped across, and
+  the lappets hang striped down a breast that is broad and flat, as a man's chest, set back under the face. Carved, the stripes are grooves: a palette group named `…Groove` takes the
+  stone a shade darker. The criosphinx's headcloth is striped the same way. Core as `sphinxPlan({ preset, scale, palette })`, worked as
+  `docs/examples/ring-plans/sphinx.plan.json`.
+- **Carved creatures and library forms.** Any layered plan that is not a hero takes `statue` (the creature filter: one
+  material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:
+  `{ "at": "gz-sphinx:0", "form": "sphinx", "material"? }` stands the carved sphinx in Giza's quarry in place of the
+  block stand-in, limestone by default. Giza's entry card says so.
+- **The criosphinx and the bull.** Two more ring plans built the same way. The criosphinx is Amun's ram-headed sphinx
+  of Karnak's avenue: a domed ram's skull with horns coiled round the ears, the headcloth over the shoulders, a small
+  king between the paws (`criosphinxPlan()`, sandstone). The bull is Sumer's copper guardian: a deep barrel, the
+  shoulder hump, the head forward, horns out and up (`bullPlan()`, bronze gone green). Thebes's sphinx rows and Sumer's
+  guardian pair are slots, one figure per pedestal or plinth, and take them as `form: 'criosphinx'` and `form: 'bull'`.
+- **`statues: "carved"`.** One word on a historic city carves every slot with its period's statue: a slot's own form
+  (the sphinxes, the bulls), the seated granite king on the Theban colossi, a bronze horseman on an equestrian slot
+  and nowhere else, and the culture's card everywhere else (Roman at the Forum and Pompeii, Hellenistic at Lindos,
+  Sumerian worshippers), men and women, marble and bronze, decided by each slot's own dice so the city carves the same
+  each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
+  carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
