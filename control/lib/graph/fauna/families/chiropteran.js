@@ -92,8 +92,10 @@ export const species = {
   // longest bone in view · a FOX-LIKE head with a long muzzle, big dark eyes, simple pointed ears · a golden-tawny
   // MANTLE over the neck and shoulders on a dark body · no tail · splayed short hind legs · ~0.2 m head–body, 1.2–1.5 m
   // wingspan, forearm ~0.16 m (Wikipedia / Animal Diversity Web: Pteropus giganteus).
-  // kept v4 (blind judges: A v4 over v3 55%; B v4 over v1 60%)
-  fruitBat: { family: 'chiropteran', name: 'an Indian flying fox', scale: 1 },
+  // kept v12 (blind judges, both orders: A v12 over v4 80%/80%; B v12 over v1 60%/75%)
+  // v12 pose: wings partly folded and TENTED — the arm root lifted above the back so the elbows stand high, the
+  // wrists + thumb claws planted ahead as front feet, the furled membrane sloping down to the ground (fold 0.82)
+  fruitBat: { family: 'chiropteran', name: 'an Indian flying fox', scale: 1, joints: { ...family.joints, wingRoot: [0.03, 0.055, 0.13] }, wings: { ...family.wings, fold: 0.82 } },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never

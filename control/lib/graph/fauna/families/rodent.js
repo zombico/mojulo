@@ -102,11 +102,20 @@ export const species = {
     eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'rodent', name: 'a North American beaver', scale: 1,
     muzzleW: 1.15, muzzleLen: 0.75,
+    // kept v10 (blind judges, both orders: A v10 over v8 55%/55%; B v10 over v1 65%/70%). The shoulder raised to the published 0.30 m (front torso stations deeper above the centre line)
+    torso: [
+      { at: [0, -0.40, 0.17], r: [0.07, 0.06] },
+      { at: [0, -0.32, 0.17], r: [0.14, 0.12] },
+      { at: [0, -0.20, 0.17], r: [0.165, 0.145] },
+      { at: [0, -0.06, 0.17], r: [0.155, 0.13] },
+      { at: [0, 0.07, 0.17], r: [0.13, 0.125] },
+      { at: [0, 0.17, 0.17], r: [0.10, 0.105] },
+    ],
     extraSegments: [
       { name: 'tailPaddle', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane',
         // up: a stable ring frame, so the tail drops from the rump and lies flat on the ground with no ring flip
         up: true,
-        stations: lofted([[0, -0.34, 0.10, [0.055, 0.04]], [0, -0.42, 0.055, [0.05, 0.025]], [0, -0.48, 0.032, [0.08, 0.018]], [0, -0.55, 0.026, [0.098, 0.018]], [0, -0.62, 0.024, [0.104, 0.017]], [0, -0.68, 0.024, [0.098, 0.016]], [0, -0.73, 0.022, [0.075, 0.014]], [0, -0.76, 0.02, [0.035, 0.008]]]),
+        stations: lofted([[0, -0.34, 0.10, [0.055, 0.04]], [0, -0.42, 0.055, [0.055, 0.03]], [0, -0.48, 0.036, [0.10, 0.03]], [0, -0.55, 0.033, [0.125, 0.032]], [0, -0.62, 0.031, [0.132, 0.031]], [0, -0.68, 0.03, [0.125, 0.029]], [0, -0.73, 0.027, [0.095, 0.024]], [0, -0.76, 0.022, [0.04, 0.012]]]),
         bandGroups: { ...band(7), 'st0-st1': Array(6).fill('Coat') }, caps: { back: [0, -0.31, 0.12], tip: [0, -0.775, 0.02] }, capGroups: { back: 'Coat', tip: 'Tip' } },
     ],
   },
