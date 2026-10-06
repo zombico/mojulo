@@ -20,12 +20,12 @@
  * one) swept on a sheared grid, so the flanks are exact planes between rows and the seam closes.
  */
 
-export const MECH_LIB_VERSION = 2;
+export const MECH_LIB_VERSION = 3;
 
 /** Does a (comment-stripped) source call the library? An identifier starting `mj_` is the trigger. */
 export const usesMechLib = (bare) => /(^|[^A-Za-z0-9_])mj_[A-Za-z0-9_]/.test(String(bare));
 
-export const MECH_LIB_SOURCE = String.raw`// ── mojulo mechanical library v2 (prepended by mojulo; call mj_* — edit your source, not this) ──
+export const MECH_LIB_SOURCE = String.raw`// ── mojulo mechanical library v3 (prepended by mojulo; call mj_* — edit your source, not this) ──
 // ISO metric coarse: [name, d, pitch, hex AF (ISO 4032/4017), hex head k, nut m, socket dk, socket k,
 //   hex key, countersunk dk (ISO 10642), clearance close/normal/loose (ISO 273), heat-set hole]
 MJ_ISO = [
@@ -487,7 +487,9 @@ module mj_gridfinity_bin(ux = 1, uy = 1, uz = 3, magnets = false, wall = 1.2) {
 // Gear 2 (z2 teeth) placed in mesh with gear 1 (z1 teeth, at the origin, unturned) at an angle round it, and
 // turned so a tooth meets a space. Holds for any angle and tooth counts (checked by intersection).
 function mj_gear_mesh_turn(z1, z2, angle) = angle * (1 + z1 / z2) + (z2 % 2 == 0 ? 180 / z2 : 0);
-module mj_gear_meshed(mod, z1, z2, angle = 0) rotate(angle) translate([mj_gear_center(mod, z1, z2), 0, 0]) rotate(mj_gear_mesh_turn(z1, z2, angle) - angle) children();
+// phase: the first gear's own turn (a gear that was itself placed in mesh, so a train chains:
+// phase = mj_gear_mesh_turn of the gear before it)
+module mj_gear_meshed(mod, z1, z2, angle = 0, phase = 0) rotate(angle) translate([mj_gear_center(mod, z1, z2), 0, 0]) rotate(mj_gear_mesh_turn(z1, z2, angle) - angle - phase * z1 / z2) children();
 // A bolt with its nut threaded on in phase, the nut's underside at nut_z above the head (rounded down onto
 // the thread). The two are separate solids: the gap between them is the thread clearance.
 function mj__nut_phase_z(size, head, z) = let(e = mj_iso(size), hk = head == "hex" ? e[4] : head == "socket" ? e[7] : head == "button" ? 0.55 * e[1] : 0, p = e[2], z0 = hk - 0.01 + 1)

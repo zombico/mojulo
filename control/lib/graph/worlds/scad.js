@@ -12,14 +12,23 @@
 
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from './workbench.js';
-import { renderScadParts, shadeRecords } from '../scad/scad-render.js';
+import { renderScadParts, shadeRecords, partBounds } from '../scad/scad-render.js';
+import { solveMechanism, mechanismMovers } from '../scad/mechanism.js';
 import { mergeCoplanarTriangles } from '../scad/coplanar-merge.js';
 import { withBands, resolveToon } from '../polygonizer/vexar.js';
 
 async function scadFaces(opts, light, { merge = false } = {}) {
   const r = await renderScadParts(opts);
   if (r.skipped) throw new Error(r.reason);
-  return r.parts.flatMap((p) => shadeRecords(merge ? mergeCoplanarTriangles(p.records) : p.records, light));
+  return { parts: r.parts, faces: r.parts.flatMap((p) => shadeRecords(merge ? mergeCoplanarTriangles(p.records) : p.records, light)) };
+}
+
+// a `mechanism` plays through the mover channel: solved here from the recipe, never stored on it
+function mechanismMoversFor(opts, parts) {
+  if (!opts.mechanism || !opts.parts) return [];
+  const names = Object.keys(opts.parts);
+  const solved = solveMechanism(opts.mechanism, { bounds: partBounds(parts), units: opts.units || 'mm' });
+  return mechanismMovers(solved, names);
 }
 
 /**
@@ -30,8 +39,10 @@ async function scadFaces(opts, light, { merge = false } = {}) {
  */
 export async function assembleScadScene(opts = {}) {
   const light = withBands(opts.light || WORKBENCH_LIGHT, resolveToon(opts.toon)?.bands);
-  const faces = await scadFaces(opts, light, { merge: opts.mergeCoplanar === true });
-  return studioSceneFromFaces(faces, { ...opts, title: opts.title || 'mojulo scad', light });
+  const { parts, faces } = await scadFaces(opts, light, { merge: opts.mergeCoplanar === true });
+  const derived = mechanismMoversFor(opts, parts);
+  const movers = derived.length ? [...(Array.isArray(opts.movers) ? opts.movers : []), ...derived] : opts.movers;
+  return studioSceneFromFaces(faces, { ...opts, movers, title: opts.title || 'mojulo scad', light });
 }
 
 /** /scene + PNG path: CSS-3D preset-shot HTML (async — the mesher is). */

@@ -114,6 +114,12 @@ describe('mech-lib v2 — composition (skipped when the WASM is not installed)',
     }
     expect(await collides('intersection(){ mj_spur_gear(1, 20, 5); mj_gear_meshed(1, 20, 13, 0) rotate(180/13) mj_spur_gear(1, 13, 5); }')).toBe(true);
   });
+  wasm('a train chains: phase carries the middle gear\'s own turn to the next mesh', async () => {
+    const g2 = 'mj_gear_meshed(1.5, 12, 36, 0) mj_spur_gear(1.5, 36, 5);';
+    const g3 = (phase) => `translate([mj_gear_center(1.5, 12, 36), 0, 0]) mj_gear_meshed(1.5, 36, 20, 90${phase}) mj_spur_gear(1.5, 20, 5);`;
+    expect(await fits(`intersection(){ ${g2} ${g3(', phase = mj_gear_mesh_turn(12, 36, 0)')} }`)).toBe(true);
+    expect(await collides(`intersection(){ ${g2} ${g3('')} }`)).toBe(true);   // the control: chained as if the middle gear sat at 0
+  });
   wasm('mj_bolt_and_nut puts the nut in phase', async () => {
     expect(await fits('intersection(){ mj_bolt("M6", 30); translate([0,0,mj__nut_phase_z("M6","hex",12)]) mj_nut("M6"); }')).toBe(true);
     expect(await collides('intersection(){ mj_bolt("M6", 30); translate([0,0,mj__nut_phase_z("M6","hex",12)+0.5]) mj_nut("M6"); }')).toBe(true);

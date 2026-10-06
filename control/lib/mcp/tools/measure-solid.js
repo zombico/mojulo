@@ -28,17 +28,19 @@ import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union
 import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
 import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
 import { printProfileFor, auditStlClosure, resolvePrintScale } from '@/lib/mcp/tools/sketch-model-export';
+import { measureScadMotion } from '@/lib/graph/scad/scad-render';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export async function measureSolidHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('measure_solid requires { ref }');
-  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true } = input;
+  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true, motion: motionInput = false } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) throw new Error('`scale` must be a positive number if provided');
   if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) throw new Error('`target_mm` must be a positive number if provided');
   if (volume !== true && volume !== false) throw new Error('`volume` must be a boolean if provided');
+  if (motionInput !== true && motionInput !== false) throw new Error('`motion` must be a boolean if provided');
   const printer = resolvePrinter(printerInput);
 
   const sketch = SketchRepository.getByRef(ref);
@@ -97,6 +99,20 @@ export async function measureSolidHandler(input) {
     assembly = 'overlapping closed parts: every part closed, joined by overlap and pins, not one welded solid (the print union is measured below)';
   }
 
+  // the motion leg (scad + mechanism): the cycle's numbers and a collision sweep across it, on request — the sweep
+  // renders an intersection per pair, so it is not paid on every measure
+  let motion;
+  if (motionInput) {
+    if (sketch.manifest.kind !== 'scad' || !sketch.manifest.mechanism) motion = { skipped: true, reason: 'motion measures a scad row with a `mechanism` (joints, couplings, a drive) — this row has none' };
+    else {
+      motion = await measureScadMotion(sketch.manifest);
+      const hits = (motion.collisions?.pairs || []).filter((p) => p.clear === false);
+      for (const h of hits) warnings = [...(warnings || []), `motion: '${h.a}' and '${h.b}' collide at ${h.steps_colliding} of ${h.of} steps, first at drive ${h.first_at}${motion.collisions.drive_unit}, worst ${h.worst.volume} ${units || 'units'}³ near [${(h.worst.at || []).join(', ')}]`];
+      if (motion.lock) warnings = [...(warnings || []), `motion: the mechanism locks at drive ${motion.lock.drive}${motion.lock.unit}`];
+      if (motion.effort?.margin && !motion.effort.margin.ok) warnings = [...(warnings || []), `motion: the drive needs ${motion.effort.margin.required} ${motion.effort.unit} at its worst point (drive ${motion.effort.at_drive}${motion.effort.at_unit}) and has ${motion.effort.margin.rating}`];
+    }
+  }
+
   const closure = profile === 'study'
     ? { audited: false, reason: `'${resolvedKind}' is a surface study — open shells by construction` }
     : auditStlClosure(payload);
@@ -133,6 +149,7 @@ export async function measureSolidHandler(input) {
     ...(clearance ? { clearance } : {}),
     ...(assembly ? { assembly } : {}),
     ...(strokes ? { strokes } : {}),
+    ...(motion ? { motion } : {}),
     scale,
     scale_note: scaleNote,
     bounds: { min: probe.bounds.min.map(r3), max: probe.bounds.max.map(r3), size: probe.bounds.size.map(r3) },
@@ -170,6 +187,7 @@ export function registerMeasureSolidTool() {
         printer: { type: 'object', description: '{ process?: fdm|sla|sls|mjf, nozzle_mm?, min_wall_mm?, bed_mm? }.' },
         volume: { type: 'boolean', description: 'Manifold volume/genus (default true).' },
         exposure: { type: 'boolean', description: 'layered: per-detail exposure ledger (default true).' },
+        motion: { type: 'boolean', description: 'scad mechanism: cycle numbers + collision sweep.' },
       },
       required: ['ref'],
     },

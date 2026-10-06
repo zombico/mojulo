@@ -16,7 +16,7 @@ Why this kind exists beside the workbench: OpenSCAD's booleans are EXACT. A `dif
 ## Spec shape
 
 ```
-{ source, parts?, units?, fn?, facing?, viewBox?, grid?, movers?, title? }
+{ source, parts?, units?, fn?, facing?, viewBox?, grid?, movers?, mechanism?, title? }
 ```
 
 - `source` (required, ≤ 64 KB) — one OpenSCAD program. Author in **millimetres, z up, lowest z = 0** (the measured floor). `$fn` inside the source is honoured; `fn` on the spec overrides it for a finer print. **The fence:** `include`, `use`, `import()` and `surface()` are refused at mint — the recipe carries its own geometry, so it renders the same on every host.
@@ -67,7 +67,7 @@ A source that calls any `mj_` module or function gets mojulo's own pinned librar
 - **Lofts and blades.** `mj_loft(sections)` closes a solid through rings of `[x,y,z]` (same count and winding each). `mj_naca4(m, p, t, chord, n)` is a NACA 4-digit section; `mj_blade([[r, chord, twist, [m,p,t]], …])` lofts one along +x — rotate copies around a hub for a propeller or a fan.
 
 - **Standards** (from the published tables; check the supplier's sheet before production). Motors: `mj_nema_mount(11|14|17|23, depth)` cuts the pilot and screw pattern, `mj_nema_motor(n, length)` is a stand-in, `mj_nema(n)` the table. Bearings (623–6204, 688, LM8/10/12UU): `mj_bearing_seat(code, fit = "press", shoulder, through)`, `mj_bearing(code)`. Shafts: `mj_keyway_shaft(d, length)` / `mj_keyway_hub(d, length)` (DIN 6885 A), `mj_circlip_groove(d, z, "shaft"|"bore")` (DIN 471 / 472), `mj_d_bore(d, depth, flat)`. Seals: `mj_oring_groove(d, cs, "face"|"piston"|"rod")` by the 25 %-squeeze rule. Boards: `mj_board_standoffs("rpi3"|"rpi4"|"rpi5"|"rpi-zero"|"arduino-uno"|"arduino-mega", h, insert)` with the board's lower-left corner at the origin; `mj_board_holes(name)`. `mj_vesa(75|100|200, depth)`. `mj_tslot(20|30|40, length)` (the slot opening and core are standard; the inner slot is generic). `mj_gridfinity_bin(ux, uy, uz, magnets)` (the base profile to spec; no stacking lip yet).
-- **Composition: parts placed by how they meet, not by coordinates.** `mj_gear_meshed(mod, z1, z2, angle) mj_spur_gear(mod, z2, …);` puts gear 2 round gear 1 at any angle, turned into mesh. `mj_bolt_and_nut(size, length, nut_z)` threads the nut on in phase. `mj_enclosure(inner, wall, floor, r, screw, lid_t, lip, fit, part = "base"|"lid"|"both"|"assembled", board)` derives the base, the lid's alignment lip, the screw posts (heat-set or tapped) and the lid's countersinks from one set of numbers; `mj_enclosure_posts(inner, screw)` gives the post positions to cut against. A top-level `$mj_fit_add = 0.1;` shifts every fit in the program for this printer.
+- **Composition: parts placed by how they meet, not by coordinates.** `mj_gear_meshed(mod, z1, z2, angle) mj_spur_gear(mod, z2, …);` puts gear 2 round gear 1 at any angle, turned into mesh; a train chains with `phase` — the gear before's own turn, `mj_gear_mesh_turn(z0, z1, angle0)`. `mj_bolt_and_nut(size, length, nut_z)` threads the nut on in phase. `mj_enclosure(inner, wall, floor, r, screw, lid_t, lip, fit, part = "base"|"lid"|"both"|"assembled", board)` derives the base, the lid's alignment lip, the screw posts (heat-set or tapped) and the lid's countersinks from one set of numbers; `mj_enclosure_posts(inner, screw)` gives the post positions to cut against. A top-level `$mj_fit_add = 0.1;` shifts every fit in the program for this printer.
 - **Outputs.** `mj_sheet(t, r, w, [[length, bend°], …], k = 0.44)` is a bent part (+ bends up, − down); `mj_sheet_flat(…, bend_lines)` is its flat pattern by bend allowance, and `mj_sheet_flat_length(…)` the number. Export a flat pattern or a plate with `export_model { format: 'dxf' | 'svg' }`: a 2D program draws as written, `slice_z` cuts the solid at a height, otherwise its outline; `part` picks one of `parts`. `mj_fit_coupon(d)` prints a pin and a hole for each fit, marked by notches (1 = press … 5 = loose): print it once and set `$mj_fit_add` from what fits.
 - **Check a fit by intersection.** `intersection() { part_a(); part_b(); }` minted alone is refused as "makes no geometry" when the two share no volume — that refusal IS the clearance. Nudge one part by the clearance you expect and mint again: it should then collide.
 
@@ -82,6 +82,36 @@ mint_solid({ kind: 'scad', title: 'M5 clamp block', spec: { source: `
 ` }})
 ```
 
+## Mechanisms — `mechanism`
+
+Name how the `parts` move and mojulo solves the rest. The World plays the cycle, and `measure_solid({ ref, motion: true })` sweeps it for collisions and reports the speeds, the torque and the forces. **The authored pose is the rest pose:** every joint is at 0 there, a link's length is measured off it, and gears are authored in mesh (`mj_gear_meshed`).
+
+```
+mechanism: {
+  joints: { crank: { type: 'revolute', center: [0,0,0], axis: [0,0,1] }, piston: { type: 'prismatic', axis: [1,0,0] },
+            planet: { type: 'revolute', center: [13.5,0,0], axis: [0,0,1], on: 'carrier' } },   // on: rides another part
+  couplings: [
+    { type: 'link', a: 'crank', pa: [10,0,9], b: 'piston', pb: [50,0,9], rod: 'rod' },   // a rigid rod, pin to pin
+    { type: 'gear', a: 'g1', b: 'g2', teeth: [12, 36] },   // 'ring' for an internal mesh; a member with no joint is fixed
+    { type: 'belt', a, b, d: [da, db] }, { type: 'rack', a: 'pinion', b: 'rack', r: 9 },
+    { type: 'screw', a: 'screw', b: 'nut', lead: 2, d: 10, hand: 'right' }, { type: 'ratio', a, b, ratio: 1/30, efficiency: 0.4 } ],
+  drive: { part: 'crank', from: 0, to: 360, mode: 'loop'|'swing', period: 4, speed: 300, torque: 1.2 },   // rpm; N·m (force: N for a slide)
+  loads: [{ part: 'piston', force: 80 }],   // torque for a turning part
+  ignore: [['shaft', 'hub']],   // pairs that touch by design (a press fit)
+  steps: 36,                    // the collision sweep's resolution
+}
+```
+
+- **Joints:** angles are radians inside the solver and degrees in `drive.from` / `to`; slides are in the recipe's units. A part with no joint stands on the ground. A link's `rod` is placed by its two pins and needs no joint. `{ type: 'fixed', on }` makes a part ride another part rigidly.
+- **Mint-time refusals:** a joint nothing couples to the drive is named. A linkage that cannot close is warned at the drive value where it locks (a dead point, or a four-bar that fails Grashof). A drive of a whole number of turns loops; anything else swings there and back.
+- **The motion report:**
+  - Each joint's range, its ratio to the drive (constant, or a min–max for a linkage), its peak speed, and its efficiency from the drive.
+  - With `loads`: the drive effort by virtual work, its peak and where it falls in the cycle, and the margin against `drive.torque`.
+  - With a stated drive: what each joint can deliver at its worst point.
+  - A lead screw's efficiency from its lead angle (μ 0.2), and whether it self-locks.
+  - Every pair of parts intersected across the cycle, listing the steps that collide, the overlap volume and its position. A bounding-box miss costs no render. A clear pair costs one. Threads are slow, so lower `steps`.
+- **Stated assumptions:** parts are rigid, with no inertia and no deflection, and loads oppose the motion. Default efficiencies are gear 0.98, ring 0.97, belt 0.96, rack 0.95 and ratio 0.9; pins are frictionless. A worm or bevel pair is a `ratio` with its own `efficiency`. **Strength is not assessed:** a part that moves clear can still break.
+
 ## What this kind does not do
 
-No `include`/`use` libraries (BOSL2 and MCAD stay out; the `mj_*` library above is the vendored allowlist). No `text()`: this OpenSCAD build has no fonts, so glyphs render as nothing (the mint warns) — letter a part with a workbench `reliefs` entry or the carved-solid kind. No B-rep and no STEP: the mesh is the deliverable, and a fit is checked by intersecting the parts (an empty intersection is a clearance), not by GD&T, which stays a CAD tool's (`translate_modeler_lingo` → `precision cad`). No label wraps, no skins, no `material` shelf (the shading is a plain tint; pick the finish in the DCC). OpenSCAD's `$t` does not animate. Absent the WASM package (a lean install), the mint refuses with the install line and existing rows still read.
+No `include`/`use` libraries (BOSL2 and MCAD stay out; the `mj_*` library above is the vendored allowlist). No `text()`: this OpenSCAD build has no fonts, so glyphs render as nothing (the mint warns) — letter a part with a workbench `reliefs` entry or the carved-solid kind. No B-rep and no STEP: the mesh is the deliverable, and a fit is checked by intersecting the parts (an empty intersection is a clearance), not by GD&T, which stays a CAD tool's (`translate_modeler_lingo` → `precision cad`). No label wraps, no skins, no `material` shelf (the shading is a plain tint; pick the finish in the DCC). OpenSCAD's `$t` does not animate (`mechanism` does). No dynamics, stress or deflection: the motion report is kinematics plus virtual-work forces. Absent the WASM package (a lean install), the mint refuses with the install line and existing rows still read.

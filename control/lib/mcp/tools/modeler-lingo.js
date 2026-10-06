@@ -294,6 +294,20 @@ const LEXICON = [
     dcc: 'For reliefs, hems, multi-flange parts and a tool library, a sheet-metal CAD workbench (FreeCAD SheetMetal, Onshape, SolidWorks); bring the part home with `bind_mesh_render`.',
   },
   {
+    id: 'mechanism-motion',
+    terms: ['kinematics', 'motion study', 'motion simulation', 'mechanism', 'linkage', 'four-bar', 'four bar linkage', 'slider-crank', 'slider crank', 'gear train', 'gearbox ratio', 'interference check', 'collision check', 'range of motion', 'lead screw', 'drive torque', 'mechanical advantage'],
+    concept: 'Parts joined so they move together: what each part does through the cycle, whether anything collides, and what it takes to drive it.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'mint_solid', when: "the `scad` kind's `mechanism`: revolute / prismatic joints on named `parts`, couplings (gear, ring, belt, rack, screw, ratio, a rigid link pin to pin), one drive. The authored pose is the rest pose; the solver finds every other part through the cycle and the World plays it.", args: { kind: 'scad', spec: { parts: { crank: 'crank();', rod: 'rod();', piston: 'piston();' }, mechanism: { joints: { crank: { type: 'revolute', center: [0, 0, 0], axis: [0, 0, 1] }, piston: { type: 'prismatic', axis: [1, 0, 0] } }, couplings: [{ type: 'link', a: 'crank', pa: [10, 0, 9], b: 'piston', pb: [50, 0, 9], rod: 'rod' }], drive: { part: 'crank', torque: 1 }, loads: [{ part: 'piston', force: 80 }] } } } },
+    ],
+    then: [
+      { tool: 'measure_solid', when: '`motion: true`: every pair of parts intersected across the cycle (where they collide and by how much), each joint\'s range, ratio and speed, the drive torque by virtual work against a stated rating, and a lead screw\'s efficiency and self-locking', args: { ref: '<sk_ref>', motion: true } },
+    ],
+    ceiling: 'Rigid-body kinematics plus virtual-work forces through stated efficiencies: no inertia or dynamics, no friction model past the efficiencies, no cams or intermittent drives, one drive per mechanism, and NO strength — a part that moves clear can still bend or break. The .glb carries the rest pose, not the motion.',
+    dcc: 'Dynamics, contact forces and stress live in a multibody or FEA tool (Simscape, Adams, FreeCAD FEM, Fusion simulation); export the parts with `export_model` and rebuild the joints there.',
+  },
+  {
     id: 'baking',
     terms: ['bake', 'baking', 'normal map', 'normal bake', 'ao bake', 'ambient occlusion', 'high to low', 'high-to-low', 'cage bake', 'curvature map'],
     concept: 'Transferring detail/lighting from a high-poly (or scene) onto maps for a low-poly.',

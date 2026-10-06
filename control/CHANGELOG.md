@@ -57,6 +57,33 @@ card promised, and both silent failures now warn. A source that calls no `mj_` n
   `chamfer` now route threads, gears, fits and exact chamfers to the library. STEP, GD&T and constraint solving stay
   a CAD tool's.
 
+### Industrial motion
+
+A scad row with `parts` can declare how those parts move. The World plays the mechanism, and `measure_solid` checks
+it for collisions across the cycle and reports torque, speed and force. Stress and strength are not modelled. A
+manifest without `mechanism` is byte-identical.
+
+- **Joints and couplings.** A `mechanism` block names a revolute or prismatic joint for each moving part (`on` rides
+  another part, as a planet rides its carrier). The couplings that tie the joints together are gears, ring gears,
+  belts, racks, screws, plain ratios, and rigid links between two pins.
+- **One driver, everything else solved.** The authored pose is the rest pose. Each step of the drive's cycle is
+  solved by Newton with continuation from the step before. The degrees of freedom are counted, so a part nothing
+  drives is named rather than left still. A linkage that cannot close, at a dead point or failing Grashof, is reported
+  at the drive value where it locks.
+- **The World plays it.** The solved cycle becomes the mover channel's own `turn`, `path` and `pose` tables, derived
+  at scene time and never stored.
+- **`measure_solid({ ref, motion: true })`.**
+  - Every joint's range, ratio to the driver, and peak speed.
+  - Every pair of parts intersected across the cycle, with the steps where they collide and by how much.
+  - Torque and force by virtual work, through stated efficiencies. A lead screw's efficiency comes from its lead
+    angle, and the report says whether it self-locks.
+  - Against a stated drive torque, a margin at the worst point of the cycle.
+- **A gear train chains.** `mj_gear_meshed` gains `phase`, the previous gear's own turn, so a third gear meshes
+  against a second that was itself turned into mesh (mech library v3). A sweep of a three-gear train found the gap.
+- **The routes say so.** The `scad` card has a mechanisms section. `translate_modeler_lingo` gains a
+  `mechanism-motion` entry: kinematics, linkages, gear trains and interference checks route to `mechanism`, and
+  dynamics, contact forces and stress hand off to a multibody or FEA tool.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
