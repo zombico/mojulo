@@ -44,6 +44,26 @@ export const JAW = [
   ['st3', 0.14, { gum: -0.056, gumR: [0.024, -0.056], jaw: [0.025, -0.071], bottom: -0.078 }],
   ['st4', 0.195, { gum: -0.049, gumR: [0.017, -0.049], jaw: [0.018, -0.06], bottom: -0.066 }],
 ];
+// the SNAKE skull rows (serpents only; the monitor keeps SKULL): a solid rounded wedge — a domed crown, deep
+// cheeks carried down to a jaw that is a visible lower half, the snout staying thick and rounding off at the tip
+// (not the crocodilian's thin plate). Authored at kx = kz = 1 as a python: ~0.21 wide, ~0.19 deep at the back.
+export const SNAKE_SKULL = [
+  ['st0', -0.15, 0.06, [0.035, 0.058], [0.068, 0.036], [0.08, -0.005], [0.072, -0.04], [0.052, -0.06], -0.065],
+  ['st1', -0.09, 0.086, [0.042, 0.083], [0.085, 0.056], [0.105, 0.005], [0.1, -0.04], [0.076, -0.064], -0.07],
+  ['st2', -0.02, 0.084, [0.041, 0.081], [0.084, 0.055], [0.1, 0.005], [0.095, -0.038], [0.071, -0.06], -0.065],
+  ['st3', 0.04, 0.076, [0.036, 0.073], [0.075, 0.05], [0.088, 0.005], [0.083, -0.035], [0.063, -0.055], -0.06],
+  ['st4', 0.10, 0.065, [0.031, 0.063], [0.064, 0.042], [0.074, 0.003], [0.069, -0.032], [0.051, -0.05], -0.054],
+  ['st5', 0.16, 0.05, [0.025, 0.048], [0.05, 0.031], [0.057, 0.0], [0.053, -0.028], [0.039, -0.043], -0.047],
+  ['st6', 0.20, 0.033, [0.016, 0.032], [0.032, 0.019], [0.036, -0.004], [0.033, -0.024], [0.024, -0.034], -0.039],
+];
+export const SNAKE_JAW = [
+  ['st0', -0.07, { gum: -0.064, gumR: [0.07, -0.064], jaw: [0.073, -0.094], bottom: -0.106 }],
+  ['st1', 0.0, { gum: -0.063, gumR: [0.068, -0.063], jaw: [0.069, -0.09], bottom: -0.1 }],
+  ['st2', 0.07, { gum: -0.057, gumR: [0.058, -0.057], jaw: [0.058, -0.08], bottom: -0.088 }],
+  ['st3', 0.14, { gum: -0.049, gumR: [0.045, -0.049], jaw: [0.045, -0.067], bottom: -0.074 }],
+  ['st4', 0.19, { gum: -0.041, gumR: [0.029, -0.041], jaw: [0.028, -0.054], bottom: -0.059 }],
+];
+export const SNAKE_CAPS = { craniumCaps: { back: [0, -0.18, 0.01], tip: [0, 0.215, -0.004] }, jawCaps: { back: [0, -0.1, -0.075], tip: [0, 0.2, -0.048] } };
 export const loftOf = (pts) => pts.map(([x, y, z, r]) => ({ at: [x, y, z], r }));
 
 /** A SINUOUS body on the ground: a loft whose centre line is an S (x = amp·sin, y running back), at height = the
@@ -112,10 +132,18 @@ export const TONGUE = [-1, 1].map((s, i) => ({ kind: 'sweep', name: `tongue${i}`
 //   crest   { every = 3, above = 1.4, len: [base, ×girth], from, to }   upright blades out of the back (a frill)
 //   pattern markings on the part 'body' (build.js markings). With up [0, 1, -1] a ring's t = 0 is the BELLY on the ground
 //           and the throat (facing +y) where reared; t = 1 the back. colors as the family's
+// skull = [width ×, height ×] over SNAKE_SKULL (a python at [1, 1]); the dragon keeps the long crocodilian rows (croc)
 export const HEAD_SHAPES = {
-  blunt: { skull: [1.15, 0.55], muzzle: [1.05, 0.9] }, viper: { skull: [1.45, 0.6], muzzle: [0.6, 0.75] },
-  slender: { skull: [0.9, 0.6], muzzle: [0.9, 0.85] }, coffin: { skull: [0.75, 0.55], muzzle: [0.9, 1.1] }, dragon: { skull: [0.95, 0.75], muzzle: [0.95, 1.45] },
+  blunt: { skull: [1.05, 0.8], muzzle: [1.0, 0.9] }, viper: { skull: [1.4, 0.78], muzzle: [0.62, 0.8] },
+  slender: { skull: [0.95, 0.85], muzzle: [0.9, 0.85] }, coffin: { skull: [0.8, 0.75], muzzle: [0.9, 1.15] }, dragon: { skull: [0.95, 0.75], muzzle: [0.95, 1.45], croc: true },
 };
+/** The serpent head rows + caps for a shape: SNAKE_SKULL (or the crocodilian SKULL for `croc`) flattened by [kx, kz]. */
+export function snakeHead([kx, kz], croc = false) {
+  if (croc) return { craniumRows: flat(SKULL, kx, kz), jawRows: flatJaw(JAW, kx, kz) };
+  const c = (q) => [q[0], q[1], q[2] * kz];
+  return { craniumRows: flat(SNAKE_SKULL, kx, kz), jawRows: flatJaw(SNAKE_JAW, kx, kz),
+    craniumCaps: { back: c(SNAKE_CAPS.craniumCaps.back), tip: c(SNAKE_CAPS.craniumCaps.tip) }, jawCaps: { back: c(SNAKE_CAPS.jawCaps.back), tip: c(SNAKE_CAPS.jawCaps.tip) } };
+}
 const bump = (s, a, m, b) => (s <= a || s >= b ? 0 : s < m ? Math.sin((Math.PI / 2) * (s - a) / (m - a)) : Math.cos((Math.PI / 2) * (s - m) / (b - m)));
 function serpentPath(p) {
   if (p.kind === 'pts') return p.pts;
@@ -166,7 +194,7 @@ export function serpentMaker({ name, path, n = 80, girth, profile = [[0, 1], [1,
   const rows = path3({ n, r0: girth, taper: profile, pts: serpentPath(path), shape });
   // the trunk: a short level piece at the head end of the path (its top is the reared height), the neck, the head
   const [x0, y0, z0] = rows[0], g = rows[0][3].map((v) => v * 0.85), gl = Math.max(...g);
-  const H0 = HEAD_SHAPES[head.shape || 'blunt'], H = { skull: head.skull ?? H0.skull, muzzle: head.muzzle ?? H0.muzzle }, hs = head.scale ?? 0.42;
+  const H0 = HEAD_SHAPES[head.shape || 'blunt'], H = { skull: head.skull ?? H0.skull, muzzle: head.muzzle ?? H0.muzzle }, hs = head.scale ?? 0.42, tk = H0.croc ? 1 : 0.55;
   const body = splitBody(rows, up, pattern), extra = [...body.parts];
   if (tail.kind === 'rattle') extra.push(rattleOf(rows, tail.beads));
   let crestJ = {};
@@ -177,10 +205,10 @@ export function serpentMaker({ name, path, n = 80, girth, profile = [[0, 1], [1,
     torso: [{ at: [x0, y0 - 0.5 * gl, z0], r: g }, { at: [x0, y0 + 1.4 * gl, z0], r: g.map((v) => v * 0.9) }],
     torsoCaps: { back: [x0, y0 - 1.3 * gl, z0], tip: [x0, y0 + 2.2 * gl, z0] },
     neckRA: g.map((v) => v * 0.9), neckRB: g.map((v) => v * 0.78), neckRMid: g.map((v) => v * 0.84),
-    craniumRows: flat(SKULL, ...H.skull), jawRows: flatJaw(JAW, ...H.skull),
+    ...snakeHead(H.skull, H0.croc),
     headScale: hs, muzzleW: H.muzzle[0], muzzleLen: H.muzzle[1], headRelative: 0.42, relBrow: true,
-    eyeAt: head.eyeAt ?? [2.2, 2.3], eyeR: head.eyeR ?? 0.006, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 },
-    headOrnaments: [...(head.tongue === false ? [] : TONGUE.map((o) => ({ ...o, spine: o.spine.map((q) => q.map((v) => v * hs / 0.42)), radii: o.radii.map((v) => v * hs / 0.42) }))), ...(head.ornaments || [])],
+    eyeAt: head.eyeAt ?? (H0.croc ? [2.2, 2.3] : [2.4, 2.9]), eyeR: head.eyeR ?? 0.006, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 },
+    headOrnaments: [...(head.tongue === false ? [] : TONGUE.map((o) => ({ ...o, spine: o.spine.map((q) => q.map((v) => v * tk * hs / 0.42)), radii: o.radii.map((v) => v * tk * hs / 0.42) }))), ...(head.ornaments || [])],
     extraSegments: extra, markings: body.marks, colors,
   };
 }

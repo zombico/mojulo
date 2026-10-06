@@ -5,7 +5,9 @@
 // level trunk at the head end, and the body laid down as a sinuous loft (`sinuous()` below). Tables are authored in
 // metres at Komodo-dragon size. Worked species: the Komodo dragon (monitorLizard) and the Burmese python (snake).
 
-import { flat, flatJaw, SKULL, JAW, loftOf, sinuous, path3, serpentMaker, serpent, TONGUE } from '../makers/serpent.js';
+import { flat, flatJaw, SKULL, JAW, loftOf, sinuous, path3, serpentMaker, serpent, TONGUE, snakeHead } from '../makers/serpent.js';
+// a snake's tongue: the family tongue at 0.55 (a slim fork about a third of the head long, not a lizard's)
+const SNAKE_TONGUE = TONGUE.map((o) => ({ ...o, spine: o.spine.map((q) => q.map((v) => v * 0.55)), radii: o.radii.map((v) => v * 0.55) }));
 
 // the generators live in makers/serpent.js; re-exported for existing callers
 export { sinuous, path3, serpentMaker, TONGUE };
@@ -106,9 +108,9 @@ export const species = {
     ],
     torsoCaps: { back: [0, -0.16, 0.08], tip: [0, 0.36, 0.08] },
     neckRA: [0.06, 0.055], neckRB: [0.045, 0.04], neckRMid: [0.05, 0.045],
-    craniumRows: flat(SKULL, 1.15, 0.55), jawRows: flatJaw(JAW, 1.15, 0.55),
-    headScale: 0.42, muzzleW: 1.05, muzzleLen: 0.9,
-    eyeAt: [2.4, 2.5], eyeR: 0.005, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 }, headOrnaments: TONGUE,
+    ...snakeHead([1.05, 0.8]),
+    headScale: 0.42, muzzleW: 1.0, muzzleLen: 0.9,
+    eyeAt: [2.4, 2.9], eyeR: 0.005, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 }, headOrnaments: SNAKE_TONGUE,
     extraSegments: [
       { name: 'coils', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: null, up: true, stations: loftOf(PY_BODY),
         caps: { back: [0, -0.04, 0.08], tip: [PY_BODY.at(-1)[0], PY_BODY.at(-1)[1] - 0.03, 0.01] } },
@@ -131,10 +133,10 @@ export const species = {
   // raised over it in an S, ready to strike · a broad TRIANGULAR viper head on a thin neck · the RATTLE: a stack of
   // keratin beads at the lifted tail tip, the tail above it ringed black and white · grey-brown with dark DIAMONDS down
   // the back · ~1.2 m long (Wikipedia: adults commonly 1.2 m, max ~2.1 m), head ~5 cm.
-  rattlesnake: serpentMaker({ name: 'a western diamondback rattlesnake', n: 84, girth: [0.036, 0.03], profile: [[0, 0.6], [0.15, 0.9], [0.35, 1.05], [0.8, 0.9], [0.95, 0.45], [1, 0.32]],
+  rattlesnake: serpentMaker({ name: 'a western diamondback rattlesnake', n: 84, girth: [0.036, 0.03], profile: [[0, 0.45], [0.15, 0.9], [0.35, 1.05], [0.8, 0.9], [0.95, 0.45], [1, 0.32]],
     path: { kind: 'coil', height: 0.2, neck: [[-0.05, 0.16], [-0.02, 0.11], [-0.07, 0.05], [-0.1, 0.0]], centre: [0, -0.17], r: [0.07, 0.165], turns: 1.25,
       lift: [[-0.17, -0.12, 0.02], [-0.175, -0.1, 0.05]] },
-    head: { shape: 'viper', scale: 0.17, eyeR: 0.0065 }, tail: { kind: 'rattle', beads: 7 },
+    head: { shape: 'viper', scale: 0.21, eyeR: 0.0065 }, tail: { kind: 'rattle', beads: 7 },
     pattern: [
       { on: 'body', kind: 'patch', grid: [24, 1], run: [0.12, 0.86], t: [0.62, 1], size: [0.6, 1], group: 'Diamond', color: '#4b3b2a' },
       { on: 'body', kind: 'band', run: [0.86, 1], group: 'TailWhite', color: '#e4ddcb' },
@@ -173,7 +175,7 @@ export const species = {
     name: 'a green anaconda', n: 110, girth: [0.15, 0.13], profile: [[0, 0.55], [0.12, 0.8], [0.3, 1], [0.7, 1], [0.88, 0.6], [1, 0.12]],
     path: { kind: 'coil', height: 0.04, neck: [[-0.35, 0.02], [-0.6, 0], [-0.9, 0]], centre: [0.15, -1.5], r: [0.42, 0.85], turns: 0.75,
       lift: [[1.35, -1.75, 0], [1.75, -1.4, 0], [2.15, -1.6, 0]] },
-    head: { shape: 'blunt', scale: 0.5, skull: [0.95, 0.55], muzzle: [0.9, 1.0], eyeR: 0.006, eyeAt: [2.2, 1.9] },
+    head: { shape: 'blunt', scale: 0.5, skull: [0.95, 0.72], muzzle: [0.9, 1.0], eyeR: 0.006, eyeAt: [2.2, 2.3] },
     pattern: [
       { on: 'body', kind: 'patch', grid: [30, 2], run: [0.04, 0.95], t: [0.55, 1], size: [0.55, 0.7], group: 'Blotch', color: '#1d1f14' },
       { on: 'body', kind: 'band', run: [0, 1], t: [0, 0.28], group: 'Belly' },
