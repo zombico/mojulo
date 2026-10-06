@@ -384,9 +384,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
   clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
-  and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block),
-  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs, after Cynthia), `frieda` (after Frieren: split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (after Hirako Shinji: a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob after Miwa Kasumi), `jona` (layered banana
-  PEELS: leaf-shaped, thin, cupped; the young-Bieber swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, after Videl's short cut); shaped hair never
+  and the `shapes` characters `broku` (carrots only, classic shonen spikes), `jinto` (bananas only, comma hair over a soft two-block),
+  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs), `frieda` (split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob), `jona` (layered banana
+  PEELS: leaf-shaped, thin, cupped; a side-swept swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, a short tomboy cut); shaped hair never
   cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
   `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by

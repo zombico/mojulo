@@ -527,7 +527,7 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
       expect(box(mesh, /^hairPeel/)[2][0], cut).toBeLessThan(chin - 0.12);   // the tails hang well past the chin
       expect(animeFaceZoneWarnings(h.hairCoverage), cut).toEqual([]);
     }
-    // frieda's twin tails are tied HIGH (Frieren's): from the front the hair beside the head rises far above where ties
+    // frieda's twin tails are tied HIGH: from the front the hair beside the head rises far above where ties
     // behind the ears would put it
     const S = ANIME_HAIR_MOVES.frieda.hair.shapes, lowTie = (a) => [a[0] > 180 ? 212 : 148, 24];
     const low = { ...S, layers: S.layers.map((l) => (l.gather ? { ...l, gather: lowTie(l.gather) } : l)), peels: S.peels.map((p) => ({ ...p, at: lowTie(p.at) })) };

@@ -1401,16 +1401,16 @@ needed on the anime head. Being built on this branch.
 - **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
   that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
   — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
-  (carrots, after Toriyama), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
-  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas after Videl's short cut. Shaped hair never cuts through the body: the hero's
+  (carrots, classic shonen spikes), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
+  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas in a short tomboy cut. Shaped hair never cuts through the body: the hero's
   neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
-  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, a side-swept swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades. A layer's `flick` hooks
   a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
-  into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
+  into a TIE and ends it there, so `frieda` wears twin tails and `frieda-pony` one ponytail.
 - **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
-  face) and `blunt` keeps a lock's full width to the cut: `hiraku` (after Hirako Shinji) is a bowl bob, `miwako` (after
-  Miwa Kasumi) a neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` is a bowl bob, `miwako` a
+  neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
   (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
 - **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
   ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining

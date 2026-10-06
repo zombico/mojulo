@@ -130,7 +130,7 @@ export const ANIME_HAIR_MOVES = Object.freeze({
       locks: { 'fringe-1': { tx: -0.2, ty: 0.05 }, 'fringe-2': { tx: -0.24, ty: 0.02 }, 'fringe-3': { tx: -0.28, ty: 0.18 }, 'fringe-4': { tx: -0.3, ty: 0.14 }, 'fringe-5': { tx: -0.28, ty: 0.26 }, 'fringe-6': { tx: -0.1, ty: 0.24 }, 'fringe-7': { ty: 0.3 },
         'right-temple-0': { ty: 0.48 }, 'right-temple-1': { ty: 0.45 }, 'left-temple-0': { ty: 0.78 } } } },
   // the SHAPES characters (anime-form): male protagonists, each in ONE vegetable family.
-  // BROKU — carrots only, after Toriyama: hierarchy and mass from length and base alone (a hero, a court of three, stubby
+  // BROKU — carrots only, classic shonen spikes: hierarchy and mass from length and base alone (a hero, a court of three, stubby
   // mass carrots, the back a cascade to the nape point, carrot bangs), scaled up to the head's size. NO STRAIGHT-UP
   // SPIKE: every carrot that rises leans at least 30° off the vertical seen from the front AND from the side
   broku: { note: 'Broku: cut conical carrots only — a tall hero spike off centre, a long level spike to his left, stubby carrots for mass, the back cascading to a point at the nape, carrot bangs and sideburns',
@@ -207,12 +207,12 @@ export const ANIME_HAIR_MOVES = Object.freeze({
       bananas: [
         { at: [330, 30], dir: [-0.3, -1, -0.25], length: 0.8, width: 0.3, bend: 0.45, sprout: 0.8 },
       ] } } },
-  // JONA — another cousin: LAYERED BANANA PEELS, the young-Bieber / farm-boy-Skywalker swoop. A peel is a leaf (a narrow
+  // JONA — another cousin: LAYERED BANANA PEELS, the side-swept farm-boy swoop. A peel is a leaf (a narrow
   // stem, widest where it leaves the head, a pointed tip), thin, its edges cupped to the scalp; a few of them, every one a
   // cap lock (grown from the dome, lying over it, the volume where it leaves). The crown's peels fall over the sides and
   // the back to a rounded mop over the ears and the collar; the front's are turned hard toward his right (`swirl`) and
   // barely drop, so they travel ACROSS the forehead: the swoop, from a part over his left brow
-  jona: { note: 'Jona: layered banana peels — a few leaf-shaped peels grown from the dome, the crown peels falling to a rounded mop over the ears and collar, the front peels sweeping across the forehead from a part over his left brow (the young-Bieber swoop)',
+  jona: { note: 'Jona: layered banana peels — a few leaf-shaped peels grown from the dome, the crown peels falling to a rounded mop over the ears and collar, the front peels sweeping across the forehead from a part over his left brow (a side-swept swoop)',
     hair: { style: 'short', crownAccents: 'none', sideburns: { length: 0.2, width: 0.12 }, shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.14, whorl: [185, 64],
       layers: [
         { shape: 'peel', az: [0, 360], around: [3, 18], rows: 1, count: 5, length: 0.7, fringe: 0.3, width: 0.42, droop: 0.9, lift: 0.02, vary: 0.06, bend: 0.14, swirl: 30, cap: 1 },
@@ -220,12 +220,12 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { shape: 'peel', az: [-80, 60], el: [62, 82], rows: 1, count: 4, length: 0.5, fringe: 0.32, width: 0.46, droop: 0.25, lift: 0.04, vary: 0.08, bend: 0.25, swirl: 60, cap: 1 },
         { shape: 'peel', az: [50, 310], el: [22, 40], rows: 1, count: 5, length: 0.5, fringe: 0.3, width: 0.42, droop: 1.1, lift: 0, vary: 0.05, bend: 0.06, cap: 1 },
       ] } } },
-  // the SHAPES heroines: the same principles on the female base. BIDEL — bananas only, after Videl's short cut (Toriyama):
+  // the SHAPES heroines: the same principles on the female base. BIDEL — bananas only, a short tomboy cut:
   // Jingo's cap locks grown from the dome, cut for her. A rounded crown; jagged bangs cut to the brow, the eyes clear; the
   // temples swirled DOWN over the ears (from a whorl behind they would walk forward over the eyes); the sides at the
   // ear's lobe; a short choppy nape of points. NOTHING ROOTED IN FRONT OF THE WHORL but the fringe and the rosette: a cap
   // lock rooted above the whorl's elevation walks forward over the face, so the crown ring sits at or below it
-  bidel: { note: 'Bidel: bananas only, after Videl\'s short cut — a rounded crown of cap locks, jagged bangs cut to the brow with the eyes clear, the temples swept down over the ears, the sides at the lobe, a short choppy nape of points',
+  bidel: { note: 'Bidel: bananas only, a short tomboy cut — a rounded crown of cap locks, jagged bangs cut to the brow with the eyes clear, the temples swept down over the ears, the sides at the lobe, a short choppy nape of points',
     hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.15, whorl: [180, 62],
       layers: [
         { shape: 'banana', az: [0, 360], around: [3, 20], rows: 1, count: 6, length: 0.8, fringe: 0.2, width: 0.3, droop: 0.7, lift: 0.06, vary: 0.08, bend: 0.24, flat: 0.25, cap: 1 },
@@ -254,12 +254,12 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { shape: 'peel', az: [130, 180], el: [5, 36], rows: 1, count: 4, length: 1.6, width: 0.34, droop: 1.2, lift: 0, vary: 0.22, bend: 0.1, cap: 1, swirl: -25 },
         { shape: 'peel', az: [180, 230], el: [5, 36], rows: 1, count: 4, length: 1.1, width: 0.34, droop: 1.2, lift: 0, vary: 0.22, bend: 0.1, cap: 1, swirl: -25 },
       ] } } },
-  // SINTIA — FLOWER PETALS after the operator's sketch, Cynthia (Pokémon) the guiding light for the elegance, kept
+  // SINTIA — FLOWER PETALS after the operator's sketch, elegance the guiding light, kept
   // MANAGEABLE: a few big peels, wide through the middle, each end FLICKING gently out to a point (`flick`), to the
   // shoulder blades and behind the shoulders, never spread over the body. The front is CURTAIN BANGS parted just off
   // centre, swept down and away over the temples (`swirl` ±50), one short centre petal cut to the brow rounding the
   // part — no wedge pointing into the face; the sides frame the face to the collarbone, swirled back over the ears
-  sintia: { note: 'Sintia: flower petals, after Cynthia — a few big peel petals to the shoulder blades, each end flicking gently out to a point; curtain bangs parted off centre and swept over the temples, a short centre petal at the brow, the sides framing the face to the collarbone',
+  sintia: { note: 'Sintia: flower petals — a few big peel petals to the shoulder blades, each end flicking gently out to a point; curtain bangs parted off centre and swept over the temples, a short centre petal at the brow, the sides framing the face to the collarbone',
     hair: { style: 'long', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.08, whorl: [185, 66],
       layers: [
         { shape: 'peel', az: [0, 360], around: [3, 18], rows: 1, count: 6, length: 1.6, fringe: 0.3, width: 0.4, droop: 1, lift: 0.02, vary: 0.06, bend: 0.12, cap: 1, flick: 0.2 },
@@ -271,13 +271,13 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { shape: 'peel', az: [66, 110], el: [30, 62], rows: 1, count: 3, length: 1.1, width: 0.36, droop: 1.2, lift: 0.02, vary: 0.1, bend: 0.1, swirl: 45, cap: 1, flick: 0.12 },
         { shape: 'peel', az: [250, 294], el: [30, 62], rows: 1, count: 3, length: 1.1, width: 0.36, droop: 1.2, lift: 0.02, vary: 0.1, bend: 0.1, swirl: -45, cap: 1, flick: 0.12 },
       ] } } },
-  // FRIEDA — after Frieren, the ice princess: peels, sleek and GATHERED. Split bangs off a centre part cut at the brow, two
+  // FRIEDA — the elfin mage: peels, sleek and GATHERED. Split bangs off a centre part cut at the brow, two
   // long ribbon sidelocks before the ears to the chest, and everything else walked over the scalp INTO the ties (`gather`:
   // each lock lies sleek and ends at its tie) HIGH on the back of the head, so from the front each tail's top is level
-  // with the top of the head (Frieren's); each tail is five long peels rooted at the tie in a tight fan, leaning a little
+  // with the top of the head; each tail is five long peels rooted at the tie in a tight fan, leaning a little
   // out to clear the head and a little back to fall behind the shoulders (aimed back hard, a tail juts out at 45°; fanned
   // wide, it hangs like wings outside the arms)
-  frieda: { note: 'Frieda: after Frieren — sleek peels, split bangs cut at the brow, two long ribbon sidelocks before the ears, the rest gathered into twin tails tied high, their tops level with the top of the head from the front, hanging behind the shoulders',
+  frieda: { note: 'Frieda: the elfin mage — sleek peels, split bangs cut at the brow, two long ribbon sidelocks before the ears, the rest gathered into twin tails tied high, their tops level with the top of the head from the front, hanging behind the shoulders',
     hair: { style: 'long', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.06, whorl: [180, 70],
       layers: [
         { shape: 'peel', az: [6, 50], el: [64, 84], rows: 1, count: 3, length: 0.6, fringe: 0.3, width: 0.3, droop: 0.9, lift: 0.02, vary: 0.12, bend: 0.08, swirl: 8, cap: 1 },
@@ -317,22 +317,22 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { at: [180, 46], dir: [0.072, -1, 0.198], length: 3.62, width: 0.3, bend: 0.204 },
         { at: [180, 46], dir: [0.12, -1, 0.23], length: 3.5, width: 0.3, bend: 0.22 },
       ] } } },
-  // HIRAKU — after Hirako Shinji (Bleach): the BOWL BOB, a box of two lines at right angles. Bananas only, every lock a
+  // HIRAKU — the BOWL BOB, a box of two lines at right angles. Bananas only, every lock a
   // cap lock grown from a whorl at the very top (so the hair radiates down evenly, a bowl), BLUNT (full width to the cut)
   // and cut on LEVEL lines (`hem`): the bangs flat at the brow (`fringeHem` for every lock leaving over the face), the
   // sides and back straight down to the jaw. The perpendicular strand lines that anchor the box are the light's
   // (`toon.light.strands`: lines in the hair's own tone darkened, never the ink's black)
-  hiraku: { note: 'Hiraku: after Hirako Shinji — a blunt bowl bob of cap bananas from a whorl at the top, the bangs cut level at the brow, the sides and back straight down and cut level at the jaw',
+  hiraku: { note: 'Hiraku: a blunt bowl bob of cap bananas from a whorl at the top, the bangs cut level at the brow, the sides and back straight down and cut level at the jaw',
     hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1, whorl: [180, 88],
       layers: [
         { shape: 'banana', az: [0, 360], around: [3, 16], rows: 1, count: 6, length: 2.5, fringe: 2.5, hem: 1.3, fringeHem: 0.38, width: 0.3, droop: 1.3, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
         { shape: 'banana', az: [-55, 55], el: [56, 86], rows: 2, count: 8, length: 2.5, fringe: 2.5, hem: 0.38, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
         { shape: 'banana', az: [80, 280], el: [8, 86], rows: 3, count: 16, length: 2.5, hem: 1.3, fringeHem: 0.38, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
       ] } } },
-  // MIWAKO — after Miwa Kasumi (Jujutsu Kaisen), kept simple: Hiraku's construction on the female base, cut at the NECK —
+  // MIWAKO — kept simple: Hiraku's construction on the female base, cut at the NECK —
   // the blunt bangs at the brow, the rest level just above the collar (any lower and the ends meet the collar and kick
   // out); the sides started a little further back and the bangs cut a little higher for her narrower face
-  miwako: { note: 'Miwako: after Miwa Kasumi, kept simple — a blunt neck-length bob, the bangs cut level at the brow, the rest straight down and cut level just above the collar',
+  miwako: { note: 'Miwako: kept simple — a blunt neck-length bob, the bangs cut level at the brow, the rest straight down and cut level just above the collar',
     hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1, whorl: [180, 88],
       layers: [
         { shape: 'banana', az: [0, 360], around: [3, 16], rows: 1, count: 6, length: 2.5, fringe: 2.5, hem: 1.7, fringeHem: 0.34, width: 0.3, droop: 1.3, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
