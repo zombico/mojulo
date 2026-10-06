@@ -16,8 +16,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 What an animal does, said once for every animal and resolved per species to how its body does it. `relax` is one
 word: a sheep lies with its legs folded under and chews the cud, a horse dozes on its feet with a hind hoof cocked, a
-cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. Data and resolver only: no
-behavior is posed yet, no tool changed, and every species builds byte-identically.
+cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. No tool changed, and every
+species builds byte-identically.
 
 - **Behaviors.** `relax`, `alert`, `eat` and `sleep`, each a loop or a hold, in `lib/graph/fauna/behavior/`.
 - **Strategies.** Each behavior's ways of doing it, written in mechanism words a solver poses (what holds the body
@@ -29,6 +29,18 @@ behavior is posed yet, no tool changed, and every species builds byte-identicall
   `perches`, `hoods`, …), set per family with species overrides. Every tag must be read by some strategy.
 - **Every animal resolves.** `resolveBehavior(id, behavior)` names the strategy and why (the capabilities and tags
   it matched, and each more specific strategy it passed over); `behaviorTable()` gives every species at once.
+- **Posed on the bones.** `behaviorFrames(id, behavior)` poses the strategy on the species' own skeleton, in the
+  gait frame's shape, one principle per mechanism word: the trunk lowered until the belly rests on the ground, rolled
+  or shifted over a foot; each foot block placed by the support (planted where it stood, folded flat under the chest
+  or beside the belly, drawn up into the feathers) and the leg hung to it by the gait solver's two-link; a neck bent
+  until the muzzle reaches the grass, a short-necked grazer's shoulders lowering when it cannot; the face turned back
+  along the flank; nothing on land through the ground. A legless body is laid out as a coil, or a coil with the front
+  third raised in an S. Standing, dozing on a cocked hind leg, lying folded, the sphinx, the curl, perching on one
+  leg, sitting down over the feet, the coil, hovering and swimming on are posed; a strategy whose words are not yet
+  posed says which (`posable`).
+- **The stick strip takes a behavior.** `scripts/fauna-gait-strip.mjs sheep relax` draws the loop it resolves to.
+- **Shared solver pieces.** The leg chain and its two-link solve (`fauna/limb.js`) and the vector kit (`fauna/vec.js`)
+  moved out of the gait solver so both solvers use them; every gait poses byte-identically.
 
 ### Pack menu
 

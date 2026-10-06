@@ -188,7 +188,7 @@ export const STRATEGIES = Object.freeze({
     { id: 'flank-sleep', needs: { support: 'four', foldsLegs: true }, when: ['ruminant'], support: 'sternal', head: 'on-flank', tail: 'rest', loop: 'breathe', line: 'lies folded, the head turned back on its flank' },
     { id: 'side-sleep', needs: { support: LEGS }, when: ['lies-on-side'], support: 'side', head: 'ground', tail: 'rest', loop: 'breathe', line: 'sleeps flat out on its side' },
     { id: 'bask-sleep', needs: { support: 'four' }, when: ['basks'], support: 'belly-flat', head: 'ground', tail: 'rest', loop: 'breathe', line: 'sleeps belly-flat, chin on the ground' },
-    { id: 'biped-sleep', needs: { support: 'two' }, support: 'sit_bird', head: 'ground', tail: 'rest', loop: 'breathe', line: 'settles down over its legs, chin to the ground' },
+    { id: 'biped-sleep', needs: { support: 'two', wrapTail: true }, support: 'sit_bird', head: 'ground', tail: 'rest', loop: 'breathe', line: 'settles down over its legs, chin to the ground' },
     { id: 'fold-sleep', needs: { support: 'four', foldsLegs: true }, support: 'sternal', head: 'on-paws', tail: 'rest', loop: 'breathe', line: 'lies folded, chin on its paws' },
     { id: 'rest', support: 'stand', head: 'low', tail: 'rest', loop: 'breathe', line: 'stands still, eyes closed' },
   ],

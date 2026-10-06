@@ -26,6 +26,8 @@ import { faunaSkeleton } from './skeleton.js';
 import { locomotionFor, PATTERNS, TAILS, TAIL_BUILDS } from './locomotion/index.js';
 import { SPECIES, speciesParams, speciesPlan } from './species.js';
 import { buildWing } from './wing.js';
+import { sub, add, mul, dot, cross, norm, unit, I3, mm, mv, rotX, rotY, rotZ, between } from './vec.js';
+import { limbsOf, hangLimb } from './limb.js';
 
 const TAU = 2 * Math.PI;
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
@@ -41,24 +43,9 @@ const TAIL_FOLLOW = 10 * DEG;             // a trailing tail's swing with the hi
 const PROP = 35 * DEG;                    // how far a propping tail presses its root down (the ground lays the rest)
 const FLAG = 80 * DEG;                    // a flagged tail's lift
 
-const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const norm = (v) => Math.hypot(v[0], v[1], v[2]);
-const unit = (v) => { const l = norm(v); return l > 1e-12 ? mul(v, 1 / l) : [0, 0, 0]; };
 const frac = (x) => x - Math.floor(x);
 const ease = (v) => 0.5 - 0.5 * Math.cos(Math.PI * v);
 
-// 3×3 rotations as row arrays
-const I3 = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-const mm = (A, B) => A.map((r) => [0, 1, 2].map((j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
-const mv = (A, v) => [dot(A[0], v), dot(A[1], v), dot(A[2], v)];
-const rotX = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; };
-const rotY = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; };
-const rotZ = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; };
-const axisAngle = (k, a) => { const [x, y, z] = k, c = Math.cos(a), s = Math.sin(a), C = 1 - c; return [[c + x * x * C, x * y * C - z * s, x * z * C + y * s], [y * x * C + z * s, c + y * y * C, y * z * C - x * s], [z * x * C - y * s, z * y * C + x * s, c + z * z * C]]; };
 /**
  * A TRAVELLING WAVE along a chain (the serpenoid): the heading at arc fraction u ∈ [0, 1] and phase t is
  * `amp · env(u) · s(t − lag·u)` — the signal `s` leaves the root and reaches the tip `lag` of a stride later. A snake
@@ -72,22 +59,6 @@ const footDy = (u, duty, excursion) => {
   if (u < duty) return excursion * (0.5 - u / duty);
   const v = (u - duty) / (1 - duty); return excursion * (ease(v) - 0.5);
 };
-
-/** The smallest rotation taking unit a onto unit b. */
-const between = (a, b) => { const c = cross(a, b), s = norm(c), d = dot(a, b); if (s < 1e-9) return d > 0 ? I3 : axisAngle(unit(cross(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0])), Math.PI); return axisAngle(mul(c, 1 / s), Math.atan2(s, d)); };
-
-/** The limbs a pattern can drive: `{ LF, RF, LH, RH }` → the bone ids of each limb's main chain, root first. */
-function limbsOf(S) {
-  const out = {};
-  for (const b of S.bones) {
-    if (!b.role || !/^(fore|hind)\.(humerus|femur)$/.test(b.role)) continue;   // legs, not wings
-    const key = `${b.id.endsWith('L') ? 'L' : 'R'}${b.role.startsWith('fore') ? 'F' : 'H'}`;
-    const chain = [b.id];
-    for (;;) { const next = S.bones.find((c) => c.parent === chain[chain.length - 1] && c.role?.split('.')[0] === b.role.split('.')[0]); if (!next) break; chain.push(next.id); }
-    out[key] = chain;
-  }
-  return out;
-}
 
 /** A pattern's feet, as limb keys: a biped's `L`/`R` are its hind legs. */
 const footKey = (k) => (k === 'L' ? 'LH' : k === 'R' ? 'RH' : k);
@@ -320,7 +291,7 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
       let blockTop = sub(foot, footRel);
       // two-link: root → knee → blockTop, bending as at rest
       let root = H[bones[0].id]; const l1 = norm(sub(bones[0].tail, bones[0].head));
-      const upper = bones.slice(0, k0), l2 = k0 > 1 ? norm(sub(bones[1].tail, bones[1].head)) : 0;
+      const l2 = k0 > 1 ? norm(sub(bones[1].tail, bones[1].head)) : 0;
       // out of reach (the ends of a long stance): the block rolls about its ground contact, heel or pastern peeling
       // up, until the leg reaches it; the foot stays where it is planted
       const reach = (k0 > 1 ? l1 + l2 : l1) * 0.999;
@@ -341,23 +312,7 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
         const over = norm(sub(blockTop, root)) - reach;
         if (over > 0) root = add(root, mul(unit(sub(blockTop, root)), Math.min(over, (bones[0].role.startsWith('fore') ? 0.3 : 0.15) * l1)));
       }
-      if (k0 > 1) {
-        const d0 = sub(blockTop, root), d = Math.min(l1 + l2 - 1e-6, Math.max(Math.abs(l1 - l2) + 1e-6, norm(d0))), e = unit(d0);
-        const restKnee = bones[0].tail, restLine = unit(sub(bones[1].tail, bones[0].head));
-        let bend = sub(sub(restKnee, bones[0].head), mul(restLine, dot(sub(restKnee, bones[0].head), restLine)));
-        bend = sub(bend, mul(e, dot(bend, e)));
-        const nrm = norm(bend) > 1e-6 ? unit(bend) : unit(cross(e, [1, 0, 0]));
-        const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), hh = Math.sqrt(Math.max(0, l1 * l1 - a * a));
-        const knee = add(add(root, mul(e, a)), mul(nrm, hh)), end = add(root, mul(e, d));
-        W[upper[0].id] = between(unit(sub(bones[0].tail, bones[0].head)), unit(sub(knee, root))); H[upper[0].id] = root;
-        W[upper[1].id] = between(unit(sub(bones[1].tail, bones[1].head)), unit(sub(end, knee))); H[upper[1].id] = knee;
-        const shift = sub(end, blockTop);
-        for (const b of block) { W[b.id] = Rc; H[b.id] = add(add(blockTop, shift), mv(Rc, sub(b.head, top))); }
-      } else {
-        // a two-bone limb (a bird's thigh + tarsus as root and block): aim the root at the block top
-        W[upper[0].id] = between(unit(sub(bones[0].tail, bones[0].head)), unit(sub(blockTop, root))); H[upper[0].id] = root;
-        for (const b of block) { W[b.id] = Rc; H[b.id] = add(blockTop, mv(Rc, sub(b.head, top))); }
-      }
+      hangLimb(bones, root, blockTop, Rc, W, H);
     }
   }
   // WINGS in a wing gait: the wing rebuilt at this instant's fold (spread on the downstroke, half folded coming up),
@@ -461,7 +416,7 @@ function tailPhysics(id, S, L) {
 }
 
 /** The worn wing, rebuildable at any fold: bones relative to the root (scaled), and the root as the body carries it. */
-function wingOf(id, S, byId) {
+export function wingOf(id, S, byId) {
   const P = speciesParams(id); if (!P.wings) return null;
   const Wp = { scale: P.scale || 1, ...P.wings }, at = speciesPlan(id).joints[Wp.at || 'wingRoot'];
   const first = `${Wp.wing.arm[0].id}R`; if (!byId[first]) return null;

@@ -1,12 +1,16 @@
 #!/usr/bin/env node
-// fauna-gait-strip — a species' skeleton through one stride of a gait, as a stick GIF: side view over top view, the
-// ground sliding under the planted feet. The eyes-gate strip for the locomotion studies; no rig, no skin.
+// fauna-gait-strip — a species' skeleton through one stride of a gait, or one loop of a behavior, as a stick GIF:
+// side view over top view, the ground sliding under the planted feet. The eyes-gate strip for the locomotion and
+// behavior studies; no rig, no skin. A behavior word (relax, alert, eat, sleep) poses the strategy it resolves to.
 //
-//   node scripts/fauna-gait-strip.mjs <species> <gait> [outDir] [--frames 24] [--fps 12] [--strides 2]
+//   node scripts/fauna-gait-strip.mjs <species> <gait|behavior> [outDir] [--frames 24] [--fps 12] [--strides 2]
 //   node scripts/fauna-gait-strip.mjs wolf trot /tmp/strips
+//   node scripts/fauna-gait-strip.mjs sheep relax /tmp/strips
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { gaitFrames } from '../lib/graph/fauna/gait.js';
+import { BEHAVIORS, resolveBehavior } from '../lib/graph/fauna/behavior/index.js';
+import { behaviorFrames } from '../lib/graph/fauna/behavior/pose.js';
 import { faunaSkeleton } from '../lib/graph/fauna/skeleton.js';
 import { encodeGif } from '../lib/motion/encode-gif.js';
 
@@ -16,7 +20,9 @@ const frames = opt('frames', 24), fps = opt('fps', 12), strides = opt('strides',
 const [id, gait, outDir = '.'] = args;
 if (!id || !gait) { console.error('usage: fauna-gait-strip.mjs <species> <gait> [outDir] [--frames n] [--fps n] [--strides n]'); process.exit(1); }
 
-const poses = gaitFrames(id, gait, frames);
+const isBehavior = Boolean(BEHAVIORS[gait]);
+const poses = isBehavior ? behaviorFrames(id, gait, frames) : gaitFrames(id, gait, frames);
+const label = isBehavior ? `${gait} → ${resolveBehavior(id, gait).strategy}` : gait;
 const parentOf = Object.fromEntries(faunaSkeleton(id).bones.map((b) => [b.id, b.parent]));
 const ink = (bid) => (/^(spine|neck|tail)\d+$|^head$/.test(bid) ? '#2b2b2b' : bid.endsWith('L') ? '#1c7ed6' : '#e8590c');
 const width = (bid) => (/^(spine|neck|tail)\d+$|^head$/.test(bid) ? 3.2 : 2.4);
@@ -56,7 +62,7 @@ const svg = (p, i) => {
 ${swims ? '' : `<line x1="12" y1="${sideH}" x2="${W - 12}" y2="${sideH}" stroke="#868e96" stroke-width="1.5"/>${ticks.join('')}`}
 <line x1="12" y1="${sideH + 20}" x2="${W - 12}" y2="${sideH + 20}" stroke="#e9ecef" stroke-width="1"/>
 ${lines.join('\n')}
-<text x="14" y="${H - 10}" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#495057">${id} · ${gait}  —  side (top), from above (bottom)   ${i + 1}/${poses.length}</text>
+<text x="14" y="${H - 10}" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#495057">${id} · ${label}  —  side (top), from above (bottom)   ${i + 1}/${poses.length}</text>
 </svg>`;
 };
 
