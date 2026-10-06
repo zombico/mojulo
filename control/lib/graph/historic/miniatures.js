@@ -110,7 +110,7 @@ function footings(plan, cell, hAt) {
     for (let r = Math.floor(b.y / cell); r <= Math.floor((b.y + b.d) / cell); r++)
       for (let c = Math.floor(b.x / cell); c <= Math.floor((b.x + b.w) / cell); c++) { const k = r * 100000 + c; if (!B.has(k)) B.set(k, []); B.get(k).push(b); }
   }
-  return (x, y) => {
+  const footing = (x, y) => {
     const g = hAt(x, y), list = B.get(Math.floor(y / cell) * 100000 + Math.floor(x / cell)) || [];
     let z = g;
     for (const b of list) {
@@ -120,6 +120,16 @@ function footings(plan, cell, hAt) {
     }
     return z;
   };
+  // `deck`: up on a broad flat mass instead (a quay's top, a hull): the highest plain box well under the foot, with
+  // headroom over it; null where there is none. Only a crew that works up there asks (./crews.js `deck`)
+  footing.deck = (x, y) => {
+    const list = B.get(Math.floor(y / cell) * 100000 + Math.floor(x / cell)) || [], M = 0.3;
+    const under = list.filter((b) => !b.solid && b.w > 2 * M && b.d > 2 * M && x > b.x + M && x < b.x + b.w - M && y > b.y + M && y < b.y + b.d - M);
+    if (!under.length) return null;
+    const top = Math.max(...under.map((b) => b.z1));
+    return under.some((b) => b.z0 >= top - 0.02 && b.z0 < top + 1.9) || list.some((b) => b.solid && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.d && b.z0 < top + 1.9 && b.z1 > top + 0.3) ? null : top;
+  };
+  return footing;
 }
 
 /**

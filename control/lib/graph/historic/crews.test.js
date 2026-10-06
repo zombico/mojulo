@@ -8,14 +8,20 @@ import { SUMER_FARM_ASSETS } from './assets/sumer-farm.js';
 import { EGYPT_FARM_ASSETS } from './assets/egypt-farm.js';
 import { SUMER_WORKS_ASSETS } from './assets/sumer-works.js';
 import { EGYPT_WORKS_ASSETS } from './assets/egypt-works.js';
-import { METRES_PER_UNIT } from './historic-city.js';
+import { SUMER_ASSETS } from './assets/sumer.js';
+import { EGYPT_ASSETS } from './assets/egypt.js';
+import { GIZA_ASSETS } from './assets/giza.js';
+import { LINDOS_ASSETS } from './assets/lindos.js';
+import { POMPEII_ASSETS } from './assets/pompeii.js';
+import { QIN_ASSETS } from './assets/qin.js';
+import { METRES_PER_UNIT, planHistoricCity } from './historic-city.js';
 
 const s = 1 / METRES_PER_UNIT;
 const hash = (x) => createHash('sha1').update(JSON.stringify(x)).digest('hex');
 
 describe('historic crews: the people and beasts at the farm\'s and the works\' work', () => {
   it('names only assets the kits build', () => {
-    const ids = new Set([SUMER_FARM_ASSETS, EGYPT_FARM_ASSETS, SUMER_WORKS_ASSETS, EGYPT_WORKS_ASSETS].flatMap((k) => Object.keys(k)));
+    const ids = new Set([SUMER_FARM_ASSETS, EGYPT_FARM_ASSETS, SUMER_WORKS_ASSETS, EGYPT_WORKS_ASSETS, SUMER_ASSETS, EGYPT_ASSETS, GIZA_ASSETS, LINDOS_ASSETS, POMPEII_ASSETS, QIN_ASSETS].flatMap((k) => Object.keys(k)));
     for (const id of Object.keys(CREWS)) expect(ids.has(id), id).toBe(true);
   });
 
@@ -54,6 +60,16 @@ describe('historic crews: the people and beasts at the farm\'s and the works\' w
     expect(on.stats.people.hands + on.stats.people.crew).toBeGreaterThan(20);
     expect(on.stats.people.beasts).toBeGreaterThan(2);
   }, 180000);
+
+  it('every city with slots stands crews at its work places, after its own town pass', () => {
+    for (const culture of ['sumer', 'thebes', 'giza', 'lindos', 'pompeii', 'qin']) {
+      const plan = planHistoricCity({ culture }), F = sceneFolk(plan, true, s, 1);
+      const named = (plan.slots || []).filter((sl) => CREWS[sl.asset]).length;
+      expect(named, culture).toBeGreaterThan(0);
+      expect(F.stats.crew, culture).toBeGreaterThan(0);
+      expect(sceneFolk(plan, { crews: false, beasts: false }, s, 1).stats.crew, culture).toBe(0);
+    }
+  }, 300000);
 
   it('the historic kind takes people in every scene', () => {
     for (const scene of ['city', 'region', 'farm', 'works']) expect(historicOptions({ culture: 'sumer', scene, people: true }).opts.people).toBe(true);

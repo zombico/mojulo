@@ -521,6 +521,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     floor.
   - With `people` absent every scene is byte-identical, and the CSS pages never draw people. `crews: false` leaves
     out the crews. The town's own output is unchanged by the shared placing kit this needed (`folkKit`).
+- The city takes the same crews. Its work places name their people too: priests and worshippers at the altars
+  and before the temples, women with jars at the wells and fountains, shopkeepers at Pompeii's shop fronts with
+  customers in the street, potters at the kilns, bakers and craftsmen in Giza's bakeries and workshops, quarrymen,
+  porters on the quays, boatmen aboard, traffic and a pack animal at the gates, and traders and their beasts in
+  the Qin market. A crew can now stand before a slot facing into it (`before`), work up on a quay's top or a
+  ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
+  guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
+  layout has no slots, has none yet.
 - A figure stands on a kerb or a step and refuses a spot taken by anything taller.
 - Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
 - Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),

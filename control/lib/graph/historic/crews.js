@@ -24,8 +24,10 @@ import { SM } from '../../util/math-scope.js';
 const WORK = ['stoop', 'hoe'], STAND = ['idleL', 'idleR'], WALK = ['strollL', 'strollR'];
 
 // who works each asset: [count lo, hi, poses, where] people, and { beast, n, where } beasts. `where`: 'front' (just
-// inside the slot's front, facing into it), 'inside' (anywhere in it), 'ahead' (outside the front, facing away). A
-// beast `town` is the culture's pack animal.
+// inside the slot's front, facing into it), 'inside' (anywhere in it), 'ahead' (outside the front, facing away),
+// 'before' (outside the front, facing into it: the customer, the worshipper). `dress`: the town's 'man' for the priest,
+// the shopkeeper and the guard (default the labourer's 'hand'). `deck`: they work up on its top (a quay, a hull).
+// `per`: the count is for each `per` m² of a big slot. A beast `town` is the culture's pack animal.
 const crew = (lo, hi, poses, where = 'front', o = {}) => ({ lo, hi, poses, where, ...o });
 export const CREWS = {
   // the farm
@@ -77,6 +79,55 @@ export const CREWS = {
   'eg-boatyard': [crew(2, 3, ['hoe', 'stoop'], 'inside')],
   'eg-stone-barge': [crew(1, 2, ['carry', 'idleL'], 'inside')],
   'eg-glass-works': [crew(1, 2, ['stoop'], 'inside')],
+  // the city: Sumer (and the pieces Thebes borrows from its art kit)
+  'white-temple': [crew(1, 2, STAND, 'before', { dress: 'man' })],
+  altar: [crew(1, 1, ['idleL'], 'before', { dress: 'man' }), crew(1, 3, STAND, 'before', { dress: 'man', women: true })],
+  'votive-row': [crew(1, 2, STAND, 'before', { dress: 'man', women: true })],
+  well: [crew(1, 2, ['carry', 'idleR'], 'before', { women: true })],
+  granary: [crew(1, 2, ['carry'], 'before')],
+  'pottery-kiln': [crew(1, 2, ['stoop', 'carry'], 'before')],
+  'reed-boat': [crew(1, 2, ['stoop', 'idleL'], 'inside', { deck: true })],
+  'city-gate': [crew(1, 2, STAND, 'ahead', { dress: 'man' }), crew(1, 2, ['carry', ...WALK], 'before'), { beast: 'town', n: 1, where: 'ahead' }],
+  // Thebes
+  'eg-pylon': [crew(1, 3, STAND, 'before', { dress: 'man' })],
+  'eg-temenos-gate': [crew(2, 3, STAND, 'ahead', { dress: 'man' }), crew(1, 2, WALK, 'before', { dress: 'man', women: true })],
+  'eg-sphinx-row': [crew(2, 4, WALK, 'inside', { dress: 'man', women: true })],
+  'eg-offering': [crew(1, 2, ['stoop', 'idleL'], 'before', { dress: 'man' })],
+  'eg-sacred-lake': [crew(1, 2, STAND, 'before', { dress: 'man' })],
+  'eg-quay': [crew(2, 4, ['carry', 'carry', 'stoop'], 'inside', { deck: true })],
+  'eg-nile-ship': [crew(1, 3, ['stoop', 'idleL'], 'inside', { deck: true })],
+  'eg-shaduf': [crew(1, 1, ['hoe'], 'front')],
+  // Giza
+  'gz-pyramid': [crew(3, 6, ['carry', 'hoe'], 'before')],
+  'gz-mortuary-temple': [crew(1, 3, STAND, 'before', { dress: 'man' })],
+  'gz-valley-temple': [crew(1, 3, STAND, 'before', { dress: 'man' })],
+  'gz-gallery': [crew(0, 2, STAND, 'before')],
+  'gz-bakery': [crew(2, 4, ['stoop', 'carry'], 'inside')],
+  'gz-works': [crew(2, 4, ['hoe', 'stoop'], 'inside')],
+  'gz-quarry': [crew(3, 6, ['hoe', 'hoe', 'stoop'], 'inside')],
+  'gz-ship': [crew(1, 3, ['stoop', 'idleL'], 'inside', { deck: true })],
+  // Lindos (and the polis)
+  'ln-temple': [crew(1, 2, STAND, 'before', { dress: 'man', women: true })],
+  'ln-altar': [crew(1, 1, ['idleL'], 'before', { dress: 'man' }), crew(1, 3, STAND, 'before', { dress: 'man', women: true })],
+  'ln-propylaia': [crew(1, 3, WALK, 'before', { dress: 'man', women: true })],
+  'ln-stoa': [crew(2, 4, STAND, 'inside', { dress: 'man' })],
+  'ln-kiln': [crew(1, 2, ['stoop', 'carry'], 'before')],
+  'ln-boat': [crew(1, 2, ['stoop', 'idleL'], 'before')],
+  'ln-trireme': [crew(2, 4, ['stoop', 'idleL'], 'inside', { deck: true })],
+  // Pompeii
+  'pp-shop-house': [crew(1, 1, STAND, 'before', { out: true, dress: 'man' }), crew(0, 2, STAND, 'before', { dress: 'man', women: true })],
+  'pp-fountain': [crew(1, 3, ['carry', 'idleR', 'idleL'], 'before', { women: true })],
+  'pp-altar': [crew(1, 1, ['idleL'], 'before', { dress: 'man' }), crew(1, 3, STAND, 'before', { dress: 'man', women: true })],
+  'pp-temple': [crew(1, 3, STAND, 'before', { dress: 'man', women: true })],
+  'pp-gate': [crew(1, 2, STAND, 'ahead'), crew(1, 2, ['carry', ...WALK], 'before'), { beast: 'town', n: 1, where: 'ahead' }],
+  'pp-portico': [crew(2, 4, STAND, 'inside', { dress: 'man', women: true })],
+  'pp-court': [crew(2, 4, WALK, 'inside', { dress: 'man', women: true, per: 1500 })],
+  // Qin
+  'qn-hall': [crew(2, 3, STAND, 'before', { dress: 'man' })],
+  'qn-ward-gate': [crew(1, 2, STAND, 'ahead', { dress: 'man' }), crew(1, 2, WALK, 'before')],
+  'qn-market': [crew(4, 8, ['carry', 'stoop', 'idleL', 'idleR'], 'inside', { dress: 'man', women: true, per: 1500 }), { beast: 'town', n: 2, where: 'inside' }],
+  'qn-terrace-works': [crew(4, 6, ['hoe', 'carry', 'stoop'], 'inside')],
+  'qn-bridge': [crew(1, 3, WALK, 'inside', { dress: 'man', women: true })],
 };
 
 // what draws each yoked pole; a culture's own word wins (Sumer threshed with donkeys: the kit names them)
@@ -148,6 +199,7 @@ export function crewFaces(plan, people, s, seed = 1, kit = folkKit(plan, s)) {
       const spot = (where) => {
         if (where === 'front') return P(W * (0.15 + R() * 0.7), Math.min(Dp * 0.3, 0.6 + R() * 1.4));
         if (where === 'ahead') return P(W * (0.3 + R() * 0.4), -(0.8 + R() * 5));
+        if (where === 'before') return P(W * (0.15 + R() * 0.7), -(0.9 + R() * 2.1));
         return P(W * (0.12 + R() * 0.76), Dp * (0.15 + R() * 0.7));
       };
       for (const role of roles) {
@@ -161,14 +213,15 @@ export function crewFaces(plan, people, s, seed = 1, kit = folkKit(plan, s)) {
           }
           continue;
         }
-        const n = role.lo + Math.floor(R() * (role.hi - role.lo + 1));
+        // `per`: a big open slot (a market, a court) takes its count per that many square metres, up to 40
+        const n0 = role.lo + Math.floor(R() * (role.hi - role.lo + 1)), n = role.per ? Math.min(40, Math.round(n0 * Math.max(1, (W * Dp) / role.per))) : n0;
         for (let i = 0; i < n; i++) for (let tries = 0; tries < 4; tries++) {
-          const [x, y] = spot(role.where), z = footing(x, y);
+          const [x, y] = spot(role.where), z = role.deck ? footing.deck(x, y) ?? footing(x, y) : footing(x, y);
           if (z === null || !kit.clear(x, y, 0.55)) continue;
           // into the work, or (`out`, `ahead`) facing out of the slot's front; a little turned either way
           const th = (role.out || role.where === 'ahead' ? into + Math.PI : into) + (R() - 0.5) * 0.7;
           const woman = role.women && R() < 0.6;
-          stand(x, y, z, th, woman ? 'adultF' : 'adultM', pick(role.poses, R), pick(woman ? D.woman : D.hand, R), R);
+          stand(x, y, z, th, woman ? 'adultF' : 'adultM', pick(role.poses, R), pick(woman ? D.woman : D[role.dress || 'hand'], R), R);
           out.crew++;
           break;
         }

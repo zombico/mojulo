@@ -32,7 +32,7 @@ import { emitThreeWorld } from '../scene/scene-three.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
 import { resolveFire, firePageChannel } from '../fire/fire.js';
-import { miniatureFaces } from './miniatures.js';
+import { sceneFolk } from './crews.js';
 
 export { HISTORIC_CULTURES };   // the registry: ./cultures/index.js
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
@@ -528,7 +528,11 @@ export function historicLight(plan, opts = {}) {
 }
 
 export function assembleHistoricCityScene(opts = {}) {
-  const plan = planHistoricCity(opts);
+  const plan0 = planHistoricCity(opts);
+  // `people` (the World's alone): the town's citizens and field hands, the crews at its work places and any team at a
+  // yoke, stood over the finished plan (./crews.js); the scene builds from the folk's boxes (a hitched yoke lifted)
+  const folk = opts.world && opts.people ? sceneFolk(plan0, opts.people, 1 / METRES_PER_UNIT, opts.seed ?? 1) : null;
+  const plan = folk ? { ...plan0, boxes: folk.boxes } : plan0;
   const view = opts.view === 'approach' || (opts.view && plan.views[opts.view]) ? opts.view : 'aerial';
   // px per scene unit for the view: the table's, or eye level for a view it does not name (a new culture's own views)
   const US = UNIT_SCALE[view] ?? 48;
@@ -544,8 +548,6 @@ export function assembleHistoricCityScene(opts = {}) {
   const { shade, sky } = historicLight(plan, opts);
   const G = groundsToScene(plan.grounds, s, US, true, shade, world), grounds = G.grounds;
   faces.unshift(...G.faces);
-  // `people` (the World's alone): the town's citizens and field hands, stood over the finished plan (./miniatures.js)
-  const folk = world && opts.people ? miniatureFaces(plan, opts.people, s, opts.seed ?? 1) : null;
   if (folk) for (const f of folk.faces) faces.push(f);
   const W = plan.frame.w * s, Dd = plan.frame.d * s, pc = plan.stats.precinct;
   const pcx = (pc.x + pc.w / 2) * s, pcy = (pc.y + pc.d / 2) * s;
@@ -567,7 +569,7 @@ export function assembleHistoricCityScene(opts = {}) {
     if (T.boxes.length) throw new Error(`repeat '${r.key}': a template is built of solids only`);
     return { group: r.key, template: T.faces, transforms: r.transforms.map((t) => ({ pos: t.pos.map((v) => v * s) })) };
   }) : null;
-  const stats = folk ? { ...plan.stats, people: { citizens: folk.citizens, hands: folk.hands, beasts: folk.beasts, drivers: folk.drivers } } : plan.stats;
+  const stats = folk ? { ...plan.stats, people: folk.stats } : plan.stats;
   return { ...scene, stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}), ...(repeats ? { repeats } : {}) };
 }
 /** A mass moved by `[dx, dy, dz]` (an instance's stand-in put in place). */
