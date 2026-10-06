@@ -24,6 +24,9 @@ import { SUMER } from './cultures/sumer.js';
 import { SUMER_FARM_ASSETS } from './assets/sumer-farm.js';
 import { EGYPT_COUNTRY } from './cultures/egypt-country.js';
 import { EGYPT_FARM_ASSETS } from './assets/egypt-farm.js';
+import { POMPEII } from './cultures/pompeii.js';
+import { POMPEII_FARM_ASSETS } from './assets/pompeii-land.js';
+import { olive } from './assets/lindos.js';
 import { palm } from './patterns.js';
 import { placeAsset, skinFor } from './assets/kit.js';
 import { toScene, groundsToScene, emitHistoric, METRES_PER_UNIT, SCENE_LIGHT } from './historic-city.js';
@@ -82,6 +85,22 @@ export const FARM_CULTURES = {
     garden: true,                               // the garden south of the fold: beds and pool, vines and press, the bees
   },
 };
+// Pompeii's farm is not a flood plain: a villa rustica on the Vesuvian slope at the vintage (`layout: 'villa'`,
+// planVilla below), from its own record (../record/pompeii-land.js) and kit (./assets/pompeii-land.js)
+FARM_CULTURES.pompeii = {
+  culture: POMPEII,
+  label: 'a villa rustica on the slopes of Vesuvius',
+  layout: 'villa',
+  assets: POMPEII_FARM_ASSETS,
+  palette: {
+    ...POMPEII.palette,
+    tilled: '#8a7458', fallow: '#a99a74', grain: '#d8b65e', chaff: '#e2cf96', straw: '#c9b27a',
+    vine: '#4f6a32', grapes: '#4a2f45', must: '#5a2a3a',     // the leaves, the ripe bunches, the trodden must
+    dolium: '#b06a44', cocciopesto: '#b98c74',               // fired clay; the crushed-tile floors of the press and the floor
+    reed: '#b8a070', wood: '#6e5238',
+  },
+  seasons: { vintage: 1 },                                   // September: the grapes picked, trodden and pressed
+};
 const ROLES = { plough: 'plough', harvest: 'harvest-edge', cart: 'farm-cart', wagon: 'wagon', store: 'storehouse', stable: 'stable', byre: 'reed-byre', floor: 'threshing-floor', fold: 'sheepfold', house: 'farmhouse', shed: 'tool-shed', shaduf: 'shaduf', sluice: 'sluice' };
 
 /**
@@ -95,6 +114,7 @@ const SEASON_FIELDS = {
 
 export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest', frame = { w: 270, d: 196 }, assets } = {}) {
   const F = FARM_CULTURES[culture] || FARM_CULTURES.sumer, K = F.culture, P = F.palette, kit = assets || F.assets, R = { ...ROLES, ...F.roles };
+  if (F.layout === 'villa') return planVilla({ seed, culture, F, kit });
   const L = stream(seed, 'layout'), slots = [], boxes = [], grounds = [];
   const W = frame.w, D = frame.d;
 
@@ -249,6 +269,75 @@ export function planFarmstead({ seed = 1, culture = 'sumer', season = 'harvest',
 }
 
 /**
+ * A villa rustica at the vintage (Pompeii): the villa round its court facing the country road along the south, its
+ * dolia sunk in the court; the press room and the olive mill behind it, the stable to the west, the threshing terrace
+ * and the barn to the east; the vineyard in blocks over the north, an olive grove to the west, a reaped field to the
+ * east; the cart waiting at the gate for the grapes. Slots only, built by the culture's kit. Metres; y grows south.
+ */
+function planVilla({ seed, culture, F, kit, frame = { w: 220, d: 160 } }) {
+  const K = F.culture, P = F.palette, W = frame.w, D = frame.d, L = stream(seed, 'layout'), G = stream(seed, 'groves');
+  const slots = [], boxes = [], grounds = [];
+  const place = (asset, rect, facing, o = {}) => { slots.push({ asset, rect, facing, ...o }); return rect; };
+  // the road along the south, its ruts at the cart's gauge (record: pl-cart, 1.32 m)
+  const road = { x: 0, y: D - 12, w: W, d: 6 };
+  grounds.push({ kind: 'track', ...road, z: 0.025, fill: P.lane === P.lava ? scaleHex(P.ground, 0.86) : P.lane, surface: 'mud', layer: 2 });
+  for (const o of [-0.66, 0.66]) grounds.push({ kind: 'rut', x: 0, y: road.y + 3 + o - 0.08, w: W, d: 0.16, z: 0.03, fill: scaleHex(P.ground, 0.7), layer: 2 });
+  // the villa, its gate to the road; the cellar of dolia in its court
+  const vw = 30, vd = 25, vx = Math.round(W / 2 - vw / 2 + (L() - 0.5) * 8), vy = road.y - 4 - vd;
+  const V = place('pl-villa', { x: vx, y: vy, w: vw, d: vd }, 's');
+  place('pl-cella-vinaria', { x: vx + 7.5, y: vy + 11, w: 10, d: 5 }, 's');
+  grounds.push({ kind: 'track', x: vx + vw / 2 - 2.5, y: vy + vd, w: 5, d: road.y - vy - vd, z: 0.026, fill: scaleHex(P.ground, 0.9), surface: 'mud', layer: 2 });
+  place('pl-cart', { x: vx + vw / 2 + 3.5, y: road.y - 7.6, w: 2.4, d: 7.4 }, 's');
+  // behind it the press room and the olive mill, their fronts to the villa's back; the yard between them
+  const press = place('pl-press-room', { x: vx - 1, y: vy - 15, w: 14, d: 8 }, 's');
+  const mill = place('pl-trapetum', { x: vx + vw - 9, y: vy - 13, w: 8, d: 6 }, 's');
+  grounds.push({ kind: 'yard', x: vx - 2, y: vy - 7, w: vw + 4, d: 7, z: 0.03, fill: scaleHex(P.court, 0.96), surface: 'dry-earth', layer: 2 });
+  // the stable west of the villa, open toward it; the threshing terrace and the barn to the east
+  place('pl-stable', { x: vx - 12, y: vy + 6, w: 7, d: 11 }, 'e');
+  const floor = place('pl-threshing-terrace', { x: vx + vw + 5, y: vy + 1, w: 11, d: 11 }, 's');
+  place('pl-barn', { x: vx + vw + 5, y: vy + 15, w: 11, d: 7 }, 's');
+  // the vineyard: blocks over the north, lanes between them
+  const vy1 = press.y - 6, blocks = [];
+  for (let by = 8; by < vy1 - 12; ) {
+    const bd = Math.min(vy1 - by, 34 + Math.floor(L() * 12));
+    for (let bx = 8; bx < W - 20; ) {
+      const bw = Math.min(W - 8 - bx, 38 + Math.floor(L() * 18));
+      if (bw >= 12) blocks.push(place('pl-vine-block', { x: bx, y: by, w: bw, d: bd }, 'n'));
+      bx += bw + 5;
+    }
+    by += bd + 5;
+  }
+  // an olive grove west of the stable, a reaped field east of the barn
+  for (let y = vy - 2; y < road.y - 5; y += 8) for (let x = 6; x < vx - 18; x += 8) boxes.push(...olive(x + G() * 3, y + G() * 3, 0, G, P));
+  const fx = floor.x + floor.w + 6;
+  if (W - 6 - fx > 10) grounds.push({ kind: 'field', x: fx, y: vy - 4, w: W - 6 - fx, d: road.y - 3 - vy + 4, z: 0.02, fill: P.fallow, surface: 'stubble', layer: 1 });
+  // the slope's earth under it all
+  grounds.push({ kind: 'ground', x: 0, y: 0, w: W, d: D, z: 0.01, fill: P.ground, surface: 'dry-earth', layer: 0 });
+  // build every slot from the kit, each on its own dressing stream
+  for (const [i, slot] of slots.entries()) {
+    const A = kit[slot.asset];
+    if (!A) throw new Error(`no asset '${slot.asset}' in the ${culture} farm kit`);
+    const placed = placeAsset(A, slot, { palette: P, culture: K, rng: stream(seed, `asset|${i}`) });
+    boxes.push(...placed.boxes); grounds.push(...placed.grounds.map((g) => ({ ...g, layer: g.layer ?? 4 })));
+  }
+  for (const b of boxes) if (b.skin === undefined) { const skin = skinFor(K, b); if (skin) b.skin = skin; }
+  grounds.sort((a, b) => (a.layer ?? 4) - (b.layer ?? 4));
+  const tiled = grounds.flatMap((g) => (g.poly ? [g] : tileGround(g, 12)));
+  const b0 = blocks[0];
+  const views = {
+    court: { eye: [V.x + vw - 8, V.y + vd - 4, 1.7], at: [V.x + 12, V.y + 13, 0.4] },
+    press: { eye: [press.x + 9, press.y + press.d + 7, 4.2], at: [press.x + 8, press.y + 3, 0.6] },
+    road: { eye: [V.x - 22, road.y + 3, 1.8], at: [V.x + vw / 2, V.y + vd, 2.2] },
+    // down a row between the vines, from the block's west end
+    ...(b0 ? { vines: { eye: [b0.x - 2.5, b0.y + 2 + 2 * Math.floor(b0.d / 4), 1.6], at: [b0.x + b0.w * 0.7, b0.y + 2 + 2 * Math.floor(b0.d / 4), 0.9] } } : {}),
+  };
+  return {
+    boxes, grounds: tiled, views, slots, frame: { w: W, d: D }, aerialAt: [V.x + vw / 2, V.y + vd * 0.3],   // the aerial looks at the villa
+    stats: { culture, season: 'vintage', fields: [], slots: slots.length, farmstead: { x: V.x, y: V.y, w: vw, d: vd }, vineBlocks: blocks.length, mill: mill.x },
+  };
+}
+
+/**
  * The ground of a scene cut by a canal: the base earth either side in 4 m columns, the slivers the
  * meander leaves at the banks, the water, and earthen banks sloping down to it. `holes` (rects on the
  * 4 m column grid) are left out of the base, for a pit sunk below it or a town that lays its own;
@@ -305,7 +394,7 @@ export function standingCrop(r, h, P, boxes, grounds, fill = P.grain, kind = 'cr
 }
 
 // px per scene unit, as the town: the eye-level views raster finer
-const UNIT_SCALE = { aerial: 22, yard: 48, threshing: 48, field: 48, plough: 48, basin: 48 };
+const UNIT_SCALE = { aerial: 22, yard: 48, threshing: 48, field: 48, plough: 48, basin: 48, court: 48, press: 48, road: 48, vines: 48 };
 
 /** Plan → a CSS 3D scene with an aerial camera and the eye-level views, the asked-for view first. */
 export function assembleFarmsteadScene(opts = {}) {
@@ -323,7 +412,10 @@ export function assembleFarmsteadScene(opts = {}) {
   const G = groundsToScene(eye ? plan.grounds.flatMap(retile) : plan.grounds, s, us);
   faces.unshift(...G.faces);
   const W = plan.frame.w * s, Dd = plan.frame.d * s;
-  const cameras = [{ name: 'aerial', worldFraming: { cameraPosition: [W * 0.55, Dd * 1.3, Math.max(W, Dd) * 0.5], lookAt: [W * 0.55, Dd * 0.45, 0], horizontalFov: 62, pictureCenter: [560, 390] } }];
+  // the aerial over the middle of the frame, or over what a plan names (`aerialAt`, metres: the villa)
+  const aerial = plan.aerialAt ? { cameraPosition: [plan.aerialAt[0] * s + W * 0.12, plan.aerialAt[1] * s + Dd * 0.42, Math.max(W, Dd) * 0.22], lookAt: [plan.aerialAt[0] * s, plan.aerialAt[1] * s, 0] }
+    : { cameraPosition: [W * 0.55, Dd * 1.3, Math.max(W, Dd) * 0.5], lookAt: [W * 0.55, Dd * 0.45, 0] };
+  const cameras = [{ name: 'aerial', worldFraming: { ...aerial, horizontalFov: 62, pictureCenter: [560, 390] } }];
   for (const [name, v] of Object.entries(plan.views)) cameras.push({ name, worldFraming: { cameraPosition: v.eye.map((q) => q * s), lookAt: v.at.map((q) => q * s), horizontalFov: 74, pictureCenter: [560, 390] } });
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));

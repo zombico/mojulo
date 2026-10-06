@@ -556,6 +556,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
   it has no people.
 
+### Pompeii's land
+
+- Pompeii gets a farm scene (`scene: 'farm'`), and a works scene is next. Both draw on a new cited record of
+  its land and workshops (`lib/graph/historic/record/pompeii-land.js`), spread into Pompeii's record.
+  - The record covers:
+    - the villas of Boscoreale: Villa Regina's 18 dolia (about 10,000 litres) and the Pisanella's olive mill;
+    - the lever press of the Villa of the Mysteries;
+    - the vineyard inside the walls;
+    - the bakeries with their donkey mills, the fullery, the fish-sauce works, the tannery, the dyers, the
+      potters, a building site and a smithy;
+    - the carts and the stable of Civita Giuliana.
+
+    Each entry is cited, with its confidence and its disputes. What was working at the eruption but has no
+    recorded building date is held from 79, not back-dated.
+  - The farm is a villa rustica at the vintage, its one season. It is a new `villa` layout beside the flood-plain
+    farm, which stays as it was.
+    - The villa stands round its court, facing a country road rutted at its cart's gauge, with the dolia sunk in
+      the court.
+    - The press room and the olive mill stand behind it, the stable beside it, and the threshing terrace and a
+      barn with its pergola to the east.
+    - The vineyard lies in blocks of staked rows over the north, with an olive grove and a reaped field.
+    - A cart waits at the gate for the grapes, its pole down to the yoke.
+  - Its nine pieces (`lib/graph/historic/assets/pompeii-land.js`) are placeholders, `designed: false`, massed to
+    the record's numbers where it gives them and to stated conjecture where it does not.
+  - With `people`, pickers work the vine rows, treaders and pressmen the press room, two men the olive mill, and
+    the household the court. Horses stand in the stable, and the cart's pair is hitched with its carter.
+  - The farm's aerial view can be aimed by its plan (`aerialAt`). Sumer's and Egypt's farm and works scenes are
+    byte-identical.
+
 ### Historic Rome
 
 - **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is
