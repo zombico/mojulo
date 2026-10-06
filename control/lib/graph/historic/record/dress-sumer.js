@@ -27,4 +27,7 @@ export const SUMER_DRESS = [
   dress('su-loincloth', 'Loincloth', 'hand', 'knee', { from: -4000, to: -2154, approx: true },
     [{ shirt: '#a08c68', skirt: '#b4a07a' }, { shirt: '#8c7a5a' }],
     'secondary', [DS.zay, DS.kaunakes], 'Men in loincloths c. 3000 BCE; the servant\'s and the soldier\'s kaunakes the shortest.'),
+  dress('su-sheepskin', 'Kaunakes under a sheepskin', 'man', 'shin', { from: -2700, to: -2154, approx: true },
+    [{ shirt: '#b8a47e', skirt: '#d6c8a4', cloak: '#e0d4b8', cloakTo: 'hip' }],
+    'read', [DS.kaunakes], 'Bare above the kaunakes or under a sheepskin cloak.'),
 ];

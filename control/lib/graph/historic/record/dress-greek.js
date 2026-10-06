@@ -1,7 +1,7 @@
 /**
  * Greek dress, the Archaic into the Hellenistic (Lindos' record; the polis shares it, Pompeii draws it for the years
- * before its Roman record). Kind `dress` (../record.js, ../dress.js). The chlamys (a short cloak) and the petasos (a
- * hat) wait for those garments.
+ * before its Roman record). Kind `dress` (../record.js, ../dress.js). The chlamys is the miniature's cloak, the
+ * petasos its brim, the himation over the head its veil.
  */
 import { DS } from './dress-sources.js';
 
@@ -33,4 +33,14 @@ export const GREEK_DRESS = [
   dress('gr-exomis', 'Exomis', 'hand', 'knee', { from: -500, to: -31, approx: true },
     [{ shirt: '#9a8a6a' }, { shirt: '#857254' }],
     'secondary', [DS.exomis], 'The worker\'s short belted tunic, its right shoulder left open. The page states the workers\' use but dates only the soldiers\' (late 5th c. BCE).'),
+  // the cloak and the hats (the miniature's `cloak` and `headwear`)
+  dress('gr-chlamys', 'Chlamys', 'man', 'knee', { from: -500, to: -201, approx: true },
+    [{ shirt: '#e2d8c0', cloak: '#8a3a30', cloakTo: 'hip', shoe: '#5a3e26' }],
+    'read', [DS.chlamys], 'The short wool cloak pinned at the right shoulder: young men, soldiers, hunters, travellers; military dress of the 5th to the 3rd century.'),
+  dress('gr-petasos', 'Exomis and petasos', 'hand', 'knee', { from: -500, to: -31, approx: true },
+    [{ shirt: '#9a8a6a', headwear: 'brim', headHex: '#c8b080' }],
+    'read', [DS.petasos, DS.exomis], 'The broad-brimmed hat of felt, leather or straw, for farmers, travellers and hunters; depicted from the 5th century.'),
+  dress('gr-himation-veiled', 'Himation drawn over the head', 'woman', 'ankle', { from: -750, to: -31, approx: true },
+    [{ shirt: '#e0d6c0', sleeve: true, shoe: '#5a3e26', headwear: 'veil', headHex: '#8a5048' }],
+    'unverified', [DS.himation], 'The woman\'s himation worn up over the head out of doors: the standard account, not stated by the page read.'),
 ];

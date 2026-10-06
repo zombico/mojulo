@@ -22,7 +22,8 @@ import { SM } from '../../util/math-scope.js';
 // ── dress: per culture, the skins and the garments its people wear ────────────────────────────────────────────────
 // A garment covers the body to its `cut` (a tunic or kilt to the knee, a robe to the shin or the ankle: the figure's
 // fitted skirt, ../figures/pedestrian-asset.js CUTS) in `skirt` (else the `shirt`); `sleeve` carries the shirt down
-// the forearm; `legs` are trousers or leggings below (else bare shins); a `shoe` it leaves out is bare feet. Nobody is
+// the forearm; `legs` are trousers or leggings below (else bare shins); a `shoe` it leaves out is bare feet. A `cloak`
+// (its colour) hangs from the shoulders to `cloakTo` (hip or knee); `headwear` (cap, brim or veil) is in `headHex`. Nobody is
 // bare to the waist. Colours are undyed and earth-dyed wool and linen; the bright ones are few, as they were dear.
 const garb = (shirt, cut, o = {}) => ({ shirt, cut, ...o });
 const ROMAN = {
@@ -71,7 +72,7 @@ export const DRESS = { pompeii: ROMAN, forum: ROMAN, lindos: GREEK, polis: GREEK
 /** A garment on a skin → a pedestrian palette: the shirt and skirt, a sleeve or a bare forearm, legs or bare shins. */
 function palette(g, skin) {
   const legs = g.legs || skin;
-  return { skin, shirt: g.shirt, skirt: g.skirt || g.shirt, forearm: g.sleeve ? g.shirt : skin, thigh: legs, shin: legs, pants: legs, shoe: g.shoe || skin };
+  return { skin, shirt: g.shirt, skirt: g.skirt || g.shirt, forearm: g.sleeve ? g.shirt : skin, thigh: legs, shin: legs, pants: legs, shoe: g.shoe || skin, cloak: g.cloak || g.shirt, headwear: g.headHex || g.shirt };
 }
 
 // ── scale: the bake's own height, so a figure stands at its height in metres ──────────────────────────────────────
@@ -156,7 +157,7 @@ export function folkKit(plan, s, cell = 3, year = null) {
   const spots = [];   // where each person and beast stands (the beasts keep clear of them)
   const stand = (x, y, z, heading, archetype, pose, garment, rng) => {
     const scale = MAN * k * (0.95 + rng() * 0.1);
-    for (const f of pedestrianFaces({ cx: x * s, cy: y * s, heading, scale, archetype, pose, palette: palette(garment, pick(D.skin, rng)), lod: 'mini', cut: garment.cut, smooth: true }))
+    for (const f of pedestrianFaces({ cx: x * s, cy: y * s, heading, scale, archetype, pose, palette: palette(garment, pick(D.skin, rng)), lod: 'mini', cut: garment.cut, smooth: true, cloak: garment.cloak ? garment.cloakTo || 'hip' : null, headwear: garment.headwear || null }))
       out.faces.push({ ...f, corners: f.corners.map(([a, b, c]) => [a, b, c + (z + 0.1) * s]) });
     spots.push([x, y]);
   };

@@ -19,7 +19,8 @@
  *   type     { built: span, materials: [ids], methods?: [ids], dims?: {…} (m), notes? }
  *   form     { attested, notes? }
  *   dress    { attested, wearer: 'man' | 'woman' | 'hand', cut: 'knee' | 'shin' | 'ankle', looks: [{ shirt, skirt?,
- *              sleeve?, legs?, shoe?, weight? }] (colours #rrggbb), notes? } — a garment and who wore it (./dress.js)
+ *              sleeve?, legs?, shoe?, cloak?, cloakTo?: 'hip' | 'knee', headwear?: 'cap' | 'brim' | 'veil', headHex?,
+ *              weight? }] (colours #rrggbb), notes? } — a garment and who wore it (./dress.js)
  *
  * checkRecord is the machine gate over a record: it advises (returns findings), never refuses.
  */
@@ -66,7 +67,9 @@ export function checkRecord(entries) {
       for (const l of e.looks || []) {
         // nobody is bare to the waist: every look covers the torso (its `shirt`)
         if (!l || !HEX.test(l.shirt || '')) { add('error', e.id, 'a look without a #rrggbb shirt'); continue; }
-        for (const k of ['skirt', 'legs', 'shoe']) if (l[k] !== undefined && !HEX.test(l[k])) add('error', e.id, `${k} '${l[k]}' is not #rrggbb`);
+        if (l.cloakTo !== undefined && !(l.cloak && ['hip', 'knee'].includes(l.cloakTo))) add('error', e.id, 'cloakTo is hip or knee, on a look with a cloak');
+        if (l.headwear !== undefined && !(['cap', 'brim', 'veil'].includes(l.headwear) && HEX.test(l.headHex || ''))) add('error', e.id, 'headwear is cap, brim or veil, with a #rrggbb headHex');
+        for (const k of ['skirt', 'legs', 'shoe', 'cloak']) if (l[k] !== undefined && !HEX.test(l[k])) add('error', e.id, `${k} '${l[k]}' is not #rrggbb`);
         if (l.weight !== undefined && !(Number.isInteger(l.weight) && l.weight >= 1)) add('error', e.id, 'a look weight is a whole number from 1');
       }
     }

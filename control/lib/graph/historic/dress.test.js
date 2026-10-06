@@ -24,9 +24,21 @@ describe('historic dress: what the people wear, read from the record at a year',
     }
   });
 
-  it('Pompeii at 79 wears what the hand-made table did (its town is unchanged by the record)', () => {
+  it('Pompeii at 79 wears every look of the hand-made table, and the cloak and the veil besides', () => {
     const W = wardrobeAt('pompeii', 79), strip = (gs) => gs.map(({ dress, ...g }) => g);
-    for (const w of ['man', 'woman', 'hand']) expect(strip(W[w]), w).toEqual(DRESS.pompeii[w]);
+    for (const w of ['man', 'woman', 'hand']) expect(strip(W[w]).slice(0, DRESS.pompeii[w].length), w).toEqual(DRESS.pompeii[w]);
+    expect(W.hand.some((g) => g.cloak)).toBe(true);
+    expect(W.woman.some((g) => g.headwear === 'veil')).toBe(true);
+    expect(W.man.some((g) => g.cloak)).toBe(false);   // the citizen's paenula is a 3rd-century fashion
+    expect(wardrobeAt('pompeii', 250).man.some((g) => g.cloak)).toBe(true);
+  });
+
+  it('the cloaks and hats come and go with their spans', () => {
+    expect(wardrobeAt('lindos', -400).man.some((g) => g.cloak)).toBe(true);    // the chlamys
+    expect(wardrobeAt('lindos', -180).man.some((g) => g.cloak)).toBe(false);
+    expect(wardrobeAt('lindos', -180).hand.some((g) => g.headwear === 'brim')).toBe(true);   // the petasos
+    expect(wardrobeAt('qin', -212).hand.some((g) => g.headwear === 'cap')).toBe(true);       // the black headcloth
+    expect(wardrobeAt('qin', -300).hand.some((g) => g.headwear)).toBe(false);
   });
 
   it('Rome: the toga everyday in the Republic, formal by 79; the stola gone by the 2nd century; trousers from 301', () => {
@@ -34,9 +46,9 @@ describe('historic dress: what the people wear, read from the record at a year',
     const togas = (W) => W.man.filter((g) => g.dress.startsWith('rm-toga')).length;
     expect(togas(rep)).toBe(3);
     expect(togas(flav)).toBe(1);
-    expect(flav.woman.every((g) => g.dress === 'rm-stola')).toBe(true);
-    expect(late.woman.every((g) => g.dress === 'rm-long-tunic')).toBe(true);
-    expect(tet.hand.every((g) => g.legs)).toBe(true);
+    expect(flav.woman.some((g) => g.dress === 'rm-stola') && !flav.woman.some((g) => g.dress === 'rm-long-tunic')).toBe(true);
+    expect(late.woman.some((g) => g.dress === 'rm-long-tunic') && !late.woman.some((g) => g.dress === 'rm-stola')).toBe(true);
+    expect(tet.hand.some((g) => g.dress === 'rm-bracae') && !tet.hand.some((g) => g.dress === 'rm-work-tunic')).toBe(true);
   });
 
   it('draws what a culture does not record from the culture it draws its dress from, at the same year', () => {
@@ -56,7 +68,7 @@ describe('historic dress: what the people wear, read from the record at a year',
 
   it('Sumer: net skirts in the Uruk period, the kaunakes in the Early Dynastic, the fringed shawl under Akkad', () => {
     expect(wardrobeAt('sumer', -3200).man.every((g) => g.dress === 'su-net-skirt')).toBe(true);
-    expect(wardrobeAt('sumer', -2500).man.every((g) => g.dress === 'su-kaunakes')).toBe(true);
+    expect(wardrobeAt('sumer', -2500).man.every((g) => ['su-kaunakes', 'su-sheepskin'].includes(g.dress))).toBe(true);
     expect(wardrobeAt('sumer', -2300).man.some((g) => g.dress === 'su-fringed-shawl')).toBe(true);
   });
 

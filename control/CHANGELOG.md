@@ -539,6 +539,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     from Giza, and Pompeii, before its Roman entries begin, from the Greek tradition.
   - `checkRecord` checks a dress entry like any other: its wearer, its hem, its colours, and that every look
     covers the torso.
+- Cloaks and headwear. The miniature can wear a cloak, hung from a collar over the shoulders, the trunk and the
+  upper arms to the hip or the knee, with the forearms coming out under it. It can also wear one of three head
+  coverings: a `cap`, a broad-brimmed hat (`brim`), or a `veil` that falls past the chin onto the shoulders and
+  leaves the face open. Each is fitted to the posed figure the way the skirt is, in its own colour, and the
+  figure is unchanged without one (`lib/graph/figures/pedestrian-asset.js`). The record now dresses people in:
+  - the Roman paenula, on labourers from the early Empire and on citizens from the 3rd century;
+  - the Roman palla, and the Greek himation, drawn over the head;
+  - the Greek chlamys, from the 5th to the 3rd century, and the petasos on labourers;
+  - the Sumerian sheepskin over the kaunakes;
+  - the fur cap of the Zhao horsemen's dress, and the Qin commoner's black headcloth from 221 BCE.
 - A figure stands on a kerb or a step and refuses a spot taken by anything taller.
 - Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
 - Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
