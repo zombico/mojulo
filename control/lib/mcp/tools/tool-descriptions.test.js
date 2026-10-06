@@ -80,7 +80,6 @@ const DESCRIPTION_ALLOWLIST = {
   // keep" batch growth (drapes channel + detail dial on manji trees, the
   // skin-projection seam pointers, the sketch_polygomer parts grammar).
   // Shrink-only from these snapshots.
-  create_sketch: 4366,
   // mint_solid re-pinned 2026-09-26 (871 -> 915, hero-tune): the `via` clause names the hero door
   // ("hero — a human by cast word + proportion tune"), the one phrase a host needs to find the
   // tune from tools/list; the tune's vocabulary itself is taught in layered.md, off-payload.
@@ -286,7 +285,12 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-05 (268_200 -> 268_400; measured 268,358) merging 1005-figure-consolidation into the release
 // candidate: export_model's `rest` property (the emote bridge's T-pose mold, 'authored' | 'tpose', one sentence) is
 // the growth. Each figure branch was inside its own 267_588 pin; only the sum crossed this one.
-const PAYLOAD_CEILING = 268_400;
+// RATCHETED DOWN 2026-10-06 (268_400 -> 254_600; measured 254,516) for the create_sketch diet: its listing
+// went from 15,532 to 1,690 bytes. The diagram / marks / routing manual moved to the sketch_vocab cards
+// `mark-primitives`, `construction-marks` and `edge-notation`. `bucket` and `preloadMetadata` are still
+// accepted but no longer listed, and the description fits the 700-char ceiling (its allowlist entry is gone).
+// Pinned just above actual so the next feature re-pins consciously. Shrink-only from here.
+const PAYLOAD_CEILING = 254_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

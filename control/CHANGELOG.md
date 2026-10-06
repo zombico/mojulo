@@ -12,6 +12,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### create_sketch diet
+
+`create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now
+lists routing only (1.7 KB), and the manual is read on demand from cards. Nothing it accepts or stores changed.
+
+- **A lean listing.** The description names the kinds (`floorplan`, `store` / `mall` / `restaurant`, `historic`,
+  the painted kinds), the recipe door, hand-built marks and stations, and the world-recipe restore. It points
+  plain flows and charts at `mint_diagram` and says to read the card before minting. `manifest` is an open object.
+  `bucket` and `preloadMetadata` are still accepted but no longer listed, and `preload` lost its nested schema.
+- **New sketch_vocab cards.** `mark-primitives` covers the 2D marks, style fields and station kinds.
+  `construction-marks` covers blob, sphere, egg, cylinder, the volume cup, form, solid, partition, array, the
+  presets, sticker shading, gesture placement and one-point perspective. Defaults are read from the expander, and
+  every example mints. `edge-notation` gains `via` / `curvature` routing.
+- **Ratchet.** The flat `tools/list` pin drops from 268,400 to 254,600 bytes. `create_sketch` leaves the
+  description allowlist because it fits the 700-character ceiling.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

@@ -16,7 +16,7 @@ The control plane must be running at `http://localhost:3001` (or wherever the us
 
 ## Read these first
 
-- [control/lib/mcp/tools/sketches.js](../../../control/lib/mcp/tools/sketches.js) — the tool's schema (`create_sketch` + `get_sketch_vocab`). The description block names what each station kind is for and how `marks`/`grid`/`z` work; don't drift from it.
+- [control/lib/mcp/tools/sketches.js](../../../control/lib/mcp/tools/sketches.js) — the tool's schema (`create_sketch` + `get_sketch_vocab`). The listing is routing only; the manual lives in the sketch_vocab cards `mark-primitives` (station kinds, the 2D marks, style fields), `construction-marks` (round / solid / shaded shapes), `edge-notation` (`via` / `curvature` routing, typed heads), `grid-layout` and `z-layering`. Don't drift from them.
 - [control/lib/graph/sketch-manifest.js](../../../control/lib/graph/sketch/sketch-manifest.js) — the validator + `expandGridLayout`. Your manifest must pass validation; if you violate it the call errors with field-specific feedback.
 - [control/components/graph/CreationMap.jsx](../../../control/components/graph/CreationMap.jsx) — the renderer. Read `STATION_STYLES` for station looks; `edgePath` for `via` routing; `MarkNode` + `wedgePath` for how the chart primitives render.
 - [control/lib/graph/sketch-vocab/](../../../control/lib/graph/sketch-vocab) — the chart vocabulary cards (the source of truth for chart layout). You normally reach these via `semantic_search` + `get_sketch_vocab`, not by reading the dir — but the files are here if you want the full catalog.
