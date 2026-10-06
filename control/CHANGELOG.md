@@ -12,6 +12,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### cook diet
+
+`cook` listed every publication kind's layout manual in `tools/list`: 16.2 KB, the heaviest tool. It now lists
+4.3 KB, and each kind's guide is read for the one kind being published. What cook accepts and makes is unchanged.
+
+- **A lean listing.** The description keeps the three steps (cleave, aim, nucleate) and the authoring model, names
+  the kinds, and says to call `sketch_stash({ intent, target_kind })` before any kind but essay. The deprecated
+  `template` alias is still accepted but no longer listed.
+- **Each kind's guide.** `sketch_stash` answers with `guide`: the kind's layout (how items, drawers and metadata map
+  onto it) and the least content that renders well, word for word what cook's listing used to carry.
+- **Two kinds that could not be scaffolded now can.** `sketch_stash` listed `site` and `photojournal` but refused
+  both. Each now has a stash recipe, and `photojournal` has a guide (it had none).
+- **Ratchet.** The flat `tools/list` pin drops from 268,900 to 256,800 bytes.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

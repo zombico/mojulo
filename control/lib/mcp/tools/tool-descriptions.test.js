@@ -60,7 +60,7 @@ const DESCRIPTION_ALLOWLIST = {
   // fireball, grass fire) to `overrides.fire` over the older carved-solid `flame` and sketch fire; the manual is
   // the 'Fire' section of the dungeon and terrain cards, off-payload.
   compose_world: 1998,
-  cook: 2756,
+  cook: 1093,
   // create_beats / create_figure / export_beats / get_image_render_packet
   // re-pinned 2026-07-13 to bless visualization-layer branch growth measured
   // at the Mojulo Voice landing (figure garment/setup dials, beats export
@@ -148,7 +148,7 @@ const DESCRIPTION_ALLOWLIST = {
   semantic_search: 2049,
   sketch_plan: 774,
   sketch_research: 712,
-  sketch_stash: 1016,
+  sketch_stash: 817,
   sketch_what_possible: 1316,
   stitch_motion: 819,
   synthesize_abstract: 1420,
@@ -290,7 +290,11 @@ const DESCRIPTION_ALLOWLIST = {
 // `score: { mood, seed?, game?, role? }` (the mood and role enums, one sentence each in the description and the
 // property). The description itself shrank to stay under its 1150 allowlist (dropped a stale "new work" line).
 // Re-pinned 2026-10-06 (268_800 -> 268_900) for loop points: export_beats' `loop` property (one sentence).
-const PAYLOAD_CEILING = 268_900;
+// RATCHETED DOWN 2026-10-06 (268_900 -> 256_800; measured 256,767) for the cook diet: cook's listing went
+// from 16,227 to 4,321 bytes. Each publication kind's layout guide left the schema for PUBLICATION_GUIDE in
+// cook.js, returned by sketch_stash({ target_kind }) for the one kind being published; the deprecated
+// `template` alias is still accepted but no longer listed. Shrink-only from here.
+const PAYLOAD_CEILING = 256_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
