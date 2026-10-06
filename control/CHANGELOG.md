@@ -55,6 +55,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - no V–i at the seam;
   - a dynamics ceiling;
   - adventurous moods keep moving.
+- Never the same score twice. `lib/graph/beats/field-score.js` generates field cues from these principles:
+  - `scoreIdentity(gameSeed)` rolls a game's identity: home key, a palette flavour (orchestral, folk, chamber,
+    synth-era, silk-road) with its instruments per role from the shelf, one hall, and a motif rhythm.
+  - `fieldScore(mood, { seed, identity })` rolls a cue inside the mood: mode, tempo, meter, a progression from
+    the mood's harmony family, new melodies, the arrangement order and the gear change.
+  - Same seeds give the same music; new seeds give a different score. Over 60 seeds per mood every melody
+    differs, every key appears, and all 420 recipes are distinct. Cues sharing an identity keep its tonic,
+    palette, hall and motif.
+  - `field-gates.js`: the principles as an advisory check over any beats composition, run on every generated
+    seed and on the hand-written takes. The village take keeps its flute counterline as a recorded exception.
+  - The card tells an agent composing by hand to use a fresh seed and a game identity.
 
 ### Historic city
 

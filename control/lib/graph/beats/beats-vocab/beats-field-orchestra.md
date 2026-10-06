@@ -67,6 +67,24 @@ several themes).
 | betrayal, shock | a brass stab with a tam-tam (`orchestral-perc` 52), then silence |
 | victory | the brass in major, a short fanfare, a crash |
 
+## Never the same score twice
+
+The principles are the rules; everything inside them should differ from game
+to game, or every game sounds alike.
+- **A fresh seed per game and per cue.** Never 1, 7 or 42: a large number
+  of your own. The same seed always replays the same music.
+- **A game identity, chosen once and kept:** a home key; a palette flavour
+  and its instruments per role (orchestral; folk: guitars, banjo, fiddle,
+  harmonica; chamber: marimba, vibraphone, music box, celesta; synth-era:
+  fm-bell, trance-pluck, rhodes, poly-strings; silk-road: shamisen, erhu);
+  one hall (`room`); a motif rhythm that opens every phrase. Two games differ
+  at the root; one game's cues sound like one score.
+- **Per cue, roll inside the mood:** the mode (the same tonic, a different
+  mode per mood), tempo within the step's band, meter, a progression from
+  the mood's harmony family, a new melody (chord tones on strong beats, steps
+  between, rests), which instrument enters first, the gear-change interval.
+- The set below is one roll each, a worked example, not a template.
+
 ## A set, worked
 
 Seven field cues, each a short `beats-composition` loop:
