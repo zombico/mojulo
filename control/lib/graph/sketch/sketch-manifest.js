@@ -58,6 +58,7 @@ export {
   expandAutoLayout,
   expandBoundaries,
   lowerDiagramKinds,
+  loweredDiagramKinds,
 } from '@/lib/diagram-core';
 
 export function validateSketchManifest(manifest) {
