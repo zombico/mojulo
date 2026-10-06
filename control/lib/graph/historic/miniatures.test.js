@@ -90,12 +90,11 @@ describe('historic miniatures', () => {
     }
   });
 
-  it('the historic kind takes people on the city only, checked', () => {
+  it('the historic kind takes people, checked', () => {
     expect(historicOptions({ culture: 'pompeii', people: true }).opts.people).toBe(true);
     expect(historicOptions({ culture: 'pompeii', people: { density: 0.3 } }).opts.people).toEqual({ density: 0.3 });
     expect(historicOptions({ culture: 'pompeii' }).opts.people).toBeUndefined();
     expect(() => historicOptions({ culture: 'pompeii', people: { density: 2 } })).toThrow(/density/);
     expect(() => historicOptions({ culture: 'pompeii', people: 'lots' })).toThrow(/people/);
-    expect(() => historicOptions({ culture: 'thebes', scene: 'farm', people: true })).toThrow(/city/);
   });
 });

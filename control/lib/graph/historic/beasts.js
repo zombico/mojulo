@@ -30,6 +30,7 @@ export const HERDS = {
   sumer: { field: ['ox'], town: ['donkey'] },
   thebes: { field: ['ox'], town: ['donkey'] },
   giza: { field: ['ox'], town: ['donkey'] },
+  egypt: { field: ['ox'], town: ['donkey'] },   // the land the farm and works scenes name
   lindos: { field: ['ox'], town: ['donkey', 'mule'] },
   polis: { field: ['ox'], town: ['donkey', 'mule'] },
   qin: { field: ['ox'], town: ['horse', 'ox'] },

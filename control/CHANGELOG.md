@@ -505,10 +505,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   shades by corner (`cornerFills`), so the low-poly forms read as rounded rather than faceted. The silhouette and
   the face count are unchanged, and a colour edge (a hem, a sleeve, a belly) stays crisp. The pedestrian takes it
   as `smooth`, off by default, so the fractal city's people are unchanged.
+- The region, the farm and the works take `people` too (`lib/graph/historic/crews.js`). Their kits build every
+  tool and building at rest and say who belongs there, and this places them.
+  - Hitching: every yoke with a pole run back from it gets its team, two abreast, necks at the yoke, facing away
+    from the pole. The yoke and the pole's front end lift from the ground to the necks. Oxen draw the plough, the
+    culture's pack animal the cart, oxen or (in Sumer, as its kit says) donkeys the threshing sledge, and horses
+    the chariot. The ploughman stands behind the stilts; any other driver at the head.
+  - Crews: each workshop and farm building names its workers in `CREWS` (reapers bent along the barley's cut edge,
+    diggers in the clay pit, moulders on the brick field, smiths, potters, the haulers ahead of a stone sledge,
+    scribes in the shade). They stand in the slot's own frame, at its working front, inside it or ahead of it,
+    each in a pose for the work. Byres, stables and grain packs get their beasts.
+  - The region's town has its citizens on the town's own claim grid, where the region set it down. Its strip
+    fields have field hands and plough teams, and its estates and quarters their crews.
+  - Outside a town, a figure stands on the scene's own ground heights, so the clay pit's diggers stand on its
+    floor.
+  - With `people` absent every scene is byte-identical, and the CSS pages never draw people. `crews: false` leaves
+    out the crews. The town's own output is unchanged by the shared placing kit this needed (`folkKit`).
 - A figure stands on a kerb or a step and refuses a spot taken by anything taller.
 - Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
-- Not yet: people and beasts in the `region`, `farm` and `works` scenes, carts and wagons, and instanced
-  drawing. Pompeii
+- Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
+  and seated poses (the scribes stand). Pompeii
   with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
   it has no people.
 
