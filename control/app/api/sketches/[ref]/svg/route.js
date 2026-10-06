@@ -48,7 +48,9 @@ export async function GET(request, { params }) {
     // ?panel=<id> — sequential-art scaffolds only: serve one panel's crop
     // (the per-panel render payload for the image-render worker).
     const panelId = url.searchParams.get('panel') || undefined;
-    const body = await renderStoredSketchSvg(sketch, panelId ? { panelId } : {});
+    // backdrop: this file leaves the dashboard (a download, an <img> on a host page), where a
+    // transparent diagram would land on white and its dark-surface ink would wash out.
+    const body = await renderStoredSketchSvg(sketch, panelId ? { panelId, backdrop: true } : { backdrop: true });
 
     const disposition = url.searchParams.get('inline') === '1' ? 'inline' : 'attachment';
     const filename = safeFilename(

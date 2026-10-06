@@ -14,9 +14,14 @@
 import { resolveSignage } from '@/lib/signage-chrome';
 
 const STATION_STYLES = {
+  // Contrast pass (create-sketch-diet): every outline clears the 3:1 a shape boundary needs on every
+  // surface (app floor / export dark / light). input was --border-color, a hairline token at 1.3:1,
+  // so the box all but vanished; filesystem's fixed slate fell to 1.7 on light, db_row's fixed
+  // violet to 2.6-3.0. Token inks re-tint per surface: --text-muted 4.3 / 7.0 / 5.4,
+  // --entity-purple 10.6 / 9.3 / 5.7.
   input: {
     fill: 'rgba(255,255,255,0.02)',
-    stroke: 'var(--border-color)',
+    stroke: 'var(--text-muted)',
     strokeDasharray: '4 3',
     labelFill: 'var(--text-secondary)',
   },
@@ -28,13 +33,13 @@ const STATION_STYLES = {
   },
   filesystem: {
     fill: 'rgba(100,116,139,0.10)',
-    stroke: 'rgba(148,163,184,0.6)',
+    stroke: 'var(--text-muted)',
     strokeDasharray: null,
     labelFill: 'var(--text-secondary)',
   },
   db_row: {
     fill: 'rgba(168,85,247,0.08)',
-    stroke: 'rgba(168,85,247,0.7)',
+    stroke: 'var(--entity-purple)',
     strokeDasharray: null,
     labelFill: 'var(--entity-purple)',
   },
@@ -651,7 +656,7 @@ export default function CreationMap({ manifest, technical = false, compact = fal
           <text
             x={s.x + scale.labelOffsetX}
             y={s.y + scale.sublabelOffsetY}
-            fill="var(--text-muted)"
+            fill="var(--text-secondary)"
             fontSize={scale.sublabelSize}
             fontFamily={
               technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'

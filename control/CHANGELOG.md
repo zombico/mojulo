@@ -53,6 +53,16 @@ biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station
   - An edge with its own `via` or `curvature` is left alone.
 - **`edges[].channel`.** A new optional number pins a `via` edge's lane (x for left/right, y for top/bottom), so
   the lane can clear a wider box between the endpoints. Absent, nothing moves.
+- **Readable without adjustment.** A contrast pass over diagram ink, measured on the app floor, the dark export
+  and the light surface:
+  - **SVG download and inline view:** the dark export was transparent, so opened directly or in a host page's
+    `<img>` its pale ink sat on white at about 1.4:1. The route now paints the surface colour behind the drawing
+    (`renderSketchToSvg({ backdrop: true })`). Decks, outcome pages and world textures, which composite onto
+    their own backdrop, are unchanged.
+  - **Station outlines:** all clear 3:1 on every surface. `input` was a 1.3:1 hairline, `filesystem` fell to 1.7
+    on light, and `db_row` sat at 2.6–3.0; they now use the surface-aware `--text-muted` / `--entity-purple` inks.
+    The `/graph` legend matches.
+  - **Station sublabels:** move from `--text-muted` (about 4.0:1 at 10px) to `--text-secondary` (8:1 or more).
 - **`mint_diagram`.** The listing says boxes are auto-placed when their positions are left out, and its arrowhead
   list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
   form first; `edge-notation` gains `channel`.
