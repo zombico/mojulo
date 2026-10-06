@@ -7,140 +7,10 @@
 // Builder features used: legs: [], ears: false, nose: false, tail: null, extra loft / segment `up`, markings.
 // Worked species: salmon, clownfish, goldfish, angelfish.
 
-const T = 0.004;   // a fin's half-thickness (m, before scale): thin and flat, but a closed solid
-/** A MIDLINE FIN: a loft on a stable +z ring frame (thin across x), from rows [y, zBase, height] — each ring centred
- * half its height above (`dir` 1) or below (-1) zBase, with `bury` of it sunk into the body so it stays attached.
- * The fin's outline is the run of heights: tall at the leading edge, trailing off behind for a raked fin. */
-export function midFin(name, rows, { dir = 1, bury = 0.012, t = T, group = 'Tip' } = {}) {
-  const st = rows.map(([y, z, h]) => ({ at: [0, y, z + dir * (h / 2 - bury)], r: [t, h / 2 + bury] }));
-  const a = st[0].at, b = st[st.length - 1].at;
-  return { name, kind: 'loft', slots: 'ring12', group, mirror: 'plane', up: true, stations: st,
-    caps: { back: [0, a[1] + 0.006, a[2]], tip: [0, b[1] - 0.006, b[2]] } };
-}
-/** A LOBE: a midline loft along any path [[y, z, halfWidth], …] (thin across x) — a caudal lobe, a sail fin. */
-export function lobe(name, rows, { t = T, group = 'Tip' } = {}) {
-  const st = rows.map(([y, z, w]) => ({ at: [0, y, z], r: [t, w] }));
-  const dir = (i, j) => { const dy = st[i].at[1] - st[j].at[1], dz = st[i].at[2] - st[j].at[2], L = Math.hypot(dy, dz) || 1; return [0, dy / L, dz / L]; };
-  const end = (i, j) => st[i].at.map((x, c) => x + dir(i, j)[c] * 0.006), n = st.length;
-  return { name, kind: 'loft', slots: 'ring12', group, mirror: 'plane', up: true, stations: st, caps: { back: end(0, 1), tip: end(n - 1, n - 2) } };
-}
-/** A PAIRED FIN: a flat segment from a root joint to a tip joint, thin along `up` (default +z: lying flat). */
-export const pairFin = (name, from, to, wA, wB, { t = T, up = [0, 0, 1], group = 'Tip' } = {}) =>
-  ({ name, kind: 'segment', from, to, rA: [wA, t], rB: [wB, t * 0.7], slots: 'ring12', over: [0.2, 0.3], group, mirror: 'name', up });
+import { fish, fishMaker, midFin, lobe, pairFin } from '../makers/fish.js';
 
-/** THE FISH HEAD: the body loft carried on to the snout as smooth skull rows (no orbit, no brow, no neck), built from
- * the body's front ring, in the head's own frame (nape on neckTop, `s` metres per head unit). Fields of `H`:
- *   len     the head's length past the body's front row (m) — the snout tip sits at yF + len
- *   taper   [p, q]: the profile F(v) = (1 − v^p)^q over v = 0 (front row) → 1 (snout); a smaller p is more conical
- *   kx      the head's width against the body's front ring; snout (−1 … 1): the tip's height in body half-depths
- *   eye     { at: fraction of `len` behind the snout, h: 0 (side midline) … 1 (top), r: radius in body half-depths }
- *   mouth   'terminal' | 'upturned' (the lower jaw rising to the tip, a kype) | 'small' | 'pointed'
- *   rows    the skull rows' v (default 9 rows, the first two v < −0.15 inside the trunk); add rows for a face band
- *   gill    the operculum edge: fraction of `len` behind the snout (a thin curved ridge; false = none) */
-function fishHead(H, { yF, wF, hF, Z, s, k, lerp }) {
-  const len = H.len ?? 0.14, [tp, tq] = H.taper ?? [1.8, 0.6], kx = H.kx ?? 0.95, zs = (H.snout ?? -0.1) * hF;
-  const E = { at: 0.36, h: 0.35, r: 0.2, ...(H.eye || {}) }, mouth = H.mouth ?? 'terminal';
-  const M = { terminal: { gape: 0.62, up: 0, jut: 0 }, upturned: { gape: 0.58, up: 0.14, jut: 0.03 }, small: { gape: 0.84, up: 0.03, jut: 0 }, pointed: { gape: 0.8, up: 0.08, jut: 0.02 } }[mouth];
-  if (!M) throw new Error(`fishMaker: mouth '${mouth}' is not terminal / upturned / small / pointed`);
-  const F = (v) => (v <= 0 ? 1 : v >= 1 ? 0 : (1 - v ** tp) ** tq);
-  const hp = (y, z) => [(y - (yF + 0.01)) / s, z / s];   // world (y, z above the axis) → head frame (y, z)
-  const ring = (v) => { const y = yF + v * len, f = F(v), fi = v < -0.15 ? 0.45 : 1.01, w = (v <= 0 ? lerp(y, 1) * fi : wF * 1.01 * kx * f ** 0.9), h0 = (v <= 0 ? lerp(y, 2) : hF) * fi;
-    const top = v <= 0 ? h0 : zs + (h0 - zs) * f, bot = v <= 0 ? -h0 : zs - (h0 + zs) * f; return { y, w, top, bot, c: (top + bot) / 2, hh: (top - bot) / 2, e: v <= 0 ? 1 : 0.8 }; };
-  const xAt = (R, z) => R.w * Math.sqrt(Math.max(0, 1 - ((z - R.c) / R.hh) ** 2)) ** R.e;   // the trunk's ellipse inside it, flat-sided past it
-  const mz = (v) => zs + M.up * hF * Math.max(0, (v - M.gape) / (1 - M.gape)) - M.up * hF * 0.5, ov = 0.06 * hF;
-  const V = H.rows ?? [-0.4, -0.22, -0.04, 0.15, 0.35, 0.52, 0.68, 0.82, 0.93];   // v of each skull row; the first two sit small inside the trunk
-  const ANG = [0, 30, 60, 90, 120, 150, 180].map((d) => d * Math.PI / 180);
-  const xz = (x, z, y) => { const [, zh] = hp(y, z); return [x / s, zh]; };
-  const craniumRows = V.map((v, i) => { const R = ring(v), cut = v >= M.gape, lo = cut ? Math.max(R.bot, mz(v) - ov) : R.bot, c = (R.top + lo) / 2, hh = (R.top - lo) / 2;
-    const P = ANG.map((a) => { const z = c + hh * Math.cos(a); return xz(Math.max(xAt(R, z), a > 0 && a < Math.PI ? 0.08 * R.w : 0), z, R.y); });
-    return [`st${i}`, hp(R.y, 0)[0], P[0][1], ...P.slice(1, 6), P[6][1]]; });
-  const tipY = yF + len, tipZ = zs + ov * 0.5;
-  // the lower jaw: from just behind the gape (buried) to the snout, its top on the mouth line, its keel the fish's chin
-  const JV = [M.gape - 0.1, ...V.filter((v) => v >= M.gape)];
-  while (JV.length < 3) JV.splice(1, 0, (JV[0] + JV[1]) / 2);   // the head format's cheek web wants three jaw rows
-  const jawRows = JV.map((v, i) => { const R = ring(v), m = mz(v), sh = i ? 1 : 0.75, b = R.bot * (i ? 1 : 0.9);
-    const zj = (m + b) / 2;
-    return [`st${i}`, hp(R.y, 0)[0], { gum: hp(0, m + ov * 0.6)[1], gumR: xz(xAt(R, m) * 0.97 * sh, m + ov * 0.2, R.y), jaw: xz(xAt(R, zj) * 0.97 * sh, zj, R.y), bottom: hp(0, b)[1] }]; });
-  const jawTip = yF + len * (1 + M.jut);
-  // addresses on the skull: station = a float row index from a fraction of len behind the snout; slot t from height
-  const st = (back) => { const y = yF + len * (1 - back); for (let i = 1; i < V.length; i++) { const y1 = yF + V[i] * len; if (y <= y1) { const y0 = yF + V[i - 1] * len; return i - 1 + (y - y0) / (y1 - y0); } } return V.length - 1; };
-  const eyeS = st(E.at), eyeT = 3 - 3 * E.h, hk = s * k;
-  // THE EYE: a flat disc (iris) with a proud pupil disc, set into the side — no orbit, no lid, no brow (the head
-  // format's own eye region is kept, tiny, inside the trunk). All three details are short sweeps given in the head's
-  // frame (space 'head'), pinned at the nearest skull address.
-  const H3 = (x, y, z) => [x / s, ...hp(y, z)];
-  const Re = E.r * hF, Ry = yF + len * (1 - E.at), RE = ring(1 - E.at), ze = RE.c + E.h * RE.hh, xe = xAt(RE, ze);
-  const disc = (name, r, d0, d1, group) => ({ kind: 'sweep', name, at: [eyeS, eyeT], space: 'head', spine: [H3(xe + d0 * Re, Ry, ze), H3(xe + d1 * Re, Ry, ze)], radii: [r * k, r * k], m: 12, squash: [1, 1], group });
-  const eye = [disc('eyeIris', Re, -0.3, 0.42, 'Iris'), disc('eyePupil', Re * (E.pupil ?? 0.58), -0.1, 0.52, 'Pupil')];
-  // THE MOUTH: a thin dark lip line along the gape, from its corner to the snout tip
-  const lv = [M.gape, (M.gape + 0.97) / 2, 0.97], lr = 0.0035 * (hF / 0.078);
-  const lips = [{ kind: 'sweep', name: 'lip', at: [st(1 - (M.gape + 0.97) / 2), 5], space: 'head', group: 'Mouth', m: 6, squash: [1, 1],
-    spine: lv.map((v) => { const R = ring(v), m = mz(v); return H3(Math.max(xAt(R, m), 0.12 * R.w) + lr * 0.2, R.y, m); }), radii: [0.7, 0.8, 0.5].map((r) => r * lr * k) }];
-  // THE GILL COVER: the operculum's edge, a thin ridge bowed back (a ')' facing the tail) across the cheek
-  const gb = H.gill ?? 0.82, gr = 0.0018 * (hF / 0.078);
-  const gill = H.gill === false ? [] : [{ kind: 'sweep', name: 'gill', at: [st(gb), 3], space: 'head', group: 'Gill', m: 6, squash: [1, 1],
-    spine: [[0.6, 0.72], [-0.3, 0.45], [-0.7, 0], [-0.3, -0.45], [0.6, -0.72]].map(([a, b]) => { const y = yF + len * (1 - gb) + a * len * 0.08, R = ring((y - yF) / len), z = R.c + b * R.hh;
-      return H3(xAt(R, z) + gr * 0.1, y, z); }), radii: [0.5, 0.9, 1, 0.9, 0.5].map((r) => r * gr * k) }];
-  return {
-    craniumRows, jawRows, muzzleFrom: 4, muzzleLen: 1, muzzleW: 1, headScale: s, nape: [0, 0, 0], headRelative: true, relBrow: true,
-    craniumCaps: { back: [0, hp(yF + V[0] * len - 0.01, 0)[0], 0], tip: [0, hp(tipY, 0)[0], hp(0, tipZ)[1]] },
-    jawCaps: { back: [0, hp(yF + (M.gape - 0.1) * len - 0.008, 0)[0], hp(0, (mz(M.gape) + ring(M.gape).bot) / 2)[1]], tip: [0, hp(jawTip, 0)[0], hp(0, mz(1) - ov * 0.3)[1]] },
-    eyeAt: [0.5, 0], eyeR: 0.0004 / hk, orbit: { reach: [0.0002, 0.0002, 0.0002].map((x) => x / s), tuck: 0, bulk: [0, 0], thickness: 0.0002 / s }, orbitFallback: true,
-    // the face strips the head format requires, laid where the body hides them (the skull rows inside the trunk)
-    browStrip: [[0.1, 0.8], [0.3, 0.8], [0.5, 0.8], [0.7, 0.8], [0.9, 0.8]], foldStrip: [[0.1, 2.2], [0.3, 2.2], [0.5, 2.2], [0.7, 2.2], [0.9, 2.2]],
-    nostrilAt: [0.5, 1.5], webCranium: [0.5, 2.5, 0.9], skinControls: { browRaise: { amp: 0.0001, map: [['st1.brow', 0.1, [0, 0, 1]]] } },
-    headOrnaments: [...eye, ...lips, ...gill],
-  };
-}
-
-/** THE FISH MAKER: one compact, species-free description → the species params the fauna builder takes (torso,
- * neck, joints, head shape, every fin as a thin flat closed part, colours, markings). Units: metres BEFORE `scale`
- * (author every fish at ~0.75 m, snout ≈ +0.33, tail tip ≈ −0.43; `scale` = published length ÷ that), +y the head,
- * the body centred at height `Z` (suspended: pose 'swim'). Fields:
- *   body      [[y, halfWidth, halfDepth], …] back (peduncle) → front; level, centred on Z. Fin bases follow it.
- *   head      { scale, len, taper, kx, snout, eye: { at, h, r }, mouth, gill } — the fish's own head (see fishHead)
- *   caudal    { kind: 'forked' | 'lunate' | 'rounded' | 'flowing', len, spread (tip height off the axis), w (lobe half
- *             width), from (y; default the first body row) }
- *   dorsal    [[y, height], …] front → back (a raked fin: tall in front); `dorsal2`, `adipose`, `anal` alike (anal hangs)
- *   sails     { dorsal: [[y, z, w], …], anal: … }: free lobes for fins that sweep far past the body (angelfish)
- *   pectoral  { y, len, w: [root, tip], up?, drop? }   pelvic { y, len, w, up?, drop? } — paired, flat
- *   colors, markings, headPalette, craniumBandGroups, markDensity, name, scale — passed through */
-export function fishMaker(F) {
-  const Z = F.Z ?? 0.5, B = F.body, H = F.head || {};
-  const lerp = (y, k) => { if (y <= B[0][0]) return B[0][k]; for (let i = 1; i < B.length; i++) if (y <= B[i][0]) { const f = (y - B[i - 1][0]) / (B[i][0] - B[i - 1][0]); return B[i - 1][k] + (B[i][k] - B[i - 1][k]) * f; } return B[B.length - 1][k]; };
-  const top = (y) => Z + lerp(y, 2) * 0.97, bot = (y) => Z - lerp(y, 2) * 0.97;
-  const yB = B[0][0], yF = B[B.length - 1][0], [, wF, hF] = B[B.length - 1];
-  const fin = (y, len, w, dropK, sideK, depthK) => [[sideK * lerp(y, 1), y, Z - depthK * lerp(y, 2)], [sideK * lerp(y, 1) + len * 0.45, y - len * 0.85, Z - depthK * lerp(y, 2) - len * dropK]];
-  const pec = F.pectoral, pel = F.pelvic;
-  const [pr, pt] = pec ? fin(pec.y, pec.len, pec.w, pec.drop ?? 0.35, 0.8, 0.45) : [];
-  const [vr, vt] = pel ? fin(pel.y, pel.len, pel.w, pel.drop ?? 0.3, 0.55, 0.85) : [];
-  const C = { kind: 'forked', len: 0.14, spread: 0.1, w: 0.03, ...(F.caudal || {}) }, c0 = C.from ?? yB + 0.01, L = C.len, S = C.spread, W = C.w;
-  const lobes = (sg) => [[c0, Z + sg * 0.005, W * 0.6], [c0 - L * 0.3, Z + sg * S * 0.3, W], [c0 - L * 0.65, Z + sg * S * 0.68, W * 0.8], [c0 - L, Z + sg * S, W * 0.25]];
-  const caudal = C.kind === 'rounded'
-    ? [lobe('caudalUp', lobes(1).map(([y, z, w], i) => [y, Z + (z - Z) * 0.8, w * (i === 3 ? 2 : 1.2)])), lobe('caudalMid', [[c0, Z, W * 0.7], [c0 - L * 0.4, Z, W * 1.4], [c0 - L * 0.85, Z, W * 1.4], [c0 - L, Z, W * 0.6]]),
-      lobe('caudalDn', lobes(-1).map(([y, z, w], i) => [y, Z + (z - Z) * 0.8, w * (i === 3 ? 2 : 1.2)]))]
-    : C.kind === 'lunate' ? [lobe('caudalUp', lobes(1).map(([y, z, w], i) => [y + (i ? L * 0.3 * i / 3 : 0), z, w * 0.7])), lobe('caudalDn', lobes(-1).map(([y, z, w], i) => [y + (i ? L * 0.3 * i / 3 : 0), z, w * 0.7]))]
-      : [lobe('caudalUp', lobes(1)), lobe('caudalDn', lobes(-1))];   // forked, flowing (a long forked tail: give it len / w)
-  const mid = (name, rows, dir) => rows && midFin(name, rows.map(([y, h]) => [y, dir > 0 ? top(y) : bot(y), h]), { dir });
-  const fins = [
-    mid('dorsal', F.dorsal, 1), mid('dorsal2', F.dorsal2, 1), mid('adipose', F.adipose, 1), mid('anal', F.anal, -1),
-    ...Object.entries(F.sails || {}).map(([n, rows]) => lobe(n, rows.map(([y, z, w]) => [y, Z + z, w]))),
-    ...caudal,
-    ...(pec ? [pairFin('pectoralR', 'pecRoot', 'pecTip', pec.w[0], pec.w[1], pec.up ? { up: pec.up } : {})] : []),
-    ...(pel ? [pairFin('pelvicR', 'pelRoot', 'pelTip', pel.w[0], pel.w[1], pel.up ? { up: pel.up } : {})] : []),
-  ].filter(Boolean);
-  return {
-    family: 'teleost', pose: 'swim', ...(F.name ? { name: F.name } : {}), scale: F.scale ?? 1,
-    joints: { neckBase: [0, yF - 0.05, Z], neckTop: [0, yF + 0.01, Z], ...(pec ? { pecRoot: pr, pecTip: pt } : {}), ...(pel ? { pelRoot: vr, pelTip: vt } : {}) },
-    torso: B.map(([y, w, h]) => ({ at: [0, y, Z], r: [w, h] })),
-    torsoCaps: { back: [0, yB - 0.015, Z], tip: [0, yF + 0.025, Z] },
-    neckRA: [wF * 0.85, hF * 0.85], neckRB: [wF * 0.8, hF * 0.8], neckRMid: [wF * 0.85, hF * 0.85],
-    ...fishHead(H, { yF, wF, hF, Z, s: H.scale ?? 0.42, k: F.scale ?? 1, lerp }),
-    extraSegments: fins,
-    ...Object.fromEntries(['colors', 'markings', 'craniumBandGroups', 'markDensity'].filter((k) => F[k]).map((k) => [k, F[k]])),
-    headPalette: { Palate: F.colors?.belly ?? '#eef1f2', Gill: F.colors?.gill ?? '#7d8a91', Mouth: '#2a2426', ...(F.headPalette || {}) },
-  };
-}
+// the generator (and its fin helpers) live in makers/fish.js; re-exported for existing callers
+export { fishMaker, midFin, lobe, pairFin };
 
 // ── the species, each one call to the maker (salmon also seeds the family tables) ──
 // ATLANTIC SALMON (Salmo salar). Thesis: a FUSIFORM, laterally compressed torpedo, deepest a third back, a slim
@@ -249,4 +119,22 @@ export const species = {
     colors: { gill: '#8e928a', coat: '#c9ccc4', sock: '#c9ccc4', ash: '#d8dad2', ashAlt: '#cfd1c9', belly: '#dfe0d8', tip: '#b8bcb4', brow: '#c9ccc4', iris: '#c43a2a', sclera: '#141414' },
     headPalette: { Bar: '#22211f' },
   }),
+  // GREEN MORAY EEL (Gymnothorax funebris) — written purely as a maker call. Thesis: a very ELONGATE, laterally
+  // compressed, scaleless body (depth ~1/14 of length) · NO pectoral and NO pelvic fins · ONE CONTINUOUS low dorsal fin
+  // from just behind the head to the tail, joined round a small rounded tail tip to a continuous anal fin · a blunt
+  // head with a large terminal mouth, small eye high and forward, no visible gill cover (a small round gill opening) ·
+  // uniform dark olive-green · ~1.8 m total length (Wikipedia / FishBase: commonly 1.8 m, up to 2.5 m).
+  morayEel: fish({
+    skeleton: 'bony', name: 'a green moray eel', length: 1.8, Z: 0.5,
+    body: [[-0.37, 0.008, 0.018], [-0.3, 0.014, 0.026], [-0.18, 0.019, 0.03], [-0.04, 0.022, 0.032], [0.08, 0.024, 0.032], [0.18, 0.024, 0.03], [0.24, 0.022, 0.027]],
+    head: { scale: 0.34, len: 0.085, taper: [1.5, 0.6], snout: 0.0, eye: { at: 0.22, h: 0.65, r: 0.16 }, mouth: 'terminal', gill: false },
+    caudal: { kind: 'rounded', from: -0.36, len: 0.035, spread: 0.02, w: 0.012 },
+    dorsal: [[0.2, 0.004], [0.17, 0.016], [0.0, 0.02], [-0.18, 0.02], [-0.3, 0.017], [-0.36, 0.01]],
+    anal: [[-0.02, 0.004], [-0.05, 0.013], [-0.2, 0.015], [-0.32, 0.013], [-0.36, 0.008]],
+    pectoral: null, pelvic: null,
+    pattern: { back: '#3f5a2c', belly: '#5f7a3a', from: 0.8 },
+    colors: { iris: '#c8b030', sclera: '#141414', gill: '#3f5a2c' },
+    headPalette: { Mouth: '#1c1a14' },
+  }),
 };
+

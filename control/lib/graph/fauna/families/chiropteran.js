@@ -6,30 +6,9 @@
 // `wings.fold` 0 spreads them (span at true scale). Tables are authored in metres at flying-fox size. Worked
 // species: the Indian flying fox (fruitBat).
 
-const lerp = (a, b, t) => a + (b - a) * t;
+import { membraneWing } from '../makers/wing.js';
 
-/** A MEMBRANE wing as data for wing.js: the DRAGON_WING layout (humerus, forearm, digits V–II carrying the membrane,
- * a free thumb I), every length and radius × `k` (1 = the 4 m-span dragon), the folded pose and the frames for a
- * crawling bat. `fold` angles: the humerus back and down, the forearm forward-down to the wrist on the ground. */
-export function membraneWing(k = 0.19, { humerusFold = -73, forearmFold = 143, digitFold = [176, 177, 178, 179] } = {}) {
-  const r = (a) => a.map((x) => x * k);
-  return { girdle: 'torso', boneGroup: 'WingBone', surface: 'membrane',
-    arm: [{ id: 'wingHumerus', len: 0.55 * k, spread: 20, folded: humerusFold, r: r([0.075, 0.055]) }, { id: 'wingForearm', len: 0.85 * k, spread: -30, folded: forearmFold, r: r([0.05, 0.035]) }],
-    rays: [
-      { name: 'body', bone: 0, at: 0, angle: 105, foldAngle: 12, len: 1.05 * k },
-      { digit: 'V', bone: 1, at: 1, angle: 78, foldAngle: digitFold[0], len: 1.25 * k, r: r([0.028, 0.012]), offset: 0.03 * k },
-      { digit: 'IV', bone: 1, at: 1, angle: 52, foldAngle: digitFold[1], len: 1.55 * k, r: r([0.03, 0.012]), offset: 0.03 * k },
-      { digit: 'III', bone: 1, at: 1, angle: 28, foldAngle: digitFold[2], len: 1.7 * k, r: r([0.032, 0.012]), offset: 0.03 * k },
-      { digit: 'II', bone: 1, at: 1, angle: 8, foldAngle: digitFold[3], len: 1.5 * k, r: r([0.032, 0.014]), offset: 0.03 * k, claw: 0.07 * k },
-      { digit: 'I', bone: 1, at: 1, angle: -35, foldAngle: -40, len: 0.16 * k, r: r([0.03, 0.02]), phalanges: 2, claw: 0.09 * k },
-    ],
-    membrane: { order: [0, 1, 2, 3, 4], sag: [0.22, 0.3, 0.27, 0.24], sub: 10, along: [0, 0.12, 0.28, 0.46, 0.66, 0.84, 1], thickness: 0.007 * k, root: 3, bone: 0.03 * k,
-      groups: { top: 'MembraneBack', under: 'MembraneUnder', rim: 'MembraneRim', vein: 'Vein' }, veins: { every: 3, r: 0.009 * k, to: 0.8 } },
-    // spread: the wing plane level, out to the side; folded: the plane standing down the flank (span axis down and a
-    // little out, chord axis forward)
-    frame: { spread: { S: [1, 0, -0.17], C: [0, 1, -0.12] }, folded: { S: [0.35, 0, -1], C: [0, 1, 0] } } };
-}
-void lerp;
+export { membraneWing };   // lives in makers/wing.js
 
 const WING_PALETTE = { MembraneBack: '#2e241e', MembraneUnder: '#3d2f27', MembraneRim: '#1e1814', Vein: '#4a382c', WingBone: '#2e241e', Claw: '#d9d0bd' };
 

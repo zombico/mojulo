@@ -32,9 +32,27 @@ import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
 import { SPECIES as FAUNA, speciesPlan } from '@/lib/graph/fauna/species';
+import { FAMILIES } from '@/lib/graph/fauna/families';
+import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
+import { fish } from '@/lib/graph/fauna/makers/fish';
+import { serpent } from '@/lib/graph/fauna/makers/serpent';
 import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
+// The MAKER door: a species-free body maker (fauna/makers/) called with params, merged over its family's table.
+const MAKERS = { fish, serpent };
+const MAKER_HINT = "read get_solid_vocab({ id: 'animal' }) for the maker parameter tables";
+
+/** maker params → a ring plan (the maker's fauna params over the family table, built). Throws a teaching error. */
+export function makerPlan(maker, params) {
+  if (!MAKERS[maker]) throw new Error(`\`maker\` must be one of ${Object.keys(MAKERS).join(', ')} (got ${JSON.stringify(maker)}) — ${MAKER_HINT}`);
+  if (params !== undefined && params !== null && (typeof params !== 'object' || Array.isArray(params))) throw new Error(`\`params\` must be an object of ${maker} maker parameters — ${MAKER_HINT}`);
+  let p;
+  try { p = MAKERS[maker](params || {}); }
+  catch (err) { throw new Error(`${err.message} — ${MAKER_HINT}`); }
+  return buildFauna(mergeParams(FAMILIES[p.family], p));
+}
+
 const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(ZOO_BUILDS)])];
 
 // Deep-merge the caller's `opts` over a species recipe's own, one level into each
@@ -53,7 +71,9 @@ function mergeOpts(base, over) {
 
 export async function createAnimalHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('the animal kind requires { title }');
-  const { title, species, archetype, view, elev, crop, background, ref, folder_ref: folderRef } = input;
+  const { species, archetype, view, elev, crop, background, ref, folder_ref: folderRef, maker } = input;
+  let { params } = input;
+  const title = input.title;
   // Defensive transport parse: some MCP clients deliver object-valued params as
   // JSON strings (same guard as createFigureHandler).
   let { opts } = input;
@@ -63,6 +83,16 @@ export async function createAnimalHandler(input) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {
     throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
+  }
+  if (maker !== undefined && maker !== null) {
+    if (species || archetype) throw new Error('pass `maker` (+ `params`) OR `species` OR `archetype`, not several');
+    if (typeof params === 'string' && /^\s*[{[]/.test(params)) { try { params = JSON.parse(params); } catch { /* rejected below */ } }
+    const plan = makerPlan(maker, params);
+    const res = await createLayeredPlanHandler({
+      title, plan, plan_audit: { source: 'agent' },
+      ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
+    });
+    return { ...res, maker, stance: maker === 'fish' ? 'swim' : 'legless' };
   }
   if (species !== undefined && species !== null && !SPECIES.includes(species)) {
     throw new Error(`\`species\` must be one of ${SPECIES.join(', ')} — or omit it and pass \`archetype\` for the bare body`);

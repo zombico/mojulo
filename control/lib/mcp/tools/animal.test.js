@@ -89,3 +89,46 @@ describe("mint_solid kind 'animal'", () => {
     expect(card.family).toBe('creature');
   });
 });
+
+describe("mint_solid kind 'animal' — the maker door", () => {
+  const closed = async (plan) => {
+    const { expandPlan } = await import('@/lib/graph/polygonizer/station-loft-plan.js');
+    const { compileLayered, auditLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
+    return Object.entries(auditLayered(compileLayered(expandPlan(plan)))).filter(([, r]) => !r.pass).map(([n]) => n);
+  };
+
+  it('every maker builds a closed plan with its defaults', async () => {
+    const { makerPlan } = await import('@/lib/mcp/tools/animal');
+    for (const [m, p] of [['fish', {}], ['fish', { skeleton: 'cartilage' }], ['serpent', {}]]) expect(await closed(makerPlan(m, p))).toEqual([]);
+  });
+
+  it('mints a custom fish and a custom serpent, deterministically', async () => {
+    const { makerPlan } = await import('@/lib/mcp/tools/animal');
+    const eel = { length: 1.2, body: [[-0.37, 0.008, 0.018], [-0.18, 0.019, 0.03], [0.08, 0.024, 0.032], [0.24, 0.022, 0.027]],
+      dorsal: [[0.2, 0.004], [0.0, 0.02], [-0.36, 0.01]], pectoral: null, pelvic: null, caudal: { kind: 'rounded', from: -0.36, len: 0.035 } };
+    const snake = { girth: [0.05, 0.045], head: { shape: 'viper', scale: 0.2, skull: [1.3, 0.7] },
+      path: { kind: 'raised', height: 0.4, ground: [[0.1, -0.6], [-0.1, -0.9], [0.1, -1.2]] } };
+    expect(JSON.stringify(makerPlan('fish', eel))).toBe(JSON.stringify(makerPlan('fish', eel)));
+    expect(JSON.stringify(makerPlan('serpent', snake))).toBe(JSON.stringify(makerPlan('serpent', snake)));
+    expect(await closed(makerPlan('fish', eel))).toEqual([]);
+    const a = await mintSolidHandler({ kind: 'animal', title: 'Eel', ref: 'an_mk_eel', spec: { maker: 'fish', params: eel } });
+    const b = await mintSolidHandler({ kind: 'animal', ref: 'an_mk_snake', spec: { maker: 'serpent', params: snake, title: 'Viper' } });
+    expect(a.ok && b.ok).toBe(true);
+    expect(a.maker).toBe('fish');
+    expect(SketchRepository.getByRef('an_mk_eel').manifest.kind).toBe('layered');
+    expect(SketchRepository.getByRef('an_mk_snake').manifest.kind).toBe('layered');
+  });
+
+  it('bad params error helpfully, pointing at the card', async () => {
+    const bad = (spec) => expect(mintSolidHandler({ kind: 'animal', title: 'x', spec })).rejects.toThrow(/get_solid_vocab/);
+    await bad({ maker: 'bird' });
+    await bad({ maker: 'fish', params: { skeleton: 'bone' } });
+    await bad({ maker: 'fish', params: { fins: 3 } });
+    await bad({ maker: 'fish', params: { head: { mouth: 'beak' } } });
+    await bad({ maker: 'fish', params: { length: -1 } });
+    await bad({ maker: 'serpent', params: { path: { kind: 'zigzag' } } });
+    await bad({ maker: 'serpent', params: { head: { shape: 'round' } } });
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', params: { head: { mouth: 'beak' } } } })).rejects.toThrow(/terminal \| upturned/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'serpent', params: { girth: [5, 5] } } })).rejects.toThrow(/girth/);
+  });
+});

@@ -3,29 +3,9 @@
 // a short tail. No ears. Worked species: the griffon vulture. See ../build.js for what every field does; `wings`
 // is { wing: <wing data>, at: <root joint>, fold: 0 spread … 1 folded, palette }.
 
-const lerp = (a, b, t) => a + (b - a) * t;
-const hash = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+import { featherWing } from '../makers/wing.js';
 
-/** A FEATHERED wing as data for wing.js (vanes): tertials on the humerus, secondaries on the ulna, primaries on the
- * hand (the outer ones emarginated into slots), greater and lesser covert rows over them, seeded tones. The
- * defaults are a broad soaring wing of ~2.5 m span (griffon); a second bird passes its own numbers. */
-export function featherWing({ arm = [0.2, 0.29, 0.2], tertials = 3, secondaries = 16, primaries = 10, secLen = 0.44, primLen = 0.5, primReach = 0.16,
-  slotFrom = 0.35, slotBy = 0.55, width = 0.085, tertialLen = 1, tertialWidth = 1, boneR = 1 } = {}) {
-  const rays = []; const add1 = (o) => rays.push(o);
-  for (let k = 0; k < tertials; k++) add1({ kind: 'tertial', bone: 0, at: 0.55 + 0.2 * k, angle: 100, foldAngle: 5, len: (0.3 + 0.03 * k) * tertialLen, width: 0.1 * tertialWidth, layer: 0.012 - 0.002 * k, group: 'Flight' });
-  const S = secondaries - 1;
-  for (let k = 0; k < secondaries; k++) add1({ kind: 'secondary', bone: 1, at: 0.03 + 0.97 * k / S, angle: 98 - 3 * (k / S), foldAngle: 176, len: secLen + 0.03 * Math.sin(Math.PI * k / S), width, layer: 0.004 * (S - k) / S, group: 'Flight' });
-  for (let k = 0; k < primaries; k++) { const t = k / (primaries - 1); add1({ kind: 'primary', bone: 2, at: 0.1 + 0.9 * t, angle: lerp(95, 8, t ** 0.9), foldAngle: 4, len: primLen + primReach * Math.sin(Math.PI * Math.min(1, t * 1.15)), width: lerp(width, width * 0.82, t), layer: 0.006 + 0.004 * t,
-    emarg: t > slotFrom ? { from: 0.45, by: slotBy } : null, group: 'Flight' }); }
-  const flight = rays.filter((r) => r.kind !== 'tertial');
-  for (const [row, frac, z] of [['greater', 0.42, 0.022], ['lesser', 0.22, 0.034]]) flight.forEach((r) => add1({ ...r, kind: `${row}Covert`, len: r.len * frac, width: r.width * 1.05, emarg: null, layer: z + (r.layer ?? 0), group: row === 'greater' ? 'Covert' : 'CovertLesser' }));
-  const TONES = { Flight: { tones: ['FlightA', 'FlightB', 'FlightC'], under: 'FlightUnder' }, Covert: { tones: ['CovertA', 'CovertB', 'CovertC'], under: 'CovertUnder', tipGroup: 'CovertTip', tipFrom: 0.62 },
-    CovertLesser: { tones: ['LesserA', 'LesserB', 'LesserC'], under: 'CovertUnder', tipGroup: 'LesserTip', tipFrom: 0.8 } };
-  rays.forEach((r, i) => { const T = TONES[r.group]; const k = (i + (hash(`${r.kind}${i}`) % 5 === 0 ? 1 : 0)) % 2 + (hash(`t${r.kind}${i}`) % 7 === 0 ? 1 : 0); Object.assign(r, { tone: T.tones[k], under: T.under, ...(T.tipGroup ? { tipGroup: T.tipGroup, tipFrom: T.tipFrom } : {}) }); });
-  return { girdle: 'torso', boneGroup: 'WingBone', surface: 'vanes',
-    arm: [{ id: 'humerus', len: arm[0], spread: 8, folded: -80, r: [0.035 * boneR, 0.03 * boneR] }, { id: 'ulna', len: arm[1], spread: -6, folded: 168, r: [0.03 * boneR, 0.025 * boneR] }, { id: 'hand', len: arm[2], spread: -6, folded: -165, r: [0.025 * boneR, 0.015 * boneR] }],
-    rays, frame: { spread: { S: [1, 0, 0.14], C: [0, 1, 0] }, folded: { S: [0.2, 0, -1], C: [0, 1, 0] } } };
-}
+export { featherWing };   // lives in makers/wing.js
 
 const WING_PALETTE = { WingBone: '#7d5f40', FlightA: '#33271f', FlightB: '#43342a', FlightC: '#54433a', FlightUnder: '#8d8680',
   CovertA: '#9a7a52', CovertB: '#a98a60', CovertC: '#8b6c47', CovertTip: '#efe6d2', CovertUnder: '#e6dccb',

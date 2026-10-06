@@ -24,12 +24,44 @@ The difference is the BODY MODEL, not the species list. Both accept `opts` on to
 
 Pass `species` alone, `archetype` alone, or both (an explicit archetype overrides the species' own — e.g. a wolf recipe's coat and face on the `ursine` frame).
 
+## The maker door — a NEW fish or snake from parameters
+
+Bodies that parameterize to many animals have species-free MAKERS (`lib/graph/fauna/makers/`). `spec: { maker, params }` builds a watertight ring plan from the maker's params over its family table and mints it like a `species` (kind `layered`, tune with `/plan/...`). Every param is optional (defaults: a generic salmon-shaped fish / shark / ~2 m snake); object params merge one level over the default's. Units are metres.
+
+| maker | param | takes |
+|---|---|---|
+| `fish` | `skeleton` | `'bony'` (teleost, default) \| `'cartilage'` (shark / ray) |
+| | `length` | total length m, 0.01–40 (sets `scale`) |
+| | `body` (bony) | `[[y, halfWidth, halfDepth], …]` tail → front, authored at ~0.75 m |
+| | `head` (bony) | `{ scale, len, taper, kx, snout, eye: { at, h, r }, mouth: terminal\|upturned\|small\|pointed, gill }` |
+| | `caudal` | bony `{ kind: forked\|lunate\|rounded\|flowing, from, len, spread, w }`; cartilage `{ upper, lower }` |
+| | `dorsal`, `anal`, `adipose`, `dorsal2` | bony `[[y, height], …]` front → back (one long run = a continuous fin), `null` = none |
+| | `pectoral`, `pelvic` | bony `{ y, len, w: [root, tip] }`, `null` = none |
+| | `pattern` | `{ back, belly, from }` countershading |
+| | `profile`, `snout`, `neck`, `head`, `gills`, `eye`, `mouth` (cartilage) | see `makers/fish.js` header |
+| `serpent` | `path` | `{ kind: 'raised', height, ground }` \| `{ kind: 'coil', height, neck, centre, r, turns, lift }` \| `{ kind: 'arches', … }` \| `{ kind: 'pts', pts: [[x, y, h], …] }` |
+| | `girth`, `profile`, `n` | `[halfWidth, halfHeight]` m; `[[u, ×], …]` head → tail; stations 24–200 |
+| | `head` | `{ shape: blunt\|viper\|slender\|coffin\|dragon, scale, skull: [w×, h×], muzzle: [w×, len×], eyeR, tongue }` |
+| | `hood`, `tail`, `crest` | cobra hood; `{ kind: 'rattle', beads }`; back frill |
+| | `pattern`, `colors` | markings on `'body'` (band / belly / stripes / patch); colour slots |
+
+```
+mint_solid({ kind: 'animal', title: 'Moray', spec: { maker: 'fish', params: { length: 1.8,
+  body: [[-0.37, 0.008, 0.018], [-0.18, 0.019, 0.03], [0.08, 0.024, 0.032], [0.24, 0.022, 0.027]],
+  dorsal: [[0.2, 0.004], [0.0, 0.02], [-0.36, 0.01]], pectoral: null, pelvic: null,
+  caudal: { kind: 'rounded', from: -0.36, len: 0.035 }, pattern: { back: '#3f5a2c', belly: '#5f7a3a' } } } })
+mint_solid({ kind: 'animal', title: 'Anaconda', spec: { maker: 'serpent', params: { girth: [0.15, 0.13],
+  path: { kind: 'coil', height: 0.04, neck: [[-0.35, 0.02], [-0.9, 0]], centre: [0.15, -1.5], r: [0.42, 0.85], turns: 0.75 },
+  head: { shape: 'blunt', scale: 0.5 } } } })
+```
+
 ## Spec shape
 
 `title`, `ref`, and `folder_ref` are passed at the mint's top level. Everything below goes in `spec`.
 
 ```
 spec: {
+  maker?:     'fish'|'serpent', params?: { …maker params, see the maker door },
   species?:   'wolf'|'fox'|'camel'|'kangaroo'|'redPanda'|'deer'|'buck'|'gazelle'|
               'lion'|'cougar'|'hippo'|'rhino'|'horse'|'ram'|'bull'|'wombat',
   archetype?: 'rodent'|'canine'|'feline'|'stumpy'|'equine'|'gazelle'|'sauropod'|
